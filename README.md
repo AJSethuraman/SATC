@@ -13,8 +13,8 @@ A simple local web app for generating client task checklists from predefined acc
 
 - Enter a client name, due date, and workflow to generate a checklist.
 - Each generated task includes a suggested date based on the final due date.
-- Answer optional intake questions for workflows that support conditional tasks.
-- Rental property tax prep adds extra tasks when intake answers identify purchases, sales, improvements, personal use, short-term rental activity, out-of-state property, property manager use, refinancing or new mortgages, or casualty and insurance claim activity.
+- Answer optional intake questions for any workflow to add matching conditional tasks.
+- Review generated tasks grouped by category, with badges for internal work versus client-facing document requests or follow-up.
 - Mark tasks complete as work progresses.
 - Add notes to individual tasks for questions, follow-up items, or status updates.
 - Save all checklist data, intake answers, task completion, and notes in browser local storage.

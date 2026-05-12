@@ -100,6 +100,27 @@ function getIntakeAnswers(formData, workflowKey) {
   }, {});
 }
 
+function formatAudience(audience) {
+  if (audience === 'client') {
+    return 'Client-facing';
+  }
+
+  return 'Internal';
+}
+
+function groupTasksByCategory(tasks) {
+  return tasks.reduce((groups, task) => {
+    const category = task.category || 'General';
+
+    if (!groups.has(category)) {
+      groups.set(category, []);
+    }
+
+    groups.get(category).push(task);
+    return groups;
+  }, new Map());
+}
+
 function formatAnswer(value) {
   if (value === 'yes') {
     return 'Yes';
@@ -178,29 +199,48 @@ function createChecklistCard(checklist) {
       <button class="button button-danger" data-action="delete-checklist" type="button">Delete</button>
     </div>
     ${intakeSummary}
-    <ol class="task-list"></ol>
+    <div class="task-groups"></div>
   `;
 
-  const taskList = article.querySelector('.task-list');
+  const taskGroups = article.querySelector('.task-groups');
 
-  checklist.tasks.forEach((task) => {
-    const taskItem = document.createElement('li');
-    taskItem.className = task.completed ? 'task-item is-complete' : 'task-item';
-    taskItem.dataset.taskId = task.id;
-    taskItem.innerHTML = `
-      <div class="task-main">
-        <label class="task-check">
-          <input type="checkbox" ${task.completed ? 'checked' : ''} data-action="toggle-task" />
-          <span>${escapeHtml(task.title)}</span>
-        </label>
-        <time datetime="${task.suggestedDate}">${formatDate(task.suggestedDate)}</time>
+  groupTasksByCategory(checklist.tasks).forEach((tasks, category) => {
+    const categorySection = document.createElement('section');
+    categorySection.className = 'task-category';
+    categorySection.innerHTML = `
+      <div class="category-heading">
+        <h4>${escapeHtml(category)}</h4>
+        <span>${tasks.length} task${tasks.length === 1 ? '' : 's'}</span>
       </div>
-      <label class="notes-label">
-        Notes
-        <textarea data-action="update-notes" rows="2" placeholder="Add notes, questions, or follow-up details">${escapeHtml(task.notes)}</textarea>
-      </label>
+      <ol class="task-list"></ol>
     `;
-    taskList.append(taskItem);
+
+    const taskList = categorySection.querySelector('.task-list');
+
+    tasks.forEach((task) => {
+      const taskItem = document.createElement('li');
+      taskItem.className = task.completed ? 'task-item is-complete' : 'task-item';
+      taskItem.dataset.taskId = task.id;
+      taskItem.innerHTML = `
+        <div class="task-main">
+          <label class="task-check">
+            <input type="checkbox" ${task.completed ? 'checked' : ''} data-action="toggle-task" />
+            <span>${escapeHtml(task.title)}</span>
+          </label>
+          <div class="task-meta">
+            <span class="audience-badge audience-${escapeHtml(task.audience || 'internal')}">${escapeHtml(task.audienceLabel || formatAudience(task.audience))}</span>
+            <time datetime="${task.suggestedDate}">${formatDate(task.suggestedDate)}</time>
+          </div>
+        </div>
+        <label class="notes-label">
+          Notes
+          <textarea data-action="update-notes" rows="2" placeholder="Add notes, questions, or follow-up details">${escapeHtml(task.notes)}</textarea>
+        </label>
+      `;
+      taskList.append(taskItem);
+    });
+
+    taskGroups.append(categorySection);
   });
 
   return article;
