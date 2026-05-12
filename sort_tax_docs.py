@@ -136,6 +136,24 @@ BROKERAGE_INDICATORS = (
     "PUBLIC INVESTING",
 )
 
+W2_STRUCTURAL_INDICATORS = (
+    "EMPLOYEE'S SOCIAL SECURITY NUMBER",
+    "EMPLOYER IDENTIFICATION NUMBER",
+    "EMPLOYER'S NAME, ADDRESS, AND ZIP CODE",
+    "WAGES, TIPS, OTHER COMPENSATION",
+    "FEDERAL INCOME TAX WITHHELD",
+    "SOCIAL SECURITY WAGES",
+    "MEDICARE WAGES AND TIPS",
+    "CONTROL NUMBER",
+    "SOCIAL SECURITY TAX WITHHELD",
+    "MEDICARE TAX WITHHELD",
+    "ALLOCATED TIPS",
+    "DEPENDENT CARE BENEFITS",
+    "NONQUALIFIED PLANS",
+)
+W2_STRUCTURAL_MIN_MATCHES = 4
+W2_STRUCTURAL_SCORE = 8
+
 CATEGORY_THRESHOLDS = {
     "W2": 8,
     "1099_NEC": 8,
@@ -309,6 +327,18 @@ def extract_pdf_selectable_text(file_path: Path) -> str:
     return "\n".join(text_parts).strip()
 
 
+def preprocess_image_for_ocr(image):
+    """Apply simple local Pillow preprocessing before Tesseract OCR."""
+
+    from PIL import ImageEnhance, ImageFilter, ImageOps
+
+    grayscale = ImageOps.grayscale(image)
+    contrasted = ImageOps.autocontrast(grayscale)
+    contrasted = ImageEnhance.Contrast(contrasted).enhance(1.8)
+    sharpened = ImageEnhance.Sharpness(contrasted).enhance(1.5)
+    return sharpened.filter(ImageFilter.SHARPEN)
+
+
 def ocr_pdf(file_path: Path) -> str:
     """OCR a scanned PDF by rendering each page to an image locally."""
 
@@ -323,7 +353,7 @@ def ocr_pdf(file_path: Path) -> str:
             logging.debug("OCR PDF page %s of %s", page_number, file_path.name)
             pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
             image = Image.frombytes("RGB", [pixmap.width, pixmap.height], pixmap.samples)
-            text_parts.append(pytesseract.image_to_string(image))
+            text_parts.append(pytesseract.image_to_string(preprocess_image_for_ocr(image)))
     return "\n".join(text_parts).strip()
 
 
@@ -338,7 +368,7 @@ def ocr_image(file_path: Path) -> str:
     with Image.open(file_path) as image:
         for page_number, frame in enumerate(ImageSequence.Iterator(image), start=1):
             logging.debug("OCR image page %s of %s", page_number, file_path.name)
-            text_parts.append(pytesseract.image_to_string(frame.convert("RGB")))
+            text_parts.append(pytesseract.image_to_string(preprocess_image_for_ocr(frame)))
     return "\n".join(text_parts).strip()
 
 
@@ -424,7 +454,16 @@ def score_categories(text: str) -> tuple[dict[str, int], dict[str, list[str]], l
             scores["Brokerage_1099B"] += 4
             matched_keywords["Brokerage_1099B"].append(indicator)
 
-    has_1099_nec = "1099-NEC" in normalized_text
+    w2_structural_matches = [
+        indicator
+        for indicator in W2_STRUCTURAL_INDICATORS
+        if normalize_text(indicator) in normalized_text
+    ]
+    if len(w2_structural_matches) >= W2_STRUCTURAL_MIN_MATCHES:
+        scores["W2"] += W2_STRUCTURAL_SCORE
+        matched_keywords["W2"].extend(w2_structural_matches)
+
+    has_1099_nec = "1099-NEC" in normalized_text or "NONEMPLOYEE COMPENSATION" in normalized_text
     has_1099_misc = "1099-MISC" in normalized_text
     has_brokerage_indicator = any(
         keyword in normalized_text
@@ -443,6 +482,7 @@ def score_categories(text: str) -> tuple[dict[str, int], dict[str, list[str]], l
             scores["1099_MISC"] = 0
         notes.append("Brokerage indicators present; prevented W2/1099_MISC misclassification.")
     if has_1098_tuition:
+        scores["W2"] = 0
         scores["1098_Mortgage"] = 0
         notes.append("1098-T indicator present; prevented mortgage 1098 misclassification.")
 

@@ -21,6 +21,25 @@ class ClassificationTests(unittest.TestCase):
     def test_clear_w2(self) -> None:
         self.assert_category("Form W-2 Wage and Tax Statement", "W2")
 
+    def test_exact_form_w2_text(self) -> None:
+        self.assert_category("Form W-2", "W2")
+
+    def test_exact_wage_and_tax_statement_text(self) -> None:
+        self.assert_category("Wage and Tax Statement", "W2")
+
+    def test_w2_structural_text_without_exact_form_title(self) -> None:
+        result = classify_text(
+            "Employee's social security number Employer identification number "
+            "Employer's name, address, and ZIP code Wages, tips, other compensation "
+            "Federal income tax withheld Social security wages Medicare wages and tips"
+        )
+        self.assertEqual(result.category, "W2", result)
+        self.assertIn("EMPLOYEE'S SOCIAL SECURITY NUMBER", result.matched_keywords)
+        self.assertIn("WAGES, TIPS, OTHER COMPENSATION", result.matched_keywords)
+
+    def test_generic_w2_words_do_not_classify_w2(self) -> None:
+        self.assert_category("wages tax statement withholding employer employee state income", "NeedsReview")
+
     def test_clear_1099_nec(self) -> None:
         self.assert_category("Form 1099-NEC Nonemployee Compensation", "1099_NEC")
 
@@ -28,6 +47,11 @@ class ClassificationTests(unittest.TestCase):
         result = classify_text(
             "1099-NEC Nonemployee Compensation recipient payer withholding state income W-2"
         )
+        self.assertEqual(result.category, "1099_NEC", result)
+        self.assertNotEqual(result.category, "W2")
+
+    def test_1099_nec_nonemployee_and_state_income_not_w2(self) -> None:
+        result = classify_text("Nonemployee Compensation State Income withholding employee")
         self.assertEqual(result.category, "1099_NEC", result)
         self.assertNotEqual(result.category, "W2")
 

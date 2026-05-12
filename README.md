@@ -52,7 +52,7 @@ Run the sorter against a folder of uploads and it will:
    - `99_Needs_Review`
 3. Process common file types: PDF, JPG, JPEG, PNG, TIFF, and TIF.
 4. Try selectable PDF text first, and skip OCR when that text already contains a classification keyword or enough text to review.
-5. OCR image files using local Tesseract through `pytesseract`.
+5. OCR image files using local Tesseract through `pytesseract`, with simple Pillow grayscale/contrast/sharpening preprocessing.
 6. Copy files by default into the best matching category folder.
 7. Rename files with the detected type prefix, such as `W2_scan001.pdf`, `1099_NEC_upload4.pdf`, or `NeedsReview_IMG_2231.jpg`.
 8. Avoid overwriting existing files by appending `_2`, `_3`, and so on.
@@ -74,7 +74,7 @@ The sorter uses conservative rule-based scoring only. Strong official identifier
 
 | Category | Keywords |
 | --- | --- |
-| W2 | `Form W-2`, `Wage and Tax Statement` |
+| W2 | `Form W-2`, `Wage and Tax Statement`, or at least 4 W-2 box/field indicators such as `Employee's social security number`, `Employer identification number`, `Wages, tips, other compensation`, and `Federal income tax withheld` |
 | 1099_NEC | `1099-NEC`, `Nonemployee Compensation` |
 | 1099_MISC | `1099-MISC` |
 | Brokerage_1099B | `Consolidated 1099`, `1099-B`, `Proceeds From Broker`, `Cost Basis` |
@@ -87,7 +87,7 @@ The sorter uses conservative rule-based scoring only. Strong official identifier
 | ID | `Driver License`, `Driver's License`, `State ID`, `Identification Card` |
 | NeedsReview | No supported keyword found |
 
-Brokerage scoring is designed to beat 1099-INT/DIV when consolidated brokerage evidence is present. W-2 requires `Form W-2` or `Wage and Tax Statement`; 1099-MISC requires `1099-MISC`; mortgage classification does **not** rely on generic `Form 1098`, `lender`, or `interest` alone.
+Brokerage scoring is designed to beat 1099-INT/DIV when consolidated brokerage evidence is present. W-2 requires `Form W-2`, `Wage and Tax Statement`, or a cluster of at least 4 W-2 structural field labels; generic words such as `wages`, `withholding`, `employer`, or `employee` are not enough. 1099-MISC requires `1099-MISC`; mortgage classification does **not** rely on generic `Form 1098`, `lender`, or `interest` alone.
 
 ## Detailed setup notes
 
@@ -185,13 +185,14 @@ Run the included fake-text classifier tests with:
 python test_sort_tax_docs.py
 ```
 
-These tests do not use real taxpayer data. They cover W-2, 1099-NEC, brokerage priority, 1099-MISC strictness, 1098-T, mortgage 1098, generic tax statements, and random receipts.
+These tests do not use real taxpayer data. They cover exact W-2 text, W-2 structural indicators, 1099-NEC vs W-2, brokerage priority, 1099-MISC strictness, 1098-T, mortgage 1098, generic tax statements, and random receipts.
 
 ## Simple fake manual test with no real client data
 
 After setup, create a few harmless test PDFs or images that contain only fake text, such as:
 
 - `Form W-2 Wage and Tax Statement`
+- `Employee's social security number Employer identification number Wages, tips, other compensation Federal income tax withheld`
 - `1099-NEC Nonemployee Compensation`
 - `Consolidated 1099 1099-B Proceeds From Broker`
 - `1098-T Tuition Statement`
