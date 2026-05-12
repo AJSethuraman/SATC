@@ -24,15 +24,23 @@ A simple local web app for generating client task checklists from predefined acc
 
 ## Setup instructions
 
-1. Start the local development server:
+1. Open `index.html` directly in your browser by double-clicking it.
 
-   ```bash
-   npm start
-   ```
+You can also start a local development server if preferred:
 
-2. Open <http://127.0.0.1:5173/> in your browser.
+```bash
+npm start
+```
 
-No build step or backend service is required.
+Then open <http://127.0.0.1:5173/> in your browser. The app remains browser-only and stores data in localStorage.
+
+## Development
+
+The browser uses `src/browser-app.js`, a classic script generated from the organized source files so `index.html` works from `file://`. After changing files in `src/app.js`, `src/workflows.js`, or `src/outputs.js`, rebuild the browser script:
+
+```bash
+npm run build
+```
 
 ## Testing
 

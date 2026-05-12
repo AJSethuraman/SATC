@@ -125,6 +125,35 @@ test('all workflow templates include task categories and audience flags', () => 
   });
 });
 
+test('every workflow task has a unique stable templateId', () => {
+  const allTemplateIds = [];
+
+  Object.entries(workflows).forEach(([workflowKey, workflow]) => {
+    workflow.tasks.forEach((task) => {
+      assert.ok(task.templateId, `${workflowKey} task should define a templateId: ${task.title}`);
+      assert.match(task.templateId, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      allTemplateIds.push(task.templateId);
+    });
+  });
+
+  assert.equal(new Set(allTemplateIds).size, allTemplateIds.length);
+});
+
+test('generated checklist tasks include generated id and stable templateId', () => {
+  const checklist = buildChecklist({
+    clientName: 'Acme LLC',
+    dueDate: '2026-04-15',
+    workflowKey: 'monthlyBookkeeping',
+    answers: matchingAnswers.monthlyBookkeeping
+  });
+
+  assert.equal(
+    checklist.tasks.every((task) => task.id && task.templateId),
+    true
+  );
+  assert.equal(checklist.tasks.some((task) => task.templateId === 'monthly-request-bank-statements'), true);
+});
+
 Object.keys(workflows).forEach((workflowKey) => {
   test(`omits conditional tasks when ${workflowKey} intake answers do not match`, () => {
     const checklist = buildChecklist({
@@ -209,7 +238,7 @@ test('groups tasks by category for output', () => {
 });
 
 
-test('regenerates a checklist while preserving matching task notes and completion status', () => {
+test('regenerates a checklist while preserving matching task notes and completion status by templateId', () => {
   const checklist = buildChecklist({
     clientName: 'Acme LLC',
     dueDate: '2026-04-15',
@@ -265,4 +294,39 @@ test('regenerates a checklist while preserving matching task notes and completio
   assert.equal(removedLoanTask, undefined);
   assert.equal(newInventoryTask.completed, false);
   assert.equal(newInventoryTask.notes, '');
+});
+
+
+test('regeneration preserves task data when title changes but templateId remains the same', () => {
+  const taskTemplate = workflows.monthlyBookkeeping.tasks.find(
+    (task) => task.templateId === 'monthly-request-bank-statements'
+  );
+  const originalTitle = taskTemplate.title;
+
+  try {
+    const checklist = buildChecklist({
+      clientName: 'Acme LLC',
+      dueDate: '2026-04-15',
+      workflowKey: 'monthlyBookkeeping',
+      answers: matchingAnswers.monthlyBookkeeping
+    });
+    const trackedTask = checklist.tasks.find((task) => task.templateId === 'monthly-request-bank-statements');
+    trackedTask.completed = true;
+    trackedTask.notes = 'Preserve these notes even if wording changes.';
+
+    taskTemplate.title = 'Request operating account, credit card, and loan statements';
+
+    const updatedChecklist = regenerateChecklist(checklist, {
+      clientName: 'Acme LLC',
+      dueDate: '2026-04-30',
+      answers: matchingAnswers.monthlyBookkeeping
+    });
+    const updatedTask = updatedChecklist.tasks.find((task) => task.templateId === 'monthly-request-bank-statements');
+
+    assert.equal(updatedTask.title, 'Request operating account, credit card, and loan statements');
+    assert.equal(updatedTask.completed, true);
+    assert.equal(updatedTask.notes, 'Preserve these notes even if wording changes.');
+  } finally {
+    taskTemplate.title = originalTitle;
+  }
 });
