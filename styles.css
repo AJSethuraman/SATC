@@ -1,15 +1,17 @@
 :root {
   color-scheme: light;
-  --bg: #f5f7fb;
+  --bg: #f4f6fa;
   --panel: #ffffff;
   --panel-muted: #f8fafc;
-  --text: #152033;
+  --text: #172033;
   --muted: #5d6b82;
-  --line: #d9e1ec;
-  --brand: #1f5eff;
-  --brand-dark: #1748c6;
+  --line: #d8e0eb;
+  --brand: #1e5ce6;
+  --brand-dark: #1747b5;
   --danger: #b42318;
-  --shadow: 0 18px 45px rgba(21, 32, 51, 0.08);
+  --success: #067647;
+  --warning-bg: #fff7ed;
+  --shadow: 0 18px 45px rgba(23, 32, 51, 0.08);
 }
 
 * {
@@ -31,12 +33,18 @@ textarea {
   font: inherit;
 }
 
+button,
+select,
+label[for] {
+  cursor: pointer;
+}
+
 .hero {
   display: flex;
   justify-content: space-between;
   gap: 2rem;
   padding: 2.5rem clamp(1rem, 4vw, 3rem);
-  background: linear-gradient(135deg, #10203f 0%, #183b80 62%, #2665d8 100%);
+  background: linear-gradient(135deg, #101d36 0%, #17356d 62%, #245fd0 100%);
   color: #fff;
 }
 
@@ -44,13 +52,14 @@ textarea {
   margin: 0 0 0.4rem;
   color: #c8d8ff;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 h1,
-h2 {
+h2,
+h3 {
   margin: 0;
 }
 
@@ -60,24 +69,25 @@ h1 {
 }
 
 .hero-copy {
-  max-width: 760px;
+  max-width: 840px;
   margin: 0.8rem 0 0;
-  color: #e5ecff;
+  color: #e7edff;
   font-size: 1.05rem;
   line-height: 1.65;
 }
 
 .hero-actions,
-.form-actions {
+.form-actions,
+.backup-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 0.75rem;
+  gap: 0.7rem;
 }
 
 .hero-actions {
   justify-content: flex-end;
-  min-width: 310px;
+  max-width: 430px;
 }
 
 .button {
@@ -87,7 +97,8 @@ h1 {
   background: #fff;
   color: var(--text);
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 800;
+  text-decoration: none;
   transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
@@ -110,9 +121,14 @@ h1 {
   color: var(--danger);
 }
 
+.button-small {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.82rem;
+}
+
 .app-shell {
   display: grid;
-  grid-template-columns: minmax(260px, 330px) 1fr;
+  grid-template-columns: minmax(280px, 360px) 1fr;
   gap: 1.5rem;
   padding: 1.5rem clamp(1rem, 4vw, 3rem) 3rem;
 }
@@ -133,11 +149,20 @@ h1 {
 }
 
 .sidebar-header,
-.section-toolbar {
+.section-toolbar,
+.form-heading {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.form-heading p,
+.section-toolbar p,
+.section-heading p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .pill,
@@ -147,7 +172,7 @@ h1 {
   background: #eef4ff;
   color: #214b9f;
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 800;
   white-space: nowrap;
 }
 
@@ -158,6 +183,10 @@ label span {
   color: var(--muted);
   font-size: 0.84rem;
   font-weight: 800;
+}
+
+label span strong {
+  color: var(--danger);
 }
 
 .input {
@@ -176,47 +205,93 @@ label span {
 }
 
 .textarea {
-  min-height: 150px;
+  min-height: 145px;
   resize: vertical;
+}
+
+.backup-actions {
+  margin-top: 1rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .process-list {
   display: grid;
-  gap: 0.6rem;
+  gap: 0.7rem;
   margin-top: 1rem;
 }
 
 .process-item {
-  width: 100%;
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 0.85rem;
+  padding: 0.75rem;
   background: var(--panel-muted);
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
 }
 
-.process-item:hover,
 .process-item.active {
   border-color: var(--brand);
   background: #eef4ff;
 }
 
-.process-item strong,
-.process-item span {
+.process-open {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.process-open strong,
+.process-open span,
+.process-open small {
   display: block;
 }
 
-.process-item span {
+.process-open span,
+.process-open small {
   margin-top: 0.25rem;
   color: var(--muted);
   font-size: 0.82rem;
 }
 
+.status-mini {
+  width: 100%;
+  margin-top: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.45rem 0.6rem;
+  background: #fff;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .workspace {
   display: grid;
   gap: 1rem;
+}
+
+.message {
+  border: 1px solid #f2b8b5;
+  border-radius: 16px;
+  padding: 0.9rem 1rem;
+  background: #fff4f2;
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.message.success {
+  border-color: #abefc6;
+  background: #ecfdf3;
+  color: var(--success);
 }
 
 .form-panel,
@@ -226,7 +301,7 @@ label span {
 
 .form-grid {
   display: grid;
-  grid-template-columns: minmax(190px, 1.5fr) minmax(180px, 1fr) minmax(150px, 0.8fr);
+  grid-template-columns: repeat(3, minmax(170px, 1fr));
   gap: 1rem;
 }
 
@@ -241,7 +316,7 @@ label span {
   border-radius: 18px;
   padding: 1rem;
   background: var(--panel);
-  box-shadow: 0 12px 30px rgba(21, 32, 51, 0.05);
+  box-shadow: 0 12px 30px rgba(23, 32, 51, 0.05);
 }
 
 .section-title {
@@ -251,16 +326,55 @@ label span {
 }
 
 .section-textarea {
-  min-height: 150px;
+  min-height: 155px;
   resize: vertical;
   line-height: 1.5;
 }
 
-@media (max-width: 920px) {
+.checklist-card {
+  grid-column: 1 / -1;
+}
+
+.checklist-list {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.checklist-item {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.3fr) minmax(220px, 1fr) minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 0.85rem;
+  background: var(--panel-muted);
+}
+
+.checkline {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding-bottom: 0.75rem;
+  font-weight: 800;
+}
+
+.checkline span {
+  margin: 0;
+}
+
+.checklist-notes {
+  min-height: 48px;
+  resize: vertical;
+}
+
+@media (max-width: 1100px) {
   .hero,
   .app-shell,
   .form-grid,
-  .sections-container {
+  .sections-container,
+  .checklist-item {
     grid-template-columns: 1fr;
   }
 
@@ -270,10 +384,15 @@ label span {
 
   .hero-actions {
     justify-content: flex-start;
-    min-width: auto;
+    max-width: none;
   }
 
   .sidebar {
     position: static;
+  }
+
+  .form-heading,
+  .section-toolbar {
+    display: grid;
   }
 }

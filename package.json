@@ -1,0 +1,10 @@
+{
+  "name": "process-builder",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node --check app.js && node --check processGenerator.js && node --check markdownExport.js && node --check processStorage.js"
+  }
+}

@@ -9,58 +9,72 @@
   <body>
     <header class="hero">
       <div>
-        <p class="eyebrow">Local-first SOP workspace</p>
+        <p class="eyebrow">Local-first small-business operations tool</p>
         <h1>Process Builder</h1>
         <p class="hero-copy">
-          Turn rough notes about recurring tax, bookkeeping, admin, and operations work into editable SOPs,
-          checklists, and automation opportunity maps. Everything stays in your browser.
+          Turn a messy conversation or rough process description into a structured, editable, client-ready process
+          document with SOP steps, handoffs, quality controls, risks, checklist items, and automation opportunities.
         </p>
       </div>
       <div class="hero-actions">
-        <button id="newProcessBtn" class="button button-primary">New process</button>
-        <button id="exportMarkdownBtn" class="button">Export Markdown</button>
-        <button id="exportChecklistBtn" class="button">Export checklist</button>
+        <button id="newProcessBtn" class="button button-primary" type="button">New process</button>
+        <button id="exportMarkdownBtn" class="button" type="button">Export process Markdown</button>
+        <button id="copyMarkdownBtn" class="button" type="button">Copy full Markdown</button>
+        <button id="exportChecklistBtn" class="button" type="button">Export checklist</button>
+        <button id="copyChecklistBtn" class="button" type="button">Copy checklist</button>
       </div>
     </header>
 
     <main class="app-shell">
-      <aside class="sidebar" aria-label="Saved processes">
+      <aside class="sidebar" aria-label="Process library">
         <div class="sidebar-header">
-          <h2>Processes</h2>
+          <h2>Process library</h2>
           <span id="processCount" class="pill">0 saved</span>
         </div>
         <label class="search-label" for="searchInput">Search saved processes</label>
-        <input id="searchInput" class="input" type="search" placeholder="Search by name, type, or status" />
+        <input id="searchInput" class="input" type="search" placeholder="Search name, category, status, client" />
+        <div class="backup-actions">
+          <button id="exportBackupBtn" class="button button-small" type="button">Export JSON backup</button>
+          <label class="button button-small import-button" for="importBackupInput">Import JSON backup</label>
+          <input id="importBackupInput" class="visually-hidden" type="file" accept="application/json,.json" />
+        </div>
         <div id="processList" class="process-list"></div>
       </aside>
 
       <section class="workspace" aria-live="polite">
+        <div id="errorBanner" class="message" hidden></div>
+
         <form id="processForm" class="panel form-panel">
+          <div class="form-heading">
+            <div>
+              <h2>Create or edit a process</h2>
+              <p>Use a starter or paste rough notes from a client conversation. Generated content is editable.</p>
+            </div>
+            <label>
+              <span>Starter template</span>
+              <select id="starterSelect" class="input"></select>
+            </label>
+          </div>
           <div class="form-grid">
             <label>
-              <span>Process name</span>
-              <input id="processName" class="input" type="text" placeholder="e.g., Monthly bookkeeping close" required />
+              <span>Process name <strong aria-label="required">*</strong></span>
+              <input id="processName" class="input" type="text" placeholder="e.g., Field service job closeout" required />
             </label>
             <label>
-              <span>Process type</span>
-              <select id="processType" class="input">
-                <option>Tax</option>
-                <option>Bookkeeping</option>
-                <option>Admin</option>
-                <option>Sales</option>
-                <option>Client onboarding</option>
-                <option>Follow-up / collections</option>
-                <option>General operations</option>
-              </select>
+              <span>Business/client name</span>
+              <input id="businessName" class="input" type="text" placeholder="Optional" />
+            </label>
+            <label>
+              <span>Industry or business type</span>
+              <input id="industry" class="input" type="text" placeholder="e.g., landscaping, salon, agency" />
+            </label>
+            <label>
+              <span>Process category</span>
+              <select id="processCategory" class="input"></select>
             </label>
             <label>
               <span>Status</span>
-              <select id="statusTag" class="input">
-                <option>Draft</option>
-                <option>In Use</option>
-                <option>Needs Review</option>
-                <option>Deprecated</option>
-              </select>
+              <select id="statusTag" class="input"></select>
             </label>
           </div>
           <label>
@@ -68,26 +82,27 @@
             <textarea
               id="rawDescription"
               class="input textarea"
-              placeholder="Paste the messy notes, email instructions, or current process description here..."
+              placeholder="Paste messy notes, current steps, client comments, exceptions, tools used, and follow-up details here..."
             ></textarea>
           </label>
           <div class="form-actions">
-            <button class="button button-primary" type="submit">Generate Structure</button>
-            <button id="saveProcessBtn" class="button" type="button">Save changes</button>
+            <button class="button button-primary" type="submit">Generate Process Document</button>
+            <button id="saveProcessBtn" class="button" type="button">Save edits</button>
             <button id="duplicateProcessBtn" class="button" type="button">Duplicate</button>
             <button id="deleteProcessBtn" class="button button-danger" type="button">Delete</button>
+            <button id="addChecklistItemBtn" class="button" type="button">Add checklist item</button>
           </div>
         </form>
 
         <div class="panel section-toolbar">
           <div>
-            <h2 id="activeProcessTitle">Untitled process</h2>
-            <p id="activeProcessMeta">Generate a process structure to begin editing.</p>
+            <h2 id="activeProcessTitle">New process</h2>
+            <p id="activeProcessMeta">Enter rough notes and generate a process document.</p>
           </div>
           <div id="saveState" class="save-state">Local storage ready</div>
         </div>
 
-        <section id="sectionsContainer" class="sections-container" aria-label="Generated SOP sections"></section>
+        <section id="sectionsContainer" class="sections-container" aria-label="Editable process document sections"></section>
       </section>
     </main>
 
@@ -98,6 +113,24 @@
           <textarea class="input section-textarea"></textarea>
         </label>
       </article>
+    </template>
+
+    <template id="checklistItemTemplate">
+      <div class="checklist-item">
+        <label class="checkline">
+          <input class="checklist-complete" type="checkbox" />
+          <span>Complete</span>
+        </label>
+        <label>
+          <span>Checklist item</span>
+          <input class="input checklist-text" type="text" />
+        </label>
+        <label>
+          <span>Notes</span>
+          <textarea class="input checklist-notes" placeholder="Optional item notes"></textarea>
+        </label>
+        <button class="button button-small button-danger delete-checklist-item" type="button">Delete item</button>
+      </div>
     </template>
 
     <script src="app.js" type="module"></script>
