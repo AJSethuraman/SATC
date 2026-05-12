@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateClientRequestEmail, getClientFacingTasks, groupTasksByCategory } from '../src/outputs.js';
-import { buildChecklist, calculateSuggestedDate, getWorkflowQuestions, workflows } from '../src/workflows.js';
+import { buildChecklist, calculateSuggestedDate, getWorkflowQuestions, regenerateChecklist, workflows } from '../src/workflows.js';
 
 const matchingAnswers = {
   newTaxClientOnboarding: {
@@ -206,4 +206,63 @@ test('groups tasks by category for output', () => {
       { category: 'Review', titles: ['Internal review'] }
     ]
   );
+});
+
+
+test('regenerates a checklist while preserving matching task notes and completion status', () => {
+  const checklist = buildChecklist({
+    clientName: 'Acme LLC',
+    dueDate: '2026-04-15',
+    workflowKey: 'monthlyBookkeeping',
+    answers: {
+      usesPayroll: 'yes',
+      hasLoanActivity: 'yes',
+      inventoryActivity: 'no',
+      salesTaxFilingDue: 'no',
+      unclearedTransactions: 'no'
+    }
+  });
+
+  const baseRequest = checklist.tasks.find((task) => task.title === 'Request bank, credit card, and loan statements');
+  baseRequest.completed = true;
+  baseRequest.notes = 'Client uploaded March statements.';
+
+  const payrollRequest = checklist.tasks.find(
+    (task) => task.title === 'Request payroll reports and tie wages to payroll tax liabilities'
+  );
+  payrollRequest.completed = true;
+  payrollRequest.notes = 'Payroll report is in the portal.';
+
+  const updatedChecklist = regenerateChecklist(checklist, {
+    clientName: 'Acme LLC Updated',
+    dueDate: '2026-04-30',
+    answers: {
+      usesPayroll: 'yes',
+      hasLoanActivity: 'no',
+      inventoryActivity: 'yes',
+      salesTaxFilingDue: 'no',
+      unclearedTransactions: 'no'
+    }
+  });
+
+  const preservedBaseRequest = updatedChecklist.tasks.find(
+    (task) => task.title === 'Request bank, credit card, and loan statements'
+  );
+  const preservedPayrollRequest = updatedChecklist.tasks.find(
+    (task) => task.title === 'Request payroll reports and tie wages to payroll tax liabilities'
+  );
+  const removedLoanTask = updatedChecklist.tasks.find(
+    (task) => task.title === 'Review loan statements, interest, principal, and new financing entries'
+  );
+  const newInventoryTask = updatedChecklist.tasks.find((task) => task.title === 'Request inventory count or valuation report');
+
+  assert.equal(updatedChecklist.clientName, 'Acme LLC Updated');
+  assert.equal(updatedChecklist.dueDate, '2026-04-30');
+  assert.equal(preservedBaseRequest.completed, true);
+  assert.equal(preservedBaseRequest.notes, 'Client uploaded March statements.');
+  assert.equal(preservedPayrollRequest.completed, true);
+  assert.equal(preservedPayrollRequest.notes, 'Payroll report is in the portal.');
+  assert.equal(removedLoanTask, undefined);
+  assert.equal(newInventoryTask.completed, false);
+  assert.equal(newInventoryTask.notes, '');
 });

@@ -289,6 +289,43 @@ export function getWorkflowQuestions(workflowKey) {
   return workflows[workflowKey]?.questions ?? [];
 }
 
+function cleanClientName(clientName) {
+  const cleanedName = clientName.trim();
+
+  if (!cleanedName) {
+    throw new Error('Client name is required.');
+  }
+
+  return cleanedName;
+}
+
+function normalizeIntakeAnswers(workflow, answers = {}) {
+  return (workflow.questions ?? []).reduce((savedAnswers, question) => {
+    savedAnswers[question.id] = answers[question.id] ?? '';
+    return savedAnswers;
+  }, {});
+}
+
+function buildTasks({ workflowKey, dueDate, intakeAnswers, existingTasks = [] }) {
+  const workflow = workflows[workflowKey];
+  const existingTasksByTitle = new Map(existingTasks.map((task) => [task.title, task]));
+
+  return workflow.tasks.filter((task) => shouldIncludeTask(task, intakeAnswers)).map((task, index) => {
+    const existingTask = existingTasksByTitle.get(task.title);
+
+    return {
+      id: existingTask?.id ?? `${workflowKey}-${index}-${crypto.randomUUID()}`,
+      title: task.title,
+      category: task.category,
+      audience: task.audience,
+      audienceLabel: TASK_AUDIENCES[task.audience],
+      suggestedDate: calculateSuggestedDate(dueDate, task.daysBeforeDue),
+      completed: existingTask?.completed ?? false,
+      notes: existingTask?.notes ?? ''
+    };
+  });
+}
+
 export function buildChecklist({ clientName, dueDate, workflowKey, answers = {} }) {
   const workflow = workflows[workflowKey];
 
@@ -296,35 +333,54 @@ export function buildChecklist({ clientName, dueDate, workflowKey, answers = {} 
     throw new Error('A valid workflow is required.');
   }
 
-  const cleanClientName = clientName.trim();
-
-  if (!cleanClientName) {
-    throw new Error('Client name is required.');
-  }
-
-  const workflowQuestions = workflow.questions ?? [];
-  const intakeAnswers = workflowQuestions.reduce((savedAnswers, question) => {
-    savedAnswers[question.id] = answers[question.id] ?? '';
-    return savedAnswers;
-  }, {});
+  const intakeAnswers = normalizeIntakeAnswers(workflow, answers);
 
   return {
     id: crypto.randomUUID(),
-    clientName: cleanClientName,
+    clientName: cleanClientName(clientName),
     dueDate,
     workflowKey,
     workflowName: workflow.name,
     intakeAnswers,
     createdAt: new Date().toISOString(),
-    tasks: workflow.tasks.filter((task) => shouldIncludeTask(task, intakeAnswers)).map((task, index) => ({
-      id: `${workflowKey}-${index}-${crypto.randomUUID()}`,
-      title: task.title,
-      category: task.category,
-      audience: task.audience,
-      audienceLabel: TASK_AUDIENCES[task.audience],
-      suggestedDate: calculateSuggestedDate(dueDate, task.daysBeforeDue),
-      completed: false,
-      notes: ''
+    tasks: buildTasks({ workflowKey, dueDate, intakeAnswers })
+  };
+}
+
+export function regenerateChecklist(checklist, { clientName, dueDate, answers = {} }) {
+  const workflow = workflows[checklist.workflowKey];
+
+  if (!workflow) {
+    throw new Error('A valid workflow is required.');
+  }
+
+  const intakeAnswers = normalizeIntakeAnswers(workflow, answers);
+
+  return {
+    ...checklist,
+    clientName: cleanClientName(clientName),
+    dueDate,
+    intakeAnswers,
+    updatedAt: new Date().toISOString(),
+    tasks: buildTasks({
+      workflowKey: checklist.workflowKey,
+      dueDate,
+      intakeAnswers,
+      existingTasks: checklist.tasks
+    })
+  };
+}
+
+export function duplicateChecklist(checklist) {
+  return {
+    ...checklist,
+    id: crypto.randomUUID(),
+    clientName: `${checklist.clientName} (Copy)`,
+    createdAt: new Date().toISOString(),
+    updatedAt: undefined,
+    tasks: checklist.tasks.map((task) => ({
+      ...task,
+      id: `${checklist.workflowKey}-duplicate-${crypto.randomUUID()}`
     }))
   };
 }

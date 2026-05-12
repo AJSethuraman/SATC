@@ -16,6 +16,7 @@ A simple local web app for generating client task checklists from predefined acc
 - Answer optional intake questions for any workflow to add matching conditional tasks.
 - Review generated tasks grouped by category, with badges for internal work versus client-facing document requests or follow-up.
 - Copy a client request email, print a client-facing request list, or print a full internal checklist for each saved checklist.
+- Edit saved checklist client details and intake answers, or duplicate a checklist for a similar engagement.
 - Mark tasks complete as work progresses.
 - Add notes to individual tasks for questions, follow-up items, or status updates.
 - Save all checklist data, intake answers, task completion, and notes in browser local storage.

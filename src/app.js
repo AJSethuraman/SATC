@@ -6,7 +6,7 @@ import {
   generateInternalChecklistPrintHtml,
   groupTasksByCategory
 } from './outputs.js';
-import { buildChecklist, getWorkflowQuestions, workflows } from './workflows.js';
+import { buildChecklist, duplicateChecklist, getWorkflowQuestions, regenerateChecklist, workflows } from './workflows.js';
 
 const STORAGE_KEY = 'workflow-task-checklists';
 
@@ -19,6 +19,7 @@ const emptyStateTemplate = document.querySelector('#empty-state-template');
 const clearAllButton = document.querySelector('#clear-all');
 
 let checklists = loadChecklists();
+let editingChecklistId = null;
 
 function loadChecklists() {
   const savedChecklists = localStorage.getItem(STORAGE_KEY);
@@ -54,6 +55,23 @@ function populateWorkflowOptions() {
     .join('');
 }
 
+function renderQuestionFields(questions, answers = {}, namePrefix = 'question') {
+  return questions
+    .map(
+      (question) => `
+        <label>
+          ${escapeHtml(question.label)}
+          <select name="${namePrefix}:${escapeHtml(question.id)}">
+            <option value="" ${!answers[question.id] ? 'selected' : ''}>No answer</option>
+            <option value="yes" ${answers[question.id] === 'yes' ? 'selected' : ''}>Yes</option>
+            <option value="no" ${answers[question.id] === 'no' ? 'selected' : ''}>No</option>
+          </select>
+        </label>
+      `
+    )
+    .join('');
+}
+
 function renderIntakeQuestions() {
   const selectedWorkflow = workflows[workflowSelect.value];
   const questions = getWorkflowQuestions(workflowSelect.value);
@@ -74,27 +92,18 @@ function renderIntakeQuestions() {
       <p>Answers are saved with the checklist and may add conditional tasks.</p>
     </div>
     <div class="question-grid">
-      ${questions
-        .map(
-          (question) => `
-            <label>
-              ${escapeHtml(question.label)}
-              <select name="question:${escapeHtml(question.id)}">
-                <option value="">No answer</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </label>
-          `
-        )
-        .join('')}
+      ${renderQuestionFields(questions)}
     </div>
   `;
 }
 
 function getIntakeAnswers(formData, workflowKey) {
+  return getIntakeAnswersFromPrefix(formData, workflowKey, 'question');
+}
+
+function getIntakeAnswersFromPrefix(formData, workflowKey, prefix) {
   return getWorkflowQuestions(workflowKey).reduce((answers, question) => {
-    answers[question.id] = formData.get(`question:${question.id}`) ?? '';
+    answers[question.id] = formData.get(`${prefix}:${question.id}`) ?? '';
     return answers;
   }, {});
 }
@@ -136,10 +145,46 @@ function renderChecklists() {
     });
 }
 
+function renderEditForm(checklist) {
+  const questions = getWorkflowQuestions(checklist.workflowKey);
+
+  return `
+    <form class="edit-checklist-form" data-action="save-edit">
+      <div class="edit-grid">
+        <label>
+          Client name
+          <input name="editClientName" type="text" value="${escapeHtml(checklist.clientName)}" required />
+        </label>
+        <label>
+          Due date
+          <input name="editDueDate" type="date" value="${escapeHtml(checklist.dueDate)}" required />
+        </label>
+      </div>
+      <div class="edit-questions">
+        <div class="intake-heading">
+          <div>
+            <p class="eyebrow">Edit intake</p>
+            <h4>${escapeHtml(checklist.workflowName)} questions</h4>
+          </div>
+          <p>Changing answers regenerates tasks while preserving notes and completion for matching tasks.</p>
+        </div>
+        <div class="question-grid">
+          ${renderQuestionFields(questions, checklist.intakeAnswers ?? {}, 'editQuestion')}
+        </div>
+      </div>
+      <div class="edit-actions">
+        <button class="button button-primary" type="submit">Save changes</button>
+        <button class="button button-ghost" data-action="cancel-edit" type="button">Cancel</button>
+      </div>
+    </form>
+  `;
+}
+
 function createChecklistCard(checklist) {
   const completedTasks = checklist.tasks.filter((task) => task.completed).length;
   const intakeAnswers = checklist.intakeAnswers ?? {};
   const workflowQuestions = getWorkflowQuestions(checklist.workflowKey);
+  const editForm = editingChecklistId === checklist.id ? renderEditForm(checklist) : '';
   const intakeSummary = workflowQuestions.length
     ? `
       <details class="answer-summary">
@@ -171,12 +216,15 @@ function createChecklistCard(checklist) {
         <p class="description">Due ${formatDate(checklist.dueDate)} • ${completedTasks}/${checklist.tasks.length} complete</p>
       </div>
       <div class="card-actions">
+        <button class="button button-ghost" data-action="edit-checklist" type="button">Edit</button>
+        <button class="button button-ghost" data-action="duplicate-checklist" type="button">Duplicate</button>
         <button class="button button-ghost" data-action="copy-client-email" type="button">Copy client request email</button>
         <button class="button button-ghost" data-action="print-client-list" type="button">Print client request list</button>
         <button class="button button-ghost" data-action="print-internal-checklist" type="button">Print internal checklist</button>
         <button class="button button-danger" data-action="delete-checklist" type="button">Delete</button>
       </div>
     </div>
+    ${editForm}
     ${intakeSummary}
     <div class="task-groups"></div>
   `;
@@ -241,6 +289,7 @@ function handleSubmit(event) {
   });
 
   checklists = [checklist, ...checklists];
+  editingChecklistId = null;
   saveChecklists();
   form.reset();
   renderIntakeQuestions();
@@ -283,7 +332,15 @@ function printHtmlDocument(html) {
 async function handleChecklistInteraction(event) {
   const action = event.target.dataset.action;
 
-  const clickActions = ['delete-checklist', 'copy-client-email', 'print-client-list', 'print-internal-checklist'];
+  const clickActions = [
+    'delete-checklist',
+    'edit-checklist',
+    'cancel-edit',
+    'duplicate-checklist',
+    'copy-client-email',
+    'print-client-list',
+    'print-internal-checklist'
+  ];
 
   if (!action || (event.type === 'click' && !clickActions.includes(action))) {
     return;
@@ -293,6 +350,43 @@ async function handleChecklistInteraction(event) {
   const checklist = findChecklist(checklistCard.dataset.checklistId);
 
   if (!checklist) {
+    return;
+  }
+
+  if (action === 'edit-checklist') {
+    editingChecklistId = checklist.id;
+    renderChecklists();
+    return;
+  }
+
+  if (action === 'cancel-edit') {
+    editingChecklistId = null;
+    renderChecklists();
+    return;
+  }
+
+  if (action === 'duplicate-checklist') {
+    checklists = [duplicateChecklist(checklist), ...checklists];
+    editingChecklistId = null;
+    saveChecklists();
+    renderChecklists();
+    return;
+  }
+
+  if (action === 'save-edit') {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const updatedChecklist = regenerateChecklist(checklist, {
+      clientName: formData.get('editClientName'),
+      dueDate: formData.get('editDueDate'),
+      answers: getIntakeAnswersFromPrefix(formData, checklist.workflowKey, 'editQuestion')
+    });
+    checklists = checklists.map((savedChecklist) =>
+      savedChecklist.id === updatedChecklist.id ? updatedChecklist : savedChecklist
+    );
+    editingChecklistId = null;
+    saveChecklists();
+    renderChecklists();
     return;
   }
 
@@ -322,6 +416,9 @@ async function handleChecklistInteraction(event) {
 
   if (action === 'delete-checklist') {
     checklists = checklists.filter((savedChecklist) => savedChecklist.id !== checklist.id);
+    if (editingChecklistId === checklist.id) {
+      editingChecklistId = null;
+    }
   }
 
   if (action === 'toggle-task') {
@@ -360,6 +457,7 @@ renderChecklists();
 
 form.addEventListener('submit', handleSubmit);
 workflowSelect.addEventListener('change', renderIntakeQuestions);
+checklistsContainer.addEventListener('submit', handleChecklistInteraction);
 checklistsContainer.addEventListener('change', handleChecklistInteraction);
 checklistsContainer.addEventListener('input', handleChecklistInteraction);
 checklistsContainer.addEventListener('click', handleChecklistInteraction);
