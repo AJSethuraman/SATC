@@ -51,9 +51,14 @@ def install_python_packages(dry_run: bool = False) -> bool:
 
 
 def tesseract_available() -> bool:
-    """Return True when the tesseract executable is already available."""
+    """Return True when Tesseract is available by the sorter's detection rules."""
 
-    return shutil.which("tesseract") is not None
+    try:
+        from sort_tax_docs import find_tesseract_executable
+
+        return find_tesseract_executable() is not None
+    except Exception:
+        return shutil.which("tesseract") is not None
 
 
 def tesseract_install_command() -> tuple[list[str] | None, str]:
@@ -87,7 +92,7 @@ def install_tesseract(skip_system: bool = False, dry_run: bool = False) -> bool:
     """Install Tesseract OCR when possible, or explain manual fallback steps."""
 
     if tesseract_available():
-        print("Tesseract is already installed and available on PATH.")
+        print("Tesseract is already installed or available in a common install location.")
         return True
 
     if skip_system:
@@ -100,11 +105,29 @@ def install_tesseract(skip_system: bool = False, dry_run: bool = False) -> bool:
         return run_command(command, dry_run=dry_run) == 0
 
     print("Tesseract was not found and no supported package manager was detected.")
-    print("Install it manually, then make sure the 'tesseract' command is on PATH:")
-    print("  Windows: winget install --id UB-Mannheim.TesseractOCR -e")
-    print("  macOS:   brew install tesseract")
-    print("  Ubuntu:  sudo apt-get install -y tesseract-ocr")
+    print_manual_tesseract_fix()
     return False
+
+
+def print_manual_tesseract_fix() -> None:
+    """Print manual Tesseract fallback instructions."""
+
+    print("Install Tesseract manually, then rerun: python sort_tax_docs.py --check-dependencies")
+    print("  Windows: winget install --id UB-Mannheim.TesseractOCR -e")
+    print(r"           If needed, install to C:\Program Files\Tesseract-OCR\ and reopen your terminal.")
+    print("  macOS:   brew install tesseract")
+    print("  Ubuntu:  sudo apt-get update && sudo apt-get install -y tesseract-ocr")
+
+
+def run_sorter_dependency_check() -> bool:
+    """Run the same dependency check used by sort_tax_docs.py."""
+
+    try:
+        from sort_tax_docs import check_dependencies
+    except Exception as exc:
+        print(f"Could not import sorter dependency check: {exc}")
+        return False
+    return check_dependencies(verbose=True)
 
 
 def parse_args() -> argparse.Namespace:
@@ -134,15 +157,29 @@ def main() -> int:
     python_ok = install_python_packages(dry_run=args.dry_run)
     tesseract_ok = install_tesseract(skip_system=args.skip_system, dry_run=args.dry_run)
 
+    dependency_check_ok = False if args.dry_run else run_sorter_dependency_check()
+
     print("\nSetup summary:")
     print(f"  Python packages: {'OK' if python_ok else 'FAILED'}")
     print(f"  Tesseract OCR:   {'OK' if tesseract_ok else 'NEEDS ATTENTION'}")
+    print(f"  Final dependency check: {'OK' if dependency_check_ok else 'NEEDS ATTENTION'}")
 
-    if python_ok and (tesseract_ok or args.skip_system):
-        print("\nYou can now run: python sort_tax_docs.py /path/to/uploads")
+    if dependency_check_ok:
+        print("\nSetup complete.")
+        print("Put client files in the Uploads folder.")
+        print("Then run:")
+        print("  python run_sorter.py")
         return 0
 
-    print("\nSetup did not fully complete. See messages above for the failed step.")
+    if args.dry_run:
+        print("\nDry run complete. No installation commands were actually run.")
+        print("When ready, run: python setup_tax_doc_sorter.py")
+        return 0
+
+    print("\nSetup did not fully complete.")
+    if not tesseract_available():
+        print_manual_tesseract_fix()
+    print("After fixing the issue, run: python sort_tax_docs.py --check-dependencies")
     return 1
 
 

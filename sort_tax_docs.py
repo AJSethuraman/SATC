@@ -23,6 +23,12 @@ OUTPUT_FOLDER_NAME = "Organized_Tax_Documents"
 LOG_FILE_NAME = "processing_log.txt"
 INVENTORY_FILE_NAME = "Document_Inventory.xlsx"
 MIN_SELECTABLE_TEXT_CHARS = 50
+MULTIPLE_MATCH_NOTE = "Multiple possible document types detected; manual review recommended."
+
+COMMON_TESSERACT_PATHS = (
+    Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe"),
+    Path(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"),
+)
 
 CATEGORY_FOLDERS = {
     "W2": "01_W2",
@@ -35,8 +41,11 @@ CATEGORY_FOLDERS = {
     "K1": "08_K1",
     "Brokerage_1099B": "09_Brokerage_1099B",
     "ID": "10_ID",
+    "1098_Tuition": "11_1098_Tuition",
     "NeedsReview": "99_Needs_Review",
 }
+
+CONFIDENCE_RANK = {"Low": 0, "Medium": 1, "High": 2}
 
 
 @dataclass(frozen=True)
@@ -55,30 +64,35 @@ class ClassificationResult:
     category: str
     confidence: str
     matched_keyword: str
+    multiple_categories_detected: bool = False
 
 
 # Exact form identifiers are high confidence. Supporting descriptive phrases are
-# medium confidence. Rule order matters for cases where one document contains
-# multiple tax-form references.
+# medium confidence. Rule order matters for priority. Brokerage rules are before
+# 1099-INT/DIV so consolidated brokerage statements are not misfiled.
 RULES: tuple[KeywordRule, ...] = (
     KeywordRule("W2", "Form W-2", "High"),
     KeywordRule("W2", "Wage and Tax Statement", "Medium"),
     KeywordRule("1099_NEC", "1099-NEC", "High"),
     KeywordRule("1099_NEC", "Nonemployee Compensation", "Medium"),
     KeywordRule("1099_MISC", "1099-MISC", "High"),
-    KeywordRule("1099_INT_DIV", "1099-INT", "High"),
-    KeywordRule("1099_INT_DIV", "1099-DIV", "High"),
-    KeywordRule("1099_R", "1099-R", "High"),
-    KeywordRule("1099_R", "Distributions From Pensions", "Medium"),
-    KeywordRule("1098_Mortgage", "Form 1098", "High"),
-    KeywordRule("1098_Mortgage", "Mortgage Interest Statement", "Medium"),
-    KeywordRule("1095_A", "1095-A", "High"),
-    KeywordRule("1095_A", "Health Insurance Marketplace Statement", "Medium"),
-    KeywordRule("K1", "Schedule K-1", "High"),
     KeywordRule("Brokerage_1099B", "Consolidated 1099", "High"),
     KeywordRule("Brokerage_1099B", "1099-B", "High"),
     KeywordRule("Brokerage_1099B", "Proceeds From Broker", "Medium"),
     KeywordRule("Brokerage_1099B", "Cost Basis", "Medium"),
+    KeywordRule("1099_INT_DIV", "1099-INT", "High"),
+    KeywordRule("1099_INT_DIV", "1099-DIV", "High"),
+    KeywordRule("1099_R", "1099-R", "High"),
+    KeywordRule("1099_R", "Distributions From Pensions", "Medium"),
+    KeywordRule("1098_Mortgage", "Form 1098 Mortgage Interest Statement", "High"),
+    KeywordRule("1098_Mortgage", "Mortgage Interest Statement", "High"),
+    KeywordRule("1098_Mortgage", "Mortgage Interest", "Medium"),
+    KeywordRule("1098_Mortgage", "Lender", "Medium"),
+    KeywordRule("1098_Tuition", "1098-T", "High"),
+    KeywordRule("1098_Tuition", "Tuition Statement", "Medium"),
+    KeywordRule("1095_A", "1095-A", "High"),
+    KeywordRule("1095_A", "Health Insurance Marketplace Statement", "Medium"),
+    KeywordRule("K1", "Schedule K-1", "High"),
     KeywordRule("ID", "Driver License", "High"),
     KeywordRule("ID", "Driver's License", "High"),
     KeywordRule("ID", "State ID", "High"),
@@ -116,8 +130,33 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def find_tesseract_executable() -> str | None:
+    """Find Tesseract on PATH or in common Windows install locations."""
 
-def check_dependencies() -> bool:
+    path_match = shutil.which("tesseract")
+    if path_match:
+        return path_match
+
+    for candidate in COMMON_TESSERACT_PATHS:
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+def configure_pytesseract() -> bool:
+    """Configure pytesseract with a discovered Tesseract executable."""
+
+    executable = find_tesseract_executable()
+    if not executable:
+        return False
+
+    import pytesseract
+
+    pytesseract.pytesseract.tesseract_cmd = executable
+    return True
+
+
+def check_dependencies(verbose: bool = True) -> bool:
     """Check required Python packages and the Tesseract executable."""
 
     missing: list[str] = []
@@ -134,20 +173,23 @@ def check_dependencies() -> bool:
         except ImportError:
             missing.append(package_name)
 
-    if shutil.which("tesseract") is None:
+    tesseract_path = find_tesseract_executable()
+    if tesseract_path is None:
         missing.append("Tesseract OCR application")
 
     if not missing:
-        print("All required Python packages and Tesseract OCR appear to be installed.")
+        if verbose:
+            print("All required Python packages and Tesseract OCR appear to be installed.")
+            print(f"Tesseract executable: {tesseract_path}")
         return True
 
-    print("Missing dependencies:")
-    for item in missing:
-        print(f"  - {item}")
-    print("\nRun this setup helper, then try again:")
-    print(f"  {sys.executable} setup_tax_doc_sorter.py")
+    if verbose:
+        print("Missing dependencies:")
+        for item in missing:
+            print(f"  - {item}")
+        print("\nRun this setup helper, then try again:")
+        print(f"  {sys.executable} setup_tax_doc_sorter.py")
     return False
-
 
 
 def install_dependencies(skip_system: bool = False) -> bool:
@@ -162,6 +204,7 @@ def install_dependencies(skip_system: bool = False) -> bool:
     if skip_system:
         command.append("--skip-system")
     return subprocess.run(command, check=False).returncode == 0
+
 
 def setup_output_folders(input_folder: Path) -> Path:
     """Create the output folder and all category folders."""
@@ -216,6 +259,7 @@ def ocr_pdf(file_path: Path) -> str:
     import pytesseract
     from PIL import Image
 
+    configure_pytesseract()
     text_parts: list[str] = []
     with fitz.open(file_path) as document:
         for page_number, page in enumerate(document, start=1):
@@ -232,6 +276,7 @@ def ocr_image(file_path: Path) -> str:
     import pytesseract
     from PIL import Image, ImageSequence
 
+    configure_pytesseract()
     text_parts: list[str] = []
     with Image.open(file_path) as image:
         for page_number, frame in enumerate(ImageSequence.Iterator(image), start=1):
@@ -272,9 +317,35 @@ def classify_text(text: str) -> ClassificationResult:
     """Classify text using simple keyword rules. If unsure, do not guess."""
 
     normalized_text = normalize_text(text)
+    best_match_by_category: dict[str, KeywordRule] = {}
+
     for rule in RULES:
-        if normalize_text(rule.keyword) in normalized_text:
-            return ClassificationResult(rule.category, rule.confidence, rule.keyword)
+        if normalize_text(rule.keyword) not in normalized_text:
+            continue
+
+        existing = best_match_by_category.get(rule.category)
+        if existing is None or CONFIDENCE_RANK[rule.confidence] > CONFIDENCE_RANK[existing.confidence]:
+            best_match_by_category[rule.category] = rule
+
+    if not best_match_by_category:
+        return ClassificationResult("NeedsReview", "Low", "")
+
+    # Keep the highest-confidence match. Ties preserve RULES priority order.
+    for rule in RULES:
+        category_match = best_match_by_category.get(rule.category)
+        if category_match != rule:
+            continue
+        if all(
+            CONFIDENCE_RANK[category_match.confidence] >= CONFIDENCE_RANK[other.confidence]
+            for other in best_match_by_category.values()
+        ):
+            return ClassificationResult(
+                category_match.category,
+                category_match.confidence,
+                category_match.keyword,
+                multiple_categories_detected=len(best_match_by_category) > 1,
+            )
+
     return ClassificationResult("NeedsReview", "Low", "")
 
 
@@ -332,6 +403,8 @@ def process_file(file_path: Path, output_folder: Path, move: bool) -> dict[str, 
         if not text.strip():
             notes.append("No readable text found.")
         result = classify_text(text)
+        if result.multiple_categories_detected:
+            notes.append(MULTIPLE_MATCH_NOTE)
 
         category_folder = output_folder / CATEGORY_FOLDERS[result.category]
         new_filename = build_new_filename(result.category, file_path.name)
