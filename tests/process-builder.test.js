@@ -154,3 +154,57 @@ test("invalid JSON backup reports a clear error", () => {
   assert.throws(() => parseBackup("not json"), /Invalid imported JSON backup/);
   assert.throws(() => parseBackup(JSON.stringify({ wrong: [] })), /processes array/);
 });
+
+test("import rejects invalid category", () => {
+  const process = createProcess(baseInput());
+  process.category = "Tax checklist";
+  assert.throws(() => parseBackup(processesToBackup([process])), /invalid category/i);
+});
+
+test("import rejects invalid status", () => {
+  const process = createProcess(baseInput());
+  process.status = "Almost Done";
+  assert.throws(() => parseBackup(processesToBackup([process])), /invalid status/i);
+});
+
+test("import rejects missing required sections", () => {
+  const process = createProcess(baseInput());
+  delete process.sections.Objective;
+  assert.throws(() => parseBackup(processesToBackup([process])), /Objective/);
+});
+
+test("import rejects invalid checklist item shape", () => {
+  const process = createProcess(baseInput());
+  process.checklist[0].completed = "yes";
+  assert.throws(() => parseBackup(processesToBackup([process])), /completed as true or false/);
+});
+
+test("import normalizes invalid updatedAt to a valid date string", () => {
+  const process = createProcess(baseInput());
+  process.updatedAt = "not-a-date";
+  const [parsed] = parseBackup(processesToBackup([process]));
+  assert.equal(Number.isNaN(Date.parse(parsed.updatedAt)), false);
+});
+
+test("Markdown export works after validated import", () => {
+  const process = createProcess(baseInput());
+  const [parsed] = parseBackup(processesToBackup([process]));
+  const markdown = processToMarkdown(parsed);
+  assert.match(markdown, /^# Estimate follow-up/);
+  assert.match(markdown, /## Internal checklist/);
+});
+
+test("browser entry uses direct-open-safe bundle script", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  await readFile(new URL("../app.bundle.js", import.meta.url), "utf8");
+  assert.match(html, /<script src="app\.bundle\.js"><\/script>/);
+  assert.doesNotMatch(html, /type="module"/);
+});
+
+test("process list rendering avoids innerHTML for imported process names", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(new URL("../app.js", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /innerHTML/);
+  assert.match(source, /name\.textContent = process\.name/);
+});

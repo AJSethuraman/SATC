@@ -122,29 +122,21 @@ The goal is not perfect intelligence. The output is a useful first draft that a 
 
 ## Setup and run instructions
 
-No install step is required for the app itself.
+No install step, server, backend, API, or database is required for normal use.
 
-From the repository root, start any static file server and open the printed local URL.
+### Normal use: open the file directly
 
-### Option 1: Python
+Open `index.html` directly in a browser by double-clicking it or using **File > Open**. The checked-in `app.bundle.js` file is a browser-safe non-module bundle, so the app works from `file://` without a local development server.
+
+### Optional developer preview server
+
+A local static server is optional and only useful for development previewing.
 
 ```bash
 python3 -m http.server 4173
 ```
 
 Then open <http://localhost:4173>.
-
-### Option 2: Node
-
-```bash
-npx serve .
-```
-
-Then open the local URL shown by `serve`.
-
-### Option 3: Direct file open
-
-You can open `index.html` directly in a browser. A local server is recommended because it mirrors normal browser module loading behavior.
 
 ## Usage
 
@@ -159,18 +151,18 @@ You can open `index.html` directly in a browser. A local server is recommended b
 
 ## Export and backup
 
-- **Export process Markdown** downloads the full process document.
+- **Export process Markdown** downloads the full process document for client-ready or internal deliverables.
 - **Copy full Markdown** copies the full process document to the clipboard when supported by the browser.
-- **Export checklist** downloads only the internal checklist.
+- **Export checklist** downloads only the internal checklist for operational use.
 - **Copy checklist** copies only the internal checklist to the clipboard when supported by the browser.
 - **Export JSON backup** downloads all saved process documents for safekeeping or transfer.
-- **Import JSON backup** replaces the current browser library with the imported processes after validating the backup shape.
+- **Import JSON backup** replaces the current browser library only after validating every imported process, required section, checklist item, category, and status.
 
 ## Data storage and limitations
 
-Processes are stored in browser local storage under the key `process-builder-processes-v2`. Data stays on the user's machine and is not transmitted anywhere by the app.
+Processes are stored only in the current browser's local storage under the key `process-builder-processes-v2`. Data stays on the user's machine and is not transmitted anywhere by the app.
 
-Local storage can be cleared by the browser, browser profile cleanup, private browsing sessions, or device changes. Export a JSON backup regularly if the process library matters.
+Local storage is browser- and device-specific. It can be cleared by browser cleanup, private browsing sessions, profile resets, or device changes. Export a JSON backup regularly, especially before clearing browser data or switching devices.
 
 ## Development notes
 
@@ -180,15 +172,25 @@ Local storage can be cleared by the browser, browser profile cleanup, private br
 - `markdownExport.js` contains Markdown export and JSON backup parsing logic.
 - `processStorage.js` contains local-storage save/load helpers.
 - `app.js` contains browser DOM and UI event handling.
-- `tests/process-builder.test.js` contains Node test coverage for generation, validation, checklist behavior, Markdown, duplication, storage, and backup import/export.
+- `app.bundle.js` is the generated non-module browser bundle used by `index.html` for direct-file compatibility.
+- `scripts/build-bundle.js` regenerates `app.bundle.js` from the source files without a heavy build system.
+- `tests/process-builder.test.js` contains Node test coverage for generation, validation, checklist behavior, Markdown, duplication, storage, backup import/export, and direct-file entry safety.
 
-## Testing
+## Optional development commands
+
+Tests are optional for development only; normal users do not need npm.
 
 ```bash
 npm test
 ```
 
-Syntax checks:
+Regenerate the checked-in browser bundle after editing source files:
+
+```bash
+npm run build
+```
+
+Syntax and bundle checks:
 
 ```bash
 npm run check

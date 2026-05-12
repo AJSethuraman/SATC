@@ -38,6 +38,7 @@
           <label class="button button-small import-button" for="importBackupInput">Import JSON backup</label>
           <input id="importBackupInput" class="visually-hidden" type="file" accept="application/json,.json" />
         </div>
+        <p class="storage-note">Processes are stored only in this browser. Export a JSON backup before clearing browser data or switching devices.</p>
         <div id="processList" class="process-list"></div>
       </aside>
 
@@ -102,6 +103,14 @@
           <div id="saveState" class="save-state">Local storage ready</div>
         </div>
 
+        <aside class="panel readiness-panel" aria-label="Client-ready export review">
+          <div>
+            <h2>Ready to export?</h2>
+            <p>Quick non-blocking review before sending Markdown to a client or team.</p>
+          </div>
+          <ul id="readinessList" class="readiness-list"></ul>
+        </aside>
+
         <section id="sectionsContainer" class="sections-container" aria-label="Editable process document sections"></section>
       </section>
     </main>
@@ -133,6 +142,6 @@
       </div>
     </template>
 
-    <script src="app.js" type="module"></script>
+    <script src="app.bundle.js"></script>
   </body>
 </html>

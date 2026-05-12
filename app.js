@@ -47,6 +47,7 @@ const elements = {
   exportBackupBtn: document.querySelector("#exportBackupBtn"),
   importBackupInput: document.querySelector("#importBackupInput"),
   addChecklistItemBtn: document.querySelector("#addChecklistItemBtn"),
+  readinessList: document.querySelector("#readinessList"),
   errorBanner: document.querySelector("#errorBanner"),
   starterSelect: document.querySelector("#starterSelect"),
 };
@@ -63,11 +64,27 @@ function clearMessage() {
 }
 
 function populateSelect(select, options) {
-  select.innerHTML = options.map((option) => `<option value="${option}">${option}</option>`).join("");
+  select.replaceChildren();
+  options.forEach((option) => {
+    const optionElement = document.createElement("option");
+    optionElement.value = option;
+    optionElement.textContent = option;
+    select.append(optionElement);
+  });
 }
 
 function populateStarterSelect() {
-  elements.starterSelect.innerHTML = `<option value="">Start blank or load a starter...</option>${STARTER_TEMPLATES.map((template, index) => `<option value="${index}">${template.name}</option>`).join("")}`;
+  elements.starterSelect.replaceChildren();
+  const blank = document.createElement("option");
+  blank.value = "";
+  blank.textContent = "Start blank or load a starter...";
+  elements.starterSelect.append(blank);
+  STARTER_TEMPLATES.forEach((template, index) => {
+    const option = document.createElement("option");
+    option.value = String(index);
+    option.textContent = template.name;
+    elements.starterSelect.append(option);
+  });
 }
 
 function loadProcesses() {
@@ -128,29 +145,44 @@ function renderList() {
   const filtered = state.processes.filter((process) => [process.name, process.businessName, process.industry, process.category, process.status].join(" ").toLowerCase().includes(query));
 
   elements.processCount.textContent = `${state.processes.length} saved`;
-  elements.processList.innerHTML = "";
+  elements.processList.replaceChildren();
 
   filtered.forEach((process) => {
     const item = document.createElement("article");
     item.className = `process-item${process.id === state.activeId ? " active" : ""}`;
-    item.innerHTML = `
-      <button type="button" class="process-open">
-        <strong>${process.name}</strong>
-        <span>${process.category} • ${process.status}</span>
-        <small>Updated ${new Date(process.updatedAt).toLocaleString()}</small>
-      </button>
-      <select class="status-mini" aria-label="Change status for ${process.name}">
-        ${STATUS_OPTIONS.map((status) => `<option value="${status}" ${status === process.status ? "selected" : ""}>${status}</option>`).join("")}
-      </select>
-    `;
-    item.querySelector(".process-open").addEventListener("click", () => selectProcess(process.id));
-    item.querySelector(".status-mini").addEventListener("change", (event) => {
+
+    const openButton = document.createElement("button");
+    openButton.type = "button";
+    openButton.className = "process-open";
+
+    const name = document.createElement("strong");
+    name.textContent = process.name;
+    const meta = document.createElement("span");
+    meta.textContent = `${process.category} • ${process.status}`;
+    const updated = document.createElement("small");
+    updated.textContent = `Updated ${new Date(process.updatedAt).toLocaleString()}`;
+    openButton.append(name, meta, updated);
+    openButton.addEventListener("click", () => selectProcess(process.id));
+
+    const statusSelect = document.createElement("select");
+    statusSelect.className = "status-mini";
+    statusSelect.setAttribute("aria-label", `Change status for ${process.name}`);
+    STATUS_OPTIONS.forEach((status) => {
+      const option = document.createElement("option");
+      option.value = status;
+      option.textContent = status;
+      option.selected = status === process.status;
+      statusSelect.append(option);
+    });
+    statusSelect.addEventListener("change", (event) => {
       process.status = event.target.value;
       touch(process);
       persistProcesses();
       renderList();
       renderEditor();
     });
+
+    item.append(openButton, statusSelect);
     elements.processList.append(item);
   });
 }
@@ -175,6 +207,7 @@ function renderChecklistItem(process, item) {
     touch(process);
     persistProcesses();
     renderList();
+    renderReadiness(process);
   };
 
   checkbox.addEventListener("change", saveChecklistChange);
@@ -195,25 +228,56 @@ function renderChecklistItem(process, item) {
 function renderInternalChecklist(process) {
   const wrapper = document.createElement("article");
   wrapper.className = "section-card checklist-card";
-  wrapper.innerHTML = `
-    <div class="section-heading">
-      <h3>Internal checklist</h3>
-      <p>Edit checklist items, completion status, and notes. Export can include this section separately.</p>
-    </div>
-    <div class="checklist-list"></div>
-  `;
-  const list = wrapper.querySelector(".checklist-list");
+  const heading = document.createElement("div");
+  heading.className = "section-heading";
+  const title = document.createElement("h3");
+  title.textContent = "Internal checklist";
+  const help = document.createElement("p");
+  help.textContent = "Edit checklist items, completion status, and notes. Export can include this section separately.";
+  heading.append(title, help);
+  const list = document.createElement("div");
+  list.className = "checklist-list";
   process.checklist.forEach((item) => list.append(renderChecklistItem(process, item)));
+  wrapper.append(heading, list);
   return wrapper;
+}
+
+function renderReadiness(process) {
+  elements.readinessList.replaceChildren();
+  const checks = process
+    ? [
+        { label: "Roles are assigned", ready: Boolean(process.sections["Roles and responsibilities"]?.trim()) },
+        { label: "Handoffs are clear", ready: Boolean(process.sections.Handoffs?.trim()) },
+        { label: "QC checks are present", ready: Boolean(process.sections["Quality control checks"]?.trim()) },
+        { label: "Risks/failure points are reviewed", ready: Boolean(process.sections["Risks or failure points"]?.trim()) },
+        { label: "Checklist items are usable", ready: Array.isArray(process.checklist) && process.checklist.some((item) => item.text.trim()) },
+        { label: "Automation opportunities are reviewed", ready: Boolean(process.sections["Automation opportunities"]?.trim()) },
+      ]
+    : [
+        { label: "Generate or open a process before export review", ready: false },
+      ];
+
+  checks.forEach((check) => {
+    const item = document.createElement("li");
+    item.className = check.ready ? "ready" : "needs-review";
+    const marker = document.createElement("span");
+    marker.setAttribute("aria-hidden", "true");
+    marker.textContent = check.ready ? "✓" : "•";
+    const text = document.createElement("span");
+    text.textContent = check.label;
+    item.append(marker, text);
+    elements.readinessList.append(item);
+  });
 }
 
 function renderEditor() {
   const process = getActiveProcess();
-  elements.sectionsContainer.innerHTML = "";
+  elements.sectionsContainer.replaceChildren();
 
   if (!process) {
     elements.activeProcessTitle.textContent = "New process";
     elements.activeProcessMeta.textContent = "Enter rough notes and generate a process document.";
+    renderReadiness(null);
     return;
   }
 
@@ -225,6 +289,7 @@ function renderEditor() {
   elements.rawDescription.value = process.rawDescription || "";
   elements.activeProcessTitle.textContent = process.name;
   elements.activeProcessMeta.textContent = `${process.category} • ${process.status} • Updated ${new Date(process.updatedAt).toLocaleString()}`;
+  renderReadiness(process);
 
   SECTION_TITLES.forEach((title) => {
     if (title === "Internal checklist") {
@@ -290,7 +355,7 @@ function resetForNewProcess() {
   elements.processForm.reset();
   elements.category.value = PROCESS_CATEGORIES[0];
   elements.status.value = STATUS_OPTIONS[0];
-  elements.sectionsContainer.innerHTML = "";
+  elements.sectionsContainer.replaceChildren();
   elements.activeProcessTitle.textContent = "New process";
   elements.activeProcessMeta.textContent = "Enter rough notes and generate a process document.";
   clearMessage();
@@ -309,7 +374,8 @@ function loadStarter(index) {
   elements.rawDescription.value = template.rawDescription;
   elements.activeProcessTitle.textContent = `${template.name} starter`;
   elements.activeProcessMeta.textContent = "Review the starter details, then generate a process document.";
-  elements.sectionsContainer.innerHTML = "";
+  elements.sectionsContainer.replaceChildren();
+  renderReadiness(null);
 }
 
 function duplicateActiveProcess() {
@@ -335,7 +401,7 @@ function deleteActiveProcess() {
   renderEditor();
 }
 
-function addChecklistItem() {
+function addChecklistItemToActiveProcess() {
   const process = getActiveProcess();
   if (!process) {
     showMessage("Generate or open a process before adding checklist items.");
@@ -422,7 +488,7 @@ function bindEvents() {
   elements.copyChecklistBtn.addEventListener("click", () => copyActive(true));
   elements.exportBackupBtn.addEventListener("click", exportBackup);
   elements.importBackupInput.addEventListener("change", (event) => importBackup(event.target.files[0]));
-  elements.addChecklistItemBtn.addEventListener("click", addChecklistItem);
+  elements.addChecklistItemBtn.addEventListener("click", addChecklistItemToActiveProcess);
   elements.searchInput.addEventListener("input", renderList);
   elements.starterSelect.addEventListener("change", (event) => loadStarter(event.target.value));
 }
