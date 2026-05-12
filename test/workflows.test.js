@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { generateClientRequestEmail, getClientFacingTasks, groupTasksByCategory } from '../src/outputs.js';
 import { buildChecklist, calculateSuggestedDate, getWorkflowQuestions, workflows } from '../src/workflows.js';
 
 const matchingAnswers = {
@@ -155,4 +156,54 @@ Object.keys(workflows).forEach((workflowKey) => {
       true
     );
   });
+});
+
+
+test('filters client-facing tasks for output', () => {
+  const checklist = buildChecklist({
+    clientName: 'Example Client',
+    dueDate: '2026-04-15',
+    workflowKey: 'monthlyBookkeeping',
+    answers: matchingAnswers.monthlyBookkeeping
+  });
+  const clientTasks = getClientFacingTasks(checklist.tasks);
+
+  assert.ok(clientTasks.length > 0);
+  assert.equal(clientTasks.every((task) => task.audience === 'client'), true);
+  assert.equal(clientTasks.some((task) => task.title === 'Import transactions and refresh bank feeds'), false);
+  assert.equal(clientTasks.some((task) => task.title === 'Send transaction question list to client'), true);
+});
+
+test('generates client request email text with only client-facing grouped requests', () => {
+  const checklist = buildChecklist({
+    clientName: 'Acme LLC',
+    dueDate: '2026-04-15',
+    workflowKey: 'monthlyBookkeeping',
+    answers: matchingAnswers.monthlyBookkeeping
+  });
+  const email = generateClientRequestEmail(checklist);
+
+  assert.match(email, /Subject: Requested items for Acme LLC - Monthly bookkeeping/);
+  assert.match(email, /Hello Acme LLC,/);
+  assert.match(email, /SAT-C LLP is preparing your Monthly bookkeeping checklist due Apr 15, 2026/);
+  assert.match(email, /Document requests\n- Request bank, credit card, and loan statements/);
+  assert.match(email, /Client follow-up\n- Send transaction question list to client/);
+  assert.doesNotMatch(email, /Import transactions and refresh bank feeds/);
+  assert.match(email, /Thank you,\nSAT-C LLP/);
+});
+
+test('groups tasks by category for output', () => {
+  const groupedTasks = groupTasksByCategory([
+    { title: 'First request', category: 'Document requests', audience: 'client' },
+    { title: 'Internal review', category: 'Review', audience: 'internal' },
+    { title: 'Second request', category: 'Document requests', audience: 'client' }
+  ]);
+
+  assert.deepEqual(
+    groupedTasks.map((group) => ({ category: group.category, titles: group.tasks.map((task) => task.title) })),
+    [
+      { category: 'Document requests', titles: ['First request', 'Second request'] },
+      { category: 'Review', titles: ['Internal review'] }
+    ]
+  );
 });

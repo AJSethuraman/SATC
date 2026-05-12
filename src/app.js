@@ -1,3 +1,11 @@
+import {
+  escapeHtml,
+  formatAnswer,
+  generateClientRequestEmail,
+  generateClientRequestPrintHtml,
+  generateInternalChecklistPrintHtml,
+  groupTasksByCategory
+} from './outputs.js';
 import { buildChecklist, getWorkflowQuestions, workflows } from './workflows.js';
 
 const STORAGE_KEY = 'workflow-task-checklists';
@@ -29,15 +37,6 @@ function loadChecklists() {
 
 function saveChecklists() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(checklists));
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('\"', '&quot;')
-    .replaceAll("'", '&#039;');
 }
 
 function formatDate(dateValue) {
@@ -108,31 +107,6 @@ function formatAudience(audience) {
   return 'Internal';
 }
 
-function groupTasksByCategory(tasks) {
-  return tasks.reduce((groups, task) => {
-    const category = task.category || 'General';
-
-    if (!groups.has(category)) {
-      groups.set(category, []);
-    }
-
-    groups.get(category).push(task);
-    return groups;
-  }, new Map());
-}
-
-function formatAnswer(value) {
-  if (value === 'yes') {
-    return 'Yes';
-  }
-
-  if (value === 'no') {
-    return 'No';
-  }
-
-  return 'No answer';
-}
-
 function renderSummary() {
   const totalTasks = checklists.reduce((total, checklist) => total + checklist.tasks.length, 0);
   const completeTasks = checklists.reduce(
@@ -196,7 +170,12 @@ function createChecklistCard(checklist) {
         <h3>${escapeHtml(checklist.clientName)}</h3>
         <p class="description">Due ${formatDate(checklist.dueDate)} • ${completedTasks}/${checklist.tasks.length} complete</p>
       </div>
-      <button class="button button-danger" data-action="delete-checklist" type="button">Delete</button>
+      <div class="card-actions">
+        <button class="button button-ghost" data-action="copy-client-email" type="button">Copy client request email</button>
+        <button class="button button-ghost" data-action="print-client-list" type="button">Print client request list</button>
+        <button class="button button-ghost" data-action="print-internal-checklist" type="button">Print internal checklist</button>
+        <button class="button button-danger" data-action="delete-checklist" type="button">Delete</button>
+      </div>
     </div>
     ${intakeSummary}
     <div class="task-groups"></div>
@@ -204,7 +183,7 @@ function createChecklistCard(checklist) {
 
   const taskGroups = article.querySelector('.task-groups');
 
-  groupTasksByCategory(checklist.tasks).forEach((tasks, category) => {
+  groupTasksByCategory(checklist.tasks).forEach(({ category, tasks }) => {
     const categorySection = document.createElement('section');
     categorySection.className = 'task-category';
     categorySection.innerHTML = `
@@ -268,10 +247,45 @@ function handleSubmit(event) {
   renderChecklists();
 }
 
-function handleChecklistInteraction(event) {
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.top = '-9999px';
+  document.body.append(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  textarea.remove();
+}
+
+function printHtmlDocument(html) {
+  const printWindow = window.open('', '_blank');
+
+  if (!printWindow) {
+    window.alert('Unable to open the print window. Please allow popups for this local app and try again.');
+    return;
+  }
+
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+
+async function handleChecklistInteraction(event) {
   const action = event.target.dataset.action;
 
-  if (!action || (event.type === 'click' && action !== 'delete-checklist')) {
+  const clickActions = ['delete-checklist', 'copy-client-email', 'print-client-list', 'print-internal-checklist'];
+
+  if (!action || (event.type === 'click' && !clickActions.includes(action))) {
     return;
   }
 
@@ -279,6 +293,30 @@ function handleChecklistInteraction(event) {
   const checklist = findChecklist(checklistCard.dataset.checklistId);
 
   if (!checklist) {
+    return;
+  }
+
+  if (action === 'copy-client-email') {
+    try {
+      await copyTextToClipboard(generateClientRequestEmail(checklist));
+      event.target.textContent = 'Copied';
+      window.setTimeout(() => {
+        event.target.textContent = 'Copy client request email';
+      }, 1600);
+    } catch (error) {
+      console.error('Unable to copy client request email.', error);
+      window.alert('Unable to copy the email. Please try again or use a supported browser.');
+    }
+    return;
+  }
+
+  if (action === 'print-client-list') {
+    printHtmlDocument(generateClientRequestPrintHtml(checklist));
+    return;
+  }
+
+  if (action === 'print-internal-checklist') {
+    printHtmlDocument(generateInternalChecklistPrintHtml(checklist));
     return;
   }
 

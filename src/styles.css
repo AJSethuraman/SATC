@@ -74,6 +74,7 @@ textarea {
 
 .section-heading,
 .card-header,
+.card-actions,
 .task-main {
   display: flex;
   align-items: flex-start;
@@ -240,6 +241,17 @@ textarea:focus {
   color: #1f2933;
 }
 
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.card-actions .button {
+  padding: 10px 14px;
+}
+
 .checklists {
   display: grid;
   gap: 18px;
@@ -390,6 +402,7 @@ time {
 
   .section-heading,
   .card-header,
+  .card-actions,
   .task-main,
   .category-heading,
   .intake-heading {
