@@ -72,7 +72,7 @@ export function generateClientRequestEmail(checklist) {
   groupedTasks.forEach(({ category, tasks }) => {
     lines.push(category);
     tasks.forEach((task) => {
-      lines.push(`- ${task.title} (suggested by ${formatOutputDate(task.suggestedDate)})`);
+      lines.push(`- ${task.clientRequestText || task.title} (suggested by ${formatOutputDate(task.suggestedDate)})`);
     });
     lines.push('');
   });
@@ -98,7 +98,7 @@ function renderTaskList(tasks, { includeInternalDetails = false } = {}) {
               .map(
                 (task) => `
                   <li>
-                    <div class="task-title">${escapeHtml(task.title)}</div>
+                    <div class="task-title">${escapeHtml(includeInternalDetails ? task.title : task.clientRequestText || task.title)}</div>
                     <div class="task-details">
                       <span>Suggested: ${formatOutputDate(task.suggestedDate)}</span>
                       ${
@@ -109,6 +109,7 @@ function renderTaskList(tasks, { includeInternalDetails = false } = {}) {
                           : ''
                       }
                     </div>
+                    ${includeInternalDetails && task.internalInstructions ? `<p class="notes">Internal instructions: ${escapeHtml(task.internalInstructions)}</p>` : ''}
                     ${includeInternalDetails && task.notes ? `<p class="notes">Notes: ${escapeHtml(task.notes)}</p>` : ''}
                   </li>
                 `
@@ -119,6 +120,26 @@ function renderTaskList(tasks, { includeInternalDetails = false } = {}) {
       `
     )
     .join('');
+}
+
+function renderRiskFlags(checklist) {
+  const flags = checklist.riskFlags ?? [];
+
+  if (!flags.length) {
+    return '<p>No risk flags generated.</p>';
+  }
+
+  return `<ul>${flags.map((flag) => `<li>${escapeHtml(flag)}</li>`).join('')}</ul>`;
+}
+
+function renderLinkedClients(checklist) {
+  const linkedClients = checklist.linkedClients ?? [];
+
+  if (!linkedClients.length) {
+    return '<p>No linked clients included.</p>';
+  }
+
+  return `<ul>${linkedClients.map((client) => `<li>${escapeHtml(client.displayName)} (${escapeHtml(client.clientType)})</li>`).join('')}</ul>`;
 }
 
 function renderIntakeAnswers(checklist) {
@@ -190,6 +211,14 @@ export function generateInternalChecklistPrintHtml(checklist) {
   const title = `Internal checklist - ${checklist.clientName}`;
   const intro = `${checklist.workflowName} • Due ${formatOutputDate(checklist.dueDate)}`;
   const body = `
+    <section>
+      <h2>Risk flags</h2>
+      ${renderRiskFlags(checklist)}
+    </section>
+    <section>
+      <h2>Linked clients</h2>
+      ${renderLinkedClients(checklist)}
+    </section>
     <section>
       <h2>Intake answers</h2>
       ${renderIntakeAnswers(checklist)}

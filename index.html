@@ -3,74 +3,60 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Workflow Task Checklists</title>
+    <title>SAT-C Client Engagement Checklists</title>
     <link rel="stylesheet" href="src/styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <section class="hero" aria-labelledby="app-title">
-        <div>
-          <p class="eyebrow">Local workflow planner</p>
-          <h1 id="app-title">Client task checklists</h1>
-          <p class="hero-copy">
-            Generate clean, date-driven checklists for common tax and bookkeeping workflows.
-            Tasks, completion status, and notes stay in this browser using local storage.
-          </p>
-        </div>
+        <p class="eyebrow">SAT-C LLP local workpaper system</p>
+        <h1 id="app-title">Client engagement checklists</h1>
+        <p class="hero-copy">
+          Maintain a local client index, connect people and businesses, and generate relationship-aware
+          client-facing and internal checklists. Everything stays in this browser using localStorage.
+        </p>
       </section>
 
-      <section class="panel" aria-labelledby="new-checklist-title">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Create</p>
-            <h2 id="new-checklist-title">New checklist</h2>
+      <section class="workspace-grid" aria-label="Client engagement workspace">
+        <section class="panel" aria-labelledby="client-index-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Client</p>
+              <h2 id="client-index-title">Client Index</h2>
+            </div>
+            <button id="clear-all" class="button button-ghost" type="button">Clear all saved data</button>
           </div>
-          <button id="clear-all" class="button button-ghost" type="button">Clear all saved data</button>
-        </div>
+          <div id="client-index"></div>
+        </section>
 
-        <form id="checklist-form" class="checklist-form">
-          <label>
-            Client name
-            <input id="client-name" name="clientName" type="text" placeholder="Example: Acme LLC" required />
-          </label>
-
-          <label>
-            Party type
-            <select id="party-type" name="partyType" required></select>
-          </label>
-
-          <label>
-            Due date
-            <input id="due-date" name="dueDate" type="date" required />
-          </label>
-
-          <label>
-            Workflow
-            <select id="workflow" name="workflow" required></select>
-          </label>
-
-          <div id="intake-questionnaire" class="intake-questionnaire" aria-live="polite"></div>
-
-          <button class="button button-primary" type="submit">Generate checklist</button>
-        </form>
-      </section>
-
-      <section class="panel" aria-labelledby="saved-checklists-title">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">Track</p>
-            <h2 id="saved-checklists-title">Saved checklists</h2>
+        <section class="panel" aria-labelledby="client-detail-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Relationships</p>
+              <h2 id="client-detail-title">Client / Relationship Detail</h2>
+            </div>
           </div>
-          <p id="summary" class="summary" aria-live="polite"></p>
-        </div>
-        <div id="checklists" class="checklists"></div>
+          <div id="client-detail"></div>
+        </section>
+
+        <section class="panel panel-wide" aria-labelledby="engagement-builder-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Scope</p>
+              <h2 id="engagement-builder-title">Engagement Builder / Checklist</h2>
+            </div>
+            <p id="summary" class="summary" aria-live="polite"></p>
+          </div>
+          <div id="engagement-builder"></div>
+          <div id="engagement-list" class="checklists"></div>
+        </section>
       </section>
     </main>
 
     <template id="empty-state-template">
       <div class="empty-state">
-        <h3>No checklists yet</h3>
-        <p>Create a checklist above to see tasks with suggested dates.</p>
+        <h3>No records yet</h3>
+        <p>Create a person or business client to start building engagements.</p>
       </div>
     </template>
 

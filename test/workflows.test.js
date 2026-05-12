@@ -1,155 +1,96 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createEngagement, createParty, createRelationship } from '../src/models.js';
+import {
+  createBusinessClient,
+  createEngagement,
+  createPersonClient,
+  createRelationship,
+  getLinkedClients
+} from '../src/models.js';
 import { generateClientRequestEmail, getClientFacingTasks, groupTasksByCategory } from '../src/outputs.js';
-import { buildChecklist, calculateSuggestedDate, getWorkflowQuestions, regenerateChecklist, workflows } from '../src/workflows.js';
+import {
+  buildEngagementForClient,
+  buildChecklist,
+  calculateSuggestedDate,
+  getWorkflowKeysForClientType,
+  regenerateEngagementForClient,
+  workflows
+} from '../src/workflows.js';
 
-const matchingAnswers = {
-  newTaxClientOnboarding: {
-    hasPriorYearReturns: 'yes',
-    hasIrsNotices: 'yes',
-    multiStateFiling: 'yes',
-    businessOwner: 'yes',
-    needsBookkeepingSetup: 'yes'
-  },
-  monthlyBookkeeping: {
-    usesPayroll: 'yes',
-    hasLoanActivity: 'yes',
-    inventoryActivity: 'yes',
-    salesTaxFilingDue: 'yes',
-    unclearedTransactions: 'yes'
-  },
-  yearEndCleanup: {
-    newFixedAssets: 'yes',
-    hasPayroll: 'yes',
-    needs1099Review: 'yes',
-    ownerContributions: 'yes',
-    openSuspenseItems: 'yes'
-  },
-  rentalPropertyTaxPrep: {
-    purchasedThisYear: 'yes',
-    soldThisYear: 'yes',
-    majorImprovements: 'yes',
-    personalUseDays: 'yes',
-    shortTermRentalActivity: 'yes',
-    outOfStateProperty: 'yes',
-    propertyManager: 'yes',
-    refinanceOrNewMortgage: 'yes',
-    casualtyLossOrInsuranceClaim: 'yes'
-  }
-};
-
-const conditionalTaskTitles = {
-  newTaxClientOnboarding: [
-    'Request prior-year tax returns and carryforward details',
-    'Request copies of IRS or state notices and response deadlines',
-    'Map resident and nonresident state filing requirements',
-    'Request entity documents, ownership details, and accounting access',
-    'Create bookkeeping setup plan and chart-of-accounts checklist'
-  ],
-  monthlyBookkeeping: [
-    'Request payroll reports and tie wages to payroll tax liabilities',
-    'Review loan statements, interest, principal, and new financing entries',
-    'Request inventory count or valuation report',
-    'Prepare sales tax reconciliation and filing support',
-    'Send transaction question list to client'
-  ],
-  yearEndCleanup: [
-    'Request asset purchase invoices and disposal documentation',
-    'Update fixed asset register and depreciation entries',
-    'Request annual payroll reports and reconcile wages to payroll tax filings',
-    'Request W-9s and confirm 1099 vendor payment totals',
-    'Reconcile owner contributions, draws, and equity rollforward',
-    'Send suspense item question list to client'
-  ],
-  rentalPropertyTaxPrep: [
-    'Collect closing statement and purchase allocation details',
-    'Collect sale closing statement and calculate rental property disposition details',
-    'Request invoices and placed-in-service dates for major improvements',
-    'Document personal-use days and allocate mixed-use expenses',
-    'Review short-term rental days, services provided, and occupancy tax details',
-    'Confirm nonresident state filing requirements for out-of-state property',
-    'Request property manager annual statement and fee detail',
-    'Collect refinance or new mortgage closing costs and loan terms',
-    'Gather casualty loss records, insurance claim documents, and reimbursements'
-  ]
-};
-
-function baseTaskCount(workflowKey) {
-  return workflows[workflowKey].tasks.filter((task) => !task.condition).length;
+function yesAnswers(workflowKey) {
+  return Object.fromEntries((workflows[workflowKey].questions ?? []).map((question) => [question.id, 'yes']));
 }
 
-function noAnswers(workflowKey) {
-  return Object.fromEntries(getWorkflowQuestions(workflowKey).map((question) => [question.id, 'no']));
-}
+test('creates person clients', () => {
+  const client = createPersonClient({ firstName: 'Jane', lastName: 'Client', email: 'jane@example.com' });
 
-
-test('creates party, relationship, and engagement records for future workflow expansion', () => {
-  const person = createParty({ displayName: 'Jane Client', partyType: 'person' });
-  const business = createParty({ displayName: 'Client Co LLC', partyType: 'business' });
-  const relationship = createRelationship({
-    fromPartyId: person.id,
-    toPartyId: business.id,
-    relationshipType: 'owner',
-    details: { ownershipPercent: '100', primaryContact: true }
-  });
-  const engagement = createEngagement({
-    partyId: business.id,
-    engagementType: 'businessMonthlyBookkeeping',
-    periodEnd: '2026-03-31',
-    dueDate: '2026-04-15',
-    relatedPartyIds: [person.id]
-  });
-
-  assert.equal(person.partyType, 'person');
-  assert.equal(business.partyType, 'business');
-  assert.equal(relationship.relationshipType, 'owner');
-  assert.equal(relationship.primaryContact, true);
-  assert.equal(engagement.partyId, business.id);
-  assert.deepEqual(engagement.relatedPartyIds, [person.id]);
+  assert.equal(client.clientType, 'person');
+  assert.equal(client.displayName, 'Jane Client');
+  assert.equal(client.email, 'jane@example.com');
 });
 
-test('includes the required workflow templates', () => {
-  assert.deepEqual(Object.keys(workflows), [
-    'newTaxClientOnboarding',
-    'monthlyBookkeeping',
-    'yearEndCleanup',
-    'rentalPropertyTaxPrep'
+test('creates business clients', () => {
+  const client = createBusinessClient({ legalName: 'Client Co LLC', taxTreatment: 'sCorp', einLast4: '1234' });
+
+  assert.equal(client.clientType, 'business');
+  assert.equal(client.displayName, 'Client Co LLC');
+  assert.equal(client.taxTreatment, 'sCorp');
+  assert.equal(client.einLast4, '1234');
+});
+
+test('links people and businesses many-to-many', () => {
+  const jane = createPersonClient({ firstName: 'Jane', lastName: 'Client' });
+  const alex = createPersonClient({ firstName: 'Alex', lastName: 'Owner' });
+  const scorp = createBusinessClient({ legalName: 'SATC Ops Inc', taxTreatment: 'sCorp' });
+  const partnership = createBusinessClient({ legalName: 'Rental Partners LP', taxTreatment: 'partnership' });
+  const relationships = [
+    createRelationship({ fromClientId: jane.id, toClientId: scorp.id, relationshipType: 'shareholder', ownershipPercent: '60' }),
+    createRelationship({ fromClientId: jane.id, toClientId: partnership.id, relationshipType: 'partner', ownershipPercent: '50' }),
+    createRelationship({ fromClientId: alex.id, toClientId: scorp.id, relationshipType: 'officer' })
+  ];
+
+  assert.deepEqual(
+    getLinkedClients([jane, alex, scorp, partnership], relationships, jane.id).map((client) => client.displayName).sort(),
+    ['Rental Partners LP', 'SATC Ops Inc']
+  );
+  assert.deepEqual(
+    getLinkedClients([jane, alex, scorp, partnership], relationships, scorp.id).map((client) => client.displayName).sort(),
+    ['Alex Owner', 'Jane Client']
+  );
+});
+
+test('filters workflows by client type', () => {
+  assert.deepEqual(getWorkflowKeysForClientType('person'), [
+    'personal1040Core',
+    'personalScheduleC',
+    'personalRentalScheduleE'
   ]);
+  assert.deepEqual(getWorkflowKeysForClientType('business'), [
+    'businessMonthlyBookkeeping',
+    'businessYearEndCleanup',
+    'businessSCorpTax',
+    'businessPartnershipTax'
+  ]);
+});
+
+test('creates engagements from saved client records', () => {
+  const client = createBusinessClient({ legalName: 'Client Co LLC', taxTreatment: 'sCorp' });
+  const engagement = buildEngagementForClient({
+    client,
+    workflowKey: 'businessSCorpTax',
+    taxYear: '2026',
+    dueDate: '2027-03-15',
+    intakeAnswers: yesAnswers('businessSCorpTax')
+  });
+
+  assert.equal(engagement.clientId, client.id);
+  assert.equal(engagement.engagementType, 'businessSCorpTax');
+  assert.equal(engagement.workflowKey, 'businessSCorpTax');
+  assert.ok(engagement.tasks.length > 1);
 });
 
 test('calculates suggested dates before the due date', () => {
   assert.equal(calculateSuggestedDate('2026-04-15', 10), '2026-04-05');
-});
-
-test('builds checklist tasks from a selected workflow with category and audience metadata', () => {
-  const checklist = buildChecklist({
-    clientName: '  Acme LLC  ',
-    dueDate: '2026-04-15',
-    workflowKey: 'monthlyBookkeeping'
-  });
-
-  assert.equal(checklist.clientName, 'Acme LLC');
-  assert.equal(checklist.workflowName, 'Monthly bookkeeping');
-  assert.equal(checklist.tasks.length, baseTaskCount('monthlyBookkeeping'));
-  assert.equal(checklist.tasks.at(-1).suggestedDate, '2026-04-15');
-  assert.equal(checklist.tasks.every((task) => task.completed === false), true);
-  assert.equal(checklist.tasks.every((task) => task.category && task.audience && task.audienceLabel), true);
-});
-
-test('all workflows expose optional intake questions', () => {
-  Object.keys(workflows).forEach((workflowKey) => {
-    assert.ok(getWorkflowQuestions(workflowKey).length > 0, `${workflowKey} should define intake questions`);
-  });
-});
-
-test('all workflow templates include task categories and audience flags', () => {
-  Object.entries(workflows).forEach(([workflowKey, workflow]) => {
-    workflow.tasks.forEach((task) => {
-      assert.ok(task.category, `${workflowKey} task should define a category: ${task.title}`);
-      assert.match(task.audience, /^(internal|client)$/, `${workflowKey} task should define an audience: ${task.title}`);
-    });
-  });
 });
 
 test('every workflow task has a unique stable templateId', () => {
@@ -166,196 +107,154 @@ test('every workflow task has a unique stable templateId', () => {
   assert.equal(new Set(allTemplateIds).size, allTemplateIds.length);
 });
 
-test('generated checklist tasks include generated id and stable templateId', () => {
-  const checklist = buildChecklist({
-    clientName: 'Acme LLC',
-    dueDate: '2026-04-15',
-    workflowKey: 'monthlyBookkeeping',
-    answers: matchingAnswers.monthlyBookkeeping
+test('generated tasks include id and templateId', () => {
+  const client = createPersonClient({ firstName: 'Jane', lastName: 'Client' });
+  const engagement = buildEngagementForClient({
+    client,
+    workflowKey: 'personal1040Core',
+    dueDate: '2027-04-15',
+    intakeAnswers: yesAnswers('personal1040Core')
   });
 
-  assert.equal(
-    checklist.tasks.every((task) => task.id && task.templateId),
-    true
-  );
-  assert.equal(checklist.tasks.some((task) => task.templateId === 'monthly-request-bank-statements'), true);
-  assert.equal(checklist.party.partyType, 'person');
-  assert.equal(checklist.engagement.engagementType, 'businessMonthlyBookkeeping');
+  assert.equal(engagement.tasks.every((task) => task.id && task.templateId), true);
 });
 
-Object.keys(workflows).forEach((workflowKey) => {
-  test(`omits conditional tasks when ${workflowKey} intake answers do not match`, () => {
-    const checklist = buildChecklist({
-      clientName: 'Example Client',
-      dueDate: '2026-04-15',
-      workflowKey,
-      answers: noAnswers(workflowKey)
-    });
-
-    assert.equal(checklist.tasks.length, baseTaskCount(workflowKey));
-    assert.equal(
-      conditionalTaskTitles[workflowKey].every((title) => !checklist.tasks.some((task) => task.title === title)),
-      true
-    );
+test('regenerating engagement preserves notes and completion by templateId', () => {
+  const client = createPersonClient({ firstName: 'Jane', lastName: 'Client' });
+  const engagement = buildEngagementForClient({
+    client,
+    workflowKey: 'personalScheduleC',
+    dueDate: '2027-04-15',
+    intakeAnswers: { ...yesAnswers('personalScheduleC'), vehicleUse: 'no' }
   });
+  const trackedTask = engagement.tasks.find((task) => task.templateId === 'schedule-c-upload-1099-nec');
+  trackedTask.completed = true;
+  trackedTask.notes = 'Uploaded by client.';
 
-  test(`adds matching conditional tasks and saves intake answers for ${workflowKey}`, () => {
-    const checklist = buildChecklist({
-      clientName: 'Example Client',
-      dueDate: '2026-04-15',
-      workflowKey,
-      answers: matchingAnswers[workflowKey]
-    });
-
-    assert.equal(checklist.tasks.length, workflows[workflowKey].tasks.length);
-    assert.deepEqual(checklist.intakeAnswers, matchingAnswers[workflowKey]);
-    assert.equal(
-      conditionalTaskTitles[workflowKey].every((title) => checklist.tasks.some((task) => task.title === title)),
-      true
-    );
+  const regenerated = regenerateEngagementForClient(engagement, {
+    client,
+    dueDate: '2027-04-20',
+    intakeAnswers: { ...yesAnswers('personalScheduleC'), vehicleUse: 'yes' }
   });
+  const preservedTask = regenerated.tasks.find((task) => task.templateId === 'schedule-c-upload-1099-nec');
+  const newTask = regenerated.tasks.find((task) => task.templateId === 'schedule-c-mileage-log');
+
+  assert.equal(preservedTask.completed, true);
+  assert.equal(preservedTask.notes, 'Uploaded by client.');
+  assert.equal(newTask.completed, false);
+  assert.equal(newTask.notes, '');
 });
 
-
-test('filters client-facing tasks for output', () => {
-  const checklist = buildChecklist({
-    clientName: 'Example Client',
-    dueDate: '2026-04-15',
-    workflowKey: 'monthlyBookkeeping',
-    answers: matchingAnswers.monthlyBookkeeping
+test('relationship-generated K-1 reminders appear for linked businesses on personal 1040 engagements', () => {
+  const person = createPersonClient({ firstName: 'Jane', lastName: 'Client' });
+  const scorp = createBusinessClient({ legalName: 'Client S Corp', taxTreatment: 'sCorp' });
+  const partnership = createBusinessClient({ legalName: 'Client Partnership', taxTreatment: 'partnership' });
+  const relationships = [
+    createRelationship({ fromClientId: person.id, toClientId: scorp.id, relationshipType: 'shareholder' }),
+    createRelationship({ fromClientId: person.id, toClientId: partnership.id, relationshipType: 'partner' })
+  ];
+  const engagement = buildEngagementForClient({
+    client: person,
+    workflowKey: 'personal1040Core',
+    taxYear: '2026',
+    dueDate: '2027-04-15',
+    intakeAnswers: { expectedK1s: 'yes' },
+    linkedClients: [scorp, partnership],
+    relationships
   });
-  const clientTasks = getClientFacingTasks(checklist.tasks);
 
-  assert.ok(clientTasks.length > 0);
-  assert.equal(clientTasks.every((task) => task.audience === 'client'), true);
-  assert.equal(clientTasks.some((task) => task.title === 'Import transactions and refresh bank feeds'), false);
-  assert.equal(clientTasks.some((task) => task.title === 'Send transaction question list to client'), true);
+  assert.equal(engagement.tasks.some((task) => task.templateId === `relationship-personal-1040-k1-${scorp.id}`), true);
+  assert.equal(engagement.tasks.some((task) => task.templateId === `relationship-personal-1040-7203-${scorp.id}`), true);
+  assert.equal(engagement.tasks.some((task) => task.templateId === `relationship-personal-1040-partnership-k1-${partnership.id}`), true);
+  assert.equal(engagement.riskFlags.includes('S-corp shareholder basis review'), true);
 });
 
-test('generates client request email text with only client-facing grouped requests', () => {
-  const checklist = buildChecklist({
-    clientName: 'Acme LLC',
-    dueDate: '2026-04-15',
-    workflowKey: 'monthlyBookkeeping',
-    answers: matchingAnswers.monthlyBookkeeping
+test('linked owner reminders appear on S-corp and partnership engagements', () => {
+  const owner = createPersonClient({ firstName: 'Jane', lastName: 'Client' });
+  const scorp = createBusinessClient({ legalName: 'Client S Corp', taxTreatment: 'sCorp' });
+  const relationship = createRelationship({ fromClientId: owner.id, toClientId: scorp.id, relationshipType: 'shareholder' });
+  const personalEngagement = createEngagement({
+    clientId: owner.id,
+    engagementType: 'personal1040Core',
+    workflowKey: 'personal1040Core',
+    taxYear: '2026',
+    dueDate: '2027-04-15'
   });
-  const email = generateClientRequestEmail(checklist);
+  const engagement = buildEngagementForClient({
+    client: scorp,
+    workflowKey: 'businessSCorpTax',
+    taxYear: '2026',
+    dueDate: '2027-03-15',
+    intakeAnswers: yesAnswers('businessSCorpTax'),
+    linkedClients: [owner],
+    relationships: [relationship],
+    existingEngagements: [personalEngagement]
+  });
 
-  assert.match(email, /Subject: Requested items for Acme LLC - Monthly bookkeeping/);
-  assert.match(email, /Hello Acme LLC,/);
-  assert.match(email, /SAT-C LLP is preparing your Monthly bookkeeping checklist due Apr 15, 2026/);
-  assert.match(email, /Document requests\n- Request bank, credit card, and loan statements/);
-  assert.match(email, /Client follow-up\n- Send transaction question list to client/);
-  assert.doesNotMatch(email, /Import transactions and refresh bank feeds/);
-  assert.match(email, /Thank you,\nSAT-C LLP/);
+  const reminder = engagement.tasks.find((task) => task.templateId === `relationship-business-deliver-k1-${owner.id}`);
+  assert.ok(reminder);
+  assert.match(reminder.internalInstructions, /Feeds linked personal return/);
+  assert.equal(engagement.riskFlags.includes('Linked owner K-1 delivery'), true);
 });
 
-test('groups tasks by category for output', () => {
-  const groupedTasks = groupTasksByCategory([
-    { title: 'First request', category: 'Document requests', audience: 'client' },
-    { title: 'Internal review', category: 'Review', audience: 'internal' },
-    { title: 'Second request', category: 'Document requests', audience: 'client' }
+test('risk flags are generated from intake answers', () => {
+  const client = createPersonClient({ firstName: 'Jane', lastName: 'Client' });
+  const engagement = buildEngagementForClient({
+    client,
+    workflowKey: 'personal1040Core',
+    dueDate: '2027-04-15',
+    intakeAnswers: { marketplaceInsurance: 'yes', digitalAssets: 'yes', foreignAccounts: 'yes' }
+  });
+
+  assert.deepEqual(engagement.riskFlags.sort(), [
+    'Crypto / digital asset activity',
+    'Foreign accounts / FBAR review',
+    'Marketplace Form 1095-A required'
   ]);
-
-  assert.deepEqual(
-    groupedTasks.map((group) => ({ category: group.category, titles: group.tasks.map((task) => task.title) })),
-    [
-      { category: 'Document requests', titles: ['First request', 'Second request'] },
-      { category: 'Review', titles: ['Internal review'] }
-    ]
-  );
 });
 
-
-test('regenerates a checklist while preserving matching task notes and completion status by templateId', () => {
-  const checklist = buildChecklist({
-    clientName: 'Acme LLC',
-    dueDate: '2026-04-15',
-    workflowKey: 'monthlyBookkeeping',
-    answers: {
-      usesPayroll: 'yes',
-      hasLoanActivity: 'yes',
-      inventoryActivity: 'no',
-      salesTaxFilingDue: 'no',
-      unclearedTransactions: 'no'
-    }
+test('client-facing request filtering and grouped output still work', () => {
+  const client = createBusinessClient({ legalName: 'Client Co LLC', taxTreatment: 'sCorp' });
+  const engagement = buildEngagementForClient({
+    client,
+    workflowKey: 'businessSCorpTax',
+    dueDate: '2027-03-15',
+    intakeAnswers: yesAnswers('businessSCorpTax')
   });
+  const clientTasks = getClientFacingTasks(engagement.tasks);
+  const grouped = groupTasksByCategory(clientTasks);
 
-  const baseRequest = checklist.tasks.find((task) => task.title === 'Request bank, credit card, and loan statements');
-  baseRequest.completed = true;
-  baseRequest.notes = 'Client uploaded March statements.';
-
-  const payrollRequest = checklist.tasks.find(
-    (task) => task.title === 'Request payroll reports and tie wages to payroll tax liabilities'
-  );
-  payrollRequest.completed = true;
-  payrollRequest.notes = 'Payroll report is in the portal.';
-
-  const updatedChecklist = regenerateChecklist(checklist, {
-    clientName: 'Acme LLC Updated',
-    dueDate: '2026-04-30',
-    answers: {
-      usesPayroll: 'yes',
-      hasLoanActivity: 'no',
-      inventoryActivity: 'yes',
-      salesTaxFilingDue: 'no',
-      unclearedTransactions: 'no'
-    }
-  });
-
-  const preservedBaseRequest = updatedChecklist.tasks.find(
-    (task) => task.title === 'Request bank, credit card, and loan statements'
-  );
-  const preservedPayrollRequest = updatedChecklist.tasks.find(
-    (task) => task.title === 'Request payroll reports and tie wages to payroll tax liabilities'
-  );
-  const removedLoanTask = updatedChecklist.tasks.find(
-    (task) => task.title === 'Review loan statements, interest, principal, and new financing entries'
-  );
-  const newInventoryTask = updatedChecklist.tasks.find((task) => task.title === 'Request inventory count or valuation report');
-
-  assert.equal(updatedChecklist.clientName, 'Acme LLC Updated');
-  assert.equal(updatedChecklist.dueDate, '2026-04-30');
-  assert.equal(preservedBaseRequest.completed, true);
-  assert.equal(preservedBaseRequest.notes, 'Client uploaded March statements.');
-  assert.equal(preservedPayrollRequest.completed, true);
-  assert.equal(preservedPayrollRequest.notes, 'Payroll report is in the portal.');
-  assert.equal(removedLoanTask, undefined);
-  assert.equal(newInventoryTask.completed, false);
-  assert.equal(newInventoryTask.notes, '');
+  assert.equal(clientTasks.every((task) => task.audience === 'client'), true);
+  assert.ok(grouped.some((group) => group.category === 'Core financials'));
 });
 
+test('client request email uses clientRequestText and excludes internal tasks', () => {
+  const client = createPersonClient({ firstName: 'Jane', lastName: 'Client' });
+  const engagement = buildEngagementForClient({
+    client,
+    workflowKey: 'personal1040Core',
+    dueDate: '2027-04-15',
+    intakeAnswers: { marketplaceInsurance: 'yes', foreignAccounts: 'yes' }
+  });
+  const email = generateClientRequestEmail({ ...engagement, clientName: client.displayName });
 
-test('regeneration preserves task data when title changes but templateId remains the same', () => {
-  const taskTemplate = workflows.monthlyBookkeeping.tasks.find(
-    (task) => task.templateId === 'monthly-request-bank-statements'
-  );
-  const originalTitle = taskTemplate.title;
+  assert.match(email, /Upload Form 1095-A for Marketplace coverage/);
+  assert.match(email, /Provide foreign account institution names/);
+  assert.doesNotMatch(email, /Evaluate FBAR/);
+});
 
-  try {
-    const checklist = buildChecklist({
-      clientName: 'Acme LLC',
-      dueDate: '2026-04-15',
-      workflowKey: 'monthlyBookkeeping',
-      answers: matchingAnswers.monthlyBookkeeping
-    });
-    const trackedTask = checklist.tasks.find((task) => task.templateId === 'monthly-request-bank-statements');
-    trackedTask.completed = true;
-    trackedTask.notes = 'Preserve these notes even if wording changes.';
+test('business and person client records persist separately from engagements', () => {
+  const person = createPersonClient({ firstName: 'Jane', lastName: 'Client' });
+  const business = createBusinessClient({ legalName: 'Client Co LLC', taxTreatment: 'partnership' });
+  const engagement = buildEngagementForClient({
+    client: business,
+    workflowKey: 'businessPartnershipTax',
+    dueDate: '2027-03-15',
+    intakeAnswers: yesAnswers('businessPartnershipTax')
+  });
+  const persistedState = { clients: [person, business], relationships: [], engagements: [engagement] };
 
-    taskTemplate.title = 'Request operating account, credit card, and loan statements';
-
-    const updatedChecklist = regenerateChecklist(checklist, {
-      clientName: 'Acme LLC',
-      dueDate: '2026-04-30',
-      answers: matchingAnswers.monthlyBookkeeping
-    });
-    const updatedTask = updatedChecklist.tasks.find((task) => task.templateId === 'monthly-request-bank-statements');
-
-    assert.equal(updatedTask.title, 'Request operating account, credit card, and loan statements');
-    assert.equal(updatedTask.completed, true);
-    assert.equal(updatedTask.notes, 'Preserve these notes even if wording changes.');
-  } finally {
-    taskTemplate.title = originalTitle;
-  }
+  assert.equal(persistedState.clients.length, 2);
+  assert.equal(persistedState.engagements[0].clientId, business.id);
+  assert.notDeepEqual(persistedState.clients[1], persistedState.engagements[0]);
 });

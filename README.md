@@ -1,26 +1,27 @@
 # Workflow Task Checklists
 
-A simple local web app for generating client task checklists from predefined accounting and tax workflows. The app runs in the browser and stores checklist data in browser local storage, so no backend or database is required.
+A local SAT-C LLP web app for maintaining a reusable client index, linking people and businesses, and generating relationship-aware client engagement checklists. The app runs in the browser and stores clients, relationships, engagements, tasks, notes, and intake answers in browser local storage, so no backend or database is required.
 
-## Included workflows
+## Included engagement workflows
 
-- New tax client onboarding
-- Monthly bookkeeping
-- Year-end cleanup
-- Rental property tax prep
+- Personal 1040 core
+- Personal Schedule C
+- Personal rental Schedule E
+- Business monthly bookkeeping
+- Business year-end cleanup
+- Business S corporation tax
+- Business partnership tax
 
 ## Features
 
-- Enter a client name, due date, and workflow to generate a checklist.
-- Each generated task includes a suggested date based on the final due date.
-- Answer optional intake questions for any workflow to add matching conditional tasks.
-- Review generated tasks grouped by category, with badges for internal work versus client-facing document requests or follow-up.
-- Copy a client request email, print a client-facing request list, or print a full internal checklist for each saved checklist.
-- Edit saved checklist client details and intake answers, or duplicate a checklist for a similar engagement.
-- Mark tasks complete as work progresses.
-- Add notes to individual tasks for questions, follow-up items, or status updates.
-- Save all checklist data, intake answers, task completion, and notes in browser local storage.
-- Delete individual checklists or clear all saved browser data.
+- Create reusable person and business client records.
+- Link people and businesses with relationship types such as owner, shareholder, partner, officer, authorized contact, payroll contact, and bookkeeper.
+- Filter engagement workflows by client type so personal work stays under people and business/entity work stays under businesses.
+- Generate engagements with risk flags, relationship-generated K-1 reminders, precise client-facing request text, and internal instructions.
+- Review generated tasks grouped by category, with text badges for internal work, client-facing requests, risk flags, and relationship-generated reminders.
+- Copy a client request email, print a client-facing request list, or print a full internal checklist for each engagement.
+- Mark tasks complete, add notes, duplicate engagements, delete engagements, and clear all local data.
+- Save clients, relationships, engagements, intake answers, task completion, and notes in browser localStorage.
 
 ## Setup instructions
 
@@ -52,4 +53,4 @@ npm test
 
 ## Data storage note
 
-Checklist data is saved only in the current browser's local storage. Clearing browser site data, using a different browser, or using a different device will not preserve existing checklists.
+Client, relationship, and engagement data is saved only in the current browser's localStorage. Clearing browser site data, using a different browser, or using a different device will not preserve existing records.

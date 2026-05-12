@@ -1,7 +1,9 @@
-export const PARTY_TYPES = {
+export const CLIENT_TYPES = {
   person: 'Person',
   business: 'Business'
 };
+
+export const PARTY_TYPES = CLIENT_TYPES;
 
 export const RELATIONSHIP_TYPES = {
   spouse: 'Spouse',
@@ -16,14 +18,14 @@ export const RELATIONSHIP_TYPES = {
 };
 
 export const ENGAGEMENT_TYPES = {
-  clientOnboarding: 'Client onboarding',
-  personal1040: 'Personal 1040',
-  personalRentalScheduleE: 'Personal rental Schedule E',
+  personal1040Core: 'Personal 1040 core',
   personalScheduleC: 'Personal Schedule C',
+  personalRentalScheduleE: 'Personal rental Schedule E',
   businessMonthlyBookkeeping: 'Business monthly bookkeeping',
   businessYearEndCleanup: 'Business year-end cleanup',
   businessSCorpTax: 'Business S corporation tax',
-  businessPartnershipTax: 'Business partnership tax'
+  businessPartnershipTax: 'Business partnership tax',
+  clientOnboarding: 'Client onboarding'
 };
 
 export function createId(prefix) {
@@ -34,48 +36,150 @@ export function createId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-export function createParty({ displayName, partyType = 'person' }) {
-  const cleanName = displayName.trim();
+function requireText(value, message) {
+  const cleanValue = String(value ?? '').trim();
 
-  if (!cleanName) {
-    throw new Error('Client name is required.');
+  if (!cleanValue) {
+    throw new Error(message);
   }
 
+  return cleanValue;
+}
+
+export function createPersonClient({ firstName, lastName, email = '', phone = '', notes = '' }) {
+  const cleanFirstName = requireText(firstName, 'First name is required.');
+  const cleanLastName = requireText(lastName, 'Last name is required.');
+
   return {
-    id: createId('party'),
-    partyType,
-    displayName: cleanName,
-    legalName: cleanName,
-    preferredName: partyType === 'person' ? cleanName : '',
-    dba: partyType === 'business' ? '' : undefined,
-    entityType: partyType === 'business' ? '' : undefined,
-    taxTreatment: partyType === 'business' ? '' : undefined,
-    email: '',
-    phone: ''
+    id: createId('client'),
+    clientType: 'person',
+    firstName: cleanFirstName,
+    lastName: cleanLastName,
+    displayName: `${cleanFirstName} ${cleanLastName}`,
+    email: email.trim(),
+    phone: phone.trim(),
+    notes: notes.trim(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 }
 
-export function createRelationship({ fromPartyId, toPartyId, relationshipType, details = {} }) {
+export function createBusinessClient({
+  legalName,
+  dbaName = '',
+  entityType = '',
+  taxTreatment = '',
+  einLast4 = '',
+  email = '',
+  phone = '',
+  notes = ''
+}) {
+  const cleanLegalName = requireText(legalName, 'Legal name is required.');
+
+  return {
+    id: createId('client'),
+    clientType: 'business',
+    legalName: cleanLegalName,
+    dbaName: dbaName.trim(),
+    displayName: dbaName.trim() || cleanLegalName,
+    entityType: entityType.trim(),
+    taxTreatment: taxTreatment.trim(),
+    einLast4: einLast4.trim(),
+    email: email.trim(),
+    phone: phone.trim(),
+    notes: notes.trim(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+export function createParty({ displayName, partyType = 'person' }) {
+  if (partyType === 'business') {
+    return createBusinessClient({ legalName: displayName });
+  }
+
+  const [firstName = displayName, ...lastParts] = String(displayName).trim().split(/\s+/);
+  return createPersonClient({ firstName, lastName: lastParts.join(' ') || 'Client' });
+}
+
+export function createRelationship({
+  fromClientId,
+  toClientId,
+  fromPartyId,
+  toPartyId,
+  relationshipType,
+  ownershipPercent = '',
+  isPrimary = false,
+  notes = '',
+  details = {}
+}) {
   return {
     id: createId('relationship'),
-    fromPartyId,
-    toPartyId,
+    fromClientId: fromClientId ?? fromPartyId,
+    toClientId: toClientId ?? toPartyId,
     relationshipType,
-    ownershipPercent: details.ownershipPercent ?? '',
-    startDate: details.startDate ?? '',
-    endDate: details.endDate ?? '',
-    primaryContact: Boolean(details.primaryContact)
+    ownershipPercent: ownershipPercent || details.ownershipPercent || '',
+    isPrimary: Boolean(isPrimary || details.primaryContact),
+    notes: notes.trim?.() ?? '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 }
 
-export function createEngagement({ partyId, engagementType, dueDate, relatedPartyIds = [], taxYear = '', periodEnd = '' }) {
+export function getRelationshipsForClient(relationships, clientId) {
+  return relationships.filter(
+    (relationship) => relationship.fromClientId === clientId || relationship.toClientId === clientId
+  );
+}
+
+export function getLinkedClients(clients, relationships, clientId) {
+  const linkedIds = new Set(
+    getRelationshipsForClient(relationships, clientId).map((relationship) =>
+      relationship.fromClientId === clientId ? relationship.toClientId : relationship.fromClientId
+    )
+  );
+
+  return clients.filter((client) => linkedIds.has(client.id));
+}
+
+export function createEngagement({
+  clientId,
+  partyId,
+  engagementType,
+  workflowKey,
+  taxYear = '',
+  periodEnd = '',
+  dueDate,
+  relatedClientIds = [],
+  relatedPartyIds = [],
+  intakeAnswers = {},
+  riskFlags = [],
+  tasks = []
+}) {
+  const linkedIds = relatedClientIds.length ? relatedClientIds : relatedPartyIds;
+
   return {
     id: createId('engagement'),
-    partyId,
+    clientId: clientId ?? partyId,
     engagementType,
+    workflowKey,
     taxYear,
     periodEnd,
     dueDate,
-    relatedPartyIds
+    relatedClientIds: linkedIds,
+    intakeAnswers,
+    riskFlags,
+    tasks,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+export function updateEngagementTasks(engagement, tasks, riskFlags = engagement.riskFlags ?? []) {
+  return {
+    ...engagement,
+    tasks,
+    riskFlags,
+    updatedAt: new Date().toISOString()
   };
 }
