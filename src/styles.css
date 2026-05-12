@@ -1,0 +1,349 @@
+:root {
+  color: #1f2933;
+  background: #eef2f6;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.app-shell {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 48px;
+}
+
+.hero,
+.panel,
+.checklist-card {
+  border: 1px solid #d8e0e8;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 50px rgba(31, 41, 51, 0.08);
+}
+
+.hero {
+  margin-bottom: 20px;
+  padding: 40px;
+  background:
+    linear-gradient(135deg, rgba(34, 99, 143, 0.94), rgba(60, 120, 98, 0.86)),
+    #22638f;
+  color: #ffffff;
+}
+
+.hero h1,
+.panel h2,
+.checklist-card h3 {
+  margin: 0;
+  line-height: 1.1;
+}
+
+.hero h1 {
+  max-width: 720px;
+  font-size: clamp(2.4rem, 6vw, 4.75rem);
+  letter-spacing: -0.06em;
+}
+
+.hero-copy {
+  max-width: 720px;
+  margin: 18px 0 0;
+  color: #eaf3f8;
+  font-size: 1.1rem;
+}
+
+.panel {
+  margin-top: 20px;
+  padding: 28px;
+}
+
+.section-heading,
+.card-header,
+.task-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #527084;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero .eyebrow {
+  color: #cfe7f5;
+}
+
+.summary,
+.description {
+  margin: 8px 0 0;
+  color: #66788a;
+}
+
+.checklist-form {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 1.1fr auto;
+  gap: 16px;
+  margin-top: 24px;
+  align-items: end;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  color: #34495b;
+  font-weight: 700;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid #c9d4df;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #1f2933;
+  padding: 12px 14px;
+}
+
+textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #22638f;
+  box-shadow: 0 0 0 4px rgba(34, 99, 143, 0.14);
+  outline: none;
+}
+
+.button {
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 12px 18px;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.button:hover {
+  transform: translateY(-1px);
+}
+
+.button-primary {
+  background: #22638f;
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(34, 99, 143, 0.24);
+}
+
+.button-ghost {
+  background: #eef6fb;
+  color: #22638f;
+}
+
+.button-danger {
+  background: #fff0ed;
+  color: #a33d2f;
+}
+
+.intake-questionnaire {
+  grid-column: 1 / -1;
+  border: 1px solid #dce8f0;
+  border-radius: 20px;
+  background: #f7fbfd;
+  padding: 20px;
+}
+
+.intake-questionnaire[hidden] {
+  display: none;
+}
+
+.intake-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.intake-heading h3 {
+  margin: 0;
+}
+
+.intake-heading p:not(.eyebrow) {
+  max-width: 420px;
+  margin: 0;
+  color: #66788a;
+}
+
+.question-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.answer-summary {
+  margin-top: 18px;
+  border-radius: 16px;
+  background: #f7fbfd;
+  padding: 14px 16px;
+}
+
+.answer-summary summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.answer-summary dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0 0;
+}
+
+.answer-summary div {
+  border-top: 1px solid #dce8f0;
+  padding-top: 10px;
+}
+
+.answer-summary dt {
+  color: #5d7083;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.answer-summary dd {
+  margin: 4px 0 0;
+  color: #1f2933;
+}
+
+.checklists {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.checklist-card {
+  padding: 24px;
+}
+
+.task-list {
+  display: grid;
+  gap: 12px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task-item {
+  border: 1px solid #dce4ec;
+  border-radius: 18px;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+.task-item.is-complete {
+  background: #f0f8f3;
+  border-color: #cce8d4;
+}
+
+.task-check {
+  display: flex;
+  grid-template-columns: auto 1fr;
+  align-items: flex-start;
+  gap: 10px;
+  font-weight: 800;
+}
+
+.task-check input {
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  accent-color: #2f7d4e;
+}
+
+.task-item.is-complete .task-check span {
+  color: #536b5f;
+  text-decoration: line-through;
+}
+
+time {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #e7eef5;
+  color: #35556d;
+  font-size: 0.9rem;
+  font-weight: 800;
+  padding: 6px 10px;
+}
+
+.notes-label {
+  margin-top: 14px;
+  color: #5d7083;
+  font-size: 0.9rem;
+}
+
+.empty-state {
+  border: 1px dashed #b9c8d6;
+  border-radius: 20px;
+  padding: 32px;
+  text-align: center;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px;
+}
+
+.empty-state p {
+  margin: 0;
+  color: #66788a;
+}
+
+@media (max-width: 860px) {
+  .checklist-form {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading,
+  .card-header,
+  .task-main,
+  .intake-heading {
+    flex-direction: column;
+  }
+
+  .button {
+    width: 100%;
+  }
+
+  .question-grid,
+  .answer-summary dl {
+    grid-template-columns: 1fr;
+  }
+
+  time {
+    align-self: flex-start;
+  }
+}

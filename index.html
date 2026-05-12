@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Workflow Task Checklists</title>
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero" aria-labelledby="app-title">
+        <div>
+          <p class="eyebrow">Local workflow planner</p>
+          <h1 id="app-title">Client task checklists</h1>
+          <p class="hero-copy">
+            Generate clean, date-driven checklists for common tax and bookkeeping workflows.
+            Tasks, completion status, and notes stay in this browser using local storage.
+          </p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="new-checklist-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Create</p>
+            <h2 id="new-checklist-title">New checklist</h2>
+          </div>
+          <button id="clear-all" class="button button-ghost" type="button">Clear all saved data</button>
+        </div>
+
+        <form id="checklist-form" class="checklist-form">
+          <label>
+            Client name
+            <input id="client-name" name="clientName" type="text" placeholder="Example: Acme LLC" required />
+          </label>
+
+          <label>
+            Due date
+            <input id="due-date" name="dueDate" type="date" required />
+          </label>
+
+          <label>
+            Workflow
+            <select id="workflow" name="workflow" required></select>
+          </label>
+
+          <div id="intake-questionnaire" class="intake-questionnaire" aria-live="polite"></div>
+
+          <button class="button button-primary" type="submit">Generate checklist</button>
+        </form>
+      </section>
+
+      <section class="panel" aria-labelledby="saved-checklists-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Track</p>
+            <h2 id="saved-checklists-title">Saved checklists</h2>
+          </div>
+          <p id="summary" class="summary" aria-live="polite"></p>
+        </div>
+        <div id="checklists" class="checklists"></div>
+      </section>
+    </main>
+
+    <template id="empty-state-template">
+      <div class="empty-state">
+        <h3>No checklists yet</h3>
+        <p>Create a checklist above to see tasks with suggested dates.</p>
+      </div>
+    </template>
+
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
