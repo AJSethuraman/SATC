@@ -57,7 +57,7 @@ Run the sorter against a folder of uploads and it will:
 7. Rename files with the detected type prefix, such as `W2_scan001.pdf`, `1099_NEC_upload4.pdf`, or `NeedsReview_IMG_2231.jpg`.
 8. Avoid overwriting existing files by appending `_2`, `_3`, and so on.
 9. Create `Document_Inventory.xlsx` and `processing_log.txt` in the output folder.
-10. Add an inventory note when multiple possible document categories are detected in one file.
+10. Add scoring details and manual-review notes when classification is weak or multiple document categories are possible.
 
 ## Important safety notes
 
@@ -70,7 +70,7 @@ Run the sorter against a folder of uploads and it will:
 
 ## Classification rules
 
-The sorter uses simple keyword matching only. Exact form keywords are marked `High` confidence. Supporting descriptive phrases are marked `Medium` confidence. `NeedsReview` is marked `Low` confidence.
+The sorter uses conservative rule-based scoring only. Strong official identifiers carry the most weight, generic tax words do not classify a document by themselves, and uncertain files go to `NeedsReview`.
 
 | Category | Keywords |
 | --- | --- |
@@ -87,7 +87,7 @@ The sorter uses simple keyword matching only. Exact form keywords are marked `Hi
 | ID | `Driver License`, `Driver's License`, `State ID`, `Identification Card` |
 | NeedsReview | No supported keyword found |
 
-Brokerage rules intentionally run before 1099-INT/DIV rules so consolidated brokerage statements are less likely to be filed as simple interest/dividend forms. Mortgage classification does **not** rely on generic `Form 1098` alone because that can be confused with 1098-T tuition statements.
+Brokerage scoring is designed to beat 1099-INT/DIV when consolidated brokerage evidence is present. W-2 requires `Form W-2` or `Wage and Tax Statement`; 1099-MISC requires `1099-MISC`; mortgage classification does **not** rely on generic `Form 1098`, `lender`, or `interest` alone.
 
 ## Detailed setup notes
 
@@ -177,7 +177,17 @@ To move files instead of copying them:
 python sort_tax_docs.py "C:\Tax Clients\John Smith\Uploads" --move
 ```
 
-## Simple fake test with no real client data
+## Run fake classifier tests
+
+Run the included fake-text classifier tests with:
+
+```bash
+python test_sort_tax_docs.py
+```
+
+These tests do not use real taxpayer data. They cover W-2, 1099-NEC, brokerage priority, 1099-MISC strictness, 1098-T, mortgage 1098, generic tax statements, and random receipts.
+
+## Simple fake manual test with no real client data
 
 After setup, create a few harmless test PDFs or images that contain only fake text, such as:
 
@@ -187,7 +197,7 @@ After setup, create a few harmless test PDFs or images that contain only fake te
 - `1098-T Tuition Statement`
 - `Mortgage Interest Statement`
 
-Put those files in the `Uploads` folder, run `python run_sorter.py`, press Enter, and review `Uploads/Organized_Tax_Documents/`, `Document_Inventory.xlsx`, and `processing_log.txt`.
+Put those files in the `Uploads` folder, run `python run_sorter.py`, press Enter, and review `Uploads/Organized_Tax_Documents/`, `Document_Inventory.xlsx`, and `processing_log.txt`. The inventory includes winning score, runner-up score, matched keywords, category scores, OCR status, and notes.
 
 ## Limitations in this prototype
 

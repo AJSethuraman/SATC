@@ -8,6 +8,7 @@ obvious tax documents into category folders and write an inventory workbook.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import re
 import shutil
@@ -45,16 +46,14 @@ CATEGORY_FOLDERS = {
     "NeedsReview": "99_Needs_Review",
 }
 
-CONFIDENCE_RANK = {"Low": 0, "Medium": 1, "High": 2}
-
 
 @dataclass(frozen=True)
-class KeywordRule:
-    """A single keyword rule used for classification."""
+class ScoringRule:
+    """A weighted keyword rule used by the conservative classifier."""
 
     category: str
     keyword: str
-    confidence: str
+    weight: int
 
 
 @dataclass(frozen=True)
@@ -64,39 +63,98 @@ class ClassificationResult:
     category: str
     confidence: str
     matched_keyword: str
+    matched_keywords: tuple[str, ...] = ()
+    winning_score: int = 0
+    runner_up_category: str = ""
+    runner_up_score: int = 0
+    category_scores: dict[str, int] | None = None
+    notes: tuple[str, ...] = ()
     multiple_categories_detected: bool = False
 
 
-# Exact form identifiers are high confidence. Supporting descriptive phrases are
-# medium confidence. Rule order matters for priority. Brokerage rules are before
-# 1099-INT/DIV so consolidated brokerage statements are not misfiled.
-RULES: tuple[KeywordRule, ...] = (
-    KeywordRule("W2", "Form W-2", "High"),
-    KeywordRule("W2", "Wage and Tax Statement", "Medium"),
-    KeywordRule("1099_NEC", "1099-NEC", "High"),
-    KeywordRule("1099_NEC", "Nonemployee Compensation", "Medium"),
-    KeywordRule("1099_MISC", "1099-MISC", "High"),
-    KeywordRule("Brokerage_1099B", "Consolidated 1099", "High"),
-    KeywordRule("Brokerage_1099B", "1099-B", "High"),
-    KeywordRule("Brokerage_1099B", "Proceeds From Broker", "Medium"),
-    KeywordRule("Brokerage_1099B", "Cost Basis", "Medium"),
-    KeywordRule("1099_INT_DIV", "1099-INT", "High"),
-    KeywordRule("1099_INT_DIV", "1099-DIV", "High"),
-    KeywordRule("1099_R", "1099-R", "High"),
-    KeywordRule("1099_R", "Distributions From Pensions", "Medium"),
-    KeywordRule("1098_Mortgage", "Form 1098 Mortgage Interest Statement", "High"),
-    KeywordRule("1098_Mortgage", "Mortgage Interest Statement", "High"),
-    KeywordRule("1098_Mortgage", "Mortgage Interest", "Medium"),
-    KeywordRule("1098_Tuition", "1098-T", "High"),
-    KeywordRule("1098_Tuition", "Tuition Statement", "Medium"),
-    KeywordRule("1095_A", "1095-A", "High"),
-    KeywordRule("1095_A", "Health Insurance Marketplace Statement", "Medium"),
-    KeywordRule("K1", "Schedule K-1", "High"),
-    KeywordRule("ID", "Driver License", "High"),
-    KeywordRule("ID", "Driver's License", "High"),
-    KeywordRule("ID", "State ID", "High"),
-    KeywordRule("ID", "Identification Card", "Medium"),
+# Strong official identifiers carry enough weight to classify. Generic words are
+# intentionally absent or low-weight so they cannot classify by themselves.
+SCORING_RULES: tuple[ScoringRule, ...] = (
+    ScoringRule("W2", "FORM W-2", 8),
+    ScoringRule("W2", "WAGE AND TAX STATEMENT", 8),
+    ScoringRule("1099_NEC", "FORM 1099-NEC", 10),
+    ScoringRule("1099_NEC", "1099-NEC", 9),
+    ScoringRule("1099_NEC", "NONEMPLOYEE COMPENSATION", 8),
+    ScoringRule("1099_MISC", "FORM 1099-MISC", 10),
+    ScoringRule("1099_MISC", "1099-MISC", 9),
+    ScoringRule("1099_MISC", "MISCELLANEOUS INFORMATION", 2),
+    ScoringRule("Brokerage_1099B", "CONSOLIDATED 1099", 10),
+    ScoringRule("Brokerage_1099B", "PROCEEDS FROM BROKER AND BARTER EXCHANGE", 10),
+    ScoringRule("Brokerage_1099B", "FORM 1099-B", 10),
+    ScoringRule("Brokerage_1099B", "1099-B", 9),
+    ScoringRule("Brokerage_1099B", "PROCEEDS FROM BROKER", 8),
+    ScoringRule("Brokerage_1099B", "COST BASIS", 5),
+    ScoringRule("Brokerage_1099B", "REALIZED GAIN", 5),
+    ScoringRule("Brokerage_1099B", "REALIZED LOSS", 5),
+    ScoringRule("Brokerage_1099B", "BROKERAGE LLC", 5),
+    ScoringRule("Brokerage_1099B", "BROKERAGE", 4),
+    ScoringRule("Brokerage_1099B", "TAX INFORMATION STATEMENT", 4),
+    ScoringRule("1099_INT_DIV", "FORM 1099-INT", 9),
+    ScoringRule("1099_INT_DIV", "1099-INT", 8),
+    ScoringRule("1099_INT_DIV", "FORM 1099-DIV", 9),
+    ScoringRule("1099_INT_DIV", "1099-DIV", 8),
+    ScoringRule("1099_R", "FORM 1099-R", 10),
+    ScoringRule("1099_R", "1099-R", 9),
+    ScoringRule("1099_R", "DISTRIBUTIONS FROM PENSIONS", 8),
+    ScoringRule("1099_R", "RETIREMENT OR PROFIT-SHARING PLANS", 8),
+    ScoringRule("1098_Mortgage", "FORM 1098 MORTGAGE INTEREST STATEMENT", 10),
+    ScoringRule("1098_Mortgage", "MORTGAGE INTEREST STATEMENT", 9),
+    ScoringRule("1098_Mortgage", "MORTGAGE INTEREST RECEIVED", 8),
+    ScoringRule("1098_Tuition", "FORM 1098-T", 10),
+    ScoringRule("1098_Tuition", "1098-T", 9),
+    ScoringRule("1098_Tuition", "TUITION STATEMENT", 8),
+    ScoringRule("1095_A", "FORM 1095-A", 10),
+    ScoringRule("1095_A", "1095-A", 9),
+    ScoringRule("1095_A", "HEALTH INSURANCE MARKETPLACE STATEMENT", 8),
+    ScoringRule("K1", "SCHEDULE K-1", 9),
+    ScoringRule("K1", "PARTNER'S SHARE OF INCOME", 8),
+    ScoringRule("K1", "SHAREHOLDER'S SHARE OF INCOME", 8),
+    ScoringRule("K1", "BENEFICIARY'S SHARE OF INCOME", 8),
+    ScoringRule("ID", "DRIVER LICENSE", 8),
+    ScoringRule("ID", "DRIVER'S LICENSE", 8),
+    ScoringRule("ID", "IDENTIFICATION CARD", 8),
+    ScoringRule("ID", "STATE ID", 8),
 )
+
+BROKERAGE_INDICATORS = (
+    "WEALTHFRONT BROKERAGE",
+    "FIDELITY",
+    "SCHWAB",
+    "VANGUARD",
+    "ROBINHOOD",
+    "E*TRADE",
+    "MORGAN STANLEY",
+    "MERRILL",
+    "TD AMERITRADE",
+    "INTERACTIVE BROKERS",
+    "COINBASE",
+    "PUBLIC INVESTING",
+)
+
+CATEGORY_THRESHOLDS = {
+    "W2": 8,
+    "1099_NEC": 8,
+    "1099_MISC": 9,
+    "1099_INT_DIV": 8,
+    "1099_R": 8,
+    "1098_Mortgage": 8,
+    "1098_Tuition": 8,
+    "1095_A": 8,
+    "K1": 8,
+    "Brokerage_1099B": 8,
+    "ID": 8,
+}
+REVIEW_SCORE_THRESHOLD = 4
+CLOSE_SCORE_DELTA = 3
+MIN_RELIABLE_TEXT_CHARS = 8
+
+# Backward-compatible alias used by the PDF OCR skip helper.
+RULES = SCORING_RULES
 
 
 def parse_args() -> argparse.Namespace:
@@ -285,17 +343,39 @@ def ocr_image(file_path: Path) -> str:
 
 
 def normalize_text(text: str) -> str:
-    """Normalize text to make keyword matching less brittle."""
+    """Normalize OCR/text while preserving official hyphenated form names."""
 
-    text = text.upper().replace("’", "'")
-    return re.sub(r"\s+", " ", text)
+    replacements = {
+        "’": "'",
+        "‘": "'",
+        "“": '"',
+        "”": '"',
+        "‐": "-",
+        "‑": "-",
+        "‒": "-",
+        "–": "-",
+        "—": "-",
+        "−": "-",
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    text = text.upper()
+
+    # OCR sometimes drops hyphens in form names. Reinsert them for matching.
+    text = re.sub(r"\b1099\s+(NEC|MISC|INT|DIV|R|B)\b", r"1099-\1", text)
+    text = re.sub(r"\bFORM\s+1099\s+(NEC|MISC|INT|DIV|R|B)\b", r"FORM 1099-\1", text)
+    text = re.sub(r"\b1098\s+T\b", "1098-T", text)
+    text = re.sub(r"\bFORM\s+1098\s+T\b", "FORM 1098-T", text)
+    text = re.sub(r"\bW\s+2\b", "W-2", text)
+    text = re.sub(r"\bFORM\s+W\s+2\b", "FORM W-2", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def text_contains_classification_keyword(text: str) -> bool:
     """Return True when text contains any configured classification keyword."""
 
     normalized_text = normalize_text(text)
-    return any(normalize_text(rule.keyword) in normalized_text for rule in RULES)
+    return any(normalize_text(rule.keyword) in normalized_text for rule in SCORING_RULES)
 
 
 def extract_text(file_path: Path) -> tuple[str, bool, str]:
@@ -326,40 +406,118 @@ def extract_text(file_path: Path) -> tuple[str, bool, str]:
     return ocr_image(file_path), True, "Image OCR used."
 
 
-def classify_text(text: str) -> ClassificationResult:
-    """Classify text using simple keyword rules. If unsure, do not guess."""
+def score_categories(text: str) -> tuple[dict[str, int], dict[str, list[str]], list[str]]:
+    """Score every category and apply conservative anti-misclassification rules."""
 
     normalized_text = normalize_text(text)
-    best_match_by_category: dict[str, KeywordRule] = {}
+    scores = {category: 0 for category in CATEGORY_FOLDERS if category != "NeedsReview"}
+    matched_keywords = {category: [] for category in scores}
+    notes: list[str] = []
 
-    for rule in RULES:
-        if normalize_text(rule.keyword) not in normalized_text:
-            continue
+    for rule in SCORING_RULES:
+        if normalize_text(rule.keyword) in normalized_text:
+            scores[rule.category] += rule.weight
+            matched_keywords[rule.category].append(rule.keyword)
 
-        existing = best_match_by_category.get(rule.category)
-        if existing is None or CONFIDENCE_RANK[rule.confidence] > CONFIDENCE_RANK[existing.confidence]:
-            best_match_by_category[rule.category] = rule
+    for indicator in BROKERAGE_INDICATORS:
+        if normalize_text(indicator) in normalized_text:
+            scores["Brokerage_1099B"] += 4
+            matched_keywords["Brokerage_1099B"].append(indicator)
 
-    if not best_match_by_category:
-        return ClassificationResult("NeedsReview", "Low", "")
+    has_1099_nec = "1099-NEC" in normalized_text
+    has_1099_misc = "1099-MISC" in normalized_text
+    has_brokerage_indicator = any(
+        keyword in normalized_text
+        for keyword in ("CONSOLIDATED 1099", "1099-B", "BROKERAGE", "TAX INFORMATION STATEMENT")
+    )
+    has_1098_tuition = "1098-T" in normalized_text or "TUITION STATEMENT" in normalized_text
 
-    # Keep the highest-confidence match. Ties preserve RULES priority order.
-    for rule in RULES:
-        category_match = best_match_by_category.get(rule.category)
-        if category_match != rule:
-            continue
-        if all(
-            CONFIDENCE_RANK[category_match.confidence] >= CONFIDENCE_RANK[other.confidence]
-            for other in best_match_by_category.values()
-        ):
-            return ClassificationResult(
-                category_match.category,
-                category_match.confidence,
-                category_match.keyword,
-                multiple_categories_detected=len(best_match_by_category) > 1,
-            )
+    if has_1099_nec:
+        scores["W2"] = 0
+        notes.append("1099-NEC indicator present; prevented W2 misclassification.")
+    if has_1099_misc:
+        scores["W2"] = 0
+    if has_brokerage_indicator:
+        scores["W2"] = 0
+        if not has_1099_misc:
+            scores["1099_MISC"] = 0
+        notes.append("Brokerage indicators present; prevented W2/1099_MISC misclassification.")
+    if has_1098_tuition:
+        scores["1098_Mortgage"] = 0
+        notes.append("1098-T indicator present; prevented mortgage 1098 misclassification.")
 
-    return ClassificationResult("NeedsReview", "Low", "")
+    if scores["Brokerage_1099B"] >= CATEGORY_THRESHOLDS["Brokerage_1099B"]:
+        scores["1099_INT_DIV"] = min(scores["1099_INT_DIV"], scores["Brokerage_1099B"] - 1)
+
+    return scores, matched_keywords, notes
+
+
+def classify_text(text: str) -> ClassificationResult:
+    """Classify text with conservative scoring. If unsure, do not guess."""
+
+    normalized_text = normalize_text(text)
+    scores, matched_by_category, notes = score_categories(normalized_text)
+
+    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    winning_category, winning_score = ranked[0]
+    runner_up_category, runner_up_score = ranked[1] if len(ranked) > 1 else ("", 0)
+    if runner_up_score == 0:
+        runner_up_category = ""
+    categories_for_review = [
+        category for category, score in scores.items() if score >= REVIEW_SCORE_THRESHOLD
+    ]
+
+    if len(normalized_text) < MIN_RELIABLE_TEXT_CHARS:
+        notes.append("Low confidence; sent to NeedsReview.")
+        return ClassificationResult(
+            "NeedsReview",
+            "Low",
+            "",
+            winning_score=0,
+            runner_up_category=runner_up_category,
+            runner_up_score=runner_up_score,
+            category_scores=scores,
+            notes=tuple(notes),
+        )
+
+    threshold = CATEGORY_THRESHOLDS[winning_category]
+    if winning_score < threshold:
+        if len(categories_for_review) > 1:
+            notes.append(MULTIPLE_MATCH_NOTE)
+        notes.append("Low confidence; sent to NeedsReview.")
+        return ClassificationResult(
+            "NeedsReview",
+            "Low",
+            "",
+            matched_keywords=tuple(matched_by_category.get(winning_category, ())),
+            winning_score=winning_score,
+            runner_up_category=runner_up_category,
+            runner_up_score=runner_up_score,
+            category_scores=scores,
+            notes=tuple(notes),
+            multiple_categories_detected=len(categories_for_review) > 1,
+        )
+
+    multiple_categories_detected = len(categories_for_review) > 1
+    if multiple_categories_detected:
+        notes.append(MULTIPLE_MATCH_NOTE)
+
+    close_runner_up = runner_up_score > 0 and winning_score - runner_up_score <= CLOSE_SCORE_DELTA
+    confidence = "Medium" if multiple_categories_detected or close_runner_up else "High"
+    matched_keywords = tuple(matched_by_category.get(winning_category, ()))
+
+    return ClassificationResult(
+        winning_category,
+        confidence,
+        "; ".join(matched_keywords),
+        matched_keywords=matched_keywords,
+        winning_score=winning_score,
+        runner_up_category=runner_up_category,
+        runner_up_score=runner_up_score,
+        category_scores=scores,
+        notes=tuple(notes),
+        multiple_categories_detected=multiple_categories_detected,
+    )
 
 
 def safe_filename_part(name: str) -> str:
@@ -416,8 +574,7 @@ def process_file(file_path: Path, output_folder: Path, move: bool) -> dict[str, 
         if not text.strip():
             notes.append("No readable text found.")
         result = classify_text(text)
-        if result.multiple_categories_detected:
-            notes.append(MULTIPLE_MATCH_NOTE)
+        notes.extend(note for note in result.notes if note not in notes)
 
         category_folder = output_folder / CATEGORY_FOLDERS[result.category]
         new_filename = build_new_filename(result.category, file_path.name)
@@ -442,7 +599,11 @@ def process_file(file_path: Path, output_folder: Path, move: bool) -> dict[str, 
         "New Path": str(destination_path) if destination_path else "",
         "Detected Category": result.category,
         "Confidence": result.confidence,
-        "Matched Keyword": result.matched_keyword,
+        "Winning Score": result.winning_score,
+        "Runner Up Category": result.runner_up_category,
+        "Runner Up Score": result.runner_up_score,
+        "Matched Keywords": "; ".join(result.matched_keywords) or result.matched_keyword,
+        "Category Scores": json.dumps(result.category_scores or {}, sort_keys=True),
         "OCR Used": "Yes" if ocr_used else "No",
         "Notes": " ".join(notes),
     }
@@ -459,7 +620,11 @@ def write_inventory(rows: list[dict[str, object]], output_folder: Path) -> Path:
         "New Path",
         "Detected Category",
         "Confidence",
-        "Matched Keyword",
+        "Winning Score",
+        "Runner Up Category",
+        "Runner Up Score",
+        "Matched Keywords",
+        "Category Scores",
         "OCR Used",
         "Notes",
     ]
