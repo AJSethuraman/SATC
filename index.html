@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Process Builder</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Local-first SOP workspace</p>
+        <h1>Process Builder</h1>
+        <p class="hero-copy">
+          Turn rough notes about recurring tax, bookkeeping, admin, and operations work into editable SOPs,
+          checklists, and automation opportunity maps. Everything stays in your browser.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button id="newProcessBtn" class="button button-primary">New process</button>
+        <button id="exportMarkdownBtn" class="button">Export Markdown</button>
+        <button id="exportChecklistBtn" class="button">Export checklist</button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Saved processes">
+        <div class="sidebar-header">
+          <h2>Processes</h2>
+          <span id="processCount" class="pill">0 saved</span>
+        </div>
+        <label class="search-label" for="searchInput">Search saved processes</label>
+        <input id="searchInput" class="input" type="search" placeholder="Search by name, type, or status" />
+        <div id="processList" class="process-list"></div>
+      </aside>
+
+      <section class="workspace" aria-live="polite">
+        <form id="processForm" class="panel form-panel">
+          <div class="form-grid">
+            <label>
+              <span>Process name</span>
+              <input id="processName" class="input" type="text" placeholder="e.g., Monthly bookkeeping close" required />
+            </label>
+            <label>
+              <span>Process type</span>
+              <select id="processType" class="input">
+                <option>Tax</option>
+                <option>Bookkeeping</option>
+                <option>Admin</option>
+                <option>Sales</option>
+                <option>Client onboarding</option>
+                <option>Follow-up / collections</option>
+                <option>General operations</option>
+              </select>
+            </label>
+            <label>
+              <span>Status</span>
+              <select id="statusTag" class="input">
+                <option>Draft</option>
+                <option>In Use</option>
+                <option>Needs Review</option>
+                <option>Deprecated</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            <span>Rough process description</span>
+            <textarea
+              id="rawDescription"
+              class="input textarea"
+              placeholder="Paste the messy notes, email instructions, or current process description here..."
+            ></textarea>
+          </label>
+          <div class="form-actions">
+            <button class="button button-primary" type="submit">Generate Structure</button>
+            <button id="saveProcessBtn" class="button" type="button">Save changes</button>
+            <button id="duplicateProcessBtn" class="button" type="button">Duplicate</button>
+            <button id="deleteProcessBtn" class="button button-danger" type="button">Delete</button>
+          </div>
+        </form>
+
+        <div class="panel section-toolbar">
+          <div>
+            <h2 id="activeProcessTitle">Untitled process</h2>
+            <p id="activeProcessMeta">Generate a process structure to begin editing.</p>
+          </div>
+          <div id="saveState" class="save-state">Local storage ready</div>
+        </div>
+
+        <section id="sectionsContainer" class="sections-container" aria-label="Generated SOP sections"></section>
+      </section>
+    </main>
+
+    <template id="sectionTemplate">
+      <article class="section-card">
+        <label>
+          <span class="section-title"></span>
+          <textarea class="input section-textarea"></textarea>
+        </label>
+      </article>
+    </template>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
