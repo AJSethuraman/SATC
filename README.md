@@ -51,7 +51,7 @@ Run the sorter against a folder of uploads and it will:
    - `11_1098_Tuition`
    - `99_Needs_Review`
 3. Process common file types: PDF, JPG, JPEG, PNG, TIFF, and TIF.
-4. Try selectable PDF text first, then OCR scanned PDFs when little or no text is found.
+4. Try selectable PDF text first, and skip OCR when that text already contains a classification keyword or enough text to review.
 5. OCR image files using local Tesseract through `pytesseract`.
 6. Copy files by default into the best matching category folder.
 7. Rename files with the detected type prefix, such as `W2_scan001.pdf`, `1099_NEC_upload4.pdf`, or `NeedsReview_IMG_2231.jpg`.
@@ -80,7 +80,7 @@ The sorter uses simple keyword matching only. Exact form keywords are marked `Hi
 | Brokerage_1099B | `Consolidated 1099`, `1099-B`, `Proceeds From Broker`, `Cost Basis` |
 | 1099_INT_DIV | `1099-INT`, `1099-DIV` |
 | 1099_R | `1099-R`, `Distributions From Pensions` |
-| 1098_Mortgage | `Form 1098 Mortgage Interest Statement`, `Mortgage Interest Statement`, `Mortgage Interest`, `Lender` |
+| 1098_Mortgage | `Form 1098 Mortgage Interest Statement`, `Mortgage Interest Statement`, `Mortgage Interest` |
 | 1098_Tuition | `1098-T`, `Tuition Statement` |
 | 1095_A | `1095-A`, `Health Insurance Marketplace Statement` |
 | K1 | `Schedule K-1` |
@@ -185,7 +185,7 @@ After setup, create a few harmless test PDFs or images that contain only fake te
 - `1099-NEC Nonemployee Compensation`
 - `Consolidated 1099 1099-B Proceeds From Broker`
 - `1098-T Tuition Statement`
-- `Mortgage Interest Statement lender`
+- `Mortgage Interest Statement`
 
 Put those files in the `Uploads` folder, run `python run_sorter.py`, press Enter, and review `Uploads/Organized_Tax_Documents/`, `Document_Inventory.xlsx`, and `processing_log.txt`.
 

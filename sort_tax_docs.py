@@ -87,7 +87,6 @@ RULES: tuple[KeywordRule, ...] = (
     KeywordRule("1098_Mortgage", "Form 1098 Mortgage Interest Statement", "High"),
     KeywordRule("1098_Mortgage", "Mortgage Interest Statement", "High"),
     KeywordRule("1098_Mortgage", "Mortgage Interest", "Medium"),
-    KeywordRule("1098_Mortgage", "Lender", "Medium"),
     KeywordRule("1098_Tuition", "1098-T", "High"),
     KeywordRule("1098_Tuition", "Tuition Statement", "Medium"),
     KeywordRule("1095_A", "1095-A", "High"),
@@ -285,32 +284,46 @@ def ocr_image(file_path: Path) -> str:
     return "\n".join(text_parts).strip()
 
 
-def extract_text(file_path: Path) -> tuple[str, bool, str]:
-    """Extract text from a supported file.
-
-    Returns a tuple of (text, ocr_used, notes). PDFs are tried with selectable
-    text extraction first; OCR is used only when little/no text is found.
-    """
-
-    suffix = file_path.suffix.lower()
-    if suffix == ".pdf":
-        selectable_text = extract_pdf_selectable_text(file_path)
-        if len(selectable_text.strip()) >= MIN_SELECTABLE_TEXT_CHARS:
-            return selectable_text, False, "Selectable PDF text extracted."
-        ocr_text = ocr_pdf(file_path)
-        note = "PDF had little/no selectable text; OCR used."
-        if selectable_text.strip():
-            note += " Limited selectable text was also present."
-        return ocr_text or selectable_text, True, note
-
-    return ocr_image(file_path), True, "Image OCR used."
-
-
 def normalize_text(text: str) -> str:
     """Normalize text to make keyword matching less brittle."""
 
     text = text.upper().replace("’", "'")
     return re.sub(r"\s+", " ", text)
+
+
+def text_contains_classification_keyword(text: str) -> bool:
+    """Return True when text contains any configured classification keyword."""
+
+    normalized_text = normalize_text(text)
+    return any(normalize_text(rule.keyword) in normalized_text for rule in RULES)
+
+
+def extract_text(file_path: Path) -> tuple[str, bool, str]:
+    """Extract text from a supported file.
+
+    Returns a tuple of (text, ocr_used, notes). PDFs are tried with selectable
+    text extraction first; OCR is used only when selectable text is short and has
+    no classification keyword.
+    """
+
+    suffix = file_path.suffix.lower()
+    if suffix == ".pdf":
+        selectable_text = extract_pdf_selectable_text(file_path)
+        if text_contains_classification_keyword(selectable_text):
+            return (
+                selectable_text,
+                False,
+                "Selectable PDF text contained a classification keyword; OCR skipped.",
+            )
+        if len(selectable_text.strip()) >= MIN_SELECTABLE_TEXT_CHARS:
+            return selectable_text, False, "Selectable PDF text extracted."
+        ocr_text = ocr_pdf(file_path)
+        note = "PDF selectable text was short and had no classification keyword; OCR used."
+        if selectable_text.strip():
+            note += " Limited selectable text was also present."
+        return ocr_text or selectable_text, True, note
+
+    return ocr_image(file_path), True, "Image OCR used."
 
 
 def classify_text(text: str) -> ClassificationResult:
