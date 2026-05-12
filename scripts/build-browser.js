@@ -14,7 +14,7 @@ function stripModuleSyntax(source) {
     .replace(/export\s+/g, '');
 }
 
-const sources = ['src/workflows.js', 'src/outputs.js', 'src/app.js']
+const sources = ['src/models.js', 'src/workflows.js', 'src/outputs.js', 'src/app.js']
   .map((file) => `// ${file}\n${stripModuleSyntax(readSource(file))}`)
   .join('\n\n');
 

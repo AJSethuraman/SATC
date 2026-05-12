@@ -1,3 +1,5 @@
+import { createEngagement, createId, createParty } from './models.js';
+
 export const TASK_AUDIENCES = {
   internal: 'Internal',
   client: 'Client-facing'
@@ -7,6 +9,7 @@ export const workflows = {
   newTaxClientOnboarding: {
     name: 'New tax client onboarding',
     description: 'Collect authorization, prior-year details, entity information, and engagement documents.',
+    engagementType: 'clientOnboarding',
     questions: [
       { id: 'hasPriorYearReturns', label: 'Does the client have prior-year tax returns to provide?', type: 'yesNo' },
       { id: 'hasIrsNotices', label: 'Does the client have IRS or state notices?', type: 'yesNo' },
@@ -67,6 +70,7 @@ export const workflows = {
   monthlyBookkeeping: {
     name: 'Monthly bookkeeping',
     description: 'Close the month with reconciliations, reviews, reports, and client follow-up.',
+    engagementType: 'businessMonthlyBookkeeping',
     questions: [
       { id: 'usesPayroll', label: 'Did the client run payroll this month?', type: 'yesNo' },
       { id: 'hasLoanActivity', label: 'Was there loan or financing activity?', type: 'yesNo' },
@@ -128,6 +132,7 @@ export const workflows = {
   yearEndCleanup: {
     name: 'Year-end cleanup',
     description: 'Prepare books for tax-ready year-end review and reporting.',
+    engagementType: 'businessYearEndCleanup',
     questions: [
       { id: 'newFixedAssets', label: 'Were fixed assets purchased or disposed?', type: 'yesNo' },
       { id: 'hasPayroll', label: 'Did the client have payroll during the year?', type: 'yesNo' },
@@ -194,6 +199,7 @@ export const workflows = {
   rentalPropertyTaxPrep: {
     name: 'Rental property tax prep',
     description: 'Collect rental income, expense, asset, and ownership details for tax preparation.',
+    engagementType: 'personalRentalScheduleE',
     questions: [
       { id: 'purchasedThisYear', label: 'Was the property purchased this year?', type: 'yesNo' },
       { id: 'soldThisYear', label: 'Was the property sold this year?', type: 'yesNo' },
@@ -331,14 +337,6 @@ function normalizeIntakeAnswers(workflow, answers = {}) {
   }, {});
 }
 
-function createId(prefix) {
-  if (globalThis.crypto?.randomUUID) {
-    return `${prefix}-${globalThis.crypto.randomUUID()}`;
-  }
-
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 function buildTasks({ workflowKey, dueDate, intakeAnswers, existingTasks = [] }) {
   const workflow = workflows[workflowKey];
   const existingTasksByTemplateId = new Map(
@@ -363,7 +361,7 @@ function buildTasks({ workflowKey, dueDate, intakeAnswers, existingTasks = [] })
   });
 }
 
-export function buildChecklist({ clientName, dueDate, workflowKey, answers = {} }) {
+export function buildChecklist({ clientName, dueDate, workflowKey, answers = {}, partyType = 'person' }) {
   const workflow = workflows[workflowKey];
 
   if (!workflow) {
@@ -371,10 +369,18 @@ export function buildChecklist({ clientName, dueDate, workflowKey, answers = {} 
   }
 
   const intakeAnswers = normalizeIntakeAnswers(workflow, answers);
+  const party = createParty({ displayName: clientName, partyType });
+  const engagement = createEngagement({
+    partyId: party.id,
+    engagementType: workflow.engagementType,
+    dueDate
+  });
 
   return {
     id: createId('checklist'),
-    clientName: cleanClientName(clientName),
+    clientName: party.displayName,
+    party,
+    engagement,
     dueDate,
     workflowKey,
     workflowName: workflow.name,
@@ -384,7 +390,7 @@ export function buildChecklist({ clientName, dueDate, workflowKey, answers = {} 
   };
 }
 
-export function regenerateChecklist(checklist, { clientName, dueDate, answers = {} }) {
+export function regenerateChecklist(checklist, { clientName, dueDate, answers = {}, partyType = checklist.party?.partyType ?? 'person' }) {
   const workflow = workflows[checklist.workflowKey];
 
   if (!workflow) {
@@ -392,10 +398,18 @@ export function regenerateChecklist(checklist, { clientName, dueDate, answers = 
   }
 
   const intakeAnswers = normalizeIntakeAnswers(workflow, answers);
+  const party = createParty({ displayName: clientName, partyType });
+  const engagement = createEngagement({
+    partyId: party.id,
+    engagementType: workflow.engagementType,
+    dueDate
+  });
 
   return {
     ...checklist,
-    clientName: cleanClientName(clientName),
+    clientName: party.displayName,
+    party,
+    engagement,
     dueDate,
     intakeAnswers,
     updatedAt: new Date().toISOString(),

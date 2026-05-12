@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createEngagement, createParty, createRelationship } from '../src/models.js';
 import { generateClientRequestEmail, getClientFacingTasks, groupTasksByCategory } from '../src/outputs.js';
 import { buildChecklist, calculateSuggestedDate, getWorkflowQuestions, regenerateChecklist, workflows } from '../src/workflows.js';
 
@@ -82,6 +83,32 @@ function noAnswers(workflowKey) {
   return Object.fromEntries(getWorkflowQuestions(workflowKey).map((question) => [question.id, 'no']));
 }
 
+
+test('creates party, relationship, and engagement records for future workflow expansion', () => {
+  const person = createParty({ displayName: 'Jane Client', partyType: 'person' });
+  const business = createParty({ displayName: 'Client Co LLC', partyType: 'business' });
+  const relationship = createRelationship({
+    fromPartyId: person.id,
+    toPartyId: business.id,
+    relationshipType: 'owner',
+    details: { ownershipPercent: '100', primaryContact: true }
+  });
+  const engagement = createEngagement({
+    partyId: business.id,
+    engagementType: 'businessMonthlyBookkeeping',
+    periodEnd: '2026-03-31',
+    dueDate: '2026-04-15',
+    relatedPartyIds: [person.id]
+  });
+
+  assert.equal(person.partyType, 'person');
+  assert.equal(business.partyType, 'business');
+  assert.equal(relationship.relationshipType, 'owner');
+  assert.equal(relationship.primaryContact, true);
+  assert.equal(engagement.partyId, business.id);
+  assert.deepEqual(engagement.relatedPartyIds, [person.id]);
+});
+
 test('includes the required workflow templates', () => {
   assert.deepEqual(Object.keys(workflows), [
     'newTaxClientOnboarding',
@@ -152,6 +179,8 @@ test('generated checklist tasks include generated id and stable templateId', () 
     true
   );
   assert.equal(checklist.tasks.some((task) => task.templateId === 'monthly-request-bank-statements'), true);
+  assert.equal(checklist.party.partyType, 'person');
+  assert.equal(checklist.engagement.engagementType, 'businessMonthlyBookkeeping');
 });
 
 Object.keys(workflows).forEach((workflowKey) => {

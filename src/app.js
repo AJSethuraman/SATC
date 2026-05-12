@@ -6,12 +6,14 @@ import {
   generateInternalChecklistPrintHtml,
   groupTasksByCategory
 } from './outputs.js';
+import { PARTY_TYPES } from './models.js';
 import { buildChecklist, duplicateChecklist, getWorkflowQuestions, regenerateChecklist, workflows } from './workflows.js';
 
 const STORAGE_KEY = 'workflow-task-checklists';
 
 const form = document.querySelector('#checklist-form');
 const workflowSelect = document.querySelector('#workflow');
+const partyTypeSelect = document.querySelector('#party-type');
 const checklistsContainer = document.querySelector('#checklists');
 const intakeQuestionnaire = document.querySelector('#intake-questionnaire');
 const summary = document.querySelector('#summary');
@@ -47,6 +49,12 @@ function formatDate(dateValue) {
     year: 'numeric',
     timeZone: 'UTC'
   }).format(new Date(`${dateValue}T12:00:00Z`));
+}
+
+function populatePartyTypeOptions() {
+  partyTypeSelect.innerHTML = Object.entries(PARTY_TYPES)
+    .map(([key, label]) => `<option value="${key}">${label}</option>`)
+    .join('');
 }
 
 function populateWorkflowOptions() {
@@ -156,6 +164,17 @@ function renderEditForm(checklist) {
           <input name="editClientName" type="text" value="${escapeHtml(checklist.clientName)}" required />
         </label>
         <label>
+          Party type
+          <select name="editPartyType">
+            ${Object.entries(PARTY_TYPES)
+              .map(
+                ([key, label]) =>
+                  `<option value="${key}" ${checklist.party?.partyType === key ? 'selected' : ''}>${label}</option>`
+              )
+              .join('')}
+          </select>
+        </label>
+        <label>
           Due date
           <input name="editDueDate" type="date" value="${escapeHtml(checklist.dueDate)}" required />
         </label>
@@ -213,7 +232,7 @@ function createChecklistCard(checklist) {
       <div>
         <p class="eyebrow">${escapeHtml(checklist.workflowName)}</p>
         <h3>${escapeHtml(checklist.clientName)}</h3>
-        <p class="description">Due ${formatDate(checklist.dueDate)} • ${completedTasks}/${checklist.tasks.length} complete</p>
+        <p class="description">${escapeHtml(PARTY_TYPES[checklist.party?.partyType] ?? 'Party')} • Due ${formatDate(checklist.dueDate)} • ${completedTasks}/${checklist.tasks.length} complete</p>
       </div>
       <div class="card-actions">
         <button class="button button-ghost" data-action="edit-checklist" type="button">Edit</button>
@@ -285,6 +304,7 @@ function handleSubmit(event) {
     clientName: formData.get('clientName'),
     dueDate: formData.get('dueDate'),
     workflowKey,
+    partyType: formData.get('partyType'),
     answers: getIntakeAnswers(formData, workflowKey)
   });
 
@@ -379,6 +399,7 @@ async function handleChecklistInteraction(event) {
     const updatedChecklist = regenerateChecklist(checklist, {
       clientName: formData.get('editClientName'),
       dueDate: formData.get('editDueDate'),
+      partyType: formData.get('editPartyType'),
       answers: getIntakeAnswersFromPrefix(formData, checklist.workflowKey, 'editQuestion')
     });
     checklists = checklists.map((savedChecklist) =>
@@ -451,6 +472,7 @@ function clearAllData() {
   renderChecklists();
 }
 
+populatePartyTypeOptions();
 populateWorkflowOptions();
 renderIntakeQuestions();
 renderChecklists();

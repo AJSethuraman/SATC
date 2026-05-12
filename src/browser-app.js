@@ -3,7 +3,92 @@
 (() => {
 'use strict';
 
+// src/models.js
+const PARTY_TYPES = {
+  person: 'Person',
+  business: 'Business'
+};
+
+const RELATIONSHIP_TYPES = {
+  spouse: 'Spouse',
+  dependent: 'Dependent',
+  owner: 'Owner',
+  shareholder: 'Shareholder',
+  partner: 'Partner',
+  officer: 'Officer',
+  authorizedContact: 'Authorized contact',
+  payrollContact: 'Payroll contact',
+  bookkeeper: 'Bookkeeper'
+};
+
+const ENGAGEMENT_TYPES = {
+  clientOnboarding: 'Client onboarding',
+  personal1040: 'Personal 1040',
+  personalRentalScheduleE: 'Personal rental Schedule E',
+  personalScheduleC: 'Personal Schedule C',
+  businessMonthlyBookkeeping: 'Business monthly bookkeeping',
+  businessYearEndCleanup: 'Business year-end cleanup',
+  businessSCorpTax: 'Business S corporation tax',
+  businessPartnershipTax: 'Business partnership tax'
+};
+
+function createId(prefix) {
+  if (globalThis.crypto?.randomUUID) {
+    return `${prefix}-${globalThis.crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function createParty({ displayName, partyType = 'person' }) {
+  const cleanName = displayName.trim();
+
+  if (!cleanName) {
+    throw new Error('Client name is required.');
+  }
+
+  return {
+    id: createId('party'),
+    partyType,
+    displayName: cleanName,
+    legalName: cleanName,
+    preferredName: partyType === 'person' ? cleanName : '',
+    dba: partyType === 'business' ? '' : undefined,
+    entityType: partyType === 'business' ? '' : undefined,
+    taxTreatment: partyType === 'business' ? '' : undefined,
+    email: '',
+    phone: ''
+  };
+}
+
+function createRelationship({ fromPartyId, toPartyId, relationshipType, details = {} }) {
+  return {
+    id: createId('relationship'),
+    fromPartyId,
+    toPartyId,
+    relationshipType,
+    ownershipPercent: details.ownershipPercent ?? '',
+    startDate: details.startDate ?? '',
+    endDate: details.endDate ?? '',
+    primaryContact: Boolean(details.primaryContact)
+  };
+}
+
+function createEngagement({ partyId, engagementType, dueDate, relatedPartyIds = [], taxYear = '', periodEnd = '' }) {
+  return {
+    id: createId('engagement'),
+    partyId,
+    engagementType,
+    taxYear,
+    periodEnd,
+    dueDate,
+    relatedPartyIds
+  };
+}
+
+
 // src/workflows.js
+
 const TASK_AUDIENCES = {
   internal: 'Internal',
   client: 'Client-facing'
@@ -13,6 +98,7 @@ const workflows = {
   newTaxClientOnboarding: {
     name: 'New tax client onboarding',
     description: 'Collect authorization, prior-year details, entity information, and engagement documents.',
+    engagementType: 'clientOnboarding',
     questions: [
       { id: 'hasPriorYearReturns', label: 'Does the client have prior-year tax returns to provide?', type: 'yesNo' },
       { id: 'hasIrsNotices', label: 'Does the client have IRS or state notices?', type: 'yesNo' },
@@ -73,6 +159,7 @@ const workflows = {
   monthlyBookkeeping: {
     name: 'Monthly bookkeeping',
     description: 'Close the month with reconciliations, reviews, reports, and client follow-up.',
+    engagementType: 'businessMonthlyBookkeeping',
     questions: [
       { id: 'usesPayroll', label: 'Did the client run payroll this month?', type: 'yesNo' },
       { id: 'hasLoanActivity', label: 'Was there loan or financing activity?', type: 'yesNo' },
@@ -134,6 +221,7 @@ const workflows = {
   yearEndCleanup: {
     name: 'Year-end cleanup',
     description: 'Prepare books for tax-ready year-end review and reporting.',
+    engagementType: 'businessYearEndCleanup',
     questions: [
       { id: 'newFixedAssets', label: 'Were fixed assets purchased or disposed?', type: 'yesNo' },
       { id: 'hasPayroll', label: 'Did the client have payroll during the year?', type: 'yesNo' },
@@ -200,6 +288,7 @@ const workflows = {
   rentalPropertyTaxPrep: {
     name: 'Rental property tax prep',
     description: 'Collect rental income, expense, asset, and ownership details for tax preparation.',
+    engagementType: 'personalRentalScheduleE',
     questions: [
       { id: 'purchasedThisYear', label: 'Was the property purchased this year?', type: 'yesNo' },
       { id: 'soldThisYear', label: 'Was the property sold this year?', type: 'yesNo' },
@@ -337,14 +426,6 @@ function normalizeIntakeAnswers(workflow, answers = {}) {
   }, {});
 }
 
-function createId(prefix) {
-  if (globalThis.crypto?.randomUUID) {
-    return `${prefix}-${globalThis.crypto.randomUUID()}`;
-  }
-
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
 function buildTasks({ workflowKey, dueDate, intakeAnswers, existingTasks = [] }) {
   const workflow = workflows[workflowKey];
   const existingTasksByTemplateId = new Map(
@@ -369,7 +450,7 @@ function buildTasks({ workflowKey, dueDate, intakeAnswers, existingTasks = [] })
   });
 }
 
-function buildChecklist({ clientName, dueDate, workflowKey, answers = {} }) {
+function buildChecklist({ clientName, dueDate, workflowKey, answers = {}, partyType = 'person' }) {
   const workflow = workflows[workflowKey];
 
   if (!workflow) {
@@ -377,10 +458,18 @@ function buildChecklist({ clientName, dueDate, workflowKey, answers = {} }) {
   }
 
   const intakeAnswers = normalizeIntakeAnswers(workflow, answers);
+  const party = createParty({ displayName: clientName, partyType });
+  const engagement = createEngagement({
+    partyId: party.id,
+    engagementType: workflow.engagementType,
+    dueDate
+  });
 
   return {
     id: createId('checklist'),
-    clientName: cleanClientName(clientName),
+    clientName: party.displayName,
+    party,
+    engagement,
     dueDate,
     workflowKey,
     workflowName: workflow.name,
@@ -390,7 +479,7 @@ function buildChecklist({ clientName, dueDate, workflowKey, answers = {} }) {
   };
 }
 
-function regenerateChecklist(checklist, { clientName, dueDate, answers = {} }) {
+function regenerateChecklist(checklist, { clientName, dueDate, answers = {}, partyType = checklist.party?.partyType ?? 'person' }) {
   const workflow = workflows[checklist.workflowKey];
 
   if (!workflow) {
@@ -398,10 +487,18 @@ function regenerateChecklist(checklist, { clientName, dueDate, answers = {} }) {
   }
 
   const intakeAnswers = normalizeIntakeAnswers(workflow, answers);
+  const party = createParty({ displayName: clientName, partyType });
+  const engagement = createEngagement({
+    partyId: party.id,
+    engagementType: workflow.engagementType,
+    dueDate
+  });
 
   return {
     ...checklist,
-    clientName: cleanClientName(clientName),
+    clientName: party.displayName,
+    party,
+    engagement,
     dueDate,
     intakeAnswers,
     updatedAt: new Date().toISOString(),
@@ -641,6 +738,7 @@ const STORAGE_KEY = 'workflow-task-checklists';
 
 const form = document.querySelector('#checklist-form');
 const workflowSelect = document.querySelector('#workflow');
+const partyTypeSelect = document.querySelector('#party-type');
 const checklistsContainer = document.querySelector('#checklists');
 const intakeQuestionnaire = document.querySelector('#intake-questionnaire');
 const summary = document.querySelector('#summary');
@@ -676,6 +774,12 @@ function formatDate(dateValue) {
     year: 'numeric',
     timeZone: 'UTC'
   }).format(new Date(`${dateValue}T12:00:00Z`));
+}
+
+function populatePartyTypeOptions() {
+  partyTypeSelect.innerHTML = Object.entries(PARTY_TYPES)
+    .map(([key, label]) => `<option value="${key}">${label}</option>`)
+    .join('');
 }
 
 function populateWorkflowOptions() {
@@ -785,6 +889,17 @@ function renderEditForm(checklist) {
           <input name="editClientName" type="text" value="${escapeHtml(checklist.clientName)}" required />
         </label>
         <label>
+          Party type
+          <select name="editPartyType">
+            ${Object.entries(PARTY_TYPES)
+              .map(
+                ([key, label]) =>
+                  `<option value="${key}" ${checklist.party?.partyType === key ? 'selected' : ''}>${label}</option>`
+              )
+              .join('')}
+          </select>
+        </label>
+        <label>
           Due date
           <input name="editDueDate" type="date" value="${escapeHtml(checklist.dueDate)}" required />
         </label>
@@ -842,7 +957,7 @@ function createChecklistCard(checklist) {
       <div>
         <p class="eyebrow">${escapeHtml(checklist.workflowName)}</p>
         <h3>${escapeHtml(checklist.clientName)}</h3>
-        <p class="description">Due ${formatDate(checklist.dueDate)} • ${completedTasks}/${checklist.tasks.length} complete</p>
+        <p class="description">${escapeHtml(PARTY_TYPES[checklist.party?.partyType] ?? 'Party')} • Due ${formatDate(checklist.dueDate)} • ${completedTasks}/${checklist.tasks.length} complete</p>
       </div>
       <div class="card-actions">
         <button class="button button-ghost" data-action="edit-checklist" type="button">Edit</button>
@@ -914,6 +1029,7 @@ function handleSubmit(event) {
     clientName: formData.get('clientName'),
     dueDate: formData.get('dueDate'),
     workflowKey,
+    partyType: formData.get('partyType'),
     answers: getIntakeAnswers(formData, workflowKey)
   });
 
@@ -1008,6 +1124,7 @@ async function handleChecklistInteraction(event) {
     const updatedChecklist = regenerateChecklist(checklist, {
       clientName: formData.get('editClientName'),
       dueDate: formData.get('editDueDate'),
+      partyType: formData.get('editPartyType'),
       answers: getIntakeAnswersFromPrefix(formData, checklist.workflowKey, 'editQuestion')
     });
     checklists = checklists.map((savedChecklist) =>
@@ -1080,6 +1197,7 @@ function clearAllData() {
   renderChecklists();
 }
 
+populatePartyTypeOptions();
 populateWorkflowOptions();
 renderIntakeQuestions();
 renderChecklists();
