@@ -159,11 +159,12 @@ def test_validation_report_has_expected_sheets_and_labels(tmp_path):
         summary_rows = list(workbook["Summary"].iter_rows(values_only=True))
         assert str(summary_rows[0][0]).startswith("Occam Template Desk")
         summary_labels = [row[0] for row in summary_rows if row and row[0]]
-        assert "Status" in summary_labels
-        assert "Blocker Count" in summary_labels
-        assert "Warning Count" in summary_labels
+        for label in ["Run Status", "Client", "Template", "Template Type", "Timestamp", "Run ID", "Blocker Count", "Warning Count", "Unresolved Placeholder Count", "Generated Files", "Next Action"]:
+            assert label in summary_labels
         workbook.close()
     else:
         sheets = read_xlsx(report)
         assert set(sheets) == {"Summary", "Fields", "Validation Results", "Audit Log"}
-        assert any(row.get("Item") == "Status" for row in sheets["Summary"])
+        labels = [row.get("Item") for row in sheets["Summary"]]
+        for label in ["Run Status", "Client", "Template", "Template Type", "Timestamp", "Run ID", "Blocker Count", "Warning Count", "Unresolved Placeholder Count", "Generated Files", "Next Action"]:
+            assert label in labels

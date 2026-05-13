@@ -9,8 +9,17 @@ PLACEHOLDER_RE = re.compile(r"{{\s*([^{}]+?)\s*}}")
 SUPPORTED_DOCS = {".docx"}
 SUPPORTED_EMAILS = {".txt", ".html", ".md"}
 
+def is_optional_placeholder(name: str) -> bool:
+    return name.strip().lower().startswith("optional:")
+
+def display_field_name(name: str) -> str:
+    stripped = name.strip()
+    if is_optional_placeholder(stripped):
+        return stripped.split(":", 1)[1].strip()
+    return stripped
+
 def normalize_field_name(name: str) -> str:
-    cleaned = re.sub(r"[_\-]+", " ", name.strip().lower())
+    cleaned = re.sub(r"[_\-]+", " ", display_field_name(name).strip().lower())
     cleaned = re.sub(r"\s+", " ", cleaned)
     return cleaned
 

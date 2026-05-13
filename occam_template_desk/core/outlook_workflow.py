@@ -39,13 +39,18 @@ def create_outlook_draft_if_allowed(validation, mode: str, email_rendered: dict,
     body = email_rendered.get("body", "")
     body_path = str(email_rendered.get("body_path", ""))
     html_body = Path(body_path).suffix.lower() == ".html"
+    attachments = attachments or []
     if not service.is_available():
-        return service.fallback_status(output_dir, "Outlook or pywin32 is unavailable; copy-ready files were generated.")
-    return service.create_draft(
+        status = service.fallback_status(output_dir, "Outlook or pywin32 is unavailable; copy-ready files were generated.")
+        status["attachments"] = attachments
+        return status
+    status = service.create_draft(
         to=values.get("Client Email", ""),
         subject=email_rendered.get("subject", ""),
         body=body,
         html_body=html_body,
-        attachments=attachments or [],
+        attachments=attachments,
         output_dir=output_dir,
     )
+    status["attachments"] = attachments
+    return status

@@ -40,28 +40,47 @@ def create_output_package_folder(output_root: str | Path, client_name: str, temp
 
 def _report_rows(fields: list[dict], validation: dict, audit: dict) -> dict[str, list[dict]]:
     generated_files = audit.get("generated_files", [])
+    outlook = audit.get("outlook_draft_status", {}) or {}
     rows_summary = [
+        {"Item": "Run Status", "Value": validation.get("status", "")},
         {"Item": "Status", "Value": validation.get("status", "")},
         {"Item": "Client", "Value": audit.get("client_name", "")},
         {"Item": "Template", "Value": audit.get("template_name", "")},
+        {"Item": "Template Type", "Value": audit.get("template_type", "")},
         {"Item": "Timestamp", "Value": audit.get("timestamp", "")},
+        {"Item": "Run ID", "Value": audit.get("run_id", "")},
         {"Item": "Blocker Count", "Value": len(validation.get("blockers", []))},
         {"Item": "Warning Count", "Value": len(validation.get("warnings", []))},
-        {"Item": "Next Action", "Value": "; ".join(validation.get("next_actions", []))},
-        {"Item": "Run ID", "Value": audit.get("run_id", "")},
+        {"Item": "Unresolved Placeholder Count", "Value": len(validation.get("unresolved_placeholders", []))},
+        {"Item": "Outlook Status", "Value": outlook.get("message", "Not attempted")},
         {"Item": "Generated Files", "Value": "\n".join(generated_files)},
+        {"Item": "Next Action", "Value": "; ".join(validation.get("next_actions", []))},
     ]
     rows_validation = []
     for blocker in validation.get("blockers", []):
         rows_validation.append({"Type": "Blocked", "Message": blocker, "Next Action": "Resolve before generation or use."})
     for warning in validation.get("warnings", []):
         rows_validation.append({"Type": "Warning", "Message": warning, "Next Action": "Review before sending or filing."})
-    if not rows_validation:
+    rows_validation.append({"Type": "Template Diagnostics", "Message": f"Template reviewed: {audit.get('template_name', '')}", "Next Action": "Confirm template health check was acceptable."})
+    if not validation.get("blockers") and not validation.get("warnings"):
         rows_validation.append({"Type": "Ready", "Message": "No blockers or warnings.", "Next Action": "Ready."})
     rows_audit = [{"Key": key, "Value": json.dumps(value) if isinstance(value, (list, dict)) else value} for key, value in audit.items()]
+    field_rows = [
+        {
+            "Field": field.get("field", ""),
+            "Required/Optional": "Required" if field.get("required", True) else "Optional",
+            "Value": field.get("value", ""),
+            "Source": field.get("source", ""),
+            "Status": field.get("status", ""),
+            "Overridden": "Yes" if field.get("overridden") else "No",
+        }
+        for field in fields
+    ] or [{"Field": "", "Required/Optional": "", "Value": "", "Source": "", "Status": "", "Overridden": ""}]
+    for token in validation.get("unresolved_placeholders", []):
+        rows_validation.append({"Type": "Unresolved Placeholder", "Message": f"{{{{{token}}}}}", "Next Action": "Fix the template or provide a value, then regenerate."})
     return {
         "Summary": rows_summary,
-        "Fields": fields or [{"field": "", "value": "", "source": "", "status": ""}],
+        "Fields": field_rows,
         "Validation Results": rows_validation,
         "Audit Log": rows_audit,
     }
@@ -163,7 +182,7 @@ def _post_render_placeholder_warnings(rendered: dict) -> tuple[list[str], list[s
     return warnings, sorted(set(unresolved_tokens))
 
 
-def build_output_package(template_path: str, template_type: str, values: dict, fields: list[dict], validation, client: dict, output_root: str | Path, outlook_status: dict | None = None, detected_placeholders: list[str] | None = None, user_overrides: dict | None = None) -> dict:
+def build_output_package(template_path: str, template_type: str, values: dict, fields: list[dict], validation, client: dict, output_root: str | Path, outlook_status: dict | None = None, detected_placeholders: list[str] | None = None, user_overrides: dict | None = None, selected_invoice: dict | None = None, selected_attachments: list[str] | None = None) -> dict:
     if validation.blockers:
         raise ValueError("Blocked runs cannot generate output packages.")
     template = Path(template_path)
@@ -183,7 +202,10 @@ def build_output_package(template_path: str, template_type: str, values: dict, f
     validation_dict["unresolved_placeholders"] = unresolved_placeholders
     audit = build_audit(str(template), template_type, client, validation_dict, generated_files, outlook_status)
     audit["unresolved_placeholders"] = unresolved_placeholders
-    snapshot = {"selected_template": str(template), "selected_client": client, "detected_placeholders": detected_placeholders or [], "final_values": values, "field_sources": fields, "user_overrides": user_overrides or {}, "post_render_warnings": post_render_warnings, "unresolved_placeholders": unresolved_placeholders, "timestamp": now_iso()}
+    audit["selected_invoice"] = selected_invoice or {}
+    audit["selected_attachments"] = selected_attachments or []
+    audit["user_overrides"] = user_overrides or {}
+    snapshot = {"selected_template": str(template), "selected_client": client, "selected_invoice": selected_invoice or {}, "selected_attachments": selected_attachments or [], "detected_placeholders": detected_placeholders or [], "final_values": values, "field_sources": fields, "user_overrides": user_overrides or {}, "post_render_warnings": post_render_warnings, "unresolved_placeholders": unresolved_placeholders, "timestamp": now_iso()}
     write_json(package_dir / "input_snapshot.json", snapshot)
     write_json(package_dir / "rendered_values.json", values)
     write_json(package_dir / "audit_log.json", audit)
@@ -200,7 +222,14 @@ def update_outlook_status(package_dir: str | Path, status: dict) -> None:
     if audit_path.exists():
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         audit["outlook_draft_status"] = status
+        if "attachments" in status:
+            audit["selected_attachments"] = status.get("attachments", [])
         write_json(audit_path, audit)
+    snapshot_path = package_dir / "input_snapshot.json"
+    if snapshot_path.exists() and "attachments" in status:
+        snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        snapshot["selected_attachments"] = status.get("attachments", [])
+        write_json(snapshot_path, snapshot)
 
 
 def list_recent_packages(output_root: str | Path, limit: int = 20) -> list[dict]:
@@ -212,7 +241,20 @@ def list_recent_packages(output_root: str | Path, limit: int = 20) -> list[dict]
         audit_path = folder / "audit_log.json"
         data = {"folder": str(folder), "timestamp": "", "status": "", "client": "", "template": "", "generated_files": []}
         if audit_path.exists():
-            audit = json.loads(audit_path.read_text(encoding="utf-8"))
-            data.update({"timestamp": audit.get("timestamp", ""), "status": audit.get("validation_status", ""), "client": audit.get("client_name", ""), "template": audit.get("template_name", ""), "generated_files": audit.get("generated_files", [])})
+            try:
+                audit = json.loads(audit_path.read_text(encoding="utf-8"))
+                outlook = audit.get("outlook_draft_status", {}) or {}
+                data.update({
+                    "timestamp": audit.get("timestamp", ""),
+                    "status": audit.get("validation_status", ""),
+                    "client": audit.get("client_name", ""),
+                    "template": audit.get("template_name", ""),
+                    "blocker_count": len(audit.get("blockers", [])),
+                    "warning_count": len(audit.get("warnings", [])),
+                    "outlook_status": outlook.get("message", "Not attempted"),
+                    "generated_files": audit.get("generated_files", []),
+                })
+            except (OSError, json.JSONDecodeError):
+                data.update({"status": "Audit unavailable", "client": "Audit unavailable", "template": folder.name})
         packages.append(data)
     return packages

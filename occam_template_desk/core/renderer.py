@@ -6,7 +6,7 @@ import re
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
-from .template_scanner import PLACEHOLDER_RE, detect_placeholders_from_text, extract_docx_text, normalize_field_name
+from .template_scanner import PLACEHOLDER_RE, detect_placeholders_from_text, display_field_name, extract_docx_text, is_optional_placeholder, normalize_field_name
 
 
 def render_text(text: str, values: dict[str, str], keep_unresolved: bool = True) -> str:
@@ -16,9 +16,14 @@ def render_text(text: str, values: dict[str, str], keep_unresolved: bool = True)
         raw = m.group(1).strip()
         if raw in values:
             return str(values[raw])
+        display_name = display_field_name(raw)
+        if display_name in values:
+            return str(values[display_name])
         normalized = normalize_field_name(raw)
         if normalized in norm:
             return str(norm[normalized])
+        if is_optional_placeholder(raw):
+            return ""
         return m.group(0) if keep_unresolved else ""
 
     return PLACEHOLDER_RE.sub(repl, text)

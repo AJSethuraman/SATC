@@ -19,7 +19,7 @@ def generate_demo_packages() -> list[dict]:
     wb = OccamWorkbook(settings.data_workbook_path)
     client = wb.get_client_by_id("C-1001")
     outputs = []
-    for rel in ["Documents/Individual Tax Engagement Letter.docx", "Emails/Invoice Delivery Email.html"]:
+    for rel in ["Documents/Individual Tax Engagement Letter.docx", "Emails/Invoice Delivery Email.html", "Emails/Missing Document Request.txt"]:
         template = PACKAGE_ROOT / "sample_templates" / rel
         scan = scan_template(template)
         invoices = wb.invoices_for_client(client.get("Client ID", ""))
@@ -41,7 +41,7 @@ def generate_demo_packages() -> list[dict]:
         outlook_status = None
         if scan["template_type"] == "email":
             outlook_status = OutlookDraftService().fallback_status(None, "Demo uses fallback files and never sends email.")
-        outputs.append(build_output_package(str(template), scan["template_type"], values, fields, validation, client, settings.output_folder_path, outlook_status, scan["placeholders"], {}))
+        outputs.append(build_output_package(str(template), scan["template_type"], values, fields, validation, client, settings.output_folder_path, outlook_status, scan["placeholders"], {}, selected_invoice, []))
     return outputs
 
 if __name__ == "__main__":

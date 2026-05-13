@@ -120,8 +120,19 @@ def test_audit_log_updates_after_outlook_attempt(tmp_path):
     fields = [{"field": key, "value": value, "source": "test", "status": "Filled"} for key, value in values.items()]
     validation = validate_run(template, "email", values, [], tmp_path, subject="Invoice INV-1")
     package = build_output_package(template, "email", values, fields, validation, {"Client Name":"Arbor", "Client ID":"C-1"}, tmp_path)
-    status = {"attempted": True, "created": False, "mode": "fallback_files", "message": "Unavailable"}
+    status = {"attempted": True, "created": False, "mode": "fallback_files", "message": "Unavailable", "attachments": ["example.docx"]}
     update_outlook_status(package["package_dir"], status)
     assert json.loads((Path(package["package_dir"]) / "outlook_status.json").read_text())["message"] == "Unavailable"
     audit = json.loads(Path(package["audit_log"]).read_text())
     assert audit["outlook_draft_status"] == status
+    assert audit["selected_attachments"] == ["example.docx"]
+    snapshot = json.loads((Path(package["package_dir"]) / "input_snapshot.json").read_text())
+    assert snapshot["selected_attachments"] == ["example.docx"]
+
+
+def test_missing_items_render_as_readable_html_breaks(tmp_path):
+    template = tmp_path / "missing.html"
+    template.write_text("Subject: Missing\n<p>{{Missing Items}}</p>", encoding="utf-8")
+    rendered = render_email_template(template, {"Missing Items": "- One\n- Two"}, tmp_path)
+    assert "- One<br>" in rendered["body"]
+    assert "- Two" in rendered["body"]

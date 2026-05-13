@@ -37,10 +37,16 @@ def ensure_default_settings(path: str | Path = SETTINGS_PATH) -> OccamSettings:
 
 def load_settings(path: str | Path = SETTINGS_PATH) -> OccamSettings:
     path = Path(path)
-    data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        if not isinstance(data, dict):
+            data = {}
+    except (OSError, json.JSONDecodeError):
+        data = {}
     defaults = asdict(OccamSettings.defaults())
     defaults.update(data)
-    return OccamSettings(**defaults)
+    allowed = set(defaults)
+    return OccamSettings(**{key: value for key, value in defaults.items() if key in allowed})
 
 def save_settings(settings: OccamSettings, path: str | Path = SETTINGS_PATH) -> None:
     path = Path(path)

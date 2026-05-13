@@ -14,6 +14,7 @@ STATUS_COLORS = {
     "Blocked": RED,
     "Blocked - Do Not Send": RED,
     "Do Not Send": RED,
+    "Problem Detected": RED,
     "Error": RED,
 }
 

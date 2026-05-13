@@ -222,6 +222,19 @@ Occam Template Desk uses `openpyxl` to load normal Excel workbooks when availabl
 
 **Ready** means no blockers and no significant warnings.
 
+## Pilot documentation
+
+- See `TEMPLATE_AUTHORING_GUIDE.md` for non-developer instructions on adding templates, required placeholders, optional placeholders, email subjects, Excel header matching, and Word placeholder limitations.
+- See `PILOT_CHECKLIST.md` for setup, workbook, template, reviewer, Outlook, and go/no-go checklists for a limited internal pilot.
+
+## Optional placeholders
+
+Use `{{optional:Field Name}}` for values that may be blank, such as `{{optional:Spouse Name}}` or `{{optional:Additional Notes}}`. Optional fields show as Optional in the field review table, render as blank when missing, and do not block generation.
+
+## Attachments
+
+Email attachments are explicit and not guessed. In local Outlook mode, the final action panel lets the user select generated `.docx` or `.pdf` package files as attachments. If none are selected, the Outlook draft is created without attachments and the audit trail records that no attachments were included.
+
 ## Outlook draft safety
 
 Occam Template Desk never sends email automatically. Outlook draft creation is optional, local-only, and available only when `local_outlook` is enabled on Windows with pywin32. The app shows a post-generation **Create Outlook Draft** action and creates/opens a draft only after validation has no blockers and no unresolved placeholders. If Outlook or pywin32 is unavailable, copy-ready email files are generated and remain available; the app shows a friendly warning, writes `outlook_status.json`, and updates `audit_log.json`. Attachments are not fully automated in V1 unless explicitly provided to the Outlook workflow by future local code changes.
