@@ -1,36 +1,27 @@
 # Local Tax Document Sorter Prototype
 
-This is a simple, local-only Python prototype for sorting obvious tax documents from a client upload folder. It uses rule-based keyword matching, PDF text extraction, and local Tesseract OCR. It does **not** use AI, machine learning, paid APIs, cloud services, Drake Tax integration, a database, a web app, or a desktop GUI.
+This is a simple, local-only Python prototype for sorting obvious tax documents from a client upload folder. It uses rule-based keyword matching, PDF text extraction, local Tesseract OCR, and a small local Flask web UI. It does **not** use AI, machine learning, paid APIs, cloud services, Drake Tax integration, a database, or a desktop GUI.
 
-## Easiest way to use it
+## Easiest way to use it on Windows
 
 ### First-time setup
 
-From this project folder, run:
-
-```bash
-python setup_tax_doc_sorter.py
-```
+1. Double-click `Setup Tax Document Sorter.bat`.
+2. Wait for setup to finish.
+3. If prompted, install Tesseract OCR.
 
 The setup helper installs Python packages from `requirements.txt`, tries to install the Tesseract OCR application when a common package manager is available, then runs the same dependency check used by the sorter.
 
 ### Normal use
 
-1. Put client files in the `Uploads` folder next to these scripts. If the folder does not exist yet, `run_sorter.py` creates it for you.
-2. Run:
+1. Double-click `Start Tax Document Sorter.bat`.
+2. Your browser opens automatically.
+3. Put files in the default `Uploads` folder or paste a custom folder path.
+4. Click **Run Sorter**.
+5. Review the results in the browser.
+6. Open `Organized_Tax_Documents` and `Document_Inventory.xlsx` from the results page.
 
-```bash
-python run_sorter.py
-```
-
-3. When asked, press Enter to use the default `Uploads` folder, or type/paste a custom folder path.
-4. Review:
-
-```text
-Uploads/Organized_Tax_Documents/
-```
-
-The launcher runs the sorter in safe copy mode by default, so original files are not moved or deleted.
+The web app runs locally at `http://127.0.0.1:5000` and uses safe copy mode by default, so original files are not moved or deleted.
 
 ## What it does
 
@@ -88,6 +79,19 @@ The sorter uses conservative rule-based scoring only. Strong official identifier
 | NeedsReview | No supported keyword found |
 
 Brokerage scoring is designed to beat 1099-INT/DIV when consolidated brokerage evidence is present. W-2 requires `Form W-2`, `Wage and Tax Statement`, or a cluster of at least 4 W-2 structural field labels; generic words such as `wages`, `withholding`, `employer`, or `employee` are not enough. 1099-MISC requires `1099-MISC`; mortgage classification does **not** rely on generic `Form 1098`, `lender`, or `interest` alone.
+
+## PowerShell and CLI fallback
+
+If the double-click launchers are not available, use these commands from the project folder:
+
+```powershell
+py -3.12 setup_tax_doc_sorter.py
+py -3.12 app.py
+py -3.12 run_sorter.py
+py -3.12 sort_tax_docs.py --check-dependencies
+```
+
+The old CLI workflows remain available for troubleshooting and automation.
 
 ## Detailed setup notes
 
@@ -157,7 +161,7 @@ sudo apt-get install -y tesseract-ocr
 
 ## Manual command-line usage
 
-The launcher is easiest, but you can also run the sorter directly.
+The browser app is easiest, but you can also run the sorter directly.
 
 Copy mode is the default and safest option:
 
