@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
-const files = ["processGenerator.js", "markdownExport.js", "processStorage.js", "app.js"];
+const files = ["processGenerator.js", "markdownExport.js", "processStorage.js", "automationGenerator.js", "automationExport.js", "automationStorage.js", "app.js"];
 
 function toBundleSource(file) {
   return readFileSync(file, "utf8")

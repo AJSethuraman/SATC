@@ -16,6 +16,7 @@
           document with SOP steps, handoffs, quality controls, risks, checklist items, and automation opportunities.
         </p>
       </div>
+      <div class="mode-switch" aria-label="Builder mode"><button id="processModeBtn" class="button button-primary" type="button">Process Builder</button><button id="automationModeBtn" class="button" type="button">Automation Builder</button></div>
       <div class="hero-actions">
         <button id="newProcessBtn" class="button button-primary" type="button">New process</button>
         <button id="exportMarkdownBtn" class="button" type="button">Export process Markdown</button>
@@ -25,7 +26,7 @@
       </div>
     </header>
 
-    <main class="app-shell">
+    <main id="processMode" class="app-shell">
       <aside class="sidebar" aria-label="Process library">
         <div class="sidebar-header">
           <h2>Process library</h2>
@@ -112,6 +113,90 @@
         </aside>
 
         <section id="sectionsContainer" class="sections-container" aria-label="Editable process document sections"></section>
+      </section>
+    </main>
+
+    <main id="automationMode" class="app-shell" hidden>
+      <aside class="sidebar" aria-label="Automation library">
+        <div class="sidebar-header">
+          <h2>Automation library</h2>
+          <span id="automationCount" class="pill">0 saved</span>
+        </div>
+        <label class="search-label" for="automationSearchInput">Search automation plans</label>
+        <input id="automationSearchInput" class="input" type="search" placeholder="Search name, category, status, client" />
+        <div class="backup-actions">
+          <button id="exportAutomationBackupBtn" class="button button-small" type="button">Export automation JSON</button>
+          <label class="button button-small import-button" for="importAutomationBackupInput">Import automation JSON</label>
+          <input id="importAutomationBackupInput" class="visually-hidden" type="file" accept="application/json,.json" />
+        </div>
+        <p class="storage-note">Automation plans are stored only in this browser. Export a JSON backup before clearing browser data or switching devices.</p>
+        <div id="automationList" class="process-list"></div>
+      </aside>
+
+      <section class="workspace" aria-live="polite">
+        <form id="automationForm" class="panel form-panel">
+          <div class="form-heading">
+            <div>
+              <h2>Create or edit an automation plan</h2>
+              <p>Answer guided scoping questions. The app creates an editable blueprint, checklist, summary, and Mermaid diagram.</p>
+            </div>
+            <label>
+              <span>Starter automation</span>
+              <select id="automationStarterSelect" class="input"></select>
+            </label>
+          </div>
+          <div class="form-grid">
+            <label><span>Automation name <strong aria-label="required">*</strong></span><input id="automationName" class="input" type="text" required /></label>
+            <label><span>Client / business name</span><input id="automationClientName" class="input" type="text" /></label>
+            <label><span>Industry</span><select id="automationIndustry" class="input"></select></label>
+            <label><span>Category</span><select id="automationCategory" class="input"></select></label>
+            <label><span>Status</span><select id="automationStatus" class="input"></select></label>
+            <label><span>Trigger</span><select id="automationTriggerType" class="input"></select></label>
+            <label><span>Source channel</span><select id="automationSourceChannel" class="input"></select></label>
+            <label><span>Source of truth</span><select id="automationSourceOfTruth" class="input"></select></label>
+            <label><span>Human review point</span><select id="automationHumanReviewPoint" class="input"></select></label>
+            <label><span>Frequency</span><select id="automationFrequency" class="input"></select></label>
+            <label><span>Volume</span><select id="automationVolume" class="input"></select></label>
+            <label><span>Success metric</span><input id="automationSuccessMetric" class="input" type="text" /></label>
+          </div>
+          <label><span>Business problem <strong aria-label="required">*</strong></span><textarea id="automationBusinessProblem" class="input textarea"></textarea></label>
+          <div class="form-grid">
+            <label><span>Desired automated actions</span><select id="automationDesiredActions" class="input multi-select" multiple></select></label>
+            <label><span>Systems already in use</span><select id="automationToolsInUse" class="input multi-select" multiple></select></label>
+            <label><span>Roles involved</span><select id="automationRolesInvolved" class="input multi-select" multiple></select></label>
+            <label><span>Exception rules</span><select id="automationExceptionRules" class="input multi-select" multiple></select></label>
+            <label><span>Required data fields</span><input id="automationRequiredDataFields" class="input" type="text" placeholder="Comma-separated fields" /></label>
+          </div>
+          <label><span>Manual fallback <strong aria-label="required">*</strong></span><textarea id="automationManualFallback" class="input textarea"></textarea></label>
+          <label><span>Optional notes</span><textarea id="automationOptionalNotes" class="input textarea"></textarea></label>
+          <div class="form-actions">
+            <button class="button button-primary" type="submit">Generate Automation Plan</button>
+            <button id="saveAutomationBtn" class="button" type="button">Save edits</button>
+            <button id="duplicateAutomationBtn" class="button" type="button">Duplicate</button>
+            <button id="deleteAutomationBtn" class="button button-danger" type="button">Delete</button>
+            <button id="addAutomationChecklistItemBtn" class="button" type="button">Add checklist item</button>
+          </div>
+          <div class="form-actions export-row">
+            <button id="exportAutomationMarkdownBtn" class="button" type="button">Export automation Markdown</button>
+            <button id="copyAutomationMarkdownBtn" class="button" type="button">Copy automation Markdown</button>
+            <button id="exportAutomationChecklistBtn" class="button" type="button">Export checklist</button>
+            <button id="copyAutomationChecklistBtn" class="button" type="button">Copy checklist</button>
+          </div>
+        </form>
+
+        <div class="panel section-toolbar"><div><h2 id="activeAutomationTitle">New automation plan</h2><p id="activeAutomationMeta">Answer the guided questions and generate an automation blueprint.</p></div><div id="automationSaveState" class="save-state">Local storage ready</div></div>
+
+        <aside class="panel reference-panel" aria-label="Automation tool reference">
+          <h2>Tool-stack reference</h2>
+          <div class="reference-grid">
+            <p><strong>Zapier</strong><br />Best for broad app-to-app handoffs and lighter branching.</p>
+            <p><strong>Make</strong><br />Best for multi-branch routing, fallback paths, and explicit error handling.</p>
+            <p><strong>Google Forms + Sheets</strong><br />Best for low-cost intake, simple trackers, and team-owned records.</p>
+            <p><strong>Airtable</strong><br />Best for record-centric workflows needing forms, review, filtering, and approvals.</p>
+          </div>
+        </aside>
+
+        <section id="automationSectionsContainer" class="sections-container" aria-label="Editable automation plan sections"></section>
       </section>
     </main>
 
