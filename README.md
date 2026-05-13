@@ -51,7 +51,7 @@ Run the sorter against a folder of uploads and it will:
    - `11_1098_Tuition`
    - `99_Needs_Review`
 3. Process common file types: PDF, JPG, JPEG, PNG, TIFF, and TIF.
-4. Try selectable PDF text first, and skip OCR when that text already contains a classification keyword or enough text to review.
+4. Try selectable PDF text first; if it does not produce a high-confidence classification, OCR the PDF and classify combined selectable + OCR text.
 5. OCR image files using local Tesseract through `pytesseract`, with simple Pillow grayscale/contrast/sharpening preprocessing.
 6. Copy files by default into the best matching category folder.
 7. Rename files with the detected type prefix, such as `W2_scan001.pdf`, `1099_NEC_upload4.pdf`, or `NeedsReview_IMG_2231.jpg`.
@@ -171,6 +171,14 @@ On macOS/Linux:
 python sort_tax_docs.py "/home/user/Tax Clients/John Smith/Uploads"
 ```
 
+To save extracted selectable/OCR/combined text and classification scores for troubleshooting:
+
+```bash
+py -3.12 .\sort_tax_docs.py "C:\Tax Clients\John Smith\Uploads" --save-extracted-text
+```
+
+Debug text files are written to `Organized_Tax_Documents/_extracted_text_debug/`.
+
 To move files instead of copying them:
 
 ```bash
@@ -185,7 +193,7 @@ Run the included fake-text classifier tests with:
 python test_sort_tax_docs.py
 ```
 
-These tests do not use real taxpayer data. They cover exact W-2 text, W-2 structural indicators, 1099-NEC vs W-2, brokerage priority, 1099-MISC strictness, 1098-T, mortgage 1098, generic tax statements, and random receipts.
+These tests do not use real taxpayer data. They cover exact W-2 text, W-2 structural indicators, PDF OCR fallback behavior, 1099-NEC vs W-2, brokerage priority, 1099-MISC strictness, 1098-T, mortgage 1098, generic tax statements, and random receipts.
 
 ## Simple fake manual test with no real client data
 

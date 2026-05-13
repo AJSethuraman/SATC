@@ -7,7 +7,9 @@ These tests use made-up text snippets only. They do not include real taxpayer da
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
+import sort_tax_docs
 from sort_tax_docs import classify_text
 
 
@@ -86,6 +88,71 @@ class ClassificationTests(unittest.TestCase):
 
     def test_random_receipt_needs_review(self) -> None:
         self.assert_category("coffee receipt total customer service", "NeedsReview")
+
+
+class PdfFallbackTests(unittest.TestCase):
+    """Tests for selectable-PDF text vs OCR fallback behavior."""
+
+    def run_fake_pdf(self, selectable_text: str, ocr_text: str):
+        original_selectable = sort_tax_docs.extract_pdf_selectable_text
+        original_ocr = sort_tax_docs.ocr_pdf
+        calls = {"ocr": 0}
+
+        def fake_ocr(_file_path: Path) -> str:
+            calls["ocr"] += 1
+            return ocr_text
+
+        try:
+            sort_tax_docs.extract_pdf_selectable_text = lambda _file_path: selectable_text
+            sort_tax_docs.ocr_pdf = fake_ocr
+            text, ocr_used, note, result, debug_parts = sort_tax_docs.extract_text_and_classification(
+                Path("fake.pdf")
+            )
+            return text, ocr_used, note, result, debug_parts, calls
+        finally:
+            sort_tax_docs.extract_pdf_selectable_text = original_selectable
+            sort_tax_docs.ocr_pdf = original_ocr
+
+    def test_selectable_pdf_clear_w2_skips_ocr(self) -> None:
+        _text, ocr_used, note, result, _debug_parts, calls = self.run_fake_pdf(
+            "Form W-2 Wage and Tax Statement", ""
+        )
+        self.assertEqual(result.category, "W2")
+        self.assertFalse(ocr_used)
+        self.assertEqual(calls["ocr"], 0)
+        self.assertIn("OCR skipped", note)
+
+    def test_long_generic_selectable_pdf_runs_ocr(self) -> None:
+        generic = " ".join(["recipient payer tax statement address customer service"] * 20)
+        _text, ocr_used, _note, result, _debug_parts, calls = self.run_fake_pdf(generic, "")
+        self.assertTrue(ocr_used)
+        self.assertEqual(calls["ocr"], 1)
+        self.assertEqual(result.category, "NeedsReview")
+
+    def test_inconclusive_selectable_plus_ocr_w2(self) -> None:
+        _text, ocr_used, note, result, _debug_parts, calls = self.run_fake_pdf(
+            "recipient payer address", "Wage and Tax Statement"
+        )
+        self.assertTrue(ocr_used)
+        self.assertEqual(calls["ocr"], 1)
+        self.assertEqual(result.category, "W2")
+        self.assertIn("OCR used", note)
+
+    def test_combined_selectable_and_ocr_classifies_w2_structural(self) -> None:
+        selectable = "Employee's social security number Employer identification number"
+        ocr = "Wages, tips, other compensation Federal income tax withheld"
+        text, ocr_used, _note, result, _debug_parts, _calls = self.run_fake_pdf(selectable, ocr)
+        self.assertTrue(ocr_used)
+        self.assertEqual(result.category, "W2")
+        self.assertIn(selectable, text)
+        self.assertIn(ocr, text)
+
+    def test_pdf_selectable_and_ocr_inconclusive_needs_review(self) -> None:
+        _text, ocr_used, _note, result, _debug_parts, _calls = self.run_fake_pdf(
+            "recipient payer address", "coffee receipt total"
+        )
+        self.assertTrue(ocr_used)
+        self.assertEqual(result.category, "NeedsReview")
 
 
 if __name__ == "__main__":

@@ -170,6 +170,8 @@ CATEGORY_THRESHOLDS = {
 REVIEW_SCORE_THRESHOLD = 4
 CLOSE_SCORE_DELTA = 3
 MIN_RELIABLE_TEXT_CHARS = 8
+CLASSIFICATION_CONFIDENCE_RANK = {"Low": 0, "Medium": 1, "High": 2}
+DEBUG_TEXT_FOLDER_NAME = "_extracted_text_debug"
 
 # Backward-compatible alias used by the PDF OCR skip helper.
 RULES = SCORING_RULES
@@ -201,6 +203,11 @@ def parse_args() -> argparse.Namespace:
         "--skip-system-install",
         action="store_true",
         help="With --install-dependencies, install Python packages only and skip Tesseract.",
+    )
+    parser.add_argument(
+        "--save-extracted-text",
+        action="store_true",
+        help="Save selectable/OCR/combined text and scores for troubleshooting.",
     )
     return parser.parse_args()
 
@@ -289,6 +296,17 @@ def setup_output_folders(input_folder: Path) -> Path:
     for folder_name in CATEGORY_FOLDERS.values():
         (output_folder / folder_name).mkdir(exist_ok=True)
     return output_folder
+
+
+
+def setup_debug_text_folder(output_folder: Path, save_extracted_text: bool) -> Path | None:
+    """Create the optional extracted-text debug folder."""
+
+    if not save_extracted_text:
+        return None
+    debug_folder = output_folder / DEBUG_TEXT_FOLDER_NAME
+    debug_folder.mkdir(exist_ok=True)
+    return debug_folder
 
 
 def setup_logging(output_folder: Path) -> None:
@@ -409,31 +427,108 @@ def text_contains_classification_keyword(text: str) -> bool:
 
 
 def extract_text(file_path: Path) -> tuple[str, bool, str]:
-    """Extract text from a supported file.
+    """Extract text from a supported file for compatibility with older callers."""
 
-    Returns a tuple of (text, ocr_used, notes). PDFs are tried with selectable
-    text extraction first; OCR is used only when selectable text is short and has
-    no classification keyword.
-    """
+    text, ocr_used, note, _result, _debug_parts = extract_text_and_classification(file_path)
+    return text, ocr_used, note
+
+
+def is_successful_pdf_classification(result: ClassificationResult) -> bool:
+    """Return True when selectable PDF text is strong enough to skip OCR."""
+
+    return (
+        result.category != "NeedsReview"
+        and result.confidence == "High"
+        and bool(result.matched_keywords)
+    )
+
+
+def better_classification(
+    first: ClassificationResult, second: ClassificationResult
+) -> ClassificationResult:
+    """Choose the better classification result using conservative tie-breakers."""
+
+    first_specific = first.category != "NeedsReview"
+    second_specific = second.category != "NeedsReview"
+    if first_specific != second_specific:
+        return first if first_specific else second
+
+    first_confidence = CLASSIFICATION_CONFIDENCE_RANK.get(first.confidence, 0)
+    second_confidence = CLASSIFICATION_CONFIDENCE_RANK.get(second.confidence, 0)
+    if first_confidence != second_confidence:
+        return first if first_confidence > second_confidence else second
+
+    if first.winning_score != second.winning_score:
+        return first if first.winning_score > second.winning_score else second
+
+    return first
+
+
+def classification_debug_summary(result: ClassificationResult) -> str:
+    """Return JSON classification details for debug text files."""
+
+    return json.dumps(
+        {
+            "category": result.category,
+            "confidence": result.confidence,
+            "winning_score": result.winning_score,
+            "runner_up_category": result.runner_up_category,
+            "runner_up_score": result.runner_up_score,
+            "matched_keywords": list(result.matched_keywords),
+            "category_scores": result.category_scores or {},
+            "notes": list(result.notes),
+        },
+        indent=2,
+        sort_keys=True,
+    )
+
+
+def extract_text_and_classification(
+    file_path: Path,
+) -> tuple[str, bool, str, ClassificationResult, dict[str, str]]:
+    """Extract text and classify it, OCRing PDFs when selectable text is inconclusive."""
 
     suffix = file_path.suffix.lower()
+    debug_parts = {"selectable_text": "", "ocr_text": "", "combined_text": ""}
+
     if suffix == ".pdf":
         selectable_text = extract_pdf_selectable_text(file_path)
-        if text_contains_classification_keyword(selectable_text):
+        debug_parts["selectable_text"] = selectable_text
+        selectable_result = classify_text(selectable_text)
+        debug_parts["selectable_classification"] = classification_debug_summary(selectable_result)
+        if is_successful_pdf_classification(selectable_result):
+            debug_parts["combined_text"] = selectable_text
+            debug_parts["final_classification"] = classification_debug_summary(selectable_result)
             return (
                 selectable_text,
                 False,
-                "Selectable PDF text contained a classification keyword; OCR skipped.",
+                "Selectable PDF text classified successfully; OCR skipped.",
+                selectable_result,
+                debug_parts,
             )
-        if len(selectable_text.strip()) >= MIN_SELECTABLE_TEXT_CHARS:
-            return selectable_text, False, "Selectable PDF text extracted."
-        ocr_text = ocr_pdf(file_path)
-        note = "PDF selectable text was short and had no classification keyword; OCR used."
-        if selectable_text.strip():
-            note += " Limited selectable text was also present."
-        return ocr_text or selectable_text, True, note
 
-    return ocr_image(file_path), True, "Image OCR used."
+        ocr_text = ocr_pdf(file_path)
+        combined_text = "\n".join(part for part in (selectable_text, ocr_text) if part.strip())
+        debug_parts["ocr_text"] = ocr_text
+        debug_parts["combined_text"] = combined_text
+        combined_result = classify_text(combined_text)
+        result = better_classification(selectable_result, combined_result)
+        debug_parts["combined_classification"] = classification_debug_summary(combined_result)
+        debug_parts["final_classification"] = classification_debug_summary(result)
+        return (
+            combined_text or selectable_text or ocr_text,
+            True,
+            "Selectable PDF text was inconclusive; OCR used and combined with selectable text.",
+            result,
+            debug_parts,
+        )
+
+    ocr_text = ocr_image(file_path)
+    debug_parts["ocr_text"] = ocr_text
+    debug_parts["combined_text"] = ocr_text
+    result = classify_text(ocr_text)
+    debug_parts["final_classification"] = classification_debug_summary(result)
+    return ocr_text, True, "Image OCR used.", result, debug_parts
 
 
 def score_categories(text: str) -> tuple[dict[str, int], dict[str, list[str]], list[str]]:
@@ -599,7 +694,35 @@ def copy_or_move_file(source: Path, destination: Path, move: bool) -> None:
         shutil.copy2(source, destination)
 
 
-def process_file(file_path: Path, output_folder: Path, move: bool) -> dict[str, object]:
+
+def write_extracted_text_debug(
+    debug_folder: Path, file_path: Path, debug_parts: dict[str, str]
+) -> Path:
+    """Save extracted text and classification details for troubleshooting."""
+
+    debug_filename = f"{safe_filename_part(file_path.stem)}_extracted_text.txt"
+    debug_path = unique_destination_path(debug_folder, debug_filename)
+    sections = [
+        ("Original File", str(file_path)),
+        ("Selectable Text", debug_parts.get("selectable_text", "")),
+        ("OCR Text", debug_parts.get("ocr_text", "")),
+        ("Combined Text", debug_parts.get("combined_text", "")),
+        ("Selectable Classification", debug_parts.get("selectable_classification", "")),
+        ("Combined Classification", debug_parts.get("combined_classification", "")),
+        ("Final Classification", debug_parts.get("final_classification", "")),
+    ]
+    content = []
+    for title, value in sections:
+        content.append(f"===== {title} =====")
+        content.append(value or "")
+        content.append("")
+    debug_path.write_text("\n".join(content), encoding="utf-8")
+    return debug_path
+
+
+def process_file(
+    file_path: Path, output_folder: Path, move: bool, debug_folder: Path | None = None
+) -> dict[str, object]:
     """Process one document and return an inventory row."""
 
     notes: list[str] = []
@@ -609,12 +732,16 @@ def process_file(file_path: Path, output_folder: Path, move: bool) -> dict[str, 
 
     try:
         logging.info("Processing %s", file_path)
-        text, ocr_used, extraction_note = extract_text(file_path)
+        text, ocr_used, extraction_note, result, debug_parts = extract_text_and_classification(
+            file_path
+        )
         notes.append(extraction_note)
         if not text.strip():
             notes.append("No readable text found.")
-        result = classify_text(text)
         notes.extend(note for note in result.notes if note not in notes)
+        if debug_folder is not None:
+            debug_path = write_extracted_text_debug(debug_folder, file_path, debug_parts)
+            notes.append(f"Extracted text debug file: {debug_path}")
 
         category_folder = output_folder / CATEGORY_FOLDERS[result.category]
         new_filename = build_new_filename(result.category, file_path.name)
@@ -701,13 +828,14 @@ def main() -> int:
         return 1
 
     output_folder = setup_output_folders(input_folder)
+    debug_folder = setup_debug_text_folder(output_folder, args.save_extracted_text)
     setup_logging(output_folder)
     logging.info("Starting tax document sort for %s", input_folder)
     logging.info("Default safety mode: %s", "MOVE" if args.move else "COPY")
 
     rows: list[dict[str, object]] = []
     for file_path in iter_supported_files(input_folder, output_folder):
-        rows.append(process_file(file_path, output_folder, args.move))
+        rows.append(process_file(file_path, output_folder, args.move, debug_folder))
 
     inventory_path = write_inventory(rows, output_folder)
     logging.info("Inventory written to %s", inventory_path)
@@ -716,6 +844,8 @@ def main() -> int:
     print(f"Output folder: {output_folder}")
     print(f"Inventory: {inventory_path}")
     print(f"Log: {output_folder / LOG_FILE_NAME}")
+    if debug_folder is not None:
+        print(f"Extracted text debug folder: {debug_folder}")
     return 0
 
 
