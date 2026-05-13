@@ -1,0 +1,12 @@
+Subject: Missing documents needed for {{Client Name}}
+Hello {{Contact First Name}},
+
+We are working on your {{Tax Year}} tax engagement and need the following items:
+
+{{Missing Items}}
+
+Please reply with the documents or questions when convenient.
+
+Thank you,
+{{Manager}}
+{{Firm Name}}
