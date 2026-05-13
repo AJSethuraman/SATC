@@ -13,11 +13,12 @@ The first version is intentionally local-first and draft-only. It does **not** s
 5. Select a client from the Excel workbook.
 6. The app scans the template for placeholders such as `{{Client Name}}`, `{{Tax Year}}`, and `{{Invoice Number}}`.
 7. Matching values are pulled from workbook sheets and displayed with source/status labels.
-8. Review and override values for the current run only.
-9. Review validation status: **Ready**, **Needs Review**, or **Blocked**.
-10. Preview the document/email.
-11. Generate an output package with rendered files, audit log, input snapshot, rendered values, and validation report.
-12. If enabled, Outlook draft integration can create/open a local draft; otherwise copy-ready fallback files are created.
+8. If an invoice template is selected, choose the invoice when multiple invoices exist; a single invoice is auto-selected.
+9. Review and override values for the current run only.
+10. Review validation status: **Ready**, **Needs Review**, or **Blocked**.
+11. Preview the document/email with template diagnostics and matched/missing fields.
+12. Generate an output package with rendered files, audit log, input snapshot, rendered values, and validation report.
+13. If enabled, use the post-generation **Create Outlook Draft** action; otherwise copy-ready fallback files are created.
 
 ## Generate local sample binary files
 
@@ -62,7 +63,7 @@ The demo also ensures sample assets exist, then generates one engagement letter 
 pytest
 ```
 
-The tests cover placeholder scanning, normalization, sample workbook loading, validation blockers/warnings, rendering, package artifacts, validation reports, audit logs, and Outlook fallback behavior.
+The tests cover placeholder scanning, normalization, openpyxl workbook loading when available, client match fields, invoice selection logic, validation blockers/warnings, rendering, post-render placeholder checks, package artifacts, validation reports, audit logs, source immutability, and Outlook draft/fallback behavior.
 
 ## Template basics
 
@@ -161,7 +162,7 @@ Editable settings in the UI:
 Supported Outlook modes:
 
 - `disabled`: no Outlook draft attempt.
-- `local_outlook`: attempt a local Outlook draft on Windows with pywin32 after validation passes.
+- `local_outlook`: show a post-generation **Create Outlook Draft** action on Windows with pywin32 after validation passes. The draft is opened/saved only; no email is sent.
 - `fallback_files`: generate copy-ready email draft files and metadata only.
 
 ## Output packages
@@ -189,7 +190,11 @@ The validation report workbook contains:
 3. Validation Results
 4. Audit Log
 
-It uses branded status language and reviewer-friendly sheets.
+When `openpyxl` is installed, the report includes navy title rows, gold status accents, gray table headers, freeze panes, reviewer-friendly column widths, and explicit Ready / Needs Review / Blocked / Warning text labels. A lightweight fallback writer is used in constrained environments.
+
+## Workbook loading and matching
+
+Occam Template Desk uses `openpyxl` to load normal Excel workbooks when available and falls back to the lightweight reader only in constrained environments. Loading is read-only and handles blank cells, dates, numeric values, and sparse rows. Client selection displays names for humans but matches internally using the configured `client_match_field`, such as `Client ID` or `Client Name`.
 
 ## Validation model
 
@@ -225,7 +230,7 @@ Generated `.xlsx`, `.docx`, `.pdf`, image, output, and generated folders are int
 ## Known limitations
 
 - This is a local-first V1; no cloud database, authentication, Microsoft Graph, or multi-user permission model is included.
-- Word rendering preserves basic template package structure and replaces placeholders, but complex placeholders split across multiple Word runs may need template cleanup.
+- Word rendering preserves basic template package structure and replaces placeholders, but complex placeholders split across multiple Word runs may need template cleanup. Post-render checks warn if any `{{placeholder}}` tokens remain.
 - PDF export is not included in V1.
 - The sample workbook writer/reader is intentionally lightweight for local demo/test portability; production deployments should use pandas/openpyxl as listed in `requirements.txt`.
 

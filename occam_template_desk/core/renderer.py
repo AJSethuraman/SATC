@@ -6,15 +6,25 @@ import re
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
-from .template_scanner import PLACEHOLDER_RE, normalize_field_name
+from .template_scanner import PLACEHOLDER_RE, detect_placeholders_from_text, extract_docx_text, normalize_field_name
 
 
-def render_text(text: str, values: dict[str, str]) -> str:
+def render_text(text: str, values: dict[str, str], keep_unresolved: bool = True) -> str:
     norm = {normalize_field_name(k): v for k, v in values.items()}
+
     def repl(m):
         raw = m.group(1).strip()
-        return str(values.get(raw, norm.get(normalize_field_name(raw), "")))
+        if raw in values:
+            return str(values[raw])
+        normalized = normalize_field_name(raw)
+        if normalized in norm:
+            return str(norm[normalized])
+        return m.group(0) if keep_unresolved else ""
+
     return PLACEHOLDER_RE.sub(repl, text)
+
+def detect_unresolved_placeholders(text: str) -> list[str]:
+    return detect_placeholders_from_text(text)
 
 def parse_email_template(path: str | Path) -> tuple[str, str]:
     text = Path(path).read_text(encoding="utf-8")
@@ -60,3 +70,12 @@ def create_minimal_docx(path: str | Path, paragraphs: list[str]) -> Path:
         z.writestr("_rels/.rels", """<Relationships xmlns='http://schemas.openxmlformats.org/package/2006/relationships'><Relationship Id='rId1' Type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument' Target='word/document.xml'/></Relationships>""")
         z.writestr("word/document.xml", document)
     return path
+
+
+def scan_rendered_output_for_placeholders(path: str | Path) -> list[str]:
+    path = Path(path)
+    if path.suffix.lower() == ".docx":
+        text = extract_docx_text(path)
+    else:
+        text = path.read_text(encoding="utf-8")
+    return detect_unresolved_placeholders(text)

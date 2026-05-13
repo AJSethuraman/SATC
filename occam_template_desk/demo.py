@@ -8,6 +8,7 @@ from .core.renderer import parse_email_template, render_text
 from .core.validation import validate_run
 from .core.package_builder import build_output_package
 from .core.outlook import OutlookDraftService
+from .core.invoice import invoice_selection_state, template_requires_invoice
 from .core.settings import PACKAGE_ROOT
 from .setup_samples import ensure_sample_assets
 
@@ -21,11 +22,17 @@ def generate_demo_packages() -> list[dict]:
     for rel in ["Documents/Individual Tax Engagement Letter.docx", "Emails/Invoice Delivery Email.html"]:
         template = PACKAGE_ROOT / "sample_templates" / rel
         scan = scan_template(template)
-        pool = wb.field_pool_for_client(client)
+        invoices = wb.invoices_for_client(client.get("Client ID", ""))
+        invoice_state = invoice_selection_state(invoices, template_requires_invoice(scan["placeholders"], template.name))
+        selected_invoice = invoice_state.get("selected_invoice")
+        pool = wb.field_pool_for_client(client, selected_invoice)
         pool.setdefault("firm name", (settings.default_firm_name, "Settings"))
         fields = build_field_records(scan["placeholders"], pool)
         values = records_to_values(fields)
         values.setdefault("Client Name", client.get("Client Name", "")); values.setdefault("Client Email", client.get("Client Email", ""))
+        if selected_invoice:
+            for key, value in selected_invoice.items():
+                values.setdefault(key, value)
         subject = ""
         if scan["template_type"] == "email":
             subject_t, _ = parse_email_template(template)
