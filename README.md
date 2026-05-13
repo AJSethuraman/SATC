@@ -1,6 +1,6 @@
 # Local Tax Document Sorter Prototype
 
-This is a simple, local-only Python prototype for sorting obvious tax documents from a client upload folder. It uses rule-based keyword matching, PDF text extraction, local Tesseract OCR, and a small local Flask web UI. It does **not** use AI, machine learning, paid APIs, cloud services, Drake Tax integration, a database, or a desktop GUI.
+This is a simple, local-only Python prototype for sorting obvious tax documents from a client upload folder. It uses a PySide6 desktop GUI, rule-based keyword scoring, PDF text extraction, and local Tesseract OCR. It does **not** use AI, machine learning, paid APIs, cloud services, Drake Tax integration, a database, PDF splitting, or bookkeeping categories.
 
 ## Easiest way to use it on Windows
 
@@ -14,14 +14,15 @@ The setup helper installs Python packages from `requirements.txt`, tries to inst
 
 ### Normal use
 
-1. Double-click `Start Tax Document Sorter.bat`.
-2. Your browser opens automatically.
-3. Put files in the default `Uploads` folder or paste a custom folder path.
-4. Click **Run Sorter**.
-5. Review the results in the browser.
-6. Open `Organized_Tax_Documents` and `Document_Inventory.xlsx` from the results page.
+1. Double-click `Start Tax Document Sorter.vbs`.
+2. The desktop app opens without a Command Prompt window.
+3. Click **Choose Folder**.
+4. Select the client upload folder, or use the default `Uploads` folder.
+5. Click **Run Sorter**.
+6. Review results in the app.
+7. Click **Open Organized Folder** or **Open Inventory**.
 
-The web app runs locally at `http://127.0.0.1:5000` and uses safe copy mode by default, so original files are not moved or deleted.
+The desktop app uses safe copy mode by default, so original files are not moved or deleted.
 
 ## What it does
 
@@ -82,16 +83,16 @@ Brokerage scoring is designed to beat 1099-INT/DIV when consolidated brokerage e
 
 ## PowerShell and CLI fallback
 
-If the double-click launchers are not available, use these commands from the project folder:
+If the double-click launcher is not available, use these commands from the project folder:
 
 ```powershell
 py -3.12 setup_tax_doc_sorter.py
-py -3.12 app.py
+py -3.12 tax_doc_sorter_app.pyw
 py -3.12 run_sorter.py
 py -3.12 sort_tax_docs.py --check-dependencies
 ```
 
-The old CLI workflows remain available for troubleshooting and automation.
+The CLI workflows remain available for troubleshooting and automation. The older Flask browser app (`app.py`) is still present as optional legacy tooling, but the primary workflow is the PySide6 desktop app.
 
 ## Detailed setup notes
 
@@ -161,7 +162,7 @@ sudo apt-get install -y tesseract-ocr
 
 ## Manual command-line usage
 
-The browser app is easiest, but you can also run the sorter directly.
+The desktop app is easiest, but you can also run the sorter directly.
 
 Copy mode is the default and safest option:
 
@@ -211,6 +212,17 @@ After setup, create a few harmless test PDFs or images that contain only fake te
 - `Mortgage Interest Statement`
 
 Put those files in the `Uploads` folder, run `python run_sorter.py`, press Enter, and review `Uploads/Organized_Tax_Documents/`, `Document_Inventory.xlsx`, and `processing_log.txt`. The inventory includes winning score, runner-up score, matched keywords, category scores, OCR status, and notes.
+
+## Optional future packaging
+
+You can later package the desktop app into a windowed executable with PyInstaller:
+
+```powershell
+py -3.12 -m pip install pyinstaller
+py -3.12 -m PyInstaller --onefile --windowed tax_doc_sorter_app.pyw --name "Tax Document Sorter"
+```
+
+Packaging is optional and is not required to run the prototype.
 
 ## Limitations in this prototype
 
