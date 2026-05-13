@@ -156,8 +156,9 @@ def test_validation_report_has_expected_sheets_and_labels(tmp_path):
         from openpyxl import load_workbook
         workbook = load_workbook(report, read_only=True)
         assert workbook.sheetnames == ["Summary", "Fields", "Validation Results", "Audit Log"]
-        assert workbook["Summary"]["A1"].value.startswith("Occam Template Desk")
-        summary_labels = [cell.value for cell in workbook["Summary"]["A"]]
+        summary_rows = list(workbook["Summary"].iter_rows(values_only=True))
+        assert str(summary_rows[0][0]).startswith("Occam Template Desk")
+        summary_labels = [row[0] for row in summary_rows if row and row[0]]
         assert "Status" in summary_labels
         assert "Blocker Count" in summary_labels
         assert "Warning Count" in summary_labels

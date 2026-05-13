@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 
@@ -11,6 +12,20 @@ from occam_template_desk.core.renderer import render_email_template
 from occam_template_desk.core.session_state import clear_generation_state, get_generation_state, save_generation_state
 from occam_template_desk.core.simple_xlsx import read_xlsx
 from occam_template_desk.core.validation import validate_run
+
+
+def _summary_labels_from_report(report_path: str | Path) -> dict:
+    if importlib.util.find_spec("openpyxl") is not None:
+        from openpyxl import load_workbook
+
+        workbook = load_workbook(report_path, read_only=True, data_only=True)
+        try:
+            rows = list(workbook["Summary"].iter_rows(values_only=True))
+            return {str(row[0]): "" if len(row) < 2 or row[1] is None else str(row[1]) for row in rows if row and row[0] and row[0] != "Item" and not str(row[0]).startswith("Occam Template Desk")}
+        finally:
+            workbook.close()
+    summary = read_xlsx(report_path)["Summary"]
+    return {row.get("Item"): row.get("Value") for row in summary}
 
 
 class MockOutlookService:
@@ -92,8 +107,7 @@ def test_validation_report_summary_includes_counts(tmp_path):
     fields = [{"field": "Client Name", "value": "A", "source": "test", "status": "Filled"}]
     validation = validate_run(template, "email", values, ["Client Name"], tmp_path, subject="Hi A")
     package = build_output_package(str(template), "email", values, fields, validation, {"Client Name":"A", "Client ID":"C-1"}, tmp_path)
-    summary = read_xlsx(package["validation_report"])["Summary"]
-    labels = {row.get("Item"): row.get("Value") for row in summary}
+    labels = _summary_labels_from_report(package["validation_report"])
     assert labels["Status"] == "Blocked - Do Not Send"
     assert labels["Blocker Count"] == "1"
     assert labels["Warning Count"] == "1"

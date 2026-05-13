@@ -163,8 +163,8 @@ Editable settings in the UI:
 Supported Outlook modes:
 
 - `disabled`: no Outlook draft attempt.
-- `local_outlook`: show a post-generation **Create Outlook Draft** action on Windows with pywin32 after validation passes. The draft is opened/saved only; no email is sent.
-- `fallback_files`: generate copy-ready email draft files and metadata only.
+- `local_outlook`: optional, local-only Outlook draft creation on Windows with pywin32 after validation passes. The draft is opened/saved only; no email is sent automatically.
+- `fallback_files`: generate copy-ready email draft files and metadata only when Outlook is disabled or unavailable.
 
 ## Output packages
 
@@ -224,7 +224,7 @@ Occam Template Desk uses `openpyxl` to load normal Excel workbooks when availabl
 
 ## Outlook draft safety
 
-Occam Template Desk never sends email. When `local_outlook` is enabled on Windows with pywin32 available, the app shows a post-generation **Create Outlook Draft** action and creates/opens a draft only after validation has no blockers and no unresolved placeholders. If Outlook or pywin32 is unavailable, the app keeps copy-ready files available, shows a friendly warning, writes `outlook_status.json`, and updates `audit_log.json`.
+Occam Template Desk never sends email automatically. Outlook draft creation is optional, local-only, and available only when `local_outlook` is enabled on Windows with pywin32. The app shows a post-generation **Create Outlook Draft** action and creates/opens a draft only after validation has no blockers and no unresolved placeholders. If Outlook or pywin32 is unavailable, copy-ready email files are generated and remain available; the app shows a friendly warning, writes `outlook_status.json`, and updates `audit_log.json`. Attachments are not fully automated in V1 unless explicitly provided to the Outlook workflow by future local code changes.
 
 ## Missing items formatting
 
@@ -239,12 +239,12 @@ HTML email rendering converts multiline values into simple line breaks for copy-
 
 ## Binary artifact policy
 
-Generated `.xlsx`, `.docx`, `.pdf`, image, output, and generated folders are intentionally ignored by Git. Keep source code, text templates, configs, tests, and documentation in the repository; regenerate sample binary files locally with `python -m occam_template_desk.setup_samples`.
+Generated `.xlsx`, `.docx`, `.pdf`, image, output, and generated folders are intentionally ignored by Git. Keep source code, text templates, configs, tests, and documentation in the repository; regenerate sample binary files locally with `python -m occam_template_desk.setup_samples`. During generation, the source Excel workbook and source templates are read-only inputs and are never modified.
 
 ## Known limitations
 
 - This is a local-first V1; no cloud database, authentication, Microsoft Graph, or multi-user permission model is included.
-- Word rendering preserves basic template package structure and replaces placeholders, but complex placeholders split across multiple Word runs may need template cleanup. Post-render checks mark output **Blocked - Do Not Send** and prevent Outlook draft creation if any `{{placeholder}}` tokens remain.
+- Word rendering preserves basic template package structure and replaces placeholders, but complex placeholders split across multiple Word runs may need template cleanup. Post-render checks mark output **Blocked - Do Not Send** and prevent Outlook draft creation if any `{{placeholder}}` tokens remain. Source Word templates are never modified.
 - PDF export is not included in V1.
 - The sample workbook writer/reader is intentionally lightweight for local demo/test portability; production deployments should use pandas/openpyxl as listed in `requirements.txt`.
 
