@@ -121,5 +121,6 @@ class OccamWorkbook:
         missing = self.missing_items_for_client(client.get("Client ID", ""))
         if missing:
             items = [m.get("Missing Item", "") for m in missing if str(m.get("Status", "")).lower() != "received"]
-            pool[normalize_field_name("Missing Items")] = ("; ".join(items), "Missing Items table")
+            formatted_items = "\n".join(f"- {item}" for item in items if item)
+            pool[normalize_field_name("Missing Items")] = (formatted_items, "Missing Items table")
         return pool

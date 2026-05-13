@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import uuid
 from pathlib import Path
 from datetime import datetime
 
@@ -24,19 +25,31 @@ def sanitize_filename(name: str) -> str:
 
 
 def create_output_package_folder(output_root: str | Path, client_name: str, template_name: str) -> Path:
-    folder = Path(output_root) / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{sanitize_filename(client_name)}_{sanitize_filename(Path(template_name).stem)}"
-    folder.mkdir(parents=True, exist_ok=False)
-    return folder
+    root = Path(output_root)
+    root.mkdir(parents=True, exist_ok=True)
+    base = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{sanitize_filename(client_name)}_{sanitize_filename(Path(template_name).stem)}"
+    for _ in range(10):
+        folder = root / f"{base}_{uuid.uuid4().hex[:8]}"
+        try:
+            folder.mkdir(parents=True, exist_ok=False)
+            return folder
+        except FileExistsError:
+            continue
+    raise FileExistsError("Unable to create a unique output package folder after multiple attempts.")
 
 
 def _report_rows(fields: list[dict], validation: dict, audit: dict) -> dict[str, list[dict]]:
+    generated_files = audit.get("generated_files", [])
     rows_summary = [
-        {"Item": "Run ID", "Value": audit.get("run_id", "")},
         {"Item": "Status", "Value": validation.get("status", "")},
         {"Item": "Client", "Value": audit.get("client_name", "")},
         {"Item": "Template", "Value": audit.get("template_name", "")},
         {"Item": "Timestamp", "Value": audit.get("timestamp", "")},
-        {"Item": "Next Actions", "Value": "; ".join(validation.get("next_actions", []))},
+        {"Item": "Blocker Count", "Value": len(validation.get("blockers", []))},
+        {"Item": "Warning Count", "Value": len(validation.get("warnings", []))},
+        {"Item": "Next Action", "Value": "; ".join(validation.get("next_actions", []))},
+        {"Item": "Run ID", "Value": audit.get("run_id", "")},
+        {"Item": "Generated Files", "Value": "\n".join(generated_files)},
     ]
     rows_validation = []
     for blocker in validation.get("blockers", []):
@@ -64,7 +77,7 @@ def _status_fill(status: str):
     normalized = str(status).lower()
     if "ready" in normalized or "success" in normalized:
         return PatternFill("solid", fgColor=GREEN)
-    if "blocked" in normalized or "error" in normalized:
+    if "blocked" in normalized or "error" in normalized or "do not send" in normalized:
         return PatternFill("solid", fgColor=RED)
     if "warning" in normalized or "needs review" in normalized:
         return PatternFill("solid", fgColor=AMBER)
@@ -107,10 +120,12 @@ def _write_openpyxl_report(path: Path, rows_by_sheet: dict[str, list[dict]], val
                 if "date" in header.lower() or header.lower() == "timestamp":
                     cell.number_format = 'yyyy-mm-dd'
         if sheet_name == "Summary":
-            status_cell = ws.cell(row=4, column=2)
+            ws.row_dimensions[3].height = 28
+            status_cell = ws.cell(row=3, column=2)
             status_cell.fill = _status_fill(validation.get("status", ""))
-            ws.cell(row=4, column=1).fill = gold_fill
-            ws.cell(row=4, column=1).font = dark_font
+            status_cell.font = Font(color=NAVY, bold=True, size=14)
+            ws.cell(row=3, column=1).fill = gold_fill
+            ws.cell(row=3, column=1).font = dark_font
         ws.freeze_panes = "A3"
         for col in range(1, len(headers) + 1):
             width = max(14, min(60, max(len(str(ws.cell(row=row, column=col).value or "")) for row in range(1, ws.max_row + 1)) + 3))
@@ -127,8 +142,9 @@ def write_validation_report(path: str | Path, fields: list[dict], validation: di
     return str(write_xlsx(path, rows_by_sheet, styles=True))
 
 
-def _post_render_placeholder_warnings(rendered: dict) -> list[str]:
+def _post_render_placeholder_warnings(rendered: dict) -> tuple[list[str], list[str]]:
     warnings = []
+    unresolved_tokens = []
     seen = set()
     for file_path in rendered.get("generated_files", []):
         path = Path(file_path)
@@ -138,12 +154,13 @@ def _post_render_placeholder_warnings(rendered: dict) -> list[str]:
             continue
         remaining = scan_rendered_output_for_placeholders(path)
         if remaining:
+            unresolved_tokens.extend(remaining)
             token_list = ", ".join(f"{{{{{token}}}}}" for token in remaining)
             message = f"Rendered output still contains unreplaced placeholder(s) in {path.name}: {token_list}."
             if message not in seen:
                 seen.add(message)
                 warnings.append(message)
-    return warnings
+    return warnings, sorted(set(unresolved_tokens))
 
 
 def build_output_package(template_path: str, template_type: str, values: dict, fields: list[dict], validation, client: dict, output_root: str | Path, outlook_status: dict | None = None, detected_placeholders: list[str] | None = None, user_overrides: dict | None = None) -> dict:
@@ -157,21 +174,23 @@ def build_output_package(template_path: str, template_type: str, values: dict, f
         rendered = render_docx_template(template, values, package_dir, f"{sanitize_filename(client.get('Client Name','Client'))}_{sanitize_filename(template.stem)}.docx")
     generated_files = rendered.get("generated_files", [])
     validation_dict = validation.to_dict()
-    post_render_warnings = _post_render_placeholder_warnings(rendered)
+    post_render_warnings, unresolved_placeholders = _post_render_placeholder_warnings(rendered)
     if post_render_warnings:
         validation_dict["warnings"] = validation_dict.get("warnings", []) + post_render_warnings
-        if validation_dict.get("status") == "Ready":
-            validation_dict["status"] = "Needs Review"
-        validation_dict["next_actions"] = validation_dict.get("next_actions", []) + ["Review unreplaced placeholders in the rendered output before use."]
+        validation_dict["status"] = "Blocked - Do Not Send"
+        validation_dict["blockers"] = validation_dict.get("blockers", []) + ["Rendered output contains unreplaced placeholders and must not be sent."]
+        validation_dict["next_actions"] = validation_dict.get("next_actions", []) + ["Fix unresolved placeholders before creating an Outlook draft or sending to a client."]
+    validation_dict["unresolved_placeholders"] = unresolved_placeholders
     audit = build_audit(str(template), template_type, client, validation_dict, generated_files, outlook_status)
-    snapshot = {"selected_template": str(template), "selected_client": client, "detected_placeholders": detected_placeholders or [], "final_values": values, "field_sources": fields, "user_overrides": user_overrides or {}, "post_render_warnings": post_render_warnings, "timestamp": now_iso()}
+    audit["unresolved_placeholders"] = unresolved_placeholders
+    snapshot = {"selected_template": str(template), "selected_client": client, "detected_placeholders": detected_placeholders or [], "final_values": values, "field_sources": fields, "user_overrides": user_overrides or {}, "post_render_warnings": post_render_warnings, "unresolved_placeholders": unresolved_placeholders, "timestamp": now_iso()}
     write_json(package_dir / "input_snapshot.json", snapshot)
     write_json(package_dir / "rendered_values.json", values)
     write_json(package_dir / "audit_log.json", audit)
     if outlook_status:
         write_json(package_dir / "outlook_status.json", outlook_status)
     report_path = write_validation_report(package_dir / "validation_report.xlsx", fields, validation_dict, audit)
-    return {"package_dir": str(package_dir), "rendered": rendered, "audit": audit, "validation": validation_dict, "validation_report": report_path, "audit_log": str(package_dir / "audit_log.json"), "generated_files": generated_files + [str(package_dir / "input_snapshot.json"), str(package_dir / "audit_log.json"), str(package_dir / "rendered_values.json"), report_path]}
+    return {"package_dir": str(package_dir), "rendered": rendered, "audit": audit, "validation": validation_dict, "validation_report": report_path, "audit_log": str(package_dir / "audit_log.json"), "unresolved_placeholders": unresolved_placeholders, "generated_files": generated_files + [str(package_dir / "input_snapshot.json"), str(package_dir / "audit_log.json"), str(package_dir / "rendered_values.json"), report_path]}
 
 
 def update_outlook_status(package_dir: str | Path, status: dict) -> None:

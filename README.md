@@ -18,7 +18,8 @@ The first version is intentionally local-first and draft-only. It does **not** s
 10. Review validation status: **Ready**, **Needs Review**, or **Blocked**.
 11. Preview the document/email with template diagnostics and matched/missing fields.
 12. Generate an output package with rendered files, audit log, input snapshot, rendered values, and validation report.
-13. If enabled, use the post-generation **Create Outlook Draft** action; otherwise copy-ready fallback files are created.
+13. The post-generation success panel remains visible after Streamlit reruns and shows generated files, audit/report paths, copy-ready email content, next action, and **Clear / Start New Draft**.
+14. If enabled, use the post-generation **Create Outlook Draft** action; otherwise copy-ready fallback files are created.
 
 ## Generate local sample binary files
 
@@ -167,11 +168,13 @@ Supported Outlook modes:
 
 ## Output packages
 
-Each run creates a folder named like:
+Each run creates a collision-resistant folder named like:
 
 ```text
-YYYYMMDD_HHMMSS_ClientName_TemplateName
+YYYYMMDD_HHMMSS_ClientName_TemplateName_ab12cd34
 ```
+
+The short run ID suffix prevents duplicate generation in the same second from failing.
 
 Each package includes:
 
@@ -190,7 +193,7 @@ The validation report workbook contains:
 3. Validation Results
 4. Audit Log
 
-When `openpyxl` is installed, the report includes navy title rows, gold status accents, gray table headers, freeze panes, reviewer-friendly column widths, and explicit Ready / Needs Review / Blocked / Warning text labels. A lightweight fallback writer is used in constrained environments.
+When `openpyxl` is installed, the report includes navy title rows, a large status summary area, blocker/warning counts, generated files, gold status accents, gray table headers, freeze panes, reviewer-friendly column widths, and explicit Ready / Needs Review / Blocked / Do Not Send / Warning text labels. A lightweight fallback writer is used in constrained environments.
 
 ## Workbook loading and matching
 
@@ -221,7 +224,18 @@ Occam Template Desk uses `openpyxl` to load normal Excel workbooks when availabl
 
 ## Outlook draft safety
 
-Occam Template Desk never sends email. When `local_outlook` is enabled on Windows with pywin32 available, the app creates/opens a draft only after validation has no blockers. If Outlook or pywin32 is unavailable, the app generates fallback files instead and records that fallback in the audit trail.
+Occam Template Desk never sends email. When `local_outlook` is enabled on Windows with pywin32 available, the app shows a post-generation **Create Outlook Draft** action and creates/opens a draft only after validation has no blockers and no unresolved placeholders. If Outlook or pywin32 is unavailable, the app keeps copy-ready files available, shows a friendly warning, writes `outlook_status.json`, and updates `audit_log.json`.
+
+## Missing items formatting
+
+The generated workbook can provide `{{Missing Items}}` as a readable multiline list, for example:
+
+```text
+- Signed engagement letter
+- December bank statement
+```
+
+HTML email rendering converts multiline values into simple line breaks for copy-ready review.
 
 ## Binary artifact policy
 
@@ -230,7 +244,7 @@ Generated `.xlsx`, `.docx`, `.pdf`, image, output, and generated folders are int
 ## Known limitations
 
 - This is a local-first V1; no cloud database, authentication, Microsoft Graph, or multi-user permission model is included.
-- Word rendering preserves basic template package structure and replaces placeholders, but complex placeholders split across multiple Word runs may need template cleanup. Post-render checks warn if any `{{placeholder}}` tokens remain.
+- Word rendering preserves basic template package structure and replaces placeholders, but complex placeholders split across multiple Word runs may need template cleanup. Post-render checks mark output **Blocked - Do Not Send** and prevent Outlook draft creation if any `{{placeholder}}` tokens remain.
 - PDF export is not included in V1.
 - The sample workbook writer/reader is intentionally lightweight for local demo/test portability; production deployments should use pandas/openpyxl as listed in `requirements.txt`.
 

@@ -15,6 +15,7 @@ from occam_template_desk.core.preview import build_document_preview
 from occam_template_desk.core.package_builder import build_output_package, list_recent_packages, update_outlook_status
 from occam_template_desk.core.outlook import OutlookDraftService
 from occam_template_desk.core.outlook_workflow import create_outlook_draft_if_allowed
+from occam_template_desk.core.session_state import clear_generation_state, get_generation_state, save_generation_state
 from occam_template_desk.setup_samples import ensure_sample_assets
 
 st.set_page_config(page_title="Occam Template Desk", page_icon="📄", layout="wide")
@@ -64,8 +65,10 @@ def settings_page(settings: OccamSettings):
 def _show_template_diagnostics(scan: dict, fields: list[dict], template: Path):
     missing = [field for field in fields if field["status"] == "Missing"]
     matched = [field for field in fields if field["status"] == "Filled"]
-    st.markdown("### Template diagnostics")
-    st.markdown(f"<div class='occam-card'><strong>Template path:</strong> <code>{scan['path']}</code><br><strong>Template type:</strong> {scan['template_type']}<br><strong>Placeholders found:</strong> {len(scan['placeholders'])}<br><strong>Fields matched:</strong> {len(matched)}<br><strong>Fields missing:</strong> {len(missing)}</div>", unsafe_allow_html=True)
+    st.markdown("### Template health check")
+    st.markdown(f"<div class='occam-card'><strong>Template path:</strong> <code>{scan['path']}</code><br><strong>Template type:</strong> {scan['template_type']}<br><strong>Placeholders detected:</strong> {len(scan['placeholders'])}<br><strong>Matched fields:</strong> {len(matched)}<br><strong>Missing fields:</strong> {len(missing)}<br><strong>Word template note:</strong> type each placeholder as one continuous unformatted token, e.g. <code>{{{{Client Name}}}}</code>.</div>", unsafe_allow_html=True)
+    if not scan["placeholders"]:
+        st.warning("Warning: no placeholders were detected in this template.")
     if any(word in template.name.lower() for word in ["old", "draft", "copy", "deprecated"]):
         st.warning("Warning: the template filename suggests it may be old, draft, copy, or deprecated.")
     if scan["placeholders"]:
@@ -74,28 +77,54 @@ def _show_template_diagnostics(scan: dict, fields: list[dict], template: Path):
         st.warning("Missing fields: " + ", ".join(field["field"] for field in missing))
 
 
-def _show_generation_success(package: dict, validation_status: str, email_rendered: dict | None, settings: OccamSettings, validation, values: dict):
+def _next_action_for_package(validation: dict, email_rendered: dict | None, settings: OccamSettings) -> str:
+    if validation.get("unresolved_placeholders"):
+        return "Do Not Send: fix unresolved placeholders, then regenerate the package."
+    if "blocked" in str(validation.get("status", "")).lower():
+        return "Resolve blockers before using this output."
+    if email_rendered and settings.outlook_draft_mode == "local_outlook":
+        return "Review the copy-ready email, then create an Outlook draft if appropriate."
+    return "Review the generated files before sending or filing."
+
+
+def _show_generation_success_state(state: dict, settings: OccamSettings):
+    package = state["package"]
+    email_rendered = state.get("rendered_email")
+    validation = state.get("validation", package.get("validation", {}))
+    values = state.get("final_values", {})
+    validation_status = validation.get("status", "Ready")
     st.markdown("### Generation complete")
-    st.markdown(f"<div class='occam-card'><h3>Success: Output package created</h3>{status_badge(validation_status)}<br><br><strong>Output package folder:</strong> <code>{package['package_dir']}</code><br><strong>Validation report:</strong> <code>{package['validation_report']}</code><br><strong>Audit log:</strong> <code>{package['audit_log']}</code><br><strong>Next action:</strong> Review the generated files before sending or filing.</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='occam-card'><h3>Output package created</h3>{status_badge(validation_status)}<br><br><strong>Output package folder:</strong> <code>{package['package_dir']}</code><br><strong>Validation report:</strong> <code>{package['validation_report']}</code><br><strong>Audit log:</strong> <code>{package['audit_log']}</code><br><strong>Next action:</strong> {_next_action_for_package(validation, email_rendered, settings)}</div>", unsafe_allow_html=True)
+    unresolved = validation.get("unresolved_placeholders") or package.get("unresolved_placeholders") or []
+    if unresolved:
+        st.error("Do Not Send: unresolved placeholders remain: " + ", ".join(f"{{{{{token}}}}}" for token in unresolved))
     st.markdown("**Generated files**")
     for file_path in package["generated_files"]:
         st.code(file_path)
     if email_rendered:
         st.markdown("### Copy-ready email")
-        st.text_input("Subject", email_rendered.get("subject", ""), disabled=True)
-        st.text_area("Body", email_rendered.get("body", ""), height=260, disabled=True)
+        st.text_input("Subject", email_rendered.get("subject", ""), disabled=True, key="generated_email_subject")
+        st.text_area("Body", email_rendered.get("body", ""), height=260, disabled=True, key="generated_email_body")
         if settings.outlook_draft_mode == "local_outlook":
-            if st.button("Create Outlook Draft"):
+            if st.button("Create Outlook Draft", disabled=bool(unresolved) or "blocked" in validation_status.lower()):
                 status = create_outlook_draft_if_allowed(validation, settings.outlook_draft_mode, email_rendered, values, service=OutlookDraftService(), output_dir=package["package_dir"])
                 update_outlook_status(package["package_dir"], status)
+                state["outlook_status"] = status
                 if status.get("created"):
                     st.success("Success: Outlook draft created. No email was sent.")
                 else:
                     st.warning(f"Warning: {status.get('message', 'Outlook draft was not created. Fallback files are available.')}")
+    if st.button("Clear / Start New Draft"):
+        clear_generation_state(st.session_state)
+        st.rerun()
 
 
 def generate_page(settings: OccamSettings):
     hero(); st.header("Generate output package")
+    saved_state = get_generation_state(st.session_state)
+    if saved_state:
+        _show_generation_success_state(saved_state, settings)
+        st.divider()
     wb, err = friendly_load_workbook(settings.data_workbook_path)
     if err:
         st.error(f"Error: {err}"); return
@@ -185,7 +214,9 @@ def generate_page(settings: OccamSettings):
         if scan["template_type"] == "email" and settings.outlook_draft_mode == "fallback_files":
             outlook_status = {"attempted": True, "created": False, "mode": "fallback_files", "message": "Fallback copy-ready files generated. No email was sent."}
         package = build_output_package(str(template), scan["template_type"], values, fields, validation, client, settings.output_folder_path, outlook_status, scan["placeholders"], overrides)
-        _show_generation_success(package, package["validation"].get("status", validation.status), package["rendered"] if scan["template_type"] == "email" else None, settings, validation, values)
+        rendered_email = package["rendered"] if scan["template_type"] == "email" else None
+        state = save_generation_state(st.session_state, package, rendered_email, package["validation"], str(template), client, values)
+        _show_generation_success_state(state, settings)
 
 
 def audit_page(settings: OccamSettings):

@@ -33,11 +33,16 @@ def parse_email_template(path: str | Path) -> tuple[str, str]:
         return lines[0].split(":", 1)[1].strip(), "\n".join(lines[1:]).lstrip("\n")
     return "", text
 
+def _html_ready_values(values: dict[str, str]) -> dict[str, str]:
+    return {key: (str(value).replace("\n", "<br>\n") if "\n" in str(value) else value) for key, value in values.items()}
+
+
 def render_email_template(path: str | Path, values: dict[str, str], output_dir: str | Path, to_email: str = "", status: str = "Ready") -> dict:
     path = Path(path); output_dir = Path(output_dir); output_dir.mkdir(parents=True, exist_ok=True)
     subject_t, body_t = parse_email_template(path)
+    render_values = _html_ready_values(values) if path.suffix.lower() == ".html" else values
     subject = render_text(subject_t, values)
-    body = render_text(body_t, values)
+    body = render_text(body_t, render_values)
     body_path = output_dir / f"generated_email{path.suffix.lower()}"
     body_path.write_text(body, encoding="utf-8")
     meta = {"to": to_email or values.get("Client Email", ""), "subject": subject, "body_path": str(body_path), "status": status, "format": path.suffix.lower().lstrip(".")}

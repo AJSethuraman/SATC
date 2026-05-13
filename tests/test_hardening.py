@@ -157,7 +157,10 @@ def test_validation_report_has_expected_sheets_and_labels(tmp_path):
         workbook = load_workbook(report, read_only=True)
         assert workbook.sheetnames == ["Summary", "Fields", "Validation Results", "Audit Log"]
         assert workbook["Summary"]["A1"].value.startswith("Occam Template Desk")
-        assert workbook["Summary"]["A4"].value == "Status"
+        summary_labels = [cell.value for cell in workbook["Summary"]["A"]]
+        assert "Status" in summary_labels
+        assert "Blocker Count" in summary_labels
+        assert "Warning Count" in summary_labels
         workbook.close()
     else:
         sheets = read_xlsx(report)

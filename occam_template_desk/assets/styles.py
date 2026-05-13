@@ -12,6 +12,8 @@ STATUS_COLORS = {
     "Needs Review": AMBER,
     "Warning": AMBER,
     "Blocked": RED,
+    "Blocked - Do Not Send": RED,
+    "Do Not Send": RED,
     "Error": RED,
 }
 
