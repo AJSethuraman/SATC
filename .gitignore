@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+data/app.db
+data/raw_imports/*
+!data/raw_imports/.gitkeep
+outputs/excel/*
+outputs/data_mart/*
+outputs/exceptions/*
+outputs/audit/*
+!outputs/excel/.gitkeep
+!outputs/data_mart/.gitkeep
+!outputs/exceptions/.gitkeep
+!outputs/audit/.gitkeep
