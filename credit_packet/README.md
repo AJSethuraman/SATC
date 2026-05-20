@@ -1,44 +1,45 @@
 # credit_packet
 
-Local-first public-company credit research **packet builder** using SEC EDGAR JSON + filing documents.
+Build a source-linked public-company credit research packet from SEC filings.
 
-## Purpose
-Decision-support workflow for human credit review. This tool does **not** assign credit ratings, recommend approval/decline, or provide investment recommendations.
+## Quick start
+1. `python bootstrap.py`
+2. Edit `.env` and set `SEC_USER_AGENT`
+3. `python run_sample.py`
 
-## Philosophy
-- SEC APIs + filing documents are the source of truth.
-- Python performs parsing, normalization, calculations, comparisons, and rules.
-- Rules engine creates deterministic watchlist flags.
-- LLM is optional and source-bound for formatting only.
-- Manual review is required for final judgment.
+## What this tool does
+- Pulls SEC submissions and company facts.
+- Builds annual financial trends and calculated metrics.
+- Applies deterministic watchlist rules.
+- Extracts filing-language excerpts and change candidates.
+- Produces a Markdown packet for manual credit review.
 
-## Setup
-1. Python 3.11+
-2. Set environment variable:
-   - `SEC_USER_AGENT="Your Name your.email@example.com"`
-3. Optional LLM:
-   - `LLM_PROVIDER=none|ollama`
-   - `OLLAMA_BASE_URL=http://localhost:11434`
-   - `OLLAMA_MODEL=llama3.1`
+## What this tool does not do
+- No automated credit rating.
+- No approval/decline recommendation.
+- No investment recommendation.
+- Final decision remains human.
 
-## CLI Usage
-```bash
-python -m credit_packet.cli build --ticker AAPL --years 3 --output outputs/aapl_packet.md
-```
+## SEC_USER_AGENT requirement
+SEC requires an identifying user-agent for requests.
+Set in `.env`:
 
-## No-LLM mode
-Default is `LLM_PROVIDER=none`. Packet generation remains complete and deterministic.
+`SEC_USER_AGENT="Your Name your.email@example.com"`
 
-## Testing
-```bash
-PYTHONPATH=src pytest -q
-```
+## Run tests
+`pytest -q`
 
-## Troubleshooting
-- Missing `SEC_USER_AGENT`: configure it before running.
-- SEC network unavailable: retry later; cache lives at `.cache/sec`.
-- LLM endpoint unavailable: build continues in deterministic fallback mode.
+## Build a packet for another ticker
+`credit-packet build --ticker MSFT --years 3 --output outputs/msft_packet.md`
 
-## Limitations
-- XBRL tag conventions differ by issuer; fallback tags are used but missing data may remain unavailable.
-- Section extraction is heuristic and may fall back to full-text matching.
+## LLM modes
+- Default: `LLM_PROVIDER=none` (fully deterministic no-LLM mode).
+- Optional local Ollama:
+  - `LLM_PROVIDER=ollama`
+  - `OLLAMA_BASE_URL=http://localhost:11434`
+  - `OLLAMA_MODEL=llama3.1`
+
+## Paths
+- Output packets: `outputs/`
+- SEC cache: `.cache/sec/`
+- Example output: `examples/sample_packet.md`

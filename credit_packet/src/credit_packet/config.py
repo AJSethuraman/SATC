@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import os
+from dotenv import load_dotenv
 
 @dataclass
 class Settings:
@@ -15,7 +16,16 @@ class Settings:
 
 
 def get_settings() -> Settings:
+    load_dotenv(override=False)
     ua = os.getenv('SEC_USER_AGENT', '').strip()
     if not ua:
-        raise ValueError('SEC_USER_AGENT must be set in environment or .env')
-    return Settings(sec_user_agent=ua, llm_provider=os.getenv('LLM_PROVIDER', 'none'), ollama_base_url=os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434'), ollama_model=os.getenv('OLLAMA_MODEL', 'llama3.1'))
+        raise ValueError(
+            'SEC_USER_AGENT is missing. Create or edit .env and set:\n'
+            'SEC_USER_AGENT="Your Name your.email@example.com"'
+        )
+    return Settings(
+        sec_user_agent=ua,
+        llm_provider=os.getenv('LLM_PROVIDER', 'none'),
+        ollama_base_url=os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434'),
+        ollama_model=os.getenv('OLLAMA_MODEL', 'llama3.1'),
+    )
