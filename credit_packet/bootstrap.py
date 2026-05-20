@@ -23,7 +23,7 @@ def main():
     py = venv_dir / ('Scripts/python.exe' if sys.platform.startswith('win') else 'bin/python')
 
     run([str(py), '-m', 'pip', 'install', '--upgrade', 'pip'])
-    run([str(py), '-m', 'pip', 'install', '--no-build-isolation', '-e', '.[dev]'])
+    run([str(py), '-m', 'pip', 'install', '-e', '.[dev]'])
 
     env = ROOT / '.env'
     example = ROOT / '.env.example'
@@ -32,11 +32,11 @@ def main():
         print('Created .env from .env.example')
 
     print('\nEdit .env and set SEC_USER_AGENT before live SEC runs.')
-
     run([str(py), '-m', 'pytest', '-q'])
 
-    print('\nNext command:')
-    print('credit-packet build --ticker AAPL --years 3 --output outputs/aapl_packet.md')
+    print('\nNext commands (no activation required):')
+    print(r'Windows: .venv\Scripts\python.exe run_sample.py')
+    print('Mac/Linux: .venv/bin/python run_sample.py')
 
 if __name__ == '__main__':
     main()

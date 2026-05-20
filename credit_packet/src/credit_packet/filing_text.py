@@ -1,10 +1,14 @@
 import re
-from bs4 import BeautifulSoup
 
 def clean_filing_text(raw: str) -> tuple[str, list[str]]:
-    raw = re.sub(r"<script.*?>.*?</script>", " ", raw, flags=re.I|re.S)
-    raw = re.sub(r"<style.*?>.*?</style>", " ", raw, flags=re.I|re.S)
-    raw = re.sub(r"<noscript.*?>.*?</noscript>", " ", raw, flags=re.I|re.S)
+    try:
+        from bs4 import BeautifulSoup
+    except Exception as exc:
+        raise RuntimeError('beautifulsoup4 is required. Run python bootstrap.py to install dependencies.') from exc
+
+    raw = re.sub(r'<script.*?>.*?</script>', ' ', raw, flags=re.I | re.S)
+    raw = re.sub(r'<style.*?>.*?</style>', ' ', raw, flags=re.I | re.S)
+    raw = re.sub(r'<noscript.*?>.*?</noscript>', ' ', raw, flags=re.I | re.S)
     soup = BeautifulSoup(raw, 'html.parser')
     for tag in soup(['script', 'style', 'noscript']):
         tag.decompose()

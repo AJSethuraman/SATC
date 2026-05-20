@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import os
-from dotenv import load_dotenv
 
 @dataclass
 class Settings:
@@ -16,6 +15,10 @@ class Settings:
 
 
 def get_settings() -> Settings:
+    try:
+        from dotenv import load_dotenv
+    except Exception as exc:
+        raise RuntimeError('python-dotenv is required. Run python bootstrap.py to install dependencies.') from exc
     load_dotenv(override=False)
     ua = os.getenv('SEC_USER_AGENT', '').strip()
     if not ua:

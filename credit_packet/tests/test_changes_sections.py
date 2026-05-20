@@ -1,3 +1,5 @@
+import pytest
+pytest.importorskip('bs4')
 from pathlib import Path
 from credit_packet.filing_text import clean_filing_text
 from credit_packet.sections import extract_sections
