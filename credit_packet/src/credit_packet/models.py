@@ -16,7 +16,7 @@ class FilingRecord:
     report_date: str | None = None
     primary_document: str | None = None
     filing_url: str | None = None
-    source: str = ''
+    source: str = ""
 
 @dataclass
 class FinancialPeriod:
@@ -36,6 +36,7 @@ class FinancialPeriod:
     operating_cash_flow: float | None = None
     capex: float | None = None
     shares_outstanding: float | None = None
+    tag_map: dict[str, str] = field(default_factory=dict)
 
 @dataclass
 class CalculatedMetric:
@@ -55,7 +56,7 @@ class CalculatedMetric:
 @dataclass
 class WatchlistFlag:
     code: str
-    severity: Literal['info','low','medium','high']
+    severity: Literal["info", "low", "medium", "high"]
     description: str
     metric: str
     threshold: str
@@ -70,9 +71,12 @@ class Excerpt:
     section: str
     category: str
     text: str
+    matched_keywords: list[str]
     source_url: str
     accession_number: str
     filing_date: str
+    start_offset: int | None = None
+    end_offset: int | None = None
 
 @dataclass
 class FilingChange:
@@ -80,7 +84,7 @@ class FilingChange:
     category: str
     old_excerpt: str
     new_excerpt: str
-    change_type: Literal['added','removed','modified']
+    change_type: Literal["added", "removed", "modified"]
     similarity_score: float
     source_old: str
     source_new: str
@@ -95,5 +99,5 @@ class ResearchPacket:
     excerpts: list[Excerpt] = field(default_factory=list)
     filing_changes: list[FilingChange] = field(default_factory=list)
     review_questions: list[str] = field(default_factory=list)
-    memo_draft: str = ''
+    memo_draft: str = ""
     audit_log: list[str] = field(default_factory=list)
