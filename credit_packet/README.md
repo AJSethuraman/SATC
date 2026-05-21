@@ -69,3 +69,13 @@ Manual review required. No automated credit conclusion generated.
 - The LLM receives only the structured evidence bundle (company, filings, metrics, flags, excerpts, changes, audit).
 - The LLM must cite evidence IDs for substantive points and may not make recommendations/ratings.
 - If LLM output is malformed, unsafe, unsupported, or invalid, the system falls back to deterministic summaries.
+
+
+## Analyst Workbook Output
+- `.xlsx` is the preferred review artifact for analysts.
+- `.md` remains available for plain text review and automation.
+- Workbook includes: Summary, Filing Activity, Financial Trends, Calculated Metrics, Watchlist Flags, Source-Bound Brief, Excerpts, Filing Changes, Review Questions, Memo Shell, Evidence Index, and Sources & Audit.
+- Source-Bound Brief shows generation mode and validation status (including deterministic fallback).
+- Evidence Index provides source ID traceability.
+- Sources & Audit includes run metadata, source documents, field audit tags, and data-quality notes.
+- Manual review is required; no automated credit conclusion is produced.
