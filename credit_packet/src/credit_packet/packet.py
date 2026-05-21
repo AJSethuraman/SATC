@@ -9,6 +9,7 @@ from .filing_text import clean_filing_text
 from .sections import extract_sections
 from .excerpts import find_excerpts
 from .changes import compare_filings_for_changes
+from .evidence import build_evidence_bundle, valid_evidence_ids, allowed_values
 
 def _process_doc(client,cik,filing):
     if not filing or not filing.primary_document: return None
@@ -32,7 +33,15 @@ def build_packet(client,settings,ticker:str,years:int=3):
     changes=compare_filings_for_changes(_process_doc(client,cik,fs['prior_10k']) if fs['prior_10k'] else None,_process_doc(client,cik,fs['latest_10k']) if fs['latest_10k'] else None)
     flags=evaluate_rules(periods,metrics,excerpts)
     llm=LLMClient(settings)
-    questions=llm.generate_review_questions(flags,changes)
-    memo=llm.draft_memo_shell(None)
     audit=[f"submissions:{fs['source']}",f"facts:{facts_source}",f"cache:.cache/sec",f"llm_provider:{settings.llm_provider}"]+[f"filing:{f.filing_url}" for f in filings if f.filing_url]
-    return ResearchPacket(company=CompanyIdentity(ticker=t,cik=cik,name=name),filings=filings,financial_periods=periods,calculated_metrics=metrics,watchlist_flags=flags,excerpts=excerpts,filing_changes=changes,review_questions=questions,memo_draft=memo,audit_log=audit)
+    pkt=ResearchPacket(company=CompanyIdentity(ticker=t,cik=cik,name=name),filings=filings,financial_periods=periods,calculated_metrics=metrics,watchlist_flags=flags,excerpts=excerpts,filing_changes=changes,review_questions=[],memo_draft="",audit_log=audit)
+    bundle=build_evidence_bundle(pkt)
+    brief=llm.generate_source_bound_brief(bundle, valid_evidence_ids(bundle), allowed_values(bundle))
+    questions=[q.question for q in brief.review_questions] if brief.review_questions else llm.generate_review_questions(flags,changes)
+    pkt.review_questions=questions
+    pkt.memo_draft=llm.draft_memo_shell(None)
+    pkt.source_bound_brief=brief
+    pkt.evidence_bundle=bundle
+    pkt.audit_log.append(f"source_bound_validation:{brief.validation_status}")
+    if brief.validation_notes: pkt.audit_log.append("source_bound_notes:"+" | ".join(brief.validation_notes))
+    return pkt

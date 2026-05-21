@@ -59,3 +59,13 @@ Set in `.env`:
 - Example output: `examples/sample_packet.md`
 
 Manual review required. No automated credit conclusion generated.
+
+
+## Source-Bound Local LLM Mode
+- Default mode: `LLM_PROVIDER=none` (fully deterministic).
+- Optional local Ollama mode:
+  - Starter for 8GB GPU: `OLLAMA_MODEL=llama3.2:3b`
+  - Better quality option: `OLLAMA_MODEL=llama3.1:8b`
+- The LLM receives only the structured evidence bundle (company, filings, metrics, flags, excerpts, changes, audit).
+- The LLM must cite evidence IDs for substantive points and may not make recommendations/ratings.
+- If LLM output is malformed, unsafe, unsupported, or invalid, the system falls back to deterministic summaries.

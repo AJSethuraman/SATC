@@ -28,7 +28,7 @@ def test_xlsx_output_file_created(tmp_path):
     out=tmp_path/'packet.xlsx'; render_excel(sample_packet(), out); assert out.exists()
 
 def test_workbook_required_sheets_order(tmp_path):
-    out=tmp_path/'packet.xlsx'; render_excel(sample_packet(), out); wb=load_workbook(out); assert wb.sheetnames==['Summary','Filing Activity','Financial Trends','Calculated Metrics','Watchlist Flags','Excerpts','Filing Changes','Review Questions','Memo Shell','Sources & Audit']
+    out=tmp_path/'packet.xlsx'; render_excel(sample_packet(), out); wb=load_workbook(out); assert wb.sheetnames==['Summary','Filing Activity','Financial Trends','Calculated Metrics','Watchlist Flags','Excerpts','Filing Changes','Review Questions','Memo Shell','Sources & Audit','Source-Bound Brief','Evidence Index']
 
 def test_summary_contains_manual_review(tmp_path):
     out=tmp_path/'packet.xlsx'; render_excel(sample_packet(), out); ws=load_workbook(out)['Summary']; vals=' '.join(str(c.value) for row in ws.iter_rows(min_row=1,max_row=30) for c in row if c.value); assert 'Manual review required' in vals
@@ -53,3 +53,7 @@ def test_markdown_still_works():
 
 def test_no_prohibited_conclusion_in_excel(tmp_path):
     out=tmp_path/'packet.xlsx'; render_excel(sample_packet(), out); ws=load_workbook(out)['Summary']; vals=' '.join(str(c.value).lower() for row in ws.iter_rows(min_row=1,max_row=30) for c in row if c.value); assert 'investment recommendation' not in vals and 'buy rating' not in vals
+
+
+def test_source_bound_brief_and_evidence_index_sheets(tmp_path):
+    out=tmp_path/'packet.xlsx'; render_excel(sample_packet(), out); wb=load_workbook(out); assert 'Source-Bound Brief' in wb.sheetnames and 'Evidence Index' in wb.sheetnames

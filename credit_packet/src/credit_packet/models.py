@@ -89,6 +89,39 @@ class FilingChange:
     source_old: str
     source_new: str
 
+
+
+@dataclass
+class BriefPoint:
+    text: str
+    sources: list[str] = field(default_factory=list)
+
+@dataclass
+class ReviewTheme:
+    theme: str
+    why_it_matters: str
+    sources: list[str] = field(default_factory=list)
+
+@dataclass
+class ReviewQuestionItem:
+    question: str
+    based_on: list[str] = field(default_factory=list)
+
+@dataclass
+class MissingInformation:
+    item: str
+    reason: str
+
+@dataclass
+class SourceBoundBrief:
+    summary_points: list[BriefPoint] = field(default_factory=list)
+    review_themes: list[ReviewTheme] = field(default_factory=list)
+    review_questions: list[ReviewQuestionItem] = field(default_factory=list)
+    missing_information: list[MissingInformation] = field(default_factory=list)
+    generation_mode: str = 'deterministic'
+    validation_status: str = 'ok'
+    validation_notes: list[str] = field(default_factory=list)
+
 @dataclass
 class ResearchPacket:
     company: CompanyIdentity
@@ -101,3 +134,5 @@ class ResearchPacket:
     review_questions: list[str] = field(default_factory=list)
     memo_draft: str = ""
     audit_log: list[str] = field(default_factory=list)
+    source_bound_brief: SourceBoundBrief | None = None
+    evidence_bundle: dict | None = None
