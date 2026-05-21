@@ -24,6 +24,12 @@ SupportStatus = Literal[
 
 
 @dataclass(slots=True)
+class SourceCellRef:
+    sheet: str
+    cell: str
+
+
+@dataclass(slots=True)
 class Taxpayer:
     first_name: str
     last_name: str
@@ -104,6 +110,12 @@ class Client:
 @dataclass(slots=True)
 class ClientBatch:
     clients: list[Client] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class LoadedWorkbook:
+    client_batch: ClientBatch
+    source_cells: dict[str, SourceCellRef] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
