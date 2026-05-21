@@ -4,7 +4,7 @@ import urllib.request
 from .models import SourceBoundBrief, BriefPoint, ReviewTheme, ReviewQuestionItem, MissingInformation
 from .llm_validate import validate_source_bound_output
 
-SYSTEM_PROMPT = "You are a source-bound research packet assistant. Use only the provided evidence bundle. Do not use outside knowledge. Do not make credit, investment, legal, tax, approval, decline, buy, sell, or rating recommendations. Do not assign ratings or scores. Every substantive claim must cite one or more source IDs from the evidence bundle. Do not invent numbers. Only use numeric values present in the evidence bundle. If evidence is insufficient, state what is missing. Return valid JSON only."
+SYSTEM_PROMPT = "You are a source-bound research packet assistant. Use only the provided evidence bundle. Do not use outside knowledge. Do not make credit, investment, legal, tax, approval, decline, buy, sell, or rating recommendations. Do not assign ratings or scores. Every substantive claim must cite one or more source IDs from the evidence bundle. Do not invent numbers. Only use numeric values present in the evidence bundle. If evidence is insufficient, state what is missing. Output JSON only with no prose before or after."
 PROHIBITED_PATTERNS=[r"\brecommend\s+approval\b",r"\brecommend\s+decline\b",r"\bapproved\s+for\s+credit\b",r"\bdeclined\s+for\s+credit\b",r"\bbuy\s+rating\b",r"\bsell\s+rating\b",r"\bhold\s+rating\b",r"\binvestment\s+recommendation\b",r"\bcredit\s+rating\s*:",r"\brisk\s+rating\s*:"]
 
 class LLMClient:
@@ -20,20 +20,33 @@ class LLMClient:
 
     def _fallback_brief(self, bundle, notes=None):
         notes=notes or []
-        sps=[BriefPoint(text=f"Flag detected: {f['code']} ({f.get('observed_value')})",sources=[f['id']]) for f in bundle.get('flags',[])[:5]]
+        flags=bundle.get('flags',[])
+        severity_counts={s:sum(1 for f in flags if f.get('severity')==s) for s in ('high','medium','low','info')}
+        sps=[]
+        filings=bundle.get('filings',[])
+        if filings:
+            lf=filings[0]
+            sps.append(BriefPoint(text=f"Latest filing reviewed: {lf.get('form')} filed {lf.get('filing_date')}.",sources=[lf['id']]))
+        sps.append(BriefPoint(text=f"Watchlist flag counts - high:{severity_counts['high']} medium:{severity_counts['medium']} low:{severity_counts['low']} info:{severity_counts['info']}.",sources=[f['id'] for f in flags[:3]] or [bundle.get('company',{}).get('id','company')]))
+        for c in bundle.get('filing_changes',[])[:2]: sps.append(BriefPoint(text=f"Filing change in {c.get('section')} ({c.get('change_type')}).",sources=[c['id']]))
+        for e in bundle.get('excerpts',[])[:2]: sps.append(BriefPoint(text=f"Excerpt category {e.get('category')} from {e.get('filing')}.",sources=[e['id']]))
         if not sps:
             sps=[BriefPoint(text=f"Metric available: {m['label']} {m.get('value')}",sources=[m['id']]) for m in bundle.get('metrics',[])[:5]]
-        themes=[ReviewTheme(theme='Watchlist Flags',why_it_matters='Deterministic rules triggered and require analyst validation.',sources=[f['id'] for f in bundle.get('flags',[])[:3]])] if bundle.get('flags') else []
-        qs=[ReviewQuestionItem(question=f"What filing evidence explains {f['code']} in {f.get('period')}?",based_on=[f['id']]) for f in bundle.get('flags',[])[:5]]
-        if not qs: qs=[ReviewQuestionItem(question='Which material data fields are unavailable and need manual sourcing?',based_on=[bundle.get('company',{}).get('id','company')])]
+        themes=[ReviewTheme(theme='Watchlist Flags',why_it_matters='Deterministic rules and filing evidence should be reviewed by a human analyst.',sources=[f['id'] for f in flags[:3]] or [bundle.get('company',{}).get('id','company')])]
+        qs=[ReviewQuestionItem(question=f"What filing evidence explains {f['code']} in {f.get('period')}?",based_on=[f['id']]) for f in flags[:5]]
+        if not qs: qs=[ReviewQuestionItem(question='Which material data fields are unavailable and require manual sourcing?',based_on=[bundle.get('company',{}).get('id','company')])]
         missing=[MissingInformation(item='Debt maturity schedule',reason='Not explicitly normalized in current evidence bundle.')]
         return SourceBoundBrief(summary_points=sps,review_themes=themes,review_questions=qs,missing_information=missing,generation_mode='deterministic_fallback',validation_status='fallback',validation_notes=notes)
 
     def generate_source_bound_brief(self, evidence_bundle, valid_ids, allowed_values):
         if not self.enabled(): return self._fallback_brief(evidence_bundle,['LLM disabled'])
-        prompt='Evidence bundle JSON:\n'+json.dumps(evidence_bundle)
+        example_ids=list(valid_ids)[:3] or ['company:example','filing:10-k:2025-01-01:example','metric:revenue_growth:2024']
+        schema={"summary_points":[{"text":"...","sources":[example_ids[0]]}],"review_themes":[{"theme":"...","why_it_matters":"...","sources":[example_ids[min(1,len(example_ids)-1)]]}],"review_questions":[{"question":"...","based_on":[example_ids[min(2,len(example_ids)-1)]]}],"missing_information":[{"item":"...","reason":"..."}]}
+        prompt='Return JSON only. No prose before or after JSON. JSON schema exactly:\n'+json.dumps(schema,indent=2)+'\nEvidence bundle:\n'+json.dumps(evidence_bundle)
         raw=self._call(prompt)
         if not raw: return self._fallback_brief(evidence_bundle,['LLM unavailable or empty response'])
+        raw=raw.strip()
+        if not raw.startswith('{'): return self._fallback_brief(evidence_bundle,['LLM response contained prose before JSON'])
         try: payload=json.loads(raw)
         except Exception: return self._fallback_brief(evidence_bundle,['Malformed JSON from LLM'])
         vr=validate_source_bound_output(payload,valid_ids,allowed_values)

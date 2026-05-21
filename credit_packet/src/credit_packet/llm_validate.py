@@ -2,7 +2,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-PROHIBITED=[r"\brecommend\s+approval\b",r"\brecommend\s+decline\b",r"\bapproved\s+for\s+credit\b",r"\bdeclined\s+for\s+credit\b",r"\bbuy\s+rating\b",r"\bsell\s+rating\b",r"\bhold\s+rating\b",r"\binvestment\s+recommendation\b",r"\bcredit\s+rating\s*:",r"\brisk\s+rating\s*:",r"\bshould\s+lend\b",r"\bshould\s+not\s+lend\b",r"\bsafe\s+investment\b",r"\bgood\s+credit\s+risk\b",r"\bbad\s+credit\s+risk\b"]
+PROHIBITED=[r"\brecommend\s+approval\b",r"\brecommend\s+decline\b",r"\bapproved\s+for\s+credit\b",r"\bdeclined\s+for\s+credit\b",r"\bbuy\s+rating\b",r"\bsell\s+rating\b",r"\bhold\s+rating\b",r"\binvestment\s+recommendation\b",r"\bcredit\s+rating\s*:",r"\brisk\s+rating\s*:",r"\bshould\s+lend\b",r"\bshould\s+not\s+lend\b",r"\bsafe\s+investment\b",r"\bgood\s+credit\s+risk\b",r"\bbad\s+credit\s+risk\b",r"\bstrong\s+credit\b",r"\bweak\s+credit\b",r"\bfinancially\s+distressed\b",r"\blikely\s+bankruptcy\b",r"\blikely\s+default\b",r"\blow\s+risk\b",r"\bhigh\s+risk\b",r"\bmaterially\s+improved\b",r"\bmaterially\s+deteriorated\b"]
 
 @dataclass
 class ValidationResult:
@@ -13,6 +13,10 @@ class ValidationResult:
 
 def _nums(text:str):
     return re.findall(r"(?<![A-Za-z:])[-+]?\d+(?:\.\d+)?%?", text)
+
+
+def _has_bad(text:str)->bool:
+    return any(re.search(p,text,re.I) for p in PROHIBITED)
 
 
 def validate_source_bound_output(payload: dict, valid_ids:set[str], allowed_values:set[str]) -> ValidationResult:
@@ -35,6 +39,11 @@ def validate_source_bound_output(payload: dict, valid_ids:set[str], allowed_valu
         if not (it.get('why_it_matters') or '').strip(): errs.append(f'why_it_matters empty {i}')
     chk_sources(payload['review_questions'],'question','based_on')
 
+    for i,it in enumerate(payload.get('missing_information',[])):
+        if not (it.get('item') or '').strip(): errs.append(f'missing_information item empty {i}')
+        if not (it.get('reason') or '').strip(): errs.append(f'missing_information reason empty {i}')
+        if _has_bad((it.get('item','')+' '+it.get('reason','')).lower()): errs.append(f'prohibited language in missing_information {i}')
+
     text_fields=[]
     for it in payload.get('summary_points',[]): text_fields.append(str(it.get('text','')))
     for it in payload.get('review_themes',[]): text_fields.extend([str(it.get('theme','')),str(it.get('why_it_matters',''))])
@@ -46,7 +55,8 @@ def validate_source_bound_output(payload: dict, valid_ids:set[str], allowed_valu
 
     allowed=allowed_values | {v.replace('%','') for v in allowed_values}
     for n in _nums(joined):
-        if ':' in n: continue
+        if n in {'10','8'}:  # allow 10-K / 8-K textual splits
+            continue
         if n not in allowed and n.rstrip('%') not in allowed:
             errs.append(f'unsupported numeric value {n}')
             break
