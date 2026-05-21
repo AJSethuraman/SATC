@@ -9,12 +9,22 @@ Build a source-linked public-company credit research packet from SEC filings.
    - Mac/Linux: `.venv/bin/python run_sample.py`
    - Windows: `.venv\Scripts\python.exe run_sample.py`
 
+## Excel output (preferred)
+Build Excel workbook:
+- Mac/Linux:
+  - `.venv/bin/python -m credit_packet.cli build --ticker AAPL --years 3 --output outputs/aapl_packet.xlsx`
+- Windows:
+  - `.venv\Scripts\python.exe -m credit_packet.cli build --ticker AAPL --years 3 --output outputs/aapl_packet.xlsx`
+
+Markdown is still available for plain text review:
+- `.venv/bin/python -m credit_packet.cli build --ticker AAPL --years 3 --output outputs/aapl_packet.md`
+
 ## What this tool does
 - Pulls SEC submissions and company facts.
 - Builds annual financial trends and calculated metrics.
 - Applies deterministic watchlist rules.
 - Extracts filing-language excerpts and change candidates.
-- Produces a Markdown packet for manual credit review.
+- Produces Markdown and Excel packets for manual credit review.
 
 ## What this tool does not do
 - No automated credit rating.
@@ -29,16 +39,12 @@ Set in `.env`:
 `SEC_USER_AGENT="Your Name your.email@example.com"`
 
 ## Run tests
-- No activation path:
-  - Mac/Linux: `.venv/bin/python -m pytest -q`
-  - Windows: `.venv\Scripts\python.exe -m pytest -q`
+- `python -m pytest -q`
 
-## Build a packet for another ticker
-- No activation path:
-  - Mac/Linux: `.venv/bin/python -m credit_packet.cli build --ticker MSFT --years 3 --output outputs/msft_packet.md`
-  - Windows: `.venv\Scripts\python.exe -m credit_packet.cli build --ticker MSFT --years 3 --output outputs/msft_packet.md`
+## Build for another ticker
+- `.venv/bin/python -m credit_packet.cli build --ticker MSFT --years 3 --output outputs/msft_packet.xlsx`
 - Optional (if venv is activated):
-  - `credit-packet build --ticker MSFT --years 3 --output outputs/msft_packet.md`
+  - `credit-packet build --ticker MSFT --years 3 --output outputs/msft_packet.xlsx`
 
 ## LLM modes
 - Default: `LLM_PROVIDER=none` (fully deterministic no-LLM mode).
