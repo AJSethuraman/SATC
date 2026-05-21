@@ -13,4 +13,7 @@ __all__ = [
     "logging_utils",
     "masking",
     "config_loader",
+    "output",
+    "demo",
+    "cli",
 ]

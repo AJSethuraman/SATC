@@ -11,8 +11,12 @@ MODULES = [
     "dea.logging_utils",
     "dea.masking",
     "dea.config_loader",
+    "dea.output",
+    "dea.demo",
+    "dea.cli",
     "dea.adapters.base",
     "dea.adapters.fake",
+    "dea.adapters.real",
 ]
 
 

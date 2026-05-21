@@ -1,80 +1,100 @@
 # Drake Entry Assistant
 
-Drake Entry Assistant (DEA) is a **local-first Python tool** for reducing repetitive tax data entry into Drake Tax Software.
+Drake Entry Assistant (DEA) is a local-first Python tool for validating intake data and preparing deterministic, masked Drake entry workflows.
 
-## Project Goal
+## Milestone Status (Current)
 
-DEA helps users:
-- Load taxpayer/W-2 data from source files.
-- Validate and normalize that data.
-- Generate deterministic entry action plans.
-- Execute plans through a selected adapter (or simulate safely).
+Implemented now:
+- Excel intake loading for `Clients` and `W2s`
+- Validation engine with source-cell traceability
+- YAML screen-map loading and validation
+- Masked action-plan generation for Screen 1 and W-2
+- Masked logging and validation-report writers
+- Fake adapter execution simulation with safe stop conditions
+- CLI commands: `validate`, `dry-run`, `run-fake`, `run-live` (guarded)
 
-DEA does **not** replace professional tax judgment and does not perform full return preparation, tax diagnostics, or e-filing.
+Not implemented yet:
+- Live Drake UI automation
+- Any real OS/UI interaction
 
-## Architecture
+## Safety Boundaries
 
-DEA uses strict separation of concerns:
+- No process injection
+- No `pyautogui`
+- No `pywinauto`
+- No screenshots or clipboard automation
+- No real client data in project artifacts
+- Drake-specific behavior remains in `configs/drake/...` and `src/dea/adapters/...`
 
-- **Core logic (`src/dea/`)**
-  - Domain models
-  - Validation pipeline
-  - Data ingestion
-  - Action-plan generation
-  - Config loading and safe logging/masking
-- **Drake-specific layer (`src/dea/adapters/` + `configs/drake/...`)**
-  - Adapter interfaces and implementations
-  - Screen mapping and field metadata in YAML
+## Installation
 
-Rule: Drake-specific behavior stays in adapters/configs, not in core modules.
+From `drake-entry-assistant/`:
 
-## Execution Modes
+```bash
+python -m pip install -e .[dev]
+```
 
-DEA is designed to support the following modes:
+## CLI Usage
 
-1. **validation-only**
-   - Runs ingestion + normalization + validation checks only.
-   - Produces validation output without producing or executing Drake entry actions.
+Console script:
 
-2. **dry-run**
-   - Produces an action plan from validated data.
-   - Does not execute actions against any Drake target.
+```bash
+dea --help
+```
 
-3. **fake-adapter execution**
-   - Executes the action plan through `FakeDrakeAdapter`.
-   - Records requested steps for testing and debugging without real UI automation.
+Commands:
 
-4. **future live Drake mode (explicit enablement required)**
-   - Reserved for a future adapter implementation.
-   - Must require explicit runtime enablement and acceptance-test gating before use.
-   - Not implemented in this scaffold.
+1. Validate only:
 
-## Verification Levels
+```bash
+dea validate --input examples/sample_intake.xlsx --tax-year 2025 --output-dir outputs/demo
+```
 
-DEA development and release validation should be staged:
+2. Dry-run (no adapter execution):
 
-- **Level 1: no Drake required**
-  - Unit tests, import checks, config shape checks, and validation/action-plan logic tests.
-- **Level 2: fake Drake adapter**
-  - End-to-end workflow checks using `FakeDrakeAdapter` with synthetic data.
-- **Level 3: real Drake acceptance testing (dummy/demo data only)**
-  - Controlled acceptance tests in a dedicated environment with non-client demo data.
+```bash
+dea dry-run --input examples/sample_intake.xlsx --tax-year 2025 --output-dir outputs/demo
+```
 
-## Safety Standard
+3. Fake execution:
 
-- No process injection.
-- No UI automation libraries in this skeleton.
-- No live Drake automation in this phase.
-- No real client data.
-- No full SSNs/EINs in examples, logs, tests, or docs.
+```bash
+dea run-fake --input examples/sample_intake.xlsx --tax-year 2025 --output-dir outputs/demo
+```
 
-## Current Status
+4. Guarded live command (still refuses real entry):
 
-This is an initial scaffold only. The following are placeholders:
+```bash
+dea run-live --input examples/sample_intake.xlsx --tax-year 2025 --output-dir outputs/demo --live-drake
+```
 
-- Excel loader
-- Validation engine
-- Action-plan generation
-- Live Drake adapter behavior
+## Output Artifacts
 
-The repository currently provides package structure, adapter boundaries, config placeholders, and import smoke tests.
+By command, DEA writes artifacts under `--output-dir`:
+- `validation_report.xlsx`
+- `action_plan.json` (dry-run)
+- `planned_entry_log.csv` / `planned_entry_log.xlsx` (dry-run)
+- `entry_log.csv` / `entry_log.xlsx` (run-fake / run-live)
+
+Action/log outputs contain masked values only.
+
+## Generate Sample Workbook
+
+DEA includes a deterministic synthetic workbook generator:
+
+```bash
+python -c "from dea.demo import create_sample_workbook; create_sample_workbook('examples/sample_intake.xlsx')"
+```
+
+This creates demo-only data. Do not use real taxpayer data.
+
+## Run Tests
+
+```bash
+PYTHONPATH=src pytest -q
+```
+
+## Manual Acceptance Checklist
+
+For future controlled Drake testing with dummy data only, see:
+- `docs/manual_drake_acceptance_checklist.md`
