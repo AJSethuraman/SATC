@@ -11,8 +11,8 @@ class ValidationResult:
     warnings: list[str] = field(default_factory=list)
 
 
-def _nums(text:str):
-    return re.findall(r"(?<![A-Za-z:])[-+]?\d+(?:\.\d+)?%?", text)
+def _num_matches(text:str):
+    return list(re.finditer(r"(?<![A-Za-z:])[-+]?\d+(?:\.\d+)?%?", text))
 
 
 def _has_bad(text:str)->bool:
@@ -54,8 +54,11 @@ def validate_source_bound_output(payload: dict, valid_ids:set[str], allowed_valu
         if re.search(pat,joined,re.I): errs.append(f'prohibited phrase {pat}')
 
     allowed=allowed_values | {v.replace('%','') for v in allowed_values}
-    for n in _nums(joined):
-        if n in {'10','8'}:  # allow 10-K / 8-K textual splits
+    for m in _num_matches(joined):
+        n=m.group(0)
+        # Context-aware allowance only when part of filing form tokens like 10-k / 10-q / 8-k
+        ctx=joined[max(0,m.start()-3):min(len(joined),m.end()+3)]
+        if n in {'10','8'} and re.search(r"\b(10\s*-?\s*[kq]|8\s*-?\s*k)\b", ctx):
             continue
         if n not in allowed and n.rstrip('%') not in allowed:
             errs.append(f'unsupported numeric value {n}')

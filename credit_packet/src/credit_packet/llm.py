@@ -40,13 +40,29 @@ class LLMClient:
 
     def generate_source_bound_brief(self, evidence_bundle, valid_ids, allowed_values):
         if not self.enabled(): return self._fallback_brief(evidence_bundle,['LLM disabled'])
-        example_ids=list(valid_ids)[:3] or ['company:example','filing:10-k:2025-01-01:example','metric:revenue_growth:2024']
-        schema={"summary_points":[{"text":"...","sources":[example_ids[0]]}],"review_themes":[{"theme":"...","why_it_matters":"...","sources":[example_ids[min(1,len(example_ids)-1)]]}],"review_questions":[{"question":"...","based_on":[example_ids[min(2,len(example_ids)-1)]]}],"missing_information":[{"item":"...","reason":"..."}]}
-        prompt='Return JSON only. No prose before or after JSON. JSON schema exactly:\n'+json.dumps(schema,indent=2)+'\nEvidence bundle:\n'+json.dumps(evidence_bundle)
+        ids = list(valid_ids)
+        sid = ids[0] if ids else 'company:example'
+        tid = ids[1] if len(ids) > 1 else sid
+        qid = ids[2] if len(ids) > 2 else sid
+        concrete_example={
+          "summary_points":[{"text":"Watchlist flag detected and requires manual review.","sources":[sid]}],
+          "review_themes":[{"theme":"Liquidity","why_it_matters":"A deterministic trigger appears in the evidence bundle.","sources":[tid]}],
+          "review_questions":[{"question":"What filing evidence explains this trigger?","based_on":[qid]}],
+          "missing_information":[{"item":"Debt maturity schedule","reason":"Not present in the provided evidence bundle."}]
+        }
+        prompt=(
+            'Return JSON only with no prose before or after. Use this exact top-level schema keys: '
+            'summary_points, review_themes, review_questions, missing_information.\n'
+            'Concrete valid example (use bundle IDs, do not invent IDs):\n'
+            + json.dumps(concrete_example, indent=2)
+            + '\nEvidence bundle:\n'
+            + json.dumps(evidence_bundle)
+        )
         raw=self._call(prompt)
         if not raw: return self._fallback_brief(evidence_bundle,['LLM unavailable or empty response'])
         raw=raw.strip()
-        if not raw.startswith('{'): return self._fallback_brief(evidence_bundle,['LLM response contained prose before JSON'])
+        if not raw.startswith('{'):
+            return self._fallback_brief(evidence_bundle,['LLM did not comply with JSON-only output requirement'])
         try: payload=json.loads(raw)
         except Exception: return self._fallback_brief(evidence_bundle,['Malformed JSON from LLM'])
         vr=validate_source_bound_output(payload,valid_ids,allowed_values)
