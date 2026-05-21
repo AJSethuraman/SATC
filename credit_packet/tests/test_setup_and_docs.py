@@ -59,13 +59,17 @@ def test_env_loading(monkeypatch, tmp_path):
     assert s.sec_user_agent.startswith('Tester')
 
 
-def test_env_missing_error(monkeypatch):
+def test_env_missing_error(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
     monkeypatch.delenv('SEC_USER_AGENT', raising=False)
     cfg = importlib.import_module('credit_packet.config')
     if importlib.util.find_spec('dotenv') is None:
         with pytest.raises(RuntimeError):
             cfg.get_settings()
     else:
+        import dotenv
+
+        monkeypatch.setattr(dotenv, 'find_dotenv', lambda *args, **kwargs: '')
         with pytest.raises(ValueError):
             cfg.get_settings()
 
