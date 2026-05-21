@@ -85,7 +85,10 @@ def write_summary_sheet(wb, packet, model):
     rows=[('Credit Research Packet',''),('Company',packet.company.name),('Ticker',packet.company.ticker),('CIK',packet.company.cik),('Generated',datetime.now(timezone.utc).isoformat()),('LLM Mode',llm_mode),('Source-Bound Validation',sb_status),('Latest 10-K',latest_10k),('Latest 10-Q',latest_10q),('Recent 8-K Count',sum(1 for f in packet.filings if f.form=='8-K')),('Watchlist Flag Count',len(packet.watchlist_flags)),('High Flag Count',high_count),('Excerpt Count',len(packet.excerpts)),('Filing Change Count',len(packet.filing_changes)),('Manual Credit Conclusion','Manual review required. No automated credit conclusion generated.')]
     for r in rows: ws.append(r)
     ws.append(('How to use this workbook','Review Filing Activity, Financial Trends, Calculated Metrics, Watchlist Flags, Excerpts, Filing Changes, Review Questions, Memo Shell, and Sources & Audit.'))
-    ws.append(('Navigate','Filing Activity | Financial Trends | Calculated Metrics | Watchlist Flags | Source-Bound Brief | Excerpts | Filing Changes | Review Questions | Memo Shell | Evidence Index | Sources & Audit'))
+    ws.append(('Navigate','Filing Activity'))
+    ws['B17'].hyperlink = '#'Filing Activity'!A1'
+    ws.append(('', 'Sources & Audit'))
+    ws['B18'].hyperlink = '#'Sources & Audit'!A1'
     dq=data_quality_rows(packet)
     ws.append(('Top data-quality notes','; '.join(x['issue'] for x in dq[:3]) if dq else 'None'))
     ws.column_dimensions['A'].width=36; ws.column_dimensions['B'].width=120

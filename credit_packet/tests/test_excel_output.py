@@ -46,11 +46,11 @@ def test_filing_activity_hyperlinks(tmp_path):
 
 def test_excerpts_preview_capped_and_full_preserved_hidden(tmp_path):
     out=tmp_path/'p.xlsx'; render_excel(sample_packet(),out); ws=load_workbook(out)['Excerpts']
-    assert len(ws['F2'].value)<=501 and ws['F2'].value.endswith('…') and len(ws['G2'].value)>=700 and ws.column_dimensions['G'].hidden
+    assert len(ws['F2'].value)<=500 and ws['F2'].value.endswith('…') and len(ws['G2'].value)>=700 and ws.column_dimensions['G'].hidden
 
 def test_changes_preview_capped_and_full_preserved_hidden(tmp_path):
     out=tmp_path/'p.xlsx'; render_excel(sample_packet(),out); ws=load_workbook(out)['Filing Changes']
-    assert len(ws['E2'].value)<=351 and ws['E2'].value.endswith('…') and len(ws['F2'].value)<=351 and ws['F2'].value.endswith('…') and len(ws['G2'].value)>=500 and len(ws['H2'].value)>=500
+    assert len(ws['E2'].value)<=350 and ws['E2'].value.endswith('…') and len(ws['F2'].value)<=350 and ws['F2'].value.endswith('…') and len(ws['G2'].value)>=500 and len(ws['H2'].value)>=500
     assert ws.column_dimensions['G'].hidden and ws.column_dimensions['H'].hidden
 
 def test_sources_audit_sections_and_field_audit(tmp_path):
@@ -91,3 +91,8 @@ def test_empty_packet_tables_placeholder_rows(tmp_path):
     out=tmp_path/'e.xlsx'; render_excel(p,out); wb=load_workbook(out)
     for t in ['Watchlist Flags','Excerpts','Filing Changes','Review Questions','Evidence Index']:
         ws=wb[t]; assert ws.max_row>=2 and len(ws.tables)>=1
+
+
+def test_summary_navigation_hyperlinks(tmp_path):
+    out=tmp_path/'p.xlsx'; render_excel(sample_packet(),out); ws=load_workbook(out)['Summary']
+    assert ws['B17'].hyperlink is not None and ws['B18'].hyperlink is not None

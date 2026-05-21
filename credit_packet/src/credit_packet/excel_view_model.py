@@ -20,13 +20,13 @@ def watchlist_flag_rows(packet):
 def excerpt_rows(packet, preview_chars: int = 500):
     rows=[]
     for e in packet.excerpts:
-        rows.append({'category':e.category,'filing':e.filing,'filing_date':e.filing_date,'section':e.section,'matched_keywords':', '.join(e.matched_keywords),'excerpt_preview':((e.text or '')[:preview_chars] + ('…' if len(e.text or '')>preview_chars else '')),'excerpt_full':e.text or '','source_link':'Open source','source_url':e.source_url,'accession_number':e.accession_number})
+        rows.append({'category':e.category,'filing':e.filing,'filing_date':e.filing_date,'section':e.section,'matched_keywords':', '.join(e.matched_keywords),'excerpt_preview':(((e.text or '')[:max(preview_chars-1,0)] + '…') if len(e.text or '')>preview_chars else (e.text or '')),'excerpt_full':e.text or '','source_link':'Open source','source_url':e.source_url,'accession_number':e.accession_number})
     return rows or [{'category':'info','filing':'','filing_date':'','section':'','matched_keywords':'','excerpt_preview':'No excerpts were detected based on controlled keyword search.','excerpt_full':'','source_link':'','source_url':'','accession_number':''}]
 
 def filing_change_rows(packet, preview_chars: int = 350):
     rows=[]
     for c in packet.filing_changes:
-        rows.append({'section':c.section,'category':c.category,'change_type':c.change_type,'similarity_score':c.similarity_score,'old_preview':((c.old_excerpt or '')[:preview_chars] + ('…' if len(c.old_excerpt or '')>preview_chars else '')),'new_preview':((c.new_excerpt or '')[:preview_chars] + ('…' if len(c.new_excerpt or '')>preview_chars else '')),'old_full':c.old_excerpt or '','new_full':c.new_excerpt or '','old_source_link':'Open old source','new_source_link':'Open new source','old_source':c.source_old,'new_source':c.source_new})
+        rows.append({'section':c.section,'category':c.category,'change_type':c.change_type,'similarity_score':c.similarity_score,'old_preview':(((c.old_excerpt or '')[:max(preview_chars-1,0)] + '…') if len(c.old_excerpt or '')>preview_chars else (c.old_excerpt or '')),'new_preview':(((c.new_excerpt or '')[:max(preview_chars-1,0)] + '…') if len(c.new_excerpt or '')>preview_chars else (c.new_excerpt or '')),'old_full':c.old_excerpt or '','new_full':c.new_excerpt or '','old_source_link':'Open old source','new_source_link':'Open new source','old_source':c.source_old,'new_source':c.source_new})
     return rows or [{'section':'','category':'','change_type':'','similarity_score':None,'old_preview':'No filing changes were detected or comparison was unavailable.','new_preview':'','old_full':'','new_full':'','old_source_link':'','new_source_link':'','old_source':'','new_source':''}]
 
 def review_question_rows(packet):
