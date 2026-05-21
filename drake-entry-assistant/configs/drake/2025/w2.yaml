@@ -1,0 +1,12 @@
+version: "2025"
+screen_name: "W-2 Input"
+screen_code: "W2IN"
+expected_markers:
+  - "W-2"
+  - "Wage and Tax Statement"
+supported_fields:
+  employer_name: "string"
+  masked_employer_ein: "**-***6789"
+  wages_box_1: "decimal"
+  federal_withholding_box_2: "decimal"
+  social_security_wages_box_3: "decimal"

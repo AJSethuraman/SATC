@@ -1,0 +1,12 @@
+version: "2025"
+screen_name: "Screen 1 - Taxpayer Information"
+screen_code: "SCRN1"
+expected_markers:
+  - "Taxpayer Information"
+  - "Filing Status"
+supported_fields:
+  taxpayer_last_name: "string"
+  taxpayer_first_name: "string"
+  taxpayer_middle_initial: "string"
+  masked_taxpayer_ssn: "***-**-1234"
+  filing_status: "enum"
