@@ -138,10 +138,26 @@ def test_source_cells_include_expected_refs(tmp_path) -> None:
     refs = loaded.source_cells
     assert refs["clients.C-001.taxpayer.first_name"].sheet == "Clients"
     assert refs["clients.C-001.taxpayer.first_name"].cell == "D2"
+    assert refs["clients.C-001.taxpayer.last_name"].cell == "E2"
     assert refs["clients.C-001.taxpayer.ssn"].cell == "F2"
+    assert refs["clients.C-001.taxpayer.dob"].cell == "G2"
+    assert refs["clients.C-001.filing_status"].cell == "C2"
+    assert refs["clients.C-001.address.street"].cell == "N2"
+    assert refs["clients.C-001.address.city"].cell == "O2"
+    assert refs["clients.C-001.address.state"].cell == "P2"
     assert refs["clients.C-001.address.zip"].cell == "Q2"
+    assert refs["clients.C-001.spouse.first_name"].cell == "I2"
+    assert refs["clients.C-001.spouse.last_name"].cell == "J2"
+    assert refs["clients.C-001.spouse.ssn"].cell == "K2"
+    assert refs["clients.C-001.spouse.dob"].cell == "L2"
     assert refs["clients.C-001.w2s.W2-001.employer.ein"].sheet == "W2s"
+    assert refs["clients.C-001.w2s.W2-001.employer.name"].cell == "E2"
     assert refs["clients.C-001.w2s.W2-001.box_1_wages"].cell == "J2"
+    assert refs["clients.C-001.w2s.W2-001.box_2_federal_withholding"].cell == "K2"
+    assert refs["clients.C-001.w2s.W2-001.box_3_social_security_wages"].cell == "L2"
+    assert refs["clients.C-001.w2s.W2-001.box_4_social_security_tax"].cell == "M2"
+    assert refs["clients.C-001.w2s.W2-001.box_5_medicare_wages"].cell == "N2"
+    assert refs["clients.C-001.w2s.W2-001.box_6_medicare_tax"].cell == "O2"
 
 
 def test_missing_clients_sheet_raises(tmp_path) -> None:

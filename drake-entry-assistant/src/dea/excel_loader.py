@@ -192,8 +192,18 @@ def load_workbook_data(path: str | Path) -> LoadedWorkbook:
 
         base_key = f"clients.{client_id}"
         source_cells[f"{base_key}.taxpayer.first_name"] = _cell_ref(clients_sheet, row, clients_header, "TP_First")
+        source_cells[f"{base_key}.taxpayer.last_name"] = _cell_ref(clients_sheet, row, clients_header, "TP_Last")
         source_cells[f"{base_key}.taxpayer.ssn"] = _cell_ref(clients_sheet, row, clients_header, "TP_SSN")
+        source_cells[f"{base_key}.taxpayer.dob"] = _cell_ref(clients_sheet, row, clients_header, "TP_DOB")
+        source_cells[f"{base_key}.filing_status"] = _cell_ref(clients_sheet, row, clients_header, "FilingStatus")
+        source_cells[f"{base_key}.address.street"] = _cell_ref(clients_sheet, row, clients_header, "Address")
+        source_cells[f"{base_key}.address.city"] = _cell_ref(clients_sheet, row, clients_header, "City")
+        source_cells[f"{base_key}.address.state"] = _cell_ref(clients_sheet, row, clients_header, "State")
         source_cells[f"{base_key}.address.zip"] = _cell_ref(clients_sheet, row, clients_header, "ZIP")
+        source_cells[f"{base_key}.spouse.first_name"] = _cell_ref(clients_sheet, row, clients_header, "SP_First")
+        source_cells[f"{base_key}.spouse.last_name"] = _cell_ref(clients_sheet, row, clients_header, "SP_Last")
+        source_cells[f"{base_key}.spouse.ssn"] = _cell_ref(clients_sheet, row, clients_header, "SP_SSN")
+        source_cells[f"{base_key}.spouse.dob"] = _cell_ref(clients_sheet, row, clients_header, "SP_DOB")
 
     for row in range(2, w2s_sheet.max_row + 1):
         client_id = _to_str(_cell_value(w2s_sheet, row, w2_header, "ClientID"))
@@ -274,6 +284,12 @@ def load_workbook_data(path: str | Path) -> LoadedWorkbook:
 
         w2_base = f"clients.{client_id}.w2s.{w2_id}"
         source_cells[f"{w2_base}.employer.ein"] = _cell_ref(w2s_sheet, row, w2_header, "Employer_EIN")
+        source_cells[f"{w2_base}.employer.name"] = _cell_ref(w2s_sheet, row, w2_header, "Employer_Name")
         source_cells[f"{w2_base}.box_1_wages"] = _cell_ref(w2s_sheet, row, w2_header, "Box1")
+        source_cells[f"{w2_base}.box_2_federal_withholding"] = _cell_ref(w2s_sheet, row, w2_header, "Box2")
+        source_cells[f"{w2_base}.box_3_social_security_wages"] = _cell_ref(w2s_sheet, row, w2_header, "Box3")
+        source_cells[f"{w2_base}.box_4_social_security_tax"] = _cell_ref(w2s_sheet, row, w2_header, "Box4")
+        source_cells[f"{w2_base}.box_5_medicare_wages"] = _cell_ref(w2s_sheet, row, w2_header, "Box5")
+        source_cells[f"{w2_base}.box_6_medicare_tax"] = _cell_ref(w2s_sheet, row, w2_header, "Box6")
 
     return LoadedWorkbook(client_batch=ClientBatch(clients=list(clients_by_id.values())), source_cells=source_cells)

@@ -1,24 +1,35 @@
-"""Base adapter interfaces.
-
-Adapters expose a common contract for executing adapter-agnostic action plans
-against a target system (real or simulated).
-"""
+"""Base adapter interfaces for action-plan execution backends."""
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Sequence
+from typing import Protocol
+
+from dea.models import ActionPlan, ExecutionResult, ScreenMap
 
 
 class EntryAdapter(Protocol):
-    """Protocol for action-plan execution backends."""
+    """Protocol for adapter execution backends."""
 
     name: str
 
-    def connect(self) -> None:
-        """Prepare adapter resources for a run."""
+    def focus_app(self) -> None:
+        """Bring target app into focus (or simulate that behavior)."""
 
-    def execute_actions(self, actions: Sequence[dict[str, Any]]) -> None:
-        """Execute normalized action steps."""
+    def open_screen(self, screen_code: str) -> None:
+        """Open a target screen by screen code."""
 
-    def close(self) -> None:
-        """Release adapter resources."""
+    def verify_screen(self, screen: ScreenMap) -> None:
+        """Verify expected screen markers are present."""
+
+    def enter_field(self, field_locator: str, value: str) -> None:
+        """Enter a field value using a provided locator description."""
+
+    def handle_unexpected_state(self) -> None:
+        """Handle and raise on unexpected application states."""
+
+    def execute_action_plan(
+        self,
+        action_plan: ActionPlan,
+        screen_maps: dict[str, ScreenMap],
+    ) -> ExecutionResult:
+        """Execute an action plan and return structured execution records."""

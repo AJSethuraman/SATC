@@ -155,7 +155,7 @@ def test_validation_issue_supports_all_required_severities() -> None:
 
 def test_action_plan_contains_ordered_steps() -> None:
     step1 = ActionStep(
-        action="set_field",
+        action="ENTER_FIELD",
         screen="SCRN1",
         field="taxpayer.first_name",
         value="Alex",
@@ -165,7 +165,7 @@ def test_action_plan_contains_ordered_steps() -> None:
         support_status="SUPPORTED",
     )
     step2 = ActionStep(
-        action="set_field",
+        action="ENTER_FIELD",
         screen="SCRN1",
         field="taxpayer.ssn",
         value="***-**-1234",
@@ -194,10 +194,10 @@ def test_entry_log_record_uses_masked_value_for_recording() -> None:
         source_sheet="W2",
         source_cell="C10",
         masked_value="**-***6789",
-        action="set_field",
-        status="queued",
+        action="ENTER_FIELD",
+        status="PLANNED",
         error_message=None,
     )
 
     assert record.masked_value == "**-***6789"
-    assert record.action in {"set_field", "clear_field"}
+    assert record.action == "ENTER_FIELD"

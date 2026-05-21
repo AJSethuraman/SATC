@@ -21,6 +21,17 @@ SupportStatus = Literal[
     "UNSUPPORTED",
     "DEPRECATED",
 ]
+FieldMethod = Literal["tab_order", "control_locator", "manual"]
+ActionName = Literal["OPEN_SCREEN", "ENTER_FIELD", "SKIP_MANUAL_REVIEW", "SKIP_UNSUPPORTED"]
+EntryStatus = Literal[
+    "PLANNED",
+    "ENTERED",
+    "SKIPPED_MANUAL_REVIEW",
+    "SKIPPED_UNSUPPORTED",
+    "FAILED_VALIDATION",
+    "FAILED_SCREEN_CHECK",
+    "FAILED_FIELD_ENTRY",
+]
 
 
 @dataclass(slots=True)
@@ -135,8 +146,31 @@ class ValidationIssue:
 
 
 @dataclass(slots=True)
+class ScreenField:
+    field_path: str
+    label: str
+    source: str
+    support_status: SupportStatus
+    method: FieldMethod
+    position: str | None = None
+    locator: str | None = None
+    mask_in_log: bool = False
+
+
+@dataclass(slots=True)
+class ScreenMap:
+    screen: str
+    screen_name: str
+    screen_code: str
+    tax_year: int | None
+    version: str | None
+    expected_markers: list[str]
+    fields: list[ScreenField] = field(default_factory=list)
+
+
+@dataclass(slots=True)
 class ActionStep:
-    action: str
+    action: ActionName
     screen: str
     field: str
     value: str
@@ -144,6 +178,7 @@ class ActionStep:
     source_sheet: str | None
     source_cell: str | None
     support_status: SupportStatus
+    field_locator: str | None = None
 
 
 @dataclass(slots=True)
@@ -165,5 +200,12 @@ class EntryLogRecord:
     source_cell: str | None
     masked_value: str
     action: str
-    status: str
+    status: EntryStatus
+    error_message: str | None = None
+
+
+@dataclass(slots=True)
+class ExecutionResult:
+    success: bool
+    records: list[EntryLogRecord] = field(default_factory=list)
     error_message: str | None = None

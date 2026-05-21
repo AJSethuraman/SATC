@@ -92,3 +92,42 @@ def test_source_cells_attached_when_provided() -> None:
     issue = next(i for i in issues if i.field == "taxpayer.first_name")
     assert issue.source_sheet == "Clients"
     assert issue.source_cell == "D2"
+
+
+def test_source_cells_attached_for_expected_client_and_w2_fields() -> None:
+    c = _base_client()
+    c.taxpayer.first_name = ""
+    c.taxpayer.ssn = "12"
+    c.address.zip = "12"
+    c.w2s[0].employer.ein = "1"
+    c.w2s[0].box_1_raw = "bad"
+    c.w2s[0].box_2_raw = "bad"
+
+    refs = {
+        "clients.C-001.taxpayer.first_name": SourceCellRef(sheet="Clients", cell="D2"),
+        "clients.C-001.taxpayer.ssn": SourceCellRef(sheet="Clients", cell="F2"),
+        "clients.C-001.address.zip": SourceCellRef(sheet="Clients", cell="Q2"),
+        "clients.C-001.w2s.W2-001.employer.ein": SourceCellRef(sheet="W2s", cell="D2"),
+        "clients.C-001.w2s.W2-001.box_1_wages": SourceCellRef(sheet="W2s", cell="J2"),
+        "clients.C-001.w2s.W2-001.box_2_federal_withholding": SourceCellRef(sheet="W2s", cell="K2"),
+    }
+
+    issues = validate_client_batch(ClientBatch([c]), source_cells=refs)
+
+    first_name = next(i for i in issues if i.field == "taxpayer.first_name")
+    assert (first_name.source_sheet, first_name.source_cell) == ("Clients", "D2")
+
+    ssn = next(i for i in issues if i.field == "taxpayer.ssn")
+    assert (ssn.source_sheet, ssn.source_cell) == ("Clients", "F2")
+
+    zip_issue = next(i for i in issues if i.field == "address.zip")
+    assert (zip_issue.source_sheet, zip_issue.source_cell) == ("Clients", "Q2")
+
+    ein_issue = next(i for i in issues if i.field == "w2s.W2-001.employer.ein")
+    assert (ein_issue.source_sheet, ein_issue.source_cell) == ("W2s", "D2")
+
+    box1_issue = next(i for i in issues if i.field == "w2s.W2-001.box_1_wages")
+    assert (box1_issue.source_sheet, box1_issue.source_cell) == ("W2s", "J2")
+
+    box2_issue = next(i for i in issues if i.field == "w2s.W2-001.box_2_federal_withholding")
+    assert (box2_issue.source_sheet, box2_issue.source_cell) == ("W2s", "K2")

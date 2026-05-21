@@ -1,4 +1,6 @@
 version: "2025"
+tax_year: 2025
+screen: "w2"
 screen_name: "W-2 Input"
 screen_code: "W2IN"
 expected_markers:
@@ -53,10 +55,25 @@ fields:
     locator: "name:w2_box_4"
     mask_in_log: false
 
+  w2.box_5_medicare_wages:
+    label: "Box 5 Medicare Wages"
+    source: "input_record.w2.box_5_medicare_wages"
+    support_status: "SUPPORTED"
+    method: "control_locator"
+    locator: "name:w2_box_5"
+    mask_in_log: false
+
+  w2.box_6_medicare_tax:
+    label: "Box 6 Medicare Tax"
+    source: "input_record.w2.box_6_medicare_tax"
+    support_status: "SUPPORTED"
+    method: "control_locator"
+    locator: "name:w2_box_6"
+    mask_in_log: false
+
   w2.box_12_codes:
     label: "Box 12 Codes"
     source: "input_record.w2.box_12_codes"
     support_status: "DEPRECATED"
     method: "manual"
-    locator: "n/a"
     mask_in_log: false
