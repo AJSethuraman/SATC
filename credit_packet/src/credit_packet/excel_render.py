@@ -86,9 +86,11 @@ def write_summary_sheet(wb, packet, model):
     for r in rows: ws.append(r)
     ws.append(('How to use this workbook','Review Filing Activity, Financial Trends, Calculated Metrics, Watchlist Flags, Excerpts, Filing Changes, Review Questions, Memo Shell, and Sources & Audit.'))
     ws.append(('Navigate','Filing Activity'))
-    ws['B17'].hyperlink = '#'Filing Activity'!A1'
+    ws["B17"].hyperlink = "#'Filing Activity'!A1"
+    ws["B17"].style = "Hyperlink"
     ws.append(('', 'Sources & Audit'))
-    ws['B18'].hyperlink = '#'Sources & Audit'!A1'
+    ws["B18"].hyperlink = "#'Sources & Audit'!A1"
+    ws["B18"].style = "Hyperlink"
     dq=data_quality_rows(packet)
     ws.append(('Top data-quality notes','; '.join(x['issue'] for x in dq[:3]) if dq else 'None'))
     ws.column_dimensions['A'].width=36; ws.column_dimensions['B'].width=120

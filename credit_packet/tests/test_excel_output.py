@@ -96,3 +96,5 @@ def test_empty_packet_tables_placeholder_rows(tmp_path):
 def test_summary_navigation_hyperlinks(tmp_path):
     out=tmp_path/'p.xlsx'; render_excel(sample_packet(),out); ws=load_workbook(out)['Summary']
     assert ws['B17'].hyperlink is not None and ws['B18'].hyperlink is not None
+    assert ws['B17'].hyperlink.target == "#'Filing Activity'!A1"
+    assert ws['B18'].hyperlink.target == "#'Sources & Audit'!A1"
