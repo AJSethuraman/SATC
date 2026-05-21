@@ -91,6 +91,12 @@ class W2:
     box_4_social_security_tax: Decimal
     box_5_medicare_wages: Decimal
     box_6_medicare_tax: Decimal
+    box_1_raw: str = ""
+    box_2_raw: str = ""
+    box_3_raw: str = ""
+    box_4_raw: str = ""
+    box_5_raw: str = ""
+    box_6_raw: str = ""
     box_12_items: list[W2Box12Item] = field(default_factory=list)
     state_lines: list[W2StateLine] = field(default_factory=list)
     manual_review_notes: list[str] = field(default_factory=list)

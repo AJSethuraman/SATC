@@ -242,17 +242,30 @@ def load_workbook_data(path: str | Path) -> LoadedWorkbook:
                 )
             )
 
+        box1_val = _cell_value(w2s_sheet, row, w2_header, "Box1")
+        box2_val = _cell_value(w2s_sheet, row, w2_header, "Box2")
+        box3_val = _cell_value(w2s_sheet, row, w2_header, "Box3")
+        box4_val = _cell_value(w2s_sheet, row, w2_header, "Box4")
+        box5_val = _cell_value(w2s_sheet, row, w2_header, "Box5")
+        box6_val = _cell_value(w2s_sheet, row, w2_header, "Box6")
+
         w2 = W2(
             w2_id=w2_id,
             client_id=client_id,
             employee=employee,
             employer=employer,
-            box_1_wages=_to_decimal(_cell_value(w2s_sheet, row, w2_header, "Box1")),
-            box_2_federal_withholding=_to_decimal(_cell_value(w2s_sheet, row, w2_header, "Box2")),
-            box_3_social_security_wages=_to_decimal(_cell_value(w2s_sheet, row, w2_header, "Box3")),
-            box_4_social_security_tax=_to_decimal(_cell_value(w2s_sheet, row, w2_header, "Box4")),
-            box_5_medicare_wages=_to_decimal(_cell_value(w2s_sheet, row, w2_header, "Box5")),
-            box_6_medicare_tax=_to_decimal(_cell_value(w2s_sheet, row, w2_header, "Box6")),
+            box_1_wages=_to_decimal(box1_val),
+            box_2_federal_withholding=_to_decimal(box2_val),
+            box_3_social_security_wages=_to_decimal(box3_val),
+            box_4_social_security_tax=_to_decimal(box4_val),
+            box_5_medicare_wages=_to_decimal(box5_val),
+            box_6_medicare_tax=_to_decimal(box6_val),
+            box_1_raw=_to_str(box1_val),
+            box_2_raw=_to_str(box2_val),
+            box_3_raw=_to_str(box3_val),
+            box_4_raw=_to_str(box4_val),
+            box_5_raw=_to_str(box5_val),
+            box_6_raw=_to_str(box6_val),
             box_12_items=box_12_items,
             state_lines=state_lines,
             manual_review_notes=[],

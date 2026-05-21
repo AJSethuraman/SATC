@@ -90,6 +90,7 @@ def test_loads_one_client_one_w2(tmp_path) -> None:
     w2 = client.w2s[0]
     assert w2.employer.ein.endswith("6789")
     assert w2.box_1_wages == Decimal("72000")
+    assert w2.box_1_raw == "72000"
     assert len(w2.box_12_items) == 1
     assert len(w2.state_lines) == 1
 
