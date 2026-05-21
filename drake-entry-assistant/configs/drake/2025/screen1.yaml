@@ -4,9 +4,67 @@ screen_code: "SCRN1"
 expected_markers:
   - "Taxpayer Information"
   - "Filing Status"
-supported_fields:
-  taxpayer_last_name: "string"
-  taxpayer_first_name: "string"
-  taxpayer_middle_initial: "string"
-  masked_taxpayer_ssn: "***-**-1234"
-  filing_status: "enum"
+fields:
+  taxpayer.first_name:
+    label: "Taxpayer First Name"
+    source: "input_record.taxpayer.first_name"
+    support_status: "SUPPORTED"
+    method: "tab_order"
+    position: "row:1,col:2"
+    mask_in_log: false
+
+  taxpayer.last_name:
+    label: "Taxpayer Last Name"
+    source: "input_record.taxpayer.last_name"
+    support_status: "SUPPORTED"
+    method: "tab_order"
+    position: "row:1,col:1"
+    mask_in_log: false
+
+  taxpayer.ssn:
+    label: "Taxpayer SSN"
+    source: "input_record.taxpayer.ssn"
+    support_status: "CONDITIONALLY_SUPPORTED"
+    method: "control_locator"
+    locator: "name:taxpayer_ssn"
+    mask_in_log: true
+
+  taxpayer.dob:
+    label: "Taxpayer Date of Birth"
+    source: "input_record.taxpayer.dob"
+    support_status: "SUPPORTED"
+    method: "control_locator"
+    locator: "name:taxpayer_dob"
+    mask_in_log: false
+
+  address.street:
+    label: "Street Address"
+    source: "input_record.address.street"
+    support_status: "SUPPORTED"
+    method: "tab_order"
+    position: "row:3,col:1"
+    mask_in_log: false
+
+  address.city:
+    label: "City"
+    source: "input_record.address.city"
+    support_status: "SUPPORTED"
+    method: "tab_order"
+    position: "row:4,col:1"
+    mask_in_log: false
+
+  address.state:
+    label: "State"
+    source: "input_record.address.state"
+    support_status: "CONDITIONALLY_SUPPORTED"
+    method: "tab_order"
+    position: "row:4,col:2"
+    mask_in_log: false
+
+  address.zip:
+    label: "ZIP Code"
+    source: "input_record.address.zip"
+    support_status: "SUPPORTED"
+    method: "control_locator"
+    locator: "name:taxpayer_zip"
+    mask_in_log: false
