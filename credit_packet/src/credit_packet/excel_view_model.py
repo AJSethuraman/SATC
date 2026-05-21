@@ -65,6 +65,9 @@ def data_quality_rows(packet, preview_chars: int = 500):
     for p in packet.financial_periods:
         missing=[k for k,v in p.__dict__.items() if k in {'revenue','gross_profit','operating_income','net_income','cash_and_equivalents','total_assets','total_liabilities','stockholders_equity','current_assets','current_liabilities','long_term_debt','operating_cash_flow','capex'} and v is None]
         if missing: rows.append({'issue':'missing financial fields','detail':f"FY{p.fiscal_year}: {', '.join(missing)}"})
+        for field, tag in p.tag_map.items():
+            if isinstance(tag, str) and tag.startswith('DERIVED:') and field == 'total_liabilities':
+                rows.append({'issue':'derived financial field','detail':f'FY{p.fiscal_year}: total_liabilities derived from total_assets - stockholders_equity.'})
     if len([f for f in packet.filings if f.form=='10-K'])<2: rows.append({'issue':'unavailable comparison filings','detail':'Prior comparable 10-K unavailable for change comparison.'})
     if not packet.excerpts: rows.append({'issue':'no excerpts detected','detail':'Controlled keyword search returned no excerpts.'})
     if not packet.filing_changes: rows.append({'issue':'no filing changes detected','detail':'No filing changes detected or comparison unavailable.'})

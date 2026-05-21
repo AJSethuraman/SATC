@@ -1,6 +1,8 @@
 from credit_packet.facts import normalize_periods
 from credit_packet.metrics import calculate_metrics
 from credit_packet.rules import evaluate_rules
+from credit_packet.excel_view_model import data_quality_rows
+from credit_packet.models import ResearchPacket, CompanyIdentity
 
 class FakeClient:
     def __init__(self,data):
@@ -48,6 +50,50 @@ def test_metrics_divide_by_zero_none():
     from credit_packet.models import FinancialPeriod
     m = calculate_metrics([FinancialPeriod(fiscal_year=2024,period='FY',revenue=0,current_liabilities=0,current_assets=1)])[0]
     assert m.current_ratio is None and m.gross_margin is None
+
+def test_cash_fallback_restricted_cash_tag():
+    data = fixture_data()
+    data['facts']['us-gaap'].pop('CashAndCashEquivalentsAtCarryingValue', None)
+    data['facts']['us-gaap']['CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents']={"units":{"USD":[{"fy":2024,"fp":"FY","form":"10-K","filed":"2025-01-01","val":88}]}}
+    periods,_ = normalize_periods(FakeClient(data), '1', 1)
+    assert periods[-1].cash_and_equivalents == 88
+    assert periods[-1].tag_map['cash_and_equivalents'] == 'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents'
+
+def test_total_liabilities_direct_liabilities_preferred():
+    periods,_ = normalize_periods(FakeClient(fixture_data()), '1', 1)
+    assert periods[-1].total_liabilities == 260
+    assert periods[-1].tag_map['total_liabilities'] == 'Liabilities'
+
+def test_total_liabilities_derived_when_missing_direct_tag():
+    data = fixture_data()
+    data['facts']['us-gaap'].pop('Liabilities', None)
+    periods,_ = normalize_periods(FakeClient(data), '1', 1)
+    assert periods[-1].total_liabilities == 260
+    assert periods[-1].tag_map['total_liabilities'] == 'DERIVED:AssetsMinusStockholdersEquity'
+
+def test_current_liabilities_does_not_use_total_liabilities():
+    data = fixture_data()
+    data['facts']['us-gaap'].pop('LiabilitiesCurrent', None)
+    periods,_ = normalize_periods(FakeClient(data), '1', 1)
+    assert periods[-1].current_liabilities is None
+
+def test_long_term_debt_prefers_noncurrent_tag():
+    data = fixture_data()
+    data['facts']['us-gaap']['LongTermDebtNoncurrent']={"units":{"USD":[{"fy":2024,"fp":"FY","form":"10-K","filed":"2025-01-02","val":95}]}}
+    periods,_ = normalize_periods(FakeClient(data), '1', 1)
+    assert periods[-1].long_term_debt == 95
+    assert periods[-1].tag_map['long_term_debt'] == 'LongTermDebtNoncurrent'
+
+def test_data_quality_rows_include_missing_and_derived_notes():
+    data = fixture_data()
+    data['facts']['us-gaap'].pop('Liabilities', None)
+    data['facts']['us-gaap'].pop('GrossProfit', None)
+    periods,_ = normalize_periods(FakeClient(data), '1', 1)
+    packet = ResearchPacket(company=CompanyIdentity(ticker='INTC', cik='1', name='Intel'), financial_periods=periods)
+    rows = data_quality_rows(packet)
+    details = [r['detail'] for r in rows]
+    assert any('gross_profit' in d for d in details)
+    assert any('total_liabilities derived from total_assets - stockholders_equity' in d for d in details)
 
 def test_rule_revenue_decline():
     periods,_ = normalize_periods(FakeClient(fixture_data()), '1', 2)

@@ -3,7 +3,7 @@ from .models import FinancialPeriod
 FIELD_TAGS={
 'revenue':['Revenues','RevenueFromContractWithCustomerExcludingAssessedTax','SalesRevenueNet'],
 'gross_profit':['GrossProfit'],'operating_income':['OperatingIncomeLoss'],'net_income':['NetIncomeLoss','ProfitLoss'],
-'cash_and_equivalents':['CashAndCashEquivalentsAtCarryingValue','CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents'],
+'cash_and_equivalents':['CashAndCashEquivalentsAtCarryingValue','CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents','Cash','CashAndDueFromBanks'],
 'total_assets':['Assets'],'total_liabilities':['Liabilities'],
 'stockholders_equity':['StockholdersEquity','StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest'],
 'current_assets':['AssetsCurrent'],'current_liabilities':['LiabilitiesCurrent'],
@@ -38,5 +38,11 @@ def normalize_periods(client,cik:str,years:int=3):
                     per[fy]['tag_map'][field]=tag
             if any(field in d for d in per.values()):
                 break
+
+    for fy,data in per.items():
+        if data.get('total_liabilities') is None and data.get('total_assets') is not None and data.get('stockholders_equity') is not None:
+            data['total_liabilities']=data['total_assets']-data['stockholders_equity']
+            data['tag_map']['total_liabilities']='DERIVED:AssetsMinusStockholdersEquity'
+
     yrs=sorted(per)[-years:]
     return [FinancialPeriod(**per[y]) for y in yrs],url
