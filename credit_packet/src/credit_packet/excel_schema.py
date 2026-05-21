@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-CellKind = Literal['text','date','int','money','pct','ratio','bool','url','long_text']
+CellKind = Literal['text','date','int','money','pct','ratio','decimal','bool','url','long_text']
 
 @dataclass(frozen=True)
 class ColumnSpec:
@@ -47,7 +47,7 @@ EXCERPTS_SPEC = SheetSpec('Excerpts','tblExcerpts',(
     ColumnSpec('source_link','Source Link','url',14), ColumnSpec('source_url','Raw Source URL','url',60,hidden=True), ColumnSpec('accession_number','Accession Number','text',24),
 ))
 FILING_CHANGES_SPEC = SheetSpec('Filing Changes','tblFilingChanges',(
-    ColumnSpec('section','Section','text',22), ColumnSpec('category','Category','text',16), ColumnSpec('change_type','Change Type','text',14), ColumnSpec('similarity_score','Similarity Score','ratio',14),
+    ColumnSpec('section','Section','text',22), ColumnSpec('category','Category','text',16), ColumnSpec('change_type','Change Type','text',14), ColumnSpec('similarity_score','Similarity Score','decimal',14),
     ColumnSpec('old_preview','Old Preview','long_text',56,wrap=True), ColumnSpec('new_preview','New Preview','long_text',56,wrap=True), ColumnSpec('old_full','Old Full Text','long_text',80,wrap=True,hidden=True),
     ColumnSpec('new_full','New Full Text','long_text',80,wrap=True,hidden=True), ColumnSpec('old_source_link','Old Source Link','url',14), ColumnSpec('new_source_link','New Source Link','url',14),
     ColumnSpec('old_source','Old Source URL','url',60,hidden=True), ColumnSpec('new_source','New Source URL','url',60,hidden=True),

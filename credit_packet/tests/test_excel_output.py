@@ -46,11 +46,11 @@ def test_filing_activity_hyperlinks(tmp_path):
 
 def test_excerpts_preview_capped_and_full_preserved_hidden(tmp_path):
     out=tmp_path/'p.xlsx'; render_excel(sample_packet(),out); ws=load_workbook(out)['Excerpts']
-    assert len(ws['F2'].value)<=500 and len(ws['G2'].value)>=700 and ws.column_dimensions['G'].hidden
+    assert len(ws['F2'].value)<=501 and ws['F2'].value.endswith('…') and len(ws['G2'].value)>=700 and ws.column_dimensions['G'].hidden
 
 def test_changes_preview_capped_and_full_preserved_hidden(tmp_path):
     out=tmp_path/'p.xlsx'; render_excel(sample_packet(),out); ws=load_workbook(out)['Filing Changes']
-    assert len(ws['E2'].value)<=350 and len(ws['F2'].value)<=350 and len(ws['G2'].value)>=500 and len(ws['H2'].value)>=500
+    assert len(ws['E2'].value)<=351 and ws['E2'].value.endswith('…') and len(ws['F2'].value)<=351 and ws['F2'].value.endswith('…') and len(ws['G2'].value)>=500 and len(ws['H2'].value)>=500
     assert ws.column_dimensions['G'].hidden and ws.column_dimensions['H'].hidden
 
 def test_sources_audit_sections_and_field_audit(tmp_path):
@@ -58,7 +58,7 @@ def test_sources_audit_sections_and_field_audit(tmp_path):
     vals=' '.join(str(c.value) for row in ws.iter_rows(values_only=False) for c in row if c.value)
     for lab in ['Run Metadata','Source Documents','Field Audit','Data Quality']:
         assert lab in vals
-    assert 'revenue' in vals and 'Revenues' in vals and 'source_bound_validation' in vals
+    assert 'revenue' in vals and 'Revenues' in vals and 'Source-Bound Validation' in vals and 'fallback' in vals
 
 def test_source_bound_brief_status_visible(tmp_path):
     out=tmp_path/'p.xlsx'; render_excel(sample_packet(),out); ws=load_workbook(out)['Source-Bound Brief']
@@ -78,3 +78,16 @@ def test_visible_text_has_no_prohibited_phrases(tmp_path):
 
 def test_markdown_output_still_works():
     assert 'Credit Research Packet' in render_markdown(sample_packet())
+
+
+def test_generated_timestamp_present_not_runtime(tmp_path):
+    out=tmp_path/'p.xlsx'; render_excel(sample_packet(),out); ws=load_workbook(out)['Sources & Audit']; vals=' '.join(str(c.value) for row in ws.iter_rows(values_only=False) for c in row if c.value); assert 'Generated Timestamp' in vals and 'runtime' not in vals
+
+def test_similarity_score_format_decimal(tmp_path):
+    out=tmp_path/'p.xlsx'; render_excel(sample_packet(),out); ws=load_workbook(out)['Filing Changes']; assert ws['D2'].number_format=='0.00'
+
+def test_empty_packet_tables_placeholder_rows(tmp_path):
+    p=sample_packet(); p.watchlist_flags=[]; p.excerpts=[]; p.filing_changes=[]; p.review_questions=[]; p.evidence_bundle={};
+    out=tmp_path/'e.xlsx'; render_excel(p,out); wb=load_workbook(out)
+    for t in ['Watchlist Flags','Excerpts','Filing Changes','Review Questions','Evidence Index']:
+        ws=wb[t]; assert ws.max_row>=2 and len(ws.tables)>=1

@@ -28,7 +28,7 @@ def apply_column_widths(ws, spec):
         ws.column_dimensions[letter].hidden=col.hidden
 
 def apply_number_formats(ws, spec):
-    fmt={'money':'$#,##0','pct':'0.0%','ratio':'0.00x','date':'yyyy-mm-dd','int':'0'}
+    fmt={'money':'$#,##0','pct':'0.0%','ratio':'0.00x','decimal':'0.00','date':'yyyy-mm-dd','int':'0'}
     for r in ws.iter_rows(min_row=2,max_row=ws.max_row):
         for i,col in enumerate(spec.columns,1):
             c=r[i-1]
@@ -36,6 +36,8 @@ def apply_number_formats(ws, spec):
             if col.wrap: c.alignment=Alignment(wrap_text=True,vertical='top')
 
 def apply_conditional_formatting(ws, sheet_name):
+    if ws.max_row < 2:
+        return
     if sheet_name=='Financial Trends':
         ws.conditional_formatting.add(f"M2:O{ws.max_row}", CellIsRule(operator='lessThan', formula=['0'], stopIfTrue=False, fill=PatternFill('solid', fgColor=DANGER)))
     if sheet_name=='Calculated Metrics':
@@ -54,14 +56,11 @@ def write_source_link(cell, label, target):
     cell.value=label
     if target: cell.hyperlink=target
 
-def write_preview_cell(cell, preview, full_text=None):
-    cell.value=preview
-    if full_text and len(full_text)>len(preview):
-        cell.comment = None
-
 def write_table_sheet(wb, spec, rows, styles):
     ws=wb.create_sheet(spec.name)
     ws.append([c.header for c in spec.columns])
+    if not rows:
+        rows=[{c.key:'' for c in spec.columns}]
     for row in rows:
         ws.append([row.get(c.key) for c in spec.columns])
     apply_header_style(ws, styles)
@@ -99,19 +98,29 @@ def write_memo_shell(wb, packet):
     ws.append(['Manual review required. No automated credit conclusion generated.'])
     ws.column_dimensions['A'].width=120
 
-def write_sources_audit_sheet(wb, packet, _model):
+def write_sources_audit_sheet(wb, packet, generated_ts, styles):
     ws=wb.create_sheet('Sources & Audit')
-    ws.append(['Run Metadata'])
-    for r in run_metadata_rows(packet): ws.append([r['key'],r['value']])
-    ws.append(['Source Documents'])
-    for r in source_document_rows(packet): ws.append([r['label'],r['url'],r['accession']])
-    ws.append(['Field Audit'])
-    for r in field_audit_rows(packet): ws.append([r['fiscal_year'],r['field'],r['selected_tag']])
-    ws.append(['Data Quality'])
-    for r in data_quality_rows(packet): ws.append([r['issue'],r['detail']])
-    ws.column_dimensions['A'].width=30; ws.column_dimensions['B'].width=100; ws.column_dimensions['C'].width=30
-    for i in [1, ws.max_row]:
-        pass
+    ws.column_dimensions['A'].width=30; ws.column_dimensions['B'].width=90; ws.column_dimensions['C'].width=30
+
+    def section(title, headers, rows):
+        ws.append([title]); ws.cell(ws.max_row,1).font=Font(bold=True,color='FFFFFF'); ws.cell(ws.max_row,1).fill=PatternFill('solid',fgColor=NAVY)
+        ws.append(headers)
+        hdr=ws.max_row
+        for c in ws[hdr]: c.font=Font(bold=True); c.fill=PatternFill('solid',fgColor='D9E1F2')
+        if not rows: rows=[['','','']]
+        for r in rows: ws.append(r)
+
+    section('Run Metadata',['Key','Value',''],[[r['key'],r['value'],''] for r in run_metadata_rows(packet, generated_ts)] + [[a,'',''] for a in packet.audit_log])
+    docs=[[r['label'],'Open filing',r['accession']] for r in source_document_rows(packet)]
+    section('Source Documents',['Document','Source Link','Accession'],docs)
+    # hyperlink docs
+    start=ws.max_row-len(docs)+1 if docs else ws.max_row
+    src_rows=source_document_rows(packet)
+    for i,r in enumerate(src_rows, start): ws.cell(i,2).hyperlink=r['url']
+    fa=[[r['fiscal_year'],r['field'],r['selected_tag']] for r in field_audit_rows(packet)]
+    section('Field Audit',['Fiscal Year','Field','Selected Tag'],fa)
+    dq=[[r['issue'],r['detail'],''] for r in data_quality_rows(packet)]
+    section('Data Quality',['Issue','Detail',''],dq)
 
 
 def render_excel(packet, output_path: Path, *, preview_chars: int = 500) -> None:
@@ -147,7 +156,8 @@ def render_excel(packet, output_path: Path, *, preview_chars: int = 500) -> None
     write_table_sheet(wb,REVIEW_QUESTIONS_SPEC,review_question_rows(packet),styles)
     write_memo_shell(wb,packet)
     write_table_sheet(wb,EVIDENCE_INDEX_SPEC,evidence_index_rows(packet),styles)
-    write_sources_audit_sheet(wb,packet,None)
+    generated_ts=datetime.now(timezone.utc).isoformat()
+    write_sources_audit_sheet(wb,packet,generated_ts,styles)
 
     order=['Summary','Filing Activity','Financial Trends','Calculated Metrics','Watchlist Flags','Source-Bound Brief','Excerpts','Filing Changes','Review Questions','Memo Shell','Evidence Index','Sources & Audit']
     wb._sheets=[wb[s] for s in order]
