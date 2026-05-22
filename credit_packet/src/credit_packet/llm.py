@@ -45,6 +45,20 @@ def normalize_schema_aliases(payload: dict) -> tuple[dict, bool]:
     return out, normalized
 
 
+
+
+def unwrap_known_envelope(payload: dict) -> tuple[dict, bool]:
+    for k in ('response','result','output','data'):
+        v=payload.get(k)
+        if isinstance(v, dict):
+            return v, True
+    return payload, False
+
+
+def top_level_keys_note(payload: dict) -> str:
+    keys=', '.join(str(k) for k in payload.keys())
+    return f"LLM returned top-level keys: {keys}" if keys else 'LLM returned top-level keys: <none>'
+
 class LLMClient:
     def __init__(self, settings): self.settings = settings
     def enabled(self): return self.settings.llm_provider == 'ollama'
@@ -127,10 +141,13 @@ class LLMClient:
         if not str(raw).strip(): return self._fallback_brief(evidence_bundle,['Ollama returned empty response'])
         payload=extract_json_object(str(raw))
         if payload is None: return self._fallback_brief(evidence_bundle,['LLM did not return parseable JSON'])
-        payload, normalized = normalize_schema_aliases(payload)
-        notes=['normalized LLM schema aliases'] if normalized else []
+        unwrapped_payload, unwrapped = unwrap_known_envelope(payload)
+        payload, normalized = normalize_schema_aliases(unwrapped_payload)
+        notes=[]
+        if unwrapped: notes.append('unwrapped nested response payload')
+        if normalized: notes.append('normalized LLM schema aliases')
         vr=validate_source_bound_output(payload,valid_ids,allowed_values)
-        if not vr.is_valid: return self._fallback_brief(evidence_bundle,notes + vr.errors)
+        if not vr.is_valid: return self._fallback_brief(evidence_bundle,notes + [top_level_keys_note(extract_json_object(str(raw)) or {})] + vr.errors)
         return SourceBoundBrief(summary_points=[BriefPoint(**x) for x in payload.get('summary_points',[])],review_themes=[ReviewTheme(**x) for x in payload.get('review_themes',[])],review_questions=[ReviewQuestionItem(**x) for x in payload.get('review_questions',[])],missing_information=[MissingInformation(**x) for x in payload.get('missing_information',[])],generation_mode='ollama',validation_status='valid',validation_notes=notes + vr.warnings)
 
     def generate_review_questions(self, flags, changes):

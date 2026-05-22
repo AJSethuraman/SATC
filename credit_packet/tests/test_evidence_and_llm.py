@@ -1,7 +1,7 @@
 from credit_packet.models import *
 from credit_packet.evidence import build_evidence_bundle, valid_evidence_ids, allowed_values
 from credit_packet.llm_validate import validate_source_bound_output
-from credit_packet.llm import LLMClient, extract_json_object, normalize_schema_aliases
+from credit_packet.llm import LLMClient, extract_json_object, normalize_schema_aliases, unwrap_known_envelope
 import json
 
 class S:
@@ -124,6 +124,45 @@ def test_ollama_request_body_includes_format_json(monkeypatch):
     c._call('p', timeout=1)
     assert captured['body']['format']=='json'
 
+
+
+def test_unwrap_response_valid_schema_passes():
+    b=build_evidence_bundle(pkt())
+    c=LLMClient(SOllama())
+    c._call=lambda prompt, timeout=90: '{"response":{"summary_points":[],"review_themes":[],"review_questions":[],"missing_information":[{"item":"Debt maturity schedule","reason":"Not present in the provided evidence bundle."}]}}'
+    brief=c.generate_source_bound_brief(b,valid_evidence_ids(b),allowed_values(b))
+    assert brief.generation_mode=='ollama'
+
+
+def test_unwrap_data_valid_schema_passes():
+    b=build_evidence_bundle(pkt())
+    c=LLMClient(SOllama())
+    c._call=lambda prompt, timeout=90: '{"data":{"summary_points":[],"review_themes":[],"review_questions":[],"missing_information":[{"item":"Debt maturity schedule","reason":"Not present in the provided evidence bundle."}]}}'
+    brief=c.generate_source_bound_brief(b,valid_evidence_ids(b),allowed_values(b))
+    assert brief.generation_mode=='ollama'
+
+
+def test_wrapper_string_does_not_unwrap():
+    payload={'response':'not-a-dict'}
+    out, changed = unwrap_known_envelope(payload)
+    assert not changed and out==payload
+
+
+def test_validation_failure_notes_include_top_level_keys():
+    b=build_evidence_bundle(pkt())
+    c=LLMClient(SOllama())
+    c._call=lambda prompt, timeout=90: '{"response":{},"analysis":{}}'
+    brief=c.generate_source_bound_brief(b,valid_evidence_ids(b),allowed_values(b))
+    assert brief.generation_mode=='deterministic_fallback'
+    assert any('LLM returned top-level keys: response, analysis' in n for n in brief.validation_notes)
+
+
+def test_unsafe_nested_content_still_fails():
+    b=build_evidence_bundle(pkt())
+    c=LLMClient(SOllama())
+    c._call=lambda prompt, timeout=90: '{"response":{"summary_points":[{"text":"recommend approval","sources":["bad:id"]}],"review_themes":[],"review_questions":[],"missing_information":[]}}'
+    brief=c.generate_source_bound_brief(b,valid_evidence_ids(b),allowed_values(b))
+    assert brief.generation_mode=='deterministic_fallback' and brief.validation_notes
 def test_generate_source_bound_brief_accepts_fenced_json():
     b=build_evidence_bundle(pkt())
     c=LLMClient(SOllama())
