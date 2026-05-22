@@ -60,3 +60,36 @@ def allowed_values(bundle):
     out={v for v in vals if v and v!='None'}
     out |= {v.replace('%','') for v in list(out) if isinstance(v,str)}
     return out
+
+
+def compact_evidence_for_llm(evidence_bundle, *, max_filings=8, max_metrics=30, max_flags=20, max_excerpts=20, max_changes=10):
+    out={'company':dict(evidence_bundle.get('company',{})),'audit':list(evidence_bundle.get('audit',[]))}
+
+    form_rank={'10-K':0,'10-Q':1,'8-K':2}
+    filings=sorted(evidence_bundle.get('filings',[]), key=lambda f:(form_rank.get(f.get('form'),9), str(f.get('filing_date') or '')), reverse=False)
+    out['filings']=[dict(x) for x in filings[:max_filings]]
+
+    metrics=[m for m in evidence_bundle.get('metrics',[]) if m.get('raw_value') is not None or m.get('value') not in (None,'None','')]
+    metrics=sorted(metrics, key=lambda m:(str(m.get('period') or ''), m.get('label') or ''), reverse=True)
+    out['metrics']=[dict(x) for x in metrics[:max_metrics]]
+
+    sev_rank={'high':0,'medium':1,'low':2,'info':3}
+    flags=sorted(evidence_bundle.get('flags',[]), key=lambda f:(sev_rank.get(str(f.get('severity','info')).lower(),9), str(f.get('period') or '')), reverse=False)
+    out['flags']=[dict(x) for x in flags[:max_flags]]
+
+    pri_terms=('material weakness','internal control','going concern','substantial doubt','covenant','default','waiver','liquidity','debt','cash flow','risk factors')
+    def ex_score(e):
+        text=(f"{e.get('category','')} {e.get('section','')} {e.get('text','')}").lower()
+        return sum(1 for t in pri_terms if t in text)
+    excerpts=sorted(evidence_bundle.get('excerpts',[]), key=lambda e:(-ex_score(e), str(e.get('filing_date') or '')))
+    out['excerpts']=[dict(x) for x in excerpts[:max_excerpts]]
+
+    def ch_score(c):
+        sim=c.get('similarity_score')
+        sim=1.0 if sim is None else float(sim)
+        section=(c.get('section') or '').lower()
+        important=0 if any(k in section for k in ('risk','liquidity','debt','covenant','control','concern')) else 1
+        return (sim, important)
+    changes=sorted(evidence_bundle.get('filing_changes',[]), key=ch_score)
+    out['filing_changes']=[dict(x) for x in changes[:max_changes]]
+    return out

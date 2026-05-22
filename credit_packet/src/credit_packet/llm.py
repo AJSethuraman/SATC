@@ -4,6 +4,7 @@ import urllib.error
 import urllib.request
 from .models import SourceBoundBrief, BriefPoint, ReviewTheme, ReviewQuestionItem, MissingInformation
 from .llm_validate import validate_source_bound_output
+from .evidence import compact_evidence_for_llm, valid_evidence_ids, allowed_values as bundle_allowed_values
 
 SYSTEM_PROMPT = "You are a source-bound research packet assistant. Use only the provided evidence bundle. Do not use outside knowledge. Do not make credit, investment, legal, tax, approval, decline, buy, sell, or rating recommendations. Do not assign ratings or scores. Every substantive claim must cite one or more source IDs from the evidence bundle. Do not invent numbers. Only use numeric values present in the evidence bundle. If evidence is insufficient, state what is missing. Output JSON only with no prose before or after."
 PROHIBITED_PATTERNS=[r"\brecommend\s+approval\b",r"\brecommend\s+decline\b",r"\bapproved\s+for\s+credit\b",r"\bdeclined\s+for\s+credit\b",r"\bbuy\s+rating\b",r"\bsell\s+rating\b",r"\bhold\s+rating\b",r"\binvestment\s+recommendation\b",r"\bcredit\s+rating\s*:",r"\brisk\s+rating\s*:"]
@@ -122,6 +123,11 @@ class LLMClient:
           "review_questions": [],
           "missing_information": []
         }
+        compact_bundle=compact_evidence_for_llm(evidence_bundle)
+        compact_ids=valid_evidence_ids(compact_bundle)
+        compact_vals=bundle_allowed_values(compact_bundle)
+        compact_counts=f"compact_llm_evidence: filings={len(compact_bundle.get('filings',[]))} metrics={len(compact_bundle.get('metrics',[]))} flags={len(compact_bundle.get('flags',[]))} excerpts={len(compact_bundle.get('excerpts',[]))} changes={len(compact_bundle.get('filing_changes',[]))}"
+
         prompt=(
             'Return a single JSON object only. No prose before or after. '
             'The object MUST contain exactly these top-level keys: '
@@ -132,23 +138,27 @@ class LLMClient:
             + json.dumps(required_skeleton, indent=2)
             + '\nConcrete valid example (use bundle IDs, do not invent IDs):\n'
             + json.dumps(concrete_example, indent=2)
-            + '\nEvidence bundle:\n'
-            + json.dumps(evidence_bundle)
+            + '\nThis is a compact evidence bundle selected from a larger packet. Group repeated items and do not list every excerpt or every flag. Produce 3-7 summary_points, 3-6 review_themes, 5-10 review_questions, and 1-5 missing_information items when possible.\nCompact evidence bundle:\n'
+            + json.dumps(compact_bundle)
         )
+        compact_bundle=compact_evidence_for_llm(evidence_bundle)
+        compact_ids=valid_evidence_ids(compact_bundle)
+        compact_vals=bundle_allowed_values(compact_bundle)
+        compact_counts=f"compact_llm_evidence: filings={len(compact_bundle.get('filings',[]))} metrics={len(compact_bundle.get('metrics',[]))} flags={len(compact_bundle.get('flags',[]))} excerpts={len(compact_bundle.get('excerpts',[]))} changes={len(compact_bundle.get('filing_changes',[]))}"
         raw=self._call(prompt, timeout=90)
-        if raw is None: return self._fallback_brief(evidence_bundle,['LLM unavailable'])
-        if raw == '[[OLLAMA_TIMEOUT]]': return self._fallback_brief(evidence_bundle,['Ollama request timed out'])
-        if not str(raw).strip(): return self._fallback_brief(evidence_bundle,['Ollama returned empty response'])
+        if raw is None: return self._fallback_brief(evidence_bundle,[compact_counts,'LLM unavailable'])
+        if raw == '[[OLLAMA_TIMEOUT]]': return self._fallback_brief(evidence_bundle,[compact_counts,'Ollama request timed out'])
+        if not str(raw).strip(): return self._fallback_brief(evidence_bundle,[compact_counts,'Ollama returned empty response'])
         payload=extract_json_object(str(raw))
-        if payload is None: return self._fallback_brief(evidence_bundle,['LLM did not return parseable JSON'])
+        if payload is None: return self._fallback_brief(evidence_bundle,[compact_counts,'LLM did not return parseable JSON'])
         unwrapped_payload, unwrapped = unwrap_known_envelope(payload)
         payload, normalized = normalize_schema_aliases(unwrapped_payload)
         notes=[]
         if unwrapped: notes.append('unwrapped nested response payload')
         if normalized: notes.append('normalized LLM schema aliases')
-        vr=validate_source_bound_output(payload,valid_ids,allowed_values)
-        if not vr.is_valid: return self._fallback_brief(evidence_bundle,notes + [top_level_keys_note(extract_json_object(str(raw)) or {})] + vr.errors)
-        return SourceBoundBrief(summary_points=[BriefPoint(**x) for x in payload.get('summary_points',[])],review_themes=[ReviewTheme(**x) for x in payload.get('review_themes',[])],review_questions=[ReviewQuestionItem(**x) for x in payload.get('review_questions',[])],missing_information=[MissingInformation(**x) for x in payload.get('missing_information',[])],generation_mode='ollama',validation_status='valid',validation_notes=notes + vr.warnings)
+        vr=validate_source_bound_output(payload,compact_ids,compact_vals)
+        if not vr.is_valid: return self._fallback_brief(evidence_bundle,[compact_counts] + notes + [top_level_keys_note(extract_json_object(str(raw)) or {})] + vr.errors)
+        return SourceBoundBrief(summary_points=[BriefPoint(**x) for x in payload.get('summary_points',[])],review_themes=[ReviewTheme(**x) for x in payload.get('review_themes',[])],review_questions=[ReviewQuestionItem(**x) for x in payload.get('review_questions',[])],missing_information=[MissingInformation(**x) for x in payload.get('missing_information',[])],generation_mode='ollama',validation_status='valid',validation_notes=[compact_counts] + notes + vr.warnings)
 
     def generate_review_questions(self, flags, changes):
         base = [f"What evidence in filings explains flag {f.code} in period {f.period}?" for f in flags[:8]] + [f"For section {c.section}, what explains {c.change_type} language versus prior filing?" for c in changes[:5]]

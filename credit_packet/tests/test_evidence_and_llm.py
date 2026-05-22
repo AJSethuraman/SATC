@@ -1,5 +1,5 @@
 from credit_packet.models import *
-from credit_packet.evidence import build_evidence_bundle, valid_evidence_ids, allowed_values
+from credit_packet.evidence import build_evidence_bundle, valid_evidence_ids, allowed_values, compact_evidence_for_llm
 from credit_packet.llm_validate import validate_source_bound_output
 from credit_packet.llm import LLMClient, extract_json_object, normalize_schema_aliases, unwrap_known_envelope
 import json
@@ -126,6 +126,39 @@ def test_ollama_request_body_includes_format_json(monkeypatch):
 
 
 
+
+
+def test_compact_evidence_limits_arrays_and_preserves_ids():
+    b=build_evidence_bundle(pkt())
+    # inflate arrays
+    b['metrics']=b['metrics']*5
+    b['flags']=b['flags']*5
+    b['excerpts']=b['excerpts']*30
+    b['filing_changes']=b['filing_changes']*20
+    c=compact_evidence_for_llm(b,max_filings=2,max_metrics=3,max_flags=4,max_excerpts=5,max_changes=6)
+    assert len(c['filings'])<=2 and len(c['metrics'])<=3 and len(c['flags'])<=4 and len(c['excerpts'])<=5 and len(c['filing_changes'])<=6
+    assert all(x['id'] for x in c['filings']+c['metrics']+c['flags']+c['excerpts']+c['filing_changes'])
+
+
+def test_compact_prioritizes_high_severity_flags():
+    b=build_evidence_bundle(pkt())
+    b['flags']=[
+        {'id':'flag:1','severity':'low','period':'2024'},
+        {'id':'flag:2','severity':'high','period':'2024'},
+        {'id':'flag:3','severity':'medium','period':'2024'},
+    ]
+    c=compact_evidence_for_llm(b,max_flags=1)
+    assert c['flags'][0]['severity']=='high'
+
+
+def test_compact_includes_material_weakness_excerpt_when_present():
+    b=build_evidence_bundle(pkt())
+    b['excerpts']=[
+        {'id':'excerpt:liquidity:001','category':'liquidity','section':'Risk','text':'liquidity note','filing_date':'2025-01-01'},
+        {'id':'excerpt:material_weakness:002','category':'material_weakness','section':'Controls','text':'material weakness in internal control', 'filing_date':'2025-01-01'}
+    ]
+    c=compact_evidence_for_llm(b,max_excerpts=1)
+    assert c['excerpts'][0]['id']=='excerpt:material_weakness:002'
 def test_unwrap_response_valid_schema_passes():
     b=build_evidence_bundle(pkt())
     c=LLMClient(SOllama())
@@ -213,3 +246,18 @@ def test_8_percent_rejected_if_not_in_bundle():
     b=build_evidence_bundle(pkt(excerpt_text='cash declined on date 2025-01-01'))
     payload={'summary_points':[{'text':'Margin moved by 8%','sources':[b['filings'][0]['id']]}],'review_themes':[{'theme':'t','why_it_matters':'w','sources':[b['filings'][0]['id']]}],'review_questions':[{'question':'q','based_on':[b['filings'][0]['id']]}],'missing_information':[{'item':'i','reason':'r'}]}
     assert not validate_source_bound_output(payload,valid_evidence_ids(b),allowed_values(b)).is_valid
+
+
+def test_generate_source_bound_brief_uses_compact_bundle(monkeypatch):
+    b=build_evidence_bundle(pkt())
+    b['metrics']=b['metrics']*20
+    c=LLMClient(SOllama())
+    seen={}
+    def fake_call(prompt, timeout=90):
+        seen['prompt']=prompt
+        return '{"summary_points":[],"review_themes":[],"review_questions":[],"missing_information":[{"item":"Debt maturity schedule","reason":"Not present in the provided evidence bundle."}]}'
+    c._call=fake_call
+    brief=c.generate_source_bound_brief(b,valid_evidence_ids(b),allowed_values(b))
+    assert brief.generation_mode=='ollama'
+    assert 'compact evidence bundle selected from a larger packet' in seen['prompt'].lower()
+    assert any('compact_llm_evidence:' in n for n in brief.validation_notes)
