@@ -36,6 +36,7 @@ def test_end_to_end(tmp_path: Path) -> None:
     assert all((r[2] or "") == "" for r in by_name)
 
 
+
 def test_extension_filters(tmp_path: Path) -> None:
     root = make_demo_tree(tmp_path / "demo")
     out_inc = tmp_path / "inc.xlsx"
@@ -49,3 +50,25 @@ def test_extension_filters(tmp_path: Path) -> None:
     wb2 = load_workbook(out_exc)
     exts2 = {r[7].value for r in wb2["Review"].iter_rows(min_row=2)}
     assert ".txt" not in exts2
+
+
+
+def test_empty_scan_still_exports_workbook(tmp_path: Path) -> None:
+    root = tmp_path / "empty"
+    root.mkdir()
+    out = tmp_path / "empty_report.xlsx"
+    q = Queue()
+
+    run_scan(ScanConfig(root_path=root, output_file=out, filter_mode="all", extension_text="", detect_duplicates=True), q)
+
+    assert out.exists()
+    events = []
+    while not q.empty():
+        events.append(q.get())
+    assert events[-1]["type"] == "done"
+
+    wb = load_workbook(out)
+    assert wb.sheetnames == ["Review", "Duplicate Groups", "Summary", "Errors"]
+    assert wb["Review"].max_row == 1
+    assert wb["Duplicate Groups"].max_row == 1
+    assert wb["Errors"].max_row == 1
