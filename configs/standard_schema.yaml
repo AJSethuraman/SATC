@@ -1,0 +1,28 @@
+fields:
+  - loan_id
+  - borrower_name
+  - product_type
+  - commitment_amount
+  - outstanding_balance
+  - origination_date
+  - maturity_date
+  - risk_rating
+  - officer
+  - collateral_type
+  - guarantor_name
+  - approval_date
+  - approval_authority
+  - financial_statement_date
+  - dscr
+  - ltv
+  - covenant_status
+  - past_due_days
+  - nonaccrual_flag
+  - policy_exception_flag
+  - review_sample_id
+required_for_template:
+  commercial_linesheet_v1:
+    - loan_id
+    - borrower_name
+    - product_type
+    - outstanding_balance
