@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "credit-packet"
+version = "0.1.0"
+description = "Local-first public-company credit research packet builder"
+requires-python = ">=3.11"
+dependencies = [
+  "requests>=2.31",
+  "beautifulsoup4>=4.12",
+  "python-dotenv>=1.0",
+  "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+credit-packet = "credit_packet.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
