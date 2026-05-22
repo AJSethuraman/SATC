@@ -75,7 +75,7 @@ def build_workbook(records: list[dict[str, Any]], errors: list[dict[str, str]], 
     items = [
         ("Scan Root", scan_meta["scan_root"]), ("Output File", scan_meta["output_file"]), ("Scan Date", scan_meta["scan_date"]),
         ("Scan Status", scan_meta.get("scan_status", "Completed")), ("Cancelled", str(scan_meta.get("cancelled", False))),
-        ("Elapsed Seconds", scan_meta.get("elapsed_seconds", "")), ("File Type Mode", scan_meta["file_type_mode"]),
+        ("Cancelled At", scan_meta.get("cancelled_at", "")), ("Elapsed Seconds", scan_meta.get("elapsed_seconds", "")), ("File Type Mode", scan_meta["file_type_mode"]),
         ("Extension Filter", scan_meta["extension_filter"]), ("Duplicate Detection Enabled", str(scan_meta["duplicate_detection"])),
         ("Files Discovered", scan_meta.get("files_discovered", 0)), ("Total Files Scanned", scan_meta["total_files"]),
         ("Total Size GB", scan_meta["total_size_gb"]), ("Total Duplicate Groups", scan_meta["total_duplicate_groups"]),
@@ -88,6 +88,9 @@ def build_workbook(records: list[dict[str, Any]], errors: list[dict[str, str]], 
     ws_sum.append([])
     if scan_meta.get("scan_status") == "Cancelled":
         ws_sum.append(["Cancellation Detail", "Scan cancelled by user; this may be a partial report."])
+    excel_limit = 1048576
+    if len(records) >= int(excel_limit * 0.9):
+        ws_sum.append(["Row Limit Warning", "Review sheet is approaching Excel row limits; scan in smaller batches/subfolders."])
     ws_sum.append(["Note", "This workbook is for review only. No files were deleted, moved, renamed, or modified by this tool."])
     ws_sum.append([])
     ws_sum.append(["Category", "File Count", "Total Size GB", "Duplicate File Count", "Duplicate Size GB"])

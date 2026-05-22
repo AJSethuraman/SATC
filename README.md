@@ -76,6 +76,12 @@ Extension input accepts comma/semicolon/space separators and optional leading do
 - `Summary`
 - `Errors`
 
+
+## Excel row-limit warning
+- Excel worksheets have a practical row limit (1,048,576 rows).
+- For very large QNAP shares, scan subfolders/batches to avoid oversized reports.
+- Save output **outside** the scanned folder to avoid rescanning report files in follow-up runs.
+
 ## Troubleshooting
 - Permission denied: check access rights on share.
 - Path unavailable: verify mapped/UNC path availability.

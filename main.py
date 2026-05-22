@@ -142,8 +142,10 @@ class FileReviewScannerApp:
         self.scan_thread.start()
 
     def _cancel_scan(self) -> None:
-        if self.scan_running:
+        if self.scan_running and not self.cancel_event.is_set():
             self.cancel_event.set()
+            self.cancel_button.configure(state=tk.DISABLED)
+            self.phase_var.set("Cancelling...")
             self._append_status("Cancellation requested. Attempting graceful stop and partial report export...")
 
     def _poll_events(self) -> None:
@@ -169,9 +171,9 @@ class FileReviewScannerApp:
                     self.progress.stop()
                     out = event.get("output_file", "")
                     status = event.get("scan_status", "Completed")
-                    self.phase_var.set("Complete")
+                    self.phase_var.set("Cancelled" if status == "Cancelled" else "Complete")
                     self._append_status(f"{status}. Report saved to: {out}")
-                    messagebox.showinfo("Scan Complete", f"Scan {status.lower()}.\n\nReport: {out}")
+                    messagebox.showinfo("Scan Finished", f"Scan {status}.\n\nReport: {out}")
                 elif etype == "error":
                     self.scan_running = False
                     self.start_button.configure(state=tk.NORMAL)

@@ -93,6 +93,7 @@ def run_scan(config: ScanConfig, events: Queue[dict], cancel_event: threading.Ev
     total_dup_groups = 0
     current_phase = "Metadata Scan"
     scan_status = "Completed"
+    cancelled_at = ""
 
     def emit(message: str = "", force: bool = False, recent_path: str = "") -> None:
         nonlocal last_emit
@@ -118,6 +119,8 @@ def run_scan(config: ScanConfig, events: Queue[dict], cancel_event: threading.Ev
         for path in config.root_path.rglob("*"):
             if cancel_event and cancel_event.is_set():
                 scan_status = "Cancelled"
+                if not cancelled_at:
+                    cancelled_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 break
             files_discovered += 1
             try:
@@ -160,6 +163,8 @@ def run_scan(config: ScanConfig, events: Queue[dict], cancel_event: threading.Ev
             for _, group in sorted(by_size.items(), key=lambda kv: kv[0]):
                 if cancel_event and cancel_event.is_set():
                     scan_status = "Cancelled"
+                    if not cancelled_at:
+                        cancelled_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     break
                 if len(group) < 2:
                     continue
@@ -168,6 +173,8 @@ def run_scan(config: ScanConfig, events: Queue[dict], cancel_event: threading.Ev
                 for r in group:
                     if cancel_event and cancel_event.is_set():
                         scan_status = "Cancelled"
+                        if not cancelled_at:
+                            cancelled_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         break
                     try:
                         emit("Hashing file...", recent_path=r["full_path"], force=True)
@@ -177,6 +184,8 @@ def run_scan(config: ScanConfig, events: Queue[dict], cancel_event: threading.Ev
                         emit(recent_path=r["full_path"])
                     except InterruptedError:
                         scan_status = "Cancelled"
+                        if not cancelled_at:
+                            cancelled_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         break
                     except Exception as ex:
                         r["scan_error"] = f"Hash failed: {ex}"
@@ -222,6 +231,7 @@ def run_scan(config: ScanConfig, events: Queue[dict], cancel_event: threading.Ev
             "scan_date": now.strftime("%Y-%m-%d %H:%M:%S"),
             "scan_status": scan_status,
             "cancelled": scan_status == "Cancelled",
+            "cancelled_at": cancelled_at,
             "file_type_mode": config.filter_mode,
             "extension_filter": ", ".join(sorted(selected_exts)) if selected_exts else "(all)",
             "duplicate_detection": config.detect_duplicates,
