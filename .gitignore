@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+occam_settings.json
+
+# Generated binary/sample artifacts are created locally, not committed.
+*.docx
+*.xlsx
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+output/
+generated/
+occam_template_desk/output/*
+!occam_template_desk/output/.gitkeep
+occam_template_desk/generated/
+occam_template_desk/sample_data/*.xlsx
+occam_template_desk/sample_templates/**/*.docx
