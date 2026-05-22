@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAT-C Client Engagement Checklists</title>
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero" aria-labelledby="app-title">
+        <p class="eyebrow">SAT-C LLP local workpaper system</p>
+        <h1 id="app-title">Client engagement checklists</h1>
+        <p class="hero-copy">
+          Maintain a local client index, connect people and businesses, and generate relationship-aware
+          client-facing and internal checklists. Everything stays in this browser using localStorage.
+        </p>
+      </section>
+
+      <section class="workspace-grid" aria-label="Client engagement workspace">
+        <section class="panel" aria-labelledby="client-index-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Client</p>
+              <h2 id="client-index-title">Client Index</h2>
+            </div>
+            <button id="clear-all" class="button button-ghost" type="button">Clear all saved data</button>
+          </div>
+          <div id="client-index"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="client-detail-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Relationships</p>
+              <h2 id="client-detail-title">Client / Relationship Detail</h2>
+            </div>
+          </div>
+          <div id="client-detail"></div>
+        </section>
+
+        <section class="panel panel-wide" aria-labelledby="engagement-builder-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Scope</p>
+              <h2 id="engagement-builder-title">Engagement Builder / Checklist</h2>
+            </div>
+            <p id="summary" class="summary" aria-live="polite"></p>
+          </div>
+          <div id="engagement-builder"></div>
+          <div id="engagement-list" class="checklists"></div>
+        </section>
+      </section>
+    </main>
+
+    <template id="empty-state-template">
+      <div class="empty-state">
+        <h3>No records yet</h3>
+        <p>Create a person or business client to start building engagements.</p>
+      </div>
+    </template>
+
+    <script src="src/browser-app.js"></script>
+  </body>
+</html>
