@@ -64,6 +64,12 @@ class WatchlistFlag:
     period: str
     source: str
     requires_manual_review: bool = True
+    evidence_id: str | None = None
+    excerpt_preview: str | None = None
+    matched_keywords: list[str] = field(default_factory=list)
+    filing: str | None = None
+    section: str | None = None
+    source_url: str | None = None
 
 @dataclass
 class Excerpt:

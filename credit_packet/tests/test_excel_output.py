@@ -13,7 +13,7 @@ def sample_packet():
         filings=[FilingRecord(accession_number='0001',form='10-K',filing_date='2025-10-31',report_date='2025-09-30',primary_document='a10k.htm',filing_url='https://example.com/10k',source='s'),FilingRecord(accession_number='0002',form='10-Q',filing_date='2025-05-01',report_date='2025-03-31',primary_document='a10q.htm',filing_url='https://example.com/10q',source='s')],
         financial_periods=[FinancialPeriod(fiscal_year=2024,period='FY',revenue=100,gross_profit=40,operating_income=30,net_income=20,cash_and_equivalents=50,current_assets=60,current_liabilities=30,total_assets=300,total_liabilities=180,stockholders_equity=120,long_term_debt=70,operating_cash_flow=-25,capex=10,tag_map={'revenue':'Revenues'})],
         calculated_metrics=[CalculatedMetric(fiscal_year=2024,revenue_growth=0.1,gross_margin=0.4,operating_margin=0.3,net_margin=0.2,cash_change_pct=-0.1,current_ratio=0.8,debt_change_pct=0.05,debt_to_equity=0.58,operating_cash_flow_margin=-0.25,free_cash_flow=-15,free_cash_flow_margin=-0.15)],
-        watchlist_flags=[WatchlistFlag(code='NEGATIVE_FREE_CASH_FLOW',severity='high',description='desc',metric='m',threshold='<0',observed_value='-15',period='2024',source='metrics')],
+        watchlist_flags=[WatchlistFlag(code='MATERIAL_WEAKNESS_LANGUAGE',severity='high',description='Material weakness language detected',metric='excerpt',threshold='keyword match',observed_value='material weakness',period='2025-10-31',source='https://example.com/ex',evidence_id='excerpt:material_weakness:001',excerpt_preview='material weakness in internal control over financial reporting',matched_keywords=['material weakness','internal control over financial reporting'],filing='10-K',section='Controls and Procedures',source_url='https://example.com/ex')],
         excerpts=[Excerpt(filing='10-K',section='Risk Factors',category='liquidity',text='x'*700,matched_keywords=['liquidity'],source_url='https://example.com/ex',accession_number='0001',filing_date='2025-10-31')],
         filing_changes=[FilingChange(section='Risk Factors',category='liquidity',old_excerpt='o'*500,new_excerpt='n'*500,change_type='modified',similarity_score=0.7,source_old='https://example.com/old',source_new='https://example.com/new')],
         review_questions=['What explains liquidity pressure?'],
@@ -98,3 +98,18 @@ def test_summary_navigation_hyperlinks(tmp_path):
     assert ws['B17'].hyperlink is not None and ws['B18'].hyperlink is not None
     assert ws['B17'].hyperlink.target == "#'Filing Activity'!A1"
     assert ws['B18'].hyperlink.target == "#'Sources & Audit'!A1"
+
+
+def test_watchlist_flags_has_context_columns_and_clickable_link(tmp_path):
+    out=tmp_path/'p.xlsx'; render_excel(sample_packet(),out); ws=load_workbook(out)['Watchlist Flags']
+    headers=[ws.cell(1,c).value for c in range(1,ws.max_column+1)]
+    for col in ['Evidence ID','Filing','Section','Matched Keywords','Excerpt Preview','Source Link','Raw Source URL']:
+        assert col in headers
+    assert ws['N2'].hyperlink is not None
+    assert 'material weakness' in (ws['M2'].value or '').lower()
+    assert 'internal control' in (ws['L2'].value or '').lower()
+
+
+def test_excerpts_sheet_full_text_still_present(tmp_path):
+    out=tmp_path/'p.xlsx'; render_excel(sample_packet(),out); ws=load_workbook(out)['Excerpts']
+    assert len(ws['G2'].value)>=700 and ws.column_dimensions['G'].hidden

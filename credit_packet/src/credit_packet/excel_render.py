@@ -140,7 +140,9 @@ def render_excel(packet, output_path: Path, *, preview_chars: int = 500) -> None
 
     write_table_sheet(wb,FINANCIAL_TRENDS_SPEC,financial_trend_rows(packet),styles)
     write_table_sheet(wb,CALCULATED_METRICS_SPEC,calculated_metric_rows(packet),styles)
-    write_table_sheet(wb,WATCHLIST_FLAGS_SPEC,watchlist_flag_rows(packet),styles)
+    ws=write_table_sheet(wb,WATCHLIST_FLAGS_SPEC,watchlist_flag_rows(packet),styles)
+    for r in range(2,ws.max_row+1):
+        write_source_link(ws.cell(r,14),ws.cell(r,14).value or 'Open source',ws.cell(r,15).value)
 
     sb_rows=[]
     brief=packet.source_bound_brief

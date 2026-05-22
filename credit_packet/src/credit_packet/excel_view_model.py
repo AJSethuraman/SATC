@@ -15,7 +15,7 @@ def calculated_metric_rows(packet):
     return [m.__dict__.copy() for m in packet.calculated_metrics]
 
 def watchlist_flag_rows(packet):
-    return [{'severity':f.severity,'code':f.code,'period':f.period,'description':f.description,'observed_value':f.observed_value,'threshold':f.threshold,'source':f.source,'requires_manual_review':f.requires_manual_review} for f in packet.watchlist_flags]
+    return [{'severity':f.severity,'code':f.code,'period':f.period,'description':f.description,'observed_value':f.observed_value,'threshold':f.threshold,'source':f.source,'requires_manual_review':f.requires_manual_review,'evidence_id':f.evidence_id or '','filing':f.filing or '','section':f.section or '','matched_keywords':', '.join(f.matched_keywords or []),'excerpt_preview':f.excerpt_preview or '','source_link':'Open source' if (f.source_url or f.source) else '','source_url':f.source_url or f.source or ''} for f in packet.watchlist_flags]
 
 def excerpt_rows(packet, preview_chars: int = 500):
     rows=[]

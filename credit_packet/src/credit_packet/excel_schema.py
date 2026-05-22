@@ -40,6 +40,9 @@ WATCHLIST_FLAGS_SPEC = SheetSpec('Watchlist Flags','tblWatchlistFlags',(
     ColumnSpec('severity','Severity','text',10), ColumnSpec('code','Flag Code','text',24), ColumnSpec('period','Period / Filing','text',16),
     ColumnSpec('description','Description','long_text',48,wrap=True), ColumnSpec('observed_value','Observed Value','text',16), ColumnSpec('threshold','Threshold','text',14),
     ColumnSpec('source','Source','text',18), ColumnSpec('requires_manual_review','Manual Review Required','bool',20),
+    ColumnSpec('evidence_id','Evidence ID','text',28), ColumnSpec('filing','Filing','text',12), ColumnSpec('section','Section','text',22),
+    ColumnSpec('matched_keywords','Matched Keywords','text',28), ColumnSpec('excerpt_preview','Excerpt Preview','long_text',70,wrap=True),
+    ColumnSpec('source_link','Source Link','url',14), ColumnSpec('source_url','Raw Source URL','url',60,hidden=True),
 ))
 EXCERPTS_SPEC = SheetSpec('Excerpts','tblExcerpts',(
     ColumnSpec('category','Category','text',14), ColumnSpec('filing','Filing Form','text',12), ColumnSpec('filing_date','Filing Date','date',14), ColumnSpec('section','Section','text',20),

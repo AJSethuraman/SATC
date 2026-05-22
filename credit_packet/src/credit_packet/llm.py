@@ -28,6 +28,13 @@ class LLMClient:
             lf=filings[0]
             sps.append(BriefPoint(text=f"Latest filing reviewed: {lf.get('form')} filed {lf.get('filing_date')}.",sources=[lf['id']]))
         sps.append(BriefPoint(text=f"Watchlist flag counts - high:{severity_counts['high']} medium:{severity_counts['medium']} low:{severity_counts['low']} info:{severity_counts['info']}.",sources=[f['id'] for f in flags[:3]] or [bundle.get('company',{}).get('id','company')]))
+        for f in flags:
+            if f.get('severity')=='high' and f.get('source') and str(f.get('source','')).startswith('http'):
+                filing=f.get('filing') or f.get('period') or 'filing'
+                section=f.get('section') or 'section'
+                sps.append(BriefPoint(text=f"{f.get('description')} in {filing} / {section}. Review the linked excerpt.",sources=[f['id']]))
+                if len([x for x in sps if 'Review the linked excerpt' in x.text])>=2:
+                    break
         for c in bundle.get('filing_changes',[])[:2]: sps.append(BriefPoint(text=f"Filing change in {c.get('section')} ({c.get('change_type')}).",sources=[c['id']]))
         for e in bundle.get('excerpts',[])[:2]: sps.append(BriefPoint(text=f"Excerpt category {e.get('category')} from {e.get('filing')}.",sources=[e['id']]))
         if not sps:

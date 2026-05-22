@@ -130,3 +130,13 @@ def test_no_false_trigger_missing_data():
     periods=[FinancialPeriod(fiscal_year=2024,period='FY')]
     flags=evaluate_rules(periods,calculate_metrics(periods),[])
     assert len(flags)==0
+
+
+def test_material_weakness_flag_enriched_with_excerpt_context():
+    from credit_packet.models import Excerpt
+    ex=[Excerpt(filing='10-K',section='Controls and Procedures',category='material_weakness',text='material weakness in internal control over financial reporting with remediation plan',matched_keywords=['material weakness'],source_url='https://example.com/mw',accession_number='a',filing_date='2025-01-01')]
+    flags = evaluate_rules([], [], ex)
+    f = next(x for x in flags if x.code=='MATERIAL_WEAKNESS_LANGUAGE')
+    assert f.excerpt_preview and 'material weakness' in f.excerpt_preview.lower()
+    assert f.evidence_id == 'excerpt:material_weakness:001'
+    assert f.section == 'Controls and Procedures' and f.filing == '10-K'

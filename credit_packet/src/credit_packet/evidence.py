@@ -26,7 +26,7 @@ def build_evidence_bundle(packet, text_limit: int = 600):
         for key,label,raw,val in items:
             metrics.append({'id':f'metric:{key}:{m.fiscal_year}','label':label,'period':str(m.fiscal_year),'value':val,'raw_value':raw,'source':'calculated_metrics'})
 
-    flags=[{'id':f"flag:{_slug(f.code)}:{_slug(f.period)}",'code':f.code,'severity':f.severity,'description':f.description,'period':f.period,'observed_value':f.observed_value,'threshold':f.threshold,'source':f.source} for f in packet.watchlist_flags]
+    flags=[{'id':(f.evidence_id or f"flag:{_slug(f.code)}:{_slug(f.period)}"),'code':f.code,'severity':f.severity,'description':f.description,'period':f.period,'observed_value':f.observed_value,'threshold':f.threshold,'source':f.source,'filing':getattr(f,'filing',None),'section':getattr(f,'section',None),'source_url':getattr(f,'source_url',None)} for f in packet.watchlist_flags]
     excerpts=[{'id':f'excerpt:{_slug(e.category)}:{i:03d}','category':e.category,'filing':e.filing,'filing_date':e.filing_date,'section':e.section,'text':(e.text or '')[:text_limit],'source_url':e.source_url,'accession_number':e.accession_number} for i,e in enumerate(packet.excerpts,1)]
     changes=[{'id':f'change:{_slug(c.section)}:{i:03d}','section':c.section,'category':c.category,'change_type':c.change_type,'similarity_score':c.similarity_score,'old_text':(c.old_excerpt or '')[:text_limit],'new_text':(c.new_excerpt or '')[:text_limit],'old_source':c.source_old,'new_source':c.source_new} for i,c in enumerate(packet.filing_changes,1)]
     audit=[{'id':f'audit:{i:03d}','value':a} for i,a in enumerate(packet.audit_log,1)]
