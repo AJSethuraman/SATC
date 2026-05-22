@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from dea.action_plan import generate_action_plan
+from dea.adapters.discovery import run_and_write_discovery_report
 from dea.adapters.fake import FakeDrakeAdapter
 from dea.adapters.real import RealDrakeAdapter
 from dea.config_loader import ConfigLoadError, load_screen_maps
@@ -52,6 +53,14 @@ def _build_parser() -> argparse.ArgumentParser:
 
     live = subparsers.add_parser("run-live", parents=[common], help="Guarded live mode stub")
     live.add_argument("--live-drake", action="store_true", help="Explicitly acknowledge guarded live mode")
+
+    discover = subparsers.add_parser("discover-drake", help="Read-only Drake discovery harness")
+    discover.add_argument("--output-dir", type=Path, default=Path("outputs"), help="Output directory")
+    discover.add_argument(
+        "--window-title-contains",
+        default="Drake",
+        help="Case-insensitive window-title filter for candidate Drake windows",
+    )
 
     return parser
 
@@ -290,6 +299,32 @@ def _command_run_live(args: argparse.Namespace) -> int:
         return 1
 
 
+def _command_discover_drake(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output_dir)
+    result, report_path = run_and_write_discovery_report(
+        output_dir=output_dir,
+        window_title_contains=args.window_title_contains,
+    )
+
+    print(f"discovery report: {report_path}")
+    print(
+        f"platform={result.platform} supported_platform={result.supported_platform} "
+        f"drake_window_found={result.drake_window_found} dependency_available={result.dependency_available}"
+    )
+
+    if result.selected_window_title:
+        print(f"selected_window={result.selected_window_title}")
+    if result.warnings:
+        for warning in result.warnings:
+            print(f"warning: {warning}")
+    if result.errors:
+        for error in result.errors:
+            print(f"error: {error}")
+
+    # Discovery is diagnostic and read-only; always exit gracefully.
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -302,6 +337,8 @@ def main(argv: list[str] | None = None) -> int:
         return _command_run_fake(args)
     if args.command == "run-live":
         return _command_run_live(args)
+    if args.command == "discover-drake":
+        return _command_discover_drake(args)
 
     parser.error("unknown command")
     return 2

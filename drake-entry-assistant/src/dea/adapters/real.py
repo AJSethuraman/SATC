@@ -1,7 +1,8 @@
 """Conservative real Drake adapter stub.
 
 This module intentionally refuses live execution until a separately approved
-implementation is completed.
+implementation is completed. Use `dea discover-drake` for read-only
+environment inspection before any future live adapter work.
 """
 
 from __future__ import annotations

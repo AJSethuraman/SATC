@@ -12,6 +12,7 @@ Implemented now:
 - Masked logging and validation-report writers
 - Fake adapter execution simulation with safe stop conditions
 - CLI commands: `validate`, `dry-run`, `run-fake`, `run-live` (guarded)
+- Read-only `discover-drake` diagnostic harness
 
 Not implemented yet:
 - Live Drake UI automation
@@ -67,6 +68,20 @@ dea run-fake --input examples/sample_intake.xlsx --tax-year 2025 --output-dir ou
 ```bash
 dea run-live --input examples/sample_intake.xlsx --tax-year 2025 --output-dir outputs/demo --live-drake
 ```
+
+5. Read-only Drake discovery:
+
+```bash
+dea discover-drake --output-dir outputs/discovery
+dea discover-drake --window-title-contains Drake --output-dir outputs/discovery
+```
+
+`discover-drake` is diagnostic only:
+- does not enter data
+- does not click or type
+- does not use screenshots
+- does not use clipboard operations
+- writes `discovery_report.json` for review
 
 ## Output Artifacts
 

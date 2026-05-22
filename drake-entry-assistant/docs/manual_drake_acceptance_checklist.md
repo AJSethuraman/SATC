@@ -21,11 +21,20 @@ Current state: live Drake entry is not implemented in DEA and should remain bloc
 
 1. Create/open a dummy Drake client manually.
 2. Confirm expected tax year is correct in Drake.
-3. Run `dea validate` first.
-4. Run `dea dry-run` next.
-5. Review masked `action_plan.json` and planned logs.
-6. Run `dea run-fake` and verify expected fake execution behavior.
-7. Do not run live mode until explicit implementation and approval are complete.
+3. Run `dea discover-drake --output-dir outputs/discovery` first.
+4. Review `discovery_report.json` to confirm what windows/controls are detectable.
+5. Run `dea validate`.
+6. Run `dea dry-run`.
+7. Review masked `action_plan.json` and planned logs.
+8. Run `dea run-fake` and verify expected fake execution behavior.
+9. Do not run live mode until explicit implementation and approval are complete.
+
+## Discovery Harness Notes
+
+- `discover-drake` is read-only diagnostics.
+- It does not click, type, screenshot, or enter data.
+- Use dummy/demo clients only while doing any manual Drake verification work.
+- Review discovery reports before implementing any future field-entry behavior.
 
 ## Screen 1 Manual Checks
 
