@@ -1,0 +1,79 @@
+version: "2025"
+tax_year: 2025
+screen: "w2"
+screen_name: "W-2 Input"
+screen_code: "W2IN"
+expected_markers:
+  - "W-2"
+  - "Wage and Tax Statement"
+fields:
+  w2.employer.ein:
+    label: "Employer EIN"
+    source: "input_record.w2.employer.ein"
+    support_status: "CONDITIONALLY_SUPPORTED"
+    method: "control_locator"
+    locator: "name:w2_employer_ein"
+    mask_in_log: true
+
+  w2.employer.name:
+    label: "Employer Name"
+    source: "input_record.w2.employer.name"
+    support_status: "SUPPORTED"
+    method: "tab_order"
+    position: "row:1,col:1"
+    mask_in_log: false
+
+  w2.box_1_wages:
+    label: "Box 1 Wages"
+    source: "input_record.w2.box_1_wages"
+    support_status: "SUPPORTED"
+    method: "control_locator"
+    locator: "name:w2_box_1"
+    mask_in_log: false
+
+  w2.box_2_federal_withholding:
+    label: "Box 2 Federal Withholding"
+    source: "input_record.w2.box_2_federal_withholding"
+    support_status: "SUPPORTED"
+    method: "control_locator"
+    locator: "name:w2_box_2"
+    mask_in_log: false
+
+  w2.box_3_social_security_wages:
+    label: "Box 3 Social Security Wages"
+    source: "input_record.w2.box_3_social_security_wages"
+    support_status: "MANUAL_REVIEW"
+    method: "tab_order"
+    position: "row:2,col:1"
+    mask_in_log: false
+
+  w2.box_4_social_security_tax:
+    label: "Box 4 Social Security Tax"
+    source: "input_record.w2.box_4_social_security_tax"
+    support_status: "UNSUPPORTED"
+    method: "control_locator"
+    locator: "name:w2_box_4"
+    mask_in_log: false
+
+  w2.box_5_medicare_wages:
+    label: "Box 5 Medicare Wages"
+    source: "input_record.w2.box_5_medicare_wages"
+    support_status: "SUPPORTED"
+    method: "control_locator"
+    locator: "name:w2_box_5"
+    mask_in_log: false
+
+  w2.box_6_medicare_tax:
+    label: "Box 6 Medicare Tax"
+    source: "input_record.w2.box_6_medicare_tax"
+    support_status: "SUPPORTED"
+    method: "control_locator"
+    locator: "name:w2_box_6"
+    mask_in_log: false
+
+  w2.box_12_codes:
+    label: "Box 12 Codes"
+    source: "input_record.w2.box_12_codes"
+    support_status: "DEPRECATED"
+    method: "manual"
+    mask_in_log: false
