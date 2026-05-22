@@ -29,6 +29,21 @@ def extract_json_object(raw: str) -> dict | None:
         return None
     return parsed if isinstance(parsed, dict) else None
 
+def normalize_schema_aliases(payload: dict) -> tuple[dict, bool]:
+    alias_map={
+        'summary':'summary_points',
+        'themes':'review_themes',
+        'questions':'review_questions',
+        'missing_info':'missing_information',
+    }
+    out=dict(payload)
+    normalized=False
+    for old,new in alias_map.items():
+        if new not in out and old in out:
+            out[new]=out.pop(old)
+            normalized=True
+    return out, normalized
+
 
 class LLMClient:
     def __init__(self, settings): self.settings = settings
@@ -87,10 +102,21 @@ class LLMClient:
           "review_questions":[{"question":"What filing evidence explains this trigger?","based_on":[qid]}],
           "missing_information":[{"item":"Debt maturity schedule","reason":"Not present in the provided evidence bundle."}]
         }
+        required_skeleton={
+          "summary_points": [],
+          "review_themes": [],
+          "review_questions": [],
+          "missing_information": []
+        }
         prompt=(
-            'Return JSON only with no prose before or after. Use this exact top-level schema keys: '
-            'summary_points, review_themes, review_questions, missing_information.\n'
-            'Concrete valid example (use bundle IDs, do not invent IDs):\n'
+            'Return a single JSON object only. No prose before or after. '
+            'The object MUST contain exactly these top-level keys: '
+            'summary_points, review_themes, review_questions, missing_information. '
+            'Do not use keys like summary, themes, questions, missing_info, notes, analysis, or response. '
+            'If no items exist for a key, return an empty array for that key.\n'
+            'Required empty skeleton:\n'
+            + json.dumps(required_skeleton, indent=2)
+            + '\nConcrete valid example (use bundle IDs, do not invent IDs):\n'
             + json.dumps(concrete_example, indent=2)
             + '\nEvidence bundle:\n'
             + json.dumps(evidence_bundle)
@@ -101,9 +127,11 @@ class LLMClient:
         if not str(raw).strip(): return self._fallback_brief(evidence_bundle,['Ollama returned empty response'])
         payload=extract_json_object(str(raw))
         if payload is None: return self._fallback_brief(evidence_bundle,['LLM did not return parseable JSON'])
+        payload, normalized = normalize_schema_aliases(payload)
+        notes=['normalized LLM schema aliases'] if normalized else []
         vr=validate_source_bound_output(payload,valid_ids,allowed_values)
-        if not vr.is_valid: return self._fallback_brief(evidence_bundle,vr.errors)
-        return SourceBoundBrief(summary_points=[BriefPoint(**x) for x in payload.get('summary_points',[])],review_themes=[ReviewTheme(**x) for x in payload.get('review_themes',[])],review_questions=[ReviewQuestionItem(**x) for x in payload.get('review_questions',[])],missing_information=[MissingInformation(**x) for x in payload.get('missing_information',[])],generation_mode='ollama',validation_status='valid',validation_notes=vr.warnings)
+        if not vr.is_valid: return self._fallback_brief(evidence_bundle,notes + vr.errors)
+        return SourceBoundBrief(summary_points=[BriefPoint(**x) for x in payload.get('summary_points',[])],review_themes=[ReviewTheme(**x) for x in payload.get('review_themes',[])],review_questions=[ReviewQuestionItem(**x) for x in payload.get('review_questions',[])],missing_information=[MissingInformation(**x) for x in payload.get('missing_information',[])],generation_mode='ollama',validation_status='valid',validation_notes=notes + vr.warnings)
 
     def generate_review_questions(self, flags, changes):
         base = [f"What evidence in filings explains flag {f.code} in period {f.period}?" for f in flags[:8]] + [f"For section {c.section}, what explains {c.change_type} language versus prior filing?" for c in changes[:5]]

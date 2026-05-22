@@ -1,7 +1,7 @@
 from credit_packet.models import *
 from credit_packet.evidence import build_evidence_bundle, valid_evidence_ids, allowed_values
 from credit_packet.llm_validate import validate_source_bound_output
-from credit_packet.llm import LLMClient, extract_json_object
+from credit_packet.llm import LLMClient, extract_json_object, normalize_schema_aliases
 import json
 
 class S:
@@ -35,6 +35,48 @@ def test_extract_json_object_malformed_none():
 def test_extract_json_object_non_dict_none():
     assert extract_json_object('[1,2,3]') is None
 
+
+
+def test_normalize_schema_aliases_maps_expected_keys():
+    payload={'summary':[],'themes':[],'questions':[],'missing_info':[]}
+    out, changed = normalize_schema_aliases(payload)
+    assert changed and set(out.keys())=={'summary_points','review_themes','review_questions','missing_information'}
+
+def test_prompt_contains_required_empty_skeleton():
+    b=build_evidence_bundle(pkt())
+    c=LLMClient(SOllama())
+    captured={}
+    def fake_call(prompt, timeout=90):
+        captured['prompt']=prompt
+        return '{"summary_points":[],"review_themes":[],"review_questions":[],"missing_information":[{"item":"Debt maturity schedule","reason":"Not present in the provided evidence bundle."}]}'
+    c._call=fake_call
+    c.generate_source_bound_brief(b,valid_evidence_ids(b),allowed_values(b))
+    assert '"summary_points": []' in captured['prompt']
+    assert '"review_themes": []' in captured['prompt']
+    assert '"review_questions": []' in captured['prompt']
+    assert '"missing_information": []' in captured['prompt']
+
+def test_missing_required_keys_falls_back():
+    b=build_evidence_bundle(pkt())
+    c=LLMClient(SOllama())
+    c._call=lambda prompt, timeout=90: '{"summary":[],"themes":[]}'
+    brief=c.generate_source_bound_brief(b,valid_evidence_ids(b),allowed_values(b))
+    assert brief.generation_mode=='deterministic_fallback'
+
+
+def test_alias_schema_normalized_then_validated():
+    b=build_evidence_bundle(pkt())
+    c=LLMClient(SOllama())
+    c._call=lambda prompt, timeout=90: '{"summary":[],"themes":[],"questions":[],"missing_info":[{"item":"Debt maturity schedule","reason":"Not present in the provided evidence bundle."}]}'
+    brief=c.generate_source_bound_brief(b,valid_evidence_ids(b),allowed_values(b))
+    assert brief.generation_mode=='ollama' and 'normalized LLM schema aliases' in brief.validation_notes
+
+def test_alias_normalized_unsafe_still_fails_validation():
+    b=build_evidence_bundle(pkt())
+    c=LLMClient(SOllama())
+    c._call=lambda prompt, timeout=90: '{"summary":[{"text":"recommend approval","sources":["bad:id"]}],"themes":[],"questions":[],"missing_info":[]}'
+    brief=c.generate_source_bound_brief(b,valid_evidence_ids(b),allowed_values(b))
+    assert brief.generation_mode=='deterministic_fallback' and brief.validation_notes
 def test_evidence_bundle_creation_and_stable_ids():
     b1=build_evidence_bundle(pkt()); b2=build_evidence_bundle(pkt())
     assert b1['filings'][0]['id']==b2['filings'][0]['id']
