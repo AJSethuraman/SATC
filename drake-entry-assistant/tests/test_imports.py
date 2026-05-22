@@ -15,6 +15,7 @@ MODULES = [
     "dea.demo",
     "dea.cli",
     "dea.adapters.base",
+    "dea.adapters.discovery",
     "dea.adapters.fake",
     "dea.adapters.real",
 ]
