@@ -128,8 +128,13 @@ def build_workbook(records: list[dict[str, Any]], errors: list[dict[str, str]], 
 
     dup_fill = PatternFill(start_color="FFF8D6", end_color="FFF8D6", fill_type="solid")
     err_fill = PatternFill(start_color="FFE8E8", end_color="FFE8E8", fill_type="solid")
-    ws_review.conditional_formatting.add(f"C2:C{len(records)+1}", FormulaRule(formula=["LEN($C2)>0"], fill=dup_fill))
-    ws_review.conditional_formatting.add(f"V2:V{len(records)+1}", FormulaRule(formula=["LEN($V2)>0"], fill=err_fill))
+    # Conditional formatting must not be added to invalid ranges such as C2:C1
+    # when the scan returns zero files. Apply the fill across the full row range
+    # so duplicate/error records are visually obvious to reviewers.
+    if len(records) > 0:
+        last_row = len(records) + 1
+        ws_review.conditional_formatting.add(f"A2:V{last_row}", FormulaRule(formula=["LEN($C2)>0"], fill=dup_fill))
+        ws_review.conditional_formatting.add(f"A2:V{last_row}", FormulaRule(formula=["LEN($V2)>0"], fill=err_fill))
 
     _autosize(ws_review)
     _autosize(ws_dups)
