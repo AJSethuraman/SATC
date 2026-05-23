@@ -36,7 +36,7 @@ def load_config(path: Path) -> dict[str, Any]:
 
 
 def infer_year(text: str) -> str:
-    m = re.search(r"\b(20\d{2})\b", text)
+    m = re.search(r"(?<!\d)(20\d{2})(?!\d)", text)
     return m.group(1) if m else ""
 
 

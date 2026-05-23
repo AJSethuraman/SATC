@@ -38,3 +38,11 @@ pytest -q
 ```
 
 > Tax Packet QA is a preparer-assist QA tool. It does not provide tax advice and does not finalize tax positions.
+
+
+## Stress tests
+```bash
+pytest -q tests/test_stress_harness.py
+```
+
+See `test_findings.md` for the scenario-by-scenario results.
