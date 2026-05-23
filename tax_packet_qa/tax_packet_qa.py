@@ -1,44 +1,20 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import re
-import shutil
-import zipfile
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-try:
-    import yaml  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    yaml = None
+import yaml
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
 
-
-DOC_TYPE_RULES: dict[str, list[str]] = {
-    "w-2": ["w2", "w-2"],
-    "1099-nec": ["1099-nec", "1099_nec", "1099 nec"],
-    "1099-int": ["1099-int", "1099_int", "1099 int"],
-    "1099-div": ["1099-div", "1099_div", "1099 div"],
-    "1099-b": ["1099-b", "1099_b", "1099 b", "brokerage", "consolidated 1099"],
-    "1098 mortgage": ["1098", "mortgage", "mortgage interest"],
-    "rent ledger": ["rent ledger", "rental income summary"],
-    "schedule c support": ["schedule c", "business receipts", "business bank", "1099-nec"],
-    "property tax": ["property tax"],
-    "rental insurance": ["rental insurance"],
-    "repair receipts": ["repair", "maintenance"],
-}
-
-SATC_THEME = {
-    "navy": "#0B1F3A",
-    "paper": "#FBF9F4",
-    "ink": "#0E1726",
-    "hairline": "#D9CFB8",
-    "navy_soft": "#173361",
-    "navy_deep": "#061A35",
-}
+SATC = {"navy": "0B1F3A", "gold": "B08D57", "cream": "F6F2EA", "paper": "FBF9F4", "hairline": "D9CFB8"}
 
 
 @dataclass
@@ -56,237 +32,244 @@ class InventoryItem:
 
 
 def load_config(path: Path) -> dict[str, Any]:
-    text = path.read_text(encoding="utf-8")
-    if path.suffix.lower() in {".yaml", ".yml"}:
-        if yaml is None:
-            raise RuntimeError("YAML config requires PyYAML. Use JSON config or install PyYAML.")
-        return yaml.safe_load(text)
-    return json.loads(text)
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
 def infer_year(text: str) -> str:
-    match = re.search(r"\b(20\d{2})\b", text)
-    return match.group(1) if match else ""
+    m = re.search(r"\b(20\d{2})\b", text)
+    return m.group(1) if m else ""
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+
+
+def _contains_phrase(text: str, phrase: str) -> bool:
+    return re.search(rf"\b{re.escape(_norm(phrase))}\b", _norm(text)) is not None
 
 
 def infer_entity_name(filename: str) -> str:
-    stem = Path(filename).stem
-    parts = [p for p in re.split(r"[_\- ]+", stem) if p]
-    filtered = [p for p in parts if not re.match(r"^(20\d{2}|w2|w-2|1098|1099|nec|div|int|b)$", p.lower())]
-    return filtered[0] if filtered else ""
+    parts = [p for p in re.split(r"[_\- ]+", Path(filename).stem) if p]
+    flt = [p for p in parts if not re.match(r"^(20\d{2}|w2|w-2|1098|1099|nec|div|int|b|t)$", p.lower())]
+    return flt[0] if flt else ""
 
 
 def infer_document_type(path_text: str) -> tuple[str, float, str]:
-    low = path_text.lower()
-    for doc_type, keywords in DOC_TYPE_RULES.items():
-        hits = [keyword for keyword in keywords if keyword in low]
-        if hits:
-            return doc_type, round(min(0.6 + 0.1 * len(hits), 0.95), 2), f"keyword match: {', '.join(hits)}"
-    return "unknown", 0.35, "no known keyword match"
-
-
-def _normalize_text(value: str) -> str:
-    return re.sub(r"[_-]+", " ", value.lower())
+    t = _norm(path_text)
+    if _contains_phrase(t, "1098 t") or _contains_phrase(t, "tuition statement"):
+        return "1098-t education", 0.9, "matched education phrases"
+    if (_contains_phrase(t, "w2") or _contains_phrase(t, "w 2") or _contains_phrase(t, "w-2")):
+        return "w-2", 0.9, "matched w-2 phrase"
+    if _contains_phrase(t, "1099 nec"):
+        return "1099-nec", 0.9, "matched 1099-nec phrase"
+    if _contains_phrase(t, "1099 int"):
+        return "1099-int", 0.9, "matched 1099-int phrase"
+    if _contains_phrase(t, "1099 div"):
+        return "1099-div", 0.9, "matched 1099-div phrase"
+    if _contains_phrase(t, "1099 b") or _contains_phrase(t, "brokerage") or _contains_phrase(t, "consolidated 1099"):
+        return "1099-b / brokerage", 0.9, "matched brokerage phrase"
+    if (_contains_phrase(t, "1098 mortgage") or _contains_phrase(t, "mortgage interest statement") or _contains_phrase(t, "form 1098 mortgage")):
+        return "1098 mortgage", 0.92, "matched mortgage-specific phrase"
+    if _contains_phrase(t, "rent ledger") or _contains_phrase(t, "rental income summary"):
+        return "rental income support", 0.88, "matched rental income phrase"
+    if _contains_phrase(t, "property tax"):
+        if _contains_phrase(t, "rental"):
+            return "rental property tax", 0.82, "matched property tax with rental context"
+        return "property tax", 0.7, "matched property tax phrase without rental context"
+    return "unknown", 0.35, "no confident phrase match"
 
 
 def build_inventory(input_folder: Path) -> list[InventoryItem]:
-    files = [path for path in input_folder.rglob("*") if path.is_file()]
-    seen_names = Counter(path.name.lower() for path in files)
-
-    inventory: list[InventoryItem] = []
-    for item_path in files:
-        rel_path = str(item_path.relative_to(input_folder)).replace("\\", "/")
-        doc_type, confidence, evidence = infer_document_type(rel_path)
-        inventory.append(
-            InventoryItem(
-                original_file_path=str(item_path.resolve()),
-                filename=item_path.name,
-                parent_folder=item_path.parent.name,
-                inferred_document_type=doc_type,
-                inferred_tax_year=infer_year(rel_path),
-                inferred_entity_name=infer_entity_name(item_path.name),
-                confidence=confidence,
-                evidence=evidence,
-                duplicate_flag=seen_names[item_path.name.lower()] > 1,
-            )
-        )
-    return inventory
+    files = [p for p in input_folder.rglob("*") if p.is_file()]
+    seen = Counter([p.name.lower() for p in files])
+    items = []
+    for f in files:
+        rel = str(f.relative_to(input_folder)).replace("\\", "/")
+        dt, conf, ev = infer_document_type(rel)
+        items.append(InventoryItem(str(f.resolve()), f.name, f.parent.name, dt, infer_year(rel), infer_entity_name(f.name), conf, ev, seen[f.name.lower()] > 1))
+    return items
 
 
 def detect_modules(inventory: list[InventoryItem], modules: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    searchable_lines = [_normalize_text(f"{i.filename} {i.parent_folder} {i.inferred_document_type}") for i in inventory]
-    detected: list[dict[str, Any]] = []
-
-    for module in modules:
-        matches: list[dict[str, str]] = []
-        for idx, line in enumerate(searchable_lines):
-            trigger_hits = [str(trigger) for trigger in module.get("trigger_docs", []) if _normalize_text(str(trigger)) in line]
-            if trigger_hits:
-                matches.append({"file": inventory[idx].filename, "evidence": ", ".join(trigger_hits)})
-
-        if matches:
-            confidence = round(min(0.5 + 0.1 * len(matches), 0.95), 2)
-            detected.append(
-                {
-                    "module_id": module["module_id"],
-                    "display_name": module["display_name"],
-                    "confidence": confidence,
-                    "triggering_documents": matches,
-                    "evidence": f"Likely {module['display_name']} activity detected based on trigger documents.",
-                    "notes": "Conservative inference for preparer review.",
-                }
-            )
+    detected = []
+    search_rows = [_norm(f"{i.filename} {i.parent_folder} {i.inferred_document_type}") for i in inventory]
+    for m in modules:
+        trigger_hits = []
+        strong_hits = 0
+        for idx, row in enumerate(search_rows):
+            matched = [t for t in m.get("trigger_docs", []) if _contains_phrase(row, t)]
+            if matched:
+                trigger_hits.append({"file": inventory[idx].filename, "matches": matched})
+            strong_hits += sum(1 for t in m.get("strong_trigger_docs", []) if _contains_phrase(row, t))
+        if trigger_hits:
+            if strong_hits >= 2 or len(trigger_hits) >= 2:
+                strength, conf = "Strong", 0.9
+            elif strong_hits == 1:
+                strength, conf = "Medium", 0.75
+            else:
+                strength, conf = "Weak", 0.55
+            detected.append({"module_id": m["module_id"], "display_name": m["display_name"], "confidence": conf, "strength": strength, "triggering_documents": trigger_hits, "evidence": f"{strength} signal from trigger document patterns.", "notes": "Conservative module inference for preparer review."})
     return detected
 
 
+def _evaluate_item(item: dict[str, Any], detected: dict[str, Any], module_name: str, inventory: list[InventoryItem], item_kind: str) -> dict[str, Any]:
+    aliases = item.get("aliases", [])
+    matches_files, matched_aliases = [], []
+    for inv in inventory:
+        row = _norm(f"{inv.filename} {inv.parent_folder} {inv.inferred_document_type}")
+        hits = [a for a in aliases if _contains_phrase(row, a)]
+        if hits:
+            matches_files.append(inv.filename)
+            matched_aliases.extend(hits)
+    matched_aliases = sorted(set(matched_aliases))
+    cond = bool(item.get("conditional", False))
+    found = bool(matches_files)
+    if found:
+        status = "Found"
+    elif item_kind == "optional":
+        status = "Optional"
+    elif cond or detected["strength"] == "Weak":
+        status = "Needs Review"
+    elif detected["strength"] == "Strong" and item_kind == "critical":
+        status = "Missing"
+    else:
+        status = "Needs Review"
+    return {
+        "module": module_name,
+        "item_id": item.get("id", ""),
+        "item": item.get("label", ""),
+        "status": status,
+        "reason": item.get("condition_note", "Checklist item evaluation"),
+        "matched_files": matches_files,
+        "matched_aliases": matched_aliases,
+        "evidence": f"Module strength={detected['strength']}; aliases checked={', '.join(aliases)}",
+        "confidence": detected["confidence"],
+    }
+
+
 def generate_missing_items(detected_modules: list[dict[str, Any]], modules: list[dict[str, Any]], inventory: list[InventoryItem]) -> list[dict[str, Any]]:
-    inventory_blob = " ".join(_normalize_text(f"{i.filename} {i.parent_folder} {i.inferred_document_type}") for i in inventory)
-    module_by_id = {m["module_id"]: m for m in modules}
-    results: list[dict[str, Any]] = []
-
-    for detected in detected_modules:
-        module = module_by_id[detected["module_id"]]
-        weak_signal = detected["confidence"] < 0.7
-        question = (module.get("client_questions") or [""])[0]
-
-        for item in module.get("expected_critical_docs", []):
-            found = _normalize_text(item) in inventory_blob
-            results.append(
-                {
-                    "module": module["display_name"],
-                    "item": item,
-                    "status": "Found" if found else ("Needs Review" if weak_signal else "Missing"),
-                    "reason": "Matched in inventory" if found else "Expected from detected module triggers",
-                    "evidence": detected["evidence"],
-                    "confidence": detected["confidence"],
-                    "suggested_client_question": question,
-                }
-            )
-
-        for item in module.get("review_needed_docs", []):
-            found = _normalize_text(item) in inventory_blob
-            results.append(
-                {
-                    "module": module["display_name"],
-                    "item": item,
-                    "status": "Found" if found else "Needs Review",
-                    "reason": "Review-needed checklist item",
-                    "evidence": f"Checklist driven review for {module['display_name']}",
-                    "confidence": round(max(detected["confidence"] - 0.1, 0.4), 2),
-                    "suggested_client_question": question,
-                }
-            )
-    return results
+    by_id = {m["module_id"]: m for m in modules}
+    rows = []
+    for d in detected_modules:
+        mod = by_id[d["module_id"]]
+        for item in mod.get("expected_critical_docs", []):
+            rows.append(_evaluate_item(item, d, mod["display_name"], inventory, "critical"))
+        for item in mod.get("review_needed_docs", []):
+            rows.append(_evaluate_item(item, d, mod["display_name"], inventory, "review"))
+        for item in mod.get("optional_support_docs", []):
+            rows.append(_evaluate_item(item, d, mod["display_name"], inventory, "optional"))
+    return rows
 
 
-def _write_minimal_xlsx(path: Path, rows: list[dict[str, Any]]) -> None:
-    headers = list(rows[0].keys()) if rows else []
-
-    def cell(value: Any) -> str:
-        safe = str(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        return f'<c t="inlineStr"><is><t>{safe}</t></is></c>'
-
-    sheet_rows = ["<row r=\"1\">" + "".join(cell(h) for h in headers) + "</row>"]
-    for row_num, row in enumerate(rows, start=2):
-        sheet_rows.append(f"<row r=\"{row_num}\">" + "".join(cell(row[h]) for h in headers) + "</row>")
-
-    sheet_xml = (
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-        "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">"
-        f"<sheetData>{''.join(sheet_rows)}</sheetData></worksheet>"
-    )
-
-    with zipfile.ZipFile(path, "w") as zf:
-        zf.writestr("[Content_Types].xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/><Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/></Types>")
-        zf.writestr("_rels/.rels", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>")
-        zf.writestr("xl/workbook.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"Inventory\" sheetId=\"1\" r:id=\"rId1\"/></sheets></workbook>")
-        zf.writestr("xl/_rels/workbook.xml.rels", "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/></Relationships>")
-        zf.writestr("xl/worksheets/sheet1.xml", sheet_xml)
+def _style_sheet(ws) -> None:
+    head_fill = PatternFill("solid", fgColor=SATC["navy"])
+    head_font = Font(color="FFFFFF", bold=True)
+    for c in ws[1]:
+        c.fill = head_fill
+        c.font = head_font
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
+    for col in ws.columns:
+        ws.column_dimensions[col[0].column_letter].width = min(max(len(str(col[0].value or "")) + 2, 16), 42)
 
 
-def write_outputs(output_dir: Path, inventory: list[InventoryItem], detected: list[dict[str, Any]], missing: list[dict[str, Any]]) -> None:
+def write_outputs(output_dir: Path, inventory: list[InventoryItem], detected: list[dict[str, Any]], missing: list[dict[str, Any]], modules: list[dict[str, Any]]) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    inventory_records = [asdict(item) for item in inventory]
+    inv_records = [asdict(i) for i in inventory]
+    (output_dir / "inventory.json").write_text(json.dumps(inv_records, indent=2), encoding="utf-8")
 
-    (output_dir / "inventory.json").write_text(json.dumps(inventory_records, indent=2), encoding="utf-8")
-    _write_minimal_xlsx(output_dir / "inventory.xlsx", inventory_records)
+    wb = Workbook()
+    ws1 = wb.active
+    ws1.title = "Inventory"
+    inv_headers = list(inv_records[0].keys()) if inv_records else []
+    ws1.append(inv_headers)
+    for r in inv_records:
+        ws1.append([r[h] for h in inv_headers])
+    _style_sheet(ws1)
 
-    grouped_questions: dict[str, list[str]] = defaultdict(list)
+    ws2 = wb.create_sheet("Detected Modules")
+    ws2.append(["module_id", "display_name", "strength", "confidence", "evidence", "triggering_documents"])
+    for d in detected:
+        ws2.append([d["module_id"], d["display_name"], d["strength"], d["confidence"], d["evidence"], json.dumps(d["triggering_documents"])])
+    _style_sheet(ws2)
+
+    ws3 = wb.create_sheet("Missing and Review Items")
+    headers = ["module", "item_id", "item", "status", "reason", "matched_files", "matched_aliases", "evidence", "confidence"]
+    ws3.append(headers)
     for row in missing:
-        if row["status"] in {"Missing", "Needs Review"} and row["suggested_client_question"]:
-            grouped_questions[row["module"]].append(row["suggested_client_question"])
+        ws3.append([row[h] if h not in {"matched_files", "matched_aliases"} else ", ".join(row[h]) for h in headers])
+    _style_sheet(ws3)
+    wb.save(output_dir / "inventory.xlsx")
 
+    questions = defaultdict(list)
+    mod_map = {m["display_name"]: m for m in modules}
+    for r in missing:
+        if r["status"] in {"Missing", "Needs Review"}:
+            questions[r["module"]].extend(mod_map.get(r["module"], {}).get("client_questions", []))
     lines = ["Additional Items / Questions Needed", ""]
-    for module_name, questions in grouped_questions.items():
-        lines.append(module_name)
-        for index, question in enumerate(dict.fromkeys(questions), start=1):
-            lines.append(f"{index}. {question}")
+    for mod, qs in questions.items():
+        lines.append(mod)
+        for i, q in enumerate(dict.fromkeys(qs), 1):
+            lines.append(f"{i}. {q}")
         lines.append("")
     (output_dir / "client_follow_up_questions.txt").write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
 
-    notes_lines = ["Tax Packet QA - Preparer Notes", "", "Detected Modules:"]
-    for module in detected:
-        notes_lines.append(f"- {module['display_name']} (confidence {module['confidence']}): {module['evidence']}")
-    notes_lines.append("\nMissing/Review Items:")
-    for row in missing:
-        if row["status"] != "Found":
-            notes_lines.append(f"- [{row['status']}] {row['module']}: {row['item']} | reason: {row['reason']} | confidence: {row['confidence']}")
-    notes_lines.append("\nNotes: This output is a preparer-assist review aid and does not finalize tax positions.")
-    (output_dir / "preparer_notes.txt").write_text("\n".join(notes_lines) + "\n", encoding="utf-8")
+    prep = ["Tax Packet QA - Preparer Notes", "", "Detected Modules:"]
+    for d in detected:
+        prep.append(f"- {d['display_name']} [{d['strength']}] ({d['confidence']}): {d['evidence']}")
+    prep.append("\nMissing / Needs Review:")
+    for r in missing:
+        if r["status"] in {"Missing", "Needs Review"}:
+            prep.append(f"- [{r['status']}] {r['module']} | {r['item']} | matched files: {', '.join(r['matched_files']) if r['matched_files'] else 'none'}")
+    (output_dir / "preparer_notes.txt").write_text("\n".join(prep) + "\n", encoding="utf-8")
 
 
-def _render_html_table(headers: list[str], rows: list[list[str]], header_bg: str) -> str:
-    thead = "".join(f"<th>{h}</th>" for h in headers)
-    tbody = "".join("<tr>" + "".join(f"<td>{c}</td>" for c in row) + "</tr>" for row in rows)
-    return f"<table><thead style='background:{header_bg};color:#fff'><tr>{thead}</tr></thead><tbody>{tbody}</tbody></table>"
+def _render_template(path: Path, replacements: dict[str, str]) -> str:
+    content = path.read_text(encoding="utf-8")
+    for k, v in replacements.items():
+        content = content.replace("{{ " + k + " }}", v).replace("{{" + k + "}}", v)
+    return content
 
 
-def render_reports(output_dir: Path, inventory: list[InventoryItem], detected: list[dict[str, Any]], missing: list[dict[str, Any]], client_name: str) -> None:
+def render_reports(output_dir: Path, inventory: list[InventoryItem], detected: list[dict[str, Any]], missing: list[dict[str, Any]], client_name: str, modules: list[dict[str, Any]]) -> None:
     ts = datetime.now(UTC).isoformat()
-    type_counts = Counter(item.inferred_document_type for item in inventory)
+    counts = Counter(i.inferred_document_type for i in inventory)
+    inv_rows = "".join([f"<tr><td>{html.escape(i.filename)}</td><td>{html.escape(i.parent_folder)}</td><td>{html.escape(i.inferred_document_type)}</td><td>{i.inferred_tax_year}</td><td>{html.escape(i.inferred_entity_name)}</td><td>{i.confidence}</td><td>{html.escape(i.evidence)}</td><td>{i.duplicate_flag}</td></tr>" for i in inventory])
+    doc_counts = "".join([f"<li>{html.escape(k)}: {v}</li>" for k, v in counts.items()])
 
-    inv_rows = [[i.filename, i.parent_folder, i.inferred_document_type, i.inferred_tax_year, i.inferred_entity_name, str(i.confidence), i.evidence, str(i.duplicate_flag)] for i in inventory]
-    inv_table = _render_html_table(["Filename", "Parent Folder", "Type", "Year", "Entity", "Confidence", "Evidence", "Duplicate"], inv_rows, SATC_THEME["navy_soft"])
+    inv_html = _render_template(Path(__file__).parent / "templates" / "inventory_report.html", {
+        "client_name": html.escape(client_name), "run_ts": ts, "file_count": str(len(inventory)), "doc_counts": doc_counts, "inventory_rows": inv_rows
+    })
+    (output_dir / "inventory_report.html").write_text(inv_html, encoding="utf-8")
 
-    inventory_html = f"""<html><body style='font-family:Arial;background:{SATC_THEME['paper']};color:{SATC_THEME['ink']};margin:24px'>
-    <h1 style='color:{SATC_THEME['navy']}'>Tax Packet QA - Inventory Report</h1>
-    <p><b>Client/Folder:</b> {client_name}<br><b>Run Timestamp:</b> {ts}<br><b>File Count:</b> {len(inventory)}</p>
-    <h3>Document Type Counts</h3><ul>{''.join(f'<li>{k}: {v}</li>' for k,v in type_counts.items())}</ul>{inv_table}</body></html>"""
-    (output_dir / "inventory_report.html").write_text(inventory_html, encoding="utf-8")
-
-    missing_rows = [[r["module"], r["item"], r["status"], r["reason"], r["evidence"], str(r["confidence"])] for r in missing if r["status"] != "Found"]
-    missing_table = _render_html_table(["Module", "Item", "Status", "Reason", "Evidence", "Confidence"], missing_rows, SATC_THEME["navy_deep"])
-    detected_list = "".join(f"<li>{d['display_name']} ({d['confidence']}): {d['evidence']}</li>" for d in detected)
-
-    missing_html = f"""<html><body style='font-family:Arial;background:{SATC_THEME['paper']};color:{SATC_THEME['ink']};margin:24px'>
-    <h1 style='color:{SATC_THEME['navy']}'>Tax Packet QA - Missing/Review Items</h1>
-    <p><b>Client/Folder:</b> {client_name}<br><b>Run Timestamp:</b> {ts}</p>
-    <h3>Detected Modules</h3><ul>{detected_list}</ul>{missing_table}</body></html>"""
-    (output_dir / "missing_items_report.html").write_text(missing_html, encoding="utf-8")
+    detected_rows = "".join([f"<li>{html.escape(d['display_name'])} ({d['strength']}, {d['confidence']}): {html.escape(d['evidence'])}</li>" for d in detected])
+    miss_rows = "".join([f"<tr><td>{html.escape(r['module'])}</td><td>{html.escape(r['item'])}</td><td>{r['status']}</td><td>{html.escape(r['reason'])}</td><td>{html.escape(', '.join(r['matched_aliases']))}</td><td>{html.escape(', '.join(r['matched_files']))}</td><td>{r['confidence']}</td></tr>" for r in missing if r['status'] in {'Missing','Needs Review'}])
+    prep_notes = "".join([f"<li>{html.escape(n)}</li>" for m in modules for n in m.get('preparer_notes', [])])
+    miss_html = _render_template(Path(__file__).parent / "templates" / "missing_items_report.html", {
+        "client_name": html.escape(client_name), "run_ts": ts, "detected_modules": detected_rows, "missing_rows": miss_rows, "preparer_notes": prep_notes
+    })
+    (output_dir / "missing_items_report.html").write_text(miss_html, encoding="utf-8")
 
 
 def run(input_folder: Path, config_path: Path, output_dir: Path, metadata_path: Path | None = None) -> None:
-    config = load_config(config_path)
-    metadata = load_config(metadata_path) if metadata_path else {}
-
-    inventory = build_inventory(input_folder)
-    modules = config.get("modules", [])
-    detected = detect_modules(inventory, modules)
-    missing = generate_missing_items(detected, modules, inventory)
-
-    write_outputs(output_dir, inventory, detected, missing)
-    render_reports(output_dir, inventory, detected, missing, metadata.get("client_name", input_folder.name))
+    cfg = load_config(config_path)
+    meta = load_config(metadata_path) if metadata_path else {}
+    inv = build_inventory(input_folder)
+    modules = cfg.get("modules", [])
+    det = detect_modules(inv, modules)
+    miss = generate_missing_items(det, modules, inv)
+    write_outputs(output_dir, inv, det, miss, modules)
+    render_reports(output_dir, inv, det, miss, meta.get("client_name", input_folder.name), modules)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Tax Packet QA v0.1")
-    parser.add_argument("input_folder")
-    parser.add_argument("--client-metadata", default=None)
-    parser.add_argument("--config", default=str(Path(__file__).parent / "config" / "tax_modules.json"))
-    parser.add_argument("--output", default=str(Path(__file__).parent / "outputs" / "run_output"))
-    args = parser.parse_args()
-
-    run(Path(args.input_folder), Path(args.config), Path(args.output), Path(args.client_metadata) if args.client_metadata else None)
+    p = argparse.ArgumentParser(description="Tax Packet QA v0.1")
+    p.add_argument("input_folder")
+    p.add_argument("--client-metadata", default=None)
+    p.add_argument("--config", default=str(Path(__file__).parent / "config" / "tax_modules.yaml"))
+    p.add_argument("--output", default=str(Path(__file__).parent / "outputs" / "run_output"))
+    a = p.parse_args()
+    run(Path(a.input_folder), Path(a.config), Path(a.output), Path(a.client_metadata) if a.client_metadata else None)
 
 
 if __name__ == "__main__":

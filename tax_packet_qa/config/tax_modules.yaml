@@ -1,64 +1,148 @@
 modules:
   - module_id: w2_wages
     display_name: W-2 Wages
-    trigger_docs: [w-2, w2]
-    expected_critical_docs: [w-2]
-    review_needed_docs: [state wage withholding support]
-    optional_support_docs: [prior year return]
+    trigger_docs: [w2, w-2, wage and tax statement]
+    strong_trigger_docs: [w2, w-2]
+    expected_critical_docs:
+      - id: w2_forms
+        label: W-2 forms
+        aliases: [w2, w-2, wage and tax statement]
+        conditional: false
+    review_needed_docs:
+      - id: state_withholding_support
+        label: State wage withholding support
+        aliases: [state withholding, state wages, local withholding]
+        conditional: true
+        condition_note: Needed when W-2 includes multi-state or local withholding.
+    optional_support_docs:
+      - id: prior_year_return
+        label: Prior-year return
+        aliases: [prior year return]
+        conditional: true
     client_questions:
       - Please confirm whether all W-2 forms for the year are included.
     preparer_notes:
       - Confirm multi-state withholding where applicable.
+
   - module_id: investments
     display_name: Investments
     trigger_docs: [1099-int, 1099-div, 1099-b, brokerage, consolidated 1099]
-    expected_critical_docs: [consolidated 1099 brokerage package]
-    review_needed_docs: [supplemental gain/loss detail, foreign tax paid support]
-    optional_support_docs: [year-end holdings statement]
+    strong_trigger_docs: [consolidated 1099, 1099-b, brokerage statement]
+    expected_critical_docs:
+      - id: consolidated_brokerage_1099
+        label: Consolidated 1099 brokerage package
+        aliases: [consolidated 1099, brokerage 1099, 1099-b, fidelity consolidated 1099]
+        conditional: false
+    review_needed_docs:
+      - id: gain_loss_detail
+        label: Supplemental gain/loss detail
+        aliases: [gain loss detail, realized gain, supplemental 1099]
+        conditional: true
+        condition_note: Needed when sales occurred with incomplete basis detail.
+      - id: foreign_tax_paid
+        label: Foreign tax paid support
+        aliases: [foreign tax paid, foreign tax]
+        conditional: true
+        condition_note: Needed when foreign-source dividends or funds are present.
+    optional_support_docs:
+      - id: year_end_holdings
+        label: Year-end holdings statement
+        aliases: [year end holdings, holdings statement]
+        conditional: true
     client_questions:
       - We found investment-related documents. Please confirm whether any additional brokerage accounts exist.
     preparer_notes:
       - Verify completeness of all 1099 schedules, especially basis reporting.
+
   - module_id: self_employed_schedule_c
     display_name: Schedule C / Self-Employed
     trigger_docs: [1099-nec, schedule c, business receipts, business bank]
-    expected_critical_docs: [income summary for business activity]
-    review_needed_docs: [expense detail by category, vehicle/mileage support, home office support]
-    optional_support_docs: [quarterly estimate payment support]
+    strong_trigger_docs: [1099-nec, schedule c, business bank]
+    expected_critical_docs:
+      - id: business_income_summary
+        label: Income summary for business activity
+        aliases: [business income summary, schedule c summary, profit and loss, p&l]
+        conditional: false
+    review_needed_docs:
+      - id: expense_detail
+        label: Expense detail by category
+        aliases: [expense detail, categorized expenses, expense summary]
+        conditional: true
+        condition_note: Needed to support deductions claimed for Schedule C activity.
+      - id: mileage_support
+        label: Vehicle/mileage support
+        aliases: [mileage log, vehicle mileage, auto mileage]
+        conditional: true
+        condition_note: Needed if vehicle expenses are claimed.
+    optional_support_docs:
+      - id: home_office_support
+        label: Home office support
+        aliases: [home office, office square footage]
+        conditional: true
     client_questions:
       - Please provide a business income and expense summary if not already included.
     preparer_notes:
       - Check for potential mixed personal/business expenses.
+
   - module_id: rental_property
     display_name: Rental Property
-    trigger_docs: [lease, rent ledger, schedule e, property tax, mortgage interest, rental insurance, repair receipts]
-    expected_critical_docs: [rental income summary or rent ledger]
+    trigger_docs: [rent ledger, rental income summary, lease, schedule e, rental insurance, repair receipts]
+    strong_trigger_docs: [rent ledger, rental income summary, schedule e]
+    expected_critical_docs:
+      - id: rental_income_summary
+        label: Rental income summary or rent ledger
+        aliases: [rent ledger, rental income summary, rental income, rents received]
+        conditional: false
     review_needed_docs:
-      - mortgage interest statement if financed
-      - property tax support
-      - insurance support
-      - repairs and maintenance detail
-      - HOA dues if applicable
-      - utilities if owner-paid
-      - management fees if applicable
-      - depreciation schedule or prior-year return if returning client
-      - closing statement if purchased, sold, or refinanced
-    optional_support_docs: [photos or listing records for vacancy timeline]
+      - id: mortgage_interest_if_financed
+        label: Mortgage interest statement, if financed
+        aliases: [1098 mortgage, mortgage interest, mortgage interest statement, form 1098]
+        conditional: true
+        condition_note: Needed if the rental property is financed.
+      - id: rental_property_tax_support
+        label: Property tax support
+        aliases: [rental property tax, property tax statement]
+        conditional: true
+        condition_note: Needed if property taxes are claimed for the rental.
+      - id: rental_repairs_detail
+        label: Repairs and maintenance detail
+        aliases: [repair receipts, maintenance receipts, repairs detail]
+        conditional: true
+        condition_note: Needed if repairs/maintenance deductions are claimed.
+    optional_support_docs:
+      - id: depreciation_schedule
+        label: Depreciation schedule or prior-year return
+        aliases: [depreciation schedule, prior year return]
+        conditional: true
     client_questions:
       - Was the property rented for the full year?
       - Was it vacant at any point?
       - Did you buy, sell, or refinance the property?
       - Were any repairs actually improvements?
-      - Did you personally use the property?
     preparer_notes:
       - Review whether repairs should be capitalized.
       - Confirm depreciation schedule if this is not a first-year rental.
+
   - module_id: homeowner_mortgage
     display_name: Homeowner / Mortgage
-    trigger_docs: [1098, mortgage interest, property tax]
-    expected_critical_docs: [1098 mortgage interest statement]
-    review_needed_docs: [property tax support, points paid support if refinance/purchase]
-    optional_support_docs: [closing disclosure]
+    trigger_docs: [1098 mortgage, mortgage interest statement, form 1098 mortgage]
+    strong_trigger_docs: [1098 mortgage, mortgage interest statement]
+    expected_critical_docs:
+      - id: mortgage_1098
+        label: 1098 mortgage interest statement
+        aliases: [1098 mortgage, form 1098 mortgage, mortgage interest statement]
+        conditional: false
+    review_needed_docs:
+      - id: homeowner_property_tax
+        label: Property tax support
+        aliases: [property tax statement, real estate tax]
+        conditional: true
+        condition_note: Needed if property taxes are claimed.
+    optional_support_docs:
+      - id: closing_documents
+        label: Closing disclosure
+        aliases: [closing disclosure, settlement statement]
+        conditional: true
     client_questions:
       - If you refinanced or purchased a home, please provide closing documents.
     preparer_notes:
