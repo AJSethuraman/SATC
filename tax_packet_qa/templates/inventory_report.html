@@ -1,0 +1,11 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Inventory Report</title>
+<style>
+body{font-family:Arial;background:#FBF9F4;color:#0E1726;margin:24px} h1{color:#0B1F3A} .card{background:#F6F2EA;border:1px solid #D9CFB8;padding:12px;margin:8px 0}
+table{width:100%;border-collapse:collapse} th,td{border:1px solid #D9CFB8;padding:6px;font-size:12px} th{background:#173361;color:#fff}
+</style></head><body>
+<h1>Tax Packet QA - Inventory Report</h1>
+<div class="card"><b>Client/Folder:</b> {{ client_name }}<br><b>Run Timestamp:</b> {{ run_ts }}<br><b>File Count:</b> {{ file_count }}</div>
+<div class="card"><b>Document Type Counts</b><ul>{% for k,v in doc_counts.items() %}<li>{{ k }}: {{ v }}</li>{% endfor %}</ul></div>
+<table><thead><tr><th>Filename</th><th>Parent Folder</th><th>Type</th><th>Year</th><th>Entity</th><th>Confidence</th><th>Evidence</th><th>Duplicate</th></tr></thead>
+<tbody>{% for i in inventory %}<tr><td>{{ i.filename }}</td><td>{{ i.parent_folder }}</td><td>{{ i.inferred_document_type }}</td><td>{{ i.inferred_tax_year }}</td><td>{{ i.inferred_entity_name }}</td><td>{{ i.confidence }}</td><td>{{ i.evidence }}</td><td>{{ i.duplicate_flag }}</td></tr>{% endfor %}</tbody></table>
+</body></html>
