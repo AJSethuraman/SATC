@@ -37,6 +37,15 @@ debts:
     - {key: alimony_child_support, label: Alimony / child support}
     - {key: other_debt, label: Other recurring debt}
 
+# Optional. Intended for purely payrolled (W-2) borrowers: enter the taxes /
+# withholding straight off the pay stub. Leave blank to skip — the worksheet
+# then behaves exactly as a gross-only calculation. We do not estimate taxes.
+deductions:
+  section_name: Payroll Deductions (optional — for net residual)
+  lines:
+    - {key: payroll_withholding, label: Payroll taxes & withholding (from pay stub)}
+    - {key: other_payroll_deductions, label: Other mandatory payroll deductions}
+
 # Ability-to-repay guideline thresholds (percent of gross income, and a
 # residual-income floor in monthly dollars). Tune per product/policy.
 thresholds:

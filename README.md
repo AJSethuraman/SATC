@@ -120,6 +120,7 @@ The **DTI / ATR** page and the matching **Ability-to-Repay (DTI)** Excel tab cap
 - Line items and thresholds live in `configs/dti_worksheet_v1.yaml` — add or remove categories, or change the front-end / back-end / residual thresholds, without touching code.
 - The Excel tab is a **live calculator**: subtotals and ratios are real formulas, and the ratio / residual / assessment cells are color-coded with conditional formatting (green within guidelines, amber exceeds target, red fails the maximum) that updates as amounts are edited.
 - Default thresholds: 28% front-end target, 43% back-end target, 50% back-end maximum. Worksheet inputs are persisted per review case and every save is written to the audit log.
+- An optional **Payroll Deductions** block (for purely payrolled / W-2 borrowers) lets you enter taxes and withholding straight from a pay stub to also show **net monthly income** and **net residual income**. It does not estimate taxes; leave it blank and the worksheet stays gross-only. DTI ratios remain gross-based; when withholding is entered, the residual-income floor is judged on net residual.
 
 ## Auditability and blocking behavior
 

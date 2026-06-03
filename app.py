@@ -139,9 +139,10 @@ elif page=="DTI / ATR":
         rcid=int(st.selectbox("Loan / review case", cases.review_case_id, format_func=lambda x: f"{cases[cases.review_case_id==x].iloc[0].loan_id} - {cases[cases.review_case_id==x].iloc[0].borrower_name}"))
         loan_id=cases[cases.review_case_id==rcid].iloc[0].loan_id
         cfg=load_dti_config(); saved=load_dti_inputs(conn, rcid)
+        blocks=["income","housing","debts"]+(["deductions"] if cfg.get("deductions") else [])
         with st.form("dti"):
             values={}
-            for block in ("income","housing","debts"):
+            for block in blocks:
                 st.subheader(cfg[block]["section_name"])
                 fcols=st.columns(2)
                 for i,(key,label) in enumerate(block_lines(cfg, block)):
@@ -157,6 +158,11 @@ elif page=="DTI / ATR":
         m[1].metric("Front-end DTI", f"{result['front_end_dti']:.1f}%", help=f"Target ≤ {result['front_end_target']:.0f}%")
         m[2].metric("Back-end DTI", f"{result['back_end_dti']:.1f}%", help=f"Target ≤ {result['back_end_target']:.0f}%, max {result['back_end_max']:.0f}%")
         m[3].metric("Residual income", f"${result['residual_income']:,.0f}")
+        if result.get('total_withholding'):
+            n=st.columns(4)
+            n[0].metric("Payroll withholding", f"${result['total_withholding']:,.0f}")
+            n[1].metric("Net monthly income", f"${result['net_income']:,.0f}")
+            n[2].metric("Net residual income", f"${result['net_residual_income']:,.0f}")
         st.markdown(f"**ATR assessment:** {status_badge(result['severity'] or 'Complete')} &nbsp; {result['assessment']}", unsafe_allow_html=True)
 
 elif page=="Export":

@@ -172,6 +172,23 @@ def test_dti_compute_exception_and_fail_bands():
     fail=compute_dti({"base_income":5000,"principal_interest":2000,"auto":700,"credit_cards":500}, cfg)
     assert fail["back_end_dti"]>50 and fail["severity"]=="Blocked" and "Fails" in fail["assessment"]
 
+def test_dti_net_residual_with_payroll_withholding():
+    cfg=load_dti_config(DTI_CONFIG_PATH)
+    r=compute_dti({"base_income":8000,"principal_interest":1600,"property_taxes":300,"auto":400,"credit_cards":200,
+                   "payroll_withholding":1500}, cfg)
+    assert r["total_withholding"]==1500
+    assert r["net_income"]==6500            # 8000 - 1500
+    assert r["net_residual_income"]==4000   # 6500 - 2500 obligations
+    # gross ratios are unaffected by withholding
+    assert r["back_end_dti"]==round(2500/8000*100,2)
+
+def test_dti_net_equals_gross_when_no_withholding():
+    cfg=load_dti_config(DTI_CONFIG_PATH)
+    r=compute_dti({"base_income":8000,"principal_interest":1900,"auto":600}, cfg)
+    assert r["total_withholding"]==0
+    assert r["net_income"]==r["total_income"]
+    assert r["net_residual_income"]==r["residual_income"]
+
 def test_dti_inputs_persist_and_reload_with_audit(workflow):
     conn=workflow["conn"]; rcid=workflow["cases"][0]
     save_dti_inputs(conn, rcid, {"base_income":7000,"auto":450}, "Reviewer", loan_id="L1001")

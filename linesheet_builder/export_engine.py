@@ -254,9 +254,12 @@ def _build_dti(ws, ctx, cfg, values, result):
         r = row; row += 2
         return r
 
-    for block, label in (("income", cfg["income"]["section_name"]),
-                         ("housing", cfg["housing"]["section_name"]),
-                         ("debts", cfg["debts"]["section_name"])):
+    blocks = [("income", cfg["income"]["section_name"]),
+              ("housing", cfg["housing"]["section_name"]),
+              ("debts", cfg["debts"]["section_name"])]
+    if cfg.get("deductions"):
+        blocks.append(("deductions", cfg["deductions"]["section_name"]))
+    for block, label in blocks:
         section_bar(label)
         first = row
         for key, lbl in block_lines(cfg, block):
@@ -264,6 +267,7 @@ def _build_dti(ws, ctx, cfg, values, result):
         totals[block] = subtotal(f"Total — {label}", first, row - 1)
 
     inc, hou, deb = totals["income"], totals["housing"], totals["debts"]
+    ded = totals.get("deductions")
     th = result
 
     section_bar("Ability-to-Repay Results")
@@ -280,7 +284,12 @@ def _build_dti(ws, ctx, cfg, values, result):
     oblig_row = result_row("Total monthly obligations (housing + debts)", f"=B{hou}+B{deb}", money)
     front_row = result_row("Front-end DTI  (housing ÷ income)", f'=IF(B{inc}=0,"",B{hou}/B{inc})', '0.0%')
     back_row = result_row("Back-end DTI  (obligations ÷ income)", f'=IF(B{inc}=0,"",(B{hou}+B{deb})/B{inc})', '0.0%')
-    res_row = result_row("Monthly residual income (income − obligations)", f"=B{inc}-B{hou}-B{deb}", money)
+    gross_res_label = "Monthly residual income (gross − obligations)" if ded else "Monthly residual income (income − obligations)"
+    res_row = result_row(gross_res_label, f"=B{inc}-B{hou}-B{deb}", money)
+    net_res_row = None
+    if ded:
+        result_row("Net monthly income (gross − payroll deductions)", f"=B{inc}-B{ded}", money)
+        net_res_row = result_row("Net residual income (net of withholding)", f"=B{inc}-B{ded}-B{hou}-B{deb}", money)
     row += 1
 
     # guideline thresholds (static reference)
@@ -317,10 +326,13 @@ def _build_dti(ws, ctx, cfg, values, result):
     cf.add(f"B{back_row}", CellIsRule(operator="greaterThan", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
     cf.add(f"B{front_row}", CellIsRule(operator="greaterThan", formula=[str(fef)], fill=_CF_AMBER, stopIfTrue=True))
     cf.add(f"B{front_row}", CellIsRule(operator="greaterThan", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
-    cf.add(f"B{res_row}", CellIsRule(operator="lessThan", formula=["0"], fill=_CF_RED, stopIfTrue=True))
-    if rmin:
-        cf.add(f"B{res_row}", CellIsRule(operator="lessThan", formula=[str(rmin)], fill=_CF_AMBER, stopIfTrue=True))
-    cf.add(f"B{res_row}", CellIsRule(operator="greaterThanOrEqual", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
+    for rr in (res_row, net_res_row):
+        if not rr:
+            continue
+        cf.add(f"B{rr}", CellIsRule(operator="lessThan", formula=["0"], fill=_CF_RED, stopIfTrue=True))
+        if rmin:
+            cf.add(f"B{rr}", CellIsRule(operator="lessThan", formula=[str(rmin)], fill=_CF_AMBER, stopIfTrue=True))
+        cf.add(f"B{rr}", CellIsRule(operator="greaterThanOrEqual", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
     cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Fails",{assess_cell}))'], fill=_CF_RED, stopIfTrue=True))
     cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Exceeds",{assess_cell}))'], fill=_CF_AMBER, stopIfTrue=True))
     cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Within",{assess_cell}))'], fill=_CF_GREEN, stopIfTrue=True))

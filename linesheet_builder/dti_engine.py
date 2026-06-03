@@ -29,7 +29,10 @@ def block_lines(cfg: dict, block: str) -> list[tuple[str, str]]:
 
 
 def all_line_keys(cfg: dict) -> list[str]:
-    return [k for b in BLOCKS for k, _ in block_lines(cfg, b)]
+    keys = [k for b in BLOCKS for k, _ in block_lines(cfg, b)]
+    if cfg.get("deductions"):
+        keys += [k for k, _ in block_lines(cfg, "deductions")]
+    return keys
 
 
 def _num(v) -> float:
@@ -55,6 +58,14 @@ def compute_dti(values: dict, cfg: dict) -> dict:
     obligations = housing + other_debt
     residual = income - obligations
 
+    # Optional payroll withholding -> net income / net residual (W-2 borrowers).
+    ded_lines = block_lines(cfg, "deductions") if cfg.get("deductions") else []
+    withholding = sum(_num(values.get(k)) for k, _ in ded_lines)
+    net_income = income - withholding
+    net_residual = net_income - obligations
+    # When withholding is provided, the residual floor is judged on net residual.
+    residual_for_check = net_residual if withholding > 0 else residual
+
     front = round(housing / income * 100, 2) if income else 0.0
     back = round(obligations / income * 100, 2) if income else 0.0
 
@@ -62,7 +73,7 @@ def compute_dti(values: dict, cfg: dict) -> dict:
         assessment, severity = "Income required", None
     elif back > back_max:
         assessment, severity = "Fails ATR — exceeds maximum DTI", "Blocked"
-    elif back > back_target or front > front_target or (residual_min > 0 and residual < residual_min):
+    elif back > back_target or front > front_target or (residual_min > 0 and residual_for_check < residual_min):
         assessment, severity = "Exceeds guidelines — documented exception required", "Finding"
     else:
         assessment, severity = "Within ability-to-repay guidelines", None
@@ -75,6 +86,9 @@ def compute_dti(values: dict, cfg: dict) -> dict:
         "front_end_dti": front,
         "back_end_dti": back,
         "residual_income": round(residual, 2),
+        "total_withholding": round(withholding, 2),
+        "net_income": round(net_income, 2),
+        "net_residual_income": round(net_residual, 2),
         "front_end_target": front_target,
         "back_end_target": back_target,
         "back_end_max": back_max,
