@@ -19,6 +19,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+import core
 import generate_documents
 import sort_tax_docs
 
@@ -120,19 +121,19 @@ def evaluate(client: dict, slug: str, config: TrackerConfig, search_files: list[
 def _build_html(config: TrackerConfig, rows: list[dict]) -> str:
     colors = {STATUS_ON_FILE: "#1a7f37", STATUS_OUTSTANDING: "#c0392b"}
     body = "".join(
-        f"<tr><td>{generate_documents._escape(r['client'])}</td>"
+        f"<tr><td>{core.escape_html(r['client'])}</td>"
         f"<td style='color:{colors[r['status']]};font-weight:600'>{r['status']}</td>"
-        f"<td>{generate_documents._escape(r['source'])}</td></tr>"
+        f"<td>{core.escape_html(r['source'])}</td></tr>"
         for r in rows
     ) or "<tr><td colspan='3'>No clients.</td></tr>"
     return f"""<!doctype html><html><head><meta charset="utf-8">
-<title>{generate_documents._escape(config.title)}</title>
+<title>{core.escape_html(config.title)}</title>
 <style>
  body {{ font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 760px; margin: 2rem auto; color: #1c2733; }}
  h1 {{ font-size: 1.4rem; }} table {{ border-collapse: collapse; width: 100%; }}
  td, th {{ border-bottom: 1px solid #e1e6ec; padding: .5rem .4rem; text-align: left; }}
 </style></head><body>
-<h1>{generate_documents._escape(config.title)}</h1>
+<h1>{core.escape_html(config.title)}</h1>
 <table><tr><th>Client</th><th>Status</th><th>Source</th></tr>{body}</table>
 </body></html>
 """

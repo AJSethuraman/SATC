@@ -17,6 +17,7 @@ import csv
 import json
 from pathlib import Path
 
+import core
 import generate_documents
 import sort_tax_docs
 
@@ -62,8 +63,7 @@ def load_fee_schedule(input_folder: Path) -> tuple[dict, Path]:
     return DEFAULT_FEE_SCHEDULE, path
 
 
-def _money(value: float) -> str:
-    return f"{value:,.2f}"
+_money = core.format_money
 
 
 def _service_entries(client: dict) -> list[tuple[str, int, dict | None]]:
@@ -113,7 +113,7 @@ def compute_line_items(client: dict, schedule: dict) -> tuple[list[dict], float,
         elif key:
             warnings.append(f"service '{key}' is not in the fee schedule; skipped.")
 
-    total = sum(float(item["amount"].replace(",", "")) for item in line_items)
+    total = sum(core.parse_money(item["amount"]) for item in line_items)
     return line_items, total, warnings
 
 

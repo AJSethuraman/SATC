@@ -19,6 +19,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+import core
 import generate_documents
 import sort_tax_docs
 
@@ -98,7 +99,7 @@ def _matching_files(folder: Path, slug: str, longer=()) -> list[Path]:
         return []
     found = set(folder.glob(f"{slug}_*")) | set(folder.glob(f"Signed_{slug}_*"))
     return sorted(
-        p for p in found if not generate_documents.file_belongs_to_other_client(p.name, list(longer))
+        p for p in found if not core.file_belongs_to_other_client(p.name, list(longer))
     )
 
 
@@ -133,7 +134,7 @@ def run_encyro_export(input_folder, status_callback=None) -> dict:
     exported = 0
     for index, client in enumerate(clients, start=1):
         slug = generate_documents.client_slug(client, index)
-        longer = generate_documents.longer_slugs(slug, all_slugs)
+        longer = core.longer_slugs(slug, all_slugs)
         if status_callback:
             status_callback(f"Building Encyro packet for {slug} ({index} of {len(clients)})")
 
@@ -143,7 +144,7 @@ def run_encyro_export(input_folder, status_callback=None) -> dict:
         packet_sources: list[Path] = []
 
         for html_file in sorted(generated_folder.glob(f"{slug}_*.html")):
-            if generate_documents.file_belongs_to_other_client(html_file.name, longer):
+            if core.file_belongs_to_other_client(html_file.name, longer):
                 continue
             pdf_path = client_dir / f"{html_file.stem}.pdf"
             try:
@@ -156,7 +157,7 @@ def run_encyro_export(input_folder, status_callback=None) -> dict:
 
         # Generated Word documents upload to Encyro as-is (it converts them on upload).
         for docx_file in sorted(generated_folder.glob(f"{slug}_*.docx")):
-            if generate_documents.file_belongs_to_other_client(docx_file.name, longer):
+            if core.file_belongs_to_other_client(docx_file.name, longer):
                 continue
             destination = sort_tax_docs.unique_destination_path(client_dir, docx_file.name)
             shutil.copy2(docx_file, destination)

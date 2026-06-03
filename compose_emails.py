@@ -18,6 +18,7 @@ import mimetypes
 from email.message import EmailMessage
 from pathlib import Path
 
+import core
 import generate_documents
 import sort_tax_docs
 
@@ -74,14 +75,14 @@ def client_attachments(
     Jo_Sample) are excluded so one client's documents never attach to another's email.
     """
 
-    longer = generate_documents.longer_slugs(slug, all_slugs)
+    longer = core.longer_slugs(slug, all_slugs)
     attachments: list[Path] = []
     for folder_name in ATTACHMENT_SOURCE_FOLDERS:
         folder = output_folder / folder_name
         if folder.is_dir():
             matches = sorted(folder.glob(f"{slug}_*")) + sorted(folder.glob(f"Signed_{slug}_*"))
             attachments.extend(
-                p for p in matches if not generate_documents.file_belongs_to_other_client(p.name, longer)
+                p for p in matches if not core.file_belongs_to_other_client(p.name, longer)
             )
 
     for extra in client.get("attachments", []) or []:

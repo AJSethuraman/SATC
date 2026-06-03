@@ -15,6 +15,7 @@ from datetime import date
 from pathlib import Path
 
 import checklist
+import core
 import generate_documents
 import sort_tax_docs
 import status_tracker
@@ -82,7 +83,7 @@ _PILL_COLORS = {
 
 def _pill(state: str, label: str) -> str:
     fg, bg = _PILL_COLORS[state]
-    text = generate_documents._escape(label)
+    text = core.escape_html(label)
     return f"<span class='pill' style='color:{fg};background:{bg}'>{text}</span>"
 
 
@@ -91,7 +92,7 @@ def build_dashboard_html(rows: list[dict], summary: dict) -> str:
     body = ""
     for row in rows:
         cells = "".join(f"<td>{_pill(*row[key])}</td>" for key, _ in _COLUMNS)
-        body += f"<tr><td class='name'>{generate_documents._escape(row['name'])}</td>{cells}</tr>"
+        body += f"<tr><td class='name'>{core.escape_html(row['name'])}</td>{cells}</tr>"
     if not rows:
         body = f"<tr><td colspan='{len(_COLUMNS) + 1}'>No clients.</td></tr>"
 

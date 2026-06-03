@@ -14,6 +14,7 @@ import csv
 from collections import Counter
 from pathlib import Path
 
+import core
 import extract_form_data
 import generate_documents
 import sort_tax_docs
@@ -132,10 +133,10 @@ def run_diagnostics(input_folder, status_callback=None) -> dict:
 def _write_html(path: Path, findings: list[dict]) -> None:
     colors = {SEV_WARN: "#8a1c1c", SEV_INFO: "#5b6b7b"}
     body = "".join(
-        f"<tr><td>{generate_documents._escape(f['form'])}</td>"
-        f"<td>{generate_documents._escape(f['source_file'])}</td>"
+        f"<tr><td>{core.escape_html(f['form'])}</td>"
+        f"<td>{core.escape_html(f['source_file'])}</td>"
         f"<td style='color:{colors[f['severity']]};font-weight:600'>{f['severity']}</td>"
-        f"<td>{generate_documents._escape(f['issue'])}</td></tr>"
+        f"<td>{core.escape_html(f['issue'])}</td></tr>"
         for f in findings
     ) or "<tr><td colspan='4'>No issues found.</td></tr>"
     path.write_text(

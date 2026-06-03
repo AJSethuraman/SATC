@@ -14,6 +14,7 @@ import csv
 from datetime import date
 from pathlib import Path
 
+import core
 import generate_documents
 import sort_tax_docs
 
@@ -24,8 +25,7 @@ AGING_BUCKETS = ("0-30", "31-60", "61-90", "90+")
 STATUS_PAID, STATUS_PARTIAL, STATUS_UNPAID = "Paid", "Partial", "Unpaid"
 
 
-def _money(value: float) -> str:
-    return f"{value:,.2f}"
+_money = core.format_money
 
 
 def _is_truthy(value) -> bool:
@@ -38,7 +38,7 @@ def _is_truthy(value) -> bool:
 
 def _amount_paid(client: dict, total: float) -> float:
     if "amount_paid" in client:
-        return generate_documents._to_float(client.get("amount_paid"))
+        return core.parse_money(client.get("amount_paid"))
     return total if _is_truthy(client.get("paid")) else 0.0
 
 
@@ -69,7 +69,7 @@ def evaluate_client(client: dict, today: date | None = None) -> dict:
     """Compute a single AR row for one client."""
 
     today = today or date.today()
-    total = generate_documents._to_float(client.get("total"))
+    total = core.parse_money(client.get("total"))
     paid = min(_amount_paid(client, total), total) if total else _amount_paid(client, total)
     balance = round(total - paid, 2)
     if balance <= 0:
@@ -164,7 +164,7 @@ def run_payments(input_folder, status_callback=None) -> dict:
 def _write_html(path, rows, bucket_totals, billed, collected, outstanding) -> None:
     colors = {STATUS_PAID: "#0d4429", STATUS_PARTIAL: "#9a6700", STATUS_UNPAID: "#8a1c1c"}
     body = "".join(
-        f"<tr><td>{generate_documents._escape(r['client'])}</td><td>{r['total']}</td>"
+        f"<tr><td>{core.escape_html(r['client'])}</td><td>{r['total']}</td>"
         f"<td>{r['paid']}</td><td>{r['balance']}</td>"
         f"<td style='color:{colors.get(r['status'], '#333')};font-weight:600'>{r['status']}</td>"
         f"<td>{r['days_outstanding']}</td><td>{r['bucket']}</td></tr>"

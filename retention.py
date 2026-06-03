@@ -17,6 +17,7 @@ import zipfile
 from datetime import date
 from pathlib import Path
 
+import core
 import generate_documents
 import sort_tax_docs
 
@@ -42,14 +43,14 @@ def gather_client_files(input_folder: Path, output_folder: Path, slug: str, all_
     captures another client's documents.
     """
 
-    longer = generate_documents.longer_slugs(slug, all_slugs)
+    longer = core.longer_slugs(slug, all_slugs)
     files: list[Path] = []
     for folder_name, pattern in ARTIFACT_SOURCES:
         folder = output_folder / folder_name
         if folder.is_dir():
             files.extend(
                 p for p in sorted(folder.glob(pattern.format(slug=slug)))
-                if p.is_file() and not generate_documents.file_belongs_to_other_client(p.name, longer)
+                if p.is_file() and not core.file_belongs_to_other_client(p.name, longer)
             )
 
     encyro_dir = output_folder / "Encyro_Ready" / slug

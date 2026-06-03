@@ -21,6 +21,7 @@ import re
 from datetime import date
 from pathlib import Path
 
+import core
 import sort_tax_docs
 
 GENERATED_FOLDER_NAME = "Generated_Documents"
@@ -47,15 +48,8 @@ _SECTION_RE = re.compile(r"\{\{#(\w+)\}\}(.*?)\{\{/\1\}\}", re.DOTALL)
 _FIELD_RE = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
 
-def _escape(value: object) -> str:
-    """Minimal HTML escaping for substituted values (templates are trusted)."""
-
-    return (
-        str(value)
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-    )
+# Shared primitives live in core; kept as module-local names for internal callers.
+_escape = core.escape_html
 
 
 def _render_fields(text: str, context: dict, escape: bool = True) -> str:
@@ -95,11 +89,7 @@ def missing_fields(template_text: str, context: dict) -> list[str]:
     return sorted(name for name in referenced_fields(template_text) if not context.get(name))
 
 
-def _to_float(value: object) -> float:
-    try:
-        return float(str(value).replace("$", "").replace(",", "").strip())
-    except ValueError:
-        return 0.0
+_to_float = core.parse_money
 
 
 FIRM_SETTINGS_FILENAME = "firm.json"
@@ -240,25 +230,6 @@ def client_slug(client: dict, index: int = 1) -> str:
 
     name = str(client.get("client_name") or client.get("name") or f"client_{index}")
     return sort_tax_docs.safe_filename_part(name).replace(" ", "_")
-
-
-def longer_slugs(slug: str, all_slugs) -> list[str]:
-    """Other client slugs that have ``slug`` as a strict prefix (e.g. Jo_Sample_Jr)."""
-
-    prefix = f"{slug}_"
-    return [other for other in all_slugs if other != slug and other.startswith(prefix)]
-
-
-def file_belongs_to_other_client(name: str, longer: list[str]) -> bool:
-    """True if a per-client output file actually belongs to a longer (more specific) slug.
-
-    Output files are named ``<slug>_...`` (optionally prefixed with ``Signed_``). When
-    one client's slug is a prefix of another's, a plain ``<slug>_*`` match would wrongly
-    pull in the longer client's files; this excludes them.
-    """
-
-    core = name[len("Signed_"):] if name.startswith("Signed_") else name
-    return any(core.startswith(f"{other}_") for other in longer)
 
 
 def run_generation(input_folder, status_callback=None, templates=None) -> dict:

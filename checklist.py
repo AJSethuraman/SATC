@@ -18,6 +18,7 @@ import csv
 import json
 from pathlib import Path
 
+import core
 import generate_documents
 import sort_tax_docs
 
@@ -100,10 +101,10 @@ def _missing_count(rows: list[dict]) -> int:
 
 
 def build_checklist_html(client: dict, rows: list[dict], extras: list[str]) -> str:
-    name = generate_documents._escape(client.get("client_name") or client.get("name") or "Client")
+    name = core.escape_html(client.get("client_name") or client.get("name") or "Client")
     colors = {STATUS_RECEIVED: "#1a7f37", STATUS_MISSING: "#c0392b", STATUS_MANUAL: "#9a6700"}
     body_rows = "".join(
-        f"<tr><td>{generate_documents._escape(r['document'])}</td>"
+        f"<tr><td>{core.escape_html(r['document'])}</td>"
         f"<td style='color:{colors.get(r['status'], '#333')};font-weight:600'>{r['status']}</td></tr>"
         for r in rows
     ) or "<tr><td colspan='2'>No expected documents on file.</td></tr>"
