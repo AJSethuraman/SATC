@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<!-- Editable template. Replace the double-brace fields with client data; single braces (CSS) are left alone. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Engagement Letter - {{client_name}}</title>
+<style>
+  body { font-family: Georgia, "Times New Roman", serif; color: #1a1a1a; max-width: 720px;
+         margin: 40px auto; line-height: 1.5; padding: 0 24px; }
+  .firm { border-bottom: 2px solid #0B1F3A; padding-bottom: 10px; margin-bottom: 24px; }
+  .firm h1 { color: #0B1F3A; margin: 0 0 4px; font-size: 22px; }
+  .meta { color: #444; font-size: 14px; }
+  h2 { color: #0B1F3A; font-size: 16px; margin-top: 28px; }
+  .sign { margin-top: 48px; }
+  .sign .line { border-top: 1px solid #333; width: 280px; margin-top: 40px; padding-top: 4px; font-size: 13px; }
+  @media print { body { margin: 0; } }
+</style>
+</head>
+<body>
+  <div class="firm">
+    <h1>{{firm_name}}</h1>
+    <div class="meta">{{firm_address}} &nbsp;|&nbsp; {{firm_phone}} &nbsp;|&nbsp; {{firm_email}}</div>
+  </div>
+
+  <p>{{generated_date}}</p>
+
+  <p>{{client_name}}<br>{{client_address}}</p>
+
+  <h2>Re: Tax Preparation Engagement &mdash; Tax Year {{tax_year}}</h2>
+
+  <p>Dear {{client_name}},</p>
+
+  <p>Thank you for choosing {{firm_name}} to prepare your {{tax_year}} income tax
+  returns. This letter confirms the terms of our engagement and the nature of the
+  services we will provide.</p>
+
+  <h2>Scope of Services</h2>
+  <p>{{services_description}}</p>
+
+  <h2>Client Responsibilities</h2>
+  <p>You are responsible for providing complete and accurate information, including all
+  income, deductions, and supporting documentation. We will rely on this information and
+  will not audit or verify the data you submit.</p>
+
+  <h2>Fees</h2>
+  <p>Our fee for the services described above is estimated at {{fee_estimate}}, due upon
+  completion unless otherwise arranged. {{payment_terms}}</p>
+
+  <p>If the above terms are acceptable, please sign below and return one copy for our files.
+  We appreciate the opportunity to serve you.</p>
+
+  <p>Sincerely,</p>
+  <p>{{preparer_name}}<br>{{firm_name}}</p>
+
+  <div class="sign">
+    <div class="line">Client signature</div>
+    <div class="line">Date</div>
+  </div>
+</body>
+</html>

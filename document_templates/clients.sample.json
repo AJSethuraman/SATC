@@ -1,0 +1,38 @@
+[
+  {
+    "firm_name": "Sethuraman Tax & Advisory",
+    "firm_address": "123 Main Street, Suite 200, Springfield, IL 62701",
+    "firm_phone": "(555) 123-4567",
+    "firm_email": "office@example-firm.com",
+    "preparer_name": "A. Sethuraman, EA",
+
+    "client_name": "Jordan Q. Sample",
+    "client_address": "456 Oak Avenue, Springfield, IL 62702",
+    "tax_year": "2024",
+
+    "services_description": "Preparation of federal Form 1040 and Illinois IL-1040, including Schedule A itemized deductions and Schedule B interest and dividends.",
+    "fee_estimate": "$450.00",
+    "payment_terms": "Payment is due within 15 days of the invoice date.",
+
+    "invoice_number": "2024-0142",
+    "invoice_date": "2025-03-15",
+    "due_date": "2025-03-30",
+    "line_items": [
+      { "description": "Federal Form 1040 preparation", "amount": "300.00" },
+      { "description": "Illinois IL-1040 preparation", "amount": "100.00" },
+      { "description": "Schedule A (itemized deductions)", "amount": "50.00" }
+    ],
+
+    "extension_form": "4868",
+    "extended_due_date": "October 15, 2025",
+    "notes": "We estimate a small balance due; please remit the enclosed estimated payment.",
+
+    "requested_items": [
+      { "item": "All W-2 forms from 2024 employers" },
+      { "item": "1099 forms (INT, DIV, NEC, R) received for 2024" },
+      { "item": "1098 Mortgage Interest Statement" },
+      { "item": "Property tax payment records" },
+      { "item": "Charitable contribution receipts" }
+    ]
+  }
+]

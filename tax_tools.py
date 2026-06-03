@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 import extract_form_data
+import generate_documents
 import sort_tax_docs
 
 
@@ -24,6 +25,7 @@ class ToolContext:
     move: bool = False
     save_extracted_text: bool = False
     split_combined: bool = True
+    document_templates: tuple[str, ...] | None = None
     status_callback: Callable[[str], None] | None = None
 
     def status(self, message: str) -> None:
@@ -59,6 +61,14 @@ def _run_extractor(context: ToolContext) -> dict:
     )
 
 
+def _run_generator(context: ToolContext) -> dict:
+    return generate_documents.run_generation(
+        context.input_folder,
+        status_callback=context.status_callback,
+        templates=context.document_templates,
+    )
+
+
 TOOLS: tuple[Tool, ...] = (
     Tool(
         "sort",
@@ -69,8 +79,14 @@ TOOLS: tuple[Tool, ...] = (
     Tool(
         "extract",
         "Extract Form Data",
-        "Pull key fields from W-2, 1099-NEC, 1099-INT/DIV, and 1099-R forms into a spreadsheet.",
+        "Pull key fields from W-2 and 1099 forms into a spreadsheet and Drake CSVs.",
         _run_extractor,
+    ),
+    Tool(
+        "generate",
+        "Generate Documents",
+        "Fill engagement letters, invoices, and client letters from a clients.json/csv data file.",
+        _run_generator,
     ),
 )
 

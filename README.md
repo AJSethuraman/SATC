@@ -8,6 +8,7 @@ Pick one or more tools in the desktop app (they run top to bottom):
 
 1. **Sort Documents** — classify uploads and copy (or move) them into category folders with an inventory workbook. When a single PDF contains more than one form type, it is **split** into one filed PDF per form (see below).
 2. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, **1099-R**, **1099-G**, **1099-K**, **SSA-1099**, **1098 (Mortgage)**, **1098-T**, **1099-B**, and **Schedule K-1**. Output is written two ways: a human-readable `Extracted_Form_Data.xlsx` (one sheet per form type) and machine-readable per-form CSVs in `Drake_Export/` for feeding a downstream entry script.
+3. **Generate Documents** — fill editable templates (engagement letter, invoice, extension/cover letter, client organizer letter) from a `clients.json`/`clients.csv` data file and write finished HTML to `Generated_Documents/`.
 
 Extraction is local and rule-based: it uses label-anchored regular expressions over the same selectable-text/OCR pipeline as the sorter. It is **assistive only** — every value should be verified against the source document, and anything the rules cannot read confidently is left blank with the row flagged for manual entry. 1099-B is transactional and is always flagged for manual review.
 
@@ -138,13 +139,29 @@ py -3.12 sort_tax_docs.py --check-dependencies
 `tax_tools.py` runs any combination of tools on a folder, in order:
 
 ```bash
-python tax_tools.py "/path/to/Uploads"                 # runs sort then extract
-python tax_tools.py "/path/to/Uploads" --tools sort    # just the sorter
-python tax_tools.py "/path/to/Uploads" --tools extract # just the extractor
-python extract_form_data.py "/path/to/Uploads"         # extractor directly
+python tax_tools.py "/path/to/Uploads"                  # runs sort, extract, generate
+python tax_tools.py "/path/to/Uploads" --tools sort     # just the sorter
+python tax_tools.py "/path/to/Uploads" --tools extract  # just the extractor
+python tax_tools.py "/path/to/Uploads" --tools generate # just document generation
+python extract_form_data.py "/path/to/Uploads"          # extractor directly
+python generate_documents.py "/path/to/Uploads"         # generator directly
 ```
 
 The CLI workflows remain available for troubleshooting and automation. The older Flask browser app (`app.py`) is still present as optional legacy tooling, but the primary workflow is the PySide6 desktop app.
+
+### Generating client documents
+
+The **Generate Documents** tool fills templates from a client data file in the input folder and writes one HTML file per client per template to `Organized_Tax_Documents/Generated_Documents/`. Open the HTML in any browser and print or save it as PDF.
+
+1. Put a `clients.json` (or `clients.csv`) in the folder. JSON supports nested lists like invoice `line_items` and organizer `requested_items`; CSV is fine for the letters and simple fields. A worked example ships at `document_templates/clients.sample.json` — copy it to your folder as `clients.json` and edit.
+2. The templates live in `document_templates/` (`engagement_letter.html`, `invoice.html`, `extension_cover_letter.html`, `client_organizer_letter.html`). Edit them freely. To use a different set without touching the repo, drop a `document_templates/` folder inside your input folder and it will be used instead.
+3. Run the tool. Each client record produces `<ClientName>_<template>.html`. Fields that a template references but the data does not provide are left blank and reported as a warning, so nothing fails silently.
+
+Templates use a tiny Mustache-style syntax:
+
+- `{{field}}` inserts a value from the client record (HTML-escaped). Single braces such as CSS rules are left alone.
+- `{{#line_items}} ... {{/line_items}}` repeats the block once per item in a list; inside it, `{{description}}`/`{{amount}}` refer to each item's fields.
+- The invoice `total` is computed automatically from the line-item amounts when not supplied, and `generated_date` defaults to today.
 
 ## Detailed setup notes
 
@@ -249,6 +266,7 @@ Run the included fake-text classifier tests with:
 ```bash
 python test_sort_tax_docs.py
 python test_extract_form_data.py
+python test_generate_documents.py
 python test_integration.py
 ```
 

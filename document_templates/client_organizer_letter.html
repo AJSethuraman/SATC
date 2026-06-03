@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!-- Editable template. The requested-items section repeats once per checklist item. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Document Request - {{client_name}}</title>
+<style>
+  body { font-family: Georgia, "Times New Roman", serif; color: #1a1a1a; max-width: 720px;
+         margin: 40px auto; line-height: 1.5; padding: 0 24px; }
+  .firm { border-bottom: 2px solid #0B1F3A; padding-bottom: 10px; margin-bottom: 24px; }
+  .firm h1 { color: #0B1F3A; margin: 0 0 4px; font-size: 22px; }
+  .meta { color: #444; font-size: 14px; }
+  h2 { color: #0B1F3A; font-size: 16px; margin-top: 28px; }
+  ul.checklist { list-style: none; padding-left: 0; }
+  ul.checklist li { padding: 6px 0; border-bottom: 1px solid #eee; }
+  ul.checklist li::before { content: "\2610"; margin-right: 10px; color: #B08D57; font-size: 18px; }
+  @media print { body { margin: 0; } }
+</style>
+</head>
+<body>
+  <div class="firm">
+    <h1>{{firm_name}}</h1>
+    <div class="meta">{{firm_address}} &nbsp;|&nbsp; {{firm_phone}} &nbsp;|&nbsp; {{firm_email}}</div>
+  </div>
+
+  <p>{{generated_date}}</p>
+
+  <p>{{client_name}}<br>{{client_address}}</p>
+
+  <h2>Re: Documents Needed for Your {{tax_year}} Tax Return</h2>
+
+  <p>Dear {{client_name}},</p>
+
+  <p>To prepare your {{tax_year}} income tax return, please gather and send the items
+  listed below. Sending everything at once helps us complete your return promptly.</p>
+
+  <h2>Checklist</h2>
+  <ul class="checklist">
+    {{#requested_items}}
+    <li>{{item}}</li>
+    {{/requested_items}}
+  </ul>
+
+  <p>Please return these by {{due_date}}. If an item does not apply to you, simply note
+  that so we know it is not missing. Thank you!</p>
+
+  <p>Sincerely,</p>
+  <p>{{preparer_name}}<br>{{firm_name}}</p>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<!-- Editable template. The line-items section repeats once per invoice line item. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Invoice {{invoice_number}} - {{client_name}}</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; max-width: 720px;
+         margin: 40px auto; padding: 0 24px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start;
+           border-bottom: 3px solid #0B1F3A; padding-bottom: 12px; }
+  .firm h1 { color: #0B1F3A; margin: 0; font-size: 20px; }
+  .firm div, .bill div { font-size: 13px; color: #444; }
+  .doc h2 { color: #B08D57; margin: 0; text-align: right; font-size: 26px; letter-spacing: 2px; }
+  .doc div { text-align: right; font-size: 13px; color: #444; }
+  .bill { margin-top: 24px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  th { background: #0B1F3A; color: #fff; text-align: left; padding: 8px 10px; font-size: 13px; }
+  td { padding: 8px 10px; border-bottom: 1px solid #ddd; font-size: 14px; }
+  td.amount, th.amount { text-align: right; }
+  .total { text-align: right; font-size: 18px; font-weight: bold; margin-top: 14px; color: #0B1F3A; }
+  .terms { margin-top: 28px; font-size: 13px; color: #444; }
+  @media print { body { margin: 0; } }
+</style>
+</head>
+<body>
+  <header>
+    <div class="firm">
+      <h1>{{firm_name}}</h1>
+      <div>{{firm_address}}</div>
+      <div>{{firm_phone}} | {{firm_email}}</div>
+    </div>
+    <div class="doc">
+      <h2>INVOICE</h2>
+      <div>Invoice #: {{invoice_number}}</div>
+      <div>Date: {{invoice_date}}</div>
+      <div>Due: {{due_date}}</div>
+    </div>
+  </header>
+
+  <div class="bill">
+    <strong>Bill To:</strong>
+    <div>{{client_name}}</div>
+    <div>{{client_address}}</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Description</th><th class="amount">Amount</th></tr>
+    </thead>
+    <tbody>
+      {{#line_items}}
+      <tr><td>{{description}}</td><td class="amount">{{amount}}</td></tr>
+      {{/line_items}}
+    </tbody>
+  </table>
+
+  <div class="total">Total Due: {{total}}</div>
+
+  <div class="terms">{{payment_terms}}</div>
+</body>
+</html>

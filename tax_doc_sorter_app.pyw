@@ -106,6 +106,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "open_paths": {},
         "sort": None,
         "extract": None,
+        "generate": None,
     }
 
     sort_result = results.get("sort")
@@ -129,6 +130,19 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
             summary["open_paths"]["Open Extracted Data"] = str(extract_result["data_path"])
         if extract_result.get("drake_export_folder"):
             summary["open_paths"]["Open Drake Export"] = str(extract_result["drake_export_folder"])
+
+    generate_result = results.get("generate")
+    if generate_result is not None:
+        summary["generate"] = {
+            "document_count": generate_result["document_count"],
+            "client_count": generate_result["client_count"],
+            "warnings": generate_result["warnings"],
+        }
+        summary["tool_lines"].append(f"Generate Documents: {generate_result['summary']}")
+        if generate_result.get("generated_folder"):
+            summary["open_paths"]["Open Generated Documents"] = str(
+                generate_result["generated_folder"]
+            )
 
     return summary
 
@@ -334,6 +348,7 @@ if PYSIDE_AVAILABLE:
                 "Open Log File",
                 "Open Extracted Data",
                 "Open Drake Export",
+                "Open Generated Documents",
             ]
             for label in button_labels:
                 button = QPushButton(label)
@@ -473,6 +488,12 @@ if PYSIDE_AVAILABLE:
                 review_lines.append(
                     f"Forms extracted: {extract_result['total_forms']} | "
                     f"Flagged for manual entry: {extract_result['review_count']}"
+                )
+            generate_result = result.get("generate")
+            if generate_result is not None:
+                review_lines.append(
+                    f"Documents generated: {generate_result['document_count']} | "
+                    f"With blank fields: {len(generate_result['warnings'])}"
                 )
             self.needs_review_label.setText("     ".join(review_lines))
 
