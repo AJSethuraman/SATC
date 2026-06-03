@@ -37,6 +37,7 @@ if PYSIDE_AVAILABLE:
         QMessageBox,
         QPushButton,
         QProgressBar,
+        QScrollArea,
         QTableWidget,
         QTableWidgetItem,
         QToolButton,
@@ -109,6 +110,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "sort": None,
         "intake": None,
         "extract": None,
+        "diagnostics": None,
         "checklist": None,
         "invoice": None,
         "generate": None,
@@ -116,10 +118,12 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "certsign": None,
         "engagement": None,
         "form8879": None,
+        "filing": None,
         "reminders": None,
         "email": None,
         "encyro": None,
         "retention": None,
+        "payments": None,
         "dashboard": None,
     }
 
@@ -155,6 +159,16 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
             summary["open_paths"]["Open Extracted Data"] = str(extract_result["data_path"])
         if extract_result.get("drake_export_folder"):
             summary["open_paths"]["Open Drake Export"] = str(extract_result["drake_export_folder"])
+
+    diagnostics_result = results.get("diagnostics")
+    if diagnostics_result is not None:
+        summary["diagnostics"] = {
+            "warning_count": diagnostics_result["warning_count"],
+            "finding_count": diagnostics_result["finding_count"],
+        }
+        summary["tool_lines"].append(f"Data Diagnostics: {diagnostics_result['summary']}")
+        if diagnostics_result.get("diagnostics_folder"):
+            summary["open_paths"]["Open Diagnostics"] = str(diagnostics_result["diagnostics_folder"])
 
     checklist_result = results.get("checklist")
     if checklist_result is not None:
@@ -212,7 +226,8 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
             summary["open_paths"]["Open Certified Documents"] = str(certsign_result["signed_folder"])
 
     for tracker_key, tracker_label in (("engagement", "Engagement Letter Tracker"),
-                                       ("form8879", "Form 8879 Tracker")):
+                                       ("form8879", "Form 8879 Tracker"),
+                                       ("filing", "Filing Tracker")):
         tracker_result = results.get(tracker_key)
         if tracker_result is not None:
             summary[tracker_key] = {
@@ -262,6 +277,16 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"Records Retention: {retention_result['summary']}")
         if retention_result.get("retention_folder"):
             summary["open_paths"]["Open Retention Archives"] = str(retention_result["retention_folder"])
+
+    payments_result = results.get("payments")
+    if payments_result is not None:
+        summary["payments"] = {
+            "total_outstanding": payments_result["total_outstanding"],
+            "total_billed": payments_result["total_billed"],
+        }
+        summary["tool_lines"].append(f"Payments & AR: {payments_result['summary']}")
+        if payments_result.get("payments_folder"):
+            summary["open_paths"]["Open AR Report"] = str(payments_result["payments_folder"])
 
     dashboard_result = results.get("dashboard")
     if dashboard_result is not None:
@@ -417,23 +442,69 @@ if PYSIDE_AVAILABLE:
             tools_card = QFrame(objectName="Card")
             tools_layout = QVBoxLayout(tools_card)
             tools_layout.setContentsMargins(24, 20, 24, 20)
-            tools_layout.setSpacing(6)
-            tools_layout.addWidget(QLabel("Choose tools to run", objectName="SectionTitle"))
-            tools_layout.addWidget(
-                QLabel(
-                    "Select one or more tools. They run in order, top to bottom.",
-                    objectName="StatusLabel",
+            tools_layout.setSpacing(10)
+
+            tools_header = QHBoxLayout()
+            tools_header.addWidget(QLabel("Choose tools to run", objectName="SectionTitle"))
+            tools_header.addStretch()
+            select_all = QPushButton("Select all", objectName="GhostButton")
+            select_all.clicked.connect(lambda: self.set_all_tools(True))
+            select_none = QPushButton("Clear", objectName="GhostButton")
+            select_none.clicked.connect(lambda: self.set_all_tools(False))
+            tools_header.addWidget(select_all)
+            tools_header.addWidget(select_none)
+            tools_layout.addLayout(tools_header)
+
+            preset_row = QHBoxLayout()
+            preset_row.addWidget(QLabel("Presets:", objectName="StatusLabel"))
+            for label, keys in tax_tools.PRESETS:
+                preset_button = QPushButton(label, objectName="PresetButton")
+                preset_button.clicked.connect(lambda _checked=False, k=tuple(keys): self.apply_preset(k))
+                preset_row.addWidget(preset_button)
+            preset_row.addStretch()
+            tools_layout.addLayout(preset_row)
+
+            # Scrollable, grouped tool list so 18 tools stay tidy.
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setObjectName("ToolScroll")
+            scroll.setMinimumHeight(300)
+            grouped_host = QWidget()
+            grouped_layout = QVBoxLayout(grouped_host)
+            grouped_layout.setContentsMargins(0, 0, 8, 0)
+            grouped_layout.setSpacing(14)
+            self.group_checkboxes: dict[str, QCheckBox] = {}
+            for group, tools in tax_tools.tools_by_group().items():
+                if not tools:
+                    continue
+                group_box = QFrame(objectName="GroupCard")
+                group_layout = QVBoxLayout(group_box)
+                group_layout.setContentsMargins(16, 12, 16, 14)
+                group_layout.setSpacing(4)
+                group_head = QHBoxLayout()
+                group_toggle = QCheckBox(group.upper(), objectName="GroupTitle")
+                group_toggle.setChecked(True)
+                group_toggle.clicked.connect(
+                    lambda checked, g=group: self.set_group_tools(g, checked)
                 )
-            )
-            for tool in tax_tools.TOOLS:
-                checkbox = QCheckBox(tool.name)
-                checkbox.setChecked(True)
-                description = QLabel(tool.description, objectName="ToolDesc")
-                description.setWordWrap(True)
-                tools_layout.addWidget(checkbox)
-                tools_layout.addWidget(description)
-                self.tool_checkboxes[tool.key] = checkbox
-            body_layout.addWidget(tools_card)
+                self.group_checkboxes[group] = group_toggle
+                group_head.addWidget(group_toggle)
+                group_head.addStretch()
+                group_layout.addLayout(group_head)
+                for tool in tools:
+                    checkbox = QCheckBox(tool.name)
+                    checkbox.setChecked(True)
+                    checkbox.toggled.connect(self.sync_group_toggles)
+                    description = QLabel(tool.description, objectName="ToolDesc")
+                    description.setWordWrap(True)
+                    group_layout.addWidget(checkbox)
+                    group_layout.addWidget(description)
+                    self.tool_checkboxes[tool.key] = checkbox
+                grouped_layout.addWidget(group_box)
+            grouped_layout.addStretch()
+            scroll.setWidget(grouped_host)
+            tools_layout.addWidget(scroll)
+            body_layout.addWidget(tools_card, stretch=1)
 
             controls = QFrame(objectName="Card")
             controls_layout = QVBoxLayout(controls)
@@ -536,6 +607,7 @@ if PYSIDE_AVAILABLE:
                 "Open Log File",
                 "Open Extracted Data",
                 "Open Drake Export",
+                "Open Diagnostics",
                 "Open Checklists",
                 "Open Invoices",
                 "Open Generated Documents",
@@ -546,6 +618,7 @@ if PYSIDE_AVAILABLE:
                 "Open Email Drafts",
                 "Open Encyro Packets",
                 "Open Retention Archives",
+                "Open AR Report",
                 "Open Dashboard",
             ]
             for label in button_labels:
@@ -589,8 +662,15 @@ if PYSIDE_AVAILABLE:
                 #PrimaryButton {{ background: {NAVY}; color: white; border: 1px solid {NAVY}; }}
                 QToolButton {{ color: {NAVY}; font-weight: 800; border: none; }}
                 QCheckBox {{ color: {CHARCOAL}; font-weight: 600; }}
-                #ToolDesc {{ color: {CHARCOAL_2}; padding: 0 0 6px 22px; }}
+                #ToolDesc {{ color: {CHARCOAL_2}; padding: 0 0 6px 22px; font-weight: 400; }}
                 #StatusLabel {{ color: {CHARCOAL_2}; }}
+                #ToolScroll {{ border: 1px solid {HAIRLINE}; border-radius: 12px; background: {CREAM}; }}
+                #GroupCard {{ background: {PAPER}; border: 1px solid {HAIRLINE}; border-radius: 12px; }}
+                #GroupTitle {{ color: {NAVY}; font: 700 12px Arial; letter-spacing: 1px; }}
+                #GhostButton {{ background: transparent; border: 1px solid {HAIRLINE}; border-radius: 14px; padding: 6px 14px; font-weight: 700; }}
+                #GhostButton:hover {{ background: {CREAM}; }}
+                #PresetButton {{ background: white; border: 1px solid {GOLD}; border-radius: 14px; padding: 6px 14px; color: {NAVY}; font-weight: 700; }}
+                #PresetButton:hover {{ background: {GOLD_LIGHT}; }}
                 QProgressBar {{ border: 1px solid {HAIRLINE}; border-radius: 8px; text-align: center; }}
                 QProgressBar::chunk {{ background: {GOLD}; border-radius: 8px; }}
                 QTableWidget, QListWidget {{ background: white; border: 1px solid {HAIRLINE}; gridline-color: {HAIRLINE}; }}
@@ -658,6 +738,34 @@ if PYSIDE_AVAILABLE:
                 for tool in tax_tools.TOOLS
                 if self.tool_checkboxes[tool.key].isChecked()
             ]
+
+        def set_all_tools(self, checked: bool) -> None:
+            for checkbox in self.tool_checkboxes.values():
+                checkbox.setChecked(checked)
+            self.sync_group_toggles()
+
+        def apply_preset(self, keys: tuple[str, ...]) -> None:
+            wanted = set(keys)
+            for key, checkbox in self.tool_checkboxes.items():
+                checkbox.setChecked(key in wanted)
+            self.sync_group_toggles()
+
+        def set_group_tools(self, group: str, checked: bool) -> None:
+            for tool in tax_tools.TOOLS:
+                if tool.group == group and tool.key in self.tool_checkboxes:
+                    self.tool_checkboxes[tool.key].setChecked(checked)
+
+        def sync_group_toggles(self, _checked=None) -> None:
+            """Reflect each group's checkbox as the AND of its tools (no signal loop).
+
+            Accepts an ignored argument so it can be wired directly to QCheckBox.toggled.
+            """
+            for group, toggle in getattr(self, "group_checkboxes", {}).items():
+                tools = [t for t in tax_tools.TOOLS if t.group == group]
+                all_on = all(self.tool_checkboxes[t.key].isChecked() for t in tools)
+                toggle.blockSignals(True)
+                toggle.setChecked(all_on)
+                toggle.blockSignals(False)
 
         def run_selected_tools(self) -> None:
             tool_keys = self.selected_tool_keys()
@@ -739,6 +847,9 @@ if PYSIDE_AVAILABLE:
                     f"Forms extracted: {extract_result['total_forms']} | "
                     f"Flagged for manual entry: {extract_result['review_count']}"
                 )
+            diagnostics_result = result.get("diagnostics")
+            if diagnostics_result is not None:
+                review_lines.append(f"Diagnostics warnings: {diagnostics_result['warning_count']}")
             checklist_result = result.get("checklist")
             if checklist_result is not None:
                 review_lines.append(f"Documents still missing: {checklist_result['total_missing']}")
@@ -766,6 +877,12 @@ if PYSIDE_AVAILABLE:
             form8879_result = result.get("form8879")
             if form8879_result is not None:
                 review_lines.append(f"8879s outstanding: {form8879_result['outstanding_count']}")
+            filing_result = result.get("filing")
+            if filing_result is not None:
+                review_lines.append(f"Returns not filed: {filing_result['outstanding_count']}")
+            payments_result = result.get("payments")
+            if payments_result is not None:
+                review_lines.append(f"AR outstanding: {payments_result['total_outstanding']}")
             reminders_result = result.get("reminders")
             if reminders_result is not None:
                 review_lines.append(f"Reminders drafted: {reminders_result['reminder_count']}")

@@ -53,6 +53,13 @@ FORM_8879_TRACKER = TrackerConfig(
     signed_field="form_8879_signed",
     basename="form_8879_status",
 )
+FILING_TRACKER = TrackerConfig(
+    key="filing",
+    title="Filing Status",
+    keywords=("filed", "accepted", "efile", "e-file"),
+    signed_field="return_filed",
+    basename="filing_status",
+)
 
 
 def _norm(text: str) -> str:
@@ -183,10 +190,18 @@ def run_8879_tracker(input_folder, status_callback=None) -> dict:
     return run_tracker(input_folder, FORM_8879_TRACKER, status_callback)
 
 
+def run_filing_tracker(input_folder, status_callback=None) -> dict:
+    return run_tracker(input_folder, FILING_TRACKER, status_callback)
+
+
 def main() -> int:
     import argparse
 
-    trackers = {"engagement": ENGAGEMENT_TRACKER, "form8879": FORM_8879_TRACKER}
+    trackers = {
+        "engagement": ENGAGEMENT_TRACKER,
+        "form8879": FORM_8879_TRACKER,
+        "filing": FILING_TRACKER,
+    }
     parser = argparse.ArgumentParser(description="Track signed engagement letters or Form 8879 per client.")
     parser.add_argument("input_folder", help="Folder containing clients.json or clients.csv.")
     parser.add_argument("--tracker", choices=sorted(trackers), default="engagement")

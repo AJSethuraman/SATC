@@ -16,11 +16,13 @@ import cert_sign
 import checklist
 import compose_emails
 import dashboard
+import diagnostics
 import export_encyro
 import extract_form_data
 import generate_documents
 import intake
 import invoice_calc
+import payments
 import reminders
 import retention
 import sign_documents
@@ -56,6 +58,7 @@ class Tool:
     name: str
     description: str
     run: Callable[[ToolContext], dict]
+    group: str = "Other"
 
 
 def _run_intake(context: ToolContext) -> dict:
@@ -128,6 +131,27 @@ def _run_8879_tracker(context: ToolContext) -> dict:
     )
 
 
+def _run_filing_tracker(context: ToolContext) -> dict:
+    return status_tracker.run_filing_tracker(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
+def _run_diagnostics(context: ToolContext) -> dict:
+    return diagnostics.run_diagnostics(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
+def _run_payments(context: ToolContext) -> dict:
+    return payments.run_payments(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 def _run_cert_sign(context: ToolContext) -> dict:
     return cert_sign.run_cert_signing(
         context.input_folder,
@@ -172,102 +196,165 @@ def _run_dashboard(context: ToolContext) -> dict:
     )
 
 
+_INTAKE_DOCS = "Onboarding & Documents"
+_PREP = "Preparation"
+_SIGNING = "Signing"
+_TRACKING = "Tracking & Reminders"
+_DELIVERY = "Delivery & Records"
+_MANAGEMENT = "Practice Management"
+
 TOOLS: tuple[Tool, ...] = (
     Tool(
         "intake",
         "Client Intake",
         "Generate a dynamic fillable intake form and compile returned responses into clients.json.",
         _run_intake,
+        group=_INTAKE_DOCS,
     ),
     Tool(
         "sort",
         "Sort Documents",
         "Classify uploads and copy (or move) them into category folders with an inventory.",
         _run_sorter,
+        group=_INTAKE_DOCS,
     ),
     Tool(
         "extract",
         "Extract Form Data",
         "Pull key fields from W-2 and 1099 forms into a spreadsheet and Drake CSVs.",
         _run_extractor,
+        group=_INTAKE_DOCS,
+    ),
+    Tool(
+        "diagnostics",
+        "Data Diagnostics",
+        "Sanity-check extracted form data (withholding vs. wages, blanks, duplicates).",
+        _run_diagnostics,
+        group=_INTAKE_DOCS,
     ),
     Tool(
         "checklist",
         "Document Checklist",
         "Compare each client's expected documents (from intake) against what was sorted.",
         _run_checklist,
+        group=_INTAKE_DOCS,
     ),
     Tool(
         "invoice",
         "Calculate Invoices",
         "Compute invoice line items from an editable fee schedule and write them to clients.json.",
         _run_invoice,
+        group=_PREP,
     ),
     Tool(
         "generate",
         "Generate Documents",
         "Fill engagement letters, invoices, and client letters from a clients.json/csv data file.",
         _run_generator,
+        group=_PREP,
     ),
     Tool(
         "sign",
         "Sign Documents",
         "Stamp your signature image onto PDFs that carry a signature anchor phrase.",
         _run_signer,
+        group=_SIGNING,
     ),
     Tool(
         "certsign",
         "Certificate Sign (PAdES)",
         "Apply a tamper-evident digital signature to PDFs using a PKCS#12 certificate.",
         _run_cert_sign,
+        group=_SIGNING,
     ),
     Tool(
         "engagement",
         "Engagement Letter Tracker",
         "Report which clients have a signed engagement letter on file vs. outstanding.",
         _run_engagement_tracker,
+        group=_TRACKING,
     ),
     Tool(
         "form8879",
         "Form 8879 Tracker",
         "Report which clients have a signed Form 8879 (e-file authorization) on file.",
         _run_8879_tracker,
+        group=_TRACKING,
+    ),
+    Tool(
+        "filing",
+        "Filing Tracker",
+        "Report which clients' returns have been filed/accepted vs. outstanding.",
+        _run_filing_tracker,
+        group=_TRACKING,
     ),
     Tool(
         "reminders",
         "Send Reminders",
         "Draft reminder emails for clients with outstanding signatures or missing documents.",
         _run_reminders,
+        group=_TRACKING,
     ),
     Tool(
         "email",
         "Compose Email Drafts",
         "Build review-ready .eml drafts per client with their documents attached (no auto-send).",
         _run_emailer,
+        group=_DELIVERY,
     ),
     Tool(
         "encyro",
         "Export for Encyro",
         "Convert each client's letters to PDF and merge an upload-ready packet for Encyro e-sign.",
         _run_encyro,
+        group=_DELIVERY,
     ),
     Tool(
         "retention",
         "Records Retention",
         "Archive each client's complete package into a dated zip with a manifest and keep-until date.",
         _run_retention,
+        group=_DELIVERY,
+    ),
+    Tool(
+        "payments",
+        "Payments & AR",
+        "Track invoice payments and build an accounts-receivable aging report.",
+        _run_payments,
+        group=_MANAGEMENT,
     ),
     Tool(
         "dashboard",
         "Practice Dashboard",
         "Build a one-page overview of where every client stands across the whole pipeline.",
         _run_dashboard,
+        group=_MANAGEMENT,
     ),
 )
+
+# Tool groups in canonical (pipeline) order, for the desktop UI sections.
+TOOL_GROUPS: tuple[str, ...] = (_INTAKE_DOCS, _PREP, _SIGNING, _TRACKING, _DELIVERY, _MANAGEMENT)
 
 TOOLS_BY_KEY: dict[str, Tool] = {tool.key: tool for tool in TOOLS}
 DEFAULT_TOOL_KEYS: tuple[str, ...] = tuple(tool.key for tool in TOOLS)
 _TOOL_ORDER: dict[str, int] = {tool.key: index for index, tool in enumerate(TOOLS)}
+
+# Named one-click presets (label -> selected tool keys) for the desktop app.
+PRESETS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Full pipeline", DEFAULT_TOOL_KEYS),
+    ("Intake & documents", ("intake", "sort", "extract", "diagnostics", "checklist")),
+    ("Prepare & generate", ("invoice", "generate")),
+    ("Sign & deliver", ("sign", "email", "encyro")),
+    ("Status & reminders", ("engagement", "form8879", "filing", "reminders", "dashboard")),
+)
+
+def tools_by_group() -> "dict[str, list[Tool]]":
+    """Tools grouped by their pipeline phase, preserving registry order."""
+
+    grouped: dict[str, list[Tool]] = {group: [] for group in TOOL_GROUPS}
+    for tool in TOOLS:
+        grouped.setdefault(tool.group, []).append(tool)
+    return grouped
 
 
 def ordered_tool_keys(keys) -> list[str]:

@@ -9,14 +9,18 @@ Pick one or more tools in the desktop app (they run top to bottom):
 1. **Client Intake** — generate a dynamic fillable intake form from an editable field schema, and compile returned responses into `clients.json` (appending only new clients). Feeds every tool below.
 2. **Sort Documents** — classify uploads and copy (or move) them into category folders with an inventory workbook. When a single PDF contains more than one form type, it is **split** into one filed PDF per form (see below).
 3. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, **1099-R**, **1099-G**, **1099-K**, **SSA-1099**, **1098 (Mortgage)**, **1098-T**, **1099-B**, and **Schedule K-1**. Output is written two ways: a human-readable `Extracted_Form_Data.xlsx` (one sheet per form type) and machine-readable per-form CSVs in `Drake_Export/` for feeding a downstream entry script.
+3b. **Data Diagnostics** — sanity-check the extracted data (federal withholding exceeding wages, no primary amount read, possible duplicates, rows flagged at extraction) to `Diagnostics/`.
 4. **Document Checklist** — compare each client's expected documents (from intake) against the sorted categories that have files, and write per-client checklists plus a summary CSV.
 5. **Calculate Invoices** — compute invoice line items from an editable fee schedule and write them into `clients.json` for the generator to render.
 6. **Generate Documents** — fill editable HTML/Word templates (engagement letter, invoice, extension/cover letter, client organizer letter) from a `clients.json`/`clients.csv` data file and write finished documents to `Generated_Documents/`.
 7. **Sign Documents** — stamp your signature image onto PDFs that carry a signature anchor phrase, writing signed copies to `Signed_Documents/`.
 7b. **Certificate Sign (PAdES)** — apply a tamper-evident digital signature to PDFs using a PKCS#12 certificate, writing certified copies to `Cert_Signed/`.
-8. **Engagement Letter Tracker** / **Form 8879 Tracker** — report which clients have a signed engagement letter / Form 8879 on file vs. outstanding, to `Status/`.
+8. **Engagement Letter / Form 8879 / Filing Trackers** — report which clients have a signed engagement letter, a signed Form 8879, or a filed/accepted return on file vs. outstanding, to `Status/`.
 8b. **Send Reminders** — draft reminder `.eml`s for clients with outstanding signatures or missing documents, to `Reminders/`.
+11b. **Payments & AR** — track invoice payments and build an accounts-receivable aging report (0-30 / 31-60 / 61-90 / 90+ days) in `Payments/`.
 12. **Practice Dashboard** — one HTML page showing where every client stands across the whole pipeline (email, documents, invoice, generated, engagement, 8879, Encyro, archived) with a summary bar.
+
+In the desktop app the tools are grouped into collapsible phase cards (Onboarding & Documents, Preparation, Signing, Tracking & Reminders, Delivery & Records, Practice Management) inside a scroll area, with **Select all / Clear** and one-click **Presets** (Full pipeline, Intake & documents, Prepare & generate, Sign & deliver, Status & reminders).
 9. **Compose Email Drafts** — build a review-ready `.eml` per client (subject/body from a template, that client's generated and signed files attached) in `Email_Drafts/`. Nothing is sent automatically and no credentials are stored.
 10. **Export for Encyro** — convert each client's letters to PDF, gather their signed PDFs/attachments, and merge an upload-ready `<client>_packet.pdf` (plus `UPLOAD_NOTES.txt`) under `Encyro_Ready/<client>/`.
 11. **Records Retention** — archive each client's complete package into a dated `Retention/<client>_<year>.zip` with a manifest and a keep-until date.
@@ -370,6 +374,7 @@ python test_reminders.py
 python test_cert_sign.py
 python test_retention.py
 python test_dashboard.py
+python test_diagnostics_payments.py
 python test_tax_tools.py
 python test_sort_tax_docs.py
 python test_extract_form_data.py
