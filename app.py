@@ -12,6 +12,8 @@ from linesheet_builder.export_engine import generate_excel_linesheet, generate_d
 from linesheet_builder.dti_engine import load_dti_config, load_dti_inputs, save_dti_inputs, compute_dti, block_lines
 from linesheet_builder.cash_flow_engine import load_cash_flow_config, load_cash_flow_inputs, save_cash_flow_inputs, compute_cash_flow, source_lines
 from linesheet_builder.collateral_engine import load_collateral_config, load_collateral_inputs, save_collateral_inputs, compute_collateral, collateral_lines, exposure_lines
+from linesheet_builder.dscr_engine import load_dscr_config, load_dscr_inputs, save_dscr_inputs, compute_dscr, cash_flow_lines as dscr_cash_flow_lines, debt_service_lines, loan_lines
+from linesheet_builder.leverage_engine import load_leverage_config, load_leverage_inputs, save_leverage_inputs, compute_leverage, input_lines as leverage_input_lines
 from linesheet_builder.template_builder import (q as tb_q, section as tb_section, build_template, write_template_yaml,
     template_to_dict, TEMPLATES_DIR, preset_borrower, preset_employment_income, preset_atr,
     preset_collateral_property, preset_documentation, preset_conclusion_signoff)
@@ -22,7 +24,7 @@ st.set_page_config(page_title="Linesheet Builder", layout="wide")
 inject_css(st); init_db(DB); seed_demo(DB)
 conn=get_connection(DB)
 st.sidebar.title("Linesheet Builder")
-page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Templates","Template Builder","Upload","Mapping","Validation","Review","Cash Flow","DTI / ATR","Collateral","Export","Audit"])
+page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Templates","Template Builder","Upload","Mapping","Validation","Review","Cash Flow","DTI / ATR","Collateral","DSCR","Leverage","Export","Audit"])
 engagements=pd.read_sql_query("SELECT e.*, c.client_name FROM engagements e JOIN clients c ON e.client_id=c.client_id ORDER BY e.engagement_id DESC", conn)
 eng_id=int(st.sidebar.selectbox("Engagement", engagements.engagement_id, format_func=lambda x: f"{engagements[engagements.engagement_id==x].iloc[0].client_name} / {x}")) if not engagements.empty else None
 eng=engagements[engagements.engagement_id==eng_id].iloc[0].to_dict() if eng_id else {}
@@ -379,6 +381,66 @@ elif page=="Collateral":
         m[2].metric("Coverage", f"{result['coverage']:.0f}%", help=f"min {result['min_coverage']:.0f}%")
         m[3].metric("Excess / (shortfall)", f"${result['excess']:,.0f}")
         st.markdown(f"**Collateral assessment:** {status_badge(result['severity'] or 'Complete')} &nbsp; {result['assessment']}", unsafe_allow_html=True)
+
+elif page=="DSCR":
+    st.title("Debt Service Coverage (DSCR)")
+    st.write("Commercial coverage analysis. Enter cash flow available for debt service and annual debt service; DSCR, debt yield and excess cash flow calculate automatically and carry into the linesheet.")
+    cases=get_cases()
+    if cases.empty:
+        st.warning("Run validation to create review cases.")
+    else:
+        rcid=int(st.selectbox("Loan / review case", cases.review_case_id, format_func=lambda x: f"{cases[cases.review_case_id==x].iloc[0].loan_id} - {cases[cases.review_case_id==x].iloc[0].borrower_name}"))
+        loan_id=cases[cases.review_case_id==rcid].iloc[0].loan_id
+        cfg=load_dscr_config(); saved=load_dscr_inputs(conn, rcid)
+        with st.form("dscr"):
+            values={}
+            st.subheader(cfg["cash_flow"]["section_name"])
+            for k,label,sign in dscr_cash_flow_lines(cfg):
+                values[k]=st.number_input(label, min_value=0.0, value=float(saved.get(k) or 0.0), step=1000.0, key=f"dscr_{rcid}_{k}")
+            st.subheader(cfg["debt_service"]["section_name"])
+            for k,label in debt_service_lines(cfg):
+                values[k]=st.number_input(label, min_value=0.0, value=float(saved.get(k) or 0.0), step=1000.0, key=f"dscr_{rcid}_{k}")
+            for k,label in loan_lines(cfg):
+                values[k]=st.number_input(label, min_value=0.0, value=float(saved.get(k) or 0.0), step=1000.0, key=f"dscr_{rcid}_{k}")
+            submitted=st.form_submit_button("Save & calculate")
+        if submitted:
+            save_dscr_inputs(conn, rcid, values, eng.get('reviewer_name','user'), loan_id=loan_id)
+        result=compute_dscr(values if submitted else saved, cfg)
+        st.markdown("---"); st.subheader("DSCR results")
+        m=st.columns(4)
+        m[0].metric("CFADS", f"${result['cfads']:,.0f}")
+        m[1].metric("DSCR", f"{result['dscr']:.2f}x", help=f"min {result['min_dscr']:.2f}x")
+        m[2].metric("Debt yield", f"{result['debt_yield']:.1f}%", help=f"min {result['min_debt_yield']:.0f}%")
+        m[3].metric("Excess cash flow", f"${result['excess_cash_flow']:,.0f}")
+        st.markdown(f"**DSCR assessment:** {status_badge(result['severity'] or 'Complete')} &nbsp; {result['assessment']}", unsafe_allow_html=True)
+
+elif page=="Leverage":
+    st.title("Leverage & Liquidity")
+    st.write("Commercial balance-sheet spreads. Enter balance-sheet and earnings figures; current ratio, working capital, debt-to-worth and debt-to-EBITDA calculate automatically and carry into the linesheet.")
+    cases=get_cases()
+    if cases.empty:
+        st.warning("Run validation to create review cases.")
+    else:
+        rcid=int(st.selectbox("Loan / review case", cases.review_case_id, format_func=lambda x: f"{cases[cases.review_case_id==x].iloc[0].loan_id} - {cases[cases.review_case_id==x].iloc[0].borrower_name}"))
+        loan_id=cases[cases.review_case_id==rcid].iloc[0].loan_id
+        cfg=load_leverage_config(); saved=load_leverage_inputs(conn, rcid)
+        with st.form("leverage"):
+            values={}; st.subheader(cfg["inputs"]["section_name"])
+            lc=st.columns(2)
+            for i,(k,label) in enumerate(leverage_input_lines(cfg)):
+                with lc[i%2]:
+                    values[k]=st.number_input(label, min_value=0.0, value=float(saved.get(k) or 0.0), step=1000.0, key=f"lev_{rcid}_{k}")
+            submitted=st.form_submit_button("Save & calculate")
+        if submitted:
+            save_leverage_inputs(conn, rcid, values, eng.get('reviewer_name','user'), loan_id=loan_id)
+        result=compute_leverage(values if submitted else saved, cfg)
+        st.markdown("---"); st.subheader("Leverage & liquidity results")
+        m=st.columns(4)
+        m[0].metric("Current ratio", f"{result['current_ratio']:.2f}", help=f"min {result['min_current_ratio']:.2f}")
+        m[1].metric("Working capital", f"${result['working_capital']:,.0f}")
+        m[2].metric("Debt-to-worth", f"{result['debt_to_worth']:.2f}x", help=f"max {result['max_debt_to_worth']:.2f}x")
+        m[3].metric("Debt-to-EBITDA", f"{result['debt_to_ebitda']:.2f}x", help=f"max {result['max_debt_to_ebitda']:.2f}x")
+        st.markdown(f"**Leverage assessment:** {status_badge(result['severity'] or 'Complete')} &nbsp; {result['assessment']}", unsafe_allow_html=True)
 
 elif page=="Export":
     st.title("Export Center")

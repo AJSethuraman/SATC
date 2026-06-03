@@ -110,6 +110,8 @@ Excel workbooks include:
 - Cash Flow Analysis
 - Ability-to-Repay (DTI)
 - Collateral & LTV
+- Debt Service (DSCR)
+- Leverage & Liquidity
 - Linesheet Questions
 - Exceptions & Findings
 - Evidence Checklist
@@ -143,6 +145,15 @@ The **Collateral** page and the **Collateral & LTV** Excel tab analyze how well 
 
 In Excel the eligible-value, totals and ratios are live formulas with color-coded conditional formatting. Like the other calculation fixtures, results carry into the linesheet: an undersecured or over-LTV result is recorded as a finding, the summary prints on the Cover, and the metrics flow to the data mart (`collateral_ltv` section and a `Collateral` table in the data mart workbook).
 
+## Commercial analysis worksheets (DSCR, Leverage)
+
+Two commercial-credit calculation fixtures complement Collateral:
+
+- **Debt Service Coverage (DSCR)** — the **Debt Service (DSCR)** tab / **DSCR** page build cash flow available for debt service (CFADS) from signed line items (NOI/EBITDA, other cash flow, less capex/distributions), divide by total annual debt service for the **DSCR ratio**, and compute **debt yield** (NOI ÷ loan amount) for CRE. Thresholds (min DSCR 1.20x, min debt yield 9%) live in `configs/dscr_v1.yaml`.
+- **Leverage & Liquidity** — the **Leverage & Liquidity** tab / **Leverage** page spread a few balance-sheet/earnings figures into **current ratio**, **working capital**, **debt-to-worth** and **debt-to-EBITDA**, scored against guidelines in `configs/leverage_v1.yaml`.
+
+Both are live-formula Excel tabs with conditional formatting and follow the same carry pattern: a below-guideline result becomes a finding, the summary prints on the Cover, and metrics flow to the data mart (`debt_service` / `leverage` sections, and `DSCR` / `Leverage` tables in the data mart workbook).
+
 ## Building custom templates en masse
 
 Linesheet templates are plain YAML in `configs/templates/`, and the app is multi-template aware: it discovers every template in that folder, you pick one per engagement on the **Setup** page, and the **Templates** page browses them. The whole pipeline (validation, review, export) runs against whichever template the engagement uses.
@@ -173,7 +184,7 @@ The **Export** page can consolidate every linesheet in an engagement into a sing
 - **Linesheets** — one row per loan / review case (the grain): client, template, validation & review status, completion %, findings count, and the carried DTI and Cash Flow results (back-end DTI, ATR assessment, qualifying income).
 - **Answers** — one row per case × question (status, severity, exception flag, evidence).
 - **Findings** — every exception/finding across the engagement.
-- **DTI**, **CashFlow** and **Collateral** — the calculation results per case.
+- **DTI**, **CashFlow**, **Collateral**, **DSCR** and **Leverage** — the calculation results per case.
 - **Audit** — the engagement's audit trail.
 - **Overview** and **Data Dictionary** sheets describe the tables and key columns.
 

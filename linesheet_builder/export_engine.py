@@ -16,6 +16,10 @@ from .dti_engine import load_dti_config, load_dti_inputs, compute_dti, block_lin
 from .cash_flow_engine import load_cash_flow_config, load_cash_flow_inputs, compute_cash_flow, source_lines, summarize_cash_flow
 from .collateral_engine import (load_collateral_config, load_collateral_inputs, compute_collateral,
     collateral_lines, exposure_lines, summarize_collateral)
+from .dscr_engine import (load_dscr_config, load_dscr_inputs, compute_dscr,
+    cash_flow_lines as dscr_cash_flow_lines, debt_service_lines, loan_lines, summarize_dscr)
+from .leverage_engine import (load_leverage_config, load_leverage_inputs, compute_leverage,
+    input_lines as leverage_input_lines, summarize_leverage)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -112,7 +116,7 @@ def _finish_table(ws, header_row, ncols, chip_cols=(), widths=None, landscape=Fa
         ws.page_setup.orientation = "landscape"
 
 # --- Cover -------------------------------------------------------------------
-def _build_cover(ws, ctx, template, metrics, dti=None, cf=None, coll=None):
+def _build_cover(ws, ctx, template, metrics, dti=None, cf=None, coll=None, dscr=None, lev=None):
     ws.sheet_view.showGridLines = False
     widths = [2.5, 22, 30, 4, 18, 22]
     for i, w in enumerate(widths, start=1):
@@ -223,6 +227,23 @@ def _build_cover(ws, ctx, template, metrics, dti=None, cf=None, coll=None):
             ("Net collateral value", f"${coll['net_collateral_value']:,.0f}", None),
             ("Excess / (shortfall)", f"${coll['excess']:,.0f}", None),
             ("Collateral assessment", coll["assessment"], coll["severity"]),
+        ])
+
+    # Debt service coverage — carried from the DSCR module (commercial)
+    if dscr and dscr.get("total_debt_service"):
+        pairs = [("DSCR", f"{dscr['dscr']:.2f}x   (min {dscr['min_dscr']:.2f}x)", None)]
+        if dscr.get("loan_amount"):
+            pairs.append(("Debt yield", f"{dscr['debt_yield']:.1f}%   (min {dscr['min_debt_yield']:.0f}%)", None))
+        pairs.append(("DSCR assessment", dscr["assessment"], dscr["severity"]))
+        _card("DEBT SERVICE (DSCR)", pairs)
+
+    # Leverage & liquidity — carried from the Leverage module (commercial)
+    if lev and lev.get("assessment") not in (None, "Inputs required"):
+        _card("LEVERAGE & LIQUIDITY", [
+            ("Current ratio", f"{lev['current_ratio']:.2f}", None),
+            ("Debt-to-worth", f"{lev['debt_to_worth']:.2f}x", None),
+            ("Debt-to-EBITDA", f"{lev['debt_to_ebitda']:.2f}x", None),
+            ("Leverage assessment", lev["assessment"], lev["severity"]),
         ])
 
     # Ability-to-Repay summary — carried from the DTI module (consumer reviews)
@@ -627,6 +648,163 @@ def _numlike(v):
     return v not in (None, "", 0, 0.0)
 
 
+def _calc_tab_header(ws, ctx, title, subtitle):
+    ws.sheet_view.showGridLines = False
+    ws.column_dimensions["A"].width = 48; ws.column_dimensions["B"].width = 18; ws.column_dimensions["C"].width = 14
+    ws.merge_cells("A1:C1"); ws.row_dimensions[1].height = 5; ws["A1"].fill = _fill(GOLD)
+    ws.merge_cells("A2:C2"); ws.row_dimensions[2].height = 30
+    t = ws["A2"]; t.value = title; t.fill = _fill(NAVY); t.font = Font(name=FONT, color=WHITE, bold=True, size=14)
+    t.alignment = Alignment(vertical="center", indent=1)
+    ws.merge_cells("A3:C3"); ws.row_dimensions[3].height = 18
+    s = ws["A3"]; s.value = subtitle; s.fill = _fill(NAVY); s.font = Font(name=FONT, color="C9D6E5", italic=True, size=9)
+    s.alignment = Alignment(vertical="center", indent=1)
+    for col in range(1, 4): ws.cell(row=2, column=col).fill = _fill(NAVY); ws.cell(row=3, column=col).fill = _fill(NAVY)
+    ws.merge_cells("A4:C4"); ws.row_dimensions[4].height = 5; ws["A4"].fill = _fill(GOLD)
+    _table_header(ws, ["Line item", "Amount", ""], row=5)
+    ws.cell(row=5, column=2).alignment = Alignment(horizontal="right", vertical="center")
+
+
+def _build_dscr(ws, ctx, cfg, values, result):
+    _calc_tab_header(ws, ctx, "DEBT SERVICE COVERAGE (DSCR)",
+                     f"{ctx.get('borrower_name','')}  ·  Loan {ctx.get('loan_id','')}  ·  CFADS ÷ annual debt service; debt yield = NOI ÷ loan")
+    money = '$#,##0'; rowmap = {}; row = 6
+
+    def sec(label):
+        nonlocal row
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+        c = ws.cell(row=row, column=1, value=label.upper()); c.fill = _fill(INK)
+        c.font = Font(name=FONT, color=WHITE, bold=True, size=10); c.alignment = Alignment(vertical="center", indent=1)
+        for col in range(1, 4): ws.cell(row=row, column=col).fill = _fill(INK)
+        ws.row_dimensions[row].height = 16; row += 1
+
+    def inp(key, label):
+        nonlocal row
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=9.5)
+        b = ws.cell(row=row, column=2)
+        if _numlike(values.get(key)): b.value = float(values[key])
+        b.number_format = money; b.alignment = Alignment(horizontal="right")
+        b.fill = _fill("FCFCFD"); b.border = Border(bottom=_HAIR, left=_HAIR, right=_HAIR, top=_HAIR)
+        ws.cell(row=row, column=1).border = BOTTOM
+        rowmap[key] = row; row += 1
+
+    def total(label, formula, fmt=money):
+        nonlocal row
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=10, bold=True, color=NAVY)
+        c = ws.cell(row=row, column=2, value=formula); c.number_format = fmt; c.alignment = Alignment(horizontal="right")
+        c.font = Font(name=FONT, size=11, bold=True, color=NAVY); c.fill = _fill(BAND); ws.cell(row=row, column=1).fill = _fill(BAND)
+        r = row; row += 1; return r
+
+    sec(cfg["cash_flow"]["section_name"])
+    for k, label, sign in dscr_cash_flow_lines(cfg): inp(k, label)
+    parts = "".join(f"{'+' if sign > 0 else '-'}B{rowmap[k]}" for k, _, sign in dscr_cash_flow_lines(cfg))
+    cfads_row = total("Cash flow available for debt service (CFADS)", f"=ROUND({parts},2)")
+    row += 1
+    sec(cfg["debt_service"]["section_name"]); ds_first = row
+    for k, label in debt_service_lines(cfg): inp(k, label)
+    ds_row = total("Total annual debt service", f"=SUM(B{ds_first}:B{row-1})")
+    row += 1
+    if list(loan_lines(cfg)):
+        sec(cfg["loan"]["section_name"])
+        for k, label in loan_lines(cfg): inp(k, label)
+        row += 1
+    sec("DSCR Results")
+    noi_row = rowmap.get("net_operating_income"); loan_row = rowmap.get("loan_amount")
+    md, mdy = result["min_dscr"], result["min_debt_yield"]
+
+    def res(label, formula, fmt):
+        nonlocal row
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=10, bold=True, color=INK)
+        c = ws.cell(row=row, column=2, value=formula); c.number_format = fmt; c.alignment = Alignment(horizontal="right")
+        c.font = Font(name=FONT, size=11, bold=True, color=NAVY)
+        for col in range(1, 4): ws.cell(row=row, column=col).border = BOTTOM
+        r = row; row += 1; return r
+
+    dscr_row = res(f"DSCR  (CFADS ÷ debt service)   min {md:.2f}x", f'=IF(B{ds_row}=0,"",B{cfads_row}/B{ds_row})', '0.00"x"')
+    dy_row = res(f"Debt yield  (NOI ÷ loan amount)   min {mdy:.0f}%",
+                 (f'=IF(B{loan_row}=0,"",B{noi_row}/B{loan_row})' if loan_row else '=""'), '0.0%')
+    exc_row = res("Excess / (shortfall) cash flow", f"=B{cfads_row}-B{ds_row}", money)
+    row += 1
+    ws.cell(row=row, column=1, value="DSCR ASSESSMENT").font = Font(name=FONT, color=GOLD, bold=True, size=11); row += 1
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+    dy_clause = f'IF(AND(B{loan_row}>0,B{dy_row}<{mdy/100}),"Below debt yield guideline","Meets coverage guidelines")' if loan_row else '"Meets coverage guidelines"'
+    a = ws.cell(row=row, column=1, value=f'=IF(B{ds_row}=0,"Enter debt service",IF(B{dscr_row}<{md},"Below DSCR guideline",{dy_clause}))')
+    a.font = Font(name=FONT, bold=True, size=11); a.alignment = Alignment(vertical="center", indent=1)
+    ws.row_dimensions[row].height = 22; assess_cell = f"A{row}"
+
+    cf = ws.conditional_formatting
+    cf.add(f"B{dscr_row}", CellIsRule(operator="lessThan", formula=[str(md)], fill=_CF_RED, stopIfTrue=True))
+    cf.add(f"B{dscr_row}", CellIsRule(operator="greaterThanOrEqual", formula=[str(md)], fill=_CF_GREEN, stopIfTrue=True))
+    if loan_row:
+        cf.add(f"B{dy_row}", CellIsRule(operator="lessThan", formula=[str(mdy/100)], fill=_CF_AMBER, stopIfTrue=True))
+        cf.add(f"B{dy_row}", CellIsRule(operator="greaterThanOrEqual", formula=[str(mdy/100)], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(f"B{exc_row}", CellIsRule(operator="lessThan", formula=["0"], fill=_CF_RED, stopIfTrue=True))
+    cf.add(f"B{exc_row}", CellIsRule(operator="greaterThanOrEqual", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Below",{assess_cell}))'], fill=_CF_RED, stopIfTrue=True))
+    cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Meets",{assess_cell}))'], fill=_CF_GREEN, stopIfTrue=True))
+    ws.freeze_panes = "A6"; ws.page_setup.orientation = "portrait"
+    ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 0; ws.sheet_properties.pageSetUpPr.fitToPage = True
+
+
+def _build_leverage(ws, ctx, cfg, values, result):
+    _calc_tab_header(ws, ctx, "LEVERAGE & LIQUIDITY",
+                     f"{ctx.get('borrower_name','')}  ·  Loan {ctx.get('loan_id','')}  ·  balance-sheet spreads (gross)")
+    money = '$#,##0'; rowmap = {}; row = 6
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+    c = ws.cell(row=row, column=1, value=cfg["inputs"]["section_name"].upper()); c.fill = _fill(INK)
+    c.font = Font(name=FONT, color=WHITE, bold=True, size=10); c.alignment = Alignment(vertical="center", indent=1)
+    for col in range(1, 4): ws.cell(row=row, column=col).fill = _fill(INK)
+    ws.row_dimensions[row].height = 16; row += 1
+    for key, label in leverage_input_lines(cfg):
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=9.5)
+        b = ws.cell(row=row, column=2)
+        if _numlike(values.get(key)): b.value = float(values[key])
+        b.number_format = money; b.alignment = Alignment(horizontal="right")
+        b.fill = _fill("FCFCFD"); b.border = Border(bottom=_HAIR, left=_HAIR, right=_HAIR, top=_HAIR)
+        ws.cell(row=row, column=1).border = BOTTOM; rowmap[key] = row; row += 1
+    row += 1
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+    c = ws.cell(row=row, column=1, value="LEVERAGE & LIQUIDITY RESULTS"); c.fill = _fill(INK)
+    c.font = Font(name=FONT, color=WHITE, bold=True, size=10); c.alignment = Alignment(vertical="center", indent=1)
+    for col in range(1, 4): ws.cell(row=row, column=col).fill = _fill(INK)
+    row += 1
+    R = rowmap; mcr, mdtw, mdte = result["min_current_ratio"], result["max_debt_to_worth"], result["max_debt_to_ebitda"]
+
+    def res(label, formula, fmt):
+        nonlocal row
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=10, bold=True, color=INK)
+        cc = ws.cell(row=row, column=2, value=formula); cc.number_format = fmt; cc.alignment = Alignment(horizontal="right")
+        cc.font = Font(name=FONT, size=11, bold=True, color=NAVY)
+        for col in range(1, 4): ws.cell(row=row, column=col).border = BOTTOM
+        r = row; row += 1; return r
+
+    cr_row = res(f"Current ratio  (CA ÷ CL)   min {mcr:.2f}", f'=IF(B{R["current_liabilities"]}=0,"",B{R["current_assets"]}/B{R["current_liabilities"]})', '0.00')
+    res("Working capital  (CA − CL)", f'=B{R["current_assets"]}-B{R["current_liabilities"]}', money)
+    dtw_row = res(f"Debt-to-worth  (TL ÷ TNW)   max {mdtw:.2f}x", f'=IF(B{R["tangible_net_worth"]}=0,"",B{R["total_liabilities"]}/B{R["tangible_net_worth"]})', '0.00"x"')
+    dte_row = res(f"Debt-to-EBITDA  (debt ÷ EBITDA)   max {mdte:.2f}x", f'=IF(B{R["ebitda"]}=0,"",B{R["total_debt"]}/B{R["ebitda"]})', '0.00"x"')
+    row += 1
+    ws.cell(row=row, column=1, value="LEVERAGE ASSESSMENT").font = Font(name=FONT, color=GOLD, bold=True, size=11); row += 1
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+    breach = (f'OR(AND(B{R["current_liabilities"]}>0,B{cr_row}<{mcr}),'
+              f'AND(B{R["tangible_net_worth"]}>0,B{dtw_row}>{mdtw}),'
+              f'AND(B{R["ebitda"]}>0,B{dte_row}>{mdte}))')
+    total_inputs = "+".join(f"B{r}" for r in R.values())
+    a = ws.cell(row=row, column=1, value=f'=IF({total_inputs}=0,"Enter inputs",IF({breach},"Exceeds leverage / liquidity guidelines","Within leverage guidelines"))')
+    a.font = Font(name=FONT, bold=True, size=11); a.alignment = Alignment(vertical="center", indent=1)
+    ws.row_dimensions[row].height = 22; assess_cell = f"A{row}"
+
+    cf = ws.conditional_formatting
+    cf.add(f"B{cr_row}", CellIsRule(operator="lessThan", formula=[str(mcr)], fill=_CF_RED, stopIfTrue=True))
+    cf.add(f"B{cr_row}", CellIsRule(operator="greaterThanOrEqual", formula=[str(mcr)], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(f"B{dtw_row}", CellIsRule(operator="greaterThan", formula=[str(mdtw)], fill=_CF_RED, stopIfTrue=True))
+    cf.add(f"B{dtw_row}", CellIsRule(operator="greaterThan", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(f"B{dte_row}", CellIsRule(operator="greaterThan", formula=[str(mdte)], fill=_CF_RED, stopIfTrue=True))
+    cf.add(f"B{dte_row}", CellIsRule(operator="greaterThan", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Exceeds",{assess_cell}))'], fill=_CF_RED, stopIfTrue=True))
+    cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Within",{assess_cell}))'], fill=_CF_GREEN, stopIfTrue=True))
+    ws.freeze_panes = "A6"; ws.page_setup.orientation = "portrait"
+    ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 0; ws.sheet_properties.pageSetUpPr.fitToPage = True
+
+
 # --- Main export -------------------------------------------------------------
 def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: str | Path = ROOT / "outputs" / "excel", generated_by="system", override_reason=None):
     ctx = _ctx(conn, review_case_id); loan = ctx.copy()
@@ -653,6 +831,14 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
     col_values = load_collateral_inputs(conn, review_case_id)
     col_result = compute_collateral(col_values, col_cfg)
     col_summary = summarize_collateral(conn, review_case_id, col_cfg)  # None unless filled
+    dscr_cfg = load_dscr_config()
+    dscr_values = load_dscr_inputs(conn, review_case_id)
+    dscr_result = compute_dscr(dscr_values, dscr_cfg)
+    dscr_summary = summarize_dscr(conn, review_case_id, dscr_cfg)
+    lev_cfg = load_leverage_config()
+    lev_values = load_leverage_inputs(conn, review_case_id)
+    lev_result = compute_leverage(lev_values, lev_cfg)
+    lev_summary = summarize_leverage(conn, review_case_id, lev_cfg)
 
     wb = Workbook()
     wb.properties.title = f"Linesheet — {ctx['loan_id']} {ctx['borrower_name']}"
@@ -661,7 +847,7 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
 
     # Cover
     ws = wb.active; ws.title = "Cover"
-    _build_cover(ws, ctx, template, metrics, dti_summary, cf_summary, col_summary)
+    _build_cover(ws, ctx, template, metrics, dti_summary, cf_summary, col_summary, dscr_summary, lev_summary)
 
     # Loan Summary
     ws = wb.create_sheet("Loan Summary")
@@ -699,6 +885,14 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
     # Collateral & LTV worksheet
     ws = wb.create_sheet("Collateral & LTV")
     _build_collateral(ws, ctx, col_cfg, col_values, col_result)
+
+    # Debt Service Coverage (DSCR) worksheet
+    ws = wb.create_sheet("Debt Service (DSCR)")
+    _build_dscr(ws, ctx, dscr_cfg, dscr_values, dscr_result)
+
+    # Leverage & Liquidity worksheet
+    ws = wb.create_sheet("Leverage & Liquidity")
+    _build_leverage(ws, ctx, lev_cfg, lev_values, lev_result)
 
     # Linesheet Questions  (header MUST remain at row 1, A1 == "Section")
     ws = wb.create_sheet("Linesheet Questions")
@@ -774,6 +968,20 @@ def generate_data_mart_csv(conn, review_case_id: int, template, output_path: str
                            ("COLL_NET_VALUE", col["net_collateral_value"]), ("COLL_EXCESS", col["excess"]),
                            ("COLL_ASSESSMENT", col["assessment"])):
             rows.append(_row(qid, "collateral_ltv", value, col["assessment"], col["severity"], "Carried from Collateral worksheet"))
+    # Carry the debt service coverage results into the data mart (commercial)
+    dscr = summarize_dscr(conn, review_case_id)
+    if dscr:
+        for qid, value in (("DSCR_RATIO", dscr["dscr"]), ("DSCR_DEBT_YIELD_PCT", dscr["debt_yield"]),
+                           ("DSCR_CFADS", dscr["cfads"]), ("DSCR_EXCESS_CASH_FLOW", dscr["excess_cash_flow"]),
+                           ("DSCR_ASSESSMENT", dscr["assessment"])):
+            rows.append(_row(qid, "debt_service", value, dscr["assessment"], dscr["severity"], "Carried from DSCR worksheet"))
+    # Carry the leverage / liquidity results into the data mart (commercial)
+    lev = summarize_leverage(conn, review_case_id)
+    if lev:
+        for qid, value in (("LEV_CURRENT_RATIO", lev["current_ratio"]), ("LEV_DEBT_TO_WORTH", lev["debt_to_worth"]),
+                           ("LEV_DEBT_TO_EBITDA", lev["debt_to_ebitda"]), ("LEV_WORKING_CAPITAL", lev["working_capital"]),
+                           ("LEV_ASSESSMENT", lev["assessment"])):
+            rows.append(_row(qid, "leverage", value, lev["assessment"], lev["severity"], "Carried from Leverage worksheet"))
     # Carry the ability-to-repay results into the data mart (consumer reviews)
     dti = summarize_dti(conn, review_case_id)
     if dti:
@@ -805,7 +1013,9 @@ _DM_TABLES = {
                    "findings_count", "blockers_count", "dti_back_end_pct", "dti_front_end_pct",
                    "dti_residual_income", "dti_net_residual_income", "dti_assessment",
                    "cf_qualifying_monthly", "cf_qualifying_annual", "cf_business_income_ref_monthly",
-                   "coll_ltv_pct", "coll_coverage_pct", "coll_net_value", "coll_excess", "coll_assessment"],
+                   "coll_ltv_pct", "coll_coverage_pct", "coll_net_value", "coll_excess", "coll_assessment",
+                   "dscr_ratio", "dscr_debt_yield_pct", "dscr_assessment",
+                   "lev_current_ratio", "lev_debt_to_worth", "lev_debt_to_ebitda", "lev_assessment"],
     "Answers": ["review_case_id", "loan_id", "borrower_name", "template_id", "section_id", "question_id",
                 "answer_value", "answer_status", "severity", "exception_flag", "reviewer_comment",
                 "evidence_required", "evidence_status", "answered_by", "answered_at"],
@@ -818,6 +1028,10 @@ _DM_TABLES = {
                  "business_income_reference_monthly"],
     "Collateral": ["review_case_id", "loan_id", "borrower_name", "total_market_value", "net_collateral_value",
                    "total_exposure", "ltv", "coverage", "excess", "assessment", "severity"],
+    "DSCR": ["review_case_id", "loan_id", "borrower_name", "cfads", "net_operating_income", "total_debt_service",
+             "loan_amount", "dscr", "debt_yield", "excess_cash_flow", "assessment", "severity"],
+    "Leverage": ["review_case_id", "loan_id", "borrower_name", "current_ratio", "working_capital",
+                 "debt_to_worth", "debt_to_ebitda", "assessment", "severity"],
     "Audit": ["audit_id", "timestamp", "user", "action_type", "entity_type", "entity_id", "reason",
               "review_case_id", "loan_id"],
 }
@@ -873,13 +1087,15 @@ def generate_data_mart_workbook(conn, engagement_id: int,
         (engagement_id,)).fetchall()]
     case_ids = [c["review_case_id"] for c in cases]
 
-    lines, dti_rows, cf_rows, col_rows = [], [], [], []
+    lines, dti_rows, cf_rows, col_rows, dscr_rows, lev_rows = [], [], [], [], [], []
     for c in cases:
         rcid = c["review_case_id"]
         comp = calculate_completion_status(conn, rcid, c, template) if template else {}
         dti = summarize_dti(conn, rcid)
         cf = summarize_cash_flow(conn, rcid)
         col = summarize_collateral(conn, rcid)
+        dscr = summarize_dscr(conn, rcid)
+        lev = summarize_leverage(conn, rcid)
         findings = conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=?", (rcid,)).fetchone()[0]
         lines.append({
             "review_case_id": rcid, "client_name": ctx.get("client_name"), "review_period": ctx.get("review_period"),
@@ -903,6 +1119,13 @@ def generate_data_mart_workbook(conn, engagement_id: int,
             "coll_net_value": col["net_collateral_value"] if col else None,
             "coll_excess": col["excess"] if col else None,
             "coll_assessment": col["assessment"] if col else None,
+            "dscr_ratio": dscr["dscr"] if dscr else None,
+            "dscr_debt_yield_pct": dscr["debt_yield"] if dscr else None,
+            "dscr_assessment": dscr["assessment"] if dscr else None,
+            "lev_current_ratio": lev["current_ratio"] if lev else None,
+            "lev_debt_to_worth": lev["debt_to_worth"] if lev else None,
+            "lev_debt_to_ebitda": lev["debt_to_ebitda"] if lev else None,
+            "lev_assessment": lev["assessment"] if lev else None,
         })
         if dti:
             dti_rows.append({"review_case_id": rcid, "loan_id": c.get("loan_id"), "borrower_name": c.get("borrower_name"),
@@ -917,6 +1140,14 @@ def generate_data_mart_workbook(conn, engagement_id: int,
             col_rows.append({"review_case_id": rcid, "loan_id": c.get("loan_id"), "borrower_name": c.get("borrower_name"),
                              **{k: col.get(k) for k in ("total_market_value", "net_collateral_value", "total_exposure",
                                 "ltv", "coverage", "excess", "assessment", "severity")}})
+        if dscr:
+            dscr_rows.append({"review_case_id": rcid, "loan_id": c.get("loan_id"), "borrower_name": c.get("borrower_name"),
+                              **{k: dscr.get(k) for k in ("cfads", "net_operating_income", "total_debt_service",
+                                 "loan_amount", "dscr", "debt_yield", "excess_cash_flow", "assessment", "severity")}})
+        if lev:
+            lev_rows.append({"review_case_id": rcid, "loan_id": c.get("loan_id"), "borrower_name": c.get("borrower_name"),
+                             **{k: lev.get(k) for k in ("current_ratio", "working_capital", "debt_to_worth",
+                                "debt_to_ebitda", "assessment", "severity")}})
 
     answers = []
     for r in conn.execute(
@@ -962,6 +1193,7 @@ def generate_data_mart_workbook(conn, engagement_id: int,
     ov.cell(row=r, column=2, value="TABLES").font = Font(name=FONT, color=GOLD, bold=True, size=10); r += 1
     for name, count in (("Linesheets", len(lines)), ("Answers", len(answers)), ("Findings", len(findings_rows)),
                         ("DTI", len(dti_rows)), ("CashFlow", len(cf_rows)), ("Collateral", len(col_rows)),
+                        ("DSCR", len(dscr_rows)), ("Leverage", len(lev_rows)),
                         ("Audit", len(audit_rows)), ("Data Dictionary", len(_DM_DICTIONARY))):
         ov.cell(row=r, column=2, value=name).font = Font(name=FONT, color=NAVY, bold=True, size=10)
         ov.cell(row=r, column=3, value=f"{count} rows").font = Font(name=FONT, color=MUTED, size=10)
@@ -974,6 +1206,8 @@ def generate_data_mart_workbook(conn, engagement_id: int,
     _dm_table_sheet(wb, "DTI", "tbl_DTI", _DM_TABLES["DTI"], dti_rows)
     _dm_table_sheet(wb, "CashFlow", "tbl_CashFlow", _DM_TABLES["CashFlow"], cf_rows)
     _dm_table_sheet(wb, "Collateral", "tbl_Collateral", _DM_TABLES["Collateral"], col_rows)
+    _dm_table_sheet(wb, "DSCR", "tbl_DSCR", _DM_TABLES["DSCR"], dscr_rows)
+    _dm_table_sheet(wb, "Leverage", "tbl_Leverage", _DM_TABLES["Leverage"], lev_rows)
     _dm_table_sheet(wb, "Audit", "tbl_Audit", _DM_TABLES["Audit"], audit_rows)
     _dm_table_sheet(wb, "Data Dictionary", "tbl_Dictionary", ["table", "column", "description"],
                     [{"table": t, "column": c, "description": d} for t, c, d in _DM_DICTIONARY])

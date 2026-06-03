@@ -118,7 +118,7 @@ def test_export_engine_generates_excel_and_data_mart_columns_and_audit(workflow)
     excel=generate_excel_linesheet(conn,rcid,template,workflow["tmp"] / "excel", "Reviewer")
     assert Path(excel.file_path).exists()
     wb=load_workbook(excel.file_path)
-    assert ["Cover","Loan Summary","Cash Flow Analysis","Ability-to-Repay (DTI)","Collateral & LTV","Linesheet Questions","Exceptions & Findings","Evidence Checklist","Audit Summary"] == wb.sheetnames
+    assert ["Cover","Loan Summary","Cash Flow Analysis","Ability-to-Repay (DTI)","Collateral & LTV","Debt Service (DSCR)","Leverage & Liquidity","Linesheet Questions","Exceptions & Findings","Evidence Checklist","Audit Summary"] == wb.sheetnames
     assert wb["Linesheet Questions"][1][0].value == "Section"
     csv=generate_data_mart_csv(conn,rcid,template,workflow["tmp"]/"data_mart"/"review_answers_export.csv","Reviewer")
     df=pd.read_csv(csv.file_path)
@@ -275,7 +275,7 @@ def test_data_mart_workbook_consolidates_engagement(workflow):
     complete_case(conn, rcid, loan, template)
     res=generate_data_mart_workbook(conn, eid, workflow["tmp"]/"mart.xlsx", "Reviewer")
     wb=load_workbook(res.file_path)
-    for s in ("Overview","Linesheets","Answers","Findings","DTI","CashFlow","Collateral","Audit","Data Dictionary"):
+    for s in ("Overview","Linesheets","Answers","Findings","DTI","CashFlow","Collateral","DSCR","Leverage","Audit","Data Dictionary"):
         assert s in wb.sheetnames
     ws=wb["Linesheets"]
     header=[c.value for c in ws[1]]
@@ -317,6 +317,32 @@ def test_collateral_persist_summarize_carry_and_audit(workflow):
     # clearing to adequately secured resolves the carried finding
     save_collateral_inputs(conn, rcid, {"real_estate":{"market_value":1000000,"advance_rate":80},"loan_balance":{"market_value":500000}}, "Reviewer", loan_id="L1001")
     assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='COLL_LTV'",(rcid,)).fetchone()[0]==0
+
+def test_dscr_compute_and_carry(workflow):
+    from linesheet_builder.dscr_engine import load_dscr_config, compute_dscr, save_dscr_inputs, summarize_dscr
+    cfg=load_dscr_config()
+    ok=compute_dscr({"net_operating_income":600000,"capital_expenditures":50000,"existing_debt_service":120000,"proposed_debt_service":300000,"loan_amount":4000000}, cfg)
+    assert ok["cfads"]==550000 and ok["dscr"]==1.31 and ok["debt_yield"]==15.0 and ok["severity"] is None
+    low=compute_dscr({"net_operating_income":450000,"existing_debt_service":120000,"proposed_debt_service":300000,"loan_amount":5000000}, cfg)
+    assert low["dscr"]==1.07 and low["severity"]=="Finding" and "DSCR" in low["assessment"]
+    conn=workflow["conn"]; rcid=workflow["cases"][0]
+    save_dscr_inputs(conn, rcid, {"net_operating_income":450000,"existing_debt_service":120000,"proposed_debt_service":300000,"loan_amount":5000000}, "Reviewer", loan_id="L1001")
+    assert summarize_dscr(conn, rcid)["severity"]=="Finding"
+    assert conn.execute("SELECT severity FROM exceptions WHERE review_case_id=? AND question_id='DSCR'",(rcid,)).fetchone()["severity"]=="Finding"
+    assert "dscr_updated" in [r[0] for r in conn.execute("SELECT action_type FROM audit_log WHERE review_case_id=?",(rcid,)).fetchall()]
+
+def test_leverage_compute_and_carry(workflow):
+    from linesheet_builder.leverage_engine import load_leverage_config, compute_leverage, save_leverage_inputs, summarize_leverage
+    cfg=load_leverage_config()
+    r=compute_leverage({"current_assets":1200000,"current_liabilities":800000,"total_liabilities":3000000,"tangible_net_worth":900000,"total_debt":2500000,"ebitda":500000}, cfg)
+    assert r["current_ratio"]==1.5 and r["working_capital"]==400000 and r["debt_to_worth"]==3.33 and r["debt_to_ebitda"]==5.0
+    assert r["severity"]=="Finding" and "debt-to-EBITDA" in r["breaches"]
+    clean=compute_leverage({"current_assets":2000000,"current_liabilities":800000,"total_liabilities":2000000,"tangible_net_worth":1500000,"total_debt":1000000,"ebitda":700000}, cfg)
+    assert clean["severity"] is None and clean["assessment"].startswith("Within")
+    conn=workflow["conn"]; rcid=workflow["cases"][1]
+    save_leverage_inputs(conn, rcid, {"current_assets":1200000,"current_liabilities":800000,"total_liabilities":3000000,"tangible_net_worth":900000,"total_debt":2500000,"ebitda":500000}, "Reviewer", loan_id="L1002")
+    assert summarize_leverage(conn, rcid)["severity"]=="Finding"
+    assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='LEVERAGE'",(rcid,)).fetchone()[0]==1
 
 def test_rules_engine_safe_supported_and_no_raw_eval():
     assert evaluate_rule('answer == "No"', answer="No")
