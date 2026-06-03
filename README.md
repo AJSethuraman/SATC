@@ -115,6 +115,7 @@ Excel workbooks include:
 - Global Cash Flow
 - Leverage & Liquidity
 - Borrowing Base
+- Liquidity & Reserves
 - Linesheet Questions
 - Exceptions & Findings
 - Evidence Checklist
@@ -165,6 +166,14 @@ Both are live-formula Excel tabs with conditional formatting and follow the same
 ### Borrowing Base (revolving lines / ABL)
 
 The **Borrowing Base** tab / page computes eligible collateral × advance rate (eligible A/R, inventory, other), less reserves, to derive the **borrowing base**, then compares it to the line commitment and current outstanding for **net availability** (or any **overadvance**). Live-formula Excel tab with conditional formatting; carries an overadvance as a finding and adds a `BorrowingBase` table to the data mart workbook (`configs/borrowing_base_v1.yaml`).
+
+### Liquidity & Reserves
+
+The **Liquidity** tab / page divides liquid assets (cash, securities, other) by monthly obligations to give **months of reserves**, scored against a guideline (default 6). Live-formula Excel tab; carries a below-guideline result as a finding and adds a `Liquidity` table to the data mart workbook (`configs/liquidity_v1.yaml`).
+
+### Portfolio rollup
+
+The engagement data mart workbook opens with a **Portfolio** sheet: headline KPIs (linesheets, findings, average completion, cases with blockers), a validation-status breakdown and findings-by-section breakdown — each with a native Excel **bar chart** — and average key ratios (DTI, DSCR, global DSCR, LTV, months of reserves) across the engagement.
 
 ## Per-template calc tabs and auto-feed
 

@@ -27,6 +27,7 @@ SCHEMA = [
 """CREATE TABLE IF NOT EXISTS leverage_inputs (lev_id INTEGER PRIMARY KEY AUTOINCREMENT, review_case_id INTEGER, line_key TEXT, amount REAL, note TEXT, updated_at TEXT, UNIQUE(review_case_id, line_key))""",
 """CREATE TABLE IF NOT EXISTS guarantor_inputs (guar_id INTEGER PRIMARY KEY AUTOINCREMENT, review_case_id INTEGER, line_key TEXT, amount REAL, note TEXT, updated_at TEXT, UNIQUE(review_case_id, line_key))""",
 """CREATE TABLE IF NOT EXISTS borrowing_base_inputs (bb_id INTEGER PRIMARY KEY AUTOINCREMENT, review_case_id INTEGER, line_key TEXT, value REAL, advance_rate REAL, note TEXT, updated_at TEXT, UNIQUE(review_case_id, line_key))""",
+"""CREATE TABLE IF NOT EXISTS liquidity_inputs (liq_id INTEGER PRIMARY KEY AUTOINCREMENT, review_case_id INTEGER, line_key TEXT, amount REAL, note TEXT, updated_at TEXT, UNIQUE(review_case_id, line_key))""",
 ]
 
 def now() -> str: return datetime.utcnow().isoformat(timespec="seconds")

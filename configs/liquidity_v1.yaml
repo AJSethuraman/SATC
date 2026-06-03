@@ -1,0 +1,14 @@
+worksheet_id: liquidity_v1
+worksheet_name: Liquidity & Reserves
+version: '1.0'
+
+inputs:
+  section_name: Liquid Assets & Monthly Obligations
+  lines:
+    - {key: cash_equivalents, label: Cash & equivalents}
+    - {key: marketable_securities, label: Marketable securities}
+    - {key: other_liquid_assets, label: Other liquid assets}
+    - {key: monthly_obligations, label: Monthly obligations (housing + debts)}
+
+thresholds:
+  min_months_reserves: 6.0   # months of liquid reserves vs. monthly obligations

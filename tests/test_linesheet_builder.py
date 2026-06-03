@@ -118,7 +118,7 @@ def test_export_engine_generates_excel_and_data_mart_columns_and_audit(workflow)
     excel=generate_excel_linesheet(conn,rcid,template,workflow["tmp"] / "excel", "Reviewer")
     assert Path(excel.file_path).exists()
     wb=load_workbook(excel.file_path)
-    assert ["Cover","Loan Summary","Cash Flow Analysis","Ability-to-Repay (DTI)","Collateral & LTV","Debt Service (DSCR)","Guarantor","Global Cash Flow","Leverage & Liquidity","Borrowing Base","Linesheet Questions","Exceptions & Findings","Evidence Checklist","Audit Summary"] == wb.sheetnames
+    assert ["Cover","Loan Summary","Cash Flow Analysis","Ability-to-Repay (DTI)","Collateral & LTV","Debt Service (DSCR)","Guarantor","Global Cash Flow","Leverage & Liquidity","Borrowing Base","Liquidity & Reserves","Linesheet Questions","Exceptions & Findings","Evidence Checklist","Audit Summary"] == wb.sheetnames
     assert wb["Linesheet Questions"][1][0].value == "Section"
     csv=generate_data_mart_csv(conn,rcid,template,workflow["tmp"]/"data_mart"/"review_answers_export.csv","Reviewer")
     df=pd.read_csv(csv.file_path)
@@ -275,8 +275,9 @@ def test_data_mart_workbook_consolidates_engagement(workflow):
     complete_case(conn, rcid, loan, template)
     res=generate_data_mart_workbook(conn, eid, workflow["tmp"]/"mart.xlsx", "Reviewer")
     wb=load_workbook(res.file_path)
-    for s in ("Overview","Linesheets","Answers","Findings","DTI","CashFlow","Collateral","DSCR","Leverage","Guarantor","Global","BorrowingBase","Audit","Data Dictionary"):
+    for s in ("Overview","Portfolio","Linesheets","Answers","Findings","DTI","CashFlow","Collateral","DSCR","Leverage","Guarantor","Global","BorrowingBase","Liquidity","Audit","Data Dictionary"):
         assert s in wb.sheetnames
+    assert len(wb["Portfolio"]._charts) >= 1  # portfolio rollup includes charts
     ws=wb["Linesheets"]
     header=[c.value for c in ws[1]]
     assert "dti_back_end_pct" in header and "cf_qualifying_monthly" in header
@@ -421,6 +422,19 @@ def test_borrowing_base_compute_and_carry(workflow):
     assert summarize_borrowing_base(conn, rcid)["severity"]=="Finding"
     assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='BORROWING_BASE'",(rcid,)).fetchone()[0]==1
     assert "borrowing_base_updated" in [r[0] for r in conn.execute("SELECT action_type FROM audit_log WHERE review_case_id=?",(rcid,)).fetchall()]
+
+def test_liquidity_compute_and_carry(workflow):
+    from linesheet_builder.liquidity_engine import load_liquidity_config, compute_liquidity, save_liquidity_inputs, summarize_liquidity
+    cfg=load_liquidity_config()
+    ok=compute_liquidity({"cash_equivalents":40000,"marketable_securities":20000,"monthly_obligations":8000}, cfg)
+    assert ok["liquid_assets"]==60000 and ok["months_reserves"]==7.5 and ok["severity"] is None
+    low=compute_liquidity({"cash_equivalents":12000,"monthly_obligations":8000}, cfg)
+    assert low["months_reserves"]==1.5 and low["severity"]=="Finding" and "reserve" in low["assessment"]
+    conn=workflow["conn"]; rcid=workflow["cases"][0]
+    save_liquidity_inputs(conn, rcid, {"cash_equivalents":12000,"monthly_obligations":8000}, "Reviewer", loan_id="L1001")
+    assert summarize_liquidity(conn, rcid)["severity"]=="Finding"
+    assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='LIQUIDITY'",(rcid,)).fetchone()[0]==1
+    assert "liquidity_updated" in [r[0] for r in conn.execute("SELECT action_type FROM audit_log WHERE review_case_id=?",(rcid,)).fetchall()]
 
 def test_rules_engine_safe_supported_and_no_raw_eval():
     assert evaluate_rule('answer == "No"', answer="No")
