@@ -11,6 +11,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+import generate_documents
+import sign_documents
 import sort_tax_docs
 import tax_tools
 
@@ -202,6 +204,9 @@ if PYSIDE_AVAILABLE:
             move: bool,
             save_extracted_text: bool,
             split_combined: bool,
+            document_templates: tuple[str, ...] | None = None,
+            signature_path: str | None = None,
+            signature_anchor: str = sign_documents.DEFAULT_ANCHOR,
         ) -> None:
             super().__init__()
             self.tool_keys = tool_keys
@@ -209,6 +214,9 @@ if PYSIDE_AVAILABLE:
             self.move = move
             self.save_extracted_text = save_extracted_text
             self.split_combined = split_combined
+            self.document_templates = document_templates
+            self.signature_path = signature_path
+            self.signature_anchor = signature_anchor
 
         def run(self) -> None:
             try:
@@ -217,6 +225,9 @@ if PYSIDE_AVAILABLE:
                     move=self.move,
                     save_extracted_text=self.save_extracted_text,
                     split_combined=self.split_combined,
+                    document_templates=self.document_templates,
+                    signature_path=self.signature_path,
+                    signature_anchor=self.signature_anchor,
                     status_callback=self.status_changed.emit,
                 )
                 results = tax_tools.run_tools(self.tool_keys, context)
@@ -324,16 +335,48 @@ if PYSIDE_AVAILABLE:
             self.advanced_toggle.setChecked(False)
             self.advanced_toggle.clicked.connect(self.toggle_advanced)
             self.advanced_panel = QWidget()
-            advanced_layout = QHBoxLayout(self.advanced_panel)
+            advanced_layout = QVBoxLayout(self.advanced_panel)
             advanced_layout.setContentsMargins(0, 8, 0, 0)
+            advanced_layout.setSpacing(10)
+
+            flags_row = QHBoxLayout()
             self.move_checkbox = QCheckBox("Move files instead of copy")
             self.split_checkbox = QCheckBox("Split combined PDFs (multi-form)")
             self.split_checkbox.setChecked(True)
             self.debug_checkbox = QCheckBox("Save extracted text debug files")
-            advanced_layout.addWidget(self.move_checkbox)
-            advanced_layout.addWidget(self.split_checkbox)
-            advanced_layout.addWidget(self.debug_checkbox)
-            advanced_layout.addStretch()
+            flags_row.addWidget(self.move_checkbox)
+            flags_row.addWidget(self.split_checkbox)
+            flags_row.addWidget(self.debug_checkbox)
+            flags_row.addStretch()
+            advanced_layout.addLayout(flags_row)
+
+            advanced_layout.addWidget(QLabel("Templates to generate", objectName="SmallHeading"))
+            templates_row = QHBoxLayout()
+            self.template_checkboxes: dict[str, QCheckBox] = {}
+            for key in generate_documents.TEMPLATE_FILES:
+                checkbox = QCheckBox(key.replace("_", " ").title())
+                checkbox.setChecked(True)
+                templates_row.addWidget(checkbox)
+                self.template_checkboxes[key] = checkbox
+            templates_row.addStretch()
+            advanced_layout.addLayout(templates_row)
+
+            advanced_layout.addWidget(QLabel("Signature for the Sign tool", objectName="SmallHeading"))
+            signature_row = QHBoxLayout()
+            self.signature_path_edit = QLineEdit()
+            self.signature_path_edit.setPlaceholderText(
+                "Signature image (optional; defaults to signature.png in the folder)"
+            )
+            signature_browse = QPushButton("Browse…")
+            signature_browse.clicked.connect(self.choose_signature)
+            self.anchor_edit = QLineEdit(sign_documents.DEFAULT_ANCHOR)
+            self.anchor_edit.setMaximumWidth(220)
+            signature_row.addWidget(self.signature_path_edit, stretch=1)
+            signature_row.addWidget(signature_browse)
+            signature_row.addWidget(QLabel("Anchor:"))
+            signature_row.addWidget(self.anchor_edit)
+            advanced_layout.addLayout(signature_row)
+
             self.advanced_panel.hide()
 
             run_row = QHBoxLayout()
@@ -439,6 +482,14 @@ if PYSIDE_AVAILABLE:
             if folder:
                 self.set_selected_folder(Path(folder))
 
+        def choose_signature(self) -> None:
+            path, _ = QFileDialog.getOpenFileName(
+                self, "Choose signature image", str(self.selected_folder),
+                "Images (*.png *.jpg *.jpeg)"
+            )
+            if path:
+                self.signature_path_edit.setText(path)
+
         def selected_tool_keys(self) -> list[str]:
             return [
                 tool.key
@@ -474,6 +525,11 @@ if PYSIDE_AVAILABLE:
                 move=self.move_checkbox.isChecked(),
                 save_extracted_text=self.debug_checkbox.isChecked(),
                 split_combined=self.split_checkbox.isChecked(),
+                document_templates=tuple(
+                    key for key, box in self.template_checkboxes.items() if box.isChecked()
+                ),
+                signature_path=self.signature_path_edit.text().strip() or None,
+                signature_anchor=self.anchor_edit.text().strip() or sign_documents.DEFAULT_ANCHOR,
             )
             self.worker.status_changed.connect(self.status_label.setText)
             self.worker.finished_successfully.connect(self.on_tools_finished)

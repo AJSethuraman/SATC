@@ -135,7 +135,8 @@ def template_dir(input_folder: Path) -> Path:
 def available_templates(directory: Path, keys=None) -> dict[str, Path]:
     """Map template key -> path for templates that exist in the directory."""
 
-    wanted = keys or TEMPLATE_FILES.keys()
+    # None means "all templates"; an explicit (possibly empty) list is honored as-is.
+    wanted = TEMPLATE_FILES.keys() if keys is None else keys
     return {
         key: directory / TEMPLATE_FILES[key]
         for key in wanted

@@ -163,6 +163,8 @@ The **Generate Documents** tool fills templates from a client data file in the i
 2. The templates live in `document_templates/` (`engagement_letter.html`, `invoice.html`, `extension_cover_letter.html`, `client_organizer_letter.html`). Edit them freely. To use a different set without touching the repo, drop a `document_templates/` folder inside your input folder and it will be used instead.
 3. Run the tool. Each client record produces `<ClientName>_<template>.html`. Fields that a template references but the data does not provide are left blank and reported as a warning, so nothing fails silently.
 
+In the desktop app, expand **Advanced Options** to choose which templates to generate, set the signature image path and anchor for the Sign tool, and toggle move/split/debug.
+
 Templates use a tiny Mustache-style syntax:
 
 - `{{field}}` inserts a value from the client record (HTML-escaped). Single braces such as CSS rules are left alone.

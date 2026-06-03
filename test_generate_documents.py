@@ -51,6 +51,12 @@ class RenderTemplateTests(unittest.TestCase):
         missing = gd.missing_fields(template, {"firm_name": "Firm"})
         self.assertEqual(missing, ["client_name"])  # description is section-internal
 
+    def test_template_selection_semantics(self) -> None:
+        directory = gd.REPO_TEMPLATE_DIR
+        self.assertEqual(set(gd.available_templates(directory, None)), set(gd.TEMPLATE_FILES))
+        self.assertEqual(gd.available_templates(directory, []), {})  # explicit empty = none
+        self.assertEqual(set(gd.available_templates(directory, ["invoice"])), {"invoice"})
+
     def test_invoice_total_is_computed(self) -> None:
         context = gd.augment_context(
             {"line_items": [{"amount": "300.00"}, {"amount": "1,200.50"}]}
