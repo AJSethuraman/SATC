@@ -35,7 +35,7 @@ def apply_mapping(df: pd.DataFrame, mapping_profile: dict) -> pd.DataFrame:
                 rec[standard] = raw.get(incoming)
         rec["raw_payload_json"] = json.dumps(raw, default=str)
         rows.append(rec)
-    return pd.DataFrame(rows, STANDARD_FIELDS + ["raw_payload_json"])
+    return pd.DataFrame(rows, columns=STANDARD_FIELDS + ["raw_payload_json"])
 
 def save_mapping_profile(mapping_profile: dict, path: str | Path, conn=None, client_id=None, template_id=None, user="system"):
     Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -49,11 +49,20 @@ def save_mapping_profile(mapping_profile: dict, path: str | Path, conn=None, cli
 
 def load_mapping_profile(path: str | Path): return yaml.safe_load(Path(path).read_text())
 
+def _sqlite_value(v):
+    """Coerce pandas/numpy scalars to native types sqlite3 can bind."""
+    if v is None or (not isinstance(v, (list, dict)) and pd.isna(v)): return None
+    if hasattr(v, "isoformat"): return v.isoformat()  # Timestamp/datetime/date
+    if hasattr(v, "item"):  # numpy scalar
+        try: return v.item()
+        except Exception: return v
+    return v
+
 def persist_loan_records(conn, engagement_id: int, import_batch_id: int, mapped_df: pd.DataFrame, user="system"):
     ids = []
     cols = STANDARD_FIELDS + ["raw_payload_json"]
     for _, row in mapped_df.iterrows():
-        vals = [None if pd.isna(row[c]) else row[c] for c in cols]
+        vals = [_sqlite_value(row[c]) for c in cols]
         cur = conn.execute(f"INSERT INTO loan_records (engagement_id, import_batch_id, {','.join(cols)}, validation_status, created_at) VALUES (?, ?, {','.join(['?']*len(cols))}, ?, ?)", [engagement_id, import_batch_id] + vals + ["Needs Review", now()])
         ids.append(int(cur.lastrowid))
     conn.commit(); append_audit_event(conn, user, "loan_records_normalized", "loan_records", import_batch_id, after_value=f"{len(ids)} records", engagement_id=engagement_id)

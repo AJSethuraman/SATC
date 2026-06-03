@@ -82,7 +82,7 @@ pytest
 
 The demo loan tape includes 11 commercial loans with Ready, Warning, and Blocked examples, including duplicate loan IDs, missing borrower name, invalid maturity/origination relationship, low DSCR, high LTV, nonaccrual, past due, and policy exception scenarios.
 
-The YAML template includes 25 questions across 10 sections:
+The YAML template includes 27 questions across 10 sections:
 
 1. Borrower / Relationship
 2. Loan Terms

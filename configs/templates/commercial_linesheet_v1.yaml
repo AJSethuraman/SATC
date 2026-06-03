@@ -6,66 +6,325 @@ sections:
     section_name: Borrower / Relationship
     display_order: 1
     questions:
-      - {display_order: 1, question_id: BR1, question_text: Is the borrower name documented and consistent with the loan tape?, answer_type: yes_no_na, required: true, source_field: borrower_name, help_text: Confirm borrower identity against source tape., exception_if: 'answer == "No"', severity: Finding, evidence_required_if: 'answer == "No"', data_mart_field: borrower_name_confirmed, export_label: Borrower name confirmed}
-      - {display_order: 2, question_id: BR2, question_text: Relationship overview, answer_type: long_text, required: false, source_field: borrower_name, help_text: Summarize relationship context., data_mart_field: relationship_overview, export_label: Relationship overview}
-      - {display_order: 3, question_id: BR3, question_text: Is borrower high risk based on risk rating?, answer_type: yes_no_na, required: true, applies_if: 'source.risk_rating >= 7', help_text: Required for higher risk credits., warning_if: 'answer == "Yes"', severity: Needs Review, data_mart_field: high_risk_borrower, export_label: High risk borrower}
+      - display_order: 1
+        question_id: BR1
+        question_text: "Is the borrower name documented and consistent with the loan tape?"
+        answer_type: yes_no_na
+        required: true
+        source_field: borrower_name
+        help_text: "Confirm borrower identity against source tape."
+        exception_if: 'answer == "No"'
+        severity: Finding
+        evidence_required_if: 'answer == "No"'
+        data_mart_field: borrower_name_confirmed
+        export_label: "Borrower name confirmed"
+      - display_order: 2
+        question_id: BR2
+        question_text: "Relationship overview"
+        answer_type: long_text
+        required: false
+        source_field: borrower_name
+        help_text: "Summarize relationship context."
+        data_mart_field: relationship_overview
+        export_label: "Relationship overview"
+      - display_order: 3
+        question_id: BR3
+        question_text: "Is borrower high risk based on risk rating?"
+        answer_type: yes_no_na
+        required: true
+        applies_if: 'source.risk_rating >= 7'
+        help_text: "Required for higher risk credits."
+        warning_if: 'answer == "Yes"'
+        severity: Needs Review
+        data_mart_field: high_risk_borrower
+        export_label: "High risk borrower"
   - section_id: loan_terms
     section_name: Loan Terms
     display_order: 2
     questions:
-      - {display_order: 1, question_id: LT1, question_text: Is the outstanding balance supported?, answer_type: yes_no_na, required: true, source_field: outstanding_balance, help_text: Tie balance to the tape/support., exception_if: 'answer == "No"', severity: Finding, evidence_required_if: 'answer == "No"', data_mart_field: balance_supported, export_label: Balance supported}
-      - {display_order: 2, question_id: LT2, question_text: Commitment amount, answer_type: currency, required: true, source_field: commitment_amount, help_text: Confirm commitment amount., data_mart_field: commitment_amount, export_label: Commitment amount}
-      - {display_order: 3, question_id: LT3, question_text: Maturity date reviewed, answer_type: date, required: true, source_field: maturity_date, help_text: Confirm maturity date., data_mart_field: maturity_date_reviewed, export_label: Maturity date reviewed}
+      - display_order: 1
+        question_id: LT1
+        question_text: "Is the outstanding balance supported?"
+        answer_type: yes_no_na
+        required: true
+        source_field: outstanding_balance
+        help_text: "Tie balance to the tape/support."
+        exception_if: 'answer == "No"'
+        severity: Finding
+        evidence_required_if: 'answer == "No"'
+        data_mart_field: balance_supported
+        export_label: "Balance supported"
+      - display_order: 2
+        question_id: LT2
+        question_text: "Commitment amount"
+        answer_type: currency
+        required: true
+        source_field: commitment_amount
+        help_text: "Confirm commitment amount."
+        data_mart_field: commitment_amount
+        export_label: "Commitment amount"
+      - display_order: 3
+        question_id: LT3
+        question_text: "Maturity date reviewed"
+        answer_type: date
+        required: true
+        source_field: maturity_date
+        help_text: "Confirm maturity date."
+        data_mart_field: maturity_date_reviewed
+        export_label: "Maturity date reviewed"
   - section_id: approval_authority
     section_name: Approval / Authority
     display_order: 3
     questions:
-      - {display_order: 1, question_id: AA1, question_text: Was approval obtained before origination?, answer_type: yes_no_na, required: true, source_field: approval_date, help_text: Approval should precede origination., exception_if: 'answer == "No"', severity: Finding, evidence_required_if: 'answer == "No"', data_mart_field: approval_before_origination, export_label: Approval before origination}
-      - {display_order: 2, question_id: AA2, question_text: Was approval within delegated authority?, answer_type: yes_no_na, required: true, source_field: approval_authority, help_text: Review delegated authority support., exception_if: 'answer == "No"', severity: Finding, evidence_required_if: 'answer == "No"', data_mart_field: approval_within_authority, export_label: Approval within authority}
-      - {display_order: 3, question_id: AA3, question_text: Approval authority name, answer_type: text, required: false, source_field: approval_authority, help_text: Authority level/name from tape., data_mart_field: approval_authority_name, export_label: Approval authority}
+      - display_order: 1
+        question_id: AA1
+        question_text: "Was approval obtained before origination?"
+        answer_type: yes_no_na
+        required: true
+        source_field: approval_date
+        help_text: "Approval should precede origination."
+        exception_if: 'answer == "No"'
+        severity: Finding
+        evidence_required_if: 'answer == "No"'
+        data_mart_field: approval_before_origination
+        export_label: "Approval before origination"
+      - display_order: 2
+        question_id: AA2
+        question_text: "Was approval within delegated authority?"
+        answer_type: yes_no_na
+        required: true
+        source_field: approval_authority
+        help_text: "Review delegated authority support."
+        exception_if: 'answer == "No"'
+        severity: Finding
+        evidence_required_if: 'answer == "No"'
+        data_mart_field: approval_within_authority
+        export_label: "Approval within authority"
+      - display_order: 3
+        question_id: AA3
+        question_text: "Approval authority name"
+        answer_type: text
+        required: false
+        source_field: approval_authority
+        help_text: "Authority level/name from tape."
+        data_mart_field: approval_authority_name
+        export_label: "Approval authority"
   - section_id: collateral_guarantors
     section_name: Collateral / Guarantors
     display_order: 4
     questions:
-      - {display_order: 1, question_id: CG1, question_text: Is collateral type documented?, answer_type: yes_no_na, required: true, source_field: collateral_type, help_text: Required for secured/commercial loans., exception_if: 'answer == "No"', severity: Warning, evidence_required_if: 'answer == "No"', data_mart_field: collateral_documented, export_label: Collateral documented}
-      - {display_order: 2, question_id: CG2, question_text: Is guarantor support documented where required?, answer_type: yes_no_na, required: true, source_field: guarantor_name, help_text: Review guarantor support., warning_if: 'answer == "No"', severity: Warning, evidence_required_if: 'answer == "No"', data_mart_field: guarantor_support_documented, export_label: Guarantor support documented}
-      - {display_order: 3, question_id: CG3, question_text: Is LTV acceptable under policy?, answer_type: percent, required: true, source_field: ltv, help_text: Policy threshold is 80% for MVP., exception_if: 'value > 80', severity: Finding, evidence_required_if: 'value > 80', data_mart_field: ltv_policy_test, export_label: LTV policy test}
+      - display_order: 1
+        question_id: CG1
+        question_text: "Is collateral type documented?"
+        answer_type: yes_no_na
+        required: true
+        source_field: collateral_type
+        help_text: "Required for secured/commercial loans."
+        exception_if: 'answer == "No"'
+        severity: Warning
+        evidence_required_if: 'answer == "No"'
+        data_mart_field: collateral_documented
+        export_label: "Collateral documented"
+      - display_order: 2
+        question_id: CG2
+        question_text: "Is guarantor support documented where required?"
+        answer_type: yes_no_na
+        required: true
+        source_field: guarantor_name
+        help_text: "Review guarantor support."
+        warning_if: 'answer == "No"'
+        severity: Warning
+        evidence_required_if: 'answer == "No"'
+        data_mart_field: guarantor_support_documented
+        export_label: "Guarantor support documented"
+      - display_order: 3
+        question_id: CG3
+        question_text: "Is LTV acceptable under policy?"
+        answer_type: percent
+        required: true
+        source_field: ltv
+        help_text: "Policy threshold is 80% for MVP."
+        exception_if: 'value > 80'
+        severity: Finding
+        evidence_required_if: 'value > 80'
+        data_mart_field: ltv_policy_test
+        export_label: "LTV policy test"
   - section_id: financial_analysis
     section_name: Financial Analysis
     display_order: 5
     questions:
-      - {display_order: 1, question_id: FA1, question_text: Is the most recent financial statement date documented?, answer_type: date, required: true, source_field: financial_statement_date, help_text: Confirm financial statement recency., data_mart_field: financial_statement_date, export_label: Financial statement date}
-      - {display_order: 2, question_id: FA2, question_text: Is DSCR acceptable under policy?, answer_type: number, required: true, source_field: dscr, help_text: Minimum DSCR is 1.20x., exception_if: 'value < 1.20', severity: Finding, evidence_required_if: 'value < 1.20', data_mart_field: dscr_policy_test, export_label: DSCR policy test}
-      - {display_order: 3, question_id: FA3, question_text: Financial analysis comments, answer_type: long_text, required: false, help_text: Note financial trends or weaknesses., data_mart_field: financial_comments, export_label: Financial comments}
+      - display_order: 1
+        question_id: FA1
+        question_text: "Is the most recent financial statement date documented?"
+        answer_type: date
+        required: true
+        source_field: financial_statement_date
+        help_text: "Confirm financial statement recency."
+        data_mart_field: financial_statement_date
+        export_label: "Financial statement date"
+      - display_order: 2
+        question_id: FA2
+        question_text: "Is DSCR acceptable under policy?"
+        answer_type: number
+        required: true
+        source_field: dscr
+        help_text: "Minimum DSCR is 1.20x."
+        exception_if: 'value < 1.20'
+        severity: Finding
+        evidence_required_if: 'value < 1.20'
+        data_mart_field: dscr_policy_test
+        export_label: "DSCR policy test"
+      - display_order: 3
+        question_id: FA3
+        question_text: "Financial analysis comments"
+        answer_type: long_text
+        required: false
+        help_text: "Note financial trends or weaknesses."
+        data_mart_field: financial_comments
+        export_label: "Financial comments"
   - section_id: covenants
     section_name: Covenants
     display_order: 6
     questions:
-      - {display_order: 1, question_id: CV1, question_text: Are covenant requirements current?, answer_type: yes_no_na, required: true, source_field: covenant_status, help_text: Review covenant status., exception_if: 'answer == "No"', severity: Finding, evidence_required_if: 'answer == "No"', data_mart_field: covenants_current, export_label: Covenants current}
-      - {display_order: 2, question_id: CV2, question_text: Covenant status, answer_type: select, required: true, source_field: covenant_status, options: [Current, Waived, Past Due, Not Applicable], help_text: Select covenant state., warning_if: 'answer in ["Waived", "Past Due"]', severity: Warning, data_mart_field: covenant_status_reviewed, export_label: Covenant status reviewed}
+      - display_order: 1
+        question_id: CV1
+        question_text: "Are covenant requirements current?"
+        answer_type: yes_no_na
+        required: true
+        source_field: covenant_status
+        help_text: "Review covenant status."
+        exception_if: 'answer == "No"'
+        severity: Finding
+        evidence_required_if: 'answer == "No"'
+        data_mart_field: covenants_current
+        export_label: "Covenants current"
+      - display_order: 2
+        question_id: CV2
+        question_text: "Covenant status"
+        answer_type: select
+        required: true
+        source_field: covenant_status
+        options: [Current, Waived, Past Due, Not Applicable]
+        help_text: "Select covenant state."
+        warning_if: 'answer in ["Waived", "Past Due"]'
+        severity: Warning
+        data_mart_field: covenant_status_reviewed
+        export_label: "Covenant status reviewed"
   - section_id: documentation
     section_name: Documentation
     display_order: 7
     questions:
-      - {display_order: 1, question_id: DOC1, question_text: Are documentation exceptions present?, answer_type: yes_no_na, required: true, help_text: Identify document exceptions., exception_if: 'answer == "Yes"', severity: Finding, evidence_required_if: 'answer == "Yes"', data_mart_field: doc_exceptions_present, export_label: Documentation exceptions present}
-      - {display_order: 2, question_id: DOC2, question_text: Required documents reviewed, answer_type: multi_select, required: false, options: [Note, Security Agreement, Guaranty, Financial Statements, Insurance], help_text: Select documents reviewed., data_mart_field: docs_reviewed, export_label: Documents reviewed}
+      - display_order: 1
+        question_id: DOC1
+        question_text: "Are documentation exceptions present?"
+        answer_type: yes_no_na
+        required: true
+        help_text: "Identify document exceptions."
+        exception_if: 'answer == "Yes"'
+        severity: Finding
+        evidence_required_if: 'answer == "Yes"'
+        data_mart_field: doc_exceptions_present
+        export_label: "Documentation exceptions present"
+      - display_order: 2
+        question_id: DOC2
+        question_text: "Required documents reviewed"
+        answer_type: multi_select
+        required: false
+        options: [Note, Security Agreement, Guaranty, Financial Statements, Insurance]
+        help_text: "Select documents reviewed."
+        data_mart_field: docs_reviewed
+        export_label: "Documents reviewed"
   - section_id: policy_exceptions
     section_name: Policy Exceptions
     display_order: 8
     questions:
-      - {display_order: 1, question_id: PE1, question_text: Are any policy exceptions documented and approved?, answer_type: yes_no_na, required: true, source_field: policy_exception_flag, help_text: Required when policy exception flag is true., exception_if: 'source.policy_exception_flag == true and answer == "No"', severity: Finding, evidence_required_if: 'source.policy_exception_flag == true', data_mart_field: policy_exceptions_approved, export_label: Policy exceptions approved}
-      - {display_order: 2, question_id: PE2, question_text: Nonaccrual status reviewed, answer_type: yes_no_na, required: true, applies_if: 'source.nonaccrual_flag == true', source_field: nonaccrual_flag, help_text: Confirm nonaccrual handling., exception_if: 'answer == "No"', severity: Needs Review, evidence_required_if: 'answer == "No"', data_mart_field: nonaccrual_reviewed, export_label: Nonaccrual reviewed}
-      - {display_order: 3, question_id: PE3, question_text: Past due days reviewed, answer_type: number, required: false, source_field: past_due_days, help_text: Confirm delinquency status., warning_if: 'value > 0', severity: Warning, data_mart_field: past_due_reviewed, export_label: Past due days reviewed}
+      - display_order: 1
+        question_id: PE1
+        question_text: "Are any policy exceptions documented and approved?"
+        answer_type: yes_no_na
+        required: true
+        source_field: policy_exception_flag
+        help_text: "Required when policy exception flag is true."
+        exception_if: 'source.policy_exception_flag == true and answer == "No"'
+        severity: Finding
+        evidence_required_if: 'source.policy_exception_flag == true'
+        data_mart_field: policy_exceptions_approved
+        export_label: "Policy exceptions approved"
+      - display_order: 2
+        question_id: PE2
+        question_text: "Nonaccrual status reviewed"
+        answer_type: yes_no_na
+        required: true
+        applies_if: 'source.nonaccrual_flag == true'
+        source_field: nonaccrual_flag
+        help_text: "Confirm nonaccrual handling."
+        exception_if: 'answer == "No"'
+        severity: Needs Review
+        evidence_required_if: 'answer == "No"'
+        data_mart_field: nonaccrual_reviewed
+        export_label: "Nonaccrual reviewed"
+      - display_order: 3
+        question_id: PE3
+        question_text: "Past due days reviewed"
+        answer_type: number
+        required: false
+        source_field: past_due_days
+        help_text: "Confirm delinquency status."
+        warning_if: 'value > 0'
+        severity: Warning
+        data_mart_field: past_due_reviewed
+        export_label: "Past due days reviewed"
   - section_id: review_conclusion
     section_name: Review Conclusion
     display_order: 9
     questions:
-      - {display_order: 1, question_id: RC1, question_text: Does the review conclusion support the assigned status?, answer_type: yes_no_na, required: true, help_text: Overall support for conclusion., exception_if: 'answer == "No"', severity: Blocked, evidence_required_if: 'answer == "No"', data_mart_field: conclusion_supported, export_label: Conclusion supported}
-      - {display_order: 2, question_id: RC2, question_text: Final review conclusion, answer_type: long_text, required: true, help_text: Provide final conclusion for the linesheet., data_mart_field: final_conclusion, export_label: Final conclusion}
-      - {display_order: 3, question_id: RC3, question_text: Overall review rating, answer_type: select, required: true, options: [Pass, Pass with Findings, Needs Review, Blocked], help_text: Select overall status., data_mart_field: overall_review_rating, export_label: Overall review rating}
+      - display_order: 1
+        question_id: RC1
+        question_text: "Does the review conclusion support the assigned status?"
+        answer_type: yes_no_na
+        required: true
+        help_text: "Confirm the conclusion aligns with the assigned status."
+        exception_if: 'answer == "No"'
+        severity: Blocked
+        evidence_required_if: 'answer == "No"'
+        data_mart_field: conclusion_supports_status
+        export_label: "Conclusion supports status"
+      - display_order: 2
+        question_id: RC2
+        question_text: "Final review conclusion"
+        answer_type: long_text
+        required: true
+        help_text: "Document the overall review conclusion."
+        data_mart_field: final_conclusion
+        export_label: "Final review conclusion"
+      - display_order: 3
+        question_id: RC3
+        question_text: "Overall review rating"
+        answer_type: select
+        required: true
+        options: [Pass, Pass with Findings, Needs Review, Blocked]
+        help_text: "Select the overall review rating."
+        data_mart_field: overall_rating
+        export_label: "Overall review rating"
   - section_id: signoff
     section_name: Signoff
     display_order: 10
     questions:
-      - {display_order: 1, question_id: SO1, question_text: Reviewer signoff completed?, answer_type: yes_no_na, required: true, help_text: Reviewer attestation., exception_if: 'answer == "No"', severity: Blocked, data_mart_field: reviewer_signoff, export_label: Reviewer signoff}
-      - {display_order: 2, question_id: SO2, question_text: QC ready date, answer_type: date, required: false, help_text: Date submitted for QC., data_mart_field: qc_ready_date, export_label: QC ready date}
+      - display_order: 1
+        question_id: SO1
+        question_text: "Reviewer signoff completed?"
+        answer_type: yes_no_na
+        required: true
+        help_text: "Confirm reviewer signoff is complete."
+        exception_if: 'answer == "No"'
+        severity: Blocked
+        data_mart_field: reviewer_signoff
+        export_label: "Reviewer signoff"
+      - display_order: 2
+        question_id: SO2
+        question_text: "QC ready date"
+        answer_type: date
+        required: false
+        help_text: "Date the case is ready for QC."
+        data_mart_field: qc_ready_date
+        export_label: "QC ready date"
