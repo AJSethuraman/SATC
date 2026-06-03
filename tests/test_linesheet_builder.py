@@ -14,6 +14,7 @@ from linesheet_builder.review_engine import create_review_cases, save_answer, ca
 from linesheet_builder.export_engine import generate_excel_linesheet, generate_data_mart_csv, generate_audit_log_csv
 from linesheet_builder.audit import append_audit_event
 from linesheet_builder.rules_engine import evaluate_rule, UnsafeRuleError, determine_question_status
+from linesheet_builder.dti_engine import load_dti_config, compute_dti, save_dti_inputs, load_dti_inputs
 
 ROOT=Path(__file__).resolve().parents[1]
 TEMPLATE_PATH=ROOT/"configs"/"templates"/"commercial_linesheet_v1.yaml"
@@ -115,7 +116,7 @@ def test_export_engine_generates_excel_and_data_mart_columns_and_audit(workflow)
     excel=generate_excel_linesheet(conn,rcid,template,workflow["tmp"] / "excel", "Reviewer")
     assert Path(excel.file_path).exists()
     wb=load_workbook(excel.file_path)
-    assert ["Cover","Loan Summary","Linesheet Questions","Exceptions & Findings","Evidence Checklist","Audit Summary"] == wb.sheetnames
+    assert ["Cover","Loan Summary","Ability-to-Repay (DTI)","Linesheet Questions","Exceptions & Findings","Evidence Checklist","Audit Summary"] == wb.sheetnames
     assert wb["Linesheet Questions"][1][0].value == "Section"
     csv=generate_data_mart_csv(conn,rcid,template,workflow["tmp"]/"data_mart"/"review_answers_export.csv","Reviewer")
     df=pd.read_csv(csv.file_path)
@@ -146,3 +147,50 @@ def test_rules_engine_safe_supported_and_no_raw_eval():
     source=Path(ROOT/"linesheet_builder"/"rules_engine.py").read_text()
     tree=ast.parse(source)
     assert not any(isinstance(n, ast.Call) and getattr(n.func, 'id', '') == 'eval' for n in ast.walk(tree))
+
+DTI_CONFIG_PATH=ROOT/"configs"/"dti_worksheet_v1.yaml"
+
+def test_dti_config_loads_three_blocks():
+    cfg=load_dti_config(DTI_CONFIG_PATH)
+    assert {"income","housing","debts"}.issubset(cfg)
+    assert any(k=="base_income" for k,_ in [(l["key"],l["label"]) for l in cfg["income"]["lines"]])
+
+def test_dti_compute_ratios_and_within_guidelines():
+    cfg=load_dti_config(DTI_CONFIG_PATH)
+    r=compute_dti({"base_income":8000,"principal_interest":1600,"property_taxes":300,"auto":400,"credit_cards":200}, cfg)
+    assert r["total_income"]==8000 and r["total_housing"]==1900 and r["total_other_debt"]==600
+    assert r["total_obligations"]==2500 and r["residual_income"]==5500
+    assert r["front_end_dti"]==round(1900/8000*100,2)
+    assert r["back_end_dti"]==round(2500/8000*100,2)
+    assert r["severity"] is None and r["assessment"].startswith("Within")
+
+def test_dti_compute_exception_and_fail_bands():
+    cfg=load_dti_config(DTI_CONFIG_PATH)
+    exc=compute_dti({"base_income":9000,"principal_interest":2510,"auto":620,"credit_cards":360,"student_loans":320,"installment":180,"other_debt":120}, cfg)
+    assert exc["back_end_dti"]>43 and exc["back_end_dti"]<=50
+    assert exc["severity"]=="Finding" and "Exceeds" in exc["assessment"]
+    fail=compute_dti({"base_income":5000,"principal_interest":2000,"auto":700,"credit_cards":500}, cfg)
+    assert fail["back_end_dti"]>50 and fail["severity"]=="Blocked" and "Fails" in fail["assessment"]
+
+def test_dti_inputs_persist_and_reload_with_audit(workflow):
+    conn=workflow["conn"]; rcid=workflow["cases"][0]
+    save_dti_inputs(conn, rcid, {"base_income":7000,"auto":450}, "Reviewer", loan_id="L1001")
+    save_dti_inputs(conn, rcid, {"base_income":7200}, "Reviewer", loan_id="L1001")  # upsert
+    vals=load_dti_inputs(conn, rcid)
+    assert vals["base_income"]==7200 and vals["auto"]==450
+    actions=[r[0] for r in conn.execute("SELECT action_type FROM audit_log WHERE review_case_id=?",(rcid,)).fetchall()]
+    assert "dti_updated" in actions
+
+def test_dti_tab_appears_in_workbook(workflow):
+    conn=workflow["conn"]; template=workflow["template"]
+    for c in workflow["cases"]:
+        row=conn.execute("SELECT lr.* FROM review_cases rc JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.review_case_id=?",(c,)).fetchone(); loan={k:row[k] for k in row.keys()}
+        if loan["validation_status"]=="Ready":
+            rcid=c; break
+    save_dti_inputs(conn, rcid, {"base_income":9000,"principal_interest":2510,"auto":620,"credit_cards":360}, "Reviewer")
+    complete_case(conn, rcid, loan, template)
+    excel=generate_excel_linesheet(conn, rcid, template, workflow["tmp"]/"excel2", "Reviewer")
+    wb=load_workbook(excel.file_path)
+    assert "Ability-to-Repay (DTI)" in wb.sheetnames
+    ws=wb["Ability-to-Repay (DTI)"]
+    assert any(str(cell.value).startswith("=SUM(") for col in ws.iter_cols(min_col=2,max_col=2) for cell in col if cell.value)

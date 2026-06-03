@@ -107,10 +107,19 @@ Excel workbooks include:
 
 - Cover
 - Loan Summary
+- Ability-to-Repay (DTI)
 - Linesheet Questions
 - Exceptions & Findings
 - Evidence Checklist
 - Audit Summary
+
+## Ability-to-Repay (DTI) worksheet
+
+The **DTI / ATR** page and the matching **Ability-to-Repay (DTI)** Excel tab capture a consumer ability-to-repay calculation from three fillable, config-driven blocks: monthly gross income, proposed housing expense (PITIA), and other monthly debt obligations. It computes total obligations, front-end and back-end DTI, and monthly residual income, and scores them against ability-to-repay guidelines.
+
+- Line items and thresholds live in `configs/dti_worksheet_v1.yaml` — add or remove categories, or change the front-end / back-end / residual thresholds, without touching code.
+- The Excel tab is a **live calculator**: subtotals and ratios are real formulas, and the ratio / residual / assessment cells are color-coded with conditional formatting (green within guidelines, amber exceeds target, red fails the maximum) that updates as amounts are edited.
+- Default thresholds: 28% front-end target, 43% back-end target, 50% back-end maximum. Worksheet inputs are persisted per review case and every save is written to the audit log.
 
 ## Auditability and blocking behavior
 

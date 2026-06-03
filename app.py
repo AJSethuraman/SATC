@@ -9,6 +9,7 @@ from linesheet_builder.template_engine import load_template_yaml, get_applicable
 from linesheet_builder.validation_engine import validate_loan_records, persist_validation_issues, validation_summary_table
 from linesheet_builder.review_engine import create_review_cases, save_answer, calculate_completion_status, set_review_status
 from linesheet_builder.export_engine import generate_excel_linesheet, generate_data_mart_csv, generate_exception_report_csv, generate_audit_log_csv
+from linesheet_builder.dti_engine import load_dti_config, load_dti_inputs, save_dti_inputs, compute_dti, block_lines
 from linesheet_builder.ui_helpers import inject_css, status_badge, next_action
 
 ROOT=Path(__file__).parent; DB=ROOT/'data'/'app.db'; TEMPLATE_PATH=ROOT/'configs'/'templates'/'commercial_linesheet_v1.yaml'
@@ -16,7 +17,7 @@ st.set_page_config(page_title="Linesheet Builder", layout="wide")
 inject_css(st); init_db(DB); seed_demo(DB)
 conn=get_connection(DB); template=load_template_yaml(TEMPLATE_PATH)
 st.sidebar.title("Linesheet Builder")
-page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Upload","Mapping","Validation","Review","Export","Audit"])
+page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Upload","Mapping","Validation","Review","DTI / ATR","Export","Audit"])
 engagements=pd.read_sql_query("SELECT e.*, c.client_name FROM engagements e JOIN clients c ON e.client_id=c.client_id ORDER BY e.engagement_id DESC", conn)
 eng_id=int(st.sidebar.selectbox("Engagement", engagements.engagement_id, format_func=lambda x: f"{engagements[engagements.engagement_id==x].iloc[0].client_name} / {x}")) if not engagements.empty else None
 eng=engagements[engagements.engagement_id==eng_id].iloc[0].to_dict() if eng_id else {}
@@ -127,6 +128,36 @@ elif page=="Review":
         new_status=st.selectbox("Review case status", ["In Review","Needs Review","Blocked","Ready for QC","QC Returned","QC Approved","Finalized"])
         if st.button("Update status"): set_review_status(conn, rcid, new_status); st.success("Status updated")
         if status['blockers']: st.error("Export blockers: " + "; ".join(status['blockers']))
+
+elif page=="DTI / ATR":
+    st.title("Ability-to-Repay (DTI) Worksheet")
+    st.write("Enter monthly amounts. Front-end and back-end DTI, total obligations and residual income calculate automatically and are scored against ability-to-repay guidelines. The same worksheet is exported as a live-formula tab in the Excel linesheet.")
+    cases=get_cases()
+    if cases.empty:
+        st.warning("Run validation to create review cases.")
+    else:
+        rcid=int(st.selectbox("Loan / review case", cases.review_case_id, format_func=lambda x: f"{cases[cases.review_case_id==x].iloc[0].loan_id} - {cases[cases.review_case_id==x].iloc[0].borrower_name}"))
+        loan_id=cases[cases.review_case_id==rcid].iloc[0].loan_id
+        cfg=load_dti_config(); saved=load_dti_inputs(conn, rcid)
+        with st.form("dti"):
+            values={}
+            for block in ("income","housing","debts"):
+                st.subheader(cfg[block]["section_name"])
+                fcols=st.columns(2)
+                for i,(key,label) in enumerate(block_lines(cfg, block)):
+                    with fcols[i%2]:
+                        values[key]=st.number_input(label, min_value=0.0, value=float(saved.get(key) or 0.0), step=50.0, key=f"dti_{rcid}_{key}")
+            submitted=st.form_submit_button("Save & calculate")
+        if submitted:
+            save_dti_inputs(conn, rcid, values, eng.get('reviewer_name','user'), loan_id=loan_id)
+        result=compute_dti(values if submitted else saved, cfg)
+        st.markdown("---"); st.subheader("Ability-to-repay results")
+        m=st.columns(4)
+        m[0].metric("Monthly gross income", f"${result['total_income']:,.0f}")
+        m[1].metric("Front-end DTI", f"{result['front_end_dti']:.1f}%", help=f"Target ≤ {result['front_end_target']:.0f}%")
+        m[2].metric("Back-end DTI", f"{result['back_end_dti']:.1f}%", help=f"Target ≤ {result['back_end_target']:.0f}%, max {result['back_end_max']:.0f}%")
+        m[3].metric("Residual income", f"${result['residual_income']:,.0f}")
+        st.markdown(f"**ATR assessment:** {status_badge(result['severity'] or 'Complete')} &nbsp; {result['assessment']}", unsafe_allow_html=True)
 
 elif page=="Export":
     st.title("Export Center")

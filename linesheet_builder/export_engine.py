@@ -4,11 +4,13 @@ import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 from openpyxl.utils import get_column_letter
+from openpyxl.formatting.rule import CellIsRule, FormulaRule
 from .models import ExportResult
 from .db import now
 from .audit import append_audit_event, export_audit_log
 from .review_engine import calculate_completion_status
 from .template_engine import get_applicable_questions
+from .dti_engine import load_dti_config, load_dti_inputs, compute_dti, block_lines
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,6 +42,11 @@ CHIP = {
 }
 
 def _fill(color): return PatternFill("solid", fgColor=color)
+
+# fills for conditional formatting (need start/end colors)
+_CF_GREEN = PatternFill(start_color=GREEN_F, end_color=GREEN_F, fill_type="solid")
+_CF_AMBER = PatternFill(start_color=AMBER_F, end_color=AMBER_F, fill_type="solid")
+_CF_RED = PatternFill(start_color=RED_F, end_color=RED_F, fill_type="solid")
 
 def _ctx(conn, review_case_id):
     row = conn.execute("""SELECT rc.*, e.review_period,e.template_id,e.reviewer_name,e.qc_reviewer_name,c.client_name,lr.* FROM review_cases rc JOIN engagements e ON rc.engagement_id=e.engagement_id JOIN clients c ON e.client_id=c.client_id JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.review_case_id=?""", (review_case_id,)).fetchone()
@@ -181,6 +188,149 @@ def _build_cover(ws, ctx, template, metrics):
     fc.font = Font(name=FONT, color=MUTED, italic=True, size=8)
     ws.page_setup.orientation = "portrait"
 
+# --- Ability-to-Repay (DTI) tab ----------------------------------------------
+def _build_dti(ws, ctx, cfg, values, result):
+    ws.sheet_view.showGridLines = False
+    ws.column_dimensions["A"].width = 42
+    ws.column_dimensions["B"].width = 16
+    ws.column_dimensions["C"].width = 34
+
+    # banner
+    ws.merge_cells("A1:C1"); ws.row_dimensions[1].height = 5; ws["A1"].fill = _fill(GOLD)
+    ws.merge_cells("A2:C2"); ws.row_dimensions[2].height = 30
+    t = ws["A2"]; t.value = "ABILITY-TO-REPAY  ·  DEBT-TO-INCOME WORKSHEET"
+    t.fill = _fill(NAVY); t.font = Font(name=FONT, color=WHITE, bold=True, size=14)
+    t.alignment = Alignment(vertical="center", horizontal="left", indent=1)
+    ws.merge_cells("A3:C3"); ws.row_dimensions[3].height = 18
+    s = ws["A3"]; s.value = f"{ctx.get('borrower_name','')}  ·  Loan {ctx.get('loan_id','')}  ·  enter monthly amounts; ratios calculate automatically"
+    s.fill = _fill(NAVY); s.font = Font(name=FONT, color="C9D6E5", italic=True, size=9)
+    s.alignment = Alignment(vertical="center", horizontal="left", indent=1)
+    for col in range(1, 4):
+        ws.cell(row=2, column=col).fill = _fill(NAVY); ws.cell(row=3, column=col).fill = _fill(NAVY)
+    ws.merge_cells("A4:C4"); ws.row_dimensions[4].height = 5; ws["A4"].fill = _fill(GOLD)
+
+    # column captions
+    for col, cap in ((1, "Line item"), (2, "Monthly $"), (3, "Notes / source")):
+        c = ws.cell(row=5, column=col, value=cap)
+        c.font = Font(name=FONT, color=MUTED, bold=True, size=9)
+        c.border = BOTTOM
+        if col == 2: c.alignment = Alignment(horizontal="right")
+
+    money = '$#,##0'
+    row = 6
+    totals = {}  # block -> subtotal row
+
+    def section_bar(label):
+        nonlocal row
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+        c = ws.cell(row=row, column=1, value=label.upper())
+        c.fill = _fill(INK); c.font = Font(name=FONT, color=WHITE, bold=True, size=10)
+        c.alignment = Alignment(vertical="center", indent=1)
+        for col in range(1, 4): ws.cell(row=row, column=col).fill = _fill(INK)
+        ws.row_dimensions[row].height = 18
+        row += 1
+
+    def input_line(key, label):
+        nonlocal row
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=10)
+        amt = ws.cell(row=row, column=2)
+        v = values.get(key)
+        if v not in (None, "", 0, 0.0):
+            amt.value = float(v)
+        amt.number_format = money
+        amt.fill = _fill("FCFCFD"); amt.border = Border(bottom=_HAIR, left=_HAIR, right=_HAIR, top=_HAIR)
+        amt.alignment = Alignment(horizontal="right")
+        ws.cell(row=row, column=3).border = BOTTOM
+        for col in (1, 3): ws.cell(row=row, column=col).border = BOTTOM
+        row += 1
+
+    def subtotal(label, first, last):
+        nonlocal row
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=10, bold=True, color=NAVY)
+        c = ws.cell(row=row, column=2, value=f"=SUM(B{first}:B{last})")
+        c.number_format = money; c.font = Font(name=FONT, size=10, bold=True, color=NAVY)
+        c.alignment = Alignment(horizontal="right"); c.fill = _fill(BAND)
+        ws.cell(row=row, column=1).fill = _fill(BAND); ws.cell(row=row, column=3).fill = _fill(BAND)
+        r = row; row += 2
+        return r
+
+    for block, label in (("income", cfg["income"]["section_name"]),
+                         ("housing", cfg["housing"]["section_name"]),
+                         ("debts", cfg["debts"]["section_name"])):
+        section_bar(label)
+        first = row
+        for key, lbl in block_lines(cfg, block):
+            input_line(key, lbl)
+        totals[block] = subtotal(f"Total — {label}", first, row - 1)
+
+    inc, hou, deb = totals["income"], totals["housing"], totals["debts"]
+    th = result
+
+    section_bar("Ability-to-Repay Results")
+    def result_row(label, formula, fmt, bold=True):
+        nonlocal row
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=10, bold=bold, color=INK)
+        c = ws.cell(row=row, column=2, value=formula)
+        c.number_format = fmt; c.alignment = Alignment(horizontal="right")
+        c.font = Font(name=FONT, size=11, bold=True, color=NAVY)
+        for col in range(1, 4): ws.cell(row=row, column=col).border = BOTTOM
+        r = row; row += 1
+        return r
+
+    oblig_row = result_row("Total monthly obligations (housing + debts)", f"=B{hou}+B{deb}", money)
+    front_row = result_row("Front-end DTI  (housing ÷ income)", f'=IF(B{inc}=0,"",B{hou}/B{inc})', '0.0%')
+    back_row = result_row("Back-end DTI  (obligations ÷ income)", f'=IF(B{inc}=0,"",(B{hou}+B{deb})/B{inc})', '0.0%')
+    res_row = result_row("Monthly residual income (income − obligations)", f"=B{inc}-B{hou}-B{deb}", money)
+    row += 1
+
+    # guideline thresholds (static reference)
+    fe, bt, bm, rmin = th["front_end_target"], th["back_end_target"], th["back_end_max"], th["residual_income_min"]
+    for label, val in (("Guideline — front-end target", f"{fe:.0f}%"),
+                       ("Guideline — back-end target", f"{bt:.0f}%"),
+                       ("Guideline — back-end maximum", f"{bm:.0f}%"),
+                       ("Guideline — minimum residual income", f"${rmin:,.0f}" if rmin else "n/a")):
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=9, color=MUTED)
+        gc = ws.cell(row=row, column=2, value=val); gc.font = Font(name=FONT, size=9, color=MUTED)
+        gc.alignment = Alignment(horizontal="right")
+        row += 1
+    row += 1
+
+    # assessment banner (live formula + conditional colour)
+    ws.cell(row=row, column=1, value="ATR ASSESSMENT").font = Font(name=FONT, color=GOLD, bold=True, size=11)
+    ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
+    a = ws.cell(row=row, column=2)
+    a.value = (f'=IF(B{inc}=0,"Enter income to assess",'
+               f'IF(B{back_row}>{bm/100},"Fails ATR — exceeds maximum DTI",'
+               f'IF(OR(B{back_row}>{bt/100},B{front_row}>{fe/100}),'
+               f'"Exceeds guidelines — documented exception required",'
+               f'"Within ability-to-repay guidelines")))')
+    a.font = Font(name=FONT, bold=True, size=11)
+    a.alignment = Alignment(vertical="center", horizontal="left", indent=1)
+    ws.row_dimensions[row].height = 22
+    assess_cell = f"B{row}"
+
+    # --- conditional formatting (live colour as the user types) ---
+    bmf, btf, fef = bm / 100, bt / 100, fe / 100
+    cf = ws.conditional_formatting
+    cf.add(f"B{back_row}", CellIsRule(operator="greaterThan", formula=[str(bmf)], fill=_CF_RED, stopIfTrue=True))
+    cf.add(f"B{back_row}", CellIsRule(operator="greaterThan", formula=[str(btf)], fill=_CF_AMBER, stopIfTrue=True))
+    cf.add(f"B{back_row}", CellIsRule(operator="greaterThan", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(f"B{front_row}", CellIsRule(operator="greaterThan", formula=[str(fef)], fill=_CF_AMBER, stopIfTrue=True))
+    cf.add(f"B{front_row}", CellIsRule(operator="greaterThan", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(f"B{res_row}", CellIsRule(operator="lessThan", formula=["0"], fill=_CF_RED, stopIfTrue=True))
+    if rmin:
+        cf.add(f"B{res_row}", CellIsRule(operator="lessThan", formula=[str(rmin)], fill=_CF_AMBER, stopIfTrue=True))
+    cf.add(f"B{res_row}", CellIsRule(operator="greaterThanOrEqual", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Fails",{assess_cell}))'], fill=_CF_RED, stopIfTrue=True))
+    cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Exceeds",{assess_cell}))'], fill=_CF_AMBER, stopIfTrue=True))
+    cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Within",{assess_cell}))'], fill=_CF_GREEN, stopIfTrue=True))
+
+    ws.freeze_panes = "A6"
+    ws.page_setup.orientation = "portrait"
+    ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+
+
 # --- Main export -------------------------------------------------------------
 def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: str | Path = ROOT / "outputs" / "excel", generated_by="system", override_reason=None):
     ctx = _ctx(conn, review_case_id); loan = ctx.copy()
@@ -195,9 +345,14 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
     evidence_open = sum(1 for _, q in applicable if (a := ans.get(q.question_id)) and a["evidence_required"] and a["evidence_status"] not in ("Attached", "Waived"))
     metrics = {"completion_pct": completion["completion_pct"], "findings": len(exceptions), "evidence_open": evidence_open}
 
+    dti_cfg = load_dti_config()
+    dti_values = load_dti_inputs(conn, review_case_id)
+    dti_result = compute_dti(dti_values, dti_cfg)
+
     wb = Workbook()
     wb.properties.title = f"Linesheet — {ctx['loan_id']} {ctx['borrower_name']}"
     wb.properties.creator = "Linesheet Builder"
+    wb.calculation.fullCalcOnLoad = True  # recompute live DTI formulas on open
 
     # Cover
     ws = wb.active; ws.title = "Cover"
@@ -227,6 +382,10 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
     for r in range(2, ws.max_row + 1):
         ws.cell(row=r, column=1).font = Font(name=FONT, size=10, bold=True, color=NAVY)
     _chip(ws.cell(row=ws.max_row, column=2))
+
+    # Ability-to-Repay (DTI) worksheet
+    ws = wb.create_sheet("Ability-to-Repay (DTI)")
+    _build_dti(ws, ctx, dti_cfg, dti_values, dti_result)
 
     # Linesheet Questions  (header MUST remain at row 1, A1 == "Section")
     ws = wb.create_sheet("Linesheet Questions")

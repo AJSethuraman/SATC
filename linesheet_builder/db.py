@@ -20,6 +20,7 @@ SCHEMA = [
 """CREATE TABLE IF NOT EXISTS evidence_items (evidence_id INTEGER PRIMARY KEY AUTOINCREMENT, review_case_id INTEGER, question_id TEXT, evidence_name TEXT, evidence_status TEXT, evidence_note TEXT, created_at TEXT)""",
 """CREATE TABLE IF NOT EXISTS exports (export_id INTEGER PRIMARY KEY AUTOINCREMENT, engagement_id INTEGER, review_case_id INTEGER, export_type TEXT, file_path TEXT, generated_by TEXT, generated_at TEXT, export_status TEXT)""",
 """CREATE TABLE IF NOT EXISTS audit_log (audit_id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, user TEXT, action_type TEXT, entity_type TEXT, entity_id TEXT, before_value TEXT, after_value TEXT, reason TEXT, engagement_id INTEGER, review_case_id INTEGER, loan_id TEXT, template_id TEXT, template_version TEXT)""",
+"""CREATE TABLE IF NOT EXISTS dti_inputs (dti_id INTEGER PRIMARY KEY AUTOINCREMENT, review_case_id INTEGER, line_key TEXT, amount REAL, note TEXT, updated_at TEXT, UNIQUE(review_case_id, line_key))""",
 ]
 
 def now() -> str: return datetime.utcnow().isoformat(timespec="seconds")
