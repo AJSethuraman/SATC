@@ -113,8 +113,10 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "invoice": None,
         "generate": None,
         "sign": None,
+        "certsign": None,
         "engagement": None,
         "form8879": None,
+        "reminders": None,
         "email": None,
         "encyro": None,
         "retention": None,
@@ -198,6 +200,16 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         if sign_result.get("signed_folder"):
             summary["open_paths"]["Open Signed Documents"] = str(sign_result["signed_folder"])
 
+    certsign_result = results.get("certsign")
+    if certsign_result is not None:
+        summary["certsign"] = {
+            "signed_count": certsign_result["signed_count"],
+            "warnings": certsign_result["warnings"],
+        }
+        summary["tool_lines"].append(f"Certificate Sign (PAdES): {certsign_result['summary']}")
+        if certsign_result.get("signed_folder"):
+            summary["open_paths"]["Open Certified Documents"] = str(certsign_result["signed_folder"])
+
     for tracker_key, tracker_label in (("engagement", "Engagement Letter Tracker"),
                                        ("form8879", "Form 8879 Tracker")):
         tracker_result = results.get(tracker_key)
@@ -209,6 +221,16 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
             summary["tool_lines"].append(f"{tracker_label}: {tracker_result['summary']}")
             if tracker_result.get("status_folder"):
                 summary["open_paths"]["Open Status Reports"] = str(tracker_result["status_folder"])
+
+    reminders_result = results.get("reminders")
+    if reminders_result is not None:
+        summary["reminders"] = {
+            "reminder_count": reminders_result["reminder_count"],
+            "warnings": reminders_result["warnings"],
+        }
+        summary["tool_lines"].append(f"Send Reminders: {reminders_result['summary']}")
+        if reminders_result.get("reminders_folder"):
+            summary["open_paths"]["Open Reminders"] = str(reminders_result["reminders_folder"])
 
     email_result = results.get("email")
     if email_result is not None:
@@ -279,6 +301,8 @@ if PYSIDE_AVAILABLE:
             document_templates: tuple[str, ...] | None = None,
             signature_path: str | None = None,
             signature_anchor: str = sign_documents.DEFAULT_ANCHOR,
+            cert_path: str | None = None,
+            cert_password: str | None = None,
         ) -> None:
             super().__init__()
             self.tool_keys = tool_keys
@@ -289,6 +313,8 @@ if PYSIDE_AVAILABLE:
             self.document_templates = document_templates
             self.signature_path = signature_path
             self.signature_anchor = signature_anchor
+            self.cert_path = cert_path
+            self.cert_password = cert_password
 
         def run(self) -> None:
             try:
@@ -300,6 +326,8 @@ if PYSIDE_AVAILABLE:
                     document_templates=self.document_templates,
                     signature_path=self.signature_path,
                     signature_anchor=self.signature_anchor,
+                    cert_path=self.cert_path,
+                    cert_password=self.cert_password,
                     status_callback=self.status_changed.emit,
                 )
                 results = tax_tools.run_tools(self.tool_keys, context)
@@ -446,6 +474,23 @@ if PYSIDE_AVAILABLE:
             signature_row.addWidget(self.anchor_edit)
             advanced_layout.addLayout(signature_row)
 
+            advanced_layout.addWidget(
+                QLabel("Certificate for the Certificate Sign tool", objectName="SmallHeading")
+            )
+            cert_row = QHBoxLayout()
+            self.cert_path_edit = QLineEdit()
+            self.cert_path_edit.setPlaceholderText("PKCS#12 certificate (.p12/.pfx) for PAdES signing")
+            cert_browse = QPushButton("Browse…")
+            cert_browse.clicked.connect(self.choose_certificate)
+            self.cert_password_edit = QLineEdit()
+            self.cert_password_edit.setEchoMode(QLineEdit.Password)
+            self.cert_password_edit.setPlaceholderText("Password (not stored)")
+            self.cert_password_edit.setMaximumWidth(220)
+            cert_row.addWidget(self.cert_path_edit, stretch=1)
+            cert_row.addWidget(cert_browse)
+            cert_row.addWidget(self.cert_password_edit)
+            advanced_layout.addLayout(cert_row)
+
             self.advanced_panel.hide()
 
             run_row = QHBoxLayout()
@@ -487,7 +532,9 @@ if PYSIDE_AVAILABLE:
                 "Open Invoices",
                 "Open Generated Documents",
                 "Open Signed Documents",
+                "Open Certified Documents",
                 "Open Status Reports",
+                "Open Reminders",
                 "Open Email Drafts",
                 "Open Encyro Packets",
                 "Open Retention Archives",
@@ -588,6 +635,14 @@ if PYSIDE_AVAILABLE:
             if path:
                 self.signature_path_edit.setText(path)
 
+        def choose_certificate(self) -> None:
+            path, _ = QFileDialog.getOpenFileName(
+                self, "Choose signing certificate", str(self.selected_folder),
+                "PKCS#12 (*.p12 *.pfx)"
+            )
+            if path:
+                self.cert_path_edit.setText(path)
+
         def selected_tool_keys(self) -> list[str]:
             return [
                 tool.key
@@ -628,6 +683,8 @@ if PYSIDE_AVAILABLE:
                 ),
                 signature_path=self.signature_path_edit.text().strip() or None,
                 signature_anchor=self.anchor_edit.text().strip() or sign_documents.DEFAULT_ANCHOR,
+                cert_path=self.cert_path_edit.text().strip() or None,
+                cert_password=self.cert_password_edit.text() or None,
             )
             self.worker.status_changed.connect(self.status_label.setText)
             self.worker.finished_successfully.connect(self.on_tools_finished)
@@ -691,12 +748,18 @@ if PYSIDE_AVAILABLE:
             sign_result = result.get("sign")
             if sign_result is not None:
                 review_lines.append(f"PDFs signed: {sign_result['signed_count']}")
+            certsign_result = result.get("certsign")
+            if certsign_result is not None:
+                review_lines.append(f"PDFs certified: {certsign_result['signed_count']}")
             engagement_result = result.get("engagement")
             if engagement_result is not None:
                 review_lines.append(f"Engagement letters outstanding: {engagement_result['outstanding_count']}")
             form8879_result = result.get("form8879")
             if form8879_result is not None:
                 review_lines.append(f"8879s outstanding: {form8879_result['outstanding_count']}")
+            reminders_result = result.get("reminders")
+            if reminders_result is not None:
+                review_lines.append(f"Reminders drafted: {reminders_result['reminder_count']}")
             email_result = result.get("email")
             if email_result is not None:
                 review_lines.append(f"Email drafts: {email_result['draft_count']}")

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+import cert_sign
 import checklist
 import compose_emails
 import export_encyro
@@ -19,6 +20,7 @@ import extract_form_data
 import generate_documents
 import intake
 import invoice_calc
+import reminders
 import retention
 import sign_documents
 import sort_tax_docs
@@ -36,6 +38,8 @@ class ToolContext:
     document_templates: tuple[str, ...] | None = None
     signature_path: str | None = None
     signature_anchor: str = sign_documents.DEFAULT_ANCHOR
+    cert_path: str | None = None
+    cert_password: str | None = None
     status_callback: Callable[[str], None] | None = None
 
     def status(self, message: str) -> None:
@@ -123,6 +127,22 @@ def _run_8879_tracker(context: ToolContext) -> dict:
     )
 
 
+def _run_cert_sign(context: ToolContext) -> dict:
+    return cert_sign.run_cert_signing(
+        context.input_folder,
+        cert_path=context.cert_path,
+        cert_password=context.cert_password,
+        status_callback=context.status_callback,
+    )
+
+
+def _run_reminders(context: ToolContext) -> dict:
+    return reminders.run_reminders(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 def _run_emailer(context: ToolContext) -> dict:
     return compose_emails.run_email_drafts(
         context.input_folder,
@@ -188,6 +208,12 @@ TOOLS: tuple[Tool, ...] = (
         _run_signer,
     ),
     Tool(
+        "certsign",
+        "Certificate Sign (PAdES)",
+        "Apply a tamper-evident digital signature to PDFs using a PKCS#12 certificate.",
+        _run_cert_sign,
+    ),
+    Tool(
         "engagement",
         "Engagement Letter Tracker",
         "Report which clients have a signed engagement letter on file vs. outstanding.",
@@ -198,6 +224,12 @@ TOOLS: tuple[Tool, ...] = (
         "Form 8879 Tracker",
         "Report which clients have a signed Form 8879 (e-file authorization) on file.",
         _run_8879_tracker,
+    ),
+    Tool(
+        "reminders",
+        "Send Reminders",
+        "Draft reminder emails for clients with outstanding signatures or missing documents.",
+        _run_reminders,
     ),
     Tool(
         "email",

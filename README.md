@@ -13,7 +13,9 @@ Pick one or more tools in the desktop app (they run top to bottom):
 5. **Calculate Invoices** — compute invoice line items from an editable fee schedule and write them into `clients.json` for the generator to render.
 6. **Generate Documents** — fill editable HTML/Word templates (engagement letter, invoice, extension/cover letter, client organizer letter) from a `clients.json`/`clients.csv` data file and write finished documents to `Generated_Documents/`.
 7. **Sign Documents** — stamp your signature image onto PDFs that carry a signature anchor phrase, writing signed copies to `Signed_Documents/`.
+7b. **Certificate Sign (PAdES)** — apply a tamper-evident digital signature to PDFs using a PKCS#12 certificate, writing certified copies to `Cert_Signed/`.
 8. **Engagement Letter Tracker** / **Form 8879 Tracker** — report which clients have a signed engagement letter / Form 8879 on file vs. outstanding, to `Status/`.
+8b. **Send Reminders** — draft reminder `.eml`s for clients with outstanding signatures or missing documents, to `Reminders/`.
 9. **Compose Email Drafts** — build a review-ready `.eml` per client (subject/body from a template, that client's generated and signed files attached) in `Email_Drafts/`. Nothing is sent automatically and no credentials are stored.
 10. **Export for Encyro** — convert each client's letters to PDF, gather their signed PDFs/attachments, and merge an upload-ready `<client>_packet.pdf` (plus `UPLOAD_NOTES.txt`) under `Encyro_Ready/<client>/`.
 11. **Records Retention** — archive each client's complete package into a dated `Retention/<client>_<year>.zip` with a manifest and a keep-until date.
@@ -216,7 +218,7 @@ The **Sign Documents** tool stamps a signature image onto PDFs locally. Put a `s
 
 This is a **visual stamp** of your own signature to save repetitive manual signing — it is not a cryptographic signature and not a client e-signature:
 
-- For tamper-evident signing, a certificate-based (PAdES) digital signature is the next step; it needs a signing certificate (`.p12`/`.pfx`) and an extra library.
+- For tamper-evident signing, use the **Certificate Sign (PAdES)** tool: point it at your PKCS#12 certificate (`.p12`/`.pfx`) and it embeds a cryptographic signature in each input PDF (written to `Cert_Signed/`). The certificate password is never stored — supply it via the `SATC_CERT_PASSWORD` environment variable (CLI) or the transient password field (desktop). Requires the `pyhanko` package.
 - For **binding client e-signatures** (for example Form 8879), use a compliant service such as Encyro. That space is regulated (identity verification/KBA and an audit trail) and should not be home-rolled; this tool deliberately stays a local preparer-side stamp.
 
 ### Tracking signed documents
@@ -227,6 +229,10 @@ Two trackers answer "who still owes us a signature?":
 - **Form 8879 Tracker** — is a signed Form 8879 (e-file authorization) on file per client?
 
 Each writes `Status/<name>_status.csv` and a printable `.html` table marking every client **On file** or **Outstanding**. A document counts as on file when either the client record sets the flag (`engagement_letter_signed` / `form_8879_signed`, e.g. a date or `true`) or a matching file is found — one whose name contains the client's name and the keyword (`engagement` / `8879`) — in the folder, its subfolders, or `Signed_Documents/`. So drop returned signed PDFs in the folder (named with the client and form) and re-run to update the status.
+
+### Sending reminders
+
+The **Send Reminders** tool finds everything still outstanding for each client — a signed engagement letter, a signed Form 8879, and any missing documents (reusing both trackers and the checklist) — and, when a client has outstanding items and an email, writes a reminder `.eml` to `Reminders/` listing exactly what is needed. The wording comes from `document_templates/reminder_template.txt`. Like the email tool, nothing is sent: review each draft and send it yourself. Clients with nothing outstanding are skipped.
 
 ### Exporting to Encyro
 
@@ -345,6 +351,8 @@ python test_intake.py
 python test_checklist.py
 python test_invoice_calc.py
 python test_status_tracker.py
+python test_reminders.py
+python test_cert_sign.py
 python test_retention.py
 python test_tax_tools.py
 python test_sort_tax_docs.py

@@ -1,0 +1,15 @@
+Subject: Reminder: items still needed for your {{tax_year}} tax return
+
+Dear {{client_name}},
+
+To finish your {{tax_year}} tax return, we are still waiting on the following:
+
+{{#outstanding_items}}  - {{item}}
+{{/outstanding_items}}
+Please send these at your earliest convenience so we can proceed. Just reply to
+this email if you have any questions.
+
+Thank you,
+{{preparer_name}}
+{{firm_name}}
+{{firm_phone}}
