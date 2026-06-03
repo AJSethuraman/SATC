@@ -9,10 +9,12 @@ Pick one or more tools in the desktop app (they run top to bottom):
 1. **Client Intake** — generate a dynamic fillable intake form from an editable field schema, and compile returned responses into `clients.json` (appending only new clients). Feeds every tool below.
 2. **Sort Documents** — classify uploads and copy (or move) them into category folders with an inventory workbook. When a single PDF contains more than one form type, it is **split** into one filed PDF per form (see below).
 3. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, **1099-R**, **1099-G**, **1099-K**, **SSA-1099**, **1098 (Mortgage)**, **1098-T**, **1099-B**, and **Schedule K-1**. Output is written two ways: a human-readable `Extracted_Form_Data.xlsx` (one sheet per form type) and machine-readable per-form CSVs in `Drake_Export/` for feeding a downstream entry script.
-4. **Generate Documents** — fill editable HTML/Word templates (engagement letter, invoice, extension/cover letter, client organizer letter) from a `clients.json`/`clients.csv` data file and write finished documents to `Generated_Documents/`.
-5. **Sign Documents** — stamp your signature image onto PDFs that carry a signature anchor phrase, writing signed copies to `Signed_Documents/`.
-6. **Compose Email Drafts** — build a review-ready `.eml` per client (subject/body from a template, that client's generated and signed files attached) in `Email_Drafts/`. Nothing is sent automatically and no credentials are stored.
-7. **Export for Encyro** — convert each client's letters to PDF, gather their signed PDFs/attachments, and merge an upload-ready `<client>_packet.pdf` (plus `UPLOAD_NOTES.txt`) under `Encyro_Ready/<client>/`.
+4. **Document Checklist** — compare each client's expected documents (from intake) against the sorted categories that have files, and write per-client checklists plus a summary CSV.
+5. **Calculate Invoices** — compute invoice line items from an editable fee schedule and write them into `clients.json` for the generator to render.
+6. **Generate Documents** — fill editable HTML/Word templates (engagement letter, invoice, extension/cover letter, client organizer letter) from a `clients.json`/`clients.csv` data file and write finished documents to `Generated_Documents/`.
+7. **Sign Documents** — stamp your signature image onto PDFs that carry a signature anchor phrase, writing signed copies to `Signed_Documents/`.
+8. **Compose Email Drafts** — build a review-ready `.eml` per client (subject/body from a template, that client's generated and signed files attached) in `Email_Drafts/`. Nothing is sent automatically and no credentials are stored.
+9. **Export for Encyro** — convert each client's letters to PDF, gather their signed PDFs/attachments, and merge an upload-ready `<client>_packet.pdf` (plus `UPLOAD_NOTES.txt`) under `Encyro_Ready/<client>/`.
 
 Extraction is local and rule-based: it uses label-anchored regular expressions over the same selectable-text/OCR pipeline as the sorter. It is **assistive only** — every value should be verified against the source document, and anything the rules cannot read confidently is left blank with the row flagged for manual entry. 1099-B is transactional and is always flagged for manual review.
 
@@ -175,6 +177,12 @@ The **Document Checklist** tool compares each client's `expected_documents` (col
 
 Run **Sort Documents** first so there is something to check against. The intake-label → sorter-category mapping is **dynamic**: a `checklist_map.json` is written to the folder on first run, so you can change how labels map (for example, point "1099-INT" and "1099-DIV" at different categories) without touching code.
 
+### Calculating invoices
+
+The **Calculate Invoices** tool builds each client's invoice `line_items` from a fee schedule and writes them into `clients.json`, so **Generate Documents** then renders a finished invoice. It also writes `Invoices/fee_worksheet.csv`. Each client's bill is the sum of: a base preparation fee, a line for every document they reported at intake (`expected_documents`) that has a price, and any explicit `services` on the record (a service key, or `{"service": "state_return", "quantity": 2}`, or an inline `{"description": ..., "price": ...}`).
+
+The fee schedule is **dynamic**: `fee_schedule.json` is created in the folder on first run with placeholder prices — edit the descriptions and amounts to match your pricing. Run this **before** Generate Documents so the invoice picks up the computed lines.
+
 ### Generating client documents
 
 The **Generate Documents** tool fills templates from a client data file in the input folder and writes one HTML file per client per template to `Organized_Tax_Documents/Generated_Documents/`. Open the HTML in any browser and print or save it as PDF.
@@ -320,6 +328,7 @@ Run the included fake-text classifier tests with:
 ```bash
 python test_intake.py
 python test_checklist.py
+python test_invoice_calc.py
 python test_tax_tools.py
 python test_sort_tax_docs.py
 python test_extract_form_data.py

@@ -18,6 +18,7 @@ import export_encyro
 import extract_form_data
 import generate_documents
 import intake
+import invoice_calc
 import sign_documents
 import sort_tax_docs
 
@@ -82,6 +83,13 @@ def _run_checklist(context: ToolContext) -> dict:
     )
 
 
+def _run_invoice(context: ToolContext) -> dict:
+    return invoice_calc.run_invoice_calc(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 def _run_generator(context: ToolContext) -> dict:
     return generate_documents.run_generation(
         context.input_folder,
@@ -137,6 +145,12 @@ TOOLS: tuple[Tool, ...] = (
         "Document Checklist",
         "Compare each client's expected documents (from intake) against what was sorted.",
         _run_checklist,
+    ),
+    Tool(
+        "invoice",
+        "Calculate Invoices",
+        "Compute invoice line items from an editable fee schedule and write them to clients.json.",
+        _run_invoice,
     ),
     Tool(
         "generate",

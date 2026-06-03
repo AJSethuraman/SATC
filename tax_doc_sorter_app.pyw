@@ -110,6 +110,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "intake": None,
         "extract": None,
         "checklist": None,
+        "invoice": None,
         "generate": None,
         "sign": None,
         "email": None,
@@ -159,6 +160,17 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"Document Checklist: {checklist_result['summary']}")
         if checklist_result.get("checklist_folder"):
             summary["open_paths"]["Open Checklists"] = str(checklist_result["checklist_folder"])
+
+    invoice_result = results.get("invoice")
+    if invoice_result is not None:
+        summary["invoice"] = {
+            "invoiced_count": invoice_result["invoiced_count"],
+            "grand_total": invoice_result["grand_total"],
+            "warnings": invoice_result["warnings"],
+        }
+        summary["tool_lines"].append(f"Calculate Invoices: {invoice_result['summary']}")
+        if invoice_result.get("invoice_folder"):
+            summary["open_paths"]["Open Invoices"] = str(invoice_result["invoice_folder"])
 
     generate_result = results.get("generate")
     if generate_result is not None:
@@ -447,6 +459,7 @@ if PYSIDE_AVAILABLE:
                 "Open Extracted Data",
                 "Open Drake Export",
                 "Open Checklists",
+                "Open Invoices",
                 "Open Generated Documents",
                 "Open Signed Documents",
                 "Open Email Drafts",
@@ -636,6 +649,12 @@ if PYSIDE_AVAILABLE:
             checklist_result = result.get("checklist")
             if checklist_result is not None:
                 review_lines.append(f"Documents still missing: {checklist_result['total_missing']}")
+            invoice_result = result.get("invoice")
+            if invoice_result is not None:
+                review_lines.append(
+                    f"Invoices computed: {invoice_result['invoiced_count']} | "
+                    f"Total billed: {invoice_result['grand_total']}"
+                )
             generate_result = result.get("generate")
             if generate_result is not None:
                 review_lines.append(
