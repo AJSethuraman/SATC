@@ -114,6 +114,7 @@ Excel workbooks include:
 - Guarantor
 - Global Cash Flow
 - Leverage & Liquidity
+- Borrowing Base
 - Linesheet Questions
 - Exceptions & Findings
 - Evidence Checklist
@@ -160,6 +161,10 @@ Both are live-formula Excel tabs with conditional formatting and follow the same
 
 - **Guarantor / Global Financial** — the **Guarantor** tab / page captures personal financial position (net worth, liquid assets), personal cash flow and personal debt service, producing **personal DSCR** and the personal-cash-flow figure the global roll-up needs (`configs/guarantor_v1.yaml`).
 - **Global Cash Flow / Global DSCR** — the capstone. The **Global Cash Flow** tab combines **business CFADS** (DSCR) **+ guarantor personal cash flow** over **total** debt service for a single **global DSCR**. It has no inputs of its own; in Excel it uses **live cross-sheet references** to the Debt Service (DSCR) and Guarantor tabs, so editing either flows straight through. It carries its own finding when global coverage is below guideline, and is recomputed automatically whenever the DSCR or Guarantor worksheets change. Both add `Guarantor` / `Global` tables (and columns) to the data mart workbook.
+
+### Borrowing Base (revolving lines / ABL)
+
+The **Borrowing Base** tab / page computes eligible collateral × advance rate (eligible A/R, inventory, other), less reserves, to derive the **borrowing base**, then compares it to the line commitment and current outstanding for **net availability** (or any **overadvance**). Live-formula Excel tab with conditional formatting; carries an overadvance as a finding and adds a `BorrowingBase` table to the data mart workbook (`configs/borrowing_base_v1.yaml`).
 
 ## Per-template calc tabs and auto-feed
 

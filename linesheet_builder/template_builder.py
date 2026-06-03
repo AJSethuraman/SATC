@@ -33,7 +33,7 @@ def section(section_id: str, section_name: str, questions: list[dict]) -> dict:
     return {"section_id": section_id, "section_name": section_name, "questions": questions}
 
 
-CALC_MODULES = ["cash_flow", "dti", "collateral", "dscr", "guarantor", "global", "leverage"]
+CALC_MODULES = ["cash_flow", "dti", "collateral", "dscr", "guarantor", "global", "leverage", "borrowing_base"]
 
 
 def build_template(template_id: str, template_name: str, sections: list[dict],

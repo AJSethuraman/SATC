@@ -22,6 +22,9 @@ from .leverage_engine import (load_leverage_config, load_leverage_inputs, comput
     input_lines as leverage_input_lines, summarize_leverage)
 from .guarantor_engine import (load_guarantor_config, load_guarantor_inputs, compute_guarantor, summarize_guarantor)
 from .global_engine import load_global_config, compute_global, summarize_global, carry_global
+from .borrowing_base_engine import (load_borrowing_base_config, load_borrowing_base_inputs, compute_borrowing_base,
+    collateral_lines as bb_collateral_lines, reserve_lines as bb_reserve_lines, line_lines as bb_line_lines,
+    summarize_borrowing_base)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -54,7 +57,7 @@ CHIP = {
 
 def _fill(color): return PatternFill("solid", fgColor=color)
 
-ALL_MODULES = ["cash_flow", "dti", "collateral", "dscr", "guarantor", "global", "leverage"]
+ALL_MODULES = ["cash_flow", "dti", "collateral", "dscr", "guarantor", "global", "leverage", "borrowing_base"]
 
 def _template_modules(template):
     """Calc tabs to include for a template. Empty/absent = all. 'global' pulls
@@ -131,7 +134,7 @@ def _finish_table(ws, header_row, ncols, chip_cols=(), widths=None, landscape=Fa
         ws.page_setup.orientation = "landscape"
 
 # --- Cover -------------------------------------------------------------------
-def _build_cover(ws, ctx, template, metrics, dti=None, cf=None, coll=None, dscr=None, lev=None, guar=None, glob=None):
+def _build_cover(ws, ctx, template, metrics, dti=None, cf=None, coll=None, dscr=None, lev=None, guar=None, glob=None, bb=None):
     ws.sheet_view.showGridLines = False
     widths = [2.5, 22, 30, 4, 18, 22]
     for i, w in enumerate(widths, start=1):
@@ -268,6 +271,15 @@ def _build_cover(ws, ctx, template, metrics, dti=None, cf=None, coll=None, dscr=
             ("Global debt service", f"${glob['global_debt_service']:,.0f}", None),
             ("Global DSCR", f"{glob['global_dscr']:.2f}x   (min {glob['min_global_dscr']:.2f}x)", None),
             ("Global assessment", glob["assessment"], glob["severity"]),
+        ])
+
+    # Borrowing base — carried from the Borrowing Base module (ABL / lines)
+    if bb and bb.get("assessment") not in (None, "Inputs required"):
+        _card("BORROWING BASE", [
+            ("Borrowing base", f"${bb['borrowing_base']:,.0f}", None),
+            ("Current outstanding", f"${bb['current_outstanding']:,.0f}", None),
+            ("Net availability", f"${bb['net_availability']:,.0f}", None),
+            ("Borrowing base assessment", bb["assessment"], bb["severity"]),
         ])
 
     # Leverage & liquidity — carried from the Leverage module (commercial)
@@ -985,6 +997,116 @@ def _build_leverage(ws, ctx, cfg, values, result):
     ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 0; ws.sheet_properties.pageSetUpPr.fitToPage = True
 
 
+# --- Borrowing Base tab ------------------------------------------------------
+def _build_borrowing_base(ws, ctx, cfg, values, result):
+    ws.sheet_view.showGridLines = False
+    for col, w in (("A", 38), ("B", 16), ("C", 12), ("D", 16)):
+        ws.column_dimensions[col].width = w
+    ws.merge_cells("A1:D1"); ws.row_dimensions[1].height = 5; ws["A1"].fill = _fill(GOLD)
+    ws.merge_cells("A2:D2"); ws.row_dimensions[2].height = 30
+    t = ws["A2"]; t.value = "BORROWING BASE"
+    t.fill = _fill(NAVY); t.font = Font(name=FONT, color=WHITE, bold=True, size=14)
+    t.alignment = Alignment(vertical="center", horizontal="left", indent=1)
+    ws.merge_cells("A3:D3"); ws.row_dimensions[3].height = 18
+    s = ws["A3"]; s.value = f"{ctx.get('borrower_name','')}  ·  Loan {ctx.get('loan_id','')}  ·  eligible collateral × advance rate − reserves vs. line"
+    s.fill = _fill(NAVY); s.font = Font(name=FONT, color="C9D6E5", italic=True, size=9)
+    s.alignment = Alignment(vertical="center", horizontal="left", indent=1)
+    for col in range(1, 5):
+        ws.cell(row=2, column=col).fill = _fill(NAVY); ws.cell(row=3, column=col).fill = _fill(NAVY)
+    ws.merge_cells("A4:D4"); ws.row_dimensions[4].height = 5; ws["A4"].fill = _fill(GOLD)
+    _table_header(ws, ["Eligible collateral", "Value", "Advance %", "Eligible"], row=5)
+    for col in (2, 3, 4):
+        ws.cell(row=5, column=col).alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+    money = '$#,##0'; row = 6; coll_first = row
+    for key, label, default_ar in bb_collateral_lines(cfg):
+        v = values.get(key) or {}
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=9.5)
+        val = ws.cell(row=row, column=2)
+        if _numlike(v.get("value")): val.value = float(v["value"])
+        val.number_format = money; val.alignment = Alignment(horizontal="right")
+        val.fill = _fill("FCFCFD"); val.border = Border(bottom=_HAIR, left=_HAIR, right=_HAIR, top=_HAIR)
+        ar = ws.cell(row=row, column=3)
+        ar.value = float(v["advance_rate"]) if v.get("advance_rate") not in (None, "") else default_ar
+        ar.number_format = '0"%"'; ar.alignment = Alignment(horizontal="right")
+        ar.fill = _fill("FCFCFD"); ar.border = Border(bottom=_HAIR, left=_HAIR, right=_HAIR, top=_HAIR)
+        el = ws.cell(row=row, column=4, value=f"=ROUND(B{row}*C{row}/100,2)")
+        el.number_format = money; el.alignment = Alignment(horizontal="right"); el.font = Font(name=FONT, size=9.5, color=NAVY)
+        for col in range(1, 5): ws.cell(row=row, column=col).border = BOTTOM
+        row += 1
+    coll_last = row - 1
+    ws.cell(row=row, column=1, value="Gross availability").font = Font(name=FONT, size=10, bold=True, color=NAVY)
+    gross = ws.cell(row=row, column=4, value=f"=SUM(D{coll_first}:D{coll_last})"); gross.number_format = money
+    gross.font = Font(name=FONT, size=10, bold=True, color=NAVY); gross.alignment = Alignment(horizontal="right"); gross.fill = _fill(BAND)
+    for col in (1, 2, 3): ws.cell(row=row, column=col).fill = _fill(BAND)
+    gross_row = row; row += 2
+
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+    c = ws.cell(row=row, column=1, value="RESERVES"); c.fill = _fill(INK); c.font = Font(name=FONT, color=WHITE, bold=True, size=10)
+    c.alignment = Alignment(vertical="center", indent=1)
+    for col in range(1, 5): ws.cell(row=row, column=col).fill = _fill(INK)
+    row += 1; res_first = row
+    res_keys = [k for k, _ in bb_reserve_lines(cfg)]
+    for key, label in bb_reserve_lines(cfg):
+        v = values.get(key) or {}
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=9.5)
+        amt = ws.cell(row=row, column=2)
+        if _numlike(v.get("value")): amt.value = float(v["value"])
+        amt.number_format = money; amt.alignment = Alignment(horizontal="right")
+        amt.fill = _fill("FCFCFD"); amt.border = Border(bottom=_HAIR, left=_HAIR, right=_HAIR, top=_HAIR)
+        for col in range(1, 5): ws.cell(row=row, column=col).border = BOTTOM
+        row += 1
+    res_sum = f"SUM(B{res_first}:B{row-1})" if res_keys else "0"
+    row += 1
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+    c = ws.cell(row=row, column=1, value="LINE OF CREDIT"); c.fill = _fill(INK); c.font = Font(name=FONT, color=WHITE, bold=True, size=10)
+    c.alignment = Alignment(vertical="center", indent=1)
+    for col in range(1, 5): ws.cell(row=row, column=col).fill = _fill(INK)
+    row += 1; line_rows = {}
+    for key, label in bb_line_lines(cfg):
+        v = values.get(key) or {}
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=9.5)
+        amt = ws.cell(row=row, column=2)
+        if _numlike(v.get("value")): amt.value = float(v["value"])
+        amt.number_format = money; amt.alignment = Alignment(horizontal="right")
+        amt.fill = _fill("FCFCFD"); amt.border = Border(bottom=_HAIR, left=_HAIR, right=_HAIR, top=_HAIR)
+        for col in range(1, 5): ws.cell(row=row, column=col).border = BOTTOM
+        line_rows[key] = row; row += 1
+    com = f"B{line_rows['line_commitment']}"; out = f"B{line_rows['current_outstanding']}"
+    row += 1
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+    c = ws.cell(row=row, column=1, value="AVAILABILITY"); c.fill = _fill(INK); c.font = Font(name=FONT, color=WHITE, bold=True, size=10)
+    c.alignment = Alignment(vertical="center", indent=1)
+    for col in range(1, 5): ws.cell(row=row, column=col).fill = _fill(INK)
+    row += 1
+
+    def res_row(label, formula):
+        nonlocal row
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=10, bold=True, color=INK)
+        cc = ws.cell(row=row, column=4, value=formula); cc.number_format = money; cc.alignment = Alignment(horizontal="right")
+        cc.font = Font(name=FONT, size=11, bold=True, color=NAVY)
+        for col in range(1, 5): ws.cell(row=row, column=col).border = BOTTOM
+        r = row; row += 1; return r
+
+    bb_row = res_row("Borrowing base (gross − reserves)", f"=D{gross_row}-{res_sum}")
+    avail_row = res_row("Net availability", f"=MIN(D{bb_row},IF({com}>0,{com},D{bb_row}))-{out}")
+    over_row = res_row("Overadvance", f"=MAX({out}-D{bb_row},0)")
+    row += 1
+    ws.cell(row=row, column=1, value="BORROWING BASE ASSESSMENT").font = Font(name=FONT, color=GOLD, bold=True, size=11); row += 1
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+    a = ws.cell(row=row, column=1, value=f'=IF((D{gross_row}+{com}+{out})=0,"Enter inputs",IF({out}>D{bb_row},"Overadvance — borrowing base shortfall","Within borrowing base"))')
+    a.font = Font(name=FONT, bold=True, size=11); a.alignment = Alignment(vertical="center", indent=1)
+    ws.row_dimensions[row].height = 22; assess_cell = f"A{row}"
+    cf = ws.conditional_formatting
+    cf.add(f"D{avail_row}", CellIsRule(operator="lessThan", formula=["0"], fill=_CF_RED, stopIfTrue=True))
+    cf.add(f"D{avail_row}", CellIsRule(operator="greaterThanOrEqual", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(f"D{over_row}", CellIsRule(operator="greaterThan", formula=["0"], fill=_CF_RED, stopIfTrue=True))
+    cf.add(f"D{over_row}", CellIsRule(operator="lessThanOrEqual", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Overadvance",{assess_cell}))'], fill=_CF_RED, stopIfTrue=True))
+    cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Within",{assess_cell}))'], fill=_CF_GREEN, stopIfTrue=True))
+    ws.freeze_panes = "A6"; ws.page_setup.orientation = "portrait"
+    ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 0; ws.sheet_properties.pageSetUpPr.fitToPage = True
+
+
 # --- Main export -------------------------------------------------------------
 def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: str | Path = ROOT / "outputs" / "excel", generated_by="system", override_reason=None):
     ctx = _ctx(conn, review_case_id); loan = ctx.copy()
@@ -1027,6 +1149,10 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
     global_cfg = load_global_config()
     global_result = compute_global(dscr_summary, guar_summary, global_cfg)
     global_summary = summarize_global(conn, review_case_id, global_cfg)
+    bb_cfg = load_borrowing_base_config()
+    bb_values = load_borrowing_base_inputs(conn, review_case_id)
+    bb_result = compute_borrowing_base(bb_values, bb_cfg)
+    bb_summary = summarize_borrowing_base(conn, review_case_id, bb_cfg)
 
     wb = Workbook()
     wb.properties.title = f"Linesheet — {ctx['loan_id']} {ctx['borrower_name']}"
@@ -1043,7 +1169,8 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
                  dscr_summary if "dscr" in mods else None,
                  lev_summary if "leverage" in mods else None,
                  guar_summary if "guarantor" in mods else None,
-                 global_summary if "global" in mods else None)
+                 global_summary if "global" in mods else None,
+                 bb_summary if "borrowing_base" in mods else None)
 
     # Loan Summary
     ws = wb.create_sheet("Loan Summary")
@@ -1089,6 +1216,8 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
         _build_global(wb.create_sheet("Global Cash Flow"), ctx, global_cfg, global_result, "Debt Service (DSCR)", dscr_cells, "Guarantor", guar_cells)
     if "leverage" in mods:
         _build_leverage(wb.create_sheet("Leverage & Liquidity"), ctx, lev_cfg, lev_values, lev_result)
+    if "borrowing_base" in mods:
+        _build_borrowing_base(wb.create_sheet("Borrowing Base"), ctx, bb_cfg, bb_values, bb_result)
 
     # Linesheet Questions  (header MUST remain at row 1, A1 == "Section")
     ws = wb.create_sheet("Linesheet Questions")
@@ -1190,6 +1319,12 @@ def generate_data_mart_csv(conn, review_case_id: int, template, output_path: str
         for qid, value in (("GLOBAL_CFADS", glob["global_cfads"]), ("GLOBAL_DEBT_SERVICE", glob["global_debt_service"]),
                            ("GLOBAL_DSCR_RATIO", glob["global_dscr"]), ("GLOBAL_ASSESSMENT", glob["assessment"])):
             rows.append(_row(qid, "global_cash_flow", value, glob["assessment"], glob["severity"], "Carried from Global worksheet"))
+    # Carry borrowing base results into the data mart (ABL / lines)
+    bb = summarize_borrowing_base(conn, review_case_id)
+    if bb:
+        for qid, value in (("BB_BORROWING_BASE", bb["borrowing_base"]), ("BB_NET_AVAILABILITY", bb["net_availability"]),
+                           ("BB_OVERADVANCE", bb["overadvance"]), ("BB_ASSESSMENT", bb["assessment"])):
+            rows.append(_row(qid, "borrowing_base", value, bb["assessment"], bb["severity"], "Carried from Borrowing Base worksheet"))
     # Carry the ability-to-repay results into the data mart (consumer reviews)
     dti = summarize_dti(conn, review_case_id)
     if dti:
@@ -1225,7 +1360,8 @@ _DM_TABLES = {
                    "dscr_ratio", "dscr_debt_yield_pct", "dscr_assessment",
                    "lev_current_ratio", "lev_debt_to_worth", "lev_debt_to_ebitda", "lev_assessment",
                    "guar_net_worth", "guar_personal_dscr", "guar_assessment",
-                   "global_dscr", "global_assessment"],
+                   "global_dscr", "global_assessment",
+                   "bb_borrowing_base", "bb_net_availability", "bb_assessment"],
     "Answers": ["review_case_id", "loan_id", "borrower_name", "template_id", "section_id", "question_id",
                 "answer_value", "answer_status", "severity", "exception_flag", "reviewer_comment",
                 "evidence_required", "evidence_status", "answered_by", "answered_at"],
@@ -1247,6 +1383,8 @@ _DM_TABLES = {
                   "assessment", "severity"],
     "Global": ["review_case_id", "loan_id", "borrower_name", "business_cfads", "personal_cf_available", "global_cfads",
                "business_debt_service", "personal_debt_service", "global_debt_service", "global_dscr", "assessment", "severity"],
+    "BorrowingBase": ["review_case_id", "loan_id", "borrower_name", "gross_availability", "total_reserves", "borrowing_base",
+                      "line_commitment", "current_outstanding", "net_availability", "overadvance", "assessment", "severity"],
     "Audit": ["audit_id", "timestamp", "user", "action_type", "entity_type", "entity_id", "reason",
               "review_case_id", "loan_id"],
 }
@@ -1302,7 +1440,7 @@ def generate_data_mart_workbook(conn, engagement_id: int,
         (engagement_id,)).fetchall()]
     case_ids = [c["review_case_id"] for c in cases]
 
-    lines, dti_rows, cf_rows, col_rows, dscr_rows, lev_rows, guar_rows, global_rows = [], [], [], [], [], [], [], []
+    lines, dti_rows, cf_rows, col_rows, dscr_rows, lev_rows, guar_rows, global_rows, bb_rows = [], [], [], [], [], [], [], [], []
     for c in cases:
         rcid = c["review_case_id"]
         carry_global(conn, rcid)
@@ -1314,6 +1452,7 @@ def generate_data_mart_workbook(conn, engagement_id: int,
         lev = summarize_leverage(conn, rcid)
         guar = summarize_guarantor(conn, rcid)
         glob = summarize_global(conn, rcid)
+        bb = summarize_borrowing_base(conn, rcid)
         findings = conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=?", (rcid,)).fetchone()[0]
         lines.append({
             "review_case_id": rcid, "client_name": ctx.get("client_name"), "review_period": ctx.get("review_period"),
@@ -1349,6 +1488,9 @@ def generate_data_mart_workbook(conn, engagement_id: int,
             "guar_assessment": guar["assessment"] if guar else None,
             "global_dscr": glob["global_dscr"] if glob else None,
             "global_assessment": glob["assessment"] if glob else None,
+            "bb_borrowing_base": bb["borrowing_base"] if bb else None,
+            "bb_net_availability": bb["net_availability"] if bb else None,
+            "bb_assessment": bb["assessment"] if bb else None,
         })
         if dti:
             dti_rows.append({"review_case_id": rcid, "loan_id": c.get("loan_id"), "borrower_name": c.get("borrower_name"),
@@ -1381,6 +1523,11 @@ def generate_data_mart_workbook(conn, engagement_id: int,
                                 **{k: glob.get(k) for k in ("business_cfads", "personal_cf_available", "global_cfads",
                                    "business_debt_service", "personal_debt_service", "global_debt_service", "global_dscr",
                                    "assessment", "severity")}})
+        if bb:
+            bb_rows.append({"review_case_id": rcid, "loan_id": c.get("loan_id"), "borrower_name": c.get("borrower_name"),
+                            **{k: bb.get(k) for k in ("gross_availability", "total_reserves", "borrowing_base",
+                               "line_commitment", "current_outstanding", "net_availability", "overadvance",
+                               "assessment", "severity")}})
 
     answers = []
     for r in conn.execute(
@@ -1427,7 +1574,7 @@ def generate_data_mart_workbook(conn, engagement_id: int,
     for name, count in (("Linesheets", len(lines)), ("Answers", len(answers)), ("Findings", len(findings_rows)),
                         ("DTI", len(dti_rows)), ("CashFlow", len(cf_rows)), ("Collateral", len(col_rows)),
                         ("DSCR", len(dscr_rows)), ("Leverage", len(lev_rows)), ("Guarantor", len(guar_rows)),
-                        ("Global", len(global_rows)),
+                        ("Global", len(global_rows)), ("BorrowingBase", len(bb_rows)),
                         ("Audit", len(audit_rows)), ("Data Dictionary", len(_DM_DICTIONARY))):
         ov.cell(row=r, column=2, value=name).font = Font(name=FONT, color=NAVY, bold=True, size=10)
         ov.cell(row=r, column=3, value=f"{count} rows").font = Font(name=FONT, color=MUTED, size=10)
@@ -1444,6 +1591,7 @@ def generate_data_mart_workbook(conn, engagement_id: int,
     _dm_table_sheet(wb, "Leverage", "tbl_Leverage", _DM_TABLES["Leverage"], lev_rows)
     _dm_table_sheet(wb, "Guarantor", "tbl_Guarantor", _DM_TABLES["Guarantor"], guar_rows)
     _dm_table_sheet(wb, "Global", "tbl_Global", _DM_TABLES["Global"], global_rows)
+    _dm_table_sheet(wb, "BorrowingBase", "tbl_BorrowingBase", _DM_TABLES["BorrowingBase"], bb_rows)
     _dm_table_sheet(wb, "Audit", "tbl_Audit", _DM_TABLES["Audit"], audit_rows)
     _dm_table_sheet(wb, "Data Dictionary", "tbl_Dictionary", ["table", "column", "description"],
                     [{"table": t, "column": c, "description": d} for t, c, d in _DM_DICTIONARY])
