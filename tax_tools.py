@@ -138,16 +138,28 @@ TOOLS: tuple[Tool, ...] = (
 
 TOOLS_BY_KEY: dict[str, Tool] = {tool.key: tool for tool in TOOLS}
 DEFAULT_TOOL_KEYS: tuple[str, ...] = tuple(tool.key for tool in TOOLS)
+_TOOL_ORDER: dict[str, int] = {tool.key: index for index, tool in enumerate(TOOLS)}
+
+
+def ordered_tool_keys(keys) -> list[str]:
+    """Validate the requested keys and return them in canonical pipeline order.
+
+    Selection order does not matter: you choose any subset of tools and they always
+    run in the order that makes sense (sort -> ... -> encyro), with duplicates removed.
+    """
+
+    unknown = [key for key in keys if key not in TOOLS_BY_KEY]
+    if unknown:
+        raise KeyError(f"Unknown tool(s): {', '.join(unknown)}")
+    return sorted(set(keys), key=_TOOL_ORDER.__getitem__)
 
 
 def run_tools(keys, context: ToolContext) -> dict[str, dict]:
-    """Run the named tools in order and return a mapping of key to result."""
+    """Run the requested tools in canonical pipeline order; return key -> result."""
 
     results: dict[str, dict] = {}
-    for key in keys:
-        tool = TOOLS_BY_KEY.get(key)
-        if tool is None:
-            raise KeyError(f"Unknown tool: {key}")
+    for key in ordered_tool_keys(keys):
+        tool = TOOLS_BY_KEY[key]
         context.status(f"Running: {tool.name}")
         results[key] = tool.run(context)
     return results
@@ -163,7 +175,10 @@ def main() -> int:
     parser.add_argument(
         "--tools",
         default=",".join(DEFAULT_TOOL_KEYS),
-        help=f"Comma-separated tool keys to run in order. Available: {', '.join(DEFAULT_TOOL_KEYS)}.",
+        help=(
+            "Comma-separated tool keys to run. Pick any subset; they always run in "
+            f"pipeline order regardless of how you list them. Available: {', '.join(DEFAULT_TOOL_KEYS)}."
+        ),
     )
     parser.add_argument("--move", action="store_true", help="Move files instead of copying them.")
     parser.add_argument(
