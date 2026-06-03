@@ -48,8 +48,12 @@ def client_folders(parent: Path) -> list[tuple[str, Path, dict]]:
     data_file = generate_documents.find_client_data_file(parent)
     entries: list[tuple[str, Path, dict]] = []
     if data_file is not None:
+        counts: dict[str, int] = {}
         for index, client in enumerate(generate_documents.load_clients(data_file), start=1):
-            slug = generate_documents.client_slug(client, index)
+            base = generate_documents.client_slug(client, index)
+            counts[base] = counts.get(base, 0) + 1
+            # Disambiguate clients that share a slug so they never share a subfolder.
+            slug = base if counts[base] == 1 else f"{base}_{counts[base]}"
             entries.append((slug, parent / slug, client))
         return entries
 
@@ -104,7 +108,17 @@ def run_batch(
     for index, (slug, sub, client) in enumerate(entries, start=1):
         sub.mkdir(parents=True, exist_ok=True)
         propagate_config(parent, sub)
-        (sub / "clients.json").write_text(json.dumps([client], indent=2), encoding="utf-8")
+        # Merge the roster record over any existing subfolder record so computed fields
+        # already there (line_items, amount_paid, ...) are preserved rather than clobbered.
+        sub_data = sub / "clients.json"
+        prior: dict = {}
+        if sub_data.exists():
+            try:
+                existing_records = generate_documents.load_clients(sub_data)
+                prior = existing_records[0] if existing_records else {}
+            except Exception:
+                prior = {}
+        sub_data.write_text(json.dumps([{**prior, **client}], indent=2), encoding="utf-8")
         if status_callback:
             status_callback(f"[{index}/{len(entries)}] {slug}")
 

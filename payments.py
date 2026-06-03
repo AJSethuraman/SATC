@@ -28,10 +28,18 @@ def _money(value: float) -> str:
     return f"{value:,.2f}"
 
 
+def _is_truthy(value) -> bool:
+    """Interpret a paid flag robustly (handles JSON bools and CSV strings)."""
+
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "yes", "y", "1", "paid")
+    return bool(value)
+
+
 def _amount_paid(client: dict, total: float) -> float:
     if "amount_paid" in client:
         return generate_documents._to_float(client.get("amount_paid"))
-    return total if client.get("paid") else 0.0
+    return total if _is_truthy(client.get("paid")) else 0.0
 
 
 def _age_days(client: dict, today: date) -> int | None:
@@ -47,7 +55,7 @@ def _age_days(client: dict, today: date) -> int | None:
 
 def aging_bucket(days: int | None) -> str:
     if days is None:
-        return AGING_BUCKETS[0]
+        return ""  # undated: don't claim it is current (0-30)
     if days <= 30:
         return "0-30"
     if days <= 60:
@@ -64,8 +72,8 @@ def evaluate_client(client: dict, today: date | None = None) -> dict:
     total = generate_documents._to_float(client.get("total"))
     paid = min(_amount_paid(client, total), total) if total else _amount_paid(client, total)
     balance = round(total - paid, 2)
-    if balance <= 0 and total > 0:
-        status = STATUS_PAID
+    if balance <= 0:
+        status = STATUS_PAID  # nothing outstanding (covers zero-total / fully paid)
     elif paid > 0:
         status = STATUS_PARTIAL
     else:
@@ -115,7 +123,7 @@ def run_payments(input_folder, status_callback=None) -> dict:
         billed += info["total"]
         collected += info["paid"]
         outstanding += info["balance"]
-        if info["balance"] > 0:
+        if info["balance"] > 0 and info["bucket"] in bucket_totals:
             bucket_totals[info["bucket"]] += info["balance"]
         rows.append({
             "client": slug,

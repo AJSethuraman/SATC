@@ -416,11 +416,23 @@ def main() -> int:
         help="Anchor phrase the sign tool places the signature above.",
     )
     parser.add_argument(
+        "--cert", default="", help="Path to a PKCS#12 certificate (.p12/.pfx) for the certsign tool."
+    )
+    parser.add_argument(
+        "--templates", default="",
+        help="Comma-separated template keys for the generate tool (default: all).",
+    )
+    parser.add_argument(
         "--per-client",
         action="store_true",
         help="Per-client folders mode: run the selected tools on each client subfolder.",
     )
     args = parser.parse_args()
+
+    import os
+
+    cert_password = os.environ.get("SATC_CERT_PASSWORD")
+    document_templates = tuple(t.strip() for t in args.templates.split(",") if t.strip()) or None
 
     keys = [key.strip() for key in args.tools.split(",") if key.strip()]
     unknown = [key for key in keys if key not in TOOLS_BY_KEY]
@@ -440,8 +452,10 @@ def main() -> int:
 
         result = batch.run_batch(
             folder, keys, move=args.move, save_extracted_text=args.save_extracted_text,
-            split_combined=not args.no_split, signature_path=args.signature or None,
-            signature_anchor=args.anchor, status_callback=lambda m: print(m),
+            split_combined=not args.no_split, document_templates=document_templates,
+            signature_path=args.signature or None, signature_anchor=args.anchor,
+            cert_path=args.cert or None, cert_password=cert_password,
+            status_callback=lambda m: print(m),
         )
         print("\n" + result["summary"])
         for client in result["clients"]:
@@ -455,8 +469,11 @@ def main() -> int:
         move=args.move,
         save_extracted_text=args.save_extracted_text,
         split_combined=not args.no_split,
+        document_templates=document_templates,
         signature_path=args.signature or None,
         signature_anchor=args.anchor,
+        cert_path=args.cert or None,
+        cert_password=cert_password,
         status_callback=lambda message: print(message),
     )
     results = run_tools(keys, context)

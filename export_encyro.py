@@ -39,13 +39,15 @@ def html_to_pdf(html_text: str, dest_path: Path) -> Path:
     writer = fitz.DocumentWriter(str(dest_path))
     rect = fitz.paper_rect("letter")
     area = rect + PAGE_MARGIN
-    more = 1
-    while more:
-        device = writer.begin_page(rect)
-        more, _ = story.place(area)
-        story.draw(device)
-        writer.end_page()
-    writer.close()
+    try:
+        more = 1
+        while more:
+            device = writer.begin_page(rect)
+            more, _ = story.place(area)
+            story.draw(device)
+            writer.end_page()
+    finally:
+        writer.close()
     return dest_path
 
 
@@ -91,11 +93,13 @@ def write_upload_notes(notes_path: Path, client: dict, files: list[Path], packet
     notes_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _matching_files(folder: Path, slug: str) -> list[Path]:
+def _matching_files(folder: Path, slug: str, longer=()) -> list[Path]:
     if not folder.is_dir():
         return []
     found = set(folder.glob(f"{slug}_*")) | set(folder.glob(f"Signed_{slug}_*"))
-    return sorted(found)
+    return sorted(
+        p for p in found if not generate_documents.file_belongs_to_other_client(p.name, list(longer))
+    )
 
 
 def run_encyro_export(input_folder, status_callback=None) -> dict:
@@ -123,11 +127,13 @@ def run_encyro_export(input_folder, status_callback=None) -> dict:
     encyro_root = output_folder / ENCYRO_FOLDER_NAME
     encyro_root.mkdir(exist_ok=True)
 
+    all_slugs = [generate_documents.client_slug(c, i) for i, c in enumerate(clients, start=1)]
     packets: list[Path] = []
     warnings: list[str] = []
     exported = 0
     for index, client in enumerate(clients, start=1):
         slug = generate_documents.client_slug(client, index)
+        longer = generate_documents.longer_slugs(slug, all_slugs)
         if status_callback:
             status_callback(f"Building Encyro packet for {slug} ({index} of {len(clients)})")
 
@@ -137,6 +143,8 @@ def run_encyro_export(input_folder, status_callback=None) -> dict:
         packet_sources: list[Path] = []
 
         for html_file in sorted(generated_folder.glob(f"{slug}_*.html")):
+            if generate_documents.file_belongs_to_other_client(html_file.name, longer):
+                continue
             pdf_path = client_dir / f"{html_file.stem}.pdf"
             try:
                 html_to_pdf(html_file.read_text(encoding="utf-8"), pdf_path)
@@ -148,11 +156,13 @@ def run_encyro_export(input_folder, status_callback=None) -> dict:
 
         # Generated Word documents upload to Encyro as-is (it converts them on upload).
         for docx_file in sorted(generated_folder.glob(f"{slug}_*.docx")):
+            if generate_documents.file_belongs_to_other_client(docx_file.name, longer):
+                continue
             destination = sort_tax_docs.unique_destination_path(client_dir, docx_file.name)
             shutil.copy2(docx_file, destination)
             included.append(destination)
 
-        extras = _matching_files(signed_folder, slug)
+        extras = _matching_files(signed_folder, slug, longer)
         for extra in client.get("attachments", []) or []:
             candidate = (input_folder / str(extra)).expanduser()
             if candidate.is_file():

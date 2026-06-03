@@ -242,6 +242,25 @@ def client_slug(client: dict, index: int = 1) -> str:
     return sort_tax_docs.safe_filename_part(name).replace(" ", "_")
 
 
+def longer_slugs(slug: str, all_slugs) -> list[str]:
+    """Other client slugs that have ``slug`` as a strict prefix (e.g. Jo_Sample_Jr)."""
+
+    prefix = f"{slug}_"
+    return [other for other in all_slugs if other != slug and other.startswith(prefix)]
+
+
+def file_belongs_to_other_client(name: str, longer: list[str]) -> bool:
+    """True if a per-client output file actually belongs to a longer (more specific) slug.
+
+    Output files are named ``<slug>_...`` (optionally prefixed with ``Signed_``). When
+    one client's slug is a prefix of another's, a plain ``<slug>_*`` match would wrongly
+    pull in the longer client's files; this excludes them.
+    """
+
+    core = name[len("Signed_"):] if name.startswith("Signed_") else name
+    return any(core.startswith(f"{other}_") for other in longer)
+
+
 def run_generation(input_folder, status_callback=None, templates=None) -> dict:
     """Generate the selected templates for every client in the data file."""
 

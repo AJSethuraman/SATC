@@ -35,14 +35,22 @@ def _norm(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", str(text).lower())
 
 
-def gather_client_files(input_folder: Path, output_folder: Path, slug: str) -> list[Path]:
-    """Collect the per-client artifact files (deduped, order preserved)."""
+def gather_client_files(input_folder: Path, output_folder: Path, slug: str, all_slugs=()) -> list[Path]:
+    """Collect the per-client artifact files (deduped, order preserved).
 
+    Files belonging to a longer client slug are excluded so a client's archive never
+    captures another client's documents.
+    """
+
+    longer = generate_documents.longer_slugs(slug, all_slugs)
     files: list[Path] = []
     for folder_name, pattern in ARTIFACT_SOURCES:
         folder = output_folder / folder_name
         if folder.is_dir():
-            files.extend(p for p in sorted(folder.glob(pattern.format(slug=slug))) if p.is_file())
+            files.extend(
+                p for p in sorted(folder.glob(pattern.format(slug=slug)))
+                if p.is_file() and not generate_documents.file_belongs_to_other_client(p.name, longer)
+            )
 
     encyro_dir = output_folder / "Encyro_Ready" / slug
     if encyro_dir.is_dir():
@@ -117,6 +125,7 @@ def run_retention(input_folder, retention_years: int = DEFAULT_RETENTION_YEARS, 
     single_client = len(clients) == 1
     source_documents = gather_source_documents(output_folder) if single_client else []
 
+    all_slugs = [generate_documents.client_slug(c, i) for i, c in enumerate(clients, start=1)]
     archives: list[Path] = []
     warnings: list[str] = []
     for index, client in enumerate(clients, start=1):
@@ -124,7 +133,7 @@ def run_retention(input_folder, retention_years: int = DEFAULT_RETENTION_YEARS, 
         if status_callback:
             status_callback(f"Archiving {slug} ({index} of {len(clients)})")
 
-        files = gather_client_files(input_folder, output_folder, slug)
+        files = gather_client_files(input_folder, output_folder, slug, all_slugs)
         members: list[tuple[Path, str]] = [(p, f"{p.parent.name}/{p.name}") for p in files]
         for source in source_documents:
             members.append((source, f"Source_Documents/{source.parent.name}/{source.name}"))

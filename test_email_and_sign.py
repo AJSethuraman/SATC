@@ -68,6 +68,25 @@ class EmailDraftTests(unittest.TestCase):
             attachments = [part.get_filename() for part in message.iter_attachments()]
             self.assertIn("Jordan_Q._Sample_invoice.html", attachments)
 
+    def test_prefix_client_does_not_get_other_clients_attachments(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            folder = Path(d)
+            (folder / "clients.json").write_text(json.dumps([
+                {"client_name": "Jo Sample", "email": "jo@example.com"},
+                {"client_name": "Jo Sample Jr", "email": "jr@example.com"},
+            ]), encoding="utf-8")
+            generated = folder / "Organized_Tax_Documents" / "Generated_Documents"
+            generated.mkdir(parents=True)
+            (generated / "Jo_Sample_invoice.html").write_text("x", encoding="utf-8")
+            (generated / "Jo_Sample_Jr_invoice.html").write_text("x", encoding="utf-8")
+
+            result = compose_emails.run_email_drafts(folder)
+            draft = next(Path(p) for p in result["drafts"] if Path(p).name.startswith("Jo_Sample.eml"))
+            message = message_from_bytes(draft.read_bytes(), policy=default_email_policy)
+            names = [part.get_filename() for part in message.iter_attachments()]
+            self.assertIn("Jo_Sample_invoice.html", names)
+            self.assertNotIn("Jo_Sample_Jr_invoice.html", names)  # the Jr's PII stays out
+
     def test_client_without_email_is_skipped(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             folder = Path(d)

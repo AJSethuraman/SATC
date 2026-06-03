@@ -240,7 +240,9 @@ def _merge_into_clients(clients_file: Path, new_records: list[dict]) -> tuple[in
     for record in new_records:
         email = str(record.get("email", "")).lower()
         name = str(record.get("client_name", "")).lower()
-        if (email and email in seen_emails) or (not email and name in seen_names):
+        # Skip if the email OR the name is already present, so a returning client whose
+        # earlier record lacked an email is not duplicated when they later add one.
+        if (email and email in seen_emails) or (name and name in seen_names):
             skipped += 1
             continue
         existing.append(record)

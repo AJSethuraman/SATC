@@ -98,6 +98,15 @@ class RenderTemplateTests(unittest.TestCase):
             self.assertIn("Pat Example", text)
             self.assertNotIn("{{", text)
 
+    def test_client_file_ownership_helpers(self) -> None:
+        all_slugs = ["Jo_Sample", "Jo_Sample_Jr", "Other"]
+        self.assertEqual(gd.longer_slugs("Jo_Sample", all_slugs), ["Jo_Sample_Jr"])
+        longer = gd.longer_slugs("Jo_Sample", all_slugs)
+        # A longer client's files must not be claimed by the shorter slug.
+        self.assertTrue(gd.file_belongs_to_other_client("Jo_Sample_Jr_invoice.html", longer))
+        self.assertTrue(gd.file_belongs_to_other_client("Signed_Jo_Sample_Jr_8879.pdf", longer))
+        self.assertFalse(gd.file_belongs_to_other_client("Jo_Sample_invoice.html", longer))
+
     def test_invoice_total_is_computed(self) -> None:
         context = gd.augment_context(
             {"line_items": [{"amount": "300.00"}, {"amount": "1,200.50"}]}

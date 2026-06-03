@@ -41,6 +41,7 @@ def check_rows(category: str, rows: list[dict]) -> list[dict]:
 
     specs = extract_form_data.EXTRACTION_SPECS.get(category, ())
     primary_fields = [s.name for s in specs if getattr(s, "primary", False)]
+    all_fields = [s.name for s in specs]
     findings: list[dict] = []
     fingerprints: Counter = Counter()
 
@@ -57,7 +58,8 @@ def check_rows(category: str, rows: list[dict]) -> list[dict]:
         if _truthy(row.get("needs_review")):
             add(row, "Flagged during extraction; verify and enter manually.", SEV_INFO)
 
-        if primary_fields and all(_num(row.get(f)) in (None, 0.0) for f in primary_fields):
+        # Blank (unread), not merely zero: a legitimate 0.00 should not be flagged.
+        if primary_fields and all(str(row.get(f, "")).strip() == "" for f in primary_fields):
             add(row, "No primary amount was read for this form.", SEV_WARN)
 
         if category == "W2":
@@ -66,10 +68,12 @@ def check_rows(category: str, rows: list[dict]) -> list[dict]:
             if wages is not None and withholding is not None and withholding > wages:
                 add(row, f"Federal withholding ({withholding:,.2f}) exceeds wages ({wages:,.2f}).", SEV_WARN)
 
-        key = tuple(str(row.get(f, "")) for f in (primary_fields or ["source_file"]))
+        # Match on every extracted field so two distinct people who merely share one
+        # amount (e.g. identical wages) are not flagged; a true duplicate matches on all.
+        key = tuple(str(row.get(f, "")) for f in (all_fields or ["source_file"]))
         fingerprints[key] += 1
         if fingerprints[key] == 2:
-            add(row, "Possible duplicate (same form and amounts seen more than once).", SEV_WARN)
+            add(row, "Possible duplicate (an identical form was seen more than once).", SEV_WARN)
 
     return findings
 

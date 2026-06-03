@@ -40,6 +40,23 @@ class DiagnosticsTests(unittest.TestCase):
         findings = diagnostics.check_rows("W2", rows)
         self.assertTrue(any("duplicate" in f["issue"].lower() for f in findings))
 
+    def test_zero_amount_is_not_flagged_as_missing(self) -> None:
+        # A legitimately-zero primary amount must not be reported as "no primary read".
+        rows = [{"source_file": "g.pdf", "page": "1", "needs_review": "False",
+                 "box1_unemployment_compensation": "0.00", "box2_state_income_tax_refunds": "0.00"}]
+        findings = diagnostics.check_rows("1099_G", rows)
+        self.assertFalse(any("No primary amount" in f["issue"] for f in findings))
+
+    def test_same_wage_different_forms_not_duplicate(self) -> None:
+        rows = [
+            {"source_file": "a.pdf", "page": "1", "needs_review": "False",
+             "box1_wages": "50000.00", "box2_federal_withholding": "5000.00"},
+            {"source_file": "b.pdf", "page": "1", "needs_review": "False",
+             "box1_wages": "50000.00", "box2_federal_withholding": "9000.00"},
+        ]
+        findings = diagnostics.check_rows("W2", rows)
+        self.assertFalse(any("duplicate" in f["issue"].lower() for f in findings))
+
     def test_run_without_extraction(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             result = diagnostics.run_diagnostics(Path(d))
@@ -71,6 +88,18 @@ class PaymentsTests(unittest.TestCase):
         self.assertEqual(partial["balance"], 60.0)
         unpaid = payments.evaluate_client({"total": "100.00"})
         self.assertEqual(unpaid["status"], payments.STATUS_UNPAID)
+
+    def test_paid_flag_string_false_is_not_paid(self) -> None:
+        row = payments.evaluate_client({"total": "500.00", "paid": "false"})
+        self.assertEqual(row["status"], payments.STATUS_UNPAID)  # "false" string is not truthy
+        self.assertEqual(row["balance"], 500.0)
+
+    def test_zero_total_is_paid_not_unpaid(self) -> None:
+        self.assertEqual(payments.evaluate_client({"total": "0.00"})["status"], payments.STATUS_PAID)
+
+    def test_undated_outstanding_not_bucketed_as_current(self) -> None:
+        row = payments.evaluate_client({"total": "500.00"})  # no invoice_date
+        self.assertEqual(row["bucket"], "")  # not "0-30"
 
     def test_aging_bucket(self) -> None:
         today = date(2026, 6, 1)

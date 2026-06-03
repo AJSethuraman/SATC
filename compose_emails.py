@@ -65,15 +65,24 @@ def split_subject_and_body(rendered: str) -> tuple[str, str]:
     return "Your Tax Documents", rendered.strip("\n")
 
 
-def client_attachments(input_folder: Path, output_folder: Path, client: dict, slug: str) -> list[Path]:
-    """Collect attachment paths for a client: generated/signed files plus extras."""
+def client_attachments(
+    input_folder: Path, output_folder: Path, client: dict, slug: str, all_slugs=()
+) -> list[Path]:
+    """Collect attachment paths for a client: generated/signed files plus extras.
 
+    Files belonging to a longer client slug (e.g. Jo_Sample_Jr when this client is
+    Jo_Sample) are excluded so one client's documents never attach to another's email.
+    """
+
+    longer = generate_documents.longer_slugs(slug, all_slugs)
     attachments: list[Path] = []
     for folder_name in ATTACHMENT_SOURCE_FOLDERS:
         folder = output_folder / folder_name
         if folder.is_dir():
-            attachments.extend(sorted(folder.glob(f"{slug}_*")))
-            attachments.extend(sorted(folder.glob(f"Signed_{slug}_*")))
+            matches = sorted(folder.glob(f"{slug}_*")) + sorted(folder.glob(f"Signed_{slug}_*"))
+            attachments.extend(
+                p for p in matches if not generate_documents.file_belongs_to_other_client(p.name, longer)
+            )
 
     for extra in client.get("attachments", []) or []:
         path = (input_folder / str(extra)).expanduser()
@@ -133,6 +142,7 @@ def run_email_drafts(input_folder, status_callback=None) -> dict:
     clients = generate_documents.load_clients(data_file)
     template_text = load_email_template(input_folder)
     firm = generate_documents.load_firm_settings(input_folder)
+    all_slugs = [generate_documents.client_slug(c, i) for i, c in enumerate(clients, start=1)]
     drafts_folder = output_folder / EMAIL_DRAFTS_FOLDER_NAME
     drafts_folder.mkdir(exist_ok=True)
 
@@ -151,7 +161,7 @@ def run_email_drafts(input_folder, status_callback=None) -> dict:
         context = generate_documents.augment_context(client, firm)
         rendered = generate_documents.render_template(template_text, context, escape=False)
         subject, body = split_subject_and_body(rendered)
-        attachments = client_attachments(input_folder, output_folder, client, slug)
+        attachments = client_attachments(input_folder, output_folder, client, slug, all_slugs)
         if not attachments:
             warnings.append(f"{slug}: no attachments found (run Generate/Sign first?).")
 

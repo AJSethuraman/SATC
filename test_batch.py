@@ -29,6 +29,16 @@ class DiscoveryTests(unittest.TestCase):
             self.assertEqual(slugs, ["Jordan_Sample", "Riley_Carter"])
             self.assertEqual(entries[0][1], parent / "Jordan_Sample")
 
+    def test_duplicate_names_get_distinct_subfolders(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            parent = Path(d)
+            (parent / "clients.json").write_text(
+                json.dumps([{"client_name": "John Smith"}, {"client_name": "John Smith"}]),
+                encoding="utf-8",
+            )
+            slugs = [slug for slug, _, _ in batch.client_folders(parent)]
+            self.assertEqual(slugs, ["John_Smith", "John_Smith_2"])  # no shared subfolder
+
     def test_subfolders_without_roster(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             parent = Path(d)

@@ -34,6 +34,12 @@ class EvaluateTests(unittest.TestCase):
         status2, _ = st.evaluate({}, "Jordan_Sample", st.ENGAGEMENT_TRACKER, files)
         self.assertEqual(status2, st.STATUS_ON_FILE)
 
+    def test_short_name_does_not_substring_match_another_client(self) -> None:
+        # Client "Jo" must NOT match the Jones family's signed 8879.
+        files = [Path("/x/Jones_8879_signed.pdf")]
+        status, _ = st.evaluate({}, "Jo", st.FORM_8879_TRACKER, files)
+        self.assertEqual(status, st.STATUS_OUTSTANDING)
+
     def test_other_client_file_does_not_match(self) -> None:
         files = [Path("/x/Someone_Else_8879.pdf")]
         status, _ = st.evaluate({}, "Jordan_Sample", st.FORM_8879_TRACKER, files)

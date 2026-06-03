@@ -68,6 +68,12 @@ def _norm(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", str(text).lower())
 
 
+def _tokens(text: str) -> set[str]:
+    """Lowercase alphanumeric tokens, split on any separator."""
+
+    return {token for token in re.split(r"[^a-z0-9]+", str(text).lower()) if token}
+
+
 def gather_search_files(input_folder: Path, output_folder: Path) -> list[Path]:
     """Candidate files to match against: inputs (excluding output) plus Signed_Documents."""
 
@@ -97,10 +103,16 @@ def evaluate(client: dict, slug: str, config: TrackerConfig, search_files: list[
         source = f"declared in record ({value})" if value is not True else "declared in record"
         return STATUS_ON_FILE, source
 
-    slug_norm = _norm(slug)
+    # Match the client by whole name tokens (so "Jo" does not match "Jones"); match the
+    # keyword as a substring of the normalized name (so "8879" matches "form8879").
+    slug_tokens = _tokens(slug)
     for path in search_files:
         name_norm = _norm(path.name)
-        if slug_norm and slug_norm in name_norm and any(_norm(k) in name_norm for k in config.keywords):
+        if (
+            slug_tokens
+            and slug_tokens <= _tokens(path.name)
+            and any(_norm(keyword) in name_norm for keyword in config.keywords)
+        ):
             return STATUS_ON_FILE, path.name
     return STATUS_OUTSTANDING, ""
 

@@ -54,7 +54,7 @@ def client_row(client, slug, input_folder, output_folder, doc_map, received, sea
             else (OK, f"{expected}/{expected}") if missing == 0
             else (ATTENTION, f"{expected - missing}/{expected}")
         ),
-        "invoice": (OK, str(client.get("total"))) if client.get("line_items") else (PENDING, "—"),
+        "invoice": (OK, str(client.get("total") or "✓")) if client.get("line_items") else (PENDING, "—"),
         "generated": (OK, "✓") if _has_files(generated_dir, f"{slug}_*") else (PENDING, "—"),
         "engagement": (OK, "✓") if engagement == on_file else (ATTENTION, "outstanding"),
         "form8879": (OK, "✓") if form_8879 == on_file else (ATTENTION, "outstanding"),
