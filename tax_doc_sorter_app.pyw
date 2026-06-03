@@ -111,6 +111,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "generate": None,
         "sign": None,
         "email": None,
+        "encyro": None,
     }
 
     sort_result = results.get("sort")
@@ -167,6 +168,16 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"Compose Email Drafts: {email_result['summary']}")
         if email_result.get("drafts_folder"):
             summary["open_paths"]["Open Email Drafts"] = str(email_result["drafts_folder"])
+
+    encyro_result = results.get("encyro")
+    if encyro_result is not None:
+        summary["encyro"] = {
+            "client_count": encyro_result["client_count"],
+            "warnings": encyro_result["warnings"],
+        }
+        summary["tool_lines"].append(f"Export for Encyro: {encyro_result['summary']}")
+        if encyro_result.get("encyro_folder"):
+            summary["open_paths"]["Open Encyro Packets"] = str(encyro_result["encyro_folder"])
 
     return summary
 
@@ -416,6 +427,7 @@ if PYSIDE_AVAILABLE:
                 "Open Generated Documents",
                 "Open Signed Documents",
                 "Open Email Drafts",
+                "Open Encyro Packets",
             ]
             for label in button_labels:
                 button = QPushButton(label)
@@ -581,6 +593,9 @@ if PYSIDE_AVAILABLE:
             email_result = result.get("email")
             if email_result is not None:
                 review_lines.append(f"Email drafts: {email_result['draft_count']}")
+            encyro_result = result.get("encyro")
+            if encyro_result is not None:
+                review_lines.append(f"Encyro packets: {encyro_result['client_count']}")
             self.needs_review_label.setText("     ".join(review_lines))
 
             self.category_list.clear()

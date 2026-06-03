@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 import compose_emails
+import export_encyro
 import extract_form_data
 import generate_documents
 import sign_documents
@@ -89,6 +90,13 @@ def _run_emailer(context: ToolContext) -> dict:
     )
 
 
+def _run_encyro(context: ToolContext) -> dict:
+    return export_encyro.run_encyro_export(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 TOOLS: tuple[Tool, ...] = (
     Tool(
         "sort",
@@ -119,6 +127,12 @@ TOOLS: tuple[Tool, ...] = (
         "Compose Email Drafts",
         "Build review-ready .eml drafts per client with their documents attached (no auto-send).",
         _run_emailer,
+    ),
+    Tool(
+        "encyro",
+        "Export for Encyro",
+        "Convert each client's letters to PDF and merge an upload-ready packet for Encyro e-sign.",
+        _run_encyro,
     ),
 )
 

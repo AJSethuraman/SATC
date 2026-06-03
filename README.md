@@ -11,6 +11,7 @@ Pick one or more tools in the desktop app (they run top to bottom):
 3. **Generate Documents** — fill editable templates (engagement letter, invoice, extension/cover letter, client organizer letter) from a `clients.json`/`clients.csv` data file and write finished HTML to `Generated_Documents/`.
 4. **Sign Documents** — stamp your signature image onto PDFs that carry a signature anchor phrase, writing signed copies to `Signed_Documents/`.
 5. **Compose Email Drafts** — build a review-ready `.eml` per client (subject/body from a template, that client's generated and signed files attached) in `Email_Drafts/`. Nothing is sent automatically and no credentials are stored.
+6. **Export for Encyro** — convert each client's letters to PDF, gather their signed PDFs/attachments, and merge an upload-ready `<client>_packet.pdf` (plus `UPLOAD_NOTES.txt`) under `Encyro_Ready/<client>/`.
 
 Extraction is local and rule-based: it uses label-anchored regular expressions over the same selectable-text/OCR pipeline as the sorter. It is **assistive only** — every value should be verified against the source document, and anything the rules cannot read confidently is left blank with the row flagged for manual entry. 1099-B is transactional and is always flagged for manual review.
 
@@ -151,6 +152,8 @@ python extract_form_data.py "/path/to/Uploads"          # extractor directly
 python generate_documents.py "/path/to/Uploads"         # generator directly
 python sign_documents.py "/path/to/Uploads" --signature sig.png
 python compose_emails.py "/path/to/Uploads"             # email drafts directly
+python tax_tools.py "/path/to/Uploads" --tools encyro   # build Encyro packets
+python export_encyro.py "/path/to/Uploads"              # Encyro export directly
 ```
 
 The CLI workflows remain available for troubleshooting and automation. The older Flask browser app (`app.py`) is still present as optional legacy tooling, but the primary workflow is the PySide6 desktop app.
@@ -179,6 +182,10 @@ This is a **visual stamp** of your own signature to save repetitive manual signi
 
 - For tamper-evident signing, a certificate-based (PAdES) digital signature is the next step; it needs a signing certificate (`.p12`/`.pfx`) and an extra library.
 - For **binding client e-signatures** (for example Form 8879), use a compliant service such as Encyro. That space is regulated (identity verification/KBA and an audit trail) and should not be home-rolled; this tool deliberately stays a local preparer-side stamp.
+
+### Exporting to Encyro
+
+Encyro has no public developer API, so its e-sign flow is driven through its web app / Outlook add-in. The **Export for Encyro** tool meets it halfway: for each client it builds `Encyro_Ready/<client>/` containing the client's letters converted to PDF (text stays selectable), copies of their signed PDFs and attachments, a single merged `<client>_packet.pdf`, and an `UPLOAD_NOTES.txt` with the recipient email and a signing checklist. You upload the packet to Encyro and place the signature fields there. PDF conversion uses the same PyMuPDF dependency as the rest of the suite — no extra install.
 
 ### Emailing documents
 
@@ -289,6 +296,7 @@ python test_sort_tax_docs.py
 python test_extract_form_data.py
 python test_generate_documents.py
 python test_email_and_sign.py
+python test_export_encyro.py
 python test_integration.py
 ```
 
