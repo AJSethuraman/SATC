@@ -1,0 +1,28 @@
+worksheet_id: collateral_ltv_v1
+worksheet_name: Collateral & LTV
+version: '1.0'
+
+# Net (eligible) collateral value applies a type-specific advance rate to each
+# item's market value; the advance rate defaults below and is editable per line.
+collateral:
+  section_name: Collateral
+  lines:
+    - {key: real_estate, label: Real estate (CRE / residential), advance_rate: 80}
+    - {key: equipment, label: Equipment / machinery, advance_rate: 60}
+    - {key: inventory, label: Inventory, advance_rate: 50}
+    - {key: accounts_receivable, label: Accounts receivable, advance_rate: 70}
+    - {key: vehicles, label: Vehicles, advance_rate: 70}
+    - {key: marketable_securities, label: Marketable securities, advance_rate: 70}
+    - {key: cash_deposits, label: Cash / deposits, advance_rate: 100}
+    - {key: other_collateral, label: Other collateral, advance_rate: 50}
+
+exposure:
+  section_name: Exposure
+  lines:
+    - {key: loan_balance, label: Subject loan commitment / balance}
+    - {key: senior_liens, label: Senior / prior liens}
+    - {key: other_exposure, label: Other exposure}
+
+thresholds:
+  max_ltv: 80.0        # market-value LTV / CLTV guideline (percent)
+  min_coverage: 100.0  # net collateral value / exposure (percent)

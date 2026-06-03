@@ -22,6 +22,7 @@ SCHEMA = [
 """CREATE TABLE IF NOT EXISTS audit_log (audit_id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp TEXT, user TEXT, action_type TEXT, entity_type TEXT, entity_id TEXT, before_value TEXT, after_value TEXT, reason TEXT, engagement_id INTEGER, review_case_id INTEGER, loan_id TEXT, template_id TEXT, template_version TEXT)""",
 """CREATE TABLE IF NOT EXISTS dti_inputs (dti_id INTEGER PRIMARY KEY AUTOINCREMENT, review_case_id INTEGER, line_key TEXT, amount REAL, note TEXT, updated_at TEXT, UNIQUE(review_case_id, line_key))""",
 """CREATE TABLE IF NOT EXISTS cash_flow_inputs (cf_id INTEGER PRIMARY KEY AUTOINCREMENT, review_case_id INTEGER, line_key TEXT, period1 REAL, period2 REAL, basis TEXT, method TEXT, note TEXT, updated_at TEXT, UNIQUE(review_case_id, line_key))""",
+"""CREATE TABLE IF NOT EXISTS collateral_inputs (coll_id INTEGER PRIMARY KEY AUTOINCREMENT, review_case_id INTEGER, line_key TEXT, market_value REAL, advance_rate REAL, note TEXT, updated_at TEXT, UNIQUE(review_case_id, line_key))""",
 ]
 
 def now() -> str: return datetime.utcnow().isoformat(timespec="seconds")

@@ -118,7 +118,7 @@ def test_export_engine_generates_excel_and_data_mart_columns_and_audit(workflow)
     excel=generate_excel_linesheet(conn,rcid,template,workflow["tmp"] / "excel", "Reviewer")
     assert Path(excel.file_path).exists()
     wb=load_workbook(excel.file_path)
-    assert ["Cover","Loan Summary","Cash Flow Analysis","Ability-to-Repay (DTI)","Linesheet Questions","Exceptions & Findings","Evidence Checklist","Audit Summary"] == wb.sheetnames
+    assert ["Cover","Loan Summary","Cash Flow Analysis","Ability-to-Repay (DTI)","Collateral & LTV","Linesheet Questions","Exceptions & Findings","Evidence Checklist","Audit Summary"] == wb.sheetnames
     assert wb["Linesheet Questions"][1][0].value == "Section"
     csv=generate_data_mart_csv(conn,rcid,template,workflow["tmp"]/"data_mart"/"review_answers_export.csv","Reviewer")
     df=pd.read_csv(csv.file_path)
@@ -275,7 +275,7 @@ def test_data_mart_workbook_consolidates_engagement(workflow):
     complete_case(conn, rcid, loan, template)
     res=generate_data_mart_workbook(conn, eid, workflow["tmp"]/"mart.xlsx", "Reviewer")
     wb=load_workbook(res.file_path)
-    for s in ("Overview","Linesheets","Answers","Findings","DTI","CashFlow","Audit","Data Dictionary"):
+    for s in ("Overview","Linesheets","Answers","Findings","DTI","CashFlow","Collateral","Audit","Data Dictionary"):
         assert s in wb.sheetnames
     ws=wb["Linesheets"]
     header=[c.value for c in ws[1]]
@@ -287,6 +287,36 @@ def test_data_mart_workbook_consolidates_engagement(workflow):
     idx=header.index("review_case_id"); bidx=header.index("dti_back_end_pct")
     vals={ws.cell(row=r,column=idx+1).value: ws.cell(row=r,column=bidx+1).value for r in range(2,ws.max_row+1)}
     assert vals.get(rcid)==45.67
+
+COLL_CONFIG_PATH=ROOT/"configs"/"collateral_v1.yaml"
+
+def test_collateral_compute_secured_overltv_and_shortfall():
+    from linesheet_builder.collateral_engine import load_collateral_config, compute_collateral
+    cfg=load_collateral_config(COLL_CONFIG_PATH)
+    # $1,000,000 RE @ 80% advance = 800k eligible; exposure 600k -> secured, LTV 60%
+    sec=compute_collateral({"real_estate":{"market_value":1000000},"loan_balance":{"market_value":600000}}, cfg)
+    assert sec["net_collateral_value"]==800000 and sec["ltv"]==60.0 and sec["severity"] is None and sec["assessment"]=="Adequately secured"
+    # exposure 900k > market-LTV guideline (90% > 80%) but still secured by net value (800k<900k -> shortfall first)
+    short=compute_collateral({"real_estate":{"market_value":1000000},"loan_balance":{"market_value":900000}}, cfg)
+    assert short["net_collateral_value"] < short["total_exposure"] and short["severity"]=="Finding" and "shortfall" in short["assessment"]
+    # high advance asset clears coverage but market LTV exceeds guideline
+    over=compute_collateral({"cash_deposits":{"market_value":1000000},"loan_balance":{"market_value":850000}}, cfg)
+    assert over["coverage"]>=100 and over["ltv"]==85.0 and over["severity"]=="Finding" and "LTV" in over["assessment"]
+
+def test_collateral_persist_summarize_carry_and_audit(workflow):
+    from linesheet_builder.collateral_engine import save_collateral_inputs, load_collateral_inputs, summarize_collateral
+    conn=workflow["conn"]; rcid=workflow["cases"][0]
+    save_collateral_inputs(conn, rcid, {"real_estate":{"market_value":1000000,"advance_rate":80},"loan_balance":{"market_value":900000}}, "Reviewer", loan_id="L1001")
+    got=load_collateral_inputs(conn, rcid)
+    assert got["real_estate"]["market_value"]==1000000 and got["real_estate"]["advance_rate"]==80
+    s=summarize_collateral(conn, rcid); assert s and s["severity"]=="Finding"
+    exc=conn.execute("SELECT severity FROM exceptions WHERE review_case_id=? AND question_id='COLL_LTV'",(rcid,)).fetchone()
+    assert exc and exc["severity"]=="Finding"
+    actions=[r[0] for r in conn.execute("SELECT action_type FROM audit_log WHERE review_case_id=?",(rcid,)).fetchall()]
+    assert "collateral_updated" in actions
+    # clearing to adequately secured resolves the carried finding
+    save_collateral_inputs(conn, rcid, {"real_estate":{"market_value":1000000,"advance_rate":80},"loan_balance":{"market_value":500000}}, "Reviewer", loan_id="L1001")
+    assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='COLL_LTV'",(rcid,)).fetchone()[0]==0
 
 def test_rules_engine_safe_supported_and_no_raw_eval():
     assert evaluate_rule('answer == "No"', answer="No")

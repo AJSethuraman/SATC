@@ -14,6 +14,8 @@ from .review_engine import calculate_completion_status
 from .template_engine import get_applicable_questions, load_template
 from .dti_engine import load_dti_config, load_dti_inputs, compute_dti, block_lines, summarize_dti
 from .cash_flow_engine import load_cash_flow_config, load_cash_flow_inputs, compute_cash_flow, source_lines, summarize_cash_flow
+from .collateral_engine import (load_collateral_config, load_collateral_inputs, compute_collateral,
+    collateral_lines, exposure_lines, summarize_collateral)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -110,7 +112,7 @@ def _finish_table(ws, header_row, ncols, chip_cols=(), widths=None, landscape=Fa
         ws.page_setup.orientation = "landscape"
 
 # --- Cover -------------------------------------------------------------------
-def _build_cover(ws, ctx, template, metrics, dti=None, cf=None):
+def _build_cover(ws, ctx, template, metrics, dti=None, cf=None, coll=None):
     ws.sheet_view.showGridLines = False
     widths = [2.5, 22, 30, 4, 18, 22]
     for i, w in enumerate(widths, start=1):
@@ -213,6 +215,15 @@ def _build_cover(ws, ctx, template, metrics, dti=None, cf=None):
         if cf.get("business_income_reference_monthly"):
             pairs.append(("Business income (ref.)", f"${cf['business_income_reference_monthly']:,.0f}/mo", None))
         _card("CASH FLOW / INCOME", pairs)
+
+    # Collateral / LTV summary — carried from the Collateral module
+    if coll and coll.get("total_exposure"):
+        _card("COLLATERAL / LTV", [
+            ("LTV", f"{coll['ltv']:.1f}%   (guideline ≤ {coll['max_ltv']:.0f}%)", None),
+            ("Net collateral value", f"${coll['net_collateral_value']:,.0f}", None),
+            ("Excess / (shortfall)", f"${coll['excess']:,.0f}", None),
+            ("Collateral assessment", coll["assessment"], coll["severity"]),
+        ])
 
     # Ability-to-Repay summary — carried from the DTI module (consumer reviews)
     if dti and dti.get("total_income"):
@@ -496,6 +507,126 @@ def _build_cash_flow(ws, ctx, cfg, values, result):
     ws.sheet_properties.pageSetUpPr.fitToPage = True
 
 
+# --- Collateral & LTV tab ----------------------------------------------------
+def _build_collateral(ws, ctx, cfg, values, result):
+    ws.sheet_view.showGridLines = False
+    for col, w in (("A", 38), ("B", 16), ("C", 12), ("D", 16)):
+        ws.column_dimensions[col].width = w
+    ws.merge_cells("A1:D1"); ws.row_dimensions[1].height = 5; ws["A1"].fill = _fill(GOLD)
+    ws.merge_cells("A2:D2"); ws.row_dimensions[2].height = 30
+    t = ws["A2"]; t.value = "COLLATERAL  ·  LTV ANALYSIS"
+    t.fill = _fill(NAVY); t.font = Font(name=FONT, color=WHITE, bold=True, size=14)
+    t.alignment = Alignment(vertical="center", horizontal="left", indent=1)
+    ws.merge_cells("A3:D3"); ws.row_dimensions[3].height = 18
+    s = ws["A3"]; s.value = f"{ctx.get('borrower_name','')}  ·  Loan {ctx.get('loan_id','')}  ·  net value applies advance rates; LTV is market-value basis"
+    s.fill = _fill(NAVY); s.font = Font(name=FONT, color="C9D6E5", italic=True, size=9)
+    s.alignment = Alignment(vertical="center", horizontal="left", indent=1)
+    for col in range(1, 5):
+        ws.cell(row=2, column=col).fill = _fill(NAVY); ws.cell(row=3, column=col).fill = _fill(NAVY)
+    ws.merge_cells("A4:D4"); ws.row_dimensions[4].height = 5; ws["A4"].fill = _fill(GOLD)
+
+    _table_header(ws, ["Collateral type", "Market value", "Advance %", "Eligible value"], row=5)
+    for col in (2, 3, 4):
+        ws.cell(row=5, column=col).alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+    money = '$#,##0'
+    row = 6
+    coll_first = row
+    for key, label, default_ar in collateral_lines(cfg):
+        v = values.get(key) or {}
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=9.5)
+        mv = ws.cell(row=row, column=2)
+        if _numlike(v.get("market_value")): mv.value = float(v["market_value"])
+        mv.number_format = money; mv.alignment = Alignment(horizontal="right")
+        mv.fill = _fill("FCFCFD"); mv.border = Border(bottom=_HAIR, left=_HAIR, right=_HAIR, top=_HAIR)
+        ar = ws.cell(row=row, column=3)
+        ar.value = float(v["advance_rate"]) if v.get("advance_rate") not in (None, "") else default_ar
+        ar.number_format = '0"%"'; ar.alignment = Alignment(horizontal="right")
+        ar.fill = _fill("FCFCFD"); ar.border = Border(bottom=_HAIR, left=_HAIR, right=_HAIR, top=_HAIR)
+        el = ws.cell(row=row, column=4, value=f"=ROUND(B{row}*C{row}/100,2)")
+        el.number_format = money; el.alignment = Alignment(horizontal="right")
+        el.font = Font(name=FONT, size=9.5, color=NAVY)
+        for col in range(1, 5): ws.cell(row=row, column=col).border = BOTTOM
+        row += 1
+    coll_last = row - 1
+    # collateral subtotals
+    ws.cell(row=row, column=1, value="Total market value / net (eligible) value").font = Font(name=FONT, size=10, bold=True, color=NAVY)
+    mt = ws.cell(row=row, column=2, value=f"=SUM(B{coll_first}:B{coll_last})"); mt.number_format = money
+    mt.font = Font(name=FONT, size=10, bold=True, color=NAVY); mt.alignment = Alignment(horizontal="right"); mt.fill = _fill(BAND)
+    nt = ws.cell(row=row, column=4, value=f"=SUM(D{coll_first}:D{coll_last})"); nt.number_format = money
+    nt.font = Font(name=FONT, size=10, bold=True, color=NAVY); nt.alignment = Alignment(horizontal="right"); nt.fill = _fill(BAND)
+    ws.cell(row=row, column=1).fill = _fill(BAND); ws.cell(row=row, column=3).fill = _fill(BAND)
+    market_row = row; net_row = row; row += 2
+
+    # exposure
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+    c = ws.cell(row=row, column=1, value="EXPOSURE"); c.fill = _fill(INK); c.font = Font(name=FONT, color=WHITE, bold=True, size=10)
+    c.alignment = Alignment(vertical="center", indent=1)
+    for col in range(1, 5): ws.cell(row=row, column=col).fill = _fill(INK)
+    row += 1
+    exp_first = row
+    for key, label in exposure_lines(cfg):
+        v = values.get(key) or {}
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=9.5)
+        amt = ws.cell(row=row, column=2)
+        if _numlike(v.get("market_value")): amt.value = float(v["market_value"])
+        amt.number_format = money; amt.alignment = Alignment(horizontal="right")
+        amt.fill = _fill("FCFCFD"); amt.border = Border(bottom=_HAIR, left=_HAIR, right=_HAIR, top=_HAIR)
+        for col in range(1, 5): ws.cell(row=row, column=col).border = BOTTOM
+        row += 1
+    exp_last = row - 1
+    ws.cell(row=row, column=1, value="Total exposure").font = Font(name=FONT, size=10, bold=True, color=NAVY)
+    et = ws.cell(row=row, column=2, value=f"=SUM(B{exp_first}:B{exp_last})"); et.number_format = money
+    et.font = Font(name=FONT, size=10, bold=True, color=NAVY); et.alignment = Alignment(horizontal="right"); et.fill = _fill(BAND)
+    ws.cell(row=row, column=1).fill = _fill(BAND); ws.cell(row=row, column=3).fill = _fill(BAND); ws.cell(row=row, column=4).fill = _fill(BAND)
+    exp_row = row; row += 2
+
+    # results
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+    c = ws.cell(row=row, column=1, value="COLLATERAL RESULTS"); c.fill = _fill(INK); c.font = Font(name=FONT, color=WHITE, bold=True, size=10)
+    c.alignment = Alignment(vertical="center", indent=1)
+    for col in range(1, 5): ws.cell(row=row, column=col).fill = _fill(INK)
+    row += 1
+    mx, mc = result["max_ltv"], result["min_coverage"]
+    def res(label, formula, fmt):
+        nonlocal row
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=10, bold=True, color=INK)
+        cc = ws.cell(row=row, column=4, value=formula); cc.number_format = fmt
+        cc.alignment = Alignment(horizontal="right"); cc.font = Font(name=FONT, size=11, bold=True, color=NAVY)
+        for col in range(1, 5): ws.cell(row=row, column=col).border = BOTTOM
+        r = row; row += 1; return r
+    ltv_row = res(f"LTV  (exposure ÷ market value)   guideline ≤ {mx:.0f}%", f'=IF(B{market_row}=0,"",B{exp_row}/B{market_row})', '0.0%')
+    cov_row = res(f"Collateral coverage  (net value ÷ exposure)   min {mc:.0f}%", f'=IF(B{exp_row}=0,"",D{net_row}/B{exp_row})', '0.0%')
+    exc_row = res("Excess / (shortfall) of net collateral", f"=D{net_row}-B{exp_row}", money)
+    row += 1
+    ws.cell(row=row, column=1, value="COLLATERAL ASSESSMENT").font = Font(name=FONT, color=GOLD, bold=True, size=11)
+    ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
+    a = ws.cell(row=row, column=2)
+    a.value = (f'=IF(B{exp_row}=0,"Enter exposure to assess",'
+               f'IF(D{net_row}<B{exp_row},"Undersecured — collateral shortfall",'
+               f'IF(B{ltv_row}>{mx/100},"Exceeds LTV guideline","Adequately secured")))')
+    a.font = Font(name=FONT, bold=True, size=11); a.alignment = Alignment(vertical="center", indent=1)
+    ws.row_dimensions[row].height = 22
+    assess_cell = f"B{row}"
+
+    cf = ws.conditional_formatting
+    cf.add(f"B{ltv_row}", CellIsRule(operator="greaterThan", formula=[str(mx/100)], fill=_CF_AMBER, stopIfTrue=True))
+    cf.add(f"B{ltv_row}", CellIsRule(operator="greaterThan", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(f"B{cov_row}", CellIsRule(operator="lessThan", formula=[str(mc/100)], fill=_CF_RED, stopIfTrue=True))
+    cf.add(f"B{cov_row}", CellIsRule(operator="greaterThanOrEqual", formula=[str(mc/100)], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(f"D{exc_row}", CellIsRule(operator="lessThan", formula=["0"], fill=_CF_RED, stopIfTrue=True))
+    cf.add(f"D{exc_row}", CellIsRule(operator="greaterThanOrEqual", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Undersecured",{assess_cell}))'], fill=_CF_RED, stopIfTrue=True))
+    cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Exceeds",{assess_cell}))'], fill=_CF_AMBER, stopIfTrue=True))
+    cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Adequately",{assess_cell}))'], fill=_CF_GREEN, stopIfTrue=True))
+
+    ws.freeze_panes = "A6"; ws.page_setup.orientation = "portrait"
+    ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 0; ws.sheet_properties.pageSetUpPr.fitToPage = True
+
+
+def _numlike(v):
+    return v not in (None, "", 0, 0.0)
+
+
 # --- Main export -------------------------------------------------------------
 def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: str | Path = ROOT / "outputs" / "excel", generated_by="system", override_reason=None):
     ctx = _ctx(conn, review_case_id); loan = ctx.copy()
@@ -518,6 +649,10 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
     cf_values = load_cash_flow_inputs(conn, review_case_id)
     cf_result = compute_cash_flow(cf_values, cf_cfg)
     cf_summary = summarize_cash_flow(conn, review_case_id, cf_cfg)  # None unless filled
+    col_cfg = load_collateral_config()
+    col_values = load_collateral_inputs(conn, review_case_id)
+    col_result = compute_collateral(col_values, col_cfg)
+    col_summary = summarize_collateral(conn, review_case_id, col_cfg)  # None unless filled
 
     wb = Workbook()
     wb.properties.title = f"Linesheet — {ctx['loan_id']} {ctx['borrower_name']}"
@@ -526,7 +661,7 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
 
     # Cover
     ws = wb.active; ws.title = "Cover"
-    _build_cover(ws, ctx, template, metrics, dti_summary, cf_summary)
+    _build_cover(ws, ctx, template, metrics, dti_summary, cf_summary, col_summary)
 
     # Loan Summary
     ws = wb.create_sheet("Loan Summary")
@@ -560,6 +695,10 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
     # Ability-to-Repay (DTI) worksheet
     ws = wb.create_sheet("Ability-to-Repay (DTI)")
     _build_dti(ws, ctx, dti_cfg, dti_values, dti_result)
+
+    # Collateral & LTV worksheet
+    ws = wb.create_sheet("Collateral & LTV")
+    _build_collateral(ws, ctx, col_cfg, col_values, col_result)
 
     # Linesheet Questions  (header MUST remain at row 1, A1 == "Section")
     ws = wb.create_sheet("Linesheet Questions")
@@ -628,6 +767,13 @@ def generate_data_mart_csv(conn, review_case_id: int, template, output_path: str
                            ("CF_QUALIFYING_ANNUAL", cf["qualifying_annual"]),
                            ("CF_BUSINESS_INCOME_REF_MONTHLY", cf["business_income_reference_monthly"])):
             rows.append(_row(qid, "cash_flow", value, "Computed", None, "Carried from Cash Flow worksheet"))
+    # Carry the collateral / LTV results into the data mart
+    col = summarize_collateral(conn, review_case_id)
+    if col:
+        for qid, value in (("COLL_LTV_PCT", col["ltv"]), ("COLL_COVERAGE_PCT", col["coverage"]),
+                           ("COLL_NET_VALUE", col["net_collateral_value"]), ("COLL_EXCESS", col["excess"]),
+                           ("COLL_ASSESSMENT", col["assessment"])):
+            rows.append(_row(qid, "collateral_ltv", value, col["assessment"], col["severity"], "Carried from Collateral worksheet"))
     # Carry the ability-to-repay results into the data mart (consumer reviews)
     dti = summarize_dti(conn, review_case_id)
     if dti:
@@ -658,7 +804,8 @@ _DM_TABLES = {
                    "validation_status", "review_status", "completion_pct", "required_count", "answered_required",
                    "findings_count", "blockers_count", "dti_back_end_pct", "dti_front_end_pct",
                    "dti_residual_income", "dti_net_residual_income", "dti_assessment",
-                   "cf_qualifying_monthly", "cf_qualifying_annual", "cf_business_income_ref_monthly"],
+                   "cf_qualifying_monthly", "cf_qualifying_annual", "cf_business_income_ref_monthly",
+                   "coll_ltv_pct", "coll_coverage_pct", "coll_net_value", "coll_excess", "coll_assessment"],
     "Answers": ["review_case_id", "loan_id", "borrower_name", "template_id", "section_id", "question_id",
                 "answer_value", "answer_status", "severity", "exception_flag", "reviewer_comment",
                 "evidence_required", "evidence_status", "answered_by", "answered_at"],
@@ -669,6 +816,8 @@ _DM_TABLES = {
             "total_withholding", "assessment", "severity"],
     "CashFlow": ["review_case_id", "loan_id", "borrower_name", "qualifying_monthly", "qualifying_annual",
                  "business_income_reference_monthly"],
+    "Collateral": ["review_case_id", "loan_id", "borrower_name", "total_market_value", "net_collateral_value",
+                   "total_exposure", "ltv", "coverage", "excess", "assessment", "severity"],
     "Audit": ["audit_id", "timestamp", "user", "action_type", "entity_type", "entity_id", "reason",
               "review_case_id", "loan_id"],
 }
@@ -724,12 +873,13 @@ def generate_data_mart_workbook(conn, engagement_id: int,
         (engagement_id,)).fetchall()]
     case_ids = [c["review_case_id"] for c in cases]
 
-    lines, dti_rows, cf_rows = [], [], []
+    lines, dti_rows, cf_rows, col_rows = [], [], [], []
     for c in cases:
         rcid = c["review_case_id"]
         comp = calculate_completion_status(conn, rcid, c, template) if template else {}
         dti = summarize_dti(conn, rcid)
         cf = summarize_cash_flow(conn, rcid)
+        col = summarize_collateral(conn, rcid)
         findings = conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=?", (rcid,)).fetchone()[0]
         lines.append({
             "review_case_id": rcid, "client_name": ctx.get("client_name"), "review_period": ctx.get("review_period"),
@@ -748,6 +898,11 @@ def generate_data_mart_workbook(conn, engagement_id: int,
             "cf_qualifying_monthly": cf["qualifying_monthly"] if cf else None,
             "cf_qualifying_annual": cf["qualifying_annual"] if cf else None,
             "cf_business_income_ref_monthly": cf["business_income_reference_monthly"] if cf else None,
+            "coll_ltv_pct": col["ltv"] if col else None,
+            "coll_coverage_pct": col["coverage"] if col else None,
+            "coll_net_value": col["net_collateral_value"] if col else None,
+            "coll_excess": col["excess"] if col else None,
+            "coll_assessment": col["assessment"] if col else None,
         })
         if dti:
             dti_rows.append({"review_case_id": rcid, "loan_id": c.get("loan_id"), "borrower_name": c.get("borrower_name"),
@@ -758,6 +913,10 @@ def generate_data_mart_workbook(conn, engagement_id: int,
             cf_rows.append({"review_case_id": rcid, "loan_id": c.get("loan_id"), "borrower_name": c.get("borrower_name"),
                             "qualifying_monthly": cf["qualifying_monthly"], "qualifying_annual": cf["qualifying_annual"],
                             "business_income_reference_monthly": cf["business_income_reference_monthly"]})
+        if col:
+            col_rows.append({"review_case_id": rcid, "loan_id": c.get("loan_id"), "borrower_name": c.get("borrower_name"),
+                             **{k: col.get(k) for k in ("total_market_value", "net_collateral_value", "total_exposure",
+                                "ltv", "coverage", "excess", "assessment", "severity")}})
 
     answers = []
     for r in conn.execute(
@@ -802,8 +961,8 @@ def generate_data_mart_workbook(conn, engagement_id: int,
     r += 1
     ov.cell(row=r, column=2, value="TABLES").font = Font(name=FONT, color=GOLD, bold=True, size=10); r += 1
     for name, count in (("Linesheets", len(lines)), ("Answers", len(answers)), ("Findings", len(findings_rows)),
-                        ("DTI", len(dti_rows)), ("CashFlow", len(cf_rows)), ("Audit", len(audit_rows)),
-                        ("Data Dictionary", len(_DM_DICTIONARY))):
+                        ("DTI", len(dti_rows)), ("CashFlow", len(cf_rows)), ("Collateral", len(col_rows)),
+                        ("Audit", len(audit_rows)), ("Data Dictionary", len(_DM_DICTIONARY))):
         ov.cell(row=r, column=2, value=name).font = Font(name=FONT, color=NAVY, bold=True, size=10)
         ov.cell(row=r, column=3, value=f"{count} rows").font = Font(name=FONT, color=MUTED, size=10)
         for col in (2, 3): ov.cell(row=r, column=col).border = BOTTOM
@@ -814,6 +973,7 @@ def generate_data_mart_workbook(conn, engagement_id: int,
     _dm_table_sheet(wb, "Findings", "tbl_Findings", _DM_TABLES["Findings"], findings_rows)
     _dm_table_sheet(wb, "DTI", "tbl_DTI", _DM_TABLES["DTI"], dti_rows)
     _dm_table_sheet(wb, "CashFlow", "tbl_CashFlow", _DM_TABLES["CashFlow"], cf_rows)
+    _dm_table_sheet(wb, "Collateral", "tbl_Collateral", _DM_TABLES["Collateral"], col_rows)
     _dm_table_sheet(wb, "Audit", "tbl_Audit", _DM_TABLES["Audit"], audit_rows)
     _dm_table_sheet(wb, "Data Dictionary", "tbl_Dictionary", ["table", "column", "description"],
                     [{"table": t, "column": c, "description": d} for t, c, d in _DM_DICTIONARY])

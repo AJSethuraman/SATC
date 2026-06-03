@@ -11,6 +11,7 @@ from linesheet_builder.review_engine import create_review_cases, save_answer, ca
 from linesheet_builder.export_engine import generate_excel_linesheet, generate_data_mart_csv, generate_exception_report_csv, generate_audit_log_csv, generate_data_mart_workbook
 from linesheet_builder.dti_engine import load_dti_config, load_dti_inputs, save_dti_inputs, compute_dti, block_lines
 from linesheet_builder.cash_flow_engine import load_cash_flow_config, load_cash_flow_inputs, save_cash_flow_inputs, compute_cash_flow, source_lines
+from linesheet_builder.collateral_engine import load_collateral_config, load_collateral_inputs, save_collateral_inputs, compute_collateral, collateral_lines, exposure_lines
 from linesheet_builder.template_builder import (q as tb_q, section as tb_section, build_template, write_template_yaml,
     template_to_dict, TEMPLATES_DIR, preset_borrower, preset_employment_income, preset_atr,
     preset_collateral_property, preset_documentation, preset_conclusion_signoff)
@@ -21,7 +22,7 @@ st.set_page_config(page_title="Linesheet Builder", layout="wide")
 inject_css(st); init_db(DB); seed_demo(DB)
 conn=get_connection(DB)
 st.sidebar.title("Linesheet Builder")
-page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Templates","Template Builder","Upload","Mapping","Validation","Review","Cash Flow","DTI / ATR","Export","Audit"])
+page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Templates","Template Builder","Upload","Mapping","Validation","Review","Cash Flow","DTI / ATR","Collateral","Export","Audit"])
 engagements=pd.read_sql_query("SELECT e.*, c.client_name FROM engagements e JOIN clients c ON e.client_id=c.client_id ORDER BY e.engagement_id DESC", conn)
 eng_id=int(st.sidebar.selectbox("Engagement", engagements.engagement_id, format_func=lambda x: f"{engagements[engagements.engagement_id==x].iloc[0].client_name} / {x}")) if not engagements.empty else None
 eng=engagements[engagements.engagement_id==eng_id].iloc[0].to_dict() if eng_id else {}
@@ -342,6 +343,42 @@ elif page=="DTI / ATR":
             n[1].metric("Net monthly income", f"${result['net_income']:,.0f}")
             n[2].metric("Net residual income", f"${result['net_residual_income']:,.0f}")
         st.markdown(f"**ATR assessment:** {status_badge(result['severity'] or 'Complete')} &nbsp; {result['assessment']}", unsafe_allow_html=True)
+
+elif page=="Collateral":
+    st.title("Collateral & LTV Analysis")
+    st.write("Enter market values and advance rates per collateral type plus total exposure. Net (eligible) collateral value, LTV, coverage and any excess/shortfall calculate automatically and carry into the linesheet.")
+    cases=get_cases()
+    if cases.empty:
+        st.warning("Run validation to create review cases.")
+    else:
+        rcid=int(st.selectbox("Loan / review case", cases.review_case_id, format_func=lambda x: f"{cases[cases.review_case_id==x].iloc[0].loan_id} - {cases[cases.review_case_id==x].iloc[0].borrower_name}"))
+        loan_id=cases[cases.review_case_id==rcid].iloc[0].loan_id
+        cfg=load_collateral_config(); saved=load_collateral_inputs(conn, rcid)
+        with st.form("collateral"):
+            values={}
+            st.subheader(cfg["collateral"]["section_name"])
+            hc=st.columns([3,2,1.4]); hc[1].caption("Market value"); hc[2].caption("Advance %")
+            for key,label,dar in collateral_lines(cfg):
+                sv=saved.get(key) or {}
+                cc=st.columns([3,2,1.4]); cc[0].markdown(label)
+                mv=cc[1].number_input("mv", min_value=0.0, value=float(sv.get("market_value") or 0.0), step=1000.0, key=f"coll_{rcid}_{key}_mv", label_visibility="collapsed")
+                ar=cc[2].number_input("ar", min_value=0.0, max_value=100.0, value=float(sv.get("advance_rate") if sv.get("advance_rate") is not None else dar), step=5.0, key=f"coll_{rcid}_{key}_ar", label_visibility="collapsed")
+                values[key]={"market_value":mv,"advance_rate":ar}
+            st.subheader(cfg["exposure"]["section_name"])
+            for key,label in exposure_lines(cfg):
+                sv=saved.get(key) or {}
+                values[key]={"market_value":st.number_input(label, min_value=0.0, value=float(sv.get("market_value") or 0.0), step=1000.0, key=f"coll_{rcid}_{key}_amt")}
+            submitted=st.form_submit_button("Save & calculate")
+        if submitted:
+            save_collateral_inputs(conn, rcid, values, eng.get('reviewer_name','user'), loan_id=loan_id)
+        result=compute_collateral(values if submitted else saved, cfg)
+        st.markdown("---"); st.subheader("Collateral results")
+        m=st.columns(4)
+        m[0].metric("Net collateral value", f"${result['net_collateral_value']:,.0f}")
+        m[1].metric("LTV", f"{result['ltv']:.1f}%", help=f"guideline ≤ {result['max_ltv']:.0f}%")
+        m[2].metric("Coverage", f"{result['coverage']:.0f}%", help=f"min {result['min_coverage']:.0f}%")
+        m[3].metric("Excess / (shortfall)", f"${result['excess']:,.0f}")
+        st.markdown(f"**Collateral assessment:** {status_badge(result['severity'] or 'Complete')} &nbsp; {result['assessment']}", unsafe_allow_html=True)
 
 elif page=="Export":
     st.title("Export Center")

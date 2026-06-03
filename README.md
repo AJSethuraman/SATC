@@ -109,6 +109,7 @@ Excel workbooks include:
 - Loan Summary
 - Cash Flow Analysis
 - Ability-to-Repay (DTI)
+- Collateral & LTV
 - Linesheet Questions
 - Exceptions & Findings
 - Evidence Checklist
@@ -131,6 +132,16 @@ The **DTI / ATR** page and the matching **Ability-to-Repay (DTI)** Excel tab cap
 - Default thresholds: 28% front-end target, 43% back-end target, 50% back-end maximum. Worksheet inputs are persisted per review case and every save is written to the audit log.
 - An optional **Payroll Deductions** block (for purely payrolled / W-2 borrowers) lets you enter taxes and withholding straight from a pay stub to also show **net monthly income** and **net residual income**. It does not estimate taxes; leave it blank and the worksheet stays gross-only. DTI ratios remain gross-based; when withholding is entered, the residual-income floor is judged on net residual.
 - The worksheet is a static fixture, but its **results carry into the linesheet**: when filled, an over-guideline ATR result is recorded as a case finding (so it appears in the Exceptions tab, the exception report and the cover findings count), the ability-to-repay summary is printed on the Cover, and the metrics (income, obligations, front/back DTI, residual, assessment) are written to the data mart export. An empty worksheet carries nothing.
+
+## Collateral & LTV worksheet
+
+The **Collateral** page and the **Collateral & LTV** Excel tab analyze how well a credit is secured. Each collateral item takes a market value and a type-specific **advance rate** (editable; defaults in `configs/collateral_v1.yaml`) to produce a net (eligible) collateral value, which is compared to total exposure (loan balance, senior liens, other) to compute:
+
+- **LTV** (exposure ÷ market value) against a guideline (default 80%),
+- **Collateral coverage** (net value ÷ exposure) against a minimum (default 100%), and
+- **Excess / (shortfall)** of net collateral.
+
+In Excel the eligible-value, totals and ratios are live formulas with color-coded conditional formatting. Like the other calculation fixtures, results carry into the linesheet: an undersecured or over-LTV result is recorded as a finding, the summary prints on the Cover, and the metrics flow to the data mart (`collateral_ltv` section and a `Collateral` table in the data mart workbook).
 
 ## Building custom templates en masse
 
@@ -162,7 +173,7 @@ The **Export** page can consolidate every linesheet in an engagement into a sing
 - **Linesheets** — one row per loan / review case (the grain): client, template, validation & review status, completion %, findings count, and the carried DTI and Cash Flow results (back-end DTI, ATR assessment, qualifying income).
 - **Answers** — one row per case × question (status, severity, exception flag, evidence).
 - **Findings** — every exception/finding across the engagement.
-- **DTI** and **CashFlow** — the calculation results per case.
+- **DTI**, **CashFlow** and **Collateral** — the calculation results per case.
 - **Audit** — the engagement's audit trail.
 - **Overview** and **Data Dictionary** sheets describe the tables and key columns.
 
