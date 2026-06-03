@@ -97,6 +97,68 @@ EXTRACTION_SPECS: dict[str, tuple[FieldSpec, ...]] = {
         FieldSpec("box4_federal_withholding", "Box 4 Federal Withholding", "amount", "FEDERAL INCOME TAX WITHHELD"),
         FieldSpec("box7_distribution_code", "Box 7 Distribution Code", "code", "DISTRIBUTION CODE", window=20),
     ),
+    "1099_G": (
+        FieldSpec("tax_year", "Tax Year", "year"),
+        FieldSpec("payer_tin", "Payer TIN", "ein"),
+        FieldSpec("recipient_tin", "Recipient TIN", "ssn"),
+        FieldSpec("box1_unemployment_compensation", "Box 1 Unemployment Compensation", "amount", "UNEMPLOYMENT COMPENSATION", primary=True),
+        FieldSpec("box2_state_income_tax_refunds", "Box 2 State/Local Tax Refunds", "amount", "STATE OR LOCAL INCOME TAX REFUNDS", primary=True),
+        FieldSpec("box4_federal_withholding", "Box 4 Federal Withholding", "amount", "FEDERAL INCOME TAX WITHHELD"),
+    ),
+    "1099_K": (
+        FieldSpec("tax_year", "Tax Year", "year"),
+        FieldSpec("payer_tin", "Payer TIN", "ein"),
+        FieldSpec("payee_tin", "Payee TIN", "ssn"),
+        FieldSpec("box1a_gross_amount", "Box 1a Gross Amount", "amount", "GROSS AMOUNT OF PAYMENT CARD", primary=True),
+        FieldSpec("box4_federal_withholding", "Box 4 Federal Withholding", "amount", "FEDERAL INCOME TAX WITHHELD"),
+    ),
+    "SSA_1099": (
+        FieldSpec("tax_year", "Tax Year", "year"),
+        FieldSpec("beneficiary_ssn", "Beneficiary SSN", "ssn"),
+        FieldSpec("box3_benefits_paid", "Box 3 Benefits Paid", "amount", "BENEFITS PAID"),
+        FieldSpec("box5_net_benefits", "Box 5 Net Benefits", "amount", "NET BENEFITS", primary=True),
+        FieldSpec("box6_voluntary_withholding", "Box 6 Voluntary Withholding", "amount", "VOLUNTARY FEDERAL INCOME TAX WITHHELD"),
+    ),
+    "1098_Mortgage": (
+        FieldSpec("tax_year", "Tax Year", "year"),
+        FieldSpec("lender_tin", "Lender TIN", "ein"),
+        FieldSpec("borrower_tin", "Borrower TIN", "ssn"),
+        FieldSpec("box1_mortgage_interest", "Box 1 Mortgage Interest", "amount", "MORTGAGE INTEREST RECEIVED", primary=True),
+        FieldSpec("box5_mortgage_insurance", "Box 5 Mortgage Insurance Premiums", "amount", "MORTGAGE INSURANCE PREMIUMS"),
+        FieldSpec("box6_points_paid", "Box 6 Points Paid", "amount", "POINTS PAID"),
+    ),
+    "1098_Tuition": (
+        FieldSpec("tax_year", "Tax Year", "year"),
+        FieldSpec("filer_tin", "Filer TIN", "ein"),
+        FieldSpec("student_ssn", "Student SSN", "ssn"),
+        FieldSpec("box1_payments_received", "Box 1 Payments Received", "amount", "PAYMENTS RECEIVED FOR QUALIFIED TUITION", primary=True),
+        FieldSpec("box4_adjustments", "Box 4 Adjustments", "amount", "ADJUSTMENTS MADE FOR A PRIOR YEAR"),
+        FieldSpec("box5_scholarships_or_grants", "Box 5 Scholarships or Grants", "amount", "SCHOLARSHIPS OR GRANTS"),
+    ),
+    "Brokerage_1099B": (
+        FieldSpec("tax_year", "Tax Year", "year"),
+        FieldSpec("payer_tin", "Payer TIN", "ein"),
+        FieldSpec("recipient_tin", "Recipient TIN", "ssn"),
+        FieldSpec("proceeds", "Proceeds (Box 1d)", "amount", "PROCEEDS"),
+        FieldSpec("cost_basis", "Cost Basis (Box 1e)", "amount", "COST BASIS"),
+    ),
+    "K1": (
+        FieldSpec("tax_year", "Tax Year", "year"),
+        FieldSpec("entity_ein", "Entity EIN", "ein"),
+        FieldSpec("partner_ssn", "Partner/Shareholder SSN", "ssn"),
+        FieldSpec("box1_ordinary_business_income", "Box 1 Ordinary Business Income", "amount", "ORDINARY BUSINESS INCOME", primary=True),
+        FieldSpec("box2_net_rental_real_estate", "Box 2 Net Rental Real Estate", "amount", "NET RENTAL REAL ESTATE INCOME"),
+        FieldSpec("box5_interest_income", "Box 5 Interest Income", "amount", "INTEREST INCOME"),
+        FieldSpec("box6a_ordinary_dividends", "Box 6a Ordinary Dividends", "amount", "ORDINARY DIVIDENDS"),
+        FieldSpec("box9a_net_longterm_capital_gain", "Box 9a Net Long-Term Capital Gain", "amount", "NET LONG-TERM CAPITAL GAIN"),
+    ),
+}
+
+# Some forms cannot be reduced to a few fields safely. Always flag them and add a
+# clear note so a human checks the detail.
+ALWAYS_REVIEW_CATEGORIES = {"Brokerage_1099B"}
+CATEGORY_NOTES = {
+    "Brokerage_1099B": "1099-B is transactional; verify every sale against the broker statement.",
 }
 
 SUPPORTED_CATEGORIES = tuple(EXTRACTION_SPECS)
@@ -172,9 +234,14 @@ def extract_form_fields(category: str, text: str) -> ExtractionResult:
             primary_exists = True
             primary_found = primary_found or bool(value)
 
-    needs_review = (primary_exists and not primary_found) or not any(values.values())
+    key_missing = (primary_exists and not primary_found) or not any(values.values())
+    needs_review = key_missing or category in ALWAYS_REVIEW_CATEGORIES
+
     notes = [VERIFY_NOTE]
-    if needs_review:
+    category_note = CATEGORY_NOTES.get(category)
+    if category_note:
+        notes.append(category_note)
+    if key_missing:
         notes.append(MISSING_KEY_FIELD_NOTE)
     return ExtractionResult(category, values, needs_review, tuple(notes))
 
@@ -217,6 +284,29 @@ def write_extracted_data(
     return path
 
 
+def _extract_units(file_path: Path) -> list[tuple[str, str, str]]:
+    """Return (source_label, category, text) units for a file.
+
+    PDFs are read page by page so a combined upload with several forms yields one
+    unit per page; images are read as a single unit.
+    """
+
+    if file_path.suffix.lower() == ".pdf":
+        pages = sort_tax_docs.extract_pdf_page_texts(file_path)
+        multi_page = len(pages) > 1
+        units: list[tuple[str, str, str]] = []
+        for page_number, (text, _ocr_used) in enumerate(pages, start=1):
+            category = sort_tax_docs.classify_text(text).category
+            label = f"{file_path.name} (page {page_number})" if multi_page else file_path.name
+            units.append((label, category, text))
+        return units
+
+    text, _ocr_used, _note, classification, _debug = (
+        sort_tax_docs.extract_text_and_classification(file_path)
+    )
+    return [(file_path.name, classification.category, text)]
+
+
 def run_extraction(input_folder, save_extracted_text=False, status_callback=None) -> dict:
     """Read supported files, extract fields for known forms, and write a workbook."""
 
@@ -230,18 +320,16 @@ def run_extraction(input_folder, save_extracted_text=False, status_callback=None
         if status_callback:
             status_callback(f"Extracting {index} of {len(files)}: {file_path.name}")
         try:
-            text, _ocr_used, _note, classification, _debug = (
-                sort_tax_docs.extract_text_and_classification(file_path)
-            )
+            units = _extract_units(file_path)
         except Exception:  # Keep going through the rest of the upload folder.
             continue
-        category = classification.category
-        if category not in EXTRACTION_SPECS:
-            continue
-        result = extract_form_fields(category, text)
-        rows_by_category[category].append(_row_for(category, file_path.name, result))
-        if result.needs_review:
-            review_count += 1
+        for source_label, category, text in units:
+            if category not in EXTRACTION_SPECS:
+                continue
+            result = extract_form_fields(category, text)
+            rows_by_category[category].append(_row_for(category, source_label, result))
+            if result.needs_review:
+                review_count += 1
 
     data_path = write_extracted_data(rows_by_category, output_folder)
     counts = {category: len(rows) for category, rows in rows_by_category.items()}

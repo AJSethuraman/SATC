@@ -222,6 +222,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Save selectable/OCR/combined text and scores for troubleshooting.",
     )
+    parser.add_argument(
+        "--no-split",
+        action="store_true",
+        help="Do not split combined PDFs that contain more than one form type.",
+    )
     return parser.parse_args()
 
 
@@ -370,24 +375,71 @@ def preprocess_image_for_ocr(image):
     return sharpened.filter(ImageFilter.SHARPEN)
 
 
-def ocr_pdf(file_path: Path) -> str:
-    """OCR a scanned PDF by rendering each page to an image locally."""
+def _ocr_pdf_page(page) -> str:
+    """Render a single PDF page locally and return its OCR text."""
 
     import fitz  # PyMuPDF
     import pytesseract
     from PIL import Image
+
+    pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+    # Decode via PNG so grayscale/CMYK pages are handled correctly instead of
+    # assuming a fixed RGB channel layout from the raw samples buffer.
+    image = Image.open(io.BytesIO(pixmap.tobytes("png")))
+    return pytesseract.image_to_string(preprocess_image_for_ocr(image))
+
+
+def ocr_pdf(file_path: Path) -> str:
+    """OCR a scanned PDF by rendering each page to an image locally."""
+
+    import fitz  # PyMuPDF
 
     configure_pytesseract()
     text_parts: list[str] = []
     with fitz.open(file_path) as document:
         for page_number, page in enumerate(document, start=1):
             logging.debug("OCR PDF page %s of %s", page_number, file_path.name)
-            pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
-            # Decode via PNG so grayscale/CMYK pages are handled correctly instead
-            # of assuming a fixed RGB channel layout from the raw samples buffer.
-            image = Image.open(io.BytesIO(pixmap.tobytes("png")))
-            text_parts.append(pytesseract.image_to_string(preprocess_image_for_ocr(image)))
+            text_parts.append(_ocr_pdf_page(page))
     return "\n".join(text_parts).strip()
+
+
+def extract_pdf_page_texts(file_path: Path) -> list[tuple[str, bool]]:
+    """Return per-page text for a PDF as (text, ocr_used), OCRing only weak pages.
+
+    Used by combined-PDF splitting and by per-page form extraction so a single
+    upload containing several forms can be handled page by page.
+    """
+
+    import fitz  # PyMuPDF
+
+    configure_pytesseract()
+    pages: list[tuple[str, bool]] = []
+    with fitz.open(file_path) as document:
+        for page_number, page in enumerate(document, start=1):
+            selectable_text = page.get_text("text").strip()
+            if is_successful_pdf_classification(classify_text(selectable_text)):
+                pages.append((selectable_text, False))
+                continue
+            logging.debug("OCR PDF page %s of %s", page_number, file_path.name)
+            ocr_text = _ocr_pdf_page(page)
+            combined = "\n".join(part for part in (selectable_text, ocr_text) if part.strip())
+            pages.append((combined or selectable_text or ocr_text, True))
+    return pages
+
+
+def write_pdf_segment(source_pdf: Path, page_indices: list[int], destination: Path) -> None:
+    """Write the given zero-based pages of source_pdf to a new PDF at destination."""
+
+    import fitz  # PyMuPDF
+
+    with fitz.open(source_pdf) as source:
+        segment = fitz.open()
+        try:
+            for index in page_indices:
+                segment.insert_pdf(source, from_page=index, to_page=index)
+            segment.save(destination)
+        finally:
+            segment.close()
 
 
 def ocr_image(file_path: Path) -> str:
@@ -672,6 +724,46 @@ def classify_text(text: str) -> ClassificationResult:
     )
 
 
+@dataclass(frozen=True)
+class PageSegment:
+    """A run of consecutive pages (zero-based, inclusive) for one form."""
+
+    category: str
+    start: int
+    end: int
+
+    @property
+    def page_indices(self) -> list[int]:
+        return list(range(self.start, self.end + 1))
+
+    @property
+    def page_label(self) -> str:
+        if self.start == self.end:
+            return f"p{self.start + 1}"
+        return f"p{self.start + 1}-{self.end + 1}"
+
+
+def segment_pages(page_categories: list[str]) -> list[PageSegment]:
+    """Group consecutive page categories into form segments.
+
+    A new segment starts on a new specific (non-NeedsReview) category. Pages that
+    classify as NeedsReview attach to the current segment, so instruction or
+    continuation pages stay with the form they follow.
+    """
+
+    segments: list[PageSegment] = []
+    for index, category in enumerate(page_categories):
+        if not segments:
+            segments.append(PageSegment(category, index, index))
+            continue
+        current = segments[-1]
+        if category == "NeedsReview" or category == current.category:
+            segments[-1] = PageSegment(current.category, current.start, index)
+        else:
+            segments.append(PageSegment(category, index, index))
+    return segments
+
+
 def safe_filename_part(name: str) -> str:
     """Keep filenames readable while removing characters unsafe on common systems."""
 
@@ -776,10 +868,30 @@ def process_file(
         logging.exception("Error processing %s", file_path)
         notes.append(f"ERROR: {exc}")
 
+    return _inventory_row(
+        original_name=file_path.name,
+        original_path=file_path,
+        destination_path=destination_path,
+        result=result,
+        ocr_used=ocr_used,
+        notes=notes,
+    )
+
+
+def _inventory_row(
+    original_name: str,
+    original_path: Path,
+    destination_path: Path | None,
+    result: ClassificationResult,
+    ocr_used: bool,
+    notes: list[str],
+) -> dict[str, object]:
+    """Build one inventory row shared by whole-file and split-segment processing."""
+
     return {
-        "Original File Name": file_path.name,
+        "Original File Name": original_name,
         "New File Name": destination_path.name if destination_path else "",
-        "Original Path": str(file_path),
+        "Original Path": str(original_path),
         "New Path": str(destination_path) if destination_path else "",
         "Detected Category": result.category,
         "Confidence": result.confidence,
@@ -791,6 +903,83 @@ def process_file(
         "OCR Used": "Yes" if ocr_used else "No",
         "Notes": " ".join(notes),
     }
+
+
+def _process_pdf_maybe_split(
+    file_path: Path, output_folder: Path, ocr_used_pages: list[tuple[str, bool]]
+) -> list[dict[str, object]] | None:
+    """File each form in a multi-form PDF separately. Return None if not combined.
+
+    Splitting always copies segments and leaves the original in place, even in
+    move mode, because pages cannot be moved out of the source PDF.
+    """
+
+    if len(ocr_used_pages) < 2:
+        return None
+
+    page_texts = [text for text, _ocr in ocr_used_pages]
+    segments = segment_pages([classify_text(text).category for text in page_texts])
+    if len(segments) < 2:
+        return None
+
+    rows: list[dict[str, object]] = []
+    for segment in segments:
+        indices = segment.page_indices
+        segment_text = "\n".join(page_texts[index] for index in indices)
+        result = classify_text(segment_text)
+        ocr_used = any(ocr_used_pages[index][1] for index in indices)
+
+        category_folder = output_folder / CATEGORY_FOLDERS[result.category]
+        segment_source_name = f"{file_path.stem}_{segment.page_label}{file_path.suffix}"
+        new_filename = build_new_filename(result.category, segment_source_name)
+        destination_path = unique_destination_path(category_folder, new_filename)
+        write_pdf_segment(file_path, indices, destination_path)
+
+        notes = [
+            f"Split from combined PDF {file_path.name} ({segment.page_label}); original left in place."
+        ]
+        notes.extend(note for note in result.notes if note not in notes)
+        logging.info(
+            "Split %s %s -> %s (%s, %s)",
+            file_path.name,
+            segment.page_label,
+            destination_path,
+            result.category,
+            result.confidence,
+        )
+        rows.append(
+            _inventory_row(
+                original_name=f"{file_path.name} ({segment.page_label})",
+                original_path=file_path,
+                destination_path=destination_path,
+                result=result,
+                ocr_used=ocr_used,
+                notes=notes,
+            )
+        )
+    return rows
+
+
+def process_document(
+    file_path: Path,
+    output_folder: Path,
+    move: bool,
+    debug_folder: Path | None = None,
+    split_combined: bool = True,
+) -> list[dict[str, object]]:
+    """Process one upload, splitting multi-form PDFs into separate filed forms."""
+
+    if split_combined and file_path.suffix.lower() == ".pdf":
+        try:
+            pages = extract_pdf_page_texts(file_path)
+            rows = _process_pdf_maybe_split(file_path, output_folder, pages)
+        except Exception:  # Fall back to whole-file filing, which is always safe.
+            logging.exception("Split analysis failed for %s; filing whole file.", file_path)
+            rows = None
+        if rows is not None:
+            return rows
+
+    return [process_file(file_path, output_folder, move, debug_folder)]
 
 
 def write_inventory(rows: list[dict[str, object]], output_folder: Path) -> Path:
@@ -823,6 +1012,7 @@ def run_sort(
     input_folder: Path,
     move: bool = False,
     save_extracted_text: bool = False,
+    split_combined: bool = True,
     status_callback=None,
 ) -> dict[str, object]:
     """Sort one folder and return output paths plus the inventory rows.
@@ -836,13 +1026,16 @@ def run_sort(
     setup_logging(output_folder)
     logging.info("Starting tax document sort for %s", input_folder)
     logging.info("Default safety mode: %s", "MOVE" if move else "COPY")
+    logging.info("Combined-PDF splitting: %s", "ON" if split_combined else "OFF")
 
     files = list(iter_supported_files(input_folder, output_folder))
     rows: list[dict[str, object]] = []
     for index, file_path in enumerate(files, start=1):
         if status_callback:
             status_callback(f"Processing {index} of {len(files)}: {file_path.name}")
-        rows.append(process_file(file_path, output_folder, move, debug_folder))
+        rows.extend(
+            process_document(file_path, output_folder, move, debug_folder, split_combined)
+        )
 
     inventory_path = write_inventory(rows, output_folder)
     logging.info("Inventory written to %s", inventory_path)
@@ -855,7 +1048,7 @@ def run_sort(
         "debug_folder": debug_folder,
         "rows": rows,
         "total_files": len(rows),
-        "summary": f"Sorted {len(rows)} supported file(s).",
+        "summary": f"Filed {len(rows)} document(s), including any split combined PDFs.",
     }
 
 
@@ -885,7 +1078,10 @@ def main() -> int:
         return 1
 
     result = run_sort(
-        input_folder, move=args.move, save_extracted_text=args.save_extracted_text
+        input_folder,
+        move=args.move,
+        save_extracted_text=args.save_extracted_text,
+        split_combined=not args.no_split,
     )
     print(f"Finished. Processed {result['total_files']} supported file(s).")
     print(f"Output folder: {result['output_folder']}")

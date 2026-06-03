@@ -23,6 +23,7 @@ class ToolContext:
     input_folder: Path
     move: bool = False
     save_extracted_text: bool = False
+    split_combined: bool = True
     status_callback: Callable[[str], None] | None = None
 
     def status(self, message: str) -> None:
@@ -45,6 +46,7 @@ def _run_sorter(context: ToolContext) -> dict:
         context.input_folder,
         move=context.move,
         save_extracted_text=context.save_extracted_text,
+        split_combined=context.split_combined,
         status_callback=context.status_callback,
     )
 
@@ -107,6 +109,11 @@ def main() -> int:
         action="store_true",
         help="Save selectable/OCR/combined text and scores for troubleshooting.",
     )
+    parser.add_argument(
+        "--no-split",
+        action="store_true",
+        help="Do not split combined PDFs that contain more than one form type.",
+    )
     args = parser.parse_args()
 
     keys = [key.strip() for key in args.tools.split(",") if key.strip()]
@@ -126,6 +133,7 @@ def main() -> int:
         input_folder=folder,
         move=args.move,
         save_extracted_text=args.save_extracted_text,
+        split_combined=not args.no_split,
         status_callback=lambda message: print(message),
     )
     results = run_tools(keys, context)

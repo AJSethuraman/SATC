@@ -6,10 +6,14 @@ This is a local-only Python prototype that bundles small tax tools you can run i
 
 Pick one or more tools in the desktop app (they run top to bottom):
 
-1. **Sort Documents** — classify uploads and copy (or move) them into category folders with an inventory workbook.
-2. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, and **1099-R** forms into `Extracted_Form_Data.xlsx` (one sheet per form type).
+1. **Sort Documents** — classify uploads and copy (or move) them into category folders with an inventory workbook. When a single PDF contains more than one form type, it is **split** into one filed PDF per form (see below).
+2. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, **1099-R**, **1099-G**, **1099-K**, **SSA-1099**, **1098 (Mortgage)**, **1098-T**, **1099-B**, and **Schedule K-1** into `Extracted_Form_Data.xlsx` (one sheet per form type).
 
-Extraction is local and rule-based: it uses label-anchored regular expressions over the same selectable-text/OCR pipeline as the sorter. It is **assistive only** — every value should be verified against the source document, and anything the rules cannot read confidently is left blank with the row flagged for manual entry.
+Extraction is local and rule-based: it uses label-anchored regular expressions over the same selectable-text/OCR pipeline as the sorter. It is **assistive only** — every value should be verified against the source document, and anything the rules cannot read confidently is left blank with the row flagged for manual entry. 1099-B is transactional and is always flagged for manual review.
+
+### Splitting combined PDFs
+
+When "Split combined PDFs" is on (the default), the sorter classifies each page of a PDF, groups consecutive pages into forms, and writes one filed PDF per form (for example `W2_clientupload_p1.pdf` and `1099_R_clientupload_p2-3.pdf`). Instruction/continuation pages stay attached to the form they follow, and pages of the same form type are kept together. Splitting always **copies** segments and leaves the original PDF untouched, even in move mode, so nothing is lost. The Extract Form Data tool also reads PDFs page by page, so a combined upload yields one extracted row per form. Turn this off with the desktop "Split combined PDFs" checkbox or the `--no-split` CLI flag.
 
 ## Easiest way to use it on Windows
 
@@ -70,7 +74,7 @@ Run the sorter against a folder of uploads and it will:
 - The script never deletes original files separately.
 - If a file fails, the error is logged and the script continues with the remaining files.
 - This is a prototype and should not replace human review. Anything uncertain goes to `99_Needs_Review`.
-- Combined PDFs are not split yet. If multiple document types appear to match one file, the inventory flags it for manual review.
+- Combined PDFs that contain multiple form types are split into one filed PDF per form. Splitting always copies and never deletes the original. Two of the same form type on consecutive pages are kept together, so verify split output when several of one form are combined.
 
 ## Classification rules
 
@@ -225,7 +229,7 @@ python test_sort_tax_docs.py
 python test_extract_form_data.py
 ```
 
-`test_extract_form_data.py` covers field extraction for W-2, 1099-NEC, 1099-INT, 1099-DIV, and 1099-R using fake form text, including the case where a form title repeats a box label and the amount-format rules that ignore bare box numbers and years.
+`test_sort_tax_docs.py` also covers combined-PDF page segmentation. `test_extract_form_data.py` covers field extraction for every supported form (W-2, 1099-NEC, 1099-INT, 1099-DIV, 1099-R, 1099-G, 1099-K, SSA-1099, 1098 Mortgage, 1098-T, 1099-B, K-1) using fake form text, including the case where a form title repeats a box label and the amount-format rules that ignore bare box numbers and years.
 
 These tests do not use real taxpayer data. They cover exact W-2 text, W-2 structural indicators, PDF OCR fallback behavior, 1099-NEC vs W-2, brokerage priority, 1099-MISC strictness, 1098-T, mortgage 1098, 1099-G, 1099-K, SSA-1099, OCR hyphen recovery, generic tax statements, and random receipts.
 
@@ -255,7 +259,7 @@ Packaging is optional and is not required to run the prototype.
 
 ## Limitations in this prototype
 
-- It does not split combined PDFs.
+- Combined-PDF splitting groups by form type; it does not separate two of the same form type on adjacent pages into different files.
 - Form data extraction is best-effort and assistive. It reads common labeled boxes with local regex rules; layouts vary, so always verify extracted values and fill blanks by hand. Amounts must include cents or a thousands separator to be captured (this avoids mistaking box numbers and years for dollar values).
 - It does not connect to Drake Tax or any other tax software.
 - It does not use APIs, paid services, AI, or machine learning.

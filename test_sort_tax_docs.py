@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 import sort_tax_docs
-from sort_tax_docs import classify_text
+from sort_tax_docs import classify_text, segment_pages
 
 
 class ClassificationTests(unittest.TestCase):
@@ -175,6 +175,40 @@ class PdfFallbackTests(unittest.TestCase):
         )
         self.assertTrue(ocr_used)
         self.assertEqual(result.category, "NeedsReview")
+
+
+class SegmentPagesTests(unittest.TestCase):
+    """Combined-PDF page segmentation (pure logic, no PDF rendering)."""
+
+    def segments(self, categories):
+        return [(s.category, s.start, s.end) for s in segment_pages(categories)]
+
+    def test_three_distinct_forms_split(self) -> None:
+        self.assertEqual(
+            self.segments(["W2", "1099_R", "1099_INT_DIV"]),
+            [("W2", 0, 0), ("1099_R", 1, 1), ("1099_INT_DIV", 2, 2)],
+        )
+
+    def test_needs_review_page_attaches_to_previous_form(self) -> None:
+        # A 1099-R followed by an instructions page stays one segment.
+        self.assertEqual(self.segments(["1099_R", "NeedsReview"]), [("1099_R", 0, 1)])
+
+    def test_same_form_pages_merge(self) -> None:
+        self.assertEqual(self.segments(["W2", "NeedsReview", "W2"]), [("W2", 0, 2)])
+
+    def test_leading_cover_page_is_its_own_segment(self) -> None:
+        self.assertEqual(
+            self.segments(["NeedsReview", "W2", "NeedsReview"]),
+            [("NeedsReview", 0, 0), ("W2", 1, 2)],
+        )
+
+    def test_all_unknown_is_single_segment(self) -> None:
+        self.assertEqual(self.segments(["NeedsReview", "NeedsReview"]), [("NeedsReview", 0, 1)])
+
+    def test_page_label_formatting(self) -> None:
+        segments = segment_pages(["W2", "1099_R", "1099_R"])
+        self.assertEqual(segments[0].page_label, "p1")
+        self.assertEqual(segments[1].page_label, "p2-3")
 
 
 if __name__ == "__main__":

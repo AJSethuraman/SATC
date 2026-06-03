@@ -163,12 +163,14 @@ if PYSIDE_AVAILABLE:
             input_folder: Path,
             move: bool,
             save_extracted_text: bool,
+            split_combined: bool,
         ) -> None:
             super().__init__()
             self.tool_keys = tool_keys
             self.input_folder = input_folder
             self.move = move
             self.save_extracted_text = save_extracted_text
+            self.split_combined = split_combined
 
         def run(self) -> None:
             try:
@@ -176,6 +178,7 @@ if PYSIDE_AVAILABLE:
                     input_folder=self.input_folder,
                     move=self.move,
                     save_extracted_text=self.save_extracted_text,
+                    split_combined=self.split_combined,
                     status_callback=self.status_changed.emit,
                 )
                 results = tax_tools.run_tools(self.tool_keys, context)
@@ -286,8 +289,11 @@ if PYSIDE_AVAILABLE:
             advanced_layout = QHBoxLayout(self.advanced_panel)
             advanced_layout.setContentsMargins(0, 8, 0, 0)
             self.move_checkbox = QCheckBox("Move files instead of copy")
+            self.split_checkbox = QCheckBox("Split combined PDFs (multi-form)")
+            self.split_checkbox.setChecked(True)
             self.debug_checkbox = QCheckBox("Save extracted text debug files")
             advanced_layout.addWidget(self.move_checkbox)
+            advanced_layout.addWidget(self.split_checkbox)
             advanced_layout.addWidget(self.debug_checkbox)
             advanced_layout.addStretch()
             self.advanced_panel.hide()
@@ -425,6 +431,7 @@ if PYSIDE_AVAILABLE:
                 self.selected_folder,
                 move=self.move_checkbox.isChecked(),
                 save_extracted_text=self.debug_checkbox.isChecked(),
+                split_combined=self.split_checkbox.isChecked(),
             )
             self.worker.status_changed.connect(self.status_label.setText)
             self.worker.finished_successfully.connect(self.on_tools_finished)

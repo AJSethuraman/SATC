@@ -116,6 +116,102 @@ class RExtractionTests(unittest.TestCase):
         self.assertEqual(result.values["box7_distribution_code"], "7")
 
 
+FAKE_1099_G = (
+    "Form 1099-G 2024 Certain Government Payments "
+    "PAYER'S TIN 11-2223333 RECIPIENT'S TIN 555-66-7777 "
+    "1 Unemployment compensation 4800.00 "
+    "2 State or local income tax refunds, credits, or offsets 320.00 "
+    "4 Federal income tax withheld 480.00"
+)
+
+FAKE_1099_K = (
+    "Form 1099-K 2024 Payment Card and Third Party Network Transactions "
+    "PAYER'S TIN 33-4445555 PAYEE'S TIN 666-77-8888 "
+    "1a Gross amount of payment card/third party network transactions 27500.00 "
+    "4 Federal income tax withheld 0.00"
+)
+
+FAKE_SSA_1099 = (
+    "Form SSA-1099 2024 Social Security Benefit Statement "
+    "Beneficiary's social security number 777-88-9999 "
+    "Box 3 Benefits paid in 2024 24000.00 "
+    "Box 5 Net benefits for 2024 24000.00 "
+    "Box 6 Voluntary federal income tax withheld 2400.00"
+)
+
+FAKE_1098_MORTGAGE = (
+    "Form 1098 Mortgage Interest Statement 2024 "
+    "RECIPIENT'S/LENDER'S TIN 44-5556666 PAYER'S/BORROWER'S TIN 888-99-0000 "
+    "1 Mortgage interest received from payer(s)/borrower(s) 13250.75 "
+    "5 Mortgage insurance premiums 600.00 "
+    "6 Points paid on purchase of principal residence 1500.00"
+)
+
+FAKE_1098_T = (
+    "Form 1098-T 2024 Tuition Statement "
+    "FILER'S TIN 22-1112222 Student's TIN 123-00-4567 "
+    "1 Payments received for qualified tuition and related expenses 12000.00 "
+    "5 Scholarships or grants 4000.00"
+)
+
+FAKE_K1 = (
+    "Schedule K-1 Form 1065 2024 Partner's Share of Income "
+    "Partnership's employer identification number 99-8887777 "
+    "Partner's identifying number 321-54-9876 "
+    "1 Ordinary business income (loss) 45000.00 "
+    "2 Net rental real estate income (loss) 5000.00 "
+    "5 Interest income 250.00"
+)
+
+
+class MoreFormsTests(unittest.TestCase):
+    def test_1099_g(self) -> None:
+        result = extract_form_fields("1099_G", FAKE_1099_G)
+        self.assertFalse(result.needs_review, result)
+        self.assertEqual(result.values["box1_unemployment_compensation"], "4800.00")
+        self.assertEqual(result.values["box2_state_income_tax_refunds"], "320.00")
+
+    def test_1099_k(self) -> None:
+        result = extract_form_fields("1099_K", FAKE_1099_K)
+        self.assertFalse(result.needs_review, result)
+        self.assertEqual(result.values["box1a_gross_amount"], "27500.00")
+
+    def test_ssa_1099(self) -> None:
+        result = extract_form_fields("SSA_1099", FAKE_SSA_1099)
+        self.assertFalse(result.needs_review, result)
+        self.assertEqual(result.values["beneficiary_ssn"], "777-88-9999")
+        self.assertEqual(result.values["box5_net_benefits"], "24000.00")
+        self.assertEqual(result.values["box6_voluntary_withholding"], "2400.00")
+
+    def test_1098_mortgage(self) -> None:
+        result = extract_form_fields("1098_Mortgage", FAKE_1098_MORTGAGE)
+        self.assertFalse(result.needs_review, result)
+        self.assertEqual(result.values["box1_mortgage_interest"], "13250.75")
+        self.assertEqual(result.values["box6_points_paid"], "1500.00")
+
+    def test_1098_tuition(self) -> None:
+        result = extract_form_fields("1098_Tuition", FAKE_1098_T)
+        self.assertFalse(result.needs_review, result)
+        self.assertEqual(result.values["box1_payments_received"], "12000.00")
+        self.assertEqual(result.values["box5_scholarships_or_grants"], "4000.00")
+
+    def test_k1(self) -> None:
+        result = extract_form_fields("K1", FAKE_K1)
+        self.assertFalse(result.needs_review, result)
+        self.assertEqual(result.values["entity_ein"], "99-8887777")
+        self.assertEqual(result.values["box1_ordinary_business_income"], "45000.00")
+        self.assertEqual(result.values["box5_interest_income"], "250.00")
+
+    def test_brokerage_always_flagged(self) -> None:
+        result = extract_form_fields(
+            "Brokerage_1099B",
+            "Consolidated 1099-B 2024 PAYER'S TIN 12-3456789 Proceeds 10000.00 Cost basis 8000.00",
+        )
+        # 1099-B is transactional, so it is always flagged for manual review.
+        self.assertTrue(result.needs_review, result)
+        self.assertIn("transactional", " ".join(result.notes).lower())
+
+
 class AmountFormatTests(unittest.TestCase):
     def test_thousands_separator_and_cents(self) -> None:
         result = extract_form_fields(
