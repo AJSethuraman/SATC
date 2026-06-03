@@ -12,8 +12,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+import compose_emails
 import extract_form_data
 import generate_documents
+import sign_documents
 import sort_tax_docs
 
 
@@ -26,6 +28,8 @@ class ToolContext:
     save_extracted_text: bool = False
     split_combined: bool = True
     document_templates: tuple[str, ...] | None = None
+    signature_path: str | None = None
+    signature_anchor: str = sign_documents.DEFAULT_ANCHOR
     status_callback: Callable[[str], None] | None = None
 
     def status(self, message: str) -> None:
@@ -69,6 +73,22 @@ def _run_generator(context: ToolContext) -> dict:
     )
 
 
+def _run_signer(context: ToolContext) -> dict:
+    return sign_documents.run_signing(
+        context.input_folder,
+        signature_path=context.signature_path,
+        anchor=context.signature_anchor,
+        status_callback=context.status_callback,
+    )
+
+
+def _run_emailer(context: ToolContext) -> dict:
+    return compose_emails.run_email_drafts(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 TOOLS: tuple[Tool, ...] = (
     Tool(
         "sort",
@@ -87,6 +107,18 @@ TOOLS: tuple[Tool, ...] = (
         "Generate Documents",
         "Fill engagement letters, invoices, and client letters from a clients.json/csv data file.",
         _run_generator,
+    ),
+    Tool(
+        "sign",
+        "Sign Documents",
+        "Stamp your signature image onto PDFs that carry a signature anchor phrase.",
+        _run_signer,
+    ),
+    Tool(
+        "email",
+        "Compose Email Drafts",
+        "Build review-ready .eml drafts per client with their documents attached (no auto-send).",
+        _run_emailer,
     ),
 )
 
@@ -130,6 +162,14 @@ def main() -> int:
         action="store_true",
         help="Do not split combined PDFs that contain more than one form type.",
     )
+    parser.add_argument(
+        "--signature", default="", help="Path to a signature image (PNG) for the sign tool."
+    )
+    parser.add_argument(
+        "--anchor",
+        default=sign_documents.DEFAULT_ANCHOR,
+        help="Anchor phrase the sign tool places the signature above.",
+    )
     args = parser.parse_args()
 
     keys = [key.strip() for key in args.tools.split(",") if key.strip()]
@@ -150,6 +190,8 @@ def main() -> int:
         move=args.move,
         save_extracted_text=args.save_extracted_text,
         split_combined=not args.no_split,
+        signature_path=args.signature or None,
+        signature_anchor=args.anchor,
         status_callback=lambda message: print(message),
     )
     results = run_tools(keys, context)

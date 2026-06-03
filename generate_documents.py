@@ -51,21 +51,29 @@ def _escape(value: object) -> str:
     )
 
 
-def _render_fields(text: str, context: dict) -> str:
-    return _FIELD_RE.sub(lambda match: _escape(context.get(match.group(1), "")), text)
+def _render_fields(text: str, context: dict, escape: bool = True) -> str:
+    def replace(match: re.Match) -> str:
+        value = context.get(match.group(1), "")
+        return _escape(value) if escape else str(value)
+
+    return _FIELD_RE.sub(replace, text)
 
 
-def render_template(template_text: str, context: dict) -> str:
-    """Render a template: repeating sections first, then simple field substitution."""
+def render_template(template_text: str, context: dict, escape: bool = True) -> str:
+    """Render a template: repeating sections first, then simple field substitution.
+
+    Set escape=False for plain-text output (for example email bodies), where HTML
+    escaping is not wanted.
+    """
 
     def section(match: re.Match) -> str:
         key, inner = match.group(1), match.group(2)
         value = context.get(key)
         if isinstance(value, list):
-            return "".join(_render_fields(inner, {**context, **item}) for item in value)
-        return _render_fields(inner, context) if value else ""
+            return "".join(_render_fields(inner, {**context, **item}, escape) for item in value)
+        return _render_fields(inner, context, escape) if value else ""
 
-    return _render_fields(_SECTION_RE.sub(section, template_text), context)
+    return _render_fields(_SECTION_RE.sub(section, template_text), context, escape)
 
 
 def referenced_fields(template_text: str) -> set[str]:
@@ -135,7 +143,9 @@ def available_templates(directory: Path, keys=None) -> dict[str, Path]:
     }
 
 
-def _client_slug(client: dict, index: int) -> str:
+def client_slug(client: dict, index: int = 1) -> str:
+    """A filesystem-safe identifier for a client, used in output file names."""
+
     name = str(client.get("client_name") or client.get("name") or f"client_{index}")
     return sort_tax_docs.safe_filename_part(name).replace(" ", "_")
 
@@ -179,7 +189,7 @@ def run_generation(input_folder, status_callback=None, templates=None) -> dict:
     template_text = {key: path.read_text(encoding="utf-8") for key, path in selected.items()}
     for index, client in enumerate(clients, start=1):
         context = augment_context(client)
-        slug = _client_slug(client, index)
+        slug = client_slug(client, index)
         if status_callback:
             status_callback(f"Generating documents for {slug} ({index} of {len(clients)})")
         for key, text in template_text.items():

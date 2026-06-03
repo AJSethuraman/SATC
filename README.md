@@ -9,6 +9,8 @@ Pick one or more tools in the desktop app (they run top to bottom):
 1. **Sort Documents** — classify uploads and copy (or move) them into category folders with an inventory workbook. When a single PDF contains more than one form type, it is **split** into one filed PDF per form (see below).
 2. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, **1099-R**, **1099-G**, **1099-K**, **SSA-1099**, **1098 (Mortgage)**, **1098-T**, **1099-B**, and **Schedule K-1**. Output is written two ways: a human-readable `Extracted_Form_Data.xlsx` (one sheet per form type) and machine-readable per-form CSVs in `Drake_Export/` for feeding a downstream entry script.
 3. **Generate Documents** — fill editable templates (engagement letter, invoice, extension/cover letter, client organizer letter) from a `clients.json`/`clients.csv` data file and write finished HTML to `Generated_Documents/`.
+4. **Sign Documents** — stamp your signature image onto PDFs that carry a signature anchor phrase, writing signed copies to `Signed_Documents/`.
+5. **Compose Email Drafts** — build a review-ready `.eml` per client (subject/body from a template, that client's generated and signed files attached) in `Email_Drafts/`. Nothing is sent automatically and no credentials are stored.
 
 Extraction is local and rule-based: it uses label-anchored regular expressions over the same selectable-text/OCR pipeline as the sorter. It is **assistive only** — every value should be verified against the source document, and anything the rules cannot read confidently is left blank with the row flagged for manual entry. 1099-B is transactional and is always flagged for manual review.
 
@@ -143,8 +145,12 @@ python tax_tools.py "/path/to/Uploads"                  # runs sort, extract, ge
 python tax_tools.py "/path/to/Uploads" --tools sort     # just the sorter
 python tax_tools.py "/path/to/Uploads" --tools extract  # just the extractor
 python tax_tools.py "/path/to/Uploads" --tools generate # just document generation
+python tax_tools.py "/path/to/Uploads" --tools sign --signature sig.png
+python tax_tools.py "/path/to/Uploads" --tools email    # compose .eml drafts
 python extract_form_data.py "/path/to/Uploads"          # extractor directly
 python generate_documents.py "/path/to/Uploads"         # generator directly
+python sign_documents.py "/path/to/Uploads" --signature sig.png
+python compose_emails.py "/path/to/Uploads"             # email drafts directly
 ```
 
 The CLI workflows remain available for troubleshooting and automation. The older Flask browser app (`app.py`) is still present as optional legacy tooling, but the primary workflow is the PySide6 desktop app.
@@ -162,6 +168,19 @@ Templates use a tiny Mustache-style syntax:
 - `{{field}}` inserts a value from the client record (HTML-escaped). Single braces such as CSS rules are left alone.
 - `{{#line_items}} ... {{/line_items}}` repeats the block once per item in a list; inside it, `{{description}}`/`{{amount}}` refer to each item's fields.
 - The invoice `total` is computed automatically from the line-item amounts when not supplied, and `generated_date` defaults to today.
+
+### Signing documents
+
+The **Sign Documents** tool stamps a signature image onto PDFs locally. Put a `signature.png` in the folder (or pass `--signature path`) and the tool searches each PDF for an anchor phrase (default `Preparer Signature`) and places the signature just above it, saving a copy to `Signed_Documents/Signed_<name>.pdf`. Use `--anchor "..."` to match the phrase on your forms.
+
+This is a **visual stamp** of your own signature to save repetitive manual signing — it is not a cryptographic signature and not a client e-signature:
+
+- For tamper-evident signing, a certificate-based (PAdES) digital signature is the next step; it needs a signing certificate (`.p12`/`.pfx`) and an extra library.
+- For **binding client e-signatures** (for example Form 8879), use a compliant service such as Encyro. That space is regulated (identity verification/KBA and an audit trail) and should not be home-rolled; this tool deliberately stays a local preparer-side stamp.
+
+### Emailing documents
+
+The **Compose Email Drafts** tool turns each client record (that has an `email`) into a `.eml` file in `Email_Drafts/`, with the subject and body rendered from `document_templates/email_template.txt` and the client's generated/signed files attached. Open the `.eml` in your mail app, review it, and send it yourself — nothing is sent automatically and no email passwords are stored. Because tax documents contain PII, prefer a secure portal (such as Encyro) for sensitive delivery. Add an `attachments` list to a client record to attach extra files (paths relative to the folder).
 
 ## Detailed setup notes
 
@@ -267,6 +286,7 @@ Run the included fake-text classifier tests with:
 python test_sort_tax_docs.py
 python test_extract_form_data.py
 python test_generate_documents.py
+python test_email_and_sign.py
 python test_integration.py
 ```
 

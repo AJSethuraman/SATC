@@ -107,6 +107,8 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "sort": None,
         "extract": None,
         "generate": None,
+        "sign": None,
+        "email": None,
     }
 
     sort_result = results.get("sort")
@@ -143,6 +145,26 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
             summary["open_paths"]["Open Generated Documents"] = str(
                 generate_result["generated_folder"]
             )
+
+    sign_result = results.get("sign")
+    if sign_result is not None:
+        summary["sign"] = {
+            "signed_count": sign_result["signed_count"],
+            "warnings": sign_result["warnings"],
+        }
+        summary["tool_lines"].append(f"Sign Documents: {sign_result['summary']}")
+        if sign_result.get("signed_folder"):
+            summary["open_paths"]["Open Signed Documents"] = str(sign_result["signed_folder"])
+
+    email_result = results.get("email")
+    if email_result is not None:
+        summary["email"] = {
+            "draft_count": email_result["draft_count"],
+            "warnings": email_result["warnings"],
+        }
+        summary["tool_lines"].append(f"Compose Email Drafts: {email_result['summary']}")
+        if email_result.get("drafts_folder"):
+            summary["open_paths"]["Open Email Drafts"] = str(email_result["drafts_folder"])
 
     return summary
 
@@ -349,6 +371,8 @@ if PYSIDE_AVAILABLE:
                 "Open Extracted Data",
                 "Open Drake Export",
                 "Open Generated Documents",
+                "Open Signed Documents",
+                "Open Email Drafts",
             ]
             for label in button_labels:
                 button = QPushButton(label)
@@ -495,6 +519,12 @@ if PYSIDE_AVAILABLE:
                     f"Documents generated: {generate_result['document_count']} | "
                     f"With blank fields: {len(generate_result['warnings'])}"
                 )
+            sign_result = result.get("sign")
+            if sign_result is not None:
+                review_lines.append(f"PDFs signed: {sign_result['signed_count']}")
+            email_result = result.get("email")
+            if email_result is not None:
+                review_lines.append(f"Email drafts: {email_result['draft_count']}")
             self.needs_review_label.setText("     ".join(review_lines))
 
             self.category_list.clear()
