@@ -113,6 +113,8 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "invoice": None,
         "generate": None,
         "sign": None,
+        "engagement": None,
+        "form8879": None,
         "email": None,
         "encyro": None,
     }
@@ -194,6 +196,18 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"Sign Documents: {sign_result['summary']}")
         if sign_result.get("signed_folder"):
             summary["open_paths"]["Open Signed Documents"] = str(sign_result["signed_folder"])
+
+    for tracker_key, tracker_label in (("engagement", "Engagement Letter Tracker"),
+                                       ("form8879", "Form 8879 Tracker")):
+        tracker_result = results.get(tracker_key)
+        if tracker_result is not None:
+            summary[tracker_key] = {
+                "on_file_count": tracker_result["on_file_count"],
+                "outstanding_count": tracker_result["outstanding_count"],
+            }
+            summary["tool_lines"].append(f"{tracker_label}: {tracker_result['summary']}")
+            if tracker_result.get("status_folder"):
+                summary["open_paths"]["Open Status Reports"] = str(tracker_result["status_folder"])
 
     email_result = results.get("email")
     if email_result is not None:
@@ -462,6 +476,7 @@ if PYSIDE_AVAILABLE:
                 "Open Invoices",
                 "Open Generated Documents",
                 "Open Signed Documents",
+                "Open Status Reports",
                 "Open Email Drafts",
                 "Open Encyro Packets",
             ]
@@ -664,6 +679,12 @@ if PYSIDE_AVAILABLE:
             sign_result = result.get("sign")
             if sign_result is not None:
                 review_lines.append(f"PDFs signed: {sign_result['signed_count']}")
+            engagement_result = result.get("engagement")
+            if engagement_result is not None:
+                review_lines.append(f"Engagement letters outstanding: {engagement_result['outstanding_count']}")
+            form8879_result = result.get("form8879")
+            if form8879_result is not None:
+                review_lines.append(f"8879s outstanding: {form8879_result['outstanding_count']}")
             email_result = result.get("email")
             if email_result is not None:
                 review_lines.append(f"Email drafts: {email_result['draft_count']}")

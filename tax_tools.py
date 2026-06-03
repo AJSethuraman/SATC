@@ -21,6 +21,7 @@ import intake
 import invoice_calc
 import sign_documents
 import sort_tax_docs
+import status_tracker
 
 
 @dataclass
@@ -107,6 +108,20 @@ def _run_signer(context: ToolContext) -> dict:
     )
 
 
+def _run_engagement_tracker(context: ToolContext) -> dict:
+    return status_tracker.run_engagement_tracker(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
+def _run_8879_tracker(context: ToolContext) -> dict:
+    return status_tracker.run_8879_tracker(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 def _run_emailer(context: ToolContext) -> dict:
     return compose_emails.run_email_drafts(
         context.input_folder,
@@ -163,6 +178,18 @@ TOOLS: tuple[Tool, ...] = (
         "Sign Documents",
         "Stamp your signature image onto PDFs that carry a signature anchor phrase.",
         _run_signer,
+    ),
+    Tool(
+        "engagement",
+        "Engagement Letter Tracker",
+        "Report which clients have a signed engagement letter on file vs. outstanding.",
+        _run_engagement_tracker,
+    ),
+    Tool(
+        "form8879",
+        "Form 8879 Tracker",
+        "Report which clients have a signed Form 8879 (e-file authorization) on file.",
+        _run_8879_tracker,
     ),
     Tool(
         "email",
