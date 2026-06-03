@@ -89,6 +89,28 @@ class ClassificationTests(unittest.TestCase):
     def test_random_receipt_needs_review(self) -> None:
         self.assert_category("coffee receipt total customer service", "NeedsReview")
 
+    def test_clear_1099_g(self) -> None:
+        self.assert_category("Form 1099-G Certain Government Payments", "1099_G")
+
+    def test_1099_g_ocr_missing_hyphen(self) -> None:
+        self.assert_category("1099 G Certain Government Payments", "1099_G")
+
+    def test_unemployment_words_alone_need_review(self) -> None:
+        self.assert_category("unemployment compensation state agency payer", "NeedsReview")
+
+    def test_clear_1099_k(self) -> None:
+        self.assert_category(
+            "Form 1099-K Payment Card and Third Party Network Transactions", "1099_K"
+        )
+
+    def test_clear_ssa_1099(self) -> None:
+        self.assert_category("Form SSA-1099 Social Security Benefit Statement", "SSA_1099")
+
+    def test_ssa_1099_ocr_missing_hyphen_not_w2(self) -> None:
+        result = classify_text("SSA 1099 Social Security Benefit Statement")
+        self.assertEqual(result.category, "SSA_1099", result)
+        self.assertNotEqual(result.category, "W2")
+
 
 class PdfFallbackTests(unittest.TestCase):
     """Tests for selectable-PDF text vs OCR fallback behavior."""

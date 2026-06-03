@@ -19,7 +19,7 @@ PYSIDE_AVAILABLE = importlib.util.find_spec("PySide6") is not None
 
 if PYSIDE_AVAILABLE:
     from PySide6.QtCore import Qt, QThread, QUrl, Signal
-    from PySide6.QtGui import QDesktopServices, QFont
+    from PySide6.QtGui import QColor, QDesktopServices, QFont
     from PySide6.QtWidgets import (
         QApplication,
         QCheckBox,
@@ -395,6 +395,7 @@ if PYSIDE_AVAILABLE:
             for category, count in result["category_counts"].items():
                 self.category_list.addItem(f"{category}: {count}")
             rows = result["rows"]
+            review_background = QColor("#FFF8E8")
             self.results_table.setRowCount(len(rows))
             for row_index, row in enumerate(rows):
                 values = [
@@ -403,8 +404,12 @@ if PYSIDE_AVAILABLE:
                     row.get("Confidence", ""),
                     row.get("Notes", ""),
                 ]
+                highlight = is_manual_review_row(row)
                 for column_index, value in enumerate(values):
-                    self.results_table.setItem(row_index, column_index, QTableWidgetItem(str(value)))
+                    item = QTableWidgetItem(str(value))
+                    if highlight:
+                        item.setBackground(review_background)
+                    self.results_table.setItem(row_index, column_index, item)
             self.results_table.resizeColumnsToContents()
 
         def open_result_path(self, key: str) -> None:

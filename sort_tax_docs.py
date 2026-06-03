@@ -8,6 +8,7 @@ obvious tax documents into category folders and write an inventory workbook.
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import logging
 import re
@@ -23,7 +24,6 @@ SUPPORTED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".tif", ".tiff"}
 OUTPUT_FOLDER_NAME = "Organized_Tax_Documents"
 LOG_FILE_NAME = "processing_log.txt"
 INVENTORY_FILE_NAME = "Document_Inventory.xlsx"
-MIN_SELECTABLE_TEXT_CHARS = 50
 MULTIPLE_MATCH_NOTE = "Multiple possible document types detected; manual review recommended."
 
 COMMON_TESSERACT_PATHS = (
@@ -43,6 +43,9 @@ CATEGORY_FOLDERS = {
     "Brokerage_1099B": "09_Brokerage_1099B",
     "ID": "10_ID",
     "1098_Tuition": "11_1098_Tuition",
+    "1099_G": "12_1099_G",
+    "1099_K": "13_1099_K",
+    "SSA_1099": "14_SSA_1099",
     "NeedsReview": "99_Needs_Review",
 }
 
@@ -119,6 +122,16 @@ SCORING_RULES: tuple[ScoringRule, ...] = (
     ScoringRule("ID", "DRIVER'S LICENSE", 8),
     ScoringRule("ID", "IDENTIFICATION CARD", 8),
     ScoringRule("ID", "STATE ID", 8),
+    ScoringRule("1099_G", "FORM 1099-G", 10),
+    ScoringRule("1099_G", "1099-G", 9),
+    ScoringRule("1099_G", "CERTAIN GOVERNMENT PAYMENTS", 8),
+    ScoringRule("1099_G", "UNEMPLOYMENT COMPENSATION", 5),
+    ScoringRule("1099_K", "FORM 1099-K", 10),
+    ScoringRule("1099_K", "1099-K", 9),
+    ScoringRule("1099_K", "PAYMENT CARD AND THIRD PARTY NETWORK TRANSACTIONS", 8),
+    ScoringRule("SSA_1099", "FORM SSA-1099", 10),
+    ScoringRule("SSA_1099", "SSA-1099", 9),
+    ScoringRule("SSA_1099", "SOCIAL SECURITY BENEFIT STATEMENT", 8),
 )
 
 BROKERAGE_INDICATORS = (
@@ -166,15 +179,15 @@ CATEGORY_THRESHOLDS = {
     "K1": 8,
     "Brokerage_1099B": 8,
     "ID": 8,
+    "1099_G": 8,
+    "1099_K": 8,
+    "SSA_1099": 8,
 }
 REVIEW_SCORE_THRESHOLD = 4
 CLOSE_SCORE_DELTA = 3
 MIN_RELIABLE_TEXT_CHARS = 8
 CLASSIFICATION_CONFIDENCE_RANK = {"Low": 0, "Medium": 1, "High": 2}
 DEBUG_TEXT_FOLDER_NAME = "_extracted_text_debug"
-
-# Backward-compatible alias used by the PDF OCR skip helper.
-RULES = SCORING_RULES
 
 
 def parse_args() -> argparse.Namespace:
@@ -370,7 +383,9 @@ def ocr_pdf(file_path: Path) -> str:
         for page_number, page in enumerate(document, start=1):
             logging.debug("OCR PDF page %s of %s", page_number, file_path.name)
             pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
-            image = Image.frombytes("RGB", [pixmap.width, pixmap.height], pixmap.samples)
+            # Decode via PNG so grayscale/CMYK pages are handled correctly instead
+            # of assuming a fixed RGB channel layout from the raw samples buffer.
+            image = Image.open(io.BytesIO(pixmap.tobytes("png")))
             text_parts.append(pytesseract.image_to_string(preprocess_image_for_ocr(image)))
     return "\n".join(text_parts).strip()
 
@@ -410,10 +425,12 @@ def normalize_text(text: str) -> str:
     text = text.upper()
 
     # OCR sometimes drops hyphens in form names. Reinsert them for matching.
-    text = re.sub(r"\b1099\s+(NEC|MISC|INT|DIV|R|B)\b", r"1099-\1", text)
-    text = re.sub(r"\bFORM\s+1099\s+(NEC|MISC|INT|DIV|R|B)\b", r"FORM 1099-\1", text)
+    text = re.sub(r"\b1099\s+(NEC|MISC|INT|DIV|R|B|G|K)\b", r"1099-\1", text)
+    text = re.sub(r"\bFORM\s+1099\s+(NEC|MISC|INT|DIV|R|B|G|K)\b", r"FORM 1099-\1", text)
     text = re.sub(r"\b1098\s+T\b", "1098-T", text)
     text = re.sub(r"\bFORM\s+1098\s+T\b", "FORM 1098-T", text)
+    text = re.sub(r"\bSSA\s+1099\b", "SSA-1099", text)
+    text = re.sub(r"\bFORM\s+SSA\s+1099\b", "FORM SSA-1099", text)
     text = re.sub(r"\bW\s+2\b", "W-2", text)
     text = re.sub(r"\bFORM\s+W\s+2\b", "FORM W-2", text)
     return re.sub(r"\s+", " ", text).strip()

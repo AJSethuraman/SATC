@@ -41,6 +41,9 @@ Run the sorter against a folder of uploads and it will:
    - `09_Brokerage_1099B`
    - `10_ID`
    - `11_1098_Tuition`
+   - `12_1099_G`
+   - `13_1099_K`
+   - `14_SSA_1099`
    - `99_Needs_Review`
 3. Process common file types: PDF, JPG, JPEG, PNG, TIFF, and TIF.
 4. Try selectable PDF text first; if it does not produce a high-confidence classification, OCR the PDF and classify combined selectable + OCR text.
@@ -77,6 +80,9 @@ The sorter uses conservative rule-based scoring only. Strong official identifier
 | 1095_A | `1095-A`, `Health Insurance Marketplace Statement` |
 | K1 | `Schedule K-1` |
 | ID | `Driver License`, `Driver's License`, `State ID`, `Identification Card` |
+| 1099_G | `Form 1099-G`, `1099-G`, `Certain Government Payments` (`Unemployment Compensation` alone is not enough) |
+| 1099_K | `Form 1099-K`, `1099-K`, `Payment Card and Third Party Network Transactions` |
+| SSA_1099 | `Form SSA-1099`, `SSA-1099`, `Social Security Benefit Statement` |
 | NeedsReview | No supported keyword found |
 
 Brokerage scoring is designed to beat 1099-INT/DIV when consolidated brokerage evidence is present. W-2 requires `Form W-2`, `Wage and Tax Statement`, or a cluster of at least 4 W-2 structural field labels; generic words such as `wages`, `withholding`, `employer`, or `employee` are not enough. 1099-MISC requires `1099-MISC`; mortgage classification does **not** rely on generic `Form 1098`, `lender`, or `interest` alone.
@@ -198,7 +204,7 @@ Run the included fake-text classifier tests with:
 python test_sort_tax_docs.py
 ```
 
-These tests do not use real taxpayer data. They cover exact W-2 text, W-2 structural indicators, PDF OCR fallback behavior, 1099-NEC vs W-2, brokerage priority, 1099-MISC strictness, 1098-T, mortgage 1098, generic tax statements, and random receipts.
+These tests do not use real taxpayer data. They cover exact W-2 text, W-2 structural indicators, PDF OCR fallback behavior, 1099-NEC vs W-2, brokerage priority, 1099-MISC strictness, 1098-T, mortgage 1098, 1099-G, 1099-K, SSA-1099, OCR hyphen recovery, generic tax statements, and random receipts.
 
 ## Simple fake manual test with no real client data
 
