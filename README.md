@@ -7,6 +7,7 @@ This is a local-only Python prototype that bundles small tax tools you can run i
 Pick one or more tools in the desktop app (they run top to bottom):
 
 0. **Validate Config** — a read-only pre-flight check of `clients.json` and the config files (firm, fee schedule, intake fields, checklist map) that flags problems before a run.
+0b. **Import Clients** — import an existing CSV or Excel client list into `clients.json`, mapping common columns automatically (overridable via `import_map.json`) and appending only clients not already present.
 1. **Client Intake** — generate a dynamic fillable intake form from an editable field schema, and compile returned responses into `clients.json` (appending only new clients). Feeds every tool below.
 2. **Sort Documents** — classify uploads and copy (or move) them into category folders with an inventory workbook. When a single PDF contains more than one form type, it is **split** into one filed PDF per form (see below).
 3. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, **1099-R**, **1099-G**, **1099-K**, **SSA-1099**, **1098 (Mortgage)**, **1098-T**, **1099-B**, and **Schedule K-1**. Output is written two ways: a human-readable `Extracted_Form_Data.xlsx` (one sheet per form type) and machine-readable per-form CSVs in `Drake_Export/` for feeding a downstream entry script.
@@ -405,6 +406,7 @@ Run the included fake-text classifier tests with:
 ```bash
 python test_core.py
 python test_validate_config.py
+python test_import_clients.py
 python test_intake.py
 python test_checklist.py
 python test_invoice_calc.py

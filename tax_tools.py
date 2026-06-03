@@ -20,6 +20,7 @@ import diagnostics
 import export_encyro
 import extract_form_data
 import generate_documents
+import import_clients
 import intake
 import invoice_calc
 import payments
@@ -64,6 +65,13 @@ class Tool:
 
 def _run_validate(context: ToolContext) -> dict:
     return validate_config.run_validation(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
+def _run_import(context: ToolContext) -> dict:
+    return import_clients.run_import(
         context.input_folder,
         status_callback=context.status_callback,
     )
@@ -217,6 +225,13 @@ TOOLS: tuple[Tool, ...] = (
         "Validate Config",
         "Pre-flight check of clients.json and config files for problems (read-only).",
         _run_validate,
+        group=_INTAKE_DOCS,
+    ),
+    Tool(
+        "import",
+        "Import Clients",
+        "Import an existing CSV/Excel client list into clients.json (deduped append).",
+        _run_import,
         group=_INTAKE_DOCS,
     ),
     Tool(

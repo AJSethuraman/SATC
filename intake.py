@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import core
 import sort_tax_docs
 
 INTAKE_FOLDER_NAME = "Intake"
@@ -224,7 +225,7 @@ def compile_responses(response_paths: list[Path]) -> tuple[list[dict], list[str]
 
 
 def _merge_into_clients(clients_file: Path, new_records: list[dict]) -> tuple[int, int]:
-    """Append only records whose email is not already present. Returns (added, skipped)."""
+    """Append only records not already present (by email then name). Returns (added, skipped)."""
 
     existing: list[dict] = []
     if clients_file.exists():
@@ -234,25 +235,9 @@ def _merge_into_clients(clients_file: Path, new_records: list[dict]) -> tuple[in
         except json.JSONDecodeError:
             existing = []
 
-    seen_emails = {str(c.get("email", "")).lower() for c in existing if c.get("email")}
-    seen_names = {str(c.get("client_name", "")).lower() for c in existing}
-    added = skipped = 0
-    for record in new_records:
-        email = str(record.get("email", "")).lower()
-        name = str(record.get("client_name", "")).lower()
-        # Skip if the email OR the name is already present, so a returning client whose
-        # earlier record lacked an email is not duplicated when they later add one.
-        if (email and email in seen_emails) or (name and name in seen_names):
-            skipped += 1
-            continue
-        existing.append(record)
-        if email:
-            seen_emails.add(email)
-        seen_names.add(name)
-        added += 1
-
+    merged, added, skipped = core.append_new_clients(existing, new_records)
     if added:
-        clients_file.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+        clients_file.write_text(json.dumps(merged, indent=2), encoding="utf-8")
     return added, skipped
 
 

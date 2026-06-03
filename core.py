@@ -57,3 +57,32 @@ def file_belongs_to_other_client(name: str, longer: list[str]) -> bool:
 
     core = name[len("Signed_"):] if name.startswith("Signed_") else name
     return any(core.startswith(f"{other}_") for other in longer)
+
+
+def append_new_clients(existing: list[dict], new: list[dict]) -> tuple[list[dict], int, int]:
+    """Append only the new client records not already present, deduped by email then name.
+
+    Returns (merged_list, added, skipped). A record is considered already present if its
+    email OR its client_name matches an existing record, so a returning client whose
+    earlier record lacked an email is not duplicated once they provide one. Pure: the
+    input ``existing`` list is not mutated.
+    """
+
+    merged = list(existing)
+    seen_emails = {str(c.get("email", "")).lower() for c in merged if c.get("email")}
+    seen_names = {str(c.get("client_name", "")).lower() for c in merged if c.get("client_name")}
+    added = skipped = 0
+    for record in new:
+        email = str(record.get("email", "")).lower()
+        name = str(record.get("client_name", "")).lower()
+        if (email and email in seen_emails) or (name and name in seen_names):
+            skipped += 1
+            continue
+        merged.append(record)
+        if email:
+            seen_emails.add(email)
+        if name:
+            seen_names.add(name)
+        added += 1
+    return merged, added, skipped
+

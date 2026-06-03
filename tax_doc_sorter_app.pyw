@@ -109,6 +109,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "open_paths": {},
         "sort": None,
         "validate": None,
+        "import": None,
         "intake": None,
         "extract": None,
         "diagnostics": None,
@@ -137,6 +138,13 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"Validate Config: {validate_result['summary']}")
         if validate_result.get("validation_folder"):
             summary["open_paths"]["Open Validation"] = str(validate_result["validation_folder"])
+
+    import_result = results.get("import")
+    if import_result is not None:
+        summary["import"] = {"added": import_result["added"], "imported": import_result["imported"]}
+        summary["tool_lines"].append(f"Import Clients: {import_result['summary']}")
+        if import_result.get("clients_file"):
+            summary["open_paths"]["Open Clients File"] = str(import_result["clients_file"])
 
     intake_result = results.get("intake")
     if intake_result is not None:
@@ -650,6 +658,7 @@ if PYSIDE_AVAILABLE:
             button_labels = [
                 "Open Parent Folder",
                 "Open Validation",
+                "Open Clients File",
                 "Open Organized Folder",
                 "Open Intake Folder",
                 "Open Inventory",
@@ -887,6 +896,9 @@ if PYSIDE_AVAILABLE:
                     f"Config errors: {validate_result['error_count']} | "
                     f"warnings: {validate_result['warning_count']}"
                 )
+            import_result = result.get("import")
+            if import_result is not None:
+                review_lines.append(f"Clients imported: {import_result['added']}")
             intake_result = result.get("intake")
             if intake_result is not None:
                 review_lines.append(

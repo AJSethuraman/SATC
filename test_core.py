@@ -45,5 +45,24 @@ class OwnershipTests(unittest.TestCase):
         self.assertFalse(core.file_belongs_to_other_client("Jo_Sample_invoice.html", []))
 
 
+class AppendClientsTests(unittest.TestCase):
+    def test_dedupe_by_email_then_name(self) -> None:
+        existing = [{"client_name": "A", "email": "a@x.com"}]
+        new = [
+            {"client_name": "A", "email": "a@x.com"},   # dup email
+            {"client_name": "A"},                        # dup name (no email)
+            {"client_name": "B", "email": "b@x.com"},    # new
+        ]
+        merged, added, skipped = core.append_new_clients(existing, new)
+        self.assertEqual(added, 1)
+        self.assertEqual(skipped, 2)
+        self.assertEqual([c["client_name"] for c in merged], ["A", "B"])
+
+    def test_does_not_mutate_input(self) -> None:
+        existing = [{"client_name": "A"}]
+        core.append_new_clients(existing, [{"client_name": "B"}])
+        self.assertEqual(len(existing), 1)  # original untouched
+
+
 if __name__ == "__main__":
     unittest.main()
