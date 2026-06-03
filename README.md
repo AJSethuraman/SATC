@@ -227,7 +227,10 @@ Run the included fake-text classifier tests with:
 ```bash
 python test_sort_tax_docs.py
 python test_extract_form_data.py
+python test_integration.py
 ```
+
+`test_integration.py` generates fake text PDFs with PyMuPDF and runs the real sort + extract pipeline end to end (including combined-PDF splitting and per-page extraction). It requires the runtime dependencies and skips automatically when they are not installed.
 
 `test_sort_tax_docs.py` also covers combined-PDF page segmentation. `test_extract_form_data.py` covers field extraction for every supported form (W-2, 1099-NEC, 1099-INT, 1099-DIV, 1099-R, 1099-G, 1099-K, SSA-1099, 1098 Mortgage, 1098-T, 1099-B, K-1) using fake form text, including the case where a form title repeats a box label and the amount-format rules that ignore bare box numbers and years.
 
