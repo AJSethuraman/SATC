@@ -14,6 +14,8 @@ from linesheet_builder.cash_flow_engine import load_cash_flow_config, load_cash_
 from linesheet_builder.collateral_engine import load_collateral_config, load_collateral_inputs, save_collateral_inputs, compute_collateral, collateral_lines, exposure_lines
 from linesheet_builder.dscr_engine import load_dscr_config, load_dscr_inputs, save_dscr_inputs, compute_dscr, cash_flow_lines as dscr_cash_flow_lines, debt_service_lines, loan_lines
 from linesheet_builder.leverage_engine import load_leverage_config, load_leverage_inputs, save_leverage_inputs, compute_leverage, input_lines as leverage_input_lines
+from linesheet_builder.guarantor_engine import load_guarantor_config, load_guarantor_inputs, save_guarantor_inputs, compute_guarantor, position_lines, cash_flow_lines as guar_cf_lines, debt_service_lines as guar_ds_lines, contingent_lines
+from linesheet_builder.global_engine import summarize_global, carry_global
 from linesheet_builder.template_builder import (q as tb_q, section as tb_section, build_template, write_template_yaml,
     template_to_dict, TEMPLATES_DIR, preset_borrower, preset_employment_income, preset_atr,
     preset_collateral_property, preset_documentation, preset_conclusion_signoff)
@@ -24,7 +26,7 @@ st.set_page_config(page_title="Linesheet Builder", layout="wide")
 inject_css(st); init_db(DB); seed_demo(DB)
 conn=get_connection(DB)
 st.sidebar.title("Linesheet Builder")
-page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Templates","Template Builder","Upload","Mapping","Validation","Review","Cash Flow","DTI / ATR","Collateral","DSCR","Leverage","Export","Audit"])
+page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Templates","Template Builder","Upload","Mapping","Validation","Review","Cash Flow","DTI / ATR","Collateral","DSCR","Leverage","Guarantor","Global DSCR","Export","Audit"])
 engagements=pd.read_sql_query("SELECT e.*, c.client_name FROM engagements e JOIN clients c ON e.client_id=c.client_id ORDER BY e.engagement_id DESC", conn)
 eng_id=int(st.sidebar.selectbox("Engagement", engagements.engagement_id, format_func=lambda x: f"{engagements[engagements.engagement_id==x].iloc[0].client_name} / {x}")) if not engagements.empty else None
 eng=engagements[engagements.engagement_id==eng_id].iloc[0].to_dict() if eng_id else {}
@@ -441,6 +443,68 @@ elif page=="Leverage":
         m[2].metric("Debt-to-worth", f"{result['debt_to_worth']:.2f}x", help=f"max {result['max_debt_to_worth']:.2f}x")
         m[3].metric("Debt-to-EBITDA", f"{result['debt_to_ebitda']:.2f}x", help=f"max {result['max_debt_to_ebitda']:.2f}x")
         st.markdown(f"**Leverage assessment:** {status_badge(result['severity'] or 'Complete')} &nbsp; {result['assessment']}", unsafe_allow_html=True)
+
+elif page=="Guarantor":
+    st.title("Guarantor / Global Financial")
+    st.write("Personal financial position and cash flow for a guarantor. Net worth, liquidity and personal DSCR calculate automatically and feed the Global DSCR roll-up.")
+    cases=get_cases()
+    if cases.empty:
+        st.warning("Run validation to create review cases.")
+    else:
+        rcid=int(st.selectbox("Loan / review case", cases.review_case_id, format_func=lambda x: f"{cases[cases.review_case_id==x].iloc[0].loan_id} - {cases[cases.review_case_id==x].iloc[0].borrower_name}"))
+        loan_id=cases[cases.review_case_id==rcid].iloc[0].loan_id
+        cfg=load_guarantor_config(); saved=load_guarantor_inputs(conn, rcid)
+        with st.form("guarantor"):
+            values={}
+            st.subheader(cfg["financial_position"]["section_name"])
+            for k,label,typ,liq in position_lines(cfg):
+                values[k]=st.number_input(label, min_value=0.0, value=float(saved.get(k) or 0.0), step=1000.0, key=f"guar_{rcid}_{k}")
+            st.subheader(cfg["cash_flow"]["section_name"])
+            for k,label,sign in guar_cf_lines(cfg):
+                values[k]=st.number_input(label, min_value=0.0, value=float(saved.get(k) or 0.0), step=1000.0, key=f"guar_{rcid}_{k}")
+            st.subheader(cfg["debt_service"]["section_name"])
+            for k,label in guar_ds_lines(cfg):
+                values[k]=st.number_input(label, min_value=0.0, value=float(saved.get(k) or 0.0), step=1000.0, key=f"guar_{rcid}_{k}")
+            st.subheader(cfg["contingent"]["section_name"])
+            for k,label in contingent_lines(cfg):
+                values[k]=st.number_input(label, min_value=0.0, value=float(saved.get(k) or 0.0), step=1000.0, key=f"guar_{rcid}_{k}")
+            submitted=st.form_submit_button("Save & calculate")
+        if submitted:
+            save_guarantor_inputs(conn, rcid, values, eng.get('reviewer_name','user'), loan_id=loan_id)
+        result=compute_guarantor(values if submitted else saved, cfg)
+        st.markdown("---"); st.subheader("Guarantor results")
+        m=st.columns(4)
+        m[0].metric("Net worth", f"${result['net_worth']:,.0f}")
+        m[1].metric("Liquid assets", f"${result['liquid_assets']:,.0f}")
+        m[2].metric("Personal DSCR", f"{result['personal_dscr']:.2f}x", help=f"min {result['min_personal_dscr']:.2f}x")
+        m[3].metric("Contingent", f"${result['contingent_liabilities']:,.0f}")
+        st.markdown(f"**Guarantor assessment:** {status_badge(result['severity'] or 'Complete')} &nbsp; {result['assessment']}", unsafe_allow_html=True)
+
+elif page=="Global DSCR":
+    st.title("Global Cash Flow / Global DSCR")
+    st.write("Capstone roll-up: business cash flow (DSCR) plus guarantor personal cash flow, against total debt service. Fill in the DSCR and Guarantor worksheets — this combines them automatically.")
+    cases=get_cases()
+    if cases.empty:
+        st.warning("Run validation to create review cases.")
+    else:
+        rcid=int(st.selectbox("Loan / review case", cases.review_case_id, format_func=lambda x: f"{cases[cases.review_case_id==x].iloc[0].loan_id} - {cases[cases.review_case_id==x].iloc[0].borrower_name}"))
+        carry_global(conn, rcid, eng.get('reviewer_name','user'))
+        result=summarize_global(conn, rcid)
+        if not result:
+            st.info("Fill in the DSCR and/or Guarantor worksheets to compute global coverage.")
+        else:
+            st.subheader("Components")
+            c=st.columns(3)
+            c[0].metric("Business CFADS", f"${result['business_cfads']:,.0f}")
+            c[1].metric("Guarantor cash flow", f"${result['personal_cf_available']:,.0f}")
+            c[2].metric("Global CFADS", f"${result['global_cfads']:,.0f}")
+            c2=st.columns(3)
+            c2[0].metric("Business debt service", f"${result['business_debt_service']:,.0f}")
+            c2[1].metric("Personal debt service", f"${result['personal_debt_service']:,.0f}")
+            c2[2].metric("Global debt service", f"${result['global_debt_service']:,.0f}")
+            st.markdown("---")
+            st.metric("Global DSCR", f"{result['global_dscr']:.2f}x", help=f"min {result['min_global_dscr']:.2f}x")
+            st.markdown(f"**Global assessment:** {status_badge(result['severity'] or 'Complete')} &nbsp; {result['assessment']}", unsafe_allow_html=True)
 
 elif page=="Export":
     st.title("Export Center")

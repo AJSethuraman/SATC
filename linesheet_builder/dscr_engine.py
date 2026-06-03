@@ -92,6 +92,8 @@ def save_dscr_inputs(conn, review_case_id: int, values: dict, user: str = "syste
                        after_value=f"{n} line items", review_case_id=review_case_id, loan_id=loan_id)
     cfg = cfg or load_dscr_config()
     _carry_dscr_finding(conn, review_case_id, compute_dscr(load_dscr_inputs(conn, review_case_id), cfg), user, loan_id)
+    from .global_engine import carry_global
+    carry_global(conn, review_case_id, user, loan_id)
     return n
 
 

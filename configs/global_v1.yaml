@@ -1,0 +1,6 @@
+worksheet_id: global_v1
+worksheet_name: Global Cash Flow / Global DSCR
+version: '1.0'
+# Global = business CFADS + guarantor personal cash flow, vs. total debt service.
+thresholds:
+  min_global_dscr: 1.15

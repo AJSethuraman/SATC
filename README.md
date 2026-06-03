@@ -111,6 +111,8 @@ Excel workbooks include:
 - Ability-to-Repay (DTI)
 - Collateral & LTV
 - Debt Service (DSCR)
+- Guarantor
+- Global Cash Flow
 - Leverage & Liquidity
 - Linesheet Questions
 - Exceptions & Findings
@@ -153,6 +155,11 @@ Two commercial-credit calculation fixtures complement Collateral:
 - **Leverage & Liquidity** — the **Leverage & Liquidity** tab / **Leverage** page spread a few balance-sheet/earnings figures into **current ratio**, **working capital**, **debt-to-worth** and **debt-to-EBITDA**, scored against guidelines in `configs/leverage_v1.yaml`.
 
 Both are live-formula Excel tabs with conditional formatting and follow the same carry pattern: a below-guideline result becomes a finding, the summary prints on the Cover, and metrics flow to the data mart (`debt_service` / `leverage` sections, and `DSCR` / `Leverage` tables in the data mart workbook).
+
+### Guarantor and Global Cash Flow (Global DSCR)
+
+- **Guarantor / Global Financial** — the **Guarantor** tab / page captures personal financial position (net worth, liquid assets), personal cash flow and personal debt service, producing **personal DSCR** and the personal-cash-flow figure the global roll-up needs (`configs/guarantor_v1.yaml`).
+- **Global Cash Flow / Global DSCR** — the capstone. The **Global Cash Flow** tab combines **business CFADS** (DSCR) **+ guarantor personal cash flow** over **total** debt service for a single **global DSCR**. It has no inputs of its own; in Excel it uses **live cross-sheet references** to the Debt Service (DSCR) and Guarantor tabs, so editing either flows straight through. It carries its own finding when global coverage is below guideline, and is recomputed automatically whenever the DSCR or Guarantor worksheets change. Both add `Guarantor` / `Global` tables (and columns) to the data mart workbook.
 
 ## Building custom templates en masse
 

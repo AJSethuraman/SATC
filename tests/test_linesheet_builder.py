@@ -118,7 +118,7 @@ def test_export_engine_generates_excel_and_data_mart_columns_and_audit(workflow)
     excel=generate_excel_linesheet(conn,rcid,template,workflow["tmp"] / "excel", "Reviewer")
     assert Path(excel.file_path).exists()
     wb=load_workbook(excel.file_path)
-    assert ["Cover","Loan Summary","Cash Flow Analysis","Ability-to-Repay (DTI)","Collateral & LTV","Debt Service (DSCR)","Leverage & Liquidity","Linesheet Questions","Exceptions & Findings","Evidence Checklist","Audit Summary"] == wb.sheetnames
+    assert ["Cover","Loan Summary","Cash Flow Analysis","Ability-to-Repay (DTI)","Collateral & LTV","Debt Service (DSCR)","Guarantor","Global Cash Flow","Leverage & Liquidity","Linesheet Questions","Exceptions & Findings","Evidence Checklist","Audit Summary"] == wb.sheetnames
     assert wb["Linesheet Questions"][1][0].value == "Section"
     csv=generate_data_mart_csv(conn,rcid,template,workflow["tmp"]/"data_mart"/"review_answers_export.csv","Reviewer")
     df=pd.read_csv(csv.file_path)
@@ -275,7 +275,7 @@ def test_data_mart_workbook_consolidates_engagement(workflow):
     complete_case(conn, rcid, loan, template)
     res=generate_data_mart_workbook(conn, eid, workflow["tmp"]/"mart.xlsx", "Reviewer")
     wb=load_workbook(res.file_path)
-    for s in ("Overview","Linesheets","Answers","Findings","DTI","CashFlow","Collateral","DSCR","Leverage","Audit","Data Dictionary"):
+    for s in ("Overview","Linesheets","Answers","Findings","DTI","CashFlow","Collateral","DSCR","Leverage","Guarantor","Global","Audit","Data Dictionary"):
         assert s in wb.sheetnames
     ws=wb["Linesheets"]
     header=[c.value for c in ws[1]]
@@ -343,6 +343,36 @@ def test_leverage_compute_and_carry(workflow):
     save_leverage_inputs(conn, rcid, {"current_assets":1200000,"current_liabilities":800000,"total_liabilities":3000000,"tangible_net_worth":900000,"total_debt":2500000,"ebitda":500000}, "Reviewer", loan_id="L1002")
     assert summarize_leverage(conn, rcid)["severity"]=="Finding"
     assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='LEVERAGE'",(rcid,)).fetchone()[0]==1
+
+def test_guarantor_compute_and_carry(workflow):
+    from linesheet_builder.guarantor_engine import load_guarantor_config, compute_guarantor, save_guarantor_inputs, summarize_guarantor
+    cfg=load_guarantor_config()
+    r=compute_guarantor({"liquid_assets":400000,"real_estate_assets":1500000,"retirement_other_assets":300000,"business_equity":800000,"personal_liabilities":1200000,"personal_income":350000,"living_expenses":180000,"personal_mortgage":90000,"other_personal_debt_service":40000}, cfg)
+    assert r["net_worth"]==1800000 and r["liquid_assets"]==400000 and r["personal_cf_available"]==170000 and r["personal_debt_service"]==130000 and r["personal_dscr"]==1.31 and r["severity"] is None
+    weak=compute_guarantor({"liquid_assets":50000,"personal_liabilities":400000,"personal_income":120000,"living_expenses":90000,"personal_mortgage":60000}, cfg)
+    assert weak["net_worth"]<0 or weak["personal_dscr"]<1.0
+    assert weak["severity"]=="Finding"
+    conn=workflow["conn"]; rcid=workflow["cases"][0]
+    save_guarantor_inputs(conn, rcid, {"liquid_assets":50000,"personal_liabilities":400000,"personal_income":120000,"living_expenses":90000,"personal_mortgage":60000}, "Reviewer", loan_id="L1001")
+    assert summarize_guarantor(conn, rcid)["severity"]=="Finding"
+    assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='GUARANTOR'",(rcid,)).fetchone()[0]==1
+    assert "guarantor_updated" in [r[0] for r in conn.execute("SELECT action_type FROM audit_log WHERE review_case_id=?",(rcid,)).fetchall()]
+
+def test_global_dscr_rolls_up_dscr_and_guarantor(workflow):
+    from linesheet_builder.dscr_engine import save_dscr_inputs
+    from linesheet_builder.guarantor_engine import save_guarantor_inputs
+    from linesheet_builder.global_engine import summarize_global, compute_global, load_global_config
+    cfg=load_global_config()
+    g=compute_global({"cfads":350000,"total_debt_service":300000},{"personal_cf_available":170000,"personal_debt_service":130000},cfg)
+    assert g["global_cfads"]==520000 and g["global_debt_service"]==430000 and g["global_dscr"]==1.21 and g["severity"] is None
+    conn=workflow["conn"]; rcid=workflow["cases"][2]
+    # business alone is light (1.17x) but guarantor lifts global above the 1.15 floor
+    save_dscr_inputs(conn, rcid, {"net_operating_income":380000,"capital_expenditures":30000,"existing_debt_service":60000,"proposed_debt_service":240000,"loan_amount":2650000}, "Reviewer", loan_id="L1003")
+    save_guarantor_inputs(conn, rcid, {"liquid_assets":400000,"real_estate_assets":1500000,"personal_income":350000,"living_expenses":180000,"personal_mortgage":90000,"other_personal_debt_service":40000}, "Reviewer", loan_id="L1003")
+    gs=summarize_global(conn, rcid)
+    assert gs and gs["global_dscr"]>=1.15 and gs["severity"] is None
+    # no GLOBAL_DSCR finding since global coverage is met
+    assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='GLOBAL_DSCR'",(rcid,)).fetchone()[0]==0
 
 def test_rules_engine_safe_supported_and_no_raw_eval():
     assert evaluate_rule('answer == "No"', answer="No")
