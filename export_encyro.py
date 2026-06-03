@@ -21,6 +21,7 @@ from pathlib import Path
 
 import core
 import generate_documents
+import pdf_utils
 import sort_tax_docs
 
 ENCYRO_FOLDER_NAME = "Encyro_Ready"
@@ -28,46 +29,18 @@ PACKET_SUFFIX = "_packet.pdf"
 NOTES_FILENAME = "UPLOAD_NOTES.txt"
 # File types Encyro accepts directly (Office files are auto-converted on upload).
 COPYABLE_SUFFIXES = {".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt", ".png", ".jpg", ".jpeg"}
-PAGE_MARGIN = (54, 54, -54, -54)
 
 
 def html_to_pdf(html_text: str, dest_path: Path) -> Path:
     """Render an HTML string to a PDF using PyMuPDF (text stays selectable)."""
 
-    import fitz  # PyMuPDF
-
-    story = fitz.Story(html=html_text)
-    writer = fitz.DocumentWriter(str(dest_path))
-    rect = fitz.paper_rect("letter")
-    area = rect + PAGE_MARGIN
-    try:
-        more = 1
-        while more:
-            device = writer.begin_page(rect)
-            more, _ = story.place(area)
-            story.draw(device)
-            writer.end_page()
-    finally:
-        writer.close()
-    return dest_path
+    return pdf_utils.html_to_pdf(html_text, dest_path)
 
 
 def merge_pdfs(pdf_paths: list[Path], dest_path: Path) -> Path | None:
     """Concatenate PDFs into one packet. Returns the packet path, or None if empty."""
 
-    import fitz  # PyMuPDF
-
-    if not pdf_paths:
-        return None
-    merged = fitz.open()
-    try:
-        for path in pdf_paths:
-            with fitz.open(path) as source:
-                merged.insert_pdf(source)
-        merged.save(str(dest_path))
-    finally:
-        merged.close()
-    return dest_path
+    return pdf_utils.merge_pdfs(pdf_paths, dest_path)
 
 
 def write_upload_notes(notes_path: Path, client: dict, files: list[Path], packet: Path | None) -> None:

@@ -128,6 +128,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "payments": None,
         "dashboard": None,
         "rollover": None,
+        "pdftools": None,
     }
 
     validate_result = results.get("validate")
@@ -321,6 +322,16 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"Year Rollover: {rollover_result['summary']}")
         if rollover_result.get("target_folder"):
             summary["open_paths"]["Open Next Year Folder"] = str(rollover_result["target_folder"])
+
+    pdftools_result = results.get("pdftools")
+    if pdftools_result is not None:
+        summary["pdftools"] = {
+            "merged_inputs": pdftools_result["merged_inputs"],
+            "split_files": pdftools_result["split_files"],
+        }
+        summary["tool_lines"].append(f"PDF Merge/Split: {pdftools_result['summary']}")
+        if pdftools_result.get("output_folder"):
+            summary["open_paths"]["Open PDF Output"] = str(pdftools_result["output_folder"])
 
     return summary
 
@@ -687,6 +698,7 @@ if PYSIDE_AVAILABLE:
                 "Open AR Report",
                 "Open Dashboard",
                 "Open Next Year Folder",
+                "Open PDF Output",
             ]
             for label in button_labels:
                 button = QPushButton(label)
@@ -970,6 +982,11 @@ if PYSIDE_AVAILABLE:
             if rollover_result is not None:
                 review_lines.append(
                     f"Rolled forward to {rollover_result['new_year']}: {rollover_result['client_count']} client(s)"
+                )
+            pdftools_result = result.get("pdftools")
+            if pdftools_result is not None:
+                review_lines.append(
+                    f"PDFs merged: {pdftools_result['merged_inputs']} | split files: {pdftools_result['split_files']}"
                 )
             encyro_result = result.get("encyro")
             if encyro_result is not None:

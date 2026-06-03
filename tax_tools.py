@@ -24,6 +24,7 @@ import import_clients
 import intake
 import invoice_calc
 import payments
+import pdf_tools
 import reminders
 import retention
 import sign_documents
@@ -220,6 +221,13 @@ def _run_rollover(context: ToolContext) -> dict:
     )
 
 
+def _run_pdf_tools(context: ToolContext) -> dict:
+    return pdf_tools.run_pdf_tools(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 _INTAKE_DOCS = "Onboarding & Documents"
 _PREP = "Preparation"
 _SIGNING = "Signing"
@@ -375,6 +383,13 @@ TOOLS: tuple[Tool, ...] = (
         _run_rollover,
         group=_MANAGEMENT,
     ),
+    Tool(
+        "pdftools",
+        "PDF Merge/Split",
+        "Merge PDFs in PDF_Tools/merge and split PDFs in PDF_Tools/split (one page each).",
+        _run_pdf_tools,
+        group=_MANAGEMENT,
+    ),
 )
 
 # Tool groups in canonical (pipeline) order, for the desktop UI sections.
@@ -384,9 +399,10 @@ TOOLS_BY_KEY: dict[str, Tool] = {tool.key: tool for tool in TOOLS}
 DEFAULT_TOOL_KEYS: tuple[str, ...] = tuple(tool.key for tool in TOOLS)
 _TOOL_ORDER: dict[str, int] = {tool.key: index for index, tool in enumerate(TOOLS)}
 
-# "Full pipeline" processes a season; Year Rollover is a season-boundary action, so
-# it is excluded from the everything-preset (still selectable on its own).
-_FULL_PIPELINE_KEYS = tuple(key for key in DEFAULT_TOOL_KEYS if key != "rollover")
+# "Full pipeline" processes a season; the manual utilities (Year Rollover, PDF
+# Merge/Split) are excluded from the everything-preset but remain selectable on their own.
+_MANUAL_UTILITIES = {"rollover", "pdftools"}
+_FULL_PIPELINE_KEYS = tuple(key for key in DEFAULT_TOOL_KEYS if key not in _MANUAL_UTILITIES)
 
 # Named one-click presets (label -> selected tool keys) for the desktop app.
 PRESETS: tuple[tuple[str, tuple[str, ...]], ...] = (
