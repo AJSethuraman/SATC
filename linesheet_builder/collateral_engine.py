@@ -69,7 +69,7 @@ def compute_collateral(values: dict, cfg: dict) -> dict:
 
     if total_exposure <= 0:
         assessment, severity = "Exposure required", None
-    elif total_eligible < total_exposure:
+    elif coverage < min_coverage:
         assessment, severity = "Undersecured — collateral shortfall", "Finding"
     elif ltv > max_ltv:
         assessment, severity = "Exceeds LTV guideline", "Finding"

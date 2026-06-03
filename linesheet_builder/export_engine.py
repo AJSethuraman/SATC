@@ -684,17 +684,17 @@ def _build_collateral(ws, ctx, cfg, values, result):
     ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=4)
     a = ws.cell(row=row, column=2)
     a.value = (f'=IF(B{exp_row}=0,"Enter exposure to assess",'
-               f'IF(D{net_row}<B{exp_row},"Undersecured — collateral shortfall",'
-               f'IF(B{ltv_row}>{mx/100},"Exceeds LTV guideline","Adequately secured")))')
+               f'IF(D{cov_row}<{mc/100},"Undersecured — collateral shortfall",'
+               f'IF(D{ltv_row}>{mx/100},"Exceeds LTV guideline","Adequately secured")))')
     a.font = Font(name=FONT, bold=True, size=11); a.alignment = Alignment(vertical="center", indent=1)
     ws.row_dimensions[row].height = 22
     assess_cell = f"B{row}"
 
     cf = ws.conditional_formatting
-    cf.add(f"B{ltv_row}", CellIsRule(operator="greaterThan", formula=[str(mx/100)], fill=_CF_AMBER, stopIfTrue=True))
-    cf.add(f"B{ltv_row}", CellIsRule(operator="greaterThan", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
-    cf.add(f"B{cov_row}", CellIsRule(operator="lessThan", formula=[str(mc/100)], fill=_CF_RED, stopIfTrue=True))
-    cf.add(f"B{cov_row}", CellIsRule(operator="greaterThanOrEqual", formula=[str(mc/100)], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(f"D{ltv_row}", CellIsRule(operator="greaterThan", formula=[str(mx/100)], fill=_CF_AMBER, stopIfTrue=True))
+    cf.add(f"D{ltv_row}", CellIsRule(operator="greaterThan", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
+    cf.add(f"D{cov_row}", CellIsRule(operator="lessThan", formula=[str(mc/100)], fill=_CF_RED, stopIfTrue=True))
+    cf.add(f"D{cov_row}", CellIsRule(operator="greaterThanOrEqual", formula=[str(mc/100)], fill=_CF_GREEN, stopIfTrue=True))
     cf.add(f"D{exc_row}", CellIsRule(operator="lessThan", formula=["0"], fill=_CF_RED, stopIfTrue=True))
     cf.add(f"D{exc_row}", CellIsRule(operator="greaterThanOrEqual", formula=["0"], fill=_CF_GREEN, stopIfTrue=True))
     cf.add(assess_cell, FormulaRule(formula=[f'ISNUMBER(SEARCH("Undersecured",{assess_cell}))'], fill=_CF_RED, stopIfTrue=True))
@@ -1185,10 +1185,12 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
     evidence_open = sum(1 for _, q in applicable if (a := ans.get(q.question_id)) and a["evidence_required"] and a["evidence_status"] not in ("Attached", "Waived"))
     metrics = {"completion_pct": completion["completion_pct"], "findings": len(exceptions), "evidence_open": evidence_open}
 
+    mods = _template_modules(template)
     dti_cfg = load_dti_config()
     dti_values = load_dti_inputs(conn, review_case_id)
     dti_result = compute_dti(dti_values, dti_cfg)
-    dti_summary = summarize_dti(conn, review_case_id, dti_cfg)  # None unless worksheet filled
+    # auto-feed DTI income from Cash Flow only when that tab is part of this template
+    dti_summary = summarize_dti(conn, review_case_id, dti_cfg, auto_income=("cash_flow" in mods))
     cf_cfg = load_cash_flow_config()
     cf_values = load_cash_flow_inputs(conn, review_case_id)
     cf_result = compute_cash_flow(cf_values, cf_cfg)
@@ -1226,7 +1228,6 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
     wb.properties.creator = "Linesheet Builder"
     wb.calculation.fullCalcOnLoad = True  # recompute live DTI formulas on open
 
-    mods = _template_modules(template)
     # Cover (only carry modules selected for this template)
     ws = wb.active; ws.title = "Cover"
     _build_cover(ws, ctx, template, metrics,
@@ -1402,7 +1403,7 @@ def generate_data_mart_csv(conn, review_case_id: int, template, output_path: str
                            ("LIQ_ASSESSMENT", liq["assessment"])):
             rows.append(_row(qid, "liquidity", value, liq["assessment"], liq["severity"], "Carried from Liquidity worksheet"))
     # Carry the ability-to-repay results into the data mart (consumer reviews)
-    dti = summarize_dti(conn, review_case_id)
+    dti = summarize_dti(conn, review_case_id, auto_income=("cash_flow" in _template_modules(template)))
     if dti:
         st, sev = dti["assessment"], dti["severity"]
         for qid, value in (("DTI_TOTAL_INCOME", dti["total_income"]), ("DTI_TOTAL_OBLIGATIONS", dti["total_obligations"]),
@@ -1594,12 +1595,13 @@ def generate_data_mart_workbook(conn, engagement_id: int,
         (engagement_id,)).fetchall()]
     case_ids = [c["review_case_id"] for c in cases]
 
+    dti_auto = ("cash_flow" in _template_modules(template)) if template else True
     lines, dti_rows, cf_rows, col_rows, dscr_rows, lev_rows, guar_rows, global_rows, bb_rows, liq_rows = [], [], [], [], [], [], [], [], [], []
     for c in cases:
         rcid = c["review_case_id"]
         carry_global(conn, rcid)
         comp = calculate_completion_status(conn, rcid, c, template) if template else {}
-        dti = summarize_dti(conn, rcid)
+        dti = summarize_dti(conn, rcid, auto_income=dti_auto)
         cf = summarize_cash_flow(conn, rcid)
         col = summarize_collateral(conn, rcid)
         dscr = summarize_dscr(conn, rcid)
@@ -1696,7 +1698,7 @@ def generate_data_mart_workbook(conn, engagement_id: int,
         "JOIN review_cases rc ON ra.review_case_id=rc.review_case_id "
         "JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.engagement_id=? ORDER BY ra.review_case_id, ra.answer_id",
         (engagement_id,)).fetchall():
-        d = dict(r); d["exception_flag"] = bool(d.get("severity")); answers.append(d)
+        d = dict(r); d["exception_flag"] = bool(d.get("severity")); d["template_id"] = ctx.get("template_id"); answers.append(d)
     findings_rows = [dict(r) for r in conn.execute(
         "SELECT x.*, lr.loan_id, lr.borrower_name FROM exceptions x "
         "JOIN review_cases rc ON x.review_case_id=rc.review_case_id "

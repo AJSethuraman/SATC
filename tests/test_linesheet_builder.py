@@ -153,6 +153,10 @@ def test_dti_results_carry_into_findings_and_data_mart(workflow):
     back=df[df.question_id=="DTI_BACK_END_PCT"]
     assert len(back)==1 and back.iloc[0]["section"]=="ability_to_repay" and back.iloc[0]["severity"]=="Finding"
     assert "DTI_ASSESSMENT" in set(df.question_id)
+    # the data-mart Answers table populates template_id (regression: was a blank column)
+    ans=load_workbook(generate_data_mart_workbook(conn, workflow["eid"], workflow["tmp"]/"dm_tid.xlsx", "Reviewer").file_path)["Answers"]
+    ah=[c.value for c in ans[1]]
+    assert ans.cell(row=2, column=ah.index("template_id")+1).value == "commercial_linesheet_v1"
     # clearing the worksheet (within guidelines) resolves the carried finding
     save_dti_inputs(conn, rcid, {"base_income":12000,"principal_interest":1500,"auto":200}, "Reviewer", loan_id=loan["loan_id"])
     assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='DTI_ATR'",(rcid,)).fetchone()[0]==0
@@ -435,6 +439,52 @@ def test_liquidity_compute_and_carry(workflow):
     assert summarize_liquidity(conn, rcid)["severity"]=="Finding"
     assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='LIQUIDITY'",(rcid,)).fetchone()[0]==1
     assert "liquidity_updated" in [r[0] for r in conn.execute("SELECT action_type FROM audit_log WHERE review_case_id=?",(rcid,)).fetchall()]
+
+def test_collateral_tab_conditional_formatting_targets_value_cells(workflow):
+    # regression: LTV/coverage result cells live in column D; the assessment
+    # formula and conditional formatting must reference D, not an empty B cell.
+    from linesheet_builder.collateral_engine import save_collateral_inputs
+    conn=workflow["conn"]; template=workflow["template"]
+    for c in workflow["cases"]:
+        row=conn.execute("SELECT lr.* FROM review_cases rc JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.review_case_id=?",(c,)).fetchone(); loan={k:row[k] for k in row.keys()}
+        if loan["validation_status"]=="Ready": rcid=c; break
+    save_collateral_inputs(conn, rcid, {"cash_deposits":{"market_value":1000000,"advance_rate":100},"loan_balance":{"market_value":900000}}, "Reviewer")
+    complete_case(conn, rcid, loan, template)
+    excel=generate_excel_linesheet(conn, rcid, template, workflow["tmp"]/"coll_cf", "Reviewer")
+    ws=load_workbook(excel.file_path)["Collateral & LTV"]
+    for rng in ws.conditional_formatting:
+        for cellref in str(rng.sqref).split():
+            assert ws[cellref].value is not None, f"conditional formatting targets empty cell {cellref}"
+
+def test_collateral_min_coverage_threshold_enforced():
+    # regression: min_coverage was loaded but never used (shortfall hardcoded at 100%)
+    from linesheet_builder.collateral_engine import load_collateral_config, compute_collateral
+    cfg=load_collateral_config()
+    # RE 1,000,000 @80% -> eligible 800,000; exposure 700,000 -> LTV 70% (ok), coverage 114.29%
+    inp={"real_estate":{"market_value":1000000,"advance_rate":80},"loan_balance":{"market_value":700000}}
+    assert compute_collateral(inp, cfg)["severity"] is None              # default min 100% -> ok
+    cfg2=dict(cfg); cfg2["thresholds"]=dict(cfg.get("thresholds",{}), min_coverage=120)
+    r=compute_collateral(inp, cfg2)
+    assert r["coverage"]==114.29 and r["severity"]=="Finding" and "shortfall" in r["assessment"]
+
+def test_auto_feed_respects_template_module_scope(workflow):
+    # regression: DTI must NOT auto-feed from Cash Flow when the template omits the cash_flow tab
+    from linesheet_builder.template_builder import q, section, build_template
+    conn=workflow["conn"]
+    tmpl=build_template("dti_only_v1","DTI only",[section("s","S",[q("Q1","ok?",required=True)])], modules=["dti"])
+    for c in workflow["cases"]:
+        row=conn.execute("SELECT lr.* FROM review_cases rc JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.review_case_id=?",(c,)).fetchone(); loan={k:row[k] for k in row.keys()}
+        if loan["validation_status"]=="Ready": rcid=c; break
+    save_dti_inputs(conn, rcid, {"base_income":4000,"principal_interest":1500,"auto":400}, "Reviewer")
+    save_cash_flow_inputs(conn, rcid, {"w2_wages":{"period2":180000,"basis":"Annual","method":"Latest"}}, "Reviewer")
+    sec=tmpl.sections[0]; save_answer(conn,rcid,loan,sec,sec.questions[0],"Yes","ok","Attached","Reviewer",tmpl.template_id,tmpl.version)
+    set_review_status(conn, rcid, "Ready for QC")
+    wb=load_workbook(generate_excel_linesheet(conn, rcid, tmpl, workflow["tmp"]/"dtionly", "Reviewer").file_path)
+    assert "Cash Flow Analysis" not in wb.sheetnames  # cash_flow tab not built
+    ws=wb["Ability-to-Repay (DTI)"]
+    cellvals=[c.value for col in ws.iter_cols(min_col=2,max_col=2) for c in col if isinstance(c.value,str)]
+    assert any(v.startswith("=SUM(B") for v in cellvals)             # income is the entered SUM
+    assert not any("Cash Flow Analysis" in v for v in cellvals)      # not auto-fed cross-sheet
 
 def test_rules_engine_safe_supported_and_no_raw_eval():
     assert evaluate_rule('answer == "No"', answer="No")
