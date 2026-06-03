@@ -127,6 +127,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "retention": None,
         "payments": None,
         "dashboard": None,
+        "rollover": None,
     }
 
     validate_result = results.get("validate")
@@ -313,6 +314,13 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"Practice Dashboard: {dashboard_result['summary']}")
         if dashboard_result.get("dashboard_path"):
             summary["open_paths"]["Open Dashboard"] = str(dashboard_result["dashboard_path"])
+
+    rollover_result = results.get("rollover")
+    if rollover_result is not None:
+        summary["rollover"] = {"client_count": rollover_result["client_count"], "new_year": rollover_result["new_year"]}
+        summary["tool_lines"].append(f"Year Rollover: {rollover_result['summary']}")
+        if rollover_result.get("target_folder"):
+            summary["open_paths"]["Open Next Year Folder"] = str(rollover_result["target_folder"])
 
     return summary
 
@@ -678,6 +686,7 @@ if PYSIDE_AVAILABLE:
                 "Open Retention Archives",
                 "Open AR Report",
                 "Open Dashboard",
+                "Open Next Year Folder",
             ]
             for label in button_labels:
                 button = QPushButton(label)
@@ -957,6 +966,11 @@ if PYSIDE_AVAILABLE:
             email_result = result.get("email")
             if email_result is not None:
                 review_lines.append(f"Email drafts: {email_result['draft_count']}")
+            rollover_result = result.get("rollover")
+            if rollover_result is not None:
+                review_lines.append(
+                    f"Rolled forward to {rollover_result['new_year']}: {rollover_result['client_count']} client(s)"
+                )
             encyro_result = result.get("encyro")
             if encyro_result is not None:
                 review_lines.append(f"Encyro packets: {encyro_result['client_count']}")

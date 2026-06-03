@@ -30,6 +30,7 @@ import sign_documents
 import sort_tax_docs
 import status_tracker
 import validate_config
+import year_rollover
 
 
 @dataclass
@@ -212,6 +213,13 @@ def _run_dashboard(context: ToolContext) -> dict:
     )
 
 
+def _run_rollover(context: ToolContext) -> dict:
+    return year_rollover.run_rollover(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 _INTAKE_DOCS = "Onboarding & Documents"
 _PREP = "Preparation"
 _SIGNING = "Signing"
@@ -360,6 +368,13 @@ TOOLS: tuple[Tool, ...] = (
         _run_dashboard,
         group=_MANAGEMENT,
     ),
+    Tool(
+        "rollover",
+        "Year Rollover",
+        "Carry clients forward into a new tax year subfolder, resetting per-year status.",
+        _run_rollover,
+        group=_MANAGEMENT,
+    ),
 )
 
 # Tool groups in canonical (pipeline) order, for the desktop UI sections.
@@ -369,10 +384,14 @@ TOOLS_BY_KEY: dict[str, Tool] = {tool.key: tool for tool in TOOLS}
 DEFAULT_TOOL_KEYS: tuple[str, ...] = tuple(tool.key for tool in TOOLS)
 _TOOL_ORDER: dict[str, int] = {tool.key: index for index, tool in enumerate(TOOLS)}
 
+# "Full pipeline" processes a season; Year Rollover is a season-boundary action, so
+# it is excluded from the everything-preset (still selectable on its own).
+_FULL_PIPELINE_KEYS = tuple(key for key in DEFAULT_TOOL_KEYS if key != "rollover")
+
 # Named one-click presets (label -> selected tool keys) for the desktop app.
 PRESETS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Full pipeline", DEFAULT_TOOL_KEYS),
-    ("Intake & documents", ("intake", "sort", "extract", "diagnostics", "checklist")),
+    ("Full pipeline", _FULL_PIPELINE_KEYS),
+    ("Intake & documents", ("import", "intake", "sort", "extract", "diagnostics", "checklist")),
     ("Prepare & generate", ("invoice", "generate")),
     ("Sign & deliver", ("sign", "email", "encyro")),
     ("Status & reminders", ("engagement", "form8879", "filing", "reminders", "dashboard")),

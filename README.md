@@ -20,6 +20,7 @@ Pick one or more tools in the desktop app (they run top to bottom):
 8. **Engagement Letter / Form 8879 / Filing Trackers** — report which clients have a signed engagement letter, a signed Form 8879, or a filed/accepted return on file vs. outstanding, to `Status/`.
 8b. **Send Reminders** — draft reminder `.eml`s for clients with outstanding signatures or missing documents, to `Reminders/`.
 11b. **Payments & AR** — track invoice payments and build an accounts-receivable aging report (0-30 / 31-60 / 61-90 / 90+ days) in `Payments/`.
+11c. **Year Rollover** — create a `<year>/` subfolder that carries each client's static details forward, resets the prior year's status (totals, payments, signed flags), and copies your config so next season starts pre-filled. Non-destructive; excluded from the "Full pipeline" preset.
 12. **Practice Dashboard** — one HTML page showing where every client stands across the whole pipeline (email, documents, invoice, generated, engagement, 8879, Encyro, archived) with a summary bar.
 
 In the desktop app the tools are grouped into collapsible phase cards (Onboarding & Documents, Preparation, Signing, Tracking & Reminders, Delivery & Records, Practice Management) inside a scroll area, with **Select all / Clear** and one-click **Presets** (Full pipeline, Intake & documents, Prepare & generate, Sign & deliver, Status & reminders).
@@ -407,6 +408,7 @@ Run the included fake-text classifier tests with:
 python test_core.py
 python test_validate_config.py
 python test_import_clients.py
+python test_year_rollover.py
 python test_intake.py
 python test_checklist.py
 python test_invoice_calc.py
