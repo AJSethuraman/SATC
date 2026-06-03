@@ -28,6 +28,7 @@ import retention
 import sign_documents
 import sort_tax_docs
 import status_tracker
+import validate_config
 
 
 @dataclass
@@ -59,6 +60,13 @@ class Tool:
     description: str
     run: Callable[[ToolContext], dict]
     group: str = "Other"
+
+
+def _run_validate(context: ToolContext) -> dict:
+    return validate_config.run_validation(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
 
 
 def _run_intake(context: ToolContext) -> dict:
@@ -204,6 +212,13 @@ _DELIVERY = "Delivery & Records"
 _MANAGEMENT = "Practice Management"
 
 TOOLS: tuple[Tool, ...] = (
+    Tool(
+        "validate",
+        "Validate Config",
+        "Pre-flight check of clients.json and config files for problems (read-only).",
+        _run_validate,
+        group=_INTAKE_DOCS,
+    ),
     Tool(
         "intake",
         "Client Intake",

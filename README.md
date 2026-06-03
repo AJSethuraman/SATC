@@ -6,6 +6,7 @@ This is a local-only Python prototype that bundles small tax tools you can run i
 
 Pick one or more tools in the desktop app (they run top to bottom):
 
+0. **Validate Config** — a read-only pre-flight check of `clients.json` and the config files (firm, fee schedule, intake fields, checklist map) that flags problems before a run.
 1. **Client Intake** — generate a dynamic fillable intake form from an editable field schema, and compile returned responses into `clients.json` (appending only new clients). Feeds every tool below.
 2. **Sort Documents** — classify uploads and copy (or move) them into category folders with an inventory workbook. When a single PDF contains more than one form type, it is **split** into one filed PDF per form (see below).
 3. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, **1099-R**, **1099-G**, **1099-K**, **SSA-1099**, **1098 (Mortgage)**, **1098-T**, **1099-B**, and **Schedule K-1**. Output is written two ways: a human-readable `Extracted_Form_Data.xlsx` (one sheet per form type) and machine-readable per-form CSVs in `Drake_Export/` for feeding a downstream entry script.
@@ -280,6 +281,27 @@ Shared config at the parent (`firm.json`, `intake_fields.json`, `checklist_map.j
 python tax_tools.py "/path/to/Clients" --tools sort,extract,checklist --per-client
 ```
 
+## Architecture (how it stays decoupled)
+
+The suite is built as separate, loosely-coupled components so a change in one tool
+can't ripple into others:
+
+- **`core.py`** — the only shared-primitive module (HTML escaping, money parsing/
+  formatting, per-client file ownership). It depends on nothing else in the suite,
+  so every tool builds on one stable, tested contract instead of reaching into
+  another module's internals.
+- **One module per tool**, each split into **pure functions** (domain logic, no
+  disk — easy to test in isolation) and a thin **`run_X(folder) -> dict`** runner
+  that does the I/O. Most bugs are caught at the pure-function layer.
+- **`tax_tools.py`** is the single registry that wires tools together; the desktop
+  app and CLI both drive that registry, so there's one place that knows the tool
+  list, order, and grouping.
+- Each tool writes to its own output subfolder and reads shared data (`clients.json`,
+  config files) rather than calling into other tools where avoidable.
+
+When adding a feature, prefer a new leaf module (pure core + thin runner + tests)
+over threading special cases through existing tools.
+
 ## Detailed setup notes
 
 Python 3.10 or newer is recommended. A virtual environment is optional but recommended.
@@ -381,6 +403,8 @@ python sort_tax_docs.py "C:\Tax Clients\John Smith\Uploads" --move
 Run the included fake-text classifier tests with:
 
 ```bash
+python test_core.py
+python test_validate_config.py
 python test_intake.py
 python test_checklist.py
 python test_invoice_calc.py

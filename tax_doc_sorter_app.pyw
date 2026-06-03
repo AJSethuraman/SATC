@@ -108,6 +108,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "tool_lines": [],
         "open_paths": {},
         "sort": None,
+        "validate": None,
         "intake": None,
         "extract": None,
         "diagnostics": None,
@@ -126,6 +127,16 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "payments": None,
         "dashboard": None,
     }
+
+    validate_result = results.get("validate")
+    if validate_result is not None:
+        summary["validate"] = {
+            "error_count": validate_result["error_count"],
+            "warning_count": validate_result["warning_count"],
+        }
+        summary["tool_lines"].append(f"Validate Config: {validate_result['summary']}")
+        if validate_result.get("validation_folder"):
+            summary["open_paths"]["Open Validation"] = str(validate_result["validation_folder"])
 
     intake_result = results.get("intake")
     if intake_result is not None:
@@ -638,6 +649,7 @@ if PYSIDE_AVAILABLE:
             action_row = QHBoxLayout()
             button_labels = [
                 "Open Parent Folder",
+                "Open Validation",
                 "Open Organized Folder",
                 "Open Intake Folder",
                 "Open Inventory",
@@ -869,6 +881,12 @@ if PYSIDE_AVAILABLE:
             self.summary_label.setText("\n".join(result.get("tool_lines", [])) or "Run complete.")
 
             review_lines = []
+            validate_result = result.get("validate")
+            if validate_result is not None:
+                review_lines.append(
+                    f"Config errors: {validate_result['error_count']} | "
+                    f"warnings: {validate_result['warning_count']}"
+                )
             intake_result = result.get("intake")
             if intake_result is not None:
                 review_lines.append(
