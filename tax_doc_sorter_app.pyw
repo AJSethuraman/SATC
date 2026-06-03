@@ -117,6 +117,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "form8879": None,
         "email": None,
         "encyro": None,
+        "retention": None,
     }
 
     intake_result = results.get("intake")
@@ -228,6 +229,16 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"Export for Encyro: {encyro_result['summary']}")
         if encyro_result.get("encyro_folder"):
             summary["open_paths"]["Open Encyro Packets"] = str(encyro_result["encyro_folder"])
+
+    retention_result = results.get("retention")
+    if retention_result is not None:
+        summary["retention"] = {
+            "archived_count": retention_result["archived_count"],
+            "warnings": retention_result["warnings"],
+        }
+        summary["tool_lines"].append(f"Records Retention: {retention_result['summary']}")
+        if retention_result.get("retention_folder"):
+            summary["open_paths"]["Open Retention Archives"] = str(retention_result["retention_folder"])
 
     return summary
 
@@ -479,6 +490,7 @@ if PYSIDE_AVAILABLE:
                 "Open Status Reports",
                 "Open Email Drafts",
                 "Open Encyro Packets",
+                "Open Retention Archives",
             ]
             for label in button_labels:
                 button = QPushButton(label)
@@ -691,6 +703,9 @@ if PYSIDE_AVAILABLE:
             encyro_result = result.get("encyro")
             if encyro_result is not None:
                 review_lines.append(f"Encyro packets: {encyro_result['client_count']}")
+            retention_result = result.get("retention")
+            if retention_result is not None:
+                review_lines.append(f"Retention archives: {retention_result['archived_count']}")
             self.needs_review_label.setText("     ".join(review_lines))
 
             self.category_list.clear()

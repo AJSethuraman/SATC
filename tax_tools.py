@@ -19,6 +19,7 @@ import extract_form_data
 import generate_documents
 import intake
 import invoice_calc
+import retention
 import sign_documents
 import sort_tax_docs
 import status_tracker
@@ -136,6 +137,13 @@ def _run_encyro(context: ToolContext) -> dict:
     )
 
 
+def _run_retention(context: ToolContext) -> dict:
+    return retention.run_retention(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 TOOLS: tuple[Tool, ...] = (
     Tool(
         "intake",
@@ -202,6 +210,12 @@ TOOLS: tuple[Tool, ...] = (
         "Export for Encyro",
         "Convert each client's letters to PDF and merge an upload-ready packet for Encyro e-sign.",
         _run_encyro,
+    ),
+    Tool(
+        "retention",
+        "Records Retention",
+        "Archive each client's complete package into a dated zip with a manifest and keep-until date.",
+        _run_retention,
     ),
 )
 

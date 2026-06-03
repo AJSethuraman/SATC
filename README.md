@@ -16,6 +16,7 @@ Pick one or more tools in the desktop app (they run top to bottom):
 8. **Engagement Letter Tracker** / **Form 8879 Tracker** — report which clients have a signed engagement letter / Form 8879 on file vs. outstanding, to `Status/`.
 9. **Compose Email Drafts** — build a review-ready `.eml` per client (subject/body from a template, that client's generated and signed files attached) in `Email_Drafts/`. Nothing is sent automatically and no credentials are stored.
 10. **Export for Encyro** — convert each client's letters to PDF, gather their signed PDFs/attachments, and merge an upload-ready `<client>_packet.pdf` (plus `UPLOAD_NOTES.txt`) under `Encyro_Ready/<client>/`.
+11. **Records Retention** — archive each client's complete package into a dated `Retention/<client>_<year>.zip` with a manifest and a keep-until date.
 
 Extraction is local and rule-based: it uses label-anchored regular expressions over the same selectable-text/OCR pipeline as the sorter. It is **assistive only** — every value should be verified against the source document, and anything the rules cannot read confidently is left blank with the row flagged for manual entry. 1099-B is transactional and is always flagged for manual review.
 
@@ -235,6 +236,10 @@ Encyro has no public developer API, so its e-sign flow is driven through its web
 
 The **Compose Email Drafts** tool turns each client record (that has an `email`) into a `.eml` file in `Email_Drafts/`, with the subject and body rendered from `document_templates/email_template.txt` and the client's generated/signed files attached. Open the `.eml` in your mail app, review it, and send it yourself — nothing is sent automatically and no email passwords are stored. Because tax documents contain PII, prefer a secure portal (such as Encyro) for sensitive delivery. Add an `attachments` list to a client record to attach extra files (paths relative to the folder).
 
+### Records retention
+
+The **Records Retention** tool packages each client for your retention requirement: it collects everything produced for them — generated documents, signed PDFs, checklist, Encyro packet, and their intake response — into `Retention/<client>_<tax_year>.zip` with a `MANIFEST.txt` listing the contents and a **keep-until date** (archive year + retention period, 3 years by default; set with `--years`). When the folder holds exactly one client, the sorted source documents (their W-2s, 1099s, …) are included under `Source_Documents/`; with multiple clients those cannot be attributed automatically, so the archive holds the per-client artifacts and notes the omission. Run it last, after the other tools have produced their output.
+
 ## Detailed setup notes
 
 Python 3.10 or newer is recommended. A virtual environment is optional but recommended.
@@ -340,6 +345,7 @@ python test_intake.py
 python test_checklist.py
 python test_invoice_calc.py
 python test_status_tracker.py
+python test_retention.py
 python test_tax_tools.py
 python test_sort_tax_docs.py
 python test_extract_form_data.py
