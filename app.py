@@ -11,6 +11,9 @@ from linesheet_builder.review_engine import create_review_cases, save_answer, ca
 from linesheet_builder.export_engine import generate_excel_linesheet, generate_data_mart_csv, generate_exception_report_csv, generate_audit_log_csv
 from linesheet_builder.dti_engine import load_dti_config, load_dti_inputs, save_dti_inputs, compute_dti, block_lines
 from linesheet_builder.cash_flow_engine import load_cash_flow_config, load_cash_flow_inputs, save_cash_flow_inputs, compute_cash_flow, source_lines
+from linesheet_builder.template_builder import (q as tb_q, section as tb_section, build_template, write_template_yaml,
+    template_to_dict, TEMPLATES_DIR, preset_borrower, preset_employment_income, preset_atr,
+    preset_collateral_property, preset_documentation, preset_conclusion_signoff)
 from linesheet_builder.ui_helpers import inject_css, status_badge, next_action
 
 ROOT=Path(__file__).parent; DB=ROOT/'data'/'app.db'; TEMPLATE_PATH=ROOT/'configs'/'templates'/'commercial_linesheet_v1.yaml'
@@ -18,7 +21,7 @@ st.set_page_config(page_title="Linesheet Builder", layout="wide")
 inject_css(st); init_db(DB); seed_demo(DB)
 conn=get_connection(DB)
 st.sidebar.title("Linesheet Builder")
-page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Templates","Upload","Mapping","Validation","Review","Cash Flow","DTI / ATR","Export","Audit"])
+page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Templates","Template Builder","Upload","Mapping","Validation","Review","Cash Flow","DTI / ATR","Export","Audit"])
 engagements=pd.read_sql_query("SELECT e.*, c.client_name FROM engagements e JOIN clients c ON e.client_id=c.client_id ORDER BY e.engagement_id DESC", conn)
 eng_id=int(st.sidebar.selectbox("Engagement", engagements.engagement_id, format_func=lambda x: f"{engagements[engagements.engagement_id==x].iloc[0].client_name} / {x}")) if not engagements.empty else None
 eng=engagements[engagements.engagement_id==eng_id].iloc[0].to_dict() if eng_id else {}
@@ -80,6 +83,120 @@ elif page=="Templates":
         for s in t.sections:
             with st.expander(f"{s.display_order}. {s.section_name}  ({len(s.questions)} questions)"):
                 st.dataframe(pd.DataFrame([{"#":q.display_order,"id":q.question_id,"question":q.question_text,"type":q.answer_type,"required":q.required,"rule":q.exception_if or q.warning_if or q.applies_if or ""} for q in s.questions]), use_container_width=True)
+
+elif page=="Template Builder":
+    st.title("Template Builder")
+    st.write("Author a custom linesheet template with no code. Add sections and questions, then save — it writes a validated YAML to `configs/templates/` and becomes selectable on the Setup page.")
+    ANSWER_TYPES=["yes_no_na","long_text","text","currency","number","percent","date","select","multi_select"]
+    SEVERITIES=["","Warning","Needs Review","Finding","Blocked"]
+    PRESETS={"Borrower":preset_borrower,"Employment & Income":preset_employment_income,"Ability to Repay":preset_atr,
+             "Collateral / Property":preset_collateral_property,"Documentation":preset_documentation,"Conclusion & Signoff":preset_conclusion_signoff}
+
+    def _uid():
+        st.session_state.tb_uid=st.session_state.get("tb_uid",0)+1
+        return st.session_state.tb_uid
+    def _draft_q(qd):
+        return {"uid":_uid(),"question_id":qd.get("question_id",""),"question_text":qd.get("question_text",""),
+                "answer_type":qd.get("answer_type","yes_no_na"),"required":bool(qd.get("required",False)),
+                "source_field":qd.get("source_field","") or "","applies_if":qd.get("applies_if","") or "",
+                "exception_if":qd.get("exception_if","") or "","warning_if":qd.get("warning_if","") or "",
+                "evidence_required_if":qd.get("evidence_required_if","") or "","severity":qd.get("severity","") or "",
+                "help_text":qd.get("help_text","") or "",
+                "options":", ".join(qd["options"]) if isinstance(qd.get("options"),list) else (qd.get("options") or "")}
+    def _draft_section(sd):
+        return {"uid":_uid(),"section_id":sd.get("section_id",""),"section_name":sd.get("section_name",""),
+                "questions":[_draft_q(x) for x in sd.get("questions",[])]}
+
+    if "tb" not in st.session_state:
+        st.session_state.tb={"template_id":"my_template_v1","template_name":"My Template","version":"1.0","sections":[]}
+    tb=st.session_state.tb
+
+    c=st.columns(3)
+    tb["template_id"]=c[0].text_input("Template ID", tb["template_id"])
+    tb["template_name"]=c[1].text_input("Template name", tb["template_name"])
+    tb["version"]=c[2].text_input("Version", tb["version"])
+
+    st.markdown("**Quick start**")
+    qc=st.columns([2,1,2,1])
+    preset_name=qc[0].selectbox("Add a preset section", list(PRESETS), label_visibility="collapsed")
+    if qc[1].button("Add preset"):
+        tb["sections"].append(_draft_section(PRESETS[preset_name]())); st.rerun()
+    clone_id=qc[2].selectbox("Clone existing template", [""]+list(discover_templates()), label_visibility="collapsed")
+    if qc[3].button("Load") and clone_id:
+        src=template_to_dict(load_template(clone_id))
+        tb["template_id"]=clone_id+"_copy"; tb["template_name"]=src["template_name"]+" (copy)"; tb["version"]=src.get("version","1.0")
+        tb["sections"]=[_draft_section(s) for s in src["sections"]]; st.rerun()
+
+    st.markdown("---")
+    for si, sec in enumerate(tb["sections"]):
+        with st.expander(f"Section {si+1}: {sec.get('section_name') or '(unnamed)'}  ·  {len(sec['questions'])} questions", expanded=True):
+            u=sec["uid"]; sc=st.columns([2,3,1])
+            sec["section_id"]=sc[0].text_input("Section ID", sec["section_id"], key=f"sid_{u}")
+            sec["section_name"]=sc[1].text_input("Section name", sec["section_name"], key=f"sname_{u}")
+            if sc[2].button("🗑 Section", key=f"delsec_{u}"): tb["sections"].pop(si); st.rerun()
+            for qi, qd in enumerate(sec["questions"]):
+                qu=qd["uid"]
+                cc=st.columns([1.2,4,2,1])
+                qd["question_id"]=cc[0].text_input("ID", qd["question_id"], key=f"qid_{u}_{qu}", label_visibility="collapsed", placeholder="ID")
+                qd["question_text"]=cc[1].text_input("Question", qd["question_text"], key=f"qtext_{u}_{qu}", label_visibility="collapsed", placeholder="Question text")
+                qd["answer_type"]=cc[2].selectbox("Type", ANSWER_TYPES, index=ANSWER_TYPES.index(qd["answer_type"]) if qd["answer_type"] in ANSWER_TYPES else 0, key=f"qtype_{u}_{qu}", label_visibility="collapsed")
+                qd["required"]=cc[3].checkbox("Req", qd["required"], key=f"qreq_{u}_{qu}")
+                with st.expander("rules / options / help", expanded=False):
+                    rc=st.columns(3)
+                    qd["source_field"]=rc[0].text_input("source_field", qd["source_field"], key=f"qsf_{u}_{qu}")
+                    qd["severity"]=rc[1].selectbox("severity", SEVERITIES, index=SEVERITIES.index(qd["severity"]) if qd["severity"] in SEVERITIES else 0, key=f"qsev_{u}_{qu}")
+                    qd["applies_if"]=rc[2].text_input("applies_if", qd["applies_if"], key=f"qai_{u}_{qu}")
+                    rc2=st.columns(3)
+                    qd["exception_if"]=rc2[0].text_input("exception_if", qd["exception_if"], key=f"qei_{u}_{qu}")
+                    qd["warning_if"]=rc2[1].text_input("warning_if", qd["warning_if"], key=f"qwi_{u}_{qu}")
+                    qd["evidence_required_if"]=rc2[2].text_input("evidence_required_if", qd["evidence_required_if"], key=f"qer_{u}_{qu}")
+                    qd["options"]=st.text_input("options (comma-separated, for select / multi_select)", qd["options"], key=f"qopt_{u}_{qu}")
+                    qd["help_text"]=st.text_input("help_text", qd["help_text"], key=f"qhelp_{u}_{qu}")
+                    if st.button("Remove question", key=f"delq_{u}_{qu}"): sec["questions"].pop(qi); st.rerun()
+            if st.button("➕ Add question", key=f"addq_{u}"): sec["questions"].append(_draft_q({})); st.rerun()
+
+    bc=st.columns([1,1,4])
+    if bc[0].button("➕ Add section"): tb["sections"].append(_draft_section({"section_id":"","section_name":"","questions":[]})); st.rerun()
+    if bc[1].button("Reset"): st.session_state.pop("tb"); st.rerun()
+
+    st.markdown("---")
+    if st.button("💾 Save template", type="primary"):
+        try:
+            if not tb["sections"] or not any(s["questions"] for s in tb["sections"]):
+                raise ValueError("Add at least one section with one question.")
+            spec=[]
+            for sec in tb["sections"]:
+                qs=[]
+                for qd in sec["questions"]:
+                    kw={}
+                    for f in ("source_field","applies_if","exception_if","warning_if","evidence_required_if","help_text"):
+                        if qd.get(f): kw[f]=qd[f]
+                    if qd.get("severity"): kw["severity"]=qd["severity"]
+                    if qd.get("answer_type") in ("select","multi_select") and qd.get("options"):
+                        kw["options"]=[o.strip() for o in qd["options"].split(",") if o.strip()]
+                    if not qd.get("question_id") or not qd.get("question_text"):
+                        raise ValueError(f"Every question needs an ID and text (section '{sec.get('section_name')}').")
+                    qs.append(tb_q(qd["question_id"], qd["question_text"], qd.get("answer_type","yes_no_na"), bool(qd.get("required")), **kw))
+                if not sec.get("section_id") or not sec.get("section_name"):
+                    raise ValueError("Every section needs an ID and a name.")
+                spec.append(tb_section(sec["section_id"], sec["section_name"], qs))
+            t=build_template(tb["template_id"], tb["template_name"], spec, tb.get("version","1.0"))
+            path=write_template_yaml(t, TEMPLATES_DIR / f"{t.template_id}.yaml")
+            nq=sum(len(s.questions) for s in t.sections)
+            st.success(f"Saved {t.template_name}  ({len(t.sections)} sections / {nq} questions) → {path}")
+            st.caption("Select it on the Setup page to use it for an engagement.")
+        except Exception as e:
+            st.error(f"Could not save: {e}")
+
+    if tb["sections"]:
+        with st.expander("Preview YAML"):
+            try:
+                spec=[tb_section(s["section_id"] or "s", s["section_name"] or "Section",
+                       [tb_q(x["question_id"] or "Q", x["question_text"] or "?", x.get("answer_type","yes_no_na"), bool(x.get("required"))) for x in s["questions"]]) for s in tb["sections"] if s["questions"]]
+                import yaml as _yaml
+                st.code(_yaml.safe_dump(template_to_dict(build_template(tb["template_id"] or "t", tb["template_name"] or "T", spec, tb.get("version","1.0"))), sort_keys=False), language="yaml")
+            except Exception as e:
+                st.caption(f"(preview unavailable: {e})")
 
 elif page=="Upload":
     st.title("Upload Loan Tape")

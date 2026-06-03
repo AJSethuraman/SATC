@@ -234,6 +234,36 @@ def test_template_builder_rejects_duplicate_question_ids():
     with pytest.raises(ValueError, match="Duplicate question_id"):
         build_template("dup_v1","Dup",[section("s1","S",[q("X1","a"),q("X1","b")])])
 
+def test_template_builder_options_and_severity_roundtrip(tmp_path):
+    from linesheet_builder.template_builder import q, section, build_template, write_template_yaml
+    t=build_template("opts_v1","Opts",[section("s1","S",[
+        q("Q1","Pick one","select",required=True,options=["A","B","C"]),
+        q("Q2","Concern?",required=True,warning_if='answer == "Yes"',severity="Needs Review")])])
+    loaded=load_template_yaml(write_template_yaml(t, tmp_path/"opts_v1.yaml"))
+    q1,q2=loaded.sections[0].questions
+    assert q1.options==["A","B","C"] and q1.answer_type=="select"
+    assert q2.warning_if=='answer == "Yes"' and q2.severity=="Needs Review"
+
+def test_template_builder_ui_page_saves(tmp_path):
+    pytest.importorskip("streamlit")
+    import os
+    from streamlit.testing.v1 import AppTest
+    from linesheet_builder.template_builder import TEMPLATES_DIR
+    tid="ui_test_tmp_v1"; path=TEMPLATES_DIR/f"{tid}.yaml"
+    try:
+        at=AppTest.from_file(str(ROOT/"app.py"), default_timeout=90).run()
+        at.sidebar.radio[0].set_value("Template Builder").run()
+        def click(label):
+            for b in at.button:
+                if b.label==label: b.click().run(); return True
+            return False
+        assert click("Add preset"); assert not at.exception
+        at.text_input[0].set_value(tid).run()
+        assert click("💾 Save template"); assert not at.exception
+        assert path.exists() and load_template_yaml(str(path)).sections
+    finally:
+        if path.exists(): os.remove(str(path))
+
 def test_rules_engine_safe_supported_and_no_raw_eval():
     assert evaluate_rule('answer == "No"', answer="No")
     assert evaluate_rule('value < 1.20', value=1.1)
