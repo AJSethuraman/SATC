@@ -107,11 +107,20 @@ Excel workbooks include:
 
 - Cover
 - Loan Summary
+- Cash Flow Analysis
 - Ability-to-Repay (DTI)
 - Linesheet Questions
 - Exceptions & Findings
 - Evidence Checklist
 - Audit Summary
+
+## Cash Flow / Income Analysis worksheet
+
+A broad, gross (pre-tax) income worksheet (the **Cash Flow** page and the **Cash Flow Analysis** Excel tab) that derives one **total qualifying monthly income** from any mix of sources: W-2 wages / paystub, self-employment (Schedule C, with depreciation add-back), business / K-1, rental (Schedule E), and other income.
+
+- Each line is entered across up to **two periods** and normalized with a per-line **basis** (Annual / Monthly) and **method** (Latest / Average / Lower of). Salaried income uses one period + Latest; self-employed or variable income uses two periods + Average. Defaults live in `configs/cash_flow_v1.yaml`.
+- Banking convention is built in: everything is gross/pre-tax, and for **K-1 business owners the qualifying cash flow is cash distributions actually received** — pro-rata ordinary business income is captured as a *reference only* line (role `reference`) and never added to qualifying income, because the company's earnings are separate from cash paid to the owner.
+- In Excel the Monthly column is a live formula (basis + method via `SWITCH`), with dropdowns on the basis/method cells. Results carry into the linesheet: the qualifying income summary prints on the Cover and the metrics (qualifying monthly/annual income, business-income reference) are written to the data mart under a `cash_flow` section. The qualifying monthly income is the income basis the DTI / ATR worksheet expects.
 
 ## Ability-to-Repay (DTI) worksheet
 

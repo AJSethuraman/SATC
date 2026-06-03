@@ -15,6 +15,8 @@ from linesheet_builder.export_engine import generate_excel_linesheet, generate_d
 from linesheet_builder.audit import append_audit_event
 from linesheet_builder.rules_engine import evaluate_rule, UnsafeRuleError, determine_question_status
 from linesheet_builder.dti_engine import load_dti_config, compute_dti, save_dti_inputs, load_dti_inputs
+from linesheet_builder.cash_flow_engine import (load_cash_flow_config, compute_cash_flow, normalize_line,
+    save_cash_flow_inputs, load_cash_flow_inputs, summarize_cash_flow)
 
 ROOT=Path(__file__).resolve().parents[1]
 TEMPLATE_PATH=ROOT/"configs"/"templates"/"commercial_linesheet_v1.yaml"
@@ -116,7 +118,7 @@ def test_export_engine_generates_excel_and_data_mart_columns_and_audit(workflow)
     excel=generate_excel_linesheet(conn,rcid,template,workflow["tmp"] / "excel", "Reviewer")
     assert Path(excel.file_path).exists()
     wb=load_workbook(excel.file_path)
-    assert ["Cover","Loan Summary","Ability-to-Repay (DTI)","Linesheet Questions","Exceptions & Findings","Evidence Checklist","Audit Summary"] == wb.sheetnames
+    assert ["Cover","Loan Summary","Cash Flow Analysis","Ability-to-Repay (DTI)","Linesheet Questions","Exceptions & Findings","Evidence Checklist","Audit Summary"] == wb.sheetnames
     assert wb["Linesheet Questions"][1][0].value == "Section"
     csv=generate_data_mart_csv(conn,rcid,template,workflow["tmp"]/"data_mart"/"review_answers_export.csv","Reviewer")
     df=pd.read_csv(csv.file_path)
@@ -154,6 +156,54 @@ def test_dti_results_carry_into_findings_and_data_mart(workflow):
     # clearing the worksheet (within guidelines) resolves the carried finding
     save_dti_inputs(conn, rcid, {"base_income":12000,"principal_interest":1500,"auto":200}, "Reviewer", loan_id=loan["loan_id"])
     assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='DTI_ATR'",(rcid,)).fetchone()[0]==0
+
+CF_CONFIG_PATH=ROOT/"configs"/"cash_flow_v1.yaml"
+
+def test_cash_flow_normalize_methods_and_basis():
+    assert normalize_line(80000, 120000, "Annual", "Latest") == round(120000/12,2)
+    assert normalize_line(80000, 120000, "Annual", "Average") == round(100000/12,2)
+    assert normalize_line(80000, 120000, "Annual", "Lower of") == round(80000/12,2)
+    assert normalize_line(0, 5000, "Monthly", "Latest") == 5000
+    assert normalize_line(0, 90000, "Annual", "Average") == round(90000/12,2)  # one period present
+
+def test_cash_flow_distributions_qualify_business_income_is_reference():
+    cfg=load_cash_flow_config(CF_CONFIG_PATH)
+    vals={"w2_wages":{"period2":96000,"basis":"Annual","method":"Latest"},
+          "k1_distributions":{"period1":24000,"period2":36000,"basis":"Annual","method":"Average"},
+          "k1_ordinary_income":{"period2":120000,"basis":"Annual","method":"Latest"}}
+    r=compute_cash_flow(vals, cfg)
+    assert r["qualifying_monthly"]==10500.0          # 8000 wages + 2500 distributions
+    assert r["qualifying_annual"]==126000.0
+    assert r["business_income_reference_monthly"]==10000.0  # ordinary income excluded from qualifying
+
+def test_cash_flow_persist_summarize_and_audit(workflow):
+    conn=workflow["conn"]; rcid=workflow["cases"][0]
+    save_cash_flow_inputs(conn, rcid, {"w2_wages":{"period2":90000,"basis":"Annual","method":"Latest"}}, "Reviewer", loan_id="L1001")
+    got=load_cash_flow_inputs(conn, rcid)
+    assert got["w2_wages"]["period2"]==90000 and got["w2_wages"]["method"]=="Latest"
+    s=summarize_cash_flow(conn, rcid)
+    assert s and s["qualifying_monthly"]==round(90000/12,2)
+    actions=[r[0] for r in conn.execute("SELECT action_type FROM audit_log WHERE review_case_id=?",(rcid,)).fetchall()]
+    assert "cash_flow_updated" in actions
+    assert summarize_cash_flow(conn, workflow["cases"][1]) is None  # empty -> None
+
+def test_cash_flow_tab_and_data_mart_carry(workflow):
+    conn=workflow["conn"]; template=workflow["template"]
+    for c in workflow["cases"]:
+        row=conn.execute("SELECT lr.* FROM review_cases rc JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.review_case_id=?",(c,)).fetchone(); loan={k:row[k] for k in row.keys()}
+        if loan["validation_status"]=="Ready": rcid=c; break
+    save_cash_flow_inputs(conn, rcid, {
+        "w2_wages":{"period2":96000,"basis":"Annual","method":"Latest"},
+        "k1_distributions":{"period1":24000,"period2":36000,"basis":"Annual","method":"Average"},
+        "k1_ordinary_income":{"period2":120000,"basis":"Annual","method":"Latest"}}, "Reviewer", loan_id=loan["loan_id"])
+    complete_case(conn, rcid, loan, template)
+    excel=generate_excel_linesheet(conn, rcid, template, workflow["tmp"]/"excel_cf", "Reviewer")
+    ws=load_workbook(excel.file_path)["Cash Flow Analysis"]
+    assert any(isinstance(c.value,str) and c.value.startswith("=ROUND(SWITCH(") for col in ws.iter_cols(min_col=6,max_col=6) for c in col if c.value)
+    csv=generate_data_mart_csv(conn, rcid, template, workflow["tmp"]/"dm_cf.csv", "Reviewer")
+    df=pd.read_csv(csv.file_path)
+    qm=df[df.question_id=="CF_QUALIFYING_MONTHLY"]
+    assert len(qm)==1 and qm.iloc[0]["section"]=="cash_flow" and float(qm.iloc[0]["answer_value"])==10500.0
 
 def test_rules_engine_safe_supported_and_no_raw_eval():
     assert evaluate_rule('answer == "No"', answer="No")

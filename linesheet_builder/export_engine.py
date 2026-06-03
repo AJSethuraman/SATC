@@ -5,12 +5,14 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl.formatting.rule import CellIsRule, FormulaRule
+from openpyxl.worksheet.datavalidation import DataValidation
 from .models import ExportResult
 from .db import now
 from .audit import append_audit_event, export_audit_log
 from .review_engine import calculate_completion_status
 from .template_engine import get_applicable_questions
 from .dti_engine import load_dti_config, load_dti_inputs, compute_dti, block_lines, summarize_dti
+from .cash_flow_engine import load_cash_flow_config, load_cash_flow_inputs, compute_cash_flow, source_lines, summarize_cash_flow
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -107,7 +109,7 @@ def _finish_table(ws, header_row, ncols, chip_cols=(), widths=None, landscape=Fa
         ws.page_setup.orientation = "landscape"
 
 # --- Cover -------------------------------------------------------------------
-def _build_cover(ws, ctx, template, metrics, dti=None):
+def _build_cover(ws, ctx, template, metrics, dti=None, cf=None):
     ws.sheet_view.showGridLines = False
     widths = [2.5, 22, 30, 4, 18, 22]
     for i, w in enumerate(widths, start=1):
@@ -183,6 +185,33 @@ def _build_cover(ws, ctx, template, metrics, dti=None):
             ws.cell(row=r, column=col).border = BOTTOM
 
     next_row = r0 + len(rows) + 1
+
+    def _card(title, pairs):
+        nonlocal next_row
+        ws.cell(row=next_row, column=2, value=title).font = Font(name=FONT, color=GOLD, bold=True, size=10)
+        next_row += 1
+        for label, value, chip in pairs:
+            lc = ws.cell(row=next_row, column=2, value=label)
+            lc.font = Font(name=FONT, color=MUTED, bold=True, size=10); lc.alignment = Alignment(vertical="center")
+            ws.merge_cells(start_row=next_row, start_column=3, end_row=next_row, end_column=6)
+            vc = ws.cell(row=next_row, column=3, value=value)
+            if chip:
+                st = CHIP.get(chip, (GREEN_F, GREEN_T))
+                vc.fill = _fill(st[0]); vc.font = Font(name=FONT, color=st[1], bold=True, size=10)
+                vc.alignment = Alignment(vertical="center", indent=1)
+            else:
+                vc.font = Font(name=FONT, color=INK, size=10); vc.alignment = Alignment(vertical="center")
+            for col in range(2, 7): ws.cell(row=next_row, column=col).border = BOTTOM
+            next_row += 1
+        next_row += 1
+
+    # Cash flow / income summary — carried from the Cash Flow module
+    if cf and cf.get("qualifying_monthly"):
+        pairs = [("Qualifying income (mo.)", f"${cf['qualifying_monthly']:,.0f}", None),
+                 ("Qualifying income (yr.)", f"${cf['qualifying_annual']:,.0f}", None)]
+        if cf.get("business_income_reference_monthly"):
+            pairs.append(("Business income (ref.)", f"${cf['business_income_reference_monthly']:,.0f}/mo", None))
+        _card("CASH FLOW / INCOME", pairs)
 
     # Ability-to-Repay summary — carried from the DTI module (consumer reviews)
     if dti and dti.get("total_income"):
@@ -373,6 +402,99 @@ def _build_dti(ws, ctx, cfg, values, result):
     ws.sheet_properties.pageSetUpPr.fitToPage = True
 
 
+# --- Cash Flow / Income Analysis tab -----------------------------------------
+def _build_cash_flow(ws, ctx, cfg, values, result):
+    ws.sheet_view.showGridLines = False
+    for col, w in (("A", 40), ("B", 13), ("C", 13), ("D", 11), ("E", 12), ("F", 14)):
+        ws.column_dimensions[col].width = w
+
+    ws.merge_cells("A1:F1"); ws.row_dimensions[1].height = 5; ws["A1"].fill = _fill(GOLD)
+    ws.merge_cells("A2:F2"); ws.row_dimensions[2].height = 30
+    t = ws["A2"]; t.value = "CASH FLOW  ·  INCOME ANALYSIS"
+    t.fill = _fill(NAVY); t.font = Font(name=FONT, color=WHITE, bold=True, size=14)
+    t.alignment = Alignment(vertical="center", horizontal="left", indent=1)
+    ws.merge_cells("A3:F3"); ws.row_dimensions[3].height = 18
+    s = ws["A3"]; s.value = f"{ctx.get('borrower_name','')}  ·  Loan {ctx.get('loan_id','')}  ·  gross / pre-tax; enter up to two periods, pick basis & method"
+    s.fill = _fill(NAVY); s.font = Font(name=FONT, color="C9D6E5", italic=True, size=9)
+    s.alignment = Alignment(vertical="center", horizontal="left", indent=1)
+    for col in range(1, 7):
+        ws.cell(row=2, column=col).fill = _fill(NAVY); ws.cell(row=3, column=col).fill = _fill(NAVY)
+    ws.merge_cells("A4:F4"); ws.row_dimensions[4].height = 5; ws["A4"].fill = _fill(GOLD)
+
+    _table_header(ws, ["Income source", "Period 1", "Period 2", "Basis", "Method", "Monthly $"], row=5)
+    for col in (2, 3, 6):
+        ws.cell(row=5, column=col).alignment = Alignment(horizontal="right", vertical="center", wrap_text=True)
+
+    money = '$#,##0'
+    db, dm = cfg["default_basis"], cfg["default_method"]
+    dv_basis = DataValidation(type="list", formula1='"%s"' % ",".join(cfg["bases"]), allow_blank=True)
+    dv_method = DataValidation(type="list", formula1='"%s"' % ",".join(cfg["methods"]), allow_blank=True)
+    ws.add_data_validation(dv_basis); ws.add_data_validation(dv_method)
+
+    row = 6
+    qualifying_cells, reference_cells = [], []
+    last_section = None
+    for section, key, label, role in source_lines(cfg):
+        if section != last_section:
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=6)
+            c = ws.cell(row=row, column=1, value=section.upper())
+            c.fill = _fill(INK); c.font = Font(name=FONT, color=WHITE, bold=True, size=9.5)
+            c.alignment = Alignment(vertical="center", indent=1)
+            for col in range(1, 7): ws.cell(row=row, column=col).fill = _fill(INK)
+            ws.row_dimensions[row].height = 16
+            last_section = section; row += 1
+        v = values.get(key) or {}
+        ref = role == "reference"
+        lab = ws.cell(row=row, column=1, value=label)
+        lab.font = Font(name=FONT, size=9.5, italic=ref, color=MUTED if ref else INK)
+        for col, field in ((2, "period1"), (3, "period2")):
+            cell = ws.cell(row=row, column=col)
+            val = v.get(field)
+            if val not in (None, "", 0, 0.0): cell.value = float(val)
+            cell.number_format = money; cell.alignment = Alignment(horizontal="right")
+            cell.fill = _fill("FCFCFD"); cell.border = Border(bottom=_HAIR, left=_HAIR, right=_HAIR, top=_HAIR)
+        bcell = ws.cell(row=row, column=4, value=v.get("basis") or db)
+        mcell = ws.cell(row=row, column=5, value=v.get("method") or dm)
+        for cc in (bcell, mcell):
+            cc.font = Font(name=FONT, size=9); cc.alignment = Alignment(horizontal="center")
+            cc.fill = _fill(BAND); cc.border = Border(bottom=_HAIR, left=_HAIR, right=_HAIR, top=_HAIR)
+        dv_basis.add(bcell); dv_method.add(mcell)
+        mon = ws.cell(row=row, column=6)
+        mon.value = (f'=ROUND(SWITCH($E{row},'
+                     f'"Latest",IF(C{row}<>"",C{row},N(B{row})),'
+                     f'"Lower of",IF(AND(B{row}<>"",C{row}<>""),MIN(B{row},C{row}),N(B{row})+N(C{row})),'
+                     f'IF(AND(B{row}="",C{row}=""),0,AVERAGE(B{row},C{row})))'
+                     f'/IF($D{row}="Monthly",1,12),2)')
+        mon.number_format = money; mon.alignment = Alignment(horizontal="right")
+        mon.font = Font(name=FONT, size=9.5, italic=ref, color=MUTED if ref else NAVY)
+        for col in range(1, 7): ws.cell(row=row, column=col).border = BOTTOM
+        (reference_cells if ref else qualifying_cells).append(f"F{row}")
+        row += 1
+
+    row += 1
+    def total_row(label, cells, big=False, muted=False):
+        nonlocal row
+        ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=10.5 if big else 9.5, bold=True, color=MUTED if muted else NAVY)
+        c = ws.cell(row=row, column=6, value=("=" + ("+".join(cells))) if cells else 0)
+        c.number_format = money; c.alignment = Alignment(horizontal="right")
+        c.font = Font(name=FONT, size=12 if big else 10, bold=True, color=MUTED if muted else NAVY)
+        c.fill = _fill(BAND); ws.cell(row=row, column=1).fill = _fill(BAND)
+        for col in range(2, 6): ws.cell(row=row, column=col).fill = _fill(BAND)
+        r = row; row += 1
+        return r
+    qm_row = total_row("TOTAL QUALIFYING MONTHLY INCOME", qualifying_cells, big=True)
+    ws.cell(row=row, column=1, value="Total qualifying ANNUAL income").font = Font(name=FONT, size=9.5, bold=True, color=NAVY)
+    ac = ws.cell(row=row, column=6, value=f"=F{qm_row}*12"); ac.number_format = money
+    ac.alignment = Alignment(horizontal="right"); ac.font = Font(name=FONT, size=10, bold=True, color=NAVY); row += 1
+    if reference_cells:
+        total_row("Pro-rata business income (reference only — not counted)", reference_cells, muted=True)
+
+    ws.freeze_panes = "A6"
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+
+
 # --- Main export -------------------------------------------------------------
 def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: str | Path = ROOT / "outputs" / "excel", generated_by="system", override_reason=None):
     ctx = _ctx(conn, review_case_id); loan = ctx.copy()
@@ -391,6 +513,10 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
     dti_values = load_dti_inputs(conn, review_case_id)
     dti_result = compute_dti(dti_values, dti_cfg)
     dti_summary = summarize_dti(conn, review_case_id, dti_cfg)  # None unless worksheet filled
+    cf_cfg = load_cash_flow_config()
+    cf_values = load_cash_flow_inputs(conn, review_case_id)
+    cf_result = compute_cash_flow(cf_values, cf_cfg)
+    cf_summary = summarize_cash_flow(conn, review_case_id, cf_cfg)  # None unless filled
 
     wb = Workbook()
     wb.properties.title = f"Linesheet — {ctx['loan_id']} {ctx['borrower_name']}"
@@ -399,7 +525,7 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
 
     # Cover
     ws = wb.active; ws.title = "Cover"
-    _build_cover(ws, ctx, template, metrics, dti_summary)
+    _build_cover(ws, ctx, template, metrics, dti_summary, cf_summary)
 
     # Loan Summary
     ws = wb.create_sheet("Loan Summary")
@@ -425,6 +551,10 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
     for r in range(2, ws.max_row + 1):
         ws.cell(row=r, column=1).font = Font(name=FONT, size=10, bold=True, color=NAVY)
     _chip(ws.cell(row=ws.max_row, column=2))
+
+    # Cash Flow / Income Analysis worksheet
+    ws = wb.create_sheet("Cash Flow Analysis")
+    _build_cash_flow(ws, ctx, cf_cfg, cf_values, cf_result)
 
     # Ability-to-Repay (DTI) worksheet
     ws = wb.create_sheet("Ability-to-Repay (DTI)")
@@ -490,6 +620,13 @@ def generate_data_mart_csv(conn, review_case_id: int, template, output_path: str
         r=_row(a['question_id'],a['section_id'],a['answer_value'],a['answer_status'],a['severity'],a['reviewer_comment'])
         r["evidence_status"]=a['evidence_status']; r["answered_by"]=a['answered_by']; r["answered_at"]=a['answered_at']
         rows.append(r)
+    # Carry the cash-flow / income results into the data mart
+    cf = summarize_cash_flow(conn, review_case_id)
+    if cf:
+        for qid, value in (("CF_QUALIFYING_MONTHLY", cf["qualifying_monthly"]),
+                           ("CF_QUALIFYING_ANNUAL", cf["qualifying_annual"]),
+                           ("CF_BUSINESS_INCOME_REF_MONTHLY", cf["business_income_reference_monthly"])):
+            rows.append(_row(qid, "cash_flow", value, "Computed", None, "Carried from Cash Flow worksheet"))
     # Carry the ability-to-repay results into the data mart (consumer reviews)
     dti = summarize_dti(conn, review_case_id)
     if dti:

@@ -10,6 +10,7 @@ from linesheet_builder.validation_engine import validate_loan_records, persist_v
 from linesheet_builder.review_engine import create_review_cases, save_answer, calculate_completion_status, set_review_status
 from linesheet_builder.export_engine import generate_excel_linesheet, generate_data_mart_csv, generate_exception_report_csv, generate_audit_log_csv
 from linesheet_builder.dti_engine import load_dti_config, load_dti_inputs, save_dti_inputs, compute_dti, block_lines
+from linesheet_builder.cash_flow_engine import load_cash_flow_config, load_cash_flow_inputs, save_cash_flow_inputs, compute_cash_flow, source_lines
 from linesheet_builder.ui_helpers import inject_css, status_badge, next_action
 
 ROOT=Path(__file__).parent; DB=ROOT/'data'/'app.db'; TEMPLATE_PATH=ROOT/'configs'/'templates'/'commercial_linesheet_v1.yaml'
@@ -17,7 +18,7 @@ st.set_page_config(page_title="Linesheet Builder", layout="wide")
 inject_css(st); init_db(DB); seed_demo(DB)
 conn=get_connection(DB); template=load_template_yaml(TEMPLATE_PATH)
 st.sidebar.title("Linesheet Builder")
-page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Upload","Mapping","Validation","Review","DTI / ATR","Export","Audit"])
+page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Upload","Mapping","Validation","Review","Cash Flow","DTI / ATR","Export","Audit"])
 engagements=pd.read_sql_query("SELECT e.*, c.client_name FROM engagements e JOIN clients c ON e.client_id=c.client_id ORDER BY e.engagement_id DESC", conn)
 eng_id=int(st.sidebar.selectbox("Engagement", engagements.engagement_id, format_func=lambda x: f"{engagements[engagements.engagement_id==x].iloc[0].client_name} / {x}")) if not engagements.empty else None
 eng=engagements[engagements.engagement_id==eng_id].iloc[0].to_dict() if eng_id else {}
@@ -128,6 +129,40 @@ elif page=="Review":
         new_status=st.selectbox("Review case status", ["In Review","Needs Review","Blocked","Ready for QC","QC Returned","QC Approved","Finalized"])
         if st.button("Update status"): set_review_status(conn, rcid, new_status); st.success("Status updated")
         if status['blockers']: st.error("Export blockers: " + "; ".join(status['blockers']))
+
+elif page=="Cash Flow":
+    st.title("Cash Flow / Income Analysis")
+    st.write("Broad, gross (pre-tax) income analysis. Enter up to two periods per source and pick a basis (Annual/Monthly) and method (Latest / Average / Lower of). Salaried income: one period + Latest. Self-employed / variable: two periods + Average. K-1 business owners qualify on cash distributions; pro-rata business income is captured as reference only.")
+    cases=get_cases()
+    if cases.empty:
+        st.warning("Run validation to create review cases.")
+    else:
+        rcid=int(st.selectbox("Loan / review case", cases.review_case_id, format_func=lambda x: f"{cases[cases.review_case_id==x].iloc[0].loan_id} - {cases[cases.review_case_id==x].iloc[0].borrower_name}"))
+        loan_id=cases[cases.review_case_id==rcid].iloc[0].loan_id
+        cfg=load_cash_flow_config(); saved=load_cash_flow_inputs(conn, rcid)
+        db, dm = cfg["default_basis"], cfg["default_method"]
+        with st.form("cash_flow"):
+            values={}; last=None
+            for section, key, label, role in source_lines(cfg):
+                if section!=last: st.subheader(section); last=section
+                sv=saved.get(key) or {}
+                c=st.columns([3,1.3,1.3,1.2,1.4])
+                c[0].markdown(f"{'_'+label+'_' if role=='reference' else label}")
+                p1=c[1].number_input("Period 1", min_value=0.0, value=float(sv.get("period1") or 0.0), step=1000.0, key=f"cf_{rcid}_{key}_p1", label_visibility="collapsed")
+                p2=c[2].number_input("Period 2", min_value=0.0, value=float(sv.get("period2") or 0.0), step=1000.0, key=f"cf_{rcid}_{key}_p2", label_visibility="collapsed")
+                basis=c[3].selectbox("Basis", cfg["bases"], index=cfg["bases"].index(sv.get("basis") or db), key=f"cf_{rcid}_{key}_b", label_visibility="collapsed")
+                method=c[4].selectbox("Method", cfg["methods"], index=cfg["methods"].index(sv.get("method") or dm), key=f"cf_{rcid}_{key}_m", label_visibility="collapsed")
+                values[key]={"period1":p1,"period2":p2,"basis":basis,"method":method}
+            submitted=st.form_submit_button("Save & calculate")
+        if submitted:
+            save_cash_flow_inputs(conn, rcid, values, eng.get('reviewer_name','user'), loan_id=loan_id)
+        result=compute_cash_flow(values if submitted else saved, cfg)
+        st.markdown("---"); st.subheader("Qualifying income")
+        m=st.columns(3)
+        m[0].metric("Total qualifying monthly income", f"${result['qualifying_monthly']:,.0f}")
+        m[1].metric("Total qualifying annual income", f"${result['qualifying_annual']:,.0f}")
+        m[2].metric("Business income (reference)", f"${result['business_income_reference_monthly']:,.0f}/mo")
+        st.caption("Qualifying monthly income can be used as the income basis on the DTI / ATR worksheet.")
 
 elif page=="DTI / ATR":
     st.title("Ability-to-Repay (DTI) Worksheet")

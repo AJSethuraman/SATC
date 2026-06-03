@@ -1,0 +1,42 @@
+worksheet_id: cash_flow_v1
+worksheet_name: Cash Flow / Income Analysis
+version: '1.0'
+
+# Broad, gross (pre-tax) income / cash-flow analysis. Every income source is
+# entered across up to two periods and normalized to one monthly qualifying
+# figure. Per line you choose:
+#   basis  - whether the amounts are stated Annual or Monthly
+#   method - how to combine the two periods (Latest / Average / Lower of)
+# Salaried borrowers fill one period and use Latest; self-employed / variable
+# income fills two and uses Average. Banking convention: all gross EXCEPT that
+# for K-1 business owners the qualifying cash flow is the cash actually
+# distributed (distributions), with pro-rata business income shown only as a
+# reference (the company "making money" is separate from cash to the owner).
+methods: [Latest, Average, Lower of]
+bases: [Annual, Monthly]
+default_basis: Annual
+default_method: Average
+
+sources:
+  - section_name: Wages & Salary (W-2 / paystub)
+    lines:
+      - {key: w2_wages, label: Gross wages / salary}
+      - {key: w2_variable, label: Overtime / bonus / commission}
+  - section_name: Self-Employment (Schedule C)
+    lines:
+      - {key: sch_c_net, label: Net profit (Schedule C)}
+      - {key: sch_c_depreciation, label: Depreciation / depletion add-back}
+  - section_name: Business / K-1
+    lines:
+      - {key: k1_distributions, label: Cash distributions received (qualifying)}
+      - {key: k1_guaranteed_payments, label: Guaranteed payments to partner}
+      - {key: k1_ordinary_income, label: Ordinary business income (reference only), role: reference}
+  - section_name: Rental (Schedule E)
+    lines:
+      - {key: rental_net, label: Net rental income}
+      - {key: rental_depreciation, label: Depreciation add-back}
+  - section_name: Other Income
+    lines:
+      - {key: interest_dividends, label: Interest / dividends}
+      - {key: retirement_ss, label: Retirement / Social Security / pension}
+      - {key: other_income, label: Other documented income}
