@@ -316,6 +316,26 @@ can't ripple into others:
 When adding a feature, prefer a new leaf module (pure core + thin runner + tests)
 over threading special cases through existing tools.
 
+## Building a standalone desktop app
+
+You can package the desktop app into a single double-click executable so it runs
+without a separate Python install:
+
+```bash
+python build_app.py        # builds dist/SATC (SATC.exe on Windows) for THIS OS
+```
+
+PyInstaller builds for the operating system it runs on, so run it on Windows for a
+`.exe` and on macOS for an app. To build all three at once without owning every OS,
+use the included GitHub Actions workflow (**Actions → Build desktop app → Run
+workflow**, or push a `v*` tag); it builds Windows/macOS/Linux and uploads each as a
+downloadable artifact. The shipped `document_templates/` are bundled into the
+executable, and config files are still created next to your working folder on first
+run so they remain editable.
+
+**Tesseract OCR is not bundled** (it's a separate program). Install it on the
+machine if you need OCR for scanned PDFs/images; the app works without it otherwise.
+
 ## Detailed setup notes
 
 Python 3.10 or newer is recommended. A virtual environment is optional but recommended.

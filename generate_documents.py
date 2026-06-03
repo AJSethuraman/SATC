@@ -18,6 +18,7 @@ from __future__ import annotations
 import csv
 import json
 import re
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -27,7 +28,17 @@ import sort_tax_docs
 GENERATED_FOLDER_NAME = "Generated_Documents"
 CLIENT_DATA_FILENAMES = ("clients.json", "clients.csv")
 TEMPLATE_DIR_NAME = "document_templates"
-REPO_TEMPLATE_DIR = Path(__file__).with_name(TEMPLATE_DIR_NAME)
+
+
+def _bundled_resource_root() -> Path:
+    """Where shipped resources live: the PyInstaller bundle dir when frozen, else here."""
+
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent))
+    return Path(__file__).resolve().parent
+
+
+REPO_TEMPLATE_DIR = _bundled_resource_root() / TEMPLATE_DIR_NAME
 
 # Any file with one of these extensions in the templates folder is offered as a
 # template. The file name (without extension) becomes the template key, so adding
