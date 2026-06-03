@@ -107,12 +107,24 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "tool_lines": [],
         "open_paths": {},
         "sort": None,
+        "intake": None,
         "extract": None,
         "generate": None,
         "sign": None,
         "email": None,
         "encyro": None,
     }
+
+    intake_result = results.get("intake")
+    if intake_result is not None:
+        summary["intake"] = {
+            "clients_added": intake_result["clients_added"],
+            "responses_found": intake_result["responses_found"],
+            "warnings": intake_result["warnings"],
+        }
+        summary["tool_lines"].append(f"Client Intake: {intake_result['summary']}")
+        if intake_result.get("intake_folder"):
+            summary["open_paths"]["Open Intake Folder"] = str(intake_result["intake_folder"])
 
     sort_result = results.get("sort")
     if sort_result is not None:
@@ -417,6 +429,7 @@ if PYSIDE_AVAILABLE:
             action_row = QHBoxLayout()
             button_labels = [
                 "Open Organized Folder",
+                "Open Intake Folder",
                 "Open Inventory",
                 "Open Log File",
                 "Open Extracted Data",
@@ -591,6 +604,12 @@ if PYSIDE_AVAILABLE:
             self.summary_label.setText("\n".join(result.get("tool_lines", [])) or "Run complete.")
 
             review_lines = []
+            intake_result = result.get("intake")
+            if intake_result is not None:
+                review_lines.append(
+                    f"Intake clients added: {intake_result['clients_added']} | "
+                    f"Responses: {intake_result['responses_found']}"
+                )
             if sort_result is not None:
                 review_lines.append(
                     f"Needs Review: {sort_result['needs_review_count']} | "

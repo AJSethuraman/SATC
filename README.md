@@ -6,12 +6,13 @@ This is a local-only Python prototype that bundles small tax tools you can run i
 
 Pick one or more tools in the desktop app (they run top to bottom):
 
-1. **Sort Documents** — classify uploads and copy (or move) them into category folders with an inventory workbook. When a single PDF contains more than one form type, it is **split** into one filed PDF per form (see below).
-2. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, **1099-R**, **1099-G**, **1099-K**, **SSA-1099**, **1098 (Mortgage)**, **1098-T**, **1099-B**, and **Schedule K-1**. Output is written two ways: a human-readable `Extracted_Form_Data.xlsx` (one sheet per form type) and machine-readable per-form CSVs in `Drake_Export/` for feeding a downstream entry script.
-3. **Generate Documents** — fill editable templates (engagement letter, invoice, extension/cover letter, client organizer letter) from a `clients.json`/`clients.csv` data file and write finished HTML to `Generated_Documents/`.
-4. **Sign Documents** — stamp your signature image onto PDFs that carry a signature anchor phrase, writing signed copies to `Signed_Documents/`.
-5. **Compose Email Drafts** — build a review-ready `.eml` per client (subject/body from a template, that client's generated and signed files attached) in `Email_Drafts/`. Nothing is sent automatically and no credentials are stored.
-6. **Export for Encyro** — convert each client's letters to PDF, gather their signed PDFs/attachments, and merge an upload-ready `<client>_packet.pdf` (plus `UPLOAD_NOTES.txt`) under `Encyro_Ready/<client>/`.
+1. **Client Intake** — generate a dynamic fillable intake form from an editable field schema, and compile returned responses into `clients.json` (appending only new clients). Feeds every tool below.
+2. **Sort Documents** — classify uploads and copy (or move) them into category folders with an inventory workbook. When a single PDF contains more than one form type, it is **split** into one filed PDF per form (see below).
+3. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, **1099-R**, **1099-G**, **1099-K**, **SSA-1099**, **1098 (Mortgage)**, **1098-T**, **1099-B**, and **Schedule K-1**. Output is written two ways: a human-readable `Extracted_Form_Data.xlsx` (one sheet per form type) and machine-readable per-form CSVs in `Drake_Export/` for feeding a downstream entry script.
+4. **Generate Documents** — fill editable HTML/Word templates (engagement letter, invoice, extension/cover letter, client organizer letter) from a `clients.json`/`clients.csv` data file and write finished documents to `Generated_Documents/`.
+5. **Sign Documents** — stamp your signature image onto PDFs that carry a signature anchor phrase, writing signed copies to `Signed_Documents/`.
+6. **Compose Email Drafts** — build a review-ready `.eml` per client (subject/body from a template, that client's generated and signed files attached) in `Email_Drafts/`. Nothing is sent automatically and no credentials are stored.
+7. **Export for Encyro** — convert each client's letters to PDF, gather their signed PDFs/attachments, and merge an upload-ready `<client>_packet.pdf` (plus `UPLOAD_NOTES.txt`) under `Encyro_Ready/<client>/`.
 
 Extraction is local and rule-based: it uses label-anchored regular expressions over the same selectable-text/OCR pipeline as the sorter. It is **assistive only** — every value should be verified against the source document, and anything the rules cannot read confidently is left blank with the row flagged for manual entry. 1099-B is transactional and is always flagged for manual review.
 
@@ -158,6 +159,16 @@ python export_encyro.py "/path/to/Uploads"              # Encyro export directly
 
 The CLI workflows remain available for troubleshooting and automation. The older Flask browser app (`app.py`) is still present as optional legacy tooling, but the primary workflow is the PySide6 desktop app.
 
+### Collecting client intake
+
+The **Client Intake** tool builds a fillable form and turns returned answers into your `clients.json`:
+
+1. On first run it writes `intake_fields.json` to the folder — an editable list of questions (this is the **dynamic** part: add, remove, or reorder fields and the form follows). Field types include text, email, tel, number, date, textarea, dropdown (`select`), and multi-select (`checkboxes`).
+2. It generates `Intake/intake_form.html`. Send it to a client (or fill it yourself). The form runs entirely in the browser; **Download my answers** saves a `<name>_intake.json` — nothing is uploaded from the page.
+3. Drop the returned `*_intake.json` files in the folder and run the tool again. It compiles them into `clients.json`, appending only clients not already present (matched by email, else name), so hand-edited records are never overwritten.
+
+The default schema includes an **"expected documents"** checklist (W-2, 1099s, K-1, …) — those answers drive the upcoming Checklist tool.
+
 ### Generating client documents
 
 The **Generate Documents** tool fills templates from a client data file in the input folder and writes one HTML file per client per template to `Organized_Tax_Documents/Generated_Documents/`. Open the HTML in any browser and print or save it as PDF.
@@ -301,6 +312,8 @@ python sort_tax_docs.py "C:\Tax Clients\John Smith\Uploads" --move
 Run the included fake-text classifier tests with:
 
 ```bash
+python test_intake.py
+python test_tax_tools.py
 python test_sort_tax_docs.py
 python test_extract_form_data.py
 python test_generate_documents.py

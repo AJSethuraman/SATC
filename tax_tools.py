@@ -16,6 +16,7 @@ import compose_emails
 import export_encyro
 import extract_form_data
 import generate_documents
+import intake
 import sign_documents
 import sort_tax_docs
 
@@ -46,6 +47,13 @@ class Tool:
     name: str
     description: str
     run: Callable[[ToolContext], dict]
+
+
+def _run_intake(context: ToolContext) -> dict:
+    return intake.run_intake(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
 
 
 def _run_sorter(context: ToolContext) -> dict:
@@ -98,6 +106,12 @@ def _run_encyro(context: ToolContext) -> dict:
 
 
 TOOLS: tuple[Tool, ...] = (
+    Tool(
+        "intake",
+        "Client Intake",
+        "Generate a dynamic fillable intake form and compile returned responses into clients.json.",
+        _run_intake,
+    ),
     Tool(
         "sort",
         "Sort Documents",
