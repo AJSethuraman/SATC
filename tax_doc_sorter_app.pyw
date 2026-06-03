@@ -11,6 +11,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+import clients_editor
 import generate_documents
 import sign_documents
 import sort_tax_docs
@@ -26,6 +27,7 @@ if PYSIDE_AVAILABLE:
     from PySide6.QtWidgets import (
         QApplication,
         QCheckBox,
+        QDialog,
         QFileDialog,
         QFrame,
         QGridLayout,
@@ -439,6 +441,83 @@ if PYSIDE_AVAILABLE:
                 self.failed.emit(str(exc))
 
 
+    class ClientsEditorDialog(QDialog):
+        """A simple table editor for clients.json -- no JSON editing required."""
+
+        def __init__(self, folder: Path, parent=None) -> None:
+            super().__init__(parent)
+            self.folder = Path(folder)
+            self.setWindowTitle("Edit Clients")
+            self.resize(940, 520)
+
+            layout = QVBoxLayout(self)
+            layout.addWidget(QLabel(
+                "Add, edit, or remove clients. Documents and Services are comma-separated. "
+                "Other fields a client already has (totals, signed status) are preserved.",
+                objectName="StatusLabel",
+            ))
+
+            self.table = QTableWidget(0, len(clients_editor.COLUMN_LABELS))
+            self.table.setHorizontalHeaderLabels(list(clients_editor.COLUMN_LABELS))
+            self.table.setSortingEnabled(False)
+            self.table.horizontalHeader().setStretchLastSection(True)
+            layout.addWidget(self.table, stretch=1)
+
+            # Hidden full records, parallel to table rows, so unshown fields survive a save.
+            self.row_records: list[dict] = []
+            for client in clients_editor.load_clients(self.folder):
+                self._append_row(client)
+
+            controls = QHBoxLayout()
+            add_button = QPushButton("Add Client")
+            add_button.clicked.connect(lambda: self._append_row({}))
+            remove_button = QPushButton("Remove Selected")
+            remove_button.clicked.connect(self._remove_selected)
+            controls.addWidget(add_button)
+            controls.addWidget(remove_button)
+            controls.addStretch()
+            save_button = QPushButton("Save", objectName="PrimaryButton")
+            save_button.clicked.connect(self._save)
+            cancel_button = QPushButton("Cancel")
+            cancel_button.clicked.connect(self.reject)
+            controls.addWidget(cancel_button)
+            controls.addWidget(save_button)
+            layout.addLayout(controls)
+
+        def _append_row(self, client: dict) -> None:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            for column, text in enumerate(clients_editor.client_to_row(client)):
+                self.table.setItem(row, column, QTableWidgetItem(text))
+            self.row_records.append(client)
+
+        def _remove_selected(self) -> None:
+            row = self.table.currentRow()
+            if row >= 0:
+                self.table.removeRow(row)
+                del self.row_records[row]
+
+        def _collect(self) -> list[dict]:
+            clients: list[dict] = []
+            for row in range(self.table.rowCount()):
+                cells = [
+                    (self.table.item(row, column).text() if self.table.item(row, column) else "")
+                    for column in range(self.table.columnCount())
+                ]
+                client = clients_editor.row_to_client(cells, self.row_records[row])
+                if client.get("client_name"):
+                    clients.append(client)
+            return clients
+
+        def _save(self) -> None:
+            try:
+                clients_editor.save_clients(self.folder, self._collect())
+            except OSError as exc:
+                QMessageBox.warning(self, "Could not save", str(exc))
+                return
+            self.accept()
+
+
     class TaxDocumentSorterWindow(QMainWindow):
         """Main SATC desktop window."""
 
@@ -500,12 +579,16 @@ if PYSIDE_AVAILABLE:
             choose_button.clicked.connect(self.choose_folder)
             default_button = QPushButton("Use Default Uploads Folder")
             default_button.clicked.connect(lambda: self.set_selected_folder(ensure_default_uploads_folder()))
+            edit_clients_button = QPushButton("Edit Clients")
+            edit_clients_button.setToolTip("Add or edit clients in a table (no JSON editing).")
+            edit_clients_button.clicked.connect(self.open_clients_editor)
             safety = QLabel("Files are copied by default. Originals are not deleted.", objectName="SafetyNote")
             folder_layout.addWidget(folder_title, 0, 0, 1, 3)
             folder_layout.addWidget(self.folder_path, 1, 0, 1, 3)
             folder_layout.addWidget(choose_button, 2, 0)
             folder_layout.addWidget(default_button, 2, 1)
-            folder_layout.addWidget(safety, 2, 2)
+            folder_layout.addWidget(edit_clients_button, 2, 2)
+            folder_layout.addWidget(safety, 3, 0, 1, 3)
             body_layout.addWidget(folder_card)
 
             tools_card = QFrame(objectName="Card")
@@ -794,6 +877,14 @@ if PYSIDE_AVAILABLE:
             )
             if folder:
                 self.set_selected_folder(Path(folder))
+
+        def open_clients_editor(self) -> None:
+            if not self.selected_folder.is_dir():
+                QMessageBox.warning(self, "Invalid folder", "Please choose a valid folder first.")
+                return
+            dialog = ClientsEditorDialog(self.selected_folder, self)
+            if dialog.exec():
+                self.status_label.setText("Clients saved to clients.json.")
 
         def choose_signature(self) -> None:
             path, _ = QFileDialog.getOpenFileName(

@@ -188,6 +188,15 @@ Put a `firm.json` in the folder with your firm-wide details and they are merged 
 
 The **Practice Dashboard** tool writes a single `Dashboard/dashboard.html` — one row per client, one column per stage (email on file, documents received, invoice, documents generated, engagement letter, Form 8879, Encyro packet, archived), each shown as a colour-coded pill, with a summary bar of the counts that matter (missing documents, outstanding signatures, not invoiced, not archived). It reads what the other tools already produced, so run it any time for a live "where is everyone" snapshot.
 
+### Editing clients (no JSON)
+
+In the desktop app, **Edit Clients** opens a table to add, edit, or remove clients
+without touching `clients.json` by hand. Documents and Services are entered
+comma-separated; any fields the table doesn't show (invoice totals, signed status,
+custom fields) are preserved when you save, and the previous `clients.json` is
+backed up to `clients.backup.json` first. This is the friendly alternative to the
+Import Clients and Client Intake tools for day-to-day edits.
+
 ### Collecting client intake
 
 The **Client Intake** tool builds a fillable form and turns returned answers into your `clients.json`:
@@ -407,6 +416,7 @@ Run the included fake-text classifier tests with:
 
 ```bash
 python test_core.py
+python test_clients_editor.py
 python test_validate_config.py
 python test_import_clients.py
 python test_year_rollover.py
