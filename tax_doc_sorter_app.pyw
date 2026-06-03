@@ -109,6 +109,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "sort": None,
         "intake": None,
         "extract": None,
+        "checklist": None,
         "generate": None,
         "sign": None,
         "email": None,
@@ -147,6 +148,17 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
             summary["open_paths"]["Open Extracted Data"] = str(extract_result["data_path"])
         if extract_result.get("drake_export_folder"):
             summary["open_paths"]["Open Drake Export"] = str(extract_result["drake_export_folder"])
+
+    checklist_result = results.get("checklist")
+    if checklist_result is not None:
+        summary["checklist"] = {
+            "total_missing": checklist_result["total_missing"],
+            "client_count": checklist_result["client_count"],
+            "warnings": checklist_result["warnings"],
+        }
+        summary["tool_lines"].append(f"Document Checklist: {checklist_result['summary']}")
+        if checklist_result.get("checklist_folder"):
+            summary["open_paths"]["Open Checklists"] = str(checklist_result["checklist_folder"])
 
     generate_result = results.get("generate")
     if generate_result is not None:
@@ -434,6 +446,7 @@ if PYSIDE_AVAILABLE:
                 "Open Log File",
                 "Open Extracted Data",
                 "Open Drake Export",
+                "Open Checklists",
                 "Open Generated Documents",
                 "Open Signed Documents",
                 "Open Email Drafts",
@@ -620,6 +633,9 @@ if PYSIDE_AVAILABLE:
                     f"Forms extracted: {extract_result['total_forms']} | "
                     f"Flagged for manual entry: {extract_result['review_count']}"
                 )
+            checklist_result = result.get("checklist")
+            if checklist_result is not None:
+                review_lines.append(f"Documents still missing: {checklist_result['total_missing']}")
             generate_result = result.get("generate")
             if generate_result is not None:
                 review_lines.append(

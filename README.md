@@ -169,6 +169,12 @@ The **Client Intake** tool builds a fillable form and turns returned answers int
 
 The default schema includes an **"expected documents"** checklist (W-2, 1099s, K-1, …) — those answers drive the upcoming Checklist tool.
 
+### Checking documents received
+
+The **Document Checklist** tool compares each client's `expected_documents` (collected at intake) against the sorter categories that actually contain files, and writes `Checklists/<client>_checklist.html` (printable / sendable) plus an aggregate `checklist_summary.csv`. Each expected item shows as **Received**, **Missing**, or **Manual check** (for labels with no automatic mapping, like "Other"), and any received-but-unexpected categories are noted.
+
+Run **Sort Documents** first so there is something to check against. The intake-label → sorter-category mapping is **dynamic**: a `checklist_map.json` is written to the folder on first run, so you can change how labels map (for example, point "1099-INT" and "1099-DIV" at different categories) without touching code.
+
 ### Generating client documents
 
 The **Generate Documents** tool fills templates from a client data file in the input folder and writes one HTML file per client per template to `Organized_Tax_Documents/Generated_Documents/`. Open the HTML in any browser and print or save it as PDF.
@@ -313,6 +319,7 @@ Run the included fake-text classifier tests with:
 
 ```bash
 python test_intake.py
+python test_checklist.py
 python test_tax_tools.py
 python test_sort_tax_docs.py
 python test_extract_form_data.py

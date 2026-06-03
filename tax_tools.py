@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+import checklist
 import compose_emails
 import export_encyro
 import extract_form_data
@@ -74,6 +75,13 @@ def _run_extractor(context: ToolContext) -> dict:
     )
 
 
+def _run_checklist(context: ToolContext) -> dict:
+    return checklist.run_checklist(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 def _run_generator(context: ToolContext) -> dict:
     return generate_documents.run_generation(
         context.input_folder,
@@ -123,6 +131,12 @@ TOOLS: tuple[Tool, ...] = (
         "Extract Form Data",
         "Pull key fields from W-2 and 1099 forms into a spreadsheet and Drake CSVs.",
         _run_extractor,
+    ),
+    Tool(
+        "checklist",
+        "Document Checklist",
+        "Compare each client's expected documents (from intake) against what was sorted.",
+        _run_checklist,
     ),
     Tool(
         "generate",
