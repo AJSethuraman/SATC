@@ -8,7 +8,7 @@ from linesheet_builder.mapping_engine import suggest_mappings, apply_mapping, sa
 from linesheet_builder.template_engine import load_template_yaml, get_applicable_questions, discover_templates, load_template
 from linesheet_builder.validation_engine import validate_loan_records, persist_validation_issues, validation_summary_table
 from linesheet_builder.review_engine import create_review_cases, save_answer, calculate_completion_status, set_review_status
-from linesheet_builder.export_engine import generate_excel_linesheet, generate_data_mart_csv, generate_exception_report_csv, generate_audit_log_csv
+from linesheet_builder.export_engine import generate_excel_linesheet, generate_data_mart_csv, generate_exception_report_csv, generate_audit_log_csv, generate_data_mart_workbook
 from linesheet_builder.dti_engine import load_dti_config, load_dti_inputs, save_dti_inputs, compute_dti, block_lines
 from linesheet_builder.cash_flow_engine import load_cash_flow_config, load_cash_flow_inputs, save_cash_flow_inputs, compute_cash_flow, source_lines
 from linesheet_builder.template_builder import (q as tb_q, section as tb_section, build_template, write_template_yaml,
@@ -356,6 +356,11 @@ elif page=="Export":
         if st.button("Generate data mart CSV"): st.success(generate_data_mart_csv(conn, rcid, template, generated_by=eng.get('reviewer_name','user')).file_path)
         if st.button("Generate exception report CSV"): st.success(generate_exception_report_csv(conn).file_path)
         if st.button("Generate audit log CSV"): st.success(generate_audit_log_csv(conn).file_path)
+        st.markdown("---")
+        st.subheader("Engagement data mart")
+        st.caption("Consolidate every linesheet in this engagement into one pivot-ready Excel database (Linesheets, Answers, Findings, DTI, Cash Flow, Audit tables).")
+        if st.button("Generate data mart workbook (Excel)"):
+            st.success(generate_data_mart_workbook(conn, eng_id, generated_by=eng.get('reviewer_name','user')).file_path)
 
 elif page=="Audit":
     st.title("Audit Log")

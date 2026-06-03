@@ -155,6 +155,19 @@ write_template_yaml(t, "configs/templates/consumer_mortgage_atr_v1.yaml")
 
 `build_template` validates structure and fills in display orders and `data_mart_field` / `export_label` defaults; `write_template_yaml` emits valid YAML that round-trips through `load_template_yaml`. A preset library (`preset_borrower`, `preset_employment_income`, `preset_atr`, `preset_collateral_property`, `preset_documentation`, `preset_conclusion_signoff`) makes assembly fast, and `template_builder.write_catalog()` writes a whole starter catalog at once (Consumer Mortgage ATR, HELOC, Auto/Installment, Small Business). Every template shares the same calculation fixtures (Cash Flow, DTI) and audit/export machinery.
 
+## Engagement data mart (Excel)
+
+The **Export** page can consolidate every linesheet in an engagement into a single pivot-ready Excel database (`outputs/data_mart/linesheet_data_mart.xlsx`, via `export_engine.generate_data_mart_workbook`). It is a small star schema of normalized Excel **Tables** you can pivot off directly:
+
+- **Linesheets** — one row per loan / review case (the grain): client, template, validation & review status, completion %, findings count, and the carried DTI and Cash Flow results (back-end DTI, ATR assessment, qualifying income).
+- **Answers** — one row per case × question (status, severity, exception flag, evidence).
+- **Findings** — every exception/finding across the engagement.
+- **DTI** and **CashFlow** — the calculation results per case.
+- **Audit** — the engagement's audit trail.
+- **Overview** and **Data Dictionary** sheets describe the tables and key columns.
+
+Each sheet is a named Excel Table (`tbl_Linesheets`, `tbl_Answers`, …) with autofilter and banded rows, so PivotTables and structured references work immediately. `review_case_id` is the key linking every table back to **Linesheets**.
+
 ## Auditability and blocking behavior
 
 The app writes audit events for import creation, mapping saved, loan normalization, validation runs, answer changes, exception creation/update, and exports. Final Excel export is blocked unless validation blockers are clear, required answers are complete, findings/blockers have comments, evidence requirements are resolved, and the case status is Ready for QC or QC Approved. A pilot override reason can be entered in the Export screen and is logged.

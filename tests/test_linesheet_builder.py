@@ -11,7 +11,7 @@ from linesheet_builder.mapping_engine import load_mapping_profile, apply_mapping
 from linesheet_builder.validation_engine import validate_loan_records, persist_validation_issues
 from linesheet_builder.template_engine import load_template_yaml
 from linesheet_builder.review_engine import create_review_cases, save_answer, calculate_completion_status, set_review_status
-from linesheet_builder.export_engine import generate_excel_linesheet, generate_data_mart_csv, generate_audit_log_csv
+from linesheet_builder.export_engine import generate_excel_linesheet, generate_data_mart_csv, generate_audit_log_csv, generate_data_mart_workbook
 from linesheet_builder.audit import append_audit_event
 from linesheet_builder.rules_engine import evaluate_rule, UnsafeRuleError, determine_question_status
 from linesheet_builder.dti_engine import load_dti_config, compute_dti, save_dti_inputs, load_dti_inputs
@@ -263,6 +263,30 @@ def test_template_builder_ui_page_saves(tmp_path):
         assert path.exists() and load_template_yaml(str(path)).sections
     finally:
         if path.exists(): os.remove(str(path))
+
+def test_data_mart_workbook_consolidates_engagement(workflow):
+    conn=workflow["conn"]; template=workflow["template"]; eid=workflow["eid"]
+    # complete one Ready case and attach DTI + cash flow so results carry into the mart
+    for c in workflow["cases"]:
+        row=conn.execute("SELECT lr.* FROM review_cases rc JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.review_case_id=?",(c,)).fetchone(); loan={k:row[k] for k in row.keys()}
+        if loan["validation_status"]=="Ready": rcid=c; break
+    save_dti_inputs(conn, rcid, {"base_income":9000,"principal_interest":2510,"auto":620,"credit_cards":360,"student_loans":320,"installment":180,"other_debt":120}, "Reviewer")
+    save_cash_flow_inputs(conn, rcid, {"w2_wages":{"period2":96000,"basis":"Annual","method":"Latest"}}, "Reviewer")
+    complete_case(conn, rcid, loan, template)
+    res=generate_data_mart_workbook(conn, eid, workflow["tmp"]/"mart.xlsx", "Reviewer")
+    wb=load_workbook(res.file_path)
+    for s in ("Overview","Linesheets","Answers","Findings","DTI","CashFlow","Audit","Data Dictionary"):
+        assert s in wb.sheetnames
+    ws=wb["Linesheets"]
+    header=[c.value for c in ws[1]]
+    assert "dti_back_end_pct" in header and "cf_qualifying_monthly" in header
+    ncases=conn.execute("SELECT COUNT(*) FROM review_cases WHERE engagement_id=?",(eid,)).fetchone()[0]
+    assert ws.max_row-1 == ncases  # one row per linesheet
+    assert len(wb["Linesheets"].tables)==1  # registered as an Excel Table for pivots
+    # the completed case carries its DTI back-end into the mart
+    idx=header.index("review_case_id"); bidx=header.index("dti_back_end_pct")
+    vals={ws.cell(row=r,column=idx+1).value: ws.cell(row=r,column=bidx+1).value for r in range(2,ws.max_row+1)}
+    assert vals.get(rcid)==45.67
 
 def test_rules_engine_safe_supported_and_no_raw_eval():
     assert evaluate_rule('answer == "No"', answer="No")

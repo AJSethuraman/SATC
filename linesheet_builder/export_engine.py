@@ -6,11 +6,12 @@ from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl.formatting.rule import CellIsRule, FormulaRule
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.worksheet.table import Table, TableStyleInfo
 from .models import ExportResult
 from .db import now
 from .audit import append_audit_event, export_audit_log
 from .review_engine import calculate_completion_status
-from .template_engine import get_applicable_questions
+from .template_engine import get_applicable_questions, load_template
 from .dti_engine import load_dti_config, load_dti_inputs, compute_dti, block_lines, summarize_dti
 from .cash_flow_engine import load_cash_flow_config, load_cash_flow_inputs, compute_cash_flow, source_lines, summarize_cash_flow
 
@@ -648,3 +649,179 @@ def generate_exception_report_csv(conn, output_path: str | Path = ROOT / "output
 
 def generate_audit_log_csv(conn, output_path: str | Path = ROOT / "outputs" / "audit" / "audit_log.csv"):
     return ExportResult(export_type="audit", file_path=export_audit_log(conn, output_path), export_status="Generated")
+
+
+# --- Engagement-level Excel data mart ----------------------------------------
+_DM_TABLES = {
+    "Linesheets": ["review_case_id", "client_name", "review_period", "template_id", "template_name",
+                   "template_version", "loan_id", "borrower_name", "product_type", "outstanding_balance",
+                   "validation_status", "review_status", "completion_pct", "required_count", "answered_required",
+                   "findings_count", "blockers_count", "dti_back_end_pct", "dti_front_end_pct",
+                   "dti_residual_income", "dti_net_residual_income", "dti_assessment",
+                   "cf_qualifying_monthly", "cf_qualifying_annual", "cf_business_income_ref_monthly"],
+    "Answers": ["review_case_id", "loan_id", "borrower_name", "template_id", "section_id", "question_id",
+                "answer_value", "answer_status", "severity", "exception_flag", "reviewer_comment",
+                "evidence_required", "evidence_status", "answered_by", "answered_at"],
+    "Findings": ["exception_id", "review_case_id", "loan_id", "borrower_name", "section_id", "question_id",
+                 "issue_text", "severity", "status", "reviewer_comment", "evidence_status", "created_at", "updated_at"],
+    "DTI": ["review_case_id", "loan_id", "borrower_name", "total_income", "total_housing", "total_other_debt",
+            "total_obligations", "front_end_dti", "back_end_dti", "residual_income", "net_residual_income",
+            "total_withholding", "assessment", "severity"],
+    "CashFlow": ["review_case_id", "loan_id", "borrower_name", "qualifying_monthly", "qualifying_annual",
+                 "business_income_reference_monthly"],
+    "Audit": ["audit_id", "timestamp", "user", "action_type", "entity_type", "entity_id", "reason",
+              "review_case_id", "loan_id"],
+}
+
+_DM_DICTIONARY = [
+    ("Linesheets", "review_case_id", "Primary key — one row per loan / review case (linesheet)."),
+    ("Linesheets", "completion_pct", "Percent of required questions answered."),
+    ("Linesheets", "findings_count", "Open exceptions/findings on the case (incl. carried DTI finding)."),
+    ("Linesheets", "dti_back_end_pct", "Back-end DTI carried from the Ability-to-Repay worksheet."),
+    ("Linesheets", "cf_qualifying_monthly", "Total qualifying monthly income from the Cash Flow worksheet."),
+    ("Answers", "review_case_id", "Foreign key to Linesheets."),
+    ("Answers", "exception_flag", "TRUE when the answer raised a finding/exception."),
+    ("Findings", "review_case_id", "Foreign key to Linesheets."),
+    ("DTI", "review_case_id", "Foreign key to Linesheets — ability-to-repay results."),
+    ("CashFlow", "review_case_id", "Foreign key to Linesheets — income analysis results."),
+    ("Audit", "review_case_id", "Foreign key to Linesheets (nullable for engagement-level events)."),
+]
+
+
+def _dm_table_sheet(wb, title, table_name, columns, rows):
+    ws = wb.create_sheet(title)
+    ws.append(columns)
+    for r in (rows or [{}]):
+        ws.append([r.get(c) for c in columns])
+    ref = f"A1:{get_column_letter(len(columns))}{ws.max_row}"
+    table = Table(displayName=table_name, ref=ref)
+    table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True, showFirstColumn=False)
+    ws.add_table(table)
+    ws.freeze_panes = "A2"; ws.sheet_view.showGridLines = False
+    for i, c in enumerate(columns, start=1):
+        width = max([len(str(c))] + [len(str((r.get(c) if r else "") or "")) for r in (rows or [])])
+        ws.column_dimensions[get_column_letter(i)].width = min(46, width + 2)
+    return ws
+
+
+def generate_data_mart_workbook(conn, engagement_id: int,
+                                output_path: str | Path = ROOT / "outputs" / "data_mart" / "linesheet_data_mart.xlsx",
+                                generated_by: str = "system"):
+    """Consolidate every linesheet in an engagement into one pivot-ready Excel
+    data mart: normalized Tables for Linesheets, Answers, Findings, DTI, Cash
+    Flow and Audit, plus an Overview and Data Dictionary."""
+    ctx = conn.execute("SELECT e.*, c.client_name FROM engagements e JOIN clients c ON e.client_id=c.client_id WHERE e.engagement_id=?",
+                       (engagement_id,)).fetchone()
+    ctx = dict(ctx) if ctx else {}
+    try:
+        template = load_template(ctx.get("template_id"))
+    except Exception:
+        template = None
+
+    cases = [dict(r) for r in conn.execute(
+        "SELECT rc.review_case_id, rc.status AS review_status, lr.* FROM review_cases rc "
+        "JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.engagement_id=? ORDER BY rc.review_case_id",
+        (engagement_id,)).fetchall()]
+    case_ids = [c["review_case_id"] for c in cases]
+
+    lines, dti_rows, cf_rows = [], [], []
+    for c in cases:
+        rcid = c["review_case_id"]
+        comp = calculate_completion_status(conn, rcid, c, template) if template else {}
+        dti = summarize_dti(conn, rcid)
+        cf = summarize_cash_flow(conn, rcid)
+        findings = conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=?", (rcid,)).fetchone()[0]
+        lines.append({
+            "review_case_id": rcid, "client_name": ctx.get("client_name"), "review_period": ctx.get("review_period"),
+            "template_id": ctx.get("template_id"), "template_name": getattr(template, "template_name", None),
+            "template_version": getattr(template, "version", None), "loan_id": c.get("loan_id"),
+            "borrower_name": c.get("borrower_name"), "product_type": c.get("product_type"),
+            "outstanding_balance": c.get("outstanding_balance"), "validation_status": c.get("validation_status"),
+            "review_status": c.get("review_status"), "completion_pct": comp.get("completion_pct"),
+            "required_count": comp.get("required_count"), "answered_required": comp.get("answered_required"),
+            "findings_count": findings, "blockers_count": len(comp.get("blockers", [])),
+            "dti_back_end_pct": dti["back_end_dti"] if dti else None,
+            "dti_front_end_pct": dti["front_end_dti"] if dti else None,
+            "dti_residual_income": dti["residual_income"] if dti else None,
+            "dti_net_residual_income": dti["net_residual_income"] if dti else None,
+            "dti_assessment": dti["assessment"] if dti else None,
+            "cf_qualifying_monthly": cf["qualifying_monthly"] if cf else None,
+            "cf_qualifying_annual": cf["qualifying_annual"] if cf else None,
+            "cf_business_income_ref_monthly": cf["business_income_reference_monthly"] if cf else None,
+        })
+        if dti:
+            dti_rows.append({"review_case_id": rcid, "loan_id": c.get("loan_id"), "borrower_name": c.get("borrower_name"),
+                             **{k: dti.get(k) for k in ("total_income", "total_housing", "total_other_debt", "total_obligations",
+                                "front_end_dti", "back_end_dti", "residual_income", "net_residual_income", "total_withholding",
+                                "assessment", "severity")}})
+        if cf:
+            cf_rows.append({"review_case_id": rcid, "loan_id": c.get("loan_id"), "borrower_name": c.get("borrower_name"),
+                            "qualifying_monthly": cf["qualifying_monthly"], "qualifying_annual": cf["qualifying_annual"],
+                            "business_income_reference_monthly": cf["business_income_reference_monthly"]})
+
+    answers = []
+    for r in conn.execute(
+        "SELECT ra.*, lr.loan_id, lr.borrower_name FROM review_answers ra "
+        "JOIN review_cases rc ON ra.review_case_id=rc.review_case_id "
+        "JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.engagement_id=? ORDER BY ra.review_case_id, ra.answer_id",
+        (engagement_id,)).fetchall():
+        d = dict(r); d["exception_flag"] = bool(d.get("severity")); answers.append(d)
+    findings_rows = [dict(r) for r in conn.execute(
+        "SELECT x.*, lr.loan_id, lr.borrower_name FROM exceptions x "
+        "JOIN review_cases rc ON x.review_case_id=rc.review_case_id "
+        "JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.engagement_id=? ORDER BY x.exception_id",
+        (engagement_id,)).fetchall()]
+    ph = ",".join("?" * len(case_ids)) or "NULL"
+    audit_rows = [dict(r) for r in conn.execute(
+        f"SELECT audit_id,timestamp,user,action_type,entity_type,entity_id,reason,review_case_id,loan_id "
+        f"FROM audit_log WHERE engagement_id=? OR review_case_id IN ({ph}) ORDER BY audit_id",
+        [engagement_id] + case_ids).fetchall()]
+
+    wb = Workbook()
+    wb.properties.title = f"Linesheet Data Mart — {ctx.get('client_name','')} {ctx.get('review_period','')}"
+    wb.properties.creator = "Linesheet Builder"
+
+    ov = wb.active; ov.title = "Overview"; ov.sheet_view.showGridLines = False
+    ov.column_dimensions["A"].width = 2.5; ov.column_dimensions["B"].width = 28; ov.column_dimensions["C"].width = 40
+    ov.merge_cells("A1:D1"); ov.row_dimensions[1].height = 5; ov["A1"].fill = _fill(GOLD)
+    ov.merge_cells("A2:D2"); ov.row_dimensions[2].height = 34
+    h = ov["A2"]; h.value = "LINESHEET DATA MART"; h.fill = _fill(NAVY); h.font = Font(name=FONT, color=WHITE, bold=True, size=18)
+    h.alignment = Alignment(vertical="center", indent=1)
+    for col in range(1, 5): ov.cell(row=2, column=col).fill = _fill(NAVY)
+    ov.merge_cells("A3:D3"); ov.row_dimensions[3].height = 5; ov["A3"].fill = _fill(GOLD)
+    meta = [("Client", ctx.get("client_name")), ("Review period", ctx.get("review_period")),
+            ("Template", f"{getattr(template,'template_name', ctx.get('template_id'))}"),
+            ("Linesheets (cases)", len(cases)), ("Answers", len(answers)), ("Findings", len(findings_rows)),
+            ("Generated", now().replace("T", "  "))]
+    r = 5
+    for label, value in meta:
+        ov.cell(row=r, column=2, value=label).font = Font(name=FONT, color=MUTED, bold=True, size=10)
+        ov.cell(row=r, column=3, value=value).font = Font(name=FONT, color=INK, size=10)
+        for col in (2, 3): ov.cell(row=r, column=col).border = BOTTOM
+        r += 1
+    r += 1
+    ov.cell(row=r, column=2, value="TABLES").font = Font(name=FONT, color=GOLD, bold=True, size=10); r += 1
+    for name, count in (("Linesheets", len(lines)), ("Answers", len(answers)), ("Findings", len(findings_rows)),
+                        ("DTI", len(dti_rows)), ("CashFlow", len(cf_rows)), ("Audit", len(audit_rows)),
+                        ("Data Dictionary", len(_DM_DICTIONARY))):
+        ov.cell(row=r, column=2, value=name).font = Font(name=FONT, color=NAVY, bold=True, size=10)
+        ov.cell(row=r, column=3, value=f"{count} rows").font = Font(name=FONT, color=MUTED, size=10)
+        for col in (2, 3): ov.cell(row=r, column=col).border = BOTTOM
+        r += 1
+
+    _dm_table_sheet(wb, "Linesheets", "tbl_Linesheets", _DM_TABLES["Linesheets"], lines)
+    _dm_table_sheet(wb, "Answers", "tbl_Answers", _DM_TABLES["Answers"], answers)
+    _dm_table_sheet(wb, "Findings", "tbl_Findings", _DM_TABLES["Findings"], findings_rows)
+    _dm_table_sheet(wb, "DTI", "tbl_DTI", _DM_TABLES["DTI"], dti_rows)
+    _dm_table_sheet(wb, "CashFlow", "tbl_CashFlow", _DM_TABLES["CashFlow"], cf_rows)
+    _dm_table_sheet(wb, "Audit", "tbl_Audit", _DM_TABLES["Audit"], audit_rows)
+    _dm_table_sheet(wb, "Data Dictionary", "tbl_Dictionary", ["table", "column", "description"],
+                    [{"table": t, "column": c, "description": d} for t, c, d in _DM_DICTIONARY])
+
+    output_path = Path(output_path); output_path.parent.mkdir(parents=True, exist_ok=True)
+    wb.save(output_path)
+    conn.execute("INSERT INTO exports (engagement_id, review_case_id, export_type, file_path, generated_by, generated_at, export_status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                 (engagement_id, None, "data_mart_workbook", str(output_path), generated_by, now(), "Generated")); conn.commit()
+    append_audit_event(conn, generated_by, "export_generated", "export", "data_mart_workbook",
+                       after_value=str(output_path), engagement_id=engagement_id)
+    return ExportResult(export_type="data_mart_workbook", file_path=str(output_path), export_status="Generated")
