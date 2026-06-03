@@ -33,8 +33,11 @@ def section(section_id: str, section_name: str, questions: list[dict]) -> dict:
     return {"section_id": section_id, "section_name": section_name, "questions": questions}
 
 
+CALC_MODULES = ["cash_flow", "dti", "collateral", "dscr", "guarantor", "global", "leverage"]
+
+
 def build_template(template_id: str, template_name: str, sections: list[dict],
-                   version: str = "1.0") -> Template:
+                   version: str = "1.0", modules: list[str] | None = None) -> Template:
     """Assemble and validate a Template from a compact spec. Display orders and
     data_mart_field / export_label defaults are filled in automatically."""
     sec_models = []
@@ -49,7 +52,7 @@ def build_template(template_id: str, template_name: str, sections: list[dict],
         sec_models.append({"section_id": sec["section_id"], "section_name": sec["section_name"],
                            "display_order": sec.get("display_order", si), "questions": qs})
     template = Template.model_validate({"template_id": template_id, "template_name": template_name,
-                                        "version": version, "sections": sec_models})
+                                        "version": version, "sections": sec_models, "modules": modules or []})
     validate_template_structure(template)
     return template
 
@@ -72,12 +75,15 @@ def _question_dict(qm) -> dict:
 
 
 def template_to_dict(template: Template) -> dict:
-    return {"template_id": template.template_id, "template_name": template.template_name,
-            "version": template.version,
-            "sections": [{"section_id": s.section_id, "section_name": s.section_name,
-                          "display_order": s.display_order,
-                          "questions": [_question_dict(x) for x in s.questions]}
-                         for s in template.sections]}
+    d = {"template_id": template.template_id, "template_name": template.template_name,
+         "version": template.version}
+    if getattr(template, "modules", None):
+        d["modules"] = list(template.modules)
+    d["sections"] = [{"section_id": s.section_id, "section_name": s.section_name,
+                      "display_order": s.display_order,
+                      "questions": [_question_dict(x) for x in s.questions]}
+                     for s in template.sections]
+    return d
 
 
 def write_template_yaml(template: Template, path: str | Path) -> str:
@@ -166,7 +172,8 @@ def catalog() -> list[Template]:
     consumer_mortgage = build_template(
         "consumer_mortgage_atr_v1", "Consumer Mortgage — Ability to Repay",
         [preset_borrower(), preset_employment_income(), preset_atr(),
-         preset_collateral_property(), preset_documentation(), preset_conclusion_signoff()])
+         preset_collateral_property(), preset_documentation(), preset_conclusion_signoff()],
+        modules=["cash_flow", "dti", "collateral"])
 
     heloc = build_template(
         "consumer_heloc_v1", "Consumer HELOC Review",
@@ -176,7 +183,8 @@ def catalog() -> list[Template]:
                warning_if='answer == "No"', severity="Finding"),
              q("PR2", "Is the property owner-occupied?", required=True),
              q("PR3", "Available equity", "currency", required=False)]),
-         preset_documentation(), preset_conclusion_signoff()])
+         preset_documentation(), preset_conclusion_signoff()],
+        modules=["cash_flow", "dti", "collateral"])
 
     auto = build_template(
         "consumer_auto_v1", "Consumer Auto / Installment",
@@ -191,7 +199,8 @@ def catalog() -> list[Template]:
                warning_if='answer == "No"', severity="Finding"),
              q("VA2", "Loan-to-value", "percent", required=True,
                exception_if='value > 120', severity="Finding")]),
-         preset_conclusion_signoff()])
+         preset_conclusion_signoff()],
+        modules=["cash_flow", "dti", "collateral"])
 
     small_business = build_template(
         "small_business_v1", "Small Business Credit",
@@ -207,7 +216,8 @@ def catalog() -> list[Template]:
              q("GU1", "Are guarantor obligations documented?", required=True,
                warning_if='answer == "No"', severity="Warning"),
              q("GU2", "Personal guarantee obtained?", required=True)]),
-         preset_documentation(), preset_conclusion_signoff()])
+         preset_documentation(), preset_conclusion_signoff()],
+        modules=["cash_flow", "dscr", "guarantor", "global", "collateral", "leverage"])
 
     return [consumer_mortgage, heloc, auto, small_business]
 

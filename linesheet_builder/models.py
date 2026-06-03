@@ -66,6 +66,7 @@ class Template(BaseModel):
     template_name: str
     version: str
     sections: List[TemplateSection]
+    modules: List[str] = Field(default_factory=list)  # calc tabs; empty = all
 
 class ReviewCase(BaseModel):
     review_case_id: Optional[int] = None

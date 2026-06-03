@@ -1,6 +1,13 @@
 template_id: small_business_v1
 template_name: Small Business Credit
 version: '1.0'
+modules:
+- cash_flow
+- dscr
+- guarantor
+- global
+- collateral
+- leverage
 sections:
 - section_id: borrower
   section_name: Borrower / Relationship

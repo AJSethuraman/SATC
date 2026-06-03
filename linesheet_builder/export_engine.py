@@ -54,6 +54,19 @@ CHIP = {
 
 def _fill(color): return PatternFill("solid", fgColor=color)
 
+ALL_MODULES = ["cash_flow", "dti", "collateral", "dscr", "guarantor", "global", "leverage"]
+
+def _template_modules(template):
+    """Calc tabs to include for a template. Empty/absent = all. 'global' pulls
+    in its dscr + guarantor feeders."""
+    mods = list(getattr(template, "modules", []) or [])
+    if not mods:
+        return set(ALL_MODULES)
+    s = set(mods)
+    if "global" in s:
+        s |= {"dscr", "guarantor"}
+    return s
+
 # fills for conditional formatting (need start/end colors)
 _CF_GREEN = PatternFill(start_color=GREEN_F, end_color=GREEN_F, fill_type="solid")
 _CF_AMBER = PatternFill(start_color=AMBER_F, end_color=AMBER_F, fill_type="solid")
@@ -301,7 +314,7 @@ def _build_cover(ws, ctx, template, metrics, dti=None, cf=None, coll=None, dscr=
     ws.page_setup.orientation = "portrait"
 
 # --- Ability-to-Repay (DTI) tab ----------------------------------------------
-def _build_dti(ws, ctx, cfg, values, result):
+def _build_dti(ws, ctx, cfg, values, result, income_ref=None):
     ws.sheet_view.showGridLines = False
     ws.column_dimensions["A"].width = 42
     ws.column_dimensions["B"].width = 16
@@ -356,10 +369,10 @@ def _build_dti(ws, ctx, cfg, values, result):
         for col in (1, 3): ws.cell(row=row, column=col).border = BOTTOM
         row += 1
 
-    def subtotal(label, first, last):
+    def subtotal(label, first, last, formula=None):
         nonlocal row
         ws.cell(row=row, column=1, value=label).font = Font(name=FONT, size=10, bold=True, color=NAVY)
-        c = ws.cell(row=row, column=2, value=f"=SUM(B{first}:B{last})")
+        c = ws.cell(row=row, column=2, value=formula or f"=SUM(B{first}:B{last})")
         c.number_format = money; c.font = Font(name=FONT, size=10, bold=True, color=NAVY)
         c.alignment = Alignment(horizontal="right"); c.fill = _fill(BAND)
         ws.cell(row=row, column=1).fill = _fill(BAND); ws.cell(row=row, column=3).fill = _fill(BAND)
@@ -376,7 +389,10 @@ def _build_dti(ws, ctx, cfg, values, result):
         first = row
         for key, lbl in block_lines(cfg, block):
             input_line(key, lbl)
-        totals[block] = subtotal(f"Total — {label}", first, row - 1)
+        if block == "income" and income_ref:
+            totals[block] = subtotal("Qualifying income (auto-fed from Cash Flow Analysis)", first, row - 1, formula=f"={income_ref}")
+        else:
+            totals[block] = subtotal(f"Total — {label}", first, row - 1)
 
     inc, hou, deb = totals["income"], totals["housing"], totals["debts"]
     ded = totals.get("deductions")
@@ -546,6 +562,7 @@ def _build_cash_flow(ws, ctx, cfg, values, result):
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 0
     ws.sheet_properties.pageSetUpPr.fitToPage = True
+    return {"qualifying_monthly": f"F{qm_row}"}
 
 
 # --- Collateral & LTV tab ----------------------------------------------------
@@ -1016,9 +1033,17 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
     wb.properties.creator = "Linesheet Builder"
     wb.calculation.fullCalcOnLoad = True  # recompute live DTI formulas on open
 
-    # Cover
+    mods = _template_modules(template)
+    # Cover (only carry modules selected for this template)
     ws = wb.active; ws.title = "Cover"
-    _build_cover(ws, ctx, template, metrics, dti_summary, cf_summary, col_summary, dscr_summary, lev_summary, guar_summary, global_summary)
+    _build_cover(ws, ctx, template, metrics,
+                 dti_summary if "dti" in mods else None,
+                 cf_summary if "cash_flow" in mods else None,
+                 col_summary if "collateral" in mods else None,
+                 dscr_summary if "dscr" in mods else None,
+                 lev_summary if "leverage" in mods else None,
+                 guar_summary if "guarantor" in mods else None,
+                 global_summary if "global" in mods else None)
 
     # Loan Summary
     ws = wb.create_sheet("Loan Summary")
@@ -1045,33 +1070,25 @@ def generate_excel_linesheet(conn, review_case_id: int, template, output_dir: st
         ws.cell(row=r, column=1).font = Font(name=FONT, size=10, bold=True, color=NAVY)
     _chip(ws.cell(row=ws.max_row, column=2))
 
-    # Cash Flow / Income Analysis worksheet
-    ws = wb.create_sheet("Cash Flow Analysis")
-    _build_cash_flow(ws, ctx, cf_cfg, cf_values, cf_result)
-
-    # Ability-to-Repay (DTI) worksheet
-    ws = wb.create_sheet("Ability-to-Repay (DTI)")
-    _build_dti(ws, ctx, dti_cfg, dti_values, dti_result)
-
-    # Collateral & LTV worksheet
-    ws = wb.create_sheet("Collateral & LTV")
-    _build_collateral(ws, ctx, col_cfg, col_values, col_result)
-
-    # Debt Service Coverage (DSCR) worksheet
-    ws = wb.create_sheet("Debt Service (DSCR)")
-    dscr_cells = _build_dscr(ws, ctx, dscr_cfg, dscr_values, dscr_result)
-
-    # Guarantor / Global Financial worksheet
-    ws = wb.create_sheet("Guarantor")
-    guar_cells = _build_guarantor(ws, ctx, guar_cfg, guar_values, guar_result)
-
-    # Global Cash Flow / Global DSCR worksheet (rolls up DSCR + Guarantor, live)
-    ws = wb.create_sheet("Global Cash Flow")
-    _build_global(ws, ctx, global_cfg, global_result, "Debt Service (DSCR)", dscr_cells, "Guarantor", guar_cells)
-
-    # Leverage & Liquidity worksheet
-    ws = wb.create_sheet("Leverage & Liquidity")
-    _build_leverage(ws, ctx, lev_cfg, lev_values, lev_result)
+    # Calculation worksheets (only those selected for this template)
+    cf_cells = None
+    if "cash_flow" in mods:
+        cf_cells = _build_cash_flow(wb.create_sheet("Cash Flow Analysis"), ctx, cf_cfg, cf_values, cf_result)
+    if "dti" in mods:
+        # auto-feed: when Cash Flow is filled, DTI income comes from it
+        income_ref = f"'Cash Flow Analysis'!{cf_cells['qualifying_monthly']}" if (cf_cells and cf_summary) else None
+        _build_dti(wb.create_sheet("Ability-to-Repay (DTI)"), ctx, dti_cfg, dti_values, dti_result, income_ref=income_ref)
+    if "collateral" in mods:
+        _build_collateral(wb.create_sheet("Collateral & LTV"), ctx, col_cfg, col_values, col_result)
+    dscr_cells = guar_cells = None
+    if "dscr" in mods:
+        dscr_cells = _build_dscr(wb.create_sheet("Debt Service (DSCR)"), ctx, dscr_cfg, dscr_values, dscr_result)
+    if "guarantor" in mods:
+        guar_cells = _build_guarantor(wb.create_sheet("Guarantor"), ctx, guar_cfg, guar_values, guar_result)
+    if "global" in mods and dscr_cells and guar_cells:
+        _build_global(wb.create_sheet("Global Cash Flow"), ctx, global_cfg, global_result, "Debt Service (DSCR)", dscr_cells, "Guarantor", guar_cells)
+    if "leverage" in mods:
+        _build_leverage(wb.create_sheet("Leverage & Liquidity"), ctx, lev_cfg, lev_values, lev_result)
 
     # Linesheet Questions  (header MUST remain at row 1, A1 == "Section")
     ws = wb.create_sheet("Linesheet Questions")

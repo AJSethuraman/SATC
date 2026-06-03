@@ -1,6 +1,10 @@
 template_id: consumer_auto_v1
 template_name: Consumer Auto / Installment
 version: '1.0'
+modules:
+- cash_flow
+- dti
+- collateral
 sections:
 - section_id: borrower
   section_name: Borrower / Relationship

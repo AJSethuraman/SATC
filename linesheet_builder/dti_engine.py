@@ -44,15 +44,21 @@ def _num(v) -> float:
         return 0.0
 
 
-def compute_dti(values: dict, cfg: dict) -> dict:
-    """Compute ability-to-repay metrics from a {line_key: amount} mapping."""
+def compute_dti(values: dict, cfg: dict, income_override=None) -> dict:
+    """Compute ability-to-repay metrics from a {line_key: amount} mapping.
+    income_override (e.g. qualifying income from the Cash Flow worksheet), when
+    provided, is used as monthly gross income instead of the entered lines."""
     th = cfg.get("thresholds", {})
     front_target = float(th.get("front_end_target", 28.0))
     back_target = float(th.get("back_end_target", 43.0))
     back_max = float(th.get("back_end_max", 50.0))
     residual_min = float(th.get("residual_income_min", 0.0))
 
-    income = sum(_num(values.get(k)) for k, _ in block_lines(cfg, "income"))
+    entered_income = sum(_num(values.get(k)) for k, _ in block_lines(cfg, "income"))
+    if income_override is not None and float(income_override) > 0:
+        income = round(float(income_override), 2); income_source = "Cash Flow worksheet"
+    else:
+        income = entered_income; income_source = "Worksheet entry"
     housing = sum(_num(values.get(k)) for k, _ in block_lines(cfg, "housing"))
     other_debt = sum(_num(values.get(k)) for k, _ in block_lines(cfg, "debts"))
     obligations = housing + other_debt
@@ -80,6 +86,7 @@ def compute_dti(values: dict, cfg: dict) -> dict:
 
     return {
         "total_income": round(income, 2),
+        "income_source": income_source,
         "total_housing": round(housing, 2),
         "total_other_debt": round(other_debt, 2),
         "total_obligations": round(obligations, 2),
@@ -117,7 +124,9 @@ def save_dti_inputs(conn, review_case_id: int, values: dict, user: str = "system
     append_audit_event(conn, user, "dti_updated", "dti_worksheet", review_case_id,
                        after_value=f"{n} line items", review_case_id=review_case_id, loan_id=loan_id)
     cfg = cfg or load_dti_config()
-    _carry_dti_finding(conn, review_case_id, compute_dti(load_dti_inputs(conn, review_case_id), cfg), user, loan_id)
+    result = summarize_dti(conn, review_case_id, cfg)
+    if result:
+        _carry_dti_finding(conn, review_case_id, result, user, loan_id)
     return n
 
 
@@ -153,10 +162,17 @@ def load_dti_inputs(conn, review_case_id: int) -> dict:
     return {r["line_key"]: r["amount"] for r in rows}
 
 
-def summarize_dti(conn, review_case_id: int, cfg: dict | None = None):
-    """Return the computed ATR result for a case, or None if the worksheet is
-    empty. Used to carry results into cover, data mart and findings."""
+def summarize_dti(conn, review_case_id: int, cfg: dict | None = None, auto_income: bool = True):
+    """Return the computed ATR result, or None if empty. Auto-feed: when the
+    Cash Flow worksheet is filled, its qualifying monthly income is used as the
+    DTI income basis."""
     values = load_dti_inputs(conn, review_case_id)
-    if not any(_num(v) for v in values.values()):
+    override = None
+    if auto_income:
+        from .cash_flow_engine import summarize_cash_flow
+        cf = summarize_cash_flow(conn, review_case_id)
+        if cf and cf.get("qualifying_monthly"):
+            override = cf["qualifying_monthly"]
+    if override is None and not any(_num(v) for v in values.values()):
         return None
-    return compute_dti(values, cfg or load_dti_config())
+    return compute_dti(values, cfg or load_dti_config(), income_override=override)

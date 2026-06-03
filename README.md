@@ -161,6 +161,12 @@ Both are live-formula Excel tabs with conditional formatting and follow the same
 - **Guarantor / Global Financial** — the **Guarantor** tab / page captures personal financial position (net worth, liquid assets), personal cash flow and personal debt service, producing **personal DSCR** and the personal-cash-flow figure the global roll-up needs (`configs/guarantor_v1.yaml`).
 - **Global Cash Flow / Global DSCR** — the capstone. The **Global Cash Flow** tab combines **business CFADS** (DSCR) **+ guarantor personal cash flow** over **total** debt service for a single **global DSCR**. It has no inputs of its own; in Excel it uses **live cross-sheet references** to the Debt Service (DSCR) and Guarantor tabs, so editing either flows straight through. It carries its own finding when global coverage is below guideline, and is recomputed automatically whenever the DSCR or Guarantor worksheets change. Both add `Guarantor` / `Global` tables (and columns) to the data mart workbook.
 
+## Per-template calc tabs and auto-feed
+
+Each template declares which calculation worksheets attach to it via a `modules` list (empty = all). A consumer template might attach `cash_flow`, `dti`, `collateral`; a commercial one `cash_flow`, `dscr`, `guarantor`, `global`, `collateral`, `leverage` (selecting `global` automatically pulls in its `dscr` + `guarantor` feeders). Only the selected tabs are built and only their results print on the Cover. Pick the tabs in the **Template Builder** UI or set `modules=[...]` in `build_template`.
+
+**Auto-feed:** when the **Cash Flow** worksheet is filled, its qualifying monthly income becomes the **DTI income basis** — in Excel the DTI income line is a live cross-sheet reference (`='Cash Flow Analysis'!F24`), so editing Cash Flow recalculates DTI. The Global DSCR tab similarly references the DSCR and Guarantor tabs. Enter income once; it flows through.
+
 ## Building custom templates en masse
 
 Linesheet templates are plain YAML in `configs/templates/`, and the app is multi-template aware: it discovers every template in that folder, you pick one per engagement on the **Setup** page, and the **Templates** page browses them. The whole pipeline (validation, review, export) runs against whichever template the engagement uses.

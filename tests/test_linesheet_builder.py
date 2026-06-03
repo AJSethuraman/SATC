@@ -14,7 +14,7 @@ from linesheet_builder.review_engine import create_review_cases, save_answer, ca
 from linesheet_builder.export_engine import generate_excel_linesheet, generate_data_mart_csv, generate_audit_log_csv, generate_data_mart_workbook
 from linesheet_builder.audit import append_audit_event
 from linesheet_builder.rules_engine import evaluate_rule, UnsafeRuleError, determine_question_status
-from linesheet_builder.dti_engine import load_dti_config, compute_dti, save_dti_inputs, load_dti_inputs
+from linesheet_builder.dti_engine import load_dti_config, compute_dti, save_dti_inputs, load_dti_inputs, summarize_dti
 from linesheet_builder.cash_flow_engine import (load_cash_flow_config, compute_cash_flow, normalize_line,
     save_cash_flow_inputs, load_cash_flow_inputs, summarize_cash_flow)
 
@@ -283,10 +283,10 @@ def test_data_mart_workbook_consolidates_engagement(workflow):
     ncases=conn.execute("SELECT COUNT(*) FROM review_cases WHERE engagement_id=?",(eid,)).fetchone()[0]
     assert ws.max_row-1 == ncases  # one row per linesheet
     assert len(wb["Linesheets"].tables)==1  # registered as an Excel Table for pivots
-    # the completed case carries its DTI back-end into the mart
+    # DTI auto-feeds income from Cash Flow ($96k/yr -> $8k/mo), so back-end = 4110/8000
     idx=header.index("review_case_id"); bidx=header.index("dti_back_end_pct")
     vals={ws.cell(row=r,column=idx+1).value: ws.cell(row=r,column=bidx+1).value for r in range(2,ws.max_row+1)}
-    assert vals.get(rcid)==45.67
+    assert vals.get(rcid)==51.38
 
 COLL_CONFIG_PATH=ROOT/"configs"/"collateral_v1.yaml"
 
@@ -373,6 +373,41 @@ def test_global_dscr_rolls_up_dscr_and_guarantor(workflow):
     assert gs and gs["global_dscr"]>=1.15 and gs["severity"] is None
     # no GLOBAL_DSCR finding since global coverage is met
     assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='GLOBAL_DSCR'",(rcid,)).fetchone()[0]==0
+
+def test_per_template_module_selection_limits_tabs(workflow):
+    # build a consumer-style template that only attaches Cash Flow + DTI
+    from linesheet_builder.template_builder import q, section, build_template
+    conn=workflow["conn"]
+    tmpl=build_template("mods_demo_v1","Mods Demo",[
+        section("borrower","Borrower",[q("Q1","Identity verified?",required=True)]),
+        section("income","Income",[q("Q2","Income verified?",required=True)]),
+        section("signoff","Signoff",[q("Q3","Signoff?",required=True,exception_if='answer == "No"',severity="Blocked")])],
+        modules=["cash_flow","dti"])
+    for c in workflow["cases"]:
+        row=conn.execute("SELECT lr.* FROM review_cases rc JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.review_case_id=?",(c,)).fetchone(); loan={k:row[k] for k in row.keys()}
+        if loan["validation_status"]=="Ready": rcid=c; break
+    for sec in tmpl.sections:
+        for qq in sec.questions:
+            save_answer(conn,rcid,loan,sec,qq,"Yes","ok","Attached","Reviewer",tmpl.template_id,tmpl.version)
+    set_review_status(conn,rcid,"Ready for QC")
+    excel=generate_excel_linesheet(conn,rcid,tmpl,workflow["tmp"]/"mods","Reviewer")
+    names=load_workbook(excel.file_path).sheetnames
+    assert "Cash Flow Analysis" in names and "Ability-to-Repay (DTI)" in names
+    assert "Debt Service (DSCR)" not in names and "Leverage & Liquidity" not in names and "Collateral & LTV" not in names
+
+def test_cash_flow_auto_feeds_dti_income(workflow):
+    conn=workflow["conn"]
+    for c in workflow["cases"]:
+        row=conn.execute("SELECT lr.* FROM review_cases rc JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.review_case_id=?",(c,)).fetchone(); loan={k:row[k] for k in row.keys()}
+        if loan["validation_status"]=="Ready": rcid=c; break
+    # DTI alone: low entered income drives a high back-end ratio
+    save_dti_inputs(conn, rcid, {"base_income":4000,"principal_interest":1500,"auto":400}, "Reviewer")
+    base=summarize_dti(conn, rcid, auto_income=False)
+    # now Cash Flow provides a much larger qualifying income -> DTI auto-feeds from it
+    save_cash_flow_inputs(conn, rcid, {"w2_wages":{"period2":180000,"basis":"Annual","method":"Latest"}}, "Reviewer")
+    fed=summarize_dti(conn, rcid)
+    assert fed["income_source"]=="Cash Flow worksheet" and fed["total_income"]==15000.0
+    assert fed["back_end_dti"] < base["back_end_dti"]  # bigger income -> lower DTI
 
 def test_rules_engine_safe_supported_and_no_raw_eval():
     assert evaluate_rule('answer == "No"', answer="No")

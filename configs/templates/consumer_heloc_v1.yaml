@@ -1,6 +1,10 @@
 template_id: consumer_heloc_v1
 template_name: Consumer HELOC Review
 version: '1.0'
+modules:
+- cash_flow
+- dti
+- collateral
 sections:
 - section_id: borrower
   section_name: Borrower / Relationship

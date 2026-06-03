@@ -10,7 +10,7 @@ from linesheet_builder.validation_engine import validate_loan_records, persist_v
 from linesheet_builder.review_engine import create_review_cases, save_answer, calculate_completion_status, set_review_status
 from linesheet_builder.export_engine import generate_excel_linesheet, generate_data_mart_csv, generate_exception_report_csv, generate_audit_log_csv, generate_data_mart_workbook
 from linesheet_builder.dti_engine import load_dti_config, load_dti_inputs, save_dti_inputs, compute_dti, block_lines
-from linesheet_builder.cash_flow_engine import load_cash_flow_config, load_cash_flow_inputs, save_cash_flow_inputs, compute_cash_flow, source_lines
+from linesheet_builder.cash_flow_engine import load_cash_flow_config, load_cash_flow_inputs, save_cash_flow_inputs, compute_cash_flow, source_lines, summarize_cash_flow
 from linesheet_builder.collateral_engine import load_collateral_config, load_collateral_inputs, save_collateral_inputs, compute_collateral, collateral_lines, exposure_lines
 from linesheet_builder.dscr_engine import load_dscr_config, load_dscr_inputs, save_dscr_inputs, compute_dscr, cash_flow_lines as dscr_cash_flow_lines, debt_service_lines, loan_lines
 from linesheet_builder.leverage_engine import load_leverage_config, load_leverage_inputs, save_leverage_inputs, compute_leverage, input_lines as leverage_input_lines
@@ -113,13 +113,16 @@ elif page=="Template Builder":
                 "questions":[_draft_q(x) for x in sd.get("questions",[])]}
 
     if "tb" not in st.session_state:
-        st.session_state.tb={"template_id":"my_template_v1","template_name":"My Template","version":"1.0","sections":[]}
+        st.session_state.tb={"template_id":"my_template_v1","template_name":"My Template","version":"1.0","modules":[],"sections":[]}
     tb=st.session_state.tb
 
     c=st.columns(3)
     tb["template_id"]=c[0].text_input("Template ID", tb["template_id"])
     tb["template_name"]=c[1].text_input("Template name", tb["template_name"])
     tb["version"]=c[2].text_input("Version", tb["version"])
+    CALC_MODULES=["cash_flow","dti","collateral","dscr","guarantor","global","leverage"]
+    tb["modules"]=st.multiselect("Calculation tabs to include (none = all)", CALC_MODULES, default=tb.get("modules", []),
+                                 help="Which analysis worksheets attach to this template. 'global' pulls in dscr + guarantor.")
 
     st.markdown("**Quick start**")
     qc=st.columns([2,1,2,1])
@@ -130,7 +133,7 @@ elif page=="Template Builder":
     if qc[3].button("Load") and clone_id:
         src=template_to_dict(load_template(clone_id))
         tb["template_id"]=clone_id+"_copy"; tb["template_name"]=src["template_name"]+" (copy)"; tb["version"]=src.get("version","1.0")
-        tb["sections"]=[_draft_section(s) for s in src["sections"]]; st.rerun()
+        tb["modules"]=src.get("modules", []); tb["sections"]=[_draft_section(s) for s in src["sections"]]; st.rerun()
 
     st.markdown("---")
     for si, sec in enumerate(tb["sections"]):
@@ -185,7 +188,7 @@ elif page=="Template Builder":
                 if not sec.get("section_id") or not sec.get("section_name"):
                     raise ValueError("Every section needs an ID and a name.")
                 spec.append(tb_section(sec["section_id"], sec["section_name"], qs))
-            t=build_template(tb["template_id"], tb["template_name"], spec, tb.get("version","1.0"))
+            t=build_template(tb["template_id"], tb["template_name"], spec, tb.get("version","1.0"), modules=tb.get("modules") or None)
             path=write_template_yaml(t, TEMPLATES_DIR / f"{t.template_id}.yaml")
             nq=sum(len(s.questions) for s in t.sections)
             st.success(f"Saved {t.template_name}  ({len(t.sections)} sections / {nq} questions) → {path}")
@@ -334,7 +337,12 @@ elif page=="DTI / ATR":
             submitted=st.form_submit_button("Save & calculate")
         if submitted:
             save_dti_inputs(conn, rcid, values, eng.get('reviewer_name','user'), loan_id=loan_id)
-        result=compute_dti(values if submitted else saved, cfg)
+        # auto-feed: use Cash Flow qualifying income as the DTI income basis when present
+        cf_now=summarize_cash_flow(conn, rcid)
+        income_override=cf_now["qualifying_monthly"] if cf_now and cf_now.get("qualifying_monthly") else None
+        result=compute_dti(values if submitted else saved, cfg, income_override=income_override)
+        if income_override:
+            st.info(f"Income auto-fed from the Cash Flow worksheet: ${income_override:,.0f}/mo (qualifying). Entered income lines are not used while Cash Flow is populated.")
         st.markdown("---"); st.subheader("Ability-to-repay results")
         m=st.columns(4)
         m[0].metric("Monthly gross income", f"${result['total_income']:,.0f}")
