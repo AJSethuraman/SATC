@@ -25,6 +25,15 @@ class FormBuildingTests(unittest.TestCase):
         self.assertIn("data-group='docs'", html)
         self.assertIn("value='W-2'", html)
 
+    def test_option_label_value_pairs(self) -> None:
+        schema = [{
+            "name": "services", "label": "Services", "type": "checkboxes",
+            "options": [{"label": "State return", "value": "state_return"}],
+        }]
+        html = intake.build_form_html(schema)
+        self.assertIn("value='state_return'", html)   # stored value = fee schedule key
+        self.assertIn("State return", html)            # friendly label shown
+
     def test_schema_default_is_created_when_missing(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             folder = Path(d)

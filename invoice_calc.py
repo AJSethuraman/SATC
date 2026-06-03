@@ -42,6 +42,11 @@ DEFAULT_FEE_SCHEDULE: dict[str, dict] = {
     "1099-G": {"description": "Government payments (1099-G)", "price": 15.00},
     "1099-K": {"description": "Payment card income (1099-K)", "price": 50.00},
     "state_return": {"description": "State return", "price": 75.00},
+    "schedule_c": {"description": "Schedule C (self-employment)", "price": 150.00},
+    "schedule_e": {"description": "Schedule E (rental property)", "price": 125.00},
+    "itemized_deductions": {"description": "Itemized deductions (Schedule A)", "price": 60.00},
+    "amended_return": {"description": "Amended return", "price": 200.00},
+    "extension_filing": {"description": "Extension filing", "price": 50.00},
 }
 
 

@@ -67,6 +67,20 @@ DEFAULT_SCHEMA: list[dict] = [
             "Other",
         ],
     },
+    {
+        "name": "services",
+        "label": "Additional services needed",
+        "type": "checkboxes",
+        # Values match fee_schedule.json keys so invoices price automatically.
+        "options": [
+            {"label": "State return", "value": "state_return"},
+            {"label": "Schedule C (self-employment)", "value": "schedule_c"},
+            {"label": "Schedule E (rental property)", "value": "schedule_e"},
+            {"label": "Itemized deductions (Schedule A)", "value": "itemized_deductions"},
+            {"label": "Amended return", "value": "amended_return"},
+            {"label": "Extension filing", "value": "extension_filing"},
+        ],
+    },
     {"name": "notes", "label": "Anything else we should know?", "type": "textarea"},
 ]
 
@@ -93,6 +107,15 @@ def load_schema(input_folder: Path) -> tuple[list[dict], Path]:
     return DEFAULT_SCHEMA, schema_path
 
 
+def _option_label_value(option) -> tuple[str, str]:
+    """Allow options to be a plain string or a {label, value} dict."""
+
+    if isinstance(option, dict):
+        label = option.get("label", option.get("value", ""))
+        return label, option.get("value", label)
+    return option, option
+
+
 def _field_html(field: dict) -> str:
     name = _escape(field.get("name", ""))
     label = _escape(field.get("label", field.get("name", "")))
@@ -104,12 +127,15 @@ def _field_html(field: dict) -> str:
     if ftype == "textarea":
         control = f"<textarea id='{name}' data-field='{name}'{required}></textarea>"
     elif ftype == "select":
-        options = "".join(f"<option value='{_escape(o)}'>{_escape(o)}</option>" for o in field.get("options", []))
+        options = "".join(
+            f"<option value='{_escape(value)}'>{_escape(text)}</option>"
+            for text, value in map(_option_label_value, field.get("options", []))
+        )
         control = f"<select id='{name}' data-field='{name}'{required}><option value=''></option>{options}</select>"
     elif ftype == "checkboxes":
         boxes = "".join(
-            f"<label class='choice'><input type='checkbox' data-group='{name}' value='{_escape(o)}'> {_escape(o)}</label>"
-            for o in field.get("options", [])
+            f"<label class='choice'><input type='checkbox' data-group='{name}' value='{_escape(value)}'> {_escape(text)}</label>"
+            for text, value in map(_option_label_value, field.get("options", []))
         )
         control = f"<div class='choices' data-field='{name}'>{boxes}</div>"
     else:
