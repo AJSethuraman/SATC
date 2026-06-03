@@ -99,8 +99,9 @@ def compute_dti(values: dict, cfg: dict) -> dict:
 
 
 def save_dti_inputs(conn, review_case_id: int, values: dict, user: str = "system",
-                    notes: dict | None = None, loan_id=None) -> int:
-    """Upsert worksheet line items for a review case and log one audit event."""
+                    notes: dict | None = None, loan_id=None, cfg: dict | None = None) -> int:
+    """Upsert worksheet line items for a review case, carry the ATR result into
+    the case findings, and log audit events."""
     notes = notes or {}
     n = 0
     for key, amount in values.items():
@@ -115,7 +116,34 @@ def save_dti_inputs(conn, review_case_id: int, values: dict, user: str = "system
     conn.commit()
     append_audit_event(conn, user, "dti_updated", "dti_worksheet", review_case_id,
                        after_value=f"{n} line items", review_case_id=review_case_id, loan_id=loan_id)
+    cfg = cfg or load_dti_config()
+    _carry_dti_finding(conn, review_case_id, compute_dti(load_dti_inputs(conn, review_case_id), cfg), user, loan_id)
     return n
+
+
+def _carry_dti_finding(conn, review_case_id, result, user="system", loan_id=None):
+    """Reflect an over-guideline ATR result as a case finding so it carries
+    into the Exceptions tab, exception report and cover findings count."""
+    qid = "DTI_ATR"
+    row = conn.execute("SELECT loan_record_id FROM review_cases WHERE review_case_id=?", (review_case_id,)).fetchone()
+    lrid = row["loan_record_id"] if row else None
+    existing = conn.execute("SELECT exception_id FROM exceptions WHERE review_case_id=? AND question_id=?",
+                            (review_case_id, qid)).fetchone()
+    if result["severity"] in ("Finding", "Blocked"):
+        issue = f"Ability-to-repay: back-end DTI {result['back_end_dti']:.1f}% (front-end {result['front_end_dti']:.1f}%) — {result['assessment']}"
+        conn.execute(
+            """INSERT INTO exceptions (review_case_id, loan_record_id, question_id, section_id, issue_text, severity, status, reviewer_comment, evidence_status, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(review_case_id, question_id) DO UPDATE SET issue_text=excluded.issue_text, severity=excluded.severity, status=excluded.status, updated_at=excluded.updated_at""",
+            (review_case_id, lrid, qid, "ability_to_repay", issue, result["severity"], "Open", None, "Not Required", now(), now()),
+        )
+        append_audit_event(conn, user, "exception_updated" if existing else "exception_created", "exception", qid,
+                           after_value=result["severity"], review_case_id=review_case_id, loan_id=loan_id)
+    elif existing:
+        conn.execute("DELETE FROM exceptions WHERE review_case_id=? AND question_id=?", (review_case_id, qid))
+        append_audit_event(conn, user, "exception_resolved", "exception", qid,
+                           review_case_id=review_case_id, loan_id=loan_id)
+    conn.commit()
 
 
 def load_dti_inputs(conn, review_case_id: int) -> dict:
@@ -123,3 +151,12 @@ def load_dti_inputs(conn, review_case_id: int) -> dict:
         "SELECT line_key, amount FROM dti_inputs WHERE review_case_id=?", (review_case_id,)
     ).fetchall()
     return {r["line_key"]: r["amount"] for r in rows}
+
+
+def summarize_dti(conn, review_case_id: int, cfg: dict | None = None):
+    """Return the computed ATR result for a case, or None if the worksheet is
+    empty. Used to carry results into cover, data mart and findings."""
+    values = load_dti_inputs(conn, review_case_id)
+    if not any(_num(v) for v in values.values()):
+        return None
+    return compute_dti(values, cfg or load_dti_config())

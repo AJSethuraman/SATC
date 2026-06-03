@@ -135,6 +135,26 @@ def test_audit_log_records_exception_creation(workflow):
     actions=[r[0] for r in conn.execute("SELECT action_type FROM audit_log").fetchall()]
     assert "exception_created" in actions
 
+def test_dti_results_carry_into_findings_and_data_mart(workflow):
+    conn=workflow["conn"]; template=workflow["template"]
+    rcid=None
+    for c in workflow["cases"]:
+        row=conn.execute("SELECT lr.* FROM review_cases rc JOIN loan_records lr ON rc.loan_record_id=lr.loan_record_id WHERE rc.review_case_id=?",(c,)).fetchone(); loan={k:row[k] for k in row.keys()}
+        if loan["validation_status"]=="Ready": rcid=c; break
+    # over-guideline DTI (back-end ~45.7%) should carry as a finding
+    save_dti_inputs(conn, rcid, {"base_income":9000,"principal_interest":2510,"auto":620,"credit_cards":360,"student_loans":320,"installment":180,"other_debt":120}, "Reviewer", loan_id=loan["loan_id"])
+    dti_exc=conn.execute("SELECT severity,issue_text FROM exceptions WHERE review_case_id=? AND question_id='DTI_ATR'",(rcid,)).fetchone()
+    assert dti_exc is not None and dti_exc["severity"]=="Finding" and "back-end DTI" in dti_exc["issue_text"]
+    complete_case(conn, rcid, loan, template)
+    csv=generate_data_mart_csv(conn, rcid, template, workflow["tmp"]/"dm_dti.csv", "Reviewer")
+    df=pd.read_csv(csv.file_path)
+    back=df[df.question_id=="DTI_BACK_END_PCT"]
+    assert len(back)==1 and back.iloc[0]["section"]=="ability_to_repay" and back.iloc[0]["severity"]=="Finding"
+    assert "DTI_ASSESSMENT" in set(df.question_id)
+    # clearing the worksheet (within guidelines) resolves the carried finding
+    save_dti_inputs(conn, rcid, {"base_income":12000,"principal_interest":1500,"auto":200}, "Reviewer", loan_id=loan["loan_id"])
+    assert conn.execute("SELECT COUNT(*) FROM exceptions WHERE review_case_id=? AND question_id='DTI_ATR'",(rcid,)).fetchone()[0]==0
+
 def test_rules_engine_safe_supported_and_no_raw_eval():
     assert evaluate_rule('answer == "No"', answer="No")
     assert evaluate_rule('value < 1.20', value=1.1)
