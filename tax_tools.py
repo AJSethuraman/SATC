@@ -15,6 +15,7 @@ from typing import Callable
 import cert_sign
 import checklist
 import compose_emails
+import dashboard
 import export_encyro
 import extract_form_data
 import generate_documents
@@ -164,6 +165,13 @@ def _run_retention(context: ToolContext) -> dict:
     )
 
 
+def _run_dashboard(context: ToolContext) -> dict:
+    return dashboard.run_dashboard(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 TOOLS: tuple[Tool, ...] = (
     Tool(
         "intake",
@@ -248,6 +256,12 @@ TOOLS: tuple[Tool, ...] = (
         "Records Retention",
         "Archive each client's complete package into a dated zip with a manifest and keep-until date.",
         _run_retention,
+    ),
+    Tool(
+        "dashboard",
+        "Practice Dashboard",
+        "Build a one-page overview of where every client stands across the whole pipeline.",
+        _run_dashboard,
     ),
 )
 

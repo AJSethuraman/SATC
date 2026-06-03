@@ -85,6 +85,7 @@ def run_reminders(input_folder, status_callback=None) -> dict:
     doc_map, _ = checklist.load_doc_map(input_folder)
     received = checklist.received_categories(output_folder)
     template_text = load_reminder_template(input_folder)
+    firm = generate_documents.load_firm_settings(input_folder)
     reminders_folder = output_folder / REMINDERS_FOLDER_NAME
     reminders_folder.mkdir(exist_ok=True)
 
@@ -104,7 +105,7 @@ def run_reminders(input_folder, status_callback=None) -> dict:
             warnings.append(f"{slug}: outstanding items but no email; skipped.")
             continue
 
-        context = generate_documents.augment_context(client)
+        context = generate_documents.augment_context(client, firm)
         context["outstanding_items"] = [{"item": item} for item in items]
         rendered = generate_documents.render_template(template_text, context, escape=False)
         subject, body = compose_emails.split_subject_and_body(rendered)

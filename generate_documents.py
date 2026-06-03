@@ -102,10 +102,34 @@ def _to_float(value: object) -> float:
         return 0.0
 
 
-def augment_context(client: dict) -> dict:
-    """Add convenience values (today's date, computed invoice total)."""
+FIRM_SETTINGS_FILENAME = "firm.json"
 
-    context = dict(client)
+
+def load_firm_settings(input_folder: Path) -> dict:
+    """Firm-wide defaults (firm name/address/phone, preparer, payment terms).
+
+    Stored once in firm.json so they need not be repeated on every client record.
+    """
+
+    path = Path(input_folder) / FIRM_SETTINGS_FILENAME
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                return data
+        except json.JSONDecodeError:
+            pass
+    return {}
+
+
+def augment_context(client: dict, firm: dict | None = None) -> dict:
+    """Add convenience values (today's date, computed invoice total).
+
+    Firm-wide defaults are merged underneath the client, so a client record can
+    still override any firm field.
+    """
+
+    context = {**(firm or {}), **client}
     context.setdefault("generated_date", date.today().isoformat())
     line_items = context.get("line_items")
     if isinstance(line_items, list) and line_items and "total" not in context:
@@ -254,8 +278,9 @@ def run_generation(input_folder, status_callback=None, templates=None) -> dict:
 
     documents: list[Path] = []
     warnings: list[str] = []
+    firm = load_firm_settings(input_folder)
     for index, client in enumerate(clients, start=1):
-        context = augment_context(client)
+        context = augment_context(client, firm)
         slug = client_slug(client, index)
         if status_callback:
             status_callback(f"Generating documents for {slug} ({index} of {len(clients)})")

@@ -16,6 +16,7 @@ Pick one or more tools in the desktop app (they run top to bottom):
 7b. **Certificate Sign (PAdES)** — apply a tamper-evident digital signature to PDFs using a PKCS#12 certificate, writing certified copies to `Cert_Signed/`.
 8. **Engagement Letter Tracker** / **Form 8879 Tracker** — report which clients have a signed engagement letter / Form 8879 on file vs. outstanding, to `Status/`.
 8b. **Send Reminders** — draft reminder `.eml`s for clients with outstanding signatures or missing documents, to `Reminders/`.
+12. **Practice Dashboard** — one HTML page showing where every client stands across the whole pipeline (email, documents, invoice, generated, engagement, 8879, Encyro, archived) with a summary bar.
 9. **Compose Email Drafts** — build a review-ready `.eml` per client (subject/body from a template, that client's generated and signed files attached) in `Email_Drafts/`. Nothing is sent automatically and no credentials are stored.
 10. **Export for Encyro** — convert each client's letters to PDF, gather their signed PDFs/attachments, and merge an upload-ready `<client>_packet.pdf` (plus `UPLOAD_NOTES.txt`) under `Encyro_Ready/<client>/`.
 11. **Records Retention** — archive each client's complete package into a dated `Retention/<client>_<year>.zip` with a manifest and a keep-until date.
@@ -164,6 +165,20 @@ python export_encyro.py "/path/to/Uploads"              # Encyro export directly
 ```
 
 The CLI workflows remain available for troubleshooting and automation. The older Flask browser app (`app.py`) is still present as optional legacy tooling, but the primary workflow is the PySide6 desktop app.
+
+### Firm settings (enter once)
+
+Put a `firm.json` in the folder with your firm-wide details and they are merged into every document, email, and reminder automatically — no need to repeat them on each client record. A client record can still override any field. A starting point ships at `document_templates/firm.sample.json`:
+
+```json
+{ "firm_name": "Sample Tax & Accounting LLC", "firm_phone": "(217) 555-0100",
+  "firm_email": "office@sampletax.example", "preparer_name": "Alex Preparer, EA",
+  "payment_terms": "Payment is due within 15 days of the invoice date." }
+```
+
+### Practice dashboard
+
+The **Practice Dashboard** tool writes a single `Dashboard/dashboard.html` — one row per client, one column per stage (email on file, documents received, invoice, documents generated, engagement letter, Form 8879, Encyro packet, archived), each shown as a colour-coded pill, with a summary bar of the counts that matter (missing documents, outstanding signatures, not invoiced, not archived). It reads what the other tools already produced, so run it any time for a live "where is everyone" snapshot.
 
 ### Collecting client intake
 
@@ -354,6 +369,7 @@ python test_status_tracker.py
 python test_reminders.py
 python test_cert_sign.py
 python test_retention.py
+python test_dashboard.py
 python test_tax_tools.py
 python test_sort_tax_docs.py
 python test_extract_form_data.py

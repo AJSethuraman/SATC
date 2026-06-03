@@ -132,6 +132,7 @@ def run_email_drafts(input_folder, status_callback=None) -> dict:
 
     clients = generate_documents.load_clients(data_file)
     template_text = load_email_template(input_folder)
+    firm = generate_documents.load_firm_settings(input_folder)
     drafts_folder = output_folder / EMAIL_DRAFTS_FOLDER_NAME
     drafts_folder.mkdir(exist_ok=True)
 
@@ -147,7 +148,7 @@ def run_email_drafts(input_folder, status_callback=None) -> dict:
         if status_callback:
             status_callback(f"Composing email for {slug} ({index} of {len(clients)})")
 
-        context = generate_documents.augment_context(client)
+        context = generate_documents.augment_context(client, firm)
         rendered = generate_documents.render_template(template_text, context, escape=False)
         subject, body = split_subject_and_body(rendered)
         attachments = client_attachments(input_folder, output_folder, client, slug)

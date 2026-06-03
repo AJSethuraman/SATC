@@ -120,6 +120,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "email": None,
         "encyro": None,
         "retention": None,
+        "dashboard": None,
     }
 
     intake_result = results.get("intake")
@@ -261,6 +262,13 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"Records Retention: {retention_result['summary']}")
         if retention_result.get("retention_folder"):
             summary["open_paths"]["Open Retention Archives"] = str(retention_result["retention_folder"])
+
+    dashboard_result = results.get("dashboard")
+    if dashboard_result is not None:
+        summary["dashboard"] = {"client_count": dashboard_result["client_count"]}
+        summary["tool_lines"].append(f"Practice Dashboard: {dashboard_result['summary']}")
+        if dashboard_result.get("dashboard_path"):
+            summary["open_paths"]["Open Dashboard"] = str(dashboard_result["dashboard_path"])
 
     return summary
 
@@ -538,6 +546,7 @@ if PYSIDE_AVAILABLE:
                 "Open Email Drafts",
                 "Open Encyro Packets",
                 "Open Retention Archives",
+                "Open Dashboard",
             ]
             for label in button_labels:
                 button = QPushButton(label)
