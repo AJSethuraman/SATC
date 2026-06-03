@@ -132,6 +132,29 @@ The **DTI / ATR** page and the matching **Ability-to-Repay (DTI)** Excel tab cap
 - An optional **Payroll Deductions** block (for purely payrolled / W-2 borrowers) lets you enter taxes and withholding straight from a pay stub to also show **net monthly income** and **net residual income**. It does not estimate taxes; leave it blank and the worksheet stays gross-only. DTI ratios remain gross-based; when withholding is entered, the residual-income floor is judged on net residual.
 - The worksheet is a static fixture, but its **results carry into the linesheet**: when filled, an over-guideline ATR result is recorded as a case finding (so it appears in the Exceptions tab, the exception report and the cover findings count), the ability-to-repay summary is printed on the Cover, and the metrics (income, obligations, front/back DTI, residual, assessment) are written to the data mart export. An empty worksheet carries nothing.
 
+## Building custom templates en masse
+
+Linesheet templates are plain YAML in `configs/templates/`, and the app is multi-template aware: it discovers every template in that folder, you pick one per engagement on the **Setup** page, and the **Templates** page browses them. The whole pipeline (validation, review, export) runs against whichever template the engagement uses.
+
+Rather than hand-writing template YAML, use the **template builder** (`linesheet_builder/template_builder.py`) to author sheets in a few lines:
+
+```python
+from linesheet_builder.template_builder import q, section, build_template, write_template_yaml
+
+t = build_template("consumer_mortgage_atr_v1", "Consumer Mortgage — Ability to Repay", [
+    section("borrower", "Borrower / Relationship", [
+        q("BR1", "Is the borrower identity documented?", required=True,
+          exception_if='answer == "No"', severity="Finding", evidence_required_if='answer == "No"'),
+    ]),
+    section("income", "Employment & Income", [
+        q("EI1", "Qualifying monthly income", "currency", required=True),
+    ]),
+])
+write_template_yaml(t, "configs/templates/consumer_mortgage_atr_v1.yaml")
+```
+
+`build_template` validates structure and fills in display orders and `data_mart_field` / `export_label` defaults; `write_template_yaml` emits valid YAML that round-trips through `load_template_yaml`. A preset library (`preset_borrower`, `preset_employment_income`, `preset_atr`, `preset_collateral_property`, `preset_documentation`, `preset_conclusion_signoff`) makes assembly fast, and `template_builder.write_catalog()` writes a whole starter catalog at once (Consumer Mortgage ATR, HELOC, Auto/Installment, Small Business). Every template shares the same calculation fixtures (Cash Flow, DTI) and audit/export machinery.
+
 ## Auditability and blocking behavior
 
 The app writes audit events for import creation, mapping saved, loan normalization, validation runs, answer changes, exception creation/update, and exports. Final Excel export is blocked unless validation blockers are clear, required answers are complete, findings/blockers have comments, evidence requirements are resolved, and the case status is Ready for QC or QC Approved. A pilot override reason can be entered in the Export screen and is logged.

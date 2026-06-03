@@ -1,0 +1,140 @@
+template_id: consumer_auto_v1
+template_name: Consumer Auto / Installment
+version: '1.0'
+sections:
+- section_id: borrower
+  section_name: Borrower / Relationship
+  display_order: 1
+  questions:
+  - display_order: 1
+    question_id: BR1
+    question_text: Is the borrower identity documented and consistent with the application?
+    answer_type: yes_no_na
+    required: true
+    source_field: borrower_name
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Finding
+    help_text: Confirm identity against source.
+    data_mart_field: br1
+    export_label: Is the borrower identity documented and consistent with the application?
+  - display_order: 2
+    question_id: BR2
+    question_text: Relationship / background summary
+    answer_type: long_text
+    required: false
+    help_text: Summarize the relationship and purpose.
+    data_mart_field: br2
+    export_label: Relationship / background summary
+- section_id: income
+  section_name: Income
+  display_order: 2
+  questions:
+  - display_order: 1
+    question_id: IN1
+    question_text: Is income documented?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Finding
+    data_mart_field: in1
+    export_label: Is income documented?
+  - display_order: 2
+    question_id: IN2
+    question_text: Qualifying monthly income
+    answer_type: currency
+    required: true
+    data_mart_field: in2
+    export_label: Qualifying monthly income
+- section_id: ability_to_repay
+  section_name: Ability to Repay
+  display_order: 3
+  questions:
+  - display_order: 1
+    question_id: AR1
+    question_text: Is the back-end DTI within guideline?
+    answer_type: yes_no_na
+    required: true
+    warning_if: answer == "No"
+    severity: Finding
+    help_text: See the Ability-to-Repay (DTI) worksheet.
+    data_mart_field: ar1
+    export_label: Is the back-end DTI within guideline?
+  - display_order: 2
+    question_id: AR2
+    question_text: Is residual income adequate?
+    answer_type: yes_no_na
+    required: true
+    warning_if: answer == "No"
+    severity: Needs Review
+    data_mart_field: ar2
+    export_label: Is residual income adequate?
+  - display_order: 3
+    question_id: AR3
+    question_text: ATR conclusion
+    answer_type: select
+    required: true
+    options:
+    - Within guidelines
+    - Exception documented
+    - Does not qualify
+    data_mart_field: ar3
+    export_label: ATR conclusion
+- section_id: collateral_auto
+  section_name: Vehicle / Collateral
+  display_order: 4
+  questions:
+  - display_order: 1
+    question_id: VA1
+    question_text: Is the vehicle value supported (book value)?
+    answer_type: yes_no_na
+    required: true
+    warning_if: answer == "No"
+    severity: Finding
+    data_mart_field: va1
+    export_label: Is the vehicle value supported (book value)?
+  - display_order: 2
+    question_id: VA2
+    question_text: Loan-to-value
+    answer_type: percent
+    required: true
+    exception_if: value > 120
+    severity: Finding
+    data_mart_field: va2
+    export_label: Loan-to-value
+- section_id: conclusion
+  section_name: Conclusion & Signoff
+  display_order: 5
+  questions:
+  - display_order: 1
+    question_id: CN1
+    question_text: Does the conclusion support the assigned rating?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Blocked
+    data_mart_field: cn1
+    export_label: Does the conclusion support the assigned rating?
+  - display_order: 2
+    question_id: CN2
+    question_text: Overall review rating
+    answer_type: select
+    required: true
+    options:
+    - Pass
+    - Pass with Findings
+    - Needs Review
+    - Does Not Qualify
+    data_mart_field: cn2
+    export_label: Overall review rating
+  - display_order: 3
+    question_id: CN3
+    question_text: Reviewer signoff completed?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    severity: Blocked
+    data_mart_field: cn3
+    export_label: Reviewer signoff completed?

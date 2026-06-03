@@ -5,7 +5,7 @@ from linesheet_builder.db import init_db, get_connection, create_or_get_client, 
 from linesheet_builder.sample_data import seed_demo, create_demo_loan_tape
 from linesheet_builder.import_engine import load_loan_tape, save_raw_import, create_import_batch
 from linesheet_builder.mapping_engine import suggest_mappings, apply_mapping, save_mapping_profile, load_mapping_profile, persist_loan_records
-from linesheet_builder.template_engine import load_template_yaml, get_applicable_questions
+from linesheet_builder.template_engine import load_template_yaml, get_applicable_questions, discover_templates, load_template
 from linesheet_builder.validation_engine import validate_loan_records, persist_validation_issues, validation_summary_table
 from linesheet_builder.review_engine import create_review_cases, save_answer, calculate_completion_status, set_review_status
 from linesheet_builder.export_engine import generate_excel_linesheet, generate_data_mart_csv, generate_exception_report_csv, generate_audit_log_csv
@@ -16,12 +16,18 @@ from linesheet_builder.ui_helpers import inject_css, status_badge, next_action
 ROOT=Path(__file__).parent; DB=ROOT/'data'/'app.db'; TEMPLATE_PATH=ROOT/'configs'/'templates'/'commercial_linesheet_v1.yaml'
 st.set_page_config(page_title="Linesheet Builder", layout="wide")
 inject_css(st); init_db(DB); seed_demo(DB)
-conn=get_connection(DB); template=load_template_yaml(TEMPLATE_PATH)
+conn=get_connection(DB)
 st.sidebar.title("Linesheet Builder")
-page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Upload","Mapping","Validation","Review","Cash Flow","DTI / ATR","Export","Audit"])
+page=st.sidebar.radio("Navigation", ["Dashboard","Setup","Templates","Upload","Mapping","Validation","Review","Cash Flow","DTI / ATR","Export","Audit"])
 engagements=pd.read_sql_query("SELECT e.*, c.client_name FROM engagements e JOIN clients c ON e.client_id=c.client_id ORDER BY e.engagement_id DESC", conn)
 eng_id=int(st.sidebar.selectbox("Engagement", engagements.engagement_id, format_func=lambda x: f"{engagements[engagements.engagement_id==x].iloc[0].client_name} / {x}")) if not engagements.empty else None
 eng=engagements[engagements.engagement_id==eng_id].iloc[0].to_dict() if eng_id else {}
+TEMPLATES=discover_templates()
+try:
+    template=load_template(eng.get('template_id') or 'commercial_linesheet_v1')
+except Exception:
+    template=load_template_yaml(TEMPLATE_PATH)
+st.sidebar.caption(f"Template: {template.template_name}")
 st.sidebar.markdown("---")
 st.sidebar.caption("Local pilot. No credit scoring. No underwriting decisions.")
 
@@ -47,13 +53,33 @@ elif page=="Setup":
         client=st.text_input("Client name", "Demo Bank")
         period=st.text_input("Review period", "Q4 2025")
         review_type=st.text_input("Review type", "Commercial Loan Review")
-        tmpl=st.selectbox("Template", ["commercial_linesheet_v1"], format_func=lambda x:"Commercial Linesheet v1")
+        tmpl_ids=list(TEMPLATES.keys()) or ["commercial_linesheet_v1"]
+        tmpl=st.selectbox("Template", tmpl_ids, format_func=lambda x: TEMPLATES.get(x,{}).get("name",x))
         reviewer=st.text_input("Reviewer name", "Demo Reviewer")
         qc=st.text_input("QC reviewer name", "Demo QC")
         st.text_input("Output folder", str(ROOT/'outputs'))
         if st.form_submit_button("Save engagement"):
             cid=create_or_get_client(conn, client); new_id=create_engagement(conn,cid,period,review_type,tmpl,reviewer,qc)
             st.success(f"Engagement saved: {new_id}")
+
+elif page=="Templates":
+    st.title("Linesheet Templates")
+    st.write("Custom linesheet templates discovered from `configs/templates/`. New templates are produced en masse with the template builder (`linesheet_builder/template_builder.py`) — a few lines of spec per sheet.")
+    reg=discover_templates()
+    rows=[]
+    for tid, meta in reg.items():
+        try:
+            t=load_template(tid); rows.append({"template_id":tid,"name":meta["name"],"version":meta["version"],"sections":len(t.sections),"questions":sum(len(s.questions) for s in t.sections)})
+        except Exception as e:
+            rows.append({"template_id":tid,"name":meta["name"],"version":meta["version"],"sections":0,"questions":f"error: {e}"})
+    st.dataframe(pd.DataFrame(rows), use_container_width=True)
+    if reg:
+        sel=st.selectbox("Preview template", list(reg.keys()), format_func=lambda x: reg[x]["name"])
+        t=load_template(sel)
+        st.caption(f"{t.template_name} · v{t.version} · {len(t.sections)} sections")
+        for s in t.sections:
+            with st.expander(f"{s.display_order}. {s.section_name}  ({len(s.questions)} questions)"):
+                st.dataframe(pd.DataFrame([{"#":q.display_order,"id":q.question_id,"question":q.question_text,"type":q.answer_type,"required":q.required,"rule":q.exception_if or q.warning_if or q.applies_if or ""} for q in s.questions]), use_container_width=True)
 
 elif page=="Upload":
     st.title("Upload Loan Tape")

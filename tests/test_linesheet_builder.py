@@ -205,6 +205,35 @@ def test_cash_flow_tab_and_data_mart_carry(workflow):
     qm=df[df.question_id=="CF_QUALIFYING_MONTHLY"]
     assert len(qm)==1 and qm.iloc[0]["section"]=="cash_flow" and float(qm.iloc[0]["answer_value"])==10500.0
 
+def test_template_builder_roundtrips_and_validates(tmp_path):
+    from linesheet_builder.template_builder import q, section, build_template, write_template_yaml
+    t=build_template("custom_demo_v1","Custom Demo",[
+        section("s1","Borrower",[q("Q1","Identity verified?",required=True,exception_if='answer == "No"',severity="Finding")]),
+        section("s2","Income",[q("Q2","Qualifying income","currency",required=True)])])
+    p=write_template_yaml(t, tmp_path/"custom_demo_v1.yaml")
+    loaded=load_template_yaml(p)  # parse back through the real loader -> validates structure
+    assert loaded.template_id=="custom_demo_v1" and len(loaded.sections)==2
+    q1=loaded.sections[0].questions[0]
+    assert q1.question_id=="Q1" and q1.required and q1.exception_if=='answer == "No"' and q1.data_mart_field=="q1"
+
+def test_template_builder_generates_catalog_en_masse(tmp_path):
+    from linesheet_builder.template_builder import catalog, generate_templates
+    from linesheet_builder.template_engine import discover_templates
+    templates=catalog()
+    assert len(templates) >= 4
+    paths=generate_templates(templates, tmp_path)
+    assert len(paths)==len(templates)
+    reg=discover_templates(tmp_path)
+    for t in templates:
+        assert t.template_id in reg
+        loaded=load_template_yaml(reg[t.template_id]["path"])  # each one is valid
+        assert loaded.sections and all(s.questions for s in loaded.sections)
+
+def test_template_builder_rejects_duplicate_question_ids():
+    from linesheet_builder.template_builder import q, section, build_template
+    with pytest.raises(ValueError, match="Duplicate question_id"):
+        build_template("dup_v1","Dup",[section("s1","S",[q("X1","a"),q("X1","b")])])
+
 def test_rules_engine_safe_supported_and_no_raw_eval():
     assert evaluate_rule('answer == "No"', answer="No")
     assert evaluate_rule('value < 1.20', value=1.1)
