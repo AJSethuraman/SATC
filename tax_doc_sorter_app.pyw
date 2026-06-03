@@ -13,6 +13,7 @@ from typing import Any
 
 import clients_editor
 import generate_documents
+import preflight
 import sign_documents
 import sort_tax_docs
 import tax_tools
@@ -948,6 +949,24 @@ if PYSIDE_AVAILABLE:
             if not sort_tax_docs.check_dependencies(verbose=False):
                 QMessageBox.warning(self, "Setup needed", dependency_message())
                 return
+
+            # Pre-run input checks: warn (don't block) if a selected tool lacks its inputs.
+            if not self.per_client_checkbox.isChecked():
+                issues = preflight.precheck(
+                    self.selected_folder, tool_keys,
+                    {tool.key: tool.name for tool in tax_tools.TOOLS},
+                    signature_path=self.signature_path_edit.text().strip() or None,
+                    cert_path=self.cert_path_edit.text().strip() or None,
+                )
+                if issues:
+                    message = (
+                        "Some selected tools may be missing what they need:\n\n• "
+                        + "\n• ".join(issues)
+                        + "\n\nRun anyway?"
+                    )
+                    if QMessageBox.question(self, "Check inputs", message) != QMessageBox.Yes:
+                        return
+
             if sort_tax_docs.find_tesseract_executable() is None:
                 QMessageBox.information(
                     self,

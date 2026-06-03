@@ -512,6 +512,15 @@ def main() -> int:
     if not sort_tax_docs.check_dependencies():
         return 1
 
+    if not args.per_client:
+        import preflight
+
+        for warning in preflight.precheck(
+            folder, keys, {tool.key: tool.name for tool in TOOLS},
+            signature_path=args.signature or None, cert_path=args.cert or None,
+        ):
+            print(f"  NOTE: {warning}")
+
     if args.per_client:
         import batch  # local import avoids an import cycle (batch imports tax_tools)
 

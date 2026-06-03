@@ -24,6 +24,8 @@ Pick one or more tools in the desktop app (they run top to bottom):
 11d. **PDF Merge/Split** — drop PDFs in `PDF_Tools/merge/` to combine them into one file, or in `PDF_Tools/split/` to split each into one PDF per page; output goes to `PDF_Tools/output/`. A manual utility, excluded from the "Full pipeline" preset.
 12. **Practice Dashboard** — one HTML page showing where every client stands across the whole pipeline (email, documents, invoice, generated, engagement, 8879, Encyro, archived) with a summary bar.
 
+Before a run, the app performs **pre-run input checks** and warns (without blocking) if a selected tool is missing what it needs — for example a client-data tool with no `clients.json`, the Sign tool with no signature image, or PDF Merge/Split with nothing in `PDF_Tools/`. You can fix it or proceed anyway. The CLI prints the same notes.
+
 In the desktop app the tools are grouped into collapsible phase cards (Onboarding & Documents, Preparation, Signing, Tracking & Reminders, Delivery & Records, Practice Management) inside a scroll area, with **Select all / Clear** and one-click **Presets** (Full pipeline, Intake & documents, Prepare & generate, Sign & deliver, Status & reminders).
 9. **Compose Email Drafts** — build a review-ready `.eml` per client (subject/body from a template, that client's generated and signed files attached) in `Email_Drafts/`. Nothing is sent automatically and no credentials are stored.
 10. **Export for Encyro** — convert each client's letters to PDF, gather their signed PDFs/attachments, and merge an upload-ready `<client>_packet.pdf` (plus `UPLOAD_NOTES.txt`) under `Encyro_Ready/<client>/`.
@@ -416,6 +418,7 @@ Run the included fake-text classifier tests with:
 
 ```bash
 python test_core.py
+python test_preflight.py
 python test_clients_editor.py
 python test_validate_config.py
 python test_import_clients.py
