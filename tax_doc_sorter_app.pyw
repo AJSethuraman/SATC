@@ -298,6 +298,19 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
     return summary
 
 
+def build_batch_summary(batch_result: dict) -> dict:
+    """Render a per-client-folders batch result for the results panel."""
+
+    lines = [batch_result["summary"]]
+    for client in batch_result["clients"]:
+        lines.append(f"— {client['slug']} —")
+        lines.extend(f"    {line}" for line in client["lines"])
+    return {
+        "tool_lines": lines,
+        "open_paths": {"Open Parent Folder": str(batch_result["parent_folder"])},
+    }
+
+
 def dependency_message() -> str:
     """Return a friendly dependency message for the GUI."""
 
@@ -336,6 +349,7 @@ if PYSIDE_AVAILABLE:
             signature_anchor: str = sign_documents.DEFAULT_ANCHOR,
             cert_path: str | None = None,
             cert_password: str | None = None,
+            per_client: bool = False,
         ) -> None:
             super().__init__()
             self.tool_keys = tool_keys
@@ -348,9 +362,26 @@ if PYSIDE_AVAILABLE:
             self.signature_anchor = signature_anchor
             self.cert_path = cert_path
             self.cert_password = cert_password
+            self.per_client = per_client
 
         def run(self) -> None:
             try:
+                if self.per_client:
+                    import batch
+
+                    result = batch.run_batch(
+                        self.input_folder, self.tool_keys, move=self.move,
+                        save_extracted_text=self.save_extracted_text,
+                        split_combined=self.split_combined,
+                        document_templates=self.document_templates,
+                        signature_path=self.signature_path,
+                        signature_anchor=self.signature_anchor,
+                        cert_path=self.cert_path, cert_password=self.cert_password,
+                        status_callback=self.status_changed.emit,
+                    )
+                    self.status_changed.emit("Summarizing results...")
+                    self.finished_successfully.emit(build_batch_summary(result))
+                    return
                 context = tax_tools.ToolContext(
                     input_folder=self.input_folder,
                     move=self.move,
@@ -523,9 +554,14 @@ if PYSIDE_AVAILABLE:
             self.split_checkbox = QCheckBox("Split combined PDFs (multi-form)")
             self.split_checkbox.setChecked(True)
             self.debug_checkbox = QCheckBox("Save extracted text debug files")
+            self.per_client_checkbox = QCheckBox("Per-client subfolders (batch)")
+            self.per_client_checkbox.setToolTip(
+                "Run the selected tools once per client subfolder for clean per-client attribution."
+            )
             flags_row.addWidget(self.move_checkbox)
             flags_row.addWidget(self.split_checkbox)
             flags_row.addWidget(self.debug_checkbox)
+            flags_row.addWidget(self.per_client_checkbox)
             flags_row.addStretch()
             advanced_layout.addLayout(flags_row)
 
@@ -601,6 +637,7 @@ if PYSIDE_AVAILABLE:
             self.results_table.horizontalHeader().setStretchLastSection(True)
             action_row = QHBoxLayout()
             button_labels = [
+                "Open Parent Folder",
                 "Open Organized Folder",
                 "Open Intake Folder",
                 "Open Inventory",
@@ -802,6 +839,7 @@ if PYSIDE_AVAILABLE:
                 signature_anchor=self.anchor_edit.text().strip() or sign_documents.DEFAULT_ANCHOR,
                 cert_path=self.cert_path_edit.text().strip() or None,
                 cert_password=self.cert_password_edit.text() or None,
+                per_client=self.per_client_checkbox.isChecked(),
             )
             self.worker.status_changed.connect(self.status_label.setText)
             self.worker.finished_successfully.connect(self.on_tools_finished)

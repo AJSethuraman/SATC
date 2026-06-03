@@ -265,6 +265,21 @@ The **Compose Email Drafts** tool turns each client record (that has an `email`)
 
 The **Records Retention** tool packages each client for your retention requirement: it collects everything produced for them — generated documents, signed PDFs, checklist, Encyro packet, and their intake response — into `Retention/<client>_<tax_year>.zip` with a `MANIFEST.txt` listing the contents and a **keep-until date** (archive year + retention period, 3 years by default; set with `--years`). When the folder holds exactly one client, the sorted source documents (their W-2s, 1099s, …) are included under `Source_Documents/`; with multiple clients those cannot be attributed automatically, so the archive holds the per-client artifacts and notes the omission. Run it last, after the other tools have produced their output.
 
+### Per-client folders (batch) mode
+
+By default the suite treats the chosen folder as one client. **Per-client folders mode** instead runs the selected tools once per client, each in their own subfolder, so sorting, extraction, the checklist, and retention are attributed correctly with no cross-client mixing. Enable it with the **"Per-client subfolders (batch)"** checkbox in Advanced Options, or `--per-client` on the CLI.
+
+Two layouts work:
+
+- A parent `clients.json` roster → a subfolder named for each client (created if missing); put each client's uploads in their subfolder.
+- No parent `clients.json` → every immediate subfolder is treated as a client (using its own `clients.json` if present, else the folder name).
+
+Shared config at the parent (`firm.json`, `intake_fields.json`, `checklist_map.json`, `fee_schedule.json`, `document_templates/`) is copied into each subfolder once so the same settings apply everywhere. After the run, each subfolder's `clients.json` is aggregated back into the parent — so practice-wide tools (**Practice Dashboard**, **Payments & AR**) can then be run once at the parent level over all clients.
+
+```bash
+python tax_tools.py "/path/to/Clients" --tools sort,extract,checklist --per-client
+```
+
 ## Detailed setup notes
 
 Python 3.10 or newer is recommended. A virtual environment is optional but recommended.
@@ -375,6 +390,7 @@ python test_cert_sign.py
 python test_retention.py
 python test_dashboard.py
 python test_diagnostics_payments.py
+python test_batch.py
 python test_tax_tools.py
 python test_sort_tax_docs.py
 python test_extract_form_data.py

@@ -415,6 +415,11 @@ def main() -> int:
         default=sign_documents.DEFAULT_ANCHOR,
         help="Anchor phrase the sign tool places the signature above.",
     )
+    parser.add_argument(
+        "--per-client",
+        action="store_true",
+        help="Per-client folders mode: run the selected tools on each client subfolder.",
+    )
     args = parser.parse_args()
 
     keys = [key.strip() for key in args.tools.split(",") if key.strip()]
@@ -429,6 +434,21 @@ def main() -> int:
         return 1
     if not sort_tax_docs.check_dependencies():
         return 1
+
+    if args.per_client:
+        import batch  # local import avoids an import cycle (batch imports tax_tools)
+
+        result = batch.run_batch(
+            folder, keys, move=args.move, save_extracted_text=args.save_extracted_text,
+            split_combined=not args.no_split, signature_path=args.signature or None,
+            signature_anchor=args.anchor, status_callback=lambda m: print(m),
+        )
+        print("\n" + result["summary"])
+        for client in result["clients"]:
+            print(f"\n{client['slug']}  ({client['folder']})")
+            for line in client["lines"]:
+                print(f"  {line}")
+        return 0
 
     context = ToolContext(
         input_folder=folder,
