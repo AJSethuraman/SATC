@@ -120,6 +120,30 @@ class PipelineIntegrationTests(unittest.TestCase):
 
         self.assertEqual(result["review_count"], 0)
 
+    def test_drake_csv_export(self) -> None:
+        import csv
+
+        result = extract_form_data.run_extraction(self.folder)
+        export_folder = Path(result["drake_export_folder"])
+        w2_csv = export_folder / "W2.csv"
+        self.assertTrue(w2_csv.exists())
+
+        with w2_csv.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+
+        # Stable machine keys + metadata columns are present.
+        for column in ("form_type", "source_file", "page", "needs_review", "box1_wages"):
+            self.assertIn(column, rows[0])
+        self.assertEqual(len(rows), 2)  # w2_only + combined page 1
+        # Amounts are written as parseable numeric values, identifiers keep hyphens.
+        self.assertEqual(float(rows[0]["box1_wages"]), 52000.0)
+        self.assertEqual(rows[0]["employer_ein"], "12-3456789")
+        self.assertEqual(rows[0]["form_type"], "W2")
+
+        # The combined PDF row carries its originating page number.
+        combined = [r for r in rows if r["source_file"] == "client_combined.pdf"]
+        self.assertEqual(combined[0]["page"], "1")
+
 
 if __name__ == "__main__":
     unittest.main()

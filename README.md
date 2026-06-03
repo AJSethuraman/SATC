@@ -7,9 +7,31 @@ This is a local-only Python prototype that bundles small tax tools you can run i
 Pick one or more tools in the desktop app (they run top to bottom):
 
 1. **Sort Documents** — classify uploads and copy (or move) them into category folders with an inventory workbook. When a single PDF contains more than one form type, it is **split** into one filed PDF per form (see below).
-2. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, **1099-R**, **1099-G**, **1099-K**, **SSA-1099**, **1098 (Mortgage)**, **1098-T**, **1099-B**, and **Schedule K-1** into `Extracted_Form_Data.xlsx` (one sheet per form type).
+2. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, **1099-R**, **1099-G**, **1099-K**, **SSA-1099**, **1098 (Mortgage)**, **1098-T**, **1099-B**, and **Schedule K-1**. Output is written two ways: a human-readable `Extracted_Form_Data.xlsx` (one sheet per form type) and machine-readable per-form CSVs in `Drake_Export/` for feeding a downstream entry script.
 
 Extraction is local and rule-based: it uses label-anchored regular expressions over the same selectable-text/OCR pipeline as the sorter. It is **assistive only** — every value should be verified against the source document, and anything the rules cannot read confidently is left blank with the row flagged for manual entry. 1099-B is transactional and is always flagged for manual review.
+
+### Feeding a Drake (or other) entry script
+
+The extractor writes `Organized_Tax_Documents/Drake_Export/<FORM_TYPE>.csv` (for example `W2.csv`, `1099_NEC.csv`) using **stable machine field keys** and **typed values**, designed to be read by a downstream Python entry script:
+
+- Every CSV starts with metadata columns: `form_type`, `source_file`, `page` (blank for single-form files; the page number for a form pulled from a combined PDF), `needs_review`, and ends with `notes`.
+- Between them are the form's fields using snake_case keys such as `employer_ein`, `box1_wages`, `box1_nonemployee_compensation`, `box1_gross_distribution`, `box7_distribution_code`.
+- Dollar amounts are written as plain numbers (`52000.0`), so `pandas`/`csv` parse them as floats. Identifiers like EIN/SSN keep their hyphens as strings (`12-3456789`). Missing values are blank.
+
+The keys are intentionally **generic**; map them to your Drake input fields inside your entry script. Example consumer:
+
+```python
+import csv
+from pathlib import Path
+
+export = Path("Uploads/Organized_Tax_Documents/Drake_Export")
+for row in csv.DictReader((export / "W2.csv").open()):
+    if row["needs_review"] == "True":
+        continue  # send to manual entry instead
+    wages = float(row["box1_wages"]) if row["box1_wages"] else 0.0
+    # map row["employer_ein"], wages, ... onto your Drake fields here
+```
 
 ### Splitting combined PDFs
 

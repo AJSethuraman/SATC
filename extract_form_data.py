@@ -13,6 +13,7 @@ row is flagged so a human enters it manually.
 
 from __future__ import annotations
 
+import csv
 import re
 from collections import defaultdict
 from dataclasses import dataclass
@@ -22,6 +23,10 @@ import sort_tax_docs
 from sort_tax_docs import normalize_text
 
 EXTRACTED_DATA_FILE_NAME = "Extracted_Form_Data.xlsx"
+# Per-form-type CSVs with stable machine keys and typed values, for feeding a
+# downstream Drake entry script. Generic keys; map them to Drake fields there.
+DRAKE_EXPORT_FOLDER_NAME = "Drake_Export"
+RECORD_METADATA_FIELDS = ("form_type", "source_file", "page", "needs_review")
 
 # A monetary value. Requires a thousands separator or a decimal portion so that
 # bare box numbers (for example "1") and years (for example "2024") sitting next
@@ -246,6 +251,59 @@ def extract_form_fields(category: str, text: str) -> ExtractionResult:
     return ExtractionResult(category, values, needs_review, tuple(notes))
 
 
+def _typed_value(spec: FieldSpec, raw: str):
+    """Convert a raw extracted string to a typed value (float for amounts)."""
+
+    if not raw:
+        return None
+    if spec.kind == "amount":
+        try:
+            return float(raw)
+        except ValueError:
+            return raw
+    return raw
+
+
+def _record_for(
+    category: str, source_file: str, page: int | None, result: ExtractionResult
+) -> dict[str, object]:
+    """Build one typed record (stable machine keys) for a single extracted form."""
+
+    record: dict[str, object] = {
+        "form_type": category,
+        "source_file": source_file,
+        "page": page,
+        "needs_review": result.needs_review,
+    }
+    for spec in EXTRACTION_SPECS[category]:
+        record[spec.name] = _typed_value(spec, result.values.get(spec.name, ""))
+    record["notes"] = " ".join(result.notes)
+    return record
+
+
+def drake_columns(category: str) -> list[str]:
+    """Column order for the Drake CSV export of a form category."""
+
+    specs = EXTRACTION_SPECS[category]
+    return [*RECORD_METADATA_FIELDS, *(spec.name for spec in specs), "notes"]
+
+
+def _excel_row(record: dict[str, object]) -> dict[str, object]:
+    """Derive a human-readable spreadsheet row from a typed record."""
+
+    category = str(record["form_type"])
+    source = str(record["source_file"])
+    if record["page"]:
+        source = f"{source} (page {record['page']})"
+    row: dict[str, object] = {"Source File": source}
+    for spec in EXTRACTION_SPECS[category]:
+        value = record.get(spec.name)
+        row[spec.header] = "" if value is None else value
+    row["Needs Review"] = "Yes" if record["needs_review"] else "No"
+    row["Notes"] = record.get("notes", "")
+    return row
+
+
 def extracted_columns(category: str) -> list[str]:
     """Return spreadsheet column headers for a form category."""
 
@@ -253,22 +311,12 @@ def extracted_columns(category: str) -> list[str]:
     return ["Source File", *(spec.header for spec in specs), "Needs Review", "Notes"]
 
 
-def _row_for(category: str, source_name: str, result: ExtractionResult) -> dict[str, object]:
-    specs = EXTRACTION_SPECS[category]
-    row: dict[str, object] = {"Source File": source_name}
-    for spec in specs:
-        row[spec.header] = result.values.get(spec.name, "")
-    row["Needs Review"] = "Yes" if result.needs_review else "No"
-    row["Notes"] = " ".join(result.notes)
-    return row
-
-
 def write_extracted_data(
-    rows_by_category: dict[str, list[dict[str, object]]], output_folder: Path
+    records_by_category: dict[str, list[dict[str, object]]], output_folder: Path
 ) -> Path | None:
-    """Write one sheet per form type. Return the path, or None when nothing extracted."""
+    """Write one Excel sheet per form type. Return the path, or None if empty."""
 
-    if not any(rows_by_category.values()):
+    if not any(records_by_category.values()):
         return None
 
     import pandas as pd
@@ -276,35 +324,65 @@ def write_extracted_data(
     path = output_folder / EXTRACTED_DATA_FILE_NAME
     with pd.ExcelWriter(path) as writer:
         for category in EXTRACTION_SPECS:
-            rows = rows_by_category.get(category)
-            if not rows:
+            records = records_by_category.get(category)
+            if not records:
                 continue
+            rows = [_excel_row(record) for record in records]
             dataframe = pd.DataFrame(rows, columns=extracted_columns(category))
             dataframe.to_excel(writer, sheet_name=category, index=False)
     return path
 
 
-def _extract_units(file_path: Path) -> list[tuple[str, str, str]]:
-    """Return (source_label, category, text) units for a file.
+def write_drake_csvs(
+    records_by_category: dict[str, list[dict[str, object]]], output_folder: Path
+) -> Path | None:
+    """Write one CSV per form type with stable keys and typed values for Drake.
+
+    Returns the export folder, or None when nothing was extracted.
+    """
+
+    if not any(records_by_category.values()):
+        return None
+
+    export_folder = output_folder / DRAKE_EXPORT_FOLDER_NAME
+    export_folder.mkdir(exist_ok=True)
+    for category in EXTRACTION_SPECS:
+        records = records_by_category.get(category)
+        if not records:
+            continue
+        columns = drake_columns(category)
+        csv_path = export_folder / f"{category}.csv"
+        with csv_path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="ignore")
+            writer.writeheader()
+            for record in records:
+                writer.writerow(
+                    {column: ("" if record.get(column) is None else record[column]) for column in columns}
+                )
+    return export_folder
+
+
+def _extract_units(file_path: Path) -> list[tuple[str, int | None, str, str]]:
+    """Return (source_file, page, category, text) units for a file.
 
     PDFs are read page by page so a combined upload with several forms yields one
-    unit per page; images are read as a single unit.
+    unit per page (page is 1-based); images are read as a single unit (page None).
     """
 
     if file_path.suffix.lower() == ".pdf":
         pages = sort_tax_docs.extract_pdf_page_texts(file_path)
         multi_page = len(pages) > 1
-        units: list[tuple[str, str, str]] = []
+        units: list[tuple[int | None, str, str]] = []
         for page_number, (text, _ocr_used) in enumerate(pages, start=1):
             category = sort_tax_docs.classify_text(text).category
-            label = f"{file_path.name} (page {page_number})" if multi_page else file_path.name
-            units.append((label, category, text))
+            page = page_number if multi_page else None
+            units.append((file_path.name, page, category, text))
         return units
 
     text, _ocr_used, _note, classification, _debug = (
         sort_tax_docs.extract_text_and_classification(file_path)
     )
-    return [(file_path.name, classification.category, text)]
+    return [(file_path.name, None, classification.category, text)]
 
 
 def run_extraction(input_folder, save_extracted_text=False, status_callback=None) -> dict:
@@ -314,7 +392,7 @@ def run_extraction(input_folder, save_extracted_text=False, status_callback=None
     output_folder = sort_tax_docs.setup_output_folders(input_folder)
     files = list(sort_tax_docs.iter_supported_files(input_folder, output_folder))
 
-    rows_by_category: dict[str, list[dict[str, object]]] = defaultdict(list)
+    records_by_category: dict[str, list[dict[str, object]]] = defaultdict(list)
     review_count = 0
     for index, file_path in enumerate(files, start=1):
         if status_callback:
@@ -323,21 +401,26 @@ def run_extraction(input_folder, save_extracted_text=False, status_callback=None
             units = _extract_units(file_path)
         except Exception:  # Keep going through the rest of the upload folder.
             continue
-        for source_label, category, text in units:
+        for source_file, page, category, text in units:
             if category not in EXTRACTION_SPECS:
                 continue
             result = extract_form_fields(category, text)
-            rows_by_category[category].append(_row_for(category, source_label, result))
+            records_by_category[category].append(
+                _record_for(category, source_file, page, result)
+            )
             if result.needs_review:
                 review_count += 1
 
-    data_path = write_extracted_data(rows_by_category, output_folder)
-    counts = {category: len(rows) for category, rows in rows_by_category.items()}
+    data_path = write_extracted_data(records_by_category, output_folder)
+    drake_export_folder = write_drake_csvs(records_by_category, output_folder)
+    counts = {category: len(records) for category, records in records_by_category.items()}
     total_forms = sum(counts.values())
     return {
         "tool": "extract",
         "output_folder": output_folder,
         "data_path": data_path,
+        "drake_export_folder": drake_export_folder,
+        "records_by_category": dict(records_by_category),
         "counts_by_category": counts,
         "total_forms": total_forms,
         "review_count": review_count,
@@ -356,7 +439,8 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Extract key fields from W-2 and 1099 forms into a spreadsheet."
+        description="Extract key fields from W-2 and 1099 forms into a spreadsheet "
+        "and per-form CSVs for a Drake entry script."
     )
     parser.add_argument("input_folder", help="Folder containing uploaded tax documents.")
     parser.add_argument(
@@ -377,6 +461,8 @@ def main() -> int:
     print(result["summary"])
     if result["data_path"]:
         print(f"Extracted data: {result['data_path']}")
+    if result["drake_export_folder"]:
+        print(f"Drake CSV export: {result['drake_export_folder']}")
     return 0
 
 

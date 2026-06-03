@@ -127,6 +127,8 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"Extract Form Data: {extract_result['summary']}")
         if extract_result["data_path"]:
             summary["open_paths"]["Open Extracted Data"] = str(extract_result["data_path"])
+        if extract_result.get("drake_export_folder"):
+            summary["open_paths"]["Open Drake Export"] = str(extract_result["drake_export_folder"])
 
     return summary
 
@@ -331,6 +333,7 @@ if PYSIDE_AVAILABLE:
                 "Open Inventory",
                 "Open Log File",
                 "Open Extracted Data",
+                "Open Drake Export",
             ]
             for label in button_labels:
                 button = QPushButton(label)
