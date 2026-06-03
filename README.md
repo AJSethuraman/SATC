@@ -1,6 +1,15 @@
-# Local Tax Document Sorter Prototype
+# Local Tax Tools Prototype
 
-This is a simple, local-only Python prototype for sorting obvious tax documents from a client upload folder. It uses a PySide6 desktop GUI, rule-based keyword scoring, PDF text extraction, and local Tesseract OCR. It does **not** use AI, machine learning, paid APIs, cloud services, Drake Tax integration, a database, PDF splitting, or bookkeeping categories.
+This is a local-only Python prototype that bundles small tax tools you can run individually or in sequence from one PySide6 desktop app. It uses rule-based keyword scoring, PDF text extraction, and local Tesseract OCR. It does **not** use AI, machine learning, paid APIs, cloud services, Drake Tax integration, a database, PDF splitting, or bookkeeping categories.
+
+## Tools in the suite
+
+Pick one or more tools in the desktop app (they run top to bottom):
+
+1. **Sort Documents** — classify uploads and copy (or move) them into category folders with an inventory workbook.
+2. **Extract Form Data** — read key fields from **W-2**, **1099-NEC**, **1099-INT/DIV**, and **1099-R** forms into `Extracted_Form_Data.xlsx` (one sheet per form type).
+
+Extraction is local and rule-based: it uses label-anchored regular expressions over the same selectable-text/OCR pipeline as the sorter. It is **assistive only** — every value should be verified against the source document, and anything the rules cannot read confidently is left blank with the row flagged for manual entry.
 
 ## Easiest way to use it on Windows
 
@@ -96,6 +105,17 @@ py -3.12 setup_tax_doc_sorter.py
 py -3.12 tax_doc_sorter_app.pyw
 py -3.12 run_sorter.py
 py -3.12 sort_tax_docs.py --check-dependencies
+```
+
+### Run tools from the command line
+
+`tax_tools.py` runs any combination of tools on a folder, in order:
+
+```bash
+python tax_tools.py "/path/to/Uploads"                 # runs sort then extract
+python tax_tools.py "/path/to/Uploads" --tools sort    # just the sorter
+python tax_tools.py "/path/to/Uploads" --tools extract # just the extractor
+python extract_form_data.py "/path/to/Uploads"         # extractor directly
 ```
 
 The CLI workflows remain available for troubleshooting and automation. The older Flask browser app (`app.py`) is still present as optional legacy tooling, but the primary workflow is the PySide6 desktop app.
@@ -202,7 +222,10 @@ Run the included fake-text classifier tests with:
 
 ```bash
 python test_sort_tax_docs.py
+python test_extract_form_data.py
 ```
+
+`test_extract_form_data.py` covers field extraction for W-2, 1099-NEC, 1099-INT, 1099-DIV, and 1099-R using fake form text, including the case where a form title repeats a box label and the amount-format rules that ignore bare box numbers and years.
 
 These tests do not use real taxpayer data. They cover exact W-2 text, W-2 structural indicators, PDF OCR fallback behavior, 1099-NEC vs W-2, brokerage priority, 1099-MISC strictness, 1098-T, mortgage 1098, 1099-G, 1099-K, SSA-1099, OCR hyphen recovery, generic tax statements, and random receipts.
 
@@ -233,7 +256,7 @@ Packaging is optional and is not required to run the prototype.
 ## Limitations in this prototype
 
 - It does not split combined PDFs.
-- It does not extract dollar amounts or taxpayer details.
+- Form data extraction is best-effort and assistive. It reads common labeled boxes with local regex rules; layouts vary, so always verify extracted values and fill blanks by hand. Amounts must include cents or a thousands separator to be captured (this avoids mistaking box numbers and years for dollar values).
 - It does not connect to Drake Tax or any other tax software.
 - It does not use APIs, paid services, AI, or machine learning.
 - OCR quality depends on scan quality and the local Tesseract installation.

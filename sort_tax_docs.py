@@ -819,6 +819,46 @@ def write_inventory(rows: list[dict[str, object]], output_folder: Path) -> Path:
     return inventory_path
 
 
+def run_sort(
+    input_folder: Path,
+    move: bool = False,
+    save_extracted_text: bool = False,
+    status_callback=None,
+) -> dict[str, object]:
+    """Sort one folder and return output paths plus the inventory rows.
+
+    Shared by the CLI, the desktop app, and the tools registry so the run loop
+    lives in exactly one place.
+    """
+
+    output_folder = setup_output_folders(input_folder)
+    debug_folder = setup_debug_text_folder(output_folder, save_extracted_text)
+    setup_logging(output_folder)
+    logging.info("Starting tax document sort for %s", input_folder)
+    logging.info("Default safety mode: %s", "MOVE" if move else "COPY")
+
+    files = list(iter_supported_files(input_folder, output_folder))
+    rows: list[dict[str, object]] = []
+    for index, file_path in enumerate(files, start=1):
+        if status_callback:
+            status_callback(f"Processing {index} of {len(files)}: {file_path.name}")
+        rows.append(process_file(file_path, output_folder, move, debug_folder))
+
+    inventory_path = write_inventory(rows, output_folder)
+    logging.info("Inventory written to %s", inventory_path)
+    logging.info("Finished. Processed %s supported file(s).", len(rows))
+    return {
+        "tool": "sort",
+        "output_folder": output_folder,
+        "inventory_path": inventory_path,
+        "log_path": output_folder / LOG_FILE_NAME,
+        "debug_folder": debug_folder,
+        "rows": rows,
+        "total_files": len(rows),
+        "summary": f"Sorted {len(rows)} supported file(s).",
+    }
+
+
 def main() -> int:
     """Run the tax document sorter."""
 
@@ -844,25 +884,15 @@ def main() -> int:
         print(f"Input folder does not exist or is not a directory: {input_folder}")
         return 1
 
-    output_folder = setup_output_folders(input_folder)
-    debug_folder = setup_debug_text_folder(output_folder, args.save_extracted_text)
-    setup_logging(output_folder)
-    logging.info("Starting tax document sort for %s", input_folder)
-    logging.info("Default safety mode: %s", "MOVE" if args.move else "COPY")
-
-    rows: list[dict[str, object]] = []
-    for file_path in iter_supported_files(input_folder, output_folder):
-        rows.append(process_file(file_path, output_folder, args.move, debug_folder))
-
-    inventory_path = write_inventory(rows, output_folder)
-    logging.info("Inventory written to %s", inventory_path)
-    logging.info("Finished. Processed %s supported file(s).", len(rows))
-    print(f"Finished. Processed {len(rows)} supported file(s).")
-    print(f"Output folder: {output_folder}")
-    print(f"Inventory: {inventory_path}")
-    print(f"Log: {output_folder / LOG_FILE_NAME}")
-    if debug_folder is not None:
-        print(f"Extracted text debug folder: {debug_folder}")
+    result = run_sort(
+        input_folder, move=args.move, save_extracted_text=args.save_extracted_text
+    )
+    print(f"Finished. Processed {result['total_files']} supported file(s).")
+    print(f"Output folder: {result['output_folder']}")
+    print(f"Inventory: {result['inventory_path']}")
+    print(f"Log: {result['log_path']}")
+    if result["debug_folder"] is not None:
+        print(f"Extracted text debug folder: {result['debug_folder']}")
     return 0
 
 

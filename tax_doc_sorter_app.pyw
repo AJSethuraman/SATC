@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import sort_tax_docs
+import tax_tools
 
 APP_ROOT = Path(__file__).resolve().parent
 DEFAULT_UPLOADS_FOLDER = APP_ROOT / "Uploads"
@@ -97,6 +98,39 @@ def summarize_inventory(inventory_path: Path) -> dict[str, Any]:
     }
 
 
+def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
+    """Turn raw tool results into GUI-friendly summary data."""
+
+    summary: dict[str, Any] = {
+        "tool_lines": [],
+        "open_paths": {},
+        "sort": None,
+        "extract": None,
+    }
+
+    sort_result = results.get("sort")
+    if sort_result is not None:
+        inventory = summarize_inventory(Path(sort_result["inventory_path"]))
+        summary["sort"] = inventory
+        summary["tool_lines"].append(f"Sort Documents: {sort_result['summary']}")
+        summary["open_paths"]["Open Organized Folder"] = str(sort_result["output_folder"])
+        summary["open_paths"]["Open Inventory"] = str(sort_result["inventory_path"])
+        summary["open_paths"]["Open Log File"] = str(sort_result["log_path"])
+
+    extract_result = results.get("extract")
+    if extract_result is not None:
+        summary["extract"] = {
+            "total_forms": extract_result["total_forms"],
+            "counts_by_category": extract_result["counts_by_category"],
+            "review_count": extract_result["review_count"],
+        }
+        summary["tool_lines"].append(f"Extract Form Data: {extract_result['summary']}")
+        if extract_result["data_path"]:
+            summary["open_paths"]["Open Extracted Data"] = str(extract_result["data_path"])
+
+    return summary
+
+
 def dependency_message() -> str:
     """Return a friendly dependency message for the GUI."""
 
@@ -116,49 +150,37 @@ def dependency_message() -> str:
 
 if PYSIDE_AVAILABLE:
 
-    class SorterWorker(QThread):
-        """Background worker that runs the existing sorter without freezing the GUI."""
+    class ToolsWorker(QThread):
+        """Background worker that runs the selected tools without freezing the GUI."""
 
         status_changed = Signal(str)
         finished_successfully = Signal(dict)
         failed = Signal(str)
 
-        def __init__(self, input_folder: Path, move: bool, save_extracted_text: bool) -> None:
+        def __init__(
+            self,
+            tool_keys: list[str],
+            input_folder: Path,
+            move: bool,
+            save_extracted_text: bool,
+        ) -> None:
             super().__init__()
+            self.tool_keys = tool_keys
             self.input_folder = input_folder
             self.move = move
             self.save_extracted_text = save_extracted_text
 
         def run(self) -> None:
             try:
-                output_folder = sort_tax_docs.setup_output_folders(self.input_folder)
-                debug_folder = sort_tax_docs.setup_debug_text_folder(
-                    output_folder, self.save_extracted_text
+                context = tax_tools.ToolContext(
+                    input_folder=self.input_folder,
+                    move=self.move,
+                    save_extracted_text=self.save_extracted_text,
+                    status_callback=self.status_changed.emit,
                 )
-                sort_tax_docs.setup_logging(output_folder)
-
-                files = list(sort_tax_docs.iter_supported_files(self.input_folder, output_folder))
-                rows: list[dict[str, object]] = []
-                for index, file_path in enumerate(files, start=1):
-                    self.status_changed.emit(f"Processing {index} of {len(files)}: {file_path.name}")
-                    rows.append(
-                        sort_tax_docs.process_file(
-                            file_path, output_folder, self.move, debug_folder
-                        )
-                    )
-
-                self.status_changed.emit("Writing inventory workbook...")
-                inventory_path = sort_tax_docs.write_inventory(rows, output_folder)
-                summary = summarize_inventory(inventory_path)
-                summary.update(
-                    {
-                        "output_folder": str(output_folder),
-                        "inventory_path": str(inventory_path),
-                        "log_path": str(output_folder / sort_tax_docs.LOG_FILE_NAME),
-                        "debug_folder": str(debug_folder) if debug_folder else "",
-                    }
-                )
-                self.finished_successfully.emit(summary)
+                results = tax_tools.run_tools(self.tool_keys, context)
+                self.status_changed.emit("Summarizing results...")
+                self.finished_successfully.emit(build_run_summary(results))
             except Exception as exc:
                 self.failed.emit(str(exc))
 
@@ -168,7 +190,10 @@ if PYSIDE_AVAILABLE:
 
         def __init__(self) -> None:
             super().__init__()
-            self.worker: SorterWorker | None = None
+            self.worker: ToolsWorker | None = None
+            self.tool_checkboxes: dict[str, QCheckBox] = {}
+            self.open_buttons: dict[str, QPushButton] = {}
+            self.open_paths: dict[str, str] = {}
             self.selected_folder = ensure_default_uploads_folder().resolve()
             self.result: dict[str, Any] | None = None
             self.setWindowTitle("SATC Tax Document Sorter")
@@ -229,6 +254,27 @@ if PYSIDE_AVAILABLE:
             folder_layout.addWidget(safety, 2, 2)
             body_layout.addWidget(folder_card)
 
+            tools_card = QFrame(objectName="Card")
+            tools_layout = QVBoxLayout(tools_card)
+            tools_layout.setContentsMargins(24, 20, 24, 20)
+            tools_layout.setSpacing(6)
+            tools_layout.addWidget(QLabel("Choose tools to run", objectName="SectionTitle"))
+            tools_layout.addWidget(
+                QLabel(
+                    "Select one or more tools. They run in order, top to bottom.",
+                    objectName="StatusLabel",
+                )
+            )
+            for tool in tax_tools.TOOLS:
+                checkbox = QCheckBox(tool.name)
+                checkbox.setChecked(True)
+                description = QLabel(tool.description, objectName="ToolDesc")
+                description.setWordWrap(True)
+                tools_layout.addWidget(checkbox)
+                tools_layout.addWidget(description)
+                self.tool_checkboxes[tool.key] = checkbox
+            body_layout.addWidget(tools_card)
+
             controls = QFrame(objectName="Card")
             controls_layout = QVBoxLayout(controls)
             controls_layout.setContentsMargins(24, 20, 24, 20)
@@ -247,8 +293,8 @@ if PYSIDE_AVAILABLE:
             self.advanced_panel.hide()
 
             run_row = QHBoxLayout()
-            self.run_button = QPushButton("Run Sorter", objectName="PrimaryButton")
-            self.run_button.clicked.connect(self.run_sorter)
+            self.run_button = QPushButton("Run Selected Tools", objectName="PrimaryButton")
+            self.run_button.clicked.connect(self.run_selected_tools)
             self.status_label = QLabel("Ready.", objectName="StatusLabel")
             run_row.addWidget(self.run_button)
             run_row.addWidget(self.status_label, stretch=1)
@@ -274,15 +320,18 @@ if PYSIDE_AVAILABLE:
             )
             self.results_table.horizontalHeader().setStretchLastSection(True)
             action_row = QHBoxLayout()
-            self.open_output_button = QPushButton("Open Organized Folder")
-            self.open_inventory_button = QPushButton("Open Inventory")
-            self.open_log_button = QPushButton("Open Log File")
-            for button in (self.open_output_button, self.open_inventory_button, self.open_log_button):
+            button_labels = [
+                "Open Organized Folder",
+                "Open Inventory",
+                "Open Log File",
+                "Open Extracted Data",
+            ]
+            for label in button_labels:
+                button = QPushButton(label)
                 button.setEnabled(False)
+                button.clicked.connect(lambda _checked=False, key=label: self.open_result_path(key))
                 action_row.addWidget(button)
-            self.open_output_button.clicked.connect(lambda: self.open_result_path("output_folder"))
-            self.open_inventory_button.clicked.connect(lambda: self.open_result_path("inventory_path"))
-            self.open_log_button.clicked.connect(lambda: self.open_result_path("log_path"))
+                self.open_buttons[label] = button
             action_row.addStretch()
             results_layout.addWidget(self.summary_label)
             results_layout.addWidget(self.needs_review_label)
@@ -318,6 +367,7 @@ if PYSIDE_AVAILABLE:
                 #PrimaryButton {{ background: {NAVY}; color: white; border: 1px solid {NAVY}; }}
                 QToolButton {{ color: {NAVY}; font-weight: 800; border: none; }}
                 QCheckBox {{ color: {CHARCOAL}; font-weight: 600; }}
+                #ToolDesc {{ color: {CHARCOAL_2}; padding: 0 0 6px 22px; }}
                 #StatusLabel {{ color: {CHARCOAL_2}; }}
                 QProgressBar {{ border: 1px solid {HAIRLINE}; border-radius: 8px; text-align: center; }}
                 QProgressBar::chunk {{ background: {GOLD}; border-radius: 8px; }}
@@ -341,7 +391,18 @@ if PYSIDE_AVAILABLE:
             if folder:
                 self.set_selected_folder(Path(folder))
 
-        def run_sorter(self) -> None:
+        def selected_tool_keys(self) -> list[str]:
+            return [
+                tool.key
+                for tool in tax_tools.TOOLS
+                if self.tool_checkboxes[tool.key].isChecked()
+            ]
+
+        def run_selected_tools(self) -> None:
+            tool_keys = self.selected_tool_keys()
+            if not tool_keys:
+                QMessageBox.warning(self, "No tools selected", "Select at least one tool to run.")
+                return
             if not self.selected_folder.exists() or not self.selected_folder.is_dir():
                 QMessageBox.warning(self, "Invalid folder", "Please choose a valid folder.")
                 return
@@ -358,43 +419,62 @@ if PYSIDE_AVAILABLE:
             self.run_button.setEnabled(False)
             self.progress.setRange(0, 0)
             self.progress.show()
-            self.status_label.setText("Starting sorter...")
-            self.worker = SorterWorker(
+            self.status_label.setText("Starting tools...")
+            self.worker = ToolsWorker(
+                tool_keys,
                 self.selected_folder,
                 move=self.move_checkbox.isChecked(),
                 save_extracted_text=self.debug_checkbox.isChecked(),
             )
             self.worker.status_changed.connect(self.status_label.setText)
-            self.worker.finished_successfully.connect(self.on_sorter_finished)
-            self.worker.failed.connect(self.on_sorter_failed)
+            self.worker.finished_successfully.connect(self.on_tools_finished)
+            self.worker.failed.connect(self.on_tools_failed)
             self.worker.start()
 
-        def on_sorter_finished(self, result: dict) -> None:
+        def on_tools_finished(self, result: dict) -> None:
             self.result = result
+            self.open_paths = result.get("open_paths", {})
             self.run_button.setEnabled(True)
             self.progress.hide()
             self.progress.setRange(0, 1)
             self.status_label.setText("Finished.")
             self.populate_results(result)
-            for button in (self.open_output_button, self.open_inventory_button, self.open_log_button):
-                button.setEnabled(True)
+            for label, button in self.open_buttons.items():
+                button.setEnabled(label in self.open_paths)
 
-        def on_sorter_failed(self, message: str) -> None:
+        def on_tools_failed(self, message: str) -> None:
             self.run_button.setEnabled(True)
             self.progress.hide()
             self.status_label.setText("Sorter failed.")
             QMessageBox.critical(self, "Sorter failed", message)
 
         def populate_results(self, result: dict) -> None:
-            self.summary_label.setText(f"Processed {result['total_files']} supported file(s).")
-            self.needs_review_label.setText(
-                f"Needs Review: {result['needs_review_count']} | "
-                f"Low confidence/manual review: {result['manual_review_count']}"
-            )
+            sort_result = result.get("sort")
+            extract_result = result.get("extract")
+            self.summary_label.setText("\n".join(result.get("tool_lines", [])) or "Run complete.")
+
+            review_lines = []
+            if sort_result is not None:
+                review_lines.append(
+                    f"Needs Review: {sort_result['needs_review_count']} | "
+                    f"Low confidence/manual review: {sort_result['manual_review_count']}"
+                )
+            if extract_result is not None:
+                review_lines.append(
+                    f"Forms extracted: {extract_result['total_forms']} | "
+                    f"Flagged for manual entry: {extract_result['review_count']}"
+                )
+            self.needs_review_label.setText("     ".join(review_lines))
+
             self.category_list.clear()
-            for category, count in result["category_counts"].items():
-                self.category_list.addItem(f"{category}: {count}")
-            rows = result["rows"]
+            if sort_result is not None:
+                for category, count in sort_result["category_counts"].items():
+                    self.category_list.addItem(f"{category}: {count}")
+            elif extract_result is not None:
+                for category, count in extract_result["counts_by_category"].items():
+                    self.category_list.addItem(f"{category}: {count}")
+
+            rows = sort_result["rows"] if sort_result is not None else []
             review_background = QColor("#FFF8E8")
             self.results_table.setRowCount(len(rows))
             for row_index, row in enumerate(rows):
@@ -413,9 +493,7 @@ if PYSIDE_AVAILABLE:
             self.results_table.resizeColumnsToContents()
 
         def open_result_path(self, key: str) -> None:
-            if not self.result:
-                return
-            path = self.result.get(key, "")
+            path = self.open_paths.get(key, "")
             if path:
                 QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
