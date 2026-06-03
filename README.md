@@ -163,10 +163,19 @@ The CLI workflows remain available for troubleshooting and automation. The older
 The **Generate Documents** tool fills templates from a client data file in the input folder and writes one HTML file per client per template to `Organized_Tax_Documents/Generated_Documents/`. Open the HTML in any browser and print or save it as PDF.
 
 1. Put a `clients.json` (or `clients.csv`) in the folder. JSON supports nested lists like invoice `line_items` and organizer `requested_items`; CSV is fine for the letters and simple fields. A worked example ships at `document_templates/clients.sample.json` — copy it to your folder as `clients.json` and edit.
-2. The templates live in `document_templates/` (`engagement_letter.html`, `invoice.html`, `extension_cover_letter.html`, `client_organizer_letter.html`). Edit them freely. To use a different set without touching the repo, drop a `document_templates/` folder inside your input folder and it will be used instead.
-3. Run the tool. Each client record produces `<ClientName>_<template>.html`. Fields that a template references but the data does not provide are left blank and reported as a warning, so nothing fails silently.
+2. The templates live in `document_templates/`. To use your own without touching the repo, drop a `document_templates/` folder inside your input folder and it is used instead.
+3. Run the tool. Each client record produces `<ClientName>_<template>`. Fields that a template references but the data does not provide are left blank and reported as a warning, so nothing fails silently.
 
-In the desktop app, expand **Advanced Options** to choose which templates to generate, set the signature image path and anchor for the Sign tool, and toggle move/split/debug.
+#### Adding a template is just dropping a file in the folder
+
+The folder *is* the list of templates — there is no list to edit in code. Any file in `document_templates/` becomes a template, keyed by its file name. Two kinds are supported:
+
+- **HTML** (`*.html`) — use `{{ field }}` for values and `{{#line_items}}…{{/line_items}}` for repeating rows. The four shipped letters are HTML. Output is `.html` (open in a browser, print to PDF).
+- **Word** (`*.docx`) — author the document in Microsoft Word exactly how you want it to look, typing `{{ client_name }}`, `{{ tax_year }}`, etc. where values go (and `{% for item in line_items %}…{% endfor %}` in a table row for lists). Output is a filled `.docx`. This uses `docxtpl`, which is included in `requirements.txt`.
+
+So to add, say, a privacy-policy letter: write it in Word, drop `privacy_policy.docx` into `document_templates/`, and it appears automatically — in the desktop **Advanced Options** template list and on the CLI as `--templates privacy_policy`. The placeholder names are just the keys in your `clients.json`/`clients.csv`, so any field you put in the data is available to any template.
+
+In the desktop app, expand **Advanced Options** to choose which templates to generate (the list refreshes from the selected folder), set the signature image path and anchor for the Sign tool, and toggle move/split/debug.
 
 Templates use a tiny Mustache-style syntax:
 

@@ -361,16 +361,13 @@ if PYSIDE_AVAILABLE:
             flags_row.addStretch()
             advanced_layout.addLayout(flags_row)
 
-            advanced_layout.addWidget(QLabel("Templates to generate", objectName="SmallHeading"))
-            templates_row = QHBoxLayout()
+            advanced_layout.addWidget(
+                QLabel("Templates to generate (drop .html or .docx files in the folder)",
+                       objectName="SmallHeading")
+            )
+            self.templates_row = QHBoxLayout()
             self.template_checkboxes: dict[str, QCheckBox] = {}
-            for key in generate_documents.TEMPLATE_FILES:
-                checkbox = QCheckBox(key.replace("_", " ").title())
-                checkbox.setChecked(True)
-                templates_row.addWidget(checkbox)
-                self.template_checkboxes[key] = checkbox
-            templates_row.addStretch()
-            advanced_layout.addLayout(templates_row)
+            advanced_layout.addLayout(self.templates_row)
 
             advanced_layout.addWidget(QLabel("Signature for the Sign tool", objectName="SmallHeading"))
             signature_row = QHBoxLayout()
@@ -486,6 +483,29 @@ if PYSIDE_AVAILABLE:
         def set_selected_folder(self, folder: Path) -> None:
             self.selected_folder = folder.resolve()
             self.folder_path.setText(str(self.selected_folder))
+            self.refresh_template_options()
+
+        def refresh_template_options(self) -> None:
+            """Rebuild the template checkboxes from the templates the folder offers."""
+
+            previous = {key: box.isChecked() for key, box in self.template_checkboxes.items()}
+            while self.templates_row.count():
+                item = self.templates_row.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+            self.template_checkboxes = {}
+
+            directory = generate_documents.template_dir(self.selected_folder)
+            for key, path in generate_documents.available_templates(directory).items():
+                label = key.replace("_", " ").title()
+                if path.suffix.lower() == ".docx":
+                    label += " (Word)"
+                checkbox = QCheckBox(label)
+                checkbox.setChecked(previous.get(key, True))
+                self.templates_row.addWidget(checkbox)
+                self.template_checkboxes[key] = checkbox
+            self.templates_row.addStretch()
 
         def choose_folder(self) -> None:
             folder = QFileDialog.getExistingDirectory(

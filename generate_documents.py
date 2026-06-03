@@ -28,13 +28,20 @@ CLIENT_DATA_FILENAMES = ("clients.json", "clients.csv")
 TEMPLATE_DIR_NAME = "document_templates"
 REPO_TEMPLATE_DIR = Path(__file__).with_name(TEMPLATE_DIR_NAME)
 
-# Template key -> file name. The key is also used in output file names.
-TEMPLATE_FILES = {
-    "engagement_letter": "engagement_letter.html",
-    "invoice": "invoice.html",
-    "extension_cover_letter": "extension_cover_letter.html",
-    "client_organizer_letter": "client_organizer_letter.html",
-}
+# Any file with one of these extensions in the templates folder is offered as a
+# template. The file name (without extension) becomes the template key, so adding
+# a template is just dropping a file in the folder -- no code change needed.
+#   .html  -> {{field}} and {{#section}}...{{/section}} (the built-in letters)
+#   .docx  -> a Word document using {{ field }} / {% for %} (rendered via docxtpl)
+TEMPLATE_EXTENSIONS = (".html", ".docx")
+
+# The letters that ship with the suite (used only for the CLI help listing).
+SHIPPED_TEMPLATE_KEYS = (
+    "engagement_letter",
+    "invoice",
+    "extension_cover_letter",
+    "client_organizer_letter",
+)
 
 _SECTION_RE = re.compile(r"\{\{#(\w+)\}\}(.*?)\{\{/\1\}\}", re.DOTALL)
 _FIELD_RE = re.compile(r"\{\{\s*(\w+)\s*\}\}")
@@ -132,16 +139,76 @@ def template_dir(input_folder: Path) -> Path:
     return override if override.is_dir() else REPO_TEMPLATE_DIR
 
 
-def available_templates(directory: Path, keys=None) -> dict[str, Path]:
-    """Map template key -> path for templates that exist in the directory."""
+def discover_templates(directory: Path) -> dict[str, Path]:
+    """Map template key (file name without extension) -> path for every template file.
 
-    # None means "all templates"; an explicit (possibly empty) list is honored as-is.
-    wanted = TEMPLATE_FILES.keys() if keys is None else keys
-    return {
-        key: directory / TEMPLATE_FILES[key]
-        for key in wanted
-        if key in TEMPLATE_FILES and (directory / TEMPLATE_FILES[key]).exists()
-    }
+    Scans the folder, so dropping a new .html or .docx file in makes it available
+    immediately with no code change. If two files share a stem, .docx wins.
+    """
+
+    found: dict[str, Path] = {}
+    if directory.is_dir():
+        for path in sorted(directory.iterdir()):
+            if path.is_file() and path.suffix.lower() in TEMPLATE_EXTENSIONS:
+                if path.stem not in found or path.suffix.lower() == ".docx":
+                    found[path.stem] = path
+    return found
+
+
+def available_templates(directory: Path, keys=None) -> dict[str, Path]:
+    """Discovered template key -> path, optionally narrowed to ``keys``.
+
+    None means "all discovered templates"; an explicit (possibly empty) list is
+    honored as-is.
+    """
+
+    discovered = discover_templates(directory)
+    if keys is None:
+        return discovered
+    return {key: discovered[key] for key in keys if key in discovered}
+
+
+def _docx_template(template_path: Path):
+    """Load a Word template, with a clear error if the Word library is missing."""
+
+    try:
+        from docxtpl import DocxTemplate
+    except ImportError as exc:  # pragma: no cover - exercised only without the dep
+        raise RuntimeError(
+            "Word (.docx) templates require the 'docxtpl' package (pip install docxtpl)."
+        ) from exc
+    return DocxTemplate(str(template_path))
+
+
+def render_template_to_file(template_path: Path, context: dict, output_path: Path) -> Path:
+    """Render one template (HTML or Word) for a client and write the output file."""
+
+    if template_path.suffix.lower() == ".docx":
+        document = _docx_template(template_path)
+        document.render(context)
+        document.save(str(output_path))
+    else:
+        text = template_path.read_text(encoding="utf-8")
+        output_path.write_text(render_template(text, context), encoding="utf-8")
+    return output_path
+
+
+def template_missing_fields(template_path: Path, context: dict) -> list[str]:
+    """Referenced fields that are absent or blank, for either template type."""
+
+    if template_path.suffix.lower() == ".docx":
+        try:
+            names = _docx_template(template_path).get_undeclared_template_variables()
+        except Exception:
+            return []
+        return sorted(name for name in names if not context.get(name))
+    return missing_fields(template_path.read_text(encoding="utf-8"), context)
+
+
+def output_extension(template_path: Path) -> str:
+    """Extension for a generated file: Word templates produce .docx, others .html."""
+
+    return ".docx" if template_path.suffix.lower() == ".docx" else ".html"
 
 
 def client_slug(client: dict, index: int = 1) -> str:
@@ -187,19 +254,22 @@ def run_generation(input_folder, status_callback=None, templates=None) -> dict:
 
     documents: list[Path] = []
     warnings: list[str] = []
-    template_text = {key: path.read_text(encoding="utf-8") for key, path in selected.items()}
     for index, client in enumerate(clients, start=1):
         context = augment_context(client)
         slug = client_slug(client, index)
         if status_callback:
             status_callback(f"Generating documents for {slug} ({index} of {len(clients)})")
-        for key, text in template_text.items():
+        for key, path in selected.items():
             output_path = sort_tax_docs.unique_destination_path(
-                generated_folder, f"{slug}_{key}.html"
+                generated_folder, f"{slug}_{key}{output_extension(path)}"
             )
-            output_path.write_text(render_template(text, context), encoding="utf-8")
+            try:
+                render_template_to_file(path, context, output_path)
+            except Exception as exc:
+                warnings.append(f"{slug}_{key}: could not render template ({exc}).")
+                continue
             documents.append(output_path)
-            missing = missing_fields(text, context)
+            missing = template_missing_fields(path, context)
             if missing:
                 warnings.append(f"{output_path.name}: blank field(s): {', '.join(missing)}")
 
@@ -229,7 +299,11 @@ def main() -> int:
     parser.add_argument(
         "--templates",
         default="",
-        help=f"Comma-separated template keys to generate. Available: {', '.join(TEMPLATE_FILES)}.",
+        help=(
+            "Comma-separated template keys to generate (file names without extension). "
+            "Default: every template in the folder. Shipped: "
+            f"{', '.join(SHIPPED_TEMPLATE_KEYS)}."
+        ),
     )
     args = parser.parse_args()
 

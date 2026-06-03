@@ -14,6 +14,14 @@ from pathlib import Path
 
 import generate_documents as gd
 
+try:
+    import docx  # python-docx
+    import docxtpl  # noqa: F401
+
+    _HAVE_DOCX = True
+except Exception:  # pragma: no cover - depends on environment
+    _HAVE_DOCX = False
+
 
 class RenderTemplateTests(unittest.TestCase):
     def test_simple_field_substitution(self) -> None:
@@ -53,9 +61,42 @@ class RenderTemplateTests(unittest.TestCase):
 
     def test_template_selection_semantics(self) -> None:
         directory = gd.REPO_TEMPLATE_DIR
-        self.assertEqual(set(gd.available_templates(directory, None)), set(gd.TEMPLATE_FILES))
+        self.assertEqual(set(gd.available_templates(directory, None)), set(gd.SHIPPED_TEMPLATE_KEYS))
         self.assertEqual(gd.available_templates(directory, []), {})  # explicit empty = none
         self.assertEqual(set(gd.available_templates(directory, ["invoice"])), {"invoice"})
+
+    def test_discovers_dropped_template_files(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            templates = Path(d) / "document_templates"
+            templates.mkdir()
+            (templates / "thank_you_note.html").write_text("<p>{{client_name}}</p>", encoding="utf-8")
+            discovered = gd.available_templates(templates)
+            self.assertIn("thank_you_note", discovered)  # no code change needed
+
+    @unittest.skipUnless(_HAVE_DOCX, "docxtpl not installed")
+    def test_renders_word_template(self) -> None:
+        import docx  # python-docx
+
+        with tempfile.TemporaryDirectory() as d:
+            folder = Path(d)
+            templates = folder / "document_templates"
+            templates.mkdir()
+            # Author a tiny Word template with a placeholder.
+            source = docx.Document()
+            source.add_paragraph("Dear {{ client_name }}, thank you.")
+            source.save(templates / "thank_you.docx")
+            (folder / "clients.json").write_text(
+                json.dumps([{"client_name": "Pat Example"}]), encoding="utf-8"
+            )
+
+            result = gd.run_generation(folder, templates=["thank_you"])
+            self.assertEqual(result["document_count"], 1)
+            out = Path(result["documents"][0])
+            self.assertEqual(out.suffix, ".docx")
+            rendered = docx.Document(out)
+            text = "\n".join(p.text for p in rendered.paragraphs)
+            self.assertIn("Pat Example", text)
+            self.assertNotIn("{{", text)
 
     def test_invoice_total_is_computed(self) -> None:
         context = gd.augment_context(
@@ -87,7 +128,7 @@ class GenerationRunTests(unittest.TestCase):
             result = gd.run_generation(folder)
 
             self.assertEqual(result["client_count"], 1)
-            self.assertEqual(result["document_count"], len(gd.TEMPLATE_FILES))
+            self.assertEqual(result["document_count"], len(gd.SHIPPED_TEMPLATE_KEYS))
             generated = Path(result["generated_folder"])
             names = {p.name for p in generated.glob("*.html")}
             self.assertIn("Jordan_Q._Sample_invoice.html", names)

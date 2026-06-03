@@ -146,6 +146,12 @@ def run_encyro_export(input_folder, status_callback=None) -> dict:
             included.append(pdf_path)
             packet_sources.append(pdf_path)
 
+        # Generated Word documents upload to Encyro as-is (it converts them on upload).
+        for docx_file in sorted(generated_folder.glob(f"{slug}_*.docx")):
+            destination = sort_tax_docs.unique_destination_path(client_dir, docx_file.name)
+            shutil.copy2(docx_file, destination)
+            included.append(destination)
+
         extras = _matching_files(signed_folder, slug)
         for extra in client.get("attachments", []) or []:
             candidate = (input_folder / str(extra)).expanduser()
