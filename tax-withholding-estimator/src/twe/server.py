@@ -151,6 +151,19 @@ input::placeholder{color:#cbd5e1}
   <div class="card">
     <div class="ch">&#x1F4B0; Paystub</div>
     <div class="cb">
+      <!-- upload zone -->
+      <div id="upload-zone"
+           style="border:2px dashed #e2e8f0;border-radius:8px;padding:1rem;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:.9rem"
+           ondragover="event.preventDefault();this.style.borderColor='#0f766e';this.style.background='#f0fdfa'"
+           ondragleave="this.style.borderColor='#e2e8f0';this.style.background=''"
+           ondrop="handleDrop(event)"
+           onclick="$('paystub_file').click()">
+        <div style="font-size:1.4rem;margin-bottom:.3rem">&#x1F4C4;</div>
+        <div style="font-size:.83rem;font-weight:600;color:#475569">Drop paystub PDF or image here</div>
+        <div style="font-size:.72rem;color:#94a3b8;margin-top:.15rem">or click to browse &nbsp;&middot;&nbsp; PDF, PNG, JPG</div>
+        <input type="file" id="paystub_file" accept=".pdf,.png,.jpg,.jpeg,image/*,application/pdf" style="display:none" onchange="parsePaystub(this.files[0])">
+      </div>
+      <div id="upload_status" style="font-size:.79rem;min-height:1.3em;margin-bottom:.5rem"></div>
       <div class="fg">
         <div class="f">
           <label for="pay_freq">Pay Frequency</label>
@@ -690,6 +703,53 @@ function computeRemaining(freq,dateStr,taxYear){
   return count;
 }
 
+// ---- paystub file upload ----
+function handleDrop(e){
+  e.preventDefault();
+  const z=$('upload-zone'); z.style.borderColor='#e2e8f0'; z.style.background='';
+  const f=e.dataTransfer.files[0]; if(f) parsePaystub(f);
+}
+
+async function parsePaystub(file){
+  const status=$('upload_status'), zone=$('upload-zone');
+  if(!file.type.includes('pdf')&&!file.type.includes('image/')){
+    status.innerHTML='<span style="color:#dc2626">&#x26A0; Please upload a PDF or image file.</span>'; return;
+  }
+  status.innerHTML='<span style="color:#64748b">&#x23F3; Reading paystub with AI&hellip;</span>';
+  zone.style.opacity='.6';
+  try{
+    const b64=await new Promise((res,rej)=>{
+      const r=new FileReader();
+      r.onload=e=>res(e.target.result.split(',')[1]);
+      r.onerror=rej; r.readAsDataURL(file);
+    });
+    const resp=await fetch('/api/parse-paystub',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({data:b64, media_type:file.type||'image/jpeg', filename:file.name}),
+    });
+    const d=await resp.json();
+    zone.style.opacity='1';
+    if(!resp.ok){ status.innerHTML='<span style="color:#dc2626">&#x26A0; '+esc(d.error)+'</span>'; return; }
+    let filled=0;
+    const map={gross:d.gross_pay_per_period, withheld:d.federal_tax_withheld_per_period,
+      ret401k:d.retirement_pretax_per_period, pretax_other:d.other_pretax_per_period,
+      ytd_wages:d.ytd_taxable_wages, ytd_wh:d.ytd_federal_tax_withheld,
+      last_pay_date:d.last_pay_date};
+    for(const [id,val] of Object.entries(map)){
+      if(val!==null&&val!==undefined&&val!==''){
+        const el=$(id); if(!el) continue;
+        el.value=typeof val==='number'?val.toFixed(2):val; filled++;
+      }
+    }
+    if(d.pay_frequency) $('pay_freq').value=d.pay_frequency;
+    updatePeriods();
+    status.innerHTML='<span style="color:#059669;font-weight:600">&#x2713; Auto-filled '+filled+' field'+(filled!==1?'s':'')+'. Review before calculating.</span>';
+  }catch(err){
+    zone.style.opacity='1';
+    status.innerHTML='<span style="color:#dc2626">&#x26A0; '+esc(err.message)+'</span>';
+  }
+}
+
 function updatePeriods(){
   const freq=$('pay_freq').value;
   const dateStr=$('last_pay_date').value;
@@ -735,7 +795,102 @@ class _Handler(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    def _parse_paystub(self, raw: bytes) -> dict:
+        try:
+            import anthropic
+        except ImportError:
+            raise ValueError(
+                "Paystub parsing requires the anthropic package. "
+                "Run: pip install anthropic"
+            )
+
+        import os
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "Set the ANTHROPIC_API_KEY environment variable to enable paystub parsing."
+            )
+
+        payload = json.loads(raw)
+        b64_data = payload["data"]
+        raw_type = payload.get("media_type", "image/jpeg")
+
+        if "pdf" in raw_type:
+            media_type: str = "application/pdf"
+            block_type = "document"
+        elif "png" in raw_type:
+            media_type = "image/png"
+            block_type = "image"
+        elif "webp" in raw_type:
+            media_type = "image/webp"
+            block_type = "image"
+        else:
+            media_type = "image/jpeg"
+            block_type = "image"
+
+        prompt = (
+            "Extract the following fields from this paystub. "
+            "Return ONLY a valid JSON object with these exact keys "
+            "(use null for any field that is absent or unreadable):\n\n"
+            "{\n"
+            '  "gross_pay_per_period": <number>,\n'
+            '  "federal_tax_withheld_per_period": <number>,\n'
+            '  "retirement_pretax_per_period": <number or null>,\n'
+            '  "other_pretax_per_period": <number or null>,\n'
+            '  "ytd_taxable_wages": <number or null>,\n'
+            '  "ytd_federal_tax_withheld": <number or null>,\n'
+            '  "pay_frequency": <"weekly"|"biweekly"|"semimonthly"|"monthly"|"annual"|null>,\n'
+            '  "last_pay_date": <"YYYY-MM-DD" string or null>\n'
+            "}\n\n"
+            "Return only the JSON object — no explanation, no markdown fences."
+        )
+
+        if block_type == "document":
+            user_content = [
+                {"type": "document", "source": {"type": "base64", "media_type": media_type, "data": b64_data}},
+                {"type": "text", "text": prompt},
+            ]
+        else:
+            user_content = [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64_data}},
+                {"type": "text", "text": prompt},
+            ]
+
+        client = anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model="claude-opus-4-8",
+            max_tokens=512,
+            messages=[{"role": "user", "content": user_content}],
+        )
+
+        text = message.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("```", 2)[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
+        return json.loads(text)
+
+    def _send_json(self, code: int, data: dict) -> None:
+        body = json.dumps(data).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_POST(self) -> None:
+        if self.path == "/api/parse-paystub":
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length)
+            try:
+                result = self._parse_paystub(raw)
+                self._send_json(200, result)
+            except Exception as exc:  # noqa: BLE001 — convert all errors to a user-readable message
+                self._send_json(400, {"error": str(exc)})
+            return
+
         if self.path == "/api/estimate":
             length = int(self.headers.get("Content-Length", 0))
             raw = self.rfile.read(length)
@@ -743,19 +898,9 @@ class _Handler(BaseHTTPRequestHandler):
                 data = json.loads(raw)
                 inp = EstimatorInput.from_dict(data)
                 result = estimate(inp)
-                resp = json.dumps(result_to_dict(result)).encode("utf-8")
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(resp)))
-                self.end_headers()
-                self.wfile.write(resp)
+                self._send_json(200, result_to_dict(result))
             except (ValueError, TaxDataError, json.JSONDecodeError) as exc:
-                err = json.dumps({"error": str(exc)}).encode("utf-8")
-                self.send_response(400)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(err)))
-                self.end_headers()
-                self.wfile.write(err)
+                self._send_json(400, {"error": str(exc)})
         else:
             self.send_error(404)
 
