@@ -1,10 +1,13 @@
 name: Build desktop app
 
 # Builds the standalone SATC desktop executable for Windows, macOS, and Linux.
-# Run it manually (Actions tab -> Build desktop app -> Run workflow) or on a tag.
+# Run it manually (Actions tab -> Build desktop app -> Run workflow), on a tag, or
+# on a push to the active development branch.
 on:
   workflow_dispatch:
   push:
+    branches:
+      - claude/awesome-faraday-4jHLa
     tags:
       - "v*"
 
