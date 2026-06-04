@@ -35,13 +35,7 @@ def source_lines(cfg: dict):
             yield sec["section_name"], ln["key"], ln["label"], ln.get("role", "qualifying")
 
 
-def _num(v) -> float:
-    if v is None:
-        return 0.0
-    try:
-        return float(str(v).replace(",", "").replace("$", "").strip() or 0)
-    except (TypeError, ValueError):
-        return 0.0
+from .calc_common import num as _num
 
 
 def normalize_line(p1, p2, basis: str, method: str) -> float:

@@ -34,13 +34,7 @@ def exposure_lines(cfg: dict):
         yield ln["key"], ln["label"]
 
 
-def _num(v) -> float:
-    if v is None:
-        return 0.0
-    try:
-        return float(str(v).replace(",", "").replace("$", "").strip() or 0)
-    except (TypeError, ValueError):
-        return 0.0
+from .calc_common import num as _num, carry_finding
 
 
 def compute_collateral(values: dict, cfg: dict) -> dict:
@@ -113,24 +107,8 @@ def save_collateral_inputs(conn, review_case_id: int, values: dict, user: str = 
 
 
 def _carry_collateral_finding(conn, review_case_id, result, user="system", loan_id=None):
-    qid = "COLL_LTV"
-    row = conn.execute("SELECT loan_record_id FROM review_cases WHERE review_case_id=?", (review_case_id,)).fetchone()
-    lrid = row["loan_record_id"] if row else None
-    existing = conn.execute("SELECT exception_id FROM exceptions WHERE review_case_id=? AND question_id=?", (review_case_id, qid)).fetchone()
-    if result["severity"] in ("Finding", "Blocked"):
-        issue = f"Collateral: LTV {result['ltv']:.1f}% / coverage {result['coverage']:.0f}% — {result['assessment']}"
-        conn.execute(
-            """INSERT INTO exceptions (review_case_id, loan_record_id, question_id, section_id, issue_text, severity, status, reviewer_comment, evidence_status, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(review_case_id, question_id) DO UPDATE SET issue_text=excluded.issue_text, severity=excluded.severity, status=excluded.status, updated_at=excluded.updated_at""",
-            (review_case_id, lrid, qid, "collateral_ltv", issue, result["severity"], "Open", None, "Not Required", now(), now()),
-        )
-        append_audit_event(conn, user, "exception_updated" if existing else "exception_created", "exception", qid,
-                           after_value=result["severity"], review_case_id=review_case_id, loan_id=loan_id)
-    elif existing:
-        conn.execute("DELETE FROM exceptions WHERE review_case_id=? AND question_id=?", (review_case_id, qid))
-        append_audit_event(conn, user, "exception_resolved", "exception", qid, review_case_id=review_case_id, loan_id=loan_id)
-    conn.commit()
+    issue = f"Collateral: LTV {result['ltv']:.1f}% / coverage {result['coverage']:.0f}% — {result['assessment']}"
+    carry_finding(conn, review_case_id, "COLL_LTV", "collateral_ltv", result["severity"], issue, user, loan_id)
 
 
 def load_collateral_inputs(conn, review_case_id: int) -> dict:

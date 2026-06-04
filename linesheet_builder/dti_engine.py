@@ -35,13 +35,7 @@ def all_line_keys(cfg: dict) -> list[str]:
     return keys
 
 
-def _num(v) -> float:
-    if v is None:
-        return 0.0
-    try:
-        return float(str(v).replace(",", "").replace("$", "").strip() or 0)
-    except (TypeError, ValueError):
-        return 0.0
+from .calc_common import num as _num, carry_finding
 
 
 def compute_dti(values: dict, cfg: dict, income_override=None) -> dict:
@@ -131,28 +125,8 @@ def save_dti_inputs(conn, review_case_id: int, values: dict, user: str = "system
 
 
 def _carry_dti_finding(conn, review_case_id, result, user="system", loan_id=None):
-    """Reflect an over-guideline ATR result as a case finding so it carries
-    into the Exceptions tab, exception report and cover findings count."""
-    qid = "DTI_ATR"
-    row = conn.execute("SELECT loan_record_id FROM review_cases WHERE review_case_id=?", (review_case_id,)).fetchone()
-    lrid = row["loan_record_id"] if row else None
-    existing = conn.execute("SELECT exception_id FROM exceptions WHERE review_case_id=? AND question_id=?",
-                            (review_case_id, qid)).fetchone()
-    if result["severity"] in ("Finding", "Blocked"):
-        issue = f"Ability-to-repay: back-end DTI {result['back_end_dti']:.1f}% (front-end {result['front_end_dti']:.1f}%) — {result['assessment']}"
-        conn.execute(
-            """INSERT INTO exceptions (review_case_id, loan_record_id, question_id, section_id, issue_text, severity, status, reviewer_comment, evidence_status, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(review_case_id, question_id) DO UPDATE SET issue_text=excluded.issue_text, severity=excluded.severity, status=excluded.status, updated_at=excluded.updated_at""",
-            (review_case_id, lrid, qid, "ability_to_repay", issue, result["severity"], "Open", None, "Not Required", now(), now()),
-        )
-        append_audit_event(conn, user, "exception_updated" if existing else "exception_created", "exception", qid,
-                           after_value=result["severity"], review_case_id=review_case_id, loan_id=loan_id)
-    elif existing:
-        conn.execute("DELETE FROM exceptions WHERE review_case_id=? AND question_id=?", (review_case_id, qid))
-        append_audit_event(conn, user, "exception_resolved", "exception", qid,
-                           review_case_id=review_case_id, loan_id=loan_id)
-    conn.commit()
+    issue = f"Ability-to-repay: back-end DTI {result['back_end_dti']:.1f}% (front-end {result['front_end_dti']:.1f}%) — {result['assessment']}"
+    carry_finding(conn, review_case_id, "DTI_ATR", "ability_to_repay", result["severity"], issue, user, loan_id)
 
 
 def load_dti_inputs(conn, review_case_id: int) -> dict:

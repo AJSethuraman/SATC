@@ -12,8 +12,7 @@ Has no inputs of its own; it derives from the DSCR and Guarantor worksheets.
 from __future__ import annotations
 from pathlib import Path
 import yaml
-from .db import now
-from .audit import append_audit_event
+from .calc_common import carry_finding
 from .dscr_engine import summarize_dscr
 from .guarantor_engine import summarize_guarantor
 
@@ -66,21 +65,7 @@ def carry_global(conn, review_case_id: int, user: str = "system", loan_id=None):
     """Recompute the global DSCR and reflect a below-guideline result as a
     finding. Called whenever the DSCR or Guarantor worksheets change."""
     result = summarize_global(conn, review_case_id)
-    qid = "GLOBAL_DSCR"
-    existing = conn.execute("SELECT exception_id FROM exceptions WHERE review_case_id=? AND question_id=?", (review_case_id, qid)).fetchone()
-    if result and result["severity"] in ("Finding", "Blocked"):
-        row = conn.execute("SELECT loan_record_id FROM review_cases WHERE review_case_id=?", (review_case_id,)).fetchone()
-        lrid = row["loan_record_id"] if row else None
-        issue = f"Global cash flow: global DSCR {result['global_dscr']:.2f}x — {result['assessment']}"
-        conn.execute(
-            """INSERT INTO exceptions (review_case_id, loan_record_id, question_id, section_id, issue_text, severity, status, reviewer_comment, evidence_status, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(review_case_id, question_id) DO UPDATE SET issue_text=excluded.issue_text, severity=excluded.severity, status=excluded.status, updated_at=excluded.updated_at""",
-            (review_case_id, lrid, qid, "global_cash_flow", issue, result["severity"], "Open", None, "Not Required", now(), now()))
-        append_audit_event(conn, user, "exception_updated" if existing else "exception_created", "exception", qid,
-                           after_value=result["severity"], review_case_id=review_case_id, loan_id=loan_id)
-    elif existing:
-        conn.execute("DELETE FROM exceptions WHERE review_case_id=? AND question_id=?", (review_case_id, qid))
-        append_audit_event(conn, user, "exception_resolved", "exception", qid, review_case_id=review_case_id, loan_id=loan_id)
-    conn.commit()
+    severity = result["severity"] if result else None
+    issue = f"Global cash flow: global DSCR {result['global_dscr']:.2f}x — {result['assessment']}" if result else ""
+    carry_finding(conn, review_case_id, "GLOBAL_DSCR", "global_cash_flow", severity, issue, user, loan_id)
     return result
