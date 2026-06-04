@@ -36,6 +36,17 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+## Quick start (one command)
+
+The launch scripts create the virtualenv, install dependencies on first run, and start the app:
+
+```bash
+./run.sh        # macOS / Linux
+run.bat         # Windows
+```
+
+Then open **http://localhost:8501** (Streamlit usually opens it for you).
+
 ## Run the app
 
 ```bash
