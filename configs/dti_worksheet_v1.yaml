@@ -1,0 +1,55 @@
+worksheet_id: consumer_dti_v1
+worksheet_name: Ability-to-Repay (DTI)
+version: '1.0'
+
+# Each block is a list of fillable monthly-dollar line items. Add or remove
+# lines here without touching code — the engine, Excel tab and UI all read this.
+income:
+  section_name: Monthly Gross Income
+  lines:
+    - {key: base_income, label: Base employment income}
+    - {key: overtime, label: Overtime}
+    - {key: bonus, label: Bonus}
+    - {key: commission, label: Commission}
+    - {key: self_employment, label: Self-employment / business income}
+    - {key: retirement_ss, label: Retirement / Social Security / pension}
+    - {key: rental_income, label: Net rental / investment income}
+    - {key: other_income, label: Other documented income}
+
+housing:
+  section_name: Proposed Monthly Housing Expense (PITIA)
+  lines:
+    - {key: principal_interest, label: Principal & interest}
+    - {key: property_taxes, label: Property taxes}
+    - {key: hazard_insurance, label: Homeowner's / hazard insurance}
+    - {key: mortgage_insurance, label: Mortgage insurance (PMI/MIP)}
+    - {key: hoa_dues, label: HOA / condo dues}
+    - {key: other_housing, label: Other housing expense}
+
+debts:
+  section_name: Other Monthly Debt Obligations
+  lines:
+    - {key: auto, label: Auto loans / leases}
+    - {key: credit_cards, label: Credit cards (minimum payments)}
+    - {key: student_loans, label: Student loans}
+    - {key: installment, label: Other installment loans}
+    - {key: other_reo, label: Other real estate owned (PITI)}
+    - {key: alimony_child_support, label: Alimony / child support}
+    - {key: other_debt, label: Other recurring debt}
+
+# Optional. Intended for purely payrolled (W-2) borrowers: enter the taxes /
+# withholding straight off the pay stub. Leave blank to skip — the worksheet
+# then behaves exactly as a gross-only calculation. We do not estimate taxes.
+deductions:
+  section_name: Payroll Deductions (optional — for net residual)
+  lines:
+    - {key: payroll_withholding, label: Payroll taxes & withholding (from pay stub)}
+    - {key: other_payroll_deductions, label: Other mandatory payroll deductions}
+
+# Ability-to-repay guideline thresholds (percent of gross income, and a
+# residual-income floor in monthly dollars). Tune per product/policy.
+thresholds:
+  front_end_target: 28.0   # housing ratio target
+  back_end_target: 43.0    # total DTI target (QM-style)
+  back_end_max: 50.0       # hard cap; above this fails ATR
+  residual_income_min: 0.0 # set > 0 to require a minimum monthly residual

@@ -1,0 +1,27 @@
+worksheet_id: dscr_v1
+worksheet_name: Debt Service Coverage (DSCR)
+version: '1.0'
+
+# Cash flow available for debt service (CFADS); "sign: -1" lines are deductions.
+cash_flow:
+  section_name: Cash Flow Available for Debt Service
+  lines:
+    - {key: net_operating_income, label: Net operating income / EBITDA, sign: 1}
+    - {key: other_cash_flow, label: Other recurring cash flow, sign: 1}
+    - {key: capital_expenditures, label: 'Less: maintenance capital expenditures', sign: -1}
+    - {key: distributions, label: 'Less: owner distributions / withdrawals', sign: -1}
+
+debt_service:
+  section_name: Annual Debt Service
+  lines:
+    - {key: existing_debt_service, label: Existing debt service (annual)}
+    - {key: proposed_debt_service, label: Proposed debt service (annual P&I)}
+
+loan:
+  section_name: Loan
+  lines:
+    - {key: loan_amount, label: Subject loan amount (for debt yield)}
+
+thresholds:
+  min_dscr: 1.20        # minimum debt service coverage
+  min_debt_yield: 9.0   # minimum NOI / loan amount (percent, CRE)

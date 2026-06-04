@@ -1,0 +1,33 @@
+worksheet_id: guarantor_v1
+worksheet_name: Guarantor / Global Financial
+version: '1.0'
+
+financial_position:
+  section_name: Personal Financial Position
+  lines:
+    - {key: liquid_assets, label: Liquid assets (cash / marketable securities), type: asset, liquid: true}
+    - {key: real_estate_assets, label: Real estate, type: asset}
+    - {key: retirement_other_assets, label: Retirement / other assets, type: asset}
+    - {key: business_equity, label: Business equity (closely held), type: asset}
+    - {key: personal_liabilities, label: Total personal liabilities, type: liability}
+
+cash_flow:
+  section_name: Personal Cash Flow
+  lines:
+    - {key: personal_income, label: Personal income (salary / distributions), sign: 1}
+    - {key: other_personal_income, label: Other personal income, sign: 1}
+    - {key: living_expenses, label: 'Less: living expenses / personal taxes', sign: -1}
+
+debt_service:
+  section_name: Personal Debt Service
+  lines:
+    - {key: personal_mortgage, label: Personal mortgage (annual)}
+    - {key: other_personal_debt_service, label: Other personal debt service (annual)}
+
+contingent:
+  section_name: Contingent Liabilities
+  lines:
+    - {key: contingent_liabilities, label: Guarantees / contingent liabilities}
+
+thresholds:
+  min_personal_dscr: 1.00

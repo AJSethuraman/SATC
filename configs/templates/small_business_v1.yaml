@@ -1,0 +1,184 @@
+template_id: small_business_v1
+template_name: Small Business Credit
+version: '1.0'
+modules:
+- cash_flow
+- dscr
+- guarantor
+- global
+- collateral
+- leverage
+sections:
+- section_id: borrower
+  section_name: Borrower / Relationship
+  display_order: 1
+  questions:
+  - display_order: 1
+    question_id: BR1
+    question_text: Is the borrower identity documented and consistent with the application?
+    answer_type: yes_no_na
+    required: true
+    source_field: borrower_name
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Finding
+    help_text: Confirm identity against source.
+    data_mart_field: br1
+    export_label: Is the borrower identity documented and consistent with the application?
+  - display_order: 2
+    question_id: BR2
+    question_text: Relationship / background summary
+    answer_type: long_text
+    required: false
+    help_text: Summarize the relationship and purpose.
+    data_mart_field: br2
+    export_label: Relationship / background summary
+- section_id: business_cash_flow
+  section_name: Business Cash Flow
+  display_order: 2
+  questions:
+  - display_order: 1
+    question_id: BC1
+    question_text: Is business cash flow documented (tax returns / K-1)?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Finding
+    data_mart_field: bc1
+    export_label: Is business cash flow documented (tax returns / K-1)?
+  - display_order: 2
+    question_id: BC2
+    question_text: Global DSCR acceptable?
+    answer_type: yes_no_na
+    required: true
+    warning_if: answer == "No"
+    severity: Finding
+    data_mart_field: bc2
+    export_label: Global DSCR acceptable?
+  - display_order: 3
+    question_id: BC3
+    question_text: Qualifying global cash flow (monthly)
+    answer_type: currency
+    required: true
+    help_text: From the Cash Flow / Income Analysis worksheet (distributions basis).
+    data_mart_field: bc3
+    export_label: Qualifying global cash flow (monthly)
+- section_id: collateral
+  section_name: Collateral / Property
+  display_order: 3
+  questions:
+  - display_order: 1
+    question_id: CO1
+    question_text: Is collateral value supported (appraisal / valuation)?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Finding
+    data_mart_field: co1
+    export_label: Is collateral value supported (appraisal / valuation)?
+  - display_order: 2
+    question_id: CO2
+    question_text: Is LTV / CLTV within policy?
+    answer_type: yes_no_na
+    required: true
+    warning_if: answer == "No"
+    severity: Finding
+    data_mart_field: co2
+    export_label: Is LTV / CLTV within policy?
+  - display_order: 3
+    question_id: CO3
+    question_text: Lien position
+    answer_type: select
+    required: false
+    options:
+    - First
+    - Second
+    - Unsecured
+    - Other
+    data_mart_field: co3
+    export_label: Lien position
+- section_id: guarantors
+  section_name: Guarantors
+  display_order: 4
+  questions:
+  - display_order: 1
+    question_id: GU1
+    question_text: Are guarantor obligations documented?
+    answer_type: yes_no_na
+    required: true
+    warning_if: answer == "No"
+    severity: Warning
+    data_mart_field: gu1
+    export_label: Are guarantor obligations documented?
+  - display_order: 2
+    question_id: GU2
+    question_text: Personal guarantee obtained?
+    answer_type: yes_no_na
+    required: true
+    data_mart_field: gu2
+    export_label: Personal guarantee obtained?
+- section_id: documentation
+  section_name: Documentation & Compliance
+  display_order: 5
+  questions:
+  - display_order: 1
+    question_id: DC1
+    question_text: Are required disclosures present and timely?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Finding
+    data_mart_field: dc1
+    export_label: Are required disclosures present and timely?
+  - display_order: 2
+    question_id: DC2
+    question_text: Documents reviewed
+    answer_type: multi_select
+    required: false
+    options:
+    - Application
+    - Income docs
+    - Disclosures
+    - Appraisal
+    - Title / lien
+    - Insurance
+    data_mart_field: dc2
+    export_label: Documents reviewed
+- section_id: conclusion
+  section_name: Conclusion & Signoff
+  display_order: 6
+  questions:
+  - display_order: 1
+    question_id: CN1
+    question_text: Does the conclusion support the assigned rating?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Blocked
+    data_mart_field: cn1
+    export_label: Does the conclusion support the assigned rating?
+  - display_order: 2
+    question_id: CN2
+    question_text: Overall review rating
+    answer_type: select
+    required: true
+    options:
+    - Pass
+    - Pass with Findings
+    - Needs Review
+    - Does Not Qualify
+    data_mart_field: cn2
+    export_label: Overall review rating
+  - display_order: 3
+    question_id: CN3
+    question_text: Reviewer signoff completed?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    severity: Blocked
+    data_mart_field: cn3
+    export_label: Reviewer signoff completed?

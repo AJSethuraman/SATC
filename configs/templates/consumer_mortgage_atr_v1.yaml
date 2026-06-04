@@ -1,0 +1,200 @@
+template_id: consumer_mortgage_atr_v1
+template_name: Consumer Mortgage — Ability to Repay
+version: '1.0'
+modules:
+- cash_flow
+- dti
+- collateral
+sections:
+- section_id: borrower
+  section_name: Borrower / Relationship
+  display_order: 1
+  questions:
+  - display_order: 1
+    question_id: BR1
+    question_text: Is the borrower identity documented and consistent with the application?
+    answer_type: yes_no_na
+    required: true
+    source_field: borrower_name
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Finding
+    help_text: Confirm identity against source.
+    data_mart_field: br1
+    export_label: Is the borrower identity documented and consistent with the application?
+  - display_order: 2
+    question_id: BR2
+    question_text: Relationship / background summary
+    answer_type: long_text
+    required: false
+    help_text: Summarize the relationship and purpose.
+    data_mart_field: br2
+    export_label: Relationship / background summary
+- section_id: employment_income
+  section_name: Employment & Income
+  display_order: 2
+  questions:
+  - display_order: 1
+    question_id: EI1
+    question_text: Is income documented and verified (paystub / W-2 / tax returns)?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Finding
+    help_text: Verify per the Cash Flow worksheet.
+    data_mart_field: ei1
+    export_label: Is income documented and verified (paystub / W-2 / tax returns)?
+  - display_order: 2
+    question_id: EI2
+    question_text: Income type
+    answer_type: select
+    required: true
+    options:
+    - Salaried / W-2
+    - Self-employed
+    - Mixed
+    - Fixed / retirement
+    help_text: Drives the averaging method on the Cash Flow tab.
+    data_mart_field: ei2
+    export_label: Income type
+  - display_order: 3
+    question_id: EI3
+    question_text: Qualifying monthly income
+    answer_type: currency
+    required: true
+    help_text: From the Cash Flow / Income Analysis worksheet.
+    data_mart_field: ei3
+    export_label: Qualifying monthly income
+- section_id: ability_to_repay
+  section_name: Ability to Repay
+  display_order: 3
+  questions:
+  - display_order: 1
+    question_id: AR1
+    question_text: Is the back-end DTI within guideline?
+    answer_type: yes_no_na
+    required: true
+    warning_if: answer == "No"
+    severity: Finding
+    help_text: See the Ability-to-Repay (DTI) worksheet.
+    data_mart_field: ar1
+    export_label: Is the back-end DTI within guideline?
+  - display_order: 2
+    question_id: AR2
+    question_text: Is residual income adequate?
+    answer_type: yes_no_na
+    required: true
+    warning_if: answer == "No"
+    severity: Needs Review
+    data_mart_field: ar2
+    export_label: Is residual income adequate?
+  - display_order: 3
+    question_id: AR3
+    question_text: ATR conclusion
+    answer_type: select
+    required: true
+    options:
+    - Within guidelines
+    - Exception documented
+    - Does not qualify
+    data_mart_field: ar3
+    export_label: ATR conclusion
+- section_id: collateral
+  section_name: Collateral / Property
+  display_order: 4
+  questions:
+  - display_order: 1
+    question_id: CO1
+    question_text: Is collateral value supported (appraisal / valuation)?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Finding
+    data_mart_field: co1
+    export_label: Is collateral value supported (appraisal / valuation)?
+  - display_order: 2
+    question_id: CO2
+    question_text: Is LTV / CLTV within policy?
+    answer_type: yes_no_na
+    required: true
+    warning_if: answer == "No"
+    severity: Finding
+    data_mart_field: co2
+    export_label: Is LTV / CLTV within policy?
+  - display_order: 3
+    question_id: CO3
+    question_text: Lien position
+    answer_type: select
+    required: false
+    options:
+    - First
+    - Second
+    - Unsecured
+    - Other
+    data_mart_field: co3
+    export_label: Lien position
+- section_id: documentation
+  section_name: Documentation & Compliance
+  display_order: 5
+  questions:
+  - display_order: 1
+    question_id: DC1
+    question_text: Are required disclosures present and timely?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Finding
+    data_mart_field: dc1
+    export_label: Are required disclosures present and timely?
+  - display_order: 2
+    question_id: DC2
+    question_text: Documents reviewed
+    answer_type: multi_select
+    required: false
+    options:
+    - Application
+    - Income docs
+    - Disclosures
+    - Appraisal
+    - Title / lien
+    - Insurance
+    data_mart_field: dc2
+    export_label: Documents reviewed
+- section_id: conclusion
+  section_name: Conclusion & Signoff
+  display_order: 6
+  questions:
+  - display_order: 1
+    question_id: CN1
+    question_text: Does the conclusion support the assigned rating?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    evidence_required_if: answer == "No"
+    severity: Blocked
+    data_mart_field: cn1
+    export_label: Does the conclusion support the assigned rating?
+  - display_order: 2
+    question_id: CN2
+    question_text: Overall review rating
+    answer_type: select
+    required: true
+    options:
+    - Pass
+    - Pass with Findings
+    - Needs Review
+    - Does Not Qualify
+    data_mart_field: cn2
+    export_label: Overall review rating
+  - display_order: 3
+    question_id: CN3
+    question_text: Reviewer signoff completed?
+    answer_type: yes_no_na
+    required: true
+    exception_if: answer == "No"
+    severity: Blocked
+    data_mart_field: cn3
+    export_label: Reviewer signoff completed?

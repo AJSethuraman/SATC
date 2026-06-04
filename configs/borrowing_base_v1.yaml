@@ -1,0 +1,25 @@
+worksheet_id: borrowing_base_v1
+worksheet_name: Borrowing Base
+version: '1.0'
+
+# Eligible collateral times its advance rate, less reserves, gives the
+# borrowing base; compared to the line commitment and current outstanding for
+# availability (or any overadvance). For revolving lines / ABL.
+collateral:
+  section_name: Eligible Collateral
+  lines:
+    - {key: eligible_ar, label: Eligible accounts receivable, advance_rate: 85}
+    - {key: eligible_inventory, label: Eligible inventory, advance_rate: 50}
+    - {key: other_eligible, label: Other eligible collateral, advance_rate: 50}
+
+reserves:
+  section_name: Reserves
+  lines:
+    - {key: dilution_reserve, label: Dilution / ineligible reserve}
+    - {key: other_reserves, label: Other reserves}
+
+line:
+  section_name: Line of Credit
+  lines:
+    - {key: line_commitment, label: Line commitment}
+    - {key: current_outstanding, label: Current outstanding}
