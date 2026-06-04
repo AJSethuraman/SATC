@@ -36,7 +36,17 @@ from IRS Rev. Proc. 2024-40 and the SSA wage base). To add a year, drop in a new
 file — no code changes needed. If you request a year that isn't bundled, the
 estimator falls back to the latest available table and says so in its notes.
 
-## Installation
+## Easiest start on Windows
+
+Just **double-click `run.bat`** (in the `tax-withholding-estimator` folder).
+The first run sets everything up automatically — it finds Python, creates a
+private environment, installs the app, and opens the web UI in your browser.
+Later runs start instantly. Leave the black window open while you use the app;
+close it (or press Ctrl+C) to stop. You only need Python 3.10+ installed first
+(from [python.org](https://www.python.org/downloads/), with *"Add python.exe to
+PATH"* ticked).
+
+## Installation (manual)
 
 From `tax-withholding-estimator/`:
 
