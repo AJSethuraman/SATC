@@ -941,7 +941,7 @@ async function psUpload(file){
         +'<br><span style="font-size:.78rem;color:#78716c">Map the fields once to auto-fill every time you import this paystub format, or skip and type the values manually.</span>'
         +'<div style="margin-top:.55rem;display:flex;gap:.5rem;flex-wrap:wrap">'
         +'<button class="btn-sec" onclick="psOpenModal()" style="padding:.35rem .9rem;font-size:.82rem">&#x1F5FA; Map &amp; save profile</button>'
-        +'<button class="linkbtn" onclick="psSkipMapping()">Skip &mdash; I\'ll fill manually</button>'
+        +'<button class="linkbtn" onclick="psSkipMapping()">Skip &mdash; fill manually</button>'
         +'</div></div>';
     }
   }catch(e){ s.innerHTML='<span style="color:#dc2626">&#x26A0; '+esc(e.message)+'</span>'; }
