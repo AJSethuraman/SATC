@@ -141,7 +141,7 @@ input::placeholder{color:#cbd5e1}
       <div class="fg">
         <div class="f">
           <label for="tax_year">Tax Year</label>
-          <select id="tax_year"><option value="2025">2025</option></select>
+          <select id="tax_year"></select>
         </div>
       </div>
     </div>
@@ -163,10 +163,11 @@ input::placeholder{color:#cbd5e1}
           </select>
         </div>
         <div class="f">
-          <label for="periods_left">Pay Periods Remaining This Year</label>
-          <input type="number" id="periods_left" placeholder="e.g. 14" min="0" max="52">
-          <div class="hint">Leave blank to assume a full year</div>
+          <label for="last_pay_date">Last Pay Date</label>
+          <input type="date" id="last_pay_date">
+          <div id="periods_badge" class="hint" style="min-height:1.2em"></div>
         </div>
+        <input type="hidden" id="periods_left">
         <div class="f">
           <label for="gross">Gross Pay Per Period ($)</label>
           <input type="number" id="gross" placeholder="e.g. 3,200.00" min="0" step="0.01">
@@ -639,6 +640,73 @@ function render(d){
 
   if(window.innerWidth<768) $('results').scrollIntoView({behavior:'smooth'});
 }
+
+// ---- tax-year auto-detect & period-remaining calculator ----
+(function(){
+  const BUNDLED=[2025];
+  const cur=new Date().getFullYear();
+  const sel=$('tax_year');
+  const years=new Set([...BUNDLED, cur]);
+  [...years].sort().reverse().forEach(y=>{
+    const o=document.createElement('option');
+    o.value=y; o.textContent=y+(y===cur?' (current)':'');
+    if(y===cur) o.selected=true;
+    sel.appendChild(o);
+  });
+})();
+
+function computeRemaining(freq,dateStr,taxYear){
+  if(!dateStr) return null;
+  const lastPay=new Date(dateStr+'T12:00:00');
+  if(isNaN(lastPay.getTime())) return null;
+  const yr=taxYear||lastPay.getFullYear();
+  const yearEnd=new Date(yr,11,31,23,59,59);
+  const ms=86400000;
+  if(freq==='annual') return lastPay.getFullYear()<yr?1:0;
+  if(freq==='monthly'){
+    // next pay month is lastPay.getMonth()+1; count through December
+    return Math.max(0,11-lastPay.getMonth());
+  }
+  if(freq==='semimonthly'){
+    // assume pay dates are the 1st and 15th
+    let count=0;
+    const day=lastPay.getDate();
+    let next=day<15
+      ?new Date(lastPay.getFullYear(),lastPay.getMonth(),15,12)
+      :new Date(lastPay.getFullYear(),lastPay.getMonth()+1,1,12);
+    while(next<=yearEnd){
+      count++;
+      next=next.getDate()===1
+        ?new Date(next.getFullYear(),next.getMonth(),15,12)
+        :new Date(next.getFullYear(),next.getMonth()+1,1,12);
+    }
+    return count;
+  }
+  // weekly / biweekly
+  const days=freq==='weekly'?7:14;
+  let next=new Date(lastPay.getTime()+days*ms);
+  let count=0;
+  while(next<=yearEnd){ count++; next=new Date(next.getTime()+days*ms); }
+  return count;
+}
+
+function updatePeriods(){
+  const freq=$('pay_freq').value;
+  const dateStr=$('last_pay_date').value;
+  const taxYear=parseInt($('tax_year').value,10);
+  const badge=$('periods_badge'), hidden=$('periods_left');
+  if(!dateStr){ badge.innerHTML='<span class="hint">Leave blank to assume a full year</span>'; hidden.value=''; return; }
+  const n=computeRemaining(freq,dateStr,taxYear);
+  if(n===null){ badge.innerHTML=''; hidden.value=''; return; }
+  badge.innerHTML='<span style="color:#059669;font-weight:600">&#x2192; '+n+' paycheck'+(n!==1?'s':'')+' remaining in '+taxYear+'</span>';
+  hidden.value=n;
+}
+
+$('pay_freq').addEventListener('change',updatePeriods);
+$('last_pay_date').addEventListener('change',updatePeriods);
+$('tax_year').addEventListener('change',updatePeriods);
+// Show default hint before a date is entered
+$('periods_badge').innerHTML='<span class="hint">Leave blank to assume a full year</span>';
 
 document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.target.tagName!=='BUTTON') go(); });
 </script>
