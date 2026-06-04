@@ -120,6 +120,8 @@ input::placeholder{color:#cbd5e1}
 .dropzone .t{font-size:.84rem;font-weight:600;color:#475569;margin-top:.2rem}
 .dropzone .s{font-size:.72rem;color:#94a3b8;margin-top:.1rem}
 .ps-status{font-size:.8rem;margin-top:.6rem;min-height:1.2em}
+.ps-ok{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:.75rem;line-height:1.55}
+.ps-new{background:#fffbeb;border:1px solid #fde68a;border-radius:7px;padding:.75rem;line-height:1.55}
 .ps-chip{display:inline-flex;align-items:center;gap:.3rem;background:#f0fdfa;color:#0f766e;border:1px solid #ccfbf1;border-radius:14px;padding:.15rem .6rem;font-size:.72rem;font-weight:500;margin:.15rem .2rem 0 0}
 .linkbtn{background:none;border:none;color:#0f766e;font-weight:600;cursor:pointer;font-size:.8rem;text-decoration:underline;padding:0}
 /* ---- repeatable job blocks ---- */
@@ -486,7 +488,7 @@ input::placeholder{color:#cbd5e1}
     <div class="modal-hd">
       <div>
         <div style="font-weight:700;font-size:.95rem">&#x1F4CD; Map your paystub</div>
-        <div style="font-size:.72rem;opacity:.8">Pick a field, then click the value on the paystub. Save it as a profile to reuse next time.</div>
+        <div style="font-size:.72rem;opacity:.8">Do this once per employer &mdash; next time this paystub is uploaded, all fields fill automatically.</div>
       </div>
       <button class="x" onclick="psCloseModal()">&times;</button>
     </div>
@@ -497,7 +499,11 @@ input::placeholder{color:#cbd5e1}
       <div class="teach-pane">
         <div class="teach-scroll">
           <div class="teach-intro">
-            <strong>How to map:</strong> click a field below to select it, then click the number (or date) on the paystub that holds that value. Click a highlighted box again to unselect. Fields you skip are simply left blank.
+            <strong>Step 1:</strong> Click a field name below (e.g. &ldquo;Taxable wages this period&rdquo;).<br>
+            <strong>Step 2:</strong> Click the matching number on the paystub image to the left.<br>
+            <strong>Step 3:</strong> Repeat for any other fields you want auto-filled.<br>
+            <strong>Step 4:</strong> Name the profile and click <em>Save profile &amp; fill form</em> when done.<br>
+            <span style="color:#94a3b8">Fields you skip stay blank. You can re-map any time.</span>
           </div>
           <div id="fld-list"></div>
         </div>
@@ -926,10 +932,17 @@ async function psUpload(file){
       assignments:{},activeField:null,suggestedName:topWords};
     if(d.matched){
       const n=psFill(d.matched.extracted);
-      s.innerHTML='<span style="color:#059669;font-weight:600">&#x2713; Recognized profile &ldquo;'+esc(d.matched.name)+'&rdquo; &mdash; filled '+n+' field'+(n!==1?'s':'')+'.</span> <button class="linkbtn" onclick="psOpenModal()">Re-map</button>';
+      s.innerHTML='<div class="ps-ok"><strong>&#x2705; Auto-filled from &ldquo;'+esc(d.matched.name)+'&rdquo;</strong>'
+        +(n?' &mdash; '+n+' field'+(n!==1?'s were':' was')+' filled in.':' (no fields matched — check the profile or re-map).')
+        +' Review the values above, then click <strong>Calculate</strong>.'
+        +' <button class="linkbtn" onclick="psOpenModal()">Re-map layout</button></div>';
     } else {
-      s.innerHTML='<span style="color:#475569">New layout detected. Map it once and save it to reuse.</span> <button class="linkbtn" onclick="psOpenModal()">Map this paystub</button>';
-      psOpenModal();
+      s.innerHTML='<div class="ps-new"><strong>&#x1F4CB; New employer layout</strong> &mdash; no saved profile matched this paystub.'
+        +'<br><span style="font-size:.78rem;color:#78716c">Map the fields once to auto-fill every time you import this paystub format, or skip and type the values manually.</span>'
+        +'<div style="margin-top:.55rem;display:flex;gap:.5rem;flex-wrap:wrap">'
+        +'<button class="btn-sec" onclick="psOpenModal()" style="padding:.35rem .9rem;font-size:.82rem">&#x1F5FA; Map &amp; save profile</button>'
+        +'<button class="linkbtn" onclick="psSkipMapping()">Skip &mdash; I\'ll fill manually</button>'
+        +'</div></div>';
     }
   }catch(e){ s.innerHTML='<span style="color:#dc2626">&#x26A0; '+esc(e.message)+'</span>'; }
 }
@@ -969,6 +982,7 @@ function psOpenModal(){
   $('teach-modal').classList.add('open');
 }
 function psCloseModal(){ $('teach-modal').classList.remove('open'); }
+function psSkipMapping(){ $('ps_status').innerHTML='<span style="color:#64748b">Mapping skipped &mdash; fill the fields above manually, then click <strong>Calculate</strong>.</span>'; }
 
 function psRenderStage(){
   const st=$('img-stage');

@@ -461,7 +461,7 @@ def _merge_number_fragments(items: list[list]) -> list[list]:
                     nxt = row[j]
                     ntext = nxt[4].strip()
                     gap = nxt[0] - x1
-                    if gap > 0.5 * max(height, 1e-6) or gap < -0.2 * max(height, 1e-6):
+                    if gap > 1.5 * max(height, 1e-6) or gap < -0.2 * max(height, 1e-6):
                         break
                     # Absorb numeric fragments and lone separators (a thousands
                     # comma or decimal point emitted as its own glyph).
