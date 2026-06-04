@@ -14,9 +14,6 @@ dependencies = []
 dev = [
   "pytest>=8.0",
 ]
-paystub = [
-  "anthropic>=0.40",
-]
 
 [project.scripts]
 twe = "twe.cli:main"
