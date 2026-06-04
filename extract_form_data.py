@@ -32,7 +32,12 @@ RECORD_METADATA_FIELDS = ("form_type", "source_file", "page", "needs_review")
 # bare box numbers (for example "1") and years (for example "2024") sitting next
 # to a label are not mistaken for amounts. Real forms print cents; when OCR drops
 # the decimal the value is left blank and flagged rather than guessed.
+# Strict money: comma-grouped (1,234[.56]) or decimal cents (1234.56). Preferred.
 MONEY_PATTERN = r"\$?\s*(\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\d+\.\d{2})"
+# Whole-dollar fallback: a 3+ digit integer that is NOT a 4-digit year, for boxes
+# printed without a comma or cents (e.g. 52000). Used only when no strict amount is
+# near the label, so account numbers/years don't override a real comma/cents value.
+WHOLE_DOLLAR_PATTERN = r"(?<!\d)(?!(?:19|20)\d{2}(?!\d))\d{3,}(?!\d)"
 EIN_PATTERN = r"\b\d{2}-\d{7}\b"
 SSN_PATTERN = r"\b\d{3}-\d{2}-\d{4}\b"
 YEAR_PATTERN = r"\b20\d{2}\b"
@@ -176,17 +181,24 @@ def _clean_amount(raw: str) -> str:
 
 
 def _amount_after_label(text: str, label: str, window: int) -> str:
-    """Return the first monetary value found just after any occurrence of a label.
+    """Return the monetary value found just after any occurrence of a label.
 
     Box-label words often appear first in the form title, far from the value, so
-    every occurrence is checked and the first one with a nearby amount wins.
+    every occurrence is checked. A strict (comma/cents) amount is preferred and wins
+    over a plain whole-dollar integer anywhere, so account numbers or the tax year do
+    not override a real value; the whole-dollar fallback only applies when no strict
+    amount is found near the label at all.
     """
 
-    for occurrence in re.finditer(re.escape(label), text):
-        segment = text[occurrence.end() : occurrence.end() + window]
-        match = re.search(MONEY_PATTERN, segment)
+    ends = [occurrence.end() for occurrence in re.finditer(re.escape(label), text)]
+    for end in ends:  # preferred pass: comma/cents amounts
+        match = re.search(MONEY_PATTERN, text[end : end + window])
         if match:
             return _clean_amount(match.group(1))
+    for end in ends:  # fallback pass: whole-dollar integers (e.g. 52000)
+        match = re.search(WHOLE_DOLLAR_PATTERN, text[end : end + window])
+        if match:
+            return _clean_amount(match.group(0))
     return ""
 
 

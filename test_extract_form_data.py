@@ -77,6 +77,20 @@ class W2ExtractionTests(unittest.TestCase):
         self.assertEqual(result.values["box1_wages"], "")
         self.assertTrue(result.needs_review, result)
 
+    def test_w2_whole_dollar_amounts_without_cents(self) -> None:
+        # Many real W-2s print whole-dollar box values with no comma or cents.
+        text = (
+            "Form W-2 Wage and Tax Statement 2024 "
+            "1 Wages, tips, other compensation 52000 "
+            "2 Federal income tax withheld 8000 "
+            "3 Social security wages 53000"
+        )
+        result = extract_form_fields("W2", text)
+        self.assertEqual(result.values["box1_wages"], "52000")
+        self.assertEqual(result.values["box2_federal_withholding"], "8000")
+        self.assertEqual(result.values["box3_social_security_wages"], "53000")
+        self.assertFalse(result.needs_review, result)
+
 
 class NecExtractionTests(unittest.TestCase):
     def test_nec_value_not_taken_from_title(self) -> None:
