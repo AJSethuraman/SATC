@@ -69,3 +69,19 @@ def delete_profile(name: str) -> bool:
         path.unlink()
         return True
     return False
+
+
+def rename_profile(old_name: str, new_name: str) -> bool:
+    """Rename a profile. Returns False if the original does not exist."""
+
+    new_name = new_name.strip()
+    if not new_name:
+        raise ValueError("New name cannot be empty.")
+    profile = load_profile(old_name)
+    if profile is None:
+        return False
+    profile.name = new_name
+    save_profile(profile)
+    if _slug(old_name) != _slug(new_name):
+        delete_profile(old_name)
+    return True

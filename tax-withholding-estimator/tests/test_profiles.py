@@ -60,3 +60,23 @@ def test_empty_name_rejected(store):
 
 def test_load_missing_returns_none(store):
     assert store.load_profile("nope") is None
+
+
+def test_rename_profile(store):
+    store.save_profile(_profile("Old Name"))
+    assert store.rename_profile("Old Name", "New Name") is True
+    assert store.load_profile("Old Name") is None
+    renamed = store.load_profile("New Name")
+    assert renamed is not None
+    assert renamed.name == "New Name"
+    assert renamed.rules[0].field == "gross_pay_per_period"
+
+
+def test_rename_missing_returns_false(store):
+    assert store.rename_profile("ghost", "whatever") is False
+
+
+def test_rename_to_empty_rejected(store):
+    store.save_profile(_profile("Keep"))
+    with pytest.raises(ValueError):
+        store.rename_profile("Keep", "   ")

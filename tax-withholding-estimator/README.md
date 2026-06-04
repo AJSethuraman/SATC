@@ -71,7 +71,8 @@ How it works:
    automatically** and the form fills in — review and calculate.
 
 Profiles are plain JSON files under `~/.twe/profiles/` (override with the
-`TWE_PROFILE_DIR` environment variable) — portable and inspectable.
+`TWE_PROFILE_DIR` environment variable) — portable and inspectable. Use
+**Manage saved profiles** in the import card to review, rename, or delete them.
 
 - **PDF paystubs** (downloaded from a payroll portal) have a real text layer, so
   extraction needs only **PyMuPDF** (`pip install ".[paystub]"`; Windows wheels

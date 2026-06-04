@@ -117,3 +117,51 @@ def test_layout_bad_base64_returns_400(server):
     status, body = _post(server, "/api/paystub/layout", {"data": "not-valid-pdf-data", "media_type": "application/pdf"})
     assert status == 400
     assert "error" in body
+
+
+def _get(base: str, path: str):
+    with urllib.request.urlopen(base + path) as resp:
+        return resp.status, json.loads(resp.read())
+
+
+def _seed_profile(server: str, name: str) -> None:
+    _, layout = _post(server, "/api/paystub/layout", {"data": _paystub_pdf_b64(), "media_type": "application/pdf"})
+    words = layout["words"]
+    gi = next(i for i, w in enumerate(words) if w["text"] == "3,200.00")
+    _post(server, "/api/paystub/extract", {
+        "words": words,
+        "assignments": {"gross_pay_per_period": [gi]},
+        "name": name,
+        "pay_frequency": "biweekly",
+        "save": True,
+    })
+
+
+def test_list_rename_delete_profiles(server):
+    _seed_profile(server, "Acme ADP")
+    _seed_profile(server, "Beta Gusto")
+
+    status, body = _get(server, "/api/paystub/profiles")
+    assert status == 200
+    names = {p["name"] for p in body["profiles"]}
+    assert names == {"Acme ADP", "Beta Gusto"}
+    acme = next(p for p in body["profiles"] if p["name"] == "Acme ADP")
+    assert acme["field_count"] == 1
+    assert acme["fields"][0]["field"] == "gross_pay_per_period"
+    assert acme["fields"][0]["label"]  # human label present
+
+    status, _ = _post(server, "/api/paystub/profile/rename", {"old": "Acme ADP", "new": "Acme Payroll"})
+    assert status == 200
+    names = {p["name"] for p in _get(server, "/api/paystub/profiles")[1]["profiles"]}
+    assert names == {"Acme Payroll", "Beta Gusto"}
+
+    status, body = _post(server, "/api/paystub/profile/delete", {"name": "Beta Gusto"})
+    assert status == 200 and body["ok"] is True
+    names = {p["name"] for p in _get(server, "/api/paystub/profiles")[1]["profiles"]}
+    assert names == {"Acme Payroll"}
+
+
+def test_rename_missing_profile_returns_404(server):
+    status, body = _post(server, "/api/paystub/profile/rename", {"old": "ghost", "new": "x"})
+    assert status == 404
+    assert "error" in body

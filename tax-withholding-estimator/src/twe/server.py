@@ -147,6 +147,13 @@ input::placeholder{color:#cbd5e1}
 .btn-sec{padding:.55rem .9rem;border:1.5px solid #0f766e;background:#fff;color:#0f766e;border-radius:7px;font-weight:600;font-size:.82rem;cursor:pointer}
 .btn-sec:hover{background:#f0fdfa}
 @media(max-width:768px){.modal-body{grid-template-columns:1fr;overflow:auto}.teach-pane{border-left:none;border-top:1px solid #e2e8f0}}
+/* ---- manage profiles ---- */
+.prof-row{border:1.5px solid #e2e8f0;border-radius:8px;padding:.7rem .85rem;margin-bottom:.6rem}
+.prof-row .rn-input{flex:1;padding:.4rem .55rem;border:1.5px solid #0f766e;border-radius:6px;font-size:.85rem}
+.btn-danger{padding:.3rem .6rem;font-size:.75rem;border:1.5px solid #dc2626;background:#fff;color:#dc2626;border-radius:6px;cursor:pointer;font-weight:600}
+.btn-danger:hover{background:#fef2f2}
+.btn-mini{padding:.3rem .6rem;font-size:.75rem;border:1.5px solid #0f766e;background:#fff;color:#0f766e;border-radius:6px;cursor:pointer;font-weight:600}
+.btn-mini:hover{background:#f0fdfa}
 </style>
 </head>
 <body>
@@ -181,6 +188,9 @@ input::placeholder{color:#cbd5e1}
         <input type="file" id="ps_file" accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf" style="display:none" onchange="psUpload(this.files[0])">
       </div>
       <div class="ps-status" id="ps_status"></div>
+      <div style="margin-top:.6rem">
+        <button class="linkbtn" id="ps_manage_btn" onclick="psManageOpen()">Manage saved profiles</button>
+      </div>
     </div>
     </div>
   </div>
@@ -543,6 +553,20 @@ input::placeholder{color:#cbd5e1}
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ===== MANAGE PROFILES MODAL ===== -->
+<div class="modal-bg" id="manage-modal">
+  <div class="modal" style="max-width:640px;align-self:center;max-height:80vh">
+    <div class="modal-hd">
+      <div>
+        <div style="font-weight:700;font-size:.95rem">&#x2699;&#xFE0F; Saved paystub profiles</div>
+        <div style="font-size:.72rem;opacity:.8">Layouts you have taught. Rename or delete them here.</div>
+      </div>
+      <button class="x" onclick="psManageClose()">&times;</button>
+    </div>
+    <div class="teach-scroll" id="manage-list" style="max-height:65vh"></div>
   </div>
 </div>
 
@@ -930,9 +954,95 @@ async function psSaveAndApply(save){
     if(!r.ok){ alert(d.error); return; }
     const n=psFill(d.extracted);
     psCloseModal();
+    if(d.saved) psUpdateManageCount();
     $('ps_status').innerHTML='<span style="color:#059669;font-weight:600">&#x2713; Filled '+n+' field'+(n!==1?'s':'')+(d.saved?' and saved profile &ldquo;'+esc(d.name)+'&rdquo;':'')+'. Review before calculating.</span>';
   }catch(e){ alert(e.message); }
 }
+
+// ----- Manage saved profiles -----
+async function psManageOpen(){
+  $('manage-modal').classList.add('open');
+  await psManageRefresh();
+}
+function psManageClose(){ $('manage-modal').classList.remove('open'); }
+
+async function psFetchProfiles(){
+  const r=await fetch('/api/paystub/profiles');
+  if(!r.ok) throw new Error('Could not load profiles');
+  return (await r.json()).profiles;
+}
+
+async function psUpdateManageCount(){
+  try{
+    const profs=await psFetchProfiles();
+    $('ps_manage_btn').textContent='Manage saved profiles ('+profs.length+')';
+  }catch(e){ /* leave default label */ }
+}
+
+async function psManageRefresh(){
+  const list=$('manage-list');
+  list.innerHTML='<div style="padding:1.2rem;color:#64748b">Loading&hellip;</div>';
+  try{
+    const profs=await psFetchProfiles();
+    if(!profs.length){
+      list.innerHTML='<div style="padding:1.8rem;text-align:center;color:#94a3b8">No saved profiles yet.<br>Import a paystub and map it once to create one.</div>';
+    } else {
+      list.innerHTML=profs.map(psProfileRow).join('');
+    }
+    psUpdateManageCount();
+  }catch(e){ list.innerHTML='<div style="padding:1.2rem;color:#dc2626">'+esc(e.message)+'</div>'; }
+}
+
+function psProfileRow(p){
+  const chips=p.fields.map(f=>'<span class="ps-chip">'+esc(f.label)+'</span>').join('');
+  const freq=p.pay_frequency
+    ?'<span style="color:#64748b">'+esc(p.pay_frequency)+'</span>'
+    :'<span style="color:#cbd5e1">no pay frequency</span>';
+  return '<div class="prof-row" data-name="'+esc(p.name)+'">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">'
+      +'<div style="font-weight:600;font-size:.86rem">'+esc(p.name)+'</div>'
+      +'<div style="display:flex;gap:.4rem;flex-shrink:0">'
+        +'<button class="btn-mini" data-act="rename">Rename</button>'
+        +'<button class="btn-danger" data-act="delete">Delete</button>'
+      +'</div>'
+    +'</div>'
+    +'<div style="font-size:.72rem;margin-top:.25rem">'+freq+' &middot; '+p.field_count+' field'+(p.field_count!==1?'s':'')+' mapped</div>'
+    +'<div style="margin-top:.4rem">'+chips+'</div>'
+    +'</div>';
+}
+
+function psStartRename(row,name){
+  row.innerHTML='<div style="display:flex;gap:.4rem;align-items:center">'
+    +'<input type="text" class="rn-input" value="'+esc(name)+'">'
+    +'<button class="btn-mini" data-act2="save">Save</button>'
+    +'<button class="btn-mini" data-act2="cancel" style="border-color:#cbd5e1;color:#64748b">Cancel</button>'
+    +'</div>';
+  const input=row.querySelector('.rn-input'); input.focus(); input.select();
+  input.addEventListener('keydown',ev=>{ if(ev.key==='Enter') row.querySelector('[data-act2="save"]').click(); });
+}
+
+$('manage-list').addEventListener('click',async e=>{
+  const row=e.target.closest('.prof-row'); if(!row) return;
+  const name=row.dataset.name;
+  const act=(e.target.closest('button[data-act]')||{}).dataset?.act;
+  const act2=(e.target.closest('button[data-act2]')||{}).dataset?.act2;
+  if(act==='delete'){
+    if(!confirm('Delete profile "'+name+'"? This cannot be undone.')) return;
+    await fetch('/api/paystub/profile/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+    psManageRefresh();
+  } else if(act==='rename'){
+    psStartRename(row,name);
+  } else if(act2==='save'){
+    const nn=row.querySelector('.rn-input').value.trim();
+    if(!nn){ row.querySelector('.rn-input').focus(); return; }
+    const r=await fetch('/api/paystub/profile/rename',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old:name,new:nn})});
+    if(!r.ok){ const d=await r.json(); alert(d.error||'Rename failed'); return; }
+    psManageRefresh();
+  } else if(act2==='cancel'){
+    psManageRefresh();
+  }
+});
+$('manage-modal').addEventListener('click',e=>{ if(e.target===$('manage-modal')) psManageClose(); });
 
 // Delegated listeners (attached once; innerHTML swaps keep these intact)
 $('img-stage').addEventListener('click',e=>{
@@ -944,9 +1054,12 @@ $('fld-list').addEventListener('click',e=>{
 $('teach-modal').addEventListener('click',e=>{ if(e.target===$('teach-modal')) psCloseModal(); });
 
 document.addEventListener('keydown',e=>{
+  if($('manage-modal').classList.contains('open')){ if(e.key==='Escape') psManageClose(); return; }
   if($('teach-modal').classList.contains('open')){ if(e.key==='Escape') psCloseModal(); return; }
   if(e.key==='Enter'&&e.target.tagName!=='BUTTON') go();
 });
+
+psUpdateManageCount();
 </script>
 </body>
 </html>
@@ -970,8 +1083,25 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+        elif self.path == "/api/paystub/profiles":
+            self._handle_list_profiles()
         else:
             self.send_error(404)
+
+    def _handle_list_profiles(self) -> None:
+        from twe import paystub as ps
+        from twe import profiles as pf
+
+        labels = {f: lbl for f, lbl, _ in ps.TARGET_FIELDS}
+        summaries = []
+        for p in pf.list_profiles():
+            summaries.append({
+                "name": p.name,
+                "pay_frequency": p.pay_frequency,
+                "field_count": len(p.rules),
+                "fields": [{"field": r.field, "label": labels.get(r.field, r.field)} for r in p.rules],
+            })
+        self._send_json(200, {"profiles": summaries})
 
     def _send_json(self, code: int, data: dict) -> None:
         body = json.dumps(data).encode("utf-8")
@@ -996,8 +1126,35 @@ class _Handler(BaseHTTPRequestHandler):
             self._handle_paystub_layout()
         elif self.path == "/api/paystub/extract":
             self._handle_paystub_extract()
+        elif self.path == "/api/paystub/profile/delete":
+            self._handle_profile_delete()
+        elif self.path == "/api/paystub/profile/rename":
+            self._handle_profile_rename()
         else:
             self.send_error(404)
+
+    def _handle_profile_delete(self) -> None:
+        from twe import profiles as pf
+
+        try:
+            name = self._read_body()["name"]
+            deleted = pf.delete_profile(name)
+            self._send_json(200, {"ok": deleted})
+        except (KeyError, ValueError, json.JSONDecodeError) as exc:
+            self._send_json(400, {"error": f"Bad request: {exc}"})
+
+    def _handle_profile_rename(self) -> None:
+        from twe import profiles as pf
+
+        try:
+            body = self._read_body()
+            ok = pf.rename_profile(body["old"], body["new"])
+            if not ok:
+                self._send_json(404, {"error": f"Profile '{body['old']}' not found."})
+                return
+            self._send_json(200, {"ok": True})
+        except (KeyError, ValueError, json.JSONDecodeError) as exc:
+            self._send_json(400, {"error": str(exc)})
 
     # -- paystub import endpoints (optional feature) --------------------
 
