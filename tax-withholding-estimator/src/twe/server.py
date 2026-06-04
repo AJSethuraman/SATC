@@ -8,6 +8,9 @@ No external dependencies — only the standard library is used.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -1273,18 +1276,51 @@ class _Handler(BaseHTTPRequestHandler):
 # ---------------------------------------------------------------------------
 
 
+def _open_browser(url: str) -> None:
+    """Open the default browser as reliably as possible across platforms."""
+
+    try:
+        if webbrowser.open(url):
+            return
+    except Exception:  # noqa: BLE001
+        pass
+    # Fallbacks for environments where webbrowser can't pick a browser.
+    try:
+        if sys.platform.startswith("win"):
+            os.startfile(url)  # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", url])
+        else:
+            subprocess.Popen(["xdg-open", url])
+    except Exception:  # noqa: BLE001
+        pass  # The URL is printed below; the user can open it manually.
+
+
 def serve(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True) -> None:
     """Start the estimator web UI and block until Ctrl+C."""
 
-    server = HTTPServer((host, port), _Handler)
+    try:
+        server = HTTPServer((host, port), _Handler)
+    except OSError as exc:
+        print(f"\n  Could not start on port {port}: {exc}")
+        print(f"  Another copy may already be running. Open http://{host}:{port} in your browser,")
+        print(f"  or start on a different port:  twe serve --port 8766\n")
+        return
+
     url = f"http://{host}:{port}"
-    print(f"Tax Withholding Estimator: {url}")
-    print("Press Ctrl+C to stop.")
+    bar = "=" * 56
+    print(f"\n{bar}")
+    print("  Tax Withholding Estimator is RUNNING")
+    print(f"  Open this in your web browser:   {url}")
+    print("  (It should open automatically. If not, copy the link above.)")
+    print("  Keep this window open. Press Ctrl+C here to stop.")
+    print(f"{bar}\n")
     if open_browser:
-        threading.Timer(0.5, webbrowser.open, args=(url,)).start()
+        threading.Timer(0.8, _open_browser, args=(url,)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
         server.server_close()
+    print("Stopped.")
