@@ -11,6 +11,7 @@ from twe.paystub import (
     Layout,
     Profile,
     Word,
+    _merge_number_fragments,
     apply_profile,
     apply_rule,
     best_profile,
@@ -19,6 +20,42 @@ from twe.paystub import (
     parse_date,
     profile_score,
 )
+
+
+# -- number-fragment merging (ADP-style split numbers) ----------------------
+
+
+def _texts(items):
+    return [it[4] for it in _merge_number_fragments(items)]
+
+
+def test_merge_comma_split_number_lost_comma():
+    # "6,653.85" arrives as "6" + "653.85" (comma dropped by reader)
+    items = [[10, 100, 16, 110, "6"], [17, 100, 45, 110, "653.85"]]
+    assert _texts(items) == ["6653.85"]
+    assert parse_currency(_texts(items)[0]) == Decimal("6653.85")
+
+
+def test_merge_comma_as_its_own_token():
+    items = [[10, 100, 16, 110, "6"], [16.5, 100, 18, 110, ","], [19, 100, 47, 110, "653.85"]]
+    merged = _texts(items)
+    assert parse_currency(merged[0]) == Decimal("6653.85")
+
+
+def test_merge_multiple_thousands_separators():
+    items = [[10, 100, 16, 110, "1"], [17, 100, 40, 110, "234"], [41, 100, 70, 110, "567.89"]]
+    assert parse_currency(_texts(items)[0]) == Decimal("1234567.89")
+
+
+def test_distinct_columns_not_merged():
+    # Two complete numbers in separate columns must stay separate.
+    items = [[10, 100, 45, 110, "6,653.85"], [120, 100, 150, 110, "1,234.00"]]
+    assert _texts(items) == ["6,653.85", "1,234.00"]
+
+
+def test_label_not_merged_into_number():
+    items = [[10, 100, 40, 110, "Federal"], [45, 100, 70, 110, "410.00"]]
+    assert _texts(items) == ["Federal", "410.00"]
 
 
 # -- currency parsing -------------------------------------------------------

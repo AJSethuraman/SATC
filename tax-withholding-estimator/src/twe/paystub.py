@@ -408,6 +408,77 @@ def _image_filetype(media_type: str) -> str:
     return "png"
 
 
+_NUMERICISH_RE = re.compile(r"^[$(\-]?[\d.,]+[)\-]?$")
+
+
+def _numericish(text: str) -> bool:
+    """True if a token is a digit run possibly wrapped in $ , . ( ) - signs."""
+
+    t = text.strip()
+    return bool(t) and bool(_NUMERICISH_RE.match(t)) and any(c.isdigit() for c in t)
+
+
+def _group_rows(items: list[list]) -> list[list[list]]:
+    """Group raw words ``[x0, y0, x1, y1, text]`` into rows by vertical overlap."""
+
+    rows: list[dict] = []
+    for w in sorted(items, key=lambda w: (w[1] + w[3]) / 2):
+        cy = (w[1] + w[3]) / 2
+        height = w[3] - w[1]
+        for row in rows:
+            if abs(cy - row["cy"]) <= 0.5 * max(height, 1e-6):
+                row["items"].append(w)
+                break
+        else:
+            rows.append({"cy": cy, "items": [w]})
+    return [r["items"] for r in rows]
+
+
+def _merge_number_fragments(items: list[list]) -> list[list]:
+    """Stitch number tokens that got split apart (e.g. ``6 , 653.85``).
+
+    Some paystubs (notably ADP) emit thousands-separated numbers as several
+    text runs, so ``6,653.85`` arrives as ``6`` + ``653.85`` (or with the comma
+    as its own glyph). We re-join horizontally-adjacent numeric fragments on the
+    same row when the merged text still parses as a single currency value, so a
+    value is one clickable token again. Merging two *complete* numbers fails the
+    parse check (two decimal points) and is rejected, so distinct columns stay
+    separate.
+    """
+
+    merged: list[list] = []
+    for row in _group_rows(items):
+        row = sorted(row, key=lambda w: w[0])
+        i = 0
+        while i < len(row):
+            x0, y0, x1, y1, text = row[i][0], row[i][1], row[i][2], row[i][3], row[i][4]
+            j = i + 1
+            if _numericish(text):
+                height = y1 - y0
+                while j < len(row):
+                    nxt = row[j]
+                    ntext = nxt[4].strip()
+                    gap = nxt[0] - x1
+                    if gap > 0.5 * max(height, 1e-6) or gap < -0.2 * max(height, 1e-6):
+                        break
+                    # Absorb numeric fragments and lone separators (a thousands
+                    # comma or decimal point emitted as its own glyph).
+                    if not (_numericish(ntext) or ntext in (",", ".")):
+                        break
+                    combined = (text + ntext).replace(" ", "")
+                    # Accept while it parses, or while still mid-number (ends in a separator).
+                    if parse_currency(combined) is None and combined[-1:] not in (",", "."):
+                        break
+                    text = text + ntext
+                    x1 = nxt[2]
+                    y0, y1 = min(y0, nxt[1]), max(y1, nxt[3])
+                    j += 1
+                text = text.rstrip(",.")  # drop a dangling separator if nothing followed
+            merged.append([x0, y0, x1, y1, text])
+            i = j if j > i + 1 else i + 1
+    return merged
+
+
 def extract_layout(data: bytes, media_type: str, *, dpi: int = 150) -> Layout:
     """Render the first page and extract words with normalized boxes."""
 
@@ -438,10 +509,12 @@ def extract_layout(data: bytes, media_type: str, *, dpi: int = 150) -> Layout:
         # Scanned PDF with no text layer -> OCR.
         words_raw = _ocr_words(page, pdf, dpi=dpi)
 
+    items = [[w[0], w[1], w[2], w[3], str(w[4])] for w in words_raw if str(w[4]).strip()]
+    items = _merge_number_fragments(items)
+
     words = [
-        Word(text=w[4], x0=w[0] / pw, y0=w[1] / ph, x1=w[2] / pw, y1=w[3] / ph)
-        for w in words_raw
-        if str(w[4]).strip()
+        Word(text=it[4], x0=it[0] / pw, y0=it[1] / ph, x1=it[2] / pw, y1=it[3] / ph)
+        for it in items
     ]
 
     pix = page.get_pixmap(dpi=dpi)
