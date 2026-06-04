@@ -14,6 +14,8 @@ Examples::
         --ytd-wages 36000 --ytd-withheld 4500
     twe sample --output scenario.json
     twe years
+    twe serve
+    twe serve --port 9000 --no-browser
 """
 
 from __future__ import annotations
@@ -75,6 +77,11 @@ def _build_parser() -> argparse.ArgumentParser:
     samp.add_argument("--output", type=Path, default=Path("scenario.json"))
 
     sub.add_parser("years", help="List bundled tax years")
+
+    srv = sub.add_parser("serve", help="Open the web UI in a browser")
+    srv.add_argument("--host", default="127.0.0.1", help="Bind address (default 127.0.0.1)")
+    srv.add_argument("--port", type=int, default=8765, help="Port (default 8765)")
+    srv.add_argument("--no-browser", action="store_true", help="Do not auto-open the browser")
 
     return parser
 
@@ -149,6 +156,13 @@ def _command_estimate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _command_serve(args: argparse.Namespace) -> int:
+    from twe.server import serve  # imported lazily so CLI stays fast for other commands
+
+    serve(host=args.host, port=args.port, open_browser=not args.no_browser)
+    return 0
+
+
 def _command_sample(args: argparse.Namespace) -> int:
     args.output.write_text(json.dumps(_SAMPLE_SCENARIO, indent=2) + "\n", encoding="utf-8")
     print(f"sample scenario written to {args.output}")
@@ -213,6 +227,8 @@ def main(argv: list[str] | None = None) -> int:
         return _command_sample(args)
     if args.command == "years":
         return _command_years(args)
+    if args.command == "serve":
+        return _command_serve(args)
 
     parser.error("unknown command")
     return 2
