@@ -1,0 +1,468 @@
+"""Deterministic paystub layout extraction and profile-based field reading.
+
+The estimator core never depends on this module. Paystub import is an optional
+feature behind the ``[paystub]`` extra (PyMuPDF for PDFs, plus Tesseract for
+image OCR). Everything here is deterministic: the same file and the same saved
+profile always produce the same extracted values — no AI, no network.
+
+Workflow:
+
+1. :func:`extract_layout` turns a PDF/image into a rendered page image plus a
+   list of words with normalized bounding boxes.
+2. The user "teaches" a profile once by clicking which words hold each value;
+   :func:`build_rules` converts those clicks into label-anchored rules.
+3. :func:`apply_profile` reads any future paystub of the same layout, preferring
+   a label anchor and falling back to the saved region.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
+
+
+class PaystubError(Exception):
+    """Raised when a paystub cannot be read (e.g. missing optional deps)."""
+
+
+# Fields the form can be auto-filled with. (key, human label, kind)
+TARGET_FIELDS: list[tuple[str, str, str]] = [
+    ("gross_pay_per_period", "Gross pay (per period)", "currency"),
+    ("federal_tax_withheld_per_period", "Federal tax withheld (per period)", "currency"),
+    ("retirement_pretax_per_period", "Pre-tax retirement / 401(k) (per period)", "currency"),
+    ("other_pretax_per_period", "Other pre-tax: health/HSA/FSA (per period)", "currency"),
+    ("ytd_taxable_wages", "YTD taxable wages", "currency"),
+    ("ytd_federal_tax_withheld", "YTD federal tax withheld", "currency"),
+    ("last_pay_date", "Pay date", "date"),
+]
+
+_FIELD_KIND = {key: kind for key, _, kind in TARGET_FIELDS}
+
+
+# ---------------------------------------------------------------------------
+# Data structures
+# ---------------------------------------------------------------------------
+
+
+@dataclass(slots=True)
+class Word:
+    """A single token with a bounding box normalized to 0..1 of the page."""
+
+    text: str
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+    @property
+    def cx(self) -> float:
+        return (self.x0 + self.x1) / 2
+
+    @property
+    def cy(self) -> float:
+        return (self.y0 + self.y1) / 2
+
+    def to_dict(self) -> dict:
+        return {"text": self.text, "x0": self.x0, "y0": self.y0, "x1": self.x1, "y1": self.y1}
+
+
+@dataclass(slots=True)
+class Layout:
+    """A rendered page plus its words. Image is base64 PNG (no data: prefix)."""
+
+    image_png_b64: str
+    img_width: int
+    img_height: int
+    words: list[Word] = field(default_factory=list)
+
+    @property
+    def text(self) -> str:
+        return " ".join(w.text for w in self.words)
+
+
+@dataclass(slots=True)
+class FieldRule:
+    """How to read one field: try the label anchor, else the saved region."""
+
+    field: str
+    kind: str
+    region: list[float]  # [x0, y0, x1, y1] normalized union of the taught words
+    label_text: str = ""
+
+    def to_dict(self) -> dict:
+        return {
+            "field": self.field,
+            "kind": self.kind,
+            "region": list(self.region),
+            "label_text": self.label_text,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> FieldRule:
+        return cls(
+            field=d["field"],
+            kind=d.get("kind", _FIELD_KIND.get(d["field"], "currency")),
+            region=[float(v) for v in d["region"]],
+            label_text=d.get("label_text", ""),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Value parsing (pure, deterministic)
+# ---------------------------------------------------------------------------
+
+
+def parse_currency(token: str) -> Decimal | None:
+    """Parse a currency-ish token to a Decimal, or None if it isn't a number.
+
+    Handles ``$``, thousands commas, parentheses-negatives, and trailing ``-``.
+    """
+
+    s = token.strip()
+    if not s:
+        return None
+    neg = False
+    if s.startswith("(") and s.endswith(")"):
+        neg = True
+        s = s[1:-1]
+    if s.endswith("-"):
+        neg = True
+        s = s[:-1]
+    if s.startswith("-"):
+        neg = True
+        s = s[1:]
+    s = s.replace("$", "").replace(",", "").replace(" ", "")
+    if not s or s == ".":
+        return None
+    if not re.fullmatch(r"\d*\.?\d+", s):
+        return None
+    try:
+        value = Decimal(s)
+    except InvalidOperation:
+        return None
+    return -value if neg else value
+
+
+_DATE_FORMATS = (
+    "%m/%d/%Y", "%m/%d/%y", "%Y-%m-%d", "%m-%d-%Y", "%m-%d-%y",
+    "%b %d, %Y", "%B %d, %Y", "%b %d %Y", "%B %d %Y", "%d-%b-%Y", "%d %b %Y",
+)
+
+
+def parse_date(text: str) -> str | None:
+    """Parse a date string to ISO ``YYYY-MM-DD``, or None."""
+
+    s = text.strip().rstrip(".").strip()
+    if not s:
+        return None
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(s, fmt).date().isoformat()
+        except ValueError:
+            continue
+    # Try to locate a date substring like 01/15/2025 anywhere in the text.
+    m = re.search(r"\d{1,2}[/-]\d{1,2}[/-]\d{2,4}", s)
+    if m:
+        return parse_date(m.group(0))
+    return None
+
+
+def _parse_value(text: str, kind: str) -> str | None:
+    if kind == "date":
+        return parse_date(text)
+    value = parse_currency(text)
+    return None if value is None else f"{value:.2f}"
+
+
+# ---------------------------------------------------------------------------
+# Geometry helpers
+# ---------------------------------------------------------------------------
+
+
+def _union(words: list[Word]) -> list[float]:
+    return [
+        min(w.x0 for w in words),
+        min(w.y0 for w in words),
+        max(w.x1 for w in words),
+        max(w.y1 for w in words),
+    ]
+
+
+def _in_region(w: Word, region: list[float], pad: float = 0.005) -> bool:
+    x0, y0, x1, y1 = region
+    return (x0 - pad) <= w.cx <= (x1 + pad) and (y0 - pad) <= w.cy <= (y1 + pad)
+
+
+def _same_row(w: Word, y0: float, y1: float) -> bool:
+    cy = (y0 + y1) / 2
+    return y0 <= w.cy <= y1 or w.y0 <= cy <= w.y1
+
+
+# ---------------------------------------------------------------------------
+# Teaching: clicked words -> rules
+# ---------------------------------------------------------------------------
+
+
+def _nearest_label(words: list[Word], region: list[float]) -> str:
+    """Find the text label immediately left of (or above) a value region.
+
+    Returns a short run of non-numeric words on the value's row, to the left.
+    """
+
+    x0, y0, x1, y1 = region
+    row = [
+        w for w in words
+        if _same_row(w, y0, y1) and w.x1 <= x0 + 0.01 and parse_currency(w.text) is None
+    ]
+    row.sort(key=lambda w: w.x0)
+    # Keep the trailing contiguous run of label words (closest to the value).
+    label_words = [w.text for w in row][-4:]
+    return " ".join(label_words).strip(": ").strip()
+
+
+def build_rules(words: list[Word], assignments: dict[str, list[int]]) -> list[FieldRule]:
+    """Turn ``{field: [word indices]}`` into deterministic field rules."""
+
+    rules: list[FieldRule] = []
+    for fld, indices in assignments.items():
+        chosen = [words[i] for i in indices if 0 <= i < len(words)]
+        if not chosen:
+            continue
+        region = _union(chosen)
+        kind = _FIELD_KIND.get(fld, "currency")
+        label = _nearest_label(words, region)
+        rules.append(FieldRule(field=fld, kind=kind, region=region, label_text=label))
+    return rules
+
+
+# ---------------------------------------------------------------------------
+# Applying a profile (pure, deterministic)
+# ---------------------------------------------------------------------------
+
+
+def _read_by_label(words: list[Word], rule: FieldRule) -> str | None:
+    """Read a value using the label anchor to find the row and the taught
+    region's x-position to pick the column.
+
+    Paystubs commonly repeat one label (e.g. "Gross Pay") across a Current and a
+    YTD column. The label fixes the *row* (robust if rows shift vertically); the
+    taught region's horizontal position disambiguates *which column*.
+    """
+
+    label = rule.label_text.strip().lower()
+    if not label:
+        return None
+    label_tokens = label.split()
+    n = len(label_tokens)
+    lowered = [w.text.lower().strip(": ") for w in words]
+    region_cx = (rule.region[0] + rule.region[2]) / 2
+
+    for i in range(len(words) - n + 1):
+        if lowered[i : i + n] == label_tokens:
+            run = words[i : i + n]
+            ly0 = min(w.y0 for w in run)
+            ly1 = max(w.y1 for w in run)
+            lx1 = max(w.x1 for w in run)
+            cands = [w for w in words if _same_row(w, ly0, ly1) and w.x0 >= lx1 - 0.005]
+            if rule.kind == "date":
+                cands.sort(key=lambda w: abs(w.cx - region_cx))
+                for w in cands:
+                    val = _parse_value(w.text, "date")
+                    if val:
+                        return val
+                joined = " ".join(w.text for w in sorted(cands, key=lambda w: w.x0)[:3])
+                val = _parse_value(joined, "date")
+                if val:
+                    return val
+            else:
+                numeric = [w for w in cands if parse_currency(w.text) is not None]
+                if numeric:
+                    # Pick the numeric candidate whose column matches what was taught.
+                    best = min(numeric, key=lambda w: abs(w.cx - region_cx))
+                    return f"{parse_currency(best.text):.2f}"
+    return None
+
+
+def _read_by_region(words: list[Word], rule: FieldRule) -> str | None:
+    inside = [w for w in words if _in_region(w, rule.region)]
+    inside.sort(key=lambda w: w.x0)
+    if not inside:
+        return None
+    joined = " ".join(w.text for w in inside)
+    val = _parse_value(joined, rule.kind)
+    if val is not None:
+        return val
+    # As a fallback, try each token individually (region may catch a stray word).
+    for w in inside:
+        val = _parse_value(w.text, rule.kind)
+        if val is not None:
+            return val
+    return None
+
+
+def apply_rule(words: list[Word], rule: FieldRule) -> str | None:
+    """Read one field: label anchor first (robust), then region fallback."""
+
+    return _read_by_label(words, rule) or _read_by_region(words, rule)
+
+
+def apply_profile(layout: Layout, profile: "Profile") -> dict[str, str]:
+    """Extract every field a profile knows how to read from a layout."""
+
+    out: dict[str, str] = {}
+    for rule in profile.rules:
+        value = apply_rule(layout.words, rule)
+        if value is not None:
+            out[rule.field] = value
+    if profile.pay_frequency:
+        out.setdefault("pay_frequency", profile.pay_frequency)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Profile model & matching
+# ---------------------------------------------------------------------------
+
+
+@dataclass(slots=True)
+class Profile:
+    name: str
+    pay_frequency: str | None = None
+    rules: list[FieldRule] = field(default_factory=list)
+    match_keywords: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "name": self.name,
+            "pay_frequency": self.pay_frequency,
+            "rules": [r.to_dict() for r in self.rules],
+            "match_keywords": list(self.match_keywords),
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Profile:
+        return cls(
+            name=d["name"],
+            pay_frequency=d.get("pay_frequency"),
+            rules=[FieldRule.from_dict(r) for r in d.get("rules", [])],
+            match_keywords=list(d.get("match_keywords", [])),
+        )
+
+
+def profile_score(layout: Layout, profile: Profile) -> float:
+    """Fraction of a profile's label anchors + keywords present in the layout."""
+
+    anchors = [r.label_text for r in profile.rules if r.label_text]
+    anchors += list(profile.match_keywords)
+    anchors = [a for a in anchors if a]
+    if not anchors:
+        return 0.0
+    text = layout.text.lower()
+    hits = sum(1 for a in anchors if a.lower() in text)
+    return hits / len(anchors)
+
+
+def best_profile(layout: Layout, profiles: list[Profile], threshold: float = 0.6) -> Profile | None:
+    """Pick the highest-scoring profile at or above ``threshold``, else None."""
+
+    scored = [(profile_score(layout, p), p) for p in profiles]
+    scored = [(s, p) for s, p in scored if s >= threshold]
+    if not scored:
+        return None
+    scored.sort(key=lambda t: t[0], reverse=True)
+    return scored[0][1]
+
+
+# ---------------------------------------------------------------------------
+# Extraction (depends on the optional PyMuPDF / Tesseract stack)
+# ---------------------------------------------------------------------------
+
+
+def _load_pymupdf():
+    try:
+        import pymupdf  # type: ignore
+        return pymupdf
+    except ImportError:
+        try:
+            import fitz as pymupdf  # type: ignore
+            return pymupdf
+        except ImportError as exc:
+            raise PaystubError(
+                "Paystub import needs PyMuPDF. Install it with: "
+                'pip install "tax-withholding-estimator[paystub]"'
+            ) from exc
+
+
+def _image_filetype(media_type: str) -> str:
+    mt = (media_type or "").lower()
+    if "png" in mt:
+        return "png"
+    if "jpeg" in mt or "jpg" in mt:
+        return "jpg"
+    if "webp" in mt:
+        return "webp"
+    if "tif" in mt:
+        return "tiff"
+    return "png"
+
+
+def extract_layout(data: bytes, media_type: str, *, dpi: int = 150) -> Layout:
+    """Render the first page and extract words with normalized boxes."""
+
+    import base64
+
+    pdf = _load_pymupdf()
+    is_pdf = "pdf" in (media_type or "").lower()
+    try:
+        if is_pdf:
+            doc = pdf.open(stream=data, filetype="pdf")
+        else:
+            doc = pdf.open(stream=data, filetype=_image_filetype(media_type))
+    except Exception as exc:  # noqa: BLE001 - surface a clean message to the UI
+        raise PaystubError(f"Could not open file: {exc}") from exc
+
+    if doc.page_count == 0:
+        raise PaystubError("The file has no pages.")
+    page = doc[0]
+    rect = page.rect
+    pw, ph = float(rect.width), float(rect.height)
+    if pw <= 0 or ph <= 0:
+        raise PaystubError("The page has zero size.")
+
+    words_raw = page.get_text("words")
+    if not words_raw and not is_pdf:
+        words_raw = _ocr_words(page, pdf, dpi=dpi)
+    if not words_raw and is_pdf:
+        # Scanned PDF with no text layer -> OCR.
+        words_raw = _ocr_words(page, pdf, dpi=dpi)
+
+    words = [
+        Word(text=w[4], x0=w[0] / pw, y0=w[1] / ph, x1=w[2] / pw, y1=w[3] / ph)
+        for w in words_raw
+        if str(w[4]).strip()
+    ]
+
+    pix = page.get_pixmap(dpi=dpi)
+    png = pix.tobytes("png")
+    return Layout(
+        image_png_b64=base64.b64encode(png).decode("ascii"),
+        img_width=pix.width,
+        img_height=pix.height,
+        words=words,
+    )
+
+
+def _ocr_words(page, pdf, *, dpi: int) -> list:
+    """OCR a page that has no text layer. Requires Tesseract."""
+
+    try:
+        tp = page.get_textpage_ocr(flags=0, full=True, dpi=dpi)
+        return page.get_text("words", textpage=tp)
+    except Exception as exc:  # noqa: BLE001
+        raise PaystubError(
+            "Reading image/scanned paystubs needs the Tesseract OCR engine installed "
+            "and on your PATH (set TESSDATA_PREFIX). Install Tesseract, or upload a "
+            "text-based PDF instead. Original error: " + str(exc)
+        ) from exc

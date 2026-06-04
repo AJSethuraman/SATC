@@ -44,7 +44,41 @@ From `tax-withholding-estimator/`:
 python -m pip install -e .[dev]
 ```
 
-(The package itself has **no runtime dependencies** — only the standard library.)
+The estimator core has **no runtime dependencies** — only the standard library.
+The optional paystub-import feature (see below) needs one extra:
+
+```bash
+python -m pip install -e ".[paystub]"
+```
+
+## Paystub import (deterministic, learns your layout)
+
+The web UI can read values straight off your paystub — no AI, no network. It is
+fully deterministic: the same file and the same saved profile always produce the
+same numbers.
+
+How it works:
+
+1. Drop a paystub **PDF** (best) or **image** into the *Import from Paystub* card.
+2. The first time it sees a layout, you **map it once**: a window shows the
+   paystub with every word boxed; you click a field (e.g. *Federal tax
+   withheld*), then click that number on the page.
+3. Save it as a named **profile** (per employer / payroll provider). The mapping
+   is stored as a label-anchored rule (it finds the row by its label and the
+   column by where you clicked), so it keeps working even when amounts change
+   week to week.
+4. Next time you drop a paystub with the same layout, it's **recognized
+   automatically** and the form fills in — review and calculate.
+
+Profiles are plain JSON files under `~/.twe/profiles/` (override with the
+`TWE_PROFILE_DIR` environment variable) — portable and inspectable.
+
+- **PDF paystubs** (downloaded from a payroll portal) have a real text layer, so
+  extraction needs only **PyMuPDF** (`pip install ".[paystub]"`; Windows wheels
+  included).
+- **Image / scanned / photo paystubs** have no text layer, so they additionally
+  require the **Tesseract OCR** engine installed and on your `PATH`. If it isn't
+  present, the app says so and you can upload a PDF instead.
 
 ## Quick start
 

@@ -14,6 +14,11 @@ dependencies = []
 dev = [
   "pytest>=8.0",
 ]
+# Optional: deterministic paystub import (PDF text + positions, page render).
+# Image/scanned paystubs additionally require the Tesseract OCR engine on PATH.
+paystub = [
+  "PyMuPDF>=1.24",
+]
 
 [project.scripts]
 twe = "twe.cli:main"

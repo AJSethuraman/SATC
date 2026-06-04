@@ -110,6 +110,43 @@ input::placeholder{color:#cbd5e1}
 .disc{font-size:.7rem;color:#94a3b8;text-align:center;padding:.75rem .5rem;line-height:1.5}
 .disc a{color:#0f766e}
 @media(max-width:768px){.wrap{grid-template-columns:1fr}.sticky-panel{position:static;order:-1}.fg{grid-template-columns:1fr}}
+/* ---- paystub import ---- */
+.dropzone{border:2px dashed #cbd5e1;border-radius:8px;padding:1.1rem;text-align:center;cursor:pointer;transition:all .15s}
+.dropzone:hover,.dropzone.drag{border-color:#0f766e;background:#f0fdfa}
+.dropzone .ico{font-size:1.6rem}
+.dropzone .t{font-size:.84rem;font-weight:600;color:#475569;margin-top:.2rem}
+.dropzone .s{font-size:.72rem;color:#94a3b8;margin-top:.1rem}
+.ps-status{font-size:.8rem;margin-top:.6rem;min-height:1.2em}
+.ps-chip{display:inline-flex;align-items:center;gap:.3rem;background:#f0fdfa;color:#0f766e;border:1px solid #ccfbf1;border-radius:14px;padding:.15rem .6rem;font-size:.72rem;font-weight:500;margin:.15rem .2rem 0 0}
+.linkbtn{background:none;border:none;color:#0f766e;font-weight:600;cursor:pointer;font-size:.8rem;text-decoration:underline;padding:0}
+/* ---- teach modal ---- */
+.modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1000;display:none;align-items:stretch;justify-content:center;padding:1.5rem}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;width:100%;max-width:1180px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.modal-hd{padding:.85rem 1.2rem;background:#0f766e;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-hd .x{background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1}
+.modal-body{display:grid;grid-template-columns:1.5fr 1fr;gap:0;flex:1;min-height:0}
+.img-pane{overflow:auto;background:#f1f5f9;padding:1rem;display:flex;justify-content:center;align-items:flex-start}
+.img-stage{position:relative;display:inline-block;box-shadow:0 2px 12px rgba(0,0,0,.18);background:#fff}
+.img-stage img{display:block;max-width:100%;height:auto}
+.wbox{position:absolute;border:1.5px solid transparent;border-radius:2px;cursor:pointer;transition:background .1s}
+.wbox:hover{background:rgba(15,118,110,.18);border-color:#0f766e}
+.wbox.sel{background:rgba(5,150,105,.32);border-color:#059669}
+.teach-pane{border-left:1px solid #e2e8f0;display:flex;flex-direction:column;min-height:0}
+.teach-scroll{overflow:auto;padding:1rem;flex:1}
+.teach-intro{font-size:.78rem;color:#64748b;background:#f8fafc;border-radius:7px;padding:.7rem;margin-bottom:.8rem;line-height:1.45}
+.fld-row{border:1.5px solid #e2e8f0;border-radius:7px;padding:.55rem .7rem;margin-bottom:.5rem;cursor:pointer;transition:all .12s}
+.fld-row:hover{border-color:#cbd5e1}
+.fld-row.active{border-color:#0f766e;background:#f0fdfa;box-shadow:0 0 0 3px rgba(15,118,110,.1)}
+.fld-row .fl{font-size:.8rem;font-weight:600;color:#334155;display:flex;justify-content:space-between;align-items:center}
+.fld-row .fv{font-size:.78rem;color:#059669;font-weight:600;font-variant-numeric:tabular-nums}
+.fld-row .fv.empty{color:#cbd5e1;font-weight:400}
+.fld-row .fhint{font-size:.68rem;color:#94a3b8;margin-top:.15rem}
+.teach-foot{border-top:1px solid #e2e8f0;padding:.8rem 1rem;flex-shrink:0;background:#fafafa}
+.teach-foot .fg{margin-bottom:.6rem}
+.btn-sec{padding:.55rem .9rem;border:1.5px solid #0f766e;background:#fff;color:#0f766e;border-radius:7px;font-weight:600;font-size:.82rem;cursor:pointer}
+.btn-sec:hover{background:#f0fdfa}
+@media(max-width:768px){.modal-body{grid-template-columns:1fr;overflow:auto}.teach-pane{border-left:none;border-top:1px solid #e2e8f0}}
 </style>
 </head>
 <body>
@@ -124,6 +161,29 @@ input::placeholder{color:#cbd5e1}
 <div class="wrap">
 <!-- ===== FORM ===== -->
 <div id="form-col">
+
+  <!-- Import from paystub -->
+  <div class="card">
+    <div class="ch tog open" onclick="tog('imp')">
+      <span>&#x1F4C4; Import from Paystub <span style="font-size:.72rem;font-weight:400;color:#94a3b8">(optional &middot; learns your layout)</span></span>
+      <span class="ci">&#9660;</span>
+    </div>
+    <div class="cbody" id="b_imp" style="max-height:600px">
+    <div class="cb" id="c_imp">
+      <div class="dropzone" id="dropzone"
+           onclick="$('ps_file').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="psDrop(event)">
+        <div class="ico">&#x1F4C4;</div>
+        <div class="t">Drop a paystub PDF or image, or click to browse</div>
+        <div class="s">PDF works best (exact text). Images need Tesseract OCR installed.</div>
+        <input type="file" id="ps_file" accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf" style="display:none" onchange="psUpload(this.files[0])">
+      </div>
+      <div class="ps-status" id="ps_status"></div>
+    </div>
+    </div>
+  </div>
 
   <!-- Filing info -->
   <div class="card">
@@ -437,6 +497,55 @@ input::placeholder{color:#cbd5e1}
 </div>
 </div><!-- .wrap -->
 
+<!-- ===== TEACH MODAL ===== -->
+<div class="modal-bg" id="teach-modal">
+  <div class="modal">
+    <div class="modal-hd">
+      <div>
+        <div style="font-weight:700;font-size:.95rem">&#x1F4CD; Map your paystub</div>
+        <div style="font-size:.72rem;opacity:.8">Pick a field, then click the value on the paystub. Save it as a profile to reuse next time.</div>
+      </div>
+      <button class="x" onclick="psCloseModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="img-pane">
+        <div class="img-stage" id="img-stage"></div>
+      </div>
+      <div class="teach-pane">
+        <div class="teach-scroll">
+          <div class="teach-intro">
+            <strong>How to map:</strong> click a field below to select it, then click the number (or date) on the paystub that holds that value. Click a highlighted box again to unselect. Fields you skip are simply left blank.
+          </div>
+          <div id="fld-list"></div>
+        </div>
+        <div class="teach-foot">
+          <div class="fg">
+            <div class="f">
+              <label for="prof_name">Profile name</label>
+              <input type="text" id="prof_name" placeholder="e.g. Acme Corp - ADP">
+            </div>
+            <div class="f">
+              <label for="prof_freq">Pay frequency for this employer</label>
+              <select id="prof_freq">
+                <option value="">(leave unset)</option>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Bi-weekly</option>
+                <option value="semimonthly">Semi-monthly</option>
+                <option value="monthly">Monthly</option>
+                <option value="annual">Annual</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <button class="btn-calc" style="flex:1;margin:0" onclick="psSaveAndApply(true)">&#x1F4BE; Save profile &amp; fill form</button>
+            <button class="btn-sec" onclick="psSaveAndApply(false)">Fill once, don&rsquo;t save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const $ = id => document.getElementById(id);
 const numVal = id => { const v=$(''+id).value.trim(); return v===''?null:parseFloat(v); };
@@ -708,7 +817,136 @@ $('tax_year').addEventListener('change',updatePeriods);
 // Show default hint before a date is entered
 $('periods_badge').innerHTML='<span class="hint">Leave blank to assume a full year</span>';
 
-document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&e.target.tagName!=='BUTTON') go(); });
+// ===== Paystub import & teach UI =====
+let psState=null;
+
+function toB64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>res(e.target.result.split(',')[1]);
+    r.onerror=rej; r.readAsDataURL(file);
+  });
+}
+
+function psDrop(e){
+  e.preventDefault(); $('dropzone').classList.remove('drag');
+  const f=e.dataTransfer.files[0]; if(f) psUpload(f);
+}
+
+async function psUpload(file){
+  if(!file) return;
+  const s=$('ps_status');
+  s.innerHTML='<span style="color:#64748b">&#x23F3; Reading paystub&hellip;</span>';
+  try{
+    const b64=await toB64(file);
+    const r=await fetch('/api/paystub/layout',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({data:b64, media_type:file.type||'application/pdf'})});
+    const d=await r.json();
+    if(!r.ok){ s.innerHTML='<span style="color:#dc2626">&#x26A0; '+esc(d.error)+'</span>'; return; }
+    const topWords=[...d.words].sort((a,b)=>a.y0-b.y0).slice(0,5).map(w=>w.text).join(' ');
+    psState={words:d.words,img:d.image,imgW:d.img_width,imgH:d.img_height,targets:d.targets,
+      assignments:{},activeField:null,suggestedName:topWords};
+    if(d.matched){
+      const n=psFill(d.matched.extracted);
+      s.innerHTML='<span style="color:#059669;font-weight:600">&#x2713; Recognized profile &ldquo;'+esc(d.matched.name)+'&rdquo; &mdash; filled '+n+' field'+(n!==1?'s':'')+'.</span> <button class="linkbtn" onclick="psOpenModal()">Re-map</button>';
+    } else {
+      s.innerHTML='<span style="color:#475569">New layout detected. Map it once and save it to reuse.</span> <button class="linkbtn" onclick="psOpenModal()">Map this paystub</button>';
+      psOpenModal();
+    }
+  }catch(e){ s.innerHTML='<span style="color:#dc2626">&#x26A0; '+esc(e.message)+'</span>'; }
+}
+
+function psFill(v){
+  const map={gross_pay_per_period:'gross',federal_tax_withheld_per_period:'withheld',
+    retirement_pretax_per_period:'ret401k',other_pretax_per_period:'pretax_other',
+    ytd_taxable_wages:'ytd_wages',ytd_federal_tax_withheld:'ytd_wh',last_pay_date:'last_pay_date'};
+  let n=0;
+  for(const k in map){
+    const val=v[k];
+    if(val!==undefined&&val!==null&&val!==''){ $(map[k]).value=val; n++; }
+  }
+  if(v.pay_frequency){ $('pay_freq').value=v.pay_frequency; }
+  updatePeriods();
+  return n;
+}
+
+function psOpenModal(){
+  if(!psState) return;
+  if(!$('prof_name').value && psState.suggestedName) $('prof_name').value=psState.suggestedName;
+  if($('pay_freq').value) $('prof_freq').value=$('pay_freq').value;
+  if(!psState.activeField) psState.activeField=psState.targets[0].field;
+  psRenderStage(); psRenderFields();
+  $('teach-modal').classList.add('open');
+}
+function psCloseModal(){ $('teach-modal').classList.remove('open'); }
+
+function psRenderStage(){
+  const st=$('img-stage');
+  const af=psState.activeField;
+  const aset=af?(psState.assignments[af]||[]):[];
+  let html='<img src="data:image/png;base64,'+psState.img+'" alt="paystub">';
+  psState.words.forEach((w,i)=>{
+    const sel=aset.indexOf(i)>=0?' sel':'';
+    html+='<div class="wbox'+sel+'" data-i="'+i+'" style="left:'+(w.x0*100)+'%;top:'+(w.y0*100)+'%;width:'+((w.x1-w.x0)*100)+'%;height:'+((w.y1-w.y0)*100)+'%"></div>';
+  });
+  st.innerHTML=html;
+}
+
+function psRenderFields(){
+  let html='';
+  psState.targets.forEach(t=>{
+    const set=psState.assignments[t.field]||[];
+    const active=psState.activeField===t.field?' active':'';
+    const val=set.length?set.map(i=>psState.words[i].text).join(' '):'not set';
+    html+='<div class="fld-row'+active+'" data-field="'+t.field+'">'
+      +'<div class="fl"><span>'+esc(t.label)+'</span>'
+      +'<span class="fv'+(set.length?'':' empty')+'">'+esc(val)+'</span></div>'
+      +(active?'<div class="fhint">Now click that value on the paystub image &larr;</div>':'')
+      +'</div>';
+  });
+  $('fld-list').innerHTML=html;
+}
+
+function psSelectField(f){ psState.activeField=f; psRenderStage(); psRenderFields(); }
+
+function psToggleWord(i){
+  const f=psState.activeField; if(!f) return;
+  const set=psState.assignments[f]||[];
+  const pos=set.indexOf(i);
+  if(pos>=0) set.splice(pos,1); else set.push(i);
+  psState.assignments[f]=set;
+  psRenderStage(); psRenderFields();
+}
+
+async function psSaveAndApply(save){
+  const name=$('prof_name').value.trim();
+  if(save && !name){ alert('Enter a profile name to save it, or choose "Fill once".'); return; }
+  const body={words:psState.words, assignments:psState.assignments,
+    name:name||'Untitled', pay_frequency:$('prof_freq').value||null,
+    match_keywords:psState.suggestedName?[psState.suggestedName]:[], save:save};
+  try{
+    const r=await fetch('/api/paystub/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!r.ok){ alert(d.error); return; }
+    const n=psFill(d.extracted);
+    psCloseModal();
+    $('ps_status').innerHTML='<span style="color:#059669;font-weight:600">&#x2713; Filled '+n+' field'+(n!==1?'s':'')+(d.saved?' and saved profile &ldquo;'+esc(d.name)+'&rdquo;':'')+'. Review before calculating.</span>';
+  }catch(e){ alert(e.message); }
+}
+
+// Delegated listeners (attached once; innerHTML swaps keep these intact)
+$('img-stage').addEventListener('click',e=>{
+  const b=e.target.closest('.wbox'); if(b) psToggleWord(parseInt(b.dataset.i,10));
+});
+$('fld-list').addEventListener('click',e=>{
+  const row=e.target.closest('.fld-row'); if(row) psSelectField(row.dataset.field);
+});
+$('teach-modal').addEventListener('click',e=>{ if(e.target===$('teach-modal')) psCloseModal(); });
+
+document.addEventListener('keydown',e=>{
+  if($('teach-modal').classList.contains('open')){ if(e.key==='Escape') psCloseModal(); return; }
+  if(e.key==='Enter'&&e.target.tagName!=='BUTTON') go();
+});
 </script>
 </body>
 </html>
@@ -743,19 +981,83 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _read_body(self) -> dict:
+        length = int(self.headers.get("Content-Length", 0))
+        return json.loads(self.rfile.read(length))
+
     def do_POST(self) -> None:
         if self.path == "/api/estimate":
-            length = int(self.headers.get("Content-Length", 0))
-            raw = self.rfile.read(length)
             try:
-                data = json.loads(raw)
-                inp = EstimatorInput.from_dict(data)
-                result = estimate(inp)
-                self._send_json(200, result_to_dict(result))
+                inp = EstimatorInput.from_dict(self._read_body())
+                self._send_json(200, result_to_dict(estimate(inp)))
             except (ValueError, TaxDataError, json.JSONDecodeError) as exc:
                 self._send_json(400, {"error": str(exc)})
+        elif self.path == "/api/paystub/layout":
+            self._handle_paystub_layout()
+        elif self.path == "/api/paystub/extract":
+            self._handle_paystub_extract()
         else:
             self.send_error(404)
+
+    # -- paystub import endpoints (optional feature) --------------------
+
+    def _handle_paystub_layout(self) -> None:
+        import base64
+
+        from twe import paystub as ps
+        from twe import profiles as pf
+
+        try:
+            body = self._read_body()
+            data = base64.b64decode(body["data"])
+            layout = ps.extract_layout(data, body.get("media_type", ""))
+            saved = pf.list_profiles()
+            matched = None
+            best = ps.best_profile(layout, saved)
+            if best is not None:
+                matched = {"name": best.name, "extracted": ps.apply_profile(layout, best)}
+            self._send_json(200, {
+                "image": layout.image_png_b64,
+                "img_width": layout.img_width,
+                "img_height": layout.img_height,
+                "words": [w.to_dict() for w in layout.words],
+                "targets": [{"field": f, "label": lbl, "kind": k} for f, lbl, k in ps.TARGET_FIELDS],
+                "profiles": [p.name for p in saved],
+                "matched": matched,
+            })
+        except ps.PaystubError as exc:
+            self._send_json(400, {"error": str(exc)})
+        except (KeyError, ValueError, json.JSONDecodeError) as exc:
+            self._send_json(400, {"error": f"Bad request: {exc}"})
+
+    def _handle_paystub_extract(self) -> None:
+        from twe import paystub as ps
+        from twe import profiles as pf
+
+        try:
+            body = self._read_body()
+            words = [
+                ps.Word(text=w["text"], x0=w["x0"], y0=w["y0"], x1=w["x1"], y1=w["y1"])
+                for w in body["words"]
+            ]
+            assignments = {f: [int(i) for i in idxs] for f, idxs in body["assignments"].items()}
+            rules = ps.build_rules(words, assignments)
+            profile = ps.Profile(
+                name=body.get("name", "").strip() or "Untitled",
+                pay_frequency=body.get("pay_frequency") or None,
+                rules=rules,
+                match_keywords=[k for k in body.get("match_keywords", []) if k],
+            )
+            layout = ps.Layout(image_png_b64="", img_width=0, img_height=0, words=words)
+            extracted = ps.apply_profile(layout, profile)
+
+            saved = False
+            if body.get("save"):
+                pf.save_profile(profile)
+                saved = True
+            self._send_json(200, {"extracted": extracted, "saved": saved, "name": profile.name})
+        except (KeyError, ValueError, json.JSONDecodeError) as exc:
+            self._send_json(400, {"error": f"Bad request: {exc}"})
 
 
 # ---------------------------------------------------------------------------
