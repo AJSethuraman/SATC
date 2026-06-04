@@ -226,13 +226,23 @@ input::placeholder{color:#cbd5e1}
           <label for="tax_year">Tax Year</label>
           <select id="tax_year"></select>
         </div>
+        <div class="f">
+          <label for="job_count">How many jobs / W-2s this year?</label>
+          <select id="job_count" onchange="setJobCount(parseInt(this.value,10))">
+            <option value="1" selected>1 job</option>
+            <option value="2">2 jobs</option>
+            <option value="3">3 jobs</option>
+            <option value="4">4 jobs</option>
+            <option value="5">5 jobs</option>
+          </select>
+          <div class="hint">Each job withholds as if it's your only income, so 2+ jobs usually under-withhold.</div>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Jobs / paystubs (repeatable) -->
   <div id="jobs-container"></div>
-  <button class="btn-sec" id="add-job-btn" onclick="addJob()" style="width:100%;margin-bottom:1rem">&#x2795; Add another job / W-2</button>
 
   <!-- Other Income -->
   <div class="card" id="c_inc">
@@ -560,14 +570,13 @@ function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/
 
 function jobFromBlock(block){
   const q=sel=>block.querySelector(sel);
-  const num=sel=>{const v=q(sel).value.trim();return v===''?null:parseFloat(v);};
+  const num=sel=>{const el=q(sel);if(!el)return null;const v=el.value.trim();return v===''?null:Math.abs(parseFloat(v));};
   const periodsRaw=q('.j-periods').value.trim();
   return {
     pay_frequency: q('.j-freq').value,
-    gross_pay_per_period: num('.j-gross')||0,
+    taxable_wages_per_period: num('.j-taxable'),
     federal_tax_withheld_per_period: num('.j-withheld')||0,
-    retirement_pretax_per_period: num('.j-ret401k')||0,
-    other_pretax_per_period: num('.j-pretax')||0,
+    gross_pay_per_period: num('.j-gross')||0,
     ytd_taxable_wages: num('.j-ytdwages'),
     ytd_federal_tax_withheld: num('.j-ytdwh'),
     pay_periods_remaining: periodsRaw===''?null:parseInt(periodsRaw,10),
@@ -807,23 +816,21 @@ const FREQ_OPTS=[['weekly','Weekly (52/yr)'],['biweekly','Bi-weekly (26/yr)'],
 function jobBlockHtml(){
   const opts=FREQ_OPTS.map(o=>'<option value="'+o[0]+'"'+(o[0]==='biweekly'?' selected':'')+'>'+o[1]+'</option>').join('');
   return '<div class="card job-block">'
-    +'<div class="ch"><span>&#x1F4BC; <span class="job-title">Job 1</span></span>'
-      +'<button type="button" class="job-remove" style="display:none">&times; Remove</button></div>'
+    +'<div class="ch"><span>&#x1F4BC; <span class="job-title">Job 1</span></span></div>'
     +'<div class="cb">'
       +'<div class="fg">'
         +'<div class="f full"><label>Employer / job name (optional)</label><input type="text" class="j-name" placeholder="e.g. Acme Corp"></div>'
+        +'<div class="f"><label>Taxable wages this period ($)</label><input type="number" class="j-taxable" placeholder="e.g. 2,950.00" min="0" step="0.01"><div class="hint">The federal taxable / Box 1 figure on your stub</div></div>'
+        +'<div class="f"><label>Federal tax withheld this period ($)</label><input type="number" class="j-withheld" placeholder="e.g. 410.00" min="0" step="0.01"></div>'
         +'<div class="f"><label>Pay Frequency</label><select class="j-freq">'+opts+'</select></div>'
-        +'<div class="f"><label>Last Pay Date</label><input type="date" class="j-date"><div class="j-badge hint" style="min-height:1.2em"></div></div>'
-        +'<input type="hidden" class="j-periods">'
-        +'<div class="f"><label>Gross Pay Per Period ($)</label><input type="number" class="j-gross" placeholder="e.g. 3,200.00" min="0" step="0.01"></div>'
-        +'<div class="f"><label>Federal Tax Withheld Per Period ($)</label><input type="number" class="j-withheld" placeholder="e.g. 410.00" min="0" step="0.01"></div>'
-        +'<div class="f"><label>Pre-tax 401(k)/403(b) Per Period ($)</label><input type="number" class="j-ret401k" placeholder="e.g. 200.00" min="0" step="0.01"></div>'
-        +'<div class="f"><label>Other Pre-tax (Health/HSA/FSA) Per Period ($)</label><input type="number" class="j-pretax" placeholder="e.g. 150.00" min="0" step="0.01"></div>'
+        +'<div class="f"><label>Pay periods left this year</label><input type="number" class="j-periods" placeholder="auto from date, or type" min="0" max="53" step="1"><div class="hint">Blank = assume a full year</div></div>'
+        +'<div class="f full"><label>Last pay date (optional &mdash; auto-fills periods)</label><input type="date" class="j-date"><div class="j-badge hint" style="min-height:1.1em"></div></div>'
       +'</div>'
-      +'<div class="sub-box"><div class="sub-label">Year-to-Date &mdash; for mid-year estimates</div><div class="fg">'
-        +'<div class="f"><label>YTD Taxable Wages ($)</label><input type="number" class="j-ytdwages" placeholder="From last paystub" min="0" step="0.01"></div>'
-        +'<div class="f"><label>YTD Federal Tax Withheld ($)</label><input type="number" class="j-ytdwh" placeholder="From last paystub" min="0" step="0.01"></div>'
+      +'<div class="sub-box"><div class="sub-label">Year-to-date &mdash; optional, improves a mid-year estimate</div><div class="fg">'
+        +'<div class="f"><label>YTD taxable wages ($)</label><input type="number" class="j-ytdwages" placeholder="if your stub shows it" min="0" step="0.01"></div>'
+        +'<div class="f"><label>YTD federal tax withheld ($)</label><input type="number" class="j-ytdwh" placeholder="if your stub shows it" min="0" step="0.01"></div>'
       +'</div></div>'
+      +'<input type="hidden" class="j-gross" value="">'
       +'<div class="adjust-row" style="display:none"><label><input type="radio" name="adjust_job" class="j-adjust"> Apply the extra-withholding recommendation to <strong>this</strong> job&rsquo;s W-4</label></div>'
     +'</div></div>';
 }
@@ -833,11 +840,18 @@ function addJob(){
   wrap.innerHTML=jobBlockHtml();
   const block=wrap.firstChild;
   $('jobs-container').appendChild(block);
-  // Wire per-block listeners
   block.querySelector('.j-freq').addEventListener('change',()=>updateJobPeriods(block));
   block.querySelector('.j-date').addEventListener('change',()=>updateJobPeriods(block));
-  block.querySelector('.job-remove').addEventListener('click',()=>{ block.remove(); renumberJobs(); });
   updateJobPeriods(block);
+  renumberJobs();
+}
+
+function setJobCount(n){
+  n=Math.max(1,Math.min(5,n||1));
+  let blocks=document.querySelectorAll('.job-block');
+  while(blocks.length<n){ addJob(); blocks=document.querySelectorAll('.job-block'); }
+  while(blocks.length>n){ blocks[blocks.length-1].remove(); blocks=document.querySelectorAll('.job-block'); }
+  const sel=$('job_count'); if(sel) sel.value=String(n);
   renumberJobs();
 }
 
@@ -847,14 +861,11 @@ function renumberJobs(){
   blocks.forEach((b,i)=>{
     const name=b.querySelector('.j-name').value.trim();
     b.querySelector('.job-title').textContent=name?('Job '+(i+1)+': '+name):('Job '+(i+1));
-    b.querySelector('.job-remove').style.display=(i===0)?'none':'inline';
     b.querySelector('.adjust-row').style.display=multi?'block':'none';
     b.querySelector('.j-name').oninput=renumberJobs;
   });
-  // Ensure exactly one adjust radio is checked
   const radios=blocks.map(b=>b.querySelector('.j-adjust'));
   if(radios.length && !radios.some(r=>r.checked)) radios[0].checked=true;
-  // Refresh the import target dropdown
   const sel=$('ps_target_job');
   if(sel){
     const prev=sel.value;
@@ -862,7 +873,7 @@ function renumberJobs(){
       const nm=b.querySelector('.j-name').value.trim();
       return '<option value="'+i+'">'+(nm?('Job '+(i+1)+': '+esc(nm)):('Job '+(i+1)))+'</option>';
     }).join('');
-    if(prev && prev<blocks.length) sel.value=prev;
+    if(prev!==''&&parseInt(prev,10)<blocks.length) sel.value=prev;
     $('ps_target_wrap').style.display=multi?'block':'none';
   }
 }
@@ -871,12 +882,12 @@ function updateJobPeriods(block){
   const freq=block.querySelector('.j-freq').value;
   const dateStr=block.querySelector('.j-date').value;
   const taxYear=parseInt($('tax_year').value,10);
-  const badge=block.querySelector('.j-badge'), hidden=block.querySelector('.j-periods');
-  if(!dateStr){ badge.innerHTML='<span class="hint">Leave blank to assume a full year</span>'; hidden.value=''; return; }
+  const badge=block.querySelector('.j-badge'), periods=block.querySelector('.j-periods');
+  if(!dateStr){ badge.innerHTML=''; return; }
   const n=computeRemaining(freq,dateStr,taxYear);
-  if(n===null){ badge.innerHTML=''; hidden.value=''; return; }
-  badge.innerHTML='<span style="color:#059669;font-weight:600">&#x2192; '+n+' paycheck'+(n!==1?'s':'')+' remaining in '+taxYear+'</span>';
-  hidden.value=n;
+  if(n===null){ badge.innerHTML=''; return; }
+  periods.value=n;  // fill the visible field; the user can still override it
+  badge.innerHTML='<span style="color:#059669;font-weight:600">&#x2192; '+n+' paycheck'+(n!==1?'s':'')+' left in '+taxYear+'</span>';
 }
 
 function updateAllPeriods(){ document.querySelectorAll('.job-block').forEach(updateJobPeriods); }
@@ -933,13 +944,14 @@ function psTargetBlock(){
 function psFill(v){
   const block=psTargetBlock();
   if(!block) return 0;
-  const map={gross_pay_per_period:'.j-gross',federal_tax_withheld_per_period:'.j-withheld',
-    retirement_pretax_per_period:'.j-ret401k',other_pretax_per_period:'.j-pretax',
-    ytd_taxable_wages:'.j-ytdwages',ytd_federal_tax_withheld:'.j-ytdwh',last_pay_date:'.j-date'};
+  const map={taxable_wages_per_period:'.j-taxable',federal_tax_withheld_per_period:'.j-withheld',
+    gross_pay_per_period:'.j-gross',ytd_taxable_wages:'.j-ytdwages',
+    ytd_federal_tax_withheld:'.j-ytdwh',last_pay_date:'.j-date'};
   let n=0;
   for(const k in map){
     const val=v[k];
-    if(val!==undefined&&val!==null&&val!==''){ block.querySelector(map[k]).value=val; n++; }
+    const el=block.querySelector(map[k]);
+    if(el && val!==undefined&&val!==null&&val!==''){ el.value=val; n++; }
   }
   if(v.pay_frequency){ block.querySelector('.j-freq').value=v.pay_frequency; }
   updateJobPeriods(block);

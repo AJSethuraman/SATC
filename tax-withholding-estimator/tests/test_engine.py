@@ -74,6 +74,36 @@ def test_underwithholding_recommends_extra():
     assert r.additional_withholding_per_period == Decimal("137.46")
 
 
+def test_taxable_wages_per_period_used_directly():
+    # Box 1 taxable wages entered directly; gross/pretax ignored.
+    inp = EstimatorInput(
+        filing_status="single",
+        tax_year=2025,
+        paystub=Paystub(
+            pay_frequency="biweekly",
+            taxable_wages_per_period=Decimal("2800"),
+            pay_periods_remaining=26,
+        ),
+    )
+    # 2800 * 26 = 72,800
+    assert estimate(inp).breakdown.projected_taxable_wages == Decimal("72800.00")
+
+
+def test_ytd_only_infers_per_period_and_projects():
+    # No this-period wage, but YTD taxable + periods remaining lets us infer.
+    inp = EstimatorInput(
+        filing_status="single",
+        tax_year=2025,
+        paystub=Paystub(
+            pay_frequency="biweekly",
+            ytd_taxable_wages=Decimal("40000"),   # 20 elapsed periods (26 - 6)
+            pay_periods_remaining=6,
+        ),
+    )
+    # per-period inferred = 40000 / 20 = 2000; projected = 40000 + 2000*6 = 52,000
+    assert estimate(inp).breakdown.projected_taxable_wages == Decimal("52000.00")
+
+
 def test_pretax_reduces_taxable_wages():
     inp = _wages_only_single()
     inp.paystub.retirement_pretax_per_period = Decimal("300")

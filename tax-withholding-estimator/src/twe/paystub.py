@@ -29,10 +29,8 @@ class PaystubError(Exception):
 
 # Fields the form can be auto-filled with. (key, human label, kind)
 TARGET_FIELDS: list[tuple[str, str, str]] = [
-    ("gross_pay_per_period", "Gross pay (per period)", "currency"),
-    ("federal_tax_withheld_per_period", "Federal tax withheld (per period)", "currency"),
-    ("retirement_pretax_per_period", "Pre-tax retirement / 401(k) (per period)", "currency"),
-    ("other_pretax_per_period", "Other pre-tax: health/HSA/FSA (per period)", "currency"),
+    ("taxable_wages_per_period", "Taxable wages this period", "currency"),
+    ("federal_tax_withheld_per_period", "Federal tax withheld this period", "currency"),
     ("ytd_taxable_wages", "YTD taxable wages", "currency"),
     ("ytd_federal_tax_withheld", "YTD federal tax withheld", "currency"),
     ("last_pay_date", "Pay date", "date"),
@@ -173,7 +171,11 @@ def _parse_value(text: str, kind: str) -> str | None:
     if kind == "date":
         return parse_date(text)
     value = parse_currency(text)
-    return None if value is None else f"{value:.2f}"
+    if value is None:
+        return None
+    # Paystubs often show withholdings/deductions as negatives (e.g. -951.36).
+    # Every field we capture is a magnitude, so normalize to the absolute value.
+    return f"{abs(value):.2f}"
 
 
 # ---------------------------------------------------------------------------
@@ -281,7 +283,7 @@ def _read_by_label(words: list[Word], rule: FieldRule) -> str | None:
                 if numeric:
                     # Pick the numeric candidate whose column matches what was taught.
                     best = min(numeric, key=lambda w: abs(w.cx - region_cx))
-                    return f"{parse_currency(best.text):.2f}"
+                    return _parse_value(best.text, "currency")
     return None
 
 

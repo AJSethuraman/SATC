@@ -58,6 +58,28 @@ def test_label_not_merged_into_number():
     assert _texts(items) == ["Federal", "410.00"]
 
 
+# -- negative paystub values become magnitudes ------------------------------
+
+
+def test_negative_withholding_read_as_positive():
+    # Paystubs show deductions/withholding as negatives, e.g. -951.36.
+    words = [
+        Word("Federal", 0.05, 0.20, 0.15, 0.23),
+        Word("Tax", 0.16, 0.20, 0.22, 0.23),
+        Word("-951.36", 0.40, 0.20, 0.55, 0.23),
+    ]
+    rule = FieldRule("federal_tax_withheld_per_period", "currency",
+                     region=[0.40, 0.20, 0.55, 0.23], label_text="Federal Tax")
+    assert apply_rule(words, rule) == "951.36"
+
+
+def test_parentheses_negative_read_as_positive():
+    words = [Word("(1,234.00)", 0.40, 0.20, 0.55, 0.23)]
+    rule = FieldRule("federal_tax_withheld_per_period", "currency",
+                     region=[0.40, 0.20, 0.55, 0.23], label_text="")
+    assert apply_rule(words, rule) == "1234.00"
+
+
 # -- currency parsing -------------------------------------------------------
 
 

@@ -75,6 +75,7 @@ class Paystub:
     """
 
     pay_frequency: PayFrequency
+    taxable_wages_per_period: Decimal | None = None  # federal taxable (Box 1) this period — preferred
     gross_pay_per_period: Decimal = ZERO
     federal_tax_withheld_per_period: Decimal = ZERO
     retirement_pretax_per_period: Decimal = ZERO
@@ -91,6 +92,14 @@ class Paystub:
 
     @property
     def taxable_pay_per_period(self) -> Decimal:
+        """Federal taxable wages for one paycheck.
+
+        Uses the explicit ``taxable_wages_per_period`` (Box 1) when given,
+        otherwise derives it from gross minus pre-tax deductions.
+        """
+
+        if self.taxable_wages_per_period is not None:
+            return self.taxable_wages_per_period
         return (
             self.gross_pay_per_period
             - self.retirement_pretax_per_period
@@ -271,7 +280,7 @@ def _build(model: type, data: dict[str, Any], decimal_fields: Any) -> Any:
     for key, value in data.items():
         if key == "pay_periods_remaining":
             kwargs[key] = None if value is None else int(value)
-        elif key in ("ytd_taxable_wages", "ytd_federal_tax_withheld"):
+        elif key in ("ytd_taxable_wages", "ytd_federal_tax_withheld", "taxable_wages_per_period"):
             kwargs[key] = _opt_decimal(value)
         elif key == "pay_frequency":
             kwargs[key] = value

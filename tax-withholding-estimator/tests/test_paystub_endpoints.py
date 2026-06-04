@@ -60,7 +60,7 @@ def test_layout_extract_and_automatch(server):
     status, layout = _post(server, "/api/paystub/layout", {"data": pdf, "media_type": "application/pdf"})
     assert status == 200
     assert len(layout["words"]) > 0
-    assert len(layout["targets"]) == 7
+    assert len(layout["targets"]) == 5
     assert layout["matched"] is None  # nothing learned yet
 
     words = layout["words"]
@@ -71,7 +71,7 @@ def test_layout_extract_and_automatch(server):
     status, extracted = _post(server, "/api/paystub/extract", {
         "words": words,
         "assignments": {
-            "gross_pay_per_period": [idx("3,200.00")],
+            "taxable_wages_per_period": [idx("3,200.00")],
             "federal_tax_withheld_per_period": [idx("410.00")],
             "ytd_taxable_wages": [idx("38,400.00")],
             "last_pay_date": [idx("06/30/2025")],
@@ -83,7 +83,7 @@ def test_layout_extract_and_automatch(server):
     })
     assert status == 200
     assert extracted["saved"] is True
-    assert extracted["extracted"]["gross_pay_per_period"] == "3200.00"
+    assert extracted["extracted"]["taxable_wages_per_period"] == "3200.00"
     assert extracted["extracted"]["ytd_taxable_wages"] == "38400.00"
     assert extracted["extracted"]["last_pay_date"] == "2025-06-30"
     assert extracted["extracted"]["pay_frequency"] == "biweekly"

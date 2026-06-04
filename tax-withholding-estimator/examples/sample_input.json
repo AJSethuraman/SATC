@@ -3,10 +3,8 @@
   "tax_year": 2025,
   "paystub": {
     "pay_frequency": "biweekly",
-    "gross_pay_per_period": 3200,
+    "taxable_wages_per_period": 2950,
     "federal_tax_withheld_per_period": 410,
-    "retirement_pretax_per_period": 160,
-    "other_pretax_per_period": 90,
     "ytd_taxable_wages": 35100,
     "ytd_federal_tax_withheld": 4920,
     "pay_periods_remaining": 14

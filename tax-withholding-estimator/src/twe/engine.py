@@ -79,7 +79,12 @@ def _project_job(job: Paystub) -> tuple[Decimal, Decimal, Decimal, int, int]:
     remaining = max(0, min(remaining, periods_per_year))
     elapsed = periods_per_year - remaining
 
+    # Per-period taxable wages: prefer the explicit figure / gross-minus-pretax;
+    # otherwise infer it from YTD taxable wages spread over elapsed periods.
     per_period = job.taxable_pay_per_period
+    if per_period == ZERO and job.ytd_taxable_wages is not None and elapsed > 0:
+        per_period = job.ytd_taxable_wages / elapsed
+
     if job.ytd_taxable_wages is not None:
         ytd_wages = job.ytd_taxable_wages
     else:

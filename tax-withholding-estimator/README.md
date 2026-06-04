@@ -166,13 +166,12 @@ A scenario file looks like this (see `examples/sample_input.json`):
 | (top) | `target_refund` | Desired refund; `0` = break even |
 | (top) | `prior_year_tax` / `prior_year_agi` | Enable the safe-harbor calculation |
 | `paystub` | `pay_frequency` | `weekly`, `biweekly`, `semimonthly`, `monthly`, `annual` |
-| `paystub` | `gross_pay_per_period` | Gross pay shown on the stub |
+| `paystub` | `taxable_wages_per_period` | **Preferred.** Federal taxable (Box 1) wages this period |
 | `paystub` | `federal_tax_withheld_per_period` | Federal income tax withheld per check |
-| `paystub` | `retirement_pretax_per_period` | Pre-tax 401(k)/403(b) per check (reduces taxable wages) |
-| `paystub` | `other_pretax_per_period` | Other pre-tax (health, HSA, FSA) per check |
-| `paystub` | `ytd_taxable_wages` | Year-to-date federal taxable (Box 1-style) wages |
-| `paystub` | `ytd_federal_tax_withheld` | Year-to-date federal tax withheld |
-| `paystub` | `pay_periods_remaining` | Pay periods left this year |
+| `paystub` | `pay_periods_remaining` | Pay periods left this year (auto-computed from a pay date in the UI) |
+| `paystub` | `ytd_taxable_wages` | Optional. YTD taxable wages — improves a mid-year estimate |
+| `paystub` | `ytd_federal_tax_withheld` | Optional. YTD federal tax withheld |
+| `paystub` | `gross_pay_per_period` + `retirement_pretax_per_period` + `other_pretax_per_period` | Fallback if you only have gross: taxable wages = gross − pre-tax |
 | `other_income` | interest, dividends, `qualified_dividends`, `taxable_retirement_distributions`, capital gains, `self_employment_net`, `spouse_taxable_wages`, `spouse_federal_tax_withheld`, … | Annual amounts |
 | `adjustments` | IRA, HSA, student-loan interest, other | Above-the-line, annual |
 | `deductions` | `itemized_total` (null = standard), `extra_standard_deductions` | |
