@@ -20,6 +20,8 @@ from decimal import ROUND_HALF_UP, Decimal
 from twe.models import (
     EstimateResult,
     EstimatorInput,
+    JobProjection,
+    Paystub,
     TaxBreakdown,
     WithholdingRecommendation,
     ZERO,
@@ -63,25 +65,39 @@ def estimate(inp: EstimatorInput) -> EstimateResult:
 # ---------------------------------------------------------------------------
 
 
-def _project_wages(inp: EstimatorInput) -> tuple[Decimal, int, int]:
-    """Project full-year taxable wages and return (wages, elapsed, remaining)."""
+def _project_job(job: Paystub) -> tuple[Decimal, Decimal, Decimal, int, int]:
+    """Project one job.
 
-    pay = inp.paystub
-    periods_per_year = pay.periods_per_year
-    remaining = pay.pay_periods_remaining
+    Returns ``(taxable_wages, ytd_withholding, projected_withholding,
+    elapsed, remaining)``.
+    """
+
+    periods_per_year = job.periods_per_year
+    remaining = job.pay_periods_remaining
     if remaining is None:
         remaining = periods_per_year
     remaining = max(0, min(remaining, periods_per_year))
     elapsed = periods_per_year - remaining
 
-    per_period = pay.taxable_pay_per_period
-    if pay.ytd_taxable_wages is not None:
-        ytd = pay.ytd_taxable_wages
+    per_period = job.taxable_pay_per_period
+    if job.ytd_taxable_wages is not None:
+        ytd_wages = job.ytd_taxable_wages
     else:
-        ytd = per_period * elapsed
+        ytd_wages = per_period * elapsed
+    projected_wages = ytd_wages + per_period * remaining
 
-    projected = ytd + per_period * remaining
-    return projected, elapsed, remaining
+    per_period_wh = job.federal_tax_withheld_per_period
+    if job.ytd_federal_tax_withheld is not None:
+        ytd_wh = job.ytd_federal_tax_withheld
+    else:
+        ytd_wh = per_period_wh * elapsed
+    projected_wh = ytd_wh + per_period_wh * remaining
+
+    return projected_wages, ytd_wh, projected_wh, elapsed, remaining
+
+
+def _total_projected_wages(inp: EstimatorInput) -> Decimal:
+    return sum((_project_job(job)[0] for job in inp.jobs), ZERO)
 
 
 def _build_breakdown(inp: EstimatorInput, tables: TaxTables) -> tuple[TaxBreakdown, list[str]]:
@@ -89,7 +105,7 @@ def _build_breakdown(inp: EstimatorInput, tables: TaxTables) -> tuple[TaxBreakdo
     oi = inp.other_income
     status = inp.filing_status
 
-    projected_wages, _, _ = _project_wages(inp)
+    projected_wages = _total_projected_wages(inp)
 
     # --- self-employment tax (needed before AGI for the 1/2 SE deduction) ---
     se_tax, half_se = _self_employment_tax(oi.self_employment_net, projected_wages, tables)
@@ -314,17 +330,10 @@ def _build_recommendation(
     tables: TaxTables,
     breakdown: TaxBreakdown,
 ) -> WithholdingRecommendation:
-    pay = inp.paystub
-    _, elapsed, remaining = _project_wages(inp)
-    periods_per_year = pay.periods_per_year
-
-    per_period_wh = pay.federal_tax_withheld_per_period
-    if pay.ytd_federal_tax_withheld is not None:
-        ytd_wh = pay.ytd_federal_tax_withheld
-    else:
-        ytd_wh = per_period_wh * elapsed
-
-    projected_wh_current = ytd_wh + per_period_wh * remaining
+    # Project every job once.
+    projections = [(job, *_project_job(job)) for job in inp.jobs]
+    total_ytd_wh = sum((p[2] for p in projections), ZERO)
+    total_projected_wh = sum((p[3] for p in projections), ZERO)
 
     other_payments_total = (
         inp.other_payments.estimated_tax_payments
@@ -333,48 +342,74 @@ def _build_recommendation(
     )
 
     liability = breakdown.total_tax_liability
-    projected_total_payments = projected_wh_current + other_payments_total
+    projected_total_payments = total_projected_wh + other_payments_total
     projected_balance = projected_total_payments - liability
 
-    # What still needs to come out of remaining paychecks to hit the target.
-    target = inp.target_refund
-    required_total_payments = liability + target
-    already_secured = ytd_wh + other_payments_total
-    required_remaining = required_total_payments - already_secured
+    # The job whose W-4 we adjust; the others keep withholding at their current rate.
+    adjusted = inp.adjusted_job()
+    adjusted_idx = next(i for i, p in enumerate(projections) if p[0] is adjusted)
+    _, _, a_ytd_wh, a_proj_wh, a_elapsed, a_remaining = projections[adjusted_idx]
+    a_per_period_wh = adjusted.federal_tax_withheld_per_period
+    a_ppy = adjusted.periods_per_year
 
-    if remaining > 0:
-        recommended_per_period = required_remaining / remaining
+    # Future withholding the *other* jobs will contribute at their current rate.
+    others_future_wh = sum(
+        (p[3] - p[2] for i, p in enumerate(projections) if i != adjusted_idx),
+        ZERO,
+    )
+
+    target = inp.target_refund
+    already_secured = total_ytd_wh + other_payments_total
+    # What the adjusted job's remaining paychecks must still produce.
+    required_from_adjusted = (liability + target) - already_secured - others_future_wh
+
+    if a_remaining > 0:
+        recommended_per_period = required_from_adjusted / a_remaining
     else:
         recommended_per_period = ZERO
 
-    additional_per_period = recommended_per_period - per_period_wh
+    additional_per_period = recommended_per_period - a_per_period_wh
     is_over = recommended_per_period < ZERO or additional_per_period < ZERO
 
     safe_harbor_target = None
     safe_harbor_additional = None
     if inp.prior_year_tax is not None:
         safe_harbor_target = _safe_harbor_target(inp, tables, liability)
-        sh_required_remaining = safe_harbor_target - already_secured
-        if remaining > 0:
-            sh_per_period = sh_required_remaining / remaining
-            safe_harbor_additional = _money(_nonneg(sh_per_period - per_period_wh))
+        sh_required = safe_harbor_target - already_secured - others_future_wh
+        if a_remaining > 0:
+            sh_per_period = sh_required / a_remaining
+            safe_harbor_additional = _money(_nonneg(sh_per_period - a_per_period_wh))
+
+    job_breakdown = [
+        JobProjection(
+            name=job.name or f"Job {i + 1}",
+            pay_frequency=job.pay_frequency,
+            periods_per_year=job.periods_per_year,
+            periods_remaining=remaining,
+            projected_taxable_wages=_money(wages),
+            projected_withholding=_money(proj_wh),
+        )
+        for i, (job, wages, _ytd_wh, proj_wh, _elapsed, remaining) in enumerate(projections)
+    ]
 
     return WithholdingRecommendation(
-        periods_per_year=periods_per_year,
-        periods_remaining=remaining,
-        periods_elapsed=elapsed,
-        ytd_withholding=_money(ytd_wh),
-        projected_withholding_current_rate=_money(projected_wh_current),
+        periods_per_year=a_ppy,
+        periods_remaining=a_remaining,
+        periods_elapsed=a_elapsed,
+        ytd_withholding=_money(total_ytd_wh),
+        projected_withholding_current_rate=_money(total_projected_wh),
         other_payments_total=_money(other_payments_total),
         projected_total_payments=_money(projected_total_payments),
         projected_balance=_money(projected_balance),
         target_refund=_money(target),
-        required_remaining_withholding=_money(_nonneg(required_remaining)),
+        required_remaining_withholding=_money(_nonneg(required_from_adjusted)),
         recommended_withholding_per_period=_money(_nonneg(recommended_per_period)),
         additional_withholding_per_period=_money(_nonneg(additional_per_period)),
         is_over_withholding=is_over,
         safe_harbor_target=_money(safe_harbor_target) if safe_harbor_target is not None else None,
         safe_harbor_additional_per_period=safe_harbor_additional,
+        adjusted_job_name=job_breakdown[adjusted_idx].name,
+        job_breakdown=job_breakdown,
     )
 
 

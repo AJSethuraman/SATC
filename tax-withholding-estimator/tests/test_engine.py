@@ -209,6 +209,93 @@ def test_unknown_year_falls_back_with_note():
     assert any("not bundled" in note for note in result.notes)
 
 
+def _two_jobs_single() -> EstimatorInput:
+    return EstimatorInput(
+        filing_status="single",
+        tax_year=2025,
+        paystub=Paystub(
+            pay_frequency="biweekly",
+            gross_pay_per_period=Decimal("3000"),
+            federal_tax_withheld_per_period=Decimal("350"),
+            pay_periods_remaining=26,
+            name="Main job",
+            adjust_withholding=True,
+        ),
+        additional_jobs=[Paystub(
+            pay_frequency="biweekly",
+            gross_pay_per_period=Decimal("2000"),
+            federal_tax_withheld_per_period=Decimal("150"),
+            pay_periods_remaining=26,
+            name="Side job",
+        )],
+    )
+
+
+def test_two_jobs_sum_wages_and_withholding():
+    result = estimate(_two_jobs_single())
+    b, r = result.breakdown, result.recommendation
+    assert b.projected_taxable_wages == Decimal("130000.00")   # 3000*26 + 2000*26
+    assert b.taxable_income == Decimal("115000.00")
+    # 10%*11925 + 12%*36550 + 22%*54875 + 24%*11650 = 20447.00
+    assert b.total_tax_liability == Decimal("20447.00")
+    assert r.projected_withholding_current_rate == Decimal("13000.00")  # (350+150)*26
+    assert r.projected_balance == Decimal("-7447.00")  # under-withheld
+
+
+def test_two_jobs_recommendation_targets_adjusted_job():
+    result = estimate(_two_jobs_single())
+    r = result.recommendation
+    assert r.adjusted_job_name == "Main job"
+    assert r.periods_remaining == 26  # the main job's periods
+    # Side job contributes 3,900 future; main must cover 20447 - 3900 = 16547 over 26.
+    assert r.recommended_withholding_per_period == Decimal("636.42")
+    assert r.additional_withholding_per_period == Decimal("286.42")  # 636.42 - 350
+    assert r.is_over_withholding is False
+
+
+def test_job_breakdown_lists_each_job():
+    result = estimate(_two_jobs_single())
+    jb = result.recommendation.job_breakdown
+    assert [j.name for j in jb] == ["Main job", "Side job"]
+    assert jb[0].projected_taxable_wages == Decimal("78000.00")
+    assert jb[0].projected_withholding == Decimal("9100.00")
+    assert jb[1].projected_taxable_wages == Decimal("52000.00")
+    assert jb[1].projected_withholding == Decimal("3900.00")
+
+
+def test_adjust_flag_defaults_to_primary_job():
+    inp = _two_jobs_single()
+    inp.paystub.adjust_withholding = False  # no job flagged
+    result = estimate(inp)
+    assert result.recommendation.adjusted_job_name == "Main job"  # primary by default
+
+
+def test_jobs_list_form_in_from_dict():
+    inp = EstimatorInput.from_dict({
+        "filing_status": "single",
+        "jobs": [
+            {"pay_frequency": "biweekly", "gross_pay_per_period": 3000,
+             "federal_tax_withheld_per_period": 350, "pay_periods_remaining": 26,
+             "name": "A", "adjust_withholding": True},
+            {"pay_frequency": "biweekly", "gross_pay_per_period": 2000,
+             "federal_tax_withheld_per_period": 150, "pay_periods_remaining": 26, "name": "B"},
+        ],
+    })
+    assert len(inp.jobs) == 2
+    assert inp.adjusted_job().name == "A"
+    result = estimate(inp)
+    assert result.breakdown.projected_taxable_wages == Decimal("130000.00")
+
+
+def test_jobs_and_paystub_conflict_raises():
+    with pytest.raises(ValueError, match="not both"):
+        EstimatorInput.from_dict({
+            "filing_status": "single",
+            "paystub": {"pay_frequency": "weekly"},
+            "jobs": [{"pay_frequency": "weekly"}],
+        })
+
+
 @pytest.mark.parametrize("status", [
     "single", "married_jointly", "married_separately", "head_of_household",
 ])

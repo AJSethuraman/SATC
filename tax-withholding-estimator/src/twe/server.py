@@ -119,6 +119,12 @@ input::placeholder{color:#cbd5e1}
 .ps-status{font-size:.8rem;margin-top:.6rem;min-height:1.2em}
 .ps-chip{display:inline-flex;align-items:center;gap:.3rem;background:#f0fdfa;color:#0f766e;border:1px solid #ccfbf1;border-radius:14px;padding:.15rem .6rem;font-size:.72rem;font-weight:500;margin:.15rem .2rem 0 0}
 .linkbtn{background:none;border:none;color:#0f766e;font-weight:600;cursor:pointer;font-size:.8rem;text-decoration:underline;padding:0}
+/* ---- repeatable job blocks ---- */
+.job-block .ch{background:#eff6ff;color:#1d4ed8;border-bottom:1px solid #dbeafe}
+.job-remove{background:none;border:none;color:#ef4444;cursor:pointer;font-size:.74rem;font-weight:600}
+.job-remove:hover{text-decoration:underline}
+.adjust-row{margin-top:.7rem;background:#eff6ff;border:1px solid #dbeafe;border-radius:7px;padding:.55rem .7rem;font-size:.78rem;color:#1e40af}
+.adjust-row label{display:flex;align-items:center;gap:.45rem;cursor:pointer;font-weight:500}
 /* ---- teach modal ---- */
 .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1000;display:none;align-items:stretch;justify-content:center;padding:1.5rem}
 .modal-bg.open{display:flex}
@@ -187,6 +193,10 @@ input::placeholder{color:#cbd5e1}
         <div class="s">PDF works best (exact text). Images need Tesseract OCR installed.</div>
         <input type="file" id="ps_file" accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf" style="display:none" onchange="psUpload(this.files[0])">
       </div>
+      <div class="f" id="ps_target_wrap" style="margin-top:.6rem;display:none">
+        <label for="ps_target_job">Fill imported values into</label>
+        <select id="ps_target_job"></select>
+      </div>
       <div class="ps-status" id="ps_status"></div>
       <div style="margin-top:.6rem">
         <button class="linkbtn" id="ps_manage_btn" onclick="psManageOpen()">Manage saved profiles</button>
@@ -217,59 +227,9 @@ input::placeholder{color:#cbd5e1}
     </div>
   </div>
 
-  <!-- Paystub -->
-  <div class="card">
-    <div class="ch">&#x1F4B0; Paystub</div>
-    <div class="cb">
-      <div class="fg">
-        <div class="f">
-          <label for="pay_freq">Pay Frequency</label>
-          <select id="pay_freq">
-            <option value="weekly">Weekly (52/yr)</option>
-            <option value="biweekly" selected>Bi-weekly (26/yr)</option>
-            <option value="semimonthly">Semi-monthly (24/yr)</option>
-            <option value="monthly">Monthly (12/yr)</option>
-            <option value="annual">Annual (1/yr)</option>
-          </select>
-        </div>
-        <div class="f">
-          <label for="last_pay_date">Last Pay Date</label>
-          <input type="date" id="last_pay_date">
-          <div id="periods_badge" class="hint" style="min-height:1.2em"></div>
-        </div>
-        <input type="hidden" id="periods_left">
-        <div class="f">
-          <label for="gross">Gross Pay Per Period ($)</label>
-          <input type="number" id="gross" placeholder="e.g. 3,200.00" min="0" step="0.01">
-        </div>
-        <div class="f">
-          <label for="withheld">Federal Tax Withheld Per Period ($)</label>
-          <input type="number" id="withheld" placeholder="e.g. 410.00" min="0" step="0.01">
-        </div>
-        <div class="f">
-          <label for="ret401k">Pre-tax 401(k)/403(b) Per Period ($)</label>
-          <input type="number" id="ret401k" placeholder="e.g. 200.00" min="0" step="0.01">
-        </div>
-        <div class="f">
-          <label for="pretax_other">Other Pre-tax (Health/HSA/FSA) Per Period ($)</label>
-          <input type="number" id="pretax_other" placeholder="e.g. 150.00" min="0" step="0.01">
-        </div>
-      </div>
-      <div class="sub-box">
-        <div class="sub-label">Year-to-Date &mdash; for mid-year estimates</div>
-        <div class="fg">
-          <div class="f">
-            <label for="ytd_wages">YTD Taxable Wages ($)</label>
-            <input type="number" id="ytd_wages" placeholder="From last paystub" min="0" step="0.01">
-          </div>
-          <div class="f">
-            <label for="ytd_wh">YTD Federal Tax Withheld ($)</label>
-            <input type="number" id="ytd_wh" placeholder="From last paystub" min="0" step="0.01">
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Jobs / paystubs (repeatable) -->
+  <div id="jobs-container"></div>
+  <button class="btn-sec" id="add-job-btn" onclick="addJob()" style="width:100%;margin-bottom:1rem">&#x2795; Add another job / W-2</button>
 
   <!-- Other Income -->
   <div class="card" id="c_inc">
@@ -595,21 +555,35 @@ function pct(v){ return (parseFloat(v)*100).toFixed(2)+'%'; }
 function z(v){ return parseFloat(v)===0; }
 function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+function jobFromBlock(block){
+  const q=sel=>block.querySelector(sel);
+  const num=sel=>{const v=q(sel).value.trim();return v===''?null:parseFloat(v);};
+  const periodsRaw=q('.j-periods').value.trim();
+  return {
+    pay_frequency: q('.j-freq').value,
+    gross_pay_per_period: num('.j-gross')||0,
+    federal_tax_withheld_per_period: num('.j-withheld')||0,
+    retirement_pretax_per_period: num('.j-ret401k')||0,
+    other_pretax_per_period: num('.j-pretax')||0,
+    ytd_taxable_wages: num('.j-ytdwages'),
+    ytd_federal_tax_withheld: num('.j-ytdwh'),
+    pay_periods_remaining: periodsRaw===''?null:parseInt(periodsRaw,10),
+    name: q('.j-name').value.trim(),
+    adjust_withholding: q('.j-adjust').checked,
+  };
+}
+
 function buildPayload(){
   const isItm = $('ded_itm').checked;
+  const blocks=[...document.querySelectorAll('.job-block')];
+  const jobs=blocks.map(jobFromBlock);
+  // Guarantee one job is flagged for adjustment.
+  if(jobs.length && !jobs.some(j=>j.adjust_withholding)) jobs[0].adjust_withholding=true;
   return {
     filing_status: document.querySelector('input[name="fs"]:checked').value,
     tax_year: parseInt($('tax_year').value,10),
-    paystub:{
-      pay_frequency: $('pay_freq').value,
-      gross_pay_per_period: numVal('gross')||0,
-      federal_tax_withheld_per_period: numVal('withheld')||0,
-      retirement_pretax_per_period: numVal('ret401k')||0,
-      other_pretax_per_period: numVal('pretax_other')||0,
-      ytd_taxable_wages: numVal('ytd_wages'),
-      ytd_federal_tax_withheld: numVal('ytd_wh'),
-      pay_periods_remaining: intVal('periods_left'),
-    },
+    paystub: jobs[0],
+    additional_jobs: jobs.slice(1),
     other_income:{
       taxable_retirement_distributions: numVal('ira_dist')||0,
       taxable_social_security: numVal('soc_sec')||0,
@@ -823,11 +797,78 @@ function computeRemaining(freq,dateStr,taxYear){
   return count;
 }
 
-function updatePeriods(){
-  const freq=$('pay_freq').value;
-  const dateStr=$('last_pay_date').value;
+// ===== Repeatable job blocks =====
+const FREQ_OPTS=[['weekly','Weekly (52/yr)'],['biweekly','Bi-weekly (26/yr)'],
+  ['semimonthly','Semi-monthly (24/yr)'],['monthly','Monthly (12/yr)'],['annual','Annual (1/yr)']];
+
+function jobBlockHtml(){
+  const opts=FREQ_OPTS.map(o=>'<option value="'+o[0]+'"'+(o[0]==='biweekly'?' selected':'')+'>'+o[1]+'</option>').join('');
+  return '<div class="card job-block">'
+    +'<div class="ch"><span>&#x1F4BC; <span class="job-title">Job 1</span></span>'
+      +'<button type="button" class="job-remove" style="display:none">&times; Remove</button></div>'
+    +'<div class="cb">'
+      +'<div class="fg">'
+        +'<div class="f full"><label>Employer / job name (optional)</label><input type="text" class="j-name" placeholder="e.g. Acme Corp"></div>'
+        +'<div class="f"><label>Pay Frequency</label><select class="j-freq">'+opts+'</select></div>'
+        +'<div class="f"><label>Last Pay Date</label><input type="date" class="j-date"><div class="j-badge hint" style="min-height:1.2em"></div></div>'
+        +'<input type="hidden" class="j-periods">'
+        +'<div class="f"><label>Gross Pay Per Period ($)</label><input type="number" class="j-gross" placeholder="e.g. 3,200.00" min="0" step="0.01"></div>'
+        +'<div class="f"><label>Federal Tax Withheld Per Period ($)</label><input type="number" class="j-withheld" placeholder="e.g. 410.00" min="0" step="0.01"></div>'
+        +'<div class="f"><label>Pre-tax 401(k)/403(b) Per Period ($)</label><input type="number" class="j-ret401k" placeholder="e.g. 200.00" min="0" step="0.01"></div>'
+        +'<div class="f"><label>Other Pre-tax (Health/HSA/FSA) Per Period ($)</label><input type="number" class="j-pretax" placeholder="e.g. 150.00" min="0" step="0.01"></div>'
+      +'</div>'
+      +'<div class="sub-box"><div class="sub-label">Year-to-Date &mdash; for mid-year estimates</div><div class="fg">'
+        +'<div class="f"><label>YTD Taxable Wages ($)</label><input type="number" class="j-ytdwages" placeholder="From last paystub" min="0" step="0.01"></div>'
+        +'<div class="f"><label>YTD Federal Tax Withheld ($)</label><input type="number" class="j-ytdwh" placeholder="From last paystub" min="0" step="0.01"></div>'
+      +'</div></div>'
+      +'<div class="adjust-row" style="display:none"><label><input type="radio" name="adjust_job" class="j-adjust"> Apply the extra-withholding recommendation to <strong>this</strong> job&rsquo;s W-4</label></div>'
+    +'</div></div>';
+}
+
+function addJob(){
+  const wrap=document.createElement('div');
+  wrap.innerHTML=jobBlockHtml();
+  const block=wrap.firstChild;
+  $('jobs-container').appendChild(block);
+  // Wire per-block listeners
+  block.querySelector('.j-freq').addEventListener('change',()=>updateJobPeriods(block));
+  block.querySelector('.j-date').addEventListener('change',()=>updateJobPeriods(block));
+  block.querySelector('.job-remove').addEventListener('click',()=>{ block.remove(); renumberJobs(); });
+  updateJobPeriods(block);
+  renumberJobs();
+}
+
+function renumberJobs(){
+  const blocks=[...document.querySelectorAll('.job-block')];
+  const multi=blocks.length>1;
+  blocks.forEach((b,i)=>{
+    const name=b.querySelector('.j-name').value.trim();
+    b.querySelector('.job-title').textContent=name?('Job '+(i+1)+': '+name):('Job '+(i+1));
+    b.querySelector('.job-remove').style.display=(i===0)?'none':'inline';
+    b.querySelector('.adjust-row').style.display=multi?'block':'none';
+    b.querySelector('.j-name').oninput=renumberJobs;
+  });
+  // Ensure exactly one adjust radio is checked
+  const radios=blocks.map(b=>b.querySelector('.j-adjust'));
+  if(radios.length && !radios.some(r=>r.checked)) radios[0].checked=true;
+  // Refresh the import target dropdown
+  const sel=$('ps_target_job');
+  if(sel){
+    const prev=sel.value;
+    sel.innerHTML=blocks.map((b,i)=>{
+      const nm=b.querySelector('.j-name').value.trim();
+      return '<option value="'+i+'">'+(nm?('Job '+(i+1)+': '+esc(nm)):('Job '+(i+1)))+'</option>';
+    }).join('');
+    if(prev && prev<blocks.length) sel.value=prev;
+    $('ps_target_wrap').style.display=multi?'block':'none';
+  }
+}
+
+function updateJobPeriods(block){
+  const freq=block.querySelector('.j-freq').value;
+  const dateStr=block.querySelector('.j-date').value;
   const taxYear=parseInt($('tax_year').value,10);
-  const badge=$('periods_badge'), hidden=$('periods_left');
+  const badge=block.querySelector('.j-badge'), hidden=block.querySelector('.j-periods');
   if(!dateStr){ badge.innerHTML='<span class="hint">Leave blank to assume a full year</span>'; hidden.value=''; return; }
   const n=computeRemaining(freq,dateStr,taxYear);
   if(n===null){ badge.innerHTML=''; hidden.value=''; return; }
@@ -835,11 +876,10 @@ function updatePeriods(){
   hidden.value=n;
 }
 
-$('pay_freq').addEventListener('change',updatePeriods);
-$('last_pay_date').addEventListener('change',updatePeriods);
-$('tax_year').addEventListener('change',updatePeriods);
-// Show default hint before a date is entered
-$('periods_badge').innerHTML='<span class="hint">Leave blank to assume a full year</span>';
+function updateAllPeriods(){ document.querySelectorAll('.job-block').forEach(updateJobPeriods); }
+
+$('tax_year').addEventListener('change',updateAllPeriods);
+addJob();  // render the first job on load
 
 // ===== Paystub import & teach UI =====
 let psState=null;
@@ -880,24 +920,35 @@ async function psUpload(file){
   }catch(e){ s.innerHTML='<span style="color:#dc2626">&#x26A0; '+esc(e.message)+'</span>'; }
 }
 
+function psTargetBlock(){
+  const blocks=[...document.querySelectorAll('.job-block')];
+  const sel=$('ps_target_job');
+  const i=sel && sel.value!=='' ? parseInt(sel.value,10) : 0;
+  return blocks[i] || blocks[0];
+}
+
 function psFill(v){
-  const map={gross_pay_per_period:'gross',federal_tax_withheld_per_period:'withheld',
-    retirement_pretax_per_period:'ret401k',other_pretax_per_period:'pretax_other',
-    ytd_taxable_wages:'ytd_wages',ytd_federal_tax_withheld:'ytd_wh',last_pay_date:'last_pay_date'};
+  const block=psTargetBlock();
+  if(!block) return 0;
+  const map={gross_pay_per_period:'.j-gross',federal_tax_withheld_per_period:'.j-withheld',
+    retirement_pretax_per_period:'.j-ret401k',other_pretax_per_period:'.j-pretax',
+    ytd_taxable_wages:'.j-ytdwages',ytd_federal_tax_withheld:'.j-ytdwh',last_pay_date:'.j-date'};
   let n=0;
   for(const k in map){
     const val=v[k];
-    if(val!==undefined&&val!==null&&val!==''){ $(map[k]).value=val; n++; }
+    if(val!==undefined&&val!==null&&val!==''){ block.querySelector(map[k]).value=val; n++; }
   }
-  if(v.pay_frequency){ $('pay_freq').value=v.pay_frequency; }
-  updatePeriods();
+  if(v.pay_frequency){ block.querySelector('.j-freq').value=v.pay_frequency; }
+  updateJobPeriods(block);
+  renumberJobs();
   return n;
 }
 
 function psOpenModal(){
   if(!psState) return;
   if(!$('prof_name').value && psState.suggestedName) $('prof_name').value=psState.suggestedName;
-  if($('pay_freq').value) $('prof_freq').value=$('pay_freq').value;
+  const tb=psTargetBlock();
+  if(tb && tb.querySelector('.j-freq').value) $('prof_freq').value=tb.querySelector('.j-freq').value;
   if(!psState.activeField) psState.activeField=psState.targets[0].field;
   psRenderStage(); psRenderFields();
   $('teach-modal').classList.add('open');

@@ -82,6 +82,8 @@ class Paystub:
     ytd_taxable_wages: Decimal | None = None
     ytd_federal_tax_withheld: Decimal | None = None
     pay_periods_remaining: int | None = None
+    name: str = ""
+    adjust_withholding: bool = False  # apply the per-paycheck recommendation to this job
 
     @property
     def periods_per_year(self) -> int:
@@ -165,6 +167,7 @@ class EstimatorInput:
     filing_status: FilingStatus
     paystub: Paystub
     tax_year: int | None = None
+    additional_jobs: list[Paystub] = field(default_factory=list)
     other_income: OtherIncome = field(default_factory=OtherIncome)
     adjustments: Adjustments = field(default_factory=Adjustments)
     deductions: Deductions = field(default_factory=Deductions)
@@ -174,16 +177,50 @@ class EstimatorInput:
     prior_year_tax: Decimal | None = None
     prior_year_agi: Decimal | None = None
 
+    @property
+    def jobs(self) -> list[Paystub]:
+        """All jobs: the primary paystub followed by any additional jobs."""
+
+        return [self.paystub, *self.additional_jobs]
+
+    def adjusted_job(self) -> Paystub:
+        """The job whose W-4 the per-paycheck recommendation targets.
+
+        The first job flagged ``adjust_withholding`` wins; otherwise the
+        primary paystub.
+        """
+
+        for job in self.jobs:
+            if job.adjust_withholding:
+                return job
+        return self.paystub
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> EstimatorInput:
         """Build an :class:`EstimatorInput` from a plain dict (e.g. parsed JSON).
 
+        Accepts either a single ``paystub`` plus optional ``additional_jobs``
+        list, or a ``jobs`` list (first entry becomes the primary paystub).
         Unknown keys raise ``ValueError`` so typos surface instead of being
         silently ignored. Monetary fields are coerced to ``Decimal``.
         """
 
         data = dict(data)
-        paystub = _build(Paystub, data.pop("paystub", {}), _PAYSTUB_DECIMALS)
+        jobs_list = data.pop("jobs", None)
+        raw_paystub = data.pop("paystub", None)
+        raw_additional = data.pop("additional_jobs", None)
+
+        if jobs_list is not None:
+            if raw_paystub is not None or raw_additional is not None:
+                raise ValueError("provide either 'jobs' or 'paystub'/'additional_jobs', not both")
+            if not jobs_list:
+                raise ValueError("'jobs' cannot be empty")
+            raw_paystub = jobs_list[0]
+            raw_additional = jobs_list[1:]
+
+        paystub = _build(Paystub, raw_paystub or {}, _PAYSTUB_DECIMALS)
+        additional_jobs = [_build(Paystub, j, _PAYSTUB_DECIMALS) for j in (raw_additional or [])]
+
         other_income = _build(OtherIncome, data.pop("other_income", {}), _ALL)
         adjustments = _build(Adjustments, data.pop("adjustments", {}), _ALL)
         deductions = _build_deductions(data.pop("deductions", {}))
@@ -198,6 +235,7 @@ class EstimatorInput:
             filing_status=filing_status,
             paystub=paystub,
             tax_year=data.pop("tax_year", None),
+            additional_jobs=additional_jobs,
             other_income=other_income,
             adjustments=adjustments,
             deductions=deductions,
@@ -237,6 +275,10 @@ def _build(model: type, data: dict[str, Any], decimal_fields: Any) -> Any:
             kwargs[key] = _opt_decimal(value)
         elif key == "pay_frequency":
             kwargs[key] = value
+        elif key == "adjust_withholding":
+            kwargs[key] = bool(value)
+        elif key == "name":
+            kwargs[key] = str(value)
         elif decimal_fields is _ALL or key in decimal_fields:
             kwargs[key] = to_decimal(value)
         else:
@@ -280,8 +322,24 @@ class TaxBreakdown:
 
 
 @dataclass(slots=True)
+class JobProjection:
+    """Full-year projection for one job, for transparency in multi-job cases."""
+
+    name: str
+    pay_frequency: str
+    periods_per_year: int
+    periods_remaining: int
+    projected_taxable_wages: Decimal
+    projected_withholding: Decimal
+
+
+@dataclass(slots=True)
 class WithholdingRecommendation:
-    """Per-paycheck guidance derived from the projection."""
+    """Per-paycheck guidance derived from the projection.
+
+    The per-period figures (``periods_*`` and ``*_per_period``) refer to the
+    *adjusted job* — the one whose W-4 the recommendation targets.
+    """
 
     periods_per_year: int
     periods_remaining: int
@@ -298,6 +356,8 @@ class WithholdingRecommendation:
     is_over_withholding: bool
     safe_harbor_target: Decimal | None = None
     safe_harbor_additional_per_period: Decimal | None = None
+    adjusted_job_name: str = ""
+    job_breakdown: list[JobProjection] = field(default_factory=list)
 
 
 @dataclass(slots=True)

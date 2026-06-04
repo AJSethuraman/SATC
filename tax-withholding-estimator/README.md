@@ -172,6 +172,40 @@ A scenario file looks like this (see `examples/sample_input.json`):
 If you omit year-to-date figures and `pay_periods_remaining`, the estimator
 assumes a full year at the current per-paycheck rate.
 
+## Multiple jobs / W-2s
+
+Multiple jobs are the most common cause of under-withholding: each employer
+withholds as if its paycheck is your only income, so each applies its own
+standard deduction and low brackets. Combined, your income lands in higher
+brackets and no single job withholds enough — a surprise bill in April.
+
+In the web UI, click **➕ Add another job / W-2** to add as many jobs as you
+have. Each job has its own pay frequency, per-period amounts, year-to-date
+figures, and last pay date. The estimator sums them all, computes one combined
+liability, and recommends the extra per-paycheck withholding — applied to the
+**one job you choose** (the *"Apply the recommendation to this job"* radio).
+The paystub importer fills whichever job you pick in the *Fill into* dropdown.
+
+In JSON, use either a `jobs` list or `paystub` + `additional_jobs`. Mark the job
+to adjust with `"adjust_withholding": true`:
+
+```json
+{
+  "filing_status": "single",
+  "jobs": [
+    {"name": "Main job", "pay_frequency": "biweekly", "gross_pay_per_period": 3000,
+     "federal_tax_withheld_per_period": 350, "pay_periods_remaining": 26,
+     "adjust_withholding": true},
+    {"name": "Side job", "pay_frequency": "biweekly", "gross_pay_per_period": 2000,
+     "federal_tax_withheld_per_period": 150, "pay_periods_remaining": 26}
+  ]
+}
+```
+
+Each job also carries an optional `name`. A job you already left this year fits
+naturally too — enter its final YTD wages/withholding with `pay_periods_remaining`
+set to `0`.
+
 ## Use as a library
 
 ```python

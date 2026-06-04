@@ -81,8 +81,16 @@ def render_text(result: EstimateResult) -> str:
     lines.append("")
 
     lines.append("-- Withholding & payments " + "-" * 34)
-    lines.append(f"  Pay periods remaining: {r.periods_remaining} of {r.periods_per_year}")
-    lines.append(_row("Withheld year-to-date", r.ytd_withholding))
+    multi_job = len(r.job_breakdown) > 1
+    if multi_job:
+        for job in r.job_breakdown:
+            lines.append(
+                f"  {job.name} ({job.pay_frequency}, {job.periods_remaining} left): "
+                f"wages {_usd(job.projected_taxable_wages)}, withholding {_usd(job.projected_withholding)}"
+            )
+    else:
+        lines.append(f"  Pay periods remaining: {r.periods_remaining} of {r.periods_per_year}")
+    lines.append(_row("Withheld year-to-date (all jobs)", r.ytd_withholding))
     lines.append(_row("Projected withholding (current rate)", r.projected_withholding_current_rate))
     if r.other_payments_total != 0:
         lines.append(_row("Other payments / spouse withholding", r.other_payments_total))
@@ -104,11 +112,12 @@ def render_text(result: EstimateResult) -> str:
         lines.append(f"  You could reduce withholding to about {_usd(r.recommended_withholding_per_period)} / paycheck")
         lines.append("  (e.g. by claiming deductions/dependents on Form W-4 Step 3 or 4b).")
     else:
+        on_job = f' on "{r.adjusted_job_name}"' if multi_job else ""
         lines.append("  RECOMMENDATION to hit your target:")
-        lines.append(f"    Withhold about {_usd(r.recommended_withholding_per_period)} per paycheck")
+        lines.append(f"    Withhold about {_usd(r.recommended_withholding_per_period)} per paycheck{on_job}")
         lines.append(f"    That is {_usd(r.additional_withholding_per_period)} MORE than your current")
-        lines.append("    paycheck withholding -- enter this as extra withholding on")
-        lines.append("    Form W-4, Step 4(c).")
+        lines.append(f"    paycheck withholding -- enter this as extra withholding on")
+        lines.append(f"    that job's Form W-4, Step 4(c).")
 
     if r.safe_harbor_target is not None:
         lines.append("")
