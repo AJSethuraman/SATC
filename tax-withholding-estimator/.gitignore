@@ -9,3 +9,5 @@ dist/
 venv/
 outputs/
 *.local.json
+setup.log
+*.log

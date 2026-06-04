@@ -35,28 +35,41 @@ if not exist ".venv\Scripts\python.exe" (
 )
 set "VPY=.venv\Scripts\python.exe"
 
-rem --- Install or update the app ---------------------------------
+rem --- Install on first run --------------------------------------
+rem  The core app has NO dependencies and always installs.
+rem  Paystub import (PyMuPDF) is optional and installed best-effort,
+rem  so it can never stop the app from launching.
 "%VPY%" -c "import twe" >nul 2>nul
 if errorlevel 1 (
   echo   Installing the Tax Withholding Estimator...
-  "%VPY%" -m pip install --upgrade pip >nul 2>nul
-  "%VPY%" -m pip install -e ".[paystub]"
+  "%VPY%" -m pip install --upgrade pip setuptools wheel > setup.log 2>&1
+  "%VPY%" -m pip install -e . >> setup.log 2>&1
   if errorlevel 1 (
     echo.
-    echo   Installation failed. See the messages above.
+    echo   Setup failed. Details below ^(also saved to setup.log^):
+    echo   ------------------------------------------------------------
+    type setup.log
+    echo   ------------------------------------------------------------
     pause
     exit /b 1
+  )
+  echo   Adding optional paystub-import support ^(safe to skip if it fails^)...
+  "%VPY%" -m pip install pymupdf >> setup.log 2>&1
+  if errorlevel 1 (
+    echo   Note: paystub import is unavailable on this PC, but everything
+    echo   else works. You can still enter numbers by hand. ^(See setup.log^)
   )
 )
 
 rem --- Launch ----------------------------------------------------
 echo.
 echo   Starting the Tax Withholding Estimator...
-echo   Your web browser will open automatically.
-echo   Leave this window open while you use the app.
-echo   To stop: close this window, or press Ctrl+C.
+echo   Your web browser should open at:  http://127.0.0.1:8765
+echo   If it does not open, paste that address into your browser.
+echo   Leave this window open while you use the app. Press Ctrl+C to stop.
 echo.
 "%VPY%" -m twe.cli serve
-
+echo.
+echo   The app has stopped. If you saw an error above, copy it so it can be fixed.
 pause
 endlocal
