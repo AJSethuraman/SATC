@@ -244,6 +244,29 @@ def build_rules(words: list[Word], assignments: dict[str, list[int]]) -> list[Fi
 # ---------------------------------------------------------------------------
 
 
+def _try_decimal_join(best: Word, numeric_sorted: list[Word]) -> str | None:
+    """Try to reconstruct a decimal value when the period glyph was not emitted.
+
+    When a PDF renderer omits the decimal separator, "5,869" and "46" end up as
+    adjacent but separate tokens.  If the token immediately right of *best* is
+    1-2 pure digits and very close horizontally, try inserting a "." between them.
+    """
+    try:
+        bi = numeric_sorted.index(best)
+    except ValueError:
+        return None
+    if bi + 1 >= len(numeric_sorted):
+        return None
+    right = numeric_sorted[bi + 1]
+    # "Adjacent" in normalized coords: less than ~5% of page width.
+    if right.x0 - best.x1 > 0.05:
+        return None
+    if not re.fullmatch(r"\d{1,2}", right.text.strip()):
+        return None
+    merged = best.text + "." + right.text.strip()
+    return _parse_value(merged, "currency")
+
+
 def _read_by_label(words: list[Word], rule: FieldRule) -> str | None:
     """Read a value using the label anchor to find the row and the taught
     region's x-position to pick the column.
@@ -283,7 +306,11 @@ def _read_by_label(words: list[Word], rule: FieldRule) -> str | None:
                 if numeric:
                     # Pick the numeric candidate whose column matches what was taught.
                     best = min(numeric, key=lambda w: abs(w.cx - region_cx))
-                    return _parse_value(best.text, "currency")
+                    # If the decimal period was not emitted, try reconstructing it
+                    # from an adjacent 1-2 digit token (e.g. "5,869" + "46" → 5869.46).
+                    numeric_sorted = sorted(numeric, key=lambda w: w.x0)
+                    val = _try_decimal_join(best, numeric_sorted)
+                    return val if val is not None else _parse_value(best.text, "currency")
     return None
 
 
@@ -292,11 +319,26 @@ def _read_by_region(words: list[Word], rule: FieldRule) -> str | None:
     inside.sort(key=lambda w: w.x0)
     if not inside:
         return None
+    # For currency: prefer the single numeric token closest to the taught region
+    # center rather than joining all tokens.  Joining can corrupt the value when
+    # the PDF omitted a separator glyph — e.g. "$5,869" + "46" joined with a
+    # space gives "$5,869 46" which strips to 586946 instead of 5869.46.
+    if rule.kind != "date":
+        region_cx = (rule.region[0] + rule.region[2]) / 2
+        numeric = [w for w in inside if parse_currency(w.text) is not None]
+        if numeric:
+            best = min(numeric, key=lambda w: abs(w.cx - region_cx))
+            numeric_sorted = sorted(numeric, key=lambda w: w.x0)
+            val = _try_decimal_join(best, numeric_sorted)
+            if val is None:
+                val = _parse_value(best.text, rule.kind)
+            if val is not None:
+                return val
+    # For dates (or no numeric found): join tokens and parse.
     joined = " ".join(w.text for w in inside)
     val = _parse_value(joined, rule.kind)
     if val is not None:
         return val
-    # As a fallback, try each token individually (region may catch a stray word).
     for w in inside:
         val = _parse_value(w.text, rule.kind)
         if val is not None:
