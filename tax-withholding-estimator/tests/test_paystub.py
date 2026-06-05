@@ -11,6 +11,7 @@ from twe.paystub import (
     Layout,
     Profile,
     Word,
+    _is_orphaned_cents,
     _merge_number_fragments,
     apply_profile,
     apply_rule,
@@ -58,7 +59,87 @@ def test_label_not_merged_into_number():
     assert _texts(items) == ["Federal", "410.00"]
 
 
+def test_missing_decimal_period_not_merged_to_wrong_magnitude():
+    # The "586946" bug: PDF omits the "." glyph so "5,869" and "46" arrive as
+    # adjacent tokens.  They must NOT be merged to "5,86946" here; instead the
+    # reader's _try_decimal_join is responsible for reconstructing "5869.46".
+    h = 10  # token height
+    items = [
+        [10, 100, 42, 100 + h, "5,869"],
+        [42, 100, 54, 100 + h, "46"],   # immediately adjacent (gap ≈ 0)
+    ]
+    result = _texts(items)
+    assert result == ["5,869", "46"], f"expected kept separate, got {result}"
+
+
+def test_missing_decimal_no_comma_not_merged():
+    # "97536" bug: "975" + "36" with no comma in the left token.
+    h = 10
+    items = [
+        [10, 100, 30, 100 + h, "975"],
+        [30, 100, 42, 100 + h, "36"],
+    ]
+    result = _texts(items)
+    assert result == ["975", "36"], f"expected kept separate, got {result}"
+
+
+def test_period_as_own_glyph_merges_correctly():
+    # Decimal period emitted as a separate glyph: "975" + "." + "36" → "975.36"
+    h = 10
+    items = [
+        [10, 100, 30, 100 + h, "975"],
+        [31, 100, 33, 100 + h, "."],
+        [33, 100, 45, 100 + h, "36"],
+    ]
+    result = _texts(items)
+    assert len(result) == 1
+    assert parse_currency(result[0]) == Decimal("975.36")
+
+
+def test_orphaned_cents_predicate():
+    # Complete currency value followed by 1-2 digits → True
+    assert _is_orphaned_cents("5,869", "46") is True
+    assert _is_orphaned_cents("975", "36") is True
+    assert _is_orphaned_cents("100", "5") is True
+    # Separators are always pass-through
+    assert _is_orphaned_cents("975", ".") is False
+    assert _is_orphaned_cents("975", ",") is False
+    # Left already ends in separator → not orphaned (we're mid-number)
+    assert _is_orphaned_cents("975.", "36") is False
+    assert _is_orphaned_cents("975,", "36") is False
+    # 3+ digit right fragment → thousands group, not cents
+    assert _is_orphaned_cents("6", "653") is False
+    assert _is_orphaned_cents("1", "234") is False
+
+
 # -- negative paystub values become magnitudes ------------------------------
+
+
+def test_decimal_reconstruction_via_apply_rule():
+    # Simulates the "586946" / "97536" bug: PDF omits the decimal separator so
+    # the value token and cents token stay separate after _merge_number_fragments.
+    # _try_decimal_join should reconstruct the correct decimal at read time.
+    words = [
+        Word("Federal", 0.05, 0.20, 0.15, 0.23),
+        Word("Tax", 0.16, 0.20, 0.22, 0.23),
+        Word("5,869", 0.40, 0.20, 0.52, 0.23),   # left token (no decimal emitted)
+        Word("46",    0.52, 0.20, 0.56, 0.23),    # adjacent cents token
+    ]
+    rule = FieldRule("federal_tax_withheld_per_period", "currency",
+                     region=[0.40, 0.20, 0.56, 0.23], label_text="Federal Tax")
+    assert apply_rule(words, rule) == "5869.46"
+
+
+def test_decimal_reconstruction_no_comma():
+    # "975" + "36" (no thousands comma in left token)
+    words = [
+        Word("Tax", 0.16, 0.20, 0.22, 0.23),
+        Word("975", 0.40, 0.20, 0.49, 0.23),
+        Word("36",  0.49, 0.20, 0.53, 0.23),
+    ]
+    rule = FieldRule("federal_tax_withheld_per_period", "currency",
+                     region=[0.40, 0.20, 0.53, 0.23], label_text="Tax")
+    assert apply_rule(words, rule) == "975.36"
 
 
 def test_negative_withholding_read_as_positive():

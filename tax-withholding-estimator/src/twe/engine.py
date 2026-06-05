@@ -15,6 +15,7 @@ The flow mirrors a Form 1040 projection:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
 from twe.models import (
@@ -29,6 +30,24 @@ from twe.models import (
 from twe.tax_data import TaxTables, load_tax_tables
 
 CENTS = Decimal("0.01")
+
+
+@dataclass(slots=True)
+class _JobCalc:
+    """The projected figures for one job (internal to the engine)."""
+
+    job: Paystub
+    projected_wages: Decimal
+    ytd_withholding: Decimal
+    projected_withholding: Decimal
+    elapsed: int
+    remaining: int
+
+    @property
+    def future_withholding(self) -> Decimal:
+        """Withholding the remaining paychecks add at the current rate."""
+
+        return self.projected_withholding - self.ytd_withholding
 
 
 def _money(value: Decimal) -> Decimal:
@@ -65,12 +84,8 @@ def estimate(inp: EstimatorInput) -> EstimateResult:
 # ---------------------------------------------------------------------------
 
 
-def _project_job(job: Paystub) -> tuple[Decimal, Decimal, Decimal, int, int]:
-    """Project one job.
-
-    Returns ``(taxable_wages, ytd_withholding, projected_withholding,
-    elapsed, remaining)``.
-    """
+def _project_job(job: Paystub) -> _JobCalc:
+    """Project one job's full-year wages and withholding."""
 
     periods_per_year = job.periods_per_year
     remaining = job.pay_periods_remaining
@@ -98,11 +113,18 @@ def _project_job(job: Paystub) -> tuple[Decimal, Decimal, Decimal, int, int]:
         ytd_wh = per_period_wh * elapsed
     projected_wh = ytd_wh + per_period_wh * remaining
 
-    return projected_wages, ytd_wh, projected_wh, elapsed, remaining
+    return _JobCalc(
+        job=job,
+        projected_wages=projected_wages,
+        ytd_withholding=ytd_wh,
+        projected_withholding=projected_wh,
+        elapsed=elapsed,
+        remaining=remaining,
+    )
 
 
 def _total_projected_wages(inp: EstimatorInput) -> Decimal:
-    return sum((_project_job(job)[0] for job in inp.jobs), ZERO)
+    return sum((_project_job(job).projected_wages for job in inp.jobs), ZERO)
 
 
 def _build_breakdown(inp: EstimatorInput, tables: TaxTables) -> tuple[TaxBreakdown, list[str]]:
@@ -249,7 +271,6 @@ def _capital_gains_tax(
         return ZERO
 
     zero_top, fifteen_top = tables.capital_gains_thresholds(status)
-    top = ordinary_ti + preferential
     tax = ZERO
 
     # 0% portion: from ordinary_ti up to the 0% threshold.
@@ -266,7 +287,6 @@ def _capital_gains_tax(
 
     # 20% portion: everything above the 15% threshold.
     tax += remaining * Decimal("0.20")
-    _ = top  # documented intermediate; not needed beyond clarity
     return tax
 
 
@@ -336,9 +356,9 @@ def _build_recommendation(
     breakdown: TaxBreakdown,
 ) -> WithholdingRecommendation:
     # Project every job once.
-    projections = [(job, *_project_job(job)) for job in inp.jobs]
-    total_ytd_wh = sum((p[2] for p in projections), ZERO)
-    total_projected_wh = sum((p[3] for p in projections), ZERO)
+    projections = [_project_job(job) for job in inp.jobs]
+    total_ytd_wh = sum((p.ytd_withholding for p in projections), ZERO)
+    total_projected_wh = sum((p.projected_withholding for p in projections), ZERO)
 
     other_payments_total = (
         inp.other_payments.estimated_tax_payments
@@ -352,14 +372,15 @@ def _build_recommendation(
 
     # The job whose W-4 we adjust; the others keep withholding at their current rate.
     adjusted = inp.adjusted_job()
-    adjusted_idx = next(i for i, p in enumerate(projections) if p[0] is adjusted)
-    _, _, a_ytd_wh, a_proj_wh, a_elapsed, a_remaining = projections[adjusted_idx]
+    adjusted_idx = next(i for i, p in enumerate(projections) if p.job is adjusted)
+    a_remaining = projections[adjusted_idx].remaining
+    a_elapsed = projections[adjusted_idx].elapsed
     a_per_period_wh = adjusted.federal_tax_withheld_per_period
     a_ppy = adjusted.periods_per_year
 
     # Future withholding the *other* jobs will contribute at their current rate.
     others_future_wh = sum(
-        (p[3] - p[2] for i, p in enumerate(projections) if i != adjusted_idx),
+        (p.future_withholding for i, p in enumerate(projections) if i != adjusted_idx),
         ZERO,
     )
 
@@ -387,14 +408,14 @@ def _build_recommendation(
 
     job_breakdown = [
         JobProjection(
-            name=job.name or f"Job {i + 1}",
-            pay_frequency=job.pay_frequency,
-            periods_per_year=job.periods_per_year,
-            periods_remaining=remaining,
-            projected_taxable_wages=_money(wages),
-            projected_withholding=_money(proj_wh),
+            name=p.job.name or f"Job {i + 1}",
+            pay_frequency=p.job.pay_frequency,
+            periods_per_year=p.job.periods_per_year,
+            periods_remaining=p.remaining,
+            projected_taxable_wages=_money(p.projected_wages),
+            projected_withholding=_money(p.projected_withholding),
         )
-        for i, (job, wages, _ytd_wh, proj_wh, _elapsed, remaining) in enumerate(projections)
+        for i, p in enumerate(projections)
     ]
 
     return WithholdingRecommendation(
