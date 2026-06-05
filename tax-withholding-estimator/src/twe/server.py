@@ -1248,6 +1248,13 @@ class _Handler(BaseHTTPRequestHandler):
             body = self._read_body()
             data = base64.b64decode(body["data"])
             layout = ps.extract_layout(data, body.get("media_type", ""))
+            # Diagnostic: print numeric-looking tokens so we can see exactly
+            # what PyMuPDF extracted (visible in the console/run.bat window).
+            numeric_words = [w for w in layout.words if any(c.isdigit() for c in w.text)]
+            print("\n--- paystub tokens (numeric) ---")
+            for w in numeric_words:
+                print(f"  {w.text!r:20s}  x={w.x0:.4f}..{w.x1:.4f}  y={w.y0:.4f}..{w.y1:.4f}")
+            print("--- end tokens ---\n")
             saved = pf.list_profiles()
             matched = None
             best = ps.best_profile(layout, saved)
