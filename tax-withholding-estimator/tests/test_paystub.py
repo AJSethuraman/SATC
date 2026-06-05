@@ -12,6 +12,7 @@ from twe.paystub import (
     Profile,
     Word,
     _is_orphaned_cents,
+    _is_orphaned_cents_split,
     _merge_number_fragments,
     apply_profile,
     apply_rule,
@@ -59,87 +60,73 @@ def test_label_not_merged_into_number():
     assert _texts(items) == ["Federal", "410.00"]
 
 
-def test_missing_decimal_period_not_merged_to_wrong_magnitude():
-    # The "586946" bug: PDF omits the "." glyph so "5,869" and "46" arrive as
-    # adjacent tokens.  They must NOT be merged to "5,86946" here; instead the
-    # reader's _try_decimal_join is responsible for reconstructing "5869.46".
-    h = 10  # token height
+# -- dropped-decimal regression: orphaned cents must NOT be merged ----------
+#
+# These guard the bug that regressed repeatedly: a renderer drops the "."
+# glyph, so "$5,869.46" arrives as "5,869" + "46" and "$975.36" as "975" + "36".
+# Merging the fragments naively yields "586946"/"97536" — off by 100x. The
+# merge step must leave them as two tokens; the readers reconstruct the "."
+# at read time (see the apply_rule tests below).
+
+
+def test_orphaned_cents_with_comma_not_merged():
+    # "$5,869.46" split as "5,869" + "46" — must stay two tokens (not 586946).
+    items = [[10, 100, 40, 110, "5,869"], [42, 100, 56, 110, "46"]]
+    assert _texts(items) == ["5,869", "46"]
+
+
+def test_orphaned_cents_no_comma_not_merged():
+    # "$975.36" split as "975" + "36" — must stay two tokens (not 97536).
+    items = [[10, 100, 40, 110, "975"], [42, 100, 56, 110, "36"]]
+    assert _texts(items) == ["975", "36"]
+
+
+def test_orphaned_single_digit_cents_not_merged():
+    # A single-digit cents fragment is still orphaned cents, not a thousands group.
+    items = [[10, 100, 40, 110, "1,200"], [42, 100, 50, 110, "5"]]
+    assert _texts(items) == ["1,200", "5"]
+
+
+def test_thousands_group_still_merges_even_when_one_digit_leads():
+    # "6" + "653.85": the right fragment is 3+ digits -> a thousands group, merge it.
+    items = [[10, 100, 16, 110, "6"], [17, 100, 45, 110, "653.85"]]
+    assert _texts(items) == ["6653.85"]
+    assert parse_currency(_texts(items)[0]) == Decimal("6653.85")
+
+
+def test_period_as_own_glyph_still_merges():
+    # The "." emitted as its own token: "5869" + "." + "46" -> 5869.46.
     items = [
-        [10, 100, 42, 100 + h, "5,869"],
-        [42, 100, 54, 100 + h, "46"],   # immediately adjacent (gap ≈ 0)
+        [10, 100, 40, 110, "5869"],
+        [40.5, 100, 41, 110, "."],
+        [42, 100, 56, 110, "46"],
     ]
-    result = _texts(items)
-    assert result == ["5,869", "46"], f"expected kept separate, got {result}"
+    merged = _texts(items)
+    assert parse_currency(merged[0]) == Decimal("5869.46")
 
 
-def test_missing_decimal_no_comma_not_merged():
-    # "97536" bug: "975" + "36" with no comma in the left token.
-    h = 10
-    items = [
-        [10, 100, 30, 100 + h, "975"],
-        [30, 100, 42, 100 + h, "36"],
-    ]
-    result = _texts(items)
-    assert result == ["975", "36"], f"expected kept separate, got {result}"
+def test_is_orphaned_cents_predicate():
+    assert _is_orphaned_cents("46")
+    assert _is_orphaned_cents("6")
+    assert not _is_orphaned_cents("653")    # 3 digits -> thousands group
+    assert not _is_orphaned_cents("653.85")  # not a bare digit run
+    assert not _is_orphaned_cents(",")
 
 
-def test_period_as_own_glyph_merges_correctly():
-    # Decimal period emitted as a separate glyph: "975" + "." + "36" → "975.36"
-    h = 10
-    items = [
-        [10, 100, 30, 100 + h, "975"],
-        [31, 100, 33, 100 + h, "."],
-        [33, 100, 45, 100 + h, "36"],
-    ]
-    result = _texts(items)
-    assert len(result) == 1
-    assert parse_currency(result[0]) == Decimal("975.36")
-
-
-def test_orphaned_cents_predicate():
-    # Complete currency value followed by 1-2 digits → True
-    assert _is_orphaned_cents("5,869", "46") is True
-    assert _is_orphaned_cents("975", "36") is True
-    assert _is_orphaned_cents("100", "5") is True
-    # Separators are always pass-through
-    assert _is_orphaned_cents("975", ".") is False
-    assert _is_orphaned_cents("975", ",") is False
-    # Left already ends in separator → not orphaned (we're mid-number)
-    assert _is_orphaned_cents("975.", "36") is False
-    assert _is_orphaned_cents("975,", "36") is False
-    # 3+ digit right fragment → thousands group, not cents
-    assert _is_orphaned_cents("6", "653") is False
-    assert _is_orphaned_cents("1", "234") is False
+def test_is_orphaned_cents_split_predicate():
+    # Complete dollars value + bare 1-2 digit cents -> a dropped-"." split.
+    assert _is_orphaned_cents_split("5,869", "46")
+    assert _is_orphaned_cents_split("975", "36")
+    # 3+ digit right fragment is a thousands group, safe to merge.
+    assert not _is_orphaned_cents_split("6", "653")
+    # A left token still mid-number (ends in a separator) is not "complete".
+    assert not _is_orphaned_cents_split("5,", "869")
+    assert not _is_orphaned_cents_split("5,869.", "46")
+    # A non-currency left token is not a dollars value.
+    assert not _is_orphaned_cents_split("Federal", "46")
 
 
 # -- negative paystub values become magnitudes ------------------------------
-
-
-def test_decimal_reconstruction_via_apply_rule():
-    # Simulates the "586946" / "97536" bug: PDF omits the decimal separator so
-    # the value token and cents token stay separate after _merge_number_fragments.
-    # _try_decimal_join should reconstruct the correct decimal at read time.
-    words = [
-        Word("Federal", 0.05, 0.20, 0.15, 0.23),
-        Word("Tax", 0.16, 0.20, 0.22, 0.23),
-        Word("5,869", 0.40, 0.20, 0.52, 0.23),   # left token (no decimal emitted)
-        Word("46",    0.52, 0.20, 0.56, 0.23),    # adjacent cents token
-    ]
-    rule = FieldRule("federal_tax_withheld_per_period", "currency",
-                     region=[0.40, 0.20, 0.56, 0.23], label_text="Federal Tax")
-    assert apply_rule(words, rule) == "5869.46"
-
-
-def test_decimal_reconstruction_no_comma():
-    # "975" + "36" (no thousands comma in left token)
-    words = [
-        Word("Tax", 0.16, 0.20, 0.22, 0.23),
-        Word("975", 0.40, 0.20, 0.49, 0.23),
-        Word("36",  0.49, 0.20, 0.53, 0.23),
-    ]
-    rule = FieldRule("federal_tax_withheld_per_period", "currency",
-                     region=[0.40, 0.20, 0.53, 0.23], label_text="Tax")
-    assert apply_rule(words, rule) == "975.36"
 
 
 def test_negative_withholding_read_as_positive():
@@ -249,6 +236,74 @@ def test_apply_rule_label_anchor_reads_value():
         label_text="Federal Income Tax",
     )
     # Label anchor picks the first numeric to the right on the same row.
+    assert apply_rule(words, rule) == "410.00"
+
+
+# -- dropped-decimal regression: end-to-end reconstruction through apply_rule
+
+
+def _dropped_decimal_words() -> list[Word]:
+    # "Net Pay 5,869 46" and "Federal Tax 975 36": the "." glyph was dropped, so
+    # the cents arrive as a separate adjacent token in each row.
+    return [
+        Word("Net", 0.05, 0.20, 0.12, 0.23),
+        Word("Pay", 0.13, 0.20, 0.20, 0.23),
+        Word("5,869", 0.40, 0.20, 0.46, 0.23),
+        Word("46", 0.47, 0.20, 0.50, 0.23),
+        Word("Federal", 0.05, 0.30, 0.15, 0.33),
+        Word("Tax", 0.16, 0.30, 0.22, 0.33),
+        Word("975", 0.40, 0.30, 0.45, 0.33),
+        Word("36", 0.46, 0.30, 0.49, 0.33),
+    ]
+
+
+def test_dropped_decimal_reconstructed_via_label_anchor():
+    words = _dropped_decimal_words()
+    net = FieldRule("ytd_taxable_wages", "currency",
+                    region=[0.40, 0.20, 0.46, 0.23], label_text="Net Pay")
+    fed = FieldRule("federal_tax_withheld_per_period", "currency",
+                    region=[0.40, 0.30, 0.45, 0.33], label_text="Federal Tax")
+    assert apply_rule(words, net) == "5869.46"
+    assert apply_rule(words, fed) == "975.36"
+
+
+def test_dropped_decimal_reconstructed_via_region_fallback():
+    words = _dropped_decimal_words()
+    # No label -> region path must also reconstruct the dropped decimal.
+    net = FieldRule("ytd_taxable_wages", "currency",
+                    region=[0.40, 0.20, 0.50, 0.23], label_text="")
+    fed = FieldRule("federal_tax_withheld_per_period", "currency",
+                    region=[0.40, 0.30, 0.49, 0.33], label_text="")
+    assert apply_rule(words, net) == "5869.46"
+    assert apply_rule(words, fed) == "975.36"
+
+
+def test_dropped_decimal_end_to_end_through_layout():
+    words = _dropped_decimal_words()
+    profile = Profile(
+        name="Dropped-decimal stub",
+        rules=[
+            FieldRule("ytd_taxable_wages", "currency",
+                      region=[0.40, 0.20, 0.46, 0.23], label_text="Net Pay"),
+            FieldRule("federal_tax_withheld_per_period", "currency",
+                      region=[0.40, 0.30, 0.45, 0.33], label_text="Federal Tax"),
+        ],
+    )
+    result = apply_profile(_layout(words), profile)
+    assert result["ytd_taxable_wages"] == "5869.46"
+    assert result["federal_tax_withheld_per_period"] == "975.36"
+
+
+def test_complete_value_not_corrupted_by_distant_cents_column():
+    # A complete "410.00" must not absorb a far-away "46" cents token (YTD col).
+    words = [
+        Word("Federal", 0.05, 0.20, 0.15, 0.23),
+        Word("Tax", 0.16, 0.20, 0.22, 0.23),
+        Word("410.00", 0.40, 0.20, 0.50, 0.23),
+        Word("46", 0.80, 0.20, 0.83, 0.23),
+    ]
+    rule = FieldRule("federal_tax_withheld_per_period", "currency",
+                     region=[0.40, 0.20, 0.50, 0.23], label_text="Federal Tax")
     assert apply_rule(words, rule) == "410.00"
 
 

@@ -244,27 +244,72 @@ def build_rules(words: list[Word], assignments: dict[str, list[int]]) -> list[Fi
 # ---------------------------------------------------------------------------
 
 
-_CENTS_GAP = 0.05  # max normalized gap to call two tokens "adjacent"
+# An orphaned-cents fragment: exactly one or two bare digits, no separators.
+_CENTS_FRAGMENT_RE = re.compile(r"\d{1,2}")
+
+# Max horizontal gap (fraction of page width) for two tokens to count as
+# "adjacent" — small enough that only same-number fragments qualify.
+_ADJACENT_GAP = 0.05
 
 
-def _try_decimal_join(best: Word, numeric_sorted: list[Word]) -> str | None:
-    """Try to reconstruct a decimal value when the period glyph was not emitted.
+def _is_orphaned_cents(text: str) -> bool:
+    """True if a token is a bare 1-2 digit cents fragment (e.g. ``46``, ``36``).
 
-    When a PDF renderer omits the decimal separator, "5,869" and "46" end up as
-    adjacent but separate tokens.  If the token immediately right of *best* is
-    1-2 pure digits and very close horizontally, try inserting a "." between them.
-    Uses identity comparison (``is``) so two Words with identical coordinates are
-    not confused with each other.
+    Such a fragment, when adjacent to a complete dollars value, is the cents
+    part of a number whose decimal point glyph the renderer dropped.
     """
-    bi = next((i for i, w in enumerate(numeric_sorted) if w is best), None)
-    if bi is None or bi + 1 >= len(numeric_sorted):
+
+    return bool(_CENTS_FRAGMENT_RE.fullmatch(text.strip()))
+
+
+def _is_orphaned_cents_split(left: str, right: str) -> bool:
+    """True when *left* + *right* is a dollars/cents pair split by a dropped ".".
+
+    This is the case the merge step must *refuse* to stitch together: ``left``
+    is a complete currency value and ``right`` is a bare 1-2 digit cents
+    fragment (e.g. ``"975"`` + ``"36"`` → must stay ``975.36``, never ``97536``;
+    ``"5,869"`` + ``"46"`` → must stay ``5869.46``, never ``586946``). Joining
+    them here would silently destroy the decimal; instead the readers'
+    :func:`_reconstruct_dropped_decimal` splices the "." back in at read time.
+
+    A 3+ digit ``right`` fragment is *not* orphaned cents — it is a thousands
+    group whose comma was dropped (e.g. ``"6"`` + ``"653.85"`` → ``6653.85``)
+    and is safe to merge — so this returns ``False`` for it.
+    """
+
+    if not _is_orphaned_cents(right):
+        return False
+    # A left token that already ends in a separator is mid-number, not complete.
+    if left.endswith((",", ".")):
+        return False
+    return parse_currency(left) is not None
+
+
+def _reconstruct_dropped_decimal(dollars: Word, numeric_sorted: list[Word]) -> str | None:
+    """Reconstruct ``dollars.cents`` when the decimal-point glyph was not emitted.
+
+    Some PDF renderers omit the "." so a value like ``5,869.46`` arrives as the
+    adjacent-but-separate tokens ``5,869`` and ``46``. When the token immediately
+    to the right of *dollars* is an orphaned 1-2 digit cents fragment sitting
+    very close horizontally, splice a "." between them and parse the result.
+
+    Returns the parsed value string, or ``None`` when no reconstruction applies
+    (no right neighbour, too far apart, not a cents fragment, or the join does
+    not parse as a single currency value).
+    """
+
+    try:
+        idx = numeric_sorted.index(dollars)
+    except ValueError:
         return None
-    right = numeric_sorted[bi + 1]
-    if right.x0 - best.x1 > _CENTS_GAP:
+    if idx + 1 >= len(numeric_sorted):
         return None
-    if not re.fullmatch(r"\d{1,2}", right.text.strip()):
+    cents = numeric_sorted[idx + 1]
+    if cents.x0 - dollars.x1 > _ADJACENT_GAP:
         return None
-    merged = best.text + "." + right.text.strip()
+    if not _is_orphaned_cents(cents.text):
+        return None
+    merged = dollars.text + "." + cents.text.strip()
     return _parse_value(merged, "currency")
 
 
@@ -307,10 +352,10 @@ def _read_by_label(words: list[Word], rule: FieldRule) -> str | None:
                 if numeric:
                     # Pick the numeric candidate whose column matches what was taught.
                     best = min(numeric, key=lambda w: abs(w.cx - region_cx))
-                    # If the decimal period was not emitted, try reconstructing it
-                    # from an adjacent 1-2 digit token (e.g. "5,869" + "46" → 5869.46).
+                    # If the decimal period was not emitted, reconstruct it from
+                    # an adjacent 1-2 digit cents token (e.g. "5,869" + "46" → 5869.46).
                     numeric_sorted = sorted(numeric, key=lambda w: w.x0)
-                    val = _try_decimal_join(best, numeric_sorted)
+                    val = _reconstruct_dropped_decimal(best, numeric_sorted)
                     return val if val is not None else _parse_value(best.text, "currency")
     return None
 
@@ -330,7 +375,7 @@ def _read_by_region(words: list[Word], rule: FieldRule) -> str | None:
         if numeric:
             best = min(numeric, key=lambda w: abs(w.cx - region_cx))
             numeric_sorted = sorted(numeric, key=lambda w: w.x0)
-            val = _try_decimal_join(best, numeric_sorted)
+            val = _reconstruct_dropped_decimal(best, numeric_sorted)
             if val is None:
                 val = _parse_value(best.text, rule.kind)
             if val is not None:
@@ -479,26 +524,6 @@ def _group_rows(items: list[list]) -> list[list[list]]:
     return [r["items"] for r in rows]
 
 
-def _is_orphaned_cents(text: str, ntext: str) -> bool:
-    """Return True when *ntext* is likely orphaned cents from a missing decimal period.
-
-    When a PDF renderer drops the "." glyph, "$5,869" and "46" arrive as separate
-    tokens: a 1-2 digit fragment immediately following a complete currency value.
-    We block merging these in this phase so the tokens stay distinct; the readers
-    then call _try_decimal_join to reconstruct "5869.46" with the "." re-inserted.
-
-    Three-or-more digit fragments are NOT blocked: they represent thousands groups
-    whose comma was dropped (e.g. "6" + "653.85" → "6653.85"), which is safe to
-    merge because the combined result has at most one decimal point.
-    """
-    return (
-        ntext not in (",", ".")
-        and re.fullmatch(r"\d{1,2}", ntext) is not None
-        and not text.endswith((",", "."))
-        and parse_currency(text) is not None
-    )
-
-
 def _merge_number_fragments(items: list[list]) -> list[list]:
     """Stitch number tokens that got split apart (e.g. ``6 , 653.85``).
 
@@ -526,18 +551,27 @@ def _merge_number_fragments(items: list[list]) -> list[list]:
                     gap = nxt[0] - x1
                     if gap > 1.5 * max(height, 1e-6) or gap < -0.2 * max(height, 1e-6):
                         break
+                    # Absorb numeric fragments and lone separators (a thousands
+                    # comma or decimal point emitted as its own glyph).
                     if not (_numericish(ntext) or ntext in (",", ".")):
                         break
-                    if _is_orphaned_cents(text, ntext):
+                    # Refuse to stitch an orphaned cents fragment onto a value
+                    # whose decimal point glyph was dropped: "975" + "36" must
+                    # not become "97536", "5,869" + "46" must not become
+                    # "586946". The readers' _reconstruct_dropped_decimal splices
+                    # the "." back at read time. Thousands groups (3+ digit
+                    # fragments, e.g. "6" + "653.85") fall through and DO merge.
+                    if _is_orphaned_cents_split(text, ntext):
                         break
                     combined = (text + ntext).replace(" ", "")
+                    # Accept while it parses, or while still mid-number (ends in a separator).
                     if parse_currency(combined) is None and combined[-1:] not in (",", "."):
                         break
                     text = text + ntext
                     x1 = nxt[2]
                     y0, y1 = min(y0, nxt[1]), max(y1, nxt[3])
                     j += 1
-                text = text.rstrip(",.")
+                text = text.rstrip(",.")  # drop a dangling separator if nothing followed
             merged.append([x0, y0, x1, y1, text])
             i = j if j > i + 1 else i + 1
     return merged

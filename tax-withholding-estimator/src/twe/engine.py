@@ -32,24 +32,6 @@ from twe.tax_data import TaxTables, load_tax_tables
 CENTS = Decimal("0.01")
 
 
-@dataclass(slots=True)
-class _JobCalc:
-    """The projected figures for one job (internal to the engine)."""
-
-    job: Paystub
-    projected_wages: Decimal
-    ytd_withholding: Decimal
-    projected_withholding: Decimal
-    elapsed: int
-    remaining: int
-
-    @property
-    def future_withholding(self) -> Decimal:
-        """Withholding the remaining paychecks add at the current rate."""
-
-        return self.projected_withholding - self.ytd_withholding
-
-
 def _money(value: Decimal) -> Decimal:
     """Round a Decimal to cents using banker-free half-up rounding."""
 
@@ -84,8 +66,24 @@ def estimate(inp: EstimatorInput) -> EstimateResult:
 # ---------------------------------------------------------------------------
 
 
-def _project_job(job: Paystub) -> _JobCalc:
-    """Project one job's full-year wages and withholding."""
+@dataclass(slots=True)
+class _JobProjection:
+    """Full-year projection of one job's wages and withholding.
+
+    All amounts are unrounded ``Decimal`` magnitudes; rounding to cents happens
+    only when the figures land in the public result.
+    """
+
+    job: Paystub
+    projected_wages: Decimal      # full-year taxable wages (YTD + remaining)
+    ytd_withholding: Decimal      # federal tax withheld so far
+    projected_withholding: Decimal  # full-year withholding at the current rate
+    periods_elapsed: int
+    periods_remaining: int
+
+
+def _project_job(job: Paystub) -> _JobProjection:
+    """Project one job's full-year taxable wages and federal withholding."""
 
     periods_per_year = job.periods_per_year
     remaining = job.pay_periods_remaining
@@ -113,13 +111,13 @@ def _project_job(job: Paystub) -> _JobCalc:
         ytd_wh = per_period_wh * elapsed
     projected_wh = ytd_wh + per_period_wh * remaining
 
-    return _JobCalc(
+    return _JobProjection(
         job=job,
         projected_wages=projected_wages,
         ytd_withholding=ytd_wh,
         projected_withholding=projected_wh,
-        elapsed=elapsed,
-        remaining=remaining,
+        periods_elapsed=elapsed,
+        periods_remaining=remaining,
     )
 
 
@@ -273,6 +271,9 @@ def _capital_gains_tax(
     zero_top, fifteen_top = tables.capital_gains_thresholds(status)
     tax = ZERO
 
+    # The preferential income stacks on top of ordinary taxable income, so each
+    # rate band only has room above where the ordinary income already sits.
+
     # 0% portion: from ordinary_ti up to the 0% threshold.
     zero_room = _nonneg(zero_top - ordinary_ti)
     zero_amount = min(preferential, zero_room)
@@ -373,14 +374,15 @@ def _build_recommendation(
     # The job whose W-4 we adjust; the others keep withholding at their current rate.
     adjusted = inp.adjusted_job()
     adjusted_idx = next(i for i, p in enumerate(projections) if p.job is adjusted)
-    a_remaining = projections[adjusted_idx].remaining
-    a_elapsed = projections[adjusted_idx].elapsed
+    adjusted_proj = projections[adjusted_idx]
+    a_remaining = adjusted_proj.periods_remaining
     a_per_period_wh = adjusted.federal_tax_withheld_per_period
     a_ppy = adjusted.periods_per_year
 
     # Future withholding the *other* jobs will contribute at their current rate.
     others_future_wh = sum(
-        (p.future_withholding for i, p in enumerate(projections) if i != adjusted_idx),
+        (p.projected_withholding - p.ytd_withholding
+         for i, p in enumerate(projections) if i != adjusted_idx),
         ZERO,
     )
 
@@ -411,7 +413,7 @@ def _build_recommendation(
             name=p.job.name or f"Job {i + 1}",
             pay_frequency=p.job.pay_frequency,
             periods_per_year=p.job.periods_per_year,
-            periods_remaining=p.remaining,
+            periods_remaining=p.periods_remaining,
             projected_taxable_wages=_money(p.projected_wages),
             projected_withholding=_money(p.projected_withholding),
         )
@@ -421,7 +423,7 @@ def _build_recommendation(
     return WithholdingRecommendation(
         periods_per_year=a_ppy,
         periods_remaining=a_remaining,
-        periods_elapsed=a_elapsed,
+        periods_elapsed=adjusted_proj.periods_elapsed,
         ytd_withholding=_money(total_ytd_wh),
         projected_withholding_current_rate=_money(total_projected_wh),
         other_payments_total=_money(other_payments_total),
