@@ -510,23 +510,18 @@ def _merge_number_fragments(items: list[list]) -> list[list]:
                     if not (_numericish(ntext) or ntext in (",", ".")):
                         break
                     # Guard against the "missing decimal period" failure mode:
-                    # if the left fragment already contains a thousands comma
-                    # (i.e. is a fully-grouped number like "5,869") and the
-                    # right fragment is a pure integer with no decimal point
-                    # (like "46"), the right fragment is almost certainly
-                    # orphaned cents — merging without a period would produce
-                    # "5,86946" (= 586,946) instead of leaving them as separate
-                    # tokens so the label reader can pick the whole-number part.
-                    # By contrast "6" + "653.85" (comma dropped from 6,653.85)
-                    # is allowed because the left has no comma yet, and
-                    # "5,869." + "46" is allowed because the current text ends
-                    # with the separator that was just absorbed.
+                    # if the right fragment is exactly 1-2 digits it is almost
+                    # certainly orphaned cents (e.g. "975" + "36" should be
+                    # 975.36, not 97536; "5,869" + "46" should be 5869.46, not
+                    # 586946).  Three-or-more digit fragments are allowed
+                    # through because they represent thousands groups whose
+                    # comma was dropped by the renderer (e.g. "6" + "653.85").
+                    # _try_decimal_join in the readers reconstructs the full
+                    # value from the separated tokens.
                     if (ntext not in (",", ".")
-                            and "," in text
-                            and "." not in ntext
+                            and re.fullmatch(r"\d{1,2}", ntext)
                             and not (text.endswith(",") or text.endswith("."))
-                            and parse_currency(text) is not None
-                            and parse_currency(ntext) is not None):
+                            and parse_currency(text) is not None):
                         break
                     combined = (text + ntext).replace(" ", "")
                     # Accept while it parses, or while still mid-number (ends in a separator).
