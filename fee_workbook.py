@@ -116,6 +116,23 @@ def read_year_sheet(worksheet) -> dict:
     return schedule
 
 
+def schedule_for_year(workbook_path, year) -> dict | None:
+    """Return the fee schedule from a workbook's <year> sheet, or None if unavailable."""
+
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        return None
+    workbook_path = Path(workbook_path)
+    if not workbook_path.is_file():
+        return None
+    workbook = load_workbook(workbook_path, read_only=True, data_only=True)
+    name = str(int(year))
+    if name not in workbook.sheetnames:
+        return None
+    return read_year_sheet(workbook[name])
+
+
 def run_fee_workbook(input_folder, year=None, make_next=True, status_callback=None) -> dict:
     """Sync the per-year fee workbook with fee_schedule.json and prep next year."""
 

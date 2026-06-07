@@ -11,6 +11,14 @@ from pathlib import Path
 
 import year_rollover as yr
 
+try:
+    import fee_workbook
+    from openpyxl import load_workbook
+
+    HAVE_OPENPYXL = True
+except Exception:  # pragma: no cover - depends on environment
+    HAVE_OPENPYXL = False
+
 
 class RollForwardTests(unittest.TestCase):
     def test_static_fields_carry_per_year_fields_reset(self) -> None:
@@ -65,6 +73,25 @@ class RunTests(unittest.TestCase):
             # Re-running does not duplicate clients.
             again = yr.run_rollover(folder)
             self.assertEqual(again["client_count"], 0)
+
+    @unittest.skipUnless(HAVE_OPENPYXL, "openpyxl not installed")
+    def test_rollover_applies_workbook_year_prices(self) -> None:
+        with tempfile.TemporaryDirectory() as d:
+            folder = Path(d)
+            (folder / "clients.json").write_text(
+                json.dumps([{"client_name": "A", "tax_year": "2024"}]), encoding="utf-8"
+            )
+            fee_workbook.run_fee_workbook(folder, year=2024)  # creates 2024 + 2025 sheets
+            workbook = load_workbook(folder / "fee_schedule.xlsx")
+            for row in workbook["2025"].iter_rows():
+                if row[0].value == "base_1040":
+                    row[2].value = 185.0  # reprice 2025
+            workbook.save(folder / "fee_schedule.xlsx")
+
+            result = yr.run_rollover(folder, new_year="2025")
+            self.assertTrue(result["workbook_applied"])
+            schedule = json.loads((folder / "2025" / "fee_schedule.json").read_text())
+            self.assertEqual(schedule["base_1040"]["price"], 185.0)  # 2025 prices, not 2024's
 
 
 if __name__ == "__main__":

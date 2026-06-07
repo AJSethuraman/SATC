@@ -22,7 +22,9 @@ from datetime import date
 from pathlib import Path
 
 import core
+import fee_workbook
 import generate_documents
+import invoice_calc
 import sort_tax_docs
 
 # Per-year fields cleared on rollover; everything else carries forward.
@@ -98,6 +100,18 @@ def run_rollover(input_folder, new_year=None, status_callback=None) -> dict:
     target_folder.mkdir(parents=True, exist_ok=True)
     _copy_config(input_folder, target_folder)
 
+    # If a year-by-year fee workbook has a sheet for the new year, use that year's
+    # prices for the new folder instead of copying last year's fee_schedule.json.
+    workbook_applied = False
+    workbook_schedule = fee_workbook.schedule_for_year(
+        input_folder / fee_workbook.WORKBOOK_FILENAME, year
+    )
+    if workbook_schedule:
+        (target_folder / invoice_calc.FEE_SCHEDULE_FILENAME).write_text(
+            json.dumps(workbook_schedule, indent=2), encoding="utf-8"
+        )
+        workbook_applied = True
+
     carried = [roll_forward(client, year) for client in clients]
     clients_file = target_folder / "clients.json"
     existing: list[dict] = []
@@ -110,14 +124,17 @@ def run_rollover(input_folder, new_year=None, status_callback=None) -> dict:
     merged, added, skipped = core.append_new_clients(existing, carried)
     clients_file.write_text(json.dumps(merged, indent=2), encoding="utf-8")
 
+    warnings = [f"{skipped} client(s) already present in {year}/clients.json."] if skipped else []
     return {
         **base_result,
         "target_folder": target_folder,
         "new_year": year,
         "client_count": added,
-        "warnings": ([f"{skipped} client(s) already present in {year}/clients.json."] if skipped else []),
+        "workbook_applied": workbook_applied,
+        "warnings": warnings,
         "summary": (
             f"Rolled {added} client(s) forward to {year}"
+            + (f"; applied {year} fees from the workbook" if workbook_applied else "")
             + (f" ({skipped} already present)." if skipped else ".")
         ),
     }

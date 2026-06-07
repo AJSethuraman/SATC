@@ -326,6 +326,8 @@ The **Fee Workbook** tool keeps your fee schedule as an Excel workbook, `fee_sch
 
 Each sheet has a **FORMS** table (Key / Description / Price / Additional) and a **DISCOUNTS** table (Key / Description / Amount / Percent). Edit a year, re-run the tool, then run Calculate Invoices. The target year defaults to the latest client `tax_year` (or `--year`). Needs the `openpyxl` package.
 
+**Year Rollover uses it too:** when you roll clients forward into a `<year>/` folder, if the workbook has a sheet for that year, the new folder's `fee_schedule.json` is taken from it — so next year's folder starts with next year's prices, not last year's.
+
 ## Building a standalone desktop app
 
 You can package the desktop app into a single double-click executable so it runs
