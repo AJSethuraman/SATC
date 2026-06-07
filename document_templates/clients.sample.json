@@ -27,6 +27,18 @@
     "extended_due_date": "October 15, 2025",
     "notes": "We estimate a small balance due; please remit the enclosed estimated payment.",
 
+    "returns": [
+      { "return_type": "Federal Income Tax", "refund_or_balance": "$452 Refund", "transaction_method": "Direct Deposit to **6095" },
+      { "return_type": "Illinois Income Tax", "refund_or_balance": "$255 Refund", "transaction_method": "Direct Deposit to **6095" },
+      { "return_type": "Local Income Tax", "refund_or_balance": "Zero Due", "transaction_method": "" }
+    ],
+    "efiled_returns": [
+      { "name": "Federal Income Tax" },
+      { "name": "Illinois Income Tax" },
+      { "name": "Local Income Tax" }
+    ],
+    "pay_link": "https://pay.example-firm.com/jordan-sample",
+
     "requested_items": [
       { "item": "All W-2 forms from 2024 employers" },
       { "item": "1099 forms (INT, DIV, NEC, R) received for 2024" },

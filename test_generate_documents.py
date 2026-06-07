@@ -98,6 +98,32 @@ class RenderTemplateTests(unittest.TestCase):
             self.assertIn("Pat Example", text)
             self.assertNotIn("{{", text)
 
+    def test_results_letter_renders_table_and_payment(self) -> None:
+        directory = gd.REPO_TEMPLATE_DIR
+        template = (directory / "tax_results_letter.html").read_text(encoding="utf-8")
+        context = gd.augment_context({
+            "client_name": "Sam Sample", "tax_year": "2025", "total": "450.00",
+            "pay_link": "https://pay.example.com/sam",
+            "returns": [
+                {"return_type": "Federal", "refund_or_balance": "$452 Refund", "transaction_method": "DD **6095"},
+                {"return_type": "State", "refund_or_balance": "Zero Due", "transaction_method": ""},
+            ],
+            "efiled_returns": [{"name": "Federal"}, {"name": "State"}],
+        })
+        html = gd.render_template(template, context)
+        self.assertEqual(html.count("<tr><td>"), 2)          # one row per return
+        self.assertIn("$452 Refund", html)
+        self.assertEqual(html.count("<li>"), 2)              # one per e-filed return
+        self.assertIn("Our fee for these services is 450.00", html)
+        self.assertIn("https://pay.example.com/sam", html)
+        self.assertNotIn("{{#", html)                        # no leftover section markers
+
+    def test_results_letter_hides_payment_when_absent(self) -> None:
+        template = (gd.REPO_TEMPLATE_DIR / "tax_results_letter.html").read_text(encoding="utf-8")
+        html = gd.render_template(template, {"client_name": "Sam", "tax_year": "2025"})
+        self.assertNotIn("Our fee", html)                    # no total -> fee line hidden
+        self.assertNotIn("pay us securely", html)            # no pay_link -> link hidden
+
     def test_invoice_total_is_computed(self) -> None:
         context = gd.augment_context(
             {"line_items": [{"amount": "300.00"}, {"amount": "1,200.50"}]}

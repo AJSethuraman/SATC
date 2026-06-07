@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<!-- Editable tax-results summary letter.
+     The "returns" section repeats once per return row in the summary table.
+     The "efiled_returns" section repeats once per e-filed return.
+     The "total" and "pay_link" blocks only appear when those values are present
+     (run Calculate Invoices first to fill the total). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tax Summary {{tax_year}} - {{client_name}}</title>
+<style>
+  body { font-family: Georgia, "Times New Roman", serif; color: #1a1a1a; max-width: 720px;
+         margin: 40px auto; padding: 0 28px; }
+  .firm { text-align: center; border-bottom: 2px solid #0B1F3A; padding-bottom: 12px; }
+  .firm h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: 1px; color: #0B1F3A; }
+  .firm div { font-size: 12px; color: #444; }
+  .block { margin: 18px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 18px 0; }
+  th, td { border: 1px solid #9aa3ad; padding: 8px 10px; font-size: 14px; text-align: left; }
+  th { background: #0B1F3A; color: #fff; }
+  td.amount, th.amount { text-align: right; }
+  .efile ul { margin: 6px 0 0; }
+  .pay { margin: 22px 0; padding: 14px 18px; border: 1px solid #c8b274; background: #fbf7ee;
+         border-radius: 8px; }
+  .pay .fee { font-size: 16px; font-weight: bold; color: #0B1F3A; margin: 0 0 6px; }
+  .pay a { color: #0B1F3A; }
+  .sign { margin-top: 40px; }
+  @media print { body { margin: 0; } }
+</style>
+</head>
+<body>
+  <div class="firm">
+    <h1>{{firm_name}}</h1>
+    <div>{{firm_address}}</div>
+    <div>{{firm_email}}</div>
+    <div>Phone: {{firm_phone}}{{#firm_fax}} | Fax: {{firm_fax}}{{/firm_fax}}</div>
+  </div>
+
+  <div class="block">{{generated_date}}</div>
+  <div class="block">{{client_name}}<br>{{client_address}}</div>
+  <div class="block">{{client_name}}:</div>
+  <p>Below is a summary of your {{tax_year}} tax year.</p>
+
+  <table>
+    <thead>
+      <tr><th>Return Type</th><th>Refund/Balance Due</th><th>Transaction Method</th></tr>
+    </thead>
+    <tbody>
+      {{#returns}}
+      <tr><td>{{return_type}}</td><td>{{refund_or_balance}}</td><td>{{transaction_method}}</td></tr>
+      {{/returns}}
+    </tbody>
+  </table>
+
+  <div class="efile">
+    <p>The following returns will be e-filed and do not need to be mailed to the taxing authority:</p>
+    <ul>
+      {{#efiled_returns}}<li>{{name}}</li>{{/efiled_returns}}
+    </ul>
+  </div>
+
+  <div class="pay">
+    {{#total}}<p class="fee">Our fee for these services is {{total}}.</p>{{/total}}
+    {{#pay_link}}<p>You can pay us securely online here: <a href="{{pay_link}}">{{pay_link}}</a></p>{{/pay_link}}
+    <p>{{payment_terms}}</p>
+  </div>
+
+  <div class="sign">
+    <p>Sincerely,</p>
+    <p>&nbsp;</p>
+    <p>{{preparer_name}}<br>{{firm_name}}</p>
+  </div>
+</body>
+</html>

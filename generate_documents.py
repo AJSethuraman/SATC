@@ -53,6 +53,7 @@ SHIPPED_TEMPLATE_KEYS = (
     "invoice",
     "extension_cover_letter",
     "client_organizer_letter",
+    "tax_results_letter",
 )
 
 _SECTION_RE = re.compile(r"\{\{#(\w+)\}\}(.*?)\{\{/\1\}\}", re.DOTALL)
