@@ -70,7 +70,7 @@
 
   <div class="totals">
     <div class="row"><span>Subtotal</span><span>{{subtotal}}</span></div>
-    {{#discount}}<div class="row discount"><span>Express discount</span><span>{{discount}}</span></div>{{/discount}}
+    {{#discount_lines}}<div class="row discount"><span>{{description}}</span><span>{{amount}}</span></div>{{/discount_lines}}
     <div class="row grand">
       <span>Total Due{{#express_applied}}<span class="badge">EXPRESS</span>{{/express_applied}}</span>
       <span>{{total}}</span>

@@ -25,7 +25,9 @@ INVOICE_FOLDER_NAME = "Invoices"
 FEE_SCHEDULE_FILENAME = "fee_schedule.json"
 WORKSHEET_FILENAME = "fee_worksheet.csv"
 BASE_FEE_KEY = "base_1040"
-EXPRESS_KEY = "express_discount"
+DISCOUNTS_KEY = "discounts"
+# Order discounts are applied/shown in. Unknown keys (your own additions) follow.
+DISCOUNT_ORDER = ("express", "friends_family", "loyalty")
 
 # Form/schedule key -> {description, price, [additional]}. "price" is the fee for the
 # first of that form; "additional" (optional, defaults to price) is the fee for each
@@ -51,9 +53,18 @@ DEFAULT_FEE_SCHEDULE: dict[str, dict] = {
     "partnership_1065": {"description": "Form 1065 - Partnership", "price": 800.0},
     "corporation_1120": {"description": "Form 1120 - Corporation", "price": 800.0},
     "estate_1041": {"description": "Form 1041 - Estate / Trust", "price": 400.0},
-    # Express discount applied to simple filers (set amount, or "percent": 15). Remove
-    # this entry to turn the discount off.
-    EXPRESS_KEY: {"description": "Express discount - simple filer", "amount": -40.0},
+    # All discounts live here so the amounts are easy to find and change. Each takes a
+    # flat "amount" (negative) OR a "percent" of the subtotal. Remove one to turn it
+    # off; add your own (e.g. "senior") and mark clients with it. Eligibility:
+    #   express        - automatic for simple filers (no marking; deterministic)
+    #   loyalty        - automatic for returning clients (e.g. carried by Year Rollover)
+    #   friends_family - and any custom discount: applied when the client record lists
+    #                    it, e.g.  "discounts": ["friends_family"]
+    DISCOUNTS_KEY: {
+        "express": {"description": "Express discount - simple filer", "amount": -40.0},
+        "friends_family": {"description": "Friends & family discount", "percent": 20},
+        "loyalty": {"description": "Loyalty discount - returning client", "amount": -25.0},
+    },
 }
 
 # Income documents -> the schedules/forms they typically require, so an invoice can be
@@ -117,22 +128,73 @@ def is_simple_filer(client: dict) -> bool:
     return docs <= SIMPLE_DOCS and services <= SIMPLE_SERVICES
 
 
-def express_eligible(client: dict) -> bool:
-    """Whether the express discount applies: explicit ``express`` flag, else auto-detected."""
+def _client_marked(client: dict, key: str) -> bool:
+    """Whether a client record opts into a relationship discount."""
 
-    if "express" in client:
-        return bool(client["express"])
-    return is_simple_filer(client)
+    marked = client.get("discounts") or []
+    if isinstance(marked, str):
+        marked = [marked]
+    return key in marked or bool(client.get(key))
 
 
-def compute_line_items(client: dict, schedule: dict) -> tuple[list[dict], float, float, float, list[str]]:
-    """Build (line_items, subtotal, discount, total, warnings) for one client.
+def discount_eligible(key: str, client: dict) -> bool:
+    """Deterministic eligibility for a discount key.
+
+    ``express`` is automatic for simple filers; ``loyalty`` is automatic for returning
+    clients; every other discount applies when the client record lists it.
+    """
+
+    if key == "express":
+        return is_simple_filer(client)
+    if key == "loyalty":
+        return bool(client.get("returning")) or _client_marked(client, "loyalty")
+    return _client_marked(client, key)
+
+
+def get_discounts(schedule: dict) -> dict:
+    """The discounts config, with backward-compat for a legacy express_discount entry."""
+
+    discounts = schedule.get(DISCOUNTS_KEY)
+    if isinstance(discounts, dict):
+        return discounts
+    if "express_discount" in schedule:  # older fee_schedule.json
+        return {"express": schedule["express_discount"]}
+    return {}
+
+
+def _ordered_discount_keys(discounts: dict) -> list[str]:
+    known = [k for k in DISCOUNT_ORDER if k in discounts]
+    extra = [k for k in discounts if k not in DISCOUNT_ORDER]
+    return known + extra
+
+
+def applicable_discounts(client: dict, schedule: dict, subtotal: float) -> list[dict]:
+    """Return discount line items {description, amount} the client qualifies for."""
+
+    discounts = get_discounts(schedule)
+    lines: list[dict] = []
+    for key in _ordered_discount_keys(discounts):
+        if not discount_eligible(key, client):
+            continue
+        config = discounts[key] or {}
+        if "percent" in config:
+            amount = -round(subtotal * abs(float(config["percent"])) / 100.0, 2)
+        else:
+            amount = -abs(float(config.get("amount", 0)))
+        if amount:
+            lines.append({"key": key, "description": config.get("description", key), "amount": _money(amount)})
+    return lines
+
+
+def compute_line_items(client: dict, schedule: dict) -> tuple[list[dict], float, list[dict], float, list[str]]:
+    """Build (line_items, subtotal, discount_lines, total, warnings) for one client.
 
     Pricing is form/schedule driven: a base Form 1040, plus the schedules implied by
     the client's expected_documents, plus any explicit ``services`` (each a form key,
     or ``{"service": key, "quantity": n}``, or an inline ``{"description", "price"}``).
-    Each form is priced as initial + (quantity - 1) x additional. A simple filer then
-    receives the express discount.
+    Each form is priced as initial + (quantity - 1) x additional. Then every discount
+    the client qualifies for (express/loyalty automatically, friends_family and custom
+    discounts when listed on the record) is applied as its own line.
     """
 
     line_items: list[dict] = []
@@ -179,17 +241,9 @@ def compute_line_items(client: dict, schedule: dict) -> tuple[list[dict], float,
         add(str(inline["description"]), float(inline["price"]), quantity)
 
     subtotal = sum(core.parse_money(item["amount"]) for item in line_items)
-
-    discount = 0.0
-    if express_eligible(client) and EXPRESS_KEY in schedule:
-        config = schedule[EXPRESS_KEY]
-        if "percent" in config:
-            discount = -round(subtotal * abs(float(config["percent"])) / 100.0, 2)
-        else:
-            discount = -abs(float(config.get("amount", 0)))
-
-    total = round(subtotal + discount, 2)
-    return line_items, subtotal, discount, total, warnings
+    discount_lines = applicable_discounts(client, schedule, subtotal)
+    total = round(subtotal + sum(core.parse_money(d["amount"]) for d in discount_lines), 2)
+    return line_items, subtotal, discount_lines, total, warnings
 
 
 def run_invoice_calc(input_folder, status_callback=None) -> dict:
@@ -205,7 +259,7 @@ def run_invoice_calc(input_folder, status_callback=None) -> dict:
         "worksheet_path": None,
         "client_count": 0,
         "invoiced_count": 0,
-        "express_count": 0,
+        "discounted_count": 0,
         "grand_total": "0.00",
         "warnings": [],
     }
@@ -222,29 +276,31 @@ def run_invoice_calc(input_folder, status_callback=None) -> dict:
     warnings: list[str] = []
     worksheet_rows: list[dict] = []
     invoiced = 0
-    express_count = 0
+    discounted_count = 0
     grand_total = 0.0
     for index, client in enumerate(clients, start=1):
         slug = generate_documents.client_slug(client, index)
         if status_callback:
             status_callback(f"Calculating invoice for {slug} ({index} of {len(clients)})")
-        line_items, subtotal, discount, total, client_warnings = compute_line_items(client, schedule)
+        line_items, subtotal, discount_lines, total, client_warnings = compute_line_items(client, schedule)
         warnings.extend(f"{slug}: {w}" for w in client_warnings)
         if not line_items:
             warnings.append(f"{slug}: nothing to bill (no base fee or services).")
             continue
+        discount_total = subtotal - total
         client["line_items"] = line_items
         client["subtotal"] = _money(subtotal)
-        client["discount"] = _money(discount) if discount else ""
+        client["discount_lines"] = [{"description": d["description"], "amount": d["amount"]} for d in discount_lines]
+        client["discount"] = _money(-discount_total) if discount_total else ""
         client["total"] = _money(total)
-        client["express_applied"] = bool(discount)
+        client["express_applied"] = any(d["key"] == "express" for d in discount_lines)
         invoiced += 1
-        express_count += 1 if discount else 0
+        discounted_count += 1 if discount_lines else 0
         grand_total += total
         for item in line_items:
             worksheet_rows.append({"client": slug, "description": item["description"], "amount": item["amount"]})
-        if discount:
-            worksheet_rows.append({"client": slug, "description": "Express discount", "amount": _money(discount)})
+        for discount in discount_lines:
+            worksheet_rows.append({"client": slug, "description": discount["description"], "amount": discount["amount"]})
         worksheet_rows.append({"client": slug, "description": "TOTAL", "amount": _money(total)})
 
     # Persist computed line items so Generate Documents can render the invoices.
@@ -263,13 +319,13 @@ def run_invoice_calc(input_folder, status_callback=None) -> dict:
         "worksheet_path": worksheet_path,
         "client_count": len(clients),
         "invoiced_count": invoiced,
-        "express_count": express_count,
+        "discounted_count": discounted_count,
         "grand_total": _money(grand_total),
         "warnings": warnings,
         "summary": (
             f"Computed invoices for {invoiced} of {len(clients)} client(s); "
             f"total billed {_money(grand_total)}"
-            + (f" ({express_count} express)." if express_count else ".")
+            + (f" ({discounted_count} discounted)." if discounted_count else ".")
         ),
     }
 
