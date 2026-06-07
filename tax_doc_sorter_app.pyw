@@ -28,6 +28,7 @@ if PYSIDE_AVAILABLE:
     from PySide6.QtWidgets import (
         QApplication,
         QCheckBox,
+        QComboBox,
         QDialog,
         QFileDialog,
         QFrame,
@@ -41,6 +42,7 @@ if PYSIDE_AVAILABLE:
         QPushButton,
         QProgressBar,
         QScrollArea,
+        QStackedWidget,
         QTableWidget,
         QTableWidgetItem,
         QToolButton,
@@ -530,148 +532,194 @@ if PYSIDE_AVAILABLE:
             self.open_paths: dict[str, str] = {}
             self.selected_folder = ensure_default_uploads_folder().resolve()
             self.result: dict[str, Any] | None = None
-            self.setWindowTitle("SATC Tax Document Sorter")
-            self.resize(1120, 780)
+            self.setWindowTitle("SATC Tax Workflow")
+            self.resize(1000, 640)
+            self.setMinimumSize(880, 560)
             self.build_ui()
             self.apply_styles()
             self.set_selected_folder(self.selected_folder)
 
+        OPTIONS_LABEL = "Options"
+        RESULTS_LABEL = "Results"
+
         def build_ui(self) -> None:
             central = QWidget()
             self.setCentralWidget(central)
-            root = QVBoxLayout(central)
+            root = QHBoxLayout(central)
             root.setContentsMargins(0, 0, 0, 0)
             root.setSpacing(0)
 
-            header = QFrame(objectName="Header")
-            header_layout = QHBoxLayout(header)
-            header_layout.setContentsMargins(34, 28, 34, 28)
-            mark = QLabel("SATC", objectName="BrandMark")
-            mark.setAlignment(Qt.AlignCenter)
-            header_text = QVBoxLayout()
-            eyebrow = QLabel("LOCAL DOCUMENT WORKFLOW", objectName="Eyebrow")
-            title = QLabel("Tax Document Sorter", objectName="Title")
-            subtitle = QLabel(
-                "Organize client tax documents into review-ready folders.",
-                objectName="Subtitle",
-            )
-            header_text.addWidget(eyebrow)
-            header_text.addWidget(title)
-            header_text.addWidget(subtitle)
-            header_layout.addWidget(mark)
-            header_layout.addLayout(header_text, stretch=1)
-            root.addWidget(header)
+            root.addWidget(self._build_sidebar())
 
-            body = QWidget(objectName="Body")
-            body_layout = QVBoxLayout(body)
-            body_layout.setContentsMargins(28, 26, 28, 28)
-            body_layout.setSpacing(18)
-            root.addWidget(body, stretch=1)
+            main = QWidget(objectName="Main")
+            main_layout = QVBoxLayout(main)
+            main_layout.setContentsMargins(18, 14, 18, 16)
+            main_layout.setSpacing(10)
+            main_layout.addWidget(self._build_top_bar())
+            main_layout.addLayout(self._build_selection_bar())
 
-            folder_card = QFrame(objectName="Card")
-            folder_layout = QGridLayout(folder_card)
-            folder_layout.setContentsMargins(24, 22, 24, 22)
-            folder_layout.setHorizontalSpacing(12)
-            folder_layout.setVerticalSpacing(12)
-            folder_title = QLabel("Choose the client upload folder", objectName="SectionTitle")
-            self.folder_path = QLineEdit()
-            self.folder_path.setReadOnly(True)
-            choose_button = QPushButton("Choose Folder")
-            choose_button.clicked.connect(self.choose_folder)
-            default_button = QPushButton("Use Default Uploads Folder")
-            default_button.clicked.connect(lambda: self.set_selected_folder(ensure_default_uploads_folder()))
-            edit_clients_button = QPushButton("Edit Clients")
-            edit_clients_button.setToolTip("Add or edit clients in a table (no JSON editing).")
-            edit_clients_button.clicked.connect(self.open_clients_editor)
-            safety = QLabel("Files are copied by default. Originals are not deleted.", objectName="SafetyNote")
-            folder_layout.addWidget(folder_title, 0, 0, 1, 3)
-            folder_layout.addWidget(self.folder_path, 1, 0, 1, 3)
-            folder_layout.addWidget(choose_button, 2, 0)
-            folder_layout.addWidget(default_button, 2, 1)
-            folder_layout.addWidget(edit_clients_button, 2, 2)
-            folder_layout.addWidget(safety, 3, 0, 1, 3)
-            body_layout.addWidget(folder_card)
-
-            tools_card = QFrame(objectName="Card")
-            tools_layout = QVBoxLayout(tools_card)
-            tools_layout.setContentsMargins(24, 20, 24, 20)
-            tools_layout.setSpacing(10)
-
-            tools_header = QHBoxLayout()
-            tools_header.addWidget(QLabel("Choose tools to run", objectName="SectionTitle"))
-            tools_header.addStretch()
-            select_all = QPushButton("Select all", objectName="GhostButton")
-            select_all.clicked.connect(lambda: self.set_all_tools(True))
-            select_none = QPushButton("Clear", objectName="GhostButton")
-            select_none.clicked.connect(lambda: self.set_all_tools(False))
-            tools_header.addWidget(select_all)
-            tools_header.addWidget(select_none)
-            tools_layout.addLayout(tools_header)
-
-            preset_row = QHBoxLayout()
-            preset_row.addWidget(QLabel("Presets:", objectName="StatusLabel"))
-            for label, keys in tax_tools.PRESETS:
-                preset_button = QPushButton(label, objectName="PresetButton")
-                preset_button.clicked.connect(lambda _checked=False, k=tuple(keys): self.apply_preset(k))
-                preset_row.addWidget(preset_button)
-            preset_row.addStretch()
-            tools_layout.addLayout(preset_row)
-
-            # Scrollable, grouped tool list so 18 tools stay tidy.
-            scroll = QScrollArea()
-            scroll.setWidgetResizable(True)
-            scroll.setObjectName("ToolScroll")
-            scroll.setMinimumHeight(300)
-            grouped_host = QWidget()
-            grouped_layout = QVBoxLayout(grouped_host)
-            grouped_layout.setContentsMargins(0, 0, 8, 0)
-            grouped_layout.setSpacing(14)
+            self.pages = QStackedWidget()
             self.group_checkboxes: dict[str, QCheckBox] = {}
+            self.group_pages: list[str] = []
             for group, tools in tax_tools.tools_by_group().items():
                 if not tools:
                     continue
-                group_box = QFrame(objectName="GroupCard")
-                group_layout = QVBoxLayout(group_box)
-                group_layout.setContentsMargins(16, 12, 16, 14)
-                group_layout.setSpacing(4)
-                group_head = QHBoxLayout()
-                group_toggle = QCheckBox(group.upper(), objectName="GroupTitle")
-                group_toggle.setChecked(True)
-                group_toggle.clicked.connect(
-                    lambda checked, g=group: self.set_group_tools(g, checked)
-                )
-                self.group_checkboxes[group] = group_toggle
-                group_head.addWidget(group_toggle)
-                group_head.addStretch()
-                group_layout.addLayout(group_head)
-                for tool in tools:
-                    checkbox = QCheckBox(tool.name)
-                    checkbox.setChecked(True)
-                    checkbox.toggled.connect(self.sync_group_toggles)
-                    description = QLabel(tool.description, objectName="ToolDesc")
-                    description.setWordWrap(True)
-                    group_layout.addWidget(checkbox)
-                    group_layout.addWidget(description)
-                    self.tool_checkboxes[tool.key] = checkbox
-                grouped_layout.addWidget(group_box)
-            grouped_layout.addStretch()
-            scroll.setWidget(grouped_host)
-            tools_layout.addWidget(scroll)
-            body_layout.addWidget(tools_card, stretch=1)
+                self.group_pages.append(group)
+                self.pages.addWidget(self._build_group_page(group, tools))
+            self.pages.addWidget(self._build_options_page())
+            self.pages.addWidget(self._build_results_page())
+            main_layout.addWidget(self.pages, stretch=1)
+            root.addWidget(main, stretch=1)
 
-            controls = QFrame(objectName="Card")
-            controls_layout = QVBoxLayout(controls)
-            controls_layout.setContentsMargins(24, 20, 24, 20)
-            self.advanced_toggle = QToolButton(text="Advanced Options")
-            self.advanced_toggle.setCheckable(True)
-            self.advanced_toggle.setChecked(False)
-            self.advanced_toggle.clicked.connect(self.toggle_advanced)
-            self.advanced_panel = QWidget()
-            advanced_layout = QVBoxLayout(self.advanced_panel)
-            advanced_layout.setContentsMargins(0, 8, 0, 0)
+            self.nav.setCurrentRow(0)
+            self.update_selected_count()
+
+        def _build_sidebar(self) -> "QFrame":
+            sidebar = QFrame(objectName="Sidebar")
+            sidebar.setFixedWidth(212)
+            side = QVBoxLayout(sidebar)
+            side.setContentsMargins(16, 18, 16, 16)
+            side.setSpacing(6)
+            side.addWidget(QLabel("SATC", objectName="Brand"))
+            side.addWidget(QLabel("Tax Workflow", objectName="Tagline"))
+            side.addSpacing(10)
+
+            self.nav = QListWidget(objectName="Nav")
+            self.nav.setFrameShape(QFrame.NoFrame)
+            for group in self.group_pages_order():
+                self.nav.addItem(group)
+            self.nav.addItem(self.OPTIONS_LABEL)
+            self.nav.addItem(self.RESULTS_LABEL)
+            self.nav.currentRowChanged.connect(self._on_nav_changed)
+            side.addWidget(self.nav, stretch=1)
+
+            self.selected_count = QLabel("", objectName="SideNote")
+            self.selected_count.setWordWrap(True)
+            side.addWidget(self.selected_count)
+            self.run_button = QPushButton("Run Selected", objectName="PrimaryButton")
+            self.run_button.clicked.connect(self.run_selected_tools)
+            side.addWidget(self.run_button)
+            self.progress = QProgressBar()
+            self.progress.setRange(0, 1)
+            self.progress.setValue(0)
+            self.progress.hide()
+            side.addWidget(self.progress)
+            self.status_label = QLabel("Ready.", objectName="SideNote")
+            self.status_label.setWordWrap(True)
+            side.addWidget(self.status_label)
+            return sidebar
+
+        @staticmethod
+        def group_pages_order() -> list[str]:
+            return [g for g, tools in tax_tools.tools_by_group().items() if tools]
+
+        def _on_nav_changed(self, row: int) -> None:
+            if 0 <= row < self.pages.count():
+                self.pages.setCurrentIndex(row)
+
+        def _build_top_bar(self) -> "QFrame":
+            bar = QFrame(objectName="TopBar")
+            layout = QHBoxLayout(bar)
+            layout.setContentsMargins(14, 9, 14, 9)
+            layout.setSpacing(8)
+            layout.addWidget(QLabel("Folder:", objectName="StatusLabel"))
+            self.folder_path = QLineEdit()
+            self.folder_path.setReadOnly(True)
+            layout.addWidget(self.folder_path, stretch=1)
+            choose = QPushButton("Choose…")
+            choose.clicked.connect(self.choose_folder)
+            default = QPushButton("Default")
+            default.clicked.connect(lambda: self.set_selected_folder(ensure_default_uploads_folder()))
+            edit_clients = QPushButton("Edit Clients")
+            edit_clients.setToolTip("Add or edit clients in a table (no JSON editing).")
+            edit_clients.clicked.connect(self.open_clients_editor)
+            for button in (choose, default, edit_clients):
+                layout.addWidget(button)
+            return bar
+
+        def _build_selection_bar(self) -> "QHBoxLayout":
+            row = QHBoxLayout()
+            row.addWidget(QLabel("Preset:", objectName="StatusLabel"))
+            self.preset_combo = QComboBox()
+            self.preset_combo.addItem("Choose…")
+            for label, _keys in tax_tools.PRESETS:
+                self.preset_combo.addItem(label)
+            self.preset_combo.activated.connect(self._on_preset_chosen)
+            row.addWidget(self.preset_combo)
+            row.addStretch()
+            select_all = QPushButton("Select all", objectName="GhostButton")
+            select_all.clicked.connect(lambda: self.set_all_tools(True))
+            clear = QPushButton("Clear", objectName="GhostButton")
+            clear.clicked.connect(lambda: self.set_all_tools(False))
+            row.addWidget(select_all)
+            row.addWidget(clear)
+            return row
+
+        def _on_preset_chosen(self, index: int) -> None:
+            if index >= 1:
+                _label, keys = tax_tools.PRESETS[index - 1]
+                self.apply_preset(tuple(keys))
+            self.preset_combo.setCurrentIndex(0)
+
+        def _build_group_page(self, group: str, tools) -> "QWidget":
+            page = QWidget()
+            layout = QVBoxLayout(page)
+            layout.setContentsMargins(2, 2, 2, 2)
+            layout.setSpacing(8)
+            header = QHBoxLayout()
+            header.addWidget(QLabel(group, objectName="PageTitle"))
+            header.addStretch()
+            group_toggle = QCheckBox("Select all in group")
+            group_toggle.setChecked(True)
+            group_toggle.clicked.connect(lambda checked, g=group: self.set_group_tools(g, checked))
+            self.group_checkboxes[group] = group_toggle
+            header.addWidget(group_toggle)
+            layout.addLayout(header)
+
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setObjectName("ToolScroll")
+            host = QWidget()
+            host_layout = QVBoxLayout(host)
+            host_layout.setContentsMargins(4, 4, 10, 4)
+            host_layout.setSpacing(6)
+            for tool in tools:
+                checkbox = QCheckBox(tool.name)
+                checkbox.setChecked(True)
+                checkbox.toggled.connect(self._on_tool_toggled)
+                description = QLabel(tool.description, objectName="ToolDesc")
+                description.setWordWrap(True)
+                host_layout.addWidget(checkbox)
+                host_layout.addWidget(description)
+                self.tool_checkboxes[tool.key] = checkbox
+            host_layout.addStretch()
+            scroll.setWidget(host)
+            layout.addWidget(scroll, stretch=1)
+            return page
+
+        def _on_tool_toggled(self, _checked: bool = False) -> None:
+            self.sync_group_toggles()
+            self.update_selected_count()
+
+        def update_selected_count(self) -> None:
+            total = len(self.tool_checkboxes)
+            selected = sum(1 for box in self.tool_checkboxes.values() if box.isChecked())
+            self.selected_count.setText(f"{selected} of {total} tools selected")
+            self.run_button.setText(f"Run Selected ({selected})")
+
+        def _build_options_page(self) -> "QWidget":
+            page = QWidget()
+            outer = QVBoxLayout(page)
+            outer.setContentsMargins(2, 2, 2, 2)
+            outer.addWidget(QLabel(self.OPTIONS_LABEL, objectName="PageTitle"))
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setObjectName("ToolScroll")
+            host = QWidget()
+            advanced_layout = QVBoxLayout(host)
+            advanced_layout.setContentsMargins(8, 8, 12, 8)
             advanced_layout.setSpacing(10)
 
-            flags_row = QHBoxLayout()
             self.move_checkbox = QCheckBox("Move files instead of copy")
             self.split_checkbox = QCheckBox("Split combined PDFs (multi-form)")
             self.split_checkbox.setChecked(True)
@@ -680,18 +728,14 @@ if PYSIDE_AVAILABLE:
             self.per_client_checkbox.setToolTip(
                 "Run the selected tools once per client subfolder for clean per-client attribution."
             )
-            flags_row.addWidget(self.move_checkbox)
-            flags_row.addWidget(self.split_checkbox)
-            flags_row.addWidget(self.debug_checkbox)
-            flags_row.addWidget(self.per_client_checkbox)
-            flags_row.addStretch()
-            advanced_layout.addLayout(flags_row)
+            for box in (self.move_checkbox, self.split_checkbox, self.debug_checkbox, self.per_client_checkbox):
+                advanced_layout.addWidget(box)
 
             advanced_layout.addWidget(
                 QLabel("Templates to generate (drop .html or .docx files in the folder)",
                        objectName="SmallHeading")
             )
-            self.templates_row = QHBoxLayout()
+            self.templates_row = QVBoxLayout()
             self.template_checkboxes: dict[str, QCheckBox] = {}
             advanced_layout.addLayout(self.templates_row)
 
@@ -727,123 +771,103 @@ if PYSIDE_AVAILABLE:
             cert_row.addWidget(cert_browse)
             cert_row.addWidget(self.cert_password_edit)
             advanced_layout.addLayout(cert_row)
+            advanced_layout.addStretch()
 
-            self.advanced_panel.hide()
+            scroll.setWidget(host)
+            outer.addWidget(scroll, stretch=1)
+            return page
 
-            run_row = QHBoxLayout()
-            self.run_button = QPushButton("Run Selected Tools", objectName="PrimaryButton")
-            self.run_button.clicked.connect(self.run_selected_tools)
-            self.status_label = QLabel("Ready.", objectName="StatusLabel")
-            run_row.addWidget(self.run_button)
-            run_row.addWidget(self.status_label, stretch=1)
-            self.progress = QProgressBar()
-            self.progress.setRange(0, 1)
-            self.progress.setValue(0)
-            self.progress.hide()
-            controls_layout.addWidget(self.advanced_toggle)
-            controls_layout.addWidget(self.advanced_panel)
-            controls_layout.addLayout(run_row)
-            controls_layout.addWidget(self.progress)
-            body_layout.addWidget(controls)
-
-            self.results_card = QFrame(objectName="Card")
-            results_layout = QVBoxLayout(self.results_card)
-            results_layout.setContentsMargins(24, 22, 24, 22)
-            self.summary_label = QLabel("Run the sorter to see results.", objectName="SectionTitle")
+        def _build_results_page(self) -> "QWidget":
+            page = QWidget()
+            layout = QVBoxLayout(page)
+            layout.setContentsMargins(2, 2, 2, 2)
+            layout.setSpacing(8)
+            self.summary_label = QLabel("Run tools to see results here.", objectName="PageTitle")
+            self.summary_label.setWordWrap(True)
             self.needs_review_label = QLabel("", objectName="NeedsReview")
+            self.needs_review_label.setWordWrap(True)
+            layout.addWidget(self.summary_label)
+            layout.addWidget(self.needs_review_label)
+
+            # Open-output buttons in a wrapping grid inside a short scroll area.
+            button_labels = [
+                "Open Parent Folder", "Open Validation", "Open Clients File",
+                "Open Organized Folder", "Open Intake Folder", "Open Inventory",
+                "Open Log File", "Open Extracted Data", "Open Drake Export",
+                "Open Diagnostics", "Open Checklists", "Open Invoices",
+                "Open Generated Documents", "Open Signed Documents", "Open Certified Documents",
+                "Open Status Reports", "Open Reminders", "Open Email Drafts",
+                "Open Encyro Packets", "Open Retention Archives", "Open AR Report",
+                "Open Dashboard", "Open Next Year Folder", "Open PDF Output",
+            ]
+            actions_scroll = QScrollArea()
+            actions_scroll.setWidgetResizable(True)
+            actions_scroll.setObjectName("ToolScroll")
+            actions_scroll.setMaximumHeight(150)
+            actions_host = QWidget()
+            grid = QGridLayout(actions_host)
+            grid.setContentsMargins(6, 6, 6, 6)
+            grid.setSpacing(6)
+            for index, label in enumerate(button_labels):
+                button = QPushButton(label)
+                button.setEnabled(False)
+                button.clicked.connect(lambda _checked=False, key=label: self.open_result_path(key))
+                grid.addWidget(button, index // 3, index % 3)
+                self.open_buttons[label] = button
+            actions_scroll.setWidget(actions_host)
+            layout.addWidget(QLabel("Open outputs", objectName="SmallHeading"))
+            layout.addWidget(actions_scroll)
+
+            layout.addWidget(QLabel("Count by category", objectName="SmallHeading"))
             self.category_list = QListWidget()
+            self.category_list.setMaximumHeight(120)
+            layout.addWidget(self.category_list)
+
+            layout.addWidget(QLabel("Inventory preview", objectName="SmallHeading"))
             self.results_table = QTableWidget(0, 4)
             self.results_table.setHorizontalHeaderLabels(
                 ["Original File Name", "Detected Category", "Confidence", "Notes"]
             )
             self.results_table.horizontalHeader().setStretchLastSection(True)
-            action_row = QHBoxLayout()
-            button_labels = [
-                "Open Parent Folder",
-                "Open Validation",
-                "Open Clients File",
-                "Open Organized Folder",
-                "Open Intake Folder",
-                "Open Inventory",
-                "Open Log File",
-                "Open Extracted Data",
-                "Open Drake Export",
-                "Open Diagnostics",
-                "Open Checklists",
-                "Open Invoices",
-                "Open Generated Documents",
-                "Open Signed Documents",
-                "Open Certified Documents",
-                "Open Status Reports",
-                "Open Reminders",
-                "Open Email Drafts",
-                "Open Encyro Packets",
-                "Open Retention Archives",
-                "Open AR Report",
-                "Open Dashboard",
-                "Open Next Year Folder",
-                "Open PDF Output",
-            ]
-            for label in button_labels:
-                button = QPushButton(label)
-                button.setEnabled(False)
-                button.clicked.connect(lambda _checked=False, key=label: self.open_result_path(key))
-                action_row.addWidget(button)
-                self.open_buttons[label] = button
-            action_row.addStretch()
-            results_layout.addWidget(self.summary_label)
-            results_layout.addWidget(self.needs_review_label)
-            results_layout.addWidget(QLabel("Count by category", objectName="SmallHeading"))
-            results_layout.addWidget(self.category_list)
-            results_layout.addLayout(action_row)
-            results_layout.addWidget(QLabel("Inventory preview", objectName="SmallHeading"))
-            results_layout.addWidget(self.results_table, stretch=1)
-            body_layout.addWidget(self.results_card, stretch=1)
+            layout.addWidget(self.results_table, stretch=1)
+            return page
 
         def apply_styles(self) -> None:
-            heading_font = QFont("Cormorant Garamond")
-            if not heading_font.exactMatch():
-                heading_font = QFont("Georgia")
             self.setStyleSheet(
                 f"""
-                QMainWindow {{ background: {CREAM}; color: {INK}; }}
-                #Header {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {NAVY_SOFT}, stop:1 {NAVY_DEEP}); border-bottom: 4px solid {GOLD}; }}
-                #BrandMark {{ color: {GOLD_LIGHT}; border: 1px solid {GOLD_LIGHT}; min-width: 76px; min-height: 76px; font: 24px Georgia; letter-spacing: 2px; }}
-                #Eyebrow {{ color: {GOLD_LIGHT}; font: 700 12px Arial; letter-spacing: 2px; }}
-                #Title {{ color: {PAPER}; font: 56px Georgia; }}
-                #Subtitle {{ color: {CREAM_2}; font-size: 17px; }}
-                #Body {{ background: {CREAM}; }}
-                #Card {{ background: {PAPER}; border: 1px solid {HAIRLINE}; border-radius: 16px; }}
-                #SectionTitle {{ color: {NAVY}; font: 30px Georgia; }}
-                #SmallHeading {{ color: {NAVY}; font: 700 14px Arial; }}
-                #SafetyNote {{ color: {GOLD_DEEP}; font-weight: 700; }}
-                #NeedsReview {{ color: {GOLD_DEEP}; font-weight: 800; padding: 8px; background: #fff8e8; border: 1px solid {GOLD_LIGHT}; border-radius: 10px; }}
-                QLineEdit {{ border: 1px solid {HAIRLINE}; border-radius: 10px; padding: 10px; background: white; color: {CHARCOAL}; }}
-                QPushButton {{ background: {CREAM}; border: 1px solid {GOLD}; border-radius: 18px; padding: 10px 18px; color: {NAVY}; font-weight: 800; }}
+                QMainWindow {{ background: {PAPER}; color: {INK}; }}
+                * {{ font-size: 13px; }}
+                #Sidebar {{ background: {NAVY_DEEP}; border-right: 3px solid {GOLD}; }}
+                #Brand {{ color: {GOLD_LIGHT}; font: 700 20px Georgia; letter-spacing: 3px; }}
+                #Tagline {{ color: {CREAM_2}; font-size: 11px; letter-spacing: 1px; }}
+                #SideNote {{ color: {CREAM_2}; font-size: 11px; }}
+                #Nav {{ background: transparent; border: none; color: {CREAM}; }}
+                #Nav::item {{ padding: 9px 10px; border-radius: 8px; margin: 1px 0; }}
+                #Nav::item:selected {{ background: {NAVY_SOFT}; color: white; }}
+                #Nav::item:hover {{ background: {NAVY}; }}
+                #Main {{ background: {PAPER}; }}
+                #TopBar {{ background: {CREAM}; border: 1px solid {HAIRLINE}; border-radius: 10px; }}
+                #PageTitle {{ color: {NAVY}; font: 700 18px Georgia; }}
+                #SmallHeading {{ color: {NAVY}; font: 700 12px Arial; letter-spacing: .5px; }}
+                #NeedsReview {{ color: {GOLD_DEEP}; font-weight: 700; padding: 8px 10px; background: #fff8e8; border: 1px solid {GOLD_LIGHT}; border-radius: 8px; }}
+                #ToolDesc {{ color: {CHARCOAL_2}; padding: 0 0 4px 22px; font-size: 12px; }}
+                #StatusLabel {{ color: {CHARCOAL_2}; }}
+                #ToolScroll {{ border: 1px solid {HAIRLINE}; border-radius: 10px; background: {CREAM}; }}
+                QLineEdit, QComboBox {{ border: 1px solid {HAIRLINE}; border-radius: 8px; padding: 6px 8px; background: white; color: {CHARCOAL}; }}
+                QPushButton {{ background: {CREAM}; border: 1px solid {GOLD}; border-radius: 8px; padding: 6px 12px; color: {NAVY}; font-weight: 700; }}
                 QPushButton:hover {{ background: {GOLD_LIGHT}; }}
                 QPushButton:disabled {{ color: {CHARCOAL_2}; border-color: {HAIRLINE}; background: {CREAM_2}; }}
-                #PrimaryButton {{ background: {NAVY}; color: white; border: 1px solid {NAVY}; }}
-                QToolButton {{ color: {NAVY}; font-weight: 800; border: none; }}
-                QCheckBox {{ color: {CHARCOAL}; font-weight: 600; }}
-                #ToolDesc {{ color: {CHARCOAL_2}; padding: 0 0 6px 22px; font-weight: 400; }}
-                #StatusLabel {{ color: {CHARCOAL_2}; }}
-                #ToolScroll {{ border: 1px solid {HAIRLINE}; border-radius: 12px; background: {CREAM}; }}
-                #GroupCard {{ background: {PAPER}; border: 1px solid {HAIRLINE}; border-radius: 12px; }}
-                #GroupTitle {{ color: {NAVY}; font: 700 12px Arial; letter-spacing: 1px; }}
-                #GhostButton {{ background: transparent; border: 1px solid {HAIRLINE}; border-radius: 14px; padding: 6px 14px; font-weight: 700; }}
+                #PrimaryButton {{ background: {GOLD}; color: {NAVY_DEEP}; border: 1px solid {GOLD}; padding: 9px 12px; font-weight: 800; }}
+                #PrimaryButton:hover {{ background: {GOLD_LIGHT}; }}
+                #GhostButton {{ background: transparent; border: 1px solid {HAIRLINE}; padding: 5px 12px; }}
                 #GhostButton:hover {{ background: {CREAM}; }}
-                #PresetButton {{ background: white; border: 1px solid {GOLD}; border-radius: 14px; padding: 6px 14px; color: {NAVY}; font-weight: 700; }}
-                #PresetButton:hover {{ background: {GOLD_LIGHT}; }}
-                QProgressBar {{ border: 1px solid {HAIRLINE}; border-radius: 8px; text-align: center; }}
-                QProgressBar::chunk {{ background: {GOLD}; border-radius: 8px; }}
+                QCheckBox {{ color: {CHARCOAL}; font-weight: 600; }}
+                QProgressBar {{ border: 1px solid {NAVY_SOFT}; border-radius: 6px; text-align: center; background: {NAVY}; color: white; }}
+                QProgressBar::chunk {{ background: {GOLD}; border-radius: 6px; }}
                 QTableWidget, QListWidget {{ background: white; border: 1px solid {HAIRLINE}; gridline-color: {HAIRLINE}; }}
-                QHeaderView::section {{ background: {CREAM}; color: {NAVY}; font-weight: 800; padding: 8px; border: 0; }}
+                QHeaderView::section {{ background: {CREAM}; color: {NAVY}; font-weight: 700; padding: 6px; border: 0; }}
                 """
             )
-            self.summary_label.setFont(heading_font)
-
-        def toggle_advanced(self) -> None:
-            self.advanced_panel.setVisible(self.advanced_toggle.isChecked())
 
         def set_selected_folder(self, folder: Path) -> None:
             self.selected_folder = folder.resolve()
@@ -914,12 +938,14 @@ if PYSIDE_AVAILABLE:
             for checkbox in self.tool_checkboxes.values():
                 checkbox.setChecked(checked)
             self.sync_group_toggles()
+            self.update_selected_count()
 
         def apply_preset(self, keys: tuple[str, ...]) -> None:
             wanted = set(keys)
             for key, checkbox in self.tool_checkboxes.items():
                 checkbox.setChecked(key in wanted)
             self.sync_group_toggles()
+            self.update_selected_count()
 
         def set_group_tools(self, group: str, checked: bool) -> None:
             for tool in tax_tools.TOOLS:
@@ -1020,6 +1046,7 @@ if PYSIDE_AVAILABLE:
             sort_result = result.get("sort")
             extract_result = result.get("extract")
             self.summary_label.setText("\n".join(result.get("tool_lines", [])) or "Run complete.")
+            self.nav.setCurrentRow(self.nav.count() - 1)  # jump to the Results page
 
             review_lines = []
             validate_result = result.get("validate")
