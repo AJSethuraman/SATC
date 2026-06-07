@@ -91,7 +91,7 @@ class RunBatchTests(unittest.TestCase):
             # each client now has computed line items and a total (propagated up)
             self.assertTrue(all("total" in c for c in parent_clients))
             jordan = next(c for c in parent_clients if c["client_name"] == "Jordan Sample")
-            self.assertEqual(jordan["total"], "215.00")  # 200 base + 15 W-2
+            self.assertEqual(jordan["total"], "130.00")  # 170 base - 40 express (W-2 only)
 
 
 if __name__ == "__main__":

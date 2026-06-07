@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for the invoice fee calculator. Standard library only."""
+"""Tests for the form-driven invoice fee calculator. Standard library only."""
 
 from __future__ import annotations
 
@@ -10,38 +10,72 @@ from pathlib import Path
 
 import invoice_calc
 
+SCHEDULE = invoice_calc.DEFAULT_FEE_SCHEDULE
+
 
 class ComputeTests(unittest.TestCase):
-    def test_base_plus_expected_documents(self) -> None:
+    def test_documents_map_to_schedules(self) -> None:
+        # K-1 implies Schedule E ($130); W-2 needs no extra form. Base 1040 is $170.
         client = {"expected_documents": ["W-2", "K-1"]}
-        items, total, warnings = invoice_calc.compute_line_items(client, invoice_calc.DEFAULT_FEE_SCHEDULE)
+        items, subtotal, discount, total, warnings = invoice_calc.compute_line_items(client, SCHEDULE)
         descriptions = [i["description"] for i in items]
-        self.assertIn("Form 1040 preparation", descriptions)  # base
-        self.assertIn("Schedule K-1", descriptions)
-        # 200 base + 15 (W-2) + 90 (K-1) = 305
-        self.assertEqual(total, 305.0)
+        self.assertTrue(any("Form 1040" in d for d in descriptions))
+        self.assertTrue(any("Schedule E" in d for d in descriptions))
+        self.assertEqual(subtotal, 300.0)        # 170 + 130
+        self.assertEqual(discount, 0.0)           # K-1 is not a simple filer
+        self.assertEqual(total, 300.0)
         self.assertEqual(warnings, [])
 
-    def test_explicit_service_with_quantity(self) -> None:
+    def test_initial_plus_additional_pricing(self) -> None:
+        # State return: 30 first + 30 each additional -> 2 states = 60. Base 170.
         client = {"services": [{"service": "state_return", "quantity": 2}]}
-        # No base? base is always added when present in schedule.
-        items, total, _ = invoice_calc.compute_line_items(client, invoice_calc.DEFAULT_FEE_SCHEDULE)
-        # base 200 + state 75 x2 = 350
-        self.assertEqual(total, 350.0)
+        items, subtotal, discount, total, _ = invoice_calc.compute_line_items(client, SCHEDULE)
+        self.assertEqual(subtotal, 230.0)         # 170 + 60
         self.assertTrue(any("(x2)" in i["description"] for i in items))
+        # only base + state -> still a simple filer -> express discount applies
+        self.assertEqual(discount, -40.0)
+        self.assertEqual(total, 190.0)
 
     def test_inline_service_and_unknown_warns(self) -> None:
-        schedule = {}  # no base, nothing known
-        client = {
-            "services": [
-                {"description": "Custom advisory", "price": 125.0},
-                {"service": "mystery"},
-            ]
-        }
-        items, total, warnings = invoice_calc.compute_line_items(client, schedule)
+        client = {"services": [{"description": "Custom advisory", "price": 125.0}, {"service": "mystery"}]}
+        items, subtotal, _discount, total, warnings = invoice_calc.compute_line_items(client, {})
+        self.assertEqual(subtotal, 125.0)
         self.assertEqual(total, 125.0)
         self.assertEqual(len(items), 1)
         self.assertTrue(any("mystery" in w for w in warnings))
+
+
+class ExpressTests(unittest.TestCase):
+    def test_w2_only_is_express(self) -> None:
+        client = {"expected_documents": ["W-2"]}
+        _items, subtotal, discount, total, _ = invoice_calc.compute_line_items(client, SCHEDULE)
+        self.assertEqual(subtotal, 170.0)
+        self.assertEqual(discount, -40.0)
+        self.assertEqual(total, 130.0)
+
+    def test_simple_interest_filer_is_express(self) -> None:
+        client = {"expected_documents": ["W-2", "1099-INT"]}  # 1099-INT -> Schedule B ($5)
+        _items, subtotal, discount, total, _ = invoice_calc.compute_line_items(client, SCHEDULE)
+        self.assertEqual(subtotal, 175.0)
+        self.assertEqual(discount, -40.0)
+
+    def test_self_employed_is_not_express(self) -> None:
+        client = {"expected_documents": ["W-2", "1099-NEC"]}  # -> Schedule C + SE
+        _items, _subtotal, discount, _total, _ = invoice_calc.compute_line_items(client, SCHEDULE)
+        self.assertEqual(discount, 0.0)
+
+    def test_explicit_express_flag_overrides(self) -> None:
+        # A complex filer can be forced express, and a simple one can opt out.
+        forced = invoice_calc.compute_line_items({"expected_documents": ["1099-NEC"], "express": True}, SCHEDULE)
+        self.assertEqual(forced[2], -40.0)
+        opted_out = invoice_calc.compute_line_items({"expected_documents": ["W-2"], "express": False}, SCHEDULE)
+        self.assertEqual(opted_out[2], 0.0)
+
+    def test_percent_discount(self) -> None:
+        schedule = {invoice_calc.BASE_FEE_KEY: {"description": "1040", "price": 200.0},
+                    invoice_calc.EXPRESS_KEY: {"description": "Express", "percent": 10}}
+        _items, subtotal, discount, total, _ = invoice_calc.compute_line_items({"expected_documents": ["W-2"]}, schedule)
+        self.assertEqual((subtotal, discount, total), (200.0, -20.0, 180.0))
 
 
 class RunTests(unittest.TestCase):
@@ -51,7 +85,7 @@ class RunTests(unittest.TestCase):
             self.assertEqual(result["invoiced_count"], 0)
             self.assertIn("No clients", result["summary"])
 
-    def test_writes_line_items_into_clients_json(self) -> None:
+    def test_writes_totals_and_express_into_clients_json(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             folder = Path(d)
             (folder / "clients.json").write_text(
@@ -60,14 +94,16 @@ class RunTests(unittest.TestCase):
             )
             result = invoice_calc.run_invoice_calc(folder)
             self.assertEqual(result["invoiced_count"], 1)
-            self.assertEqual(result["grand_total"], "215.00")  # 200 + 15
+            self.assertEqual(result["express_count"], 1)
+            self.assertEqual(result["grand_total"], "130.00")  # 170 - 40 express
 
-            clients = json.loads((folder / "clients.json").read_text())
-            self.assertIn("line_items", clients[0])
-            self.assertEqual(clients[0]["total"], "215.00")
+            client = json.loads((folder / "clients.json").read_text())[0]
+            self.assertEqual(client["subtotal"], "170.00")
+            self.assertEqual(client["discount"], "-40.00")
+            self.assertEqual(client["total"], "130.00")
+            self.assertTrue(client["express_applied"])
             self.assertTrue((folder / invoice_calc.FEE_SCHEDULE_FILENAME).exists())
-            worksheet = Path(result["worksheet_path"])
-            self.assertTrue(worksheet.exists())
+            self.assertTrue(Path(result["worksheet_path"]).exists())
 
 
 if __name__ == "__main__":

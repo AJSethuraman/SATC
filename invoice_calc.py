@@ -24,31 +24,54 @@ import sort_tax_docs
 INVOICE_FOLDER_NAME = "Invoices"
 FEE_SCHEDULE_FILENAME = "fee_schedule.json"
 WORKSHEET_FILENAME = "fee_worksheet.csv"
-BASE_FEE_KEY = "base_preparation"
+BASE_FEE_KEY = "base_1040"
+EXPRESS_KEY = "express_discount"
 
-# service/document key -> {description, price}. Document keys match intake labels so
-# a client's expected_documents price automatically. Prices are placeholders to edit.
+# Form/schedule key -> {description, price, [additional]}. "price" is the fee for the
+# first of that form; "additional" (optional, defaults to price) is the fee for each
+# extra copy (e.g. a second state). Prices mirror a typical individual fee schedule
+# and are yours to edit in fee_schedule.json.
 DEFAULT_FEE_SCHEDULE: dict[str, dict] = {
-    BASE_FEE_KEY: {"description": "Form 1040 preparation", "price": 200.00},
-    "W-2": {"description": "W-2 entry", "price": 15.00},
-    "1099-NEC": {"description": "1099-NEC / Schedule C income", "price": 75.00},
-    "1099-MISC": {"description": "1099-MISC income", "price": 35.00},
-    "1099-INT": {"description": "Interest income (1099-INT)", "price": 15.00},
-    "1099-DIV": {"description": "Dividend income (1099-DIV)", "price": 20.00},
-    "1099-R": {"description": "Retirement income (1099-R)", "price": 25.00},
-    "1098 (Mortgage)": {"description": "Mortgage interest (Schedule A)", "price": 40.00},
-    "1098-T": {"description": "Education credits (1098-T)", "price": 30.00},
-    "SSA-1099": {"description": "Social Security income (SSA-1099)", "price": 15.00},
-    "K-1": {"description": "Schedule K-1", "price": 90.00},
-    "1099-G": {"description": "Government payments (1099-G)", "price": 15.00},
-    "1099-K": {"description": "Payment card income (1099-K)", "price": 50.00},
-    "state_return": {"description": "State return", "price": 75.00},
-    "schedule_c": {"description": "Schedule C (self-employment)", "price": 150.00},
-    "schedule_e": {"description": "Schedule E (rental property)", "price": 125.00},
-    "itemized_deductions": {"description": "Itemized deductions (Schedule A)", "price": 60.00},
-    "amended_return": {"description": "Amended return", "price": 200.00},
-    "extension_filing": {"description": "Extension filing", "price": 50.00},
+    BASE_FEE_KEY: {"description": "Form 1040 - Individual Return", "price": 170.0, "additional": 170.0},
+    "schedule_a": {"description": "Schedule A - Itemized Deductions", "price": 30.0},
+    "schedule_b": {"description": "Schedule B - Interest & Dividends", "price": 5.0},
+    "schedule_c": {"description": "Schedule C - Business Income", "price": 200.0},
+    "schedule_d": {"description": "Schedule D - Capital Gains/Losses", "price": 50.0},
+    "schedule_e": {"description": "Schedule E - Rental/Supplemental Income", "price": 130.0},
+    "schedule_se": {"description": "Schedule SE - Self-Employment Tax", "price": 20.0},
+    "schedule_eic": {"description": "Schedule EIC - Earned Income Credit", "price": 100.0},
+    "education_8863": {"description": "Form 8863 - Education Credits", "price": 30.0},
+    "childcare_2441": {"description": "Form 2441 - Child & Dependent Care", "price": 30.0},
+    "hsa_8889": {"description": "Form 8889 - Health Savings Account", "price": 10.0},
+    "additional_ctc_8812": {"description": "Form 8812 - Additional Child Tax Credit", "price": 25.0},
+    "energy_5695": {"description": "Form 5695 - Residential Energy Credits", "price": 20.0},
+    "amended_1040x": {"description": "Form 1040-X - Amended Return", "price": 170.0},
+    "state_return": {"description": "State Return", "price": 30.0, "additional": 30.0},
+    "s_corp_1120s": {"description": "Form 1120-S - S Corporation", "price": 800.0},
+    "partnership_1065": {"description": "Form 1065 - Partnership", "price": 800.0},
+    "corporation_1120": {"description": "Form 1120 - Corporation", "price": 800.0},
+    "estate_1041": {"description": "Form 1041 - Estate / Trust", "price": 400.0},
+    # Express discount applied to simple filers (set amount, or "percent": 15). Remove
+    # this entry to turn the discount off.
+    EXPRESS_KEY: {"description": "Express discount - simple filer", "amount": -40.0},
 }
+
+# Income documents -> the schedules/forms they typically require, so an invoice can be
+# computed straight from a client's expected_documents (W-2 needs no extra schedule).
+DOC_TO_FORMS: dict[str, list[str]] = {
+    "1099-INT": ["schedule_b"],
+    "1099-DIV": ["schedule_b"],
+    "1099-NEC": ["schedule_c", "schedule_se"],
+    "1099-MISC": ["schedule_c", "schedule_se"],
+    "K-1": ["schedule_e"],
+    "1099-B": ["schedule_d"],
+    "1098 (Mortgage)": ["schedule_a"],
+    "1098-T": ["education_8863"],
+}
+
+# A "simple filer" (express-eligible): only these income types and no complex services.
+SIMPLE_DOCS = frozenset({"W-2", "1099-INT", "1099-DIV", "1099-R", "SSA-1099", "1099-G"})
+SIMPLE_SERVICES = frozenset({"state_return"})
 
 
 def load_fee_schedule(input_folder: Path) -> tuple[dict, Path]:
@@ -81,40 +104,92 @@ def _service_entries(client: dict) -> list[tuple[str, int, dict | None]]:
     return entries
 
 
-def compute_line_items(client: dict, schedule: dict) -> tuple[list[dict], float, list[str]]:
-    """Build (line_items, total, warnings) for one client from the fee schedule."""
+def _expected_documents(client: dict) -> list[str]:
+    expected = client.get("expected_documents") or []
+    return [expected] if isinstance(expected, str) else list(expected)
+
+
+def is_simple_filer(client: dict) -> bool:
+    """True when a client only has simple income and no complex services."""
+
+    docs = set(_expected_documents(client))
+    services = {key for key, _qty, inline in _service_entries(client) if inline is None and key}
+    return docs <= SIMPLE_DOCS and services <= SIMPLE_SERVICES
+
+
+def express_eligible(client: dict) -> bool:
+    """Whether the express discount applies: explicit ``express`` flag, else auto-detected."""
+
+    if "express" in client:
+        return bool(client["express"])
+    return is_simple_filer(client)
+
+
+def compute_line_items(client: dict, schedule: dict) -> tuple[list[dict], float, float, float, list[str]]:
+    """Build (line_items, subtotal, discount, total, warnings) for one client.
+
+    Pricing is form/schedule driven: a base Form 1040, plus the schedules implied by
+    the client's expected_documents, plus any explicit ``services`` (each a form key,
+    or ``{"service": key, "quantity": n}``, or an inline ``{"description", "price"}``).
+    Each form is priced as initial + (quantity - 1) x additional. A simple filer then
+    receives the express discount.
+    """
 
     line_items: list[dict] = []
     warnings: list[str] = []
 
-    def add(description: str, price: float, quantity: int = 1) -> None:
-        amount = price * quantity
+    def add(description: str, price: float, quantity: int = 1, additional=None) -> None:
+        per_extra = price if additional is None else float(additional)
+        amount = price + (quantity - 1) * per_extra
         label = description if quantity == 1 else f"{description} (x{quantity})"
         line_items.append({"description": label, "amount": _money(amount)})
 
     if BASE_FEE_KEY in schedule:
         base = schedule[BASE_FEE_KEY]
-        add(base.get("description", "Tax preparation"), float(base.get("price", 0)))
+        add(base.get("description", "Tax preparation"), float(base.get("price", 0)), 1, base.get("additional"))
 
-    expected = client.get("expected_documents") or []
-    if isinstance(expected, str):
-        expected = [expected]
-    for label in expected:
-        fee = schedule.get(label)
-        if fee:
-            add(fee.get("description", label), float(fee.get("price", 0)))
+    # Collect form keys (deduped, order-preserving) from documents and explicit services.
+    order: list[str] = []
+    quantities: dict[str, int] = {}
+    inline_lines: list[tuple[dict, int]] = []
 
+    def want_form(key: str, quantity: int = 1) -> None:
+        if key not in quantities:
+            order.append(key)
+            quantities[key] = quantity
+        else:
+            quantities[key] = max(quantities[key], quantity)
+
+    for label in _expected_documents(client):
+        for key in DOC_TO_FORMS.get(label, []):
+            want_form(key)
     for key, quantity, inline in _service_entries(client):
         if inline is not None:
-            add(str(inline["description"]), float(inline["price"]), quantity)
-        elif key in schedule:
-            fee = schedule[key]
-            add(fee.get("description", key), float(fee.get("price", 0)), quantity)
+            inline_lines.append((inline, quantity))
         elif key:
-            warnings.append(f"service '{key}' is not in the fee schedule; skipped.")
+            want_form(key, quantity)
 
-    total = sum(core.parse_money(item["amount"]) for item in line_items)
-    return line_items, total, warnings
+    for key in order:
+        fee = schedule.get(key)
+        if fee:
+            add(fee.get("description", key), float(fee.get("price", 0)), quantities[key], fee.get("additional"))
+        else:
+            warnings.append(f"form '{key}' is not in the fee schedule; skipped.")
+    for inline, quantity in inline_lines:
+        add(str(inline["description"]), float(inline["price"]), quantity)
+
+    subtotal = sum(core.parse_money(item["amount"]) for item in line_items)
+
+    discount = 0.0
+    if express_eligible(client) and EXPRESS_KEY in schedule:
+        config = schedule[EXPRESS_KEY]
+        if "percent" in config:
+            discount = -round(subtotal * abs(float(config["percent"])) / 100.0, 2)
+        else:
+            discount = -abs(float(config.get("amount", 0)))
+
+    total = round(subtotal + discount, 2)
+    return line_items, subtotal, discount, total, warnings
 
 
 def run_invoice_calc(input_folder, status_callback=None) -> dict:
@@ -130,6 +205,7 @@ def run_invoice_calc(input_folder, status_callback=None) -> dict:
         "worksheet_path": None,
         "client_count": 0,
         "invoiced_count": 0,
+        "express_count": 0,
         "grand_total": "0.00",
         "warnings": [],
     }
@@ -146,22 +222,29 @@ def run_invoice_calc(input_folder, status_callback=None) -> dict:
     warnings: list[str] = []
     worksheet_rows: list[dict] = []
     invoiced = 0
+    express_count = 0
     grand_total = 0.0
     for index, client in enumerate(clients, start=1):
         slug = generate_documents.client_slug(client, index)
         if status_callback:
             status_callback(f"Calculating invoice for {slug} ({index} of {len(clients)})")
-        line_items, total, client_warnings = compute_line_items(client, schedule)
+        line_items, subtotal, discount, total, client_warnings = compute_line_items(client, schedule)
         warnings.extend(f"{slug}: {w}" for w in client_warnings)
         if not line_items:
-            warnings.append(f"{slug}: nothing to bill (no base fee, expected documents, or services).")
+            warnings.append(f"{slug}: nothing to bill (no base fee or services).")
             continue
         client["line_items"] = line_items
+        client["subtotal"] = _money(subtotal)
+        client["discount"] = _money(discount) if discount else ""
         client["total"] = _money(total)
+        client["express_applied"] = bool(discount)
         invoiced += 1
+        express_count += 1 if discount else 0
         grand_total += total
         for item in line_items:
             worksheet_rows.append({"client": slug, "description": item["description"], "amount": item["amount"]})
+        if discount:
+            worksheet_rows.append({"client": slug, "description": "Express discount", "amount": _money(discount)})
         worksheet_rows.append({"client": slug, "description": "TOTAL", "amount": _money(total)})
 
     # Persist computed line items so Generate Documents can render the invoices.
@@ -180,11 +263,13 @@ def run_invoice_calc(input_folder, status_callback=None) -> dict:
         "worksheet_path": worksheet_path,
         "client_count": len(clients),
         "invoiced_count": invoiced,
+        "express_count": express_count,
         "grand_total": _money(grand_total),
         "warnings": warnings,
         "summary": (
             f"Computed invoices for {invoiced} of {len(clients)} client(s); "
-            f"total billed {_money(grand_total)}."
+            f"total billed {_money(grand_total)}"
+            + (f" ({express_count} express)." if express_count else ".")
         ),
     }
 

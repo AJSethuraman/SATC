@@ -80,8 +80,9 @@ def check_fee_schedule(schedule: dict, clients: list[dict]) -> list[dict]:
     if not schedule:
         return findings
     for key, entry in schedule.items():
-        price = entry.get("price") if isinstance(entry, dict) else None
-        if not isinstance(price, (int, float)):
+        if not isinstance(entry, dict) or "price" not in entry:
+            continue  # config entries like express_discount carry "amount", not "price"
+        if not isinstance(entry.get("price"), (int, float)):
             findings.append(_finding("fee_schedule", ERROR, f"Service '{key}' has a non-numeric price."))
     for index, client in enumerate(clients, start=1):
         label = client.get("client_name") or f"record {index}"

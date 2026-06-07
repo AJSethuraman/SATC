@@ -1,25 +1,37 @@
 <!DOCTYPE html>
-<!-- Editable template. The line-items section repeats once per invoice line item. -->
+<!-- Editable invoice. The line-items section repeats once per item. The discount row
+     and EXPRESS badge appear only when the express discount was applied. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <title>Invoice {{invoice_number}} - {{client_name}}</title>
 <style>
-  body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; max-width: 720px;
-         margin: 40px auto; padding: 0 24px; }
-  header { display: flex; justify-content: space-between; align-items: flex-start;
-           border-bottom: 3px solid #0B1F3A; padding-bottom: 12px; }
-  .firm h1 { color: #0B1F3A; margin: 0; font-size: 20px; }
-  .firm div, .bill div { font-size: 13px; color: #444; }
-  .doc h2 { color: #B08D57; margin: 0; text-align: right; font-size: 26px; letter-spacing: 2px; }
-  .doc div { text-align: right; font-size: 13px; color: #444; }
-  .bill { margin-top: 24px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-  th { background: #0B1F3A; color: #fff; text-align: left; padding: 8px 10px; font-size: 13px; }
-  td { padding: 8px 10px; border-bottom: 1px solid #ddd; font-size: 14px; }
-  td.amount, th.amount { text-align: right; }
-  .total { text-align: right; font-size: 18px; font-weight: bold; margin-top: 14px; color: #0B1F3A; }
-  .terms { margin-top: 28px; font-size: 13px; color: #444; }
+  :root { --ink:#16202b; --muted:#5b6b7b; --navy:#0B1F3A; --gold:#B08D57; --line:#e3e8ee; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: var(--ink); max-width: 720px; margin: 36px auto; padding: 0 28px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .firm h1 { color: var(--navy); margin: 0 0 4px; font-size: 19px; letter-spacing: .3px; }
+  .firm div, .bill div { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .doc { text-align: right; }
+  .doc h2 { color: var(--gold); margin: 0; font-size: 30px; letter-spacing: 4px; font-weight: 700; }
+  .doc div { font-size: 12.5px; color: var(--muted); }
+  .rule { height: 3px; background: var(--navy); border-radius: 2px; margin: 14px 0 22px; }
+  .bill strong { color: var(--navy); font-size: 12px; letter-spacing: .5px; text-transform: uppercase; }
+  table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+  th { text-align: left; padding: 9px 12px; font-size: 11.5px; letter-spacing: .5px; text-transform: uppercase;
+       color: #fff; background: var(--navy); }
+  th.amount, td.amount { text-align: right; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  .totals { width: 280px; margin-left: auto; margin-top: 16px; }
+  .totals .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13.5px; color: var(--muted); }
+  .totals .discount { color: #1a7f37; }
+  .totals .grand { border-top: 2px solid var(--navy); margin-top: 6px; padding-top: 10px;
+                   font-size: 17px; font-weight: 700; color: var(--navy); }
+  .badge { display: inline-block; background: var(--gold); color: #fff; font-size: 11px; font-weight: 700;
+           letter-spacing: 1px; padding: 3px 9px; border-radius: 999px; margin-left: 8px; vertical-align: middle; }
+  .terms { margin-top: 30px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
   @media print { body { margin: 0; } }
 </style>
 </head>
@@ -37,9 +49,10 @@
       <div>Due: {{due_date}}</div>
     </div>
   </header>
+  <div class="rule"></div>
 
   <div class="bill">
-    <strong>Bill To:</strong>
+    <strong>Bill To</strong>
     <div>{{client_name}}</div>
     <div>{{client_address}}</div>
   </div>
@@ -55,7 +68,14 @@
     </tbody>
   </table>
 
-  <div class="total">Total Due: {{total}}</div>
+  <div class="totals">
+    <div class="row"><span>Subtotal</span><span>{{subtotal}}</span></div>
+    {{#discount}}<div class="row discount"><span>Express discount</span><span>{{discount}}</span></div>{{/discount}}
+    <div class="row grand">
+      <span>Total Due{{#express_applied}}<span class="badge">EXPRESS</span>{{/express_applied}}</span>
+      <span>{{total}}</span>
+    </div>
+  </div>
 
   <div class="terms">{{payment_terms}}</div>
 </body>
