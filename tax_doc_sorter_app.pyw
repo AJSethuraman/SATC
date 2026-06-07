@@ -134,6 +134,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "dashboard": None,
         "rollover": None,
         "pdftools": None,
+        "feeworkbook": None,
     }
 
     validate_result = results.get("validate")
@@ -337,6 +338,13 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"PDF Merge/Split: {pdftools_result['summary']}")
         if pdftools_result.get("output_folder"):
             summary["open_paths"]["Open PDF Output"] = str(pdftools_result["output_folder"])
+
+    feeworkbook_result = results.get("feeworkbook")
+    if feeworkbook_result is not None:
+        summary["feeworkbook"] = {"year": feeworkbook_result["year"], "sheets": feeworkbook_result["sheets"]}
+        summary["tool_lines"].append(f"Fee Workbook: {feeworkbook_result['summary']}")
+        if feeworkbook_result.get("workbook_path"):
+            summary["open_paths"]["Open Fee Workbook"] = str(feeworkbook_result["workbook_path"])
 
     return summary
 
@@ -799,6 +807,7 @@ if PYSIDE_AVAILABLE:
                 "Open Status Reports", "Open Reminders", "Open Email Drafts",
                 "Open Encyro Packets", "Open Retention Archives", "Open AR Report",
                 "Open Dashboard", "Open Next Year Folder", "Open PDF Output",
+                "Open Fee Workbook",
             ]
             actions_scroll = QScrollArea()
             actions_scroll.setWidgetResizable(True)

@@ -19,6 +19,7 @@ import dashboard
 import diagnostics
 import export_encyro
 import extract_form_data
+import fee_workbook
 import generate_documents
 import import_clients
 import intake
@@ -228,6 +229,13 @@ def _run_pdf_tools(context: ToolContext) -> dict:
     )
 
 
+def _run_fee_workbook(context: ToolContext) -> dict:
+    return fee_workbook.run_fee_workbook(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 _INTAKE_DOCS = "Onboarding & Documents"
 _PREP = "Preparation"
 _SIGNING = "Signing"
@@ -390,6 +398,13 @@ TOOLS: tuple[Tool, ...] = (
         _run_pdf_tools,
         group=_MANAGEMENT,
     ),
+    Tool(
+        "feeworkbook",
+        "Fee Workbook",
+        "Keep the fee schedule as a year-by-year Excel workbook; sync it and build next year.",
+        _run_fee_workbook,
+        group=_MANAGEMENT,
+    ),
 )
 
 # Tool groups in canonical (pipeline) order, for the desktop UI sections.
@@ -401,7 +416,7 @@ _TOOL_ORDER: dict[str, int] = {tool.key: index for index, tool in enumerate(TOOL
 
 # "Full pipeline" processes a season; the manual utilities (Year Rollover, PDF
 # Merge/Split) are excluded from the everything-preset but remain selectable on their own.
-_MANUAL_UTILITIES = {"rollover", "pdftools"}
+_MANUAL_UTILITIES = {"rollover", "pdftools", "feeworkbook"}
 _FULL_PIPELINE_KEYS = tuple(key for key in DEFAULT_TOOL_KEYS if key not in _MANUAL_UTILITIES)
 
 # Named one-click presets (label -> selected tool keys) for the desktop app.

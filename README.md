@@ -316,6 +316,16 @@ can't ripple into others:
 When adding a feature, prefer a new leaf module (pure core + thin runner + tests)
 over threading special cases through existing tools.
 
+### Year-by-year fees (Fee Workbook)
+
+The **Fee Workbook** tool keeps your fee schedule as an Excel workbook, `fee_schedule.xlsx`, with **one sheet per tax year** so prices and discounts are easy to see and adjust year over year. Running it:
+
+- creates the workbook (and the year's sheet, seeded from the current `fee_schedule.json` or the default) if it does not exist;
+- reads the year's sheet and writes it to `fee_schedule.json` — the file Calculate Invoices uses — so your edits in Excel take effect;
+- copies the year to a **next-year sheet** ready to tweak (use `--no-next` to skip).
+
+Each sheet has a **FORMS** table (Key / Description / Price / Additional) and a **DISCOUNTS** table (Key / Description / Amount / Percent). Edit a year, re-run the tool, then run Calculate Invoices. The target year defaults to the latest client `tax_year` (or `--year`). Needs the `openpyxl` package.
+
 ## Building a standalone desktop app
 
 You can package the desktop app into a single double-click executable so it runs
@@ -444,6 +454,7 @@ python test_validate_config.py
 python test_import_clients.py
 python test_year_rollover.py
 python test_pdf_tools.py
+python test_fee_workbook.py
 python test_intake.py
 python test_checklist.py
 python test_invoice_calc.py
