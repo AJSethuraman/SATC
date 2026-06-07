@@ -413,6 +413,19 @@ PRESETS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Status & reminders", ("engagement", "form8879", "filing", "reminders", "dashboard")),
 )
 
+# Tools that actually need PyMuPDF/Tesseract (PDF reading, OCR, or PDF output).
+# Everything else (intake, validate, import, checklist, invoice, generate, trackers,
+# reminders, email, retention, payments, dashboard, rollover, diagnostics) is pure
+# Python and runs with none of the heavy dependencies installed.
+DEPENDENCY_TOOLS = frozenset({"sort", "extract", "sign", "encyro", "pdftools"})
+
+
+def needs_dependencies(tool_keys) -> bool:
+    """True only if a selected tool requires PyMuPDF/Tesseract."""
+
+    return bool(set(tool_keys) & DEPENDENCY_TOOLS)
+
+
 def tools_by_group() -> "dict[str, list[Tool]]":
     """Tools grouped by their pipeline phase, preserving registry order."""
 
@@ -509,7 +522,8 @@ def main() -> int:
     if not folder.is_dir():
         print(f"Input folder does not exist or is not a directory: {folder}")
         return 1
-    if not sort_tax_docs.check_dependencies():
+    # Only the PDF/OCR tools need PyMuPDF/Tesseract; document tools run without them.
+    if needs_dependencies(keys) and not sort_tax_docs.check_dependencies():
         return 1
 
     if not args.per_client:

@@ -28,6 +28,15 @@ class OrderedToolKeysTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             tax_tools.ordered_tool_keys(["sort", "nope"])
 
+    def test_document_tools_need_no_heavy_dependencies(self) -> None:
+        # Pure document/data tools must not demand PyMuPDF/Tesseract.
+        self.assertFalse(tax_tools.needs_dependencies(["generate", "invoice", "email", "dashboard"]))
+        self.assertFalse(tax_tools.needs_dependencies(["validate", "import", "intake", "checklist"]))
+        # The PDF/OCR tools do.
+        self.assertTrue(tax_tools.needs_dependencies(["sort"]))
+        self.assertTrue(tax_tools.needs_dependencies(["generate", "extract"]))
+        self.assertTrue(tax_tools.needs_dependencies(["encyro"]))
+
     def test_canonical_order_matches_registry(self) -> None:
         self.assertEqual(
             tax_tools.ordered_tool_keys(list(tax_tools.DEFAULT_TOOL_KEYS)),

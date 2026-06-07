@@ -946,7 +946,8 @@ if PYSIDE_AVAILABLE:
             if not self.selected_folder.exists() or not self.selected_folder.is_dir():
                 QMessageBox.warning(self, "Invalid folder", "Please choose a valid folder.")
                 return
-            if not sort_tax_docs.check_dependencies(verbose=False):
+            needs_deps = tax_tools.needs_dependencies(tool_keys)
+            if needs_deps and not sort_tax_docs.check_dependencies(verbose=False):
                 QMessageBox.warning(self, "Setup needed", dependency_message())
                 return
 
@@ -967,7 +968,7 @@ if PYSIDE_AVAILABLE:
                     if QMessageBox.question(self, "Check inputs", message) != QMessageBox.Yes:
                         return
 
-            if sort_tax_docs.find_tesseract_executable() is None:
+            if needs_deps and sort_tax_docs.find_tesseract_executable() is None:
                 QMessageBox.information(
                     self,
                     "Tesseract OCR needed",
