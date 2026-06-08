@@ -18,6 +18,9 @@ import shutil
 from pathlib import Path
 
 # (column label, clients.json key, kind). "list" fields are shown comma-separated.
+# Note: 'services' is intentionally NOT editable here -- it can hold structured
+# entries ({service, quantity} / {description, price}) that a flat text cell would
+# corrupt, so it is preserved untouched (along with totals, line items, etc.).
 FIELDS: tuple[tuple[str, str, str], ...] = (
     ("Name", "client_name", "text"),
     ("Email", "email", "text"),
@@ -25,7 +28,6 @@ FIELDS: tuple[tuple[str, str, str], ...] = (
     ("Tax Year", "tax_year", "text"),
     ("Filing Status", "filing_status", "text"),
     ("Expected Documents", "expected_documents", "list"),
-    ("Services", "services", "list"),
 )
 COLUMN_LABELS = tuple(label for label, _, _ in FIELDS)
 BACKUP_FILENAME = "clients.backup.json"

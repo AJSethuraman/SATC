@@ -34,6 +34,16 @@ class PureLogicTests(unittest.TestCase):
         self.assertEqual(rebuilt["line_items"], [{"x": 1}])
         self.assertTrue(rebuilt["form_8879_signed"])
 
+    def test_structured_services_preserved_untouched(self) -> None:
+        # The editor must not flatten structured services (price/quantity) on save.
+        original = {
+            "client_name": "Jo Sample",
+            "services": [{"service": "schedule_c", "price": 200.0, "quantity": 2}, "state_return"],
+        }
+        cells = ce.client_to_row(original)
+        rebuilt = ce.row_to_client(cells, original)
+        self.assertEqual(rebuilt["services"], original["services"])  # exact, structure intact
+
     def test_cleared_cell_removes_field(self) -> None:
         client = ce.row_to_client(["Jo", "", "", "", "", "", ""])
         self.assertEqual(client, {"client_name": "Jo"})

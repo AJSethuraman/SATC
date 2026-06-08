@@ -82,33 +82,33 @@ def read_year_sheet(worksheet) -> dict:
     mode = None
     for row in worksheet.iter_rows(values_only=True):
         first = row[0] if row else None
-        if first == FORMS_MARKER:
-            mode = "forms_header"
-            continue
-        if first == DISCOUNTS_MARKER:
-            mode = "discounts_header"
-            continue
-        if mode == "forms_header":
+        marker = str(first).strip().lower() if first not in (None, "") else ""
+        if marker == FORMS_MARKER.lower():
             mode = "forms"
             continue
-        if mode == "discounts_header":
+        if marker == DISCOUNTS_MARKER.lower():
             mode = "discounts"
             continue
-        if not first:
+        if marker in ("", "key"):  # blank row or the table header, in any position
             continue
         if mode == "forms":
-            entry = {"description": row[1] or "", "price": _num(row[2]) or 0.0}
+            price = _num(row[2]) if len(row) > 2 else None
+            if price is None:  # not a real form row (blank/garbled price) -> skip, never bill $0
+                continue
+            entry = {"description": row[1] or "", "price": price}
             additional = _num(row[3]) if len(row) > 3 else None
             if additional is not None:
                 entry["additional"] = additional
             schedule[str(first)] = entry
         elif mode == "discounts":
-            config = {"description": row[1] or ""}
             percent = _num(row[3]) if len(row) > 3 else None
             amount = _num(row[2]) if len(row) > 2 else None
+            if percent is None and amount is None:  # not a real discount row
+                continue
+            config = {"description": row[1] or ""}
             if percent is not None:
                 config["percent"] = percent
-            elif amount is not None:
+            else:
                 config["amount"] = amount
             discounts[str(first)] = config
     if discounts:

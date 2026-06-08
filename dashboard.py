@@ -31,7 +31,8 @@ def _has_files(folder: Path, pattern: str) -> bool:
     return folder.is_dir() and any(p.is_file() for p in folder.glob(pattern))
 
 
-def client_row(client, slug, input_folder, output_folder, doc_map, received, search_files) -> dict:
+def client_row(client, slug, input_folder, output_folder, doc_map, received, search_files,
+               more_specific=()) -> dict:
     """Compute the dashboard cells for one client."""
 
     generated_dir = output_folder / generate_documents.GENERATED_FOLDER_NAME
@@ -43,8 +44,8 @@ def client_row(client, slug, input_folder, output_folder, doc_map, received, sea
     expected = len(rows)
     missing = sum(1 for r in rows if r["status"] == checklist.STATUS_MISSING)
 
-    engagement = status_tracker.evaluate(client, slug, status_tracker.ENGAGEMENT_TRACKER, search_files)[0]
-    form_8879 = status_tracker.evaluate(client, slug, status_tracker.FORM_8879_TRACKER, search_files)[0]
+    engagement = status_tracker.evaluate(client, slug, status_tracker.ENGAGEMENT_TRACKER, search_files, more_specific)[0]
+    form_8879 = status_tracker.evaluate(client, slug, status_tracker.FORM_8879_TRACKER, search_files, more_specific)[0]
     on_file = status_tracker.STATUS_ON_FILE
 
     return {
@@ -150,13 +151,16 @@ def run_dashboard(input_folder, status_callback=None) -> dict:
     doc_map, _ = checklist.load_doc_map(input_folder)
     received = checklist.received_categories(output_folder)
     search_files = status_tracker.gather_search_files(input_folder, output_folder)
+    all_slugs = [generate_documents.client_slug(c, i) for i, c in enumerate(clients, start=1)]
 
     rows: list[dict] = []
     for index, client in enumerate(clients, start=1):
         slug = generate_documents.client_slug(client, index)
         if status_callback:
             status_callback(f"Dashboard: {slug} ({index} of {len(clients)})")
-        rows.append(client_row(client, slug, input_folder, output_folder, doc_map, received, search_files))
+        more_specific = status_tracker.more_specific_token_sets(slug, all_slugs)
+        rows.append(client_row(client, slug, input_folder, output_folder, doc_map, received,
+                               search_files, more_specific))
 
     def count(key: str, *states: str) -> int:
         return sum(1 for r in rows if r[key][0] in states)

@@ -28,6 +28,12 @@ class RollForwardTests(unittest.TestCase):
             "tax_year": "2024", "total": "440.00", "line_items": [{"x": 1}], "amount_paid": "440.00",
             "form_8879_signed": True, "engagement_letter_signed": "2025-02-01", "return_filed": "2025-03-01",
         }
+        client["subtotal"] = "440.00"
+        client["discount"] = "-40.00"
+        client["discount_lines"] = [{"description": "Express", "amount": "-40.00"}]
+        client["express_applied"] = True
+        client["returns"] = [{"return_type": "Federal Income Tax"}]
+        client["efiled_returns"] = [{"name": "Federal Income Tax"}]
         carried = yr.roll_forward(client, "2025")
         # static carries
         self.assertEqual(carried["client_name"], "Jo Sample")
@@ -35,9 +41,10 @@ class RollForwardTests(unittest.TestCase):
         self.assertEqual(carried["spouse_name"], "Pat")  # custom field preserved
         # year bumped
         self.assertEqual(carried["tax_year"], "2025")
-        # per-year status wiped
-        for gone in ("total", "line_items", "amount_paid", "form_8879_signed",
-                     "engagement_letter_signed", "return_filed"):
+        # all per-year status/results wiped (incl. discount + filed returns)
+        for gone in ("total", "line_items", "subtotal", "discount", "discount_lines",
+                     "express_applied", "amount_paid", "form_8879_signed",
+                     "engagement_letter_signed", "return_filed", "returns", "efiled_returns"):
             self.assertNotIn(gone, carried)
 
     def test_next_year_from_clients(self) -> None:

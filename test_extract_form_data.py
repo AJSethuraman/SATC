@@ -77,6 +77,17 @@ class W2ExtractionTests(unittest.TestCase):
         self.assertEqual(result.values["box1_wages"], "")
         self.assertTrue(result.needs_review, result)
 
+    def test_blank_box_does_not_grab_ein_digits(self) -> None:
+        # When a box is blank, the whole-dollar fallback must not grab an EIN/SSN run.
+        text = (
+            "Form W-2 Wage and Tax Statement 2024 "
+            "Employer identification number (EIN) 12-3456789 "
+            "1 Wages, tips, other compensation "          # no value for box 1
+            "b Employee's social security number 123-45-6789"
+        )
+        result = extract_form_fields("W2", text)
+        self.assertEqual(result.values["box1_wages"], "")  # not "3456789"
+
     def test_w2_whole_dollar_amounts_without_cents(self) -> None:
         # Many real W-2s print whole-dollar box values with no comma or cents.
         text = (

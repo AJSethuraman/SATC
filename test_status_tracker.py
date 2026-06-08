@@ -45,6 +45,16 @@ class EvaluateTests(unittest.TestCase):
         status, _ = st.evaluate({}, "Jordan_Sample", st.FORM_8879_TRACKER, files)
         self.assertEqual(status, st.STATUS_OUTSTANDING)
 
+    def test_prefix_client_does_not_borrow_more_specific_file(self) -> None:
+        # "Jo Sample" must not be credited with "Jo Sample Jr"'s signed 8879.
+        files = [Path("/x/Jo_Sample_Jr_8879_signed.pdf")]
+        more_specific = st.more_specific_token_sets("Jo_Sample", ["Jo_Sample", "Jo_Sample_Jr"])
+        status, _ = st.evaluate({}, "Jo_Sample", st.FORM_8879_TRACKER, files, more_specific)
+        self.assertEqual(status, st.STATUS_OUTSTANDING)
+        # ...but the Jr is correctly credited.
+        jr_status, _ = st.evaluate({}, "Jo_Sample_Jr", st.FORM_8879_TRACKER, files, [])
+        self.assertEqual(jr_status, st.STATUS_ON_FILE)
+
 
 class RunTests(unittest.TestCase):
     def test_no_data_file(self) -> None:

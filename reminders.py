@@ -41,14 +41,15 @@ def load_reminder_template(input_folder: Path) -> str:
     return DEFAULT_REMINDER_TEMPLATE
 
 
-def outstanding_for_client(client: dict, slug: str, search_files, doc_map, received) -> list[str]:
+def outstanding_for_client(client: dict, slug: str, search_files, doc_map, received,
+                           more_specific=()) -> list[str]:
     """Human-readable list of everything still outstanding for one client."""
 
     items: list[str] = []
-    engagement, _ = status_tracker.evaluate(client, slug, status_tracker.ENGAGEMENT_TRACKER, search_files)
+    engagement, _ = status_tracker.evaluate(client, slug, status_tracker.ENGAGEMENT_TRACKER, search_files, more_specific)
     if engagement == status_tracker.STATUS_OUTSTANDING:
         items.append("a signed engagement letter")
-    form_8879, _ = status_tracker.evaluate(client, slug, status_tracker.FORM_8879_TRACKER, search_files)
+    form_8879, _ = status_tracker.evaluate(client, slug, status_tracker.FORM_8879_TRACKER, search_files, more_specific)
     if form_8879 == status_tracker.STATUS_OUTSTANDING:
         items.append("a signed Form 8879 (e-file authorization)")
 
@@ -89,6 +90,7 @@ def run_reminders(input_folder, status_callback=None) -> dict:
     reminders_folder = output_folder / REMINDERS_FOLDER_NAME
     reminders_folder.mkdir(exist_ok=True)
 
+    all_slugs = [generate_documents.client_slug(c, i) for i, c in enumerate(clients, start=1)]
     reminders: list[Path] = []
     warnings: list[str] = []
     skipped_complete = skipped_no_email = 0
@@ -96,7 +98,8 @@ def run_reminders(input_folder, status_callback=None) -> dict:
         slug = generate_documents.client_slug(client, index)
         if status_callback:
             status_callback(f"Checking outstanding items for {slug} ({index} of {len(clients)})")
-        items = outstanding_for_client(client, slug, search_files, doc_map, received)
+        more_specific = status_tracker.more_specific_token_sets(slug, all_slugs)
+        items = outstanding_for_client(client, slug, search_files, doc_map, received, more_specific)
         if not items:
             skipped_complete += 1
             continue

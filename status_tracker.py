@@ -96,8 +96,21 @@ def gather_search_files(input_folder: Path, output_folder: Path) -> list[Path]:
     return files
 
 
-def evaluate(client: dict, slug: str, config: TrackerConfig, search_files: list[Path]) -> tuple[str, str]:
-    """Return (status, source) for one client and tracker."""
+def more_specific_token_sets(slug: str, all_slugs) -> list[set]:
+    """Token sets of other clients whose name strictly contains this client's (e.g. a Jr)."""
+
+    base = _tokens(slug)
+    return [tokens for tokens in (_tokens(other) for other in all_slugs) if base < tokens]
+
+
+def evaluate(client: dict, slug: str, config: TrackerConfig, search_files: list[Path],
+             more_specific=()) -> tuple[str, str]:
+    """Return (status, source) for one client and tracker.
+
+    ``more_specific`` is the token sets of clients whose name strictly contains this
+    client's; a file matching one of them belongs to that more-specific client and is
+    not credited here (so "Jo Sample" does not borrow "Jo Sample Jr"'s signed file).
+    """
 
     if client.get(config.signed_field):
         value = client[config.signed_field]
@@ -108,12 +121,12 @@ def evaluate(client: dict, slug: str, config: TrackerConfig, search_files: list[
     # keyword as a substring of the normalized name (so "8879" matches "form8879").
     slug_tokens = _tokens(slug)
     for path in search_files:
-        name_norm = _norm(path.name)
-        if (
-            slug_tokens
-            and slug_tokens <= _tokens(path.name)
-            and any(_norm(keyword) in name_norm for keyword in config.keywords)
-        ):
+        name_tokens = _tokens(path.name)
+        if not (slug_tokens and slug_tokens <= name_tokens):
+            continue
+        if any(other <= name_tokens for other in more_specific):
+            continue  # this file belongs to a more-specific client
+        if any(_norm(keyword) in _norm(path.name) for keyword in config.keywords):
             return STATUS_ON_FILE, path.name
     return STATUS_OUTSTANDING, ""
 
@@ -162,6 +175,7 @@ def run_tracker(input_folder, config: TrackerConfig, status_callback=None) -> di
 
     clients = generate_documents.load_clients(data_file)
     search_files = gather_search_files(input_folder, output_folder)
+    all_slugs = [generate_documents.client_slug(c, i) for i, c in enumerate(clients, start=1)]
     status_folder = output_folder / STATUS_FOLDER_NAME
     status_folder.mkdir(exist_ok=True)
 
@@ -171,7 +185,8 @@ def run_tracker(input_folder, config: TrackerConfig, status_callback=None) -> di
         slug = generate_documents.client_slug(client, index)
         if status_callback:
             status_callback(f"{config.title}: checking {slug} ({index} of {len(clients)})")
-        status, source = evaluate(client, slug, config, search_files)
+        status, source = evaluate(client, slug, config, search_files,
+                                  more_specific_token_sets(slug, all_slugs))
         if status == STATUS_ON_FILE:
             on_file += 1
         rows.append({"client": slug, "status": status, "source": source})

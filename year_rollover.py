@@ -29,8 +29,10 @@ import sort_tax_docs
 
 # Per-year fields cleared on rollover; everything else carries forward.
 RESET_FIELDS = frozenset({
-    "line_items", "total", "amount_paid", "paid", "invoice_date", "generated_date",
-    "engagement_letter_signed", "form_8879_signed", "return_filed",
+    "line_items", "subtotal", "discount", "discount_lines", "total", "express_applied",
+    "amount_paid", "paid", "invoice_date", "generated_date",
+    "returns", "efiled_returns", "return_filed",
+    "engagement_letter_signed", "form_8879_signed",
 })
 SHARED_CONFIG_FILES = (
     generate_documents.FIRM_SETTINGS_FILENAME,

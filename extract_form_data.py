@@ -34,10 +34,10 @@ RECORD_METADATA_FIELDS = ("form_type", "source_file", "page", "needs_review")
 # the decimal the value is left blank and flagged rather than guessed.
 # Strict money: comma-grouped (1,234[.56]) or decimal cents (1234.56). Preferred.
 MONEY_PATTERN = r"\$?\s*(\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\d+\.\d{2})"
-# Whole-dollar fallback: a 3+ digit integer that is NOT a 4-digit year, for boxes
-# printed without a comma or cents (e.g. 52000). Used only when no strict amount is
-# near the label, so account numbers/years don't override a real comma/cents value.
-WHOLE_DOLLAR_PATTERN = r"(?<!\d)(?!(?:19|20)\d{2}(?!\d))\d{3,}(?!\d)"
+# Whole-dollar fallback: a 3+ digit integer that is NOT a 4-digit year and is not part
+# of a hyphenated EIN/SSN/TIN (the (?<![\d-]) / (?![\d-]) boundaries reject e.g. the
+# "3456789" of an EIN "12-3456789"). Used only when no strict amount is near the label.
+WHOLE_DOLLAR_PATTERN = r"(?<![\d-])(?!(?:19|20)\d{2}(?![\d-]))\d{3,}(?![\d-])"
 EIN_PATTERN = r"\b\d{2}-\d{7}\b"
 SSN_PATTERN = r"\b\d{3}-\d{2}-\d{4}\b"
 YEAR_PATTERN = r"\b20\d{2}\b"

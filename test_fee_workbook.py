@@ -51,6 +51,26 @@ class WorkbookTests(unittest.TestCase):
         self.assertEqual(parsed[invoice_calc.DISCOUNTS_KEY]["express"], {"description": "Express", "amount": -40.0})
         self.assertEqual(parsed[invoice_calc.DISCOUNTS_KEY]["friends_family"], {"description": "F&F", "percent": 20.0})
 
+    def test_blank_rows_and_non_numeric_price_ignored(self) -> None:
+        wb = Workbook()
+        ws = wb.active
+        ws.append(["Fee Schedule", 2025])
+        ws.append([])
+        ws.append(["FORMS"])
+        ws.append([])                                  # stray blank row under the marker
+        ws.append(["Key", "Description", "Price", "Additional"])
+        ws.append(["base_1040", "Form 1040", 170.0, 170.0])
+        ws.append(["schedule_c", "Schedule C", "TBD", ""])  # garbled price -> must be skipped
+        ws.append([])
+        ws.append(["DISCOUNTS"])
+        ws.append(["Key", "Description", "Amount", "Percent"])
+        ws.append(["express", "Express", -40.0, ""])
+        parsed = fee_workbook.read_year_sheet(ws)
+        self.assertIn("base_1040", parsed)
+        self.assertNotIn("schedule_c", parsed)          # not billed at $0
+        self.assertNotIn("Key", parsed)                 # header row not parsed as a form
+        self.assertEqual(parsed[invoice_calc.DISCOUNTS_KEY]["express"], {"description": "Express", "amount": -40.0})
+
     def test_run_creates_workbook_next_year_and_applies_edits(self) -> None:
         with tempfile.TemporaryDirectory() as d:
             folder = Path(d)
