@@ -4,8 +4,8 @@
 Reads the per-form CSVs the extractor wrote to Drake_Export/ and flags likely
 problems: rows the extractor already flagged for manual entry, a form with no
 primary amount read, federal withholding that exceeds W-2 wages, and possible
-duplicate forms. Findings go to Diagnostics/diagnostics.csv (and a printable
-HTML). This is assistive review, not tax advice. Standard-library only.
+duplicate forms. Findings go to Diagnostics/diagnostics.csv. This is assistive
+review, not tax advice. Standard-library only.
 """
 
 from __future__ import annotations
@@ -14,7 +14,6 @@ import csv
 from collections import Counter
 from pathlib import Path
 
-import core
 import extract_form_data
 import generate_documents
 import sort_tax_docs
@@ -114,7 +113,6 @@ def run_diagnostics(input_folder, status_callback=None) -> dict:
         writer = csv.DictWriter(handle, fieldnames=["form", "source_file", "page", "issue", "severity"])
         writer.writeheader()
         writer.writerows(findings)
-    _write_html(diagnostics_folder / "diagnostics.html", findings)
 
     warning_count = sum(1 for f in findings if f["severity"] == SEV_WARN)
     return {
@@ -128,27 +126,6 @@ def run_diagnostics(input_folder, status_callback=None) -> dict:
             f"{len(findings) - warning_count} note(s)."
         ),
     }
-
-
-def _write_html(path: Path, findings: list[dict]) -> None:
-    colors = {SEV_WARN: "#8a1c1c", SEV_INFO: "#5b6b7b"}
-    body = "".join(
-        f"<tr><td>{core.escape_html(f['form'])}</td>"
-        f"<td>{core.escape_html(f['source_file'])}</td>"
-        f"<td style='color:{colors[f['severity']]};font-weight:600'>{f['severity']}</td>"
-        f"<td>{core.escape_html(f['issue'])}</td></tr>"
-        for f in findings
-    ) or "<tr><td colspan='4'>No issues found.</td></tr>"
-    path.write_text(
-        "<!doctype html><html><head><meta charset='utf-8'><title>Diagnostics</title>"
-        "<style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:820px;"
-        "margin:2rem auto;color:#1c2733}table{border-collapse:collapse;width:100%}"
-        "td,th{border-bottom:1px solid #e1e6ec;padding:.5rem .4rem;text-align:left;font-size:.9rem}</style>"
-        "</head><body><h1>Data Diagnostics</h1>"
-        f"<table><tr><th>Form</th><th>Source</th><th>Severity</th><th>Issue</th></tr>{body}</table>"
-        "</body></html>",
-        encoding="utf-8",
-    )
 
 
 def main() -> int:

@@ -9,7 +9,7 @@ For each client it reports "On file" or "Outstanding". A document counts as on f
 if the client record sets the tracker's flag (for example ``form_8879_signed: true``)
 or if a matching file is found -- one whose name contains the client's name and the
 tracker's keyword -- in the folder, its subfolders, or Signed_Documents/. Reports are
-written to Status/ as CSV and a printable HTML table. Standard-library only.
+written to Status/ as CSV. Standard-library only.
 """
 
 from __future__ import annotations
@@ -19,7 +19,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-import core
 import generate_documents
 import sort_tax_docs
 
@@ -131,27 +130,6 @@ def evaluate(client: dict, slug: str, config: TrackerConfig, search_files: list[
     return STATUS_OUTSTANDING, ""
 
 
-def _build_html(config: TrackerConfig, rows: list[dict]) -> str:
-    colors = {STATUS_ON_FILE: "#1a7f37", STATUS_OUTSTANDING: "#c0392b"}
-    body = "".join(
-        f"<tr><td>{core.escape_html(r['client'])}</td>"
-        f"<td style='color:{colors[r['status']]};font-weight:600'>{r['status']}</td>"
-        f"<td>{core.escape_html(r['source'])}</td></tr>"
-        for r in rows
-    ) or "<tr><td colspan='3'>No clients.</td></tr>"
-    return f"""<!doctype html><html><head><meta charset="utf-8">
-<title>{core.escape_html(config.title)}</title>
-<style>
- body {{ font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 760px; margin: 2rem auto; color: #1c2733; }}
- h1 {{ font-size: 1.4rem; }} table {{ border-collapse: collapse; width: 100%; }}
- td, th {{ border-bottom: 1px solid #e1e6ec; padding: .5rem .4rem; text-align: left; }}
-</style></head><body>
-<h1>{core.escape_html(config.title)}</h1>
-<table><tr><th>Client</th><th>Status</th><th>Source</th></tr>{body}</table>
-</body></html>
-"""
-
-
 def run_tracker(input_folder, config: TrackerConfig, status_callback=None) -> dict:
     """Build the status report for one tracker configuration."""
 
@@ -196,7 +174,6 @@ def run_tracker(input_folder, config: TrackerConfig, status_callback=None) -> di
         writer = csv.DictWriter(handle, fieldnames=["client", "status", "source"])
         writer.writeheader()
         writer.writerows(rows)
-    (status_folder / f"{config.basename}.html").write_text(_build_html(config, rows), encoding="utf-8")
 
     outstanding = len(rows) - on_file
     return {

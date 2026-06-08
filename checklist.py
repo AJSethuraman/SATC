@@ -3,8 +3,8 @@
 
 Second of the new modules. For each client in clients.json it compares the
 ``expected_documents`` they reported at intake against the document categories
-that actually have files in the sorted output, and writes a printable checklist
-plus an aggregate CSV. Use it to see at a glance what is still outstanding and to
+that actually have files in the sorted output, and writes an aggregate
+checklist_summary.csv. Use it to see at a glance what is still outstanding and to
 send a client their "still needed" list.
 
 The label -> category mapping is *dynamic*: a ``checklist_map.json`` is written to
@@ -18,7 +18,6 @@ import csv
 import json
 from pathlib import Path
 
-import core
 import generate_documents
 import sort_tax_docs
 
@@ -100,33 +99,6 @@ def _missing_count(rows: list[dict]) -> int:
     return sum(1 for row in rows if row["status"] == STATUS_MISSING)
 
 
-def build_checklist_html(client: dict, rows: list[dict], extras: list[str]) -> str:
-    name = core.escape_html(client.get("client_name") or client.get("name") or "Client")
-    colors = {STATUS_RECEIVED: "#1a7f37", STATUS_MISSING: "#c0392b", STATUS_MANUAL: "#9a6700"}
-    body_rows = "".join(
-        f"<tr><td>{core.escape_html(r['document'])}</td>"
-        f"<td style='color:{colors.get(r['status'], '#333')};font-weight:600'>{r['status']}</td></tr>"
-        for r in rows
-    ) or "<tr><td colspan='2'>No expected documents on file.</td></tr>"
-    extra_note = (
-        f"<p class='note'>Also received (not on the expected list): {', '.join(extras)}.</p>"
-        if extras else ""
-    )
-    return f"""<!doctype html><html><head><meta charset="utf-8">
-<title>Document Checklist - {name}</title>
-<style>
- body {{ font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 640px; margin: 2rem auto; color: #1c2733; }}
- h1 {{ font-size: 1.4rem; }} table {{ border-collapse: collapse; width: 100%; }}
- td, th {{ border-bottom: 1px solid #e1e6ec; padding: .5rem .4rem; text-align: left; }}
- .note {{ color: #5b6b7b; }}
-</style></head><body>
-<h1>Document Checklist — {name}</h1>
-<table><tr><th>Document</th><th>Status</th></tr>{body_rows}</table>
-{extra_note}
-</body></html>
-"""
-
-
 def run_checklist(input_folder, status_callback=None) -> dict:
     """Build a checklist per client and an aggregate CSV summary."""
 
@@ -137,7 +109,7 @@ def run_checklist(input_folder, status_callback=None) -> dict:
         "tool": "checklist",
         "output_folder": output_folder,
         "checklist_folder": None,
-        "checklists": [],
+        "report_path": None,
         "client_count": 0,
         "total_missing": 0,
         "warnings": [],
@@ -153,7 +125,6 @@ def run_checklist(input_folder, status_callback=None) -> dict:
     checklist_folder = output_folder / CHECKLIST_FOLDER_NAME
     checklist_folder.mkdir(exist_ok=True)
 
-    checklists: list[Path] = []
     warnings: list[str] = []
     total_missing = 0
     summary_rows: list[dict] = []
@@ -164,12 +135,7 @@ def run_checklist(input_folder, status_callback=None) -> dict:
         rows, extras = evaluate_client(client, doc_map, received)
         if not rows:
             warnings.append(f"{slug}: no expected_documents recorded (collect intake first?).")
-        missing = _missing_count(rows)
-        total_missing += missing
-
-        path = checklist_folder / f"{slug}_checklist.html"
-        path.write_text(build_checklist_html(client, rows, extras), encoding="utf-8")
-        checklists.append(path)
+        total_missing += _missing_count(rows)
         for row in rows:
             summary_rows.append({"client": slug, "document": row["document"], "status": row["status"]})
 
@@ -182,12 +148,12 @@ def run_checklist(input_folder, status_callback=None) -> dict:
     return {
         **base_result,
         "checklist_folder": checklist_folder,
-        "checklists": checklists,
+        "report_path": summary_path,
         "client_count": len(clients),
         "total_missing": total_missing,
         "warnings": warnings,
         "summary": (
-            f"Built {len(checklists)} checklist(s); {total_missing} document(s) still missing"
+            f"Checked {len(clients)} client(s); {total_missing} document(s) still missing"
             + (" (no documents sorted yet?)." if not received else ".")
         ),
     }

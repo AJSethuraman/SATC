@@ -68,7 +68,9 @@ class RunTests(unittest.TestCase):
             result = checklist.run_checklist(folder)
             self.assertEqual(result["client_count"], 1)
             self.assertEqual(result["total_missing"], 1)
-            self.assertTrue((output / "Checklists" / "Jordan_Sample_checklist.html").exists())
+            # The summary CSV is the report; no duplicate per-client HTML page is emitted.
+            self.assertEqual(Path(result["report_path"]).name, "checklist_summary.csv")
+            self.assertFalse((output / "Checklists" / "Jordan_Sample_checklist.html").exists())
 
             summary = output / "Checklists" / "checklist_summary.csv"
             with summary.open(encoding="utf-8") as handle:

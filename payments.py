@@ -4,8 +4,8 @@
 Reads clients.json (after Calculate Invoices has set each client's ``total``) and
 each client's payment fields -- ``amount_paid`` (or ``paid: true``) and an
 ``invoice_date`` -- to compute the outstanding balance and how long it has been
-outstanding. Writes Payments/ar_aging.csv and a printable HTML summary bucketed by
-age (0-30 / 31-60 / 61-90 / 90+ days). Standard-library only.
+outstanding. Writes Payments/ar_aging.csv with each balance bucketed by age
+(0-30 / 31-60 / 61-90 / 90+ days). Standard-library only.
 """
 
 from __future__ import annotations
@@ -114,7 +114,6 @@ def run_payments(input_folder, status_callback=None) -> dict:
     today = date.today()
     rows: list[dict] = []
     billed = collected = outstanding = 0.0
-    bucket_totals = {bucket: 0.0 for bucket in AGING_BUCKETS}
     for index, client in enumerate(clients, start=1):
         slug = generate_documents.client_slug(client, index)
         if status_callback:
@@ -123,8 +122,6 @@ def run_payments(input_folder, status_callback=None) -> dict:
         billed += info["total"]
         collected += info["paid"]
         outstanding += info["balance"]
-        if info["balance"] > 0 and info["bucket"] in bucket_totals:
-            bucket_totals[info["bucket"]] += info["balance"]
         rows.append({
             "client": slug,
             "total": _money(info["total"]),
@@ -145,7 +142,6 @@ def run_payments(input_folder, status_callback=None) -> dict:
         )
         writer.writeheader()
         writer.writerows(rows)
-    _write_html(payments_folder / "ar_aging.html", rows, bucket_totals, billed, collected, outstanding)
 
     return {
         **base_result,
@@ -159,35 +155,6 @@ def run_payments(input_folder, status_callback=None) -> dict:
             f"across {len(rows)} client(s)."
         ),
     }
-
-
-def _write_html(path, rows, bucket_totals, billed, collected, outstanding) -> None:
-    colors = {STATUS_PAID: "#0d4429", STATUS_PARTIAL: "#9a6700", STATUS_UNPAID: "#8a1c1c"}
-    body = "".join(
-        f"<tr><td>{core.escape_html(r['client'])}</td><td>{r['total']}</td>"
-        f"<td>{r['paid']}</td><td>{r['balance']}</td>"
-        f"<td style='color:{colors.get(r['status'], '#333')};font-weight:600'>{r['status']}</td>"
-        f"<td>{r['days_outstanding']}</td><td>{r['bucket']}</td></tr>"
-        for r in rows
-    ) or "<tr><td colspan='7'>No clients.</td></tr>"
-    chips = "".join(
-        f"<div class='chip'><span class='num'>{_money(v)}</span><span class='lbl'>{b} days</span></div>"
-        for b, v in bucket_totals.items()
-    )
-    path.write_text(
-        "<!doctype html><html><head><meta charset='utf-8'><title>Accounts Receivable</title>"
-        "<style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:900px;margin:2rem auto;color:#1c2733}"
-        ".chips{display:flex;gap:12px;flex-wrap:wrap;margin:1rem 0}.chip{background:#f0f3f8;border:1px solid #e1e6ec;"
-        "border-radius:12px;padding:10px 14px}.chip .num{display:block;font-weight:700}.chip .lbl{font-size:.78rem;color:#5b6b7b}"
-        "table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #e1e6ec;padding:.5rem .4rem;text-align:left;font-size:.9rem}"
-        "</style></head><body><h1>Accounts Receivable</h1>"
-        f"<p>Billed {_money(billed)} · Collected {_money(collected)} · "
-        f"<b>Outstanding {_money(outstanding)}</b></p>"
-        f"<div class='chips'>{chips}</div>"
-        "<table><tr><th>Client</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th>"
-        f"<th>Days</th><th>Bucket</th></tr>{body}</table></body></html>",
-        encoding="utf-8",
-    )
 
 
 def main() -> int:

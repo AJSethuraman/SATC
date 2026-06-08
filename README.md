@@ -228,7 +228,7 @@ or the results table). Needs PyMuPDF; assistive — verify against the packet.
 
 ### Checking documents received
 
-The **Document Checklist** tool compares each client's `expected_documents` (collected at intake) against the sorter categories that actually contain files, and writes `Checklists/<client>_checklist.html` (printable / sendable) plus an aggregate `checklist_summary.csv`. Each expected item shows as **Received**, **Missing**, or **Manual check** (for labels with no automatic mapping, like "Other"), and any received-but-unexpected categories are noted.
+The **Document Checklist** tool compares each client's `expected_documents` (collected at intake) against the sorter categories that actually contain files, and writes an aggregate `Checklists/checklist_summary.csv`. Each expected item shows as **Received**, **Missing**, or **Manual check** (for labels with no automatic mapping, like "Other"), and any received-but-unexpected categories are noted.
 
 Run **Sort Documents** first so there is something to check against. The intake-label → sorter-category mapping is **dynamic**: a `checklist_map.json` is written to the folder on first run, so you can change how labels map (for example, point "1099-INT" and "1099-DIV" at different categories) without touching code.
 
@@ -279,7 +279,7 @@ Two trackers answer "who still owes us a signature?":
 - **Engagement Letter Tracker** — is a signed engagement letter on file per client?
 - **Form 8879 Tracker** — is a signed Form 8879 (e-file authorization) on file per client?
 
-Each writes `Status/<name>_status.csv` and a printable `.html` table marking every client **On file** or **Outstanding**. A document counts as on file when either the client record sets the flag (`engagement_letter_signed` / `form_8879_signed`, e.g. a date or `true`) or a matching file is found — one whose name contains the client's name and the keyword (`engagement` / `8879`) — in the folder, its subfolders, or `Signed_Documents/`. So drop returned signed PDFs in the folder (named with the client and form) and re-run to update the status.
+Each writes `Status/<name>_status.csv` marking every client **On file** or **Outstanding**. A document counts as on file when either the client record sets the flag (`engagement_letter_signed` / `form_8879_signed`, e.g. a date or `true`) or a matching file is found — one whose name contains the client's name and the keyword (`engagement` / `8879`) — in the folder, its subfolders, or `Signed_Documents/`. So drop returned signed PDFs in the folder (named with the client and form) and re-run to update the status.
 
 ### Sending reminders
 

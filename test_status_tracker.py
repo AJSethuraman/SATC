@@ -83,7 +83,8 @@ class RunTests(unittest.TestCase):
                 rows = {r["client"]: r["status"] for r in csv.DictReader(handle)}
             self.assertEqual(rows["Has_It"], st.STATUS_ON_FILE)
             self.assertEqual(rows["Needs_It"], st.STATUS_OUTSTANDING)
-            self.assertTrue((Path(result["status_folder"]) / "form_8879_status.html").exists())
+            # The CSV is the report; no duplicate HTML table is emitted.
+            self.assertFalse((Path(result["status_folder"]) / "form_8879_status.html").exists())
 
     def test_signed_documents_folder_is_searched(self) -> None:
         with tempfile.TemporaryDirectory() as d:
