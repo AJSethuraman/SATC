@@ -24,6 +24,7 @@ import generate_documents
 import import_clients
 import intake
 import invoice_calc
+import packet_reader
 import payments
 import pdf_tools
 import reminders
@@ -164,6 +165,13 @@ def _run_diagnostics(context: ToolContext) -> dict:
     )
 
 
+def _run_packet_reader(context: ToolContext) -> dict:
+    return packet_reader.run_packet_reader(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 def _run_payments(context: ToolContext) -> dict:
     return payments.run_payments(
         context.input_folder,
@@ -284,6 +292,13 @@ TOOLS: tuple[Tool, ...] = (
         "Data Diagnostics",
         "Sanity-check extracted form data (withholding vs. wages, blanks, duplicates).",
         _run_diagnostics,
+        group=_INTAKE_DOCS,
+    ),
+    Tool(
+        "packet",
+        "Read Filed Forms",
+        "Detect which forms/returns are in each client's filed packet (bills + filing status).",
+        _run_packet_reader,
         group=_INTAKE_DOCS,
     ),
     Tool(
@@ -432,7 +447,7 @@ PRESETS: tuple[tuple[str, tuple[str, ...]], ...] = (
 # Everything else (intake, validate, import, checklist, invoice, generate, trackers,
 # reminders, email, retention, payments, dashboard, rollover, diagnostics) is pure
 # Python and runs with none of the heavy dependencies installed.
-DEPENDENCY_TOOLS = frozenset({"sort", "extract", "sign", "encyro", "pdftools"})
+DEPENDENCY_TOOLS = frozenset({"sort", "extract", "packet", "sign", "encyro", "pdftools"})
 
 
 def needs_dependencies(tool_keys) -> bool:

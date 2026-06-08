@@ -209,6 +209,23 @@ The **Client Intake** tool builds a fillable form and turns returned answers int
 
 The default schema includes an **"expected documents"** checklist (W-2, 1099s, K-1, …) — those answers drive the upcoming Checklist tool.
 
+### Reading filed return packets
+
+Tax software exports little, so the **Read Filed Forms** tool works from the finished
+return packet PDF instead. It reads each client's packet, matches it to a client by
+the name on it, and detects which form numbers are present (Form 1040, the schedules,
+state and local returns). It then writes back **what was filed**:
+
+- `services` — the billable forms detected, so the invoice bills exactly what was
+  prepared (two state/local returns bill as quantity 2);
+- `returns` / `efiled_returns` — the returns by name (Federal / Ohio / RITA …);
+- `return_filed: true` — which lights up the Filing Tracker and dashboard.
+
+Detection is deterministic substring matching on standard form numbers, configured by
+an editable `form_signatures.json` (add your states/locals there). It records *which*
+forms were filed, not the refund/balance amounts (those still come from your records
+or the results table). Needs PyMuPDF; assistive — verify against the packet.
+
 ### Checking documents received
 
 The **Document Checklist** tool compares each client's `expected_documents` (collected at intake) against the sorter categories that actually contain files, and writes `Checklists/<client>_checklist.html` (printable / sendable) plus an aggregate `checklist_summary.csv`. Each expected item shows as **Received**, **Missing**, or **Manual check** (for labels with no automatic mapping, like "Other"), and any received-but-unexpected categories are noted.

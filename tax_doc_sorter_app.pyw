@@ -118,6 +118,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "intake": None,
         "extract": None,
         "diagnostics": None,
+        "packet": None,
         "checklist": None,
         "invoice": None,
         "generate": None,
@@ -196,6 +197,13 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"Data Diagnostics: {diagnostics_result['summary']}")
         if diagnostics_result.get("diagnostics_folder"):
             summary["open_paths"]["Open Diagnostics"] = str(diagnostics_result["diagnostics_folder"])
+
+    packet_result = results.get("packet")
+    if packet_result is not None:
+        summary["packet"] = {"clients_updated": packet_result["clients_updated"], "unmatched": packet_result["unmatched"]}
+        summary["tool_lines"].append(f"Read Filed Forms: {packet_result['summary']}")
+        if packet_result.get("clients_file"):
+            summary["open_paths"]["Open Clients File"] = str(packet_result["clients_file"])
 
     checklist_result = results.get("checklist")
     if checklist_result is not None:
@@ -1086,6 +1094,9 @@ if PYSIDE_AVAILABLE:
             diagnostics_result = result.get("diagnostics")
             if diagnostics_result is not None:
                 review_lines.append(f"Diagnostics warnings: {diagnostics_result['warning_count']}")
+            packet_result = result.get("packet")
+            if packet_result is not None:
+                review_lines.append(f"Filed forms read: {packet_result['clients_updated']} client(s)")
             checklist_result = result.get("checklist")
             if checklist_result is not None:
                 review_lines.append(f"Documents still missing: {checklist_result['total_missing']}")
