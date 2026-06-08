@@ -32,6 +32,7 @@ import retention
 import sign_documents
 import sort_tax_docs
 import status_tracker
+import summary_email
 import validate_config
 import year_rollover
 
@@ -202,6 +203,13 @@ def _run_emailer(context: ToolContext) -> dict:
     )
 
 
+def _run_summary_email(context: ToolContext) -> dict:
+    return summary_email.run_summary_emails(
+        context.input_folder,
+        status_callback=context.status_callback,
+    )
+
+
 def _run_encyro(context: ToolContext) -> dict:
     return export_encyro.run_encyro_export(
         context.input_folder,
@@ -363,6 +371,13 @@ TOOLS: tuple[Tool, ...] = (
         "Draft reminder emails for clients with outstanding signatures or missing documents.",
         _run_reminders,
         group=_TRACKING,
+    ),
+    Tool(
+        "summary",
+        "Client Summary Email",
+        "Draft a plain-English email summarizing each client's filed return (refund, e-file, fee, pay link).",
+        _run_summary_email,
+        group=_DELIVERY,
     ),
     Tool(
         "email",

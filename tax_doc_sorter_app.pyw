@@ -128,6 +128,7 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         "form8879": None,
         "filing": None,
         "reminders": None,
+        "summary": None,
         "email": None,
         "encyro": None,
         "retention": None,
@@ -282,6 +283,13 @@ def build_run_summary(results: dict[str, dict]) -> dict[str, Any]:
         summary["tool_lines"].append(f"Send Reminders: {reminders_result['summary']}")
         if reminders_result.get("reminders_folder"):
             summary["open_paths"]["Open Reminders"] = str(reminders_result["reminders_folder"])
+
+    summary_email_result = results.get("summary")
+    if summary_email_result is not None:
+        summary["summary"] = {"email_count": summary_email_result["email_count"]}
+        summary["tool_lines"].append(f"Client Summary Email: {summary_email_result['summary']}")
+        if summary_email_result.get("summary_folder"):
+            summary["open_paths"]["Open Summary Emails"] = str(summary_email_result["summary_folder"])
 
     email_result = results.get("email")
     if email_result is not None:
@@ -812,7 +820,7 @@ if PYSIDE_AVAILABLE:
                 "Open Log File", "Open Extracted Data", "Open Drake Export",
                 "Open Diagnostics", "Open Checklists", "Open Invoices",
                 "Open Generated Documents", "Open Signed Documents", "Open Certified Documents",
-                "Open Status Reports", "Open Reminders", "Open Email Drafts",
+                "Open Status Reports", "Open Reminders", "Open Summary Emails", "Open Email Drafts",
                 "Open Encyro Packets", "Open Retention Archives", "Open AR Report",
                 "Open Dashboard", "Open Next Year Folder", "Open PDF Output",
                 "Open Fee Workbook",

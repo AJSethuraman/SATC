@@ -1,0 +1,20 @@
+Subject: Your {{tax_year}} tax return summary
+
+Hi {{client_name}},
+
+Good news — your {{tax_year}} tax returns are done. Here's the short version:
+
+{{#returns_display}}  • {{line}}
+{{/returns_display}}
+{{#all_efiled}}Everything was e-filed, so there's nothing for you to mail.
+{{/all_efiled}}
+{{#total}}Our fee for this year is ${{total}}.{{/total}}
+{{#pay_link}}You can pay securely online here: {{pay_link}}
+{{/pay_link}}
+Thank you for trusting us with your taxes. Just reply to this email if anything
+looks off or you have questions.
+
+Warm regards,
+{{preparer_name}}
+{{firm_name}}
+{{firm_phone}}
