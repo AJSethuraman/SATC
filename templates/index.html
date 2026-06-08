@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SATC Tax Document Sorter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand-mark">SATC</div>
+    <div>
+      <p class="eyebrow">Local Document Workflow</p>
+      <h1>Tax Document Sorter</h1>
+      <p class="subtitle">Organize client tax documents into review-ready folders.</p>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="panel intro-panel">
+      <div>
+        <h2>Choose an upload folder</h2>
+        <p class="muted">Default Uploads folder:</p>
+        <p class="path-pill">{{ default_uploads_folder }}</p>
+      </div>
+      <div class="safety-card">
+        <strong>Safety first.</strong>
+        <span>Files are copied by default. Originals are not deleted.</span>
+      </div>
+    </section>
+
+    {% if error %}
+      <section class="alert error">{{ error }}</section>
+    {% endif %}
+
+    <form class="panel form-panel" method="post" id="sorter-form">
+      <label class="check-row">
+        <input type="checkbox" name="use_default" id="use-default" {% if use_default %}checked{% endif %}>
+        <span>Use Default Uploads Folder</span>
+      </label>
+
+      <label class="field-label" for="folder-path">Folder path</label>
+      <input id="folder-path" name="folder_path" type="text" value="{{ folder_path }}" placeholder="Paste a folder path, or use the default Uploads folder">
+      <p class="helper">Browser security does not allow a normal folder picker here. Paste the folder path if you do not want to use the default.</p>
+
+      <details class="advanced">
+        <summary>Advanced options</summary>
+        <label class="check-row">
+          <input type="checkbox" name="move" {% if move %}checked{% endif %}>
+          <span>Move files instead of copy</span>
+        </label>
+        <label class="check-row">
+          <input type="checkbox" name="save_extracted_text" {% if save_extracted_text %}checked{% endif %}>
+          <span>Save extracted text debug files</span>
+        </label>
+      </details>
+
+      <button class="primary-button" type="submit" id="run-button">Run Sorter</button>
+      <p class="processing-message" id="processing-message" hidden>Processing documents. This can take a few minutes for scanned PDFs...</p>
+    </form>
+
+    {% if result %}
+      <section class="results-grid">
+        <div class="panel result-card">
+          <p class="eyebrow">Run complete</p>
+          <h2>{{ result.total_files }}</h2>
+          <p>Total supported files processed</p>
+        </div>
+        <div class="panel result-card needs-review-card">
+          <p class="eyebrow">Human review</p>
+          <h2>{{ result.manual_review_count }}</h2>
+          <p>NeedsReview, low-confidence, or manual-review rows</p>
+        </div>
+        <div class="panel result-card">
+          <p class="eyebrow">NeedsReview</p>
+          <h2>{{ result.needs_review_count }}</h2>
+          <p>Files sorted to review folder</p>
+        </div>
+      </section>
+
+      <section class="panel paths-panel">
+        <h2>Output</h2>
+        <p><strong>Organized folder:</strong> <span class="path-text">{{ result.output_folder }}</span></p>
+        <p><strong>Inventory:</strong> <span class="path-text">{{ result.inventory_path }}</span></p>
+        {% if result.debug_folder %}<p><strong>Debug text:</strong> <span class="path-text">{{ result.debug_folder }}</span></p>{% endif %}
+        <div class="button-row">
+          <a class="secondary-button" target="_blank" href="{{ url_for('open_path', path=result.output_folder) }}">Open output folder</a>
+          <a class="secondary-button" target="_blank" href="{{ url_for('open_path', path=result.inventory_path) }}">Open inventory</a>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Count by category</h2>
+        <div class="category-grid">
+          {% for category, count in result.category_counts.items() %}
+            <div class="category-chip"><span>{{ category }}</span><strong>{{ count }}</strong></div>
+          {% endfor %}
+        </div>
+      </section>
+
+      {% if result.manual_review_rows %}
+        <section class="panel review-panel">
+          <h2>Review these first</h2>
+          <p class="muted">These files were NeedsReview, low confidence, or had manual-review notes.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Original File Name</th><th>Detected Category</th><th>Confidence</th><th>Notes</th></tr></thead>
+              <tbody>
+              {% for row in result.manual_review_rows %}
+                <tr>
+                  <td>{{ row['Original File Name'] }}</td>
+                  <td>{{ row['Detected Category'] }}</td>
+                  <td>{{ row['Confidence'] }}</td>
+                  <td>{{ row['Notes'] }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      {% endif %}
+
+      <section class="panel">
+        <h2>Inventory preview</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Original File Name</th><th>Detected Category</th><th>Confidence</th><th>Notes</th></tr></thead>
+            <tbody>
+            {% for row in result.rows %}
+              <tr>
+                <td>{{ row['Original File Name'] }}</td>
+                <td>{{ row['Detected Category'] }}</td>
+                <td>{{ row['Confidence'] }}</td>
+                <td>{{ row['Notes'] }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+  </main>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

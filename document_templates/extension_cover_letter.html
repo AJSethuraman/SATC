@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!-- Editable template. Replace the double-brace fields with client data. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Extension Cover Letter - {{client_name}}</title>
+<style>
+  body { font-family: Georgia, "Times New Roman", serif; color: #1a1a1a; max-width: 720px;
+         margin: 40px auto; line-height: 1.5; padding: 0 24px; }
+  .firm { border-bottom: 2px solid #0B1F3A; padding-bottom: 10px; margin-bottom: 24px; }
+  .firm h1 { color: #0B1F3A; margin: 0 0 4px; font-size: 22px; }
+  .meta { color: #444; font-size: 14px; }
+  h2 { color: #0B1F3A; font-size: 16px; margin-top: 28px; }
+  @media print { body { margin: 0; } }
+</style>
+</head>
+<body>
+  <div class="firm">
+    <h1>{{firm_name}}</h1>
+    <div class="meta">{{firm_address}} &nbsp;|&nbsp; {{firm_phone}} &nbsp;|&nbsp; {{firm_email}}</div>
+  </div>
+
+  <p>{{generated_date}}</p>
+
+  <p>{{client_name}}<br>{{client_address}}</p>
+
+  <h2>Re: Filing of Extension &mdash; Tax Year {{tax_year}}</h2>
+
+  <p>Dear {{client_name}},</p>
+
+  <p>This letter confirms that we have prepared and filed Form {{extension_form}} to
+  request an automatic extension of time to file your {{tax_year}} income tax return.
+  Your extended filing deadline is {{extended_due_date}}.</p>
+
+  <p>Please note that an extension of time to file is <em>not</em> an extension of time to
+  pay. Any tax estimated to be due should be paid by the original deadline to avoid
+  interest and penalties.</p>
+
+  <p>{{notes}}</p>
+
+  <p>Please send any remaining documents at your earliest convenience so we can complete
+  your return. If you have questions, contact our office.</p>
+
+  <p>Sincerely,</p>
+  <p>{{preparer_name}}<br>{{firm_name}}</p>
+</body>
+</html>

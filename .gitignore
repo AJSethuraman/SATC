@@ -1,0 +1,17 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local working data (keep test/client uploads out of git)
+Uploads/
+**/Organized_Tax_Documents/
+
+# PyInstaller build outputs
+build/
+dist/

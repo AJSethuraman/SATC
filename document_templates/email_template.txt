@@ -1,0 +1,14 @@
+Subject: Your {{tax_year}} Tax Documents from {{firm_name}}
+
+Dear {{client_name}},
+
+Please find your {{tax_year}} tax documents attached. Review everything at your
+convenience and let us know if you have any questions or notice anything that
+needs to be corrected.
+
+Thank you for your business.
+
+Sincerely,
+{{preparer_name}}
+{{firm_name}}
+{{firm_phone}}

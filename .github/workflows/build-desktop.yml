@@ -1,0 +1,59 @@
+name: Build desktop app
+
+# Builds the standalone SATC desktop executable for Windows, macOS, and Linux.
+# Run it manually (Actions tab -> Build desktop app -> Run workflow), on a tag, or
+# on a push to the active development branch.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/awesome-faraday-4jHLa
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Run tests (dependency-light suites)
+        run: |
+          python test_core.py
+          python test_preflight.py
+          python test_validate_config.py
+          python test_import_clients.py
+          python test_year_rollover.py
+          python test_intake.py
+          python test_checklist.py
+          python test_invoice_calc.py
+          python test_status_tracker.py
+          python test_diagnostics_payments.py
+          python test_tax_tools.py
+          python test_generate_documents.py
+
+      - name: Build executable
+        run: pyinstaller --noconfirm satc_app.spec
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SATC-${{ matrix.os }}
+          path: dist/*
+          if-no-files-found: error
