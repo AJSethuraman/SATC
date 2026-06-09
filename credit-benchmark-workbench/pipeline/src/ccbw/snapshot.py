@@ -135,8 +135,9 @@ def bake_into_jsx(snapshot: dict, jsx_path: str | Path) -> None:
         raise ValueError(f"snapshot markers not found in {jsx_path}")
     payload = json.dumps(snapshot, separators=(",", ":"), default=str)
     pattern = re.compile(re.escape(START) + ".*?" + re.escape(END), re.DOTALL)
-    new = pattern.sub(
-        START + f"\nconst SNAPSHOT = {payload};\n" + END, src, count=1)
+    replacement = START + f"\nconst SNAPSHOT = {payload};\n" + END
+    # function repl: JSON backslash escapes must not be parsed as re templates
+    new = pattern.sub(lambda _m: replacement, src, count=1)
     jsx_path.write_text(new)
 
 
