@@ -18,19 +18,43 @@ so you can see how leverage tolerance, margins, and volatility shift as size
 drops — and extrapolate the trend *below the smallest public tier* toward your
 borrower. The cross-tier trend is itself a key output.
 
-## Install / run
+## Quickstart (one command)
 
-No third-party runtime dependencies (pure Python standard library). Requires
-Python 3.9+.
+Requires Python 3.9+. The launcher creates a virtualenv, installs the tool,
+asks once for the contact email SEC requires, and runs it — re-runs are instant.
 
 ```bash
-# Run directly:
+cd edgar-assumptions
+
+# macOS / Linux
+./run.sh --sic 5140 --years 7 --out food_dist
+
+# Windows
+run.bat --sic 5140 --years 7 --out food_dist
+
+# or, with make:
+make run ARGS="--sic 5140 --years 7 --out food_dist"
+```
+
+Run it with **no arguments** the first time to set everything up and execute the
+self-test:
+
+```bash
+./run.sh          # sets up venv, installs, prompts for email, runs --self-test
+```
+
+The contact email is saved to `.edgar_contact` (git-ignored) and reused
+automatically; you can also set `EDGAR_USER_AGENT` instead, or pass
+`--user-agent` explicitly.
+
+### Manual install (if you prefer)
+
+No third-party runtime dependencies — pure Python standard library.
+
+```bash
+pip install -e .
 python edgar_assumptions.py --sic 5140 --years 7 --out food_dist \
     --user-agent "Your Name, Your Firm, you@example.com"
-
-# Or install the console script:
-pip install -e .
-edgar-assumptions --sic 5140 --years 7 --out food_dist --user-agent "...you@example.com"
 ```
 
 SEC **requires** a descriptive `User-Agent` with a real contact email; the tool

@@ -2,6 +2,9 @@
 .edgar_cache/
 *.edgar_cache/
 
+# Saved SEC contact email used for the User-Agent (personal, not source)
+.edgar_contact
+
 # Generated outputs
 *.summary.md
 food_dist*
