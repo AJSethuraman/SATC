@@ -10,9 +10,13 @@ For each (segment, size bucket, metric):
   expected to be the thinnest in public data, and that is reported, not
   hidden.
 
-Company-years are bucketed by that year's EBITDA, so a company migrates
-buckets as it grows -- the bucket describes the borrower size the
-observation represents, not the company's terminal size.
+Bucketing is by the company's *median* EBITDA across its panel years, not
+the single-year EBITDA. The single-year choice lets a large company whose
+EBITDA collapsed migrate INTO a smaller band and poison that band's
+distributions with distress -- a $200M-EBITDA name fallen to $40M is a
+distressed upper-middle-market credit, not a core-middle-market peer. The
+size class is the company; the deterioration stays visible in its own
+band's distribution and in the backtest.
 """
 
 from __future__ import annotations
@@ -80,11 +84,16 @@ def build_observations(
         if not segs:
             continue
         rows = sorted(rows, key=lambda r: r.fy)
+        ebitdas = sorted(e for e in (r.get("ebitda") for r in rows)
+                         if e is not None)
+        company_bucket = None
+        if ebitdas:
+            median_ebitda = ebitdas[len(ebitdas) // 2]
+            company_bucket = size_bucket_for_ebitda(median_ebitda)
         for seg in segs:
             for i, row in enumerate(rows):
                 ms = compute_measurements(row, history=rows[:i], segment=seg)
-                ebitda = row.get("ebitda")
-                bucket = size_bucket_for_ebitda(ebitda) if ebitda else None
+                bucket = company_bucket
                 obs.append(CompanyYearObs(
                     cik=cik, entity=row.entity, fy=row.fy, segment=seg,
                     bucket=bucket, measurements=ms, gaps=list(row.gaps),
@@ -92,10 +101,29 @@ def build_observations(
     return obs
 
 
-def _metric_values(group: list[CompanyYearObs], metric: str) -> list[float]:
-    return [o.measurements[metric].value for o in group
-            if metric in o.measurements
-            and not math.isnan(o.measurements[metric].value)]
+def _metric_values(group: list[CompanyYearObs], metric: str) -> tuple[list[float], int]:
+    """Collect observations, winsorizing at the metric's analytic bounds.
+
+    Clamping (not dropping) keeps distressed names in the distribution --
+    a 30x leverage multiple on near-zero EBITDA is real distress, but as a
+    raw value it destroys the percentile tails. Returns (values, n_clamped)
+    so the clamping is disclosed on the benchmark cell.
+    """
+    wins = METRICS[metric].wins
+    vals, clamped = [], 0
+    for o in group:
+        if metric not in o.measurements:
+            continue
+        v = o.measurements[metric].value
+        if math.isnan(v):
+            continue
+        if wins:
+            w = min(max(v, wins[0]), wins[1])
+            if w != v:
+                clamped += 1
+            v = w
+        vals.append(v)
+    return vals, clamped
 
 
 def build_benchmarks(
@@ -122,19 +150,25 @@ def build_benchmarks(
                 "metrics": {},
             }
             metric_keys = [m for m in seg.primary_metrics if m in METRICS]
-            # always include the full metric set minus suppressions, primary first
+            # full metric set minus suppressions and segment-specific bases
+            # that don't apply here, primary first
+            inapplicable = set(seg.suppressed_metrics)
+            if not seg.through_cycle_leverage:
+                inapplicable.add("debt_ebitda_3y")
+            if not seg.rent_adjusted:
+                inapplicable.add("rent_adj_leverage")
             extras = [m for m in METRICS if m not in metric_keys
-                      and m not in seg.suppressed_metrics]
+                      and m not in inapplicable]
             for mkey in metric_keys + extras:
                 spec = METRICS[mkey]
-                cur_vals = _metric_values(
+                cur_vals, cur_clamped = _metric_values(
                     [o for o in b_obs if o.fy == current_fy], mkey)
-                base_vals = _metric_values(
+                base_vals, base_clamped = _metric_values(
                     [o for o in b_obs
                      if BASELINE_YEARS[0] <= o.fy <= BASELINE_YEARS[1]], mkey)
                 trend = []
                 for fy in range(current_fy - TREND_YEARS + 1, current_fy + 1):
-                    vals = _metric_values([o for o in b_obs if o.fy == fy], mkey)
+                    vals, _ = _metric_values([o for o in b_obs if o.fy == fy], mkey)
                     stats = dist_stats(vals)
                     if stats:
                         trend.append({"fy": fy, "p50": stats["p50"],
@@ -143,6 +177,12 @@ def build_benchmarks(
                 cur = dist_stats(cur_vals)
                 base = dist_stats(base_vals)
                 gaps: list[str] = []
+                if spec.wins and (cur_clamped or base_clamped):
+                    gaps.append(
+                        f"winsorized at analytic bounds [{spec.wins[0]:g}, "
+                        f"{spec.wins[1]:g}]: {cur_clamped} current / "
+                        f"{base_clamped} baseline observation(s) clamped "
+                        "(distressed outliers kept, not dropped)")
                 if cur is None:
                     gaps.append(
                         f"FY{current_fy}: n={len(cur_vals)} < {MIN_N}; current "

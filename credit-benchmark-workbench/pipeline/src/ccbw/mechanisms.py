@@ -138,6 +138,13 @@ MECHANISMS: dict[tuple[str, str], str] = {
         "high revolver utilization -- the public data cannot see "
         "availability, so this must be verified from the borrower's "
         "compliance certificate."),
+    ("debt_assets", "*"): (
+        "Debt against the asset base is the balance-sheet read on the same "
+        "leverage question: it rises through borrowing, asset write-downs, "
+        "or buybacks/distributions shrinking equity. For cash-flow credits "
+        "it is secondary to debt/EBITDA but catches the case where asset "
+        "sales fund debt service -- leverage stable on EBITDA while the "
+        "collateral base shrinks."),
     ("debt_assets", "cre_opco"): (
         "Book LTV proxy. Rises via new borrowing or via impairments "
         "shrinking the asset base -- in a falling-value market (office), "

@@ -6,11 +6,11 @@
   ],
   "horizon_years": 3,
   "n_eligible_company_years": 805,
-  "n_flagged": 225,
-  "hit_rate": 0.29777777777777775,
-  "false_positive_rate": 0.7022222222222222,
+  "n_flagged": 159,
+  "hit_rate": 0.29559748427672955,
+  "false_positive_rate": 0.7044025157232704,
   "n_deteriorated_total": 117,
-  "capture_rate": 0.5726495726495726,
+  "capture_rate": 0.4017094017094017,
   "median_lead_time_years": 2,
   "lead_time_distribution": [
    1,
@@ -30,6 +30,7 @@
    1,
    1,
    1,
+   1,
    2,
    2,
    2,
@@ -53,27 +54,6 @@
    2,
    2,
    2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   2,
-   3,
-   3,
-   3,
-   3,
    3,
    3,
    3,
@@ -87,24 +67,24 @@
   },
   "rule_comparison": {
    "production: any severe | core departure": {
-    "n_flagged": 225,
-    "hit_rate": 0.29777777777777775,
-    "capture_rate": 0.5726495726495726
+    "n_flagged": 159,
+    "hit_rate": 0.29559748427672955,
+    "capture_rate": 0.4017094017094017
    },
    "core departure only": {
-    "n_flagged": 65,
-    "hit_rate": 0.4153846153846154,
-    "capture_rate": 0.23076923076923078
+    "n_flagged": 13,
+    "hit_rate": 0.7692307692307693,
+    "capture_rate": 0.08547008547008547
    },
    "loose: core departure | >=2 watch+ (rejected)": {
-    "n_flagged": 408,
-    "hit_rate": 0.2034313725490196,
-    "capture_rate": 0.7094017094017094
+    "n_flagged": 354,
+    "hit_rate": 0.20056497175141244,
+    "capture_rate": 0.6068376068376068
    },
    "core departure | >=2 watch+ incl core": {
-    "n_flagged": 165,
-    "hit_rate": 0.26666666666666666,
-    "capture_rate": 0.37606837606837606
+    "n_flagged": 108,
+    "hit_rate": 0.3055555555555556,
+    "capture_rate": 0.28205128205128205
    }
   },
   "base_deterioration_rate": 0.1453416149068323,
@@ -138,149 +118,39 @@
    "altman_z_at_flag": 1.995711077061226
   },
   {
-   "cik": 900105,
-   "entity": "CNI-UMM-05 Corp",
-   "fy": 2017,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.5577359126933317
-  },
-  {
    "cik": 900119,
    "entity": "CNI-UMM-07 Corp",
-   "fy": 2017,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2020,
-    "lead_time": 3,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 2.066301415240023
-  },
-  {
-   "cik": 900119,
-   "entity": "CNI-UMM-07 Corp",
-   "fy": 2018,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2020,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.9260031912634
-  },
-  {
-   "cik": 900133,
-   "entity": "CNI-UMM-09 Corp",
-   "fy": 2017,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.0280027762602
-  },
-  {
-   "cik": 900133,
-   "entity": "CNI-UMM-09 Corp",
-   "fy": 2018,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.0763655685251416
-  },
-  {
-   "cik": 900133,
-   "entity": "CNI-UMM-09 Corp",
-   "fy": 2019,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.0878479050606646
-  },
-  {
-   "cik": 900133,
-   "entity": "CNI-UMM-09 Corp",
    "fy": 2020,
    "segment": "cni",
    "bucket": "umm",
    "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.11794807070234
+   "deteriorated": true,
+   "event": {
+    "fy": 2021,
+    "lead_time": 1,
+    "reasons": [
+     "EBITDA decline >= 40% from flag year"
+    ]
+   },
+   "altman_z_at_flag": 1.6601247805455985
   },
   {
-   "cik": 900133,
-   "entity": "CNI-UMM-09 Corp",
+   "cik": 900119,
+   "entity": "CNI-UMM-07 Corp",
    "fy": 2021,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.1110066489201564
-  },
-  {
-   "cik": 900147,
-   "entity": "CNI-UMM-11 Corp",
-   "fy": 2018,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.6796841362155677
-  },
-  {
-   "cik": 900154,
-   "entity": "CNI-UMM-12 Corp",
-   "fy": 2020,
    "segment": "cni",
    "bucket": "umm",
    "flag": "severe_metric",
    "deteriorated": true,
    "event": {
     "fy": 2022,
-    "lead_time": 2,
+    "lead_time": 1,
     "reasons": [
+     "interest coverage < 1.0x",
      "EBITDA decline >= 40% from flag year"
     ]
    },
-   "altman_z_at_flag": 2.01731670708992
-  },
-  {
-   "cik": 900154,
-   "entity": "CNI-UMM-12 Corp",
-   "fy": 2021,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2023,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.8927459140375054
+   "altman_z_at_flag": 1.4605113886812175
   },
   {
    "cik": 900168,
@@ -428,17 +298,6 @@
    "altman_z_at_flag": 1.9562772442803968
   },
   {
-   "cik": 900259,
-   "entity": "CRE_OPCO-LMM-01 Corp",
-   "fy": 2017,
-   "segment": "cre_opco",
-   "bucket": "lmm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.6868783946780865
-  },
-  {
    "cik": 900280,
    "entity": "CRE_OPCO-CMM-03 Corp",
    "fy": 2017,
@@ -454,7 +313,7 @@
    "entity": "CRE_OPCO-CMM-05 Corp",
    "fy": 2021,
    "segment": "cre_opco",
-   "bucket": "lmm",
+   "bucket": "cmm",
    "flag": "severe_metric",
    "deteriorated": true,
    "event": {
@@ -478,6 +337,17 @@
    "altman_z_at_flag": 0.8654455967285957
   },
   {
+   "cik": 900329,
+   "entity": "CRE_OPCO-UMM-02 Corp",
+   "fy": 2018,
+   "segment": "cre_opco",
+   "bucket": "umm",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 0.8884596293975193
+  },
+  {
    "cik": 900350,
    "entity": "CRE_OPCO-UMM-05 Corp",
    "fy": 2017,
@@ -498,20 +368,67 @@
   {
    "cik": 900350,
    "entity": "CRE_OPCO-UMM-05 Corp",
-   "fy": 2019,
+   "fy": 2018,
    "segment": "cre_opco",
    "bucket": "umm",
    "flag": "severe_metric",
    "deteriorated": true,
    "event": {
     "fy": 2020,
-    "lead_time": 1,
+    "lead_time": 2,
     "reasons": [
      "interest coverage < 1.0x",
      "EBITDA decline >= 40% from flag year"
     ]
    },
-   "altman_z_at_flag": 0.36551121044482127
+   "altman_z_at_flag": 0.48351855580498354
+  },
+  {
+   "cik": 900350,
+   "entity": "CRE_OPCO-UMM-05 Corp",
+   "fy": 2020,
+   "segment": "cre_opco",
+   "bucket": "umm",
+   "flag": "severe_metric",
+   "deteriorated": true,
+   "event": {
+    "fy": 2021,
+    "lead_time": 1,
+    "reasons": [
+     "interest coverage < 1.0x"
+    ]
+   },
+   "altman_z_at_flag": 0.21402038497395293
+  },
+  {
+   "cik": 900350,
+   "entity": "CRE_OPCO-UMM-05 Corp",
+   "fy": 2021,
+   "segment": "cre_opco",
+   "bucket": "umm",
+   "flag": "severe_metric",
+   "deteriorated": true,
+   "event": {
+    "fy": 2022,
+    "lead_time": 1,
+    "reasons": [
+     "interest coverage < 1.0x",
+     "EBITDA decline >= 40% from flag year",
+     "negative book equity"
+    ]
+   },
+   "altman_z_at_flag": 0.09524732834672771
+  },
+  {
+   "cik": 900357,
+   "entity": "CRE_OPCO-UMM-06 Corp",
+   "fy": 2017,
+   "segment": "cre_opco",
+   "bucket": "umm",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 0.605136450645495
   },
   {
    "cik": 900364,
@@ -547,46 +464,22 @@
    "altman_z_at_flag": null
   },
   {
-   "cik": 900378,
-   "entity": "CRE_OPCO-UMM-09 Corp",
+   "cik": 900364,
+   "entity": "CRE_OPCO-UMM-07 Corp",
    "fy": 2020,
    "segment": "cre_opco",
    "bucket": "umm",
    "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2022,
-    "lead_time": 2,
-    "reasons": [
-     "interest coverage < 1.0x",
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 0.5745356813636013
-  },
-  {
-   "cik": 900378,
-   "entity": "CRE_OPCO-UMM-09 Corp",
-   "fy": 2021,
-   "segment": "cre_opco",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2022,
-    "lead_time": 1,
-    "reasons": [
-     "interest coverage < 1.0x"
-    ]
-   },
-   "altman_z_at_flag": 0.4320548511760528
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": null
   },
   {
    "cik": 900392,
    "entity": "CRE_OPCO-UMM-11 Corp",
    "fy": 2021,
    "segment": "cre_opco",
-   "bucket": "large",
+   "bucket": "umm",
    "flag": "severe_metric",
    "deteriorated": false,
    "event": null,
@@ -597,7 +490,7 @@
    "entity": "CRE_OPCO-UMM-12 Corp",
    "fy": 2017,
    "segment": "cre_opco",
-   "bucket": "large",
+   "bucket": "umm",
    "flag": "severe_metric",
    "deteriorated": false,
    "event": null,
@@ -606,20 +499,9 @@
   {
    "cik": 900399,
    "entity": "CRE_OPCO-UMM-12 Corp",
-   "fy": 2018,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.95707815240213
-  },
-  {
-   "cik": 900399,
-   "entity": "CRE_OPCO-UMM-12 Corp",
    "fy": 2020,
    "segment": "cre_opco",
-   "bucket": "large",
+   "bucket": "umm",
    "flag": "severe_metric",
    "deteriorated": true,
    "event": {
@@ -630,50 +512,6 @@
     ]
    },
    "altman_z_at_flag": 0.853422533446665
-  },
-  {
-   "cik": 900406,
-   "entity": "CRE_OPCO-LARGE-01 Corp",
-   "fy": 2019,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.5611758726270563
-  },
-  {
-   "cik": 900406,
-   "entity": "CRE_OPCO-LARGE-01 Corp",
-   "fy": 2020,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.5935242614130883
-  },
-  {
-   "cik": 900406,
-   "entity": "CRE_OPCO-LARGE-01 Corp",
-   "fy": 2021,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.5885517606151219
-  },
-  {
-   "cik": 900413,
-   "entity": "CRE_OPCO-LARGE-02 Corp",
-   "fy": 2018,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.6657359924971452
   },
   {
    "cik": 900413,
@@ -712,17 +550,6 @@
    "altman_z_at_flag": 0.5340003690918279
   },
   {
-   "cik": 900420,
-   "entity": "CRE_OPCO-LARGE-03 Corp",
-   "fy": 2021,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.7241139533341524
-  },
-  {
    "cik": 900427,
    "entity": "CRE_OPCO-LARGE-04 Corp",
    "fy": 2017,
@@ -734,40 +561,12 @@
    "altman_z_at_flag": 0.5886003004100366
   },
   {
-   "cik": 900427,
-   "entity": "CRE_OPCO-LARGE-04 Corp",
-   "fy": 2020,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.6489708222102204
-  },
-  {
-   "cik": 900434,
-   "entity": "CRE_OPCO-LARGE-05 Corp",
-   "fy": 2017,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2019,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 0.48738206377467497
-  },
-  {
    "cik": 900434,
    "entity": "CRE_OPCO-LARGE-05 Corp",
    "fy": 2018,
    "segment": "cre_opco",
    "bucket": "large",
-   "flag": "severe_metric",
+   "flag": "core_departure",
    "deteriorated": true,
    "event": {
     "fy": 2020,
@@ -819,7 +618,7 @@
    "entity": "CRE_OPCO-LARGE-05 Corp",
    "fy": 2021,
    "segment": "cre_opco",
-   "bucket": "umm",
+   "bucket": "large",
    "flag": "severe_metric",
    "deteriorated": true,
    "event": {
@@ -832,17 +631,6 @@
     ]
    },
    "altman_z_at_flag": -0.0036525385331738214
-  },
-  {
-   "cik": 900448,
-   "entity": "CRE_OPCO-LARGE-07 Corp",
-   "fy": 2019,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.5985624653835664
   },
   {
    "cik": 900448,
@@ -865,50 +653,6 @@
    "deteriorated": false,
    "event": null,
    "altman_z_at_flag": 0.6549862147373502
-  },
-  {
-   "cik": 900455,
-   "entity": "CRE_OPCO-LARGE-08 Corp",
-   "fy": 2017,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.544918321247901
-  },
-  {
-   "cik": 900455,
-   "entity": "CRE_OPCO-LARGE-08 Corp",
-   "fy": 2019,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.5434943718792663
-  },
-  {
-   "cik": 900455,
-   "entity": "CRE_OPCO-LARGE-08 Corp",
-   "fy": 2020,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.5299024463761377
-  },
-  {
-   "cik": 900455,
-   "entity": "CRE_OPCO-LARGE-08 Corp",
-   "fy": 2021,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.5690946334483814
   },
   {
    "cik": 900469,
@@ -979,17 +723,6 @@
   {
    "cik": 900497,
    "entity": "CRE_OPCO-LARGE-14 Corp",
-   "fy": 2017,
-   "segment": "cre_opco",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 0.8391952593897725
-  },
-  {
-   "cik": 900497,
-   "entity": "CRE_OPCO-LARGE-14 Corp",
    "fy": 2019,
    "segment": "cre_opco",
    "bucket": "large",
@@ -1010,211 +743,73 @@
    "altman_z_at_flag": 0.8984542358305778
   },
   {
-   "cik": 900511,
-   "entity": "HEALTHCARE-LMM-02 Corp",
-   "fy": 2021,
+   "cik": 900525,
+   "entity": "HEALTHCARE-CMM-02 Corp",
+   "fy": 2017,
    "segment": "healthcare",
-   "bucket": "lmm",
+   "bucket": "cmm",
    "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2023,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 2.311172153767785
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 1.7160776138199019
   },
   {
    "cik": 900525,
    "entity": "HEALTHCARE-CMM-02 Corp",
+   "fy": 2018,
+   "segment": "healthcare",
+   "bucket": "cmm",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 1.7435945685812317
+  },
+  {
+   "cik": 900553,
+   "entity": "HEALTHCARE-CMM-06 Corp",
+   "fy": 2017,
+   "segment": "healthcare",
+   "bucket": "cmm",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 1.811957664400714
+  },
+  {
+   "cik": 900602,
+   "entity": "HEALTHCARE-UMM-05 Corp",
    "fy": 2020,
    "segment": "healthcare",
    "bucket": "umm",
    "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.7688880850199893
-  },
-  {
-   "cik": 900525,
-   "entity": "HEALTHCARE-CMM-02 Corp",
-   "fy": 2021,
-   "segment": "healthcare",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.7736248082753836
-  },
-  {
-   "cik": 900539,
-   "entity": "HEALTHCARE-CMM-04 Corp",
-   "fy": 2021,
-   "segment": "healthcare",
-   "bucket": "lmm",
-   "flag": "severe_metric",
    "deteriorated": true,
    "event": {
-    "fy": 2023,
+    "fy": 2022,
     "lead_time": 2,
     "reasons": [
      "interest coverage < 1.0x",
      "EBITDA decline >= 40% from flag year"
     ]
    },
-   "altman_z_at_flag": 1.9875959576866067
-  },
-  {
-   "cik": 900553,
-   "entity": "HEALTHCARE-CMM-06 Corp",
-   "fy": 2021,
-   "segment": "healthcare",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.8304195241907641
-  },
-  {
-   "cik": 900574,
-   "entity": "HEALTHCARE-UMM-01 Corp",
-   "fy": 2021,
-   "segment": "healthcare",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.262603235544378
-  },
-  {
-   "cik": 900581,
-   "entity": "HEALTHCARE-UMM-02 Corp",
-   "fy": 2017,
-   "segment": "healthcare",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.6626146979983303
-  },
-  {
-   "cik": 900581,
-   "entity": "HEALTHCARE-UMM-02 Corp",
-   "fy": 2018,
-   "segment": "healthcare",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.721951091738182
-  },
-  {
-   "cik": 900581,
-   "entity": "HEALTHCARE-UMM-02 Corp",
-   "fy": 2019,
-   "segment": "healthcare",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.6967678008597065
-  },
-  {
-   "cik": 900581,
-   "entity": "HEALTHCARE-UMM-02 Corp",
-   "fy": 2020,
-   "segment": "healthcare",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.7034342449443156
-  },
-  {
-   "cik": 900581,
-   "entity": "HEALTHCARE-UMM-02 Corp",
-   "fy": 2021,
-   "segment": "healthcare",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.720855720970082
-  },
-  {
-   "cik": 900595,
-   "entity": "HEALTHCARE-UMM-04 Corp",
-   "fy": 2017,
-   "segment": "healthcare",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.229540722186524
+   "altman_z_at_flag": 1.7057402956237016
   },
   {
    "cik": 900602,
    "entity": "HEALTHCARE-UMM-05 Corp",
-   "fy": 2017,
+   "fy": 2021,
    "segment": "healthcare",
    "bucket": "umm",
    "flag": "severe_metric",
    "deteriorated": true,
    "event": {
-    "fy": 2020,
-    "lead_time": 3,
+    "fy": 2022,
+    "lead_time": 1,
     "reasons": [
+     "interest coverage < 1.0x",
      "EBITDA decline >= 40% from flag year"
     ]
    },
-   "altman_z_at_flag": 2.0726397696724748
-  },
-  {
-   "cik": 900602,
-   "entity": "HEALTHCARE-UMM-05 Corp",
-   "fy": 2018,
-   "segment": "healthcare",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2020,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.9688812200817827
-  },
-  {
-   "cik": 900602,
-   "entity": "HEALTHCARE-UMM-05 Corp",
-   "fy": 2019,
-   "segment": "healthcare",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2021,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.8545932719177733
-  },
-  {
-   "cik": 900616,
-   "entity": "HEALTHCARE-UMM-07 Corp",
-   "fy": 2021,
-   "segment": "healthcare",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.065514637557002
+   "altman_z_at_flag": 1.5614969217798782
   },
   {
    "cik": 900630,
@@ -1272,21 +867,26 @@
    "altman_z_at_flag": 1.7334149223867537
   },
   {
-   "cik": 900637,
-   "entity": "HEALTHCARE-UMM-10 Corp",
-   "fy": 2021,
+   "cik": 900658,
+   "entity": "HEALTHCARE-LARGE-01 Corp",
+   "fy": 2017,
    "segment": "healthcare",
-   "bucket": "umm",
+   "bucket": "large",
    "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2023,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 2.031130643412624
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.1227795469129993
+  },
+  {
+   "cik": 900672,
+   "entity": "HEALTHCARE-LARGE-03 Corp",
+   "fy": 2020,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.0678999043376853
   },
   {
    "cik": 900672,
@@ -1298,6 +898,72 @@
    "deteriorated": false,
    "event": null,
    "altman_z_at_flag": 2.0241585209124504
+  },
+  {
+   "cik": 900679,
+   "entity": "HEALTHCARE-LARGE-04 Corp",
+   "fy": 2018,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.0952146672523413
+  },
+  {
+   "cik": 900679,
+   "entity": "HEALTHCARE-LARGE-04 Corp",
+   "fy": 2019,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.081789543998401
+  },
+  {
+   "cik": 900679,
+   "entity": "HEALTHCARE-LARGE-04 Corp",
+   "fy": 2020,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.0519580455515456
+  },
+  {
+   "cik": 900686,
+   "entity": "HEALTHCARE-LARGE-05 Corp",
+   "fy": 2017,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 1.9295037165000322
+  },
+  {
+   "cik": 900686,
+   "entity": "HEALTHCARE-LARGE-05 Corp",
+   "fy": 2018,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 1.9401026425666856
+  },
+  {
+   "cik": 900693,
+   "entity": "HEALTHCARE-LARGE-06 Corp",
+   "fy": 2017,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 1.715154292013612
   },
   {
    "cik": 900700,
@@ -1326,7 +992,7 @@
    "entity": "HEALTHCARE-LARGE-07 Corp",
    "fy": 2019,
    "segment": "healthcare",
-   "bucket": "large",
+   "bucket": "umm",
    "flag": "severe_metric",
    "deteriorated": false,
    "event": null,
@@ -1337,7 +1003,7 @@
    "entity": "HEALTHCARE-LARGE-07 Corp",
    "fy": 2020,
    "segment": "healthcare",
-   "bucket": "large",
+   "bucket": "umm",
    "flag": "severe_metric",
    "deteriorated": false,
    "event": null,
@@ -1497,6 +1163,72 @@
    "altman_z_at_flag": 1.70902778576176
   },
   {
+   "cik": 900742,
+   "entity": "HEALTHCARE-LARGE-13 Corp",
+   "fy": 2017,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.1007897646968363
+  },
+  {
+   "cik": 900742,
+   "entity": "HEALTHCARE-LARGE-13 Corp",
+   "fy": 2018,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.153891646423976
+  },
+  {
+   "cik": 900742,
+   "entity": "HEALTHCARE-LARGE-13 Corp",
+   "fy": 2019,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.136286664704669
+  },
+  {
+   "cik": 900742,
+   "entity": "HEALTHCARE-LARGE-13 Corp",
+   "fy": 2020,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.1462029368512523
+  },
+  {
+   "cik": 900742,
+   "entity": "HEALTHCARE-LARGE-13 Corp",
+   "fy": 2021,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.1416582040607963
+  },
+  {
+   "cik": 900749,
+   "entity": "HEALTHCARE-LARGE-14 Corp",
+   "fy": 2020,
+   "segment": "healthcare",
+   "bucket": "large",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 1.838050994541934
+  },
+  {
    "cik": 900749,
    "entity": "HEALTHCARE-LARGE-14 Corp",
    "fy": 2021,
@@ -1508,65 +1240,26 @@
    "altman_z_at_flag": 1.8001877445576242
   },
   {
-   "cik": 900791,
-   "entity": "AGRIBUSINESS-CMM-04 Corp",
+   "cik": 900777,
+   "entity": "AGRIBUSINESS-CMM-02 Corp",
+   "fy": 2018,
+   "segment": "agribusiness",
+   "bucket": "cmm",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.617140206965268
+  },
+  {
+   "cik": 900784,
+   "entity": "AGRIBUSINESS-CMM-03 Corp",
    "fy": 2020,
    "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2022,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 2.510802577306514
-  },
-  {
-   "cik": 900791,
-   "entity": "AGRIBUSINESS-CMM-04 Corp",
-   "fy": 2021,
-   "segment": "agribusiness",
-   "bucket": "umm",
+   "bucket": "cmm",
    "flag": "severe_metric",
    "deteriorated": false,
    "event": null,
-   "altman_z_at_flag": 2.5061725899677105
-  },
-  {
-   "cik": 900798,
-   "entity": "AGRIBUSINESS-CMM-05 Corp",
-   "fy": 2018,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.738221584419588
-  },
-  {
-   "cik": 900798,
-   "entity": "AGRIBUSINESS-CMM-05 Corp",
-   "fy": 2021,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.7213769068517197
-  },
-  {
-   "cik": 900812,
-   "entity": "AGRIBUSINESS-CMM-07 Corp",
-   "fy": 2018,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.7680282835743304
+   "altman_z_at_flag": 2.3059481491421847
   },
   {
    "cik": 900826,
@@ -1645,10 +1338,21 @@
   {
    "cik": 900833,
    "entity": "AGRIBUSINESS-UMM-02 Corp",
+   "fy": 2018,
+   "segment": "agribusiness",
+   "bucket": "umm",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.665034034121738
+  },
+  {
+   "cik": 900833,
+   "entity": "AGRIBUSINESS-UMM-02 Corp",
    "fy": 2020,
    "segment": "agribusiness",
    "bucket": "umm",
-   "flag": "core_departure",
+   "flag": "severe_metric",
    "deteriorated": false,
    "event": null,
    "altman_z_at_flag": 2.5213674793252494
@@ -1669,6 +1373,24 @@
     ]
    },
    "altman_z_at_flag": 2.363119236814143
+  },
+  {
+   "cik": 900840,
+   "entity": "AGRIBUSINESS-UMM-03 Corp",
+   "fy": 2020,
+   "segment": "agribusiness",
+   "bucket": "umm",
+   "flag": "severe_metric",
+   "deteriorated": true,
+   "event": {
+    "fy": 2023,
+    "lead_time": 3,
+    "reasons": [
+     "interest coverage < 1.0x",
+     "EBITDA decline >= 40% from flag year"
+    ]
+   },
+   "altman_z_at_flag": 2.0966129440629007
   },
   {
    "cik": 900847,
@@ -1721,68 +1443,6 @@
    "altman_z_at_flag": 2.246204134178567
   },
   {
-   "cik": 900861,
-   "entity": "AGRIBUSINESS-UMM-06 Corp",
-   "fy": 2017,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.9758798698185736
-  },
-  {
-   "cik": 900861,
-   "entity": "AGRIBUSINESS-UMM-06 Corp",
-   "fy": 2018,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2020,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.997036205055122
-  },
-  {
-   "cik": 900861,
-   "entity": "AGRIBUSINESS-UMM-06 Corp",
-   "fy": 2019,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2021,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.9295778035960631
-  },
-  {
-   "cik": 900861,
-   "entity": "AGRIBUSINESS-UMM-06 Corp",
-   "fy": 2020,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2021,
-    "lead_time": 1,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.741383365273964
-  },
-  {
    "cik": 900868,
    "entity": "AGRIBUSINESS-UMM-07 Corp",
    "fy": 2017,
@@ -1792,6 +1452,17 @@
    "deteriorated": false,
    "event": null,
    "altman_z_at_flag": 2.2582274075571656
+  },
+  {
+   "cik": 900868,
+   "entity": "AGRIBUSINESS-UMM-07 Corp",
+   "fy": 2018,
+   "segment": "agribusiness",
+   "bucket": "cmm",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.303739329531291
   },
   {
    "cik": 900868,
@@ -1841,39 +1512,6 @@
   {
    "cik": 900875,
    "entity": "AGRIBUSINESS-UMM-08 Corp",
-   "fy": 2017,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.452283155559157
-  },
-  {
-   "cik": 900875,
-   "entity": "AGRIBUSINESS-UMM-08 Corp",
-   "fy": 2018,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.3882252556248664
-  },
-  {
-   "cik": 900875,
-   "entity": "AGRIBUSINESS-UMM-08 Corp",
-   "fy": 2019,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.468037845839187
-  },
-  {
-   "cik": 900875,
-   "entity": "AGRIBUSINESS-UMM-08 Corp",
    "fy": 2020,
    "segment": "agribusiness",
    "bucket": "umm",
@@ -1887,39 +1525,6 @@
     ]
    },
    "altman_z_at_flag": 2.536668775547118
-  },
-  {
-   "cik": 900875,
-   "entity": "AGRIBUSINESS-UMM-08 Corp",
-   "fy": 2021,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.4260160437324507
-  },
-  {
-   "cik": 900882,
-   "entity": "AGRIBUSINESS-UMM-09 Corp",
-   "fy": 2019,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.196661270667976
-  },
-  {
-   "cik": 900889,
-   "entity": "AGRIBUSINESS-UMM-10 Corp",
-   "fy": 2017,
-   "segment": "cni",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.1500360964034906
   },
   {
    "cik": 900889,
@@ -1937,22 +1542,11 @@
    "entity": "AGRIBUSINESS-UMM-10 Corp",
    "fy": 2020,
    "segment": "cni",
-   "bucket": "large",
+   "bucket": "umm",
    "flag": "severe_metric",
    "deteriorated": false,
    "event": null,
    "altman_z_at_flag": 2.2309778218859173
-  },
-  {
-   "cik": 900889,
-   "entity": "AGRIBUSINESS-UMM-10 Corp",
-   "fy": 2021,
-   "segment": "cni",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.246968825964472
   },
   {
    "cik": 900896,
@@ -1990,9 +1584,20 @@
   {
    "cik": 900896,
    "entity": "AGRIBUSINESS-UMM-11 Corp",
+   "fy": 2020,
+   "segment": "agribusiness",
+   "bucket": "umm",
+   "flag": "severe_metric",
+   "deteriorated": false,
+   "event": null,
+   "altman_z_at_flag": 2.182779699755594
+  },
+  {
+   "cik": 900896,
+   "entity": "AGRIBUSINESS-UMM-11 Corp",
    "fy": 2021,
    "segment": "agribusiness",
-   "bucket": "large",
+   "bucket": "umm",
    "flag": "severe_metric",
    "deteriorated": false,
    "event": null,
@@ -2134,61 +1739,6 @@
    "altman_z_at_flag": 2.3417350587406336
   },
   {
-   "cik": 900917,
-   "entity": "AGRIBUSINESS-LARGE-02 Corp",
-   "fy": 2018,
-   "segment": "agribusiness",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.7131809470767054
-  },
-  {
-   "cik": 900931,
-   "entity": "AGRIBUSINESS-LARGE-04 Corp",
-   "fy": 2018,
-   "segment": "agribusiness",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.301867854692442
-  },
-  {
-   "cik": 900931,
-   "entity": "AGRIBUSINESS-LARGE-04 Corp",
-   "fy": 2019,
-   "segment": "agribusiness",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.3220516721333406
-  },
-  {
-   "cik": 900938,
-   "entity": "AGRIBUSINESS-LARGE-05 Corp",
-   "fy": 2018,
-   "segment": "agribusiness",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.1980300277743705
-  },
-  {
-   "cik": 900938,
-   "entity": "AGRIBUSINESS-LARGE-05 Corp",
-   "fy": 2020,
-   "segment": "agribusiness",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 2.110695397257606
-  },
-  {
    "cik": 900945,
    "entity": "AGRIBUSINESS-LARGE-06 Corp",
    "fy": 2017,
@@ -2311,86 +1861,6 @@
     ]
    },
    "altman_z_at_flag": 2.281282835505647
-  },
-  {
-   "cik": 900959,
-   "entity": "AGRIBUSINESS-LARGE-08 Corp",
-   "fy": 2018,
-   "segment": "agribusiness",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2021,
-    "lead_time": 3,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 2.1893494185921334
-  },
-  {
-   "cik": 900959,
-   "entity": "AGRIBUSINESS-LARGE-08 Corp",
-   "fy": 2019,
-   "segment": "agribusiness",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2021,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 2.1200833544069693
-  },
-  {
-   "cik": 900959,
-   "entity": "AGRIBUSINESS-LARGE-08 Corp",
-   "fy": 2020,
-   "segment": "agribusiness",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2021,
-    "lead_time": 1,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 2.037664420142297
-  },
-  {
-   "cik": 900959,
-   "entity": "AGRIBUSINESS-LARGE-08 Corp",
-   "fy": 2021,
-   "segment": "agribusiness",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2022,
-    "lead_time": 1,
-    "reasons": [
-     "interest coverage < 1.0x",
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.7948015957300578
-  },
-  {
-   "cik": 900966,
-   "entity": "AGRIBUSINESS-LARGE-09 Corp",
-   "fy": 2018,
-   "segment": "agribusiness",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.9721985711189944
   },
   {
    "cik": 900966,
@@ -2561,41 +2031,6 @@
    "altman_z_at_flag": 2.134912678256545
   },
   {
-   "cik": 900987,
-   "entity": "AGRIBUSINESS-LARGE-12 Corp",
-   "fy": 2020,
-   "segment": "cni",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2022,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.9605441713837481
-  },
-  {
-   "cik": 900987,
-   "entity": "AGRIBUSINESS-LARGE-12 Corp",
-   "fy": 2021,
-   "segment": "cni",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2023,
-    "lead_time": 2,
-    "reasons": [
-     "interest coverage < 1.0x",
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.8456251512555846
-  },
-  {
    "cik": 901001,
    "entity": "AGRIBUSINESS-LARGE-14 Corp",
    "fy": 2017,
@@ -2662,267 +2097,21 @@
    "altman_z_at_flag": 1.9187699217986274
   },
   {
-   "cik": 901043,
-   "entity": "LEVERAGED-UMM-01 Corp",
-   "fy": 2017,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.7179196456644896
-  },
-  {
-   "cik": 901043,
-   "entity": "LEVERAGED-UMM-01 Corp",
-   "fy": 2018,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.7149061081875754
-  },
-  {
-   "cik": 901043,
-   "entity": "LEVERAGED-UMM-01 Corp",
-   "fy": 2019,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.7302062127404372
-  },
-  {
-   "cik": 901043,
-   "entity": "LEVERAGED-UMM-01 Corp",
-   "fy": 2020,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.684195080186317
-  },
-  {
-   "cik": 901043,
-   "entity": "LEVERAGED-UMM-01 Corp",
+   "cik": 901022,
+   "entity": "LEVERAGED-CMM-02 Corp",
    "fy": 2021,
    "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.6891683589931241
-  },
-  {
-   "cik": 901050,
-   "entity": "LEVERAGED-UMM-02 Corp",
-   "fy": 2017,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.5375207131994004
-  },
-  {
-   "cik": 901050,
-   "entity": "LEVERAGED-UMM-02 Corp",
-   "fy": 2018,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.5854700499395253
-  },
-  {
-   "cik": 901050,
-   "entity": "LEVERAGED-UMM-02 Corp",
-   "fy": 2019,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.581907816706789
-  },
-  {
-   "cik": 901050,
-   "entity": "LEVERAGED-UMM-02 Corp",
-   "fy": 2020,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2023,
-    "lead_time": 3,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.6200746899749385
-  },
-  {
-   "cik": 901050,
-   "entity": "LEVERAGED-UMM-02 Corp",
-   "fy": 2021,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2023,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.560664149271243
-  },
-  {
-   "cik": 901057,
-   "entity": "LEVERAGED-UMM-03 Corp",
-   "fy": 2019,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.7868143588251737
-  },
-  {
-   "cik": 901064,
-   "entity": "LEVERAGED-UMM-04 Corp",
-   "fy": 2017,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.5447412243950684
-  },
-  {
-   "cik": 901064,
-   "entity": "LEVERAGED-UMM-04 Corp",
-   "fy": 2018,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.539399104484322
-  },
-  {
-   "cik": 901064,
-   "entity": "LEVERAGED-UMM-04 Corp",
-   "fy": 2019,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.5478266882170375
-  },
-  {
-   "cik": 901064,
-   "entity": "LEVERAGED-UMM-04 Corp",
-   "fy": 2020,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.5288236733397764
-  },
-  {
-   "cik": 901064,
-   "entity": "LEVERAGED-UMM-04 Corp",
-   "fy": 2021,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.5422553029379724
-  },
-  {
-   "cik": 901071,
-   "entity": "LEVERAGED-UMM-05 Corp",
-   "fy": 2017,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.4804703687638185
-  },
-  {
-   "cik": 901071,
-   "entity": "LEVERAGED-UMM-05 Corp",
-   "fy": 2018,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.5472985668493373
-  },
-  {
-   "cik": 901071,
-   "entity": "LEVERAGED-UMM-05 Corp",
-   "fy": 2019,
-   "segment": "cni",
-   "bucket": "umm",
+   "bucket": "cmm",
    "flag": "severe_metric",
    "deteriorated": true,
    "event": {
     "fy": 2022,
-    "lead_time": 3,
+    "lead_time": 1,
     "reasons": [
-     "EBITDA decline >= 40% from flag year"
+     "interest coverage < 1.0x"
     ]
    },
-   "altman_z_at_flag": 1.6390751587525871
-  },
-  {
-   "cik": 901071,
-   "entity": "LEVERAGED-UMM-05 Corp",
-   "fy": 2020,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2022,
-    "lead_time": 2,
-    "reasons": [
-     "EBITDA decline >= 40% from flag year"
-    ]
-   },
-   "altman_z_at_flag": 1.658395096091172
-  },
-  {
-   "cik": 901071,
-   "entity": "LEVERAGED-UMM-05 Corp",
-   "fy": 2021,
-   "segment": "cni",
-   "bucket": "umm",
-   "flag": "severe_metric",
-   "deteriorated": true,
-   "event": {
-    "fy": 2023,
-    "lead_time": 2,
-    "reasons": [
-     "interest coverage < 1.0x",
-     "EBITDA decline >= 40% from flag year",
-     "Altman Z' entered distress zone (1.17 < 1.23)"
-    ]
-   },
-   "altman_z_at_flag": 1.5250256949542653
+   "altman_z_at_flag": 1.5393039490532574
   },
   {
    "cik": 901092,
@@ -2934,61 +2123,6 @@
    "deteriorated": false,
    "event": null,
    "altman_z_at_flag": 1.5835498858865633
-  },
-  {
-   "cik": 901092,
-   "entity": "LEVERAGED-LARGE-02 Corp",
-   "fy": 2018,
-   "segment": "cni",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.5505619019043837
-  },
-  {
-   "cik": 901092,
-   "entity": "LEVERAGED-LARGE-02 Corp",
-   "fy": 2019,
-   "segment": "cni",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.5256554351489466
-  },
-  {
-   "cik": 901099,
-   "entity": "LEVERAGED-LARGE-03 Corp",
-   "fy": 2021,
-   "segment": "cni",
-   "bucket": "large",
-   "flag": "severe_metric",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.7034930558919572
-  },
-  {
-   "cik": 901106,
-   "entity": "LEVERAGED-LARGE-04 Corp",
-   "fy": 2018,
-   "segment": "cni",
-   "bucket": "large",
-   "flag": "core_departure",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.5755066166686256
-  },
-  {
-   "cik": 901106,
-   "entity": "LEVERAGED-LARGE-04 Corp",
-   "fy": 2019,
-   "segment": "cni",
-   "bucket": "large",
-   "flag": "core_departure",
-   "deteriorated": false,
-   "event": null,
-   "altman_z_at_flag": 1.576612216548718
   },
   {
    "cik": 901106,

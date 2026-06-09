@@ -28,59 +28,64 @@ class MetricSpec:
     direction: str
     basis: str
     core: bool = False   # core risk metrics get tighter flag treatment
+    # Winsorization bounds for benchmark construction: ratio values beyond
+    # these analytic limits (e.g. 30x leverage on near-zero EBITDA) are
+    # clamped, not dropped, so distressed names stay in the distribution
+    # without destroying the tails. Disclosed per cell when applied.
+    wins: Optional[tuple[float, float]] = None
 
 
 METRICS: dict[str, MetricSpec] = {m.key: m for m in [
     MetricSpec("debt_ebitda", "Total Debt / EBITDA", "x", HIGHER_RISK,
                "Fiscal-year basis. Total debt (incl. current portions & "
                "short-term borrowings, USD raw units) / EBITDA (operating "
-               "income + D&A, no addbacks).", core=True),
+               "income + D&A, no addbacks).", core=True, wins=(0.0, 15.0)),
     MetricSpec("net_debt_ebitda", "Net Debt / EBITDA", "x", HIGHER_RISK,
                "Fiscal-year basis. (Total debt - cash & equivalents) / "
-               "EBITDA. Cash at fiscal year end (point-in-time)."),
+               "EBITDA. Cash at fiscal year end (point-in-time).", wins=(-5.0, 15.0)),
     MetricSpec("debt_ebitda_3y", "Total Debt / 3yr-avg EBITDA", "x", HIGHER_RISK,
                "Through-cycle basis: spot total debt / trailing 3-fiscal-year "
                "average EBITDA. Used where single-year EBITDA is cyclical "
-               "(agribusiness)."),
+               "(agribusiness).", wins=(0.0, 15.0)),
     MetricSpec("interest_coverage", "EBITDA / Interest", "x", LOWER_RISK,
                "Fiscal-year basis. EBITDA / gross interest expense "
-               "(income-statement interest, not cash interest paid).", core=True),
+               "(income-statement interest, not cash interest paid).", core=True, wins=(-5.0, 30.0)),
     MetricSpec("fcc_proxy", "(EBITDA - Capex) / Interest", "x", LOWER_RISK,
                "Fiscal-year basis. Fixed-charge-coverage proxy; scheduled "
-               "amortization not observable in public data (gap)."),
+               "amortization not observable in public data (gap).", wins=(-10.0, 30.0)),
     MetricSpec("ebitda_margin", "EBITDA Margin", "%", LOWER_RISK,
                "Fiscal-year basis. EBITDA / revenue, both full-year USD "
-               "raw-unit durations.", core=True),
+               "raw-unit durations.", core=True, wins=(-50.0, 80.0)),
     MetricSpec("gross_margin", "Gross Margin", "%", LOWER_RISK,
-               "Fiscal-year basis. (Revenue - COGS) / revenue."),
+               "Fiscal-year basis. (Revenue - COGS) / revenue.", wins=(-20.0, 95.0)),
     MetricSpec("dso", "Days Sales Outstanding", "days", HIGHER_RISK,
                "Year-end receivables / full-year revenue x 365. Point-in-time "
                "numerator over duration denominator -- seasonal balances "
-               "distort; basis note applies."),
+               "distort; basis note applies.", wins=(0.0, 200.0)),
     MetricSpec("dio", "Days Inventory Outstanding", "days", HIGHER_RISK,
                "Year-end inventory / full-year COGS x 365. Point-in-time over "
-               "duration; harvest/seasonal effects noted per segment."),
+               "duration; harvest/seasonal effects noted per segment.", wins=(0.0, 365.0)),
     MetricSpec("dpo", "Days Payables Outstanding", "days", LOWER_RISK,
                "Year-end payables / full-year COGS x 365. Higher DPO funds "
-               "the cycle but can signal payment stretching -- read with CCC."),
+               "the cycle but can signal payment stretching -- read with CCC.", wins=(0.0, 200.0)),
     MetricSpec("ccc", "Cash Conversion Cycle", "days", HIGHER_RISK,
                "DSO + DIO - DPO, all on year-end-balance / full-year-flow "
-               "basis."),
+               "basis.", wins=(-150.0, 400.0)),
     MetricSpec("current_ratio", "Current Ratio", "x", LOWER_RISK,
                "Fiscal-year-end current assets / current liabilities "
-               "(point-in-time)."),
+               "(point-in-time).", wins=(0.0, 10.0)),
     MetricSpec("debt_assets", "Total Debt / Total Assets", "%", HIGHER_RISK,
                "Fiscal-year-end basis, book values. Book-LTV proxy for CRE; "
-               "book != market value of property (basis note)."),
+               "book != market value of property (basis note).", wins=(0.0, 120.0)),
     MetricSpec("rent_adj_leverage", "(Debt + 8x Rent) / EBITDAR", "x", HIGHER_RISK,
                "Rent-adjusted leverage, rating-agency convention (8x rent "
                "capitalization). EBITDAR = EBITDA + rent expense. Only where "
-               "rent is disclosed."),
+               "rent is disclosed.", wins=(0.0, 15.0)),
     MetricSpec("rev_growth", "Revenue Growth YoY", "%", LOWER_RISK,
-               "Fiscal-year over prior fiscal-year revenue growth."),
+               "Fiscal-year over prior fiscal-year revenue growth.", wins=(-80.0, 150.0)),
     MetricSpec("ebitda_volatility", "EBITDA Growth Volatility (3y)", "%", HIGHER_RISK,
                "Std. deviation of YoY EBITDA growth over trailing 3 "
-               "observations. Cyclicality measure."),
+               "observations. Cyclicality measure.", wins=(0.0, 200.0)),
 ]}
 
 

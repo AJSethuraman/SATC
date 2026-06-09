@@ -13,16 +13,16 @@ Flags evaluated at fiscal years 2017-2021; deterioration horizon 3 years. Deteri
 | Statistic | Value |
 |---|---|
 | Eligible company-years | 805 |
-| Flagged | 225 |
+| Flagged | 159 |
 | **Hit rate** (flagged that deteriorated) | 30% |
 | False-positive rate | 70% |
 | Deteriorations in window | 117 |
-| **Capture rate** (deteriorations that were flagged) | 57% |
+| **Capture rate** (deteriorations that were flagged) | 40% |
 | Median lead time | 2 yr |
 | Altman Z' reference flagger: n flagged | 170 |
 | Altman Z' reference hit rate | 15% |
 
-Lead-time distribution (years from flag to event): 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3
+Lead-time distribution (years from flag to event): 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3
 
 Base deterioration rate over the window: 15% of eligible company-years -- hit rates must be read against this base, not against zero.
 
@@ -32,10 +32,10 @@ Candidate flag rules are re-evaluated on every backtest run so the refinement ev
 
 | Rule | Flagged | Hit rate | Capture rate |
 |---|---|---|---|
-| production: any severe | core departure | 225 | 30% | 57% |
-| core departure only | 65 | 42% | 23% |
-| loose: core departure | >=2 watch+ (rejected) | 408 | 20% | 71% |
-| core departure | >=2 watch+ incl core | 165 | 27% | 38% |
+| production: any severe | core departure | 159 | 30% | 40% |
+| core departure only | 13 | 77% | 9% |
+| loose: core departure | >=2 watch+ (rejected) | 354 | 20% | 61% |
+| core departure | >=2 watch+ incl core | 108 | 31% | 28% |
 
 The 'loose' rule (any two watch-level readings) was rejected: it flags roughly half of all company-years for a hit rate barely above the base deterioration rate -- a review queue that wide is operationally useless. The production rule trades some capture for roughly double the precision of the loose rule while keeping the median lead time, and outperforms the Altman Z' distress-zone reference on both precision and lead.
 
@@ -55,17 +55,8 @@ Rating-agency transition studies show issuers typically migrate through CCC/C te
 |---|---|---|---|---|---|---|
 | CNI-UMM-02 Corp | 2019 | cni | large | severe_metric | no | -- |
 | CNI-UMM-02 Corp | 2020 | cni | large | severe_metric | no | -- |
-| CNI-UMM-05 Corp | 2017 | cni | umm | severe_metric | no | -- |
-| CNI-UMM-07 Corp | 2017 | cni | umm | severe_metric | yes | EBITDA decline >= 40% from flag year (FY2020) |
-| CNI-UMM-07 Corp | 2018 | cni | umm | severe_metric | yes | EBITDA decline >= 40% from flag year (FY2020) |
-| CNI-UMM-09 Corp | 2017 | cni | umm | severe_metric | no | -- |
-| CNI-UMM-09 Corp | 2018 | cni | umm | severe_metric | no | -- |
-| CNI-UMM-09 Corp | 2019 | cni | umm | severe_metric | no | -- |
-| CNI-UMM-09 Corp | 2020 | cni | umm | severe_metric | no | -- |
-| CNI-UMM-09 Corp | 2021 | cni | umm | severe_metric | no | -- |
-| CNI-UMM-11 Corp | 2018 | cni | umm | severe_metric | no | -- |
-| CNI-UMM-12 Corp | 2020 | cni | umm | severe_metric | yes | EBITDA decline >= 40% from flag year (FY2022) |
-| CNI-UMM-12 Corp | 2021 | cni | umm | severe_metric | yes | EBITDA decline >= 40% from flag year (FY2023) |
+| CNI-UMM-07 Corp | 2020 | cni | umm | severe_metric | yes | EBITDA decline >= 40% from flag year (FY2021) |
+| CNI-UMM-07 Corp | 2021 | cni | umm | severe_metric | yes | interest coverage < 1.0x, EBITDA decline >= 40% from flag year (FY2022) |
 | CNI-LARGE-02 Corp | 2020 | cni | large | severe_metric | yes | EBITDA decline >= 40% from flag year (FY2021) |
 | CNI-LARGE-02 Corp | 2021 | cni | large | severe_metric | yes | interest coverage < 1.0x, EBITDA decline >= 40% from flag year (FY2022) |
 | CNI-LARGE-03 Corp | 2019 | cni | large | severe_metric | no | -- |
@@ -78,18 +69,27 @@ Rating-agency transition studies show issuers typically migrate through CCC/C te
 | CNI-LARGE-10 Corp | 2020 | cni | large | severe_metric | no | -- |
 | CNI-LARGE-10 Corp | 2021 | cni | large | severe_metric | no | -- |
 | CNI-LARGE-14 Corp | 2021 | cni | large | severe_metric | no | -- |
-| CRE_OPCO-LMM-01 Corp | 2017 | cre_opco | lmm | severe_metric | no | -- |
 | CRE_OPCO-CMM-03 Corp | 2017 | cre_opco | cmm | severe_metric | no | -- |
-| CRE_OPCO-CMM-05 Corp | 2021 | cre_opco | lmm | severe_metric | yes | interest coverage < 1.0x (FY2022) |
+| CRE_OPCO-CMM-05 Corp | 2021 | cre_opco | cmm | severe_metric | yes | interest coverage < 1.0x (FY2022) |
 | CRE_OPCO-UMM-02 Corp | 2017 | cre_opco | umm | severe_metric | no | -- |
+| CRE_OPCO-UMM-02 Corp | 2018 | cre_opco | umm | severe_metric | no | -- |
 | CRE_OPCO-UMM-05 Corp | 2017 | cre_opco | umm | severe_metric | yes | interest coverage < 1.0x, EBITDA decline >= 40% from flag year (FY2020) |
-| CRE_OPCO-UMM-05 Corp | 2019 | cre_opco | umm | severe_metric | yes | interest coverage < 1.0x, EBITDA decline >= 40% from flag year (FY2020) |
+| CRE_OPCO-UMM-05 Corp | 2018 | cre_opco | umm | severe_metric | yes | interest coverage < 1.0x, EBITDA decline >= 40% from flag year (FY2020) |
+| CRE_OPCO-UMM-05 Corp | 2020 | cre_opco | umm | severe_metric | yes | interest coverage < 1.0x (FY2021) |
+| CRE_OPCO-UMM-05 Corp | 2021 | cre_opco | umm | severe_metric | yes | interest coverage < 1.0x, EBITDA decline >= 40% from flag year, negative book equity (FY2022) |
+| CRE_OPCO-UMM-06 Corp | 2017 | cre_opco | umm | severe_metric | no | -- |
 | CRE_OPCO-UMM-07 Corp | 2017 | cre_opco | umm | severe_metric | no | -- |
 | CRE_OPCO-UMM-07 Corp | 2018 | cre_opco | umm | severe_metric | no | -- |
 | CRE_OPCO-UMM-07 Corp | 2019 | cre_opco | umm | severe_metric | no | -- |
-| CRE_OPCO-UMM-09 Corp | 2020 | cre_opco | umm | severe_metric | yes | interest coverage < 1.0x, EBITDA decline >= 40% from flag year (FY2022) |
-| CRE_OPCO-UMM-09 Corp | 2021 | cre_opco | umm | severe_metric | yes | interest coverage < 1.0x (FY2022) |
-| CRE_OPCO-UMM-11 Corp | 2021 | cre_opco | large | severe_metric | no | -- |
-| CRE_OPCO-UMM-12 Corp | 2017 | cre_opco | large | severe_metric | no | -- |
-| CRE_OPCO-UMM-12 Corp | 2018 | cre_opco | large | severe_metric | no | -- |
-| CRE_OPCO-UMM-12 Corp | 2020 | cre_opco | large | severe_metric | yes | EBITDA decline >= 40% from flag year (FY2022) |
+| CRE_OPCO-UMM-07 Corp | 2020 | cre_opco | umm | severe_metric | no | -- |
+| CRE_OPCO-UMM-11 Corp | 2021 | cre_opco | umm | severe_metric | no | -- |
+| CRE_OPCO-UMM-12 Corp | 2017 | cre_opco | umm | severe_metric | no | -- |
+| CRE_OPCO-UMM-12 Corp | 2020 | cre_opco | umm | severe_metric | yes | EBITDA decline >= 40% from flag year (FY2022) |
+| CRE_OPCO-LARGE-02 Corp | 2020 | cre_opco | large | severe_metric | yes | interest coverage < 1.0x, EBITDA decline >= 40% from flag year (FY2023) |
+| CRE_OPCO-LARGE-02 Corp | 2021 | cre_opco | large | severe_metric | yes | interest coverage < 1.0x, EBITDA decline >= 40% from flag year (FY2023) |
+| CRE_OPCO-LARGE-04 Corp | 2017 | cre_opco | large | severe_metric | no | -- |
+| CRE_OPCO-LARGE-05 Corp | 2018 | cre_opco | large | core_departure | yes | interest coverage < 1.0x, EBITDA decline >= 40% from flag year (FY2020) |
+| CRE_OPCO-LARGE-05 Corp | 2019 | cre_opco | large | severe_metric | yes | interest coverage < 1.0x (FY2020) |
+| CRE_OPCO-LARGE-05 Corp | 2020 | cre_opco | large | severe_metric | yes | interest coverage < 1.0x, EBITDA decline >= 40% from flag year (FY2021) |
+| CRE_OPCO-LARGE-05 Corp | 2021 | cre_opco | large | severe_metric | yes | interest coverage < 1.0x, EBITDA decline >= 40% from flag year, negative book equity (FY2022) |
+| CRE_OPCO-LARGE-07 Corp | 2020 | cre_opco | large | severe_metric | no | -- |

@@ -1,0 +1,16 @@
+{
+  "name": "ccbw-workbench-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild ../CreditBenchmarkWorkbench.jsx --loader:.jsx=jsx --bundle --external:react --format=esm --outfile=compiled.js",
+    "test": "npm run build && node smoke.mjs",
+    "dump-memo": "npm run build && node dump_memo.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "jsdom": "^25.0.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  }
+}
