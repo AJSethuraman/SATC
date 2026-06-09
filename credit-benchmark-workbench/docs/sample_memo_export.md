@@ -2,7 +2,7 @@
 
 **Segment:** Middle-Market C&I | **Size band:** Core middle market ($25-100M EBITDA) | **Latest FY:** FY2024 | **View used for flags:** private-MM adjusted | **Prepared:** 2026-06-09
 
-**Benchmark data:** ccbw 0.1.0, snapshot v1 (generated 2026-06-09T23:46:33+00:00), source: SYNTHETIC_DEMO.
+**Benchmark data:** ccbw 0.1.0, snapshot v1 (generated 2026-06-09T23:53:30+00:00), source: SYNTHETIC_DEMO.
 
 > **DATA CAVEAT:** SYNTHETIC DEMONSTRATION DATA: this snapshot was generated from a deterministic synthetic corpus shaped like EDGAR CompanyFacts, because the build environment had no network access to data.sec.gov. All distributions are illustrative of the machinery, NOT sourced market statistics. Refresh against live EDGAR before any production use (see meta.refresh).
 

@@ -200,8 +200,9 @@ def render_validation_md(bt: dict, data_source: str) -> str:
         "| Rule | Flagged | Hit rate | Capture rate |",
         "|---|---|---|---|",
         *[
-            f"| {name} | {rc['n_flagged']} | {pct(rc['hit_rate'])} "
-            f"| {pct(rc['capture_rate'])} |"
+            "| {} | {} | {} | {} |".format(
+                name.replace("|", "\\|"), rc["n_flagged"],
+                pct(rc["hit_rate"]), pct(rc["capture_rate"]))
             for name, rc in s.get("rule_comparison", {}).items()
         ],
         "",

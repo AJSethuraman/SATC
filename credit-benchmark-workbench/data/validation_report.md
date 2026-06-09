@@ -32,10 +32,10 @@ Candidate flag rules are re-evaluated on every backtest run so the refinement ev
 
 | Rule | Flagged | Hit rate | Capture rate |
 |---|---|---|---|
-| production: any severe | core departure | 159 | 30% | 40% |
+| production: any severe \| core departure | 159 | 30% | 40% |
 | core departure only | 13 | 77% | 9% |
-| loose: core departure | >=2 watch+ (rejected) | 354 | 20% | 61% |
-| core departure | >=2 watch+ incl core | 108 | 31% | 28% |
+| loose: core departure \| >=2 watch+ (rejected) | 354 | 20% | 61% |
+| core departure \| >=2 watch+ incl core | 108 | 31% | 28% |
 
 The 'loose' rule (any two watch-level readings) was rejected: it flags roughly half of all company-years for a hit rate barely above the base deterioration rate -- a review queue that wide is operationally useless. The production rule trades some capture for roughly double the precision of the loose rule while keeping the median lead time, and outperforms the Altman Z' distress-zone reference on both precision and lead.
 
