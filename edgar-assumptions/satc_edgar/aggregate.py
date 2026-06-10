@@ -147,6 +147,19 @@ class MetricDist:
 
 
 @dataclass
+class RosterEntry:
+    """One constituent company of a tier (for the readable roster)."""
+
+    cik: int
+    name: str
+    ticker: str
+    latest_revenue: Optional[float]
+    n_years: int
+    first_year: Optional[int]
+    last_year: Optional[int]
+
+
+@dataclass
 class TierResult:
     tier: Tier
     n_companies: int
@@ -155,6 +168,7 @@ class TierResult:
     current: Dict[str, MetricDist] = field(default_factory=dict)
     through_cycle: Dict[str, MetricDist] = field(default_factory=dict)
     shock_2020: Dict[str, Optional[float]] = field(default_factory=dict)
+    roster: List[RosterEntry] = field(default_factory=list)
 
 
 def _dist_from_values(metric: str, values: List[Optional[float]], n_companies: int,
@@ -183,6 +197,22 @@ def aggregate_tier(series_list: List[CompanySeries], tier: Tier, min_sample: int
         n_companies=n_companies,
         low_confidence=n_companies < min_sample,
     )
+
+    # Roster: largest-first by most-recent revenue, CIK as deterministic tiebreak.
+    roster = [
+        RosterEntry(
+            cik=s.cik,
+            name=s.name,
+            ticker=s.ticker,
+            latest_revenue=s.latest_revenue,
+            n_years=len(s.records),
+            first_year=s.records[0].fiscal_year if s.records else None,
+            last_year=s.latest_year,
+        )
+        for s in series_list
+    ]
+    roster.sort(key=lambda r: (-(r.latest_revenue or 0.0), r.cik))
+    result.roster = roster
 
     for metric in ALL_METRICS:
         # Through-cycle: every company-year value in the window.

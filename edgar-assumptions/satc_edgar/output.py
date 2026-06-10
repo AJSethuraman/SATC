@@ -163,6 +163,40 @@ def _metric_table(title: str, tier: TierResult, view: str) -> List[str]:
     return lines
 
 
+def _fmt_revenue(v: Optional[float]) -> str:
+    """Compact USD revenue, e.g. 1.7B / 540.0M / 12.3K."""
+    if v is None:
+        return "n/a"
+    a = abs(v)
+    for div, suf in ((1e9, "B"), (1e6, "M"), (1e3, "K")):
+        if a >= div:
+            return f"{v / div:.1f}{suf}"
+    return f"{v:.0f}"
+
+
+def _roster_table(tier: TierResult) -> List[str]:
+    """Constituent companies of a tier (largest revenue first)."""
+    lines = [
+        "#### Constituent companies (largest revenue first)",
+        "",
+        "| Ticker | Company | CIK | Latest revenue | FY span | # yrs |",
+        "|---|---|---|---|---|---|",
+    ]
+    for e in tier.roster:
+        span = (
+            f"{e.first_year}-{e.last_year}"
+            if e.first_year is not None and e.last_year is not None
+            else "-"
+        )
+        ticker = e.ticker or "—"
+        lines.append(
+            f"| {ticker} | {e.name} | {e.cik} | "
+            f"{_fmt_revenue(e.latest_revenue)} | {span} | {e.n_years} |"
+        )
+    lines.append("")
+    return lines
+
+
 def render_summary(
     fh: TextIO,
     sic: str,
@@ -202,6 +236,8 @@ def render_summary(
         if tr.n_companies == 0:
             w("_No companies assigned to this tier._\n\n")
             continue
+        for line in _roster_table(tr):
+            w(line + "\n")
         for line in _metric_table(
             f"Current norms (most-recent fiscal year)", tr, "current"
         ):

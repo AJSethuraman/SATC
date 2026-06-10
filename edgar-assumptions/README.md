@@ -107,11 +107,13 @@ is missing, EBITDA-based metrics for that company-year are recorded as missing
 - **`<out>.csv`** — one row per company / fiscal year with every raw line item,
   reconstructed EBITDA (+ method), assigned tier, and all computed metrics.
   This is the audit trail.
-- **`<out>.summary.md`** — per SIC code: per-tier percentile tables
-  (10/25/50/75/90), sample sizes (companies and company-years), through-cycle
-  volatility, the 2020 shock, the cross-tier size trend, a data-quality report,
-  and the standing caveats block — printed every time. A loud **LOW
-  CONFIDENCE** banner appears for any thin tier.
+- **`<out>.summary.md`** — per SIC code: for each tier, a **roster of the
+  constituent companies** (ticker, name, CIK, latest revenue, fiscal-year span,
+  # years contributed), then per-tier percentile tables (10/25/50/75/90),
+  sample sizes (companies and company-years), through-cycle volatility, the 2020
+  shock, the cross-tier size trend, a data-quality report, and the standing
+  caveats block — printed every time. A loud **LOW CONFIDENCE** banner appears
+  for any thin tier.
 
 ## Determinism & reproducibility
 

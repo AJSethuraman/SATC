@@ -64,8 +64,17 @@ def test_pipeline_produces_outputs(tmp_path):
     assert flags["250M-1B"] is True
     assert flags["1B-5B"] is False
 
+    # Roster present and lists named constituents per populated tier.
+    mid_tier = next(tr for tr in run.tier_results if tr.tier.label == "1B-5B")
+    assert len(mid_tier.roster) == 11
+    # Sorted largest-revenue first, deterministic.
+    revs = [e.latest_revenue for e in mid_tier.roster]
+    assert revs == sorted(revs, reverse=True)
+
     md = open(md_path).read()
     assert "LOW CONFIDENCE" in md
+    assert "Constituent companies" in md
+    assert "Co2000" in md  # a company name appears in the roster
     assert "Standing caveats" in md
     assert "Survivorship" in md or "SURVIVORSHIP" in md
     assert "Cross-tier size trend" in md
