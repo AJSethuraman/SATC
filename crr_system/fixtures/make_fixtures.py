@@ -64,6 +64,19 @@ CRE_2006 = [
      "they do not constitute limits or hard caps on lending.", "p"),
 ]
 
+INTERNAL_POLICY = [
+    ("Commercial Credit Policy CP-100", "h"),
+    ("Effective January 1, 2024. Approved by the Board Credit Committee.", "p"),
+    ("UNDERWRITING LIMITS", "h"),
+    ("Income-producing commercial real estate loans require a minimum debt service coverage "
+     "ratio of 1.25x at underwriting.", "p"),
+    ("Commercial real estate loans are subject to a maximum loan-to-value of 75 percent for "
+     "non-owner-occupied properties.", "p"),
+    ("ASSET-BASED LENDING", "h"),
+    ("The maximum advance rate against eligible accounts receivable is 85 percent.", "p"),
+    ("The maximum advance rate against eligible inventory is 60 percent of cost.", "p"),
+]
+
 CAM = [
     ("CREDIT APPROVAL MEMORANDUM", "h"),
     ("Borrower: Meridian Fabrication Holdings, LLC", "p"),
@@ -128,6 +141,7 @@ def main() -> None:
         (LL_2013, "fixture_2013_leveraged_lending", True),
         (RESCISSION_2025, "fixture_2025_rescission", True),
         (CRE_2006, "fixture_2006_cre_guidance", True),
+        (INTERNAL_POLICY, "fixture_internal_policy", False),
         (CAM, "fixture_sample_cam", False),
     ]
     for spec, stem, as_pdf in jobs:

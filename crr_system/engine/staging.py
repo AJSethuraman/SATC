@@ -51,6 +51,7 @@ HEADERS_XWALK = [
     "Row ID", "Metric", "Value", "Unit", "Basis / Definition", "Agency",
     "Citation", "Effective Date", "Rescinded Date", "Status As-Of Review Date",
     "Source Document", "Page / Section", "Verbatim Source Span", "Reviewer Notes",
+    "Key (Metric|Agency)", "Active (1/0)",
 ]
 HEADERS_ASSERT = [
     "Row ID", "Borrower", "Facility", "Category", "Field / Metric",
@@ -201,7 +202,7 @@ def promote_confirmed(workbook_path: str) -> dict:
 
     if CROSSWALK not in wb.sheetnames:
         ws = wb.create_sheet(CROSSWALK)
-        _style_header(ws, HEADERS_XWALK, [13, 30, 12, 7, 24, 9, 22, 12, 12, 18, 26, 16, 60, 26])
+        _style_header(ws, HEADERS_XWALK, [13, 30, 12, 7, 24, 9, 22, 12, 12, 18, 26, 16, 60, 26, 30, 9])
     if ASSERTIONS not in wb.sheetnames:
         ws = wb.create_sheet(ASSERTIONS)
         _style_header(ws, HEADERS_ASSERT, [13, 22, 22, 12, 28, 30, 7, 18, 10, 14, 24, 14, 60, 26])
@@ -225,7 +226,8 @@ def promote_confirmed(workbook_path: str) -> dict:
             f'IF(AND(I{t}<>"",AsOfDate>=I{t}),"Rescinded","Active")))'
         )
         out = [src[0], src[1], src[2], src[3], src[4], src[5], src[6], eff,
-               resc, status_formula, src[11], src[12], src[13], src[16]]
+               resc, status_formula, src[11], src[12], src[13], src[16],
+               f'=B{t}&"|"&F{t}', f'=IF(J{t}="Active",1,0)']
         for col, v in enumerate(out, start=1):
             c = wsx.cell(row=t, column=col, value=v)
             c.font = green if col == 10 else body

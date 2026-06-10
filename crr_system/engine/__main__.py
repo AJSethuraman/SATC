@@ -113,6 +113,13 @@ def main(argv=None) -> int:
     d.add_argument("--workbook", required=True)
     d.set_defaults(func=cmd_promote)
 
+    e = sub.add_parser("save-form", help="Append a completed line-sheet form to the Database")
+    e.add_argument("--workbook", required=True)
+    e.add_argument("--sheet", required=True)
+    e.add_argument("--status", default="In Progress")
+    e.set_defaults(func=lambda a: __import__("engine.formio", fromlist=["save_form"])
+                   .save_form(a.workbook, a.sheet, a.status))
+
     args = p.parse_args(argv)
     result = args.func(args)
     json.dump(result, sys.stdout, indent=2, default=str)
