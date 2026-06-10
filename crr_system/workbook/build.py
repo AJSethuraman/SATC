@@ -140,6 +140,8 @@ def build_home(wb):
         c.hyperlink = f"#'{sheet}'!A1"
         c.font = Font(name=st.FONT, size=10, color="0563C1", underline="single")
         ws.cell(row=rr, column=3, value=desc).font = st.BODY_FONT
+    st.whiten(ws, 4, 2, r + len(nav) + 1, 5)
+    st.canvas_pass(ws, 7, r + len(nav) + 8)
     return ws
 
 
@@ -190,6 +192,8 @@ def build_settings(wb):
              "CLDLoans": "$C$9", "CRELoans": "$C$10", "CRELoans36": "$C$11"}
     for name, ref in names.items():
         wb.defined_names.add(DefinedName(name, attr_text=f"Settings!{ref}"))
+    st.whiten(ws, 3, 2, 11, 4)
+    st.canvas_pass(ws, 6, 19)
     return ws
 
 
@@ -235,6 +239,8 @@ def build_lists(wb):
               "PropTypeList": "$F$2:$F$7"}
     for name, ref in ranges.items():
         wb.defined_names.add(DefinedName(name, attr_text=f"Lists!{ref}"))
+    st.whiten(ws, 1, 1, 10, 12)
+    st.canvas_pass(ws, 14, 16)
     return ws
 
 
@@ -256,6 +262,8 @@ def build_questions(wb):
             r += 1
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = f"A1:E{r - 1}"
+    st.whiten(ws, 1, 1, r - 1, 5)
+    st.canvas_pass(ws, 7, r + 6)
     return ws
 
 

@@ -19,16 +19,22 @@ NAVY = "1F3864"
 MID_BLUE = "2E5597"
 LIGHT_BLUE = "D9E2F3"
 PALE = "F2F6FC"
-BAND = "F7F9FC"         # alternate-row band
-HAIR = "E3E8F0"         # hairline separators
+BAND = "F4F6FA"         # alternate-row band (on white panels)
+HAIR = "DDE2EA"         # hairline separators
+CANVAS = "E7EAEF"       # page background - light gray desk the panels sit on
 AMBER = "FFF2CC"
 GOLD = "D9A441"
+RED = "C0504D"
+ALERT_RED = "C00000"
 PALE_RED = "FCE4E4"
 PALE_GREEN = "E2EFDA"
 GREY = "8A93A2"
 LIGHT_GREY = "F2F2F2"
 
-CHART_COLORS = ["2E5597", "C0504D", "D9A441", "6FA287", "8496B0", "9E5BA5"]
+CHART_COLORS = ["2E5597", "D9A441", "8496B0", "1F3864", "C0504D", "6FA287"]
+
+WHITE_FILL = PatternFill("solid", start_color="FFFFFF")
+CANVAS_FILL = PatternFill("solid", start_color=CANVAS)
 
 INPUT_FONT = Font(name=FONT, size=10, color="0000FF")
 FORMULA_FONT = Font(name=FONT, size=10, color="000000")
@@ -43,7 +49,7 @@ H3_FONT = Font(name=FONT, size=10.5, bold=True, color=NAVY)
 TH_FONT = Font(name=FONT, size=9, bold=True, color=NAVY)
 
 TITLE_FILL = PatternFill("solid", start_color=NAVY)
-SECTION_FILL = PatternFill("solid", start_color=PALE)
+SECTION_FILL = PatternFill("solid", start_color="F5EEDF")  # light gold tint
 SUBHEAD_FILL = PatternFill("solid", start_color=PALE)
 ASSUMPTION_FILL = PatternFill("solid", start_color="FFFF00")
 BAND_FILL = PatternFill("solid", start_color=BAND)
@@ -141,27 +147,53 @@ def band_rows(ws, first_row, last_row, first_col, last_col):
 
 
 def kpi_card(ws, row, col, label, formula, fmt=FMT_NUM, color=NAVY):
-    """Soft KPI card: pale block, small-caps label, large figure."""
-    fill = PatternFill("solid", start_color=PALE)
+    """KPI card: white block on the gray canvas, gold rule under the figure."""
     lab = ws.cell(row=row, column=col, value=label.upper())
     lab.font = Font(name=FONT, size=7.5, bold=True, color=GREY)
     lab.alignment = Alignment(horizontal="left", vertical="bottom", indent=1, wrap_text=True)
-    lab.fill = fill
+    lab.fill = WHITE_FILL
     val = ws.cell(row=row + 1, column=col, value=formula)
     val.font = Font(name=FONT, size=18, bold=True, color=color)
     val.number_format = fmt
     val.alignment = Alignment(horizontal="left", vertical="top", indent=1)
-    val.fill = fill
+    val.fill = WHITE_FILL
+    val.border = Border(bottom=Side(style="medium", color=GOLD))
     ws.row_dimensions[row].height = 16
     ws.row_dimensions[row + 1].height = 26
 
 
-def polish_chart(chart, *, legend_pos="b"):
-    """Strip the default-Excel chart look: no frame, soft gridlines, palette."""
+def whiten(ws, r1, c1, r2, c2):
+    """Paint a white panel behind a content block (only where unfilled)."""
+    for r in range(r1, r2 + 1):
+        for c in range(c1, c2 + 1):
+            cell = ws.cell(row=r, column=c)
+            if cell.fill is None or cell.fill.patternType is None:
+                cell.fill = WHITE_FILL
+
+
+def canvas_pass(ws, last_col, last_row):
+    """Fill every remaining unfilled cell with the gray canvas, so white
+    panels and charts read as layered content on a page background."""
+    for r in range(1, last_row + 1):
+        for c in range(1, last_col + 1):
+            cell = ws.cell(row=r, column=c)
+            if cell.fill is None or cell.fill.patternType is None:
+                cell.fill = CANVAS_FILL
+
+
+def polish_chart(chart, *, legend_pos="b", colors=None):
+    """Strip the default-Excel chart look: no frame, soft gridlines, palette.
+
+    colors: per-series override. Default palette leads navy/gold; pass red
+    (RED/ALERT_RED) explicitly for exception/alert series only.
+    """
+    from openpyxl.chart import LineChart, PieChart
     from openpyxl.chart.axis import ChartLines
+    from openpyxl.chart.marker import DataPoint
     from openpyxl.chart.shapes import GraphicalProperties as GraphicProperties
     from openpyxl.drawing.line import LineProperties
 
+    palette = colors or CHART_COLORS
     chart.graphical_properties = GraphicProperties(
         solidFill="FFFFFF", ln=LineProperties(noFill=True))
     if chart.legend is not None:
@@ -177,12 +209,17 @@ def polish_chart(chart, *, legend_pos="b"):
                 spPr=GraphicProperties(ln=LineProperties(solidFill=HAIR)))
         else:
             ax.majorGridlines = None
-    from openpyxl.chart import LineChart, PieChart
 
     if isinstance(chart, PieChart):
-        return chart  # no axes; keep per-slice default colors (frame already stripped)
+        if colors:  # color slices individually (e.g. severity: red/gold/slate)
+            series = chart.series[0]
+            series.data_points = [
+                DataPoint(idx=i, spPr=GraphicProperties(solidFill=c))
+                for i, c in enumerate(colors)
+            ]
+        return chart
     for i, series in enumerate(getattr(chart, "series", [])):
-        color = CHART_COLORS[i % len(CHART_COLORS)]
+        color = palette[i % len(palette)]
         if isinstance(chart, LineChart):
             series.graphicalProperties = GraphicProperties(
                 ln=LineProperties(solidFill=color, w=22000))

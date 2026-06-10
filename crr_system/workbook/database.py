@@ -43,6 +43,8 @@ def build_database(wb, credits):
     st.band_rows(ws, 2, len(credits) + 1, 1, len(DB_HEADERS))
 
     n = len(credits) + 1
+    st.whiten(ws, 1, 1, n, len(DB_HEADERS))
+    st.canvas_pass(ws, len(DB_HEADERS) + 3, n + 8)
     ws.auto_filter.ref = f"A1:X{n}"
     dv = DataValidation(type="list", formula1="=StatusList", allow_blank=True)
     ws.add_data_validation(dv)
@@ -102,6 +104,8 @@ def build_responses(wb, responses):
     for i, rp in enumerate(responses):
         write_response_row(ws, i + 2, rp)
     st.band_rows(ws, 2, len(responses) + 1, 1, len(RESP_HEADERS))
+    st.whiten(ws, 1, 1, len(responses) + 1, len(RESP_HEADERS))
+    st.canvas_pass(ws, len(RESP_HEADERS) + 3, len(responses) + 9)
 
     ws.auto_filter.ref = f"A1:N{len(responses) + 1}"
     return ws

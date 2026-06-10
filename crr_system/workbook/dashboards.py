@@ -31,6 +31,7 @@ def _table(ws, top, left, title, headers, rows, widths=None):
             c.font = st.FORMULA_FONT if isinstance(v, str) and v.startswith("=") else st.BODY_FONT
             c.border = st.BOX
     st.band_rows(ws, top + 2, top + 1 + len(rows), left, left + len(headers) - 1)
+    st.whiten(ws, top, left, top + 1 + len(rows), left + len(headers) - 1)
     return top + 2, top + 1 + len(rows)
 
 
@@ -67,7 +68,7 @@ def build_dash_portfolio(wb, n_credits):
     cats = Reference(ws, min_col=2, min_row=first, max_row=last)
     chart.add_data(data, titles_from_data=True)
     chart.set_categories(cats)
-    st.polish_chart(chart)
+    st.polish_chart(chart, colors=[st.MID_BLUE, st.RED])
     ws.add_chart(chart, "H7")
 
     top = last + 3
@@ -84,7 +85,7 @@ def build_dash_portfolio(wb, n_credits):
     cats = Reference(ws, min_col=2, min_row=gfirst, max_row=glast)
     chart2.add_data(data, titles_from_data=True)
     chart2.set_categories(cats)
-    st.polish_chart(chart2)
+    st.polish_chart(chart2, colors=[st.MID_BLUE, st.GOLD])
     ws.add_chart(chart2, f"H{top}")
 
     # Migration matrix: LOB grade (rows) x CRR grade (cols)
@@ -110,6 +111,8 @@ def build_dash_portfolio(wb, n_credits):
         fill=PatternFill("solid", start_color=st.PALE_RED)))
     ws.cell(row=top + 11, column=2,
             value="Shaded cells right of the diagonal = CRR downgrades vs the LOB grade.").font = st.SMALL_FONT
+    st.whiten(ws, top, 2, top + 10, 10)
+    st.canvas_pass(ws, 18, ws.max_row + 14)
     return ws
 
 
@@ -149,7 +152,7 @@ def build_dash_exceptions(wb, n_resp):
     cats = Reference(ws, min_col=2, min_row=first, max_row=last)
     chart.add_data(data, titles_from_data=True)
     chart.set_categories(cats)
-    st.polish_chart(chart)
+    st.polish_chart(chart, colors=[st.RED])
     ws.add_chart(chart, "G7")
 
     top = last + 3
@@ -163,7 +166,7 @@ def build_dash_exceptions(wb, n_resp):
     cats = Reference(ws, min_col=2, min_row=sfirst, max_row=slast)
     pie.add_data(data, titles_from_data=True)
     pie.set_categories(cats)
-    st.polish_chart(pie)
+    st.polish_chart(pie, colors=[st.RED, st.GOLD, "8496B0"])
     ws.add_chart(pie, "O7")
 
     top = slast + 3
@@ -189,6 +192,8 @@ def build_dash_exceptions(wb, n_resp):
             cell.font = st.FORMULA_FONT
             if src_col in ("E", "H"):
                 cell.alignment = st.WRAP_TOP
+    st.whiten(ws, top, 7, hdr + 30, 14)
+    st.canvas_pass(ws, 15, ws.max_row + 6)
     return ws
 
 
@@ -237,6 +242,8 @@ def build_obs_view(wb):
                 cell.alignment = st.WRAP_TOP
             if src_col == "I":
                 cell.number_format = st.FMT_DATE
+    st.whiten(ws, 6, 5, 37, 11)
+    st.canvas_pass(ws, 12, ws.max_row + 6)
     return ws
 
 
@@ -321,6 +328,10 @@ def build_dash_concentration(wb):
     ws.cell(row=top + 6, column=2,
             value="A threshold can be Active for one agency and Rescinded for another on the same date; "
                   "reviews cite the rule in force at the review as-of date.").font = st.SMALL_FONT
+    st.whiten(ws, 4, 2, 8, 3)
+    st.whiten(ws, 11, 2, 15, 5)
+    st.whiten(ws, top, 2, top + 4, 6)
+    st.canvas_pass(ws, 11, ws.max_row + 6)
     return ws
 
 
@@ -354,7 +365,7 @@ def build_dash_trends(wb):
     cats = Reference(ws, min_col=2, min_row=first, max_row=last)
     chart.add_data(data, titles_from_data=True)
     chart.set_categories(cats)
-    st.polish_chart(chart)
+    st.polish_chart(chart, colors=[st.GOLD, st.ALERT_RED])
     ws.add_chart(chart, "H5")
 
     bar = BarChart()
@@ -364,6 +375,7 @@ def build_dash_trends(wb):
     data = Reference(ws, min_col=3, min_row=first - 1, max_row=last)
     bar.add_data(data, titles_from_data=True)
     bar.set_categories(cats)
-    st.polish_chart(bar)
+    st.polish_chart(bar, colors=[st.MID_BLUE])
     ws.add_chart(bar, "H22")
+    st.canvas_pass(ws, 16, ws.max_row + 32)
     return ws

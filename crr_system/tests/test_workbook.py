@@ -131,10 +131,14 @@ def test_database_counts_match_responses(vals):
     answers = {}
     for r in range(2, resp.max_row + 1):
         cid = resp.cell(row=r, column=1).value
+        if cid is None:
+            continue
         ans = resp.cell(row=r, column=7).value
         answers.setdefault(cid, []).append(ans)
     for r in range(2, db.max_row + 1):
         cid = db.cell(row=r, column=1).value
+        if cid is None:
+            continue
         expect_no = sum(1 for a in answers[cid] if a == "No")
         expect_obs = sum(1 for a in answers[cid] if a == "Obs")
         assert db.cell(row=r, column=16).value == expect_no

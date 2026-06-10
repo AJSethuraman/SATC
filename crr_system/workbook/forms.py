@@ -319,4 +319,7 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
     box.alignment = st.WRAP_TOP
     box.border = st.BOX
 
+    # White document panel on the gray canvas.
+    st.whiten(ws, 4, 1, row + 4, LAST_COL)
+    st.canvas_pass(ws, LAST_COL + 4, row + 16)
     return ws
