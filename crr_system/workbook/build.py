@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Alignment, Font
+from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.datavalidation import DataValidation
 
@@ -87,10 +87,14 @@ def build_home(wb):
         ("Obs", "Pass with a note on record. Note required. Never counted as an exception; "
                 "surfaces only in the Observations view for thematic patterns."),
     ]
+    chip = {"Yes": (st.PALE_GREEN, "2E7D32"), "No": (st.PALE_RED, st.ALERT_RED),
+            "N/A": (st.LIGHT_GREY, st.GREY), "Obs": (st.AMBER, "B07D2B")}
     for i, (a, d) in enumerate(legend):
         rr = r + 1 + i
         c = ws.cell(row=rr, column=2, value=a)
-        c.font = st.BOLD_FONT
+        fill, color = chip[a]
+        c.font = Font(name=st.FONT, size=10, bold=True, color=color)
+        c.fill = PatternFill("solid", start_color=fill)
         c.alignment = st.CENTER
         c.border = st.BOX
         ws.cell(row=rr, column=3, value=d).font = st.BODY_FONT
@@ -158,10 +162,14 @@ def build_settings(wb):
          "Agency whose thresholds the dashboards cite. Forms use this plus internal policy."),
     ]
     for r, label, value, fmt, note in items:
-        ws.cell(row=r, column=2, value=label).font = st.BOLD_FONT
+        lab = ws.cell(row=r, column=2, value=label)
+        lab.font = st.BOLD_FONT
+        lab.fill = st.LABEL_FILL
+        lab.border = st.BOX
         c = ws.cell(row=r, column=3, value=value)
         c.font = st.INPUT_FONT
-        c.border = st.BOX
+        c.border = st.FIELD_BOX
+        c.fill = st.FIELD_FILL
         if fmt:
             c.number_format = fmt
         ws.cell(row=r, column=4, value=note).font = st.SMALL_FONT
@@ -181,10 +189,14 @@ def build_settings(wb):
          "Source: internal MIS concentration report, 5/31/2023."),
     ]
     for r, label, value, src in cap:
-        ws.cell(row=r, column=2, value=label).font = st.BOLD_FONT
+        lab = ws.cell(row=r, column=2, value=label)
+        lab.font = st.BOLD_FONT
+        lab.fill = st.LABEL_FILL
+        lab.border = st.BOX
         c = ws.cell(row=r, column=3, value=value)
         c.font = st.INPUT_FONT
-        c.border = st.BOX
+        c.border = st.FIELD_BOX
+        c.fill = st.FIELD_FILL
         c.number_format = st.FMT_USD
         ws.cell(row=r, column=4, value=src).font = st.SMALL_FONT
 

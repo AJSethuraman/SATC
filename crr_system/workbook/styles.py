@@ -36,6 +36,28 @@ CHART_COLORS = ["2E5597", "D9A441", "8496B0", "1F3864", "C0504D", "6FA287"]
 WHITE_FILL = PatternFill("solid", start_color="FFFFFF")
 CANVAS_FILL = PatternFill("solid", start_color=CANVAS)
 
+# Information-cell treatments: every cell that carries data gets one of these
+# so content reads as designed fields/values, not bare text on white.
+FIELD = "EAF0F8"        # editable input fields (pairs with blue input text)
+ICE = "F4F7FB"          # computed/derived values
+GOLDTINT = "FAF3E3"     # values sourced from the crosswalk / reference layer
+LABELTINT = "EDF1F7"    # table label columns / row headers
+FIELD_FILL = PatternFill("solid", start_color=FIELD)
+ICE_FILL = PatternFill("solid", start_color=ICE)
+GOLDTINT_FILL = PatternFill("solid", start_color=GOLDTINT)
+LABEL_FILL = PatternFill("solid", start_color=LABELTINT)
+
+_FIELD_SIDE = Side(style="thin", color="C9D2E0")
+FIELD_BOX = Border(left=_FIELD_SIDE, right=_FIELD_SIDE,
+                   top=_FIELD_SIDE, bottom=_FIELD_SIDE)
+
+NAVY_FONT = Font(name="Arial", size=10, bold=True, color="1F3864")
+SEV_FONTS = {
+    "High": Font(name="Arial", size=8.5, bold=True, color="C0504D"),
+    "Medium": Font(name="Arial", size=8.5, bold=True, color="B07D2B"),
+    "Low": Font(name="Arial", size=8.5, bold=True, color="8A93A2"),
+}
+
 INPUT_FONT = Font(name=FONT, size=10, color="0000FF")
 FORMULA_FONT = Font(name=FONT, size=10, color="000000")
 LINK_FONT = Font(name=FONT, size=10, color="008000")

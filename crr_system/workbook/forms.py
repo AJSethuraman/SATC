@@ -57,20 +57,21 @@ def _input(ws, cell, value=None, fmt=None, assumption=False):
     c = ws[cell]
     c.value = value
     c.font = st.INPUT_FONT
-    c.border = st.BOX
+    c.border = st.FIELD_BOX
+    c.fill = st.ASSUMPTION_FILL if assumption else st.FIELD_FILL
     if fmt:
         c.number_format = fmt
-    if assumption:
-        c.fill = st.ASSUMPTION_FILL
     return c
 
 
-def _formula(ws, cell, formula, fmt=None, link=False, bold=False):
+def _formula(ws, cell, formula, fmt=None, link=False, bold=False, fill=None):
     c = ws[cell]
     c.value = formula
     c.font = Font(name=st.FONT, size=10, bold=bold,
                   color="008000" if link else "000000")
     c.border = st.BOX
+    if fill is not None:
+        c.fill = fill
     if fmt:
         c.number_format = fmt
     return c
@@ -135,8 +136,10 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
     ws["C7"].number_format = FMTS[seg.get("commitment_fmt", "usd")]
     ws["F5"].number_format = st.FMT_DATE
     ws["F6"].number_format = st.FMT_DATE
-    _formula(ws, "I7", '=IF($I$6="","",VLOOKUP($I$6,Lists!$D$2:$E$9,2,0))', link=True)
-    _formula(ws, "I8", '=IF(OR($I$5="",$I$6=""),"",IF($I$5=$I$6,"Concur","Grade Change"))')
+    _formula(ws, "I7", '=IF($I$6="","",VLOOKUP($I$6,Lists!$D$2:$E$9,2,0))',
+             link=True, fill=st.GOLDTINT_FILL)
+    _formula(ws, "I8", '=IF(OR($I$5="",$I$6=""),"",IF($I$5=$I$6,"Concur","Grade Change"))',
+             fill=st.ICE_FILL)
 
     dv_grade = DataValidation(type="list", formula1="=GradeList", allow_blank=True)
     ws.add_data_validation(dv_grade)
@@ -158,7 +161,10 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
         st.col_headers(ws, row, ["", "Input", "Value", "Source / Note"], height=14)
         row += 1
         for label, kind, note in seg["inputs"]:
-            ws.cell(row=row, column=2, value=label).font = st.BODY_FONT
+            lab = ws.cell(row=row, column=2, value=label)
+            lab.font = st.BODY_FONT
+            lab.fill = st.LABEL_FILL
+            lab.border = st.BOX
             cell = f"C{row}"
             assumption = "Key assumption" in note
             _input(ws, cell, inputs_data.get(label), FMTS[kind], assumption=assumption)
@@ -185,37 +191,53 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
         ratio_first = row
         for rid, label, template, fmt, metric, direction in seg["ratios"]:
             ws.cell(row=row, column=1, value=rid).font = st.SMALL_FONT
-            ws.cell(row=row, column=2, value=label).font = st.BODY_FONT
+            rl = ws.cell(row=row, column=2, value=label)
+            rl.font = st.BODY_FONT
+            rl.fill = st.LABEL_FILL
+            rl.border = st.BOX
 
             formula = re.sub(r"\[([^\]]+)\]", lambda m: input_cells[m.group(1)], template)
-            _formula(ws, f"C{row}", formula, FMTS[fmt])
+            _formula(ws, f"C{row}", formula, FMTS[fmt], fill=st.ICE_FILL)
             _input(ws, f"D{row}", asserted_data.get(rid), FMTS[fmt])
             _formula(ws, f"E{row}",
                      f'=IF(OR(ISTEXT(C{row}),C{row}="",D{row}=""),"",C{row}-D{row})',
-                     FMTS[fmt])
+                     FMTS[fmt], fill=st.ICE_FILL)
             _formula(ws, f"F{row}",
                      f'=IF(E{row}="","",IF(ABS(E{row})<=0.05*MAX(ABS(D{row}),0.0001),'
-                     f'"Aligned","Variance"))')
+                     f'"Aligned","Variance"))', fill=st.ICE_FILL)
             if metric:
                 _formula(ws, f"G{row}", _threshold_formula(metric, direction, fmt),
-                         FMTS[fmt], link=True)
+                         FMTS[fmt], link=True, fill=st.GOLDTINT_FILL)
                 op = ">" if direction == "max" else "<"
                 _formula(ws, f"H{row}",
                          f'=IF(OR(G{row}="",ISTEXT(C{row}),C{row}=""),"n/a",'
-                         f'IF(C{row}{op}G{row},"Exception","Pass"))')
+                         f'IF(C{row}{op}G{row},"Exception","Pass"))', fill=st.ICE_FILL)
+                ws.cell(row=row, column=8).alignment = st.CENTER
             else:
                 st.style_cell(ws.cell(row=row, column=7), border=st.BOX)
                 c = ws.cell(row=row, column=8, value="n/a")
                 c.font = st.SMALL_FONT
                 c.border = st.BOX
                 c.alignment = st.CENTER
-            ws.cell(row=row, column=10).border = st.BOX
+            note_cell = ws.cell(row=row, column=10)
+            note_cell.border = st.FIELD_BOX
+            note_cell.fill = st.FIELD_FILL
+            note_cell.font = st.INPUT_FONT
             row += 1
         ratio_last = row - 1
         rng = f"A{ratio_first}:J{ratio_last}"
         ws.conditional_formatting.add(rng, FormulaRule(
             formula=[f'$H{ratio_first}="Exception"'],
             fill=PatternFill("solid", start_color=st.PALE_RED)))
+        ws.conditional_formatting.add(
+            f"H{ratio_first}:H{ratio_last}",
+            FormulaRule(formula=[f'H{ratio_first}="Pass"'],
+                        font=Font(name=st.FONT, size=10, bold=True, color="2E7D32"),
+                        fill=PatternFill("solid", start_color=st.PALE_GREEN)))
+        ws.conditional_formatting.add(
+            f"H{ratio_first}:H{ratio_last}",
+            FormulaRule(formula=[f'H{ratio_first}="Exception"'],
+                        font=Font(name=st.FONT, size=10, bold=True, color=st.ALERT_RED)))
         ws.conditional_formatting.add(rng, FormulaRule(
             formula=[f'$F{ratio_first}="Variance"'],
             fill=PatternFill("solid", start_color=st.AMBER)))
@@ -246,7 +268,7 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
         q.font = st.BODY_FONT
         q.alignment = st.WRAP_TOP
         sv = ws.cell(row=row, column=3, value=severity)
-        sv.font = st.SMALL_FONT
+        sv.font = st.SEV_FONTS.get(severity, st.SMALL_FONT)
         sv.alignment = Alignment(horizontal="center", vertical="top")
         ans, note = answers_by_qid.get(qid, (None, None))
         a = _input(ws, f"D{row}", ans)
@@ -255,7 +277,8 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
         n = ws.cell(row=row, column=5, value=note or None)
         n.font = st.INPUT_FONT
         n.alignment = st.WRAP_TOP
-        n.border = st.BOX
+        n.border = st.FIELD_BOX
+        n.fill = st.FIELD_FILL
         _formula(ws, f"J{row}",
                  f'=IF(AND(D{row}="Obs",E{row}=""),"Note required",'
                  f'IF(AND(D{row}="No",E{row}=""),"Rationale required",""))')
@@ -274,6 +297,18 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
     qrng = f"A{q_first}:J{q_last}"
     ws.conditional_formatting.add(qrng, FormulaRule(
         formula=[f'$D{q_first}="No"'], fill=PatternFill("solid", start_color=st.PALE_RED)))
+    ws.conditional_formatting.add(
+        f"D{q_first}:D{q_last}",
+        FormulaRule(formula=[f'D{q_first}="Yes"'],
+                    font=Font(name=st.FONT, size=10, bold=True, color="2E7D32")))
+    ws.conditional_formatting.add(
+        f"D{q_first}:D{q_last}",
+        FormulaRule(formula=[f'D{q_first}="No"'],
+                    font=Font(name=st.FONT, size=10, bold=True, color=st.ALERT_RED)))
+    ws.conditional_formatting.add(
+        f"D{q_first}:D{q_last}",
+        FormulaRule(formula=[f'D{q_first}="Obs"'],
+                    font=Font(name=st.FONT, size=10, bold=True, color=st.GOLD)))
     ws.conditional_formatting.add(qrng, FormulaRule(
         formula=[f'AND($D{q_first}="Obs",$E{q_first}="")'],
         fill=PatternFill("solid", start_color=st.AMBER)))
@@ -310,14 +345,16 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
             formula = f'=C{base+1}-COUNTIF({drange},"N/A")'
         elif label == "Exception Rate (No / Applicable)":
             formula = f'=IF(C{base+3}=0,"",C{base+4}/C{base+3})'
-        _formula(ws, f"C{r}", formula, fmt, bold=True)
+        c = _formula(ws, f"C{r}", formula, fmt, bold=True, fill=st.ICE_FILL)
+        c.font = st.NAVY_FONT
     row = base + len(summary) + 1
     ws.cell(row=row, column=2, value="CRR Conclusion / Grade Rationale:").font = st.BOLD_FONT
     ws.merge_cells(start_row=row + 1, start_column=2, end_row=row + 3, end_column=9)
     box = ws.cell(row=row + 1, column=2)
     box.font = st.INPUT_FONT
     box.alignment = st.WRAP_TOP
-    box.border = st.BOX
+    box.border = st.FIELD_BOX
+    box.fill = st.FIELD_FILL
 
     # White document panel on the gray canvas.
     st.whiten(ws, 4, 1, row + 4, LAST_COL)

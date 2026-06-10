@@ -28,9 +28,13 @@ def _table(ws, top, left, title, headers, rows, widths=None):
         r = top + 2 + i
         for j, v in enumerate(row_vals):
             c = ws.cell(row=r, column=left + j, value=v)
-            c.font = st.FORMULA_FONT if isinstance(v, str) and v.startswith("=") else st.BODY_FONT
             c.border = st.BOX
-    st.band_rows(ws, top + 2, top + 1 + len(rows), left, left + len(headers) - 1)
+            if j == 0:
+                c.font = st.BODY_FONT
+                c.fill = st.LABEL_FILL
+            else:
+                c.font = st.FORMULA_FONT if isinstance(v, str) and v.startswith("=") else st.BODY_FONT
+                c.fill = st.ICE_FILL
     st.whiten(ws, top, left, top + 1 + len(rows), left + len(headers) - 1)
     return top + 2, top + 1 + len(rows)
 
@@ -95,9 +99,10 @@ def build_dash_portfolio(wb, n_credits):
     for i, g in enumerate(range(1, 9)):
         r = top + 2 + i
         c = ws.cell(row=r, column=2, value=g)
-        c.font = st.BOLD_FONT
+        c.font = st.NAVY_FONT
         c.border = st.BOX
         c.alignment = st.CENTER
+        c.fill = st.LABEL_FILL
         for j, g2 in enumerate(range(1, 9)):
             cell = ws.cell(row=r, column=3 + j,
                            value=f'=IF(COUNTIFS(Database!$I:$I,$B{r},Database!$J:$J,{g2})=0,"",'
@@ -105,6 +110,7 @@ def build_dash_portfolio(wb, n_credits):
             cell.font = st.FORMULA_FONT
             cell.border = st.BOX
             cell.alignment = st.CENTER
+            cell.fill = st.ICE_FILL
     mr = f"C{top + 2}:J{top + 9}"
     ws.conditional_formatting.add(mr, FormulaRule(
         formula=[f"COLUMN()-2>$B{top + 2}"], stopIfTrue=False,
@@ -190,8 +196,15 @@ def build_dash_exceptions(wb, n_resp):
                            value=f'=IFERROR(INDEX({R}${src_col}:${src_col},'
                                  f'MATCH($G{r},{R}$N:$N,0)),"")')
             cell.font = st.FORMULA_FONT
+            cell.fill = st.ICE_FILL if r % 2 == 0 else st.WHITE_FILL
+            cell.border = st.BOX
             if src_col in ("E", "H"):
                 cell.alignment = st.WRAP_TOP
+    for sev, color in (("High", st.ALERT_RED), ("Medium", "B07D2B"), ("Low", st.GREY)):
+        ws.conditional_formatting.add(
+            f"K{hdr + 1}:K{hdr + 30}",
+            FormulaRule(formula=[f'$K{hdr + 1}="{sev}"'],
+                        font=Font(name=st.FONT, size=9, bold=True, color=color)))
     st.whiten(ws, top, 7, hdr + 30, 14)
     st.canvas_pass(ws, 15, ws.max_row + 6)
     return ws
@@ -238,6 +251,8 @@ def build_obs_view(wb):
                            value=f'=IFERROR(INDEX({R}${src_col}:${src_col},'
                                  f'MATCH($E{r},{R}$M:$M,0)),"")')
             cell.font = st.FORMULA_FONT
+            cell.fill = st.ICE_FILL if r % 2 == 0 else st.WHITE_FILL
+            cell.border = st.BOX
             if src_col in ("E", "H"):
                 cell.alignment = st.WRAP_TOP
             if src_col == "I":
@@ -250,7 +265,7 @@ def build_obs_view(wb):
 def build_dash_concentration(wb):
     ws = wb.create_sheet("Dash_Concentration")
     ws.sheet_view.showGridLines = False
-    st.set_widths(ws, [2, 42, 15, 15, 22, 3, 14, 14, 14, 16])
+    st.set_widths(ws, [2, 42, 15, 15, 22, 14, 14, 14, 14, 16])
     st.title_bar(ws, "Concentration vs. Capital — Live Crosswalk Status", 10,
                  subtitle="Criteria pull from the confirmed Crosswalk for the bank's primary "
                           "agency, as of the Review As-Of Date. Supervisory criteria trigger "
@@ -264,11 +279,15 @@ def build_dash_concentration(wb):
     ]
     for i, (label, f, fmt) in enumerate(items):
         r = 5 + i
-        ws.cell(row=r, column=2, value=label).font = st.BODY_FONT
+        lab = ws.cell(row=r, column=2, value=label)
+        lab.font = st.BODY_FONT
+        lab.fill = st.LABEL_FILL
+        lab.border = st.BOX
         c = ws.cell(row=r, column=3, value=f)
         c.font = st.LINK_FONT
         c.number_format = fmt
         c.border = st.BOX
+        c.fill = st.GOLDTINT_FILL
 
     top = 11
     ws.cell(row=top, column=2, value="Supervisory criteria status (2006 Interagency CRE Guidance, as confirmed in Crosswalk)").font = st.H3_FONT
@@ -295,9 +314,16 @@ def build_dash_concentration(wb):
     ws.cell(row=r, column=5, value=f'=IF(OR(C{r}="",ISTEXT(D{r})),"n/a",IF(AND(C{r}>=D{r},C{r-1}>=D{r-1}),"Combined criterion met — heightened scrutiny","Below combined criterion"))')
     for rr in range(top + 2, r + 1):
         for col in range(2, 6):
-            ws.cell(row=rr, column=col).border = st.BOX
-            if col >= 3:
-                ws.cell(row=rr, column=col).font = st.FORMULA_FONT if col != 4 else st.LINK_FONT
+            cell = ws.cell(row=rr, column=col)
+            cell.border = st.BOX
+            if col == 2:
+                cell.fill = st.LABEL_FILL
+            elif col == 4:
+                cell.font = st.LINK_FONT
+                cell.fill = st.GOLDTINT_FILL
+            else:
+                cell.font = st.FORMULA_FONT
+                cell.fill = st.ICE_FILL
     ws.conditional_formatting.add(f"B{top + 2}:E{r}", FormulaRule(
         formula=[f'ISNUMBER(SEARCH("met",$E{top + 2}))'],
         fill=PatternFill("solid", start_color=st.PALE_RED)))
@@ -306,7 +332,7 @@ def build_dash_concentration(wb):
     top = r + 3
     ws.cell(row=top, column=2,
             value="Leveraged-Lending Guidance status by agency (Total Debt / EBITDA criterion, as of Review As-Of Date)").font = st.H3_FONT
-    st.col_headers(ws, top + 1, ["Agency", "Threshold", "Effective", "Rescinded", "Status As-Of"], start_col=2)
+    st.col_headers(ws, top + 1, ["Agency", "Threshold", "Effective", "Rescinded", "Status As-Of Date"], start_col=2)
     for i, agency in enumerate(["OCC", "FDIC", "FRB"]):
         rr = top + 2 + i
         key = f'"Total Debt / EBITDA|{agency}"'
@@ -317,11 +343,20 @@ def build_dash_concentration(wb):
                         value=f'=IFERROR(IF({idx}=0,"—",{idx}),"not in crosswalk")')
             c.font = st.LINK_FONT
             c.border = st.BOX
+            c.fill = st.GOLDTINT_FILL
             if dest == 3:
                 c.number_format = st.FMT_X
             elif dest in (4, 5):
                 c.number_format = st.FMT_DATE
-        ws.cell(row=rr, column=2).border = st.BOX
+        hcell = ws.cell(row=rr, column=2)
+        hcell.border = st.BOX
+        hcell.fill = st.LABEL_FILL
+    ws.conditional_formatting.add(f"F{top + 2}:F{top + 4}", FormulaRule(
+        formula=[f'$F{top + 2}="Active"'],
+        font=Font(name=st.FONT, size=10, bold=True, color="2E7D32")))
+    ws.conditional_formatting.add(f"F{top + 2}:F{top + 4}", FormulaRule(
+        formula=[f'$F{top + 2}="Rescinded"'],
+        font=Font(name=st.FONT, size=10, bold=True, color=st.ALERT_RED)))
     ws.conditional_formatting.add(f"B{top + 2}:F{top + 4}", FormulaRule(
         formula=[f'$F{top + 2}="Rescinded"'],
         fill=PatternFill("solid", start_color=st.LIGHT_GREY)))
