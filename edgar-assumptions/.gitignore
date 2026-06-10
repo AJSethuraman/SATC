@@ -1,0 +1,25 @@
+# Local EDGAR response cache (reproducible artifacts, not source)
+.edgar_cache/
+*.edgar_cache/
+
+# Saved SEC contact email used for the User-Agent (personal, not source)
+.edgar_contact
+
+# Generated outputs
+*.summary.md
+food_dist*
+*.csv
+
+# ...but keep the committed illustrative example outputs
+!examples/
+!examples/*.csv
+!examples/*.summary.md
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.venv/
+build/
+dist/

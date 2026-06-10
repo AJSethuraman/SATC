@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "satc-edgar-assumptions"
+version = "0.1.0"
+description = "Derive credit-relevant industry benchmark ranges from SEC EDGAR, broken out by revenue tier, as a calibrated reference for private middle-market borrower analysis."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Proprietary" }
+# Intentionally zero runtime dependencies: pure standard library so results
+# are fully deterministic and reproducible across environments.
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.scripts]
+edgar-assumptions = "satc_edgar.cli:main"
+
+[tool.setuptools]
+packages = ["satc_edgar"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
