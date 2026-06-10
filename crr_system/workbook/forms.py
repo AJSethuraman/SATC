@@ -100,19 +100,31 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
     ws.sheet_view.showGridLines = False
     st.set_widths(ws, [8, 52, 14, 14, 12, 14, 14, 16, 12, 30])
 
-    st.title_bar(ws, f"{seg['name']} — Credit Risk Review Line Sheet", LAST_COL,
+    title = seg.get("form_title") or f"{seg['name']} — Credit Risk Review Line Sheet"
+    st.title_bar(ws, title, LAST_COL,
                  subtitle="Independent challenge function: re-derive, confirm, or dispute each "
                           "asserted value. Answers: Yes / No / N/A / Obs (Obs requires a note; "
                           "N/A is excluded from all rates).")
 
     # --- A. Credit identification -------------------------------------------
-    st.section_bar(ws, 4, "A.  Credit Identification", last_col=LAST_COL)
+    labels = {
+        "credit_id": "Credit ID", "borrower": "Borrower",
+        "commitment": "Commitment ($000)", "review_type": "Review Type",
+        "review_date": "Review Date", "fin_date": "Financials As-Of",
+        "reviewer": "Reviewer", "subtype": "Subtype / Property Type",
+        "lob_grade": "LOB Assigned Grade", "crr_grade": "CRR Concluded Grade",
+        "category": "Regulatory Category", "concurrence": "Grade Concurrence",
+        "section_a": "A.  Credit Identification",
+    }
+    labels.update(seg.get("header_labels", {}))
+    st.section_bar(ws, 4, labels["section_a"], last_col=LAST_COL)
     pairs = [
-        ("B5", "Credit ID"), ("B6", "Borrower"), ("B7", "Commitment ($000)"),
-        ("B8", "Review Type"), ("E5", "Review Date"), ("E6", "Financials As-Of"),
-        ("E7", "Reviewer"), ("E8", "Subtype / Property Type"),
-        ("H5", "LOB Assigned Grade"), ("H6", "CRR Concluded Grade"),
-        ("H7", "Regulatory Category"), ("H8", "Grade Concurrence"),
+        ("B5", labels["credit_id"]), ("B6", labels["borrower"]),
+        ("B7", labels["commitment"]), ("B8", labels["review_type"]),
+        ("E5", labels["review_date"]), ("E6", labels["fin_date"]),
+        ("E7", labels["reviewer"]), ("E8", labels["subtype"]),
+        ("H5", labels["lob_grade"]), ("H6", labels["crr_grade"]),
+        ("H7", labels["category"]), ("H8", labels["concurrence"]),
     ]
     for cell, text in pairs:
         _label(ws, cell, text)
@@ -120,7 +132,7 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
                 "review_date", "fin_date", "reviewer", "subtype",
                 "lob_grade", "crr_grade"):
         _input(ws, FORM_CELLS[key])
-    ws["C7"].number_format = st.FMT_USD
+    ws["C7"].number_format = FMTS[seg.get("commitment_fmt", "usd")]
     ws["F5"].number_format = st.FMT_DATE
     ws["F6"].number_format = st.FMT_DATE
     _formula(ws, "I7", '=IF($I$6="","",VLOOKUP($I$6,Lists!$D$2:$E$9,2,0))', link=True)
@@ -159,10 +171,14 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
     # --- C. Ratio engine -------------------------------------------------------
     ratio_first = ratio_last = None
     if seg["ratios"]:
-        st.section_bar(ws, row, "C.  Ratio Engine — Independent vs. Asserted", last_col=LAST_COL)
+        ratio_title = ("C.  Ratio Engine — Independent vs. Asserted" if seg["inputs"]
+                       else "B.  Ratio Engine — Independent vs. Asserted")
+        st.section_bar(ws, row, ratio_title, last_col=LAST_COL)
         row += 1
+        asserted = seg.get("asserted_label") or "Per CAM (Asserted)"
+        independent = seg.get("independent_label") or "CRR Independent"
         st.col_headers(ws, row, [
-            "ID", "Ratio", "CRR Independent", "Per CAM (Asserted)", "Variance",
+            "ID", "Ratio", independent, asserted, "Variance",
             "Alignment", "Threshold (In Force)", "Vs Threshold", "", "Note",
         ])
         row += 1
@@ -206,7 +222,7 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
         row += 1
 
     # --- D+. Question sections ------------------------------------------------
-    sec_letter = ord("D") if seg["ratios"] else ord("B")
+    sec_letter = ord("B") + (1 if seg["inputs"] else 0) + (1 if seg["ratios"] else 0)
     q_rows = []
     current_section = None
     questions = list(question_rows(seg_code))
@@ -244,6 +260,8 @@ def build_form(wb, seg_code, *, inputs_data, asserted_data, answers_by_qid):
                  f'=IF(AND(D{row}="Obs",E{row}=""),"Note required",'
                  f'IF(AND(D{row}="No",E{row}=""),"Rationale required",""))')
         ws.cell(row=row, column=10).font = Font(name=st.FONT, size=8, bold=True, color="C00000")
+        for col in range(1, LAST_COL + 1):
+            ws.cell(row=row, column=col).border = st.BOX
         ws.row_dimensions[row].height = 26
         q_rows.append(row)
         row += 1

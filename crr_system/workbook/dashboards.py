@@ -17,10 +17,7 @@ QUARTERS = ["2025-Q3", "2025-Q4", "2026-Q1", "2026-Q2"]
 
 
 def _kpi(ws, row, col, label, formula, fmt=st.FMT_NUM):
-    ws.cell(row=row, column=col, value=label).font = Font(name=st.FONT, size=9, color=st.GREY)
-    c = ws.cell(row=row + 1, column=col, value=formula)
-    c.font = Font(name=st.FONT, size=16, bold=True, color=st.NAVY)
-    c.number_format = fmt
+    st.kpi_card(ws, row, col, label, formula, fmt)
 
 
 def _table(ws, top, left, title, headers, rows, widths=None):
@@ -33,6 +30,7 @@ def _table(ws, top, left, title, headers, rows, widths=None):
             c = ws.cell(row=r, column=left + j, value=v)
             c.font = st.FORMULA_FONT if isinstance(v, str) and v.startswith("=") else st.BODY_FONT
             c.border = st.BOX
+    st.band_rows(ws, top + 2, top + 1 + len(rows), left, left + len(headers) - 1)
     return top + 2, top + 1 + len(rows)
 
 
@@ -69,6 +67,7 @@ def build_dash_portfolio(wb, n_credits):
     cats = Reference(ws, min_col=2, min_row=first, max_row=last)
     chart.add_data(data, titles_from_data=True)
     chart.set_categories(cats)
+    st.polish_chart(chart)
     ws.add_chart(chart, "H7")
 
     top = last + 3
@@ -85,6 +84,7 @@ def build_dash_portfolio(wb, n_credits):
     cats = Reference(ws, min_col=2, min_row=gfirst, max_row=glast)
     chart2.add_data(data, titles_from_data=True)
     chart2.set_categories(cats)
+    st.polish_chart(chart2)
     ws.add_chart(chart2, f"H{top}")
 
     # Migration matrix: LOB grade (rows) x CRR grade (cols)
@@ -149,6 +149,7 @@ def build_dash_exceptions(wb, n_resp):
     cats = Reference(ws, min_col=2, min_row=first, max_row=last)
     chart.add_data(data, titles_from_data=True)
     chart.set_categories(cats)
+    st.polish_chart(chart)
     ws.add_chart(chart, "G7")
 
     top = last + 3
@@ -162,6 +163,7 @@ def build_dash_exceptions(wb, n_resp):
     cats = Reference(ws, min_col=2, min_row=sfirst, max_row=slast)
     pie.add_data(data, titles_from_data=True)
     pie.set_categories(cats)
+    st.polish_chart(pie)
     ws.add_chart(pie, "O7")
 
     top = slast + 3
@@ -352,6 +354,7 @@ def build_dash_trends(wb):
     cats = Reference(ws, min_col=2, min_row=first, max_row=last)
     chart.add_data(data, titles_from_data=True)
     chart.set_categories(cats)
+    st.polish_chart(chart)
     ws.add_chart(chart, "H5")
 
     bar = BarChart()
@@ -361,5 +364,6 @@ def build_dash_trends(wb):
     data = Reference(ws, min_col=3, min_row=first - 1, max_row=last)
     bar.add_data(data, titles_from_data=True)
     bar.set_categories(cats)
+    st.polish_chart(bar)
     ws.add_chart(bar, "H22")
     return ws

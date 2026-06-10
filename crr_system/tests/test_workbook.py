@@ -44,7 +44,8 @@ def test_zero_formula_errors_in_cache(vals):
 
 def test_all_sheets_present(raw):
     expected = {"Home", "Settings", "Lists", "Questions", "LS_CI", "LS_CRE",
-                "LS_LL", "LS_ABL", "LS_ARG", "LS_COMP", "Database", "Responses",
+                "LS_LL", "LS_ABL", "LS_ARG", "LS_COMP", "LS_IA",
+                "Database", "Responses",
                 "Dash_Portfolio", "Dash_Exceptions", "Obs_View",
                 "Dash_Concentration", "Dash_Trends", "Crosswalk", "Assertions",
                 "Staging_TypeA", "Staging_TypeB"}

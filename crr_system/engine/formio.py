@@ -32,6 +32,7 @@ _DB_RATIOS = {
     "ABL": {"leverage": None, "dscr": None, "ltv": None},
     "ARG": {"leverage": None, "dscr": None, "ltv": None},
     "COMP": {"leverage": None, "dscr": None, "ltv": None},
+    "IA": {"leverage": None, "dscr": None, "ltv": None},
 }
 
 

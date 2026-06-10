@@ -28,6 +28,8 @@ _BORROWERS = {
             "Westbrook Printing Co. (Workout)", "Sablewood Furniture Mfg. (Workout)"],
     "COMP": ["Compliance Sweep - Alder Mfg.", "Compliance Sweep - Birchway Clinics",
              "Compliance Sweep - Cobalt Foods", "Compliance Sweep - Dunmore Plastics"],
+    "IA": ["Wire Transfer Operations Audit", "Vendor Management Program Audit",
+           "Loan Servicing Controls Audit", "Model Risk Governance Audit"],
 }
 
 _REVIEWERS = ["A. Chen", "R. Ortiz", "M. Kowalski", "D. Whitaker"]
@@ -59,6 +61,7 @@ _RATIO_RANGES = {
     "ABL": ((2.5, 5.0), (1.1, 1.8), None),
     "ARG": ((5.0, 9.0), (0.4, 1.0), None),
     "COMP": (None, None, None),
+    "IA": (None, None, None),
 }
 
 
@@ -176,6 +179,11 @@ FORM_INPUTS = {
         "Estimated Costs to Sell (%)": 0.08,
     },
     "COMP": {},
+    "IA": {
+        "Population Size (items)": 1240, "Sample Size (items)": 60,
+        "Items Tested (items)": 60, "Exceptions Found (items)": 4,
+        "Tolerable Exception Rate (%)": 0.05,
+    },
 }
 
 FORM_ASSERTED = {
@@ -184,4 +192,5 @@ FORM_ASSERTED = {
     "ABL": {"ABL-R3": 36_000, "ABL-R5": 1.13},
     "ARG": {"ARG-R2": 0.78},
     "COMP": {},
+    "IA": {"IA-R3": 0.033},
 }

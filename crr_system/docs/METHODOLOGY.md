@@ -174,8 +174,27 @@ small-business-via-consumer-KRI segment:
 3. Add threshold patterns to `engine/extract.py` only if the new segment needs
    metrics the extractor doesn't already recognize.
 
-Core questions (`CORE_QUESTIONS`) apply to every segment and map to the 2020
-criteria; segment files only declare what is *specific* to them.
+Core questions (`CORE_QUESTIONS`) apply to every credit segment and map to
+the 2020 criteria; segment files only declare what is *specific* to them.
+
+### Non-credit review programs (general audit shops)
+
+The **IA segment** in `content.py` is a worked example of repurposing the
+template outside credit review. Optional config keys:
+
+- `use_core_questions: False` — skip the credit core question set entirely;
+- `header_labels` — relabel the Section A fields (Engagement ID, Auditable
+  Entity, Mgmt Self-Assessed vs IA Concluded Rating, etc.);
+- `form_title`, `asserted_label`, `independent_label` — retitle the form and
+  the assert-vs-reperform columns ("Per Mgmt (Asserted)" / "IA Re-Performed");
+- `commitment_fmt` — number format for the population/commitment field.
+
+The architecture carries over unchanged: the staged-evidence pipeline, the
+four-value answer schema with note enforcement, severity-tiered questions,
+exception aging, and the thematic observations view are audit-generic. The
+IA form's "ratio engine" becomes a sampling block (coverage, completion,
+exception rate vs tolerable) with the same independent-vs-asserted variance
+mechanics.
 
 ## Build standards
 

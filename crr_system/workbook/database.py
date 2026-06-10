@@ -40,6 +40,7 @@ def build_database(wb, credits):
 
     for i, cr in enumerate(credits):
         write_credit_row(ws, i + 2, cr)
+    st.band_rows(ws, 2, len(credits) + 1, 1, len(DB_HEADERS))
 
     n = len(credits) + 1
     ws.auto_filter.ref = f"A1:X{n}"
@@ -100,6 +101,7 @@ def build_responses(wb, responses):
 
     for i, rp in enumerate(responses):
         write_response_row(ws, i + 2, rp)
+    st.band_rows(ws, 2, len(responses) + 1, 1, len(RESP_HEADERS))
 
     ws.auto_filter.ref = f"A1:N{len(responses) + 1}"
     return ws

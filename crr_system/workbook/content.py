@@ -231,6 +231,75 @@ SEGMENTS = {
             ("ARG-R5", "Net Charge-Off ($000)", "=[Prior Charge-Offs ($000)]-[Recoveries to Date ($000)]", "usd", None, None),
         ],
     },
+    "IA": {
+        "name": "Internal Audit (Generic)",
+        "sheet": "LS_IA",
+        # Generic audit-shop template: skips the credit-specific core question
+        # set and relabels the form for engagement/control testing. Copy this
+        # block to build other non-credit review programs.
+        "use_core_questions": False,
+        "form_title": "Internal Audit — Test Work Sheet",
+        "asserted_label": "Per Mgmt (Asserted)",
+        "independent_label": "IA Re-Performed",
+        "header_labels": {
+            "credit_id": "Engagement ID", "borrower": "Auditable Entity",
+            "commitment": "Population ($000 or units)", "review_type": "Engagement Type",
+            "review_date": "Fieldwork Date", "fin_date": "Period Under Audit (End)",
+            "reviewer": "Auditor", "subtype": "Process / Cycle",
+            "lob_grade": "Mgmt Self-Assessed Rating (1-8)",
+            "crr_grade": "IA Concluded Rating (1-8)",
+            "category": "Rating Category (mapped)",
+            "concurrence": "IA vs Mgmt Concurrence",
+            "section_a": "A.  Engagement Identification",
+        },
+        "commitment_fmt": "num",
+        "sections_extra": [
+            ("Engagement Planning & Scoping", [
+                ("Engagement objectives and scope are documented and approved before fieldwork.", HIGH),
+                ("Risk assessment supports the audit scope and the controls selected for testing.", HIGH),
+                ("Prior audit issues and external findings in scope were considered in planning.", MED),
+                ("Auditor independence and objectivity are documented (no scope conflicts).", MED),
+            ]),
+            ("Control Design Effectiveness", [
+                ("The control, as designed, addresses the stated risk and control objective.", HIGH),
+                ("Control owner, frequency, and precision level are documented and current.", MED),
+                ("Key reports / system configurations relied on by the control are validated (IPE).", HIGH),
+            ]),
+            ("Control Operating Effectiveness", [
+                ("Sample size and selection method conform to the audit sampling methodology.", HIGH),
+                ("Testing covers the full period under audit, including period-end activity.", MED),
+                ("All sample exceptions are evaluated, dispositioned, and extrapolated where required.", HIGH),
+                ("Compensating controls are identified and tested where the primary control failed.", MED),
+            ]),
+            ("Evidence & Workpaper Documentation", [
+                ("Workpapers allow re-performance: source, population, sample, and results are traceable.", HIGH),
+                ("Evidence is retained per the records schedule and references tie to the audit program.", MED),
+                ("Conclusions in the workpaper are consistent with the evidence documented.", HIGH),
+            ]),
+            ("Reporting & Issue Management", [
+                ("Findings are risk-rated per methodology and agreed with the issue owner.", HIGH),
+                ("Management action plans have owners and realistic target dates.", MED),
+                ("Report conclusions are supported by the documented test results.", HIGH),
+            ]),
+            ("Follow-Up & Remediation", [
+                ("Past-due issues are escalated per policy.", MED),
+                ("Issue closure is supported by independent validation, not management attestation alone.", HIGH),
+            ]),
+        ],
+        "inputs": [
+            ("Population Size (items)", "num", "Per system extract; reconcile to source"),
+            ("Sample Size (items)", "num", "Per sampling methodology"),
+            ("Items Tested (items)", "num", ""),
+            ("Exceptions Found (items)", "num", ""),
+            ("Tolerable Exception Rate (%)", "pct", "Key assumption - per audit methodology"),
+        ],
+        "ratios": [
+            ("IA-R1", "Sample Coverage (of population)", "=IF([Population Size (items)]=0,\"n/m\",[Sample Size (items)]/[Population Size (items)])", "pct", None, None),
+            ("IA-R2", "Test Completion (tested / sample)", "=IF([Sample Size (items)]=0,\"n/m\",[Items Tested (items)]/[Sample Size (items)])", "pct", None, None),
+            ("IA-R3", "Sample Exception Rate", "=IF([Items Tested (items)]=0,\"n/m\",[Exceptions Found (items)]/[Items Tested (items)])", "pct", None, None),
+            ("IA-R4", "Exceptions vs Tolerable (pp)", "=IF([Items Tested (items)]=0,\"n/m\",[Exceptions Found (items)]/[Items Tested (items)]-[Tolerable Exception Rate (%)])", "pct", None, None),
+        ],
+    },
     "COMP": {
         "name": "General Compliance Crosswalk",
         "sheet": "LS_COMP",
@@ -257,12 +326,19 @@ SEGMENTS = {
 CORE_QUESTIONS = _CORE
 
 # Extension point: copy this template into SEGMENTS to add a new segment.
+# All keys below "ratios" are optional; the IA segment shows them in use -
+# set use_core_questions False and supply header_labels to repurpose the
+# template for non-credit review programs (internal audit, compliance QA).
 SEGMENT_TEMPLATE = {
     "name": "<display name>",
     "sheet": "LS_<CODE>",
     "sections_extra": [("<segment-specific section>", [("<question>", MED)])],
     "inputs": [("<input label> ($000)", "usd", "<note>")],
     "ratios": [],
+    "use_core_questions": True,
+    "form_title": None,           # default: "<name> — Credit Risk Review Line Sheet"
+    "asserted_label": None,       # default: "Per CAM (Asserted)"
+    "header_labels": {},          # override Section A field labels by key
 }
 
 RATING_SCALE = [
@@ -278,12 +354,17 @@ RATING_SCALE = [
 
 
 def question_rows(segment_code: str):
-    """Yield (qid, section, question, severity) for a segment: core + extras."""
+    """Yield (qid, section, question, severity) for a segment: core + extras.
+
+    Segments with use_core_questions=False (e.g. the generic IA template)
+    skip the credit-specific core set and use only their own sections.
+    """
     seg = SEGMENTS[segment_code]
     n = 0
-    for section, question, severity in CORE_QUESTIONS:
-        n += 1
-        yield (f"{segment_code}-Q{n:02d}", section, question, severity)
+    if seg.get("use_core_questions", True):
+        for section, question, severity in CORE_QUESTIONS:
+            n += 1
+            yield (f"{segment_code}-Q{n:02d}", section, question, severity)
     for section, questions in seg["sections_extra"]:
         for question, severity in questions:
             n += 1

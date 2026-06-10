@@ -56,8 +56,14 @@ C&I / Commercial (reference template) · CRE (with FIRREA/USPAP appraisal
 checklist and property subtypes) · Leveraged Lending (add-back scrutiny,
 repayment-capacity test, dated 2013-guidance crosswalk) · ABL (borrowing-base
 mechanics) · ARG / Workout (ASC 326, nonaccrual, exit strategy) · General
-Compliance (rating scale, CECL linkage, flood/HMDA touchpoints). New segments
-are config entries in `workbook/content.py`, not code changes.
+Compliance (rating scale, CECL linkage, flood/HMDA touchpoints) ·
+**Internal Audit (Generic)** — a non-credit template for general audit shops:
+engagement scoping, control design/operating effectiveness, evidence and
+workpaper standards, issue management, and a sampling block (coverage,
+exception rate vs tolerable). It opts out of the credit core questions and
+relabels the form (Engagement ID, Auditable Entity, IA Re-Performed vs Per
+Mgmt Asserted), showing how to repurpose the template for any review program.
+New segments are config entries in `workbook/content.py`, not code changes.
 
 ## Versioning proof (test fixture)
 

@@ -62,6 +62,7 @@ HEADERS_ASSERT = [
 
 
 def _style_header(ws, headers, widths):
+    ws.sheet_view.showGridLines = False
     for col, (h, w) in enumerate(zip(headers, widths), start=1):
         c = ws.cell(row=1, column=col, value=h)
         c.font = Font(name=FONT, size=10, bold=True, color="FFFFFF")

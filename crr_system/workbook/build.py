@@ -121,6 +121,7 @@ def build_home(wb):
         ("LS_ABL", "Asset-Based Lending line sheet"),
         ("LS_ARG", "ARG / Workout line sheet"),
         ("LS_COMP", "General Compliance line sheet"),
+        ("LS_IA", "Internal Audit test sheet - generic template for audit shops"),
         ("Database", "One row per credit per review"),
         ("Responses", "One row per question per credit"),
         ("Dash_Portfolio", "Portfolio overview & grade migration"),
@@ -319,7 +320,7 @@ def simulate_reviewer_confirmation(out_path: Path):
 # ---------------------------------------------------------------------------
 
 SHEET_ORDER = ["Home", "Settings", "Lists", "Questions",
-               "LS_CI", "LS_CRE", "LS_LL", "LS_ABL", "LS_ARG", "LS_COMP",
+               "LS_CI", "LS_CRE", "LS_LL", "LS_ABL", "LS_ARG", "LS_COMP", "LS_IA",
                "Database", "Responses",
                "Dash_Portfolio", "Dash_Exceptions", "Obs_View",
                "Dash_Concentration", "Dash_Trends",
@@ -329,6 +330,7 @@ TAB_COLORS = {
     "Home": st.NAVY, "Settings": st.NAVY, "Lists": "BF8F00", "Questions": "BF8F00",
     "LS_CI": st.MID_BLUE, "LS_CRE": st.MID_BLUE, "LS_LL": st.MID_BLUE,
     "LS_ABL": st.MID_BLUE, "LS_ARG": st.MID_BLUE, "LS_COMP": st.MID_BLUE,
+    "LS_IA": st.MID_BLUE,
     "Database": "808080", "Responses": "808080",
     "Dash_Portfolio": "548235", "Dash_Exceptions": "548235", "Obs_View": "548235",
     "Dash_Concentration": "548235", "Dash_Trends": "548235",
@@ -347,10 +349,13 @@ def finish(out_path: Path):
         if name in wb.sheetnames:
             wb[name].sheet_properties.tabColor = color
     for ws in wb.worksheets:
+        ws.sheet_view.showGridLines = False
         ws.page_setup.orientation = "landscape"
         ws.page_setup.fitToWidth = 1
         ws.page_setup.fitToHeight = 0
         ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+        ws.page_margins.left = ws.page_margins.right = 0.4
+        ws.page_margins.top = ws.page_margins.bottom = 0.5
     wb.active = 0
     wb.save(out_path)
 

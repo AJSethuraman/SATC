@@ -1,7 +1,10 @@
-"""Shared styling for the CRR workbook (industry model conventions).
+"""Shared styling for the CRR workbook.
 
-Blue = hardcoded inputs, Black = formulas, Green = cross-sheet links,
-Yellow fill = key assumptions. Arial throughout.
+Design language: report, not spreadsheet. No gridlines, no boxed cell grids -
+tables use hairline row separators and banded fills; titles are dark text on
+white with a navy accent rule; KPIs render as soft cards. Financial-model
+text conventions still apply: blue = inputs, black = formulas, green =
+cross-sheet links, yellow fill = key assumptions. Arial throughout.
 """
 
 from __future__ import annotations
@@ -11,35 +14,46 @@ from openpyxl.utils import get_column_letter
 
 FONT = "Arial"
 
+INK = "1F2937"          # near-black slate for headings
 NAVY = "1F3864"
 MID_BLUE = "2E5597"
 LIGHT_BLUE = "D9E2F3"
 PALE = "F2F6FC"
+BAND = "F7F9FC"         # alternate-row band
+HAIR = "E3E8F0"         # hairline separators
 AMBER = "FFF2CC"
+GOLD = "D9A441"
 PALE_RED = "FCE4E4"
 PALE_GREEN = "E2EFDA"
-GREY = "808080"
+GREY = "8A93A2"
 LIGHT_GREY = "F2F2F2"
+
+CHART_COLORS = ["2E5597", "C0504D", "D9A441", "6FA287", "8496B0", "9E5BA5"]
 
 INPUT_FONT = Font(name=FONT, size=10, color="0000FF")
 FORMULA_FONT = Font(name=FONT, size=10, color="000000")
 LINK_FONT = Font(name=FONT, size=10, color="008000")
-BODY_FONT = Font(name=FONT, size=10)
-BOLD_FONT = Font(name=FONT, size=10, bold=True)
+BODY_FONT = Font(name=FONT, size=10, color=INK)
+BOLD_FONT = Font(name=FONT, size=10, bold=True, color=INK)
 SMALL_FONT = Font(name=FONT, size=8, color=GREY, italic=True)
-TITLE_FONT = Font(name=FONT, size=16, bold=True, color="FFFFFF")
-H2_FONT = Font(name=FONT, size=11, bold=True, color="FFFFFF")
-H3_FONT = Font(name=FONT, size=10, bold=True, color=NAVY)
+TITLE_FONT = Font(name=FONT, size=17, bold=True, color=INK)
+SUBTITLE_FONT = Font(name=FONT, size=9.5, italic=True, color=GREY)
+H2_FONT = Font(name=FONT, size=10.5, bold=True, color=NAVY)
+H3_FONT = Font(name=FONT, size=10.5, bold=True, color=NAVY)
+TH_FONT = Font(name=FONT, size=9, bold=True, color=NAVY)
 
 TITLE_FILL = PatternFill("solid", start_color=NAVY)
-SECTION_FILL = PatternFill("solid", start_color=MID_BLUE)
-SUBHEAD_FILL = PatternFill("solid", start_color=LIGHT_BLUE)
+SECTION_FILL = PatternFill("solid", start_color=PALE)
+SUBHEAD_FILL = PatternFill("solid", start_color=PALE)
 ASSUMPTION_FILL = PatternFill("solid", start_color="FFFF00")
-BAND_FILL = PatternFill("solid", start_color=PALE)
+BAND_FILL = PatternFill("solid", start_color=BAND)
 
-THIN = Side(style="thin", color="BFBFBF")
-BOX = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
-BOTTOM = Border(bottom=THIN)
+_HAIR_SIDE = Side(style="thin", color=HAIR)
+_RULE_SIDE = Side(style="medium", color=NAVY)
+THIN = _HAIR_SIDE
+BOX = Border(bottom=_HAIR_SIDE)            # hairline under each table row
+RULE = Border(bottom=_RULE_SIDE)           # heavier rule under table headers
+BOTTOM = Border(bottom=_HAIR_SIDE)
 
 WRAP_TOP = Alignment(vertical="top", wrap_text=True)
 CENTER = Alignment(horizontal="center", vertical="center")
@@ -55,42 +69,46 @@ FMT_DATE = "mm/dd/yyyy"
 
 
 def title_bar(ws, text, last_col, row=1, subtitle=None):
-    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=last_col)
-    c = ws.cell(row=row, column=1, value=text)
+    """Editorial title: large dark heading, grey subtitle, navy accent rule."""
+    c = ws.cell(row=row, column=2 if last_col > 2 else 1, value=text)
     c.font = TITLE_FONT
-    c.fill = TITLE_FILL
-    c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-    ws.row_dimensions[row].height = 28
-    for col in range(1, last_col + 1):
-        ws.cell(row=row, column=col).fill = TITLE_FILL
+    c.alignment = Alignment(horizontal="left", vertical="bottom")
+    ws.row_dimensions[row].height = 30
+    sub_row = row + 1
     if subtitle:
-        ws.merge_cells(start_row=row + 1, start_column=1, end_row=row + 1, end_column=last_col)
-        s = ws.cell(row=row + 1, column=1, value=subtitle)
-        s.font = Font(name=FONT, size=10, italic=True, color="FFFFFF")
-        s.fill = SECTION_FILL
-        s.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-        for col in range(1, last_col + 1):
-            ws.cell(row=row + 1, column=col).fill = SECTION_FILL
+        s = ws.cell(row=sub_row, column=2 if last_col > 2 else 1, value=subtitle)
+        s.font = SUBTITLE_FONT
+        s.alignment = Alignment(horizontal="left", vertical="top", wrap_text=False)
+        ws.row_dimensions[sub_row].height = 14
+    rule_row = sub_row + 1 if subtitle else sub_row
+    for col in range(2 if last_col > 2 else 1, last_col + 1):
+        ws.cell(row=rule_row, column=col).fill = TITLE_FILL
+    ws.cell(row=rule_row, column=last_col).fill = PatternFill("solid", start_color=GOLD)
+    ws.row_dimensions[rule_row].height = 3
 
 
 def section_bar(ws, row, text, first_col=1, last_col=8):
-    ws.merge_cells(start_row=row, start_column=first_col, end_row=row, end_column=last_col)
-    c = ws.cell(row=row, column=first_col, value=text)
+    """Slim section header: navy accent block + pale band + navy label."""
+    a = ws.cell(row=row, column=first_col)
+    a.fill = TITLE_FILL
+    for col in range(first_col + 1, last_col + 1):
+        ws.cell(row=row, column=col).fill = SECTION_FILL
+    c = ws.cell(row=row, column=first_col + 1, value=text)
     c.font = H2_FONT
     c.fill = SECTION_FILL
-    c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-    for col in range(first_col, last_col + 1):
-        ws.cell(row=row, column=col).fill = SECTION_FILL
-    ws.row_dimensions[row].height = 18
+    c.alignment = Alignment(horizontal="left", vertical="center")
+    ws.row_dimensions[row].height = 17
 
 
-def col_headers(ws, row, headers, start_col=1, fill=SUBHEAD_FILL, height=24):
+def col_headers(ws, row, headers, start_col=1, fill=None, height=22):
+    """Report-style table header: bold navy text over a medium navy rule."""
     for i, h in enumerate(headers, start=start_col):
         c = ws.cell(row=row, column=i, value=h)
-        c.font = Font(name=FONT, size=9, bold=True, color=NAVY)
-        c.fill = fill
-        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        c.border = BOX
+        c.font = TH_FONT
+        if fill is not None:
+            c.fill = fill
+        c.alignment = Alignment(horizontal="center", vertical="bottom", wrap_text=True)
+        c.border = RULE
     ws.row_dimensions[row].height = height
 
 
@@ -110,3 +128,66 @@ def style_cell(c, *, font=None, fmt=None, fill=None, border=BOX, align=None):
     if align:
         c.alignment = align
     return c
+
+
+def band_rows(ws, first_row, last_row, first_col, last_col):
+    """Alternate-row banding for data tables (replaces cell-grid borders)."""
+    for r in range(first_row, last_row + 1):
+        if (r - first_row) % 2 == 1:
+            for col in range(first_col, last_col + 1):
+                cell = ws.cell(row=r, column=col)
+                if cell.fill is None or cell.fill.patternType is None:
+                    cell.fill = BAND_FILL
+
+
+def kpi_card(ws, row, col, label, formula, fmt=FMT_NUM, color=NAVY):
+    """Soft KPI card: pale block, small-caps label, large figure."""
+    fill = PatternFill("solid", start_color=PALE)
+    lab = ws.cell(row=row, column=col, value=label.upper())
+    lab.font = Font(name=FONT, size=7.5, bold=True, color=GREY)
+    lab.alignment = Alignment(horizontal="left", vertical="bottom", indent=1, wrap_text=True)
+    lab.fill = fill
+    val = ws.cell(row=row + 1, column=col, value=formula)
+    val.font = Font(name=FONT, size=18, bold=True, color=color)
+    val.number_format = fmt
+    val.alignment = Alignment(horizontal="left", vertical="top", indent=1)
+    val.fill = fill
+    ws.row_dimensions[row].height = 16
+    ws.row_dimensions[row + 1].height = 26
+
+
+def polish_chart(chart, *, legend_pos="b"):
+    """Strip the default-Excel chart look: no frame, soft gridlines, palette."""
+    from openpyxl.chart.axis import ChartLines
+    from openpyxl.chart.shapes import GraphicalProperties as GraphicProperties
+    from openpyxl.drawing.line import LineProperties
+
+    chart.graphical_properties = GraphicProperties(
+        solidFill="FFFFFF", ln=LineProperties(noFill=True))
+    if chart.legend is not None:
+        chart.legend.position = legend_pos
+        chart.legend.overlay = False
+    for axis in ("y_axis", "x_axis"):
+        ax = getattr(chart, axis, None)
+        if ax is None:
+            continue
+        ax.spPr = GraphicProperties(ln=LineProperties(solidFill=HAIR))
+        if axis == "y_axis":
+            ax.majorGridlines = ChartLines(
+                spPr=GraphicProperties(ln=LineProperties(solidFill=HAIR)))
+        else:
+            ax.majorGridlines = None
+    from openpyxl.chart import LineChart, PieChart
+
+    if isinstance(chart, PieChart):
+        return chart  # no axes; keep per-slice default colors (frame already stripped)
+    for i, series in enumerate(getattr(chart, "series", [])):
+        color = CHART_COLORS[i % len(CHART_COLORS)]
+        if isinstance(chart, LineChart):
+            series.graphicalProperties = GraphicProperties(
+                ln=LineProperties(solidFill=color, w=22000))
+            series.smooth = False
+        else:
+            series.graphicalProperties = GraphicProperties(
+                solidFill=color, ln=LineProperties(noFill=True))
+    return chart
