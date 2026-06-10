@@ -115,6 +115,14 @@ is missing, EBITDA-based metrics for that company-year are recorded as missing
   caveats block — printed every time. A loud **LOW CONFIDENCE** banner appears
   for any thin tier.
 
+## Example outputs
+
+See [`examples/`](examples/) for illustrative output files —
+`sample_food_dist.summary.md` (the readable per-tier report) and
+`sample_food_dist.csv` (the auditable raw feed). These are generated from
+**synthetic** data (`examples/generate_examples.py`) to show the format and the
+cross-tier story; they are not real EDGAR figures.
+
 ## Determinism & reproducibility
 
 - **Fully local and deterministic.** No LLM calls, no randomness. Same inputs +

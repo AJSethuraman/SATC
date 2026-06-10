@@ -10,6 +10,11 @@
 food_dist*
 *.csv
 
+# ...but keep the committed illustrative example outputs
+!examples/
+!examples/*.csv
+!examples/*.summary.md
+
 # Python
 __pycache__/
 *.py[cod]
