@@ -90,9 +90,22 @@ def test_golden_line_management(review) -> None:
     assert s["increase_share_below_prime"] == GOLDEN(0.6274509803921569, rel=1e-12)
 
 
+def test_golden_time_series(review) -> None:
+    s = _summary(review, "portfolio_time_series")
+    assert s["months_observed"] == 36
+    assert s["latest_dpd30plus_rate"] == GOLDEN(0.023123598896361442, rel=1e-12)
+    assert s["dpd30plus_yoy_delta"] == GOLDEN(-0.036039723492061276, rel=1e-12)
+    assert s["gross_co_rate_yoy_delta"] == GOLDEN(0.04021524083250968, rel=1e-12)
+    assert s["balance_growth_12m"] == GOLDEN(0.41717983026019323, rel=1e-12)
+
+
 def test_golden_exceptions(review) -> None:
+    # The 36-month fixture is a young, still-ramping book: the YoY charge-off
+    # and balance-growth trend checks legitimately fire on it.
     flags = [(e.severity, e.metric, e.summary_key) for e in review.exceptions]
     assert flags == [
+        ("EXCEPTION", "portfolio_time_series", "gross_co_rate_yoy_delta"),
+        ("EXCEPTION", "portfolio_time_series", "balance_growth_12m"),
         ("EXCEPTION", "concentration", "max_vintage_year_share"),
         ("WATCH", "recovery_trends", "recovery_rate_t12"),
         ("EXCEPTION", "line_management", "increase_share_below_prime"),

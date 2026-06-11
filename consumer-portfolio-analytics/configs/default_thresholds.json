@@ -5,6 +5,11 @@
       "max_dpd30plus_balance_rate": 0.035,
       "max_dpd90plus_balance_rate": 0.018
     },
+    "time_series": {
+      "max_dpd30plus_yoy_delta": 0.010,
+      "max_gross_co_rate_yoy_delta": 0.015,
+      "max_balance_growth_12m": 0.40
+    },
     "roll_rates": {
       "max_current_to_dpd30": 0.013,
       "max_dpd30_to_dpd60": 0.50,

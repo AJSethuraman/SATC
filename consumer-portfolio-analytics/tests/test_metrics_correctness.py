@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from ucpa.metrics.charge_offs import compute_charge_off_rates, compute_recovery_trends
+from ucpa.metrics.time_series import compute_portfolio_time_series
 from ucpa.metrics.delinquency import compute_delinquency_distribution
 from ucpa.metrics.migration import compute_migration_matrix
 from ucpa.metrics.utilization import compute_utilization_distribution
@@ -88,6 +89,23 @@ def test_vintage_curves_toy(toy_tape: pd.DataFrame) -> None:
     summary = result.tables["cohort_summary"].set_index("cohort")
     assert summary.loc["2023Q2", "orig_credit_line"] == pytest.approx(800.0, **APPROX)
     assert summary.loc["2023Q2", "cum_loss_latest"] == pytest.approx(0.5, **APPROX)
+
+
+def test_portfolio_time_series_toy(toy_tape: pd.DataFrame) -> None:
+    result = compute_portfolio_time_series(toy_tape)
+    monthly = result.tables["monthly"]
+    # Open balances by month: m1 = 1000 (A1-A4), m2 = 400, m3 = 400.
+    assert monthly["open_balance"].tolist() == [1000.0, 400.0, 400.0]
+    assert monthly["open_accounts"].tolist() == [4, 3, 3]
+    # m1: A3 DPD30 (300) + A4 DPD120 (400) = 700/1000; m3: A2 DPD60 200/400.
+    assert monthly["dpd30plus_rate"].tolist() == pytest.approx([0.7, 0.5, 0.5], **APPROX)
+    assert monthly["gross_charge_offs"].tolist() == [0.0, 400.0, 0.0]
+    assert monthly["recoveries"].tolist() == [0.0, 0.0, 50.0]
+    # Panel too short for any year-over-year headline: report None, not a guess.
+    assert result.summary["months_observed"] == 3
+    assert result.summary["dpd30plus_yoy_delta"] is None
+    assert result.summary["gross_co_rate_yoy_delta"] is None
+    assert result.summary["balance_growth_12m"] is None
 
 
 def test_utilization_distribution_toy(toy_tape: pd.DataFrame) -> None:

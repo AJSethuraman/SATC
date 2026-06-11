@@ -67,6 +67,9 @@ def test_end_to_end_degraded_tier0(small_tape: pd.DataFrame, tmp_path) -> None:
 
     computed = {r.metric for r in review.metric_results if r.status != "blocked"}
     assert computed == {"delinquency_distribution", "concentration"}
+    # Snapshot tapes get no trend analytics: time series must be blocked.
+    blocked_names = {r.metric for r in review.metric_results if r.status == "blocked"}
+    assert "portfolio_time_series" in blocked_names
     # Every blocked metric leaves a structured data-gap finding.
     blocked = [r for r in review.metric_results if r.status == "blocked"]
     assert all(r.gaps for r in blocked)

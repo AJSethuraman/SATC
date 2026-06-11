@@ -111,6 +111,9 @@ _HEADLINES: tuple[tuple[str, str, str, str], ...] = (
     # (metric, summary_key, label, number_format)
     ("delinquency_distribution", "dpd30plus_balance_rate", "30+ DPD balance rate", PCT),
     ("delinquency_distribution", "dpd90plus_balance_rate", "90+ DPD balance rate", PCT),
+    ("portfolio_time_series", "dpd30plus_yoy_delta", "30+ DPD rate YoY change (pp)", PCT),
+    ("portfolio_time_series", "gross_co_rate_yoy_delta", "Gross CO rate YoY change (pp)", PCT),
+    ("portfolio_time_series", "balance_growth_12m", "Open-balance growth (12m)", PCT),
     ("migration_matrix", "current_to_dpd30", "Current -> 30DPD monthly roll ($)", PCT),
     ("migration_matrix", "dpd30_cure_rate", "30DPD cure rate ($)", PCT),
     ("charge_off_rates", "gross_co_rate_t12", "Gross charge-off rate (T12 ann.)", PCT),
@@ -258,63 +261,68 @@ def _line_chart(
     ws.add_chart(chart, anchor)
 
 
+_TS_FORMATS = {
+    "open_balance": MONEY,
+    "balance_current": MONEY,
+    "balance_dpd30": MONEY,
+    "balance_dpd60": MONEY,
+    "balance_dpd90": MONEY,
+    "balance_dpd120": MONEY,
+    "gross_charge_offs": MONEY,
+    "recoveries": MONEY,
+    "dpd30plus_rate": PCT,
+    "dpd90plus_rate": PCT,
+    "gross_co_rate_ann": PCT,
+    "portfolio_utilization": PCT,
+    "high_util_balance_share": PCT,
+}
+
+
 def _card_detail(ws: Worksheet, review: ReviewResult) -> None:
     row = _title(ws, 1, "Card Portfolio Detail -- monthly time series")
-    dq = review.result_for("delinquency_distribution")
-    co = review.result_for("charge_off_rates")
+    ts = review.result_for("portfolio_time_series")
+    if _blocked_note(ws, row, ts, "portfolio_time_series"):
+        ws.cell(
+            row=row + 2,
+            column=1,
+            value="Trend analytics require a monthly longitudinal panel (Tier 1).",
+        ).font = Font(italic=True)
+        return
+    assert ts is not None
 
-    if dq is not None and "trend" in dq.tables:
-        trend = dq.tables["trend"]
-        row = _section(ws, row, "Delinquency trend")
-        start = row
-        row = _write_table(
-            ws,
-            row,
-            trend,
-            formats={
-                "total_balance": MONEY,
-                "dpd30plus_balance_rate": PCT,
-                "dpd90plus_balance_rate": PCT,
-            },
-        )
-        n = len(trend)
+    monthly = ts.tables["monthly"]
+    cols = list(monthly.columns)
+    n = len(monthly)
+    row = _section(ws, row, "Consolidated monthly portfolio panel")
+    start = row
+    row = _write_table(ws, row, monthly, formats=_TS_FORMATS)
+
+    def col_ref(*names: str) -> tuple[int, int]:
+        idx = [cols.index(c) + 1 for c in names if c in cols]
+        return min(idx), max(idx)
+
+    cats = Reference(ws, min_col=1, min_row=start + 1, max_row=start + n)
+    anchor_col = get_column_letter(len(cols) + 2)
+    charts: list[tuple[str, tuple[int, int], bool]] = [
+        ("30+/90+ DPD balance rate by month", col_ref("dpd30plus_rate", "dpd90plus_rate"), True),
+        ("Gross charge-off rate (annualized) by month", col_ref("gross_co_rate_ann"), True),
+        ("Open balance by month ($)", col_ref("open_balance"), False),
+    ]
+    if "portfolio_utilization" in cols:
+        charts.append(("Portfolio utilization by month", col_ref("portfolio_utilization"), True))
+    anchor_row = 3
+    for title, (lo, hi), pct in charts:
         _line_chart(
             ws,
-            "30+/90+ DPD balance rate by month",
-            Reference(ws, min_col=3, max_col=4, min_row=start, max_row=start + n),
-            Reference(ws, min_col=1, min_row=start + 1, max_row=start + n),
-            f"F{start}",
+            title,
+            Reference(ws, min_col=lo, max_col=hi, min_row=start, max_row=start + n),
+            cats,
+            f"{anchor_col}{anchor_row}",
+            y_pct=pct,
         )
-    else:
-        ws.cell(row=row, column=1, value="Delinquency trend requires a monthly panel (Tier 1).").font = Font(italic=True)
-        row += 2
+        anchor_row += 17
 
-    if co is not None and co.status != "blocked":
-        monthly = co.tables["monthly"]
-        row = _section(ws, row, "Charge-offs, recoveries and outstandings by month")
-        start = row
-        fmt = {
-            "open_balance": MONEY,
-            "gross_charge_offs": MONEY,
-            "recoveries": MONEY,
-            "net_charge_offs": MONEY,
-            "gross_co_rate_annualized": PCT,
-        }
-        row = _write_table(ws, row, monthly, formats=fmt)
-        n = len(monthly)
-        rate_col = list(monthly.columns).index("gross_co_rate_annualized") + 1
-        _line_chart(
-            ws,
-            "Gross charge-off rate (annualized) by month",
-            Reference(ws, min_col=rate_col, max_col=rate_col, min_row=start, max_row=start + n),
-            Reference(ws, min_col=1, min_row=start + 1, max_row=start + n),
-            f"J{start}",
-        )
-    else:
-        _blocked_note(ws, row, co, "charge_off_rates")
-        row += 2
-
-    _autosize(ws, (14, 14, 16, 16, 14, 16, 22))
+    _autosize(ws, tuple([14] + [13] * (len(cols) - 1)))
 
 
 def _migration_sheet(ws: Worksheet, review: ReviewResult) -> None:

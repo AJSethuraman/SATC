@@ -26,6 +26,7 @@ from ucpa.metrics.charge_offs import compute_charge_off_rates, compute_recovery_
 from ucpa.metrics.concentration import compute_concentration
 from ucpa.metrics.delinquency import compute_delinquency_distribution
 from ucpa.metrics.migration import compute_migration_matrix
+from ucpa.metrics.time_series import compute_portfolio_time_series
 from ucpa.metrics.utilization import compute_line_management, compute_utilization_distribution
 from ucpa.metrics.vintage import compute_vintage_curves
 from ucpa.products.base import MetricSpec, ProductModule, ThresholdCheck
@@ -65,6 +66,23 @@ class CreditCardModule(ProductModule):
                 checks=(
                     ThresholdCheck(f"{cc}.delinquency.max_dpd30plus_balance_rate", "dpd30plus_balance_rate", "max", "30+ DPD balance rate"),
                     ThresholdCheck(f"{cc}.delinquency.max_dpd90plus_balance_rate", "dpd90plus_balance_rate", "max", "90+ DPD balance rate"),
+                ),
+            ),
+            MetricSpec(
+                name="portfolio_time_series",
+                description=(
+                    "Consolidated monthly time series of balances, bucket mix, "
+                    "originations, charge-offs, recoveries and utilization, with "
+                    "year-over-year deterioration headlines."
+                ),
+                min_tier=1,
+                required_fields=_T0,
+                requires_panel=True,
+                compute=compute_portfolio_time_series,
+                checks=(
+                    ThresholdCheck(f"{cc}.time_series.max_dpd30plus_yoy_delta", "dpd30plus_yoy_delta", "max", "30+ DPD rate YoY change (pp)"),
+                    ThresholdCheck(f"{cc}.time_series.max_gross_co_rate_yoy_delta", "gross_co_rate_yoy_delta", "max", "Gross CO rate (T12) YoY change (pp)"),
+                    ThresholdCheck(f"{cc}.time_series.max_balance_growth_12m", "balance_growth_12m", "max", "Open-balance growth over 12 months"),
                 ),
             ),
             MetricSpec(

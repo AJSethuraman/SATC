@@ -49,7 +49,7 @@ Outputs: `outputs/card_review_<tier>_<seed>.xlsx` (primary deliverable) and
 | 2 | Tier detector | `ucpa.tier_detector` | Classifies a tape as Tier 0/1/2 and lists what is missing for the next tier |
 | 3 | Metric engine | `ucpa.engine` + `ucpa.metrics.*` | Computes the full card battery; logs a structured data-gap finding for everything the tier cannot support |
 | 4 | Config/test layer | `ucpa.thresholds` + `configs/default_thresholds.json` | Standard-methodology limits per metric, deep-merge overridable per client; flags EXCEPTION/WATCH |
-| 5 | Excel output | `ucpa.excel_report` | Formatted workbook: dashboard, card detail, migration matrix, vintage curves, concentration, utilization — with embedded charts |
+| 5 | Excel output | `ucpa.excel_report` | Formatted workbook: dashboard, card detail (full monthly time-series panel with trend charts), migration matrix, vintage curves, concentration, utilization — with embedded charts |
 | 6 | Findings doc (stub) | `ucpa.findings_template` | Structured Markdown template with computed numbers laid out and `[ANALYST TO COMPLETE]` placeholders — interpretive opinions are human-supplied, never generated |
 
 Layers are decoupled: a real client tape (any DataFrame conforming to the
@@ -83,6 +83,7 @@ and appears on the workbook dashboard and in the findings template.
 | Metric | Min tier | Definition |
 |--------|----------|------------|
 | Delinquency distribution | 0 | Account/balance mix across buckets at latest month; 30+/90+ DPD balance rates (FRED `DRCCLACBS` convention); monthly trend on panel tapes |
+| Portfolio time series | 1 | Consolidated monthly panel: open accounts/balance, originations, balance by bucket, 30+/90+ rates, gross COs, recoveries, annualized CO rate, utilization — with YoY-deterioration headlines (30+ rate YoY change, T12 CO rate YoY change, 12-month balance growth) |
 | Migration / roll-rate matrix | 1 | For every consecutive month pair, transitions between buckets, account- and dollar-weighted, row-normalized; charge-off is absorbing; headline current→30 and 30→60 rolls plus 30DPD cure rate |
 | Vintage cumulative-loss curves | 1 | Cohort = origination quarter; cumulative gross charge-off $ through each month-on-book / cohort total credit line at origination; recent-vs-seasoned comparison at MOB 12 |
 | Concentration | 0 (partial) | Balance shares + HHI by score band (T1), vintage year (T0), line size (T1); blocked dimensions logged as gaps |
