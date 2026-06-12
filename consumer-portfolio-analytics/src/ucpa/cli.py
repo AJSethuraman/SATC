@@ -32,7 +32,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--seed", type=int, default=42, help="generator seed (default 42)")
     parser.add_argument("--accounts", type=int, default=4000, help="number of synthetic accounts")
-    parser.add_argument("--months", type=int, default=54, help="panel length in months")
+    parser.add_argument("--months", type=int, default=78, help="panel length in months")
     parser.add_argument(
         "--degrade-to",
         type=int,

@@ -35,7 +35,7 @@ python -m ucpa.cli --degrade-to 0 --outdir outputs
 # Client-specific thresholds
 python -m ucpa.cli --config client_thresholds.json --outdir outputs
 
-pytest                          # 44 tests, ~4s
+pytest                          # 46 tests, ~4s
 ```
 
 Outputs: `outputs/card_review_<tier>_<seed>.xlsx` (primary deliverable) and
@@ -105,8 +105,10 @@ template.
 
 ## Synthetic generator and calibration
 
-`CardGeneratorConfig(n_accounts=4000, panel_start="2021-01", n_months=54,
-seed=42)` simulates a monthly delinquency state machine per account.
+`CardGeneratorConfig(n_accounts=4000, panel_start="2019-01", n_months=78,
+seed=42)` simulates a monthly delinquency state machine per account over a
+6.5-year window, deep enough that every vintage is observed from
+month-on-book zero and all year-over-year trend headlines are measurable.
 Deterioration is **correlated**, not random: the current→30DPD hazard is
 the product of score-band base rates, origination-vintage quality factors
 (weak 2022–2023 cohorts, per NY Fed Household Debt & Credit commentary),

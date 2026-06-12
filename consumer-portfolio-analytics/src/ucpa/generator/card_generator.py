@@ -34,12 +34,13 @@ aggregates land on published industry figures:
 * **30+ DPD delinquency rate (% of balances)** ~ 3.0%.
   Source: FRED series ``DRCCLACBS`` (Delinquency Rate on Credit Card Loans,
   All Commercial Banks), ~3.05% in Q1 2025 and ~3.2% average over 2024.
-  Default config produces ~3.1-3.3%; calibration test band: 2.5% - 3.8%.
+  Default config (78-month panel, 2019-2025) produces ~2.7-3.6% across
+  seeds; calibration test band: 2.5% - 3.8%.
 * **Annualized gross charge-off rate (% of balances)** ~ 4.0-4.5%.
   Source: FRED series ``CORCCACBS`` (Charge-Off Rate on Credit Card Loans,
   All Commercial Banks), ~3.6-4.2% over 2023 rising to ~4.4-4.7% over
-  2024 - Q1 2025.  Default config produces ~3.7-4.1%; calibration test
-  band: 3.2% - 5.2%.
+  2024 - Q1 2025.  Default config produces ~3.5-4.7% across seeds;
+  calibration test band: 3.2% - 5.2%.
 * **Recoveries** ~ 15-20% of gross charge-offs (industry rule of thumb for
   card recovery rates), so the net charge-off rate runs ~0.6-0.9pp below
   gross.
@@ -87,7 +88,7 @@ from ucpa.data_model import (
 BAND_MIX: tuple[float, ...] = (0.25, 0.45, 0.18, 0.12)
 #: Base monthly probability of rolling CURRENT -> DPD30, by band, before
 #: vintage/seasoning/idiosyncratic multipliers. Tuned to FRED targets above.
-BASE_ENTRY_PROB: tuple[float, ...] = (0.0015, 0.0046, 0.0119, 0.0255)
+BASE_ENTRY_PROB: tuple[float, ...] = (0.0016, 0.0050, 0.0129, 0.0276)
 #: Mean credit limit by band (lognormal draw around these).
 MEAN_LIMIT: tuple[float, ...] = (15000.0, 9000.0, 5000.0, 2500.0)
 #: Long-run target utilization by band when current.
@@ -141,10 +142,10 @@ class CardGeneratorConfig:
     """
 
     n_accounts: int = 4000
-    panel_start: str = "2021-01"
-    n_months: int = 54
+    panel_start: str = "2019-01"
+    n_months: int = 78
     seed: int = 42
-    origination_window_months: int = 48
+    origination_window_months: int = 72
     entry_scale: float = 1.0
     mean_recovery_rate: float = 0.17
 
@@ -179,7 +180,8 @@ def generate_card_portfolio(config: CardGeneratorConfig | None = None) -> pd.Dat
     month_starts = months.to_timestamp()  # month-start Timestamps
 
     # ---------------- static account attributes ----------------
-    orig_window = min(cfg.origination_window_months, cfg.n_months)
+    # Leave every vintage at least ~6 months of observable history.
+    orig_window = min(cfg.origination_window_months, max(cfg.n_months - 6, 1))
     orig_idx = rng.integers(0, orig_window, size=n)
     band_idx = rng.choice(len(SCORE_BANDS), size=n, p=BAND_MIX)
 

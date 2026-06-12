@@ -33,8 +33,8 @@ def test_end_to_end_tier2(small_tape: pd.DataFrame, tmp_path) -> None:
     ws = wb["Dashboard"]
     cells = {ws.cell(r, 1).value: ws.cell(r, 2).value for r in range(1, 60)}
     assert cells["Detected data tier"] == "Tier 2"
-    assert cells["Open accounts"] == 488
-    assert cells["30+ DPD balance rate"] == pytest.approx(0.023123598896361442)
+    assert cells["Open accounts"] == 490
+    assert cells["30+ DPD balance rate"] == pytest.approx(0.010977873267800774)
 
     findings = write_findings_template(review, tmp_path / "findings.md")
     text = findings.read_text()

@@ -44,12 +44,22 @@ from ucpa.data_model import (
     F_UTILIZATION,
 )
 from ucpa.metrics.common import active_rows, charge_off_events
-from ucpa.metrics.results import STATUS_COMPUTED, MetricResult
+from ucpa.metrics.results import (
+    STATUS_COMPUTED,
+    STATUS_PARTIAL,
+    DataGapFinding,
+    MetricResult,
+)
 from ucpa.tier_detector import field_present
 
 OPEN_BUCKETS = [b for b in BUCKET_ORDER if b != "CO"]
 DPD90_PLUS = ["DPD90", "DPD120"]
 HIGH_UTIL_THRESHOLD = 0.9
+
+#: Panel depth (months) required for the YoY rate/growth headlines.
+YOY_MIN_MONTHS = 13
+#: Panel depth required to compare two non-overlapping trailing-12m CO rates.
+CO_YOY_MIN_MONTHS = 24
 
 
 def _trailing12_co_rate(monthly: pd.DataFrame, end_pos: int) -> Optional[float]:
@@ -146,9 +156,43 @@ def compute_portfolio_time_series(tape: pd.DataFrame) -> MetricResult:
         "balance_growth_12m": balance_growth,
     }
 
+    # Short history is itself a finding: the trend headlines exist only when
+    # the extract window is deep enough, so tell the client to extend it.
+    gaps: list[DataGapFinding] = []
+    if n < YOY_MIN_MONTHS:
+        gaps.append(
+            DataGapFinding(
+                metric="portfolio_time_series",
+                scope="yoy_trends",
+                missing_fields=(f"panel history >= {YOY_MIN_MONTHS} months (got {n})",),
+                tier_required=1,
+                description=(
+                    f"Year-over-year delinquency and balance-growth trends require at "
+                    f"least {YOY_MIN_MONTHS} months of history; the tape covers {n}. "
+                    "Extend the extract window to enable trend analytics."
+                ),
+            )
+        )
+    elif n < CO_YOY_MIN_MONTHS:
+        gaps.append(
+            DataGapFinding(
+                metric="portfolio_time_series",
+                scope="co_rate_yoy",
+                missing_fields=(f"panel history >= {CO_YOY_MIN_MONTHS} months (got {n})",),
+                tier_required=1,
+                description=(
+                    f"Comparing two non-overlapping trailing-12-month charge-off rates "
+                    f"requires at least {CO_YOY_MIN_MONTHS} months of history; the tape "
+                    f"covers {n}. Extend the extract window to enable the charge-off "
+                    "trend headline."
+                ),
+            )
+        )
+
     return MetricResult(
         metric="portfolio_time_series",
-        status=STATUS_COMPUTED,
+        status=STATUS_PARTIAL if gaps else STATUS_COMPUTED,
         summary=summary,
         tables={"monthly": monthly.reset_index()},
+        gaps=gaps,
     )

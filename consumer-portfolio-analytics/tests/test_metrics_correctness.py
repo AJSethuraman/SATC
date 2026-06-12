@@ -101,11 +101,16 @@ def test_portfolio_time_series_toy(toy_tape: pd.DataFrame) -> None:
     assert monthly["dpd30plus_rate"].tolist() == pytest.approx([0.7, 0.5, 0.5], **APPROX)
     assert monthly["gross_charge_offs"].tolist() == [0.0, 400.0, 0.0]
     assert monthly["recoveries"].tolist() == [0.0, 0.0, 50.0]
-    # Panel too short for any year-over-year headline: report None, not a guess.
+    # Panel too short for any year-over-year headline: report None, not a
+    # guess -- and raise a structured "extend the extract window" gap finding.
     assert result.summary["months_observed"] == 3
     assert result.summary["dpd30plus_yoy_delta"] is None
     assert result.summary["gross_co_rate_yoy_delta"] is None
     assert result.summary["balance_growth_12m"] is None
+    assert result.status == "partial"
+    assert len(result.gaps) == 1
+    assert result.gaps[0].scope == "yoy_trends"
+    assert "Extend the extract window" in result.gaps[0].description
 
 
 def test_utilization_distribution_toy(toy_tape: pd.DataFrame) -> None:
