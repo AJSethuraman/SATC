@@ -114,7 +114,7 @@ def run_review(
         results.append(result)
         gaps.extend(result.gaps)
 
-    return ReviewResult(
+    review = ReviewResult(
         product_type=module.product_type,
         tier_detection=detection,
         portfolio_summary=_portfolio_summary(tape),
@@ -123,3 +123,9 @@ def run_review(
         gaps=gaps,
         thresholds_used=config,
     )
+    # Deterministic rule-based observations run last: they read the computed
+    # summaries, tables, and threshold outcomes, never the raw tape.
+    from ucpa.observations import derive_observations
+
+    review.observations = derive_observations(review)
+    return review

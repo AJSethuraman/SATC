@@ -41,6 +41,10 @@ def test_end_to_end_tier2(small_tape: pd.DataFrame, tmp_path) -> None:
     assert "[ANALYST TO COMPLETE]" in text  # interpretation left to humans
     assert "Tier 2" in text
     assert "dpd30plus_balance_rate" in text
+    # Rule-based observations appear, clearly labeled as non-conclusions.
+    assert "Automated observations (deterministic, rule-based)" in text
+    assert "(OBS-DQ-01)" in text
+    assert "NOT analytical conclusions" in text
 
 
 def test_end_to_end_degraded_tier1_reports_gaps(small_tape: pd.DataFrame, tmp_path) -> None:

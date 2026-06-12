@@ -77,6 +77,10 @@ def main(argv: list[str] | None = None) -> int:
     for e in review.exceptions:
         print(f"  [{e.severity}] {e.message}")
     print()
+    print(f"Automated observations: {len(review.observations)} (rule-based, deterministic)")
+    for o in review.observations:
+        print(f"  [{o.severity}] ({o.rule_id}) {o.text}")
+    print()
     print(f"Data-gap findings: {len(review.gaps)}")
     for g in review.gaps:
         print(f"  [{g.metric}/{g.scope}] missing: {', '.join(g.missing_fields)}")

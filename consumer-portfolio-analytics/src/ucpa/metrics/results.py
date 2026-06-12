@@ -100,6 +100,9 @@ class ReviewResult:
     exceptions: list[ThresholdException]
     gaps: list[DataGapFinding]
     thresholds_used: dict[str, object]
+    #: Deterministic rule-based observations (ucpa.observations.Observation),
+    #: derived after all metrics and threshold checks have run.
+    observations: list = field(default_factory=list)
 
     def result_for(self, metric: str) -> Optional[MetricResult]:
         """Return the result for ``metric``, or None if not present."""

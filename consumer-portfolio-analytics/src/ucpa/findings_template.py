@@ -83,6 +83,22 @@ def write_findings_template(review: ReviewResult, path: str | Path) -> Path:
         lines.append("No thresholds breached.")
     lines += ["", PLACEHOLDER, ""]
 
+    lines += [
+        "## 3a. Automated observations (deterministic, rule-based)",
+        "",
+        "_The statements below are generated mechanically by fixed rules over_",
+        "_the computed metrics (rule IDs shown). They state what the numbers_",
+        "_show; they are NOT analytical conclusions. The analyst confirms,_",
+        "_contextualizes, or rebuts each one in the sections that follow._",
+        "",
+    ]
+    if review.observations:
+        for obs in review.observations:
+            lines.append(f"- **[{obs.severity}]** ({obs.rule_id}) {obs.text}")
+    else:
+        lines.append("No observations produced (insufficient computable metrics).")
+    lines += ["", PLACEHOLDER, ""]
+
     lines += ["## 4. Metric results", ""]
     for i, result in enumerate(review.metric_results, start=1):
         lines.append(f"### 4.{i} {result.metric} -- status: {result.status}")

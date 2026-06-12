@@ -179,6 +179,29 @@ def _dashboard(ws: Worksheet, review: ReviewResult) -> None:
         row += 1
     row += 1
 
+    row = _section(ws, row, f"Automated observations -- rule-based, deterministic ({len(review.observations)})")
+    if review.observations:
+        obs_df = pd.DataFrame(
+            [
+                {"severity": o.severity, "rule": o.rule_id, "observation": o.text}
+                for o in review.observations
+            ]
+        )
+        start = row
+        row = _write_table(ws, row, obs_df)
+        for i, o in enumerate(review.observations, start=1):
+            if o.severity == "ELEVATED":
+                fill = RED_FILL
+            elif o.severity == "NOTABLE":
+                fill = AMBER_FILL
+            else:
+                continue
+            for j in range(1, len(obs_df.columns) + 1):
+                ws.cell(row=start + i, column=j).fill = fill
+    else:
+        ws.cell(row=row, column=1, value="No observations produced.")
+        row += 2
+
     row = _section(ws, row, f"Threshold exceptions ({len(review.exceptions)})")
     if review.exceptions:
         exc = pd.DataFrame(

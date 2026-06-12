@@ -35,7 +35,7 @@ python -m ucpa.cli --degrade-to 0 --outdir outputs
 # Client-specific thresholds
 python -m ucpa.cli --config client_thresholds.json --outdir outputs
 
-pytest                          # 46 tests, ~4s
+pytest                          # 56 tests, ~4s
 ```
 
 Outputs: `outputs/card_review_<tier>_<seed>.xlsx` (primary deliverable) and
@@ -94,6 +94,22 @@ and appears on the workbook dashboard and in the findings template.
 
 Every metric returns headline scalars (threshold-checkable), detail tables
 (exported to Excel), and any data-gap findings.
+
+## Automated observations (deterministic)
+
+After metrics and threshold checks, a rule-based observation layer
+(`ucpa.observations`) turns the numbers into templated, auditable
+statements of fact — e.g. *"Cohort 2023Q3 shows the highest MOB-12
+cumulative loss at 1.71%, versus a median of 0.32% across 22 measurable
+cohorts."* Each observation carries a stable rule ID and a severity
+(`INFO`/`NOTABLE`/`ELEVATED`); where an observation covers a value that
+also has a configured threshold, its severity is escalated to match the
+threshold outcome, so the two layers never contradict. Observations are
+pure code over computed results (no LLM, no raw-tape access), golden-tested
+like every other number, and are explicitly **statements of what the
+numbers show** — analytical conclusions remain the human reviewer's, and
+the findings template labels them as such. Rules skip silently when their
+metrics were blocked by data gaps.
 
 ## Threshold layer
 
