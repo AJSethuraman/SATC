@@ -196,8 +196,13 @@ class LineSheetBuilder:
         if kind == "crosscheck":
             formula = "=" + self._resolve_tokens(item["formula"]).lstrip("=")
             self._write_value_row(row, item, S.COMPUTED, formula=formula)
-            if item.get("source") is None:
-                X.write(ws, row, COL_SOURCE, "should tie to 0", S.LABEL_MUTED)
+            # A live, visible flag: "ties" when the check is ~0, else "REVIEW".
+            tol = float(item.get("tolerance", 0.5))
+            ok_text = item.get("flag_ok", "ties")
+            bad_text = item.get("flag_bad", "REVIEW")
+            flag = (f'=IF(ABS({VALUE_LETTER}{row})<={tol},'
+                    f'"{ok_text}","{bad_text}")')
+            X.write(ws, row, COL_SOURCE, flag, S.LABEL_MUTED, number_format=NF.TEXT)
             self._crosscheck_rows.append(row)
             self._add_review(row, item.get("gating", False))
             return row + 1
@@ -238,12 +243,20 @@ class LineSheetBuilder:
                 row = self._render_row(row, item)
             row += 1  # gap between sections
 
-        # Conditional formatting: crosscheck cells turn red unless they tie to zero.
+        # Conditional formatting: a crosscheck that does not tie turns the value AND
+        # the flag red; a check that ties shows its flag in green. Red is reserved
+        # for exceptions, exactly as the brand prescribes.
+        red = Font(name=S.BODY_FONT, color=C.RED, bold=True)
+        green = Font(name=S.BODY_FONT, color=C.GREEN, bold=True)
+        flag_letter = chr(64 + COL_SOURCE)
         for cc_row in self._crosscheck_rows:
-            addr = f"{VALUE_LETTER}{cc_row}"
-            rule = FormulaRule(formula=[f"ABS({addr})>0.5"],
-                               font=Font(name=S.BODY_FONT, color=C.RED, bold=True))
-            ws.conditional_formatting.add(addr, rule)
+            value_addr = f"{VALUE_LETTER}{cc_row}"
+            flag_addr = f"{flag_letter}{cc_row}"
+            not_tie = f"ABS(${VALUE_LETTER}${cc_row})>0.5"
+            ties = f"ABS(${VALUE_LETTER}${cc_row})<=0.5"
+            ws.conditional_formatting.add(value_addr, FormulaRule(formula=[not_tie], font=red))
+            ws.conditional_formatting.add(flag_addr, FormulaRule(formula=[not_tie], font=red))
+            ws.conditional_formatting.add(flag_addr, FormulaRule(formula=[ties], font=green))
 
         X.page_setup(ws, meta.get("title", "Workpaper"), orientation="portrait")
         return dict(self.line_cells)
