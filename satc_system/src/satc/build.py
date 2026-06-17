@@ -13,12 +13,14 @@ from pathlib import Path
 
 from openpyxl import Workbook
 
-from satc.config import load_line_sheet, templatize
+from satc.config import load_extraction_map, load_line_sheet, templatize
 from satc.crosswalk import CrosswalkLibrary
-from satc.fixtures import synthetic_1040_values, synthetic_identities
+from satc.fixtures import synthetic_1040_values, synthetic_documents, synthetic_identities
+from satc.ingest import MAPPING_1040, MapExtractor, StagingGate
 from satc.workbook.cover import build_cover
 from satc.workbook.line_sheet import BuildContext, LineSheetBuilder
 from satc.workbook.reference import build_reference_sheet
+from satc.workbook.staging_sheet import build_staging_sheet
 
 DEFAULT_OUT = Path(__file__).resolve().parents[2] / "build" / "SATC_Workbook.xlsx"
 
@@ -46,10 +48,22 @@ def build_demo_workbook(out_path: str | Path = DEFAULT_OUT, tax_year: int = 2024
     client = identities["SATC-001000"].to_public()
     state = client.home_state or "OH"
 
+    # Stage 1: extract synthetic source docs and run them through the gate.
+    gate = StagingGate()
+    for doc in synthetic_documents():
+        cfg = load_extraction_map(doc["doc_key"])
+        gate.add(MapExtractor(cfg).extract(
+            document_id=doc["document_id"], client_id=client.client_id,
+            tax_year=tax_year, labeled_fields=doc["labeled"]))
+    gate.auto_confirm_high()
+    confirmed_values = gate.to_line_values(MAPPING_1040)
+
     wb = Workbook()
     wb.remove(wb.active)
 
     cover = wb.create_sheet("Cover")
+    staging = wb.create_sheet("Staging")
+    build_staging_sheet(staging, gate)
     registry = _reference_sheets(wb, lib, tax_year, ["US", state])
 
     config = templatize(load_line_sheet("1040"), {"STATE": state})
@@ -57,15 +71,14 @@ def build_demo_workbook(out_path: str | Path = DEFAULT_OUT, tax_year: int = 2024
         f"Client {client.client_id} ({client.entity_type})  ·  TY{tax_year}  ·  Federal + {state}"
         "   —   Drake is the system of record."
     )
-    ctx = BuildContext(
-        xw_registry=registry,
-        values=synthetic_1040_values(tax_year),
-        default_jurisdiction="US",
-    )
+    # Confirmed intake (from the gate) overlays the synthetic workpaper values.
+    values = {**synthetic_1040_values(tax_year), **confirmed_values}
+    ctx = BuildContext(xw_registry=registry, values=values, default_jurisdiction="US")
     ls = wb.create_sheet(f"1040 — {client.client_id}")
     LineSheetBuilder(ls, config, ctx).build()
 
     contents = [
+        ("Staging", "Document extraction + confirmation gate (intake control)"),
         (f"Tax Law US {tax_year}", "Federal parameters in force, with citations"),
         (f"Tax Law {state} {tax_year}", f"{state} parameters in force, with citations"),
         (f"1040 — {client.client_id}", "Individual workpaper: intake, schedules, state, §8867, reconciliation"),

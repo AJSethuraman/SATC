@@ -1,0 +1,8 @@
+doc_type: "1099-INT"
+fields:
+  - {field_path: int.box1_interest,    label: "Box 1 - Interest income", aliases: ["interest income"], money: true}
+  - {field_path: int.box3_treasury,    label: "Box 3 - Interest on US Treasury obligations", money: true}
+  - {field_path: int.box4_fed_wh,      label: "Box 4 - Federal income tax withheld", money: true}
+  - {field_path: int.box8_tax_exempt,  label: "Box 8 - Tax-exempt interest", money: true}
+  - {field_path: int.payer_name,       label: "Payer name", money: false}
+  - {field_path: int.payer_tin,        label: "Payer TIN", money: false, sensitive: true}

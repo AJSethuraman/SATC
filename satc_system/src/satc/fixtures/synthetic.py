@@ -115,6 +115,51 @@ def synthetic_1040_values(tax_year: int = 2024) -> dict[str, object]:
     return v
 
 
+def synthetic_documents() -> list[dict]:
+    """Synthetic source documents as labeled key/value pairs (as a parser hands off).
+
+    Includes two W-2s (to exercise aggregation) and one deliberately malformed
+    money field ("see stub") to prove the gate routes it to review instead of
+    guessing. SSN/EIN use invalid/reserved ranges and are masked on staging.
+    """
+    return [
+        {"document_id": "DOC-0001", "doc_key": "w2", "labeled": {
+            "Box 1 - Wages, tips, other comp": "98,000.00",
+            "Box 2 - Federal income tax withheld": "12,500.00",
+            "Box 3 - Social Security wages": "98,000.00",
+            "Box 17 - State income tax": "3,200.00",
+            "Box 15 - State": "OH",
+            "Employer name": "Buckeye Manufacturing LLC",
+            "Employer EIN": "31-0009999",
+            "Employee SSN": "400-55-1234"}},
+        {"document_id": "DOC-0002", "doc_key": "w2", "labeled": {
+            "Box 1 - Wages, tips, other comp": "47,000.00",
+            "Box 2 - Federal income tax withheld": "5,500.00",
+            "Box 17 - State income tax": "1,800.00",
+            "Employer name": "Dublin Schools",
+            "Employer EIN": "31-0007777"}},
+        {"document_id": "DOC-0003", "doc_key": "1099int", "labeled": {
+            "Box 1 - Interest income": "1,200.00",
+            "Payer name": "Heartland Bank",
+            "Payer TIN": "34-0001111"}},
+        {"document_id": "DOC-0004", "doc_key": "1099div", "labeled": {
+            "Box 1a - Total ordinary dividends": "3,400.00",
+            "Box 1b - Qualified dividends": "see stub",  # malformed -> NEEDS_REVIEW
+            "Payer name": "Vanguard"}},
+        {"document_id": "DOC-0005", "doc_key": "k1_1120s", "labeled": {
+            "Box 1 - Ordinary business income": "12,000.00",
+            "Box 16 - Items affecting shareholder basis (distributions)": "9,000.00",
+            "Box 17 - Code V QBI": "12,000.00",
+            "Corporation EIN": "38-7654321",
+            "Shareholder ownership %": "40"}},
+        {"document_id": "DOC-0006", "doc_key": "prior_1040", "labeled": {
+            "Line 11 - Adjusted gross income": "190,000.00",
+            "Line 22 - Total tax": "24,000.00",
+            "Capital loss carryover to next year": "0",
+            "Filing status": "MFJ"}},
+    ]
+
+
 def synthetic_carryforwards() -> list[dict]:
     """A few prior-year carryforwards for the data mart / proforma demo."""
     return [

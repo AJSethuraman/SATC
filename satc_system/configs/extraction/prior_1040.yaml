@@ -1,0 +1,10 @@
+doc_type: "PRIOR-YEAR-1040"
+fields:
+  - {field_path: prior.agi,            label: "Line 11 - Adjusted gross income", aliases: ["adjusted gross income", "agi"], money: true}
+  - {field_path: prior.taxable_income, label: "Line 15 - Taxable income", money: true}
+  - {field_path: prior.total_tax,      label: "Line 22 - Total tax", aliases: ["total tax"], money: true}
+  - {field_path: prior.total_payments, label: "Line 33 - Total payments", money: true}
+  - {field_path: prior.refund,         label: "Line 34 - Overpayment / refund", money: true}
+  - {field_path: prior.overpay_applied, label: "Line 36 - Applied to next year estimates", money: true}
+  - {field_path: prior.cap_loss_cf,    label: "Capital loss carryover to next year", money: true}
+  - {field_path: prior.filing_status,  label: "Filing status", money: false}

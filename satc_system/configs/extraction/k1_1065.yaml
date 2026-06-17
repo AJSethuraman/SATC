@@ -1,0 +1,10 @@
+doc_type: "K-1-1065"
+fields:
+  - {field_path: k1p.box1_ordinary,    label: "Box 1 - Ordinary business income", aliases: ["ordinary business income"], money: true}
+  - {field_path: k1p.box2_rental,      label: "Box 2 - Net rental real estate income", money: true}
+  - {field_path: k1p.box4_guaranteed,  label: "Box 4 - Guaranteed payments", money: true}
+  - {field_path: k1p.box19_distributions, label: "Box 19 - Distributions", money: true}
+  - {field_path: k1p.box20_qbi,        label: "Box 20 - Code Z QBI", money: true}
+  - {field_path: k1p.capital_ending,   label: "Item L - Ending capital account", money: true}
+  - {field_path: k1p.partnership_ein,  label: "Partnership EIN", money: false, sensitive: true}
+  - {field_path: k1p.partner_pct,      label: "Partner profit %", money: false}

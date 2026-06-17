@@ -1,0 +1,16 @@
+doc_type: "W-2"
+fields:
+  - {field_path: w2.box1_wages,        label: "Box 1 - Wages, tips, other comp", aliases: ["wages", "box1"], money: true}
+  - {field_path: w2.box2_fed_wh,       label: "Box 2 - Federal income tax withheld", aliases: ["federal withholding", "box2"], money: true}
+  - {field_path: w2.box3_ss_wages,     label: "Box 3 - Social Security wages", aliases: ["box3"], money: true}
+  - {field_path: w2.box4_ss_tax,       label: "Box 4 - Social Security tax", aliases: ["box4"], money: true}
+  - {field_path: w2.box5_medicare_wages, label: "Box 5 - Medicare wages", aliases: ["box5"], money: true}
+  - {field_path: w2.box6_medicare_tax, label: "Box 6 - Medicare tax", aliases: ["box6"], money: true}
+  - {field_path: w2.box12_code,        label: "Box 12 - Code", money: false}
+  - {field_path: w2.box12_amount,      label: "Box 12 - Amount", money: true}
+  - {field_path: w2.box15_state,       label: "Box 15 - State", money: false}
+  - {field_path: w2.box16_state_wages, label: "Box 16 - State wages", money: true}
+  - {field_path: w2.box17_state_wh,    label: "Box 17 - State income tax", money: true}
+  - {field_path: w2.employer_name,     label: "Employer name", money: false}
+  - {field_path: w2.employer_ein,      label: "Employer EIN", money: false, sensitive: true}
+  - {field_path: w2.employee_ssn,      label: "Employee SSN", money: false, sensitive: true}
