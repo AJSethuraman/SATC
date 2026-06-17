@@ -366,6 +366,36 @@ def synthetic_mart() -> DataMart:
     return mart
 
 
+def synthetic_drake_intake() -> list:
+    """A DEA-compatible intake (full synthetic PII) for SATC-001000.
+
+    Used only to exercise the Drake input generator + drake-entry-assistant seam.
+    Written to a transient, git-ignored location — never committed. Wages total
+    $145,000, matching the 1040 demo.
+    """
+    from satc.drake.input_generator import IntakeClient, IntakeW2
+    return [IntakeClient(
+        client_id="SATC-001000", tax_year=2024, filing_status="MFJ",
+        tp_first="Jordan", tp_last="Maplewood", tp_ssn="400-55-1234",
+        tp_dob="1980-04-12", tp_occupation="Engineer",
+        sp_first="Avery", sp_last="Maplewood", sp_ssn="400-55-9876",
+        sp_dob="1982-08-03", sp_occupation="Teacher",
+        address="118 Buckeye Lane", city="Dublin", state="OH", zip="43017",
+        phone="614-555-0100", email="jordan@example.invalid",
+        w2s=[
+            IntakeW2(w2_id="W2-1", employee="taxpayer", employer_ein="31-0009999",
+                     employer_name="Buckeye Manufacturing LLC", employer_address="900 Industrial Pkwy",
+                     employer_city="Dublin", employer_state="OH", employer_zip="43017",
+                     box1=98000, box2=12500, box3=98000, box4=6076, box5=98000, box6=1421,
+                     box15_state="OH", box16=98000, box17=3200),
+            IntakeW2(w2_id="W2-2", employee="spouse", employer_ein="31-0007777",
+                     employer_name="Dublin City Schools", employer_address="7030 Coffman Rd",
+                     employer_city="Dublin", employer_state="OH", employer_zip="43017",
+                     box1=47000, box2=5500, box3=47000, box4=2914, box5=47000, box6=681,
+                     box15_state="OH", box16=47000, box17=1800),
+        ])]
+
+
 def synthetic_preparer_set_text() -> str:
     """A synthetic Drake 'preparer copy' as text (the shape of pdftotext output).
 
