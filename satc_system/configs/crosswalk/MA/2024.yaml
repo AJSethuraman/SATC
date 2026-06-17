@@ -1,0 +1,52 @@
+meta:
+  tax_year: 2024
+  jurisdiction: MA
+  source_label: "Mass. Gen. Laws ch. 62; Mass.gov tax rates (2024)"
+  retrieved: "2026-06-17"
+  status: in_force
+  notes: >
+    Massachusetts individual income tax 2024 — flat 5% on most income (Part B),
+    8.5% on short-term capital gains, plus the 4% surtax on taxable income over the
+    indexed millionaire threshold. No standard deduction; uses personal exemptions.
+
+parameters:
+  has_standard_deduction:
+    value: false
+    citation: "Mass. Gen. Laws ch. 62, sec. 3"
+
+  part_b_rate:
+    value: 0.05
+    unit: ratio
+    citation: "Mass.gov Tax Rates — 5.0% on Part B (most) income (2024)"
+
+  short_term_capital_gains_rate:
+    value: 0.085
+    unit: ratio
+    citation: "Mass.gov — 8.5% short-term capital gains (TY2023+)"
+  collectibles_rate:
+    value: 0.12
+    unit: ratio
+    citation: "Mass.gov — 12% long-term gains on collectibles"
+
+  surtax_rate:
+    value: 0.04
+    unit: ratio
+    citation: "Mass. Const. amend. art. 44 (4% surtax)"
+  surtax_threshold:
+    value: 1053750
+    unit: usd
+    citation: "Mass.gov — 2024 surtax threshold ($1,053,750, indexed)"
+
+  personal_exemption:
+    value: {single: 4400, mfj: 8800, hoh: 6800, mfs: 4400}
+    unit: usd
+    citation: "Mass. Gen. Laws ch. 62, sec. 3(B)(b)"
+
+  apportionment_method:
+    value: single_sales_factor
+    citation: "Mass. Gen. Laws ch. 63 (corporate apportionment — sales factor)"
+
+  pte_excise_rate:
+    value: 0.05
+    unit: ratio
+    citation: "Mass. Gen. Laws ch. 63D (elective PTE excise, 5%)"

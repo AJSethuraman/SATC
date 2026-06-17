@@ -1,0 +1,34 @@
+meta:
+  tax_year: 2025
+  jurisdiction: MI
+  source_label: "Michigan Income Tax Act (MCL 206); Michigan Treasury 2025 rate notice"
+  retrieved: "2026-06-17"
+  status: in_force
+  notes: >
+    Michigan individual income tax 2025 — flat 4.25% confirmed (Michigan Treasury,
+    May 2025: rate remains 4.25% for the 2025 tax year). Per-exemption allowance
+    indexed to $5,800.
+
+parameters:
+  has_standard_deduction:
+    value: false
+    citation: "MCL 206.30"
+
+  flat_rate:
+    value: 0.0425
+    unit: ratio
+    citation: "Michigan Treasury news (2025-05-01): 2025 individual income tax rate remains 4.25%"
+
+  personal_exemption:
+    value: 5800
+    unit: usd
+    citation: "MCL 206.30(2); Michigan Treasury 2025 exemption ($5,800)"
+
+  apportionment_method:
+    value: single_sales_factor
+    citation: "MCL 206.661"
+
+  flow_through_entity_tax_rate:
+    value: 0.0425
+    unit: ratio
+    citation: "MCL 206.813"
