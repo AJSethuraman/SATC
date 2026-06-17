@@ -1,0 +1,24 @@
+SETHURAMAN  ·  Accounting · Tax · Consulting
+"Complex work, made clear."
+
+{date}
+
+RE: {tax_year} Income Tax Return — {client_id}
+
+Dear {salutation},
+
+Enclosed is your {tax_year} income tax return as prepared. A summary of the result for each
+jurisdiction follows:
+
+{jurisdiction_summary}
+
+{net_result_sentence}
+
+Please sign where indicated (including Form 8879 for each e-filed jurisdiction) and remit any
+balance due by the date shown. Drake Software is our system of record for the filed return.
+
+Sincerely,
+{preparer_name}
+Sethuraman Accounting, Tax & Consulting
+
+— DRAFT cover letter for preparer review. —

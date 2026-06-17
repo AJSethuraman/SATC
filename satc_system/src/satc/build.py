@@ -22,8 +22,11 @@ from satc.fixtures import (
     synthetic_identities,
     synthetic_mart,
 )
+from satc.drake import build_delivery_summary, parse_preparer_set, seed_data_mart
+from satc.fixtures import synthetic_preparer_set_text
 from satc.ingest import MAPPING_1040, MapExtractor, StagingGate
 from satc.proforma import compare_years, roll_forward
+from satc.workbook.delivery_sheet import build_delivery_sheet
 from satc.workbook.cover import build_cover
 from satc.workbook.line_sheet import BuildContext, LineSheetBuilder
 from satc.workbook.mart_sheets import (
@@ -118,6 +121,14 @@ def build_demo_workbook(out_path: str | Path = DEFAULT_OUT, tax_year: int = 2024
         ("Prior-vs-Current", "Variance flags: swings, dropped 1099s, dependent changes"),
         ("Proforma", f"Carryforwards & basis seeded into {tax_year + 1}"),
     ]
+
+    # Stage 6: Drake preparer-set parse -> seed mart + client delivery package.
+    preparer_set = parse_preparer_set(
+        synthetic_preparer_set_text(), client_id=client.client_id, tax_year=tax_year)
+    seed_data_mart(mart, preparer_set)
+    delivery = build_delivery_summary(preparer_set)
+    build_delivery_sheet(wb.create_sheet("Client Delivery"), delivery)
+    contents.append(("Client Delivery", "Refund/balance-due summary + draft email & cover letter"))
 
     build_cover(cover, tax_year=tax_year, contents=contents)
     wb.save(out)

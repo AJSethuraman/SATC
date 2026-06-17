@@ -340,6 +340,55 @@ def synthetic_mart() -> DataMart:
     return mart
 
 
+def synthetic_preparer_set_text() -> str:
+    """A synthetic Drake 'preparer copy' as text (the shape of pdftotext output).
+
+    Demonstrates multi-state aggregation (Federal + OH + MI) and the paper-file
+    branch (Michigan is paper-filed with a mail-to address). Titles match Drake's
+    stable worksheet titles so the parser keys off titles, not coordinates.
+    """
+    return (
+        "FILING INSTRUCTIONS - FEDERAL\n"
+        "Form: 1040\n"
+        "Filing method: Electronically filed\n"
+        "Due date: 04/15/2025\n"
+        "Balance due: $1,767\n"
+        "Mail to: N/A (e-filed)\n"
+        "\f"
+        "FILING INSTRUCTIONS - OHIO\n"
+        "Form: IT 1040\n"
+        "Filing method: Electronically filed\n"
+        "Due date: 04/15/2025\n"
+        "Refund: $300\n"
+        "\f"
+        "FILING INSTRUCTIONS - MICHIGAN\n"
+        "Form: MI-1040\n"
+        "Filing method: Paper filed\n"
+        "Due date: 04/15/2025\n"
+        "Balance due: $245\n"
+        "Mail to: Michigan Department of Treasury, Lansing MI 48956\n"
+        "\f"
+        "TAX RETURN COMPARISON\n"
+        "                          2022        2023        2024\n"
+        "Wages                  120,000     130,000     145,000\n"
+        "Total income           175,000     190,000     213,420\n"
+        "Adjusted gross income  168,000     180,000     202,236\n"
+        "Taxable income         140,000     150,000     164,872\n"
+        "Total tax               22,000      24,000      27,767\n"
+        "Withholding             20,000      21,000      18,000\n"
+        "\f"
+        "CARRYOVER WORKSHEET\n"
+        "Item                         To 2025\n"
+        "Long-term capital loss        3,000\n"
+        "Charitable contribution       2,000\n"
+        "State overpayment applied       300\n"
+        "\f"
+        "EF STATUS / FORM 9325\n"
+        "Federal: Accepted 03/12/2025\n"
+        "Ohio: Accepted 03/12/2025\n"
+    )
+
+
 def synthetic_carryforwards() -> list[dict]:
     """A few prior-year carryforwards for the data mart / proforma demo."""
     return [
