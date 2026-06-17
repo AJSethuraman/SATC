@@ -5,8 +5,10 @@ Usage:
 
 Page header/footer branding is set per-sheet by the workbook builder
 (``ws.oddFooter`` / ``ws.oddHeader``); this script performs the conversion. It
-reuses the same ``office.soffice`` environment shim as recalc.py so it works in
-sandboxed environments where AF_UNIX sockets are restricted.
+reuses the ``office.soffice`` environment shim (also used by recalc.py) so it
+works in sandboxed environments. NOTE: LibreOffice can only load Calc documents
+if ``libreoffice-calc`` is installed — without it, conversion fails with
+"source file could not be loaded" (install it first).
 """
 
 import json
@@ -38,9 +40,8 @@ def export_pdf(xlsx_path: str, out_dir: str | None = None, timeout: int = 120) -
     pdf_path = out_directory / (src.stem + ".pdf")
     if not pdf_path.exists():
         return {
-            "error": "PDF was not produced",
-            "stdout": result.stdout,
-            "stderr": result.stderr,
+            "error": "PDF was not produced (is libreoffice-calc installed?)",
+            "stderr": result.stderr[-400:],
         }
     return {"status": "success", "pdf": str(pdf_path), "bytes": pdf_path.stat().st_size}
 
@@ -50,7 +51,10 @@ def main() -> None:
         print("Usage: python scripts/export_pdf.py <workbook.xlsx> [output_dir]")
         sys.exit(1)
     out_dir = sys.argv[2] if len(sys.argv) > 2 else None
-    print(json.dumps(export_pdf(sys.argv[1], out_dir), indent=2))
+    result = export_pdf(sys.argv[1], out_dir)
+    print(json.dumps(result, indent=2))
+    if result.get("status") != "success":
+        sys.exit(2)
 
 
 if __name__ == "__main__":
