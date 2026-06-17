@@ -19,8 +19,9 @@ def test_demo_workbook_builds(tmp_path):
     assert out.exists()
     wb = load_workbook(out)
     names = wb.sheetnames
-    assert "Cover" in names
-    assert "Staging" in names
+    for sheet in ("Cover", "Staging", "Data Mart", "Prior-vs-Current", "Proforma",
+                  "Client Delivery", "Document Repository", "Dashboards"):
+        assert sheet in names, f"missing {sheet} sheet"
     assert any(n.startswith("Tax Law US") for n in names)
     # All four return types are present in the demo book.
     for rt in ("1040", "1120S", "1065", "1120"):

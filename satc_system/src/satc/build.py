@@ -29,12 +29,14 @@ from satc.proforma import compare_years, roll_forward
 from satc.workbook.delivery_sheet import build_delivery_sheet
 from satc.workbook.cover import build_cover
 from satc.workbook.line_sheet import BuildContext, LineSheetBuilder
+from satc.workbook.dashboards import build_dashboards_sheet
 from satc.workbook.mart_sheets import (
     build_comparison_sheet,
     build_data_mart_sheet,
     build_proforma_sheet,
 )
 from satc.workbook.reference import build_reference_sheet
+from satc.workbook.repository_sheet import build_repository_sheet
 from satc.workbook.staging_sheet import build_staging_sheet
 
 DEFAULT_OUT = Path(__file__).resolve().parents[2] / "build" / "SATC_Workbook.xlsx"
@@ -107,7 +109,7 @@ def build_demo_workbook(out_path: str | Path = DEFAULT_OUT, tax_year: int = 2024
 
     # Stage 5: data mart + prior-vs-current comparison + proforma seed.
     mart = synthetic_mart()
-    build_data_mart_sheet(wb.create_sheet("Data Mart"), mart)
+    mart_ranges = build_data_mart_sheet(wb.create_sheet("Data Mart"), mart)
     comparison_rows = compare_years(
         mart, client_id="SATC-001000", return_type="1040", jurisdiction="US",
         prior_year=tax_year - 1, current_year=tax_year)
@@ -129,6 +131,15 @@ def build_demo_workbook(out_path: str | Path = DEFAULT_OUT, tax_year: int = 2024
     delivery = build_delivery_summary(preparer_set)
     build_delivery_sheet(wb.create_sheet("Client Delivery"), delivery)
     contents.append(("Client Delivery", "Refund/balance-due summary + draft email & cover letter"))
+
+    # Stage 7: document & communication repository + practice dashboards.
+    repo_ranges = build_repository_sheet(wb.create_sheet("Document Repository"), mart)
+    build_dashboards_sheet(wb.create_sheet("Dashboards"),
+                           mart_ranges=mart_ranges, repo_ranges=repo_ranges, tax_year=tax_year)
+    contents += [
+        ("Document Repository", "Audit trail + missing-documents tracker (links, not files)"),
+        ("Dashboards", "Pipeline · deadlines · open items · fees · year-over-year"),
+    ]
 
     build_cover(cover, tax_year=tax_year, contents=contents)
     wb.save(out)

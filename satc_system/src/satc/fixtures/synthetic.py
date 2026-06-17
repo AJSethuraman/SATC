@@ -15,6 +15,7 @@ from satc.models.identity import IdentityRecord, VaultAddress, VaultContact
 from satc.models.mart import (
     Carryforward,
     DataMart,
+    DocumentRecord,
     EngagementRecord,
     EstimatePayment,
     LineItem,
@@ -336,6 +337,31 @@ def synthetic_mart() -> DataMart:
         EngagementRecord(client_id="SATC-004000", tax_year=2024,
                          engagement_letter_status="Signed", fee_amount=Decimal("5500"),
                          invoiced=True, paid=True),
+    ]
+
+    from datetime import date as _d
+    sp = "https://sharepoint.example/SATC/{cid}/2024/{doc}"
+    mart.documents = [
+        DocumentRecord("DOC-0001", "SATC-001000", 2024, "W-2", "Received", _d(2025, 2, 3),
+                       sp.format(cid="SATC-001000", doc="W2-1"), "preparer"),
+        DocumentRecord("DOC-0002", "SATC-001000", 2024, "W-2", "Received", _d(2025, 2, 3),
+                       sp.format(cid="SATC-001000", doc="W2-2"), "preparer"),
+        DocumentRecord("DOC-0010", "SATC-001000", 2024, "1099-DIV", "Requested", _d(2025, 2, 1),
+                       "", "preparer", note="Awaiting corrected 1099-DIV (Box 1b)"),
+        DocumentRecord("DOC-0011", "SATC-001000", 2024, "Engagement letter", "Signed", _d(2025, 1, 15),
+                       sp.format(cid="SATC-001000", doc="EL"), "client"),
+        DocumentRecord("DOC-0012", "SATC-001000", 2024, "Form 8879", "Requested", _d(2025, 3, 1),
+                       "", "preparer", note="E-file authorization not yet signed"),
+        DocumentRecord("DOC-0013", "SATC-001000", 2024, "Delivery email", "Sent", _d(2025, 3, 10),
+                       sp.format(cid="SATC-001000", doc="delivery"), "system"),
+        DocumentRecord("DOC-0020", "SATC-002000", 2024, "K-1 (1120S)", "Received", _d(2025, 2, 20),
+                       sp.format(cid="SATC-002000", doc="K1"), "preparer"),
+        DocumentRecord("DOC-0021", "SATC-002000", 2024, "Trial balance", "Requested", _d(2025, 2, 10),
+                       "", "preparer", note="Awaiting year-end trial balance"),
+        DocumentRecord("DOC-0030", "SATC-003000", 2024, "Organizer", "Requested", _d(2025, 1, 20),
+                       "", "preparer", note="Partnership organizer outstanding"),
+        DocumentRecord("DOC-0040", "SATC-004000", 2024, "Signed 8879", "Signed", _d(2025, 3, 5),
+                       sp.format(cid="SATC-004000", doc="8879"), "client"),
     ]
     return mart
 
