@@ -8,6 +8,7 @@ from satc.fixtures.synthetic import (
     synthetic_documents,
     synthetic_entity_values,
     synthetic_identities,
+    synthetic_mart,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "synthetic_documents",
     "synthetic_entity_values",
     "synthetic_identities",
+    "synthetic_mart",
 ]

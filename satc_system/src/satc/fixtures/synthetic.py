@@ -10,7 +10,18 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from satc.ids import line_item_key, return_key
 from satc.models.identity import IdentityRecord, VaultAddress, VaultContact
+from satc.models.mart import (
+    Carryforward,
+    DataMart,
+    EngagementRecord,
+    EstimatePayment,
+    LineItem,
+    OwnerBasis,
+    ReturnRecord,
+)
+from satc.models.provenance import Provenance, SourceRef
 
 # 2024 federal MFJ standard deduction (mirrors configs/crosswalk/federal/2024.yaml).
 # Used only to precompute the demo's reconciliation tie-out values.
@@ -218,6 +229,115 @@ def synthetic_documents() -> list[dict]:
             "Capital loss carryover to next year": "0",
             "Filing status": "MFJ"}},
     ]
+
+
+def _li(rk: str, schedule: str, line: str, label: str, amount, kind="SOURCE_DOC") -> LineItem:
+    prov = Provenance(source_kind=kind, source_ref=SourceRef(citation="synthetic"))
+    return LineItem(line_item_key=line_item_key(rk, schedule, line), return_key=rk,
+                    schedule=schedule, line_code=line, label=label,
+                    amount=Decimal(str(amount)), provenance=prov)
+
+
+def synthetic_mart() -> DataMart:
+    """A small, multi-year normalized data mart for the proforma/comparison demos.
+
+    SATC-001000 (1040, OH) has both 2023 and 2024 on file with deliberate
+    variances: a wage swing, a 1099-INT that dropped, and a dropped dependent.
+    Entity returns are on file for 2024, with carryforwards and basis to seed 2025.
+    """
+    mart = DataMart()
+    mart.public_clients = [r.to_public() for r in synthetic_identities()]
+
+    rk_23 = return_key("SATC-001000", 2023, "1040", "US")
+    rk_24 = return_key("SATC-001000", 2024, "1040", "US")
+    rk_24_oh = return_key("SATC-001000", 2024, "1040", "OH")
+
+    mart.returns = [
+        ReturnRecord(return_key=rk_23, client_id="SATC-001000", tax_year=2023,
+                     return_type="1040", jurisdiction="US", status="Accepted",
+                     residency="FULL_YEAR", refund_amount=Decimal("1500")),
+        ReturnRecord(return_key=rk_24, client_id="SATC-001000", tax_year=2024,
+                     return_type="1040", jurisdiction="US", status="In review",
+                     residency="FULL_YEAR", balance_due_amount=Decimal("1767")),
+        ReturnRecord(return_key=rk_24_oh, client_id="SATC-001000", tax_year=2024,
+                     return_type="1040", jurisdiction="OH", status="In review",
+                     residency="FULL_YEAR", refund_amount=Decimal("300")),
+        ReturnRecord(return_key=return_key("SATC-002000", 2024, "1120S", "MI"),
+                     client_id="SATC-002000", tax_year=2024, return_type="1120S",
+                     jurisdiction="MI", status="Ready to file"),
+        ReturnRecord(return_key=return_key("SATC-003000", 2024, "1065", "MA"),
+                     client_id="SATC-003000", tax_year=2024, return_type="1065",
+                     jurisdiction="MA", status="In prep"),
+        ReturnRecord(return_key=return_key("SATC-004000", 2024, "1120", "OH"),
+                     client_id="SATC-004000", tax_year=2024, return_type="1120",
+                     jurisdiction="OH", status="Filed", is_extended=True),
+    ]
+
+    mart.line_items = [
+        # 2023 (prior year)
+        _li(rk_23, "1040", "wages", "Wages", 130000),
+        _li(rk_23, "SCH_B", "interest", "Taxable interest", 2500),
+        _li(rk_23, "SCH_B", "old_bank_int", "Interest — Old Bank 1099-INT", 1800),
+        _li(rk_23, "1040", "agi", "Adjusted gross income", 180000, "DRAKE_OUTPUT"),
+        _li(rk_23, "1040", "taxable_income", "Taxable income", 150000, "DRAKE_OUTPUT"),
+        _li(rk_23, "1040", "total_tax", "Total tax", 24000, "DRAKE_OUTPUT"),
+        _li(rk_23, "1040", "dependents", "Dependents", 3),
+        # 2024 (current year)
+        _li(rk_24, "1040", "wages", "Wages", 145000),
+        _li(rk_24, "SCH_B", "interest", "Taxable interest", 1200),
+        _li(rk_24, "SCH_B", "dividends_ord", "Ordinary dividends", 3400),
+        _li(rk_24, "1040", "agi", "Adjusted gross income", 202236, "DRAKE_OUTPUT"),
+        _li(rk_24, "1040", "taxable_income", "Taxable income", 164872, "DRAKE_OUTPUT"),
+        _li(rk_24, "1040", "total_tax", "Total tax", 27767, "DRAKE_OUTPUT"),
+        _li(rk_24, "1040", "dependents", "Dependents", 2),
+    ]
+
+    cf_prov = Provenance(source_kind="DRAKE_OUTPUT",
+                         source_ref=SourceRef(worksheet_title="Carryover Worksheet"))
+    mart.carryforwards = [
+        Carryforward(cf_id="CF-1000-CAPLT-2023", client_id="SATC-001000", return_type="1040",
+                     jurisdiction="US", kind="CAP_LOSS_LT", tax_year_generated=2023,
+                     amount=Decimal("3000"), provenance=cf_prov),
+        Carryforward(cf_id="CF-1000-CHAR-2023", client_id="SATC-001000", return_type="1040",
+                     jurisdiction="US", kind="CHARITABLE", tax_year_generated=2023,
+                     amount=Decimal("2000"), expires_after_year=2028, provenance=cf_prov),
+        Carryforward(cf_id="CF-1000-STOVP-2024", client_id="SATC-001000", return_type="1040",
+                     jurisdiction="OH", kind="STATE_OVERPAYMENT_APPLIED", tax_year_generated=2024,
+                     amount=Decimal("300"), provenance=cf_prov),
+        Carryforward(cf_id="CF-4000-NOL-2023", client_id="SATC-004000", return_type="1120",
+                     jurisdiction="US", kind="NOL", tax_year_generated=2023,
+                     amount=Decimal("100000"), provenance=cf_prov),
+    ]
+
+    rk_scorp = return_key("SATC-002000", 2024, "1120S", "MI")
+    mart.owner_basis = [
+        OwnerBasis(return_key=rk_scorp, client_id="SATC-002000", owner_id="OWNER-A",
+                   tax_year=2024, beginning_balance=Decimal("0"), contributions=Decimal("0"),
+                   income_items=Decimal("28200"), distributions=Decimal("20000"),
+                   loss_items=Decimal("0"), ending_balance=Decimal("8200"),
+                   ownership_pct=Decimal("0.40"), provenance=cf_prov),
+    ]
+
+    mart.estimate_payments = [
+        EstimatePayment(payment_id=f"EP-1000-2024-Q{q}", client_id="SATC-001000",
+                        tax_year=2024, jurisdiction="US", period=f"Q{q}", amount=Decimal("2000"))
+        for q in range(1, 5)
+    ]
+
+    mart.engagements = [
+        EngagementRecord(client_id="SATC-001000", tax_year=2024,
+                         engagement_letter_status="Signed", fee_amount=Decimal("650"),
+                         invoiced=True, paid=False),
+        EngagementRecord(client_id="SATC-002000", tax_year=2024,
+                         engagement_letter_status="Signed", fee_amount=Decimal("2400"),
+                         invoiced=True, paid=True),
+        EngagementRecord(client_id="SATC-003000", tax_year=2024,
+                         engagement_letter_status="Sent", fee_amount=Decimal("3200")),
+        EngagementRecord(client_id="SATC-004000", tax_year=2024,
+                         engagement_letter_status="Signed", fee_amount=Decimal("5500"),
+                         invoiced=True, paid=True),
+    ]
+    return mart
 
 
 def synthetic_carryforwards() -> list[dict]:

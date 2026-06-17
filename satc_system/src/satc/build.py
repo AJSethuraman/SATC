@@ -20,10 +20,17 @@ from satc.fixtures import (
     synthetic_documents,
     synthetic_entity_values,
     synthetic_identities,
+    synthetic_mart,
 )
 from satc.ingest import MAPPING_1040, MapExtractor, StagingGate
+from satc.proforma import compare_years, roll_forward
 from satc.workbook.cover import build_cover
 from satc.workbook.line_sheet import BuildContext, LineSheetBuilder
+from satc.workbook.mart_sheets import (
+    build_comparison_sheet,
+    build_data_mart_sheet,
+    build_proforma_sheet,
+)
 from satc.workbook.reference import build_reference_sheet
 from satc.workbook.staging_sheet import build_staging_sheet
 
@@ -94,6 +101,23 @@ def build_demo_workbook(out_path: str | Path = DEFAULT_OUT, tax_year: int = 2024
         _add_line_sheet(wb, return_type, ent, ent.home_state,
                         synthetic_entity_values(return_type), registry, tax_year)
         contents.append((f"{return_type} — {cid}", label))
+
+    # Stage 5: data mart + prior-vs-current comparison + proforma seed.
+    mart = synthetic_mart()
+    build_data_mart_sheet(wb.create_sheet("Data Mart"), mart)
+    comparison_rows = compare_years(
+        mart, client_id="SATC-001000", return_type="1040", jurisdiction="US",
+        prior_year=tax_year - 1, current_year=tax_year)
+    build_comparison_sheet(
+        wb.create_sheet("Prior-vs-Current"), comparison_rows,
+        title=f"SATC-001000 · 1040 · US · {tax_year - 1} vs {tax_year}")
+    seeds = roll_forward(mart, from_year=tax_year, to_year=tax_year + 1)
+    build_proforma_sheet(wb.create_sheet("Proforma"), seeds, to_year=tax_year + 1)
+    contents += [
+        ("Data Mart", "Normalized year-over-year client record store (SQL-portable)"),
+        ("Prior-vs-Current", "Variance flags: swings, dropped 1099s, dependent changes"),
+        ("Proforma", f"Carryforwards & basis seeded into {tax_year + 1}"),
+    ]
 
     build_cover(cover, tax_year=tax_year, contents=contents)
     wb.save(out)
