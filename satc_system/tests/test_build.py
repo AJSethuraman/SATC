@@ -20,8 +20,11 @@ def test_demo_workbook_builds(tmp_path):
     wb = load_workbook(out)
     names = wb.sheetnames
     assert "Cover" in names
+    assert "Staging" in names
     assert any(n.startswith("Tax Law US") for n in names)
-    assert any(n.startswith("1040") for n in names)
+    # All four return types are present in the demo book.
+    for rt in ("1040", "1120S", "1065", "1120"):
+        assert any(n.startswith(rt + " ") for n in names), f"missing {rt} sheet"
 
 
 def test_no_unresolved_formula_tokens(tmp_path):

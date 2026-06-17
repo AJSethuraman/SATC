@@ -115,6 +115,66 @@ def synthetic_1040_values(tax_year: int = 2024) -> dict[str, object]:
     return v
 
 
+def synthetic_entity_values(return_type: str) -> dict[str, object]:
+    """Confirmed line values for the entity returns (chosen to tie cleanly).
+
+    Beginning basis/capital come from the data mart via carryforwards (0 here, as
+    the demo starts a fresh basis history); reconciliation & M-1 differences
+    resolve to 0.
+    """
+    if return_type == "1120S":
+        v = {
+            "shareholders_count": 2, "state_code": "MI",
+            "gross_receipts": 900000, "cogs": 540000, "other_income": 0,
+            "officer_comp": 90000, "salaries_wages": 120000, "repairs": 8000,
+            "rents": 24000, "taxes_licenses": 12000, "depreciation": 20000,
+            "sec179": 15000, "other_deductions": 16000,
+            "k_rental": 0, "k_interest": 500, "k_dividends": 0, "k_charitable": 2000,
+            "distributions_total": 50000,
+            "k1_ordinary_sum": 70000, "k1_dist_sum": 50000,
+            "basis_contrib": 0, "basis_income": 28200, "basis_distributions": 20000, "basis_losses": 0,
+            "total_assets": 300000, "total_liabilities": 120000, "total_equity": 180000,
+            "book_income": 68500, "m1_add_taxexempt_exp": 0,
+            "m1_subtract_taxexempt_inc": 0, "m1_other": 0,
+            "apportion_sales_state": 600000, "apportion_sales_total": 900000,
+            "pte_tax_per_drake": 1983,
+            "drake_ordinary": 70000, "drake_distributions": 50000,
+        }
+        return v
+    if return_type == "1065":
+        return {
+            "partners_count": 2, "state_code": "MA",
+            "gross_receipts": 1200000, "cogs": 700000, "other_income": 0,
+            "guaranteed_payments": 120000, "salaries_wages": 150000, "rents": 36000,
+            "taxes_licenses": 18000, "depreciation": 30000, "sec179": 20000,
+            "other_deductions": 26000,
+            "k_rental": 0, "k_interest": 800, "distributions_total": 90000,
+            "k1_ordinary_sum": 120000, "k1_gp_sum": 120000,
+            "cap_contrib": 0, "cap_income": 60400, "cap_withdrawals": 45000, "cap_losses": 0,
+            "total_assets": 400000, "total_liabilities": 150000, "total_capital": 250000,
+            "book_income": 120800, "m1_add": 0, "m1_subtract": 0, "m1_other": 0,
+            "apportion_sales_state": 720000, "apportion_sales_total": 1200000,
+            "pte_tax_per_drake": 6040,
+            "drake_ordinary": 120000,
+        }
+    if return_type == "1120":
+        return {
+            "state_code": "OH",
+            "gross_receipts": 2000000, "cogs": 1100000, "dividends_received": 10000,
+            "interest_income": 5000, "other_income": 0,
+            "officer_comp": 150000, "salaries_wages": 200000, "rents": 48000,
+            "taxes_licenses": 30000, "depreciation": 40000, "other_deductions": 42000,
+            "charitable_claimed": 30000,
+            "corp_rate": 0.21, "tax_per_drake": 78750,
+            "book_income": 296250, "m1_fed_tax": 78750, "m1_add": 0, "m1_subtract": 0, "m1_other": 0,
+            "total_assets": 1500000, "total_liabilities": 600000, "total_equity": 900000,
+            "apportion_sales_state": 1400000, "apportion_sales_total": 2000000,
+            "state_tax_per_drake": 9187,
+            "drake_taxable": 375000,
+        }
+    return {}
+
+
 def synthetic_documents() -> list[dict]:
     """Synthetic source documents as labeled key/value pairs (as a parser hands off).
 

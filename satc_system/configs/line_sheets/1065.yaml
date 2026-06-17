@@ -1,0 +1,91 @@
+meta:
+  return_type: "1065"
+  title: "Form 1065 — Partnership Income Tax Workpaper"
+  subtitle: "Workpaper only — Drake is the system of record for depreciation, capital accounts, and the filed return."
+
+sections:
+  - title: "Entity"
+    rows:
+      - {id: partners_count, kind: input_num, label: "Number of partners", source: "Org chart / prior-year", fmt: num}
+      - {id: state_code, kind: input_text, label: "Primary state (OH / MI / MA / ...)", source: "Vault home state", fmt: text}
+      - {kind: note, label: "Confirm partner types (GP/LP), profit/loss/capital ratios, and any special allocations (704(b))."}
+
+  - title: "Income"
+    rows:
+      - {id: gross_receipts, kind: input, label: "Gross receipts or sales", source: "Books"}
+      - {id: cogs, kind: input, label: "Cost of goods sold", source: "Books / inventory"}
+      - {id: gross_profit, kind: computed, label: "Gross profit", formula: "{gross_receipts}-{cogs}"}
+      - {id: other_income, kind: input, label: "Other income", source: "Books"}
+      - {id: total_income, kind: total, label: "Total income", formula: "{gross_profit}+{other_income}"}
+
+  - title: "Deductions"
+    rows:
+      - {id: guaranteed_payments, kind: input, label: "Guaranteed payments to partners", source: "Partner agreements / books"}
+      - {id: salaries_wages, kind: input, label: "Salaries & wages (non-partner)", source: "Payroll"}
+      - {id: rents, kind: input, label: "Rent", source: "Leases"}
+      - {id: taxes_licenses, kind: input, label: "Taxes & licenses", source: "Books"}
+      - {id: depreciation, kind: input, label: "Depreciation (per Drake)", source: "Drake depreciation (system of record)"}
+      - {id: sec179, kind: input, label: "§179 expense (passes through on K-1)", source: "Fixed-asset schedule"}
+      - {id: other_deductions, kind: input, label: "Other deductions", source: "Books"}
+      - {id: total_deductions, kind: total, label: "Total deductions", formula: "{guaranteed_payments}+{salaries_wages}+{rents}+{taxes_licenses}+{depreciation}+{other_deductions}"}
+
+  - title: "Ordinary business income (page 1)"
+    rows:
+      - {id: ordinary_income, kind: total, label: "Ordinary business income / (loss)", formula: "{total_income}-{total_deductions}"}
+
+  - title: "Schedule K — separately stated items"
+    rows:
+      - {id: k_rental, kind: input, label: "Net rental real estate income (K line 2)", source: "Books"}
+      - {id: k_interest, kind: input, label: "Interest income (K line 5)", source: "1099-INT"}
+      - {id: k_guaranteed, kind: computed, label: "Guaranteed payments (K line 4)", formula: "{guaranteed_payments}"}
+      - {id: k_section179, kind: computed, label: "§179 deduction (K line 12)", formula: "{sec179}"}
+      - {id: distributions_total, kind: input, label: "Distributions (K line 19a)", source: "Partner ledger"}
+
+  - title: "Schedule K-1 tie-out (all partners)"
+    rows:
+      - {id: k1_ordinary_sum, kind: input, label: "Sum of K-1 box 1 (ordinary) across partners", source: "K-1s (confirmed)"}
+      - {id: k1_tie, kind: crosscheck, label: "K-1 ordinary total ties to Schedule K ordinary income", formula: "{k1_ordinary_sum}-{ordinary_income}"}
+      - {id: k1_gp_sum, kind: input, label: "Sum of K-1 box 4 (guaranteed payments)", source: "K-1s"}
+      - {id: k1_gp_tie, kind: crosscheck, label: "K-1 guaranteed payments tie to Schedule K line 4", formula: "{k1_gp_sum}-{k_guaranteed}"}
+
+  - title: "Per-partner tax-basis capital account rollforward (lead partner)"
+    rows:
+      - {kind: note, label: "Tax-basis capital reporting required (Item L). Beginning capital is the prior-year ending capital."}
+      - {id: cap_beginning, kind: cflink, label: "Beginning capital account (from data mart)", formula: "[CF CAPITAL_BEGIN]", source: "Prior-year carryforward"}
+      - {id: cap_contrib, kind: input, label: "+ Capital contributed", source: "Partner ledger"}
+      - {id: cap_income, kind: input, label: "+ Share of income (incl. guaranteed payments to this partner)", source: "K-1 (allocation)"}
+      - {id: cap_withdrawals, kind: input, label: "- Withdrawals & distributions", source: "K-1 box 19 (allocation)"}
+      - {id: cap_losses, kind: input, label: "- Share of loss & deductions", source: "K-1 (allocation)"}
+      - {id: cap_ending, kind: total, label: "Ending capital account (tax basis)", formula: "{cap_beginning}+{cap_contrib}+{cap_income}-{cap_withdrawals}-{cap_losses}"}
+      - {id: cap_negative, kind: crosscheck, label: "Negative capital flag (review for deficit restoration / at-risk)", formula: "MAX(0,-{cap_ending})", flag_ok: "ok", flag_bad: "REVIEW negative capital"}
+
+  - title: "Schedule L — balance sheet tie"
+    rows:
+      - {id: total_assets, kind: input, label: "Total assets (end of year)", source: "Books / Drake Sch L"}
+      - {id: total_liabilities, kind: input, label: "Total liabilities", source: "Books"}
+      - {id: total_capital, kind: input, label: "Total partners' capital", source: "Books"}
+      - {id: sch_l_tie, kind: crosscheck, label: "Assets = Liabilities + Capital", formula: "{total_assets}-({total_liabilities}+{total_capital})"}
+
+  - title: "Schedule M-1 — book-to-tax reconciliation"
+    rows:
+      - {id: book_income, kind: input, label: "Net income per books", source: "Books / financials"}
+      - {id: m1_guaranteed, kind: computed, label: "+ Guaranteed payments (book vs return timing)", formula: "0"}
+      - {id: m1_add, kind: input, label: "+ Expenses on books not deducted (e.g., 50% meals)", source: "Books"}
+      - {id: m1_subtract, kind: input, label: "- Income on books not on return (tax-exempt)", source: "Books"}
+      - {id: m1_other, kind: input, label: "+/- Other timing differences", source: "Drake / books"}
+      - {id: m1_income, kind: computed, label: "M-1 reconciled income", formula: "{book_income}+{m1_add}-{m1_subtract}+{m1_other}"}
+      - {id: m1_tie, kind: crosscheck, label: "M-1 ties to ordinary + separately stated income", formula: "{m1_income}-({ordinary_income}+{k_rental}+{k_interest})"}
+
+  - title: "State & apportionment"
+    rows:
+      - {id: apportion_sales_state, kind: input, label: "In-state sales", source: "Books"}
+      - {id: apportion_sales_total, kind: input, label: "Total sales everywhere", source: "Books"}
+      - {id: apportion_factor, kind: computed, label: "Apportionment factor (single sales factor)", formula: "IF({apportion_sales_total}=0,0,{apportion_sales_state}/{apportion_sales_total})", fmt: pct}
+      - {id: state_apportioned_income, kind: computed, label: "Income apportioned to state", formula: "{ordinary_income}*{apportion_factor}"}
+      - {id: pte_tax_per_drake, kind: input, label: "Elective PTE tax (per Drake, if elected)", source: "Drake state PTE return"}
+
+  - title: "Reconciliation to Drake output"
+    rows:
+      - {id: drake_ordinary, kind: input, label: "Drake ordinary business income (Form 1065 line 22)", source: "Drake 1065"}
+      - {id: rec_ordinary, kind: crosscheck, label: "Difference: workpaper vs Drake ordinary income", formula: "{ordinary_income}-{drake_ordinary}"}
+      - {id: signoff, kind: review, label: "Preparer sign-off: 1065 reconciles to Drake; capital accounts carried to data mart.", gating: true}

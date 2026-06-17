@@ -6,6 +6,7 @@ from satc.fixtures.synthetic import (
     synthetic_1040_values,
     synthetic_carryforwards,
     synthetic_documents,
+    synthetic_entity_values,
     synthetic_identities,
 )
 
@@ -13,5 +14,6 @@ __all__ = [
     "synthetic_1040_values",
     "synthetic_carryforwards",
     "synthetic_documents",
+    "synthetic_entity_values",
     "synthetic_identities",
 ]

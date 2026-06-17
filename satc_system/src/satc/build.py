@@ -15,7 +15,12 @@ from openpyxl import Workbook
 
 from satc.config import load_extraction_map, load_line_sheet, templatize
 from satc.crosswalk import CrosswalkLibrary
-from satc.fixtures import synthetic_1040_values, synthetic_documents, synthetic_identities
+from satc.fixtures import (
+    synthetic_1040_values,
+    synthetic_documents,
+    synthetic_entity_values,
+    synthetic_identities,
+)
 from satc.ingest import MAPPING_1040, MapExtractor, StagingGate
 from satc.workbook.cover import build_cover
 from satc.workbook.line_sheet import BuildContext, LineSheetBuilder
@@ -64,29 +69,48 @@ def build_demo_workbook(out_path: str | Path = DEFAULT_OUT, tax_year: int = 2024
     cover = wb.create_sheet("Cover")
     staging = wb.create_sheet("Staging")
     build_staging_sheet(staging, gate)
-    registry = _reference_sheets(wb, lib, tax_year, ["US", state])
-
-    config = templatize(load_line_sheet("1040"), {"STATE": state})
-    config["meta"]["subtitle"] = (
-        f"Client {client.client_id} ({client.entity_type})  ·  TY{tax_year}  ·  Federal + {state}"
-        "   —   Drake is the system of record."
-    )
-    # Confirmed intake (from the gate) overlays the synthetic workpaper values.
-    values = {**synthetic_1040_values(tax_year), **confirmed_values}
-    ctx = BuildContext(xw_registry=registry, values=values, default_jurisdiction="US")
-    ls = wb.create_sheet(f"1040 — {client.client_id}")
-    LineSheetBuilder(ls, config, ctx).build()
+    # Reference sheets for every jurisdiction in the book of synthetic clients.
+    registry = _reference_sheets(wb, lib, tax_year, ["US", "OH", "MI", "MA"])
 
     contents = [
         ("Staging", "Document extraction + confirmation gate (intake control)"),
         (f"Tax Law US {tax_year}", "Federal parameters in force, with citations"),
-        (f"Tax Law {state} {tax_year}", f"{state} parameters in force, with citations"),
-        (f"1040 — {client.client_id}", "Individual workpaper: intake, schedules, state, §8867, reconciliation"),
+        (f"Tax Law OH/MI/MA {tax_year}", "State parameters in force, with citations"),
     ]
-    build_cover(cover, tax_year=tax_year, contents=contents)
 
+    # 1040 — fed by the confirmed gate output overlaid on the synthetic workpaper.
+    values_1040 = {**synthetic_1040_values(tax_year), **confirmed_values}
+    _add_line_sheet(wb, "1040", client, state, values_1040, registry, tax_year)
+    contents.append((f"1040 — {client.client_id}",
+                     "Individual workpaper: intake, schedules, state, §8867, reconciliation"))
+
+    # Entity returns (1120-S / 1065 / 1120) for the other synthetic clients.
+    for cid, return_type, label in (
+        ("SATC-002000", "1120S", "S-corp: M-1, K-1 tie-out, basis & AAA, Sch L"),
+        ("SATC-003000", "1065", "Partnership: capital accounts, guaranteed pmts, M-1"),
+        ("SATC-004000", "1120", "C-corp: NOL, charitable 10% limit, M-1, tax tie"),
+    ):
+        ent = identities[cid].to_public()
+        _add_line_sheet(wb, return_type, ent, ent.home_state,
+                        synthetic_entity_values(return_type), registry, tax_year)
+        contents.append((f"{return_type} — {cid}", label))
+
+    build_cover(cover, tax_year=tax_year, contents=contents)
     wb.save(out)
     return out
+
+
+def _add_line_sheet(wb: Workbook, return_type: str, client, state: str,
+                    values: dict, registry: dict[str, str], tax_year: int) -> None:
+    """Build one line sheet for a client/return type and add it to the workbook."""
+    config = templatize(load_line_sheet(return_type), {"STATE": state})
+    config["meta"]["subtitle"] = (
+        f"Client {client.client_id} ({client.entity_type})  ·  TY{tax_year}  ·  "
+        f"Federal + {state}   —   Drake is the system of record."
+    )
+    ctx = BuildContext(xw_registry=registry, values=values, default_jurisdiction="US")
+    ws = wb.create_sheet(f"{return_type} — {client.client_id}")
+    LineSheetBuilder(ws, config, ctx).build()
 
 
 def main() -> None:
