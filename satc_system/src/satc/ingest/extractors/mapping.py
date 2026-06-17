@@ -48,8 +48,15 @@ class MapExtractor:
 
     def extract(self, *, document_id: str, client_id: str, tax_year: int,
                 labeled_fields: dict[str, Any], page: int | None = None,
-                sharepoint_link: str | None = None) -> StagedDocument:
-        """Map ``{source_label: value}`` to a staged document."""
+                sharepoint_link: str | None = None,
+                confidences: dict[str, str] | None = None) -> StagedDocument:
+        """Map ``{source_label: value}`` to a staged document.
+
+        ``confidences`` (optional, keyed by source label) lets a reader downgrade
+        fields it was unsure about — e.g. a vision backend flags blurry values LOW
+        so they never auto-confirm.
+        """
+        confidences = confidences or {}
         staged = StagedDocument(
             document_id=document_id, client_id=client_id, tax_year=tax_year,
             doc_type=self.doc_type, extracted_at=datetime.now(),
@@ -65,7 +72,7 @@ class MapExtractor:
             seen.add(field_path)
             is_money = bool(spec.get("money", False))
             value = raw_value
-            base_conf = "HIGH"
+            base_conf = confidences.get(source_label, "HIGH")
             if spec.get("sensitive"):
                 # Never stage a full SSN/EIN; mask to last-4. Vault holds the full value.
                 value = mask_value(field_path, raw_value)

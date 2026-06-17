@@ -17,6 +17,14 @@ dependencies = [
 dev = [
   "pytest>=8.0",
 ]
+# Document readers. The vision backend needs the Anthropic SDK; the free PDF
+# form-field backend needs pypdf. Neither is required for the rest of the system.
+vision = [
+  "anthropic>=0.40",
+]
+pdf = [
+  "pypdf>=4.0",
+]
 
 [project.scripts]
 satc = "satc.cli:main"

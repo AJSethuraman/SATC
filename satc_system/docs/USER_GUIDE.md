@@ -30,11 +30,19 @@ and the **Dashboards**.
 1. **Intake.** Source documents are stored in SharePoint and logged in the
    Document Repository (status `Requested` → `Received`). The missing-documents
    tracker lists anything still outstanding.
-2. **Extract & stage.** Documents are reduced to labeled fields (form-field read /
-   OCR / `pdftotext`) and run through a `MapExtractor` (config in
-   `configs/extraction/`). Values land in **Staging** with provenance and
-   confidence. Money that does not parse cleanly is flagged `NEEDS_REVIEW` — never
-   guessed. Sensitive SSN/EIN fields are masked to last-4.
+2. **Read & stage.** A **document reader** turns a raw artifact into labeled
+   fields, which run through a `MapExtractor` (config in `configs/extraction/`).
+   Two pluggable backends feed the same confirm gate:
+   - `PdfFormReader` — *free, exact*, for fillable PDFs (`pip install -e .[pdf]`).
+   - `VisionDocumentReader` — **Claude vision** for scans/photos/any layout
+     (`pip install -e .[vision]`; set `ANTHROPIC_API_KEY`; small per-document cost).
+     It reads each field, returns null rather than guessing, and flags anything
+     it's unsure about so those values stage at LOW confidence (never auto-confirm).
+
+   `read_and_stage(reader, source, config=…, …)` runs reader → extractor → gate in
+   one call. Values land in **Staging** with provenance and confidence; money that
+   does not parse cleanly is flagged `NEEDS_REVIEW` — never guessed; sensitive
+   SSN/EIN fields are masked to last-4.
 3. **Confirm.** The preparer confirms (or corrects) each staged field on the
    Staging sheet. Only `CONFIRMED` values flow into the workpaper and data mart.
 4. **Workpaper.** The confirmed intake prefills the line sheet. Tax-law values are
