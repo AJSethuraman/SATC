@@ -10,15 +10,8 @@ from decimal import Decimal
 from typing import Any
 
 from twe.models import ZERO, EstimateResult, EstimatorInput
-from twe.report import _STATUS_LABELS  # noqa: PLC2701
-
-_FREQ_LABELS: dict[str, str] = {
-    "weekly": "Weekly (52/yr)",
-    "biweekly": "Bi-weekly (26/yr)",
-    "semimonthly": "Semi-monthly (24/yr)",
-    "monthly": "Monthly (12/yr)",
-    "annual": "Annual (1/yr)",
-}
+# Shared rendering helpers live in report.py to keep the four renderers consistent.
+from twe.report import _FREQ_LABELS, _STATUS_LABELS, _usd  # noqa: PLC2701
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -508,12 +501,3 @@ def render_excel(
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()
-
-
-# ---------------------------------------------------------------------------
-# Internal helper (mirrors report.py's _usd but local to avoid coupling)
-# ---------------------------------------------------------------------------
-
-def _usd(value: Decimal) -> str:
-    sign = "-" if value < 0 else ""
-    return f"{sign}${abs(value):,.2f}"

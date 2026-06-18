@@ -122,6 +122,21 @@ def _to_decimal(value: object | None) -> Decimal:
         return Decimal("0")
 
 
+def _to_int(value: object | None, *, context: str) -> int:
+    """Coerce a cell to int, tolerating Excel's float form (2025.0).
+
+    Raises ExcelLoadError with context rather than a bare ValueError so the
+    loader's error contract holds for callers other than the CLI.
+    """
+    text = _to_str(value)
+    if text == "":
+        return 0
+    try:
+        return int(float(text)) if ("." in text or "e" in text.lower()) else int(text)
+    except (TypeError, ValueError) as exc:
+        raise ExcelLoadError(f"Invalid integer for {context}: {value!r}") from exc
+
+
 def load_workbook_data(path: str | Path) -> LoadedWorkbook:
     workbook_path = Path(path)
     if not workbook_path.exists():
@@ -181,7 +196,10 @@ def load_workbook_data(path: str | Path) -> LoadedWorkbook:
 
         client = Client(
             client_id=client_id,
-            tax_year=int(_to_str(_cell_value(clients_sheet, row, clients_header, "TaxYear")) or "0"),
+            tax_year=_to_int(
+                _cell_value(clients_sheet, row, clients_header, "TaxYear"),
+                context=f"TaxYear (client {client_id})",
+            ),
             filing_status=_to_str(_cell_value(clients_sheet, row, clients_header, "FilingStatus")),
             taxpayer=taxpayer,
             spouse=spouse,
@@ -214,10 +232,15 @@ def load_workbook_data(path: str | Path) -> LoadedWorkbook:
 
         client = clients_by_id[client_id]
         employee_token = _to_str(_cell_value(w2s_sheet, row, w2_header, "Employee")).lower()
-        if employee_token in {"spouse", "sp"} and client.spouse is not None:
+        if employee_token in {"spouse", "sp"}:
+            if client.spouse is None:
+                # A W-2 assigned to a non-existent spouse is a data-integrity
+                # error (wrong ClientID or a missing spouse row). Don't silently
+                # reassign the income to the taxpayer.
+                raise ExcelLoadError(
+                    f"W2 row assigns income to spouse but client {client_id} has no spouse."
+                )
             employee = client.spouse
-        elif employee_token in {"spouse", "sp"} and client.spouse is None:
-            employee = client.taxpayer
         else:
             employee = client.taxpayer
 

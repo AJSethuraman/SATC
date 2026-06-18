@@ -84,9 +84,11 @@ def render_text(result: EstimateResult) -> str:
     multi_job = len(r.job_breakdown) > 1
     if multi_job:
         for job in r.job_breakdown:
+            proj_rem = job.projected_withholding - job.ytd_withholding
             lines.append(
-                f"  {job.name} ({job.pay_frequency}, {job.periods_remaining} left): "
-                f"wages {_usd(job.projected_taxable_wages)}, withholding {_usd(job.projected_withholding)}"
+                f"  {job.name} ({job.pay_frequency}): "
+                f"YTD {_usd(job.ytd_withholding)} ({job.periods_elapsed}/{job.periods_per_year}), "
+                f"remaining {_usd(proj_rem)} ({job.periods_remaining} left)"
             )
     else:
         lines.append(f"  Pay periods remaining: {r.periods_remaining} of {r.periods_per_year}")
@@ -111,8 +113,13 @@ def render_text(result: EstimateResult) -> str:
         reduction = r.adjusted_job_withholding_per_period - r.recommended_withholding_per_period
         job_label = f' ({r.adjusted_job_name})' if multi_job else ''
         lines.append("  You are on track to OVER-WITHHOLD for your target.")
-        lines.append(f"  Reduce{job_label} withholding to about {_usd(r.recommended_withholding_per_period)} / paycheck")
-        lines.append(f"  ({_usd(reduction)} / period reduction; W-4 Step 3 entry ≈ {_usd(reduction * r.periods_per_year)})")
+        lines.append(_row(f"Current withholding / paycheck{job_label}", r.adjusted_job_withholding_per_period))
+        lines.append(_row(f"Recommended withholding / paycheck{job_label}", r.recommended_withholding_per_period))
+        lines.append(_row(f"Reduction / paycheck{job_label}", reduction))
+        lines.append(
+            f"  W-4 Step 3 entry ~ {_usd(reduction * r.periods_per_year)} "
+            f"({_usd(reduction)} x {r.periods_per_year}/yr)"
+        )
     else:
         on_job = f' on "{r.adjusted_job_name}"' if multi_job else ""
         lines.append("  RECOMMENDATION to hit your target:")

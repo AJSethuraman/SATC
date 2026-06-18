@@ -591,7 +591,7 @@ function usd(v){
 }
 function pct(v){ return (parseFloat(v)*100).toFixed(2)+'%'; }
 function z(v){ return parseFloat(v)===0; }
-function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 function jobFromBlock(block){
   const q=sel=>block.querySelector(sel);
@@ -675,9 +675,9 @@ function downloadTape(){
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-async function downloadExcel(){
+async function downloadExcel(ev){
   if(!_lastPayload) return;
-  const btn=event.currentTarget; btn.disabled=true; btn.textContent='Building…';
+  const btn=ev.currentTarget; btn.disabled=true; btn.textContent='Building…';
   try{
     const r=await fetch('/api/tape/excel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(_lastPayload)});
     if(!r.ok){ const d=await r.json(); alert('Excel export failed: '+(d.error||r.status)); return; }
@@ -733,14 +733,15 @@ function render(d){
   // ---- recommendation ----
   const isOver=r.is_over_withholding;
   const isMultiJob=r.job_breakdown&&r.job_breakdown.length>1;
-  const jobLabel=isMultiJob&&r.adjusted_job_name?' ('+r.adjusted_job_name+')':'';
+  const adjName=esc(r.adjusted_job_name||'');
+  const jobLabel=isMultiJob&&r.adjusted_job_name?' ('+adjName+')':'';
   let recHtml;
   if(isOver){
     const curWh=parseFloat(r.adjusted_job_withholding_per_period);
     const recWh=parseFloat(r.recommended_withholding_per_period);
     const reduction=curWh-recWh;
     const step3=reduction*r.periods_per_year;
-    const w4Owner=isMultiJob&&r.adjusted_job_name?r.adjusted_job_name+"'s":"your";
+    const w4Owner=isMultiJob&&r.adjusted_job_name?adjName+"&#39;s":"your";
     recHtml=`<div class="rec-card ok">
       <h3>&#x2705; On track &mdash; over-withholding${jobLabel}</h3>
       <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:.5rem">
@@ -757,7 +758,7 @@ function render(d){
         <div><span class="amt-big">${usd(r.recommended_withholding_per_period)}</span><div class="amt-lbl">recommended per paycheck${jobLabel}</div></div>
         <div><span class="amt-big" style="color:#b45309">+${usd(r.additional_withholding_per_period)}</span><div class="amt-lbl">extra per paycheck &mdash; W-4 line&nbsp;4(c)</div></div>
       </div>
-      <p class="rec-note">Enter <strong>${usd(r.additional_withholding_per_period)}</strong> as additional withholding on <strong>Form W-4 Step&nbsp;4(c)</strong>${isMultiJob?' for '+r.adjusted_job_name:''}. You have <strong>${r.periods_remaining}</strong> pay period${r.periods_remaining!==1?'s':''} remaining to close the gap.</p>
+      <p class="rec-note">Enter <strong>${usd(r.additional_withholding_per_period)}</strong> as additional withholding on <strong>Form W-4 Step&nbsp;4(c)</strong>${isMultiJob?' for '+adjName:''}. You have <strong>${r.periods_remaining}</strong> pay period${r.periods_remaining!==1?'s':''} remaining to close the gap.</p>
     </div>`;
   }
 
@@ -798,9 +799,10 @@ function render(d){
   const jobs=r.job_breakdown;
   if(jobs&&jobs.length>1){
     jobs.forEach(function(job){
-      rows+=bkRow(job.name+' — YTD ('+job.periods_elapsed+' of '+job.periods_per_year+' periods)',job.ytd_withholding);
+      const jn=esc(job.name);
+      rows+=bkRow(jn+' — YTD ('+job.periods_elapsed+' of '+job.periods_per_year+' periods)',job.ytd_withholding);
       const jobRem=parseFloat(job.projected_withholding)-parseFloat(job.ytd_withholding);
-      if(jobRem>0.005) rows+=bkRow(job.name+' — Remaining ('+job.periods_remaining+' periods)',jobRem.toFixed(2));
+      if(jobRem>0.005) rows+=bkRow(jn+' — Remaining ('+job.periods_remaining+' periods)',jobRem.toFixed(2));
     });
     rows+=bkRow('YTD withheld — all jobs',r.ytd_withholding,'tot');
     if(projRemaining>0.005) rows+=bkRow('Remaining — all jobs (current rate)',projRemaining.toFixed(2));
@@ -838,7 +840,7 @@ function render(d){
   const tapeHtml=`<div style="text-align:center;padding:.6rem 0 .2rem">
     <div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
       <button class="btn-sec" onclick="downloadTape()" style="padding:.45rem 1.1rem;font-size:.82rem">&#x21E9;&nbsp;Download Tape (.txt)</button>
-      <button class="btn-sec" onclick="downloadExcel()" style="padding:.45rem 1.1rem;font-size:.82rem;border-color:var(--gold);color:var(--gold-deep)">&#x21E9;&nbsp;Download Excel (.xlsx)</button>
+      <button class="btn-sec" onclick="downloadExcel(event)" style="padding:.45rem 1.1rem;font-size:.82rem;border-color:var(--gold);color:var(--gold-deep)">&#x21E9;&nbsp;Download Excel (.xlsx)</button>
     </div>
     <div style="font-size:.68rem;color:#94a3b8;margin-top:.3rem">Full printable record &mdash; inputs &middot; every calculation step &middot; recommendation</div>
   </div>`;
@@ -872,7 +874,14 @@ function computeRemaining(freq,dateStr,taxYear){
   const yr=taxYear||lastPay.getFullYear();
   const yearEnd=new Date(yr,11,31,23,59,59);
   const ms=86400000;
-  if(freq==='annual') return lastPay.getFullYear()<yr?1:0;
+  const PPY={weekly:52,biweekly:26,semimonthly:24,monthly:12,annual:1};
+  // A paycheck dated before the tax year means none of this year's periods have
+  // elapsed (the whole year remains); dated after means none remain. Without
+  // this, a stale December paystub in early January yields 0 remaining periods
+  // and the projection wrongly assumes no future withholding.
+  if(lastPay.getFullYear()<yr) return PPY[freq]||null;
+  if(lastPay.getFullYear()>yr) return 0;
+  if(freq==='annual') return 0;
   if(freq==='monthly'){
     // next pay month is lastPay.getMonth()+1; count through December
     return Math.max(0,11-lastPay.getMonth());
@@ -1276,11 +1285,24 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    # Upper bound on a request body. Paystub uploads (base64 image/PDF) are the
+    # largest payload; cap generously but refuse multi-GB bodies that would be
+    # buffered whole into memory.
+    _MAX_BODY = 48 * 1024 * 1024
+
     def _read_body(self) -> dict:
         length = int(self.headers.get("Content-Length", 0))
+        if length < 0 or length > self._MAX_BODY:
+            raise ValueError("request body too large")
         return json.loads(self.rfile.read(length))
 
     def do_POST(self) -> None:
+        try:
+            self._dispatch_post()
+        except Exception:  # noqa: BLE001 - never leak a traceback to the client
+            self._send_json(500, {"error": "internal error"})
+
+    def _dispatch_post(self) -> None:
         if self.path == "/api/estimate":
             try:
                 inp = EstimatorInput.from_dict(self._read_body())
@@ -1359,13 +1381,14 @@ class _Handler(BaseHTTPRequestHandler):
             body = self._read_body()
             data = base64.b64decode(body["data"])
             layout = ps.extract_layout(data, body.get("media_type", ""))
-            # Diagnostic: print numeric-looking tokens so we can see exactly
-            # what PyMuPDF extracted (visible in the console/run.bat window).
-            numeric_words = [w for w in layout.words if any(c.isdigit() for c in w.text)]
-            print("\n--- paystub tokens (numeric) ---")
-            for w in numeric_words:
-                print(f"  {w.text!r:20s}  x={w.x0:.4f}..{w.x1:.4f}  y={w.y0:.4f}..{w.y1:.4f}")
-            print("--- end tokens ---\n")
+            # Diagnostic token dump (off by default — it prints wage figures to
+            # the console). Enable with TWE_DEBUG=1 when troubleshooting layouts.
+            if os.environ.get("TWE_DEBUG"):
+                numeric_words = [w for w in layout.words if any(c.isdigit() for c in w.text)]
+                print("\n--- paystub tokens (numeric) ---")
+                for w in numeric_words:
+                    print(f"  {w.text!r:20s}  x={w.x0:.4f}..{w.x1:.4f}  y={w.y0:.4f}..{w.y1:.4f}")
+                print("--- end tokens ---\n")
             saved = pf.list_profiles()
             matched = None
             best = ps.best_profile(layout, saved)

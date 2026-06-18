@@ -20,29 +20,23 @@ class RealDrakeAdapter:
     live_enabled: bool = False
     name: str = "real-drake-stub"
 
+    # These primitives are intentionally unimplemented. They raise rather than
+    # silently no-op so that any premature wiring into execute_action_plan fails
+    # loudly instead of "succeeding" by entering nothing into a real return.
     def focus_app(self) -> None:
-        """Placeholder for future window focus checks."""
-        return None
+        raise NotImplementedError("Live Drake automation is not implemented yet.")
 
     def open_screen(self, screen_code: str) -> None:
-        """Placeholder for future screen navigation checks."""
-        del screen_code
-        return None
+        raise NotImplementedError("Live Drake automation is not implemented yet.")
 
     def verify_screen(self, screen: ScreenMap) -> None:
-        """Placeholder for future screen marker checks."""
-        del screen
-        return None
+        raise NotImplementedError("Live Drake automation is not implemented yet.")
 
     def enter_field(self, field_locator: str, value: str) -> None:
-        """Placeholder for future field entry behavior."""
-        del field_locator
-        del value
-        return None
+        raise NotImplementedError("Live Drake automation is not implemented yet.")
 
     def handle_unexpected_state(self) -> None:
-        """Placeholder for future unexpected-state handlers."""
-        return None
+        raise NotImplementedError("Live Drake automation is not implemented yet.")
 
     def execute_action_plan(
         self,

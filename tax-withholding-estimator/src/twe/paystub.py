@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 
@@ -131,10 +131,17 @@ def parse_currency(token: str) -> Decimal | None:
     if s.startswith("-"):
         neg = True
         s = s[1:]
-    s = s.replace("$", "").replace(",", "").replace(" ", "")
+    s = s.replace("$", "").replace(" ", "")
     if not s or s == ".":
         return None
-    if not re.fullmatch(r"\d*\.?\d+", s):
+    # Accept grouped thousands ("1,234,567.89") or a plain number ("1234.89").
+    # Reject ambiguous comma forms ("1,23", European "3.200,00") rather than
+    # silently mis-scaling them — a wrong magnitude here corrupts the estimate.
+    if "," in s:
+        if not re.fullmatch(r"\d{1,3}(,\d{3})+(\.\d+)?", s):
+            return None
+        s = s.replace(",", "")
+    elif not re.fullmatch(r"\d*\.?\d+", s):
         return None
     try:
         value = Decimal(s)
@@ -143,10 +150,37 @@ def parse_currency(token: str) -> Decimal | None:
     return -value if neg else value
 
 
-_DATE_FORMATS = (
-    "%m/%d/%Y", "%m/%d/%y", "%Y-%m-%d", "%m-%d-%Y", "%m-%d-%y",
-    "%b %d, %Y", "%B %d, %Y", "%b %d %Y", "%B %d %Y", "%d-%b-%Y", "%d %b %Y",
-)
+# Numeric date formats are locale-independent under strptime.
+_NUMERIC_DATE_FORMATS = ("%m/%d/%Y", "%m/%d/%y", "%Y-%m-%d", "%m-%d-%Y", "%m-%d-%y")
+
+# English month names, parsed via an explicit map so date reading does not
+# depend on the host's LC_TIME locale (strptime("%b") is locale-sensitive).
+_MONTHS: dict[str, int] = {}
+for _i, _name in enumerate(
+    ("january", "february", "march", "april", "may", "june", "july",
+     "august", "september", "october", "november", "december"),
+    start=1,
+):
+    _MONTHS[_name] = _i
+    _MONTHS[_name[:3]] = _i
+
+_MONTH_DAY_YEAR_RE = re.compile(r"(?P<mon>[A-Za-z]+)\s+(?P<day>\d{1,2}),?\s+(?P<year>\d{4})")
+_DAY_MONTH_YEAR_RE = re.compile(r"(?P<day>\d{1,2})[ -](?P<mon>[A-Za-z]+)[ -](?P<year>\d{4})")
+
+
+def _parse_english_month_date(s: str) -> str | None:
+    """Parse 'Jan 15, 2025' / 'January 15 2025' / '15-Jan-2025' deterministically."""
+
+    for rx in (_MONTH_DAY_YEAR_RE, _DAY_MONTH_YEAR_RE):
+        m = rx.fullmatch(s)
+        if m:
+            month = _MONTHS.get(m.group("mon").lower())
+            if month:
+                try:
+                    return date(int(m.group("year")), month, int(m.group("day"))).isoformat()
+                except ValueError:
+                    return None
+    return None
 
 
 def parse_date(text: str) -> str | None:
@@ -155,14 +189,19 @@ def parse_date(text: str) -> str | None:
     s = text.strip().rstrip(".").strip()
     if not s:
         return None
-    for fmt in _DATE_FORMATS:
+    for fmt in _NUMERIC_DATE_FORMATS:
         try:
             return datetime.strptime(s, fmt).date().isoformat()
         except ValueError:
             continue
+    iso = _parse_english_month_date(s)
+    if iso:
+        return iso
     # Try to locate a date substring like 01/15/2025 anywhere in the text.
+    # Only recurse when the match is a *proper* substring, else a date-shaped
+    # but invalid token (e.g. "13/13/2025") would recurse forever.
     m = re.search(r"\d{1,2}[/-]\d{1,2}[/-]\d{2,4}", s)
-    if m:
+    if m and m.group(0) != s:
         return parse_date(m.group(0))
     return None
 
@@ -298,6 +337,10 @@ def _reconstruct_dropped_decimal(dollars: Word, numeric_sorted: list[Word]) -> s
     not parse as a single currency value).
     """
 
+    # A value that already carries a decimal point is complete — never splice an
+    # adjacent token onto it (that would mangle a correct "410.00").
+    if "." in dollars.text:
+        return None
     try:
         idx = numeric_sorted.index(dollars)
     except ValueError:

@@ -39,7 +39,12 @@ def save_profile(profile: Profile) -> Path:
     if not profile.name.strip():
         raise ValueError("Profile name cannot be empty.")
     path = _path_for(profile.name)
-    path.write_text(json.dumps(profile.to_dict(), indent=2), encoding="utf-8")
+    # Write atomically: a crash mid-write must not leave a half-written profile
+    # (list_profiles silently skips unreadable JSON, so a learned profile would
+    # vanish without a trace).
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(profile.to_dict(), indent=2), encoding="utf-8")
+    os.replace(tmp, path)
     return path
 
 

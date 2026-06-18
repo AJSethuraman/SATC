@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from dea.masking import mask_value
+from dea.masking import _is_tin_field, mask_value
 from dea.models import ActionPlan, ActionStep, Client, ScreenMap, SourceCellRef, W2
 
 
@@ -87,8 +87,9 @@ def _step_for_field(
 ) -> ActionStep:
     text_value = _stringify(value)
     # Drake enters SSNs and EINs as raw digits; strip any formatting characters
-    # (dashes, spaces) so Drake's own field validator accepts the input.
-    if "ssn" in field_path.lower() or "ein" in field_path.lower():
+    # (dashes, spaces) so Drake's own field validator accepts the input. Anchored
+    # on the trailing path segment so only true TIN fields are stripped.
+    if _is_tin_field(field_path, "ssn") or _is_tin_field(field_path, "ein"):
         text_value = "".join(c for c in text_value if c.isdigit())
     masked = mask_value(field_path, text_value)
 
