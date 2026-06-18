@@ -1,0 +1,7 @@
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.34
+Jinja2==3.1.4
+WeasyPrint==62.3
+stripe==10.5.0
+python-dotenv==1.0.1

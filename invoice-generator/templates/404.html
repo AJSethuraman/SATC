@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Not Found · Invoicer{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="empty">
+    <h1>404</h1>
+    <p>That invoice or page could not be found.</p>
+    <a class="btn btn-primary" href="{{ url_for('history') }}">Back to History</a>
+  </div>
+</div>
+{% endblock %}

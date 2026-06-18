@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Invoice {{ invoice.invoice_number }} · Invoicer{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Invoice {{ invoice.invoice_number }} <span class="badge badge-{{ invoice.status }}">{{ invoice.status }}</span></h1>
+  <div class="actions-row">
+    <a class="btn btn-ghost" href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}">Edit</a>
+    <a class="btn btn-navy" href="{{ url_for('download_pdf', invoice_id=invoice.id) }}">Download PDF</a>
+  </div>
+</div>
+
+<div class="view-grid">
+  <div>
+    <div class="card">
+      <h2>Parties</h2>
+      <div class="grid-2">
+        <div class="kv"><div class="k">From</div><div class="v">{{ invoice.from_info }}</div></div>
+        <div class="kv"><div class="k">Bill To</div><div class="v">{{ invoice.bill_to }}</div></div>
+      </div>
+      {% if invoice.ship_to %}
+        <div class="kv"><div class="k">Ship To</div><div class="v">{{ invoice.ship_to }}</div></div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Details</h2>
+      <div class="grid-3">
+        <div class="kv"><div class="k">Date</div><div class="v">{{ invoice.invoice_date.isoformat() if invoice.invoice_date else "—" }}</div></div>
+        <div class="kv"><div class="k">Due Date</div><div class="v">{{ invoice.due_date.isoformat() if invoice.due_date else "—" }}</div></div>
+        <div class="kv"><div class="k">Currency</div><div class="v">{{ invoice.currency }}</div></div>
+        <div class="kv"><div class="k">Payment Terms</div><div class="v">{{ invoice.payment_terms or "—" }}</div></div>
+        <div class="kv"><div class="k">PO Number</div><div class="v">{{ invoice.po_number or "—" }}</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Line Items</h2>
+      <table class="items">
+        <thead>
+          <tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr>
+        </thead>
+        <tbody>
+          {% for item in invoice.items %}
+          <tr>
+            <td>{{ item.description }}</td>
+            <td class="num">{{ "%g"|format(item.quantity) }}</td>
+            <td class="num">{{ format_money(item.rate, invoice.currency) }}</td>
+            <td class="num">{{ format_money(item.amount, invoice.currency) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if invoice.notes or invoice.terms %}
+    <div class="card">
+      {% if invoice.notes %}<div class="kv"><div class="k">Notes</div><div class="v">{{ invoice.notes }}</div></div>{% endif %}
+      {% if invoice.terms %}<div class="kv"><div class="k">Terms</div><div class="v">{{ invoice.terms }}</div></div>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>Summary</h2>
+      <div class="totals" style="width:100%">
+        <div class="line"><span>Subtotal</span><span class="val">{{ format_money(invoice.subtotal, invoice.currency) }}</span></div>
+        {% if invoice.discount_amount %}
+        <div class="line"><span>Discount{% if invoice.discount_is_percent %} ({{ "%g"|format(invoice.discount_value) }}%){% endif %}</span><span class="val">-{{ format_money(invoice.discount_amount, invoice.currency) }}</span></div>
+        {% endif %}
+        {% if invoice.tax_amount %}
+        <div class="line"><span>Tax{% if invoice.tax_is_percent %} ({{ "%g"|format(invoice.tax_value) }}%){% endif %}</span><span class="val">{{ format_money(invoice.tax_amount, invoice.currency) }}</span></div>
+        {% endif %}
+        {% if invoice.shipping %}
+        <div class="line"><span>Shipping</span><span class="val">{{ format_money(invoice.shipping, invoice.currency) }}</span></div>
+        {% endif %}
+        <div class="line grand"><span>Total</span><span class="val">{{ format_money(invoice.total, invoice.currency) }}</span></div>
+        {% if invoice.amount_paid %}
+        <div class="line"><span>Amount Paid</span><span class="val">-{{ format_money(invoice.amount_paid, invoice.currency) }}</span></div>
+        {% endif %}
+        <div class="line due"><span>Balance Due</span><span class="val">{{ format_money(invoice.balance_due, invoice.currency) }}</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Payment</h2>
+      {% if invoice.stripe_payment_url %}
+        <a class="btn btn-primary" style="width:100%; justify-content:center" href="{{ invoice.stripe_payment_url }}" target="_blank" rel="noopener">Open Payment Link</a>
+        <p class="help">A Stripe Checkout session has been created for this invoice.</p>
+      {% endif %}
+      {% if stripe_configured %}
+        <form method="post" action="{{ url_for('create_payment', invoice_id=invoice.id) }}" style="margin-top:10px">
+          <button type="submit" class="btn btn-navy btn-sm" {{ "disabled" if invoice.balance_due <= 0 else "" }}>
+            {{ "Regenerate Pay Link" if invoice.stripe_payment_url else "Create Stripe Payment Link" }}
+          </button>
+        </form>
+      {% else %}
+        <p class="help">Set <code>STRIPE_SECRET_KEY</code> in <code>.env</code> to enable Stripe payments.</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Send by Email</h2>
+      {% if smtp_configured %}
+      <form method="post" action="{{ url_for('email_invoice', invoice_id=invoice.id) }}">
+        <div class="field">
+          <label>Recipient email</label>
+          <input type="email" name="to_email" placeholder="client@example.com" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Send Invoice PDF</button>
+      </form>
+      {% else %}
+        <p class="help">Configure <code>SMTP_HOST</code> and <code>FROM_EMAIL</code> in <code>.env</code> to send email.</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h2>Danger Zone</h2>
+      <form method="post" action="{{ url_for('delete_invoice', invoice_id=invoice.id) }}" onsubmit="return confirm('Delete this invoice permanently?');">
+        <button type="submit" class="btn btn-danger btn-sm">Delete Invoice</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
