@@ -25,9 +25,14 @@ vision = [
 pdf = [
   "pypdf>=4.0",
 ]
+# Local hand-holding GUI (opens in the browser).
+app = [
+  "flask>=3.0",
+]
 
 [project.scripts]
 satc = "satc.cli:main"
+satc-app = "satc.app.server:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

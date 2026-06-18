@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SATC — {{ title }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='satc.css') }}">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brandbar">
+      <span class="seal">S</span><span class="wordmark">SETHURAMAN</span>
+      <div class="subtag">ACCOUNTING · TAX · CONSULTING</div>
+    </div>
+    <nav class="nav">
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if title=='Dashboard' }}"><span class="ic">▦</span> Dashboard</a>
+      <a href="{{ url_for('intake') }}" class="{{ 'active' if title=='Intake' }}"><span class="ic">⤓</span> Intake</a>
+      <a href="{{ url_for('staging') }}" class="{{ 'active' if 'Staging' in title }}"><span class="ic">✓</span> Staging</a>
+      <a href="{{ url_for('documents') }}" class="{{ 'active' if title=='Documents' }}"><span class="ic">▤</span> Documents
+        {% if outstanding %}<span class="pill">{{ outstanding }}</span>{% endif %}</a>
+      <a href="{{ url_for('client', client_id='SATC-001000') }}"><span class="ic">◷</span> Clients</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <h1>{{ header or title }}</h1>
+      <span class="tag">{{ tagline or '"Complex work, made clear."' }}</span>
+      <span class="who">A. Sethuraman · TY2024</span>
+    </div>
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+</body>
+</html>

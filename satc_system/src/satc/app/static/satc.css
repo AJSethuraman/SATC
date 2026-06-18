@@ -1,0 +1,90 @@
+/* SATC prototype UI — "Complex work, made clear." */
+:root{
+  --navy:#0B1F3A; --navy-deep:#061A35; --navy-soft:#173361;
+  --gold:#B08D57; --gold-light:#D4B97E; --gold-deep:#8A6F44;
+  --cream:#F6F2EA; --cream2:#EFE9DC; --paper:#FBF9F4; --hairline:#D9CFB8;
+  --ink:#0E1726; --charcoal:#1F2733; --red:#9B2226; --green:#2F5D3A;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px;line-height:1.45}
+a{color:var(--gold-deep);text-decoration:none}
+h1,h2,h3{font-family:Georgia,"Cormorant Garamond",Garamond,serif;color:var(--navy);margin:0}
+
+/* layout (table/inline-block based for broad renderer support) */
+.app{display:table;width:100%;border-spacing:0}
+.side{display:table-cell;width:230px;background:var(--navy);color:var(--cream);vertical-align:top;padding:0 0 24px}
+.brandbar{padding:20px 22px 16px;border-bottom:1px solid rgba(212,185,126,.25)}
+.seal{display:inline-block;width:38px;height:38px;border:2px solid var(--gold);background:var(--navy-deep);
+  color:var(--gold);font-family:Georgia,serif;font-weight:bold;font-size:24px;text-align:center;line-height:34px;
+  vertical-align:middle;margin-right:10px}
+.wordmark{font-family:Georgia,serif;letter-spacing:2px;font-size:17px;color:#fff;vertical-align:middle}
+.subtag{font-size:9.5px;letter-spacing:2px;color:var(--gold-light);margin:8px 0 0 2px}
+.nav{margin-top:14px}
+.nav a{display:block;color:#d9e2ef;padding:11px 22px;border-left:3px solid transparent;font-size:13.5px}
+.nav a .ic{display:inline-block;width:18px;color:var(--gold-light)}
+.nav a:hover{background:var(--navy-soft)}
+.nav a.active{background:var(--navy-soft);border-left-color:var(--gold);color:#fff}
+.nav .pill{float:right;background:var(--red);color:#fff;border-radius:9px;font-size:11px;padding:0 7px;line-height:18px}
+
+.main{display:table-cell;vertical-align:top}
+.topbar{background:#fff;border-bottom:1px solid var(--hairline);padding:16px 28px;overflow:hidden}
+.topbar h1{font-size:22px;display:inline-block}
+.topbar .tag{margin-left:14px;color:var(--gold-deep);font-style:italic;font-size:13px;display:inline-block}
+.topbar .who{float:right;color:var(--charcoal);font-size:12.5px;padding-top:6px}
+.content{padding:24px 28px}
+
+/* cards */
+.cards{margin-bottom:10px}
+.card{background:#fff;border:1px solid var(--hairline);border-radius:8px;padding:16px 18px;
+  display:inline-block;vertical-align:top;width:172px;margin:0 12px 12px 0}
+.card .n{font-family:Georgia,serif;font-size:30px;color:var(--navy)}
+.card .l{font-size:12px;color:var(--charcoal);text-transform:uppercase;letter-spacing:.5px}
+.card.accent{border-top:3px solid var(--gold)}
+.card.alert{border-top:3px solid var(--red)}
+.card.alert .n{color:var(--red)}
+
+.panel{background:#fff;border:1px solid var(--hairline);border-radius:8px;margin-bottom:22px;overflow:hidden}
+.panel h2{background:var(--navy);color:#fff;font-size:14px;padding:11px 18px;font-family:-apple-system,Segoe UI,sans-serif;
+  font-weight:600;letter-spacing:.3px}
+.panel .body{padding:6px 18px 16px}
+.panel .note{color:var(--charcoal);font-size:12.5px;margin:10px 0}
+
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--navy);
+  border-bottom:1px solid var(--hairline);padding:9px 10px;background:var(--cream2)}
+td{padding:10px;border-bottom:1px solid #efe7d6;font-size:13px;vertical-align:middle}
+tr:hover td{background:#faf7f0}
+
+.badge{display:inline-block;border-radius:11px;padding:2px 10px;font-size:11.5px;font-weight:600}
+.b-Requested{background:#f7e3e1;color:var(--red)}
+.b-Received{background:#e2efe5;color:var(--green)}
+.b-Sent{background:#e7eef7;color:var(--navy-soft)}
+.b-Signed{background:#efe7d6;color:var(--gold-deep)}
+.b-CONFIRMED{background:#e2efe5;color:var(--green)}
+.b-NEEDS_REVIEW{background:#f7e3e1;color:var(--red)}
+.b-STAGED{background:#efe7d6;color:var(--gold-deep)}
+.b-REJECTED{background:#eee;color:#777}
+.status-Filed,.status-Accepted{color:var(--green);font-weight:600}
+.status-In.review,.status-In.prep{color:var(--gold-deep)}
+
+.btn{display:inline-block;border:1px solid var(--gold);background:#fff;color:var(--gold-deep);
+  border-radius:6px;padding:5px 12px;font-size:12.5px;cursor:pointer;font-weight:600}
+.btn:hover{background:var(--cream2)}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.primary:hover{background:var(--navy-soft)}
+.btn.sm{padding:3px 9px;font-size:11.5px}
+form.inline{display:inline}
+.muted{color:var(--charcoal);font-size:12px}
+.right{text-align:right}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+.tie{color:var(--green);font-weight:600}
+.flag{color:var(--red);font-weight:600}
+.field-input{width:340px;padding:9px 12px;border:1px solid var(--hairline);border-radius:6px;font-size:13px}
+.hero{background:linear-gradient(180deg,#fff, #faf6ee);border:1px solid var(--hairline);border-radius:8px;
+  padding:18px 20px;margin-bottom:22px}
+.hero h2{font-size:18px;margin-bottom:4px}
+.steps{counter-reset:s;margin:6px 0 0;padding:0;list-style:none}
+.steps li{counter-increment:s;padding:6px 0 6px 30px;position:relative;font-size:13px}
+.steps li:before{content:counter(s);position:absolute;left:0;top:5px;width:20px;height:20px;border-radius:50%;
+  background:var(--gold);color:#fff;text-align:center;line-height:20px;font-size:12px;font-weight:700}

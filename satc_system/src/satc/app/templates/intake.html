@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Point SATC at the client's files.</h2>
+  <div class="muted">A local folder, a SharePoint-synced folder, or a scan drop. SATC reads each document, never guesses a number, and stages everything for your review.</div>
+  <form method="post" style="margin-top:14px">
+    <input class="field-input" name="folder" placeholder="e.g.  /Clients/Maplewood/2024  or  a SharePoint-synced folder"
+           value="{{ folder or '/Clients/Maplewood/2024' }}">
+    <button class="btn primary" type="submit">Scan folder</button>
+  </form>
+</div>
+
+{% if found %}
+<div class="panel">
+  <h2>Found {{ found|length }} documents in “{{ folder }}”</h2>
+  <div class="body">
+    <p class="note">SATC classified each file by type. Confirm the type if needed, then read &amp; stage — fillable PDFs are read for free; scans and photos use Claude vision.</p>
+    <table>
+      <tr><th>File</th><th>Detected type</th><th>How it'll be read</th><th class="right">Action</th></tr>
+      {% for f in found %}
+      <tr>
+        <td class="mono">{{ f.name }}</td>
+        <td>{{ f.type }}</td>
+        <td class="muted">{{ 'PDF form fields (free)' if 'W-2' in f.type or '1099' in f.type else 'Claude vision' }}</td>
+        <td class="right"><a class="btn sm" href="{{ url_for('staging') }}">Read &amp; stage →</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p style="margin-top:14px"><a class="btn primary" href="{{ url_for('staging') }}">Read &amp; stage all {{ found|length }} →</a></p>
+  </div>
+</div>
+{% else %}
+<div class="panel"><h2>How it works</h2><div class="body">
+  <ol class="steps">
+    <li>Point at the folder where the client's documents live.</li>
+    <li>SATC reads each one and stages the values with a confidence score.</li>
+    <li>You confirm (or fix) anything flagged — nothing is trusted until you do.</li>
+    <li>Confirmed values flow into the workpaper and the year-over-year data mart.</li>
+  </ol>
+</div></div>
+{% endif %}
+{% endblock %}

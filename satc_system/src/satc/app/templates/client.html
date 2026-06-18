@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>{{ state.name(client_id) }}</h2>
+  <div class="muted">{{ client_id }} · de-identified everywhere downstream — only this vault-side view shows the name.</div>
+</div>
+
+<div class="cards">
+  <div class="card accent"><div class="n">{{ returns|length }}</div><div class="l">Returns this year</div></div>
+  <div class="card{{ ' alert' if (docs|selectattr('status','equalto','Requested')|list|length) }}">
+    <div class="n">{{ docs|selectattr('status','equalto','Requested')|list|length }}</div><div class="l">Docs outstanding</div></div>
+  <div class="card"><div class="n">{% if engagement and engagement.fee_amount %}${{ '{:,.0f}'.format(engagement.fee_amount) }}{% else %}—{% endif %}</div>
+    <div class="l">Fee · {{ engagement.engagement_letter_status if engagement else '—' }}</div></div>
+</div>
+
+<div class="panel">
+  <h2>Returns</h2>
+  <div class="body">
+    <table>
+      <tr><th>Form</th><th>Jurisdiction</th><th>Status</th><th class="right">Refund / (due)</th><th class="right">Workpaper</th></tr>
+      {% for r in returns %}
+      <tr>
+        <td><strong>{{ r.return_type }}</strong></td>
+        <td>{{ r.jurisdiction }}</td>
+        <td class="status-{{ r.status|replace(' ','.') }}">{{ r.status }}</td>
+        <td class="right">{% if r.refund_amount %}${{ '{:,.0f}'.format(r.refund_amount) }}{% elif r.balance_due_amount %}(${{ '{:,.0f}'.format(r.balance_due_amount) }}){% else %}—{% endif %}</td>
+        <td class="right"><a class="btn sm" href="#">Open workpaper</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p style="margin-top:14px">
+      <a class="btn primary" href="{{ url_for('intake') }}">Add documents</a>
+      <a class="btn" href="#">Generate Drake entry</a>
+      <a class="btn" href="#">Draft delivery email</a>
+    </p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Documents</h2>
+  <div class="body">
+    <table>
+      <tr><th>Document</th><th>Status</th><th>Date</th></tr>
+      {% for d in docs %}
+      <tr><td>{{ d.doc_type }}</td><td><span class="badge b-{{ d.status }}">{{ d.status }}</span></td><td class="muted">{{ d.as_of }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}
