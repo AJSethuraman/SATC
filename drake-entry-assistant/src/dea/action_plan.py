@@ -86,6 +86,10 @@ def _step_for_field(
     field_locator: str | None,
 ) -> ActionStep:
     text_value = _stringify(value)
+    # Drake enters SSNs and EINs as raw digits; strip any formatting characters
+    # (dashes, spaces) so Drake's own field validator accepts the input.
+    if "ssn" in field_path.lower() or "ein" in field_path.lower():
+        text_value = "".join(c for c in text_value if c.isdigit())
     masked = mask_value(field_path, text_value)
 
     if support_status in {"SUPPORTED", "CONDITIONALLY_SUPPORTED"}:

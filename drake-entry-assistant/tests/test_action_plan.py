@@ -119,6 +119,33 @@ def test_skips_manual_review_unsupported_and_deprecated_fields() -> None:
     assert actions["w2.box_12_codes"] == "SKIP_UNSUPPORTED"
 
 
+def test_ein_and_ssn_dashes_stripped_before_entry() -> None:
+    """Values read from Excel may include dash-formatted TINs; Drake rejects them."""
+    screen_maps = load_screen_maps("configs/drake/2025")
+    taxpayer = Taxpayer("Test", "User", "123-45-6789", "1980-01-01", "Engineer")
+    employer = Employer("12-3456789", "Co", "1 St", "City", "IL", "60601")
+    address = Address("1 St", "City", "IL", "60601")
+    w2 = W2(
+        w2_id="W2-001", client_id="C-999", employee=taxpayer,
+        employer=employer,
+        box_1_wages=Decimal("50000"), box_2_federal_withholding=Decimal("5000"),
+        box_3_social_security_wages=Decimal("50000"), box_4_social_security_tax=Decimal("3100"),
+        box_5_medicare_wages=Decimal("50000"), box_6_medicare_tax=Decimal("725"),
+        box_1_raw="50000", box_2_raw="5000", box_3_raw="50000",
+        box_4_raw="3100", box_5_raw="50000", box_6_raw="725",
+    )
+    client = Client("C-999", 2025, "S", taxpayer, None, address, [w2])
+    plan = generate_action_plan(client, screen_maps)
+
+    ssn_step = next(s for s in plan.steps if s.field == "taxpayer.ssn")
+    ein_step = next(s for s in plan.steps if s.field == "w2.employer.ein")
+
+    assert ssn_step.value == "123456789"
+    assert ein_step.value == "123456789"
+    assert "-" not in ssn_step.value
+    assert "-" not in ein_step.value
+
+
 def test_preserves_source_refs_and_order() -> None:
     screen_maps = load_screen_maps("configs/drake/2025")
     refs = {
