@@ -27,6 +27,7 @@ from typing import Any
 
 from twe.engine import estimate
 from twe.models import EstimatorInput
+from twe.excel_report import render_excel
 from twe.report import render_tape, render_text, result_to_dict
 from twe.tax_data import TaxDataError, available_years
 
@@ -42,7 +43,8 @@ def _build_parser() -> argparse.ArgumentParser:
     est.add_argument("--input", type=Path, help="JSON scenario file")
     est.add_argument("--json", action="store_true", help="Emit JSON instead of a text report")
     est.add_argument("--tape", action="store_true", help="Emit full audit tape (inputs + all steps)")
-    est.add_argument("--output", type=Path, help="Write the report/JSON/tape to this file too")
+    est.add_argument("--excel", action="store_true", help="Write audit tape as Excel workbook (requires --output)")
+    est.add_argument("--output", type=Path, help="Write the report/JSON/tape/xlsx to this file")
 
     # Quick-flag inputs (used when --input is not given).
     est.add_argument("--filing-status", choices=[
@@ -144,6 +146,19 @@ def _command_estimate(args: argparse.Namespace) -> int:
     except (ValueError, TaxDataError, json.JSONDecodeError) as exc:
         print(f"estimate failed: {exc}")
         return 1
+
+    if args.excel:
+        if args.output is None:
+            print("--excel requires --output <file.xlsx>")
+            return 1
+        try:
+            xlsx_bytes = render_excel(inp, result)
+        except ImportError as exc:
+            print(f"Excel export unavailable: {exc}")
+            return 1
+        args.output.write_bytes(xlsx_bytes)
+        print(f"Excel tape written to {args.output}")
+        return 0
 
     if args.json:
         output = json.dumps(result_to_dict(result), indent=2)

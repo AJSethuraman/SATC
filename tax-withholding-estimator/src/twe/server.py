@@ -18,6 +18,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from twe.engine import estimate
 from twe.models import EstimatorInput
 from twe.report import render_tape, result_to_dict
+# twe.excel_report is imported lazily inside the handler (optional dependency)
 from twe.tax_data import TaxDataError
 
 # ---------------------------------------------------------------------------
@@ -660,6 +661,7 @@ function buildPayload(){
 }
 
 let _tape = null;
+let _lastPayload = null;
 
 function downloadTape(){
   if(!_tape) return;
@@ -673,14 +675,33 @@ function downloadTape(){
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
+async function downloadExcel(){
+  if(!_lastPayload) return;
+  const btn=event.currentTarget; btn.disabled=true; btn.textContent='Building…';
+  try{
+    const r=await fetch('/api/tape/excel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(_lastPayload)});
+    if(!r.ok){ const d=await r.json(); alert('Excel export failed: '+(d.error||r.status)); return; }
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    const yr=$('tax_year').value||new Date().getFullYear();
+    a.download='withholding-tape-'+yr+'.xlsx';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }catch(e){ alert('Excel export failed: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='↓ Download Excel (.xlsx)'; }
+}
+
 async function go(){
   const btn=$('calc-btn'); btn.disabled=true; btn.textContent='Calculating…';
-  _tape = null;
+  _tape = null; _lastPayload = null;
   try {
-    const r=await fetch('/api/estimate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(buildPayload())});
+    const payload=buildPayload();
+    const r=await fetch('/api/estimate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const data=await r.json();
     if(!r.ok) showError(data.error||'Unknown error');
-    else { _tape = data.tape||null; render(data); }
+    else { _tape = data.tape||null; _lastPayload = payload; render(data); }
   } catch(e){ showError('Could not reach server: '+e.message); }
   finally { btn.disabled=false; btn.textContent='⟳ Calculate Withholding'; }
 }
@@ -794,8 +815,11 @@ function render(d){
   }
 
   const tapeHtml=`<div style="text-align:center;padding:.6rem 0 .2rem">
-    <button class="btn-sec" onclick="downloadTape()" style="padding:.45rem 1.3rem;font-size:.82rem">&#x21E9;&nbsp;Download Audit Tape (.txt)</button>
-    <div style="font-size:.68rem;color:#94a3b8;margin-top:.3rem">Full printable record &mdash; all inputs, every step, recommendation</div>
+    <div style="display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
+      <button class="btn-sec" onclick="downloadTape()" style="padding:.45rem 1.1rem;font-size:.82rem">&#x21E9;&nbsp;Download Tape (.txt)</button>
+      <button class="btn-sec" onclick="downloadExcel()" style="padding:.45rem 1.1rem;font-size:.82rem;border-color:var(--gold);color:var(--gold-deep)">&#x21E9;&nbsp;Download Excel (.xlsx)</button>
+    </div>
+    <div style="font-size:.68rem;color:#94a3b8;margin-top:.3rem">Full printable record &mdash; inputs &middot; every calculation step &middot; recommendation</div>
   </div>`;
   $('results').innerHTML=sumHtml+recHtml+shHtml+bkHtml+notesHtml+tapeHtml+
     '<p class="disc">For planning only &mdash; not tax advice. Verify with the official <a href="https://www.irs.gov/individuals/tax-withholding-estimator" target="_blank">IRS Tax Withholding Estimator</a>.</p>';
@@ -1242,6 +1266,8 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send_json(200, d)
             except (ValueError, TaxDataError, json.JSONDecodeError) as exc:
                 self._send_json(400, {"error": str(exc)})
+        elif self.path == "/api/tape/excel":
+            self._handle_tape_excel()
         elif self.path == "/api/paystub/layout":
             self._handle_paystub_layout()
         elif self.path == "/api/paystub/extract":
@@ -1275,6 +1301,27 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(200, {"ok": True})
         except (KeyError, ValueError, json.JSONDecodeError) as exc:
             self._send_json(400, {"error": str(exc)})
+
+    def _handle_tape_excel(self) -> None:
+        try:
+            from twe.excel_report import render_excel
+        except ImportError as exc:
+            self._send_json(501, {"error": str(exc)})
+            return
+        try:
+            inp = EstimatorInput.from_dict(self._read_body())
+            result = estimate(inp)
+            body = render_excel(inp, result)
+        except (ValueError, TaxDataError, json.JSONDecodeError) as exc:
+            self._send_json(400, {"error": str(exc)})
+            return
+        filename = f"withholding-tape-{result.tax_year_used}.xlsx"
+        self.send_response(200)
+        self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     # -- paystub import endpoints (optional feature) --------------------
 
