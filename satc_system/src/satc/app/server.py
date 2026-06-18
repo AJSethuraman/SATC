@@ -17,7 +17,7 @@ from pathlib import Path
 
 from flask import Flask, redirect, render_template, request, send_file, url_for
 
-from satc.app.state import DOC_FLOW, STATE
+from satc.app.state import DOC_FLOW, STATE, classify
 from satc.persistence import export_mart_to_excel
 
 
@@ -39,17 +39,23 @@ def create_app() -> Flask:
         found: list[dict] = []
         if folder and Path(folder).is_dir():
             for name in sorted(os.listdir(folder))[:50]:
-                found.append({"name": name, "type": _guess_type(name)})
+                found.append({"name": name, "type": classify(name)[0]})
         elif folder:
             # Demo fallback: show the synthetic documents as if found in the folder.
             found = [{"name": f"{d.document_id}.pdf", "type": str(d.doc_type)}
                      for d in STATE.documents()]
         return render_template("intake.html", title="Intake", folder=folder, found=found)
 
+    @app.route("/intake/run", methods=["POST"])
+    def intake_run():
+        STATE.run_intake(request.form.get("folder", ""))
+        return redirect(url_for("staging"))
+
     @app.route("/staging")
     def staging():
         return render_template("staging.html", title="Staging & confirmation",
-                               fields=STATE.gate.all_fields(), summary=STATE.gate.summary())
+                               fields=STATE.gate.all_fields(), summary=STATE.gate.summary(),
+                               intake=STATE.intake_summary)
 
     @app.route("/staging/auto", methods=["POST"])
     def staging_auto():

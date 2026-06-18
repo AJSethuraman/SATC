@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="hero">
+  {% if intake %}
+  <h2>Read {{ intake.fields_staged }} fields from {{ intake.files_read }} documents in “{{ intake.folder }}”.</h2>
+  {% for n in intake.notes %}<div class="muted">• {{ n }}</div>{% endfor %}
+  {% else %}
   <h2>Confirm what SATC read.</h2>
-  <div class="muted">
+  {% endif %}
+  <div class="muted" style="margin-top:6px">
     {{ summary['CONFIRMED'] }} confirmed · {{ summary['NEEDS_REVIEW'] + summary['STAGED'] }} to review · {{ summary['REJECTED'] }} rejected.
     Only confirmed values flow into the workpaper. Unreadable amounts are flagged — never guessed. SSN/EIN are masked.
   </div>

@@ -16,17 +16,19 @@
   <div class="body">
     <p class="note">SATC classified each file by type. Confirm the type if needed, then read &amp; stage — fillable PDFs are read for free; scans and photos use Claude vision.</p>
     <table>
-      <tr><th>File</th><th>Detected type</th><th>How it'll be read</th><th class="right">Action</th></tr>
+      <tr><th>File</th><th>Detected type</th><th>How it'll be read</th></tr>
       {% for f in found %}
       <tr>
         <td class="mono">{{ f.name }}</td>
         <td>{{ f.type }}</td>
-        <td class="muted">{{ 'PDF form fields (free)' if 'W-2' in f.type or '1099' in f.type else 'Claude vision' }}</td>
-        <td class="right"><a class="btn sm" href="{{ url_for('staging') }}">Read &amp; stage →</a></td>
+        <td class="muted">{{ 'PDF form fields (free)' if 'W-2' in f.type or '1099' in f.type else ('— filed, not extracted' if f.type in ['Engagement letter','Form 8879','Organizer','Unclassified'] else 'Claude vision') }}</td>
       </tr>
       {% endfor %}
     </table>
-    <p style="margin-top:14px"><a class="btn primary" href="{{ url_for('staging') }}">Read &amp; stage all {{ found|length }} →</a></p>
+    <form method="post" action="{{ url_for('intake_run') }}" style="margin-top:14px">
+      <input type="hidden" name="folder" value="{{ folder }}">
+      <button class="btn primary" type="submit">Read &amp; stage these {{ found|length }} documents →</button>
+    </form>
   </div>
 </div>
 {% else %}

@@ -16,6 +16,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
+  "flask>=3.0",
+  "pypdf>=4.0",
+  "reportlab>=4.0",
 ]
 # Document readers. The vision backend needs the Anthropic SDK; the free PDF
 # form-field backend needs pypdf. Neither is required for the rest of the system.

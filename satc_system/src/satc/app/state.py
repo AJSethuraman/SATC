@@ -11,15 +11,36 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from satc.config import load_extraction_map
 from satc.fixtures import synthetic_documents
 from satc.ingest import MapExtractor, StagingGate
+from satc.ingest.readers import PdfFormReader, VisionDocumentReader
 from satc.models.mart import DataMart, DocumentRecord
 from satc.persistence import SATCStore
 
 # Status flow for a document in the repository.
 DOC_FLOW = ["Requested", "Received", "Sent", "Signed", "N/A"]
+
+# Filename hint -> (display type, extraction-config key or None if not extractable).
+_DOC_TYPES = [
+    ("w2", "W-2", "w2"), ("w-2", "W-2", "w2"),
+    ("1099int", "1099-INT", "1099int"), ("1099-int", "1099-INT", "1099int"),
+    ("1099div", "1099-DIV", "1099div"), ("1099-div", "1099-DIV", "1099div"),
+    ("k1", "K-1", "k1_1120s"), ("k-1", "K-1", "k1_1120s"),
+    ("prior", "Prior-year 1040", "prior_1040"), ("1040", "Prior-year 1040", "prior_1040"),
+    ("8879", "Form 8879", None), ("engagement", "Engagement letter", None),
+    ("organizer", "Organizer", None),
+]
+
+
+def classify(filename: str) -> tuple[str, str | None]:
+    f = filename.lower()
+    for needle, label, key in _DOC_TYPES:
+        if needle in f:
+            return label, key
+    return "Unclassified", None
 
 
 @dataclass
@@ -28,6 +49,7 @@ class AppState:
     mart: DataMart = field(default_factory=DataMart)
     names: dict[str, str] = field(default_factory=dict)
     gate: StagingGate = field(default_factory=StagingGate)
+    intake_summary: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.store.seed_if_empty()           # first run: populate from synthetic fixtures
@@ -80,6 +102,52 @@ class AppState:
 
     def auto_confirm(self) -> int:
         return self.gate.auto_confirm_high(by="auto (UI)")
+
+    # -- intake: actually read the files in a folder ----------------------
+    def run_intake(self, folder: str, *, client_id: str = "SATC-001000",
+                   tax_year: int = 2024) -> dict:
+        """Read every file in ``folder`` and stage the values. Returns a summary."""
+        self.gate = StagingGate()          # fresh working area for this intake
+        files_read = 0
+        fields_staged = 0
+        notes: list[str] = []
+        has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+        base = Path(folder)
+        files = sorted(p for p in base.iterdir() if p.is_file()) if base.is_dir() else []
+
+        for path in files:
+            label, key = classify(path.name)
+            if key is None:
+                notes.append(f"{path.name}: filed as “{label}” (not an extractable tax form).")
+                continue
+            cfg = load_extraction_map(key)
+            try:
+                if path.suffix.lower() == ".pdf":
+                    result = PdfFormReader(cfg).read(str(path))
+                    if not result.labeled_fields:           # flat scan, not fillable
+                        if not has_key:
+                            notes.append(f"{path.name}: no form fields — set ANTHROPIC_API_KEY to read by vision.")
+                            continue
+                        result = VisionDocumentReader(cfg).read(str(path))
+                elif has_key:
+                    result = VisionDocumentReader(cfg).read(str(path))
+                else:
+                    notes.append(f"{path.name}: image — set ANTHROPIC_API_KEY to read by vision.")
+                    continue
+            except Exception as exc:        # noqa: BLE001 - surface, don't crash
+                notes.append(f"{path.name}: could not read ({exc}).")
+                continue
+            staged = MapExtractor(cfg).extract(
+                document_id=path.name, client_id=client_id, tax_year=tax_year,
+                labeled_fields=result.labeled_fields, confidences=result.confidence_map())
+            self.gate.add(staged)
+            files_read += 1
+            fields_staged += len(staged.fields)
+
+        self.gate.auto_confirm_high(by="auto (intake)")
+        self.intake_summary = {"folder": folder, "files_read": files_read,
+                               "fields_staged": fields_staged, "notes": notes}
+        return self.intake_summary
 
     # -- dashboard rollups ------------------------------------------------
     def pipeline_counts(self) -> dict[str, int]:

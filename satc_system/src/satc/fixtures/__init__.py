@@ -12,8 +12,10 @@ from satc.fixtures.synthetic import (
     synthetic_mart,
     synthetic_preparer_set_text,
 )
+from satc.fixtures.sample_docs import create_sample_folder
 
 __all__ = [
+    "create_sample_folder",
     "synthetic_1040_values",
     "synthetic_carryforwards",
     "synthetic_documents",
