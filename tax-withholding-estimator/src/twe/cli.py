@@ -71,7 +71,7 @@ def _build_parser() -> argparse.ArgumentParser:
     est.add_argument("--estimated-payments", type=float, default=0.0, help="Estimated tax already paid")
     est.add_argument("--target-refund", type=float, default=0.0, help="Desired refund (default break even)")
     est.add_argument("--prior-year-tax", type=float, help="Prior-year total tax (enables safe-harbor calc)")
-    est.add_argument("--prior-year-agi", type=float, help="Prior-year AGI (for safe-harbor 100%/110% test)")
+    est.add_argument("--prior-year-agi", type=float, help="Prior-year AGI (for safe-harbor 100%%/110%% test)")
 
     samp = sub.add_parser("sample", help="Write a sample scenario JSON file")
     samp.add_argument("--output", type=Path, default=Path("scenario.json"))
