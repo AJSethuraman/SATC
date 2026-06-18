@@ -15,9 +15,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from flask import Flask, redirect, render_template, request, url_for
+from flask import Flask, redirect, render_template, request, send_file, url_for
 
 from satc.app.state import DOC_FLOW, STATE
+from satc.persistence import export_mart_to_excel
 
 
 def create_app() -> Flask:
@@ -72,6 +73,12 @@ def create_app() -> Flask:
     def documents_status(document_id: str, status: str):
         STATE.set_document_status(document_id, status)
         return redirect(url_for("documents"))
+
+    @app.route("/export")
+    def export():
+        out = Path(STATE.store.dir) / "SATC_DataMart_export.xlsx"
+        export_mart_to_excel(STATE.store, out)
+        return send_file(out, as_attachment=True, download_name="SATC_DataMart.xlsx")
 
     @app.route("/clients/<client_id>")
     def client(client_id: str):
