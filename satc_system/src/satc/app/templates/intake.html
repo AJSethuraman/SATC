@@ -3,7 +3,12 @@
 <div class="hero">
   <h2>Point SATC at the client's files.</h2>
   <div class="muted">A local folder, a SharePoint-synced folder, or a scan drop. SATC reads each document, never guesses a number, and stages everything for your review.</div>
+  {% if client or tax_year %}
+  <p class="note" style="margin-top:10px">Reading documents for <strong>{{ state.name(client) if client else 'demo client' }}</strong>{% if tax_year %} · {{ tax_year }}{% endif %}</p>
+  {% endif %}
   <form method="post" style="margin-top:14px">
+    <input type="hidden" name="client" value="{{ client }}">
+    <input type="hidden" name="tax_year" value="{{ tax_year }}">
     <input class="field-input" name="folder" placeholder="e.g.  /Clients/Maplewood/2024  or  a SharePoint-synced folder"
            value="{{ folder or '/Clients/Maplewood/2024' }}">
     <button class="btn primary" type="submit">Scan folder</button>
@@ -28,10 +33,14 @@
     </table>
     <form method="post" action="{{ url_for('intake_run') }}" style="margin-top:14px">
       <input type="hidden" name="folder" value="{{ folder }}">
+      <input type="hidden" name="client" value="{{ client }}">
+      <input type="hidden" name="tax_year" value="{{ tax_year }}">
       <button class="btn primary" type="submit">Read &amp; stage these {{ found|length }} documents →</button>
     </form>
     <form method="post" action="{{ url_for('sort') }}" class="inline" style="margin-top:14px">
       <input type="hidden" name="folder" value="{{ folder }}">
+      <input type="hidden" name="client" value="{{ client }}">
+      <input type="hidden" name="tax_year" value="{{ tax_year }}">
       <button class="btn" type="submit">Sort &amp; re-label this folder →</button>
     </form>
   </div>

@@ -41,6 +41,8 @@ def create_app() -> Flask:
     @app.route("/intake", methods=["GET", "POST"])
     def intake():
         folder = request.form.get("folder") or request.args.get("folder") or ""
+        client = request.values.get("client", "")
+        tax_year = request.values.get("tax_year", "")
         found: list[dict] = []
         if folder and Path(folder).is_dir():
             classifier = load_classifier()
@@ -56,24 +58,36 @@ def create_app() -> Flask:
             found = [{"name": f"{d.document_id}.pdf", "type": str(d.doc_type),
                       "method": "filename", "confidence": "LOW", "extractable": True}
                      for d in STATE.documents()]
-        return render_template("intake.html", title="Intake", folder=folder, found=found)
+        return render_template("intake.html", title="Intake", folder=folder, found=found,
+                               client=client, tax_year=tax_year)
 
     @app.route("/intake/run", methods=["POST"])
     def intake_run():
-        STATE.run_intake(request.form.get("folder", ""))
+        folder = request.form.get("folder", "")
+        client = request.values.get("client", "")
+        tax_year = request.values.get("tax_year", "")
+        STATE.run_intake(folder, client_id=client or "SATC-001000",
+                         tax_year=int(tax_year) if tax_year.strip().isdigit() else 2024)
         return redirect(url_for("staging"))
 
     @app.route("/sort", methods=["GET", "POST"])
     def sort():
         folder = request.form.get("folder") or request.args.get("folder") or ""
-        plan = STATE.sort_folder(folder, apply=False) if folder and Path(folder).is_dir() else None
-        return render_template("sort.html", title="Sort & re-label", folder=folder, plan=plan)
+        client = request.values.get("client", "")
+        tax_year = request.values.get("tax_year", "")
+        plan = (STATE.sort_folder(folder, apply=False, client_id=client, tax_year=tax_year)
+                if folder and Path(folder).is_dir() else None)
+        return render_template("sort.html", title="Sort & re-label", folder=folder, plan=plan,
+                               client=client, tax_year=tax_year, clients=STATE.client_choices())
 
     @app.route("/sort/apply", methods=["POST"])
     def sort_apply():
         folder = request.form.get("folder", "")
-        plan = STATE.sort_folder(folder, apply=True)
-        return render_template("sort.html", title="Sort & re-label", folder=folder, plan=plan)
+        client = request.values.get("client", "")
+        tax_year = request.values.get("tax_year", "")
+        plan = STATE.sort_folder(folder, apply=True, client_id=client, tax_year=tax_year)
+        return render_template("sort.html", title="Sort & re-label", folder=folder, plan=plan,
+                               client=client, tax_year=tax_year, clients=STATE.client_choices())
 
     @app.route("/staging")
     def staging():

@@ -5,7 +5,18 @@
   <div class="muted">SATC reads each file to decide what it is, then proposes a clean name and a by-type folder. Originals are never moved or changed — applying makes tidy <em>copies</em> under <span class="mono">_SATC_Sorted/</span>.</div>
   <form method="post" style="margin-top:12px">
     <input class="field-input" name="folder" value="{{ folder }}" placeholder="/Clients/Maplewood/2024">
-    <button class="btn primary" type="submit">Preview plan</button>
+    <div style="margin-top:10px">
+      <span class="muted">Sort into a client's folder (optional):</span><br>
+      <select name="client" class="field-input" style="margin-top:6px">
+        <option value="">— none (sort in place) —</option>
+        {% for cid, dname in clients %}
+        <option value="{{ cid }}"{% if cid == client %} selected{% endif %}>{{ dname }}</option>
+        {% endfor %}
+      </select>
+      <input class="field-input" name="tax_year" value="{{ tax_year }}" placeholder="2024" style="max-width:120px">
+    </div>
+    <p class="note" style="margin-top:8px">When a client and year are chosen, the clean copies go to that client's year folder in your document library (<span class="mono">~/SATC Clients</span>) instead of a <span class="mono">_SATC_Sorted</span> subfolder.</p>
+    <button class="btn primary" type="submit" style="margin-top:8px">Preview plan</button>
   </form>
 </div>
 
@@ -30,10 +41,15 @@
     {% if not plan.applied %}
     <form method="post" action="{{ url_for('sort_apply') }}" style="margin-top:14px">
       <input type="hidden" name="folder" value="{{ folder }}">
+      <input type="hidden" name="client" value="{{ client }}">
+      <input type="hidden" name="tax_year" value="{{ tax_year }}">
       <button class="btn primary" type="submit">Apply — copy into {{ plan.dest.split('/')[-1] }}/ →</button>
     </form>
     {% else %}
     <p class="note" style="margin-top:12px">Copied into <span class="mono">{{ plan.dest }}</span>. Originals untouched.</p>
+    <p style="margin-top:12px">
+      <a class="btn primary" href="{{ url_for('intake', folder=plan.dest, client=client, tax_year=tax_year) }}">Read these in Intake →</a>
+    </p>
     {% endif %}
   </div>
 </div>
