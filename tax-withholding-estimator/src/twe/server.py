@@ -1331,20 +1331,24 @@ def _open_browser(url: str) -> None:
     """Open the default browser as reliably as possible across platforms."""
 
     try:
-        if webbrowser.open(url):
-            return
-    except Exception:  # noqa: BLE001
-        pass
-    # Fallbacks for environments where webbrowser can't pick a browser.
-    try:
         if sys.platform.startswith("win"):
-            os.startfile(url)  # type: ignore[attr-defined]
+            # webbrowser.open() returns True but does nothing when called from a
+            # .bat-spawned subprocess on Windows.  cmd /c start is reliable from
+            # any process context; the empty-string second arg handles URLs with
+            # special characters (& etc.) that confuse the start command.
+            subprocess.Popen(["cmd", "/c", "start", "", url], shell=False)
         elif sys.platform == "darwin":
             subprocess.Popen(["open", url])
         else:
             subprocess.Popen(["xdg-open", url])
+        return
     except Exception:  # noqa: BLE001
-        pass  # The URL is printed below; the user can open it manually.
+        pass
+    # Last resort: Python's webbrowser module.
+    try:
+        webbrowser.open(url)
+    except Exception:  # noqa: BLE001
+        pass  # URL is printed to the console; user can open it manually.
 
 
 def serve(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True) -> None:
