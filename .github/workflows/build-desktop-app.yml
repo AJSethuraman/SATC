@@ -1,0 +1,53 @@
+name: Build desktop app
+
+# Produce a zero-install, double-clickable SATC executable for each OS using
+# PyInstaller. Run manually (workflow_dispatch) or on a version tag (v*); tag
+# builds also attach the binaries to the matching GitHub Release.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project + build tooling
+        working-directory: satc_system
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[local,build]"
+
+      - name: Build executable
+        working-directory: satc_system
+        run: pyinstaller packaging/satc_app.spec
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SATC-${{ matrix.os }}
+          path: satc_system/dist/SATC*
+          if-no-files-found: error
+
+      - name: Attach to release (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: satc_system/dist/SATC*

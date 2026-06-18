@@ -37,6 +37,11 @@ ocr = [
 app = [
   "flask>=3.0",
 ]
+# Tooling to produce the zero-install, double-clickable desktop executable
+# (see packaging/satc_app.spec and the build-desktop-app GitHub Actions workflow).
+build = [
+  "pyinstaller>=6.0",
+]
 # Everything for the easy, fully-local install (GUI + PDF + OCR). No cloud deps.
 local = [
   "flask>=3.0",

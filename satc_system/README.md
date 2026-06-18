@@ -6,6 +6,12 @@
 
 Everything runs on your own computer. No cloud account, nothing sent anywhere.
 
+> **Download the app (no install).** Don't want to install anything? Grab the
+> single ready-to-run **`SATC`** file for your computer from the project's
+> [Releases](../../releases) page (one download for Mac, Windows, or Linux),
+> then double-click it. No Python, no setup — it opens SATC in your browser.
+> (These executables are built automatically; see `packaging/README.md`.)
+
 | Your computer | Do this |
 |---------------|---------|
 | **Mac** | Double-click **`install.command`** once, then double-click **`SATC.command`** to start. |

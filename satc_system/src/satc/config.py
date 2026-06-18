@@ -2,12 +2,26 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-CONFIG_ROOT = Path(__file__).resolve().parents[2] / "configs"
+
+def _config_root() -> Path:
+    """Locate the ``configs/`` tree.
+
+    In a normal (dev/test) install the configs live alongside the package at
+    ``satc_system/configs``. Inside a PyInstaller bundle the source tree is gone,
+    so the configs are bundled as data under ``sys._MEIPASS/configs`` instead.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent)) / "configs"
+    return Path(__file__).resolve().parents[2] / "configs"
+
+
+CONFIG_ROOT = _config_root()
 
 
 class ConfigError(Exception):

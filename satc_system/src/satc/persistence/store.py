@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import sys
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -37,7 +38,20 @@ from satc.models.mart import (
 )
 from satc.models.provenance import Provenance, SourceRef
 
-DEFAULT_DIR = Path(__file__).resolve().parents[3] / "build" / "data"
+def _default_dir() -> Path:
+    """Where the SQLite databases live by default.
+
+    In a dev checkout this is ``satc_system/build/data``. Inside a PyInstaller
+    bundle that path points into a read-only temp extraction dir, so fall back to
+    a per-user writable location instead. ``SATC_DATA_DIR`` (handled by the
+    caller) always wins over this default.
+    """
+    if getattr(sys, "frozen", False):
+        return Path.home() / ".satc" / "data"
+    return Path(__file__).resolve().parents[3] / "build" / "data"
+
+
+DEFAULT_DIR = _default_dir()
 
 _VAULT_DDL = """
 CREATE TABLE IF NOT EXISTS identities (
