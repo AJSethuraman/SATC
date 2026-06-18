@@ -53,3 +53,19 @@ def test_no_placeholder_href_hash_in_client_page(client):
     # The client page must not ship dead "#" buttons anymore.
     body = client.get("/clients/SATC-001000").get_data(as_text=True)
     assert 'href="#"' not in body
+
+
+def test_intake_retains_source_and_route_is_allowlisted(tmp_path, client):
+    """Compare-to-source: a read keeps its file, and /source serves only those."""
+    from satc.app.state import STATE, AppState
+    from satc.fixtures import create_sample_folder
+
+    fresh = AppState()
+    fresh.run_intake(str(create_sample_folder(tmp_path / "2024")))
+    sourced = [d for d in fresh.gate.documents if d.source_path]
+    assert sourced, "each read document should retain its source file path"
+
+    STATE.intake_sources = set(fresh.intake_sources)
+    assert client.get("/source", query_string={"path": sourced[0].source_path}).status_code == 200
+    # Anything outside the allow-list is refused (no arbitrary file reads).
+    assert client.get("/source", query_string={"path": "/etc/passwd"}).status_code == 404

@@ -52,6 +52,9 @@ class AppState:
     gate: StagingGate = field(default_factory=StagingGate)
     intake_summary: dict = field(default_factory=dict)
     posted_summary: dict = field(default_factory=dict)
+    # Absolute paths of the files read in the last intake — the allow-list the
+    # /source route serves from, so Staging can show a value next to its document.
+    intake_sources: set = field(default_factory=set)
     # The client/year the current intake is for — set when reading a client's folder,
     # so Staging → Post targets the right return (defaults to the demo client).
     intake_context: dict = field(default_factory=dict)
@@ -205,6 +208,7 @@ class AppState:
 
         self.intake_context = {"client_id": client_id, "tax_year": tax_year}
         self.gate = StagingGate()          # fresh working area for this intake
+        self.intake_sources = set()        # allow-list of source files for /source
         files_read = 0
         fields_staged = 0
         reconciled = 0
@@ -253,7 +257,11 @@ class AppState:
                     staged = MapExtractor(cfg).extract(
                         document_id=doc_id, client_id=client_id, tax_year=tax_year,
                         labeled_fields=result.labeled_fields, confidences=result.confidence_map())
+                    staged.source_path = str(path)        # retain the file for compare-to-source
+                    if parts:
+                        staged.source_note = doc_id        # which part of the combined PDF
                     self.gate.add(staged)
+                    self.intake_sources.add(str(path))
                     files_read += 1
                     fields_staged += len(staged.fields)
                     via = _READER_LABELS.get(result.backend, result.backend)

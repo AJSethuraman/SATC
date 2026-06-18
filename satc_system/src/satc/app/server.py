@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from flask import Flask, redirect, render_template, request, send_file, url_for
+from flask import Flask, Response, redirect, render_template, request, send_file, url_for
 
 from satc.app.intake_views import bp as intake_bp
 from satc.app.state import DOC_FLOW, STATE
@@ -92,8 +92,16 @@ def create_app() -> Flask:
     @app.route("/staging")
     def staging():
         return render_template("staging.html", title="Staging & confirmation",
-                               fields=STATE.gate.all_fields(), summary=STATE.gate.summary(),
+                               documents=STATE.gate.documents, summary=STATE.gate.summary(),
                                intake=STATE.intake_summary)
+
+    @app.route("/source")
+    def source_file():
+        """Serve an original source file — but only ones read in the last intake."""
+        path = request.args.get("path", "")
+        if path not in STATE.intake_sources or not Path(path).is_file():
+            return Response("Source file not available.", status=404, mimetype="text/plain")
+        return send_file(path)
 
     @app.route("/staging/auto", methods=["POST"])
     def staging_auto():

@@ -69,7 +69,11 @@ class StagedField:
 
 @dataclass(slots=True)
 class StagedDocument:
-    """All staged fields extracted from one source document."""
+    """All staged fields extracted from one source document.
+
+    ``source_path`` is the original file the values were read from, retained so the
+    preparer can compare the staged values against the real document at review time.
+    """
 
     document_id: str
     client_id: str
@@ -77,6 +81,8 @@ class StagedDocument:
     doc_type: DocType | str
     fields: list[StagedField] = field(default_factory=list)
     extracted_at: datetime | None = None
+    source_path: str = ""
+    source_note: str = ""        # e.g. "part 2 of a combined PDF"
 
     def needs_review(self) -> list[StagedField]:
         return [f for f in self.fields if f.status in ("STAGED", "NEEDS_REVIEW")]

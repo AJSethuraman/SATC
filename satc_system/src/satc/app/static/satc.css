@@ -116,6 +116,14 @@ form.inline{display:inline}
 .mini{width:96px;padding:3px 6px;border:1px solid var(--hairline);border-radius:5px;font-size:12px;
   font-family:ui-monospace,Menlo,Consolas,monospace}
 
+/* staging: values beside their source document (compare-to-source) */
+.docblock{border:1px solid var(--hairline);border-radius:8px;margin:0 0 14px;padding:12px 14px;background:var(--paper)}
+.docrow{display:flex;gap:16px;align-items:flex-start}
+.docfields{flex:1;min-width:0}
+.docfields table{width:100%}
+.docsource{width:280px;flex:none;text-align:center;border-left:1px solid var(--hairline);padding-left:14px}
+.srcimg{max-width:258px;max-height:340px;border:1px solid var(--hairline);border-radius:4px}
+
 .steps{counter-reset:s;margin:6px 0 0;padding:0;list-style:none}
 .steps li{counter-increment:s;padding:6px 0 6px 30px;position:relative;font-size:13px}
 .steps li:before{content:counter(s);position:absolute;left:0;top:5px;width:20px;height:20px;border-radius:50%;

@@ -24,44 +24,72 @@
 <div class="panel">
   <h2>Sample values</h2>
   <div class="body">
-    <p class="note" style="margin-top:0">These are the built-in demo's W-2s ($98,000 + $47,000 = $145,000) — <strong>not</strong> read from your files, and nothing is rounded. Scan a folder in <a href="{{ url_for('intake') }}">Intake</a> to replace them with real reads, or clear the sample data from the banner above.</p>
+    <p class="note" style="margin-top:0">These are the built-in demo's W-2s ($98,000 + $47,000 = $145,000) — <strong>not</strong> read from your files, and nothing is rounded. Scan a folder in <a href="{{ url_for('intake') }}">Intake</a> to replace them with real reads you can compare to the source, or clear the sample data from the banner above.</p>
   </div>
 </div>
 {% endif %}
 
 <div class="panel">
-  <h2>Staged fields</h2>
+  <h2>Staged fields <span class="muted">— compare each value to its document</span></h2>
   <div class="body">
-    <p class="note" style="margin-top:0">Edit any value to hand-correct a read, un-accept to send a confirmed value back for review, or delete a stray field. Only confirmed values flow downstream.</p>
-    <table>
-      <tr><th>Document</th><th>Field</th><th>Value (editable)</th><th>Conf.</th><th>Status</th><th class="right">Actions</th></tr>
-      {% for f in fields %}
-      <tr>
-        <td class="muted">{{ f.document_id }}</td>
-        <td>{{ f.label }}<div class="muted">{{ f.provenance.short_source() }}</div></td>
-        <td>
-          <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='edit') }}">
-            <input class="mini" type="text" name="value" value="{{ f.effective_text() }}">
-            <button class="btn sm" type="submit">Save</button>
-          </form>
-        </td>
-        <td>{{ f.provenance.confidence }}</td>
-        <td><span class="badge b-{{ f.status }}">{{ f.status }}</span>
-          {% if f.status == 'CONFIRMED' and f.confirmed_by %}<div class="muted">✓ {{ f.confirmed_by }}</div>{% endif %}</td>
-        <td class="right">
-          {% if f.status != 'CONFIRMED' %}
-          <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='confirm') }}">
-            <button class="btn sm primary" type="submit">Confirm</button></form>
+    <p class="note" style="margin-top:0">Check each value against the source on the right. Edit to hand-correct a read, un-accept a confirmed value, or delete a stray field. Only confirmed values flow downstream.</p>
+
+    {% for doc in documents %}
+    {% set ext = (doc.source_path.rsplit('.', 1)[-1] | lower) if doc.source_path else '' %}
+    {% set is_image = ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff'] %}
+    <div class="docblock">
+      <div class="docrow">
+        <div class="docfields">
+          <div class="muted" style="margin-bottom:6px">
+            <strong>{{ doc.doc_type }}</strong> · <span class="mono">{{ doc.document_id }}</span>
+            {% if doc.source_note %} · {{ doc.source_note }}{% endif %}
+          </div>
+          <table>
+            <tr><th>Field</th><th>Value (editable)</th><th>Conf.</th><th>Status</th><th class="right">Actions</th></tr>
+            {% for f in doc.fields %}
+            <tr>
+              <td>{{ f.label }}<div class="muted mono">{{ f.provenance.extractor }}</div></td>
+              <td>
+                <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='edit') }}">
+                  <input class="mini" type="text" name="value" value="{{ f.effective_text() }}">
+                  <button class="btn sm" type="submit">Save</button>
+                </form>
+              </td>
+              <td>{{ f.provenance.confidence }}</td>
+              <td><span class="badge b-{{ f.status }}">{{ f.status }}</span>
+                {% if f.status == 'CONFIRMED' and f.confirmed_by %}<div class="muted">✓ {{ f.confirmed_by }}</div>{% endif %}</td>
+              <td class="right">
+                {% if f.status != 'CONFIRMED' %}
+                <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='confirm') }}">
+                  <button class="btn sm primary" type="submit">Confirm</button></form>
+                {% else %}
+                <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='unconfirm') }}">
+                  <button class="btn sm" type="submit">Unaccept</button></form>
+                {% endif %}
+                <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='delete') }}">
+                  <button class="btn sm" type="submit">Delete</button></form>
+              </td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+        <div class="docsource">
+          {% if doc.source_path %}
+            {% if is_image %}
+            <a href="{{ url_for('source_file', path=doc.source_path) }}" target="_blank">
+              <img class="srcimg" src="{{ url_for('source_file', path=doc.source_path) }}" alt="source document"></a>
+            {% else %}
+            <a class="btn sm primary" href="{{ url_for('source_file', path=doc.source_path) }}" target="_blank">View source ↗</a>
+            {% endif %}
+            <div class="muted mono" style="margin-top:6px;word-break:break-all">{{ doc.source_path }}</div>
           {% else %}
-          <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='unconfirm') }}">
-            <button class="btn sm" type="submit">Unaccept</button></form>
+            <div class="muted">No source file<br>(sample data).</div>
           {% endif %}
-          <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='delete') }}">
-            <button class="btn sm" type="submit">Delete</button></form>
-        </td>
-      </tr>
-      {% endfor %}
-    </table>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% if not documents %}<p class="note">Nothing staged yet. Scan a folder in <a href="{{ url_for('intake') }}">Intake</a>.</p>{% endif %}
   </div>
 </div>
 {% endblock %}
