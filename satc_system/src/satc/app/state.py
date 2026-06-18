@@ -52,6 +52,9 @@ class AppState:
     gate: StagingGate = field(default_factory=StagingGate)
     intake_summary: dict = field(default_factory=dict)
     posted_summary: dict = field(default_factory=dict)
+    # The client/year the current intake is for — set when reading a client's folder,
+    # so Staging → Post targets the right return (defaults to the demo client).
+    intake_context: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.store.seed_if_empty()           # first run: populate from synthetic fixtures
@@ -122,6 +125,7 @@ class AppState:
 
         from satc.intake import reconcile_received
 
+        self.intake_context = {"client_id": client_id, "tax_year": tax_year}
         self.gate = StagingGate()          # fresh working area for this intake
         files_read = 0
         fields_staged = 0
@@ -130,7 +134,15 @@ class AppState:
         allow_cloud = cloud_vision_enabled()   # OFF unless the practice opts in
         classifier = load_classifier(has_key=allow_cloud)
         base = Path(folder)
-        files = sorted(p for p in base.iterdir() if p.is_file()) if base.is_dir() else []
+        # Read the folder recursively so a sorted, by-type tree (W-2/…, 1099-INT/…)
+        # reads just like a flat folder. Skip a nested _SATC_Sorted copy (avoids
+        # reading both an original and its sorted duplicate) and hidden files.
+        files = []
+        if base.is_dir():
+            for p in sorted(base.rglob("*")):
+                rel = p.relative_to(base).parts
+                if p.is_file() and "_SATC_Sorted" not in rel and not any(s.startswith(".") for s in rel):
+                    files.append(p)
 
         with tempfile.TemporaryDirectory() as tmp:
             for path in files:
@@ -211,14 +223,29 @@ class AppState:
             return None, f"could not read ({exc})."
 
     # -- sort + re-label a folder (non-destructive preview/apply) ----------
-    def sort_folder(self, folder: str, *, apply: bool = False):
-        """Classify and (optionally) copy a folder's files into a clean tree."""
+    def sort_folder(self, folder: str, *, apply: bool = False, client_id: str = "",
+                    tax_year: str = "", dest: str = ""):
+        """Classify and (optionally) copy a folder's files into a clean tree.
+
+        When ``client_id`` + ``tax_year`` are given, the clean copies land in that
+        client's year folder in the document library — which is then a
+        ready-to-read Intake folder (``plan.dest``).
+        """
         from satc.ingest import sort_folder as _sort
+        from satc.ingest.client_library import client_year_folder
         has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
-        return _sort(folder, apply=apply, classifier=load_classifier(has_key=has_key))
+        target = dest or None
+        if not target and client_id and tax_year:
+            target = str(client_year_folder(client_id, tax_year, self.name(client_id)))
+        return _sort(folder, target, apply=apply, classifier=load_classifier(has_key=has_key))
+
+    def client_choices(self) -> list[tuple[str, str]]:
+        """(client_id, display name) for every known client — for pickers."""
+        ids = {pc.client_id for pc in self.mart.public_clients} | set(self.names)
+        return sorted(((cid, self.name(cid)) for cid in ids), key=lambda x: x[1])
 
     # -- the last hop: post confirmed intake onto the return + data mart ---
-    def post_confirmed(self, *, client_id: str = "SATC-001000", tax_year: int = 2024,
+    def post_confirmed(self, *, client_id: str | None = None, tax_year: int | None = None,
                        return_type: str = "1040", jurisdiction: str = "US") -> dict:
         """Write the gate's CONFIRMED values onto the client's return as line items.
 
@@ -226,6 +253,8 @@ class AppState:
         1040 line ids with aggregation (every W-2 box 1 summed into wages, etc.).
         The return is created if it doesn't exist; re-posting is idempotent.
         """
+        client_id = client_id or self.intake_context.get("client_id") or "SATC-001000"
+        tax_year = tax_year or self.intake_context.get("tax_year") or 2024
         rk = return_key(client_id, tax_year, return_type, jurisdiction)
         ret = next((r for r in self.mart.returns if r.return_key == rk), None)
         if ret is None:
