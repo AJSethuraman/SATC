@@ -17,7 +17,7 @@ from pathlib import Path
 
 from flask import Flask, redirect, render_template, request, send_file, url_for
 
-from satc.app.state import DOC_FLOW, STATE, classify
+from satc.app.state import DOC_FLOW, STATE
 from satc.ingest import load_classifier
 from satc.persistence import export_mart_to_excel
 
@@ -90,6 +90,11 @@ def create_app() -> Flask:
             STATE.reject_field(field_id)
         return redirect(url_for("staging"))
 
+    @app.route("/staging/post", methods=["POST"])
+    def staging_post():
+        STATE.post_confirmed()
+        return redirect(url_for("client", client_id="SATC-001000"))
+
     @app.route("/documents")
     def documents():
         return render_template("documents.html", title="Documents",
@@ -109,23 +114,16 @@ def create_app() -> Flask:
     @app.route("/clients/<client_id>")
     def client(client_id: str):
         rets = [r for r in STATE.returns() if r.client_id == client_id]
+        ret_keys = {r.return_key for r in rets}
+        lines = sorted((li for li in STATE.mart.line_items if li.return_key in ret_keys),
+                       key=lambda li: (li.schedule, li.line_code))
         docs = [d for d in STATE.documents() if d.client_id == client_id]
         eng = next((e for e in STATE.mart.engagements if e.client_id == client_id), None)
         return render_template("client.html", title=STATE.name(client_id),
-                               client_id=client_id, returns=rets, docs=docs, engagement=eng)
+                               client_id=client_id, returns=rets, docs=docs, engagement=eng,
+                               lines=lines, posted=STATE.posted_summary)
 
     return app
-
-
-def _guess_type(filename: str) -> str:
-    f = filename.lower()
-    for needle, label in [("w2", "W-2"), ("w-2", "W-2"), ("1099int", "1099-INT"),
-                          ("1099div", "1099-DIV"), ("1099", "1099"), ("k1", "K-1"),
-                          ("k-1", "K-1"), ("8879", "Form 8879"), ("organizer", "Organizer"),
-                          ("1040", "Prior-year 1040")]:
-        if needle in f:
-            return label
-    return "Unclassified"
 
 
 def main() -> None:

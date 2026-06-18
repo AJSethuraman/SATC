@@ -85,3 +85,45 @@ PYTHONPATH=src pytest -q                       # run tests
 PYTHONPATH=src python scripts/build_workbook.py # build the demo workbook
 python scripts/recalc.py build/SATC_Workbook.xlsx
 ```
+
+## The app: door-to-return flow
+
+A local, hand-holding GUI backed by the SQLite store of record (Excel stays a
+first-class *export*). Point it at a folder and it carries documents all the way
+to posted, sourced facts on the return.
+
+```bash
+pip install -e .[dev]          # flask + pypdf + reportlab
+satc app                       # opens http://127.0.0.1:5050
+```
+
+1. **Intake** — point at any folder. Each file is classified by *content*, not its
+   name (a W-2 saved as `scan0012.pdf` is still recognized):
+
+   | Rung | Signal | Cost |
+   |------|--------|------|
+   | 1 | PDF form fields (a fillable form's field names are its fingerprint) | free, exact |
+   | 2 | Embedded PDF text (the printed form title) | free, no OCR |
+   | 3 | Filename hint | free, weak — fallback only |
+   | 4 | Vision/OCR (`ANTHROPIC_API_KEY`) | small per-doc cost — true scans only |
+
+   Signatures live in `configs/classification.yaml`; form-field fingerprints derive
+   automatically from the extraction maps.
+
+2. **Sort & re-label** — `satc sort FOLDER` previews a clean by-type tree
+   (`_SATC_Sorted/W-2/W-2 - <employer>.pdf`); `--apply` writes it. **Non-destructive:**
+   it only ever *copies* — originals are never moved, renamed, or deleted.
+
+3. **Staging** — extracted values land here and are *not trusted* until confirmed.
+   HIGH-confidence values auto-confirm; everything else waits for review. SSN/EIN are
+   masked to last-4; unreadable amounts are flagged, never guessed.
+
+4. **Post** — confirmed values project onto the 1040 line ids (every W-2 box 1 summed
+   into wages, etc.) and are written to the data mart's normalized `line_items` with
+   SOURCE_DOC provenance, then persisted. Re-posting is idempotent.
+
+```bash
+satc sort /path/to/client/folder          # preview the sort plan
+satc sort /path/to/client/folder --apply  # write clean copies
+satc seed && satc export DataMart.xlsx     # seed store, export the mart to Excel
+```

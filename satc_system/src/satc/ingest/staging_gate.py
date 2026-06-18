@@ -24,12 +24,21 @@ Agg = Literal["sum", "first", "max"]
 
 @dataclass
 class LineMapping:
-    """How one or more confirmed field paths feed a single line-sheet input id."""
+    """How one or more confirmed field paths feed a single line-sheet input id.
+
+    The optional ``schedule``/``line_code``/``label`` give the same value its home
+    in the data mart's normalized ``line_items`` table, so one table drives both the
+    workpaper projection and the persisted facts. A blank ``line_code`` means the
+    line feeds the workpaper only and is not posted to the mart.
+    """
 
     line_id: str
     paths: list[str]
     agg: Agg = "sum"
     kind: Literal["money", "text"] = "money"
+    schedule: str = "1040"
+    line_code: str = ""
+    label: str = ""
 
 
 @dataclass
@@ -129,19 +138,70 @@ class StagingGate:
                 values[m.line_id] = float(sum(amounts))
         return values
 
+    def to_line_items(self, return_key_value: str, mappings: Iterable[LineMapping],
+                      *, extractor: str = "intake (confirmed)") -> list:
+        """Project confirmed fields onto data-mart ``LineItem`` records.
 
-# Canonical mapping: confirmed document fields -> 1040 line-sheet input ids.
+        Only mappings carrying a ``line_code`` are posted (the rest feed the
+        workpaper only). Each posted value keeps SOURCE_DOC provenance pointing back
+        at the documents it came from, so the mart never holds an unsourced figure.
+        """
+        from satc.ids import line_item_key
+        from satc.models.mart import LineItem
+        from satc.models.provenance import Provenance, SourceRef
+
+        by_path = self.confirmed_by_path()
+        items: list = []
+        for m in mappings:
+            if not m.line_code:
+                continue
+            fields = [f for p in m.paths for f in by_path.get(p, [])]
+            if not fields:
+                continue
+            doc_ids = sorted({f.document_id for f in fields if getattr(f, "document_id", "")})
+            citation = "Intake (confirmed): " + ", ".join(doc_ids) if doc_ids else "Intake (confirmed)"
+            prov = Provenance(source_kind="SOURCE_DOC", confidence="HIGH",
+                              source_ref=SourceRef(document_id=doc_ids[0] if doc_ids else None,
+                                                   citation=citation),
+                              extractor=extractor)
+            li_key = line_item_key(return_key_value, m.schedule, m.line_code)
+            if m.kind == "text":
+                items.append(LineItem(line_item_key=li_key, return_key=return_key_value,
+                                      schedule=m.schedule, line_code=m.line_code,
+                                      label=m.label or m.line_id, amount=None,
+                                      text_value=fields[0].effective_text(), provenance=prov))
+                continue
+            amounts = [f.effective_amount() for f in fields if f.effective_amount() is not None]
+            if not amounts:
+                continue
+            total = amounts[0] if m.agg == "first" else (max(amounts) if m.agg == "max" else sum(amounts))
+            items.append(LineItem(line_item_key=li_key, return_key=return_key_value,
+                                  schedule=m.schedule, line_code=m.line_code,
+                                  label=m.label or m.line_id, amount=total, provenance=prov))
+        return items
+
+
+# Canonical mapping: confirmed document fields -> 1040 line-sheet input ids, and
+# (where a line_code is set) -> the data mart's normalized line_items.
 MAPPING_1040: list[LineMapping] = [
-    LineMapping("wages", ["w2.box1_wages"], "sum"),
-    LineMapping("fed_wh_w2", ["w2.box2_fed_wh"], "sum"),
-    LineMapping("ss_wages", ["w2.box3_ss_wages"], "sum"),
-    LineMapping("state_wh", ["w2.box17_state_wh"], "sum"),
-    LineMapping("interest", ["int.box1_interest"], "sum"),
-    LineMapping("dividends_ord", ["div.box1a_ordinary"], "sum"),
-    LineMapping("dividends_qual", ["div.box1b_qualified"], "sum"),
-    LineMapping("k1_ordinary", ["k1s.box1_ordinary", "k1p.box1_ordinary"], "sum"),
-    LineMapping("k1_rental_other", ["k1s.box2_rental", "k1p.box2_rental"], "sum"),
-    LineMapping("prior_year_tax", ["prior.total_tax"], "first"),
-    LineMapping("prior_year_agi", ["prior.agi"], "first"),
+    LineMapping("wages", ["w2.box1_wages"], "sum",
+                schedule="1040", line_code="1a", label="Wages (W-2 box 1)"),
+    LineMapping("fed_wh_w2", ["w2.box2_fed_wh"], "sum",
+                schedule="1040", line_code="25a", label="Federal tax withheld (W-2)"),
+    LineMapping("ss_wages", ["w2.box3_ss_wages"], "sum"),  # workpaper only
+    LineMapping("state_wh", ["w2.box17_state_wh"], "sum",
+                schedule="SCH_A", line_code="5a", label="State income tax withheld"),
+    LineMapping("interest", ["int.box1_interest"], "sum",
+                schedule="1040", line_code="2b", label="Taxable interest"),
+    LineMapping("dividends_ord", ["div.box1a_ordinary"], "sum",
+                schedule="1040", line_code="3b", label="Ordinary dividends"),
+    LineMapping("dividends_qual", ["div.box1b_qualified"], "sum",
+                schedule="1040", line_code="3a", label="Qualified dividends"),
+    LineMapping("k1_ordinary", ["k1s.box1_ordinary", "k1p.box1_ordinary"], "sum",
+                schedule="SCH_E", line_code="K1_ORD", label="K-1 ordinary business income"),
+    LineMapping("k1_rental_other", ["k1s.box2_rental", "k1p.box2_rental"], "sum",
+                schedule="SCH_E", line_code="K1_RENTAL", label="K-1 net rental real estate"),
+    LineMapping("prior_year_tax", ["prior.total_tax"], "first"),    # reference (workpaper)
+    LineMapping("prior_year_agi", ["prior.agi"], "first"),          # reference (workpaper)
     LineMapping("filing_status", ["prior.filing_status"], "first", kind="text"),
 ]

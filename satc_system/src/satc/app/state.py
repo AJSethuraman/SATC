@@ -15,32 +15,14 @@ from pathlib import Path
 
 from satc.config import load_extraction_map
 from satc.fixtures import synthetic_documents
-from satc.ingest import MapExtractor, StagingGate, load_classifier
+from satc.ids import return_key
+from satc.ingest import MAPPING_1040, MapExtractor, StagingGate, load_classifier
 from satc.ingest.readers import PdfFormReader, VisionDocumentReader
-from satc.models.mart import DataMart, DocumentRecord
+from satc.models.mart import DataMart, DocumentRecord, ReturnRecord
 from satc.persistence import SATCStore
 
 # Status flow for a document in the repository.
 DOC_FLOW = ["Requested", "Received", "Sent", "Signed", "N/A"]
-
-# Filename hint -> (display type, extraction-config key or None if not extractable).
-_DOC_TYPES = [
-    ("w2", "W-2", "w2"), ("w-2", "W-2", "w2"),
-    ("1099int", "1099-INT", "1099int"), ("1099-int", "1099-INT", "1099int"),
-    ("1099div", "1099-DIV", "1099div"), ("1099-div", "1099-DIV", "1099div"),
-    ("k1", "K-1", "k1_1120s"), ("k-1", "K-1", "k1_1120s"),
-    ("prior", "Prior-year 1040", "prior_1040"), ("1040", "Prior-year 1040", "prior_1040"),
-    ("8879", "Form 8879", None), ("engagement", "Engagement letter", None),
-    ("organizer", "Organizer", None),
-]
-
-
-def classify(filename: str) -> tuple[str, str | None]:
-    f = filename.lower()
-    for needle, label, key in _DOC_TYPES:
-        if needle in f:
-            return label, key
-    return "Unclassified", None
 
 
 @dataclass
@@ -50,6 +32,7 @@ class AppState:
     names: dict[str, str] = field(default_factory=dict)
     gate: StagingGate = field(default_factory=StagingGate)
     intake_summary: dict = field(default_factory=dict)
+    posted_summary: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.store.seed_if_empty()           # first run: populate from synthetic fixtures
@@ -166,6 +149,35 @@ class AppState:
         from satc.ingest import sort_folder as _sort
         has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
         return _sort(folder, apply=apply, classifier=load_classifier(has_key=has_key))
+
+    # -- the last hop: post confirmed intake onto the return + data mart ---
+    def post_confirmed(self, *, client_id: str = "SATC-001000", tax_year: int = 2024,
+                       return_type: str = "1040", jurisdiction: str = "US") -> dict:
+        """Write the gate's CONFIRMED values onto the client's return as line items.
+
+        Only confirmed fields flow (the gate already enforces that), projected onto
+        1040 line ids with aggregation (every W-2 box 1 summed into wages, etc.).
+        The return is created if it doesn't exist; re-posting is idempotent.
+        """
+        rk = return_key(client_id, tax_year, return_type, jurisdiction)
+        ret = next((r for r in self.mart.returns if r.return_key == rk), None)
+        if ret is None:
+            ret = ReturnRecord(return_key=rk, client_id=client_id, tax_year=tax_year,
+                               return_type=return_type, jurisdiction=jurisdiction, status="In prep")
+            self.mart.returns.append(ret)
+
+        items = self.gate.to_line_items(rk, MAPPING_1040)
+        keys = {li.line_item_key for li in items}
+        # Replace any prior intake posting for these lines (idempotent re-post).
+        self.mart.line_items = [li for li in self.mart.line_items if li.line_item_key not in keys]
+        self.mart.line_items.extend(items)
+
+        self.store.save_mart(self.mart)
+        self.reload()
+        self.posted_summary = {"return_key": rk, "posted": len(items),
+                               "lines": [(li.label, float(li.amount) if li.amount is not None
+                                          else li.text_value) for li in items]}
+        return self.posted_summary
 
     # -- dashboard rollups ------------------------------------------------
     def pipeline_counts(self) -> dict[str, int]:

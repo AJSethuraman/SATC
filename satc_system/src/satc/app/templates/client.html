@@ -36,6 +36,27 @@
   </div>
 </div>
 
+{% if lines %}
+<div class="panel">
+  <h2>Workpaper inputs <span class="muted">— posted from confirmed intake</span></h2>
+  <div class="body">
+    {% if posted and posted.posted %}<p class="note">Just posted {{ posted.posted }} confirmed values to the data mart.</p>{% endif %}
+    <table>
+      <tr><th>Schedule</th><th>Line</th><th>Item</th><th class="right">Amount</th><th>Source</th></tr>
+      {% for li in lines %}
+      <tr>
+        <td class="muted">{{ li.schedule }}</td>
+        <td class="mono">{{ li.line_code }}</td>
+        <td>{{ li.label }}</td>
+        <td class="right mono">{% if li.amount is not none %}{{ '{:,.2f}'.format(li.amount) }}{% else %}{{ li.text_value }}{% endif %}</td>
+        <td class="muted">{{ li.provenance.short_source() if li.provenance else '' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <div class="panel">
   <h2>Documents</h2>
   <div class="body">
