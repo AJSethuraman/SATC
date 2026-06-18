@@ -108,6 +108,14 @@ form.inline{display:inline}
 .codebox{width:100%;min-height:200px;padding:12px;border:1px solid var(--hairline);border-radius:6px;
   font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--paper);white-space:pre}
 
+/* sample-data banner + inline edit input */
+.samplebar{background:var(--cream2);border-bottom:1px solid var(--hairline);color:var(--charcoal);
+  padding:8px 28px;font-size:12.5px}
+.samplebar strong{color:var(--navy)}
+.samplebar form{margin-left:10px}
+.mini{width:96px;padding:3px 6px;border:1px solid var(--hairline);border-radius:5px;font-size:12px;
+  font-family:ui-monospace,Menlo,Consolas,monospace}
+
 .steps{counter-reset:s;margin:6px 0 0;padding:0;list-style:none}
 .steps li{counter-increment:s;padding:6px 0 6px 30px;position:relative;font-size:13px}
 .steps li:before{content:counter(s);position:absolute;left:0;top:5px;width:20px;height:20px;border-radius:50%;

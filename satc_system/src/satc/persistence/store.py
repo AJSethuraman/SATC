@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS intake_tasks (
   relationship_generated INTEGER, document_id TEXT);
 CREATE TABLE IF NOT EXISTS workflow_overrides (
   workflow_key TEXT PRIMARY KEY, data TEXT);
+CREATE TABLE IF NOT EXISTS app_meta (k TEXT PRIMARY KEY, v TEXT);
 """
 
 
@@ -157,12 +158,29 @@ class SATCStore:
     def is_empty(self) -> bool:
         return self.mart.execute("SELECT COUNT(*) FROM returns").fetchone()[0] == 0
 
+    def get_meta(self, key: str) -> str | None:
+        row = self.mart.execute("SELECT v FROM app_meta WHERE k=?", (key,)).fetchone()
+        return row["v"] if row else None
+
+    def set_meta(self, key: str, value: str) -> None:
+        self.mart.execute("INSERT OR REPLACE INTO app_meta VALUES (?,?)", (key, value))
+        self.mart.commit()
+
     def seed_if_empty(self) -> bool:
+        """Seed the built-in sample data once. Never re-seeds after the first run.
+
+        The ``sample_seeded`` marker means a later "clear sample data" stays cleared
+        across restarts instead of the empty store being re-seeded.
+        """
+        if self.get_meta("sample_seeded"):
+            return False
         if not self.is_empty():
+            self.set_meta("sample_seeded", "1")   # pre-existing store: adopt, don't re-seed
             return False
         for rec in synthetic_identities():
             self.upsert_identity(rec)
         self.save_mart(synthetic_mart())
+        self.set_meta("sample_seeded", "1")
         return True
 
     # -- vault ------------------------------------------------------------
@@ -244,6 +262,30 @@ class SATCStore:
         self.mart.execute("UPDATE public_clients SET filing_status=? WHERE client_id=?",
                           (filing_status, client_id))
         self.mart.commit()
+
+    def delete_client(self, client_id: str) -> None:
+        """Remove a client everywhere — vault identity + every mart row keyed to it.
+
+        Used to discard a mistakenly-added client and to clear the built-in sample
+        clients. Engagement tasks are removed via their parent engagements.
+        """
+        return_keys = [r["return_key"] for r in self.mart.execute(
+            "SELECT return_key FROM returns WHERE client_id=?", (client_id,))]
+        eng_ids = [r["engagement_id"] for r in self.mart.execute(
+            "SELECT engagement_id FROM intake_engagements WHERE client_id=?", (client_id,))]
+        for rk in return_keys:
+            self.mart.execute("DELETE FROM line_items WHERE return_key=?", (rk,))
+        for eid in eng_ids:
+            self.mart.execute("DELETE FROM intake_tasks WHERE engagement_id=?", (eid,))
+        for table in ("public_clients", "returns", "carryforwards", "owner_basis",
+                      "estimate_payments", "engagements", "documents", "intake_engagements"):
+            self.mart.execute(f"DELETE FROM {table} WHERE client_id=?", (client_id,))
+        self.mart.execute("DELETE FROM relationships WHERE from_client_id=? OR to_client_id=?",
+                          (client_id, client_id))
+        self.mart.commit()
+        for table in ("identities", "vault_addresses", "vault_contacts"):
+            self.vault.execute(f"DELETE FROM {table} WHERE client_id=?", (client_id,))
+        self.vault.commit()
 
     # -- intake: relationships + engagements + tasks ----------------------
     def upsert_relationship(self, rel: Relationship) -> None:

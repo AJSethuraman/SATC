@@ -17,21 +17,23 @@
   <h2>Returns</h2>
   <div class="body">
     <table>
-      <tr><th>Form</th><th>Jurisdiction</th><th>Status</th><th class="right">Refund / (due)</th><th class="right">Workpaper</th></tr>
+      <tr><th>Form</th><th>Jurisdiction</th><th>Status</th><th class="right">Refund / (due)</th></tr>
       {% for r in returns %}
       <tr>
         <td><strong>{{ r.return_type }}</strong></td>
         <td>{{ r.jurisdiction }}</td>
         <td class="status-{{ r.status|replace(' ','.') }}">{{ r.status }}</td>
         <td class="right">{% if r.refund_amount %}${{ '{:,.0f}'.format(r.refund_amount) }}{% elif r.balance_due_amount %}(${{ '{:,.0f}'.format(r.balance_due_amount) }}){% else %}—{% endif %}</td>
-        <td class="right"><a class="btn sm" href="#">Open workpaper</a></td>
       </tr>
       {% endfor %}
     </table>
     <p style="margin-top:14px">
-      <a class="btn primary" href="{{ url_for('intake') }}">Add documents</a>
-      <a class="btn" href="#">Generate Drake entry</a>
-      <a class="btn" href="#">Draft delivery email</a>
+      <a class="btn primary" href="{{ url_for('intake', client=client_id) }}">Add documents</a>
+      <a class="btn" href="{{ url_for('drake_entry', client_id=client_id) }}">Generate Drake entry</a>
+      <form class="inline" method="post" action="{{ url_for('delivery_email', client_id=client_id) }}">
+        <button class="btn" type="submit">Draft delivery email</button>
+      </form>
+      <a class="btn" href="{{ url_for('export') }}">Export to Excel</a>
     </p>
   </div>
 </div>

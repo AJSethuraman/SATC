@@ -41,5 +41,11 @@
   </div>
 </div>
 
-<p style="margin-top:6px"><a class="btn" href="{{ url_for('intake.engagements') }}">← Back to engagements</a></p>
+<p style="margin-top:6px">
+  <a class="btn" href="{{ url_for('intake.engagements') }}">← Not now (keep client, back to engagements)</a>
+  <form class="inline" method="post" action="{{ url_for('discard_client', client_id=client_id) }}"
+        onsubmit="return confirm('Discard {{ state.name(client_id) }}? This removes the client you just added.');">
+    <button class="btn" type="submit">Discard this client</button>
+  </form>
+</p>
 {% endblock %}

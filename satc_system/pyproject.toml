@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "satc-system"
-version = "0.3.0"
+version = "0.5.0"
 description = "SATC tax line-sheet system, client data mart, and Drake-adjacent tooling"
 readme = "README.md"
 requires-python = ">=3.10"

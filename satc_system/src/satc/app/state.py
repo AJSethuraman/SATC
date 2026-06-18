@@ -62,12 +62,15 @@ class AppState:
         from satc.intake.workflows import set_override_provider
         set_override_provider(self.store.load_workflow_override)
         self.reload()
-        # Build a per-session staging gate from the synthetic documents (working area).
-        for doc in synthetic_documents():
-            cfg = load_extraction_map(doc["doc_key"])
-            self.gate.add(MapExtractor(cfg).extract(
-                document_id=doc["document_id"], client_id="SATC-001000",
-                tax_year=2024, labeled_fields=doc["labeled"]))
+        # Seed the working staging gate with the sample documents ONLY while the
+        # built-in sample data is present, so a cleared practice never shows phantom
+        # "reads" it never actually performed. Real intake replaces this gate.
+        if self.has_sample_data():
+            for doc in synthetic_documents():
+                cfg = load_extraction_map(doc["doc_key"])
+                self.gate.add(MapExtractor(cfg).extract(
+                    document_id=doc["document_id"], client_id="SATC-001000",
+                    tax_year=2024, labeled_fields=doc["labeled"]))
 
     def reload(self) -> None:
         self.mart = self.store.load_mart()
@@ -143,8 +146,48 @@ class AppState:
     def reject_field(self, field_id: str) -> None:
         self.gate.reject(field_id, by="preparer (UI)")
 
+    def unconfirm_field(self, field_id: str) -> None:
+        self.gate.unconfirm(field_id)
+
+    def delete_field(self, field_id: str) -> None:
+        self.gate.delete_field(field_id)
+
+    def edit_field(self, field_id: str, raw_value: str) -> None:
+        """Hand-correct a staged value (parses money the same conservative way reads do)."""
+        from satc.ingest.extractors.base import parse_money
+        amount, _conf, _note = parse_money(raw_value)   # None if it isn't a clean number
+        self.gate.edit(field_id, value_text=raw_value.strip(), value_amount=amount)
+
     def auto_confirm(self) -> int:
         return self.gate.auto_confirm_high(by="auto (UI)")
+
+    # -- sample data (the built-in demo) ----------------------------------
+    def _sample_client_ids(self) -> set[str]:
+        from satc.fixtures import synthetic_identities
+        return {rec.client_id for rec in synthetic_identities()}
+
+    def has_sample_data(self) -> bool:
+        """Whether the built-in sample clients are still present (un-cleared)."""
+        sample = self._sample_client_ids()
+        return any(pc.client_id in sample for pc in self.mart.public_clients)
+
+    def clear_sample_data(self) -> int:
+        """Remove every built-in sample client (and the seeded demo staging gate)."""
+        from satc.ingest import StagingGate
+        present = [pc.client_id for pc in self.mart.public_clients
+                   if pc.client_id in self._sample_client_ids()]
+        for cid in present:
+            self.store.delete_client(cid)
+        self.gate = StagingGate()
+        self.intake_summary = {}
+        self.reload()
+        return len(present)
+
+    def delete_client(self, client_id: str) -> None:
+        """Discard a client everywhere (vault + mart + any staged fields)."""
+        self.store.delete_client(client_id)
+        self.gate.documents = [d for d in self.gate.documents if d.client_id != client_id]
+        self.reload()
 
     # -- intake: actually read the files in a folder ----------------------
     def run_intake(self, folder: str, *, client_id: str = "SATC-001000",

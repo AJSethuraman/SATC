@@ -106,7 +106,18 @@ def create_app() -> Flask:
             STATE.confirm_field(field_id)
         elif action == "reject":
             STATE.reject_field(field_id)
+        elif action == "unconfirm":
+            STATE.unconfirm_field(field_id)
+        elif action == "delete":
+            STATE.delete_field(field_id)
+        elif action == "edit":
+            STATE.edit_field(field_id, request.form.get("value", ""))
         return redirect(url_for("staging"))
+
+    @app.route("/sample/clear", methods=["POST"])
+    def clear_sample():
+        removed = STATE.clear_sample_data()
+        return redirect(request.form.get("next") or request.referrer or url_for("dashboard"))
 
     @app.route("/staging/post", methods=["POST"])
     def staging_post():
@@ -145,6 +156,48 @@ def create_app() -> Flask:
         return render_template("client.html", title=STATE.name(client_id),
                                client_id=client_id, returns=rets, docs=docs, engagement=eng,
                                lines=lines, posted=STATE.posted_summary)
+
+    @app.route("/clients/<client_id>/drake")
+    def drake_entry(client_id: str):
+        """A printable Drake keying worksheet from the client's posted figures."""
+        rets = [r for r in STATE.returns() if r.client_id == client_id]
+        ret_keys = {r.return_key for r in rets}
+        lines = sorted((li for li in STATE.mart.line_items if li.return_key in ret_keys),
+                       key=lambda li: (li.schedule, li.line_code))
+        return render_template("drake_worksheet.html", title=STATE.name(client_id),
+                               client_id=client_id, public_client=STATE.public_client(client_id),
+                               returns=rets, lines=lines,
+                               tax_year=(rets[0].tax_year if rets else ""))
+
+    @app.route("/clients/<client_id>/delivery-email", methods=["POST"])
+    def delivery_email(client_id: str):
+        """Pop an Outlook draft telling the client their return is ready."""
+        from satc.intake.email_draft import mailto_url, open_outlook_draft
+        name = STATE.name(client_id)
+        to = STATE.client_email(client_id)
+        years = sorted({r.tax_year for r in STATE.returns() if r.client_id == client_id})
+        yr = f"{years[-1]} " if years else ""
+        subject = f"Your {yr}tax return is ready - {name}"
+        body = "\n".join([
+            f"Hi {name},", "",
+            f"Your {yr}tax return is prepared and ready for your review. Please look it over, and "
+            "once everything looks right we'll send the e-file authorization (Form 8879) for your "
+            "signature.", "",
+            "Let us know if you have any questions.", "",
+            "Thank you,", "SAT-C LLP",
+        ])
+        result = open_outlook_draft(to=to, subject=subject, body=body)
+        return render_template("draft_result.html", title=STATE.name(client_id), result=result,
+                               what="delivery email", to=to, subject=subject, body=body,
+                               mailto=mailto_url(to=to, subject=subject, body=body),
+                               back_url=url_for("client", client_id=client_id),
+                               attachment_url="", attachment_name="")
+
+    @app.route("/clients/<client_id>/discard", methods=["POST"])
+    def discard_client(client_id: str):
+        """Delete a just-added client (the cancel/undo for adding someone)."""
+        STATE.delete_client(client_id)
+        return redirect(url_for("intake.engagements"))
 
     return app
 

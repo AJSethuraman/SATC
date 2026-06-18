@@ -20,26 +20,44 @@
   </form>
 </div>
 
+{% if state.has_sample_data() and not intake %}
+<div class="panel">
+  <h2>Sample values</h2>
+  <div class="body">
+    <p class="note" style="margin-top:0">These are the built-in demo's W-2s ($98,000 + $47,000 = $145,000) — <strong>not</strong> read from your files, and nothing is rounded. Scan a folder in <a href="{{ url_for('intake') }}">Intake</a> to replace them with real reads, or clear the sample data from the banner above.</p>
+  </div>
+</div>
+{% endif %}
+
 <div class="panel">
   <h2>Staged fields</h2>
   <div class="body">
+    <p class="note" style="margin-top:0">Edit any value to hand-correct a read, un-accept to send a confirmed value back for review, or delete a stray field. Only confirmed values flow downstream.</p>
     <table>
-      <tr><th>Document</th><th>Field</th><th>Value</th><th>Confidence</th><th>Status</th><th>Source</th><th class="right">Action</th></tr>
+      <tr><th>Document</th><th>Field</th><th>Value (editable)</th><th>Conf.</th><th>Status</th><th class="right">Actions</th></tr>
       {% for f in fields %}
       <tr>
         <td class="muted">{{ f.document_id }}</td>
-        <td>{{ f.label }}</td>
-        <td class="mono">{{ f.effective_text() }}</td>
+        <td>{{ f.label }}<div class="muted">{{ f.provenance.short_source() }}</div></td>
+        <td>
+          <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='edit') }}">
+            <input class="mini" type="text" name="value" value="{{ f.effective_text() }}">
+            <button class="btn sm" type="submit">Save</button>
+          </form>
+        </td>
         <td>{{ f.provenance.confidence }}</td>
-        <td><span class="badge b-{{ f.status }}">{{ f.status }}</span></td>
-        <td class="muted">{{ f.provenance.short_source() }}</td>
+        <td><span class="badge b-{{ f.status }}">{{ f.status }}</span>
+          {% if f.status == 'CONFIRMED' and f.confirmed_by %}<div class="muted">✓ {{ f.confirmed_by }}</div>{% endif %}</td>
         <td class="right">
           {% if f.status != 'CONFIRMED' %}
           <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='confirm') }}">
             <button class="btn sm primary" type="submit">Confirm</button></form>
-          <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='reject') }}">
-            <button class="btn sm" type="submit">Reject</button></form>
-          {% else %}<span class="muted">✓ {{ f.confirmed_by }}</span>{% endif %}
+          {% else %}
+          <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='unconfirm') }}">
+            <button class="btn sm" type="submit">Unaccept</button></form>
+          {% endif %}
+          <form class="inline" method="post" action="{{ url_for('staging_action', field_id=f.field_id, action='delete') }}">
+            <button class="btn sm" type="submit">Delete</button></form>
         </td>
       </tr>
       {% endfor %}

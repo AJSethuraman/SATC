@@ -119,9 +119,9 @@
         <button class="btn primary" type="submit">Generate checklist</button>
         {% if returning %}
         <a class="btn" href="{{ url_for('intake.organizer', client=client_id, workflow=workflow.key) }}">Email the client an organizer to verify →</a>
-        {% else %}
-        <a class="btn" href="{{ url_for('intake.new_engagement', client=client_id) }}">Back to workflows</a>
         {% endif %}
+        <a class="btn" href="{{ url_for('intake.new_engagement', client=client_id) }}">Back to workflows</a>
+        <a class="btn" href="{{ url_for('intake.client_start', client_id=client_id) }}">← Other intake options</a>
       </p>
     </form>
   </div>

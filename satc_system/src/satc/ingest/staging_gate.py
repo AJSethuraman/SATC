@@ -96,6 +96,43 @@ class StagingGate:
             f.note = note
         return True
 
+    def unconfirm(self, field_id: str) -> bool:
+        """Un-accept a field: drop it back to review and clear the confirmation."""
+        f = self._find(field_id)
+        if f is None:
+            return False
+        f.status = "STAGED" if f.provenance.confidence == "HIGH" else "NEEDS_REVIEW"
+        f.confirmed_value_text = ""
+        f.confirmed_value_amount = None
+        f.confirmed_by = ""
+        f.confirmed_at = None
+        return True
+
+    def delete_field(self, field_id: str) -> bool:
+        """Remove a staged field entirely (e.g. a stray/duplicate read)."""
+        for doc in self.documents:
+            for i, f in enumerate(doc.fields):
+                if f.field_id == field_id:
+                    del doc.fields[i]
+                    return True
+        return False
+
+    def edit(self, field_id: str, *, value_text: str | None = None,
+             value_amount: Decimal | None = None, by: str = "preparer (edited)") -> bool:
+        """Hand-correct a value and confirm it — the preparer's word overrides the read."""
+        f = self._find(field_id)
+        if f is None:
+            return False
+        if value_text is not None:
+            f.confirmed_value_text = value_text
+        f.confirmed_value_amount = value_amount
+        f.status = "CONFIRMED"
+        f.confirmed_by = by
+        f.confirmed_at = datetime.now()
+        if "hand-corrected" not in (f.note or ""):
+            f.note = (f.note + " · hand-corrected").lstrip(" ·")
+        return True
+
     # -- views -------------------------------------------------------------
     def needs_review(self) -> list[StagedField]:
         return [f for f in self.all_fields() if f.status in ("STAGED", "NEEDS_REVIEW")]
