@@ -103,3 +103,17 @@ def test_ocr_hyphen_repair_in_form_names():
 def test_weak_keyword_alone_does_not_classify():
     # A single low-weight phrase is below threshold — falls through, never guesses.
     assert _clf().classify_text("Qualified dividends were mentioned in passing") is None
+
+
+@pytest.mark.parametrize("text,label", [
+    ("Form 1099-NEC  Nonemployee Compensation", "1099-NEC"),
+    ("Form 1099-K  Payment Card and Third Party Network Transactions", "1099-K"),
+    ("Form 1099-R  Distributions From Pensions, Annuities, Retirement", "1099-R"),
+    ("Form 1095-A  Health Insurance Marketplace Statement", "1095-A"),
+    ("Form 1098-T  Tuition Statement", "1098-T"),
+])
+def test_additional_forms_are_recognized(text, label):
+    # Recognized so an arriving copy auto-closes its request; filed, not extracted.
+    c = _clf().classify_text(text)
+    assert c is not None and c.label == label and c.confidence == "HIGH"
+    assert not c.extractable

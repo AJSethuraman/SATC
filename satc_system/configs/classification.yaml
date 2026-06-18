@@ -59,6 +59,58 @@ doc_types:
       - ["total ordinary dividends", 5]
       - ["qualified dividends", 4]
 
+  # Additional income / credit forms — recognized so an arriving copy auto-closes
+  # its intake request. key: null = filed but not yet data-extracted (extraction
+  # maps for these are a separate follow-up).
+  - key: null
+    label: "1099-NEC"
+    code: "1099-NEC"
+    filename_hints: ["1099nec", "1099-nec", "1099 nec"]
+    keywords:
+      - ["nonemployee compensation", 10]
+      - ["form 1099-nec", 9]
+      - ["1099-nec", 9]
+
+  - key: null
+    label: "1099-K"
+    code: "1099-K"
+    filename_hints: ["1099k", "1099-k", "1099 k"]
+    keywords:
+      - ["payment card and third party network transactions", 10]
+      - ["form 1099-k", 9]
+      - ["1099-k", 9]
+      - ["gross amount of payment card", 4]
+
+  - key: null
+    label: "1099-R"
+    code: "1099-R"
+    filename_hints: ["1099r", "1099-r", "1099 r"]
+    keywords:
+      - ["distributions from pensions", 9]
+      - ["form 1099-r", 9]
+      - ["1099-r", 9]
+      - ["total distribution", 3]
+
+  - key: null
+    label: "1095-A"
+    code: "1095-A"
+    filename_hints: ["1095a", "1095-a", "1095 a"]
+    keywords:
+      - ["health insurance marketplace statement", 10]
+      - ["form 1095-a", 9]
+      - ["1095-a", 9]
+      - ["second lowest cost silver plan", 4]
+
+  - key: null
+    label: "1098-T"
+    code: "1098-T"
+    filename_hints: ["1098t", "1098-t", "1098 t", "tuition"]
+    keywords:
+      - ["tuition statement", 10]
+      - ["form 1098-t", 9]
+      - ["1098-t", 9]
+      - ["qualified tuition", 4]
+
   - key: k1_1120s
     label: "Schedule K-1 (1120-S)"
     code: "K-1-1120S"
