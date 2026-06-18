@@ -219,3 +219,33 @@ parameters:
     value: 0.90
     unit: ratio
     citation: "IRC sec. 6654(d)(1)(B)(i)"
+
+  # --- Withholding-estimator support (statutory; not inflation-indexed) ---
+  niit_rate:
+    value: 0.038
+    unit: ratio
+    citation: "IRC sec. 1411(a) — Net Investment Income Tax"
+  niit_threshold:
+    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000}
+    unit: usd
+    citation: "IRC sec. 1411(b) — MAGI thresholds (statutory, not inflation-indexed)"
+  se_net_earnings_factor:
+    value: 0.9235
+    unit: ratio
+    citation: "IRC sec. 1402(a)(12) — 92.35% of net self-employment earnings"
+  se_social_security_rate:
+    value: 0.124
+    unit: ratio
+    citation: "IRC sec. 1401(a) — OASDI portion of SE tax"
+  se_medicare_rate:
+    value: 0.029
+    unit: ratio
+    citation: "IRC sec. 1401(b) — Medicare portion of SE tax"
+  addl_medicare_rate:
+    value: 0.009
+    unit: ratio
+    citation: "IRC sec. 3101(b)(2) — 0.9% Additional Medicare Tax rate"
+  est_tax_high_agi_threshold_mfs:
+    value: 75000
+    unit: usd
+    citation: "IRC sec. 6654(d)(1)(C) — MFS half of the high-income AGI threshold"
