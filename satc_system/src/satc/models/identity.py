@@ -55,6 +55,7 @@ class PublicClient:
     tin_masked: str          # ***-**-1234 / **-***1234
     default_return_type: str
     home_state: str = ""     # USPS code (non-sensitive; drives default state return)
+    filing_status: str = ""  # last-known filing status (non-PII tax attribute; "" if unknown)
 
 
 @dataclass(slots=True)

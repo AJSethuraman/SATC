@@ -77,6 +77,41 @@ class AppState:
     def name(self, client_id: str) -> str:
         return self.names.get(client_id, client_id)
 
+    def public_client(self, client_id: str):
+        """The de-identified projection for a client (or ``None``)."""
+        return next((c for c in self.mart.public_clients if c.client_id == client_id), None)
+
+    def client_email(self, client_id: str) -> str:
+        """A client's contact email (from the vault) for pre-filling drafts."""
+        return self.store.client_email(client_id)
+
+    def filing_status(self, client_id: str) -> str:
+        pc = self.public_client(client_id)
+        return getattr(pc, "filing_status", "") if pc else ""
+
+    def set_filing_status(self, client_id: str, filing_status: str) -> None:
+        self.store.set_filing_status(client_id, filing_status)
+        self.reload()
+
+    # -- new vs returning client (drives the branched interview) ----------
+    def is_returning(self, client_id: str) -> bool:
+        """A client we've worked with before — prior engagement OR a return on file."""
+        if any(e.client_id == client_id for e in self.store.load_intake_engagements()):
+            return True
+        return any(r.client_id == client_id for r in self.mart.returns)
+
+    def prior_engagement(self, client_id: str, workflow_key: str = ""):
+        """Most recent prior engagement for a client — preferring the same workflow.
+
+        Used to pre-fill a returning client's interview with last year's answers.
+        """
+        engs = [e for e in self.store.load_intake_engagements() if e.client_id == client_id]
+        if workflow_key:
+            same = [e for e in engs if e.workflow_key == workflow_key]
+            if same:
+                return same[-1]
+        return engs[-1] if engs else None
+
     def documents(self) -> list[DocumentRecord]:
         return self.mart.documents
 

@@ -65,7 +65,8 @@ CREATE TABLE IF NOT EXISTS vault_contacts (
 _MART_DDL = """
 CREATE TABLE IF NOT EXISTS public_clients (
   client_id TEXT PRIMARY KEY, entity_type TEXT, display_label TEXT,
-  tin_last4 TEXT, tin_masked TEXT, default_return_type TEXT, home_state TEXT);
+  tin_last4 TEXT, tin_masked TEXT, default_return_type TEXT, home_state TEXT,
+  filing_status TEXT);
 CREATE TABLE IF NOT EXISTS returns (
   return_key TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, return_type TEXT,
   jurisdiction TEXT, status TEXT, preparer_id TEXT, residency TEXT, is_extended INTEGER,
@@ -138,6 +139,19 @@ class SATCStore:
         self.mart.executescript(_MART_DDL)
         self.vault.commit()
         self.mart.commit()
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """Add columns introduced after a database was first created.
+
+        ``CREATE TABLE IF NOT EXISTS`` never alters an existing table, so a store
+        seeded by an older build is missing newer columns. Each migration is
+        idempotent: skipped when the column is already present.
+        """
+        cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(public_clients)")}
+        if "filing_status" not in cols:
+            self.mart.execute("ALTER TABLE public_clients ADD COLUMN filing_status TEXT")
+            self.mart.commit()
 
     # -- lifecycle --------------------------------------------------------
     def is_empty(self) -> bool:
@@ -170,13 +184,21 @@ class SATCStore:
         return {r["client_id"]: r["legal_name"]
                 for r in self.vault.execute("SELECT client_id, legal_name FROM identities")}
 
+    def client_email(self, client_id: str) -> str:
+        """First non-empty contact email for a client (from the vault), or ``""``."""
+        row = self.vault.execute(
+            "SELECT email FROM vault_contacts WHERE client_id=? AND email!='' LIMIT 1",
+            (client_id,)).fetchone()
+        return row["email"] if row else ""
+
     # -- mart write -------------------------------------------------------
     def save_mart(self, mart: DataMart) -> None:
         m = self.mart
         for pc in mart.public_clients:
-            m.execute("INSERT OR REPLACE INTO public_clients VALUES (?,?,?,?,?,?,?)",
+            m.execute("INSERT OR REPLACE INTO public_clients VALUES (?,?,?,?,?,?,?,?)",
                       (pc.client_id, pc.entity_type, pc.display_label, pc.tin_last4,
-                       pc.tin_masked, pc.default_return_type, pc.home_state))
+                       pc.tin_masked, pc.default_return_type, pc.home_state,
+                       getattr(pc, "filing_status", "") or ""))
         for r in mart.returns:
             m.execute("INSERT OR REPLACE INTO returns VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                       (r.return_key, r.client_id, r.tax_year, r.return_type, r.jurisdiction,
@@ -215,6 +237,12 @@ class SATCStore:
 
     def set_document_status(self, document_id: str, status: str) -> None:
         self.mart.execute("UPDATE documents SET status=? WHERE document_id=?", (status, document_id))
+        self.mart.commit()
+
+    def set_filing_status(self, client_id: str, filing_status: str) -> None:
+        """Record a client's last-known filing status (non-PII; lives in the mart)."""
+        self.mart.execute("UPDATE public_clients SET filing_status=? WHERE client_id=?",
+                          (filing_status, client_id))
         self.mart.commit()
 
     # -- intake: relationships + engagements + tasks ----------------------
@@ -296,7 +324,8 @@ class SATCStore:
         mart.public_clients = [PublicClient(
             client_id=r["client_id"], entity_type=r["entity_type"], display_label=r["display_label"],
             tin_last4=r["tin_last4"], tin_masked=r["tin_masked"],
-            default_return_type=r["default_return_type"], home_state=r["home_state"])
+            default_return_type=r["default_return_type"], home_state=r["home_state"],
+            filing_status=(r["filing_status"] or "" if "filing_status" in r.keys() else ""))
             for r in m.execute("SELECT * FROM public_clients ORDER BY client_id")]
         mart.returns = [ReturnRecord(
             return_key=r["return_key"], client_id=r["client_id"], tax_year=r["tax_year"],

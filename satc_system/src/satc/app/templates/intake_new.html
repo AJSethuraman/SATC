@@ -54,19 +54,57 @@
 <div class="panel">
   <h2>{{ workflow.name }}</h2>
   <div class="body">
-    {% if workflow.description %}<p class="muted">{{ workflow.description }}</p>{% endif %}
+
+    <div class="toggle">
+      <span class="muted" style="margin-right:8px">This is a</span>
+      <a href="{{ url_for('intake.new_engagement', client=client_id, workflow=workflow.key, mode='new') }}" class="{{ 'on' if not returning }}">New client</a>
+      <a href="{{ url_for('intake.new_engagement', client=client_id, workflow=workflow.key, mode='returning') }}" class="{{ 'on' if returning }}">Returning client</a>
+    </div>
+
+    {% if returning %}
+      <div class="well">
+        <div class="kv">
+          <div><b>Filing status</b> {{ filing_status or '— not on file —' }}</div>
+          <div><b>Home state</b> {{ public_client.home_state or '—' }}</div>
+          {% if prior_summary.returns %}
+          <div><b>Returns on file</b>
+            {% for ty, rt, st in prior_summary.returns %}{{ ty }} {{ rt }} ({{ st }}){% if not loop.last %}, {% endif %}{% endfor %}
+          </div>
+          {% endif %}
+          {% if prior_summary.requested_categories %}
+          <div><b>Last time we asked for</b> {{ prior_summary.requested_categories | join(', ') }}</div>
+          {% endif %}
+        </div>
+      </div>
+      <p class="muted" style="margin-top:0">We pre-filled last year's answers — <strong>just update what changed</strong> this year, then verify with the client.</p>
+    {% else %}
+      <p class="muted" style="margin-top:0">New client — let's capture the full picture so we know exactly what to request.</p>
+    {% endif %}
+
     <form method="post" action="{{ url_for('intake.new_engagement') }}">
       <input type="hidden" name="client" value="{{ client_id }}">
       <input type="hidden" name="workflow_key" value="{{ workflow.key }}">
+      <input type="hidden" name="mode" value="{{ 'returning' if returning else 'new' }}">
+
+      <p style="margin-top:6px"><label class="muted">Filing status</label><br>
+        <select class="field-input" name="filing_status">
+          <option value="">{{ '— keep what we have —' if filing_status else '— select —' }}</option>
+          {% for fs in filing_statuses %}
+          <option value="{{ fs }}" {{ 'selected' if fs == filing_status }}>{{ fs }}</option>
+          {% endfor %}
+        </select></p>
 
       <table>
-        <tr><th>Question</th><th class="right">Answer</th></tr>
-        {% for q in workflow.questions %}
+        <tr><th>{{ 'Confirm what changed' if returning else 'Question' }}</th><th class="right">Answer</th></tr>
+        {% for q in workflow.questions if q.id != gate_question %}
+        {% set ans = prefill.get(q.id) if prefill else None %}
         <tr>
-          <td>{{ q.label }}{% if q.risk_flag %} <span class="muted">(risk)</span>{% endif %}</td>
+          <td>{{ q.prompt(returning) }}{% if q.risk_flag %} <span class="muted">(risk)</span>{% endif %}
+            {% if returning and ans %}<span class="hint"> · last year: {{ ans|capitalize }}</span>{% endif %}
+          </td>
           <td class="right">
-            <label style="margin-right:14px"><input type="radio" name="q_{{ q.id }}" value="yes"> Yes</label>
-            <label><input type="radio" name="q_{{ q.id }}" value="no" checked> No</label>
+            <label style="margin-right:14px"><input type="radio" name="q_{{ q.id }}" value="yes" {{ 'checked' if ans == 'yes' }}> Yes</label>
+            <label><input type="radio" name="q_{{ q.id }}" value="no" {{ 'checked' if ans != 'yes' }}> No</label>
           </td>
         </tr>
         {% endfor %}
@@ -79,7 +117,11 @@
 
       <p style="margin-top:16px">
         <button class="btn primary" type="submit">Generate checklist</button>
+        {% if returning %}
+        <a class="btn" href="{{ url_for('intake.organizer', client=client_id, workflow=workflow.key) }}">Email the client an organizer to verify →</a>
+        {% else %}
         <a class="btn" href="{{ url_for('intake.new_engagement', client=client_id) }}">Back to workflows</a>
+        {% endif %}
       </p>
     </form>
   </div>

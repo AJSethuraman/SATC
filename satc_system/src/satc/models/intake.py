@@ -43,12 +43,22 @@ RELATIONSHIP_TYPES = (
 
 @dataclass(slots=True)
 class WorkflowQuestion:
-    """One intake question. ``risk_flag`` is raised when answered affirmatively."""
+    """One intake question. ``risk_flag`` is raised when answered affirmatively.
+
+    ``change_label`` is the phrasing shown to a RETURNING client, where the
+    interview asks "what changed since last year?" rather than asking fresh; it
+    falls back to ``label`` when unset.
+    """
 
     id: str
     label: str
     type: str = "boolean"          # "boolean" / "yesNo" — answers are "yes"/"no"
     risk_flag: str = ""
+    change_label: str = ""
+
+    def prompt(self, returning: bool = False) -> str:
+        """The label to show: the change-phrasing for returning clients, else label."""
+        return (self.change_label or self.label) if returning else self.label
 
 
 @dataclass(slots=True)

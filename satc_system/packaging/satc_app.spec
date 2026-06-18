@@ -57,6 +57,10 @@ hiddenimports = [
 # (e.g. blueprints, doctor checks, ingest backends) are not missed.
 hiddenimports += collect_submodules("satc")
 
+# Outlook draft integration (Windows only). Listed so PyInstaller bundles the
+# COM modules even though they're imported lazily; harmless if not installed.
+hiddenimports += ["win32com", "win32com.client", "pythoncom", "pywintypes"]
+
 
 a = Analysis(
     [os.path.join(PROJECT_ROOT, "packaging", "entry.py")],

@@ -32,6 +32,10 @@ from satc.models.intake import (
 
 _WORKFLOW_DIR = "workflows"
 
+# The intake question that gates the NEW-vs-RETURNING branch. It is asked first,
+# outside the question table, and its answer ("yes" = new) drives prior-year asks.
+NEW_CLIENT_GATE = "newSatcClient"
+
 # Which workflows are offered for each client type (drives the intake UI).
 WORKFLOW_KEYS_BY_CLIENT_TYPE: dict[str, list[str]] = {
     "person": ["personal_1040_core", "personal_schedule_c", "personal_rental_schedule_e"],
@@ -54,6 +58,7 @@ def load_workflow(key: str, config_root: Path | None = None) -> WorkflowDef:
     questions = [WorkflowQuestion(
         id=q["id"], label=q.get("label", q["id"]),
         type=str(q.get("type", "boolean")), risk_flag=q.get("risk_flag") or "",
+        change_label=q.get("change_label") or "",
     ) for q in data.get("questions", [])]
     tasks = [TaskTemplate(
         template_id=t["template_id"], title=t["title"],

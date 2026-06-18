@@ -2,7 +2,12 @@
 #
 # REFERENCE CONFIG — defines the schema every workflow follows.
 #   key/name/description/engagement_type/client_type   — identity
-#   questions[]: id, label, type ("boolean"), risk_flag (raised when answered "yes")
+#   questions[]: id, label, type ("boolean"), risk_flag (raised when answered "yes"),
+#                change_label (optional "what changed?" phrasing shown to RETURNING clients)
+#
+# The `newSatcClient` question is the NEW-vs-RETURNING gate: the interview asks it
+# first (outside the question table) and branches on it — new clients answer the
+# full set; returning clients confirm only what changed, pre-filled from last year.
 #   tasks[]:     template_id (stable; preserves progress on regen), title, category,
 #                audience ("client" | "internal"), days_before_due (offset from due date),
 #                condition (optional gate against answers), doc_type (for received-matching),
@@ -24,13 +29,16 @@ questions:
   - id: householdChanges
     label: Filing status, spouse, dependent, custody, or childcare changes?
     type: boolean
+    change_label: Any change to filing status, spouse, dependents, custody, or childcare?
   - id: movedStates
     label: Moved states during the year?
     type: boolean
+    change_label: Moved to a different state since last year?
   - id: marketplaceInsurance
     label: Marketplace health insurance coverage?
     type: boolean
     risk_flag: Marketplace Form 1095-A required
+    change_label: Any change to Marketplace (healthcare.gov) coverage this year?
   - id: educationExpenses
     label: Education expenses or scholarship activity?
     type: boolean

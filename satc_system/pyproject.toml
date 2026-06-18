@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "satc-system"
-version = "0.1.0"
+version = "0.3.0"
 description = "SATC tax line-sheet system, client data mart, and Drake-adjacent tooling"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -43,12 +43,15 @@ build = [
   "pyinstaller>=6.0",
 ]
 # Everything for the easy, fully-local install (GUI + PDF + OCR). No cloud deps.
+# pywin32 (Windows only) lets the app pop a real Outlook draft via COM; it is
+# optional — the email features fall back to a mailto: link without it.
 local = [
   "flask>=3.0",
   "pypdf>=4.0",
   "reportlab>=4.0",
   "pytesseract>=0.3",
   "Pillow>=10",
+  "pywin32>=306; sys_platform == 'win32'",
 ]
 
 [project.scripts]

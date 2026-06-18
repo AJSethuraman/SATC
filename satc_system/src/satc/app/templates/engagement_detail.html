@@ -29,11 +29,15 @@
 <div class="panel">
   <h2>Requested documents <span class="muted">— what we asked the client for</span></h2>
   <div class="body">
-    <p style="margin-bottom:14px">
-      <a class="btn primary" href="{{ url_for('intake.engagement_email', engagement_id=eng.engagement_id) }}" target="_blank">Copy request email</a>
+    <div style="margin-bottom:14px">
+      <form class="inline" method="post" action="{{ url_for('intake.engagement_email_outlook', engagement_id=eng.engagement_id) }}">
+        <button class="btn primary" type="submit">✉ Email request (Outlook draft)</button>
+      </form>
+      <a class="btn" href="{{ url_for('intake.organizer', client=eng.client_id, workflow=eng.workflow_key) }}">Send organizer to verify</a>
+      <a class="btn" href="{{ url_for('intake.engagement_email', engagement_id=eng.engagement_id) }}" target="_blank">View email text</a>
       <a class="btn" href="{{ url_for('intake.engagement_print', engagement_id=eng.engagement_id) }}" target="_blank">Print client list</a>
       <a class="btn" href="{{ url_for('intake.engagement_print_internal', engagement_id=eng.engagement_id) }}" target="_blank">Print internal checklist</a>
-    </p>
+    </div>
     {% if client_tasks %}
     <table>
       <tr><th>Status</th><th>Request</th><th>Suggested by</th><th class="right">Mark</th></tr>
