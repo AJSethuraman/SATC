@@ -8,6 +8,10 @@ preparer recognition (e.g. matching a W-2 to the right person).
 
 from __future__ import annotations
 
+import re
+
+_SSN_FORMAT = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
+
 
 def _digits_only(value: object | None) -> str:
     if value is None:
@@ -42,12 +46,21 @@ def last4(value: str | None) -> str:
 
 
 def mask_value(field_name: str, value: object | None) -> str:
-    """Mask sensitive values by field name; otherwise stringify readably."""
+    """Mask a sensitive value (SSN/EIN/any TIN) — never returns it in the clear.
+
+    Used only for fields marked ``sensitive`` in the extraction config, so the
+    contract is absolute: the full identifier never leaves this function. The mask
+    style is chosen by the field name (``ssn``/``ein``) and, failing that, by the
+    value's own format (a TIN like ``payer_tin`` may carry either) — but an
+    unrecognized name still masks rather than leaking.
+    """
     normalized = (field_name or "").lower()
-    if "ssn" in normalized:
-        return mask_ssn(None if value is None else str(value))
-    if "ein" in normalized:
-        return mask_ein(None if value is None else str(value))
-    if value is None:
+    text = "" if value is None else str(value)
+    if not text.strip():
         return ""
-    return str(value)
+    if "ssn" in normalized:
+        return mask_ssn(text)
+    if "ein" in normalized:
+        return mask_ein(text)
+    # Any other sensitive identifier (tin, payer_tin, ...): mask by detected format.
+    return mask_ssn(text) if _SSN_FORMAT.search(text) else mask_ein(text)

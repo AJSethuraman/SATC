@@ -97,22 +97,29 @@ pip install -e .[dev]          # flask + pypdf + reportlab
 satc app                       # opens http://127.0.0.1:5050
 ```
 
-1. **Intake** — point at any folder. Each file is classified by *content*, not its
-   name (a W-2 saved as `scan0012.pdf` is still recognized):
+1. **Intake** — point at any folder. A combined multi-form PDF (one scanned stack)
+   is **split into its parts first** (per-page classification; an illegible or
+   continuation page stays attached to the form before it). Each document is then
+   classified by *content*, not its name (a W-2 saved as `scan0012.pdf` is still
+   recognized), and read by the cheapest sufficient backend:
 
-   | Rung | Signal | Cost |
-   |------|--------|------|
+   | Rung | Signal / reader | Cost |
+   |------|-----------------|------|
    | 1 | PDF form fields (a fillable form's field names are its fingerprint) | free, exact |
-   | 2 | Embedded PDF text (the printed form title) | free, no OCR |
+   | 2 | Embedded PDF text — weighted-keyword typing + **label-anchored value extraction** | free, no OCR |
    | 3 | Filename hint | free, weak — fallback only |
    | 4 | Vision/OCR (`ANTHROPIC_API_KEY`) | small per-doc cost — true scans only |
 
-   Signatures live in `configs/classification.yaml`; form-field fingerprints derive
-   automatically from the extraction maps.
+   Classification uses weighted keyword scoring with a *don't-guess* threshold: when
+   two forms score close (a consolidated 1099, an 1120-S vs 1065 K-1), the result is
+   flagged MEDIUM for review rather than guessed. Signatures live in
+   `configs/classification.yaml`; form-field fingerprints derive automatically from
+   the extraction maps. Sensitive identifiers (SSN/EIN/any TIN) are always masked.
 
 2. **Sort & re-label** — `satc sort FOLDER` previews a clean by-type tree
-   (`_SATC_Sorted/W-2/W-2 - <employer>.pdf`); `--apply` writes it. **Non-destructive:**
-   it only ever *copies* — originals are never moved, renamed, or deleted.
+   (`_SATC_Sorted/W-2/W-2 - <employer>.pdf`); `--apply` writes it. Combined PDFs are
+   split into one file per form in the tree. **Non-destructive:** it only ever
+   *copies* (or writes split pages) — originals are never moved, renamed, or deleted.
 
 3. **Staging** — extracted values land here and are *not trusted* until confirmed.
    HIGH-confidence values auto-confirm; everything else waits for review. SSN/EIN are

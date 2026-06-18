@@ -16,13 +16,25 @@ from pathlib import Path
 from satc.config import load_extraction_map
 from satc.fixtures import synthetic_documents
 from satc.ids import return_key
-from satc.ingest import MAPPING_1040, MapExtractor, StagingGate, load_classifier
-from satc.ingest.readers import PdfFormReader, VisionDocumentReader
+from satc.ingest import (
+    MAPPING_1040,
+    MapExtractor,
+    StagingGate,
+    load_classifier,
+    split_to_dir,
+)
+from satc.ingest.readers import PdfFormReader, TextAnchorReader, VisionDocumentReader
 from satc.models.mart import DataMart, DocumentRecord, ReturnRecord
 from satc.persistence import SATCStore
 
 # Status flow for a document in the repository.
 DOC_FLOW = ["Requested", "Received", "Sent", "Signed", "N/A"]
+
+# Friendly names for the reader backends (shown in intake notes).
+_READER_LABELS = {
+    "PdfFormReader": "fillable form fields (free)",
+    "TextAnchorReader": "text layer (free)",
+}
 
 
 @dataclass
@@ -91,10 +103,13 @@ class AppState:
                    tax_year: int = 2024) -> dict:
         """Read every file in ``folder`` and stage the values. Returns a summary.
 
-        Each file is classified by *content* (form fields, then page text, then
-        filename, then vision) — not by its name — so a W-2 named ``scan001.pdf``
-        is still recognized and read.
+        Each file is classified by *content* — not its name — so a W-2 named
+        ``scan001.pdf`` is still recognized. A combined multi-form PDF is split into
+        its parts first, and each document is read by the cheapest sufficient
+        backend: fillable form fields, then the free text layer, then vision.
         """
+        import tempfile
+
         self.gate = StagingGate()          # fresh working area for this intake
         files_read = 0
         fields_staged = 0
@@ -104,44 +119,62 @@ class AppState:
         base = Path(folder)
         files = sorted(p for p in base.iterdir() if p.is_file()) if base.is_dir() else []
 
-        for path in files:
-            c = classifier.classify_path(path)
-            how = f"detected by {c.method}" if c.classified else "could not identify"
-            if not c.extractable:
-                what = c.label if c.classified else "unrecognized document"
-                notes.append(f"{path.name} → {what} ({how}): filed, not extracted.")
-                continue
-            cfg = load_extraction_map(c.key)
-            try:
-                if path.suffix.lower() == ".pdf":
-                    result = PdfFormReader(cfg).read(str(path))
-                    if not result.labeled_fields:           # flat scan, not fillable
-                        if not has_key:
-                            notes.append(f"{path.name} → {c.label} ({how}): no form fields — "
-                                         "set ANTHROPIC_API_KEY to read by vision.")
-                            continue
-                        result = VisionDocumentReader(cfg).read(str(path))
-                elif has_key:
-                    result = VisionDocumentReader(cfg).read(str(path))
+        with tempfile.TemporaryDirectory() as tmp:
+            for path in files:
+                parts = split_to_dir(path, tmp, classifier) if path.suffix.lower() == ".pdf" else []
+                if parts:
+                    notes.append(f"{path.name}: combined PDF — split into {len(parts)} documents.")
+                    docs = [(c, fp, f"{path.name} ▸ part {i} · {c.label}")
+                            for i, (c, fp) in enumerate(parts, start=1)]
                 else:
-                    notes.append(f"{path.name} → {c.label} ({how}): image — "
-                                 "set ANTHROPIC_API_KEY to read by vision.")
-                    continue
-            except Exception as exc:        # noqa: BLE001 - surface, don't crash
-                notes.append(f"{path.name}: could not read ({exc}).")
-                continue
-            staged = MapExtractor(cfg).extract(
-                document_id=path.name, client_id=client_id, tax_year=tax_year,
-                labeled_fields=result.labeled_fields, confidences=result.confidence_map())
-            self.gate.add(staged)
-            files_read += 1
-            fields_staged += len(staged.fields)
-            notes.append(f"{path.name} → {c.label} ({how}): staged {len(staged.fields)} fields.")
+                    c = classifier.classify_path(path)
+                    docs = [(c, path, path.name)]
+
+                for c, fpath, doc_id in docs:
+                    how = f"detected by {c.method}" if c.classified else "could not identify"
+                    if not c.extractable:
+                        what = c.label if c.classified else "unrecognized document"
+                        notes.append(f"{doc_id} → {what} ({how}): filed, not extracted.")
+                        continue
+                    cfg = load_extraction_map(c.key)
+                    result, problem = self._read_document(fpath, cfg, has_key)
+                    if result is None:
+                        notes.append(f"{doc_id} → {c.label} ({how}): {problem}")
+                        continue
+                    staged = MapExtractor(cfg).extract(
+                        document_id=doc_id, client_id=client_id, tax_year=tax_year,
+                        labeled_fields=result.labeled_fields, confidences=result.confidence_map())
+                    self.gate.add(staged)
+                    files_read += 1
+                    fields_staged += len(staged.fields)
+                    via = _READER_LABELS.get(result.backend, result.backend)
+                    notes.append(f"{doc_id} → {c.label} ({how}): staged "
+                                 f"{len(staged.fields)} fields via {via}.")
 
         self.gate.auto_confirm_high(by="auto (intake)")
         self.intake_summary = {"folder": folder, "files_read": files_read,
                                "fields_staged": fields_staged, "notes": notes}
         return self.intake_summary
+
+    @staticmethod
+    def _read_document(fpath: Path, cfg: dict, has_key: bool):
+        """Read one document via the reader ladder. Returns (ReadResult|None, problem)."""
+        try:
+            if fpath.suffix.lower() == ".pdf":
+                result = PdfFormReader(cfg).read(str(fpath))      # 1) fillable form fields (free)
+                if result.labeled_fields:
+                    return result, ""
+                result = TextAnchorReader(cfg).read(str(fpath))   # 2) text layer (free)
+                if result.labeled_fields:
+                    return result, ""
+                if has_key:                                       # 3) vision (paid, scans)
+                    return VisionDocumentReader(cfg).read(str(fpath)), ""
+                return None, "no form fields or readable text — set ANTHROPIC_API_KEY for vision."
+            if has_key:
+                return VisionDocumentReader(cfg).read(str(fpath)), ""
+            return None, "image — set ANTHROPIC_API_KEY to read by vision."
+        except Exception as exc:        # noqa: BLE001 - surface, don't crash
+            return None, f"could not read ({exc})."
 
     # -- sort + re-label a folder (non-destructive preview/apply) ----------
     def sort_folder(self, folder: str, *, apply: bool = False):

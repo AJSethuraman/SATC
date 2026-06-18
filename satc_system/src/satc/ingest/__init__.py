@@ -12,6 +12,7 @@ from satc.ingest.classify import (
 from satc.ingest.extractors.mapping import MapExtractor
 from satc.ingest.readers.base import DocumentReader, ReadResult
 from satc.ingest.sort import SortItem, SortPlan, sort_folder
+from satc.ingest.split import Segment, plan_split, split_to_dir
 from satc.ingest.staging_gate import MAPPING_1040, LineMapping, StagingGate
 from satc.models.staging import StagedDocument
 
@@ -30,4 +31,5 @@ def read_and_stage(reader: DocumentReader, source: str, *, config: dict[str, Any
 __all__ = ["MapExtractor", "StagingGate", "LineMapping", "MAPPING_1040",
            "DocumentReader", "ReadResult", "read_and_stage",
            "Classification", "DocumentClassifier", "load_classifier",
-           "SortItem", "SortPlan", "sort_folder"]
+           "SortItem", "SortPlan", "sort_folder",
+           "Segment", "plan_split", "split_to_dir"]

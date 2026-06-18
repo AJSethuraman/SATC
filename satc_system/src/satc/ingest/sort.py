@@ -24,6 +24,7 @@ from pathlib import Path
 
 from satc.config import load_extraction_map
 from satc.ingest.classify import Classification, DocumentClassifier, load_classifier
+from satc.ingest.split import plan_split, write_pages
 
 DEFAULT_DEST_NAME = "_SATC_Sorted"
 _UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
@@ -46,6 +47,7 @@ class SortItem:
     entity: str = ""       # employer/payer name pulled for the clean name (if any)
     extractable: bool = False
     copied: bool = False
+    pages: tuple[int, int] | None = None   # set when this item is a split of a combined PDF
 
 
 @dataclass(slots=True)
@@ -104,6 +106,26 @@ def sort_folder(src: str | Path, dest: str | Path | None = None, *, apply: bool 
 
     used: set[str] = set()
     dest_resolved = dest_path.resolve()
+
+    def add(path: Path, c: Classification, name: str, *, entity: str = "",
+            method: str | None = None, pages: tuple[int, int] | None = None) -> None:
+        bucket = _safe(c.label) if c.classified else _safe("Unclassified")
+        relpath = f"{bucket}/{name}"
+        if relpath in used:                       # de-dupe collisions within the plan
+            stem, dot, ext = name.rpartition(".")
+            n = 2
+            while relpath in used:
+                name_n = f"{stem} ({n}).{ext}" if dot else f"{name} ({n})"
+                relpath = f"{bucket}/{name_n}"
+                n += 1
+            name = name_n
+        used.add(relpath)
+        plan.items.append(SortItem(
+            original=str(path), original_name=path.name, label=c.label, code=c.code,
+            confidence=c.confidence, method=method or c.method, new_relpath=relpath,
+            entity=entity, extractable=c.extractable, pages=pages,
+        ))
+
     for path in sorted(p for p in src_path.iterdir() if p.is_file()):
         # Don't re-sort our own output if dest lives under src.
         try:
@@ -112,32 +134,28 @@ def sort_folder(src: str | Path, dest: str | Path | None = None, *, apply: bool 
         except OSError:
             pass
 
+        segments = plan_split(path, classifier) if path.suffix.lower() == ".pdf" else []
+        if len(segments) >= 2:                    # a combined PDF → one item per form
+            for seg in segments:
+                c = seg.classification
+                code = c.code if c.classified else "DOC"
+                name = f"{_safe(code)} (pages {seg.start + 1}-{seg.end + 1}).pdf"
+                add(path, c, name, method=f"{c.method} (split)", pages=(seg.start, seg.end))
+            continue
+
         c = classifier.classify_path(path)
         entity = _entity_for(path, c)
-        bucket = _safe(c.label)
         name = _clean_name(c, entity, path.suffix) if c.classified else _safe(path.name)
-
-        relpath = f"{bucket}/{name}"
-        if relpath in used:                       # de-dupe collisions within the plan
-            stem, dot, ext = name.rpartition(".")
-            n = 2
-            while relpath in used:
-                name = f"{stem} ({n}).{ext}" if dot else f"{name} ({n})"
-                relpath = f"{bucket}/{name}"
-                n += 1
-        used.add(relpath)
-
-        plan.items.append(SortItem(
-            original=str(path), original_name=path.name, label=c.label, code=c.code,
-            confidence=c.confidence, method=c.method, new_relpath=relpath,
-            entity=entity, extractable=c.extractable,
-        ))
+        add(path, c, name, entity=entity)
 
     if apply:
         for it in plan.items:
             target = dest_path / it.new_relpath
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(it.original, target)     # copy, never move — originals untouched
+            if it.pages is not None:              # split one form out of a combined PDF
+                write_pages(it.original, it.pages[0], it.pages[1], target)
+            else:
+                shutil.copy2(it.original, target)  # copy, never move — originals untouched
             it.copied = True
         plan.applied = True
 

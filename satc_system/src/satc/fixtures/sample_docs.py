@@ -73,6 +73,55 @@ def write_plain_pdf(path: Path, title: str) -> None:
     c.save()
 
 
+def _draw_text_page(c, lines: list[str]) -> None:
+    """Draw plain text lines on the current canvas page (no form fields)."""
+    w, h = letter
+    y = h - 70
+    for line in lines:
+        c.setFont("Helvetica-Bold" if line and line[0] == "#" else "Helvetica", 11)
+        c.drawString(54, y, line.lstrip("# "))
+        y -= 22
+
+
+def write_text_form(path: Path, lines: list[str]) -> None:
+    """A single-page *text-layer* PDF (no AcroForm) — read by the free text reader."""
+    c = canvas.Canvas(str(path), pagesize=letter)
+    _draw_text_page(c, lines)
+    c.save()
+
+
+# Canonical text-layer page bodies for the synthetic forms (label  value).
+TEXT_W2 = [
+    "# Form W-2  Wage and Tax Statement  2024",
+    "Wages, tips, other compensation      98000.00",
+    "Federal income tax withheld          12500.00",
+    "Social security wages                98000.00",
+    "Employer name      Buckeye Manufacturing LLC",
+    "Employer EIN       31-0009999",
+    "Employee SSN       400-55-1234",
+]
+TEXT_1099INT = [
+    "# Form 1099-INT  Interest Income  2024",
+    "Interest income     1200.00",
+    "Payer name          Heartland Bank",
+    "Payer TIN           34-0001111",
+]
+TEXT_ENGAGEMENT = [
+    "# SATC Engagement Letter",
+    "Terms of engagement for the 2024 tax year.",
+]
+
+
+def write_combined_pdf(path: Path, pages: list[list[str]]) -> None:
+    """A multi-page PDF where each page is a different form (text layer)."""
+    c = canvas.Canvas(str(path), pagesize=letter)
+    for i, lines in enumerate(pages):
+        if i:
+            c.showPage()
+        _draw_text_page(c, lines)
+    c.save()
+
+
 def create_sample_folder(directory: str | Path) -> Path:
     """Create a folder of synthetic client documents and return its path."""
     d = Path(directory)

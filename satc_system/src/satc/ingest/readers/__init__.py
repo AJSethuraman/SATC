@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from satc.ingest.readers.base import DocumentReader, ReadResult
 from satc.ingest.readers.pdf_form import PdfFormReader
+from satc.ingest.readers.text_anchor import TextAnchorReader
 from satc.ingest.readers.vision import VisionDocumentReader
 
-__all__ = ["DocumentReader", "ReadResult", "PdfFormReader", "VisionDocumentReader"]
+__all__ = ["DocumentReader", "ReadResult", "PdfFormReader", "TextAnchorReader",
+           "VisionDocumentReader"]
