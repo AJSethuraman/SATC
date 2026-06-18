@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>New intake</h2>
+  <div class="muted">
+    {% if public_client %}
+      {{ state.name(client_id) }} · <span class="mono">{{ client_id }}</span> · {{ public_client.entity_type }}
+    {% else %}
+      Pick a client below to start the interview.
+    {% endif %}
+  </div>
+</div>
+
+{% if not client_id or not public_client %}
+<div class="panel">
+  <h2>Choose a client</h2>
+  <div class="body">
+    <p style="margin-bottom:14px">
+      <a class="btn primary" href="{{ url_for('intake.new_client') }}">+ New client</a>
+    </p>
+    <table>
+      <tr><th>Client</th><th>Type</th><th>State</th><th class="right"></th></tr>
+      {% for c in state.mart.public_clients %}
+      <tr>
+        <td>{{ state.name(c.client_id) }}</td>
+        <td class="muted">{{ c.entity_type }}</td>
+        <td class="muted">{{ c.home_state or '—' }}</td>
+        <td class="right"><a class="btn sm" href="{{ url_for('intake.new_engagement', client=c.client_id) }}">Select →</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+{% elif not workflow %}
+<div class="panel">
+  <h2>Choose a workflow</h2>
+  <div class="body">
+    <p class="muted">Workflows for a {{ client_type }} client. Pick one to open the interview.</p>
+    <table>
+      <tr><th>Workflow</th><th>What it covers</th><th class="right"></th></tr>
+      {% for w in workflows %}
+      <tr>
+        <td><strong>{{ w.name }}</strong><div class="muted mono">{{ w.key }}</div></td>
+        <td class="muted">{{ w.description }}</td>
+        <td class="right"><a class="btn sm primary" href="{{ url_for('intake.new_engagement', client=client_id, workflow=w.key) }}">Start →</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+{% else %}
+<div class="panel">
+  <h2>{{ workflow.name }}</h2>
+  <div class="body">
+    {% if workflow.description %}<p class="muted">{{ workflow.description }}</p>{% endif %}
+    <form method="post" action="{{ url_for('intake.new_engagement') }}">
+      <input type="hidden" name="client" value="{{ client_id }}">
+      <input type="hidden" name="workflow_key" value="{{ workflow.key }}">
+
+      <table>
+        <tr><th>Question</th><th class="right">Answer</th></tr>
+        {% for q in workflow.questions %}
+        <tr>
+          <td>{{ q.label }}{% if q.risk_flag %} <span class="muted">(risk)</span>{% endif %}</td>
+          <td class="right">
+            <label style="margin-right:14px"><input type="radio" name="q_{{ q.id }}" value="yes"> Yes</label>
+            <label><input type="radio" name="q_{{ q.id }}" value="no" checked> No</label>
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+
+      <p style="margin-top:16px"><label class="muted">Due date</label><br>
+        <input class="field-input" type="date" name="due_date" required></p>
+      <p><label class="muted">Tax year</label><br>
+        <input class="field-input" type="number" name="tax_year" placeholder="e.g. 2025"></p>
+
+      <p style="margin-top:16px">
+        <button class="btn primary" type="submit">Generate checklist</button>
+        <a class="btn" href="{{ url_for('intake.new_engagement', client=client_id) }}">Back to workflows</a>
+      </p>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
