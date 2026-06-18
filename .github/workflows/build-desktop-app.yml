@@ -1,8 +1,8 @@
-name: Build desktop app
+name: Build Windows app
 
-# Produce a zero-install, double-clickable SATC executable for each OS using
-# PyInstaller. Run manually (workflow_dispatch) or on a version tag (v*); tag
-# builds also attach the binaries to the matching GitHub Release.
+# Produce a zero-install, double-clickable SATC.exe for Windows using PyInstaller.
+# Run manually (workflow_dispatch) or on a version tag (v*); tag builds also attach
+# SATC.exe to the matching GitHub Release.
 on:
   workflow_dispatch:
   push:
@@ -14,24 +14,8 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      # Each OS gets a DISTINCT asset name. macOS and Linux both build a file
-      # literally named "SATC"; without unique names they collide as release
-      # assets and one overwrites the other.
-      matrix:
-        include:
-          - os: macos-latest
-            build_name: SATC
-            asset_name: SATC-macOS
-          - os: ubuntu-latest
-            build_name: SATC
-            asset_name: SATC-Linux
-          - os: windows-latest
-            build_name: SATC.exe
-            asset_name: SATC-Windows.exe
+    name: Build Windows executable
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,20 +35,15 @@ jobs:
         working-directory: satc_system
         run: pyinstaller packaging/satc_app.spec
 
-      - name: Name the binary per OS
-        shell: bash
-        working-directory: satc_system
-        run: mv "dist/${{ matrix.build_name }}" "dist/${{ matrix.asset_name }}"
-
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}
-          path: satc_system/dist/${{ matrix.asset_name }}
+          name: SATC.exe
+          path: satc_system/dist/SATC.exe
           if-no-files-found: error
 
       - name: Attach to release (tag builds only)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: satc_system/dist/${{ matrix.asset_name }}
+          files: satc_system/dist/SATC.exe

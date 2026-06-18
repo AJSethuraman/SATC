@@ -1,8 +1,8 @@
-# Desktop app packaging (zero-install build)
+# Windows app packaging (zero-install build)
 
-This directory builds a **single, double-clickable executable** of the SATC app
-with [PyInstaller](https://pyinstaller.org), so a non-developer can download one
-file and run it — no Python, no `pip`, no setup. The executable is named `SATC`.
+This directory builds a **single, double-clickable `SATC.exe`** with
+[PyInstaller](https://pyinstaller.org), so a non-developer can download one file
+and run it — no Python, no `pip`, no setup.
 
 Files here:
 
@@ -22,50 +22,38 @@ When frozen, the app is self-locating:
 Nothing changes for the normal dev/test workflow: outside a PyInstaller bundle
 the configs and data dir resolve exactly as before.
 
-## Build it locally
+## Build it locally (on Windows)
 
-From the `satc_system/` directory:
+From the `satc_system\` directory:
 
-```bash
-pip install -e ".[local,build]"     # installs the app deps + pyinstaller
-pyinstaller packaging/satc_app.spec
+```bat
+pip install -e ".[local,build]"     REM installs the app deps + pyinstaller
+pyinstaller packaging\satc_app.spec
 ```
 
-The result is a single executable:
-
-* macOS / Linux: `dist/SATC`
-* Windows: `dist/SATC.exe`
-
-Run it by double-clicking (or `./dist/SATC` from a terminal). It picks a free
-port, starts the local web server, and opens the app in your browser. Stop it
-with `Ctrl+C` in the console window.
+The result is `dist\SATC.exe`. Double-click it (or run `dist\SATC.exe`). It picks a
+free port, starts the local web server, and opens the app in your browser. Stop it
+by closing the console window.
 
 Useful environment toggles when launching:
 
 * `SATC_NO_BROWSER=1` — don't auto-open a browser (handy for smoke tests).
 * `SATC_PORT=5099` — prefer a specific port (falls back to a free one if taken).
-* `SATC_DATA_DIR=/path` — store the databases somewhere other than `~/.satc/data`.
-
-Quick smoke test (Linux/macOS):
-
-```bash
-SATC_NO_BROWSER=1 SATC_PORT=5099 ./dist/SATC &
-sleep 4
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5099/   # expect 200
-kill %1
-```
+* `SATC_DATA_DIR=C:\path` — store the databases somewhere other than `~/.satc/data`.
 
 ## What CI produces
 
-`.github/workflows/build-desktop-app.yml` builds the executable on a matrix of
-**macOS, Windows, and Linux**:
+`.github/workflows/build-desktop-app.yml` builds `SATC.exe` on `windows-latest`:
 
 * **Triggers:** manual (`workflow_dispatch`) and version tags (`push` of `v*`).
-* **Each OS job:** checks out the repo, sets up Python 3.11, installs
-  `.[local,build]`, runs `pyinstaller packaging/satc_app.spec`, and uploads the
-  resulting `dist/SATC*` as a build artifact (`SATC-<os>`).
-* **On a tag push** (e.g. `v1.0.0`): the binaries are also attached to the
-  matching GitHub Release.
+* **The job:** checks out the repo, sets up Python 3.11, installs `.[local,build]`,
+  runs `pyinstaller packaging/satc_app.spec`, and uploads `dist/SATC.exe` as a
+  build artifact.
+* **On a tag push** (e.g. `v0.1.1`): `SATC.exe` is also attached to the matching
+  GitHub Release.
 
-So cutting a release is: push a `v*` tag, wait for the three jobs, and the
-ready-to-run `SATC` executables appear on the Release page — one download per OS.
+So cutting a release is: push a `v*` tag (or publish a Release in the UI), wait for
+the build, and the ready-to-run **`SATC.exe`** appears on the Release page.
+
+> The build is Windows-only by design. PyInstaller is not a cross-compiler, so the
+> Windows `.exe` is produced on a Windows runner.

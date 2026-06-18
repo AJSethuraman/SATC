@@ -70,8 +70,8 @@ def run_checks() -> list[Check]:
         checks.append(Check("Local OCR (Tesseract)", "ok", "ready — scans are read on this machine"))
     else:
         checks.append(Check("Local OCR (Tesseract)", "warn", "not installed",
-                            "Install Tesseract (mac: brew install tesseract · "
-                            "Ubuntu/Debian: apt-get install tesseract-ocr), then pip install -e '.[ocr]'"))
+                            "Install Tesseract for Windows "
+                            "(github.com/UB-Mannheim/tesseract/wiki), then pip install -e '.[ocr]'"))
 
     if ollama_enabled():
         ok = _ollama_reachable()

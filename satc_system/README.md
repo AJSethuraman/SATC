@@ -2,27 +2,22 @@
 
 **Sethuraman Accounting, Tax & Consulting (SATC)** — *Complex work, made clear.*
 
-## Get started in one step
+## Get started (Windows)
 
-Everything runs on your own computer. No cloud account, nothing sent anywhere.
+Everything runs on your own Windows PC. No cloud account, nothing sent anywhere.
 
-> **Download the app (no install).** Don't want to install anything? Grab the
-> single ready-to-run **`SATC`** file for your computer from the project's
-> [Releases](../../releases) page (one download for Mac, Windows, or Linux),
-> then double-click it. No Python, no setup — it opens SATC in your browser.
-> (These executables are built automatically; see `packaging/README.md`.)
+> **Download the app (no install).** Grab **`SATC.exe`** from the
+> [Releases](../../releases) page and double-click it — no Python, no setup. It
+> opens SATC in your browser. (Built automatically; see `packaging/README.md`.)
+> First launch: because the app is unsigned, Windows SmartScreen may warn — click
+> **More info → Run anyway**.
 
-| Your computer | Do this |
-|---------------|---------|
-| **Mac** | Double-click **`install.command`** once, then double-click **`SATC.command`** to start. |
-| **Windows** | Double-click **`install.bat`** once, then double-click **`SATC.bat`** to start. |
-| **Linux / terminal** | `./install.sh` once, then `./SATC.sh` to start. |
-
-Starting it opens SATC in your web browser automatically. Not sure what's set up?
-Run **`satc doctor`** (or open the **Setup** screen in the app) for a plain-English
-readiness check. To read scanned/photographed docs locally, install Tesseract
-(`brew install tesseract` / `apt-get install tesseract-ocr`); for a local vision
-model, install [Ollama](https://ollama.com) and start SATC with `SATC_OLLAMA=1`.
+Prefer to run from source? Double-click **`install.bat`** once, then **`SATC.bat`**
+to start. Either way it opens SATC in your browser automatically. Not sure what's
+set up? Run **`satc doctor`** (or open the **Setup** screen) for a plain-English
+readiness check. To read scanned/photographed docs locally, install
+[Tesseract for Windows](https://github.com/UB-Mannheim/tesseract/wiki); for a
+local vision model, install [Ollama](https://ollama.com) and start with `SATC_OLLAMA=1`.
 
 ---
 
@@ -148,10 +143,10 @@ satc app                       # opens http://127.0.0.1:5050
    disabled escape hatch — it runs only with an explicit `SATC_ALLOW_CLOUD=1` *and*
    an API key; a key alone does nothing. `satc.settings` is the single switch.
 
-   ```bash
-   pip install -e .[ocr]          # local OCR — also: apt-get install tesseract-ocr
-   SATC_OLLAMA=1 satc app         # opt in to a local Ollama vision model
-   #   (SATC_OLLAMA_MODEL, SATC_OLLAMA_HOST override the defaults)
+   ```bat
+   pip install -e .[ocr]          REM local OCR — also install Tesseract for Windows
+   set SATC_OLLAMA=1 && satc app  REM opt in to a local Ollama vision model
+   REM   (SATC_OLLAMA_MODEL, SATC_OLLAMA_HOST override the defaults)
    ```
 
 2. **Sort & re-label** — `satc sort FOLDER` previews a clean by-type tree
