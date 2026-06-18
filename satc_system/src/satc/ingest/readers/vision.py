@@ -116,6 +116,38 @@ class VisionDocumentReader:
         text = next((b.text for b in resp.content if getattr(b, "type", None) == "text"), "{}")
         return json.loads(text)
 
+    @classmethod
+    def classify_form(cls, source: str, labels: list[str], *, client: Any = None,
+                      model: str = DEFAULT_MODEL, page: int = 1) -> str | None:  # pragma: no cover - needs a key
+        """Name the form in ``source`` as one of ``labels`` (cheap classify-only call).
+
+        Used as the last rung of the classification ladder when a document has no
+        form fields and no text layer (a true scan). Returns the chosen label, or
+        ``None`` if the model declines / errors.
+        """
+        reader = cls({"doc_type": "tax document", "fields": []},
+                     client=client, model=model, page=page)
+        image_bytes, media_type = reader._image_bytes(source)
+        b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
+        schema = {
+            "type": "object",
+            "properties": {"doc_type": {"type": ["string", "null"], "enum": [*labels, None]}},
+            "required": ["doc_type"],
+            "additionalProperties": False,
+        }
+        prompt = ("Identify which tax document this image is. Choose exactly one of: "
+                  f"{', '.join(labels)}. If none fit, return null. Do not guess wildly.")
+        resp = reader._get_client().messages.create(
+            model=model, max_tokens=200,
+            messages=[{"role": "user", "content": [
+                {"type": "image",
+                 "source": {"type": "base64", "media_type": media_type, "data": b64}},
+                {"type": "text", "text": prompt}]}],
+            output_config={"format": {"type": "json_schema", "schema": schema}},
+        )
+        text = next((b.text for b in resp.content if getattr(b, "type", None) == "text"), "{}")
+        return json.loads(text).get("doc_type")
+
     def read(self, source: str) -> ReadResult:
         image_bytes, media_type = self._image_bytes(source)
         b64 = base64.standard_b64encode(image_bytes).decode("utf-8")

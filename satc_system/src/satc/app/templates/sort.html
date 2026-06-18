@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Sort &amp; re-label “{{ folder }}”.</h2>
+  <div class="muted">SATC reads each file to decide what it is, then proposes a clean name and a by-type folder. Originals are never moved or changed — applying makes tidy <em>copies</em> under <span class="mono">_SATC_Sorted/</span>.</div>
+  <form method="post" style="margin-top:12px">
+    <input class="field-input" name="folder" value="{{ folder }}" placeholder="/Clients/Maplewood/2024">
+    <button class="btn primary" type="submit">Preview plan</button>
+  </form>
+</div>
+
+{% if plan %}
+<div class="panel">
+  <h2>
+    {% if plan.applied %}Sorted {{ plan.items|length }} files{% else %}Plan: {{ plan.items|length }} files, {{ plan.classified }} identified{% endif %}
+  </h2>
+  <div class="body">
+    <table>
+      <tr><th>Original</th><th>Detected</th><th>How</th><th>Re-labeled to</th><th>Status</th></tr>
+      {% for it in plan.items %}
+      <tr>
+        <td class="mono muted">{{ it.original_name }}</td>
+        <td>{{ it.label }}</td>
+        <td class="muted">{{ it.method }} · {{ it.confidence }}</td>
+        <td class="mono">{{ it.new_relpath }}</td>
+        <td>{% if it.copied %}<span class="badge b-CONFIRMED">copied</span>{% else %}<span class="badge b-STAGED">preview</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% if not plan.applied %}
+    <form method="post" action="{{ url_for('sort_apply') }}" style="margin-top:14px">
+      <input type="hidden" name="folder" value="{{ folder }}">
+      <button class="btn primary" type="submit">Apply — copy into {{ plan.dest.split('/')[-1] }}/ →</button>
+    </form>
+    {% else %}
+    <p class="note" style="margin-top:12px">Copied into <span class="mono">{{ plan.dest }}</span>. Originals untouched.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

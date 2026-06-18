@@ -14,20 +14,25 @@
 <div class="panel">
   <h2>Found {{ found|length }} documents in “{{ folder }}”</h2>
   <div class="body">
-    <p class="note">SATC classified each file by type. Confirm the type if needed, then read &amp; stage — fillable PDFs are read for free; scans and photos use Claude vision.</p>
+    <p class="note">SATC read each file to decide what it is — form fields first, then the page text, then the filename. Fillable PDFs are read for free; scans and photos use Claude vision.</p>
     <table>
-      <tr><th>File</th><th>Detected type</th><th>How it'll be read</th></tr>
+      <tr><th>File</th><th>Detected type</th><th>How it was identified</th><th>Confidence</th></tr>
       {% for f in found %}
       <tr>
         <td class="mono">{{ f.name }}</td>
-        <td>{{ f.type }}</td>
-        <td class="muted">{{ 'PDF form fields (free)' if 'W-2' in f.type or '1099' in f.type else ('— filed, not extracted' if f.type in ['Engagement letter','Form 8879','Organizer','Unclassified'] else 'Claude vision') }}</td>
+        <td>{{ f.type }}{% if not f.extractable %} <span class="muted">· filed, not extracted</span>{% endif %}</td>
+        <td class="muted">{{ f.method }}</td>
+        <td><span class="badge b-{{ 'CONFIRMED' if f.confidence == 'HIGH' else 'STAGED' }}">{{ f.confidence }}</span></td>
       </tr>
       {% endfor %}
     </table>
     <form method="post" action="{{ url_for('intake_run') }}" style="margin-top:14px">
       <input type="hidden" name="folder" value="{{ folder }}">
       <button class="btn primary" type="submit">Read &amp; stage these {{ found|length }} documents →</button>
+    </form>
+    <form method="post" action="{{ url_for('sort') }}" class="inline" style="margin-top:14px">
+      <input type="hidden" name="folder" value="{{ folder }}">
+      <button class="btn" type="submit">Sort &amp; re-label this folder →</button>
     </form>
   </div>
 </div>

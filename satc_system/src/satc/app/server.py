@@ -18,6 +18,7 @@ from pathlib import Path
 from flask import Flask, redirect, render_template, request, send_file, url_for
 
 from satc.app.state import DOC_FLOW, STATE, classify
+from satc.ingest import load_classifier
 from satc.persistence import export_mart_to_excel
 
 
@@ -38,11 +39,18 @@ def create_app() -> Flask:
         folder = request.form.get("folder") or request.args.get("folder") or ""
         found: list[dict] = []
         if folder and Path(folder).is_dir():
+            classifier = load_classifier()
             for name in sorted(os.listdir(folder))[:50]:
-                found.append({"name": name, "type": classify(name)[0]})
+                path = Path(folder) / name
+                if not path.is_file():
+                    continue
+                c = classifier.classify_path(path)
+                found.append({"name": name, "type": c.label, "method": c.method,
+                              "confidence": c.confidence, "extractable": c.extractable})
         elif folder:
             # Demo fallback: show the synthetic documents as if found in the folder.
-            found = [{"name": f"{d.document_id}.pdf", "type": str(d.doc_type)}
+            found = [{"name": f"{d.document_id}.pdf", "type": str(d.doc_type),
+                      "method": "filename", "confidence": "LOW", "extractable": True}
                      for d in STATE.documents()]
         return render_template("intake.html", title="Intake", folder=folder, found=found)
 
@@ -50,6 +58,18 @@ def create_app() -> Flask:
     def intake_run():
         STATE.run_intake(request.form.get("folder", ""))
         return redirect(url_for("staging"))
+
+    @app.route("/sort", methods=["GET", "POST"])
+    def sort():
+        folder = request.form.get("folder") or request.args.get("folder") or ""
+        plan = STATE.sort_folder(folder, apply=False) if folder and Path(folder).is_dir() else None
+        return render_template("sort.html", title="Sort & re-label", folder=folder, plan=plan)
+
+    @app.route("/sort/apply", methods=["POST"])
+    def sort_apply():
+        folder = request.form.get("folder", "")
+        plan = STATE.sort_folder(folder, apply=True)
+        return render_template("sort.html", title="Sort & re-label", folder=folder, plan=plan)
 
     @app.route("/staging")
     def staging():

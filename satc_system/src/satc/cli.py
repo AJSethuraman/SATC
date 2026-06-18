@@ -2,6 +2,7 @@
 
     satc app                 launch the local web GUI
     satc build [out.xlsx]    build the demo workpaper workbook (and recalc note)
+    satc sort FOLDER         classify + re-label a folder of client documents
     satc seed [--dir DIR]    initialize the SQLite store from synthetic fixtures
     satc export [out.xlsx]   export the data mart to Excel
     satc reset [--dir DIR]   delete the local databases (start fresh)
@@ -24,6 +25,12 @@ def main(argv: list[str] | None = None) -> int:
     p_build.add_argument("out", nargs="?", default=None)
     p_build.add_argument("--tax-year", type=int, default=2024)
 
+    p_sort = sub.add_parser("sort", help="classify + re-label a folder of documents")
+    p_sort.add_argument("folder")
+    p_sort.add_argument("--apply", action="store_true",
+                        help="copy files into the clean tree (default: preview only)")
+    p_sort.add_argument("--dest", default=None, help="destination root (default: FOLDER/_SATC_Sorted)")
+
     p_seed = sub.add_parser("seed", help="initialize the SQLite store from fixtures")
     p_seed.add_argument("--dir", default=None)
 
@@ -45,6 +52,23 @@ def main(argv: list[str] | None = None) -> int:
         from satc.build import build_demo_workbook
         out = build_demo_workbook(args.out, args.tax_year) if args.out else build_demo_workbook(tax_year=args.tax_year)
         print(f"Built {out}  (run scripts/recalc.py on it to evaluate formulas)")
+        return 0
+
+    if args.cmd == "sort":
+        from satc.ingest import sort_folder
+        plan = sort_folder(args.folder, args.dest, apply=args.apply)
+        if not plan.items:
+            print(f"No files found in {args.folder}")
+            return 0
+        verb = "Copied" if plan.applied else "Would copy"
+        print(f"{'Sorted' if plan.applied else 'Plan for'} {len(plan.items)} files "
+              f"({plan.classified} identified) -> {plan.dest}\n")
+        width = max(len(it.original_name) for it in plan.items)
+        for it in plan.items:
+            print(f"  {it.original_name:<{width}}  {it.label:<22}  "
+                  f"[{it.method}/{it.confidence}]  ->  {it.new_relpath}")
+        if not plan.applied:
+            print(f"\n{verb} into {plan.dest}.  Re-run with --apply to write the copies.")
         return 0
 
     if args.cmd == "seed":

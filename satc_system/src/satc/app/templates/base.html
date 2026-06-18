@@ -15,6 +15,7 @@
     <nav class="nav">
       <a href="{{ url_for('dashboard') }}" class="{{ 'active' if title=='Dashboard' }}"><span class="ic">▦</span> Dashboard</a>
       <a href="{{ url_for('intake') }}" class="{{ 'active' if title=='Intake' }}"><span class="ic">⤓</span> Intake</a>
+      <a href="{{ url_for('sort') }}" class="{{ 'active' if 'Sort' in title }}"><span class="ic">⇅</span> Sort &amp; re-label</a>
       <a href="{{ url_for('staging') }}" class="{{ 'active' if 'Staging' in title }}"><span class="ic">✓</span> Staging</a>
       <a href="{{ url_for('documents') }}" class="{{ 'active' if title=='Documents' }}"><span class="ic">▤</span> Documents
         {% if outstanding %}<span class="pill">{{ outstanding }}</span>{% endif %}</a>

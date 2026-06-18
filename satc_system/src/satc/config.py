@@ -36,6 +36,12 @@ def load_extraction_map(doc_key: str, config_root: Path | None = None) -> dict[s
     return _load_yaml(root / "extraction" / f"{doc_key}.yaml")
 
 
+def load_classification(config_root: Path | None = None) -> dict[str, Any]:
+    """Load the content-based document classification registry."""
+    root = config_root or CONFIG_ROOT
+    return _load_yaml(root / "classification.yaml")
+
+
 def templatize(config: dict[str, Any], replacements: dict[str, str]) -> dict[str, Any]:
     """Replace ``{{TOKEN}}`` placeholders throughout a config (e.g. the resident state)."""
     def walk(node: Any) -> Any:

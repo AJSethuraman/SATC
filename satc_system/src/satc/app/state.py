@@ -15,7 +15,7 @@ from pathlib import Path
 
 from satc.config import load_extraction_map
 from satc.fixtures import synthetic_documents
-from satc.ingest import MapExtractor, StagingGate
+from satc.ingest import MapExtractor, StagingGate, load_classifier
 from satc.ingest.readers import PdfFormReader, VisionDocumentReader
 from satc.models.mart import DataMart, DocumentRecord
 from satc.persistence import SATCStore
@@ -106,33 +106,43 @@ class AppState:
     # -- intake: actually read the files in a folder ----------------------
     def run_intake(self, folder: str, *, client_id: str = "SATC-001000",
                    tax_year: int = 2024) -> dict:
-        """Read every file in ``folder`` and stage the values. Returns a summary."""
+        """Read every file in ``folder`` and stage the values. Returns a summary.
+
+        Each file is classified by *content* (form fields, then page text, then
+        filename, then vision) — not by its name — so a W-2 named ``scan001.pdf``
+        is still recognized and read.
+        """
         self.gate = StagingGate()          # fresh working area for this intake
         files_read = 0
         fields_staged = 0
         notes: list[str] = []
         has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+        classifier = load_classifier(has_key=has_key)
         base = Path(folder)
         files = sorted(p for p in base.iterdir() if p.is_file()) if base.is_dir() else []
 
         for path in files:
-            label, key = classify(path.name)
-            if key is None:
-                notes.append(f"{path.name}: filed as “{label}” (not an extractable tax form).")
+            c = classifier.classify_path(path)
+            how = f"detected by {c.method}" if c.classified else "could not identify"
+            if not c.extractable:
+                what = c.label if c.classified else "unrecognized document"
+                notes.append(f"{path.name} → {what} ({how}): filed, not extracted.")
                 continue
-            cfg = load_extraction_map(key)
+            cfg = load_extraction_map(c.key)
             try:
                 if path.suffix.lower() == ".pdf":
                     result = PdfFormReader(cfg).read(str(path))
                     if not result.labeled_fields:           # flat scan, not fillable
                         if not has_key:
-                            notes.append(f"{path.name}: no form fields — set ANTHROPIC_API_KEY to read by vision.")
+                            notes.append(f"{path.name} → {c.label} ({how}): no form fields — "
+                                         "set ANTHROPIC_API_KEY to read by vision.")
                             continue
                         result = VisionDocumentReader(cfg).read(str(path))
                 elif has_key:
                     result = VisionDocumentReader(cfg).read(str(path))
                 else:
-                    notes.append(f"{path.name}: image — set ANTHROPIC_API_KEY to read by vision.")
+                    notes.append(f"{path.name} → {c.label} ({how}): image — "
+                                 "set ANTHROPIC_API_KEY to read by vision.")
                     continue
             except Exception as exc:        # noqa: BLE001 - surface, don't crash
                 notes.append(f"{path.name}: could not read ({exc}).")
@@ -143,11 +153,19 @@ class AppState:
             self.gate.add(staged)
             files_read += 1
             fields_staged += len(staged.fields)
+            notes.append(f"{path.name} → {c.label} ({how}): staged {len(staged.fields)} fields.")
 
         self.gate.auto_confirm_high(by="auto (intake)")
         self.intake_summary = {"folder": folder, "files_read": files_read,
                                "fields_staged": fields_staged, "notes": notes}
         return self.intake_summary
+
+    # -- sort + re-label a folder (non-destructive preview/apply) ----------
+    def sort_folder(self, folder: str, *, apply: bool = False):
+        """Classify and (optionally) copy a folder's files into a clean tree."""
+        from satc.ingest import sort_folder as _sort
+        has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+        return _sort(folder, apply=apply, classifier=load_classifier(has_key=has_key))
 
     # -- dashboard rollups ------------------------------------------------
     def pipeline_counts(self) -> dict[str, int]:
