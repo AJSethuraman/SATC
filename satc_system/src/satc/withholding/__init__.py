@@ -19,9 +19,11 @@ from satc.withholding.models import (
     OtherPayments,
     Paystub,
 )
+from satc.withholding.intake import paystub_from_fields
 from satc.withholding.tax_data import available_years
 
 __all__ = [
-    "estimate", "available_years", "EstimatorInput", "EstimateResult",
+    "estimate", "available_years", "paystub_from_fields",
+    "EstimatorInput", "EstimateResult",
     "Paystub", "OtherIncome", "Adjustments", "Deductions", "Credits", "OtherPayments",
 ]

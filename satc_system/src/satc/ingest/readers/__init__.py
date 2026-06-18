@@ -10,9 +10,11 @@ from __future__ import annotations
 from satc.ingest.readers.base import DocumentReader, ReadResult
 from satc.ingest.readers.ocr import TesseractOcrReader
 from satc.ingest.readers.ollama import OllamaVisionReader
+from satc.ingest.readers.paystub import PaystubReader
 from satc.ingest.readers.pdf_form import PdfFormReader
 from satc.ingest.readers.text_anchor import TextAnchorReader
 from satc.ingest.readers.vision import VisionDocumentReader
 
 __all__ = ["DocumentReader", "ReadResult", "PdfFormReader", "TextAnchorReader",
-           "TesseractOcrReader", "OllamaVisionReader", "VisionDocumentReader"]
+           "TesseractOcrReader", "OllamaVisionReader", "VisionDocumentReader",
+           "PaystubReader"]
