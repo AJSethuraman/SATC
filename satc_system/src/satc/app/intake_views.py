@@ -19,6 +19,9 @@ Screens (built out by the UI workstream):
 
 from __future__ import annotations
 
+import dataclasses
+import json
+
 from flask import (
     Blueprint,
     Response,
@@ -73,6 +76,65 @@ def new_client():
             )
         return redirect(url_for("intake.new_engagement", client=cid))
     return render_template("client_new.html", title="New client")
+
+
+@bp.route("/clients/import", methods=["GET", "POST"], endpoint="import_clients")
+def import_clients():
+    """Bulk import (CSV / spreadsheet / Drake export) with a preview step."""
+    from satc.intake.importer import CSV_TEMPLATE
+
+    if request.method == "POST":
+        text = ""
+        upload = request.files.get("file")
+        if upload is not None and upload.filename:
+            text = upload.read().decode("utf-8", errors="ignore")
+        if not text.strip():
+            text = request.form.get("pasted", "")
+
+        parsed = STATE.preview_client_import(csv_text=text)
+        parsed_json = json.dumps([dataclasses.asdict(p) for p in parsed])
+        new_count = sum(1 for p in parsed if p.status == "new")
+        dup_count = sum(1 for p in parsed if p.status == "duplicate")
+        review_count = sum(1 for p in parsed if p.status == "review")
+        create_count = sum(1 for p in parsed if p.status != "duplicate")
+        return render_template(
+            "client_import_preview.html", title="Import clients",
+            parsed=parsed, parsed_json=parsed_json,
+            new_count=new_count, dup_count=dup_count, review_count=review_count,
+            create_count=create_count)
+
+    return render_template("client_import.html", title="Import clients",
+                           csv_template=CSV_TEMPLATE)
+
+
+@bp.route("/clients/import/confirm", methods=["POST"], endpoint="import_clients_confirm")
+def import_clients_confirm():
+    """Commit the previewed rows carried over as hidden JSON."""
+    from satc.intake.importer import ParsedClient
+
+    raw = request.form.get("parsed_json", "[]")
+    try:
+        rows = json.loads(raw)
+    except (ValueError, TypeError):
+        rows = []
+    parsed = [ParsedClient(**d) for d in rows]
+    include_duplicates = bool(request.form.get("include_duplicates"))
+    STATE.commit_client_import(parsed, include_duplicates=include_duplicates)
+    return redirect(url_for("intake.engagements"))
+
+
+@bp.route("/clients/quick-add", methods=["POST"], endpoint="quick_add_client")
+def quick_add_client():
+    """Smart single-add, then flow straight into the interview."""
+    client_id, _parsed = STATE.add_client_smart(
+        name=request.form.get("name", ""),
+        tin=request.form.get("tin", ""),
+        entity_type=request.form.get("entity_type", ""),
+        email=request.form.get("email", ""),
+        phone=request.form.get("phone", ""),
+        state=request.form.get("state", ""),
+    )
+    return redirect(url_for("intake.new_engagement", client=client_id))
 
 
 @bp.route("/intake/new", methods=["GET", "POST"])

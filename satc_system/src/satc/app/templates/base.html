@@ -21,6 +21,7 @@
         {% if outstanding %}<span class="pill">{{ outstanding }}</span>{% endif %}</a>
       <a href="{{ url_for('client', client_id='SATC-001000') }}"><span class="ic">◷</span> Clients</a>
       <a href="{{ url_for('intake.engagements') }}" class="{{ 'active' if title in ['Engagements','New client','Intake'] }}"><span class="ic">☑</span> Engagements</a>
+      <a href="{{ url_for('workflows.workflows_index') }}" class="{{ 'active' if title=='Questionnaires' }}"><span class="ic">?</span> Questionnaires</a>
       <a href="{{ url_for('export') }}"><span class="ic">⬇</span> Export to Excel</a>
       <a href="{{ url_for('setup') }}" class="{{ 'active' if title=='Setup' }}"><span class="ic">⚙</span> Setup</a>
     </nav>

@@ -10,6 +10,7 @@
   <div class="body">
     <p style="margin-bottom:14px">
       <a class="btn primary" href="{{ url_for('intake.new_client') }}">+ New client</a>
+      <a class="btn" href="{{ url_for('intake.import_clients') }}">Import clients</a>
       <a class="btn" href="{{ url_for('intake.new_engagement') }}">New engagement</a>
     </p>
     {% if engagements %}
