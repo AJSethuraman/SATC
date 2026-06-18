@@ -17,6 +17,7 @@ from pathlib import Path
 
 from flask import Flask, redirect, render_template, request, send_file, url_for
 
+from satc.app.intake_views import bp as intake_bp
 from satc.app.state import DOC_FLOW, STATE
 from satc.ingest import load_classifier
 from satc.persistence import export_mart_to_excel
@@ -24,6 +25,7 @@ from satc.persistence import export_mart_to_excel
 
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
+    app.register_blueprint(intake_bp)
 
     @app.context_processor
     def inject_globals():

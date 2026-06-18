@@ -16,6 +16,7 @@ dates as ISO text. Excel remains a first-class *export* (see
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import date
 from decimal import Decimal
@@ -23,6 +24,7 @@ from pathlib import Path
 
 from satc.fixtures import synthetic_identities, synthetic_mart
 from satc.models.identity import IdentityRecord, PublicClient
+from satc.models.intake import IntakeEngagement, IntakeTask, Relationship
 from satc.models.mart import (
     Carryforward,
     DataMart,
@@ -75,6 +77,18 @@ CREATE TABLE IF NOT EXISTS engagements (
 CREATE TABLE IF NOT EXISTS documents (
   document_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, doc_type TEXT,
   status TEXT, as_of TEXT, sharepoint_link TEXT, actor TEXT, note TEXT);
+CREATE TABLE IF NOT EXISTS relationships (
+  rel_id TEXT PRIMARY KEY, from_client_id TEXT, to_client_id TEXT,
+  relationship_type TEXT, ownership_pct TEXT, is_primary INTEGER, note TEXT);
+CREATE TABLE IF NOT EXISTS intake_engagements (
+  engagement_id TEXT PRIMARY KEY, client_id TEXT, workflow_key TEXT, engagement_type TEXT,
+  tax_year INTEGER, period_end TEXT, due_date TEXT, intake_answers TEXT, risk_flags TEXT,
+  created_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS intake_tasks (
+  task_id TEXT PRIMARY KEY, engagement_id TEXT, template_id TEXT, title TEXT, category TEXT,
+  audience TEXT, client_request_text TEXT, accepted_alternatives TEXT, why_needed TEXT,
+  internal_instructions TEXT, suggested_date TEXT, completed INTEGER, notes TEXT,
+  relationship_generated INTEGER, document_id TEXT);
 """
 
 
@@ -186,6 +200,63 @@ class SATCStore:
     def set_document_status(self, document_id: str, status: str) -> None:
         self.mart.execute("UPDATE documents SET status=? WHERE document_id=?", (status, document_id))
         self.mart.commit()
+
+    # -- intake: relationships + engagements + tasks ----------------------
+    def upsert_relationship(self, rel: Relationship) -> None:
+        self.mart.execute("INSERT OR REPLACE INTO relationships VALUES (?,?,?,?,?,?,?)",
+                          (rel.rel_id, rel.from_client_id, rel.to_client_id, rel.relationship_type,
+                           rel.ownership_pct, int(rel.is_primary), rel.note))
+        self.mart.commit()
+
+    def load_relationships(self) -> list[Relationship]:
+        return [Relationship(
+            rel_id=r["rel_id"], from_client_id=r["from_client_id"], to_client_id=r["to_client_id"],
+            relationship_type=r["relationship_type"], ownership_pct=r["ownership_pct"] or "",
+            is_primary=bool(r["is_primary"]), note=r["note"] or "")
+            for r in self.mart.execute("SELECT * FROM relationships ORDER BY rel_id")]
+
+    def save_intake_engagement(self, eng: IntakeEngagement) -> None:
+        """Persist an engagement and (replace) its task list."""
+        self.mart.execute("INSERT OR REPLACE INTO intake_engagements VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                          (eng.engagement_id, eng.client_id, eng.workflow_key, eng.engagement_type,
+                           eng.tax_year, eng.period_end, _dt(eng.due_date),
+                           json.dumps(eng.intake_answers), json.dumps(eng.risk_flags),
+                           eng.created_at, eng.updated_at))
+        self.mart.execute("DELETE FROM intake_tasks WHERE engagement_id=?", (eng.engagement_id,))
+        for t in eng.tasks:
+            self._insert_task(t)
+        self.mart.commit()
+
+    def _insert_task(self, t: IntakeTask) -> None:
+        self.mart.execute("INSERT OR REPLACE INTO intake_tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                          (t.task_id, t.engagement_id, t.template_id, t.title, t.category, t.audience,
+                           t.client_request_text, t.accepted_alternatives, t.why_needed,
+                           t.internal_instructions, _dt(t.suggested_date), int(t.completed), t.notes,
+                           int(t.relationship_generated), t.document_id))
+
+    def save_task(self, t: IntakeTask) -> None:
+        self._insert_task(t)
+        self.mart.commit()
+
+    def load_intake_engagements(self) -> list[IntakeEngagement]:
+        tasks_by_eng: dict[str, list[IntakeTask]] = {}
+        for r in self.mart.execute("SELECT * FROM intake_tasks ORDER BY suggested_date, task_id"):
+            tasks_by_eng.setdefault(r["engagement_id"], []).append(IntakeTask(
+                task_id=r["task_id"], engagement_id=r["engagement_id"], template_id=r["template_id"],
+                title=r["title"], category=r["category"], audience=r["audience"],
+                client_request_text=r["client_request_text"] or "",
+                accepted_alternatives=r["accepted_alternatives"] or "",
+                why_needed=r["why_needed"] or "", internal_instructions=r["internal_instructions"] or "",
+                suggested_date=_pdt(r["suggested_date"]), completed=bool(r["completed"]),
+                notes=r["notes"] or "", relationship_generated=bool(r["relationship_generated"]),
+                document_id=r["document_id"] or ""))
+        return [IntakeEngagement(
+            engagement_id=r["engagement_id"], client_id=r["client_id"], workflow_key=r["workflow_key"],
+            engagement_type=r["engagement_type"], tax_year=r["tax_year"], period_end=r["period_end"] or "",
+            due_date=_pdt(r["due_date"]), intake_answers=json.loads(r["intake_answers"] or "{}"),
+            risk_flags=json.loads(r["risk_flags"] or "[]"), created_at=r["created_at"] or "",
+            updated_at=r["updated_at"] or "", tasks=tasks_by_eng.get(r["engagement_id"], []))
+            for r in self.mart.execute("SELECT * FROM intake_engagements ORDER BY created_at")]
 
     # -- mart read --------------------------------------------------------
     def load_mart(self) -> DataMart:

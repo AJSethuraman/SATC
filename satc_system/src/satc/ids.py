@@ -70,3 +70,10 @@ def engagement_key(client_id: str, tax_year: int) -> str:
 def line_item_key(return_key_value: str, schedule: str, line: str) -> str:
     """Build a stable key for a single line item within a return."""
     return _KEY_SEP.join([return_key_value, schedule.strip().upper(), str(line).strip()])
+
+
+def opaque_id(prefix: str) -> str:
+    """A unique, URL/filename-safe id for intake records (``task-<uuid>``)."""
+    import uuid
+
+    return f"{prefix}-{uuid.uuid4()}"

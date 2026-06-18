@@ -231,6 +231,54 @@ class AppState:
                                           else li.text_value) for li in items]}
         return self.posted_summary
 
+    # -- client intake & engagement workflows -----------------------------
+    def intake_engagements(self) -> list:
+        """All generated engagements (workflow instances), newest first."""
+        return list(reversed(self.store.load_intake_engagements()))
+
+    def engagement(self, engagement_id: str):
+        return next((e for e in self.store.load_intake_engagements()
+                     if e.engagement_id == engagement_id), None)
+
+    def relationships(self) -> list:
+        return self.store.load_relationships()
+
+    def create_person_client(self, **kw) -> str:
+        from satc.intake import create_person_client
+        cid = create_person_client(self.store, **kw)
+        self.reload()
+        return cid
+
+    def create_business_client(self, **kw) -> str:
+        from satc.intake import create_business_client
+        cid = create_business_client(self.store, **kw)
+        self.reload()
+        return cid
+
+    def add_relationship(self, **kw):
+        from satc.intake import add_relationship
+        return add_relationship(self.store, **kw)
+
+    def create_engagement(self, **kw):
+        from satc.intake import create_engagement
+        eng = create_engagement(self.store, **kw)
+        self.reload()
+        return eng
+
+    def set_task_completed(self, task_id: str, completed: bool = True) -> None:
+        """Mark an engagement task done/undone (durable)."""
+        for eng in self.store.load_intake_engagements():
+            for task in eng.tasks:
+                if task.task_id == task_id:
+                    task.completed = completed
+                    self.store.save_task(task)
+                    return
+
+    def workflow_catalog(self) -> dict[str, list]:
+        """Workflows offered per client type, for the intake screens."""
+        from satc.intake.workflows import workflows_for_client_type
+        return {ct: workflows_for_client_type(ct) for ct in ("person", "business")}
+
     # -- dashboard rollups ------------------------------------------------
     def pipeline_counts(self) -> dict[str, int]:
         out: dict[str, int] = {}
