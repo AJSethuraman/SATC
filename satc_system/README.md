@@ -2,6 +2,25 @@
 
 **Sethuraman Accounting, Tax & Consulting (SATC)** — *Complex work, made clear.*
 
+## Get started in one step
+
+Everything runs on your own computer. No cloud account, nothing sent anywhere.
+
+| Your computer | Do this |
+|---------------|---------|
+| **Mac** | Double-click **`install.command`** once, then double-click **`SATC.command`** to start. |
+| **Windows** | Double-click **`install.bat`** once, then double-click **`SATC.bat`** to start. |
+| **Linux / terminal** | `./install.sh` once, then `./SATC.sh` to start. |
+
+Starting it opens SATC in your web browser automatically. Not sure what's set up?
+Run **`satc doctor`** (or open the **Setup** screen in the app) for a plain-English
+readiness check. To read scanned/photographed docs locally, install Tesseract
+(`brew install tesseract` / `apt-get install tesseract-ocr`); for a local vision
+model, install [Ollama](https://ollama.com) and start SATC with `SATC_OLLAMA=1`.
+
+---
+
+
 A layer **around** Drake Software for a tax practice that prepares 1040, 1120-S,
 1065, and 1120 returns plus related state returns (Ohio, Michigan, Massachusetts
 first). This tool is **not** a tax engine and does **not** replace Drake's

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Setup &amp; readiness</h2>
+  <div class="muted">What's ready on this machine. Everything below the line stays local —
+    documents leave only if you turn on cloud vision.</div>
+</div>
+
+<div class="panel">
+  <h2>Status</h2>
+  <div class="body">
+    <table>
+      <tr><th></th><th>Item</th><th>Status</th><th>What to do</th></tr>
+      {% for c in checks %}
+      <tr>
+        <td>{{ c.icon }}</td>
+        <td>{{ c.name }}</td>
+        <td class="{{ 'muted' if c.status == 'info' }}">{{ c.detail }}</td>
+        <td class="muted mono">{{ c.fix }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p class="note" style="margin-top:14px">
+      Run <span class="mono">satc doctor</span> in a terminal to see this same report any time.
+    </p>
+  </div>
+</div>
+{% endblock %}

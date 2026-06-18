@@ -105,6 +105,11 @@ def create_app() -> Flask:
         STATE.set_document_status(document_id, status)
         return redirect(url_for("documents"))
 
+    @app.route("/setup")
+    def setup():
+        from satc.doctor import run_checks
+        return render_template("setup.html", title="Setup", checks=run_checks())
+
     @app.route("/export")
     def export():
         out = Path(STATE.store.dir) / "SATC_DataMart_export.xlsx"
@@ -126,9 +131,34 @@ def create_app() -> Flask:
     return app
 
 
+def _pick_port(preferred: int) -> int:
+    """Return ``preferred`` if free, else an open port — so launch never fails."""
+    import socket
+
+    for candidate in (preferred, 0):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("127.0.0.1", candidate))
+                return s.getsockname()[1]
+            except OSError:
+                continue
+    return preferred
+
+
 def main() -> None:
     app = create_app()
-    app.run(host="127.0.0.1", port=int(os.environ.get("SATC_PORT", "5050")), debug=False)
+    port = _pick_port(int(os.environ.get("SATC_PORT", "5050")))
+    url = f"http://127.0.0.1:{port}"
+
+    # Open the browser for the user a moment after the server starts.
+    if os.environ.get("SATC_NO_BROWSER", "").strip().lower() not in {"1", "true", "yes"}:
+        import threading
+        import webbrowser
+
+        threading.Timer(1.2, lambda: webbrowser.open(url)).start()
+
+    print(f"\n  SATC is running.  Open:  {url}\n  (Leave this window open; press Ctrl+C to stop.)\n")
+    app.run(host="127.0.0.1", port=port, debug=False)
 
 
 if __name__ == "__main__":

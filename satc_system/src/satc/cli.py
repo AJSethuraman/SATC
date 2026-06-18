@@ -1,6 +1,7 @@
 """SATC command-line entry point.
 
-    satc app                 launch the local web GUI
+    satc app                 launch the local web GUI (opens your browser)
+    satc doctor              check what's ready on this machine (OCR, Ollama, ...)
     satc build [out.xlsx]    build the demo workpaper workbook (and recalc note)
     satc sort FOLDER         classify + re-label a folder of client documents
     satc seed [--dir DIR]    initialize the SQLite store from synthetic fixtures
@@ -20,6 +21,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("app", help="launch the local web GUI")
+    sub.add_parser("doctor", help="check what's ready on this machine")
 
     p_build = sub.add_parser("build", help="build the demo workpaper workbook")
     p_build.add_argument("out", nargs="?", default=None)
@@ -46,6 +48,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "app":
         from satc.app.server import main as app_main
         app_main()
+        return 0
+
+    if args.cmd == "doctor":
+        from satc.doctor import format_report
+        print(format_report())
         return 0
 
     if args.cmd == "build":

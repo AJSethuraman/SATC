@@ -37,6 +37,14 @@ ocr = [
 app = [
   "flask>=3.0",
 ]
+# Everything for the easy, fully-local install (GUI + PDF + OCR). No cloud deps.
+local = [
+  "flask>=3.0",
+  "pypdf>=4.0",
+  "reportlab>=4.0",
+  "pytesseract>=0.3",
+  "Pillow>=10",
+]
 
 [project.scripts]
 satc = "satc.cli:main"
