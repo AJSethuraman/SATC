@@ -6,7 +6,7 @@ from dataclasses import asdict
 from decimal import Decimal
 from typing import Any
 
-from twe.models import EstimateResult
+from twe.models import ZERO, EstimateResult, EstimatorInput
 
 _STATUS_LABELS = {
     "single": "Single",
@@ -153,3 +153,329 @@ def _decimalize(obj: Any) -> Any:
     if isinstance(obj, list):
         return [_decimalize(v) for v in obj]
     return obj
+
+
+# ---------------------------------------------------------------------------
+# Audit tape
+# ---------------------------------------------------------------------------
+
+_TAPE_W = 64
+_TAPE_V = 14  # right-aligned value column width
+
+_FREQ_LABELS: dict[str, str] = {
+    "weekly": "Weekly (52/yr)",
+    "biweekly": "Bi-weekly (26/yr)",
+    "semimonthly": "Semi-monthly (24/yr)",
+    "monthly": "Monthly (12/yr)",
+    "annual": "Annual (1/yr)",
+}
+
+
+def _tsep(char: str = "-") -> str:
+    return char * _TAPE_W
+
+
+def _trow(label: str, value: Decimal, *, indent: int = 2, subtract: bool = False) -> str:
+    amt = _usd(value)
+    if subtract:
+        amt = "- " + amt
+    pad = " " * indent
+    label_w = _TAPE_W - _TAPE_V - indent
+    return f"{pad}{label:<{label_w}}{amt:>{_TAPE_V}}"
+
+
+def render_tape(
+    inp: EstimatorInput,
+    result: EstimateResult,
+    *,
+    generated_at: str | None = None,
+) -> str:
+    """Render a full audit tape: all inputs, every calculation step, recommendation."""
+
+    from datetime import datetime as _dt
+
+    if generated_at is None:
+        generated_at = _dt.now().strftime("%B %d, %Y  %I:%M %p")
+
+    b = result.breakdown
+    r = result.recommendation
+    status = _STATUS_LABELS.get(result.filing_status, result.filing_status)
+
+    lines: list[str] = []
+
+    # ------------------------------------------------------------------ header
+    lines += [
+        _tsep("="),
+        "  SETHURAMAN ACCOUNTING  ·  TAX  ·  CONSULTING",
+        "  FEDERAL TAX WITHHOLDING ESTIMATE  —  AUDIT TAPE",
+        _tsep("="),
+        f"  Tax year:      {result.tax_year_used}",
+        f"  Filing status: {status}",
+        f"  Generated:     {generated_at}",
+        _tsep("="),
+    ]
+
+    # ------------------------------------------------------------------ inputs
+    lines += ["", _tsep(), "  SCENARIO INPUTS", _tsep(), ""]
+
+    all_jobs = inp.jobs
+    for i, job in enumerate(all_jobs):
+        name = job.name or ("Paystub" if len(all_jobs) == 1 else f"Job {i + 1}")
+        lines.append(f"  {name}")
+        lines.append(f"    Frequency:  {_FREQ_LABELS.get(job.pay_frequency, job.pay_frequency)}")
+        if job.taxable_wages_per_period is not None:
+            lines.append(_trow("Taxable wages / period", job.taxable_wages_per_period, indent=4))
+        if job.gross_pay_per_period != ZERO:
+            lines.append(_trow("Gross pay / period", job.gross_pay_per_period, indent=4))
+        lines.append(_trow("Federal withheld / period", job.federal_tax_withheld_per_period, indent=4))
+        if job.retirement_pretax_per_period != ZERO:
+            lines.append(_trow("Retirement pre-tax / period", job.retirement_pretax_per_period, indent=4))
+        if job.other_pretax_per_period != ZERO:
+            lines.append(_trow("Other pre-tax / period", job.other_pretax_per_period, indent=4))
+        if job.ytd_taxable_wages is not None:
+            lines.append(_trow("YTD taxable wages", job.ytd_taxable_wages, indent=4))
+        if job.ytd_federal_tax_withheld is not None:
+            lines.append(_trow("YTD federal withheld", job.ytd_federal_tax_withheld, indent=4))
+        if job.pay_periods_remaining is not None:
+            lines.append(f"    Periods remaining:  {job.pay_periods_remaining} of {job.periods_per_year}")
+        else:
+            lines.append(f"    Periods / year:     {job.periods_per_year}")
+        lines.append("")
+
+    oi = inp.other_income
+    oi_items = [
+        ("Interest", oi.interest),
+        ("Ordinary dividends", oi.ordinary_dividends),
+        ("Qualified dividends", oi.qualified_dividends),
+        ("IRA / retirement distributions", oi.taxable_retirement_distributions),
+        ("Taxable Social Security", oi.taxable_social_security),
+        ("Long-term capital gains", oi.long_term_capital_gains),
+        ("Short-term capital gains", oi.short_term_capital_gains),
+        ("Net self-employment income", oi.self_employment_net),
+        ("Unemployment compensation", oi.unemployment),
+        ("Other taxable income", oi.other_taxable_income),
+        ("Spouse taxable wages", oi.spouse_taxable_wages),
+        ("Spouse federal withheld", oi.spouse_federal_tax_withheld),
+    ]
+    nonzero_oi = [(lbl, v) for lbl, v in oi_items if v != ZERO]
+    if nonzero_oi:
+        lines.append("  Other income:")
+        for lbl, v in nonzero_oi:
+            lines.append(_trow(lbl, v, indent=4))
+        lines.append("")
+
+    adj = inp.adjustments
+    adj_items = [
+        ("Traditional IRA deduction", adj.traditional_ira_deduction),
+        ("HSA deduction", adj.hsa_deduction),
+        ("Student loan interest", adj.student_loan_interest),
+        ("Other adjustments", adj.other_adjustments),
+    ]
+    nonzero_adj = [(lbl, v) for lbl, v in adj_items if v != ZERO]
+    if nonzero_adj:
+        lines.append("  Adjustments (above the line):")
+        for lbl, v in nonzero_adj:
+            lines.append(_trow(lbl, v, indent=4))
+        lines.append("")
+
+    ded = inp.deductions
+    if ded.itemized_total is not None:
+        lines.append(_trow("Deductions  (itemized)", ded.itemized_total))
+    else:
+        lines.append("  Deductions:  Standard deduction")
+    if ded.extra_standard_deductions:
+        lines.append(f"    Extra standard deductions:  {ded.extra_standard_deductions}")
+    lines.append("")
+
+    cr = inp.credits
+    cr_items = [
+        ("Child tax credit", cr.child_tax_credit),
+        ("Other nonrefundable credits", cr.other_nonrefundable_credits),
+        ("Refundable credits", cr.refundable_credits),
+    ]
+    nonzero_cr = [(lbl, v) for lbl, v in cr_items if v != ZERO]
+    if nonzero_cr:
+        lines.append("  Credits:")
+        for lbl, v in nonzero_cr:
+            lines.append(_trow(lbl, v, indent=4))
+        lines.append("")
+
+    op = inp.other_payments
+    op_items = [
+        ("Estimated tax payments", op.estimated_tax_payments),
+        ("Other withholding", op.other_withholding),
+    ]
+    nonzero_op = [(lbl, v) for lbl, v in op_items if v != ZERO]
+    if nonzero_op:
+        lines.append("  Other payments already made:")
+        for lbl, v in nonzero_op:
+            lines.append(_trow(lbl, v, indent=4))
+        lines.append("")
+
+    extras: list[str] = []
+    if inp.target_refund != ZERO:
+        extras.append(_trow("Target refund", inp.target_refund))
+    if inp.prior_year_tax is not None:
+        extras.append(_trow("Prior-year total tax", inp.prior_year_tax))
+    if inp.prior_year_agi is not None:
+        extras.append(_trow("Prior-year AGI", inp.prior_year_agi))
+    if extras:
+        lines += extras + [""]
+
+    # ------------------------------------------------------------------ income
+    lines += ["", _tsep(), "  INCOME COMPUTATION", _tsep(), ""]
+
+    lines.append(_trow("Projected taxable wages", b.projected_taxable_wages))
+
+    income_addends = [
+        ("+ Interest", oi.interest),
+        ("+ Ordinary dividends", oi.ordinary_dividends),
+        ("+ IRA / retirement distributions", oi.taxable_retirement_distributions),
+        ("+ Taxable Social Security", oi.taxable_social_security),
+        ("+ Long-term capital gains", oi.long_term_capital_gains),
+        ("+ Short-term capital gains", oi.short_term_capital_gains),
+        ("+ Net self-employment income", oi.self_employment_net),
+        ("+ Unemployment compensation", oi.unemployment),
+        ("+ Other taxable income", oi.other_taxable_income),
+        ("+ Spouse taxable wages", oi.spouse_taxable_wages),
+    ]
+    for lbl, v in income_addends:
+        if v != ZERO:
+            lines.append(_trow(lbl, v))
+
+    lines += ["  " + "-" * (_TAPE_W - 2), _trow("TOTAL INCOME", b.total_income), ""]
+
+    if b.adjustments_total != ZERO:
+        for lbl, v in [
+            ("- Traditional IRA deduction", adj.traditional_ira_deduction),
+            ("- HSA deduction", adj.hsa_deduction),
+            ("- Student loan interest", adj.student_loan_interest),
+            ("- Other adjustments", adj.other_adjustments),
+        ]:
+            if v != ZERO:
+                lines.append(_trow(lbl, v, subtract=True))
+        lines += ["  " + "-" * (_TAPE_W - 2), ""]
+
+    lines += [
+        _trow("ADJUSTED GROSS INCOME (AGI)", b.adjusted_gross_income),
+        _trow(f"- Deduction  ({b.deduction_kind})", b.deduction_used, subtract=True),
+        "  " + "-" * (_TAPE_W - 2),
+        _trow("TAXABLE INCOME", b.taxable_income),
+    ]
+
+    # ------------------------------------------------------------------- tax
+    lines += ["", _tsep(), "  TAX COMPUTATION", _tsep(), ""]
+
+    lines.append(_trow("Ordinary income tax", b.ordinary_income_tax))
+    if b.capital_gains_tax != ZERO:
+        lines.append(_trow("+ Cap. gains / qual. dividend tax", b.capital_gains_tax))
+    if b.self_employment_tax != ZERO:
+        lines.append(_trow("+ Self-employment tax", b.self_employment_tax))
+    if b.additional_medicare_tax != ZERO:
+        lines.append(_trow("+ Additional Medicare Tax (0.9%)", b.additional_medicare_tax))
+    if b.net_investment_income_tax != ZERO:
+        lines.append(_trow("+ Net Investment Income Tax (3.8%)", b.net_investment_income_tax))
+    lines += ["  " + "-" * (_TAPE_W - 2), _trow("Income tax before credits", b.income_tax_before_credits), ""]
+
+    if b.nonrefundable_credits != ZERO:
+        lines.append(_trow("- Nonrefundable credits", b.nonrefundable_credits, subtract=True))
+    if b.refundable_credits != ZERO:
+        lines.append(_trow("- Refundable credits", b.refundable_credits, subtract=True))
+    if b.nonrefundable_credits != ZERO or b.refundable_credits != ZERO:
+        lines.append("  " + "-" * (_TAPE_W - 2))
+
+    lines += [
+        _trow("TOTAL TAX LIABILITY", b.total_tax_liability),
+        "",
+        f"  Marginal rate: {_pct(b.marginal_rate)}   |   Effective rate: {_pct(b.effective_rate)}",
+    ]
+
+    # ----------------------------------------------------------- withholding
+    lines += ["", _tsep(), "  WITHHOLDING ANALYSIS", _tsep(), ""]
+
+    if len(r.job_breakdown) > 1:
+        for job in r.job_breakdown:
+            lines.append(f"  {job.name}  ({job.pay_frequency}, {job.periods_remaining} periods left)")
+            lines.append(
+                f"    Wages: {_usd(job.projected_taxable_wages)}"
+                f"   |   Withholding: {_usd(job.projected_withholding)}"
+            )
+        lines.append("")
+
+    proj_remaining = r.projected_withholding_current_rate - r.ytd_withholding
+    lines.append(_trow(f"YTD withheld ({r.periods_elapsed}/{r.periods_per_year} periods)", r.ytd_withholding))
+    if proj_remaining > ZERO:
+        lines.append(_trow(f"+ Remaining ({r.periods_remaining} periods, current rate)", proj_remaining))
+    if r.other_payments_total != ZERO:
+        lines.append(_trow("+ Other payments / spouse withheld", r.other_payments_total))
+    lines += [
+        "  " + "-" * (_TAPE_W - 2),
+        _trow("PROJECTED TOTAL PAYMENTS", r.projected_total_payments),
+        "",
+        _trow("Projected tax liability", b.total_tax_liability),
+        _trow("- Projected total payments", r.projected_total_payments, subtract=True),
+        "  " + "-" * (_TAPE_W - 2),
+    ]
+    if r.projected_balance >= ZERO:
+        lines.append(_trow("PROJECTED REFUND", r.projected_balance))
+    else:
+        lines.append(_trow("PROJECTED BALANCE DUE", -r.projected_balance))
+
+    # ------------------------------------------------------- recommendation
+    lines += ["", _tsep(), "  RECOMMENDATION", _tsep(), ""]
+
+    if inp.target_refund != ZERO:
+        lines += [_trow("Target refund", inp.target_refund), ""]
+
+    multi_job = len(r.job_breakdown) > 1
+    if r.is_over_withholding:
+        lines += [
+            "  You are on track to OVER-WITHHOLD for your target.",
+            "",
+            _trow("Recommended withholding / paycheck", r.recommended_withholding_per_period),
+            "  Reduce via Form W-4 Step 3 (dependents) or Step 4b (deductions).",
+        ]
+    else:
+        on_job = f'  (for "{r.adjusted_job_name}" W-4)' if multi_job else ""
+        lines += [
+            "  Action recommended — currently UNDER-WITHHOLDING.",
+            "",
+            _trow("Recommended withholding / paycheck", r.recommended_withholding_per_period),
+            _trow("Current withholding / paycheck", inp.paystub.federal_tax_withheld_per_period),
+            _trow("EXTRA NEEDED / PAYCHECK  (W-4 Step 4c)", r.additional_withholding_per_period),
+            "",
+            f"  Enter {_usd(r.additional_withholding_per_period)} as additional withholding{on_job}",
+            f"  on Form W-4, Step 4(c).  "
+            f"({r.periods_remaining} pay period{'s' if r.periods_remaining != 1 else ''} remaining.)",
+        ]
+
+    # --------------------------------------------------------- safe harbor
+    if r.safe_harbor_target is not None:
+        lines += ["", _tsep(), "  SAFE HARBOR  (underpayment penalty threshold)", _tsep(), ""]
+        met = r.projected_total_payments >= r.safe_harbor_target
+        lines += [
+            _trow("Minimum payments for safe harbor", r.safe_harbor_target),
+            _trow("Projected total payments", r.projected_total_payments),
+            "",
+            f"  Status: {'SAFE HARBOR MET' if met else 'SAFE HARBOR NOT MET'}",
+        ]
+        if r.safe_harbor_additional_per_period is not None and r.safe_harbor_additional_per_period > ZERO:
+            lines.append(_trow("Extra / paycheck for safe harbor", r.safe_harbor_additional_per_period))
+
+    # ------------------------------------------------------------- notes
+    if result.notes:
+        lines += ["", _tsep(), "  NOTES", _tsep(), ""]
+        for note in result.notes:
+            lines.append(f"  * {note}")
+
+    # ------------------------------------------------------------- footer
+    lines += [
+        "",
+        _tsep("="),
+        "  For planning purposes only — not tax advice.",
+        "  Federal income tax only. Always verify with a qualified tax professional.",
+        "  Sethuraman Accounting · Tax · Consulting",
+        _tsep("="),
+    ]
+
+    return "\n".join(lines)

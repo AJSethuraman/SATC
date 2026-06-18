@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from twe.engine import estimate
 from twe.models import EstimatorInput
-from twe.report import result_to_dict
+from twe.report import render_tape, result_to_dict
 from twe.tax_data import TaxDataError
 
 # ---------------------------------------------------------------------------
@@ -659,13 +659,28 @@ function buildPayload(){
   };
 }
 
+let _tape = null;
+
+function downloadTape(){
+  if(!_tape) return;
+  const blob = new Blob([_tape], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const yr = $('tax_year').value || new Date().getFullYear();
+  a.download = 'withholding-tape-' + yr + '.txt';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
 async function go(){
   const btn=$('calc-btn'); btn.disabled=true; btn.textContent='Calculating…';
+  _tape = null;
   try {
     const r=await fetch('/api/estimate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(buildPayload())});
     const data=await r.json();
     if(!r.ok) showError(data.error||'Unknown error');
-    else render(data);
+    else { _tape = data.tape||null; render(data); }
   } catch(e){ showError('Could not reach server: '+e.message); }
   finally { btn.disabled=false; btn.textContent='⟳ Calculate Withholding'; }
 }
@@ -778,7 +793,11 @@ function render(d){
     </div>`;
   }
 
-  $('results').innerHTML=sumHtml+recHtml+shHtml+bkHtml+notesHtml+
+  const tapeHtml=`<div style="text-align:center;padding:.6rem 0 .2rem">
+    <button class="btn-sec" onclick="downloadTape()" style="padding:.45rem 1.3rem;font-size:.82rem">&#x21E9;&nbsp;Download Audit Tape (.txt)</button>
+    <div style="font-size:.68rem;color:#94a3b8;margin-top:.3rem">Full printable record &mdash; all inputs, every step, recommendation</div>
+  </div>`;
+  $('results').innerHTML=sumHtml+recHtml+shHtml+bkHtml+notesHtml+tapeHtml+
     '<p class="disc">For planning only &mdash; not tax advice. Verify with the official <a href="https://www.irs.gov/individuals/tax-withholding-estimator" target="_blank">IRS Tax Withholding Estimator</a>.</p>';
 
   if(window.innerWidth<768) $('results').scrollIntoView({behavior:'smooth'});
@@ -1217,7 +1236,10 @@ class _Handler(BaseHTTPRequestHandler):
         if self.path == "/api/estimate":
             try:
                 inp = EstimatorInput.from_dict(self._read_body())
-                self._send_json(200, result_to_dict(estimate(inp)))
+                result = estimate(inp)
+                d = result_to_dict(result)
+                d["tape"] = render_tape(inp, result)
+                self._send_json(200, d)
             except (ValueError, TaxDataError, json.JSONDecodeError) as exc:
                 self._send_json(400, {"error": str(exc)})
         elif self.path == "/api/paystub/layout":

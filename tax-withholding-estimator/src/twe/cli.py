@@ -27,7 +27,7 @@ from typing import Any
 
 from twe.engine import estimate
 from twe.models import EstimatorInput
-from twe.report import render_text, result_to_dict
+from twe.report import render_tape, render_text, result_to_dict
 from twe.tax_data import TaxDataError, available_years
 
 
@@ -41,7 +41,8 @@ def _build_parser() -> argparse.ArgumentParser:
     est = sub.add_parser("estimate", help="Run a withholding estimate")
     est.add_argument("--input", type=Path, help="JSON scenario file")
     est.add_argument("--json", action="store_true", help="Emit JSON instead of a text report")
-    est.add_argument("--output", type=Path, help="Write the report/JSON to this file too")
+    est.add_argument("--tape", action="store_true", help="Emit full audit tape (inputs + all steps)")
+    est.add_argument("--output", type=Path, help="Write the report/JSON/tape to this file too")
 
     # Quick-flag inputs (used when --input is not given).
     est.add_argument("--filing-status", choices=[
@@ -146,6 +147,8 @@ def _command_estimate(args: argparse.Namespace) -> int:
 
     if args.json:
         output = json.dumps(result_to_dict(result), indent=2)
+    elif args.tape:
+        output = render_tape(inp, result)
     else:
         output = render_text(result)
 
