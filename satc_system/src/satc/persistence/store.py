@@ -103,6 +103,8 @@ CREATE TABLE IF NOT EXISTS intake_tasks (
   audience TEXT, client_request_text TEXT, accepted_alternatives TEXT, why_needed TEXT,
   internal_instructions TEXT, suggested_date TEXT, completed INTEGER, notes TEXT,
   relationship_generated INTEGER, document_id TEXT);
+CREATE TABLE IF NOT EXISTS workflow_overrides (
+  workflow_key TEXT PRIMARY KEY, data TEXT);
 """
 
 
@@ -251,6 +253,21 @@ class SATCStore:
     def save_task(self, t: IntakeTask) -> None:
         self._insert_task(t)
         self.mart.commit()
+
+    # -- questionnaire (workflow) overrides -------------------------------
+    def save_workflow_override(self, workflow_key: str, data: dict) -> None:
+        self.mart.execute("INSERT OR REPLACE INTO workflow_overrides VALUES (?,?)",
+                          (workflow_key, json.dumps(data)))
+        self.mart.commit()
+
+    def load_workflow_override(self, workflow_key: str) -> dict | None:
+        row = self.mart.execute("SELECT data FROM workflow_overrides WHERE workflow_key=?",
+                                (workflow_key,)).fetchone()
+        return json.loads(row["data"]) if row else None
+
+    def workflow_override_keys(self) -> set[str]:
+        return {r["workflow_key"]
+                for r in self.mart.execute("SELECT workflow_key FROM workflow_overrides")}
 
     def load_intake_engagements(self) -> list[IntakeEngagement]:
         tasks_by_eng: dict[str, list[IntakeTask]] = {}

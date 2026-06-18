@@ -65,11 +65,91 @@ def load_workflow(key: str, config_root: Path | None = None) -> WorkflowDef:
         internal_instructions=t.get("internal_instructions", ""),
         doc_type=t.get("doc_type", "") or t["title"],
     ) for t in data.get("tasks", [])]
-    return WorkflowDef(
+    wf = WorkflowDef(
         key=data.get("key", key), name=data["name"], description=data.get("description", ""),
         engagement_type=data.get("engagement_type", key), client_type=data.get("client_type", ""),
         questions=questions, tasks=tasks,
     )
+    if _OVERRIDE_PROVIDER is not None:        # apply the practice's in-app edits
+        try:
+            overrides = _OVERRIDE_PROVIDER(wf.key)
+        except Exception:  # noqa: BLE001 - never let a bad override break loading
+            overrides = None
+        if overrides:
+            apply_overrides(wf, overrides)
+    return wf
+
+
+# ---------------------------------------------------------------------------
+# Practice customization — overrides layered on top of the built-in workflows
+# ---------------------------------------------------------------------------
+
+# A callable (workflow_key) -> override dict | None, set by the app from the store.
+_OVERRIDE_PROVIDER = None
+
+
+def set_override_provider(provider) -> None:
+    """Register where per-workflow overrides come from (e.g. the SQLite store)."""
+    global _OVERRIDE_PROVIDER
+    _OVERRIDE_PROVIDER = provider
+
+
+def apply_overrides(wf: WorkflowDef, ov: dict) -> None:
+    """Mutate a workflow in place with the practice's edits.
+
+    Override shape (all keys optional)::
+
+        {"name": "...",
+         "questions": {"<id>": {"label": "...", "risk_flag": "...", "disabled": true}},
+         "tasks": {"<template_id>": {"client_request_text": "...", "category": "...",
+                                     "why_needed": "...", "doc_type": "...", "disabled": true}},
+         "added_questions": [{"id": "...", "label": "...", "risk_flag": "...",
+                              "request": {"title": "...", "category": "...",
+                                          "client_request_text": "...", "doc_type": "...",
+                                          "days_before_due": 14}}]}
+    """
+    if ov.get("name"):
+        wf.name = ov["name"]
+
+    q_edits = ov.get("questions", {})
+    kept_q: list[WorkflowQuestion] = []
+    for q in wf.questions:
+        edit = q_edits.get(q.id, {})
+        if edit.get("disabled"):
+            continue
+        q.label = edit.get("label", q.label)
+        if "risk_flag" in edit:
+            q.risk_flag = edit["risk_flag"] or ""
+        kept_q.append(q)
+    wf.questions = kept_q
+
+    t_edits = ov.get("tasks", {})
+    kept_t: list[TaskTemplate] = []
+    for t in wf.tasks:
+        edit = t_edits.get(t.template_id, {})
+        if edit.get("disabled"):
+            continue
+        t.client_request_text = edit.get("client_request_text", t.client_request_text)
+        t.category = edit.get("category", t.category)
+        t.why_needed = edit.get("why_needed", t.why_needed)
+        t.doc_type = edit.get("doc_type", t.doc_type)
+        kept_t.append(t)
+    wf.tasks = kept_t
+
+    for added in ov.get("added_questions", []):
+        qid = str(added.get("id", "")).strip()
+        if not qid:
+            continue
+        wf.questions.append(WorkflowQuestion(
+            id=qid, label=added.get("label", qid), risk_flag=added.get("risk_flag") or ""))
+        req = added.get("request") or {}
+        wf.tasks.append(TaskTemplate(
+            template_id=f"custom-{qid}", title=req.get("title", added.get("label", qid)),
+            category=req.get("category", "Custom"), audience="client",
+            days_before_due=int(req.get("days_before_due", 14)),
+            condition={"question_id": qid, "equals": "yes"},
+            client_request_text=req.get("client_request_text", ""),
+            doc_type=req.get("doc_type", "") or req.get("title", qid)))
 
 
 def list_workflows(config_root: Path | None = None) -> list[WorkflowDef]:

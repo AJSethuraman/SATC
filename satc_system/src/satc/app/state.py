@@ -55,6 +55,9 @@ class AppState:
 
     def __post_init__(self) -> None:
         self.store.seed_if_empty()           # first run: populate from synthetic fixtures
+        # Layer the practice's in-app questionnaire edits over the built-in workflows.
+        from satc.intake.workflows import set_override_provider
+        set_override_provider(self.store.load_workflow_override)
         self.reload()
         # Build a per-session staging gate from the synthetic documents (working area).
         for doc in synthetic_documents():
@@ -290,6 +293,47 @@ class AppState:
         """Workflows offered per client type, for the intake screens."""
         from satc.intake.workflows import workflows_for_client_type
         return {ct: workflows_for_client_type(ct) for ct in ("person", "business")}
+
+    # -- bulk client import (CSV / spreadsheet / Drake export) ------------
+    def preview_client_import(self, *, csv_text: str | None = None, rows: list[dict] | None = None):
+        """Parse a roster into previewed clients (new / duplicate / review)."""
+        from satc.intake.service import preview_import
+        return preview_import(self.store, csv_text=csv_text, rows=rows)
+
+    def commit_client_import(self, parsed, *, include_duplicates: bool = False) -> list[str]:
+        from satc.intake.service import commit_import
+        ids = commit_import(self.store, parsed, include_duplicates=include_duplicates)
+        self.reload()
+        return ids
+
+    def add_client_smart(self, **fields):
+        """Smart single-add: detect person/business + normalize, then create."""
+        from satc.intake import importer
+        from satc.intake.service import commit_import
+        parsed = importer.parse_one(**fields)
+        ids = commit_import(self.store, [parsed], include_duplicates=True)
+        self.reload()
+        return (ids[0] if ids else None), parsed
+
+    # -- questionnaire customization --------------------------------------
+    def all_workflows(self) -> list:
+        from satc.intake.workflows import list_workflows
+        return list_workflows()
+
+    def base_workflow(self, key: str):
+        """The built-in workflow WITHOUT overrides (for showing originals in the editor)."""
+        from satc.intake import workflows as wf
+        provider, wf._OVERRIDE_PROVIDER = wf._OVERRIDE_PROVIDER, None
+        try:
+            return wf.load_workflow(key)
+        finally:
+            wf._OVERRIDE_PROVIDER = provider
+
+    def workflow_override(self, key: str) -> dict:
+        return self.store.load_workflow_override(key) or {}
+
+    def save_workflow_override(self, key: str, data: dict) -> None:
+        self.store.save_workflow_override(key, data)
 
     # -- dashboard rollups ------------------------------------------------
     def pipeline_counts(self) -> dict[str, int]:

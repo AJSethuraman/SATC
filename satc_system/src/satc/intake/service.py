@@ -21,6 +21,7 @@ from datetime import date
 
 from satc.ids import opaque_id
 from satc.intake import matching
+from satc.intake.importer import ParsedClient
 from satc.intake.workflows import build_engagement, load_workflow
 from satc.models.identity import IdentityRecord, PublicClient, VaultAddress, VaultContact
 from satc.models.intake import IntakeEngagement, Relationship
@@ -186,3 +187,44 @@ def reconcile_received(store, *, client_id: str, doc_type: str) -> DocumentRecor
                 task.completed = True
                 store.save_task(task)
     return match
+
+
+# ---------------------------------------------------------------------------
+# Bulk client import (CSV / spreadsheet / Drake export)
+# ---------------------------------------------------------------------------
+
+def existing_client_index(store) -> list[tuple[str, str]]:
+    """(display name, TIN last-4) for every existing client — for dedup detection."""
+    names = store.names()
+    out: list[tuple[str, str]] = []
+    for pc in store.load_mart().public_clients:
+        out.append((names.get(pc.client_id, pc.display_label), pc.tin_last4 or ""))
+    return out
+
+
+def preview_import(store, *, csv_text: str | None = None, rows: list[dict] | None = None):
+    """Parse a roster into previewed clients, flagged new / duplicate / review."""
+    from satc.intake import importer
+
+    existing = existing_client_index(store)
+    if csv_text is not None:
+        return importer.parse_csv(csv_text, existing=existing)
+    return importer.parse_rows(rows or [], existing=existing)
+
+
+def commit_import(store, parsed: list[ParsedClient], *, include_duplicates: bool = False) -> list[str]:
+    """Create the previewed clients in the vault. Skips duplicates unless asked."""
+    created: list[str] = []
+    for pc in parsed:
+        if pc.status == "duplicate" and not include_duplicates:
+            continue
+        if pc.kind == "business":
+            cid = create_business_client(store, legal_name=pc.legal_name, entity_type=pc.entity_type,
+                                         ein=pc.tin, email=pc.email, phone=pc.phone,
+                                         address={"state": pc.state} if pc.state else None)
+        else:
+            cid = create_person_client(store, first_name=pc.first_name, last_name=pc.last_name,
+                                       ssn=pc.tin, email=pc.email, phone=pc.phone,
+                                       address={"state": pc.state} if pc.state else None)
+        created.append(cid)
+    return created
