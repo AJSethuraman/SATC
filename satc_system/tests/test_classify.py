@@ -67,3 +67,39 @@ def test_unidentifiable_without_key_is_unclassified(tmp_path):
 
     assert c.method == "unclassified"
     assert not c.extractable
+
+
+# -- weighted text scoring (ported from the keyword-scoring approach) -----------
+
+def _clf():
+    return load_classifier(has_key=False)
+
+
+def test_text_scoring_classifies_strong_title():
+    c = _clf().classify_text("2024 Form W-2  Wage and Tax Statement")
+    assert c.label == "W-2" and c.confidence == "HIGH"
+
+
+def test_w2_structural_fallback_without_title():
+    # No "Wage and Tax Statement" title — recognized by its box labels alone.
+    text = "Social Security Wages  Medicare Wages and Tips  Social Security Tax Withheld"
+    c = _clf().classify_text(text)
+    assert c.label == "W-2" and c.extractable
+
+
+def test_close_runner_up_is_downgraded_to_medium():
+    # A consolidated statement that reads as both 1099-INT and 1099-DIV: don't guess.
+    text = "1099-INT Interest Income   1099-DIV Dividends and Distributions"
+    c = _clf().classify_text(text)
+    assert c.confidence == "MEDIUM"
+
+
+def test_ocr_hyphen_repair_in_form_names():
+    # A scan that dropped the hyphen + used an em dash still matches 1099-INT.
+    c = _clf().classify_text("Form 1099 INT — Interest Income")
+    assert c.label == "1099-INT"
+
+
+def test_weak_keyword_alone_does_not_classify():
+    # A single low-weight phrase is below threshold — falls through, never guesses.
+    assert _clf().classify_text("Qualified dividends were mentioned in passing") is None

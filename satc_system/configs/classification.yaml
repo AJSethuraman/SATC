@@ -10,74 +10,109 @@
 #   label          how the type is shown to the preparer.
 #   code           short tag used when the file is re-labeled / sorted.
 #   filename_hints lowercase substrings that hint at the type in a file *name*
-#                  (weak — only used if the content is silent). List specific
-#                  before generic.
-#   title_markers  lowercase phrases that appear in the document's *text layer*
-#                  (the form's printed title/markers). Strong and free.
+#                  (weak — only used if the content is silent). Specific before generic.
+#   keywords       weighted [phrase, weight] pairs scored against the document text.
+#                  Strong, official identifiers carry high weight (8-10); generic
+#                  words are low so they can't classify on their own. A type wins
+#                  only if its score clears `text_threshold`; if a runner-up is
+#                  within `close_delta`, the result is downgraded to MEDIUM so a
+#                  human reviews it (the pipeline never guesses).
+#   threshold      optional per-type minimum score (else `text_threshold`).
 #
-# Form-field markers are derived automatically from the extraction config's
-# field paths (e.g. w2.box1_wages -> "w2box1wages"), so a fillable form is
-# fingerprinted by its own field names with no extra config.
+# Form-field markers are derived automatically from the extraction config's field
+# paths (e.g. w2.box1_wages -> "w2box1wages"), so a fillable form is fingerprinted
+# by its own field names with no extra config.
+
+text_threshold: 6     # minimum winning text score to classify
+close_delta: 3        # winner within this of the runner-up => ambiguous (MEDIUM)
+
 doc_types:
   - key: w2
     label: "W-2"
     code: "W-2"
     filename_hints: ["w2", "w-2", "wage and tax"]
-    title_markers: ["wage and tax statement", "form w-2", "w-2 wage"]
+    keywords:
+      - ["wage and tax statement", 10]
+      - ["form w-2", 9]
+      - ["w-2 wage", 8]
+      # Structural box labels — recognize a scanned W-2 even when the title OCRs poorly.
+      - ["social security wages", 4]
+      - ["medicare wages and tips", 4]
+      - ["social security tax withheld", 3]
 
   - key: 1099int
     label: "1099-INT"
     code: "1099-INT"
     filename_hints: ["1099int", "1099-int", "1099 int"]
-    title_markers: ["1099-int", "interest income"]
+    keywords:
+      - ["1099-int", 10]
+      - ["interest income", 6]
+      - ["early withdrawal penalty", 3]
 
   - key: 1099div
     label: "1099-DIV"
     code: "1099-DIV"
     filename_hints: ["1099div", "1099-div", "1099 div"]
-    title_markers: ["1099-div", "dividends and distributions"]
+    keywords:
+      - ["1099-div", 10]
+      - ["dividends and distributions", 8]
+      - ["total ordinary dividends", 5]
+      - ["qualified dividends", 4]
 
   - key: k1_1120s
     label: "Schedule K-1 (1120-S)"
     code: "K-1-1120S"
     filename_hints: ["k1_1120s", "k-1 1120s", "1120s k-1", "k1s"]
-    title_markers: ["shareholder's share", "form 1120-s", "1120s"]
+    keywords:
+      - ["shareholders share", 9]      # apostrophes are folded out during normalization
+      - ["form 1120-s", 8]
+      - ["1120s", 5]
 
   - key: k1_1065
     label: "Schedule K-1 (1065)"
     code: "K-1-1065"
     filename_hints: ["k1_1065", "k-1 1065", "1065 k-1", "k1p"]
-    title_markers: ["partner's share", "form 1065"]
+    keywords:
+      - ["partners share", 9]
+      - ["form 1065", 8]
 
   - key: prior_1040
     label: "Prior-year 1040"
     code: "1040-PY"
     filename_hints: ["prior", "1040"]
-    title_markers: ["u.s. individual income tax return", "form 1040"]
+    keywords:
+      - ["individual income tax return", 9]
+      - ["form 1040", 8]
 
-  # Generic K-1 hint (used only when the filename can't tell 1120-S from 1065 and
-  # the text layer is silent). Defaults to the S-corp map.
+  # Generic K-1 (used when the text can't tell 1120-S from 1065). Defaults to S-corp.
   - key: k1_1120s
     label: "Schedule K-1"
     code: "K-1"
     filename_hints: ["k1", "k-1", "schedule k-1"]
-    title_markers: ["schedule k-1"]
+    keywords:
+      - ["schedule k-1", 8]
 
   # Real documents that are filed but not data-extracted (key: null).
   - key: null
     label: "Engagement letter"
     code: "Engagement"
     filename_hints: ["engagement"]
-    title_markers: ["engagement letter", "terms of engagement"]
+    keywords:
+      - ["engagement letter", 10]
+      - ["terms of engagement", 8]
 
   - key: null
     label: "Form 8879 (e-file authorization)"
     code: "8879"
     filename_hints: ["8879"]
-    title_markers: ["e-file signature authorization", "form 8879"]
+    keywords:
+      - ["e-file signature authorization", 10]
+      - ["form 8879", 9]
 
   - key: null
     label: "Tax organizer"
     code: "Organizer"
     filename_hints: ["organizer"]
-    title_markers: ["tax organizer", "client organizer"]
+    keywords:
+      - ["tax organizer", 10]
+      - ["client organizer", 8]

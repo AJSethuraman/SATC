@@ -18,6 +18,7 @@ The result feeds the same intake/staging pipeline, so classification only picks
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -27,9 +28,35 @@ from satc.config import load_classification, load_extraction_map
 # Confidence ordering for any callers that want to compare.
 CONF_ORDER = {"HIGH": 3, "MEDIUM": 2, "LOW": 1, "UNCERTAIN": 0}
 
+# Default scoring knobs for the text rung (overridable in classification.yaml).
+DEFAULT_TEXT_THRESHOLD = 6      # minimum winning score to classify by text
+DEFAULT_CLOSE_DELTA = 3         # winner within this of the runner-up => ambiguous (don't guess)
+
+_DASHES = "‐‑‒–—−"
+_QUOTES = "‘’ʼ`'"
+
 
 def _normalize(text: str) -> str:
     return "".join(ch for ch in str(text).lower() if ch.isalnum())
+
+
+def _normalize_text(text: str) -> str:
+    """Lowercase, fold unicode dashes/quotes, and repair OCR-split form names.
+
+    Scanners routinely drop the hyphen in form numbers ("1099 NEC", "W 2"); a
+    keyword match would miss them otherwise. Keeps word boundaries (spaces) so
+    multi-word phrases still match — unlike :func:`_normalize`.
+    """
+    t = str(text).lower()
+    for d in _DASHES:
+        t = t.replace(d, "-")
+    for q in _QUOTES:
+        t = t.replace(q, "")
+    t = re.sub(r"\b1099\s+(nec|misc|int|div|r|b|g|k)\b", r"1099-\1", t)
+    t = re.sub(r"\bw\s+2\b", "w-2", t)
+    t = re.sub(r"\b1098\s+(t|e)\b", r"1098-\1", t)
+    t = re.sub(r"\bssa\s+1099\b", "ssa-1099", t)
+    return re.sub(r"\s+", " ", t).strip()
 
 
 @dataclass(slots=True)
@@ -40,7 +67,8 @@ class DocType:
     label: str
     code: str
     filename_hints: list[str] = field(default_factory=list)
-    title_markers: list[str] = field(default_factory=list)
+    keywords: list[tuple[str, int]] = field(default_factory=list)  # (normalized phrase, weight)
+    threshold: int = 0                    # per-type override; 0 = use the classifier default
     field_markers: set[str] = field(default_factory=set)  # normalized AcroForm field names
 
     @property
@@ -79,8 +107,12 @@ UNCLASSIFIED = Classification(
 class DocumentClassifier:
     """Classifies a file by reading it, cheapest-and-most-exact signal first."""
 
-    def __init__(self, doc_types: list[DocType], *, has_key: bool | None = None) -> None:
+    def __init__(self, doc_types: list[DocType], *, has_key: bool | None = None,
+                 text_threshold: int = DEFAULT_TEXT_THRESHOLD,
+                 close_delta: int = DEFAULT_CLOSE_DELTA) -> None:
         self.doc_types = doc_types
+        self.text_threshold = text_threshold
+        self.close_delta = close_delta
         self.has_key = (bool(os.environ.get("ANTHROPIC_API_KEY"))
                         if has_key is None else has_key)
 
@@ -99,10 +131,31 @@ class DocumentClassifier:
                 label=entry["label"],
                 code=entry.get("code", entry["label"]),
                 filename_hints=[h.lower() for h in entry.get("filename_hints", [])],
-                title_markers=[m.lower() for m in entry.get("title_markers", [])],
+                keywords=cls._parse_keywords(entry),
+                threshold=int(entry.get("threshold", 0)),
                 field_markers=markers,
             ))
-        return cls(doc_types, has_key=has_key)
+        return cls(doc_types, has_key=has_key,
+                   text_threshold=int(registry.get("text_threshold", DEFAULT_TEXT_THRESHOLD)),
+                   close_delta=int(registry.get("close_delta", DEFAULT_CLOSE_DELTA)))
+
+    @staticmethod
+    def _parse_keywords(entry: dict[str, Any]) -> list[tuple[str, int]]:
+        """Read weighted ``keywords`` ([phrase, weight] or {phrase: weight}).
+
+        Falls back to legacy ``title_markers`` at a default weight so a type that
+        only lists markers still classifies (each marker alone clears threshold).
+        """
+        out: list[tuple[str, int]] = []
+        raw = entry.get("keywords")
+        if isinstance(raw, dict):
+            raw = list(raw.items())
+        for item in raw or []:
+            phrase, weight = (item[0], item[1]) if isinstance(item, (list, tuple)) else (item, DEFAULT_TEXT_THRESHOLD)
+            out.append((_normalize_text(phrase), int(weight)))
+        for marker in entry.get("title_markers", []):
+            out.append((_normalize_text(marker), DEFAULT_TEXT_THRESHOLD))
+        return out
 
     @staticmethod
     def _field_markers_for(key: str, config_root: Path | None,
@@ -164,24 +217,39 @@ class DocumentClassifier:
         return None
 
     def _by_text(self, path: Path) -> Classification | None:
-        text = self._page_text(path)
-        if not text:
+        return self.classify_text(self._page_text(path), method="text")
+
+    def classify_text(self, text: str, *, method: str = "text") -> Classification | None:
+        """Weighted-keyword scoring over document text (shared by text + OCR rungs).
+
+        Each type's keywords carry weights (strong identifiers high, generic words
+        low) so no single weak word can classify alone. The winner must clear its
+        threshold; if a runner-up is also strong or within ``close_delta``, the
+        result is downgraded to MEDIUM — the pipeline feeds a human, so when it is
+        unsure it says so rather than guessing.
+        """
+        if not text or not text.strip():
             return None
-        low = text.lower()
-        best, best_score, hit = None, 0, ""
+        norm = _normalize_text(text)
+        scored: list[tuple[int, int, DocType]] = []
         for dt in self.doc_types:
-            for marker in dt.title_markers:
-                if marker in low:
-                    # First (most specific) marker per type; keep the strongest type.
-                    score = sum(1 for m in dt.title_markers if m in low)
-                    if score > best_score:
-                        best, best_score, hit = dt, score, marker
-                    break
-        if best is not None:
-            conf = "HIGH" if best_score >= 2 else "MEDIUM"
-            return Classification(best.label, best.key, best.code, conf, "text",
-                                  f"page text contains “{hit}”")
-        return None
+            score = sum(w for phrase, w in dt.keywords if phrase and phrase in norm)
+            if score > 0:
+                scored.append((score, dt.threshold or self.text_threshold, dt))
+        qualified = [(s, dt) for s, thr, dt in scored if s >= thr]
+        if not qualified:
+            return None
+        qualified.sort(key=lambda x: x[0], reverse=True)
+        best_score, best = qualified[0]
+        # A runner-up that resolves to the *same* extraction key (e.g. the generic
+        # "Schedule K-1" vs the specific 1120-S entry) agrees with the winner — it is
+        # not a competing interpretation, so it never makes the result ambiguous.
+        runner = next((s for s, dt in qualified[1:] if dt.key != best.key), 0)
+        ambiguous = runner >= (best.threshold or self.text_threshold) or \
+            (runner > 0 and best_score - runner <= self.close_delta)
+        conf = "MEDIUM" if ambiguous else "HIGH"
+        ev = f"text score {best_score}" + (f" (runner-up {runner})" if runner else "")
+        return Classification(best.label, best.key, best.code, conf, method, ev)
 
     def _by_filename(self, name: str) -> Classification | None:
         low = name.lower()
