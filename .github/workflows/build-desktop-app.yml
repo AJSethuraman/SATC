@@ -18,8 +18,20 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # Each OS gets a DISTINCT asset name. macOS and Linux both build a file
+      # literally named "SATC"; without unique names they collide as release
+      # assets and one overwrites the other.
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        include:
+          - os: macos-latest
+            build_name: SATC
+            asset_name: SATC-macOS
+          - os: ubuntu-latest
+            build_name: SATC
+            asset_name: SATC-Linux
+          - os: windows-latest
+            build_name: SATC.exe
+            asset_name: SATC-Windows.exe
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,15 +51,20 @@ jobs:
         working-directory: satc_system
         run: pyinstaller packaging/satc_app.spec
 
+      - name: Name the binary per OS
+        shell: bash
+        working-directory: satc_system
+        run: mv "dist/${{ matrix.build_name }}" "dist/${{ matrix.asset_name }}"
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SATC-${{ matrix.os }}
-          path: satc_system/dist/SATC*
+          name: ${{ matrix.asset_name }}
+          path: satc_system/dist/${{ matrix.asset_name }}
           if-no-files-found: error
 
       - name: Attach to release (tag builds only)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: satc_system/dist/SATC*
+          files: satc_system/dist/${{ matrix.asset_name }}
