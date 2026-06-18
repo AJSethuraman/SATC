@@ -39,4 +39,4 @@ def test_none_year_uses_latest():
 def test_missing_year_falls_back():
     tables, notes = load_tax_tables(1990)
     assert tables.tax_year == available_years()[-1]
-    assert any("not bundled" in n for n in notes)
+    assert any("not yet bundled" in n for n in notes)

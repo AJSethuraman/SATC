@@ -139,8 +139,8 @@ def load_tax_tables(tax_year: int | None) -> tuple[TaxTables, list[str]]:
     else:
         resolved = years[-1]
         notes.append(
-            f"Tax tables for {tax_year} are not bundled; using {resolved} tables instead. "
-            f"Available years: {years}."
+            f"Tax year {tax_year} tables are not yet bundled; using {resolved} tables as a "
+            f"forward-planning proxy. Verify against official {tax_year} IRS publications when available."
         )
 
     raw = _read_year(resolved)

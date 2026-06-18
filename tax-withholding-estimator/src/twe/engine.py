@@ -416,6 +416,8 @@ def _build_recommendation(
             periods_remaining=p.periods_remaining,
             projected_taxable_wages=_money(p.projected_wages),
             projected_withholding=_money(p.projected_withholding),
+            periods_elapsed=p.periods_elapsed,
+            ytd_withholding=_money(p.ytd_withholding),
         )
         for i, p in enumerate(projections)
     ]
@@ -437,6 +439,8 @@ def _build_recommendation(
         safe_harbor_target=_money(safe_harbor_target) if safe_harbor_target is not None else None,
         safe_harbor_additional_per_period=safe_harbor_additional,
         adjusted_job_name=job_breakdown[adjusted_idx].name,
+        adjusted_job_pay_frequency=adjusted.pay_frequency,
+        adjusted_job_withholding_per_period=_money(a_per_period_wh),
         job_breakdown=job_breakdown,
     )
 

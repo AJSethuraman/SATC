@@ -399,25 +399,30 @@ def render_excel(
     # ---- withholding analysis ----
     section_header("Withholding Analysis")
 
-    if len(rec.job_breakdown) > 1:
+    multi_job = len(rec.job_breakdown) > 1
+    if multi_job:
         for job in rec.job_breakdown:
-            note_row(
-                f"{job.name}  ({job.pay_frequency}, {job.periods_remaining} periods left)"
-                f"   wages: {_usd(job.projected_taxable_wages)}"
-                f"   withholding: {_usd(job.projected_withholding)}"
-            )
-
-    proj_remaining = rec.projected_withholding_current_rate - rec.ytd_withholding
-    amt_row(
-        f"YTD withheld  ({rec.periods_elapsed} of {rec.periods_per_year} periods)",
-        rec.ytd_withholding,
-    )
-    if proj_remaining > ZERO:
+            sub_label(f"  {job.name}  ({job.pay_frequency})")
+            amt_row(f"    YTD withheld  ({job.periods_elapsed} of {job.periods_per_year} periods)", job.ytd_withholding, indent=2)
+            job_proj_remaining = job.projected_withholding - job.ytd_withholding
+            if job_proj_remaining > ZERO:
+                amt_row(f"    + Remaining  ({job.periods_remaining} periods, current rate)", job_proj_remaining, fg=MUTED, indent=2)
+        amt_row("YTD withheld — all jobs", rec.ytd_withholding)
+        proj_remaining = rec.projected_withholding_current_rate - rec.ytd_withholding
+        if proj_remaining > ZERO:
+            amt_row("+ Remaining — all jobs (current rate)", proj_remaining, fg=MUTED)
+    else:
+        proj_remaining = rec.projected_withholding_current_rate - rec.ytd_withholding
         amt_row(
-            f"+ Remaining  ({rec.periods_remaining} periods, current rate)",
-            proj_remaining,
-            fg=MUTED,
+            f"YTD withheld  ({rec.periods_elapsed} of {rec.periods_per_year} periods)",
+            rec.ytd_withholding,
         )
+        if proj_remaining > ZERO:
+            amt_row(
+                f"+ Remaining  ({rec.periods_remaining} periods, current rate)",
+                proj_remaining,
+                fg=MUTED,
+            )
     if rec.other_payments_total != ZERO:
         amt_row("+ Other payments / spouse withheld", rec.other_payments_total, fg=MUTED)
     total_row("PROJECTED TOTAL PAYMENTS", rec.projected_total_payments)
@@ -437,14 +442,22 @@ def render_excel(
     if inp.target_refund != ZERO:
         amt_row("Target refund", inp.target_refund)
 
-    multi_job = len(rec.job_breakdown) > 1
     if rec.is_over_withholding:
+        reduction = rec.adjusted_job_withholding_per_period - rec.recommended_withholding_per_period
+        step3_approx = reduction * rec.periods_per_year
+        job_label = f"  ({rec.adjusted_job_name})" if multi_job else ""
+        job_w4_owner = f"{rec.adjusted_job_name}'s" if multi_job else "your"
         merged_row(
             "You are on track to OVER-WITHHOLD for your target.",
             bg=CREAM, fg=GREEN, bold=True, size=9, height=15,
         )
-        amt_row("Recommended withholding / paycheck", rec.recommended_withholding_per_period, bold=True, fg=GREEN)
-        note_row("Reduce withholding via Form W-4 Step 3 (dependents) or Step 4b (deductions).")
+        amt_row(f"Current withholding / paycheck{job_label}", rec.adjusted_job_withholding_per_period)
+        amt_row(f"Recommended withholding / paycheck{job_label}", rec.recommended_withholding_per_period, bold=True, fg=GREEN)
+        total_row(f"REDUCTION / PAYCHECK{job_label}", reduction, fg=GREEN, double_bottom=True)
+        note_row(
+            f"W-4 Step 3 — Enter ~{_usd(step3_approx)} in Step 3 of {job_w4_owner} W-4  "
+            f"({_usd(reduction)} × {rec.periods_per_year} periods/yr = {_usd(step3_approx)})"
+        )
     else:
         on_job = f'  (for "{rec.adjusted_job_name}" W-4)' if multi_job else ""
         merged_row(
@@ -452,7 +465,7 @@ def render_excel(
             bg=CREAM, fg=RED, bold=True, size=9, height=15,
         )
         amt_row("Recommended withholding / paycheck" + on_job, rec.recommended_withholding_per_period, bold=True)
-        amt_row("Current withholding / paycheck", inp.paystub.federal_tax_withheld_per_period)
+        amt_row("Current withholding / paycheck", rec.adjusted_job_withholding_per_period)
         total_row("EXTRA NEEDED / PAYCHECK  (W-4 Step 4c)", rec.additional_withholding_per_period, fg=RED, double_bottom=True)
         note_row(
             f"Enter {_usd(rec.additional_withholding_per_period)} as additional withholding{on_job} "

@@ -236,7 +236,7 @@ def test_unknown_year_falls_back_with_note():
     inp.tax_year = 1999
     result = estimate(inp)
     assert result.tax_year_used != 1999
-    assert any("not bundled" in note for note in result.notes)
+    assert any("not yet bundled" in note for note in result.notes)
 
 
 def _two_jobs_single() -> EstimatorInput:

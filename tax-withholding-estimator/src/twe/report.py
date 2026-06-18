@@ -108,9 +108,11 @@ def render_text(result: EstimateResult) -> str:
 
     lines.append("")
     if r.is_over_withholding:
+        reduction = r.adjusted_job_withholding_per_period - r.recommended_withholding_per_period
+        job_label = f' ({r.adjusted_job_name})' if multi_job else ''
         lines.append("  You are on track to OVER-WITHHOLD for your target.")
-        lines.append(f"  You could reduce withholding to about {_usd(r.recommended_withholding_per_period)} / paycheck")
-        lines.append("  (e.g. by claiming deductions/dependents on Form W-4 Step 3 or 4b).")
+        lines.append(f"  Reduce{job_label} withholding to about {_usd(r.recommended_withholding_per_period)} / paycheck")
+        lines.append(f"  ({_usd(reduction)} / period reduction; W-4 Step 3 entry ≈ {_usd(reduction * r.periods_per_year)})")
     else:
         on_job = f' on "{r.adjusted_job_name}"' if multi_job else ""
         lines.append("  RECOMMENDATION to hit your target:")
@@ -393,19 +395,24 @@ def render_tape(
     # ----------------------------------------------------------- withholding
     lines += ["", _tsep(), "  WITHHOLDING ANALYSIS", _tsep(), ""]
 
-    if len(r.job_breakdown) > 1:
+    multi_job = len(r.job_breakdown) > 1
+    if multi_job:
         for job in r.job_breakdown:
-            lines.append(f"  {job.name}  ({job.pay_frequency}, {job.periods_remaining} periods left)")
-            lines.append(
-                f"    Wages: {_usd(job.projected_taxable_wages)}"
-                f"   |   Withholding: {_usd(job.projected_withholding)}"
-            )
+            lines.append(f"  {job.name}  ({job.pay_frequency})")
+            lines.append(_trow(f"  YTD withheld  ({job.periods_elapsed}/{job.periods_per_year} periods)", job.ytd_withholding))
+            job_proj_remaining = job.projected_withholding - job.ytd_withholding
+            if job_proj_remaining > ZERO:
+                lines.append(_trow(f"  + Remaining  ({job.periods_remaining} periods, current rate)", job_proj_remaining))
         lines.append("")
-
-    proj_remaining = r.projected_withholding_current_rate - r.ytd_withholding
-    lines.append(_trow(f"YTD withheld ({r.periods_elapsed}/{r.periods_per_year} periods)", r.ytd_withholding))
-    if proj_remaining > ZERO:
-        lines.append(_trow(f"+ Remaining ({r.periods_remaining} periods, current rate)", proj_remaining))
+        lines.append(_trow("YTD withheld — all jobs", r.ytd_withholding))
+        proj_remaining = r.projected_withholding_current_rate - r.ytd_withholding
+        if proj_remaining > ZERO:
+            lines.append(_trow("+ Remaining — all jobs (current rate)", proj_remaining))
+    else:
+        proj_remaining = r.projected_withholding_current_rate - r.ytd_withholding
+        lines.append(_trow(f"YTD withheld ({r.periods_elapsed}/{r.periods_per_year} periods)", r.ytd_withholding))
+        if proj_remaining > ZERO:
+            lines.append(_trow(f"+ Remaining ({r.periods_remaining} periods, current rate)", proj_remaining))
     if r.other_payments_total != ZERO:
         lines.append(_trow("+ Other payments / spouse withheld", r.other_payments_total))
     lines += [
@@ -427,13 +434,21 @@ def render_tape(
     if inp.target_refund != ZERO:
         lines += [_trow("Target refund", inp.target_refund), ""]
 
-    multi_job = len(r.job_breakdown) > 1
     if r.is_over_withholding:
+        reduction = r.adjusted_job_withholding_per_period - r.recommended_withholding_per_period
+        step3_approx = reduction * r.periods_per_year
+        job_label = f"  ({r.adjusted_job_name})" if multi_job else ""
+        job_w4_owner = f"{r.adjusted_job_name}'s" if multi_job else "your"
         lines += [
             "  You are on track to OVER-WITHHOLD for your target.",
             "",
-            _trow("Recommended withholding / paycheck", r.recommended_withholding_per_period),
-            "  Reduce via Form W-4 Step 3 (dependents) or Step 4b (deductions).",
+            _trow(f"Current withholding / paycheck{job_label}", r.adjusted_job_withholding_per_period),
+            _trow(f"Recommended withholding / paycheck{job_label}", r.recommended_withholding_per_period),
+            _trow(f"REDUCTION / PAYCHECK{job_label}", reduction),
+            "",
+            "  Form W-4 Step 3 (approx. annualized reduction):",
+            f"    Enter ~{_usd(step3_approx)} in Step 3 of {job_w4_owner} W-4",
+            f"    ({_usd(reduction)} × {r.periods_per_year} periods/yr = {_usd(step3_approx)})",
         ]
     else:
         on_job = f'  (for "{r.adjusted_job_name}" W-4)' if multi_job else ""
@@ -441,7 +456,7 @@ def render_tape(
             "  Action recommended — currently UNDER-WITHHOLDING.",
             "",
             _trow("Recommended withholding / paycheck", r.recommended_withholding_per_period),
-            _trow("Current withholding / paycheck", inp.paystub.federal_tax_withheld_per_period),
+            _trow("Current withholding / paycheck", r.adjusted_job_withholding_per_period),
             _trow("EXTRA NEEDED / PAYCHECK  (W-4 Step 4c)", r.additional_withholding_per_period),
             "",
             f"  Enter {_usd(r.additional_withholding_per_period)} as additional withholding{on_job}",

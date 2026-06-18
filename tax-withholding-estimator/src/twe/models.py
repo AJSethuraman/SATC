@@ -340,6 +340,8 @@ class JobProjection:
     periods_remaining: int
     projected_taxable_wages: Decimal
     projected_withholding: Decimal
+    periods_elapsed: int = 0
+    ytd_withholding: Decimal = ZERO
 
 
 @dataclass(slots=True)
@@ -366,6 +368,8 @@ class WithholdingRecommendation:
     safe_harbor_target: Decimal | None = None
     safe_harbor_additional_per_period: Decimal | None = None
     adjusted_job_name: str = ""
+    adjusted_job_pay_frequency: str = ""
+    adjusted_job_withholding_per_period: Decimal = ZERO
     job_breakdown: list[JobProjection] = field(default_factory=list)
 
 

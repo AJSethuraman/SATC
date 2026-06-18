@@ -732,22 +732,32 @@ function render(d){
 
   // ---- recommendation ----
   const isOver=r.is_over_withholding;
+  const isMultiJob=r.job_breakdown&&r.job_breakdown.length>1;
+  const jobLabel=isMultiJob&&r.adjusted_job_name?' ('+r.adjusted_job_name+')':'';
   let recHtml;
   if(isOver){
+    const curWh=parseFloat(r.adjusted_job_withholding_per_period);
+    const recWh=parseFloat(r.recommended_withholding_per_period);
+    const reduction=curWh-recWh;
+    const step3=reduction*r.periods_per_year;
+    const w4Owner=isMultiJob&&r.adjusted_job_name?r.adjusted_job_name+"'s":"your";
     recHtml=`<div class="rec-card ok">
-      <h3>&#x2705; On track &mdash; you may be over-withholding</h3>
-      <div><span class="amt-big">${usd(r.recommended_withholding_per_period)}</span></div>
-      <div class="amt-lbl">would break even per paycheck (your target refund: ${usd(r.target_refund)})</div>
-      <p class="rec-note">You could <strong>reduce</strong> withholding by adjusting Form W-4 Step&nbsp;3 (dependents) or Step&nbsp;4b (extra deductions). Total projected payments of <strong>${usd(r.projected_total_payments)}</strong> exceed the <strong>${usd(b.total_tax_liability)}</strong> projected liability.</p>
+      <h3>&#x2705; On track &mdash; over-withholding${jobLabel}</h3>
+      <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:.5rem">
+        <div><span class="amt-big">${usd(curWh.toFixed(2))}</span><div class="amt-lbl">current / paycheck${jobLabel}</div></div>
+        <div><span class="amt-big" style="color:#166534">${usd(recWh.toFixed(2))}</span><div class="amt-lbl">recommended / paycheck${jobLabel}</div></div>
+      </div>
+      <div style="font-size:.84rem;margin-bottom:.55rem"><strong>Reduction / paycheck${jobLabel}: ${usd(reduction.toFixed(2))}</strong></div>
+      <p class="rec-note"><strong>W-4 Step&nbsp;3</strong>: Enter approximately <strong>${usd(step3.toFixed(2))}</strong> in Step&nbsp;3 of ${w4Owner} W-4 (${usd(reduction.toFixed(2))} &times; ${r.periods_per_year} pay&nbsp;periods/yr&nbsp;=&nbsp;${usd(step3.toFixed(2))}).</p>
     </div>`;
   } else {
     recHtml=`<div class="rec-card warn">
-      <h3>&#x26A0;&#xFE0F; Action recommended &mdash; under-withholding</h3>
+      <h3>&#x26A0;&#xFE0F; Action recommended &mdash; under-withholding${jobLabel}</h3>
       <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:.5rem">
-        <div><span class="amt-big">${usd(r.recommended_withholding_per_period)}</span><div class="amt-lbl">recommended per paycheck</div></div>
+        <div><span class="amt-big">${usd(r.recommended_withholding_per_period)}</span><div class="amt-lbl">recommended per paycheck${jobLabel}</div></div>
         <div><span class="amt-big" style="color:#b45309">+${usd(r.additional_withholding_per_period)}</span><div class="amt-lbl">extra per paycheck &mdash; W-4 line&nbsp;4(c)</div></div>
       </div>
-      <p class="rec-note">Enter <strong>${usd(r.additional_withholding_per_period)}</strong> as additional withholding on <strong>Form W-4 Step&nbsp;4(c)</strong>. You have <strong>${r.periods_remaining}</strong> pay period${r.periods_remaining!==1?'s':''} remaining to close the gap.</p>
+      <p class="rec-note">Enter <strong>${usd(r.additional_withholding_per_period)}</strong> as additional withholding on <strong>Form W-4 Step&nbsp;4(c)</strong>${isMultiJob?' for '+r.adjusted_job_name:''}. You have <strong>${r.periods_remaining}</strong> pay period${r.periods_remaining!==1?'s':''} remaining to close the gap.</p>
     </div>`;
   }
 
@@ -785,8 +795,19 @@ function render(d){
   if(!z(b.refundable_credits)) rows+=bkRow('&minus; Refundable credits',b.refundable_credits);
   rows+=bkRow('TOTAL TAX LIABILITY',b.total_tax_liability,'tot');
   rows+=sectRow('Payments');
-  rows+=bkRow('YTD withholding ('+r.periods_elapsed+' of '+r.periods_per_year+' periods)',r.ytd_withholding);
-  if(projRemaining>0.005) rows+=bkRow('Remaining projected withholding ('+r.periods_remaining+' periods)',projRemaining.toFixed(2));
+  const jobs=r.job_breakdown;
+  if(jobs&&jobs.length>1){
+    jobs.forEach(function(job){
+      rows+=bkRow(job.name+' — YTD ('+job.periods_elapsed+' of '+job.periods_per_year+' periods)',job.ytd_withholding);
+      const jobRem=parseFloat(job.projected_withholding)-parseFloat(job.ytd_withholding);
+      if(jobRem>0.005) rows+=bkRow(job.name+' — Remaining ('+job.periods_remaining+' periods)',jobRem.toFixed(2));
+    });
+    rows+=bkRow('YTD withheld — all jobs',r.ytd_withholding,'tot');
+    if(projRemaining>0.005) rows+=bkRow('Remaining — all jobs (current rate)',projRemaining.toFixed(2));
+  }else{
+    rows+=bkRow('YTD withholding ('+r.periods_elapsed+' of '+r.periods_per_year+' periods)',r.ytd_withholding);
+    if(projRemaining>0.005) rows+=bkRow('Remaining projected withholding ('+r.periods_remaining+' periods)',projRemaining.toFixed(2));
+  }
   if(!z(r.other_payments_total)) rows+=bkRow('Other payments / spouse withholding',r.other_payments_total);
   rows+=bkRow('Projected total payments',r.projected_total_payments,'tot');
   rows+=bkRow((bal>=0?'Projected refund':'Projected balance due'),Math.abs(bal).toFixed(2),'tot');
@@ -831,12 +852,15 @@ function render(d){
 (function(){
   const BUNDLED=[2025];
   const cur=new Date().getFullYear();
+  const latest=BUNDLED[BUNDLED.length-1];
   const sel=$('tax_year');
   const years=new Set([...BUNDLED, cur]);
   [...years].sort().reverse().forEach(y=>{
     const o=document.createElement('option');
-    o.value=y; o.textContent=y+(y===cur?' (current)':'');
-    if(y===cur) o.selected=true;
+    const isBundled=BUNDLED.includes(y);
+    o.value=y;
+    o.textContent=isBundled?y:y+' (tables not yet available; using '+latest+')';
+    if(y===latest) o.selected=true;
     sel.appendChild(o);
   });
 })();
