@@ -26,6 +26,7 @@ from satc.ingest import (
 from satc.ingest.readers import PdfFormReader, TextAnchorReader, VisionDocumentReader
 from satc.models.mart import DataMart, DocumentRecord, ReturnRecord
 from satc.persistence import SATCStore
+from satc.settings import cloud_vision_enabled
 
 # Status flow for a document in the repository.
 DOC_FLOW = ["Requested", "Received", "Sent", "Signed", "N/A"]
@@ -114,8 +115,8 @@ class AppState:
         files_read = 0
         fields_staged = 0
         notes: list[str] = []
-        has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
-        classifier = load_classifier(has_key=has_key)
+        allow_cloud = cloud_vision_enabled()   # OFF unless the practice opts in
+        classifier = load_classifier(has_key=allow_cloud)
         base = Path(folder)
         files = sorted(p for p in base.iterdir() if p.is_file()) if base.is_dir() else []
 
@@ -137,7 +138,7 @@ class AppState:
                         notes.append(f"{doc_id} → {what} ({how}): filed, not extracted.")
                         continue
                     cfg = load_extraction_map(c.key)
-                    result, problem = self._read_document(fpath, cfg, has_key)
+                    result, problem = self._read_document(fpath, cfg, allow_cloud)
                     if result is None:
                         notes.append(f"{doc_id} → {c.label} ({how}): {problem}")
                         continue
@@ -157,22 +158,27 @@ class AppState:
         return self.intake_summary
 
     @staticmethod
-    def _read_document(fpath: Path, cfg: dict, has_key: bool):
-        """Read one document via the reader ladder. Returns (ReadResult|None, problem)."""
+    def _read_document(fpath: Path, cfg: dict, allow_cloud: bool):
+        """Read one document via the local-first reader ladder.
+
+        Returns ``(ReadResult|None, problem)``. The cloud vision rung runs only when
+        the practice has explicitly opted in (``allow_cloud``); otherwise a scan is
+        left for local OCR / manual entry and nothing leaves the machine.
+        """
         try:
             if fpath.suffix.lower() == ".pdf":
-                result = PdfFormReader(cfg).read(str(fpath))      # 1) fillable form fields (free)
+                result = PdfFormReader(cfg).read(str(fpath))      # 1) fillable form fields (local)
                 if result.labeled_fields:
                     return result, ""
-                result = TextAnchorReader(cfg).read(str(fpath))   # 2) text layer (free)
+                result = TextAnchorReader(cfg).read(str(fpath))   # 2) text layer (local)
                 if result.labeled_fields:
                     return result, ""
-                if has_key:                                       # 3) vision (paid, scans)
+                if allow_cloud:                                   # 3) cloud vision (opt-in only)
                     return VisionDocumentReader(cfg).read(str(fpath)), ""
-                return None, "no form fields or readable text — set ANTHROPIC_API_KEY for vision."
-            if has_key:
+                return None, "looks like a scan (no form fields or text) — needs local OCR or manual entry."
+            if allow_cloud:
                 return VisionDocumentReader(cfg).read(str(fpath)), ""
-            return None, "image — set ANTHROPIC_API_KEY to read by vision."
+            return None, "image scan — needs local OCR or manual entry (cloud vision is off)."
         except Exception as exc:        # noqa: BLE001 - surface, don't crash
             return None, f"could not read ({exc})."
 

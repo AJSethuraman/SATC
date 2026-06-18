@@ -113,8 +113,12 @@ class DocumentClassifier:
         self.doc_types = doc_types
         self.text_threshold = text_threshold
         self.close_delta = close_delta
-        self.has_key = (bool(os.environ.get("ANTHROPIC_API_KEY"))
-                        if has_key is None else has_key)
+        # "has_key" gates the cloud vision rung; default to the opt-in posture so a
+        # stray API key in the environment never silently enables cloud calls.
+        if has_key is None:
+            from satc.settings import cloud_vision_enabled
+            has_key = cloud_vision_enabled()
+        self.has_key = has_key
 
     # -- construction -----------------------------------------------------
     @classmethod
