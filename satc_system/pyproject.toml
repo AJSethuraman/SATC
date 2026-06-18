@@ -28,6 +28,11 @@ vision = [
 pdf = [
   "pypdf>=4.0",
 ]
+# Local OCR for scans/photos — fully on-machine (also needs the Tesseract binary).
+ocr = [
+  "pytesseract>=0.3",
+  "Pillow>=10",
+]
 # Local hand-holding GUI (opens in the browser).
 app = [
   "flask>=3.0",

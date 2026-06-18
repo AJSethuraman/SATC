@@ -119,6 +119,9 @@ class DocumentClassifier:
             from satc.settings import cloud_vision_enabled
             has_key = cloud_vision_enabled()
         self.has_key = has_key
+        # Optional local-OCR text provider (path -> text); set by load_classifier
+        # when Tesseract is available, so scans can be classified locally.
+        self.ocr_text_provider: Any = None
 
     # -- construction -----------------------------------------------------
     @classmethod
@@ -192,6 +195,10 @@ class DocumentClassifier:
             if by_text is not None:
                 return by_text
 
+        by_ocr = self._by_ocr(path)          # scans / images / text-less PDFs (local OCR)
+        if by_ocr is not None:
+            return by_ocr
+
         by_name = self._by_filename(path.name)
         if by_name is not None:
             return by_name
@@ -202,6 +209,15 @@ class DocumentClassifier:
                 return by_vision
 
         return UNCLASSIFIED
+
+    def _by_ocr(self, path: Path) -> Classification | None:
+        if self.ocr_text_provider is None:
+            return None
+        try:
+            text = self.ocr_text_provider(str(path))
+        except Exception:  # noqa: BLE001 - OCR unavailable / failed => fall through
+            return None
+        return self.classify_text(text, method="ocr")
 
     # -- individual signals ----------------------------------------------
     def _by_form_fields(self, path: Path) -> Classification | None:
@@ -305,5 +321,16 @@ class DocumentClassifier:
 
 def load_classifier(config_root: Path | None = None, *, has_key: bool | None = None
                     ) -> DocumentClassifier:
-    """Convenience builder used by intake and the sorter."""
-    return DocumentClassifier.from_config(config_root, has_key=has_key)
+    """Convenience builder used by intake and the sorter.
+
+    Wires in the local-OCR text provider when Tesseract is available, so scanned
+    documents can be classified on-machine (first page is enough for typing).
+    """
+    clf = DocumentClassifier.from_config(config_root, has_key=has_key)
+    from satc.settings import ocr_enabled
+
+    if ocr_enabled():
+        from satc.ingest.ocr import ocr_document_text
+
+        clf.ocr_text_provider = lambda p: ocr_document_text(p, 1)
+    return clf

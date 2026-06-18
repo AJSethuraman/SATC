@@ -23,7 +23,13 @@ from satc.ingest import (
     load_classifier,
     split_to_dir,
 )
-from satc.ingest.readers import PdfFormReader, TextAnchorReader, VisionDocumentReader
+from satc.ingest.readers import (
+    OllamaVisionReader,
+    PdfFormReader,
+    TesseractOcrReader,
+    TextAnchorReader,
+    VisionDocumentReader,
+)
 from satc.models.mart import DataMart, DocumentRecord, ReturnRecord
 from satc.persistence import SATCStore
 from satc.settings import cloud_vision_enabled
@@ -161,10 +167,12 @@ class AppState:
     def _read_document(fpath: Path, cfg: dict, allow_cloud: bool):
         """Read one document via the local-first reader ladder.
 
-        Returns ``(ReadResult|None, problem)``. The cloud vision rung runs only when
-        the practice has explicitly opted in (``allow_cloud``); otherwise a scan is
-        left for local OCR / manual entry and nothing leaves the machine.
+        Order: fillable form fields → text layer → local OCR (Tesseract) → local
+        vision (Ollama) → cloud vision (opt-in only). Everything before the last
+        rung runs entirely on the machine. Returns ``(ReadResult|None, problem)``.
         """
+        from satc.settings import ocr_enabled, ollama_enabled
+
         try:
             if fpath.suffix.lower() == ".pdf":
                 result = PdfFormReader(cfg).read(str(fpath))      # 1) fillable form fields (local)
@@ -173,12 +181,17 @@ class AppState:
                 result = TextAnchorReader(cfg).read(str(fpath))   # 2) text layer (local)
                 if result.labeled_fields:
                     return result, ""
-                if allow_cloud:                                   # 3) cloud vision (opt-in only)
-                    return VisionDocumentReader(cfg).read(str(fpath)), ""
-                return None, "looks like a scan (no form fields or text) — needs local OCR or manual entry."
-            if allow_cloud:
+            if ocr_enabled():                                     # 3) local OCR (Tesseract)
+                result = TesseractOcrReader(cfg).read(str(fpath))
+                if result.labeled_fields:
+                    return result, ""
+            if ollama_enabled():                                  # 4) local vision (Ollama)
+                result = OllamaVisionReader(cfg).read(str(fpath))
+                if result.labeled_fields:
+                    return result, ""
+            if allow_cloud:                                       # 5) cloud vision (opt-in only)
                 return VisionDocumentReader(cfg).read(str(fpath)), ""
-            return None, "image scan — needs local OCR or manual entry (cloud vision is off)."
+            return None, "scan with no text layer — enable local OCR (Tesseract) or key it in manually."
         except Exception as exc:        # noqa: BLE001 - surface, don't crash
             return None, f"could not read ({exc})."
 

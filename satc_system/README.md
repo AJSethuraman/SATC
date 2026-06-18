@@ -103,18 +103,31 @@ satc app                       # opens http://127.0.0.1:5050
    classified by *content*, not its name (a W-2 saved as `scan0012.pdf` is still
    recognized), and read by the cheapest sufficient backend:
 
-   | Rung | Signal / reader | Cost |
-   |------|-----------------|------|
-   | 1 | PDF form fields (a fillable form's field names are its fingerprint) | free, exact |
-   | 2 | Embedded PDF text — weighted-keyword typing + **label-anchored value extraction** | free, no OCR |
-   | 3 | Filename hint | free, weak — fallback only |
-   | 4 | Vision/OCR (`ANTHROPIC_API_KEY`) | small per-doc cost — true scans only |
+   | Rung | Reader | On the machine? |
+   |------|--------|-----------------|
+   | 1 | PDF form fields (a fillable form's field names are its fingerprint) | ✅ local |
+   | 2 | Embedded PDF text — weighted-keyword typing + **label-anchored extraction** | ✅ local |
+   | 3 | **Local OCR (Tesseract)** — scans/photos → text → the same extractor | ✅ local |
+   | 4 | **Local vision (Ollama)** — a model on `localhost`, for scans OCR can't read | ✅ local |
+   | 5 | Cloud vision (Claude) | ☁️ **off** unless `SATC_ALLOW_CLOUD=1` |
 
    Classification uses weighted keyword scoring with a *don't-guess* threshold: when
    two forms score close (a consolidated 1099, an 1120-S vs 1065 K-1), the result is
    flagged MEDIUM for review rather than guessed. Signatures live in
    `configs/classification.yaml`; form-field fingerprints derive automatically from
    the extraction maps. Sensitive identifiers (SSN/EIN/any TIN) are always masked.
+
+   **Privacy posture — local by default.** Client documents are processed entirely
+   on the machine. Rungs 1–4 never touch the network; OCR turns a scan into text and
+   feeds the same local extractor (values flagged for review). Rung 5 (cloud) is a
+   disabled escape hatch — it runs only with an explicit `SATC_ALLOW_CLOUD=1` *and*
+   an API key; a key alone does nothing. `satc.settings` is the single switch.
+
+   ```bash
+   pip install -e .[ocr]          # local OCR — also: apt-get install tesseract-ocr
+   SATC_OLLAMA=1 satc app         # opt in to a local Ollama vision model
+   #   (SATC_OLLAMA_MODEL, SATC_OLLAMA_HOST override the defaults)
+   ```
 
 2. **Sort & re-label** — `satc sort FOLDER` previews a clean by-type tree
    (`_SATC_Sorted/W-2/W-2 - <employer>.pdf`); `--apply` writes it. Combined PDFs are

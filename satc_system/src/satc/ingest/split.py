@@ -38,13 +38,21 @@ def _category(c: Classification | None) -> str | None:
 
 
 def classify_pages(path: str | Path, classifier: DocumentClassifier) -> list[Classification]:
-    """Classify every page of a PDF by its text layer."""
+    """Classify every page of a PDF by its text layer (OCR'ing pages that lack one)."""
     from pypdf import PdfReader
 
     reader = PdfReader(str(path))
+    use_ocr = getattr(classifier, "ocr_text_provider", None) is not None
     out: list[Classification] = []
-    for page in reader.pages:
+    for i, page in enumerate(reader.pages, start=1):
         text = page.extract_text() or ""
+        if not text.strip() and use_ocr:          # scanned page: OCR it locally
+            try:
+                from satc.ingest.ocr import ocr_pdf_page_text
+
+                text = ocr_pdf_page_text(path, i)
+            except Exception:  # noqa: BLE001
+                text = ""
         out.append(classifier.classify_text(text, method="text") or UNCLASSIFIED)
     return out
 
