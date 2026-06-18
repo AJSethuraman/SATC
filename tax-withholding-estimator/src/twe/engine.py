@@ -201,6 +201,13 @@ def _build_breakdown(inp: EstimatorInput, tables: TaxTables) -> tuple[TaxBreakdo
             "Some credits (e.g. the Additional Child Tax Credit) may be partly refundable in practice."
         )
 
+    if oi.self_employment_net > ZERO or add_medicare > ZERO:
+        notes.append(
+            "SE tax and Additional Medicare Tax use projected Box 1 taxable wages as a proxy "
+            "for SS/Medicare wages. These may differ when pre-tax salary deferrals (401(k), etc.) "
+            "reduce Box 1; any difference is typically negligible for planning."
+        )
+
     marginal = _marginal_rate(ordinary_ti, tables.ordinary_brackets(status))
     effective = (total_liability / agi) if agi > ZERO else ZERO
 

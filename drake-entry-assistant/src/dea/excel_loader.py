@@ -314,5 +314,13 @@ def load_workbook_data(path: str | Path) -> LoadedWorkbook:
         source_cells[f"{w2_base}.box_4_social_security_tax"] = _cell_ref(w2s_sheet, row, w2_header, "Box4")
         source_cells[f"{w2_base}.box_5_medicare_wages"] = _cell_ref(w2s_sheet, row, w2_header, "Box5")
         source_cells[f"{w2_base}.box_6_medicare_tax"] = _cell_ref(w2s_sheet, row, w2_header, "Box6")
+        if box_12_items:
+            source_cells[f"{w2_base}.box_12_items.0.code"] = _cell_ref(w2s_sheet, row, w2_header, "Box12_Code_1")
+            source_cells[f"{w2_base}.box_12_items.0.amount"] = _cell_ref(w2s_sheet, row, w2_header, "Box12_Amount_1")
+        if state_lines:
+            source_cells[f"{w2_base}.state_lines.0.state"] = _cell_ref(w2s_sheet, row, w2_header, "Box15_State")
+            source_cells[f"{w2_base}.state_lines.0.employer_state_id"] = _cell_ref(w2s_sheet, row, w2_header, "Box15_Employer_State_ID")
+            source_cells[f"{w2_base}.state_lines.0.state_wages"] = _cell_ref(w2s_sheet, row, w2_header, "Box16")
+            source_cells[f"{w2_base}.state_lines.0.state_withholding"] = _cell_ref(w2s_sheet, row, w2_header, "Box17")
 
     return LoadedWorkbook(client_batch=ClientBatch(clients=list(clients_by_id.values())), source_cells=source_cells)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dea.action_plan import generate_action_plan
@@ -18,7 +18,7 @@ from dea.logging_utils import (
     write_entry_log_xlsx,
     write_validation_report_xlsx,
 )
-from dea.models import ActionPlan, Client, ClientBatch, ValidationIssue
+from dea.models import ActionPlan, Client, ClientBatch, SourceCellRef, ValidationIssue
 from dea.output import write_action_plans_json
 from dea.validation import validate_client_batch
 
@@ -29,6 +29,7 @@ class WorkflowContext:
     issues: list[ValidationIssue]
     output_dir: Path
     validation_report_path: Path
+    source_cells: dict[str, SourceCellRef] = field(default_factory=dict)
 
 
 def _default_config_dir(tax_year: int) -> Path:
@@ -96,6 +97,7 @@ def _prepare_context(args: argparse.Namespace) -> WorkflowContext:
         issues=issues,
         output_dir=output_dir,
         validation_report_path=validation_report_path,
+        source_cells=loaded.source_cells,
     )
 
 
@@ -160,39 +162,32 @@ def _load_config_maps(args: argparse.Namespace):
 
 def _command_dry_run(args: argparse.Namespace) -> int:
     try:
-        loaded = load_workbook_data(args.input)
-        clients = _select_clients(loaded.client_batch, args.client_id)
-        if args.client_id and not clients:
-            raise ValueError(f"Client '{args.client_id}' not found in workbook")
+        ctx = _prepare_context(args)
+    except (ExcelLoadError, ValueError) as exc:
+        print(f"dry-run failed: {exc}")
+        return 1
 
-        issues = validate_client_batch(ClientBatch(clients=clients), source_cells=loaded.source_cells)
-        output_dir = Path(args.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
+    _print_validation_summary(ctx)
+    if _should_stop_for_validation(ctx.issues, args.fail_on_warning):
+        return 1
 
-        validation_report_path = output_dir / "validation_report.xlsx"
-        write_validation_report_xlsx(issues, validation_report_path)
-
-        ctx = WorkflowContext(clients=clients, issues=issues, output_dir=output_dir, validation_report_path=validation_report_path)
-        _print_validation_summary(ctx)
-        if _should_stop_for_validation(issues, args.fail_on_warning):
-            return 1
-
+    try:
         screen_maps = _load_config_maps(args)
-        plans = _build_action_plans(clients, screen_maps=screen_maps, source_cells=loaded.source_cells)
+        plans = _build_action_plans(ctx.clients, screen_maps=screen_maps, source_cells=ctx.source_cells)
 
-        action_plan_path = output_dir / "action_plan.json"
+        action_plan_path = ctx.output_dir / "action_plan.json"
         write_action_plans_json(plans, action_plan_path)
 
         planned_records = _planned_records_from_plans(plans)
-        planned_csv = output_dir / "planned_entry_log.csv"
-        planned_xlsx = output_dir / "planned_entry_log.xlsx"
+        planned_csv = ctx.output_dir / "planned_entry_log.csv"
+        planned_xlsx = ctx.output_dir / "planned_entry_log.xlsx"
         write_entry_log_csv(planned_records, planned_csv)
         write_entry_log_xlsx(planned_records, planned_xlsx)
 
         print(f"dry-run action plan: {action_plan_path}")
         print(f"planned entry logs: {planned_csv}, {planned_xlsx}")
         return 0
-    except (ExcelLoadError, ConfigLoadError, ValueError) as exc:
+    except (ConfigLoadError, ValueError) as exc:
         print(f"dry-run failed: {exc}")
         return 1
 
@@ -210,28 +205,22 @@ def _execute_fake(plans: list[ActionPlan], screen_maps) -> tuple[bool, list, str
 
 def _command_run_fake(args: argparse.Namespace) -> int:
     try:
-        loaded = load_workbook_data(args.input)
-        clients = _select_clients(loaded.client_batch, args.client_id)
-        if args.client_id and not clients:
-            raise ValueError(f"Client '{args.client_id}' not found in workbook")
+        ctx = _prepare_context(args)
+    except (ExcelLoadError, ValueError) as exc:
+        print(f"run-fake failed: {exc}")
+        return 1
 
-        issues = validate_client_batch(ClientBatch(clients=clients), source_cells=loaded.source_cells)
-        output_dir = Path(args.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        validation_report_path = output_dir / "validation_report.xlsx"
-        write_validation_report_xlsx(issues, validation_report_path)
+    _print_validation_summary(ctx)
+    if _should_stop_for_validation(ctx.issues, args.fail_on_warning):
+        return 1
 
-        ctx = WorkflowContext(clients=clients, issues=issues, output_dir=output_dir, validation_report_path=validation_report_path)
-        _print_validation_summary(ctx)
-        if _should_stop_for_validation(issues, args.fail_on_warning):
-            return 1
-
+    try:
         screen_maps = _load_config_maps(args)
-        plans = _build_action_plans(clients, screen_maps=screen_maps, source_cells=loaded.source_cells)
+        plans = _build_action_plans(ctx.clients, screen_maps=screen_maps, source_cells=ctx.source_cells)
 
         ok, records, error = _execute_fake(plans, screen_maps)
-        entry_csv = output_dir / "entry_log.csv"
-        entry_xlsx = output_dir / "entry_log.xlsx"
+        entry_csv = ctx.output_dir / "entry_log.csv"
+        entry_xlsx = ctx.output_dir / "entry_log.xlsx"
         write_entry_log_csv(records, entry_csv)
         write_entry_log_xlsx(records, entry_xlsx)
 
@@ -241,7 +230,7 @@ def _command_run_fake(args: argparse.Namespace) -> int:
                 print(f"fake execution failed: {error}")
             return 1
         return 0
-    except (ExcelLoadError, ConfigLoadError, ValueError) as exc:
+    except (ConfigLoadError, ValueError) as exc:
         print(f"run-fake failed: {exc}")
         return 1
 
@@ -263,28 +252,22 @@ def _command_run_live(args: argparse.Namespace) -> int:
         return 1
 
     try:
-        loaded = load_workbook_data(args.input)
-        clients = _select_clients(loaded.client_batch, args.client_id)
-        if args.client_id and not clients:
-            raise ValueError(f"Client '{args.client_id}' not found in workbook")
+        ctx = _prepare_context(args)
+    except (ExcelLoadError, ValueError) as exc:
+        print(f"run-live failed: {exc}")
+        return 1
 
-        issues = validate_client_batch(ClientBatch(clients=clients), source_cells=loaded.source_cells)
-        output_dir = Path(args.output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        validation_report_path = output_dir / "validation_report.xlsx"
-        write_validation_report_xlsx(issues, validation_report_path)
+    _print_validation_summary(ctx)
+    if _should_stop_for_validation(ctx.issues, args.fail_on_warning):
+        return 1
 
-        ctx = WorkflowContext(clients=clients, issues=issues, output_dir=output_dir, validation_report_path=validation_report_path)
-        _print_validation_summary(ctx)
-        if _should_stop_for_validation(issues, args.fail_on_warning):
-            return 1
-
+    try:
         screen_maps = _load_config_maps(args)
-        plans = _build_action_plans(clients, screen_maps=screen_maps, source_cells=loaded.source_cells)
+        plans = _build_action_plans(ctx.clients, screen_maps=screen_maps, source_cells=ctx.source_cells)
 
         ok, records, error = _execute_live_stub(plans, screen_maps, live_enabled=True)
-        entry_csv = output_dir / "entry_log.csv"
-        entry_xlsx = output_dir / "entry_log.xlsx"
+        entry_csv = ctx.output_dir / "entry_log.csv"
+        entry_xlsx = ctx.output_dir / "entry_log.xlsx"
         write_entry_log_csv(records, entry_csv)
         write_entry_log_xlsx(records, entry_xlsx)
 
@@ -294,7 +277,7 @@ def _command_run_live(args: argparse.Namespace) -> int:
                 print(error)
             return 1
         return 0
-    except (ExcelLoadError, ConfigLoadError, ValueError) as exc:
+    except (ConfigLoadError, ValueError) as exc:
         print(f"run-live failed: {exc}")
         return 1
 

@@ -34,7 +34,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-twe = ["data/*.json"]
+twe = ["data/*.json", "*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
