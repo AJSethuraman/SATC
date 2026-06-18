@@ -117,9 +117,12 @@ class AppState:
         """
         import tempfile
 
+        from satc.intake import reconcile_received
+
         self.gate = StagingGate()          # fresh working area for this intake
         files_read = 0
         fields_staged = 0
+        reconciled = 0
         notes: list[str] = []
         allow_cloud = cloud_vision_enabled()   # OFF unless the practice opts in
         classifier = load_classifier(has_key=allow_cloud)
@@ -139,6 +142,12 @@ class AppState:
 
                 for c, fpath, doc_id in docs:
                     how = f"detected by {c.method}" if c.classified else "could not identify"
+                    if c.classified:   # close the loop: does this satisfy an open request?
+                        matched = reconcile_received(self.store, client_id=client_id, doc_type=c.label)
+                        if matched is not None:
+                            reconciled += 1
+                            notes.append(f"{doc_id} → ✓ satisfies your request “{matched.doc_type}” "
+                                         f"— marked Received.")
                     if not c.extractable:
                         what = c.label if c.classified else "unrecognized document"
                         notes.append(f"{doc_id} → {what} ({how}): filed, not extracted.")
@@ -159,8 +168,11 @@ class AppState:
                                  f"{len(staged.fields)} fields via {via}.")
 
         self.gate.auto_confirm_high(by="auto (intake)")
+        if reconciled:
+            self.reload()              # refresh documents view with the new Received statuses
         self.intake_summary = {"folder": folder, "files_read": files_read,
-                               "fields_staged": fields_staged, "notes": notes}
+                               "fields_staged": fields_staged, "reconciled": reconciled,
+                               "notes": notes}
         return self.intake_summary
 
     @staticmethod

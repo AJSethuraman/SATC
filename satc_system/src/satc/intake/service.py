@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from satc.ids import opaque_id
+from satc.intake import matching
 from satc.intake.workflows import build_engagement, load_workflow
 from satc.models.identity import IdentityRecord, PublicClient, VaultAddress, VaultContact
 from satc.models.intake import IntakeEngagement, Relationship
@@ -161,23 +162,22 @@ def create_engagement(store, *, client_id: str, workflow_key: str, due_date: dat
     return eng
 
 
-def _matches(received: str, requested: str) -> bool:
-    a, b = received.strip().lower(), requested.strip().lower()
-    return bool(a) and (a == b or a in b or b in a)
-
-
 def reconcile_received(store, *, client_id: str, doc_type: str) -> DocumentRecord | None:
-    """Flip the first matching outstanding request to ``Received`` and complete its task.
+    """Flip the best matching outstanding request to ``Received`` and complete its task.
 
     Called when the document pipeline classifies an arriving document; closes the
-    loop between what was requested at intake and what has actually come in.
+    loop between what was requested at intake and what has actually come in. A
+    request's type AND its prose description (stored in ``note``) are both
+    considered, so a received "W-2" satisfies a "core income documents" bundle.
+    When several requests match, the most specific one wins.
     """
     mart = store.load_mart()
-    match = next((d for d in mart.documents
+    candidates = [d for d in mart.documents
                   if d.client_id == client_id and d.status == "Requested"
-                  and _matches(doc_type, str(d.doc_type))), None)
-    if match is None:
+                  and matching.matches(doc_type, str(d.doc_type), d.note)]
+    if not candidates:
         return None
+    match = min(candidates, key=lambda d: matching.specificity(str(d.doc_type), d.note))
     store.set_document_status(match.document_id, "Received")
     match.status = "Received"
     for eng in store.load_intake_engagements():
