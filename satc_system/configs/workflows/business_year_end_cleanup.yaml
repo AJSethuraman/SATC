@@ -1,0 +1,109 @@
+# Workflow: Business year-end cleanup
+#
+# Ported from JS workflow `yearEndCleanup` (renamed via `businessYearEndCleanup`).
+# NOTE: quote "yes"/"no" — bare yes/no are booleans in YAML and would break condition matching.
+key: business_year_end_cleanup
+name: Business year-end cleanup
+description: Prepare books for tax-ready year-end review and reporting.
+engagement_type: businessYearEndCleanup
+client_type: business
+
+questions:
+  - id: newFixedAssets
+    label: Were fixed assets purchased or disposed?
+    type: boolean
+  - id: hasPayroll
+    label: Did the client have payroll during the year?
+    type: boolean
+  - id: needs1099Review
+    label: Does the client need 1099 vendor review?
+    type: boolean
+  - id: ownerContributions
+    label: Were there owner contributions or distributions?
+    type: boolean
+  - id: openSuspenseItems
+    label: Are there suspense or uncategorized items?
+    type: boolean
+
+tasks:
+  - template_id: year-end-lock-periods-backup-file
+    title: Lock prior reviewed periods and backup accounting file
+    category: Preparation
+    audience: internal
+    days_before_due: 30
+
+  - template_id: year-end-reconcile-cash-credit-loans
+    title: Reconcile all cash, credit card, and loan accounts
+    category: Reconciliation
+    audience: internal
+    days_before_due: 25
+
+  - template_id: year-end-review-suspense-accounts
+    title: Review uncategorized and suspense accounts
+    category: Cleanup
+    audience: internal
+    days_before_due: 20
+
+  - template_id: year-end-prepare-adjusting-entries
+    title: Prepare adjusting journal entries
+    category: Adjustments
+    audience: internal
+    days_before_due: 7
+
+  - template_id: year-end-deliver-tax-ready-trial-balance
+    title: Deliver tax-ready trial balance and cleanup notes
+    category: Reporting
+    audience: client
+    days_before_due: 0
+    doc_type: Trial balance
+
+  - template_id: year-end-request-asset-documents
+    title: Request asset purchase invoices and disposal documentation
+    category: Document requests
+    audience: client
+    days_before_due: 18
+    doc_type: Asset purchase and disposal documents
+    condition: {question_id: newFixedAssets, equals: "yes"}
+    client_request_text: Request asset purchase invoices and disposal documentation.
+
+  - template_id: year-end-update-fixed-assets
+    title: Update fixed asset register and depreciation entries
+    category: Adjustments
+    audience: internal
+    days_before_due: 16
+    condition: {question_id: newFixedAssets, equals: "yes"}
+
+  - template_id: year-end-request-annual-payroll-reports
+    title: Request annual payroll reports and reconcile wages to payroll tax filings
+    category: Document requests
+    audience: client
+    days_before_due: 12
+    doc_type: Annual payroll reports
+    condition: {question_id: hasPayroll, equals: "yes"}
+    client_request_text: >-
+      Request annual payroll reports and reconcile wages to payroll tax filings.
+
+  - template_id: year-end-review-1099-vendor-list
+    title: Request W-9s and confirm 1099 vendor payment totals
+    category: Document requests
+    audience: client
+    days_before_due: 10
+    doc_type: W-9
+    condition: {question_id: needs1099Review, equals: "yes"}
+    client_request_text: Request W-9s and confirm 1099 vendor payment totals.
+
+  - template_id: year-end-reconcile-owner-equity
+    title: Reconcile owner contributions, draws, and equity rollforward
+    category: Review
+    audience: internal
+    days_before_due: 9
+    condition: {question_id: ownerContributions, equals: "yes"}
+
+  - template_id: year-end-send-suspense-questions
+    title: Send suspense item question list to client
+    category: Client follow-up
+    audience: client
+    days_before_due: 8
+    doc_type: Suspense item responses
+    condition: {question_id: openSuspenseItems, equals: "yes"}
+    client_request_text: Send suspense item question list to client.

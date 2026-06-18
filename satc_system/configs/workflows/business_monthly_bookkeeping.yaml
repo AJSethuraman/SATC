@@ -1,0 +1,119 @@
+# Workflow: Business monthly bookkeeping
+#
+# Ported from JS workflow `monthlyBookkeeping` (renamed via `businessMonthlyBookkeeping`).
+# NOTE: quote "yes"/"no" — bare yes/no are booleans in YAML and would break condition matching.
+key: business_monthly_bookkeeping
+name: Business monthly bookkeeping
+description: Close the month with reconciliations, reviews, reports, and client follow-up.
+engagement_type: businessMonthlyBookkeeping
+client_type: business
+
+questions:
+  - id: usesPayroll
+    label: Did the client run payroll this month?
+    type: boolean
+  - id: hasLoanActivity
+    label: Was there loan or financing activity?
+    type: boolean
+  - id: inventoryActivity
+    label: Did inventory change materially?
+    type: boolean
+  - id: salesTaxFilingDue
+    label: Is a sales tax filing due?
+    type: boolean
+  - id: unclearedTransactions
+    label: Are there uncleared or uncategorized transactions?
+    type: boolean
+
+tasks:
+  - template_id: monthly-request-bank-statements
+    title: Request bank, credit card, and loan statements
+    category: Document requests
+    audience: client
+    days_before_due: 10
+    doc_type: Bank and credit card statements
+    client_request_text: Request bank, credit card, and loan statements.
+
+  - template_id: monthly-import-transactions
+    title: Import transactions and refresh bank feeds
+    category: Data entry
+    audience: internal
+    days_before_due: 9
+
+  - template_id: monthly-categorize-transactions
+    title: Categorize income and expenses
+    category: Data entry
+    audience: internal
+    days_before_due: 7
+
+  - template_id: monthly-reconcile-bank-credit-cards
+    title: Reconcile bank and credit card accounts
+    category: Reconciliation
+    audience: internal
+    days_before_due: 5
+
+  - template_id: monthly-review-ar-ap
+    title: Review accounts receivable and accounts payable
+    category: Review
+    audience: internal
+    days_before_due: 4
+
+  - template_id: monthly-post-adjusting-entries
+    title: Post depreciation, accruals, and recurring journal entries
+    category: Adjustments
+    audience: internal
+    days_before_due: 3
+
+  - template_id: monthly-prepare-financial-statements
+    title: Prepare financial statements and management notes
+    category: Reporting
+    audience: internal
+    days_before_due: 2
+
+  - template_id: monthly-send-close-package
+    title: Send monthly close package to client
+    category: Reporting
+    audience: client
+    days_before_due: 0
+    doc_type: Monthly close package
+
+  - template_id: monthly-request-payroll-reports
+    title: Request payroll reports and tie wages to payroll tax liabilities
+    category: Document requests
+    audience: client
+    days_before_due: 6
+    doc_type: Payroll reports
+    condition: {question_id: usesPayroll, equals: "yes"}
+    client_request_text: Request payroll reports and tie wages to payroll tax liabilities.
+
+  - template_id: monthly-review-loan-activity
+    title: Review loan statements, interest, principal, and new financing entries
+    category: Reconciliation
+    audience: internal
+    days_before_due: 5
+    condition: {question_id: hasLoanActivity, equals: "yes"}
+
+  - template_id: monthly-request-inventory-report
+    title: Request inventory count or valuation report
+    category: Document requests
+    audience: client
+    days_before_due: 5
+    doc_type: Inventory report
+    condition: {question_id: inventoryActivity, equals: "yes"}
+    client_request_text: Request inventory count or valuation report.
+
+  - template_id: monthly-prepare-sales-tax-support
+    title: Prepare sales tax reconciliation and filing support
+    category: Compliance
+    audience: internal
+    days_before_due: 3
+    condition: {question_id: salesTaxFilingDue, equals: "yes"}
+
+  - template_id: monthly-send-transaction-questions
+    title: Send transaction question list to client
+    category: Client follow-up
+    audience: client
+    days_before_due: 4
+    doc_type: Transaction question responses
+    condition: {question_id: unclearedTransactions, equals: "yes"}
+    client_request_text: Send transaction question list to client.
