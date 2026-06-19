@@ -10,6 +10,7 @@ cited crosswalk via :mod:`satc.withholding`.
 from __future__ import annotations
 
 import io
+from pathlib import Path
 
 from flask import Blueprint, render_template, request, send_file, session
 
@@ -103,13 +104,15 @@ def withholding():
     return render_template("withholding.html", **_ctx(form=form, result=result))
 
 
-@bp.route("/withholding/from-paystub", methods=["POST"])
-def from_paystub():
-    """Read pasted paystub text and pre-fill the form (uncertain fields flagged)."""
-    read = PaystubReader().read_text(request.form.get("paystub_text", ""))
+def _prefill_render(read, filing_status: str, *, lead_notes: list[str] | None = None):
+    """Render the screen pre-filled from a paystub read (uploaded file or pasted text).
+
+    Same conservative behavior either way: uncertain fields are flagged and the
+    preparer confirms every figure before it counts.
+    """
     stub = paystub_from_fields(read.labeled_fields)
     form = {
-        "filing_status": request.form.get("filing_status", "single"),
+        "filing_status": filing_status,
         "pay_frequency": stub.pay_frequency,
         "gross_pay_per_period": _str(stub.gross_pay_per_period),
         "federal_tax_withheld_per_period": _str(stub.federal_tax_withheld_per_period),
@@ -119,12 +122,75 @@ def from_paystub():
         "pay_periods_remaining": "" if stub.pay_periods_remaining is None
         else str(stub.pay_periods_remaining),
     }
+    notes = list(lead_notes or [])
     if not read.labeled_fields:
-        notes = ["No paystub figures could be read from that text — enter them by hand."]
+        notes.append("No paystub figures could be read — enter them by hand.")
     else:
-        notes = [f"Read “{lbl}” — please confirm." for lbl in sorted(read.uncertain_labels)]
+        notes += [f"Read “{lbl}” — please confirm." for lbl in sorted(read.uncertain_labels)]
     return render_template("withholding.html", **_ctx(form=form, prefilled=True,
                                                       prefill_notes=notes))
+
+
+def _read_paystub_file(upload) -> tuple[str, str]:
+    """Pull text from an uploaded paystub, local-first; returns ``(text, source note)``.
+
+    Reuses the same on-device reader ladder as the rest of SATC: text-layer PDFs
+    are read with pypdf, and scans/images fall back to local OCR (Tesseract) when
+    available. The cloud is never used here — nothing leaves the machine.
+    """
+    import os
+    import tempfile
+
+    from werkzeug.utils import secure_filename
+
+    from satc import settings
+    from satc.ingest.readers.paystub import _page_text
+
+    name = upload.filename or "paystub"
+    suffix = Path(secure_filename(name)).suffix.lower()
+    fd, tmp = tempfile.mkstemp(suffix=suffix or ".pdf")
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            upload.save(handle)
+
+        text = _page_text(tmp) if suffix == ".pdf" else ""
+        if text.strip():
+            return text, f"Read “{name}” from its PDF text layer — on this machine."
+
+        if settings.ocr_enabled():
+            from satc.ingest.ocr import ocr_document_text
+            text = ocr_document_text(tmp)
+            if text.strip():
+                return text, f"Read “{name}” with local OCR — on this machine."
+
+        return "", (f"Couldn’t pull text from “{name}”. If it’s a scan, install Tesseract "
+                    "for local OCR, or paste the paystub text below.")
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+
+@bp.route("/withholding/from-paystub", methods=["POST"])
+def from_paystub():
+    """Read pasted paystub text and pre-fill the form (uncertain fields flagged)."""
+    read = PaystubReader().read_text(request.form.get("paystub_text", ""))
+    return _prefill_render(read, request.form.get("filing_status", "single"))
+
+
+@bp.route("/withholding/from-file", methods=["POST"])
+def from_file():
+    """Read an uploaded paystub (PDF or image) on-device and pre-fill the form."""
+    upload = request.files.get("paystub_file")
+    if upload is None or not (upload.filename or "").strip():
+        return render_template("withholding.html", **_ctx(
+            prefilled=True,
+            prefill_notes=["No file was selected — choose a paystub PDF or image, or paste the text below."]))
+    text, note = _read_paystub_file(upload)
+    return _prefill_render(PaystubReader().read_text(text),
+                           request.form.get("filing_status", "single"),
+                           lead_notes=[note] if note else None)
 
 
 @bp.route("/withholding/audit.xlsx")

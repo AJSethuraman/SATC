@@ -57,3 +57,46 @@ def test_paste_paystub_prefills_form(client):
     assert b"Pre-filled from the paystub" in resp.data
     assert b"2500.00" in resp.data        # gross prefilled into the form value
     assert b"3600.00" in resp.data        # YTD federal withheld prefilled
+
+
+def _textlayer_paystub_pdf() -> bytes:
+    """A real text-layer PDF carrying paystub lines (so pypdf can read it)."""
+    import io as _io
+
+    from reportlab.pdfgen import canvas
+
+    buf = _io.BytesIO()
+    c = canvas.Canvas(buf)
+    c.setFont("Courier", 11)
+    y = 760
+    for line in ("Pay Frequency: Bi-Weekly",
+                 "Gross Pay            2,500.00    30,000.00",
+                 "Federal Income Tax     300.00     3,600.00"):
+        c.drawString(60, y, line)
+        y -= 18
+    c.showPage()
+    c.save()
+    return buf.getvalue()
+
+
+def test_upload_textlayer_pdf_prefills_form(client):
+    import io as _io
+
+    resp = client.post(
+        "/withholding/from-file",
+        data={"filing_status": "single",
+              "paystub_file": (_io.BytesIO(_textlayer_paystub_pdf()), "stub.pdf")},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 200
+    assert b"Pre-filled from the paystub" in resp.data
+    assert b"2500.00" in resp.data           # gross pulled from the PDF text layer
+    assert b"3600.00" in resp.data           # YTD federal withheld pulled too
+    assert b"text layer" in resp.data        # local, on-device source note
+
+
+def test_upload_without_file_is_handled(client):
+    resp = client.post("/withholding/from-file", data={"filing_status": "single"},
+                       content_type="multipart/form-data")
+    assert resp.status_code == 200
+    assert b"No file was selected" in resp.data
