@@ -2,123 +2,140 @@
 {% block content %}
 <div class="hero">
   <h2>Withholding estimator</h2>
-  <div class="muted">Project the full-year federal tax from a paystub and get a per-paycheck
-    W-4 (line 4c) recommendation. Tax constants come from the dated, cited crosswalk —
-    nothing is hardcoded.</div>
+  <div class="muted">Add each job's paystub — upload, paste, or type. Stubs are read on-device and
+    learned per employer, so repeat employers fill in automatically. The estimate sums all jobs and
+    recommends a per-paycheck W-4 (line 4c) adjustment on the job you choose to tune.</div>
 </div>
 
-{% if prefilled %}
+{% if prefill_notes %}
 <div class="panel"><div class="body">
-  <strong>Pre-filled from the paystub.</strong> Review the figures below, then run the estimate.
-  {% if prefill_notes %}
-  <ul class="muted" style="margin:6px 0 0 18px">
-    {% for n in prefill_notes %}<li>{{ n }}</li>{% endfor %}
-  </ul>
-  {% endif %}
+  <ul class="muted" style="margin:0 0 0 18px">{% for n in prefill_notes %}<li>{{ n }}</li>{% endfor %}</ul>
 </div></div>
 {% endif %}
 
+{% if teach %}
 <div class="panel">
-  <h2>Start from a paystub <span class="muted" style="font-weight:normal">(optional)</span></h2>
+  <h2>Teach this layout <span class="muted" style="font-weight:normal">(optional)</span></h2>
   <div class="body">
-    <form method="post" action="{{ url_for('withholding.from_file') }}" enctype="multipart/form-data">
-      <p class="muted" style="margin-top:0">Upload a paystub (PDF or image) and the same on-device reader pulls
-        the figures below — text-layer PDFs are read instantly, scans use local OCR. Nothing leaves your machine;
-        you confirm everything before it counts.</p>
-      <input class="field-input" type="file" name="paystub_file"
-             accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp">
-      <p style="margin-top:10px"><button class="btn" type="submit">Upload &amp; read</button></p>
-    </form>
-
-    <div class="muted" style="text-align:center;margin:4px 0 10px">— or paste the text —</div>
-
-    <form method="post" action="{{ url_for('withholding.from_paystub') }}">
-      <textarea class="field-input" name="paystub_text" rows="6"
-                style="width:100%;font-family:monospace"
-                placeholder="Gross Pay   2,500.00   30,000.00&#10;Federal Income Tax   300.00   3,600.00 ..."></textarea>
-      <p style="margin-top:10px"><button class="btn" type="submit">Read &amp; pre-fill</button></p>
+    <p class="muted" style="margin-top:0">Confirm each figure exactly as it appears on the stub, then save the
+      layout. Next time a paystub from <strong>{{ teach.hint }}</strong> is added, these fill in automatically.
+      Only the layout (labels &amp; which column) is saved — never the amounts.</p>
+    <form method="post" action="{{ url_for('withholding.save_layout') }}">
+      <div class="grid2">
+        <p><label class="muted">Gross — current</label><br><input class="field-input" name="t_gross_cur" value="{{ teach.values.gross_cur }}"></p>
+        <p><label class="muted">Gross — YTD</label><br><input class="field-input" name="t_gross_ytd" value="{{ teach.values.gross_ytd }}"></p>
+        <p><label class="muted">Federal withheld — current</label><br><input class="field-input" name="t_fed_cur" value="{{ teach.values.fed_cur }}"></p>
+        <p><label class="muted">Federal withheld — YTD</label><br><input class="field-input" name="t_fed_ytd" value="{{ teach.values.fed_ytd }}"></p>
+        <p><label class="muted">Pre-tax retirement — current</label><br><input class="field-input" name="t_retire_cur" value="{{ teach.values.retire_cur }}"></p>
+        <p><label class="muted">Pay frequency</label><br><input class="field-input" name="t_freq" value="{{ teach.values.freq }}"></p>
+      </div>
+      <p class="muted" style="margin-bottom:4px">Source text (read-only, for reference)</p>
+      <textarea name="paystub_src" rows="5" readonly style="width:100%;font-family:monospace">{{ teach.source }}</textarea>
+      <p style="margin-top:10px"><button class="btn" type="submit">Save this layout</button></p>
     </form>
   </div>
 </div>
+{% endif %}
 
-<div class="panel">
-  <h2>Estimate</h2>
-  <div class="body">
-    <form method="post" action="{{ url_for('withholding.withholding') }}">
+<form method="post" action="{{ url_for('withholding.withholding') }}" enctype="multipart/form-data">
 
-      <h3>Filing</h3>
+  <div class="panel">
+    <h2>Add a job from a paystub</h2>
+    <div class="body">
+      <p class="muted" style="margin-top:0">Upload a paystub (PDF or image), read on-device, or paste its text.
+        Add as many jobs as the household has — e.g. taxpayer + spouse, or a second job.</p>
+      <div class="grid2">
+        <p>
+          <label class="muted">Upload a paystub</label><br>
+          <input class="field-input" type="file" name="paystub_file"
+                 accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp"><br>
+          <button class="btn" type="submit" formaction="{{ url_for('withholding.from_file') }}" style="margin-top:8px">Upload &amp; read → add job</button>
+        </p>
+        <p>
+          <label class="muted">…or paste paystub text</label><br>
+          <textarea class="field-input" name="paystub_text" rows="3" style="width:100%;font-family:monospace"
+                    placeholder="Gross Pay   2,500.00   30,000.00&#10;Federal Income Tax   300.00   3,600.00"></textarea><br>
+          <button class="btn" type="submit" formaction="{{ url_for('withholding.from_paystub') }}" style="margin-top:8px">Read text → add job</button>
+        </p>
+      </div>
+      <p><button class="btn" type="submit" formaction="{{ url_for('withholding.add_job') }}">+ Add a blank job</button></p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Jobs <span class="muted" style="font-weight:normal">({{ jobs|length }})</span></h2>
+    <div class="body">
+      {% if not jobs %}
+      <p class="muted">No jobs yet — upload or paste a paystub above, or add a blank job to type by hand.</p>
+      {% endif %}
+      {% for job in jobs %}
+      <div class="panel" style="margin:0 0 12px"><div class="body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong>Job {{ loop.index }}{% if job.name %} — {{ job.name }}{% endif %}</strong>
+          <span>
+            <label class="muted" style="margin-right:12px">
+              <input type="radio" name="adjust_job" value="{{ loop.index0 }}" {{ 'checked' if adjust_job==loop.index0 }}> tune this job's W-4
+            </label>
+            <button class="btn sm" type="submit" formaction="{{ url_for('withholding.remove_job') }}" name="remove_index" value="{{ loop.index0 }}">Remove</button>
+          </span>
+        </div>
+        <div class="grid2">
+          <p><label class="muted">Employer / job name</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_name" value="{{ job.name }}"></p>
+          <p><label class="muted">Pay frequency</label><br>
+            <select class="field-input" name="j{{ loop.index0 }}_pay_frequency">
+              {% for f in frequencies %}<option value="{{ f }}" {{ 'selected' if job.pay_frequency==f }}>{{ f }}</option>{% endfor %}
+            </select></p>
+          <p><label class="muted">Gross pay per period</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_gross_pay_per_period" value="{{ job.gross_pay_per_period }}"></p>
+          <p><label class="muted">Federal tax withheld per period</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_federal_tax_withheld_per_period" value="{{ job.federal_tax_withheld_per_period }}"></p>
+          <p><label class="muted">Pre-tax retirement per period</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_retirement_pretax_per_period" value="{{ job.retirement_pretax_per_period }}"></p>
+          <p><label class="muted">Pay periods remaining (optional)</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_pay_periods_remaining" value="{{ job.pay_periods_remaining }}"></p>
+          <p><label class="muted">YTD taxable wages</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_ytd_taxable_wages" value="{{ job.ytd_taxable_wages }}"></p>
+          <p><label class="muted">YTD federal tax withheld</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_ytd_federal_tax_withheld" value="{{ job.ytd_federal_tax_withheld }}"></p>
+        </div>
+      </div></div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Household</h2>
+    <div class="body">
       <div class="grid2">
         <p><label class="muted">Filing status</label><br>
           <select class="field-input" name="filing_status">
-            {% for value, label in filing_statuses %}
-            <option value="{{ value }}" {{ 'selected' if form.get('filing_status')==value }}>{{ label }}</option>
-            {% endfor %}
+            {% for value, label in filing_statuses %}<option value="{{ value }}" {{ 'selected' if hh.get('filing_status')==value }}>{{ label }}</option>{% endfor %}
           </select></p>
         <p><label class="muted">Tax year</label><br>
           <select class="field-input" name="tax_year">
-            {% for y in years %}
-            <option value="{{ y }}" {{ 'selected' if form.get('tax_year', years[-1]|string)==y|string }}>{{ y }}</option>
-            {% endfor %}
+            {% for y in years %}<option value="{{ y }}" {{ 'selected' if hh.get('tax_year', years[-1]|string)==y|string }}>{{ y }}</option>{% endfor %}
           </select></p>
-      </div>
-
-      <h3>Paystub</h3>
-      <div class="grid2">
-        <p><label class="muted">Pay frequency</label><br>
-          <select class="field-input" name="pay_frequency">
-            {% for f in frequencies %}
-            <option value="{{ f }}" {{ 'selected' if form.get('pay_frequency','biweekly')==f }}>{{ f }}</option>
-            {% endfor %}
-          </select></p>
-        <p><label class="muted">Pay periods remaining (optional)</label><br>
-          <input class="field-input" name="pay_periods_remaining" value="{{ form.get('pay_periods_remaining','') }}"></p>
-        <p><label class="muted">Gross pay per period</label><br>
-          <input class="field-input" name="gross_pay_per_period" value="{{ form.get('gross_pay_per_period','') }}"></p>
-        <p><label class="muted">Federal tax withheld per period</label><br>
-          <input class="field-input" name="federal_tax_withheld_per_period" value="{{ form.get('federal_tax_withheld_per_period','') }}"></p>
-        <p><label class="muted">Pre-tax retirement per period</label><br>
-          <input class="field-input" name="retirement_pretax_per_period" value="{{ form.get('retirement_pretax_per_period','') }}"></p>
-        <p><label class="muted">YTD taxable wages</label><br>
-          <input class="field-input" name="ytd_taxable_wages" value="{{ form.get('ytd_taxable_wages','') }}"></p>
-        <p><label class="muted">YTD federal tax withheld</label><br>
-          <input class="field-input" name="ytd_federal_tax_withheld" value="{{ form.get('ytd_federal_tax_withheld','') }}"></p>
       </div>
 
       <h3>Other income <span class="muted" style="font-weight:normal">(annual; leave blank if none)</span></h3>
       <div class="grid2">
-        {% for name, label in [
-            ('interest','Interest'), ('ordinary_dividends','Ordinary dividends'),
-            ('qualified_dividends','Qualified dividends'), ('long_term_capital_gains','Long-term capital gains'),
-            ('short_term_capital_gains','Short-term capital gains'), ('self_employment_net','Self-employment net')] %}
-        <p><label class="muted">{{ label }}</label><br>
-          <input class="field-input" name="{{ name }}" value="{{ form.get(name,'') }}"></p>
+        {% for name, label in [('interest','Interest'),('ordinary_dividends','Ordinary dividends'),('qualified_dividends','Qualified dividends'),('long_term_capital_gains','Long-term capital gains'),('short_term_capital_gains','Short-term capital gains'),('self_employment_net','Self-employment net')] %}
+        <p><label class="muted">{{ label }}</label><br><input class="field-input" name="{{ name }}" value="{{ hh.get(name,'') }}"></p>
         {% endfor %}
       </div>
 
       <h3>Deductions, credits &amp; goals</h3>
       <div class="grid2">
-        <p><label class="muted">Itemized deductions (blank = standard)</label><br>
-          <input class="field-input" name="itemized_total" value="{{ form.get('itemized_total','') }}"></p>
-        <p><label class="muted">Extra standard deductions (65+/blind boxes)</label><br>
-          <input class="field-input" name="extra_standard_deductions" value="{{ form.get('extra_standard_deductions','') }}"></p>
-        <p><label class="muted">Child tax credit</label><br>
-          <input class="field-input" name="child_tax_credit" value="{{ form.get('child_tax_credit','') }}"></p>
-        <p><label class="muted">Other nonrefundable credits</label><br>
-          <input class="field-input" name="other_nonrefundable_credits" value="{{ form.get('other_nonrefundable_credits','') }}"></p>
-        <p><label class="muted">Estimated tax payments</label><br>
-          <input class="field-input" name="estimated_tax_payments" value="{{ form.get('estimated_tax_payments','') }}"></p>
-        <p><label class="muted">Target refund</label><br>
-          <input class="field-input" name="target_refund" value="{{ form.get('target_refund','') }}"></p>
-        <p><label class="muted">Prior-year tax (for safe harbor)</label><br>
-          <input class="field-input" name="prior_year_tax" value="{{ form.get('prior_year_tax','') }}"></p>
-        <p><label class="muted">Prior-year AGI</label><br>
-          <input class="field-input" name="prior_year_agi" value="{{ form.get('prior_year_agi','') }}"></p>
+        {% for name, label in [('itemized_total','Itemized deductions (blank = standard)'),('extra_standard_deductions','Extra standard deductions (65+/blind)'),('child_tax_credit','Child tax credit'),('other_nonrefundable_credits','Other nonrefundable credits'),('estimated_tax_payments','Estimated tax payments'),('target_refund','Target refund'),('prior_year_tax','Prior-year tax (safe harbor)'),('prior_year_agi','Prior-year AGI')] %}
+        <p><label class="muted">{{ label }}</label><br><input class="field-input" name="{{ name }}" value="{{ hh.get(name,'') }}"></p>
+        {% endfor %}
       </div>
 
       <p style="margin-top:16px"><button class="btn primary" type="submit">Run estimate</button></p>
-    </form>
+    </div>
   </div>
-</div>
+</form>
 
 {% if result %}
 {% set b = result.breakdown %}
@@ -127,9 +144,20 @@
   <h2>Result — TY{{ result.tax_year_used }}
     <a class="btn sm" style="float:right" href="{{ url_for('withholding.audit_tape') }}">⬇ Download audit tape (Excel)</a></h2>
   <div class="body">
+    {% if rec.job_breakdown and rec.job_breakdown|length > 1 %}
+    <h3>Jobs ({{ rec.job_breakdown|length }})</h3>
+    <table class="lines" style="width:100%;margin-bottom:14px">
+      <tr><th style="text-align:left">Job</th><th>Frequency</th><th style="text-align:right">Projected wages</th><th style="text-align:right">Projected withholding</th></tr>
+      {% for j in rec.job_breakdown %}
+      <tr><td>{{ j.name or ('Job ' ~ loop.index) }}</td><td style="text-align:center">{{ j.pay_frequency }}</td>
+        <td style="text-align:right">{{ '${:,.0f}'.format(j.projected_taxable_wages) }}</td>
+        <td style="text-align:right">{{ '${:,.0f}'.format(j.projected_withholding) }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
     <div class="grid2">
       <div>
-        <h3>Projection</h3>
+        <h3>Projection (all jobs)</h3>
         <table class="lines" style="width:100%">
           <tr><td>Projected taxable wages</td><td style="text-align:right">{{ '${:,.0f}'.format(b.projected_taxable_wages) }}</td></tr>
           <tr><td>Adjusted gross income</td><td style="text-align:right">{{ '${:,.0f}'.format(b.adjusted_gross_income) }}</td></tr>
@@ -154,15 +182,13 @@
           <tr><td>Safe-harbor additional / period</td><td style="text-align:right">{{ '${:,.2f}'.format(rec.safe_harbor_additional_per_period) }}</td></tr>{% endif %}
           <tr><td class="muted">{{ 'Over-withholding — consider reducing.' if rec.is_over_withholding else 'On track / under target.' }}</td><td></td></tr>
         </table>
-        <p class="muted" style="margin-top:8px">Applies to {{ rec.adjusted_job_name or 'the primary job' }};
+        <p class="muted" style="margin-top:8px">Tuning {{ rec.adjusted_job_name or 'the selected job' }};
           {{ rec.periods_remaining }} pay periods remaining.</p>
       </div>
     </div>
     {% if result.notes %}
     <h3>Notes</h3>
-    <ul class="muted" style="margin:0 0 0 18px">
-      {% for n in result.notes %}<li>{{ n }}</li>{% endfor %}
-    </ul>
+    <ul class="muted" style="margin:0 0 0 18px">{% for n in result.notes %}<li>{{ n }}</li>{% endfor %}</ul>
     {% endif %}
   </div>
 </div>
@@ -171,6 +197,6 @@
 <style>
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 22px; }
 .grid2 > p { margin:6px 0; }
-table.lines td { padding:3px 0; border-bottom:1px solid #eee; }
+table.lines td, table.lines th { padding:3px 0; border-bottom:1px solid #eee; }
 </style>
 {% endblock %}

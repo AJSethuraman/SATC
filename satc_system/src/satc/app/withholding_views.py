@@ -1,20 +1,31 @@
 """Withholding estimator screen (Flask blueprint).
 
-Registered by :func:`satc.app.server.create_app`. A self-contained planning tool:
-enter paystub + other-income figures (or paste a paystub's text to pre-fill them),
-get a full-year federal projection and a per-paycheck W-4 line 4c recommendation,
-and download the branded Excel audit tape. Tax constants come from SATC's dated,
-cited crosswalk via :mod:`satc.withholding`.
+A household planning tool: add one or more **jobs** (each from a paystub — uploaded,
+pasted, or typed), get a full-year federal projection across all of them, and a
+per-paycheck W-4 (line 4c) recommendation on the job you choose to tune. Paystub
+reading runs on-device and *learns*: once you teach an employer's layout, later
+stubs from that employer fill in automatically. Tax constants come from SATC's
+dated, cited crosswalk.
 """
 
 from __future__ import annotations
 
 import io
+import re
 from pathlib import Path
 
 from flask import Blueprint, render_template, request, send_file, session
 
-from satc.ingest.readers.paystub import PaystubReader
+from satc.ingest.paystub_templates import TemplateLibrary, learn, read_with_templates
+from satc.ingest.readers.paystub import (
+    LABEL_EMPLOYER,
+    LABEL_FED_WH_CURRENT,
+    LABEL_FED_WH_YTD,
+    LABEL_GROSS_CURRENT,
+    LABEL_GROSS_YTD,
+    LABEL_PAY_FREQUENCY,
+    LABEL_RETIREMENT_CURRENT,
+)
 from satc.withholding import EstimatorInput, available_years, estimate, paystub_from_fields
 from satc.withholding.audit_tape import build_audit_tape
 
@@ -27,117 +38,233 @@ FILING_STATUSES = [
     ("head_of_household", "Head of household"),
 ]
 PAY_FREQUENCIES = ["weekly", "biweekly", "semimonthly", "monthly", "annual"]
-_SESSION_KEY = "withholding_form"   # last estimate's inputs, per browser session
+
+_JOBS_KEY = "wh_jobs"          # list[dict] of per-job paystub fields, per session
+_HH_KEY = "wh_household"       # household-level fields (filing status, other income, ...)
+
+_JOB_KEYS = ("name", "pay_frequency", "gross_pay_per_period",
+             "federal_tax_withheld_per_period", "retirement_pretax_per_period",
+             "ytd_taxable_wages", "ytd_federal_tax_withheld", "pay_periods_remaining")
+
+_BLANK_JOB = {"pay_frequency": "biweekly", **{k: "" for k in _JOB_KEYS if k != "pay_frequency"}}
+
+_HH_KEYS = ("filing_status", "tax_year", "interest", "ordinary_dividends",
+            "qualified_dividends", "long_term_capital_gains", "short_term_capital_gains",
+            "self_employment_net", "itemized_total", "extra_standard_deductions",
+            "child_tax_credit", "other_nonrefundable_credits", "estimated_tax_payments",
+            "target_refund", "prior_year_tax", "prior_year_agi")
+
+_OTHER_INCOME_KEYS = ("interest", "ordinary_dividends", "qualified_dividends",
+                      "long_term_capital_gains", "short_term_capital_gains", "self_employment_net")
 
 
-def _num(form, key: str):
+def _clean_num(raw) -> str | None:
     """A money/number field -> cleaned string, or None when blank."""
-    raw = (form.get(key) or "").replace(",", "").replace("$", "").strip()
-    return raw or None
+    if raw is None:
+        return None
+    s = str(raw).replace(",", "").replace("$", "").strip()
+    return s or None
 
 
-def _form_to_input(form) -> EstimatorInput:
-    """Build an EstimatorInput from posted form fields (blanks dropped)."""
-    paystub: dict = {"pay_frequency": form.get("pay_frequency", "biweekly")}
-    for key in ("gross_pay_per_period", "federal_tax_withheld_per_period",
-                "retirement_pretax_per_period", "ytd_taxable_wages",
-                "ytd_federal_tax_withheld"):
-        val = _num(form, key)
-        if val is not None:
-            paystub[key] = val
-    remaining = _num(form, "pay_periods_remaining")
-    if remaining is not None:
-        paystub["pay_periods_remaining"] = int(float(remaining))
-
-    other_income = {k: _num(form, k) for k in (
-        "interest", "ordinary_dividends", "qualified_dividends",
-        "long_term_capital_gains", "short_term_capital_gains", "self_employment_net")}
-    other_income = {k: v for k, v in other_income.items() if v is not None}
-
-    deductions: dict = {}
-    itemized = _num(form, "itemized_total")
-    if itemized is not None:
-        deductions["itemized_total"] = itemized
-    extra = _num(form, "extra_standard_deductions")
-    if extra is not None:
-        deductions["extra_standard_deductions"] = int(float(extra))
-
-    credits = {k: _num(form, k) for k in ("child_tax_credit", "other_nonrefundable_credits")}
-    credits = {k: v for k, v in credits.items() if v is not None}
-
-    other_payments = {}
-    est = _num(form, "estimated_tax_payments")
-    if est is not None:
-        other_payments["estimated_tax_payments"] = est
-
-    data: dict = {
-        "filing_status": form.get("filing_status", "single"),
-        "paystub": paystub,
-        "other_income": other_income,
-        "deductions": deductions,
-        "credits": credits,
-        "other_payments": other_payments,
-    }
-    year = _num(form, "tax_year")
-    if year is not None:
-        data["tax_year"] = int(float(year))
-    for key in ("target_refund", "prior_year_tax", "prior_year_agi"):
-        val = _num(form, key)
-        if val is not None:
-            data[key] = val
-    return EstimatorInput.from_dict(data)
+def _str(value) -> str:
+    if value is None or value == 0:
+        return ""
+    return f"{value}"
 
 
-def _ctx(**extra) -> dict:
-    return {"title": "Withholding", "filing_statuses": FILING_STATUSES,
-            "frequencies": PAY_FREQUENCIES, "years": available_years(),
-            "form": {}, "result": None, "prefilled": False, "prefill_notes": [], **extra}
+# --- session-backed job list -------------------------------------------------
+
+def _jobs() -> list[dict]:
+    return session.get(_JOBS_KEY, [])
 
 
-@bp.route("/withholding", methods=["GET", "POST"])
-def withholding():
-    if request.method == "GET":
-        return render_template("withholding.html", **_ctx())
-    form = request.form.to_dict()
-    result = estimate(_form_to_input(form))
-    session[_SESSION_KEY] = form          # so the audit tape can re-run it
-    return render_template("withholding.html", **_ctx(form=form, result=result))
+def _set_jobs(jobs: list[dict]) -> None:
+    session[_JOBS_KEY] = jobs
+    session.modified = True
 
 
-def _prefill_render(read, filing_status: str, *, lead_notes: list[str] | None = None):
-    """Render the screen pre-filled from a paystub read (uploaded file or pasted text).
+def _household() -> dict:
+    return session.get(_HH_KEY, {})
 
-    Same conservative behavior either way: uncertain fields are flagged and the
-    preparer confirms every figure before it counts.
+
+def _collect_job_rows(form) -> list[dict] | None:
+    """Parse edited job rows (``j{i}_*``) from a submitted form, newest order.
+
+    Returns None when the form carries no job fields (so we don't wipe state on
+    forms that aren't the main one). Falls back to flat single-job fields for
+    backward compatibility.
     """
+    idxs = sorted({int(m.group(1)) for k in form.keys() for m in [re.match(r"j(\d+)_", k)] if m})
+    if idxs:
+        return [{key: (form.get(f"j{i}_{key}") or "") for key in _JOB_KEYS} for i in idxs]
+    if any(form.get(k) for k in ("gross_pay_per_period", "federal_tax_withheld_per_period")):
+        return [{key: (form.get(key) or "") for key in _JOB_KEYS}]
+    return None
+
+
+def _sync(form) -> None:
+    """Persist edited job rows + household fields from a main-form submission."""
+    rows = _collect_job_rows(form)
+    if rows is not None:
+        _set_jobs(rows)
+    hh = {k: form.get(k) for k in _HH_KEYS if form.get(k) is not None}
+    hh["adjust_job"] = form.get("adjust_job", "0")
+    session[_HH_KEY] = hh
+    session.modified = True
+
+
+def _job_from_read(read) -> dict:
+    """Turn a paystub read into a job row (per-period + YTD figures)."""
     stub = paystub_from_fields(read.labeled_fields)
-    form = {
-        "filing_status": filing_status,
+    return {
+        "name": read.labeled_fields.get(LABEL_EMPLOYER, ""),
         "pay_frequency": stub.pay_frequency,
         "gross_pay_per_period": _str(stub.gross_pay_per_period),
         "federal_tax_withheld_per_period": _str(stub.federal_tax_withheld_per_period),
         "retirement_pretax_per_period": _str(stub.retirement_pretax_per_period),
         "ytd_taxable_wages": _str(stub.ytd_taxable_wages),
         "ytd_federal_tax_withheld": _str(stub.ytd_federal_tax_withheld),
-        "pay_periods_remaining": "" if stub.pay_periods_remaining is None
-        else str(stub.pay_periods_remaining),
+        "pay_periods_remaining": "" if stub.pay_periods_remaining is None else str(stub.pay_periods_remaining),
     }
-    notes = list(lead_notes or [])
-    if not read.labeled_fields:
-        notes.append("No paystub figures could be read — enter them by hand.")
-    else:
-        notes += [f"Read “{lbl}” — please confirm." for lbl in sorted(read.uncertain_labels)]
-    return render_template("withholding.html", **_ctx(form=form, prefilled=True,
-                                                      prefill_notes=notes))
+
+
+# --- estimate assembly -------------------------------------------------------
+
+def _estimator_input(jobs: list[dict], hh: dict) -> EstimatorInput:
+    adjust = int(_clean_num(hh.get("adjust_job")) or 0)
+    job_inputs: list[dict] = []
+    for i, job in enumerate(jobs):
+        paystub: dict = {"pay_frequency": job.get("pay_frequency") or "biweekly"}
+        for key in ("gross_pay_per_period", "federal_tax_withheld_per_period",
+                    "retirement_pretax_per_period", "ytd_taxable_wages", "ytd_federal_tax_withheld"):
+            val = _clean_num(job.get(key))
+            if val is not None:
+                paystub[key] = val
+        remaining = _clean_num(job.get("pay_periods_remaining"))
+        if remaining is not None:
+            paystub["pay_periods_remaining"] = int(float(remaining))
+        if (job.get("name") or "").strip():
+            paystub["name"] = job["name"].strip()
+        if i == adjust:
+            paystub["adjust_withholding"] = True
+        job_inputs.append(paystub)
+    if not job_inputs:
+        job_inputs = [{"pay_frequency": "biweekly"}]
+
+    data: dict = {"filing_status": hh.get("filing_status", "single"), "jobs": job_inputs}
+    year = _clean_num(hh.get("tax_year"))
+    if year is not None:
+        data["tax_year"] = int(float(year))
+
+    other_income = {k: _clean_num(hh.get(k)) for k in _OTHER_INCOME_KEYS}
+    other_income = {k: v for k, v in other_income.items() if v is not None}
+    if other_income:
+        data["other_income"] = other_income
+
+    deductions: dict = {}
+    itemized = _clean_num(hh.get("itemized_total"))
+    if itemized is not None:
+        deductions["itemized_total"] = itemized
+    extra = _clean_num(hh.get("extra_standard_deductions"))
+    if extra is not None:
+        deductions["extra_standard_deductions"] = int(float(extra))
+    if deductions:
+        data["deductions"] = deductions
+
+    credits = {k: _clean_num(hh.get(k)) for k in ("child_tax_credit", "other_nonrefundable_credits")}
+    credits = {k: v for k, v in credits.items() if v is not None}
+    if credits:
+        data["credits"] = credits
+
+    est = _clean_num(hh.get("estimated_tax_payments"))
+    if est is not None:
+        data["other_payments"] = {"estimated_tax_payments": est}
+
+    for key in ("target_refund", "prior_year_tax", "prior_year_agi"):
+        val = _clean_num(hh.get(key))
+        if val is not None:
+            data[key] = val
+    return EstimatorInput.from_dict(data)
+
+
+# --- rendering ---------------------------------------------------------------
+
+def _teach_ctx(read, source_text: str) -> dict:
+    lf = read.labeled_fields
+    return {
+        "source": source_text,
+        "hint": lf.get(LABEL_EMPLOYER) or "this employer",
+        "values": {
+            "gross_cur": lf.get(LABEL_GROSS_CURRENT, ""),
+            "gross_ytd": lf.get(LABEL_GROSS_YTD, ""),
+            "fed_cur": lf.get(LABEL_FED_WH_CURRENT, ""),
+            "fed_ytd": lf.get(LABEL_FED_WH_YTD, ""),
+            "retire_cur": lf.get(LABEL_RETIREMENT_CURRENT, ""),
+            "freq": lf.get(LABEL_PAY_FREQUENCY, ""),
+        },
+    }
+
+
+def _render(*, result=None, teach=None, notes=None):
+    hh = _household()
+    return render_template(
+        "withholding.html",
+        title="Withholding",
+        filing_statuses=FILING_STATUSES,
+        frequencies=PAY_FREQUENCIES,
+        years=available_years(),
+        jobs=_jobs(),
+        hh=hh,
+        adjust_job=int(_clean_num(hh.get("adjust_job")) or 0),
+        result=result,
+        teach=teach,
+        prefill_notes=notes or [],
+    )
+
+
+# --- routes ------------------------------------------------------------------
+
+@bp.route("/withholding", methods=["GET", "POST"])
+def withholding():
+    if request.method == "GET":
+        return _render()
+    _sync(request.form)
+    try:
+        result = estimate(_estimator_input(_jobs(), _household()))
+    except Exception as exc:  # noqa: BLE001 - surface bad input as a message, not a 500
+        return _render(notes=[f"Couldn’t run the estimate: {exc}"])
+    return _render(result=result)
+
+
+@bp.route("/withholding/add-job", methods=["POST"])
+def add_job():
+    _sync(request.form)
+    jobs = _jobs()
+    jobs.append(dict(_BLANK_JOB))
+    _set_jobs(jobs)
+    return _render()
+
+
+@bp.route("/withholding/remove-job", methods=["POST"])
+def remove_job():
+    _sync(request.form)
+    idx = int(_clean_num(request.form.get("remove_index")) or -1)
+    jobs = _jobs()
+    if 0 <= idx < len(jobs):
+        jobs.pop(idx)
+        _set_jobs(jobs)
+    return _render()
+
+
+@bp.route("/withholding/clear-jobs", methods=["POST"])
+def clear_jobs():
+    session.pop(_JOBS_KEY, None)
+    session.modified = True
+    return _render()
 
 
 def _read_paystub_file(upload) -> tuple[str, str]:
-    """Pull text from an uploaded paystub, local-first; returns ``(text, source note)``.
-
-    Reuses the same on-device reader ladder as the rest of SATC: text-layer PDFs
-    are read with pypdf, and scans/images fall back to local OCR (Tesseract) when
-    available. The cloud is never used here — nothing leaves the machine.
-    """
+    """Pull text from an uploaded paystub, local-first; returns ``(text, source note)``."""
     import os
     import tempfile
 
@@ -152,19 +279,16 @@ def _read_paystub_file(upload) -> tuple[str, str]:
     try:
         with os.fdopen(fd, "wb") as handle:
             upload.save(handle)
-
         text = _page_text(tmp) if suffix == ".pdf" else ""
         if text.strip():
             return text, f"Read “{name}” from its PDF text layer — on this machine."
-
         if settings.ocr_enabled():
             from satc.ingest.ocr import ocr_document_text
             text = ocr_document_text(tmp)
             if text.strip():
                 return text, f"Read “{name}” with local OCR — on this machine."
-
         return "", (f"Couldn’t pull text from “{name}”. If it’s a scan, install Tesseract "
-                    "for local OCR, or paste the paystub text below.")
+                    "for local OCR, or paste the paystub text.")
     finally:
         try:
             os.remove(tmp)
@@ -172,43 +296,62 @@ def _read_paystub_file(upload) -> tuple[str, str]:
             pass
 
 
-@bp.route("/withholding/from-paystub", methods=["POST"])
-def from_paystub():
-    """Read pasted paystub text and pre-fill the form (uncertain fields flagged)."""
-    read = PaystubReader().read_text(request.form.get("paystub_text", ""))
-    return _prefill_render(read, request.form.get("filing_status", "single"))
+def _add_job_from_text(text: str, source_note: str | None):
+    read, template = read_with_templates(text)
+    jobs = _jobs()
+    jobs.append(_job_from_read(read))
+    _set_jobs(jobs)
+    notes = [source_note] if source_note else []
+    if template is not None:
+        notes.append(f"Recognized {template.label_hint} — read from a saved layout.")
+    return _render(notes=notes, teach=_teach_ctx(read, text))
 
 
 @bp.route("/withholding/from-file", methods=["POST"])
 def from_file():
-    """Read an uploaded paystub (PDF or image) on-device and pre-fill the form."""
+    _sync(request.form)
     upload = request.files.get("paystub_file")
     if upload is None or not (upload.filename or "").strip():
-        return render_template("withholding.html", **_ctx(
-            prefilled=True,
-            prefill_notes=["No file was selected — choose a paystub PDF or image, or paste the text below."]))
+        return _render(notes=["No file was selected — choose a paystub PDF or image, or paste the text."])
     text, note = _read_paystub_file(upload)
-    return _prefill_render(PaystubReader().read_text(text),
-                           request.form.get("filing_status", "single"),
-                           lead_notes=[note] if note else None)
+    return _add_job_from_text(text, note)
+
+
+@bp.route("/withholding/from-paystub", methods=["POST"])
+def from_paystub():
+    _sync(request.form)
+    return _add_job_from_text(request.form.get("paystub_text", ""), None)
+
+
+@bp.route("/withholding/save-layout", methods=["POST"])
+def save_layout():
+    src = request.form.get("paystub_src", "")
+    confirmed = {
+        LABEL_GROSS_CURRENT: request.form.get("t_gross_cur", ""),
+        LABEL_GROSS_YTD: request.form.get("t_gross_ytd", ""),
+        LABEL_FED_WH_CURRENT: request.form.get("t_fed_cur", ""),
+        LABEL_FED_WH_YTD: request.form.get("t_fed_ytd", ""),
+        LABEL_RETIREMENT_CURRENT: request.form.get("t_retire_cur", ""),
+        LABEL_PAY_FREQUENCY: request.form.get("t_freq", ""),
+    }
+    confirmed = {k: v for k, v in confirmed.items() if v and v.strip()}
+    if not src.strip() or not confirmed:
+        return _render(notes=["Nothing to learn yet — read a paystub, then save its layout."])
+    template = learn(src, confirmed)
+    TemplateLibrary().save(template)
+    return _render(notes=[f"Saved — future {template.label_hint} paystubs will fill in automatically."])
 
 
 @bp.route("/withholding/audit.xlsx")
 def audit_tape():
-    """Download the audit tape for the most recent estimate."""
-    form = session.get(_SESSION_KEY)
-    if not form:
+    """Download the audit tape for the current jobs/household."""
+    jobs = _jobs()
+    if not jobs:
         return ("Run an estimate first, then download its audit tape.", 400)
-    inp = _form_to_input(form)
+    inp = _estimator_input(jobs, _household())
     wb = build_audit_tape(estimate(inp), inp)
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
     return send_file(buf, as_attachment=True, download_name="SATC_Withholding_Estimate.xlsx",
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-
-def _str(value) -> str:
-    if value is None or value == 0:
-        return ""
-    return f"{value}"
