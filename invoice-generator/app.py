@@ -12,6 +12,7 @@ import io
 import os
 import uuid
 from datetime import date
+from pathlib import Path
 
 from flask import (
     Flask,
@@ -43,6 +44,14 @@ def create_app(config_class=Config):
     app.config["INVOICES_DIR"].mkdir(parents=True, exist_ok=True)
     app.config["UPLOAD_DIR"].mkdir(parents=True, exist_ok=True)
 
+    # If the SQLite database lives in a subdirectory (e.g. /app/data in
+    # Docker), make sure that directory exists before SQLAlchemy connects.
+    uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if uri.startswith("sqlite:///") and not uri.startswith("sqlite:////:"):
+        db_path = uri.replace("sqlite:///", "", 1)
+        if db_path and db_path != ":memory:":
+            Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+
     db.init_app(app)
 
     # Make formatting helpers available inside all templates.
@@ -54,6 +63,11 @@ def create_app(config_class=Config):
         db.create_all()
 
     register_routes(app)
+
+    # JSON REST API (token-protected).
+    from api import api_bp
+
+    app.register_blueprint(api_bp)
     return app
 
 
@@ -140,6 +154,30 @@ def _validate_invoice(invoice):
     return errors
 
 
+def generate_pdf(app, invoice):
+    """Render and store the invoice PDF, returning its filesystem path.
+
+    Shared by the web UI and the JSON API. Requires an active app context.
+    """
+    fname = f"invoice_{invoice.invoice_number}_{invoice.id}.pdf".replace(
+        "/", "-"
+    )
+    out_path = app.config["INVOICES_DIR"] / fname
+    logo_path = None
+    if invoice.logo_filename:
+        logo_path = app.config["UPLOAD_DIR"] / invoice.logo_filename
+    render_invoice_pdf(invoice, out_path, logo_path=logo_path)
+    invoice.pdf_filename = fname
+    db.session.commit()
+    return out_path
+
+
+def next_invoice_number():
+    """Suggest the next sequential invoice number (e.g. INV-0007)."""
+    last = Invoice.query.order_by(Invoice.id.desc()).first()
+    return f"INV-{(last.id + 1) if last else 1:04d}"
+
+
 # --------------------------------------------------------------------------
 # Routes
 # --------------------------------------------------------------------------
@@ -151,8 +189,7 @@ def register_routes(app):
     @app.route("/new")
     def new_invoice():
         # Suggest a sensible next invoice number.
-        last = Invoice.query.order_by(Invoice.id.desc()).first()
-        suggested = f"INV-{(last.id + 1) if last else 1:04d}"
+        suggested = next_invoice_number()
         return render_template(
             "form.html",
             invoice=None,
@@ -236,17 +273,7 @@ def register_routes(app):
 
     def _generate_pdf(invoice):
         """Render and store the invoice PDF, returning its filesystem path."""
-        fname = f"invoice_{invoice.invoice_number}_{invoice.id}.pdf".replace(
-            "/", "-"
-        )
-        out_path = app.config["INVOICES_DIR"] / fname
-        logo_path = None
-        if invoice.logo_filename:
-            logo_path = app.config["UPLOAD_DIR"] / invoice.logo_filename
-        render_invoice_pdf(invoice, out_path, logo_path=logo_path)
-        invoice.pdf_filename = fname
-        db.session.commit()
-        return out_path
+        return generate_pdf(app, invoice)
 
     @app.route("/invoice/<int:invoice_id>/pdf")
     def download_pdf(invoice_id):

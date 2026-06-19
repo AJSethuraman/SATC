@@ -1,0 +1,16 @@
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.git/
+.gitignore
+*.db
+*.sqlite3
+data/
+invoices/*.pdf
+static/uploads/*
+!static/uploads/.gitkeep
+.env
+README.md

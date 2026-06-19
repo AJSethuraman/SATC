@@ -29,8 +29,13 @@ class Config:
     UPLOAD_DIR = BASE_DIR / "static" / "uploads"
     MAX_CONTENT_LENGTH = 8 * 1024 * 1024  # 8 MB upload cap
 
-    # Public base URL used when building Stripe redirect / webhook URLs.
+    # Public base URL used when building Stripe redirect / webhook URLs
+    # and absolute links (e.g. PDF URLs) in JSON API responses.
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000")
+
+    # JSON REST API access token. When empty, the /api/* endpoints are
+    # disabled (return 503) so the API is never unintentionally public.
+    API_KEY = os.environ.get("API_KEY", "")
 
     # Stripe
     STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
