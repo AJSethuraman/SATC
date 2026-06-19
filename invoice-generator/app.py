@@ -278,7 +278,11 @@ def register_routes(app):
     @app.route("/invoice/<int:invoice_id>/pdf")
     def download_pdf(invoice_id):
         invoice = db.session.get(Invoice, invoice_id) or abort(404)
-        out_path = _generate_pdf(invoice)
+        try:
+            out_path = _generate_pdf(invoice)
+        except RuntimeError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("view_invoice", invoice_id=invoice.id))
         return send_file(
             out_path,
             as_attachment=True,
@@ -317,7 +321,11 @@ def register_routes(app):
             flash("Recipient email is required.", "error")
             return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
-        out_path = _generate_pdf(invoice)
+        try:
+            out_path = _generate_pdf(invoice)
+        except RuntimeError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("view_invoice", invoice_id=invoice.id))
         try:
             email_utils.send_invoice_email(
                 app.config,

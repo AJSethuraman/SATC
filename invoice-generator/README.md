@@ -8,6 +8,32 @@ drive everything programmatically through a token-protected JSON API.
 This is an independent implementation. It does **not** use or depend on
 Invoice-Generator.com's API, code, branding, or design.
 
+## Quick start (Windows — one PowerShell command)
+
+From this folder, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run.ps1
+```
+
+`run.ps1` does everything for you and is safe to re-run:
+
+1. Finds Python 3 (installs it via `winget` if it's missing).
+2. Creates a local virtual environment in `.venv`.
+3. Installs the Python dependencies.
+4. Installs the **GTK runtime** WeasyPrint needs to render PDFs (only if it
+   isn't already present — this is the one native piece Windows requires, and
+   the script handles it automatically; it may show a UAC prompt).
+5. Creates `.env` from the template if you don't have one.
+6. Starts the app and opens **http://localhost:5000** in your browser.
+
+Stop the app with `Ctrl+C`. If WeasyPrint reports it can't load GTK the first
+time, close PowerShell, open a fresh window, and run the command again so the
+updated PATH takes effect.
+
+> The app itself starts even before GTK is installed — only PDF download/email
+> need it. Everything else (creating invoices, history, the API) works either way.
+
 ## Quick start (Docker — one command)
 
 The fastest way to run it. Docker bundles every dependency, including the
@@ -93,6 +119,7 @@ invoice-generator/
 ├── static/             # CSS, JS, uploaded logos
 ├── invoices/           # Generated PDFs (gitignored)
 ├── tests/              # Calculation unit tests
+├── run.ps1             # Windows one-shot setup & run (PowerShell)
 ├── Dockerfile          # Single-image build with native deps baked in
 ├── docker-compose.yml  # One-command run + persistent volumes
 └── requirements.txt

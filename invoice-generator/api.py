@@ -299,7 +299,10 @@ def invoice_pdf(invoice_id):
 
     from app import generate_pdf
 
-    out_path = generate_pdf(current_app._get_current_object(), invoice)
+    try:
+        out_path = generate_pdf(current_app._get_current_object(), invoice)
+    except RuntimeError as exc:
+        return jsonify(error=str(exc)), 503
     return send_file(
         out_path,
         as_attachment=True,
