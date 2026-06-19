@@ -14,28 +14,44 @@ BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
 
+def _normalize_db_url(url):
+    """Make a managed-Postgres URL compatible with SQLAlchemy + psycopg v3.
+
+    Hosts like Render/Heroku hand out ``postgres://...`` which SQLAlchemy no
+    longer accepts; rewrite it to the explicit ``postgresql+psycopg://`` form.
+    """
+    if url.startswith("postgres://"):
+        url = "postgresql+psycopg://" + url[len("postgres://"):]
+    elif url.startswith("postgresql://"):
+        url = "postgresql+psycopg://" + url[len("postgresql://"):]
+    return url
+
+
 class Config:
     # Flask
     SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "dev-only-change-me")
 
-    # Database (SQLite)
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", f"sqlite:///{BASE_DIR / 'invoices.db'}"
+    # Database: SQLite by default; set DATABASE_URL to a Postgres URL in prod.
+    SQLALCHEMY_DATABASE_URI = _normalize_db_url(
+        os.environ.get("DATABASE_URL", f"sqlite:///{BASE_DIR / 'invoices.db'}")
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Filesystem locations
+    # Filesystem location for transient generated PDFs (regenerated on demand).
     INVOICES_DIR = BASE_DIR / "invoices"
-    UPLOAD_DIR = BASE_DIR / "static" / "uploads"
     MAX_CONTENT_LENGTH = 8 * 1024 * 1024  # 8 MB upload cap
+
+    # Session cookie hardening. SECURE is enabled in production (see
+    # create_app); SameSite=Lax mitigates cross-site request forgery.
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
 
     # Public base URL used when building Stripe redirect / webhook URLs
     # and absolute links (e.g. PDF URLs) in JSON API responses.
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000")
 
-    # JSON REST API access token. When empty, the /api/* endpoints are
-    # disabled (return 503) so the API is never unintentionally public.
-    API_KEY = os.environ.get("API_KEY", "")
+    # Set to "production" to enable secure cookies and disable debug niceties.
+    ENV = os.environ.get("APP_ENV", "development")
 
     # PDF rendering engine: "auto" (default), "weasyprint", or "xhtml2pdf".
     # auto uses WeasyPrint when its native libraries are available and falls

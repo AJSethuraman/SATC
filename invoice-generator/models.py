@@ -1,22 +1,61 @@
 """Database models for the invoice generator.
 
-Two tables: ``Invoice`` holds the header / totals / metadata, and
-``LineItem`` holds each billed row. Monetary inputs (tax, discount,
-shipping) are stored as raw values plus a flag indicating whether the
-value is a percentage or a flat amount, mirroring the way the source
-service exposes those fields.
+Tables:
+
+* ``User``     - account with hashed password and a per-user API key.
+* ``Invoice``  - header / totals / metadata, owned by a user.
+* ``LineItem`` - each billed row.
+
+Monetary inputs (tax, discount, shipping) are stored as raw values plus a flag
+indicating whether the value is a percentage or a flat amount, mirroring the
+way the source service exposes those fields.
+
+Uploaded logos are stored as bytes in the database (not on disk) so they
+survive redeploys on hosts with an ephemeral filesystem.
 """
+import secrets
 from datetime import datetime, date
 
+from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import check_password_hash, generate_password_hash
 
 db = SQLAlchemy()
+
+
+def generate_api_key():
+    return "sk_" + secrets.token_urlsafe(32)
+
+
+class User(UserMixin, db.Model):
+    __tablename__ = "users"
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    api_key = db.Column(
+        db.String(64), unique=True, nullable=False, default=generate_api_key
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    invoices = db.relationship(
+        "Invoice", backref="owner", cascade="all, delete-orphan"
+    )
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 
 class Invoice(db.Model):
     __tablename__ = "invoices"
 
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
+    )
 
     # Header / parties
     invoice_number = db.Column(db.String(64), nullable=False)
@@ -44,12 +83,12 @@ class Invoice(db.Model):
     notes = db.Column(db.Text, default="")
     terms = db.Column(db.Text, default="")
 
-    # Branding
-    logo_filename = db.Column(db.String(255), nullable=True)
+    # Branding (logo stored in the DB, not on disk)
+    logo_data = db.Column(db.LargeBinary, nullable=True)
+    logo_mimetype = db.Column(db.String(64), nullable=True)
 
     # Workflow / integrations
     status = db.Column(db.String(20), default="Draft")  # Draft | Sent | Paid
-    pdf_filename = db.Column(db.String(255), nullable=True)
     stripe_session_id = db.Column(db.String(255), nullable=True)
     stripe_payment_url = db.Column(db.Text, nullable=True)
 
@@ -64,6 +103,10 @@ class Invoice(db.Model):
         cascade="all, delete-orphan",
         order_by="LineItem.position",
     )
+
+    @property
+    def has_logo(self):
+        return self.logo_data is not None
 
     # --- Derived totals -------------------------------------------------
     @property

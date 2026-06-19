@@ -1,8 +1,8 @@
 """JSON REST API for programmatic invoice creation.
 
-All endpoints live under ``/api`` and require an ``X-API-Key`` header that
-matches ``API_KEY`` from the environment. If ``API_KEY`` is unset the API is
-disabled entirely (HTTP 503) so it is never accidentally left open.
+All endpoints live under ``/api`` and require an ``X-API-Key`` header whose
+value is a user's personal API key (find it on the Account page). The key
+identifies the user, and every request is scoped to that user's invoices.
 
 Typical use::
 
@@ -19,36 +19,38 @@ Typical use::
 from datetime import date
 from functools import wraps
 
-from flask import Blueprint, current_app, jsonify, request, send_file
+from flask import Blueprint, current_app, g, jsonify, request, send_file
 
 import stripe_utils
 from helpers import parse_date
-from models import Invoice, LineItem, db
+from models import Invoice, LineItem, User, db
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 
 # --------------------------------------------------------------------------
-# Auth
+# Auth (per-user API key)
 # --------------------------------------------------------------------------
 def require_api_key(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
-        configured = current_app.config.get("API_KEY", "")
-        if not configured:
-            return (
-                jsonify(
-                    error="API disabled. Set API_KEY in the environment to "
-                    "enable the JSON API."
-                ),
-                503,
-            )
         provided = request.headers.get("X-API-Key", "")
-        if provided != configured:
+        user = (
+            User.query.filter_by(api_key=provided).first() if provided else None
+        )
+        if user is None:
             return jsonify(error="Invalid or missing X-API-Key header."), 401
+        g.api_user = user
         return view(*args, **kwargs)
 
     return wrapper
+
+
+def _owned_or_404(invoice_id):
+    invoice = db.session.get(Invoice, invoice_id)
+    if invoice is None or invoice.user_id != g.api_user.id:
+        return None
+    return invoice
 
 
 # --------------------------------------------------------------------------
@@ -208,7 +210,11 @@ def health():
 @api_bp.get("/invoices")
 @require_api_key
 def list_invoices():
-    invoices = Invoice.query.order_by(Invoice.created_at.desc()).all()
+    invoices = (
+        Invoice.query.filter_by(user_id=g.api_user.id)
+        .order_by(Invoice.created_at.desc())
+        .all()
+    )
     return jsonify(invoices=[serialize(i) for i in invoices])
 
 
@@ -222,9 +228,9 @@ def create_invoice():
     # Import here to avoid a circular import with app.py at module load.
     from app import generate_pdf, next_invoice_number
 
-    invoice = Invoice()
+    invoice = Invoice(user_id=g.api_user.id)
     if not data.get("invoice_number"):
-        invoice.invoice_number = next_invoice_number()
+        invoice.invoice_number = next_invoice_number(g.api_user.id)
     _populate_invoice_from_json(invoice, data)
 
     errors = _validate(invoice)
@@ -255,7 +261,7 @@ def create_invoice():
 @api_bp.get("/invoices/<int:invoice_id>")
 @require_api_key
 def get_invoice(invoice_id):
-    invoice = db.session.get(Invoice, invoice_id)
+    invoice = _owned_or_404(invoice_id)
     if invoice is None:
         return jsonify(error="Invoice not found."), 404
     return jsonify(serialize(invoice))
@@ -264,13 +270,9 @@ def get_invoice(invoice_id):
 @api_bp.delete("/invoices/<int:invoice_id>")
 @require_api_key
 def delete_invoice(invoice_id):
-    invoice = db.session.get(Invoice, invoice_id)
+    invoice = _owned_or_404(invoice_id)
     if invoice is None:
         return jsonify(error="Invoice not found."), 404
-    if invoice.pdf_filename:
-        pdf_path = current_app.config["INVOICES_DIR"] / invoice.pdf_filename
-        if pdf_path.exists():
-            pdf_path.unlink()
     db.session.delete(invoice)
     db.session.commit()
     return jsonify(deleted=invoice_id), 200
@@ -279,7 +281,7 @@ def delete_invoice(invoice_id):
 @api_bp.post("/invoices/<int:invoice_id>/payment-link")
 @require_api_key
 def create_payment_link(invoice_id):
-    invoice = db.session.get(Invoice, invoice_id)
+    invoice = _owned_or_404(invoice_id)
     if invoice is None:
         return jsonify(error="Invoice not found."), 404
     warning = _maybe_create_payment_link(invoice)
@@ -293,7 +295,7 @@ def create_payment_link(invoice_id):
 @api_bp.get("/invoices/<int:invoice_id>/pdf")
 @require_api_key
 def invoice_pdf(invoice_id):
-    invoice = db.session.get(Invoice, invoice_id)
+    invoice = _owned_or_404(invoice_id)
     if invoice is None:
         return jsonify(error="Invoice not found."), 404
 

@@ -1,12 +1,18 @@
 # Invoicer — Python Invoice Generator
 
-A clean, self-hosted invoice generator built with Flask. Create professional
-invoices through a web GUI, generate polished PDFs, track them in a local
-database, collect payments via Stripe Checkout, email invoices to clients, and
-drive everything programmatically through a token-protected JSON API.
+A clean, self-hosted invoice generator built with Flask. Sign up for an
+account, create professional invoices through a web GUI, generate polished
+PDFs, collect payments via Stripe Checkout, email invoices to clients, and
+drive everything programmatically through a per-user JSON API. Runs locally on
+Windows in one command, or deploys as a hosted website (Docker / Render) with
+PostgreSQL.
 
 This is an independent implementation. It does **not** use or depend on
 Invoice-Generator.com's API, code, branding, or design.
+
+> **Accounts:** the first thing you'll do is **sign up** at `/signup`. Each
+> user only sees their own invoices, and each user gets a personal API key
+> (shown on the Account page).
 
 ## Quick start (Windows — one PowerShell command)
 
@@ -41,15 +47,48 @@ to install.
 
 ```bash
 cd invoice-generator
-cp .env.example .env        # optional: add Stripe / SMTP / API_KEY values
+cp .env.example .env        # optional: add Stripe / SMTP values
 docker compose up           # add --build the first time or after changes
 ```
 
-Open **http://localhost:5000**. The SQLite database, generated PDFs, and
-uploaded logos persist in Docker named volumes across restarts.
+Open **http://localhost:5000** and sign up. The SQLite database (including
+uploaded logos, which are stored in the DB) persists in a Docker named volume
+across restarts.
 
 To stop: `Ctrl-C`, then `docker compose down` (add `-v` to also wipe the
 stored data).
+
+## Deploy as a hosted website (Render)
+
+This turns it into a real, public website with HTTPS, a permanent Stripe
+webhook, and PostgreSQL — your end users just visit a URL and never run
+anything. A `render.yaml` blueprint is included.
+
+1. Push this repo to GitHub.
+2. In [Render](https://render.com): **New → Blueprint**, connect the repo.
+   (If the app lives in the `invoice-generator` subfolder, set the service's
+   **Root Directory** to `invoice-generator`.) Render reads `render.yaml`,
+   builds the Dockerfile, creates a PostgreSQL database, wires `DATABASE_URL`,
+   and generates `FLASK_SECRET_KEY`.
+3. In the new service's **Environment**, fill in the values marked "sync:false":
+   - `APP_BASE_URL` → your live URL, e.g. `https://invoicer.onrender.com`
+   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `FROM_EMAIL`
+4. In the **Stripe dashboard → Developers → Webhooks**, add an endpoint:
+   `https://your-app.onrender.com/webhook/stripe`, subscribe it to
+   `checkout.session.completed`, copy its signing secret (`whsec_...`) into
+   `STRIPE_WEBHOOK_SECRET`, and redeploy. No Stripe CLI needed in production.
+5. Visit your URL, sign up, and you're live.
+
+Notes:
+- The image already includes WeasyPrint's native libraries, so hosted PDFs use
+  the high-fidelity engine (`PDF_ENGINE=weasyprint`, set in the blueprint).
+- The blueprint uses Render's **free** web + Postgres tiers so you can try it at
+  $0. The free web instance sleeps after inactivity (slow first request) and
+  the free database has storage/expiry limits — switch the `plan:` values to
+  `starter` in `render.yaml` for an always-on production setup.
+- Any host that runs a Dockerfile works (Railway, Fly.io, a VPS); just provide
+  a Postgres `DATABASE_URL` and set the same environment variables.
 
 ## Quick start (without Docker)
 
@@ -72,11 +111,14 @@ cp .env.example .env             # then edit .env
 flask --app app run              # http://localhost:5000
 ```
 
-The database and tables are created automatically on first run. For
-auto-reload during development use `flask --app app run --debug`.
+The database and tables are created automatically on first run; open
+http://localhost:5000 and sign up. For auto-reload during development use
+`flask --app app run --debug`.
 
 ## Features
 
+- **Accounts** — email/password sign-up and login (hashed passwords); each
+  user sees only their own invoices and gets a personal API key.
 - **Web GUI** — invoice form with from/business, bill-to, optional ship-to,
   invoice number, date, payment terms, due date, PO number, currency, line
   items (description/qty/rate/amount), tax, discount, shipping, amount paid,
@@ -84,9 +126,9 @@ auto-reload during development use `flask --app app run --debug`.
 - **Dynamic line items** — add/remove rows with live in-browser total updates.
 - **Accurate math** — subtotal, flat or percentage discount, flat or
   percentage tax (applied after discount), shipping, total, and balance due.
-- **Professional PDF** rendered from an HTML/CSS template via Jinja2 + WeasyPrint.
-- **SQLite persistence** through SQLAlchemy. Generated PDFs are saved to
-  `invoices/`.
+- **Professional PDF** via Jinja2 + WeasyPrint (or pure-Python xhtml2pdf).
+- **Persistence** through SQLAlchemy — SQLite locally, PostgreSQL in production.
+  Logos are stored in the database; PDFs are regenerated on demand.
 - **Invoice history** — view, download PDF, edit, delete, and export the list
   to CSV.
 - **Stripe Checkout** — create a hosted payment session for the balance due
@@ -99,30 +141,31 @@ auto-reload during development use `flask --app app run --debug`.
 
 ## Tech stack
 
-Flask · Jinja2 · WeasyPrint or xhtml2pdf (PDF) · SQLite · SQLAlchemy ·
-Stripe Python SDK · Gunicorn · Docker · custom navy/gray/white CSS · vanilla
-JS for dynamic rows.
+Flask · Flask-Login · Jinja2 · WeasyPrint or xhtml2pdf (PDF) · SQLAlchemy ·
+SQLite / PostgreSQL · Stripe Python SDK · Gunicorn · Docker · custom
+navy/gray/white CSS · vanilla JS for dynamic rows.
 
 ## Project layout
 
 ```
 invoice-generator/
-├── app.py              # Flask app factory + web routes
-├── api.py              # JSON REST API blueprint
-├── config.py           # Environment-driven configuration
-├── models.py           # SQLAlchemy models + total calculations
-├── helpers.py          # Currency formatting & form parsing
-├── pdf.py              # WeasyPrint PDF rendering
-├── stripe_utils.py     # Stripe Checkout + webhook helpers
-├── email_utils.py      # SMTP email sending
-├── templates/          # Jinja2 templates (UI + PDF)
-├── static/             # CSS, JS, uploaded logos
-├── invoices/           # Generated PDFs (gitignored)
-├── tests/              # Calculation unit tests
-├── run.ps1             # Windows one-shot setup & run (PowerShell)
-├── Dockerfile          # Single-image build with native deps baked in
-├── docker-compose.yml  # One-command run + persistent volumes
-└── requirements.txt
+├── app.py                  # Flask app factory, auth + web routes
+├── api.py                  # JSON REST API blueprint (per-user keys)
+├── config.py               # Environment-driven configuration
+├── models.py               # User / Invoice / LineItem + total calculations
+├── helpers.py              # Currency formatting & form parsing
+├── pdf.py                  # PDF rendering (WeasyPrint / xhtml2pdf dispatch)
+├── stripe_utils.py         # Stripe Checkout + webhook helpers
+├── email_utils.py          # SMTP email sending
+├── templates/              # Jinja2 templates (UI, auth, PDF)
+├── static/                 # CSS, JS
+├── tests/                  # Calculation unit tests
+├── run.ps1                 # Windows one-shot setup & run (PowerShell)
+├── Dockerfile              # Single-image build with native deps baked in
+├── docker-compose.yml      # One-command local run
+├── render.yaml             # Render deploy blueprint (web + Postgres)
+├── requirements.txt        # Core dependencies
+└── requirements-deploy.txt # + PostgreSQL driver (used by the Docker image)
 ```
 
 ## Environment variables
@@ -132,9 +175,10 @@ none of these set — Stripe, email, and the API stay disabled until configured.
 
 | Variable                 | Purpose                                              |
 |--------------------------|------------------------------------------------------|
-| `FLASK_SECRET_KEY`       | Flask session signing key                            |
+| `FLASK_SECRET_KEY`       | Flask session signing key (use a strong random value)|
 | `APP_BASE_URL`           | Public base URL (Stripe redirects, API PDF links)    |
-| `API_KEY`                | Token for the JSON API; blank = API disabled (503)   |
+| `APP_ENV`                | `production` enables secure cookies (set when hosted) |
+| `DATABASE_URL`           | DB connection; defaults to local SQLite, set Postgres in prod |
 | `PDF_ENGINE`             | `auto` (default), `weasyprint`, or `xhtml2pdf`       |
 | `STRIPE_SECRET_KEY`      | Stripe secret key (`sk_test_...` in test mode)       |
 | `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (optional)                    |
@@ -148,17 +192,18 @@ none of these set — Stripe, email, and the API stay disabled until configured.
 
 ## JSON REST API
 
-Set `API_KEY` in `.env` to enable it. Every `/api/*` call (except
-`/api/health`) requires an `X-API-Key` header matching that value; without a
-configured key the API returns **503**, and with a wrong key **401**.
+The API uses **per-user keys**. Sign up, open the **Account** page, and copy
+your API key. Send it as the `X-API-Key` header on every `/api/*` call (except
+`/api/health`); a wrong/missing key returns **401**. Every request is scoped to
+the invoices owned by that key's user.
 
 | Method & path                          | Description                          |
 |----------------------------------------|--------------------------------------|
 | `GET /api/health`                      | Liveness probe (no auth)             |
 | `POST /api/invoices`                   | Create an invoice                    |
-| `GET /api/invoices`                    | List all invoices                    |
-| `GET /api/invoices/{id}`               | Fetch one invoice                    |
-| `DELETE /api/invoices/{id}`            | Delete an invoice                    |
+| `GET /api/invoices`                    | List your invoices                   |
+| `GET /api/invoices/{id}`               | Fetch one of your invoices           |
+| `DELETE /api/invoices/{id}`            | Delete one of your invoices          |
 | `GET /api/invoices/{id}/pdf`           | Download the invoice PDF             |
 | `POST /api/invoices/{id}/payment-link` | Create a Stripe Checkout link        |
 
@@ -270,9 +315,18 @@ and tax, shipping, total, and balance due).
 
 - Required fields (from, bill-to, invoice number, at least one line item) are
   validated client-side, server-side in the web form, and in the API.
-- Uploaded logos are stored under `static/uploads/` and embedded into the PDF.
-- The JSON API is disabled unless `API_KEY` is set, so it's never accidentally
-  public.
-- If you deploy this publicly, serve over HTTPS, set a strong `FLASK_SECRET_KEY`
-  and `API_KEY`, and review data-protection obligations.
-```
+- Each user only sees their own invoices; the API is scoped by the per-user key.
+- Uploaded logos are validated (Pillow) and stored in the database, then
+  embedded into the PDF as a data URI — nothing is written to a public folder.
+- Session cookies are HTTP-only and `SameSite=Lax`, and become Secure when
+  `APP_ENV=production`. For a high-traffic public deployment, consider adding
+  CSRF tokens (e.g. Flask-WTF) as a further hardening step.
+- If you deploy publicly: serve over HTTPS, set a strong `FLASK_SECRET_KEY`,
+  use PostgreSQL via `DATABASE_URL`, and review data-protection obligations.
+
+### Upgrading a local database
+
+The schema changed to add accounts and move logos into the DB. If you have an
+old local `invoices.db` from a previous version, delete it (it's dev data) and
+restart — the new tables are created automatically. Hosted Postgres deployments
+start fresh, so this only affects local SQLite files.

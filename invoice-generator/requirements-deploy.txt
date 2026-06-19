@@ -1,0 +1,5 @@
+# Dependencies for a hosted deployment (used by the Dockerfile).
+# Includes everything in requirements.txt plus the PostgreSQL driver, which
+# is only needed when DATABASE_URL points at Postgres (production).
+-r requirements.txt
+psycopg[binary]==3.2.1

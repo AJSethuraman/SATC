@@ -22,18 +22,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python dependencies first for better layer caching.
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies first for better layer caching. The deploy
+# requirements add the PostgreSQL driver on top of the base requirements.
+COPY requirements.txt requirements-deploy.txt ./
+RUN pip install --no-cache-dir -r requirements-deploy.txt
 
 COPY . .
 
-# Runtime data locations (mounted as volumes in docker-compose).
-RUN mkdir -p /app/data /app/invoices /app/static/uploads
+# Runtime data location for transient generated PDFs.
+RUN mkdir -p /app/data /app/invoices
 
 EXPOSE 5000
 
-# 2 workers / 4 threads is plenty for a single-tenant SQLite app; the long
-# timeout accommodates PDF rendering.
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", \
-     "--threads", "4", "--timeout", "120", "app:app"]
+# Bind to $PORT when the host provides one (Render, etc.), else 5000.
+# 2 workers / 4 threads with a long timeout to accommodate PDF rendering.
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 2 --threads 4 --timeout 120 app:app"]

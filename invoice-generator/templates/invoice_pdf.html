@@ -137,8 +137,8 @@
   {% set cur = invoice.currency %}
   <div class="header">
     <div>
-      {% if logo_url %}
-        <img class="logo" src="{{ logo_url }}" alt="Logo">
+      {% if logo_data_uri %}
+        <img class="logo" src="{{ logo_data_uri }}" alt="Logo">
       {% else %}
         <div class="from"><span class="name">{{ (invoice.from_info.splitlines()[0] if invoice.from_info else "") }}</span>{{ "\n".join(invoice.from_info.splitlines()[1:]) if invoice.from_info else "" }}</div>
       {% endif %}
@@ -156,7 +156,7 @@
     </div>
   </div>
 
-  {% if logo_url and invoice.from_info %}
+  {% if logo_data_uri and invoice.from_info %}
   <div class="parties">
     <div class="party">
       <div class="heading">From</div>

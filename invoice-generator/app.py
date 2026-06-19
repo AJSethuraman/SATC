@@ -4,13 +4,13 @@ Run locally with::
 
     flask --app app run
 
-See README.md for full setup, environment variables, and Stripe webhook
-testing instructions.
+See README.md for setup, environment variables, deployment, and Stripe
+webhook testing instructions.
 """
 import csv
 import io
+import mimetypes
 import os
-import uuid
 from datetime import date
 from pathlib import Path
 
@@ -24,15 +24,20 @@ from flask import (
     send_file,
     url_for,
 )
+from flask_login import (
+    LoginManager,
+    current_user,
+    login_required,
+    login_user,
+    logout_user,
+)
 from markupsafe import Markup, escape
-from werkzeug.utils import secure_filename
 
 import email_utils
 import stripe_utils
 from config import Config
 from helpers import currency_symbol, format_money, parse_date, parse_float
-from models import Invoice, LineItem, db
-from pdf import render_invoice_pdf
+from models import Invoice, LineItem, User, db
 
 ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".svg"}
 
@@ -50,21 +55,31 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Ensure runtime directories exist.
+    # Transient directory for generated PDFs (regenerated on demand).
     app.config["INVOICES_DIR"].mkdir(parents=True, exist_ok=True)
-    app.config["UPLOAD_DIR"].mkdir(parents=True, exist_ok=True)
 
-    # If the SQLite database lives in a subdirectory (e.g. /app/data in
-    # Docker), make sure that directory exists before SQLAlchemy connects.
+    # If a SQLite database lives in a subdirectory, ensure it exists.
     uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
     if uri.startswith("sqlite:///") and not uri.startswith("sqlite:////:"):
         db_path = uri.replace("sqlite:///", "", 1)
         if db_path and db_path != ":memory:":
             Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
+    # Secure session cookies in production (served over HTTPS).
+    if app.config.get("ENV") == "production":
+        app.config["SESSION_COOKIE_SECURE"] = True
+
     db.init_app(app)
 
-    # Make formatting helpers available inside all templates.
+    login_manager = LoginManager()
+    login_manager.login_view = "login"
+    login_manager.login_message_category = "error"
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return db.session.get(User, int(user_id))
+
     app.jinja_env.globals.update(
         format_money=format_money, currency_symbol=currency_symbol
     )
@@ -75,7 +90,6 @@ def create_app(config_class=Config):
 
     register_routes(app)
 
-    # JSON REST API (token-protected).
     from api import api_bp
 
     app.register_blueprint(api_bp)
@@ -85,19 +99,36 @@ def create_app(config_class=Config):
 # --------------------------------------------------------------------------
 # Form handling
 # --------------------------------------------------------------------------
-def _save_logo(file_storage, app):
-    """Persist an uploaded logo and return its stored filename, or None."""
+def _read_logo(file_storage):
+    """Return (bytes, mimetype) for a valid uploaded logo, or (None, None).
+
+    Raster images are verified with Pillow so a corrupt file can't get stored
+    and later break PDF rendering. SVGs are passed through unchecked.
+    """
     if not file_storage or not file_storage.filename:
-        return None
+        return None, None
     ext = os.path.splitext(file_storage.filename)[1].lower()
     if ext not in ALLOWED_LOGO_EXTENSIONS:
-        return None
-    fname = f"{uuid.uuid4().hex}{ext}"
-    file_storage.save(app.config["UPLOAD_DIR"] / fname)
-    return fname
+        return None, None
+    data = file_storage.read()
+    if not data:
+        return None, None
+    mime = (
+        file_storage.mimetype
+        or mimetypes.guess_type(file_storage.filename)[0]
+        or "image/png"
+    )
+    if mime != "image/svg+xml":
+        try:
+            from PIL import Image
+
+            Image.open(io.BytesIO(data)).verify()
+        except Exception:
+            return None, None  # corrupt / unreadable image -> skip
+    return data, mime
 
 
-def _populate_invoice_from_form(invoice, form, app, files=None):
+def _populate_invoice_from_form(invoice, form, files=None):
     """Fill an Invoice instance from submitted form data (create or edit)."""
     invoice.invoice_number = (form.get("invoice_number") or "").strip()
     invoice.from_info = (form.get("from_info") or "").strip()
@@ -120,11 +151,15 @@ def _populate_invoice_from_form(invoice, form, app, files=None):
     invoice.notes = (form.get("notes") or "").strip()
     invoice.terms = (form.get("terms") or "").strip()
 
-    # Logo: keep existing unless a new file is uploaded.
+    # Logo: keep existing unless a new file is uploaded; allow clearing.
+    if form.get("remove_logo") == "1":
+        invoice.logo_data = None
+        invoice.logo_mimetype = None
     if files:
-        new_logo = _save_logo(files.get("logo"), app)
-        if new_logo:
-            invoice.logo_filename = new_logo
+        data, mime = _read_logo(files.get("logo"))
+        if data:
+            invoice.logo_data = data
+            invoice.logo_mimetype = mime
 
     # Rebuild line items from the parallel form arrays.
     descriptions = form.getlist("item_description")
@@ -137,7 +172,6 @@ def _populate_invoice_from_form(invoice, form, app, files=None):
         desc = (desc or "").strip()
         qty_f = parse_float(qty)
         rate_f = parse_float(rate)
-        # Skip fully empty rows.
         if not desc and qty_f == 0 and rate_f == 0:
             continue
         invoice.items.append(
@@ -166,41 +200,126 @@ def _validate_invoice(invoice):
 
 
 def generate_pdf(app, invoice):
-    """Render and store the invoice PDF, returning its filesystem path.
+    """Render the invoice PDF to a transient file and return its path.
 
     Shared by the web UI and the JSON API. Requires an active app context.
     """
+    from pdf import render_invoice_pdf
+
     fname = f"invoice_{invoice.invoice_number}_{invoice.id}.pdf".replace(
         "/", "-"
     )
     out_path = app.config["INVOICES_DIR"] / fname
-    logo_path = None
-    if invoice.logo_filename:
-        logo_path = app.config["UPLOAD_DIR"] / invoice.logo_filename
-    render_invoice_pdf(invoice, out_path, logo_path=logo_path)
-    invoice.pdf_filename = fname
-    db.session.commit()
+    render_invoice_pdf(invoice, out_path)
     return out_path
 
 
-def next_invoice_number():
-    """Suggest the next sequential invoice number (e.g. INV-0007)."""
-    last = Invoice.query.order_by(Invoice.id.desc()).first()
-    return f"INV-{(last.id + 1) if last else 1:04d}"
+def next_invoice_number(user_id):
+    """Suggest the next per-user invoice number (e.g. INV-0007)."""
+    count = Invoice.query.filter_by(user_id=user_id).count()
+    return f"INV-{count + 1:04d}"
 
 
 # --------------------------------------------------------------------------
 # Routes
 # --------------------------------------------------------------------------
 def register_routes(app):
+    def owned_or_404(invoice_id):
+        """Fetch an invoice that belongs to the current user, else 404."""
+        invoice = db.session.get(Invoice, invoice_id)
+        if invoice is None or invoice.user_id != current_user.id:
+            abort(404)
+        return invoice
+
+    # --- Auth ----------------------------------------------------------
+    @app.route("/signup", methods=["GET", "POST"])
+    def signup():
+        if current_user.is_authenticated:
+            return redirect(url_for("history"))
+        if request.method == "POST":
+            email = (request.form.get("email") or "").strip().lower()
+            password = request.form.get("password") or ""
+            confirm = request.form.get("confirm") or ""
+            errors = []
+            if "@" not in email or "." not in email:
+                errors.append("Enter a valid email address.")
+            if len(password) < 8:
+                errors.append("Password must be at least 8 characters.")
+            if password != confirm:
+                errors.append("Passwords do not match.")
+            if User.query.filter_by(email=email).first():
+                errors.append("An account with that email already exists.")
+            if errors:
+                for e in errors:
+                    flash(e, "error")
+                return render_template("signup.html", email=email), 400
+            user = User(email=email)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+            login_user(user)
+            flash("Welcome! Your account is ready.", "success")
+            return redirect(url_for("history"))
+        return render_template("signup.html", email="")
+
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        if current_user.is_authenticated:
+            return redirect(url_for("history"))
+        if request.method == "POST":
+            email = (request.form.get("email") or "").strip().lower()
+            password = request.form.get("password") or ""
+            user = User.query.filter_by(email=email).first()
+            if user is None or not user.check_password(password):
+                flash("Invalid email or password.", "error")
+                return render_template("login.html", email=email), 401
+            login_user(user)
+            nxt = request.args.get("next")
+            # Only allow relative redirects (avoid open redirect).
+            if not nxt or not nxt.startswith("/"):
+                nxt = url_for("history")
+            return redirect(nxt)
+        return render_template("login.html", email="")
+
+    @app.route("/logout", methods=["POST"])
+    @login_required
+    def logout():
+        logout_user()
+        flash("Signed out.", "success")
+        return redirect(url_for("login"))
+
+    @app.route("/account")
+    @login_required
+    def account():
+        return render_template(
+            "account.html",
+            stripe_configured=bool(app.config["STRIPE_SECRET_KEY"]),
+            smtp_configured=bool(
+                app.config["SMTP_HOST"] and app.config["FROM_EMAIL"]
+            ),
+        )
+
+    @app.route("/account/regenerate-key", methods=["POST"])
+    @login_required
+    def regenerate_key():
+        from models import generate_api_key
+
+        current_user.api_key = generate_api_key()
+        db.session.commit()
+        flash("API key regenerated. Update any integrations.", "success")
+        return redirect(url_for("account"))
+
+    # --- Invoices ------------------------------------------------------
     @app.route("/")
     def index():
-        return redirect(url_for("new_invoice"))
+        if current_user.is_authenticated:
+            return redirect(url_for("history"))
+        return redirect(url_for("login"))
 
     @app.route("/new")
+    @login_required
     def new_invoice():
-        # Suggest a sensible next invoice number.
-        suggested = next_invoice_number()
+        suggested = next_invoice_number(current_user.id)
         return render_template(
             "form.html",
             invoice=None,
@@ -209,9 +328,10 @@ def register_routes(app):
         )
 
     @app.route("/invoices", methods=["POST"])
+    @login_required
     def create_invoice():
-        invoice = Invoice()
-        _populate_invoice_from_form(invoice, request.form, app, request.files)
+        invoice = Invoice(user_id=current_user.id)
+        _populate_invoice_from_form(invoice, request.form, request.files)
         errors = _validate_invoice(invoice)
         if errors:
             for e in errors:
@@ -228,8 +348,9 @@ def register_routes(app):
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
     @app.route("/invoice/<int:invoice_id>")
+    @login_required
     def view_invoice(invoice_id):
-        invoice = db.session.get(Invoice, invoice_id) or abort(404)
+        invoice = owned_or_404(invoice_id)
         return render_template(
             "view.html",
             invoice=invoice,
@@ -239,9 +360,21 @@ def register_routes(app):
             ),
         )
 
+    @app.route("/invoice/<int:invoice_id>/logo")
+    @login_required
+    def invoice_logo(invoice_id):
+        invoice = owned_or_404(invoice_id)
+        if not invoice.logo_data:
+            abort(404)
+        return send_file(
+            io.BytesIO(invoice.logo_data),
+            mimetype=invoice.logo_mimetype or "image/png",
+        )
+
     @app.route("/invoice/<int:invoice_id>/edit")
+    @login_required
     def edit_invoice(invoice_id):
-        invoice = db.session.get(Invoice, invoice_id) or abort(404)
+        invoice = owned_or_404(invoice_id)
         return render_template(
             "form.html",
             invoice=invoice,
@@ -250,9 +383,10 @@ def register_routes(app):
         )
 
     @app.route("/invoice/<int:invoice_id>", methods=["POST"])
+    @login_required
     def update_invoice(invoice_id):
-        invoice = db.session.get(Invoice, invoice_id) or abort(404)
-        _populate_invoice_from_form(invoice, request.form, app, request.files)
+        invoice = owned_or_404(invoice_id)
+        _populate_invoice_from_form(invoice, request.form, request.files)
         errors = _validate_invoice(invoice)
         if errors:
             for e in errors:
@@ -263,32 +397,26 @@ def register_routes(app):
                 suggested_number=invoice.invoice_number,
                 today=date.today().isoformat(),
             ), 400
-        # Totals may have changed; invalidate stale PDF.
-        invoice.pdf_filename = None
         db.session.commit()
         flash("Invoice updated.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
     @app.route("/invoice/<int:invoice_id>/delete", methods=["POST"])
+    @login_required
     def delete_invoice(invoice_id):
-        invoice = db.session.get(Invoice, invoice_id) or abort(404)
-        # Remove generated PDF if present.
-        if invoice.pdf_filename:
-            pdf_path = app.config["INVOICES_DIR"] / invoice.pdf_filename
-            if pdf_path.exists():
-                pdf_path.unlink()
+        invoice = owned_or_404(invoice_id)
         db.session.delete(invoice)
         db.session.commit()
         flash("Invoice deleted.", "success")
         return redirect(url_for("history"))
 
     def _generate_pdf(invoice):
-        """Render and store the invoice PDF, returning its filesystem path."""
         return generate_pdf(app, invoice)
 
     @app.route("/invoice/<int:invoice_id>/pdf")
+    @login_required
     def download_pdf(invoice_id):
-        invoice = db.session.get(Invoice, invoice_id) or abort(404)
+        invoice = owned_or_404(invoice_id)
         try:
             out_path = _generate_pdf(invoice)
         except RuntimeError as exc:
@@ -302,8 +430,9 @@ def register_routes(app):
         )
 
     @app.route("/invoice/<int:invoice_id>/pay", methods=["POST"])
+    @login_required
     def create_payment(invoice_id):
-        invoice = db.session.get(Invoice, invoice_id) or abort(404)
+        invoice = owned_or_404(invoice_id)
         try:
             session = stripe_utils.create_checkout_session(
                 invoice,
@@ -325,8 +454,9 @@ def register_routes(app):
         return redirect(session.url)
 
     @app.route("/invoice/<int:invoice_id>/email", methods=["POST"])
+    @login_required
     def email_invoice(invoice_id):
-        invoice = db.session.get(Invoice, invoice_id) or abort(404)
+        invoice = owned_or_404(invoice_id)
         to_email = (request.form.get("to_email") or "").strip()
         if not to_email:
             flash("Recipient email is required.", "error")
@@ -356,13 +486,23 @@ def register_routes(app):
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
     @app.route("/history")
+    @login_required
     def history():
-        invoices = Invoice.query.order_by(Invoice.created_at.desc()).all()
+        invoices = (
+            Invoice.query.filter_by(user_id=current_user.id)
+            .order_by(Invoice.created_at.desc())
+            .all()
+        )
         return render_template("history.html", invoices=invoices)
 
     @app.route("/history/export.csv")
+    @login_required
     def export_csv():
-        invoices = Invoice.query.order_by(Invoice.created_at.desc()).all()
+        invoices = (
+            Invoice.query.filter_by(user_id=current_user.id)
+            .order_by(Invoice.created_at.desc())
+            .all()
+        )
         buffer = io.StringIO()
         writer = csv.writer(buffer)
         writer.writerow(
@@ -407,6 +547,7 @@ def register_routes(app):
             download_name="invoices.csv",
         )
 
+    # --- Stripe webhook (unauthenticated; verified by signature) --------
     @app.route("/webhook/stripe", methods=["POST"])
     def stripe_webhook():
         payload = request.get_data()
@@ -428,7 +569,6 @@ def register_routes(app):
             if invoice_id:
                 invoice = db.session.get(Invoice, int(invoice_id))
             if invoice is None:
-                # Fall back to matching by stored session id.
                 invoice = Invoice.query.filter_by(
                     stripe_session_id=session.get("id")
                 ).first()

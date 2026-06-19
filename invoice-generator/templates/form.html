@@ -32,9 +32,12 @@
       <div class="field">
         <label>Logo <span class="muted">(optional)</span></label>
         <input type="file" name="logo" accept="image/*">
-        {% if invoice and invoice.logo_filename %}
-          <img class="logo-preview" src="{{ url_for('static', filename='uploads/' ~ invoice.logo_filename) }}" alt="Current logo">
-          <p class="help">Upload a new file to replace the current logo.</p>
+        {% if invoice and invoice.id and invoice.has_logo %}
+          <img class="logo-preview" src="{{ url_for('invoice_logo', invoice_id=invoice.id) }}" alt="Current logo">
+          <p class="help">Upload a new file to replace it.</p>
+          <label class="help" style="font-weight:normal">
+            <input type="checkbox" name="remove_logo" value="1"> Remove current logo
+          </label>
         {% endif %}
       </div>
     </div>
