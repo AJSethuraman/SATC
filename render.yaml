@@ -1,15 +1,18 @@
-# Render Blueprint (https://render.com) for a hosted deployment.
+# Render Blueprint (https://render.com) for the Invoicer app.
 #
-# Easiest path: in the Render dashboard, New -> Blueprint, connect this repo.
-# (If the app is in the invoice-generator subfolder of a larger repo, set the
-# service Root Directory to invoice-generator.) Render builds the Dockerfile,
-# provisions a Postgres database, wires DATABASE_URL, and generates a secret.
-# You then fill in the Stripe/SMTP values (marked sync:false) in the dashboard.
+# One-click deploy: use the "Deploy to Render" button in
+# invoice-generator/README.md, or in Render choose New -> Blueprint and pick
+# this repo. Render reads this file, builds the Docker image from the
+# invoice-generator folder, provisions a PostgreSQL database, wires
+# DATABASE_URL, and generates FLASK_SECRET_KEY. You then paste your Stripe /
+# SMTP values (the ones marked sync:false) in the dashboard.
 services:
   - type: web
     name: invoicer
     runtime: docker
-    plan: free          # upgrade to "starter" for an always-on instance (no cold starts)
+    dockerfilePath: ./invoice-generator/Dockerfile
+    dockerContext: ./invoice-generator
+    plan: free          # change to "starter" for an always-on instance (no cold starts)
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
@@ -23,13 +26,13 @@ services:
         fromDatabase:
           name: invoicer-db
           property: connectionString
-      - key: APP_BASE_URL
-        sync: false              # set to your live URL, e.g. https://invoicer.onrender.com
+      # APP_BASE_URL is auto-detected from Render's RENDER_EXTERNAL_URL.
+      # Fill these in the dashboard when you're ready to take payments / email:
       - key: STRIPE_SECRET_KEY
         sync: false
-      - key: STRIPE_WEBHOOK_SECRET
-        sync: false
       - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
         sync: false
       - key: SMTP_HOST
         sync: false

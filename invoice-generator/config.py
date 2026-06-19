@@ -47,8 +47,14 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
 
     # Public base URL used when building Stripe redirect / webhook URLs
-    # and absolute links (e.g. PDF URLs) in JSON API responses.
-    APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:5000")
+    # and absolute links (e.g. PDF URLs) in JSON API responses. On Render,
+    # RENDER_EXTERNAL_URL is provided automatically, so this needs no manual
+    # setup when hosted there.
+    APP_BASE_URL = (
+        os.environ.get("APP_BASE_URL")
+        or os.environ.get("RENDER_EXTERNAL_URL")
+        or "http://localhost:5000"
+    )
 
     # Set to "production" to enable secure cookies and disable debug niceties.
     ENV = os.environ.get("APP_ENV", "development")

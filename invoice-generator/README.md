@@ -60,35 +60,44 @@ stored data).
 
 ## Deploy as a hosted website (Render)
 
-This turns it into a real, public website with HTTPS, a permanent Stripe
-webhook, and PostgreSQL — your end users just visit a URL and never run
-anything. A `render.yaml` blueprint is included.
+This turns it into a real, public website with HTTPS, PostgreSQL, and a
+permanent Stripe webhook — your end users just visit a URL and never run
+anything. A `render.yaml` blueprint lives at the repo root.
 
-1. Push this repo to GitHub.
-2. In [Render](https://render.com): **New → Blueprint**, connect the repo.
-   (If the app lives in the `invoice-generator` subfolder, set the service's
-   **Root Directory** to `invoice-generator`.) Render reads `render.yaml`,
-   builds the Dockerfile, creates a PostgreSQL database, wires `DATABASE_URL`,
-   and generates `FLASK_SECRET_KEY`.
-3. In the new service's **Environment**, fill in the values marked "sync:false":
-   - `APP_BASE_URL` → your live URL, e.g. `https://invoicer.onrender.com`
-   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY`
-   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `FROM_EMAIL`
-4. In the **Stripe dashboard → Developers → Webhooks**, add an endpoint:
-   `https://your-app.onrender.com/webhook/stripe`, subscribe it to
-   `checkout.session.completed`, copy its signing secret (`whsec_...`) into
-   `STRIPE_WEBHOOK_SECRET`, and redeploy. No Stripe CLI needed in production.
-5. Visit your URL, sign up, and you're live.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/ajsethuraman/satc)
+
+**One-click path:**
+
+1. Click the button above (sign in / create a free Render account first).
+2. Render reads `render.yaml`, builds the app from the `invoice-generator`
+   folder, creates a PostgreSQL database, wires `DATABASE_URL`, and generates
+   `FLASK_SECRET_KEY`. Click **Apply** — you don't have to fill anything in to
+   get it running.
+3. When the deploy finishes, open the URL and **sign up**. You can already
+   create invoices and download PDFs.
+
+**Then, to take payments** (whenever you're ready):
+
+4. In the **Stripe dashboard → Developers → API keys**, copy your secret and
+   publishable keys into the service's Environment in Render
+   (`STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`).
+5. In **Stripe → Developers → Webhooks → Add endpoint**, enter
+   `https://YOUR-APP.onrender.com/webhook/stripe`, choose the
+   `checkout.session.completed` event, then copy its signing secret
+   (`whsec_...`) into `STRIPE_WEBHOOK_SECRET`. Save — Render redeploys
+   automatically. No Stripe CLI needed in production.
 
 Notes:
-- The image already includes WeasyPrint's native libraries, so hosted PDFs use
-  the high-fidelity engine (`PDF_ENGINE=weasyprint`, set in the blueprint).
+- `APP_BASE_URL` is detected automatically from Render's `RENDER_EXTERNAL_URL`,
+  so there's nothing to set for redirects to work.
+- The image includes WeasyPrint's native libraries, so hosted PDFs use the
+  high-fidelity engine (`PDF_ENGINE=weasyprint`, set in the blueprint).
 - The blueprint uses Render's **free** web + Postgres tiers so you can try it at
   $0. The free web instance sleeps after inactivity (slow first request) and
-  the free database has storage/expiry limits — switch the `plan:` values to
+  the free database has storage/expiry limits — change the `plan:` values to
   `starter` in `render.yaml` for an always-on production setup.
 - Any host that runs a Dockerfile works (Railway, Fly.io, a VPS); just provide
-  a Postgres `DATABASE_URL` and set the same environment variables.
+  a Postgres `DATABASE_URL` and the same environment variables.
 
 ## Quick start (without Docker)
 
@@ -163,7 +172,6 @@ invoice-generator/
 ├── run.ps1                 # Windows one-shot setup & run (PowerShell)
 ├── Dockerfile              # Single-image build with native deps baked in
 ├── docker-compose.yml      # One-command local run
-├── render.yaml             # Render deploy blueprint (web + Postgres)
 ├── requirements.txt        # Core dependencies
 └── requirements-deploy.txt # + PostgreSQL driver (used by the Docker image)
 ```
