@@ -1,0 +1,20 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Database
+*.db
+*.sqlite3
+data/
+
+# Generated artifacts
+invoices/*.pdf
+static/uploads/*
+!static/uploads/.gitkeep
+!invoices/.gitkeep

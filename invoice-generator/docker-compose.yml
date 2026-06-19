@@ -1,0 +1,26 @@
+# One-command run:  docker compose up
+# Then open http://localhost:5000
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    # Loads STRIPE_*, SMTP_*, etc. Copy .env.example to .env first.
+    env_file:
+      - .env
+    environment:
+      # Persist the SQLite DB on a named volume (survives container rebuilds).
+      DATABASE_URL: "sqlite:////app/data/invoices.db"
+      APP_BASE_URL: "${APP_BASE_URL:-http://localhost:5000}"
+    volumes:
+      - invoice_data:/app/data       # database (incl. logos, stored in DB)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  invoice_data:

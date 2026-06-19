@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit" if invoice and invoice.id else "New" }} Invoice · Invoicer{% endblock %}
+
+{% set currencies = ["USD","EUR","GBP","CAD","AUD","INR","JPY","CHF","CNY","BRL","ZAR","MXN","SGD","NZD"] %}
+{% set action = url_for('update_invoice', invoice_id=invoice.id) if invoice and invoice.id else url_for('create_invoice') %}
+
+{% block content %}
+<div class="page-head">
+  <h1>{{ "Edit Invoice" if invoice and invoice.id else "New Invoice" }}</h1>
+  <a class="btn btn-ghost" href="{{ url_for('history') }}">View History</a>
+</div>
+
+<form method="post" action="{{ action }}" enctype="multipart/form-data" id="invoice-form" novalidate>
+
+  <div class="card">
+    <h2>Business &amp; Client</h2>
+    <div class="grid-2">
+      <div class="field">
+        <label>From / Your Business <span class="req">*</span></label>
+        <textarea name="from_info" placeholder="Your Company Name&#10;123 Main St&#10;City, State ZIP&#10;email@company.com" required>{{ invoice.from_info if invoice else "" }}</textarea>
+      </div>
+      <div class="field">
+        <label>Bill To / Client <span class="req">*</span></label>
+        <textarea name="bill_to" placeholder="Client Name&#10;Address&#10;City, State ZIP" required>{{ invoice.bill_to if invoice else "" }}</textarea>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="field">
+        <label>Ship To <span class="muted">(optional)</span></label>
+        <textarea name="ship_to" placeholder="Shipping address (if different)">{{ invoice.ship_to if invoice else "" }}</textarea>
+      </div>
+      <div class="field">
+        <label>Logo <span class="muted">(optional)</span></label>
+        <input type="file" name="logo" accept="image/*">
+        {% if invoice and invoice.id and invoice.has_logo %}
+          <img class="logo-preview" src="{{ url_for('invoice_logo', invoice_id=invoice.id) }}" alt="Current logo">
+          <p class="help">Upload a new file to replace it.</p>
+          <label class="help" style="font-weight:normal">
+            <input type="checkbox" name="remove_logo" value="1"> Remove current logo
+          </label>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Invoice Details</h2>
+    <div class="grid-3">
+      <div class="field">
+        <label>Invoice Number <span class="req">*</span></label>
+        <input type="text" name="invoice_number" value="{{ invoice.invoice_number if invoice else suggested_number }}" required>
+      </div>
+      <div class="field">
+        <label>Invoice Date</label>
+        <input type="date" name="invoice_date" value="{{ invoice.invoice_date.isoformat() if invoice and invoice.invoice_date else today }}">
+      </div>
+      <div class="field">
+        <label>Currency</label>
+        <select name="currency" id="currency">
+          {% set cur = invoice.currency if invoice else "USD" %}
+          {% for c in currencies %}
+            <option value="{{ c }}" {{ "selected" if cur == c else "" }}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="grid-3">
+      <div class="field">
+        <label>Payment Terms</label>
+        <input type="text" name="payment_terms" placeholder="e.g. Net 30" value="{{ invoice.payment_terms if invoice else '' }}">
+      </div>
+      <div class="field">
+        <label>Due Date</label>
+        <input type="date" name="due_date" value="{{ invoice.due_date.isoformat() if invoice and invoice.due_date else '' }}">
+      </div>
+      <div class="field">
+        <label>PO Number</label>
+        <input type="text" name="po_number" value="{{ invoice.po_number if invoice else '' }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Line Items</h2>
+    <table class="items" id="items-table">
+      <thead>
+        <tr>
+          <th style="width:48%">Description</th>
+          <th style="width:14%">Qty</th>
+          <th style="width:18%">Rate</th>
+          <th style="width:16%" class="col-amount">Amount</th>
+          <th class="col-actions"></th>
+        </tr>
+      </thead>
+      <tbody id="items-body">
+        {% if invoice and invoice.items %}
+          {% for item in invoice.items %}
+          <tr class="item-row">
+            <td><input type="text" name="item_description" value="{{ item.description }}" placeholder="Item or service"></td>
+            <td><input type="number" name="item_quantity" class="qty" step="any" min="0" value="{{ item.quantity }}"></td>
+            <td><input type="number" name="item_rate" class="rate" step="any" min="0" value="{{ item.rate }}"></td>
+            <td class="col-amount row-amount">0.00</td>
+            <td class="col-actions"><button type="button" class="btn-remove" title="Remove">&times;</button></td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr class="item-row">
+            <td><input type="text" name="item_description" placeholder="Item or service"></td>
+            <td><input type="number" name="item_quantity" class="qty" step="any" min="0" value="1"></td>
+            <td><input type="number" name="item_rate" class="rate" step="any" min="0" value="0"></td>
+            <td class="col-amount row-amount">0.00</td>
+            <td class="col-actions"><button type="button" class="btn-remove" title="Remove">&times;</button></td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+    <button type="button" class="btn btn-ghost btn-sm btn-add" id="add-item">+ Add Line Item</button>
+  </div>
+
+  <div class="card">
+    <h2>Totals</h2>
+    <div class="totals">
+      <div class="line"><span>Subtotal</span><span class="val" id="t-subtotal">0.00</span></div>
+
+      <div class="adjust-row">
+        <label>Discount</label>
+        <div class="adjust-controls">
+          <input type="number" name="discount_value" id="discount_value" step="any" min="0" value="{{ invoice.discount_value if invoice else 0 }}">
+          <select name="discount_is_percent" id="discount_is_percent">
+            <option value="flat" {{ "selected" if invoice and not invoice.discount_is_percent else "" }}>Flat</option>
+            <option value="percent" {{ "selected" if invoice and invoice.discount_is_percent else "" }}>%</option>
+          </select>
+        </div>
+      </div>
+      <div class="line"><span class="muted">Discount applied</span><span class="val" id="t-discount">0.00</span></div>
+
+      <div class="adjust-row">
+        <label>Tax</label>
+        <div class="adjust-controls">
+          <input type="number" name="tax_value" id="tax_value" step="any" min="0" value="{{ invoice.tax_value if invoice else 0 }}">
+          <select name="tax_is_percent" id="tax_is_percent">
+            <option value="percent" {{ "selected" if (invoice is none) or invoice.tax_is_percent else "" }}>%</option>
+            <option value="flat" {{ "selected" if invoice and not invoice.tax_is_percent else "" }}>Flat</option>
+          </select>
+        </div>
+      </div>
+      <div class="line"><span class="muted">Tax applied</span><span class="val" id="t-tax">0.00</span></div>
+
+      <div class="adjust-row">
+        <label>Shipping</label>
+        <div class="adjust-controls">
+          <input type="number" name="shipping" id="shipping" step="any" min="0" value="{{ invoice.shipping if invoice else 0 }}">
+        </div>
+      </div>
+
+      <div class="line grand"><span>Total</span><span class="val" id="t-total">0.00</span></div>
+
+      <div class="adjust-row">
+        <label>Amount Paid</label>
+        <div class="adjust-controls">
+          <input type="number" name="amount_paid" id="amount_paid" step="any" min="0" value="{{ invoice.amount_paid if invoice else 0 }}">
+        </div>
+      </div>
+
+      <div class="line due"><span>Balance Due</span><span class="val" id="t-balance">0.00</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Notes &amp; Terms</h2>
+    <div class="grid-2">
+      <div class="field">
+        <label>Notes</label>
+        <textarea name="notes" placeholder="Notes visible to the client">{{ invoice.notes if invoice else "" }}</textarea>
+      </div>
+      <div class="field">
+        <label>Terms</label>
+        <textarea name="terms" placeholder="Terms and conditions">{{ invoice.terms if invoice else "" }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions-row">
+    <button type="submit" class="btn btn-primary">{{ "Save Changes" if invoice and invoice.id else "Create Invoice" }}</button>
+    <a class="btn btn-ghost" href="{{ url_for('history') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/invoice.js') }}"></script>
+{% endblock %}

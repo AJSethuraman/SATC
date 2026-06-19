@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Account · Invoicer{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Account</h1>
+</div>
+
+<div class="card">
+  <h2>Profile</h2>
+  <div class="kv"><div class="k">Email</div><div class="v">{{ current_user.email }}</div></div>
+</div>
+
+<div class="card">
+  <h2>API Key</h2>
+  <p class="help">Use this as the <code>X-API-Key</code> header to create invoices programmatically. Keep it secret — anyone with it can act on your account.</p>
+  <div class="field">
+    <input type="text" id="apikey" value="{{ current_user.api_key }}" readonly onclick="this.select()">
+  </div>
+  <form method="post" action="{{ url_for('regenerate_key') }}" onsubmit="return confirm('Regenerate your API key? Existing integrations will stop working until updated.');">
+    <button type="submit" class="btn btn-ghost btn-sm">Regenerate key</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Integrations</h2>
+  <div class="kv">
+    <div class="k">Stripe payments</div>
+    <div class="v">{% if stripe_configured %}<span class="badge badge-Paid">Enabled</span>{% else %}<span class="badge badge-Draft">Not configured</span> — set <code>STRIPE_SECRET_KEY</code>{% endif %}</div>
+  </div>
+  <div class="kv">
+    <div class="k">Email sending</div>
+    <div class="v">{% if smtp_configured %}<span class="badge badge-Paid">Enabled</span>{% else %}<span class="badge badge-Draft">Not configured</span> — set <code>SMTP_HOST</code> and <code>FROM_EMAIL</code>{% endif %}</div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #1f2937;
+    font-size: 11px;
+    margin: 0;
+  }
+  .navy { color: #1f2a44; }
+  .muted { color: #6b7280; }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 3px solid #1f2a44;
+    padding-bottom: 16px;
+    margin-bottom: 22px;
+  }
+  .header .logo { max-height: 70px; max-width: 220px; }
+  .header .from {
+    font-size: 11px;
+    white-space: pre-line;
+    line-height: 1.45;
+    max-width: 280px;
+  }
+  .header .from .name { font-size: 14px; font-weight: 700; color: #1f2a44; margin-bottom: 3px; }
+  .title-block { text-align: right; }
+  .title-block h1 {
+    margin: 0 0 6px;
+    font-size: 30px;
+    letter-spacing: 2px;
+    color: #1f2a44;
+    text-transform: uppercase;
+  }
+  .title-block .meta { font-size: 11px; line-height: 1.6; }
+  .title-block .meta .label { color: #6b7280; display: inline-block; min-width: 88px; }
+
+  .parties {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  .party { flex: 1; }
+  .party .heading {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #6b7280;
+    font-weight: 700;
+    margin-bottom: 5px;
+  }
+  .party .body { white-space: pre-line; line-height: 1.5; }
+
+  table.items { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+  table.items thead th {
+    background: #1f2a44;
+    color: #fff;
+    text-align: left;
+    padding: 9px 10px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+  table.items thead th.num { text-align: right; }
+  table.items tbody td {
+    padding: 9px 10px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+  }
+  table.items tbody td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.items tbody tr:nth-child(even) td { background: #f9fafb; }
+
+  .totals-wrap { display: flex; justify-content: flex-end; }
+  table.totals { width: 46%; border-collapse: collapse; }
+  table.totals td { padding: 6px 10px; font-size: 11px; }
+  table.totals td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.totals tr.total td {
+    border-top: 2px solid #1f2a44;
+    font-weight: 700;
+    font-size: 13px;
+    color: #1f2a44;
+    padding-top: 9px;
+  }
+  table.totals tr.due td {
+    background: #1f2a44;
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  .notes { margin-top: 28px; }
+  .notes .block { margin-bottom: 14px; }
+  .notes .heading {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #6b7280;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .notes .body { white-space: pre-line; line-height: 1.5; }
+
+  .paybox {
+    margin-top: 26px;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 11px;
+  }
+  .paybox .url { color: #2563eb; word-break: break-all; }
+
+  .paid-stamp {
+    display: inline-block;
+    border: 3px solid #16a34a;
+    color: #16a34a;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 4px 14px;
+    border-radius: 6px;
+    transform: rotate(-6deg);
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+  {% set cur = invoice.currency %}
+  <div class="header">
+    <div>
+      {% if logo_data_uri %}
+        <img class="logo" src="{{ logo_data_uri }}" alt="Logo">
+      {% else %}
+        <div class="from"><span class="name">{{ (invoice.from_info.splitlines()[0] if invoice.from_info else "") }}</span>{{ "\n".join(invoice.from_info.splitlines()[1:]) if invoice.from_info else "" }}</div>
+      {% endif %}
+    </div>
+    <div class="title-block">
+      <h1>Invoice</h1>
+      <div class="meta">
+        <div><span class="label">Invoice #</span> {{ invoice.invoice_number }}</div>
+        <div><span class="label">Date</span> {{ invoice.invoice_date.isoformat() if invoice.invoice_date else "" }}</div>
+        {% if invoice.due_date %}<div><span class="label">Due Date</span> {{ invoice.due_date.isoformat() }}</div>{% endif %}
+        {% if invoice.payment_terms %}<div><span class="label">Terms</span> {{ invoice.payment_terms }}</div>{% endif %}
+        {% if invoice.po_number %}<div><span class="label">PO Number</span> {{ invoice.po_number }}</div>{% endif %}
+        {% if invoice.status == "Paid" %}<div style="margin-top:8px"><span class="paid-stamp">PAID</span></div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if logo_data_uri and invoice.from_info %}
+  <div class="parties">
+    <div class="party">
+      <div class="heading">From</div>
+      <div class="body">{{ invoice.from_info }}</div>
+    </div>
+    <div class="party">
+      <div class="heading">Bill To</div>
+      <div class="body">{{ invoice.bill_to }}</div>
+    </div>
+    {% if invoice.ship_to %}
+    <div class="party">
+      <div class="heading">Ship To</div>
+      <div class="body">{{ invoice.ship_to }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="parties">
+    <div class="party">
+      <div class="heading">Bill To</div>
+      <div class="body">{{ invoice.bill_to }}</div>
+    </div>
+    {% if invoice.ship_to %}
+    <div class="party">
+      <div class="heading">Ship To</div>
+      <div class="body">{{ invoice.ship_to }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:52%">Description</th>
+        <th class="num" style="width:12%">Qty</th>
+        <th class="num" style="width:18%">Rate</th>
+        <th class="num" style="width:18%">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in invoice.items %}
+      <tr>
+        <td>{{ item.description }}</td>
+        <td class="num">{{ "%g"|format(item.quantity) }}</td>
+        <td class="num">{{ format_money(item.rate, cur) }}</td>
+        <td class="num">{{ format_money(item.amount, cur) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="totals-wrap">
+    <table class="totals">
+      <tr><td>Subtotal</td><td class="num">{{ format_money(invoice.subtotal, cur) }}</td></tr>
+      {% if invoice.discount_amount %}
+      <tr><td>Discount{% if invoice.discount_is_percent %} ({{ "%g"|format(invoice.discount_value) }}%){% endif %}</td><td class="num">-{{ format_money(invoice.discount_amount, cur) }}</td></tr>
+      {% endif %}
+      {% if invoice.tax_amount %}
+      <tr><td>Tax{% if invoice.tax_is_percent %} ({{ "%g"|format(invoice.tax_value) }}%){% endif %}</td><td class="num">{{ format_money(invoice.tax_amount, cur) }}</td></tr>
+      {% endif %}
+      {% if invoice.shipping %}
+      <tr><td>Shipping</td><td class="num">{{ format_money(invoice.shipping, cur) }}</td></tr>
+      {% endif %}
+      <tr class="total"><td>Total</td><td class="num">{{ format_money(invoice.total, cur) }}</td></tr>
+      {% if invoice.amount_paid %}
+      <tr><td>Amount Paid</td><td class="num">-{{ format_money(invoice.amount_paid, cur) }}</td></tr>
+      {% endif %}
+      <tr class="due"><td>Balance Due</td><td class="num">{{ format_money(invoice.balance_due, cur) }}</td></tr>
+    </table>
+  </div>
+
+  {% if invoice.stripe_payment_url and invoice.balance_due > 0 %}
+  <div class="paybox">
+    <strong>Pay online:</strong> <span class="url">{{ invoice.stripe_payment_url }}</span>
+  </div>
+  {% endif %}
+
+  {% if invoice.notes or invoice.terms %}
+  <div class="notes">
+    {% if invoice.notes %}
+    <div class="block">
+      <div class="heading">Notes</div>
+      <div class="body">{{ invoice.notes }}</div>
+    </div>
+    {% endif %}
+    {% if invoice.terms %}
+    <div class="block">
+      <div class="heading">Terms</div>
+      <div class="body">{{ invoice.terms }}</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</body>
+</html>

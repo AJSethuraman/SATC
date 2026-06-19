@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: a4 portrait; margin: 1.4cm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1f2937; }
+  h1 { font-size: 26pt; color: #1f2a44; margin: 0; letter-spacing: 2px; }
+  .muted { color: #6b7280; }
+  .small { font-size: 8.5pt; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { vertical-align: top; }
+
+  .name { font-size: 13pt; font-weight: bold; color: #1f2a44; }
+  .heading {
+    font-size: 8pt; color: #6b7280; font-weight: bold;
+    text-transform: uppercase; letter-spacing: 1px; padding-bottom: 3px;
+  }
+
+  .rule { border-bottom: 3px solid #1f2a44; }
+
+  .meta td { font-size: 9.5pt; padding: 1pt 0; }
+  .meta .label { color: #6b7280; }
+
+  table.items td, table.items th { padding: 6pt 7pt; }
+  table.items thead th {
+    background-color: #1f2a44; color: #ffffff; font-size: 8pt;
+    text-transform: uppercase; letter-spacing: 0.5px; text-align: left;
+  }
+  table.items thead th.num { text-align: right; }
+  table.items tbody td { border-bottom: 1px solid #e5e7eb; }
+  table.items tbody td.num { text-align: right; }
+
+  table.totals td { padding: 4pt 8pt; font-size: 10pt; }
+  table.totals td.num { text-align: right; }
+  .total-row td { border-top: 2px solid #1f2a44; font-weight: bold; color: #1f2a44; font-size: 11.5pt; }
+  .due-row td { background-color: #1f2a44; color: #ffffff; font-weight: bold; font-size: 11pt; }
+
+  .paybox { background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 8pt; font-size: 9pt; }
+  .payurl { color: #2563eb; }
+  .paid { color: #16a34a; font-weight: bold; font-size: 13pt; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+{% set cur = invoice.currency %}
+
+<!-- Header: logo / business on the left, INVOICE + meta on the right -->
+<table>
+  <tr>
+    <td width="58%">
+      {% if logo_data_uri %}
+        <img src="{{ logo_data_uri }}" style="max-height:64pt;">
+      {% else %}
+        <div class="name">{{ (invoice.from_info.splitlines()[0] if invoice.from_info else "") }}</div>
+        <div class="small">{{ ("\n".join(invoice.from_info.splitlines()[1:])) | nl2br }}</div>
+      {% endif %}
+    </td>
+    <td width="42%" align="right">
+      <h1>INVOICE</h1>
+      <table class="meta">
+        <tr><td class="label" align="right">Invoice #&nbsp;&nbsp;</td><td align="right">{{ invoice.invoice_number }}</td></tr>
+        <tr><td class="label" align="right">Date&nbsp;&nbsp;</td><td align="right">{{ invoice.invoice_date.isoformat() if invoice.invoice_date else "" }}</td></tr>
+        {% if invoice.due_date %}<tr><td class="label" align="right">Due Date&nbsp;&nbsp;</td><td align="right">{{ invoice.due_date.isoformat() }}</td></tr>{% endif %}
+        {% if invoice.payment_terms %}<tr><td class="label" align="right">Terms&nbsp;&nbsp;</td><td align="right">{{ invoice.payment_terms }}</td></tr>{% endif %}
+        {% if invoice.po_number %}<tr><td class="label" align="right">PO Number&nbsp;&nbsp;</td><td align="right">{{ invoice.po_number }}</td></tr>{% endif %}
+        {% if invoice.status == "Paid" %}<tr><td></td><td align="right"><span class="paid">PAID</span></td></tr>{% endif %}
+      </table>
+    </td>
+  </tr>
+</table>
+
+<table><tr><td class="rule" style="padding-top:6pt;"></td></tr></table>
+
+<!-- Parties -->
+<table style="margin-top:14pt;">
+  <tr>
+    {% if logo_data_uri %}
+    <td width="34%"><div class="heading">From</div><div class="small">{{ invoice.from_info | nl2br }}</div></td>
+    <td width="33%"><div class="heading">Bill To</div><div class="small">{{ invoice.bill_to | nl2br }}</div></td>
+    {% else %}
+    <td width="50%"><div class="heading">Bill To</div><div class="small">{{ invoice.bill_to | nl2br }}</div></td>
+    {% endif %}
+    {% if invoice.ship_to %}
+    <td width="33%"><div class="heading">Ship To</div><div class="small">{{ invoice.ship_to | nl2br }}</div></td>
+    {% elif not logo_data_uri %}
+    <td width="50%">&nbsp;</td>
+    {% endif %}
+  </tr>
+</table>
+
+<!-- Line items -->
+<table class="items" style="margin-top:16pt;">
+  <thead>
+    <tr>
+      <th width="54%">Description</th>
+      <th width="12%" class="num">Qty</th>
+      <th width="17%" class="num">Rate</th>
+      <th width="17%" class="num">Amount</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in invoice.items %}
+    <tr>
+      <td>{{ item.description }}</td>
+      <td class="num">{{ "%g"|format(item.quantity) }}</td>
+      <td class="num">{{ format_money(item.rate, cur) }}</td>
+      <td class="num">{{ format_money(item.amount, cur) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Totals (right-aligned via spacer column) -->
+<table style="margin-top:12pt;">
+  <tr>
+    <td width="55%">&nbsp;</td>
+    <td width="45%">
+      <table class="totals">
+        <tr><td>Subtotal</td><td class="num">{{ format_money(invoice.subtotal, cur) }}</td></tr>
+        {% if invoice.discount_amount %}
+        <tr><td>Discount{% if invoice.discount_is_percent %} ({{ "%g"|format(invoice.discount_value) }}%){% endif %}</td><td class="num">-{{ format_money(invoice.discount_amount, cur) }}</td></tr>
+        {% endif %}
+        {% if invoice.tax_amount %}
+        <tr><td>Tax{% if invoice.tax_is_percent %} ({{ "%g"|format(invoice.tax_value) }}%){% endif %}</td><td class="num">{{ format_money(invoice.tax_amount, cur) }}</td></tr>
+        {% endif %}
+        {% if invoice.shipping %}
+        <tr><td>Shipping</td><td class="num">{{ format_money(invoice.shipping, cur) }}</td></tr>
+        {% endif %}
+        <tr class="total-row"><td>Total</td><td class="num">{{ format_money(invoice.total, cur) }}</td></tr>
+        {% if invoice.amount_paid %}
+        <tr><td>Amount Paid</td><td class="num">-{{ format_money(invoice.amount_paid, cur) }}</td></tr>
+        {% endif %}
+        <tr class="due-row"><td>Balance Due</td><td class="num">{{ format_money(invoice.balance_due, cur) }}</td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+{% if invoice.stripe_payment_url and invoice.balance_due > 0 %}
+<table style="margin-top:16pt;"><tr><td class="paybox">
+  <b>Pay online:</b> <span class="payurl">{{ invoice.stripe_payment_url }}</span>
+</td></tr></table>
+{% endif %}
+
+{% if invoice.notes %}
+<table style="margin-top:16pt;"><tr><td>
+  <div class="heading">Notes</div>
+  <div class="small">{{ invoice.notes | nl2br }}</div>
+</td></tr></table>
+{% endif %}
+{% if invoice.terms %}
+<table style="margin-top:10pt;"><tr><td>
+  <div class="heading">Terms</div>
+  <div class="small">{{ invoice.terms | nl2br }}</div>
+</td></tr></table>
+{% endif %}
+
+</body>
+</html>
