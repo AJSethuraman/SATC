@@ -23,11 +23,15 @@ from typing import Any
 
 import yaml
 
+from satc.config import CONFIG_ROOT
 from satc.ids import normalize_jurisdiction
 
 ParamStatus = str  # "in_force" | "scheduled_reversion" | "pending"
 
-_DEFAULT_CONFIG_DIR = Path(__file__).resolve().parents[3] / "configs" / "crosswalk"
+# Frozen-aware: CONFIG_ROOT resolves to sys._MEIPASS/configs inside a PyInstaller
+# bundle (and to satc_system/configs in a dev/test install), so the crosswalk is
+# found in the packaged .exe instead of pointing outside the bundle.
+_DEFAULT_CONFIG_DIR = CONFIG_ROOT / "crosswalk"
 
 
 class CrosswalkError(Exception):
