@@ -37,6 +37,11 @@ class Config:
     # disabled (return 503) so the API is never unintentionally public.
     API_KEY = os.environ.get("API_KEY", "")
 
+    # PDF rendering engine: "auto" (default), "weasyprint", or "xhtml2pdf".
+    # auto uses WeasyPrint when its native libraries are available and falls
+    # back to the pure-Python xhtml2pdf engine otherwise (e.g. on Windows).
+    PDF_ENGINE = os.environ.get("PDF_ENGINE", "auto")
+
     # Stripe
     STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
     STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")

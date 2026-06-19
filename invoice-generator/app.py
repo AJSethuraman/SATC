@@ -24,6 +24,7 @@ from flask import (
     send_file,
     url_for,
 )
+from markupsafe import Markup, escape
 from werkzeug.utils import secure_filename
 
 import email_utils
@@ -34,6 +35,15 @@ from models import Invoice, LineItem, db
 from pdf import render_invoice_pdf
 
 ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".svg"}
+
+
+def nl2br(value):
+    """Escape text and convert newlines to <br> (for engines without
+    CSS ``white-space`` support, e.g. xhtml2pdf)."""
+    if value is None:
+        return ""
+    text = str(escape(value)).replace("\r\n", "<br>").replace("\n", "<br>")
+    return Markup(text)
 
 
 def create_app(config_class=Config):
@@ -58,6 +68,7 @@ def create_app(config_class=Config):
     app.jinja_env.globals.update(
         format_money=format_money, currency_symbol=currency_symbol
     )
+    app.jinja_env.filters["nl2br"] = nl2br
 
     with app.app_context():
         db.create_all()

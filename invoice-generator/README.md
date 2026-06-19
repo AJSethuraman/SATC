@@ -20,19 +20,18 @@ powershell -ExecutionPolicy Bypass -File .\run.ps1
 
 1. Finds Python 3 (installs it via `winget` if it's missing).
 2. Creates a local virtual environment in `.venv`.
-3. Installs the Python dependencies.
-4. Installs the **GTK runtime** WeasyPrint needs to render PDFs (only if it
-   isn't already present — this is the one native piece Windows requires, and
-   the script handles it automatically; it may show a UAC prompt).
-5. Creates `.env` from the template if you don't have one.
-6. Starts the app and opens **http://localhost:5000** in your browser.
+3. Installs the Python dependencies — **pure pip, no native libraries, no
+   admin, no downloads.**
+4. Creates `.env` from the template if you don't have one.
+5. Starts the app and opens **http://localhost:5000** in your browser.
 
-Stop the app with `Ctrl+C`. If WeasyPrint reports it can't load GTK the first
-time, close PowerShell, open a fresh window, and run the command again so the
-updated PATH takes effect.
+Stop the app with `Ctrl+C`.
 
-> The app itself starts even before GTK is installed — only PDF download/email
-> need it. Everything else (creating invoices, history, the API) works either way.
+> **PDF engine on Windows:** PDFs are rendered by `xhtml2pdf`, a pure-Python
+> engine, so there's nothing extra to install. (On Linux/Docker the app
+> automatically uses WeasyPrint for slightly higher-fidelity output — see
+> `PDF_ENGINE` below. You can force either engine anywhere by setting
+> `PDF_ENGINE=weasyprint` or `PDF_ENGINE=xhtml2pdf`.)
 
 ## Quick start (Docker — one command)
 
@@ -100,8 +99,9 @@ auto-reload during development use `flask --app app run --debug`.
 
 ## Tech stack
 
-Flask · Jinja2 · WeasyPrint · SQLite · SQLAlchemy · Stripe Python SDK ·
-Gunicorn · Docker · custom navy/gray/white CSS · vanilla JS for dynamic rows.
+Flask · Jinja2 · WeasyPrint or xhtml2pdf (PDF) · SQLite · SQLAlchemy ·
+Stripe Python SDK · Gunicorn · Docker · custom navy/gray/white CSS · vanilla
+JS for dynamic rows.
 
 ## Project layout
 
@@ -135,6 +135,7 @@ none of these set — Stripe, email, and the API stay disabled until configured.
 | `FLASK_SECRET_KEY`       | Flask session signing key                            |
 | `APP_BASE_URL`           | Public base URL (Stripe redirects, API PDF links)    |
 | `API_KEY`                | Token for the JSON API; blank = API disabled (503)   |
+| `PDF_ENGINE`             | `auto` (default), `weasyprint`, or `xhtml2pdf`       |
 | `STRIPE_SECRET_KEY`      | Stripe secret key (`sk_test_...` in test mode)       |
 | `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (optional)                    |
 | `STRIPE_WEBHOOK_SECRET`  | Webhook signing secret (`whsec_...`)                 |
