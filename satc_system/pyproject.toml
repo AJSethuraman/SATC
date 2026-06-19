@@ -19,6 +19,7 @@ dev = [
   "flask>=3.0",
   "pypdf>=4.0",
   "reportlab>=4.0",
+  "pymupdf>=1.24",
 ]
 # Document readers. The vision backend needs the Anthropic SDK; the free PDF
 # form-field backend needs pypdf. Neither is required for the rest of the system.
@@ -51,6 +52,7 @@ local = [
   "reportlab>=4.0",
   "pytesseract>=0.3",
   "Pillow>=10",
+  "pymupdf>=1.24",
   "pywin32>=306; sys_platform == 'win32'",
 ]
 
