@@ -121,3 +121,73 @@ def test_learned_layout_autofills_next_stub(client, tmp_path, monkeypatch):
     resp = client.post("/withholding/from-paystub", data={"paystub_text": again})
     assert b"Recognized" in resp.data
     assert b"3910.00" in resp.data        # YTD federal pulled via the learned anchors
+
+
+def _pymupdf_available() -> bool:
+    try:
+        import pymupdf  # noqa: F401
+        return True
+    except ImportError:
+        try:
+            import fitz  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
+
+@pytest.mark.skipif(not _pymupdf_available(), reason="PyMuPDF not installed")
+def test_paystub_layout_new_opens_teach_modal(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("SATC_DATA_DIR", str(tmp_path))
+    pdf = _textlayer_pdf(["ACME CORP",
+                          "Gross Pay            2,500.00    30,000.00",
+                          "Federal Income Tax     300.00     3,600.00"])
+    resp = client.post("/withholding/paystub/layout",
+                       data={"paystub_file": (io.BytesIO(pdf), "acme.pdf")},
+                       content_type="multipart/form-data")
+    assert resp.status_code == 200
+    assert b"Map your paystub" in resp.data        # teach modal rendered
+    assert b'id="ps-teach-data" type="application/json"' in resp.data   # payload embedded
+
+
+@pytest.mark.skipif(not _pymupdf_available(), reason="PyMuPDF not installed")
+def test_paystub_click_teach_saves_profile_then_recognizes(client, tmp_path, monkeypatch):
+    monkeypatch.setenv("SATC_DATA_DIR", str(tmp_path))
+    import json
+
+    from satc.ingest.paystub_layout import extract_layout, parse_currency
+
+    pdf = _textlayer_pdf(["ACME CORP",
+                          "Gross Pay            2,500.00    30,000.00",
+                          "Federal Income Tax     300.00     3,600.00"])
+    words = extract_layout(pdf, "application/pdf").words
+
+    def idx_for(value: str) -> int:
+        want = parse_currency(value)
+        for i, w in enumerate(words):
+            if parse_currency(w.text) == want:
+                return i
+        raise AssertionError(f"{value} not in {[w.text for w in words]}")
+
+    assignments = {
+        "gross_pay_per_period": [idx_for("2500.00")],
+        "ytd_taxable_wages": [idx_for("30000.00")],
+        "federal_tax_withheld_per_period": [idx_for("300.00")],
+        "ytd_federal_tax_withheld": [idx_for("3600.00")],
+    }
+    words_payload = [{"text": w.text, "x0": w.x0, "y0": w.y0, "x1": w.x1, "y1": w.y1} for w in words]
+    saved = client.post("/withholding/paystub/teach", data={
+        "words": json.dumps(words_payload),
+        "assignments": json.dumps(assignments),
+        "profile_name": "Acme Corp (ADP)",
+        "pay_frequency": "biweekly"})
+    assert saved.status_code == 200
+    assert b"Saved" in saved.data
+    assert b"2500.00" in saved.data        # job added from the mapped values
+
+    # Re-upload the same layout -> recognized and auto-added, no teach modal.
+    again = client.post("/withholding/paystub/layout",
+                        data={"paystub_file": (io.BytesIO(pdf), "acme.pdf")},
+                        content_type="multipart/form-data")
+    assert again.status_code == 200
+    assert b"Recognized" in again.data
+    assert b'id="ps-teach-data" type="application/json"' not in again.data   # no payload -> modal closed

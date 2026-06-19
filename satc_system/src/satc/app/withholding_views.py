@@ -11,12 +11,25 @@ dated, cited crosswalk.
 from __future__ import annotations
 
 import io
+import json
 import re
 from pathlib import Path
 
 from flask import Blueprint, render_template, request, send_file, session
 
+from satc.ingest.paystub_layout import (
+    TARGET_FIELDS,
+    Layout,
+    PaystubError,
+    Profile,
+    Word,
+    apply_profile,
+    build_rules,
+    extract_layout,
+)
+from satc.ingest.paystub_profiles import match_profile, save_profile
 from satc.ingest.paystub_templates import TemplateLibrary, learn, read_with_templates
+from satc.ingest.readers.base import ReadResult
 from satc.ingest.readers.paystub import (
     LABEL_EMPLOYER,
     LABEL_FED_WH_CURRENT,
@@ -205,7 +218,7 @@ def _teach_ctx(read, source_text: str) -> dict:
     }
 
 
-def _render(*, result=None, teach=None, notes=None):
+def _render(*, result=None, teach=None, teach_layout=None, notes=None):
     hh = _household()
     return render_template(
         "withholding.html",
@@ -218,8 +231,111 @@ def _render(*, result=None, teach=None, notes=None):
         adjust_job=int(_clean_num(hh.get("adjust_job")) or 0),
         result=result,
         teach=teach,
+        teach_layout=teach_layout,
         prefill_notes=notes or [],
     )
+
+
+# --- click-to-teach paystub reading -----------------------------------------
+
+def _words_payload(words: list) -> list[dict]:
+    return [{"text": w.text, "x0": w.x0, "y0": w.y0, "x1": w.x1, "y1": w.y1} for w in words]
+
+
+def _labeled_from_fields(fields: dict, *, name: str = "", freq: str = "") -> dict:
+    """Map click-to-teach output (job-field keys) to the canonical reader labels,
+    so it flows through the same paystub_from_fields derivation as everything else."""
+    m = {
+        LABEL_GROSS_CURRENT: fields.get("gross_pay_per_period", ""),
+        LABEL_FED_WH_CURRENT: fields.get("federal_tax_withheld_per_period", ""),
+        LABEL_RETIREMENT_CURRENT: fields.get("retirement_pretax_per_period", ""),
+        LABEL_GROSS_YTD: fields.get("ytd_taxable_wages", ""),
+        LABEL_FED_WH_YTD: fields.get("ytd_federal_tax_withheld", ""),
+    }
+    chosen_freq = fields.get("pay_frequency") or freq
+    if chosen_freq:
+        m[LABEL_PAY_FREQUENCY] = chosen_freq
+    if name:
+        m[LABEL_EMPLOYER] = name
+    return {k: v for k, v in m.items() if v}
+
+
+def _match_keywords(words: list) -> list[str]:
+    """Distinctive header tokens (employer/provider) so future stubs match."""
+    seen: list[str] = []
+    for w in sorted(words, key=lambda w: (w.y0, w.x0)):
+        if w.y0 > 0.22:
+            continue
+        tok = re.sub(r"[^a-z]", "", w.text.lower())
+        if len(tok) >= 4 and tok not in seen:
+            seen.append(tok)
+    return seen[:8]
+
+
+def _add_job_from_fields(fields: dict, *, name: str, freq: str) -> None:
+    labeled = _labeled_from_fields(fields, name=name, freq=freq)
+    jobs = _jobs()
+    jobs.append(_job_from_read(ReadResult(labeled_fields=labeled)))
+    _set_jobs(jobs)
+
+
+@bp.route("/withholding/paystub/layout", methods=["POST"])
+def paystub_layout():
+    """Read an uploaded paystub by rendering it + word boxes; auto-apply a known
+    layout, else hand the page to the click-to-teach modal."""
+    _sync(request.form)
+    upload = request.files.get("paystub_file")
+    if upload is None or not (upload.filename or "").strip():
+        return _render(notes=["Choose a paystub file first, or paste its text."])
+    data = upload.read()
+    media = upload.mimetype or ""
+    if not media and (upload.filename or "").lower().endswith(".pdf"):
+        media = "application/pdf"
+    try:
+        layout = extract_layout(data, media)
+    except PaystubError as exc:
+        return _render(notes=[f"Couldn’t read that file: {exc}", "You can paste the paystub text instead."])
+
+    profile = match_profile(layout)
+    if profile is not None:
+        _add_job_from_fields(apply_profile(layout, profile),
+                             name=profile.name, freq=profile.pay_frequency or "")
+        return _render(notes=[f"Recognized “{profile.name}” — read the paystub and added the job."])
+
+    suggested = " ".join(w.text for w in sorted(layout.words, key=lambda w: (w.y0, w.x0))[:4])[:48]
+    teach_layout = {
+        "image": layout.image_png_b64,
+        "words": _words_payload(layout.words),
+        "targets": [{"key": k, "label": lbl} for k, lbl, _ in TARGET_FIELDS],
+        "frequencies": PAY_FREQUENCIES,
+        "suggested_name": suggested,
+    }
+    return _render(teach_layout=teach_layout,
+                   notes=["New layout — click each figure on the paystub to map it (once per employer)."])
+
+
+@bp.route("/withholding/paystub/teach", methods=["POST"])
+def paystub_teach():
+    """Turn the clicked words into a saved profile and add the job."""
+    try:
+        words_raw = json.loads(request.form.get("words", "[]"))
+        assignments = json.loads(request.form.get("assignments", "{}"))
+    except (ValueError, TypeError):
+        return _render(notes=["Couldn’t read the mapping — please try again."])
+    words = [Word(text=str(w.get("text", "")), x0=float(w["x0"]), y0=float(w["y0"]),
+                  x1=float(w["x1"]), y1=float(w["y1"])) for w in words_raw if "x0" in w]
+    assignments = {k: [int(i) for i in v] for k, v in assignments.items() if v}
+    if not words or not assignments:
+        return _render(notes=["Nothing was mapped — pick a field, then click its number on the paystub."])
+
+    name = (request.form.get("profile_name") or "").strip() or "Saved paystub"
+    freq = (request.form.get("pay_frequency") or "").strip().lower() or None
+    profile = Profile(name=name, pay_frequency=freq,
+                      rules=build_rules(words, assignments), match_keywords=_match_keywords(words))
+    save_profile(profile)
+    fields = apply_profile(Layout(image_png_b64="", img_width=0, img_height=0, words=words), profile)
+    _add_job_from_fields(fields, name=name, freq=freq or "")
+    return _render(notes=[f"Saved “{name}” and added the job — future stubs from this layout fill in automatically."])
 
 
 # --- routes ------------------------------------------------------------------

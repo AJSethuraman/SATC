@@ -46,10 +46,11 @@
         Add as many jobs as the household has — e.g. taxpayer + spouse, or a second job.</p>
       <div class="grid2">
         <p>
-          <label class="muted">Upload a paystub</label><br>
+          <label class="muted">Upload a paystub (PDF or image)</label><br>
           <input class="field-input" type="file" name="paystub_file"
                  accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp"><br>
-          <button class="btn" type="submit" formaction="{{ url_for('withholding.from_file') }}" style="margin-top:8px">Upload &amp; read → add job</button>
+          <button class="btn primary" type="submit" formaction="{{ url_for('withholding.paystub_layout') }}" style="margin-top:8px">Read &amp; map → add job</button>
+          <button class="btn sm" type="submit" formaction="{{ url_for('withholding.from_file') }}" style="margin-top:8px" title="Skip mapping — quick text-only read">quick text read</button>
         </p>
         <p>
           <label class="muted">…or paste paystub text</label><br>
@@ -194,9 +195,110 @@
 </div>
 {% endif %}
 
+{% if teach_layout %}
+<script id="ps-teach-data" type="application/json">{{ teach_layout|tojson }}</script>
+{% endif %}
+
+<div id="ps-modal" class="ps-modal">
+  <div class="ps-card">
+    <div class="ps-head">
+      <div>📍 <strong>Map your paystub</strong>
+        <span class="muted" style="font-weight:400">— click a field on the right, then click its number on the image. Once per employer; future stubs auto-fill.</span></div>
+      <button type="button" class="btn sm" onclick="psClose()">✕ Close</button>
+    </div>
+    <div class="ps-body">
+      <div class="ps-imgcol"><div id="ps-imgwrap" class="ps-imgwrap"></div></div>
+      <div class="ps-side">
+        <div class="muted" style="margin-bottom:6px">Click a field, then its number on the paystub. Click a number again to unselect.</div>
+        <div id="ps-fields"></div>
+        <p style="margin:10px 0 0"><label class="muted">Pay frequency</label><br>
+          <select id="ps-freq" class="field-input"></select></p>
+        <p style="margin:8px 0 0"><label class="muted">Profile name (employer)</label><br>
+          <input id="ps-name" class="field-input" placeholder="e.g. Acme Corp (ADP)"></p>
+        <form method="post" action="{{ url_for('withholding.paystub_teach') }}" id="ps-form" style="margin-top:12px">
+          <input type="hidden" name="words" id="ps-words-h">
+          <input type="hidden" name="assignments" id="ps-assign-h">
+          <input type="hidden" name="profile_name" id="ps-name-h">
+          <input type="hidden" name="pay_frequency" id="ps-freq-h">
+          <button class="btn primary" type="submit" onclick="return psSubmit()">💾 Save layout &amp; add job</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <style>
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 22px; }
 .grid2 > p { margin:6px 0; }
 table.lines td, table.lines th { padding:3px 0; border-bottom:1px solid #eee; }
+.ps-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;overflow:auto}
+.ps-modal.open{display:block}
+.ps-card{background:#fff;max-width:1120px;margin:24px auto;border-radius:10px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.ps-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #eee}
+.ps-body{display:grid;grid-template-columns:1.5fr 1fr}
+@media(max-width:820px){.ps-body{grid-template-columns:1fr}}
+.ps-imgcol{max-height:76vh;overflow:auto;background:#f4f4f4;padding:10px}
+.ps-imgwrap{position:relative;display:block;width:100%}
+.ps-imgwrap img{display:block;width:100%}
+.ps-word{position:absolute;cursor:pointer;border:1px solid transparent;border-radius:2px}
+.ps-word:hover{background:rgba(212,175,55,.25)}
+.ps-word.assigned{background:rgba(212,175,55,.5);border-color:#b8860b}
+.ps-side{padding:14px;border-left:1px solid #eee}
+.ps-field{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid #eee;border-radius:6px;margin-bottom:6px;cursor:pointer}
+.ps-field.active{border-color:#b8860b;background:#fffbe9}
+.ps-field .v{color:#64748b;font-variant-numeric:tabular-nums}
 </style>
+
+<script>
+(function(){
+  var el=document.getElementById('ps-teach-data'); if(!el) return;
+  var data; try{ data=JSON.parse(el.textContent); }catch(e){ return; }
+  var modal=document.getElementById('ps-modal'), wrap=document.getElementById('ps-imgwrap');
+  var fieldsBox=document.getElementById('ps-fields'), freq=document.getElementById('ps-freq');
+  var assignments={}, activeKey=(data.targets[0]||{}).key||null;
+
+  var img=new Image(); img.src='data:image/png;base64,'+data.image; wrap.appendChild(img);
+  data.words.forEach(function(w,idx){
+    var d=document.createElement('div'); d.className='ps-word'; d.setAttribute('data-idx',idx);
+    d.style.left=(w.x0*100)+'%'; d.style.top=(w.y0*100)+'%';
+    d.style.width=((w.x1-w.x0)*100)+'%'; d.style.height=((w.y1-w.y0)*100)+'%';
+    d.title=w.text; d.onclick=function(){ toggle(idx); };
+    wrap.appendChild(d);
+  });
+  (data.frequencies||[]).forEach(function(f){
+    var o=document.createElement('option'); o.value=f; o.textContent=f; if(f==='biweekly')o.selected=true; freq.appendChild(o);
+  });
+  document.getElementById('ps-name').value=data.suggested_name||'';
+
+  function renderFields(){
+    fieldsBox.innerHTML='';
+    data.targets.forEach(function(t){
+      var row=document.createElement('div'); row.className='ps-field'+(t.key===activeKey?' active':'');
+      var val=(assignments[t.key]||[]).map(function(i){return data.words[i].text;}).join(' ');
+      row.innerHTML='<span>'+t.label+'</span><span class="v">'+(val||'— click image')+'</span>';
+      row.onclick=function(){ activeKey=t.key; renderFields(); };
+      fieldsBox.appendChild(row);
+    });
+  }
+  function highlight(){
+    var on={}; Object.keys(assignments).forEach(function(k){(assignments[k]||[]).forEach(function(i){on[i]=1;});});
+    wrap.querySelectorAll('.ps-word').forEach(function(d){ d.classList.toggle('assigned', !!on[d.getAttribute('data-idx')]); });
+  }
+  function toggle(idx){
+    if(activeKey===null) return;
+    var arr=assignments[activeKey]||(assignments[activeKey]=[]);
+    var p=arr.indexOf(idx); if(p>=0)arr.splice(p,1); else arr.push(idx);
+    renderFields(); highlight();
+  }
+  window.psSubmit=function(){
+    document.getElementById('ps-words-h').value=JSON.stringify(data.words);
+    document.getElementById('ps-assign-h').value=JSON.stringify(assignments);
+    document.getElementById('ps-name-h').value=document.getElementById('ps-name').value;
+    document.getElementById('ps-freq-h').value=freq.value;
+    return true;
+  };
+  window.psClose=function(){ modal.classList.remove('open'); };
+  renderFields(); modal.classList.add('open');
+})();
+</script>
 {% endblock %}

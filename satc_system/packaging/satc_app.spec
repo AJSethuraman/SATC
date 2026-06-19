@@ -52,6 +52,8 @@ hiddenimports = [
     "pypdf",
     "reportlab",
     "sqlite3",
+    "pymupdf",
+    "fitz",
 ]
 # Pull in everything under the satc package so dynamically imported modules
 # (e.g. blueprints, doctor checks, ingest backends) are not missed.
