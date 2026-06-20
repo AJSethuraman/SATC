@@ -59,6 +59,30 @@ class Config:
     # Set to "production" to enable secure cookies and disable debug niceties.
     ENV = os.environ.get("APP_ENV", "development")
 
+    # Error monitoring (optional): set a Sentry DSN to capture exceptions.
+    SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+
+    # Rate limiting storage (in-memory by default; set a redis:// URL when
+    # running multiple instances so limits are shared).
+    RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
+
+    # Email verification is enforced only when email is actually configured
+    # (so a fresh deploy without SMTP never locks anyone out). Override with
+    # REQUIRE_EMAIL_VERIFICATION=always / never if needed.
+    REQUIRE_EMAIL_VERIFICATION = os.environ.get(
+        "REQUIRE_EMAIL_VERIFICATION", "auto"
+    )
+
+    # --- Monetization (built but OFF by default; flip on when ready) -----
+    # Per-payment platform fee taken via Stripe Connect (your cut). 0 = off.
+    PLATFORM_FEE_PERCENT = float(os.environ.get("PLATFORM_FEE_PERCENT", "0"))
+    PLATFORM_FEE_FLAT_CENTS = int(
+        os.environ.get("PLATFORM_FEE_FLAT_CENTS", "0")
+    )
+    # Subscription tiers / paywall. When False, everything is free and no
+    # plan limits are enforced.
+    BILLING_ENABLED = os.environ.get("BILLING_ENABLED", "false").lower() == "true"
+
     # PDF rendering engine: "auto" (default), "weasyprint", or "xhtml2pdf".
     # auto uses WeasyPrint when its native libraries are available and falls
     # back to the pure-Python xhtml2pdf engine otherwise (e.g. on Windows).

@@ -5,6 +5,7 @@
   <div class="card auth-card">
     <h1>Create your account</h1>
     <form method="post" action="{{ url_for('signup') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="field">
         <label>Email</label>
         <input type="email" name="email" value="{{ email }}" required autofocus>

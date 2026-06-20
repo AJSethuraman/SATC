@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy · Invoicer{% endblock %}
+{% block content %}
+<div class="card" style="max-width:760px; margin:0 auto">
+  <h1 style="color:var(--navy)">Privacy Policy</h1>
+  <p class="help"><strong>Template — review before launch.</strong> This is a
+  starting point, not legal advice. Replace the bracketed details and have a
+  lawyer review it (especially for GDPR/CCPA if you have those users).</p>
+
+  <p>Last updated: [DATE]. This policy explains how [COMPANY] ("we") handles
+  your information for [COMPANY/SERVICE NAME].</p>
+
+  <h2>What we collect</h2>
+  <ul>
+    <li>Account info: your email address and a hashed password.</li>
+    <li>Invoice data you create (clients, amounts, line items, logos).</li>
+    <li>Basic technical logs (e.g. IP address) for security and reliability.</li>
+  </ul>
+
+  <h2>How we use it</h2>
+  <p>To provide the Service: storing your invoices, generating PDFs, sending
+  email you request, and creating payment links.</p>
+
+  <h2>Payment data</h2>
+  <p>We do not collect or store credit card numbers. Card payments are handled
+  by Stripe; see Stripe's
+  <a href="https://stripe.com/privacy" target="_blank" rel="noopener">privacy
+  policy</a>.</p>
+
+  <h2>Service providers</h2>
+  <p>We use [HOSTING PROVIDER, e.g. Render] for hosting and Stripe for payments.
+  We don't sell your personal information.</p>
+
+  <h2>Your choices</h2>
+  <p>You can edit or delete your invoices, and request account deletion by
+  contacting [CONTACT EMAIL].</p>
+
+  <h2>Contact</h2>
+  <p>Questions about privacy: [CONTACT EMAIL].</p>
+</div>
+{% endblock %}

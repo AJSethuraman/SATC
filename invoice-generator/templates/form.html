@@ -11,6 +11,7 @@
 </div>
 
 <form method="post" action="{{ action }}" enctype="multipart/form-data" id="invoice-form" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <div class="card">
     <h2>Business &amp; Client</h2>
