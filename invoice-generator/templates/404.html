@@ -1,11 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Not Found · Invoicer{% endblock %}
+{% block title %}Not found · Invoicer{% endblock %}
 {% block content %}
-<div class="card">
-  <div class="empty">
-    <h1>404</h1>
-    <p>That invoice or page could not be found.</p>
-    <a class="btn btn-primary" href="{{ url_for('history') }}">Back to History</a>
-  </div>
-</div>
+<div class="card"><div class="card__body" style="text-align:center; padding:var(--space-16) var(--space-6)">
+  <div class="display" style="color:var(--gray-300)">404</div>
+  <h1 class="h2" style="margin-top:var(--space-4)">Page not found</h1>
+  <p class="muted" style="margin-top:var(--space-2)">That invoice or page could not be found.</p>
+  <a class="btn" style="margin-top:var(--space-6)" href="{{ url_for('index') }}">Go home</a>
+</div></div>
 {% endblock %}

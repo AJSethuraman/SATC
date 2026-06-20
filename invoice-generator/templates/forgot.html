@@ -1,26 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Reset password · Invoicer{% endblock %}
+{% block title %}Forgot password · Invoicer{% endblock %}
 {% block content %}
-<div class="auth-wrap">
-  <div class="card auth-card">
-    <h1>Forgot your password?</h1>
-    {% if email_configured %}
-    <p class="help">Enter your email and we'll send you a reset link.</p>
-    <form method="post" action="{{ url_for('forgot_password') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="field">
-        <label>Email</label>
-        <input type="email" name="email" required autofocus>
-      </div>
-      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center">Send reset link</button>
-    </form>
-    {% else %}
-    <p class="help">Password reset by email isn't available yet (email sending
-    isn't configured on this site). Please contact the site administrator.</p>
-    {% endif %}
-    <p class="help" style="margin-top:14px; text-align:center">
-      <a href="{{ url_for('login') }}">Back to log in</a>
-    </p>
-  </div>
-</div>
+<div class="card" style="max-width:420px; margin:var(--space-8) auto"><div class="card__body">
+  <h1 class="h2">Forgot your password?</h1>
+  {% if email_configured %}
+  <p class="muted small" style="margin:var(--space-2) 0 var(--space-5)">Enter your email and we'll send you a reset link.</p>
+  <form method="post" action="{{ url_for('forgot_password') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <div class="field">
+      <label class="label">Email</label>
+      <input class="input" type="email" name="email" required autofocus/>
+    </div>
+    <button type="submit" class="btn btn--block" style="margin-top:var(--space-5)">Send reset link</button>
+  </form>
+  {% else %}
+  <p class="muted small" style="margin:var(--space-2) 0 var(--space-5)">Password reset by email isn't available yet (email sending isn't
+  configured on this site). Please contact the site administrator.</p>
+  {% endif %}
+  <p class="small" style="margin-top:var(--space-5); text-align:center"><a href="{{ url_for('login') }}">Back to log in</a></p>
+</div></div>
 {% endblock %}

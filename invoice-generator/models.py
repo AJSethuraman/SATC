@@ -45,6 +45,13 @@ class User(UserMixin, db.Model):
     stripe_charges_enabled = db.Column(
         db.Boolean, default=False, nullable=False
     )
+    # Business profile — appears on every invoice (set once in Account).
+    business_name = db.Column(db.String(200), default="")
+    business_email = db.Column(db.String(255), default="")
+    business_address = db.Column(db.Text, default="")
+    tax_id = db.Column(db.String(80), default="")
+    default_currency = db.Column(db.String(8), default="USD")
+    default_terms = db.Column(db.String(120), default="")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     invoices = db.relationship(
@@ -61,6 +68,34 @@ class User(UserMixin, db.Model):
     def can_accept_payments(self):
         return bool(self.stripe_account_id and self.stripe_charges_enabled)
 
+    @property
+    def has_business_profile(self):
+        return bool((self.business_name or "").strip())
+
+    @property
+    def from_info(self):
+        """Assemble the sender block shown on invoices from the profile."""
+        lines = []
+        if self.business_name:
+            lines.append(self.business_name)
+        if self.business_address:
+            lines.extend(self.business_address.splitlines())
+        if self.business_email:
+            lines.append(self.business_email)
+        if self.tax_id:
+            lines.append(f"Tax ID {self.tax_id}")
+        return "\n".join(line for line in lines if line.strip())
+
+    @property
+    def initials(self):
+        name = (self.business_name or self.email or "").strip()
+        parts = [p for p in name.replace("@", " ").split() if p]
+        if not parts:
+            return "?"
+        if len(parts) == 1:
+            return parts[0][:2].upper()
+        return (parts[0][0] + parts[1][0]).upper()
+
 
 class Invoice(db.Model):
     __tablename__ = "invoices"
@@ -75,6 +110,7 @@ class Invoice(db.Model):
     from_info = db.Column(db.Text, nullable=False, default="")
     bill_to = db.Column(db.Text, nullable=False, default="")
     ship_to = db.Column(db.Text, default="")
+    client_email = db.Column(db.String(255), default="")
 
     # Dates and terms
     invoice_date = db.Column(db.Date, default=date.today)
@@ -154,6 +190,43 @@ class Invoice(db.Model):
     @property
     def balance_due(self):
         return round(self.total - (self.amount_paid or 0.0), 2)
+
+    @property
+    def is_overdue(self):
+        from datetime import date as _date
+
+        return bool(
+            self.status != "Paid"
+            and self.balance_due > 0
+            and self.due_date
+            and self.due_date < _date.today()
+        )
+
+    @property
+    def is_partial(self):
+        return bool(
+            self.status != "Paid"
+            and (self.amount_paid or 0) > 0
+            and self.balance_due > 0
+        )
+
+    @property
+    def display_status(self):
+        """Status used for badges: Paid / Overdue / Partial / Sent / Draft."""
+        if self.status == "Paid":
+            return "Paid"
+        if self.is_overdue:
+            return "Overdue"
+        if self.is_partial:
+            return "Partial"
+        return self.status  # Draft | Sent
+
+    @property
+    def client_name(self):
+        for line in (self.bill_to or "").splitlines():
+            if line.strip():
+                return line.strip()
+        return "—"
 
 
 class LineItem(db.Model):

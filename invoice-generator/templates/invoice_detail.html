@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>{{ invoice.invoice_number }} · Invoicer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+<style>
+  .detail { display:grid; grid-template-columns: 1fr 340px; gap: var(--space-8); align-items:start; }
+  /* invoice paper preview */
+  .paper { background:#fff; border:1px solid var(--hairline); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow:hidden; }
+  .paper__in { padding: var(--space-10); }
+  .paper__top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: var(--space-8); }
+  .paper__from .nm { font-size: var(--text-xl); font-weight:800; letter-spacing:-.02em; }
+  .paper__from .ad { font-size: var(--text-sm); color: var(--gray-500); line-height:1.6; margin-top:6px; }
+  .paper__from img { max-height:48px; margin-bottom:8px; }
+  .paper__title { font-size: var(--text-4xl); font-weight:800; letter-spacing:-.02em; text-align:right; color:var(--navy-800); }
+  .paper__meta { margin-top: var(--space-3); font-size: var(--text-sm); }
+  .paper__meta div { display:flex; justify-content:flex-end; gap:16px; padding:2px 0; }
+  .paper__meta .k { color: var(--gray-500); } .paper__meta .v { font-weight:600; min-width:96px; text-align:right; }
+  .parties { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-8); margin: var(--space-8) 0; padding-top:var(--space-6); border-top:2px solid var(--navy-800); }
+  .parties .lbl { font-size:var(--text-xs); font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--brand); margin-bottom:8px; }
+  .parties .nm { font-weight:700; } .parties .ad { font-size:var(--text-sm); color:var(--gray-600); line-height:1.6; }
+  .li thead th { background: var(--navy-800); color:#fff; font-size:var(--text-xs); text-transform:uppercase; letter-spacing:.04em; padding:10px 12px; text-align:left; }
+  .li thead th.r,.li td.r { text-align:right; }
+  .li td { padding:12px; border-bottom:1px solid var(--hairline); font-size:var(--text-sm); }
+  .li td.d { font-weight:600; color:var(--ink); }
+  .sums { margin-top:var(--space-6); margin-left:auto; width:300px; font-size:var(--text-sm); }
+  .sums div { display:flex; justify-content:space-between; padding:5px 0; }
+  .sums .k { color:var(--gray-500); } .sums .v { font-weight:600; font-variant-numeric:tabular-nums; }
+  .sums .grand { border-top:2px solid var(--navy-800); margin-top:6px; padding-top:10px; }
+  .sums .grand .k,.sums .grand .v { font-size:var(--text-lg); font-weight:800; }
+  .sums .bal { background:var(--navy-900); color:#fff; border-radius:var(--radius); padding:10px 14px; margin-top:10px; }
+  .sums .bal .k { color:var(--brand-300); } .sums .bal .v { color:#fff; font-size:var(--text-lg); font-weight:800; }
+
+  /* side rail */
+  .rail { display:flex; flex-direction:column; gap:var(--space-5); position:sticky; top:84px; }
+  .status-hero { padding:var(--space-6); border-radius:var(--radius-lg); border:1px solid; }
+  .status-hero.over { background: var(--red-50); border-color: var(--red-200); }
+  .status-hero .big { font-size:var(--text-3xl); font-weight:800; font-variant-numeric:tabular-nums; }
+  .status-hero .lbl { font-size:var(--text-sm); font-weight:600; }
+  .actions { display:flex; flex-direction:column; gap:var(--space-3); }
+  .actions form { margin:0; }
+  /* timeline */
+  .tl { list-style:none; margin:0; padding:0; }
+  .tl li { position:relative; padding:0 0 var(--space-5) var(--space-6); }
+  .tl li::before { content:""; position:absolute; left:5px; top:4px; width:9px; height:9px; border-radius:50%; background:var(--brand); }
+  .tl li::after { content:""; position:absolute; left:9px; top:13px; bottom:-2px; width:1px; background:var(--gray-200); }
+  .tl li:last-child::after { display:none; }
+  .tl .t { font-size:var(--text-sm); font-weight:600; }
+  .tl .d { font-size:var(--text-xs); color:var(--gray-500); }
+  .tl li.muted-dot::before { background:var(--gray-300); }
+  @media (max-width:920px){ .detail{ grid-template-columns:1fr;} .rail{ position:static;} .paper__in{ padding:var(--space-6);} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="logo" href="{{ url_for('history') }}"><span class="logo__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span><span class="logo__name hide-sm">Invoicer</span></a>
+      <nav class="nav"><a class="active" href="{{ url_for('history') }}">Invoices</a><a href="{{ url_for('account') }}">Account</a></nav>
+      <div class="spacer"></div>
+      <a class="btn btn--sm" href="{{ url_for('new_invoice') }}">New invoice</a>
+      <a class="avatar" href="{{ url_for('account') }}" title="{{ current_user.business_name or current_user.email }}">{{ current_user.initials }}</a>
+    </div>
+  </header>
+
+  <main class="page">
+    {% set badge = {'Paid':'badge--paid','Sent':'badge--sent','Overdue':'badge--overdue','Partial':'badge--partial','Draft':'badge--draft'} %}
+    {% set from_lines = (invoice.from_info or '').splitlines() | select | list %}
+    {% set bill_lines = (invoice.bill_to or '').splitlines() | select | list %}
+    {% set ship_lines = (invoice.ship_to or '').splitlines() | select | list %}
+    <div class="page__head" style="margin-bottom:var(--space-6)">
+      <div>
+        <div class="breadcrumb"><a href="{{ url_for('history') }}">Invoices</a> / {{ invoice.invoice_number }}</div>
+        <div class="row" style="gap:var(--space-3)">
+          <h1 class="h1" style="margin:0">{{ invoice.invoice_number }}</h1>
+          <span class="badge {{ badge[invoice.display_status] }}">{{ invoice.display_status }}</span>
+        </div>
+      </div>
+      <div class="row">
+        <a class="btn btn--secondary btn--sm" href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}">Edit</a>
+        <a class="btn btn--secondary btn--sm" href="{{ url_for('download_pdf', invoice_id=invoice.id) }}">Download PDF</a>
+        <form method="post" action="{{ url_for('delete_invoice', invoice_id=invoice.id) }}" onsubmit="return confirm('Delete this invoice? This cannot be undone.')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <button class="btn btn--danger btn--sm" type="submit">Delete</button>
+        </form>
+      </div>
+    </div>
+
+    {% include "_flashes.html" %}
+
+    <div class="detail">
+      <!-- INVOICE PAPER -->
+      <div class="paper">
+        <div class="paper__in">
+          <div class="paper__top">
+            <div class="paper__from">
+              {% if invoice.has_logo %}<img src="{{ url_for('invoice_logo', invoice_id=invoice.id) }}" alt="Logo"/>{% endif %}
+              <div class="nm">{{ from_lines[0] if from_lines else '' }}</div>
+              {% if from_lines[1:] %}<div class="ad">{% for line in from_lines[1:] %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>{% endif %}
+            </div>
+            <div>
+              <div class="paper__title">INVOICE</div>
+              <div class="paper__meta">
+                <div><span class="k">Invoice #</span><span class="v mono">{{ invoice.invoice_number }}</span></div>
+                {% if invoice.invoice_date %}<div><span class="k">Issued</span><span class="v">{{ invoice.invoice_date | fmtdate }}</span></div>{% endif %}
+                {% if invoice.due_date %}<div><span class="k">Due</span><span class="v"{% if invoice.is_overdue %} style="color:var(--red-600)"{% endif %}>{{ invoice.due_date | fmtdate }}</span></div>{% endif %}
+                {% if invoice.payment_terms %}<div><span class="k">Terms</span><span class="v">{{ invoice.payment_terms }}</span></div>{% endif %}
+                {% if invoice.po_number %}<div><span class="k">PO #</span><span class="v">{{ invoice.po_number }}</span></div>{% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="parties">
+            <div>
+              <div class="lbl">Bill to</div>
+              <div class="nm">{{ bill_lines[0] if bill_lines else '—' }}</div>
+              {% if bill_lines[1:] %}<div class="ad">{% for line in bill_lines[1:] %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>{% endif %}
+              {% if invoice.client_email %}<div class="ad">{{ invoice.client_email }}</div>{% endif %}
+            </div>
+            {% if ship_lines %}
+            <div>
+              <div class="lbl">Ship to</div>
+              <div class="nm">{{ ship_lines[0] }}</div>
+              {% if ship_lines[1:] %}<div class="ad">{% for line in ship_lines[1:] %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>{% endif %}
+            </div>
+            {% endif %}
+          </div>
+
+          <table class="li">
+            <thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Unit</th><th class="r">Amount</th></tr></thead>
+            <tbody>
+              {% for item in invoice.items %}
+              <tr><td class="d">{{ item.description }}</td><td class="r mono">{{ "%g"|format(item.quantity or 0) }}</td><td class="r mono">{{ format_money(item.rate, invoice.currency) }}</td><td class="r mono">{{ format_money(item.amount, invoice.currency) }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+
+          <div class="sums">
+            <div><span class="k">Subtotal</span><span class="v">{{ format_money(invoice.subtotal, invoice.currency) }}</span></div>
+            {% if invoice.discount_amount %}<div><span class="k">Discount{% if invoice.discount_is_percent %} ({{ "%g"|format(invoice.discount_value) }}%){% endif %}</span><span class="v" style="color:var(--green-700)">−{{ format_money(invoice.discount_amount, invoice.currency) }}</span></div>{% endif %}
+            {% if invoice.tax_amount or invoice.tax_value %}<div><span class="k">Tax{% if invoice.tax_is_percent %} ({{ "%g"|format(invoice.tax_value) }}%){% endif %}</span><span class="v">{{ format_money(invoice.tax_amount, invoice.currency) }}</span></div>{% endif %}
+            {% if invoice.shipping %}<div><span class="k">Shipping</span><span class="v">{{ format_money(invoice.shipping, invoice.currency) }}</span></div>{% endif %}
+            <div class="grand"><span class="k">Total</span><span class="v">{{ format_money(invoice.total, invoice.currency) }}</span></div>
+            {% if invoice.amount_paid %}<div><span class="k">Amount paid</span><span class="v">−{{ format_money(invoice.amount_paid, invoice.currency) }}</span></div>{% endif %}
+            <div class="bal"><span class="k">Balance due</span><span class="v">{{ format_money(invoice.balance_due, invoice.currency) }}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RAIL -->
+      <aside class="rail">
+        {% if invoice.status == 'Paid' %}
+        <div class="status-hero" style="background:var(--green-50); border-color:var(--green-200)">
+          <div class="lbl" style="color:var(--green-700)">Paid in full</div>
+          <div class="big" style="color:var(--green-700)">{{ format_money(invoice.total, invoice.currency) }}</div>
+          <div class="small" style="color:var(--green-600); margin-top:4px">Settled {{ invoice.updated_at | fmtdate }}</div>
+        </div>
+        {% elif invoice.is_overdue %}
+        <div class="status-hero over">
+          <div class="lbl" style="color:var(--red-700)">Balance due</div>
+          <div class="big" style="color:var(--red-700)">{{ format_money(invoice.balance_due, invoice.currency) }}</div>
+          <div class="small" style="color:var(--red-600); margin-top:4px">Due {{ invoice.due_date | fmtdate }} · overdue</div>
+        </div>
+        {% else %}
+        <div class="status-hero" style="background:var(--brand-50); border-color:var(--brand-100)">
+          <div class="lbl" style="color:var(--navy-800)">Balance due</div>
+          <div class="big">{{ format_money(invoice.balance_due, invoice.currency) }}</div>
+          <div class="small muted" style="margin-top:4px">{% if invoice.due_date %}Due {{ invoice.due_date | fmtdate }}{% else %}No due date set{% endif %}</div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+          <div class="card__body actions">
+            {% if smtp_configured %}
+            <form method="post" action="{{ url_for('email_invoice', invoice_id=invoice.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <div class="field" style="margin-bottom:var(--space-2)"><input class="input" type="email" name="to_email" value="{{ invoice.client_email or '' }}" placeholder="client@email.com" required/></div>
+              <button class="btn btn--block" type="submit">{% if invoice.status == 'Draft' %}Send invoice{% else %}Resend invoice{% endif %}</button>
+            </form>
+            {% else %}
+            <div class="notice notice--warn"><span>Email isn't configured on this site yet, so invoices can't be emailed.</span></div>
+            {% endif %}
+
+            {% if invoice.stripe_payment_url %}
+            <button class="btn btn--secondary btn--block" type="button" onclick="copyLink(this)" data-link="{{ invoice.stripe_payment_url }}">Copy payment link</button>
+            {% elif current_user.can_accept_payments and invoice.balance_due > 0 %}
+            <form method="post" action="{{ url_for('create_payment', invoice_id=invoice.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button class="btn btn--secondary btn--block" type="submit">Create payment link</button>
+            </form>
+            {% elif not current_user.can_accept_payments %}
+            <a class="btn btn--secondary btn--block" href="{{ url_for('account') }}">Connect Stripe to accept payments</a>
+            {% endif %}
+
+            {% if invoice.balance_due > 0 %}
+            <form method="post" action="{{ url_for('mark_paid', invoice_id=invoice.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button class="btn btn--success btn--block" type="submit">Mark as paid</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head"><strong>Activity</strong></div>
+          <div class="card__body">
+            <ul class="tl">
+              {% if invoice.status == 'Paid' %}<li><div class="t">Marked paid</div><div class="d">{{ invoice.updated_at | fmtdate }}</div></li>{% endif %}
+              {% if invoice.amount_paid and invoice.status != 'Paid' %}<li><div class="t">Payment recorded · {{ format_money(invoice.amount_paid, invoice.currency) }}</div><div class="d">{{ invoice.updated_at | fmtdate }}</div></li>{% endif %}
+              {% if invoice.status != 'Draft' %}<li><div class="t">Invoice sent</div><div class="d">{% if invoice.client_email %}to {{ invoice.client_email }}{% else %}—{% endif %}</div></li>{% endif %}
+              <li class="muted-dot"><div class="t">Invoice created</div><div class="d">{{ invoice.created_at | fmtdate }}</div></li>
+            </ul>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<script>
+  function copyLink(btn){
+    const link = btn.getAttribute("data-link");
+    navigator.clipboard.writeText(link).then(function(){
+      const original = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(function(){ btn.textContent = original; }, 1500);
+    });
+  }
+</script>
+</body>
+</html>

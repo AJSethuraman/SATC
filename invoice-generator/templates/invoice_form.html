@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>{% if invoice and invoice.id %}Edit invoice{% else %}New invoice{% endif %} · Invoicer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+<style>
+  .form-grid { display:grid; grid-template-columns: 1fr 320px; gap: var(--space-8); align-items:start; }
+  .section-label { font-size:var(--text-xs); font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gray-400); margin-bottom:var(--space-4); }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4); }
+  .two .field + .field { margin-top:0; }
+  /* line items editor */
+  .lihead, .lirow { display:grid; grid-template-columns: 1fr 80px 130px 130px 36px; gap:var(--space-3); align-items:center; }
+  .lihead { padding:0 0 var(--space-2); }
+  .lihead span { font-size:var(--text-xs); font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--gray-500); }
+  .lihead .r, .lirow .r { text-align:right; }
+  .lirow { padding:var(--space-3) 0; border-top:1px solid var(--hairline); }
+  .lirow .amt { text-align:right; font-weight:600; font-variant-numeric:tabular-nums; padding-right:6px; }
+  .lirow .input { height:40px; }
+  .del { width:32px;height:32px;border:0;background:transparent;color:var(--gray-400);border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;justify-content:center; }
+  .del:hover { background:var(--red-50); color:var(--red-600); }
+  .addline { margin-top:var(--space-4); }
+  /* summary rail */
+  .rail { position:sticky; top:84px; display:flex; flex-direction:column; gap:var(--space-5); }
+  .sumline { display:flex; justify-content:space-between; align-items:center; padding:7px 0; font-size:var(--text-sm); }
+  .sumline .k { color:var(--gray-600); } .sumline .v { font-weight:600; font-variant-numeric:tabular-nums; }
+  .sumline.tot { border-top:2px solid var(--navy-800); margin-top:6px; padding-top:12px; }
+  .sumline.tot .k,.sumline.tot .v { font-size:var(--text-xl); font-weight:800; }
+  .inline-input { width:90px; height:34px; text-align:right; }
+  .logo-drop { border:2px dashed var(--gray-300); border-radius:var(--radius); padding:var(--space-5); text-align:center; color:var(--gray-500); font-size:var(--text-sm); }
+  @media (max-width:920px){ .form-grid{ grid-template-columns:1fr;} .rail{ position:static;} .lihead{ display:none;} .lirow{ grid-template-columns:1fr 1fr; gap:var(--space-2);} .lirow .amt{ grid-column:1/3; text-align:left;} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="logo" href="{{ url_for('history') }}"><span class="logo__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span><span class="logo__name hide-sm">Invoicer</span></a>
+      <nav class="nav"><a class="active" href="{{ url_for('history') }}">Invoices</a><a href="{{ url_for('account') }}">Account</a></nav>
+      <div class="spacer"></div>
+      <a class="avatar" href="{{ url_for('account') }}" title="{{ current_user.business_name or current_user.email }}">{{ current_user.initials }}</a>
+    </div>
+  </header>
+
+  <main class="page">
+    <form method="post" enctype="multipart/form-data"
+          action="{% if invoice and invoice.id %}{{ url_for('update_invoice', invoice_id=invoice.id) }}{% else %}{{ url_for('create_invoice') }}{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <div class="page__head" style="margin-bottom:var(--space-6)">
+      <div>
+        <div class="breadcrumb"><a href="{{ url_for('history') }}">Invoices</a> / {% if invoice and invoice.id %}Edit{% else %}New{% endif %}</div>
+        <h1 class="h1" style="margin:0">{% if invoice and invoice.id %}Edit invoice{% else %}New invoice{% endif %}</h1>
+      </div>
+      <div class="row">
+        <a class="btn btn--ghost btn--sm" href="{{ url_for('history') }}">Cancel</a>
+        <button class="btn btn--sm" type="submit">Save invoice →</button>
+      </div>
+    </div>
+
+    {% include "_flashes.html" %}
+
+    <div class="form-grid">
+      <!-- LEFT: form -->
+      <div style="display:flex; flex-direction:column; gap:var(--space-6)">
+
+        <!-- Parties -->
+        <div class="card"><div class="card__body">
+          <div class="section-label">Client &amp; details</div>
+          <div class="two">
+            <div class="field"><label class="label">Bill to <span class="req">*</span></label><textarea class="textarea" name="bill_to" placeholder="Client name&#10;Address&#10;City, State ZIP" style="min-height:96px">{{ invoice.bill_to if invoice else '' }}</textarea></div>
+            <div class="field"><label class="label">Client email</label><input class="input" type="email" name="client_email" value="{{ invoice.client_email if invoice else '' }}" placeholder="accounts@client.com"/></div>
+          </div>
+          <div class="two" style="margin-top:var(--space-5)">
+            <div class="field"><label class="label">Invoice number</label><input class="input mono" name="invoice_number" value="{{ (invoice.invoice_number if invoice else '') or suggested_number }}"/></div>
+            <div class="field"><label class="label">PO number <span class="muted" style="font-weight:400">(optional)</span></label><input class="input" name="po_number" value="{{ invoice.po_number if invoice else '' }}" placeholder="e.g. PW-3391"/></div>
+          </div>
+          <div class="two" style="margin-top:var(--space-5)">
+            <div class="field"><label class="label">Issue date</label><input class="input" type="date" name="invoice_date" value="{{ (invoice.invoice_date.isoformat() if invoice and invoice.invoice_date else today) }}"/></div>
+            <div class="field"><label class="label">Payment terms</label>
+              <select class="select" name="payment_terms" id="terms">
+                {% set pt = invoice.payment_terms if invoice else 'Net 14' %}
+                <option {{ 'selected' if pt == 'Due on receipt' }}>Due on receipt</option>
+                <option {{ 'selected' if pt == 'Net 14' or not pt }}>Net 14</option>
+                <option {{ 'selected' if pt == 'Net 30' }}>Net 30</option>
+                <option {{ 'selected' if pt == 'Net 60' }}>Net 60</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" style="margin-top:var(--space-5)"><label class="label">Custom due date <span class="muted" style="font-weight:400">(optional — overrides terms)</span></label><input class="input" type="date" name="due_date" value="{{ invoice.due_date.isoformat() if invoice and invoice.due_date else '' }}"/></div>
+        </div></div>
+
+        <!-- Line items -->
+        <div class="card"><div class="card__body">
+          <div class="section-label">Line items</div>
+          <div class="lihead">
+            <span>Description</span><span class="r">Qty</span><span class="r">Unit price</span><span class="r">Amount</span><span></span>
+          </div>
+          <div id="lines">
+            <!-- rows injected by JS -->
+          </div>
+          <button class="btn btn--secondary btn--sm addline" type="button" onclick="addLine()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add line item</button>
+        </div></div>
+
+        <!-- Notes -->
+        <div class="card"><div class="card__body">
+          <div class="section-label">Notes &amp; terms</div>
+          <div class="field"><label class="label">Notes to client</label><textarea class="textarea" name="notes" placeholder="Thank you for your business…">{{ invoice.notes if invoice else '' }}</textarea></div>
+          <div class="field"><label class="label">Terms</label><textarea class="textarea" name="terms" placeholder="Payment due within 14 days…">{{ invoice.terms if invoice else '' }}</textarea></div>
+        </div></div>
+      </div>
+
+      <!-- RIGHT: summary rail -->
+      <aside class="rail">
+        <div class="card"><div class="card__body">
+          <div class="section-label">Summary</div>
+          <div class="sumline"><span class="k">Subtotal</span><span class="v" id="s-sub">{{ currency_symbol(current_user.default_currency) }}0.00</span></div>
+          <div class="sumline"><span class="k">Discount</span><span class="v"><input class="input inline-input num" name="discount" id="i-disc" value="{{ invoice.discount_value if invoice else 0 }}" oninput="recalc()"/> %</span></div>
+          <div class="sumline"><span class="k">Tax</span><span class="v"><input class="input inline-input num" name="tax" id="i-tax" value="{{ invoice.tax_value if invoice else 0 }}" oninput="recalc()"/> %</span></div>
+          <div class="sumline"><span class="k">Shipping</span><span class="v">{{ currency_symbol(current_user.default_currency) }}<input class="input inline-input num" name="shipping" id="i-ship" value="{{ invoice.shipping if invoice else 0 }}" oninput="recalc()"/></span></div>
+          <div class="sumline tot"><span class="k">Total</span><span class="v" id="s-tot">{{ currency_symbol(current_user.default_currency) }}0.00</span></div>
+          <p class="hint" style="margin-top:var(--space-3)">Currency: {{ current_user.default_currency }} ({{ currency_symbol(current_user.default_currency) }}). Change in <a href="{{ url_for('account') }}">account settings</a>.</p>
+        </div></div>
+
+        <div class="card"><div class="card__body">
+          <div class="section-label">Your logo</div>
+          {% if invoice and invoice.has_logo %}
+          <div class="row" style="gap:var(--space-3); margin-bottom:var(--space-3)">
+            <img src="{{ url_for('invoice_logo', invoice_id=invoice.id) }}" alt="Current logo" style="max-height:48px"/>
+            <label class="checkbox"><input type="checkbox" name="remove_logo" value="1"/> <span>Remove</span></label>
+          </div>
+          {% endif %}
+          <input class="input" type="file" name="logo" accept=".png,.jpg,.jpeg,.gif,.svg"/>
+          <p class="hint" style="margin-top:var(--space-3)">PNG or SVG, embedded in the PDF. No logo? Invoices fall back to a clean wordmark automatically.</p>
+        </div></div>
+
+        <div class="notice notice--info"><span>This invoice will be sent from <strong>{{ current_user.business_email or current_user.email }}</strong> with a secure pay-online link.</span></div>
+      </aside>
+    </div>
+    </form>
+  </main>
+</div>
+
+<script>
+  const CUR = {{ currency_symbol(current_user.default_currency) | tojson }};
+  const seed = [
+  {% if invoice and invoice.items %}{% for it in invoice.items %}
+    { d: {{ it.description | tojson }}, q: {{ it.quantity or 0 }}, p: {{ it.rate or 0 }} },
+  {% endfor %}{% endif %}
+  ];
+  const money = n => CUR + n.toLocaleString("en-US",{minimumFractionDigits:2, maximumFractionDigits:2});
+  const esc = s => String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+  function rowHTML(it){
+    return `<div class="lirow">
+      <input class="input" name="item_description" placeholder="Item description" value="${esc(it?.d??"")}" oninput="recalc()"/>
+      <input class="input num qty" name="item_quantity" type="number" min="0" step="any" value="${it?.q??1}" oninput="recalc()"/>
+      <input class="input num price" name="item_rate" type="number" min="0" step="any" value="${it?.p??0}" oninput="recalc()"/>
+      <div class="amt">${CUR}0.00</div>
+      <button class="del" type="button" title="Remove" onclick="this.closest('.lirow').remove(); recalc()">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>`;
+  }
+  function addLine(it){ document.getElementById("lines").insertAdjacentHTML("beforeend", rowHTML(it)); recalc(); }
+
+  function recalc(){
+    let sub = 0;
+    document.querySelectorAll(".lirow").forEach(row => {
+      const q = parseFloat(row.querySelector(".qty").value)||0;
+      const p = parseFloat(row.querySelector(".price").value)||0;
+      const amt = q*p; sub += amt;
+      row.querySelector(".amt").textContent = money(amt);
+    });
+    const disc = (parseFloat(document.getElementById("i-disc").value)||0)/100;
+    const tax  = (parseFloat(document.getElementById("i-tax").value)||0)/100;
+    const ship = parseFloat(document.getElementById("i-ship").value)||0;
+    const discAmt = sub*disc;
+    const taxAmt = (sub-discAmt)*tax;
+    const total = sub - discAmt + taxAmt + ship;
+    document.getElementById("s-sub").textContent = money(sub);
+    document.getElementById("s-tot").textContent = money(total);
+  }
+  if (seed.length) { seed.forEach(addLine); } else { addLine(); }
+</script>
+</body>
+</html>

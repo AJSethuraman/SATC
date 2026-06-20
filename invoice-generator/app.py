@@ -59,6 +59,17 @@ def nl2br(value):
     return Markup(text)
 
 
+def fmtdate(value, fmt="%b %d, %Y"):
+    """Format a date/datetime for display (e.g. ``Apr 14, 2026``). Blank for
+    None. Used by the web templates, the PDF, and the email."""
+    if not value:
+        return ""
+    try:
+        return value.strftime(fmt)
+    except Exception:
+        return str(value)
+
+
 def _ensure_schema():
     """Additive, idempotent, race-safe migration for columns introduced after
     the first deploy. Avoids pulling in a full migration tool for a couple of
@@ -121,6 +132,19 @@ def _ensure_schema():
         safe_exec(
             ["ALTER TABLE invoices ADD COLUMN paid_session_ids TEXT"]
         )
+    if not column_exists("invoices", "client_email"):
+        safe_exec(["ALTER TABLE invoices ADD COLUMN client_email VARCHAR(255)"])
+    # Account-level business profile columns.
+    for col, ddl in [
+        ("business_name", "ALTER TABLE users ADD COLUMN business_name VARCHAR(200)"),
+        ("business_email", "ALTER TABLE users ADD COLUMN business_email VARCHAR(255)"),
+        ("business_address", "ALTER TABLE users ADD COLUMN business_address TEXT"),
+        ("tax_id", "ALTER TABLE users ADD COLUMN tax_id VARCHAR(80)"),
+        ("default_currency", "ALTER TABLE users ADD COLUMN default_currency VARCHAR(8)"),
+        ("default_terms", "ALTER TABLE users ADD COLUMN default_terms VARCHAR(120)"),
+    ]:
+        if not column_exists("users", col):
+            safe_exec([ddl])
     # Backfill the idempotency key for invoices already credited from a Stripe
     # session before this column existed, so a post-deploy webhook retry of
     # that same session isn't counted again. Idempotent (only fills blanks);
@@ -196,6 +220,7 @@ def create_app(config_class=Config):
         format_money=format_money, currency_symbol=currency_symbol
     )
     app.jinja_env.filters["nl2br"] = nl2br
+    app.jinja_env.filters["fmtdate"] = fmtdate
 
     with app.app_context():
         db.create_all()
@@ -244,25 +269,49 @@ def _read_logo(file_storage):
     return data, mime
 
 
+def _due_from_terms(issue_date, terms, custom):
+    """Derive a due date from payment terms (Net N / Due on receipt) or an
+    explicit custom date."""
+    import re as _re
+    from datetime import timedelta
+
+    custom_date = parse_date(custom)
+    if custom_date:
+        return custom_date
+    t = (terms or "").lower()
+    if "receipt" in t:
+        return issue_date
+    m = _re.search(r"net\s*(\d+)", t)
+    if m:
+        return issue_date + timedelta(days=int(m.group(1)))
+    return None
+
+
 def _populate_invoice_from_form(invoice, form, files=None):
-    """Fill an Invoice instance from submitted form data (create or edit)."""
+    """Fill an Invoice instance from submitted form data (create or edit).
+
+    The sender block is taken from the user's business profile (snapshot),
+    and the currency from their default — neither is collected per invoice.
+    """
     invoice.invoice_number = (form.get("invoice_number") or "").strip()
-    invoice.from_info = (form.get("from_info") or "").strip()
+    invoice.from_info = current_user.from_info
     invoice.bill_to = (form.get("bill_to") or "").strip()
-    invoice.ship_to = (form.get("ship_to") or "").strip()
+    invoice.client_email = (form.get("client_email") or "").strip()
 
     invoice.invoice_date = parse_date(form.get("invoice_date")) or date.today()
     invoice.payment_terms = (form.get("payment_terms") or "").strip()
-    invoice.due_date = parse_date(form.get("due_date"))
+    invoice.due_date = _due_from_terms(
+        invoice.invoice_date, invoice.payment_terms, form.get("due_date")
+    )
     invoice.po_number = (form.get("po_number") or "").strip()
-    invoice.currency = (form.get("currency") or "USD").strip().upper()
+    invoice.currency = (current_user.default_currency or "USD").strip().upper()
 
-    invoice.tax_value = parse_float(form.get("tax_value"))
-    invoice.tax_is_percent = form.get("tax_is_percent") == "percent"
-    invoice.discount_value = parse_float(form.get("discount_value"))
-    invoice.discount_is_percent = form.get("discount_is_percent") == "percent"
+    # Tax and discount are entered as percentages in the UI.
+    invoice.tax_value = parse_float(form.get("tax"))
+    invoice.tax_is_percent = True
+    invoice.discount_value = parse_float(form.get("discount"))
+    invoice.discount_is_percent = True
     invoice.shipping = parse_float(form.get("shipping"))
-    invoice.amount_paid = parse_float(form.get("amount_paid"))
 
     invoice.notes = (form.get("notes") or "").strip()
     invoice.terms = (form.get("terms") or "").strip()
@@ -307,7 +356,7 @@ def _validate_invoice(invoice):
     if not invoice.invoice_number:
         errors.append("Invoice number is required.")
     if not invoice.from_info:
-        errors.append("'From' business information is required.")
+        errors.append("Add your business profile in Account first.")
     if not invoice.bill_to:
         errors.append("'Bill To' client information is required.")
     if not invoice.items:
@@ -400,23 +449,28 @@ def register_routes(app):
         if request.method == "POST":
             email = (request.form.get("email") or "").strip().lower()
             password = request.form.get("password") or ""
-            confirm = request.form.get("confirm") or ""
+            business_name = (request.form.get("business_name") or "").strip()
+            agreed = request.form.get("agree")
             errors = []
             if "@" not in email or "." not in email:
                 errors.append("Enter a valid email address.")
             if len(password) < 8:
                 errors.append("Password must be at least 8 characters.")
-            if password != confirm:
-                errors.append("Passwords do not match.")
+            if not agreed:
+                errors.append("Please accept the Terms and Privacy Policy.")
             if User.query.filter_by(email=email).first():
                 errors.append("An account with that email already exists.")
             if errors:
                 for e in errors:
                     flash(e, "error")
-                return render_template("signup.html", email=email), 400
+                return render_template(
+                    "signup.html", email=email, business_name=business_name
+                ), 400
 
             user = User(email=email)
             user.set_password(password)
+            user.business_name = business_name
+            user.business_email = email
             enforce = verification_enforced()
             user.email_verified = not enforce
             db.session.add(user)
@@ -441,8 +495,8 @@ def register_routes(app):
 
             login_user(user)
             flash("Welcome! Your account is ready.", "success")
-            return redirect(url_for("history"))
-        return render_template("signup.html", email="")
+            return redirect(url_for("account"))
+        return render_template("signup.html", email="", business_name="")
 
     @app.route("/login", methods=["GET", "POST"])
     @limiter.limit("10 per minute;50 per hour", methods=["POST"])
@@ -465,7 +519,7 @@ def register_routes(app):
                 return render_template(
                     "login.html", email=email, unverified=True
                 ), 403
-            login_user(user)
+            login_user(user, remember=bool(request.form.get("remember")))
             nxt = request.args.get("next")
             if not nxt or not nxt.startswith("/"):
                 nxt = url_for("history")
@@ -601,6 +655,29 @@ def register_routes(app):
         flash("API key regenerated. Update any integrations.", "success")
         return redirect(url_for("account"))
 
+    @app.route("/account/business", methods=["POST"])
+    @login_required
+    def account_business():
+        current_user.business_name = (
+            request.form.get("business_name") or ""
+        ).strip()
+        current_user.business_email = (
+            request.form.get("business_email") or ""
+        ).strip()
+        current_user.business_address = (
+            request.form.get("business_address") or ""
+        ).strip()
+        current_user.tax_id = (request.form.get("tax_id") or "").strip()
+        current_user.default_currency = (
+            request.form.get("default_currency") or "USD"
+        ).strip().upper()
+        current_user.default_terms = (
+            request.form.get("default_terms") or ""
+        ).strip()
+        db.session.commit()
+        flash("Business profile saved.", "success")
+        return redirect(url_for("account"))
+
     # --- Stripe Connect (each user collects into their own account) -----
     @app.route("/connect/start", methods=["POST"])
     @login_required
@@ -687,19 +764,31 @@ def register_routes(app):
             return redirect(url_for("account"))
         return redirect(url)
 
-    # --- Invoices ------------------------------------------------------
+    # --- Landing / invoices --------------------------------------------
     @app.route("/")
     def index():
         if current_user.is_authenticated:
             return redirect(url_for("history"))
-        return redirect(url_for("login"))
+        return render_template("landing.html")
+
+    def _require_profile():
+        if not current_user.has_business_profile:
+            flash(
+                "Add your business details first — they appear on every "
+                "invoice.",
+                "error",
+            )
+            return False
+        return True
 
     @app.route("/new")
     @login_required
     def new_invoice():
+        if not _require_profile():
+            return redirect(url_for("account"))
         suggested = next_invoice_number(current_user.id)
         return render_template(
-            "form.html",
+            "invoice_form.html",
             invoice=None,
             suggested_number=suggested,
             today=date.today().isoformat(),
@@ -708,6 +797,8 @@ def register_routes(app):
     @app.route("/invoices", methods=["POST"])
     @login_required
     def create_invoice():
+        if not _require_profile():
+            return redirect(url_for("account"))
         invoice = Invoice(user_id=current_user.id)
         _populate_invoice_from_form(invoice, request.form, request.files)
         errors = _validate_invoice(invoice)
@@ -715,7 +806,7 @@ def register_routes(app):
             for e in errors:
                 flash(e, "error")
             return render_template(
-                "form.html",
+                "invoice_form.html",
                 invoice=invoice,
                 suggested_number=invoice.invoice_number,
                 today=date.today().isoformat(),
@@ -730,7 +821,7 @@ def register_routes(app):
     def view_invoice(invoice_id):
         invoice = owned_or_404(invoice_id)
         return render_template(
-            "view.html",
+            "invoice_detail.html",
             invoice=invoice,
             stripe_configured=bool(app.config["STRIPE_SECRET_KEY"]),
             smtp_configured=bool(
@@ -754,7 +845,7 @@ def register_routes(app):
     def edit_invoice(invoice_id):
         invoice = owned_or_404(invoice_id)
         return render_template(
-            "form.html",
+            "invoice_form.html",
             invoice=invoice,
             suggested_number=invoice.invoice_number,
             today=date.today().isoformat(),
@@ -770,7 +861,7 @@ def register_routes(app):
             for e in errors:
                 flash(e, "error")
             return render_template(
-                "form.html",
+                "invoice_form.html",
                 invoice=invoice,
                 suggested_number=invoice.invoice_number,
                 today=date.today().isoformat(),
@@ -840,11 +931,23 @@ def register_routes(app):
         db.session.commit()
         return redirect(session.url)
 
+    @app.route("/invoice/<int:invoice_id>/mark-paid", methods=["POST"])
+    @login_required
+    def mark_paid(invoice_id):
+        invoice = owned_or_404(invoice_id)
+        invoice.status = "Paid"
+        invoice.amount_paid = invoice.total
+        db.session.commit()
+        flash("Invoice marked as paid.", "success")
+        return redirect(url_for("view_invoice", invoice_id=invoice.id))
+
     @app.route("/invoice/<int:invoice_id>/email", methods=["POST"])
     @login_required
     def email_invoice(invoice_id):
         invoice = owned_or_404(invoice_id)
-        to_email = (request.form.get("to_email") or "").strip()
+        to_email = (
+            request.form.get("to_email") or invoice.client_email or ""
+        ).strip()
         if not to_email:
             flash("Recipient email is required.", "error")
             return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -854,6 +957,16 @@ def register_routes(app):
         except RuntimeError as exc:
             flash(str(exc), "error")
             return redirect(url_for("view_invoice", invoice_id=invoice.id))
+
+        view_url = app.config["APP_BASE_URL"].rstrip("/") + url_for(
+            "view_invoice", invoice_id=invoice.id
+        )
+        html_body = render_template(
+            "email_invoice.html",
+            invoice=invoice,
+            pay_url=invoice.stripe_payment_url,
+            view_url=view_url,
+        )
         try:
             email_utils.send_invoice_email(
                 app.config,
@@ -861,26 +974,69 @@ def register_routes(app):
                 invoice,
                 out_path,
                 payment_url=invoice.stripe_payment_url,
+                html_body=html_body,
             )
         except Exception as exc:  # pragma: no cover - SMTP errors vary
             flash(f"Email failed: {exc}", "error")
             return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
+        # Remember the recipient and mark as sent.
+        if not invoice.client_email:
+            invoice.client_email = to_email
         if invoice.status == "Draft":
             invoice.status = "Sent"
-            db.session.commit()
+        db.session.commit()
         flash(f"Invoice emailed to {to_email}.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
     @app.route("/history")
     @login_required
     def history():
+        status = (request.args.get("status") or "all").lower()
+        q = (request.args.get("q") or "").strip()
         invoices = (
             Invoice.query.filter_by(user_id=current_user.id)
             .order_by(Invoice.created_at.desc())
             .all()
         )
-        return render_template("history.html", invoices=invoices)
+        if q:
+            ql = q.lower()
+            invoices = [
+                inv
+                for inv in invoices
+                if ql in (inv.invoice_number or "").lower()
+                or ql in (inv.bill_to or "").lower()
+            ]
+        if status != "all":
+            invoices = [
+                inv for inv in invoices if inv.display_status.lower() == status
+            ]
+
+        # KPIs across the user's invoices (computed in Python on the models).
+        all_inv = Invoice.query.filter_by(user_id=current_user.id).all()
+        outstanding = sum(
+            i.balance_due for i in all_inv if i.status != "Paid"
+        )
+        overdue = sum(i.balance_due for i in all_inv if i.is_overdue)
+        paid_total = sum(i.total for i in all_inv if i.status == "Paid")
+        kpis = {
+            "outstanding": outstanding,
+            "outstanding_count": sum(
+                1 for i in all_inv if i.status != "Paid" and i.balance_due > 0
+            ),
+            "overdue": overdue,
+            "overdue_count": sum(1 for i in all_inv if i.is_overdue),
+            "paid_total": paid_total,
+            "total_count": len(all_inv),
+        }
+        return render_template(
+            "invoices.html",
+            invoices=invoices,
+            kpis=kpis,
+            status=status,
+            q=q,
+            currency=current_user.default_currency or "USD",
+        )
 
     @app.route("/history/export.csv")
     @login_required

@@ -1,0 +1,16 @@
+{# Flash messages, styled with the design-system .notice component. #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div style="display:flex; flex-direction:column; gap:var(--space-3); margin-bottom:var(--space-6)">
+      {% for category, message in messages %}
+        {% if category == 'success' %}
+          <div class="notice notice--success"><span>{{ message }}</span></div>
+        {% elif category == 'info' %}
+          <div class="notice notice--info"><span>{{ message }}</span></div>
+        {% else %}
+          <div class="notice" style="background:var(--red-50); border-color:var(--red-200); color:var(--red-700)"><span>{{ message }}</span></div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}

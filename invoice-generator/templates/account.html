@@ -1,58 +1,186 @@
-{% extends "base.html" %}
-{% block title %}Account · Invoicer{% endblock %}
-{% block content %}
-<div class="page-head">
-  <h1>Account</h1>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Account · Invoicer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+<style>
+  .acct { display:grid; grid-template-columns: 200px 1fr; gap: var(--space-10); align-items:start; }
+  .side { position:sticky; top:84px; display:flex; flex-direction:column; gap:2px; }
+  .side a { font-size:var(--text-sm); font-weight:500; color:var(--gray-600); padding:9px 12px; border-radius:var(--radius-sm); }
+  .side a:hover { background:var(--gray-100); color:var(--ink); }
+  .side a.on { background:var(--brand-50); color:var(--brand); font-weight:600; }
+  .stack-lg { display:flex; flex-direction:column; gap:var(--space-6); }
+  .section-label { font-size:var(--text-xs); font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gray-400); margin-bottom:var(--space-4); }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4); }
+  /* stripe status */
+  .stripe-row { display:flex; align-items:center; gap:var(--space-4); }
+  .stripe-mark { width:54px;height:54px;border-radius:var(--radius);background:#635bff;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:var(--text-lg);flex:none; }
+  .conn { display:inline-flex; align-items:center; gap:7px; font-size:var(--text-sm); font-weight:600; color:var(--green-700); }
+  .conn .d { width:8px;height:8px;border-radius:50%;background:var(--green-600); }
+  /* api key */
+  .keyrow { display:flex; gap:var(--space-2); align-items:stretch; }
+  .keyrow .key { flex:1; display:flex; align-items:center; background:var(--gray-50); border:1px solid var(--gray-200); border-radius:var(--radius-sm); padding:0 var(--space-3); font-family:var(--mono); font-size:var(--text-sm); color:var(--gray-700); overflow:hidden; }
+  .keyrow .key .blur { filter:blur(4px); user-select:none; }
+  @media (max-width:820px){ .acct{ grid-template-columns:1fr;} .side{ position:static; flex-direction:row; overflow:auto; } .two{ grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="logo" href="{{ url_for('history') }}"><span class="logo__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span><span class="logo__name hide-sm">Invoicer</span></a>
+      <nav class="nav"><a href="{{ url_for('history') }}">Invoices</a><a class="active" href="{{ url_for('account') }}">Account</a></nav>
+      <div class="spacer"></div>
+      <span class="avatar" title="{{ current_user.business_name or current_user.email }}">{{ current_user.initials }}</span>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="page__head" style="margin-bottom:var(--space-8)">
+      <div><div class="breadcrumb">Settings</div><h1 class="h1" style="margin:0">Account</h1></div>
+    </div>
+
+    {% include "_flashes.html" %}
+
+    <div class="acct">
+      <nav class="side">
+        <a class="on" href="#payments">Payments</a>
+        <a href="#business">Business</a>
+        <a href="#api">API &amp; integrations</a>
+        <a href="#security">Security</a>
+      </nav>
+
+      <div class="stack-lg">
+        <!-- STRIPE -->
+        <div class="card" id="payments">
+          <div class="card__head"><strong>Payments — Stripe</strong>
+            {% if current_user.can_accept_payments %}<span class="conn"><span class="d"></span> Connected</span>{% endif %}
+          </div>
+          <div class="card__body">
+            {% if not stripe_configured %}
+              <div class="notice notice--warn"><span>Stripe isn't configured on this site yet, so online payments are unavailable. The site administrator needs to add Stripe keys.</span></div>
+            {% elif current_user.can_accept_payments %}
+              <div class="stripe-row">
+                <div class="stripe-mark">S</div>
+                <div style="flex:1">
+                  <div style="font-weight:600">Stripe account · {{ current_user.stripe_account_id }}</div>
+                  <div class="small muted">Payments go directly to your own connected account.</div>
+                </div>
+                <a class="btn btn--secondary btn--sm" href="{{ url_for('connect_dashboard') }}">Manage</a>
+              </div>
+              <div class="notice notice--success" style="margin-top:var(--space-5)"><span>You're collecting payments directly to your own account. Invoicer never touches your funds and takes no per-invoice fee.</span></div>
+            {% elif current_user.stripe_account_id %}
+              <div class="notice notice--warn"><span>Your Stripe onboarding isn't finished yet. Resume it to start accepting payments.</span></div>
+              <form method="post" action="{{ url_for('connect_start') }}" style="margin-top:var(--space-4)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button class="btn" type="submit">Resume Stripe onboarding →</button>
+              </form>
+            {% else %}
+              <p class="small muted" style="margin-bottom:var(--space-4)">Connect your own Stripe account to collect payments directly. Invoicer never touches your funds and takes no per-invoice fee.</p>
+              <form method="post" action="{{ url_for('connect_start') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button class="btn" type="submit">Connect Stripe →</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- BUSINESS + PREFERENCES (single form) -->
+        <form method="post" action="{{ url_for('account_business') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="card" id="business">
+            <div class="card__head"><strong>Business profile</strong></div>
+            <div class="card__body">
+              <div class="section-label">Appears on every invoice</div>
+              <div class="two">
+                <div class="field"><label class="label">Business name <span class="req">*</span></label><input class="input" name="business_name" value="{{ current_user.business_name or '' }}" required/></div>
+                <div class="field"><label class="label">Email</label><input class="input" type="email" name="business_email" value="{{ current_user.business_email or '' }}"/></div>
+              </div>
+              <div class="field" style="margin-top:var(--space-4)"><label class="label">Address</label><textarea class="textarea" name="business_address" placeholder="Street&#10;City, State ZIP">{{ current_user.business_address or '' }}</textarea></div>
+              <div class="two" style="margin-top:var(--space-4)">
+                <div class="field"><label class="label">Tax ID / EIN</label><input class="input mono" name="tax_id" value="{{ current_user.tax_id or '' }}"/></div>
+                <div class="field"><label class="label">Default currency</label>
+                  <select class="select" name="default_currency">
+                    {% set cur = current_user.default_currency or 'USD' %}
+                    <option value="USD" {{ 'selected' if cur == 'USD' }}>USD — US Dollar ($)</option>
+                    <option value="EUR" {{ 'selected' if cur == 'EUR' }}>EUR — Euro (€)</option>
+                    <option value="GBP" {{ 'selected' if cur == 'GBP' }}>GBP — Pound (£)</option>
+                    <option value="CAD" {{ 'selected' if cur == 'CAD' }}>CAD — Canadian Dollar ($)</option>
+                    <option value="AUD" {{ 'selected' if cur == 'AUD' }}>AUD — Australian Dollar ($)</option>
+                    <option value="INR" {{ 'selected' if cur == 'INR' }}>INR — Indian Rupee (₹)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field" style="margin-top:var(--space-4)"><label class="label">Default payment terms</label>
+                <select class="select" name="default_terms">
+                  {% set dt = current_user.default_terms or '' %}
+                  <option value="" {{ 'selected' if not dt }}>— None —</option>
+                  <option {{ 'selected' if dt == 'Due on receipt' }}>Due on receipt</option>
+                  <option {{ 'selected' if dt == 'Net 14' }}>Net 14</option>
+                  <option {{ 'selected' if dt == 'Net 30' }}>Net 30</option>
+                  <option {{ 'selected' if dt == 'Net 60' }}>Net 60</option>
+                </select>
+              </div>
+            </div>
+            <div class="card__foot row between"><span class="small muted">Shown on every invoice you send.</span><button class="btn btn--sm" type="submit">Save changes</button></div>
+          </div>
+        </form>
+
+        <!-- API -->
+        <div class="card" id="api">
+          <div class="card__head"><strong>API key</strong><span class="tag-key">Live</span></div>
+          <div class="card__body">
+            <p class="small muted" style="margin-bottom:var(--space-4)">Use this key to create invoices programmatically. Keep it secret — treat it like a password.</p>
+            <div class="keyrow">
+              <div class="key"><span id="apiKey" class="blur">{{ current_user.api_key }}</span></div>
+              <button class="btn btn--secondary btn--sm" type="button" onclick="toggleKey(this)">Reveal</button>
+              <button class="btn btn--secondary btn--sm" type="button" onclick="copyKey(this)">Copy</button>
+            </div>
+            <form method="post" action="{{ url_for('regenerate_key') }}" style="margin-top:var(--space-4)" onsubmit="return confirm('Roll your API key? The current key stops working immediately.')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button class="btn btn--secondary btn--sm" type="submit">Roll key</button>
+            </form>
+            <div class="notice notice--warn" style="margin-top:var(--space-5)"><span>Rolling your key immediately invalidates the current one. Update any integrations before rolling.</span></div>
+          </div>
+        </div>
+
+        <!-- SECURITY -->
+        <div class="card" id="security">
+          <div class="card__head"><strong>Security</strong></div>
+          <div class="card__body">
+            <div class="row between">
+              <div><div style="font-weight:600">{{ current_user.email }}</div><div class="small muted">Signed in to this account.</div></div>
+              <form method="post" action="{{ url_for('logout') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button class="btn btn--secondary btn--sm" type="submit">Sign out</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
 </div>
 
-<div class="card">
-  <h2>Profile</h2>
-  <div class="kv"><div class="k">Email</div><div class="v">{{ current_user.email }}</div></div>
-</div>
-
-<div class="card">
-  <h2>Get paid — connect Stripe</h2>
-  {% if not stripe_configured %}
-    <p class="help">Card payments aren't available on this site yet (no Stripe configured by the operator).</p>
-  {% elif current_user.can_accept_payments %}
-    <p class="kv"><span class="badge badge-Paid">Connected</span> Payments for your invoices go straight to your own Stripe account.</p>
-    <a class="btn btn-ghost btn-sm" href="{{ url_for('connect_dashboard') }}">Open my Stripe dashboard</a>
-  {% elif current_user.stripe_account_id %}
-    <p class="kv"><span class="badge badge-Sent">Almost there</span> Your Stripe onboarding isn't finished, so you can't accept payments yet.</p>
-    <form method="post" action="{{ url_for('connect_start') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-primary btn-sm">Finish Stripe setup</button>
-    </form>
-  {% else %}
-    <p class="help">Connect your own Stripe account to accept card payments. Your customers' money goes directly to you — we never hold your funds. Stripe handles all the verification.</p>
-    <form method="post" action="{{ url_for('connect_start') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-primary btn-sm">Connect Stripe</button>
-    </form>
-  {% endif %}
-</div>
-
-<div class="card">
-  <h2>API Key</h2>
-  <p class="help">Use this as the <code>X-API-Key</code> header to create invoices programmatically. Keep it secret — anyone with it can act on your account.</p>
-  <div class="field">
-    <input type="text" id="apikey" value="{{ current_user.api_key }}" readonly onclick="this.select()">
-  </div>
-  <form method="post" action="{{ url_for('regenerate_key') }}" onsubmit="return confirm('Regenerate your API key? Existing integrations will stop working until updated.');">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="btn btn-ghost btn-sm">Regenerate key</button>
-  </form>
-</div>
-
-<div class="card">
-  <h2>Integrations</h2>
-  <div class="kv">
-    <div class="k">Stripe payments</div>
-    <div class="v">{% if stripe_configured %}<span class="badge badge-Paid">Enabled</span>{% else %}<span class="badge badge-Draft">Not configured</span> — set <code>STRIPE_SECRET_KEY</code>{% endif %}</div>
-  </div>
-  <div class="kv">
-    <div class="k">Email sending</div>
-    <div class="v">{% if smtp_configured %}<span class="badge badge-Paid">Enabled</span>{% else %}<span class="badge badge-Draft">Not configured</span> — set <code>SMTP_HOST</code> and <code>FROM_EMAIL</code>{% endif %}</div>
-  </div>
-</div>
-{% endblock %}
+<script>
+  function toggleKey(btn){
+    const el = document.getElementById("apiKey");
+    el.classList.toggle("blur");
+    btn.textContent = el.classList.contains("blur") ? "Reveal" : "Hide";
+  }
+  function copyKey(btn){
+    const text = document.getElementById("apiKey").textContent;
+    navigator.clipboard.writeText(text).then(function(){
+      const original = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(function(){ btn.textContent = original; }, 1500);
+    });
+  }
+</script>
+</body>
+</html>
