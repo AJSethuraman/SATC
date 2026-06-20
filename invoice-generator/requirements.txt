@@ -7,6 +7,7 @@ sentry-sdk[flask]==2.13.0
 SQLAlchemy==2.0.34
 Jinja2==3.1.4
 WeasyPrint==62.3
+pydyf==0.10.0
 xhtml2pdf==0.2.16
 stripe==10.5.0
 python-dotenv==1.0.1

@@ -59,6 +59,38 @@ def nl2br(value):
     return Markup(text)
 
 
+def _ensure_schema():
+    """Additive, idempotent migration for columns introduced after the first
+    deploy. Avoids pulling in a full migration tool for a couple of columns,
+    and works on both SQLite and PostgreSQL.
+
+    Existing accounts are grandfathered in as already email-verified so that
+    enabling verification never locks current users out.
+    """
+    from sqlalchemy import inspect, text
+
+    try:
+        existing = {c["name"] for c in inspect(db.engine).get_columns("users")}
+    except Exception:
+        return  # users table not present yet; create_all handles fresh DBs
+
+    statements = []
+    if "email_verified" not in existing:
+        statements.append("ALTER TABLE users ADD COLUMN email_verified BOOLEAN")
+        statements.append(
+            "UPDATE users SET email_verified = TRUE "
+            "WHERE email_verified IS NULL"
+        )
+    if "plan" not in existing:
+        statements.append("ALTER TABLE users ADD COLUMN plan VARCHAR(32)")
+        statements.append("UPDATE users SET plan = 'free' WHERE plan IS NULL")
+
+    for stmt in statements:
+        db.session.execute(text(stmt))
+    if statements:
+        db.session.commit()
+
+
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
@@ -109,6 +141,7 @@ def create_app(config_class=Config):
 
     with app.app_context():
         db.create_all()
+        _ensure_schema()
 
     register_routes(app)
 
