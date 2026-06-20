@@ -60,35 +60,62 @@ def nl2br(value):
 
 
 def _ensure_schema():
-    """Additive, idempotent migration for columns introduced after the first
-    deploy. Avoids pulling in a full migration tool for a couple of columns,
-    and works on both SQLite and PostgreSQL.
+    """Additive, idempotent, race-safe migration for columns introduced after
+    the first deploy. Avoids pulling in a full migration tool for a couple of
+    columns, and works on both SQLite and PostgreSQL.
+
+    Crucially this must never crash app startup: multiple gunicorn workers boot
+    at once, so two may try to add the same column concurrently. Each change is
+    wrapped so a "column already exists" race is treated as success.
 
     Existing accounts are grandfathered in as already email-verified so that
     enabling verification never locks current users out.
     """
     from sqlalchemy import inspect, text
+    from sqlalchemy.exc import SQLAlchemyError
 
-    try:
-        existing = {c["name"] for c in inspect(db.engine).get_columns("users")}
-    except Exception:
-        return  # users table not present yet; create_all handles fresh DBs
+    def column_exists(table, col):
+        try:
+            cols = {c["name"] for c in inspect(db.engine).get_columns(table)}
+            return col in cols
+        except Exception:
+            return True  # can't inspect (e.g. no table yet) -> skip DDL
 
-    statements = []
-    if "email_verified" not in existing:
-        statements.append("ALTER TABLE users ADD COLUMN email_verified BOOLEAN")
-        statements.append(
-            "UPDATE users SET email_verified = TRUE "
-            "WHERE email_verified IS NULL"
+    def safe_exec(statements):
+        try:
+            for stmt in statements:
+                db.session.execute(text(stmt))
+            db.session.commit()
+        except SQLAlchemyError:
+            # Another worker likely applied this concurrently; ignore.
+            db.session.rollback()
+
+    if not column_exists("users", "email_verified"):
+        safe_exec(
+            [
+                "ALTER TABLE users ADD COLUMN email_verified BOOLEAN",
+                "UPDATE users SET email_verified = TRUE "
+                "WHERE email_verified IS NULL",
+            ]
         )
-    if "plan" not in existing:
-        statements.append("ALTER TABLE users ADD COLUMN plan VARCHAR(32)")
-        statements.append("UPDATE users SET plan = 'free' WHERE plan IS NULL")
+    if not column_exists("users", "plan"):
+        safe_exec(
+            [
+                "ALTER TABLE users ADD COLUMN plan VARCHAR(32)",
+                "UPDATE users SET plan = 'free' WHERE plan IS NULL",
+            ]
+        )
 
-    for stmt in statements:
-        db.session.execute(text(stmt))
-    if statements:
-        db.session.commit()
+    # Grandfather any pre-existing accounts regardless of which worker added
+    # the columns (idempotent; only touches rows left NULL by ALTER). This is
+    # what guarantees current users aren't locked out when verification turns
+    # on. New signups insert an explicit value, so they're unaffected.
+    safe_exec(
+        [
+            "UPDATE users SET email_verified = TRUE WHERE email_verified IS NULL",
+            "UPDATE users SET plan = 'free' WHERE plan IS NULL",
+        ]
+    )
 
 
 def create_app(config_class=Config):
