@@ -49,8 +49,14 @@ def send_email(config, to_email, subject, body):
     _deliver(config, msg)
 
 
-def send_invoice_email(config, to_email, invoice, pdf_path, payment_url=None):
-    """Send the invoice PDF as an attachment to ``to_email``."""
+def send_invoice_email(
+    config, to_email, invoice, pdf_path, payment_url=None, html_body=None
+):
+    """Send the invoice PDF as an attachment to ``to_email``.
+
+    Always includes a plain-text body (for clients that can't render HTML);
+    when ``html_body`` is supplied it's added as the richer alternative.
+    """
     msg = EmailMessage()
     msg["Subject"] = f"Invoice {invoice.invoice_number}"
     msg["To"] = to_email
@@ -64,9 +70,13 @@ def send_invoice_email(config, to_email, invoice, pdf_path, payment_url=None):
         body_lines += ["", f"Pay online here: {payment_url}"]
     body_lines += ["", "Thank you for your business."]
     msg.set_content("\n".join(body_lines))
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")
 
     pdf_path = Path(pdf_path)
     if pdf_path.exists():
+        # add_attachment on a multipart/alternative message correctly promotes
+        # it to multipart/mixed, keeping the text+html alternatives grouped.
         msg.add_attachment(
             pdf_path.read_bytes(),
             maintype="application",

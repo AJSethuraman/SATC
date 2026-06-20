@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Invoicer — Get paid in 60 seconds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+<style>
+  body { background: #fff; }
+
+  /* nav */
+  .lnav { position: sticky; top: 0; z-index: 40; background: rgba(255,255,255,.86); backdrop-filter: saturate(180%) blur(10px); border-bottom: 1px solid var(--hairline); }
+  .lnav__in { max-width: var(--container); margin: 0 auto; height: 68px; padding: 0 var(--space-6); display: flex; align-items: center; gap: var(--space-8); }
+  .lnav__links { display: flex; gap: var(--space-2); margin-left: auto; }
+  .lnav__links a { font-size: var(--text-sm); font-weight: 500; color: var(--gray-600); padding: 8px 12px; border-radius: var(--radius-sm); }
+  .lnav__links a:hover { color: var(--ink); background: var(--gray-100); }
+
+  /* hero */
+  .hero { position: relative; overflow: hidden; padding: var(--space-20) 0 var(--space-16); }
+  .hero::before { content:""; position:absolute; inset:0; background:
+      radial-gradient(60% 80% at 85% -10%, rgba(37,99,235,.10), transparent 60%),
+      radial-gradient(50% 60% at 0% 0%, rgba(37,99,235,.05), transparent 55%); pointer-events:none; }
+  .hero__grid { max-width: var(--container); margin: 0 auto; padding: 0 var(--space-6); display: grid; grid-template-columns: 1.05fr 0.95fr; gap: var(--space-12); align-items: center; position: relative; }
+  .pill { display:inline-flex; align-items:center; gap:8px; font-size: var(--text-sm); font-weight: 600; color: var(--brand); background: var(--brand-50); border: 1px solid var(--brand-100); padding: 6px 14px 6px 10px; border-radius: var(--radius-full); }
+  .pill .dot { width:7px; height:7px; border-radius:50%; background: var(--green-600); }
+  .hero h1 { font-size: clamp(2.4rem, 5vw, 3.6rem); line-height: 1.03; letter-spacing: -0.035em; font-weight: 800; margin: var(--space-5) 0; color: var(--ink); }
+  .hero h1 em { font-style: normal; color: var(--brand); }
+  .hero__sub { font-size: var(--text-lg); color: var(--gray-600); max-width: 460px; }
+  .hero__cta { display: flex; gap: var(--space-3); margin-top: var(--space-8); flex-wrap: wrap; }
+  .hero__note { margin-top: var(--space-4); font-size: var(--text-sm); color: var(--gray-500); }
+
+  /* invoice card mock in hero */
+  .mock { background: #fff; border: 1px solid var(--hairline); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; transform: rotate(.4deg); }
+  .mock__bar { background: var(--gray-50); border-bottom: 1px solid var(--hairline); padding: 12px 16px; display: flex; align-items: center; gap: 8px; }
+  .mock__bar i { width: 11px; height: 11px; border-radius: 50%; background: var(--gray-300); display:inline-block; }
+  .mock__bar span { margin-left: 8px; font-size: var(--text-xs); color: var(--gray-500); font-family: var(--mono); }
+  .mock__body { padding: var(--space-6); }
+  .mock__top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-5); }
+  .mock__inv { font-size: var(--text-2xl); font-weight: 800; letter-spacing: -0.02em; }
+  .mini-logo { width:36px;height:36px;border-radius:8px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;}
+  .mock__row { display:flex; justify-content:space-between; font-size: var(--text-sm); padding: 9px 0; border-top: 1px solid var(--hairline); }
+  .mock__row .l { color: var(--gray-600); } .mock__row .r { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .mock__total { display:flex; justify-content:space-between; align-items:center; margin-top: var(--space-4); padding: var(--space-4); background: var(--navy-900); border-radius: var(--radius); color:#fff; }
+  .mock__total .k { font-size: var(--text-sm); color: var(--brand-300); } .mock__total .v { font-size: var(--text-xl); font-weight: 800; }
+  .mock__pay { margin-top: var(--space-4); }
+  .float { position:absolute; background:#fff; border:1px solid var(--hairline); box-shadow: var(--shadow-md); border-radius: var(--radius); padding: 10px 14px; font-size: var(--text-sm); font-weight:600; display:flex; align-items:center; gap:10px; }
+  .float .ico { width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; color:#fff; }
+
+  /* logos strip */
+  .trust { border-top:1px solid var(--hairline); border-bottom:1px solid var(--hairline); background: var(--gray-50); }
+  .trust__in { max-width: var(--container); margin:0 auto; padding: var(--space-6) var(--space-6); display:flex; align-items:center; gap: var(--space-8); flex-wrap:wrap; justify-content:center; }
+  .trust span { font-size: var(--text-sm); color: var(--gray-400); font-weight:600; }
+  .trust b { font-size: var(--text-lg); color: var(--gray-400); font-weight:700; letter-spacing:-.02em; }
+
+  /* sections */
+  .sec { max-width: var(--container); margin: 0 auto; padding: var(--space-24) var(--space-6); }
+  .sec__head { text-align:center; max-width: 640px; margin: 0 auto var(--space-12); }
+  .sec__head h2 { font-size: var(--text-4xl); letter-spacing:-0.03em; font-weight:800; }
+  .sec__head p { font-size: var(--text-lg); color: var(--gray-600); margin-top: var(--space-3); }
+
+  .values { display:grid; grid-template-columns: repeat(3,1fr); gap: var(--space-5); }
+  .value { background:#fff; border:1px solid var(--hairline); border-radius: var(--radius-lg); padding: var(--space-6); }
+  .value .ico { width:44px;height:44px;border-radius:11px;background:var(--brand-50);color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-4);}
+  .value .ico svg{width:22px;height:22px}
+  .value h3 { font-size: var(--text-xl); font-weight:700; letter-spacing:-.01em; }
+  .value p { color: var(--gray-600); margin-top: var(--space-2); font-size: var(--text-sm); line-height:1.6; }
+
+  /* how it works */
+  .how { background: var(--navy-900); color:#fff; }
+  .how .sec__head h2 { color:#fff; } .how .sec__head p { color: rgba(255,255,255,.7); }
+  .steps { display:grid; grid-template-columns: repeat(3,1fr); gap: var(--space-8); }
+  .step { position:relative; }
+  .step__n { font-family: var(--mono); font-size: var(--text-sm); color: var(--brand-300); font-weight:600; }
+  .step h3 { font-size: var(--text-xl); margin: var(--space-3) 0 var(--space-2); color:#fff; }
+  .step p { color: rgba(255,255,255,.66); font-size: var(--text-sm); line-height:1.6; }
+  .step__line { height:2px; background: linear-gradient(90deg, var(--brand), transparent); margin-bottom: var(--space-5); }
+
+  /* CTA */
+  .cta { text-align:center; padding: var(--space-24) var(--space-6); }
+  .cta__box { max-width: 760px; margin:0 auto; background: linear-gradient(135deg, #1f2a44, #2d3a5a); border-radius: var(--radius-lg); padding: var(--space-16) var(--space-8); box-shadow: var(--shadow-lg); }
+  .cta__box h2 { color:#fff; font-size: var(--text-4xl); letter-spacing:-.03em; font-weight:800; }
+  .cta__box p { color: rgba(255,255,255,.74); font-size: var(--text-lg); margin: var(--space-3) 0 var(--space-8); }
+
+  /* footer */
+  .foot { border-top:1px solid var(--hairline); }
+  .foot__in { max-width: var(--container); margin:0 auto; padding: var(--space-12) var(--space-6); display:flex; justify-content:space-between; gap: var(--space-8); flex-wrap:wrap; }
+  .foot__cols { display:flex; gap: var(--space-16); flex-wrap:wrap; }
+  .foot__col h4 { font-size: var(--text-xs); text-transform:uppercase; letter-spacing:.08em; color: var(--gray-400); margin-bottom: var(--space-3); }
+  .foot__col a { display:block; font-size: var(--text-sm); color: var(--gray-600); padding: 4px 0; }
+
+  @media (max-width: 900px){
+    .hero__grid{ grid-template-columns:1fr; gap: var(--space-10);}
+    .values,.steps{ grid-template-columns:1fr;}
+    .lnav__links{ display:none;}
+    .float{ display:none;}
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<header class="lnav">
+  <div class="lnav__in">
+    <a class="logo" href="{{ url_for('index') }}">
+      <span class="logo__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span>
+      <span class="logo__name">Invoicer</span>
+    </a>
+    <nav class="lnav__links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#pricing">Pricing</a>
+    </nav>
+    <div class="row" style="gap:var(--space-2)">
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('login') }}">Log in</a>
+      <a class="btn btn--sm" href="{{ url_for('signup') }}">Start free</a>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero__grid">
+    <div>
+      <span class="pill"><span class="dot"></span> Self-hosted · You own your data</span>
+      <h1>Send invoices.<br/>Get paid in <em>60 seconds</em>.</h1>
+      <p class="hero__sub">The dead-simple invoicing tool for freelancers and small firms. Connect <strong>your own Stripe</strong>, send a polished invoice by email, and collect payment online — keeping 100% of your money.</p>
+      <div class="hero__cta">
+        <a class="btn btn--lg" href="{{ url_for('signup') }}">Create your first invoice →</a>
+        <a class="btn btn--lg btn--secondary" href="{{ url_for('login') }}">Log in</a>
+      </div>
+      <p class="hero__note">No card required · Free while self-hosted · Up and running in minutes</p>
+    </div>
+
+    <div style="position:relative;">
+      <div class="mock">
+        <div class="mock__bar"><i></i><i></i><i></i><span>invoicer.app/i/INV-0042</span></div>
+        <div class="mock__body">
+          <div class="mock__top">
+            <div>
+              <div class="mock__inv">Invoice</div>
+              <div class="small muted mono">INV-2026-0042</div>
+            </div>
+            <div class="mini-logo">L</div>
+          </div>
+          <div class="mock__row"><span class="l">Brand identity system</span><span class="r">$3,200.00</span></div>
+          <div class="mock__row"><span class="l">Website design — 6 pages</span><span class="r">$2,400.00</span></div>
+          <div class="mock__row"><span class="l">Printed brand guidelines</span><span class="r">$240.00</span></div>
+          <div class="mock__total"><span class="k">Balance due</span><span class="v">$3,714.62</span></div>
+          <a class="btn btn--block mock__pay" href="#">Pay $3,714.62 with card →</a>
+        </div>
+      </div>
+      <div class="float" style="top:-18px; left:-26px;">
+        <span class="ico" style="background:var(--green-600)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+        Payment received
+      </div>
+      <div class="float" style="bottom:-20px; right:-22px;">
+        <span class="ico" style="background:var(--brand)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></span>
+        Invoice sent
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST -->
+<div class="trust">
+  <div class="trust__in">
+    <span>Works with the tools you already use —</span>
+    <b>Stripe</b><b>ACH</b><b>Apple&nbsp;Pay</b><b>WeasyPrint</b><b>Self-hosted</b>
+  </div>
+</div>
+
+<!-- VALUE PROPS -->
+<section class="sec" id="features">
+  <div class="sec__head">
+    <h2>Everything you need to get paid</h2>
+    <p>No bloated accounting suite. Just invoices that look professional and payments that land in your account.</p>
+  </div>
+  <div class="values">
+    <div class="value">
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      <h3>Keep 100% of your money</h3>
+      <p>Connect your own Stripe account and payments go straight to you. We never touch your funds — and there's no per-invoice cut.</p>
+    </div>
+    <div class="value">
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <h3>Get paid faster</h3>
+      <p>Every invoice carries a one-tap "Pay online" button. Card and bank transfer, no client login — most invoices settle the same day.</p>
+    </div>
+    <div class="value">
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></div>
+      <h3>Invoice in under a minute</h3>
+      <p>Add line items, pick your client, hit send. Polished PDF generated automatically — with or without your logo.</p>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how">
+  <div class="sec">
+    <div class="sec__head">
+      <h2>Three steps to paid</h2>
+      <p>From sign-up to settled in the time it takes to make coffee.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step__line"></div>
+        <div class="step__n">STEP 01</div>
+        <h3>Connect Stripe</h3>
+        <p>Sign up and link your own Stripe account in two clicks. Your payouts, your bank, your data — fully self-hosted.</p>
+      </div>
+      <div class="step">
+        <div class="step__line"></div>
+        <div class="step__n">STEP 02</div>
+        <h3>Build the invoice</h3>
+        <p>Add line items, set terms and tax, attach your logo. Save as a draft or send it by email instantly.</p>
+      </div>
+      <div class="step">
+        <div class="step__line"></div>
+        <div class="step__n">STEP 03</div>
+        <h3>Get paid online</h3>
+        <p>Your client opens the email, taps Pay, and the money lands in your Stripe. You see it marked paid in real time.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta" id="pricing">
+  <div class="cta__box">
+    <h2>Start sending invoices today</h2>
+    <p>Free to self-host. Connect your Stripe and send your first invoice in minutes.</p>
+    <a class="btn btn--lg" href="{{ url_for('signup') }}" style="background:#fff;color:var(--navy-900)">Create your account →</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="foot">
+  <div class="foot__in">
+    <div style="max-width:280px">
+      <a class="logo" href="{{ url_for('index') }}"><span class="logo__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span><span class="logo__name">Invoicer</span></a>
+      <p class="small muted" style="margin-top:var(--space-4)">Self-hosted invoicing for people who'd rather keep their money. Open, simple, yours.</p>
+    </div>
+    <div class="foot__cols">
+      <div class="foot__col"><h4>Product</h4><a href="#features">Features</a><a href="#how">How it works</a><a href="#pricing">Pricing</a></div>
+      <div class="foot__col"><h4>Account</h4><a href="{{ url_for('login') }}">Log in</a><a href="{{ url_for('signup') }}">Sign up</a></div>
+      <div class="foot__col"><h4>Company</h4><a href="{{ url_for('privacy') }}">Privacy</a><a href="{{ url_for('terms') }}">Terms</a></div>
+    </div>
+  </div>
+  <div class="foot__in" style="border-top:1px solid var(--hairline); padding-top:var(--space-6); padding-bottom:var(--space-8)">
+    <span class="small muted">© 2026 Invoicer · Self-hosted &amp; open</span>
+    <span class="small muted">Made for freelancers, contractors &amp; small firms</span>
+  </div>
+</footer>
+
+</body>
+</html>

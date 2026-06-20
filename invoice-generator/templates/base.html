@@ -1,57 +1,52 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>{% block title %}Invoicer{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
 </head>
 <body>
+<div class="app">
   <header class="topbar">
-    <div class="container topbar-inner">
-      <a class="brand" href="{{ url_for('index') }}">
-        <span class="brand-mark">▦</span> Invoicer
+    <div class="topbar__inner">
+      <a class="logo" href="{{ url_for('index') }}">
+        <span class="logo__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span>
+        <span class="logo__name hide-sm">Invoicer</span>
       </a>
       <nav class="nav">
         {% if current_user.is_authenticated %}
-          <a href="{{ url_for('new_invoice') }}">New Invoice</a>
-          <a href="{{ url_for('history') }}">History</a>
+          <a href="{{ url_for('history') }}">Invoices</a>
           <a href="{{ url_for('account') }}">Account</a>
-          <form method="post" action="{{ url_for('logout') }}" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="nav-link-btn">Sign out</button>
-          </form>
         {% else %}
           <a href="{{ url_for('login') }}">Log in</a>
           <a href="{{ url_for('signup') }}">Sign up</a>
         {% endif %}
       </nav>
+      <div class="spacer"></div>
+      {% if current_user.is_authenticated %}
+        <a class="avatar" href="{{ url_for('account') }}" title="{{ current_user.business_name or current_user.email }}">{{ current_user.initials }}</a>
+      {% else %}
+        <a class="btn btn--sm" href="{{ url_for('signup') }}">Start free</a>
+      {% endif %}
     </div>
   </header>
 
-  <main class="container">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flashes">
-          {% for category, message in messages %}
-            <div class="flash flash-{{ category }}">{{ message }}</div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
-
+  <main class="page" style="max-width:820px">
+    {% include "_flashes.html" %}
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="footer">
-    <div class="container">
-      <span>Invoicer &middot; an independent invoice generator</span>
-      <span style="margin-left:12px">
-        <a href="{{ url_for('terms') }}">Terms</a> &middot;
-        <a href="{{ url_for('privacy') }}">Privacy</a>
-      </span>
+  <footer class="foot" style="border-top:1px solid var(--hairline)">
+    <div class="container row between" style="padding:var(--space-8) var(--space-6); flex-wrap:wrap; gap:var(--space-4)">
+      <span class="small muted">© Invoicer · Self-hosted invoicing</span>
+      <span class="small"><a href="{{ url_for('terms') }}">Terms</a> · <a href="{{ url_for('privacy') }}">Privacy</a></span>
     </div>
   </footer>
-  {% block scripts %}{% endblock %}
+</div>
+{% block scripts %}{% endblock %}
 </body>
 </html>

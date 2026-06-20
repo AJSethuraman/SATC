@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Invoices · Invoicer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+<style>
+  .kpis { display:grid; grid-template-columns: repeat(4,1fr); gap: var(--space-4); margin-bottom: var(--space-8); }
+  .kpi-card { background:#fff; border:1px solid var(--hairline); border-radius: var(--radius-lg); padding: var(--space-5) var(--space-6); }
+  .kpi-card .kpi__value { font-size: var(--text-2xl); }
+  .kpi-card .delta { font-size: var(--text-xs); font-weight:600; margin-top:4px; }
+  .kpi-card .up { color: var(--green-700); } .kpi-card .warn { color: var(--amber-700); }
+  .toolbar { display:flex; align-items:center; gap: var(--space-3); margin-bottom: var(--space-5); flex-wrap:wrap; }
+  .tabs { display:flex; gap:2px; background: var(--gray-100); padding:3px; border-radius: var(--radius); }
+  .tabs button { border:0; background:transparent; font-size:var(--text-sm); font-weight:600; color:var(--gray-600); padding:7px 14px; border-radius:var(--radius-sm); cursor:pointer; }
+  .tabs button.on { background:#fff; color:var(--ink); box-shadow: var(--shadow-sm); }
+  .search { position:relative; margin-left:auto; }
+  .search input { height:40px; width:240px; padding-left:38px; border:1px solid var(--gray-300); border-radius:var(--radius-sm); font-size:var(--text-sm); }
+  .search input:focus { outline:none; border-color:var(--brand); box-shadow:0 0 0 3px var(--brand-100); }
+  .search svg { position:absolute; left:12px; top:11px; width:18px; height:18px; color:var(--gray-400); }
+  .client { display:flex; align-items:center; gap:10px; }
+  .client .mono-av { width:30px;height:30px;border-radius:8px;background:var(--brand-50);color:var(--brand);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center; }
+  @media (max-width:720px){ .kpis{ grid-template-columns:1fr 1fr;} .search input{ width:160px;} .hide-sm{ display:none;} }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="logo" href="{{ url_for('history') }}">
+        <span class="logo__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span>
+        <span class="logo__name hide-sm">Invoicer</span>
+      </a>
+      <nav class="nav">
+        <a class="active" href="{{ url_for('history') }}">Invoices</a>
+        <a href="{{ url_for('account') }}">Account</a>
+      </nav>
+      <div class="spacer"></div>
+      <a class="btn btn--sm" href="{{ url_for('new_invoice') }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New invoice</a>
+      <a class="avatar" href="{{ url_for('account') }}" title="{{ current_user.business_name or current_user.email }}">{{ current_user.initials }}</a>
+    </div>
+  </header>
+
+  <!-- PAGE -->
+  <main class="page">
+    <div class="page__head">
+      <div>
+        <div class="breadcrumb">Workspace{% if current_user.business_name %} · {{ current_user.business_name }}{% endif %}</div>
+        <h1 class="h1">Invoices</h1>
+      </div>
+      <div class="row">
+        <a class="btn btn--secondary btn--sm" href="{{ url_for('export_csv') }}">Export CSV</a>
+        <a class="btn btn--sm" href="{{ url_for('new_invoice') }}">New invoice</a>
+      </div>
+    </div>
+
+    {% include "_flashes.html" %}
+
+    <!-- KPIs -->
+    <div class="kpis">
+      <div class="kpi-card"><div class="kpi__label">Outstanding</div><div class="kpi__value num">{{ format_money(kpis.outstanding, currency) }}</div><div class="delta warn">{{ kpis.outstanding_count }} invoice{{ '' if kpis.outstanding_count == 1 else 's' }} awaiting payment</div></div>
+      <div class="kpi-card"><div class="kpi__label">Overdue</div><div class="kpi__value num" style="color:var(--red-600)">{{ format_money(kpis.overdue, currency) }}</div><div class="delta warn">{{ kpis.overdue_count }} overdue</div></div>
+      <div class="kpi-card"><div class="kpi__label">Paid</div><div class="kpi__value num">{{ format_money(kpis.paid_total, currency) }}</div><div class="delta up">All time</div></div>
+      <div class="kpi-card"><div class="kpi__label">Total invoices</div><div class="kpi__value num">{{ kpis.total_count }}</div><div class="delta">In your workspace</div></div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <form class="tabs" method="get" action="{{ url_for('history') }}">
+        <input type="hidden" name="q" value="{{ q or '' }}"/>
+        <button type="submit" name="status" value="all" class="{{ 'on' if status == 'all' }}">All</button>
+        <button type="submit" name="status" value="draft" class="{{ 'on' if status == 'draft' }}">Draft</button>
+        <button type="submit" name="status" value="sent" class="{{ 'on' if status == 'sent' }}">Sent</button>
+        <button type="submit" name="status" value="paid" class="{{ 'on' if status == 'paid' }}">Paid</button>
+        <button type="submit" name="status" value="overdue" class="{{ 'on' if status == 'overdue' }}">Overdue</button>
+      </form>
+      <form class="search" method="get" action="{{ url_for('history') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input name="q" value="{{ q or '' }}" placeholder="Search invoices or clients"/>
+        <input type="hidden" name="status" value="{{ status }}"/>
+      </form>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Invoice</th>
+            <th>Client</th>
+            <th>Issued</th>
+            <th>Due</th>
+            <th>Status</th>
+            <th class="right">Amount</th>
+            <th class="right">Balance</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in invoices %}
+          {% set badge = {'Paid':'badge--paid','Sent':'badge--sent','Overdue':'badge--overdue','Partial':'badge--partial','Draft':'badge--draft'} %}
+          <tr>
+            <td><a class="rowlink mono" href="{{ url_for('view_invoice', invoice_id=inv.id) }}">{{ inv.invoice_number }}</a></td>
+            <td><div class="client"><span class="mono-av">{{ inv.client_name[:2] | upper if inv.client_name != '—' else '—' }}</span> {{ inv.client_name }}</div></td>
+            <td class="muted">{{ inv.invoice_date | fmtdate('%b %d') }}</td>
+            {% if inv.is_overdue %}<td style="color:var(--red-600); font-weight:600">{{ (inv.due_date | fmtdate('%b %d')) or '—' }}</td>{% else %}<td class="muted">{{ (inv.due_date | fmtdate('%b %d')) or '—' }}</td>{% endif %}
+            <td><span class="badge {{ badge[inv.display_status] }}">{{ inv.display_status }}</span></td>
+            <td class="right num">{{ format_money(inv.total, inv.currency) }}</td>
+            <td class="right num strong">{{ format_money(inv.balance_due, inv.currency) }}</td>
+            <td class="right"><a class="btn btn--sm btn--ghost hide-sm" href="{{ url_for('view_invoice', invoice_id=inv.id) }}">View</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" style="text-align:center; padding:var(--space-12) var(--space-6); color:var(--gray-500)">
+            {% if q or status != 'all' %}No invoices match this filter.{% else %}No invoices yet. <a href="{{ url_for('new_invoice') }}">Create your first invoice →</a>{% endif %}
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="row between" style="margin-top:var(--space-5)">
+      <span class="small muted">Showing {{ invoices | length }} invoice{{ '' if invoices | length == 1 else 's' }}</span>
+    </div>
+  </main>
+</div>
+</body>
+</html>

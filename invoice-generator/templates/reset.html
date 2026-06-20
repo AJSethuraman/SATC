@@ -1,22 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Set a new password · Invoicer{% endblock %}
 {% block content %}
-<div class="auth-wrap">
-  <div class="card auth-card">
-    <h1>Set a new password</h1>
-    <form method="post" action="{{ url_for('reset_password', token=token) }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="field">
-        <label>New password</label>
-        <input type="password" name="password" required autofocus>
-        <p class="help">At least 8 characters.</p>
-      </div>
-      <div class="field">
-        <label>Confirm new password</label>
-        <input type="password" name="confirm" required>
-      </div>
-      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center">Update password</button>
-    </form>
-  </div>
-</div>
+<div class="card" style="max-width:420px; margin:var(--space-8) auto"><div class="card__body">
+  <h1 class="h2">Set a new password</h1>
+  <form method="post" action="{{ url_for('reset_password', token=token) }}" style="margin-top:var(--space-5)">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <div class="field">
+      <label class="label">New password</label>
+      <input class="input" type="password" name="password" required autofocus/>
+      <div class="hint">At least 8 characters.</div>
+    </div>
+    <div class="field">
+      <label class="label">Confirm new password</label>
+      <input class="input" type="password" name="confirm" required/>
+    </div>
+    <button type="submit" class="btn btn--block" style="margin-top:var(--space-5)">Update password</button>
+  </form>
+</div></div>
 {% endblock %}

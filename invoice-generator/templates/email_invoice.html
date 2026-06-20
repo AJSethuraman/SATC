@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Invoice {{ invoice.invoice_number }}</title>
+<!--
+  ============================================================
+  INVOICER · TRANSACTIONAL EMAIL
+  Table-based, inline-safe HTML for email clients (Gmail,
+  Outlook, Apple Mail). System font stack — webfonts don't
+  load reliably in email. 600px content width, single column.
+  ============================================================
+-->
+<style>
+  body { margin:0; padding:0; background:#eef1f5; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  a { text-decoration:none; }
+  table { border-collapse:collapse; }
+</style>
+</head>
+<body>
+{% set from_lines = (invoice.from_info or "").splitlines() | select | list %}
+{% set biz_name = from_lines[0] if from_lines else (invoice.owner.business_name or invoice.owner.email) %}
+{% set cta_url = pay_url or view_url %}
+
+<!-- OUTER -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f5;">
+  <tr><td align="center" style="padding:24px 16px 48px;">
+
+    <!-- CARD -->
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px; max-width:600px; background:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 8px 30px rgba(15,23,41,.10);">
+
+      <!-- HEADER BAR -->
+      <tr>
+        <td style="background:#1f2a44; padding:22px 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+            <td style="font-size:18px; font-weight:700; color:#ffffff; letter-spacing:-.3px;">
+              <span style="display:inline-block; width:26px; height:26px; background:#2563eb; border-radius:7px; text-align:center; line-height:26px; color:#fff; font-size:14px; vertical-align:middle; margin-right:9px;">▦</span>
+              Invoicer
+            </td>
+            <td align="right" style="font-size:12px; color:#94a3b8; font-family:'JetBrains Mono',monospace;">{{ invoice.invoice_number }}</td>
+          </tr></table>
+        </td>
+      </tr>
+
+      <!-- BODY -->
+      <tr>
+        <td style="padding:36px 40px 8px;">
+          <div style="font-size:13px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#2563eb;">{% if invoice.status == 'Paid' %}Receipt{% else %}New invoice{% endif %}</div>
+          <h1 style="margin:10px 0 0; font-size:26px; line-height:1.25; color:#1f2a44; font-weight:800; letter-spacing:-.5px;">You have a new invoice from {{ biz_name }}</h1>
+          <p style="margin:14px 0 0; font-size:15px; line-height:1.6; color:#475569;">Hi {{ invoice.client_name }}, thanks for working with us. Your invoice is ready — you can review it{% if pay_url %} and pay securely online in just a few seconds{% endif %}.</p>
+        </td>
+      </tr>
+
+      <!-- AMOUNT PANEL -->
+      <tr>
+        <td style="padding:24px 40px 8px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f8fb; border:1px solid #e2e8f0; border-radius:12px;">
+            <tr>
+              <td style="padding:22px 24px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="font-size:13px; color:#64748b;">{% if invoice.balance_due > 0 %}Amount due{% else %}Amount{% endif %}</td>
+                    {% if invoice.due_date %}<td align="right" style="font-size:13px; color:#64748b;">Due date</td>{% endif %}
+                  </tr>
+                  <tr>
+                    <td style="font-size:30px; font-weight:800; color:#1f2a44; padding-top:2px; letter-spacing:-.5px;">{{ format_money(invoice.balance_due, invoice.currency) }}</td>
+                    {% if invoice.due_date %}<td align="right" style="font-size:16px; font-weight:700; color:{% if invoice.is_overdue %}#b91c1c{% else %}#1f2a44{% endif %}; padding-top:2px;">{{ invoice.due_date | fmtdate }}</td>{% endif %}
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr><td style="border-top:1px solid #e2e8f0; padding:14px 24px; font-size:13px; color:#64748b;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                <td style="font-size:13px; color:#64748b;">Invoice <span style="font-family:'JetBrains Mono',monospace; color:#334155;">{{ invoice.invoice_number }}</span></td>
+                {% if invoice.payment_terms %}<td align="right" style="font-size:13px; color:#64748b;">Terms: {{ invoice.payment_terms }}</td>{% endif %}
+              </tr></table>
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+
+      <!-- CTA -->
+      <tr>
+        <td style="padding:24px 40px 4px;" align="center">
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+            <td style="background:#2563eb; border-radius:10px;">
+              <a href="{{ cta_url }}" style="display:inline-block; padding:15px 40px; font-size:16px; font-weight:700; color:#ffffff;">{% if pay_url %}Pay {{ format_money(invoice.balance_due, invoice.currency) }} online →{% else %}View invoice →{% endif %}</a>
+            </td>
+          </tr></table>
+          {% if pay_url %}<p style="margin:14px 0 0; font-size:13px; color:#94a3b8;">Secure payment by card or bank transfer · Powered by Stripe</p>{% endif %}
+        </td>
+      </tr>
+
+      <!-- SECONDARY -->
+      <tr>
+        <td style="padding:16px 40px 32px;" align="center">
+          <a href="{{ view_url }}" style="font-size:14px; font-weight:600; color:#2563eb;">View invoice in browser</a>
+          <span style="color:#cbd5e1; margin:0 10px;">·</span>
+          <span style="font-size:14px; color:#64748b;">PDF attached</span>
+        </td>
+      </tr>
+
+      <!-- MESSAGE -->
+      {% if invoice.amount_paid and invoice.balance_due > 0 %}
+      <tr>
+        <td style="padding:0 40px 36px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e2e8f0;"><tr>
+            <td style="padding-top:22px; font-size:14px; line-height:1.6; color:#475569;">
+              A {{ format_money(invoice.amount_paid, invoice.currency) }} payment has already been applied to this invoice. Questions about the work or the balance? Just reply to this email.
+              <div style="margin-top:18px; font-size:14px; color:#1f2a44; font-weight:600;">— {{ biz_name }}</div>
+            </td>
+          </tr></table>
+        </td>
+      </tr>
+      {% endif %}
+
+      <!-- FOOTER -->
+      <tr>
+        <td style="background:#f6f8fb; border-top:1px solid #e2e8f0; padding:24px 40px;">
+          <p style="margin:0; font-size:12px; line-height:1.6; color:#94a3b8;">
+            {{ biz_name }}{% if from_lines[1:] %} · {{ from_lines[1:] | join(' · ') }}{% endif %}<br/>
+            This invoice was sent via Invoicer. If you weren't expecting it, you can safely ignore this email.
+          </p>
+        </td>
+      </tr>
+
+    </table>
+    <!-- /CARD -->
+
+  </td></tr>
+</table>
+
+</body>
+</html>

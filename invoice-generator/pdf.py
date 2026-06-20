@@ -1,13 +1,13 @@
-"""PDF generation from Jinja2 HTML templates.
+"""PDF generation from a single Jinja2 HTML template.
 
 Two rendering engines are supported so the app works on any platform with no
-manual native-library setup:
+manual native-library setup. Both render the same self-contained, table-based
+``invoice_pdf.html`` (no flexbox/grid/external CSS), so the output matches:
 
 * **WeasyPrint** - highest-fidelity output; used on Linux/Docker where its
-  native libraries (GTK/Pango/Cairo) are available. Renders ``invoice_pdf.html``.
+  native libraries (GTK/Pango/Cairo) are available.
 * **xhtml2pdf** - pure-Python (pip only, no native libraries, no downloads);
-  the reliable fallback on Windows. Renders the table-based
-  ``invoice_pdf_xhtml2pdf.html``.
+  the reliable fallback on Windows.
 
 The engine is chosen by the ``PDF_ENGINE`` config setting:
 
@@ -58,6 +58,35 @@ def _logo_data_uri(invoice, allow_svg):
     return f"data:{mime};base64,{encoded}"
 
 
+def _business_context(invoice, allow_svg):
+    """Assemble the ``business`` block the PDF template expects.
+
+    The sender details come from the invoice's own ``from_info`` snapshot (taken
+    when the invoice was saved) so historical invoices stay accurate even if the
+    account profile later changes. ``logo_uri`` gates the logo vs. wordmark
+    variant in the template.
+    """
+    lines = [
+        line.strip()
+        for line in (invoice.from_info or "").splitlines()
+        if line.strip()
+    ]
+    return {
+        "name": lines[0] if lines else "",
+        "lines": lines[1:],
+        "logo_uri": _logo_data_uri(invoice, allow_svg=allow_svg),
+    }
+
+
+def _render_invoice_html(invoice, allow_svg):
+    return render_template(
+        "invoice_pdf.html",
+        invoice=invoice,
+        business=_business_context(invoice, allow_svg=allow_svg),
+        pay_url=invoice.stripe_payment_url,
+    )
+
+
 def _render_with_weasyprint(invoice, output_path):
     try:
         from weasyprint import HTML
@@ -68,11 +97,7 @@ def _render_with_weasyprint(invoice, output_path):
             f"on Linux install libpango/cairo. ({exc})"
         ) from exc
 
-    html_string = render_template(
-        "invoice_pdf.html",
-        invoice=invoice,
-        logo_data_uri=_logo_data_uri(invoice, allow_svg=True),
-    )
+    html_string = _render_invoice_html(invoice, allow_svg=True)
     HTML(string=html_string, base_url=str(Path(output_path).parent)).write_pdf(
         str(output_path)
     )
@@ -81,11 +106,7 @@ def _render_with_weasyprint(invoice, output_path):
 def _render_with_xhtml2pdf(invoice, output_path):
     from xhtml2pdf import pisa
 
-    html_string = render_template(
-        "invoice_pdf_xhtml2pdf.html",
-        invoice=invoice,
-        logo_data_uri=_logo_data_uri(invoice, allow_svg=False),
-    )
+    html_string = _render_invoice_html(invoice, allow_svg=False)
     with open(output_path, "wb") as fh:
         result = pisa.CreatePDF(html_string, dest=fh, encoding="utf-8")
     if result.err:
