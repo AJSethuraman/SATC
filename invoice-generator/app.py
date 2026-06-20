@@ -975,8 +975,29 @@ def register_routes(app):
                     # older pre-Connect link after a newer one was generated.
                     authorized = True
             if authorized:
-                invoice.status = "Paid"
-                invoice.amount_paid = invoice.total
+                # Use the amount actually paid (in cents) from the event, not
+                # the invoice's current total — a customer might pay an older,
+                # lower payment link after the invoice was changed.
+                paid_cents = session.get("amount_total") or 0
+                sess_currency = (session.get("currency") or "").lower()
+                inv_currency = (invoice.currency or "usd").lower()
+                due_cents = int(round(invoice.balance_due * 100))
+                if sess_currency != inv_currency:
+                    # Currency doesn't match the invoice (e.g. the invoice's
+                    # currency was changed after the link was made) — don't
+                    # credit a foreign-currency amount; leave the invoice as is.
+                    pass
+                elif paid_cents >= due_cents:
+                    # Covers the outstanding balance -> fully paid.
+                    invoice.amount_paid = invoice.total
+                    invoice.status = "Paid"
+                else:
+                    # Underpayment (e.g. an older/lower link): record what was
+                    # paid but don't mark it Paid. max() keeps this idempotent
+                    # across Stripe's webhook retries.
+                    invoice.amount_paid = max(
+                        invoice.amount_paid or 0.0, paid_cents / 100.0
+                    )
                 db.session.commit()
 
         elif event["type"] == "account.updated":
