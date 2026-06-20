@@ -89,7 +89,9 @@
         <a class="btn btn-primary" style="width:100%; justify-content:center" href="{{ invoice.stripe_payment_url }}" target="_blank" rel="noopener">Open Payment Link</a>
         <p class="help">A Stripe Checkout session has been created for this invoice.</p>
       {% endif %}
-      {% if stripe_configured %}
+      {% if not stripe_configured %}
+        <p class="help">Card payments aren't enabled on this site yet.</p>
+      {% elif current_user.can_accept_payments %}
         <form method="post" action="{{ url_for('create_payment', invoice_id=invoice.id) }}" style="margin-top:10px">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-navy btn-sm" {{ "disabled" if invoice.balance_due <= 0 else "" }}>
@@ -97,7 +99,8 @@
           </button>
         </form>
       {% else %}
-        <p class="help">Set <code>STRIPE_SECRET_KEY</code> in <code>.env</code> to enable Stripe payments.</p>
+        <p class="help">Connect your Stripe account to accept card payments — money goes straight to you.</p>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('account') }}">Connect Stripe</a>
       {% endif %}
     </div>
 

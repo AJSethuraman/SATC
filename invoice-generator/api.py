@@ -180,11 +180,18 @@ def serialize(invoice):
 
 def _maybe_create_payment_link(invoice):
     """Create a Stripe Checkout link if requested. Returns a warning or None."""
+    if not g.api_user.can_accept_payments:
+        return (
+            "Connect a Stripe account (Account page) before creating payment "
+            "links."
+        )
     try:
         session = stripe_utils.create_checkout_session(
             invoice,
             current_app.config["STRIPE_SECRET_KEY"],
             current_app.config["APP_BASE_URL"],
+            g.api_user.stripe_account_id,
+            current_app.config,
         )
     except (RuntimeError, ValueError) as exc:
         return str(exc)

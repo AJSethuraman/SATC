@@ -39,6 +39,12 @@ class User(UserMixin, db.Model):
     email_verified = db.Column(db.Boolean, default=False, nullable=False)
     # Subscription plan (dormant until BILLING_ENABLED). "free" | "pro" | ...
     plan = db.Column(db.String(32), default="free", nullable=False)
+    # Stripe Connect: the user's own connected account (where their payments
+    # land). charges_enabled flips true once they finish Stripe onboarding.
+    stripe_account_id = db.Column(db.String(64), nullable=True)
+    stripe_charges_enabled = db.Column(
+        db.Boolean, default=False, nullable=False
+    )
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     invoices = db.relationship(
@@ -50,6 +56,10 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    @property
+    def can_accept_payments(self):
+        return bool(self.stripe_account_id and self.stripe_charges_enabled)
 
 
 class Invoice(db.Model):
