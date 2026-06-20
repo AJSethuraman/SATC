@@ -935,15 +935,31 @@ def register_routes(app):
 
         if event["type"] == "checkout.session.completed":
             session = event["data"]["object"]
+            # For Connect direct charges, the event carries the connected
+            # account it belongs to. We must bind the payment to the invoice
+            # owner's own account.
+            event_account = event.get("account")
             invoice_id = (session.get("metadata") or {}).get("invoice_id")
             invoice = None
             if invoice_id:
-                invoice = db.session.get(Invoice, int(invoice_id))
+                try:
+                    invoice = db.session.get(Invoice, int(invoice_id))
+                except (TypeError, ValueError):
+                    invoice = None
             if invoice is None:
                 invoice = Invoice.query.filter_by(
                     stripe_session_id=session.get("id")
                 ).first()
-            if invoice is not None:
+            # Only honor the event if it came from this invoice owner's own
+            # connected account; otherwise a completed session on a different
+            # account could mark someone else's invoice paid.
+            owner = invoice.owner if invoice is not None else None
+            if (
+                invoice is not None
+                and owner is not None
+                and event_account
+                and owner.stripe_account_id == event_account
+            ):
                 invoice.status = "Paid"
                 invoice.amount_paid = invoice.total
                 db.session.commit()
