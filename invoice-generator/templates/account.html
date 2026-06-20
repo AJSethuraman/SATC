@@ -17,6 +17,7 @@
     <input type="text" id="apikey" value="{{ current_user.api_key }}" readonly onclick="this.select()">
   </div>
   <form method="post" action="{{ url_for('regenerate_key') }}" onsubmit="return confirm('Regenerate your API key? Existing integrations will stop working until updated.');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="btn btn-ghost btn-sm">Regenerate key</button>
   </form>
 </div>

@@ -18,6 +18,7 @@
           <a href="{{ url_for('history') }}">History</a>
           <a href="{{ url_for('account') }}">Account</a>
           <form method="post" action="{{ url_for('logout') }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="nav-link-btn">Sign out</button>
           </form>
         {% else %}
@@ -45,6 +46,10 @@
   <footer class="footer">
     <div class="container">
       <span>Invoicer &middot; an independent invoice generator</span>
+      <span style="margin-left:12px">
+        <a href="{{ url_for('terms') }}">Terms</a> &middot;
+        <a href="{{ url_for('privacy') }}">Privacy</a>
+      </span>
     </div>
   </footer>
   {% block scripts %}{% endblock %}

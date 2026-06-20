@@ -188,6 +188,12 @@ none of these set — Stripe, email, and the API stay disabled until configured.
 | `APP_ENV`                | `production` enables secure cookies (set when hosted) |
 | `DATABASE_URL`           | DB connection; defaults to local SQLite, set Postgres in prod |
 | `PDF_ENGINE`             | `auto` (default), `weasyprint`, or `xhtml2pdf`       |
+| `SENTRY_DSN`             | Optional error monitoring (Sentry)                   |
+| `REQUIRE_EMAIL_VERIFICATION` | `auto` (default) / `always` / `never`            |
+| `RATELIMIT_STORAGE_URI`  | `memory://` default; `redis://...` for multi-instance |
+| `PLATFORM_FEE_PERCENT`   | Stripe Connect platform fee % (0 = off, dormant)     |
+| `PLATFORM_FEE_FLAT_CENTS`| Flat platform fee in cents (0 = off, dormant)        |
+| `BILLING_ENABLED`        | `true` to enable subscription tiers (default off)    |
 | `STRIPE_SECRET_KEY`      | Stripe secret key (`sk_test_...` in test mode)       |
 | `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (optional)                    |
 | `STRIPE_WEBHOOK_SECRET`  | Webhook signing secret (`whsec_...`)                 |
@@ -319,6 +325,31 @@ python -m pytest
 The included tests cover the invoice math (subtotal, flat/percentage discount
 and tax, shipping, total, and balance due).
 
+## Security & hardening
+
+- **Passwords** are hashed (Werkzeug); the app never stores them in plaintext.
+- **Per-user isolation:** every invoice and API call is scoped to its owner.
+- **CSRF protection** on all browser forms (Flask-WTF). The JSON API (key auth)
+  and the Stripe webhook (signature-verified) are exempt by design.
+- **Rate limiting** (Flask-Limiter) on login, signup, password reset, and
+  resend-verification to blunt brute-force/abuse.
+- **Email verification** for new accounts, and a **password reset** flow — both
+  by signed, expiring tokens. Verification is enforced only once email is
+  configured (`REQUIRE_EMAIL_VERIFICATION=auto`), so a fresh deploy never locks
+  you out.
+- **Secure cookies** (HTTP-only, `SameSite=Lax`, Secure in production).
+- **Error monitoring:** set `SENTRY_DSN` to capture exceptions.
+- **Legal:** template Terms (`/terms`) and Privacy (`/privacy`) pages — fill in
+  the bracketed details and have them reviewed before a public launch.
+
+### Database backups (Render)
+
+On Render, open your **`invoicer-db`** Postgres instance → **Backups**. Paid
+plans include automated daily backups with point-in-time recovery; enable them
+there. For a manual snapshot anytime: **Backups → Create backup** (or
+`pg_dump "$DATABASE_URL" > backup.sql` locally). The free database tier has
+limited/again retention, so move to a paid tier before relying on it.
+
 ## Notes
 
 - Required fields (from, bill-to, invoice number, at least one line item) are
@@ -326,9 +357,8 @@ and tax, shipping, total, and balance due).
 - Each user only sees their own invoices; the API is scoped by the per-user key.
 - Uploaded logos are validated (Pillow) and stored in the database, then
   embedded into the PDF as a data URI — nothing is written to a public folder.
-- Session cookies are HTTP-only and `SameSite=Lax`, and become Secure when
-  `APP_ENV=production`. For a high-traffic public deployment, consider adding
-  CSRF tokens (e.g. Flask-WTF) as a further hardening step.
+- See **Security & hardening** above for CSRF, rate limiting, verification,
+  and reset details.
 - If you deploy publicly: serve over HTTPS, set a strong `FLASK_SECRET_KEY`,
   use PostgreSQL via `DATABASE_URL`, and review data-protection obligations.
 

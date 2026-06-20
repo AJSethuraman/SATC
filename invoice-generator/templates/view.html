@@ -91,6 +91,7 @@
       {% endif %}
       {% if stripe_configured %}
         <form method="post" action="{{ url_for('create_payment', invoice_id=invoice.id) }}" style="margin-top:10px">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-navy btn-sm" {{ "disabled" if invoice.balance_due <= 0 else "" }}>
             {{ "Regenerate Pay Link" if invoice.stripe_payment_url else "Create Stripe Payment Link" }}
           </button>
@@ -104,6 +105,7 @@
       <h2>Send by Email</h2>
       {% if smtp_configured %}
       <form method="post" action="{{ url_for('email_invoice', invoice_id=invoice.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="field">
           <label>Recipient email</label>
           <input type="email" name="to_email" placeholder="client@example.com" required>
@@ -118,6 +120,7 @@
     <div class="card">
       <h2>Danger Zone</h2>
       <form method="post" action="{{ url_for('delete_invoice', invoice_id=invoice.id) }}" onsubmit="return confirm('Delete this invoice permanently?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-danger btn-sm">Delete Invoice</button>
       </form>
     </div>

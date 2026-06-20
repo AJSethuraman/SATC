@@ -17,6 +17,7 @@ from pathlib import Path
 from flask import (
     Flask,
     abort,
+    current_app,
     flash,
     redirect,
     render_template,
@@ -24,6 +25,8 @@ from flask import (
     send_file,
     url_for,
 )
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_login import (
     LoginManager,
     current_user,
@@ -31,6 +34,8 @@ from flask_login import (
     login_user,
     logout_user,
 )
+from flask_wtf import CSRFProtect
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from markupsafe import Markup, escape
 
 import email_utils
@@ -38,6 +43,9 @@ import stripe_utils
 from config import Config
 from helpers import currency_symbol, format_money, parse_date, parse_float
 from models import Invoice, LineItem, User, db
+
+csrf = CSRFProtect()
+limiter = Limiter(key_func=get_remote_address)
 
 ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".svg"}
 
@@ -49,6 +57,38 @@ def nl2br(value):
         return ""
     text = str(escape(value)).replace("\r\n", "<br>").replace("\n", "<br>")
     return Markup(text)
+
+
+def _ensure_schema():
+    """Additive, idempotent migration for columns introduced after the first
+    deploy. Avoids pulling in a full migration tool for a couple of columns,
+    and works on both SQLite and PostgreSQL.
+
+    Existing accounts are grandfathered in as already email-verified so that
+    enabling verification never locks current users out.
+    """
+    from sqlalchemy import inspect, text
+
+    try:
+        existing = {c["name"] for c in inspect(db.engine).get_columns("users")}
+    except Exception:
+        return  # users table not present yet; create_all handles fresh DBs
+
+    statements = []
+    if "email_verified" not in existing:
+        statements.append("ALTER TABLE users ADD COLUMN email_verified BOOLEAN")
+        statements.append(
+            "UPDATE users SET email_verified = TRUE "
+            "WHERE email_verified IS NULL"
+        )
+    if "plan" not in existing:
+        statements.append("ALTER TABLE users ADD COLUMN plan VARCHAR(32)")
+        statements.append("UPDATE users SET plan = 'free' WHERE plan IS NULL")
+
+    for stmt in statements:
+        db.session.execute(text(stmt))
+    if statements:
+        db.session.commit()
 
 
 def create_app(config_class=Config):
@@ -69,7 +109,21 @@ def create_app(config_class=Config):
     if app.config.get("ENV") == "production":
         app.config["SESSION_COOKIE_SECURE"] = True
 
+    # Error monitoring (optional).
+    if app.config.get("SENTRY_DSN"):
+        import sentry_sdk
+        from sentry_sdk.integrations.flask import FlaskIntegration
+
+        sentry_sdk.init(
+            dsn=app.config["SENTRY_DSN"],
+            integrations=[FlaskIntegration()],
+            traces_sample_rate=0.0,
+        )
+
     db.init_app(app)
+    csrf.init_app(app)
+    # Flask-Limiter reads RATELIMIT_STORAGE_URI from app.config.
+    limiter.init_app(app)
 
     login_manager = LoginManager()
     login_manager.login_view = "login"
@@ -87,12 +141,16 @@ def create_app(config_class=Config):
 
     with app.app_context():
         db.create_all()
+        _ensure_schema()
 
     register_routes(app)
 
     from api import api_bp
 
     app.register_blueprint(api_bp)
+    # The JSON API authenticates with its own key, and Stripe signs its
+    # webhook — exempt both from CSRF (which is for browser form posts).
+    csrf.exempt(api_bp)
     return app
 
 
@@ -220,6 +278,50 @@ def next_invoice_number(user_id):
     return f"INV-{count + 1:04d}"
 
 
+# --- Signed tokens for email verification / password reset ----------------
+def _serializer():
+    return URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+
+
+def make_token(value, salt):
+    return _serializer().dumps(value, salt=salt)
+
+
+def read_token(token, salt, max_age=86400):
+    try:
+        return _serializer().loads(token, salt=salt, max_age=max_age)
+    except (BadSignature, SignatureExpired):
+        return None
+
+
+def verification_enforced():
+    """Whether new accounts must confirm their email before logging in.
+
+    "auto" (default) enforces it only once SMTP is configured, so a fresh
+    deploy without email never locks anyone out.
+    """
+    mode = (current_app.config.get("REQUIRE_EMAIL_VERIFICATION") or "auto").lower()
+    if mode == "always":
+        return True
+    if mode == "never":
+        return False
+    return email_utils.is_configured(current_app.config)
+
+
+def _send_verification(user):
+    token = make_token(user.email, salt="email-verify")
+    link = current_app.config["APP_BASE_URL"].rstrip("/") + url_for(
+        "verify_email", token=token
+    )
+    email_utils.send_email(
+        current_app.config,
+        user.email,
+        "Confirm your email",
+        f"Welcome to Invoicer!\n\nConfirm your email to activate your "
+        f"account:\n{link}\n\nThis link expires in 24 hours.",
+    )
+
+
 # --------------------------------------------------------------------------
 # Routes
 # --------------------------------------------------------------------------
@@ -233,6 +335,7 @@ def register_routes(app):
 
     # --- Auth ----------------------------------------------------------
     @app.route("/signup", methods=["GET", "POST"])
+    @limiter.limit("10 per hour", methods=["POST"])
     def signup():
         if current_user.is_authenticated:
             return redirect(url_for("history"))
@@ -253,16 +356,38 @@ def register_routes(app):
                 for e in errors:
                     flash(e, "error")
                 return render_template("signup.html", email=email), 400
+
             user = User(email=email)
             user.set_password(password)
+            enforce = verification_enforced()
+            user.email_verified = not enforce
             db.session.add(user)
             db.session.commit()
+
+            if enforce:
+                try:
+                    _send_verification(user)
+                    flash(
+                        "Account created. Check your email for a link to "
+                        "confirm your address before logging in.",
+                        "success",
+                    )
+                except Exception:
+                    # If the email can't go out, don't strand the user.
+                    user.email_verified = True
+                    db.session.commit()
+                    login_user(user)
+                    flash("Welcome! Your account is ready.", "success")
+                    return redirect(url_for("history"))
+                return redirect(url_for("login"))
+
             login_user(user)
             flash("Welcome! Your account is ready.", "success")
             return redirect(url_for("history"))
         return render_template("signup.html", email="")
 
     @app.route("/login", methods=["GET", "POST"])
+    @limiter.limit("10 per minute;50 per hour", methods=["POST"])
     def login():
         if current_user.is_authenticated:
             return redirect(url_for("history"))
@@ -273,9 +398,17 @@ def register_routes(app):
             if user is None or not user.check_password(password):
                 flash("Invalid email or password.", "error")
                 return render_template("login.html", email=email), 401
+            if verification_enforced() and not user.email_verified:
+                flash(
+                    "Please confirm your email first. "
+                    "Need a new link? Use 'Resend confirmation' below.",
+                    "error",
+                )
+                return render_template(
+                    "login.html", email=email, unverified=True
+                ), 403
             login_user(user)
             nxt = request.args.get("next")
-            # Only allow relative redirects (avoid open redirect).
             if not nxt or not nxt.startswith("/"):
                 nxt = url_for("history")
             return redirect(nxt)
@@ -287,6 +420,107 @@ def register_routes(app):
         logout_user()
         flash("Signed out.", "success")
         return redirect(url_for("login"))
+
+    @app.route("/verify/<token>")
+    def verify_email(token):
+        email = read_token(token, salt="email-verify")
+        if not email:
+            flash("That confirmation link is invalid or expired.", "error")
+            return redirect(url_for("login"))
+        user = User.query.filter_by(email=email).first()
+        if user is None:
+            flash("Account not found.", "error")
+            return redirect(url_for("login"))
+        if not user.email_verified:
+            user.email_verified = True
+            db.session.commit()
+        flash("Email confirmed — you can log in now.", "success")
+        return redirect(url_for("login"))
+
+    @app.route("/resend-verification", methods=["POST"])
+    @limiter.limit("5 per hour")
+    def resend_verification():
+        email = (request.form.get("email") or "").strip().lower()
+        user = User.query.filter_by(email=email).first()
+        # Always show the same message (don't reveal whether the email exists).
+        if user and not user.email_verified and verification_enforced():
+            try:
+                _send_verification(user)
+            except Exception:
+                pass
+        flash(
+            "If that account needs confirmation, a new link is on its way.",
+            "success",
+        )
+        return redirect(url_for("login"))
+
+    @app.route("/forgot", methods=["GET", "POST"])
+    @limiter.limit("5 per hour", methods=["POST"])
+    def forgot_password():
+        if request.method == "POST":
+            email = (request.form.get("email") or "").strip().lower()
+            user = User.query.filter_by(email=email).first()
+            if user and email_utils.is_configured(app.config):
+                token = make_token(user.email, salt="pw-reset")
+                link = app.config["APP_BASE_URL"].rstrip("/") + url_for(
+                    "reset_password", token=token
+                )
+                try:
+                    email_utils.send_email(
+                        app.config,
+                        user.email,
+                        "Reset your password",
+                        f"Reset your Invoicer password here:\n{link}\n\n"
+                        f"This link expires in 1 hour. If you didn't request "
+                        f"this, ignore this email.",
+                    )
+                except Exception:
+                    pass
+            flash(
+                "If an account exists for that email, a reset link has been "
+                "sent.",
+                "success",
+            )
+            return redirect(url_for("login"))
+        return render_template(
+            "forgot.html", email_configured=email_utils.is_configured(app.config)
+        )
+
+    @app.route("/reset/<token>", methods=["GET", "POST"])
+    @limiter.limit("10 per hour", methods=["POST"])
+    def reset_password(token):
+        email = read_token(token, salt="pw-reset", max_age=3600)
+        if not email:
+            flash("That reset link is invalid or expired.", "error")
+            return redirect(url_for("forgot_password"))
+        user = User.query.filter_by(email=email).first()
+        if user is None:
+            flash("Account not found.", "error")
+            return redirect(url_for("forgot_password"))
+        if request.method == "POST":
+            password = request.form.get("password") or ""
+            confirm = request.form.get("confirm") or ""
+            if len(password) < 8:
+                flash("Password must be at least 8 characters.", "error")
+                return render_template("reset.html", token=token), 400
+            if password != confirm:
+                flash("Passwords do not match.", "error")
+                return render_template("reset.html", token=token), 400
+            user.set_password(password)
+            user.email_verified = True  # proves control of the inbox
+            db.session.commit()
+            flash("Password updated — log in with your new password.", "success")
+            return redirect(url_for("login"))
+        return render_template("reset.html", token=token)
+
+    # --- Legal ---------------------------------------------------------
+    @app.route("/terms")
+    def terms():
+        return render_template("terms.html")
+
+    @app.route("/privacy")
+    def privacy():
+        return render_template("privacy.html")
 
     @app.route("/account")
     @login_required
@@ -549,6 +783,7 @@ def register_routes(app):
 
     # --- Stripe webhook (unauthenticated; verified by signature) --------
     @app.route("/webhook/stripe", methods=["POST"])
+    @csrf.exempt
     def stripe_webhook():
         payload = request.get_data()
         sig_header = request.headers.get("Stripe-Signature", "")

@@ -1,4 +1,4 @@
-"""Email delivery of invoice PDFs over SMTP.
+"""Email delivery over SMTP (invoice PDFs, verification, password reset).
 
 Credentials come exclusively from configuration / environment variables.
 """
@@ -7,43 +7,20 @@ from email.message import EmailMessage
 from pathlib import Path
 
 
-def send_invoice_email(config, to_email, invoice, pdf_path, payment_url=None):
-    """Send the invoice PDF as an attachment to ``to_email``.
+def is_configured(config):
+    """True if SMTP is set up enough to send mail."""
+    return bool(config.get("SMTP_HOST") and config.get("FROM_EMAIL"))
 
-    ``config`` is the Flask app config (or any mapping) providing the SMTP_*
-    and FROM_EMAIL settings. Raises ``RuntimeError`` if SMTP is unconfigured.
-    """
+
+def _deliver(config, msg):
+    """Send a prepared EmailMessage via the configured SMTP server."""
     host = config.get("SMTP_HOST")
     from_email = config.get("FROM_EMAIL")
     if not host or not from_email:
         raise RuntimeError(
-            "SMTP is not configured. Set SMTP_HOST and FROM_EMAIL in .env."
+            "SMTP is not configured. Set SMTP_HOST and FROM_EMAIL."
         )
-
-    msg = EmailMessage()
-    msg["Subject"] = f"Invoice {invoice.invoice_number}"
     msg["From"] = from_email
-    msg["To"] = to_email
-
-    body_lines = [
-        f"Hello,",
-        "",
-        f"Please find attached invoice {invoice.invoice_number}.",
-    ]
-    if payment_url:
-        body_lines += ["", f"Pay online here: {payment_url}"]
-    body_lines += ["", "Thank you for your business."]
-    msg.set_content("\n".join(body_lines))
-
-    pdf_path = Path(pdf_path)
-    if pdf_path.exists():
-        msg.add_attachment(
-            pdf_path.read_bytes(),
-            maintype="application",
-            subtype="pdf",
-            filename=pdf_path.name,
-        )
-
     port = int(config.get("SMTP_PORT", 587))
     username = config.get("SMTP_USERNAME")
     password = config.get("SMTP_PASSWORD")
@@ -61,3 +38,39 @@ def send_invoice_email(config, to_email, invoice, pdf_path, payment_url=None):
             if username:
                 server.login(username, password)
             server.send_message(msg)
+
+
+def send_email(config, to_email, subject, body):
+    """Send a plain-text email."""
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["To"] = to_email
+    msg.set_content(body)
+    _deliver(config, msg)
+
+
+def send_invoice_email(config, to_email, invoice, pdf_path, payment_url=None):
+    """Send the invoice PDF as an attachment to ``to_email``."""
+    msg = EmailMessage()
+    msg["Subject"] = f"Invoice {invoice.invoice_number}"
+    msg["To"] = to_email
+
+    body_lines = [
+        "Hello,",
+        "",
+        f"Please find attached invoice {invoice.invoice_number}.",
+    ]
+    if payment_url:
+        body_lines += ["", f"Pay online here: {payment_url}"]
+    body_lines += ["", "Thank you for your business."]
+    msg.set_content("\n".join(body_lines))
+
+    pdf_path = Path(pdf_path)
+    if pdf_path.exists():
+        msg.add_attachment(
+            pdf_path.read_bytes(),
+            maintype="application",
+            subtype="pdf",
+            filename=pdf_path.name,
+        )
+    _deliver(config, msg)

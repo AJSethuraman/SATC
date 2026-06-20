@@ -36,6 +36,9 @@ class User(UserMixin, db.Model):
     api_key = db.Column(
         db.String(64), unique=True, nullable=False, default=generate_api_key
     )
+    email_verified = db.Column(db.Boolean, default=False, nullable=False)
+    # Subscription plan (dormant until BILLING_ENABLED). "free" | "pro" | ...
+    plan = db.Column(db.String(32), default="free", nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     invoices = db.relationship(
