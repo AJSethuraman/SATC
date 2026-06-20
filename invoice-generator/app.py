@@ -935,9 +935,9 @@ def register_routes(app):
 
         if event["type"] == "checkout.session.completed":
             session = event["data"]["object"]
-            # For Connect direct charges, the event carries the connected
-            # account it belongs to. We must bind the payment to the invoice
-            # owner's own account.
+            session_id = session.get("id")
+            # For Connect direct charges the event carries the connected
+            # account it belongs to; legacy platform charges have none.
             event_account = event.get("account")
             invoice_id = (session.get("metadata") or {}).get("invoice_id")
             invoice = None
@@ -946,20 +946,30 @@ def register_routes(app):
                     invoice = db.session.get(Invoice, int(invoice_id))
                 except (TypeError, ValueError):
                     invoice = None
-            if invoice is None:
+            if invoice is None and session_id:
                 invoice = Invoice.query.filter_by(
-                    stripe_session_id=session.get("id")
+                    stripe_session_id=session_id
                 ).first()
-            # Only honor the event if it came from this invoice owner's own
-            # connected account; otherwise a completed session on a different
-            # account could mark someone else's invoice paid.
-            owner = invoice.owner if invoice is not None else None
-            if (
-                invoice is not None
-                and owner is not None
-                and event_account
-                and owner.stripe_account_id == event_account
-            ):
+
+            # Authorize the event so a session on one account can't mark
+            # another user's invoice paid:
+            #  - Connect direct charge: the event's account must be the
+            #    invoice owner's own connected account.
+            #  - Legacy platform charge (no account): the session id must be
+            #    the exact one we stored on this invoice (unforgeable).
+            authorized = False
+            if invoice is not None:
+                owner = invoice.owner
+                if event_account:
+                    authorized = bool(
+                        owner and owner.stripe_account_id == event_account
+                    )
+                else:
+                    authorized = bool(
+                        session_id
+                        and session_id == invoice.stripe_session_id
+                    )
+            if authorized:
                 invoice.status = "Paid"
                 invoice.amount_paid = invoice.total
                 db.session.commit()
