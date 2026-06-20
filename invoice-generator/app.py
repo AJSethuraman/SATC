@@ -961,14 +961,19 @@ def register_routes(app):
             if invoice is not None:
                 owner = invoice.owner
                 if event_account:
+                    # Connect direct charge: must be the invoice owner's own
+                    # connected account. We don't trust metadata alone here,
+                    # because a connected account can set arbitrary metadata.
                     authorized = bool(
                         owner and owner.stripe_account_id == event_account
                     )
                 else:
-                    authorized = bool(
-                        session_id
-                        and session_id == invoice.stripe_session_id
-                    )
+                    # No connected account => a platform Checkout Session, which
+                    # only this app can create (an attacker can't mint one and
+                    # connected-account payments always carry an account). So the
+                    # resolved invoice is trustworthy. This also covers paying an
+                    # older pre-Connect link after a newer one was generated.
+                    authorized = True
             if authorized:
                 invoice.status = "Paid"
                 invoice.amount_paid = invoice.total
