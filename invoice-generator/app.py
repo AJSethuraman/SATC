@@ -117,6 +117,10 @@ def _ensure_schema():
                 "WHERE stripe_charges_enabled IS NULL",
             ]
         )
+    if not column_exists("invoices", "paid_session_ids"):
+        safe_exec(
+            ["ALTER TABLE invoices ADD COLUMN paid_session_ids TEXT"]
+        )
 
     # Grandfather any pre-existing accounts regardless of which worker added
     # the columns (idempotent; only touches rows left NULL by ALTER). This is
@@ -975,29 +979,32 @@ def register_routes(app):
                     # older pre-Connect link after a newer one was generated.
                     authorized = True
             if authorized:
-                # Use the amount actually paid (in cents) from the event, not
-                # the invoice's current total — a customer might pay an older,
-                # lower payment link after the invoice was changed.
+                # Credit the actual amount paid (from the event), accumulating
+                # distinct payments. Each Checkout Session is credited at most
+                # once — keyed by its id — so Stripe's webhook retries are
+                # idempotent and can't inflate the amount paid.
+                session_id = session.get("id")
                 paid_cents = session.get("amount_total") or 0
                 sess_currency = (session.get("currency") or "").lower()
                 inv_currency = (invoice.currency or "usd").lower()
-                due_cents = int(round(invoice.balance_due * 100))
-                if sess_currency != inv_currency:
-                    # Currency doesn't match the invoice (e.g. the invoice's
-                    # currency was changed after the link was made) — don't
-                    # credit a foreign-currency amount; leave the invoice as is.
-                    pass
-                elif paid_cents >= due_cents:
-                    # Covers the outstanding balance -> fully paid.
-                    invoice.amount_paid = invoice.total
-                    invoice.status = "Paid"
-                else:
-                    # Underpayment (e.g. an older/lower link): record what was
-                    # paid but don't mark it Paid. max() keeps this idempotent
-                    # across Stripe's webhook retries.
-                    invoice.amount_paid = max(
-                        invoice.amount_paid or 0.0, paid_cents / 100.0
+                counted = [
+                    s for s in (invoice.paid_session_ids or "").split(",") if s
+                ]
+                if (
+                    session_id
+                    and sess_currency == inv_currency
+                    and session_id not in counted
+                ):
+                    invoice.amount_paid = round(
+                        (invoice.amount_paid or 0.0) + paid_cents / 100.0, 2
                     )
+                    counted.append(session_id)
+                    invoice.paid_session_ids = ",".join(counted)
+                # Recompute paid status from the (stable) accumulated amount.
+                if int(round((invoice.amount_paid or 0.0) * 100)) >= int(
+                    round(invoice.total * 100)
+                ):
+                    invoice.status = "Paid"
                 db.session.commit()
 
         elif event["type"] == "account.updated":

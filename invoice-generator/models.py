@@ -104,6 +104,9 @@ class Invoice(db.Model):
     status = db.Column(db.String(20), default="Draft")  # Draft | Sent | Paid
     stripe_session_id = db.Column(db.String(255), nullable=True)
     stripe_payment_url = db.Column(db.Text, nullable=True)
+    # Comma-separated Stripe Checkout Session ids already credited to this
+    # invoice — the idempotency key so webhook retries don't double-count.
+    paid_session_ids = db.Column(db.Text, default="")
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
