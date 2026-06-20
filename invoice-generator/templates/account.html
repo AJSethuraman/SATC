@@ -11,6 +11,28 @@
 </div>
 
 <div class="card">
+  <h2>Get paid — connect Stripe</h2>
+  {% if not stripe_configured %}
+    <p class="help">Card payments aren't available on this site yet (no Stripe configured by the operator).</p>
+  {% elif current_user.can_accept_payments %}
+    <p class="kv"><span class="badge badge-Paid">Connected</span> Payments for your invoices go straight to your own Stripe account.</p>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('connect_dashboard') }}">Open my Stripe dashboard</a>
+  {% elif current_user.stripe_account_id %}
+    <p class="kv"><span class="badge badge-Sent">Almost there</span> Your Stripe onboarding isn't finished, so you can't accept payments yet.</p>
+    <form method="post" action="{{ url_for('connect_start') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary btn-sm">Finish Stripe setup</button>
+    </form>
+  {% else %}
+    <p class="help">Connect your own Stripe account to accept card payments. Your customers' money goes directly to you — we never hold your funds. Stripe handles all the verification.</p>
+    <form method="post" action="{{ url_for('connect_start') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary btn-sm">Connect Stripe</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="card">
   <h2>API Key</h2>
   <p class="help">Use this as the <code>X-API-Key</code> header to create invoices programmatically. Keep it secret — anyone with it can act on your account.</p>
   <div class="field">

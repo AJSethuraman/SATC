@@ -277,14 +277,38 @@ Notes on the request body:
 
 Validation failures return **422** with a `details` array.
 
-## Stripe Checkout (test mode)
+## Payments — Stripe Connect (multi-user platform)
 
-1. Put your test secret key in `.env` as `STRIPE_SECRET_KEY=sk_test_...`.
-2. Open an invoice and click **Create Stripe Payment Link** (or pass
-   `create_payment_link: true` to the API). This creates a Checkout Session for
-   the balance due and stores the hosted payment URL on the invoice.
-3. Pay with a [test card](https://stripe.com/docs/testing) such as
-   `4242 4242 4242 4242`, any future expiry, any CVC.
+This app is a **platform**: each signed-up user connects **their own** Stripe
+account, and their customers' payments are charged **directly on that account**
+(a Stripe "direct charge"), so funds go to the user, not the operator. The
+platform never holds funds. An optional platform fee per payment is supported
+but **off by default** (`PLATFORM_FEE_PERCENT` / `PLATFORM_FEE_FLAT_CENTS`).
+
+### Operator setup (once)
+
+1. Set `STRIPE_SECRET_KEY` (your platform key, `sk_test_...` to start).
+2. In the Stripe Dashboard, **enable Connect** (Settings → Connect) and set up
+   an **Express** platform profile.
+3. Add a webhook endpoint at `https://YOUR-APP/webhook/stripe`, subscribe to
+   **`checkout.session.completed`** and **`account.updated`**, and **enable
+   "Listen to events on connected accounts."** Put its signing secret in
+   `STRIPE_WEBHOOK_SECRET`.
+
+### What each user does
+
+1. On the **Account** page, click **Connect Stripe** → completes Stripe's
+   hosted Express onboarding (Stripe collects their ID/bank, not us).
+2. Once `charges_enabled` is true, the **Create Stripe Payment Link** button
+   appears on their invoices; payments land in their own Stripe balance.
+
+### Testing (test mode)
+
+- Connect a **test** Express account (Stripe's onboarding auto-fills in test
+  mode). Then create a payment link and pay with a
+  [test card](https://stripe.com/docs/testing): `4242 4242 4242 4242`, any
+  future expiry, any CVC. The `account.updated` webhook flips the user to
+  "connected"; `checkout.session.completed` marks the invoice **Paid**.
 
 ### Testing the webhook locally
 

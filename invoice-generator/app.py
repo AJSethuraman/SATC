@@ -105,6 +105,18 @@ def _ensure_schema():
                 "UPDATE users SET plan = 'free' WHERE plan IS NULL",
             ]
         )
+    if not column_exists("users", "stripe_account_id"):
+        safe_exec(
+            ["ALTER TABLE users ADD COLUMN stripe_account_id VARCHAR(64)"]
+        )
+    if not column_exists("users", "stripe_charges_enabled"):
+        safe_exec(
+            [
+                "ALTER TABLE users ADD COLUMN stripe_charges_enabled BOOLEAN",
+                "UPDATE users SET stripe_charges_enabled = FALSE "
+                "WHERE stripe_charges_enabled IS NULL",
+            ]
+        )
 
     # Grandfather any pre-existing accounts regardless of which worker added
     # the columns (idempotent; only touches rows left NULL by ALTER). This is
@@ -114,6 +126,8 @@ def _ensure_schema():
         [
             "UPDATE users SET email_verified = TRUE WHERE email_verified IS NULL",
             "UPDATE users SET plan = 'free' WHERE plan IS NULL",
+            "UPDATE users SET stripe_charges_enabled = FALSE "
+            "WHERE stripe_charges_enabled IS NULL",
         ]
     )
 
@@ -570,6 +584,92 @@ def register_routes(app):
         flash("API key regenerated. Update any integrations.", "success")
         return redirect(url_for("account"))
 
+    # --- Stripe Connect (each user collects into their own account) -----
+    @app.route("/connect/start", methods=["POST"])
+    @login_required
+    def connect_start():
+        sk = app.config["STRIPE_SECRET_KEY"]
+        if not sk:
+            flash("Stripe isn't configured on this site yet.", "error")
+            return redirect(url_for("account"))
+        base = app.config["APP_BASE_URL"].rstrip("/")
+        try:
+            if not current_user.stripe_account_id:
+                acct_id = stripe_utils.create_connect_account(
+                    sk, current_user.email
+                )
+                current_user.stripe_account_id = acct_id
+                db.session.commit()
+            link = stripe_utils.create_account_link(
+                sk,
+                current_user.stripe_account_id,
+                refresh_url=base + url_for("connect_refresh"),
+                return_url=base + url_for("connect_return"),
+            )
+        except Exception as exc:  # pragma: no cover - Stripe/network errors
+            flash(f"Could not start Stripe onboarding: {exc}", "error")
+            return redirect(url_for("account"))
+        return redirect(link)
+
+    @app.route("/connect/refresh")
+    @login_required
+    def connect_refresh():
+        # Onboarding links are single-use/expiring; mint a fresh one.
+        sk = app.config["STRIPE_SECRET_KEY"]
+        if not sk or not current_user.stripe_account_id:
+            return redirect(url_for("account"))
+        base = app.config["APP_BASE_URL"].rstrip("/")
+        try:
+            link = stripe_utils.create_account_link(
+                sk,
+                current_user.stripe_account_id,
+                refresh_url=base + url_for("connect_refresh"),
+                return_url=base + url_for("connect_return"),
+            )
+        except Exception:  # pragma: no cover
+            return redirect(url_for("account"))
+        return redirect(link)
+
+    @app.route("/connect/return")
+    @login_required
+    def connect_return():
+        sk = app.config["STRIPE_SECRET_KEY"]
+        if sk and current_user.stripe_account_id:
+            try:
+                acct = stripe_utils.get_account(
+                    sk, current_user.stripe_account_id
+                )
+                current_user.stripe_charges_enabled = bool(
+                    getattr(acct, "charges_enabled", False)
+                )
+                db.session.commit()
+            except Exception:  # pragma: no cover
+                pass
+        if current_user.can_accept_payments:
+            flash("Stripe connected — you can accept payments now.", "success")
+        else:
+            flash(
+                "Stripe onboarding isn't finished yet. You can resume it "
+                "anytime from this page.",
+                "error",
+            )
+        return redirect(url_for("account"))
+
+    @app.route("/connect/dashboard")
+    @login_required
+    def connect_dashboard():
+        sk = app.config["STRIPE_SECRET_KEY"]
+        if not sk or not current_user.stripe_account_id:
+            return redirect(url_for("account"))
+        try:
+            url = stripe_utils.create_login_link(
+                sk, current_user.stripe_account_id
+            )
+        except Exception:  # pragma: no cover
+            flash("Could not open the Stripe dashboard right now.", "error")
+            return redirect(url_for("account"))
+        return redirect(url)
+
     # --- Invoices ------------------------------------------------------
     @app.route("/")
     def index():
@@ -694,11 +794,20 @@ def register_routes(app):
     @login_required
     def create_payment(invoice_id):
         invoice = owned_or_404(invoice_id)
+        if not current_user.can_accept_payments:
+            flash(
+                "Connect your Stripe account (Account page) before creating "
+                "a payment link.",
+                "error",
+            )
+            return redirect(url_for("view_invoice", invoice_id=invoice.id))
         try:
             session = stripe_utils.create_checkout_session(
                 invoice,
                 app.config["STRIPE_SECRET_KEY"],
                 app.config["APP_BASE_URL"],
+                current_user.stripe_account_id,
+                app.config,
             )
         except (RuntimeError, ValueError) as exc:
             flash(str(exc), "error")
@@ -837,6 +946,18 @@ def register_routes(app):
             if invoice is not None:
                 invoice.status = "Paid"
                 invoice.amount_paid = invoice.total
+                db.session.commit()
+
+        elif event["type"] == "account.updated":
+            # A connected account finished (or changed) onboarding.
+            account = event["data"]["object"]
+            user = User.query.filter_by(
+                stripe_account_id=account.get("id")
+            ).first()
+            if user is not None:
+                user.stripe_charges_enabled = bool(
+                    account.get("charges_enabled")
+                )
                 db.session.commit()
 
         return ("", 200)
