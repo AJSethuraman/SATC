@@ -121,6 +121,19 @@ def _ensure_schema():
         safe_exec(
             ["ALTER TABLE invoices ADD COLUMN paid_session_ids TEXT"]
         )
+    # Backfill the idempotency key for invoices already credited from a Stripe
+    # session before this column existed, so a post-deploy webhook retry of
+    # that same session isn't counted again. Idempotent (only fills blanks);
+    # kept separate so a failure can't roll back the grandfather updates.
+    if column_exists("invoices", "paid_session_ids"):
+        safe_exec(
+            [
+                "UPDATE invoices SET paid_session_ids = stripe_session_id "
+                "WHERE stripe_session_id IS NOT NULL "
+                "AND (paid_session_ids IS NULL OR paid_session_ids = '') "
+                "AND (status = 'Paid' OR amount_paid > 0)"
+            ]
+        )
 
     # Grandfather any pre-existing accounts regardless of which worker added
     # the columns (idempotent; only touches rows left NULL by ALTER). This is
