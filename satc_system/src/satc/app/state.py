@@ -319,11 +319,11 @@ class AppState:
         """
         from satc.ingest import sort_folder as _sort
         from satc.ingest.client_library import client_year_folder
-        has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+        allow_cloud = cloud_vision_enabled()   # OFF unless opted in; a key alone is not enough
         target = dest or None
         if not target and client_id and tax_year:
             target = str(client_year_folder(client_id, tax_year, self.name(client_id)))
-        return _sort(folder, target, apply=apply, classifier=load_classifier(has_key=has_key))
+        return _sort(folder, target, apply=apply, classifier=load_classifier(has_key=allow_cloud))
 
     def client_choices(self) -> list[tuple[str, str]]:
         """(client_id, display name) for every known client — for pickers."""
@@ -356,7 +356,7 @@ class AppState:
 
         self.store.save_mart(self.mart)
         self.reload()
-        self.posted_summary = {"return_key": rk, "posted": len(items),
+        self.posted_summary = {"return_key": rk, "client_id": client_id, "posted": len(items),
                                "lines": [(li.label, float(li.amount) if li.amount is not None
                                           else li.text_value) for li in items]}
         return self.posted_summary

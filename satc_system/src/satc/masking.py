@@ -1,4 +1,4 @@
-"""PII masking utilities (shared convention with drake-entry-assistant).
+"""PII masking utilities (SSN/EIN-safe output).
 
 Only masked or non-sensitive values are ever written to the workbook. Full
 SSN/EIN values live exclusively in the external identity vault. These helpers

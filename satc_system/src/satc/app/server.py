@@ -132,8 +132,8 @@ def create_app() -> Flask:
 
     @app.route("/staging/post", methods=["POST"])
     def staging_post():
-        STATE.post_confirmed()
-        return redirect(url_for("client", client_id="SATC-001000"))
+        summary = STATE.post_confirmed()
+        return redirect(url_for("client", client_id=summary["client_id"]))
 
     @app.route("/documents")
     def documents():
@@ -155,6 +155,11 @@ def create_app() -> Flask:
         out = Path(STATE.store.dir) / "SATC_DataMart_export.xlsx"
         export_mart_to_excel(STATE.store, out)
         return send_file(out, as_attachment=True, download_name="SATC_DataMart.xlsx")
+
+    @app.route("/clients")
+    def clients_index():
+        return render_template("clients_index.html", title="Clients",
+                               clients=STATE.client_choices())
 
     @app.route("/clients/<client_id>")
     def client(client_id: str):

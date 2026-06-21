@@ -367,9 +367,9 @@ def synthetic_mart() -> DataMart:
 
 
 def synthetic_drake_intake() -> list:
-    """A DEA-compatible intake (full synthetic PII) for SATC-001000.
+    """A Drake-ready intake (full synthetic PII) for SATC-001000.
 
-    Used only to exercise the Drake input generator + drake-entry-assistant seam.
+    Used only to exercise the Drake input generator.
     Written to a transient, git-ignored location — never committed. Wages total
     $145,000, matching the 1040 demo.
     """

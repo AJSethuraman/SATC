@@ -57,7 +57,7 @@ clean seams left for multiple preparers and an eventual multi-tenant product.
 satc_system/
   src/satc/
     ids.py                stable composite keys (client_id|year|return_type|jurisdiction)
-    masking.py            SSN/EIN masking (shared convention with drake-entry-assistant)
+    masking.py            SSN/EIN masking
     models/               provenance · review schema · identity vault · staging gate · data mart
     crosswalk/            dated tax-law reference layer (loader)
     ingest/               document extraction + staging/confirmation gate        (Stage 1)
@@ -86,13 +86,14 @@ satc_system/
 * Conservative extraction: stage and flag uncertainty; never guess a dollar amount
   or a tax-law value (a missing value is recorded as a *pending* gap).
 
-## Coordination with `drake-entry-assistant`
+## Drake keying hand-off
 
-This system does **not** duplicate the Drake auto-entry tool. Its Drake **input
-generator** emits an intake workbook in the exact `Clients` / `W2s` shape that
-`drake-entry-assistant` already consumes, so the existing tool produces the keying
-action plan. This system owns the workpapers, the data mart, reconciliation back to
-Drake's output, and client communications.
+This system does **not** automate Drake data entry. Its Drake **input generator**
+emits an intake workbook in a `Clients` / `W2s` shape ready for keying into Drake,
+so the preparer types as little as possible. This system owns the workpapers, the
+data mart, reconciliation back to Drake's output, and client communications; the
+keystrokes into Drake are done by the preparer (or a separate automation tool that
+is not part of this repo).
 
 ## Environment setup
 

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Clients</h2>
+  <div class="muted">Every client in the practice. Identity (legal name, full TIN) stays in the vault;
+    this lists de-identified records — open one for its returns, line items, and documents.</div>
+</div>
+
+<div class="panel"><div class="body">
+  {% if not clients %}
+  <p class="muted">No clients yet — create one from
+    <a href="{{ url_for('intake.engagements') }}">Engagements</a>, or run Intake on a folder of documents.</p>
+  {% else %}
+  <table class="lines" style="width:100%">
+    <tr><th style="text-align:left">Client</th><th style="text-align:left">Client ID</th><th></th></tr>
+    {% for cid, name in clients %}
+    <tr>
+      <td>{{ name }}</td>
+      <td class="muted">{{ cid }}</td>
+      <td style="text-align:right"><a class="btn sm" href="{{ url_for('client', client_id=cid) }}">Open →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div></div>
+{% endblock %}

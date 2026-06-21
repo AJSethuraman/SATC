@@ -1,9 +1,10 @@
-"""Drake INPUT generator — emits the intake workbook drake-entry-assistant consumes.
+"""Drake INPUT generator — emits a Drake-ready intake workbook for keying.
 
-This is the coordination seam with the existing ``drake-entry-assistant`` (DEA): it
-produces a workbook with the exact ``Clients`` / ``W2s`` sheets and columns DEA's
-``excel_loader`` expects, so the preparer keys as little as possible. SATC owns the
-workpapers and the data mart; DEA owns the Drake auto-entry.
+Produces a workbook with the ``Clients`` / ``W2s`` sheets and column order the Drake
+data-entry keying expects, so the preparer types as little as possible. SATC owns the
+workpapers, the data mart, and reconciliation back to Drake's output; the keystrokes
+into Drake are done by the preparer (or a separate automation tool not part of this
+repo).
 
 IMPORTANT — this intake is the ONE artifact that necessarily carries real identity
 data (it is what gets typed into Drake), so it is an EPHEMERAL key-time export
@@ -19,7 +20,7 @@ from pathlib import Path
 
 from openpyxl import Workbook
 
-# Column order mirrors drake-entry-assistant/src/dea/excel_loader.py exactly.
+# Column order matches the Clients / W2s intake schema Drake keying expects.
 CLIENT_COLUMNS = [
     "ClientID", "TaxYear", "FilingStatus",
     "TP_First", "TP_Last", "TP_SSN", "TP_DOB", "TP_Occupation",
@@ -63,7 +64,7 @@ class IntakeW2:
 class IntakeClient:
     client_id: str
     tax_year: int
-    filing_status: str                 # DEA codes: S / MFJ / MFS / HOH / QSS
+    filing_status: str                 # Drake codes: S / MFJ / MFS / HOH / QSS
     tp_first: str
     tp_last: str
     tp_ssn: str
@@ -104,7 +105,7 @@ class IntakeClient:
 
 
 def generate_drake_intake_workbook(out_path: str | Path, clients: list[IntakeClient]) -> Path:
-    """Write a DEA-compatible intake workbook. Returns the path.
+    """Write a Drake-ready intake workbook. Returns the path.
 
     The output carries identity data and must be treated as transient/secure —
     write it to a git-ignored location and delete it after keying into Drake.
