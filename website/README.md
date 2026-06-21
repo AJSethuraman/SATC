@@ -69,29 +69,36 @@ A deploy workflow is already included at
    normally no toggle to flip. If your org blocks that, set it once by hand:
    **Settings → Pages → Build and deployment → Source → "GitHub Actions"**.
 3. Wait for the **Deploy website to GitHub Pages** action to finish (Actions
-   tab). It's live first at `https://ajsethuraman.github.io/satc/`, then at
-   **https://satcllp.com** once the custom-domain DNS below is set.
+   tab). The site is then live at **https://ajsethuraman.github.io/satc/**.
 
 After that, any push to `main` that changes `website/` redeploys automatically.
 You can also trigger it manually from the Actions tab ("Run workflow").
 
-### Custom domain — `satcllp.com` (Squarespace-managed DNS)
+> **Current setup:** the site is served from the GitHub URL above. There is no
+> `CNAME` file, so nothing is pinned to a custom domain. If GitHub still shows a
+> **Custom domain** under Settings → Pages, clear that field and Save.
 
-The domain is registered/managed in Squarespace. We're pointing the **website**
-records at GitHub Pages while leaving **email** untouched. A `website/CNAME` file
-(containing `satcllp.com`) is already committed, so the domain survives every
-redeploy.
+### Later: connect the `satcllp.com` domain (Squarespace-managed DNS)
+
+When you're ready to use the real domain, do these three things. The domain is
+registered/managed in Squarespace; we point the **website** records at GitHub
+while leaving **email** untouched.
 
 > ⚠️ **Do NOT delete the `MX` records** (or any `TXT`/SPF/DKIM records). Those
 > route `arjun_sethuraman@satcllp.com` email and are **independent** of the
 > website. Changing the `A`/`CNAME` records below moves the *site* only — email
 > keeps working as long as the `MX` records stay.
 
-**1. In GitHub:** Settings → Pages → **Custom domain** → enter `satcllp.com` →
+**1. Re-add the domain pin:** create a file `website/CNAME` containing one line,
+`satcllp.com`, and update the absolute URLs in `index.html` (`og:url`,
+`og:image`, `canonical`, and the JSON-LD `url`/`image`) plus `robots.txt` /
+`sitemap.xml` from `ajsethuraman.github.io/satc` back to `satcllp.com`.
+
+**2. In GitHub:** Settings → Pages → **Custom domain** → enter `satcllp.com` →
 Save. After it verifies, tick **Enforce HTTPS** (may take a few minutes for the
 certificate).
 
-**2. In Squarespace** (Domains → `satcllp.com` → **DNS / DNS Settings**):
+**3. In Squarespace** (Domains → `satcllp.com` → **DNS / DNS Settings**):
 
 - Remove the existing **A** records on host `@` that point to Squarespace, and
   the `www` **CNAME** if it points to Squarespace. (Leave `MX`/`TXT` alone.)
