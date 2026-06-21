@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+<script src="{{ url_for('static', filename='js/address_autocomplete.js') }}" defer></script>
 <style>
   .acct { display:grid; grid-template-columns: 200px 1fr; gap: var(--space-10); align-items:start; }
   .side { position:sticky; top:84px; display:flex; flex-direction:column; gap:2px; }
@@ -107,7 +108,7 @@
                 <div class="field"><label class="label">Business name <span class="req">*</span></label><input class="input" name="business_name" value="{{ current_user.business_name or '' }}" required/></div>
                 <div class="field"><label class="label">Email</label><input class="input" type="email" name="business_email" value="{{ current_user.business_email or '' }}"/></div>
               </div>
-              <div class="field" style="margin-top:var(--space-4)"><label class="label">Address</label><textarea class="textarea" name="business_address" placeholder="Street&#10;City, State ZIP">{{ current_user.business_address or '' }}</textarea></div>
+              <div class="field" style="margin-top:var(--space-4)"><label class="label">Address</label><textarea class="textarea" name="business_address" data-address-autocomplete placeholder="Start typing your address for suggestions…">{{ current_user.business_address or '' }}</textarea><div class="hint">Start typing and pick a suggestion to fill it in automatically.</div></div>
               <div class="two" style="margin-top:var(--space-4)">
                 <div class="field"><label class="label">Tax ID / EIN</label><input class="input mono" name="tax_id" value="{{ current_user.tax_id or '' }}"/></div>
                 <div class="field"><label class="label">Default currency</label>

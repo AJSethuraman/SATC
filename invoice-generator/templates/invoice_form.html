@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+<script src="{{ url_for('static', filename='js/address_autocomplete.js') }}" defer></script>
 <style>
   .form-grid { display:grid; grid-template-columns: 1fr 320px; gap: var(--space-8); align-items:start; }
   .section-label { font-size:var(--text-xs); font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gray-400); margin-bottom:var(--space-4); }
@@ -72,7 +73,7 @@
         <div class="card"><div class="card__body">
           <div class="section-label">Client &amp; details</div>
           <div class="two">
-            <div class="field"><label class="label">Bill to <span class="req">*</span></label><textarea class="textarea" name="bill_to" placeholder="Client name&#10;Address&#10;City, State ZIP" style="min-height:96px">{{ invoice.bill_to if invoice else '' }}</textarea></div>
+            <div class="field"><label class="label">Bill to <span class="req">*</span></label><input class="input" data-address-autocomplete data-ac-target="bill_to" data-ac-mode="append" placeholder="Search an address to add…" style="margin-bottom:8px"/><textarea class="textarea" name="bill_to" id="bill_to" placeholder="Client name&#10;Address&#10;City, State ZIP" style="min-height:96px">{{ invoice.bill_to if invoice else '' }}</textarea></div>
             <div class="field"><label class="label">Client email</label><input class="input" type="email" name="client_email" value="{{ invoice.client_email if invoice else '' }}" placeholder="accounts@client.com"/></div>
           </div>
           <div class="two" style="margin-top:var(--space-5)">
