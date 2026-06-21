@@ -40,6 +40,22 @@
 <form method="post" action="{{ url_for('withholding.withholding') }}" enctype="multipart/form-data">
 
   <div class="panel">
+    <h2>Start from a client <span class="muted" style="font-weight:normal">(optional)</span></h2>
+    <div class="body">
+      <p class="muted" style="margin-top:0">Prefill the stable household info — <strong>filing status</strong> — from an
+        existing client. Per-paycheck figures still come from a current paystub; prior-year dollar amounts are not seeded.</p>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+        <span><label class="muted">Client</label><br>
+          <select class="field-input" name="client_id">
+            <option value="">— select a client —</option>
+            {% for cid, cname in clients %}<option value="{{ cid }}">{{ cname }} ({{ cid }})</option>{% endfor %}
+          </select></span>
+        <button class="btn" type="submit" formaction="{{ url_for('withholding.from_client') }}">Load client</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
     <h2>Add a job from a paystub</h2>
     <div class="body">
       <p class="muted" style="margin-top:0">Upload a paystub (PDF or image), read on-device, or paste its text.

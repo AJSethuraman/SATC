@@ -191,3 +191,27 @@ def test_paystub_click_teach_saves_profile_then_recognizes(client, tmp_path, mon
     assert again.status_code == 200
     assert b"Recognized" in again.data
     assert b'id="ps-teach-data" type="application/json"' not in again.data   # no payload -> modal closed
+
+
+def test_estimator_filing_status_mapping():
+    from satc.app.withholding_views import _estimator_filing_status
+    assert _estimator_filing_status("MFJ") == "married_jointly"
+    assert _estimator_filing_status("S") == "single"
+    assert _estimator_filing_status("HOH") == "head_of_household"
+    assert _estimator_filing_status("QSS") == "married_jointly"     # uses MFJ brackets
+    assert _estimator_filing_status("single") == "single"           # already estimator format
+    assert _estimator_filing_status("") == ""
+
+
+def test_from_client_prefills_filing_status(monkeypatch):
+    import types
+
+    from satc.app.state import STATE
+    fake = types.SimpleNamespace(client_id="ZZ-1", filing_status="HOH")
+    monkeypatch.setattr(STATE.mart, "public_clients", [fake])
+    monkeypatch.setattr(STATE, "name", lambda cid: "Test Client")
+
+    resp = create_app().test_client().post("/withholding/from-client", data={"client_id": "ZZ-1"})
+    assert resp.status_code == 200
+    assert b"Prefilled filing status" in resp.data
+    assert b"Head of household" in resp.data        # mapped HOH label

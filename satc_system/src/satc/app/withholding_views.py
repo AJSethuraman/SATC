@@ -17,6 +17,7 @@ from pathlib import Path
 
 from flask import Blueprint, render_template, request, send_file, session
 
+from satc.app.state import STATE
 from satc.ingest.paystub_layout import (
     TARGET_FIELDS,
     Layout,
@@ -51,6 +52,21 @@ FILING_STATUSES = [
     ("head_of_household", "Head of household"),
 ]
 PAY_FREQUENCIES = ["weekly", "biweekly", "semimonthly", "monthly", "annual"]
+
+# Stored client filing-status codes (Drake-style) -> estimator codes.
+_DRAKE_TO_ESTIMATOR_STATUS = {
+    "S": "single", "MFJ": "married_jointly", "MFS": "married_separately",
+    "HOH": "head_of_household", "QSS": "married_jointly",
+}
+_ESTIMATOR_STATUSES = {value for value, _ in FILING_STATUSES}
+
+
+def _estimator_filing_status(stored: str) -> str:
+    """Map a client's stored filing status to an estimator code (or '' if none)."""
+    s = (stored or "").strip()
+    if s in _ESTIMATOR_STATUSES:
+        return s
+    return _DRAKE_TO_ESTIMATOR_STATUS.get(s.upper(), "")
 
 _JOBS_KEY = "wh_jobs"          # list[dict] of per-job paystub fields, per session
 _HH_KEY = "wh_household"       # household-level fields (filing status, other income, ...)
@@ -226,6 +242,7 @@ def _render(*, result=None, teach=None, teach_layout=None, notes=None):
         filing_statuses=FILING_STATUSES,
         frequencies=PAY_FREQUENCIES,
         years=available_years(),
+        clients=STATE.client_choices(),
         jobs=_jobs(),
         hh=hh,
         adjust_job=int(_clean_num(hh.get("adjust_job")) or 0),
@@ -437,6 +454,35 @@ def from_file():
 def from_paystub():
     _sync(request.form)
     return _add_job_from_text(request.form.get("paystub_text", ""), None)
+
+
+@bp.route("/withholding/from-client", methods=["POST"])
+def from_client():
+    """Prefill stable household info (filing status) from an existing client.
+
+    Per-paycheck figures still come from a paystub; prior-year dollar amounts are
+    deliberately not seeded (a prior wage is a poor proxy for this year).
+    """
+    _sync(request.form)
+    cid = (request.form.get("client_id") or "").strip()
+    if not cid:
+        return _render(notes=["Pick a client first."])
+    pc = next((p for p in STATE.mart.public_clients if p.client_id == cid), None)
+    if pc is None:
+        return _render(notes=[f"Client “{cid}” not found."])
+
+    notes = [f"Loaded {STATE.name(cid)}."]
+    fs = _estimator_filing_status(getattr(pc, "filing_status", "") or "")
+    if fs:
+        hh = _household()
+        hh["filing_status"] = fs
+        session[_HH_KEY] = hh
+        session.modified = True
+        notes.append(f"Prefilled filing status: {dict(FILING_STATUSES)[fs]}. "
+                     "Add a current paystub for the per-paycheck figures.")
+    else:
+        notes.append("No stored filing status to prefill — set it below.")
+    return _render(notes=notes)
 
 
 @bp.route("/withholding/save-layout", methods=["POST"])
