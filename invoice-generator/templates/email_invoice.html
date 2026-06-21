@@ -21,7 +21,7 @@
 <body>
 {% set from_lines = (invoice.from_info or "").splitlines() | select | list %}
 {% set biz_name = from_lines[0] if from_lines else (invoice.owner.business_name or invoice.owner.email) %}
-{% set cta_url = pay_url or view_url %}
+{% set can_pay_now = can_pay and invoice.balance_due > 0 %}
 
 <!-- OUTER -->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f5;">
@@ -48,7 +48,7 @@
         <td style="padding:36px 40px 8px;">
           <div style="font-size:13px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#2563eb;">{% if invoice.status == 'Paid' %}Receipt{% else %}New invoice{% endif %}</div>
           <h1 style="margin:10px 0 0; font-size:26px; line-height:1.25; color:#1f2a44; font-weight:800; letter-spacing:-.5px;">You have a new invoice from {{ biz_name }}</h1>
-          <p style="margin:14px 0 0; font-size:15px; line-height:1.6; color:#475569;">Hi {{ invoice.client_name }}, thanks for working with us. Your invoice is ready — you can review it{% if pay_url %} and pay securely online in just a few seconds{% endif %}.</p>
+          <p style="margin:14px 0 0; font-size:15px; line-height:1.6; color:#475569;">Hi {{ invoice.client_name }}, thanks for working with us. Your invoice is ready — you can review it{% if can_pay_now %} and pay securely online in just a few seconds{% endif %}.</p>
         </td>
       </tr>
 
@@ -85,17 +85,17 @@
         <td style="padding:24px 40px 4px;" align="center">
           <table role="presentation" cellpadding="0" cellspacing="0"><tr>
             <td style="background:#2563eb; border-radius:10px;">
-              <a href="{{ cta_url }}" style="display:inline-block; padding:15px 40px; font-size:16px; font-weight:700; color:#ffffff;">{% if pay_url %}Pay {{ format_money(invoice.balance_due, invoice.currency) }} online →{% else %}View invoice →{% endif %}</a>
+              <a href="{{ public_url }}" style="display:inline-block; padding:15px 40px; font-size:16px; font-weight:700; color:#ffffff;">{% if can_pay_now %}Pay {{ format_money(invoice.balance_due, invoice.currency) }} online →{% else %}View invoice →{% endif %}</a>
             </td>
           </tr></table>
-          {% if pay_url %}<p style="margin:14px 0 0; font-size:13px; color:#94a3b8;">Secure payment by card or bank transfer · Powered by Stripe</p>{% endif %}
+          {% if can_pay_now %}<p style="margin:14px 0 0; font-size:13px; color:#94a3b8;">Secure payment by card or bank transfer · Powered by Stripe</p>{% endif %}
         </td>
       </tr>
 
       <!-- SECONDARY -->
       <tr>
         <td style="padding:16px 40px 32px;" align="center">
-          <a href="{{ view_url }}" style="font-size:14px; font-weight:600; color:#2563eb;">View invoice in browser</a>
+          <a href="{{ public_url }}" style="font-size:14px; font-weight:600; color:#2563eb;">View invoice in browser</a>
           <span style="color:#cbd5e1; margin:0 10px;">·</span>
           <span style="font-size:14px; color:#64748b;">PDF attached</span>
         </td>

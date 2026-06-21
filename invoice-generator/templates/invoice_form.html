@@ -84,9 +84,9 @@
             <div class="field"><label class="label">Issue date</label><input class="input" type="date" name="invoice_date" value="{{ (invoice.invoice_date.isoformat() if invoice and invoice.invoice_date else today) }}"/></div>
             <div class="field"><label class="label">Payment terms</label>
               <select class="select" name="payment_terms" id="terms">
-                {% set pt = invoice.payment_terms if invoice else 'Net 14' %}
+                {% set pt = (invoice.payment_terms if invoice else None) or current_user.default_terms or 'Net 14' %}
                 <option {{ 'selected' if pt == 'Due on receipt' }}>Due on receipt</option>
-                <option {{ 'selected' if pt == 'Net 14' or not pt }}>Net 14</option>
+                <option {{ 'selected' if pt == 'Net 14' }}>Net 14</option>
                 <option {{ 'selected' if pt == 'Net 30' }}>Net 30</option>
                 <option {{ 'selected' if pt == 'Net 60' }}>Net 60</option>
               </select>

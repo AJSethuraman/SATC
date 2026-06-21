@@ -139,7 +139,13 @@
       var n = list.querySelectorAll(".ac-item").length;
       if (e.key === "ArrowDown") { e.preventDefault(); setActive(Math.min(activeIdx + 1, n - 1)); }
       else if (e.key === "ArrowUp") { e.preventDefault(); setActive(Math.max(activeIdx - 1, 0)); }
-      else if (e.key === "Enter" && activeIdx >= 0) { e.preventDefault(); choose(items[activeIdx].properties); }
+      else if (e.key === "Enter") {
+        // While the list is open, Enter picks the highlighted suggestion (or
+        // just closes the list) — never let it submit the surrounding form.
+        e.preventDefault();
+        if (activeIdx >= 0) choose(items[activeIdx].properties);
+        else close();
+      }
       else if (e.key === "Escape") { close(); }
     });
 
