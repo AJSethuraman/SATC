@@ -134,6 +134,22 @@ def _ensure_schema():
         )
     if not column_exists("invoices", "client_email"):
         safe_exec(["ALTER TABLE invoices ADD COLUMN client_email VARCHAR(255)"])
+    if not column_exists("invoices", "stripe_account_id"):
+        safe_exec(
+            ["ALTER TABLE invoices ADD COLUMN stripe_account_id VARCHAR(64)"]
+        )
+        # Stamp the owner's current connected account onto invoices that
+        # already have an in-flight Checkout session, so a payment completing
+        # after this deploy still credits even if they later disconnect.
+        safe_exec(
+            [
+                "UPDATE invoices SET stripe_account_id = ("
+                "SELECT users.stripe_account_id FROM users "
+                "WHERE users.id = invoices.user_id) "
+                "WHERE stripe_session_id IS NOT NULL "
+                "AND (stripe_account_id IS NULL OR stripe_account_id = '')"
+            ]
+        )
     # Account-level business profile columns.
     for col, ddl in [
         ("business_name", "ALTER TABLE users ADD COLUMN business_name VARCHAR(200)"),
@@ -951,6 +967,7 @@ def register_routes(app):
 
         invoice.stripe_session_id = session.id
         invoice.stripe_payment_url = session.url
+        invoice.stripe_account_id = current_user.stripe_account_id
         if invoice.status == "Draft":
             invoice.status = "Sent"
         db.session.commit()
@@ -1117,6 +1134,7 @@ def register_routes(app):
             return redirect(url_for("public_invoice", token=token))
         invoice.stripe_session_id = session.id
         invoice.stripe_payment_url = session.url
+        invoice.stripe_account_id = owner.stripe_account_id
         if invoice.status == "Draft":
             invoice.status = "Sent"
         db.session.commit()
@@ -1267,11 +1285,19 @@ def register_routes(app):
             if invoice is not None:
                 owner = invoice.owner
                 if event_account:
-                    # Connect direct charge: must be the invoice owner's own
-                    # connected account. We don't trust metadata alone here,
+                    # Connect direct charge: the event's account must be the
+                    # account this charge was created on — either the owner's
+                    # current connected account, or the one stamped on the
+                    # invoice when its session was created (so a payment still
+                    # credits even if the owner later disconnected / reconnected
+                    # a different account). We don't trust metadata alone here,
                     # because a connected account can set arbitrary metadata.
                     authorized = bool(
-                        owner and owner.stripe_account_id == event_account
+                        (owner and owner.stripe_account_id == event_account)
+                        or (
+                            invoice.stripe_account_id
+                            and invoice.stripe_account_id == event_account
+                        )
                     )
                 else:
                     # No connected account => a platform Checkout Session, which
