@@ -965,6 +965,19 @@ def register_routes(app):
         flash("Invoice marked as paid.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
+    @app.route("/invoice/<int:invoice_id>/mark-unpaid", methods=["POST"])
+    @login_required
+    def mark_unpaid(invoice_id):
+        # Reverse a "mark as paid": clear the recorded payment and reopen the
+        # invoice. We keep paid_session_ids so a stale Stripe webhook retry of
+        # an already-seen session can't silently re-credit it.
+        invoice = owned_or_404(invoice_id)
+        invoice.status = "Sent"
+        invoice.amount_paid = 0.0
+        db.session.commit()
+        flash("Invoice marked as unpaid.", "success")
+        return redirect(url_for("view_invoice", invoice_id=invoice.id))
+
     @app.route("/invoice/<int:invoice_id>/email", methods=["POST"])
     @login_required
     def email_invoice(invoice_id):

@@ -202,6 +202,11 @@
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
               <button class="btn btn--success btn--block" type="submit">Mark as paid</button>
             </form>
+            {% else %}
+            <form method="post" action="{{ url_for('mark_unpaid', invoice_id=invoice.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button class="btn btn--secondary btn--block" type="submit">Mark as unpaid</button>
+            </form>
             {% endif %}
           </div>
         </div>
