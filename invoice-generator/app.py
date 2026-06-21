@@ -939,40 +939,6 @@ def register_routes(app):
             mimetype="application/pdf",
         )
 
-    @app.route("/invoice/<int:invoice_id>/pay", methods=["POST"])
-    @login_required
-    def create_payment(invoice_id):
-        invoice = owned_or_404(invoice_id)
-        if not current_user.can_accept_payments:
-            flash(
-                "Connect your Stripe account (Account page) before creating "
-                "a payment link.",
-                "error",
-            )
-            return redirect(url_for("view_invoice", invoice_id=invoice.id))
-        try:
-            session = stripe_utils.create_checkout_session(
-                invoice,
-                app.config["STRIPE_SECRET_KEY"],
-                app.config["APP_BASE_URL"],
-                current_user.stripe_account_id,
-                app.config,
-            )
-        except (RuntimeError, ValueError) as exc:
-            flash(str(exc), "error")
-            return redirect(url_for("view_invoice", invoice_id=invoice.id))
-        except Exception as exc:  # pragma: no cover - network/Stripe errors
-            flash(f"Stripe error: {exc}", "error")
-            return redirect(url_for("view_invoice", invoice_id=invoice.id))
-
-        invoice.stripe_session_id = session.id
-        invoice.stripe_payment_url = session.url
-        invoice.stripe_account_id = current_user.stripe_account_id
-        if invoice.status == "Draft":
-            invoice.status = "Sent"
-        db.session.commit()
-        return redirect(session.url)
-
     @app.route("/invoice/<int:invoice_id>/mark-paid", methods=["POST"])
     @login_required
     def mark_paid(invoice_id):

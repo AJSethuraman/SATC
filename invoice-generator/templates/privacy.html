@@ -2,45 +2,95 @@
 {% block title %}Privacy Policy · Invoicer{% endblock %}
 {% block content %}
 <style>
-  .legal h2 { font-size: var(--text-xl); font-weight:700; margin-top: var(--space-6); }
+  .legal h2 { font-size: var(--text-xl); font-weight:700; margin-top: var(--space-8); }
   .legal p, .legal ul { margin-top: var(--space-3); color: var(--gray-700); }
   .legal ul { padding-left: var(--space-6); }
 </style>
 <div class="card"><div class="card__body legal">
   <h1 class="h1" style="color:var(--navy-900)">Privacy Policy</h1>
-  <p class="small muted"><strong>Template — review before launch.</strong> This is a
-  starting point, not legal advice. Replace the bracketed details and have a
-  lawyer review it (especially for GDPR/CCPA if you have those users).</p>
+  <p class="small muted">Effective date: June 21, 2026</p>
 
-  <p>Last updated: [DATE]. This policy explains how [COMPANY] ("we") handles
-  your information for [COMPANY/SERVICE NAME].</p>
+  <p>This Privacy Policy explains how SATC LLP ("SATC," "we," "us," or "our")
+  collects, uses, and shares information when you use Invoicer (the "Service").
+  Questions? Email
+  <a href="mailto:arjun_sethuraman@satcllp.com">arjun_sethuraman@satcllp.com</a>.</p>
 
-  <h2>What we collect</h2>
+  <h2>Information we collect</h2>
   <ul>
-    <li>Account info: your email address and a hashed password.</li>
-    <li>Invoice data you create (clients, amounts, line items, logos).</li>
-    <li>Basic technical logs (e.g. IP address) for security and reliability.</li>
+    <li><strong>Account information:</strong> your email address and a securely
+    hashed password.</li>
+    <li><strong>Business profile:</strong> your business name, email, address,
+    tax ID, and logo, which appear on the invoices you create.</li>
+    <li><strong>Invoice and client data:</strong> invoice details and any client
+    information you enter, such as names, addresses, emails, line items, and
+    amounts.</li>
+    <li><strong>Payment connection:</strong> if you connect Stripe, we store
+    your Stripe account identifier and whether it can accept charges. We never
+    receive or store your customers' full card numbers.</li>
+    <li><strong>Technical data:</strong> basic logs such as IP address, browser
+    type, and timestamps, used for security, debugging, and reliability.</li>
+    <li><strong>Cookies:</strong> a single session cookie that keeps you logged
+    in and protects forms. We do not use third-party advertising cookies.</li>
   </ul>
 
-  <h2>How we use it</h2>
-  <p>To provide the Service: storing your invoices, generating PDFs, sending
-  email you request, and creating payment links.</p>
+  <h2>How we use information</h2>
+  <p>We use your information to provide and operate the Service: creating and
+  storing your invoices, generating PDFs, sending the emails you request,
+  creating Stripe payment links and checkouts, securing your account, and
+  maintaining and improving the Service.</p>
 
-  <h2>Payment data</h2>
-  <p>We do not collect or store credit card numbers. Card payments are handled
-  by Stripe; see Stripe's
-  <a href="https://stripe.com/privacy" target="_blank" rel="noopener">privacy
-  policy</a>.</p>
+  <h2>Payment information</h2>
+  <p>Online card payments are processed by Stripe. We do not collect or store
+  card numbers — that information goes directly to Stripe. See Stripe's
+  <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Privacy
+  Policy</a>.</p>
 
-  <h2>Service providers</h2>
-  <p>We use [HOSTING PROVIDER, e.g. Render] for hosting and Stripe for payments.
-  We don't sell your personal information.</p>
+  <h2>Address suggestions</h2>
+  <p>When you use the address-search field, the text you type is sent to a
+  third-party, OpenStreetMap-based address-suggestion service (Photon) to return
+  matching addresses. It runs in your browser and is used only to help you fill
+  in addresses faster.</p>
 
-  <h2>Your choices</h2>
-  <p>You can edit or delete your invoices, and request account deletion by
-  contacting [CONTACT EMAIL].</p>
+  <h2>How we share information</h2>
+  <p>We share information only with service providers that help us run the
+  Service — including Stripe (payments), our hosting provider, and our
+  email-delivery provider — each acting on our behalf. We may disclose
+  information if required by law or to protect rights, property, or safety.
+  <strong>We do not sell your personal information.</strong></p>
+
+  <h2>Data retention</h2>
+  <p>We keep your information while your account is active. When you delete your
+  account (Account → Security), your account and its invoices are permanently
+  removed from our database. Limited technical logs or backups may persist for a
+  short period before being overwritten.</p>
+
+  <h2>Your choices and rights</h2>
+  <p>You can view, edit, or delete your invoices, update your business profile,
+  roll your API key, and delete your account at any time from within the
+  Service. Depending on where you live (for example, under the EU/UK GDPR or
+  California's CCPA), you may have rights to access, correct, delete, or port
+  your data, or to object to certain processing. Contact us to exercise these
+  rights.</p>
+
+  <h2>Security</h2>
+  <p>We hash passwords, serve the Service over HTTPS, and limit access to your
+  data. No method of transmission or storage is completely secure, but we work
+  to protect your information.</p>
+
+  <h2>Children</h2>
+  <p>The Service is not directed to children under 16, and we do not knowingly
+  collect their personal information.</p>
+
+  <h2>International users</h2>
+  <p>We operate the Service in the United States. If you use it from elsewhere,
+  your information may be processed in the United States.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>We may update this policy from time to time. We will revise the effective
+  date above and, for material changes, provide notice where appropriate.</p>
 
   <h2>Contact</h2>
-  <p>Questions about privacy: [CONTACT EMAIL].</p>
+  <p>Questions about privacy? Email
+  <a href="mailto:arjun_sethuraman@satcllp.com">arjun_sethuraman@satcllp.com</a>.</p>
 </div></div>
 {% endblock %}
