@@ -349,11 +349,18 @@ class AppState:
             self.mart.returns.append(ret)
 
         items = self.gate.to_line_items(rk, MAPPING_1040)
-        keys = {li.line_item_key for li in items}
-        # Replace any prior intake posting for these lines (idempotent re-post).
-        self.mart.line_items = [li for li in self.mart.line_items if li.line_item_key not in keys]
+        # Idempotent re-post: an intake line that is no longer produced this run
+        # must not linger. Drop ALL prior intake-sourced (SOURCE_DOC) lines for
+        # this return — from memory and the store — then add the current set.
+        # Non-intake lines (Drake output, carryforwards, preparer entries) on the
+        # same return are left untouched.
+        self.mart.line_items = [
+            li for li in self.mart.line_items
+            if not (li.return_key == rk and li.provenance is not None
+                    and li.provenance.source_kind == "SOURCE_DOC")]
         self.mart.line_items.extend(items)
 
+        self.store.delete_intake_line_items(rk)
         self.store.save_mart(self.mart)
         self.reload()
         self.posted_summary = {"return_key": rk, "client_id": client_id, "posted": len(items),

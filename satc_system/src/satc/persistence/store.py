@@ -253,6 +253,18 @@ class SATCStore:
                        _dt(d.as_of), d.sharepoint_link, d.actor, d.note))
         m.commit()
 
+    def delete_intake_line_items(self, return_key: str) -> None:
+        """Remove intake-sourced (SOURCE_DOC) line items for a return.
+
+        Lets ``post_confirmed`` *replace* a return's intake posting rather than
+        accumulate it (``save_mart`` only upserts, so a line dropped from the gate
+        would otherwise linger). Drake-output, carryforward, and preparer lines on
+        the same return are left untouched.
+        """
+        self.mart.execute("DELETE FROM line_items WHERE return_key=? AND source_kind=?",
+                          (return_key, "SOURCE_DOC"))
+        self.mart.commit()
+
     def set_document_status(self, document_id: str, status: str) -> None:
         self.mart.execute("UPDATE documents SET status=? WHERE document_id=?", (status, document_id))
         self.mart.commit()

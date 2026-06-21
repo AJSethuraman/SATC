@@ -43,3 +43,40 @@ def test_clients_index_route_renders():
     resp = create_app().test_client().get("/clients")
     assert resp.status_code == 200
     assert b"Clients" in resp.data
+
+
+def test_post_confirmed_replaces_stale_intake_lines(tmp_path, monkeypatch):
+    # Re-posting must replace the return's intake lines, not accumulate them —
+    # a line dropped from the gate must not survive (through persistence+reload),
+    # while a Drake-output line on the same return is preserved.
+    monkeypatch.setenv("SATC_DATA_DIR", str(tmp_path))
+    from decimal import Decimal
+
+    from satc.app.state import AppState
+    from satc.ids import line_item_key, return_key
+    from satc.models.mart import LineItem
+    from satc.models.provenance import Provenance
+
+    app = AppState()
+    cid, year = "SATC-IDEM1", 2024
+    rk = return_key(cid, year, "1040", "US")
+
+    def mk(code, kind):
+        return LineItem(line_item_key=line_item_key(rk, "1040", code), return_key=rk,
+                        schedule="1040", line_code=code, label=code, amount=Decimal("1"),
+                        provenance=Provenance(source_kind=kind, confidence="HIGH"))
+
+    app.mart.line_items.append(mk("DRAKE", "DRAKE_OUTPUT"))   # must survive re-posts
+
+    monkeypatch.setattr(app.gate, "to_line_items",
+                        lambda rk_, maps, **kw: [mk("1a", "SOURCE_DOC"), mk("2b", "SOURCE_DOC")])
+    app.post_confirmed(client_id=cid, tax_year=year)
+    assert {"1a", "2b", "DRAKE"} <= {li.line_code for li in app.mart.line_items if li.return_key == rk}
+
+    monkeypatch.setattr(app.gate, "to_line_items",
+                        lambda rk_, maps, **kw: [mk("1a", "SOURCE_DOC")])   # 2b disappears
+    app.post_confirmed(client_id=cid, tax_year=year)
+    after = {li.line_code for li in app.mart.line_items if li.return_key == rk}
+    assert "1a" in after
+    assert "2b" not in after          # stale intake line removed and not resurrected
+    assert "DRAKE" in after           # non-intake line preserved
