@@ -11,7 +11,14 @@
 <meta property="og:type" content="website" />
 <meta property="og:title" content="SATC — Sethuraman Accounting, Tax & Consulting" />
 <meta property="og:description" content="Accounting, tax, and operational systems for businesses — clarity in complexity. Book a free consultation." />
-<meta name="twitter:card" content="summary" />
+<meta property="og:url" content="https://satcllp.com/" />
+<meta property="og:image" content="https://satcllp.com/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://satcllp.com/og-image.png" />
+<link rel="canonical" href="https://satcllp.com/" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
 <!-- Favicon: the S seal, inline so there's no extra file to host -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3Ccircle%20cx='100'%20cy='100'%20r='92'%20fill='%230B1F3A'/%3E%3Ccircle%20cx='100'%20cy='100'%20r='92'%20fill='none'%20stroke='%23B08D57'%20stroke-width='8'/%3E%3Ctext%20x='100'%20y='142'%20text-anchor='middle'%20font-family='Georgia,serif'%20font-size='130'%20fill='%23D4B97E'%3ES%3C/text%3E%3C/svg%3E" />
@@ -60,7 +67,7 @@
   .eyebrow {
     font-family: var(--sans);
     font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase;
-    color: var(--gold-deep); font-weight: 600; margin: 0;
+    color: #6E5836; font-weight: 600; margin: 0;
   }
   .eyebrow-light { color: var(--gold-light); }
   .h2 {
@@ -335,6 +342,70 @@
   .foot-bottom .legal a:hover { color: var(--gold-light); }
   [hidden] { display: none !important; }
 
+  /* ============================================================ ABOUT */
+  .about { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: clamp(36px, 6vw, 72px); align-items: center; }
+  .about-media { display: flex; flex-direction: column; gap: 22px; align-items: flex-start; }
+  .about-photo {
+    width: 100%; max-width: 340px; aspect-ratio: 4 / 5; background: var(--navy);
+    color: var(--gold-light); display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-size: 84px; font-weight: 500; letter-spacing: 0.04em;
+    background-size: cover; background-position: center; border: 1px solid var(--hairline);
+  }
+  .about-cred { display: flex; flex-wrap: wrap; gap: 10px; }
+  .about-cred span {
+    font-family: var(--sans); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    font-weight: 600; color: var(--navy); border: 1px solid var(--gold); padding: 7px 12px;
+  }
+  .about-role {
+    font-family: var(--sans); font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase;
+    font-weight: 600; color: var(--gold-deep); margin: 4px 0 18px;
+  }
+  .about-body .h2 { margin-bottom: 8px; }
+  .about-body p.bio { font-family: var(--sans); font-size: 15px; line-height: 1.75; color: var(--charcoal); margin: 0 0 16px; max-width: 560px; }
+
+  /* ============================================================ TESTIMONIALS */
+  .tn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px; }
+  .tn {
+    background: var(--paper); border: 1px solid var(--hairline); padding: 36px 34px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .tn .mark { font-family: var(--serif); font-size: 64px; line-height: 0.6; height: 26px; color: var(--gold); opacity: 0.5; }
+  .tn p { font-family: var(--serif); font-size: 21px; line-height: 1.4; color: var(--navy); margin: 0; font-weight: 500; }
+  .tn .who { font-family: var(--sans); font-size: 12.5px; color: var(--charcoal-2); margin-top: auto; }
+  .tn .who b { display: block; font-family: var(--serif); font-size: 16px; font-weight: 600; color: var(--navy); }
+
+  /* ============================================================ FAQ */
+  .faq-list { display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); }
+  .faq-list details { background: var(--paper); }
+  .faq-list summary {
+    list-style: none; cursor: pointer; padding: 26px 30px; display: flex; justify-content: space-between;
+    align-items: center; gap: 24px; font-family: var(--serif); font-size: 21px; font-weight: 500;
+    color: var(--navy); letter-spacing: -0.005em;
+  }
+  .faq-list summary::-webkit-details-marker { display: none; }
+  .faq-list summary::after { content: "+"; font-family: var(--sans); font-size: 24px; color: var(--gold); font-weight: 400; flex: 0 0 auto; transition: transform .2s; }
+  .faq-list details[open] summary::after { transform: rotate(45deg); }
+  .faq-list .faq-a { padding: 0 30px 28px; }
+  .faq-list .faq-a p { font-family: var(--sans); font-size: 14.5px; line-height: 1.7; color: var(--charcoal); margin: 0; max-width: 720px; }
+
+  /* ============================================================ CONTACT FORM */
+  .contact-wrap { display: grid; grid-template-columns: 1fr 1.1fr; gap: clamp(36px, 6vw, 72px); align-items: start; }
+  .contact-direct { list-style: none; margin: 26px 0 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+  .contact-direct li { font-family: var(--sans); font-size: 15px; color: var(--charcoal); }
+  .contact-direct li b { display: block; font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold-deep); font-weight: 600; margin-bottom: 4px; }
+  .contact-direct a { color: var(--navy); font-weight: 500; }
+  .contact-direct a:hover { color: var(--gold-deep); }
+  .contact-form { background: var(--paper); border: 1px solid var(--hairline); padding: clamp(28px, 4vw, 40px); display: flex; flex-direction: column; gap: 18px; }
+  .contact-form label { display: flex; flex-direction: column; gap: 8px; font-family: var(--sans); font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; color: var(--charcoal-2); }
+  .contact-form input, .contact-form textarea {
+    font-family: var(--sans); font-size: 15px; color: var(--ink); background: #fff;
+    border: 1px solid var(--hairline); padding: 13px 14px; width: 100%; letter-spacing: normal; text-transform: none; font-weight: 400;
+  }
+  .contact-form input:focus, .contact-form textarea:focus { outline: none; border-color: var(--gold); }
+  .contact-form textarea { resize: vertical; }
+  .contact-form button { border: 0; margin-top: 4px; }
+  .form-status { font-family: var(--sans); font-size: 13px; color: var(--gold-deep); margin: 2px 0 0; min-height: 18px; }
+
   /* ============================================================ RESPONSIVE */
   @media (max-width: 980px) {
     html { scroll-padding-top: 70px; }
@@ -362,6 +433,10 @@
     .process { grid-template-columns: 1fr; }
     .foot-top { grid-template-columns: 1fr 1fr; }
     .foot-brand { grid-column: 1 / -1; }
+    .about { grid-template-columns: 1fr; }
+    .about-media { align-items: center; }
+    .about-photo { max-width: 280px; }
+    .contact-wrap { grid-template-columns: 1fr; }
   }
   @media (max-width: 600px) {
     .services { grid-template-columns: 1fr; }
@@ -373,6 +448,21 @@
   }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *{ transition: none !important; } }
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "AccountingService",
+  "name": "Sethuraman Accounting, Tax & Consulting",
+  "alternateName": "SATC",
+  "url": "https://satcllp.com/",
+  "image": "https://satcllp.com/og-image.png",
+  "email": "arjun_sethuraman@satcllp.com",
+  "description": "Accounting, tax, and operational consulting for businesses — the simplest correct answer, every time.",
+  "areaServed": "US",
+  "founder": { "@type": "Person", "name": "Arjun Sethuraman" },
+  "knowsAbout": ["Accounting", "Bookkeeping", "Tax preparation", "Tax planning", "Business consulting"]
+}
+</script>
 </head>
 <body>
 
@@ -396,9 +486,9 @@
     </button>
     <div class="nav-links" id="navLinks">
       <a href="#services">Services</a>
-      <a href="#systems">Systems</a>
       <a href="#about">About</a>
-      <a href="#process">How We Work</a>
+      <a href="#systems">Systems</a>
+      <a href="#faq">FAQ</a>
       <a href="#contact">Contact</a>
       <a class="nav-cta" href="#book">Schedule a Consultation</a>
     </div>
@@ -517,6 +607,39 @@
   </div>
 </section>
 
+<!-- ============================================================ ABOUT -->
+<section class="band" id="about" style="background:var(--cream-2);">
+  <div class="wrap about">
+    <div class="about-media">
+      <div class="about-photo" id="aboutPhoto" aria-label="Portrait">AS</div>
+      <div class="about-cred" id="aboutCred"></div>
+    </div>
+    <div class="about-body">
+      <p class="eyebrow">Who You're Working With</p>
+      <h2 class="h2" id="aboutName">Arjun Sethuraman</h2>
+      <p class="about-role" id="aboutRole">Founder &amp; Principal</p>
+      <div id="aboutBio"></div>
+      <a class="btn gold" href="#book" style="margin-top:8px;">Book a Free Consultation</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ TESTIMONIALS (hidden until real quotes are added in config) -->
+<section class="band tight" id="testimonials" hidden>
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">In Their Words</p>
+        <h2 class="h2">What clients<br/><em>say.</em></h2>
+      </div>
+      <div class="right">
+        <p class="lead">Real results from the businesses we work with.</p>
+      </div>
+    </div>
+    <div class="tn-grid" id="tnGrid"></div>
+  </div>
+</section>
+
 <!-- ============================================================ OCCAM PLATFORM -->
 <section class="band dark" id="systems">
   <div class="wrap occam">
@@ -597,7 +720,7 @@
 </section>
 
 <!-- ============================================================ WHY / VALUES -->
-<section class="band" id="about">
+<section class="band" id="why">
   <div class="wrap">
     <div class="section-head">
       <div>
@@ -673,6 +796,49 @@
   </div>
 </section>
 
+<!-- ============================================================ FAQ -->
+<!-- Edit these freely — each expandable item below is one question/answer. -->
+<section class="band" id="faq">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">Questions</p>
+        <h2 class="h2">Good to know<br/><em>before</em> we talk.</h2>
+      </div>
+      <div class="right">
+        <p class="lead">Straight answers to what people ask first. Don&#39;t see yours? <a href="#contact" style="color:var(--gold-deep);text-decoration:underline;">Just ask &rarr;</a></p>
+      </div>
+    </div>
+
+    <div class="faq-list">
+      <details open>
+        <summary>How do you charge?</summary>
+        <div class="faq-a"><p>Fixed, flat fees quoted up front after your free consultation — no surprise hourly bills. You&#39;ll know the price before any work starts.</p></div>
+      </details>
+      <details>
+        <summary>Do you work remotely or in person?</summary>
+        <div class="faq-a"><p>Both. Most work happens securely online so we can serve clients wherever they are, with in-person available by appointment.</p></div>
+      </details>
+      <details>
+        <summary>What kinds of businesses do you work with?</summary>
+        <div class="faq-a"><p>Small and growing businesses and their owners — across services, trades, and professional practices. Not sure you&#39;re a fit? Ask — we&#39;ll tell you straight.</p></div>
+      </details>
+      <details>
+        <summary>What accounting software do you use?</summary>
+        <div class="faq-a"><p>We work in the tools you already use (QuickBooks, Xero, and others) and layer in our own Occam tooling to automate the routine — reconciliations, deadlines, and invoicing.</p></div>
+      </details>
+      <details>
+        <summary>I&#39;m behind on my books or taxes. Can you still help?</summary>
+        <div class="faq-a"><p>Yes — catch-up bookkeeping, cleanup, and back-filing are common starting points. We&#39;ll get you current and keep you there.</p></div>
+      </details>
+      <details>
+        <summary>How do we get started?</summary>
+        <div class="faq-a"><p>Book a free 30-minute consultation. We&#39;ll talk through your situation and follow up with a clear written scope and a fixed quote.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
 <!-- ============================================================ BOOKING / FINAL CTA -->
 <section class="book" id="book">
   <div class="wrap inner">
@@ -690,8 +856,38 @@
   </div>
 </section>
 
-<!-- ============================================================ FOOTER / CONTACT -->
-<footer id="contact">
+<!-- ============================================================ CONTACT FORM -->
+<section class="band" id="contact" style="background:var(--cream-2);">
+  <div class="wrap contact-wrap">
+    <div class="contact-intro">
+      <p class="eyebrow">Contact</p>
+      <h2 class="h2">Have a question<br/><em>first?</em></h2>
+      <p class="lead">Not ready to book a call? Send a note and Arjun will reply personally — usually within one business day.</p>
+      <ul class="contact-direct">
+        <li><b>Email</b><a data-email href="#">email</a></li>
+        <li data-phone-row hidden><b>Phone</b><a data-phone-link href="#">phone</a></li>
+        <li><b>Prefer a call?</b><a href="#book">Book a free consultation &rarr;</a></li>
+      </ul>
+    </div>
+    <form class="contact-form" id="contactForm" novalidate>
+      <label>Name
+        <input type="text" name="name" autocomplete="name" required />
+      </label>
+      <label>Email
+        <input type="email" name="email" autocomplete="email" required />
+      </label>
+      <label>How can we help?
+        <textarea name="message" rows="5" required></textarea>
+      </label>
+      <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" />
+      <button class="btn gold" type="submit">Send Message</button>
+      <p class="form-status" id="formStatus" role="status"></p>
+    </form>
+  </div>
+</section>
+
+<!-- ============================================================ FOOTER -->
+<footer id="site-footer">
   <div class="wrap">
     <div class="foot-top">
       <div class="foot-brand">
@@ -727,9 +923,10 @@
       <div class="foot-col">
         <h5>Company</h5>
         <ul>
-          <li><a href="#about">Why SATC</a></li>
-          <li><a href="#process">How We Work</a></li>
-          <li><a href="#book">Schedule</a></li>
+          <li><a href="#about">About Arjun</a></li>
+          <li><a href="#why">Why SATC</a></li>
+          <li><a href="#faq">FAQ</a></li>
+          <li><a href="#contact">Contact</a></li>
         </ul>
       </div>
 
@@ -740,9 +937,9 @@
             <b>Email</b>
             <a data-email href="#">email</a>
           </li>
-          <li data-contact="phone-row" hidden>
+          <li data-phone-row hidden>
             <b>Phone</b>
-            <a data-phone href="#">phone</a>
+            <a data-phone-link href="#">phone</a>
           </li>
           <li data-contact="location-row">
             <b>Office</b>
@@ -759,7 +956,9 @@
     <div class="foot-bottom">
       <span>© <span id="year">2026</span> Sethuraman Accounting, Tax &amp; Consulting</span>
       <div class="legal">
-        <a href="#book">Schedule a Consultation</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/terms.html">Terms</a>
+        <a href="#book">Schedule</a>
         <a data-email href="#">Email Us</a>
       </div>
     </div>
@@ -789,11 +988,30 @@
       url: ""                 // ← PASTE YOUR BOOKING LINK HERE to go live
     },
     contact: {
-      email:    "arjun_sethuraman@satcllp.com",
-      phone:    "",                       // e.g. "+1 (305) 555-0140" — blank = hidden
-      location: "By appointment · Remote &amp; in&#8209;person",
-      linkedin: ""                        // e.g. "https://www.linkedin.com/in/your-handle"
-    }
+      email:      "arjun_sethuraman@satcllp.com",
+      phone:      "",                     // e.g. "+1 (305) 555-0140" — blank = hidden
+      location:   "By appointment · Remote &amp; in&#8209;person",
+      linkedin:   "",                     // e.g. "https://www.linkedin.com/in/your-handle"
+      formspreeId: ""                     // contact form: free at formspree.io → paste the form id (e.g. "xkgwabcd"). Blank = form opens your email app instead.
+    },
+    // ── About section ──────────────────────────────────────────────
+    about: {
+      name: "Arjun Sethuraman",
+      role: "Founder & Principal",
+      photo: "",                // drop a headshot in /website (e.g. "arjun.jpg") and put the filename here. Blank = monogram.
+      credentials: [],          // e.g. ["CPA", "Enrolled Agent", "M.S., Accounting"] — shown as chips. Empty = none.
+      bio: [
+        "Arjun founded SATC to give growing businesses the kind of accounting, tax, and operations support usually reserved for big firms — direct, judgement-driven, and backed by software that handles the busywork.",
+        "You work with him directly: no hand-offs, no call center. The goal on every engagement is the same — the simplest correct answer, clearly explained, and books and filings you can finally stop worrying about."
+      ]
+    },
+    // ── Testimonials (section stays hidden until you add at least one) ──
+    testimonials: [
+      // { quote: "They took our books from chaos to current in a month.", name: "Jane Doe", role: "Owner, Acme Co." }
+    ],
+    // ── Analytics (optional, off by default) ───────────────────────
+    // provider "plausible" + domain, OR "cloudflare" + token, OR "ga" + id
+    analytics: { provider: "", domain: "", token: "", id: "" }
   };
 
   /* ---------- contact wiring ---------- */
@@ -808,10 +1026,11 @@
       });
     }
     if (c.phone) {
-      document.querySelector('[data-contact="phone-row"]').hidden = false;
-      const p = document.querySelector('[data-phone]');
-      p.href = 'tel:' + c.phone.replace(/[^+\d]/g, '');
-      p.textContent = c.phone;
+      document.querySelectorAll('[data-phone-row]').forEach(el => { el.hidden = false; });
+      document.querySelectorAll('[data-phone-link]').forEach(p => {
+        p.href = 'tel:' + c.phone.replace(/[^+\d]/g, '');
+        p.textContent = c.phone;
+      });
     }
     if (c.location) document.querySelector('[data-location]').innerHTML = c.location;
     if (c.linkedin) {
@@ -897,6 +1116,109 @@
       }
     } catch (e) {
       fallback();
+    }
+  })();
+
+  /* ---------- about ---------- */
+  (function () {
+    const a = SATC_CONFIG.about; if (!a) return;
+    const setText = (id, v) => { const el = document.getElementById(id); if (el && v) el.textContent = v; };
+    setText('aboutName', a.name);
+    setText('aboutRole', a.role);
+
+    const photo = document.getElementById('aboutPhoto');
+    if (photo) {
+      if (a.photo) {
+        photo.style.backgroundImage = "url('" + a.photo + "')";
+        photo.textContent = '';
+      } else if (a.name) {
+        photo.textContent = a.name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+      }
+    }
+    const cred = document.getElementById('aboutCred');
+    if (cred && Array.isArray(a.credentials)) {
+      cred.innerHTML = a.credentials.map(c => '<span>' + c + '</span>').join('');
+    }
+    const bio = document.getElementById('aboutBio');
+    if (bio && Array.isArray(a.bio)) {
+      bio.innerHTML = a.bio.map(p => '<p class="bio">' + p + '</p>').join('');
+    }
+  })();
+
+  /* ---------- testimonials (only shown if at least one exists) ---------- */
+  (function () {
+    const t = SATC_CONFIG.testimonials;
+    const grid = document.getElementById('tnGrid');
+    const section = document.getElementById('testimonials');
+    if (!grid || !section || !Array.isArray(t) || t.length === 0) return;
+    grid.innerHTML = t.map(item =>
+      '<figure class="tn">' +
+        '<div class="mark">&ldquo;</div>' +
+        '<blockquote><p>' + item.quote + '</p></blockquote>' +
+        '<figcaption class="who"><b>' + (item.name || '') + '</b>' + (item.role || '') + '</figcaption>' +
+      '</figure>'
+    ).join('');
+    section.hidden = false;
+  })();
+
+  /* ---------- contact form (Formspree if configured, else mailto) ---------- */
+  (function () {
+    const form = document.getElementById('contactForm');
+    const status = document.getElementById('formStatus');
+    if (!form) return;
+    const email = SATC_CONFIG.contact.email;
+    const fid = SATC_CONFIG.contact.formspreeId;
+    if (fid) { form.action = 'https://formspree.io/f/' + fid; form.method = 'POST'; }
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const fd = new FormData(form);
+      if ((fd.get('_gotcha') || '') !== '') return;           // spam honeypot
+      const name = (fd.get('name') || '').trim();
+      const from = (fd.get('email') || '').trim();
+      const msg  = (fd.get('message') || '').trim();
+      if (!name || !from || !msg) { status.textContent = 'Please fill in all three fields.'; return; }
+
+      if (!fid) {
+        const body = encodeURIComponent(msg + '\n\n— ' + name + ' <' + from + '>');
+        window.location.href = 'mailto:' + email + '?subject=' +
+          encodeURIComponent('Website inquiry from ' + name) + '&body=' + body;
+        status.textContent = 'Opening your email app…';
+        return;
+      }
+      status.textContent = 'Sending…';
+      try {
+        const res = await fetch(form.action, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
+        if (res.ok) { form.reset(); status.textContent = 'Thank you — your message is on its way. We’ll be in touch shortly.'; }
+        else { status.textContent = 'Sorry, that didn’t go through. Please email ' + email + '.'; }
+      } catch (err) {
+        status.textContent = 'Network issue — please email ' + email + '.';
+      }
+    });
+  })();
+
+  /* ---------- analytics (optional) ---------- */
+  (function () {
+    const a = SATC_CONFIG.analytics || {};
+    if (!a.provider) return;
+    const head = document.head;
+    if (a.provider === 'plausible' && a.domain) {
+      const s = document.createElement('script');
+      s.defer = true; s.dataset.domain = a.domain;
+      s.src = 'https://plausible.io/js/script.js';
+      head.appendChild(s);
+    } else if (a.provider === 'cloudflare' && a.token) {
+      const s = document.createElement('script');
+      s.defer = true; s.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+      s.setAttribute('data-cf-beacon', JSON.stringify({ token: a.token }));
+      head.appendChild(s);
+    } else if (a.provider === 'ga' && a.id) {
+      const s = document.createElement('script');
+      s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=' + a.id;
+      head.appendChild(s);
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { window.dataLayer.push(arguments); }
+      gtag('js', new Date()); gtag('config', a.id);
     }
   })();
 </script>
