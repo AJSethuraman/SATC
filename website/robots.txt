@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://satcllp.com/sitemap.xml
+Sitemap: https://ajsethuraman.github.io/satc/sitemap.xml
