@@ -68,21 +68,53 @@ A deploy workflow is already included at
 2. In GitHub: **Settings → Pages → Build and deployment → Source → "GitHub
    Actions"**. (One-time toggle.)
 3. Wait for the **Deploy website to GitHub Pages** action to finish (Actions
-   tab). Your site is live at:
-
-   ```
-   https://ajsethuraman.github.io/satc/
-   ```
+   tab). It's live first at `https://ajsethuraman.github.io/satc/`, then at
+   **https://satcllp.com** once the custom-domain DNS below is set.
 
 After that, any push to `main` that changes `website/` redeploys automatically.
 You can also trigger it manually from the Actions tab ("Run workflow").
 
-### Custom domain (optional, later)
+### Custom domain — `satcllp.com` (Squarespace-managed DNS)
 
-Want `sethuraman.cpa` or similar instead of the github.io URL? Buy the domain,
-then in **Settings → Pages → Custom domain** enter it and follow the DNS
-instructions GitHub shows. Add a `website/CNAME` file containing just the domain
-so it survives redeploys.
+The domain is registered/managed in Squarespace. We're pointing the **website**
+records at GitHub Pages while leaving **email** untouched. A `website/CNAME` file
+(containing `satcllp.com`) is already committed, so the domain survives every
+redeploy.
+
+> ⚠️ **Do NOT delete the `MX` records** (or any `TXT`/SPF/DKIM records). Those
+> route `arjun_sethuraman@satcllp.com` email and are **independent** of the
+> website. Changing the `A`/`CNAME` records below moves the *site* only — email
+> keeps working as long as the `MX` records stay.
+
+**1. In GitHub:** Settings → Pages → **Custom domain** → enter `satcllp.com` →
+Save. After it verifies, tick **Enforce HTTPS** (may take a few minutes for the
+certificate).
+
+**2. In Squarespace** (Domains → `satcllp.com` → **DNS / DNS Settings**):
+
+- Remove the existing **A** records on host `@` that point to Squarespace, and
+  the `www` **CNAME** if it points to Squarespace. (Leave `MX`/`TXT` alone.)
+- Add these **A** records (host `@`):
+
+  ```
+  185.199.108.153
+  185.199.109.153
+  185.199.110.153
+  185.199.111.153
+  ```
+
+- Add a **CNAME**: host `www` → value `ajsethuraman.github.io`
+- *(Optional, IPv6)* add **AAAA** records on host `@`:
+  `2606:50c0:8000::153`, `2606:50c0:8001::153`, `2606:50c0:8002::153`,
+  `2606:50c0:8003::153`
+
+DNS usually propagates within an hour (can take up to 24–48h). Once it resolves,
+the site is live at **https://satcllp.com** (and `www.` redirects to it).
+
+> If `satcllp.com` is currently connected to a published **Squarespace site**,
+> you may need to disconnect that site from the domain first so Squarespace stops
+> overriding these records. This replaces whatever Squarespace was serving — which
+> is the point.
 
 ---
 
