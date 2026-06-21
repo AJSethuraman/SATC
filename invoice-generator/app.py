@@ -752,17 +752,22 @@ def register_routes(app):
     @app.route("/connect/dashboard")
     @login_required
     def connect_dashboard():
-        sk = app.config["STRIPE_SECRET_KEY"]
-        if not sk or not current_user.stripe_account_id:
+        # Standard connected accounts have their own full Stripe Dashboard;
+        # send the user there to sign in (no Express login link needed).
+        if not current_user.stripe_account_id:
             return redirect(url_for("account"))
-        try:
-            url = stripe_utils.create_login_link(
-                sk, current_user.stripe_account_id
-            )
-        except Exception:  # pragma: no cover
-            flash("Could not open the Stripe dashboard right now.", "error")
-            return redirect(url_for("account"))
-        return redirect(url)
+        return redirect("https://dashboard.stripe.com/")
+
+    @app.route("/connect/disconnect", methods=["POST"])
+    @login_required
+    def connect_disconnect():
+        # Forget the linked account on our side (the account still exists in
+        # the user's own Stripe). Lets them reconnect a different account.
+        current_user.stripe_account_id = None
+        current_user.stripe_charges_enabled = False
+        db.session.commit()
+        flash("Stripe disconnected. You can reconnect anytime.", "success")
+        return redirect(url_for("account"))
 
     # --- Landing / invoices --------------------------------------------
     @app.route("/")

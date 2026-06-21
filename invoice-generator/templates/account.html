@@ -71,7 +71,13 @@
                   <div style="font-weight:600">Stripe account · {{ current_user.stripe_account_id }}</div>
                   <div class="small muted">Payments go directly to your own connected account.</div>
                 </div>
-                <a class="btn btn--secondary btn--sm" href="{{ url_for('connect_dashboard') }}">Manage</a>
+                <div class="row" style="gap:var(--space-2)">
+                  <a class="btn btn--secondary btn--sm" href="{{ url_for('connect_dashboard') }}">Open Stripe dashboard</a>
+                  <form method="post" action="{{ url_for('connect_disconnect') }}" onsubmit="return confirm('Disconnect this Stripe account? You can reconnect anytime.')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button class="btn btn--secondary btn--sm" type="submit">Disconnect</button>
+                  </form>
+                </div>
               </div>
               <div class="notice notice--success" style="margin-top:var(--space-5)"><span>You're collecting payments directly to your own account. Invoicer never touches your funds and takes no per-invoice fee.</span></div>
             {% elif current_user.stripe_account_id %}
