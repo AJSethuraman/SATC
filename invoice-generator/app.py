@@ -678,6 +678,25 @@ def register_routes(app):
         flash("Business profile saved.", "success")
         return redirect(url_for("account"))
 
+    @app.route("/account/delete", methods=["POST"])
+    @login_required
+    def delete_account():
+        # Permanently remove the user and (via cascade) all their invoices and
+        # line items. Require the password so a stray click / stale session
+        # can't wipe an account.
+        password = request.form.get("password") or ""
+        if not current_user.check_password(password):
+            flash("Password incorrect — your account was not deleted.", "error")
+            return redirect(url_for("account"))
+        user = db.session.get(User, current_user.id)
+        logout_user()
+        db.session.delete(user)
+        db.session.commit()
+        flash(
+            "Your account and all its invoices have been deleted.", "success"
+        )
+        return redirect(url_for("index"))
+
     # --- Stripe Connect (each user collects into their own account) -----
     @app.route("/connect/start", methods=["POST"])
     @login_required

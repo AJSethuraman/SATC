@@ -82,11 +82,17 @@
               </div>
               <div class="notice notice--success" style="margin-top:var(--space-5)"><span>You're collecting payments directly to your own account. Invoicer never touches your funds and takes no per-invoice fee.</span></div>
             {% elif current_user.stripe_account_id %}
-              <div class="notice notice--warn"><span>Your Stripe onboarding isn't finished yet. Resume it to start accepting payments.</span></div>
-              <form method="post" action="{{ url_for('connect_start') }}" style="margin-top:var(--space-4)">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                <button class="btn" type="submit">Resume Stripe onboarding →</button>
-              </form>
+              <div class="notice notice--warn"><span>Your Stripe onboarding isn't finished yet. Resume it, or disconnect to start over with a different account.</span></div>
+              <div class="row" style="gap:var(--space-2); margin-top:var(--space-4)">
+                <form method="post" action="{{ url_for('connect_start') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                  <button class="btn" type="submit">Resume Stripe onboarding →</button>
+                </form>
+                <form method="post" action="{{ url_for('connect_disconnect') }}" onsubmit="return confirm('Disconnect and start over?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                  <button class="btn btn--secondary" type="submit">Disconnect</button>
+                </form>
+              </div>
             {% else %}
               <p class="small muted" style="margin-bottom:var(--space-4)">Connect your own Stripe account to collect payments directly. Invoicer never touches your funds and takes no per-invoice fee.</p>
               <form method="post" action="{{ url_for('connect_start') }}">
@@ -167,6 +173,16 @@
                 <button class="btn btn--secondary btn--sm" type="submit">Sign out</button>
               </form>
             </div>
+            <hr class="divider"/>
+            <div class="section-label" style="color:var(--red-600)">Danger zone</div>
+            <p class="small muted" style="margin-bottom:var(--space-4)">Permanently delete your account and all of its invoices. This can't be undone.</p>
+            <form method="post" action="{{ url_for('delete_account') }}" onsubmit="return confirm('Permanently delete your account and ALL of your invoices? This cannot be undone.')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <div class="row" style="gap:var(--space-3); align-items:flex-end; flex-wrap:wrap">
+                <div class="field" style="margin:0; max-width:260px"><label class="label">Confirm your password</label><input class="input" type="password" name="password" placeholder="Your password" required/></div>
+                <button class="btn btn--danger" type="submit">Delete my account</button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
