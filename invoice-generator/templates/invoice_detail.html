@@ -186,15 +186,10 @@
             <div class="notice notice--warn"><span>Email isn't configured on this site yet, so invoices can't be emailed.</span></div>
             {% endif %}
 
-            {% if invoice.stripe_payment_url %}
-            <button class="btn btn--secondary btn--block" type="button" onclick="copyLink(this)" data-link="{{ invoice.stripe_payment_url }}">Copy payment link</button>
-            {% elif current_user.can_accept_payments and invoice.balance_due > 0 %}
-            <form method="post" action="{{ url_for('create_payment', invoice_id=invoice.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-              <button class="btn btn--secondary btn--block" type="submit">Create payment link</button>
-            </form>
-            {% elif not current_user.can_accept_payments %}
-            <a class="btn btn--secondary btn--block" href="{{ url_for('account') }}">Connect Stripe to accept payments</a>
+            <button class="btn btn--secondary btn--block" type="button" onclick="copyLink(this)" data-link="{{ public_url }}">Copy invoice link</button>
+            <a class="btn btn--ghost btn--block" href="{{ public_url }}" target="_blank">Preview client view</a>
+            {% if not current_user.can_accept_payments %}
+            <div class="notice notice--info"><span>Connect Stripe (Account) so clients can pay this invoice online.</span></div>
             {% endif %}
 
             {% if invoice.balance_due > 0 %}

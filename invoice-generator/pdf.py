@@ -78,16 +78,16 @@ def _business_context(invoice, allow_svg):
     }
 
 
-def _render_invoice_html(invoice, allow_svg):
+def _render_invoice_html(invoice, allow_svg, pay_url=None):
     return render_template(
         "invoice_pdf.html",
         invoice=invoice,
         business=_business_context(invoice, allow_svg=allow_svg),
-        pay_url=invoice.stripe_payment_url,
+        pay_url=pay_url if pay_url is not None else invoice.stripe_payment_url,
     )
 
 
-def _render_with_weasyprint(invoice, output_path):
+def _render_with_weasyprint(invoice, output_path, pay_url=None):
     try:
         from weasyprint import HTML
     except (OSError, ImportError) as exc:
@@ -97,24 +97,27 @@ def _render_with_weasyprint(invoice, output_path):
             f"on Linux install libpango/cairo. ({exc})"
         ) from exc
 
-    html_string = _render_invoice_html(invoice, allow_svg=True)
+    html_string = _render_invoice_html(invoice, allow_svg=True, pay_url=pay_url)
     HTML(string=html_string, base_url=str(Path(output_path).parent)).write_pdf(
         str(output_path)
     )
 
 
-def _render_with_xhtml2pdf(invoice, output_path):
+def _render_with_xhtml2pdf(invoice, output_path, pay_url=None):
     from xhtml2pdf import pisa
 
-    html_string = _render_invoice_html(invoice, allow_svg=False)
+    html_string = _render_invoice_html(invoice, allow_svg=False, pay_url=pay_url)
     with open(output_path, "wb") as fh:
         result = pisa.CreatePDF(html_string, dest=fh, encoding="utf-8")
     if result.err:
         raise RuntimeError("xhtml2pdf failed to render the invoice PDF.")
 
 
-def render_invoice_pdf(invoice, output_path):
+def render_invoice_pdf(invoice, output_path, pay_url=None):
     """Render ``invoice`` to a PDF at ``output_path`` using the active engine.
+
+    ``pay_url`` overrides the "Pay online" link in the PDF (e.g. the durable
+    public invoice URL); when None it falls back to the stored Checkout URL.
 
     Raises ``RuntimeError`` (not a bare import/OS error) if the selected
     engine can't run, so callers can surface a clean message.
@@ -122,9 +125,9 @@ def render_invoice_pdf(invoice, output_path):
     engine = _select_engine()
     try:
         if engine == "xhtml2pdf":
-            _render_with_xhtml2pdf(invoice, output_path)
+            _render_with_xhtml2pdf(invoice, output_path, pay_url=pay_url)
         else:
-            _render_with_weasyprint(invoice, output_path)
+            _render_with_weasyprint(invoice, output_path, pay_url=pay_url)
     except RuntimeError:
         raise
     except ImportError as exc:

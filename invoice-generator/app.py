@@ -364,7 +364,7 @@ def _validate_invoice(invoice):
     return errors
 
 
-def generate_pdf(app, invoice):
+def generate_pdf(app, invoice, pay_url=None):
     """Render the invoice PDF to a transient file and return its path.
 
     Shared by the web UI and the JSON API. Requires an active app context.
@@ -375,7 +375,7 @@ def generate_pdf(app, invoice):
         "/", "-"
     )
     out_path = app.config["INVOICES_DIR"] / fname
-    render_invoice_pdf(invoice, out_path)
+    render_invoice_pdf(invoice, out_path, pay_url=pay_url)
     return out_path
 
 
@@ -847,6 +847,7 @@ def register_routes(app):
         return render_template(
             "invoice_detail.html",
             invoice=invoice,
+            public_url=_public_url(invoice),
             stripe_configured=bool(app.config["STRIPE_SECRET_KEY"]),
             smtp_configured=bool(
                 app.config["SMTP_HOST"] and app.config["FROM_EMAIL"]
@@ -903,15 +904,15 @@ def register_routes(app):
         flash("Invoice deleted.", "success")
         return redirect(url_for("history"))
 
-    def _generate_pdf(invoice):
-        return generate_pdf(app, invoice)
+    def _generate_pdf(invoice, pay_url=None):
+        return generate_pdf(app, invoice, pay_url=pay_url)
 
     @app.route("/invoice/<int:invoice_id>/pdf")
     @login_required
     def download_pdf(invoice_id):
         invoice = owned_or_404(invoice_id)
         try:
-            out_path = _generate_pdf(invoice)
+            out_path = _generate_pdf(invoice, pay_url=_public_url(invoice))
         except RuntimeError as exc:
             flash(str(exc), "error")
             return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -974,6 +975,10 @@ def register_routes(app):
         invoice = owned_or_404(invoice_id)
         invoice.status = "Sent"
         invoice.amount_paid = 0.0
+        # Drop the spent Checkout Session so nothing copies/sends a dead link;
+        # a fresh session is created on demand when the invoice is paid again.
+        invoice.stripe_session_id = None
+        invoice.stripe_payment_url = None
         db.session.commit()
         flash("Invoice marked as unpaid.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -989,20 +994,18 @@ def register_routes(app):
             flash("Recipient email is required.", "error")
             return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
+        public_url = _public_url(invoice)
         try:
-            out_path = _generate_pdf(invoice)
+            out_path = _generate_pdf(invoice, pay_url=public_url)
         except RuntimeError as exc:
             flash(str(exc), "error")
             return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
-        view_url = app.config["APP_BASE_URL"].rstrip("/") + url_for(
-            "view_invoice", invoice_id=invoice.id
-        )
         html_body = render_template(
             "email_invoice.html",
             invoice=invoice,
-            pay_url=invoice.stripe_payment_url,
-            view_url=view_url,
+            public_url=public_url,
+            can_pay=current_user.can_accept_payments,
         )
         try:
             email_utils.send_invoice_email(
@@ -1010,7 +1013,7 @@ def register_routes(app):
                 to_email,
                 invoice,
                 out_path,
-                payment_url=invoice.stripe_payment_url,
+                payment_url=public_url,
                 html_body=html_body,
             )
         except Exception as exc:  # pragma: no cover - SMTP errors vary
@@ -1025,6 +1028,99 @@ def register_routes(app):
         db.session.commit()
         flash(f"Invoice emailed to {to_email}.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
+
+    # --- Public invoice page (no login; the link shared with the client) ---
+    PUBLIC_MAX_AGE = 60 * 60 * 24 * 365 * 5  # ~5 years
+
+    def _public_url(invoice):
+        token = make_token(invoice.id, salt="invoice-public")
+        return app.config["APP_BASE_URL"].rstrip("/") + url_for(
+            "public_invoice", token=token
+        )
+
+    def _invoice_from_token(token):
+        inv_id = read_token(
+            token, salt="invoice-public", max_age=PUBLIC_MAX_AGE
+        )
+        if inv_id is None:
+            abort(404)
+        invoice = db.session.get(Invoice, int(inv_id))
+        if invoice is None:
+            abort(404)
+        return invoice
+
+    @app.route("/i/<token>")
+    def public_invoice(token):
+        invoice = _invoice_from_token(token)
+        can_pay = bool(invoice.owner and invoice.owner.can_accept_payments)
+        return render_template(
+            "public_invoice.html",
+            invoice=invoice,
+            can_pay=can_pay,
+            token=token,
+        )
+
+    @app.route("/i/<token>/logo")
+    def public_logo(token):
+        invoice = _invoice_from_token(token)
+        if not invoice.logo_data:
+            abort(404)
+        return send_file(
+            io.BytesIO(invoice.logo_data),
+            mimetype=invoice.logo_mimetype or "image/png",
+        )
+
+    @app.route("/i/<token>/pdf")
+    def public_pdf(token):
+        invoice = _invoice_from_token(token)
+        try:
+            out_path = generate_pdf(
+                app, invoice, pay_url=_public_url(invoice)
+            )
+        except RuntimeError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("public_invoice", token=token))
+        return send_file(
+            out_path,
+            as_attachment=True,
+            download_name=out_path.name,
+            mimetype="application/pdf",
+        )
+
+    @app.route("/i/<token>/pay", methods=["POST"])
+    @csrf.exempt
+    def public_pay(token):
+        invoice = _invoice_from_token(token)
+        owner = invoice.owner
+        if not owner or not owner.can_accept_payments:
+            flash("Online payment isn't set up for this invoice.", "error")
+            return redirect(url_for("public_invoice", token=token))
+        if invoice.balance_due <= 0:
+            return redirect(url_for("public_invoice", token=token))
+        base = app.config["APP_BASE_URL"].rstrip("/")
+        pub = base + url_for("public_invoice", token=token)
+        try:
+            session = stripe_utils.create_checkout_session(
+                invoice,
+                app.config["STRIPE_SECRET_KEY"],
+                app.config["APP_BASE_URL"],
+                owner.stripe_account_id,
+                app.config,
+                success_url=pub + "?paid=1",
+                cancel_url=pub + "?canceled=1",
+            )
+        except (RuntimeError, ValueError) as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("public_invoice", token=token))
+        except Exception as exc:  # pragma: no cover - network/Stripe errors
+            flash(f"Stripe error: {exc}", "error")
+            return redirect(url_for("public_invoice", token=token))
+        invoice.stripe_session_id = session.id
+        invoice.stripe_payment_url = session.url
+        if invoice.status == "Draft":
+            invoice.status = "Sent"
+        db.session.commit()
+        return redirect(session.url)
 
     @app.route("/history")
     @login_required

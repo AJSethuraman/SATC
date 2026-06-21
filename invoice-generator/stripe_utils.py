@@ -75,7 +75,8 @@ def _platform_fee_cents(config, amount_cents):
 
 
 def create_checkout_session(
-    invoice, secret_key, base_url, connected_account_id, config=None
+    invoice, secret_key, base_url, connected_account_id, config=None,
+    success_url=None, cancel_url=None,
 ):
     """Create a Checkout Session for the balance due, charged directly on the
     user's connected account so funds go to them.
@@ -112,8 +113,8 @@ def create_checkout_session(
                 "quantity": 1,
             }
         ],
-        "success_url": f"{base_url}/invoice/{invoice.id}?paid=1",
-        "cancel_url": f"{base_url}/invoice/{invoice.id}?canceled=1",
+        "success_url": success_url or f"{base_url}/invoice/{invoice.id}?paid=1",
+        "cancel_url": cancel_url or f"{base_url}/invoice/{invoice.id}?canceled=1",
         "metadata": {"invoice_id": str(invoice.id)},
     }
 
