@@ -140,6 +140,10 @@ class Invoice(db.Model):
     status = db.Column(db.String(20), default="Draft")  # Draft | Sent | Paid
     stripe_session_id = db.Column(db.String(255), nullable=True)
     stripe_payment_url = db.Column(db.Text, nullable=True)
+    # The connected account a Checkout Session was created on. Stamped so a
+    # payment still credits this invoice even if the owner later disconnects or
+    # reconnects a different Stripe account before the client pays.
+    stripe_account_id = db.Column(db.String(64), nullable=True)
     # Comma-separated Stripe Checkout Session ids already credited to this
     # invoice — the idempotency key so webhook retries don't double-count.
     paid_session_ids = db.Column(db.Text, default="")
