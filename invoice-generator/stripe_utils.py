@@ -4,9 +4,10 @@ We never touch raw card data: a hosted Checkout Session is created for the
 invoice's balance due and the customer is redirected to Stripe's page.
 
 This is a **platform** (Stripe Connect): each user links their own connected
-account via Express onboarding, and payments are charged **directly on that
-connected account** (a "direct charge"), so the money lands in the user's own
-Stripe balance / bank — not the platform's. The platform optionally takes an
+account as a **Standard** account (they sign in to their existing Stripe, or
+create one), and payments are charged **directly on that connected account**
+(a "direct charge"), so the money lands in the user's own Stripe balance /
+bank — not the platform's. The platform optionally takes an
 ``application_fee_amount`` (off by default; see PLATFORM_FEE_* config).
 """
 import stripe
@@ -17,26 +18,32 @@ def configure(secret_key):
 
 
 # --------------------------------------------------------------------------
-# Connect onboarding (Express)
+# Connect onboarding (Standard)
 # --------------------------------------------------------------------------
 def create_connect_account(secret_key, email=None):
-    """Create an Express connected account; returns its id (acct_...)."""
+    """Create a Standard connected account; returns its id (acct_...).
+
+    Standard accounts are full Stripe accounts the user owns and manages from
+    their own Stripe Dashboard. We don't request capabilities — a Standard
+    account gets card payments automatically once the user finishes setup, and
+    Stripe rejects capability requests on Standard accounts.
+    """
     if not secret_key:
         raise RuntimeError("STRIPE_SECRET_KEY is not configured.")
     configure(secret_key)
     account = stripe.Account.create(
-        type="express",
+        type="standard",
         email=email or None,
-        capabilities={
-            "card_payments": {"requested": True},
-            "transfers": {"requested": True},
-        },
     )
     return account.id
 
 
 def create_account_link(secret_key, account_id, refresh_url, return_url):
-    """Create a one-time onboarding link the user is redirected to."""
+    """Create a one-time onboarding link the user is redirected to.
+
+    For a Standard account this hosted flow lets the user sign in to an
+    existing Stripe account or create a new one.
+    """
     configure(secret_key)
     link = stripe.AccountLink.create(
         account=account_id,
@@ -51,12 +58,6 @@ def get_account(secret_key, account_id):
     """Retrieve a connected account (to read charges_enabled, etc.)."""
     configure(secret_key)
     return stripe.Account.retrieve(account_id)
-
-
-def create_login_link(secret_key, account_id):
-    """Express dashboard login link so a connected user can manage payouts."""
-    configure(secret_key)
-    return stripe.Account.create_login_link(account_id).url
 
 
 # --------------------------------------------------------------------------
