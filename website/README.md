@@ -65,8 +65,9 @@ A deploy workflow is already included at
 [`.github/workflows/pages.yml`](../.github/workflows/pages.yml). To turn it on:
 
 1. **Merge this to `main`** (the workflow deploys from `main`).
-2. In GitHub: **Settings → Pages → Build and deployment → Source → "GitHub
-   Actions"**. (One-time toggle.)
+2. The workflow **auto-enables** Pages (Source = GitHub Actions), so there's
+   normally no toggle to flip. If your org blocks that, set it once by hand:
+   **Settings → Pages → Build and deployment → Source → "GitHub Actions"**.
 3. Wait for the **Deploy website to GitHub Pages** action to finish (Actions
    tab). It's live first at `https://ajsethuraman.github.io/satc/`, then at
    **https://satcllp.com** once the custom-domain DNS below is set.
