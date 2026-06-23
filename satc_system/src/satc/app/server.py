@@ -156,6 +156,20 @@ def create_app() -> Flask:
         export_mart_to_excel(STATE.store, out)
         return send_file(out, as_attachment=True, download_name="SATC_DataMart.xlsx")
 
+    # --- JSON API: withholding compute (localhost, stateless, no PII) ---
+    # Lets a same-machine agent POST figures and get a projection back while the
+    # app is running. No client data is read or written here.
+    @app.route("/api/withholding/estimate", methods=["POST"])
+    def api_withholding_estimate():
+        from satc.api import tools
+        return tools.estimate_withholding(request.get_json(force=True, silent=True) or {})
+
+    @app.route("/api/withholding/read-paystub", methods=["POST"])
+    def api_read_paystub():
+        from satc.api import tools
+        payload = request.get_json(force=True, silent=True) or {}
+        return tools.read_paystub(payload.get("text", ""))
+
     @app.route("/clients")
     def clients_index():
         return render_template("clients_index.html", title="Clients",

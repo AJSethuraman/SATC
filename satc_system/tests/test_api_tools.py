@@ -61,3 +61,21 @@ def test_post_confirmed_intake_targets_the_named_client(state):
     cid = tools.create_person_client(state, first_name="A", last_name="B")["client_id"]
     out = tools.post_confirmed_intake(state, client_id=cid, tax_year=2024)
     assert out["client_id"] == cid
+
+
+def test_http_estimate_endpoint():
+    from satc.app.server import create_app
+    r = create_app().test_client().post("/api/withholding/estimate", json={
+        "filing_status": "single", "tax_year": 2025,
+        "jobs": [{"pay_frequency": "annual", "gross_pay_per_period": "78000",
+                  "federal_tax_withheld_per_period": "9000", "pay_periods_remaining": 1}]})
+    assert r.status_code == 200
+    assert r.get_json()["breakdown"]["total_tax_liability"] > 0
+
+
+def test_http_read_paystub_endpoint():
+    from satc.app.server import create_app
+    r = create_app().test_client().post("/api/withholding/read-paystub",
+        json={"text": "Gross Pay 2,500.00 30,000.00\nFederal Income Tax 300.00 3,600.00"})
+    assert r.status_code == 200
+    assert any("Gross" in k for k in r.get_json()["labeled_fields"])
