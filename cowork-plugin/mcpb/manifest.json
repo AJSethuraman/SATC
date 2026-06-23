@@ -1,0 +1,30 @@
+{
+  "manifest_version": "0.2",
+  "name": "satc-withholding",
+  "display_name": "SATC Withholding",
+  "version": "0.1.0",
+  "description": "Project a household's full-year federal withholding and recommend a W-4 line-4c adjustment, through the SATC app's local API. Stateless compute; no client PII.",
+  "server": {
+    "type": "python",
+    "entry_point": "server/satc_mcp.py",
+    "mcp_config": {
+      "command": "python",
+      "args": ["${__dirname}/server/satc_mcp.py"],
+      "env": { "SATC_BASE_URL": "${user_config.base_url}" }
+    }
+  },
+  "user_config": {
+    "base_url": {
+      "type": "string",
+      "title": "SATC app URL",
+      "description": "Where the running SATC desktop app is listening (it prints this on startup).",
+      "default": "http://127.0.0.1:5050",
+      "required": false
+    }
+  },
+  "tools": [
+    { "name": "satc_withholding_meta", "description": "Accepted filing statuses, pay frequencies, default tax year, and field guide (read-only). Call first." },
+    { "name": "satc_read_paystub", "description": "Parse pasted paystub text into labeled figures (read-only, on-device)." },
+    { "name": "satc_estimate_withholding", "description": "Full-year federal withholding projection + W-4 line-4c recommendation (stateless compute)." }
+  ]
+}

@@ -170,6 +170,31 @@ def create_app() -> Flask:
         payload = request.get_json(force=True, silent=True) or {}
         return tools.read_paystub(payload.get("text", ""))
 
+    @app.route("/api/withholding/meta")
+    def api_withholding_meta():
+        # Read-first "scorecard": what an estimate accepts. Drawn from the models
+        # so it can never drift from what the estimator actually validates.
+        from typing import get_args
+
+        from satc.withholding.models import FilingStatus, PayFrequency
+
+        return {
+            "filing_statuses": list(get_args(FilingStatus)),
+            "pay_frequencies": list(get_args(PayFrequency)),
+            "default_tax_year": 2025,
+            "fields": {
+                "filing_status": "required; one of filing_statuses",
+                "tax_year": "optional; defaults to the current published year. "
+                "2026 is a not-yet-published fixture that falls back to 2025 with a note.",
+                "jobs": "list, one entry per job (taxpayer + spouse / second jobs). Each job: "
+                "pay_frequency, gross_pay_per_period, federal_tax_withheld_per_period, "
+                "ytd_taxable_wages, ytd_federal_tax_withheld, pay_periods_remaining (optional).",
+                "other_income": "optional dict (interest, dividends, self-employment, etc.)",
+                "deductions": "optional dict (standard vs. itemized)",
+                "prior_year_tax": "optional; enables safe-harbor guidance",
+            },
+        }
+
     @app.route("/clients")
     def clients_index():
         return render_template("clients_index.html", title="Clients",

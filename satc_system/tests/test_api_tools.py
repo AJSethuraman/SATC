@@ -79,3 +79,13 @@ def test_http_read_paystub_endpoint():
         json={"text": "Gross Pay 2,500.00 30,000.00\nFederal Income Tax 300.00 3,600.00"})
     assert r.status_code == 200
     assert any("Gross" in k for k in r.get_json()["labeled_fields"])
+
+
+def test_http_meta_endpoint():
+    from satc.app.server import create_app
+    r = create_app().test_client().get("/api/withholding/meta")
+    assert r.status_code == 200
+    body = r.get_json()
+    assert "single" in body["filing_statuses"]
+    assert "biweekly" in body["pay_frequencies"]
+    assert body["default_tax_year"] == 2025
