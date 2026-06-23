@@ -150,11 +150,13 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
           <div class="card" id="email">
             <div class="card__head"><strong>Email sending</strong>
-              {% if current_user.has_custom_smtp %}<span class="conn"><span class="d"></span> Your SMTP</span>{% endif %}
+              {% if current_user.custom_smtp_ready %}<span class="conn"><span class="d"></span> Your SMTP</span>{% endif %}
             </div>
             <div class="card__body">
-              {% if current_user.has_custom_smtp %}
+              {% if current_user.custom_smtp_ready %}
                 <div class="notice notice--success"><span>Invoice emails are sent through <strong>your own SMTP server</strong> from your address.</span></div>
+              {% elif current_user.has_custom_smtp %}
+                <div class="notice notice--warn"><span>You've added SMTP credentials, but we also need a <strong>From / your email</strong> address below (or a business email) before sending through your server. Until then, mail goes via the shared sender.</span></div>
               {% elif shared_email_configured %}
                 <div class="notice notice--info"><span>Invoice emails are sent from our shared, authenticated sender, with <strong>Reply-To set to your address</strong> so client replies reach you. (Sending directly from your own domain on the shared sender would land in spam — add your own SMTP below for true white-label.)</span></div>
               {% else %}

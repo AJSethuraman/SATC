@@ -32,9 +32,12 @@ def is_configured(config):
 
 
 def can_send(config, user=None):
-    """True if mail can be sent for this workspace — via the shared app SMTP, or
-    the workspace's own custom SMTP."""
-    return bool(is_configured(config) or (user is not None and user.has_custom_smtp))
+    """True if mail can actually be sent for this workspace — via the shared app
+    SMTP, or the workspace's own custom SMTP (which requires a workspace-owned
+    From address, not just credentials)."""
+    return bool(
+        is_configured(config) or (user is not None and user.custom_smtp_ready)
+    )
 
 
 def resolve_sender(config, user=None):
@@ -56,15 +59,18 @@ def resolve_sender(config, user=None):
             or ""
         ).strip()
 
-    if user is not None and user.has_custom_smtp:
+    # Only send via the workspace's own SMTP when it has a workspace-owned From
+    # address — never relay the app's shared FROM_EMAIL through a customer's
+    # server (providers reject it and clients see the wrong sender). If custom
+    # SMTP is set without a From, fall through to the shared sender below.
+    if user is not None and user.custom_smtp_ready:
         return {
             "host": user.smtp_host,
             "port": int(user.smtp_port or 587),
             "username": user.smtp_username,
             "password": user.smtp_password,
             "use_tls": True,
-            "from_email": (user.email_from_email or user.business_email or "").strip()
-            or config.get("FROM_EMAIL", ""),
+            "from_email": (user.email_from_email or user.business_email).strip(),
             "from_name": from_name or "Invoicer",
             "reply_to": reply_to,
             "via": "custom-smtp",

@@ -89,6 +89,16 @@ class User(UserMixin, db.Model):
         return bool(self.smtp_host and self.smtp_username and self.smtp_password)
 
     @property
+    def custom_smtp_ready(self):
+        """True if we should actually send via the workspace's own SMTP: it
+        needs the SMTP credentials AND a workspace-owned From address. We never
+        send the app's shared address through a customer's SMTP server."""
+        return bool(
+            self.has_custom_smtp
+            and (self.email_from_email or self.business_email)
+        )
+
+    @property
     def from_info(self):
         """Assemble the sender block shown on invoices from the profile."""
         lines = []
