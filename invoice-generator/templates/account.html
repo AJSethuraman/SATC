@@ -52,6 +52,7 @@
       <nav class="side">
         <a class="on" href="#payments">Payments</a>
         <a href="#business">Business</a>
+        <a href="#email">Email</a>
         <a href="#api">API &amp; integrations</a>
         <a href="#security">Security</a>
       </nav>
@@ -141,6 +142,43 @@
               </div>
             </div>
             <div class="card__foot row between"><span class="small muted">Shown on every invoice you send.</span><button class="btn btn--sm" type="submit">Save changes</button></div>
+          </div>
+        </form>
+
+        <!-- EMAIL SENDING -->
+        <form method="post" action="{{ url_for('account_email') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="card" id="email">
+            <div class="card__head"><strong>Email sending</strong>
+              {% if current_user.has_custom_smtp %}<span class="conn"><span class="d"></span> Your SMTP</span>{% endif %}
+            </div>
+            <div class="card__body">
+              {% if current_user.has_custom_smtp %}
+                <div class="notice notice--success"><span>Invoice emails are sent through <strong>your own SMTP server</strong> from your address.</span></div>
+              {% elif shared_email_configured %}
+                <div class="notice notice--info"><span>Invoice emails are sent from our shared, authenticated sender, with <strong>Reply-To set to your address</strong> so client replies reach you. (Sending directly from your own domain on the shared sender would land in spam — add your own SMTP below for true white-label.)</span></div>
+              {% else %}
+                <div class="notice notice--warn"><span>Email isn't configured on this site yet, so invoices can't be emailed until the shared sender is set up or you add your own SMTP below.</span></div>
+              {% endif %}
+              <div class="section-label" style="margin-top:var(--space-5)">Sender identity</div>
+              <div class="two">
+                <div class="field"><label class="label">From name</label><input class="input" name="email_from_name" value="{{ current_user.email_from_name or '' }}" placeholder="{{ current_user.business_name or 'Your business' }}"/></div>
+                <div class="field"><label class="label">Your email (From / Reply-To)</label><input class="input" type="email" name="email_from_email" value="{{ current_user.email_from_email or '' }}" placeholder="{{ current_user.business_email or 'you@business.com' }}"/></div>
+              </div>
+              <div class="field" style="margin-top:var(--space-4)"><label class="label">Reply-To <span class="muted" style="font-weight:400">(optional — defaults to your email above)</span></label><input class="input" type="email" name="email_reply_to" value="{{ current_user.email_reply_to or '' }}" placeholder="replies@business.com"/></div>
+
+              <div class="section-label" style="margin-top:var(--space-6)">Bring your own SMTP <span class="muted" style="font-weight:400; text-transform:none; letter-spacing:0">(optional — send from your own domain)</span></div>
+              <div class="two">
+                <div class="field"><label class="label">SMTP host</label><input class="input" name="smtp_host" value="{{ current_user.smtp_host or '' }}" placeholder="smtp.yourprovider.com"/></div>
+                <div class="field"><label class="label">SMTP port</label><input class="input" name="smtp_port" value="{{ current_user.smtp_port or '' }}" placeholder="587"/></div>
+              </div>
+              <div class="two" style="margin-top:var(--space-4)">
+                <div class="field"><label class="label">SMTP username</label><input class="input" name="smtp_username" value="{{ current_user.smtp_username or '' }}" autocomplete="off" placeholder="username or API key"/></div>
+                <div class="field"><label class="label">SMTP password</label><input class="input" type="password" name="smtp_password" autocomplete="new-password" placeholder="{% if current_user.smtp_password %}•••••••• (unchanged){% else %}password or API key{% endif %}"/></div>
+              </div>
+              <p class="hint" style="margin-top:var(--space-3)">Leave the password blank to keep the saved one. When host, username, and password are all set, invoices send through your SMTP from your own address.</p>
+            </div>
+            <div class="card__foot row between"><span class="small muted">Controls how invoice emails are sent.</span><button class="btn btn--sm" type="submit">Save email settings</button></div>
           </div>
         </form>
 

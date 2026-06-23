@@ -9,8 +9,10 @@ webhook testing instructions.
 """
 import csv
 import io
+import logging
 import mimetypes
 import os
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -46,6 +48,23 @@ from models import Invoice, LineItem, User, db
 
 csrf = CSRFProtect()
 limiter = Limiter(key_func=get_remote_address)
+
+# App logger -> stdout at INFO so Render/gunicorn captures it. Child loggers
+# (e.g. "invoicer.email") propagate up to this handler.
+logger = logging.getLogger("invoicer")
+
+
+def _configure_logging(app):
+    if not logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(
+            logging.Formatter("[%(asctime)s] %(levelname)s %(name)s: %(message)s")
+        )
+        logger.addHandler(handler)
+        logger.propagate = False
+    logger.setLevel(logging.INFO)
+    app.logger.setLevel(logging.INFO)
+
 
 ALLOWED_LOGO_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".svg"}
 
@@ -158,6 +177,14 @@ def _ensure_schema():
         ("tax_id", "ALTER TABLE users ADD COLUMN tax_id VARCHAR(80)"),
         ("default_currency", "ALTER TABLE users ADD COLUMN default_currency VARCHAR(8)"),
         ("default_terms", "ALTER TABLE users ADD COLUMN default_terms VARCHAR(120)"),
+        # Per-workspace email sender (white-label foundation).
+        ("email_from_name", "ALTER TABLE users ADD COLUMN email_from_name VARCHAR(120)"),
+        ("email_from_email", "ALTER TABLE users ADD COLUMN email_from_email VARCHAR(255)"),
+        ("email_reply_to", "ALTER TABLE users ADD COLUMN email_reply_to VARCHAR(255)"),
+        ("smtp_host", "ALTER TABLE users ADD COLUMN smtp_host VARCHAR(255)"),
+        ("smtp_port", "ALTER TABLE users ADD COLUMN smtp_port INTEGER"),
+        ("smtp_username", "ALTER TABLE users ADD COLUMN smtp_username VARCHAR(255)"),
+        ("smtp_password", "ALTER TABLE users ADD COLUMN smtp_password VARCHAR(255)"),
     ]:
         if not column_exists("users", col):
             safe_exec([ddl])
@@ -192,6 +219,8 @@ def _ensure_schema():
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    _configure_logging(app)
 
     # Transient directory for generated PDFs (regenerated on demand).
     app.config["INVOICES_DIR"].mkdir(parents=True, exist_ok=True)
@@ -656,9 +685,8 @@ def register_routes(app):
         return render_template(
             "account.html",
             stripe_configured=bool(app.config["STRIPE_SECRET_KEY"]),
-            smtp_configured=bool(
-                app.config["SMTP_HOST"] and app.config["FROM_EMAIL"]
-            ),
+            smtp_configured=email_utils.can_send(app.config, current_user),
+            shared_email_configured=email_utils.is_configured(app.config),
         )
 
     @app.route("/account/regenerate-key", methods=["POST"])
@@ -692,6 +720,32 @@ def register_routes(app):
         ).strip()
         db.session.commit()
         flash("Business profile saved.", "success")
+        return redirect(url_for("account"))
+
+    @app.route("/account/email", methods=["POST"])
+    @login_required
+    def account_email():
+        current_user.email_from_name = (
+            request.form.get("email_from_name") or ""
+        ).strip()
+        current_user.email_from_email = (
+            request.form.get("email_from_email") or ""
+        ).strip()
+        current_user.email_reply_to = (
+            request.form.get("email_reply_to") or ""
+        ).strip()
+        current_user.smtp_host = (request.form.get("smtp_host") or "").strip()
+        port = (request.form.get("smtp_port") or "").strip()
+        current_user.smtp_port = int(port) if port.isdigit() else None
+        current_user.smtp_username = (
+            request.form.get("smtp_username") or ""
+        ).strip()
+        # Password field is write-only: a blank submission keeps the stored one.
+        pw = request.form.get("smtp_password")
+        if pw:
+            current_user.smtp_password = pw.strip()
+        db.session.commit()
+        flash("Email settings saved.", "success")
         return redirect(url_for("account"))
 
     @app.route("/account/delete", methods=["POST"])
@@ -853,6 +907,11 @@ def register_routes(app):
             ), 400
         db.session.add(invoice)
         db.session.commit()
+        logger.info(
+            "invoice created id=%s number=%s user=%s total=%s %s",
+            invoice.id, invoice.invoice_number, current_user.id,
+            invoice.total, invoice.currency,
+        )
         flash("Invoice created.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
@@ -865,9 +924,7 @@ def register_routes(app):
             invoice=invoice,
             public_url=_public_url(invoice),
             stripe_configured=bool(app.config["STRIPE_SECRET_KEY"]),
-            smtp_configured=bool(
-                app.config["SMTP_HOST"] and app.config["FROM_EMAIL"]
-            ),
+            smtp_configured=email_utils.can_send(app.config, current_user),
         )
 
     @app.route("/invoice/<int:invoice_id>/logo")
@@ -998,8 +1055,13 @@ def register_routes(app):
                 out_path,
                 payment_url=public_url,
                 html_body=html_body,
+                user=current_user,
             )
-        except Exception as exc:  # pragma: no cover - SMTP errors vary
+        except Exception as exc:  # SMTP errors vary; log fully, don't swallow.
+            logger.exception(
+                "invoice send FAILED id=%s to=%s: %s",
+                invoice.id, email_utils.mask_email(to_email), exc,
+            )
             flash(f"Email failed: {exc}", "error")
             return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
@@ -1009,6 +1071,10 @@ def register_routes(app):
         if invoice.status == "Draft":
             invoice.status = "Sent"
         db.session.commit()
+        logger.info(
+            "invoice sent id=%s number=%s to=%s",
+            invoice.id, invoice.invoice_number, email_utils.mask_email(to_email),
+        )
         flash(f"Invoice emailed to {to_email}.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
 
@@ -1104,6 +1170,11 @@ def register_routes(app):
         if invoice.status == "Draft":
             invoice.status = "Sent"
         db.session.commit()
+        logger.info(
+            "payment link created invoice=%s session=%s account=%s amount=%s %s",
+            invoice.id, session.id, owner.stripe_account_id,
+            invoice.balance_due, invoice.currency,
+        )
         return redirect(session.url)
 
     @app.route("/history")
@@ -1215,15 +1286,28 @@ def register_routes(app):
         sig_header = request.headers.get("Stripe-Signature", "")
         webhook_secret = app.config["STRIPE_WEBHOOK_SECRET"]
         if not webhook_secret:
+            logger.error(
+                "stripe webhook received but STRIPE_WEBHOOK_SECRET is not "
+                "configured — rejecting"
+            )
             return ("Webhook secret not configured", 500)
         try:
             event = stripe_utils.construct_webhook_event(
                 payload, sig_header, webhook_secret
             )
         except Exception as exc:  # invalid signature / payload
+            logger.warning(
+                "stripe webhook signature verification FAILED: %s", exc
+            )
             return (f"Webhook error: {exc}", 400)
 
-        if event["type"] == "checkout.session.completed":
+        event_type = event.get("type")
+        logger.info(
+            "stripe webhook signature verified: type=%s id=%s account=%s",
+            event_type, event.get("id"), event.get("account"),
+        )
+
+        if event_type == "checkout.session.completed":
             session = event["data"]["object"]
             session_id = session.get("id")
             # For Connect direct charges the event carries the connected
@@ -1272,6 +1356,21 @@ def register_routes(app):
                     # resolved invoice is trustworthy. This also covers paying an
                     # older pre-Connect link after a newer one was generated.
                     authorized = True
+            if invoice is None:
+                logger.warning(
+                    "stripe webhook checkout.session.completed: NO invoice "
+                    "matched (session=%s metadata_invoice_id=%s)",
+                    session_id, invoice_id,
+                )
+            elif not authorized:
+                logger.warning(
+                    "stripe webhook checkout.session.completed: NOT authorized "
+                    "for invoice=%s (event_account=%s owner_account=%s "
+                    "invoice_account=%s)",
+                    invoice.id, event_account,
+                    invoice.owner.stripe_account_id if invoice.owner else None,
+                    invoice.stripe_account_id,
+                )
             if authorized:
                 # Credit the actual amount paid (from the event), accumulating
                 # distinct payments. Each Checkout Session is credited at most
@@ -1284,24 +1383,46 @@ def register_routes(app):
                 counted = [
                     s for s in (invoice.paid_session_ids or "").split(",") if s
                 ]
-                if (
-                    session_id
-                    and sess_currency == inv_currency
-                    and session_id not in counted
-                ):
+                if not session_id:
+                    logger.warning(
+                        "stripe webhook: event missing session id for "
+                        "invoice=%s — not credited", invoice.id,
+                    )
+                elif session_id in counted:
+                    logger.info(
+                        "stripe webhook: session %s already credited to "
+                        "invoice=%s — no change", session_id, invoice.id,
+                    )
+                elif sess_currency != inv_currency:
+                    logger.warning(
+                        "stripe webhook: currency mismatch for invoice=%s "
+                        "(event=%s invoice=%s) — not credited",
+                        invoice.id, sess_currency, inv_currency,
+                    )
+                else:
                     invoice.amount_paid = round(
                         (invoice.amount_paid or 0.0) + paid_cents / 100.0, 2
                     )
                     counted.append(session_id)
                     invoice.paid_session_ids = ",".join(counted)
+                    logger.info(
+                        "stripe webhook: credited %.2f %s to invoice=%s "
+                        "(session=%s)", paid_cents / 100.0, inv_currency,
+                        invoice.id, session_id,
+                    )
                 # Recompute paid status from the (stable) accumulated amount.
                 if int(round((invoice.amount_paid or 0.0) * 100)) >= int(
                     round(invoice.total * 100)
                 ):
                     invoice.status = "Paid"
                 db.session.commit()
+                logger.info(
+                    "stripe webhook: invoice=%s now amount_paid=%s total=%s "
+                    "status=%s", invoice.id, invoice.amount_paid,
+                    invoice.total, invoice.status,
+                )
 
-        elif event["type"] == "account.updated":
+        elif event_type == "account.updated":
             # A connected account finished (or changed) onboarding.
             account = event["data"]["object"]
             user = User.query.filter_by(
@@ -1312,6 +1433,18 @@ def register_routes(app):
                     account.get("charges_enabled")
                 )
                 db.session.commit()
+                logger.info(
+                    "stripe webhook: account.updated account=%s "
+                    "charges_enabled=%s user=%s", account.get("id"),
+                    user.stripe_charges_enabled, user.id,
+                )
+            else:
+                logger.info(
+                    "stripe webhook: account.updated for unknown account=%s",
+                    account.get("id"),
+                )
+        else:
+            logger.info("stripe webhook: ignoring unhandled type=%s", event_type)
 
         return ("", 200)
 
