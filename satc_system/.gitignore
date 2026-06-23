@@ -1,5 +1,6 @@
 # Build artifacts (workbooks/PDFs are generated; do not commit)
 build/
+dist/
 *.xlsx
 *.pdf
 !examples/*.xlsx
