@@ -5,8 +5,16 @@ Run it over stdio::
     satc-mcp
 
 It shares the local SQLite store with the desktop app (``~/.satc/data``, or
-``SATC_DATA_DIR``), so what the agent writes shows up in the app and vice-versa.
-Reads are de-identified (the public projection, never the vault's full SSN).
+``SATC_DATA_DIR``). Reads are de-identified (the public projection's display
+label + masked TIN, never the vault's legal name or full SSN) and reload the
+store first, so the agent always sees the app's latest committed data.
+
+State sharing: this server is its own process. Durable writes (clients, posted
+returns, document status) go to the shared store and appear in the app on its
+next reload. The in-memory *staging gate* (``run_intake`` -> confirm ->
+``post_confirmed_intake``), however, is private to THIS process and is NOT shared
+with the app's ``/staging`` screen — run intake and post it within one agent
+session rather than staging here and confirming in the app (or vice-versa).
 
 Requires the optional ``mcp`` dependency::
 
@@ -40,15 +48,18 @@ def _build_server():
 
     @mcp.tool()
     def list_clients() -> list[dict]:
-        """List every client in the practice (de-identified: id + display name)."""
+        """List every client in the practice (de-identified: id + display label,
+        never the vault legal name)."""
+        state.reload()  # pick up anything the desktop app committed since the last call
         return tools.list_clients(state)
 
     @mcp.tool()
     def get_client(client_id: str) -> dict:
         """A client's public record, returns, line items (with provenance), and documents.
 
-        De-identified — the full legal name / SSN stays in the vault, never returned here.
+        De-identified — the legal name / full SSN stays in the vault, never returned here.
         """
+        state.reload()  # see the app's latest committed data
         return tools.get_client(state, client_id)
 
     @mcp.tool()
@@ -90,14 +101,16 @@ def _build_server():
     def run_intake(folder: str, client_id: str, tax_year: int = 2024) -> dict:
         """Classify + stage every document in a LOCAL folder for a client. Returns a summary.
 
-        Values are *staged*, not trusted — confirm them (in the app or future tools)
-        before posting.
+        Values are *staged*, not trusted. Staging lives in THIS server's in-memory gate
+        (a separate process from the desktop app), so confirm and post them within this
+        same agent session — they will NOT appear on the app's /staging screen.
         """
         return tools.run_intake(state, folder=folder, client_id=client_id, tax_year=tax_year)
 
     @mcp.tool()
     def post_confirmed_intake(client_id: str, tax_year: int = 2024) -> dict:
-        """Post the gate's CONFIRMED staged values onto the client's return as line items."""
+        """Post THIS session's CONFIRMED staged values onto the client's return as line
+        items. Durable once posted (shows up in the app on its next reload)."""
         return tools.post_confirmed_intake(state, client_id=client_id, tax_year=tax_year)
 
     @mcp.tool()

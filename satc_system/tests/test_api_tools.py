@@ -44,13 +44,36 @@ def test_create_then_list_and_get_client_stays_deidentified(state):
     res = tools.create_person_client(state, first_name="Jordan", last_name="Lee",
                                      ssn="123-45-6789", email="j@example.com")
     cid = res["client_id"]
-    assert cid in {c["client_id"] for c in tools.list_clients(state)}
+    entry = next(c for c in tools.list_clients(state) if c["client_id"] == cid)
+    # Reads return the de-identified label, never the vault legal name.
+    assert entry["name"].startswith("Client ")
+    assert "Lee" not in entry["name"] and "Jordan" not in entry["name"]
 
     got = tools.get_client(state, cid)
     assert got["client_id"] == cid
     assert "line_items" in got and "documents" in got and "returns" in got
-    # The full SSN lives in the vault and must NOT come back through the API.
-    assert "123-45-6789" not in json.dumps(got)
+    assert got["name"] == entry["name"]
+    # Neither the full SSN nor the legal name comes back through the API.
+    blob = json.dumps(got)
+    assert "123-45-6789" not in blob
+    assert "Lee" not in blob and "Jordan" not in blob
+
+
+def test_committed_writes_shared_via_store_but_gate_is_process_local(tmp_path, monkeypatch):
+    # Two AppStates over one store stand in for the desktop app + the MCP server
+    # (separate processes). Durable writes are shared via the store after a reload;
+    # the in-memory staging gate is private to each.
+    monkeypatch.setenv("SATC_DATA_DIR", str(tmp_path))
+    from satc.app.state import AppState
+    app_state, agent_state = AppState(), AppState()
+
+    cid = tools.create_person_client(agent_state, first_name="Casey", last_name="Stub")["client_id"]
+    # The app process doesn't see the new client until it reloads from the store...
+    assert cid not in {c["client_id"] for c in tools.list_clients(app_state)}
+    app_state.reload()
+    assert cid in {c["client_id"] for c in tools.list_clients(app_state)}
+    # ...and the in-memory staging gates are independent objects, never shared.
+    assert app_state.gate is not agent_state.gate
 
 
 def test_get_unknown_client_returns_error(state):

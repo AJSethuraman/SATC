@@ -37,8 +37,12 @@ def _to_json(obj):
 # --------------------------------------------------------------------------
 
 def list_clients(state) -> list[dict]:
-    """Every client in the practice (de-identified: id + display name)."""
-    return [{"client_id": cid, "name": name} for cid, name in state.client_choices()]
+    """Every client in the practice, de-identified: id + display label
+    (e.g. "Client SATC-001000 (INDIVIDUAL)") — never the vault's legal name."""
+    labels = {pc.client_id: pc.display_label for pc in state.mart.public_clients}
+    ids = set(labels) | set(state.names)
+    return [{"client_id": cid, "name": labels.get(cid) or f"Client {cid}"}
+            for cid in sorted(ids)]
 
 
 def get_client(state, client_id: str) -> dict:
@@ -52,7 +56,7 @@ def get_client(state, client_id: str) -> dict:
     docs = [d for d in state.documents() if d.client_id == client_id]
     return {
         "client_id": client_id,
-        "name": state.name(client_id),
+        "name": pc.display_label,   # de-identified label, NOT the vault legal name
         "public_client": _to_json(pc),
         "returns": _to_json(rets),
         "line_items": _to_json(lines),
