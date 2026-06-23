@@ -19,4 +19,4 @@ The whole data model is designed to port to SQL with no restructuring.
 
 __all__ = ["__version__"]
 
-__version__ = "0.1.0"
+__version__ = "0.7.1"
