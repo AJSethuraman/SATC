@@ -36,4 +36,5 @@ EXPOSE 5000
 
 # Bind to $PORT when the host provides one (Render, etc.), else 5000.
 # 2 workers / 4 threads with a long timeout to accommodate PDF rendering.
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 2 --threads 4 --timeout 120 app:app"]
+# Access + error logs stream to stdout/stderr so Render captures them.
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 2 --threads 4 --timeout 120 --access-logfile - --error-logfile - --log-level info app:app"]

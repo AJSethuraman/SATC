@@ -52,6 +52,17 @@ class User(UserMixin, db.Model):
     tax_id = db.Column(db.String(80), default="")
     default_currency = db.Column(db.String(8), default="USD")
     default_terms = db.Column(db.String(120), default="")
+    # Per-workspace email sender (white-label foundation). With custom SMTP set,
+    # the workspace's own server + From address are used; otherwise mail goes via
+    # the app's shared/authenticated sender with Reply-To pointed at the
+    # workspace so client replies still reach them.
+    email_from_name = db.Column(db.String(120), default="")
+    email_from_email = db.Column(db.String(255), default="")
+    email_reply_to = db.Column(db.String(255), default="")
+    smtp_host = db.Column(db.String(255), default="")
+    smtp_port = db.Column(db.Integer, nullable=True)
+    smtp_username = db.Column(db.String(255), default="")
+    smtp_password = db.Column(db.String(255), default="")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     invoices = db.relationship(
@@ -71,6 +82,21 @@ class User(UserMixin, db.Model):
     @property
     def has_business_profile(self):
         return bool((self.business_name or "").strip())
+
+    @property
+    def has_custom_smtp(self):
+        """True if this workspace brings its own SMTP server."""
+        return bool(self.smtp_host and self.smtp_username and self.smtp_password)
+
+    @property
+    def custom_smtp_ready(self):
+        """True if we should actually send via the workspace's own SMTP: it
+        needs the SMTP credentials AND a workspace-owned From address. We never
+        send the app's shared address through a customer's SMTP server."""
+        return bool(
+            self.has_custom_smtp
+            and (self.email_from_email or self.business_email)
+        )
 
     @property
     def from_info(self):
