@@ -43,6 +43,11 @@ app = [
 build = [
   "pyinstaller>=6.0",
 ]
+# Expose SATC to a Claude agent (Cowork) over MCP — full read+write tools that
+# share the local store with the app. Run with `satc-mcp`.
+mcp = [
+  "mcp>=1.0",
+]
 # Everything for the easy, fully-local install (GUI + PDF + OCR). No cloud deps.
 # pywin32 (Windows only) lets the app pop a real Outlook draft via COM; it is
 # optional — the email features fall back to a mailto: link without it.
@@ -59,6 +64,7 @@ local = [
 [project.scripts]
 satc = "satc.cli:main"
 satc-app = "satc.app.server:main"
+satc-mcp = "satc.api.mcp_server:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
