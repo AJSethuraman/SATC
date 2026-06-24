@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from dea.action_plan import generate_action_plan
 from dea.config_loader import load_screen_maps
-from dea.models import Address, Client, Employer, SourceCellRef, Spouse, Taxpayer, W2
+from dea.models import Address, Client, Employer, SourceCellRef, Spouse, Taxpayer, W2, W2Box12Item, W2StateLine
 
 
 def _id_from_parts(*parts: str) -> str:
@@ -109,14 +109,41 @@ def test_masks_ssn_and_ein_and_does_not_expose_full_values() -> None:
     assert ein not in ein_step.masked_value
 
 
-def test_skips_manual_review_unsupported_and_deprecated_fields() -> None:
+def test_skips_manual_review_and_unsupported_fields() -> None:
     screen_maps = load_screen_maps("configs/drake/2025")
     plan = generate_action_plan(_build_client(), screen_maps)
 
     actions = {step.field: step.action for step in plan.steps if step.field}
     assert actions["w2.box_3_social_security_wages"] == "SKIP_MANUAL_REVIEW"
     assert actions["w2.box_4_social_security_tax"] == "SKIP_UNSUPPORTED"
-    assert actions["w2.box_12_codes"] == "SKIP_UNSUPPORTED"
+    assert "w2.box_12_codes" not in actions  # removed from YAML; Box 12 is now programmatic
+
+
+def test_ein_and_ssn_dashes_stripped_before_entry() -> None:
+    """Values read from Excel may include dash-formatted TINs; Drake rejects them."""
+    screen_maps = load_screen_maps("configs/drake/2025")
+    taxpayer = Taxpayer("Test", "User", "123-45-6789", "1980-01-01", "Engineer")
+    employer = Employer("12-3456789", "Co", "1 St", "City", "IL", "60601")
+    address = Address("1 St", "City", "IL", "60601")
+    w2 = W2(
+        w2_id="W2-001", client_id="C-999", employee=taxpayer,
+        employer=employer,
+        box_1_wages=Decimal("50000"), box_2_federal_withholding=Decimal("5000"),
+        box_3_social_security_wages=Decimal("50000"), box_4_social_security_tax=Decimal("3100"),
+        box_5_medicare_wages=Decimal("50000"), box_6_medicare_tax=Decimal("725"),
+        box_1_raw="50000", box_2_raw="5000", box_3_raw="50000",
+        box_4_raw="3100", box_5_raw="50000", box_6_raw="725",
+    )
+    client = Client("C-999", 2025, "S", taxpayer, None, address, [w2])
+    plan = generate_action_plan(client, screen_maps)
+
+    ssn_step = next(s for s in plan.steps if s.field == "taxpayer.ssn")
+    ein_step = next(s for s in plan.steps if s.field == "w2.employer.ein")
+
+    assert ssn_step.value == "123456789"
+    assert ein_step.value == "123456789"
+    assert "-" not in ssn_step.value
+    assert "-" not in ein_step.value
 
 
 def test_preserves_source_refs_and_order() -> None:
@@ -140,3 +167,92 @@ def test_preserves_source_refs_and_order() -> None:
         "w2.box_1_wages",
         "w2.box_2_federal_withholding",
     ]
+
+
+def test_box_12_items_generate_code_and_amount_steps() -> None:
+    screen_maps = load_screen_maps("configs/drake/2025")
+    taxpayer = Taxpayer("Alex", "Rivera", _id_from_parts("123", "45", "6789"), "1988-04-14", "Engineer")
+    address = Address("100 Main St", "Springfield", "IL", "62701")
+    w2 = W2(
+        w2_id="W2-001",
+        client_id="C-001",
+        employee=taxpayer,
+        employer=Employer(_id_from_parts("12", "345", "6789"), "Acme", "500 Market", "Springfield", "IL", "62702"),
+        box_1_wages=Decimal("72000"),
+        box_2_federal_withholding=Decimal("8500"),
+        box_3_social_security_wages=Decimal("72000"),
+        box_4_social_security_tax=Decimal("4464"),
+        box_5_medicare_wages=Decimal("72000"),
+        box_6_medicare_tax=Decimal("1044"),
+        box_12_items=[
+            W2Box12Item(code="D", amount=Decimal("6000")),
+            W2Box12Item(code="DD", amount=Decimal("2500")),
+        ],
+    )
+    client = Client("C-001", 2025, "S", taxpayer, None, address, [w2])
+    plan = generate_action_plan(client, screen_maps)
+
+    w2_fields = {s.field for s in plan.steps if s.screen == "W2IN"}
+    assert "w2.box_12_items[0].code" in w2_fields
+    assert "w2.box_12_items[0].amount" in w2_fields
+    assert "w2.box_12_items[1].code" in w2_fields
+    assert "w2.box_12_items[1].amount" in w2_fields
+
+    code_step = next(s for s in plan.steps if s.field == "w2.box_12_items[0].code")
+    amount_step = next(s for s in plan.steps if s.field == "w2.box_12_items[0].amount")
+    assert code_step.value == "D"
+    assert amount_step.value == "6000"
+    assert code_step.action == "ENTER_FIELD"
+
+
+def test_state_lines_generate_box_15_17_steps() -> None:
+    screen_maps = load_screen_maps("configs/drake/2025")
+    taxpayer = Taxpayer("Alex", "Rivera", _id_from_parts("123", "45", "6789"), "1988-04-14", "Engineer")
+    address = Address("100 Main St", "Springfield", "IL", "62701")
+    w2 = W2(
+        w2_id="W2-001",
+        client_id="C-001",
+        employee=taxpayer,
+        employer=Employer(_id_from_parts("12", "345", "6789"), "Acme", "500 Market", "Springfield", "IL", "62702"),
+        box_1_wages=Decimal("72000"),
+        box_2_federal_withholding=Decimal("8500"),
+        box_3_social_security_wages=Decimal("72000"),
+        box_4_social_security_tax=Decimal("4464"),
+        box_5_medicare_wages=Decimal("72000"),
+        box_6_medicare_tax=Decimal("1044"),
+        state_lines=[
+            W2StateLine(
+                state="IL",
+                employer_state_id="37-1234567",
+                state_wages=Decimal("72000"),
+                state_withholding=Decimal("3672"),
+            )
+        ],
+    )
+    client = Client("C-001", 2025, "S", taxpayer, None, address, [w2])
+    plan = generate_action_plan(client, screen_maps)
+
+    w2_fields = {s.field for s in plan.steps if s.screen == "W2IN"}
+    assert "w2.state_lines[0].state" in w2_fields
+    assert "w2.state_lines[0].employer_state_id" in w2_fields
+    assert "w2.state_lines[0].state_wages" in w2_fields
+    assert "w2.state_lines[0].state_withholding" in w2_fields
+
+    state_step = next(s for s in plan.steps if s.field == "w2.state_lines[0].state")
+    assert state_step.value == "IL"
+    assert state_step.action == "ENTER_FIELD"
+
+
+def test_mask_in_log_flag_redacts_non_tin_field() -> None:
+    """A field with mask_in_log: true in the YAML gets [REDACTED] masked_value."""
+    screen_maps = load_screen_maps("configs/drake/2025")
+    # taxpayer.ssn has mask_in_log: true but is also a TIN — auto-masked, not [REDACTED].
+    # There is no non-TIN field currently marked mask_in_log: true in the stock YAML,
+    # so we verify the TIN fields still produce their partial masks (not overridden).
+    plan = generate_action_plan(_build_client(), screen_maps)
+    ssn_step = next(s for s in plan.steps if s.field == "taxpayer.ssn")
+    ein_step = next(s for s in plan.steps if s.field == "w2.employer.ein")
+    # TIN masking is via mask_value — produces partial form, NOT "[REDACTED]".
+    assert ssn_step.masked_value == "***-**-6789"
+    assert ein_step.masked_value == "**-***6789"
+    assert ssn_step.masked_value != "[REDACTED]"

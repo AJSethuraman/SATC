@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from dea.masking import mask_value
+from dea.masking import _is_tin_field, mask_value
 from dea.models import ActionPlan, ActionStep, Client, ScreenMap, SourceCellRef, W2
 
 
@@ -84,9 +84,19 @@ def _step_for_field(
     source_sheet: str | None,
     source_cell: str | None,
     field_locator: str | None,
+    mask_in_log: bool = False,
 ) -> ActionStep:
     text_value = _stringify(value)
+    # Drake enters SSNs and EINs as raw digits; strip any formatting characters
+    # (dashes, spaces) so Drake's own field validator accepts the input. Anchored
+    # on the trailing path segment so only true TIN fields are stripped.
+    if _is_tin_field(field_path, "ssn") or _is_tin_field(field_path, "ein"):
+        text_value = "".join(c for c in text_value if c.isdigit())
     masked = mask_value(field_path, text_value)
+    # Config-driven masking for non-TIN fields marked mask_in_log: true.
+    # TIN fields are already redacted by mask_value above; don't double-mask them.
+    if mask_in_log and text_value and not (_is_tin_field(field_path, "ssn") or _is_tin_field(field_path, "ein")):
+        masked = "[REDACTED]"
 
     if support_status in {"SUPPORTED", "CONDITIONALLY_SUPPORTED"}:
         action = "ENTER_FIELD"
@@ -153,6 +163,7 @@ def generate_action_plan(
                 source_sheet=source_sheet,
                 source_cell=source_cell,
                 field_locator=locator,
+                mask_in_log=field_cfg.mask_in_log,
             )
         )
 
@@ -185,7 +196,58 @@ def generate_action_plan(
                     source_sheet=source_sheet,
                     source_cell=source_cell,
                     field_locator=locator,
+                    mask_in_log=field_cfg.mask_in_log,
                 )
             )
+
+        # Box 12 items — variable count, handled programmatically outside YAML.
+        for i, item in enumerate(w2.box_12_items):
+            w2_base = f"clients.{client.client_id}.w2s.{w2.w2_id}"
+            code_sheet, code_cell = _source_ref(source_cells, f"{w2_base}.box_12_items.{i}.code")
+            amt_sheet, amt_cell = _source_ref(source_cells, f"{w2_base}.box_12_items.{i}.amount")
+            steps.append(
+                _step_for_field(
+                    screen=w2_map.screen_code,
+                    field_path=f"w2.box_12_items[{i}].code",
+                    support_status="SUPPORTED",
+                    value=item.code,
+                    source_sheet=code_sheet,
+                    source_cell=code_cell,
+                    field_locator=f"name:w2_box_12_code_{i + 1}",
+                )
+            )
+            steps.append(
+                _step_for_field(
+                    screen=w2_map.screen_code,
+                    field_path=f"w2.box_12_items[{i}].amount",
+                    support_status="SUPPORTED",
+                    value=item.amount,
+                    source_sheet=amt_sheet,
+                    source_cell=amt_cell,
+                    field_locator=f"name:w2_box_12_amount_{i + 1}",
+                )
+            )
+
+        # State withholding (Box 15-17) — variable count, handled programmatically.
+        for i, sl in enumerate(w2.state_lines):
+            base_key = f"clients.{client.client_id}.w2s.{w2.w2_id}.state_lines.{i}"
+            for attr, field_path, locator in [
+                ("state",             f"w2.state_lines[{i}].state",             f"name:w2_box_15_state_{i + 1}"),
+                ("employer_state_id", f"w2.state_lines[{i}].employer_state_id", f"name:w2_box_15_employer_id_{i + 1}"),
+                ("state_wages",       f"w2.state_lines[{i}].state_wages",       f"name:w2_box_16_{i + 1}"),
+                ("state_withholding", f"w2.state_lines[{i}].state_withholding", f"name:w2_box_17_{i + 1}"),
+            ]:
+                src_sheet, src_cell = _source_ref(source_cells, f"{base_key}.{attr}")
+                steps.append(
+                    _step_for_field(
+                        screen=w2_map.screen_code,
+                        field_path=field_path,
+                        support_status="SUPPORTED",
+                        value=getattr(sl, attr),
+                        source_sheet=src_sheet,
+                        source_cell=src_cell,
+                        field_locator=locator,
+                    )
+                )
 
     return ActionPlan(client_id=client.client_id, tax_year=client.tax_year, steps=steps)

@@ -1,0 +1,35 @@
+{
+  "filing_status": "single",
+  "tax_year": 2025,
+  "paystub": {
+    "pay_frequency": "biweekly",
+    "taxable_wages_per_period": 2950,
+    "federal_tax_withheld_per_period": 410,
+    "ytd_taxable_wages": 35100,
+    "ytd_federal_tax_withheld": 4920,
+    "pay_periods_remaining": 14
+  },
+  "other_income": {
+    "interest": 350,
+    "ordinary_dividends": 800,
+    "qualified_dividends": 600,
+    "taxable_retirement_distributions": 5000,
+    "long_term_capital_gains": 2000
+  },
+  "adjustments": {
+    "hsa_deduction": 2000,
+    "student_loan_interest": 1200
+  },
+  "deductions": {
+    "itemized_total": null
+  },
+  "credits": {
+    "other_nonrefundable_credits": 0
+  },
+  "other_payments": {
+    "estimated_tax_payments": 0
+  },
+  "target_refund": 0,
+  "prior_year_tax": 8200,
+  "prior_year_agi": 71000
+}

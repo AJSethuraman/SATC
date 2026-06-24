@@ -35,13 +35,22 @@ def mask_ein(value: str | None) -> str:
     return f"**-***{digits[-4:]}"
 
 
+def _is_tin_field(field_name: str, kind: str) -> bool:
+    """True when a field path's final segment names an SSN/EIN.
+
+    Anchored on the trailing path segment (``taxpayer.ssn`` -> ``ssn``) rather
+    than a substring of the whole path, so an unrelated field like
+    ``business_ssname`` is not mistaken for an SSN and redacted/mangled.
+    """
+    segment = field_name.rsplit(".", 1)[-1].lower()
+    return segment == kind or segment.endswith("_" + kind)
+
+
 def mask_value(field_name: str, value: object | None) -> str:
     """Mask sensitive values by field name, otherwise stringify readably."""
-    normalized_field = field_name.lower()
-
-    if "ssn" in normalized_field:
+    if _is_tin_field(field_name, "ssn"):
         return mask_ssn(None if value is None else str(value))
-    if "ein" in normalized_field:
+    if _is_tin_field(field_name, "ein"):
         return mask_ein(None if value is None else str(value))
 
     if value is None:

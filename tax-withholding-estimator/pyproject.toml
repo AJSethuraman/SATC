@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tax-withholding-estimator"
+version = "0.1.0"
+description = "Project full-year federal tax and recommend per-paycheck withholding"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+# Optional: deterministic paystub import (PDF text + positions, page render).
+# Image/scanned paystubs additionally require the Tesseract OCR engine on PATH.
+paystub = [
+  "PyMuPDF>=1.24",
+]
+# Optional: Excel (.xlsx) audit tape export.
+excel = [
+  "openpyxl>=3.1",
+]
+
+[project.scripts]
+twe = "twe.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+twe = ["data/*.json", "*.js"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

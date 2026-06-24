@@ -71,9 +71,3 @@ fields:
     locator: "name:w2_box_6"
     mask_in_log: false
 
-  w2.box_12_codes:
-    label: "Box 12 Codes"
-    source: "input_record.w2.box_12_codes"
-    support_status: "DEPRECATED"
-    method: "manual"
-    mask_in_log: false

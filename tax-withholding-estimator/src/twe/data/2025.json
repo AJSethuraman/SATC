@@ -1,0 +1,96 @@
+{
+  "tax_year": 2025,
+  "source": "IRS Rev. Proc. 2024-40 (inflation adjustments for tax year 2025) and SSA 2025 wage base.",
+  "notes": "Federal-only. Amounts in whole U.S. dollars. Brackets are taxable-income thresholds; the final bracket has a null upper bound.",
+  "standard_deduction": {
+    "single": 15000,
+    "married_jointly": 30000,
+    "married_separately": 15000,
+    "head_of_household": 22500
+  },
+  "additional_standard_deduction_aged_or_blind": {
+    "single": 2000,
+    "head_of_household": 2000,
+    "married_jointly": 1600,
+    "married_separately": 1600
+  },
+  "ordinary_brackets": {
+    "single": [
+      {"rate": 0.10, "up_to": 11925},
+      {"rate": 0.12, "up_to": 48475},
+      {"rate": 0.22, "up_to": 103350},
+      {"rate": 0.24, "up_to": 197300},
+      {"rate": 0.32, "up_to": 250525},
+      {"rate": 0.35, "up_to": 626350},
+      {"rate": 0.37, "up_to": null}
+    ],
+    "married_jointly": [
+      {"rate": 0.10, "up_to": 23850},
+      {"rate": 0.12, "up_to": 96950},
+      {"rate": 0.22, "up_to": 206700},
+      {"rate": 0.24, "up_to": 394600},
+      {"rate": 0.32, "up_to": 501050},
+      {"rate": 0.35, "up_to": 751600},
+      {"rate": 0.37, "up_to": null}
+    ],
+    "married_separately": [
+      {"rate": 0.10, "up_to": 11925},
+      {"rate": 0.12, "up_to": 48475},
+      {"rate": 0.22, "up_to": 103350},
+      {"rate": 0.24, "up_to": 197300},
+      {"rate": 0.32, "up_to": 250525},
+      {"rate": 0.35, "up_to": 375800},
+      {"rate": 0.37, "up_to": null}
+    ],
+    "head_of_household": [
+      {"rate": 0.10, "up_to": 17000},
+      {"rate": 0.12, "up_to": 64850},
+      {"rate": 0.22, "up_to": 103350},
+      {"rate": 0.24, "up_to": 197300},
+      {"rate": 0.32, "up_to": 250500},
+      {"rate": 0.35, "up_to": 626350},
+      {"rate": 0.37, "up_to": null}
+    ]
+  },
+  "capital_gains_brackets": {
+    "single": {"zero_rate_up_to": 48350, "fifteen_rate_up_to": 533400},
+    "married_jointly": {"zero_rate_up_to": 96700, "fifteen_rate_up_to": 600050},
+    "married_separately": {"zero_rate_up_to": 48350, "fifteen_rate_up_to": 300000},
+    "head_of_household": {"zero_rate_up_to": 64750, "fifteen_rate_up_to": 566700}
+  },
+  "social_security": {
+    "wage_base": 176100,
+    "employee_rate": 0.062
+  },
+  "medicare": {
+    "base_rate": 0.0145,
+    "additional_rate": 0.009,
+    "additional_threshold": {
+      "single": 200000,
+      "married_jointly": 250000,
+      "married_separately": 125000,
+      "head_of_household": 200000
+    }
+  },
+  "net_investment_income_tax": {
+    "rate": 0.038,
+    "threshold": {
+      "single": 200000,
+      "married_jointly": 250000,
+      "married_separately": 125000,
+      "head_of_household": 200000
+    }
+  },
+  "self_employment": {
+    "net_earnings_factor": 0.9235,
+    "social_security_rate": 0.124,
+    "medicare_rate": 0.029
+  },
+  "safe_harbor": {
+    "current_year_pct": 0.90,
+    "prior_year_pct": 1.00,
+    "prior_year_pct_high_income": 1.10,
+    "high_income_agi_threshold": 150000,
+    "high_income_agi_threshold_mfs": 75000
+  }
+}
