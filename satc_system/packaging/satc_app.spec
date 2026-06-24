@@ -3,10 +3,12 @@
 
 Build (from the ``satc_system/`` directory):
 
-    pip install -e ".[local,build]"
+    pip install -e ".[local,build,mcp]"
     pyinstaller packaging/satc_app.spec
 
-Produces a single double-clickable executable named ``SATC`` in ``dist/``.
+Produces a single double-clickable executable named ``SATC`` in ``dist/``. It runs
+the GUI by default; ``SATC --mcp`` runs the (safe-by-default) MCP agent server over
+stdio, so the one exe serves both the human app and a Cowork agent.
 
 What gets bundled as data (and where it lands inside the bundle):
   * ``configs/``                 -> ``configs``                 (YAML line sheets,
@@ -62,6 +64,16 @@ hiddenimports += collect_submodules("satc")
 # Outlook draft integration (Windows only). Listed so PyInstaller bundles the
 # COM modules even though they're imported lazily; harmless if not installed.
 hiddenimports += ["win32com", "win32com.client", "pythoncom", "pywintypes"]
+
+# Bundle the optional `mcp` package so `SATC --mcp` (the agent server) works in the
+# frozen build. Guarded so the spec still evaluates when mcp isn't installed (the
+# desktop-build CI installs `.[local,build,mcp]`). If a frozen `--mcp` run fails on
+# a missing mcp/anyio/pydantic submodule, add it to this list.
+import importlib.util as _ilu
+
+if _ilu.find_spec("mcp") is not None:
+    hiddenimports += collect_submodules("mcp")
+    hiddenimports += ["anyio", "pydantic", "pydantic_core"]
 
 
 a = Analysis(

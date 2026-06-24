@@ -1,8 +1,14 @@
-"""MCP server exposing SATC to a Claude agent (Cowork) — full read + write.
+"""MCP server exposing SATC to a Claude agent (Cowork) — safe by default.
 
 Run it over stdio::
 
     satc-mcp
+
+Safe by default: the agent gets only READ + COMPUTE tools (list/get clients,
+estimate withholding, read paystubs) — it cannot create clients, post to a
+return, run intake, or change a document's status. Those WRITE tools are opt-in:
+set ``SATC_MCP_ALLOW_WRITES=1`` to expose them. So the thing you launch can't
+touch the book of record unless you deliberately turn writes on.
 
 It shares the local SQLite store with the desktop app (``~/.satc/data``, or
 ``SATC_DATA_DIR``). Reads are de-identified (the public projection's display
@@ -20,11 +26,12 @@ Requires the optional ``mcp`` dependency::
 
     pip install -e ".[mcp]"
 
-Connect it to Claude Code / Cowork (stdio)::
+Connect it to Claude Code / Cowork (stdio) — safe (read-only) by default::
 
     claude mcp add satc -- satc-mcp
 
-or in an ``.mcp.json``::
+or in an ``.mcp.json`` (the bundled desktop exe serves the same server via
+``SATC.exe --mcp``)::
 
     { "mcpServers": { "satc": { "command": "satc-mcp" } } }
 """
@@ -34,7 +41,7 @@ from __future__ import annotations
 from satc.api import tools
 
 
-def _build_server():
+def _build_server(allow_writes: bool = False):
     # Imported lazily so importing this module (and the rest of SATC) never hard-
     # depends on the optional `mcp` package.
     from mcp.server.fastmcp import FastMCP
@@ -81,7 +88,13 @@ def _build_server():
         """Parse pasted paystub text into labeled figures (gross, federal withheld, YTD, frequency)."""
         return tools.read_paystub(text)
 
-    # ---- write (shares the store with the desktop app) ----
+    if not allow_writes:
+        # Safe by default: read + compute only — the agent cannot change the book
+        # of record. Writes are opt-in via SATC_MCP_ALLOW_WRITES=1 (or
+        # _build_server(allow_writes=True)).
+        return mcp
+
+    # ---- write (opt-in; shares the store with the desktop app) ----
 
     @mcp.tool()
     def create_person_client(first_name: str, last_name: str, ssn: str = "",
@@ -122,8 +135,16 @@ def _build_server():
 
 
 def main() -> None:
-    """Console-script entry point (``satc-mcp``): run the server over stdio."""
-    _build_server().run()
+    """Console-script entry point (``satc-mcp``): run the server over stdio.
+
+    Safe by default (read + compute). Set ``SATC_MCP_ALLOW_WRITES=1`` to also
+    expose the write tools (create clients, run intake, post returns, set
+    document status) — only if you want the agent to change client data.
+    """
+    import os
+
+    allow = os.environ.get("SATC_MCP_ALLOW_WRITES", "").strip().lower() in {"1", "true", "yes"}
+    _build_server(allow_writes=allow).run()
 
 
 if __name__ == "__main__":
