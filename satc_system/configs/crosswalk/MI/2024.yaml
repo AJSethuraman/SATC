@@ -1,0 +1,41 @@
+meta:
+  tax_year: 2024
+  jurisdiction: MI
+  source_label: "Michigan Income Tax Act (MCL 206); Michigan Dept. of Treasury MI-1040 (2024)"
+  retrieved: "2026-06-17"
+  status: in_force
+  notes: >
+    Michigan individual income tax 2024 — flat rate, no standard deduction, uses a
+    per-exemption allowance. Rate returned to 4.25% for 2024 after the temporary
+    4.05% rate for 2023.
+
+parameters:
+  has_standard_deduction:
+    value: false
+    citation: "MCL 206.30"
+
+  flat_rate:
+    value: 0.0425
+    unit: ratio
+    citation: "MCL 206.51; Michigan Treasury 2024 rate (4.25%)"
+
+  personal_exemption:
+    value: 5600
+    unit: usd
+    citation: "MCL 206.30(2); Michigan Treasury 2024 exemption ($5,600)"
+
+  special_exemption:
+    value: 3100
+    unit: usd
+    status: in_force
+    pending_reason: "Michigan special/disabled exemption (approximate); verify 2024 MI-1040 amount."
+    citation: "MCL 206.30(3)"
+
+  apportionment_method:
+    value: single_sales_factor
+    citation: "MCL 206.661 (Michigan apportionment — sales factor)"
+
+  flow_through_entity_tax_rate:
+    value: 0.0425
+    unit: ratio
+    citation: "MCL 206.813 (Michigan FTE elective tax, tied to the individual rate)"

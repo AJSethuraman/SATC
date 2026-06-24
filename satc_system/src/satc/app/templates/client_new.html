@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>New client</h2>
+  <div class="muted">Set up a person or a business. The name lives only in the vault — everything downstream is de-identified.</div>
+</div>
+
+<div class="panel">
+  <h2>Client details</h2>
+  <div class="body">
+    <form method="post" action="{{ url_for('intake.new_client') }}">
+      <p class="note" style="margin-top:0">
+        <label style="margin-right:18px"><input type="radio" name="kind" value="person" checked onclick="satcKind('person')"> Person</label>
+        <label><input type="radio" name="kind" value="business" onclick="satcKind('business')"> Business</label>
+      </p>
+
+      <div id="person-fields">
+        <p><label class="muted">First name</label><br>
+          <input class="field-input" type="text" name="first_name"></p>
+        <p><label class="muted">Last name</label><br>
+          <input class="field-input" type="text" name="last_name"></p>
+        <p><label class="muted">SSN</label><br>
+          <input class="field-input" type="text" name="ssn" placeholder="optional"></p>
+      </div>
+
+      <div id="business-fields" style="display:none">
+        <p><label class="muted">Legal name</label><br>
+          <input class="field-input" type="text" name="legal_name"></p>
+        <p><label class="muted">Entity type</label><br>
+          <select class="field-input" name="entity_type">
+            <option value="SCORP">S-corporation</option>
+            <option value="PARTNERSHIP">Partnership</option>
+            <option value="CCORP">C-corporation</option>
+          </select></p>
+        <p><label class="muted">EIN</label><br>
+          <input class="field-input" type="text" name="ein" placeholder="optional"></p>
+      </div>
+
+      <p><label class="muted">Email</label><br>
+        <input class="field-input" type="email" name="email" placeholder="optional"></p>
+      <p><label class="muted">Phone</label><br>
+        <input class="field-input" type="text" name="phone" placeholder="optional"></p>
+
+      <p style="margin-top:16px">
+        <button class="btn primary" type="submit">Create client</button>
+        <a class="btn" href="{{ url_for('intake.engagements') }}">Cancel</a>
+      </p>
+      <p class="muted" style="margin-top:6px">Next you'll choose how to take them in — scan documents, interview, or email an organizer.</p>
+    </form>
+  </div>
+</div>
+
+<script>
+function satcKind(kind) {
+  document.getElementById('person-fields').style.display = (kind === 'person') ? '' : 'none';
+  document.getElementById('business-fields').style.display = (kind === 'business') ? '' : 'none';
+}
+</script>
+{% endblock %}

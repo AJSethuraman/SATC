@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Setup &amp; readiness</h2>
+  <div class="muted">What's ready on this machine. Everything below the line stays local —
+    documents leave only if you turn on cloud vision.</div>
+</div>
+
+<div class="panel">
+  <h2>Status</h2>
+  <div class="body">
+    <table>
+      <tr><th></th><th>Item</th><th>Status</th><th>What to do</th></tr>
+      {% for c in checks %}
+      <tr>
+        <td>{{ c.icon }}</td>
+        <td>{{ c.name }}</td>
+        <td class="{{ 'muted' if c.status == 'info' }}">{{ c.detail }}</td>
+        <td class="muted mono">{{ c.fix }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p class="note" style="margin-top:14px">
+      Run <span class="mono">satc doctor</span> in a terminal to see this same report any time.
+    </p>
+  </div>
+</div>
+
+{% if state.has_sample_data() %}
+<div class="panel">
+  <h2>Sample data</h2>
+  <div class="body">
+    <p class="note" style="margin-top:0">This install still carries the built-in demo clients and figures (including the $145,000 demo wages) so the app isn't empty while you explore. Clear them to start your real practice from a clean slate — this can't be undone.</p>
+    <form method="post" action="{{ url_for('clear_sample') }}"
+          onsubmit="return confirm('Remove all built-in sample clients and figures? This cannot be undone.');">
+      <button class="btn primary" type="submit">Clear sample data &amp; start clean</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

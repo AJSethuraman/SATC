@@ -1,0 +1,170 @@
+# Content-based document classification.
+#
+# The classifier reads each file and decides what it is, preferring cheap, exact
+# signals before paid OCR — the ladder is: PDF form fields -> embedded PDF text ->
+# filename hint -> vision/OCR. This file holds the per-type signatures.
+#
+#   key            extraction-config key (configs/extraction/<key>.yaml); null if
+#                  the document is real but not a data-bearing tax form (filed, not
+#                  extracted).
+#   label          how the type is shown to the preparer.
+#   code           short tag used when the file is re-labeled / sorted.
+#   filename_hints lowercase substrings that hint at the type in a file *name*
+#                  (weak — only used if the content is silent). Specific before generic.
+#   keywords       weighted [phrase, weight] pairs scored against the document text.
+#                  Strong, official identifiers carry high weight (8-10); generic
+#                  words are low so they can't classify on their own. A type wins
+#                  only if its score clears `text_threshold`; if a runner-up is
+#                  within `close_delta`, the result is downgraded to MEDIUM so a
+#                  human reviews it (the pipeline never guesses).
+#   threshold      optional per-type minimum score (else `text_threshold`).
+#
+# Form-field markers are derived automatically from the extraction config's field
+# paths (e.g. w2.box1_wages -> "w2box1wages"), so a fillable form is fingerprinted
+# by its own field names with no extra config.
+
+text_threshold: 6     # minimum winning text score to classify
+close_delta: 3        # winner within this of the runner-up => ambiguous (MEDIUM)
+
+doc_types:
+  - key: w2
+    label: "W-2"
+    code: "W-2"
+    filename_hints: ["w2", "w-2", "wage and tax"]
+    keywords:
+      - ["wage and tax statement", 10]
+      - ["form w-2", 9]
+      - ["w-2 wage", 8]
+      # Structural box labels — recognize a scanned W-2 even when the title OCRs poorly.
+      - ["social security wages", 4]
+      - ["medicare wages and tips", 4]
+      - ["social security tax withheld", 3]
+
+  - key: 1099int
+    label: "1099-INT"
+    code: "1099-INT"
+    filename_hints: ["1099int", "1099-int", "1099 int"]
+    keywords:
+      - ["1099-int", 10]
+      - ["interest income", 6]
+      - ["early withdrawal penalty", 3]
+
+  - key: 1099div
+    label: "1099-DIV"
+    code: "1099-DIV"
+    filename_hints: ["1099div", "1099-div", "1099 div"]
+    keywords:
+      - ["1099-div", 10]
+      - ["dividends and distributions", 8]
+      - ["total ordinary dividends", 5]
+      - ["qualified dividends", 4]
+
+  # Additional income / credit forms — recognized so an arriving copy auto-closes
+  # its intake request. key: null = filed but not yet data-extracted (extraction
+  # maps for these are a separate follow-up).
+  - key: null
+    label: "1099-NEC"
+    code: "1099-NEC"
+    filename_hints: ["1099nec", "1099-nec", "1099 nec"]
+    keywords:
+      - ["nonemployee compensation", 10]
+      - ["form 1099-nec", 9]
+      - ["1099-nec", 9]
+
+  - key: null
+    label: "1099-K"
+    code: "1099-K"
+    filename_hints: ["1099k", "1099-k", "1099 k"]
+    keywords:
+      - ["payment card and third party network transactions", 10]
+      - ["form 1099-k", 9]
+      - ["1099-k", 9]
+      - ["gross amount of payment card", 4]
+
+  - key: null
+    label: "1099-R"
+    code: "1099-R"
+    filename_hints: ["1099r", "1099-r", "1099 r"]
+    keywords:
+      - ["distributions from pensions", 9]
+      - ["form 1099-r", 9]
+      - ["1099-r", 9]
+      - ["total distribution", 3]
+
+  - key: null
+    label: "1095-A"
+    code: "1095-A"
+    filename_hints: ["1095a", "1095-a", "1095 a"]
+    keywords:
+      - ["health insurance marketplace statement", 10]
+      - ["form 1095-a", 9]
+      - ["1095-a", 9]
+      - ["second lowest cost silver plan", 4]
+
+  - key: null
+    label: "1098-T"
+    code: "1098-T"
+    filename_hints: ["1098t", "1098-t", "1098 t", "tuition"]
+    keywords:
+      - ["tuition statement", 10]
+      - ["form 1098-t", 9]
+      - ["1098-t", 9]
+      - ["qualified tuition", 4]
+
+  - key: k1_1120s
+    label: "Schedule K-1 (1120-S)"
+    code: "K-1-1120S"
+    filename_hints: ["k1_1120s", "k-1 1120s", "1120s k-1", "k1s"]
+    keywords:
+      - ["shareholders share", 9]      # apostrophes are folded out during normalization
+      - ["form 1120-s", 8]
+      - ["1120s", 5]
+
+  - key: k1_1065
+    label: "Schedule K-1 (1065)"
+    code: "K-1-1065"
+    filename_hints: ["k1_1065", "k-1 1065", "1065 k-1", "k1p"]
+    keywords:
+      - ["partners share", 9]
+      - ["form 1065", 8]
+
+  - key: prior_1040
+    label: "Prior-year 1040"
+    code: "1040-PY"
+    filename_hints: ["prior", "1040"]
+    keywords:
+      - ["individual income tax return", 9]
+      - ["form 1040", 8]
+
+  # Generic K-1 (used when the text can't tell 1120-S from 1065). Defaults to S-corp.
+  - key: k1_1120s
+    label: "Schedule K-1"
+    code: "K-1"
+    filename_hints: ["k1", "k-1", "schedule k-1"]
+    keywords:
+      - ["schedule k-1", 8]
+
+  # Real documents that are filed but not data-extracted (key: null).
+  - key: null
+    label: "Engagement letter"
+    code: "Engagement"
+    filename_hints: ["engagement"]
+    keywords:
+      - ["engagement letter", 10]
+      - ["terms of engagement", 8]
+
+  - key: null
+    label: "Form 8879 (e-file authorization)"
+    code: "8879"
+    filename_hints: ["8879"]
+    keywords:
+      - ["e-file signature authorization", 10]
+      - ["form 8879", 9]
+
+  - key: null
+    label: "Tax organizer"
+    code: "Organizer"
+    filename_hints: ["organizer"]
+    keywords:
+      - ["tax organizer", 10]
+      - ["client organizer", 8]

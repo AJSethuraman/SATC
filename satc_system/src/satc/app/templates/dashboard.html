@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Good morning. Here's your practice today.</h2>
+  <div class="muted">{{ returns|length }} returns on file · {{ outstanding }} documents still outstanding · everything traces back to a confirmed source.</div>
+</div>
+
+<div class="cards">
+  <div class="card accent"><div class="n">{{ pipeline.get('In prep',0) + pipeline.get('In review',0) }}</div><div class="l">In progress</div></div>
+  <div class="card alert"><div class="n">{{ pipeline.get('Awaiting docs',0) + outstanding }}</div><div class="l">Awaiting docs</div></div>
+  <div class="card"><div class="n">{{ pipeline.get('Ready to file',0) }}</div><div class="l">Ready to file</div></div>
+  <div class="card"><div class="n">{{ pipeline.get('Filed',0) + pipeline.get('Accepted',0) }}</div><div class="l">Filed / accepted</div></div>
+  <div class="card accent"><div class="n">${{ '{:,.0f}'.format(state.fees_total()) }}</div><div class="l">Fees (book)</div></div>
+</div>
+
+<div class="panel">
+  <h2>Needs your attention</h2>
+  <div class="body">
+    <table>
+      <tr><th>Client</th><th>What</th><th>Action</th></tr>
+      {% for d in state.outstanding() %}
+      <tr>
+        <td>{{ state.name(d.client_id) }}</td>
+        <td><span class="badge b-Requested">Requested</span> {{ d.doc_type }} — {{ d.note }}</td>
+        <td><a class="btn sm" href="{{ url_for('documents') }}">Track →</a></td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td>Maplewood, Jordan &amp; Avery</td>
+        <td><span class="badge b-NEEDS_REVIEW">Review</span> Reconcile 1040 workpaper to Drake before filing</td>
+        <td><a class="btn sm" href="{{ url_for('client', client_id='SATC-001000') }}">Open →</a></td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Pipeline</h2>
+  <div class="body">
+    <table>
+      <tr><th>Return</th><th>Client</th><th>Jurisdiction</th><th>Status</th><th class="right">Refund / (due)</th></tr>
+      {% for r in returns %}
+      <tr>
+        <td><strong>{{ r.return_type }}</strong></td>
+        <td>{{ state.name(r.client_id) }}</td>
+        <td>{{ r.jurisdiction }}</td>
+        <td class="status-{{ r.status|replace(' ','.') }}">{{ r.status }}</td>
+        <td class="right">
+          {% if r.refund_amount %}${{ '{:,.0f}'.format(r.refund_amount) }}{% elif r.balance_due_amount %}(${{ '{:,.0f}'.format(r.balance_due_amount) }}){% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

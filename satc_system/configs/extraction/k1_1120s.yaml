@@ -1,0 +1,11 @@
+doc_type: "K-1-1120S"
+fields:
+  - {field_path: k1s.box1_ordinary,    label: "Box 1 - Ordinary business income", aliases: ["ordinary business income"], money: true}
+  - {field_path: k1s.box2_rental,      label: "Box 2 - Net rental real estate income", money: true}
+  - {field_path: k1s.box3_other_rental, label: "Box 3 - Other net rental income", money: true}
+  - {field_path: k1s.box4_interest,    label: "Box 4 - Interest income", money: true}
+  - {field_path: k1s.box5a_dividends,  label: "Box 5a - Ordinary dividends", money: true}
+  - {field_path: k1s.box16_distributions, label: "Box 16 - Items affecting shareholder basis (distributions)", money: true}
+  - {field_path: k1s.box17_qbi,        label: "Box 17 - Code V QBI", money: true}
+  - {field_path: k1s.corp_ein,         label: "Corporation EIN", money: false, sensitive: true}
+  - {field_path: k1s.shareholder_pct,  label: "Shareholder ownership %", money: false}

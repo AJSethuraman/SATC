@@ -1,0 +1,139 @@
+meta:
+  tax_year: 2026
+  jurisdiction: US
+  source_label: "TCJA sunset (P.L. 115-97 sec. 11001 et seq.); IRS COLA notices"
+  retrieved: "2026-06-17"
+  status: scheduled_reversion
+  notes: >
+    VERSIONING TEST FIXTURE. This file models the *scheduled* expiration of the
+    2017 Tax Cuts and Jobs Act individual provisions after 2025 (the sunset the
+    practice must be able to version against). It deliberately mixes three states:
+    in_force published COLA items, scheduled_reversion items that change under the
+    sunset, and pending gaps where an indexed amount is not yet published.
+    IMPORTANT: P.L. 119-21 (OBBBA, July 2025) modified or made permanent many of
+    these provisions. Treat every scheduled_reversion / pending value as a GAP to
+    reconcile against enacted law before relying on it.
+
+parameters:
+  filing_statuses:
+    value: [single, mfj, mfs, hoh, qss]
+    citation: "IRC sec. 1; Form 1040"
+
+  standard_deduction:
+    value: null
+    unit: usd
+    status: pending
+    pending_reason: >
+      TCJA roughly doubled the standard deduction through 2025. Absent extension it
+      reverts to the pre-TCJA (~half) amount, inflation-indexed — exact 2026 figure
+      not modeled here. Reconcile to enacted law (OBBBA made the higher amount
+      permanent).
+    citation: "IRC sec. 63(c); TCJA sec. 11021"
+
+  personal_exemption:
+    value: null
+    unit: usd
+    status: scheduled_reversion
+    pending_reason: >
+      Personal/dependent exemption returns after 2025 (~$5,300 indexed). Exact 2026
+      indexed amount pending. OBBBA retained the $0 exemption — verify.
+    citation: "IRC sec. 151; TCJA sec. 11041 (suspension expires after 2025)"
+
+  brackets_rate_schedule:
+    value: [0.10, 0.15, 0.25, 0.28, 0.33, 0.35, 0.396]
+    status: scheduled_reversion
+    pending_reason: >
+      Statutory rate schedule reverts from TCJA (10/12/22/24/32/35/37) to pre-TCJA
+      (10/15/25/28/33/35/39.6) after 2025; indexed bracket thresholds pending.
+      OBBBA made the TCJA schedule permanent — verify.
+    citation: "IRC sec. 1; TCJA sec. 11001"
+
+  qbi_threshold:
+    value: null
+    status: scheduled_reversion
+    pending_reason: >
+      The sec. 199A qualified business income deduction SUNSETS after 2025 — no QBI
+      deduction absent extension. OBBBA made sec. 199A permanent — verify.
+    citation: "IRC sec. 199A(i) (termination after 2025)"
+
+  salt_deduction_cap:
+    value: null
+    unit: usd
+    status: scheduled_reversion
+    pending_reason: >
+      The $10,000 SALT cap expires after 2025 (uncapped absent extension). OBBBA set
+      a higher cap with phase-down — verify enacted amount.
+    citation: "IRC sec. 164(b)(6) (applies through 2025)"
+
+  ctc_per_child:
+    value: 1000
+    unit: usd
+    status: scheduled_reversion
+    pending_reason: >
+      Child tax credit reverts from $2,000 to $1,000 after 2025 with lower phaseout
+      thresholds and no $1,700 ACTC. OBBBA modified the CTC — verify.
+    citation: "IRC sec. 24; TCJA sec. 11022 (applies through 2025)"
+
+  bonus_depreciation_pct:
+    value: 0.20
+    unit: ratio
+    status: scheduled_reversion
+    pending_reason: >
+      Scheduled 20% under the IRC sec. 168(k)(6) phase-down for 2026; OBBBA restored
+      100% — verify which applies.
+    citation: "IRC sec. 168(k)(6)"
+
+  sec179_limit:
+    value: null
+    unit: usd
+    status: pending
+    pending_reason: "2026 inflation-indexed sec. 179 limit not yet published in this build."
+    citation: "IRC sec. 179(b)"
+
+  amt_exemption:
+    value: null
+    status: scheduled_reversion
+    pending_reason: >
+      AMT exemption and phaseout thresholds drop substantially after 2025 as the
+      TCJA amounts expire; 2026 indexed figures pending.
+    citation: "IRC sec. 55(d); TCJA sec. 12003"
+
+  retirement_401k_elective_deferral:
+    value: 24500
+    unit: usd
+    status: in_force
+    citation: "IRS news release (2026 COLA): 401(k) limit increases to $24,500 for 2026"
+  retirement_401k_catchup_50:
+    value: 8000
+    unit: usd
+    status: in_force
+    citation: "IRS 2026 COLA"
+  ira_contribution_limit:
+    value: 7500
+    unit: usd
+    status: in_force
+    citation: "IRS news release (2026 COLA): IRA limit increases to $7,500 for 2026"
+  ira_catchup_50:
+    value: 1100
+    unit: usd
+    status: in_force
+    citation: "IRS 2026 COLA"
+
+  ss_wage_base:
+    value: null
+    unit: usd
+    status: pending
+    pending_reason: "2026 SSA contribution & benefit base not recorded in this build; verify with SSA."
+    citation: "SSA Contribution and Benefit Base"
+
+  mileage_business:
+    value: null
+    unit: usd_per_mile
+    status: pending
+    pending_reason: "2026 standard mileage rate not yet issued at build time."
+    citation: "IRS annual mileage notice"
+
+  est_tax_high_agi_threshold:
+    value: 150000
+    unit: usd
+    citation: "IRC sec. 6654(d)(1)(C)"

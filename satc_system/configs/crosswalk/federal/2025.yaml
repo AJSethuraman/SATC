@@ -1,0 +1,251 @@
+meta:
+  tax_year: 2025
+  jurisdiction: US
+  source_label: "IRS Rev. Proc. 2024-40; SSA; IRS Notices 2024-80 / 2025-05"
+  retrieved: "2026-06-17"
+  status: in_force
+  notes: >
+    Federal inflation-adjusted parameters for tax year 2025 (last TCJA year under
+    the scheduled sunset). Verified against IRS Rev. Proc. 2024-40 and related
+    guidance. NOTE: several TCJA provisions were later modified by P.L. 119-21
+    (OBBBA, July 2025); reconcile to enacted law before filing TY2025.
+
+parameters:
+  filing_statuses:
+    value: [single, mfj, mfs, hoh, qss]
+    citation: "IRC sec. 1; Form 1040"
+
+  standard_deduction:
+    value: {single: 15000, mfj: 30000, mfs: 15000, hoh: 22500, qss: 30000}
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.15"
+
+  additional_std_deduction_age_or_blind:
+    value: {unmarried: 2000, married_per_spouse: 1600}
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.15; IRC sec. 63(f)"
+
+  personal_exemption:
+    value: 0
+    unit: usd
+    citation: "TCJA sec. 11041; IRC sec. 151(d)(5) — suspended through 2025"
+
+  brackets_single:
+    value:
+      - {rate: 0.10, up_to: 11925}
+      - {rate: 0.12, up_to: 48475}
+      - {rate: 0.22, up_to: 103350}
+      - {rate: 0.24, up_to: 197300}
+      - {rate: 0.32, up_to: 250525}
+      - {rate: 0.35, up_to: 626350}
+      - {rate: 0.37, up_to: null}
+    citation: "Rev. Proc. 2024-40, sec. 2.01"
+  brackets_mfj:
+    value:
+      - {rate: 0.10, up_to: 23850}
+      - {rate: 0.12, up_to: 96950}
+      - {rate: 0.22, up_to: 206700}
+      - {rate: 0.24, up_to: 394600}
+      - {rate: 0.32, up_to: 501050}
+      - {rate: 0.35, up_to: 751600}
+      - {rate: 0.37, up_to: null}
+    citation: "Rev. Proc. 2024-40, sec. 2.01"
+  brackets_mfs:
+    value:
+      - {rate: 0.10, up_to: 11925}
+      - {rate: 0.12, up_to: 48475}
+      - {rate: 0.22, up_to: 103350}
+      - {rate: 0.24, up_to: 197300}
+      - {rate: 0.32, up_to: 250525}
+      - {rate: 0.35, up_to: 375800}
+      - {rate: 0.37, up_to: null}
+    citation: "Rev. Proc. 2024-40, sec. 2.01"
+  brackets_hoh:
+    value:
+      - {rate: 0.10, up_to: 17000}
+      - {rate: 0.12, up_to: 64850}
+      - {rate: 0.22, up_to: 103350}
+      - {rate: 0.24, up_to: 197300}
+      - {rate: 0.32, up_to: 250500}
+      - {rate: 0.35, up_to: 626350}
+      - {rate: 0.37, up_to: null}
+    citation: "Rev. Proc. 2024-40, sec. 2.01"
+
+  ltcg_0_pct_max:
+    value: {single: 48350, mfj: 96700, mfs: 48350, hoh: 64750}
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.03"
+  ltcg_15_pct_max:
+    value: {single: 533400, mfj: 600050, mfs: 300000, hoh: 566700}
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.03"
+
+  qbi_threshold:
+    value: {single: 197300, mfj: 394600, mfs: 197300, hoh: 197300, qss: 394600}
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.10; IRC sec. 199A"
+  qbi_phasein_range:
+    value: {unmarried: 50000, mfj: 100000}
+    unit: usd
+    citation: "IRC sec. 199A(b)(3)(B), 199A(e)(2)"
+
+  sec179_limit:
+    value: 1250000
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.21; IRC sec. 179"
+  sec179_phaseout_threshold:
+    value: 3130000
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.21"
+  bonus_depreciation_pct:
+    value: 0.40
+    unit: ratio
+    status: scheduled_reversion
+    pending_reason: >
+      40% under the IRC sec. 168(k)(6) phase-down as scheduled pre-OBBBA. P.L.
+      119-21 (OBBBA) restored 100% bonus for property placed in service after
+      1/19/2025 — verify which regime applies before filing.
+    citation: "IRC sec. 168(k)(6); cf. P.L. 119-21"
+
+  salt_deduction_cap:
+    value: 10000
+    unit: usd
+    status: scheduled_reversion
+    pending_reason: >
+      $10,000 under TCJA through 2025; OBBBA raised the SALT cap for later years.
+      Verify against enacted law.
+    citation: "IRC sec. 164(b)(6); cf. P.L. 119-21"
+
+  ctc_per_child:
+    value: 2000
+    unit: usd
+    citation: "IRC sec. 24(h) (TCJA, last scheduled year)"
+  ctc_refundable_max:
+    value: 1700
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.06; IRC sec. 24(h)(5)"
+  ctc_phaseout_threshold:
+    value: {unmarried: 200000, mfj: 400000}
+    unit: usd
+    citation: "IRC sec. 24(h)(3)"
+
+  eitc_max_credit:
+    value: {c0: 649, c1: 4328, c2: 7152, c3: 8046}
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.06"
+
+  retirement_401k_elective_deferral:
+    value: 23500
+    unit: usd
+    citation: "IRS Notice 2024-80; IRC sec. 402(g)"
+  retirement_401k_catchup_50:
+    value: 7500
+    unit: usd
+    citation: "IRS Notice 2024-80; IRC sec. 414(v)"
+  retirement_401k_catchup_60_63:
+    value: 11250
+    unit: usd
+    citation: "IRS Notice 2024-80; SECURE 2.0 sec. 109 (ages 60-63)"
+  ira_contribution_limit:
+    value: 7000
+    unit: usd
+    citation: "IRS Notice 2024-80; IRC sec. 219(b)(5)"
+  ira_catchup_50:
+    value: 1000
+    unit: usd
+    citation: "IRC sec. 219(b)(5)(B)"
+
+  hsa_limit_self:
+    value: 4300
+    unit: usd
+    citation: "Rev. Proc. 2024-25"
+  hsa_limit_family:
+    value: 8550
+    unit: usd
+    citation: "Rev. Proc. 2024-25"
+  hsa_catchup_55:
+    value: 1000
+    unit: usd
+    citation: "IRC sec. 223(b)(3)"
+
+  ss_wage_base:
+    value: 176100
+    unit: usd
+    citation: "SSA 2025 Contribution and Benefit Base"
+  se_tax_rate:
+    value: 0.153
+    unit: ratio
+    citation: "IRC sec. 1401"
+  addl_medicare_threshold:
+    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000}
+    unit: usd
+    citation: "IRC sec. 3101(b)(2)"
+
+  amt_exemption:
+    value: {single: 88100, mfj: 137000, mfs: 68500, hoh: 88100}
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.11"
+  amt_exemption_phaseout_start:
+    value: {single: 626350, mfj: 1252700, mfs: 626350, hoh: 626350}
+    unit: usd
+    citation: "Rev. Proc. 2024-40, sec. 2.11"
+
+  mileage_business:
+    value: 0.70
+    unit: usd_per_mile
+    citation: "IRS Notice 2025-05"
+  mileage_medical_moving:
+    value: 0.21
+    unit: usd_per_mile
+    citation: "IRS Notice 2025-05"
+  mileage_charitable:
+    value: 0.14
+    unit: usd_per_mile
+    citation: "IRC sec. 170(i) (statutory)"
+
+  est_tax_safe_harbor_pct_prior:
+    value: 1.00
+    unit: ratio
+    citation: "IRC sec. 6654(d)(1)(B)"
+  est_tax_safe_harbor_pct_prior_high_agi:
+    value: 1.10
+    unit: ratio
+    citation: "IRC sec. 6654(d)(1)(C)"
+  est_tax_high_agi_threshold:
+    value: 150000
+    unit: usd
+    citation: "IRC sec. 6654(d)(1)(C)"
+  est_tax_safe_harbor_pct_current:
+    value: 0.90
+    unit: ratio
+    citation: "IRC sec. 6654(d)(1)(B)(i)"
+
+  # --- Withholding-estimator support (statutory; not inflation-indexed) ---
+  niit_rate:
+    value: 0.038
+    unit: ratio
+    citation: "IRC sec. 1411(a) — Net Investment Income Tax"
+  niit_threshold:
+    value: {single: 200000, mfj: 250000, mfs: 125000, hoh: 200000}
+    unit: usd
+    citation: "IRC sec. 1411(b) — MAGI thresholds (statutory, not inflation-indexed)"
+  se_net_earnings_factor:
+    value: 0.9235
+    unit: ratio
+    citation: "IRC sec. 1402(a)(12) — 92.35% of net self-employment earnings"
+  se_social_security_rate:
+    value: 0.124
+    unit: ratio
+    citation: "IRC sec. 1401(a) — OASDI portion of SE tax"
+  se_medicare_rate:
+    value: 0.029
+    unit: ratio
+    citation: "IRC sec. 1401(b) — Medicare portion of SE tax"
+  addl_medicare_rate:
+    value: 0.009
+    unit: ratio
+    citation: "IRC sec. 3101(b)(2) — 0.9% Additional Medicare Tax rate"
+  est_tax_high_agi_threshold_mfs:
+    value: 75000
+    unit: usd
+    citation: "IRC sec. 6654(d)(1)(C) — MFS half of the high-income AGI threshold"

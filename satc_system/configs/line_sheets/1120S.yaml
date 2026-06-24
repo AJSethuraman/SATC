@@ -1,0 +1,99 @@
+meta:
+  return_type: "1120S"
+  title: "Form 1120-S — S-Corporation Income Tax Workpaper"
+  subtitle: "Workpaper only — Drake is the system of record for depreciation, basis, and the filed return."
+
+sections:
+  - title: "Entity & election"
+    rows:
+      - {id: shareholders_count, kind: input_num, label: "Number of shareholders", source: "Org chart / prior-year", fmt: num}
+      - {id: state_code, kind: input_text, label: "Primary state (OH / MI / MA / ...)", source: "Vault home state", fmt: text}
+      - {kind: note, label: "Confirm valid S-election and that all shareholders are eligible (no entity/ nonresident-alien shareholders)."}
+
+  - title: "Income"
+    rows:
+      - {id: gross_receipts, kind: input, label: "Gross receipts or sales", source: "Books / 1099-K"}
+      - {id: cogs, kind: input, label: "Cost of goods sold", source: "Books / inventory"}
+      - {id: gross_profit, kind: computed, label: "Gross profit", formula: "{gross_receipts}-{cogs}"}
+      - {id: other_income, kind: input, label: "Other income", source: "Books"}
+      - {id: total_income, kind: total, label: "Total income", formula: "{gross_profit}+{other_income}"}
+
+  - title: "Deductions"
+    rows:
+      - {id: officer_comp, kind: input, label: "Compensation of officers", source: "Payroll / W-2 (reasonable comp)"}
+      - {id: salaries_wages, kind: input, label: "Salaries & wages (less employment credits)", source: "Payroll"}
+      - {id: repairs, kind: input, label: "Repairs & maintenance", source: "Books"}
+      - {id: rents, kind: input, label: "Rents", source: "Books / leases"}
+      - {id: taxes_licenses, kind: input, label: "Taxes & licenses", source: "Books"}
+      - {id: depreciation, kind: input, label: "Depreciation (per Drake fixed assets)", source: "Drake depreciation (system of record)"}
+      - {id: sec179, kind: input, label: "§179 expense (passes through on K-1)", source: "Fixed-asset schedule"}
+      - {id: sec179_limit, kind: xwlink, label: "  §179 annual limit (reference)", formula: "[XW US sec179_limit]", source: "Tax Law reference"}
+      - {id: sec179_check, kind: crosscheck, label: "  §179 within annual limit", formula: "MAX(0,{sec179}-{sec179_limit})"}
+      - {id: other_deductions, kind: input, label: "Other deductions", source: "Books"}
+      - {id: total_deductions, kind: total, label: "Total deductions", formula: "{officer_comp}+{salaries_wages}+{repairs}+{rents}+{taxes_licenses}+{depreciation}+{other_deductions}"}
+
+  - title: "Ordinary business income (page 1)"
+    rows:
+      - {id: ordinary_income, kind: total, label: "Ordinary business income / (loss)", formula: "{total_income}-{total_deductions}"}
+
+  - title: "Schedule K — separately stated items"
+    rows:
+      - {id: k_rental, kind: input, label: "Net rental real estate income (K line 2)", source: "Books"}
+      - {id: k_interest, kind: input, label: "Interest income (K line 4)", source: "1099-INT"}
+      - {id: k_dividends, kind: input, label: "Dividends (K line 5a)", source: "1099-DIV"}
+      - {id: k_section179, kind: computed, label: "§179 deduction (K line 11)", formula: "{sec179}"}
+      - {id: k_charitable, kind: input, label: "Charitable contributions (K line 12a)", source: "Books"}
+      - {id: distributions_total, kind: input, label: "Distributions (K line 16d)", source: "Books / shareholder ledger"}
+      - {id: officer_comp_check, kind: crosscheck, label: "Reasonable-comp flag: officer comp present when distributions taken", formula: "IF(AND({distributions_total}>0,{officer_comp}=0),1,0)", flag_ok: "ok", flag_bad: "REVIEW reasonable comp"}
+
+  - title: "Schedule K-1 tie-out (all shareholders)"
+    rows:
+      - {id: k1_ordinary_sum, kind: input, label: "Sum of K-1 box 1 (ordinary) across shareholders", source: "K-1s (confirmed)"}
+      - {id: k1_tie, kind: crosscheck, label: "K-1 ordinary total ties to Schedule K ordinary income", formula: "{k1_ordinary_sum}-{ordinary_income}"}
+      - {id: k1_dist_sum, kind: input, label: "Sum of K-1 distributions across shareholders", source: "K-1s"}
+      - {id: k1_dist_tie, kind: crosscheck, label: "K-1 distributions tie to Schedule K line 16d", formula: "{k1_dist_sum}-{distributions_total}"}
+
+  - title: "Per-owner stock basis & AAA rollforward (lead shareholder)"
+    rows:
+      - {kind: note, label: "Drake computes basis; the mart stores & carries it. Beginning basis is the prior-year ending basis."}
+      - {id: basis_beginning, kind: cflink, label: "Beginning stock basis (from data mart)", formula: "[CF BASIS_STOCK_BEGIN]", source: "Prior-year carryforward"}
+      - {id: basis_contrib, kind: input, label: "+ Capital contributions", source: "Shareholder ledger"}
+      - {id: basis_income, kind: input, label: "+ Share of income items", source: "K-1 (ownership %)"}
+      - {id: basis_distributions, kind: input, label: "- Distributions", source: "K-1 box 16d (ownership %)"}
+      - {id: basis_losses, kind: input, label: "- Share of loss & deduction items", source: "K-1 (ownership %)"}
+      - {id: basis_ending, kind: total, label: "Ending stock basis", formula: "{basis_beginning}+{basis_contrib}+{basis_income}-{basis_distributions}-{basis_losses}"}
+      - {id: basis_nonneg, kind: crosscheck, label: "Stock basis not below zero (excess = taxable gain / suspended loss)", formula: "MAX(0,-{basis_ending})", flag_ok: "ok", flag_bad: "REVIEW basis"}
+      - {id: dist_vs_basis, kind: crosscheck, label: "Distributions within basis (excess is capital gain)", formula: "MAX(0,{basis_distributions}-({basis_beginning}+{basis_contrib}+{basis_income}))", flag_ok: "ok", flag_bad: "REVIEW excess distribution"}
+
+  - title: "Schedule L — balance sheet tie"
+    rows:
+      - {id: total_assets, kind: input, label: "Total assets (end of year)", source: "Books / Drake Sch L"}
+      - {id: total_liabilities, kind: input, label: "Total liabilities", source: "Books"}
+      - {id: total_equity, kind: input, label: "Total shareholders' equity", source: "Books"}
+      - {id: sch_l_tie, kind: crosscheck, label: "Assets = Liabilities + Equity", formula: "{total_assets}-({total_liabilities}+{total_equity})"}
+
+  - title: "Schedule M-1 — book-to-tax reconciliation"
+    rows:
+      - {id: book_income, kind: input, label: "Net income per books", source: "Books / financials"}
+      - {id: m1_add_taxexempt_exp, kind: input, label: "+ Expenses on books not deducted (e.g., 50% meals)", source: "Books"}
+      - {id: m1_subtract_taxexempt_inc, kind: input, label: "- Income on books not on return (e.g., tax-exempt interest)", source: "Books"}
+      - {id: m1_other, kind: input, label: "+/- Other M-1 timing differences (depreciation, etc.)", source: "Drake / books"}
+      - {id: m1_taxable, kind: computed, label: "M-1 income (should equal Sch K income)", formula: "{book_income}+{m1_add_taxexempt_exp}-{m1_subtract_taxexempt_inc}+{m1_other}"}
+      - {id: m1_tie, kind: crosscheck, label: "M-1 reconciled income ties to ordinary + separately stated", formula: "{m1_taxable}-({ordinary_income}+{k_rental}+{k_interest}+{k_dividends}-{k_charitable})"}
+
+  - title: "State & apportionment"
+    rows:
+      - {id: apportion_sales_state, kind: input, label: "In-state sales", source: "Books"}
+      - {id: apportion_sales_total, kind: input, label: "Total sales everywhere", source: "Books"}
+      - {id: apportion_factor, kind: computed, label: "Apportionment factor (single sales factor)", formula: "IF({apportion_sales_total}=0,0,{apportion_sales_state}/{apportion_sales_total})", fmt: pct}
+      - {id: state_apportioned_income, kind: computed, label: "Income apportioned to state", formula: "{ordinary_income}*{apportion_factor}"}
+      - {id: pte_tax_per_drake, kind: input, label: "Elective PTE tax (per Drake, if elected)", source: "Drake state PTE return"}
+      - {kind: note, label: "OH/MI/MA use a single sales factor; confirm the PTE election and credit flow-through on the owners' returns."}
+
+  - title: "Reconciliation to Drake output"
+    rows:
+      - {id: drake_ordinary, kind: input, label: "Drake ordinary business income (Form 1120-S line 21)", source: "Drake 1120-S"}
+      - {id: rec_ordinary, kind: crosscheck, label: "Difference: workpaper vs Drake ordinary income", formula: "{ordinary_income}-{drake_ordinary}"}
+      - {id: drake_distributions, kind: input, label: "Drake total distributions (Sch K line 16d)", source: "Drake 1120-S"}
+      - {id: rec_distributions, kind: crosscheck, label: "Difference: workpaper vs Drake distributions", formula: "{distributions_total}-{drake_distributions}"}
+      - {id: signoff, kind: review, label: "Preparer sign-off: 1120-S reconciles to Drake; basis & AAA carried to data mart.", gating: true}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Documents &amp; communications.</h2>
+  <div class="muted">One row per document. The status is how you mark things off — and it drives the missing-docs tracker automatically. Files stay in SharePoint; this holds the record + link.</div>
+</div>
+
+<div class="panel">
+  <h2>Repository</h2>
+  <div class="body">
+    <table>
+      <tr><th>Client</th><th>Document</th><th>Status</th><th>Date</th><th>Logged by</th><th class="right">Mark as…</th></tr>
+      {% for d in documents %}
+      <tr>
+        <td>{{ state.name(d.client_id) }}</td>
+        <td>{{ d.doc_type }}{% if d.note %}<div class="muted">{{ d.note }}</div>{% endif %}</td>
+        <td><span class="badge b-{{ d.status }}">{{ d.status }}</span></td>
+        <td class="muted">{{ d.as_of }}</td>
+        <td class="muted">{{ d.actor }}</td>
+        <td class="right">
+          {% for s in ['Received','Sent','Signed'] %}
+            {% if d.status != s %}
+            <form class="inline" method="post" action="{{ url_for('documents_status', document_id=d.document_id, status=s) }}">
+              <button class="btn sm {{ 'primary' if s=='Received' }}" type="submit">{{ s }}</button></form>
+            {% endif %}
+          {% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Still outstanding — the missing-docs tracker</h2>
+  <div class="body">
+    {% if not state.outstanding() %}<p class="note tie">Nothing outstanding. 🎉</p>{% endif %}
+    {% for d in state.outstanding() %}
+    <p class="note"><span class="flag">●</span> <strong>{{ state.name(d.client_id) }}</strong> — {{ d.doc_type }}: {{ d.note }}</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

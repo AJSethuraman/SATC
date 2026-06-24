@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>{{ state.name(client_id) }} is set up — how do you want to start?</h2>
+  <div class="muted">
+    <span class="mono">{{ client_id }}</span> · {{ public_client.entity_type }}
+    {% if public_client.home_state %} · {{ public_client.home_state }}{% endif %}
+    · <span class="badge {{ 'b-Received' if returning else 'b-Requested' }}">{{ 'Returning client' if returning else 'New client' }}</span>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Choose an intake path</h2>
+  <div class="body">
+    <p class="muted" style="margin-top:0">
+      Adding a client and taking them in are separate steps now — pick whichever fits this one.
+    </p>
+
+    <div class="tiles">
+      <div class="tile">
+        <div class="ic2">⤓</div>
+        <h3>Scan their documents</h3>
+        <p>They dropped off a folder of W-2s, 1099s, and statements. Let SATC read them and show you what's going on.</p>
+        <a class="btn primary" href="{{ url_for('intake', client=client_id) }}">Scan documents →</a>
+      </div>
+
+      <div class="tile">
+        <div class="ic2">☑</div>
+        <h3>Interview them yourself</h3>
+        <p>Walk through the questionnaire together (in person or on the phone) and build the document-request checklist.</p>
+        <a class="btn primary" href="{{ url_for('intake.new_engagement', client=client_id) }}">Start interview →</a>
+      </div>
+
+      <div class="tile">
+        <div class="ic2">✉</div>
+        <h3>Send the client a form</h3>
+        <p>Email the client an organizer to fill out on their own, then drop their answers back into intake.</p>
+        <a class="btn primary" href="{{ url_for('intake.organizer', client=client_id) }}">Email an organizer →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:6px">
+  <a class="btn" href="{{ url_for('intake.engagements') }}">← Not now (keep client, back to engagements)</a>
+  <form class="inline" method="post" action="{{ url_for('discard_client', client_id=client_id) }}"
+        onsubmit="return confirm('Discard {{ state.name(client_id) }}? This removes the client you just added.');">
+    <button class="btn" type="submit">Discard this client</button>
+  </form>
+</p>
+{% endblock %}

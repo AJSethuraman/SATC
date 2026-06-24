@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "satc-system"
+version = "0.7.1"
+description = "SATC tax line-sheet system, client data mart, and Drake-adjacent tooling"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "openpyxl>=3.1",
+  "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "flask>=3.0",
+  "pypdf>=4.0",
+  "reportlab>=4.0",
+  "pymupdf>=1.24",
+]
+# Document readers. The vision backend needs the Anthropic SDK; the free PDF
+# form-field backend needs pypdf. Neither is required for the rest of the system.
+vision = [
+  "anthropic>=0.40",
+]
+pdf = [
+  "pypdf>=4.0",
+]
+# Local OCR for scans/photos — fully on-machine (also needs the Tesseract binary).
+ocr = [
+  "pytesseract>=0.3",
+  "Pillow>=10",
+]
+# Local hand-holding GUI (opens in the browser).
+app = [
+  "flask>=3.0",
+]
+# Tooling to produce the zero-install, double-clickable desktop executable
+# (see packaging/satc_app.spec and the build-desktop-app GitHub Actions workflow).
+build = [
+  "pyinstaller>=6.0",
+]
+# Expose SATC to a Claude agent (Cowork) over MCP — full read+write tools that
+# share the local store with the app. Run with `satc-mcp`.
+mcp = [
+  "mcp>=1.0",
+]
+# Everything for the easy, fully-local install (GUI + PDF + OCR). No cloud deps.
+# pywin32 (Windows only) lets the app pop a real Outlook draft via COM; it is
+# optional — the email features fall back to a mailto: link without it.
+local = [
+  "flask>=3.0",
+  "pypdf>=4.0",
+  "reportlab>=4.0",
+  "pytesseract>=0.3",
+  "Pillow>=10",
+  "pymupdf>=1.24",
+  "pywin32>=306; sys_platform == 'win32'",
+]
+
+[project.scripts]
+satc = "satc.cli:main"
+satc-app = "satc.app.server:main"
+satc-mcp = "satc.api.mcp_server:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Edit questionnaire</h2>
+  <div class="muted"><span class="mono">{{ wf.key }}</span> — reword, add, or turn off items.
+    Edits save as overrides on the built-in workflow.</div>
+</div>
+
+<form method="post" action="{{ url_for('workflows.save_workflow', key=wf.key) }}">
+
+  <div class="panel">
+    <h2>Workflow name</h2>
+    <div class="body">
+      <p><input class="field-input" type="text" name="wf_name" value="{{ wf.name }}"
+                style="width:480px"></p>
+      <p class="note">Built-in default: {{ base.name }}</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Questions <span class="muted">— the interview</span></h2>
+    <div class="body">
+      <table>
+        <tr><th>Label</th><th>Risk flag</th><th class="right">Off</th></tr>
+        {% for q in base.questions %}
+        {% set lq = live_q.get(q.id) %}
+        <tr>
+          <td>
+            <input class="field-input" type="text" name="q_{{ q.id }}_label"
+                   value="{{ lq.label if lq else q.label }}" style="width:420px">
+            <div class="muted mono">{{ q.id }}</div>
+          </td>
+          <td>
+            <input class="field-input" type="text" name="q_{{ q.id }}_risk"
+                   value="{{ lq.risk_flag if lq else q.risk_flag }}"
+                   placeholder="raised when answered yes" style="width:240px">
+          </td>
+          <td class="right">
+            <input type="checkbox" name="q_{{ q.id }}_disabled" value="1"
+                   {{ 'checked' if q.id in disabled_q }}>
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+      <p class="note">A checked "Off" box removes that question (and its conditional requests) from the interview.</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Document requests <span class="muted">— what we ask the client for</span></h2>
+    <div class="body">
+      <table>
+        <tr><th>Request text</th><th>Category</th><th class="right">Off</th></tr>
+        {% for t in client_tasks %}
+        {% set lt = live_t.get(t.template_id) %}
+        <tr>
+          <td>
+            <textarea class="field-input" name="t_{{ t.template_id }}_text" rows="3"
+                      style="width:460px">{{ lt.client_request_text if lt else t.client_request_text }}</textarea>
+            <div class="muted mono">{{ t.template_id }}</div>
+          </td>
+          <td>
+            <input class="field-input" type="text" name="t_{{ t.template_id }}_category"
+                   value="{{ lt.category if lt else t.category }}" style="width:160px">
+          </td>
+          <td class="right">
+            <input type="checkbox" name="t_{{ t.template_id }}_disabled" value="1"
+                   {{ 'checked' if t.template_id in disabled_t }}>
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Add your own question</h2>
+    <div class="body">
+      <p class="note">A yes answer requests the document you describe below. Leave the label blank to skip.</p>
+      <p><label class="muted">Question (yes/no)</label><br>
+        <input class="field-input" type="text" name="new_q_label"
+               placeholder="e.g. Sold crypto NFTs this year?" style="width:480px"></p>
+      <p><label class="muted">Risk flag (optional)</label><br>
+        <input class="field-input" type="text" name="new_q_risk"
+               placeholder="optional — raised when answered yes" style="width:480px"></p>
+      <p><label class="muted">Document request text</label><br>
+        <textarea class="field-input" name="new_q_request_text" rows="3"
+                  placeholder="e.g. Send your NFT sale records." style="width:480px"></textarea></p>
+      <p><label class="muted">Document type</label><br>
+        <input class="field-input" type="text" name="new_q_doc_type"
+               placeholder="e.g. NFT records" style="width:480px"></p>
+
+      {% if added_questions %}
+      <p class="note">Already added:</p>
+      <ul>
+        {% for a in added_questions %}
+        <li>{{ a.label }} <span class="muted mono">({{ a.id }})</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </div>
+
+  <p style="margin-top:6px">
+    <button class="btn primary" type="submit">Save changes</button>
+    <a class="btn" href="{{ url_for('workflows.workflows_index') }}">← Back to list</a>
+  </p>
+</form>
+
+<form method="post" action="{{ url_for('workflows.reset_workflow', key=wf.key) }}"
+      style="margin-top:4px">
+  <button class="btn" type="submit">Reset to default</button>
+  <span class="muted">Clears all overrides for this workflow.</span>
+</form>
+{% endblock %}

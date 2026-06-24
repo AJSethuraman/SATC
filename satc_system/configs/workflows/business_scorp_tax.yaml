@@ -1,0 +1,116 @@
+# Workflow: Business S corporation tax
+#
+# Ported from JS workflow `businessSCorpTax`.
+# NOTE: quote "yes"/"no" — bare yes/no are booleans in YAML and would break condition matching.
+key: business_scorp_tax
+name: Business S corporation tax
+description: S corporation tax return and owner spillover checklist.
+engagement_type: businessSCorpTax
+client_type: business
+
+questions:
+  - id: ownershipChanges
+    label: Ownership changes during the year?
+    type: boolean
+    risk_flag: Ownership change
+  - id: shareholderDistributions
+    label: Shareholder distributions?
+    type: boolean
+    risk_flag: S-corp shareholder basis review
+  - id: shareholderLoans
+    label: Shareholder loans or repayments?
+    type: boolean
+    risk_flag: S-corp shareholder basis review
+  - id: shareholderPayroll
+    label: Shareholder payroll or W-2 items?
+    type: boolean
+  - id: fixedAssets
+    label: Fixed asset additions or disposals?
+    type: boolean
+  - id: inventory
+    label: Inventory or COGS activity?
+    type: boolean
+  - id: foreignActivity
+    label: Foreign or international items?
+    type: boolean
+    risk_flag: K-2/K-3 foreign activity review
+
+tasks:
+  - template_id: s-corp-upload-trial-balance
+    title: Request year-end trial balance
+    category: Core financials
+    audience: client
+    days_before_due: 25
+    doc_type: Trial balance
+    client_request_text: >-
+      Upload year-end trial balance, balance sheet, income statement, and
+      general ledger.
+
+  - template_id: s-corp-ownership-change-documents
+    title: Request stock ledger and ownership change documents
+    category: Ownership
+    audience: client
+    days_before_due: 20
+    doc_type: Stock ledger and ownership documents
+    condition: {question_id: ownershipChanges, equals: "yes"}
+    client_request_text: >-
+      Upload stock ledger updates, ownership change documents, transfer
+      agreements, or buy-sell support.
+
+  - template_id: s-corp-shareholder-distribution-detail
+    title: Request shareholder distribution detail
+    category: Shareholder basis
+    audience: client
+    days_before_due: 18
+    doc_type: Shareholder distribution detail
+    condition: {question_id: shareholderDistributions, equals: "yes"}
+    client_request_text: Upload shareholder distribution detail by owner and date.
+
+  - template_id: s-corp-shareholder-loan-support
+    title: Request shareholder loan support
+    category: Shareholder basis
+    audience: client
+    days_before_due: 18
+    doc_type: Shareholder loan support
+    condition: {question_id: shareholderLoans, equals: "yes"}
+    client_request_text: Upload shareholder loan balances, advances, repayments, and notes.
+
+  - template_id: s-corp-shareholder-payroll-support
+    title: Request shareholder payroll support
+    category: Payroll
+    audience: client
+    days_before_due: 18
+    doc_type: Shareholder W-2 and payroll support
+    condition: {question_id: shareholderPayroll, equals: "yes"}
+    client_request_text: >-
+      Upload shareholder W-2 and payroll support, including fringe benefit
+      details.
+
+  - template_id: s-corp-fixed-asset-support
+    title: Request fixed asset documents
+    category: Assets
+    audience: client
+    days_before_due: 16
+    doc_type: Fixed asset documents
+    condition: {question_id: fixedAssets, equals: "yes"}
+    client_request_text: >-
+      Upload fixed asset additions, disposal documents, placed-in-service dates,
+      and sale proceeds.
+
+  - template_id: s-corp-inventory-cogs-support
+    title: Request inventory and COGS support
+    category: COGS
+    audience: client
+    days_before_due: 16
+    doc_type: Inventory and COGS support
+    condition: {question_id: inventory, equals: "yes"}
+    client_request_text: Upload ending inventory, cost support, and COGS workpapers.
+
+  - template_id: s-corp-foreign-activity-support
+    title: Request foreign activity support
+    category: Foreign reporting
+    audience: client
+    days_before_due: 16
+    doc_type: Foreign activity support
+    condition: {question_id: foreignActivity, equals: "yes"}
+    client_request_text: Upload foreign activity support for K-2/K-3 review if applicable.

@@ -1,0 +1,6 @@
+{
+  "name": "satc-withholding",
+  "version": "0.1.0",
+  "description": "Drive SATC's withholding estimator in plain language — project a household's full-year federal withholding and recommend a W-4 line-4c adjustment, through the app's local API. Stateless compute; touches no client PII.",
+  "author": "Sethuraman Accounting, Tax & Consulting"
+}
