@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Generated run artifacts (the workbook is regenerated each run).
+*.xlsx
+signal_history.csv
+
+# Never commit secrets.
+.env

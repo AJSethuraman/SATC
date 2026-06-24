@@ -1,0 +1,15 @@
+series_id,label,category,source,native_frequency,threshold_type,threshold_value,direction_that_matters,active,notes
+DFF,Fed Funds Effective Rate,Rate,FRED,daily,abs_change,0.25,both,Y,Policy rate; drives funding + card APRs
+DGS10,10-Yr Treasury,Rate,FRED,daily,abs_change,0.5,both,Y,Term funding / benchmark
+DGS2,2-Yr Treasury,Rate,FRED,daily,abs_change,0.5,both,Y,Short end
+T10Y2Y,10Y-2Y Spread,Rate,FRED,daily,level_below,0.0,down,Y,Inversion = recession signal
+SOFR,Secured Overnight Financing Rate,Rate,FRED,daily,abs_change,0.25,both,Y,Funding benchmark
+UNRATE,Unemployment Rate,Macro,FRED,monthly,abs_change,0.2,up,Y,Labor deterioration -> consumer stress
+CPIAUCSL,"CPI (All Urban, SA)",Macro,FRED,monthly,yoy_change,1.0,up,Y,Inflation squeezes repayment capacity
+UMCSENT,Consumer Sentiment (UMich),Macro,FRED,monthly,pct_change,10.0,down,Y,Leading demand / stress signal
+PSAVERT,Personal Saving Rate,Macro,FRED,monthly,abs_change,1.0,down,Y,Thin savings buffer = repayment risk
+TDSP,Household Debt Service Ratio,Macro,FRED,quarterly,abs_change,0.3,up,Y,Household leverage / payment burden
+DRCCLACBS,"Delinquency Rate, Credit Card Loans, All Comm. Banks",Credit-Benchmark,FRED,quarterly,abs_change,0.2,up,Y,Industry card DQ - compare to your book
+CORCCACBS,"Charge-Off Rate, Credit Card Loans, All Comm. Banks",Credit-Benchmark,FRED,quarterly,abs_change,0.3,up,Y,Industry card losses
+DRCLACBS,"Delinquency Rate, Consumer Loans, All Comm. Banks",Credit-Benchmark,FRED,quarterly,abs_change,0.2,up,Y,Broad consumer DQ
+TERMCBCCALLNS,Comm. Bank Interest Rate on Credit Card Plans,Credit-Benchmark,FRED,monthly,abs_change,0.5,both,Y,Industry card APR; pricing context. Labeled monthly but populates ~quarterly.
