@@ -49,6 +49,13 @@ RAW_FIRST_ROW = 2            # blocks start at sheet row 2 (row 1 is a banner)
 RAW_DATE_COL = 1             # column A
 RAW_VALUE_COL = 2            # column B
 
+# The dashboard run-status readout lands in a free column to the right of the
+# table. The branded layout merges A:J for the banner/KPI strip, so columns >= L
+# are the only collision-free home; two compact lines mirror the design masthead
+# ("Last run …" / "Pulled n/total · s stale · a alerts"). The builder pre-styles
+# these cells; the runner only writes values, and the macro writes row 4.
+STATUS_COL = 12              # column L
+
 # FRED missing-observation sentinel.
 FRED_MISSING = "."
 
@@ -529,6 +536,19 @@ def _series_newest_first(s: pd.Series, slots: int):
     return pairs
 
 
+def _status_lines(status: dict):
+    """Two compact masthead lines for the dashboard status readout."""
+    ts = status.get("timestamp", "")
+    pulled = status.get("series_pulled", 0)
+    total = status.get("series_in_dict", 0)
+    stale = len(status.get("stale", []))
+    alerts = status.get("alert_count", 0)
+    line1 = f"Last run  {ts}"
+    line2 = (f"Pulled {pulled}/{total} · {stale} stale · "
+             f"{alerts} alert{'' if alerts == 1 else 's'}")
+    return line1, line2
+
+
 class OpenpyxlBackend(Backend):
     """Writes the closed workbook file in place (portable, fewer deps).
     Preserves the embedded VBA project via keep_vba=True."""
@@ -560,17 +580,12 @@ class OpenpyxlBackend(Backend):
             ws.cell(r, RAW_VALUE_COL, None if pd.isna(val) else float(val))
 
     def write_status(self, status: dict):
+        line1, line2 = _status_lines(status)
         for tab in ("Dashboard_Consumer", "Dashboard_Commercial", "Dashboard_Price"):
             if tab in self._wb.sheetnames:
                 ws = self._wb[tab]
-                ws["H1"] = "Last run:"
-                ws["I1"] = status.get("timestamp", "")
-                ws["H2"] = "Series pulled:"
-                ws["I2"] = status.get("series_pulled", 0)
-                ws["H3"] = "Alerts:"
-                ws["I3"] = status.get("alert_count", 0)
-                ws["H4"] = "Stale warnings:"
-                ws["I4"] = "; ".join(status.get("stale", [])) or "none"
+                ws.cell(1, STATUS_COL, line1)
+                ws.cell(2, STATUS_COL, line2)
 
     def finalize(self):
         self._wb.save(self.path)
@@ -618,19 +633,14 @@ class XlwingsBackend(Backend):
             sht.range((block.first_data_row, RAW_DATE_COL)).value = data
 
     def write_status(self, status: dict):
+        line1, line2 = _status_lines(status)
         for tab in ("Dashboard_Consumer", "Dashboard_Commercial", "Dashboard_Price"):
             try:
                 sht = self._book.sheets[tab]
             except Exception:
                 continue
-            sht.range("H1").value = "Last run:"
-            sht.range("I1").value = status.get("timestamp", "")
-            sht.range("H2").value = "Series pulled:"
-            sht.range("I2").value = status.get("series_pulled", 0)
-            sht.range("H3").value = "Alerts:"
-            sht.range("I3").value = status.get("alert_count", 0)
-            sht.range("H4").value = "Stale warnings:"
-            sht.range("I4").value = "; ".join(status.get("stale", [])) or "none"
+            sht.range((1, STATUS_COL)).value = line1
+            sht.range((2, STATUS_COL)).value = line2
 
     def finalize(self):
         self._book.save()

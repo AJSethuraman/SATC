@@ -71,6 +71,7 @@ Public Sub ExtractAndRun()
     ' On the openpyxl fallback path the file changed on disk while open; the
     ' xlwings path already wrote into this instance. Either way, recalc.
     Application.CalculateFull
+    PaintSparklines                      ' paint the Trend (8q) column now data has landed
     SetStatus "OK", "Last run " & Format(Now, "yyyy-mm-dd hh:nn") & ". " & FirstLine(out)
     Application.StatusBar = False
     Exit Sub
@@ -142,6 +143,51 @@ Private Sub SetStatus(state As String, msg As String)
     On Error Resume Next
     Set ws = ThisWorkbook.Worksheets(STATUS_SHEET)
     If ws Is Nothing Then Exit Sub
-    ws.Range("H6").Value = "Macro:"
-    ws.Range("I6").Value = state & " -- " & msg
+    ' Column L (12), row 4 — the masthead status panel (free of the merged
+    ' banner/KPI cells the runner fills on rows 1-2).
+    ws.Cells(4, 12).Value = state & " -- " & msg
+End Sub
+
+' Paint a KeyBank sparkline into the Trend (8q) column of each dashboard, one per
+' row, sourced from that series' own 8-quarter raw window (newest-first). Native
+' sparklines can't be written by openpyxl, so the button owns this column. Fully
+' guarded: a failure here never breaks a refresh (the data is already in place).
+Private Sub PaintSparklines()
+    On Error Resume Next
+    PaintLaneSparklines "Dashboard_Consumer", "Raw_Consumer"
+    PaintLaneSparklines "Dashboard_Commercial", "Raw_Commercial"
+    PaintLaneSparklines "Dashboard_Price", "Raw_Price"
+End Sub
+
+Private Sub PaintLaneSparklines(dashName As String, rawName As String)
+    On Error Resume Next
+    Const HDR As Long = 7          ' header band row; data begins at row 8
+    Const SID_COL As Long = 3      ' Series ID column (C)
+    Const SPK_COL As Long = 9      ' Trend (8q) column (I)
+    Dim dash As Worksheet, raw As Worksheet
+    Set dash = ThisWorkbook.Worksheets(dashName)
+    Set raw = ThisWorkbook.Worksheets(rawName)
+    If dash Is Nothing Or raw Is Nothing Then Exit Sub
+    Dim lastRow As Long, r As Long, sid As String, m As Variant, r0 As Long
+    Dim src As String, addr As String
+    lastRow = dash.Cells(dash.Rows.Count, SID_COL).End(xlUp).Row
+    For r = HDR + 1 To lastRow
+        sid = CStr(dash.Cells(r, SID_COL).Value)
+        If Len(sid) > 0 Then
+            m = Application.Match(sid, raw.Columns(1), 0)
+            If Not IsError(m) Then
+                r0 = CLng(m) + 2                          ' first_data_row = header + 2
+                src = "'" & rawName & "'!B" & r0 & ":B" & (r0 + 7)
+                addr = dash.Cells(r, SPK_COL).Address(False, False)
+                dash.Range(addr).SparklineGroups.Clear
+                dash.Range(addr).SparklineGroups.Add Type:=xlSparkLine, SourceData:=src
+                With dash.Range(addr).SparklineGroups.Item(1)
+                    .SeriesColor.Color = RGB(87, 83, 75)                  ' SLATE line
+                    .Points.Markers.Visible = False
+                    .Points.Highlight(xlSparkColumnFirst).Visible = True  ' newest is leftmost
+                    .Points.Highlight(xlSparkColumnFirst).Color.Color = RGB(204, 0, 0)  ' KEY_RED
+                End With
+            End If
+        End If
+    Next r
 End Sub

@@ -3,6 +3,44 @@
 Deliverable: `FRED_Credit_Risk_Dashboard.xlsm` — a single self-contained,
 macro-enabled workbook. This file records the build decisions the spec asks for.
 
+## KeyBank house style (applied)
+
+The workbook is skinned with the house **KeyBank** design system (Key Red + Ink
+black + warm neutrals), dropped in as `keybank_style.py` (tokens + composed
+helpers) and `keybank_charts.py` (native Excel line charts). `build_workbook.py`
+now pulls every fill/font/border from those modules — no hardcoded hex — so this
+template and any future one built from it look like one family. Per lane:
+
+- **Dashboards** — Ink brand banner + one Key Red rule, a 3-tile KPI strip
+  (Portfolio Stress Index / Series in Alert / Tightening Signals), a 12-quarter
+  native trend chart, brand-muted diverging heat on the z-score column, and a
+  per-row Trend (8q) sparkline column.
+- **Watchlist_Geo** — the Key Red geographic-boundary gate banner; diverging
+  heat on YoY (red = deterioration).
+- **System tabs** — quiet Onyx section bands, Consolas code, no heat.
+
+**Integration fix (not in the handoff):** the branded layout merges A:J for the
+banner and A:I for the KPI strip, so the runner's old run-status block (H1:I4)
+landed on merged cells and would have raised on refresh. The status readout was
+moved to column **L** (free of every merge) as two compact masthead lines
+("Last run …" / "Pulled n/total · s stale · a alerts"); the builder pre-styles
+the panel, the runner fills L1/L2, the macro fills L4. Both write backends and
+`macro.bas` were updated together.
+
+**Sparklines (one honest caveat):** openpyxl can't write native Excel
+sparklines, so the Trend column ships empty and the macro paints it after the
+Raw_* tabs fill. The handoff's one-line snippet would have pointed every row at
+the same range; because our raw layout is vertical-per-series, the macro instead
+looks each series up in its Raw_* tab and sources that series' own 8-quarter
+window (SLATE line, Key Red newest point). The routine is fully guarded
+(`On Error Resume Next`) so it can never break a refresh — but, like the rest of
+the VBA, it could not be exercised in Excel on this headless box.
+
+Verified after restyle: 42 tests green, olevba round-trips the larger macro,
+the `formulas` engine recalculates the KPI tiles (Stress Index, COUNTIF alert
+counts) and z-score heat, charts and merged banners are present, and the
+email-simulation still rebuilds from the `.xlsm` alone.
+
 ## Write-path choice: xlwings (primary) vs openpyxl (fallback)
 
 **Chosen: `xlwings` as the recommended/primary path; `openpyxl` as an isolated

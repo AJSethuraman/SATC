@@ -1,67 +1,63 @@
 #!/usr/bin/env python3
-"""Build the FRED Credit-Risk Dashboard workbook (BUILD SPEC phase 3 & 5).
+"""Build the FRED Credit-Risk Dashboard workbook — KeyBank-styled.
 
-Assembles every tab with openpyxl:
-  * _config        -- the series dictionary + threshold bands + key cell (knob panel)
-  * Raw_*          -- fixed-anchor, newest-first scaffolds (Python fills the values)
-  * Dashboard_*    -- formula-driven panels referencing Raw_* (no Python to re-render)
-  * Watchlist_Geo  -- ranked, validator-gated, geographic stress only
-  * _code_py/_vba  -- the runner + macro as plain text (one source line per cell)
-  * _readme        -- setup + run + boundary docs
+PATCHED to use the house design system. All visual style now comes from
+``keybank_style`` (tokens + helpers) and ``keybank_charts`` (native Excel line
+charts); the data path, formulas, fixed-anchor raw layout and watchlist gate are
+unchanged. To re-skin or extend, change a token in keybank_style.py — never a
+hardcoded hex here.
 
-It produces a base .xlsx; assemble_xlsm.py wraps it into the macro-enabled .xlsm
-with the embedded vbaProject.bin. Keeping the two steps separate keeps the
-xlwings/openpyxl write-path choice and the VBA embedding cleanly isolated.
+Drop these three files into fred-credit-risk-dashboard/ next to make_workbook.py:
+    build_workbook.py   (this file)
+    keybank_style.py
+    keybank_charts.py
+
+Produces a base .xlsx; assemble_xlsm.py wraps it into the macro-enabled .xlsm.
 """
 from __future__ import annotations
 
 import os
 
 from openpyxl import Workbook
-from openpyxl.formatting.rule import ColorScaleRule, FormulaRule
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.formatting.rule import ColorScaleRule
+from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook.defined_name import DefinedName
 
 import runner as R
 import series_seed as SEED
 
+# ---- the house design system (single source of style) --------------------
+import keybank_style as KB
+from keybank_style import (
+    INK, ONYX, KEY_RED, CRIMSON, CANVAS, MIST, SLATE,
+    HDR_FILL, SECT_FILL, MONO_FONT, NOTE_FONT,
+    brand_banner, kpi_tiles, header_row, section_band, watchlist_boundary,
+    zscore_heat, yoy_heat, alert_rule, tighten_rule, hide_gridlines, freeze_below,
+)
+from keybank_charts import trend_chart, raw_window_refs
+
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# A couple of local text styles built from tokens (kept here, not inlined ad-hoc).
+INK_BOLD = Font(name="Arial", bold=True, color=INK)
+THIN = Side(style="thin", color="E7E2D8")
+BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 
 
 def text_cell(ws, row, col, value):
     """Write a literal-text cell. openpyxl treats a string starting with '='
-    as a formula; force it back to a string so source and doc lines (incl.
-    '====' underlines and any leading-'=' code) round-trip faithfully."""
+    as a formula; force it back to a string so source and doc lines round-trip."""
     cell = ws.cell(row, col, value)
     if isinstance(value, str) and value.startswith("="):
         cell.data_type = "s"
     return cell
 
-# ---- palette -------------------------------------------------------------
-NAVY = "1F3864"
-STEEL = "2E5496"
-LIGHT = "D9E1F2"
-GREY = "808080"
-ALERT_RED = "C00000"
-ALERT_FILL = PatternFill("solid", fgColor="FFC7CE")
-TIGHTEN_FILL = PatternFill("solid", fgColor="FFEB9C")
-HDR_FILL = PatternFill("solid", fgColor=NAVY)
-SUBHDR_FILL = PatternFill("solid", fgColor=STEEL)
-BANNER_FILL = PatternFill("solid", fgColor=LIGHT)
-THIN = Side(style="thin", color="BFBFBF")
-BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
-WHITE_BOLD = Font(bold=True, color="FFFFFF")
-NAVY_BOLD = Font(bold=True, color=NAVY)
-ITALIC_GREY = Font(italic=True, color=GREY, size=9)
-
 
 # ==========================================================================
-# _config
+# _config  (unchanged content; restyled section bands)
 # ==========================================================================
 def config_rows():
-    """The full _config content as a list of rows (the single source the sheet
-    and the parser both consume)."""
     rows = [["FRED Credit-Risk Dashboard -- CONFIG (the knob panel). "
              "Edit values here; no code change needed."], []]
     rows.append(["[SETTINGS]"])
@@ -81,8 +77,7 @@ def config_rows():
     rows += [[], ["[SERIES]"], SEED.HEADER]
     for r in SEED.all_series():
         rows.append([r[h] for h in SEED.HEADER])
-    rows += [[], ["[CBSA_EXTENSIONS]"],
-             ["cbsa", "name", "series_id"]]
+    rows += [[], ["[CBSA_EXTENSIONS]"], ["cbsa", "name", "series_id"]]
     for r in SEED.cbsa_extension_rows():
         rows.append([r["cbsa"], r["name"], r["series_id"]])
     rows += [[], ["# To add a metro: add an FHFA series row to [SERIES] using "
@@ -93,6 +88,7 @@ def config_rows():
 
 def write_config(wb):
     ws = wb.create_sheet("_config")
+    hide_gridlines(ws)
     rows = config_rows()
     zrow = srow = None
     for i, row in enumerate(rows, start=1):
@@ -102,23 +98,22 @@ def write_config(wb):
             zrow = i
         if row and row[0] == "sloos_band":
             srow = i
-    ws["A1"].font = NAVY_BOLD
+    ws["A1"].font = INK_BOLD
     ws.column_dimensions["A"].width = 22
     ws.column_dimensions["B"].width = 60
     ws.column_dimensions["O"].width = 50
-    # Defined names so dashboard formulas reference the bands by name.
     wb.defined_names["zscore_band"] = DefinedName("zscore_band", attr_text=f"_config!$B${zrow}")
     wb.defined_names["sloos_band"] = DefinedName("sloos_band", attr_text=f"_config!$B${srow}")
-    # Highlight the section markers.
+    # Onyx section bands for the [SECTION] markers — quiet system-tab styling.
     for i, row in enumerate(rows, start=1):
         if row and isinstance(row[0], str) and row[0].startswith("["):
-            ws.cell(i, 1).font = WHITE_BOLD
-            ws.cell(i, 1).fill = SUBHDR_FILL
+            ws.cell(i, 1).font = KB.SECTION_FONT
+            ws.cell(i, 1).fill = SECT_FILL
     return ws
 
 
 # ==========================================================================
-# Raw_* scaffolds (fixed anchors; runner fills the values)
+# Raw_* scaffolds  (fixed anchors; runner fills the values)
 # ==========================================================================
 def write_raw_scaffold(wb, specs, blocks):
     by_tab = {}
@@ -126,29 +121,29 @@ def write_raw_scaffold(wb, specs, blocks):
         by_tab.setdefault(blocks[s.series_id].tab, []).append(s)
     for tab, tab_specs in by_tab.items():
         ws = wb.create_sheet(tab)
+        hide_gridlines(ws)
         ws["A1"] = (f"{tab} -- raw FRED observations, newest-first. Written by runner.py; "
                     f"dashboards read these by formula. Do not edit by hand.")
-        ws["A1"].font = ITALIC_GREY
+        ws["A1"].font = NOTE_FONT
         ws.column_dimensions["A"].width = 14
         ws.column_dimensions["B"].width = 14
         ws.column_dimensions["C"].width = 38
         for s in tab_specs:
             b = blocks[s.series_id]
-            ws.cell(b.header_row, 1, s.series_id).font = NAVY_BOLD
+            ws.cell(b.header_row, 1, s.series_id).font = INK_BOLD
             ws.cell(b.header_row, 2, s.title)
             ws.cell(b.header_row, 3, f"freq={s.frequency}; transform={s.transform}; "
                                      f"{'WATCHLIST' if s.watchlist_capable else 'dashboard'}")
-            ws.cell(b.header_row, 3).font = ITALIC_GREY
-            ws.cell(b.label_row, 1, "date").font = Font(bold=True, size=9)
-            ws.cell(b.label_row, 2, "value").font = Font(bold=True, size=9)
-        ws.sheet_view.showGridLines = False
+            ws.cell(b.header_row, 3).font = NOTE_FONT
+            ws.cell(b.label_row, 1, "date").font = Font(name="Calibri", bold=True, size=9)
+            ws.cell(b.label_row, 2, "value").font = Font(name="Calibri", bold=True, size=9)
     return by_tab
 
 
 # ==========================================================================
 # Dashboards
 # ==========================================================================
-def _ref(b: "R.RawBlock", offset=0):
+def _ref(b, offset=0):
     return f"{b.tab}!{get_column_letter(R.RAW_VALUE_COL)}{b.first_data_row + offset}"
 
 
@@ -162,49 +157,39 @@ def _tier(series_id):
     return "-"
 
 
+# Trend (8q) sits before Flag; the macro paints sparklines into it after data lands.
 DASH_COLS = ["Tier", "Category", "Series ID", "Title", "Latest", "Prior",
-             "YoY %", "Z-score (8)", "Flag"]
+             "YoY %", "Z-score (8)", "Trend (8q)", "Flag"]
 COL = {name: get_column_letter(i + 1) for i, name in enumerate(DASH_COLS)}
+NCOLS = len(DASH_COLS)
 
 
 def write_dashboard(wb, tab, specs, blocks, title, subtitle, lane):
     ws = wb.create_sheet(tab)
-    ws.sheet_view.showGridLines = False
-    ws["A1"] = title
-    ws["A1"].font = Font(bold=True, size=16, color=NAVY)
-    ws["A2"] = subtitle
-    ws["A2"].font = ITALIC_GREY
-    # status block (filled by the runner / macro)
-    for r, lab in ((1, "Last run:"), (2, "Series pulled:"), (3, "Alerts:"),
-                   (4, "Stale warnings:"), (6, "Macro:")):
-        ws.cell(r, 8, lab).font = NAVY_BOLD
-    hdr = 8
-    for c, name in enumerate(DASH_COLS, start=1):
-        cell = ws.cell(hdr, c, name)
-        cell.font = WHITE_BOLD
-        cell.fill = HDR_FILL
-        cell.alignment = Alignment(horizontal="center")
-        cell.border = BORDER
+    hide_gridlines(ws)
+
     rows = sorted([s for s in specs if s.dashboard_capable and not s.is_dead
                    and s.lane == lane],
                   key=lambda s: (s.category, s.series_id))
-    r = hdr + 1
+
+    hdr = 7                       # banner(1-2) + KPI tiles(3-5) + status(6) sit above
+    first = hdr + 1
+    r = first
     for s in rows:
         b = blocks[s.series_id]
         ppy = R.periods_per_year(s.frequency)
-        latest = _ref(b, 0)
-        prior = _ref(b, 1)
-        yago = _ref(b, ppy)
+        latest, prior, yago = _ref(b, 0), _ref(b, 1), _ref(b, ppy)
         win = f"{b.tab}!{get_column_letter(R.RAW_VALUE_COL)}{b.first_data_row}:" \
               f"{get_column_letter(R.RAW_VALUE_COL)}{b.first_data_row + 7}"
-        ws.cell(r, 1, _tier(s.series_id))
-        ws.cell(r, 2, s.category)
-        ws.cell(r, 3, s.series_id)
-        ws.cell(r, 4, s.title)
+        ws.cell(r, 1, _tier(s.series_id)).font = KB.SECONDARY
+        ws.cell(r, 2, s.category).font = KB.DATA_FONT
+        ws.cell(r, 3, s.series_id).font = MONO_FONT
+        ws.cell(r, 4, s.title).font = KB.DATA_FONT
         ws.cell(r, 5, f"=IFERROR({latest},\"\")")
         ws.cell(r, 6, f"=IFERROR({prior},\"\")")
         ws.cell(r, 7, f"=IFERROR(({latest}-{yago})/{yago}*100,\"\")")
         ws.cell(r, 8, f"=IFERROR(({latest}-AVERAGE({win}))/STDEV({win}),\"\")")
+        # col 9 (Trend) intentionally left blank — sparklines painted by the macro.
         zc, lc = f"${COL['Z-score (8)']}{r}", f"${COL['Latest']}{r}"
         if s.alert_rule == "zscore":
             flag = f"=IF(AND(ISNUMBER({zc}),{zc}>=zscore_band),\"⚠ ALERT\",\"\")"
@@ -212,52 +197,93 @@ def write_dashboard(wb, tab, specs, blocks, title, subtitle, lane):
             flag = f"=IF(AND(ISNUMBER({lc}),{lc}>=sloos_band),\"⚠ TIGHTENING\",\"\")"
         else:
             flag = ""
-        ws.cell(r, 9, flag)
-        for c in range(1, len(DASH_COLS) + 1):
-            ws.cell(r, c).border = BORDER
-        ws.cell(r, 7).number_format = "0.0"
-        ws.cell(r, 8).number_format = "0.00"
-        ws.cell(r, 5).number_format = "0.00"
-        ws.cell(r, 6).number_format = "0.00"
+        ws.cell(r, 10, flag)
+        for c in (5, 6):
+            ws.cell(r, c).number_format = KB.FMT_RATE
+        ws.cell(r, 7).number_format = KB.FMT_YOY
+        ws.cell(r, 8).number_format = KB.FMT_Z
+        for c in (5, 6, 7, 8):
+            ws.cell(r, c).alignment = KB.RIGHT
+        for c in range(1, NCOLS + 1):
+            ws.cell(r, c).border = KB.HAIRLINE
+        ws.cell(r, 10).alignment = KB.LEFT if flag else KB.CENTER
         r += 1
     last = r - 1
+
+    # --- header band + freeze ---
+    header_row(ws, hdr, DASH_COLS, right_from=4, center_cols=(8, 9))
+    freeze_below(ws, hdr)
     _dash_widths(ws)
-    ws.freeze_panes = ws.cell(hdr + 1, 1)
-    # heat: z-score color scale + flag highlight
-    if last >= hdr + 1:
-        zc = COL["Z-score (8)"]
-        fc = COL["Flag"]
-        ws.conditional_formatting.add(
-            f"{zc}{hdr+1}:{zc}{last}",
-            ColorScaleRule(start_type="num", start_value=-2, start_color="63BE7B",
-                           mid_type="num", mid_value=0, mid_color="FFEB84",
-                           end_type="num", end_value=2, end_color="F8696B"))
-        ws.conditional_formatting.add(
-            f"{fc}{hdr+1}:{fc}{last}",
-            FormulaRule(formula=[f'ISNUMBER(SEARCH("ALERT",{fc}{hdr+1}))'],
-                        fill=ALERT_FILL, font=Font(bold=True, color=ALERT_RED)))
-        ws.conditional_formatting.add(
-            f"{fc}{hdr+1}:{fc}{last}",
-            FormulaRule(formula=[f'ISNUMBER(SEARCH("TIGHTENING",{fc}{hdr+1}))'],
-                        fill=TIGHTEN_FILL, font=Font(bold=True)))
+
+    # --- banner + KPI tiles (written after we know `last`) ---
+    brand_banner(ws, 1, NCOLS, title, subtitle)
+    zc, fc = COL["Z-score (8)"], COL["Flag"]
+    if last >= first:
+        tiles = [
+            ("PORTFOLIO STRESS INDEX",
+             f"=IFERROR(TEXT(AVERAGE({zc}{first}:{zc}{last}),\"0.00\"),\"—\")",
+             "8-qtr composite z-score"),
+            ("SERIES IN ALERT",
+             f"=COUNTIF({fc}{first}:{fc}{last},\"*ALERT*\")",
+             f"of {len(rows)} {lane}"),
+            ("TIGHTENING SIGNALS",
+             f"=COUNTIF({fc}{first}:{fc}{last},\"*TIGHTENING*\")",
+             "SLOOS net tightening"),
+        ]
+        kpi_tiles(ws, 3, tiles, span=3, accents=[KEY_RED, KEY_RED, INK])
+    ws.row_dimensions[6].height = 8     # thin spacer before the header band
+
+    # Run-status readout, right of the merged masthead. The runner fills L1/L2
+    # and the macro fills L4 — all in column L, free of the banner/KPI merges.
+    scol = get_column_letter(R.STATUS_COL)
+    ws.column_dimensions[scol].width = 34
+    for rr in (1, 2):
+        ws.cell(rr, R.STATUS_COL).font = KB.SECONDARY
+        ws.cell(rr, R.STATUS_COL).alignment = KB.LEFT
+    ws.cell(3, R.STATUS_COL, "Member FDIC").font = NOTE_FONT
+    ws.cell(3, R.STATUS_COL).alignment = KB.LEFT
+    ws.cell(4, R.STATUS_COL).font = NOTE_FONT      # macro writes its status here
+    ws.cell(4, R.STATUS_COL).alignment = KB.LEFT
+
+    # --- heat + flag rules ---
+    if last >= first:
+        zscore_heat(ws, f"{zc}{first}:{zc}{last}")
+        alert_rule(ws, f"{fc}{first}:{fc}{last}")
+        tighten_rule(ws, f"{fc}{first}:{fc}{last}")
+
+    # --- trend chart object under the table (this lane's headline series) ---
+    chart_specs = rows[:2]
+    if chart_specs and last >= first:
+        b0 = blocks[chart_specs[0].series_id]
+        dates, _ = raw_window_refs(wb[b0.tab], b0, n=12)
+        palette = [KEY_RED, INK]
+        series_defs = []
+        for i, s in enumerate(chart_specs):
+            b = blocks[s.series_id]
+            _, vals = raw_window_refs(wb[b.tab], b, n=12)
+            series_defs.append((vals, s.title[:30], palette[i % 2]))
+        y_title = "index" if lane == "price" else "%"
+        trend_chart(ws, f"A{last + 2}", f"{title} — trailing 12 quarters",
+                    dates, series_defs, y_title=y_title)
     return ws
 
 
 def _dash_widths(ws):
-    widths = {"A": 12, "B": 16, "C": 16, "D": 52, "E": 10, "F": 10, "G": 9,
-              "H": 12, "I": 14}
+    widths = {"A": 12, "B": 16, "C": 16, "D": 50, "E": 10, "F": 10, "G": 9,
+              "H": 12, "I": 18, "J": 14}
     for k, v in widths.items():
         ws.column_dimensions[k].width = v
 
 
 # ==========================================================================
-# Watchlist_Geo -- ranked, validator-gated, geographic only
+# Watchlist_Geo  (ranked, validator-gated, geographic only)
 # ==========================================================================
 BOUNDARY = ("Geographic stress watchlist -- apply against portfolio collateral "
             "location manually. National credit-quality series are excluded by "
             "design; they cannot localize a portfolio subset.")
 
-WL_COLS = ["Geography", "Series ID", "Source", "Latest", "YoY %", "Rank", "Trend (recent->older)"]
+WL_COLS = ["Geography", "Series ID", "Source", "Latest", "YoY %", "Rank",
+           "Trend (recent->older)"]
 
 
 def _geo_label(spec):
@@ -273,27 +299,18 @@ def _source(category):
 
 
 def write_watchlist(wb, specs, blocks):
-    # The hard gate, enforced again at build time.
     R.validate_watchlist(specs)
     wl = sorted(R.watchlist_series(specs), key=lambda s: (s.category, _geo_label(s)))
 
     ws = wb.create_sheet("Watchlist_Geo")
-    ws.sheet_view.showGridLines = False
-    ws["A1"] = "Watchlist_Geo -- Geographic Stress Watchlist"
-    ws["A1"].font = Font(bold=True, size=16, color=NAVY)
-    ws.merge_cells("A2:G2")
-    ws["A2"] = BOUNDARY
-    ws["A2"].font = Font(bold=True, color=ALERT_RED)
-    ws["A2"].alignment = Alignment(wrap_text=True, vertical="top")
-    ws.row_dimensions[2].height = 42
+    hide_gridlines(ws)
+    brand_banner(ws, 1, len(WL_COLS),
+                 "Watchlist_Geo — Geographic Stress Watchlist",
+                 "States & metros ranked by house-price deterioration (FHFA / Case-Shiller).")
+    watchlist_boundary(ws, 3, len(WL_COLS), BOUNDARY)   # the red gate banner
 
     hdr = 4
-    for c, name in enumerate(WL_COLS, start=1):
-        cell = ws.cell(hdr, c, name)
-        cell.font = WHITE_BOLD
-        cell.fill = HDR_FILL
-        cell.alignment = Alignment(horizontal="center")
-        cell.border = BORDER
+    header_row(ws, hdr, WL_COLS, right_from=3, center_cols=(6,))
     first = hdr + 1
     last = hdr + len(wl)
     yoy_col = get_column_letter(5)
@@ -302,12 +319,11 @@ def write_watchlist(wb, specs, blocks):
     for s in wl:
         b = blocks[s.series_id]
         ppy = R.periods_per_year(s.frequency)
-        latest = _ref(b, 0)
-        yago = _ref(b, ppy)
+        latest, yago = _ref(b, 0), _ref(b, ppy)
         v0, v1, v2, v3 = _ref(b, 0), _ref(b, 1), _ref(b, 2), _ref(b, 3)
-        ws.cell(r, 1, _geo_label(s))
-        ws.cell(r, 2, s.series_id)
-        ws.cell(r, 3, _source(s.category))
+        ws.cell(r, 1, _geo_label(s)).font = KB.DATA_FONT
+        ws.cell(r, 2, s.series_id).font = MONO_FONT
+        ws.cell(r, 3, _source(s.category)).font = KB.SECONDARY
         ws.cell(r, 4, f"=IFERROR({latest},\"\")")
         ws.cell(r, 5, f"=IFERROR(({latest}-{yago})/{yago}*100,\"\")")
         ws.cell(r, 6, f"=IFERROR(RANK({yoy_col}{r},{yoy_range},1),\"\")")
@@ -315,44 +331,42 @@ def write_watchlist(wb, specs, blocks):
                  f"&IF({v1}>{v2},\"▲\",IF({v1}<{v2},\"▼\",\"→\"))"
                  f"&IF({v2}>{v3},\"▲\",IF({v2}<{v3},\"▼\",\"→\")),\"\")")
         ws.cell(r, 7, arrow)
-        ws.cell(r, 5).number_format = "0.0"
-        ws.cell(r, 4).number_format = "0.0"
+        ws.cell(r, 4).number_format = KB.FMT_YOY
+        ws.cell(r, 5).number_format = KB.FMT_YOY
+        for c in (4, 5, 6):
+            ws.cell(r, c).alignment = KB.RIGHT
+        ws.cell(r, 7).alignment = KB.CENTER
         for c in range(1, len(WL_COLS) + 1):
-            ws.cell(r, c).border = BORDER
+            ws.cell(r, c).border = KB.HAIRLINE
         r += 1
     widths = {"A": 40, "B": 16, "C": 18, "D": 10, "E": 9, "F": 8, "G": 16}
     for k, v in widths.items():
         ws.column_dimensions[k].width = v
-    ws.freeze_panes = ws.cell(first, 1)
+    freeze_below(ws, hdr)
     if last >= first:
-        # red = most negative YoY (deterioration), green = appreciation
-        ws.conditional_formatting.add(
-            f"{yoy_col}{first}:{yoy_col}{last}",
-            ColorScaleRule(start_type="num", start_value=-10, start_color="F8696B",
-                           mid_type="num", mid_value=0, mid_color="FFFFFF",
-                           end_type="num", end_value=10, end_color="63BE7B"))
+        yoy_heat(ws, f"{yoy_col}{first}:{yoy_col}{last}")     # red = deterioration
         rank_col = get_column_letter(6)
         ws.conditional_formatting.add(
             f"{rank_col}{first}:{rank_col}{last}",
-            ColorScaleRule(start_type="min", start_color="F8696B",
-                           end_type="max", end_color="63BE7B"))
+            ColorScaleRule(start_type="min", start_color=KB.HEAT_BAD,
+                           end_type="max", end_color=KB.HEAT_GOOD))
     return ws
 
 
 # ==========================================================================
-# Code-in-tab + readme
+# Code-in-tab + readme  (quiet system tabs)
 # ==========================================================================
 def write_code_tab(wb, tab, source_path, language):
     ws = wb.create_sheet(tab)
-    ws.sheet_view.showGridLines = False
+    hide_gridlines(ws)
     ws.column_dimensions["A"].width = 120
     with open(source_path, "r", encoding="utf-8") as fh:
         lines = fh.read().split("\n")
     if lines and lines[-1] == "":
-        lines = lines[:-1]                      # drop trailing newline artifact
+        lines = lines[:-1]
     for i, line in enumerate(lines, start=1):
         text_cell(ws, i, 1, line)
-        ws.cell(i, 1).font = Font(name="Consolas", size=9)
+        ws.cell(i, 1).font = MONO_FONT
     return len(lines)
 
 
@@ -377,62 +391,33 @@ ONE-TIME SETUP
   4. Enable macros when prompted (the button needs them).
 
 RUN IT
-  Click "Extract & Run" on Dashboard_Consumer. The macro:
-    - writes the runner from the _code_py tab to runner.py next to this file,
-    - shells Python to pull FRED per _config and fill the Raw_* tabs,
-    - the dashboards recalc from formulas; status shows in the top-right cells.
-  No key yet? Set _config [SETTINGS] demo_mode = TRUE to populate the workbook
-  with offline synthetic data and see the machinery work end-to-end.
+  Click "Extract & Run" on Dashboard_Consumer. The macro writes runner.py from
+  the _code_py tab, shells Python to pull FRED per _config, fills the Raw_* tabs,
+  paints the trend sparklines, and the dashboards recalc from formulas; status
+  shows in the top-right cells. No key yet? Set _config demo_mode = TRUE.
 
-WHY xlwings (the write path)
-  xlwings lets Python write into the already-open workbook, so the button is a
-  true one-click on the work machine. openpyxl is kept as an isolated fallback
-  (writes the closed file) for headless/no-Excel use. Either is selected by
-  _config [SETTINGS] write_backend = auto|xlwings|openpyxl.
+THE LOOK (house style: KeyBank)
+  Every tab is styled from keybank_style.py (tokens + helpers) and charts from
+  keybank_charts.py -- so this workbook and any future one built from the
+  template look like one family. Black grounds, red leads sparingly, neutrals
+  breathe. Dashboards: black banner + red rule, KPI tiles, a 12-quarter trend
+  chart, brand-muted heat on the z-score column, an 8-quarter sparkline per row.
+  Watchlist: the red geographic-boundary gate. System tabs: quiet Onyx bands.
 
 THE TABS
   Dashboard_Consumer / _Commercial / _Price  -- formula-driven panels: latest,
-      trailing trend, YoY, an 8-period z-score, and a Flag column. Heat shading
-      marks stress. Bank-tier rows (All / Top 100 / Not top 100) sit together.
-  Watchlist_Geo  -- the commercial sample-targeting output: states & metros
-      ranked by house-price deterioration (YoY). Join these geographies to your
-      book's collateral locations manually.
-  Raw_Consumer / _Commercial / _Price  -- raw observations, newest-first, one
-      block per series. Python writes here; the dashboards read these by formula
-      so you can re-render without re-pulling.
-  _config  -- THE KNOB PANEL. The series dictionary, the threshold bands, the
-      API-key fallback cell, and the metro-extension list. Edit here to add or
-      remove series or change thresholds -- no code change needed.
-  _code_py / _code_vba  -- the complete runner and macro as plain text (one
-      source line per cell). The button rebuilds runner.py from _code_py, so the
-      workbook -- not the repo -- is the source of truth.
+      prior, YoY, an 8-period z-score, a trend sparkline, and a Flag column. A
+      trend chart sits under each. Heat shading marks stress.
+  Watchlist_Geo  -- states & metros ranked by house-price deterioration (YoY).
+  Raw_Consumer / _Commercial / _Price  -- raw observations, newest-first.
+  _config  -- THE KNOB PANEL: series dictionary, threshold bands, key fallback.
+  _code_py / _code_vba  -- the runner and macro as plain text.
 
-THE WATCHLIST BOUNDARY (why some series can't reach the watchlist)
-  Only house-price indices that carry a geographic key a loan portfolio can join
-  on (FHFA state/metro, Case-Shiller metros) may feed Watchlist_Geo. Charge-off,
-  delinquency, G.19, debt-service, SLOOS and CRE-price series are NATIONAL
-  aggregates -- they describe the whole country and cannot point at a subset of
-  your loans. The runner refuses (with an error naming the series) if _config
-  ever marks a non-geographic series watchlist_capable. Presenting a national
-  trend as if it could localize a portfolio is the failure this gate prevents.
-
-ADD / REMOVE SERIES
-  Edit the [SERIES] table in _config. Each row is pulled per its series_id and
-  routed by its lane (consumer|commercial|price). To make a series eligible for
-  the watchlist it must be a geographically-keyed house-price index: lane=price,
-  category=hpi_state|hpi_metro|hpi_caseshiller, a real geo_segment, and
-  watchlist_capable=TRUE. Anything else marked watchlist_capable is rejected.
-
-KNOWN DATA TRAPS (handled, but know they exist)
-  - FRED returns "." for missing -- coerced to blank/NaN, never 0.
-  - Quarterly series are not force-aligned to a monthly grid.
-  - Methodology breaks: debt-service ratios moved to a credit-bureau method in
-    2024:Q2; G.19 dropped the nonfinancial-business sector in the May 2025
-    release; FODSP was discontinued after 2023:Q3 (kept as documented-dead, not
-    pulled live). These are noted in _config so alerts don't misread a step.
-  - Several bank-tier delinquency series lag; the stale-check logs them.
-  - Case-Shiller data is copyrighted: internal monitoring only, not for
-    redistribution.
+THE WATCHLIST BOUNDARY
+  Only house-price indices with a geographic key a loan portfolio can join on
+  (FHFA state/metro, Case-Shiller metros) may feed Watchlist_Geo. National
+  credit-quality series are refused by the runner -- they cannot localize a
+  portfolio subset.
 
 NO AI IS INVOLVED IN THE DATA PATH. Thresholds, transforms and rankings are
 deterministic and config-driven: the same FRED data always yields the same
@@ -442,13 +427,13 @@ workbook.
 
 def write_readme(wb):
     ws = wb.create_sheet("_readme")
-    ws.sheet_view.showGridLines = False
+    hide_gridlines(ws)
     ws.column_dimensions["A"].width = 100
     for i, line in enumerate(README.split("\n"), start=1):
         text_cell(ws, i, 1, line)
         if line and not line.startswith(" ") and line == line.upper() and len(line) > 3 \
                 and not line.startswith("="):
-            ws.cell(i, 1).font = NAVY_BOLD
+            ws.cell(i, 1).font = INK_BOLD
     return ws
 
 
@@ -459,19 +444,17 @@ def build(out_path):
     rows = config_rows()
     cfg = R.parse_config(rows)
     specs = cfg.series
-    # Hard gates at build time (BUILD SPEC sec 0.1, sec 3).
     R.validate_watchlist(specs)
     R.validate_transforms(specs)
     blocks = R.raw_layout(specs, slots=cfg.raw_slots)
 
     wb = Workbook()
-    wb.remove(wb.active)                          # drop default sheet
+    wb.remove(wb.active)
 
-    # presentation tabs first (nice tab order), then raw, then system
-    write_raw_scaffold(wb, specs, blocks)         # creates Raw_* (needed by formulas)
+    write_raw_scaffold(wb, specs, blocks)         # raw tabs first (charts/formulas read them)
     write_dashboard(wb, "Dashboard_Consumer", specs, blocks,
                     "Consumer Credit-Risk Dashboard",
-                    "Charge-offs, delinquencies, G.19, debt-service, SLOOS -- national (bank-tier where available).",
+                    "Charge-offs, delinquencies, G.19, debt-service, SLOOS -- national, bank-tier where available.",
                     lane="consumer")
     write_dashboard(wb, "Dashboard_Commercial", specs, blocks,
                     "Commercial Credit-Risk Dashboard",
@@ -487,7 +470,6 @@ def build(out_path):
     write_code_tab(wb, "_code_vba", os.path.join(HERE, "macro.bas"), "vba")
     write_readme(wb)
 
-    # tab order
     order = ["Dashboard_Consumer", "Dashboard_Commercial", "Dashboard_Price",
              "Watchlist_Geo", "Raw_Consumer", "Raw_Commercial", "Raw_Price",
              "_config", "_code_py", "_code_vba", "_readme"]

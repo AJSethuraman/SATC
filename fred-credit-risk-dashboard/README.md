@@ -13,8 +13,8 @@ time; this repo regenerates it).
 ## Build the workbook
 
 ```bash
-pip install fredapi openpyxl pandas        # build deps
-python3 make_workbook.py                    # -> FRED_Credit_Risk_Dashboard.xlsm
+pip install fredapi openpyxl pandas        # build deps (style modules need only openpyxl)
+python3 make_workbook.py                    # -> FRED_Credit_Risk_Dashboard.xlsm (KeyBank-styled)
 ```
 
 ## Run / verify
@@ -42,8 +42,10 @@ Full end-user instructions are in the workbook's `_readme` tab.
 |------|------|
 | `runner.py` | **The data path** (embedded into `_code_py`): FRED provider adapter, transform registry, watchlist validator, fixed-anchor raw layout, xlwings/openpyxl backends. The one place FRED specifics live. |
 | `series_seed.py` | Canonical seed of the `_config` series dictionary (147 series; state/metro/Case-Shiller expansion). Build-time only. |
-| `macro.bas` | The VBA "Extract & Run" macro (embedded into `_code_vba` and into `vbaProject.bin`). |
-| `build_workbook.py` | Assembles the base `.xlsx`: `_config`, raw scaffolds, formula-driven dashboards + watchlist, code/readme tabs, conditional-formatting heat. |
+| `keybank_style.py` | KeyBank house design system — colour tokens, font objects, composed helpers (banner, KPI tiles, header bands, heat, watchlist gate). Single source of style; never hardcode a fill/font in the builder. |
+| `keybank_charts.py` | Native Excel `LineChart` builders (`trend_chart`, `comparison_chart`, `raw_window_refs`) + the sparkline VBA-snippet helper. |
+| `macro.bas` | The VBA "Extract & Run" macro (embedded into `_code_vba` and into `vbaProject.bin`); also paints the per-row Trend sparklines after data lands. |
+| `build_workbook.py` | Assembles the base `.xlsx`: `_config`, raw scaffolds, formula-driven dashboards + watchlist, code/readme tabs — all styled through `keybank_style`/`keybank_charts`. |
 | `vba_writer.py` | Builds a real `vbaProject.bin` (MS-OVBA + MS-CFB) from `macro.bas`. |
 | `assemble_xlsm.py` | Wraps the base `.xlsx` into the macro-enabled `.xlsm`. |
 | `make_workbook.py` | One-shot: build + assemble. |
