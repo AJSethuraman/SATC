@@ -73,6 +73,8 @@ def config_rows():
         ["demo_mode", "FALSE", "TRUE = offline synthetic data (no key/network), for trying the button."],
         ["raw_slots", "100", "observations kept per series (newest-first)."],
         ["stale_multiplier", "2.0", "flag a series stale if older than this x its cadence."],
+        ["fred_min_interval", "0.6", "seconds between FRED requests (FRED allows ~120/min; keep >=0.5)."],
+        ["fred_max_retries", "4", "retries with backoff if FRED returns a rate-limit error."],
     ]
     rows += [[], ["[THRESHOLDS]"], ["key", "value", "help"]]
     rows.append(["zscore_band", 1.0, "flag a loss/delinquency series when its 8-period z-score >= this."])

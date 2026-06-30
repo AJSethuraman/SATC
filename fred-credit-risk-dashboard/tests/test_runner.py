@@ -267,5 +267,35 @@ def test_fredprovider_coerces_dot_to_nan(monkeypatch):
     assert p.last_observation_date("CORCCACBS").isoformat() == "2020-09-30"
 
 
+def test_is_rate_limit_detection():
+    assert R._is_rate_limit(Exception("429 Too Many Requests"))
+    assert R._is_rate_limit(Exception("Exceeded Rate Limit"))
+    assert not R._is_rate_limit(Exception("404 series not found"))
+
+
+def test_fredprovider_retries_on_rate_limit(monkeypatch):
+    import types
+    calls = {"n": 0}
+
+    class FakeFred:
+        def __init__(self, api_key=None):
+            pass
+
+        def get_series(self, sid):
+            calls["n"] += 1
+            if calls["n"] == 1:                       # first call rate-limited
+                raise ValueError("429 Too Many Requests. Exceeded Rate Limit.")
+            return pd.Series([1.0], index=pd.to_datetime(["2020-03-31"]))
+
+    fake = types.ModuleType("fredapi")
+    fake.Fred = FakeFred
+    monkeypatch.setitem(sys.modules, "fredapi", fake)
+    monkeypatch.setattr(R.time, "sleep", lambda *_: None)   # don't actually wait
+    p = R.FredProvider("k", min_interval=0, max_retries=2)
+    s = p.fetch("X")
+    assert calls["n"] == 2                            # retried once, then succeeded
+    assert s.iloc[0] == 1.0
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

@@ -27,6 +27,7 @@ import json
 import math
 import os
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Callable, Dict, List, Optional, Sequence
@@ -139,6 +140,15 @@ class Config:
     @property
     def stale_multiplier(self) -> float:
         return float(self.settings.get("stale_multiplier", 2.0))
+
+    @property
+    def fred_min_interval(self) -> float:
+        # seconds between FRED requests; FRED allows 120/min, so >=0.5 is safe.
+        return float(self.settings.get("fred_min_interval", 0.6))
+
+    @property
+    def fred_max_retries(self) -> int:
+        return int(float(self.settings.get("fred_max_retries", 4)))
 
 
 def _as_bool(v) -> bool:
@@ -393,23 +403,53 @@ class Provider:
         raise NotImplementedError
 
 
-class FredProvider(Provider):
-    """FRED adapter via the `fredapi` library (BUILD SPEC sec 1)."""
+def _is_rate_limit(exc: Exception) -> bool:
+    s = str(exc).lower()
+    return ("429" in s or "too many requests" in s or "rate limit" in s
+            or "exceeded" in s)
 
-    def __init__(self, api_key: str):
+
+class FredProvider(Provider):
+    """FRED adapter via the `fredapi` library (BUILD SPEC sec 1).
+
+    FRED allows ~120 requests/minute. This adapter paces requests (min_interval)
+    and backs off / retries on a rate-limit error, so a full ~150-series pull
+    stays under the cap instead of bursting past it.
+    """
+
+    def __init__(self, api_key: str, min_interval: float = 0.6, max_retries: int = 4):
         from fredapi import Fred          # imported lazily so the module loads w/o it
         self._fred = Fred(api_key=api_key)
+        self._min_interval = max(0.0, float(min_interval))
+        self._max_retries = max(0, int(max_retries))
+        self._last_call = 0.0
+
+    def _throttle(self):
+        gap = time.time() - self._last_call
+        if gap < self._min_interval:
+            time.sleep(self._min_interval - gap)
+        self._last_call = time.time()
 
     def fetch(self, series_id: str) -> pd.Series:
-        return coerce_series(self._fred.get_series(series_id))
+        for attempt in range(self._max_retries + 1):
+            self._throttle()
+            try:
+                return coerce_series(self._fred.get_series(series_id))
+            except Exception as exc:
+                if _is_rate_limit(exc) and attempt < self._max_retries:
+                    backoff = 10.0 * (attempt + 1)        # 10s, 20s, 30s, 40s
+                    sys.stderr.write(
+                        f"[rate-limit] {series_id}: backing off {backoff:.0f}s "
+                        f"(attempt {attempt + 1}/{self._max_retries})\n")
+                    time.sleep(backoff)
+                    continue
+                raise
 
     def last_observation_date(self, series_id: str) -> Optional[date]:
-        try:
-            info = self._fred.get_series_info(series_id)
-            return pd.to_datetime(info["observation_end"]).date()
-        except Exception:
-            s = self.fetch(series_id).dropna()
-            return None if s.empty else s.index.max().date()
+        # Derived from the series itself -- no extra API call (run() avoids this
+        # entirely by reusing the series it already fetched).
+        s = self.fetch(series_id).dropna()
+        return None if s.empty else s.index.max().date()
 
 
 class DemoProvider(Provider):
@@ -692,13 +732,20 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
                 "variable or paste your key into the _config tab "
                 "(SETTINGS -> fred_api_key). Get a free key at "
                 "https://fredaccount.stlouisfed.org/apikeys")
-        provider = FredProvider(key)
+        provider = FredProvider(key, min_interval=cfg.fred_min_interval,
+                                max_retries=cfg.fred_max_retries)
         mode = "live"
 
     blocks = raw_layout(cfg.series, slots=cfg.raw_slots)
     pulled, stale, alerts, errors = 0, [], [], []
     pullable = [s for s in cfg.series if not s.is_dead]
-    for spec in pullable:
+    if mode == "live":
+        est = len(pullable) * cfg.fred_min_interval
+        sys.stderr.write(
+            f"Pulling {len(pullable)} series from FRED, paced at "
+            f"{cfg.fred_min_interval:.2f}s each (~{est/60:.1f} min). One request "
+            f"per series; please let it finish.\n")
+    for i, spec in enumerate(pullable, 1):
         try:
             s = provider.fetch(spec.series_id)
         except Exception as exc:
@@ -707,7 +754,11 @@ def run(workbook_path: str, backend_name: str = "auto", demo: bool = False,
         block = blocks[spec.series_id]
         backend.write_raw_block(block, spec, s)
         pulled += 1
-        last = provider.last_observation_date(spec.series_id)
+        if mode == "live" and i % 25 == 0:
+            sys.stderr.write(f"  ... {i}/{len(pullable)} pulled\n")
+        # Stale check from the data we already have -- no second API call.
+        sd = s.dropna()
+        last = sd.index.max().date() if not sd.empty else None
         if is_stale(last, spec.frequency, asof, cfg.stale_multiplier):
             stale.append(spec.series_id)
         if spec.alert_rule in ("zscore", "sloos_level"):
