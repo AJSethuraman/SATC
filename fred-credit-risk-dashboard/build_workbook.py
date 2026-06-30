@@ -35,7 +35,10 @@ from keybank_style import (
     brand_banner, kpi_tiles, header_row, section_band, watchlist_boundary,
     zscore_heat, yoy_heat, alert_rule, tighten_rule, hide_gridlines, freeze_below,
 )
-from keybank_charts import trend_chart, raw_window_refs
+# NOTE: native openpyxl LineCharts were removed -- they are the most common
+# trigger for Excel's "unreadable content / recovered" repair and are rebuilt on
+# every openpyxl refresh. The dashboards stay fully intact without them. Charts
+# can be re-added later in Excel (or via VBA, like the sparklines).
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -251,20 +254,6 @@ def write_dashboard(wb, tab, specs, blocks, title, subtitle, lane):
         alert_rule(ws, f"{fc}{first}:{fc}{last}")
         tighten_rule(ws, f"{fc}{first}:{fc}{last}")
 
-    # --- trend chart object under the table (this lane's headline series) ---
-    chart_specs = rows[:2]
-    if chart_specs and last >= first:
-        b0 = blocks[chart_specs[0].series_id]
-        dates, _ = raw_window_refs(wb[b0.tab], b0, n=12)
-        palette = [KEY_RED, INK]
-        series_defs = []
-        for i, s in enumerate(chart_specs):
-            b = blocks[s.series_id]
-            _, vals = raw_window_refs(wb[b.tab], b, n=12)
-            series_defs.append((vals, s.title[:30], palette[i % 2]))
-        y_title = "index" if lane == "price" else "%"
-        trend_chart(ws, f"A{last + 2}", f"{title} — trailing 12 quarters",
-                    dates, series_defs, y_title=y_title)
     return ws
 
 
@@ -411,17 +400,17 @@ RUN IT  (the workbook is already the finished product; you only add data)
   are the one thing the data step can't write).
 
 THE LOOK (house style: KeyBank)
-  Every tab is styled from keybank_style.py (tokens + helpers) and charts from
-  keybank_charts.py -- so this workbook and any future one built from the
-  template look like one family. Black grounds, red leads sparingly, neutrals
-  breathe. Dashboards: black banner + red rule, KPI tiles, a 12-quarter trend
-  chart, brand-muted heat on the z-score column, an 8-quarter sparkline per row.
-  Watchlist: the red geographic-boundary gate. System tabs: quiet Onyx bands.
+  Every tab is styled from keybank_style.py (tokens + helpers) -- so this
+  workbook and any future one built from the template look like one family.
+  Black grounds, red leads sparingly, neutrals breathe. Dashboards: black banner
+  + red rule, KPI tiles, brand-muted heat on the z-score column, and an optional
+  8-quarter sparkline per row. Watchlist: the red geographic-boundary gate.
+  System tabs: quiet Onyx bands.
 
 THE TABS
   Dashboard_Consumer / _Commercial / _Price  -- formula-driven panels: latest,
-      prior, YoY, an 8-period z-score, a trend sparkline, and a Flag column. A
-      trend chart sits under each. Heat shading marks stress.
+      prior, YoY, an 8-period z-score, a Flag column, and an (optional) trend
+      sparkline. Heat shading marks stress.
   Watchlist_Geo  -- states & metros ranked by house-price deterioration (YoY).
   Raw_Consumer / _Commercial / _Price  -- raw observations, newest-first.
   _config  -- THE KNOB PANEL: series dictionary, threshold bands, key fallback.
