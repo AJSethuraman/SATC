@@ -22,7 +22,7 @@ Private Const STATUS_SHEET As String = "Dashboard_Consumer"
 Public Sub ExtractAndRun()
     Dim folder As String, pyPath As String, runnerPath As String
     Dim pyExe As String, cmd As String
-    Dim out As String, err As String, code As Long
+    Dim out As String, errOut As String, code As Long
 
     On Error GoTo Fail
     Application.StatusBar = "Extracting runner.py ..."
@@ -58,12 +58,12 @@ Public Sub ExtractAndRun()
     cmd = """" & pyExe & """ """ & runnerPath & """ --workbook """ & _
           ThisWorkbook.FullName & """ --backend auto"
 
-    code = RunAndCapture(cmd, out, err)
+    code = RunAndCapture(cmd, out, errOut)
 
     If code <> 0 Then
-        SetStatus "Error", "Python exited " & code & ". " & FirstLine(err)
+        SetStatus "Error", "Python exited " & code & ". " & FirstLine(errOut)
         MsgBox "The FRED runner reported an error (exit " & code & "):" & vbCrLf & vbCrLf & _
-               IIf(Len(err) > 0, err, out), vbExclamation, "Extract & Run failed"
+               IIf(Len(errOut) > 0, errOut, out), vbExclamation, "Extract & Run failed"
         Application.StatusBar = False
         Exit Sub
     End If
@@ -77,9 +77,12 @@ Public Sub ExtractAndRun()
     Exit Sub
 
 Fail:
-    SetStatus "Error", "Macro error: " & Err.Description
+    Dim eNum As Long, eDesc As String
+    eNum = Err.Number
+    eDesc = Err.Description
     Application.StatusBar = False
-    MsgBox "Extract & Run failed: " & Err.Description, vbCritical
+    SetStatus "Error", "Macro error " & eNum & ": " & eDesc
+    MsgBox "Extract & Run failed (error " & eNum & "):" & vbCrLf & vbCrLf & eDesc, vbCritical
 End Sub
 
 ' Write one tab's column A (one source line per cell) to a UTF-8-ish text file.
@@ -143,7 +146,7 @@ Private Sub SetStatus(state As String, msg As String)
     On Error Resume Next
     Set ws = ThisWorkbook.Worksheets(STATUS_SHEET)
     If ws Is Nothing Then Exit Sub
-    ' Column L (12), row 4 — the masthead status panel (free of the merged
+    ' Column L (12), row 4 -- the masthead status panel (free of the merged
     ' banner/KPI cells the runner fills on rows 1-2).
     ws.Cells(4, 12).Value = state & " -- " & msg
 End Sub
@@ -182,10 +185,10 @@ Private Sub PaintLaneSparklines(dashName As String, rawName As String)
                 dash.Range(addr).SparklineGroups.Clear
                 dash.Range(addr).SparklineGroups.Add Type:=xlSparkLine, SourceData:=src
                 With dash.Range(addr).SparklineGroups.Item(1)
-                    .SeriesColor.Color = RGB(87, 83, 75)                  ' SLATE line
+                    .SeriesColor.Color = RGB(87, 83, 75)         ' SLATE line
                     .Points.Markers.Visible = False
-                    .Points.Highlight(xlSparkColumnFirst).Visible = True  ' newest is leftmost
-                    .Points.Highlight(xlSparkColumnFirst).Color.Color = RGB(204, 0, 0)  ' KEY_RED
+                    .Points.Firstpoint.Visible = True            ' newest is leftmost
+                    .Points.Firstpoint.Color.Color = RGB(204, 0, 0)   ' KEY_RED
                 End With
             End If
         End If
