@@ -52,7 +52,7 @@ RAW_VALUE_COL = 2            # column B
 # The dashboard run-status readout lands in a free column to the right of the
 # table. The branded layout merges A:J for the banner/KPI strip, so columns >= L
 # are the only collision-free home; two compact lines mirror the design masthead
-# ("Last run …" / "Pulled n/total · s stale · a alerts"). The builder pre-styles
+# ("Last run ..." / "Pulled n/total - s stale - a alerts"). The builder pre-styles
 # these cells; the runner only writes values, and the macro writes row 4.
 STATUS_COL = 12              # column L
 
@@ -544,7 +544,7 @@ def _status_lines(status: dict):
     stale = len(status.get("stale", []))
     alerts = status.get("alert_count", 0)
     line1 = f"Last run  {ts}"
-    line2 = (f"Pulled {pulled}/{total} · {stale} stale · "
+    line2 = (f"Pulled {pulled}/{total} - {stale} stale - "
              f"{alerts} alert{'' if alerts == 1 else 's'}")
     return line1, line2
 

@@ -90,20 +90,25 @@ Fail:
     MsgBox "Extract & Run failed (error " & eNum & "):" & vbCrLf & vbCrLf & eDesc, vbCritical
 End Sub
 
-' Write one tab's column A (one source line per cell) to a UTF-8-ish text file.
+' Write one tab's column A (one source line per cell) to a UTF-8 text file.
+' Uses ADODB.Stream, not FileSystemObject: FSO writes ANSI, and Python reads
+' source as UTF-8, so any non-ASCII byte would raise a SyntaxError. ADODB writes
+' real UTF-8 (Python accepts the BOM it adds).
 Private Sub WriteTabToFile(tabName As String, filePath As String)
-    Dim ws As Worksheet, fso As Object, ts As Object
-    Dim lastRow As Long, r As Long, line As String, body As String
+    Dim ws As Worksheet, lastRow As Long, r As Long, body As String
     Set ws = ThisWorkbook.Worksheets(tabName)
     lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
-    Set fso = CreateObject("Scripting.FileSystemObject")
-    Set ts = fso.CreateTextFile(filePath, True, False)
     For r = 1 To lastRow
-        line = CStr(ws.Cells(r, 1).Value)
-        body = body & line & vbLf
+        body = body & CStr(ws.Cells(r, 1).Value) & vbLf
     Next r
-    ts.Write body
-    ts.Close
+    Dim stm As Object
+    Set stm = CreateObject("ADODB.Stream")
+    stm.Type = 2                 ' adTypeText
+    stm.Charset = "utf-8"
+    stm.Open
+    stm.WriteText body
+    stm.SaveToFile filePath, 2   ' adSaveCreateOverWrite
+    stm.Close
 End Sub
 
 ' Try common Python launchers; return the first that responds, else "".
