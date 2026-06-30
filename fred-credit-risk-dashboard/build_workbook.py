@@ -390,11 +390,18 @@ ONE-TIME SETUP
        - paste it into the _config tab: [SETTINGS] -> fred_api_key cell.
   4. Enable macros when prompted (the button needs them).
 
-RUN IT
-  Click "Extract & Run" on Dashboard_Consumer. The macro writes runner.py from
-  the _code_py tab, shells Python to pull FRED per _config, fills the Raw_* tabs,
-  paints the trend sparklines, and the dashboards recalc from formulas; status
-  shows in the top-right cells. No key yet? Set _config demo_mode = TRUE.
+RUN IT  (the workbook is already the finished product; you only add data)
+  1. In Excel press Alt+F8 -> run ExtractFiles. It writes two files next to the
+     workbook: runner.py (from the _code_py tab) and run_fred.bat. Nothing runs
+     inside Excel.
+  2. SAVE and CLOSE the workbook.
+  3. Double-click run_fred.bat. It runs runner.py, which pulls FRED per _config
+     and writes the data into the closed workbook (via openpyxl).
+  4. Reopen the workbook -- the formulas recalc into the populated dashboards.
+  No key yet? Set _config demo_mode = TRUE before step 1 to use offline synthetic
+  data. For live data, set the FRED_API_KEY environment variable or the _config
+  cell. Optional: after reopening, Alt+F8 -> PaintSparklines draws the Trend
+  column (native sparklines are the one thing the data step can't write).
 
 THE LOOK (house style: KeyBank)
   Every tab is styled from keybank_style.py (tokens + helpers) and charts from

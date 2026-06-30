@@ -1,16 +1,18 @@
 Attribute VB_Name = "FREDDashboard"
 '================================================================================
-' FRED Credit-Risk Dashboard -- bootstrap macro (BUILD SPEC section 5)
+' FRED Credit-Risk Dashboard -- extractor macro (BUILD SPEC section 5, simplified)
 '
-' "Extract & Run" button:
-'   1. Reads the _code_py tab (one source line per cell, column A) and writes it
-'      to runner.py in the workbook's own folder.
-'   2. Shells out to Python to execute runner.py against THIS workbook.
-'   3. The runner pulls FRED per _config and writes the Raw_* tabs (xlwings into
-'      the open book; openpyxl on the file as a fallback). Formulas recalc the
-'      dashboards automatically.
-'   4. Reports success/failure (timestamp, series pulled, stale warnings) in the
-'      status cells, and surfaces Python's stderr -- no silent failures.
+' The workbook is already the finished product: every dashboard, formula, KPI
+' tile, chart and heat rule is built in. The data is the only thing missing.
+'
+' "Extract" (run ExtractFiles, or the ExtractAndRun alias, via Alt+F8):
+'   1. Writes runner.py from the _code_py tab into the workbook's folder.
+'   2. Writes run_fred.bat -- a launcher that runs runner.py against this file.
+'
+' NOTHING runs inside Excel (no shell-out, no xlwings, no save-from-VBA). After
+' extracting: SAVE and CLOSE the workbook, then double-click run_fred.bat. It
+' pulls FRED per _config and writes the data into the closed workbook via
+' openpyxl. Reopen and the formulas recalc into the finished dashboards.
 '
 ' This is a readable/portable reference copy; the identical text lives in the
 ' _code_vba tab so the workbook stays the single source of truth.
@@ -19,81 +21,47 @@ Option Explicit
 
 Private Const STATUS_SHEET As String = "Dashboard_Consumer"
 
+' Kept as an alias so the old name / any assigned button still works.
 Public Sub ExtractAndRun()
-    Dim folder As String, pyPath As String, runnerPath As String
-    Dim pyExe As String, cmd As String
-    Dim out As String, errOut As String, code As Long
+    ExtractFiles
+End Sub
 
+Public Sub ExtractFiles()
+    Dim folder As String, runnerPath As String, batPath As String
     On Error GoTo Fail
-    Application.StatusBar = "Extracting runner.py ..."
-    SetStatus "Running", "Extracting runner.py from _code_py ..."
 
     folder = ThisWorkbook.Path
     If Len(folder) = 0 Then
-        MsgBox "Save the workbook to a folder first, then click Extract & Run.", vbExclamation
-        SetStatus "Error", "Workbook is unsaved -- save it to a folder first."
+        MsgBox "Save the workbook to a folder first, then run Extract.", vbExclamation
         Exit Sub
     End If
-
-    ' Make sure the on-disk copy reflects the latest _config edits.
-    ThisWorkbook.Save
 
     runnerPath = folder & Application.PathSeparator & "runner.py"
     WriteTabToFile "_code_py", runnerPath
 
-    ' Locate a Python interpreter on PATH.
-    pyExe = FindPython()
-    If Len(pyExe) = 0 Then
-        SetStatus "Error", "Python not found on PATH. Install Python 3 and the deps " & _
-            "(pip install fredapi xlwings openpyxl pandas), then reopen and retry."
-        MsgBox "Python was not found on PATH." & vbCrLf & _
-               "Install Python 3, then run:  pip install fredapi xlwings openpyxl pandas", vbExclamation
-        Exit Sub
-    End If
+    batPath = folder & Application.PathSeparator & "run_fred.bat"
+    WriteRunBat batPath
 
-    SetStatus "Running", "Pulling FRED and rebuilding (this can take a minute) ..."
-    Application.StatusBar = "Running FRED pull ..."
-
-    ' Build the command. pyExe ("python" / "py -3") is a launcher token, NOT a
-    ' path, so it stays UNQUOTED; only the file paths are quoted. Quote with
-    ' Chr(34) so the command never starts with a literal " (which "cmd /c" would
-    ' strip and mangle). The runner reads _config from the workbook.
-    Dim q As String
-    q = Chr(34)
-    cmd = pyExe & " " & q & runnerPath & q & " --workbook " & q & _
-          ThisWorkbook.FullName & q & " --backend auto"
-
-    code = RunAndCapture(cmd, out, errOut)
-
-    If code <> 0 Then
-        SetStatus "Error", "Python exited " & code & ". " & FirstLine(errOut)
-        MsgBox "The FRED runner reported an error (exit " & code & "):" & vbCrLf & vbCrLf & _
-               IIf(Len(errOut) > 0, errOut, out), vbExclamation, "Extract & Run failed"
-        Application.StatusBar = False
-        Exit Sub
-    End If
-
-    ' On the openpyxl fallback path the file changed on disk while open; the
-    ' xlwings path already wrote into this instance. Either way, recalc.
-    Application.CalculateFull
-    PaintSparklines                      ' paint the Trend (8q) column now data has landed
-    SetStatus "OK", "Last run " & Format(Now, "yyyy-mm-dd hh:nn") & ". " & FirstLine(out)
-    Application.StatusBar = False
+    SetStatus "Extracted", "runner.py + run_fred.bat written -- save & close, then run run_fred.bat."
+    MsgBox "Extracted into this workbook's folder:" & vbCrLf & _
+           "    runner.py" & vbCrLf & _
+           "    run_fred.bat" & vbCrLf & vbCrLf & _
+           "Next steps:" & vbCrLf & _
+           "  1. Save and CLOSE this workbook." & vbCrLf & _
+           "  2. Double-click run_fred.bat (in the same folder)." & vbCrLf & _
+           "  3. Reopen the workbook -- the dashboards will be populated." & vbCrLf & vbCrLf & _
+           "Demo data needs no key: set _config demo_mode = TRUE first. For live " & _
+           "FRED data, set the FRED_API_KEY environment variable or the _config cell.", _
+           vbInformation, "Extract complete"
     Exit Sub
 
 Fail:
-    Dim eNum As Long, eDesc As String
-    eNum = Err.Number
-    eDesc = Err.Description
-    Application.StatusBar = False
-    SetStatus "Error", "Macro error " & eNum & ": " & eDesc
-    MsgBox "Extract & Run failed (error " & eNum & "):" & vbCrLf & vbCrLf & eDesc, vbCritical
+    MsgBox "Extract failed: " & Err.Description, vbCritical
 End Sub
 
 ' Write one tab's column A (one source line per cell) to a UTF-8 text file.
-' Uses ADODB.Stream, not FileSystemObject: FSO writes ANSI, and Python reads
-' source as UTF-8, so any non-ASCII byte would raise a SyntaxError. ADODB writes
-' real UTF-8 (Python accepts the BOM it adds).
+' ADODB.Stream writes real UTF-8 (FSO would write ANSI, and Python, which reads
+' source as UTF-8, would raise SyntaxError on any non-ASCII byte).
 Private Sub WriteTabToFile(tabName As String, filePath As String)
     Dim ws As Worksheet, lastRow As Long, r As Long, body As String
     Set ws = ThisWorkbook.Worksheets(tabName)
@@ -111,45 +79,29 @@ Private Sub WriteTabToFile(tabName As String, filePath As String)
     stm.Close
 End Sub
 
-' Try common Python launchers; return the first that responds, else "".
-Private Function FindPython() As String
-    Dim candidates As Variant, i As Long, o As String, e As String
-    candidates = Array("python", "python3", "py -3")
-    For i = LBound(candidates) To UBound(candidates)
-        If RunAndCapture(candidates(i) & " --version", o, e) = 0 Then
-            FindPython = candidates(i)
-            Exit Function
-        End If
-    Next i
-    FindPython = ""
-End Function
+' Write a Windows launcher that runs runner.py against this workbook (closed).
+' Quotes are built with Chr(34) so this source stays paste-safe.
+Private Sub WriteRunBat(filePath As String)
+    Dim q As String, nl As String, wb As String, body As String
+    q = Chr(34)
+    nl = vbCrLf
+    wb = ThisWorkbook.Name
+    body = "@echo off" & nl
+    body = body & "cd /d " & q & "%~dp0" & q & nl
+    body = body & "set " & q & "PY=python" & q & nl
+    body = body & "where python >nul 2>nul || set " & q & "PY=py" & q & nl
+    body = body & "echo Pulling FRED data into " & wb & " ..." & nl
+    body = body & "%PY% runner.py --workbook " & q & "%~dp0" & wb & q & " --backend openpyxl" & nl
+    body = body & "echo." & nl
+    body = body & "echo Done. Reopen " & wb & " to see the dashboards." & nl
+    body = body & "pause" & nl
 
-' Run a command, capture stdout+stderr, return the exit code.
-Private Function RunAndCapture(cmd As String, ByRef outText As String, ByRef errText As String) As Long
-    Dim sh As Object, exec As Object
-    Set sh = CreateObject("WScript.Shell")
-    On Error GoTo ExecErr
-    Set exec = sh.exec("cmd /c " & cmd)
-    Do While exec.Status = 0
-        DoEvents
-        If Not exec.StdOut.AtEndOfStream Then outText = outText & exec.StdOut.ReadAll
-        If Not exec.StdErr.AtEndOfStream Then errText = errText & exec.StdErr.ReadAll
-    Loop
-    If Not exec.StdOut.AtEndOfStream Then outText = outText & exec.StdOut.ReadAll
-    If Not exec.StdErr.AtEndOfStream Then errText = errText & exec.StdErr.ReadAll
-    RunAndCapture = exec.ExitCode
-    Exit Function
-ExecErr:
-    errText = errText & "Shell error: " & Err.Description
-    RunAndCapture = 9999
-End Function
-
-Private Function FirstLine(s As String) As String
-    Dim p As Long
-    s = Replace(s, vbCrLf, vbLf)
-    p = InStr(s, vbLf)
-    If p > 0 Then FirstLine = Left(s, p - 1) Else FirstLine = s
-End Function
+    Dim fso As Object, ts As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set ts = fso.CreateTextFile(filePath, True, False)   ' ANSI is fine for a .bat
+    ts.Write body
+    ts.Close
+End Sub
 
 Private Sub SetStatus(state As String, msg As String)
     Dim ws As Worksheet
@@ -161,15 +113,16 @@ Private Sub SetStatus(state As String, msg As String)
     ws.Cells(4, 12).Value = state & " -- " & msg
 End Sub
 
-' Paint a KeyBank sparkline into the Trend (8q) column of each dashboard, one per
-' row, sourced from that series' own 8-quarter raw window (newest-first). Native
-' sparklines can't be written by openpyxl, so the button owns this column. Fully
-' guarded: a failure here never breaks a refresh (the data is already in place).
-Private Sub PaintSparklines()
+' OPTIONAL: after reopening the populated workbook, run this (Alt+F8 ->
+' PaintSparklines) to draw the Trend (8q) sparklines. Native sparklines can't be
+' written by openpyxl, so the data path leaves that one column empty; everything
+' else renders from formulas with no macro. Guarded so it can never error out.
+Public Sub PaintSparklines()
     On Error Resume Next
     PaintLaneSparklines "Dashboard_Consumer", "Raw_Consumer"
     PaintLaneSparklines "Dashboard_Commercial", "Raw_Commercial"
     PaintLaneSparklines "Dashboard_Price", "Raw_Price"
+    MsgBox "Trend sparklines painted. Save the workbook to keep them.", vbInformation
 End Sub
 
 Private Sub PaintLaneSparklines(dashName As String, rawName As String)
