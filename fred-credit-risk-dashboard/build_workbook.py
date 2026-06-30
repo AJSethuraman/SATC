@@ -391,17 +391,19 @@ ONE-TIME SETUP
   4. Enable macros when prompted (the button needs them).
 
 RUN IT  (the workbook is already the finished product; you only add data)
-  1. In Excel press Alt+F8 -> run ExtractFiles. It writes two files next to the
-     workbook: runner.py (from the _code_py tab) and run_fred.bat. Nothing runs
-     inside Excel.
+  1. In Excel press Alt+F8 -> run ExtractFiles. It writes three files next to the
+     workbook: runner.py (from the _code_py tab), requirements.txt, and RUN.txt
+     (the exact PowerShell commands). Nothing runs inside Excel.
   2. SAVE and CLOSE the workbook.
-  3. Double-click run_fred.bat. It runs runner.py, which pulls FRED per _config
-     and writes the data into the closed workbook (via openpyxl).
+  3. Open RUN.txt and follow it from PowerShell: install the deps, then run
+     runner.py --backend openpyxl against the closed workbook. It pulls FRED per
+     _config and writes the data into the file.
   4. Reopen the workbook -- the formulas recalc into the populated dashboards.
-  No key yet? Set _config demo_mode = TRUE before step 1 to use offline synthetic
-  data. For live data, set the FRED_API_KEY environment variable or the _config
-  cell. Optional: after reopening, Alt+F8 -> PaintSparklines draws the Trend
-  column (native sparklines are the one thing the data step can't write).
+  No key yet? Set _config demo_mode = TRUE before step 1 and use the --demo
+  command in RUN.txt (offline synthetic data). For live data, set the
+  FRED_API_KEY environment variable or the _config cell. Optional: after
+  reopening, Alt+F8 -> PaintSparklines draws the Trend column (native sparklines
+  are the one thing the data step can't write).
 
 THE LOOK (house style: KeyBank)
   Every tab is styled from keybank_style.py (tokens + helpers) and charts from

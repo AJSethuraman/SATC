@@ -27,36 +27,64 @@ Public Sub ExtractAndRun()
 End Sub
 
 Public Sub ExtractFiles()
-    Dim folder As String, runnerPath As String, batPath As String
+    Dim folder As String, sep As String
     On Error GoTo Fail
 
     folder = ThisWorkbook.Path
     If Len(folder) = 0 Then
-        MsgBox "Save the workbook to a folder first, then run Extract.", vbExclamation
+        MsgBox "Save the workbook to a folder first, then run ExtractFiles.", vbExclamation
         Exit Sub
     End If
+    sep = Application.PathSeparator
 
-    runnerPath = folder & Application.PathSeparator & "runner.py"
-    WriteTabToFile "_code_py", runnerPath
+    WriteTabToFile "_code_py", folder & sep & "runner.py"          ' the data-path script
+    WriteTextFile folder & sep & "requirements.txt", RequirementsText()
+    WriteTextFile folder & sep & "RUN.txt", RunText()             ' the PowerShell commands
 
-    batPath = folder & Application.PathSeparator & "run_fred.bat"
-    WriteRunBat batPath
-
-    SetStatus "Extracted", "runner.py + run_fred.bat written -- save & close, then run run_fred.bat."
-    MsgBox "Extracted into this workbook's folder:" & vbCrLf & _
+    SetStatus "Extracted", "runner.py + requirements.txt + RUN.txt written -- see RUN.txt."
+    MsgBox "Extracted next to this workbook:" & vbCrLf & _
            "    runner.py" & vbCrLf & _
-           "    run_fred.bat" & vbCrLf & vbCrLf & _
-           "Next steps:" & vbCrLf & _
-           "  1. Save and CLOSE this workbook." & vbCrLf & _
-           "  2. Double-click run_fred.bat (in the same folder)." & vbCrLf & _
-           "  3. Reopen the workbook -- the dashboards will be populated." & vbCrLf & vbCrLf & _
-           "Demo data needs no key: set _config demo_mode = TRUE first. For live " & _
-           "FRED data, set the FRED_API_KEY environment variable or the _config cell.", _
+           "    requirements.txt" & vbCrLf & _
+           "    RUN.txt   (the PowerShell commands)" & vbCrLf & vbCrLf & _
+           "Open RUN.txt and follow it: install the deps, then run runner.py from " & _
+           "PowerShell with this workbook CLOSED. Reopen to see the dashboards." & vbCrLf & vbCrLf & _
+           "No key? Set _config demo_mode = TRUE and use the --demo command in RUN.txt.", _
            vbInformation, "Extract complete"
     Exit Sub
 
 Fail:
     MsgBox "Extract failed: " & Err.Description, vbCritical
+End Sub
+
+Private Function RequirementsText() As String
+    Dim nl As String
+    nl = vbCrLf
+    RequirementsText = "pandas>=1.5" & nl & "openpyxl>=3.0" & nl & "fredapi>=0.5" & nl
+End Function
+
+Private Function RunText() As String
+    Dim nl As String, q As String, wb As String
+    nl = vbCrLf
+    q = Chr(34)
+    wb = ThisWorkbook.Name
+    RunText = _
+        "FRED Credit-Risk Dashboard -- run from PowerShell (workbook must be CLOSED)" & nl & nl & _
+        "1) Install dependencies (once):" & nl & _
+        "   python -m pip install -r requirements.txt" & nl & nl & _
+        "2) Demo data (no FRED key):" & nl & _
+        "   python .\runner.py --workbook " & q & ".\" & wb & q & " --demo --backend openpyxl" & nl & nl & _
+        "3) Live FRED data (set your key, then drop --demo):" & nl & _
+        "   $env:FRED_API_KEY = " & q & "your_key_here" & q & nl & _
+        "   python .\runner.py --workbook " & q & ".\" & wb & q & " --backend openpyxl" & nl & nl & _
+        "If 'python' is not found, use 'py' instead. Reopen the workbook afterward." & nl
+End Function
+
+Private Sub WriteTextFile(filePath As String, content As String)
+    Dim fso As Object, ts As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set ts = fso.CreateTextFile(filePath, True, False)
+    ts.Write content
+    ts.Close
 End Sub
 
 ' Write one tab's column A (one source line per cell) to a UTF-8 text file.
@@ -77,30 +105,6 @@ Private Sub WriteTabToFile(tabName As String, filePath As String)
     stm.WriteText body
     stm.SaveToFile filePath, 2   ' adSaveCreateOverWrite
     stm.Close
-End Sub
-
-' Write a Windows launcher that runs runner.py against this workbook (closed).
-' Quotes are built with Chr(34) so this source stays paste-safe.
-Private Sub WriteRunBat(filePath As String)
-    Dim q As String, nl As String, wb As String, body As String
-    q = Chr(34)
-    nl = vbCrLf
-    wb = ThisWorkbook.Name
-    body = "@echo off" & nl
-    body = body & "cd /d " & q & "%~dp0" & q & nl
-    body = body & "set " & q & "PY=python" & q & nl
-    body = body & "where python >nul 2>nul || set " & q & "PY=py" & q & nl
-    body = body & "echo Pulling FRED data into " & wb & " ..." & nl
-    body = body & "%PY% runner.py --workbook " & q & "%~dp0" & wb & q & " --backend openpyxl" & nl
-    body = body & "echo." & nl
-    body = body & "echo Done. Reopen " & wb & " to see the dashboards." & nl
-    body = body & "pause" & nl
-
-    Dim fso As Object, ts As Object
-    Set fso = CreateObject("Scripting.FileSystemObject")
-    Set ts = fso.CreateTextFile(filePath, True, False)   ' ANSI is fine for a .bat
-    ts.Write body
-    ts.Close
 End Sub
 
 Private Sub SetStatus(state As String, msg As String)
