@@ -54,9 +54,14 @@ Public Sub ExtractAndRun()
     SetStatus "Running", "Pulling FRED and rebuilding (this can take a minute) ..."
     Application.StatusBar = "Running FRED pull ..."
 
-    ' Quote paths to survive spaces. The runner reads _config from the workbook.
-    cmd = """" & pyExe & """ """ & runnerPath & """ --workbook """ & _
-          ThisWorkbook.FullName & """ --backend auto"
+    ' Build the command. pyExe ("python" / "py -3") is a launcher token, NOT a
+    ' path, so it stays UNQUOTED; only the file paths are quoted. Quote with
+    ' Chr(34) so the command never starts with a literal " (which "cmd /c" would
+    ' strip and mangle). The runner reads _config from the workbook.
+    Dim q As String
+    q = Chr(34)
+    cmd = pyExe & " " & q & runnerPath & q & " --workbook " & q & _
+          ThisWorkbook.FullName & q & " --backend auto"
 
     code = RunAndCapture(cmd, out, errOut)
 
