@@ -9,6 +9,7 @@ rewrites binary .xlsx attachments, so the workbook is built locally instead of
 transferred. Run:  python make_bundle.py
 """
 import base64
+import gzip
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -16,8 +17,10 @@ MODULES = ("keybank_style", "series_seed", "runner", "build_workbook")
 
 
 def _b64(path):
+    # gzip then base64 -> ~4x smaller, so the script is easy to paste into an
+    # email body without truncation. Still pure ASCII.
     with open(os.path.join(HERE, path), "rb") as f:
-        return base64.b64encode(f.read()).decode("ascii")
+        return base64.b64encode(gzip.compress(f.read(), 9)).decode("ascii")
 
 
 def _chunk(s, n=120):
@@ -47,7 +50,7 @@ def build():
     L.append('Then: open the .xlsx. For live FRED data, set FRED_API_KEY and run:')
     L.append('    python runner.py --workbook ".\\\\FRED_Credit_Risk_Dashboard.xlsx" --backend openpyxl')
     L.append('"""')
-    L.append('import base64, os, sys, types')
+    L.append('import base64, gzip, os, sys, types')
     L.append('')
     for n in MODULES:
         L.append('%s_B64 = (' % n.upper())
@@ -65,7 +68,7 @@ def build():
         L.append('    %r: %s_B64,' % (n, n.upper()))
     L.append('}')
     L.append('')
-    L.append('def _decode(b): return base64.b64decode(b).decode("utf-8")')
+    L.append('def _decode(b): return gzip.decompress(base64.b64decode(b)).decode("utf-8")')
     L.append('')
     L.append('def _write(path, text):')
     L.append('    with open(path, "w", encoding="utf-8", newline="\\n") as fh:')
