@@ -364,6 +364,11 @@ def write_code_tab(wb, tab, source_path, language):
         lines = fh.read().split("\n")
     if lines and lines[-1] == "":
         lines = lines[:-1]
+    if language == "vba":
+        # Drop the leading "Attribute VB_Name = ..." line(s): not valid to paste
+        # into a module code pane, so this tab copies straight into the editor.
+        while lines and lines[0].startswith("Attribute "):
+            lines = lines[1:]
     for i, line in enumerate(lines, start=1):
         text_cell(ws, i, 1, line)
         ws.cell(i, 1).font = MONO_FONT
