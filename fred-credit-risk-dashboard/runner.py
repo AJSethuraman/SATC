@@ -596,7 +596,11 @@ class OpenpyxlBackend(Backend):
     def __init__(self, path: str):
         self.path = path
         import openpyxl
-        self._wb = openpyxl.load_workbook(path, keep_vba=True)
+        # keep_vba=True only for real macro files; on a plain .xlsx it makes
+        # openpyxl write a dangling vbaProject relationship (no .bin), which
+        # Excel rejects as "file format or extension is not valid".
+        keep_vba = path.lower().endswith(".xlsm")
+        self._wb = openpyxl.load_workbook(path, keep_vba=keep_vba)
 
     def read_config(self) -> Config:
         ws = self._wb["_config"]
