@@ -586,3 +586,23 @@ def test_vba_protection_keys_roundtrip():
     d = V.build_dir_stream("X", [V.Module("X", "Sub A()\nEnd Sub")])
     assert b"Visual Basic For Applications" in d
     assert b"Microsoft Excel" in d
+
+
+def test_clear_actually_blanks(xlsm, tmp_path):
+    """openpyxl's ws.cell(r, c, None) silently IGNORES None -- clearing must
+    assign .value explicitly, or a failed fetch would leave last run's stale
+    values under a fresh timestamp (regression for the silent no-op)."""
+    p = str(tmp_path / "clear.xlsm")
+    shutil.copy(xlsm, p)
+    R.run(p, demo=True, asof=ASOF)                      # populate
+    backend = R.OpenpyxlBackend(p)
+    cfg = backend.read_config()
+    blocks = R.raw_layout(cfg.series, slots=cfg.raw_slots)
+    spec = next(s for s in cfg.series if s.id in blocks and s.lane != "watchlist")
+    b = blocks[spec.id]
+    ws = backend._wb[R.RAW_TAB]
+    assert ws.cell(b.first_data_row, 2).value is not None   # was populated
+    backend.clear_raw_block(b, spec)
+    for rr in range(b.first_data_row, b.first_data_row + b.slots):
+        assert ws.cell(rr, 1).value is None
+        assert ws.cell(rr, 2).value is None

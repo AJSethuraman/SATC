@@ -592,12 +592,14 @@ class OpenpyxlBackend:
 
     def clear_raw_block(self, block: RawBlock, spec: SeriesSpec):
         """Blank a block's data slots (stateless rebuild: a series that fails
-        to fetch must show empty, never last run's stale values)."""
+        to fetch must show empty, never last run's stale values).
+        NOTE: openpyxl's ws.cell(r, c, None) silently IGNORES None -- cells
+        must be blanked by assigning .value explicitly."""
         self._check_block(block, spec)
         ws = self._wb[RAW_TAB]
         for r in range(block.first_data_row, block.first_data_row + block.slots):
-            ws.cell(r, 1, None)
-            ws.cell(r, 2, None)
+            ws.cell(r, 1).value = None
+            ws.cell(r, 2).value = None
 
     def write_raw_block(self, block: RawBlock, spec: SeriesSpec, rows: List[NormalizedRow]):
         self._check_block(block, spec)
@@ -609,14 +611,14 @@ class OpenpyxlBackend:
         ws.cell(block.label_row, 1, "period")
         ws.cell(block.label_row, 2, "value")
         for r in range(block.first_data_row, block.first_data_row + block.slots):
-            ws.cell(r, 1, None)
-            ws.cell(r, 2, None)
+            ws.cell(r, 1).value = None
+            ws.cell(r, 2).value = None
         # newest-first
         tail = rows[-block.slots:] if len(rows) > block.slots else rows
         for i, nr in enumerate(reversed(tail)):
             rr = block.first_data_row + i
             ws.cell(rr, 1, nr.period)
-            ws.cell(rr, 2, None if nr.value is None else float(nr.value))
+            ws.cell(rr, 2).value = None if nr.value is None else float(nr.value)
 
     def write_status(self, status: dict):
         line2 = (f"Series {status.get('series_pulled', 0)}/"

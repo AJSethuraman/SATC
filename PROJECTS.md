@@ -22,19 +22,7 @@ is just the map.
 | 2 | Bureau Consumer Credit Monitor | `bureau-credit-risk-dashboard/` | NY Fed HHDC (anonymized 5% Equifax sample; 18 series) | **GATED** — no free bureau source has a joinable key; opens only via licensed Class C (Prama-class) | v1 done + review-hardened, PR #53 |
 | 3 | Macro Early-Warning Monitor | `macro-early-warning-dashboard/` | FRED (21 national credit-cycle signals + 151 state-keyed labor/coincident series) | **OPEN** — {ST}UR / {ST}ICLAIMS / {ST}PHCI ranked by Sahm-style state stress gap ({ST}SLIND leading indexes DISCONTINUED, excluded + staleness-guarded) | v1 done, PR #53; live FRED pull awaits a key |
 
-## In progress
-
-| # | Template | Directory | Source | Watchlist | Status |
-|---|----------|-----------|--------|-----------|--------|
-| 4 | Bank Counterparty & Peer Monitor | `fdic-peer-monitor/` (pending) | FDIC BankFind Suite API (keyless REST; quarterly bank financials + industry aggregates) | **OPEN (entity)** — CERT/RSSD-keyed peer & counterparty bank list | coverage research in flight (API mechanics live-verified + peer-metric methodology); spec next |
-
-**User requirement (binding on the #4 spec):** the peer list must be
-flexible — one `[PEERS]` row per bank in `_config` (cert, name, group,
-active); add/remove = edit a line + re-run, no rebuild. Slot-provisioned
-formula layout with headroom (build-time `--peer-slots` knob); the runner
-refuses a list beyond built capacity with a rebuild message (never silent
-truncation); `runner.py --lookup "<name>"` resolves bank names to CERTs via
-the keyless API.
+| 4 | Bank Counterparty & Peer Monitor | `fdic-peer-monitor/` | FDIC BankFind Suite API (keyless REST, public domain; 15 C-A-E-L+concentration metrics x flexible `[PEERS]` list, 40 slots) | **OPEN (entity)** — `^cert:[0-9]+$`; the peer/counterparty list IS the watchlist, ranked by ALERT flags + Texas ratio | v1 done, PR #53; first keyless live run at the user's desk is the remaining validation |
 
 ## Candidate pipeline (researched, not yet picked)
 

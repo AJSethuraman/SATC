@@ -113,3 +113,15 @@ its discovery accepts both `.xlsm` and fallback `.xlsx` workbooks.
 
 L1–L6 (see BUILD_SPEC_BUREAU.md) are incorporated by reference; new lessons
 append there and to this contract.
+
+- **L7 — openpyxl's `ws.cell(r, c, None)` silently IGNORES `None`.** Cells
+  are blanked ONLY by assigning `.value` explicitly
+  (`ws.cell(r, c).value = None`). Found in the FDIC build; the earlier
+  templates' clear-blocks pattern was a silent no-op masked by same-shape
+  rewrites — a failed live fetch after a successful run would have left
+  stale data under a fresh timestamp. Every template carries a
+  `test_clear_actually_blanks` regression.
+- **L8 — Threshold/DefinedName cells must be NUMERIC-typed.** Excel's
+  `number >= text` comparison is silently FALSE: a `"0.5"` text cell
+  downgraded every ALERT to WATCH in the macro build. Recalc verification
+  must compare statuses, not just values.
