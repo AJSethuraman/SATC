@@ -21,6 +21,12 @@ is just the map.
 | 1 | FRED Credit-Risk Dashboard | `fred-credit-risk-dashboard/` | FRED (147 series: charge-offs, delinquencies, G.19, SLOOS, DSR, HPI) | **OPEN** — FHFA state/metro + Case-Shiller HPI (geo keys) | v1 done, PR #53 |
 | 2 | Bureau Consumer Credit Monitor | `bureau-credit-risk-dashboard/` | NY Fed HHDC (anonymized 5% Equifax sample; 18 series) | **GATED** — no free bureau source has a joinable key; opens only via licensed Class C (Prama-class) | v1 done, PR #53; review-fix pass in flight |
 
+## In progress
+
+| # | Template | Directory | Source | Watchlist | Status |
+|---|----------|-----------|--------|-----------|--------|
+| 3 | Macro Early-Warning Monitor | `macro-early-warning-dashboard/` (pending) | FRED (national recession/credit-stress signals + state-keyed labor series) | **OPEN** — state unemployment + Philly Fed coincident indexes (geo keys) | coverage research in flight; spec next |
+
 ## Candidate pipeline (researched, not yet picked)
 
 | Candidate | Angle | Join key | Why | Notes |
@@ -49,6 +55,15 @@ largest MSAs only, redesign churn); CFPB complaints as a watchlist
 
 ## Working conventions
 
+- **`TEMPLATE_CONTRACT.md` is binding on every new template** — identical tab
+  taxonomy, `_config` schema, runner CLI, extract-only macro, seam contract,
+  watchlist gate, and verification bar. It's what makes the templates
+  interchangeable and launcher-compatible.
+- **`control_center.py` is the one place to run everything.** A stdlib Tkinter
+  GUI (with a headless CLI) that discovers any template workbook (`.xlsm` with
+  a `_code_py` tab), extracts that workbook's OWN embedded runner, and drives
+  it — demo or live — one template at a time. No per-template wiring; new
+  contract-compliant templates appear automatically.
 - **One directory per template; one chat per template build.** The repo is the
   source of truth — any new session picks up from this file + the template's
   own spec/BUILD_NOTES, not from chat history.
@@ -57,4 +72,5 @@ largest MSAs only, redesign churn); CFPB complaints as a watchlist
   spec.
 - Shared modules (`keybank_style.py`, `vba_writer.py`, `assemble_xlsm.py`) are
   copied per-template on purpose — each workbook must stay self-contained and
-  emailable.
+  emailable. The Control Center lives OUTSIDE the workbooks and is optional
+  convenience: every workbook still works standalone via its Extract button.
