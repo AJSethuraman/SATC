@@ -30,6 +30,8 @@ import runner as R                     # noqa: E402
 import series_seed as SEED             # noqa: E402
 import build_workbook as BW            # noqa: E402
 import assemble_xlsm                   # noqa: E402
+import vba_writer as V                 # noqa: E402
+import struct                          # noqa: E402
 
 ASOF = date(2026, 3, 31)
 
@@ -105,17 +107,44 @@ def test_raw_landing_idempotent(xlsm, tmp_path):
         wb.close()
         return vals
 
+    # TRUE idempotence: a second run on the SAME already-populated workbook
+    # lands byte-identical values (slot-clearing leaves no stale tail).
     p1 = str(tmp_path / "r1.xlsm")
-    p2 = str(tmp_path / "r2.xlsm")
     shutil.copy(xlsm, p1)
-    shutil.copy(xlsm, p2)
     R.run(p1, demo=True, asof=ASOF)
+    first = landed(p1)
+    R.run(p1, demo=True, asof=ASOF)
+    assert landed(p1) == first
+    # ... and determinism across fresh copies.
+    p2 = str(tmp_path / "r2.xlsm")
+    shutil.copy(xlsm, p2)
     R.run(p2, demo=True, asof=ASOF)
-    assert landed(p1) == landed(p2)
+    assert landed(p2) == first
     # newest-first: B4 (first data row of the first block) is populated
     wb = openpyxl.load_workbook(p1, keep_vba=True)
     assert wb["Raw_HHDC"]["B4"].value is not None
     wb.close()
+
+
+def test_raw_layout_mismatch_refused(xlsm, tmp_path):
+    """Editing raw_slots after build must be REFUSED (dashboard formulas are
+    anchored to the built layout), not silently mis-written."""
+    p = str(tmp_path / "mismatch.xlsm")
+    shutil.copy(xlsm, p)
+    R.run(p, demo=True, asof=ASOF)                     # populate at slots=60
+    wb = openpyxl.load_workbook(p, keep_vba=True)
+    ws = wb["_config"]
+    target = None
+    for row in ws.iter_rows(min_col=1, max_col=1):
+        if str(row[0].value).strip() == "raw_slots":
+            target = row[0].row
+            break
+    assert target is not None
+    ws.cell(target, 2, "30")
+    wb.save(p)
+    wb.close()
+    with pytest.raises(RuntimeError, match="Raw layout mismatch"):
+        R.run(p, demo=True, asof=ASOF)
 
 
 # --------------------------------------------------------------------------
@@ -139,6 +168,20 @@ def test_transforms():
     std = math.sqrt(240.0 / 7.0)
     assert z.iloc[7] == pytest.approx((116 - 108) / std)
     assert math.isnan(z.iloc[6])           # min_periods=8
+
+    # index_to_pct: percent vs the BASE (first valid obs), not a YoY alias.
+    # Pin a point where the two genuinely differ: at i=5, index-to-base is
+    # (112/100-1)*100 = 12.0 while yoy is (112-102)/102*100 ~ 9.80.
+    idx = R.t_index_to_pct(s, "quarterly")
+    assert idx.iloc[0] == pytest.approx(0.0)
+    assert idx.iloc[7] == pytest.approx(16.0)          # (116/100-1)*100
+    assert idx.iloc[5] == pytest.approx(12.0)
+    assert R.t_yoy_pct(s, "quarterly").iloc[5] != pytest.approx(12.0)
+
+    # NaN propagates through pct changes (no forward-fill, any pandas version)
+    s_nan = pd.Series([100.0, math.nan, 104.0, 106.0, 110.0, 112.0])
+    yoy_nan = R.t_yoy_pct(s_nan, "quarterly")
+    assert math.isnan(yoy_nan.iloc[5])                 # lag hits the NaN slot
 
 
 def test_threshold_engine():
@@ -247,13 +290,57 @@ def test_class_c_stub():
         prov.fetch_series(spec, secret=None)
     assert "401" in str(ei.value)
 
-    # (b) with a secret, the stub returns the normalized schema (Section 1a)
+    # (b) with a secret, the stub returns the normalized schema (Section 1a):
+    # real NormalizedRow instances, schema-shaped but VALUELESS.
     rows = prov.fetch_series(spec, secret="dummy-client-credentials")
-    assert isinstance(rows, list)            # normalized list[NormalizedRow], empty stub
+    assert isinstance(rows, list) and len(rows) == 1
+    nr = rows[0]
+    assert isinstance(nr, R.NormalizedRow)
+    assert nr.id == spec.id
+    assert nr.geo_segment == spec.geo_segment
+    assert nr.source_class == "C"
+    assert nr.value is None                  # the stub never fabricates data
 
     # (c) the seam type is the same contract used everywhere else
     assert issubclass(R.ClassCStubProvider, R.Provider)
     assert prov.source_class == "C"
+
+
+def test_hhdc_provider_cache_and_unbound_parse():
+    """Live-provider seam behavior WITHOUT any network: the URL cache serves
+    repeated fetches (conditional-fetch/idempotency, L5), and _parse_table
+    refuses with a clear message until bound to the real HHDC schema."""
+    prov = R.HhdcProvider()
+    url = "https://example.invalid/hhdc.xlsx"
+    prov._cache[url] = b"fixed-upstream-snapshot"
+    assert prov._download(url) == b"fixed-upstream-snapshot"
+    assert prov._download(url) == b"fixed-upstream-snapshot"   # served from cache
+    spec = R.SeriesSpec(**{**_spec_kwargs(), "source_url": url})
+    with pytest.raises(NotImplementedError, match="demo"):
+        prov.fetch_series(spec)
+
+
+def test_vba_protection_keys_roundtrip():
+    """The PROJECT stream's CMG/DPB/GC must decrypt per [MS-OVBA] 2.4.3 to
+    protection=none / password=none / visibility=visible -- exactly the way
+    the VBE will read them (a malformed key triggers Excel's 'invalid key
+    DPB' prompt)."""
+    proj = V.build_project_stream(
+        "X", [V.Module("X", "Sub A()\nEnd Sub")]).decode("latin-1")
+    keys = {}
+    for line in proj.splitlines():
+        for k in ("CMG", "DPB", "GC"):
+            if line.startswith(f'{k}="'):
+                keys[k] = line.split('"')[1]
+    assert V.ovba_decrypt(keys["CMG"]) == struct.pack("<I", 0)   # unprotected
+    assert V.ovba_decrypt(keys["DPB"]) == b"\x00"               # no password
+    assert V.ovba_decrypt(keys["GC"]) == b"\xff"                # visible
+    # _VBA_PROJECT is the full 7-byte header ([MS-OVBA] 2.3.4.1)
+    assert len(V.build_vba_project_stream()) == 7
+    # the default VBA + Excel libraries are referenced in the dir stream
+    d = V.build_dir_stream("X", [V.Module("X", "Sub A()\nEnd Sub")])
+    assert b"Visual Basic For Applications" in d
+    assert b"Microsoft Excel" in d
 
 
 def test_resolve_secret_fail_fast(monkeypatch, xlsm, tmp_path):

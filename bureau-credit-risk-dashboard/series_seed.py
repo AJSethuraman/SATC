@@ -151,6 +151,7 @@ WATCHLIST = [
         "watchlist", "delinq_rate", "monthly", "NSA", "pct", "rate", "msa", "level",
         "GATED: requires Class C Prama MSA feed; refused under public stand-in "
         "(source_class=A).",
+        dashboard_capable=False,          # per the spec sec 2 table
         table_id="", sheet="", series_label=""),
 ]
 

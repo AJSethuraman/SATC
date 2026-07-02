@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 
 from openpyxl import Workbook
+from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook.defined_name import DefinedName
@@ -31,8 +32,19 @@ import keybank_style as KB
 from keybank_style import (
     INK, KEY_RED, MONO_FONT, NOTE_FONT, SECT_FILL,
     brand_banner, kpi_tiles, header_row, watchlist_boundary,
-    yoy_heat, hide_gridlines, freeze_below,
+    hide_gridlines, freeze_below,
 )
+
+
+def stress_heat(ws, cell_range):
+    """Heat where HIGH = stress (delinquency rates, balance growth): low renders
+    calm green, high renders red -- matching the threshold engine's
+    direction="above". (KB.yoy_heat runs the OTHER way -- high=good -- which is
+    right for HPI deterioration but inverted for these lanes.)"""
+    ws.conditional_formatting.add(cell_range, ColorScaleRule(
+        start_type="min", start_color=KB.HEAT_GOOD,
+        mid_type="percentile", mid_value=50, mid_color=KB.HEAT_MID,
+        end_type="max", end_color=KB.HEAT_BAD))
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 INK_BOLD = Font(name="Arial", bold=True, color=INK)
@@ -72,7 +84,9 @@ def config_rows():
     rows += [
         ["demo_mode", "FALSE", "TRUE = offline deterministic HhdcDemoProvider "
          "(no network/key), for trying the button and tests."],
-        ["raw_slots", "60", "observations kept per series (newest-first)."],
+        ["raw_slots", "60", "observations kept per series (newest-first). BUILT "
+         "INTO the dashboard formulas -- changing it requires rebuilding the "
+         "workbook (make_workbook.py); the runner refuses a mismatched layout."],
         ["http_min_interval", "0.0", "seconds between live HHDC downloads "
          "(conditional-fetch; HHDC is a static published table, no API quota)."],
         ["secret_env", "", "NAME of the env var holding a licensed (Class C) "
@@ -88,7 +102,11 @@ def config_rows():
     rows += [[], ["# To add a series: append a [SERIES] row. To open the "
                   "watchlist lane you need a licensed Class C MSA/account feed "
                   "(source_class=C, watchlist_capable=TRUE, geo_segment in "
-                  "{msa,account}); a public row can never be promoted into it."]]
+                  "{msa,account}); a public row can never be promoted into it."],
+             ["# Score scales differ and must NEVER be silently cross-compared: "
+              "Equifax Risk Score 280-850 (prime >= 660); VantageScore and FICO "
+              "use different ranges/cutoffs. Record the scale per series in "
+              "notes; v1 has no crosswalk and refuses silent comparison."]]
     return rows
 
 
@@ -163,15 +181,43 @@ HEADLINE_COL = 6
 STATUS_C = 8
 
 
+def _blank(ref):
+    """Empty raw cells are NOT Excel errors: IFERROR(ref,"") coerces them to 0,
+    which fabricates values (0.00 'Prior') and pre-run 'OK' statuses. Guard
+    every raw reference so a missing observation renders blank instead."""
+    return f"IF({ref}=\"\",\"\",{ref})"
+
+
+def _pct_change_formula(latest, ago):
+    return (f"=IF(OR({latest}=\"\",{ago}=\"\"),\"\","
+            f"IFERROR(({latest}-{ago})/{ago}*100,\"\"))")
+
+
 def _headline_formula(spec, b):
     """Headline = the named transform's latest value, by formula off the raw
-    block. yoy_pct -> YoY %; level -> latest level."""
+    block -- covering EVERY registered transform so the workbook and the
+    runner's digest can never disagree on the same series."""
     latest = _ref(b, 0)
-    if spec.transform in ("yoy_pct", "index_to_pct"):
-        ppy = R.periods_per_year(spec.frequency)
-        yago = _ref(b, ppy)
-        return f"=IFERROR(({latest}-{yago})/{yago}*100,\"\")"
-    return f"=IFERROR({latest},\"\")"
+    t = spec.transform
+    if t == "yoy_pct":
+        return _pct_change_formula(latest, _ref(b, R.periods_per_year(spec.frequency)))
+    if t in ("qoq_pct", "mom_pct"):
+        return _pct_change_formula(latest, _ref(b, 1))
+    if t == "zscore_8q":
+        col = get_column_letter(R.RAW_VALUE_COL)
+        win = (f"{R.RAW_TAB}!{col}{b.first_data_row}:"
+               f"{col}{b.first_data_row + 7}")
+        return (f"=IF({latest}=\"\",\"\","
+                f"IFERROR(({latest}-AVERAGE({win}))/STDEV({win}),\"\"))")
+    if t == "index_to_pct":
+        # base = the series' first (oldest) observation = the LAST non-empty
+        # cell of the newest-first block; LOOKUP(2,1/(rng<>"")) finds it.
+        col = get_column_letter(R.RAW_VALUE_COL)
+        rng = (f"{R.RAW_TAB}!{col}{b.first_data_row}:"
+               f"{col}{b.first_data_row + b.slots - 1}")
+        return (f"=IF({latest}=\"\",\"\","
+                f"IFERROR(({latest}/LOOKUP(2,1/({rng}<>\"\"),{rng})-1)*100,\"\"))")
+    return f"={_blank(latest)}"          # level: pass-through, blank-guarded
 
 
 def _status_formula(r, thr_cells, spec):
@@ -189,7 +235,7 @@ def _status_formula(r, thr_cells, spec):
 
 
 def write_dashboard(wb, tab, specs, blocks, thr_cells, title, subtitle,
-                    metric_types, headline_label):
+                    metric_types, headline_label, heat=True):
     ws = wb.create_sheet(tab)
     hide_gridlines(ws)
     rows = sorted([s for s in specs if s.lane == "dashboard"
@@ -207,8 +253,8 @@ def write_dashboard(wb, tab, specs, blocks, thr_cells, title, subtitle,
         ws.cell(r, 1, s.category).font = KB.SECONDARY
         ws.cell(r, 2, s.id).font = MONO_FONT
         ws.cell(r, 3, s.title).font = KB.DATA_FONT
-        ws.cell(r, 4, f"=IFERROR({latest},\"\")")
-        ws.cell(r, 5, f"=IFERROR({prior},\"\")")
+        ws.cell(r, 4, f"={_blank(latest)}")
+        ws.cell(r, 5, f"={_blank(prior)}")
         ws.cell(r, HEADLINE_COL, _headline_formula(s, b))
         # col 7 (Trend) left blank -- sparklines painted by the macro.
         status = _status_formula(r, thr_cells, s)
@@ -255,8 +301,10 @@ def write_dashboard(wb, tab, specs, blocks, thr_cells, title, subtitle,
 
     if last >= first:
         KB.alert_rule(ws, f"{sc}{first}:{sc}{last}")
-        # heat the headline column (red = stress on rates/growth)
-        yoy_heat(ws, f"{COL['Headline']}{first}:{COL['Headline']}{last}")
+        if heat:
+            # red = stress: high delinquency / hot balance growth shade red,
+            # agreeing with the ALERT/WATCH direction of every threshold here.
+            stress_heat(ws, f"{COL['Headline']}{first}:{COL['Headline']}{last}")
     return ws
 
 
@@ -478,7 +526,8 @@ def build(out_path):
                     "Originations Dashboard",
                     "New originations by product. NOTE: a one-quarter origination "
                     "lag is standard. Headline = YoY %.",
-                    metric_types={"origination"}, headline_label="YoY %")
+                    metric_types={"origination"}, headline_label="YoY %",
+                    heat=False)   # high originations is not stress; no heat here
     write_watchlist(wb, specs)
     write_code_tab(wb, "_code_py", os.path.join(HERE, "runner.py"), "python")
     write_code_tab(wb, "_code_vba", os.path.join(HERE, "macro.bas"), "vba")

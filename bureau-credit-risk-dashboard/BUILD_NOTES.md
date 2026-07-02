@@ -149,3 +149,57 @@ feed-named watchlist refusal.
 Runtime: `pip install pandas openpyxl` (no `fredapi`, no `xlwings` — the bureau
 runner is openpyxl-only against the closed workbook). Test/verify-only:
 `pytest`, `oletools` (olevba), `formulas` (pure-Python recalc).
+
+## Review pass (post-v1): three independent audits, all findings fixed
+
+A three-agent adversarial review (bug hunt, spec-compliance audit, workbook
+package audit) confirmed the centerpiece controls — structural default-deny
+gate, no hardcoded secrets, no refuted research claim in any artifact, no live
+licensed call — and surfaced the following, all fixed and regression-tested:
+
+**Correctness (visible in the shipped demo before the fix):**
+- Headline heat ran high=green while every threshold runs high=bad — replaced
+  with a stress-direction scale (red = stress) on Balances/Delinquency; no heat
+  on Originations (high originations is not stress).
+- Excel's `IFERROR(ref,"")` coerces EMPTY raw cells to 0 (a missing "Prior"
+  rendered 0.00; pre-run status cells showed "OK" with zero data) — every raw
+  reference is now blank-guarded (`IF(ref="","",…)`), verified pre-run blank +
+  post-run cell-for-cell equal to the Python engine via the `formulas` recalc.
+- Editing `raw_slots` after build silently desynced every dashboard formula —
+  the runner now refuses a mismatched raw layout with a clear rebuild message
+  (regression test flips the knob and asserts the refusal).
+- The workbook headline only implemented yoy/level; `qoq_pct`/`mom_pct`/
+  `zscore_8q`/`index_to_pct` now have real cell formulas, so workbook and email
+  digest can never disagree on the same series.
+- A failed per-series fetch left the previous run's block under a fresh
+  timestamp — every block is now blanked before fetching (true stateless
+  rebuild) and the status line reports fetch errors.
+- `pct_change` behavior varies across pandas versions when NaN is present —
+  transforms now use shift-based math (NaN-propagating, version-independent).
+- `index_to_pct` was silently aliased to YoY — now truly base-relative, with a
+  test pinning a point where the two differ.
+- The idempotence test only proved determinism — it now re-runs on the SAME
+  populated workbook; the Class C stub returns real (valueless) NormalizedRow
+  instances and the test checks every schema field; a no-network test covers
+  the live provider's URL cache + unbound-parse refusal.
+- Wired `last_observation_period` into the digest (per-series as-of) — it was
+  declared for the L5 seam but never called.
+
+**VBA container (`vba_writer.py`, propagated to BOTH templates):**
+- The `dir` stream now references the default **VBA + Excel** libraries
+  (omitting them risks a compile error on load — `MsgBox`/`vbCrLf` live in VBA,
+  `Worksheet`/`xlUp` in Excel).
+- `CMG`/`DPB`/`GC` protection keys are now properly encrypted per [MS-OVBA]
+  2.4.3 (protection none / password none / visibility visible) instead of the
+  malformed `"0000"` that can trigger the VBE's "invalid key 'DPB'" prompt; a
+  test decrypts them back per the spec's inverse algorithm.
+- `_VBA_PROJECT` is the full 7-byte header per [MS-OVBA] 2.3.4.1.
+
+The package audit separately confirmed: no dangling relationships (fresh,
+after an openpyxl round-trip, AND after a real `--demo` refresh), zero
+overlapping merges, all sampled formulas valid, styles consistent — the
+historical "format or extension is not valid" failure class is absent.
+
+Suite after the pass: **13 tests green** + email-sim PASS on this template;
+the FRED template rebuilt with the shared `vba_writer.py` fix passes its full
+44-test suite.

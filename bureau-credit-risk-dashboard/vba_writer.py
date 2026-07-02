@@ -107,7 +107,18 @@ def build_dir_stream(project_name: str, modules: List[Module]) -> bytes:
     # PROJECTCONSTANTS (empty + unicode)
     out += struct.pack("<HI", 0x000C, 0) + struct.pack("<HI", 0x003C, 0)
 
-    # --- PROJECTREFERENCES: stdole + Office (registered) ---
+    # --- PROJECTREFERENCES (registered), in the order real Excel projects
+    # store them: VBA + host Excel first (the default, non-removable libraries
+    # every module depends on -- MsgBox/vbCrLf live in VBA, Worksheet/xlUp in
+    # Excel; omitting them risks a compile error on load), then stdole+Office.
+    out += _reference("VBA",
+                      "*\\G{000204EF-0000-0000-C000-000000000046}#4.2#9#"
+                      "C:\\Program Files\\Common Files\\Microsoft Shared\\VBA"
+                      "\\VBA7.1\\VBE7.DLL#Visual Basic For Applications")
+    out += _reference("Excel",
+                      "*\\G{00020813-0000-0000-C000-000000000046}#1.9#0#"
+                      "C:\\Program Files\\Microsoft Office\\Root\\Office16"
+                      "\\EXCEL.EXE#Microsoft Excel 16.0 Object Library")
     out += _reference("stdole",
                       "*\\G{00020430-0000-0000-C000-000000000046}#2.0#0#"
                       "C:\\Windows\\System32\\stdole2.tlb#OLE Automation")
@@ -158,14 +169,75 @@ def build_module_stream(source: str) -> bytes:
 
 
 def build_vba_project_stream() -> bytes:
-    """Minimal _VBA_PROJECT: Reserved1=0x61CC, Version, Reserved2=0x00. Excel
+    """_VBA_PROJECT per [MS-OVBA] 2.3.4.1: Reserved1=0x61CC, Version (ignored
+    on read), Reserved2 (1 byte) + Reserved3 (2 bytes) = 7 bytes total. Excel
     rebuilds the performance cache from 'dir' + module source."""
-    return struct.pack("<HHB", 0x61CC, 0xFFFF, 0x00)
+    return struct.pack("<HHBH", 0x61CC, 0xFFFF, 0x00, 0x0000)
+
+
+# The PROJECTID GUID: the CMG/DPB/GC encryption keys off this string, so the
+# ID line and the encryption MUST use the same value.
+PROJECT_ID = "{5DD2A1D8-3F1C-4C2B-9B7E-0A1B2C3D4E5F}"
+
+
+def ovba_encrypt(data: bytes, project_id: str = PROJECT_ID, seed: int = 0xBE) -> str:
+    """[MS-OVBA] 2.4.3.1 Data Encryption -> uppercase-hex string for the
+    PROJECT stream's CMG/DPB/GC keys. XOR chain keyed on the PROJECTID byte
+    sum; payload = ignored bytes + 4-byte LE length + data. Deterministic seed
+    keeps builds reproducible (any seed byte is legal)."""
+    proj_key = sum(project_id.encode("latin-1")) & 0xFF
+    version_enc = seed ^ 0x02                      # Version is always 2
+    proj_key_enc = seed ^ proj_key
+    out = bytearray([seed, version_enc, proj_key_enc])
+    enc2, enc1, unenc1 = version_enc, proj_key_enc, proj_key
+
+    def push(byte):
+        nonlocal enc2, enc1, unenc1
+        byte_enc = byte ^ ((enc2 + unenc1) & 0xFF)
+        out.append(byte_enc)
+        enc2, enc1, unenc1 = enc1, byte_enc, byte
+
+    for i in range(1, ((seed & 6) >> 1) + 1):      # IgnoredLength filler bytes
+        push(i & 0xFF)
+    for byte in struct.pack("<I", len(data)) + data:
+        push(byte)
+    return out.hex().upper()
+
+
+def ovba_decrypt(hex_str: str, project_id: str = PROJECT_ID) -> bytes:
+    """[MS-OVBA] 2.4.3.2 Data Decryption -- the inverse, used by the tests to
+    prove the keys parse exactly the way Excel/VBE will read them."""
+    blob = bytes.fromhex(hex_str)
+    seed, version_enc, proj_key_enc = blob[0], blob[1], blob[2]
+    if seed ^ version_enc != 0x02:
+        raise ValueError("bad Version (must decrypt to 2)")
+    proj_key = sum(project_id.encode("latin-1")) & 0xFF
+    if seed ^ proj_key_enc != proj_key:
+        raise ValueError("ProjKey does not match the PROJECTID")
+    enc2, enc1, unenc1 = version_enc, proj_key_enc, proj_key
+    decoded = bytearray()
+    for byte_enc in blob[3:]:
+        byte = byte_enc ^ ((enc2 + unenc1) & 0xFF)
+        decoded.append(byte)
+        enc2, enc1, unenc1 = enc1, byte_enc, byte
+    ignored = (seed & 6) >> 1
+    body = bytes(decoded[ignored:])
+    length = struct.unpack("<I", body[:4])[0]
+    data = body[4:4 + length]
+    if len(data) != length:
+        raise ValueError("truncated payload")
+    return data
 
 
 def build_project_stream(project_name: str, modules: List[Module]) -> bytes:
+    # Properly encrypted per [MS-OVBA] 2.4.3 (a malformed 2-byte value here
+    # triggers the VBE's "invalid key 'DPB'" prompt in real Excel):
+    # protection state = none, password = none, visibility = visible.
+    cmg = ovba_encrypt(struct.pack("<I", 0), seed=0xBE)
+    dpb = ovba_encrypt(bytes([0x00]), seed=0xD2)
+    gc = ovba_encrypt(bytes([0xFF]), seed=0x91)
     lines = [
-        'ID="{5DD2A1D8-3F1C-4C2B-9B7E-0A1B2C3D4E5F}"',
+        f'ID="{PROJECT_ID}"',
     ]
     for m in modules:
         lines.append(f"Module={m.name}")
@@ -173,9 +245,9 @@ def build_project_stream(project_name: str, modules: List[Module]) -> bytes:
         f'Name="{project_name}"',
         'HelpContextID="0"',
         'VersionCompatible32="393222000"',
-        'CMG="0000"',
-        'DPB="0000"',
-        'GC="0000"',
+        f'CMG="{cmg}"',
+        f'DPB="{dpb}"',
+        f'GC="{gc}"',
         "",
         "[Host Extender Info]",
         "&H00000001={3832D640-CF90-11CF-8E43-00A0C911005A};VBE;&H00000000",

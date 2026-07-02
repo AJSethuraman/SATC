@@ -265,16 +265,23 @@ def t_level(s: pd.Series, frequency: str) -> pd.Series:
     return s.astype("float64")
 
 
+def _pct_change_shift(s: pd.Series, periods: int) -> pd.Series:
+    """Shift-based percent change: NaN-propagating and identical across pandas
+    versions (pct_change's fill_method default changed between 1.x/2.x/3.x)."""
+    x = s.astype("float64")
+    return (x / x.shift(periods) - 1.0) * 100.0
+
+
 def t_yoy_pct(s: pd.Series, frequency: str) -> pd.Series:
-    return s.astype("float64").pct_change(periods=periods_per_year(frequency)) * 100.0
+    return _pct_change_shift(s, periods_per_year(frequency))
 
 
 def t_qoq_pct(s: pd.Series, frequency: str) -> pd.Series:
-    return s.astype("float64").pct_change(periods=1) * 100.0
+    return _pct_change_shift(s, 1)
 
 
 def t_mom_pct(s: pd.Series, frequency: str) -> pd.Series:
-    return s.astype("float64").pct_change(periods=1) * 100.0
+    return _pct_change_shift(s, 1)
 
 
 def t_zscore_8q(s: pd.Series, frequency: str) -> pd.Series:
@@ -285,7 +292,14 @@ def t_zscore_8q(s: pd.Series, frequency: str) -> pd.Series:
 
 
 def t_index_to_pct(s: pd.Series, frequency: str) -> pd.Series:
-    return t_yoy_pct(s, frequency)
+    """Percent relative to the series' base = its first valid observation
+    (BUILD SPEC sec 3: 'convert an indexed series to percent terms relative to
+    its base'). NOT a YoY alias."""
+    x = s.astype("float64")
+    valid = x.dropna()
+    if valid.empty or valid.iloc[0] == 0.0:
+        return x * math.nan
+    return (x / valid.iloc[0] - 1.0) * 100.0
 
 
 TRANSFORMS = {
@@ -345,6 +359,14 @@ class NormalizedRow:
     units: str = ""
 
 
+def last_observation_period(rows: List[NormalizedRow]) -> Optional[str]:
+    """Newest period with a real value, derived from already-fetched data --
+    no extra call (L5). Used by the digest (per-series as-of) and available to
+    adapters for conditional fetch."""
+    ps = [r.period for r in rows if r.value is not None]
+    return max(ps) if ps else None
+
+
 class Provider:
     """Adapter interface contract: fetch_series(spec, secret) -> [NormalizedRow]."""
 
@@ -354,9 +376,7 @@ class Provider:
         raise NotImplementedError
 
     def last_observation_period(self, rows: List[NormalizedRow]) -> Optional[str]:
-        """Derived from already-fetched data -- no extra call (L5)."""
-        ps = [r.period for r in rows if r.value is not None]
-        return max(ps) if ps else None
+        return last_observation_period(rows)
 
 
 class HhdcDemoProvider(Provider):
@@ -484,8 +504,12 @@ class ClassCStubProvider(Provider):
 
     def fetch_series(self, spec: SeriesSpec, secret=None) -> List[NormalizedRow]:
         self._authenticate(secret)
-        # A real adapter would call the licensed endpoint here and normalize.
-        return []
+        # A real adapter would call the licensed endpoint and normalize. The
+        # stub returns one schema-shaped, VALUELESS row: it proves the seam
+        # contract (Section 1a) without fabricating licensed data.
+        return [NormalizedRow(id=spec.id, period="1900-01-01", value=None,
+                              geo_segment=spec.geo_segment, source_class="C",
+                              units=spec.units)]
 
 
 def resolve_secret(cfg: Config) -> Optional[str]:
@@ -550,7 +574,33 @@ class OpenpyxlBackend:
         ws = self._wb["_config"]
         return parse_config([[c.value for c in row] for row in ws.iter_rows()])
 
+    def _check_block(self, block: RawBlock, spec: SeriesSpec):
+        """Refuse to write into a workbook whose raw layout doesn't match the
+        computed one (e.g. raw_slots edited after build): every dashboard
+        formula is anchored to the BUILT layout, so a silent mismatch would
+        make the whole workbook quietly wrong. Rebuild instead."""
+        ws = self._wb[RAW_TAB]
+        existing = ws.cell(block.header_row, 1).value
+        if existing is not None and str(existing).strip() not in ("", spec.id):
+            raise RuntimeError(
+                f"Raw layout mismatch in {RAW_TAB} at row {block.header_row}: "
+                f"expected block '{spec.id}' but found '{existing}'. The workbook "
+                f"was built with a different raw_slots/series layout than _config "
+                f"now describes; dashboard formulas are anchored to the built "
+                f"layout. Rebuild the workbook (make_workbook.py) instead of "
+                f"editing raw_slots in place.")
+
+    def clear_raw_block(self, block: RawBlock, spec: SeriesSpec):
+        """Blank a block's data slots (stateless rebuild: a series that fails
+        to fetch must show empty, never last run's stale values)."""
+        self._check_block(block, spec)
+        ws = self._wb[RAW_TAB]
+        for r in range(block.first_data_row, block.first_data_row + block.slots):
+            ws.cell(r, 1, None)
+            ws.cell(r, 2, None)
+
     def write_raw_block(self, block: RawBlock, spec: SeriesSpec, rows: List[NormalizedRow]):
+        self._check_block(block, spec)
         ws = self._wb[RAW_TAB]
         ws.cell(block.header_row, 1, spec.id)
         ws.cell(block.header_row, 2, spec.title)
@@ -569,14 +619,18 @@ class OpenpyxlBackend:
             ws.cell(rr, 2, None if nr.value is None else float(nr.value))
 
     def write_status(self, status: dict):
+        line2 = (f"Series {status.get('series_pulled', 0)}/"
+                 f"{status.get('series_in_dict', 0)} - "
+                 f"{status.get('alert_count', 0)} ALERT / "
+                 f"{status.get('watch_count', 0)} WATCH")
+        n_err = len(status.get("errors") or [])
+        if n_err:
+            line2 += f" - {n_err} FETCH ERRORS (blocks blanked)"
         for tab in ("Dashboard_Balances", "Dashboard_Delinquency", "Dashboard_Originations"):
             if tab in self._wb.sheetnames:
                 ws = self._wb[tab]
                 ws.cell(1, STATUS_COL, "Last run  " + status.get("timestamp", ""))
-                ws.cell(2, STATUS_COL, f"Series {status.get('series_pulled', 0)}/"
-                                       f"{status.get('series_in_dict', 0)} - "
-                                       f"{status.get('alert_count', 0)} ALERT / "
-                                       f"{status.get('watch_count', 0)} WATCH")
+                ws.cell(2, STATUS_COL, line2)
 
     def finalize(self):
         self._wb.save(self.path)
@@ -598,6 +652,7 @@ def compute_digest(cfg: Config, series_rows: Dict[str, List[NormalizedRow]]) -> 
         thr = cfg.thresholds.get(spec.id)
         digest.append({"id": spec.id, "title": spec.title, "metric": spec.metric_type,
                        "transform": spec.transform, "value": headline,
+                       "asof_period": last_observation_period(series_rows[spec.id]),
                        "status": status_for(spec, headline, thr)})
     return digest
 
@@ -624,6 +679,13 @@ def run(workbook_path: str, demo: bool = False, asof: Optional[date] = None) -> 
     blocks = raw_layout(cfg.series, slots=cfg.raw_slots)
     series_rows: Dict[str, List[NormalizedRow]] = {}
     pulled, errors = 0, []
+    # Stateless rebuild (BUILD SPEC 0.2): blank EVERY block first, so a series
+    # whose fetch fails shows empty under the fresh timestamp -- never last
+    # run's stale values masquerading as current. This also validates the
+    # workbook's raw layout against _config before anything is fetched.
+    for spec in cfg.series:
+        if spec.lane != "watchlist":
+            backend.clear_raw_block(blocks[spec.id], spec)
     for spec in cfg.series:
         if spec.lane == "watchlist":
             continue                                  # gated lane is never fetched in v1
