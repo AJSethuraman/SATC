@@ -25,7 +25,7 @@ is just the map.
 
 | # | Template | Directory | Source | Watchlist | Status |
 |---|----------|-----------|--------|-----------|--------|
-| 3 | Macro Early-Warning Monitor | `macro-early-warning-dashboard/` (pending) | FRED (national recession/credit-stress signals + state-keyed labor series) | **OPEN** — state unemployment + Philly Fed coincident indexes (geo keys) | coverage research in flight; spec next |
+| 3 | Macro Early-Warning Monitor | `macro-early-warning-dashboard/` | FRED (18 national recession/credit-stress signals + 3 state-keyed labor families) | **OPEN** — {ST}UR, {ST}ICLAIMS, {ST}PHCI (verified alive; {ST}SLIND leading indexes DISCONTINUED, excluded) | research done (`COVERAGE_RESEARCH_MACRO.md`); spec next |
 
 ## Candidate pipeline (researched, not yet picked)
 

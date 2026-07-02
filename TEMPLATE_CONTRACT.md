@@ -91,6 +91,24 @@ relationships, no overlapping merges).
 embedded runner, and drives it per §4. A template that satisfies §2–§4 is
 launcher-compatible by construction — no registration anywhere.
 
+## 11. Transmission format (the corporate-security reality)
+
+Binary files do not survive the corporate email/DLP boundary; plain text does.
+Therefore every template MUST ship a `make_bundle.py` that generates a single
+**pure-ASCII** builder script (`build_<template>.py`, code embedded as
+gzip+base64, target ≤ ~60 KB) which, run on the target machine
+(`python build_<template>.py` from PowerShell), locally produces:
+
+- the demo-populated `.xlsm` (macro embedded), AND
+- a demo-populated fallback `.xlsx` + `macro.bas` (if the local Excel rejects
+  the embedded VBA project: open the `.xlsx`, paste `macro.bas` via Alt+F11,
+  save as `.xlsm`), AND
+- `runner.py` + `requirements.txt`.
+
+Nothing binary is ever transmitted — the workbook is *built* where it will
+live. `control_center.py` is itself plain ASCII and travels the same way;
+its discovery accepts both `.xlsm` and fallback `.xlsx` workbooks.
+
 ## Carried lessons
 
 L1–L6 (see BUILD_SPEC_BUREAU.md) are incorporated by reference; new lessons

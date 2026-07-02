@@ -64,7 +64,10 @@ def discover(root=".") -> list:
         dirnames[:] = [d for d in dirnames
                        if d not in SKIP_DIRS and depth < MAX_DEPTH]
         for fn in filenames:
-            if fn.lower().endswith(".xlsm") and not fn.startswith("~$"):
+            # .xlsm is the finished product; a fallback .xlsx (bundle-built,
+            # macro not yet pasted in) is equally runnable -- the runner gates
+            # keep_vba on the extension.
+            if fn.lower().endswith((".xlsm", ".xlsx")) and not fn.startswith("~$"):
                 p = os.path.join(dirpath, fn)
                 if _has_code_tab(p):
                     found.append(Template(p))
