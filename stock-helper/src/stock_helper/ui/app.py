@@ -14,7 +14,6 @@ from stock_helper.connectors.prices import PRICE_SOURCE_LABEL, fetch_daily_price
 from stock_helper.core.config import get_settings
 from stock_helper.core.format import money, pct, ratio, shares
 from stock_helper.features.metrics import compute_derived_metrics
-from stock_helper.reports.tearsheet import load_series
 from stock_helper.signals.engine import assess_data_confidence, evaluate_signals
 from stock_helper.storage.db import get_session, init_db
 from stock_helper.storage.models import (
@@ -23,6 +22,7 @@ from stock_helper.storage.models import (
     FilingSection,
     SecurityIdentifier,
 )
+from stock_helper.storage.queries import load_series
 
 NAVY = "#1b2a4a"
 ACCENT = "#2c4a7c"
@@ -86,24 +86,28 @@ def load_companies() -> list[tuple[str, Company]]:
     return sorted(((i.ticker, c) for i, c in rows), key=lambda x: x[0])
 
 
-def load_company_bundle(ticker: str):
+def load_company_bundle(ticker: str, as_of=None):
     with get_session(settings) as session:
         identifier = session.exec(
             select(SecurityIdentifier).where(SecurityIdentifier.ticker == ticker)
         ).first()
         company = session.get(Company, identifier.company_id)
-        series = load_series(session, company)
+        series = load_series(session, company, as_of=as_of)
+        filings_query = select(Filing).where(Filing.company_id == company.id)
+        if as_of is not None:
+            filings_query = filings_query.where(Filing.filed_date <= as_of)
         filings = session.exec(
-            select(Filing)
-            .where(Filing.company_id == company.id)
-            .order_by(Filing.filed_date.desc())  # type: ignore[attr-defined]
-            .limit(30)
+            filings_query.order_by(Filing.filed_date.desc()).limit(30)  # type: ignore[attr-defined]
         ).all()
-        sections = session.exec(
+        sections_query = (
             select(FilingSection)
             .join(Filing, Filing.id == FilingSection.filing_id)  # type: ignore[arg-type]
             .where(Filing.company_id == company.id)
-            .order_by(FilingSection.section_name, FilingSection.chunk_index)  # type: ignore[arg-type]
+        )
+        if as_of is not None:
+            sections_query = sections_query.where(Filing.filed_date <= as_of)
+        sections = session.exec(
+            sections_query.order_by(FilingSection.section_name, FilingSection.chunk_index)  # type: ignore[arg-type]
         ).all()
     derived = compute_derived_metrics(series)
     signals = evaluate_signals(company.industry_bucket, derived)
@@ -158,13 +162,32 @@ selected = st.sidebar.selectbox("Ticker", tickers)
 page = st.sidebar.radio(
     "Section", ["Dashboard", "Company Tear Sheet", "Filing Evidence", "Signal Scorecard"]
 )
+
+st.sidebar.divider()
+pit_enabled = st.sidebar.checkbox(
+    "Point-in-time view",
+    help="Rebuild everything as it was knowable on a past date: facts and filings "
+    "filed later are excluded, and originally-filed values are used instead of "
+    "later restatements.",
+)
+as_of = st.sidebar.date_input("As-of date", disabled=not pit_enabled) if pit_enabled else None
+
 st.sidebar.divider()
 st.sidebar.caption(
     "Signals are transparent rules over as-filed SEC data. Nothing here is "
     "backtested; no predictive accuracy is implied. See DISCLAIMER.md."
 )
 
-company, series, derived, signals, filings, sections, confidence = load_company_bundle(selected)
+company, series, derived, signals, filings, sections, confidence = load_company_bundle(
+    selected, as_of=as_of
+)
+
+if as_of is not None:
+    st.info(
+        f"**Point-in-time view as of {as_of}.** Facts and filings filed after this "
+        "date are excluded; values are as originally filed at the time, not later "
+        "restatements."
+    )
 
 # --- Pages ----------------------------------------------------------------------
 

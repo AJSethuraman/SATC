@@ -65,7 +65,9 @@ def test_ticker_row_created(settings):
         assert identifier.exchange == "Nasdaq"
 
 
-def test_selected_facts_stored_with_provenance(settings):
+def test_all_annual_facts_stored_with_provenance(settings):
+    """Storage keeps superseded values and fallback tags (no dedupe) so as-of
+    replay can reconstruct originally-filed views; dedupe happens at read time."""
     company = ingest_aapl(settings)
     with get_session(settings) as session:
         facts = session.exec(
@@ -73,7 +75,14 @@ def test_selected_facts_stored_with_provenance(settings):
                 CompanyFact.company_id == company.id, CompanyFact.metric_key == "revenue"
             )
         ).all()
-        assert len(facts) == 3
+        # Preferred tag: FY22 + FY23 original + FY23 restated + FY24 = 4 rows,
+        # plus 1 row from the sparser "Revenues" fallback tag.
+        assert len(facts) == 5
+        fy23_values = {
+            f.value for f in facts
+            if f.period_end.isoformat() == "2023-09-30"
+        }
+        assert fy23_values == {380_000_000_000.0, 383_000_000_000.0}
         assert all(f.accession for f in facts)
         assert all(f.filed_date is not None for f in facts)
         assert all("companyfacts" in f.source_url for f in facts)
@@ -90,4 +99,4 @@ def test_reingest_is_idempotent(settings):
                 CompanyFact.company_id == company.id, CompanyFact.metric_key == "revenue"
             )
         ).all()
-        assert len(revenue_facts) == 3
+        assert len(revenue_facts) == 5

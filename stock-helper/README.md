@@ -35,6 +35,12 @@ with a confidence level and a caveat attached. See [DISCLAIMER.md](DISCLAIMER.md
 - **Best-effort filing section extraction** (MD&A / Risk Factors) from the latest
   10-K/10-Q primary document — an early slice of Phase 2, heuristic and clearly
   labeled as such.
+- **Point-in-time replay**: `build-report --as-of`, a UI toggle, and
+  `signal-history` rebuild everything as it was knowable on a past date —
+  facts filed later are excluded and originally-filed values win over
+  restatements. This is the calibration foundation for Phase 7; outcome labels
+  (`--with-outcomes`) are exploratory, cost-free, non-canonical, and carry no
+  performance claim.
 
 ## What is intentionally NOT built yet
 
@@ -70,7 +76,8 @@ Full instructions, including plain-pip and troubleshooting: [INSTALL.md](INSTALL
 |---|---|
 | `stock-helper init` | Create data folders and initialize the SQLite database |
 | `stock-helper fetch-sec TICKER` | Fetch submissions + company facts for a ticker; `--with-documents` also downloads the latest 10-K/10-Q primary document and extracts sections (best-effort) |
-| `stock-helper build-report TICKER` | Normalize facts, compute metrics and signals, write a Markdown tear sheet |
+| `stock-helper build-report TICKER` | Normalize facts, compute metrics and signals, write a Markdown tear sheet; `--as-of YYYY-MM-DD` builds the point-in-time view (only facts/filings filed by that date, originally-filed values instead of restatements) |
+| `stock-helper signal-history TICKER` | Replay the scorecard at each past 10-K/10-Q filing date and store the results; `--with-outcomes` joins exploratory forward returns from the non-canonical price source (not a backtest) |
 | `stock-helper run-ui` | Launch the Streamlit UI |
 | `stock-helper run-api` | Launch the FastAPI server |
 | `stock-helper info TICKER` | Print a quick company summary to the terminal |

@@ -96,8 +96,14 @@ Nothing in the app claims predictive power until this phase is done.
 - ✅ Point-in-time as-of replay in the facts normalizer
   (`build_annual_series(..., as_of=date)`: facts filed later are excluded and
   the originally-filed value wins over later restatements)
-- ⬜ As-of mode surfaced through metrics/signals/reports and CLI (`--as-of`)
-- ⬜ Signal history persistence and future-return labels
+- ✅ As-of mode surfaced end to end: DB stores superseded facts, `build-report
+  --as-of`, UI point-in-time toggle
+- ✅ Signal history persistence (`signal-history`: scorecard replayed at each
+  past 10-K/10-Q filing date → SignalHistory rows)
+- ✅ Exploratory future-return labels (`--with-outcomes`: next-session entry,
+  20/60/120 trading-day horizons from the non-canonical price source; labeled
+  "not a backtest" everywhere)
+- ⬜ Canonical (cost-aware, dividend-correct) outcome labels
 - ⬜ Delisting/survivorship handling (requires a research-grade security master;
   the SEC ticker file alone is not a historical map)
 - ⬜ Walk-forward validation with embargo; cost assumptions

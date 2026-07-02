@@ -5,7 +5,7 @@ Reads only from the database — no network. `fetch-sec` must run first.
 """
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlmodel import Session, select
 
@@ -15,7 +15,6 @@ from stock_helper.core.format import money, pct, ratio, shares
 from stock_helper.core.logging import get_logger
 from stock_helper.features.metrics import METRICS_VERSION, DerivedMetric, compute_derived_metrics
 from stock_helper.industry.sic_buckets import peer_group_label
-from stock_helper.normalization.facts import FactPoint, MetricSeries
 from stock_helper.signals.base import SIGNALS_VERSION
 from stock_helper.signals.engine import (
     DataConfidence,
@@ -25,21 +24,25 @@ from stock_helper.signals.engine import (
 )
 from stock_helper.storage.models import (
     Company,
-    CompanyFact,
     EvidenceReference,
     Filing,
     FilingSection,
     FinancialMetric,
     ReportRun,
-    SecurityIdentifier,
     SignalResult,
+)
+from stock_helper.storage.queries import (
+    CompanyNotFetchedError,
+    find_company,
+    load_series,
 )
 
 log = get_logger(__name__)
 
 
-class CompanyNotFetchedError(LookupError):
-    pass
+# Re-exported for backward compatibility; canonical home is storage/queries.py.
+__all__ = ["CompanyNotFetchedError", "find_company", "load_series", "Report",
+           "build_report", "render_markdown", "write_report", "record_output_path"]
 
 
 @dataclass
@@ -53,70 +56,31 @@ class Report:
     sections_available: list[str]
     peer_note: str
     generated_at: datetime
+    as_of: date | None = None  # point-in-time view date; None = current view
     caveats: list[str] = field(default_factory=list)
     next_questions: list[str] = field(default_factory=list)
     run_id: int | None = None
 
 
-def find_company(session: Session, ticker: str) -> Company:
-    ticker = ticker.upper()
-    identifier = session.exec(
-        select(SecurityIdentifier).where(SecurityIdentifier.ticker == ticker)
-    ).first()
-    if identifier is None:
-        raise CompanyNotFetchedError(
-            f"No data for {ticker!r}. Run: stock-helper fetch-sec {ticker}"
-        )
-    return session.get(Company, identifier.company_id)
-
-
-def load_series(session: Session, company: Company) -> dict[str, MetricSeries]:
-    """Rebuild canonical annual series from stored CompanyFact rows."""
-    rows = session.exec(
-        select(CompanyFact)
-        .where(CompanyFact.company_id == company.id)
-        .order_by(CompanyFact.metric_key, CompanyFact.period_end)  # type: ignore[arg-type]
-    ).all()
-    series: dict[str, MetricSeries] = {}
-    for row in rows:
-        point = FactPoint(
-            metric_key=row.metric_key,
-            taxonomy=row.taxonomy,
-            tag=row.tag,
-            unit=row.unit,
-            value=row.value,
-            period_start=row.period_start,
-            period_end=row.period_end,
-            fiscal_year=row.fiscal_year,
-            fiscal_period=row.fiscal_period,
-            form=row.form,
-            accession=row.accession,
-            filed=row.filed_date,
-        )
-        existing = series.get(row.metric_key)
-        if existing is None:
-            series[row.metric_key] = MetricSeries(
-                metric_key=row.metric_key, tag=row.tag, unit=row.unit, points=[point]
-            )
-        else:
-            existing.points.append(point)
-    return series
-
-
-def build_report(session: Session, ticker: str, settings: Settings | None = None) -> Report:
+def build_report(
+    session: Session,
+    ticker: str,
+    settings: Settings | None = None,
+    as_of: date | None = None,
+) -> Report:
     settings = settings or get_settings()
     ticker = ticker.upper()
     company = find_company(session, ticker)
 
-    series = load_series(session, company)
+    series = load_series(session, company, as_of=as_of)
     derived = compute_derived_metrics(series)
     signals = evaluate_signals(company.industry_bucket, derived)
 
+    filings_query = select(Filing).where(Filing.company_id == company.id)
+    if as_of is not None:
+        filings_query = filings_query.where(Filing.filed_date <= as_of)
     filings = session.exec(
-        select(Filing)
-        .where(Filing.company_id == company.id)
-        .order_by(Filing.filed_date.desc())  # type: ignore[attr-defined]
-        .limit(15)
+        filings_query.order_by(Filing.filed_date.desc()).limit(15)  # type: ignore[attr-defined]
     ).all()
     latest_filed = filings[0].filed_date if filings else None
     confidence = assess_data_confidence(company.industry_bucket, series, latest_filed)
@@ -142,6 +106,7 @@ def build_report(session: Session, ticker: str, settings: Settings | None = None
         sections_available=list(section_names),
         peer_note=peer_group_label(company.sic, company.sic_description),
         generated_at=datetime.now(UTC),
+        as_of=as_of,
         caveats=_report_caveats(company, confidence),
         next_questions=_next_questions(company, signals),
     )
@@ -194,6 +159,7 @@ def _persist_run(session: Session, report: Report, settings: Settings) -> Report
         company_id=report.company.id,
         ticker=report.ticker,
         created_at=now,
+        as_of_date=report.as_of,
         app_version=stock_helper.__version__,
         parser_version=f"{METRICS_VERSION};{SIGNALS_VERSION}",
     )
@@ -295,6 +261,11 @@ def render_markdown(report: Report) -> str:
     add(f"*Generated {report.generated_at.strftime('%Y-%m-%d %H:%M UTC')} by "
         f"stock-helper v{stock_helper.__version__}. Research aid — **not investment advice**.*")
     add("")
+    if report.as_of is not None:
+        add(f"> **Point-in-time view as of {report.as_of}.** Facts and filings filed "
+            "after this date are excluded; values are as originally filed at the time, "
+            "not later restatements.")
+        add("")
 
     add("## Company overview")
     add("")
@@ -396,7 +367,8 @@ def render_markdown(report: Report) -> str:
 def write_report(report: Report, settings: Settings | None = None) -> str:
     settings = settings or get_settings()
     settings.reports_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"{report.ticker}_{report.generated_at.strftime('%Y%m%d_%H%M%S')}.md"
+    suffix = f"_asof_{report.as_of.isoformat()}" if report.as_of else ""
+    filename = f"{report.ticker}{suffix}_{report.generated_at.strftime('%Y%m%d_%H%M%S')}.md"
     path = settings.reports_dir / filename
     path.write_text(render_markdown(report))
     return str(path)

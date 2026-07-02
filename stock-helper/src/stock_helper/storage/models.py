@@ -155,6 +155,9 @@ class ReportRun(SQLModel, table=True):
     company_id: int = Field(foreign_key="company.id", index=True)
     ticker: str = Field(index=True)
     created_at: datetime
+    # Point-in-time view date. None = current restated view; set = the report
+    # was built only from facts/filings filed on or before this date.
+    as_of_date: date | None = None
     app_version: str = ""
     parser_version: str = ""
     output_path: str | None = None
@@ -185,6 +188,49 @@ class EvidenceReference(SQLModel, table=True):
     reference: str = ""  # accession, chunk_id, or URL
     description: str = ""
     source_url: str | None = None
+
+
+class SignalHistory(SQLModel, table=True):
+    """What each signal said at a past as-of date (point-in-time replay).
+
+    Rows are produced by `stock-helper signal-history` and are the raw material
+    for Phase 7 calibration. They record signal output only — outcome labels
+    live in ForwardReturn so signals and outcomes stay separable."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    company_id: int = Field(foreign_key="company.id", index=True)
+    ticker: str = Field(index=True)
+    as_of_date: date = Field(index=True)
+    signal_key: str = Field(index=True)
+    category: str = ""
+    status: str = ""
+    direction: str = ""
+    score: int | None = None
+    numeric_value: float | None = None
+    value_text: str = ""
+    confidence: str = ""
+    engine_version: str = ""
+    created_at: datetime | None = None
+
+
+class ForwardReturn(SQLModel, table=True):
+    """Realized price return after an as-of date (exploratory outcome label).
+
+    Computed from the optional NON-CANONICAL price source (Stooq). Not adjusted
+    for costs, dividends handling depends on the source, and no survivorship
+    guarantees — usable for rough calibration exploration only, never as a
+    performance claim."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    company_id: int = Field(foreign_key="company.id", index=True)
+    ticker: str = Field(index=True)
+    as_of_date: date = Field(index=True)
+    horizon_days: int  # trading days
+    entry_date: date
+    exit_date: date
+    ret: float  # simple return, exit close / entry close - 1
+    source: str = "stooq_noncanonical"
+    retrieved_at: datetime | None = None
 
 
 class UserNote(SQLModel, table=True):

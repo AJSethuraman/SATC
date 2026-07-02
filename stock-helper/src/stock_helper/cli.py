@@ -25,6 +25,18 @@ def _setup():
     return settings
 
 
+def _parse_cli_date(value: str | None):
+    from datetime import date
+
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        console.print(f"[red]✗[/red] Invalid date {value!r} — expected YYYY-MM-DD.")
+        raise typer.Exit(1) from exc
+
+
 @app.command()
 def init() -> None:
     """Create data folders and initialize the local SQLite database."""
@@ -86,7 +98,14 @@ def fetch_sec(
 
 
 @app.command("build-report")
-def build_report_cmd(ticker: str) -> None:
+def build_report_cmd(
+    ticker: str,
+    as_of: str = typer.Option(
+        None, "--as-of",
+        help="Point-in-time view date (YYYY-MM-DD): use only facts/filings filed "
+        "on or before this date, with originally-filed values instead of restatements.",
+    ),
+) -> None:
     """Compute metrics + signals for TICKER and write a Markdown tear sheet."""
     settings = _setup()
     from stock_helper.reports.tearsheet import (
@@ -98,9 +117,10 @@ def build_report_cmd(ticker: str) -> None:
     from stock_helper.storage.db import get_session, init_db
 
     init_db(settings)
+    as_of_date = _parse_cli_date(as_of)
     try:
         with get_session(settings) as session:
-            report = build_report(session, ticker, settings)
+            report = build_report(session, ticker, settings, as_of=as_of_date)
             path = write_report(report, settings)
             if report.run_id is not None:
                 record_output_path(session, report.run_id, path)
@@ -109,6 +129,8 @@ def build_report_cmd(ticker: str) -> None:
         raise typer.Exit(1) from exc
 
     ok = sum(1 for s in report.signals if s.outcome.status == "OK")
+    if as_of_date:
+        console.print(f"[cyan]ℹ[/cyan] Point-in-time view as of {as_of_date}")
     console.print(f"[green]✓[/green] Report written: [bold]{path}[/bold]")
     console.print(
         f"  Signals: {ok} evaluated, "
@@ -116,6 +138,75 @@ def build_report_cmd(ticker: str) -> None:
         f"{sum(1 for s in report.signals if s.outcome.status in ('UNAVAILABLE', 'INSUFFICIENT_DATA'))} missing data, "
         f"{sum(1 for s in report.signals if s.outcome.status == 'PLACEHOLDER')} planned. "
         f"Data confidence: [bold]{report.confidence.level}[/bold]"
+    )
+
+
+@app.command("signal-history")
+def signal_history_cmd(
+    ticker: str,
+    start: str = typer.Option(None, help="Earliest as-of date (YYYY-MM-DD)."),
+    end: str = typer.Option(None, help="Latest as-of date (YYYY-MM-DD)."),
+    with_outcomes: bool = typer.Option(
+        False, "--with-outcomes",
+        help="Join exploratory forward returns from the non-canonical price source "
+        "(requires ENABLE_PRICE_DATA=true). Not a backtest; no performance claim.",
+    ),
+) -> None:
+    """Replay the scorecard at each past 10-K/10-Q filing date (point-in-time).
+
+    Stores SignalHistory rows — the raw material for future calibration."""
+    settings = _setup()
+    from stock_helper.signals.history import OUTCOME_CAVEAT, build_signal_history
+    from stock_helper.storage.db import get_session, init_db
+    from stock_helper.storage.queries import CompanyNotFetchedError
+
+    init_db(settings)
+    try:
+        with get_session(settings) as session:
+            points = build_signal_history(
+                session, ticker,
+                start=_parse_cli_date(start), end=_parse_cli_date(end),
+                settings=settings, with_outcomes=with_outcomes,
+            )
+    except CompanyNotFetchedError as exc:
+        console.print(f"[red]✗[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    if not points:
+        console.print("[yellow]![/yellow] No 10-K/10-Q filing dates stored in that range. "
+                      f"Run stock-helper fetch-sec {ticker.upper()} first.")
+        raise typer.Exit(0)
+
+    shown = points[-8:]  # most recent as-of dates
+    table = Table(
+        title=f"{ticker.upper()} — point-in-time signal history "
+        f"({len(points)} dates, showing last {len(shown)})"
+    )
+    table.add_column("Signal")
+    for point in shown:
+        table.add_column(str(point.as_of), justify="center")
+    icons = {"improving": "▲", "deteriorating": "▼", "stable": "▬", "mixed": "◆"}
+    keys = [s.definition.key for s in shown[0].signals if s.definition.implemented]
+    for key in keys:
+        row = [key]
+        for point in shown:
+            outcome = next(s.outcome for s in point.signals if s.definition.key == key)
+            row.append(icons.get(outcome.direction, "·") if outcome.status == "OK" else "·")
+        table.add_row(*row)
+    if with_outcomes:
+        for horizon in (20, 60, 120):
+            row = [f"fwd {horizon}d return*"]
+            for point in shown:
+                label = point.outcomes.get(horizon)
+                row.append(f"{label.ret * 100:+.1f}%" if label else "—")
+            table.add_row(*row)
+    console.print(table)
+    console.print("· = not applicable / no data at that date")
+    if with_outcomes:
+        console.print(f"[yellow]*[/yellow] {OUTCOME_CAVEAT}")
+    console.print(
+        f"[green]✓[/green] {len(points)} history dates stored "
+        "(SignalHistory rows; rerun replaces previous history)."
     )
 
 

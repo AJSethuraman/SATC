@@ -17,7 +17,7 @@ from stock_helper.connectors.sec import (
 )
 from stock_helper.core.logging import get_logger
 from stock_helper.industry.sic_buckets import sic_to_bucket
-from stock_helper.normalization.facts import build_annual_series
+from stock_helper.normalization.facts import extract_annual_points
 from stock_helper.parsing.filing_sections import (
     PARSER_VERSION,
     chunk_section,
@@ -178,38 +178,40 @@ def _get(recent: dict, key: str, i: int):
 def _store_selected_facts(
     session: Session, company: Company, cik: int, facts_json: dict, now: datetime
 ) -> int:
-    """Replace this company's selected-fact rows with the current normalization
-    output. Full raw JSON remains cached on disk for re-parsing."""
-    series = build_annual_series(facts_json)
+    """Replace this company's fact rows with the current extraction output.
+
+    Stores ALL annual facts for all candidate tags — including superseded
+    values from earlier filings — so point-in-time (as-of) replay can later
+    reconstruct originally-filed views from the database alone. Tag selection
+    and dedupe happen at read time (normalization.facts.select_annual_series).
+    Full raw JSON remains cached on disk for re-parsing."""
+    points = extract_annual_points(facts_json)
     for row in session.exec(
         select(CompanyFact).where(CompanyFact.company_id == company.id)
     ).all():
         session.delete(row)
-    count = 0
     source_url = COMPANY_FACTS_URL.format(cik=cik)
-    for metric_series in series.values():
-        for point in metric_series.points:
-            session.add(
-                CompanyFact(
-                    company_id=company.id,
-                    metric_key=point.metric_key,
-                    taxonomy=point.taxonomy,
-                    tag=point.tag,
-                    unit=point.unit,
-                    value=point.value,
-                    period_start=point.period_start,
-                    period_end=point.period_end,
-                    fiscal_year=point.fiscal_year,
-                    fiscal_period=point.fiscal_period,
-                    form=point.form,
-                    accession=point.accession,
-                    filed_date=point.filed,
-                    source_url=source_url,
-                    retrieved_at=now,
-                )
+    for point in points:
+        session.add(
+            CompanyFact(
+                company_id=company.id,
+                metric_key=point.metric_key,
+                taxonomy=point.taxonomy,
+                tag=point.tag,
+                unit=point.unit,
+                value=point.value,
+                period_start=point.period_start,
+                period_end=point.period_end,
+                fiscal_year=point.fiscal_year,
+                fiscal_period=point.fiscal_period,
+                form=point.form,
+                accession=point.accession,
+                filed_date=point.filed,
+                source_url=source_url,
+                retrieved_at=now,
             )
-            count += 1
-    return count
+        )
+    return len(points)
 
 
 def _fetch_primary_documents(
