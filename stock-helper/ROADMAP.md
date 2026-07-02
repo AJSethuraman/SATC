@@ -67,8 +67,11 @@ model now so later phases don't require a rewrite.
   n and tickers always shown — explicitly not a market-wide peer set)
 - ✅ Bank metric library from face XBRL: NIM proxy (NII / avg total assets),
   nonaccrual loans, gross charge-offs — honest `UNAVAILABLE` when table-only
+- ✅ Bulk universe fetch (`fetch-universe --top N`: resumable, failure-tolerant,
+  throttled; widens peer percentiles automatically)
 - ⬜ NAICS cross-mapping
-- ⬜ Market-wide sector distributions (needs a wider fetch universe)
+- ⬜ Market-wide sector distributions (fetch-universe provides the data;
+  percentile → z-score/distribution stats still to come)
 - ⬜ CET1 and other filing-table-only bank metrics (needs table parsing)
 - ⬜ Industry-specific report templates
 

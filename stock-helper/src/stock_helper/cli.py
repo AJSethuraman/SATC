@@ -97,6 +97,90 @@ def fetch_sec(
     console.print(f"Next: [bold]stock-helper build-report {ticker.upper()}[/bold]")
 
 
+@app.command("fetch-universe")
+def fetch_universe_cmd(
+    top: int = typer.Option(
+        None, "--top",
+        help="Fetch the first N companies from the SEC ticker file "
+        "(ordered roughly by market cap).",
+    ),
+    tickers: str = typer.Option(
+        None, "--tickers", help="Comma-separated tickers to fetch (overrides --top)."
+    ),
+    tickers_file: str = typer.Option(
+        None, "--tickers-file", help="File with one ticker per line (overrides --top)."
+    ),
+    refresh_days: float = typer.Option(
+        7.0, help="Skip tickers fetched within this many days (resumable runs)."
+    ),
+    with_documents: bool = typer.Option(
+        False, "--with-documents",
+        help="Also download/extract filing documents per ticker (much slower).",
+    ),
+) -> None:
+    """Bulk-fetch many tickers to build a wide local universe.
+
+    Widens peer percentiles and enables cross-company calibration. Respects the
+    SEC throttle (~2 requests/ticker): 100 tickers ≈ 1 min, 500 ≈ 4 min."""
+    settings = _setup()
+    from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
+
+    from stock_helper.connectors.sec import SecClient
+    from stock_helper.ingestion.universe import fetch_universe
+    from stock_helper.storage.db import get_session, init_db
+
+    if not top and not tickers and not tickers_file:
+        console.print("[red]✗[/red] Pass --top N, --tickers, or --tickers-file.")
+        raise typer.Exit(1)
+    ticker_list = None
+    if tickers:
+        ticker_list = tickers.split(",")
+    elif tickers_file:
+        ticker_list = Path(tickers_file).read_text().split()
+
+    init_db(settings)
+    try:
+        client = SecClient(settings)
+    except RuntimeError as exc:
+        console.print(f"[red]✗[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(), TextColumn("{task.completed}/{task.total}"), TimeRemainingColumn(),
+        console=console,
+    ) as bar:
+        task = bar.add_task("fetching", total=None)
+
+        def on_progress(ticker: str, status: str, i: int, n: int) -> None:
+            bar.update(task, total=n, completed=i, description=f"{ticker} ({status})")
+
+        try:
+            with get_session(settings) as session:
+                result = fetch_universe(
+                    session, client,
+                    top=top, tickers=ticker_list,
+                    refresh_days=refresh_days, with_documents=with_documents,
+                    progress=on_progress,
+                )
+        finally:
+            client.close()
+
+    console.print(
+        f"[green]✓[/green] Universe fetch: {len(result.fetched)} fetched, "
+        f"{len(result.skipped)} fresh (skipped), {len(result.failed)} failed "
+        f"of {result.total}."
+    )
+    for ticker, reason in result.failed[:10]:
+        console.print(f"  [yellow]![/yellow] {ticker}: {reason}")
+    if len(result.failed) > 10:
+        console.print(f"  …{len(result.failed) - 10} more failures (see logs)")
+    console.print(
+        "Peer percentiles now use this wider universe automatically. "
+        "Next: [bold]stock-helper build-report TICKER[/bold]"
+    )
+
+
 @app.command("build-report")
 def build_report_cmd(
     ticker: str,

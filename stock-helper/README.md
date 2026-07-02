@@ -94,6 +94,7 @@ Full instructions, including plain-pip and troubleshooting: [INSTALL.md](INSTALL
 |---|---|
 | `stock-helper init` | Create data folders and initialize the SQLite database |
 | `stock-helper fetch-sec TICKER` | Fetch submissions + company facts for a ticker; `--with-documents` also downloads the latest 10-K/10-Q primary document and extracts sections (best-effort) |
+| `stock-helper fetch-universe --top N` | Bulk-fetch the N largest SEC filers (or `--tickers A,B,C` / `--tickers-file f`) to widen the local universe. Resumable (`--refresh-days`), failure-tolerant, SEC-throttle-respecting: ~100 tickers/min |
 | `stock-helper build-report TICKER` | Normalize facts, compute metrics and signals, write a Markdown tear sheet; `--as-of YYYY-MM-DD` builds the point-in-time view (only facts/filings filed by that date, originally-filed values instead of restatements) |
 | `stock-helper signal-history TICKER` | Replay the scorecard at each past 10-K/10-Q filing date and store the results; `--with-outcomes` joins exploratory forward returns from the non-canonical price source (not a backtest) |
 | `stock-helper run-ui` | Launch the Streamlit UI |
@@ -101,6 +102,17 @@ Full instructions, including plain-pip and troubleshooting: [INSTALL.md](INSTALL
 | `stock-helper info TICKER` | Print a quick company summary to the terminal |
 
 Development seed tickers: `AAPL MSFT JPM KEY NVDA COST` (see `scripts/seed_dev.sh`).
+
+### Building a wide universe
+
+Peer percentiles and cross-company calibration get better with more companies
+in the local database. `stock-helper fetch-universe --top 300` pulls the ~300
+largest filers in a few minutes (2 requests per ticker, throttled below SEC's
+fair-access limit; re-runs skip anything fetched within `--refresh-days`).
+For a *full*-universe pipeline, the SEC Frames API (one concept, all filers,
+one request) and the bulk `companyfacts.zip` download are the right tools —
+both are roadmapped for Phase 8; the per-ticker path is deliberate for the
+hundreds-of-companies research universe this tool targets today.
 
 ## Documentation map
 
