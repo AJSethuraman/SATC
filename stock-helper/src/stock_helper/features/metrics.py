@@ -86,6 +86,9 @@ def compute_derived_metrics(series: dict[str, MetricSeries]) -> dict[str, Derive
         ("buybacks", "Share repurchases", "USD"),
         ("deposits", "Total deposits", "USD"),
         ("credit_loss_allowance", "Allowance for credit losses", "USD"),
+        ("net_interest_income", "Net interest income", "USD"),
+        ("nonperforming_loans", "Nonaccrual loans", "USD"),
+        ("charge_offs", "Gross charge-offs", "USD"),
     ]:
         s = series.get(key)
         if s:
@@ -175,6 +178,34 @@ def compute_derived_metrics(series: dict[str, MetricSeries]) -> dict[str, Derive
     add(_ratio_metric("current_ratio", "Current ratio",
                       "current_assets / current_liabilities",
                       series.get("current_assets"), series.get("current_liabilities")))
+
+    # NIM proxy (banking): NII / average total assets. A true NIM divides by
+    # average *earning* assets, which face XBRL rarely provides — hence "proxy",
+    # and the signal caveat says so. Needs consecutive year-end asset values.
+    nii, assets_series = series.get("net_interest_income"), assets
+    if nii and assets_series:
+        asset_values = assets_series.values()
+        avg_assets = {
+            curr_end: (prev_val + curr_val) / 2
+            for (_, prev_val), (curr_end, curr_val) in zip(
+                asset_values, asset_values[1:], strict=False
+            )
+        }
+        points = [
+            (end, value / avg_assets[end])
+            for end, value in nii.values()
+            if end in avg_assets and avg_assets[end] not in (0, 0.0)
+        ]
+        if points:
+            out["nim_proxy"] = DerivedMetric(
+                key="nim_proxy", label="NIM proxy", unit="ratio",
+                formula="net_interest_income / avg(total_assets[t-1], total_assets[t])",
+                points=points,
+                input_tags=[nii.tag, assets_series.tag],
+                input_accessions=sorted(
+                    set(nii.accessions()) | set(assets_series.accessions())
+                ),
+            )
 
     return out
 

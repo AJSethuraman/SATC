@@ -10,9 +10,12 @@ import plotly.express as px
 import streamlit as st
 from sqlmodel import select
 
+from stock_helper.ai.interfaces import EvidenceChunk
+from stock_helper.ai.rule_based import RuleBasedRiskExtractor
 from stock_helper.connectors.prices import PRICE_SOURCE_LABEL, fetch_daily_prices
 from stock_helper.core.config import get_settings
 from stock_helper.core.format import money, pct, ratio, shares
+from stock_helper.features.context import build_all_extras
 from stock_helper.features.metrics import compute_derived_metrics
 from stock_helper.signals.engine import assess_data_confidence, evaluate_signals
 from stock_helper.storage.db import get_session, init_db
@@ -23,6 +26,7 @@ from stock_helper.storage.models import (
     SecurityIdentifier,
 )
 from stock_helper.storage.queries import load_series
+from stock_helper.storage.search import search_sections
 
 NAVY = "#1b2a4a"
 ACCENT = "#2c4a7c"
@@ -109,11 +113,16 @@ def load_company_bundle(ticker: str, as_of=None):
         sections = session.exec(
             sections_query.order_by(FilingSection.section_name, FilingSection.chunk_index)  # type: ignore[arg-type]
         ).all()
-    derived = compute_derived_metrics(series)
-    signals = evaluate_signals(company.industry_bucket, derived)
+        derived = compute_derived_metrics(series)
+        # Extras only for the current view — see reports/tearsheet.py rationale.
+        extras = (
+            build_all_extras(session, company, ticker, series, derived, settings)
+            if as_of is None else None
+        )
+    signals = evaluate_signals(company.industry_bucket, derived, extras)
     latest_filed = filings[0].filed_date if filings else None
     confidence = assess_data_confidence(company.industry_bucket, series, latest_filed)
-    return company, series, derived, signals, filings, sections, confidence
+    return company, series, derived, signals, filings, sections, confidence, extras or {}
 
 
 def fmt_value(metric, value: float) -> str:
@@ -178,7 +187,7 @@ st.sidebar.caption(
     "backtested; no predictive accuracy is implied. See DISCLAIMER.md."
 )
 
-company, series, derived, signals, filings, sections, confidence = load_company_bundle(
+company, series, derived, signals, filings, sections, confidence, extras = load_company_bundle(
     selected, as_of=as_of
 )
 
@@ -261,6 +270,40 @@ elif page == "Company Tear Sheet":
         unsafe_allow_html=True,
     )
 
+    peers = extras.get("peers")
+    if peers is not None and peers.percentiles:
+        rows = "".join(
+            f"<tr><td>{k}</td><td>p{v:.0f}</td></tr>"
+            for k, v in sorted(peers.percentiles.items())
+        )
+        st.markdown(
+            f'<div class="sh-card"><b>Local-universe percentiles</b> — vs '
+            f"{peers.n_peers} same-bucket compan{'y' if peers.n_peers == 1 else 'ies'} "
+            f"({', '.join(peers.peer_tickers)})<br>"
+            f'<table>{rows}</table>'
+            f'<span class="sh-caveat">Your fetched universe only, not the market. '
+            f"Market-wide peer mapping is Phase 4.</span></div>",
+            unsafe_allow_html=True,
+        )
+
+    market = extras.get("market")
+    if market is not None:
+        bits = [f"close {market.price:.2f} ({market.price_date})"]
+        if market.momentum_12_1 is not None:
+            bits.append(f"12-1 momentum {market.momentum_12_1:+.1%}")
+        if market.volatility_60d is not None:
+            bits.append(f"60d vol {market.volatility_60d:.0%}")
+        if market.pe is not None:
+            bits.append(f"P/E {market.pe:.1f}")
+        if market.ps is not None:
+            bits.append(f"P/S {market.ps:.1f}")
+        st.markdown(
+            f'<div class="sh-card"><b>Market context</b> — {" · ".join(bits)}<br>'
+            f'<span class="sh-caveat">⚠️ {market.source_label} — context only, '
+            "never used as a prediction.</span></div>",
+            unsafe_allow_html=True,
+        )
+
     if settings.enable_price_data:
         prices = fetch_daily_prices(selected, settings)
         if prices is not None:
@@ -326,6 +369,43 @@ elif page == "Filing Evidence":
     st.caption("Source documents and extracted sections. Extraction is heuristic "
                "(parser v0.1) — always verify against the SEC archive link.")
 
+    st.subheader("Search filing text")
+    query = st.text_input(
+        "Search extracted sections (all fetched companies)",
+        placeholder='e.g. "supply chain" OR impairment',
+    )
+    if query:
+        with get_session(settings) as _s:
+            hits = search_sections(_s, query, limit=15)
+        if hits:
+            for hit in hits:
+                st.markdown(
+                    f'<div class="sh-card"><code>{hit.chunk_id}</code> · '
+                    f"section <b>{hit.section_name}</b><br>{hit.snippet}</div>",
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.caption("No matches. Sections exist only for companies fetched with "
+                       "--with-documents.")
+
+    risk_chunks = [s for s in sections if s.section_name == "risk_factors"]
+    if risk_chunks:
+        st.subheader("Rule-based risk highlights")
+        st.caption("Selected (not generated) sentences, ranked by risk-word density — "
+                   "no AI involved. Each cites its source chunk.")
+        highlights = RuleBasedRiskExtractor().extract_risks(
+            [EvidenceChunk(chunk_id=c.chunk_id, text=c.text) for c in risk_chunks]
+        )
+        for grounded in highlights:
+            st.markdown(
+                f'<div class="sh-card">{grounded.text}<br>'
+                f'<span class="sh-source">source chunk: '
+                f"{', '.join(grounded.cited_chunk_ids)}</span></div>",
+                unsafe_allow_html=True,
+            )
+        if not highlights:
+            st.caption("No high-density risk sentences found by the rule set.")
+
     st.subheader("Latest filings")
     if filings:
         for f in filings[:12]:
@@ -352,7 +432,9 @@ elif page == "Filing Evidence":
         names = sorted({s.section_name for s in sections})
         chosen = st.selectbox(
             "Section", names,
-            format_func=lambda n: {"mdna": "MD&A", "risk_factors": "Risk Factors"}.get(n, n),
+            format_func=lambda n: {"mdna": "MD&A", "risk_factors": "Risk Factors"}.get(
+                n, n.replace("item_", "8-K Item ").replace("_", ".")
+            ),
         )
         chunks = [s for s in sections if s.section_name == chosen]
         st.caption(

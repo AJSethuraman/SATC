@@ -21,6 +21,7 @@ from stock_helper.normalization.facts import extract_annual_points
 from stock_helper.parsing.filing_sections import (
     PARSER_VERSION,
     chunk_section,
+    extract_8k_items,
     extract_sections,
     html_to_text,
 )
@@ -32,6 +33,7 @@ from stock_helper.storage.models import (
     FilingSection,
     SecurityIdentifier,
 )
+from stock_helper.storage.search import rebuild_fts
 
 log = get_logger(__name__)
 
@@ -217,14 +219,22 @@ def _store_selected_facts(
 def _fetch_primary_documents(
     session: Session, client: SecClient, company: Company, cik: int, now: datetime
 ) -> None:
-    """Download the latest 10-K and 10-Q primary documents and extract sections."""
-    for form in ("10-K", "10-Q"):
-        filing = session.exec(
-            select(Filing)
-            .where(Filing.company_id == company.id, Filing.form == form)
-            .order_by(Filing.filed_date.desc())  # type: ignore[attr-defined]
-        ).first()
-        if filing is None or not filing.primary_document:
+    """Download recent primary documents and extract sections.
+
+    Two most recent 10-Ks (so risk-factor novelty can compare year over year),
+    the latest 10-Q, and the latest 8-K (item extraction)."""
+    targets: list[Filing] = []
+    for form, count in (("10-K", 2), ("10-Q", 1), ("8-K", 1)):
+        targets.extend(
+            session.exec(
+                select(Filing)
+                .where(Filing.company_id == company.id, Filing.form == form)
+                .order_by(Filing.filed_date.desc())  # type: ignore[attr-defined]
+                .limit(count)
+            ).all()
+        )
+    for filing in targets:
+        if not filing.primary_document:
             continue
         try:
             html = client.fetch_archive_document(cik, filing.accession, filing.primary_document)
@@ -242,7 +252,7 @@ def _fetch_primary_documents(
                 filing_id=filing.id,
                 filename=filing.primary_document,
                 description=filing.primary_doc_description,
-                doc_type=form,
+                doc_type=filing.form,
                 url=filing.primary_document_url or "",
                 retrieved_at=now,
             )
@@ -254,7 +264,9 @@ def _fetch_primary_documents(
         ).all():
             session.delete(old)
         text = html_to_text(html)
-        sections = extract_sections(text)
+        sections = (
+            extract_8k_items(text) if filing.form.startswith("8-K") else extract_sections(text)
+        )
         for section in sections:
             for chunk in chunk_section(section, filing.accession):
                 session.add(
@@ -273,5 +285,7 @@ def _fetch_primary_documents(
                 )
         log.info(
             "sections extracted accession=%s form=%s found=%s",
-            filing.accession, form, [s.section_name for s in sections] or "none",
+            filing.accession, filing.form, [s.section_name for s in sections] or "none",
         )
+    session.flush()
+    rebuild_fts(session)

@@ -45,6 +45,11 @@ class SignalOutcome:
 class SignalContext:
     bucket: str
     derived: dict[str, DerivedMetric]
+    # Optional context computed outside the engine (text metrics, market data,
+    # peer stats). Keys: "risk_language", "market", "peers". Signals requiring
+    # extras report UNAVAILABLE (with the definition's hint) when absent —
+    # e.g. in point-in-time history replay, where extras are not reconstructed.
+    extras: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -58,6 +63,8 @@ class SignalDef:
     applicable_buckets: frozenset[str] | None = None
     excluded_buckets: frozenset[str] = frozenset()
     required_metrics: tuple[str, ...] = ()
+    required_extras: tuple[str, ...] = ()
+    unavailable_hint: str = ""  # shown when required metrics/extras are missing
     evaluator: Callable[[SignalContext], SignalOutcome | None] | None = None
     implemented: bool = True
     placeholder_reason: str = ""

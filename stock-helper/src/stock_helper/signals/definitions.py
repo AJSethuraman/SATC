@@ -10,6 +10,7 @@ from stock_helper.features.metrics import trend_direction, yoy_change
 from stock_helper.industry.sic_buckets import BANKING, FINANCIAL_BUCKETS
 from stock_helper.signals.base import (
     OK,
+    Evidence,
     SignalContext,
     SignalDef,
     SignalOutcome,
@@ -325,6 +326,32 @@ def _deposits_trend(ctx: SignalContext) -> SignalOutcome | None:
     )
 
 
+def _nim_proxy_trend(ctx: SignalContext) -> SignalOutcome | None:
+    return _trend_outcome(
+        ctx, "nim_proxy", lambda v: pct(v, 2), noun="the net-interest-margin proxy",
+        caveat="Proxy: NII over average TOTAL assets (true NIM uses average earning "
+        "assets, rarely in face XBRL). Level is understated; trend is the signal.",
+    )
+
+
+def _npl_trend(ctx: SignalContext) -> SignalOutcome | None:
+    outcome = _trend_outcome(
+        ctx, "nonperforming_loans", money, falling_is_bad=False,
+        noun="nonaccrual loans",
+        caveat="Tag transition at CECL adoption (~2020) hurts comparability; level "
+        "needs loan-book context (Phase 4).",
+    )
+    return outcome
+
+
+def _charge_offs_trend(ctx: SignalContext) -> SignalOutcome | None:
+    return _trend_outcome(
+        ctx, "charge_offs", money, falling_is_bad=False, noun="charge-offs",
+        caveat="Gross vs net differs by tag; many filers disclose charge-offs only "
+        "in credit-quality tables this version does not parse.",
+    )
+
+
 def _credit_loss_allowance(ctx: SignalContext) -> SignalOutcome | None:
     metric = ctx.derived["credit_loss_allowance"]
     values = metric.last_n(3)
@@ -350,6 +377,138 @@ def _credit_loss_allowance(ctx: SignalContext) -> SignalOutcome | None:
         caveat="CECL adoption (~2020) and tag transitions hurt year-over-year comparability. "
         "Allowance level alone says nothing without loan growth context (Phase 4).",
         evidence=[metric_evidence(metric)],
+    )
+
+
+# --- Context-based signals (market / peers / disclosure language) -----------------
+
+_NONCANON = "Non-canonical price source (Stooq); context only, never a prediction."
+
+
+def _valuation_context(ctx: SignalContext) -> SignalOutcome | None:
+    market = ctx.extras["market"]
+    parts = []
+    if market.pe is not None:
+        parts.append(f"P/E {market.pe:.1f}")
+    if market.ps is not None:
+        parts.append(f"P/S {market.ps:.1f}")
+    if not parts:
+        return None
+    return SignalOutcome(
+        value_text=" · ".join(parts),
+        numeric_value=market.pe if market.pe is not None else market.ps,
+        direction="stable",
+        score=0,  # deliberately unscored: cheap/expensive needs peer context
+        interpretation=(
+            f"At {market.price:.2f} ({market.price_date}), trailing multiples are "
+            f"{' and '.join(parts)}. Whether that is cheap or expensive requires "
+            "peer/history context — reported without a score by design."
+        ),
+        confidence="low",
+        caveat=_NONCANON + " Trailing fundamentals; shares are weighted-average diluted.",
+        evidence=[Evidence(kind="url", reference="stooq.com",
+                           description="Daily close (non-canonical) x as-filed fundamentals")],
+    )
+
+
+def _momentum_context(ctx: SignalContext) -> SignalOutcome | None:
+    market = ctx.extras["market"]
+    if market.momentum_12_1 is None:
+        return None
+    momentum = market.momentum_12_1
+    direction = "improving" if momentum > 0.05 else "deteriorating" if momentum < -0.05 else "stable"
+    vol_text = f"; 60-day annualized volatility {pct(market.volatility_60d, 0)}" \
+        if market.volatility_60d is not None else ""
+    return SignalOutcome(
+        value_text=pct(momentum),
+        numeric_value=momentum,
+        direction=direction,
+        score={"improving": 1, "deteriorating": -1}.get(direction, 0),
+        interpretation=(
+            f"12-1 month price momentum is {pct(momentum)}{vol_text}. Descriptive "
+            "market context — momentum here is unvalidated for this universe."
+        ),
+        confidence="low",
+        caveat=_NONCANON,
+        evidence=[Evidence(kind="url", reference="stooq.com",
+                           description="12-1 momentum from daily closes (non-canonical)")],
+    )
+
+
+def _industry_relative(ctx: SignalContext) -> SignalOutcome | None:
+    peers = ctx.extras["peers"]
+    if not peers.percentiles:
+        return None
+    readable = {
+        "operating_margin": "operating margin", "gross_margin": "gross margin",
+        "debt_to_assets": "debt/assets", "accrual_proxy": "accruals",
+        "free_cash_flow": "FCF", "revenue": "revenue",
+        "nim_proxy": "NIM proxy", "deposits": "deposits",
+    }
+    parts = [
+        f"{readable.get(k, k)} p{v:.0f}" for k, v in sorted(peers.percentiles.items())
+    ]
+    return SignalOutcome(
+        value_text=", ".join(parts),
+        numeric_value=None,
+        direction="stable",
+        score=0,
+        interpretation=(
+            f"Percentiles vs the {peers.n_peers} same-bucket compan"
+            f"{'y' if peers.n_peers == 1 else 'ies'} in your local database "
+            f"({', '.join(peers.peer_tickers)}). This is your fetched universe, "
+            "not the market — treat as rough orientation only."
+        ),
+        confidence="low",
+        caveat="Local-universe percentiles; a market-wide peer mapping is Phase 4.",
+        evidence=[Evidence(kind="fact", reference=", ".join(peers.peer_tickers),
+                           description="Same-SIC-bucket companies in local DB")],
+    )
+
+
+def _disclosure_risk_language(ctx: SignalContext) -> SignalOutcome | None:
+    metrics = ctx.extras["risk_language"]
+    rates = metrics.rates_per_1000
+    value_parts = [f"{k[:5]} {v:.1f}/1k" for k, v in sorted(rates.items())]
+    direction, score = "stable", 0
+    notes = []
+    if metrics.novelty_vs_prior is not None:
+        value_parts.append(f"novelty {metrics.novelty_vs_prior:.0%}")
+        if metrics.novelty_vs_prior > 0.5:
+            direction, score = "deteriorating", -1
+            notes.append(
+                f"about {metrics.novelty_vs_prior:.0%} of risk-factor language is new "
+                "vs the prior 10-K — read what changed before concluding"
+            )
+        else:
+            notes.append(
+                f"risk-factor language is {1 - metrics.novelty_vs_prior:.0%} similar "
+                "to the prior 10-K (largely boilerplate carryover)"
+            )
+        unc_delta = metrics.rate_delta("uncertainty")
+        if unc_delta is not None and unc_delta > 1.0:
+            direction, score = "deteriorating", min(score, -1)
+            notes.append("uncertainty-word rate rose vs the prior 10-K")
+    else:
+        notes.append("no prior 10-K sections stored, so change metrics are unavailable")
+    return SignalOutcome(
+        value_text=" · ".join(value_parts),
+        numeric_value=metrics.novelty_vs_prior,
+        direction=direction,
+        score=score,
+        interpretation="Evidence suggests " + "; ".join(notes) + ".",
+        confidence="low",
+        caveat=(
+            "Rule-based word rates over heuristically extracted sections, using a "
+            "curated subset of finance word lists — directional at best. "
+            f"Based on {metrics.word_count:,} words; chunks "
+            f"{metrics.current_chunk_ids[0]}…"
+        ),
+        evidence=[Evidence(kind="section", reference=", ".join(metrics.current_chunk_ids[:3]),
+                           description="Risk Factors chunks (current 10-K)")]
+        + ([Evidence(kind="section", reference=", ".join(metrics.prior_chunk_ids[:3]),
+                     description="Risk Factors chunks (prior 10-K)")]
+           if metrics.prior_chunk_ids else []),
     )
 
 
@@ -451,43 +610,67 @@ REGISTRY: list[SignalDef] = [
         applicable_buckets=_BANK_ONLY,
         required_metrics=("credit_loss_allowance",), evaluator=_credit_loss_allowance,
     ),
-    # --- Declared placeholders (implemented later; shown honestly as such) ---
     SignalDef(
-        key="valuation_placeholder", name="Valuation (P/E, EV/EBIT…)", category="Valuation",
-        description="Valuation ratios need trustworthy price × share alignment.",
-        implemented=False, placeholder_reason="Phase 5 — requires canonical price data.",
+        key="nim_proxy_trend", name="NIM proxy trend", category="Banking",
+        description="Net interest income over average total assets (proxy), 3y direction.",
+        formula="net_interest_income / avg(total_assets)",
+        applicable_buckets=_BANK_ONLY,
+        required_metrics=("nim_proxy",), evaluator=_nim_proxy_trend,
+        unavailable_hint="NII tag (InterestIncomeExpenseNet) not found in this filer's XBRL.",
     ),
     SignalDef(
-        key="momentum_placeholder", name="Market momentum (12-1)", category="Market",
-        description="Momentum needs canonical price history.",
-        implemented=False, placeholder_reason="Phase 5 — requires canonical price data.",
+        key="npl_trend", name="Nonaccrual loans trend", category="Banking",
+        description="Direction of nonaccrual/nonperforming loans.",
+        formula="FinancingReceivableNonaccrualStatus (as filed)",
+        applicable_buckets=_BANK_ONLY,
+        required_metrics=("nonperforming_loans",), evaluator=_npl_trend,
+        unavailable_hint="Often disclosed only in credit-quality tables, not face XBRL.",
+    ),
+    SignalDef(
+        key="charge_offs_trend", name="Charge-offs trend", category="Banking",
+        description="Direction of gross charge-offs.",
+        formula="FinancingReceivableAllowanceForCreditLossesWriteOffs (as filed)",
+        applicable_buckets=_BANK_ONLY,
+        required_metrics=("charge_offs",), evaluator=_charge_offs_trend,
+        unavailable_hint="Often disclosed only in credit-quality tables, not face XBRL.",
+    ),
+    # --- Context-based (market / peers / disclosure text) ---
+    SignalDef(
+        key="valuation_context", name="Valuation (trailing P/E, P/S)", category="Valuation",
+        description="Trailing multiples from non-canonical prices. Unscored by design.",
+        formula="price x diluted_shares / {net_income, revenue}",
+        required_extras=("market",), evaluator=_valuation_context,
+        unavailable_hint="Enable ENABLE_PRICE_DATA=true for non-canonical price context "
+        "(also unavailable in point-in-time history replay).",
+    ),
+    SignalDef(
+        key="momentum_12_1", name="Market momentum (12-1)", category="Market",
+        description="12-month price return skipping the most recent month, plus volatility.",
+        formula="close[t-21] / close[t-252] - 1",
+        required_extras=("market",), evaluator=_momentum_context,
+        unavailable_hint="Enable ENABLE_PRICE_DATA=true for non-canonical price context "
+        "(also unavailable in point-in-time history replay).",
     ),
     SignalDef(
         key="disclosure_risk_language", name="Disclosure / risk language", category="Disclosure",
-        description="Risk-factor novelty and MD&A tone change.",
-        implemented=False, placeholder_reason="Phase 2/3 — requires robust filing text features.",
+        description="Word-rate tone and year-over-year novelty of Risk Factors.",
+        formula="curated word rates per 1000 words; 1 - shingle Jaccard vs prior 10-K",
+        required_extras=("risk_language",), evaluator=_disclosure_risk_language,
+        unavailable_hint="Run fetch-sec TICKER --with-documents to extract filing sections.",
     ),
     SignalDef(
-        key="nim_placeholder", name="Net interest margin (NIM)", category="Banking",
-        description="Needs interest income/expense and average earning assets.",
-        applicable_buckets=_BANK_ONLY,
-        implemented=False, placeholder_reason="Phase 4 — bank metric library.",
+        key="industry_relative_context", name="Industry-relative percentiles", category="Context",
+        description="Key metrics vs same-bucket companies in the local database.",
+        formula="percentile rank among locally fetched same-bucket companies",
+        required_extras=("peers",), evaluator=_industry_relative,
+        unavailable_hint="Fetch more same-industry tickers to build a local peer set.",
     ),
-    SignalDef(
-        key="charge_offs_placeholder", name="Net charge-offs / NPLs", category="Banking",
-        description="Charge-off and nonperforming-loan ratios.",
-        applicable_buckets=_BANK_ONLY,
-        implemented=False, placeholder_reason="Phase 4 — often table-only disclosure; needs filing-table parsing.",
-    ),
+    # --- Declared placeholders (implemented later; shown honestly as such) ---
     SignalDef(
         key="cet1_placeholder", name="CET1 ratio", category="Banking",
         description="Regulatory capital ratio.",
         applicable_buckets=_BANK_ONLY,
-        implemented=False, placeholder_reason="Phase 4 — frequently not in face XBRL.",
-    ),
-    SignalDef(
-        key="industry_relative_placeholder", name="Industry-relative percentiles", category="Context",
-        description="Metrics vs sector distributions.",
-        implemented=False, placeholder_reason="Phase 4 — needs a wider fetched universe.",
+        implemented=False, placeholder_reason="Phase 4 — frequently not in face XBRL; "
+        "needs filing-table parsing.",
     ),
 ]

@@ -32,6 +32,25 @@ _SECTION_PATTERNS: dict[str, list[str]] = {
 # Any "Item N" style heading terminates the previous section.
 _NEXT_ITEM = re.compile(r"\n\s*item\s+\d{1,2}[ab]?\.?\s", re.IGNORECASE)
 
+# 8-K item headings ("Item 2.02 Results of Operations and Financial Condition").
+_8K_ITEM = re.compile(r"\n\s*item\s+(\d{1,2}\.\d{2})\.?\s", re.IGNORECASE)
+
+# Human labels for common 8-K items (others still extract, just unlabeled).
+EIGHT_K_ITEM_LABELS = {
+    "1.01": "Entry into a Material Agreement",
+    "1.02": "Termination of a Material Agreement",
+    "2.02": "Results of Operations and Financial Condition",
+    "2.05": "Costs Associated with Exit or Disposal Activities",
+    "2.06": "Material Impairments",
+    "3.01": "Delisting Notice / Listing Rule Noncompliance",
+    "4.01": "Changes in Registrant's Certifying Accountant",
+    "4.02": "Non-Reliance on Previously Issued Financial Statements",
+    "5.02": "Departure/Election of Directors or Officers",
+    "5.03": "Amendments to Articles or Bylaws",
+    "7.01": "Regulation FD Disclosure",
+    "8.01": "Other Events",
+}
+
 
 @dataclass
 class ExtractedSection:
@@ -87,6 +106,31 @@ def extract_sections(text: str) -> list[ExtractedSection]:
                     )
         if best:
             sections.append(best)
+    return sections
+
+
+def extract_8k_items(text: str) -> list[ExtractedSection]:
+    """Split an 8-K into its item sections (section names like "item_2_02").
+
+    8-Ks are short and item-structured, so this is more reliable than the
+    10-K heuristics; still best-effort across formatting variants."""
+    matches = list(_8K_ITEM.finditer("\n" + text))
+    sections: list[ExtractedSection] = []
+    for i, match in enumerate(matches):
+        item_code = match.group(1)
+        start = match.start()  # offset in "\n"+text; close enough for provenance
+        end = matches[i + 1].start() if i + 1 < len(matches) else min(len(text), start + _MAX_SECTION_CHARS)
+        body = text[max(0, start - 1) : end].strip()
+        if len(body) < 80:  # signature-page stubs / bare headings
+            continue
+        sections.append(
+            ExtractedSection(
+                section_name=f"item_{item_code.replace('.', '_')}",
+                text=body[:_MAX_SECTION_CHARS],
+                char_start=max(0, start - 1),
+                char_end=min(end, start + _MAX_SECTION_CHARS),
+            )
+        )
     return sections
 
 

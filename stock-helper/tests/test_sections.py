@@ -34,6 +34,21 @@ def test_sections_end_at_next_item():
     assert "Quantitative and Qualitative" not in sections["mdna"].text
 
 
+def test_8k_item_extraction():
+    from stock_helper.parsing.filing_sections import extract_8k_items
+
+    sections = {
+        s.section_name: s
+        for s in extract_8k_items(html_to_text(load_fixture("sample_8k.html")))
+    }
+    assert "item_2_02" in sections
+    assert "item_5_02" in sections
+    assert "press release announcing" in sections["item_2_02"].text
+    assert "intention to retire" in sections["item_5_02"].text
+    # Each item's text ends where the next begins.
+    assert "Departure of Directors" not in sections["item_2_02"].text
+
+
 def test_chunking_stable_ids():
     sections = extracted()
     chunks = chunk_section(sections["mdna"], accession="0000320193-24-000123")

@@ -115,5 +115,29 @@ CANONICAL_METRICS: dict[str, MetricSpec] = {
             ),
             "Banking only. CECL adoption (~2020) breaks tag comparability across years.",
         ),
+        MetricSpec(
+            "net_interest_income", FLOW, "USD", "Net interest income",
+            _usgaap(
+                "InterestIncomeExpenseNet",
+                "InterestIncomeExpenseAfterProvisionForLoanLoss",
+            ),
+            "Banking only. Second candidate is after provision — noted in signal caveat.",
+        ),
+        MetricSpec(
+            "nonperforming_loans", INSTANT, "USD", "Nonaccrual / nonperforming loans",
+            _usgaap(
+                "FinancingReceivableNonaccrualStatus",  # post-CECL (2020+)
+                "FinancingReceivableRecordedInvestmentNonaccrualStatus",  # pre-CECL
+            ),
+            "Banking only. Tag transition at CECL adoption; often disclosed only in tables.",
+        ),
+        MetricSpec(
+            "charge_offs", FLOW, "USD", "Gross charge-offs",
+            _usgaap(
+                "FinancingReceivableAllowanceForCreditLossesWriteOffs",
+                "AllowanceForLoanAndLeaseLossesWriteOffsNet",
+            ),
+            "Banking only. Gross vs net differs by tag; many filers disclose only in tables.",
+        ),
     ]
 }

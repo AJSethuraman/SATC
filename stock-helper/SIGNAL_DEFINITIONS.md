@@ -45,6 +45,22 @@ Key exclusions:
 | `cash_trend` | Liquidity | cash & equivalents, 3y direction | falling fast = flag | all | Ignores revolver capacity and ST investments |
 | `deposits_trend` | Banking | `Deposits`, 3y direction | falling = flag | `banking` only | Face XBRL tag; mix (interest-bearing vs not) invisible |
 | `credit_loss_allowance` | Banking | allowance for credit losses level + trend | rising sharply = flag | `banking` only | Tag transitions (CECL, 2020) hurt comparability |
+| `nim_proxy_trend` | Banking | `NII / avg(total_assets)`, 3y direction | slope | `banking` only | **Proxy**: divides by total (not earning) assets — level understated, trend is the signal |
+| `npl_trend` | Banking | nonaccrual loans, direction | rising = flag | `banking` only | CECL tag transition; often table-only disclosure |
+| `charge_offs_trend` | Banking | gross charge-offs, direction | rising = flag | `banking` only | Gross vs net differs by tag; frequently `UNAVAILABLE` (table-only) |
+
+## Context-based signals (require optional context)
+
+These evaluate only when their context can be built; otherwise `UNAVAILABLE`
+with a hint. They are **never computed in point-in-time history replay** —
+prices/peers/text "as of" a past date cannot yet be reconstructed honestly.
+
+| Key | Requires | What it reports | Guardrail |
+|---|---|---|---|
+| `valuation_context` | `ENABLE_PRICE_DATA=true` | Trailing P/E and P/S from non-canonical prices | **Unscored by design** — cheap/expensive needs peer/history context |
+| `momentum_12_1` | `ENABLE_PRICE_DATA=true` | 12-1 month price momentum + 60d volatility | Low confidence; descriptive, unvalidated for this universe |
+| `disclosure_risk_language` | `fetch-sec --with-documents` | Word rates (negative/uncertainty/litigious/constraining per 1k words) and risk-factor novelty vs prior 10-K (1 − shingle Jaccard) | Curated word-list subset over heuristic sections — directional at best; always cites chunk ids |
+| `industry_relative_context` | ≥1 same-bucket company fetched | Percentile of key metrics vs **local** fetched universe | Shows n and tickers; explicitly "not the market" |
 
 \* For `banking`, revenue growth is `NOT_APPLICABLE` in v0.1 because "revenue"
 for banks (net interest income + fees) is not reliably captured by the generic
@@ -54,13 +70,7 @@ revenue tags; a bank-specific revenue signal is planned in Phase 4.
 
 | Key | Category | Why deferred |
 |---|---|---|
-| `valuation_*` (P/E, EV/EBIT…) | Valuation | Needs trustworthy price × share alignment (Phase 5) |
-| `momentum_12_1` | Market | Needs canonical price history (Phase 5) |
-| `disclosure_risk_language` | Disclosure | Needs Phase 2 text features (risk-factor novelty, tone delta) |
-| `nim` (net interest margin) | Banking | Needs interest income/expense + earning-assets averaging (Phase 4) |
-| `net_charge_offs`, `npl_ratio` | Banking | Tags inconsistent; often table-only disclosure (Phase 4) |
-| `cet1_ratio` | Banking | Regulatory capital often not in face XBRL; filing-table parsing (Phase 4) |
-| `industry_relative_percentiles` | Context | Needs sector distributions over a wider universe (Phase 4) |
+| `cet1_placeholder` | Banking | Regulatory capital often not in face XBRL; needs filing-table parsing (Phase 4) |
 
 ## Data confidence signal
 

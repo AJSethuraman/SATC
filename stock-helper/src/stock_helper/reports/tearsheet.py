@@ -13,6 +13,7 @@ import stock_helper
 from stock_helper.core.config import Settings, get_settings
 from stock_helper.core.format import money, pct, ratio, shares
 from stock_helper.core.logging import get_logger
+from stock_helper.features.context import build_all_extras
 from stock_helper.features.metrics import METRICS_VERSION, DerivedMetric, compute_derived_metrics
 from stock_helper.industry.sic_buckets import peer_group_label
 from stock_helper.signals.base import SIGNALS_VERSION
@@ -74,7 +75,15 @@ def build_report(
 
     series = load_series(session, company, as_of=as_of)
     derived = compute_derived_metrics(series)
-    signals = evaluate_signals(company.industry_bucket, derived)
+    # Context extras (market/peers/text) only exist for the current view: we
+    # cannot honestly reconstruct "prices as of" or "peers as of" yet, so
+    # point-in-time reports mark those signals unavailable instead of leaking
+    # present-day data.
+    extras = (
+        build_all_extras(session, company, ticker, series, derived, settings)
+        if as_of is None else None
+    )
+    signals = evaluate_signals(company.industry_bucket, derived, extras)
 
     filings_query = select(Filing).where(Filing.company_id == company.id)
     if as_of is not None:

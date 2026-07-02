@@ -39,13 +39,13 @@ model now so later phases don't require a rewrite.
 
 ## Phase 2 — Filing Text and Notes (partially started)
 
-- ✅ Filing archive document download (latest 10-K/10-Q primary doc, opt-in)
+- ✅ Filing archive document download (two latest 10-Ks + latest 10-Q + latest 8-K, opt-in)
 - ✅ Heuristic 10-K/10-Q section extraction (MD&A, Risk Factors) — best effort
+- ✅ Evidence chunks with stable chunk IDs (`FilingSection`)
+- ✅ 8-K item-code extraction (2.02 earnings, 5.02 departures, … with item labels)
+- ✅ Searchable filing text (SQLite FTS5 with LIKE fallback; search box in UI)
 - ⬜ Robust item-boundary detection across filer formatting variants
 - ⬜ Note/footnote extraction (consider SEC Financial Statement & Notes datasets as audit backfill)
-- ⬜ Evidence chunks with stable chunk IDs (schema exists: `FilingSection`)
-- ⬜ 8-K item-code extraction (2.02 earnings, 2.06 impairments, 5.02 departures…)
-- ⬜ Searchable filing text (SQLite FTS5)
 
 ## Phase 3 — Rule-Based Signal Engine ✅ (v1) / ⬜ (v2)
 
@@ -54,26 +54,30 @@ model now so later phases don't require a rewrite.
 - ✅ Trend logic (YoY, multi-year direction) and simple thresholds
 - ✅ Scorecard output with metric, value, direction, interpretation, source,
   confidence, caveat
+- ✅ Disclosure/risk-language signal (word rates from curated finance word lists +
+  risk-factor novelty vs prior 10-K; low confidence by design)
 - ⬜ Threshold calibration per industry bucket (currently conservative generic cuts)
 - ⬜ Accrual quality refinements (balance-sheet vs cash-flow-statement approach)
-- ⬜ Disclosure/risk-language signals (needs Phase 2 text features)
+- ⬜ Full Loughran-McDonald word lists (curated subset shipped)
 
 ## Phase 4 — Industry and Peer Context
 
 - ✅ SIC → sector/industry bucket mapping (initial, coarse)
+- ✅ Local-universe peer percentiles (same-bucket companies in your database,
+  n and tickers always shown — explicitly not a market-wide peer set)
+- ✅ Bank metric library from face XBRL: NIM proxy (NII / avg total assets),
+  nonaccrual loans, gross charge-offs — honest `UNAVAILABLE` when table-only
 - ⬜ NAICS cross-mapping
-- ⬜ Sector-level metric distributions (percentiles/z-scores need a wider fetch universe)
-- ⬜ Peer group comparison (placeholder peer lists by SIC exist in reports)
-- ⬜ Bank-specific metric library beyond deposits/allowance (NIM, NCOs, NPLs, CET1 —
-  many require parsing filing tables, not just XBRL face tags)
+- ⬜ Market-wide sector distributions (needs a wider fetch universe)
+- ⬜ CET1 and other filing-table-only bank metrics (needs table parsing)
 - ⬜ Industry-specific report templates
 
 ## Phase 5 — Price / Macro Overlay
 
 - ✅ Optional price connector (Stooq, non-canonical, off by default)
-- ⬜ Valuation ratios (P/E, EV/EBIT…) — requires trustworthy shares × price and
-  point-in-time fundamentals alignment
-- ⬜ Momentum (12-1), volatility, drawdown context
+- ✅ Trailing P/E and P/S context (unscored by design; gated by ENABLE_PRICE_DATA)
+- ✅ 12-1 momentum + 60-day volatility context (descriptive, low confidence)
+- ⬜ EV-based multiples (need reliable debt/cash alignment)
 - ⬜ FRED/ALFRED macro layer (vintage-aware from the start — never naive latest-revision joins)
 - ⬜ Benchmark-relative context
 
@@ -85,6 +89,9 @@ implementations. Hard rules when implemented:
 - AI never invents metrics; it only summarizes/classifies retrieved evidence
 - Every AI output must cite chunk IDs / source references
 - "AI disabled" mode preserves all core functionality (this is today's default)
+
+- ✅ Rule-based `RiskExtractor` (selects — never writes — high-density risk
+  sentences from risk-factor chunks, citing chunk ids; shown in Filing Evidence)
 
 Planned: Ollama client, local embeddings + vector store over `FilingSection`
 chunks, grounded Q&A with a "show evidence" panel, configurable local model.

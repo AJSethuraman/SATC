@@ -204,6 +204,31 @@ def signal_history_cmd(
     console.print("· = not applicable / no data at that date")
     if with_outcomes:
         console.print(f"[yellow]*[/yellow] {OUTCOME_CAVEAT}")
+        from stock_helper.signals.history import calibration_summary
+
+        cells = calibration_summary(points)
+        if cells:
+            calib = Table(
+                title="Direction vs forward-return sign (sanity check — NOT validation)"
+            )
+            calib.add_column("Signal")
+            calib.add_column("Horizon")
+            calib.add_column("▲ then up")
+            calib.add_column("▼ then up")
+            for cell in cells:
+                calib.add_row(
+                    cell.signal_key,
+                    f"{cell.horizon_days}d",
+                    f"{cell.improving_up}/{cell.improving_total}"
+                    if cell.improving_total else "—",
+                    f"{cell.deteriorating_up}/{cell.deteriorating_total}"
+                    if cell.deteriorating_total else "—",
+                )
+            console.print(calib)
+            console.print(
+                "[yellow]![/yellow] Tiny n, single company, no costs/benchmark/"
+                "significance tests. Real validation is Phase 7."
+            )
     console.print(
         f"[green]✓[/green] {len(points)} history dates stored "
         "(SignalHistory rows; rerun replaces previous history)."

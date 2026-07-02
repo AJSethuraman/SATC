@@ -55,9 +55,11 @@ class DataConfidence:
 
 
 def evaluate_signals(
-    bucket: str, derived: dict[str, DerivedMetric]
+    bucket: str,
+    derived: dict[str, DerivedMetric],
+    extras: dict[str, object] | None = None,
 ) -> list[EvaluatedSignal]:
-    ctx = SignalContext(bucket=bucket, derived=derived)
+    ctx = SignalContext(bucket=bucket, derived=derived, extras=extras or {})
     results: list[EvaluatedSignal] = []
     for definition in REGISTRY:
         results.append(EvaluatedSignal(definition, _evaluate_one(definition, ctx)))
@@ -84,7 +86,17 @@ def _evaluate_one(definition: SignalDef, ctx: SignalContext) -> SignalOutcome:
             status=UNAVAILABLE,
             interpretation=(
                 f"Required metric(s) not mapped from XBRL for this filer: {', '.join(missing)}. "
-                "The filer may use custom tags this version does not map."
+                + (definition.unavailable_hint
+                   or "The filer may use custom tags this version does not map.")
+            ),
+        )
+    missing_extras = [e for e in definition.required_extras if ctx.extras.get(e) is None]
+    if missing_extras:
+        return SignalOutcome(
+            status=UNAVAILABLE,
+            interpretation=(
+                f"Required context not available: {', '.join(missing_extras)}. "
+                + definition.unavailable_hint
             ),
         )
     outcome = definition.evaluator(ctx) if definition.evaluator else None
@@ -103,7 +115,10 @@ def assess_data_confidence(
 ) -> DataConfidence:
     # Only count metrics that could plausibly apply to this bucket: a bank is
     # not penalized for missing cost_of_revenue, nor an industrial for deposits.
-    bank_only = {"deposits", "credit_loss_allowance"}
+    bank_only = {
+        "deposits", "credit_loss_allowance", "net_interest_income",
+        "nonperforming_loans", "charge_offs",
+    }
     not_for_banks = bank_only | {"cost_of_revenue", "current_assets", "current_liabilities"}
     if bucket == "banking":
         relevant = [k for k in CANONICAL_METRICS if k in bank_only or k not in not_for_banks]

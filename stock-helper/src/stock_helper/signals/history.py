@@ -166,6 +166,56 @@ def forward_returns(
     return out
 
 
+@dataclass
+class CalibrationCell:
+    """Direction-vs-outcome counts for one signal at one horizon. Exploratory."""
+
+    signal_key: str
+    horizon_days: int
+    n: int
+    improving_up: int  # direction improving AND positive forward return
+    improving_total: int
+    deteriorating_up: int
+    deteriorating_total: int
+
+
+def calibration_summary(points: list[HistoryPoint]) -> list[CalibrationCell]:
+    """Contingency counts of signal direction vs forward-return sign.
+
+    This is a *sanity-check table*, not validation: tiny n, single company,
+    non-canonical prices, no costs, no benchmark, no significance testing.
+    The CLI prints OUTCOME_CAVEAT next to it for exactly that reason."""
+    cells: dict[tuple[str, int], CalibrationCell] = {}
+    for point in points:
+        if not point.outcomes:
+            continue
+        for evaluated in point.signals:
+            outcome = evaluated.outcome
+            if outcome.status != "OK" or outcome.direction not in (
+                "improving", "deteriorating",
+            ):
+                continue
+            for horizon, label in point.outcomes.items():
+                key = (evaluated.definition.key, horizon)
+                cell = cells.setdefault(
+                    key,
+                    CalibrationCell(
+                        signal_key=evaluated.definition.key, horizon_days=horizon,
+                        n=0, improving_up=0, improving_total=0,
+                        deteriorating_up=0, deteriorating_total=0,
+                    ),
+                )
+                cell.n += 1
+                up = label.ret > 0
+                if outcome.direction == "improving":
+                    cell.improving_total += 1
+                    cell.improving_up += int(up)
+                else:
+                    cell.deteriorating_total += 1
+                    cell.deteriorating_up += int(up)
+    return sorted(cells.values(), key=lambda c: (c.signal_key, c.horizon_days))
+
+
 def _attach_outcomes(
     session: Session,
     company: Company,

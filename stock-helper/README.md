@@ -42,18 +42,36 @@ with a confidence level and a caveat attached. See [DISCLAIMER.md](DISCLAIMER.md
   (`--with-outcomes`) are exploratory, cost-free, non-canonical, and carry no
   performance claim.
 
+- **Searchable filing text**: 8-K item extraction, SQLite FTS5 full-text search
+  over all extracted sections (search box in the UI).
+- **Disclosure-language signal**: rule-based word rates (negative / uncertainty /
+  litigious / constraining) and risk-factor novelty vs the prior 10-K —
+  low-confidence by design, always citing source chunks.
+- **Local peer context**: percentile of key metrics vs same-bucket companies in
+  your own database, with n and tickers always shown (explicitly not the market).
+- **Bank metric library v1**: NIM proxy, nonaccrual loans, charge-offs from face
+  XBRL where tagged; honest `UNAVAILABLE` when disclosure is table-only.
+- **Market context signals** (gated by `ENABLE_PRICE_DATA`): trailing P/E and
+  P/S (deliberately unscored) and 12-1 momentum + volatility, all labeled
+  non-canonical.
+- **Rule-based risk highlights**: top risk sentences *selected* (never generated)
+  from risk-factor chunks with chunk-id citations — the permanent "AI disabled"
+  mode of the Phase 6 interfaces.
+
 ## What is intentionally NOT built yet
 
 See [ROADMAP.md](ROADMAP.md) for the full plan. Deliberately deferred:
 
-- Robust filing text parsing, footnote extraction, and searchable evidence chunks (Phase 2).
-- Peer-group distributions and sector-relative z-scores (Phase 4 — today there are
-  placeholders only).
-- Valuation and momentum signals (Phase 5 — they need trustworthy price data first).
-- Any AI/LLM features (Phase 6 — interfaces exist in `src/stock_helper/ai/`, with
-  no-op implementations; nothing calls a model).
+- Footnote extraction and robust section boundaries across all filer formats (Phase 2).
+- Market-wide peer distributions — today's percentiles use only your locally
+  fetched universe (Phase 4).
+- CET1 and table-only bank metrics (need filing-table parsing, Phase 4).
+- FRED/ALFRED macro layer and benchmark-relative context (Phase 5).
+- Any model-based AI (Phase 6 — interfaces + rule-based fallbacks exist; nothing
+  calls an LLM).
 - Backtesting, hit rates, or any performance claim (Phase 7 — until then the app
-  makes **no predictive claims whatsoever**).
+  makes **no predictive claims whatsoever**; the `signal-history --with-outcomes`
+  table is a sanity check, not validation).
 
 ## Quick start
 
