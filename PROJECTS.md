@@ -28,6 +28,14 @@ is just the map.
 |---|----------|-----------|--------|-----------|--------|
 | 4 | Bank Counterparty & Peer Monitor | `fdic-peer-monitor/` (pending) | FDIC BankFind Suite API (keyless REST; quarterly bank financials + industry aggregates) | **OPEN (entity)** — CERT/RSSD-keyed peer & counterparty bank list | coverage research in flight (API mechanics live-verified + peer-metric methodology); spec next |
 
+**User requirement (binding on the #4 spec):** the peer list must be
+flexible — one `[PEERS]` row per bank in `_config` (cert, name, group,
+active); add/remove = edit a line + re-run, no rebuild. Slot-provisioned
+formula layout with headroom (build-time `--peer-slots` knob); the runner
+refuses a list beyond built capacity with a rebuild message (never silent
+truncation); `runner.py --lookup "<name>"` resolves bank names to CERTs via
+the keyless API.
+
 ## Candidate pipeline (researched, not yet picked)
 
 | Candidate | Angle | Join key | Why | Notes |
