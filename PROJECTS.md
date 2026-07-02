@@ -19,13 +19,8 @@ is just the map.
 | # | Template | Directory | Source | Watchlist | Status |
 |---|----------|-----------|--------|-----------|--------|
 | 1 | FRED Credit-Risk Dashboard | `fred-credit-risk-dashboard/` | FRED (147 series: charge-offs, delinquencies, G.19, SLOOS, DSR, HPI) | **OPEN** — FHFA state/metro + Case-Shiller HPI (geo keys) | v1 done, PR #53 |
-| 2 | Bureau Consumer Credit Monitor | `bureau-credit-risk-dashboard/` | NY Fed HHDC (anonymized 5% Equifax sample; 18 series) | **GATED** — no free bureau source has a joinable key; opens only via licensed Class C (Prama-class) | v1 done, PR #53; review-fix pass in flight |
-
-## In progress
-
-| # | Template | Directory | Source | Watchlist | Status |
-|---|----------|-----------|--------|-----------|--------|
-| 3 | Macro Early-Warning Monitor | `macro-early-warning-dashboard/` | FRED (18 national recession/credit-stress signals + 3 state-keyed labor families) | **OPEN** — {ST}UR, {ST}ICLAIMS, {ST}PHCI (verified alive; {ST}SLIND leading indexes DISCONTINUED, excluded) | research done (`COVERAGE_RESEARCH_MACRO.md`); spec next |
+| 2 | Bureau Consumer Credit Monitor | `bureau-credit-risk-dashboard/` | NY Fed HHDC (anonymized 5% Equifax sample; 18 series) | **GATED** — no free bureau source has a joinable key; opens only via licensed Class C (Prama-class) | v1 done + review-hardened, PR #53 |
+| 3 | Macro Early-Warning Monitor | `macro-early-warning-dashboard/` | FRED (21 national credit-cycle signals + 151 state-keyed labor/coincident series) | **OPEN** — {ST}UR / {ST}ICLAIMS / {ST}PHCI ranked by Sahm-style state stress gap ({ST}SLIND leading indexes DISCONTINUED, excluded + staleness-guarded) | v1 done, PR #53; live FRED pull awaits a key |
 
 ## Candidate pipeline (researched, not yet picked)
 
