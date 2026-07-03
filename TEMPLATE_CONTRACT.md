@@ -109,6 +109,24 @@ Nothing binary is ever transmitted — the workbook is *built* where it will
 live. `control_center.py` is itself plain ASCII and travels the same way;
 its discovery accepts both `.xlsm` and fallback `.xlsx` workbooks.
 
+## 12. Provenance & tie-out (verification against the official record)
+
+Every fetched value must be traceable to a human-readable official
+rendering a reviewer can check by eye. Each template ships:
+
+- **`_provenance` tab**: one row per metric/field — source document,
+  location within it (Call Report schedule + line / MDRM code; 10-Q note +
+  XBRL tag + accession; series page URL), and the URL pattern to the
+  official rendering (FFIEC PDF facsimile, EDGAR viewer, FRED/CFPB page).
+- **Tie-out mode**: `runner.py --tieout <entity/series> <period>` prints
+  each pulled value alongside its document location + URL, enabling
+  sample verification of a feed in minutes.
+- Run provenance in the status panel where the source supports it (data
+  vintage, accession numbers, index timestamps).
+
+Retrofit priority: the FDIC template (with the competitor pack) and the
+EDGAR template; earlier templates gain `_provenance` opportunistically.
+
 ## Carried lessons
 
 L1–L6 (see BUILD_SPEC_BUREAU.md) are incorporated by reference; new lessons

@@ -84,6 +84,11 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
 
 ## 4 · Suite infrastructure ideas (unscheduled — promote when wanted)
 
+- [~] **Provenance/tie-out (contract §12, user requirement):** every value
+      traceable to the official document — _provenance tab + `--tieout`
+      mode. Field→Call-Report-schedule/line (MDRM) mapping research in
+      flight; binding on the competitor pack + EDGAR builds; retrofit
+      others opportunistically.
 - [ ] Suite-level conformance check: one script asserting every template's
       shared modules are byte-identical, embedded code is ASCII, tabs match
       the contract, and all suites are green (CI-able).
