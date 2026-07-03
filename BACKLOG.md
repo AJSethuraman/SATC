@@ -46,7 +46,8 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
       90+ DPD mortgage delinquency, free CSVs, public domain. The finest
       watchlist key of the whole suite (county), and actual credit
       OUTCOMES, not indicators. Small source -> lean build.
-      *Research in flight.*
+      *Research DONE (schema confirmed from a real file + CFPB's own
+      generator code); spec written; build in flight.*
 - [ ] **#6 SEC EDGAR corporate counterparty tracker** — companyfacts XBRL
       + 8-K event lane, CIK/ticker entity watchlist, keyless (10 req/s,
       User-Agent header). Scout-scored 18/20. Start when #5 ships.
