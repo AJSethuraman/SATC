@@ -50,6 +50,12 @@ carry binned ranges, not values); GSE single-family loan-level files
 largest MSAs only, redesign churn); CFPB complaints as a watchlist
 (ZIP3-degraded — state-only, dashboard lane at best).
 
+## The to-do log
+
+Open work, validation debts, v1.1 items, and ranked next templates live in
+**`BACKLOG.md`** — the shared list both of us update. This file stays the map
+of what exists; the backlog is what's next.
+
 ## Working conventions
 
 - **`TEMPLATE_CONTRACT.md` is binding on every new template** — identical tab
