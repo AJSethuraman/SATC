@@ -24,11 +24,11 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
 
 ## 2 · v1.1 improvements (per shipped template)
 
-- [ ] **FDIC:** add uninsured-deposit share + unrealized HTM/AOCI loss
-      metrics (the 2023-failure signals) once field ids verify against the
-      live API; blank stale banks' latest quarter + show STALE in the
-      Watchlist status column (removes the documented median divergence);
-      optional UBPR asset-band medians.
+- [ ] **FDIC:** SVB metrics UNBLOCKED (fields verified: DEPUNINS,
+      SCHF/SCHA, SCAF/SCAA) -- folded into the competitor metric pack
+      (section 3). Separately: blank stale banks' latest quarter + show
+      STALE in the Watchlist status column (removes the documented median
+      divergence); optional UBPR asset-band medians.
 - [ ] **Macro:** county-level drill-down via FRED's LAUS county mirrors
       (ids must be enumerated via release 116, never constructed);
       consider `EQFXSUBPRIME*` county subprime share pending its FRED
@@ -48,15 +48,14 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
       OUTCOMES, not indicators. Small source -> lean build.
       *Research DONE (schema confirmed from a real file + CFPB's own
       generator code); spec written; build in flight.*
-- [~] **Competitor loan-book analysis (Call Report depth)** — the user
-      wants competitor analysis; template #4 already covers headline peer
-      metrics (put competitors in [PEERS] today). Research in flight on
-      the decision fork: if the FDIC API's ~2,269 fields already carry
-      loan-CATEGORY past-dues/charge-offs + the SVB fields (HTM fair
-      value, uninsured deposits), this becomes a v1.1 METRIC PACK on
-      template #4; if not, a new FFIEC CDR template (REST+JWT, free
-      account; SOAP retired Feb 2026) earns the #6 slot. UBPR peer
-      percentiles ride along either way if programmatically reachable.
+- [ ] **Competitor loan-book METRIC PACK on template #4** — RESOLVED:
+      no FFIEC template needed. 93/93 fields verified in the FDIC API
+      (full loan-category PD/nonaccrual/NCO matrix + the SVB pack:
+      SCHF/SCHA HTM fair-vs-amortized, SCAF/SCAA, DEPUNINS uninsured
+      deposits, OTHBFHLB). See fdic-peer-monitor/
+      RESEARCH_COMPETITOR_PACK.md. Build after #5 ships: Dashboard_LoanBook
+      lane + SVB metrics + thresholds. FFIEC-only residue (category loan
+      yields, UBPR percentiles) = bulk-ZIP ingest job only if ever needed.
 - [ ] **#6 SEC EDGAR corporate counterparty tracker** — companyfacts XBRL
       + 8-K event lane, CIK/ticker entity watchlist, keyless (10 req/s,
       User-Agent header). Scout-scored 18/20. Start when #5 ships.
