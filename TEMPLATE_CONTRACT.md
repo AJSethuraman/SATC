@@ -127,6 +127,20 @@ rendering a reviewer can check by eye. Each template ships:
 Retrofit priority: the FDIC template (with the competitor pack) and the
 EDGAR template; earlier templates gain `_provenance` opportunistically.
 
+## 13. Entity sets are config, not code
+
+Any template that monitors a definable set of entities (peer banks,
+competitors, footprint counties, counterparties) MUST hold that set as an
+editable `_config` section (the `[PEERS]`/`[FOOTPRINT]` slot pattern:
+`slot | key | name | group | active`): add/remove = edit a line + re-run,
+within slot-provisioned headroom (build-time `--*-slots` knob);
+over-capacity is REFUSED with a rebuild message, never truncated; a
+`--lookup` helper resolves human names to keys (CERT, CIK, FIPS, ...).
+Where a source has per-entity dialects (e.g., EDGAR disclosure families /
+member maps), first fetch of a new entity bootstraps its mapping into a
+visible `_config` section — unmappable cases are surfaced for manual
+decision, never silently guessed.
+
 ## Carried lessons
 
 L1–L6 (see BUILD_SPEC_BUREAU.md) are incorporated by reference; new lessons
