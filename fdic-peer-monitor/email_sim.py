@@ -29,7 +29,13 @@ XLSM_NAME = "Bank_Peer_Monitor.xlsm"
 ASOF = "2026-03-31"
 
 DIMENSIONS = ["asset_quality", "composite", "capital", "earnings", "funding",
-              "concentration"]
+              "concentration",
+              # v1.1 competitor pack dimensions
+              "consumer_credit", "commercial_credit", "funding_stress"]
+
+# v1.1: the per-CLASS loan-book alert section groups by loan class (the
+# runner's LOANBOOK_CLASS map), consumer track first, commercial floor after.
+LOAN_CLASSES = list(R.CONSUMER_CLASSES) + list(R.COMMERCIAL_CLASSES)
 
 
 def extract_code_tab(xlsm_path, tab, out_path):
@@ -93,6 +99,23 @@ def compose_email(status):
             lines.append(f"  {dim:<14} " + "; ".join(sorted(hits)))
     if not any_dim:
         lines.append("  (no metric-level alerts)")
+    lines.append("")
+    lines.append("PER-CLASS LOAN-BOOK ALERTS (v1.1 pack; consumer = DQ/NCO "
+                 "track, commercial = Call-Report floor)")
+    lines.append("-" * 68)
+    any_cls = False
+    for cls in LOAN_CLASSES:
+        hits = []
+        for b in fresh:
+            for mid, m in b["metrics"].items():
+                if (R.LOANBOOK_CLASS.get(mid) == cls
+                        and m["status"] == "ALERT"):
+                    hits.append(f"{b['name']} {mid}={m['value']:.2f}")
+        if hits:
+            any_cls = True
+            lines.append(f"  {cls:<15} " + "; ".join(sorted(hits)))
+    if not any_cls:
+        lines.append("  (no per-class loan-book alerts)")
     lines.append("")
     lines.append("STALENESS FLAGS (excluded from alert counts -- possible "
                  "merger/closure)")
@@ -189,16 +212,22 @@ def main():
                      and "ALERT" in email and "Texas" in email)
         has_dimension = ("PER-DIMENSION ALERTS" in email
                          and any(d in email for d in ("composite", "capital")))
+        # v1.1: the per-class loan-book section, with at least one consumer
+        # AND one commercial class alerting (the demo stress banks trip both)
+        has_class = ("PER-CLASS LOAN-BOOK ALERTS" in email
+                     and any(c in email for c in R.CONSUMER_CLASSES)
+                     and any(c in email for c in R.COMMERCIAL_CLASSES))
         has_staleness = "STALENESS FLAGS" in email
         has_vintage = "Data vintage:" in email
         self_contained = (raw_ok and macro_ok
                           and set(produced) <= {XLSM_NAME, "runner.py"})
 
-        ok = (has_table and has_dimension and has_staleness and has_vintage
-              and self_contained)
+        ok = (has_table and has_dimension and has_class and has_staleness
+              and has_vintage and self_contained)
         print(f"[email-sim] ranked peer table      : {has_table} "
               f"({len(table_lines)} rows)")
         print(f"[email-sim] per-dimension alerts   : {has_dimension}")
+        print(f"[email-sim] per-class loanbook     : {has_class}")
         print(f"[email-sim] staleness section      : {has_staleness}")
         print(f"[email-sim] data-vintage line      : {has_vintage}")
         print(f"[email-sim] workbook self-contained: {self_contained}")

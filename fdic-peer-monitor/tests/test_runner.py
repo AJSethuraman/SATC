@@ -41,9 +41,14 @@ import vba_writer as V                 # noqa: E402
 
 ASOF = date(2026, 3, 31)
 
+# v1.1 tab order: LoanBook after Funding_Concentration, _provenance after
+# _config (SPEC_COMPETITOR_PACK.md sec 3 / contract sec 12)
 TABS = ("Dashboard_AssetQuality", "Dashboard_Capital_Earnings",
-        "Dashboard_Funding_Concentration", "Watchlist", "Raw_FDIC",
-        "_config", "_code_py", "_code_vba", "_readme")
+        "Dashboard_Funding_Concentration", "Dashboard_LoanBook", "Watchlist",
+        "Raw_FDIC", "_config", "_provenance", "_code_py", "_code_vba",
+        "_readme")
+
+N_METRICS = 53          # 15 core + 38 v1.1 pack
 
 
 # --------------------------------------------------------------------------
@@ -111,8 +116,9 @@ def _edit_peer_row(path, slot, cert=None, name=None, group=None, active=None):
 # --------------------------------------------------------------------------
 def test_config_parse():
     cfg = R.parse_config(BW.config_rows())
-    # the 15-metric dictionary, bank-agnostic, entity-keyed placeholder
-    assert len(cfg.series) == 15
+    # the 53-metric dictionary (15 core + 38 pack), bank-agnostic,
+    # entity-keyed placeholder
+    assert len(cfg.series) == N_METRICS
     assert {s.id for s in cfg.series} == set(R.METRICS)
     for s in cfg.series:
         assert s.geo_segment == "entity" and s.source_class == "A"
@@ -145,8 +151,9 @@ def test_config_parse():
     fspec = R.make_field_spec(jpm, "NCLNLSR")
     assert fspec.id == "s01_NCLNLSR" and fspec.geo_segment == "cert:628"
     unit_ids = {f"s{p.slot:02d}_{s.id}" for p in admitted for s in cfg.series}
-    assert len(unit_ids) == 12 * 15
-    assert {"s01_TEXAS", "s12_CRECONR", "s05_RBCRWAJ"} <= unit_ids
+    assert len(unit_ids) == 12 * N_METRICS
+    assert {"s01_TEXAS", "s12_CRECONR", "s05_RBCRWAJ",
+            "s03_NTCRCDQR", "s07_UNRLZCAPR"} <= unit_ids
     # capacity is validated, never truncated: a 41st bank refuses with the
     # exact rebuild command (the flexible-peers USER REQUIREMENT)
     cfg.peers.append(_peer(slot=41, cert="99999", name="Overflow Bank"))
@@ -452,7 +459,7 @@ def test_reload_headless(populated):
             assert isinstance(row[1].value, (int, float)), v
             assert isinstance(row[2].value, (int, float)), v
             checked += 1
-    assert checked == 15
+    assert checked == N_METRICS
     # the raw scaffold labels every field column per slot block
     raw = wb["Raw_FDIC"]
     b = R.slot_block(7, cfg.raw_slots)
@@ -705,6 +712,287 @@ def test_class_c_stub():
     cfg = R.parse_config(BW.config_rows())
     licensed = replace(cfg.series[0], source_class="C")
     assert any("Gate2" in r for r in R.gate_metric_row(licensed))
+
+
+# --------------------------------------------------------------------------
+# v1.1 competitor pack (SPEC_COMPETITOR_PACK.md sec 4)
+# --------------------------------------------------------------------------
+def test_pack_fields_in_bulk_request(monkeypatch):
+    """Every pack field rides the ONE bulk /financials request's fields=
+    list, and the list stays far under the 250-field cap."""
+    from urllib.parse import urlparse, parse_qs
+    calls = []
+
+    def fake_get(self, url):
+        calls.append(url)
+        return ROSTER_FIXTURE if "institutions" in url else _fin_fixture()
+
+    monkeypatch.setattr(R.FdicProvider, "_http_get", fake_get)
+    prov = R.FdicProvider(min_interval=0.0)
+    prov.prime(["628", "3511"], ASOF)
+    assert len(calls) == 2                        # STILL one bulk + roster
+    qs = parse_qs(urlparse(calls[0]).query)
+    fields = qs["fields"][0].split(",")
+    assert fields[:2] == ["CERT", "REPDTE"]
+    assert len(fields) == 2 + len(R.RAW_FIELDS)
+    assert len(fields) < 250                      # the FDIC fields= cap
+    # spot the pack families: consumer twins, dollar triples, truncated NCO
+    # names, balances, SVB fields
+    for f in ("P3CRCDR", "NAAUTOR", "P3RELOCR", "P3CONOTH", "LNCRCD",
+              "NTCRCDQ", "NTCONOTQ", "NTRECONQ", "NTRENREQ", "NTREMULQ",
+              "NTCIQ", "P3RECONS", "NAREMULT", "LNCI", "DEPUNINS", "SCHA",
+              "SCHF", "SCAA", "SCAF", "OTHBFHLB"):
+        assert f in fields, f
+    # the YTD NCO fields are NEVER requested (trap F1) and no un-truncated
+    # 9-char name slipped in
+    for banned in ("NTCRCD", "NTAUTO", "NTCI", "NTRECONS", "NTRECONSQ",
+                   "P3CONOTHR", "EQCCOMPI"):
+        assert banned not in fields, banned
+    # every [SERIES] metric's inputs are landed fields (audit trail intact)
+    cfg = R.parse_config(BW.config_rows())
+    R.validate_metrics(cfg.series)
+
+
+def test_consumer_track_rates():
+    """Hardcoded expectations for the consumer-track transforms: R twins pass
+    through; computed rates are num/den*100; quarterly NCO rates are the Q
+    dollar flow ANNUALIZED x4 over balances; None-tolerant throughout."""
+    # verified R twins are direct (the metric id IS the field)
+    assert R.metric_value("P3CRCDR", {"P3CRCDR": 2.51}) == pytest.approx(2.51)
+    assert R.metric_value("NARELOCR", {"NARELOCR": 0.7}) == pytest.approx(0.7)
+    assert R.metric_value("P9AUTOR", {}) is None
+    # card NCOq: 10/1000 * 400 = 4.0 (annualized, NTLNLSQR convention)
+    assert R.metric_value("NTCRCDQR", {"NTCRCDQ": 10.0, "LNCRCD": 1000.0}) \
+        == pytest.approx(4.0)
+    assert R.metric_value("NTAUTOQR", {"NTAUTOQ": 2.5, "LNAUTO": 1000.0}) \
+        == pytest.approx(1.0)
+    # computed PD rates: dollar triple over balance x100
+    assert R.metric_value("P3CONOTHR",
+                          {"P3CONOTH": 15.0, "LNCONOTH": 1000.0}) \
+        == pytest.approx(1.5)
+    assert R.metric_value("NACONOTHR",
+                          {"NACONOTH": 8.0, "LNCONOTH": 400.0}) \
+        == pytest.approx(2.0)
+    # commercial floor: truncated-name NCO flows annualize identically
+    assert R.metric_value("NTRECONQR",
+                          {"NTRECONQ": 5.0, "LNRECONS": 1000.0}) \
+        == pytest.approx(2.0)
+    assert R.metric_value("NARENRESR",
+                          {"NARENRES": 12.0, "LNRENRES": 600.0}) \
+        == pytest.approx(2.0)
+    # None-tolerance: null flow, null balance, zero balance -> blank never 0
+    assert R.metric_value("NTCRCDQR", {"NTCRCDQ": None, "LNCRCD": 1000.0}) is None
+    assert R.metric_value("NTCRCDQR", {"NTCRCDQ": 10.0, "LNCRCD": None}) is None
+    assert R.metric_value("NTCRCDQR", {"NTCRCDQ": 10.0, "LNCRCD": 0.0}) is None
+    # Excel side is generated from the SAME declarative table (trap F5)
+    fx = BW.metric_formula("NTCRCDQR", 1, 16)
+    assert "*400))" in fx
+    n_ref = BW._fref(1, "NTCRCDQ", 16)
+    d_ref = BW._fref(1, "LNCRCD", 16)
+    assert fx == (f"=IF(OR({n_ref}=\"\",{d_ref}=\"\"),\"\","
+                  f"IF({d_ref}=0,\"\",{n_ref}/{d_ref}*400))")
+    # demo determinism: the stress bank trips the consumer bands (spec sec 3)
+    prov = R.FdicDemoProvider(asof=ASOF, raw_slots=16)
+    f6548 = prov._profile("6548")[-1][1]
+    assert R.metric_value("NTCRCDQR", f6548) > 4.0        # card NCO ALERT
+    assert R.metric_value("P3AUTOR", f6548) > 4.0         # auto PD ALERT
+    assert R.metric_value("NARERESR", f6548) > 2.0        # resi NA ALERT
+
+
+def test_svb_derived_metrics():
+    """Hardcoded SVB-pack expectations, incl. the binding null shape:
+    DEPUNINS=None -> BLANK, never zero."""
+    # uninsured share
+    assert R.metric_value("UNINSDEPR", {"DEPUNINS": 400.0, "DEP": 1000.0}) \
+        == pytest.approx(40.0)
+    v = R.metric_value("UNINSDEPR", {"DEPUNINS": None, "DEP": 1000.0})
+    assert v is None and v != 0                   # blank, NOT zero
+    assert R.metric_value("UNINSDEPR", {"DEPUNINS": 400.0, "DEP": 0.0}) is None
+    # unrealized loss / capital cushion: ((1000-900)+(2000-1850))/(400+100)
+    f = {"SCHA": 1000.0, "SCHF": 900.0, "SCAA": 2000.0, "SCAF": 1850.0,
+         "EQ": 400.0, "LNATRES": 100.0}
+    assert R.metric_value("UNRLZCAPR", f) == pytest.approx(50.0)
+    # unrealized GAIN runs negative (fair above amortized), never clipped
+    assert R.metric_value("UNRLZCAPR", {**f, "SCHF": 1100.0, "SCAF": 2100.0}) \
+        == pytest.approx(-40.0)
+    # any null leg blanks the composite (null != 0)
+    for leg in ("SCHA", "SCHF", "SCAA", "SCAF", "EQ", "LNATRES"):
+        assert R.metric_value("UNRLZCAPR", {**f, leg: None}) is None
+    assert R.metric_value("UNRLZCAPR", {**f, "EQ": 0.0, "LNATRES": 0.0}) is None
+    # FHLB reliance
+    assert R.metric_value("FHLBASSR", {"OTHBFHLB": 30.0, "ASSET": 300.0}) \
+        == pytest.approx(10.0)
+    assert R.metric_value("FHLBASSR", {"OTHBFHLB": None, "ASSET": 300.0}) is None
+    # demo shape: cert 7213 reports DEPUNINS null for the WHOLE series ->
+    # blank + a digest note; the stress banks trip the SVB bands
+    prov = R.FdicDemoProvider(asof=ASOF, raw_slots=16)
+    f7213 = prov._profile("7213")[-1][1]
+    assert f7213["DEPUNINS"] is None
+    assert R.metric_value("UNINSDEPR", f7213) is None
+    f6548 = prov._profile("6548")[-1][1]
+    assert R.metric_value("UNINSDEPR", f6548) > 60.0
+    assert R.metric_value("UNRLZCAPR", f6548) > 50.0
+    assert R.metric_value("FHLBASSR", f6548) > 20.0
+    f6384 = prov._profile("6384")[-1][1]
+    assert 40.0 < R.metric_value("UNINSDEPR", f6384) < 60.0   # WATCH band
+    # Excel parity: the UNRLZCAPR formula computes BOTH legs identically
+    fx = BW.metric_formula("UNRLZCAPR", 3, 16)
+    ha, hf = BW._fref(3, "SCHA", 16), BW._fref(3, "SCHF", 16)
+    aa, af = BW._fref(3, "SCAA", 16), BW._fref(3, "SCAF", 16)
+    e, a = BW._fref(3, "EQ", 16), BW._fref(3, "LNATRES", 16)
+    assert f"(({ha}-{hf})+({aa}-{af}))/({e}+{a})*100" in fx
+    assert fx.startswith("=IF(OR(") and f"IF({e}+{a}=0" in fx
+
+
+def test_loanbook_tab(populated):
+    """Reload the populated workbook: both LoanBook bands present (consumer
+    caption + the spec's commercial honesty subtitle), slot rows carry
+    formulas, PEER MEDIAN rows per band, statuses flow into the Watchlist
+    helpers, and the digest statuses match the workbook thresholds."""
+    wb = openpyxl.load_workbook(populated, keep_vba=True)
+    assert tuple(wb.sheetnames) == TABS           # inserted in ORDER
+    ws = wb["Dashboard_LoanBook"]
+    # band captions: consumer track + the commercial-floor honesty subtitle
+    cap1 = str(ws.cell(6, 1).value)
+    assert "CONSUMER TRACK" in cap1 and "DPD-formula-driven" in cap1
+    hdr2 = BW.lb_comm_hdr(40)
+    cap2 = str(ws.cell(hdr2 - 1, 1).value)
+    assert "COMMERCIAL FLOOR" in cap2
+    assert "Public Call-Report proxy" in cap2
+    assert "criticized/classified view via the EDGAR tracker" in cap2
+    # headers label every class column in both bands
+    assert ws.cell(BW.DASH_HDR, 4).value == "Card 30-89"
+    assert ws.cell(BW.DASH_HDR, 3 + len(BW.LB_CONSUMER)).value == "HELOC NA"
+    assert ws.cell(hdr2, 4).value == "Constr 30-89"
+    assert ws.cell(hdr2, 3 + len(BW.LB_COMMERCIAL)).value == "C&I NCOq"
+    # every (slot, metric) cell is a formula in BOTH bands; median row under
+    for band_hdr, mids in ((BW.DASH_HDR, BW.LB_CONSUMER),
+                           (hdr2, BW.LB_COMMERCIAL)):
+        for k in range(len(mids)):
+            for slot in (1, 12, 40):
+                v = ws.cell(band_hdr + slot, 4 + k).value
+                assert isinstance(v, str) and v.startswith("="), (band_hdr, slot)
+            med = ws.cell(band_hdr + 41, 4 + k).value
+            assert isinstance(med, str) and "MEDIAN(" in med
+        assert "PEER MEDIAN" in str(ws.cell(band_hdr + 41, 1).value)
+        # identity flows by formula from [PEERS]
+        assert "_config" in str(ws.cell(band_hdr + 1, 1).value)
+    # NCO columns annualize x4; twin columns are blank-guarded directs
+    assert "*400))" in str(ws.cell(BW.DASH_HDR + 1, 7).value)   # NTCRCDQR
+    # Watchlist helpers cover all 53 metrics and point pack metrics at the
+    # LoanBook tab (commercial band rows offset below the consumer band)
+    wl = wb["Watchlist"]
+    cfg = R.parse_config(BW.config_rows())
+    mids = [s.id for s in cfg.series]
+    for k, mid in enumerate(mids):
+        assert wl.cell(BW.WL_HDR, BW.WL_HELPER_COL0 + k).value == mid
+    k_cons = mids.index("NTCRCDQR")
+    h = str(wl.cell(BW.wl_row(1), BW.WL_HELPER_COL0 + k_cons).value)
+    assert "Dashboard_LoanBook!" in h and "ALERT" in h
+    k_comm = mids.index("NACIR")
+    h2 = str(wl.cell(BW.wl_row(1), BW.WL_HELPER_COL0 + k_comm).value)
+    tab, col, first = BW.metric_home("NACIR", 40)
+    from openpyxl.utils import get_column_letter
+    assert f"Dashboard_LoanBook!{get_column_letter(col)}{first}" in h2
+    assert first == hdr2 + 1                     # the commercial band offset
+    wb.close()
+    # digest statuses agree with the seeded thresholds (values -> statuses)
+    status = R.run(populated, demo=True, asof=ASOF)
+    b5 = next(b for b in status["digest"]["banks"] if b["cert"] == "6548")
+    assert b5["metrics"]["NTCRCDQR"]["status"] == "ALERT"
+    assert b5["metrics"]["NARENRESR"]["status"] == "ALERT"
+    b6 = next(b for b in status["digest"]["banks"] if b["cert"] == "6384")
+    assert b6["metrics"]["NTCRCDQR"]["status"] == "WATCH"
+    b4 = next(b for b in status["digest"]["banks"] if b["cert"] == "7213")
+    assert b4["metrics"]["UNINSDEPR"]["value"] is None
+    assert b4["metrics"]["UNINSDEPR"]["status"] == ""     # blank, not OK/0
+    assert any("DEPUNINS" in n for n in b4["notes"])      # the blank+note
+    # per-band medians exist in the digest too (peer-median per column)
+    assert status["digest"]["medians"]["NTCRCDQR"] is not None
+    assert status["digest"]["medians"]["NACIR"] is not None
+
+
+def test_provenance_tab(populated):
+    """Contract sec 12: the _provenance tab renders the tie-out map -- header
+    block with the citations of record + a WELL-FORMED facsimile URL pattern,
+    and one row per landed field AND per metric (every pack metric
+    included)."""
+    wb = openpyxl.load_workbook(populated, keep_vba=True)
+    assert wb.sheetnames.index("_provenance") == \
+        wb.sheetnames.index("_config") + 1
+    ws = wb["_provenance"]
+    text = "\n".join(str(c.value) for row in ws.iter_rows() for c in row
+                     if c.value is not None)
+    # citations of record + the two-step tie-out + the URL patterns
+    assert "CITATIONS OF RECORD" in text
+    assert "Fed MDRM dictionary" in text
+    assert "TWO-STEP TIE-OUT" in text
+    m = re.search(r"https://cdr\.ffiec\.gov/Public/ViewFacsimileDirect\.aspx"
+                  r"\?ds=call&idType=fdiccert&id=\{CERT\}"
+                  r"&date=\{MMDDYYYY\}", text)
+    assert m, "facsimile URL pattern missing or malformed"
+    assert "banks.data.fdic.gov" in text
+    # structured rows: field | schedule | line/caption | MDRM | flag | notes
+    rows = R.read_provenance_rows(wb)
+    wb.close()
+    cfg = R.parse_config(BW.config_rows())
+    missing = [s.id for s in cfg.series if s.id not in rows]
+    assert not missing, f"metrics without a provenance row: {missing}"
+    for f in R.RAW_FIELDS:
+        assert f in rows, f"landed field without a provenance row: {f}"
+    # spot-verify content against PROVENANCE_MAP_FDIC.md
+    assert rows["DEPUNINS"]["mdrm"] == "RCON5597"
+    assert rows["DEPUNINS"]["schedule"] == "RC-O Mem 2"
+    assert rows["SCHA"]["mdrm"] == "RCON1754"
+    assert rows["NTRECONQ"]["flag"] == "[V]"
+    assert "NTRECONSQ" in rows["NTRECONQ"]["notes"]       # truncation quirk
+    # honesty flags carried: unmapped MDRMs say so instead of inventing
+    assert rows["NTRERESQ"]["flag"] == "[~]"
+    assert "not in tie-out map" in rows["NTRERESQ"]["mdrm"]
+    assert rows["UNRLZCAPR"]["mdrm"] == \
+        "((1754-1771)+(1772-1773)) / (3210+3123)"
+    assert "RCOA7204" in rows["RBC1AAJ"]["mdrm"]
+
+
+def test_tieout_mode(populated, capsys):
+    """`--tieout CERT [REPDTE]` in demo mode: clearly labeled demo values,
+    one line per metric carrying value + MDRM, and the facsimile + BankFind
+    URLs for the bank-quarter."""
+    rc = R.main(["--workbook", populated, "--demo", "--tieout", "6548"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "DEMO VALUES" in out                   # clearly labeled
+    assert ("https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx?ds=call"
+            "&idType=fdiccert&id=6548&date=03312026") in out
+    assert R.bankfind_url("6548") in out
+    cfg = R.parse_config(BW.config_rows())
+    lines = out.splitlines()
+    for spec in cfg.series:                       # value + MDRM per metric
+        ln = next((l for l in lines if l.strip().startswith(spec.id + " ")),
+                  None)
+        assert ln is not None, spec.id
+        assert re.search(r"(-?[\d,]+\.\d\d|\(blank\))", ln), spec.id
+    # values on the tieout lines match the engine (demo determinism)
+    prov = R.FdicDemoProvider(asof=ASOF, raw_slots=16)
+    fields = prov._profile("6548")[-1][1]
+    tex_line = next(l for l in lines if l.strip().startswith("TEXAS "))
+    assert f"{R.metric_value('TEXAS', fields):,.2f}" in tex_line
+    assert "(1407+1403) / (3210+3123)" in tex_line
+    uni_line = next(l for l in lines if l.strip().startswith("UNINSDEPR"))
+    assert "RCON5597" in uni_line
+    # explicit REPDTE selects the quarter; a bad one refuses clearly
+    rc = R.main(["--workbook", populated, "--demo", "--tieout", "6548",
+                 "2025-12-31"])
+    out2 = capsys.readouterr().out
+    assert rc == 0 and "date=12312025" in out2
+    rc = R.main(["--workbook", populated, "--demo", "--tieout", "6548",
+                 "1999-12-31"])
+    err = capsys.readouterr().err
+    assert rc == 1 and "not in the fetched window" in err
+    # gate: a malformed CERT is refused with the --lookup hint
+    rc = R.main(["--workbook", populated, "--demo", "--tieout", "not-a-cert"])
+    err = capsys.readouterr().err
+    assert rc == 2 and "--lookup" in err
 
 
 def test_vba_protection_keys_roundtrip():

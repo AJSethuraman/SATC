@@ -5,12 +5,15 @@ Single source of truth for the data path; embedded verbatim into the workbook's
 _code_py tab. The VBA ExtractFiles macro writes this back out as runner.py and
 the user runs it from PowerShell against the CLOSED workbook (openpyxl backend).
 
-Built to BUILD_SPEC_FDIC.md. THE INVERSION: rows are BANKS, not series types --
-the hand-picked [PEERS] list IS the watchlist, keyed by FDIC CERT, and [SERIES]
-is a bank-agnostic 15-metric dictionary expanded at run time into units
-s{slot:02d}_{METRIC}. Raw anchors depend ONLY on (slot, field), so editing
-WHICH bank occupies a slot moves no formula (the flexible-peers USER
-REQUIREMENT: add/remove = edit a [PEERS] line + re-run, never a rebuild).
+Built to BUILD_SPEC_FDIC.md + SPEC_COMPETITOR_PACK.md (pack v1.1). THE
+INVERSION: rows are BANKS, not series types -- the hand-picked [PEERS] list IS
+the watchlist, keyed by FDIC CERT, and [SERIES] is a bank-agnostic 53-metric
+dictionary (15 core + the v1.1 two-track loan-book/SVB pack) expanded at run
+time into units s{slot:02d}_{METRIC}. Raw anchors depend ONLY on (slot,
+field), so editing WHICH bank occupies a slot moves no formula (the
+flexible-peers USER REQUIREMENT: add/remove = edit a [PEERS] line + re-run,
+never a rebuild). v1.1 adds `--tieout CERT [REPDTE]` (contract sec 12):
+sample-verify any bank-quarter against the filed Call Report facsimile.
 
 Clean seams (BUILD SPEC 0.3 / 1a):
   * ADAPTER SEAM -- fetch_series(spec, secret) -> list[NormalizedRow], FIXED
@@ -1036,7 +1039,8 @@ class FdicProvider(Provider):
     SPEC 0.3 -- KEYLESS: the FDIC BankFind API needs no API key; swagger marks
     api_key optional and every observed client is keyless). ONE bulk
     /financials request per refresh covers the whole peer set (30 banks x
-    ~24 fields x 16 quarters << the 10,000-row cap), plus one /institutions
+    banks x 16 quarters = ~640 rows << the 10,000-row cap; ~70 fields <<
+    the 250-field cap), plus one /institutions
     roster call for identity + merger detection (trap F2). Rate limit is
     UNDOCUMENTED -- be polite: min_interval throttle, 429/5xx backoff,
     per-URL cache."""
@@ -1573,6 +1577,149 @@ def run(workbook_path: str, demo: bool = False, asof: Optional[date] = None,
 
 
 # ---------------------------------------------------------------------------
+# TIE-OUT MODE (TEMPLATE_CONTRACT.md sec 12) -- verify a feed against the
+# OFFICIAL record in minutes: for one bank(-quarter), print each metric's
+# value alongside its Call Report schedule/line + MDRM (read from the
+# workbook's _provenance tab) + the CDR facsimile URL + the BankFind page.
+# ---------------------------------------------------------------------------
+CDR_FACSIMILE_URL = ("https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx"
+                     "?ds=call&idType=fdiccert&id={cert}&date={mmddyyyy}")
+BANKFIND_URL = ("https://banks.data.fdic.gov/bankfind-suite/bankfind/"
+                "details/{cert}")
+
+
+def facsimile_url(cert: str, iso_repdte: str) -> str:
+    """The filed Call Report's public facsimile, keyed by CERT + MMDDYYYY."""
+    d = str(iso_repdte)[:10]
+    mmddyyyy = f"{d[5:7]}{d[8:10]}{d[0:4]}"
+    return CDR_FACSIMILE_URL.format(cert=cert, mmddyyyy=mmddyyyy)
+
+
+def bankfind_url(cert: str) -> str:
+    return BANKFIND_URL.format(cert=cert)
+
+
+def read_provenance_rows(wb) -> Dict[str, dict]:
+    """Parse the _provenance tab: rows below the 'field' header, keyed by the
+    first column (field OR metric id). Comment/blank/banner lines skipped."""
+    if "_provenance" not in wb.sheetnames:
+        return {}
+    ws = wb["_provenance"]
+    rows: Dict[str, dict] = {}
+    in_table = False
+    for row in ws.iter_rows(values_only=True):
+        a = ("" if not row or row[0] is None else str(row[0])).strip()
+        if a.lower() == "field":
+            in_table = True
+            continue
+        if not in_table or not a or a.startswith("#") or a.startswith("["):
+            continue
+        cells = [("" if i >= len(row) or row[i] is None else str(row[i]))
+                 for i in range(6)]
+        rows[a] = {"field": cells[0], "schedule": cells[1],
+                   "caption": cells[2], "mdrm": cells[3],
+                   "flag": cells[4], "notes": cells[5]}
+    return rows
+
+
+def do_tieout(workbook: str, args: List[str], demo: bool) -> int:
+    """`--tieout CERT [REPDTE]`: sample-verify the feed against the filing.
+    Works in --demo too (deterministic values, clearly labeled; the
+    provenance columns are the real tie-out map either way)."""
+    import openpyxl
+    cert = _norm_cert(args[0])
+    repdte = args[1] if len(args) > 1 else None
+    if not re.match(ENTITY_KEY_PATTERN, f"cert:{cert}"):
+        sys.stderr.write(f"--tieout: '{args[0]}' is not a valid FDIC CERT "
+                         "(digits only). Find one with: python runner.py "
+                         "--lookup \"<bank name>\".\n")
+        return 2
+    wb = openpyxl.load_workbook(workbook, read_only=True, data_only=False)
+    try:
+        ws = wb["_config"]
+        cfg = parse_config([[c for c in row]
+                            for row in ws.iter_rows(values_only=True)])
+        prov_rows = read_provenance_rows(wb)
+    finally:
+        wb.close()
+    if not prov_rows:
+        sys.stderr.write("--tieout: this workbook has no _provenance tab -- "
+                         "it predates pack v1.1; rebuild it (python "
+                         "make_workbook.py).\n")
+        return 1
+    validate_metrics(cfg.series)
+    provider = make_provider(cfg, demo, None)
+    mode = "demo" if isinstance(provider, FdicDemoProvider) else "live"
+    try:
+        provider.prime([cert], date.today(), names={cert: f"cert:{cert}"})
+        peer = PeerRow(slot=1, cert=cert, name=f"cert:{cert}", group="tieout",
+                       active=True)
+        field_rows = {f: provider.fetch_series(make_field_spec(peer, f))
+                      for f in RAW_FIELDS}
+    except Exception as exc:
+        sys.stderr.write(f"--tieout fetch failed for cert {cert}: {exc}\n")
+        return 1
+    quarters = assemble_quarters(field_rows, cfg.raw_slots)
+    if not quarters:
+        sys.stderr.write(f"--tieout: no quarters returned for cert {cert}.\n")
+        return 1
+    if repdte:
+        r = str(repdte).strip()
+        if len(r) == 8 and r.isdigit():
+            r = f"{r[0:4]}-{r[4:6]}-{r[6:8]}"
+        match = [(p, f) for p, f in quarters if p == r]
+        if not match:
+            sys.stderr.write(
+                f"--tieout: REPDTE {repdte} not in the fetched window "
+                f"({quarters[-1][0]} .. {quarters[0][0]}).\n")
+            return 1
+        iso, fields = match[0]
+    else:
+        iso, fields = quarters[0]
+
+    print(f"TIE-OUT  cert {cert}  REPDTE {iso}  (pack {PACK_VERSION}, "
+          f"{mode} mode)")
+    if mode == "demo":
+        print("  *** DEMO VALUES -- deterministic FdicDemoProvider fiction, "
+              "NOT this bank's filing; the schedule/line/MDRM columns are "
+              "the real tie-out map. Re-run without --demo for live "
+              "values. ***")
+    print(f"  Call Report facsimile : {facsimile_url(cert, iso)}")
+    print(f"  BankFind (pull check) : {bankfind_url(cert)}")
+    print(f"  Data vintage          : {provider.vintage or 'n/a'}")
+    print("  Tie-out is two-step: API value <-> BankFind page (pull check) "
+          "<-> CDR facsimile schedule/line (filing check).")
+    print()
+    hdr = (f"  {'metric':<10} {'value':>10}  {'schedule / line':<34} "
+           f"{'MDRM':<30} {'flag':<12} notes")
+    print(hdr)
+    print("  " + "-" * (len(hdr) + 20))
+    missing = []
+    for spec in cfg.series:
+        v = metric_value(spec.id, fields)
+        vs = "(blank)" if v is None else f"{v:,.2f}"
+        pr = prov_rows.get(spec.id)
+        if pr is None:
+            missing.append(spec.id)
+            pr = {"schedule": "(no provenance row)", "caption": "",
+                  "mdrm": "", "flag": "", "notes": ""}
+        sched = pr["schedule"] + (f" {pr['caption']}" if pr["caption"] else "")
+        note = pr["notes"]
+        cls = LOANBOOK_CLASS.get(spec.id)
+        if cls:
+            note = f"[{cls}] {note}"
+        print(f"  {spec.id:<10} {vs:>10}  {sched[:34]:<34} "
+              f"{pr['mdrm'][:30]:<30} {pr['flag'][:12]:<12} {note}")
+    if missing:
+        sys.stderr.write("WARNING: no _provenance row for: "
+                         + ", ".join(missing) + "\n")
+    print()
+    print("  Per-FIELD rows (every raw input's schedule/line/MDRM) are on "
+          "the workbook's _provenance tab.")
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # CLI (contract sec 4) + --lookup (USER REQUIREMENT, live-only)
 # ---------------------------------------------------------------------------
 def do_lookup(name: str, demo: bool) -> int:
@@ -1621,12 +1768,26 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--lookup", default=None, metavar="NAME",
                     help='find a bank\'s CERT by name (live-only): '
                          '--lookup "Wells Fargo"')
+    ap.add_argument("--tieout", default=None, nargs="+", metavar="ARG",
+                    help="CERT [REPDTE]: print each metric's value + Call "
+                         "Report schedule/line/MDRM + facsimile/BankFind "
+                         "URLs for one bank(-quarter); works with --demo "
+                         "(labeled)")
     args = ap.parse_args(argv)
     if args.lookup is not None:
         return do_lookup(args.lookup, args.demo)
     if not args.workbook:
         sys.stderr.write("--workbook is required (or use --lookup).\n")
         return 2
+    if args.tieout is not None:
+        if len(args.tieout) > 2:
+            sys.stderr.write("--tieout takes CERT [REPDTE].\n")
+            return 2
+        try:
+            return do_tieout(args.workbook, args.tieout, args.demo)
+        except Exception as exc:
+            sys.stderr.write(f"TIEOUT ERROR: {exc}\n")
+            return 1
     asof = datetime.strptime(args.asof, "%Y-%m-%d").date() if args.asof else None
     try:
         status = run(args.workbook, demo=args.demo, asof=asof)

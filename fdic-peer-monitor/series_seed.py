@@ -5,16 +5,17 @@ module -- it reads the already-expanded dictionary out of the workbook, so the
 workbook stays the source of truth (BUILD SPEC 0.4).
 
 THE INVERSION (what makes this template different): rows are BANKS, not series
-types. [SERIES] is a bank-agnostic METRIC dictionary (15 verified metrics,
-geo_segment="entity"); the hand-picked [PEERS] list IS the watchlist, keyed by
+types. [SERIES] is a bank-agnostic METRIC dictionary (53 verified metrics:
+15 core + the 38-metric v1.1 competitor pack; geo_segment="entity"); the hand-picked [PEERS] list IS the watchlist, keyed by
 FDIC CERT. The runner expands active peers x metrics at run time into units
 s{slot:02d}_{METRIC} -- adding/removing a bank is a [PEERS] line edit + re-run,
 never a rebuild (the flexible-peers USER REQUIREMENT).
 
 DESIGN INVARIANTS:
   * Every metric row uses ONLY fields verified in COVERAGE_RESEARCH_FDIC.md
-    (risview_properties.yaml + a captured response). UNVERIFIED fields (ORE,
-    INTAN, uninsured deposits, AOCI, HTM fair value) are OUT of v1 -- the
+    / RESEARCH_COMPETITOR_PACK.md (93/93 pack fields). v1.1 brings uninsured
+    deposits + HTM/AFS fair-value fields IN (verified); still-UNVERIFIED
+    fields (ORE, INTAN, AOCI stock) stay OUT -- the
     Texas ratio is a documented VARIANT and CRECONR uses a documented PROXY
     denominator until those field ids are confirmed live.
   * Quarterly-clean fields only where variants exist (trap F1): ROAQ and
@@ -53,7 +54,8 @@ def metric(id, title, category, series_label, transform, notes=""):
 
 
 # --------------------------------------------------------------------------
-# THE METRIC DICTIONARY (BUILD_SPEC_FDIC.md sec 2 -- 15 verified metrics).
+# THE METRIC DICTIONARY (BUILD_SPEC_FDIC.md sec 2 + SPEC_COMPETITOR_PACK.md
+# sec 1 -- 53 verified metrics: 15 core + 38 pack).
 # series_label documents the exact API fields consumed; transform "direct"
 # means value = the single field, "derived" means the runner/Excel compute a
 # named pure function of the fields (registry keyed by metric id).
@@ -127,7 +129,146 @@ FUNDING_CONCENTRATION = [
            "distorted, F6)."),
 ]
 
-METRIC_ROWS = ASSET_QUALITY + CAPITAL_EARNINGS + FUNDING_CONCENTRATION
+# --------------------------------------------------------------------------
+# v1.1 COMPETITOR PACK (SPEC_COMPETITOR_PACK.md secs 1-2, fields verified in
+# RESEARCH_COMPETITOR_PACK.md). Two-track design (USER, binding): CONSUMER
+# classes get the DQ/NCO track (retail classification is DPD-formula-driven
+# under the Uniform Retail Credit Classification policy -- DQ IS the story);
+# COMMERCIAL classes get Call-Report DQ as the public FLOOR (criticized/
+# classified arrives via the EDGAR template #6).
+# Naming: R-suffix ratio twins are consumed DIRECTLY only where the twin name
+# fits the 8-char field limit (P3CRCDR yes, P3CONOTHR no); all other rates
+# are computed from the verified dollar triple/flow + balance. Quarterly NCO
+# rates are ANNUALIZED x4 (the FDIC's own NTLNLSQR convention) and use the
+# Q flow fields ONLY (trap F1) -- note the 8-char truncation (NTRECONQ).
+# --------------------------------------------------------------------------
+_pack = metric        # pack rows use the same 19-column row constructor
+
+CONSUMER_TRACK = [
+    # credit card (verified R twins; NCOq computed)
+    _pack("P3CRCDR", "Card 30-89 PD %", "consumer_credit", "P3CRCDR",
+          "direct", "Verified ratio twin (RC-N 5.a col A / cards)."),
+    _pack("P9CRCDR", "Card 90+ PD %", "consumer_credit", "P9CRCDR",
+          "direct", "Verified ratio twin; 90+ still ACCRUING (RC-N col B is "
+          "disjoint from nonaccrual col C)."),
+    _pack("NACRCDR", "Card nonaccrual %", "consumer_credit", "NACRCDR",
+          "direct", "Verified ratio twin; card books mostly charge off at "
+          "180dpd rather than sit in nonaccrual."),
+    _pack("NTCRCDQR", "Card NCO % (q, ann.)", "consumer_credit",
+          "NTCRCDQ/LNCRCD*400", "derived",
+          "QUARTERLY flow (F1; 8-char name NTCRCDQ), annualized x4 like "
+          "NTLNLSQR. Card runs structurally high -- QBP context in the "
+          "subtitle."),
+    # auto (verified twins; *AUTO fields exist only from 2011 -- F-trap)
+    _pack("P3AUTOR", "Auto 30-89 PD %", "consumer_credit", "P3AUTOR",
+          "direct", "Verified ratio twin. *AUTO fields exist from 2011 only "
+          "(null-tolerant; irrelevant at raw_slots=16)."),
+    _pack("P9AUTOR", "Auto 90+ PD %", "consumer_credit", "P9AUTOR",
+          "direct", "Verified ratio twin; still accruing."),
+    _pack("NAAUTOR", "Auto nonaccrual %", "consumer_credit", "NAAUTOR",
+          "direct", "Verified ratio twin."),
+    _pack("NTAUTOQR", "Auto NCO % (q, ann.)", "consumer_credit",
+          "NTAUTOQ/LNAUTO*400", "derived",
+          "Quarterly flow annualized x4; NEVER the YTD NTAUTO (F1)."),
+    # other consumer (twin names exceed 8 chars -- computed from the triple)
+    _pack("P3CONOTHR", "Other-cons 30-89 PD %", "consumer_credit",
+          "P3CONOTH/LNCONOTH*100", "derived",
+          "Computed: the R-twin name would exceed the 8-char field limit "
+          "(unverified) -- verified dollar triple + balance instead."),
+    _pack("P9CONOTHR", "Other-cons 90+ PD %", "consumer_credit",
+          "P9CONOTH/LNCONOTH*100", "derived", "Computed; still accruing."),
+    _pack("NACONOTHR", "Other-cons nonaccrual %", "consumer_credit",
+          "NACONOTH/LNCONOTH*100", "derived", "Computed."),
+    _pack("NTCONOTQR", "Other-cons NCO % (q, ann.)", "consumer_credit",
+          "NTCONOTQ/LNCONOTH*400", "derived",
+          "Quarterly flow annualized x4 (8-char truncated NTCONOTQ)."),
+    # 1-4 family residential (verified twins) + HELOC drill-in
+    _pack("P3RERESR", "Resi 30-89 PD %", "consumer_credit", "P3RERESR",
+          "direct", "Verified ratio twin (incl. HELOC + both liens)."),
+    _pack("P9RERESR", "Resi 90+ PD %", "consumer_credit", "P9RERESR",
+          "direct", "Verified ratio twin; still accruing."),
+    _pack("NARERESR", "Resi nonaccrual %", "consumer_credit", "NARERESR",
+          "direct", "Verified ratio twin."),
+    _pack("NTRERESQR", "Resi NCO % (q, ann.)", "consumer_credit",
+          "NTRERESQ/LNRERES*400", "derived",
+          "Quarterly flow annualized x4."),
+    _pack("P3RELOCR", "HELOC 30-89 PD %", "consumer_credit", "P3RELOCR",
+          "direct", "Verified ratio twin (RC-N 1.c.(1) drill-in of resi)."),
+    _pack("P9RELOCR", "HELOC 90+ PD %", "consumer_credit", "P9RELOCR",
+          "direct", "Verified ratio twin; still accruing."),
+    _pack("NARELOCR", "HELOC nonaccrual %", "consumer_credit", "NARELOCR",
+          "direct", "Verified ratio twin. No HELOC NCO column: LNRELOC is "
+          "not in the verified balance list -- never approximated."),
+]
+
+COMMERCIAL_FLOOR = [
+    # construction
+    _pack("P3RECONSR", "Constr 30-89 PD %", "commercial_credit",
+          "P3RECONS/LNRECONS*100", "derived",
+          "Computed (twin name exceeds 8 chars). PUBLIC FLOOR: commercial "
+          "risk ratings lead delinquency; criticized/classified via EDGAR "
+          "template. Splits exist from ~2007-08 (null-tolerant)."),
+    _pack("P9RECONSR", "Constr 90+ PD %", "commercial_credit",
+          "P9RECONS/LNRECONS*100", "derived", "Computed; still accruing."),
+    _pack("NARECONSR", "Constr nonaccrual %", "commercial_credit",
+          "NARECONS/LNRECONS*100", "derived", "Computed."),
+    _pack("NTRECONQR", "Constr NCO % (q, ann.)", "commercial_credit",
+          "NTRECONQ/LNRECONS*400", "derived",
+          "Quarterly flow annualized x4; 8-char truncation is VERIFIED here "
+          "(NTRECONQ, never NTRECONSQ)."),
+    # nonfarm nonresidential CRE
+    _pack("P3RENRESR", "CRE-NFN 30-89 PD %", "commercial_credit",
+          "P3RENRES/LNRENRES*100", "derived", "Computed (twin >8 chars)."),
+    _pack("P9RENRESR", "CRE-NFN 90+ PD %", "commercial_credit",
+          "P9RENRES/LNRENRES*100", "derived", "Computed; still accruing."),
+    _pack("NARENRESR", "CRE-NFN nonaccrual %", "commercial_credit",
+          "NARENRES/LNRENRES*100", "derived",
+          "Computed. The office-stress headline metric."),
+    _pack("NTRENREQR", "CRE-NFN NCO % (q, ann.)", "commercial_credit",
+          "NTRENREQ/LNRENRES*400", "derived",
+          "Quarterly flow annualized x4 (8-char truncated NTRENREQ)."),
+    # multifamily
+    _pack("P3REMULTR", "Multifam 30-89 PD %", "commercial_credit",
+          "P3REMULT/LNREMULT*100", "derived", "Computed (twin >8 chars)."),
+    _pack("P9REMULTR", "Multifam 90+ PD %", "commercial_credit",
+          "P9REMULT/LNREMULT*100", "derived", "Computed; still accruing."),
+    _pack("NAREMULTR", "Multifam nonaccrual %", "commercial_credit",
+          "NAREMULT/LNREMULT*100", "derived", "Computed."),
+    _pack("NTREMULQR", "Multifam NCO % (q, ann.)", "commercial_credit",
+          "NTREMULQ/LNREMULT*400", "derived",
+          "Quarterly flow annualized x4 (8-char truncated NTREMULQ)."),
+    # C&I (verified twins for PD/NA; NCOq computed)
+    _pack("P3CIR", "C&I 30-89 PD %", "commercial_credit", "P3CIR",
+          "direct", "Verified ratio twin."),
+    _pack("P9CIR", "C&I 90+ PD %", "commercial_credit", "P9CIR",
+          "direct", "Verified ratio twin; still accruing."),
+    _pack("NACIR", "C&I nonaccrual %", "commercial_credit", "NACIR",
+          "direct", "Verified ratio twin."),
+    _pack("NTCIQR", "C&I NCO % (q, ann.)", "commercial_credit",
+          "NTCIQ/LNCI*400", "derived", "Quarterly flow annualized x4."),
+]
+
+SVB_PACK = [
+    _pack("UNINSDEPR", "Uninsured deposit share %", "funding_stress",
+          "DEPUNINS/DEP*100", "derived",
+          "SVB metric. DEPUNINS (RC-O Mem 2) is FILED by $1B+ reporters "
+          "only -- null renders BLANK + a digest note, NEVER 0 (F3). 2023 "
+          "failures context: SVB ~94 pct uninsured."),
+    _pack("UNRLZCAPR", "Unrealized sec loss / capital %", "funding_stress",
+          "((SCHA-SCHF)+(SCAA-SCAF))/(EQ+LNATRES)*100", "derived",
+          "SVB metric, BOTH legs COMPUTED (no named unrealized field "
+          "exists): HTM (SCHA-SCHF) + AFS (SCAA-SCAF) over the EQ+LNATRES "
+          "cushion. Positive = unrealized LOSS. EQCCOMPI is the YTD OCI "
+          "FLOW, not the AOCI stock -- deliberately NOT used. SVB ran "
+          ">100 pct."),
+    _pack("FHLBASSR", "FHLB advances / assets %", "funding_stress",
+          "OTHBFHLB/ASSET*100", "derived",
+          "SVB metric: wholesale-funding reliance; FHLB advances are the "
+          "classic stressed-liquidity backfill."),
+]
+
+METRIC_ROWS = (ASSET_QUALITY + CAPITAL_EARNINGS + FUNDING_CONCENTRATION
+               + CONSUMER_TRACK + COMMERCIAL_FLOOR + SVB_PACK)
 
 
 # --------------------------------------------------------------------------
@@ -159,6 +300,53 @@ THRESHOLDS = [
     ("CRECONR", 250.0, 300.0, "above",
      "2006 interagency CRE guidance 300 at ALERT (PROXY denominator); WATCH "
      "= approach band"),
+    # ---- v1.1 pack (SPEC_COMPETITOR_PACK.md sec 2: heuristic unless
+    # labeled; the spec-named bands are marked SPEC, the rest are QBP-context
+    # heuristics so every metric stays banded). All numeric-typed (L8).
+    ("P3CRCDR", 2.0, 3.5, "above", "heuristic (card 30-89 pipeline)"),
+    ("P9CRCDR", 1.5, 2.5, "above", "SPEC pack band (card 90+ accruing)"),
+    ("NACRCDR", 1.0, 2.0, "above", "heuristic (cards charge off, rarely NA)"),
+    ("NTCRCDQR", 2.5, 4.0, "above",
+     "SPEC pack band; card NCO runs structurally high vs QBP norms"),
+    ("P3AUTOR", 2.5, 4.0, "above", "SPEC pack band (auto early DQ)"),
+    ("P9AUTOR", 0.5, 1.0, "above", "heuristic (auto 90+ accruing is small)"),
+    ("NAAUTOR", 0.75, 1.5, "above", "heuristic"),
+    ("NTAUTOQR", 1.0, 2.0, "above", "heuristic vs QBP auto NCO context"),
+    ("P3CONOTHR", 2.0, 3.5, "above", "heuristic"),
+    ("P9CONOTHR", 1.0, 2.0, "above", "heuristic"),
+    ("NACONOTHR", 1.0, 2.0, "above", "heuristic"),
+    ("NTCONOTQR", 2.0, 3.5, "above", "heuristic"),
+    ("P3RERESR", 2.0, 4.0, "above", "heuristic (resi early DQ)"),
+    ("P9RERESR", 1.0, 2.0, "above", "heuristic"),
+    ("NARERESR", 1.0, 2.0, "above", "SPEC pack band (resi nonaccrual)"),
+    ("NTRERESQR", 0.25, 0.75, "above", "heuristic (resi NCO runs near zero)"),
+    ("P3RELOCR", 1.5, 3.0, "above", "heuristic"),
+    ("P9RELOCR", 0.75, 1.5, "above", "heuristic"),
+    ("NARELOCR", 1.0, 2.0, "above", "heuristic"),
+    ("P3RECONSR", 1.5, 3.0, "above", "SPEC pack band (construction 30-89)"),
+    ("P9RECONSR", 0.75, 1.5, "above", "heuristic"),
+    ("NARECONSR", 1.5, 3.0, "above", "heuristic (constr NA runs above CRE)"),
+    ("NTRECONQR", 0.5, 1.5, "above", "heuristic"),
+    ("P3RENRESR", 1.0, 2.0, "above", "heuristic"),
+    ("P9RENRESR", 0.5, 1.0, "above", "heuristic"),
+    ("NARENRESR", 1.0, 2.0, "above", "SPEC pack band (CRE nonaccrual)"),
+    ("NTRENREQR", 0.5, 1.0, "above", "heuristic"),
+    ("P3REMULTR", 1.0, 2.0, "above", "heuristic"),
+    ("P9REMULTR", 0.5, 1.0, "above", "heuristic"),
+    ("NAREMULTR", 1.0, 2.0, "above",
+     "SPEC pack band (CRE nonaccrual, applied to multifamily)"),
+    ("NTREMULQR", 0.5, 1.0, "above", "heuristic"),
+    ("P3CIR", 1.0, 2.0, "above", "heuristic"),
+    ("P9CIR", 0.5, 1.0, "above", "heuristic"),
+    ("NACIR", 1.0, 2.0, "above", "heuristic"),
+    ("NTCIQR", 0.5, 1.0, "above", "SPEC pack band (C&I quarterly NCO)"),
+    ("UNINSDEPR", 40.0, 60.0, "above",
+     "SPEC pack band; heuristic vs the 2023 failures (SVB ~94 pct "
+     "uninsured); null DEPUNINS renders blank, never 0"),
+    ("UNRLZCAPR", 25.0, 50.0, "above",
+     "SPEC pack band; heuristic (SVB ran >100 pct of capital cushion)"),
+    ("FHLBASSR", 10.0, 20.0, "above",
+     "SPEC pack band; heuristic wholesale-reliance screen"),
 ]
 
 
@@ -210,7 +398,7 @@ def all_series():
 
 if __name__ == "__main__":
     rows = all_series()
-    assert len(rows) == 15, len(rows)
+    assert len(rows) == 53, len(rows)     # 15 core + 38 pack (v1.1)
     assert len(HEADER) == 19
     for r in rows:
         assert set(r.keys()) == set(HEADER), f"row {r['id']} key mismatch"

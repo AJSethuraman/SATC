@@ -1,4 +1,5 @@
-# BUILD NOTES -- Bank Counterparty & Peer Monitor (v1)
+# BUILD NOTES -- Bank Counterparty & Peer Monitor (v1; v1.1 pack section at
+# the end)
 
 Deliverable: `Bank_Peer_Monitor.xlsm` (+ the ASCII transmission bundle
 `build_fdic_monitor.py`). Built to `BUILD_SPEC_FDIC.md` under
@@ -176,3 +177,141 @@ column.
 
 Runtime: `pandas`, `openpyxl` only. Test/verify-only: `pytest`, `oletools`,
 `formulas`.
+
+---
+
+# v1.1 -- Competitor Loan-Book Metric Pack (SPEC_COMPETITOR_PACK.md)
+
+Upgrade of the shipped v1 (all v1 behaviors and tests preserved; extended,
+not rewritten). Grounded in `RESEARCH_COMPETITOR_PACK.md` (93/93 fields
+verified) + `PROVENANCE_MAP_FDIC.md`; contract sec 12 (provenance/tie-out)
+lands WITH this pack. The workbook is REBUILT (raw anchors recomputed);
+`pack_version 1.1` in [SETTINGS], and the runner refuses a foreign field
+layout (the last-field label sentinel in `_check_slot`).
+
+## What was added
+
+- **Metric dictionary 15 -> 53** (38 pack metrics). Consumer track (cards /
+  auto / other consumer / 1-4 family + a HELOC drill-in): 30-89 PD, 90+ PD
+  (still accruing, disjoint from NA), nonaccrual, QUARTERLY NCO annualized
+  x4 (the FDIC's own NTLNLSQR convention; YTD `NT{c}` never fetched -- F1).
+  Commercial floor (construction / CRE-nonfarm / multifamily / C&I): the
+  same four rates, honestly subtitled as the public Call-Report proxy
+  (criticized/classified arrives via the EDGAR template). SVB pack on
+  Dashboard_Funding_Concentration: `UNINSDEPR` = DEPUNINS/DEP (null ->
+  BLANK + digest note, never 0), `UNRLZCAPR` =
+  ((SCHA-SCHF)+(SCAA-SCAF))/(EQ+LNATRES) -- both legs COMPUTED; `EQCCOMPI`
+  is a FLOW, deliberately unused -- and `FHLBASSR` = OTHBFHLB/ASSET.
+- **Field-naming honesty rule.** Verified R ratio twins consumed directly
+  ONLY where the twin name fits the legacy 8-char field limit (P3CRCDR,
+  P3AUTOR, P3RERESR, P3RELOCR, P3CIR families = 15 direct twins); the
+  9-char twins (P3CONOTHR, P3RECONSR, ...) are COMPUTED from the verified
+  dollar triple + balance instead. Quarterly NCO names carry the VERIFIED
+  8-char truncation (NTRECONQ, NTRENREQ, NTREMULQ, NTCONOTQ).
+- **ONE bulk request, still.** `fields=` grew 24 -> 70 entries (68 raw
+  fields + CERT,REPDTE), asserted < 250 at module load AND request build;
+  `test_pack_fields_in_bulk_request` locks the list (and bans the YTD/
+  un-truncated/EQCCOMPI names).
+- **Dashboard_LoanBook**: one tab, TWO slot-anchored bands (consumer 19
+  columns, commercial 16), each with per-column threshold band rules,
+  direction-aware heat and a PEER MEDIAN row; band captions carry the
+  two-track rationale and the spec's commercial honesty subtitle verbatim.
+  Status panel in column X (the tab is wider than the L-column standard).
+- **Declarative parity table.** `runner.PACK_RATIOS` (num, den, mult)
+  drives BOTH the Python functions and the Excel formulas
+  (`build_workbook.metric_formula`), so the two definitions cannot drift
+  (F5); `UNRLZCAPR` is the one hand-written pair, parity-tested.
+- **Thresholds**: all 38 pack metrics banded (numeric-typed, L8),
+  direction `above`; the seven spec-named bands are labeled `SPEC pack
+  band`, the rest `heuristic` (QBP-context) in the authority column.
+- **_provenance tab** (contract sec 12): `provenance_seed.py` transcribes
+  PROVENANCE_MAP_FDIC.md -- citations of record + facsimile/UBPR/BankFind
+  URL patterns in the header, then field | schedule | line/caption | MDRM |
+  flag | notes for all 69 field rows (68 landed + informational DEPINS) and
+  28 derived-metric rows (direct metrics resolve to their field row).
+  Honesty flags carried per row: MDRMs NOT in the map say "(not in tie-out
+  map)" with [~] match-by-caption -- nothing invented.
+- **--tieout CERT [REPDTE]** runner mode: reads the metric dictionary and
+  the _provenance tab OUT OF THE WORKBOOK (source of truth), fetches the
+  bank (demo or live), and prints per metric: value + schedule/line + MDRM
+  + flag, headed by the CDR facsimile URL
+  (`...ViewFacsimileDirect.aspx?ds=call&idType=fdiccert&id={CERT}&date=
+  {MMDDYYYY}`), the BankFind page URL and the data vintage. Demo output is
+  loudly labeled fiction; the provenance columns are the real map.
+- **Demo provider** seeds per-class rates, balances, securities marks,
+  DEPUNINS and FHLB per (cert): tier-0 cert 6548 trips the new ALERT bands
+  (card NCOq 4.99, auto PD 4.57, resi NA 2.49, constr PD 3.53, CRE NA 2.60,
+  C&I NCOq 1.35, uninsured 71.7, unrealized/capital 58.2, FHLB 22.9);
+  tier-1 cert 6384 sits in the WATCH bands. Two new null shapes: cert 3510
+  reports NO auto book (whole-series nulls) and cert 7213's DEPUNINS is
+  null for the whole series (blank + note, never 0).
+- **email_sim** gains the PER-CLASS LOAN-BOOK ALERTS section (consumer
+  classes first, commercial after, via `runner.LOANBOOK_CLASS`) and asserts
+  at least one consumer AND one commercial class alerting.
+
+## Verification (v1.1)
+
+- **20 tests green** = the 14 v1 tests (counts updated 15 -> 53 where the
+  dictionary size is the thing under test) + the six pack tests:
+  `test_pack_fields_in_bulk_request`, `test_consumer_track_rates`,
+  `test_svb_derived_metrics` (incl. DEPUNINS=None -> blank NOT zero),
+  `test_loanbook_tab` (both bands, medians, statuses, Watchlist wiring),
+  `test_provenance_tab` (every metric/field has a row; facsimile URL
+  pattern regex-verified; honesty flags spot-checked),
+  `test_tieout_mode` (demo-labeled; value + MDRM per metric; URLs; REPDTE
+  selection; malformed-CERT refusal).
+- **email-sim PASS**: ranked table (12 rows) + per-dimension + PER-CLASS +
+  staleness + vintage + self-contained. Demo digest at `--asof 2026-03-31`:
+  12/12 banks, 2 ALERT / 7 WATCH / 0 STALE banks, 45 ALERT flags (only the
+  two hash-assigned fiction banks are ALERT; watch count rose 5 -> 7 with
+  the new bands).
+- **`formulas` recalc parity -- 0 mismatches**: 455 values (all 35 LoanBook
+  columns x 12 banks, both bands, + 35 medians + empty-slot blanks) AND 636
+  statuses (53 Watchlist helpers x 12 banks) AND flag counts / Texas /
+  bank-level statuses x 12 AND the LoanBook KPI tile, vs the Python digest
+  at 1e-9.
+- **Package**: olevba decompiles module `PeerMonitor`; tab order
+  `...Funding_Concentration / Dashboard_LoanBook / Watchlist / Raw_FDIC /
+  _config / _provenance / _code_py / _code_vba / _readme`; zero native
+  charts, zero overlapping merges, zero dangling relationships (fallback
+  .xlsx audited too). Workbook 176.0 KB.
+- **Bundle**: regenerated `build_fdic_monitor.py` (105.4 KB pure ASCII,
+  now embedding `provenance_seed`) executed in an EMPTY scratch folder ->
+  demo-populated .xlsm + fallback .xlsx + runner.py + macro.bas +
+  requirements.txt; olevba + OPC audits clean on the scratch outputs.
+- **Control Center** still discovers the template with zero wiring.
+- ASCII grep clean on every template file (keybank_style.py keeps its
+  grandfathered docstring, never embedded).
+
+## v1.1 deviations (recorded)
+
+1. **All 38 pack metrics are thresholded**, not only the seven bands the
+   spec names: the template invariant (every metric banded; Excel helper
+   formulas compare against numeric cells -- a blank threshold cell would
+   coerce to 0 and mis-flag) makes unbanded metrics unsafe. Extra bands are
+   labeled `heuristic` in the authority column; spec bands labeled `SPEC`.
+2. **HELOC (RELOC) gets 3 columns, no NCO**: the spec says "(+ HELOC RELOC
+   column)"; the three verified PD/NA ratio twins are landed, but LNRELOC
+   is not in the research doc's verified balance list, so a HELOC NCO rate
+   cannot be built without inventing a denominator -- documented in-sheet.
+3. **NCO rates are annualized x4** (the spec says "NT{c}Q over balances"
+   without stating annualization): chosen to match the FDIC's own NTLNLSQR
+   convention and the QBP norms the spec's card bands (2.5/4.0) reference.
+4. **R-twin cutoff at 8 chars**: the research doc asserts twins exist per
+   category but names none beyond the pattern; rather than guess truncated
+   twin spellings, twins are consumed only where the name is unambiguous
+   (<= 8 chars) and computed otherwise. First live run will confirm.
+5. **Bundle is 105.4 KB**, over the contract's soft ~60 KB target (v1 was
+   75.7 KB; the 46 new fields, 38 metric rows, LoanBook builder and the
+   provenance transcription are the delta). Still one pure-ASCII file.
+6. **Four RI-B category MDRMs carry [~]** (NTRERESQ/NTCONOTQ/NTRENREQ/
+   NTREMULQ): PROVENANCE_MAP_FDIC.md section D does not capture those rows;
+   the tab says "match by caption" instead of inventing codes.
+
+## v1.1 open items
+
+- Live API still not exercised from this environment (proxy-blocked): the
+  46 new field names ride the same fixture-tested request path; first live
+  run validates the R-twin spellings (deviation 4) and the [~] RI-B rows.
+- The v1 median-includes-stale divergence stands (unchanged scope).
+- UBPR percentile benchmarking remains out (FFIEC bulk-ZIP job if needed).

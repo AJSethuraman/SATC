@@ -25,8 +25,8 @@ import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # exec order matters: each module must find its imports already registered.
-MODULES = ("keybank_style", "series_seed", "runner", "vba_writer",
-           "assemble_xlsm", "build_workbook")
+MODULES = ("keybank_style", "series_seed", "runner", "provenance_seed",
+           "vba_writer", "assemble_xlsm", "build_workbook")
 OUT_NAME = "build_fdic_monitor.py"
 WB = "Bank_Peer_Monitor"
 

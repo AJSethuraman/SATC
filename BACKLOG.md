@@ -24,11 +24,9 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
 
 ## 2 · v1.1 improvements (per shipped template)
 
-- [ ] **FDIC:** SVB metrics UNBLOCKED (fields verified: DEPUNINS,
-      SCHF/SCHA, SCAF/SCAA) -- folded into the competitor metric pack
-      (section 3). Separately: blank stale banks' latest quarter + show
-      STALE in the Watchlist status column (removes the documented median
-      divergence); optional UBPR asset-band medians.
+- [ ] **FDIC:** blank stale banks' latest quarter + show STALE in the
+      Watchlist status column (removes the documented median divergence);
+      optional UBPR asset-band medians. (SVB metrics SHIPPED in pack v1.1.)
 - [ ] **Macro:** county-level drill-down via FRED's LAUS county mirrors
       (ids must be enumerated via release 116, never constructed);
       consider `EQFXSUBPRIME*` county subprime share pending its FRED
@@ -42,17 +40,6 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
 
 ## 3 · Next templates (researched, ranked; process per contract)
 
-- [ ] **Competitor loan-book METRIC PACK on template #4** — RESOLVED:
-      no FFIEC template needed. 93/93 fields verified in the FDIC API
-      (full loan-category PD/nonaccrual/NCO matrix + the SVB pack:
-      SCHF/SCHA HTM fair-vs-amortized, SCAF/SCAA, DEPUNINS uninsured
-      deposits, OTHBFHLB). See fdic-peer-monitor/
-      RESEARCH_COMPETITOR_PACK.md + SPEC_COMPETITOR_PACK.md (spec WRITTEN,
-      build-ready). BUILD IN FLIGHT: Dashboard_LoanBook
-      lane (consumer classes = the DQ surveillance track: card/auto/
-      consumer/resi 30-89, 90+, NA, NCO; commercial classes as public
-      proxy pending EDGAR crit/class) + SVB metrics + thresholds. FFIEC-only residue (category loan
-      yields, UBPR percentiles) = bulk-ZIP ingest job only if ever needed.
 - [ ] **#6 SEC EDGAR tracker — commercial crit/class mission (user
       design decision):** the suite's two-track competitor surveillance is
       CONSUMER = DQ/NCO via the FDIC metric pack (retail classification is
@@ -81,7 +68,10 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
 
 ## 4 · Suite infrastructure ideas (unscheduled — promote when wanted)
 
-- [~] **Provenance/tie-out (contract §12, user requirement):** every value
+- [x] **Provenance/tie-out (contract §12, user requirement) — SHIPPED
+      for FDIC in pack v1.1** (_provenance tab + --tieout with facsimile/
+      BankFind URLs); EDGAR gets accession provenance in its build;
+      retrofit FRED/bureau/macro/CFPB opportunistically:** every value
       traceable to the official document — _provenance tab + `--tieout`
       mode. **Field→Call-Report mapping DONE** (fdic-peer-monitor/
       PROVENANCE_MAP_FDIC.md — MDRM codes verified against FFIEC's own
@@ -112,6 +102,12 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-07-03 -- Template #4 v1.1 competitor pack shipped: Dashboard_LoanBook
+  two-track (consumer DQ surveillance + commercial Call-Report floor),
+  SVB metrics (uninsured share, unrealized/capital, FHLB), _provenance
+  tab (69 field + 28 derived rows, honesty-flagged) + --tieout mode;
+  20 tests, email-sim PASS, recalc parity 455 values/636 statuses,
+  105KB ASCII bundle verified in empty folder.
 - 2026-07-03 — Template #5 CFPB Mortgage Delinquency Monitor shipped:
   county-FIPS watchlist (the suite's finest key), [FOOTPRINT] slots,
   dev-12m + rise-streak transforms, SUPPRESSED/vintage/continuity
