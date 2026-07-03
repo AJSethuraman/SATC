@@ -808,7 +808,8 @@ class CfpbDemoProvider(Provider):
     exercised. NO network, NO key."""
 
     source_class = "A"
-    DEFAULT_VINTAGE = "thru-2025-09"
+    DEFAULT_LAG_MONTHS = 7             # fabricated vintage = asof - 7 months,
+    #                                    mirroring the real ~6-7 month lag
     SUPPRESSED_FIPS = "53033"          # seed slot 12: King County WA
 
     # fixed stress tiers for seed counties (fiction assigned by hand, stated
@@ -821,7 +822,11 @@ class CfpbDemoProvider(Provider):
                  vintage: Optional[str] = None):
         self.asof = asof or date(2026, 4, 30)
         self.raw_slots = int(raw_slots)
-        v = (vintage or "").strip() or self.DEFAULT_VINTAGE
+        v = (vintage or "").strip()
+        if not v:
+            k = (self.asof.year * 12 + self.asof.month - 1
+                 - self.DEFAULT_LAG_MONTHS)
+            v = f"thru-{k // 12:04d}-{k % 12 + 1:02d}"
         if not VINTAGE_RE.match(v):
             raise RuntimeError(f"demo vintage '{v}' is not thru-YYYY-MM")
         self.vintage = v if v.startswith("thru-") else "thru-" + v
@@ -866,6 +871,11 @@ class CfpbDemoProvider(Provider):
             wob = 0.12 * math.sin((i + s % 11) / 2.6)
             trend = ((s % 5) - 2) * 0.002 * i
             v = base + shift + trend + wob
+            if tier == "calm" and kind == "county" and i >= n - 5:
+                # calm counties: an alternating tail dominates the slow sine
+                # so a chance 3-month rise never fabricates a streak ALERT
+                # (the flagged demo counties are the hand-tiered ones only)
+                v += 0.05 * (1 if i % 2 else -1)
             if tier != "calm" and i >= n - 14:
                 # deterministic tail: freeze the wobble/trend at the window
                 # edge so the transform arithmetic is exact
@@ -1372,7 +1382,7 @@ def run(workbook_path: str, demo: bool = False, asof: Optional[date] = None,
                 backend.write_geo_block(
                     geo_block("state", slot, cfg.raw_slots),
                     f"st{slot:02d} state:{fips2}", ab,
-                    f"state fips {fips2}", months)
+                    fips2, months)
                 state_landed[fips2] = {"months": months, "abbrev": ab,
                                        "slot": slot}
             except Exception as exc:
