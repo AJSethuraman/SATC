@@ -24,6 +24,8 @@ is just the map.
 | 4 | Bank Counterparty & Peer Monitor | `fdic-peer-monitor/` | FDIC BankFind Suite API (keyless REST, public domain; 15 C-A-E-L+concentration metrics x flexible `[PEERS]` list, 40 slots) | **OPEN (entity)** — `^cert:[0-9]+$`; the peer/counterparty list IS the watchlist, ranked by ALERT flags + Texas ratio | v1 done, PR #53; first keyless live run at the user's desk is the remaining validation |
 | 5 | County Mortgage Delinquency Monitor | `cfpb-mortgage-monitor/` | CFPB Mortgage Performance Trends (NMDB 5% sample; county/state/national 30-89 + 90+ DPD, monthly, ~6-7 mo lag) | **OPEN** — `^county:[0-9]{5}$` [FOOTPRINT] slots; suppression rendered explicitly; vintage + continuity guarded | v1 done, PR #53 |
 
+| 6 | EDGAR Crit/Class Tracker | `edgar-crit-class-tracker/` | SEC EDGAR (extracted XBRL instances + submissions JSON; keyless, User-Agent required) | **OPEN (entity)** -- `^cik:[0-9]{1,10}$` [PEERS]; commercial criticized/classified by disclosure family + 8-K credit events | v1 done, PR #53; first live run validates family coverage |
+
 ## Candidate pipeline (researched, not yet picked)
 
 | Candidate | Angle | Join key | Why | Notes |

@@ -40,24 +40,6 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
 
 ## 3 · Next templates (researched, ranked; process per contract)
 
-- [ ] **#6 SEC EDGAR tracker — commercial crit/class mission (user
-      design decision):** the suite's two-track competitor surveillance is
-      CONSUMER = DQ/NCO via the FDIC metric pack (retail classification is
-      formula-driven off DPD under the Uniform Retail Credit Classification
-      policy — 90+ card DQ IS the substandard pipeline), and COMMERCIAL =
-      criticized/classified via 10-Q/10-K credit-quality-indicator XBRL
-      (C&I/CRE risk ratings lead delinquency; SM/Substandard/Doubtful carry
-      UNIFORM interagency definitions, so cross-bank comparison is
-      defensible — residual caveat is application timing only). Research
-      pass must verify: XBRL tags/axes for internal grades (FinancingReceivable
-      CreditQualityIndicator-family), criticized-total disclosures by class,
-      coverage across regional banks. Original scope rides along: corporate
-      counterparty fundamentals + 8-K event lane. Keyless (10 req/s,
-      User-Agent header). *Research DONE — feasibility GREEN, tiered design
-      (edgar-crit-class-tracker/COVERAGE_RESEARCH_EDGAR.md): extracted-XBRL-
-      instance path for dimensional CQI, standard CriticizedMember exists,
-      per-bank member-mapping table required, 8-K item 2.04 event lane.
-      SPEC WRITTEN (BUILD_SPEC_EDGAR.md); build starts when the pack ships.*
 - [ ] **#7 BLS LAUS county unemployment monitor** — monthly county-FIPS
       early warning; free API key, 500 q/day. (Partially covered by the
       macro template's state lane; standalone only if county cadence
@@ -109,6 +91,13 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-07-03 -- Template #6 EDGAR Crit/Class Tracker shipped: commercial
+  criticized/classified per competitor HC (extracted-XBRL-instance path,
+  family-honest N/A gating, member-map bootstrap), 8-K credit-event lane
+  with 2.04 auto-WATCH, accession provenance + --tieout/--selftest;
+  16 tests, email-sim PASS, recalc parity, 94.6KB ASCII bundle verified.
+  SUITE COMPLETE AT SIX -- new-build freeze; next step is the user's
+  desk validation sprint (build_suite.py + --doctor + one tie-out).
 - 2026-07-03 -- Template #4 v1.1 competitor pack shipped: Dashboard_LoanBook
   two-track (consumer DQ surveillance + commercial Call-Report floor),
   SVB metrics (uninsured share, unrealized/capital, FHLB), _provenance

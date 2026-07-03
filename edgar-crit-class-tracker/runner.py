@@ -1261,11 +1261,15 @@ def rollup_bank(cik: str, facts: List[Fact], cfg: Config
             grade = cfg.grade_of(cik, f.grade_qname)
             if grade is None:
                 grade = "unmapped"
+            if grade == "unmapped":
+                # both never-seen members AND members already bootstrapped
+                # as unmapped stay flagged until manually mapped
                 unmapped_members.add(f.grade_qname)
             if f.class_qname:
                 klass = cfg.class_of(cik, f.class_qname)
                 if klass is None:
                     klass = "unmapped"
+                if klass == "unmapped":
                     unmapped_classes.add(f.class_qname)
             else:
                 klass = "total"
@@ -1292,7 +1296,9 @@ def rollup_bank(cik: str, facts: List[Fact], cfg: Config
         if crit_capable:
             v["CRIT_RATIO"] = _ratio(crit, total)
             v["CRIT_USD"] = crit if total else None
-            if crit > 0:
+            # class mix only when the bank actually dimensions by class --
+            # a totals-only quarter leaves the mix BLANK, never 0
+            if crit > 0 and per_class:
                 v["MIX_CI"] = _ratio(crit_by_class.get("ci", 0.0), crit)
                 v["MIX_CRE"] = _ratio(crit_by_class.get("cre", 0.0), crit)
                 v["MIX_CONSTR"] = _ratio(
