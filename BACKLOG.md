@@ -48,6 +48,15 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
       OUTCOMES, not indicators. Small source -> lean build.
       *Research DONE (schema confirmed from a real file + CFPB's own
       generator code); spec written; build in flight.*
+- [~] **Competitor loan-book analysis (Call Report depth)** — the user
+      wants competitor analysis; template #4 already covers headline peer
+      metrics (put competitors in [PEERS] today). Research in flight on
+      the decision fork: if the FDIC API's ~2,269 fields already carry
+      loan-CATEGORY past-dues/charge-offs + the SVB fields (HTM fair
+      value, uninsured deposits), this becomes a v1.1 METRIC PACK on
+      template #4; if not, a new FFIEC CDR template (REST+JWT, free
+      account; SOAP retired Feb 2026) earns the #6 slot. UBPR peer
+      percentiles ride along either way if programmatically reachable.
 - [ ] **#6 SEC EDGAR corporate counterparty tracker** — companyfacts XBRL
       + 8-K event lane, CIK/ticker entity watchlist, keyless (10 req/s,
       User-Agent header). Scout-scored 18/20. Start when #5 ships.
