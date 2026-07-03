@@ -54,19 +54,24 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
       SCHF/SCHA HTM fair-vs-amortized, SCAF/SCAA, DEPUNINS uninsured
       deposits, OTHBFHLB). See fdic-peer-monitor/
       RESEARCH_COMPETITOR_PACK.md. Build after #5 ships: Dashboard_LoanBook
-      lane + SVB metrics + thresholds. FFIEC-only residue (category loan
+      lane (consumer classes = the DQ surveillance track: card/auto/
+      consumer/resi 30-89, 90+, NA, NCO; commercial classes as public
+      proxy pending EDGAR crit/class) + SVB metrics + thresholds. FFIEC-only residue (category loan
       yields, UBPR percentiles) = bulk-ZIP ingest job only if ever needed.
-- [ ] **#6 SEC EDGAR tracker — now with a sharpened credit-review
-      mission:** classified/criticized asset trends for publicly-traded
-      competitor banks. Examiner classifications (special mention /
-      substandard / doubtful) are NOT in Call Reports (confidential, like
-      CAMELS) — but SEC-registrant banks disclose loans by internal credit
-      grade in 10-Q/10-K XBRL (credit-quality-indicator tables), many with
-      criticized totals by portfolio class. Research pass must verify: which
-      XBRL tags/axes carry the grades, coverage across regional banks,
-      comparability caveats (grade scales differ by bank). Also the original
-      scope: corporate counterparty fundamentals + 8-K event lane. Keyless
-      (10 req/s, User-Agent header). Start when #5 ships.
+- [ ] **#6 SEC EDGAR tracker — commercial crit/class mission (user
+      design decision):** the suite's two-track competitor surveillance is
+      CONSUMER = DQ/NCO via the FDIC metric pack (retail classification is
+      formula-driven off DPD under the Uniform Retail Credit Classification
+      policy — 90+ card DQ IS the substandard pipeline), and COMMERCIAL =
+      criticized/classified via 10-Q/10-K credit-quality-indicator XBRL
+      (C&I/CRE risk ratings lead delinquency; SM/Substandard/Doubtful carry
+      UNIFORM interagency definitions, so cross-bank comparison is
+      defensible — residual caveat is application timing only). Research
+      pass must verify: XBRL tags/axes for internal grades (FinancingReceivable
+      CreditQualityIndicator-family), criticized-total disclosures by class,
+      coverage across regional banks. Original scope rides along: corporate
+      counterparty fundamentals + 8-K event lane. Keyless (10 req/s,
+      User-Agent header). Start when #5 ships.
 - [ ] **#7 BLS LAUS county unemployment monitor** — monthly county-FIPS
       early warning; free API key, 500 q/day. (Partially covered by the
       macro template's state lane; standalone only if county cadence
