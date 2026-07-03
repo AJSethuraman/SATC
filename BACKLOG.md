@@ -53,7 +53,8 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
       (full loan-category PD/nonaccrual/NCO matrix + the SVB pack:
       SCHF/SCHA HTM fair-vs-amortized, SCAF/SCAA, DEPUNINS uninsured
       deposits, OTHBFHLB). See fdic-peer-monitor/
-      RESEARCH_COMPETITOR_PACK.md. Build after #5 ships: Dashboard_LoanBook
+      RESEARCH_COMPETITOR_PACK.md + SPEC_COMPETITOR_PACK.md (spec WRITTEN,
+      build-ready). Build after #5 ships: Dashboard_LoanBook
       lane (consumer classes = the DQ surveillance track: card/auto/
       consumer/resi 30-89, 90+, NA, NCO; commercial classes as public
       proxy pending EDGAR crit/class) + SVB metrics + thresholds. FFIEC-only residue (category loan
@@ -71,7 +72,8 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
       CreditQualityIndicator-family), criticized-total disclosures by class,
       coverage across regional banks. Original scope rides along: corporate
       counterparty fundamentals + 8-K event lane. Keyless (10 req/s,
-      User-Agent header). Start when #5 ships.
+      User-Agent header). *Research IN FLIGHT (two agents: XBRL-dimensional
+      access mechanics + CQI disclosure practice); build after the pack.*
 - [ ] **#7 BLS LAUS county unemployment monitor** — monthly county-FIPS
       early warning; free API key, 500 q/day. (Partially covered by the
       macro template's state lane; standalone only if county cadence
