@@ -72,8 +72,11 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
       CreditQualityIndicator-family), criticized-total disclosures by class,
       coverage across regional banks. Original scope rides along: corporate
       counterparty fundamentals + 8-K event lane. Keyless (10 req/s,
-      User-Agent header). *Research IN FLIGHT (two agents: XBRL-dimensional
-      access mechanics + CQI disclosure practice); build after the pack.*
+      User-Agent header). *Research DONE — feasibility GREEN, tiered design
+      (edgar-crit-class-tracker/COVERAGE_RESEARCH_EDGAR.md): extracted-XBRL-
+      instance path for dimensional CQI, standard CriticizedMember exists,
+      per-bank member-mapping table required, 8-K item 2.04 event lane.
+      Spec next; build after the pack.*
 - [ ] **#7 BLS LAUS county unemployment monitor** — monthly county-FIPS
       early warning; free API key, 500 q/day. (Partially covered by the
       macro template's state lane; standalone only if county cadence
