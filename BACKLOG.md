@@ -56,9 +56,17 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
       RESEARCH_COMPETITOR_PACK.md. Build after #5 ships: Dashboard_LoanBook
       lane + SVB metrics + thresholds. FFIEC-only residue (category loan
       yields, UBPR percentiles) = bulk-ZIP ingest job only if ever needed.
-- [ ] **#6 SEC EDGAR corporate counterparty tracker** — companyfacts XBRL
-      + 8-K event lane, CIK/ticker entity watchlist, keyless (10 req/s,
-      User-Agent header). Scout-scored 18/20. Start when #5 ships.
+- [ ] **#6 SEC EDGAR tracker — now with a sharpened credit-review
+      mission:** classified/criticized asset trends for publicly-traded
+      competitor banks. Examiner classifications (special mention /
+      substandard / doubtful) are NOT in Call Reports (confidential, like
+      CAMELS) — but SEC-registrant banks disclose loans by internal credit
+      grade in 10-Q/10-K XBRL (credit-quality-indicator tables), many with
+      criticized totals by portfolio class. Research pass must verify: which
+      XBRL tags/axes carry the grades, coverage across regional banks,
+      comparability caveats (grade scales differ by bank). Also the original
+      scope: corporate counterparty fundamentals + 8-K event lane. Keyless
+      (10 req/s, User-Agent header). Start when #5 ships.
 - [ ] **#7 BLS LAUS county unemployment monitor** — monthly county-FIPS
       early warning; free API key, 500 q/day. (Partially covered by the
       macro template's state lane; standalone only if county cadence
