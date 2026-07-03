@@ -42,19 +42,13 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
 
 ## 3 · Next templates (researched, ranked; process per contract)
 
-- [~] **#5 CFPB Mortgage Performance Trends** — county-level 30–89 and
-      90+ DPD mortgage delinquency, free CSVs, public domain. The finest
-      watchlist key of the whole suite (county), and actual credit
-      OUTCOMES, not indicators. Small source -> lean build.
-      *Research DONE (schema confirmed from a real file + CFPB's own
-      generator code); spec written; build in flight.*
 - [ ] **Competitor loan-book METRIC PACK on template #4** — RESOLVED:
       no FFIEC template needed. 93/93 fields verified in the FDIC API
       (full loan-category PD/nonaccrual/NCO matrix + the SVB pack:
       SCHF/SCHA HTM fair-vs-amortized, SCAF/SCAA, DEPUNINS uninsured
       deposits, OTHBFHLB). See fdic-peer-monitor/
       RESEARCH_COMPETITOR_PACK.md + SPEC_COMPETITOR_PACK.md (spec WRITTEN,
-      build-ready). Build after #5 ships: Dashboard_LoanBook
+      build-ready). NOW NEXT (building): Dashboard_LoanBook
       lane (consumer classes = the DQ surveillance track: card/auto/
       consumer/resi 30-89, 90+, NA, NCO; commercial classes as public
       proxy pending EDGAR crit/class) + SVB metrics + thresholds. FFIEC-only residue (category loan
@@ -118,6 +112,10 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-07-03 — Template #5 CFPB Mortgage Delinquency Monitor shipped:
+  county-FIPS watchlist (the suite's finest key), [FOOTPRINT] slots,
+  dev-12m + rise-streak transforms, SUPPRESSED/vintage/continuity
+  handling; 16 tests, email-sim PASS, recalc parity, bundle verified.
 - 2026-07-03 — Template #4 FDIC Bank Peer Monitor shipped (flexible
   [PEERS], authority-labeled thresholds, entity watchlist); L7 openpyxl
   None-write bug found + carried back to bureau/macro.
