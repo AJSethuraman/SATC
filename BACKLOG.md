@@ -48,7 +48,7 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
       SCHF/SCHA HTM fair-vs-amortized, SCAF/SCAA, DEPUNINS uninsured
       deposits, OTHBFHLB). See fdic-peer-monitor/
       RESEARCH_COMPETITOR_PACK.md + SPEC_COMPETITOR_PACK.md (spec WRITTEN,
-      build-ready). NOW NEXT (building): Dashboard_LoanBook
+      build-ready). BUILD IN FLIGHT: Dashboard_LoanBook
       lane (consumer classes = the DQ surveillance track: card/auto/
       consumer/resi 30-89, 90+, NA, NCO; commercial classes as public
       proxy pending EDGAR crit/class) + SVB metrics + thresholds. FFIEC-only residue (category loan
@@ -70,7 +70,7 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
       (edgar-crit-class-tracker/COVERAGE_RESEARCH_EDGAR.md): extracted-XBRL-
       instance path for dimensional CQI, standard CriticizedMember exists,
       per-bank member-mapping table required, 8-K item 2.04 event lane.
-      Spec next; build after the pack.*
+      SPEC WRITTEN (BUILD_SPEC_EDGAR.md); build starts when the pack ships.*
 - [ ] **#7 BLS LAUS county unemployment monitor** — monthly county-FIPS
       early warning; free API key, 500 q/day. (Partially covered by the
       macro template's state lane; standalone only if county cadence
