@@ -89,8 +89,11 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
 
 - [~] **Provenance/tie-out (contract §12, user requirement):** every value
       traceable to the official document — _provenance tab + `--tieout`
-      mode. Field→Call-Report-schedule/line (MDRM) mapping research in
-      flight; binding on the competitor pack + EDGAR builds; retrofit
+      mode. **Field→Call-Report mapping DONE** (fdic-peer-monitor/
+      PROVENANCE_MAP_FDIC.md — MDRM codes verified against FFIEC's own
+      bulk-data captions; direct facsimile URL keyed by CERT; RC-N
+      column structure confirmed). Implementation lands with the
+      competitor pack; EDGAR gets accession-based provenance; retrofit
       others opportunistically.
 - [ ] Suite-level conformance check: one script asserting every template's
       shared modules are byte-identical, embedded code is ASCII, tabs match
