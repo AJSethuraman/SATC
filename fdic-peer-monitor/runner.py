@@ -63,25 +63,71 @@ RAW_FIRST_ROW = 2
 RAW_PERIOD_COL = 1             # column A = REPDTE (ISO)
 
 # Status panel column on each dashboard (free of any merged masthead cells).
+# Dashboard_LoanBook is wider than the others (its banner merge spans past
+# column L), so its status panel lives further right.
 STATUS_COL = 12                # column L
+STATUS_COL_BY_TAB = {"Dashboard_LoanBook": 24}   # column X
 
 DASH_TABS = ("Dashboard_AssetQuality", "Dashboard_Capital_Earnings",
-             "Dashboard_Funding_Concentration")
+             "Dashboard_Funding_Concentration", "Dashboard_LoanBook")
+
+# The pack version BUILT into this runner's raw layout / metric registry.
+# A workbook built by a different pack is refused (rebuild, never mis-write).
+PACK_VERSION = "1.1"
 
 # Every raw field landed per bank (the audit trail: each derived metric's
 # inputs are visible in Raw_FDIC). Verified names from risview_properties.yaml
-# / the captured response -- COVERAGE_RESEARCH_FDIC.md. Mixed units per record
-# (trap F4): dollar fields are $ THOUSANDS, ratio fields are PERCENT.
+# / the captured response -- COVERAGE_RESEARCH_FDIC.md; v1.1 competitor-pack
+# fields verified in RESEARCH_COMPETITOR_PACK.md (93/93). Mixed units per
+# record (trap F4): dollar fields are $ THOUSANDS, ratio fields are PERCENT.
+# NAMING RULES (research-verified): quarterly NCO fields truncate the base to
+# 8 chars before the Q (NTRECONQ, never NTRECONSQ); P3/P9/NA ratio twins are
+# used ONLY where the un-truncated twin name fits the same 8-char limit
+# (P3CRCDR yes, P3CONOTHR no -- those rates are computed from the verified
+# dollar triple + balance instead).
 RAW_FIELDS = [
     "ASSET", "DEP", "LNLSGR", "LNLSNET", "BRO", "EQ",           # $000
     "NCLNLS", "LNATRES", "P3LNLS",                              # $000
     "LNRECONS", "LNRENRES", "LNREMULT",                         # $000
     "NCLNLSR", "NTLNLSQR", "LNATRESR", "LNRESNCR",              # pct
     "RBC1AAJ", "RBCRWAJ", "EQV", "ROAQ", "NIMY", "EEFFR",       # pct
+    # --- v1.1 consumer track: verified R ratio twins (pct) ---
+    "P3CRCDR", "P9CRCDR", "NACRCDR",                            # pct
+    "P3AUTOR", "P9AUTOR", "NAAUTOR",                            # pct
+    "P3RERESR", "P9RERESR", "NARERESR",                         # pct
+    "P3RELOCR", "P9RELOCR", "NARELOCR",                         # pct (HELOC)
+    # other-consumer PD/NA dollar triple (twin name would exceed 8 chars)
+    "P3CONOTH", "P9CONOTH", "NACONOTH",                         # $000
+    # consumer balances + quarterly NCO dollars (F1: never the YTD NT{c})
+    "LNCRCD", "LNAUTO", "LNCONOTH", "LNRERES",                  # $000
+    "NTCRCDQ", "NTAUTOQ", "NTCONOTQ", "NTRERESQ",               # $000
+    # --- v1.1 commercial floor ---
+    "P3CIR", "P9CIR", "NACIR",                                  # pct twins
+    "P3RECONS", "P9RECONS", "NARECONS",                         # $000
+    "P3RENRES", "P9RENRES", "NARENRES",                         # $000
+    "P3REMULT", "P9REMULT", "NAREMULT",                         # $000
+    "LNCI",                                                     # $000
+    "NTRECONQ", "NTRENREQ", "NTREMULQ", "NTCIQ",                # $000
+    # --- v1.1 SVB / funding-stress pack ---
+    "DEPUNINS",                                                 # $000 (nullable)
+    "SCHA", "SCHF", "SCAA", "SCAF",                             # $000 HTM/AFS
+    "OTHBFHLB",                                                 # $000 FHLB adv
 ]
-DOLLAR_FIELDS = set(RAW_FIELDS[:12])
+PCT_FIELDS = {
+    "NCLNLSR", "NTLNLSQR", "LNATRESR", "LNRESNCR",
+    "RBC1AAJ", "RBCRWAJ", "EQV", "ROAQ", "NIMY", "EEFFR",
+    "P3CRCDR", "P9CRCDR", "NACRCDR", "P3AUTOR", "P9AUTOR", "NAAUTOR",
+    "P3RERESR", "P9RERESR", "NARERESR", "P3RELOCR", "P9RELOCR", "NARELOCR",
+    "P3CIR", "P9CIR", "NACIR",
+}
+DOLLAR_FIELDS = {f for f in RAW_FIELDS if f not in PCT_FIELDS}
 FIELD_UNITS = {f: ("USD_thousands" if f in DOLLAR_FIELDS else "pct")
                for f in RAW_FIELDS}
+
+# The FDIC bulk endpoint caps fields= at 250; the ONE bulk request must stay
+# far under it (spec sec 3). Guarded here AND at request build time.
+MAX_REQUEST_FIELDS = 250
+assert len(RAW_FIELDS) + 2 < MAX_REQUEST_FIELDS, "fields= list over the cap"
 
 # The watchlist join-key whitelist (BUILD SPEC 0.1 / sec 3): default-deny.
 # Only a literal FDIC certificate key passes; aggregates, name-only rows and
@@ -363,6 +409,108 @@ def d_creconr(f):
                   _sum(f.get("EQ"), f.get("LNATRES")))
 
 
+# --------------------------------------------------------------------------
+# v1.1 COMPETITOR PACK ratios -- ONE declarative table drives BOTH the Python
+# functions (below) and the Excel formulas (build_workbook reads this table),
+# so the two definitions cannot drift (trap F5).
+#   metric id -> (numerator field, denominator field, multiplier)
+# Multiplier 100 = plain percent; 400 = QUARTERLY flow ANNUALIZED (x4), the
+# same convention as the FDIC's own NTLNLSQR (PROVENANCE_MAP_FDIC.md sec F).
+# All None-tolerant: null numerator OR denominator -> blank, never 0 (F3) --
+# DEPUNINS especially is genuinely null below the $1B reporting threshold.
+# --------------------------------------------------------------------------
+PACK_RATIOS = {
+    # consumer PD/NA rates computed from the verified dollar triple + balance
+    # (the R-twin name would exceed the 8-char field-name limit -- unverified)
+    "P3CONOTHR": ("P3CONOTH", "LNCONOTH", 100),
+    "P9CONOTHR": ("P9CONOTH", "LNCONOTH", 100),
+    "NACONOTHR": ("NACONOTH", "LNCONOTH", 100),
+    # consumer quarterly NCO rates (F1: the Q dollar flow, never YTD NT{c})
+    "NTCRCDQR": ("NTCRCDQ", "LNCRCD", 400),
+    "NTAUTOQR": ("NTAUTOQ", "LNAUTO", 400),
+    "NTCONOTQR": ("NTCONOTQ", "LNCONOTH", 400),
+    "NTRERESQR": ("NTRERESQ", "LNRERES", 400),
+    # commercial-floor PD/NA rates (twin names exceed 8 chars -- computed)
+    "P3RECONSR": ("P3RECONS", "LNRECONS", 100),
+    "P9RECONSR": ("P9RECONS", "LNRECONS", 100),
+    "NARECONSR": ("NARECONS", "LNRECONS", 100),
+    "P3RENRESR": ("P3RENRES", "LNRENRES", 100),
+    "P9RENRESR": ("P9RENRES", "LNRENRES", 100),
+    "NARENRESR": ("NARENRES", "LNRENRES", 100),
+    "P3REMULTR": ("P3REMULT", "LNREMULT", 100),
+    "P9REMULTR": ("P9REMULT", "LNREMULT", 100),
+    "NAREMULTR": ("NAREMULT", "LNREMULT", 100),
+    # commercial quarterly NCO rates (8-char truncation: NTRECONQ etc.)
+    "NTRECONQR": ("NTRECONQ", "LNRECONS", 400),
+    "NTRENREQR": ("NTRENREQ", "LNRENRES", 400),
+    "NTREMULQR": ("NTREMULQ", "LNREMULT", 400),
+    "NTCIQR": ("NTCIQ", "LNCI", 400),
+    # SVB pack simple ratios
+    "UNINSDEPR": ("DEPUNINS", "DEP", 100),   # null -> BLANK + digest note
+    "FHLBASSR": ("OTHBFHLB", "ASSET", 100),
+}
+
+# verified R-twin ratio fields consumed DIRECTLY (metric id IS the field)
+PACK_DIRECT = [
+    "P3CRCDR", "P9CRCDR", "NACRCDR",
+    "P3AUTOR", "P9AUTOR", "NAAUTOR",
+    "P3RERESR", "P9RERESR", "NARERESR",
+    "P3RELOCR", "P9RELOCR", "NARELOCR",
+    "P3CIR", "P9CIR", "NACIR",
+]
+
+
+def _pack_ratio_fn(num, den, mult):
+    """Factory for the PACK_RATIOS functions: num/den*mult, None-tolerant,
+    zero-denominator-safe -- exactly the Excel form
+    IF(OR(n="",d=""),"",IF(d=0,"",n/d*mult))."""
+    def fn(f):
+        n, d = f.get(num), f.get(den)
+        if n is None or d is None or d == 0:
+            return None
+        return n / d * float(mult)
+    return fn
+
+
+def d_unrlzcapr(f):
+    """Unrealized securities loss / capital cushion (SVB metric):
+    ((SCHA-SCHF)+(SCAA-SCAF))/(EQ+LNATRES)*100. BOTH legs COMPUTED from the
+    verified fair/amortized pairs -- no named unrealized field exists, and
+    EQCCOMPI is the YTD OCI FLOW, not the AOCI stock (never used). Positive =
+    unrealized LOSS eroding the cushion. Any null leg blanks the metric."""
+    vals = [f.get(k) for k in ("SCHA", "SCHF", "SCAA", "SCAF")]
+    if any(v is None for v in vals):
+        return None
+    scha, schf, scaa, scaf = vals
+    return _ratio((scha - schf) + (scaa - scaf),
+                  _sum(f.get("EQ"), f.get("LNATRES")))
+
+
+# Loan class per LoanBook metric (drives the email per-class alert section
+# and the tieout grouping). Consumer classes are the DQ/NCO track; commercial
+# classes are the public Call-Report FLOOR (criticized/classified via EDGAR).
+LOANBOOK_CLASS = {}
+for _mid, _cls in (
+        (("P3CRCDR", "P9CRCDR", "NACRCDR", "NTCRCDQR"), "credit card"),
+        (("P3AUTOR", "P9AUTOR", "NAAUTOR", "NTAUTOQR"), "auto"),
+        (("P3CONOTHR", "P9CONOTHR", "NACONOTHR", "NTCONOTQR"),
+         "other consumer"),
+        (("P3RERESR", "P9RERESR", "NARERESR", "NTRERESQR"), "resi 1-4 fam"),
+        (("P3RELOCR", "P9RELOCR", "NARELOCR"), "HELOC"),
+        (("P3RECONSR", "P9RECONSR", "NARECONSR", "NTRECONQR"),
+         "construction"),
+        (("P3RENRESR", "P9RENRESR", "NARENRESR", "NTRENREQR"),
+         "CRE nonfarm"),
+        (("P3REMULTR", "P9REMULTR", "NAREMULTR", "NTREMULQR"),
+         "multifamily"),
+        (("P3CIR", "P9CIR", "NACIR", "NTCIQR"), "C&I")):
+    for _m in _mid:
+        LOANBOOK_CLASS[_m] = _cls
+CONSUMER_CLASSES = ("credit card", "auto", "other consumer", "resi 1-4 fam",
+                    "HELOC")
+COMMERCIAL_CLASSES = ("construction", "CRE nonfarm", "multifamily", "C&I")
+
+
 # metric id -> (fields consumed, derived fn or None for a direct API ratio)
 METRICS = {
     "NCLNLSR": (("NCLNLSR",), None),
@@ -382,6 +530,14 @@ METRICS = {
     "CRECONR": (("LNRECONS", "LNRENRES", "LNREMULT", "EQ", "LNATRES"),
                 d_creconr),
 }
+# v1.1 pack: direct R-twins, the declarative simple ratios, and the one
+# multi-leg SVB derivation.
+for _f in PACK_DIRECT:
+    METRICS[_f] = ((_f,), None)
+for _mid, (_num, _den, _mult) in PACK_RATIOS.items():
+    METRICS[_mid] = ((_num, _den), _pack_ratio_fn(_num, _den, _mult))
+METRICS["UNRLZCAPR"] = (("SCHA", "SCHF", "SCAA", "SCAF", "EQ", "LNATRES"),
+                        d_unrlzcapr)
 
 
 class MetricError(Exception):
@@ -718,6 +874,61 @@ class FdicDemoProvider(Provider):
         cre_c = 0.02 + (s % 6) * 0.005
         cre_n = 0.10 + (s % 12) * 0.01
         cre_m = 0.03 + (s % 7) * 0.01
+        # ---- v1.1 pack seeding (per class; newest-quarter targets, pct) ----
+        # The stress tiers trip the new bands (spec sec 3: 1-2 demo banks);
+        # healthy ranges sit under the ALERT bands (a few WATCHes by design).
+        # Class rates: {class: (PD30-89, PD90+, nonaccrual, NCOq annualized)}
+        if tier == 0:
+            rate = {"crcd": (3.8, 2.9, 0.8, 4.8), "auto": (4.4, 1.2, 1.7, 2.3),
+                    "conoth": (3.6, 2.2, 1.9, 3.9), "reres": (4.2, 2.1, 2.4, 0.9),
+                    "reloc": (3.1, 1.6, 2.2, 0.0), "recons": (3.4, 1.7, 3.3, 1.7),
+                    "renres": (2.2, 1.1, 2.5, 1.2), "remult": (2.0, 0.9, 2.2, 1.1),
+                    "ci": (1.9, 0.9, 2.1, 1.3)}
+            unins, unrlz, fhlb = 69.0, 56.0, 22.0
+        elif tier == 1:
+            rate = {"crcd": (2.6, 1.7, 0.4, 3.1), "auto": (2.9, 0.6, 0.9, 1.2),
+                    "conoth": (2.2, 1.2, 1.1, 2.2), "reres": (2.4, 1.1, 1.3, 0.3),
+                    "reloc": (1.8, 0.9, 1.2, 0.0), "recons": (1.8, 0.8, 1.7, 0.7),
+                    "renres": (1.2, 0.6, 1.3, 0.6), "remult": (1.1, 0.55, 1.2, 0.55),
+                    "ci": (1.1, 0.5, 1.2, 0.7)}
+            unins, unrlz, fhlb = 55.0, 33.0, 12.0
+        else:
+            rate = {
+                "crcd": (0.9 + (s % 7) * 0.13, 0.7 + (s % 5) * 0.11,
+                         0.1 + (s % 4) * 0.09, 1.2 + (s % 10) * 0.18),
+                "auto": (1.0 + (s % 8) * 0.14, 0.15 + (s % 4) * 0.07,
+                         0.2 + (s % 5) * 0.09, 0.3 + (s % 6) * 0.09),
+                "conoth": (1.0 + (s % 7) * 0.12, 0.3 + (s % 5) * 0.09,
+                           0.3 + (s % 4) * 0.11, 1.0 + (s % 8) * 0.11),
+                "reres": (0.8 + (s % 6) * 0.13, 0.3 + (s % 4) * 0.1,
+                          0.4 + (s % 5) * 0.09, 0.02 + (s % 5) * 0.02),
+                "reloc": (0.5 + (s % 5) * 0.12, 0.2 + (s % 4) * 0.08,
+                          0.3 + (s % 4) * 0.09, 0.0),
+                "recons": (0.4 + (s % 6) * 0.12, 0.2 + (s % 4) * 0.09,
+                           0.4 + (s % 6) * 0.12, 0.05 + (s % 5) * 0.06),
+                "renres": (0.3 + (s % 5) * 0.11, 0.15 + (s % 4) * 0.07,
+                           0.3 + (s % 5) * 0.11, 0.1 + (s % 4) * 0.07),
+                "remult": (0.3 + (s % 4) * 0.11, 0.15 + (s % 3) * 0.07,
+                           0.3 + (s % 4) * 0.1, 0.1 + (s % 3) * 0.07),
+                "ci": (0.3 + (s % 5) * 0.1, 0.15 + (s % 4) * 0.06,
+                       0.3 + (s % 5) * 0.1, 0.1 + (s % 5) * 0.07)}
+            unins = 22.0 + (s % 11) * 2.0            # 22-42: WATCH edge only
+            unrlz = 6.0 + (s % 10) * 2.0             # 6-24: under the 25 WATCH
+            fhlb = 1.0 + (s % 9)                     # 1-9: under the 10 WATCH
+        # class balance shares of total loans / assets
+        cc_sh = 0.01 + (s % 6) * 0.01                # cards 1-6% of loans
+        au_sh = 0.02 + (s % 5) * 0.01                # auto 2-6%
+        oc_sh = 0.02 + (s % 4) * 0.01                # other consumer 2-5%
+        rr_sh = 0.18 + (s % 8) * 0.02                # 1-4 family 18-32%
+        ci_sh = 0.18 + (s % 9) * 0.02                # C&I 18-34%
+        htm_sh = 0.10 + (s % 6) * 0.02               # HTM securities / assets
+        afs_sh = 0.12 + (s % 7) * 0.02               # AFS securities / assets
+        # F-trap vintages/coverage: one bank reports NO auto book (fields null
+        # from 2011 only / not a lender) and one bank's DEPUNINS is null for
+        # the whole series (RC-O Mem 2 is filed by $1B+ reporters only) --
+        # blanks, never zeros (F3).
+        auto_none = (s % 19) == 9
+        depunins_none = (s % 23) == 7
         periods = self._periods()
         quarters = []
         for i, iso in enumerate(periods):            # i=0 oldest .. n-1 newest
@@ -751,6 +962,55 @@ class FdicDemoProvider(Provider):
             f["ROAQ"] = round(roaq * (0.85 + 0.15 * ramp) * wob, 4)
             f["NIMY"] = round(nimy * wob, 4)
             f["EEFFR"] = round(eeffr * wob, 4)
+            # ---- v1.1 pack fields (internally consistent: dollar triples
+            # derive from the SAME wobbled class rates the R-twins report,
+            # so Python/Excel parity holds on the landed values) ----
+            bal = {"crcd": round(cc_sh * loans), "auto": round(au_sh * loans),
+                   "conoth": round(oc_sh * loans), "reres": round(rr_sh * loans),
+                   "ci": round(ci_sh * loans),
+                   "recons": f["LNRECONS"], "renres": f["LNRENRES"],
+                   "remult": f["LNREMULT"]}
+            f["LNCRCD"], f["LNAUTO"] = bal["crcd"], bal["auto"]
+            f["LNCONOTH"], f["LNRERES"] = bal["conoth"], bal["reres"]
+            f["LNCI"] = bal["ci"]
+
+            def rw(cls, k):                          # ramped+wobbled class rate
+                return rate[cls][k] * ramp * wob
+            # verified R-twin rate fields land as percents directly
+            for cls, pre in (("crcd", "CRCD"), ("auto", "AUTO"),
+                             ("reres", "RERES"), ("reloc", "RELOC"),
+                             ("ci", "CI")):
+                f["P3" + pre + "R"] = round(rw(cls, 0), 4)
+                f["P9" + pre + "R"] = round(rw(cls, 1), 4)
+                f["NA" + pre + "R"] = round(rw(cls, 2), 4)
+            # computed classes land the dollar triple off the same rates
+            for cls, suf in (("conoth", "CONOTH"), ("recons", "RECONS"),
+                             ("renres", "RENRES"), ("remult", "REMULT")):
+                f["P3" + suf] = round(rw(cls, 0) / 100.0 * bal[cls])
+                f["P9" + suf] = round(rw(cls, 1) / 100.0 * bal[cls])
+                f["NA" + suf] = round(rw(cls, 2) / 100.0 * bal[cls])
+            # quarterly NCO dollars: rate is ANNUALIZED, flow = rate/400 * bal
+            for cls, fld in (("crcd", "NTCRCDQ"), ("auto", "NTAUTOQ"),
+                             ("conoth", "NTCONOTQ"), ("reres", "NTRERESQ"),
+                             ("recons", "NTRECONQ"), ("renres", "NTRENREQ"),
+                             ("remult", "NTREMULQ"), ("ci", "NTCIQ")):
+                f[fld] = round(rw(cls, 3) / 400.0 * bal[cls])
+            if auto_none:                            # not an auto lender
+                for fld in ("LNAUTO", "P3AUTOR", "P9AUTOR", "NAAUTOR",
+                            "NTAUTOQ"):
+                    f[fld] = None
+            # SVB pack: uninsured share, HTM/AFS unrealized (60/40 split so
+            # ((SCHA-SCHF)+(SCAA-SCAF))/(EQ+LNATRES) == the seeded target),
+            # FHLB advances
+            f["DEPUNINS"] = (None if depunins_none
+                             else round(unins * ramp * wob / 100.0 * f["DEP"]))
+            cushion = f["EQ"] + f["LNATRES"]
+            loss = unrlz * ramp * wob / 100.0 * cushion
+            f["SCHA"] = round(htm_sh * a)
+            f["SCHF"] = round(htm_sh * a - 0.6 * loss)
+            f["SCAA"] = round(afs_sh * a)
+            f["SCAF"] = round(afs_sh * a - 0.4 * loss)
+            f["OTHBFHLB"] = round(fhlb * ramp * wob / 100.0 * a)
             quarters.append((iso, f))
         # one interior None per (cert, field) series -- exercises the
         # missing-value path deterministically, at offsets >= 2 from newest so
@@ -862,9 +1122,14 @@ class FdicProvider(Provider):
         from urllib.parse import urlencode
         filt = ("CERT:(" + " OR ".join(certs) + ") AND REPDTE:["
                 + self._oldest_repdte(asof, self._raw_slots) + " TO *]")
+        field_list = ["CERT", "REPDTE"] + list(RAW_FIELDS)
+        if len(field_list) >= MAX_REQUEST_FIELDS:    # spec sec 3 guard
+            raise RuntimeError(
+                f"fields= list has {len(field_list)} entries -- the FDIC "
+                f"bulk endpoint caps at {MAX_REQUEST_FIELDS}.")
         url = FDIC_FIN_URL + "?" + urlencode({
             "filters": filt,
-            "fields": "CERT,REPDTE," + ",".join(RAW_FIELDS),
+            "fields": ",".join(field_list),
             "sort_by": "REPDTE", "sort_order": "DESC",
             "limit": str(self._limit), "format": "json"})
         payload = json.loads(self._download(url, "financials bulk").decode("utf-8"))
@@ -1059,6 +1324,20 @@ class OpenpyxlBackend:
                 f"formulas are anchored to the built layout. Rebuild the "
                 f"workbook (python make_workbook.py --peer-slots N) instead "
                 f"of editing the layout settings in place.")
+        # v1.1 pack guard: the FIELD layout must match too -- a workbook built
+        # by an earlier pack has fewer raw columns, and writing this runner's
+        # field set into it would land data under no label with stale
+        # formulas. The last field's label column is the cheap sentinel.
+        lbl = ws.cell(block.label_row, field_col(RAW_FIELDS[-1])).value
+        if str(lbl or "").strip() != RAW_FIELDS[-1]:
+            raise RuntimeError(
+                f"Raw layout mismatch in {RAW_TAB}: block "
+                f"'{slot_label(block.slot)}' does not label field "
+                f"'{RAW_FIELDS[-1]}' at column {field_col(RAW_FIELDS[-1])} "
+                f"(found '{lbl}'). The workbook was built by a different "
+                f"metric-pack version than this runner (pack {PACK_VERSION}); "
+                f"rebuild it (python make_workbook.py) or extract the "
+                f"matching runner from ITS OWN _code_py tab.")
 
     def clear_slot_block(self, block: SlotBlock):
         """Blank a slot's bank identity AND data (stateless rebuild, BUILD
@@ -1110,10 +1389,11 @@ class OpenpyxlBackend:
         for tab in DASH_TABS:
             if tab in self._wb.sheetnames:
                 ws = self._wb[tab]
-                ws.cell(1, STATUS_COL, "Last run  " + status.get("timestamp", "")
+                col = STATUS_COL_BY_TAB.get(tab, STATUS_COL)
+                ws.cell(1, col, "Last run  " + status.get("timestamp", "")
                         + f" ({status.get('mode', '')})")
-                ws.cell(2, STATUS_COL, line2)
-                ws.cell(3, STATUS_COL, line3)
+                ws.cell(2, col, line2)
+                ws.cell(3, col, line3)
 
     def finalize(self):
         self._wb.save(self.path)
@@ -1172,6 +1452,15 @@ def compute_digest(cfg: Config, landed: Dict[int, Tuple[PeerRow, list]],
                                  "possible merger survivorship distortion "
                                  "(trap F6); ratios and CRE growth screens "
                                  "unreliable this quarter.")
+        # SVB pack: DEPUNINS null -> BLANK + note, never zero (trap F3; RC-O
+        # Mem 2 is filed only by $1B+ reporters -- below that the API carries
+        # estimates or nulls). The note makes the blank auditable.
+        if (latest_fields and latest_fields.get("DEPUNINS") is None
+                and any(v is not None for v in latest_fields.values())):
+            notes.append("DEPUNINS is null this quarter -- uninsured-deposit "
+                         "share left BLANK, never 0 (RC-O Mem 2 is filed by "
+                         "$1B+ reporters; smaller banks carry FDIC estimates "
+                         "or nulls).")
         rr = roster.get(peer.cert) or {}
         if rr and str(rr.get("ACTIVE", "1")).strip() not in ("1", "True", "true"):
             notes.append(f"roster reports ACTIVE={rr.get('ACTIVE')} "
@@ -1261,6 +1550,7 @@ def run(workbook_path: str, demo: bool = False, asof: Optional[date] = None,
     status = {
         "timestamp": asof.isoformat(),
         "mode": mode,
+        "pack_version": PACK_VERSION,
         "peer_slots": cfg.peer_slots,
         "banks_active": len(admitted) + len(refusals),
         "banks_landed": len(landed),
