@@ -82,14 +82,21 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
 - [ ] Suite-level conformance check: one script asserting every template's
       shared modules are byte-identical, embedded code is ASCII, tabs match
       the contract, and all suites are green (CI-able).
-- [ ] Control Center: "Refresh all (demo)" batch action; show each
-      workbook's last-run timestamp + staleness at a glance.
-- [ ] Single suite bundle (one ASCII file = Control Center + all template
-      builders) if multi-file transfer ever becomes annoying (~200KB —
-      may exceed comfortable paste size; per-template bundles remain
-      primary).
+- [x] Control Center v2 SHIPPED: status board (purpose + last run + alert
+      counts read from each workbook, no opening needed), Refresh ALL
+      (demo), Tie-out button, --doctor env/host check with allowlist
+      guidance.
+- [x] Single suite bundle SHIPPED: build_suite.py (one ASCII file = all
+      template bundles + control_center; menu or --all; regenerate with
+      make_suite_bundle.py — new templates join automatically).
+- [x] SUITE_GUIDE.md SHIPPED: the two-page operator manual (setup, daily
+      driving, which-workbook-answers-what, verification, troubleshooting).
 - [ ] Regenerate the visual suite-overview page from live demo digests
       (currently hand-assembled).
+
+- [ ] Idea (deferred): shared peer-list sync across FDIC/EDGAR workbooks —
+      same banks, different keys (CERT vs CIK); needs a name-based
+      crosswalk; revisit after both templates are in real use.
 
 ## 5 · Standing rules for new items
 
