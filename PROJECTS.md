@@ -21,8 +21,8 @@ is just the map.
 | 1 | FRED Credit-Risk Dashboard | `fred-credit-risk-dashboard/` | FRED (147 series: charge-offs, delinquencies, G.19, SLOOS, DSR, HPI) | **OPEN** — FHFA state/metro + Case-Shiller HPI (geo keys) | v1 done, PR #53 |
 | 2 | Bureau Consumer Credit Monitor | `bureau-credit-risk-dashboard/` | NY Fed HHDC (anonymized 5% Equifax sample; 18 series) | **GATED** — no free bureau source has a joinable key; opens only via licensed Class C (Prama-class) | v1 done + review-hardened, PR #53 |
 | 3 | Macro Early-Warning Monitor | `macro-early-warning-dashboard/` | FRED (21 national credit-cycle signals + 151 state-keyed labor/coincident series) | **OPEN** — {ST}UR / {ST}ICLAIMS / {ST}PHCI ranked by Sahm-style state stress gap ({ST}SLIND leading indexes DISCONTINUED, excluded + staleness-guarded) | v1 done, PR #53; live FRED pull awaits a key |
-| 5 | County Mortgage Delinquency Monitor | `cfpb-mortgage-monitor/` | CFPB Mortgage Performance Trends (NMDB 5% sample; county/state/national 30-89 + 90+ DPD, monthly, ~6-7 mo lag) | **OPEN** — `^county:[0-9]{5}$` [FOOTPRINT] slots; suppression rendered explicitly; vintage + continuity guarded | v1 done, PR #53 |
 | 4 | Bank Counterparty & Peer Monitor | `fdic-peer-monitor/` | FDIC BankFind Suite API (keyless REST, public domain; 15 C-A-E-L+concentration metrics x flexible `[PEERS]` list, 40 slots) | **OPEN (entity)** — `^cert:[0-9]+$`; the peer/counterparty list IS the watchlist, ranked by ALERT flags + Texas ratio | v1 done, PR #53; first keyless live run at the user's desk is the remaining validation |
+| 5 | County Mortgage Delinquency Monitor | `cfpb-mortgage-monitor/` | CFPB Mortgage Performance Trends (NMDB 5% sample; county/state/national 30-89 + 90+ DPD, monthly, ~6-7 mo lag) | **OPEN** — `^county:[0-9]{5}$` [FOOTPRINT] slots; suppression rendered explicitly; vintage + continuity guarded | v1 done, PR #53 |
 
 ## Candidate pipeline (researched, not yet picked)
 
@@ -30,7 +30,6 @@ is just the map.
 |-----------|-------|----------|-----|-------|
 | BLS LAUS unemployment monitor | geographic | county FIPS / MSA | Geo scout's #1 (18/20): monthly, ~3–5 wk lag — the only candidate matching a monitoring rhythm | Free API key required (500 queries/day); flat-file alternative exists |
 | SEC EDGAR corporate counterparty tracker | entity (corporate) | CIK / ticker | Entity scout 18/20: keyless REST, 10 req/s, near-real-time 8-K event lane | Nightly bulk zips available |
-| CFPB Mortgage Performance Trends | geographic | county (id column unverified) | Sleeper (18/20): free county-level 30–89 / 90+ DPD mortgage delinquency CSVs — the county delinquency the bureau template couldn't get free | **Template #5 — research in flight** (see BACKLOG.md) |
 | HMDA loan-level mortgage | geographic | census tract + county FIPS | Best free join key anywhere; loan-level originations/denials (17/20) | Annual, ~6-mo lag — research pull, not a monitor |
 | SBA 7(a)/504 FOIA loan data | geographic + industry | state / county name + NAICS | Real loan-level charge-offs, commercial (17/20); plain CSV, no key | County is a name string — needs deterministic name→FIPS crosswalk |
 | NCUA credit-union monitor | entity (credit union) | charter number | Bulk ZIP, no API; natural sibling of the FDIC template (15/20) | — |
