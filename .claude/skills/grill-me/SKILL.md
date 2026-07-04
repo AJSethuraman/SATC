@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: A relentless, one-question-at-a-time interview that resolves every decision branch before any code or document is written, then captures the shared understanding as an agent-ready PRD. Use when the user wants to spec out new work, stress-test a plan or design before building, start a new project, write a PRD, or says "grill me" / "grill". Reaches genuine alignment first; produces the PRD only once the user confirms.
+description: A relentless, one-question-at-a-time interview that resolves every decision branch before any code or document is written. Use when the user wants to spec out new work, stress-test a plan or design before building, start a new project, or says "grill me" / "grill". Reaches genuine alignment first, then hands off to `to-prd` to capture it — it does not write the document itself.
 ---
 
 # Grill Me

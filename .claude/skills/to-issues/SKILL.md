@@ -37,8 +37,11 @@ nothing demoable until the end.
 
 5. **Publish to the tracker.** Create GitHub issues (via the GitHub tools) in
    **dependency order**, each using the template below. Confirm the target repo
-   first. If the user prefers not to use GitHub Issues, write the same content to
-   a markdown checklist file instead.
+   first. Label each fully-specified, unblocked issue `ready-for-agent` — that
+   label is the handoff signal that an agent can pick it up and build it (see the
+   `triage` skill). Issues still missing detail get `needs-info` instead. If the
+   user prefers not to use GitHub Issues, write the same content to a markdown
+   checklist file instead.
 
 ## Issue template
 
