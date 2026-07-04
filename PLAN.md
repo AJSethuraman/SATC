@@ -118,6 +118,31 @@
   `SATC_ALLOW_CLOUD=1` + key). Keeping the default fully local is a compliance feature, not just a
   preference. Any cloud-AI feature needs a §7216 consent workflow before it touches identifiable data.
 
+### Industry feature norms (done 2026-07-04) — TaxDome/Canopy/Drake/SafeSend/Liscio
+- **Table stakes** (every serious tool has these): secure client document portal · digital
+  organizers/questionnaires · **mobile photo-scan upload** · doc-request lists tied to checklists
+  with auto-reminders · **8879 e-sign with KBA** · engagement letters · workflow/job tracking
+  (statuses + due dates) · secure two-way messaging (incl. SMS) · payments/invoicing · prior-year
+  rollover.
+- **Differentiators worth targeting:** **deep Drake integration is a real market gap** (incumbents
+  pair alongside or replace Drake) → SATC's Drake-native shaping is a genuine edge · passwordless
+  magic-link + mobile-first client access (the #1 adoption lever) · "last-mile" assembled-return
+  delivery (review → 8879 e-sign → vouchers → K-1s; SafeSend's moat) · client-facing withholding tool
+  (uncommon — SATC already has it) · flat pricing + zero setup.
+- **8879 KBA facts:** KBA required for *remote* e-sign (3-of-4 identity questions), every time unless
+  in-person or a multi-year business relationship. Cost ≈ **$1/sig (TaxDome)** up to **$13–17/return
+  (SafeSend)**; $2.99–$5 common. (Drake's per-event KBA $ unconfirmed — credit/bulk model.)
+- **Pricing SATC competes against:** Drake Portals (SecureFilePro) **$230/yr** (portal only) →
+  TaxDome **~$800/user/yr** (full platform); Canopy modular ~$540–800/yr and climbs.
+- **Top practitioner pain points (our opening):** brutal setup (TaxDome 6–12 wks) · slow/no-human
+  support · cost & billing friction · **client-adoption friction is #1** — portals flatline, clients
+  revert to email; **69% of accountants say they spend too much time gathering docs**; mobile is a
+  dealbreaker for 60%+. SATC's wedge = low-friction adoption + zero setup (pre-shaped around Drake).
+- **AI trend (real, shipped):** industry converged on three jobs — (1) **auto-classify/rename/route
+  uploaded docs to the right checklist item**, (2) extract key fields (name/year/form type),
+  (3) **auto-generate doc-request lists from prior-year data**. Canopy pushing an "agent that does the
+  work." → SATC already does (1); (1)+(3) are the highest-leverage AI targets and attack the #1 pain.
+
 ### Research NOT finished (hit account session limit, resets 3:20am UTC 2026-07-04)
 - FTC Safeguards Rule / WISP full requirement + <5,000-consumer exemption detail (partial only)
 - Industry feature norms (TaxDome/Canopy/Drake pricing, table stakes) — vendor sites bot-blocked
