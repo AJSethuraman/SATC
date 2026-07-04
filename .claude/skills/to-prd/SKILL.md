@@ -50,4 +50,8 @@ to write it down rigorously.
 
 Zero follow-up questions needed to build. If a section would force an agent to
 guess, either resolve it now or list it under **Open Questions** — don't paper
-over it.
+over it. **Before parking anything as an Open Question, check whether it's a
+researchable external fact** (a tax rule, a statutory value, an API's real
+behavior); if so, invoke the `research` skill to settle it from primary sources
+and cite it in the PRD — Open Questions are for genuine product decisions still
+owed, not for facts nobody looked up.

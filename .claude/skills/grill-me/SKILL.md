@@ -55,7 +55,18 @@ tree**, resolving dependencies between decisions **one at a time**.
    which formats, how many, what happens on a bad file? Surface unstated
    assumptions and get a ruling on each.
 
-7. **Do not write the plan or PRD yet.** Keep going until the branches are
+7. **Research facts — don't guess them or offload them.** When a branch turns on
+   an **external fact** neither you nor the user should answer from memory — a tax
+   rule or threshold, a statutory date, a library/API's real behavior, a
+   regulatory requirement — **invoke the `research` skill** to resolve it from
+   primary sources, then bring the cited finding back into the interview as the
+   basis for the next question. Do not ask the user to recall a fact they'd only
+   be guessing at, and never park an unverified fact as an assumption when it's
+   researchable. For an idea that needs deep thought, expect to interleave
+   several research passes with the questions. (Save the citations — `to-prd`
+   will fold them into the PRD instead of leaving them as Open Questions.)
+
+8. **Do not write the plan or PRD yet.** Keep going until the branches are
    resolved. Then **stop and summarize** the shared understanding in a few
    sentences and ask: *"Have we reached shared understanding — should I capture
    this as a PRD?"* Do not proceed until the user confirms.
