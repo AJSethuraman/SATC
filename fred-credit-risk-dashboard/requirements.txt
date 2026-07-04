@@ -1,0 +1,13 @@
+# FRED Credit-Risk Dashboard -- Python dependencies for runner.py
+#
+#   Demo mode (offline, no FRED key):   pandas + openpyxl  only
+#   Live FRED pulls:                     also need fredapi
+#   xlwings is optional -- only for writing into an ALREADY-OPEN workbook;
+#   the PowerShell / closed-file flow does not need it.
+#
+# Install:  python -m pip install -r requirements.txt
+
+pandas>=1.5
+openpyxl>=3.0
+fredapi>=0.5        # live FRED data only; not needed for --demo
+# xlwings>=0.30     # optional: write into an open workbook instead of the closed file

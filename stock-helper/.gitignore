@@ -1,0 +1,23 @@
+# Environment / secrets
+.env
+
+# Data files (raw pulls, caches, local DB, generated reports)
+data/raw/*
+data/cache/*
+data/db/*
+data/reports/*
+!data/raw/.gitkeep
+!data/cache/.gitkeep
+!data/db/.gitkeep
+!data/reports/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+uv.lock
