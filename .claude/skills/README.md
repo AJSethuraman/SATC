@@ -11,7 +11,12 @@ barreling through the checkpoints that keep an agent on track.
 
 ## The spine — new work
 
+**Front door:** `/occam <idea>` runs the whole pipeline end to end (pausing at
+each gate). The individual stages below can also be run on their own.
+
 ```
+/occam <idea>
+   │
 /grill-me    →  /to-prd     →  /to-issues        →  build
 (align)         (spec it)      (slice into issues)   (implement)
 ```
