@@ -1,0 +1,11 @@
+# SYNTHETIC loan fixture — one C&I credit for the slice-1 tracer bullet.
+# Borrower, numbers, and TIN last-4 are invented. Keys match linesheet row ids;
+# the builder prefills them into the matching input cells.
+loans:
+  - loan_id: "CI-0001"
+    borrower_name: "Blue Heron Fabrication LLC"
+    loan_number: "40017-3"
+    tin_last4: "6789"
+    total_commitment: 2500000
+    outstanding: 1750000
+    rating_originator: "4"

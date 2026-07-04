@@ -1,0 +1,30 @@
+# C&I loan-review program — layer 1 (portable, client-agnostic).
+# Client thresholds, rating-scale maps, scope and loans live in the engagement
+# overlay, never here. Slice 1 ships the "Identification & exposure" section;
+# later slices add cash-flow/collateral sections, evidence, exception rules,
+# and the regulatory crosswalk (issues #61, #62, #65).
+meta:
+  lob: c_and_i
+  review_mode: loan_level        # product_conformance reserved for Mode B (consumer/resi)
+  title: "C&I Loan Review Linesheet"
+
+rating_framework:
+  # The interagency classification spine (see docs/research/credit-review-methodology.md).
+  buckets: [Pass, "Special Mention", Substandard, Doubtful, Loss]
+  criticized: ["Special Mention", Substandard, Doubtful, Loss]
+  classified: [Substandard, Doubtful, Loss]
+
+sections:
+  - title: "Identification & exposure"
+    rows:
+      - {id: borrower_name, kind: input_text, label: "Borrower (legal name)", pii: name}
+      - {id: loan_number, kind: input_text, label: "Loan / obligor number"}
+      - {id: tin_last4, kind: input_text, label: "TIN (last 4 only)",
+         note: "Full SSN/EIN never enters the workpaper."}
+      - {id: total_commitment, kind: input, label: "Total commitment"}
+      - {id: outstanding, kind: input, label: "Outstanding balance"}
+      - {id: unfunded, kind: computed, label: "Unfunded commitment",
+         formula: "{total_commitment}-{outstanding}"}
+      - {id: rating_originator, kind: rating_input, label: "Originator risk rating"}
+      - {id: rating_reviewer, kind: rating_input,
+         label: "Reviewer risk rating (independent)"}

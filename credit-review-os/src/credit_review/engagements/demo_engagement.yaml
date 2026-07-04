@@ -1,0 +1,35 @@
+# SYNTHETIC demo engagement overlay — layer 2 (thin, per client bank).
+# Every value here is invented; no real bank, borrower, or TIN appears in this repo.
+client:
+  name: "Demo Community Bank"
+  engagement_id: "DEMO-2026-01"
+
+rating_scale_map:            # every internal grade -> exactly one regulatory bucket
+  "1": Pass
+  "2": Pass
+  "3": Pass
+  "4": Pass
+  "5": Pass
+  "6": "Special Mention"
+  "7": Substandard
+  "8": Doubtful
+  "9": Loss
+
+thresholds:                  # illustrative placeholders (PRD §10) — config, easily changed
+  dscr_floor: 1.20
+  ltv_ceiling: 0.80
+  leverage_ceiling: 4.0
+  stmt_staleness_days: 365
+  bbc_staleness_days: 45
+
+scope:
+  portfolio_dollars: 42000000
+  portfolio_count: 210
+  sample_basis: "risk-based; all >$1MM + 10% random"
+
+reviewer:
+  name: "SATC"
+  independent: true
+  independence_note: "No lending authority; reports to board audit committee"
+
+loans: "demo_c_and_i_loans.yaml"   # SYNTHETIC fixture, path relative to this file

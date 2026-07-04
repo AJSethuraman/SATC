@@ -1,0 +1,116 @@
+"""Assemble the engagement workbook (slice 1: Cover, one ``LS_`` per loan, ``_config``).
+
+The build is pure and deterministic — no network, no clock: identical inputs
+must produce byte-identical output (use :func:`workbook_bytes`, which also
+normalizes zip-container timestamps that plain ``Workbook.save`` would stamp
+with the wall clock).
+"""
+
+from __future__ import annotations
+
+import io
+import re
+import zipfile
+from datetime import datetime
+from pathlib import Path
+
+from openpyxl import Workbook
+
+from credit_review.config import (
+    ConfigError,
+    Engagement,
+    Loan,
+    Program,
+    check_overlay_fits_program,
+    load_engagement,
+    load_loans,
+    load_program,
+)
+from credit_review.config_sheet import write_config_sheet
+from credit_review.cover import build_cover
+from credit_review.linesheet import BuildContext, LinesheetBuilder
+
+PACKAGE_DIR = Path(__file__).parent
+PROGRAMS_DIR = PACKAGE_DIR / "programs"
+ENGAGEMENTS_DIR = PACKAGE_DIR / "engagements"
+
+# Fixed document properties: the build must not depend on the wall clock.
+_EPOCH = datetime(2026, 1, 1)
+
+
+def build_engagement_workbook(program: Program, engagement: Engagement,
+                              loans: list[Loan]) -> Workbook:
+    """Build the in-memory engagement workbook: ``Cover``, one ``LS_<loan_id>``
+    linesheet per loan, and the ``_config`` knob panel, in KeyBank house style."""
+    if program.review_mode != "loan_level":
+        raise ConfigError(
+            f"review_mode {program.review_mode!r} is designed into the schema but "
+            f"not built yet — v1 builds loan_level only (PRD §3)")
+    check_overlay_fits_program(engagement, program)
+    if not loans:
+        raise ConfigError("engagement has no loans — nothing to review")
+
+    wb = Workbook()
+    wb.properties.creator = "Credit Review OS"
+    wb.properties.created = _EPOCH
+    wb.properties.modified = _EPOCH
+
+    cover = wb.active
+    cover.title = "Cover"
+    build_cover(cover, program, engagement, loans)
+
+    # _config is written before the linesheets because its threshold cells are
+    # the [POL] formula targets; it is moved to the back of the tab order below.
+    pol_registry = write_config_sheet(wb.create_sheet("_config"), program, engagement)
+
+    grades = tuple(sorted(engagement.rating_scale_map, key=lambda g: (len(g), g)))
+    for loan in loans:
+        ctx = BuildContext(pol_registry=pol_registry, values=dict(loan.values),
+                           rating_grades=grades)
+        builder = LinesheetBuilder(
+            wb.create_sheet(loan.sheet_name),
+            program.sections,
+            title=program.title,
+            subtitle=(f"{engagement.client_name}  ·  {engagement.engagement_id}"
+                      f"  ·  Loan {loan.loan_id}"),
+            ctx=ctx)
+        builder.build()
+
+    wb.move_sheet("_config", offset=len(wb.sheetnames) - 1 - wb.sheetnames.index("_config"))
+    return wb
+
+
+def workbook_bytes(wb: Workbook) -> bytes:
+    """Serialize deterministically: same workbook content -> identical bytes.
+
+    ``Workbook.save`` stamps each zip member with the current local time and
+    overwrites ``dcterms:modified`` in ``docProps/core.xml`` with the save-time
+    clock, so two otherwise-identical saves differ. Re-pack every member (same
+    order, same compression) with a fixed timestamp, and pin ``dcterms:modified``
+    back to the fixed epoch.
+    """
+    raw = io.BytesIO()
+    wb.save(raw)
+    fixed_modified = (b'<dcterms:modified xsi:type="dcterms:W3CDTF">'
+                      + _EPOCH.strftime("%Y-%m-%dT%H:%M:%SZ").encode()
+                      + b"</dcterms:modified>")
+    out = io.BytesIO()
+    with zipfile.ZipFile(raw) as src, \
+            zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for name in src.namelist():
+            data = src.read(name)
+            if name == "docProps/core.xml":
+                data = re.sub(rb"<dcterms:modified[^>]*>[^<]*</dcterms:modified>",
+                              fixed_modified, data)
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            dst.writestr(info, data)
+    return out.getvalue()
+
+
+def build_demo_workbook() -> tuple[Workbook, Program, Engagement, list[Loan]]:
+    """Load the synthetic demo engagement shipped with the package and build it."""
+    program = load_program(PROGRAMS_DIR / "c_and_i.yaml")
+    engagement = load_engagement(ENGAGEMENTS_DIR / "demo_engagement.yaml")
+    loans = load_loans(engagement.loans_path)
+    return build_engagement_workbook(program, engagement, loans), program, engagement, loans
