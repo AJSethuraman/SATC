@@ -5,6 +5,18 @@
 >
 > **Last updated: 2026-07-04**
 
+## What SATC is (positioning — read the norms through this lens)
+
+SATC is **process-flow / practice-operations software for the owner**, not a tax-prep engine and
+not a TaxDome/Canopy competitor. **Drake stays the system of record for returns.** SATC's job:
+run the business, **collect and retain client info**, provide **small services** (e.g. the
+withholding estimator), and make the owner's life easier. Therefore the industry research is a
+**reference map, not a feature target** — adopt norms that serve the owner's workflow; skip
+client-product features (payments/invoicing, KBA e-sign, a full public portal) unless the owner
+specifically wants them (Drake Portals already covers e-sign/portal if ever needed). The one thing
+the "product vs internal tool" distinction does **not** change: holding client SSNs triggers the
+same legal duties either way — Phase 0 below stands regardless.
+
 ## Where things stand
 
 - **Branch:** `claude/happy-heisenberg-5rt6y1` (draft PR #21 → `main`). Suite: **242 passing**.
@@ -177,12 +189,18 @@
 5. Build **`--onedir`**, **sign with Azure Artifact Signing (~$10/mo)**, ship a **`.mcpb`** that
    launches `SATC.exe --mcp` (one-click Claude Desktop install). Write the "hand to a colleague" pack.
 
-**Phase 2 — Build toward industry norms (the head-start):**
-6. Attack the #1 pain (client-adoption / doc-gathering): **mobile-first, magic-link secure upload**
-   portal + doc-request lists tied to checklists + reminders. Lean on SATC's Drake-native edge.
-7. **8879 e-sign w/ KBA** and engagement letters (table stakes for a real practice).
-8. AI doc-classification/routing + auto doc-request-list generation (SATC already does classification;
-   these are the highest-leverage AI targets and directly attack the 69%-time-on-doc-gathering pain).
+**Phase 2 — Sharpen the process flow (serve the owner, NOT compete with TaxDome):**
+6. **Info collection & retention core** (the heart of what SATC is): tighten the existing
+   intake → engagement-checklist → doc-request → retention loop; prior-year rollover; a single
+   "what's outstanding, for whom" glance. This is "collect and retain info," not a product portal.
+7. **Small services that save the owner time:** extend the withholding-estimator pattern with other
+   quick client calcs; **AI doc classification/routing + auto doc-request-list generation** (SATC
+   already classifies docs — highest-leverage "make my life easier" win; attacks the doc-gathering
+   time sink without building a whole platform).
+8. **Only if the owner wants it:** a *lightweight* secure way for clients to send docs (mobile photo →
+   SATC) purely to stop the owner chasing paper — scoped as the owner's convenience, not a portal
+   product. Client-facing e-sign/KBA/payments are explicitly OUT unless a concrete need appears
+   (Drake Portals already does e-sign). Industry norms informed this list; they don't dictate it.
 
 ## To-do
 
