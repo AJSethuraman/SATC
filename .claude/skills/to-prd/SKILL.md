@@ -42,7 +42,23 @@ to write it down rigorously.
 4. **Save it** to a sensible path — `docs/prd-<name>.md` in the relevant project
    folder, or a new top-level folder for a new project.
 
-5. **Hand off.** Tell the user the PRD is ready and that the next step is
+5. **Update the running log (recommend it — don't make the operator remember).**
+   If the run produced any **roadmap / deferred / decided-against / cross-cutting
+   principle** items (the `[LOG]`-tagged ones from grilling, or any you can see),
+   **recommend appending them to the durable running log** — not only to the
+   PRD's own Milestones/Non-Goals, which is easy to lose track of. Use this
+   repo's existing log, matched to the project area — never a new file:
+   - **`PLAN.md`** (SATC / practice-ops): a roadmap phase → `## Recommended
+     roadmap`; a decided-against item → `### Explicitly deferred (decided against
+     for now)`; a durable decision/principle → a dated entry at the top of
+     `## Decisions log`.
+   - **`BACKLOG.md`** (credit-risk suite): open items into the numbered sections;
+     finished ones into `## Done log`.
+   **Offer to make the edit and commit it** in the same breath (sessions are
+   ephemeral — an uncommitted log note is lost). Skip this on trivial one-off runs
+   with nothing durable.
+
+6. **Hand off.** Tell the user the PRD is ready and that the next step is
    `/to-issues` to break it into buildable slices — or that an agent can build
    from the PRD directly. Offer to commit it so it persists across sessions.
 

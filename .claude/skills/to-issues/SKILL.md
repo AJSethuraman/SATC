@@ -67,3 +67,11 @@ file paths>
   the files.
 - Every slice must be independently verifiable, or it isn't a vertical slice —
   reslice it.
+- **When the roadmap outlives this issue set, make the log a deliverable.** If the
+  PRD carries a multi-phase destination beyond the v1 slices, or deferred /
+  decided-against items, emit one small extra slice — **"update the running log /
+  backlog"** — a tracked, committed task to record that roadmap in `PLAN.md`
+  (SATC) or `BACKLOG.md` (credit-risk suite), reusing the existing sections. This
+  keeps the roadmap a committed, tracked artifact instead of a note that dies with
+  the conversation. Skip it for a self-contained one-shot with no future beyond
+  its slices.

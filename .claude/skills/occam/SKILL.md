@@ -27,6 +27,14 @@ gave none), then drive the pipeline:
    breakdown before publishing.
 4. **Hand off** — the issues are ready to build (by an agent or by you, on the
    user's go-ahead).
+5. **Log the run.** At the end, **offer to append a dated entry to the running
+   log's Decisions log** (`PLAN.md` for SATC work, `BACKLOG.md` for the
+   credit-risk suite — never a new file) summarizing what was decided and what was
+   deferred. The default is **"yes, log it"**; make skipping a one-word out. Then
+   **commit** it — an uncommitted log entry is lost when the session ends. (The
+   earlier stages already offer their own log edits for roadmap/deferred items;
+   this is the run-level summary that ties them off. Skip only for trivial one-off
+   runs with nothing durable to record.)
 
 ## Rules
 

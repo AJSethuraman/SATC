@@ -39,6 +39,24 @@ each gate). The individual stages below can also be run on their own.
 | **codebase-design** | Designing/restructuring a module — deep modules, minimal interfaces, clean seams. |
 | **triage** | Sorting incoming issues/PRs — categorize, verify, and produce the `ready-for-agent` brief. |
 
+## The running log (kept up to date automatically)
+
+The pipeline treats **maintaining the running log** as a built-in, recommended
+step — offered at the natural moment so the operator never has to remember it. It
+reuses this repo's **existing** logs (never a new file):
+
+- **`PLAN.md`** (SATC / practice-ops) — `## Recommended roadmap`, `### Explicitly
+  deferred (decided against for now)`, `### Decided, not yet done`, and a dated
+  `## Decisions log` (newest on top).
+- **`BACKLOG.md`** (credit-risk suite) — numbered open sections + `## Done log`.
+
+Where each stage offers it: **grill-me** tags roadmap/deferred/decided-against/
+principle items with `[LOG]`; **to-prd** recommends appending them to the log (and
+commits); **to-issues** emits an "update the running log / backlog" slice when the
+roadmap outlives the issue set; **occam** closes each run by offering a dated
+Decisions-log entry (default yes). It's one lightweight offer at the right time,
+always committed (sessions are ephemeral) — and skipped for trivial one-off runs.
+
 ## Also available (built-in)
 
 The harness already ships `code-review`, `verify`, `deep-research`, and
