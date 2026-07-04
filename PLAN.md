@@ -226,17 +226,16 @@ patched and tested; suite 259 passing. Safe to hold real client SSNs (on a Windo
 DPAPI-sealed vault key). Remaining before a real handoff = Phase 1 (merge to main, matching release,
 docs) — not security.
 
-### Handoff quick-wins (each < 1 hr, low-risk — safe to do without a big-change sign-off)
-- [ ] Add a root `README.md` (what SATC is; how to get the exe; which branch is live)
-- [ ] Fix `cowork-plugin/mcpb/manifest.json` entry_point (`server/` → `mcp/`)
-- [ ] Swap `pdftoppm` → pymupdf in `ingest/ocr.py` (kills undocumented poppler dep); add Tesseract
-      `C:\Program Files\Tesseract-OCR` probe + `SATC_TESSERACT` override to `doctor.py`
-- [ ] Update `docs/MCP.md` (document `SATC_MCP_ALLOW_WRITES` read-only default, `SATC.exe --mcp`,
-      full `.venv\Scripts\satc-mcp` path, `[local]` lacks `mcp`, dev-vs-exe data dir)
-- [ ] `install.bat` fail-loud on pip error; `satc reset` type-YES confirm
-- [ ] "Your data" section in README (both data-dir locations, vault unencrypted, backup = copy folder,
-      uninstall leaves it behind, never email the .db)
-- [ ] Retitle `docs/USER_GUIDE.md` → `DEVELOPING.md`; write a real Windows quickstart in its place
+### Phase 1 — documentation (done 2026-07-04)
+- [x] Root `README.md` — what SATC is (practice-ops, Drake stays SoR), how to get it, data-safety, docs map.
+- [x] `docs/QUICKSTART_WINDOWS.md` — the real end-user guide (install → first return + Your Data & Security
+      + troubleshooting table). This is the doc the handoff audit said was missing.
+- [x] `docs/MCP.md` rewritten — safe-by-default read-only, `SATC.exe --mcp` + `.mcpb`, full
+      `.venv\Scripts\satc-mcp` path, `[local,mcp]`, dev-vs-exe data dir, encrypted-vault note.
+- [x] `USER_GUIDE.md` → `DEVELOPING.md` (retitled; end users pointed to the Quickstart).
+- [x] "Your data" guidance in root README + `satc_system/README.md` (encrypted vault, two data dirs,
+      backup=copy folder, uninstall leaves it, never email .db, WISP obligation).
+- [x] Handoff bugs (mcpb path, OCR/poppler, doctor Tesseract, install.bat, reset) — done in Phase 0.
 
 ### Recommended sequence
 See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Phase 2 features).

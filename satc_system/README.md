@@ -19,6 +19,14 @@ readiness check. To read scanned/photographed docs locally, install
 [Tesseract for Windows](https://github.com/UB-Mannheim/tesseract/wiki); for a
 local vision model, install [Ollama](https://ollama.com) and start with `SATC_OLLAMA=1`.
 
+**New here?** Follow the **[Windows Quickstart](docs/QUICKSTART_WINDOWS.md)** — install
+→ first return, plus **data safety**: client names/SSNs are stored in an **encrypted**
+vault (AES-256; on Windows the key is sealed to your user account). Your data lives in
+`%USERPROFILE%\.satc\data` (app) or `build\data\` (from source) — those are separate
+stores. Back up by copying that folder; uninstalling doesn't delete it; never email the
+`.db` files. To drive SATC from an AI assistant, see **[docs/MCP.md](docs/MCP.md)**
+(read-only by default).
+
 ---
 
 

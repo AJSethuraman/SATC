@@ -1,4 +1,8 @@
-# SATC System — User Guide
+# SATC System — Developing (from source)
+
+> For **end users**, see the [Windows Quickstart](QUICKSTART_WINDOWS.md) instead —
+> this document is the developer / from-source guide (tests, workbook build, the
+> LibreOffice recalc dependency).
 
 ## Setup
 
