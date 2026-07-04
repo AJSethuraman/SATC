@@ -1,0 +1,26 @@
+Subject: Your {tax_year} tax return is ready for review and signature
+
+Dear {salutation},
+
+Thank you for trusting Sethuraman Accounting, Tax & Consulting with your {tax_year} taxes.
+Your return is prepared and ready. Here is the plain-language summary:
+
+{jurisdiction_summary}
+
+Overall: {net_result_sentence}
+
+Next steps:
+  1. Review the enclosed return.
+  2. Sign Form 8879 (e-file authorization) for each jurisdiction we are e-filing — we cannot
+     transmit until we receive your signed 8879.
+  3. Pay any balances due by the dates above (payment options are listed per jurisdiction).
+  4. Reach out with any questions — we are glad to walk through anything.
+
+We appreciate your business.
+
+Warm regards,
+{preparer_name}
+Sethuraman Accounting, Tax & Consulting
+"Complex work, made clear."
+
+— DRAFT for preparer review. Not sent automatically. —

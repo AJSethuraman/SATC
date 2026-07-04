@@ -1,0 +1,118 @@
+# Workflow: Business partnership tax
+#
+# Ported from JS workflow `businessPartnershipTax`.
+# NOTE: quote "yes"/"no" — bare yes/no are booleans in YAML and would break condition matching.
+key: business_partnership_tax
+name: Business partnership tax
+description: Partnership tax return and partner K-1 checklist.
+engagement_type: businessPartnershipTax
+client_type: business
+
+questions:
+  - id: partnerChanges
+    label: Partner ownership changes?
+    type: boolean
+    risk_flag: Ownership change
+  - id: agreementAmendments
+    label: Operating agreement amendments?
+    type: boolean
+  - id: capitalActivity
+    label: Capital contributions or distributions?
+    type: boolean
+    risk_flag: Partnership capital / loan review
+  - id: partnerLoans
+    label: Partner loans?
+    type: boolean
+    risk_flag: Partnership capital / loan review
+  - id: multiStateActivity
+    label: Multi-state activity?
+    type: boolean
+    risk_flag: Multi-state filing
+  - id: foreignActivity
+    label: Foreign activity?
+    type: boolean
+    risk_flag: K-2/K-3 foreign activity review
+  - id: assetActivity
+    label: Asset acquisitions or disposals?
+    type: boolean
+
+tasks:
+  - template_id: partnership-upload-trial-balance
+    title: Request year-end trial balance
+    category: Core financials
+    audience: client
+    days_before_due: 25
+    doc_type: Trial balance
+    client_request_text: >-
+      Upload year-end trial balance, balance sheet, income statement, and
+      general ledger.
+
+  - template_id: partnership-ownership-change-documents
+    title: Request partner ownership change documents
+    category: Ownership
+    audience: client
+    days_before_due: 20
+    doc_type: Partner ownership change documents
+    condition: {question_id: partnerChanges, equals: "yes"}
+    client_request_text: >-
+      Upload partner ownership change documents and updated ownership schedules.
+
+  - template_id: partnership-operating-agreement-amendments
+    title: Request operating agreement amendments
+    category: Legal agreements
+    audience: client
+    days_before_due: 20
+    doc_type: Operating agreement amendments
+    condition: {question_id: agreementAmendments, equals: "yes"}
+    client_request_text: Upload operating agreement amendments.
+
+  - template_id: partnership-capital-distribution-detail
+    title: Request capital activity detail
+    category: Partner capital
+    audience: client
+    days_before_due: 18
+    doc_type: Capital contribution and distribution detail
+    condition: {question_id: capitalActivity, equals: "yes"}
+    client_request_text: >-
+      Upload partner capital contribution and distribution detail by partner and
+      date.
+
+  - template_id: partnership-partner-loan-support
+    title: Request partner loan support
+    category: Partner loans
+    audience: client
+    days_before_due: 18
+    doc_type: Partner loan support
+    condition: {question_id: partnerLoans, equals: "yes"}
+    client_request_text: Upload partner loan balances, advances, repayments, and notes.
+
+  - template_id: partnership-multistate-apportionment-support
+    title: Request multi-state support
+    category: State filing
+    audience: client
+    days_before_due: 16
+    doc_type: Multi-state apportionment support
+    condition: {question_id: multiStateActivity, equals: "yes"}
+    client_request_text: >-
+      Upload multi-state income, payroll, property, sales, or apportionment
+      support.
+
+  - template_id: partnership-foreign-activity-support
+    title: Request foreign activity support
+    category: Foreign reporting
+    audience: client
+    days_before_due: 16
+    doc_type: Foreign activity support
+    condition: {question_id: foreignActivity, equals: "yes"}
+    client_request_text: Upload foreign activity support for K-2/K-3 review if applicable.
+
+  - template_id: partnership-asset-acquisition-disposal-support
+    title: Request asset acquisition or disposition documents
+    category: Assets
+    audience: client
+    days_before_due: 16
+    doc_type: Asset acquisition or disposition documents
+    condition: {question_id: assetActivity, equals: "yes"}
+    client_request_text: >-
+      Upload asset acquisition or disposition documents, placed-in-service
+      dates, and sale proceeds.

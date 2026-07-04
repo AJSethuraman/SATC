@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Withholding estimator</h2>
+  <div class="muted">Add each job's paystub — upload, paste, or type. Stubs are read on-device and
+    learned per employer, so repeat employers fill in automatically. The estimate sums all jobs and
+    recommends a per-paycheck W-4 (line 4c) adjustment on the job you choose to tune.</div>
+</div>
+
+{% if prefill_notes %}
+<div class="panel"><div class="body">
+  <ul class="muted" style="margin:0 0 0 18px">{% for n in prefill_notes %}<li>{{ n }}</li>{% endfor %}</ul>
+</div></div>
+{% endif %}
+
+{% if teach %}
+<div class="panel">
+  <h2>Teach this layout <span class="muted" style="font-weight:normal">(optional)</span></h2>
+  <div class="body">
+    <p class="muted" style="margin-top:0">Confirm each figure exactly as it appears on the stub, then save the
+      layout. Next time a paystub from <strong>{{ teach.hint }}</strong> is added, these fill in automatically.
+      Only the layout (labels &amp; which column) is saved — never the amounts.</p>
+    <form method="post" action="{{ url_for('withholding.save_layout') }}">
+      <div class="grid2">
+        <p><label class="muted">Gross — current</label><br><input class="field-input" name="t_gross_cur" value="{{ teach.values.gross_cur }}"></p>
+        <p><label class="muted">Gross — YTD</label><br><input class="field-input" name="t_gross_ytd" value="{{ teach.values.gross_ytd }}"></p>
+        <p><label class="muted">Federal withheld — current</label><br><input class="field-input" name="t_fed_cur" value="{{ teach.values.fed_cur }}"></p>
+        <p><label class="muted">Federal withheld — YTD</label><br><input class="field-input" name="t_fed_ytd" value="{{ teach.values.fed_ytd }}"></p>
+        <p><label class="muted">Pre-tax retirement — current</label><br><input class="field-input" name="t_retire_cur" value="{{ teach.values.retire_cur }}"></p>
+        <p><label class="muted">Pay frequency</label><br><input class="field-input" name="t_freq" value="{{ teach.values.freq }}"></p>
+      </div>
+      <p class="muted" style="margin-bottom:4px">Source text (read-only, for reference)</p>
+      <textarea name="paystub_src" rows="5" readonly style="width:100%;font-family:monospace">{{ teach.source }}</textarea>
+      <p style="margin-top:10px"><button class="btn" type="submit">Save this layout</button></p>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('withholding.withholding') }}" enctype="multipart/form-data">
+
+  <div class="panel">
+    <h2>Start from a client <span class="muted" style="font-weight:normal">(optional)</span></h2>
+    <div class="body">
+      <p class="muted" style="margin-top:0">Prefill the stable household info — <strong>filing status</strong> — from an
+        existing client. Per-paycheck figures still come from a current paystub; prior-year dollar amounts are not seeded.</p>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+        <span><label class="muted">Client</label><br>
+          <select class="field-input" name="client_id">
+            <option value="">— select a client —</option>
+            {% for cid, cname in clients %}<option value="{{ cid }}">{{ cname }} ({{ cid }})</option>{% endfor %}
+          </select></span>
+        <button class="btn" type="submit" formaction="{{ url_for('withholding.from_client') }}">Load client</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Add a job from a paystub</h2>
+    <div class="body">
+      <p class="muted" style="margin-top:0">Upload a paystub (PDF or image), read on-device, or paste its text.
+        Add as many jobs as the household has — e.g. taxpayer + spouse, or a second job.</p>
+      <div class="grid2">
+        <p>
+          <label class="muted">Upload a paystub (PDF or image)</label><br>
+          <input class="field-input" type="file" name="paystub_file"
+                 accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.webp"><br>
+          <button class="btn primary" type="submit" formaction="{{ url_for('withholding.paystub_layout') }}" style="margin-top:8px">Read &amp; map → add job</button>
+          <button class="btn sm" type="submit" formaction="{{ url_for('withholding.from_file') }}" style="margin-top:8px" title="Skip mapping — quick text-only read">quick text read</button>
+        </p>
+        <p>
+          <label class="muted">…or paste paystub text</label><br>
+          <textarea class="field-input" name="paystub_text" rows="3" style="width:100%;font-family:monospace"
+                    placeholder="Gross Pay   2,500.00   30,000.00&#10;Federal Income Tax   300.00   3,600.00"></textarea><br>
+          <button class="btn" type="submit" formaction="{{ url_for('withholding.from_paystub') }}" style="margin-top:8px">Read text → add job</button>
+        </p>
+      </div>
+      <p><button class="btn" type="submit" formaction="{{ url_for('withholding.add_job') }}">+ Add a blank job</button></p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Jobs <span class="muted" style="font-weight:normal">({{ jobs|length }})</span></h2>
+    <div class="body">
+      {% if not jobs %}
+      <p class="muted">No jobs yet — upload or paste a paystub above, or add a blank job to type by hand.</p>
+      {% endif %}
+      {% for job in jobs %}
+      <div class="panel" style="margin:0 0 12px"><div class="body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong>Job {{ loop.index }}{% if job.name %} — {{ job.name }}{% endif %}</strong>
+          <span>
+            <label class="muted" style="margin-right:12px">
+              <input type="radio" name="adjust_job" value="{{ loop.index0 }}" {{ 'checked' if adjust_job==loop.index0 }}> tune this job's W-4
+            </label>
+            <button class="btn sm" type="submit" formaction="{{ url_for('withholding.remove_job') }}" name="remove_index" value="{{ loop.index0 }}">Remove</button>
+          </span>
+        </div>
+        <div class="grid2">
+          <p><label class="muted">Employer / job name</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_name" value="{{ job.name }}"></p>
+          <p><label class="muted">Pay frequency</label><br>
+            <select class="field-input" name="j{{ loop.index0 }}_pay_frequency">
+              {% for f in frequencies %}<option value="{{ f }}" {{ 'selected' if job.pay_frequency==f }}>{{ f }}</option>{% endfor %}
+            </select></p>
+          <p><label class="muted">Gross pay per period</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_gross_pay_per_period" value="{{ job.gross_pay_per_period }}"></p>
+          <p><label class="muted">Federal tax withheld per period</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_federal_tax_withheld_per_period" value="{{ job.federal_tax_withheld_per_period }}"></p>
+          <p><label class="muted">Pre-tax retirement per period</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_retirement_pretax_per_period" value="{{ job.retirement_pretax_per_period }}"></p>
+          <p><label class="muted">Pay periods remaining (optional)</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_pay_periods_remaining" value="{{ job.pay_periods_remaining }}"></p>
+          <p><label class="muted">YTD taxable wages</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_ytd_taxable_wages" value="{{ job.ytd_taxable_wages }}"></p>
+          <p><label class="muted">YTD federal tax withheld</label><br>
+            <input class="field-input" name="j{{ loop.index0 }}_ytd_federal_tax_withheld" value="{{ job.ytd_federal_tax_withheld }}"></p>
+        </div>
+      </div></div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Household</h2>
+    <div class="body">
+      <div class="grid2">
+        <p><label class="muted">Filing status</label><br>
+          <select class="field-input" name="filing_status">
+            {% for value, label in filing_statuses %}<option value="{{ value }}" {{ 'selected' if hh.get('filing_status')==value }}>{{ label }}</option>{% endfor %}
+          </select></p>
+        <p><label class="muted">Tax year</label><br>
+          <select class="field-input" name="tax_year">
+            {% for y in years %}<option value="{{ y }}" {{ 'selected' if hh.get('tax_year', years[-1]|string)==y|string }}>{{ y }}</option>{% endfor %}
+          </select></p>
+      </div>
+
+      <h3>Other income <span class="muted" style="font-weight:normal">(annual; leave blank if none)</span></h3>
+      <div class="grid2">
+        {% for name, label in [('interest','Interest'),('ordinary_dividends','Ordinary dividends'),('qualified_dividends','Qualified dividends'),('long_term_capital_gains','Long-term capital gains'),('short_term_capital_gains','Short-term capital gains'),('self_employment_net','Self-employment net')] %}
+        <p><label class="muted">{{ label }}</label><br><input class="field-input" name="{{ name }}" value="{{ hh.get(name,'') }}"></p>
+        {% endfor %}
+      </div>
+
+      <h3>Deductions, credits &amp; goals</h3>
+      <div class="grid2">
+        {% for name, label in [('itemized_total','Itemized deductions (blank = standard)'),('extra_standard_deductions','Extra standard deductions (65+/blind)'),('child_tax_credit','Child tax credit'),('other_nonrefundable_credits','Other nonrefundable credits'),('estimated_tax_payments','Estimated tax payments'),('target_refund','Target refund'),('prior_year_tax','Prior-year tax (safe harbor)'),('prior_year_agi','Prior-year AGI')] %}
+        <p><label class="muted">{{ label }}</label><br><input class="field-input" name="{{ name }}" value="{{ hh.get(name,'') }}"></p>
+        {% endfor %}
+      </div>
+
+      <p style="margin-top:16px"><button class="btn primary" type="submit">Run estimate</button></p>
+    </div>
+  </div>
+</form>
+
+{% if result %}
+{% set b = result.breakdown %}
+{% set rec = result.recommendation %}
+<div class="panel">
+  <h2>Result — TY{{ result.tax_year_used }}
+    <a class="btn sm" style="float:right" href="{{ url_for('withholding.audit_tape') }}">⬇ Download audit tape (Excel)</a></h2>
+  <div class="body">
+    {% if rec.job_breakdown and rec.job_breakdown|length > 1 %}
+    <h3>Jobs ({{ rec.job_breakdown|length }})</h3>
+    <table class="lines" style="width:100%;margin-bottom:14px">
+      <tr><th style="text-align:left">Job</th><th>Frequency</th><th style="text-align:right">Projected wages</th><th style="text-align:right">Projected withholding</th></tr>
+      {% for j in rec.job_breakdown %}
+      <tr><td>{{ j.name or ('Job ' ~ loop.index) }}</td><td style="text-align:center">{{ j.pay_frequency }}</td>
+        <td style="text-align:right">{{ '${:,.0f}'.format(j.projected_taxable_wages) }}</td>
+        <td style="text-align:right">{{ '${:,.0f}'.format(j.projected_withholding) }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    <div class="grid2">
+      <div>
+        <h3>Projection (all jobs)</h3>
+        <table class="lines" style="width:100%">
+          <tr><td>Projected taxable wages</td><td style="text-align:right">{{ '${:,.0f}'.format(b.projected_taxable_wages) }}</td></tr>
+          <tr><td>Adjusted gross income</td><td style="text-align:right">{{ '${:,.0f}'.format(b.adjusted_gross_income) }}</td></tr>
+          <tr><td>{{ b.deduction_kind|capitalize }} deduction</td><td style="text-align:right">{{ '${:,.0f}'.format(b.deduction_used) }}</td></tr>
+          <tr><td>Taxable income</td><td style="text-align:right">{{ '${:,.0f}'.format(b.taxable_income) }}</td></tr>
+          <tr><td>Ordinary income tax</td><td style="text-align:right">{{ '${:,.0f}'.format(b.ordinary_income_tax) }}</td></tr>
+          <tr><td>Capital-gains tax</td><td style="text-align:right">{{ '${:,.0f}'.format(b.capital_gains_tax) }}</td></tr>
+          {% if b.self_employment_tax %}<tr><td>Self-employment tax</td><td style="text-align:right">{{ '${:,.0f}'.format(b.self_employment_tax) }}</td></tr>{% endif %}
+          {% if b.net_investment_income_tax %}<tr><td>Net investment income tax</td><td style="text-align:right">{{ '${:,.0f}'.format(b.net_investment_income_tax) }}</td></tr>{% endif %}
+          <tr><td><strong>Total tax liability</strong></td><td style="text-align:right"><strong>{{ '${:,.0f}'.format(b.total_tax_liability) }}</strong></td></tr>
+          <tr><td class="muted">Marginal / effective rate</td><td style="text-align:right" class="muted">{{ '{:.1%}'.format(b.marginal_rate) }} / {{ '{:.1%}'.format(b.effective_rate) }}</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>Recommendation</h3>
+        <table class="lines" style="width:100%">
+          <tr><td>Projected total payments</td><td style="text-align:right">{{ '${:,.0f}'.format(rec.projected_total_payments) }}</td></tr>
+          <tr><td>Projected balance</td><td style="text-align:right">
+            {% if rec.projected_balance >= 0 %}{{ '${:,.0f} refund'.format(rec.projected_balance) }}{% else %}{{ '${:,.0f} due'.format(-rec.projected_balance) }}{% endif %}</td></tr>
+          <tr><td><strong>Additional per period (W-4 4c)</strong></td><td style="text-align:right"><strong>{{ '${:,.2f}'.format(rec.additional_withholding_per_period) }}</strong></td></tr>
+          {% if rec.safe_harbor_additional_per_period is not none %}
+          <tr><td>Safe-harbor additional / period</td><td style="text-align:right">{{ '${:,.2f}'.format(rec.safe_harbor_additional_per_period) }}</td></tr>{% endif %}
+          <tr><td class="muted">{{ 'Over-withholding — consider reducing.' if rec.is_over_withholding else 'On track / under target.' }}</td><td></td></tr>
+        </table>
+        <p class="muted" style="margin-top:8px">Tuning {{ rec.adjusted_job_name or 'the selected job' }};
+          {{ rec.periods_remaining }} pay periods remaining.</p>
+      </div>
+    </div>
+    {% if result.notes %}
+    <h3>Notes</h3>
+    <ul class="muted" style="margin:0 0 0 18px">{% for n in result.notes %}<li>{{ n }}</li>{% endfor %}</ul>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if teach_layout %}
+<script id="ps-teach-data" type="application/json">{{ teach_layout|tojson }}</script>
+{% endif %}
+
+<div id="ps-modal" class="ps-modal">
+  <div class="ps-card">
+    <div class="ps-head">
+      <div>📍 <strong>Map your paystub</strong>
+        <span class="muted" style="font-weight:400">— click a field on the right, then click its number on the image. Once per employer; future stubs auto-fill.</span></div>
+      <button type="button" class="btn sm" onclick="psClose()">✕ Close</button>
+    </div>
+    <div class="ps-body">
+      <div class="ps-imgcol"><div id="ps-imgwrap" class="ps-imgwrap"></div></div>
+      <div class="ps-side">
+        <div class="muted" style="margin-bottom:6px">Click a field, then its number on the paystub. Click a number again to unselect.</div>
+        <div id="ps-fields"></div>
+        <p style="margin:10px 0 0"><label class="muted">Pay frequency</label><br>
+          <select id="ps-freq" class="field-input"></select></p>
+        <p style="margin:8px 0 0"><label class="muted">Profile name (employer)</label><br>
+          <input id="ps-name" class="field-input" placeholder="e.g. Acme Corp (ADP)"></p>
+        <form method="post" action="{{ url_for('withholding.paystub_teach') }}" id="ps-form" style="margin-top:12px">
+          <input type="hidden" name="words" id="ps-words-h">
+          <input type="hidden" name="assignments" id="ps-assign-h">
+          <input type="hidden" name="profile_name" id="ps-name-h">
+          <input type="hidden" name="pay_frequency" id="ps-freq-h">
+          <button class="btn primary" type="submit" onclick="return psSubmit()">💾 Save layout &amp; add job</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 22px; }
+.grid2 > p { margin:6px 0; }
+table.lines td, table.lines th { padding:3px 0; border-bottom:1px solid #eee; }
+.ps-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;overflow:auto}
+.ps-modal.open{display:block}
+.ps-card{background:#fff;max-width:1120px;margin:24px auto;border-radius:10px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.ps-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #eee}
+.ps-body{display:grid;grid-template-columns:1.5fr 1fr}
+@media(max-width:820px){.ps-body{grid-template-columns:1fr}}
+.ps-imgcol{max-height:76vh;overflow:auto;background:#f4f4f4;padding:10px}
+.ps-imgwrap{position:relative;display:block;width:100%}
+.ps-imgwrap img{display:block;width:100%}
+.ps-word{position:absolute;cursor:pointer;border:1px solid transparent;border-radius:2px}
+.ps-word:hover{background:rgba(212,175,55,.25)}
+.ps-word.assigned{background:rgba(212,175,55,.5);border-color:#b8860b}
+.ps-side{padding:14px;border-left:1px solid #eee}
+.ps-field{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid #eee;border-radius:6px;margin-bottom:6px;cursor:pointer}
+.ps-field.active{border-color:#b8860b;background:#fffbe9}
+.ps-field .v{color:#64748b;font-variant-numeric:tabular-nums}
+</style>
+
+<script>
+(function(){
+  var el=document.getElementById('ps-teach-data'); if(!el) return;
+  var data; try{ data=JSON.parse(el.textContent); }catch(e){ return; }
+  var modal=document.getElementById('ps-modal'), wrap=document.getElementById('ps-imgwrap');
+  var fieldsBox=document.getElementById('ps-fields'), freq=document.getElementById('ps-freq');
+  var assignments={}, activeKey=(data.targets[0]||{}).key||null;
+
+  var img=new Image(); img.src='data:image/png;base64,'+data.image; wrap.appendChild(img);
+  data.words.forEach(function(w,idx){
+    var d=document.createElement('div'); d.className='ps-word'; d.setAttribute('data-idx',idx);
+    d.style.left=(w.x0*100)+'%'; d.style.top=(w.y0*100)+'%';
+    d.style.width=((w.x1-w.x0)*100)+'%'; d.style.height=((w.y1-w.y0)*100)+'%';
+    d.title=w.text; d.onclick=function(){ toggle(idx); };
+    wrap.appendChild(d);
+  });
+  (data.frequencies||[]).forEach(function(f){
+    var o=document.createElement('option'); o.value=f; o.textContent=f; if(f==='biweekly')o.selected=true; freq.appendChild(o);
+  });
+  document.getElementById('ps-name').value=data.suggested_name||'';
+
+  function renderFields(){
+    fieldsBox.innerHTML='';
+    data.targets.forEach(function(t){
+      var row=document.createElement('div'); row.className='ps-field'+(t.key===activeKey?' active':'');
+      var val=(assignments[t.key]||[]).map(function(i){return data.words[i].text;}).join(' ');
+      row.innerHTML='<span>'+t.label+'</span><span class="v">'+(val||'— click image')+'</span>';
+      row.onclick=function(){ activeKey=t.key; renderFields(); };
+      fieldsBox.appendChild(row);
+    });
+  }
+  function highlight(){
+    var on={}; Object.keys(assignments).forEach(function(k){(assignments[k]||[]).forEach(function(i){on[i]=1;});});
+    wrap.querySelectorAll('.ps-word').forEach(function(d){ d.classList.toggle('assigned', !!on[d.getAttribute('data-idx')]); });
+  }
+  function toggle(idx){
+    if(activeKey===null) return;
+    var arr=assignments[activeKey]||(assignments[activeKey]=[]);
+    var p=arr.indexOf(idx); if(p>=0)arr.splice(p,1); else arr.push(idx);
+    renderFields(); highlight();
+  }
+  window.psSubmit=function(){
+    document.getElementById('ps-words-h').value=JSON.stringify(data.words);
+    document.getElementById('ps-assign-h').value=JSON.stringify(assignments);
+    document.getElementById('ps-name-h').value=document.getElementById('ps-name').value;
+    document.getElementById('ps-freq-h').value=freq.value;
+    return true;
+  };
+  window.psClose=function(){ modal.classList.remove('open'); };
+  renderFields(); modal.classList.add('open');
+})();
+</script>
+{% endblock %}

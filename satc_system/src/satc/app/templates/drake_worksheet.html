@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Drake entry worksheet — {{ state.name(client_id) }}</h2>
+  <div class="muted">Key these confirmed figures into Drake. SATC builds the workpaper; Drake stays the system of record.</div>
+</div>
+
+<div class="panel">
+  <h2>Client</h2>
+  <div class="body">
+    <div class="kv">
+      <div><b>Client</b> {{ state.name(client_id) }} <span class="mono muted">{{ client_id }}</span></div>
+      <div><b>SSN / EIN</b> {{ public_client.tin_masked if public_client else '—' }}</div>
+      <div><b>Filing status</b> {{ (public_client.filing_status if public_client else '') or '—' }}</div>
+      <div><b>State</b> {{ (public_client.home_state if public_client else '') or '—' }}</div>
+      <div><b>Tax year</b> {{ tax_year or '—' }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Figures to enter</h2>
+  <div class="body">
+    {% if lines %}
+    <table>
+      <tr><th>Schedule</th><th>Line</th><th>Item</th><th class="right">Amount</th><th>Source</th></tr>
+      {% for li in lines %}
+      <tr>
+        <td class="muted">{{ li.schedule }}</td>
+        <td class="mono">{{ li.line_code }}</td>
+        <td>{{ li.label }}</td>
+        <td class="right mono">{% if li.amount is not none %}{{ '{:,.2f}'.format(li.amount) }}{% else %}{{ li.text_value }}{% endif %}</td>
+        <td class="muted">{{ li.provenance.short_source() if li.provenance else '' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="note">No posted figures yet. Scan documents in Intake and post the confirmed values, then this worksheet fills in automatically.</p>
+    {% endif %}
+    <p style="margin-top:14px">
+      <button class="btn primary" type="button" onclick="window.print()">Print</button>
+      <a class="btn" href="{{ url_for('client', client_id=client_id) }}">← Back to client</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

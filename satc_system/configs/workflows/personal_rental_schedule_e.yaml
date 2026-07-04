@@ -1,0 +1,176 @@
+# Workflow: Personal rental Schedule E
+#
+# Ported from JS workflow `rentalPropertyTaxPrep` (renamed via `personalRentalScheduleE`).
+# NOTE: quote "yes"/"no" — bare yes/no are booleans in YAML and would break condition matching.
+key: personal_rental_schedule_e
+name: Personal rental Schedule E
+description: >-
+  Collect rental income, expense, asset, and ownership details for tax
+  preparation.
+engagement_type: personalRentalScheduleE
+client_type: person
+
+questions:
+  - id: purchasedThisYear
+    label: Was the property purchased this year?
+    type: boolean
+  - id: soldThisYear
+    label: Was the property sold this year?
+    type: boolean
+  - id: majorImprovements
+    label: Were there major improvements?
+    type: boolean
+  - id: personalUseDays
+    label: Were there personal-use days?
+    type: boolean
+  - id: shortTermRentalActivity
+    label: Was there short-term rental activity?
+    type: boolean
+  - id: outOfStateProperty
+    label: Is the property out of state?
+    type: boolean
+  - id: propertyManager
+    label: Was a property manager used?
+    type: boolean
+  - id: refinanceOrNewMortgage
+    label: Was there a refinance or new mortgage?
+    type: boolean
+  - id: casualtyLossOrInsuranceClaim
+    label: Was there a casualty loss or insurance claim?
+    type: boolean
+
+tasks:
+  - template_id: rental-request-rent-roll
+    title: Request rent roll and annual income summary
+    category: Document requests
+    audience: client
+    days_before_due: 18
+    doc_type: Rent roll
+    client_request_text: Request rent roll and annual income summary.
+
+  - template_id: rental-collect-mortgage-tax-statements
+    title: Collect mortgage interest and property tax statements
+    category: Document requests
+    audience: client
+    days_before_due: 16
+    doc_type: Mortgage interest and property tax statements
+    client_request_text: Collect mortgage interest and property tax statements.
+
+  - template_id: rental-gather-expense-documents
+    title: Gather repair, maintenance, utility, and insurance expenses
+    category: Document requests
+    audience: client
+    days_before_due: 14
+    doc_type: Expense records
+    client_request_text: Gather repair, maintenance, utility, and insurance expenses.
+
+  - template_id: rental-identify-improvements-repairs
+    title: Identify improvements versus repairs
+    category: Review
+    audience: internal
+    days_before_due: 12
+
+  - template_id: rental-confirm-personal-use-days
+    title: Confirm personal-use days and rental-use days
+    category: Client follow-up
+    audience: client
+    days_before_due: 10
+    doc_type: Personal-use day confirmation
+    client_request_text: Confirm personal-use days and rental-use days.
+
+  - template_id: rental-review-mileage-travel-management
+    title: Review mileage, travel, and management fees
+    category: Review
+    audience: internal
+    days_before_due: 8
+
+  - template_id: rental-update-depreciation-schedule
+    title: Update depreciation schedule for new assets or disposals
+    category: Adjustments
+    audience: internal
+    days_before_due: 5
+
+  - template_id: rental-prepare-tax-summary
+    title: Prepare rental property tax summary for review
+    category: Reporting
+    audience: internal
+    days_before_due: 0
+
+  - template_id: rental-collect-purchase-closing-statement
+    title: Collect closing statement and purchase allocation details
+    category: Document requests
+    audience: client
+    days_before_due: 15
+    doc_type: Closing statement
+    condition: {question_id: purchasedThisYear, equals: "yes"}
+    client_request_text: Collect closing statement and purchase allocation details.
+
+  - template_id: rental-collect-sale-closing-statement
+    title: Collect sale closing statement and calculate rental property disposition details
+    category: Document requests
+    audience: client
+    days_before_due: 15
+    doc_type: Closing statement
+    condition: {question_id: soldThisYear, equals: "yes"}
+    client_request_text: >-
+      Collect sale closing statement and calculate rental property disposition
+      details.
+
+  - template_id: rental-request-improvement-invoices
+    title: Request invoices and placed-in-service dates for major improvements
+    category: Document requests
+    audience: client
+    days_before_due: 13
+    doc_type: Improvement invoices
+    condition: {question_id: majorImprovements, equals: "yes"}
+    client_request_text: Request invoices and placed-in-service dates for major improvements.
+
+  - template_id: rental-review-personal-use-days
+    title: Document personal-use days and allocate mixed-use expenses
+    category: Review
+    audience: internal
+    days_before_due: 9
+    condition: {question_id: personalUseDays, equals: "yes"}
+
+  - template_id: rental-review-short-term-rental-activity
+    title: Review short-term rental days, services provided, and occupancy tax details
+    category: Compliance
+    audience: internal
+    days_before_due: 9
+    condition: {question_id: shortTermRentalActivity, equals: "yes"}
+
+  - template_id: rental-confirm-out-of-state-filing
+    title: Confirm nonresident state filing requirements for out-of-state property
+    category: Compliance
+    audience: internal
+    days_before_due: 8
+    condition: {question_id: outOfStateProperty, equals: "yes"}
+
+  - template_id: rental-request-property-manager-statement
+    title: Request property manager annual statement and fee detail
+    category: Document requests
+    audience: client
+    days_before_due: 7
+    doc_type: Property manager statement
+    condition: {question_id: propertyManager, equals: "yes"}
+    client_request_text: Request property manager annual statement and fee detail.
+
+  - template_id: rental-collect-refinance-mortgage-documents
+    title: Collect refinance or new mortgage closing costs and loan terms
+    category: Document requests
+    audience: client
+    days_before_due: 6
+    doc_type: Refinance closing documents
+    condition: {question_id: refinanceOrNewMortgage, equals: "yes"}
+    client_request_text: Collect refinance or new mortgage closing costs and loan terms.
+
+  - template_id: rental-gather-casualty-insurance-documents
+    title: Gather casualty loss records, insurance claim documents, and reimbursements
+    category: Document requests
+    audience: client
+    days_before_due: 6
+    doc_type: Casualty loss and insurance documents
+    condition: {question_id: casualtyLossOrInsuranceClaim, equals: "yes"}
+    client_request_text: >-
+      Gather casualty loss records, insurance claim documents, and
+      reimbursements.

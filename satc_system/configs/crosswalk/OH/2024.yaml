@@ -1,0 +1,57 @@
+meta:
+  tax_year: 2024
+  jurisdiction: OH
+  source_label: "Ohio Rev. Code 5747; Ohio Dept. of Taxation IT 1040 (2024)"
+  retrieved: "2026-06-17"
+  status: in_force
+  notes: >
+    Ohio individual income tax 2024. Ohio taxes nonbusiness income on a graduated
+    schedule and business income via the Business Income Deduction + flat 3% rate.
+    No standard deduction; uses personal/dependent exemptions tiered by Ohio MAGI.
+
+parameters:
+  has_standard_deduction:
+    value: false
+    citation: "Ohio Rev. Code 5747.01 et seq."
+
+  brackets_nonbusiness:
+    value:
+      - {rate: 0.00, up_to: 26050}
+      - {rate: 0.0275, up_to: 100000}
+      - {rate: 0.035, up_to: null}
+    citation: "Ohio Rev. Code 5747.02 (2024 schedule); ODT IT 1040 instructions"
+
+  personal_exemption_tiers:
+    value:
+      - {oh_magi_up_to: 40000, amount: 2400}
+      - {oh_magi_up_to: 80000, amount: 2150}
+      - {oh_magi_up_to: null, amount: 1900}
+    unit: usd
+    citation: "Ohio Rev. Code 5747.025"
+
+  business_income_deduction_max:
+    value: {default: 250000, mfs: 125000}
+    unit: usd
+    citation: "Ohio Rev. Code 5747.01(A)(31) (BID)"
+  business_income_rate_above_bid:
+    value: 0.03
+    unit: ratio
+    citation: "Ohio Rev. Code 5747.02(A)(4) (flat 3% on business income over the BID)"
+
+  joint_filing_credit_max:
+    value: 650
+    unit: usd
+    citation: "Ohio Rev. Code 5747.05(G) (max $650; rate by Ohio taxable income)"
+
+  apportionment_method:
+    value: single_sales_factor
+    citation: "Ohio CAT / municipal net profit; OH pass-through apportionment (sales factor)"
+
+  pte_tax_rate:
+    value: 0.0275
+    unit: ratio
+    status: in_force
+    pending_reason: >
+      Ohio elective pass-through entity (IT 4738) tax rate for 2024 (3.0% for 2022,
+      reduced thereafter). Verify the exact 2024 IT 4738 rate before relying on it.
+    citation: "Ohio Rev. Code 5747.38 (electing PTE)"

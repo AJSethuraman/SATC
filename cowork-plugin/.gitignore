@@ -1,0 +1,6 @@
+# Regenerable build artifacts — commit the source (skills, server, manifests), not these.
+*.mcpb
+*.plugin
+.mcp.json
+__pycache__/
+*.pyc

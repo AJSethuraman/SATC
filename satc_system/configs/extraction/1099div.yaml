@@ -1,0 +1,8 @@
+doc_type: "1099-DIV"
+fields:
+  - {field_path: div.box1a_ordinary,   label: "Box 1a - Total ordinary dividends", aliases: ["ordinary dividends"], money: true}
+  - {field_path: div.box1b_qualified,  label: "Box 1b - Qualified dividends", aliases: ["qualified dividends"], money: true}
+  - {field_path: div.box2a_capgain,    label: "Box 2a - Total capital gain distr", money: true}
+  - {field_path: div.box4_fed_wh,      label: "Box 4 - Federal income tax withheld", money: true}
+  - {field_path: div.payer_name,       label: "Payer name", money: false}
+  - {field_path: div.payer_tin,        label: "Payer TIN", money: false, sensitive: true}

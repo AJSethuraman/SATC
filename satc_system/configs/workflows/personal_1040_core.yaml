@@ -1,0 +1,201 @@
+# Workflow: Personal 1040 core
+#
+# REFERENCE CONFIG — defines the schema every workflow follows.
+#   key/name/description/engagement_type/client_type   — identity
+#   questions[]: id, label, type ("boolean"), risk_flag (raised when answered "yes"),
+#                change_label (optional "what changed?" phrasing shown to RETURNING clients)
+#
+# The `newSatcClient` question is the NEW-vs-RETURNING gate: the interview asks it
+# first (outside the question table) and branches on it — new clients answer the
+# full set; returning clients confirm only what changed, pre-filled from last year.
+#   tasks[]:     template_id (stable; preserves progress on regen), title, category,
+#                audience ("client" | "internal"), days_before_due (offset from due date),
+#                condition (optional gate against answers), doc_type (for received-matching),
+#                client_request_text / accepted_alternatives / why_needed / internal_instructions
+#
+# NOTE: quote "yes"/"no" — bare yes/no are booleans in YAML and would break condition matching.
+key: personal_1040_core
+name: Personal 1040 core
+description: >-
+  Core individual return intake with precise document branches and
+  relationship-aware K-1 reminders.
+engagement_type: personal1040Core
+client_type: person
+
+questions:
+  - id: newSatcClient
+    label: New SAT-C client?
+    type: boolean
+  - id: householdChanges
+    label: Filing status, spouse, dependent, custody, or childcare changes?
+    type: boolean
+    change_label: Any change to filing status, spouse, dependents, custody, or childcare?
+  - id: movedStates
+    label: Moved states during the year?
+    type: boolean
+    change_label: Moved to a different state since last year?
+  - id: marketplaceInsurance
+    label: Marketplace health insurance coverage?
+    type: boolean
+    risk_flag: Marketplace Form 1095-A required
+    change_label: Any change to Marketplace (healthcare.gov) coverage this year?
+  - id: educationExpenses
+    label: Education expenses or scholarship activity?
+    type: boolean
+  - id: retirementDistributions
+    label: Retirement distributions or IRA activity?
+    type: boolean
+  - id: hsaActivity
+    label: HSA or MSA activity?
+    type: boolean
+  - id: brokerageActivity
+    label: Brokerage sales or investment activity?
+    type: boolean
+  - id: digitalAssets
+    label: Digital asset or crypto activity?
+    type: boolean
+    risk_flag: Crypto / digital asset activity
+  - id: foreignAccounts
+    label: Foreign accounts or foreign financial assets?
+    type: boolean
+    risk_flag: Foreign accounts / FBAR review
+  - id: homeTransaction
+    label: Home purchase, sale, or refinance?
+    type: boolean
+  - id: expectedK1s
+    label: Expected S-corp or partnership K-1s?
+    type: boolean
+
+tasks:
+  - template_id: personal-1040-upload-w2-1099-core
+    title: Collect core income documents
+    category: Core documents
+    audience: client
+    days_before_due: 21
+    doc_type: Core income documents
+    client_request_text: >-
+      Upload Forms W-2, 1099-INT, 1099-DIV, 1099-B, 1099-G, and any other income
+      forms received.
+    accepted_alternatives: Organizer upload or secure portal batch upload.
+    why_needed: Core tax reporting documents are needed to prepare the Form 1040.
+    internal_instructions: Reconcile uploaded tax forms to organizer income sections.
+
+  - template_id: personal-1040-request-prior-year-returns
+    title: Request prior-year returns
+    category: Prior year
+    audience: client
+    days_before_due: 20
+    doc_type: Prior-year return
+    condition: {question_id: newSatcClient, equals: "yes"}
+    client_request_text: >-
+      Upload prior-year federal and state tax returns, carryforward schedules, and
+      any IRS or state notices received during the year.
+    internal_instructions: >-
+      Map carryforwards, state residency, depreciation, capital loss, passive loss,
+      and open notice issues.
+
+  - template_id: personal-1040-household-change-documents
+    title: Request household change support
+    category: Household
+    audience: client
+    days_before_due: 18
+    doc_type: Household change support
+    condition: {question_id: householdChanges, equals: "yes"}
+    client_request_text: >-
+      Provide spouse and dependent names, SSNs, dates of birth, childcare provider
+      tax ID details, and any divorce, separation, custody, or support documents
+      affecting filing.
+
+  - template_id: personal-1040-state-move-support
+    title: Request state move support
+    category: State filing
+    audience: client
+    days_before_due: 18
+    doc_type: State move support
+    condition: {question_id: movedStates, equals: "yes"}
+    client_request_text: >-
+      Provide move dates, state-by-state wage or income breakdowns, and copies of
+      any state tax notices.
+    internal_instructions: Review part-year and nonresident filing requirements.
+
+  - template_id: personal-1040-marketplace-1095a
+    title: Request Marketplace Form 1095-A
+    category: Credits
+    audience: client
+    days_before_due: 16
+    doc_type: 1095-A
+    condition: {question_id: marketplaceInsurance, equals: "yes"}
+    client_request_text: Upload Form 1095-A for Marketplace coverage.
+    internal_instructions: Reconcile premium tax credit and flag missing 1095-A before filing.
+
+  - template_id: personal-1040-education-1098t
+    title: Request education support
+    category: Credits
+    audience: client
+    days_before_due: 16
+    doc_type: 1098-T
+    condition: {question_id: educationExpenses, equals: "yes"}
+    client_request_text: >-
+      Upload Form 1098-T, scholarship or grant details, and proof of out-of-pocket
+      qualified education expenses.
+
+  - template_id: personal-1040-retirement-hsa-documents
+    title: Request retirement and HSA forms
+    category: Retirement and HSA
+    audience: client
+    days_before_due: 15
+    doc_type: 1099-R / 5498
+    condition:
+      any:
+        - {question_id: retirementDistributions, equals: "yes"}
+        - {question_id: hsaActivity, equals: "yes"}
+    client_request_text: >-
+      Upload Forms 1099-R and 5498 for retirement activity, plus Forms 1099-SA and
+      5498-SA for HSA or MSA activity.
+
+  - template_id: personal-1040-brokerage-crypto-documents
+    title: Request brokerage and digital asset support
+    category: Investments
+    audience: client
+    days_before_due: 14
+    doc_type: Brokerage 1099 / crypto exports
+    condition:
+      any:
+        - {question_id: brokerageActivity, equals: "yes"}
+        - {question_id: digitalAssets, equals: "yes"}
+    client_request_text: >-
+      Upload your consolidated brokerage 1099 package, realized gain detail, basis
+      support, and crypto exchange transaction exports or CSV files.
+
+  - template_id: personal-1040-foreign-account-details
+    title: Request foreign account details
+    category: Foreign reporting
+    audience: client
+    days_before_due: 14
+    doc_type: Foreign account details
+    condition: {question_id: foreignAccounts, equals: "yes"}
+    client_request_text: >-
+      Provide foreign account institution names, countries, account types, account
+      numbers, and maximum balances during the year.
+    internal_instructions: Evaluate FBAR and Form 8938 thresholds.
+
+  - template_id: personal-1040-home-closing-disclosure
+    title: Request home closing support
+    category: Home activity
+    audience: client
+    days_before_due: 14
+    doc_type: Closing disclosure
+    condition: {question_id: homeTransaction, equals: "yes"}
+    client_request_text: >-
+      Upload closing disclosure for any home purchase, sale, or refinance, including
+      Form 1098 or Form 1099-S if received.
+
+  - template_id: personal-1040-request-k1s
+    title: Request passthrough K-1s
+    category: Passthrough income
+    audience: client
+    days_before_due: 12
+    doc_type: K-1
+    condition: {question_id: expectedK1s, equals: "yes"}
+    client_request_text: Upload all S-corp and partnership K-1s as they become available.
+    internal_instructions: Review passive activity, state K-1s, and basis support needs.

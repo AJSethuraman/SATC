@@ -1,0 +1,174 @@
+meta:
+  return_type: "1040"
+  title: "Form 1040 — Individual Income Tax Workpaper"
+  subtitle: "Workpaper only — Drake is the system of record. Every figure ties to a confirmed source document or a prior-year carryforward."
+
+sections:
+  - title: "Filing status & dependents"
+    rows:
+      - {id: filing_status, kind: input_text, label: "Filing status (SINGLE / MFJ / MFS / HOH / QSS)", source: "Organizer; prior-year 1040", fmt: text}
+      - {id: dependents_count, kind: input_num, label: "Total dependents", source: "Organizer", fmt: num}
+      - {id: ctc_children, kind: input_num, label: "Qualifying children under 17 (CTC)", source: "Organizer / dependents", fmt: num}
+      - {id: taxpayer_65_blind, kind: input_num, label: "Count: taxpayer/spouse age 65+ or blind", source: "Organizer", fmt: num}
+      - {kind: note, label: "Confirm dependent SSNs and relationship in the vault — not stored here."}
+
+  - title: "Income — wages, interest & dividends"
+    rows:
+      - {id: wages, kind: input, label: "Wages (sum of all W-2 box 1)", source: "W-2 box 1 (confirmed)"}
+      - {id: fed_wh_w2, kind: input, label: "Federal withholding (W-2 box 2)", source: "W-2 box 2"}
+      - {id: ss_wages, kind: input, label: "Social Security wages (W-2 box 3)", source: "W-2 box 3"}
+      - {id: ss_wage_base, kind: xwlink, label: "  SS wage base (reference)", formula: "[XW US ss_wage_base]", source: "Tax Law reference"}
+      - {id: ss_wage_check, kind: crosscheck, label: "  Cross-check: SS wages should not exceed the wage base", formula: "MAX(0,{ss_wages}-{ss_wage_base})"}
+      - {id: interest, kind: input, label: "Taxable interest (Sch B)", source: "1099-INT box 1"}
+      - {id: dividends_ord, kind: input, label: "Ordinary dividends (Sch B)", source: "1099-DIV box 1a"}
+      - {id: dividends_qual, kind: input, label: "  of which qualified dividends", source: "1099-DIV box 1b"}
+      - {id: qual_div_check, kind: crosscheck, label: "  Cross-check: qualified ≤ ordinary dividends", formula: "MAX(0,{dividends_qual}-{dividends_ord})"}
+
+  - title: "Schedule C — business income (with depreciation)"
+    rows:
+      - {id: sch_c_gross, kind: input, label: "Gross receipts", source: "Books / 1099-NEC / 1099-K"}
+      - {id: sch_c_expenses, kind: input, label: "Total expenses (excl. auto & §179)", source: "Books"}
+      - {id: sch_c_miles, kind: input_num, label: "Business miles", source: "Mileage log", fmt: num}
+      - {id: mileage_rate, kind: xwlink, label: "  Standard mileage rate", formula: "[XW US mileage_business]", source: "Tax Law reference", fmt: rate}
+      - {id: sch_c_auto, kind: computed, label: "  Auto expense (standard mileage)", formula: "{sch_c_miles}*{mileage_rate}"}
+      - {id: sec179_taken, kind: input, label: "§179 expense elected (per Drake/fixed assets)", source: "Fixed-asset schedule"}
+      - {id: sec179_limit, kind: xwlink, label: "  §179 annual limit (reference)", formula: "[XW US sec179_limit]", source: "Tax Law reference"}
+      - {id: sec179_check, kind: crosscheck, label: "  Cross-check: §179 elected within annual limit", formula: "MAX(0,{sec179_taken}-{sec179_limit})"}
+      - {id: sch_c_depr_other, kind: input, label: "Other depreciation (MACRS/bonus, per Drake)", source: "Drake depreciation (system of record)"}
+      - {id: sch_c_net, kind: total, label: "Schedule C net profit / (loss)", formula: "{sch_c_gross}-{sch_c_expenses}-{sch_c_auto}-{sec179_taken}-{sch_c_depr_other}"}
+
+  - title: "Schedule D / 8949 — capital gains (with basis)"
+    rows:
+      - {id: cap_st_proceeds, kind: input, label: "Short-term proceeds", source: "1099-B"}
+      - {id: cap_st_basis, kind: input, label: "Short-term basis", source: "1099-B / broker / basis records"}
+      - {id: cap_st_gain, kind: computed, label: "  Short-term gain / (loss)", formula: "{cap_st_proceeds}-{cap_st_basis}"}
+      - {id: cap_lt_proceeds, kind: input, label: "Long-term proceeds", source: "1099-B"}
+      - {id: cap_lt_basis, kind: input, label: "Long-term basis", source: "1099-B / broker / basis records"}
+      - {id: cap_lt_gain, kind: computed, label: "  Long-term gain / (loss)", formula: "{cap_lt_proceeds}-{cap_lt_basis}"}
+      - {id: cap_loss_cf, kind: cflink, label: "  Capital loss carryforward applied (from data mart)", formula: "-[CF CAP_LOSS_LT]-[CF CAP_LOSS_ST]", source: "Prior-year carryforward"}
+      - {id: cap_gain_net, kind: total, label: "Net capital gain / (loss) for the year", formula: "{cap_st_gain}+{cap_lt_gain}+{cap_loss_cf}"}
+
+  - title: "Schedule E — rentals & K-1 flow-in"
+    rows:
+      - {id: rental_income, kind: input, label: "Rental income", source: "Books / leases"}
+      - {id: rental_expenses, kind: input, label: "Rental expenses (incl. depreciation per Drake)", source: "Books / Drake depreciation"}
+      - {id: rental_net, kind: computed, label: "  Rental net income / (loss)", formula: "{rental_income}-{rental_expenses}"}
+      - {id: k1_ordinary, kind: input, label: "K-1 ordinary business income (1120-S/1065)", source: "K-1 box 1 (confirmed)"}
+      - {id: k1_rental_other, kind: input, label: "K-1 rental / other income", source: "K-1 boxes 2-3"}
+      - {id: passive_loss_cf, kind: cflink, label: "  Suspended passive loss allowed (from data mart)", formula: "-[CF PASSIVE_LOSS]", source: "Prior-year carryforward"}
+      - {id: sch_e_net, kind: total, label: "Schedule E total", formula: "{rental_net}+{k1_ordinary}+{k1_rental_other}+{passive_loss_cf}"}
+
+  - title: "Retirement, Social Security & other income"
+    rows:
+      - {id: retirement_taxable, kind: input, label: "Taxable IRA / pension (1099-R)", source: "1099-R box 2a"}
+      - {id: ss_benefits, kind: input, label: "Social Security benefits received", source: "SSA-1099 box 5"}
+      - {id: ss_taxable, kind: input, label: "  Taxable amount (per Drake worksheet)", source: "Drake SS worksheet"}
+      - {id: ss_taxable_check, kind: crosscheck, label: "  Cross-check: taxable SS ≤ 85% of benefits", formula: "MAX(0,{ss_taxable}-0.85*{ss_benefits})"}
+      - {id: other_income, kind: input, label: "Other income (1099-G, 1099-MISC, etc.)", source: "1099 forms"}
+
+  - title: "Total income, adjustments & AGI"
+    rows:
+      - {id: total_income, kind: total, label: "Total income", formula: "{wages}+{interest}+{dividends_ord}+{sch_c_net}+{cap_gain_net}+{sch_e_net}+{retirement_taxable}+{ss_taxable}+{other_income}"}
+      - {id: adj_hsa, kind: input, label: "Adjustment: HSA deduction", source: "5498-SA / records"}
+      - {id: adj_se_tax, kind: input, label: "Adjustment: 1/2 SE tax (per Drake)", source: "Drake Sch SE"}
+      - {id: adj_other, kind: input, label: "Adjustment: other (IRA, SE health, student loan)", source: "Organizer"}
+      - {id: adjustments, kind: computed, label: "Total adjustments to income", formula: "{adj_hsa}+{adj_se_tax}+{adj_other}"}
+      - {id: agi, kind: total, label: "Adjusted gross income (AGI)", formula: "{total_income}-{adjustments}"}
+
+  - title: "Deductions — Schedule A vs standard"
+    rows:
+      - {id: sch_a_medical, kind: input, label: "Medical (over 7.5% AGI floor, net)", source: "Receipts"}
+      - {id: sch_a_salt, kind: input, label: "State & local taxes (capped)", source: "W-2/1099/property tax"}
+      - {id: salt_cap, kind: xwlink, label: "  SALT deduction cap (reference)", formula: "[XW US salt_deduction_cap]", source: "Tax Law reference"}
+      - {id: salt_check, kind: crosscheck, label: "  Cross-check: SALT claimed within cap", formula: "MAX(0,{sch_a_salt}-{salt_cap})"}
+      - {id: sch_a_interest, kind: input, label: "Home mortgage interest", source: "1098 box 1"}
+      - {id: sch_a_charity, kind: input, label: "Charitable contributions (current year)", source: "Receipts / acknowledgments"}
+      - {id: charity_cf, kind: cflink, label: "  Charitable carryover applied (from data mart)", formula: "[CF CHARITABLE]", source: "Prior-year carryforward"}
+      - {id: sch_a_total, kind: total, label: "Total itemized deductions (Schedule A)", formula: "{sch_a_medical}+{sch_a_salt}+{sch_a_interest}+{sch_a_charity}+{charity_cf}"}
+      - {id: std_ded, kind: xwfs, label: "Standard deduction (by filing status)", param: standard_deduction, fs_line: filing_status, source: "Tax Law reference"}
+      - {id: deduction_used, kind: total, label: "Deduction used (greater of itemized / standard)", formula: "MAX({sch_a_total},{std_ded})"}
+      - {kind: note, label: "If standard is greater, file standard; if itemized is greater, attach Schedule A."}
+
+  - title: "QBI (§199A) & taxable income"
+    rows:
+      - {id: qbi_threshold, kind: xwfs, label: "QBI taxable-income threshold (by filing status)", param: qbi_threshold, fs_line: filing_status, source: "Tax Law reference"}
+      - {id: qbi_deduction, kind: input, label: "QBI deduction (per Drake §199A worksheet)", source: "Drake 199A (system of record)"}
+      - {id: qbi_loss_cf, kind: cflink, label: "  QBI loss carryforward (from data mart)", formula: "[CF QBI_LOSS]", source: "Prior-year carryforward"}
+      - {id: taxable_income, kind: total, label: "Taxable income", formula: "MAX(0,{agi}-{deduction_used}-{qbi_deduction})"}
+      - {kind: note, label: "Above the threshold, confirm the SSTB / W-2-wage limitation flows from Drake."}
+
+  - title: "Tax, credits & payments (reconcile to Drake)"
+    rows:
+      - {id: tax_per_drake, kind: input, label: "Income tax (per Drake)", source: "Drake 1040 line 16+"}
+      - {id: se_tax, kind: input, label: "Self-employment tax (per Drake)", source: "Drake Sch SE"}
+      - {id: ctc_per_child, kind: xwlink, label: "  CTC per qualifying child (reference)", formula: "[XW US ctc_per_child]", source: "Tax Law reference"}
+      - {id: ctc_potential, kind: computed, label: "  Potential CTC (children x per-child)", formula: "{ctc_children}*{ctc_per_child}"}
+      - {id: ctc_claimed, kind: input, label: "Child tax credit claimed (per Drake)", source: "Drake Sch 8812"}
+      - {id: ctc_check, kind: crosscheck, label: "  Cross-check: CTC claimed ≤ potential CTC", formula: "MAX(0,{ctc_claimed}-{ctc_potential})"}
+      - {id: eitc_claimed, kind: input, label: "Earned income credit (per Drake)", source: "Drake EIC — see §8867 below"}
+      - {id: education_credit, kind: input, label: "Education credits (1098-T)", source: "1098-T / Drake 8863"}
+      - {id: energy_credit, kind: input, label: "Energy credits (5695)", source: "Receipts / Drake 5695"}
+      - {id: total_credits, kind: computed, label: "Total credits", formula: "{ctc_claimed}+{eitc_claimed}+{education_credit}+{energy_credit}"}
+      - {id: total_tax, kind: total, label: "Total tax", formula: "MAX(0,{tax_per_drake}+{se_tax}-{total_credits})"}
+      - {id: fed_est_payments, kind: input, label: "Federal estimated payments made", source: "Estimated-payment history (data mart)"}
+      - {id: prior_overpayment, kind: cflink, label: "  Prior-year overpayment applied", formula: "[CF FEDERAL_OVERPAYMENT_APPLIED]", source: "Prior-year carryforward"}
+      - {id: total_payments, kind: total, label: "Total payments & withholding", formula: "{fed_wh_w2}+{fed_est_payments}+{prior_overpayment}"}
+      - {id: refund_or_due_wp, kind: total, label: "Workpaper refund / (balance due)", formula: "{total_payments}-{total_tax}"}
+
+  - title: "Estimates & prior-year safe harbor"
+    rows:
+      - {id: prior_year_tax, kind: input, label: "Prior-year total tax", source: "Prior-year 1040 / data mart"}
+      - {id: prior_year_agi, kind: input, label: "Prior-year AGI", source: "Prior-year 1040 / data mart"}
+      - {id: high_agi_threshold, kind: xwlink, label: "  High-AGI threshold", formula: "[XW US est_tax_high_agi_threshold]", source: "Tax Law reference"}
+      - {id: sh_pct_std, kind: xwlink, label: "  Safe-harbor % (prior-year)", formula: "[XW US est_tax_safe_harbor_pct_prior]", source: "Tax Law reference", fmt: pct}
+      - {id: sh_pct_high, kind: xwlink, label: "  Safe-harbor % (high AGI)", formula: "[XW US est_tax_safe_harbor_pct_prior_high_agi]", source: "Tax Law reference", fmt: pct}
+      - {id: required_safe_harbor, kind: computed, label: "Required prior-year safe-harbor payment", formula: "{prior_year_tax}*IF({prior_year_agi}>{high_agi_threshold},{sh_pct_high},{sh_pct_std})"}
+      - {id: underpayment_flag, kind: crosscheck, label: "Underpayment vs safe harbor (should be 0)", formula: "MAX(0,MIN({required_safe_harbor},0.9*{total_tax})-{total_payments})"}
+
+  - title: "State return & residency"
+    rows:
+      - {id: state_code, kind: input_text, label: "Resident state (OH / MI / MA / ...)", source: "Vault home state", fmt: text}
+      - {id: residency, kind: input_text, label: "Residency (FULL_YEAR / PART_YEAR / NONRESIDENT)", source: "Organizer", fmt: text}
+      - {id: state_agi_start, kind: computed, label: "State AGI starting point (federal AGI)", formula: "{agi}"}
+      - {id: state_additions, kind: input, label: "State additions", source: "State schedule"}
+      - {id: state_subtractions, kind: input, label: "State subtractions (e.g., retirement, muni)", source: "State schedule"}
+      - {id: state_taxable, kind: computed, label: "State taxable income (before exemptions)", formula: "{state_agi_start}+{state_additions}-{state_subtractions}"}
+      - {id: state_tax_per_drake, kind: input, label: "State tax (per Drake)", source: "Drake state return"}
+      - {id: state_wh, kind: input, label: "State withholding (W-2 box 17)", source: "W-2 box 17"}
+      - {id: state_est, kind: input, label: "State estimated payments", source: "Estimated-payment history"}
+      - {id: state_overpay_cf, kind: cflink, label: "  State overpayment applied (from data mart)", formula: "[CF STATE_OVERPAYMENT_APPLIED]", source: "Prior-year carryforward"}
+      - {id: state_refund_or_due_wp, kind: total, label: "Workpaper state refund / (balance due)", formula: "{state_wh}+{state_est}+{state_overpay_cf}-{state_tax_per_drake}"}
+      - {kind: note, label: "Part-year / nonresident: confirm allocation & apportionment on the state schedule (see state Tax Law reference)."}
+
+  - title: "§8867 EITC paid-preparer due diligence (gating)"
+    rows:
+      - {kind: note, label: "All items must be Done (or N/A) before EITC may be claimed. Exceptions block 'ready to file'."}
+      - {id: dd_eligibility, kind: review, label: "1. Determined eligibility from client-provided info; no knowledge it is incorrect.", gating: true}
+      - {id: dd_computation, kind: review, label: "2. Computed the credit using the applicable worksheet (Drake).", gating: true}
+      - {id: dd_knowledge, kind: review, label: "3. Made reasonable inquiries for incomplete/inconsistent info; documented them.", gating: true}
+      - {id: dd_qc_residency, kind: review, label: "4. Verified qualifying-child residency & relationship.", gating: true}
+      - {id: dd_records, kind: review, label: "5. Retained records / Form 8867 / worksheets as required.", gating: true}
+      - {id: dd_recompute_risk, kind: review, label: "6. Confirmed no disallowance/ban history that would prevent the claim.", gating: true}
+
+  - title: "Document tie-out checklist"
+    rows:
+      - {kind: note, label: "Every figure above must trace to a confirmed document (data repository) or a prior-year carryforward."}
+      - {id: tie_w2, kind: review, label: "All W-2s received & confirmed (matches wages above).", source: "Documents repository"}
+      - {id: tie_1099, kind: review, label: "All 1099s (INT/DIV/B/R/NEC) received & confirmed.", source: "Documents repository"}
+      - {id: tie_k1, kind: review, label: "All K-1s received & confirmed (matches Sch E above).", source: "Documents repository"}
+      - {id: tie_basis, kind: review, label: "Capital gains basis documented (no 'basis not reported' gaps).", source: "Broker / records"}
+      - {id: tie_prior, kind: review, label: "Prior-year return & carryforwards reconciled to the data mart.", source: "Data mart"}
+      - {id: tie_8879, kind: review, label: "Form 8879 e-file authorization obtained before transmission.", source: "Signed 8879"}
+
+  - title: "Reconciliation to Drake output"
+    rows:
+      - {kind: note, label: "Enter Drake's figures; differences must tie to 0 and be signed off."}
+      - {id: drake_agi, kind: input, label: "Drake AGI", source: "Drake 1040 / Tax Return Comparison"}
+      - {id: rec_agi, kind: crosscheck, label: "  Difference: workpaper AGI vs Drake AGI", formula: "{agi}-{drake_agi}"}
+      - {id: drake_taxable, kind: input, label: "Drake taxable income", source: "Drake 1040"}
+      - {id: rec_taxable, kind: crosscheck, label: "  Difference: workpaper taxable income vs Drake", formula: "{taxable_income}-{drake_taxable}"}
+      - {id: drake_total_tax, kind: input, label: "Drake total tax", source: "Drake 1040"}
+      - {id: rec_total_tax, kind: crosscheck, label: "  Difference: workpaper total tax vs Drake", formula: "{total_tax}-{drake_total_tax}"}
+      - {id: drake_refund, kind: input, label: "Drake federal refund / (balance due)", source: "Drake Filing Instructions"}
+      - {id: rec_refund, kind: crosscheck, label: "  Difference: workpaper vs Drake refund/(due)", formula: "{refund_or_due_wp}-{drake_refund}"}
+      - {id: signoff_preparer, kind: review, label: "Preparer sign-off: workpaper reconciles to Drake.", gating: true}

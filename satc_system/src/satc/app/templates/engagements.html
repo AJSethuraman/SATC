@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Engagements</h2>
+  <div class="muted">Client interviews turned into checklists — what we asked for, and what's come in.</div>
+</div>
+
+<div class="panel">
+  <h2>Generated engagements</h2>
+  <div class="body">
+    <p style="margin-bottom:14px">
+      <a class="btn primary" href="{{ url_for('intake.new_client') }}">+ New client</a>
+      <a class="btn" href="{{ url_for('intake.import_clients') }}">Import clients</a>
+      <a class="btn" href="{{ url_for('intake.new_engagement') }}">New engagement</a>
+    </p>
+    {% if engagements %}
+    <table>
+      <tr><th>Client</th><th>Workflow</th><th>Tax year</th><th>Due</th><th>Tasks</th><th>Risk flags</th><th class="right"></th></tr>
+      {% for e in engagements %}
+      <tr>
+        <td><a href="{{ url_for('intake.engagement_detail', engagement_id=e.engagement_id) }}">{{ state.name(e.client_id) }}</a></td>
+        <td>{{ e.workflow_key }}</td>
+        <td>{{ e.tax_year or '—' }}</td>
+        <td>{{ e.due_date or '—' }}</td>
+        <td>{{ e.tasks | selectattr('completed') | list | length }}/{{ e.tasks | length }} done</td>
+        <td class="muted">{{ e.risk_flags | join(', ') or '—' }}</td>
+        <td class="right"><a class="btn sm" href="{{ url_for('intake.engagement_detail', engagement_id=e.engagement_id) }}">Open →</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="note">No engagements yet. Start with <strong>+ New client</strong>, or open <strong>New engagement</strong> to pick an existing client.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

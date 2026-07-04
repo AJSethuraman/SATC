@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SATC — {{ title }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='satc.css') }}">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brandbar">
+      <span class="seal">S</span><span class="wordmark">SETHURAMAN</span>
+      <div class="subtag">ACCOUNTING · TAX · CONSULTING</div>
+    </div>
+    <nav class="nav">
+      <a href="{{ url_for('dashboard') }}" class="{{ 'active' if title=='Dashboard' }}"><span class="ic">▦</span> Dashboard</a>
+      <a href="{{ url_for('intake') }}" class="{{ 'active' if title=='Intake' }}"><span class="ic">⤓</span> Intake</a>
+      <a href="{{ url_for('sort') }}" class="{{ 'active' if 'Sort' in title }}"><span class="ic">⇅</span> Sort &amp; re-label</a>
+      <a href="{{ url_for('staging') }}" class="{{ 'active' if 'Staging' in title }}"><span class="ic">✓</span> Staging</a>
+      <a href="{{ url_for('documents') }}" class="{{ 'active' if title=='Documents' }}"><span class="ic">▤</span> Documents
+        {% if outstanding %}<span class="pill">{{ outstanding }}</span>{% endif %}</a>
+      <a href="{{ url_for('clients_index') }}" class="{{ 'active' if title=='Clients' }}"><span class="ic">◷</span> Clients</a>
+      <a href="{{ url_for('intake.engagements') }}" class="{{ 'active' if title in ['Engagements','New client','Intake'] }}"><span class="ic">☑</span> Engagements</a>
+      <a href="{{ url_for('workflows.workflows_index') }}" class="{{ 'active' if title=='Questionnaires' }}"><span class="ic">?</span> Questionnaires</a>
+      <a href="{{ url_for('withholding.withholding') }}" class="{{ 'active' if title=='Withholding' }}"><span class="ic">％</span> Withholding</a>
+      <a href="{{ url_for('export') }}"><span class="ic">⬇</span> Export to Excel</a>
+      <a href="{{ url_for('setup') }}" class="{{ 'active' if title=='Setup' }}"><span class="ic">⚙</span> Setup</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <h1>{{ header or title }}</h1>
+      <span class="tag">{{ tagline or '"Complex work, made clear."' }}</span>
+      <span class="who">A. Sethuraman · TY2024</span>
+    </div>
+    {% if state.has_sample_data() %}
+    <div class="samplebar">
+      Showing built-in <strong>sample data</strong> (e.g. the demo's $145,000 wages) so the app isn't empty — these aren't your clients or real document reads.
+      <form class="inline" method="post" action="{{ url_for('clear_sample') }}">
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <button class="btn sm" type="submit">Clear sample data</button>
+      </form>
+    </div>
+    {% endif %}
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+</body>
+</html>
