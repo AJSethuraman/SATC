@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from flask import Flask, Response, redirect, render_template, request, send_file, url_for
 
@@ -25,12 +26,52 @@ from satc.ingest import load_classifier
 from satc.persistence import export_mart_to_excel
 
 
+_LOCAL_HOSTS = {"127.0.0.1", "localhost", "::1"}
+
+
+def _resolve_secret_key() -> bytes:
+    """Per-install random Flask secret (persisted, 0600), overridable via env.
+
+    Replaces the old hardcoded ``satc-local-dev-key`` so signed session cookies
+    can't be forged with a publicly-known key.
+    """
+    env = os.environ.get("SATC_SECRET_KEY")
+    if env:
+        return env.encode("utf-8")
+    path = Path(STATE.store.dir) / "flask_secret.key"
+    if path.exists():
+        return path.read_bytes()
+    key = os.urandom(32)
+    try:
+        path.write_bytes(key)
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+    return key
+
+
 def create_app() -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
-    app.secret_key = os.environ.get("SATC_SECRET_KEY", "satc-local-dev-key")
+    app.secret_key = _resolve_secret_key()
+    app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax")
     app.register_blueprint(intake_bp)
     app.register_blueprint(workflow_bp)
     app.register_blueprint(withholding_bp)
+
+    @app.before_request
+    def _local_only_guard():
+        # H2 — reject non-loopback Host headers (blocks DNS-rebinding, which would
+        # otherwise let a page the preparer visits read /clients, /export, /source).
+        if (request.host or "").split(":")[0] not in _LOCAL_HOSTS:
+            return "Bad Host", 400
+        # H3 — CSRF: reject a state-changing request a browser marks as cross-origin.
+        # Local tools and the JSON API send no Origin/Referer and are allowed; a
+        # cross-site attacker's browser always sends a foreign Origin.
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            src = request.headers.get("Origin") or request.headers.get("Referer")
+            if src and urlparse(src).hostname not in _LOCAL_HOSTS:
+                return "Cross-origin request blocked", 403
+        return None
 
     @app.context_processor
     def inject_globals():

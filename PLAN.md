@@ -209,11 +209,13 @@ same legal duties either way — Phase 0 below stands regardless.
       DPAPI on Windows / 0600 key file elsewhere; transparent migration of legacy plaintext + VACUUM;
       tests prove the SSN is ciphertext on disk. `cryptography` added as a base dependency.
 - [x] **M4 file perms** — data dir 0700, DB + key files 0600 (POSIX; NTFS ACLs on Windows).
-- [ ] **H2**: Host-header allow-list on the Flask app
-- [ ] **H3**: CSRF (origin/referer check + SameSite cookies) on POST routes
-- [ ] **M7**: per-install random secret_key (replace hardcoded default)
+- [x] **H2 Host-header allow-list** — `before_request` rejects non-loopback Host (blocks DNS-rebinding).
+- [x] **H3 CSRF** — `before_request` blocks state-changing requests with a foreign Origin/Referer;
+      no-Origin local tools + the JSON API still work; SameSite=Lax + HttpOnly session cookie.
+- [x] **M7 secret_key** — per-install random key (persisted 0600), overridable via env; old hardcoded
+      default gone. (M5 local-API is now covered by the H2 Host guard.)
 - [ ] **M6**: protect organizer PDFs (perms / purge after send)
-- [ ] **M5** local-API guard (largely covered by H2) · **L8** intake-folder guard · **L9** thread-safe store
+- [ ] **L8** intake-folder guard · **L9** thread-safe store
 - [ ] **Bugs:** mcpb entry_point path · OCR pdftoppm→pymupdf · doctor Tesseract probe · install.bat
       fail-loud · `satc reset` confirm
 
