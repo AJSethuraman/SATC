@@ -66,10 +66,27 @@ tree**, resolving dependencies between decisions **one at a time**.
    several research passes with the questions. (Save the citations — `to-prd`
    will fold them into the PRD instead of leaving them as Open Questions.)
 
-8. **Do not write the plan or PRD yet.** Keep going until the branches are
-   resolved. Then **stop and summarize** the shared understanding in a few
-   sentences and ask: *"Have we reached shared understanding — should I capture
-   this as a PRD?"* Do not proceed until the user confirms.
+8. **Audit assumptions before you stop — close every gap that isn't the user's.**
+   Before summarizing, list *every* assumption the design still rests on and sort
+   each into one of three buckets:
+   - **(A) Researchable** — an external fact (tax rule, statutory date, holiday
+     calendar, API behavior). **Close it now** with the `research` skill (rule 7).
+   - **(B) Codebase-answerable** — how a value is stored, what a field is named,
+     whether a path exists, an existing convention. **Close it now** by reading
+     the code (rule 4). Watch for silent mismatches (e.g. the same concept stored
+     in two different formats in two modules) — these are exactly the traps to
+     surface.
+   - **(C) Genuinely the user's** — a preference, a business/scope judgment, or
+     something only they can do (run it on their machine, confirm against their
+     real data). These are the *only* things allowed to remain open.
+   Do not leave an A or B item as an "assumption" or hand it to the user as a
+   question — that's the process failing. Chase A and B to ground before you stop.
+
+9. **Do not write the plan or PRD yet.** Keep going until the branches are
+   resolved and the assumption audit is clean (only bucket C remains). Then
+   **stop and summarize** the shared understanding in a few sentences and ask:
+   *"Have we reached shared understanding — should I capture this as a PRD?"* Do
+   not proceed until the user confirms.
 
 ---
 

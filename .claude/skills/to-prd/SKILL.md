@@ -46,12 +46,21 @@ to write it down rigorously.
    `/to-issues` to break it into buildable slices — or that an agent can build
    from the PRD directly. Offer to commit it so it persists across sessions.
 
-## The bar
+## The bar — close every gap that isn't the user's
 
-Zero follow-up questions needed to build. If a section would force an agent to
-guess, either resolve it now or list it under **Open Questions** — don't paper
-over it. **Before parking anything as an Open Question, check whether it's a
-researchable external fact** (a tax rule, a statutory value, an API's real
-behavior); if so, invoke the `research` skill to settle it from primary sources
-and cite it in the PRD — Open Questions are for genuine product decisions still
-owed, not for facts nobody looked up.
+Zero follow-up questions needed to build. Run an **assumption audit** over the
+draft: for every assumption or gap, sort it into one bucket and act:
+
+- **(A) Researchable external fact** (tax rule, statutory date, holiday calendar,
+  API behavior) → settle it with the `research` skill and **cite it** in the PRD.
+- **(B) Codebase-answerable** (how a value is stored, a field's exact name, an
+  existing convention, whether a path exists) → **read the code and pin it** in
+  Implementation Decisions. Call out silent mismatches (a concept stored two
+  different ways in two modules) — those are latent bugs, not footnotes.
+- **(C) Genuinely the user's** (a preference, a scope/business call, or something
+  only they can do — run it on their machine, confirm against real data) → this
+  is the *only* bucket allowed under **Open Questions**.
+
+An A or B item in Open Questions means the PRD isn't done — resolve it, don't
+park it. Open Questions is for decisions genuinely owed to the user, never for
+facts nobody looked up.

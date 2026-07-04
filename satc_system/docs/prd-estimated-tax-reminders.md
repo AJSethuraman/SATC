@@ -88,9 +88,11 @@ the computation authority; SATC tracks and reminds.**
    as a draft (viewable + `.eml`/Outlook), **never transmitted** — mirroring the
    existing `delivery_email` flow.
 6. [P0] **Due dates** are read from `configs/crosswalk/federal/<year>.yaml`, with
-   an IRS source citation, and shift to the **next business day** when the
-   statutory date (Apr 15 / Jun 15 / Sep 15 / Jan 15-next-year) falls on a
-   weekend or federal holiday.
+   an IRS source citation, and shift to the **next business day** (IRC §7503) when
+   the statutory date (Apr 15 / Jun 15 / Sep 15 / Jan 15-next-year) falls on a
+   Saturday, Sunday, or **legal holiday**. The holiday set must include federal
+   holidays **and DC Emancipation Day (Apr 16 observed)**, which shifts the April
+   deadline in some years — encode and cite the holidays used.
 7. [P0] **Safe-harbor pre-fill** = `required_safe_harbor ÷ 4`, where
    `required_safe_harbor = prior_year_total_tax × pct`, and
    `pct = est_tax_safe_harbor_pct_prior_high_agi` (110%) when
@@ -134,8 +136,16 @@ the computation authority; SATC tracks and reminds.**
   with canonical `line_code == "total_tax"` and `line_code == "agi"` (the Drake
   Tax Return Comparison keys — see `_COMPARISON_KEYS` in
   `preparer_set_parser.py`; confirmed by `fixtures/synthetic.py` and
-  `test_drake.py`). Filing status comes from `PublicClient.filing_status`
-  (`""` ⇒ unknown ⇒ use the $150k threshold).
+  `test_drake.py`). The prior-year return is addressed via
+  `ids.return_key(client_id, tax_year-1, "1040", "US")` — the same path
+  `proforma.compare_years` already uses.
+- **Filing-status format — do not assume.** `PublicClient.filing_status` stores
+  the **full intake string** from `intake_views.FILING_STATUSES`, i.e. MFS is
+  `"Married filing separately"` — **not** `"MFS"`. (A separate `"MFS"`-style code
+  map lives in `withholding_views`; they are different formats. Matching the
+  wrong one silently skips the $75k branch → wrong threshold.) The MFS test must
+  match the intake string (case-insensitive contains "separately"). `""` ⇒
+  unknown ⇒ use the $150k threshold.
 - **Data model:** reuse the existing `EstimatePayment` / `estimate_payments`
   table as-is (`payment_id, client_id, tax_year, jurisdiction, period, amount,
   paid_date, provenance`). `paid_date is None` == still owed. **No schema
@@ -201,15 +211,24 @@ the computation authority; SATC tracks and reminds.**
 
 ## 10. Risks & Open Questions
 
-- **Risk:** the federal holiday calendar (e.g. Emancipation Day shifting Apr 15)
-  affects due dates — encode the holidays used and cite them in the crosswalk.
+*Open Questions here are only things owed to the user (see below). All
+researchable/codebase gaps are closed in the sections above.*
+
 - **Risk:** safe-harbor is a *suggestion only*; the UI must label it "before
   withholding — confirm vs Drake" so SATC is never mistaken for the authority.
+- **Risk:** the filing-status format trap (see Implementation Decisions) — MFS is
+  stored as `"Married filing separately"`, not `"MFS"`; a wrong match silently
+  skips the $75k branch. The test suite must cover this.
+- **Researchable, still to confirm before build:** whole-dollar **rounding** of
+  the quarterly amount — verify against the Form 1040-ES instructions/worksheet
+  and cite it (do not assume). *(Bucket A — close via `research`, not a user
+  question.)*
 - **Deferred (not v1):** importing estimate amounts directly from a Drake file;
   state and business-entity estimates.
-- *No open calculation questions remain — the safe-harbor rule, the pulled fields
-  (`total_tax`, `agi`), filing-status source, and due-date rule are all verified
-  (see Sources).*
+- **Open question (needs your decision):** none outstanding — scope, window
+  (21 days), and draft-only were decided during grilling. The only thing left to
+  *you* is verifying the built feature on your machine against a real Drake
+  voucher.
 
 ## 11. Done Criteria
 

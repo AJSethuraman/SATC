@@ -63,8 +63,12 @@ ones — name the seam(s). Reference prior art (how a sibling module is tested).
 - **M1 (MVP):** 
 
 ## 10. Risks & Open Questions
+*Open Questions are **only** for things genuinely owed to the user — a preference,
+a scope/business call, or something only they can do (test on their machine,
+confirm against real data). Researchable facts and codebase details must already
+be closed above, not parked here.*
 - **Risk:** 
-- **Open question:** 
+- **Open question (needs your decision):** 
 
 ## 11. Done Criteria
 *A concrete checklist meaning "finished and verified." Never leave empty.*
