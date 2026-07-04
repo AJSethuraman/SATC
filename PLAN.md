@@ -143,12 +143,46 @@
   (3) **auto-generate doc-request lists from prior-year data**. Canopy pushing an "agent that does the
   work." → SATC already does (1); (1)+(3) are the highest-leverage AI targets and attack the #1 pain.
 
-### Research NOT finished (hit account session limit, resets 3:20am UTC 2026-07-04)
-- FTC Safeguards Rule / WISP full requirement + <5,000-consumer exemption detail (partial only)
-- Industry feature norms (TaxDome/Canopy/Drake pricing, table stakes) — vendor sites bot-blocked
-- Form 8879 e-sign + KBA facts/costs
-- Distribution norms (code signing/SmartScreen, Azure Trusted Signing, `.mcpb` packaging)
-- **To resume:** re-run these four after the limit resets; vendor pages need Wayback/search fallback.
+### Distribution / signing / .mcpb (done 2026-07-04)
+- **Unsigned PyInstaller exe** → SmartScreen "unrecognized app / Unknown publisher" + **AV
+  false-positive quarantine is common with PyInstaller** (esp. `--onefile`).
+- **Build change: switch `--onefile` → `--onedir`.** Faster cold start + materially less
+  AV-quarantine risk. (Concrete spec change to `packaging/satc_app.spec`.)
+- **Signing:** cheapest credible = **Azure Artifact Signing (formerly Trusted Signing) ~$9.99/mo**,
+  now open to **individuals in US/Canada** (identity via Entra Verified ID; no 3-yr business history).
+  ⚠️ **Signing no longer auto-clears SmartScreen in 2026** (EV instant-reputation is gone) — reputation
+  still accrues over downloads. Signing buys a real publisher name + AV cert-whitelisting, not silence.
+- **.mcpb (renamed from .dxt) is the non-technical MCP install path** — a zip + `manifest.json`,
+  installed via **Claude Desktop → Settings → Extensions → Install Extension… (one click, NO JSON
+  editing)**; `user_config` prompts at install. Official directory exists with review + "Verified" badge.
+- **Big one: a `.mcpb` can launch `SATC.exe` directly** — `server.type:"binary"`,
+  `command:"${__dirname}/server/SATC.exe"`, `args:["--mcp"]`. So we can ship ONE `.mcpb` bundling the
+  exe; the colleague one-click-installs it in Claude Desktop. This **replaces the earlier
+  hand-edit-claude_desktop_config.json instructions** as the real distribution path.
+- **Tesseract bundling:** ship `tesseract.exe` + `tessdata/` + Apache-2.0 LICENSE/NOTICE; wire
+  `tesseract_cmd`/`--tessdata-dir` (ties to the handoff OCR fix).
+
+## Recommended roadmap (synthesized 2026-07-04 — awaiting owner sign-off on the big items)
+
+**Phase 0 — Safe-for-real-data (gating; must precede any real-SSN handoff):**
+1. **Vault encryption at rest** (SQLCipher or AES-256, key via Windows DPAPI so a non-technical user
+   needs no passphrase). *Legally non-waivable* per FTC Safeguards §314.4(c)(3) even under <5,000
+   clients; also earns the breach-rule "encrypted" carve-out. **Owner decision needed on approach.**
+2. **CSRF tokens + Host-header allow-list** on the Flask app (H3/H2); restrictive dir/file perms (M4).
+3. Ship a **WISP template** (IRS Pub 5708) as a product artifact — turns compliance into a feature.
+
+**Phase 1 — Actually giveable:**
+4. Merge to `main` + cut a **matching release** (code/exe/docs agree); root README; handoff quick-wins
+   (fix `.mcpb` entry_point, OCR poppler→pymupdf, doctor Tesseract probe, doc fixes, data-dir doc).
+5. Build **`--onedir`**, **sign with Azure Artifact Signing (~$10/mo)**, ship a **`.mcpb`** that
+   launches `SATC.exe --mcp` (one-click Claude Desktop install). Write the "hand to a colleague" pack.
+
+**Phase 2 — Build toward industry norms (the head-start):**
+6. Attack the #1 pain (client-adoption / doc-gathering): **mobile-first, magic-link secure upload**
+   portal + doc-request lists tied to checklists + reminders. Lean on SATC's Drake-native edge.
+7. **8879 e-sign w/ KBA** and engagement letters (table stakes for a real practice).
+8. AI doc-classification/routing + auto doc-request-list generation (SATC already does classification;
+   these are the highest-leverage AI targets and directly attack the 69%-time-on-doc-gathering pain).
 
 ## To-do
 
@@ -171,14 +205,8 @@
       uninstall leaves it behind, never email the .db)
 - [ ] Retitle `docs/USER_GUIDE.md` → `DEVELOPING.md`; write a real Windows quickstart in its place
 
-### Recommended sequence (proposed — awaiting owner sign-off on the big items)
-1. **Gate on safety before any real-SSN handoff:** C1 vault encryption + M4 file perms, then H2 Host
-   guard + H3 CSRF. These are the "we're doing something wrong" items; a plaintext SSN store you hand
-   to a colleague is the single biggest liability.
-2. **Make it truly giveable:** merge to `main` + cut a real release (v0.8.0) so code/exe/docs agree;
-   handoff quick-wins above; the "hand to a colleague" doc package.
-3. **Then build toward industry norms** (pending the features/distribution research after reset):
-   likely secure client portal for doc collection, 8879 KBA e-sign, engagement letters.
+### Recommended sequence
+See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Phase 2 features).
 
 ### Blocked on a human (CI permissions block the automation path)
 - [ ] **Build v0.7.1 `SATC.exe`** — GitHub → Actions → *Build Windows app* → Run workflow on
