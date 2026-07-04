@@ -28,6 +28,7 @@ from credit_review.config import (
 )
 from credit_review.config_sheet import write_config_sheet
 from credit_review.cover import build_cover
+from credit_review.findings import build_findings
 from credit_review.linesheet import BuildContext, LinesheetBuilder
 
 PACKAGE_DIR = Path(__file__).parent
@@ -65,9 +66,11 @@ def build_engagement_workbook(program: Program, engagement: Engagement,
     refs = write_config_sheet(wb.create_sheet("_config"), program, engagement)
 
     grades = tuple(sorted(engagement.rating_scale_map, key=lambda g: (len(g), g)))
+    per_loan = []
     for loan in loans:
         ctx = BuildContext(pol_registry=refs.pol_registry, map_range=refs.map_range,
-                           values=dict(loan.values), rating_grades=grades)
+                           asof_cell=refs.asof_cell, values=dict(loan.values),
+                           rating_grades=grades)
         builder = LinesheetBuilder(
             wb.create_sheet(loan.sheet_name),
             program.sections,
@@ -76,6 +79,9 @@ def build_engagement_workbook(program: Program, engagement: Engagement,
                       f"  ·  Loan {loan.loan_id}"),
             ctx=ctx)
         builder.build()
+        per_loan.append((loan, builder.exceptions))
+
+    build_findings(wb.create_sheet("Findings"), engagement, per_loan)
 
     wb.move_sheet("_config", offset=len(wb.sheetnames) - 1 - wb.sheetnames.index("_config"))
     return wb

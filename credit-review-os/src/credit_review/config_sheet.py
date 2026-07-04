@@ -28,6 +28,7 @@ class ConfigRefs:
     pol_registry: dict[str, str]   # threshold key -> '_config!$B$n'
     map_range: str                 # rating_scale_map grade->bucket block, 'A:B' absolute
     framework_range: str           # bucket->criticized/classified block, 'A:C' absolute
+    asof_cell: str                 # the engagement review_as_of date cell ([ASOF] target)
 
 
 def write_config_sheet(ws: Worksheet, program: Program,
@@ -42,6 +43,8 @@ def write_config_sheet(ws: Worksheet, program: Program,
         ["key", "value", "help"],
         ["client_name", engagement.client_name, "Client bank under review."],
         ["engagement_id", engagement.engagement_id, "Unique engagement identifier."],
+        ["review_as_of", engagement.review_as_of,
+         "Evidence currency is measured against this date ([ASOF] formula target)."],
         ["lob", program.lob, "Line of business this program covers."],
         ["review_mode", program.review_mode,
          "loan_level (v1) | product_conformance (reserved for consumer/resi)."],
@@ -68,9 +71,13 @@ def write_config_sheet(ws: Worksheet, program: Program,
                      "TRUE" if bucket in program.classified else "FALSE"])
     fw_last = len(rows)
 
+    asof_row = None
     for i, row in enumerate(rows, start=1):
         for j, val in enumerate(row, start=1):
             ws.cell(i, j, val)
+        if row and row[0] == "review_as_of":
+            asof_row = i
+            ws.cell(i, 2).number_format = "mm/dd/yyyy"
         if row and isinstance(row[0], str) and row[0].startswith("["):
             band = ws.cell(i, 1)
             band.font = KB.SECTION_FONT
@@ -84,4 +91,5 @@ def write_config_sheet(ws: Worksheet, program: Program,
         pol_registry={key: f"_config!$B${r}" for key, r in threshold_row_of.items()},
         map_range=f"_config!$A${map_first}:$B${map_last}",
         framework_range=f"_config!$A${fw_first}:$C${fw_last}",
+        asof_cell=f"_config!$B${asof_row}",
     )

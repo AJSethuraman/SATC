@@ -6,6 +6,7 @@ build time so the workbook ships live Excel formulas, never hardcoded results:
 
   ``{row_id}``     -> the value cell of another row on this linesheet
   ``[POL key]``    -> the engagement policy-threshold cell on ``_config``
+  ``[ASOF]``       -> the engagement review_as_of date cell on ``_config``
   ``MAP(expr)``    -> VLOOKUP of an internal grade against the ``_config``
                       rating-scale-map block (grade -> regulatory bucket)
 
@@ -77,6 +78,7 @@ class BuildContext:
 
     pol_registry: dict[str, str] = field(default_factory=dict)  # threshold key -> '_config!$B$n'
     map_range: str = ""                                         # rating_scale_map block on _config
+    asof_cell: str = ""                                         # review_as_of cell on _config
     values: dict[str, Any] = field(default_factory=dict)        # row_id -> prefilled value
     rating_grades: tuple[str, ...] = ()                         # overlay's internal grades
 
@@ -132,6 +134,11 @@ class LinesheetBuilder:
             return self.ctx.pol_registry[key]
 
         text = re.sub(r"\[POL\s+([a-z0-9_]+)\]", sub_pol, text)
+
+        if "[ASOF]" in text:
+            if not self.ctx.asof_cell:
+                raise LinesheetError("[ASOF] used but no review_as_of cell is available")
+            text = text.replace("[ASOF]", self.ctx.asof_cell)
 
         def sub_map(m: re.Match) -> str:
             if not self.ctx.map_range:

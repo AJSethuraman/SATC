@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +46,11 @@ EXCEPTION_STATUSES = ("open", "cleared", "waived")
 
 # Keys that would make a program client-specific — they belong in the overlay.
 _PROGRAM_FORBIDDEN_KEYS = ("client", "thresholds", "rating_scale_map", "scope", "reviewer", "loans")
+
+# An evidence item is currency-tested exactly one way: against a staleness
+# window from the overlay, by reviewer condition-judgment (appraisals per the
+# 2010 Interagency Appraisal Guidelines), or by bare presence-in-file.
+_EVIDENCE_MODES = ("staleness_key", "condition_driven", "presence_required")
 
 # Full-TIN shapes we refuse anywhere in loaded data: dashed SSN, dashed EIN,
 # or 9 consecutive digits in a TIN-named field.
@@ -93,8 +99,52 @@ class Program:
     buckets: tuple[str, ...]
     criticized: tuple[str, ...]
     classified: tuple[str, ...]
-    sections: tuple[dict, ...]
+    sections: tuple[dict, ...]   # includes the synthesized evidence section
+    evidence: tuple[dict, ...]
     raw: dict = field(repr=False)
+
+
+def _evidence_rows(item: dict, where: str) -> list[dict]:
+    """Expand one evidence item into linesheet rows (inputs + the currency test)."""
+    etype = item.get("type")
+    if not etype or not re.fullmatch(r"[a-z0-9_]+", str(etype)):
+        raise ConfigError(f"{where}: evidence item needs a snake_case 'type'")
+    modes = [m for m in _EVIDENCE_MODES if item.get(m)]
+    if len(modes) != 1:
+        raise ConfigError(
+            f"{where}: evidence '{etype}' must set exactly one of {list(_EVIDENCE_MODES)}")
+    mode = modes[0]
+    label = item.get("label", etype.replace("_", " ").capitalize())
+    severity = item.get("severity", "medium")
+    asof_id = f"ev_{etype}_asof"
+    rows: list[dict] = [
+        {"id": asof_id, "kind": "input", "fmt": "date", "label": f"{label} — as-of date"}]
+    if item.get("quality_tiers"):
+        rows.append({"id": f"ev_{etype}_tier", "kind": "input_text",
+                     "label": f"{label} — quality tier",
+                     "note": "tiers: " + " / ".join(item["quality_tiers"])})
+    if mode == "staleness_key":
+        rows.append({
+            "id": f"ev_{etype}_exc", "kind": "exception", "class": "documentation",
+            "severity": severity, "label": f"{label} stale or missing",
+            "when": (f'OR({{{asof_id}}}="",'
+                     f'([ASOF]-{{{asof_id}}})>[POL {item["staleness_key"]}])')})
+    elif mode == "condition_driven":
+        valid_id = f"ev_{etype}_valid"
+        rows.append({"id": valid_id, "kind": "input_text",
+                     "label": f"{label} — still valid for current conditions? (yes/no)",
+                     "note": "Condition-driven; re-order when no longer valid, "
+                             "not on a fixed clock (2010 Interagency Appraisal Guidelines)."})
+        rows.append({
+            "id": f"ev_{etype}_exc", "kind": "exception", "class": "documentation",
+            "severity": severity, "label": f"{label} no longer valid",
+            "when": f'{{{valid_id}}}="no"'})
+    else:  # presence_required
+        rows.append({
+            "id": f"ev_{etype}_exc", "kind": "exception", "class": "documentation",
+            "severity": severity, "label": f"{label} missing from file",
+            "when": f'{{{asof_id}}}=""'})
+    return rows
 
 
 def load_program(path: str | Path) -> Program:
@@ -127,7 +177,14 @@ def load_program(path: str | Path) -> Program:
         if stray:
             raise ConfigError(f"{where}.rating_framework: {name} {stray} not in buckets")
 
-    sections = tuple(_require(data, "sections", where))
+    sections = list(_require(data, "sections", where))
+    evidence = tuple(data.get("evidence", ()))
+    if evidence:
+        sections.append({
+            "title": "Evidence & documentation (currency-tested)",
+            "rows": [row for i, item in enumerate(evidence)
+                     for row in _evidence_rows(item, f"{where}.evidence[{i}]")]})
+    sections = tuple(sections)
     seen_ids: set[str] = set()
     for si, section in enumerate(sections):
         swhere = f"{where}.sections[{si}]"
@@ -166,7 +223,7 @@ def load_program(path: str | Path) -> Program:
     _reject_full_tins(data, where)
     return Program(lob=lob, review_mode=review_mode, title=title, buckets=buckets,
                    criticized=criticized, classified=classified,
-                   sections=sections, raw=data)
+                   sections=sections, evidence=evidence, raw=data)
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +233,7 @@ def load_program(path: str | Path) -> Program:
 class Engagement:
     client_name: str
     engagement_id: str
+    review_as_of: date
     rating_scale_map: dict[str, str]
     thresholds: dict[str, float]
     scope: dict
@@ -195,6 +253,11 @@ def load_engagement(path: str | Path) -> Engagement:
     client_name = _require(client, "name", f"{where}.client")
     engagement_id = _require(client, "engagement_id", f"{where}.client")
 
+    review_as_of = _require(data, "review_as_of", where)
+    if not isinstance(review_as_of, date):
+        raise ConfigError(f"{where}: review_as_of must be a date (YYYY-MM-DD), "
+                          f"got {review_as_of!r}")
+
     scale_map = {str(k): str(v) for k, v in _require(data, "rating_scale_map", where).items()}
     thresholds = dict(_require(data, "thresholds", where))
     for k, v in thresholds.items():
@@ -212,8 +275,9 @@ def load_engagement(path: str | Path) -> Engagement:
 
     _reject_full_tins(data, where)
     return Engagement(client_name=client_name, engagement_id=engagement_id,
-                      rating_scale_map=scale_map, thresholds=thresholds,
-                      scope=scope, reviewer=reviewer, loans_path=loans_path, raw=data)
+                      review_as_of=review_as_of, rating_scale_map=scale_map,
+                      thresholds=thresholds, scope=scope, reviewer=reviewer,
+                      loans_path=loans_path, raw=data)
 
 
 def check_overlay_fits_program(engagement: Engagement, program: Program) -> None:

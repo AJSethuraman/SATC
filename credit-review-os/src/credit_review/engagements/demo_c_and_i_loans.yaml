@@ -9,3 +9,21 @@ loans:
     total_commitment: 2500000
     outstanding: 1750000
     rating_originator: "4"
+    # cash flow / collateral / leverage (DSCR breaches the 1.20 floor; LTV
+    # breaches the 80% ceiling; leverage is inside the 4.0x ceiling)
+    cash_flow: 400000
+    debt_service: 380000
+    collateral_value: 2000000
+    total_debt: 3400000
+    ebitda: 900000
+    flood_zone_collateral: "no"
+    flood_insurance_current: "na"
+    # evidence currency vs review_as_of 2026-06-30: FS current (273d < 365),
+    # BBC stale (91d > 45), covenant cert current (46d < 120)
+    ev_financial_statements_asof: 2025-09-30
+    ev_financial_statements_tier: "reviewed"
+    ev_borrowing_base_certificate_asof: 2026-03-31
+    ev_covenant_compliance_certificate_asof: 2026-05-15
+    ev_appraisal_asof: 2024-08-01
+    ev_appraisal_valid: "yes"
+    ev_credit_approval_asof: 2024-11-20

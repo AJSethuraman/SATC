@@ -4,6 +4,8 @@ client:
   name: "Demo Community Bank"
   engagement_id: "DEMO-2026-01"
 
+review_as_of: 2026-06-30     # evidence currency is measured against this date
+
 rating_scale_map:            # every internal grade -> exactly one regulatory bucket
   "1": Pass
   "2": Pass
@@ -21,6 +23,7 @@ thresholds:                  # illustrative placeholders (PRD §10) — config, 
   leverage_ceiling: 4.0
   stmt_staleness_days: 365
   bbc_staleness_days: 45
+  covenant_staleness_days: 120
 
 scope:
   portfolio_dollars: 42000000
