@@ -25,15 +25,23 @@ import yaml
 
 REVIEW_MODES = ("loan_level", "product_conformance")  # product_conformance: reserved, not built in v1
 
-# Row kinds the slice-1 linesheet renders. `exception` and `evidence` are part
-# of the schema vocabulary (PRD §6) but arrive in later slices; configs using
-# them are accepted by the schema and refused by the builder with a clear error.
+# Row kinds the linesheet renders. `evidence` is part of the schema vocabulary
+# (PRD §6) but arrives with the exception engine's staleness tests; configs
+# using it are accepted by the schema and refused by the builder with a clear
+# error until then.
 RENDERABLE_KINDS = (
     "input", "input_num", "input_text", "rating_input",
-    "computed", "subhead", "note", "spacer",
+    "computed", "exception", "subhead", "note", "spacer",
 )
-RESERVED_KINDS = ("exception", "evidence")
+RESERVED_KINDS = ("evidence",)
 KNOWN_KINDS = RENDERABLE_KINDS + RESERVED_KINDS
+
+# Exception model (PRD R6 + R5): three exception classes from the research's
+# taxonomy, plus `rating` as the first-class finding an independent-validation
+# disagreement raises (interagency 2020 independence expectation).
+EXCEPTION_CLASSES = ("documentation", "policy", "compliance", "rating")
+EXCEPTION_SUBTYPES = ("approved_with_mitigant", "unapproved")
+EXCEPTION_STATUSES = ("open", "cleared", "waived")
 
 # Keys that would make a program client-specific — they belong in the overlay.
 _PROGRAM_FORBIDDEN_KEYS = ("client", "thresholds", "rating_scale_map", "scope", "reviewer", "loans")
@@ -133,6 +141,20 @@ def load_program(path: str | Path) -> Program:
                 raise ConfigError(f"{rwhere}: '{kind}' row needs a label")
             if kind == "computed" and not row.get("formula"):
                 raise ConfigError(f"{rwhere}: computed row needs a formula")
+            if kind == "exception":
+                if not row.get("when"):
+                    raise ConfigError(f"{rwhere}: exception row needs a 'when' condition")
+                if row.get("class") not in EXCEPTION_CLASSES:
+                    raise ConfigError(
+                        f"{rwhere}: exception class {row.get('class')!r} not one of "
+                        f"{list(EXCEPTION_CLASSES)}")
+                if not row.get("severity"):
+                    raise ConfigError(f"{rwhere}: exception row needs a severity tier")
+                subtype = row.get("subtype")
+                if subtype is not None and subtype not in EXCEPTION_SUBTYPES:
+                    raise ConfigError(
+                        f"{rwhere}: exception subtype {subtype!r} not one of "
+                        f"{list(EXCEPTION_SUBTYPES)}")
             rid = row.get("id")
             if rid:
                 if rid in seen_ids:

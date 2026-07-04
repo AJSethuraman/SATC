@@ -28,3 +28,6 @@ sections:
       - {id: rating_originator, kind: rating_input, label: "Originator risk rating"}
       - {id: rating_reviewer, kind: rating_input,
          label: "Reviewer risk rating (independent)"}
+      - {id: rating_exception, kind: exception, class: rating, severity: high,
+         label: "Rating disagreement (independent validation)",
+         when: "MAP({rating_reviewer})<>MAP({rating_originator})"}

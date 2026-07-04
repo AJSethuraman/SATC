@@ -2,13 +2,15 @@
 the rating-scale map, written as plain key/value rows with onyx section bands
 (the quiet system-tab treatment every template in this repo uses).
 
-The thresholds block doubles as the resolution target for the linesheet's
-``[POL key]`` formula token: ``write_config_sheet`` returns a registry mapping
-each threshold key to its absolute ``_config!$B$n`` cell so workbook formulas
-reference the knob panel live — edit a threshold, the linesheets recompute.
+The sheet doubles as the formula-resolution target for the linesheet tokens:
+``[POL key]`` points at a threshold cell, and ``MAP(...)`` VLOOKUPs against the
+rating-scale-map block — edit a knob, the linesheets recompute live.
+``write_config_sheet`` returns those addresses as a :class:`ConfigRefs`.
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 from openpyxl.styles import Font
 from openpyxl.worksheet.worksheet import Worksheet
@@ -19,10 +21,18 @@ from credit_review.config import Engagement, Program
 _INK_BOLD = Font(name="Arial", bold=True, size=11, color=KB.INK)
 
 
+@dataclass(frozen=True)
+class ConfigRefs:
+    """Absolute ``_config`` addresses the rest of the workbook resolves against."""
+
+    pol_registry: dict[str, str]   # threshold key -> '_config!$B$n'
+    map_range: str                 # rating_scale_map grade->bucket block, 'A:B' absolute
+    framework_range: str           # bucket->criticized/classified block, 'A:C' absolute
+
+
 def write_config_sheet(ws: Worksheet, program: Program,
-                       engagement: Engagement) -> dict[str, str]:
-    """Populate ``_config`` and return the ``[POL]`` registry
-    (threshold key -> ``_config!$B$n``)."""
+                       engagement: Engagement) -> ConfigRefs:
+    """Populate ``_config`` and return the formula-resolution addresses."""
     KB.hide_gridlines(ws)
     rows: list[list] = [
         ["Credit Review OS -- CONFIG (the knob panel). Thresholds here drive "
@@ -46,13 +56,17 @@ def write_config_sheet(ws: Worksheet, program: Program,
         threshold_row_of[key] = len(rows)
 
     rows += [[], ["[RATING_SCALE_MAP]"], ["internal grade", "regulatory bucket"]]
+    map_first = len(rows) + 1
     for grade in sorted(engagement.rating_scale_map, key=lambda g: (len(g), g)):
         rows.append([grade, engagement.rating_scale_map[grade]])
+    map_last = len(rows)
     rows += [[], ["[RATING_FRAMEWORK]"], ["bucket", "criticized", "classified"]]
+    fw_first = len(rows) + 1
     for bucket in program.buckets:
         rows.append([bucket,
                      "TRUE" if bucket in program.criticized else "FALSE",
                      "TRUE" if bucket in program.classified else "FALSE"])
+    fw_last = len(rows)
 
     for i, row in enumerate(rows, start=1):
         for j, val in enumerate(row, start=1):
@@ -66,4 +80,8 @@ def write_config_sheet(ws: Worksheet, program: Program,
     ws.column_dimensions["B"].width = 28
     ws.column_dimensions["C"].width = 72
 
-    return {key: f"_config!$B${r}" for key, r in threshold_row_of.items()}
+    return ConfigRefs(
+        pol_registry={key: f"_config!$B${r}" for key, r in threshold_row_of.items()},
+        map_range=f"_config!$A${map_first}:$B${map_last}",
+        framework_range=f"_config!$A${fw_first}:$C${fw_last}",
+    )

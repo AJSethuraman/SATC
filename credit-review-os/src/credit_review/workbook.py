@@ -59,14 +59,15 @@ def build_engagement_workbook(program: Program, engagement: Engagement,
     cover.title = "Cover"
     build_cover(cover, program, engagement, loans)
 
-    # _config is written before the linesheets because its threshold cells are
-    # the [POL] formula targets; it is moved to the back of the tab order below.
-    pol_registry = write_config_sheet(wb.create_sheet("_config"), program, engagement)
+    # _config is written before the linesheets because its threshold cells and
+    # rating-scale-map block are the [POL]/MAP() formula targets; it is moved
+    # to the back of the tab order below.
+    refs = write_config_sheet(wb.create_sheet("_config"), program, engagement)
 
     grades = tuple(sorted(engagement.rating_scale_map, key=lambda g: (len(g), g)))
     for loan in loans:
-        ctx = BuildContext(pol_registry=pol_registry, values=dict(loan.values),
-                           rating_grades=grades)
+        ctx = BuildContext(pol_registry=refs.pol_registry, map_range=refs.map_range,
+                           values=dict(loan.values), rating_grades=grades)
         builder = LinesheetBuilder(
             wb.create_sheet(loan.sheet_name),
             program.sections,

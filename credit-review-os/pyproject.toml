@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7.4"]
+test = ["pytest>=7.4", "formulas>=1.2"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
