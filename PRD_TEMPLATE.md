@@ -1,69 +1,74 @@
 # PRD: <Project / Feature Name>
 
-> Copy this file to start a new PRD (e.g. `docs/prd-<name>.md` inside the
+> Copy this to start a new PRD (e.g. `docs/prd-<name>.md` inside the relevant
 > project folder, or a new top-level folder for a new project). Delete the
-> italicized prompts as you fill each section in. **Optional** sections can be
-> removed if they don't apply — keep the doc as short as the work allows.
+> italic prompts as you fill each section. **Optional** sections can be removed
+> if they don't apply — keep the doc as short as the work allows. The bar: a
+> coding agent could build from this with **zero follow-up questions**.
 
 **Status:** Draft · **Owner:** <name> · **Last updated:** <YYYY-MM-DD>
 
 ---
 
-## 1. Summary
-*One paragraph: what this is and why it's worth building, in plain language.*
+## 1. Problem
+*User-centric. What problem, for whom, and what's painful today? Why now?*
 
-## 2. Problem
-*What problem are we solving, and for whom? What happens today (the current
-painful workflow or gap)? Why now?*
+## 2. Solution
+*User-centric one-paragraph overview of what we're building and how it helps.*
 
 ## 3. Goals & Non-Goals
 **Goals** — what success looks like:
 - 
 
-**Non-Goals** — explicitly out of scope (this section prevents scope creep):
+**Non-Goals / Out of scope** — explicitly excluded (this section prevents an
+agent's build from ballooning; never leave it empty):
 - 
 
-## 4. Users & Use Cases
-*Who uses this? Internal firm staff, or external clients? Walk through the 1–3
-main scenarios end to end.*
-- **As a** <user> **I want to** <action> **so that** <outcome>.
+## 4. User Stories
+*Numbered, in "As a <actor>, I want <capability>, so that <benefit>" form. Be
+extensive — these are the backbone an agent builds against.*
+1. As a <actor>, I want <capability>, so that <benefit>.
+2. 
 
 ## 5. Requirements
-*Number these so they're referenceable. Mark priority: [P0]=must, [P1]=should,
+*Number them so they're referenceable; tag priority [P0]=must, [P1]=should,
 [P2]=nice-to-have.*
-
-**Functional**
 1. [P0] 
 2. [P1] 
 
-**Non-functional** *(optional — performance, security, privacy, data handling)*
+## 6. Implementation Decisions *(optional but recommended)*
+*The technical clarifications an agent shouldn't have to guess: key modules and
+their interfaces, data schemas, API contracts, important architecture choices.
+Describe behavior and shape — avoid pinning exact file paths. Small code
+snippets are fine when they encode a decision.*
 - 
 
-> **If this touches tax/financial data or client PII:** state the data-handling
-> and masking requirements here explicitly. (See DEA's safety boundaries and
-> Invoicer's payment handling for the bar to clear.)
+## 7. Testing Decisions
+*Where does this get tested, and how do we know a test is good? Prefer the
+**highest, fewest testing seams** already in the codebase over inventing new
+ones — name the seam(s). Reference prior art (how a sibling module is tested).*
+- **Seam(s):** 
+- **What a good test proves:** 
 
-## 6. Proposed Approach *(optional)*
-*High-level how. Stack, key components, how it fits the existing monorepo. Note
-any deploy implications — GitHub Pages, Render, new infra.*
+> **If this touches tax data, financials, or client PII:** state the
+> data-handling and masking rules here explicitly — no PII in artifacts. (Match
+> the bar set elsewhere in the codebase for sensitive data.)
 
-## 7. Success Metrics
-*How do we know it worked? Prefer concrete, measurable criteria over vibes.*
+## 8. Success Metrics
+*Concrete, measurable criteria — not vibes.*
 - 
 
-## 8. Milestones / Rollout *(optional)*
-*Phased plan if the work is large. What ships first (MVP)?*
+## 9. Milestones / Rollout *(optional)*
+*Phased plan if large. What ships first (MVP)?*
 - **M1 (MVP):** 
-- **M2:** 
 
-## 9. Risks & Open Questions
-*What could go wrong, and what still needs a decision before or during build?*
+## 10. Risks & Open Questions
 - **Risk:** 
 - **Open question:** 
 
-## 10. Done Criteria
-*A concrete checklist that means "this is finished and verified."*
-- [ ] Requirements above met
-- [ ] Tests added/passing (where the project has tests)
+## 11. Done Criteria
+*A concrete checklist meaning "finished and verified." Never leave empty.*
+- [ ] Requirements + user stories met
+- [ ] Tests added/passing at the named seam(s)
 - [ ] Verified by running the real flow, not just tests
 - [ ] Docs / README updated

@@ -62,21 +62,15 @@ tree**, resolving dependencies between decisions **one at a time**.
 
 ---
 
-## Phase 2 — Capture as PRD (only after confirmation)
+## Phase 2 — Hand off to the PRD step (only after confirmation)
 
-Once the user confirms alignment:
+Grilling reaches alignment; it does **not** write the document — keeping the two
+separate is what prevents a premature spec. Once the user confirms shared
+understanding, run the **`to-prd`** skill to capture it (user stories, testing
+seams, the full `PRD_TEMPLATE.md`). After the PRD exists, `to-issues` breaks it
+into buildable slices.
 
-1. Read `PRD_TEMPLATE.md` at the repo root — that's the output shape.
-2. Copy it to a sensible path — `docs/prd-<name>.md` inside the relevant project
-   folder, or a new top-level folder for a brand-new project.
-3. Fill every section from what the grilling established. Number requirements and
-   tag priority (`[P0]`/`[P1]`/`[P2]`). Drop optional sections that don't apply.
-   The **Non-Goals** and **Done Criteria** sections are load-bearing — never
-   leave them empty. Use **Open Questions** only for things genuinely deferred,
-   not things you failed to ask.
-4. Hand off: tell the user the PRD is ready, that a coding agent (a fresh session
-   or you) can build from it with no follow-up questions, and offer to commit it
-   so it persists across sessions. Offer to start building.
+Pipeline: **grill-me → to-prd → to-issues → build.**
 
 ---
 
