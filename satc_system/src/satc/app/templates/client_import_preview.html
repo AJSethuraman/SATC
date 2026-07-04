@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Import preview</h2>
+  <div class="muted">Review the detected clients below. Nothing is created until you confirm. TINs are masked — only the last four digits are shown.</div>
+</div>
+
+<div class="panel">
+  <h2>Detected clients</h2>
+  <div class="body">
+    <p class="note" style="margin-top:0">
+      <strong>{{ new_count }} new</strong>, {{ dup_count }} duplicates, {{ review_count }} need review.
+    </p>
+
+    {% if parsed %}
+    <table>
+      <tr>
+        <th>Status</th><th>Type</th><th>Name</th><th>Entity</th>
+        <th>TIN</th><th>Email</th><th>State</th><th>Issues</th>
+      </tr>
+      {% for c in parsed %}
+      <tr>
+        <td>
+          {% if c.status == 'new' %}
+            <span class="badge b-Received">New</span>
+          {% elif c.status == 'duplicate' %}
+            <span class="badge b-Requested">Duplicate</span>
+          {% else %}
+            <span class="badge b-Requested">Review</span>
+          {% endif %}
+        </td>
+        <td class="muted">{{ c.kind }}</td>
+        <td><strong>{{ c.display_name }}</strong></td>
+        <td class="muted">{{ c.entity_type }}</td>
+        <td class="mono">{% if c.tin_last4 %}***-**-{{ c.tin_last4 }}{% else %}—{% endif %}</td>
+        <td class="muted">{{ c.email or '—' }}</td>
+        <td class="muted">{{ c.state or '—' }}</td>
+        <td class="flag">{{ c.issues | join('; ') }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+
+    <form method="post" action="{{ url_for('intake.import_clients_confirm') }}" style="margin-top:16px">
+      <input type="hidden" name="parsed_json" value="{{ parsed_json }}">
+      <p class="note" style="margin-top:0">
+        <label><input type="checkbox" name="include_duplicates" value="1"> Include the {{ dup_count }} duplicate(s) too</label>
+      </p>
+      <p style="margin-top:12px">
+        <button class="btn primary" type="submit">Create {{ create_count }} clients</button>
+        <a class="btn" href="{{ url_for('intake.import_clients') }}">Cancel</a>
+      </p>
+    </form>
+    {% else %}
+    <p class="note">No rows detected. Check that your file or pasted text has a header row, then <a href="{{ url_for('intake.import_clients') }}">try again</a>.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

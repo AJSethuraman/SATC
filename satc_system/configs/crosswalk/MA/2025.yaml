@@ -1,0 +1,52 @@
+meta:
+  tax_year: 2025
+  jurisdiction: MA
+  source_label: "Mass. Gen. Laws ch. 62; Mass.gov tax rates (2025)"
+  retrieved: "2026-06-17"
+  status: in_force
+  notes: >
+    Massachusetts individual income tax 2025 — flat 5% Part B, 8.5% short-term
+    capital gains, 4% surtax over the indexed millionaire threshold ($1,083,150 for
+    2025). Personal exemptions unchanged ($4,400 / $8,800 / $6,800).
+
+parameters:
+  has_standard_deduction:
+    value: false
+    citation: "Mass. Gen. Laws ch. 62, sec. 3"
+
+  part_b_rate:
+    value: 0.05
+    unit: ratio
+    citation: "Mass.gov Tax Rates — 5.0% (2025)"
+
+  short_term_capital_gains_rate:
+    value: 0.085
+    unit: ratio
+    citation: "Mass.gov — 8.5% short-term capital gains"
+  collectibles_rate:
+    value: 0.12
+    unit: ratio
+    citation: "Mass.gov — 12% collectibles"
+
+  surtax_rate:
+    value: 0.04
+    unit: ratio
+    citation: "Mass. Const. amend. art. 44"
+  surtax_threshold:
+    value: 1083150
+    unit: usd
+    citation: "Mass.gov — 2025 surtax threshold ($1,083,150, indexed)"
+
+  personal_exemption:
+    value: {single: 4400, mfj: 8800, hoh: 6800, mfs: 4400}
+    unit: usd
+    citation: "Mass. Gen. Laws ch. 62, sec. 3(B)(b)"
+
+  apportionment_method:
+    value: single_sales_factor
+    citation: "Mass. Gen. Laws ch. 63"
+
+  pte_excise_rate:
+    value: 0.05
+    unit: ratio
+    citation: "Mass. Gen. Laws ch. 63D"

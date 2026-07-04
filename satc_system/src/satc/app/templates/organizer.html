@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Send {{ state.name(client_id) }} an organizer</h2>
+  <div class="muted">
+    <span class="mono">{{ client_id }}</span> · {{ public_client.entity_type }}
+    · <span class="badge {{ 'b-Received' if returning else 'b-Requested' }}">{{ 'Returning client' if returning else 'New client' }}</span>
+  </div>
+</div>
+
+{% if not workflow %}
+<div class="panel">
+  <h2>Choose a workflow</h2>
+  <div class="body">
+    <p class="muted">The organizer is built from a workflow's questions. Pick one.</p>
+    <table>
+      <tr><th>Workflow</th><th>What it covers</th><th class="right"></th></tr>
+      {% for w in workflows %}
+      <tr>
+        <td><strong>{{ w.name }}</strong><div class="muted mono">{{ w.key }}</div></td>
+        <td class="muted">{{ w.description }}</td>
+        <td class="right"><a class="btn sm primary" href="{{ url_for('intake.organizer', client=client_id, workflow=w.key) }}">Select →</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="panel">
+  <h2>{{ workflow.name }} — organizer</h2>
+  <div class="body">
+    <p class="muted" style="margin-top:0">
+      This emails {{ state.name(client_id) }}
+      {% if client_email %}(<span class="mono">{{ client_email }}</span>){% else %}<span class="flag">— no email on file; add one on the client, or send the PDF manually</span>{% endif %}
+      a short covering note with a fillable <strong>organizer PDF</strong> attached.
+      {% if returning %} As a returning client, last year's answers are pre-filled so they only mark what changed.{% endif %}
+    </p>
+
+    <form method="post" action="{{ url_for('intake.organizer_email') }}" style="margin-bottom:10px">
+      <input type="hidden" name="client" value="{{ client_id }}">
+      <input type="hidden" name="workflow_key" value="{{ workflow.key }}">
+      <input type="hidden" name="mode" value="{{ mode }}">
+      <p><label class="muted">Tax year</label><br>
+        <input class="field-input" type="number" name="tax_year" placeholder="e.g. 2025"></p>
+      <button class="btn primary" type="submit">✉ Open Outlook draft with organizer attached</button>
+      <a class="btn" href="{{ url_for('intake.organizer_pdf', client=client_id, workflow=workflow.key, mode=mode) }}" target="_blank">Preview / download organizer</a>
+    </form>
+    <p class="note">On Windows with Outlook, this pops a ready-to-send draft. Elsewhere, we hand you the text plus the PDF to attach yourself.</p>
+  </div>
+</div>
+{% endif %}
+
+<p style="margin-top:6px"><a class="btn" href="{{ url_for('intake.client_start', client_id=client_id) }}">← Back to intake options</a></p>
+{% endblock %}

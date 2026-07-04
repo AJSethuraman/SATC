@@ -1,0 +1,50 @@
+meta:
+  tax_year: 2025
+  jurisdiction: OH
+  source_label: "Ohio Rev. Code 5747; Ohio budget legislation"
+  retrieved: "2026-06-17"
+  status: in_force
+  notes: >
+    Ohio individual income tax 2025. Ohio has been phasing toward a flatter
+    schedule; the 2025 brackets are flagged for verification against the enacted
+    budget (the practice must confirm the final rate/threshold before filing).
+
+parameters:
+  has_standard_deduction:
+    value: false
+    citation: "Ohio Rev. Code 5747.01 et seq."
+
+  brackets_nonbusiness:
+    value:
+      - {rate: 0.00, up_to: 26050}
+      - {rate: 0.0275, up_to: 100000}
+      - {rate: 0.035, up_to: null}
+    status: scheduled_reversion
+    pending_reason: >
+      Ohio enacted continued rate reductions phasing toward a flat 2.75%. The 2025
+      schedule shown here mirrors 2024 as a placeholder — VERIFY the enacted 2025
+      brackets/threshold with the Ohio Dept. of Taxation before use.
+    citation: "Ohio Rev. Code 5747.02; Ohio budget bill"
+
+  personal_exemption_tiers:
+    value:
+      - {oh_magi_up_to: 40000, amount: 2400}
+      - {oh_magi_up_to: 80000, amount: 2150}
+      - {oh_magi_up_to: null, amount: 1900}
+    unit: usd
+    status: pending
+    pending_reason: "2025 Ohio personal exemption amounts (indexed) pending verification."
+    citation: "Ohio Rev. Code 5747.025"
+
+  business_income_deduction_max:
+    value: {default: 250000, mfs: 125000}
+    unit: usd
+    citation: "Ohio Rev. Code 5747.01(A)(31) (BID)"
+  business_income_rate_above_bid:
+    value: 0.03
+    unit: ratio
+    citation: "Ohio Rev. Code 5747.02(A)(4)"
+
+  apportionment_method:
+    value: single_sales_factor
+    citation: "OH pass-through apportionment (sales factor)"

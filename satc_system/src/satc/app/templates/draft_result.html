@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>{% if result.ok %}Draft opened in Outlook{% else %}Your {{ what }} is ready{% endif %}</h2>
+  <div class="muted">
+    {% if result.ok %}
+      Switch to Outlook to review and send — recipient, subject, body{% if attachment_name %}, and the attachment{% endif %} are filled in.
+    {% else %}
+      We couldn't drive Outlook automatically on this machine, so here's everything to send it yourself.
+    {% endif %}
+  </div>
+</div>
+
+{% if result.ok %}
+<div class="panel">
+  <h2>✓ Sent to Outlook</h2>
+  <div class="body">
+    <p>A draft just opened in Outlook{% if to %} to <strong>{{ to }}</strong>{% endif %}. Review it and hit Send.</p>
+    {% if attachment_name %}<p class="muted">Attached: {{ attachment_name }}</p>{% endif %}
+    <p style="margin-top:14px"><a class="btn primary" href="{{ back_url }}">Done</a></p>
+  </div>
+</div>
+{% else %}
+<div class="panel">
+  <h2>Open it yourself</h2>
+  <div class="body">
+    <p class="note" style="margin-top:0">{{ result.detail }}</p>
+    <p style="margin-bottom:12px">
+      <a class="btn primary" href="{{ mailto }}">✉ Open in your mail app</a>
+      {% if attachment_url %}<a class="btn" href="{{ attachment_url }}" target="_blank">Download the organizer to attach</a>{% endif %}
+      <button class="btn" type="button" onclick="satcCopy()">Copy email text</button>
+    </p>
+    <p class="muted">To: {{ to or '—' }} &nbsp;·&nbsp; Subject: {{ subject }}</p>
+    <textarea id="emailtext" class="codebox" readonly>{{ body }}</textarea>
+    {% if attachment_url %}<p class="note">Heads up: the “Open in your mail app” button can't attach files — download the organizer above and attach it before sending.</p>{% endif %}
+    <p style="margin-top:14px"><a class="btn" href="{{ back_url }}">← Back</a></p>
+  </div>
+</div>
+<script>
+function satcCopy(){
+  var t = document.getElementById('emailtext');
+  t.focus(); t.select(); t.setSelectionRange(0, 99999);
+  try { document.execCommand('copy'); } catch (e) {}
+}
+</script>
+{% endif %}
+{% endblock %}

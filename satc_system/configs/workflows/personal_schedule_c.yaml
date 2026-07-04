@@ -1,0 +1,144 @@
+# Workflow: Personal Schedule C
+#
+# Ported from JS workflow `personalScheduleC`.
+# NOTE: quote "yes"/"no" — bare yes/no are booleans in YAML and would break condition matching.
+key: personal_schedule_c
+name: Personal Schedule C
+description: Sole proprietor business activity reported on an individual return.
+engagement_type: personalScheduleC
+client_type: person
+
+questions:
+  - id: newBusiness
+    label: New business activity started this year?
+    type: boolean
+  - id: received1099Nec
+    label: Received Forms 1099-NEC?
+    type: boolean
+  - id: received1099K
+    label: Received Forms 1099-K?
+    type: boolean
+  - id: inventorySales
+    label: Inventory or product sales?
+    type: boolean
+  - id: vehicleUse
+    label: Vehicle used for business?
+    type: boolean
+  - id: homeOffice
+    label: Home office used?
+    type: boolean
+  - id: contractorsPaid
+    label: Independent contractors paid?
+    type: boolean
+    risk_flag: Missing W-9s
+  - id: assetPurchases
+    label: Equipment, software, furniture, or other asset purchases?
+    type: boolean
+  - id: businessDigitalAssets
+    label: Digital assets used in the business?
+    type: boolean
+    risk_flag: Crypto / digital asset activity
+
+tasks:
+  - template_id: schedule-c-gross-receipts-summary
+    title: Request Schedule C gross receipts support
+    category: Income
+    audience: client
+    days_before_due: 18
+    doc_type: Gross receipts summary
+    client_request_text: >-
+      Provide gross receipts summary from books, invoices, bank deposits, or
+      payment platforms.
+
+  - template_id: schedule-c-new-business-details
+    title: Request new business setup details
+    category: Business setup
+    audience: client
+    days_before_due: 17
+    doc_type: Business formation documents
+    condition: {question_id: newBusiness, equals: "yes"}
+    client_request_text: >-
+      Provide business start date, EIN if obtained, DBA or formation documents,
+      business bank and credit card details, and accounting method or
+      bookkeeping setup information.
+
+  - template_id: schedule-c-upload-1099-nec
+    title: Request Forms 1099-NEC
+    category: Income
+    audience: client
+    days_before_due: 16
+    doc_type: 1099-NEC
+    condition: {question_id: received1099Nec, equals: "yes"}
+    client_request_text: Upload each Form 1099-NEC received.
+
+  - template_id: schedule-c-upload-1099-k
+    title: Request Forms 1099-K
+    category: Income
+    audience: client
+    days_before_due: 16
+    doc_type: 1099-K
+    condition: {question_id: received1099K, equals: "yes"}
+    client_request_text: >-
+      Upload each Form 1099-K received plus payment-platform gross receipts and
+      fee detail.
+
+  - template_id: schedule-c-inventory-cogs-support
+    title: Request inventory and COGS support
+    category: COGS
+    audience: client
+    days_before_due: 14
+    doc_type: Inventory and COGS support
+    condition: {question_id: inventorySales, equals: "yes"}
+    client_request_text: >-
+      Upload ending inventory count, valuation method, purchase records, and
+      COGS support.
+
+  - template_id: schedule-c-mileage-log
+    title: Request mileage log
+    category: Vehicle
+    audience: client
+    days_before_due: 14
+    doc_type: Mileage log
+    condition: {question_id: vehicleUse, equals: "yes"}
+    client_request_text: Upload mileage log with business, commuting, and personal miles.
+
+  - template_id: schedule-c-home-office-details
+    title: Request home office details
+    category: Home office
+    audience: client
+    days_before_due: 14
+    doc_type: Home office details
+    condition: {question_id: homeOffice, equals: "yes"}
+    client_request_text: >-
+      Provide home office square footage, total home square footage, and related
+      home expense support.
+
+  - template_id: schedule-c-contractor-w9-payments
+    title: Request contractor W-9s and totals
+    category: Contractors
+    audience: client
+    days_before_due: 13
+    doc_type: W-9
+    condition: {question_id: contractorsPaid, equals: "yes"}
+    client_request_text: Upload contractor W-9s and annual payment totals by vendor.
+
+  - template_id: schedule-c-asset-purchase-invoices
+    title: Request asset purchase invoices
+    category: Assets
+    audience: client
+    days_before_due: 13
+    doc_type: Asset purchase invoices
+    condition: {question_id: assetPurchases, equals: "yes"}
+    client_request_text: >-
+      Upload equipment, software, furniture, or asset purchase invoices with
+      purchase dates and business-use percentage.
+
+  - template_id: schedule-c-business-crypto-exports
+    title: Request business digital asset exports
+    category: Digital assets
+    audience: client
+    days_before_due: 13
+    doc_type: Digital asset exports
+    condition: {question_id: businessDigitalAssets, equals: "yes"}
+    client_request_text: Upload business digital asset transaction exports and basis support.
+    internal_instructions: Review ordinary income, capital gain, and payment treatment.

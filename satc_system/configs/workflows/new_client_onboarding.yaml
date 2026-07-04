@@ -1,0 +1,115 @@
+# Workflow: New tax client onboarding
+#
+# Ported from JS workflow `newTaxClientOnboarding` (defined then `delete`d in the
+# JS — RESTORED here because the workflow is valuable).
+# client_type is "" (any) so onboarding is offered regardless of person/business.
+# NOTE: quote "yes"/"no" — bare yes/no are booleans in YAML and would break condition matching.
+key: new_client_onboarding
+name: New tax client onboarding
+description: >-
+  Collect authorization, prior-year details, entity information, and engagement
+  documents.
+engagement_type: clientOnboarding
+client_type: ""
+
+questions:
+  - id: hasPriorYearReturns
+    label: Does the client have prior-year tax returns to provide?
+    type: boolean
+  - id: hasIrsNotices
+    label: Does the client have IRS or state notices?
+    type: boolean
+  - id: multiStateFiling
+    label: Will the client need multi-state filing review?
+    type: boolean
+  - id: businessOwner
+    label: Does the client own a business or rental entity?
+    type: boolean
+  - id: needsBookkeepingSetup
+    label: Does the client need bookkeeping setup?
+    type: boolean
+
+tasks:
+  - template_id: onboarding-send-welcome-email
+    title: Send welcome email and secure portal invitation
+    category: Kickoff
+    audience: client
+    days_before_due: 21
+    doc_type: Welcome email
+
+  - template_id: onboarding-request-engagement-letter
+    title: Request signed engagement letter
+    category: Authorization
+    audience: client
+    days_before_due: 20
+    doc_type: Engagement letter
+
+  - template_id: onboarding-gather-intake-questionnaire
+    title: Gather client intake questionnaire and contact details
+    category: Client information
+    audience: client
+    days_before_due: 16
+    doc_type: Intake questionnaire
+
+  - template_id: onboarding-confirm-filing-details
+    title: Confirm filing status, dependents, entities, and state obligations
+    category: Review
+    audience: internal
+    days_before_due: 14
+
+  - template_id: onboarding-set-up-client-folder
+    title: Set up client folder and document checklist
+    category: Internal setup
+    audience: internal
+    days_before_due: 12
+
+  - template_id: onboarding-schedule-kickoff-call
+    title: Schedule kickoff or discovery call
+    category: Kickoff
+    audience: client
+    days_before_due: 10
+    doc_type: Kickoff call scheduling
+
+  - template_id: onboarding-review-open-questions
+    title: Review open questions and assign next steps
+    category: Review
+    audience: internal
+    days_before_due: 7
+
+  - template_id: onboarding-request-prior-year-returns
+    title: Request prior-year tax returns and carryforward details
+    category: Document requests
+    audience: client
+    days_before_due: 18
+    doc_type: Prior-year return
+    condition: {question_id: hasPriorYearReturns, equals: "yes"}
+
+  - template_id: onboarding-request-tax-notices
+    title: Request copies of IRS or state notices and response deadlines
+    category: Document requests
+    audience: client
+    days_before_due: 17
+    doc_type: IRS or state notices
+    condition: {question_id: hasIrsNotices, equals: "yes"}
+
+  - template_id: onboarding-map-state-filing-requirements
+    title: Map resident and nonresident state filing requirements
+    category: Review
+    audience: internal
+    days_before_due: 13
+    condition: {question_id: multiStateFiling, equals: "yes"}
+
+  - template_id: onboarding-request-entity-documents
+    title: Request entity documents, ownership details, and accounting access
+    category: Document requests
+    audience: client
+    days_before_due: 13
+    doc_type: Entity documents
+    condition: {question_id: businessOwner, equals: "yes"}
+
+  - template_id: onboarding-create-bookkeeping-setup-plan
+    title: Create bookkeeping setup plan and chart-of-accounts checklist
+    category: Internal setup
+    audience: internal
+    days_before_due: 11
+    condition: {question_id: needsBookkeepingSetup, equals: "yes"}

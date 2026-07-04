@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Questionnaires</h2>
+  <div class="muted">Tailor the interviews — reword, add, or turn off questions and document requests.</div>
+</div>
+
+<div class="panel">
+  <h2>Workflows</h2>
+  <div class="body">
+    <p class="note">Your edits are saved as this practice's overrides. They layer on top of the
+      built-in workflows and never touch the shipped defaults — reset any workflow to return to original.</p>
+    <table>
+      <tr><th>Name</th><th>Questions</th><th>Requests</th><th>Status</th><th class="right"></th></tr>
+      {% for wf in workflows %}
+      <tr>
+        <td><strong>{{ wf.name }}</strong><div class="muted mono">{{ wf.key }}</div></td>
+        <td>{{ wf.questions | length }}</td>
+        <td>{{ wf.tasks | length }}</td>
+        <td>
+          {% if edited[wf.key] %}<span class="badge b-Received">Edited</span>
+          {% else %}<span class="muted">Default</span>{% endif %}
+        </td>
+        <td class="right">
+          <a class="btn primary sm" href="{{ url_for('workflows.edit_workflow', key=wf.key) }}">Edit</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

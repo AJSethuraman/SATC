@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>{{ state.name(client_id) }}</h2>
+  <div class="muted">{{ client_id }} · de-identified everywhere downstream — only this vault-side view shows the name.</div>
+</div>
+
+<div class="cards">
+  <div class="card accent"><div class="n">{{ returns|length }}</div><div class="l">Returns this year</div></div>
+  <div class="card{{ ' alert' if (docs|selectattr('status','equalto','Requested')|list|length) }}">
+    <div class="n">{{ docs|selectattr('status','equalto','Requested')|list|length }}</div><div class="l">Docs outstanding</div></div>
+  <div class="card"><div class="n">{% if engagement and engagement.fee_amount %}${{ '{:,.0f}'.format(engagement.fee_amount) }}{% else %}—{% endif %}</div>
+    <div class="l">Fee · {{ engagement.engagement_letter_status if engagement else '—' }}</div></div>
+</div>
+
+<div class="panel">
+  <h2>Returns</h2>
+  <div class="body">
+    <table>
+      <tr><th>Form</th><th>Jurisdiction</th><th>Status</th><th class="right">Refund / (due)</th></tr>
+      {% for r in returns %}
+      <tr>
+        <td><strong>{{ r.return_type }}</strong></td>
+        <td>{{ r.jurisdiction }}</td>
+        <td class="status-{{ r.status|replace(' ','.') }}">{{ r.status }}</td>
+        <td class="right">{% if r.refund_amount %}${{ '{:,.0f}'.format(r.refund_amount) }}{% elif r.balance_due_amount %}(${{ '{:,.0f}'.format(r.balance_due_amount) }}){% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p style="margin-top:14px">
+      <a class="btn primary" href="{{ url_for('intake', client=client_id) }}">Add documents</a>
+      <a class="btn" href="{{ url_for('drake_entry', client_id=client_id) }}">Generate Drake entry</a>
+      <form class="inline" method="post" action="{{ url_for('delivery_email', client_id=client_id) }}">
+        <button class="btn" type="submit">Draft delivery email</button>
+      </form>
+      <a class="btn" href="{{ url_for('export') }}">Export to Excel</a>
+    </p>
+  </div>
+</div>
+
+{% if lines %}
+<div class="panel">
+  <h2>Workpaper inputs <span class="muted">— posted from confirmed intake</span></h2>
+  <div class="body">
+    {% if posted and posted.posted %}<p class="note">Just posted {{ posted.posted }} confirmed values to the data mart.</p>{% endif %}
+    <table>
+      <tr><th>Schedule</th><th>Line</th><th>Item</th><th class="right">Amount</th><th>Source</th></tr>
+      {% for li in lines %}
+      <tr>
+        <td class="muted">{{ li.schedule }}</td>
+        <td class="mono">{{ li.line_code }}</td>
+        <td>{{ li.label }}</td>
+        <td class="right mono">{% if li.amount is not none %}{{ '{:,.2f}'.format(li.amount) }}{% else %}{{ li.text_value }}{% endif %}</td>
+        <td class="muted">{{ li.provenance.short_source() if li.provenance else '' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="panel">
+  <h2>Documents</h2>
+  <div class="body">
+    <table>
+      <tr><th>Document</th><th>Status</th><th>Date</th></tr>
+      {% for d in docs %}
+      <tr><td>{{ d.doc_type }}</td><td><span class="badge b-{{ d.status }}">{{ d.status }}</span></td><td class="muted">{{ d.as_of }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

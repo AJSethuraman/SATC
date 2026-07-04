@@ -1,0 +1,17 @@
+// Rename this file to ".mcp.json" at the plugin root after reviewing it.
+// (A leading-dot config written by an assistant is often write-protected, so we
+//  ship a template you rename yourself.)
+//
+// Prerequisite: the SATC desktop app must be RUNNING on this machine. These tools
+// call its local JSON API. Pin the app's port so this URL is stable — launch it
+// with SATC_PORT=5050 (the app prints the URL it chose on startup). If your app
+// is on a different port, change SATC_BASE_URL below to match.
+{
+  "mcpServers": {
+    "satc-withholding": {
+      "command": "python",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/satc_mcp.py"],
+      "env": { "SATC_BASE_URL": "http://127.0.0.1:5050" }
+    }
+  }
+}
