@@ -80,6 +80,26 @@
   `satc doctor` + Setup screen speak to preparers; `install.bat`/`SATC.bat` two-double-click flow;
   robust port pick; privacy posture real in code; `ARCHITECTURE.md` strong; CI attaches exe on tags.
 
+### Compliance — FTC Safeguards Rule / WISP (done 2026-07-04) — primary-source (eCFR/FTC/IRS)
+- **The Rule applies to a solo tax preparer** (preparers are "financial institutions"; no headcount
+  exemption from *coverage*). (16 CFR 314; FTC guidance.)
+- **The <5,000-consumer exemption (§314.6) waives ONLY four things:** the *written* risk assessment,
+  annual pen-test/vuln-scan, *written* incident-response plan, and annual board report. **Everything
+  else still applies.**
+- **NON-waived, still required for a solo preparer:** **encryption at rest AND in transit** (§314.4(c)(3)),
+  **MFA** (c)(5), **access controls** (c)(1), a Qualified Individual, the WISP itself, service-provider
+  oversight, training, secure disposal. → **The plaintext-SSN vault (C1) is a real, non-waivable
+  violation.** BitLocker alone = defensible checkbox but leaves SSNs readable on a running machine;
+  **app-level vault encryption (SQLCipher/AES-256, key via Windows DPAPI/keystore) is the defensible
+  fix** and also earns the breach-rule "encrypted" carve-out.
+- **Breach rule (eff. May 13 2024):** notify FTC ≤30 days if *unencrypted* customer info of ≥500
+  consumers is acquired — intact encryption (uncompromised key) keeps an incident out of the trigger.
+- **IRS side** operationalizes the same duty: Pub 4557 (references the FTC WISP requirement), Pub 5708
+  (small-firm WISP template), the "Security Six" (incl. drive encryption + MFA), PTIN-renewal
+  data-security attestation. No separate standard — points back to the Safeguards Rule.
+- **Implication:** SATC should ship vault encryption + a WISP template (Pub 5708) as product features;
+  these are the difference between "hobby tool" and "giveable to a real practice."
+
 ### Compliance — §7216 / AI use (done 2026-07-03) — search-sourced, spot-check before quoting
 - **New (June 24 2026): IRS OPR Alert 2026-19**, first formal guidance on practitioner AI use —
   Circular 230-framed; says handle client data "using only secure, enterprise-approved AI systems,"
