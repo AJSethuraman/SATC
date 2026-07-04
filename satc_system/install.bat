@@ -17,7 +17,13 @@ where py >nul 2>nul && (set "PY=py") || (set "PY=python")
 %PY% -m venv .venv
 call .venv\Scripts\activate.bat
 python -m pip install --upgrade pip >nul
-pip install -e ".[local]"
+pip install -e ".[local,mcp]"
+if errorlevel 1 (
+  echo.
+  echo   X Install failed ^(see the errors above^). Check your internet connection and re-run.
+  pause
+  exit /b 1
+)
 
 echo.
 where tesseract >nul 2>nul && (

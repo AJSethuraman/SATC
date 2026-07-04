@@ -214,10 +214,17 @@ same legal duties either way — Phase 0 below stands regardless.
       no-Origin local tools + the JSON API still work; SameSite=Lax + HttpOnly session cookie.
 - [x] **M7 secret_key** — per-install random key (persisted 0600), overridable via env; old hardcoded
       default gone. (M5 local-API is now covered by the H2 Host guard.)
-- [ ] **M6**: protect organizer PDFs (perms / purge after send)
-- [ ] **L8** intake-folder guard · **L9** thread-safe store
-- [ ] **Bugs:** mcpb entry_point path · OCR pdftoppm→pymupdf · doctor Tesseract probe · install.bat
-      fail-loud · `satc reset` confirm
+- [x] **M6** organizer PDFs written 0600 in a 0700 dir (cleartext names protected).
+- [x] **L8** intake-folder guard (opt-in `SATC_INTAKE_ROOT`) · **L9** app runs single-threaded
+      (shared SQLite conns aren't concurrency-safe).
+- [x] **Bugs:** `.mcpb` entry_point path fixed · OCR now rasterizes with pymupdf (no poppler) ·
+      Tesseract auto-detected (+`SATC_TESSERACT`) · `install.bat` fails loudly + installs `[local,mcp]` ·
+      `satc reset` requires typed confirmation (`--yes` to skip).
+
+**✅ PHASE 0 COMPLETE (2026-07-04)** — all audit findings (C1/H2/H3/M4-M7/L8/L9) and handoff bugs
+patched and tested; suite 259 passing. Safe to hold real client SSNs (on a Windows box with the
+DPAPI-sealed vault key). Remaining before a real handoff = Phase 1 (merge to main, matching release,
+docs) — not security.
 
 ### Handoff quick-wins (each < 1 hr, low-risk — safe to do without a big-change sign-off)
 - [ ] Add a root `README.md` (what SATC is; how to get the exe; which branch is live)

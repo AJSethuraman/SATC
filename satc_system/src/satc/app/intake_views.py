@@ -332,10 +332,19 @@ def engagement_email_outlook(engagement_id: str):
 
 # -- intake mode (c): email the client an organizer to fill out --------------
 
+def _restrict(path, mode) -> None:
+    import os
+    try:
+        os.chmod(path, mode)
+    except OSError:
+        pass
+
+
 def _organizer_path(client_id: str, workflow_key: str):
     from pathlib import Path
     folder = Path(STATE.store.dir) / "organizers"
     folder.mkdir(parents=True, exist_ok=True)
+    _restrict(folder, 0o700)   # organizer PDFs carry cleartext client names (M6)
     return folder / f"{client_id}_{workflow_key}_organizer.pdf"
 
 
@@ -353,6 +362,7 @@ def _write_organizer(client_id: str, workflow_key: str, *, returning: bool,
         prefill=prefill, filing_status=STATE.filing_status(client_id))
     path = _organizer_path(client_id, workflow_key)
     path.write_bytes(pdf)
+    _restrict(path, 0o600)   # cleartext client name — keep it owner-only (M6)
     return workflow, path
 
 

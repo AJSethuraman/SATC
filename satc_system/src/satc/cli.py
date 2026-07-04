@@ -42,6 +42,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p_reset = sub.add_parser("reset", help="delete the local databases")
     p_reset.add_argument("--dir", default=None)
+    p_reset.add_argument("--yes", "-y", action="store_true", help="skip the confirmation prompt")
 
     args = parser.parse_args(argv)
 
@@ -96,6 +97,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "reset":
         from satc.persistence.store import DEFAULT_DIR
         d = Path(args.dir) if args.dir else DEFAULT_DIR
+        if not args.yes:
+            print(f"This permanently deletes the SATC databases in {d}")
+            print("(including the identity vault — client names and SSNs). This cannot be undone.")
+            if input("Type YES to confirm: ").strip() != "YES":
+                print("Aborted.")
+                return 1
         for name in ("satc_vault.db", "satc_mart.db"):
             (d / name).unlink(missing_ok=True)
         print(f"Reset store in {d}")

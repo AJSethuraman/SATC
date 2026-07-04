@@ -325,7 +325,10 @@ def main() -> None:
         threading.Timer(1.2, lambda: webbrowser.open(url)).start()
 
     print(f"\n  SATC is running.  Open:  {url}\n  (Leave this window open; press Ctrl+C to stop.)\n")
-    app.run(host="127.0.0.1", port=port, debug=False)
+    # Single-threaded: the store's SQLite connections are shared with
+    # check_same_thread=False and aren't safe under concurrent request threads.
+    # A local single-user app doesn't need threaded serving. (L9)
+    app.run(host="127.0.0.1", port=port, debug=False, threaded=False)
 
 
 if __name__ == "__main__":

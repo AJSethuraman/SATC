@@ -202,9 +202,18 @@ class AppState:
         its parts first, and each document is read by the cheapest sufficient
         backend: fillable form fields, then the free text layer, then vision.
         """
+        import os
         import tempfile
 
         from satc.intake import reconcile_received
+
+        # L8: if an intake root is configured, refuse folders outside it so an
+        # agent-supplied path can't reach arbitrary directories. No-op when unset.
+        root = os.environ.get("SATC_INTAKE_ROOT")
+        if root:
+            root_p, folder_p = Path(root).resolve(), Path(folder).resolve()
+            if root_p != folder_p and root_p not in folder_p.parents:
+                raise ValueError(f"intake folder {folder} is outside SATC_INTAKE_ROOT ({root})")
 
         self.intake_context = {"client_id": client_id, "tax_year": tax_year}
         self.gate = StagingGate()          # fresh working area for this intake

@@ -6,10 +6,10 @@
   "description": "Project a household's full-year federal withholding and recommend a W-4 line-4c adjustment, through the SATC app's local API. Stateless compute; no client PII.",
   "server": {
     "type": "python",
-    "entry_point": "server/satc_mcp.py",
+    "entry_point": "mcp/satc_mcp.py",
     "mcp_config": {
       "command": "python",
-      "args": ["${__dirname}/server/satc_mcp.py"],
+      "args": ["${__dirname}/mcp/satc_mcp.py"],
       "env": { "SATC_BASE_URL": "${user_config.base_url}" }
     }
   },
