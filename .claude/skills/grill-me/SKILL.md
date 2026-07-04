@@ -82,11 +82,25 @@ tree**, resolving dependencies between decisions **one at a time**.
    Do not leave an A or B item as an "assumption" or hand it to the user as a
    question — that's the process failing. Chase A and B to ground before you stop.
 
-9. **Do not write the plan or PRD yet.** Keep going until the branches are
-   resolved and the assumption audit is clean (only bucket C remains). Then
-   **stop and summarize** the shared understanding in a few sentences and ask:
-   *"Have we reached shared understanding — should I capture this as a PRD?"* Do
-   not proceed until the user confirms.
+9. **Tag what belongs in the running log.** As you park things during the
+   interview, flag any item that should **outlive this PRD** with **`[LOG]`** so
+   the later stages route it to the durable running log, not just the transcript:
+   - deferred scope / a "later phase" that's really a **roadmap** item (not a true
+     non-goal);
+   - a multi-phase **roadmap** the operator wants as the destination while
+     shipping a small v1;
+   - a cross-cutting **principle or decision** that should outlive this PRD/issues;
+   - something **explicitly decided against for now**.
+   (The running log is this repo's existing one — `PLAN.md` for SATC/practice-ops
+   work, `BACKLOG.md` for the credit-risk suite — never a new file. Skip tagging
+   on trivial one-off runs.)
+
+10. **Do not write the plan or PRD yet.** Keep going until the branches are
+    resolved and the assumption audit is clean (only bucket C remains). Then
+    **stop and summarize** the shared understanding in a few sentences — calling
+    out any `[LOG]`-tagged items — and ask: *"Have we reached shared
+    understanding — should I capture this as a PRD?"* Do not proceed until the
+    user confirms.
 
 ---
 
