@@ -32,8 +32,13 @@ def test_pii_lives_only_in_the_vault_file_not_the_mart(tmp_path):
         # The legal name and full TIN must NOT appear in the mart database…
         assert rec.legal_name not in mart_bytes
         assert rec.tin.replace("-", "") not in mart_bytes.replace("-", "")
-        # …but they DO live in the vault database.
-        assert rec.legal_name in vault_bytes
+        # …and are NOT plaintext in the vault file either (encrypted at rest)…
+        assert rec.legal_name not in vault_bytes
+        assert rec.tin.replace("-", "") not in vault_bytes.replace("-", "")
+
+    # …but they ARE retrievable through the store API (decrypted on read).
+    names = set(SATCStore(tmp_path).names().values())
+    assert {rec.legal_name for rec in synthetic_identities()} <= names
 
 
 def test_export_produces_an_excel_mirror(tmp_path):

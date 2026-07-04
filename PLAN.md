@@ -204,12 +204,18 @@ same legal duties either way — Phase 0 below stands regardless.
 
 ## To-do
 
-### Security fixes (from audit — triage with owner before big changes)
-- [ ] **C1**: encrypt vault at rest (SQLCipher or app-level AES w/ DPAPI/OS-keychain key) + lock file ACLs
+### Security fixes (Phase 0 — in progress)
+- [x] **C1 vault encryption** — AES-256-GCM on all vault PII (`persistence/crypto.py`); key sealed by
+      DPAPI on Windows / 0600 key file elsewhere; transparent migration of legacy plaintext + VACUUM;
+      tests prove the SSN is ciphertext on disk. `cryptography` added as a base dependency.
+- [x] **M4 file perms** — data dir 0700, DB + key files 0600 (POSIX; NTFS ACLs on Windows).
 - [ ] **H2**: Host-header allow-list on the Flask app
-- [ ] **H3**: CSRF tokens on all POST routes + SameSite cookies
-- [ ] **M4/M6/M7**: restrictive dir/file perms; protect organizer PDFs; per-install random secret_key
-- [ ] Decide local-API auth token (M5) and thread-safe store access (L9)
+- [ ] **H3**: CSRF (origin/referer check + SameSite cookies) on POST routes
+- [ ] **M7**: per-install random secret_key (replace hardcoded default)
+- [ ] **M6**: protect organizer PDFs (perms / purge after send)
+- [ ] **M5** local-API guard (largely covered by H2) · **L8** intake-folder guard · **L9** thread-safe store
+- [ ] **Bugs:** mcpb entry_point path · OCR pdftoppm→pymupdf · doctor Tesseract probe · install.bat
+      fail-loud · `satc reset` confirm
 
 ### Handoff quick-wins (each < 1 hr, low-risk — safe to do without a big-change sign-off)
 - [ ] Add a root `README.md` (what SATC is; how to get the exe; which branch is live)

@@ -2,8 +2,9 @@
 
 Two single-file databases (no server, no setup — sqlite3 is built into Python):
   * ``satc_vault.db`` — the IDENTITY VAULT (sensitive: legal name, full TIN,
-    addresses, contacts). Kept in its own file so it can carry its own
-    permissions/encryption and never co-mingles with de-identified data.
+    addresses, contacts). Kept in its own file, with its PII columns encrypted at
+    rest (AES-256-GCM; see :mod:`satc.persistence.crypto`) and restrictive file
+    permissions, so a copied/synced database yields no readable client data.
   * ``satc_mart.db``  — the WORKING DATA MART (de-identified: client_id, masked
     last-4, returns, line items, carryforwards, basis, payments, engagements,
     documents). This is what the app reads/writes and what exports to Excel.
@@ -17,11 +18,30 @@ dates as ISO text. Excel remains a first-class *export* (see
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import sys
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+
+from satc.persistence.crypto import open_cipher
+
+
+def _restrict_dir(path: Path) -> None:
+    """Best-effort 0700 on the data dir (POSIX). On Windows NTFS ACLs apply."""
+    try:
+        os.chmod(path, 0o700)
+    except OSError:
+        pass
+
+
+def _restrict_file(path: Path) -> None:
+    """Best-effort 0600 on a database file (POSIX)."""
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
 
 from satc.fixtures import synthetic_identities, synthetic_mart
 from satc.models.identity import IdentityRecord, PublicClient
@@ -132,15 +152,24 @@ class SATCStore:
     def __init__(self, directory: str | Path | None = None) -> None:
         self.dir = Path(directory) if directory else DEFAULT_DIR
         self.dir.mkdir(parents=True, exist_ok=True)
-        self.vault = sqlite3.connect(self.dir / "satc_vault.db", check_same_thread=False)
-        self.mart = sqlite3.connect(self.dir / "satc_mart.db", check_same_thread=False)
+        _restrict_dir(self.dir)
+        vault_path = self.dir / "satc_vault.db"
+        mart_path = self.dir / "satc_mart.db"
+        self.vault = sqlite3.connect(vault_path, check_same_thread=False)
+        self.mart = sqlite3.connect(mart_path, check_same_thread=False)
         for conn in (self.vault, self.mart):
             conn.row_factory = sqlite3.Row
         self.vault.executescript(_VAULT_DDL)
         self.mart.executescript(_MART_DDL)
         self.vault.commit()
         self.mart.commit()
+        # Vault PII is encrypted at rest. The cipher's key is generated once and
+        # sealed (DPAPI on Windows); see satc.persistence.crypto.
+        self._cipher = open_cipher(self.dir)
+        _restrict_file(vault_path)
+        _restrict_file(mart_path)
         self._migrate()
+        self._encrypt_vault_at_rest()
 
     def _migrate(self) -> None:
         """Add columns introduced after a database was first created.
@@ -153,6 +182,37 @@ class SATCStore:
         if "filing_status" not in cols:
             self.mart.execute("ALTER TABLE public_clients ADD COLUMN filing_status TEXT")
             self.mart.commit()
+
+    def _encrypt_vault_at_rest(self) -> None:
+        """Encrypt any legacy plaintext PII left by a pre-encryption build, then
+        VACUUM so the old plaintext pages are reclaimed from the file (otherwise a
+        freed page can still expose an SSN to ``strings``). Idempotent: rows already
+        encrypted are unchanged, so this is a cheap no-op after the first run."""
+        enc = self._cipher.encrypt
+        changed = False
+
+        def _rewrite(rows, table, pii_cols, key_cols):
+            nonlocal changed
+            for r in rows:
+                current = [r[c] for c in pii_cols]
+                new = [enc(v) for v in current]
+                if new != current:
+                    set_clause = ", ".join(f"{c}=?" for c in pii_cols)
+                    where = " AND ".join(f"{k}=?" for k in key_cols)
+                    self.vault.execute(f"UPDATE {table} SET {set_clause} WHERE {where}",
+                                       (*new, *(r[k] for k in key_cols)))
+                    changed = True
+
+        _rewrite(self.vault.execute("SELECT * FROM identities").fetchall(),
+                 "identities", ["legal_name", "tin"], ["client_id"])
+        _rewrite(self.vault.execute("SELECT rowid, * FROM vault_addresses").fetchall(),
+                 "vault_addresses", ["line1", "line2", "city", "state", "zip"], ["rowid"])
+        _rewrite(self.vault.execute("SELECT rowid, * FROM vault_contacts").fetchall(),
+                 "vault_contacts", ["name", "email", "phone"], ["rowid"])
+        if changed:
+            self.vault.commit()
+            self.vault.execute("VACUUM")   # reclaim freelist pages holding old plaintext
+            self.vault.commit()
 
     # -- lifecycle --------------------------------------------------------
     def is_empty(self) -> bool:
@@ -185,29 +245,35 @@ class SATCStore:
 
     # -- vault ------------------------------------------------------------
     def upsert_identity(self, rec: IdentityRecord) -> None:
+        enc = self._cipher.encrypt
         self.vault.execute(
             "INSERT OR REPLACE INTO identities VALUES (?,?,?,?)",
-            (rec.client_id, rec.entity_type, rec.legal_name, rec.tin))
+            (rec.client_id, rec.entity_type, enc(rec.legal_name), enc(rec.tin)))
         self.vault.execute("DELETE FROM vault_addresses WHERE client_id=?", (rec.client_id,))
         for a in rec.addresses:
             self.vault.execute("INSERT INTO vault_addresses VALUES (?,?,?,?,?,?)",
-                               (rec.client_id, a.line1, a.line2, a.city, a.state, a.zip))
+                               (rec.client_id, enc(a.line1), enc(a.line2), enc(a.city),
+                                enc(a.state), enc(a.zip)))
         self.vault.execute("DELETE FROM vault_contacts WHERE client_id=?", (rec.client_id,))
         for c in rec.contacts:
             self.vault.execute("INSERT INTO vault_contacts VALUES (?,?,?,?,?)",
-                               (rec.client_id, c.name, c.email, c.phone, c.role))
+                               (rec.client_id, enc(c.name), enc(c.email), enc(c.phone), c.role))
         self.vault.commit()
 
     def names(self) -> dict[str, str]:
-        return {r["client_id"]: r["legal_name"]
+        return {r["client_id"]: self._cipher.decrypt(r["legal_name"])
                 for r in self.vault.execute("SELECT client_id, legal_name FROM identities")}
 
     def client_email(self, client_id: str) -> str:
-        """First non-empty contact email for a client (from the vault), or ``""``."""
+        """First non-empty contact email for a client (from the vault), or ``""``.
+
+        Empty emails stay empty ciphertext-free (see VaultCipher), so the
+        ``email!=''`` filter still selects only rows that actually have one.
+        """
         row = self.vault.execute(
             "SELECT email FROM vault_contacts WHERE client_id=? AND email!='' LIMIT 1",
             (client_id,)).fetchone()
-        return row["email"] if row else ""
+        return self._cipher.decrypt(row["email"]) if row else ""
 
     # -- mart write -------------------------------------------------------
     def save_mart(self, mart: DataMart) -> None:
