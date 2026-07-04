@@ -57,7 +57,7 @@ def test_engagement_overlay_parses():
     assert engagement.thresholds["dscr_floor"] == pytest.approx(1.20)
     assert engagement.reviewer["independent"] is True
     loans = load_loans(engagement.loans_path)
-    assert [loan.loan_id for loan in loans] == ["CI-0001"]
+    assert [loan.loan_id for loan in loans] == ["CI-0001", "CI-0002", "CI-0003", "CI-0004"]
 
 
 def _write_yaml(tmp_path: Path, name: str, data: dict) -> Path:
@@ -124,7 +124,7 @@ def test_overlay_grades_must_map_into_program_buckets(tmp_path):
 def test_sheet_presence_and_order(built):
     wb, _, _, loans = built
     assert wb.sheetnames == (["Cover"] + [f"LS_{l.loan_id}" for l in loans]
-                             + ["Findings", "_config"])
+                             + ["Master", "Findings", "_config"])
 
 
 def test_house_style_banner_and_gridlines(built):
@@ -200,7 +200,8 @@ def test_workbook_carries_no_full_tin(built):
     text = shared.decode("utf-8", errors="ignore")
     assert not re.search(r"\b\d{3}-\d{2}-\d{4}\b", text)   # no dashed SSN
     assert not re.search(r"\b\d{2}-\d{7}\b", text)         # no dashed EIN
-    assert "6789" in text                                   # the last-4 is present
+    for last4 in ("6789", "4821", "9034", "2277"):          # the last-4s are present
+        assert last4 in text
 
 
 # ---------------------------------------------------------------------------

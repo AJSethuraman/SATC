@@ -43,6 +43,7 @@ class FindingsRefs:
 
     first_row: int
     last_row: int
+    next_row: int = 0   # first free row after the aggregates (asset-quality block)
 
     def open_count_formula(self, *criteria: tuple[str, str]) -> str:
         """SUMPRODUCT counting register rows that are open, with extra
@@ -135,4 +136,42 @@ def build_findings(ws: Worksheet, engagement: Engagement,
         row = _agg(row, loan.loan_id, refs.open_count_formula((_C_LOAN, loan.loan_id)))
     row = _agg(row, "TOTAL open", refs.open_count_formula())
 
-    return refs
+    return FindingsRefs(first_row=refs.first_row, last_row=refs.last_row, next_row=row + 1)
+
+
+def add_asset_quality(ws: Worksheet, refs: FindingsRefs, master) -> None:
+    """Append the criticized/classified asset-quality summary, computed by
+    formula from the Master roll-up (criticized includes Special Mention;
+    classified does not — the interagency boundary)."""
+    f, l = master.first_row, master.last_row
+    out = f"Master!${master.outstanding_col}${f}:${master.outstanding_col}${l}"
+
+    def _sum(flag_col: str) -> str:
+        rng = f"Master!${flag_col}${f}:${flag_col}${l}"
+        return f"=SUMPRODUCT(({rng}=TRUE)*{out})"
+
+    def _count(flag_col: str) -> str:
+        rng = f"Master!${flag_col}${f}:${flag_col}${l}"
+        return f"=SUMPRODUCT(({rng}=TRUE)*1)"
+
+    row = refs.next_row
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+    band = ws.cell(row, 1, "Asset quality (criticized = SM+SS+D+L; classified = SS+D+L)")
+    band.fill = KB.HDR_FILL
+    band.font = KB.WHITE_BOLD
+    band.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.row_dimensions[row].height = 18
+    row += 1
+    for label, formula, fmt in (
+            ("Criticized $ (outstanding)", _sum(master.criticized_col), '$#,##0'),
+            ("Criticized count", _count(master.criticized_col), None),
+            ("Classified $ (outstanding)", _sum(master.classified_col), '$#,##0'),
+            ("Classified count", _count(master.classified_col), None)):
+        lab = ws.cell(row, 1, label)
+        lab.font = KB.SECONDARY
+        val = ws.cell(row, 2, formula)
+        val.font = Font(name="Arial", bold=True, size=11, color=KB.INK)
+        val.alignment = Alignment(horizontal="left", vertical="center")
+        if fmt:
+            val.number_format = fmt
+        row += 1

@@ -143,7 +143,7 @@ def test_findings_register_has_one_row_per_loan_exception(demo_recalc):
                      if r.get("kind") == "exception")
     register_rows = [r for r in range(1, fnd.max_row + 1)
                      if str(fnd.cell(r, 6).value or "").startswith("='LS_")]
-    assert len(register_rows) == rule_count * len(loans) == 10
+    assert len(register_rows) == rule_count * len(loans) == 40
     # subtype is representable and drives severity: the mitigated LTV rule
     ltv = next(r for r in register_rows
                if "LTV above" in str(fnd.cell(r, 2).value))
@@ -153,21 +153,26 @@ def test_findings_register_has_one_row_per_loan_exception(demo_recalc):
 
 def test_open_counts_by_class_match_fixture(demo_recalc):
     rc, _, fnd = demo_recalc
-    # Fixture expected: DSCR + LTV open (policy=2), BBC stale (documentation=1),
-    # flood clean (compliance=0), reviewer rating blank (rating=0).
-    assert _agg_value(rc, fnd, "policy") == 2
-    assert _agg_value(rc, fnd, "documentation") == 1
-    assert _agg_value(rc, fnd, "compliance") == 0
-    assert _agg_value(rc, fnd, "rating") == 0
+    # Hand-tallied from the 4-loan fixture (see the fixture's comments):
+    # policy: CI1 dscr+ltv, CI2 leverage, CI3 dscr+ltv+leverage, CI4 dscr+ltv+leverage.
+    # documentation: CI1 bbc; CI3 fs+covenant+appraisal; CI4 bbc+credit approval.
+    # compliance: CI4 flood. rating: CI2 and CI4 cross-bucket downgrades.
+    assert _agg_value(rc, fnd, "policy") == 9
+    assert _agg_value(rc, fnd, "documentation") == 6
+    assert _agg_value(rc, fnd, "compliance") == 1
+    assert _agg_value(rc, fnd, "rating") == 2
 
 
 def test_open_counts_by_severity_and_loan(demo_recalc):
     rc, _, fnd = demo_recalc
-    assert _agg_value(rc, fnd, "high") == 1        # DSCR
-    assert _agg_value(rc, fnd, "medium") == 2      # LTV + BBC
-    assert _agg_value(rc, fnd, "low") == 0
+    assert _agg_value(rc, fnd, "high") == 10   # 3 dscr + 3 leverage + 2 rating + flood + CA
+    assert _agg_value(rc, fnd, "medium") == 7  # 3 ltv + 2 bbc + fs + appraisal
+    assert _agg_value(rc, fnd, "low") == 1     # covenant cert
     assert _agg_value(rc, fnd, "CI-0001") == 3
-    assert _agg_value(rc, fnd, "TOTAL open") == 3
+    assert _agg_value(rc, fnd, "CI-0002") == 2
+    assert _agg_value(rc, fnd, "CI-0003") == 6
+    assert _agg_value(rc, fnd, "CI-0004") == 7
+    assert _agg_value(rc, fnd, "TOTAL open") == 18
 
 
 def test_waived_status_drops_from_open_counts():
@@ -177,9 +182,9 @@ def test_waived_status_drops_from_open_counts():
     ws.cell(rows["LTV above policy ceiling (approved with mitigant)"], 5, "waived")
     rc = Recalc(workbook_bytes(wb))
     fnd = _fnd_rows(wb["Findings"])
-    assert _agg_value(rc, fnd, "policy") == 1
+    assert _agg_value(rc, fnd, "policy") == 8
     assert _agg_value(rc, fnd, "waived") == 1
-    assert _agg_value(rc, fnd, "TOTAL open") == 2
+    assert _agg_value(rc, fnd, "TOTAL open") == 17
 
 
 # ---------------------------------------------------------------------------

@@ -28,8 +28,9 @@ from credit_review.config import (
 )
 from credit_review.config_sheet import write_config_sheet
 from credit_review.cover import build_cover
-from credit_review.findings import build_findings
+from credit_review.findings import add_asset_quality, build_findings
 from credit_review.linesheet import BuildContext, LinesheetBuilder
+from credit_review.master import build_master
 
 PACKAGE_DIR = Path(__file__).parent
 PROGRAMS_DIR = PACKAGE_DIR / "programs"
@@ -66,7 +67,7 @@ def build_engagement_workbook(program: Program, engagement: Engagement,
     refs = write_config_sheet(wb.create_sheet("_config"), program, engagement)
 
     grades = tuple(sorted(engagement.rating_scale_map, key=lambda g: (len(g), g)))
-    per_loan = []
+    exceptions_per_loan, cells_per_loan = [], []
     for loan in loans:
         ctx = BuildContext(pol_registry=refs.pol_registry, map_range=refs.map_range,
                            asof_cell=refs.asof_cell, values=dict(loan.values),
@@ -78,10 +79,16 @@ def build_engagement_workbook(program: Program, engagement: Engagement,
             subtitle=(f"{engagement.client_name}  ·  {engagement.engagement_id}"
                       f"  ·  Loan {loan.loan_id}"),
             ctx=ctx)
-        builder.build()
-        per_loan.append((loan, builder.exceptions))
+        row_cells = builder.build()
+        exceptions_per_loan.append((loan, builder.exceptions))
+        cells_per_loan.append((loan, row_cells))
 
-    build_findings(wb.create_sheet("Findings"), engagement, per_loan)
+    ws_master = wb.create_sheet("Master")
+    ws_findings = wb.create_sheet("Findings")
+    findings_refs = build_findings(ws_findings, engagement, exceptions_per_loan)
+    master_refs = build_master(ws_master, engagement, cells_per_loan,
+                               refs.map_range, refs.framework_range, findings_refs)
+    add_asset_quality(ws_findings, findings_refs, master_refs)
 
     wb.move_sheet("_config", offset=len(wb.sheetnames) - 1 - wb.sheetnames.index("_config"))
     return wb
