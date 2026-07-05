@@ -89,15 +89,21 @@ order; each LOB = a new program YAML + crosswalk on the same engine:
       overlay (1-10 scale, tighter thresholds) builds on the unchanged C&I
       program; recalc tests prove threshold-flips (DSCR 1.22 vs 1.25 floor,
       leverage 3.95x vs 3.5x). 0 code changes (PRD success metric met).
-- [~] **LOB build-out (cash-flow-out order):** **income-producing CRE SHIPPED
-      2026-07-05** (`cre_income_producing.yaml`: NOI DSCR, occupancy,
-      appraised-value LTV, rent-roll/operating-statement evidence,
-      collateral_valuation crosswalk element; config-only) → next: owner-occ
-      CRE → construction/ADC → agricultural → consumer+residential
-      (**first Mode B / product_conformance build** — schema already carries
-      the mode) → multifamily / leases / specialty.
-- [ ] **ASCII-bundle build-on-target** (contract §11 style) so a workbook
-      crosses a bank DLP boundary.
+- [~] **LOB build-out (cash-flow-out order):** SHIPPED 2026-07-05:
+      **income-producing CRE** (NOI DSCR, occupancy, appraised-value LTV,
+      rent-roll evidence), **owner-occ CRE** (occupant-business global cash
+      flow per the RC-C owner-occupied definition), **construction/ADC**
+      (loan-to-cost, interest-reserve depletion, as-completed LTV, draw
+      inspections), **agricultural** (farm operating DSCR, carryover debt,
+      farmland/chattel LTV, crop insurance) — all config + crosswalk, zero
+      engine changes. Remaining (each GATED on its own grill/design pass):
+      consumer+residential (**first Mode B / product_conformance build** —
+      schema already carries the mode) → multifamily / leases / specialty.
+- [x] **ASCII-bundle build-on-target** — SHIPPED 2026-07-05: `credit-review
+      bundle <engagement>` emits a single pure-ASCII script (contract §11
+      pattern, gzip+base64) that rebuilds the workbook byte-identical in an
+      empty folder on a machine with only openpyxl+PyYAML; tested for
+      ASCII purity, byte-parity, and no crypto/formulas deps on target.
 - [ ] **Doc parsing / OCR pre-fill** — proposal lane only; deterministic core
       stays authoritative (needs its own grill/design pass).
 - [ ] **Optional local LLM extraction assist** — human-confirmed proposals

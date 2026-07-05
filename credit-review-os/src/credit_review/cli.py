@@ -2,9 +2,12 @@
 
 ``credit-review build <engagement.yaml>``  -> the encrypted engagement workbook
 ``credit-review ingest <workbook>``        -> de-identified mart + findings JSON
+``credit-review bundle <engagement.yaml>`` -> pure-ASCII build-on-target script
 
 The build writes ciphertext by default (``--plain`` opts out for the synthetic
-demo); ingest accepts either an encrypted or a plain workbook.
+demo); ingest accepts either an encrypted or a plain workbook; bundle emits a
+single ASCII script that rebuilds the workbook on a machine behind a bank's
+DLP boundary (contract §11 pattern).
 """
 
 from __future__ import annotations
@@ -87,6 +90,20 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_bundle(args: argparse.Namespace) -> int:
+    from credit_review.bundle import make_bundle
+
+    engagement_path = Path(args.engagement)
+    engagement = load_engagement(engagement_path)
+    program_path = _resolve_program(args.program)
+    out = Path(args.output) if args.output else Path("build_credit_review.py")
+    script = make_bundle(program_path, engagement, engagement_path, out.name)
+    out.write_text(script, encoding="ascii")
+    print(f"wrote {out}  (pure ASCII, {len(script):,} chars; "
+          f"target needs Python 3.10+ with openpyxl + PyYAML)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="credit-review",
@@ -109,6 +126,15 @@ def main(argv: list[str] | None = None) -> int:
     p_ingest.add_argument("workbook", help=".xlsx or encrypted .xlsx.enc")
     p_ingest.add_argument("--json", default=None, help="write output to this file")
     p_ingest.set_defaults(func=_cmd_ingest)
+
+    p_bundle = sub.add_parser(
+        "bundle", help="emit a pure-ASCII build-on-target script (DLP-safe)")
+    p_bundle.add_argument("engagement", help="engagement overlay YAML")
+    p_bundle.add_argument("--program", default="c_and_i",
+                          help="program YAML path or packaged LOB name (default: c_and_i)")
+    p_bundle.add_argument("-o", "--output", default=None,
+                          help="output script path (default: build_credit_review.py)")
+    p_bundle.set_defaults(func=_cmd_bundle)
 
     args = parser.parse_args(argv)
     return args.func(args)

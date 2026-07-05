@@ -23,8 +23,6 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import formulas
-
 from credit_review.linesheet import OPEN_FLAG
 
 MAP_SHEET = "_map"
@@ -55,6 +53,10 @@ class _Solution:
     """Cell lookup over a `formulas` calculation of the whole workbook."""
 
     def __init__(self, path: str | Path) -> None:
+        # Imported lazily so environments that only *build* (e.g. the ASCII
+        # bundle's target machine) need just openpyxl + PyYAML.
+        import formulas
+
         model = formulas.ExcelModel().loads(str(path)).finish()
         sol = model.calculate()
         self._cells: dict[str, object] = {}

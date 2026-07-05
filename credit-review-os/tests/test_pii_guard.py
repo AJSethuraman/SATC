@@ -30,7 +30,10 @@ from credit_review.workbook import ENGAGEMENTS_DIR, PROGRAMS_DIR, build_engageme
 SYNTHETIC_NAMES = ("Blue Heron Fabrication LLC", "Cedar Creek Outfitters Inc",
                    "Harbor Point Logistics LLC", "Sunview Orchards LP",
                    "Granite Peak Tooling Co", "Willow Bend Dairy LLC",
-                   "Lakeview Commons Retail LLC", "Bridgewater Office Partners LP")
+                   "Lakeview Commons Retail LLC", "Bridgewater Office Partners LP",
+                   "Maple Street Dental PLLC", "Ironwood Machine Works Inc",
+                   "Foxglove Development LLC", "Stonebridge Builders LP",
+                   "Meadowlark Family Farms LLC", "Prairie Rose Grain Co")
 LOAN_NUMBERS = ("40017-3", "51230-8", "61022-1", "70415-9")
 
 SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")

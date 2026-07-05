@@ -36,9 +36,12 @@ One workbook per engagement, in the KeyBank house style:
   Mention / Substandard / Doubtful / Loss with criticized/classified
   derivations), linesheet sections and exception rules, the evidence
   checklist, and the cited regulatory crosswalk. The loader rejects
-  client-specific keys outright. Shipped: `c_and_i` and
-  `cre_income_producing` (NOI-based DSCR, occupancy, appraised-value LTV,
-  rent-roll evidence).
+  client-specific keys outright. Shipped programs: `c_and_i`,
+  `cre_income_producing` (NOI DSCR, occupancy, appraised-value LTV, rent
+  roll), `owner_occ_cre` (occupant-business global cash flow per the RC-C
+  owner-occupied definition), `construction_adc` (loan-to-cost, interest
+  reserve, as-completed LTV, draw inspections), and `agricultural` (farm
+  operating DSCR, carryover debt, farmland/chattel LTV, crop insurance).
 - **Engagement overlay** (`engagements/<name>.yaml`) — thin and per-bank:
   client identity, `review_as_of`, `rating_scale_map` (every internal grade →
   exactly one regulatory bucket), policy `thresholds` (DSCR floor, LTV and
@@ -65,8 +68,14 @@ pip install -e .
 credit-review build src/credit_review/engagements/demo_engagement.yaml --plain -o demo.xlsx
 credit-review build src/credit_review/engagements/demo_engagement.yaml          # encrypted
 credit-review ingest DEMO-2026-01.xlsx.enc --json findings.json
-pip install -e .[test] && pytest -q                                              # 64 tests
+credit-review bundle src/credit_review/engagements/demo_engagement.yaml         # DLP-safe ASCII
+pip install -e .[test] && pytest -q                                              # 85 tests
 ```
+
+The `bundle` command emits a single pure-ASCII script (the repo's contract
+§11 transmission pattern): run `python build_credit_review.py` on a machine
+behind a bank's DLP boundary (only openpyxl + PyYAML needed) and it rebuilds
+the workbook there, byte-identical, printing its SHA-256.
 
 Tests run at three seams (PRD §7): the in-memory builder with the `formulas`
 recalc engine against hardcoded expected values (Seam 1), the re-ingest
@@ -101,10 +110,11 @@ round-trip (Seam 2), and the no-PII-leak byte scan (Seam 3).
 
 ## LOB roadmap (cash-flow-out order)
 
-~~income-producing CRE~~ (shipped) → owner-occupied CRE → construction/ADC → agricultural →
-**consumer + residential (first product-conformance build)** → multifamily /
-leases / specialty. Each is a new program config + crosswalk on the same
-engine. Further out (each needs its own design pass): document parsing/OCR
-pre-fill, an optional **local** human-confirmed LLM extraction assist (never
-in the data path), export of classifications for the bank's ACL/CECL system,
-and the ASCII-bundle build-on-target transmission for bank DLP boundaries.
+~~income-producing CRE~~ → ~~owner-occupied CRE~~ → ~~construction/ADC~~ →
+~~agricultural~~ (all shipped, config-only) →
+**consumer + residential (first product-conformance build — needs its own
+design pass)** → multifamily / leases / specialty. Each is a new program
+config + crosswalk on the same engine. Further out (each needs its own
+design pass): document parsing/OCR pre-fill, an optional **local**
+human-confirmed LLM extraction assist (never in the data path), and export
+of classifications for the bank's ACL/CECL system.

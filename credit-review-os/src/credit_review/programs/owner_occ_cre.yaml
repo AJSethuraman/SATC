@@ -1,0 +1,122 @@
+# Owner-occupied CRE loan-review program — layer 1 (portable, client-agnostic).
+# Owner-occupied CRE repays from the operating cash flow of the occupying
+# business (the Call Report RC-C owner-occupied definition), so the repayment
+# analysis is C&I-style global cash flow, while collateral is appraised real
+# estate. Config + crosswalk only; zero engine changes.
+meta:
+  lob: owner_occ_cre
+  review_mode: loan_level
+  title: "Owner-Occupied CRE Loan Review Linesheet"
+
+rating_framework:
+  buckets: [Pass, "Special Mention", Substandard, Doubtful, Loss]
+  criticized: ["Special Mention", Substandard, Doubtful, Loss]
+  classified: [Substandard, Doubtful, Loss]
+
+sections:
+  - title: "Identification & exposure"
+    rows:
+      - {id: borrower_name, kind: input_text, label: "Borrower (legal name)", pii: name}
+      - {id: loan_number, kind: input_text, label: "Loan / obligor number"}
+      - {id: tin_last4, kind: input_text, label: "TIN (last 4 only)",
+         note: "Full SSN/EIN never enters the workpaper."}
+      - {id: property_type, kind: input_text, label: "Property type / occupant use"}
+      - {id: total_commitment, kind: input, label: "Total commitment"}
+      - {id: outstanding, kind: input, label: "Outstanding balance"}
+      - {id: unfunded, kind: computed, label: "Unfunded commitment",
+         formula: "{total_commitment}-{outstanding}"}
+      - {id: rating_originator, kind: rating_input, label: "Originator risk rating"}
+      - {id: rating_reviewer, kind: rating_input,
+         label: "Reviewer risk rating (independent)"}
+      - {id: rating_exception, kind: exception, class: rating, severity: high,
+         label: "Rating disagreement (independent validation)",
+         when: "MAP({rating_reviewer})<>MAP({rating_originator})"}
+
+  - title: "Business cash flow & coverage (occupant operations)"
+    rows:
+      - {id: cash_flow, kind: input,
+         label: "Global cash flow of occupying business (annual)"}
+      - {id: debt_service, kind: input, label: "Total debt service"}
+      - {id: dscr, kind: computed, fmt: ratio, label: "DSCR (business cash flow basis)",
+         formula: "{cash_flow}/{debt_service}"}
+      - {id: dscr_exception, kind: exception, class: policy, subtype: unapproved,
+         severity: high, label: "DSCR below policy floor",
+         when: "{dscr}<[POL dscr_floor]"}
+
+  - title: "Collateral"
+    rows:
+      - {id: appraised_value, kind: input, label: "Appraised value (most recent)"}
+      - {id: ltv, kind: computed, fmt: pct,
+         label: "Loan-to-value (outstanding / appraised value)",
+         formula: "{outstanding}/{appraised_value}"}
+      - {id: ltv_exception, kind: exception, class: policy,
+         subtype: approved_with_mitigant, severity: medium,
+         label: "LTV above policy ceiling (approved with mitigant)",
+         when: "{ltv}>[POL ltv_ceiling]"}
+
+  - title: "Compliance"
+    rows:
+      - {id: flood_zone_collateral, kind: input_text,
+         label: "Improved collateral in a flood zone? (yes/no)"}
+      - {id: flood_insurance_current, kind: input_text,
+         label: "Flood insurance in force and current? (yes/no/na)"}
+      - {id: flood_exception, kind: exception, class: compliance, subtype: unapproved,
+         severity: high, label: "Flood insurance missing for flood-zone collateral",
+         when: 'AND({flood_zone_collateral}="yes",{flood_insurance_current}<>"yes")'}
+
+evidence:
+  - {type: financial_statements, label: "Occupant business financial statements",
+     staleness_key: stmt_staleness_days, severity: medium,
+     quality_tiers: [audited, reviewed, compiled, tax_return, company_prepared]}
+  - {type: covenant_compliance_certificate, label: "Covenant compliance certificate",
+     staleness_key: covenant_staleness_days, severity: low}
+  - {type: appraisal, label: "Collateral appraisal",
+     condition_driven: true, severity: medium}
+  - {type: credit_approval, label: "Credit approval / memo",
+     presence_required: true, severity: high}
+
+crosswalk:
+  - element: risk_rating_framework
+    implementation: "5-bucket rating framework + criticized/classified derivations; internal grades map via the overlay's rating_scale_map"
+    requirement: "Classify credits on the uniform interagency spine: Pass / Special Mention / Substandard / Doubtful / Loss; criticized = SM+classified, classified = SS+D+L"
+    source: "FDIC RMS Manual of Examination Policies §3.2 (Loans) and §3.1 (Asset Quality); OCC, Rating Credit Risk, Comptroller's Handbook"
+  - element: independent_rating_validation
+    implementation: "Originator and reviewer ratings are distinct cells; a cross-bucket disagreement raises a rating finding by live formula"
+    requirement: "Credit risk review appropriately validates and, if necessary, adjusts risk ratings, especially for loans with potential or well-defined weaknesses"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (June 1, 2020)"
+  - element: exception_tracking
+    implementation: "Documentation / policy / compliance exceptions computed against overlay thresholds; each carries subtype, severity, status, owner, due and cleared dates; Findings aggregates by class/severity/status/loan"
+    requirement: "Systematically identify exceptions, initiate timely resolution, track the aggregate level of exceptions to detect shifts in portfolio risk; severity corresponds to materiality"
+    source: "OCC, Loan Portfolio Management, Comptroller's Handbook (Apr 1998)"
+  - element: policy_exception_subtypes
+    implementation: "Policy exceptions carry approved_with_mitigant vs unapproved subtype, driving severity"
+    requirement: "Underwriting exceptions distinguished by whether granted as documented, approved exceptions with compensating factors"
+    source: "OCC, Loan Portfolio Management, Comptroller's Handbook (Apr 1998)"
+  - element: evidence_currency
+    implementation: "Evidence checklist with as-of dates and quality tiers; staleness vs bank-policy windows raises documentation exceptions by formula"
+    requirement: "Ensure that documentation remains current; file evidence tested against the bank's own recency policy"
+    source: "OCC, Loan Portfolio Management, Comptroller's Handbook; FDIC RMS §3.2 documentation expectations"
+  - element: owner_occupied_repayment
+    implementation: "Primary repayment tested as the occupying business's global cash flow (C&I-style DSCR), per the owner-occupied definition; collateral tested separately as appraised real estate"
+    requirement: "Owner-occupied nonfarm nonresidential: primary repayment derives from the cash flow of the owner/affiliate occupying the property, not third-party rental income"
+    source: "FFIEC 031/041 Call Report Instructions, Schedule RC-C Part I (owner-occupied definition); OCC, Commercial Real Estate Lending, Comptroller's Handbook"
+  - element: appraisal_validity
+    implementation: "Appraisal currency is condition-driven (reviewer validity judgment), never a fixed day-count"
+    requirement: "Obtain a new appraisal or evaluation when the existing one no longer reflects current market conditions"
+    source: "Interagency Appraisal and Evaluation Guidelines, 75 FR 77450 (Dec 10, 2010); FRB SR 10-16"
+  - element: compliance_review
+    implementation: "Compliance exception rules (e.g. flood insurance on flood-zone collateral) computed on the linesheet"
+    requirement: "Credit risk review reports on compliance with laws and regulations"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"
+  - element: sampling_scope
+    implementation: "Engagement overlay records portfolio $ and count, sample basis; _methodology computes reviewed-$ and count coverage live from the Master roll-up"
+    requirement: "Review coverage/scope should be documented: the portfolio reviewed, the basis for selection, and the depth of penetration"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"
+  - element: independence
+    implementation: "Overlay records the reviewer's independence attestation, rendered on Cover and _methodology"
+    requirement: "Provide the board an objective, independent, and timely assessment of the overall quality of the loan portfolio"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"
+  - element: findings_reporting
+    implementation: "Findings sheet aggregates exceptions and the criticized/classified asset-quality summary for committee/board presentation"
+    requirement: "Findings are reported to the board or board committee, including adherence to internal policies and management's response to criticisms"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"

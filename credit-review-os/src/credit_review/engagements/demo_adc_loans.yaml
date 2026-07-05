@@ -1,0 +1,51 @@
+# SYNTHETIC ADC loans: one on-budget project mid-construction, one stressed
+# project that trips loan-to-cost, interest-reserve depletion, as-completed
+# LTV, stale inspection, missing budget, appraisal validity, and the rating
+# disagreement.
+loans:
+  - loan_id: "ADC-0001"
+    borrower_name: "Foxglove Development LLC"
+    loan_number: "60218-4"
+    tin_last4: "9926"
+    project_type: "24-unit townhome, phase 1"
+    total_commitment: 3500000
+    outstanding: 1900000
+    rating_originator: "4"
+    # LTC 79.5%, as-completed LTV 71.4%, reserve funded: inside policy
+    project_cost: 4400000
+    percent_complete: 0.55
+    interest_reserve_remaining: 140000
+    as_completed_value: 4900000
+    flood_zone_collateral: "no"
+    flood_insurance_current: "na"
+    ev_financial_statements_asof: 2025-10-31
+    ev_financial_statements_tier: "reviewed"
+    ev_project_budget_asof: 2025-09-01
+    ev_inspection_report_asof: 2026-06-05      # 25d < 60: current
+    ev_appraisal_asof: 2025-08-15
+    ev_appraisal_valid: "yes"
+    ev_credit_approval_asof: 2025-07-01
+
+  - loan_id: "ADC-0002"
+    borrower_name: "Stonebridge Builders LP"
+    loan_number: "61550-1"
+    tin_last4: "3768"
+    project_type: "suburban office build-out"
+    total_commitment: 6000000
+    outstanding: 5600000
+    rating_originator: "6"
+    rating_reviewer: "7"           # SM vs Substandard -> rating finding
+    # LTC 90.9%, reserve depleted, as-completed LTV 85.7%: all breach
+    project_cost: 6600000
+    percent_complete: 0.80
+    interest_reserve_remaining: 0
+    as_completed_value: 7000000
+    flood_zone_collateral: "no"
+    flood_insurance_current: "na"
+    ev_financial_statements_asof: 2026-01-31
+    ev_financial_statements_tier: "compiled"
+    # project budget / cost review missing from file
+    ev_inspection_report_asof: 2026-03-15      # 107d > 60: stale
+    ev_appraisal_asof: 2023-12-01
+    ev_appraisal_valid: "no"
+    ev_credit_approval_asof: 2023-10-15
