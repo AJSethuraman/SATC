@@ -163,6 +163,24 @@ drawn sample); this computes loan-level and helps DRAW the sample.
       imports it; vendored into the ASCII bundle. Cohort compiler is a fresh
       pandas-mask evaluator (credit-review-os's evaluator emits Excel formulas,
       not reusable) — safe structured rules, per PRD R9. One URCCP impl.
+- [x] **v1.1 — ad-hoc slice dimensions + workpaper HTML export (2026-07-05):**
+      (a) cleaning gate now RETAINS unmapped columns as the open-ended tail
+      (numeric-coerced where clean, else string) so cohorts can reference
+      `tradelines < 3` / `assets < Y` and group-bys can use any ad-hoc field —
+      restores the original grill concept; added `channel` + `state` as named
+      slice dims; `strata.slice_dimensions()` enumerates them. (b) `report.py`
+      renders a committee-grade HTML examination workpaper (KeyBank palette) from
+      an AnalysisResult — `popbench.cli --report`; every figure real, both bases,
+      PII-guarded on shipped output. 8 new tests (bench 65).
+- [ ] **[LOG] IDEA — interactive "Sampling Room" (bench Review-Room analog):**
+      a localhost app (or richer HTML) where the reviewer groups/compares
+      subgroups and CLICKS loans into the sample with live coverage + OCC doc
+      (prototyped 2026-07-05 as a client-side HTML over real engine output). v1
+      selection is an Excel column; this would productize the pick surface.
+      Gate its own grill/design pass. Roadmap, not scoped.
+- [ ] **[LOG] IDEA — richer band presets & geography rollups:** Y-14Q preset is
+      selectable but a state->region crosswalk + concentration heatmap, and
+      utilization bands for cards, would deepen stratification. Config work.
 - [x] **[LOG] PII-boundary reversal (project-specific decision):** IMPLEMENTED —
       the bench's **runtime populated workbook may hold real borrower PII** (bank
       equipment/VPN, never leaves the machine; no gates/masking/vault; loan

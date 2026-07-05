@@ -84,22 +84,32 @@ def validate_and_clean(
     issues: list[Issue] = []
     records: list[CleaningRecord] = []
 
-    # 1. Rename mapped columns to canonical ids (drop unmapped columns from the
-    #    canonical frame; they remain available only as declared slice dims).
+    # 1. Rename mapped columns to canonical ids, and RETAIN unmapped columns as
+    #    ad-hoc slice dimensions (the open-ended tail) rather than dropping them.
     rename = {h: fid for h, fid in mapping.rename_map().items() if h in raw.columns}
-    df = raw.rename(columns=rename)[list(rename.values())].copy()
+    canon_cols = list(rename.values())
+    adhoc: list[tuple[str, str]] = []   # (original header, retained column name)
+    for h in raw.columns:
+        if h in rename:
+            continue
+        name = h if h not in canon_cols else f"{h}__adhoc"
+        adhoc.append((h, name))
+    df = raw.rename(columns=rename).copy()
+    for h, name in adhoc:
+        if name != h:
+            df = df.rename(columns={h: name})
+    df = df[canon_cols + [name for _, name in adhoc]].copy()
 
     required = set(contract.universal_ids()) | set(required_fields)
 
     # 2. Every required field must be mapped at all.
     for fid in sorted(required):
-        if fid not in df.columns:
+        if fid not in canon_cols:
             issues.append(Issue("missing_required", fid, 0, "field not mapped"))
 
-    # 3. Trim text (safe, recorded).
-    for fid in df.columns:
-        f = contract.get(fid)
-        if f.dtype == contract.TEXT:
+    # 3. Trim canonical text (safe, recorded).
+    for fid in canon_cols:
+        if contract.get(fid).dtype == contract.TEXT:
             before = df[fid].astype("string")
             trimmed = before.str.strip()
             n = int((before != trimmed).fillna(False).sum())
@@ -107,8 +117,8 @@ def validate_and_clean(
                 records.append(CleaningRecord("trim_whitespace", fid, n))
             df[fid] = trimmed
 
-    # 4. Parse numerics/usd/ratio; rescale percent->fraction where declared.
-    for fid in df.columns:
+    # 4. Parse canonical numerics/usd/ratio; rescale percent->fraction if declared.
+    for fid in canon_cols:
         f = contract.get(fid)
         if f.dtype in (contract.NUM, contract.USD, contract.RATIO):
             parsed = _to_numeric(df[fid])
@@ -124,10 +134,9 @@ def validate_and_clean(
                     "rescale_percent_to_fraction", fid, n, "divided by 100"))
             df[fid] = parsed
 
-    # 4b. Parse dates; an unparseable non-blank value is a hard error.
-    for fid in df.columns:
-        f = contract.get(fid)
-        if f.dtype == contract.DATE:
+    # 4b. Parse canonical dates; an unparseable non-blank value is a hard error.
+    for fid in canon_cols:
+        if contract.get(fid).dtype == contract.DATE:
             nonblank = df[fid].notna() & (df[fid].astype("string").str.strip() != "")
             parsed = pd.to_datetime(df[fid], errors="coerce")
             unparseable = int((parsed.isna() & nonblank).sum())
@@ -135,6 +144,21 @@ def validate_and_clean(
                 issues.append(Issue("unparseable", fid, unparseable,
                                     "non-date values in a date field"))
             df[fid] = parsed
+
+    # 4c. Coerce ad-hoc tail columns: numeric where they parse cleanly (so they
+    #     can drive cohort rules like "tradelines < 3"), else trimmed strings (a
+    #     group-by slice dimension). Never a hard error — the tail is optional.
+    for _, name in adhoc:
+        col = df[name]
+        nonblank = col.notna() & (col.astype("string").str.strip() != "")
+        n_nb = int(nonblank.sum())
+        parsed = _to_numeric(col)
+        if n_nb and int((parsed.notna() & nonblank).sum()) >= 0.8 * n_nb:
+            df[name] = parsed
+            records.append(CleaningRecord("coerce_adhoc_numeric", name,
+                                          int(parsed.notna().sum())))
+        else:
+            df[name] = col.astype("string").str.strip()
 
     # 5. Required fields must be non-null after parsing.
     for fid in sorted(required):

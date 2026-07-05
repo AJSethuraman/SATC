@@ -19,11 +19,28 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from popbench import bands, metrics
+from popbench import bands, contract, metrics
 
 # Attributes reported per cell (those present in the frame are used).
 WA_ATTRIBUTES = ("fico_orig", "fico_refresh", "dti", "rate", "ltv", "orig_amount")
 DEFAULT_MAX_CARDINALITY = 50
+_DERIVED_COLS = {"dpd_bucket_canon", "dpd_min"}
+
+
+def slice_dimensions(df: pd.DataFrame) -> list[str]:
+    """Columns usable as a group-by dimension: canonical optional-slice fields
+    (product, channel, state, structure) plus any ad-hoc tail column — excluding
+    weights, attributes, derived columns, and internal helpers."""
+    dims: list[str] = []
+    for c in df.columns:
+        if c.startswith("__") or c in _DERIVED_COLS:
+            continue
+        f = contract._BY_ID.get(c)
+        if f is None:                       # ad-hoc tail column
+            dims.append(c)
+        elif f.role == contract.OPTIONAL_SLICE:
+            dims.append(c)
+    return dims
 
 
 class CardinalityError(ValueError):

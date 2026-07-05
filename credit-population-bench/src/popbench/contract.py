@@ -167,6 +167,18 @@ _FIELDS: tuple[CanonicalField, ...] = (
         help="card / auto / personal / HELOC / student ... a slice dimension.",
     ),
     CanonicalField(
+        id="channel", label="Origination channel", dtype=TEXT, role=OPTIONAL_SLICE,
+        aliases=("channel", "origination_channel", "acquisition_channel",
+                 "orig_channel", "source_channel", "dealer_direct"),
+        help="direct / indirect / branch / digital ... risk rises off a direct relationship.",
+    ),
+    CanonicalField(
+        id="state", label="State / geography", dtype=TEXT, role=OPTIONAL_SLICE,
+        aliases=("state", "st", "geography", "region", "property_state",
+                 "borrower_state", "state_code"),
+        help="State/region for concentration and localized stress.",
+    ),
+    CanonicalField(
         id="orig_date", label="Origination date", dtype=DATE, role=FEATURE_GATED,
         feature="vintage",
         aliases=("orig_date", "origination_date", "open_date", "note_date",

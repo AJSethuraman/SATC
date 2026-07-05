@@ -101,8 +101,12 @@ def _default_stratifications(clean: pd.DataFrame,
     FICO band when those fields are present. Real runs drive the dimension list
     from ``_config``; the group-by API accepts any mapped field or band scheme."""
     out: list[strata.Stratification] = []
-    if mapping.has("product_type"):
-        out.append(strata.group_by(clean, "product_type"))
+    for dim in ("product_type", "channel", "state"):
+        if mapping.has(dim):
+            try:
+                out.append(strata.group_by(clean, dim))
+            except strata.CardinalityError:
+                pass   # too many distinct values to auto-stratify; still cohortable
     if mapping.has("fico_orig"):
         out.append(strata.group_by(clean, "fico_orig",
                                    scheme=bands.get_preset("fico_orig", "cfpb")))

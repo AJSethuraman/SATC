@@ -12,8 +12,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from popbench import contract, demo, mapping
-from popbench.engine import build
+from popbench import contract, demo, mapping, report
+from popbench.engine import build, run_analysis
 
 
 def _demo_mapping(headers: list[str]) -> mapping.Mapping:
@@ -30,14 +30,26 @@ def _demo_mapping(headers: list[str]) -> mapping.Mapping:
     return mapping.confirm(columns)
 
 
+def _demo_inputs():
+    pop = demo.demo_population_full()
+    m = _demo_mapping(list(pop.columns))
+    kw = dict(cohort_specs=demo.demo_cohorts(),
+              sample_selection={"L-102", "L-103", "L-104"},
+              sample_dimension="product_type")
+    return pop, m, kw
+
+
 def build_demo_bytes() -> bytes:
     """The canonical demo workbook build — used by the CLI and the ASCII bundle
     so both produce byte-identical output."""
-    pop = demo.demo_population_full()
-    m = _demo_mapping(list(pop.columns))
-    return build(pop, m, cohort_specs=demo.demo_cohorts(),
-                 sample_selection={"L-102", "L-103", "L-104"},
-                 sample_dimension="product_type")
+    pop, m, kw = _demo_inputs()
+    return build(pop, m, **kw)
+
+
+def demo_report_html() -> str:
+    """Render the demo run as an HTML examination workpaper."""
+    pop, m, kw = _demo_inputs()
+    return report.render(run_analysis(pop, m, **kw), title="Consumer portfolio review (demo)")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -47,15 +59,21 @@ def main(argv: list[str] | None = None) -> int:
                     help="build the synthetic demo workbook")
     ap.add_argument("-o", "--out", default="population_bench_demo.xlsx",
                     help="output workbook path")
+    ap.add_argument("--report", metavar="HTML",
+                    help="also write an HTML examination workpaper to this path")
     args = ap.parse_args(argv)
 
-    if not args.demo:
+    if not args.demo and not args.report:
         ap.print_help()
         return 0
 
-    data = build_demo_bytes()
-    Path(args.out).write_bytes(data)
-    print(f"wrote {args.out} ({len(data)} bytes)")
+    if args.demo:
+        data = build_demo_bytes()
+        Path(args.out).write_bytes(data)
+        print(f"wrote {args.out} ({len(data)} bytes)")
+    if args.report:
+        Path(args.report).write_text(demo_report_html(), encoding="utf-8")
+        print(f"wrote {args.report}")
     return 0
 
 
