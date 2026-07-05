@@ -64,6 +64,20 @@ class ConfigError(Exception):
     """Raised when a program, overlay, or loan fixture fails validation."""
 
 
+def mask_tin_last4(value: Any) -> Any:
+    """Defense-in-depth: reduce any TIN-shaped value to its last 4 digits.
+
+    Loaders already refuse full TINs; this guards the builder API itself so a
+    programmatically-passed full TIN can never render into a cell.
+    """
+    if value is None:
+        return None
+    digits = re.sub(r"\D", "", str(value))
+    if len(digits) > 4:
+        return digits[-4:]
+    return value
+
+
 def _require(mapping: dict, key: str, where: str) -> Any:
     if key not in mapping or mapping[key] in (None, ""):
         raise ConfigError(f"{where}: missing required key '{key}'")

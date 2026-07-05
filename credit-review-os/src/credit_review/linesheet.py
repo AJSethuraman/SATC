@@ -31,7 +31,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.worksheet import Worksheet
 
 from credit_review import keybank_style as KB
-from credit_review.config import EXCEPTION_STATUSES, RESERVED_KINDS
+from credit_review.config import EXCEPTION_STATUSES, RESERVED_KINDS, mask_tin_last4
 
 # Column layout: A margin, B label, C value/flag, D basis/note, then the
 # exception-tracking lane: E status, F owner, G due date, H cleared date.
@@ -159,7 +159,11 @@ class LinesheetBuilder:
         if formula is not None:
             cell.value = formula
         else:
-            cell.value = self.ctx.values.get(item.get("id", ""), None)
+            rid = item.get("id", "")
+            prefill = self.ctx.values.get(rid, None)
+            if "tin" in rid:
+                prefill = mask_tin_last4(prefill)   # last-4 only, everywhere
+            cell.value = prefill
         cell.font = font
         if fill is not None:
             cell.fill = fill
