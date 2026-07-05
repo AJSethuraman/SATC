@@ -166,6 +166,40 @@ _FIELDS: tuple[CanonicalField, ...] = (
         aliases=("product", "product_type", "loan_type", "portfolio", "product_code"),
         help="card / auto / personal / HELOC / student ... a slice dimension.",
     ),
+    CanonicalField(
+        id="orig_date", label="Origination date", dtype=DATE, role=FEATURE_GATED,
+        feature="vintage",
+        aliases=("orig_date", "origination_date", "open_date", "note_date",
+                 "funding_date", "booked_date", "opened_date"),
+        help="Booking date; defines the vintage cohort and MOB.",
+    ),
+    CanonicalField(
+        id="chargeoff_flag", label="Charged-off flag", dtype=TEXT, role=FEATURE_GATED,
+        feature="loss",
+        aliases=("chargeoff_flag", "charged_off", "co_flag", "is_chargeoff",
+                 "writeoff_flag", "charge_off_flag"),
+        help="Truthy where the loan was charged off in the period.",
+    ),
+    CanonicalField(
+        id="chargeoff_date", label="Charge-off date", dtype=DATE, role=FEATURE_GATED,
+        feature="loss",
+        aliases=("chargeoff_date", "co_date", "charge_off_date", "writeoff_date"),
+        help="Charge-off date; positions the loss on the vintage MOB triangle.",
+    ),
+    CanonicalField(
+        id="chargeoff_balance", label="Charged-off balance", dtype=USD, role=FEATURE_GATED,
+        feature="loss",
+        aliases=("chargeoff_balance", "co_amount", "charged_off_amount",
+                 "charge_off_amount", "writeoff_amount", "co_balance"),
+        help="Balance at charge-off; the gross charge-off numerator (no recoveries).",
+    ),
+    CanonicalField(
+        id="prior_dpd_bucket", label="Prior DPD bucket", dtype=TEXT, role=FEATURE_GATED,
+        feature="roll",
+        aliases=("prior_dpd_bucket", "prior_bucket", "prev_bucket",
+                 "beginning_bucket", "prior_status", "prior_delq"),
+        help="Prior-period delinquency bucket; enables the single-period roll matrix.",
+    ),
 )
 
 _BY_ID = {f.id: f for f in _FIELDS}

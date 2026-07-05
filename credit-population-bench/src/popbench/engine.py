@@ -11,7 +11,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from popbench import bands, cleaning, cohorts as cohorts_mod, contract, delinquency, metrics, strata
+from popbench import (bands, cleaning, cohorts as cohorts_mod, contract,
+                      delinquency, metrics, rolls, strata, vintage)
 from popbench.mapping import Mapping
 from popbench.workbook import build_workbook, workbook_bytes
 
@@ -26,6 +27,10 @@ class AnalysisResult:
     urccp: list[delinquency.ClassRow] | None = None
     stratifications: list[strata.Stratification] | None = None
     cohorts: object | None = None   # cohorts_mod.CohortComparison
+    charge_off: object | None = None            # vintage.GrossChargeOff
+    vintage_rows: list | None = None            # list[vintage.VintageRow]
+    triangle: object | None = None              # vintage.Triangle
+    roll: object | None = None                  # rolls.RollMatrix
 
 
 def run_analysis(raw: pd.DataFrame, mapping: Mapping,
@@ -66,7 +71,21 @@ def run_analysis(raw: pd.DataFrame, mapping: Mapping,
 
     strats = _default_stratifications(clean, mapping)
     cohort_cmp = cohorts_mod.evaluate(clean, cohort_specs) if cohort_specs else None
-    return AnalysisResult(clean, records, pop, wa, delq, urccp, strats, cohort_cmp)
+
+    # Time lenses — each produced only when its fields are present.
+    charge_off = vintage_rows = triangle = roll = None
+    has_loss = mapping.has("chargeoff_flag") and mapping.has("chargeoff_balance")
+    if has_loss:
+        charge_off = vintage.gross_charge_off_rate(clean)
+    if mapping.has("orig_date"):
+        vintage_rows = vintage.vintage_summary(clean, grain="year")
+        if mapping.has("chargeoff_date") and mapping.has("chargeoff_balance"):
+            triangle = vintage.loss_triangle(clean, grain="year")
+    if mapping.has("prior_dpd_bucket") and "dpd_bucket_canon" in clean.columns:
+        roll = rolls.roll_matrix(clean)
+
+    return AnalysisResult(clean, records, pop, wa, delq, urccp, strats, cohort_cmp,
+                          charge_off, vintage_rows, triangle, roll)
 
 
 def _default_stratifications(clean: pd.DataFrame,
@@ -108,5 +127,9 @@ def build(raw: pd.DataFrame, mapping: Mapping,
         urccp_rows=result.urccp,
         stratifications=result.stratifications,
         cohort_comparison=result.cohorts,
+        charge_off=result.charge_off,
+        vintage_rows=result.vintage_rows,
+        triangle=result.triangle,
+        roll=result.roll,
     )
     return workbook_bytes(wb)

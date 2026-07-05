@@ -42,6 +42,12 @@ def demo_population_full() -> pd.DataFrame:
         "Product": ["auto", "auto", "card", "heloc", "card"],
         # Unsecured products carry no LTV -> WA-LTV self-suppresses for them.
         "CLTV": [nan, nan, nan, 0.82, nan],
+        "Orig Date": ["2023-01-15", "2022-06-10", "2021-03-01",
+                      "2022-11-20", "2023-02-05"],
+        "CO Flag": ["N", "N", "Y", "N", "N"],
+        "CO Date": ["", "", "2023-05-01", "", ""],
+        "CO Amount": [nan, nan, 8000, nan, nan],
+        "Prior Bucket": ["current", "60-89", "120-179", "30-59", "current"],
     })
 
 

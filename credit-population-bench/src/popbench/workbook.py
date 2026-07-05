@@ -92,6 +92,10 @@ def build_workbook(
     urccp_rows: list | None = None,
     stratifications: list | None = None,
     cohort_comparison: object | None = None,
+    charge_off: object | None = None,
+    vintage_rows: list | None = None,
+    triangle: object | None = None,
+    roll: object | None = None,
 ) -> Workbook:
     """Assemble the in-memory workbook from already-computed values.
 
@@ -254,6 +258,63 @@ def build_workbook(
         ws.cell(r, 1, "Population").font = _LABEL_FONT
         ws.cell(r, 2).value = int(cc.population_count)
         ws.cell(r, 3).value = float(cc.population_dollars); ws.cell(r, 3).number_format = FMT_USD
+
+    # Vintage — summary + gross charge-off + loss triangle.
+    if vintage_rows is not None or charge_off is not None:
+        ws = wb.create_sheet("Vintage")
+        ws.cell(1, 1, "Vintage analysis (single file) — GROSS loss, no recoveries").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        r = 3
+        if charge_off is not None:
+            ws.cell(r, 1, "Gross charge-off rate").font = _LABEL_FONT
+            ws.cell(r, 2, "count basis"); ws.cell(r, 3).value = float(charge_off.count_rate)
+            ws.cell(r, 3).number_format = "0.0%"
+            ws.cell(r, 4, "dollar basis"); ws.cell(r, 5).value = float(charge_off.dollar_rate)
+            ws.cell(r, 5).number_format = "0.0%"
+            r += 2
+        if vintage_rows:
+            r = _band(ws, r, ["vintage", "orig_#", "orig_$", "current_$",
+                              "CO_#", "CO_$", "cum_gross_loss", "ever90_$_rate"])
+            for row in vintage_rows:
+                ws.cell(r, 1, row.vintage)
+                ws.cell(r, 2).value = int(row.orig_count)
+                ws.cell(r, 3).value = float(row.orig_balance); ws.cell(r, 3).number_format = FMT_USD
+                ws.cell(r, 4).value = float(row.current_balance); ws.cell(r, 4).number_format = FMT_USD
+                ws.cell(r, 5).value = int(row.co_count)
+                ws.cell(r, 6).value = float(row.co_balance); ws.cell(r, 6).number_format = FMT_USD
+                ws.cell(r, 7).value = float(row.cum_gross_loss_rate); ws.cell(r, 7).number_format = "0.0%"
+                ws.cell(r, 8).value = float(row.ever90_balance_rate); ws.cell(r, 8).number_format = "0.0%"
+                r += 1
+        if triangle is not None:
+            r = _band(ws, r + 1, ["loss triangle: vintage \\ MOB"]
+                      + [f"MOB {m}" for m in triangle.mob_bounds])
+            for v in sorted(triangle.rows):
+                ws.cell(r, 1, v)
+                for j, m in enumerate(triangle.mob_bounds, start=2):
+                    ws.cell(r, j).value = float(triangle.rows[v][m])
+                    ws.cell(r, j).number_format = "0.0%"
+                r += 1
+
+    # Roll / transition matrix (only when a prior-bucket column was mapped).
+    if roll is not None:
+        ws = wb.create_sheet("Roll")
+        ws.cell(1, 1, "Single-period roll matrix (prior -> current)").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        ws.cell(2, 1, roll.basis_note).font = _DATA_FONT
+        from popbench.rolls import bucket_label
+        # count basis then dollar basis, stacked.
+        r = 4
+        for basis, mat in (("count basis", roll.count), ("dollar basis", roll.dollar)):
+            ws.cell(r, 1, basis).font = _LABEL_FONT
+            r += 1
+            r = _band(ws, r, ["prior \\ current"] + [bucket_label(c) for c in roll.current_buckets])
+            for p in roll.prior_buckets:
+                ws.cell(r, 1, bucket_label(p))
+                for j, c in enumerate(roll.current_buckets, start=2):
+                    ws.cell(r, j).value = float(mat[p][c])
+                    ws.cell(r, j).number_format = "0.0%"
+                r += 1
+            r += 1
 
     # _config (knob panel — populated further by later slices)
     ws = wb.create_sheet("_config")

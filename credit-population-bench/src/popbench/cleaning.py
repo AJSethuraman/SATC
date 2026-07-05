@@ -124,6 +124,18 @@ def validate_and_clean(
                     "rescale_percent_to_fraction", fid, n, "divided by 100"))
             df[fid] = parsed
 
+    # 4b. Parse dates; an unparseable non-blank value is a hard error.
+    for fid in df.columns:
+        f = contract.get(fid)
+        if f.dtype == contract.DATE:
+            nonblank = df[fid].notna() & (df[fid].astype("string").str.strip() != "")
+            parsed = pd.to_datetime(df[fid], errors="coerce")
+            unparseable = int((parsed.isna() & nonblank).sum())
+            if unparseable:
+                issues.append(Issue("unparseable", fid, unparseable,
+                                    "non-date values in a date field"))
+            df[fid] = parsed
+
     # 5. Required fields must be non-null after parsing.
     for fid in sorted(required):
         if fid in df.columns:
