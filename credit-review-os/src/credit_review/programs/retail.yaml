@@ -1,0 +1,141 @@
+# Retail (Mode B) review program — layer 1 (portable, client-agnostic).
+# Product-conformance review: sampled files are tested against the credit box
+# (attestations + computed tests over keyed attributes); the pool classifies
+# by delinquency per URCCP (65 FR 36903, June 12 2000; OCC Bulletin 2000-20;
+# FDIC FIL-40-2000). Three products span every URCCP branch: indirect auto
+# (closed-end 90/120), credit card (open-end 90/180), HELOC (residential-
+# secured: keyed qualifying >=90-DPD w/ LTV above the policy line; Loss =
+# keyed fair-value writedowns, attested not computed).
+meta:
+  lob: retail
+  review_mode: product_conformance
+  title: "Retail Product-Conformance Review"
+
+# The largely-uniform retail test set, defined once and referenced per product.
+test_library:
+  - {id: dti_within_policy, label: "DTI within policy", kind: computed,
+     class: policy, severity: high, when: "{dti}>[POL dti_ceiling]"}
+  - {id: score_at_or_above_floor, label: "Score at/above floor", kind: computed,
+     class: policy, severity: high, when: "{score}<[POL score_floor]"}
+  - {id: ltv_within_policy, label: "LTV within policy", kind: computed,
+     class: policy, severity: medium, when: "{ltv}>[POL ltv_ceiling]"}
+  - {id: term_within_policy, label: "Term within policy", kind: computed,
+     class: policy, severity: low, when: "{term_months}>[POL term_ceiling]"}
+  - {id: credit_report_reviewed, label: "Credit report reviewed", kind: attestation,
+     class: documentation, severity: medium}
+  - {id: income_verified, label: "Income verified", kind: attestation,
+     class: documentation, severity: medium}
+  - {id: contract_docs_complete, label: "Contract docs complete", kind: attestation,
+     class: documentation, severity: low}
+  - {id: reg_z_disclosures_present, label: "Reg Z disclosures present",
+     kind: attestation, class: compliance, severity: high}
+
+products:
+  - id: indirect_auto
+    label: "Indirect Auto — Conformance Review"
+    classification_type: closed_end
+    attributes:
+      - {id: score, label: "Score", fmt: num}
+      - {id: dti, label: "DTI", fmt: pct}
+      - {id: ltv, label: "LTV", fmt: pct}
+      - {id: term_months, label: "Term (mo)", fmt: num}
+    tests:
+      - dti_within_policy
+      - score_at_or_above_floor
+      - ltv_within_policy
+      - term_within_policy
+      - credit_report_reviewed
+      - income_verified
+      - contract_docs_complete
+      - reg_z_disclosures_present
+    fringe_rules:
+      - {attribute: score, limit_key: score_floor, band_key: fringe_score_band,
+         direction: floor}
+      - {attribute: dti, limit_key: dti_ceiling, band_key: fringe_dti_band,
+         direction: ceiling}
+      - {attribute: ltv, limit_key: ltv_ceiling, band_key: fringe_ltv_band,
+         direction: ceiling}
+
+  - id: credit_card
+    label: "Credit Card — Conformance Review"
+    classification_type: open_end
+    attributes:
+      - {id: score, label: "Score", fmt: num}
+      - {id: dti, label: "DTI", fmt: pct}
+    tests:
+      # library tests with card-specific knob overrides (the override shape)
+      - {id: score_at_or_above_floor, when: "{score}<[POL score_floor_card]"}
+      - {id: dti_within_policy, when: "{dti}>[POL dti_ceiling_card]"}
+      - credit_report_reviewed
+      - income_verified
+      - {id: line_within_authority, label: "Line within approval authority",
+         kind: attestation, class: policy, severity: medium}
+      - {id: re_aging_within_urccp, label: "Re-aging within URCCP limits",
+         kind: attestation, class: documentation, severity: medium}
+      - reg_z_disclosures_present
+    fringe_rules:
+      - {attribute: score, limit_key: score_floor_card,
+         band_key: fringe_score_band, direction: floor}
+      - {attribute: dti, limit_key: dti_ceiling_card,
+         band_key: fringe_dti_band, direction: ceiling}
+
+  - id: heloc
+    label: "HELOC — Conformance Review"
+    classification_type: residential_secured
+    attributes:
+      - {id: score, label: "Score", fmt: num}
+      - {id: dti, label: "DTI", fmt: pct}
+      - {id: cltv, label: "CLTV", fmt: pct}
+    tests:
+      - score_at_or_above_floor
+      - {id: dti_within_policy, when: "{dti}>[POL dti_ceiling_heloc]"}
+      - {id: cltv_within_policy, label: "CLTV within policy", kind: computed,
+         class: policy, severity: medium, when: "{cltv}>[POL cltv_ceiling]"}
+      - credit_report_reviewed
+      - income_verified
+      - {id: appraisal_or_evaluation_present, label: "Appraisal/evaluation present",
+         kind: attestation, class: documentation, severity: medium}
+      - {id: flood_determination_present, label: "Flood determination present",
+         kind: attestation, class: compliance, severity: high}
+      - {id: writedown_at_180_evidenced,
+         label: "180-day fair-value writedown evidenced (if 180+ DPD)",
+         kind: attestation, class: documentation, severity: high}
+    fringe_rules:
+      - {attribute: score, limit_key: score_floor,
+         band_key: fringe_score_band, direction: floor}
+      - {attribute: cltv, limit_key: cltv_ceiling,
+         band_key: fringe_cltv_band, direction: ceiling}
+
+crosswalk:
+  - element: retail_classification
+    implementation: "Pool delinquency buckets keyed from the servicing report classify by live formula per URCCP (closed-end Substandard >=90 cumulative DPD, Loss >=120; open-end and residential branches per policy)"
+    requirement: "Retail credit is classified on delinquency status per the Uniform Retail Credit Classification and Account Management Policy"
+    source: "Uniform Retail Credit Classification and Account Management Policy, 65 FR 36903 (June 12, 2000); OCC Bulletin 2000-20; FDIC FIL-40-2000"
+  - element: conformance_testing
+    implementation: "Sampled files tested against the credit box: computed tests over keyed underwriting attributes vs overlay policy limits, plus reviewer attestations; per-test exception rates vs per-class tolerances"
+    requirement: "Review evaluates adherence to internal policies and underwriting standards; the level of attention corresponds with the materiality of the exception"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020); OCC, Loan Portfolio Management, Comptroller's Handbook"
+  - element: exception_tracking
+    implementation: "Per-(product,test) findings carry severity, status, owner, due and cleared dates; Findings aggregates by class/severity/status/product"
+    requirement: "Systematically identify exceptions, initiate timely resolution, track the aggregate level of exceptions"
+    source: "OCC, Loan Portfolio Management, Comptroller's Handbook (Apr 1998)"
+  - element: compliance_review
+    implementation: "Compliance-class tests (e.g. Reg Z disclosures) raise a per-occurrence finding on any fail, regardless of rate"
+    requirement: "Credit risk review reports on compliance with laws and regulations"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"
+  - element: sampling_scope
+    implementation: "Sample plan of named segments — stratified random and judgmental both first-class, with documented stratum, size, and basis; every grid row segment-tagged; coverage computed live"
+    requirement: "Review coverage/scope should be documented: the portfolio reviewed, the basis for selection, and the depth of penetration"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"
+  - element: fringe_analysis
+    implementation: "A computed FRINGE flag identifies files within the overlay's band of a policy limit (the approved buy-box edge) for comparison of exception rates against core originations"
+    requirement: "Track aggregate exception levels and analyze patterns to detect shifts in the risk characteristics of loan portfolios"
+    source: "OCC, Loan Portfolio Management, Comptroller's Handbook (Apr 1998)"
+  - element: independence
+    implementation: "Overlay records the reviewer's independence attestation, rendered on Cover"
+    requirement: "Provide the board an objective, independent, and timely assessment of the overall quality of the loan portfolio"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"
+  - element: findings_reporting
+    implementation: "Findings sheet aggregates conformance findings and the URCCP asset-quality totals for committee/board presentation"
+    requirement: "Findings are reported to the board or board committee, including adherence to internal policies and management's response to criticisms"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"

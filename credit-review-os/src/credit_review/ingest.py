@@ -23,8 +23,6 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import formulas
-
 from credit_review.linesheet import OPEN_FLAG
 
 MAP_SHEET = "_map"
@@ -55,6 +53,10 @@ class _Solution:
     """Cell lookup over a `formulas` calculation of the whole workbook."""
 
     def __init__(self, path: str | Path) -> None:
+        # Imported lazily so environments that only *build* (e.g. the ASCII
+        # bundle's target machine) need just openpyxl + PyYAML.
+        import formulas
+
         model = formulas.ExcelModel().loads(str(path)).finish()
         sol = model.calculate()
         self._cells: dict[str, object] = {}
@@ -87,6 +89,8 @@ def _load_map(path: str | Path) -> dict:
 def ingest_workbook(path: str | Path) -> tuple[DeIdentifiedMart, PortfolioFindings]:
     structure = _load_map(path)
     sol = _Solution(path)
+    if structure.get("mode") == "product_conformance":
+        return _ingest_mode_b(structure, sol)
 
     mart_rows = []
     open_by_loan: dict[str, int] = {}
@@ -141,5 +145,78 @@ def ingest_workbook(path: str | Path) -> tuple[DeIdentifiedMart, PortfolioFindin
         criticized_count=len(criticized),
         classified_dollars=float(sum(r["outstanding"] or 0 for r in classified)),
         classified_count=len(classified),
+        records=tuple(records))
+    return mart, findings
+
+
+def _ingest_mode_b(structure: dict,
+                   sol: "_Solution") -> tuple[DeIdentifiedMart, PortfolioFindings]:
+    """Mode B: product-level outputs only — no loan numbers, no person data.
+
+    Retail has no Special Mention bucket, so criticized == classified ==
+    Substandard + Loss (URCCP).
+    """
+    mart_rows = []
+    records = []
+    open_by_class: dict[str, int] = {}
+    open_by_severity: dict[str, int] = {}
+    fired_by_status: dict[str, int] = {}
+    open_by_loan: dict[str, int] = {}
+    total_open = 0
+    substandard = loss = 0.0
+
+    for i, product in enumerate(structure["products"], start=1):
+        pid, sheet = product["id"], product["sheet"]
+        prow = product["products_row"]
+        mid = f"{structure['engagement_id']}-P{i:02d}"
+        sub_d = float(sol.get(sheet, product["panel"]["substandard_dollars"]) or 0)
+        loss_d = float(sol.get(sheet, product["panel"]["loss_dollars"]) or 0)
+        substandard += sub_d
+        loss += loss_d
+        mart_rows.append({
+            "mart_id": mid,
+            "product": pid,
+            "population_count": sol.get("Products", f"B{prow}"),
+            "population_dollars": sol.get("Products", f"C{prow}"),
+            "sample_n": sol.get("Products", f"D{prow}"),
+            "coverage": sol.get("Products", f"E{prow}"),
+            "open_findings": int(sol.get("Products", f"F{prow}") or 0),
+            "substandard_dollars": sub_d,
+            "loss_dollars": loss_d,
+        })
+        open_by_loan[mid] = 0
+        for test in product["tests"]:
+            flag = sol.get(sheet, test["flag"])
+            status = sol.get(sheet, test["status"]) or ""
+            fired = flag == OPEN_FLAG
+            is_open = fired and status == "open"
+            if fired:
+                fired_by_status[status] = fired_by_status.get(status, 0) + 1
+            if is_open:
+                open_by_class[test["class"]] = open_by_class.get(test["class"], 0) + 1
+                open_by_severity[test["severity"]] = \
+                    open_by_severity.get(test["severity"], 0) + 1
+                open_by_loan[mid] += 1
+                total_open += 1
+            records.append({
+                "mart_id": mid, "rule": test["id"], "class": test["class"],
+                "subtype": "", "severity": test["severity"], "fired": fired,
+                "status": status,
+                "rate": sol.get(sheet, test["rate"]),
+                "fails": int(sol.get(sheet, test["fails"]) or 0)})
+
+    classified_dollars = substandard + loss   # URCCP: no Special Mention bucket
+    classified_count = sum(1 for r in mart_rows
+                           if (r["substandard_dollars"] or r["loss_dollars"]))
+    mart = DeIdentifiedMart(engagement_id=structure["engagement_id"],
+                            lob=structure["lob"], rows=tuple(mart_rows))
+    findings = PortfolioFindings(
+        open_by_class=open_by_class, open_by_severity=open_by_severity,
+        fired_by_status=fired_by_status, open_by_loan=open_by_loan,
+        total_open=total_open,
+        criticized_dollars=classified_dollars,
+        criticized_count=classified_count,
+        classified_dollars=classified_dollars,
+        classified_count=classified_count,
         records=tuple(records))
     return mart, findings

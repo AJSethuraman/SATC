@@ -125,7 +125,96 @@ def build_methodology(ws: Worksheet, program: Program, engagement: Engagement,
     ws.row_dimensions[row].height = 30
 
 
-def build_readme(ws: Worksheet, program: Program, engagement: Engagement) -> None:
+PII_NOTES_MODE_B = (
+    "PII rules (binding — stricter than the loan-level mode): Mode B artifacts "
+    "contain no individual-person names, ever. Sampled files are identified by "
+    "loan/account number only, and that number stays inside this "
+    "encrypted-at-rest workbook — the Data Mart and every re-ingest export are "
+    "product/segment level. No TIN in any form. Every repository fixture is "
+    "synthetic.")
+
+
+def build_methodology_mode_b(ws: Worksheet, program: Program,
+                             engagement: Engagement,
+                             product_rows: dict[str, int]) -> None:
+    """Mode B methodology: cited crosswalk + sampling design + coverage."""
+    KB.hide_gridlines(ws)
+    for letter, width in {"A": 30, "B": 52, "C": 52, "D": 46}.items():
+        ws.column_dimensions[letter].width = width
+
+    row = KB.brand_banner(
+        ws, 1, 4, "Methodology — Regulatory Crosswalk",
+        f"{program.title}  ·  {engagement.client_name}  ·  {engagement.engagement_id}")
+    row += 1
+
+    row = _band(ws, row, "Program element -> requirement satisfied (with citation)", 4)
+    row = KB.header_row(ws, row, ["Element", "How this program implements it",
+                                  "Requirement satisfied", "Citation"])
+    for entry in program.crosswalk:
+        values = [entry["element"], entry.get("implementation", ""),
+                  entry["requirement"], entry["source"]]
+        for col, value in enumerate(values, start=1):
+            cell = ws.cell(row, col, value)
+            cell.font = KB.DATA_FONT
+            cell.alignment = _WRAP
+        row += 1
+    row += 1
+
+    row = _band(ws, row, "Sampling design — stratified random + judgmental "
+                         "segments (documented basis; coverage live)", 4)
+    row = KB.header_row(ws, row, ["Product / segment", "Method / stratum",
+                                  "Size / basis", "Coverage (live)"])
+    for pid, block in engagement.overlay_products.items():
+        pop = block["population"]
+        prow = product_rows[pid]
+        cell = ws.cell(row, 1, pid)
+        cell.font = Font(name="Arial", bold=True, size=10, color=KB.INK)
+        ws.cell(row, 2, f"population {pop['count']:,} / ${pop['dollars']:,}") \
+            .font = KB.DATA_FONT
+        cov = ws.cell(row, 4, f"=Products!$E${prow}")
+        cov.font = KB.DATA_FONT
+        cov.number_format = "0.00%"
+        row += 1
+        for seg in block["sample_plan"]["segments"]:
+            stratum = ", ".join(f"{k}: {v}"
+                                for k, v in (seg.get("stratum") or {}).items())
+            ws.cell(row, 1, f"    {seg['id']}").font = KB.DATA_FONT
+            ws.cell(row, 2, seg["method"] + (f" — {stratum}" if stratum else "")) \
+                .font = KB.DATA_FONT
+            c = ws.cell(row, 3, f"n={seg['size']} — {seg['basis']}")
+            c.font = KB.DATA_FONT
+            c.alignment = _WRAP
+            row += 1
+    row += 1
+
+    row = _band(ws, row, "Reviewer independence", 4)
+    reviewer = engagement.reviewer
+    row = _kv(ws, row, "Reviewer", reviewer.get("name"))
+    row = _kv(ws, row, "Independent", "Yes" if reviewer.get("independent") else "No")
+    row = _kv(ws, row, "Basis", reviewer.get("independence_note", ""))
+    row += 1
+
+    row = _band(ws, row, "Findings-to-board reporting", 4)
+    note = ws.cell(row, 1,
+                   "Conformance findings (rate vs tolerance; compliance "
+                   "per-occurrence), the buy-box fringe-vs-core comparison, and "
+                   "the URCCP asset-quality totals aggregate on the Findings and "
+                   "Products sheets for committee/board presentation.")
+    note.font = KB.DATA_FONT
+    note.alignment = _WRAP
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+    ws.row_dimensions[row].height = 44
+    row += 2
+
+    caveat = ws.cell(row, 1, PIN_CITE_CAVEAT)
+    caveat.font = KB.NOTE_FONT
+    caveat.alignment = _WRAP
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+    ws.row_dimensions[row].height = 30
+
+
+def build_readme(ws: Worksheet, program: Program, engagement: Engagement,
+                 pii_notes: str = PII_NOTES) -> None:
     KB.hide_gridlines(ws)
     ws.column_dimensions["A"].width = 110
 
@@ -150,7 +239,7 @@ def build_readme(ws: Worksheet, program: Program, engagement: Engagement) -> Non
         (PIN_CITE_CAVEAT, False),
         ("", False),
         ("PII", True),
-        (PII_NOTES, False),
+        (pii_notes, False),
     ]
     row = 1
     for text, bold in lines:

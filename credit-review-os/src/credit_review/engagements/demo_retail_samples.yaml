@@ -1,0 +1,150 @@
+# SYNTHETIC Mode B samples — three products spanning every URCCP branch.
+# Loan numbers invented; no person names, ever.
+#
+# INDIRECT AUTO (closed-end; knobs: score>=660, dti<=45%, ltv<=120%, term<=72;
+# tolerances policy 5% / doc 10% / compliance 0%):
+#   dti: 1 fail (AU-11760, 47%)      -> 10% > 5%   -> OPEN high
+#   score/term/credit report:        -> clean
+#   ltv: 1 fail (AU-12233, 128%)     -> 10% > 5%   -> OPEN medium
+#   income: 2 fails (AU-11760, AU-14520) -> 20% > 10% -> OPEN medium
+#   contract docs: 1 fail (AU-13311) -> 10% not > 10% -> clean
+#   Reg Z: 1 fail (AU-15084)         -> per-occurrence -> OPEN high
+#   FRINGE: AU-14520, AU-15084 (both fail >=1) -> fringe fail-any 100% vs
+#   core 3/8 = 37.5% -> gap 62.5% > 5% margin -> fringe flag OPEN
+#   Pool: Substandard >=90 = 130/$2,250,000; Loss >=120 = 60/$1,150,000
+#
+# CREDIT CARD (open-end; knobs: score>=680, dti<=40%):
+#   score: 1 fail (CC-2477, 671)     -> 16.7% > 5% -> OPEN high
+#   dti: 1 fail (CC-2593, 42%)       -> 16.7% > 5% -> OPEN high
+#   re-aging: 1 fail (CC-2593)       -> 16.7% > 10% -> OPEN medium
+#   others clean; FRINGE: CC-2350, CC-2761 (0 fails) -> gap negative -> no flag
+#   Pool: Substandard >=90 = 175/$285,000; Loss >=180 = 25/$40,000
+#
+# HELOC (residential-secured; knobs: score>=660, dti<=43%, cltv<=85%):
+#   dti: 1 fail (HE-7402, 44%)       -> 16.7% > 5% -> OPEN high
+#   cltv: 1 fail (HE-7515, 88%)      -> 16.7% > 5% -> OPEN medium
+#   flood determination: 1 fail (HE-7515) -> per-occurrence -> OPEN high
+#   writedown attestation: all na (no 180+ files sampled) -> n=0, no finding
+#   FRINGE: HE-7288, HE-7515, HE-7626 -> fringe 1/3 vs core 1/3 -> gap 0
+#   Pool: Substandard = qualifying >=90 w/ LTV>60% = 9/$780,000;
+#         Loss = fair-value writedowns = 2/$95,000
+products:
+  indirect_auto:
+    pool:
+      current:      {count: 2000, dollars: 31400000}
+      dpd_30_59:    {count: 180,  dollars: 2900000}
+      dpd_60_89:    {count: 90,   dollars: 1450000}
+      dpd_90_119:   {count: 70,   dollars: 1100000}
+      dpd_120_179:  {count: 40,   dollars: 720000}
+      dpd_180_plus: {count: 20,   dollars: 430000}
+    files:
+      - {loan_number: "AU-10021", segment: rand_large, score: 742, dti: 0.31,
+         ltv: 0.95, term_months: 60, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-10485", segment: rand_large, score: 705, dti: 0.38,
+         ltv: 1.05, term_months: 66, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-11102", segment: rand_large, score: 688, dti: 0.29,
+         ltv: 0.88, term_months: 60, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-11760", segment: rand_large, score: 720, dti: 0.47,
+         ltv: 1.02, term_months: 72, credit_report_reviewed: pass,
+         income_verified: fail, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-12233", segment: rand_large, score: 731, dti: 0.33,
+         ltv: 1.28, term_months: 60, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-12904", segment: rand_small, score: 698, dti: 0.36,
+         ltv: 1.00, term_months: 66, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-13311", segment: rand_small, score: 755, dti: 0.28,
+         ltv: 0.82, term_months: 48, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: fail,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-13977", segment: rand_small, score: 712, dti: 0.40,
+         ltv: 0.97, term_months: 60, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-14520", segment: judg_fringe, score: 668, dti: 0.43,
+         ltv: 1.15, term_months: 72, credit_report_reviewed: pass,
+         income_verified: fail, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-15084", segment: judg_fringe, score: 663, dti: 0.44,
+         ltv: 1.18, term_months: 72, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: fail}
+
+  credit_card:
+    pool:
+      current:      {count: 5200, dollars: 9100000}
+      dpd_30_59:    {count: 260,  dollars: 420000}
+      dpd_60_89:    {count: 130,  dollars: 210000}
+      dpd_90_119:   {count: 90,   dollars: 150000}
+      dpd_120_179:  {count: 60,   dollars: 95000}
+      dpd_180_plus: {count: 25,   dollars: 40000}
+    files:
+      - {loan_number: "CC-2001", segment: rand_card, score: 741, dti: 0.22,
+         credit_report_reviewed: pass, income_verified: pass,
+         line_within_authority: pass, re_aging_within_urccp: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "CC-2118", segment: rand_card, score: 707, dti: 0.31,
+         credit_report_reviewed: pass, income_verified: pass,
+         line_within_authority: pass, re_aging_within_urccp: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "CC-2350", segment: rand_card, score: 692, dti: 0.38,
+         credit_report_reviewed: pass, income_verified: pass,
+         line_within_authority: pass, re_aging_within_urccp: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "CC-2477", segment: rand_card, score: 671, dti: 0.27,
+         credit_report_reviewed: pass, income_verified: pass,
+         line_within_authority: pass, re_aging_within_urccp: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "CC-2593", segment: judg_card, score: 715, dti: 0.42,
+         credit_report_reviewed: pass, income_verified: pass,
+         line_within_authority: pass, re_aging_within_urccp: fail,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "CC-2761", segment: judg_card, score: 684, dti: 0.39,
+         credit_report_reviewed: pass, income_verified: pass,
+         line_within_authority: pass, re_aging_within_urccp: pass,
+         reg_z_disclosures_present: pass}
+
+  heloc:
+    pool:
+      current:      {count: 640, dollars: 54000000}
+      dpd_30_59:    {count: 22,  dollars: 1900000}
+      dpd_60_89:    {count: 9,   dollars: 800000}
+      dpd_90_119:   {count: 6,   dollars: 520000}
+      dpd_120_179:  {count: 4,   dollars: 360000}
+      dpd_180_plus: {count: 3,   dollars: 260000}
+      qualifying_90_ltv60: {count: 9, dollars: 780000}
+      writedown_loss:      {count: 2, dollars: 95000}
+    files:
+      - {loan_number: "HE-7010", segment: rand_heloc, score: 748, dti: 0.30,
+         cltv: 0.62, credit_report_reviewed: pass, income_verified: pass,
+         appraisal_or_evaluation_present: pass, flood_determination_present: pass,
+         writedown_at_180_evidenced: na}
+      - {loan_number: "HE-7133", segment: rand_heloc, score: 716, dti: 0.35,
+         cltv: 0.74, credit_report_reviewed: pass, income_verified: pass,
+         appraisal_or_evaluation_present: pass, flood_determination_present: pass,
+         writedown_at_180_evidenced: na}
+      - {loan_number: "HE-7288", segment: rand_heloc, score: 705, dti: 0.41,
+         cltv: 0.83, credit_report_reviewed: pass, income_verified: pass,
+         appraisal_or_evaluation_present: pass, flood_determination_present: pass,
+         writedown_at_180_evidenced: na}
+      - {loan_number: "HE-7402", segment: judg_heloc, score: 688, dti: 0.44,
+         cltv: 0.79, credit_report_reviewed: pass, income_verified: pass,
+         appraisal_or_evaluation_present: pass, flood_determination_present: pass,
+         writedown_at_180_evidenced: na}
+      - {loan_number: "HE-7515", segment: judg_heloc, score: 672, dti: 0.39,
+         cltv: 0.88, credit_report_reviewed: pass, income_verified: pass,
+         appraisal_or_evaluation_present: pass, flood_determination_present: fail,
+         writedown_at_180_evidenced: na}
+      - {loan_number: "HE-7626", segment: judg_heloc, score: 690, dti: 0.42,
+         cltv: 0.84, credit_report_reviewed: pass, income_verified: pass,
+         appraisal_or_evaluation_present: pass, flood_determination_present: pass,
+         writedown_at_180_evidenced: na}

@@ -1,0 +1,35 @@
+# SYNTHETIC owner-occupied CRE demo engagement. Every value invented.
+client:
+  name: "Demo Community Bank"
+  engagement_id: "DEMO-2026-OOC-01"
+
+review_as_of: 2026-06-30
+
+rating_scale_map:
+  "1": Pass
+  "2": Pass
+  "3": Pass
+  "4": Pass
+  "5": Pass
+  "6": "Special Mention"
+  "7": Substandard
+  "8": Doubtful
+  "9": Loss
+
+thresholds:
+  dscr_floor: 1.20
+  ltv_ceiling: 0.80
+  stmt_staleness_days: 365
+  covenant_staleness_days: 120
+
+scope:
+  portfolio_dollars: 31000000
+  portfolio_count: 96
+  sample_basis: "all >$1MM + all criticized + 10% random"
+
+reviewer:
+  name: "SATC"
+  independent: true
+  independence_note: "No lending authority; reports to board audit committee"
+
+loans: "demo_oocre_loans.yaml"   # SYNTHETIC fixture

@@ -1,0 +1,51 @@
+# SYNTHETIC income-producing CRE loans. CRE-0001 is a clean stabilized retail
+# credit; CRE-0002 is a stressed suburban office credit that trips DSCR,
+# occupancy, LTV, rent-roll staleness, appraisal validity, and the rating
+# disagreement.
+loans:
+  - loan_id: "CRE-0001"
+    borrower_name: "Lakeview Commons Retail LLC"
+    loan_number: "31447-2"
+    tin_last4: "3390"
+    property_type: "anchored retail strip center"
+    total_commitment: 4800000
+    outstanding: 4500000
+    rating_originator: "4"
+    # DSCR 1.33, occupancy 91%, LTV 72.6%: all inside policy
+    noi: 520000
+    debt_service: 390000
+    occupancy: 0.91
+    appraised_value: 6200000
+    flood_zone_collateral: "no"
+    flood_insurance_current: "na"
+    ev_financial_statements_asof: 2025-10-31
+    ev_financial_statements_tier: "reviewed"
+    ev_rent_roll_asof: 2026-04-30            # 61d < 120: current
+    ev_operating_statement_asof: 2025-12-31
+    ev_appraisal_asof: 2024-06-01
+    ev_appraisal_valid: "yes"
+    ev_credit_approval_asof: 2024-03-15
+
+  - loan_id: "CRE-0002"
+    borrower_name: "Bridgewater Office Partners LP"
+    loan_number: "32960-5"
+    tin_last4: "7015"
+    property_type: "suburban office"
+    total_commitment: 7500000
+    outstanding: 7200000
+    rating_originator: "6"
+    rating_reviewer: "7"                      # SM vs Substandard -> rating finding
+    # DSCR 1.09, occupancy 72%, LTV 85.7%: all breach policy
+    noi: 610000
+    debt_service: 560000
+    occupancy: 0.72
+    appraised_value: 8400000
+    flood_zone_collateral: "no"
+    flood_insurance_current: "na"
+    ev_financial_statements_asof: 2026-02-28
+    ev_financial_statements_tier: "compiled"
+    ev_rent_roll_asof: 2026-01-15            # 166d > 120: stale
+    ev_operating_statement_asof: 2025-12-31
+    ev_appraisal_asof: 2023-11-01
+    ev_appraisal_valid: "no"                 # office market shift -> re-order
+    ev_credit_approval_asof: 2023-08-10

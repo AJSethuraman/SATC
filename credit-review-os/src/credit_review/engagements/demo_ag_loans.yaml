@@ -1,0 +1,51 @@
+# SYNTHETIC agricultural loans: one clean diversified family operation, one
+# stressed grain operation that trips DSCR, carryover debt, LTV, crop
+# insurance, stale financials, missing chattel inspection, and the rating
+# disagreement.
+loans:
+  - loan_id: "AG-0001"
+    borrower_name: "Meadowlark Family Farms LLC"
+    loan_number: "70882-3"
+    tin_last4: "5163"
+    operation_type: "mixed crop / cow-calf"
+    total_commitment: 900000
+    outstanding: 650000
+    rating_originator: "3"
+    # DSCR 1.27, no carryover, LTV 50%, insured: inside policy
+    farm_cash_flow: 210000
+    debt_service: 165000
+    carryover_debt: "no"
+    collateral_value: 1300000
+    crop_insurance: "yes"
+    flood_zone_collateral: "no"
+    flood_insurance_current: "na"
+    ev_financial_statements_asof: 2025-04-30    # 426d < 455: current
+    ev_financial_statements_tier: "tax_return"
+    ev_chattel_inspection_asof: 2025-11-15      # 227d < 365: current
+    ev_appraisal_asof: 2023-06-01
+    ev_appraisal_valid: "yes"
+    ev_credit_approval_asof: 2024-02-15
+
+  - loan_id: "AG-0002"
+    borrower_name: "Prairie Rose Grain Co"
+    loan_number: "71904-8"
+    tin_last4: "2489"
+    operation_type: "cash grain"
+    total_commitment: 1600000
+    outstanding: 1550000
+    rating_originator: "5"
+    rating_reviewer: "7"           # Pass vs Substandard -> rating finding
+    # DSCR 0.87, carryover debt, LTV 77.5%, uninsured: all breach
+    farm_cash_flow: 130000
+    debt_service: 150000
+    carryover_debt: "yes"
+    collateral_value: 2000000
+    crop_insurance: "no"
+    flood_zone_collateral: "no"
+    flood_insurance_current: "na"
+    ev_financial_statements_asof: 2024-12-31    # 546d > 455: stale
+    ev_financial_statements_tier: "company_prepared"
+    # chattel inspection missing from file
+    ev_appraisal_asof: 2022-03-10
+    ev_appraisal_valid: "yes"
+    ev_credit_approval_asof: 2021-05-10

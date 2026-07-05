@@ -85,22 +85,55 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
 v1 (C&I loan-level engine) shipped 2026-07-05 — see Done log. Roadmap, in
 order; each LOB = a new program YAML + crosswalk on the same engine:
 
-- [ ] **Second demo bank overlay** — proves portability costs 0 code changes
-      (PRD success metric).
-- [ ] **LOB build-out (cash-flow-out order):** income-producing CRE →
-      owner-occ CRE → construction/ADC → agricultural → consumer+residential
-      (**first Mode B / product_conformance build** — schema already carries
-      the mode) → multifamily / leases / specialty.
-- [ ] **ASCII-bundle build-on-target** (contract §11 style) so a workbook
-      crosses a bank DLP boundary.
+- [x] **Second demo bank overlay** — SHIPPED 2026-07-05: `Sample State Bank`
+      overlay (1-10 scale, tighter thresholds) builds on the unchanged C&I
+      program; recalc tests prove threshold-flips (DSCR 1.22 vs 1.25 floor,
+      leverage 3.95x vs 3.5x). 0 code changes (PRD success metric met).
+- [~] **LOB build-out (cash-flow-out order):** SHIPPED 2026-07-05:
+      **income-producing CRE** (NOI DSCR, occupancy, appraised-value LTV,
+      rent-roll evidence), **owner-occ CRE** (occupant-business global cash
+      flow per the RC-C owner-occupied definition), **construction/ADC**
+      (loan-to-cost, interest-reserve depletion, as-completed LTV, draw
+      inspections), **agricultural** (farm operating DSCR, carryover debt,
+      farmland/chattel LTV, crop insurance) — all config + crosswalk, zero
+      engine changes. Remaining (each GATED on its own grill/design pass):
+      consumer+residential (**first Mode B / product_conformance build** —
+      schema already carries the mode) → multifamily / leases / specialty.
+      **Mode B SHIPPED 2026-07-05** (grilled with the owner same day; PRD:
+      `credit-review-os/docs/prd-mode-b-product-conformance.md`; issues
+      #73/#74) — per-product PS_ tabs (conformance sample grid + URCCP pool
+      classification by live formula, cited to 65 FR 36903 / OCC 2000-20 /
+      FDIC FIL-40-2000; overlay may tighten the clock, never loosen — loader
+      enforced), rate-vs-tolerance findings (compliance per-occurrence),
+      stratified random + judgmental segments with per-stratum analytics,
+      computed buy-box FRINGE flag + fringe-vs-core norms block, shared test
+      library with per-product knob overrides, loan-number-only identity
+      (zero person names — stricter than Mode A), product-level de-identified
+      mart + re-ingest. Three demo products span every URCCP branch
+      (indirect auto / credit card / HELOC). Remaining LOBs (multifamily /
+      leases / specialty) are config work on either mode as needed.
+- [ ] **Mixed-mode workbooks** (one engagement covering commercial loan-level
+      + retail conformance in one deliverable) — decided against for Mode B
+      v1 (one mode per workbook); revisit if real engagements demand it.
+- [ ] **Statistical sample-size calculator** (attribute sampling: confidence /
+      tolerable rate → n) — decided against for Mode B v1; the documented
+      stratified-random + judgmental basis is the method. Revisit on demand.
+- [x] **ASCII-bundle build-on-target** — SHIPPED 2026-07-05: `credit-review
+      bundle <engagement>` emits a single pure-ASCII script (contract §11
+      pattern, gzip+base64) that rebuilds the workbook byte-identical in an
+      empty folder on a machine with only openpyxl+PyYAML; tested for
+      ASCII purity, byte-parity, and no crypto/formulas deps on target.
 - [ ] **Doc parsing / OCR pre-fill** — proposal lane only; deterministic core
       stays authoritative (needs its own grill/design pass).
 - [ ] **Optional local LLM extraction assist** — human-confirmed proposals
       only, never in the data path, never writes a rating (own design pass).
 - [ ] **ACL/CECL export** — emit classifications for the bank's allowance
       system (OCC *Allowances for Credit Losses* is the source when scoped).
-- [ ] **Pin-cite confirmation sprint** — verify crosswalk page cites against
-      the live regulator PDFs before the first filed workpaper.
+- [ ] **Pin-cite confirmation sprint (needs YOUR desk)** — verify crosswalk
+      page cites against the live regulator PDFs before the first filed
+      workpaper. Re-attempted 2026-07-05 from the build box: occ.gov /
+      fdic.gov / federalregister.gov / cdfifund.gov all still 403 to
+      automated egress — this requires a human browser.
 
 ## 6 · Standing rules for new items
 

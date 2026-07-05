@@ -1,0 +1,46 @@
+# SYNTHETIC owner-occupied CRE loans: one clean professional-practice credit,
+# one stressed manufacturer that trips DSCR, LTV, flood, stale financials,
+# missing covenant cert, appraisal validity, and the rating disagreement.
+loans:
+  - loan_id: "OOC-0001"
+    borrower_name: "Maple Street Dental PLLC"
+    loan_number: "20114-6"
+    tin_last4: "4407"
+    property_type: "medical office (owner-occupied)"
+    total_commitment: 1100000
+    outstanding: 950000
+    rating_originator: "3"
+    # DSCR 1.48, LTV 67.9%: inside policy
+    cash_flow: 310000
+    debt_service: 210000
+    appraised_value: 1400000
+    flood_zone_collateral: "no"
+    flood_insurance_current: "na"
+    ev_financial_statements_asof: 2025-12-31
+    ev_financial_statements_tier: "reviewed"
+    ev_covenant_compliance_certificate_asof: 2026-04-15
+    ev_appraisal_asof: 2024-09-01
+    ev_appraisal_valid: "yes"
+    ev_credit_approval_asof: 2024-06-20
+
+  - loan_id: "OOC-0002"
+    borrower_name: "Ironwood Machine Works Inc"
+    loan_number: "21873-9"
+    tin_last4: "8152"
+    property_type: "light industrial (owner-occupied)"
+    total_commitment: 2400000
+    outstanding: 2300000
+    rating_originator: "5"
+    rating_reviewer: "7"          # Pass vs Substandard -> rating finding
+    # DSCR 0.92, LTV 92%: both breach
+    cash_flow: 240000
+    debt_service: 260000
+    appraised_value: 2500000
+    flood_zone_collateral: "yes"
+    flood_insurance_current: "no"    # compliance exception
+    ev_financial_statements_asof: 2024-11-30    # 577d > 365: stale
+    ev_financial_statements_tier: "company_prepared"
+    # covenant compliance certificate missing from file
+    ev_appraisal_asof: 2022-07-15
+    ev_appraisal_valid: "no"
+    ev_credit_approval_asof: 2022-05-01

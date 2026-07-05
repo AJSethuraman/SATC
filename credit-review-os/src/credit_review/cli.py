@@ -2,9 +2,12 @@
 
 ``credit-review build <engagement.yaml>``  -> the encrypted engagement workbook
 ``credit-review ingest <workbook>``        -> de-identified mart + findings JSON
+``credit-review bundle <engagement.yaml>`` -> pure-ASCII build-on-target script
 
 The build writes ciphertext by default (``--plain`` opts out for the synthetic
-demo); ingest accepts either an encrypted or a plain workbook.
+demo); ingest accepts either an encrypted or a plain workbook; bundle emits a
+single ASCII script that rebuilds the workbook on a machine behind a bank's
+DLP boundary (contract §11 pattern).
 """
 
 from __future__ import annotations
@@ -12,6 +15,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -64,13 +68,17 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
         key = crypto.load_or_create_key(args.key_dir)
         blob = crypto.decrypt_bytes(blob, key)
 
-    with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as fh:
-        fh.write(blob)
-        tmp = Path(fh.name)
-    try:
+    # The evaluation engine reads from a path, so decrypted bytes must touch
+    # disk briefly — confine them to a fresh 0700 private directory (0600
+    # file), cleaned up even on error, so no other user/process can read the
+    # plaintext and nothing readable lingers if ingest dies mid-run.
+    with tempfile.TemporaryDirectory(prefix="credit-review-") as td:
+        os.chmod(td, 0o700)
+        tmp = Path(td) / "workbook.xlsx"
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(blob)
         mart, findings = ingest_workbook(tmp)
-    finally:
-        tmp.unlink()
 
     payload = {
         "mart": {"engagement_id": mart.engagement_id, "lob": mart.lob,
@@ -84,6 +92,20 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
         print(f"wrote {args.json}")
     else:
         print(text)
+    return 0
+
+
+def _cmd_bundle(args: argparse.Namespace) -> int:
+    from credit_review.bundle import make_bundle
+
+    engagement_path = Path(args.engagement)
+    engagement = load_engagement(engagement_path)
+    program_path = _resolve_program(args.program)
+    out = Path(args.output) if args.output else Path("build_credit_review.py")
+    script = make_bundle(program_path, engagement, engagement_path, out.name)
+    out.write_text(script, encoding="ascii")
+    print(f"wrote {out}  (pure ASCII, {len(script):,} chars; "
+          f"target needs Python 3.10+ with openpyxl + PyYAML)")
     return 0
 
 
@@ -109,6 +131,15 @@ def main(argv: list[str] | None = None) -> int:
     p_ingest.add_argument("workbook", help=".xlsx or encrypted .xlsx.enc")
     p_ingest.add_argument("--json", default=None, help="write output to this file")
     p_ingest.set_defaults(func=_cmd_ingest)
+
+    p_bundle = sub.add_parser(
+        "bundle", help="emit a pure-ASCII build-on-target script (DLP-safe)")
+    p_bundle.add_argument("engagement", help="engagement overlay YAML")
+    p_bundle.add_argument("--program", default="c_and_i",
+                          help="program YAML path or packaged LOB name (default: c_and_i)")
+    p_bundle.add_argument("-o", "--output", default=None,
+                          help="output script path (default: build_credit_review.py)")
+    p_bundle.set_defaults(func=_cmd_bundle)
 
     args = parser.parse_args(argv)
     return args.func(args)

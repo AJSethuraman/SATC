@@ -36,7 +36,12 @@ One workbook per engagement, in the KeyBank house style:
   Mention / Substandard / Doubtful / Loss with criticized/classified
   derivations), linesheet sections and exception rules, the evidence
   checklist, and the cited regulatory crosswalk. The loader rejects
-  client-specific keys outright. v1 ships `c_and_i`.
+  client-specific keys outright. Shipped programs: `c_and_i`,
+  `cre_income_producing` (NOI DSCR, occupancy, appraised-value LTV, rent
+  roll), `owner_occ_cre` (occupant-business global cash flow per the RC-C
+  owner-occupied definition), `construction_adc` (loan-to-cost, interest
+  reserve, as-completed LTV, draw inspections), and `agricultural` (farm
+  operating DSCR, carryover debt, farmland/chattel LTV, crop insurance).
 - **Engagement overlay** (`engagements/<name>.yaml`) — thin and per-bank:
   client identity, `review_as_of`, `rating_scale_map` (every internal grade →
   exactly one regulatory bucket), policy `thresholds` (DSCR floor, LTV and
@@ -46,15 +51,23 @@ One workbook per engagement, in the KeyBank house style:
 Adding a client bank = writing an overlay. Adding a line of business = writing
 a program. Neither is a code change.
 
-## Two review modes
+## Two review modes — both built
 
-The schema carries `review_mode` from day one:
+| | Mode A — `loan_level` | Mode B — `product_conformance` |
+|---|---|---|
+| Reviews | individual commercial credit files | retail origination programs, on a sample |
+| Tab per | loan (`LS_`) | product (`PS_`) |
+| Reviewer keys | figures, ratings, evidence dates | attributes + pass/fail/na per sampled file; pool delinquency buckets |
+| Findings | each fired exception | exception **rate vs tolerance** per test (compliance: per-occurrence) |
+| Classification | reviewer's bucket via the rating-scale map | **URCCP by formula** (closed-end 90/120, open-end 90/180, residential qualifier + writedown); overlay may tighten, never loosen |
+| Roll-up | `Master` | `Products` (+ buy-box fringe-vs-core and per-stratum analytics) |
+| File identity | borrower name + loan # (workbook only) | **loan # only — no person names, ever** |
+| Programs shipped | `c_and_i`, `cre_income_producing`, `owner_occ_cre`, `construction_adc`, `agricultural` | `retail` (indirect auto, credit card, HELOC) |
 
-- **`loan_level`** (built, v1) — individual credit-file review: C&I now; the
-  LOB roadmap extends it.
-- **`product_conformance`** (designed, not built) — pooled/scorecard review
-  for consumer and residential portfolios. The loader accepts it; the builder
-  refuses it with a pointer to the PRD until the roadmap reaches it.
+Mode B PRD: [`docs/prd-mode-b-product-conformance.md`](docs/prd-mode-b-product-conformance.md).
+Sampling is segment-based — stratified random (e.g. commitment band ×
+subproduct, 90/10 allocation) and judgmental strata are both first-class, and
+a computed FRINGE flag compares buy-box-edge originations to core norms.
 
 ## Build & verify
 
@@ -63,8 +76,15 @@ pip install -e .
 credit-review build src/credit_review/engagements/demo_engagement.yaml --plain -o demo.xlsx
 credit-review build src/credit_review/engagements/demo_engagement.yaml          # encrypted
 credit-review ingest DEMO-2026-01.xlsx.enc --json findings.json
-pip install -e .[test] && pytest -q                                              # 64 tests
+credit-review bundle src/credit_review/engagements/demo_engagement.yaml         # DLP-safe ASCII
+credit-review build src/credit_review/engagements/demo_retail_engagement.yaml --program retail --plain -o retail.xlsx
+pip install -e .[test] && pytest -q                                              # 106 tests
 ```
+
+The `bundle` command emits a single pure-ASCII script (the repo's contract
+§11 transmission pattern): run `python build_credit_review.py` on a machine
+behind a bank's DLP boundary (only openpyxl + PyYAML needed) and it rebuilds
+the workbook there, byte-identical, printing its SHA-256.
 
 Tests run at three seams (PRD §7): the in-memory builder with the `formulas`
 recalc engine against hardcoded expected values (Seam 1), the re-ingest
@@ -99,10 +119,11 @@ round-trip (Seam 2), and the no-PII-leak byte scan (Seam 3).
 
 ## LOB roadmap (cash-flow-out order)
 
-income-producing CRE → owner-occupied CRE → construction/ADC → agricultural →
-**consumer + residential (first product-conformance build)** → multifamily /
-leases / specialty. Each is a new program config + crosswalk on the same
-engine. Further out (each needs its own design pass): document parsing/OCR
-pre-fill, an optional **local** human-confirmed LLM extraction assist (never
-in the data path), export of classifications for the bank's ACL/CECL system,
-and the ASCII-bundle build-on-target transmission for bank DLP boundaries.
+~~income-producing CRE~~ → ~~owner-occupied CRE~~ → ~~construction/ADC~~ →
+~~agricultural~~ (all shipped, config-only) →
+**consumer + residential (first product-conformance build — needs its own
+design pass)** → multifamily / leases / specialty. Each is a new program
+config + crosswalk on the same engine. Further out (each needs its own
+design pass): document parsing/OCR pre-fill, an optional **local**
+human-confirmed LLM extraction assist (never in the data path), and export
+of classifications for the bank's ACL/CECL system.

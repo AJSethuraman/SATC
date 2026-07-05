@@ -44,21 +44,31 @@ _EPOCH = datetime(2026, 1, 1)
 
 
 def build_engagement_workbook(program: Program, engagement: Engagement,
-                              loans: list[Loan]) -> Workbook:
-    """Build the in-memory engagement workbook: ``Cover``, one ``LS_<loan_id>``
-    linesheet per loan, and the ``_config`` knob panel, in KeyBank house style."""
-    if program.review_mode != "loan_level":
-        raise ConfigError(
-            f"review_mode {program.review_mode!r} is designed into the schema but "
-            f"not built yet — v1 builds loan_level only (PRD §3)")
-    check_overlay_fits_program(engagement, program)
-    if not loans:
-        raise ConfigError("engagement has no loans — nothing to review")
+                              loans) -> Workbook:
+    """Build the in-memory engagement workbook.
 
+    Mode A (``loan_level``): ``loans`` is the loan list — Cover, one
+    ``LS_<loan_id>`` per loan, Master, Data Mart, Findings, ``_methodology``,
+    ``_config``. Mode B (``product_conformance``): ``loans`` is the samples
+    mapping from :func:`credit_review.config_mode_b.load_samples` — Cover, one
+    ``PS_<product>`` per product, Products, Data Mart, Findings, ``_config``.
+    """
     wb = Workbook()
     wb.properties.creator = "Credit Review OS"
     wb.properties.created = _EPOCH
     wb.properties.modified = _EPOCH
+
+    if program.review_mode == "product_conformance":
+        from credit_review.workbook_mode_b import assemble_mode_b
+
+        if not loans:
+            raise ConfigError("engagement has no product samples — nothing to review")
+        assemble_mode_b(wb, program, engagement, loans)
+        return wb
+
+    check_overlay_fits_program(engagement, program)
+    if not loans:
+        raise ConfigError("engagement has no loans — nothing to review")
 
     cover = wb.active
     cover.title = "Cover"
@@ -101,6 +111,7 @@ def build_engagement_workbook(program: Program, engagement: Engagement,
     # only — never borrower data. See credit_review.ingest.
     structure = {
         "version": 1,
+        "mode": "loan_level",
         "engagement_id": engagement.engagement_id,
         "lob": program.lob,
         "loans": [
@@ -162,3 +173,15 @@ def build_demo_workbook() -> tuple[Workbook, Program, Engagement, list[Loan]]:
     engagement = load_engagement(ENGAGEMENTS_DIR / "demo_engagement.yaml")
     loans = load_loans(engagement.loans_path)
     return build_engagement_workbook(program, engagement, loans), program, engagement, loans
+
+
+def build_demo_retail_workbook():
+    """Load the synthetic Mode B retail demo shipped with the package and build it."""
+    from credit_review.config_mode_b import load_samples
+
+    program = load_program(PROGRAMS_DIR / "retail.yaml")
+    engagement = load_engagement(ENGAGEMENTS_DIR / "demo_retail_engagement.yaml")
+    samples = load_samples(engagement.samples_path, program.products,
+                           engagement.overlay_products)
+    return (build_engagement_workbook(program, engagement, samples),
+            program, engagement, samples)

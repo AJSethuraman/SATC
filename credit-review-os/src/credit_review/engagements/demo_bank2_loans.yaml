@@ -1,0 +1,50 @@
+# SYNTHETIC loans for the second demo bank (Sample State Bank, 1-10 scale).
+# Chosen so outcomes flip on this bank's tighter thresholds: SSB-0001's DSCR
+# of 1.22 breaches the 1.25 floor (it would pass Demo Community Bank's 1.20),
+# and SSB-0002's 3.95x leverage breaches the 3.5x ceiling (would pass 4.0x).
+loans:
+  - loan_id: "SSB-0001"
+    borrower_name: "Granite Peak Tooling Co"
+    loan_number: "88201-4"
+    tin_last4: "5511"
+    total_commitment: 900000
+    outstanding: 700000
+    rating_originator: "6"       # Pass on this bank's scale
+    rating_reviewer: "7"         # Special Mention -> cross-bucket rating finding
+    cash_flow: 244000
+    debt_service: 200000         # DSCR 1.22: breaches the 1.25 floor
+    collateral_value: 900000     # LTV 77.8%: breaches the 75% ceiling
+    total_debt: 1000000
+    ebitda: 300000               # leverage 3.33x: inside the 3.5x ceiling
+    flood_zone_collateral: "no"
+    flood_insurance_current: "na"
+    ev_financial_statements_asof: 2025-08-31    # 273d < 365: current
+    ev_financial_statements_tier: "reviewed"
+    ev_borrowing_base_certificate_asof: 2026-04-20   # 41d > 30: stale
+    ev_covenant_compliance_certificate_asof: 2026-03-15
+    ev_appraisal_asof: 2024-10-01
+    ev_appraisal_valid: "yes"
+    ev_credit_approval_asof: 2024-05-15
+
+  - loan_id: "SSB-0002"
+    borrower_name: "Willow Bend Dairy LLC"
+    loan_number: "90335-7"
+    tin_last4: "8846"
+    total_commitment: 1300000
+    outstanding: 1200000
+    rating_originator: "8"       # Substandard
+    rating_reviewer: "8"         # agreement -> no rating finding
+    cash_flow: 150000
+    debt_service: 210000         # DSCR 0.71: breach
+    collateral_value: 1400000    # LTV 85.7%: breach
+    total_debt: 1500000
+    ebitda: 380000               # leverage 3.95x: breaches 3.5x (passes 4.0x)
+    flood_zone_collateral: "no"
+    flood_insurance_current: "na"
+    ev_financial_statements_asof: 2026-01-31
+    ev_financial_statements_tier: "tax_return"
+    # borrowing-base certificate missing from file
+    ev_covenant_compliance_certificate_asof: 2026-05-01
+    ev_appraisal_asof: 2023-03-20
+    ev_appraisal_valid: "yes"
+    ev_credit_approval_asof: 2022-09-01
