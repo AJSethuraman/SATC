@@ -163,6 +163,19 @@ class LinesheetBuilder:
             prefill = self.ctx.values.get(rid, None)
             if "tin" in rid:
                 prefill = mask_tin_last4(prefill)   # last-4 only, everywhere
+            # Text-comparing formulas (MAP grade lookups, ="yes" checks) need
+            # text: normalize YAML's native scalars (rating_originator: 4 ->
+            # int; flood_zone_collateral: yes -> bool) to the strings the
+            # formulas expect, instead of silently blanking a lookup.
+            kind = item.get("kind", "input")
+            if prefill is not None:
+                if kind == "rating_input":
+                    prefill = str(prefill)
+                elif kind == "input_text":
+                    if isinstance(prefill, bool):
+                        prefill = "yes" if prefill else "no"
+                    elif not isinstance(prefill, str):
+                        prefill = str(prefill)
             cell.value = prefill
         cell.font = font
         if fill is not None:

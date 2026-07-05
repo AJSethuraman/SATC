@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -67,13 +68,17 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
         key = crypto.load_or_create_key(args.key_dir)
         blob = crypto.decrypt_bytes(blob, key)
 
-    with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as fh:
-        fh.write(blob)
-        tmp = Path(fh.name)
-    try:
+    # The evaluation engine reads from a path, so decrypted bytes must touch
+    # disk briefly — confine them to a fresh 0700 private directory (0600
+    # file), cleaned up even on error, so no other user/process can read the
+    # plaintext and nothing readable lingers if ingest dies mid-run.
+    with tempfile.TemporaryDirectory(prefix="credit-review-") as td:
+        os.chmod(td, 0o700)
+        tmp = Path(td) / "workbook.xlsx"
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(blob)
         mart, findings = ingest_workbook(tmp)
-    finally:
-        tmp.unlink()
 
     payload = {
         "mart": {"engagement_id": mart.engagement_id, "lob": mart.lob,
