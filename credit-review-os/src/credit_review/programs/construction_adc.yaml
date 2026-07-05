@@ -17,37 +17,37 @@ rating_framework:
 sections:
   - title: "Identification & exposure"
     rows:
-      - {id: borrower_name, kind: input_text, label: "Borrower (legal name)", pii: name}
+      - {id: borrower_name, kind: input_text, label: "Borrower", pii: name}
       - {id: loan_number, kind: input_text, label: "Loan / obligor number"}
-      - {id: tin_last4, kind: input_text, label: "TIN (last 4 only)",
+      - {id: tin_last4, kind: input_text, label: "TIN last 4",
          note: "Full SSN/EIN never enters the workpaper."}
-      - {id: project_type, kind: input_text, label: "Project type / phase"}
+      - {id: project_type, kind: input_text, label: "Project type"}
       - {id: total_commitment, kind: input, label: "Total commitment"}
-      - {id: outstanding, kind: input, label: "Outstanding (funded to date)"}
-      - {id: unfunded, kind: computed, label: "Unfunded commitment (remaining to fund)",
+      - {id: outstanding, kind: input, label: "Outstanding"}
+      - {id: unfunded, kind: computed, label: "Unfunded commitment",
          formula: "{total_commitment}-{outstanding}"}
-      - {id: rating_originator, kind: rating_input, label: "Originator risk rating"}
+      - {id: rating_originator, kind: rating_input, label: "Originator rating"}
       - {id: rating_reviewer, kind: rating_input,
-         label: "Reviewer risk rating (independent)"}
+         label: "Reviewer rating"}
       - {id: rating_exception, kind: exception, class: rating, severity: high,
-         label: "Rating disagreement (independent validation)",
+         label: "Rating disagreement",
          when: "MAP({rating_reviewer})<>MAP({rating_originator})"}
 
   - title: "Project cost & progress"
     rows:
-      - {id: project_cost, kind: input, label: "Total project cost (budget)"}
+      - {id: project_cost, kind: input, label: "Total project cost"}
       - {id: ltc, kind: computed, fmt: pct,
-         label: "Loan-to-cost (commitment / project cost)",
+         label: "Loan-to-cost",
          formula: "{total_commitment}/{project_cost}"}
       - {id: ltc_exception, kind: exception, class: policy, subtype: unapproved,
          severity: high, label: "Loan-to-cost above policy ceiling",
          when: "{ltc}>[POL ltc_ceiling]"}
       - {id: percent_complete, kind: input_num, fmt: pct,
-         label: "Percent complete (per latest inspection)"}
+         label: "Percent complete"}
       - {id: interest_reserve_remaining, kind: input,
          label: "Interest reserve remaining"}
       - {id: reserve_exception, kind: exception, class: policy, subtype: unapproved,
-         severity: high, label: "Interest reserve depleted (or not evidenced)",
+         severity: high, label: "Interest reserve depleted",
          when: "{interest_reserve_remaining}<=0"}
 
   - title: "As-completed collateral"
@@ -55,19 +55,19 @@ sections:
       - {id: as_completed_value, kind: input,
          label: "As-completed appraised value"}
       - {id: ltv_completed, kind: computed, fmt: pct,
-         label: "As-completed LTV (commitment / as-completed value)",
+         label: "As-completed LTV",
          formula: "{total_commitment}/{as_completed_value}"}
       - {id: ltv_exception, kind: exception, class: policy,
          subtype: approved_with_mitigant, severity: medium,
-         label: "As-completed LTV above policy ceiling (approved with mitigant)",
+         label: "As-completed LTV above policy ceiling",
          when: "{ltv_completed}>[POL ltv_ceiling]"}
 
   - title: "Compliance"
     rows:
       - {id: flood_zone_collateral, kind: input_text,
-         label: "Project site in a flood zone? (yes/no)"}
+         label: "Site in a flood zone?"}
       - {id: flood_insurance_current, kind: input_text,
-         label: "Flood insurance in force and current? (yes/no/na)"}
+         label: "Flood insurance current?"}
       - {id: flood_exception, kind: exception, class: compliance, subtype: unapproved,
          severity: high, label: "Flood insurance missing for flood-zone collateral",
          when: 'AND({flood_zone_collateral}="yes",{flood_insurance_current}<>"yes")'}

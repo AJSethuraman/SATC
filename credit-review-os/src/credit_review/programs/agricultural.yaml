@@ -17,34 +17,34 @@ rating_framework:
 sections:
   - title: "Identification & exposure"
     rows:
-      - {id: borrower_name, kind: input_text, label: "Borrower (legal name)", pii: name}
+      - {id: borrower_name, kind: input_text, label: "Borrower", pii: name}
       - {id: loan_number, kind: input_text, label: "Loan / obligor number"}
-      - {id: tin_last4, kind: input_text, label: "TIN (last 4 only)",
+      - {id: tin_last4, kind: input_text, label: "TIN last 4",
          note: "Full SSN/EIN never enters the workpaper."}
-      - {id: operation_type, kind: input_text, label: "Operation type (crop/livestock/mixed)"}
+      - {id: operation_type, kind: input_text, label: "Operation type"}
       - {id: total_commitment, kind: input, label: "Total commitment"}
       - {id: outstanding, kind: input, label: "Outstanding balance"}
       - {id: unfunded, kind: computed, label: "Unfunded commitment",
          formula: "{total_commitment}-{outstanding}"}
-      - {id: rating_originator, kind: rating_input, label: "Originator risk rating"}
+      - {id: rating_originator, kind: rating_input, label: "Originator rating"}
       - {id: rating_reviewer, kind: rating_input,
-         label: "Reviewer risk rating (independent)"}
+         label: "Reviewer rating"}
       - {id: rating_exception, kind: exception, class: rating, severity: high,
-         label: "Rating disagreement (independent validation)",
+         label: "Rating disagreement",
          when: "MAP({rating_reviewer})<>MAP({rating_originator})"}
 
   - title: "Repayment capacity"
     rows:
       - {id: farm_cash_flow, kind: input,
-         label: "Farm operating cash flow (projected, annual)"}
+         label: "Farm operating cash flow"}
       - {id: debt_service, kind: input, label: "Total debt service"}
-      - {id: dscr, kind: computed, fmt: ratio, label: "DSCR (farm operating basis)",
+      - {id: dscr, kind: computed, fmt: ratio, label: "DSCR",
          formula: "{farm_cash_flow}/{debt_service}"}
       - {id: dscr_exception, kind: exception, class: policy, subtype: unapproved,
          severity: high, label: "DSCR below policy floor",
          when: "{dscr}<[POL dscr_floor]"}
       - {id: carryover_debt, kind: input_text,
-         label: "Unpaid operating carryover debt? (yes/no)"}
+         label: "Carryover operating debt?"}
       - {id: carryover_exception, kind: exception, class: policy, subtype: unapproved,
          severity: medium, label: "Operating carryover debt outstanding",
          when: '{carryover_debt}="yes"'}
@@ -52,27 +52,27 @@ sections:
   - title: "Collateral"
     rows:
       - {id: collateral_value, kind: input,
-         label: "Collateral value (farmland + chattel, most recent)"}
+         label: "Collateral value (farmland + chattel)"}
       - {id: ltv, kind: computed, fmt: pct,
-         label: "Loan-to-value (outstanding / collateral)",
+         label: "Loan-to-value",
          formula: "{outstanding}/{collateral_value}"}
       - {id: ltv_exception, kind: exception, class: policy,
          subtype: approved_with_mitigant, severity: medium,
-         label: "LTV above policy ceiling (approved with mitigant)",
+         label: "LTV above policy ceiling",
          when: "{ltv}>[POL ltv_ceiling]"}
 
   - title: "Risk mitigation & compliance"
     rows:
       - {id: crop_insurance, kind: input_text,
-         label: "Crop/livestock insurance in force? (yes/no/na)"}
+         label: "Crop insurance current?"}
       - {id: crop_insurance_exception, kind: exception, class: policy,
          subtype: unapproved, severity: high,
          label: "Required crop/livestock insurance not in force",
          when: '{crop_insurance}="no"'}
       - {id: flood_zone_collateral, kind: input_text,
-         label: "Improved collateral in a flood zone? (yes/no)"}
+         label: "Collateral in a flood zone?"}
       - {id: flood_insurance_current, kind: input_text,
-         label: "Flood insurance in force and current? (yes/no/na)"}
+         label: "Flood insurance current?"}
       - {id: flood_exception, kind: exception, class: compliance, subtype: unapproved,
          severity: high, label: "Flood insurance missing for flood-zone collateral",
          when: 'AND({flood_zone_collateral}="yes",{flood_insurance_current}<>"yes")'}

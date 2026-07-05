@@ -65,7 +65,7 @@ def test_bank2_ten_grade_scale_maps_buckets(bank2):
 def test_bank2_rating_finding_fires_on_its_own_scale(bank2):
     wb, rc = bank2
     rows = _rows(wb["LS_SSB-0001"])
-    r = rows["Rating disagreement (independent validation)"]
+    r = rows["Rating disagreement"]
     assert rc.value("LS_SSB-0001", f"C{r}") == OPEN_FLAG   # 6 (Pass) vs 7 (SM)
 
 
@@ -76,7 +76,7 @@ def test_bank2_tighter_thresholds_flip_outcomes(bank2):
     assert rc.value("LS_SSB-0001", f"C{ls1['DSCR']}") == pytest.approx(1.22)
     assert rc.value("LS_SSB-0001", f"C{ls1['DSCR below policy floor']}") == OPEN_FLAG
     # LTV 77.8% breaches the 75% ceiling (would pass 80%)
-    r = ls1["LTV above policy ceiling (approved with mitigant)"]
+    r = ls1["LTV above policy ceiling"]
     assert rc.value("LS_SSB-0001", f"C{r}") == OPEN_FLAG
     # BBC 41 days old breaches the 30-day window (would pass 45)
     assert rc.value("LS_SSB-0001",
@@ -122,10 +122,10 @@ def test_cre_crosswalk_covers_required_elements_plus_collateral(cre):
 def test_cre_stabilized_credit_is_clean(cre):
     wb, rc, _ = cre
     rows = _rows(wb["LS_CRE-0001"])
-    assert rc.value("LS_CRE-0001", f"C{rows['DSCR (NOI / debt service)']}") \
+    assert rc.value("LS_CRE-0001", f"C{rows['DSCR']}") \
         == pytest.approx(520000 / 390000)
     for label in ("DSCR below policy floor", "Occupancy below policy floor",
-                  "LTV above policy ceiling (approved with mitigant)",
+                  "LTV above policy ceiling",
                   "Rent roll stale or missing", "Collateral appraisal no longer valid"):
         assert rc.value("LS_CRE-0001", f"C{rows[label]}") == CLEAR_FLAG, label
 
@@ -133,10 +133,10 @@ def test_cre_stabilized_credit_is_clean(cre):
 def test_cre_stressed_office_credit_trips_the_program(cre):
     wb, rc, _ = cre
     rows = _rows(wb["LS_CRE-0002"])
-    expected_open = ("Rating disagreement (independent validation)",
+    expected_open = ("Rating disagreement",
                      "DSCR below policy floor",
                      "Occupancy below policy floor",
-                     "LTV above policy ceiling (approved with mitigant)",
+                     "LTV above policy ceiling",
                      "Rent roll stale or missing",
                      "Collateral appraisal no longer valid")
     for label in expected_open:

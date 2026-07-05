@@ -103,7 +103,7 @@ def test_builder_masks_tin_even_when_loaders_are_bypassed():
     wb = build_engagement_workbook(program, engagement, [sneaky])
     ls = wb["LS_X-0001"]
     rows = {ls.cell(r, 2).value: r for r in range(1, ls.max_row + 1) if ls.cell(r, 2).value}
-    assert ls.cell(rows["TIN (last 4 only)"], 3).value == "6789"
+    assert ls.cell(rows["TIN last 4"], 3).value == "6789"
     text = _workbook_xml_text(workbook_bytes(wb))
     assert not SSN_RE.search(text) and not NINE_DIGIT_RE.search(text)
 

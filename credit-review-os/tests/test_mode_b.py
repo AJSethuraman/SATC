@@ -276,14 +276,14 @@ def test_fringe_vs_core_norms_block(built):
     assert rc.value(PS, f"B{rows['Core fail-any rate']}") == pytest.approx(3 / 8)
     assert rc.value(PS, f"B{rows['Gap (fringe - core)']}") == pytest.approx(0.625)
     assert rc.value(
-        PS, f"B{rows['Fringe exceeds core by more than the margin?']}") == OPEN_FLAG
+        PS, f"B{rows['Fringe above margin?']}") == OPEN_FLAG
     # card: fringe files are clean -> negative gap -> no flag
     card_rows = _label_rows(wb["PS_credit_card"])
     assert rc.value("PS_credit_card",
                     f"B{card_rows['Fringe fail-any rate']}") == pytest.approx(0.0)
     assert rc.value(
         "PS_credit_card",
-        f"B{card_rows['Fringe exceeds core by more than the margin?']}") == CLEAR_FLAG
+        f"B{card_rows['Fringe above margin?']}") == CLEAR_FLAG
 
 
 def test_segment_analytics_by_stratum(built):
@@ -318,7 +318,7 @@ def test_heloc_attestation_with_no_applicable_files_stays_silent(built):
     wb, rc, _, _ = built
     ws = wb["PS_heloc"]
     rows = _analytics_rows(ws)
-    r = rows["180-day fair-value writedown evidenced (if 180+ DPD)"]
+    r = rows["180-day writedown evidenced"]
     assert rc.value("PS_heloc", f"D{r}") == 0        # all na -> n = 0
     assert rc.value("PS_heloc", f"H{r}") in ("", None)   # no rate -> no finding
 

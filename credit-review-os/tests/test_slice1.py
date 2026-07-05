@@ -152,14 +152,14 @@ def test_linesheet_inputs_are_house_styled_input_cells(built):
     ls = wb["LS_CI-0001"]
     labels = {ls.cell(r, 2).value: ls.cell(r, 3) for r in range(1, ls.max_row + 1)
               if ls.cell(r, 2).value}
-    for label in ("Borrower (legal name)", "Total commitment",
-                  "Originator risk rating"):
+    for label in ("Borrower", "Total commitment",
+                  "Originator rating"):
         cell = labels[label]
         assert cell.fill.fgColor.rgb.endswith(KB.CANVAS), label     # input tint
         assert cell.border.left.style == "thin", label
     assert labels["Total commitment"].value == 2500000
     assert labels["Total commitment"].number_format.startswith("$")
-    assert labels["Borrower (legal name)"].value == "Blue Heron Fabrication LLC"
+    assert labels["Borrower"].value == "Blue Heron Fabrication LLC"
 
 
 def test_computed_row_ships_a_live_formula_not_a_result(built):

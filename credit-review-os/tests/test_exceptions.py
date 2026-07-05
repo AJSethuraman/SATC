@@ -49,15 +49,15 @@ def test_dscr_below_floor_fires(demo_recalc):
 
 def test_ltv_over_ceiling_fires_as_approved_with_mitigant(demo_recalc):
     rc, rows, _ = demo_recalc
-    assert rc.value(LS, f"C{rows['Loan-to-value (outstanding / collateral)']}") \
+    assert rc.value(LS, f"C{rows['Loan-to-value']}") \
         == pytest.approx(0.875)
-    r = rows["LTV above policy ceiling (approved with mitigant)"]
+    r = rows["LTV above policy ceiling"]
     assert rc.value(LS, f"C{r}") == OPEN_FLAG
 
 
 def test_leverage_inside_ceiling_stays_clean(demo_recalc):
     rc, rows, _ = demo_recalc
-    assert rc.value(LS, f"C{rows['Leverage (debt / EBITDA)']}") == pytest.approx(3400000 / 900000)
+    assert rc.value(LS, f"C{rows['Leverage']}") == pytest.approx(3400000 / 900000)
     assert rc.value(LS, f"C{rows['Leverage above policy ceiling']}") == CLEAR_FLAG
 
 
@@ -65,7 +65,7 @@ def test_dscr_clears_when_cash_flow_improves():
     wb, *_ = build_demo_workbook()
     ws = wb[LS]
     rows = _rows(ws)
-    ws.cell(rows["Global cash flow available for debt service"], 3, 600000)
+    ws.cell(rows["Global cash flow"], 3, 600000)
     rc = Recalc(workbook_bytes(wb))
     assert rc.value(LS, f"C{rows['DSCR below policy floor']}") == CLEAR_FLAG
 
@@ -80,8 +80,8 @@ def test_flood_exception_fires_only_for_uninsured_flood_zone(demo_recalc):
     wb, *_ = build_demo_workbook()
     ws = wb[LS]
     r = _rows(ws)
-    ws.cell(r["Improved real estate collateral in a flood zone? (yes/no)"], 3, "yes")
-    ws.cell(r["Flood insurance in force and current? (yes/no/na)"], 3, "no")
+    ws.cell(r["Collateral in a flood zone?"], 3, "yes")
+    ws.cell(r["Flood insurance current?"], 3, "no")
     rc2 = Recalc(workbook_bytes(wb))
     assert rc2.value(LS, f"C{r['Flood insurance missing for flood-zone collateral']}") \
         == OPEN_FLAG
@@ -179,7 +179,7 @@ def test_waived_status_drops_from_open_counts():
     wb, *_ = build_demo_workbook()
     ws = wb[LS]
     rows = _rows(ws)
-    ws.cell(rows["LTV above policy ceiling (approved with mitigant)"], 5, "waived")
+    ws.cell(rows["LTV above policy ceiling"], 5, "waived")
     rc = Recalc(workbook_bytes(wb))
     fnd = _fnd_rows(wb["Findings"])
     assert _agg_value(rc, fnd, "policy") == 8

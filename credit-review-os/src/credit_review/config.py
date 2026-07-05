@@ -215,7 +215,7 @@ def load_program(path: str | Path) -> Program:
     evidence = tuple(data.get("evidence", ()))
     if evidence:
         sections.append({
-            "title": "Evidence & documentation (currency-tested)",
+            "title": "Evidence & documentation",
             "rows": [row for i, item in enumerate(evidence)
                      for row in _evidence_rows(item, f"{where}.evidence[{i}]")]})
     sections = tuple(sections)

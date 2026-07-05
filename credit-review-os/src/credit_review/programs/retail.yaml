@@ -98,7 +98,7 @@ products:
       - {id: flood_determination_present, label: "Flood determination present",
          kind: attestation, class: compliance, severity: high}
       - {id: writedown_at_180_evidenced,
-         label: "180-day fair-value writedown evidenced (if 180+ DPD)",
+         label: "180-day writedown evidenced",
          kind: attestation, class: documentation, severity: high}
     fringe_rules:
       - {attribute: score, limit_key: score_floor,

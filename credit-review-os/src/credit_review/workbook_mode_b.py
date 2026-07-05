@@ -123,7 +123,7 @@ def build_cover_mode_b(ws: Worksheet, program: Program, engagement: Engagement,
     kv("Line of business", program.lob)
     kv("Review mode", "product conformance (Mode B)")
     row += 1
-    section("Sample plan (stratified random + judgmental segments)")
+    section("Sample plan")
     for pid, block in engagement.overlay_products.items():
         pop = block["population"]
         kv(f"{pid} — population", f"{pop['count']:,} loans / ${pop['dollars']:,}")

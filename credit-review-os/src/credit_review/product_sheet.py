@@ -182,7 +182,7 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
     row = KB.brand_banner(
         ws, 1, last_col, product["label"],
         f"{engagement.client_name}  ·  {engagement.engagement_id}"
-        f"  ·  conformance sample + URCCP pool")
+        f"  ·  conformance sample")
     headers = (["Loan #", "Segment"] + [a["label"] for a in attributes]
                + [t["label"] for t in tests] + ["Fails", "Fringe"])
     row = KB.header_row(ws, row, headers, center_cols=tuple(range(1, last_col)))
@@ -366,7 +366,7 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
         f'=IFERROR({fringe_cells["fringe_rate"]}-{fringe_cells["core_rate"]},"")')
     margin_ref = pol.get("fringe_margin", "1")   # no margin knob -> never flags
     fringe_cells["flag"] = norm(
-        "Fringe exceeds core by more than the margin?",
+        "Fringe above margin?",
         f'=IFERROR(IF({fringe_cells["gap"]}>{margin_ref},'
         f'"{OPEN_FLAG}","{CLEAR_FLAG}"),"")', None)
     flag_addr = fringe_cells["flag"]
@@ -463,7 +463,7 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
                 c.alignment = _RIGHT
                 c.number_format = fmt
             row += 1
-        ws.cell(row, 1, ">=90 DPD with LTV above qualifier (keyed)") \
+        ws.cell(row, 1, ">=90 DPD with LTV above qualifier") \
             .font = KB.DATA_FONT
         qual_row = row
         for col, key in ((2, "count"), (3, "dollars")):
@@ -472,7 +472,7 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
             c.border = _BORDER
             styled(c, KB.DATA_FONT)
         row += 1
-        ws.cell(row, 1, "Fair-value writedowns taken (keyed)").font = KB.DATA_FONT
+        ws.cell(row, 1, "Fair-value writedowns taken").font = KB.DATA_FONT
         wd_row = row
         for col, key in ((2, "count"), (3, "dollars")):
             c = ws.cell(row, col, sample.pool["writedown_loss"][key])
