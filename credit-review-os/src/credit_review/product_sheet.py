@@ -67,38 +67,29 @@ BUCKET_LABELS = {
     "dpd_180_plus": "180+ DPD",
 }
 
-# URCCP floors: the delinquency clock may be tightened by overlay override,
-# never loosened past these (65 FR 36903).
-_BUCKET_START_DPD = {"current": 0, "dpd_30_59": 30, "dpd_60_89": 60,
-                     "dpd_90_119": 90, "dpd_120_179": 120, "dpd_180_plus": 180}
-URCCP_FLOORS = {
-    "closed_end": {"substandard_from_dpd": 90, "loss_from_dpd": 120},
-    "open_end": {"substandard_from_dpd": 90, "loss_from_dpd": 180},
-}
+# URCCP floors + the clock resolver now live in the shared satc_credit_core so
+# this bench and credit-population-bench cannot fork the interagency constants
+# (65 FR 36903). Re-exported here for existing references in this module.
+from satc_credit_core.urccp import (  # noqa: E402
+    BUCKET_START_DPD as _BUCKET_START_DPD,
+    URCCP_FLOORS,
+    URCCPError,
+    resolve_classification_dpd,
+)
 
 
 def _classification_dpd(product: dict, overlay_block: dict) -> dict[str, int]:
     """Resolve the classification clock: URCCP floor, tightened by overrides.
 
-    Raises ConfigError if an override would loosen past the floor.
+    Delegates to the shared resolver; translates its error into ConfigError so
+    this module's callers and tests keep seeing the existing exception type.
     """
-    ctype = product["classification_type"]
-    floors = URCCP_FLOORS[ctype]
-    overrides = overlay_block.get("classification_overrides", {}) or {}
-    resolved = {}
-    for key, floor in floors.items():
-        value = overrides.get(key, floor)
-        if value not in _BUCKET_START_DPD.values():
-            raise ConfigError(
-                f"classification_overrides.{key}: {value!r} must be a bucket "
-                f"boundary ({sorted(set(_BUCKET_START_DPD.values()))})")
-        if value > floor:
-            raise ConfigError(
-                f"classification_overrides.{key}={value} would LOOSEN the URCCP "
-                f"floor of {floor} days for {ctype} — bank policy may only "
-                f"tighten the interagency standard (65 FR 36903)")
-        resolved[key] = value
-    return resolved
+    try:
+        return resolve_classification_dpd(
+            product["classification_type"],
+            overlay_block.get("classification_overrides", {}) or {})
+    except URCCPError as exc:
+        raise ConfigError(str(exc)) from exc
 
 
 @dataclass(frozen=True)

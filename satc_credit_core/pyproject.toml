@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "satc-credit-core"
+version = "0.1.0"
+description = "Shared credit-core (URCCP floors + clock resolver, TIN byte-scan) for the SATC credit-review tools - defined once, never forked"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=7.4"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["satc_credit_core*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
