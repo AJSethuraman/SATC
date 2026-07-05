@@ -135,7 +135,49 @@ order; each LOB = a new program YAML + crosswalk on the same engine:
       fdic.gov / federalregister.gov / cdfifund.gov all still 403 to
       automated egress — this requires a human browser.
 
-## 6 · Standing rules for new items
+## 6 · Consumer Credit Population Bench (`credit-population-bench/` — loan-level analysis, sibling to Credit Review OS)
+
+PRD written 2026-07-05 (`docs/prd-credit-population-bench.md`, grilled via
+`/occam` same day) — NOT yet built. A standalone `.xlsm` + pandas engine: a
+bank reviewer loads a **loan-level** consumer-loan flat file, maps/cleans it,
+stratifies (mapped group-bys + derived cohorts, 5+ side-by-side), computes
+balance- and count-weighted metrics + URCCP classification + vintage, and
+draws a documentable **judgmental sample** (OCC doc, non-extrapolable).
+Distinct from Credit Review OS Mode B (which keys pool totals + documents a
+drawn sample); this computes loan-level and helps DRAW the sample.
+
+- [ ] **Build M1 (tracer):** canonical-field contract + confirm-not-silent
+      column mapping (units/scale) + population-validation/cleaning gate
+      (`_cleaning`) + core metric engine (WA both bases, dollar/count
+      delinquency, URCCP via shared floors) + group-by + workbook + Seams 1–4.
+- [ ] **Build M2:** derived-cohort layer (structured rules → shared evaluator →
+      overlap matrix + residual), side-by-side + A/B comparison, band schemes
+      (CFPB / Y-14Q preset / custom), gross charge-off rate.
+- [ ] **Build M3:** vintage curves/triangle, conditional roll matrix (only if a
+      prior-bucket column is mapped), judgmental sampling (rank/flag + coverage +
+      OCC doc), ASCII bundle + `_readme`/methodology.
+- [ ] **[LOG] Shared-core extraction (touches `credit-review-os`):** factor
+      `URCCP_FLOORS` + classification-clock resolver + safe token evaluator +
+      PII byte-scan into an importable surface both projects consume (vendored
+      into each ASCII bundle at transmission). One URCCP implementation — never
+      forked. Gate: Mode A/B suites stay green.
+- [ ] **[LOG] PII-boundary reversal (project-specific decision):** unlike the
+      rest of the suite, the bench's **runtime populated workbook may hold real
+      borrower PII** (bank equipment/VPN, never leaves the machine; no gates, no
+      masking, no vault; loan number is the pull key). The PII byte-scan is
+      **repointed** to guard only the shipped tool / repo / demo fixtures (100%
+      synthetic) — NOT the runtime workbook. Stated in `_readme` + the PRD §7.
+- [ ] **[LOG] Deferred (decided against for v1):** cross-period snapshot
+      retention + multi-snapshot roll rates / Markov projection; net-of-recovery
+      NCO (no recovery data — gross-only charge-off rate ships, labeled);
+      statistical sampling / sample-size calculator; auto-drawing the sample
+      (tool ranks/flags, reviewer picks); 8-digit FR Y-14Q segment-ID crosswalk
+      (a Y-14Q band *preset* ships); at-rest workbook encryption.
+- [ ] **Inherited debt (needs YOUR desk):** URCCP pin-cite verification vs live
+      regulator PDFs before the first filed workpaper (same as Credit Review OS
+      §5; regulator sites block automated fetch).
+
+## 7 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
 found in any build -> `TEMPLATE_CONTRACT.md` carried lessons (L-series),
@@ -146,6 +188,17 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-07-05 -- Consumer Credit Population Bench PRD written (`/occam` grill →
+  PRD): `credit-population-bench/docs/prd-credit-population-bench.md`. New
+  standalone loan-level analysis project (sibling to Credit Review OS). Locked:
+  standalone project sharing URCCP/evaluator/PII-guard from credit-review-os
+  (one URCCP impl); structured-rule derived cohorts with overlap matrix +
+  residual; confirm-not-silent column mapping with units; refuse-on-hard-error
+  cleaning gate with `_cleaning` audit trail; both-basis rates always labeled;
+  gross-only charge-off; CFPB default + Y-14Q preset + custom bands; conditional
+  roll matrix; reviewer-picks judgmental sampling + OCC doc; PII-boundary
+  reversal (runtime workbook may hold PII, shipped tool must not). Open build +
+  `[LOG]` items in §6. Next: `/to-issues`.
 - 2026-07-05 -- Credit Review OS v1 shipped (credit-review-os/, issues
   #60-#68 on PR #71): config-driven C&I loan-review engine — two-layer
   config (portable program + engagement overlay), per-loan linesheets with
