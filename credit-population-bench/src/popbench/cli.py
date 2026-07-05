@@ -30,6 +30,16 @@ def _demo_mapping(headers: list[str]) -> mapping.Mapping:
     return mapping.confirm(columns)
 
 
+def build_demo_bytes() -> bytes:
+    """The canonical demo workbook build — used by the CLI and the ASCII bundle
+    so both produce byte-identical output."""
+    pop = demo.demo_population_full()
+    m = _demo_mapping(list(pop.columns))
+    return build(pop, m, cohort_specs=demo.demo_cohorts(),
+                 sample_selection={"L-102", "L-103", "L-104"},
+                 sample_dimension="product_type")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="popbench",
                                  description="Consumer credit population bench")
@@ -43,12 +53,7 @@ def main(argv: list[str] | None = None) -> int:
         ap.print_help()
         return 0
 
-    pop = demo.demo_population_full()
-    m = _demo_mapping(list(pop.columns))
-    # Demo judgmental selection: the delinquent loans the reviewer would pull.
-    data = build(pop, m, cohort_specs=demo.demo_cohorts(),
-                 sample_selection={"L-102", "L-103", "L-104"},
-                 sample_dimension="product_type")
+    data = build_demo_bytes()
     Path(args.out).write_bytes(data)
     print(f"wrote {args.out} ({len(data)} bytes)")
     return 0

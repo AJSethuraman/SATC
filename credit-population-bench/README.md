@@ -14,19 +14,30 @@ evaluator, and PII byte-scan rather than forking them.
 
 ## Status
 
-Building in vertical slices (GitHub issues #79–#87). **Slice 1 (tracer)** is in:
-the full path — load → auto-propose + confirm column mapping (`_map`) →
-refuse-on-hard-error cleaning gate (`_cleaning`) → balance- and count-weighted
-metric → deterministic workbook — on a synthetic population.
+Built in vertical slices (GitHub issues #79–#87). In: the full one-button path —
+mapping → cleaning gate → weighted metrics (both bases) → delinquency + **URCCP**
+(shared floors) → group-by + band schemes → **derived cohorts** (overlap matrix +
+residual) → vintage + gross charge-off + conditional roll matrix → **judgmental
+sampling + OCC doc** → the emailable **pure-ASCII bundle**.
 
 ## Verify
 
 ```bash
 cd credit-population-bench
-python -m pip install -e ".[test]"     # pandas, openpyxl, pytest
-PYTHONPATH=src pytest -q
+python -m pip install pandas openpyxl pytest
+PYTHONPATH=src pytest -q                                # full suite
 python -m popbench.cli --demo -o /tmp/bench_demo.xlsx   # build the demo workbook
+
+# Emailable transmission (TEMPLATE_CONTRACT §11): one pure-ASCII builder that
+# rebuilds the workbook in an empty folder with only pandas + openpyxl.
+python make_bundle.py                 # writes build_population_bench.py
+# ...email that one file; on the target machine, in an empty folder:
+#   python build_population_bench.py  # -> population_bench_demo.xlsx (+ sidecars)
 ```
+
+The shared URCCP/PII core lives in `../satc_credit_core` (imported at source,
+vendored into the bundle). Tests find it via `conftest.py`; the CLI finds it via a
+guarded runtime bootstrap.
 
 ## Design invariants
 

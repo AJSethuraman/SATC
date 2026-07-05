@@ -29,7 +29,7 @@ def test_workbook_has_expected_tabs_and_reloads():
     # no delinquency -> no Strat_product_type / Delinquency / URCCP tabs.
     assert set(wb.sheetnames) == {
         "Raw_Input", "_map", "_cleaning", "_config", "Population",
-        "Strat_cfpb", "_readme"}
+        "Strat_cfpb", "_code_py", "_readme"}
 
 
 def test_population_tab_carries_computed_values():
@@ -45,6 +45,16 @@ def test_population_tab_carries_computed_values():
     assert fico[0] == "fico_orig"
     assert abs(fico[1] - 716.0) < 1e-9
     assert abs(fico[2] - 715.0) < 1e-9
+
+
+def test_code_py_tab_is_pure_ascii_for_discovery():
+    _, _, data = _demo_bytes()
+    wb = openpyxl.load_workbook(io.BytesIO(data))
+    assert "_code_py" in wb.sheetnames          # control_center discovery key
+    ws = wb["_code_py"]
+    text = "\n".join(str(c.value or "") for c in ws["A"])
+    text.encode("ascii")                        # raises if any non-ASCII slipped in
+    assert "build_demo_bytes" in text
 
 
 def test_map_tab_records_confirmed_mapping():

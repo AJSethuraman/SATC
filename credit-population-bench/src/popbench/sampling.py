@@ -135,7 +135,9 @@ def build_doc(df: pd.DataFrame, selected_ids, dimension: str,
               results: str = "(reviewer to record exceptions found)",
               weight: str = "current_balance") -> SamplingDoc:
     """Assemble the OCC-required documentation from the reviewer's selection."""
-    selected = [str(x) for x in selected_ids]
+    # sorted() -> deterministic order regardless of the caller passing a set
+    # (byte-identical builds must not depend on set-iteration/hash-seed order).
+    selected = sorted(str(x) for x in selected_ids)
     ranked = rank_segments(df, dimension, scheme, risk_threshold_dpd, weight=weight)
     cov = coverage_by_segment(df, selected, dimension, scheme, risk_threshold_dpd, weight)
 

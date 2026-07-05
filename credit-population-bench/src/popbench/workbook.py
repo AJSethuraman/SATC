@@ -368,6 +368,12 @@ def build_workbook(
         ws.cell(r, 1, key); ws.cell(r, 2, val)
         r += 1
 
+    # _code_py — the embedded runner (pure ASCII, one line per cell) so a
+    # control_center-style launcher can discover + extract the tool (§10).
+    ws = wb.create_sheet("_code_py")
+    for i, line in enumerate(_CODE_PY_RUNNER.splitlines(), start=1):
+        ws.cell(i, 1, line).font = Font(name="Consolas", size=9, color=_INK)
+
     # _readme
     ws = wb.create_sheet("_readme")
     for i, line in enumerate(_README_LINES, start=1):
@@ -375,19 +381,48 @@ def build_workbook(
     return wb
 
 
+# The embedded runner: rebuilds the demo workbook from the vendored sources.
+# Pure ASCII (TEMPLATE_CONTRACT.md L3).
+_CODE_PY_RUNNER = (
+    "import sys\n"
+    "sys.path.insert(0, 'satc_credit_core')\n"
+    "sys.path.insert(0, 'src')\n"
+    "from popbench.cli import build_demo_bytes\n"
+    "with open('population_bench_demo.xlsx', 'wb') as fh:\n"
+    "    fh.write(build_demo_bytes())\n"
+    "print('rebuilt population_bench_demo.xlsx')\n"
+)
+
+
 _README_LINES = (
     "Consumer Credit Population Analysis Bench",
     "",
-    "Load a loan-level consumer-loan flat file on Raw_Input; confirm the column",
-    "mapping on _map; the engine validates/cleans (audit on _cleaning) and writes",
-    "population metrics here. Every rate ships on BOTH a dollar and a count basis",
-    "(labeled). Weighted averages are balance-weighted by current UPB by default.",
+    "WHAT: load a loan-level consumer-loan flat file on Raw_Input; confirm the",
+    "column mapping on _map; one button validates/cleans (audit on _cleaning) and",
+    "writes population metrics, stratifications, cohorts, vintage, roll, and the",
+    "judgmental-sampling documentation. Math is pandas behind the button; Excel is",
+    "the load + output (values) surface.",
     "",
-    "Nothing is computed on a dirty population: hard errors refuse; only safe,",
-    "declared normalizations run automatically and are recorded on _cleaning.",
+    "METHODOLOGY & CITATIONS:",
+    "- URCCP pool classification (Substandard >=90 DPD; Loss >=120 closed-end /",
+    "  >=180 open-end; residential >=90 DPD & LTV>60% qualifier): 65 FR 36903",
+    "  (June 12, 2000); OCC Bulletin 2000-20; FDIC FIL-40-2000. Thresholds are",
+    "  imported from the shared satc_credit_core -- one implementation, never",
+    "  forked; bank policy may only TIGHTEN the floor, never loosen it.",
+    "- Every delinquency/loss rate ships on BOTH a dollar and a count basis and is",
+    "  labeled; weighted averages are balance-weighted by current UPB by default.",
+    "- Charge-off is GROSS only (no recovery data in the file) -- labeled as such;",
+    "  no net NCO is produced.",
+    "- Band edges (FICO/DTI/LTV) are configuration, never hard-coded: CFPB six-tier",
+    "  + 36/43 DTI defaults, an FR Y-14Q preset, and fully custom edges.",
+    "- Derived cohorts overlap and leave gaps: they are reported independently with",
+    "  a pairwise overlap matrix and an 'in no cohort' residual -- never summed.",
+    "- Judgmental samples are NON-EXTRAPOLABLE (OCC Bulletin 2020-56): results",
+    "  cannot be projected to the population.",
     "",
-    "PII boundary: this runtime workbook may hold real borrower data and is for",
-    "use only on bank equipment; the shipped tool/repo/demo fixtures carry none.",
+    "PII BOUNDARY: this runtime workbook may hold real borrower data and is for use",
+    "only on bank equipment/VPN; it never leaves the machine. The shipped tool,",
+    "repository, ASCII bundle, and demo fixtures carry zero real PII (synthetic).",
 )
 
 
