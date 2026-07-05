@@ -1,0 +1,176 @@
+"""Deterministic workbook assembly — the output surface.
+
+Excel is where the reviewer loads the file and reads the results; the math
+already happened in pandas. This module lays computed *values* into tabs and
+serializes them **byte-identically** for the same inputs (fixed document
+properties + a zip repack that pins every member timestamp — the same trick
+``credit-review-os`` uses so a rebuild diffs clean).
+
+Slice 1 tabs: ``Raw_Input`` (the loaded population), ``_map`` (the confirmed
+column mapping + units), ``_cleaning`` (the audit trail), ``_config`` (the knob
+panel), ``Population`` (headline metrics), ``_readme``. Later slices add the
+stratification, cohort, vintage, sampling, and packaging tabs; the ``.xlsm``
+macro + ``_code_py`` runner land with the packaging slice.
+"""
+
+from __future__ import annotations
+
+import io
+import re
+import zipfile
+from datetime import datetime
+
+import pandas as pd
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.worksheet.worksheet import Worksheet
+
+# House-style-adjacent minimal palette (warm neutrals; red = stress later).
+_INK = "16130F"
+_BAND = "0A0908"
+_CANVAS = "F4F1EC"
+_PAPER = "FFFFFF"
+
+_HDR_FONT = Font(name="Arial", bold=True, size=11, color=_PAPER)
+_HDR_FILL = PatternFill("solid", fgColor=_BAND)
+_LABEL_FONT = Font(name="Arial", bold=True, size=10, color=_INK)
+_DATA_FONT = Font(name="Calibri", size=11, color=_INK)
+_KPI_FILL = PatternFill("solid", fgColor=_CANVAS)
+_LEFT = Alignment(horizontal="left", vertical="center")
+_RIGHT = Alignment(horizontal="right", vertical="center")
+
+# Fixed epoch — the build must never depend on the wall clock.
+_EPOCH = datetime(2026, 1, 1)
+
+FMT_USD = '#,##0'
+FMT_NUM = '#,##0.0'
+
+
+def _band(ws: Worksheet, row: int, cols: list[str]) -> int:
+    for c, text in enumerate(cols, start=1):
+        cell = ws.cell(row, c, text)
+        cell.font = _HDR_FONT
+        cell.fill = _HDR_FILL
+        cell.alignment = _LEFT
+    return row + 1
+
+
+def _write_frame(ws: Worksheet, df: pd.DataFrame, start_row: int = 1) -> int:
+    row = _band(ws, start_row, list(df.columns))
+    for _, rec in df.iterrows():
+        for c, col in enumerate(df.columns, start=1):
+            val = rec[col]
+            if pd.isna(val):
+                val = None
+            elif hasattr(val, "item"):
+                val = val.item()
+            ws.cell(row, c).value = val
+        row += 1
+    return row
+
+
+def build_workbook(
+    raw: pd.DataFrame,
+    map_rows: list[tuple[str, str, str]],
+    cleaning_rows: list[tuple[str, str, int, str]],
+    population: dict,
+    wa_rows: list[tuple],
+    config_rows: list[tuple[str, str]] | None = None,
+) -> Workbook:
+    """Assemble the in-memory workbook from already-computed values."""
+    wb = Workbook()
+    wb.properties.creator = "Consumer Credit Population Bench"
+    wb.properties.created = _EPOCH
+    wb.properties.modified = _EPOCH
+
+    # Raw_Input
+    ws = wb.active
+    ws.title = "Raw_Input"
+    _write_frame(ws, raw)
+
+    # _map
+    ws = wb.create_sheet("_map")
+    ws.cell(1, 1, "Confirmed column mapping (canonical <- header; units)").font = _LABEL_FONT
+    r = _band(ws, 3, ["canonical_field", "source_header", "unit"])
+    for fid, header, unit in map_rows:
+        ws.cell(r, 1, fid); ws.cell(r, 2, header); ws.cell(r, 3, unit)
+        r += 1
+
+    # _cleaning
+    ws = wb.create_sheet("_cleaning")
+    ws.cell(1, 1, "Cleaning audit — every automatic normalization applied").font = _LABEL_FONT
+    r = _band(ws, 3, ["rule", "column", "rows_affected", "detail"])
+    for rule, col, n, detail in cleaning_rows:
+        ws.cell(r, 1, rule); ws.cell(r, 2, col)
+        ws.cell(r, 3).value = int(n); ws.cell(r, 4, detail)
+        r += 1
+
+    # Population
+    ws = wb.create_sheet("Population")
+    ws.cell(1, 1, "Population summary").font = Font(name="Arial", bold=True, size=14, color=_INK)
+    ws.cell(3, 1, "Loan count").font = _LABEL_FONT
+    ws.cell(3, 2).value = int(population["count"])
+    ws.cell(4, 1, "Total balance (UPB)").font = _LABEL_FONT
+    ws.cell(4, 2).value = float(population["total_balance"])
+    ws.cell(4, 2).number_format = FMT_USD
+    for cc in (ws.cell(3, 1), ws.cell(4, 1), ws.cell(3, 2), ws.cell(4, 2)):
+        cc.fill = _KPI_FILL
+    r = _band(ws, 6, ["attribute", "dollar_weighted", "count_weighted",
+                      "n", "coverage_$", "note"])
+    for attr, dollar, count, n, cov, note in wa_rows:
+        ws.cell(r, 1, attr)
+        ws.cell(r, 2).value = None if dollar is None else float(dollar)
+        ws.cell(r, 3).value = None if count is None else float(count)
+        ws.cell(r, 4).value = int(n)
+        ws.cell(r, 5).value = float(cov); ws.cell(r, 5).number_format = FMT_USD
+        ws.cell(r, 6, note)
+        r += 1
+
+    # _config (knob panel — populated further by later slices)
+    ws = wb.create_sheet("_config")
+    r = _band(ws, 1, ["[SETTINGS]", "", ""])
+    for key, val in (config_rows or [("weight_field", "current_balance")]):
+        ws.cell(r, 1, key); ws.cell(r, 2, val)
+        r += 1
+
+    # _readme
+    ws = wb.create_sheet("_readme")
+    for i, line in enumerate(_README_LINES, start=1):
+        ws.cell(i, 1, line).font = _DATA_FONT
+    return wb
+
+
+_README_LINES = (
+    "Consumer Credit Population Analysis Bench",
+    "",
+    "Load a loan-level consumer-loan flat file on Raw_Input; confirm the column",
+    "mapping on _map; the engine validates/cleans (audit on _cleaning) and writes",
+    "population metrics here. Every rate ships on BOTH a dollar and a count basis",
+    "(labeled). Weighted averages are balance-weighted by current UPB by default.",
+    "",
+    "Nothing is computed on a dirty population: hard errors refuse; only safe,",
+    "declared normalizations run automatically and are recorded on _cleaning.",
+    "",
+    "PII boundary: this runtime workbook may hold real borrower data and is for",
+    "use only on bank equipment; the shipped tool/repo/demo fixtures carry none.",
+)
+
+
+def workbook_bytes(wb: Workbook) -> bytes:
+    """Serialize deterministically: identical content -> identical bytes."""
+    raw = io.BytesIO()
+    wb.save(raw)
+    fixed = (b'<dcterms:modified xsi:type="dcterms:W3CDTF">'
+             + _EPOCH.strftime("%Y-%m-%dT%H:%M:%SZ").encode() + b"</dcterms:modified>")
+    out = io.BytesIO()
+    with zipfile.ZipFile(raw) as src, \
+            zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for name in src.namelist():
+            data = src.read(name)
+            if name == "docProps/core.xml":
+                data = re.sub(rb"<dcterms:modified[^>]*>[^<]*</dcterms:modified>",
+                              fixed, data)
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            dst.writestr(info, data)
+    return out.getvalue()
