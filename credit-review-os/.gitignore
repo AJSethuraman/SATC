@@ -1,0 +1,12 @@
+# Build artifacts (engagement workbooks are generated — and on a real
+# engagement contain client data; never commit them)
+*.xlsx
+*.xlsm
+build/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/

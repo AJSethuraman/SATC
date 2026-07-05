@@ -1,0 +1,106 @@
+# SYNTHETIC loan fixture — four C&I credits spanning Pass -> Doubtful so the
+# Master roll-up and criticized/classified totals are non-trivial.
+# Borrowers, numbers, and TIN last-4s are all invented. Keys match linesheet
+# row ids; the builder prefills them into the matching input cells.
+#
+# Expected buckets (reviewer rating governs when keyed, else originator):
+#   CI-0001 Pass · CI-0002 Special Mention · CI-0003 Substandard · CI-0004 Doubtful
+# Criticized (SM+SS+D) outstanding = 900k + 2.6M + 800k = $4,300,000 (3 loans)
+# Classified (SS+D)   outstanding = 2.6M + 800k        = $3,400,000 (2 loans)
+loans:
+  - loan_id: "CI-0001"
+    borrower_name: "Blue Heron Fabrication LLC"
+    loan_number: "40017-3"
+    tin_last4: "6789"
+    total_commitment: 2500000
+    outstanding: 1750000
+    rating_originator: "4"          # reviewer rating left for the reviewer to key
+    # DSCR 1.05 breaches the 1.20 floor; LTV 87.5% breaches the 80% ceiling;
+    # leverage 3.78x is inside the 4.0x ceiling
+    cash_flow: 400000
+    debt_service: 380000
+    collateral_value: 2000000
+    total_debt: 3400000
+    ebitda: 900000
+    flood_zone_collateral: "no"
+    flood_insurance_current: "na"
+    # evidence vs review_as_of 2026-06-30: FS current (273d), BBC stale (91d > 45),
+    # covenant cert current (46d)
+    ev_financial_statements_asof: 2025-09-30
+    ev_financial_statements_tier: "reviewed"
+    ev_borrowing_base_certificate_asof: 2026-03-31
+    ev_covenant_compliance_certificate_asof: 2026-05-15
+    ev_appraisal_asof: 2024-08-01
+    ev_appraisal_valid: "yes"
+    ev_credit_approval_asof: 2024-11-20
+
+  - loan_id: "CI-0002"
+    borrower_name: "Cedar Creek Outfitters Inc"
+    loan_number: "51230-8"
+    tin_last4: "4821"
+    total_commitment: 1200000
+    outstanding: 900000
+    rating_originator: "5"
+    rating_reviewer: "6"            # downgrade across buckets -> rating finding
+    # DSCR 1.43 clean; LTV 60% clean; leverage 4.35x breaches the 4.0x ceiling
+    cash_flow: 500000
+    debt_service: 350000
+    collateral_value: 1500000
+    total_debt: 2000000
+    ebitda: 460000
+    flood_zone_collateral: "yes"
+    flood_insurance_current: "yes"
+    ev_financial_statements_asof: 2025-11-30
+    ev_financial_statements_tier: "compiled"
+    ev_borrowing_base_certificate_asof: 2026-06-15
+    ev_covenant_compliance_certificate_asof: 2026-04-30
+    ev_appraisal_asof: 2025-03-15
+    ev_appraisal_valid: "yes"
+    ev_credit_approval_asof: 2025-06-01
+
+  - loan_id: "CI-0003"
+    borrower_name: "Harbor Point Logistics LLC"
+    loan_number: "61022-1"
+    tin_last4: "9034"
+    total_commitment: 3000000
+    outstanding: 2600000
+    rating_originator: "7"
+    rating_reviewer: "7"            # agreement -> no rating finding
+    # DSCR 0.94, LTV 92.9%, leverage 4.1x: all three policy rules breach
+    cash_flow: 300000
+    debt_service: 320000
+    collateral_value: 2800000
+    total_debt: 4100000
+    ebitda: 1000000
+    flood_zone_collateral: "no"
+    flood_insurance_current: "na"
+    # FS stale (546d > 365); covenant cert missing; appraisal no longer valid
+    ev_financial_statements_asof: 2024-12-31
+    ev_financial_statements_tier: "company_prepared"
+    ev_borrowing_base_certificate_asof: 2026-06-20
+    ev_appraisal_asof: 2022-05-10
+    ev_appraisal_valid: "no"
+    ev_credit_approval_asof: 2023-04-15
+
+  - loan_id: "CI-0004"
+    borrower_name: "Sunview Orchards LP"
+    loan_number: "70415-9"
+    tin_last4: "2277"
+    total_commitment: 800000
+    outstanding: 800000
+    rating_originator: "7"
+    rating_reviewer: "8"            # Substandard vs Doubtful -> rating finding
+    # DSCR 0.63, LTV 123%, leverage 6.0x: all breach; uninsured flood-zone
+    # collateral; BBC and credit approval missing from file
+    cash_flow: 60000
+    debt_service: 95000
+    collateral_value: 650000
+    total_debt: 900000
+    ebitda: 150000
+    flood_zone_collateral: "yes"
+    flood_insurance_current: "no"
+    ev_financial_statements_asof: 2026-02-28
+    ev_financial_statements_tier: "tax_return"
+    ev_covenant_compliance_certificate_asof: 2026-06-01
+    ev_appraisal_asof: 2024-01-20
+    ev_appraisal_valid: "yes"

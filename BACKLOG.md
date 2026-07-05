@@ -80,7 +80,29 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
       same banks, different keys (CERT vs CIK); needs a name-based
       crosswalk; revisit after both templates are in real use.
 
-## 5 · Standing rules for new items
+## 5 · Credit Review OS (`credit-review-os/` — consulting workpapers, not monitoring)
+
+v1 (C&I loan-level engine) shipped 2026-07-05 — see Done log. Roadmap, in
+order; each LOB = a new program YAML + crosswalk on the same engine:
+
+- [ ] **Second demo bank overlay** — proves portability costs 0 code changes
+      (PRD success metric).
+- [ ] **LOB build-out (cash-flow-out order):** income-producing CRE →
+      owner-occ CRE → construction/ADC → agricultural → consumer+residential
+      (**first Mode B / product_conformance build** — schema already carries
+      the mode) → multifamily / leases / specialty.
+- [ ] **ASCII-bundle build-on-target** (contract §11 style) so a workbook
+      crosses a bank DLP boundary.
+- [ ] **Doc parsing / OCR pre-fill** — proposal lane only; deterministic core
+      stays authoritative (needs its own grill/design pass).
+- [ ] **Optional local LLM extraction assist** — human-confirmed proposals
+      only, never in the data path, never writes a rating (own design pass).
+- [ ] **ACL/CECL export** — emit classifications for the bank's allowance
+      system (OCC *Allowances for Credit Losses* is the source when scoped).
+- [ ] **Pin-cite confirmation sprint** — verify crosswalk page cites against
+      the live regulator PDFs before the first filed workpaper.
+
+## 6 · Standing rules for new items
 
 New idea -> add a line here (one sentence, why it matters). New lesson
 found in any build -> `TEMPLATE_CONTRACT.md` carried lessons (L-series),
@@ -91,6 +113,16 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-07-05 -- Credit Review OS v1 shipped (credit-review-os/, issues
+  #60-#68 on PR #71): config-driven C&I loan-review engine — two-layer
+  config (portable program + engagement overlay), per-loan linesheets with
+  live-formula exceptions (doc/policy/compliance + rating disagreement),
+  evidence staleness vs [ASOF], Master roll-up + criticized/classified
+  totals, de-identified Data Mart + formulas-engine re-ingest,
+  _methodology regulatory crosswalk (every element cited), Seam-3
+  no-PII-leak guard (TIN last-4 everywhere), AES-256-GCM encryption-at-
+  rest + credit-review CLI; 64 tests across the PRD's three seams,
+  byte-identical deterministic builds. Roadmap lives in §5 above.
 - 2026-07-03 -- Template #6 EDGAR Crit/Class Tracker shipped: commercial
   criticized/classified per competitor HC (extracted-XBRL-instance path,
   family-honest N/A gating, member-map bootstrap), 8-K credit-event lane
