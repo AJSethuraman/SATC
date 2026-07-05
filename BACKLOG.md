@@ -99,14 +99,19 @@ order; each LOB = a new program YAML + crosswalk on the same engine:
       engine changes. Remaining (each GATED on its own grill/design pass):
       consumer+residential (**first Mode B / product_conformance build** —
       schema already carries the mode) → multifamily / leases / specialty.
-      **Mode B SPEC'D 2026-07-05** (grilled with the owner; PRD:
-      `credit-review-os/docs/prd-mode-b-product-conformance.md`) — per-product
-      PS_ tabs (conformance sample grid + URCCP pool classification, cited to
-      65 FR 36903 / OCC 2000-20 / FDIC FIL-40-2000), rate-vs-tolerance
-      findings (compliance per-occurrence), stratified random + judgmental
-      segments first-class, computed buy-box FRINGE flag + fringe-vs-core
-      norms block, shared test library, loan-number-only identity (zero
-      person names — stricter than Mode A). Next: /to-issues → build.
+      **Mode B SHIPPED 2026-07-05** (grilled with the owner same day; PRD:
+      `credit-review-os/docs/prd-mode-b-product-conformance.md`; issues
+      #73/#74) — per-product PS_ tabs (conformance sample grid + URCCP pool
+      classification by live formula, cited to 65 FR 36903 / OCC 2000-20 /
+      FDIC FIL-40-2000; overlay may tighten the clock, never loosen — loader
+      enforced), rate-vs-tolerance findings (compliance per-occurrence),
+      stratified random + judgmental segments with per-stratum analytics,
+      computed buy-box FRINGE flag + fringe-vs-core norms block, shared test
+      library with per-product knob overrides, loan-number-only identity
+      (zero person names — stricter than Mode A), product-level de-identified
+      mart + re-ingest. Three demo products span every URCCP branch
+      (indirect auto / credit card / HELOC). Remaining LOBs (multifamily /
+      leases / specialty) are config work on either mode as needed.
 - [ ] **Mixed-mode workbooks** (one engagement covering commercial loan-level
       + retail conformance in one deliverable) — decided against for Mode B
       v1 (one mode per workbook); revisit if real engagements demand it.

@@ -382,6 +382,55 @@ re-ordering is condition-driven per the 2010 Guidelines).
 
 ---
 
+## 6. Retail classification — the Uniform Retail Credit Classification and Account Management Policy (URCCP)
+
+Retail (consumer/residential) credit is not judgmentally graded loan-by-loan;
+it is **classified on delinquency status** under the FFIEC's Uniform Retail
+Credit Classification and Account Management Policy, 65 FR 36903 (June 12,
+2000), implemented by [OCC Bulletin 2000-20](https://www.occ.treas.gov/news-issuances/bulletins/2000/bulletin-2000-20.html)
+and [FDIC FIL-40-2000](https://www.fdic.gov/news/financial-institution-letters/2000/fil0040.html).
+([Federal Register document](https://www.federalregister.gov/documents/2000/06/12/00-14704/uniform-retail-credit-classification-and-account-management-policy);
+[Fed FRRS guidance page](https://www.federalreserve.gov/frrs/guidance/uniform-retail-credit-classification-and-account-management-policy.htm))
+Retrieved via web search of the primary pages (same retrieval caveat as the
+rest of this document — confirm pin-cites against the live PDFs before a
+filed workpaper).
+
+### Classification clock (cumulative days past due from the contractual due date)
+
+- **Closed-end retail:** classify **Substandard at 90 days** past due;
+  "closed-end retail loans that become past due 120 cumulative days ...
+  should be classified loss and charged off."
+- **Open-end retail (cards, revolving):** Substandard at 90 days; "open-end
+  retail loans that become past due 180 cumulative days from the contractual
+  due date should be classified loss and charged off."
+- **Residential real estate / home equity:** loans "past due 90 days or more
+  with loan-to-value ratios greater than 60 percent should be classified
+  substandard"; properly secured loans with LTV <= 60% are generally not
+  classified on delinquency alone. A **current assessment of value** is
+  required **no later than 180 days past due**, and "any outstanding loan
+  balance in excess of the value of the property, less cost to sell, should
+  be classified loss and charged off" — i.e., the residential Loss is a
+  **fair-value writedown**, not a whole-balance charge-off on a fixed clock.
+- The policy also sets charge-off clocks for bankruptcy (60 days of
+  notification), fraud (90 days of discovery), and death, and standards for
+  **re-aging, extensions, deferrals, and rewrites** (the account-management
+  half of the policy) — abuse of re-aging masks delinquency and is a review
+  test, not a computation.
+
+### Tool implications (Mode B)
+
+- Classification is **computable from keyed delinquency buckets** per product
+  type — the workbook enforces the clock by formula, and bank policy may only
+  **tighten** it (classify earlier), never loosen past the URCCP floor.
+- The residential branch takes the qualifying >=90-DPD/LTV>60% balances and
+  recognized writedowns as **keyed inputs** (the LTV line documented as a
+  config knob; the 180-day writedown evidenced by attestation) — the tool
+  never computes collateral fair value.
+- Re-aging discipline enters the conformance test set as an attestation
+  citing this policy.
+
+---
+
 ## Confidence / open questions
 
 **High confidence (verbatim, single interagency standard):**
@@ -439,6 +488,7 @@ re-ordering is condition-driven per the 2010 Guidelines).
 11. Federal Reserve, *The Importance of Loan Risk Rating Systems*, Community Banking Connections — <https://www.communitybankingconnections.org/Articles/2025/R2/the-importance-of-loan-risk-rating-systems>
 12. NCUA, sample Borrowing Base Certificate — <https://publishedguides.ncua.gov/examiner/Content/PDFs/SampleBorrowingBaseCert.pdf>
 13. Practical Law (Thomson Reuters), *Compliance Certificate: Lending* — <https://uk.practicallaw.thomsonreuters.com/6-611-7345>
+14. FFIEC, *Uniform Retail Credit Classification and Account Management Policy*, 65 FR 36903 (June 12, 2000) — <https://www.federalregister.gov/documents/2000/06/12/00-14704/uniform-retail-credit-classification-and-account-management-policy> ; OCC Bulletin 2000-20: <https://www.occ.treas.gov/news-issuances/bulletins/2000/bulletin-2000-20.html> ; FDIC FIL-40-2000: <https://www.fdic.gov/news/financial-institution-letters/2000/fil0040.html> ; Fed FRRS: <https://www.federalreserve.gov/frrs/guidance/uniform-retail-credit-classification-and-account-management-policy.htm>
 
 *Note on retrieval:* regulator PDFs were read via the web-search tool (direct
 fetch/`curl` to occ.gov / fdic.gov / federalregister.gov / federalreserve.gov

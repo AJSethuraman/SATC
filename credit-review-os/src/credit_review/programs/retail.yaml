@@ -2,8 +2,10 @@
 # Product-conformance review: sampled files are tested against the credit box
 # (attestations + computed tests over keyed attributes); the pool classifies
 # by delinquency per URCCP (65 FR 36903, June 12 2000; OCC Bulletin 2000-20;
-# FDIC FIL-40-2000). Slice 1 ships the closed-end branch (indirect auto);
-# slice 2 (#74) adds credit card (open-end) and HELOC (residential-secured).
+# FDIC FIL-40-2000). Three products span every URCCP branch: indirect auto
+# (closed-end 90/120), credit card (open-end 90/180), HELOC (residential-
+# secured: keyed qualifying >=90-DPD w/ LTV above the policy line; Loss =
+# keyed fair-value writedowns, attested not computed).
 meta:
   lob: retail
   review_mode: product_conformance
@@ -53,6 +55,56 @@ products:
          direction: ceiling}
       - {attribute: ltv, limit_key: ltv_ceiling, band_key: fringe_ltv_band,
          direction: ceiling}
+
+  - id: credit_card
+    label: "Credit Card — Conformance Review"
+    classification_type: open_end
+    attributes:
+      - {id: score, label: "Score", fmt: num}
+      - {id: dti, label: "DTI", fmt: pct}
+    tests:
+      # library tests with card-specific knob overrides (the override shape)
+      - {id: score_at_or_above_floor, when: "{score}<[POL score_floor_card]"}
+      - {id: dti_within_policy, when: "{dti}>[POL dti_ceiling_card]"}
+      - credit_report_reviewed
+      - income_verified
+      - {id: line_within_authority, label: "Line within approval authority",
+         kind: attestation, class: policy, severity: medium}
+      - {id: re_aging_within_urccp, label: "Re-aging within URCCP limits",
+         kind: attestation, class: documentation, severity: medium}
+      - reg_z_disclosures_present
+    fringe_rules:
+      - {attribute: score, limit_key: score_floor_card,
+         band_key: fringe_score_band, direction: floor}
+      - {attribute: dti, limit_key: dti_ceiling_card,
+         band_key: fringe_dti_band, direction: ceiling}
+
+  - id: heloc
+    label: "HELOC — Conformance Review"
+    classification_type: residential_secured
+    attributes:
+      - {id: score, label: "Score", fmt: num}
+      - {id: dti, label: "DTI", fmt: pct}
+      - {id: cltv, label: "CLTV", fmt: pct}
+    tests:
+      - score_at_or_above_floor
+      - {id: dti_within_policy, when: "{dti}>[POL dti_ceiling_heloc]"}
+      - {id: cltv_within_policy, label: "CLTV within policy", kind: computed,
+         class: policy, severity: medium, when: "{cltv}>[POL cltv_ceiling]"}
+      - credit_report_reviewed
+      - income_verified
+      - {id: appraisal_or_evaluation_present, label: "Appraisal/evaluation present",
+         kind: attestation, class: documentation, severity: medium}
+      - {id: flood_determination_present, label: "Flood determination present",
+         kind: attestation, class: compliance, severity: high}
+      - {id: writedown_at_180_evidenced,
+         label: "180-day fair-value writedown evidenced (if 180+ DPD)",
+         kind: attestation, class: documentation, severity: high}
+    fringe_rules:
+      - {attribute: score, limit_key: score_floor,
+         band_key: fringe_score_band, direction: floor}
+      - {attribute: cltv, limit_key: cltv_ceiling,
+         band_key: fringe_cltv_band, direction: ceiling}
 
 crosswalk:
   - element: retail_classification

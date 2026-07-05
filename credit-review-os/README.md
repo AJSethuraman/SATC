@@ -51,15 +51,23 @@ One workbook per engagement, in the KeyBank house style:
 Adding a client bank = writing an overlay. Adding a line of business = writing
 a program. Neither is a code change.
 
-## Two review modes
+## Two review modes — both built
 
-The schema carries `review_mode` from day one:
+| | Mode A — `loan_level` | Mode B — `product_conformance` |
+|---|---|---|
+| Reviews | individual commercial credit files | retail origination programs, on a sample |
+| Tab per | loan (`LS_`) | product (`PS_`) |
+| Reviewer keys | figures, ratings, evidence dates | attributes + pass/fail/na per sampled file; pool delinquency buckets |
+| Findings | each fired exception | exception **rate vs tolerance** per test (compliance: per-occurrence) |
+| Classification | reviewer's bucket via the rating-scale map | **URCCP by formula** (closed-end 90/120, open-end 90/180, residential qualifier + writedown); overlay may tighten, never loosen |
+| Roll-up | `Master` | `Products` (+ buy-box fringe-vs-core and per-stratum analytics) |
+| File identity | borrower name + loan # (workbook only) | **loan # only — no person names, ever** |
+| Programs shipped | `c_and_i`, `cre_income_producing`, `owner_occ_cre`, `construction_adc`, `agricultural` | `retail` (indirect auto, credit card, HELOC) |
 
-- **`loan_level`** (built, v1) — individual credit-file review: C&I now; the
-  LOB roadmap extends it.
-- **`product_conformance`** (designed, not built) — pooled/scorecard review
-  for consumer and residential portfolios. The loader accepts it; the builder
-  refuses it with a pointer to the PRD until the roadmap reaches it.
+Mode B PRD: [`docs/prd-mode-b-product-conformance.md`](docs/prd-mode-b-product-conformance.md).
+Sampling is segment-based — stratified random (e.g. commitment band ×
+subproduct, 90/10 allocation) and judgmental strata are both first-class, and
+a computed FRINGE flag compares buy-box-edge originations to core norms.
 
 ## Build & verify
 
@@ -69,7 +77,8 @@ credit-review build src/credit_review/engagements/demo_engagement.yaml --plain -
 credit-review build src/credit_review/engagements/demo_engagement.yaml          # encrypted
 credit-review ingest DEMO-2026-01.xlsx.enc --json findings.json
 credit-review bundle src/credit_review/engagements/demo_engagement.yaml         # DLP-safe ASCII
-pip install -e .[test] && pytest -q                                              # 85 tests
+credit-review build src/credit_review/engagements/demo_retail_engagement.yaml --program retail --plain -o retail.xlsx
+pip install -e .[test] && pytest -q                                              # 106 tests
 ```
 
 The `bundle` command emits a single pure-ASCII script (the repo's contract

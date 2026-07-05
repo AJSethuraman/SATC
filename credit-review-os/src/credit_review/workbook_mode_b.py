@@ -18,6 +18,11 @@ from credit_review.config_mode_b import ProductSample
 from credit_review.findings import FindingsRefs, build_findings
 from credit_review.linesheet import ExceptionRef, FMT_NUM, FMT_USD
 from credit_review.mart import mart_id
+from credit_review.methodology import (
+    PII_NOTES_MODE_B,
+    build_methodology_mode_b,
+    build_readme,
+)
 from credit_review.product_sheet import FMT_PCT1, ProductRefs, build_product_sheet
 
 _INK_BOLD = Font(name="Arial", bold=True, size=11, color=KB.INK)
@@ -281,6 +286,10 @@ def assemble_mode_b(wb: Workbook, program: Program, engagement: Engagement,
                                         findings_refs)
     add_urccp_totals(ws_findings, findings_refs, product_refs)
     build_mart_mode_b(ws_mart, engagement, product_refs, product_row)
+    build_methodology_mode_b(wb.create_sheet("_methodology"), program,
+                             engagement, product_row)
+    build_readme(wb.create_sheet("_readme"), program, engagement,
+                 pii_notes=PII_NOTES_MODE_B)
 
     structure = {
         "version": 1,
@@ -293,6 +302,9 @@ def assemble_mode_b(wb: Workbook, program: Program, engagement: Engagement,
              "grid": {"first": r.grid_first, "last": r.grid_last,
                       "segment_col": r.segment_col, "fails_col": r.fails_col,
                       "fringe_col": r.fringe_col},
+             "norms": {"fringe_rate": r.fringe_rate, "core_rate": r.core_rate,
+                       "gap": r.fringe_gap, "flag": r.fringe_gap_flag},
+             "segments": r.segment_rows,
              "panel": {"substandard_dollars": r.substandard_dollars,
                        "substandard_count": r.substandard_count,
                        "loss_dollars": r.loss_dollars,
@@ -309,4 +321,5 @@ def assemble_mode_b(wb: Workbook, program: Program, engagement: Engagement,
     ws_map.sheet_state = "hidden"
 
     wb.move_sheet("_config", offset=len(wb.sheetnames) - 1 - wb.sheetnames.index("_config"))
+    wb.move_sheet("_readme", offset=len(wb.sheetnames) - 1 - wb.sheetnames.index("_readme"))
     wb.move_sheet("_map", offset=len(wb.sheetnames) - 1 - wb.sheetnames.index("_map"))

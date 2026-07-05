@@ -240,7 +240,12 @@ def load_samples(path: str | Path, program_products: tuple[dict, ...],
                                   f"attestation values only")
 
         pool = dict(block.get("pool", {}))
-        for bucket in BUCKETS:
+        required = list(BUCKETS)
+        if program_product["classification_type"] == "residential_secured":
+            # URCCP residential: Substandard is the keyed qualifying >=90-DPD
+            # slice (LTV above the policy line); Loss is keyed writedowns.
+            required += ["qualifying_90_ltv60", "writedown_loss"]
+        for bucket in required:
             entry = pool.get(bucket)
             if not isinstance(entry, dict) or \
                     not isinstance(entry.get("count"), (int, float)) or \

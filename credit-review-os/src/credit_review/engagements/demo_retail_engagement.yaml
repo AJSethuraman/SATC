@@ -11,9 +11,16 @@ thresholds:                # policy limits + fringe bands ([POL] knobs)
   dti_ceiling: 0.45
   ltv_ceiling: 1.20
   term_ceiling: 72
-  fringe_score_band: 20    # score 660-680 = buy-box fringe
-  fringe_dti_band: 0.03    # dti 0.42-0.45
-  fringe_ltv_band: 0.10    # ltv 1.10-1.20
+  score_floor_card: 680    # card-specific credit box
+  dti_ceiling_card: 0.40
+  dti_ceiling_heloc: 0.43  # heloc-specific credit box
+  cltv_ceiling: 0.85
+  resi_ltv_qualifier: 0.60 # URCCP residential Substandard qualifier line
+  fringe_score_band: 20    # score within 20 of its floor = buy-box fringe
+  fringe_dti_band: 0.03
+  fringe_ltv_band: 0.10
+  fringe_cltv_band: 0.05
+  fringe_margin: 0.05      # fringe fail-rate may exceed core by at most this
 
 tolerances:                # max acceptable exception rate per test class
   policy: 0.05
@@ -41,5 +48,21 @@ products:
            size: 3, basis: "random within stratum; 90/10 allocation by count"}
         - {id: judg_fringe, method: judgmental, stratum: {},
            size: 2, basis: "targeted buy-box-edge pulls (fringe testing)"}
+  credit_card:
+    population: {count: 5765, dollars: 10015000}
+    sample_plan:
+      segments:
+        - {id: rand_card, method: random, stratum: {line: "all bands"},
+           size: 4, basis: "simple random across open accounts"}
+        - {id: judg_card, method: judgmental, stratum: {},
+           size: 2, basis: "targeted: recent line increases + re-aged accounts"}
+  heloc:
+    population: {count: 684, dollars: 57840000}
+    sample_plan:
+      segments:
+        - {id: rand_heloc, method: random, stratum: {origination: "2025-2026"},
+           size: 3, basis: "random within recent-vintage stratum"}
+        - {id: judg_heloc, method: judgmental, stratum: {},
+           size: 3, basis: "targeted: high-CLTV originations + delinquent lines"}
 
 samples: "demo_retail_samples.yaml"   # SYNTHETIC fixture

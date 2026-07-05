@@ -15,8 +15,13 @@ on any fail, regardless of rate**. These analytics rows are the product's
 findings and carry the standard tracking lane.
 
 Pool panel: keyed delinquency buckets classify live per URCCP
-(65 FR 36903; OCC Bulletin 2000-20; FDIC FIL-40-2000). This slice implements
-the closed-end branch: Substandard >= 90 cumulative DPD, Loss >= 120.
+(65 FR 36903; OCC Bulletin 2000-20; FDIC FIL-40-2000): closed-end Substandard
+>= 90 cumulative DPD / Loss >= 120; open-end Substandard >= 90 / Loss >= 180;
+residential-secured Substandard = keyed qualifying >=90-DPD balances (LTV
+above the overlay's qualifier line) and Loss = keyed fair-value writedowns
+(the 180-day writedown itself is an attestation, never a computation). An
+overlay may **tighten** the classification clock via ``classification_
+overrides`` — never loosen it past the URCCP floor (validated here).
 """
 
 from __future__ import annotations
@@ -62,6 +67,39 @@ BUCKET_LABELS = {
     "dpd_180_plus": "180+ DPD",
 }
 
+# URCCP floors: the delinquency clock may be tightened by overlay override,
+# never loosened past these (65 FR 36903).
+_BUCKET_START_DPD = {"current": 0, "dpd_30_59": 30, "dpd_60_89": 60,
+                     "dpd_90_119": 90, "dpd_120_179": 120, "dpd_180_plus": 180}
+URCCP_FLOORS = {
+    "closed_end": {"substandard_from_dpd": 90, "loss_from_dpd": 120},
+    "open_end": {"substandard_from_dpd": 90, "loss_from_dpd": 180},
+}
+
+
+def _classification_dpd(product: dict, overlay_block: dict) -> dict[str, int]:
+    """Resolve the classification clock: URCCP floor, tightened by overrides.
+
+    Raises ConfigError if an override would loosen past the floor.
+    """
+    ctype = product["classification_type"]
+    floors = URCCP_FLOORS[ctype]
+    overrides = overlay_block.get("classification_overrides", {}) or {}
+    resolved = {}
+    for key, floor in floors.items():
+        value = overrides.get(key, floor)
+        if value not in _BUCKET_START_DPD.values():
+            raise ConfigError(
+                f"classification_overrides.{key}: {value!r} must be a bucket "
+                f"boundary ({sorted(set(_BUCKET_START_DPD.values()))})")
+        if value > floor:
+            raise ConfigError(
+                f"classification_overrides.{key}={value} would LOOSEN the URCCP "
+                f"floor of {floor} days for {ctype} — bank policy may only "
+                f"tighten the interagency standard (65 FR 36903)")
+        resolved[key] = value
+    return resolved
+
 
 @dataclass(frozen=True)
 class TestRef:
@@ -97,6 +135,11 @@ class ProductRefs:
     loss_count: str
     loss_dollars: str
     sample_n: int
+    fringe_rate: str = ""       # fringe-vs-core norms block
+    core_rate: str = ""
+    fringe_gap: str = ""
+    fringe_gap_flag: str = ""
+    segment_rows: dict = field(default_factory=dict)   # segment id -> analytics row
 
 
 def _resolve(expr: str, attr_cells: dict[str, str], pol: dict[str, str]) -> str:
@@ -257,8 +300,11 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
         if t["class"] == "compliance":
             flag = ws.cell(row, 8, f'=IF($E{row}>0,"{OPEN_FLAG}","{CLEAR_FLAG}")')
         else:
+            # n=0 (nothing applicable) must stay blank: a "" rate compares
+            # ABOVE any numeric tolerance in Excel's text-vs-number ordering.
             flag = ws.cell(row, 8,
-                           f'=IFERROR(IF($F{row}>$G{row},"{OPEN_FLAG}","{CLEAR_FLAG}"),"")')
+                           f'=IF($D{row}=0,"",'
+                           f'IF($F{row}>$G{row},"{OPEN_FLAG}","{CLEAR_FLAG}"))')
         for c in (n, fails, rate, tol, flag):
             c.font = KB.DATA_FONT
             c.alignment = _CENTER
@@ -285,51 +331,172 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
         row += 1
     row += 1
 
-    # -- URCCP pool panel -----------------------------------------------------
-    ctype = product["classification_type"]
-    if ctype != "closed_end":
-        raise LinesheetError(
-            f"classification_type {ctype!r} arrives with Mode B slice 2 (#74); "
-            f"this build implements closed_end")
-    row = band(row, "Pool classification — URCCP (closed-end: Substandard >=90 "
-                    "cumulative DPD, Loss >=120) · 65 FR 36903; OCC 2000-20; "
-                    "FDIC FIL-40-2000")
-    row = KB.header_row(ws, row, ["Bucket", "Count", "Dollars"], right_from=1)
-    bucket_row = {}
-    for bucket in BUCKETS:
-        ws.cell(row, 1, BUCKET_LABELS[bucket]).font = KB.DATA_FONT
-        for col, key, fmt in ((2, "count", FMT_NUM), (3, "dollars", FMT_USD)):
-            c = ws.cell(row, col, sample.pool[bucket][key])
-            c.fill = _INPUT_FILL
-            c.border = _BORDER
-            c.font = KB.DATA_FONT
-            c.alignment = _RIGHT
-            c.number_format = fmt
-        bucket_row[bucket] = row
-        row += 1
-    sub_first, sub_last = bucket_row["dpd_90_119"], bucket_row["dpd_180_plus"]
-    loss_first = bucket_row["dpd_120_179"]
-    ws.cell(row, 1, "Substandard (>=90 DPD)").font = Font(
-        name="Arial", bold=True, size=10, color=KB.INK)
-    sub_count = ws.cell(row, 2, f"=SUM($B${sub_first}:$B${sub_last})")
-    sub_dollars = ws.cell(row, 3, f"=SUM($C${sub_first}:$C${sub_last})")
-    substandard = (f"B{row}", f"C{row}")
-    row += 1
-    ws.cell(row, 1, "Loss (>=120 DPD)").font = Font(
-        name="Arial", bold=True, size=10, color=KB.CRIMSON)
-    loss_count = ws.cell(row, 2, f"=SUM($B${loss_first}:$B${sub_last})")
-    loss_dollars = ws.cell(row, 3, f"=SUM($C${loss_first}:$C${sub_last})")
-    loss = (f"B{row}", f"C{row}")
-    for c in (sub_count, sub_dollars, loss_count, loss_dollars):
+    # -- fringe-vs-core norms block -------------------------------------------
+    fr_col = get_column_letter(col_fringe)
+    fl_col = get_column_letter(col_fails)
+    fr_rng = f"${fr_col}${grid_first}:${fr_col}${grid_last}"
+    fl_rng = f"${fl_col}${grid_first}:${fl_col}${grid_last}"
+    row = band(row, "Buy-box fringe vs core — files failing >=1 test "
+                    "(fringe = within the overlay band of a policy limit)")
+    fringe_cells: dict[str, str] = {}
+
+    def norm(label: str, formula: str, fmt: str | None = FMT_PCT1) -> str:
+        nonlocal row
+        ws.cell(row, 1, label).font = KB.SECONDARY
+        c = ws.cell(row, 2, formula)
         c.font = Font(name="Arial", bold=True, size=10, color=KB.INK)
         c.alignment = _RIGHT
-        c.number_format = FMT_USD if c.column == 3 else FMT_NUM
+        if fmt:
+            c.number_format = fmt
+        addr = f"B{row}"
+        row += 1
+        return addr
+
+    n_fringe = norm("Fringe files (n)", f'=COUNTIF({fr_rng},"FRINGE")', FMT_NUM)
+    fringe_cells["fringe_rate"] = norm(
+        "Fringe fail-any rate",
+        f'=IFERROR(SUMPRODUCT(({fr_rng}="FRINGE")*({fl_rng}>0))/{n_fringe},"")')
+    n_core = norm("Core files (n)",
+                  f'={grid_last - grid_first + 1}-{n_fringe}', FMT_NUM)
+    fringe_cells["core_rate"] = norm(
+        "Core fail-any rate",
+        f'=IFERROR(SUMPRODUCT(({fr_rng}<>"FRINGE")*({fl_rng}>0))/{n_core},"")')
+    fringe_cells["gap"] = norm(
+        "Gap (fringe - core)",
+        f'=IFERROR({fringe_cells["fringe_rate"]}-{fringe_cells["core_rate"]},"")')
+    margin_ref = pol.get("fringe_margin", "1")   # no margin knob -> never flags
+    fringe_cells["flag"] = norm(
+        "Fringe exceeds core by more than the margin?",
+        f'=IFERROR(IF({fringe_cells["gap"]}>{margin_ref},'
+        f'"{OPEN_FLAG}","{CLEAR_FLAG}"),"")', None)
+    flag_addr = fringe_cells["flag"]
+    ws.conditional_formatting.add(flag_addr, FormulaRule(
+        formula=[f'${flag_addr[0]}${flag_addr[1:]}="{OPEN_FLAG}"'],
+        fill=PatternFill("solid", fgColor=KB.ALERT_FG), font=KB.ALERT_FONT))
+    row += 1
+
+    # -- per-segment / stratum analytics ---------------------------------------
+    seg_col = "B"
+    sg_rng = f"${seg_col}${grid_first}:${seg_col}${grid_last}"
+    row = band(row, "Sample segments — coverage and fail-any rate by "
+                    "stratum (random + judgmental)")
+    row = KB.header_row(ws, row, ["Segment", "Method / stratum", "Planned",
+                                  "Sampled", "Fail-any", "Rate"],
+                        center_cols=(2, 3, 4, 5))
+    segment_rows: dict[str, int] = {}
+    for seg in plan["segments"]:
+        stratum = ", ".join(f"{k}: {v}" for k, v in (seg.get("stratum") or {}).items())
+        ws.cell(row, 1, seg["id"]).font = KB.DATA_FONT
+        ws.cell(row, 2, seg["method"] + (f" ({stratum})" if stratum else "")) \
+            .font = KB.DATA_FONT
+        ws.cell(row, 3, seg["size"]).font = KB.DATA_FONT
+        n_cell = ws.cell(row, 4, f'=COUNTIF({sg_rng},"{seg["id"]}")')
+        f_cell = ws.cell(row, 5,
+                         f'=SUMPRODUCT(({sg_rng}="{seg["id"]}")*({fl_rng}>0))')
+        r_cell = ws.cell(row, 6, f'=IFERROR($E{row}/$D{row},"")')
+        r_cell.number_format = FMT_PCT1
+        for c in (n_cell, f_cell, r_cell):
+            c.font = KB.DATA_FONT
+            c.alignment = _CENTER
+        segment_rows[seg["id"]] = row
+        row += 1
+    row += 1
+
+    # -- URCCP pool panel -------------------------------------------------------
+    ctype = product["classification_type"]
+    overlay_block = engagement.overlay_products[product["id"]]
+    bold_ink = Font(name="Arial", bold=True, size=10, color=KB.INK)
+    bold_crimson = Font(name="Arial", bold=True, size=10, color=KB.CRIMSON)
+
+    def styled(cell, font):
+        cell.font = font
+        cell.alignment = _RIGHT
+        cell.number_format = FMT_USD if cell.column == 3 else FMT_NUM
+
+    if ctype in ("closed_end", "open_end"):
+        dpd = _classification_dpd(product, overlay_block)
+        sub_from, loss_from = dpd["substandard_from_dpd"], dpd["loss_from_dpd"]
+        row = band(row, f"Pool classification — URCCP ({ctype.replace('_', '-')}: "
+                        f"Substandard >={sub_from} cumulative DPD, Loss >="
+                        f"{loss_from}) · 65 FR 36903; OCC 2000-20; FDIC FIL-40-2000")
+        row = KB.header_row(ws, row, ["Bucket", "Count", "Dollars"], right_from=1)
+        bucket_row = {}
+        for bucket in BUCKETS:
+            ws.cell(row, 1, BUCKET_LABELS[bucket]).font = KB.DATA_FONT
+            for col, key, fmt in ((2, "count", FMT_NUM), (3, "dollars", FMT_USD)):
+                c = ws.cell(row, col, sample.pool[bucket][key])
+                c.fill = _INPUT_FILL
+                c.border = _BORDER
+                c.font = KB.DATA_FONT
+                c.alignment = _RIGHT
+                c.number_format = fmt
+            bucket_row[bucket] = row
+            row += 1
+        last_bucket = bucket_row["dpd_180_plus"]
+        sub_start = next(bucket_row[b] for b in BUCKETS
+                         if _BUCKET_START_DPD[b] == sub_from)
+        loss_start = next(bucket_row[b] for b in BUCKETS
+                          if _BUCKET_START_DPD[b] == loss_from)
+        ws.cell(row, 1, f"Substandard (>={sub_from} DPD)").font = bold_ink
+        styled(ws.cell(row, 2, f"=SUM($B${sub_start}:$B${last_bucket})"), bold_ink)
+        styled(ws.cell(row, 3, f"=SUM($C${sub_start}:$C${last_bucket})"), bold_ink)
+        substandard = (f"B{row}", f"C{row}")
+        row += 1
+        ws.cell(row, 1, f"Loss (>={loss_from} DPD)").font = bold_crimson
+        styled(ws.cell(row, 2, f"=SUM($B${loss_start}:$B${last_bucket})"), bold_ink)
+        styled(ws.cell(row, 3, f"=SUM($C${loss_start}:$C${last_bucket})"), bold_ink)
+        loss = (f"B{row}", f"C{row}")
+    else:   # residential_secured
+        row = band(row, "Pool classification — URCCP (residential-secured: "
+                        "Substandard = >=90 DPD with LTV above the _config "
+                        "qualifier; Loss = fair-value writedowns taken — the "
+                        "180-day writedown is attested, not computed) · "
+                        "65 FR 36903; OCC 2000-20; FDIC FIL-40-2000")
+        row = KB.header_row(ws, row, ["Bucket", "Count", "Dollars"], right_from=1)
+        for bucket in BUCKETS:
+            ws.cell(row, 1, BUCKET_LABELS[bucket]).font = KB.DATA_FONT
+            for col, key, fmt in ((2, "count", FMT_NUM), (3, "dollars", FMT_USD)):
+                c = ws.cell(row, col, sample.pool[bucket][key])
+                c.fill = _INPUT_FILL
+                c.border = _BORDER
+                c.font = KB.DATA_FONT
+                c.alignment = _RIGHT
+                c.number_format = fmt
+            row += 1
+        ws.cell(row, 1, ">=90 DPD with LTV above qualifier (keyed)") \
+            .font = KB.DATA_FONT
+        qual_row = row
+        for col, key in ((2, "count"), (3, "dollars")):
+            c = ws.cell(row, col, sample.pool["qualifying_90_ltv60"][key])
+            c.fill = _INPUT_FILL
+            c.border = _BORDER
+            styled(c, KB.DATA_FONT)
+        row += 1
+        ws.cell(row, 1, "Fair-value writedowns taken (keyed)").font = KB.DATA_FONT
+        wd_row = row
+        for col, key in ((2, "count"), (3, "dollars")):
+            c = ws.cell(row, col, sample.pool["writedown_loss"][key])
+            c.fill = _INPUT_FILL
+            c.border = _BORDER
+            styled(c, KB.DATA_FONT)
+        row += 1
+        ws.cell(row, 1, "Substandard (qualifying >=90 DPD)").font = bold_ink
+        styled(ws.cell(row, 2, f"=$B${qual_row}"), bold_ink)
+        styled(ws.cell(row, 3, f"=$C${qual_row}"), bold_ink)
+        substandard = (f"B{row}", f"C{row}")
+        row += 1
+        ws.cell(row, 1, "Loss (writedowns)").font = bold_crimson
+        styled(ws.cell(row, 2, f"=$B${wd_row}"), bold_ink)
+        styled(ws.cell(row, 3, f"=$C${wd_row}"), bold_ink)
+        loss = (f"B{row}", f"C{row}")
 
     return ProductRefs(
         product_id=product["id"], sheet_name=ws.title, tests=tuple(refs),
         grid_first=grid_first, grid_last=grid_last,
-        segment_col="B", fails_col=get_column_letter(col_fails),
-        fringe_col=get_column_letter(col_fringe),
+        segment_col="B", fails_col=fl_col, fringe_col=fr_col,
         substandard_count=substandard[0], substandard_dollars=substandard[1],
         loss_count=loss[0], loss_dollars=loss[1],
-        sample_n=len(sample.files))
+        sample_n=len(sample.files),
+        fringe_rate=fringe_cells["fringe_rate"], core_rate=fringe_cells["core_rate"],
+        fringe_gap=fringe_cells["gap"], fringe_gap_flag=fringe_cells["flag"],
+        segment_rows=segment_rows)
