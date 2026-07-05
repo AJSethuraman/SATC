@@ -29,12 +29,17 @@ test_library:
      class: documentation, severity: low}
   - {id: reg_z_disclosures_present, label: "Reg Z disclosures present",
      kind: attestation, class: compliance, severity: high}
+  - {id: bankruptcy_chargeoff_timely, label: "Bankruptcy charge-off within 60 days",
+     kind: attestation, class: policy, severity: high}
+  - {id: fraud_chargeoff_timely, label: "Fraud charge-off within 90 days",
+     kind: attestation, class: policy, severity: high}
 
 products:
   - id: indirect_auto
     label: "Indirect Auto — Conformance Review"
     classification_type: closed_end
     attributes:
+      - {id: balance, label: "Balance", fmt: usd}
       - {id: score, label: "Score", fmt: num}
       - {id: dti, label: "DTI", fmt: pct}
       - {id: ltv, label: "LTV", fmt: pct}
@@ -48,6 +53,8 @@ products:
       - income_verified
       - contract_docs_complete
       - reg_z_disclosures_present
+      - bankruptcy_chargeoff_timely
+      - fraud_chargeoff_timely
     fringe_rules:
       - {attribute: score, limit_key: score_floor, band_key: fringe_score_band,
          direction: floor}
@@ -60,6 +67,7 @@ products:
     label: "Credit Card — Conformance Review"
     classification_type: open_end
     attributes:
+      - {id: balance, label: "Balance", fmt: usd}
       - {id: score, label: "Score", fmt: num}
       - {id: dti, label: "DTI", fmt: pct}
     tests:
@@ -73,6 +81,8 @@ products:
       - {id: re_aging_within_urccp, label: "Re-aging within URCCP limits",
          kind: attestation, class: documentation, severity: medium}
       - reg_z_disclosures_present
+      - bankruptcy_chargeoff_timely
+      - fraud_chargeoff_timely
     fringe_rules:
       - {attribute: score, limit_key: score_floor_card,
          band_key: fringe_score_band, direction: floor}
@@ -83,6 +93,7 @@ products:
     label: "HELOC — Conformance Review"
     classification_type: residential_secured
     attributes:
+      - {id: balance, label: "Balance", fmt: usd}
       - {id: score, label: "Score", fmt: num}
       - {id: dti, label: "DTI", fmt: pct}
       - {id: cltv, label: "CLTV", fmt: pct}
@@ -97,6 +108,8 @@ products:
          kind: attestation, class: documentation, severity: medium}
       - {id: flood_determination_present, label: "Flood determination present",
          kind: attestation, class: compliance, severity: high}
+      - bankruptcy_chargeoff_timely
+      - fraud_chargeoff_timely
       - {id: writedown_at_180_evidenced,
          label: "180-day writedown evidenced",
          kind: attestation, class: documentation, severity: high}
@@ -126,7 +139,7 @@ crosswalk:
   - element: sampling_scope
     implementation: "Sample plan of named segments — stratified random and judgmental both first-class, with documented stratum, size, and basis; every grid row segment-tagged; coverage computed live"
     requirement: "Review coverage/scope should be documented: the portfolio reviewed, the basis for selection, and the depth of penetration"
-    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020); OCC, Sampling Methodologies, Comptroller's Handbook (Bulletin 2020-56, 2020); FRB SR 14-4 (no minimum retail coverage expectation; judgmental sampling); FDIC Credit Card Activities Manual ch. X (judgmental results not projectable)"
   - element: fringe_analysis
     implementation: "A computed FRINGE flag identifies files within the overlay's band of a policy limit (the approved buy-box edge) for comparison of exception rates against core originations"
     requirement: "Track aggregate exception levels and analyze patterns to detect shifts in the risk characteristics of loan portfolios"

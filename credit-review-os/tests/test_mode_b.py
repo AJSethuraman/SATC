@@ -104,17 +104,17 @@ def test_unknown_segment_and_bad_attestation_are_refused(tmp_path, built):
 # ---------------------------------------------------------------------------
 def test_computed_tests_fire_on_the_right_files(built):
     _, rc, _, _ = built
-    # dti column D-attr -> test col G (dti_within_policy is first test)
-    assert rc.value(PS, f"G{GRID['AU-11760']}") == "fail"     # dti 47%
-    assert rc.value(PS, f"G{GRID['AU-10021']}") == "pass"
-    assert rc.value(PS, f"I{GRID['AU-12233']}") == "fail"     # ltv 128%
-    assert rc.value(PS, f"H{GRID['AU-14520']}") == "pass"     # score 668 >= floor
-    assert rc.value(PS, f"J{GRID['AU-14520']}") == "pass"     # term 72 <= 72
+    # grid: A loan, B segment, C-G attrs (balance first), tests from H
+    assert rc.value(PS, f"H{GRID['AU-11760']}") == "fail"     # dti 47%
+    assert rc.value(PS, f"H{GRID['AU-10021']}") == "pass"
+    assert rc.value(PS, f"J{GRID['AU-12233']}") == "fail"     # ltv 128%
+    assert rc.value(PS, f"I{GRID['AU-14520']}") == "pass"     # score 668 >= floor
+    assert rc.value(PS, f"K{GRID['AU-14520']}") == "pass"     # term 72 <= 72
 
 
 def test_fringe_flag_marks_the_buy_box_edge_only(built):
     _, rc, _, _ = built
-    fringe = {n: rc.value(PS, f"P{r}") for n, r in GRID.items()}
+    fringe = {n: rc.value(PS, f"S{r}") for n, r in GRID.items()}
     assert fringe["AU-14520"] == "FRINGE" and fringe["AU-15084"] == "FRINGE"
     # out-of-box files are conformance fails, not fringe
     assert fringe["AU-11760"] in ("", None)    # dti 47% is outside, not edge
@@ -124,9 +124,9 @@ def test_fringe_flag_marks_the_buy_box_edge_only(built):
 
 def test_fails_helper_counts_row_failures(built):
     _, rc, _, _ = built
-    assert rc.value(PS, f"O{GRID['AU-11760']}") == 2   # dti + income
-    assert rc.value(PS, f"O{GRID['AU-15084']}") == 1   # Reg Z
-    assert rc.value(PS, f"O{GRID['AU-12904']}") == 0
+    assert rc.value(PS, f"R{GRID['AU-11760']}") == 2   # dti + income
+    assert rc.value(PS, f"R{GRID['AU-15084']}") == 1   # Reg Z
+    assert rc.value(PS, f"R{GRID['AU-12904']}") == 0
 
 
 # ---------------------------------------------------------------------------
@@ -208,6 +208,41 @@ def test_products_rollup(built):
     assert rc.value("Products", "F6") == 3
     assert rc.value("Products", "G6") == 780000     # resi qualifying >=90 w/ LTV>60%
     assert rc.value("Products", "H6") == 95000      # resi Loss = keyed writedowns
+    # coverage in dollars beside coverage in count (OCC documentation basis)
+    assert rc.value("Products", "J4") == 212000
+    assert rc.value("Products", "K4") == pytest.approx(212000 / 38000000)
+    assert rc.value("Products", "J5") == 38000
+    assert rc.value("Products", "J6") == 545000
+
+
+def test_dual_basis_delinquency_rates(built):
+    wb, rc, _, _ = built
+    ws = wb[PS]
+    rows = {ws.cell(r, 1).value: r for r in range(1, ws.max_row + 1)
+            if ws.cell(r, 1).value}
+    # count basis in B, dollar basis in C -- both always shown
+    r30 = rows["30+ DPD rate"]
+    assert rc.value(PS, f"B{r30}") == pytest.approx(400 / 2400)
+    assert rc.value(PS, f"C{r30}") == pytest.approx(6600000 / 38000000)
+    r90 = rows["90+ DPD rate"]
+    assert rc.value(PS, f"B{r90}") == pytest.approx(130 / 2400)
+    assert rc.value(PS, f"C{r90}") == pytest.approx(2250000 / 38000000)
+    card = wb["PS_credit_card"]
+    crows = {card.cell(r, 1).value: r for r in range(1, card.max_row + 1)
+             if card.cell(r, 1).value}
+    c90 = crows["90+ DPD rate"]
+    assert rc.value("PS_credit_card", f"B{c90}") == pytest.approx(175 / 5765)
+    assert rc.value("PS_credit_card", f"C{c90}") == pytest.approx(285000 / 10015000)
+
+
+def test_timeliness_attestations_stay_silent_with_no_applicable_files(built):
+    wb, rc, _, _ = built
+    rows = _analytics_rows(wb[PS])
+    for label in ("Bankruptcy charge-off within 60 days",
+                  "Fraud charge-off within 90 days"):
+        r = rows[label]
+        assert rc.value(PS, f"D{r}") == 0            # all na in the demo sample
+        assert rc.value(PS, f"H{r}") in ("", None)   # no phantom finding
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +261,7 @@ def test_reingest_round_trip(tmp_path):
     assert by_product["indirect_auto"]["open_findings"] == 4
     assert by_product["credit_card"]["loss_dollars"] == 40000
     assert by_product["heloc"]["substandard_dollars"] == 780000
+    assert by_product["indirect_auto"]["sample_dollars"] == 212000
     assert findings.open_by_class == {"policy": 6, "documentation": 2, "compliance": 2}
     assert findings.total_open == 10
     assert findings.classified_dollars == 3315000 + 1285000   # URCCP: sub + loss

@@ -159,18 +159,22 @@ def build_products_rollup(ws: Worksheet, engagement: Engagement,
                           findings: FindingsRefs) -> dict[str, int]:
     KB.hide_gridlines(ws)
     widths = {"A": 16, "B": 12, "C": 14, "D": 10, "E": 11, "F": 11,
-              "G": 13, "H": 11, "I": 13}
+              "G": 13, "H": 11, "I": 13, "J": 12, "K": 10}
     for letter, width in widths.items():
         ws.column_dimensions[letter].width = width
-    row = KB.brand_banner(ws, 1, 9, "Products — Retail Roll-up",
+    row = KB.brand_banner(ws, 1, 11, "Products — Retail Roll-up",
                           f"{engagement.client_name}  ·  {engagement.engagement_id}")
+    # Coverage in BOTH bases (count and dollars) — the OCC sampling
+    # documentation convention; a single unlabeled basis is banned.
     row = KB.header_row(ws, row, ["Product", "Pop count", "Pop $", "Sample",
-                                  "Coverage", "Open find.", "Substd $", "Loss $",
-                                  "Substd+Loss %"], right_from=1)
+                                  "Cov #", "Open find.", "Substd $", "Loss $",
+                                  "Substd+Loss %", "Sample $", "Cov $"],
+                        right_from=1)
     product_row: dict[str, int] = {}
     for r in refs:
         pop = engagement.overlay_products[r.product_id]["population"]
         sheet = f"'{r.sheet_name}'"
+        balance_range = f"{sheet}!$C${r.grid_first}:$C${r.grid_last}"
         values = [
             (1, r.product_id, None),
             (2, pop["count"], FMT_NUM),
@@ -181,6 +185,8 @@ def build_products_rollup(ws: Worksheet, engagement: Engagement,
             (7, f"={sheet}!{r.substandard_dollars}", FMT_USD),
             (8, f"={sheet}!{r.loss_dollars}", FMT_USD),
             (9, f"=IFERROR(($G{row}+$H{row})/$C{row},\"\")", FMT_PCT1),
+            (10, f"=SUM({balance_range})", FMT_USD),
+            (11, f"=IFERROR($J{row}/$C{row},\"\")", "0.00%"),
         ]
         for col, value, fmt in values:
             c = ws.cell(row, col, value)
@@ -226,19 +232,19 @@ def add_urccp_totals(ws: Worksheet, findings_refs: FindingsRefs,
 # ---------------------------------------------------------------------------
 MART_COLUMNS_B = ["mart_id", "product", "population_count", "population_dollars",
                   "sample_n", "coverage", "open_findings", "substandard_dollars",
-                  "loss_dollars"]
+                  "loss_dollars", "sample_dollars", "coverage_dollars"]
 
 
 def build_mart_mode_b(ws: Worksheet, engagement: Engagement,
                       refs: list[ProductRefs], product_row: dict[str, int]) -> None:
     KB.hide_gridlines(ws)
     ws.column_dimensions["A"].width = 22
-    for letter in "BCDEFGHI":
+    for letter in "BCDEFGHIJK":
         ws.column_dimensions[letter].width = 16
     row = KB.header_row(ws, 1, list(MART_COLUMNS_B), right_from=2)
     src = {"population_count": "B", "population_dollars": "C", "sample_n": "D",
            "coverage": "E", "open_findings": "F", "substandard_dollars": "G",
-           "loss_dollars": "H"}
+           "loss_dollars": "H", "sample_dollars": "J", "coverage_dollars": "K"}
     for i, r in enumerate(refs, start=1):
         master_row = product_row[r.product_id]
         ws.cell(row, 1, mart_id(engagement, i).replace("-L", "-P")).font = KB.DATA_FONT

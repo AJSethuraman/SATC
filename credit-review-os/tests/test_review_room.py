@@ -41,7 +41,8 @@ def _fixture_data():
 
 
 def _auto_file(loan="AU-90001", segment="rand_large", **over):
-    entry = {"loan_number": loan, "segment": segment, "attr_score": "700",
+    entry = {"loan_number": loan, "segment": segment, "attr_balance": "20000",
+             "attr_score": "700",
              "attr_dti": "0.35", "attr_ltv": "0.9", "attr_term_months": "60",
              "test_credit_report_reviewed": "pass", "test_income_verified": "pass",
              "test_contract_docs_complete": "pass",
@@ -67,6 +68,7 @@ def test_valid_file_persists_encrypted(room, tmp_path):
     resp = client.post("/p/indirect_auto/file", data=_auto_file())
     assert resp.status_code == 302
     assert store.get_file("indirect_auto", "AU-90001")["score"] == 700
+    assert store.get_file("indirect_auto", "AU-90001")["balance"] == 20000
     raw = store.path.read_bytes()
     assert raw.startswith(b"CROSENC1")          # ciphertext on disk
     assert b"AU-90001" not in raw               # loan number unreadable
@@ -102,8 +104,8 @@ def test_preview_matches_recalc_on_every_demo_file(room):
     rc = Recalc(workbook_bytes(wb))
     product = store.product("indirect_auto")
     computed = [t["id"] for t in product["tests"] if t["kind"] == "computed"]
-    col = {"dti_within_policy": "G", "score_at_or_above_floor": "H",
-           "ltv_within_policy": "I", "term_within_policy": "J"}
+    col = {"dti_within_policy": "H", "score_at_or_above_floor": "I",
+           "ltv_within_policy": "J", "term_within_policy": "K"}
     for f in _fixture_data()["products"]["indirect_auto"]["files"]:
         resp = client.post("/p/indirect_auto/preview", json={
             "attributes": {a["id"]: f[a["id"]] for a in product["attributes"]}})
@@ -113,7 +115,7 @@ def test_preview_matches_recalc_on_every_demo_file(room):
         for tid in computed:
             assert preview["tests"][tid] == rc.value(PS, f"{col[tid]}{row}"), \
                 (f["loan_number"], tid)
-        assert preview["fringe"] == (rc.value(PS, f"P{row}") == "FRINGE"), \
+        assert preview["fringe"] == (rc.value(PS, f"S{row}") == "FRINGE"), \
             f["loan_number"]
 
 
