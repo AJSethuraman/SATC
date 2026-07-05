@@ -195,7 +195,15 @@ def load_samples(path: str | Path, program_products: tuple[dict, ...],
                  overlay_products: dict[str, dict]) -> dict[str, ProductSample]:
     path = Path(path)
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    where = path.name
+    return validate_samples_data(data, program_products, overlay_products,
+                                 where=path.name)
+
+
+def validate_samples_data(data, program_products: tuple[dict, ...],
+                          overlay_products: dict[str, dict],
+                          where: str = "samples") -> dict[str, ProductSample]:
+    """Validate an in-memory samples document (the Review Room store shares
+    exactly this validation with the YAML fixture path)."""
     if not isinstance(data, dict) or not isinstance(data.get("products"), dict):
         raise ConfigError(f"{where}: expected a mapping with a 'products' mapping")
     _reject_full_tins(data, where)
@@ -233,11 +241,12 @@ def load_samples(path: str | Path, program_products: tuple[dict, ...],
                 if value is not None and value not in ATTESTATION_VALUES:
                     raise ConfigError(f"{fwhere}.{tid}: attestation must be one of "
                                       f"{list(ATTESTATION_VALUES)}, got {value!r}")
-            stray = set(f) - {"loan_number", "segment"} - set(attr_ids) - set(attest_ids)
+            stray = (set(f) - {"loan_number", "segment", "note"}
+                     - set(attr_ids) - set(attest_ids))
             if stray:
                 raise ConfigError(f"{fwhere}: unknown fields {sorted(stray)} — files "
-                                  f"carry loan_number, segment, attributes, and "
-                                  f"attestation values only")
+                                  f"carry loan_number, segment, attributes, "
+                                  f"attestation values, and an optional note only")
 
         pool = dict(block.get("pool", {}))
         required = list(BUCKETS)

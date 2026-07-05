@@ -109,6 +109,23 @@ def _cmd_bundle(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ui(args: argparse.Namespace) -> int:
+    from credit_review.app import create_app
+    from credit_review.store import EngagementStore
+
+    engagement = load_engagement(args.engagement)
+    program = load_program(_resolve_program(args.program))
+    if program.review_mode != "product_conformance":
+        raise SystemExit("the Review Room covers product-conformance engagements "
+                         "in v1; loan-level forms are the declared fast-follow")
+    store = EngagementStore(program, engagement,
+                            store_dir=args.store_dir, key_dir=args.key_dir)
+    app = create_app(store)
+    print(f"Review Room: http://127.0.0.1:{args.port}  ({engagement.engagement_id})")
+    app.run(host="127.0.0.1", port=args.port, threaded=False)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="credit-review",
@@ -140,6 +157,15 @@ def main(argv: list[str] | None = None) -> int:
     p_bundle.add_argument("-o", "--output", default=None,
                           help="output script path (default: build_credit_review.py)")
     p_bundle.set_defaults(func=_cmd_bundle)
+
+    p_ui = sub.add_parser("ui", help="launch the Review Room (local, one file at a time)")
+    p_ui.add_argument("engagement", help="engagement overlay YAML")
+    p_ui.add_argument("--program", default="retail",
+                      help="program YAML path or packaged LOB name (default: retail)")
+    p_ui.add_argument("--port", type=int, default=5060)
+    p_ui.add_argument("--store-dir", type=Path, default=None,
+                      help="engagement store directory (default: ~/.credit-review/engagements)")
+    p_ui.set_defaults(func=_cmd_ui)
 
     args = parser.parse_args(argv)
     return args.func(args)

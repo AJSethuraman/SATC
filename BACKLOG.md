@@ -118,6 +118,31 @@ order; each LOB = a new program YAML + crosswalk on the same engine:
 - [ ] **Statistical sample-size calculator** (attribute sampling: confidence /
       tolerable rate → n) — decided against for Mode B v1; the documented
       stratified-random + judgmental basis is the method. Revisit on demand.
+- [x] **Owner research Tier 1 (consumer metrics/sampling) — SHIPPED
+      2026-07-05**: dual-basis 30+/60+/90+ delinquency rates (count AND
+      dollars, side by side) on every Mode B pool panel; balance attribute on
+      sampled files -> sample-$ and $-coverage through Products/mart/ingest;
+      bankruptcy-60-day and fraud-90-day charge-off timeliness attestations in
+      the retail test library; sampling crosswalk now cites OCC Sampling
+      Methodologies (Bulletin 2020-56), FRB SR 14-4, and FDIC card manual
+      ch. X; owner research saved to
+      docs/research/consumer-portfolio-metrics-sampling.md.
+- [ ] **Population-tape stratification layer (GATED — grill with owner)**:
+      ingest the bank's full loan tape; computed stratification with
+      configurable bands (CFPB six-tier FICO, 36/43 DTI edges as defaults,
+      never constants); sample selection from strata with OCC-shaped
+      documentation (population, focus, size, rationale) in $ and count;
+      Review Room sampling screen driven by the tape. Per owner research
+      2026-07-05.
+- [ ] **Portfolio metrics engine (GATED — own grill; roadmap Tier 3)**:
+      deterministic WA metrics (rate/FICO/DTI/LTV, balance-weighted with
+      count-weighted secondary), NCO rates (configurable annualization and
+      denominator), vintage triangles, dollar+count roll-rate/transition
+      matrices, configurable NPL definition (consumer nonaccrual is elective
+      per RC-N), bucket granularity as config (120-149/150-179 fine cut;
+      Y-14Q tops at 120+). In-scope as review analytics per the 2020
+      guidance's account-management/collections depth — NOT the public-data
+      monitoring the template suite covers.
 - [x] **ASCII-bundle build-on-target** — SHIPPED 2026-07-05: `credit-review
       bundle <engagement>` emits a single pure-ASCII script (contract §11
       pattern, gzip+base64) that rebuilds the workbook byte-identical in an

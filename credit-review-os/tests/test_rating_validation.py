@@ -27,8 +27,8 @@ def _flag_after_review(reviewer_grade):
     wb, *_ = build_demo_workbook()
     ws = wb[LS]
     rows = _cells(ws)
-    ws.cell(rows["Reviewer risk rating (independent)"], 3, reviewer_grade)
-    flag_row = rows["Rating disagreement (independent validation)"]
+    ws.cell(rows["Reviewer rating"], 3, reviewer_grade)
+    flag_row = rows["Rating disagreement"]
     return Recalc(workbook_bytes(wb)).value(LS, f"C{flag_row}"), flag_row
 
 
@@ -36,7 +36,7 @@ def test_rating_cells_resolve_via_config_lookup_not_precomputed():
     wb, *_ = build_demo_workbook()
     ws = wb[LS]
     rows = _cells(ws)
-    flag = ws.cell(rows["Rating disagreement (independent validation)"], 3).value
+    flag = ws.cell(rows["Rating disagreement"], 3).value
     # Live formula wired to the _config rating-scale map — never a boolean.
     assert isinstance(flag, str) and flag.startswith("=")
     assert flag.count("VLOOKUP") == 2 and "_config!" in flag
@@ -62,7 +62,7 @@ def test_agreement_raises_no_finding():
 def test_blank_reviewer_rating_leaves_flag_blank():
     wb, *_ = build_demo_workbook()
     ws = wb[LS]
-    flag_row = _cells(ws)["Rating disagreement (independent validation)"]
+    flag_row = _cells(ws)["Rating disagreement"]
     value = Recalc(workbook_bytes(wb)).value(LS, f"C{flag_row}")
     assert value in ("", None)
 
@@ -70,7 +70,7 @@ def test_blank_reviewer_rating_leaves_flag_blank():
 def test_exception_row_carries_tracking_fields():
     wb, *_ = build_demo_workbook()
     ws = wb[LS]
-    r = _cells(ws)["Rating disagreement (independent validation)"]
+    r = _cells(ws)["Rating disagreement"]
     assert ws.cell(r, 4).value == "rating / high"       # class / severity
     assert ws.cell(r, 5).value == "open"                # status default
     for col in (5, 6, 7, 8):                             # status/owner/due/cleared inputs

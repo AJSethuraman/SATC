@@ -158,7 +158,7 @@ def add_asset_quality(ws: Worksheet, refs: FindingsRefs, master) -> None:
 
     row = refs.next_row
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
-    band = ws.cell(row, 1, "Asset quality (criticized = SM+SS+D+L; classified = SS+D+L)")
+    band = ws.cell(row, 1, "Asset quality")
     band.fill = KB.HDR_FILL
     band.font = KB.WHITE_BOLD
     band.alignment = Alignment(horizontal="left", vertical="center", indent=1)

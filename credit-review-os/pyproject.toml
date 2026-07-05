@@ -12,6 +12,7 @@ dependencies = [
     "PyYAML>=6.0",
     "formulas>=1.2",       # re-ingest evaluates the workbook deterministically
     "cryptography>=41",    # AES-256-GCM encryption-at-rest for real engagements
+    "flask>=2.3",          # the Review Room (localhost-only working surface)
 ]
 
 [project.scripts]

@@ -68,7 +68,7 @@ def build_methodology(ws: Worksheet, program: Program, engagement: Engagement,
         f"{program.title}  ·  {engagement.client_name}  ·  {engagement.engagement_id}")
     row += 1
 
-    row = _band(ws, row, "Program element -> interagency requirement (with citation)", 4)
+    row = _band(ws, row, "Program element -> requirement satisfied", 4)
     hdr = ["Element", "How this program implements it",
            "Interagency requirement satisfied", "Citation"]
     row = KB.header_row(ws, row, hdr)
@@ -82,7 +82,7 @@ def build_methodology(ws: Worksheet, program: Program, engagement: Engagement,
         row += 1
     row += 1
 
-    row = _band(ws, row, "Coverage / scope (2020 guidance: documented review scope)", 4)
+    row = _band(ws, row, "Coverage / scope", 4)
     scope = engagement.scope
     f, l = master.first_row, master.last_row
     out_range = f"Master!${master.outstanding_col}${f}:${master.outstanding_col}${l}"
@@ -98,7 +98,7 @@ def build_methodology(ws: Worksheet, program: Program, engagement: Engagement,
     row = _kv(ws, row, "Review as-of date", engagement.review_as_of, "mm/dd/yyyy")
     row += 1
 
-    row = _band(ws, row, "Reviewer independence (2020 guidance: independent assessment)", 4)
+    row = _band(ws, row, "Reviewer independence", 4)
     reviewer = engagement.reviewer
     row = _kv(ws, row, "Reviewer", reviewer.get("name"))
     row = _kv(ws, row, "Independent", "Yes" if reviewer.get("independent") else "No")

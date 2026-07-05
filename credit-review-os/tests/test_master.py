@@ -83,7 +83,7 @@ def test_reviewer_downgrade_moves_the_rollup():
     wb, *_ = build_demo_workbook()
     ls = wb["LS_CI-0001"]
     rows = {ls.cell(r, 2).value: r for r in range(1, ls.max_row + 1) if ls.cell(r, 2).value}
-    ls.cell(rows["Reviewer risk rating (independent)"], 3, "7")
+    ls.cell(rows["Reviewer rating"], 3, "7")
     rc = Recalc(workbook_bytes(wb))
     assert rc.value("Master", "H4") == "Substandard"
     assert bool(rc.value("Master", "J4")) is True

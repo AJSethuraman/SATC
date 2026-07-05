@@ -46,14 +46,14 @@ def test_yaml_native_scalars_still_drive_text_formulas():
     rows = {ws.cell(r, 2).value: r for r in range(1, ws.max_row + 1)
             if ws.cell(r, 2).value}
     # normalized to text in the cells
-    assert ws.cell(rows["Originator risk rating"], 3).value == "4"
-    assert ws.cell(rows["Improved real estate collateral in a flood zone? (yes/no)"],
+    assert ws.cell(rows["Originator rating"], 3).value == "4"
+    assert ws.cell(rows["Collateral in a flood zone?"],
                    3).value == "yes"
     rc = Recalc(workbook_bytes(wb))
     # the rating map resolves (int grade would have blanked the VLOOKUP)...
     assert rc.value("Master", "H4") == "Substandard"
     # ...the cross-bucket disagreement fires...
-    r = rows["Rating disagreement (independent validation)"]
+    r = rows["Rating disagreement"]
     assert rc.value("LS_Y-0001", f"C{r}") == OPEN_FLAG
     # ...and the flood compliance check fires (bool would never equal "yes").
     r = rows["Flood insurance missing for flood-zone collateral"]

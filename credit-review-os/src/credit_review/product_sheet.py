@@ -182,7 +182,7 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
     row = KB.brand_banner(
         ws, 1, last_col, product["label"],
         f"{engagement.client_name}  ·  {engagement.engagement_id}"
-        f"  ·  conformance sample + URCCP pool")
+        f"  ·  conformance sample")
     headers = (["Loan #", "Segment"] + [a["label"] for a in attributes]
                + [t["label"] for t in tests] + ["Fails", "Fringe"])
     row = KB.header_row(ws, row, headers, center_cols=tuple(range(1, last_col)))
@@ -366,7 +366,7 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
         f'=IFERROR({fringe_cells["fringe_rate"]}-{fringe_cells["core_rate"]},"")')
     margin_ref = pol.get("fringe_margin", "1")   # no margin knob -> never flags
     fringe_cells["flag"] = norm(
-        "Fringe exceeds core by more than the margin?",
+        "Fringe above margin?",
         f'=IFERROR(IF({fringe_cells["gap"]}>{margin_ref},'
         f'"{OPEN_FLAG}","{CLEAR_FLAG}"),"")', None)
     flag_addr = fringe_cells["flag"]
@@ -446,6 +446,8 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
         styled(ws.cell(row, 2, f"=SUM($B${loss_start}:$B${last_bucket})"), bold_ink)
         styled(ws.cell(row, 3, f"=SUM($C${loss_start}:$C${last_bucket})"), bold_ink)
         loss = (f"B{row}", f"C{row}")
+        bucket_first, bucket_last = bucket_row["current"], last_bucket
+        row += 1
     else:   # residential_secured
         row = band(row, "Pool classification — URCCP (residential-secured: "
                         "Substandard = >=90 DPD with LTV above the _config "
@@ -453,6 +455,7 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
                         "180-day writedown is attested, not computed) · "
                         "65 FR 36903; OCC 2000-20; FDIC FIL-40-2000")
         row = KB.header_row(ws, row, ["Bucket", "Count", "Dollars"], right_from=1)
+        bucket_first = row
         for bucket in BUCKETS:
             ws.cell(row, 1, BUCKET_LABELS[bucket]).font = KB.DATA_FONT
             for col, key, fmt in ((2, "count", FMT_NUM), (3, "dollars", FMT_USD)):
@@ -463,7 +466,8 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
                 c.alignment = _RIGHT
                 c.number_format = fmt
             row += 1
-        ws.cell(row, 1, ">=90 DPD with LTV above qualifier (keyed)") \
+        bucket_last = row - 1
+        ws.cell(row, 1, ">=90 DPD with LTV above qualifier") \
             .font = KB.DATA_FONT
         qual_row = row
         for col, key in ((2, "count"), (3, "dollars")):
@@ -472,7 +476,7 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
             c.border = _BORDER
             styled(c, KB.DATA_FONT)
         row += 1
-        ws.cell(row, 1, "Fair-value writedowns taken (keyed)").font = KB.DATA_FONT
+        ws.cell(row, 1, "Fair-value writedowns taken").font = KB.DATA_FONT
         wd_row = row
         for col, key in ((2, "count"), (3, "dollars")):
             c = ws.cell(row, col, sample.pool["writedown_loss"][key])
@@ -489,6 +493,26 @@ def build_product_sheet(ws: Worksheet, product: dict, engagement: Engagement,
         styled(ws.cell(row, 2, f"=$B${wd_row}"), bold_ink)
         styled(ws.cell(row, 3, f"=$C${wd_row}"), bold_ink)
         loss = (f"B{row}", f"C{row}")
+        row += 1
+
+    # Cumulative delinquency rates, both bases side by side (count in B,
+    # dollars in C — dollar basis is the regulatory-reporting convention,
+    # count basis the bureau/MIS one; a single unlabeled number is banned).
+    total_count = f"SUM($B${bucket_first}:$B${bucket_last})"
+    total_dollars = f"SUM($C${bucket_first}:$C${bucket_last})"
+    for label, from_dpd in (("30+ DPD rate", 30), ("60+ DPD rate", 60),
+                            ("90+ DPD rate", 90)):
+        start = bucket_first + next(
+            i for i, b in enumerate(BUCKETS) if _BUCKET_START_DPD[b] == from_dpd)
+        ws.cell(row, 1, label).font = KB.SECONDARY
+        for col_letter, col, total in (("B", 2, total_count), ("C", 3, total_dollars)):
+            c = ws.cell(row, col,
+                        f"=IFERROR(SUM(${col_letter}${start}:${col_letter}"
+                        f"${bucket_last})/{total},\"\")")
+            c.font = KB.DATA_FONT
+            c.alignment = _RIGHT
+            c.number_format = FMT_PCT1
+        row += 1
 
     return ProductRefs(
         product_id=product["id"], sheet_name=ws.title, tests=tuple(refs),

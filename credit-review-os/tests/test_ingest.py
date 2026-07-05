@@ -23,7 +23,7 @@ def filled_workbook_path(tmp_path_factory):
     wb, *_ = build_demo_workbook()
     ls = wb["LS_CI-0001"]
     rows = {ls.cell(r, 2).value: r for r in range(1, ls.max_row + 1) if ls.cell(r, 2).value}
-    ls.cell(rows["Reviewer risk rating (independent)"], 3, "4")   # concur: Pass
+    ls.cell(rows["Reviewer rating"], 3, "4")   # concur: Pass
     path = tmp_path_factory.mktemp("ingest") / "filled.xlsx"
     path.write_bytes(workbook_bytes(wb))
     return path
@@ -105,7 +105,7 @@ def test_waiver_flows_through_reingest(filled_workbook_path, tmp_path):
     wb, *_ = build_demo_workbook()
     ls = wb["LS_CI-0001"]
     rows = {ls.cell(r, 2).value: r for r in range(1, ls.max_row + 1) if ls.cell(r, 2).value}
-    ls.cell(rows["LTV above policy ceiling (approved with mitigant)"], 5, "waived")
+    ls.cell(rows["LTV above policy ceiling"], 5, "waived")
     path = tmp_path / "waived.xlsx"
     path.write_bytes(workbook_bytes(wb))
     _, findings = ingest_workbook(path)

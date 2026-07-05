@@ -183,6 +183,8 @@ def _ingest_mode_b(structure: dict,
             "open_findings": int(sol.get("Products", f"F{prow}") or 0),
             "substandard_dollars": sub_d,
             "loss_dollars": loss_d,
+            "sample_dollars": sol.get("Products", f"J{prow}"),
+            "coverage_dollars": sol.get("Products", f"K{prow}"),
         })
         open_by_loan[mid] = 0
         for test in product["tests"]:
