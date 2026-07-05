@@ -124,12 +124,15 @@ def test_overlay_grades_must_map_into_program_buckets(tmp_path):
 def test_sheet_presence_and_order(built):
     wb, _, _, loans = built
     assert wb.sheetnames == (["Cover"] + [f"LS_{l.loan_id}" for l in loans]
-                             + ["Master", "Findings", "_config"])
+                             + ["Master", "Data Mart", "Findings", "_config", "_map"])
+    assert wb["_map"].sheet_state == "hidden"
 
 
 def test_house_style_banner_and_gridlines(built):
     wb, program, engagement, _ = built
     for name in wb.sheetnames:
+        if name == "_map":       # hidden machine-metadata sheet, not a styled tab
+            continue
         assert wb[name].sheet_view.showGridLines is False, name
     for name in ("Cover", "LS_CI-0001"):
         banner = wb[name]["A1"]

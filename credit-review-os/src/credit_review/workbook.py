@@ -9,6 +9,7 @@ with the wall clock).
 from __future__ import annotations
 
 import io
+import json
 import re
 import zipfile
 from datetime import datetime
@@ -31,6 +32,7 @@ from credit_review.cover import build_cover
 from credit_review.findings import add_asset_quality, build_findings
 from credit_review.linesheet import BuildContext, LinesheetBuilder
 from credit_review.master import build_master
+from credit_review.mart import build_mart, mart_id
 
 PACKAGE_DIR = Path(__file__).parent
 PROGRAMS_DIR = PACKAGE_DIR / "programs"
@@ -84,13 +86,39 @@ def build_engagement_workbook(program: Program, engagement: Engagement,
         cells_per_loan.append((loan, row_cells))
 
     ws_master = wb.create_sheet("Master")
+    ws_mart = wb.create_sheet("Data Mart")
     ws_findings = wb.create_sheet("Findings")
     findings_refs = build_findings(ws_findings, engagement, exceptions_per_loan)
     master_refs = build_master(ws_master, engagement, cells_per_loan,
                                refs.map_range, refs.framework_range, findings_refs)
     add_asset_quality(ws_findings, findings_refs, master_refs)
+    build_mart(ws_mart, program, engagement, loans, master_refs)
+
+    # Hidden structure map for the re-ingest pass: row ids and cell addresses
+    # only — never borrower data. See credit_review.ingest.
+    structure = {
+        "version": 1,
+        "engagement_id": engagement.engagement_id,
+        "lob": program.lob,
+        "loans": [
+            {"sheet": loan.sheet_name,
+             "mart_id": mart_id(engagement, i),
+             "master_row": master_refs.first_row + i - 1,
+             "cells": cells,
+             "exceptions": [
+                 {"id": exc.row_id, "class": exc.exc_class, "subtype": exc.subtype,
+                  "severity": exc.severity, "flag": exc.flag_cell,
+                  "status": exc.status_cell}
+                 for exc in exceptions]}
+            for i, ((loan, cells), (_, exceptions)) in enumerate(
+                zip(cells_per_loan, exceptions_per_loan), start=1)],
+    }
+    ws_map = wb.create_sheet("_map")
+    ws_map["A1"] = json.dumps(structure, separators=(",", ":"), sort_keys=True)
+    ws_map.sheet_state = "hidden"
 
     wb.move_sheet("_config", offset=len(wb.sheetnames) - 1 - wb.sheetnames.index("_config"))
+    wb.move_sheet("_map", offset=len(wb.sheetnames) - 1 - wb.sheetnames.index("_map"))
     return wb
 
 

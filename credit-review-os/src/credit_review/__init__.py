@@ -13,6 +13,11 @@ from credit_review.config import (
     load_loans,
     load_program,
 )
+from credit_review.ingest import (
+    DeIdentifiedMart,
+    PortfolioFindings,
+    ingest_workbook,
+)
 from credit_review.workbook import (
     build_demo_workbook,
     build_engagement_workbook,
@@ -23,4 +28,5 @@ __all__ = [
     "ConfigError", "Engagement", "Loan", "Program",
     "load_engagement", "load_loans", "load_program",
     "build_demo_workbook", "build_engagement_workbook", "workbook_bytes",
+    "DeIdentifiedMart", "PortfolioFindings", "ingest_workbook",
 ]
