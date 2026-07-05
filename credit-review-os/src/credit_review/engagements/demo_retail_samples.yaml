@@ -1,0 +1,65 @@
+# SYNTHETIC Mode B samples — indirect auto, 10 files (5 rand_large / 3
+# rand_small / 2 judgmental fringe pulls). Loan numbers invented; no person
+# names, ever. Hand-tallied expectations (vs the demo overlay knobs:
+# score>=660, dti<=45%, ltv<=120%, term<=72; tolerances policy 5% / doc 10% /
+# compliance 0%):
+#   dti_within_policy: 1 fail (AU-11760, 47%)  -> rate 10% > 5%  -> OPEN
+#   score floor:       0 fails                  -> clean
+#   ltv_within_policy: 1 fail (AU-12233, 128%)  -> rate 10% > 5%  -> OPEN
+#   term:              0 fails                  -> clean
+#   credit report:     0 fails                  -> clean
+#   income verified:   2 fails (AU-11760, AU-14520) -> 20% > 10% -> OPEN
+#   contract docs:     1 fail (AU-13311)        -> 10% not > 10% -> clean
+#   Reg Z:             1 fail (AU-12904)        -> per-occurrence -> OPEN
+# FRINGE (within band on the approved side): AU-14520, AU-15084.
+# Pool (closed-end URCCP): Substandard = 130 / $2,250,000; Loss = 60 / $1,150,000.
+products:
+  indirect_auto:
+    pool:
+      current:      {count: 2000, dollars: 31400000}
+      dpd_30_59:    {count: 180,  dollars: 2900000}
+      dpd_60_89:    {count: 90,   dollars: 1450000}
+      dpd_90_119:   {count: 70,   dollars: 1100000}
+      dpd_120_179:  {count: 40,   dollars: 720000}
+      dpd_180_plus: {count: 20,   dollars: 430000}
+    files:
+      - {loan_number: "AU-10021", segment: rand_large, score: 742, dti: 0.31,
+         ltv: 0.95, term_months: 60, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-10485", segment: rand_large, score: 705, dti: 0.38,
+         ltv: 1.05, term_months: 66, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-11102", segment: rand_large, score: 688, dti: 0.29,
+         ltv: 0.88, term_months: 60, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-11760", segment: rand_large, score: 720, dti: 0.47,
+         ltv: 1.02, term_months: 72, credit_report_reviewed: pass,
+         income_verified: fail, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-12233", segment: rand_large, score: 731, dti: 0.33,
+         ltv: 1.28, term_months: 60, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-12904", segment: rand_small, score: 698, dti: 0.36,
+         ltv: 1.00, term_months: 66, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: fail}
+      - {loan_number: "AU-13311", segment: rand_small, score: 755, dti: 0.28,
+         ltv: 0.82, term_months: 48, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: fail,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-13977", segment: rand_small, score: 712, dti: 0.40,
+         ltv: 0.97, term_months: 60, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-14520", segment: judg_fringe, score: 668, dti: 0.43,
+         ltv: 1.15, term_months: 72, credit_report_reviewed: pass,
+         income_verified: fail, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}
+      - {loan_number: "AU-15084", segment: judg_fringe, score: 663, dti: 0.44,
+         ltv: 1.18, term_months: 72, credit_report_reviewed: pass,
+         income_verified: pass, contract_docs_complete: pass,
+         reg_z_disclosures_present: pass}

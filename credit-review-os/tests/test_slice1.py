@@ -85,14 +85,14 @@ def test_program_must_stay_client_agnostic(tmp_path):
         load_program(_write_yaml(tmp_path, "bad.yaml", data))
 
 
-def test_product_conformance_is_schema_valid_but_not_buildable(tmp_path):
+def test_modes_have_distinct_program_shapes(tmp_path):
+    # Since Mode B landed (#73), product_conformance is buildable — but a
+    # linesheet-shaped program can't masquerade as one: the mode requires the
+    # products/test_library shape and fails at load, not at build.
     data = _program_dict()
     data["meta"]["review_mode"] = "product_conformance"
-    program = load_program(_write_yaml(tmp_path, "mode_b.yaml", data))  # schema carries it
-    engagement = load_engagement(ENGAGEMENT_PATH)
-    loans = load_loans(engagement.loans_path)
-    with pytest.raises(ConfigError, match="not built yet"):
-        build_engagement_workbook(program, engagement, loans)
+    with pytest.raises(ConfigError, match="products"):
+        load_program(_write_yaml(tmp_path, "mode_b.yaml", data))
 
 
 def test_loans_reject_full_tin_fields_and_values(tmp_path):

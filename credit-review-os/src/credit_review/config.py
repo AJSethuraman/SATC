@@ -116,6 +116,7 @@ class Program:
     sections: tuple[dict, ...]   # includes the synthesized evidence section
     evidence: tuple[dict, ...]
     crosswalk: tuple[dict, ...]  # element -> interagency requirement + citation
+    products: tuple[dict, ...]   # Mode B only: tests resolved from the library
     raw: dict = field(repr=False)
 
 
@@ -183,6 +184,24 @@ def load_program(path: str | Path) -> Program:
         raise ConfigError(
             f"{where}.meta: review_mode {review_mode!r} not one of {list(REVIEW_MODES)}")
 
+    if review_mode == "product_conformance":
+        # Mode B: products + shared test library instead of linesheet sections.
+        from credit_review.config_mode_b import validate_mode_b_program
+
+        products = validate_mode_b_program(data, where)
+        crosswalk = tuple(data.get("crosswalk", ()))
+        for i, entry in enumerate(crosswalk):
+            cwhere = f"{where}.crosswalk[{i}]"
+            for key in ("element", "requirement", "source"):
+                if not entry.get(key):
+                    raise ConfigError(f"{cwhere}: crosswalk entry needs a non-empty "
+                                      f"'{key}' — every program element must be cited")
+        _reject_full_tins(data, where)
+        return Program(lob=lob, review_mode=review_mode, title=title,
+                       buckets=(), criticized=(), classified=(),
+                       sections=(), evidence=(), crosswalk=crosswalk,
+                       products=products, raw=data)
+
     rf = _require(data, "rating_framework", where)
     buckets = tuple(_require(rf, "buckets", f"{where}.rating_framework"))
     criticized = tuple(rf.get("criticized", ()))
@@ -246,7 +265,8 @@ def load_program(path: str | Path) -> Program:
     _reject_full_tins(data, where)
     return Program(lob=lob, review_mode=review_mode, title=title, buckets=buckets,
                    criticized=criticized, classified=classified,
-                   sections=sections, evidence=evidence, crosswalk=crosswalk, raw=data)
+                   sections=sections, evidence=evidence, crosswalk=crosswalk,
+                   products=(), raw=data)
 
 
 # ---------------------------------------------------------------------------
@@ -257,12 +277,15 @@ class Engagement:
     client_name: str
     engagement_id: str
     review_as_of: date
-    rating_scale_map: dict[str, str]
+    rating_scale_map: dict[str, str]      # Mode A; empty for Mode B
     thresholds: dict[str, float]
     scope: dict
     reviewer: dict
-    loans_path: Path
-    raw: dict = field(repr=False)
+    loans_path: Path | None               # Mode A
+    samples_path: Path | None = None      # Mode B
+    overlay_products: dict = field(default_factory=dict)   # Mode B
+    tolerances: dict = field(default_factory=dict)         # Mode B, per test class
+    raw: dict = field(repr=False, default_factory=dict)
 
 
 def load_engagement(path: str | Path) -> Engagement:
@@ -281,7 +304,12 @@ def load_engagement(path: str | Path) -> Engagement:
         raise ConfigError(f"{where}: review_as_of must be a date (YYYY-MM-DD), "
                           f"got {review_as_of!r}")
 
-    scale_map = {str(k): str(v) for k, v in _require(data, "rating_scale_map", where).items()}
+    is_mode_b = "samples" in data
+    if is_mode_b:
+        scale_map: dict[str, str] = {}
+    else:
+        scale_map = {str(k): str(v)
+                     for k, v in _require(data, "rating_scale_map", where).items()}
     thresholds = dict(_require(data, "thresholds", where))
     for k, v in thresholds.items():
         if not isinstance(v, (int, float)) or isinstance(v, bool):
@@ -292,15 +320,29 @@ def load_engagement(path: str | Path) -> Engagement:
     if "independent" not in reviewer:
         raise ConfigError(f"{where}.reviewer: missing required key 'independent'")
 
-    loans_ref = _require(data, "loans", where)
-    loans_path = (path.parent / loans_ref).resolve() if not Path(loans_ref).is_absolute() \
-        else Path(loans_ref)
+    def _resolve(ref: str) -> Path:
+        return (path.parent / ref).resolve() if not Path(ref).is_absolute() else Path(ref)
+
+    if is_mode_b:
+        from credit_review.config_mode_b import validate_mode_b_overlay_products
+
+        overlay_products = validate_mode_b_overlay_products(data, where)
+        samples_path = _resolve(_require(data, "samples", where))
+        loans_path = None
+        tolerances = dict(data["tolerances"])
+    else:
+        loans_path = _resolve(_require(data, "loans", where))
+        samples_path = None
+        overlay_products = {}
+        tolerances = {}
 
     _reject_full_tins(data, where)
     return Engagement(client_name=client_name, engagement_id=engagement_id,
                       review_as_of=review_as_of, rating_scale_map=scale_map,
                       thresholds=thresholds, scope=scope, reviewer=reviewer,
-                      loans_path=loans_path, raw=data)
+                      loans_path=loans_path, samples_path=samples_path,
+                      overlay_products=overlay_products, tolerances=tolerances,
+                      raw=data)
 
 
 def check_overlay_fits_program(engagement: Engagement, program: Program) -> None:
