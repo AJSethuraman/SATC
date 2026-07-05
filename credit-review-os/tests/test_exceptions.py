@@ -142,7 +142,7 @@ def test_findings_register_has_one_row_per_loan_exception(demo_recalc):
     rule_count = sum(1 for s in program.sections for r in s["rows"]
                      if r.get("kind") == "exception")
     register_rows = [r for r in range(1, fnd.max_row + 1)
-                     if str(fnd.cell(r, 6).value or "").startswith("='LS_")]
+                     if "'LS_" in str(fnd.cell(r, 6).value or "")]
     assert len(register_rows) == rule_count * len(loans) == 40
     # subtype is representable and drives severity: the mitigated LTV rule
     ltv = next(r for r in register_rows

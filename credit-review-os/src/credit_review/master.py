@@ -66,14 +66,19 @@ def build_master(ws: Worksheet, engagement: Engagement,
                   f"VLOOKUP({orig},{map_range},2,FALSE),"
                   f"VLOOKUP({rev},{map_range},2,FALSE)),\"\")")
         bucket_cell = f"$H{row}"
+
+        def text_ref(addr: str) -> str:
+            # a bare =ref renders a blank source cell as 0 — keep blanks blank
+            return f'=IF({addr}="","",{addr})'
+
         values = [
             (1, loan.loan_id, None, "left"),
-            (2, f"={ref('borrower_name')}", None, "left"),
-            (3, f"={ref('loan_number')}", None, "left"),
+            (2, text_ref(ref("borrower_name")), None, "left"),
+            (3, text_ref(ref("loan_number")), None, "left"),
             (4, f"={ref('total_commitment')}", FMT_USD, "right"),
             (5, f"={ref('outstanding')}", FMT_USD, "right"),
-            (6, f"={orig}", None, "center"),
-            (7, f"={rev}", None, "center"),
+            (6, text_ref(orig), None, "center"),
+            (7, text_ref(rev), None, "center"),
             (8, bucket, None, "center"),
             (9, f'=IFERROR(VLOOKUP({bucket_cell},{framework_range},2,FALSE)="TRUE",FALSE)',
              None, "center"),

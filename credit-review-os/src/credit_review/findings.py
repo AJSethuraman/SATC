@@ -83,7 +83,9 @@ def build_findings(ws: Worksheet, engagement: Engagement,
                     (8, exc.owner_cell, None), (9, exc.due_cell, FMT_DATE),
                     (10, exc.cleared_cell, FMT_DATE)]
             for col, addr, fmt in refs:
-                cell = ws.cell(row, col, f"={sheet}!{addr}")
+                # blanks stay blank (a bare =ref shows an empty cell as 0)
+                cell = ws.cell(row, col,
+                               f'=IF({sheet}!{addr}="","",{sheet}!{addr})')
                 cell.font = KB.DATA_FONT
                 cell.alignment = Alignment(horizontal="center", vertical="center")
                 if fmt:
