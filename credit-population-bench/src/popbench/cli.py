@@ -45,7 +45,10 @@ def main(argv: list[str] | None = None) -> int:
 
     pop = demo.demo_population_full()
     m = _demo_mapping(list(pop.columns))
-    data = build(pop, m, cohort_specs=demo.demo_cohorts())
+    # Demo judgmental selection: the delinquent loans the reviewer would pull.
+    data = build(pop, m, cohort_specs=demo.demo_cohorts(),
+                 sample_selection={"L-102", "L-103", "L-104"},
+                 sample_dimension="product_type")
     Path(args.out).write_bytes(data)
     print(f"wrote {args.out} ({len(data)} bytes)")
     return 0

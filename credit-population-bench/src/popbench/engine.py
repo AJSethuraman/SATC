@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from popbench import (bands, cleaning, cohorts as cohorts_mod, contract,
-                      delinquency, metrics, rolls, strata, vintage)
+                      delinquency, metrics, rolls, sampling, strata, vintage)
 from popbench.mapping import Mapping
 from popbench.workbook import build_workbook, workbook_bytes
 
@@ -31,12 +31,15 @@ class AnalysisResult:
     vintage_rows: list | None = None            # list[vintage.VintageRow]
     triangle: object | None = None              # vintage.Triangle
     roll: object | None = None                  # rolls.RollMatrix
+    sampling_doc: object | None = None          # sampling.SamplingDoc
 
 
 def run_analysis(raw: pd.DataFrame, mapping: Mapping,
                  attributes: list[str] | None = None,
                  status_map: dict[str, str] | None = None,
-                 cohort_specs: list | None = None) -> AnalysisResult:
+                 cohort_specs: list | None = None,
+                 sample_selection=None,
+                 sample_dimension: str = "product_type") -> AnalysisResult:
     """Validate/clean the population, then compute the metrics its mapped fields
     support: weighted averages always; delinquency rates when a delinquency
     signal is mapped; URCCP classification when a structure field is mapped too.
@@ -84,8 +87,12 @@ def run_analysis(raw: pd.DataFrame, mapping: Mapping,
     if mapping.has("prior_dpd_bucket") and "dpd_bucket_canon" in clean.columns:
         roll = rolls.roll_matrix(clean)
 
+    sampling_doc = None
+    if sample_selection is not None and sample_dimension in clean.columns:
+        sampling_doc = sampling.build_doc(clean, sample_selection, sample_dimension)
+
     return AnalysisResult(clean, records, pop, wa, delq, urccp, strats, cohort_cmp,
-                          charge_off, vintage_rows, triangle, roll)
+                          charge_off, vintage_rows, triangle, roll, sampling_doc)
 
 
 def _default_stratifications(clean: pd.DataFrame,
@@ -111,10 +118,14 @@ def _default_attributes(mapping: Mapping) -> list[str]:
 def build(raw: pd.DataFrame, mapping: Mapping,
           attributes: list[str] | None = None,
           status_map: dict[str, str] | None = None,
-          cohort_specs: list | None = None) -> bytes:
+          cohort_specs: list | None = None,
+          sample_selection=None,
+          sample_dimension: str = "product_type") -> bytes:
     """Full run to deterministic workbook bytes."""
     result = run_analysis(raw, mapping, attributes, status_map=status_map,
-                          cohort_specs=cohort_specs)
+                          cohort_specs=cohort_specs,
+                          sample_selection=sample_selection,
+                          sample_dimension=sample_dimension)
     wb = build_workbook(
         raw=result.clean,
         map_rows=mapping.as_rows(),
@@ -131,5 +142,6 @@ def build(raw: pd.DataFrame, mapping: Mapping,
         vintage_rows=result.vintage_rows,
         triangle=result.triangle,
         roll=result.roll,
+        sampling_doc=result.sampling_doc,
     )
     return workbook_bytes(wb)

@@ -96,6 +96,7 @@ def build_workbook(
     vintage_rows: list | None = None,
     triangle: object | None = None,
     roll: object | None = None,
+    sampling_doc: object | None = None,
 ) -> Workbook:
     """Assemble the in-memory workbook from already-computed values.
 
@@ -315,6 +316,50 @@ def build_workbook(
                     ws.cell(r, j).number_format = "0.0%"
                 r += 1
             r += 1
+
+    # Sample coverage + OCC documentation (reviewer marks selection).
+    if sampling_doc is not None:
+        d = sampling_doc
+        ws = wb.create_sheet("Sample")
+        ws.cell(1, 1, "Judgmental sample — coverage per segment ($ and count)").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        ws.cell(2, 1, "The reviewer marks selection by loan number; coverage below.").font = _DATA_FONT
+        r = _band(ws, 4, ["segment", "flagged", "seg_#", "seg_$",
+                          "selected_#", "selected_$", "count_cov", "dollar_cov"])
+        for c in d.coverage:
+            ws.cell(r, 1, c.value)
+            ws.cell(r, 2, "HIGH-RISK" if c.flagged else "")
+            ws.cell(r, 3).value = int(c.seg_count)
+            ws.cell(r, 4).value = float(c.seg_balance); ws.cell(r, 4).number_format = FMT_USD
+            ws.cell(r, 5).value = int(c.sel_count)
+            ws.cell(r, 6).value = float(c.sel_balance); ws.cell(r, 6).number_format = FMT_USD
+            ws.cell(r, 7).value = float(c.count_coverage); ws.cell(r, 7).number_format = "0.0%"
+            ws.cell(r, 8).value = float(c.dollar_coverage); ws.cell(r, 8).number_format = "0.0%"
+            r += 1
+        ws.cell(r, 1, "Selected loan numbers").font = _LABEL_FONT
+        ws.cell(r, 2, ", ".join(d.selected_loan_ids))
+
+        # OCC_Doc — the required documentation, non-extrapolable label fixed.
+        ws = wb.create_sheet("OCC_Doc")
+        occ = [
+            ("OCC Sampling Documentation", ""),
+            ("", ""),
+            ("Population", f"{d.population_count} loans / ${d.population_dollars:,.0f}"),
+            ("Areas of focus", "; ".join(d.areas_of_focus) or "(none flagged)"),
+            ("Sample size", f"{d.sample_count} loans / ${d.sample_dollars:,.0f}"),
+            ("Coverage (count basis)", f"{d.overall_count_coverage:.1%}"),
+            ("Coverage (dollar basis)", f"{d.overall_dollar_coverage:.1%}"),
+            ("Selection rationale", d.selection_rationale),
+            ("Results", d.results),
+            ("", ""),
+            ("*** " + d.non_extrapolable, ""),
+        ]
+        for i, (k, v) in enumerate(occ, start=1):
+            kc = ws.cell(i, 1, k)
+            kc.font = _LABEL_FONT if k and not k.startswith("***") else _DATA_FONT
+            if k.startswith("***"):
+                kc.font = Font(name="Arial", bold=True, size=11, color="B00020")
+            ws.cell(i, 2, v).font = _DATA_FONT
 
     # _config (knob panel — populated further by later slices)
     ws = wb.create_sheet("_config")
