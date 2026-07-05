@@ -137,36 +137,37 @@ order; each LOB = a new program YAML + crosswalk on the same engine:
 
 ## 6 · Consumer Credit Population Bench (`credit-population-bench/` — loan-level analysis, sibling to Credit Review OS)
 
-PRD written 2026-07-05 (`docs/prd-credit-population-bench.md`, grilled via
-`/occam` same day) — NOT yet built. A standalone `.xlsm` + pandas engine: a
-bank reviewer loads a **loan-level** consumer-loan flat file, maps/cleans it,
-stratifies (mapped group-bys + derived cohorts, 5+ side-by-side), computes
-balance- and count-weighted metrics + URCCP classification + vintage, and
-draws a documentable **judgmental sample** (OCC doc, non-extrapolable).
+PRD 2026-07-05 (`docs/prd-credit-population-bench.md`, grilled via `/occam`);
+**v1 BUILT 2026-07-05** (issues #79–#87, PR #78). A standalone `.xlsm` + pandas
+engine: a bank reviewer loads a **loan-level** consumer-loan flat file,
+maps/cleans it, stratifies (mapped group-bys + derived cohorts, 5+
+side-by-side), computes balance- and count-weighted metrics + URCCP + vintage,
+and draws a documentable **judgmental sample** (OCC doc, non-extrapolable).
 Distinct from Credit Review OS Mode B (which keys pool totals + documents a
 drawn sample); this computes loan-level and helps DRAW the sample.
 
-- [ ] **Build M1 (tracer):** canonical-field contract + confirm-not-silent
+- [x] **Build M1 (tracer):** canonical-field contract + confirm-not-silent
       column mapping (units/scale) + population-validation/cleaning gate
       (`_cleaning`) + core metric engine (WA both bases, dollar/count
       delinquency, URCCP via shared floors) + group-by + workbook + Seams 1–4.
-- [ ] **Build M2:** derived-cohort layer (structured rules → shared evaluator →
+      (Slices #79/#81/#82.)
+- [x] **Build M2:** derived-cohort layer (structured rules → shared evaluator →
       overlap matrix + residual), side-by-side + A/B comparison, band schemes
-      (CFPB / Y-14Q preset / custom), gross charge-off rate.
-- [ ] **Build M3:** vintage curves/triangle, conditional roll matrix (only if a
+      (CFPB / Y-14Q preset / custom), gross charge-off rate. (Slices #82/#83/#84.)
+- [x] **Build M3:** vintage curves/triangle, conditional roll matrix (only if a
       prior-bucket column is mapped), judgmental sampling (rank/flag + coverage +
-      OCC doc), ASCII bundle + `_readme`/methodology.
-- [ ] **[LOG] Shared-core extraction (touches `credit-review-os`):** factor
-      `URCCP_FLOORS` + classification-clock resolver + safe token evaluator +
-      PII byte-scan into an importable surface both projects consume (vendored
-      into each ASCII bundle at transmission). One URCCP implementation — never
-      forked. Gate: Mode A/B suites stay green.
-- [ ] **[LOG] PII-boundary reversal (project-specific decision):** unlike the
-      rest of the suite, the bench's **runtime populated workbook may hold real
-      borrower PII** (bank equipment/VPN, never leaves the machine; no gates, no
-      masking, no vault; loan number is the pull key). The PII byte-scan is
-      **repointed** to guard only the shipped tool / repo / demo fixtures (100%
-      synthetic) — NOT the runtime workbook. Stated in `_readme` + the PRD §7.
+      OCC doc), ASCII bundle + `_readme`/methodology. (Slices #84/#85/#86.)
+- [x] **[LOG] Shared-core extraction (touched `credit-review-os`):** DONE —
+      `satc_credit_core` holds `URCCP_FLOORS` + classification-clock resolver +
+      TIN byte-scan; credit-review-os imports it (108 tests still green); bench
+      imports it; vendored into the ASCII bundle. Cohort compiler is a fresh
+      pandas-mask evaluator (credit-review-os's evaluator emits Excel formulas,
+      not reusable) — safe structured rules, per PRD R9. One URCCP impl.
+- [x] **[LOG] PII-boundary reversal (project-specific decision):** IMPLEMENTED —
+      the bench's **runtime populated workbook may hold real borrower PII** (bank
+      equipment/VPN, never leaves the machine; no gates/masking/vault; loan
+      number is the pull key). The TIN byte-scan is **repointed** to guard only
+      the shipped tool / repo / demo fixtures (100% synthetic). In `_readme` + PRD §7.
 - [ ] **[LOG] Deferred (decided against for v1):** cross-period snapshot
       retention + multi-snapshot roll rates / Markov projection; net-of-recovery
       NCO (no recovery data — gross-only charge-off rate ships, labeled);
@@ -188,6 +189,23 @@ research pass before a spec, no exceptions.
 
 ## Done log
 
+- 2026-07-05 -- Consumer Credit Population Bench v1 BUILT (issues #79-#87 on
+  PR #78): standalone `credit-population-bench/` (pandas engine behind an
+  `.xlsm` surface) + new shared `satc_credit_core` (URCCP floors + resolver +
+  TIN byte-scan) imported by both this bench and Credit Review OS (one URCCP
+  impl; CR-OS 108 tests still green). Delivered: confirm-not-silent column
+  mapping with units (`_map`); refuse-on-hard-error cleaning gate (`_cleaning`);
+  WA metrics both bases; delinquency (3 input forms) + dollar/count rates +
+  URCCP classification (closed/open/residential); group-by + band schemes
+  (CFPB default / Y-14Q preset / custom) + cardinality guard; derived cohorts
+  (structured rules -> safe pandas masks, overlap matrix + residual, A/B);
+  vintage summary/triangle + gross charge-off + conditional roll matrix;
+  judgmental sampling (rank/flag + coverage + auto OCC doc, non-extrapolable);
+  pure-ASCII emailable bundle (byte-identical empty-folder rebuild, shared core
+  vendored) + `_code_py` discovery + expanded `_readme`/methodology. 57 bench
+  tests + 7 shared-core; deterministic builds (a set-order determinism bug
+  caught by the cross-process bundle test and fixed). Deferred/inherited items
+  remain in Section 6.
 - 2026-07-05 -- Consumer Credit Population Bench PRD written (`/occam` grill →
   PRD): `credit-population-bench/docs/prd-credit-population-bench.md`. New
   standalone loan-level analysis project (sibling to Credit Review OS). Locked:
