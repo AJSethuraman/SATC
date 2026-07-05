@@ -1,0 +1,41 @@
+# SYNTHETIC second demo bank — the portability proof (PRD success metric:
+# adding a client bank is a thin overlay, zero code changes). Same portable
+# C&I program; different internal rating scale (1-10), different policy
+# thresholds, different scope. Every value invented.
+client:
+  name: "Sample State Bank"
+  engagement_id: "SSB-2026-02"
+
+review_as_of: 2026-05-31
+
+rating_scale_map:            # this bank runs a 1-10 scale (SM at 7, not 6)
+  "1": Pass
+  "2": Pass
+  "3": Pass
+  "4": Pass
+  "5": Pass
+  "6": Pass
+  "7": "Special Mention"
+  "8": Substandard
+  "9": Doubtful
+  "10": Loss
+
+thresholds:                  # tighter policy than Demo Community Bank
+  dscr_floor: 1.25
+  ltv_ceiling: 0.75
+  leverage_ceiling: 3.5
+  stmt_staleness_days: 365
+  bbc_staleness_days: 30
+  covenant_staleness_days: 90
+
+scope:
+  portfolio_dollars: 28000000
+  portfolio_count: 145
+  sample_basis: "all criticized + 20% random"
+
+reviewer:
+  name: "SATC"
+  independent: true
+  independence_note: "No lending authority; engaged by the audit committee"
+
+loans: "demo_bank2_loans.yaml"   # SYNTHETIC fixture

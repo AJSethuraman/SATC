@@ -36,7 +36,9 @@ One workbook per engagement, in the KeyBank house style:
   Mention / Substandard / Doubtful / Loss with criticized/classified
   derivations), linesheet sections and exception rules, the evidence
   checklist, and the cited regulatory crosswalk. The loader rejects
-  client-specific keys outright. v1 ships `c_and_i`.
+  client-specific keys outright. Shipped: `c_and_i` and
+  `cre_income_producing` (NOI-based DSCR, occupancy, appraised-value LTV,
+  rent-roll evidence).
 - **Engagement overlay** (`engagements/<name>.yaml`) — thin and per-bank:
   client identity, `review_as_of`, `rating_scale_map` (every internal grade →
   exactly one regulatory bucket), policy `thresholds` (DSCR floor, LTV and
@@ -99,7 +101,7 @@ round-trip (Seam 2), and the no-PII-leak byte scan (Seam 3).
 
 ## LOB roadmap (cash-flow-out order)
 
-income-producing CRE → owner-occupied CRE → construction/ADC → agricultural →
+~~income-producing CRE~~ (shipped) → owner-occupied CRE → construction/ADC → agricultural →
 **consumer + residential (first product-conformance build)** → multifamily /
 leases / specialty. Each is a new program config + crosswalk on the same
 engine. Further out (each needs its own design pass): document parsing/OCR

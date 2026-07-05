@@ -85,10 +85,15 @@ the bottom log with a date. Companion docs: `PROJECTS.md` (what exists),
 v1 (C&I loan-level engine) shipped 2026-07-05 — see Done log. Roadmap, in
 order; each LOB = a new program YAML + crosswalk on the same engine:
 
-- [ ] **Second demo bank overlay** — proves portability costs 0 code changes
-      (PRD success metric).
-- [ ] **LOB build-out (cash-flow-out order):** income-producing CRE →
-      owner-occ CRE → construction/ADC → agricultural → consumer+residential
+- [x] **Second demo bank overlay** — SHIPPED 2026-07-05: `Sample State Bank`
+      overlay (1-10 scale, tighter thresholds) builds on the unchanged C&I
+      program; recalc tests prove threshold-flips (DSCR 1.22 vs 1.25 floor,
+      leverage 3.95x vs 3.5x). 0 code changes (PRD success metric met).
+- [~] **LOB build-out (cash-flow-out order):** **income-producing CRE SHIPPED
+      2026-07-05** (`cre_income_producing.yaml`: NOI DSCR, occupancy,
+      appraised-value LTV, rent-roll/operating-statement evidence,
+      collateral_valuation crosswalk element; config-only) → next: owner-occ
+      CRE → construction/ADC → agricultural → consumer+residential
       (**first Mode B / product_conformance build** — schema already carries
       the mode) → multifamily / leases / specialty.
 - [ ] **ASCII-bundle build-on-target** (contract §11 style) so a workbook
@@ -99,8 +104,11 @@ order; each LOB = a new program YAML + crosswalk on the same engine:
       only, never in the data path, never writes a rating (own design pass).
 - [ ] **ACL/CECL export** — emit classifications for the bank's allowance
       system (OCC *Allowances for Credit Losses* is the source when scoped).
-- [ ] **Pin-cite confirmation sprint** — verify crosswalk page cites against
-      the live regulator PDFs before the first filed workpaper.
+- [ ] **Pin-cite confirmation sprint (needs YOUR desk)** — verify crosswalk
+      page cites against the live regulator PDFs before the first filed
+      workpaper. Re-attempted 2026-07-05 from the build box: occ.gov /
+      fdic.gov / federalregister.gov / cdfifund.gov all still 403 to
+      automated egress — this requires a human browser.
 
 ## 6 · Standing rules for new items
 

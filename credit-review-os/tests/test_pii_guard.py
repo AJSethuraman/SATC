@@ -28,7 +28,9 @@ from credit_review.workbook import ENGAGEMENTS_DIR, PROGRAMS_DIR, build_engageme
 
 # The only borrower identities allowed to exist anywhere in this repository.
 SYNTHETIC_NAMES = ("Blue Heron Fabrication LLC", "Cedar Creek Outfitters Inc",
-                   "Harbor Point Logistics LLC", "Sunview Orchards LP")
+                   "Harbor Point Logistics LLC", "Sunview Orchards LP",
+                   "Granite Peak Tooling Co", "Willow Bend Dairy LLC",
+                   "Lakeview Commons Retail LLC", "Bridgewater Office Partners LP")
 LOAN_NUMBERS = ("40017-3", "51230-8", "61022-1", "70415-9")
 
 SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
@@ -111,9 +113,9 @@ def test_committed_fixtures_are_synthetic_only():
         assert not SSN_RE.search(raw), path.name
         assert not EIN_RE.search(raw), path.name
         assert not NINE_DIGIT_RE.search(raw), path.name
-    loans = load_loans(ENGAGEMENTS_DIR / "demo_c_and_i_loans.yaml")
-    for loan in loans:
-        name = loan.values.get("borrower_name", "")
-        assert name in SYNTHETIC_NAMES, name
-        tin = str(loan.values.get("tin_last4", ""))
-        assert re.fullmatch(r"\d{4}", tin), tin
+    for loans_path in Path(ENGAGEMENTS_DIR).glob("*_loans.yaml"):
+        for loan in load_loans(loans_path):
+            name = loan.values.get("borrower_name", "")
+            assert name in SYNTHETIC_NAMES, (loans_path.name, name)
+            tin = str(loan.values.get("tin_last4", ""))
+            assert re.fullmatch(r"\d{4}", tin), (loans_path.name, tin)
