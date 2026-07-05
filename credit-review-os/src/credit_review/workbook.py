@@ -33,6 +33,7 @@ from credit_review.findings import add_asset_quality, build_findings
 from credit_review.linesheet import BuildContext, LinesheetBuilder
 from credit_review.master import build_master
 from credit_review.mart import build_mart, mart_id
+from credit_review.methodology import build_methodology, build_readme
 
 PACKAGE_DIR = Path(__file__).parent
 PROGRAMS_DIR = PACKAGE_DIR / "programs"
@@ -93,6 +94,8 @@ def build_engagement_workbook(program: Program, engagement: Engagement,
                                refs.map_range, refs.framework_range, findings_refs)
     add_asset_quality(ws_findings, findings_refs, master_refs)
     build_mart(ws_mart, program, engagement, loans, master_refs)
+    build_methodology(wb.create_sheet("_methodology"), program, engagement,
+                      loans, master_refs)
 
     # Hidden structure map for the re-ingest pass: row ids and cell addresses
     # only — never borrower data. See credit_review.ingest.
@@ -117,7 +120,10 @@ def build_engagement_workbook(program: Program, engagement: Engagement,
     ws_map["A1"] = json.dumps(structure, separators=(",", ":"), sort_keys=True)
     ws_map.sheet_state = "hidden"
 
+    build_readme(wb.create_sheet("_readme"), program, engagement)
+
     wb.move_sheet("_config", offset=len(wb.sheetnames) - 1 - wb.sheetnames.index("_config"))
+    wb.move_sheet("_readme", offset=len(wb.sheetnames) - 1 - wb.sheetnames.index("_readme"))
     wb.move_sheet("_map", offset=len(wb.sheetnames) - 1 - wb.sheetnames.index("_map"))
     return wb
 

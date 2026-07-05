@@ -124,7 +124,8 @@ def test_overlay_grades_must_map_into_program_buckets(tmp_path):
 def test_sheet_presence_and_order(built):
     wb, _, _, loans = built
     assert wb.sheetnames == (["Cover"] + [f"LS_{l.loan_id}" for l in loans]
-                             + ["Master", "Data Mart", "Findings", "_config", "_map"])
+                             + ["Master", "Data Mart", "Findings", "_methodology",
+                                "_config", "_readme", "_map"])
     assert wb["_map"].sheet_state == "hidden"
 
 

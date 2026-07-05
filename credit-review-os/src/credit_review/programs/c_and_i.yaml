@@ -85,3 +85,49 @@ evidence:
      condition_driven: true, severity: medium}
   - {type: credit_approval, label: "Credit approval / memo",
      presence_required: true, severity: high}
+
+# Regulatory crosswalk — every program element maps to the interagency
+# requirement it satisfies, with citation (see docs/research/
+# credit-review-methodology.md; confirm page pin-cites against the live PDFs
+# before a filed workpaper).
+crosswalk:
+  - element: risk_rating_framework
+    implementation: "5-bucket rating framework + criticized/classified derivations; internal grades map via the overlay's rating_scale_map"
+    requirement: "Classify credits on the uniform interagency spine: Pass / Special Mention / Substandard / Doubtful / Loss; criticized = SM+classified, classified = SS+D+L"
+    source: "FDIC RMS Manual of Examination Policies §3.2 (Loans) and §3.1 (Asset Quality); OCC, Rating Credit Risk, Comptroller's Handbook"
+  - element: independent_rating_validation
+    implementation: "Originator and reviewer ratings are distinct cells; a cross-bucket disagreement raises a rating finding by live formula"
+    requirement: "Credit risk review appropriately validates and, if necessary, adjusts risk ratings, especially for loans with potential or well-defined weaknesses"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (June 1, 2020)"
+  - element: exception_tracking
+    implementation: "Documentation / policy / compliance exceptions computed against overlay thresholds; each carries subtype, severity, status, owner, due and cleared dates; Findings aggregates by class/severity/status/loan"
+    requirement: "Systematically identify exceptions, initiate timely resolution, track the aggregate level of exceptions to detect shifts in portfolio risk; severity corresponds to materiality"
+    source: "OCC, Loan Portfolio Management, Comptroller's Handbook (Apr 1998)"
+  - element: policy_exception_subtypes
+    implementation: "Policy exceptions carry approved_with_mitigant vs unapproved subtype, driving severity"
+    requirement: "Underwriting exceptions distinguished by whether granted as documented, approved exceptions with compensating factors"
+    source: "OCC, Loan Portfolio Management, Comptroller's Handbook (Apr 1998)"
+  - element: evidence_currency
+    implementation: "Evidence checklist with as-of dates and quality tiers; staleness vs bank-policy windows raises documentation exceptions by formula"
+    requirement: "Ensure that documentation remains current; file evidence tested against the bank's own recency policy"
+    source: "OCC, Loan Portfolio Management, Comptroller's Handbook; FDIC RMS §3.2 documentation expectations"
+  - element: appraisal_validity
+    implementation: "Appraisal currency is condition-driven (reviewer validity judgment), never a fixed day-count"
+    requirement: "Obtain a new appraisal or evaluation when the existing one no longer reflects current market conditions"
+    source: "Interagency Appraisal and Evaluation Guidelines, 75 FR 77450 (Dec 10, 2010); FRB SR 10-16"
+  - element: compliance_review
+    implementation: "Compliance exception rules (e.g. flood insurance on flood-zone collateral) computed on the linesheet"
+    requirement: "Credit risk review reports on compliance with laws and regulations"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"
+  - element: sampling_scope
+    implementation: "Engagement overlay records portfolio $ and count, sample basis; _methodology computes reviewed-$ and count coverage live from the Master roll-up"
+    requirement: "Review coverage/scope should be documented: the portfolio reviewed, the basis for selection, and the depth of penetration"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"
+  - element: independence
+    implementation: "Overlay records the reviewer's independence attestation, rendered on Cover and _methodology"
+    requirement: "Provide the board an objective, independent, and timely assessment of the overall quality of the loan portfolio"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"
+  - element: findings_reporting
+    implementation: "Findings sheet aggregates exceptions and the criticized/classified asset-quality summary for committee/board presentation"
+    requirement: "Findings are reported to the board or board committee, including adherence to internal policies and management's response to criticisms"
+    source: "Interagency Guidance on Credit Risk Review Systems, 85 FR 33278 (2020)"

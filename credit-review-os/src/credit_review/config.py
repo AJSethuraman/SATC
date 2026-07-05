@@ -101,6 +101,7 @@ class Program:
     classified: tuple[str, ...]
     sections: tuple[dict, ...]   # includes the synthesized evidence section
     evidence: tuple[dict, ...]
+    crosswalk: tuple[dict, ...]  # element -> interagency requirement + citation
     raw: dict = field(repr=False)
 
 
@@ -220,10 +221,18 @@ def load_program(path: str | Path) -> Program:
             elif kind not in ("subhead", "note", "spacer"):
                 raise ConfigError(f"{rwhere}: '{kind}' row needs an id")
 
+    crosswalk = tuple(data.get("crosswalk", ()))
+    for i, entry in enumerate(crosswalk):
+        cwhere = f"{where}.crosswalk[{i}]"
+        for key in ("element", "requirement", "source"):
+            if not entry.get(key):
+                raise ConfigError(f"{cwhere}: crosswalk entry needs a non-empty '{key}' "
+                                  f"— every program element must be cited")
+
     _reject_full_tins(data, where)
     return Program(lob=lob, review_mode=review_mode, title=title, buckets=buckets,
                    criticized=criticized, classified=classified,
-                   sections=sections, evidence=evidence, raw=data)
+                   sections=sections, evidence=evidence, crosswalk=crosswalk, raw=data)
 
 
 # ---------------------------------------------------------------------------
