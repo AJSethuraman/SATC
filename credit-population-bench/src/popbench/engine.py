@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from popbench import bands, cleaning, contract, delinquency, metrics, strata
+from popbench import bands, cleaning, cohorts as cohorts_mod, contract, delinquency, metrics, strata
 from popbench.mapping import Mapping
 from popbench.workbook import build_workbook, workbook_bytes
 
@@ -25,11 +25,13 @@ class AnalysisResult:
     delinquency: dict | None = None
     urccp: list[delinquency.ClassRow] | None = None
     stratifications: list[strata.Stratification] | None = None
+    cohorts: object | None = None   # cohorts_mod.CohortComparison
 
 
 def run_analysis(raw: pd.DataFrame, mapping: Mapping,
                  attributes: list[str] | None = None,
-                 status_map: dict[str, str] | None = None) -> AnalysisResult:
+                 status_map: dict[str, str] | None = None,
+                 cohort_specs: list | None = None) -> AnalysisResult:
     """Validate/clean the population, then compute the metrics its mapped fields
     support: weighted averages always; delinquency rates when a delinquency
     signal is mapped; URCCP classification when a structure field is mapped too.
@@ -63,7 +65,8 @@ def run_analysis(raw: pd.DataFrame, mapping: Mapping,
             urccp = delinquency.classify_urccp(clean)
 
     strats = _default_stratifications(clean, mapping)
-    return AnalysisResult(clean, records, pop, wa, delq, urccp, strats)
+    cohort_cmp = cohorts_mod.evaluate(clean, cohort_specs) if cohort_specs else None
+    return AnalysisResult(clean, records, pop, wa, delq, urccp, strats, cohort_cmp)
 
 
 def _default_stratifications(clean: pd.DataFrame,
@@ -88,9 +91,11 @@ def _default_attributes(mapping: Mapping) -> list[str]:
 
 def build(raw: pd.DataFrame, mapping: Mapping,
           attributes: list[str] | None = None,
-          status_map: dict[str, str] | None = None) -> bytes:
+          status_map: dict[str, str] | None = None,
+          cohort_specs: list | None = None) -> bytes:
     """Full run to deterministic workbook bytes."""
-    result = run_analysis(raw, mapping, attributes, status_map=status_map)
+    result = run_analysis(raw, mapping, attributes, status_map=status_map,
+                          cohort_specs=cohort_specs)
     wb = build_workbook(
         raw=result.clean,
         map_rows=mapping.as_rows(),
@@ -102,5 +107,6 @@ def build(raw: pd.DataFrame, mapping: Mapping,
         delinquency_result=result.delinquency,
         urccp_rows=result.urccp,
         stratifications=result.stratifications,
+        cohort_comparison=result.cohorts,
     )
     return workbook_bytes(wb)

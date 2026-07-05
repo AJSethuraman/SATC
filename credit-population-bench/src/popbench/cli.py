@@ -45,7 +45,7 @@ def main(argv: list[str] | None = None) -> int:
 
     pop = demo.demo_population_full()
     m = _demo_mapping(list(pop.columns))
-    data = build(pop, m)
+    data = build(pop, m, cohort_specs=demo.demo_cohorts())
     Path(args.out).write_bytes(data)
     print(f"wrote {args.out} ({len(data)} bytes)")
     return 0

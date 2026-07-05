@@ -91,6 +91,7 @@ def build_workbook(
     delinquency_result: dict | None = None,
     urccp_rows: list | None = None,
     stratifications: list | None = None,
+    cohort_comparison: object | None = None,
 ) -> Workbook:
     """Assemble the in-memory workbook from already-computed values.
 
@@ -219,6 +220,40 @@ def build_workbook(
         ws.cell(r, 1, "TOTAL").font = _LABEL_FONT
         ws.cell(r, 2).value = int(strat.total_count)
         ws.cell(r, 3).value = float(strat.total_balance); ws.cell(r, 3).number_format = FMT_USD
+
+    # Cohorts — independent reports + overlap matrix + residual (never summed).
+    if cohort_comparison is not None:
+        cc = cohort_comparison
+        ws = wb.create_sheet("Cohorts")
+        ws.cell(1, 1, "Derived cohorts — reported independently").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        ws.cell(2, 1, "Cohorts OVERLAP and leave gaps; never sum them as a "
+                      "partition. See the overlap matrix + residual below.").font = _DATA_FONT
+        r = _band(ws, 4, ["cohort", "count", "balance_$", "% of pop $"])
+        for rep in cc.reports:
+            ws.cell(r, 1, rep.label)
+            ws.cell(r, 2).value = int(rep.count)
+            ws.cell(r, 3).value = float(rep.balance); ws.cell(r, 3).number_format = FMT_USD
+            share = (rep.balance / cc.population_dollars) if cc.population_dollars else 0.0
+            ws.cell(r, 4).value = float(share); ws.cell(r, 4).number_format = "0.0%"
+            r += 1
+        # overlap matrix
+        r = _band(ws, r + 1, ["overlap (pairwise)", "count", "balance_$"])
+        ids = [rep.id for rep in cc.reports]
+        label_by = {rep.id: rep.label for rep in cc.reports}
+        for (a, b), n in cc.overlap_count.items():
+            ws.cell(r, 1, f"{label_by[a]}  x  {label_by[b]}")
+            ws.cell(r, 2).value = int(n)
+            ws.cell(r, 3).value = float(cc.overlap_dollars[(a, b)]); ws.cell(r, 3).number_format = FMT_USD
+            r += 1
+        # residual + population
+        ws.cell(r, 1, "In NO cohort (residual)").font = _LABEL_FONT
+        ws.cell(r, 2).value = int(cc.residual_count)
+        ws.cell(r, 3).value = float(cc.residual_dollars); ws.cell(r, 3).number_format = FMT_USD
+        r += 1
+        ws.cell(r, 1, "Population").font = _LABEL_FONT
+        ws.cell(r, 2).value = int(cc.population_count)
+        ws.cell(r, 3).value = float(cc.population_dollars); ws.cell(r, 3).number_format = FMT_USD
 
     # _config (knob panel — populated further by later slices)
     ws = wb.create_sheet("_config")

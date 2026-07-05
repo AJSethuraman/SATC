@@ -45,6 +45,20 @@ def demo_population_full() -> pd.DataFrame:
     })
 
 
+def demo_cohorts():
+    """Three illustrative derived cohorts over the full demo — deliberately
+    overlapping (L-102 is in both 'high-balance delinquent' and 'subprime auto')
+    so the overlap matrix + residual have something to show."""
+    from popbench.cohorts import Cohort, Rule
+    return [
+        Cohort("high_bal_delq", "High-balance delinquent (>=$20k, >=90 DPD)",
+               (Rule("current_balance", ">=", 20000), Rule("dpd_min", ">=", 90))),
+        Cohort("subprime_auto", "Subprime auto (FICO<660, auto)",
+               (Rule("fico_orig", "<", 660), Rule("product_type", "==", "auto"))),
+        Cohort("card", "Card product", (Rule("product_type", "==", "card"),)),
+    ]
+
+
 def dirty_population() -> pd.DataFrame:
     """A population the gate must refuse: a duplicate loan id and an unparseable
     balance."""
