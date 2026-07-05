@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from popbench import cleaning, metrics
+from popbench import cleaning, contract, delinquency, metrics
 from popbench.mapping import Mapping
 from popbench.workbook import build_workbook, workbook_bytes
 
@@ -22,33 +22,59 @@ class AnalysisResult:
     cleaning: list[cleaning.CleaningRecord]
     population: dict
     wa: list[metrics.WAResult]
+    delinquency: dict | None = None
+    urccp: list[delinquency.ClassRow] | None = None
 
 
 def run_analysis(raw: pd.DataFrame, mapping: Mapping,
-                 attributes: list[str] | None = None) -> AnalysisResult:
-    """Validate/clean the population, then compute headline metrics.
+                 attributes: list[str] | None = None,
+                 status_map: dict[str, str] | None = None) -> AnalysisResult:
+    """Validate/clean the population, then compute the metrics its mapped fields
+    support: weighted averages always; delinquency rates when a delinquency
+    signal is mapped; URCCP classification when a structure field is mapped too.
 
-    ``attributes`` are the WA attributes to report (default: every feature-gated
-    attribute the mapping actually carries). Raises
+    Feature-gated analyses that lack their fields are simply not produced (the
+    named-missing-field refusal is raised by the delinquency module when a
+    caller *requests* one explicitly). Raises
     :class:`~popbench.cleaning.CleaningError` if the population isn't clean.
     """
     attributes = attributes if attributes is not None else _default_attributes(mapping)
-    required = tuple(a for a in attributes if mapping.has(a))
-    clean, records = cleaning.validate_and_clean(raw, mapping, required_fields=())
+
+    delq_available = any(mapping.has(f) for f in contract.DELINQUENCY_FORMS)
+    required: set[str] = set()
+    if delq_available:
+        required.add(delinquency.delinquency_form(mapping))   # signal must be present
+    if mapping.has("structure"):
+        required.add("structure")
+
+    clean, records = cleaning.validate_and_clean(
+        raw, mapping, required_fields=tuple(sorted(required)))
     pop = metrics.population_totals(clean)
     wa = metrics.weighted_average_table(clean, list(attributes))
-    return AnalysisResult(clean, records, pop, wa)
+
+    delq = None
+    urccp = None
+    if delq_available:
+        clean, drecs = delinquency.normalize(clean, mapping, status_map=status_map)
+        records = records + drecs
+        delq = delinquency.delinquency_rates(clean)
+        if mapping.has("structure"):
+            urccp = delinquency.classify_urccp(clean)
+
+    return AnalysisResult(clean, records, pop, wa, delq, urccp)
 
 
 def _default_attributes(mapping: Mapping) -> list[str]:
-    # Slice 1: FICO is the demonstrated attribute; later slices widen this.
-    return [a for a in ("fico_orig",) if mapping.has(a)]
+    # Every mapped weighted-average attribute the contract knows about.
+    candidates = ("fico_orig", "ltv")
+    return [a for a in candidates if mapping.has(a)]
 
 
 def build(raw: pd.DataFrame, mapping: Mapping,
-          attributes: list[str] | None = None) -> bytes:
+          attributes: list[str] | None = None,
+          status_map: dict[str, str] | None = None) -> bytes:
     """Full run to deterministic workbook bytes."""
-    result = run_analysis(raw, mapping, attributes)
+    result = run_analysis(raw, mapping, attributes, status_map=status_map)
     wb = build_workbook(
         raw=result.clean,
         map_rows=mapping.as_rows(),
@@ -57,5 +83,7 @@ def build(raw: pd.DataFrame, mapping: Mapping,
         population=result.population,
         wa_rows=[(w.attribute, w.dollar_weighted, w.count_weighted,
                   w.n, w.coverage_dollars, w.note) for w in result.wa],
+        delinquency_result=result.delinquency,
+        urccp_rows=result.urccp,
     )
     return workbook_bytes(wb)

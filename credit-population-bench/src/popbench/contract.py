@@ -105,6 +105,47 @@ _FIELDS: tuple[CanonicalField, ...] = (
                  "fico", "credit_score", "score", "bureau_score", "fico_score"),
         help="Origination bureau score. Weighted by current UPB.",
     ),
+    CanonicalField(
+        id="ltv", label="Loan-to-value (or CLTV)", dtype=RATIO, role=FEATURE_GATED,
+        feature="wa_ltv", units=RATIO_UNITS,
+        aliases=("ltv", "cltv", "loan_to_value", "combined_ltv", "current_ltv"),
+        help="Secured consumer only. Also the URCCP residential ≥90-DPD qualifier.",
+    ),
+    # --- delinquency signal: exactly one of the three forms must be mapped for
+    #     any delinquency/URCCP analysis (feature "delinquency"). ---
+    CanonicalField(
+        id="dpd_days", label="Days past due (count)", dtype=NUM, role=FEATURE_GATED,
+        feature="delinquency",
+        aliases=("dpd", "dpd_days", "days_past_due", "days_delinquent",
+                 "days_pastdue", "delinquency_days", "past_due_days"),
+        help="Actual DPD day count. Bucketized to the canonical delinquency buckets.",
+    ),
+    CanonicalField(
+        id="dpd_bucket", label="Delinquency bucket (label)", dtype=TEXT, role=FEATURE_GATED,
+        feature="delinquency",
+        aliases=("dpd_bucket", "delinquency_bucket", "aging_bucket",
+                 "aging", "bucket", "delq_bucket"),
+        help="A pre-bucketed aging label (e.g. '30-59', '90-119', '180+').",
+    ),
+    CanonicalField(
+        id="dpd_status", label="Delinquency status (code)", dtype=TEXT, role=FEATURE_GATED,
+        feature="delinquency",
+        aliases=("dpd_status", "delinquency_status", "loan_status",
+                 "performance_status", "delq_status"),
+        help="A status code mapped to a canonical bucket via [DELQ_STATUS] config.",
+    ),
+    CanonicalField(
+        id="structure", label="Open/closed-end structure", dtype=TEXT, role=FEATURE_GATED,
+        feature="urccp",
+        aliases=("structure", "classification_type", "open_closed",
+                 "loan_structure", "end_type", "open_closed_end"),
+        help="closed_end | open_end | residential_secured — the URCCP branch.",
+    ),
+    CanonicalField(
+        id="product_type", label="Product type", dtype=TEXT, role=OPTIONAL_SLICE,
+        aliases=("product", "product_type", "loan_type", "portfolio", "product_code"),
+        help="card / auto / personal / HELOC / student ... a slice dimension.",
+    ),
 )
 
 _BY_ID = {f.id: f for f in _FIELDS}
@@ -134,3 +175,12 @@ def field_for_alias(header: str) -> str | None:
 
 def normalize_header(header: str) -> str:
     return _norm(header)
+
+
+# The three interchangeable delinquency-signal forms; exactly one is needed for
+# any delinquency/URCCP analysis.
+DELINQUENCY_FORMS = ("dpd_days", "dpd_bucket", "dpd_status")
+
+
+def fields_for_feature(feature: str) -> tuple[str, ...]:
+    return tuple(f.id for f in _FIELDS if f.feature == feature)

@@ -12,15 +12,21 @@ import argparse
 import sys
 from pathlib import Path
 
-from popbench import demo, mapping
+from popbench import contract, demo, mapping
 from popbench.engine import build
 
 
 def _demo_mapping(headers: list[str]) -> mapping.Mapping:
-    """Accept the auto-proposal for the demo (every column resolves confidently)."""
+    """Accept the auto-proposal for the demo (every column resolves confidently);
+    declare fraction units for the ambiguous-scale fields (the demo's LTV/CLTV
+    is stored as a fraction)."""
     proposals = mapping.propose(headers)
-    columns = [mapping.ColumnMap(p.header, p.field_id)
-               for p in proposals if p.field_id is not None]
+    columns = []
+    for p in proposals:
+        if p.field_id is None:
+            continue
+        unit = contract.UNIT_FRACTION if p.needs_unit else None
+        columns.append(mapping.ColumnMap(p.header, p.field_id, unit))
     return mapping.confirm(columns)
 
 
@@ -37,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
         ap.print_help()
         return 0
 
-    pop = demo.demo_population()
+    pop = demo.demo_population_full()
     m = _demo_mapping(list(pop.columns))
     data = build(pop, m)
     Path(args.out).write_bytes(data)

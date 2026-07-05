@@ -76,8 +76,14 @@ def build_workbook(
     population: dict,
     wa_rows: list[tuple],
     config_rows: list[tuple[str, str]] | None = None,
+    delinquency_result: dict | None = None,
+    urccp_rows: list | None = None,
 ) -> Workbook:
-    """Assemble the in-memory workbook from already-computed values."""
+    """Assemble the in-memory workbook from already-computed values.
+
+    ``delinquency_result`` / ``urccp_rows`` add the Delinquency and URCCP tabs
+    when the population carried the fields to compute them (else those tabs are
+    simply absent — feature-gated output)."""
     wb = Workbook()
     wb.properties.creator = "Consumer Credit Population Bench"
     wb.properties.created = _EPOCH
@@ -125,6 +131,49 @@ def build_workbook(
         ws.cell(r, 5).value = float(cov); ws.cell(r, 5).number_format = FMT_USD
         ws.cell(r, 6, note)
         r += 1
+
+    # Delinquency (both bases, always labeled) — only when computed.
+    if delinquency_result is not None:
+        ws = wb.create_sheet("Delinquency")
+        ws.cell(1, 1, "Delinquency rates — dollar AND count basis").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        ws.cell(2, 1, delinquency_result["basis_note"]).font = _DATA_FONT
+        r = _band(ws, 4, ["bucket", "count", "balance_$",
+                          "count_rate (n/N)", "dollar_rate ($/$)"])
+        def _rate_rows(rows):
+            nonlocal r
+            for row in rows:
+                ws.cell(r, 1, row.label)
+                ws.cell(r, 2).value = int(row.count)
+                ws.cell(r, 3).value = float(row.dollars); ws.cell(r, 3).number_format = FMT_USD
+                ws.cell(r, 4).value = float(row.count_rate); ws.cell(r, 4).number_format = "0.0%"
+                ws.cell(r, 5).value = float(row.dollar_rate); ws.cell(r, 5).number_format = "0.0%"
+                r += 1
+        _rate_rows(delinquency_result["per_bucket"])
+        r = _band(ws, r + 1, ["cumulative", "count", "balance_$",
+                              "count_rate", "dollar_rate"])
+        _rate_rows(delinquency_result["cumulative"])
+
+    # URCCP classification (shared floors) — only when computed.
+    if urccp_rows:
+        ws = wb.create_sheet("URCCP")
+        ws.cell(1, 1, "URCCP pool classification (65 FR 36903; shared floors)").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        r = _band(ws, 3, ["structure", "count", "balance_$",
+                          "Substandard_#", "Substandard_$",
+                          "Loss_#", "Loss_$", "note"])
+        for row in urccp_rows:
+            ws.cell(r, 1, row.structure)
+            ws.cell(r, 2).value = int(row.count)
+            ws.cell(r, 3).value = float(row.balance); ws.cell(r, 3).number_format = FMT_USD
+            ws.cell(r, 4).value = int(row.substandard_count)
+            ws.cell(r, 5).value = float(row.substandard_dollars); ws.cell(r, 5).number_format = FMT_USD
+            ws.cell(r, 6).value = None if row.loss_count is None else int(row.loss_count)
+            ws.cell(r, 7).value = None if row.loss_dollars is None else float(row.loss_dollars)
+            if row.loss_dollars is not None:
+                ws.cell(r, 7).number_format = FMT_USD
+            ws.cell(r, 8, row.note)
+            r += 1
 
     # _config (knob panel — populated further by later slices)
     ws = wb.create_sheet("_config")

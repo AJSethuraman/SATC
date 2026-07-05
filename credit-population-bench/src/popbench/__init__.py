@@ -20,3 +20,27 @@ Design invariants (see ``docs/prd-credit-population-bench.md``):
 from __future__ import annotations
 
 __version__ = "0.1.0"
+
+
+def _ensure_shared_core_on_path() -> None:
+    """Make the shared ``satc_credit_core`` importable at runtime from a dev
+    checkout (the emailable ASCII bundle vendors it, so this is a no-op there).
+
+    Guarded: only acts if the package isn't already importable, so it never
+    shadows an installed/vendored copy."""
+    try:
+        import satc_credit_core  # noqa: F401
+        return
+    except ModuleNotFoundError:
+        pass
+    import sys
+    from pathlib import Path
+
+    # src/popbench/__init__.py -> parents[3] is the repo root; the shared
+    # package's project dir sits beside this project there.
+    candidate = Path(__file__).resolve().parents[3] / "satc_credit_core"
+    if candidate.is_dir() and str(candidate) not in sys.path:
+        sys.path.insert(0, str(candidate))
+
+
+_ensure_shared_core_on_path()
