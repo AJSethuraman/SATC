@@ -10,8 +10,12 @@ requires-python = ">=3.10"
 dependencies = [
     "openpyxl>=3.1",
     "PyYAML>=6.0",
-    "formulas>=1.2",   # re-ingest evaluates the workbook deterministically
+    "formulas>=1.2",       # re-ingest evaluates the workbook deterministically
+    "cryptography>=41",    # AES-256-GCM encryption-at-rest for real engagements
 ]
+
+[project.scripts]
+credit-review = "credit_review.cli:main"
 
 [project.optional-dependencies]
 test = ["pytest>=7.4"]
