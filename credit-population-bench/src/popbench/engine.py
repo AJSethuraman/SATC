@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from popbench import cleaning, contract, delinquency, metrics
+from popbench import bands, cleaning, contract, delinquency, metrics, strata
 from popbench.mapping import Mapping
 from popbench.workbook import build_workbook, workbook_bytes
 
@@ -24,6 +24,7 @@ class AnalysisResult:
     wa: list[metrics.WAResult]
     delinquency: dict | None = None
     urccp: list[delinquency.ClassRow] | None = None
+    stratifications: list[strata.Stratification] | None = None
 
 
 def run_analysis(raw: pd.DataFrame, mapping: Mapping,
@@ -61,7 +62,22 @@ def run_analysis(raw: pd.DataFrame, mapping: Mapping,
         if mapping.has("structure"):
             urccp = delinquency.classify_urccp(clean)
 
-    return AnalysisResult(clean, records, pop, wa, delq, urccp)
+    strats = _default_stratifications(clean, mapping)
+    return AnalysisResult(clean, records, pop, wa, delq, urccp, strats)
+
+
+def _default_stratifications(clean: pd.DataFrame,
+                             mapping: Mapping) -> list[strata.Stratification]:
+    """A sensible default set for the demo/output: by product, and by the CFPB
+    FICO band when those fields are present. Real runs drive the dimension list
+    from ``_config``; the group-by API accepts any mapped field or band scheme."""
+    out: list[strata.Stratification] = []
+    if mapping.has("product_type"):
+        out.append(strata.group_by(clean, "product_type"))
+    if mapping.has("fico_orig"):
+        out.append(strata.group_by(clean, "fico_orig",
+                                   scheme=bands.get_preset("fico_orig", "cfpb")))
+    return out
 
 
 def _default_attributes(mapping: Mapping) -> list[str]:
@@ -85,5 +101,6 @@ def build(raw: pd.DataFrame, mapping: Mapping,
                   w.n, w.coverage_dollars, w.note) for w in result.wa],
         delinquency_result=result.delinquency,
         urccp_rows=result.urccp,
+        stratifications=result.stratifications,
     )
     return workbook_bytes(wb)

@@ -25,8 +25,11 @@ def test_build_is_byte_identical():
 def test_workbook_has_expected_tabs_and_reloads():
     _, _, data = _demo_bytes()
     wb = openpyxl.load_workbook(io.BytesIO(data))
+    # Minimal demo carries FICO -> a CFPB band stratification tab; no product,
+    # no delinquency -> no Strat_product_type / Delinquency / URCCP tabs.
     assert set(wb.sheetnames) == {
-        "Raw_Input", "_map", "_cleaning", "_config", "Population", "_readme"}
+        "Raw_Input", "_map", "_cleaning", "_config", "Population",
+        "Strat_cfpb", "_readme"}
 
 
 def test_population_tab_carries_computed_values():

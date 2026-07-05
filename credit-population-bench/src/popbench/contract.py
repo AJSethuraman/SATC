@@ -106,6 +106,26 @@ _FIELDS: tuple[CanonicalField, ...] = (
         help="Origination bureau score. Weighted by current UPB.",
     ),
     CanonicalField(
+        id="fico_refresh", label="FICO refreshed", dtype=NUM, role=FEATURE_GATED,
+        feature="wa_fico_refresh",
+        aliases=("fico_refresh", "refreshed_fico", "current_fico", "fico_current",
+                 "updated_score", "refresh_score"),
+        help="Refreshed bureau score; a distinct axis from origination FICO.",
+    ),
+    CanonicalField(
+        id="dti", label="Debt-to-income (back-end)", dtype=RATIO, role=FEATURE_GATED,
+        feature="wa_dti", units=RATIO_UNITS,
+        aliases=("dti", "back_end_dti", "dti_ratio", "debt_to_income",
+                 "backend_dti", "dti_back"),
+        help="Back-end DTI at origination. Weighted by current UPB.",
+    ),
+    CanonicalField(
+        id="rate", label="Note rate / APR", dtype=RATIO, role=FEATURE_GATED,
+        feature="wa_rate", units=RATIO_UNITS,
+        aliases=("rate", "note_rate", "apr", "interest_rate", "coupon", "int_rate"),
+        help="Note rate/coupon. Balance-weighted = WAC.",
+    ),
+    CanonicalField(
         id="ltv", label="Loan-to-value (or CLTV)", dtype=RATIO, role=FEATURE_GATED,
         feature="wa_ltv", units=RATIO_UNITS,
         aliases=("ltv", "cltv", "loan_to_value", "combined_ltv", "current_ltv"),

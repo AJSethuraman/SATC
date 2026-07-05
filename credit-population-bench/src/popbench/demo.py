@@ -30,15 +30,18 @@ def demo_population_full() -> pd.DataFrame:
     """A richer synthetic population spanning URCCP branches, with messy headers
     and a delinquency day count — exercises delinquency rates + classification.
     100% fabricated; loan numbers only, no person data."""
+    nan = float("nan")
     return pd.DataFrame({
         "Loan No": ["L-101", "L-102", "L-103", "L-104", "L-105"],
         "Curr Bal": [15000, 25000, 8000, 120000, 5000],
         "Orig FICO": [710, 640, 690, 705, 720],
+        "Back-end DTI": [0.30, 0.45, 0.38, 0.50, 0.20],
         "Days Past Due": [0, 100, 200, 95, 45],
         "Structure": ["closed_end", "closed_end", "open_end",
                       "residential_secured", "open_end"],
         "Product": ["auto", "auto", "card", "heloc", "card"],
-        "CLTV": [0.0, 0.0, 0.0, 0.82, 0.0],
+        # Unsecured products carry no LTV -> WA-LTV self-suppresses for them.
+        "CLTV": [nan, nan, nan, 0.82, nan],
     })
 
 

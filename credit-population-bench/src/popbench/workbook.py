@@ -46,6 +46,18 @@ FMT_USD = '#,##0'
 FMT_NUM = '#,##0.0'
 
 
+def _safe_tab(name: str, existing: list[str]) -> str:
+    """Excel tab names are <=31 chars and unique; truncate and de-dup."""
+    base = name[:31]
+    candidate = base
+    i = 2
+    while candidate in existing:
+        suffix = f"_{i}"
+        candidate = base[:31 - len(suffix)] + suffix
+        i += 1
+    return candidate
+
+
 def _band(ws: Worksheet, row: int, cols: list[str]) -> int:
     for c, text in enumerate(cols, start=1):
         cell = ws.cell(row, c, text)
@@ -78,6 +90,7 @@ def build_workbook(
     config_rows: list[tuple[str, str]] | None = None,
     delinquency_result: dict | None = None,
     urccp_rows: list | None = None,
+    stratifications: list | None = None,
 ) -> Workbook:
     """Assemble the in-memory workbook from already-computed values.
 
@@ -174,6 +187,38 @@ def build_workbook(
                 ws.cell(r, 7).number_format = FMT_USD
             ws.cell(r, 8, row.note)
             r += 1
+
+    # Stratification tabs (group-by partitions) — one per requested dimension.
+    for strat in (stratifications or []):
+        title = _safe_tab(f"Strat_{strat.dimension}", wb.sheetnames)
+        ws = wb.create_sheet(title)
+        ws.cell(1, 1, f"Group-by: {strat.dimension}").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        recon = "reconciles to population" if strat.reconciles else "DOES NOT reconcile"
+        ws.cell(2, 1, f"partition ({recon}); WA shown dollar-weighted "
+                      f"(count basis on Population)").font = _DATA_FONT
+        # collect attributes present across cells for stable columns
+        attrs: list[str] = []
+        for c in strat.cells:
+            for w in c.wa:
+                if w.attribute not in attrs:
+                    attrs.append(w.attribute)
+        header = ["cell", "count", "balance_$"] + [f"WA_{a}" for a in attrs]
+        r = _band(ws, 4, header)
+        for c in strat.cells:
+            ws.cell(r, 1, c.value)
+            ws.cell(r, 2).value = int(c.count)
+            ws.cell(r, 3).value = float(c.balance); ws.cell(r, 3).number_format = FMT_USD
+            wa_by = {w.attribute: w for w in c.wa}
+            for j, a in enumerate(attrs, start=4):
+                w = wa_by.get(a)
+                ws.cell(r, j).value = None if (w is None or w.dollar_weighted is None) \
+                    else float(w.dollar_weighted)
+            r += 1
+        # total row for the partition
+        ws.cell(r, 1, "TOTAL").font = _LABEL_FONT
+        ws.cell(r, 2).value = int(strat.total_count)
+        ws.cell(r, 3).value = float(strat.total_balance); ws.cell(r, 3).number_format = FMT_USD
 
     # _config (knob panel — populated further by later slices)
     ws = wb.create_sheet("_config")
