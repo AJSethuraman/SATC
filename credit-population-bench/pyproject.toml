@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "credit-population-bench"
+version = "0.1.0"
+description = "Consumer credit population analysis bench - loan-level stratification, weighted metrics, URCCP classification, and judgmental-sampling support (deterministic pandas engine behind an .xlsm surface)"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0",
+    "openpyxl>=3.1",
+]
+
+[project.scripts]
+popbench = "popbench.cli:main"
+
+[project.optional-dependencies]
+test = ["pytest>=7.4"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "../satc_credit_core"]
+testpaths = ["tests"]

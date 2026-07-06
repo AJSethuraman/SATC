@@ -1,0 +1,486 @@
+"""Deterministic workbook assembly — the output surface.
+
+Excel is where the reviewer loads the file and reads the results; the math
+already happened in pandas. This module lays computed *values* into tabs and
+serializes them **byte-identically** for the same inputs (fixed document
+properties + a zip repack that pins every member timestamp — the same trick
+``credit-review-os`` uses so a rebuild diffs clean).
+
+Slice 1 tabs: ``Raw_Input`` (the loaded population), ``_map`` (the confirmed
+column mapping + units), ``_cleaning`` (the audit trail), ``_config`` (the knob
+panel), ``Population`` (headline metrics), ``_readme``. Later slices add the
+stratification, cohort, vintage, sampling, and packaging tabs; the ``.xlsm``
+macro + ``_code_py`` runner land with the packaging slice.
+"""
+
+from __future__ import annotations
+
+import io
+import re
+import zipfile
+from datetime import datetime
+
+import pandas as pd
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.worksheet.worksheet import Worksheet
+
+# House-style-adjacent minimal palette (warm neutrals; red = stress later).
+_INK = "16130F"
+_BAND = "0A0908"
+_CANVAS = "F4F1EC"
+_PAPER = "FFFFFF"
+
+_HDR_FONT = Font(name="Arial", bold=True, size=11, color=_PAPER)
+_HDR_FILL = PatternFill("solid", fgColor=_BAND)
+_LABEL_FONT = Font(name="Arial", bold=True, size=10, color=_INK)
+_DATA_FONT = Font(name="Calibri", size=11, color=_INK)
+_KPI_FILL = PatternFill("solid", fgColor=_CANVAS)
+_LEFT = Alignment(horizontal="left", vertical="center")
+_RIGHT = Alignment(horizontal="right", vertical="center")
+
+# Fixed epoch — the build must never depend on the wall clock.
+_EPOCH = datetime(2026, 1, 1)
+
+FMT_USD = '#,##0'
+FMT_NUM = '#,##0.0'
+
+
+def _safe_tab(name: str, existing: list[str]) -> str:
+    """Excel tab names are <=31 chars and unique; truncate and de-dup."""
+    base = name[:31]
+    candidate = base
+    i = 2
+    while candidate in existing:
+        suffix = f"_{i}"
+        candidate = base[:31 - len(suffix)] + suffix
+        i += 1
+    return candidate
+
+
+def _band(ws: Worksheet, row: int, cols: list[str]) -> int:
+    for c, text in enumerate(cols, start=1):
+        cell = ws.cell(row, c, text)
+        cell.font = _HDR_FONT
+        cell.fill = _HDR_FILL
+        cell.alignment = _LEFT
+    return row + 1
+
+
+def _write_frame(ws: Worksheet, df: pd.DataFrame, start_row: int = 1) -> int:
+    row = _band(ws, start_row, list(df.columns))
+    for _, rec in df.iterrows():
+        for c, col in enumerate(df.columns, start=1):
+            val = rec[col]
+            if pd.isna(val):
+                val = None
+            elif hasattr(val, "item"):
+                val = val.item()
+            ws.cell(row, c).value = val
+        row += 1
+    return row
+
+
+def build_workbook(
+    raw: pd.DataFrame,
+    map_rows: list[tuple[str, str, str]],
+    cleaning_rows: list[tuple[str, str, int, str]],
+    population: dict,
+    wa_rows: list[tuple],
+    config_rows: list[tuple[str, str]] | None = None,
+    delinquency_result: dict | None = None,
+    urccp_rows: list | None = None,
+    stratifications: list | None = None,
+    cohort_comparison: object | None = None,
+    charge_off: object | None = None,
+    vintage_rows: list | None = None,
+    triangle: object | None = None,
+    roll: object | None = None,
+    sampling_doc: object | None = None,
+    selection_rows: list | None = None,
+    cohort_rows: list | None = None,
+) -> Workbook:
+    """Assemble the in-memory workbook from already-computed values.
+
+    ``delinquency_result`` / ``urccp_rows`` add the Delinquency and URCCP tabs
+    when the population carried the fields to compute them (else those tabs are
+    simply absent — feature-gated output)."""
+    wb = Workbook()
+    wb.properties.creator = "Consumer Credit Population Bench"
+    wb.properties.created = _EPOCH
+    wb.properties.modified = _EPOCH
+
+    # Raw_Input
+    ws = wb.active
+    ws.title = "Raw_Input"
+    _write_frame(ws, raw)
+
+    # _map
+    ws = wb.create_sheet("_map")
+    ws.cell(1, 1, "Confirmed column mapping (canonical <- header; units)").font = _LABEL_FONT
+    r = _band(ws, 3, ["canonical_field", "source_header", "unit"])
+    for fid, header, unit in map_rows:
+        ws.cell(r, 1, fid); ws.cell(r, 2, header); ws.cell(r, 3, unit)
+        r += 1
+
+    # _cleaning
+    ws = wb.create_sheet("_cleaning")
+    ws.cell(1, 1, "Cleaning audit — every automatic normalization applied").font = _LABEL_FONT
+    r = _band(ws, 3, ["rule", "column", "rows_affected", "detail"])
+    for rule, col, n, detail in cleaning_rows:
+        ws.cell(r, 1, rule); ws.cell(r, 2, col)
+        ws.cell(r, 3).value = int(n); ws.cell(r, 4, detail)
+        r += 1
+
+    # Population
+    ws = wb.create_sheet("Population")
+    ws.cell(1, 1, "Population summary").font = Font(name="Arial", bold=True, size=14, color=_INK)
+    ws.cell(3, 1, "Loan count").font = _LABEL_FONT
+    ws.cell(3, 2).value = int(population["count"])
+    ws.cell(4, 1, "Total balance (UPB)").font = _LABEL_FONT
+    ws.cell(4, 2).value = float(population["total_balance"])
+    ws.cell(4, 2).number_format = FMT_USD
+    for cc in (ws.cell(3, 1), ws.cell(4, 1), ws.cell(3, 2), ws.cell(4, 2)):
+        cc.fill = _KPI_FILL
+    r = _band(ws, 6, ["attribute", "dollar_weighted", "count_weighted",
+                      "n", "coverage_$", "note"])
+    for attr, dollar, count, n, cov, note in wa_rows:
+        ws.cell(r, 1, attr)
+        ws.cell(r, 2).value = None if dollar is None else float(dollar)
+        ws.cell(r, 3).value = None if count is None else float(count)
+        ws.cell(r, 4).value = int(n)
+        ws.cell(r, 5).value = float(cov); ws.cell(r, 5).number_format = FMT_USD
+        ws.cell(r, 6, note)
+        r += 1
+
+    # Delinquency (both bases, always labeled) — only when computed.
+    if delinquency_result is not None:
+        ws = wb.create_sheet("Delinquency")
+        ws.cell(1, 1, "Delinquency rates — dollar AND count basis").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        ws.cell(2, 1, delinquency_result["basis_note"]).font = _DATA_FONT
+        r = _band(ws, 4, ["bucket", "count", "balance_$",
+                          "count_rate (n/N)", "dollar_rate ($/$)"])
+        def _rate_rows(rows):
+            nonlocal r
+            for row in rows:
+                ws.cell(r, 1, row.label)
+                ws.cell(r, 2).value = int(row.count)
+                ws.cell(r, 3).value = float(row.dollars); ws.cell(r, 3).number_format = FMT_USD
+                ws.cell(r, 4).value = float(row.count_rate); ws.cell(r, 4).number_format = "0.0%"
+                ws.cell(r, 5).value = float(row.dollar_rate); ws.cell(r, 5).number_format = "0.0%"
+                r += 1
+        _rate_rows(delinquency_result["per_bucket"])
+        r = _band(ws, r + 1, ["cumulative", "count", "balance_$",
+                              "count_rate", "dollar_rate"])
+        _rate_rows(delinquency_result["cumulative"])
+
+    # URCCP classification (shared floors) — only when computed.
+    if urccp_rows:
+        ws = wb.create_sheet("URCCP")
+        ws.cell(1, 1, "URCCP pool classification (65 FR 36903; shared floors)").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        r = _band(ws, 3, ["structure", "count", "balance_$",
+                          "Substandard_#", "Substandard_$",
+                          "Loss_#", "Loss_$", "note"])
+        for row in urccp_rows:
+            ws.cell(r, 1, row.structure)
+            ws.cell(r, 2).value = int(row.count)
+            ws.cell(r, 3).value = float(row.balance); ws.cell(r, 3).number_format = FMT_USD
+            ws.cell(r, 4).value = int(row.substandard_count)
+            ws.cell(r, 5).value = float(row.substandard_dollars); ws.cell(r, 5).number_format = FMT_USD
+            ws.cell(r, 6).value = None if row.loss_count is None else int(row.loss_count)
+            ws.cell(r, 7).value = None if row.loss_dollars is None else float(row.loss_dollars)
+            if row.loss_dollars is not None:
+                ws.cell(r, 7).number_format = FMT_USD
+            ws.cell(r, 8, row.note)
+            r += 1
+
+    # Stratification tabs (group-by partitions) — one per requested dimension.
+    for strat in (stratifications or []):
+        title = _safe_tab(f"Strat_{strat.dimension}", wb.sheetnames)
+        ws = wb.create_sheet(title)
+        ws.cell(1, 1, f"Group-by: {strat.dimension}").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        recon = "reconciles to population" if strat.reconciles else "DOES NOT reconcile"
+        ws.cell(2, 1, f"partition ({recon}); WA shown dollar-weighted "
+                      f"(count basis on Population)").font = _DATA_FONT
+        # collect attributes present across cells for stable columns
+        attrs: list[str] = []
+        for c in strat.cells:
+            for w in c.wa:
+                if w.attribute not in attrs:
+                    attrs.append(w.attribute)
+        header = ["cell", "count", "balance_$"] + [f"WA_{a}" for a in attrs]
+        r = _band(ws, 4, header)
+        for c in strat.cells:
+            ws.cell(r, 1, c.value)
+            ws.cell(r, 2).value = int(c.count)
+            ws.cell(r, 3).value = float(c.balance); ws.cell(r, 3).number_format = FMT_USD
+            wa_by = {w.attribute: w for w in c.wa}
+            for j, a in enumerate(attrs, start=4):
+                w = wa_by.get(a)
+                ws.cell(r, j).value = None if (w is None or w.dollar_weighted is None) \
+                    else float(w.dollar_weighted)
+            r += 1
+        # total row for the partition
+        ws.cell(r, 1, "TOTAL").font = _LABEL_FONT
+        ws.cell(r, 2).value = int(strat.total_count)
+        ws.cell(r, 3).value = float(strat.total_balance); ws.cell(r, 3).number_format = FMT_USD
+
+    # Cohorts — independent reports + overlap matrix + residual (never summed).
+    if cohort_comparison is not None:
+        cc = cohort_comparison
+        ws = wb.create_sheet("Cohorts")
+        ws.cell(1, 1, "Derived cohorts — reported independently").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        ws.cell(2, 1, "Cohorts OVERLAP and leave gaps; never sum them as a "
+                      "partition. See the overlap matrix + residual below.").font = _DATA_FONT
+        r = _band(ws, 4, ["cohort", "count", "balance_$", "% of pop $"])
+        for rep in cc.reports:
+            ws.cell(r, 1, rep.label)
+            ws.cell(r, 2).value = int(rep.count)
+            ws.cell(r, 3).value = float(rep.balance); ws.cell(r, 3).number_format = FMT_USD
+            share = (rep.balance / cc.population_dollars) if cc.population_dollars else 0.0
+            ws.cell(r, 4).value = float(share); ws.cell(r, 4).number_format = "0.0%"
+            r += 1
+        # overlap matrix
+        r = _band(ws, r + 1, ["overlap (pairwise)", "count", "balance_$"])
+        ids = [rep.id for rep in cc.reports]
+        label_by = {rep.id: rep.label for rep in cc.reports}
+        for (a, b), n in cc.overlap_count.items():
+            ws.cell(r, 1, f"{label_by[a]}  x  {label_by[b]}")
+            ws.cell(r, 2).value = int(n)
+            ws.cell(r, 3).value = float(cc.overlap_dollars[(a, b)]); ws.cell(r, 3).number_format = FMT_USD
+            r += 1
+        # residual + population
+        ws.cell(r, 1, "In NO cohort (residual)").font = _LABEL_FONT
+        ws.cell(r, 2).value = int(cc.residual_count)
+        ws.cell(r, 3).value = float(cc.residual_dollars); ws.cell(r, 3).number_format = FMT_USD
+        r += 1
+        ws.cell(r, 1, "Population").font = _LABEL_FONT
+        ws.cell(r, 2).value = int(cc.population_count)
+        ws.cell(r, 3).value = float(cc.population_dollars); ws.cell(r, 3).number_format = FMT_USD
+
+    # Vintage — summary + gross charge-off + loss triangle.
+    if vintage_rows is not None or charge_off is not None:
+        ws = wb.create_sheet("Vintage")
+        ws.cell(1, 1, "Vintage analysis (single file) — GROSS loss, no recoveries").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        r = 3
+        if charge_off is not None:
+            ws.cell(r, 1, "Gross charge-off rate").font = _LABEL_FONT
+            ws.cell(r, 2, "count basis"); ws.cell(r, 3).value = float(charge_off.count_rate)
+            ws.cell(r, 3).number_format = "0.0%"
+            ws.cell(r, 4, "dollar basis"); ws.cell(r, 5).value = float(charge_off.dollar_rate)
+            ws.cell(r, 5).number_format = "0.0%"
+            r += 2
+        if vintage_rows:
+            r = _band(ws, r, ["vintage", "orig_#", "orig_$", "current_$",
+                              "CO_#", "CO_$", "cum_gross_loss", "ever90_$_rate"])
+            for row in vintage_rows:
+                ws.cell(r, 1, row.vintage)
+                ws.cell(r, 2).value = int(row.orig_count)
+                ws.cell(r, 3).value = float(row.orig_balance); ws.cell(r, 3).number_format = FMT_USD
+                ws.cell(r, 4).value = float(row.current_balance); ws.cell(r, 4).number_format = FMT_USD
+                ws.cell(r, 5).value = int(row.co_count)
+                ws.cell(r, 6).value = float(row.co_balance); ws.cell(r, 6).number_format = FMT_USD
+                ws.cell(r, 7).value = float(row.cum_gross_loss_rate); ws.cell(r, 7).number_format = "0.0%"
+                ws.cell(r, 8).value = float(row.ever90_balance_rate); ws.cell(r, 8).number_format = "0.0%"
+                r += 1
+        if triangle is not None:
+            r = _band(ws, r + 1, ["loss triangle: vintage \\ MOB"]
+                      + [f"MOB {m}" for m in triangle.mob_bounds])
+            for v in sorted(triangle.rows):
+                ws.cell(r, 1, v)
+                for j, m in enumerate(triangle.mob_bounds, start=2):
+                    ws.cell(r, j).value = float(triangle.rows[v][m])
+                    ws.cell(r, j).number_format = "0.0%"
+                r += 1
+
+    # Roll / transition matrix (only when a prior-bucket column was mapped).
+    if roll is not None:
+        ws = wb.create_sheet("Roll")
+        ws.cell(1, 1, "Single-period roll matrix (prior -> current)").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        ws.cell(2, 1, roll.basis_note).font = _DATA_FONT
+        from popbench.rolls import bucket_label
+        # count basis then dollar basis, stacked.
+        r = 4
+        for basis, mat in (("count basis", roll.count), ("dollar basis", roll.dollar)):
+            ws.cell(r, 1, basis).font = _LABEL_FONT
+            r += 1
+            r = _band(ws, r, ["prior \\ current"] + [bucket_label(c) for c in roll.current_buckets])
+            for p in roll.prior_buckets:
+                ws.cell(r, 1, bucket_label(p))
+                for j, c in enumerate(roll.current_buckets, start=2):
+                    ws.cell(r, j).value = float(mat[p][c])
+                    ws.cell(r, j).number_format = "0.0%"
+                r += 1
+            r += 1
+
+    # Sample coverage + OCC documentation (reviewer marks selection).
+    if sampling_doc is not None:
+        d = sampling_doc
+        ws = wb.create_sheet("Sample")
+        ws.cell(1, 1, "Judgmental sample — coverage per segment ($ and count)").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        ws.cell(2, 1, "The reviewer marks selection by loan number; coverage below.").font = _DATA_FONT
+        r = _band(ws, 4, ["segment", "flagged", "seg_#", "seg_$",
+                          "selected_#", "selected_$", "count_cov", "dollar_cov"])
+        for c in d.coverage:
+            ws.cell(r, 1, c.value)
+            ws.cell(r, 2, "HIGH-RISK" if c.flagged else "")
+            ws.cell(r, 3).value = int(c.seg_count)
+            ws.cell(r, 4).value = float(c.seg_balance); ws.cell(r, 4).number_format = FMT_USD
+            ws.cell(r, 5).value = int(c.sel_count)
+            ws.cell(r, 6).value = float(c.sel_balance); ws.cell(r, 6).number_format = FMT_USD
+            ws.cell(r, 7).value = float(c.count_coverage); ws.cell(r, 7).number_format = "0.0%"
+            ws.cell(r, 8).value = float(c.dollar_coverage); ws.cell(r, 8).number_format = "0.0%"
+            r += 1
+        ws.cell(r, 1, "Selected loan numbers").font = _LABEL_FONT
+        ws.cell(r, 2, ", ".join(d.selected_loan_ids))
+
+        # OCC_Doc — the required documentation, non-extrapolable label fixed.
+        ws = wb.create_sheet("OCC_Doc")
+        occ = [
+            ("OCC Sampling Documentation", ""),
+            ("", ""),
+            ("Population", f"{d.population_count} loans / ${d.population_dollars:,.0f}"),
+            ("Areas of focus", "; ".join(d.areas_of_focus) or "(none flagged)"),
+            ("Sample size", f"{d.sample_count} loans / ${d.sample_dollars:,.0f}"),
+            ("Coverage (count basis)", f"{d.overall_count_coverage:.1%}"),
+            ("Coverage (dollar basis)", f"{d.overall_dollar_coverage:.1%}"),
+            ("Selection rationale", d.selection_rationale),
+            ("Results", d.results),
+            ("", ""),
+            ("*** " + d.non_extrapolable, ""),
+        ]
+        for i, (k, v) in enumerate(occ, start=1):
+            kc = ws.cell(i, 1, k)
+            kc.font = _LABEL_FONT if k and not k.startswith("***") else _DATA_FONT
+            if k.startswith("***"):
+                kc.font = Font(name="Arial", bold=True, size=11, color="B00020")
+            ws.cell(i, 2, v).font = _DATA_FONT
+
+    # Selection — the reviewer's judgmental pick (editable; the button reads it
+    # back). This is what makes judgmental sampling operable in the workbook.
+    if selection_rows is not None:
+        ws = wb.create_sheet("Selection")
+        ws.cell(1, 1, "Judgmental sample selection").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        ws.cell(2, 1, "Set SELECT = Y for each loan to include, then re-run the button. "
+                      "High-risk (>=90 DPD) loans are pre-suggested; adjust freely.").font = _DATA_FONT
+        r = _band(ws, 4, ["loan_id", "SELECT (Y/N)", "segment", "DPD bucket",
+                          "balance", "flag"])
+        input_font = Font(name="Calibri", bold=True, size=11, color="B00020")
+        for lid, sel, seg, bucket, bal, flag in selection_rows:
+            ws.cell(r, 1, lid)
+            c = ws.cell(r, 2, sel); c.font = input_font; c.fill = _KPI_FILL
+            ws.cell(r, 3, seg); ws.cell(r, 4, bucket)
+            ws.cell(r, 5).value = float(bal); ws.cell(r, 5).number_format = FMT_USD
+            ws.cell(r, 6, flag)
+            r += 1
+
+    # _cohorts — editable cohort rules (same group = OR; distinct groups = AND).
+    if cohort_rows is not None:
+        ws = wb.create_sheet("_cohorts")
+        ws.cell(1, 1, "Derived cohorts — one row per rule").font = _LABEL_FONT
+        ws.cell(2, 1, "Same 'group' value = OR together; blank or distinct group = "
+                      "AND. Ops: < <= > >= == != in between is_null not_null").font = _DATA_FONT
+        r = _band(ws, 4, ["cohort_id", "label", "group", "field", "op", "value"])
+        for cid, label, group, field, op, value in cohort_rows:
+            ws.cell(r, 1, cid); ws.cell(r, 2, label); ws.cell(r, 3, group)
+            ws.cell(r, 4, field); ws.cell(r, 5, op)
+            ws.cell(r, 6).value = value if not isinstance(value, float) else float(value)
+            r += 1
+
+    # _config (knob panel — populated further by later slices)
+    ws = wb.create_sheet("_config")
+    r = _band(ws, 1, ["[SETTINGS]", "", ""])
+    for key, val in (config_rows or [("weight_field", "current_balance")]):
+        ws.cell(r, 1, key); ws.cell(r, 2, val)
+        r += 1
+
+    # _code_py — the embedded runner (pure ASCII, one line per cell) so a
+    # control_center-style launcher can discover + extract the tool (§10).
+    ws = wb.create_sheet("_code_py")
+    for i, line in enumerate(_CODE_PY_RUNNER.splitlines(), start=1):
+        ws.cell(i, 1, line).font = Font(name="Consolas", size=9, color=_INK)
+
+    # _readme
+    ws = wb.create_sheet("_readme")
+    for i, line in enumerate(_README_LINES, start=1):
+        ws.cell(i, 1, line).font = _DATA_FONT
+    return wb
+
+
+# The embedded runner: rebuilds the demo workbook from the vendored sources.
+# Pure ASCII (TEMPLATE_CONTRACT.md L3).
+_CODE_PY_RUNNER = (
+    "import sys\n"
+    "sys.path.insert(0, 'satc_credit_core')\n"
+    "sys.path.insert(0, 'src')\n"
+    "from popbench.cli import build_demo_bytes\n"
+    "with open('population_bench_demo.xlsx', 'wb') as fh:\n"
+    "    fh.write(build_demo_bytes())\n"
+    "print('rebuilt population_bench_demo.xlsx')\n"
+)
+
+
+_README_LINES = (
+    "Consumer Credit Population Analysis Bench",
+    "",
+    "WHAT: load a loan-level consumer-loan flat file on Raw_Input; confirm the",
+    "column mapping on _map; one button validates/cleans (audit on _cleaning) and",
+    "writes population metrics, stratifications, cohorts, vintage, roll, and the",
+    "judgmental-sampling documentation. Math is pandas behind the button; Excel is",
+    "the load + output (values) surface.",
+    "",
+    "JUDGMENTAL SAMPLING: on the Selection tab, set SELECT = Y for each loan to",
+    "include (high-risk >=90 DPD loans are pre-suggested), then re-run the button.",
+    "The engine reads your selection back and recomputes Sample coverage + the OCC",
+    "documentation from exactly the loans you marked. Cohort rules live on the",
+    "editable _cohorts tab (same 'group' = OR; distinct groups = AND).",
+    "",
+    "METHODOLOGY & CITATIONS:",
+    "- URCCP pool classification (Substandard >=90 DPD; Loss >=120 closed-end /",
+    "  >=180 open-end; residential >=90 DPD & LTV>60% qualifier): 65 FR 36903",
+    "  (June 12, 2000); OCC Bulletin 2000-20; FDIC FIL-40-2000. Thresholds are",
+    "  imported from the shared satc_credit_core -- one implementation, never",
+    "  forked; bank policy may only TIGHTEN the floor, never loosen it.",
+    "- Every delinquency/loss rate ships on BOTH a dollar and a count basis and is",
+    "  labeled; weighted averages are balance-weighted by current UPB by default.",
+    "- Charge-off is GROSS only (no recovery data in the file) -- labeled as such;",
+    "  no net NCO is produced.",
+    "- Band edges (FICO/DTI/LTV) are configuration, never hard-coded: CFPB six-tier",
+    "  + 36/43 DTI defaults, an FR Y-14Q preset, and fully custom edges.",
+    "- Derived cohorts overlap and leave gaps: they are reported independently with",
+    "  a pairwise overlap matrix and an 'in no cohort' residual -- never summed.",
+    "- Judgmental samples are NON-EXTRAPOLABLE (OCC Bulletin 2020-56): results",
+    "  cannot be projected to the population.",
+    "",
+    "PII BOUNDARY: this runtime workbook may hold real borrower data and is for use",
+    "only on bank equipment/VPN; it never leaves the machine. The shipped tool,",
+    "repository, ASCII bundle, and demo fixtures carry zero real PII (synthetic).",
+)
+
+
+def workbook_bytes(wb: Workbook) -> bytes:
+    """Serialize deterministically: identical content -> identical bytes."""
+    raw = io.BytesIO()
+    wb.save(raw)
+    fixed = (b'<dcterms:modified xsi:type="dcterms:W3CDTF">'
+             + _EPOCH.strftime("%Y-%m-%dT%H:%M:%SZ").encode() + b"</dcterms:modified>")
+    out = io.BytesIO()
+    with zipfile.ZipFile(raw) as src, \
+            zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for name in src.namelist():
+            data = src.read(name)
+            if name == "docProps/core.xml":
+                data = re.sub(rb"<dcterms:modified[^>]*>[^<]*</dcterms:modified>",
+                              fixed, data)
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            dst.writestr(info, data)
+    return out.getvalue()
