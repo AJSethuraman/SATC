@@ -97,6 +97,8 @@ def build_workbook(
     triangle: object | None = None,
     roll: object | None = None,
     sampling_doc: object | None = None,
+    selection_rows: list | None = None,
+    cohort_rows: list | None = None,
 ) -> Workbook:
     """Assemble the in-memory workbook from already-computed values.
 
@@ -361,6 +363,38 @@ def build_workbook(
                 kc.font = Font(name="Arial", bold=True, size=11, color="B00020")
             ws.cell(i, 2, v).font = _DATA_FONT
 
+    # Selection — the reviewer's judgmental pick (editable; the button reads it
+    # back). This is what makes judgmental sampling operable in the workbook.
+    if selection_rows is not None:
+        ws = wb.create_sheet("Selection")
+        ws.cell(1, 1, "Judgmental sample selection").font = \
+            Font(name="Arial", bold=True, size=14, color=_INK)
+        ws.cell(2, 1, "Set SELECT = Y for each loan to include, then re-run the button. "
+                      "High-risk (>=90 DPD) loans are pre-suggested; adjust freely.").font = _DATA_FONT
+        r = _band(ws, 4, ["loan_id", "SELECT (Y/N)", "segment", "DPD bucket",
+                          "balance", "flag"])
+        input_font = Font(name="Calibri", bold=True, size=11, color="B00020")
+        for lid, sel, seg, bucket, bal, flag in selection_rows:
+            ws.cell(r, 1, lid)
+            c = ws.cell(r, 2, sel); c.font = input_font; c.fill = _KPI_FILL
+            ws.cell(r, 3, seg); ws.cell(r, 4, bucket)
+            ws.cell(r, 5).value = float(bal); ws.cell(r, 5).number_format = FMT_USD
+            ws.cell(r, 6, flag)
+            r += 1
+
+    # _cohorts — editable cohort rules (same group = OR; distinct groups = AND).
+    if cohort_rows is not None:
+        ws = wb.create_sheet("_cohorts")
+        ws.cell(1, 1, "Derived cohorts — one row per rule").font = _LABEL_FONT
+        ws.cell(2, 1, "Same 'group' value = OR together; blank or distinct group = "
+                      "AND. Ops: < <= > >= == != in between is_null not_null").font = _DATA_FONT
+        r = _band(ws, 4, ["cohort_id", "label", "group", "field", "op", "value"])
+        for cid, label, group, field, op, value in cohort_rows:
+            ws.cell(r, 1, cid); ws.cell(r, 2, label); ws.cell(r, 3, group)
+            ws.cell(r, 4, field); ws.cell(r, 5, op)
+            ws.cell(r, 6).value = value if not isinstance(value, float) else float(value)
+            r += 1
+
     # _config (knob panel — populated further by later slices)
     ws = wb.create_sheet("_config")
     r = _band(ws, 1, ["[SETTINGS]", "", ""])
@@ -402,6 +436,12 @@ _README_LINES = (
     "writes population metrics, stratifications, cohorts, vintage, roll, and the",
     "judgmental-sampling documentation. Math is pandas behind the button; Excel is",
     "the load + output (values) surface.",
+    "",
+    "JUDGMENTAL SAMPLING: on the Selection tab, set SELECT = Y for each loan to",
+    "include (high-risk >=90 DPD loans are pre-suggested), then re-run the button.",
+    "The engine reads your selection back and recomputes Sample coverage + the OCC",
+    "documentation from exactly the loans you marked. Cohort rules live on the",
+    "editable _cohorts tab (same 'group' = OR; distinct groups = AND).",
     "",
     "METHODOLOGY & CITATIONS:",
     "- URCCP pool classification (Substandard >=90 DPD; Loss >=120 closed-end /",

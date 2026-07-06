@@ -125,13 +125,34 @@ def build(raw: pd.DataFrame, mapping: Mapping,
           cohort_specs: list | None = None,
           sample_selection=None,
           sample_dimension: str = "product_type") -> bytes:
-    """Full run to deterministic workbook bytes."""
+    """Full run to deterministic workbook bytes.
+
+    ``sample_selection`` is the reviewer's judgmental pick. When None, the
+    workbook seeds the Selection tab with the tool's high-risk flags (>=90 DPD)
+    as a starting suggestion the reviewer adjusts in Excel; the button reads that
+    column back (see :func:`popbench.roundtrip.run_workbook`)."""
     result = run_analysis(raw, mapping, attributes, status_map=status_map,
                           cohort_specs=cohort_specs,
                           sample_selection=sample_selection,
                           sample_dimension=sample_dimension)
+
+    # Seed a default judgmental selection (high-risk) if the reviewer hasn't
+    # marked one yet, so the shipped workbook is operable, not empty.
+    selection = set(sample_selection) if sample_selection is not None else set()
+    sampling_doc = result.sampling_doc
+    can_sample = "dpd_min" in result.clean.columns and sample_dimension in result.clean.columns
+    if sampling_doc is None and can_sample:
+        selection = set(result.clean.loc[result.clean["dpd_min"] >= 90, "loan_id"])
+        sampling_doc = sampling.build_doc(result.clean, selection, sample_dimension)
+
+    # Only emit the editable tabs when they apply: Selection when a sample can be
+    # computed, _cohorts when cohorts are defined.
+    selection_rows = (_selection_rows(result.clean, selection, sample_dimension)
+                      if sampling_doc is not None else None)
+    cohort_rows = _cohort_rows(cohort_specs) if cohort_specs else None
+
     wb = build_workbook(
-        raw=result.clean,
+        raw=raw,                         # Raw_Input = the file as loaded (round-trips)
         map_rows=mapping.as_rows(),
         cleaning_rows=[(r.rule, r.column, r.rows_affected, r.detail)
                        for r in result.cleaning],
@@ -146,6 +167,37 @@ def build(raw: pd.DataFrame, mapping: Mapping,
         vintage_rows=result.vintage_rows,
         triangle=result.triangle,
         roll=result.roll,
-        sampling_doc=result.sampling_doc,
+        sampling_doc=sampling_doc,
+        selection_rows=selection_rows,
+        cohort_rows=cohort_rows,
     )
     return workbook_bytes(wb)
+
+
+def _selection_rows(clean: pd.DataFrame, selection: set, dimension: str):
+    """One editable row per loan for the Selection tab: loan_id + SELECT (Y/N,
+    seeded) + guide columns (segment, DPD bucket, balance, risk flag)."""
+    has_dpd = "dpd_min" in clean.columns
+    rows = []
+    for _, row in clean.iterrows():
+        lid = row["loan_id"]
+        seg = row[dimension] if dimension in clean.columns else ""
+        bucket = row["dpd_bucket_canon"] if "dpd_bucket_canon" in clean.columns else None
+        rows.append((
+            lid, "Y" if lid in selection else "",
+            "" if (seg is None or seg != seg) else str(seg),
+            delinquency.BUCKET_LABEL.get(bucket, "") if bucket else "",
+            float(row["current_balance"]),
+            "HIGH-RISK" if (has_dpd and row["dpd_min"] >= 90) else ""))
+    return rows
+
+
+def _cohort_rows(cohort_specs):
+    """Flatten cohorts to editable ``_cohorts`` rows (id, label, group, field,
+    op, value) so the definitions travel in the workbook and round-trip."""
+    rows = []
+    for c in (cohort_specs or []):
+        for rule in c.rules:
+            rows.append((c.id, c.label, "" if rule.group is None else str(rule.group),
+                         rule.field, rule.op, "" if rule.value is None else rule.value))
+    return rows

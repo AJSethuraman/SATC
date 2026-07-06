@@ -165,3 +165,11 @@ class Mapping:
         """(canonical_id, header, unit-or-'') rows for the ``_map`` tab."""
         return [(fid, cm.header, cm.unit or "")
                 for fid, cm in self._by_field.items()]
+
+
+def from_rows(rows) -> "Mapping":
+    """Reconstruct a confirmed Mapping from persisted ``_map`` rows
+    ``(canonical_id, source_header, unit)`` — the workbook round-trip."""
+    cols = [ColumnMap(header, fid, (unit or None))
+            for fid, header, unit in rows if fid and header]
+    return confirm(cols)

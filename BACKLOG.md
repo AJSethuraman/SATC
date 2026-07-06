@@ -172,12 +172,22 @@ drawn sample); this computes loan-level and helps DRAW the sample.
       renders a committee-grade HTML examination workpaper (KeyBank palette) from
       an AnalysisResult — `popbench.cli --report`; every figure real, both bases,
       PII-guarded on shipped output. 8 new tests (bench 65).
-- [ ] **[LOG] IDEA — interactive "Sampling Room" (bench Review-Room analog):**
-      a localhost app (or richer HTML) where the reviewer groups/compares
-      subgroups and CLICKS loans into the sample with live coverage + OCC doc
-      (prototyped 2026-07-05 as a client-side HTML over real engine output). v1
-      selection is an Excel column; this would productize the pick surface.
-      Gate its own grill/design pass. Roadmap, not scoped.
+- [x] **v1.2 — judgmental sampling operable IN the workbook (2026-07-05):** the
+      selection was a Python param (not reviewer-operable) — a hole against the P0
+      requirement. Fixed with an Excel round-trip: build writes an editable
+      **Selection** tab (SELECT=Y per loan, seeded from >=90 DPD high-risk) + an
+      editable **_cohorts** tab; `roundtrip.run_workbook()` reads Raw_Input +
+      persisted `_map` + the marked Selection + cohort rules and recomputes so
+      coverage + the OCC doc reflect exactly what the reviewer marked
+      (`popbench.cli --workbook`). 3 round-trip tests (bench 68).
+- [x] **[LOG] DECISION — no web UI picker; Excel is the deliverable
+      (2026-07-05, owner):** the reviewer receives the workbook at handoff and is
+      already fluent in Excel, so the pick surface is the Selection tab (above),
+      not a web app. The HTML "Sampling Room" prototype + report stay as
+      illustration only. **Next direction:** bring the HTML dashboard's *quality*
+      INTO Excel — a styled `Dashboard` tab (KeyBank header band, KPI tiles,
+      conditional-format heat on the FICO gradient + vintage triangle) so the
+      deliverable itself looks like the report, not raw value dumps.
 - [ ] **[LOG] IDEA — richer band presets & geography rollups:** Y-14Q preset is
       selectable but a state->region crosswalk + concentration heatmap, and
       utilization bands for cards, would deepen stratification. Config work.

@@ -61,7 +61,16 @@ def main(argv: list[str] | None = None) -> int:
                     help="output workbook path")
     ap.add_argument("--report", metavar="HTML",
                     help="also write an HTML examination workpaper to this path")
+    ap.add_argument("--workbook", metavar="PATH",
+                    help="re-run from an existing workbook, reading the Selection "
+                         "tab (the reviewer's judgmental pick) back and recomputing")
     args = ap.parse_args(argv)
+
+    if args.workbook:
+        from popbench.roundtrip import run_workbook
+        run_workbook(args.workbook)
+        print(f"re-ran {args.workbook} from its Selection tab")
+        return 0
 
     if not args.demo and not args.report:
         ap.print_help()
