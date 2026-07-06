@@ -68,6 +68,29 @@ def _attrs_present(df: pd.DataFrame) -> list[str]:
     return [a for a in WA_ATTRIBUTES if a in df.columns]
 
 
+def fico_risk_gradient(df: pd.DataFrame, weight: str = "current_balance") -> list[dict]:
+    """Per CFPB FICO band: count, balance, share, WA DTI, and 90+ dollar rate —
+    the risk gradient panel (shared by the HTML report and the Excel dashboard).
+    Empty if FICO or delinquency isn't present."""
+    if "fico_orig" not in df.columns or "dpd_min" not in df.columns:
+        return []
+    sch = bands.get_preset("fico_orig", "cfpb")
+    work = df.copy()
+    work["__fb__"] = sch.assign(work["fico_orig"]).astype("object")
+    pop_b = float(work[weight].astype("float64").sum())
+    out = []
+    for lab in sch.labels:
+        g = work[work["__fb__"] == lab]
+        if not len(g):
+            continue
+        b = float(g[weight].astype("float64").sum())
+        r90 = (float(g.loc[g["dpd_min"] >= 90, weight].astype("float64").sum()) / b) if b else 0.0
+        wdti = metrics.weighted_average(g, "dti").dollar_weighted if "dti" in g.columns else None
+        out.append({"band": lab, "n": int(len(g)), "balance": b,
+                    "share": (b / pop_b if pop_b else 0.0), "wa_dti": wdti, "rate90": r90})
+    return out
+
+
 def group_by(df: pd.DataFrame, dimension: str,
              scheme: bands.BandScheme | None = None,
              weight: str = "current_balance",

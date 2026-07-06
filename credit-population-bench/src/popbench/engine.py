@@ -171,6 +171,9 @@ def build(raw: pd.DataFrame, mapping: Mapping,
         selection_rows=selection_rows,
         cohort_rows=cohort_rows,
     )
+    # Styled front-page dashboard (KeyBank house style) as the first tab.
+    from popbench import dashboard
+    dashboard.build_dashboard(wb.create_sheet("Dashboard", 0), result, sampling_doc)
     return workbook_bytes(wb)
 
 

@@ -28,8 +28,9 @@ def test_workbook_has_expected_tabs_and_reloads():
     # Minimal demo carries FICO -> a CFPB band stratification tab; no product,
     # no delinquency -> no Strat_product_type / Delinquency / URCCP tabs.
     assert set(wb.sheetnames) == {
-        "Raw_Input", "_map", "_cleaning", "_config", "Population",
+        "Dashboard", "Raw_Input", "_map", "_cleaning", "_config", "Population",
         "Strat_cfpb", "_code_py", "_readme"}
+    assert wb.sheetnames[0] == "Dashboard"   # styled front page
 
 
 def test_population_tab_carries_computed_values():

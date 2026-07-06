@@ -184,10 +184,13 @@ drawn sample); this computes loan-level and helps DRAW the sample.
       (2026-07-05, owner):** the reviewer receives the workbook at handoff and is
       already fluent in Excel, so the pick surface is the Selection tab (above),
       not a web app. The HTML "Sampling Room" prototype + report stay as
-      illustration only. **Next direction:** bring the HTML dashboard's *quality*
-      INTO Excel — a styled `Dashboard` tab (KeyBank header band, KPI tiles,
-      conditional-format heat on the FICO gradient + vintage triangle) so the
-      deliverable itself looks like the report, not raw value dumps.
+      illustration only. **SHIPPED (v1.3):** the workbook now opens on a styled
+      `Dashboard` front tab (KeyBank INK header band + KEY_RED accent, CANVAS KPI
+      tiles, delinquency both-bases, FICO risk gradient + vintage loss triangle
+      with conditional-format color-scale heat, URCCP, sample coverage + OCC +
+      non-extrapolable banner). The deliverable itself looks like the report.
+      (Could not eyeball-render in-env — LibreOffice headless convert is broken
+      here; verified structurally + needs a desk open in real Excel.)
 - [ ] **[LOG] IDEA — richer band presets & geography rollups:** Y-14Q preset is
       selectable but a state->region crosswalk + concentration heatmap, and
       utilization bands for cards, would deepen stratification. Config work.
