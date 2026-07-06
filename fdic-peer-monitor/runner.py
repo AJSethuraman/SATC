@@ -881,20 +881,20 @@ class FdicDemoProvider(Provider):
         # The stress tiers trip the new bands (spec sec 3: 1-2 demo banks);
         # healthy ranges sit under the ALERT bands (a few WATCHes by design).
         # Class rates: {class: (PD30-89, PD90+, nonaccrual, NCOq annualized)}
-        if tier == 0:
-            rate = {"crcd": (3.8, 2.9, 0.8, 4.8), "auto": (4.4, 1.2, 1.7, 2.3),
-                    "conoth": (3.6, 2.2, 1.9, 3.9), "reres": (4.2, 2.1, 2.4, 0.9),
-                    "reloc": (3.1, 1.6, 2.2, 0.0), "recons": (3.4, 1.7, 3.3, 1.7),
-                    "renres": (2.2, 1.1, 2.5, 1.2), "remult": (2.0, 0.9, 2.2, 1.1),
-                    "ci": (1.9, 0.9, 2.1, 1.3)}
-            unins, unrlz, fhlb = 69.0, 56.0, 22.0
-        elif tier == 1:
-            rate = {"crcd": (2.6, 1.7, 0.4, 3.1), "auto": (2.9, 0.6, 0.9, 1.2),
-                    "conoth": (2.2, 1.2, 1.1, 2.2), "reres": (2.4, 1.1, 1.3, 0.3),
-                    "reloc": (1.8, 0.9, 1.2, 0.0), "recons": (1.8, 0.8, 1.7, 0.7),
-                    "renres": (1.2, 0.6, 1.3, 0.6), "remult": (1.1, 0.55, 1.2, 0.55),
-                    "ci": (1.1, 0.5, 1.2, 0.7)}
-            unins, unrlz, fhlb = 55.0, 33.0, 12.0
+        if tier == 0:      # deep-stress: trips ALERT across headline + classes
+            rate = {"crcd": (6.0, 4.5, 2.5, 9.5), "auto": (7.0, 2.5, 3.5, 5.0),
+                    "conoth": (6.0, 3.5, 4.5, 5.0), "reres": (5.0, 3.5, 3.5, 2.0),
+                    "reloc": (5.0, 3.5, 3.5, 0.0), "recons": (5.0, 3.5, 8.0, 3.5),
+                    "renres": (5.0, 3.5, 8.0, 3.5), "remult": (5.0, 3.5, 6.0, 3.5),
+                    "ci": (3.5, 2.5, 3.5, 3.5)}
+            unins, unrlz, fhlb = 80.0, 60.0, 25.0
+        elif tier == 1:    # moderate-stress: mostly WATCH under calibrated bands
+            rate = {"crcd": (2.6, 1.7, 0.4, 6.5), "auto": (4.5, 1.2, 1.8, 2.8),
+                    "conoth": (3.2, 1.7, 2.7, 2.4), "reres": (2.4, 1.6, 1.7, 0.9),
+                    "reloc": (2.2, 1.6, 1.7, 0.0), "recons": (2.4, 1.6, 4.5, 1.7),
+                    "renres": (2.2, 1.6, 4.5, 1.7), "remult": (2.1, 1.6, 3.5, 1.6),
+                    "ci": (1.6, 1.1, 1.7, 1.7)}
+            unins, unrlz, fhlb = 65.0, 30.0, 12.0
         else:
             rate = {
                 "crcd": (0.9 + (s % 7) * 0.13, 0.7 + (s % 5) * 0.11,

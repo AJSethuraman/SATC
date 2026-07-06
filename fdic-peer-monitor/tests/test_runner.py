@@ -127,8 +127,12 @@ def test_config_parse():
     R.validate_metrics(cfg.series)                     # registry agreement
     # thresholds: every metric banded, directions sane
     assert set(cfg.thresholds) == set(R.METRICS)
-    assert cfg.thresholds["TEXAS"].watch == pytest.approx(50.0)
-    assert cfg.thresholds["TEXAS"].alert == pytest.approx(100.0)
+    # bands load from the seed (values are calibrated data, not hardcoded here,
+    # so a recalibration never breaks this test) -- just check they round-trip
+    seed_thr = {t[0]: t for t in SEED.THRESHOLDS}
+    assert cfg.thresholds["TEXAS"].watch == pytest.approx(seed_thr["TEXAS"][1])
+    assert cfg.thresholds["TEXAS"].alert == pytest.approx(seed_thr["TEXAS"][2])
+    assert cfg.thresholds["TEXAS"].watch < cfg.thresholds["TEXAS"].alert  # above-dir
     assert cfg.thresholds["RBC1AAJ"].direction == "below"
     assert cfg.thresholds["LNRESNCR"].direction == "below"
     # [PEERS]: 40 provisioned slots, 12 seeded banks, certs normalized
@@ -834,7 +838,7 @@ def test_svb_derived_metrics():
     assert R.metric_value("UNRLZCAPR", f6548) > 50.0
     assert R.metric_value("FHLBASSR", f6548) > 20.0
     f6384 = prov._profile("6384")[-1][1]
-    assert 40.0 < R.metric_value("UNINSDEPR", f6384) < 60.0   # WATCH band
+    assert 60.0 < R.metric_value("UNINSDEPR", f6384) < 75.0   # calibrated WATCH band
     # Excel parity: the UNRLZCAPR formula computes BOTH legs identically
     fx = BW.metric_formula("UNRLZCAPR", 3, 16)
     ha, hf = BW._fref(3, "SCHA", 16), BW._fref(3, "SCHF", 16)

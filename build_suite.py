@@ -14,7 +14,7 @@ own subfolder (demo-populated workbook + fallback + runner). Then:
 import base64, gzip, os, subprocess, sys
 
 CC_B64 = (
-    "H4sIAK7eS2oC/908bXPbNpPf9StwzHVMXiT6JWmvVaL2HFtpPHFsj62kl3E8HIqEJD6mSJWgLOt8vt9+uwuABF+kOE/T+3CeTiOJwGKx77tY8Nm/7C5FtjuO"
+    "H4sIAP8iTGoC/908bXPbNpPf9StwzHVMXiT6JWmvVaL2HFtpPHFsj62kl3E8HIqEJD6mSJWgLOt8vt9+uwuABF+kOE/T+3CeTiOJwGKx77tY8Nm/7C5FtjuO"
     "kl2e3LHFOp+lyYuOZVlHGQ+jvHcZiVs24vNF7OecHaVJnqUxO+JJzjPW67E04QyeBZzlKROcMz8JWbZMGL/jGUCLkqnb6QzxC8s1mFWa3Y7T9JYFfpZFXLAo"
     "FyxdJSz0c7+38PMZgkhghSgRUcjxOY8nzM5nvOMFaci9BYDzx4gB/MaEP+dsvM4BFH6Nkt7wPuAxG97nmR/kbLzM8zRhqyzCIekyd1w2mkWik6ewmzASQQoY"
     "4uRUlOiJLhOzdEUwo4zF0R2slOMG/Jz5bBr7Cezbjn2RI77djh/zLMdZOXxKuBBOl+gRZjBVwMc1SycIbQ7IMi6RAwoR0nrVHcHO/zjr8PmYhyEPFSVcdpYS"
@@ -104,7 +104,7 @@ CC_B64 = (
 
 BUNDLES = {}
 BUILD_BUREAU_MONITOR_PY = (
-    "H4sIAK3eS2oC/6y8yY7sSpIluH9fcTtqkwlGBmmcWY1acJ6N84gCApyM82Ccya9vvhfXM7vRjapN28bhdFKFKipy5BxRNf9v/we4LTOY1gNYDPuv6VqrcUD+"
+    "H4sIAP8iTGoC/6y8yY7sSpIluH9fcTtqkwlGBmmcWY1acJ6N84gCApyM82Ccya9vvhfXM7vRjapN28bhdFKFKipy5BxRNf9v/we4LTOY1gNYDPuv6VqrcUD+"
     "+Nvf/mYMxX986q74lW51lxfzr884/1qr4hc7DsvWPxfYucjr9T/seml/6eNQr88N/5Zuc5Fsvz5Fkf/7P/74w+ySevhFO6ws//q3P5/Oxrz4Ndd5sfyqh+X5"
     "+StZfqXJUuDov//91zL+qtdfyzbv9f7ckY3zNM7JWvxR9EndgZxmPk+tSbb+45e9DX/eOw5/vdSazGWx/uqTrKqHZ8wh//OPjCdrnPPXDcc4t+k4tn90Y5Z0"
     "3fXrP/7j1zCuz93lr2f2yXz9qpdfxf7Ma52TYenrdS3yZwaeQ4v8r38zx6OYnaroun//73/8ej7/ctWv/+h/TfX051zWZ9hf02P5mdA4FcN0nd3//c6//PjP"
@@ -547,7 +547,7 @@ BUILD_BUREAU_MONITOR_PY = (
 BUNDLES['build_bureau_monitor.py'] = ('bureau-credit-risk-dashboard', BUILD_BUREAU_MONITOR_PY)
 
 BUILD_CFPB_MONITOR_PY = (
-    "H4sIAK3eS2oC/6y7R7PzSrYlNr+/4lP15L1AvYIlTCt6AA8QhPeQFBXw3gOE+fXCvfWdJynU6p6IE8YhwVyZO/deey0kzn/5X8B9XcCkHsB8+P6arq0aB/SP"
+    "H4sIAP8iTGoC/6y7R7PzSrYlNr+/4lP15L1AvYIlTCt6AA8QhPeQFBXw3gOE+fXCvfWdJynU6p6IE8YhwVyZO/deey0kzn/5X8B9XcCkHsB8+P6arq0aB/SP"
     "v/3tb/qQ/0dRd/mvZK+7LF9+FePya6vyX+y4D9v1Sx2XrYzL/BeXd/Uw7/mQ/vnhUG/Pdf/GCgbz7//44w+ji+vhF22zsvzr3/78dTpm+a+lzvL1Vz2sz/uv"
     "eP2VxGuOY//+91/r+Kvefq378q2/zxXpuEzjEm/5H3kf1x3IfYznV1ucbv/4Ze3Dn9eOw1+T2uKlzLdffZxW9fCMOWR/fsm48oez/7rgGJc2Gcf2j25M4667"
     "fv3Hf/waxu25uvz1rD5erl/1+iv/PgvdlnhY+3rb8uxZgWvTIv/r34zxyBe7yrvu3//rH7+e179C9es/+l9TPf25lu0Z9tf0ID8LGqd8mK6z+79f+Vcc/5kW"
@@ -1191,7 +1191,7 @@ BUILD_CFPB_MONITOR_PY = (
 BUNDLES['build_cfpb_monitor.py'] = ('cfpb-mortgage-monitor', BUILD_CFPB_MONITOR_PY)
 
 BUILD_EDGAR_TRACKER_PY = (
-    "H4sIAK3eS2oC/6S82Y70TJIdeP8/RU7pphusajK4BEkJuuC+BncySI4GBW7Bfd8p6N3F768vqjWYkW46gETG4uHmbm527Bx3z/xP/xe4zhMYlx2YddvPcC5F"
+    "H4sIAP8iTGoC/6S82Y70TJIdeP8/RU7pphusajK4BEkJuuC+BncySI4GBW7Bfd8p6N3F768vqjWYkW46gETG4uHmbm527Bx3z/xP/xe4zhMYlx2YddvPcC5F"
     "3yF//OUvf9G77G+fssl+4rVs0mz6+fTTz1JkPxwrUNYPM5VLmZRXloJME81z+Smz9MeZoqTOpn/74w+jicruh7IZSfr5l19fS/o0+5nKNJt/ym6+f/9E808c"
     "zdkT/de//sz9T7n8zOu0ldvdIumnoZ+iJfsja6OyAVnVuL+1RMnybz/W2v1q23d/jmaJpjxbftooKcru7rNLf31Iu5LK2n822Pupjvu+/qPpk6hpzp+//e2n"
     "65e7df5zTzuazp9y/sm2e4bLFHVzWy5Llt4zcG1K4H7+xej3bLKLrGn+9T//8XM//uGjn7+1P0M5/JrLcnf7M9yW7wn1Q9YN59H8ry3/dODfszSPpr8vvx00"
@@ -1957,7 +1957,7 @@ BUILD_EDGAR_TRACKER_PY = (
 BUNDLES['build_edgar_tracker.py'] = ('edgar-crit-class-tracker', BUILD_EDGAR_TRACKER_PY)
 
 BUILD_FDIC_MONITOR_PY = (
-    "H4sIAK7eS2oC/6T7WbOsTJItCL5/v+J0XJGWTCEymafbUg+A44CDM89VJSHM8zzz64sTeXbc6u5b1Q/Ni8v2bdgyU1VTXcvM/L/9P8BtmcG46sGs33+N11oO"
+    "H4sIAP8iTGoC/6T7WbOsTJItCL5/v+J0XJGWTCEymafbUg+A44CDM89VJSHM8zzz64sTeXbc6u5b1Q/Ni8v2bdgyU1VTXcvM/L/9P8BtmcG46sGs33+N11oO"
     "PfrX3/72N63P/iOv2uxXvFVtms2/8mH+tZbZLzbqm1/csPVrNo/RvF6//p+/9Oxp8B36an0a/dv7JXH//p9//aW3UdX/YixOkn792+9XkyHNfs1Vmi2/qn55"
     "Pn9Fy684WjIC+/e//1qGX9X6a9nmvdqfFskwj8McrdlfWRdVLfhS9OetNUrW//xlbv3vtkP/zxGt0Vxk668uSsqqf/rs09//ZB1JeVn/bHAMcxMPQ/NXOyRR"
     "216//uM/fvXD+rQufj1Tj+brV7X8yvZnEusc9UtXrWuWPjNwLEbgf/2bPhzZbJVZ2/77f//r1/P8l51+/Uf3a6zG33NZn25/jQ/yM6FhzPrxOtv/c8t/GvEf"
@@ -2814,7 +2814,7 @@ BUILD_FDIC_MONITOR_PY = (
 BUNDLES['build_fdic_monitor.py'] = ('fdic-peer-monitor', BUILD_FDIC_MONITOR_PY)
 
 BUILD_DASHBOARD_PY = (
-    "H4sIAK7eS2oC/4S7R7OsStYlOH+/4nbW5PuMzIRABFBmNUBrrbEyS0MFWgQafn3zXt6T3T2pPoNr95wgWL59r+17LXf4H/8XuC0zmNYDWAz7r+laq3FA/vjb"
+    "H4sIAP8iTGoC/4S7R7OsStYlOH+/4nbW5PuMzIRABFBmNUBrrbEyS0MFWgQafn3zXt6T3T2pPoNr95wgWL59r+17LXf4H/8XuC0zmNYDWAz7r+laq3FA/vjb"
     "3/5mDMU/PnVX/Eq3usuL+ddnnH+tVfGLtzn2FzMXeb3+w66X9hebLFU6JnP+67+U4qKTof21rFdX/Pc///gjqK7nS/XyqzjrZV3+56+iT+quHsq/bvXPs1vO"
     "Xw94Ml+/2mJaf5XFuv756Vwcc72uxQCm3Zi1Rf4rvf7Ixnka52Qtfi1Ftj2fX//85f558yWb6+fLz/+mLqmHX5TDSNKv//oTIhvz4s8P0mQp3uiveljqvPjv"
     "v/9axj/q9deyzXu9F8u/hwWyqvlcsSbZ+s9f9jb8eq4Yh79GuibzM7RffZJV9VD8Sob8zw9pT1JZ588L/jjGuU3Hsf31DDfpuuvXP/7xaxif0J9gfge4js9o"
@@ -3177,7 +3177,7 @@ BUILD_DASHBOARD_PY = (
 BUNDLES['build_dashboard.py'] = ('fred-credit-risk-dashboard', BUILD_DASHBOARD_PY)
 
 BUILD_MACRO_MONITOR_PY = (
-    "H4sIAK7eS2oC/6y7x7LrSpYlOH9fcTuqB5mGyIAkRLXVAFprQQBWZmHQWhCCEF/feC/vieq2LquaNCfnkHT4ct++xVruzv/yf4D7uoBpM4LF+P01X1s9jegf"
+    "H4sIAP8iTGoC/6y7x7LrSpYlOH9fcTuqB5mGyIAkRLXVAFprQQBWZmHQWhCCEF/feC/vieq2LquaNCfnkHT4ct++xVruzv/yf4D7uoBpM4LF+P01X1s9jegf"
     "f/vb38yx+I+y6Ytf6d70ebH8Kqfl11YXv/QkW6ZffLL013+8k2VsxuqXPo3N9nz/b4LDc//+jz/+sPqkGX/RLivLv/7tz6eyKS9+LU1erL+acX3+/krWX2my"
     "Fjj273//tU6/mu3Xui/f5vu0yKZlnpZkK/4ohqTpQU6znqe2JNv+8cvZxz/bTuNfg9mSpSq2X0OS1c349Dnmf37J+LLGuX81OKalS6ep+6OfsqTvr1//8R+/"
     "xmmr/xz1M+tkuX4166/i+0xwW5JxHZptK/JnBr5Li/yvf7Omo1jcuuj7f/+vf/x6Xv9pol//Mfyam/nPuWxPt7/mB/mZ0DQX43yd/f+z5V/2++fwp9X+Ofyn"
