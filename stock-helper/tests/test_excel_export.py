@@ -90,3 +90,32 @@ def test_valuation_to_csv_round_trips():
     csv_bytes = excel.valuation_to_csv(_valuation_result())
     back = pd.read_csv(BytesIO(csv_bytes))
     assert back.loc[0, "ticker"] == "AAA"
+
+
+# --- fair-value bar (theme) ---------------------------------------------------
+
+def test_fair_value_bar_none_safe():
+    from stock_helper.ui import theme
+
+    # No fair value -> a friendly placeholder figure, no crash.
+    fig = theme.fair_value_bar(None, 100.0)
+    assert fig is not None
+    # Fair value but no price -> band + fair line, no marker, no crash.
+    fig2 = theme.fair_value_bar(50.0, None, uncertainty="high")
+    assert fig2 is not None
+
+
+def test_uncertainty_from_dcf_tiers():
+    from stock_helper.ui import theme
+
+    class _D:
+        def __init__(self, tw):
+            self.terminal_weight = tw
+
+    assert theme.uncertainty_from_dcf(_D(0.4)) == "low"
+    assert theme.uncertainty_from_dcf(_D(0.6)) == "medium"
+    assert theme.uncertainty_from_dcf(_D(0.7)) == "high"
+    assert theme.uncertainty_from_dcf(_D(0.9)) == "very_high"
+    assert theme.uncertainty_from_dcf(None) == "high"  # unknown -> conservative
+    # Higher uncertainty demands a wider margin-of-safety band.
+    assert theme.UNCERTAINTY_DISCOUNT["very_high"] > theme.UNCERTAINTY_DISCOUNT["low"]

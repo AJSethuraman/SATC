@@ -555,10 +555,11 @@ elif page == "Company Valuation":
     with get_session(settings) as _s:
         val = compute_valuation(_s, company, selected, series, derived, market, settings, as_of)
 
-    # --- Row 1: hero (fair value · price · MoS gauge · flags) ---
+    # --- Row 1: hero (fair-value bar with price marker + MoS band · flags) ---
     dcf = val.dcf
     fv = val.fair_value_per_share
-    hero_left, hero_mid, hero_right = st.columns([2, 2, 3])
+    uncertainty = theme.uncertainty_from_dcf(dcf)
+    hero_left, hero_mid = st.columns(2)
     with hero_left:
         st.markdown(
             theme.metric_tile(
@@ -580,8 +581,25 @@ elif page == "Company Valuation":
                 theme.metric_tile("Current price", "n/a", "no price — intrinsic only"),
                 unsafe_allow_html=True,
             )
-    with hero_right:
-        st.plotly_chart(theme.mos_gauge(val.margin_of_safety), use_container_width=True)
+    # Fair-value bar is the hero visual (not a gauge — a gauge reads as a
+    # needle pointing at a recommendation). The margin-of-safety band widens
+    # with estimate uncertainty, so a shakier DCF must clear a bigger discount.
+    st.plotly_chart(
+        theme.fair_value_bar(fv, val.price, uncertainty=uncertainty),
+        use_container_width=True,
+    )
+    disc = int(theme.UNCERTAINTY_DISCOUNT.get(uncertainty, 0.30) * 100)
+    if val.margin_of_safety is not None:
+        st.caption(
+            f"Margin of safety **{pct(val.margin_of_safety)}** · this estimate is "
+            f"**{uncertainty.replace('_', ' ')}** uncertainty, so it should clear a "
+            f"~{disc}% discount before it reads as cheap. A research estimate, not a target."
+        )
+    else:
+        st.caption(
+            f"Intrinsic value only (no price). Estimate uncertainty: "
+            f"**{uncertainty.replace('_', ' ')}** (terminal-value weight drives this)."
+        )
     if val.flags:
         st.markdown(flag_badges(val.flags), unsafe_allow_html=True)
 

@@ -173,6 +173,111 @@ def mos_gauge(value: float | None, *, title: str = "Margin of safety") -> Any:
     return apply_plotly(fig)
 
 
+# Margin-of-safety discount required by uncertainty tier (Morningstar-style
+# ladder: the less confident the estimate, the bigger the discount it must
+# clear). Encoding confidence as band WIDTH is the honest, non-signal device.
+UNCERTAINTY_DISCOUNT = {"low": 0.20, "medium": 0.30, "high": 0.40, "very_high": 0.50}
+
+
+def uncertainty_from_dcf(dcf: Any) -> str:
+    """Rough estimate-uncertainty tier from a DcfResult: the more of the value
+    that sits in the terminal (perpetuity) tail, the less trustworthy the point
+    estimate, so the wider the margin-of-safety band should be."""
+    tw = getattr(dcf, "terminal_weight", None) if dcf is not None else None
+    if tw is None:
+        return "high"
+    if tw > 0.80:
+        return "very_high"
+    if tw > 0.65:
+        return "high"
+    if tw > 0.50:
+        return "medium"
+    return "low"
+
+
+def fair_value_bar(
+    fair_value: float | None,
+    price: float | None,
+    *,
+    uncertainty: str = "medium",
+    title: str = "Fair value vs price",
+) -> Any:
+    """Horizontal fair-value bar with the current price as a marker and a shaded
+    margin-of-safety band (SimplyWall.st-style, preferred over a gauge because a
+    gauge implies a needle pointing at a recommendation).
+
+    The band runs from ``fair_value * (1 - discount)`` up to ``fair_value``,
+    where ``discount`` grows with ``uncertainty`` — so a shakier estimate
+    visibly demands a bigger discount before it reads as "cheap". Cheap is a
+    ZONE, never a point, and never a buy signal.
+    """
+    import plotly.graph_objects as go
+
+    if fair_value is None or fair_value <= 0:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="Intrinsic fair value not computable", showarrow=False,
+            font={"color": NEUTRAL}, x=0.5, y=0.5, xref="paper", yref="paper",
+        )
+        fig.update_xaxes(visible=False)
+        fig.update_yaxes(visible=False)
+        fig.update_layout(height=140)
+        return apply_plotly(fig)
+
+    discount = UNCERTAINTY_DISCOUNT.get(uncertainty, 0.30)
+    band_lo = fair_value * (1.0 - discount)
+    hi = max(fair_value, price or 0.0) * 1.30
+
+    fig = go.Figure()
+    # Margin-of-safety band (the "buy zone" — deliberately a zone, not a line).
+    fig.add_shape(
+        type="rect", x0=band_lo, x1=fair_value, y0=0.0, y1=1.0,
+        fillcolor=POSITIVE_BG, line={"width": 0}, layer="below",
+    )
+    fig.add_annotation(
+        x=(band_lo + fair_value) / 2, y=1.18, yref="y", xref="x",
+        text=f"margin of safety ({int(discount * 100)}%)", showarrow=False,
+        font={"size": 11, "color": POSITIVE},
+    )
+    # Fair-value line.
+    fig.add_shape(
+        type="line", x0=fair_value, x1=fair_value, y0=-0.15, y1=1.15,
+        line={"color": POSITIVE, "width": 2, "dash": "solid"},
+    )
+    fig.add_annotation(
+        x=fair_value, y=-0.45, xref="x", yref="y",
+        text=f"fair ${fair_value:,.2f}", showarrow=False,
+        font={"size": 11, "color": POSITIVE},
+    )
+    # Baseline track for context.
+    fig.add_shape(
+        type="line", x0=0, x1=hi, y0=0.5, y1=0.5,
+        line={"color": GRID_COLOR, "width": 6},
+    )
+    # Current price marker.
+    if price is not None and price > 0:
+        gap = (fair_value - price) / fair_value
+        marker_color = POSITIVE if price <= fair_value else NEGATIVE
+        fig.add_trace(
+            go.Scatter(
+                x=[price], y=[0.5], mode="markers",
+                marker={"symbol": "diamond", "size": 18, "color": marker_color,
+                        "line": {"color": "white", "width": 2}},
+                hovertemplate="price $%{x:,.2f}<extra></extra>",
+            )
+        )
+        fig.add_annotation(
+            x=price, y=1.55, xref="x", yref="y",
+            text=f"price ${price:,.2f} ({gap:+.0%})", showarrow=False,
+            font={"size": 12, "color": marker_color},
+        )
+    fig.update_xaxes(range=[0, hi], tickprefix="$", showgrid=False, zeroline=False)
+    fig.update_yaxes(range=[-0.6, 1.8], visible=False)
+    fig.update_layout(height=170, showlegend=False, title=title,
+                      margin={"l": 8, "r": 8, "t": 40, "b": 28})
+    return apply_plotly(fig)
+
+
 # --- injected CSS -------------------------------------------------------------
 # Extends the original tokens (.sh-card / .sh-badge / .sh-ok / .sh-na / .sh-warn
 # / .sh-plan / .sh-caveat / .sh-source) with a hero card, valuation badges, a
