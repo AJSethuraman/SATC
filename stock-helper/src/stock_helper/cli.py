@@ -320,6 +320,103 @@ def signal_history_cmd(
 
 
 @app.command()
+def value(
+    ticker: str,
+    as_of: str = typer.Option(None, "--as-of", help="Point-in-time view date (YYYY-MM-DD)."),
+) -> None:
+    """Value TICKER on fundamentals: DCF fair value, reverse-DCF, multiples,
+    quality factors, and forensic/stress flags. Research aid — not advice."""
+    settings = _setup()
+    from stock_helper.core.format import money, multiple, pct, per_share
+    from stock_helper.features.context import build_market_context
+    from stock_helper.features.metrics import compute_derived_metrics
+    from stock_helper.storage.db import get_session, init_db
+    from stock_helper.storage.queries import CompanyNotFetchedError, find_company, load_series
+    from stock_helper.valuation.compose import compute_valuation
+
+    init_db(settings)
+    as_of_date = _parse_cli_date(as_of)
+    try:
+        with get_session(settings) as session:
+            company = find_company(session, ticker)
+            series = load_series(session, company, as_of=as_of_date)
+            derived = compute_derived_metrics(series)
+            market = None if as_of_date else build_market_context(ticker.upper(), series, settings)
+            val = compute_valuation(
+                session, company, ticker.upper(), series, derived, market, settings, as_of_date
+            )
+    except CompanyNotFetchedError as exc:
+        console.print(f"[red]✗[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    console.print(f"\n[bold]{company.name} ({ticker.upper()})[/bold] · "
+                  f"bucket [bold]{val.bucket}[/bold] · method {val.dcf.method if val.dcf else 'n/a'}")
+    if val.price is not None:
+        console.print(f"Price: {money(val.price)}/sh ({val.price_date}) — non-canonical")
+
+    dcf = val.dcf
+    vt = Table(title="Intrinsic value", show_header=False)
+    vt.add_column("k")
+    vt.add_column("v")
+    if dcf and dcf.status == "OK":
+        vt.add_row("Fair value / share", per_share(dcf.fair_value_per_share))
+        vt.add_row("Margin of safety", pct(dcf.margin_of_safety) if dcf.margin_of_safety is not None else "n/a (no price)")
+        vt.add_row("Base FCF", money(dcf.base_fcf))
+        vt.add_row("Assumed growth / discount",
+                   f"{pct(dcf.stage1_growth)} / {pct(dcf.discount_rate)}")
+        vt.add_row("Terminal value weight", pct(dcf.terminal_weight) if dcf.terminal_weight else "n/a")
+    elif dcf:
+        vt.add_row("DCF", f"{dcf.status}: {'; '.join(dcf.caveats) or dcf.method}")
+    if val.reverse and val.reverse.implied_growth is not None:
+        vt.add_row("Reverse-DCF: price implies growth of", pct(val.reverse.implied_growth))
+    console.print(vt)
+
+    if val.multiples:
+        mt = Table(title="Valuation multiples")
+        mt.add_column("Multiple")
+        mt.add_column("Value", justify="right")
+        mt.add_column("Peer implied upside", justify="right")
+        for key, m in val.multiples.items():
+            up = val.peer_relative.get(key)
+            up_txt = pct(up.upside_pct) if up and up.upside_pct is not None else "—"
+            is_yield = key.endswith("_yield")
+            mt.add_row(m.label, pct(m.value) if is_yield and m.value is not None
+                       else (multiple(m.value) if not is_yield else "n/m"), up_txt)
+        console.print(mt)
+
+    if val.quality:
+        qt = Table(title=f"Quality & distress ({val.quality.metric_set})")
+        qt.add_column("Factor")
+        qt.add_column("Value", justify="right")
+        qt.add_column("Note")
+        for _key, f in val.quality.factors.items():
+            if f.status != "OK":
+                continue
+            note = f.detail.get("zone", "") if getattr(f, "detail", None) else ""
+            qt.add_row(f.label, f"{f.value:.2f}" if f.value is not None else "n/a", note)
+        console.print(qt)
+
+    # Forensic / stress panel — the fraud/stress scanner
+    ft = Table(title="Forensic / stress flags (research screens — NOT accusations)")
+    ft.add_column("Signal")
+    ft.add_column("Reading")
+    if val.beneish and val.beneish.m_score is not None:
+        ft.add_row("Beneish M-Score",
+                   f"{val.beneish.m_score:.2f} — "
+                   + ("[red]possible manipulation (> -1.78)[/red]" if val.beneish.flag
+                      else "below manipulation threshold"))
+    if val.stress:
+        if val.stress.stress_flags:
+            for key, reason, _v in val.stress.stress_flags:
+                ft.add_row(key, reason)
+        else:
+            ft.add_row("stress scan", "no red flags on latest year")
+    console.print(ft)
+    console.print("\n[dim]Research aid — not investment advice. "
+                  "Estimates from explicit assumptions; flags are screens, not verdicts.[/dim]")
+
+
+@app.command()
 def info(ticker: str) -> None:
     """Print a quick terminal summary for TICKER (must be fetched first)."""
     settings = _setup()

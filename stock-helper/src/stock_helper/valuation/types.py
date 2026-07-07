@@ -60,6 +60,8 @@ class ValuationResult:
     peer_relative: dict[str, Any] = field(default_factory=dict)
     self_history: dict[str, Any] = field(default_factory=dict)
     quality: Any | None = None  # QualityFactors
+    beneish: Any | None = None  # BeneishResult
+    stress: Any | None = None  # StressReport
 
     fair_value_per_share: float | None = None
     margin_of_safety: float | None = None  # (fair - price)/fair; None if no price
