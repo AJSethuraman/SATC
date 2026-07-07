@@ -1,0 +1,248 @@
+"""Centralized design system for the Streamlit UI.
+
+Pure and server-free: this module holds only colors, the injected CSS string, a
+Plotly layout template, and small HTML/figure helpers. It imports nothing from
+Streamlit, so it is safe to import anywhere (tests, reports, scripts).
+
+Palette philosophy: keep the existing calm navy/white card aesthetic, and add a
+colorblind-safe positive/negative/warning triad (Okabe-Ito derived: bluish-green,
+vermillion, amber) plus a blue<->orange diverging ramp for value maps — the one
+diverging pair that survives red-green color vision deficiency.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+# --- core brand tokens (unchanged from the original app) ----------------------
+NAVY = "#1b2a4a"
+ACCENT = "#2c4a7c"
+
+# --- colorblind-safe status triad (Okabe-Ito) --------------------------------
+POSITIVE = "#0b7a55"  # bluish-green: cheap / good / supportive
+NEGATIVE = "#c0451b"  # vermillion: distress / flagged / rich-on-the-wrong-side
+WARNING = "#b07d17"  # amber: caution / insufficient
+NEUTRAL = "#5b6472"  # slate: n/a, in-line, informational
+
+# Softer background tints for badges/tiles (paired with the text colors above).
+POSITIVE_BG = "#e3f2e8"
+NEGATIVE_BG = "#fbe7de"
+WARNING_BG = "#fdf3dc"
+NEUTRAL_BG = "#eceff3"
+ACCENT_BG = "#e8eef7"
+
+# --- diverging value ramp (low = expensive/overvalued, high = cheap/undervalued)
+# Blue<->orange survives deuteranopia/protanopia. Used for fair-value gap maps
+# and the sensitivity heatmap. Given as (position, color) stops for Plotly.
+VALUE_RAMP: list[list[Any]] = [
+    [0.0, "#c0451b"],   # deep orange — richly valued (negative gap)
+    [0.25, "#e8a06b"],
+    [0.5, "#f2f2ef"],   # near-neutral
+    [0.75, "#6fa8c9"],
+    [1.0, "#1b5e8a"],   # deep blue — deeply undervalued (positive gap)
+]
+
+# A sequential accent ramp (light -> navy) for single-signed magnitudes.
+SEQUENTIAL_RAMP: list[list[Any]] = [
+    [0.0, "#eef2f8"],
+    [0.5, ACCENT],
+    [1.0, NAVY],
+]
+
+GRID_COLOR = "#e3e7ee"
+
+# --- Plotly layout template ---------------------------------------------------
+PLOTLY_LAYOUT: dict[str, Any] = {
+    "paper_bgcolor": "rgba(0,0,0,0)",
+    "plot_bgcolor": "rgba(0,0,0,0)",
+    "font": {"color": NAVY, "family": "Inter, -apple-system, Segoe UI, sans-serif", "size": 13},
+    "margin": {"l": 12, "r": 12, "t": 40, "b": 12},
+    "height": 320,
+    "colorway": [ACCENT, POSITIVE, WARNING, NEGATIVE, "#6a7fb0", NEUTRAL],
+    "hoverlabel": {"bgcolor": "white", "font": {"color": NAVY, "size": 12}},
+    "xaxis": {"gridcolor": GRID_COLOR, "zerolinecolor": GRID_COLOR, "linecolor": GRID_COLOR},
+    "yaxis": {"gridcolor": GRID_COLOR, "zerolinecolor": GRID_COLOR, "linecolor": GRID_COLOR},
+    "title": {"font": {"color": NAVY, "size": 15}},
+}
+
+
+def apply_plotly(fig: Any) -> Any:
+    """Apply the shared layout template to a Plotly figure (transparent bg, navy
+    font, tight margins, consistent grid). Returns the same figure for chaining."""
+    fig.update_layout(**PLOTLY_LAYOUT)
+    # update_layout with nested axis dicts is shallow-merged by Plotly, so
+    # re-assert the grid on any axes the figure created (e.g. facets).
+    fig.update_xaxes(gridcolor=GRID_COLOR, zerolinecolor=GRID_COLOR, linecolor=GRID_COLOR)
+    fig.update_yaxes(gridcolor=GRID_COLOR, zerolinecolor=GRID_COLOR, linecolor=GRID_COLOR)
+    return fig
+
+
+# --- flag rendering -----------------------------------------------------------
+# Every flag maps to (badge-css-class, friendly label). Unknown flags fall back
+# to a neutral "flag" chip with a humanized key so nothing ever renders raw.
+_FLAG_META: dict[str, tuple[str, str]] = {
+    # screener composite flags
+    "deep_value": ("sh-cheap", "deep value"),
+    "quality_compounder": ("sh-quality", "quality compounder"),
+    "value_trap": ("sh-flag", "value-trap caution"),
+    "distress": ("sh-distress", "distress"),
+    "manipulation_risk": ("sh-flag", "manipulation risk"),
+    # valuation / forensic flags
+    "beneish_manipulation_flag": ("sh-flag", "Beneish M flag"),
+    "beneish_flag": ("sh-flag", "Beneish M flag"),
+    "altman_distress": ("sh-distress", "Altman distress"),
+    "distress_models_agree": ("sh-distress", "distress models agree"),
+    "distress_model_agreement": ("sh-distress", "distress models agree"),
+    "high_accruals": ("sh-flag", "high accruals"),
+    "ocf_ni_divergence": ("sh-flag", "OCF/NI divergence"),
+    "receivables_outgrowing_sales": ("sh-flag", "receivables > sales"),
+    "inventory_bloat": ("sh-flag", "inventory bloat"),
+    "leverage_spike": ("sh-flag", "leverage spike"),
+    "margin_collapse": ("sh-flag", "margin collapse"),
+    "montier_high": ("sh-flag", "Montier C high"),
+}
+
+
+def flag_meta(flag: str) -> tuple[str, str]:
+    """(css-class, label) for a flag key, with a humanized neutral fallback."""
+    return _FLAG_META.get(flag, ("sh-flag", flag.replace("_", " ")))
+
+
+def flag_badge(flag: str) -> str:
+    """Inline HTML chip for one flag. Screens, never verdicts."""
+    css, label = flag_meta(flag)
+    return f'<span class="sh-badge {css}">{label}</span>'
+
+
+def flag_badges(flags: list[str]) -> str:
+    """Join a list of flags into a chip row (empty string if none)."""
+    return "".join(flag_badge(f) for f in flags)
+
+
+def mos_gauge(value: float | None, *, title: str = "Margin of safety") -> Any:
+    """A Plotly Indicator gauge for margin of safety (fair - price)/fair.
+
+    ``value`` is a fraction (0.25 == +25%). None renders an empty 'n/a' gauge so
+    a missing price never crashes or fabricates a reading. The band is centered
+    on 0: negative (overvalued) reads vermillion, positive (undervalued) reads
+    green, with a neutral middle."""
+    import plotly.graph_objects as go
+
+    if value is None:
+        fig = go.Figure(
+            go.Indicator(
+                mode="gauge",
+                value=0,
+                title={"text": f"{title}<br><span style='font-size:0.7em;color:{NEUTRAL}'>n/a — no price</span>"},
+                gauge={
+                    "axis": {"range": [-50, 50], "ticksuffix": "%"},
+                    "bar": {"color": NEUTRAL_BG},
+                    "bgcolor": "white",
+                },
+            )
+        )
+        return apply_plotly(fig)
+
+    pct_val = max(-50.0, min(50.0, value * 100.0))
+    bar_color = POSITIVE if value >= 0 else NEGATIVE
+    fig = go.Figure(
+        go.Indicator(
+            mode="gauge+number",
+            value=pct_val,
+            number={"suffix": "%", "font": {"color": bar_color}},
+            title={"text": title},
+            gauge={
+                "axis": {"range": [-50, 50], "ticksuffix": "%", "tickcolor": NEUTRAL},
+                "bar": {"color": bar_color, "thickness": 0.3},
+                "bgcolor": "white",
+                "borderwidth": 1,
+                "bordercolor": GRID_COLOR,
+                "steps": [
+                    {"range": [-50, 0], "color": NEGATIVE_BG},
+                    {"range": [0, 50], "color": POSITIVE_BG},
+                ],
+                "threshold": {
+                    "line": {"color": NAVY, "width": 3},
+                    "thickness": 0.85,
+                    "value": pct_val,
+                },
+            },
+        )
+    )
+    fig.update_layout(height=240)
+    return apply_plotly(fig)
+
+
+# --- injected CSS -------------------------------------------------------------
+# Extends the original tokens (.sh-card / .sh-badge / .sh-ok / .sh-na / .sh-warn
+# / .sh-plan / .sh-caveat / .sh-source) with a hero card, valuation badges, a
+# big-number metric tile, and a gauge wrapper. app.py imports this string.
+INJECTED_CSS = f"""
+<style>
+  .stApp {{ background: #f7f8fa; }}
+  h1, h2, h3 {{ color: {NAVY}; letter-spacing: -0.01em; }}
+  section[data-testid="stSidebar"] {{ background: #eef1f5; }}
+  div[data-testid="stMetricValue"] {{ color: {NAVY}; }}
+
+  .sh-card {{
+    background: white; border: 1px solid {GRID_COLOR}; border-radius: 10px;
+    padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+  }}
+  .sh-hero {{
+    background: white; border: 1px solid {GRID_COLOR}; border-top: 3px solid {ACCENT};
+    border-radius: 10px; padding: 1.1rem 1.35rem; margin-bottom: 0.85rem;
+    box-shadow: 0 1px 3px rgba(27,42,74,0.06);
+  }}
+  .sh-metric {{
+    background: white; border: 1px solid {GRID_COLOR}; border-radius: 10px;
+    padding: 0.85rem 1.1rem; margin-bottom: 0.6rem; min-height: 92px;
+  }}
+  .sh-metric .sh-metric-label {{
+    color: {NEUTRAL}; font-size: 0.78rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }}
+  .sh-metric .sh-metric-value {{
+    color: {NAVY}; font-size: 1.9rem; font-weight: 700; line-height: 1.15;
+    font-variant-numeric: tabular-nums; font-feature-settings: "tnum";
+  }}
+  .sh-metric .sh-metric-sub {{ color: {NEUTRAL}; font-size: 0.8rem; }}
+  .sh-num {{ font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }}
+  .sh-gauge {{
+    background: white; border: 1px solid {GRID_COLOR}; border-radius: 10px;
+    padding: 0.4rem 0.6rem; margin-bottom: 0.6rem;
+  }}
+
+  .sh-badge {{
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: 0.78rem; font-weight: 600; margin: 2px 4px 2px 0;
+    white-space: nowrap;
+  }}
+  /* original status badges */
+  .sh-ok {{ background: {POSITIVE_BG}; color: #1b6b3a; }}
+  .sh-na {{ background: {NEUTRAL_BG}; color: {NEUTRAL}; }}
+  .sh-warn {{ background: {WARNING_BG}; color: {WARNING}; }}
+  .sh-plan {{ background: {ACCENT_BG}; color: {ACCENT}; }}
+  /* valuation verdict badges */
+  .sh-cheap {{ background: {POSITIVE_BG}; color: {POSITIVE}; }}
+  .sh-fair {{ background: {NEUTRAL_BG}; color: {NEUTRAL}; }}
+  .sh-rich {{ background: {WARNING_BG}; color: {WARNING}; }}
+  .sh-distress {{ background: {NEGATIVE_BG}; color: {NEGATIVE}; }}
+  .sh-quality {{ background: {ACCENT_BG}; color: {ACCENT}; }}
+  .sh-flag {{ background: {WARNING_BG}; color: {WARNING}; }}
+
+  .sh-caveat {{ color: #6b7280; font-size: 0.85rem; }}
+  .sh-source {{ color: #8a93a3; font-size: 0.78rem; }}
+  .sh-good {{ color: {POSITIVE}; font-weight: 600; }}
+  .sh-bad {{ color: {NEGATIVE}; font-weight: 600; }}
+</style>
+"""
+
+
+def metric_tile(label: str, value: str, sub: str = "") -> str:
+    """HTML for a big-number metric tile (tabular-nums). ``value`` should already
+    be formatted (e.g. via core.format) — pass 'n/a' / 'n/m' for missing data."""
+    sub_html = f'<div class="sh-metric-sub">{sub}</div>' if sub else ""
+    return (
+        f'<div class="sh-metric"><div class="sh-metric-label">{label}</div>'
+        f'<div class="sh-metric-value">{value}</div>{sub_html}</div>'
+    )

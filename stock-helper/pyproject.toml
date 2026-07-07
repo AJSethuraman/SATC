@@ -19,6 +19,7 @@ dependencies = [
     "streamlit>=1.33",
     "beautifulsoup4>=4.12",
     "lxml>=5.1",
+    "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +30,7 @@ dev = [
 
 [project.scripts]
 stock-helper = "stock_helper.cli:app"
+stock-helper-ui = "stock_helper.launcher:main"
 
 [build-system]
 requires = ["hatchling"]
