@@ -233,6 +233,86 @@ class ForwardReturn(SQLModel, table=True):
     retrieved_at: datetime | None = None
 
 
+class Valuation(SQLModel, table=True):
+    """One valuation run for a company (mirrors ReportRun). Every scenario number
+    is reproducible from the child ValuationAssumption rows."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    company_id: int = Field(foreign_key="company.id", index=True)
+    ticker: str = Field(index=True)
+    as_of_date: date | None = None
+    method: str = ""  # "dcf" | "ddm+justified_pb"
+    metric_set: str = ""  # "industrial" | "financial"
+    fair_value_per_share: float | None = None
+    equity_value: float | None = None
+    enterprise_value: float | None = None
+    price: float | None = None
+    margin_of_safety: float | None = None
+    discount_rate: float | None = None
+    terminal_growth: float | None = None
+    base_fcf: float | None = None
+    implied_growth: float | None = None  # reverse-DCF
+    caveats: str = ""  # joined
+    engine_version: str = ""
+    created_at: datetime | None = None
+
+
+class ValuationAssumption(SQLModel, table=True):
+    """Every input/assumption behind a Valuation (mirrors EvidenceReference)."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    valuation_id: int = Field(foreign_key="valuation.id", index=True)
+    name: str
+    value: float | None = None
+    text_value: str = ""
+    unit: str = ""
+    note: str = ""
+
+
+class ValuationMultiple(SQLModel, table=True):
+    """A market/relative multiple computed in a Valuation run."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    valuation_id: int = Field(foreign_key="valuation.id", index=True)
+    multiple_key: str  # ev_ebit, pe, p_b, earnings_yield...
+    value: float | None = None
+    peer_median: float | None = None
+    implied_price: float | None = None
+    upside_pct: float | None = None
+    history_zscore: float | None = None
+    undefined_reason: str = ""  # e.g. "negative EBIT"
+
+
+class QualityFactorRow(SQLModel, table=True):
+    """One quality/distress factor for a company at an as-of date (mirrors
+    SignalHistory — replayable point-in-time)."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    company_id: int = Field(foreign_key="company.id", index=True)
+    ticker: str = Field(index=True)
+    as_of_date: date | None = None
+    factor_key: str = Field(index=True)  # piotroski_f, altman_z, gross_profitability...
+    value: float | None = None
+    unit: str = ""
+    percentile: float | None = None  # within-bucket local percentile
+    zone: str = ""  # e.g. Altman safe/grey/distress
+    formula: str = ""
+    detail: str = ""  # json blob of components
+    engine_version: str = ""
+    created_at: datetime | None = None
+
+
+class QualityComponent(SQLModel, table=True):
+    """A sub-component of a QualityFactorRow (e.g. one Piotroski test)."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    quality_factor_row_id: int = Field(foreign_key="qualityfactorrow.id", index=True)
+    name: str
+    value: float | None = None
+    unit: str = ""
+    note: str = ""
+
+
 class UserNote(SQLModel, table=True):
     """Placeholder for Phase 6+. Notes are first-party data with provenance."""
 

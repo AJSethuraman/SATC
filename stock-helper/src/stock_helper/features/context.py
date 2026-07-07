@@ -43,10 +43,24 @@ class MarketContext:
     price_date: date
     momentum_12_1: float | None  # 12-month return skipping the most recent month
     volatility_60d: float | None  # annualized stdev of daily returns, last 60 sessions
-    market_cap: float | None  # price x latest diluted shares
+    market_cap: float | None  # price x shares (single basis; see shares/shares_source)
     pe: float | None  # market_cap / latest net income (None if NI <= 0)
     ps: float | None  # market_cap / latest revenue
+    shares: float | None = None  # THE share count used everywhere downstream (EV, multiples)
+    shares_source: str = ""  # "shares_outstanding" (point-in-time) or "diluted_shares" (wtd avg)
     source_label: str = "Stooq daily CSV (non-canonical price data)"
+
+
+def _latest_share_count(series: dict[str, MetricSeries]) -> tuple[float | None, str]:
+    """One share basis for the whole valuation stack: point-in-time shares
+    outstanding when available (latest scalar), else weighted-avg diluted."""
+    so = series.get("shares_outstanding")
+    if so and so.latest.value > 0:
+        return so.latest.value, "shares_outstanding"
+    diluted = series.get("diluted_shares")
+    if diluted and diluted.latest.value > 0:
+        return diluted.latest.value, "diluted_shares"
+    return None, ""
 
 
 def compute_market_context(
@@ -73,9 +87,9 @@ def compute_market_context(
         volatility = float(daily.std()) * math.sqrt(TRADING_DAYS_PER_YEAR)
 
     market_cap = pe = ps = None
-    shares_series = series.get("diluted_shares")
-    if shares_series:
-        market_cap = price * shares_series.latest.value
+    shares, shares_source = _latest_share_count(series)
+    if shares:
+        market_cap = price * shares
         ni = series.get("net_income")
         if ni and ni.latest.value > 0:
             pe = market_cap / ni.latest.value
@@ -86,6 +100,7 @@ def compute_market_context(
     return MarketContext(
         price=price, price_date=price_date, momentum_12_1=momentum,
         volatility_60d=volatility, market_cap=market_cap, pe=pe, ps=ps,
+        shares=shares, shares_source=shares_source,
     )
 
 

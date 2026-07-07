@@ -19,7 +19,11 @@ class Settings(BaseSettings):
 
     sec_user_agent: str = ""
     stock_helper_db_url: str = ""
-    enable_price_data: bool = False
+    # Price data (Stooq, NON-CANONICAL) is on by default: the valuation engine
+    # needs a price for margin-of-safety and market multiples. Intrinsic DCF and
+    # fundamental factors still work with it off. Every price-derived output is
+    # labeled non-canonical. Set ENABLE_PRICE_DATA=false to disable.
+    enable_price_data: bool = True
     log_level: str = "INFO"
     sec_cache_ttl_hours: float = 24.0
     data_dir: Path = Path("data")
