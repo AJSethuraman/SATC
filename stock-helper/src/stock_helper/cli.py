@@ -371,9 +371,9 @@ def value(
         vt.add_row("Reverse-DCF: price implies growth of", pct(val.reverse.implied_growth))
     coc = val.cost_of_capital
     if coc is not None:
-        vt.add_row("Cost of equity (CAPM Ke)",
+        vt.add_row("Cost of equity (CAPM Ke = DCF discount)",
                    f"{pct(coc.ke)}  (rf {pct(coc.risk_free)} + β {coc.beta:.2f} × ERP {pct(coc.erp)})")
-        vt.add_row("WACC (discount rate)", pct(coc.wacc))
+        vt.add_row("WACC (for ROIC spread)", pct(coc.wacc))
     ri = val.residual_income
     if ri is not None and ri.fair_value_per_share is not None:
         vt.add_row("Residual-income fair value / share", per_share(ri.fair_value_per_share))
