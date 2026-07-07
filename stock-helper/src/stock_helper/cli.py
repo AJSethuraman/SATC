@@ -417,6 +417,87 @@ def value(
 
 
 @app.command()
+def screen(
+    screen_name: str = typer.Option(
+        None, "--screen",
+        help="Named saved screen to run (deep_value, quality_compounders, "
+        "magic_formula_top, distress_watch, manipulation_watch).",
+    ),
+    run_all: bool = typer.Option(False, "--all", help="Run every saved screen."),
+    top: int = typer.Option(15, "--top", help="Show the top N candidates per screen."),
+    as_of: str = typer.Option(
+        None, "--as-of", help="Point-in-time view date (YYYY-MM-DD)."
+    ),
+) -> None:
+    """Cross-sectional outlier SCREENER over the local universe.
+
+    Ranks companies on already-computed valuation/quality/forensic figures
+    (robust median/MAD z-scores, within industry bucket when large enough).
+    These are CANDIDATE screens for further reading — unscored and NOT
+    backtested; distress/manipulation screens are never verdicts."""
+    settings = _setup()
+    from stock_helper.core.format import pct
+    from stock_helper.screening.engine import build_cross_section
+    from stock_helper.screening.screens import SAVED_SCREENS, run_screen
+    from stock_helper.storage.db import get_session, init_db
+
+    if not run_all and not screen_name:
+        console.print("[red]✗[/red] Pass --screen NAME or --all. Available: "
+                      + ", ".join(SAVED_SCREENS))
+        raise typer.Exit(1)
+    if screen_name and screen_name not in SAVED_SCREENS:
+        console.print(f"[red]✗[/red] Unknown screen {screen_name!r}. Available: "
+                      + ", ".join(SAVED_SCREENS))
+        raise typer.Exit(1)
+
+    init_db(settings)
+    as_of_date = _parse_cli_date(as_of)
+    with get_session(settings) as session:
+        cs = build_cross_section(session, settings=settings, as_of=as_of_date)
+
+    if not cs.rows:
+        console.print("[yellow]![/yellow] Empty universe. Fetch some companies first: "
+                      "[bold]stock-helper fetch-universe --top 100[/bold]")
+        raise typer.Exit(0)
+
+    specs = list(SAVED_SCREENS.values()) if run_all else [SAVED_SCREENS[screen_name]]
+    n_sectors = len({r.bucket for r in cs.rows})
+    console.print(
+        f"[cyan]ℹ[/cyan] Universe: {len(cs.rows)} companies across {n_sectors} bucket(s)"
+        + (f" · point-in-time as of {as_of_date}" if as_of_date else "")
+    )
+
+    def _score(v: float | None) -> str:
+        return f"{v:+.2f}" if v is not None else "—"
+
+    for spec in specs:
+        ranked = run_screen(cs, spec)[:top]
+        table = Table(title=f"{spec.label} — {spec.description}")
+        table.add_column("#", justify="right")
+        table.add_column("Ticker")
+        table.add_column("Bucket")
+        table.add_column("FV gap", justify="right")
+        table.add_column("Value z", justify="right")
+        table.add_column("Quality z", justify="right")
+        table.add_column("Flags")
+        for e in ranked:
+            fv = pct(e.fair_value_gap) if e.fair_value_gap is not None else "—"
+            table.add_row(
+                str(e.rank), e.ticker, e.bucket, fv,
+                _score(e.value_score), _score(e.quality_score),
+                ", ".join(e.flags) or "—",
+            )
+        if not ranked:
+            table.add_row("—", "no candidates", "", "", "", "", "")
+        console.print(table)
+
+    console.print(
+        "\n[dim]Candidate screens — NOT buy lists. Unscored and not backtested; "
+        "distress/manipulation flags are screens to READ, never verdicts.[/dim]"
+    )
+
+
+@app.command()
 def info(ticker: str) -> None:
     """Print a quick terminal summary for TICKER (must be fetched first)."""
     settings = _setup()

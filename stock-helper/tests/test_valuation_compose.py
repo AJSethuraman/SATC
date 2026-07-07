@@ -76,6 +76,13 @@ def test_compose_offline_computes_intrinsic_and_forensics():
     assert val.beneish is not None and val.beneish.m_score is not None
     assert val.beneish.flag is False  # healthy company
     assert val.stress.flag_count == 0
+    # Montier C-Score is bridged from forensics into the quality factors so the
+    # montier_c signal/report surface it.
+    assert "montier_c" in val.quality.factors
+    assert val.quality.factors["montier_c"].value is not None
+    # Distress panel: Ohlson + Zmijewski live alongside Altman.
+    assert "ohlson_o" in val.quality.factors
+    assert "zmijewski" in val.quality.factors
     assert val.engine_version
 
 

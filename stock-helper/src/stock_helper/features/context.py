@@ -227,9 +227,22 @@ def build_all_extras(
     settings: Settings | None = None,
 ) -> dict[str, object]:
     """Everything the current-view report/UI can feed the signal engine.
-    Values are None when unavailable — the engine reports that honestly."""
+    Values are None when unavailable — the engine reports that honestly.
+
+    Only ever called for the CURRENT view (``as_of is None``); point-in-time
+    replay cannot honestly reconstruct prices/peers, so the caller skips it."""
+    market = build_market_context(ticker, series, settings)
+    # ``compute_valuation`` is imported lazily: valuation.compose imports this
+    # module at top level, so a top-level import here would form a cycle. It
+    # never raises (fundamental parts compute without a price; price-derived
+    # pieces are simply omitted when ``market`` is None).
+    from stock_helper.valuation.compose import compute_valuation
+
     return {
-        "market": build_market_context(ticker, series, settings),
+        "market": market,
         "peers": build_peer_context(session, company, derived),
         "risk_language": build_risk_language_context(session, company),
+        "valuation": compute_valuation(
+            session, company, ticker, series, derived, market, settings
+        ),
     }

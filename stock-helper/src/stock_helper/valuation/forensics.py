@@ -30,7 +30,14 @@ from typing import TYPE_CHECKING
 
 from stock_helper.features.metrics import DerivedMetric
 from stock_helper.normalization.facts import MetricSeries
-from stock_helper.valuation import VALUATION_VERSION
+from stock_helper.valuation import OK, VALUATION_VERSION
+from stock_helper.valuation.factors import (
+    DISTRESS,
+    FactorResult,
+    compute_altman_z,
+    compute_ohlson_o_score,
+    compute_zmijewski_score,
+)
 
 if TYPE_CHECKING:  # avoid importing the heavy (pandas/sqlmodel) context module
     from stock_helper.features.context import MarketContext
@@ -82,7 +89,9 @@ _MARGIN_DROP = 0.05  # absolute YoY fall in operating margin
 # Ranking of red flags, most severe first. ``worst`` is the first flag in this
 # order that fired — a fixed, auditable priority rather than a fuzzy score.
 _SEVERITY_ORDER = (
+    "distress_model_agreement",
     "beneish_flag",
+    "montier_high",
     "high_accruals",
     "ocf_ni_divergence",
     "receivables_outgrowing_sales",
@@ -90,6 +99,12 @@ _SEVERITY_ORDER = (
     "leverage_spike",
     "margin_collapse",
 )
+
+# Montier C-score: >= this many of the six earnings-quality flags = aggressive.
+_MONTIER_HIGH = 4
+# Distress-model panel: >= this many of {altman, ohlson, zmijewski} agreeing on
+# distress is treated as a corroborated signal.
+_DISTRESS_AGREE = 2
 
 
 # --------------------------------------------------------------------------- #
@@ -331,6 +346,219 @@ def compute_beneish_m_score(series: dict[str, MetricSeries]) -> BeneishResult | 
 
 
 # --------------------------------------------------------------------------- #
+# Montier C-score (earnings-quality / aggressive-accounting flags)
+# --------------------------------------------------------------------------- #
+
+# The six Montier C-score flags, in order. Each fires +1 when accounting looks
+# more aggressive year-over-year; a HIGHER total (0-6) is worse.
+_MONTIER_FLAGS = (
+    "growing_gap_ni_ocf",
+    "dso_rising",
+    "dsi_rising",
+    "other_current_assets_rising",
+    "declining_depreciation",
+    "asset_growth_gt_10pct",
+)
+_MONTIER_ASSET_GROWTH = 0.10
+
+
+def compute_montier_c_score(
+    series: dict[str, MetricSeries],
+    derived: dict[str, DerivedMetric],
+) -> FactorResult | None:
+    """Montier C(ombined)-score: six 0/1 earnings-quality flags, summed 0-6.
+
+    Flags (each +1 when the metric moved the *aggressive* way YoY):
+      1. growing gap between accrual and cash earnings: (NI-OCF)/TA rose;
+      2. days sales outstanding rising: receivables/revenue rose;
+      3. days sales of inventory rising: inventory/revenue rose (0 if no
+         inventory is reported);
+      4. other current assets / revenue rose, where other current assets =
+         current_assets - cash - receivables - inventory (omitted, with a note,
+         if those pieces are not all available);
+      5. declining depreciation rate: D&A/(D&A + net PP&E) fell;
+      6. total-asset growth > 10% YoY.
+
+    A HIGHER score means more aggressive accounting; C >= 4 is the common cut for
+    "watch". Needs two consecutive fiscal years anchored on total assets, net
+    income and operating cash flow; returns None if fewer than two such common
+    period ends exist. A flag whose inputs are missing scores 0 and is listed in
+    ``detail['uncomputable']`` (we never fire a red flag we cannot verify);
+    flag 4 is dropped from the denominator when uncomputable (``detail['omitted']``).
+
+    Reference: James Montier, "Cooking the Books, or More Sailing Under the Black
+    Flag" (2008), and "Value Investing" (2009) — the six-signal C-score.
+    """
+    anchor = ("total_assets", "net_income", "operating_cash_flow")
+    maps: dict[str, dict[date, float]] = {}
+    for key in anchor:
+        s = series.get(key)
+        if s is None or len(s.points) < 2:
+            return None
+        maps[key] = dict(s.values())
+    common = set.intersection(*(set(maps[k]) for k in anchor))
+    if len(common) < 2:
+        return None
+    t_minus_1, t = sorted(common)[-2:]
+
+    # Optional metric maps (each flag guards its own availability).
+    def m(key: str) -> dict[date, float]:
+        s = series.get(key)
+        return dict(s.values()) if s else {}
+
+    rev = m("revenue")
+    ar = m("accounts_receivable")
+    inv = m("inventory")
+    cash = m("cash")
+    ca = m("current_assets")
+    da = m("depreciation_amortization")
+    ppe = m("ppe_net")
+    ta = maps["total_assets"]
+    ni = maps["net_income"]
+    ocf = maps["operating_cash_flow"]
+
+    flags: dict[str, int] = {}
+    uncomputable: list[str] = []
+    omitted: list[str] = []
+
+    def has(mp: dict[date, float]) -> bool:
+        return t in mp and t_minus_1 in mp
+
+    # 1. Growing gap between accrual earnings and cash earnings.
+    def gap(pe: date) -> float | None:
+        if ta.get(pe, 0.0) <= 0:
+            return None
+        return (ni[pe] - ocf[pe]) / ta[pe]
+
+    g_t, g_p = gap(t), gap(t_minus_1)
+    if g_t is None or g_p is None:
+        uncomputable.append("growing_gap_ni_ocf")
+        flags["growing_gap_ni_ocf"] = 0
+    else:
+        flags["growing_gap_ni_ocf"] = 1 if g_t > g_p else 0
+
+    # 2. Days sales outstanding (receivables / revenue) rising.
+    def ratio_over_rev(mp: dict[date, float], pe: date) -> float | None:
+        if pe not in mp or rev.get(pe, 0.0) <= 0:
+            return None
+        return mp[pe] / rev[pe]
+
+    if has(ar) and has(rev):
+        dso_t, dso_p = ratio_over_rev(ar, t), ratio_over_rev(ar, t_minus_1)
+        if dso_t is None or dso_p is None:
+            uncomputable.append("dso_rising")
+            flags["dso_rising"] = 0
+        else:
+            flags["dso_rising"] = 1 if dso_t > dso_p else 0
+    else:
+        uncomputable.append("dso_rising")
+        flags["dso_rising"] = 0
+
+    # 3. Days sales of inventory rising (0 if no inventory reported at all).
+    if not inv:
+        flags["dsi_rising"] = 0  # deliberately 0, not uncomputable
+    elif has(inv) and has(rev):
+        dsi_t, dsi_p = ratio_over_rev(inv, t), ratio_over_rev(inv, t_minus_1)
+        if dsi_t is None or dsi_p is None:
+            uncomputable.append("dsi_rising")
+            flags["dsi_rising"] = 0
+        else:
+            flags["dsi_rising"] = 1 if dsi_t > dsi_p else 0
+    else:
+        uncomputable.append("dsi_rising")
+        flags["dsi_rising"] = 0
+
+    # 4. Other current assets / revenue rising. Omitted if not computable.
+    def oca(pe: date) -> float | None:
+        if rev.get(pe, 0.0) <= 0:
+            return None
+        if not (pe in ca and pe in cash and pe in ar and pe in inv):
+            return None
+        return (ca[pe] - cash[pe] - ar[pe] - inv[pe]) / rev[pe]
+
+    oca_t, oca_p = oca(t), oca(t_minus_1)
+    if oca_t is None or oca_p is None:
+        omitted.append("other_current_assets_rising")
+    else:
+        flags["other_current_assets_rising"] = 1 if oca_t > oca_p else 0
+
+    # 5. Declining depreciation rate: D&A / (D&A + net PP&E) fell.
+    def dep_rate(pe: date) -> float | None:
+        if pe not in da or pe not in ppe:
+            return None
+        denom = da[pe] + ppe[pe]
+        if denom <= 0:
+            return None
+        return da[pe] / denom
+
+    dr_t, dr_p = dep_rate(t), dep_rate(t_minus_1)
+    if dr_t is None or dr_p is None:
+        uncomputable.append("declining_depreciation")
+        flags["declining_depreciation"] = 0
+    else:
+        flags["declining_depreciation"] = 1 if dr_t < dr_p else 0
+
+    # 6. Total-asset growth > 10% YoY.
+    if ta[t_minus_1] > 0:
+        growth = ta[t] / ta[t_minus_1] - 1.0
+        flags["asset_growth_gt_10pct"] = 1 if growth > _MONTIER_ASSET_GROWTH else 0
+    else:
+        uncomputable.append("asset_growth_gt_10pct")
+        flags["asset_growth_gt_10pct"] = 0
+
+    score = float(sum(flags.values()))
+    max_score = 6 - len(omitted)
+
+    used = [
+        series.get(k) for k in (
+            "total_assets", "net_income", "operating_cash_flow", "revenue",
+            "accounts_receivable", "inventory", "cash", "current_assets",
+            "depreciation_amortization", "ppe_net",
+        )
+    ]
+    tags = sorted({s.tag for s in used if s is not None})
+    accns: set[str] = set()
+    for s in used:
+        if s is not None:
+            accns.update(s.accessions())
+
+    caveats = [
+        "Montier C-score is an aggressive-accounting SCREEN, not proof of "
+        "manipulation or an accusation; higher = more aggressive.",
+        "Needs two clean consecutive fiscal years; restatements or M&A distort "
+        "the year-over-year flags.",
+    ]
+    if uncomputable:
+        caveats.append(
+            "Flags scored 0 because inputs were missing: " + ", ".join(uncomputable)
+        )
+    if omitted:
+        caveats.append(
+            "Flags omitted from the score (inputs unavailable), max reduced to "
+            f"{max_score}: " + ", ".join(omitted)
+        )
+
+    return FactorResult(
+        key="montier_c",
+        label="Montier C-score (aggressive accounting)",
+        value=score,
+        status=OK,
+        detail={
+            "flags": flags,
+            "uncomputable": uncomputable,
+            "omitted": omitted,
+            "max": max_score,
+        },
+        formula="sum of 6 binary earnings-quality flags (higher = more aggressive)",
+        values_used={"total_assets_t": ta[t], "total_assets_t_minus_1": ta[t_minus_1]},
+        input_tags=tags,
+        input_accessions=sorted(accns),
+        period_ends={"t": t, "t_minus_1": t_minus_1},
+        caveats=caveats,
+    )
+
+
+# --------------------------------------------------------------------------- #
 # Stress report
 # --------------------------------------------------------------------------- #
 
@@ -371,6 +599,8 @@ def compute_stress_report(
       - inventory_bloat: inventory growth - revenue growth > 0.15 (if inventory present)
       - leverage_spike: debt/assets rose > 0.10 absolute YoY
       - margin_collapse: operating margin fell > 0.05 absolute YoY
+      - montier_high: Montier C-score >= 4 (aggressive-accounting flags)
+      - distress_model_agreement: >= 2 of Altman/Ohlson/Zmijewski flag distress
 
     ``market`` is accepted for signature symmetry with the other engines but is
     not needed here (all flags are fundamentals-only). Text / 8-K flags
@@ -467,6 +697,37 @@ def compute_stress_report(
                 prev - curr,
             ))
 
+    # --- Montier C-score (aggressive accounting) ---
+    montier = compute_montier_c_score(series, derived)
+    if montier is not None and montier.value is not None and montier.value >= _MONTIER_HIGH:
+        flags.append((
+            "montier_high",
+            f"Montier C-score {montier.value:.0f} of {montier.detail.get('max', 6)} "
+            f">= {_MONTIER_HIGH}; multiple aggressive-accounting flags fired.",
+            montier.value,
+        ))
+
+    # --- Distress-model agreement (Altman / Ohlson / Zmijewski panel) ---
+    # Independent models corroborating each other is the real signal. Altman is
+    # called without SIC/market (book-based Z'' path), matching this scanner's
+    # fundamentals-only contract.
+    distress_models = {
+        "altman": compute_altman_z(series, derived, market, sic=None),
+        "ohlson": compute_ohlson_o_score(series, derived),
+        "zmijewski": compute_zmijewski_score(series, derived),
+    }
+    agree = [
+        name for name, fr in distress_models.items()
+        if fr is not None and fr.status == OK and fr.detail.get("zone") == DISTRESS
+    ]
+    if len(agree) >= _DISTRESS_AGREE:
+        flags.append((
+            "distress_model_agreement",
+            f"{len(agree)} distress models agree ({', '.join(sorted(agree))}); "
+            "corroborated across independent bankruptcy screens.",
+            float(len(agree)),
+        ))
+
     fired = {key for key, _, _ in flags}
     worst = next((k for k in _SEVERITY_ORDER if k in fired), None)
 
@@ -475,6 +736,8 @@ def compute_stress_report(
         "conclusion, or investment advice. Any flag warrants reading the filings.",
         "Fundamentals-only: text/8-K flags (going-concern, Item 4.02 non-reliance) "
         "are added by the compose layer, not here.",
+        "Distress-model agreement folds in Altman/Ohlson/Zmijewski; agreement "
+        "across independent SCREENS is the signal, and none is a verdict.",
     ]
 
     return StressReport(

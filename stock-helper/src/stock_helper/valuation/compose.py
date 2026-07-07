@@ -22,7 +22,11 @@ from stock_helper.storage.queries import load_series
 from stock_helper.valuation import VALUATION_VERSION
 from stock_helper.valuation.dcf import reverse_dcf, run_valuation, sensitivity
 from stock_helper.valuation.factors import compute_quality_factors
-from stock_helper.valuation.forensics import compute_beneish_m_score, compute_stress_report
+from stock_helper.valuation.forensics import (
+    compute_beneish_m_score,
+    compute_montier_c_score,
+    compute_stress_report,
+)
 from stock_helper.valuation.multiples import (
     compute_enterprise_value,
     compute_multiples,
@@ -188,6 +192,12 @@ def compute_valuation(
     quality = compute_quality_factors(series, derived, bucket, company.sic, market, ev)
     beneish = compute_beneish_m_score(series)
     stress = compute_stress_report(series, derived, market)
+    # Bridge: Montier C-Score lives in the forensics module; surface it as a
+    # quality factor so the montier_c signal and the report render it (the two
+    # were built in parallel and didn't share this key).
+    montier = compute_montier_c_score(series, derived)
+    if quality is not None and montier is not None:
+        quality.factors["montier_c"] = montier
 
     # --- headline + flags ------------------------------------------------------
     fair_value = dcf.fair_value_per_share

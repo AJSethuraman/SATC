@@ -27,6 +27,7 @@ Definitional choices (documented so the audit trail is honest):
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import date
 from typing import TYPE_CHECKING, Any
@@ -99,6 +100,7 @@ class QualityFactors:
     composite: float | None
     coverage: float
     note: str = ""
+    distress_panel: dict[str, Any] = field(default_factory=dict)
     caveats: list[str] = field(default_factory=list)
     engine_version: str = VALUATION_VERSION
 
@@ -661,6 +663,203 @@ def compute_altman_z(
 
 
 # --------------------------------------------------------------------------- #
+# Ohlson O-score (logit bankruptcy model)
+# --------------------------------------------------------------------------- #
+
+
+def compute_ohlson_o_score(
+    series: dict[str, MetricSeries],
+    derived: dict[str, DerivedMetric],
+) -> FactorResult | None:
+    """Ohlson (1980) nine-variable O-score, a logit probability of bankruptcy.
+
+        O = -1.32 - 0.407*SIZE + 6.03*TLTA - 1.43*WCTA + 0.0757*CLCA
+            - 2.37*NITA - 1.83*FUTL + 0.285*INTWO - 1.72*OENEG - 0.521*CHIN
+
+    with SIZE=ln(total_assets), TLTA=total_liabilities/total_assets,
+    WCTA=(current_assets-current_liabilities)/total_assets,
+    CLCA=current_liabilities/current_assets, NITA=net_income/total_assets,
+    FUTL=(net_income + D&A)/total_liabilities (funds-from-ops / TL),
+    INTWO=1 if net income was negative in BOTH of the last two years,
+    OENEG=1 if total_liabilities>total_assets, and
+    CHIN=(NI_t - NI_{t-1})/(|NI_t|+|NI_{t-1}|).
+
+    The bankruptcy probability is P = 1/(1+exp(-O)); detail carries
+    ``probability`` and a ``zone`` ("distress" if P>0.5 else "safe"). This is a
+    statistical distress SCREEN, not a prediction of failure.
+
+    Needs two years of net income (for CHIN and INTWO). Returns None if total
+    assets, total liabilities, or current assets is missing/non-positive, if D&A
+    is missing, if fewer than two net-income years exist, or if both years' net
+    income are exactly zero (CHIN denominator).
+
+    Reference: James A. Ohlson, "Financial Ratios and the Probabilistic
+    Prediction of Bankruptcy", J. of Accounting Research 18 (1980), pp. 109-131
+    (Model 1 coefficients).
+    """
+    got = _latest_common(
+        series,
+        ("total_assets", "total_liabilities", "current_assets",
+         "current_liabilities", "net_income", "depreciation_amortization"),
+    )
+    if got is None:
+        return None
+    d, vals = got
+    ta = vals["total_assets"]
+    tl = vals["total_liabilities"]
+    ca = vals["current_assets"]
+    cl = vals["current_liabilities"]
+    ni_t = vals["net_income"]
+    da = vals["depreciation_amortization"]
+    if ta <= 0 or tl <= 0 or ca <= 0:
+        return None
+
+    ni_series = series.get("net_income")
+    ni_map = dict(ni_series.values()) if ni_series else {}
+    prior_dates = [pe for pe in ni_map if pe < d]
+    if not prior_dates:
+        return None  # CHIN / INTWO need a prior year of net income
+    ni_prev = ni_map[max(prior_dates)]
+
+    chin_den = abs(ni_t) + abs(ni_prev)
+    if chin_den == 0:
+        return None  # both years zero -> CHIN undefined
+
+    size = math.log(ta)
+    tlta = tl / ta
+    wcta = (ca - cl) / ta
+    clca = cl / ca
+    nita = ni_t / ta
+    futl = (ni_t + da) / tl
+    intwo = 1 if (ni_t < 0 and ni_prev < 0) else 0
+    oeneg = 1 if tl > ta else 0
+    chin = (ni_t - ni_prev) / chin_den
+
+    o = (
+        -1.32
+        - 0.407 * size
+        + 6.03 * tlta
+        - 1.43 * wcta
+        + 0.0757 * clca
+        - 2.37 * nita
+        - 1.83 * futl
+        + 0.285 * intwo
+        - 1.72 * oeneg
+        - 0.521 * chin
+    )
+    prob = 1.0 / (1.0 + math.exp(-o))
+    zone = DISTRESS if prob > 0.5 else SAFE
+
+    tags, accns = _provenance(
+        series.get("total_assets"), series.get("total_liabilities"),
+        series.get("current_assets"), series.get("current_liabilities"),
+        ni_series, series.get("depreciation_amortization"),
+    )
+    return FactorResult(
+        key="ohlson_o",
+        label="Ohlson O-score (bankruptcy probability)",
+        value=o,
+        status=OK,
+        detail={"probability": prob, "zone": zone},
+        formula=(
+            "O = -1.32 - 0.407*ln(TA) + 6.03*TLTA - 1.43*WCTA + 0.0757*CLCA "
+            "- 2.37*NITA - 1.83*FUTL + 0.285*INTWO - 1.72*OENEG - 0.521*CHIN; "
+            "P = 1/(1+exp(-O))"
+        ),
+        values_used={
+            "SIZE": size, "TLTA": tlta, "WCTA": wcta, "CLCA": clca,
+            "NITA": nita, "FUTL": futl, "INTWO": float(intwo),
+            "OENEG": float(oeneg), "CHIN": chin,
+            "total_assets": ta, "total_liabilities": tl,
+            "net_income_t": ni_t, "net_income_t_minus_1": ni_prev,
+        },
+        input_tags=tags,
+        input_accessions=accns,
+        period_ends={"latest": d, "prior_ni": max(prior_dates)},
+        caveats=[
+            "SIZE approximates Ohlson's GNP-price-index-deflated log assets with "
+            "plain ln(total_assets); levels are not inflation-adjusted.",
+            "FUTL uses (net_income + D&A) as a funds-from-operations proxy.",
+            "Distress SCREEN (P>0.5), not a prediction of bankruptcy.",
+        ],
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Zmijewski score (probit distress model)
+# --------------------------------------------------------------------------- #
+
+
+def compute_zmijewski_score(
+    series: dict[str, MetricSeries],
+    derived: dict[str, DerivedMetric],
+) -> FactorResult | None:
+    """Zmijewski (1984) three-variable probit distress score.
+
+        X = -4.3 - 4.5*ROA + 5.7*TLTA - 0.004*CACL
+
+    with ROA=net_income/total_assets, TLTA=total_liabilities/total_assets, and
+    CACL=current_assets/current_liabilities (the current ratio). The distress
+    probability is the standard-normal CDF P = Phi(X) = 0.5*(1+erf(X/sqrt(2)));
+    detail carries ``probability`` and a ``zone`` ("distress" if P>0.5 else
+    "safe"). A single-year cross-sectional SCREEN, not a verdict.
+
+    Returns None if total assets or current liabilities is missing/non-positive.
+
+    Reference: Mark E. Zmijewski, "Methodological Issues Related to the
+    Estimation of Financial Distress Prediction Models", J. of Accounting
+    Research 22 (1984), Supplement, pp. 59-82.
+    """
+    got = _latest_common(
+        series,
+        ("net_income", "total_assets", "total_liabilities",
+         "current_assets", "current_liabilities"),
+    )
+    if got is None:
+        return None
+    d, vals = got
+    ta = vals["total_assets"]
+    cl = vals["current_liabilities"]
+    if ta <= 0 or cl <= 0:
+        return None
+
+    roa = vals["net_income"] / ta
+    tlta = vals["total_liabilities"] / ta
+    cacl = vals["current_assets"] / cl
+    x = -4.3 - 4.5 * roa + 5.7 * tlta - 0.004 * cacl
+    prob = 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+    zone = DISTRESS if prob > 0.5 else SAFE
+
+    tags, accns = _provenance(
+        series.get("net_income"), series.get("total_assets"),
+        series.get("total_liabilities"), series.get("current_assets"),
+        series.get("current_liabilities"),
+    )
+    return FactorResult(
+        key="zmijewski",
+        label="Zmijewski score (distress probability)",
+        value=x,
+        status=OK,
+        detail={"probability": prob, "zone": zone},
+        formula="X = -4.3 - 4.5*ROA + 5.7*TLTA - 0.004*CACL; P = Phi(X)",
+        values_used={
+            "ROA": roa, "TLTA": tlta, "CACL": cacl,
+            "net_income": vals["net_income"], "total_assets": ta,
+            "total_liabilities": vals["total_liabilities"],
+            "current_assets": vals["current_assets"],
+            "current_liabilities": cl,
+        },
+        input_tags=tags,
+        input_accessions=accns,
+        period_ends={"latest": d},
+        caveats=[
+            "ROA here is net_income/total_assets (single-year, not 2-yr-average).",
+            "Distress SCREEN (P>0.5), not a prediction of bankruptcy.",
+        ],
+    )
+
+
+# --------------------------------------------------------------------------- #
 # ROA / ROE (used for financial-bucket companies and the composite)
 # --------------------------------------------------------------------------- #
 
@@ -747,6 +946,10 @@ def _subscore(fr: FactorResult) -> float | None:
     if key == "altman_z":
         zone = fr.detail.get("zone")
         return {SAFE: 1.0, GREY: 0.5, DISTRESS: 0.0}.get(zone)
+    if key in ("ohlson_o", "zmijewski"):
+        # Higher bankruptcy probability is worse -> desirability = 1 - P.
+        prob = fr.detail.get("probability")
+        return None if prob is None else _clamp(1.0 - prob)
     if key == "magic_formula":
         ey = fr.detail.get("earnings_yield", 0.0)
         roic = fr.detail.get("roic", 0.0)
@@ -761,6 +964,59 @@ def _subscore(fr: FactorResult) -> float | None:
 def _na(key: str, label: str, reason: str) -> FactorResult:
     return FactorResult(key=key, label=label, value=None,
                         status=NOT_APPLICABLE, reason=reason)
+
+
+# The three independent distress models that form the panel. Agreement across
+# them (not any single score) is the real signal.
+_DISTRESS_MODELS = ("altman_z", "ohlson_o", "zmijewski")
+
+
+def _distress_panel(factors: dict[str, FactorResult]) -> dict[str, Any]:
+    """Summarise agreement across the three distress models.
+
+    Only models that actually computed (status OK) count toward ``available``;
+    a model flags distress when its ``detail['zone']`` is DISTRESS. ``agreement``
+    is 'unanimous' (all available and all distress), 'majority' (>=2 of the
+    available distress), 'split', or 'none', with ``models_agree`` True iff at
+    least two available models flag distress. This is a SCREEN summary, not a
+    verdict — models can and do disagree."""
+    available: list[str] = []
+    distress: list[str] = []
+    for key in _DISTRESS_MODELS:
+        fr = factors.get(key)
+        if fr is None or fr.status != OK:
+            continue
+        available.append(key)
+        if fr.detail.get("zone") == DISTRESS:
+            distress.append(key)
+
+    n_avail = len(available)
+    n_distress = len(distress)
+    models_agree = n_distress >= 2
+    if n_avail == 0:
+        agreement = "no_models"
+    elif n_distress == 0:
+        agreement = "none"
+    elif n_distress == n_avail:
+        agreement = "unanimous"
+    elif n_distress >= 2:
+        agreement = "majority"
+    else:
+        agreement = "split"
+
+    return {
+        "models_available": available,
+        "distress_models": distress,
+        "distress_count": n_distress,
+        "available_count": n_avail,
+        "models_agree": models_agree,
+        "agreement": agreement,
+        "note": (
+            f"{n_distress} of {n_avail} available distress model(s) "
+            f"(Altman/Ohlson/Zmijewski) flag distress ({agreement}); "
+            "agreement across independent models is the signal, not any one score."
+        ),
+    }
 
 
 def compute_quality_factors(
@@ -804,11 +1060,15 @@ def compute_quality_factors(
         factors["accruals_quality"] = _na(
             "accruals_quality", "Accruals (Sloan; lower is better)", na_reason)
         factors["altman_z"] = _na("altman_z", "Altman distress score", na_reason)
+        factors["ohlson_o"] = _na(
+            "ohlson_o", "Ohlson O-score (bankruptcy probability)", na_reason)
+        factors["zmijewski"] = _na(
+            "zmijewski", "Zmijewski score (distress probability)", na_reason)
     else:
         metric_set = "industrial"
         applicable = (
             "piotroski_f", "gross_profitability", "magic_formula",
-            "accruals_quality", "altman_z", "roa", "roe",
+            "accruals_quality", "altman_z", "ohlson_o", "zmijewski", "roa", "roe",
         )
         builders: dict[str, FactorResult | None] = {
             "piotroski_f": compute_piotroski_f_score(series),
@@ -816,6 +1076,8 @@ def compute_quality_factors(
             "magic_formula": compute_magic_formula(series, derived, market, ev),
             "accruals_quality": compute_accruals_quality(series),
             "altman_z": compute_altman_z(series, derived, market, sic),
+            "ohlson_o": compute_ohlson_o_score(series, derived),
+            "zmijewski": compute_zmijewski_score(series, derived),
             "roa": _compute_roa(series),
             "roe": _compute_roe(series, derived),
         }
@@ -825,6 +1087,8 @@ def compute_quality_factors(
             "magic_formula": "Magic Formula (single-name variant)",
             "accruals_quality": "Accruals (Sloan; lower is better)",
             "altman_z": "Altman distress score",
+            "ohlson_o": "Ohlson O-score (bankruptcy probability)",
+            "zmijewski": "Zmijewski score (distress probability)",
             "roa": "Return on assets",
             "roe": "Return on equity",
         }
@@ -843,6 +1107,12 @@ def compute_quality_factors(
         f"(coverage {coverage * 100:.0f}%); rough research summary, not a rating."
     )
 
+    panel = _distress_panel(factors)
+
+    caveats = ["Factor scores are research flags, not advice or price targets."]
+    if metric_set == "industrial":
+        caveats.append("Distress panel: " + panel["note"])
+
     return QualityFactors(
         bucket=bucket,
         metric_set=metric_set,
@@ -850,7 +1120,6 @@ def compute_quality_factors(
         composite=composite,
         coverage=coverage,
         note=note,
-        caveats=[
-            "Factor scores are research flags, not advice or price targets.",
-        ],
+        distress_panel=panel,
+        caveats=caveats,
     )
