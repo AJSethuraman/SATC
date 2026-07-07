@@ -100,6 +100,8 @@ def compute_derived_metrics(series: dict[str, MetricSeries]) -> dict[str, Derive
         ("inventory", "Inventory", "USD"),
         ("depreciation_amortization", "Depreciation & amortization", "USD"),
         ("interest_expense", "Interest expense", "USD"),
+        ("tax_expense", "Income tax expense", "USD"),
+        ("pretax_income", "Pre-tax income", "USD"),
         ("capex", "Capital expenditures", "USD"),
         ("deposits", "Total deposits", "USD"),
         ("credit_loss_allowance", "Allowance for credit losses", "USD"),

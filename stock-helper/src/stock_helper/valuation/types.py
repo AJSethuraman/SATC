@@ -62,6 +62,9 @@ class ValuationResult:
     quality: Any | None = None  # QualityFactors
     beneish: Any | None = None  # BeneishResult
     stress: Any | None = None  # StressReport
+    cost_of_capital: Any | None = None  # CostOfCapital (CAPM Ke / WACC)
+    residual_income: Any | None = None  # ResidualIncomeResult
+    economic_profit: Any | None = None  # EconomicProfitResult (ROIC - WACC)
 
     fair_value_per_share: float | None = None
     margin_of_safety: float | None = None  # (fair - price)/fair; None if no price

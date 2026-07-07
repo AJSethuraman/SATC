@@ -12,6 +12,8 @@ from typing import Any
 
 from sqlmodel import Session, select
 
+from stock_helper.connectors.prices import fetch_daily_prices
+from stock_helper.core.config import get_settings
 from stock_helper.core.logging import get_logger
 from stock_helper.features.context import MarketContext, build_market_context
 from stock_helper.features.metrics import compute_derived_metrics
@@ -20,7 +22,9 @@ from stock_helper.normalization.facts import MetricSeries
 from stock_helper.storage.models import Company, SecurityIdentifier
 from stock_helper.storage.queries import load_series
 from stock_helper.valuation import VALUATION_VERSION
+from stock_helper.valuation.cost_of_capital import compute_cost_of_capital, estimate_beta
 from stock_helper.valuation.dcf import reverse_dcf, run_valuation, sensitivity
+from stock_helper.valuation.economic_profit import compute_economic_profit
 from stock_helper.valuation.factors import compute_quality_factors
 from stock_helper.valuation.forensics import (
     compute_beneish_m_score,
@@ -32,6 +36,7 @@ from stock_helper.valuation.multiples import (
     compute_multiples,
     peer_relative_valuation,
 )
+from stock_helper.valuation.residual_income import run_residual_income
 from stock_helper.valuation.types import Assumptions, ValuationResult
 
 log = get_logger(__name__)
@@ -127,6 +132,45 @@ def _gather_peer_multiples(
     return by_key
 
 
+def _risk_free_rate(settings) -> float:
+    """Risk-free rate from FRED (10-yr Treasury) when a key is configured, else
+    the documented config fallback — the CAPM discount rate is never blocked on
+    a missing key, only made more approximate (with a caveat)."""
+    try:
+        from stock_helper.connectors.fred import FredClient
+
+        rf = FredClient(settings).risk_free_rate()
+        if rf is not None:
+            return rf
+    except Exception as exc:
+        log.debug("FRED risk-free fetch failed err=%s", exc)
+    return settings.risk_free_default
+
+
+def _estimate_beta(ticker: str, settings) -> float | None:
+    """Beta from an OLS regression of the stock's daily returns on the market
+    (SPY, non-canonical). None on any failure -> CAPM falls back to beta 1.0."""
+    try:
+        import pandas as pd
+
+        stock = fetch_daily_prices(ticker, settings)
+        index = fetch_daily_prices("SPY", settings)
+        if stock is None or index is None:
+            return None
+        s = stock[["Date", "Close"]].rename(columns={"Close": "s"})
+        m = index[["Date", "Close"]].rename(columns={"Close": "m"})
+        merged = pd.merge(s, m, on="Date").sort_values("Date")
+        merged["sr"] = merged["s"].pct_change()
+        merged["mr"] = merged["m"].pct_change()
+        merged = merged.dropna()
+        if len(merged) < 60:
+            return None
+        return estimate_beta(merged["sr"].tolist(), merged["mr"].tolist())
+    except Exception as exc:
+        log.debug("beta estimation failed ticker=%s err=%s", ticker, exc)
+        return None
+
+
 def compute_valuation(
     session: Session,
     company: Company,
@@ -141,11 +185,28 @@ def compute_valuation(
     (intrinsic + factors + forensics) results compute without a price; only
     price-derived pieces are omitted when ``market`` is None."""
     bucket = company.industry_bucket
-    assumptions = Assumptions()
     price = market.price if market else None
     price_date = market.price_date if market else None
     caveats: list[str] = []
     flags: list[str] = []
+
+    # --- cost of capital: replace the flat-9% discount rate with a defensible
+    # CAPM cost of equity (risk-free from FRED or a config fallback, beta from
+    # the price series when available, an explicit ERP assumption). The DCF then
+    # discounts at Ke; the assumptions are all carried for the UI to show. -----
+    settings = settings or get_settings()
+    risk_free = _risk_free_rate(settings)
+    beta = _estimate_beta(ticker, settings) if market else None
+    coc = compute_cost_of_capital(
+        series, derived, market,
+        risk_free=risk_free, beta=beta, erp=settings.equity_risk_premium,
+    )
+    # Use Ke as the discount rate, but never let it fall to/under terminal growth
+    # (that would make the perpetuity blow up); keep a floor above it.
+    ke = coc.ke
+    base_assumptions = Assumptions()
+    discount = max(ke, base_assumptions.terminal_growth + 0.02)
+    assumptions = Assumptions(discount_rate=discount)
 
     # --- intrinsic (works without price; shares from series if no market) ------
     dcf = run_valuation(series, derived, bucket, market, assumptions)
@@ -199,6 +260,14 @@ def compute_valuation(
     if quality is not None and montier is not None:
         quality.factors["montier_c"] = montier
 
+    # --- residual income (book-anchored; works where DCF is weak / for banks) --
+    residual = run_residual_income(series, derived, market, cost_of_equity=ke, bucket=bucket)
+
+    # --- economic profit (ROIC - WACC): does the company create value? ---------
+    magic = quality.factors.get("magic_formula") if quality else None
+    roic = magic.detail.get("roic") if magic and getattr(magic, "detail", None) else None
+    economic_profit = compute_economic_profit(roic, coc.wacc)
+
     # --- headline + flags ------------------------------------------------------
     fair_value = dcf.fair_value_per_share
     mos = dcf.margin_of_safety
@@ -233,6 +302,9 @@ def compute_valuation(
         quality=quality,
         beneish=beneish,
         stress=stress,
+        cost_of_capital=coc,
+        residual_income=residual,
+        economic_profit=economic_profit,
         fair_value_per_share=fair_value,
         margin_of_safety=mos,
         implied_growth=reverse.implied_growth if reverse else None,

@@ -6,6 +6,8 @@ price-derived pieces (EV, multiples, MoS, reverse) are absent, never crash.
 
 from datetime import date
 
+import pytest
+
 from conftest import mk_series
 from stock_helper.features.metrics import compute_derived_metrics
 from stock_helper.valuation.compose import compute_valuation, net_claims_senior_to_equity
@@ -83,7 +85,27 @@ def test_compose_offline_computes_intrinsic_and_forensics():
     # Distress panel: Ohlson + Zmijewski live alongside Altman.
     assert "ohlson_o" in val.quality.factors
     assert "zmijewski" in val.quality.factors
+    # Cost of capital drives the DCF discount rate (CAPM Ke), not a flat 9%.
+    assert val.cost_of_capital is not None
+    assert val.cost_of_capital.ke == pytest.approx(0.042 + 1.0 * 0.05)  # rf + beta*erp
+    assert val.dcf.discount_rate == pytest.approx(val.cost_of_capital.ke)
+    # Residual income (book-anchored) computes without a price.
+    assert val.residual_income is not None
+    assert val.residual_income.status == "OK"
+    assert val.residual_income.fair_value_per_share is not None
+    # Economic profit needs ROIC (price-derived) -> degrades to None offline, no crash.
+    assert val.economic_profit is not None
     assert val.engine_version
+
+
+def test_compose_cost_of_capital_replaces_flat_rate():
+    """The DCF must discount at the CAPM Ke, not the old flat 9% default."""
+    series = healthy_industrial()
+    derived = compute_derived_metrics(series)
+    val = compute_valuation(None, _Co(), "SYN", series, derived, market=None)
+    # Ke = risk_free_default (0.042) + beta 1.0 * erp (0.05) = 0.092, != 0.09.
+    assert val.dcf.discount_rate == pytest.approx(0.092)
+    assert val.dcf.discount_rate != 0.09
 
 
 def test_compose_bank_routes_to_financial():

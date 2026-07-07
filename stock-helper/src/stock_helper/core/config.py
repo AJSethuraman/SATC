@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     sec_cache_ttl_hours: float = 24.0
     data_dir: Path = Path("data")
+    # Cost-of-capital inputs. FRED supplies the risk-free rate (10-yr Treasury,
+    # DGS10); without a key we fall back to risk_free_default. The equity risk
+    # premium is a long-run assumption, not a market observation — it is a
+    # scenario input to CAPM, labeled as such wherever the discount rate appears.
+    fred_api_key: str = ""
+    risk_free_default: float = 0.042  # fallback when FRED is unavailable
+    equity_risk_premium: float = 0.05  # CAPM ERP assumption (research aid)
 
     @property
     def db_url(self) -> str:
@@ -37,6 +44,10 @@ class Settings(BaseSettings):
     @property
     def raw_sec_dir(self) -> Path:
         return self.data_dir / "raw" / "sec"
+
+    @property
+    def raw_fred_dir(self) -> Path:
+        return self.data_dir / "raw" / "fred"
 
     @property
     def price_cache_dir(self) -> Path:

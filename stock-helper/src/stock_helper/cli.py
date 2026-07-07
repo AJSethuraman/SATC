@@ -369,7 +369,21 @@ def value(
         vt.add_row("DCF", f"{dcf.status}: {'; '.join(dcf.caveats) or dcf.method}")
     if val.reverse and val.reverse.implied_growth is not None:
         vt.add_row("Reverse-DCF: price implies growth of", pct(val.reverse.implied_growth))
+    coc = val.cost_of_capital
+    if coc is not None:
+        vt.add_row("Cost of equity (CAPM Ke)",
+                   f"{pct(coc.ke)}  (rf {pct(coc.risk_free)} + β {coc.beta:.2f} × ERP {pct(coc.erp)})")
+        vt.add_row("WACC (discount rate)", pct(coc.wacc))
+    ri = val.residual_income
+    if ri is not None and ri.fair_value_per_share is not None:
+        vt.add_row("Residual-income fair value / share", per_share(ri.fair_value_per_share))
+    ep = val.economic_profit
+    if ep is not None and ep.spread is not None:
+        verdict = "creates value" if ep.creates_value else "erodes value"
+        vt.add_row("Economic profit (ROIC − WACC)", f"{pct(ep.spread)} — {verdict}")
     console.print(vt)
+    if coc is not None and coc.caveats:
+        console.print(f"[dim]Cost-of-capital note: {coc.caveats[0]}[/dim]")
 
     if val.multiples:
         mt = Table(title="Valuation multiples")
