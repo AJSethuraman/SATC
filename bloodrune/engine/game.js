@@ -3,7 +3,7 @@
 // SURROUNDED packs, and SCALE via XP -> levels -> skill points (spend in the
 // class skill tree) + loot. Life carries between fights; permadeath ends the run.
 
-import { CLASSES, ITEMS, SLOTS, WEAPON_DROPS, ELITE_AFFIXES, BOSS_PACK, SKILLS } from './content.js';
+import { CLASSES, ITEMS, SLOTS, WEAPON_DROPS, ELITE_AFFIXES, BOSS_PACK, SKILLS, SUPERUNIQUES, SUPERUNIQUE_IDS } from './content.js';
 import { makeRng } from './rng.js';
 import { createCombat, skillEffect } from './combat.js';
 import { makeMap, nextChoices, NODE_TYPES } from './map.js';
@@ -86,6 +86,13 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     while (pack.length < size) { const r = rng.next(); pack.push({ id: r < 0.6 ? 'fallen' : r < 0.82 ? 'goatman' : 'zombie' }); }
     return pack;
   }
+  function genSuperUnique(depth) {
+    const sid = rng.pick(SUPERUNIQUE_IDS); const su = SUPERUNIQUES[sid];
+    const pack = [{ sid }];
+    for (const m of su.minions) pack.push({ id: m });
+    if (depth >= 5) pack.push({ id: su.minions[0] }); // deeper terrors bring an extra thrall
+    return pack;
+  }
   function genElite(depth) {
     const pack = genEncounter(Math.max(1, depth - 1));
     const keys = Object.keys(ELITE_AFFIXES); const n = 1 + rng.int(2); const affixes = [];
@@ -97,6 +104,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function chooseDirection(i) { if (run.phase !== 'map' || !run.choices || !run.choices[i]) return { ok: false };
     const node = run.choices[i]; run.node = node; const depth = run.map.step + 1;
     if (node.type === 'combat') return startFight(genEncounter(depth));
+    if (node.type === 'superunique') return startFight(genSuperUnique(depth));
     if (node.type === 'elite') return startFight(genElite(depth));
     if (node.type === 'boss') return startFight(BOSS_PACK.map((e) => ({ ...e })));
     if (node.type === 'treasure') { grantLoot(2, 15); run.lastResult = 'treasure'; run.gained = null; run.phase = 'reward'; advance(); return { ok: true }; }
@@ -116,7 +124,8 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       while (run.xp >= xpForLevel(run.level)) { run.xp -= xpForLevel(run.level); run.level += 1; run.skillPoints += 1; }
       run.life = Math.min(statsNow().maxLife, run.life); // level-up may raise max; keep current
       const elite = run.node && run.node.type === 'elite';
-      grantLoot(elite ? 2 : boss ? 3 : 1, elite ? 20 : boss ? 45 : 5);
+      const su = run.node && run.node.type === 'superunique';
+      grantLoot(su ? 3 : elite ? 2 : boss ? 3 : 1, su ? 30 : elite ? 20 : boss ? 45 : 5);
       run.gained = { levels: run.level - beforeLvl, points: run.level - beforeLvl };
       run.lastResult = 'win';
       if (boss) { run.phase = 'victory'; return run.phase; }

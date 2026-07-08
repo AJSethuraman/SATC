@@ -98,8 +98,8 @@ function renderCombat() {
   const mobs = living.map((e) => { const p = pos[e.uid];
     const intent = e.intent ? (e.intent.type === 'support' ? '<div class="in heal">🌀 channels</div>' : e.intent.type === 'wait' ? '<div class="in wait">⏳ waiting</div>' : `<div class="in">⚔️ ${e.intent.value}${e.intent.times > 1 ? '×' + e.intent.times : ''}</div>`) : '';
     const screened = (e.ring || 0) > frontRing; // held safe behind the front rank — melee can't reach it yet
-    return `<div class="mob ${e.role === 'guardian' ? 'guardian' : e.role === 'caster' ? 'caster' : ''} ${e.elite ? 'elite' : ''} ${screened ? 'screened' : ''} ${e.uid === focusUid ? 'focus' : ''}" data-uid="${e.uid}" style="left:${p.x}%;top:${p.y}%">
-      ${e.guarded ? `<div class="badge guarded">🛡 ×${e.guardianCount}</div>` : screened ? '<div class="badge screened">out of reach</div>' : e.elite ? `<div class="badge elite2">ELITE</div>` : ''}
+    return `<div class="mob ${e.role === 'guardian' ? 'guardian' : e.role === 'caster' ? 'caster' : ''} ${e.unique ? 'unique' : e.elite ? 'elite' : ''} ${screened ? 'screened' : ''} ${e.uid === focusUid ? 'focus' : ''}" data-uid="${e.uid}" style="left:${p.x}%;top:${p.y}%">
+      ${e.unique ? '<div class="badge unique2">☠ SUPER UNIQUE</div>' : e.guarded ? `<div class="badge guarded">🛡 ×${e.guardianCount}</div>` : screened ? '<div class="badge screened">out of reach</div>' : e.elite ? `<div class="badge elite2">ELITE</div>` : ''}
       <div class="card2"><div class="g">${e.glyph}</div><div class="n">${e.name}</div><div class="hp"><i style="width:${pv(e.hp, e.maxHp)}%"></i></div>${intent}</div>
       ${e.uid === focusUid ? '<div class="focus-tag">🎯</div>' : ''}</div>`; }).join('');
   board.innerHTML = `

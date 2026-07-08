@@ -123,6 +123,18 @@ test('summons body-block the surround (the skeleton wall) and can shatter', () =
   assert.equal(c.getState().hero.summons.length, 0); // 4-HP skeleton shattered on a 6 hit
 });
 
+test('a super unique leads a pack (Blood Raven: named, ranged, raises the slain)', () => {
+  const c = fight([{ sid: 'blood_raven' }, { id: 'fallen' }]);
+  const raven = c.getState().enemies[0];
+  assert.equal(raven.name, 'Blood Raven');
+  assert.equal(raven.unique, true);
+  assert.equal(raven.ring, 1); // a ranged leader — behind her pack
+  c.useSkill(ai(c, 'strike'), 1); if (c.getState().enemies[1].hp > 0) c.useSkill(ai(c, 'strike'), 1);
+  assert.equal(c.getState().enemies[1].hp, 0); // slew the fallen
+  c.endTurn();
+  assert.ok(c.getState().enemies[1].hp > 0, 'Blood Raven raised the fallen — kill HER first');
+});
+
 test('a caster CHANNELS support (it does not wind up an attack)', () => {
   const c = fight([{ id: 'shaman' }, { id: 'fallen' }]);
   assert.equal(c.getState().enemies[0].intent.type, 'support');

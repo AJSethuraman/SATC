@@ -5,7 +5,7 @@
 // damage in RANGES. Casters are GUARDED (reduced damage) while an escort lives.
 // Every living enemy hits you each turn. Killing grants XP. Pure engine, seeded rng.
 
-import { SKILLS, ENEMIES, ELITE_AFFIXES } from './content.js';
+import { SKILLS, ENEMIES, ELITE_AFFIXES, SUPERUNIQUES } from './content.js';
 
 export const GUARD_MITIGATION = 0.6;
 // A surround has only so many slots — this many melee foes can reach you at once.
@@ -29,17 +29,18 @@ export function skillEffect(hero, id) {
 const GUARDABLE = new Set(['caster', 'elite']);
 
 function buildMonster(entry, i) {
-  const id = typeof entry === 'string' ? entry : entry.id;
-  const affixes = (typeof entry === 'object' && entry.affixes) ? entry.affixes : [];
-  const base = ENEMIES[id];
-  let hp = base.hp, attack = base.attack, extraAttack = false, leech = false;
+  const su = (typeof entry === 'object' && entry.sid) ? SUPERUNIQUES[entry.sid] : null;
+  const id = su ? su.id : (typeof entry === 'string' ? entry : entry.id);
+  const base = su || ENEMIES[id];
+  const affixes = (!su && typeof entry === 'object' && entry.affixes) ? entry.affixes : [];
+  let hp = base.hp, attack = base.attack, extraAttack = !!base.extraAttack, leech = !!base.leech;
   for (const af of affixes) { const m = (ELITE_AFFIXES[af] && ELITE_AFFIXES[af].mods) || {};
     if (m.hpMul) hp = Math.round(hp * m.hpMul); if (m.attackMul) attack = Math.round(attack * m.attackMul);
     if (m.extraAttack) extraAttack = true; if (m.leech) leech = true; }
   return { uid: i, id, name: base.name, glyph: base.glyph, hp, maxHp: hp, attack, role: base.role,
-    ring: base.ring || 0, heal: base.heal || 0, rezLeft: base.role === 'caster' ? (base.rez || 0) : 0,
-    guardsUid: (typeof entry === 'object' && entry.guards != null) ? entry.guards : null,
-    affixes, elite: affixes.length > 0 || base.role === 'elite', extraAttack, leech, raised: false, intent: null };
+    ring: base.ring || 0, heal: base.heal || 0, rezLeft: base.rez || 0, xp: base.xp || 0,
+    guardsUid: (!su && typeof entry === 'object' && entry.guards != null) ? entry.guards : null,
+    affixes, elite: su ? true : (affixes.length > 0 || base.role === 'elite'), unique: !!su, extraAttack, leech, raised: false, intent: null };
 }
 
 export function createCombat({ hero, pack, rng }) {
@@ -78,7 +79,7 @@ export function createCombat({ hero, pack, rng }) {
     state.hero.mana = Math.min(state.hero.maxMana, state.hero.mana + state.hero.manaRegen);
     state.hero.exposed = false; telegraph(); state.log.push(`— Turn ${state.turn} —`); }
 
-  function hurt(e, dmg) { e.hp = Math.max(0, e.hp - dmg); if (e.hp === 0) { e.intent = null; if (!e.raised) state.xpEarned += ENEMIES[e.id].xp || 0; state.log.push(`${e.name} ${e.raised ? 'falls again.' : 'dies.'}`); } }
+  function hurt(e, dmg) { e.hp = Math.max(0, e.hp - dmg); if (e.hp === 0) { e.intent = null; if (!e.raised) state.xpEarned += e.xp || 0; state.log.push(`${e.name} ${e.raised ? 'falls again.' : 'dies.'}`); } }
   function applyHit(e, dmg, pierce) { let d = dmg; if (!pierce && isGuarded(e)) { d = Math.max(1, Math.round(dmg * (1 - GUARD_MITIGATION))); state.log.push(`${e.name} is guarded — only ${d} lands.`); } hurt(e, d); }
   function setFocus(uid) { state.hero.focusUid = uid; }
   // The front rank shields the ranks behind it. Reach r strikes the nearest r+1
@@ -134,18 +135,21 @@ export function createCombat({ hero, pack, rng }) {
     w.hp -= value; state.log.push(`${w.glyph === '🗿' ? 'Golem' : 'Skeleton'} takes the blow (${Math.max(0, w.hp)}/${w.maxHp}).`);
     if (w.hp <= 0) { state.hero.summons.shift(); state.log.push('It shatters.'); } return true; }
 
-  // A slain Fallen is a corpse a Shaman can raise (Fallen only — the Fallen Shaman's
-  // signature). Raised Fallen give no XP when re-killed, so you can't farm them.
-  const fallenCorpse = () => state.enemies.find((e) => e.hp <= 0 && e.id === 'fallen');
+  // A slain grunt is a corpse a rezzer can raise. Raised foes give no XP when
+  // re-killed, so you can't farm them.
+  const raisableCorpse = () => state.enemies.find((e) => e.hp <= 0 && e.role === 'grunt');
 
-  // Casters react to the round that just happened: raise a slain Fallen (capped so
-  // it can't rez forever), else mend the most-wounded ally. This is why you kill —
-  // or reach — the Shaman first, instead of grinding a pack it keeps restoring.
+  // Any rezzer/healer (the Shaman, Blood Raven, Bishibosh...) reacts to the round
+  // that just happened: raise a slain grunt (capped so it can't rez forever), else
+  // mend the most-wounded ally. This is why you kill — or reach — them FIRST,
+  // instead of grinding a pack they keep restoring. Pure casters do only this;
+  // hybrids (Blood Raven) also swing via their own attack intent.
   function casterSupport() {
-    for (const e of state.enemies) { if (e.hp <= 0 || e.role !== 'caster' || !e.intent || e.intent.type !== 'support') continue;
-      const corpse = e.rezLeft > 0 ? fallenCorpse() : null;
+    for (const e of state.enemies) { if (e.hp <= 0 || (e.rezLeft <= 0 && !e.heal)) continue;
+      const corpse = e.rezLeft > 0 ? raisableCorpse() : null;
       if (corpse) { e.rezLeft -= 1; corpse.hp = corpse.maxHp; corpse.raised = true;
         corpse.intent = { type: 'attack', value: corpse.attack, times: 1 }; state.log.push(`${e.name} raises ${corpse.name} from the dead!`); continue; }
+      if (!e.heal) continue;
       const al = woundedAllies(e).sort((x, y) => (y.maxHp - y.hp) - (x.maxHp - x.hp));
       if (al.length) { const tt = al[0]; const b = tt.hp; tt.hp = Math.min(tt.maxHp, tt.hp + e.heal); state.log.push(`${e.name} mends ${tt.name} +${tt.hp - b}.`); } }
   }

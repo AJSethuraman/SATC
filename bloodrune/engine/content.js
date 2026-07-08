@@ -85,6 +85,27 @@ export const ELITE_AFFIXES = {
 
 export const BOSS_PACK = [{ id: 'the_smith' }, { id: 'shaman', guards: 0 }, { id: 'guardian', guards: 0 }];
 
+// ---- Super uniques ---------------------------------------------------------
+// Named leaders (like D2's Blood Raven) that appear along the descent leading a
+// pack, each with a signature trick built from the same mechanics as the mob:
+// rez (raise the slain), heal, extraAttack, leech. Tougher, and richer loot.
+// role/ring behave like ENEMIES; rez/heal are resolved reactively (see combat).
+export const SUPERUNIQUES = {
+  blood_raven: { id: 'blood_raven', name: 'Blood Raven', glyph: '🩸', role: 'archer', ring: 1,
+    hp: 46, attack: 8, rez: 8, xp: 42, minions: ['zombie', 'zombie', 'fallen', 'fallen'],
+    text: 'Looses burning arrows and raises your slain foes — put her down fast.' },
+  rakanishu: { id: 'rakanishu', name: 'Rakanishu', glyph: '⚡', role: 'grunt', ring: 0,
+    hp: 40, attack: 8, extraAttack: true, xp: 36, minions: ['goatman', 'goatman', 'fallen'],
+    text: 'A shrieking champion — strikes twice each turn.' },
+  corpsefire: { id: 'corpsefire', name: 'Corpsefire', glyph: '🩸', role: 'grunt', ring: 0,
+    hp: 66, attack: 7, leech: true, xp: 38, minions: ['zombie', 'zombie', 'zombie'],
+    text: 'A bloated horror that heals on every blow it lands.' },
+  bishibosh: { id: 'bishibosh', name: 'Bishibosh', glyph: '🔥', role: 'caster', ring: 1,
+    hp: 42, attack: 4, heal: 7, rez: 6, xp: 40, minions: ['fallen', 'fallen', 'goatman', 'fallen'],
+    text: 'A fallen shaman of great power — mends and raises his pack without pause.' },
+};
+export const SUPERUNIQUE_IDS = Object.keys(SUPERUNIQUES);
+
 // Loot slots (armor/jewelry roll random affixes via loot.js; weapon grants skills).
 export const SLOTS = ['weapon', 'offhand', 'helm', 'body', 'gloves', 'boots', 'belt', 'amulet', 'ring1', 'ring2'];
 export const SLOT_LABEL = { weapon: 'Weapon', offhand: 'Off-hand', helm: 'Helm', body: 'Body', gloves: 'Gloves',
