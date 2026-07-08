@@ -47,8 +47,9 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function emptyEquipment() { const e = {}; for (const s of SLOTS) e[s] = null; return e; }
   function statsNow() { return deriveStats(cls, run.equipment, run.level); }
   function abilitiesNow() { return deriveAbilities(run.equipment, run.skillHard); }
+  function weaponNow() { const w = run.equipment.weapon; return w ? { dmg: w.dmg, wtype: w.wtype } : null; }
   function heroForFight() { const s = statsNow(); return { name: cls.name, glyph: cls.glyph, maxLife: s.maxLife, life: run.life,
-    maxMana: s.maxMana, manaRegen: s.manaRegen, startBlock: s.startBlock, plusSkills: s.plusSkills, hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
+    maxMana: s.maxMana, manaRegen: s.manaRegen, startBlock: s.startBlock, plusSkills: s.plusSkills, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
 
   // ---- gear ----
   function slotFor(it) { if (it.slot === 'ring') return run.equipment.ring1 ? (run.equipment.ring2 ? 'ring1' : 'ring2') : 'ring1'; return it.slot; }
@@ -151,7 +152,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       return { id, level: 1 + (run.skillHard[id] || 0), req: sk.req || 1, pre: sk.pre || [],
         learned: hasPoint(id) || id === 'guard',
         canInvest: run.skillPoints > 0 && gate.ok, gateReason: gate.ok ? null : gate.reason,
-        eff: skillEffect({ hard: run.skillHard, plusSkills: s.plusSkills }, id), name: skName(id) }; });
+        eff: skillEffect({ hard: run.skillHard, plusSkills: s.plusSkills, weapon: weaponNow() }, id), name: skName(id) }; });
     return { seed: run.seed, difficulty: run.difficulty, className: run.className, glyph: run.glyph, phase: run.phase,
       stats: s, life: run.life, maxLife: s.maxLife, level: run.level, xp: run.xp, xpToNext: xpForLevel(run.level), skillPoints: run.skillPoints,
       abilities: abilitiesNow(), tree,

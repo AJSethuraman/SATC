@@ -6,16 +6,30 @@ import { makeRng } from '../engine/rng.js';
 import { createCombat, skillEffect, skillLevel, ENGAGE_CAP } from '../engine/combat.js';
 
 const HERO = { name: 'Hero', glyph: '🪓', maxLife: 60, maxMana: 14, startBlock: 0, plusSkills: 0, hard: {},
+  weapon: { dmg: [5, 8], wtype: 'melee' }, // an axe: powers the melee skills below
   abilities: ['strike', 'guard', 'arrow', 'charge', 'raise_skeleton', 'cleave', 'zeal'] };
 function fight(pack, over = {}) { return createCombat({ hero: { ...HERO, ...over }, pack, rng: makeRng('p') }); }
 const ai = (c, id) => c.getState().hero.abilities.findIndex((a) => a.id === id);
 
-test('skills scale their own way, with damage ranges', () => {
-  assert.deepEqual([skillEffect({ hard: {}, plusSkills: 0 }, 'strike').min, skillEffect({ hard: {}, plusSkills: 0 }, 'strike').max], [5, 8]);
-  assert.deepEqual([skillEffect({ hard: { strike: 2 }, plusSkills: 0 }, 'strike').min, skillEffect({ hard: { strike: 2 }, plusSkills: 0 }, 'strike').max], [9, 12]);
-  assert.equal(skillEffect({ hard: {}, plusSkills: 0 }, 'zeal').hits, 2);
-  assert.equal(skillEffect({ hard: { raise_skeleton: 4 }, plusSkills: 0 }, 'raise_skeleton').count, 3);
+test('skills scale their own way; physical damage comes from the weapon', () => {
+  const axe = { dmg: [5, 8], wtype: 'melee' };
+  const h = (hard, extra) => ({ hard, plusSkills: 0, weapon: axe, ...extra });
+  assert.deepEqual([skillEffect(h({}), 'strike').min, skillEffect(h({}), 'strike').max], [5, 8]); // axe 5-8 × 1.0
+  assert.deepEqual([skillEffect(h({ strike: 2 }), 'strike').min, skillEffect(h({ strike: 2 }), 'strike').max], [9, 12]); // + growth 2/lvl
+  assert.equal(skillEffect(h({}), 'zeal').hits, 2);
+  assert.equal(skillEffect({ hard: { raise_skeleton: 4 }, plusSkills: 0 }, 'raise_skeleton').count, 3); // spell: weapon-independent
   assert.equal(skillLevel({ hard: {}, plusSkills: 3 }, 'strike'), 4);
+});
+
+test('weapon TYPE matters: a bow cannot Cleave, an axe cannot fire a Power Shot', () => {
+  const axe = { dmg: [10, 10], wtype: 'melee' }; const bow = { dmg: [10, 10], wtype: 'ranged' };
+  const dmg = (weapon, id) => skillEffect({ hard: {}, plusSkills: 0, weapon }, id).min;
+  assert.ok(dmg(axe, 'cleave') >= 8, 'axe powers Cleave'); // 10 × 0.85 ≈ 9
+  assert.ok(dmg(bow, 'cleave') <= 3, 'bow flails at Cleave'); // wrong type -> improvised 1-3
+  assert.ok(dmg(bow, 'arrow') >= 9, 'bow powers Arrow');
+  assert.ok(dmg(axe, 'arrow') <= 3, 'axe cannot fire Arrow');
+  // a better weapon means a harder skill
+  assert.ok(dmg({ dmg: [20, 20], wtype: 'melee' }, 'strike') > dmg(axe, 'strike'));
 });
 
 test('melee reaches only the inner ring; a ranged skill reaches the outer', () => {
@@ -24,7 +38,7 @@ test('melee reaches only the inner ring; a ranged skill reaches the outer', () =
   c.useSkill(ai(c, 'strike'), 0); // focus outer shaman, melee -> hits inner instead
   assert.equal(c.getState().enemies[0].hp, 16); // shaman (outer) untouched by melee
   assert.ok(c.getState().enemies[1].hp < gBefore); // inner guardian took the Strike
-  const c2 = fight([{ id: 'shaman' }, { id: 'guardian', guards: 0 }]);
+  const c2 = fight([{ id: 'shaman' }, { id: 'guardian', guards: 0 }], { weapon: { dmg: [5, 8], wtype: 'ranged' } });
   const before = c2.getState().enemies[0].hp;
   c2.useSkill(ai(c2, 'arrow'), 0); // Arrow reaches the shaman (guard-reduced)
   const dealt = before - c2.getState().enemies[0].hp;

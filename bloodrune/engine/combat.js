@@ -14,11 +14,24 @@ export const ENGAGE_CAP = 4;
 
 export function skillLevel(hero, id) { return 1 + ((hero.hard && hero.hard[id]) || 0) + (hero.plusSkills || 0); }
 
+// A physical skill's base damage IS the equipped weapon's damage (× the skill's
+// wpn factor); the wrong weapon type — a bow for Cleave — leaves you flailing.
+// Spell skills (Necro) are weapon-independent and use their own dmg.
+function weaponBase(hero, s) {
+  if (!s.weapon || s.weapon === 'spell') return s.dmg || [0, 0];
+  const w = hero.weapon;
+  if (w && w.wtype === s.weapon && w.dmg) return w.dmg;
+  return [1, 3];
+}
+
 export function skillEffect(hero, id) {
   const s = SKILLS[id]; const lvl = skillLevel(hero, id); const g = s.grow || 0;
-  if (s.scale === 'damage') { const min = s.dmg[0] + g * (lvl - 1), max = s.dmg[1] + g * (lvl - 1);
+  if (s.scale === 'damage') { const [wmin, wmax] = weaponBase(hero, s); const m = s.wpn || 1;
+    const min = Math.round(wmin * m) + g * (lvl - 1), max = Math.round(wmax * m) + g * (lvl - 1);
     return { lvl, min, max, text: `Deal ${min}-${max}${s.target === 'aoe' ? ` to up to ${s.maxTargets || 3}` : ''}${s.reach ? ' (reaches outer)' : ''}.` }; }
-  if (s.scale === 'hits') { const hits = Math.min(s.hitCap, 1 + lvl); return { lvl, hits, min: s.dmg[0], max: s.dmg[1], text: `Strike ${hits}× for ${s.dmg[0]}-${s.dmg[1]}.` }; }
+  if (s.scale === 'hits') { const [wmin, wmax] = weaponBase(hero, s); const m = s.wpn || 0.7;
+    const min = Math.max(1, Math.round(wmin * m)), max = Math.max(1, Math.round(wmax * m));
+    const hits = Math.min(s.hitCap, 1 + lvl); return { lvl, hits, min, max, text: `Strike ${hits}× for ${min}-${max}.` }; }
   if (s.scale === 'block') { const block = s.base + g * (lvl - 1); return { lvl, block, text: `Gain ${block} Block.` }; }
   if (s.scale === 'summons') { const count = s.solo ? 1 : 1 + Math.floor((lvl - 1) / 2); const min = s.dmg[0] + (lvl - 1), max = s.dmg[1] + (lvl - 1);
     const hp = (s.hp || 5) + (s.hpGrow || 0) * (lvl - 1);
@@ -48,7 +61,7 @@ export function createCombat({ hero, pack, rng }) {
     hero: { name: hero.name, glyph: hero.glyph,
       life: hero.life != null ? Math.min(hero.life, hero.maxLife) : hero.maxLife, maxLife: hero.maxLife,
       block: 0, startBlock: hero.startBlock || 0, mana: hero.maxMana, maxMana: hero.maxMana,
-      manaRegen: hero.manaRegen != null ? hero.manaRegen : 4,
+      manaRegen: hero.manaRegen != null ? hero.manaRegen : 4, weapon: hero.weapon || null,
       plusSkills: hero.plusSkills || 0, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
       exposed: false, summons: [], focusUid: null },
     enemies: pack.map(buildMonster),

@@ -12,28 +12,32 @@
 // req = character-level requirement (D2 tiers, compressed for a short run).
 // pre = prerequisite skill ids (need >=1 point in each before you can learn this).
 // maxTargets = how many foes an AoE actually hits (you can't wipe a whole pack).
+// weapon = which weapon powers the skill: 'melee' (axes), 'ranged' (bows), or
+//   'spell' (weapon-independent — Necro bone magic / summons). A physical skill's
+//   damage is the EQUIPPED WEAPON's damage × wpn (+ growth/level); hold the wrong
+//   weapon type and you flail for a pittance. Spell skills use their own dmg.
 export const SKILLS = {
   // universal
-  guard: { id: 'guard', name: 'Guard', type: 'skill', cost: 2, scale: 'block', base: 8, grow: 2, req: 1, pre: [], text: 'Brace — gain Block.' },
-  // Barbarian — melee + a Charge to break into the outer ring
-  strike: { id: 'strike', name: 'Strike', type: 'attack', target: 'single', reach: 0, cost: 2, scale: 'damage', dmg: [5, 8], grow: 2, req: 1, pre: [] },
-  cleave: { id: 'cleave', name: 'Cleave', type: 'attack', target: 'aoe', reach: 0, cost: 3, scale: 'damage', dmg: [4, 7], grow: 1, maxTargets: 2, req: 1, pre: [] },
-  zeal: { id: 'zeal', name: 'Zeal', type: 'attack', target: 'single', reach: 0, cost: 3, scale: 'hits', dmg: [3, 5], hitCap: 5, req: 3, pre: ['strike'] },
-  smite: { id: 'smite', name: 'Smite', type: 'attack', target: 'single', reach: 0, cost: 3, scale: 'damage', dmg: [8, 12], grow: 3, req: 6, pre: ['zeal'] },
-  whirlwind: { id: 'whirlwind', name: 'Whirlwind', type: 'attack', target: 'aoe', reach: 0, cost: 4, scale: 'damage', dmg: [6, 10], grow: 2, maxTargets: 4, req: 8, pre: ['cleave', 'smite'] },
-  charge: { id: 'charge', name: 'Charge', type: 'breakthrough', target: 'single', reach: 1, cost: 3, scale: 'damage', dmg: [6, 10], grow: 2, req: 4, pre: ['cleave'] },
-  warcry: { id: 'warcry', name: 'War Cry', type: 'skill', cost: 4, scale: 'block', base: 14, grow: 3, req: 2, pre: [], text: 'A defiant roar — big Block.' },
-  // Amazon — ranged, reaches the outer ring natively
-  arrow: { id: 'arrow', name: 'Arrow', type: 'attack', target: 'single', reach: 1, cost: 2, scale: 'damage', dmg: [5, 8], grow: 2, req: 1, pre: [] },
-  power_shot: { id: 'power_shot', name: 'Power Shot', type: 'attack', target: 'single', reach: 1, cost: 3, scale: 'damage', dmg: [7, 11], grow: 3, req: 4, pre: ['arrow'] },
-  strafe: { id: 'strafe', name: 'Strafe', type: 'attack', target: 'aoe', reach: 1, cost: 4, scale: 'damage', dmg: [3, 6], grow: 2, maxTargets: 3, req: 6, pre: ['power_shot'], text: 'A volley — hits several, reaches outer.' },
-  pierce: { id: 'pierce', name: 'Pierce', type: 'breakthrough', target: 'single', reach: 1, cost: 3, scale: 'damage', dmg: [5, 9], grow: 2, req: 2, pre: ['arrow'], text: 'A shot through the guard (reaches, ignores guard) — you stay Exposed.' },
-  // Necromancer — summons that flank the guard and reach any ring
-  raise_skeleton: { id: 'raise_skeleton', name: 'Raise Skeleton', type: 'summon', cost: 3, scale: 'summons', dmg: [3, 5], hp: 4, hpGrow: 1, req: 1, pre: [] },
-  raise_golem: { id: 'raise_golem', name: 'Raise Golem', type: 'summon', cost: 5, scale: 'summons', dmg: [6, 10], hp: 14, hpGrow: 2, solo: true, req: 5, pre: ['raise_skeleton'] },
-  bone_spear: { id: 'bone_spear', name: 'Bone Spear', type: 'attack', target: 'single', reach: 1, cost: 3, scale: 'damage', dmg: [6, 10], grow: 2, req: 4, pre: ['teeth'] },
-  teeth: { id: 'teeth', name: 'Teeth', type: 'attack', target: 'aoe', reach: 1, cost: 3, scale: 'damage', dmg: [2, 5], grow: 1, maxTargets: 3, req: 2, pre: [], text: 'A spray of bone — hits several, reaches outer.' },
-  bone_armor: { id: 'bone_armor', name: 'Bone Armor', type: 'skill', cost: 3, scale: 'block', base: 9, grow: 2, req: 2, pre: [], text: 'Shield of bone — Block.' },
+  guard: { id: 'guard', name: 'Guard', type: 'skill', weapon: 'spell', cost: 2, scale: 'block', base: 8, grow: 2, req: 1, pre: [], text: 'Brace — gain Block.' },
+  // Barbarian — melee (axe-powered) + a Charge to break into the outer ring
+  strike: { id: 'strike', name: 'Strike', type: 'attack', target: 'single', reach: 0, cost: 2, scale: 'damage', weapon: 'melee', wpn: 1.0, grow: 2, req: 1, pre: [] },
+  cleave: { id: 'cleave', name: 'Cleave', type: 'attack', target: 'aoe', reach: 0, cost: 3, scale: 'damage', weapon: 'melee', wpn: 0.85, grow: 1, maxTargets: 2, req: 1, pre: [] },
+  zeal: { id: 'zeal', name: 'Zeal', type: 'attack', target: 'single', reach: 0, cost: 3, scale: 'hits', weapon: 'melee', wpn: 0.7, hitCap: 5, req: 3, pre: ['strike'] },
+  smite: { id: 'smite', name: 'Smite', type: 'attack', target: 'single', reach: 0, cost: 3, scale: 'damage', weapon: 'melee', wpn: 1.6, grow: 3, req: 6, pre: ['zeal'] },
+  whirlwind: { id: 'whirlwind', name: 'Whirlwind', type: 'attack', target: 'aoe', reach: 0, cost: 4, scale: 'damage', weapon: 'melee', wpn: 1.1, grow: 2, maxTargets: 4, req: 8, pre: ['cleave', 'smite'] },
+  charge: { id: 'charge', name: 'Charge', type: 'breakthrough', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'melee', wpn: 1.25, grow: 2, req: 4, pre: ['cleave'] },
+  warcry: { id: 'warcry', name: 'War Cry', type: 'skill', weapon: 'spell', cost: 4, scale: 'block', base: 14, grow: 3, req: 2, pre: [], text: 'A defiant roar — big Block.' },
+  // Amazon — ranged (bow-powered), reaches the outer ring natively
+  arrow: { id: 'arrow', name: 'Arrow', type: 'attack', target: 'single', reach: 1, cost: 2, scale: 'damage', weapon: 'ranged', wpn: 1.0, grow: 2, req: 1, pre: [] },
+  power_shot: { id: 'power_shot', name: 'Power Shot', type: 'attack', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'ranged', wpn: 1.55, grow: 3, req: 4, pre: ['arrow'] },
+  strafe: { id: 'strafe', name: 'Strafe', type: 'attack', target: 'aoe', reach: 1, cost: 4, scale: 'damage', weapon: 'ranged', wpn: 0.8, grow: 2, maxTargets: 3, req: 6, pre: ['power_shot'], text: 'A volley — hits several, reaches outer.' },
+  pierce: { id: 'pierce', name: 'Pierce', type: 'breakthrough', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'ranged', wpn: 1.15, grow: 2, req: 2, pre: ['arrow'], text: 'A shot through the guard (reaches, ignores guard) — you stay Exposed.' },
+  // Necromancer — spell/summon skills: weapon-INDEPENDENT (the wand grants +Skills)
+  raise_skeleton: { id: 'raise_skeleton', name: 'Raise Skeleton', type: 'summon', weapon: 'spell', cost: 3, scale: 'summons', dmg: [3, 5], hp: 4, hpGrow: 1, req: 1, pre: [] },
+  raise_golem: { id: 'raise_golem', name: 'Raise Golem', type: 'summon', weapon: 'spell', cost: 5, scale: 'summons', dmg: [6, 10], hp: 14, hpGrow: 2, solo: true, req: 5, pre: ['raise_skeleton'] },
+  bone_spear: { id: 'bone_spear', name: 'Bone Spear', type: 'attack', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'spell', dmg: [6, 10], grow: 2, req: 4, pre: ['teeth'] },
+  teeth: { id: 'teeth', name: 'Teeth', type: 'attack', target: 'aoe', reach: 1, cost: 3, scale: 'damage', weapon: 'spell', dmg: [2, 5], grow: 1, maxTargets: 3, req: 2, pre: [], text: 'A spray of bone — hits several, reaches outer.' },
+  bone_armor: { id: 'bone_armor', name: 'Bone Armor', type: 'skill', weapon: 'spell', cost: 3, scale: 'block', base: 9, grow: 2, req: 2, pre: [], text: 'Shield of bone — Block.' },
 };
 
 // ---- Classes ---------------------------------------------------------------
@@ -51,14 +55,18 @@ export const CLASSES = {
 // ---- Items -----------------------------------------------------------------
 // grants.skill -> ability granted while equipped. passive -> stat mods
 // (maxLife, maxMana, plusSkills, startBlock). Starting weapons grant one skill.
+// Weapons carry damage + a type (wtype). A weapon's damage is the BASE for the
+// physical skills of its type — a better axe means a harder Cleave; a bow can't
+// Cleave at all. 'focus' weapons (wands/staves) deal no weapon damage: they power
+// the Necromancer, whose spells scale on +Skills, not on a swung weapon.
 export const ITEMS = {
-  worn_axe: { id: 'worn_axe', name: 'Worn Axe', slot: 'weapon', grants: { skill: 'cleave' }, text: 'Grants Cleave.' },
-  short_bow: { id: 'short_bow', name: 'Short Bow', slot: 'weapon', grants: { skill: 'arrow' }, text: 'Grants Arrow.' },
-  bone_wand: { id: 'bone_wand', name: 'Bone Wand', slot: 'weapon', grants: { skill: 'raise_skeleton' }, text: 'Grants Raise Skeleton.' },
-  // droppable weapons that grant a skill (+ a mod) — expand your kit
-  great_axe: { id: 'great_axe', name: 'Great Axe of Smiting', slot: 'weapon', grants: { skill: 'smite' }, passive: { plusSkills: 1 }, text: 'Grants Smite. +1 to Skills.' },
-  war_bow: { id: 'war_bow', name: 'War Bow', slot: 'weapon', grants: { skill: 'power_shot' }, passive: { maxMana: 2 }, text: 'Grants Power Shot. +2 Mana.' },
-  bone_staff: { id: 'bone_staff', name: 'Bone Staff', slot: 'weapon', grants: { skill: 'bone_spear' }, passive: { plusSkills: 1 }, text: 'Grants Bone Spear. +1 to Skills.' },
+  worn_axe: { id: 'worn_axe', name: 'Worn Axe', slot: 'weapon', wtype: 'melee', dmg: [5, 8], grants: { skill: 'cleave' }, text: 'A pitted axe (5-8). Grants Cleave.' },
+  short_bow: { id: 'short_bow', name: 'Short Bow', slot: 'weapon', wtype: 'ranged', dmg: [5, 8], grants: { skill: 'arrow' }, text: 'A hunting bow (5-8). Grants Arrow.' },
+  bone_wand: { id: 'bone_wand', name: 'Bone Wand', slot: 'weapon', wtype: 'focus', grants: { skill: 'raise_skeleton' }, text: 'A focus for the dead. Grants Raise Skeleton.' },
+  // droppable weapons — better damage/mods; type gates which skills they empower
+  great_axe: { id: 'great_axe', name: 'Great Axe of Smiting', slot: 'weapon', wtype: 'melee', dmg: [8, 13], grants: { skill: 'smite' }, passive: { plusSkills: 1 }, text: 'A brutal axe (8-13). Grants Smite. +1 to Skills.' },
+  war_bow: { id: 'war_bow', name: 'War Bow', slot: 'weapon', wtype: 'ranged', dmg: [8, 12], grants: { skill: 'power_shot' }, passive: { maxMana: 2 }, text: 'A heavy bow (8-12). Grants Power Shot. +2 Mana.' },
+  bone_staff: { id: 'bone_staff', name: 'Bone Staff', slot: 'weapon', wtype: 'focus', grants: { skill: 'bone_spear' }, passive: { plusSkills: 1 }, text: 'A staff of bone. Grants Bone Spear. +1 to Skills.' },
 };
 export const WEAPON_DROPS = ['great_axe', 'war_bow', 'bone_staff'];
 
