@@ -32,6 +32,20 @@ test('weapon TYPE matters: a bow cannot Cleave, an axe cannot fire a Power Shot'
   assert.ok(dmg({ dmg: [20, 20], wtype: 'melee' }, 'strike') > dmg(axe, 'strike'));
 });
 
+test('auto-attack is a free weapon swing; every action (swing, skill, potion) spends an AP', () => {
+  const c = createCombat({ hero: { ...HERO, mana: 0, abilities: ['attack', 'guard'] }, pack: [{ id: 'zombie' }], rng: makeRng('ap') });
+  const idx = (id) => c.getState().hero.abilities.findIndex((a) => a.id === id);
+  assert.equal(c.getState().hero.actions, 3);
+  const before = c.getState().enemies[0].hp;
+  assert.equal(c.useSkill(idx('attack')).ok, true); // free swing even at 0 Mana
+  assert.ok(c.getState().enemies[0].hp < before); // it landed weapon damage
+  assert.equal(c.getState().hero.actions, 2);
+  c.useSkill(idx('attack')); c.useSkill(idx('attack')); // spend the rest
+  assert.equal(c.getState().hero.actions, 0);
+  assert.equal(c.useSkill(idx('attack')).ok, false); // out of actions this turn
+  assert.equal(c.quaff('mana', 5).ok, false); // a potion needs an action too
+});
+
 test('accuracy vs evade: physical attacks can miss; spells never do', () => {
   // an evasive dummy; a hero with modest accuracy misses it sometimes but not always
   const DUMMY = { id: 'goatman' }; // eva 3
@@ -66,7 +80,7 @@ test('melee reaches only the inner ring; a ranged skill reaches the outer', () =
   const c = fight([{ id: 'shaman' }, { id: 'guardian', guards: 0 }]);
   const gBefore = c.getState().enemies[1].hp;
   c.useSkill(ai(c, 'strike'), 0); // focus outer shaman, melee -> hits inner instead
-  assert.equal(c.getState().enemies[0].hp, 16); // shaman (outer) untouched by melee
+  assert.equal(c.getState().enemies[0].hp, 20); // shaman (outer) untouched by melee
   assert.ok(c.getState().enemies[1].hp < gBefore); // inner guardian took the Strike
   const c2 = fight([{ id: 'shaman' }, { id: 'guardian', guards: 0 }], { weapon: { dmg: [5, 8], wtype: 'ranged' } });
   const before = c2.getState().enemies[0].hp;
@@ -82,7 +96,7 @@ test('a big horde only reaches you ENGAGE_CAP at a time (the rest WAIT)', () => 
   assert.equal(waiting, 6 - ENGAGE_CAP); // only the front rank is engaged
   const before = c.getState().hero.life;
   c.endTurn();
-  assert.equal(before - c.getState().hero.life, ENGAGE_CAP * 6); // only ENGAGE_CAP swing
+  assert.equal(before - c.getState().hero.life, ENGAGE_CAP * 7); // only ENGAGE_CAP swing (goatman atk 7)
 });
 
 test('AoE catches only a few foes, never the whole ring', () => {
@@ -97,7 +111,7 @@ test('when the front rank falls, the outer ring steps into melee range', () => {
   const c = fight([{ id: 'shaman' }, { id: 'fallen' }]); // shaman outer (ring1), fallen inner (ring0)
   // melee can't reach the shaman while the fallen shields the front
   c.useSkill(ai(c, 'strike'), 0); // focus outer shaman -> Strike lands on the inner fallen instead
-  assert.equal(c.getState().enemies[0].hp, 16); // shaman untouched
+  assert.equal(c.getState().enemies[0].hp, 20); // shaman untouched
   // clear the fallen (hp 7); Strike again if it survived the first
   if (c.getState().enemies[1].hp > 0) c.useSkill(ai(c, 'strike'), 1);
   assert.equal(c.getState().enemies[1].hp, 0);
@@ -133,7 +147,7 @@ test('while Exposed, Block does not hold', () => {
   assert.ok(c.getState().hero.block > 0);
   c.useSkill(ai(c, 'charge'), 0);
   c.endTurn();
-  assert.equal(c.getState().hero.life, 60 - 6); // goatman atk 6, Block dropped while Exposed
+  assert.equal(c.getState().hero.life, 60 - 7); // goatman atk 7, Block dropped while Exposed
 });
 
 test('summons strike your focus each turn, flanking the guard', () => {
@@ -143,12 +157,12 @@ test('summons strike your focus each turn, flanking the guard', () => {
   const before = c.getState().enemies[0].hp;
   c.endTurn();
   const dealt = before - c.getState().enemies[0].hp;
-  assert.ok(dealt >= 3 && dealt <= 5, `skeleton flanked ${dealt}`);
+  assert.ok(dealt >= 2 && dealt <= 4, `skeleton flanked ${dealt}`);
 });
 
 test('every living enemy hits you each turn (the surround) and kills grant XP', () => {
   const c = fight([{ id: 'fallen' }, { id: 'fallen' }, { id: 'goatman' }]);
-  c.endTurn(); assert.equal(c.getState().hero.life, 60 - (2 + 2 + 6)); // fallen 2 + fallen 2 + goatman 6
+  c.endTurn(); assert.equal(c.getState().hero.life, 60 - (3 + 3 + 7)); // fallen 3 + fallen 3 + goatman 7
   const c2 = fight([{ id: 'fallen' }]);
   c2.useSkill(ai(c2, 'strike'), 0); // kill it (strike 5-8 >= 8? maybe; use zeal? fallen hp8)
   // strike may not one-shot; cast again

@@ -37,7 +37,7 @@ try {
       const tgt = caster || liv[0]; if (tgt) { const n = q(`.mob[data-uid="${tgt.uid}"]`); if (n) n.click(); }
       let acted = true;
       while (acted) { acted = false; const s = B().state; if (!s || s.over) break;
-        const ab = s.hero.abilities; const pref = ['raise_skeleton', 'raise_golem', 'teeth', 'bone_spear', 'strafe', 'cleave', 'whirlwind', 'power_shot', 'arrow', 'charge', 'pierce', 'smite', 'zeal', 'strike'];
+        const ab = s.hero.abilities; const pref = ['raise_skeleton', 'raise_golem', 'teeth', 'bone_spear', 'strafe', 'cleave', 'whirlwind', 'power_shot', 'charge', 'pierce', 'smite', 'zeal', 'attack'];
         let idx = -1;
         if (s.hero.summons.length < 3) { const i = ab.findIndex((a) => a.id === 'raise_skeleton' && a.cost <= s.hero.mana); if (i >= 0) idx = i; }
         if (idx < 0) for (const id of pref) { const i = ab.findIndex((a) => a.id === id && a.cost <= s.hero.mana); if (i >= 0) { idx = i; break; } }

@@ -25,7 +25,7 @@ export function deriveStats(cls, equipment, level, bonus = {}) {
 // Your abilities = a universal Guard + the skill your weapon grants + everything
 // you've LEARNED in the tree (skillHard[id] > 0).
 export function deriveAbilities(equipment, skillHard) {
-  const list = ['guard'];
+  const list = ['attack', 'guard']; // a basic weapon swing + a universal brace, always available
   for (const s of SLOTS) { const it = equipment[s]; if (it && it.grants && it.grants.skill) list.push(it.grants.skill); }
   for (const id of Object.keys(skillHard)) if (skillHard[id] > 0) list.push(id);
   return [...new Set(list)];

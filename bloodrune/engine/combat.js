@@ -10,7 +10,9 @@ import { SKILLS, ENEMIES, ELITE_AFFIXES, SUPERUNIQUES } from './content.js';
 export const GUARD_MITIGATION = 0.6;
 // A surround has only so many slots — this many melee foes can reach you at once.
 // The rest are in the horde but WAIT their turn; as front-liners die, they step up.
-export const ENGAGE_CAP = 4;
+export const ENGAGE_CAP = 5;
+// Summons body-block only the single heaviest blow per turn — a wall, not immunity.
+export const SUMMON_BLOCK_CAP = 1;
 
 export function skillLevel(hero, id) { return 1 + ((hero.hard && hero.hard[id]) || 0) + (hero.plusSkills || 0); }
 
@@ -20,6 +22,7 @@ export function skillLevel(hero, id) { return 1 + ((hero.hard && hero.hard[id]) 
 function weaponBase(hero, s) {
   if (!s.weapon || s.weapon === 'spell') return s.dmg || [0, 0];
   const w = hero.weapon;
+  if (s.weapon === 'weapon') return (w && w.dmg) ? w.dmg : [1, 3]; // auto-attack: whatever weapon you hold
   if (w && w.wtype === s.weapon && w.dmg) return w.dmg;
   return [1, 3];
 }
@@ -112,7 +115,9 @@ export function createCombat({ hero, pack, rng }) {
   // but once you clear the front the outer ring STEPS IN and melee reaches it.
   function frontRing() { const a = alive(); return a.length ? Math.min(...a.map((e) => e.ring)) : 0; }
   function inReach(e, reach) { return e.ring <= frontRing() + reach; }
-  function pickTarget(s) { const reach = s.reach || 0; const f = byUid(state.hero.focusUid);
+  // the auto-attack's reach follows the weapon (a bow reaches the outer ring, an axe doesn't)
+  function reachOf(s) { return s.weapon === 'weapon' ? ((state.hero.weapon && state.hero.weapon.wtype === 'ranged') ? 1 : 0) : (s.reach || 0); }
+  function pickTarget(s) { const reach = reachOf(s); const f = byUid(state.hero.focusUid);
     if (f && f.hp > 0 && inReach(f, reach)) return f; return alive().filter((e) => inReach(e, reach))[0] || null; }
 
   function useSkill(abilityIndex, focusUid) {
@@ -192,7 +197,8 @@ export function createCombat({ hero, pack, rng }) {
     for (const e of state.enemies) { if (e.hp <= 0 || !e.intent || e.intent.type !== 'attack') continue;
       for (let t = 0; t < (e.intent.times || 1); t++) swings.push({ e, value: e.intent.value }); }
     swings.sort((a, b) => b.value - a.value); // summons soak the heaviest blows
-    for (const sw of swings) { if (state.hero.summons.length && blockWithSummon(sw.value)) continue;
+    let blocked = 0;
+    for (const sw of swings) { if (blocked < SUMMON_BLOCK_CAP && state.hero.summons.length && blockWithSummon(sw.value)) { blocked++; continue; }
       if (!monsterHit(sw.e, sw.value)) { finish('lose'); return false; } }
     return true;
   }
@@ -203,9 +209,11 @@ export function createCombat({ hero, pack, rng }) {
   // limiter. Returns whether it was consumed so the run can decrement the belt.
   function quaff(kind, amount) {
     if (state.over) return { ok: false };
+    if (state.hero.actions <= 0) return { ok: false, reason: 'no actions left this turn' }; // a sip costs an action, like a swing
     const h = state.hero;
     if (kind === 'life') { if (h.life >= h.maxLife) return { ok: false, reason: 'full' }; h.life = Math.min(h.maxLife, h.life + amount); state.log.push(`You quaff a Life potion (+${amount}).`); }
     else { if (h.mana >= h.maxMana) return { ok: false, reason: 'full' }; h.mana = Math.min(h.maxMana, h.mana + amount); state.log.push(`You quaff a Mana potion (+${amount}).`); }
+    state.hero.actions -= 1;
     return { ok: true };
   }
 

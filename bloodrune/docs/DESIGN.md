@@ -130,11 +130,20 @@ interact with your engagement-cap identity.
   level + gear affixes, not a stat-point screen. Keeps the run lean.
 - ~~Potions / between-fight resource~~ **✅ BUILT.** D2-authentic Mana economy:
   Mana **persists across the whole run** (no free refill between packs), regens
-  **slowly** per turn, and you top up with a **potion belt** (Life + Mana),
-  refilled at camps and found as drops. **Basic attacks are free** (0 Mana) —
-  Mana gates *skills*; **action points** (3/turn) bound *how many* things you do
-  (sets up "attack speed = more actions" as a future gear stat). **Leveling up
-  fully restores Life & Mana.**
+  **slowly**, topped up with a **potion belt** (Life + Mana), refilled at camps
+  and found as drops. **Leveling up fully restores Life & Mana.**
+- **Auto-attack + action economy ✅ BUILT.** A universal **Auto-Attack** — a
+  basic weapon swing, *not* a tree skill (melee weapon hits inner, a bow the
+  outer), free of Mana — is your out-of-Mana fallback. **Action points** (3/turn)
+  are the shared budget: a swing, a Mana skill, *and* a potion each cost 1 AP, so
+  a sip is a real tradeoff. Mana gates *which* skills; AP gates *how many* actions.
+  (Sets up "attack speed = more actions" as a future gear stat.)
+- **Data-driven difficulty ✅ (telemetry loop working).** Playtest data showed a
+  faceroll (15:1 damage dealt/taken, Necro 268:1, zero deaths). Tuned off it:
+  tougher/harder-hitting enemies, engagement cap 4→5, the skeleton wall blocks
+  only the single heaviest blow (was every blow), lower Amazon evade. Bot now:
+  Barbarian 13/16 (median 20% life), Amazon 15/16 (22%), Necro 16/16 (35%) —
+  real danger and deaths, ratios down to ~2.6:1 / 7:1.
 - **Space-limited inventory + Shops ✅ BUILT.** Bag capped at 12; loot drops on
   the **ground** and must be **taken** (space permitting) — **overflow is left
   behind, never auto-sold** (no reward for nothing; managing space is the

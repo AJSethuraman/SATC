@@ -17,24 +17,27 @@
 //   damage is the EQUIPPED WEAPON's damage × wpn (+ growth/level); hold the wrong
 //   weapon type and you flail for a pittance. Spell skills use their own dmg.
 export const SKILLS = {
-  // universal
+  // universal — a basic weapon swing (NOT a learned skill): no Mana, uses whatever
+  // weapon you hold (melee hits the inner ring, a bow the outer). Your out-of-Mana
+  // fallback. Costs an action point like everything else.
+  attack: { id: 'attack', name: 'Attack', type: 'attack', target: 'single', cost: 0, scale: 'damage', weapon: 'weapon', wpn: 1.0, grow: 0, req: 1, pre: [], text: 'A basic weapon swing — free, uses your weapon.' },
   guard: { id: 'guard', name: 'Guard', type: 'skill', weapon: 'spell', cost: 2, scale: 'block', base: 8, grow: 2, req: 1, pre: [], text: 'Brace — gain Block.' },
   // Barbarian — melee (axe-powered) + a Charge to break into the outer ring
   strike: { id: 'strike', name: 'Strike', type: 'attack', target: 'single', reach: 0, cost: 0, scale: 'damage', weapon: 'melee', wpn: 1.0, grow: 2, req: 1, pre: [] },
   cleave: { id: 'cleave', name: 'Cleave', type: 'attack', target: 'aoe', reach: 0, cost: 3, scale: 'damage', weapon: 'melee', wpn: 0.85, grow: 1, maxTargets: 2, req: 1, pre: [] },
-  zeal: { id: 'zeal', name: 'Zeal', type: 'attack', target: 'single', reach: 0, cost: 3, scale: 'hits', weapon: 'melee', wpn: 0.7, hitCap: 5, req: 3, pre: ['strike'] },
+  zeal: { id: 'zeal', name: 'Zeal', type: 'attack', target: 'single', reach: 0, cost: 3, scale: 'hits', weapon: 'melee', wpn: 0.7, hitCap: 5, req: 3, pre: ['cleave'] },
   smite: { id: 'smite', name: 'Smite', type: 'attack', target: 'single', reach: 0, cost: 3, scale: 'damage', weapon: 'melee', wpn: 1.6, grow: 3, req: 6, pre: ['zeal'] },
   whirlwind: { id: 'whirlwind', name: 'Whirlwind', type: 'attack', target: 'aoe', reach: 0, cost: 4, scale: 'damage', weapon: 'melee', wpn: 1.1, grow: 2, maxTargets: 4, req: 8, pre: ['cleave', 'smite'] },
   charge: { id: 'charge', name: 'Charge', type: 'breakthrough', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'melee', wpn: 1.25, grow: 2, req: 4, pre: ['cleave'] },
   warcry: { id: 'warcry', name: 'War Cry', type: 'skill', weapon: 'spell', cost: 4, scale: 'block', base: 14, grow: 3, req: 2, pre: [], text: 'A defiant roar — big Block.' },
   // Amazon — ranged (bow-powered), reaches the outer ring natively
   arrow: { id: 'arrow', name: 'Arrow', type: 'attack', target: 'single', reach: 1, cost: 0, scale: 'damage', weapon: 'ranged', wpn: 1.0, grow: 2, req: 1, pre: [] },
-  power_shot: { id: 'power_shot', name: 'Power Shot', type: 'attack', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'ranged', wpn: 1.55, grow: 3, req: 4, pre: ['arrow'] },
+  power_shot: { id: 'power_shot', name: 'Power Shot', type: 'attack', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'ranged', wpn: 1.55, grow: 3, req: 3, pre: [] },
   strafe: { id: 'strafe', name: 'Strafe', type: 'attack', target: 'aoe', reach: 1, cost: 4, scale: 'damage', weapon: 'ranged', wpn: 0.8, grow: 2, maxTargets: 3, req: 6, pre: ['power_shot'], text: 'A volley — hits several, reaches outer.' },
-  pierce: { id: 'pierce', name: 'Pierce', type: 'breakthrough', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'ranged', wpn: 1.15, grow: 2, req: 2, pre: ['arrow'], text: 'A shot through the guard (reaches, ignores guard) — you stay Exposed.' },
+  pierce: { id: 'pierce', name: 'Pierce', type: 'breakthrough', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'ranged', wpn: 1.15, grow: 2, req: 2, pre: [], text: 'A shot through the guard (reaches, ignores guard) — you stay Exposed.' },
   // Necromancer — spell/summon skills: weapon-INDEPENDENT (the wand grants +Skills)
-  raise_skeleton: { id: 'raise_skeleton', name: 'Raise Skeleton', type: 'summon', weapon: 'spell', cost: 3, scale: 'summons', dmg: [3, 5], hp: 4, hpGrow: 1, req: 1, pre: [] },
-  raise_golem: { id: 'raise_golem', name: 'Raise Golem', type: 'summon', weapon: 'spell', cost: 5, scale: 'summons', dmg: [6, 10], hp: 14, hpGrow: 2, solo: true, req: 5, pre: ['raise_skeleton'] },
+  raise_skeleton: { id: 'raise_skeleton', name: 'Raise Skeleton', type: 'summon', weapon: 'spell', cost: 3, scale: 'summons', dmg: [2, 4], hp: 4, hpGrow: 1, req: 1, pre: [] },
+  raise_golem: { id: 'raise_golem', name: 'Raise Golem', type: 'summon', weapon: 'spell', cost: 5, scale: 'summons', dmg: [5, 8], hp: 14, hpGrow: 2, solo: true, req: 5, pre: ['raise_skeleton'] },
   bone_spear: { id: 'bone_spear', name: 'Bone Spear', type: 'attack', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'spell', dmg: [6, 10], grow: 2, req: 4, pre: ['teeth'] },
   teeth: { id: 'teeth', name: 'Teeth', type: 'attack', target: 'aoe', reach: 1, cost: 3, scale: 'damage', weapon: 'spell', dmg: [2, 5], grow: 1, maxTargets: 3, req: 2, pre: [], text: 'A spray of bone — hits several, reaches outer.' },
   bone_armor: { id: 'bone_armor', name: 'Bone Armor', type: 'skill', weapon: 'spell', cost: 3, scale: 'block', base: 9, grow: 2, req: 2, pre: [], text: 'Shield of bone — Block.' },
@@ -50,9 +53,9 @@ export const CLASSES = {
   // refill between packs); you top up with Mana potions and rest at camps. Casters
   // carry a larger pool + slightly better regen.
   barbarian: { id: 'barbarian', name: 'Barbarian', glyph: '🪓', maxLife: 56, maxMana: 12, manaRegen: 2, startBlock: 0, acc: 7, eva: 1,
-    startWeapon: 'worn_axe', tree: ['strike', 'cleave', 'zeal', 'smite', 'whirlwind', 'charge', 'warcry'] },
-  amazon: { id: 'amazon', name: 'Amazon', glyph: '🏹', maxLife: 47, maxMana: 12, manaRegen: 2, startBlock: 0, acc: 8, eva: 6,
-    startWeapon: 'short_bow', tree: ['arrow', 'power_shot', 'strafe', 'pierce', 'guard'] },
+    startWeapon: 'worn_axe', tree: ['cleave', 'zeal', 'smite', 'whirlwind', 'charge', 'warcry'] },
+  amazon: { id: 'amazon', name: 'Amazon', glyph: '🏹', maxLife: 47, maxMana: 12, manaRegen: 2, startBlock: 0, acc: 8, eva: 4,
+    startWeapon: 'short_bow', tree: ['power_shot', 'strafe', 'pierce', 'guard'] },
   necromancer: { id: 'necromancer', name: 'Necromancer', glyph: '💀', maxLife: 40, maxMana: 16, manaRegen: 3, startBlock: 0, acc: 6, eva: 1,
     startWeapon: 'bone_wand', tree: ['raise_skeleton', 'raise_golem', 'bone_spear', 'teeth', 'bone_armor'] },
 };
@@ -65,8 +68,8 @@ export const CLASSES = {
 // Cleave at all. 'focus' weapons (wands/staves) deal no weapon damage: they power
 // the Necromancer, whose spells scale on +Skills, not on a swung weapon.
 export const ITEMS = {
-  worn_axe: { id: 'worn_axe', name: 'Worn Axe', slot: 'weapon', wtype: 'melee', dmg: [5, 8], grants: { skill: 'strike' }, text: 'A pitted axe (5-8). Grants Strike.' },
-  short_bow: { id: 'short_bow', name: 'Short Bow', slot: 'weapon', wtype: 'ranged', dmg: [5, 8], grants: { skill: 'arrow' }, text: 'A hunting bow (5-8). Grants Arrow.' },
+  worn_axe: { id: 'worn_axe', name: 'Worn Axe', slot: 'weapon', wtype: 'melee', dmg: [5, 8], grants: { skill: 'cleave' }, text: 'A pitted axe (5-8). Grants Cleave.' },
+  short_bow: { id: 'short_bow', name: 'Short Bow', slot: 'weapon', wtype: 'ranged', dmg: [5, 8], grants: { skill: 'power_shot' }, text: 'A hunting bow (5-8). Grants Power Shot.' },
   bone_wand: { id: 'bone_wand', name: 'Bone Wand', slot: 'weapon', wtype: 'focus', grants: { skill: 'raise_skeleton' }, text: 'A focus for the dead. Grants Raise Skeleton.' },
   // droppable weapons — better damage/mods; type gates which skills they empower
   great_axe: { id: 'great_axe', name: 'Great Axe of Smiting', slot: 'weapon', wtype: 'melee', dmg: [8, 13], grants: { skill: 'smite' }, passive: { plusSkills: 1 }, text: 'A brutal axe (8-13). Grants Smite. +1 to Skills.' },
@@ -80,13 +83,13 @@ export const WEAPON_DROPS = ['great_axe', 'war_bow', 'bone_staff'];
 // heals + is guardable; 'guardian' protects a caster.
 export const ENEMIES = {
   // acc = to-hit vs your Evade; eva = how hard it is to hit (vs your Accuracy).
-  fallen: { id: 'fallen', name: 'Fallen', hp: 7, attack: 2, glyph: '👺', role: 'grunt', ring: 0, xp: 3, acc: 4, eva: 1 },
-  zombie: { id: 'zombie', name: 'Zombie', hp: 12, attack: 4, glyph: '🧟', role: 'grunt', ring: 0, xp: 5, acc: 5, eva: 0 },
-  guardian: { id: 'guardian', name: 'Fallen Champion', hp: 12, attack: 4, glyph: '🛡️', role: 'guardian', ring: 0, xp: 6, acc: 5, eva: 2 },
-  goatman: { id: 'goatman', name: 'Goatman', hp: 14, attack: 6, glyph: '🐐', role: 'grunt', ring: 0, xp: 7, acc: 6, eva: 3 },
-  shaman: { id: 'shaman', name: 'Fallen Shaman', hp: 16, attack: 3, glyph: '🧙', role: 'caster', heal: 4, rez: 3, ring: 1, xp: 10, acc: 4, eva: 2 },
-  archer: { id: 'archer', name: 'Dark Archer', hp: 9, attack: 4, glyph: '🏹', role: 'archer', ring: 1, xp: 6, acc: 7, eva: 3 },
-  the_smith: { id: 'the_smith', name: 'The Flayed Smith', hp: 70, attack: 9, glyph: '🔨', role: 'elite', ring: 0, xp: 60, acc: 8, eva: 3 },
+  fallen: { id: 'fallen', name: 'Fallen', hp: 9, attack: 3, glyph: '👺', role: 'grunt', ring: 0, xp: 3, acc: 4, eva: 1 },
+  zombie: { id: 'zombie', name: 'Zombie', hp: 15, attack: 5, glyph: '🧟', role: 'grunt', ring: 0, xp: 5, acc: 5, eva: 0 },
+  guardian: { id: 'guardian', name: 'Fallen Champion', hp: 15, attack: 5, glyph: '🛡️', role: 'guardian', ring: 0, xp: 6, acc: 6, eva: 2 },
+  goatman: { id: 'goatman', name: 'Goatman', hp: 17, attack: 7, glyph: '🐐', role: 'grunt', ring: 0, xp: 7, acc: 6, eva: 3 },
+  shaman: { id: 'shaman', name: 'Fallen Shaman', hp: 20, attack: 4, glyph: '🧙', role: 'caster', heal: 5, rez: 3, ring: 1, xp: 10, acc: 4, eva: 2 },
+  archer: { id: 'archer', name: 'Dark Archer', hp: 12, attack: 6, glyph: '🏹', role: 'archer', ring: 1, xp: 6, acc: 7, eva: 3 },
+  the_smith: { id: 'the_smith', name: 'The Flayed Smith', hp: 110, attack: 12, glyph: '🔨', role: 'elite', ring: 0, xp: 60, acc: 8, eva: 3 },
 };
 
 // Elite affixes (rolled onto a champion for Elite nodes).

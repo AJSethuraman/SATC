@@ -10,7 +10,7 @@ import { CLASSES, ITEMS } from '../engine/content.js';
 test('you start NAKED: one weapon-granted skill + a universal Guard', () => {
   const g = createGame('naked', { classId: 'barbarian' });
   const run = g.getRun();
-  assert.deepEqual(run.abilities.sort(), ['strike', 'guard'].sort()); // Worn Axe -> Strike (free basic), + Guard
+  assert.deepEqual(run.abilities.sort(), ['attack', 'guard', 'cleave'].sort()); // universal Auto-Attack + Guard, Worn Axe -> Cleave
   assert.equal(run.level, 1);
   assert.equal(run.skillPoints, 0);
 });
@@ -24,9 +24,9 @@ test('deriveStats grows Life/Mana with level and sums gear mods', () => {
   assert.equal(geared.plusSkills, 1);
 });
 
-test('deriveAbilities = Guard + weapon skill + learned skills', () => {
-  const ab = deriveAbilities({ weapon: ITEMS.short_bow }, { power_shot: 1 });
-  assert.ok(ab.includes('guard') && ab.includes('arrow') && ab.includes('power_shot'));
+test('deriveAbilities = Auto-Attack + Guard + weapon skill + learned skills', () => {
+  const ab = deriveAbilities({ weapon: ITEMS.short_bow }, { strafe: 1 });
+  assert.ok(ab.includes('attack') && ab.includes('guard') && ab.includes('power_shot') && ab.includes('strafe'));
 });
 
 test('rollItem drops armor/jewelry with rolled affixes (never a weapon)', () => {
@@ -60,7 +60,7 @@ function autoRun(seed, classId, learnPref) {
         while (acted) { acted = false; const c = cb.getState(); if (c.over) break;
           const has = (id) => c.hero.abilities.some((a) => a.id === id); const aff = (id) => { const a = c.hero.abilities.find((x) => x.id === id); return a && a.cost <= c.hero.mana; };
           if (c.hero.summons.length < 3 && has('raise_skeleton') && aff('raise_skeleton') && tryUse('raise_skeleton')) { acted = true; continue; }
-          for (const id of ['strafe', 'teeth', 'cleave', 'whirlwind', 'power_shot', 'arrow', 'bone_spear', 'charge', 'pierce', 'smite', 'zeal', 'strike']) { if (has(id) && aff(id) && tryUse(id)) { acted = true; break; } }
+          for (const id of ['strafe', 'teeth', 'cleave', 'whirlwind', 'power_shot', 'bone_spear', 'charge', 'pierce', 'smite', 'zeal', 'attack']) { if (has(id) && aff(id) && tryUse(id)) { acted = true; break; } }
         }
         cb.endTurn();
       }
@@ -91,9 +91,9 @@ test('the skill tree gates by level and prerequisite — you cannot learn everyt
   assert.ok(!whirl.canInvest, 'Whirlwind is locked at level 1');
   assert.equal(g.investSkill('whirlwind').ok, false); // refused: level + prereqs
   assert.equal(g.investSkill('charge').ok, false); // charge req 4, still locked at level 1
-  // strike is a tier-1 skill; still needs a point though
-  const strike = run0.tree.find((t) => t.id === 'strike');
-  assert.equal(strike.req, 1);
+  // cleave is a tier-1 skill (the weapon grants it); Zeal needs a point in it first
+  const cleave = run0.tree.find((t) => t.id === 'cleave');
+  assert.equal(cleave.req, 1);
 });
 
 test('space-limited bag: loot must be TAKEN, overflow is left behind (never free gold)', () => {
@@ -143,8 +143,8 @@ test('Mana persists across the run (no free refill); Mana potions restore it', (
   }
   const cb = g.getCombat(); assert.ok(cb && g.getRun().phase === 'combat', 'reached a fight');
   const maxMana = cb.getState().hero.maxMana;
-  // spend Mana (raise skeletons / cast)
-  let g2 = 0; while (g2++ < 12) { const st = cb.getState(); if (st.over) break; const idx = st.hero.abilities.findIndex((a) => a.id !== 'guard' && a.cost <= st.hero.mana); if (idx < 0) break; if (!cb.useSkill(idx).ok) break; }
+  // spend Mana on a real skill (Raise Skeleton), leaving an action for the potion
+  let g2 = 0; while (g2++ < 2) { const st = cb.getState(); const idx = st.hero.abilities.findIndex((a) => a.id === 'raise_skeleton' && a.cost <= st.hero.mana); if (idx < 0 || !cb.useSkill(idx).ok) break; }
   const low = cb.getState().hero.mana;
   assert.ok(low < maxMana, 'Mana was spent');
   // quaff a Mana potion: restores Mana, decrements the belt
@@ -152,10 +152,10 @@ test('Mana persists across the run (no free refill); Mana potions restore it', (
   const r = g.quaff('mana');
   assert.equal(r.ok, true); assert.equal(g.getRun().potions.mana, potsBefore - 1);
   assert.ok(cb.getState().hero.mana > low, 'potion restored Mana');
-  // leave the fight; Mana carries to the run — you did NOT refill to full
+  // leave the fight; Mana carries to the run (the engine never resets it to full)
+  const endMana = cb.getState().hero.mana;
   if (!cb.getState().over) g.flee();
-  assert.equal(g.getRun().mana, cb.getState().hero.mana, 'run Mana = what you left the fight with');
-  assert.ok(g.getRun().mana < maxMana, 'no magical refill between packs');
+  assert.equal(g.getRun().mana, endMana, 'run Mana = what you left the fight with (no free refill)');
 });
 
 test('leveling grants skill points and investing raises a skill', () => {
@@ -169,6 +169,6 @@ test('leveling grants skill points and investing raises a skill', () => {
     let acted = true; while (acted) { acted = false; const c = cb.getState(); if (c.over) break; const idx = c.hero.abilities.findIndex((a) => a.id !== 'guard' && a.cost <= c.hero.mana); if (idx >= 0 && cb.useSkill(idx).ok) { acted = true; } } cb.endTurn(); }
     g.resolveCombat(); }
   const run = g.getRun();
-  if (run.skillPoints > 0) { const before = run.tree.find((t) => t.id === 'strike').level; g.investSkill('strike'); assert.equal(g.getRun().tree.find((t) => t.id === 'strike').level, before + 1); }
+  if (run.skillPoints > 0) { const before = run.tree.find((t) => t.id === 'cleave').level; g.investSkill('cleave'); assert.equal(g.getRun().tree.find((t) => t.id === 'cleave').level, before + 1); }
   assert.ok(run.level >= 1);
 });

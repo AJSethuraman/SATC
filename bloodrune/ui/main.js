@@ -155,7 +155,7 @@ function renderCombat() {
       <div class="hero-tok"><div class="ring"></div><div class="g">${h.glyph}</div>${h.summons.length ? `<div class="summons">${h.summons.map((x) => x.glyph).join('')}</div>` : ''}</div>${mobs}</div>
     <div class="hint">Surrounded — only the front rank can reach you each turn (the rest ⏳ wait). Ranged foes hold the back (“out of reach”); thin the front to pin them, or strike past with a ranged skill / Charge / Summons. A Shaman raises the Fallen — kill it first.</div>
     <div class="hand">${h.abilities.map(abilityHTML).join('')}</div>
-    <div class="belt">${potionBtn('life', pot.life, h.life >= h.maxLife)}${potionBtn('mana', pot.mana, h.mana >= h.maxMana)}</div>
+    <div class="belt">${potionBtn('life', pot.life, h.life >= h.maxLife || h.actions <= 0)}${potionBtn('mana', pot.mana, h.mana >= h.maxMana || h.actions <= 0)}</div>
     <div class="controls"><button class="act ghost small" id="flee">FLEE</button><button class="act" id="end">END TURN</button></div>`;
   logEl.innerHTML = s.log.slice(-6).map((l) => `<div>${l}</div>`).join(''); logEl.scrollTop = logEl.scrollHeight;
   board.querySelectorAll('.mob').forEach((mb) => mb.addEventListener('click', () => { focusUid = Number(mb.dataset.uid); combat.setFocus(focusUid); render(); }));
@@ -170,7 +170,8 @@ function recordCombatEnd(s) { if (!s || !s.over || s === lastRecorded) return; l
   tel('combat', { result: s.result, node: game.getRun().node ? game.getRun().node.type : null, turns: s.turn, tally: ty }); }
 function abilityHTML(c, i) {
   const s = combat.getState(); const h = s.hero; const affordable = c.cost <= h.mana && h.actions > 0;
-  const tag = c.type === 'breakthrough' ? 'reach · EXPOSES' : c.type === 'summon' ? 'summon · each turn' : c.target === 'aoe' ? (`×${c.maxTargets || 3}` + (c.reach ? ' · reaches outer' : ' · inner')) : c.type === 'skill' ? 'skill' : (c.reach ? 'reaches outer' : 'inner ring');
+  const autoReach = c.weapon === 'weapon' && h.weapon && h.weapon.wtype === 'ranged'; // auto-attack follows the weapon
+  const tag = c.type === 'breakthrough' ? 'reach · EXPOSES' : c.type === 'summon' ? 'summon · each turn' : c.target === 'aoe' ? (`×${c.maxTargets || 3}` + (c.reach ? ' · reaches outer' : ' · inner')) : c.type === 'skill' ? 'skill' : ((c.reach || autoReach) ? 'reaches outer' : 'inner ring');
   // physical attacks roll to-hit; show the chance vs the focused foe so accuracy reads
   let hit = '';
   if ((c.type === 'attack' || c.type === 'breakthrough') && c.weapon !== 'spell') {
