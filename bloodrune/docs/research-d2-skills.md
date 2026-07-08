@@ -36,9 +36,41 @@ Grounds the "skills scale uniquely" + skill-tree design. Sources at the bottom.
   **hard** point (build depth; specialization pays off). Soft points (+skills)
   don't feed synergies — same blessing/curse tradeoff as class-specific effects.
 
+## The tree STRUCTURE — how skills unlock (D2)
+
+A skill tree is not "spend a point, take anything." Two gates:
+
+- **Tier level-requirements.** Skills sit in rows (tiers). The top row is
+  available at character level 1; each row down adds **+6** required levels —
+  so tiers unlock at **clvl 1 / 6 / 12 / 18 / 24 / 30**. You cannot put a point
+  in a skill until you meet its character-level requirement. [5]
+- **Prerequisite arrows.** A skill that another points to is a **prerequisite**:
+  you must have **≥1 point in every prerequisite** before you can allocate to the
+  skill it points to. (E.g. Chilling Armor ← Shiver Armor ← Ice Blast + Frozen
+  Armor.) [5]
+- **Per-point level gate.** Even after a skill unlocks, "if a skill requires
+  level X, to invest point Y you must be level **X + (Y−1)**" — so you can't dump
+  a pile of saved points into one skill; its investment paces with your level. [5]
+- You earn **1 skill point per level** (plus a few from quests). [6]
+
+### Bloodrune translation (the tree, not just scaling)
+
+- Each skill carries `req` (character-level requirement) and `pre` (prerequisite
+  skill ids). `investSkill` refuses a point unless: you have a point to spend,
+  the skill is in your class tree, **level ≥ req + currentHardPoints** (the
+  per-point gate), and **every prerequisite has ≥1 point**.
+- Levels are compressed for a short roguelite run (reqs like 1 / 2 / 4 / 6 / 8
+  instead of 1 / 6 / 12 / 18) but the *shape* is D2's: a tier-gated, prereq-
+  chained tree where your Whirlwind is a capstone you build toward — you start
+  with a weapon's one skill and earn the rest, you don't open the menu with
+  everything available.
+
 ## Sources
 - [1] [Charged Bolt (Diablo II) — Diablo Wiki (Fandom)](https://diablo.fandom.com/wiki/Charged_Bolt_(Diablo_II))
 - [2] [Zeal (Diablo II) — Diablo Wiki (Fandom)](https://diablo.fandom.com/wiki/Zeal_(Diablo_II))
 - [3] [Raise Skeleton (Diablo II) — Diablo Wiki (Fandom)](https://diablo-archive.fandom.com/wiki/Raise_Skeleton_(Diablo_II))
 - [4] [Synergies — Diablo Wiki (Fandom)](https://diablo.fandom.com/wiki/Synergies) ·
   [Synergies — diablowiki](https://diablo2.diablowiki.net/Synergies)
+- [5] [Skill Trees — Diablo Wiki (Fandom)](https://diablo.fandom.com/wiki/Skill_Trees)
+  (tier level-reqs 1/6/12/18/24/30, prerequisite arrows, per-point level gate)
+- [6] [Skill points — Diablo Wiki (Fandom)](https://diablo.fandom.com/wiki/Skill_points)

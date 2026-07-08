@@ -14,7 +14,7 @@ export function skillLevel(hero, id) { return 1 + ((hero.hard && hero.hard[id]) 
 export function skillEffect(hero, id) {
   const s = SKILLS[id]; const lvl = skillLevel(hero, id); const g = s.grow || 0;
   if (s.scale === 'damage') { const min = s.dmg[0] + g * (lvl - 1), max = s.dmg[1] + g * (lvl - 1);
-    return { lvl, min, max, text: `Deal ${min}-${max}${s.target === 'aoe' ? ' to ALL in range' : ''}${s.reach ? ' (reaches outer)' : ''}.` }; }
+    return { lvl, min, max, text: `Deal ${min}-${max}${s.target === 'aoe' ? ` to up to ${s.maxTargets || 3}` : ''}${s.reach ? ' (reaches outer)' : ''}.` }; }
   if (s.scale === 'hits') { const hits = Math.min(s.hitCap, 1 + lvl); return { lvl, hits, min: s.dmg[0], max: s.dmg[1], text: `Strike ${hits}× for ${s.dmg[0]}-${s.dmg[1]}.` }; }
   if (s.scale === 'block') { const block = s.base + g * (lvl - 1); return { lvl, block, text: `Gain ${block} Block.` }; }
   if (s.scale === 'summons') { const count = s.solo ? 1 : 1 + Math.floor((lvl - 1) / 2); const min = s.dmg[0] + (lvl - 1), max = s.dmg[1] + (lvl - 1);
@@ -93,9 +93,10 @@ export function createCombat({ hero, pack, rng }) {
       if (state.hero.block >= eff.block) { state.hero.mana += s.cost; return { ok: false, reason: 'already braced' }; }
       state.hero.block = eff.block; } }
     else if (s.type === 'summon') { for (let i = 0; i < eff.count; i++) state.hero.summons.push({ glyph: s.solo ? '🗿' : '💀', min: eff.min, max: eff.max, hp: eff.hp, maxHp: eff.hp }); state.log.push(`${s.name}.`); }
-    else if (s.target === 'aoe') { const hits = alive().filter((x) => inReach(x, s.reach || 0));
-      if (!hits.length) { state.hero.mana += s.cost; return { ok: false, reason: 'no target in reach' }; }
-      for (const e of hits) applyHit(e, roll(eff.min, eff.max), false); }
+    else if (s.target === 'aoe') { let pool = alive().filter((x) => inReach(x, s.reach || 0));
+      if (!pool.length) { state.hero.mana += s.cost; return { ok: false, reason: 'no target in reach' }; }
+      const f = byUid(state.hero.focusUid); if (f && pool.includes(f)) pool = [f, ...pool.filter((e) => e !== f)]; // your focus is struck first
+      for (const e of pool.slice(0, s.maxTargets || pool.length)) applyHit(e, roll(eff.min, eff.max), false); } // AoE catches only a few, never the whole ring
     else { const t = pickTarget(s); if (!t) { state.hero.mana += s.cost; return { ok: false, reason: 'no target in reach' }; }
       if (s.type === 'breakthrough') { applyHit(t, roll(eff.min, eff.max), true); state.hero.exposed = true; state.log.push('You break through — and drop your guard.'); }
       else if (s.scale === 'hits') { for (let h = 0; h < eff.hits && t.hp > 0; h++) applyHit(t, roll(eff.min, eff.max), false); }

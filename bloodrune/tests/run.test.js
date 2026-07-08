@@ -45,7 +45,9 @@ function autoRun(seed, classId, learnPref) {
     const run = S();
     if (run.phase === 'victory' || run.phase === 'dead') break;
     if (run.phase === 'map') { const i = run.choices.findIndex((c) => c.type === 'combat' || c.type === 'elite'); g.chooseDirection(i >= 0 ? i : 0); continue; }
-    if (run.phase === 'reward') { while (S().skillPoints > 0) { const known = S().abilities; const want = learnPref.find((id) => !known.includes(id)) || learnPref[0]; g.investSkill(want); } g.continueFromReward(); continue; }
+    if (run.phase === 'reward') { let sp = 0; while (S().skillPoints > 0 && sp++ < 20) { const tree = S().tree;
+      const want = learnPref.map((id) => tree.find((t) => t.id === id)).find((t) => t && t.canInvest) || tree.find((t) => t.canInvest);
+      if (!want) break; g.investSkill(want.id); } g.continueFromReward(); continue; }
     if (run.phase === 'combat') {
       const cb = g.getCombat();
       let turns = 0;
@@ -77,6 +79,20 @@ test('a Barbarian descent terminates (win or death) without throwing', () => {
 test('a Necromancer descent terminates', () => {
   const end = autoRun('br-necro', 'necromancer', ['raise_skeleton', 'bone_spear', 'teeth', 'raise_golem']);
   assert.ok(['victory', 'dead'].includes(end), `ended ${end}`);
+});
+
+test('the skill tree gates by level and prerequisite — you cannot learn everything at once', () => {
+  const g = createGame('gate', { classId: 'barbarian' });
+  // hand the hero some points without leveling (simulate) by leveling via a fight is slow; use investSkill gates directly
+  const run0 = g.getRun();
+  const whirl = run0.tree.find((t) => t.id === 'whirlwind');
+  assert.equal(whirl.req, 8); // capstone
+  assert.ok(!whirl.canInvest, 'Whirlwind is locked at level 1');
+  assert.equal(g.investSkill('whirlwind').ok, false); // refused: level + prereqs
+  assert.equal(g.investSkill('charge').ok, false); // charge req 4, still locked at level 1
+  // strike is a tier-1 skill; still needs a point though
+  const strike = run0.tree.find((t) => t.id === 'strike');
+  assert.equal(strike.req, 1);
 });
 
 test('leveling grants skill points and investing raises a skill', () => {

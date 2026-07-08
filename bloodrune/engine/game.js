@@ -57,19 +57,33 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function unequip(slot) { const it = run.equipment[slot]; if (!it) return { ok: false }; if (slot === 'weapon') return { ok: false, reason: 'need a weapon' }; run.bag.push(it); run.equipment[slot] = null; clampLife(); return { ok: true }; }
   function clampLife() { run.life = Math.min(run.life, statsNow().maxLife); }
 
-  // ---- skill tree ----
-  function investSkill(id) { if (run.skillPoints <= 0) return { ok: false }; if (!cls.tree.includes(id) && id !== 'guard') return { ok: false };
+  // ---- skill tree (D2-style gates: tier level-req, prerequisites, per-point gate) ----
+  function hasPoint(id) { return (run.skillHard[id] || 0) > 0 || (run.equipment.weapon && run.equipment.weapon.grants && run.equipment.weapon.grants.skill === id); }
+  function skillGate(id) {
+    const s = SKILLS[id]; if (!s) return { ok: false, reason: 'unknown' };
+    if (!cls.tree.includes(id) && id !== 'guard') return { ok: false, reason: 'not in your tree' };
+    const cur = run.skillHard[id] || 0; const need = (s.req || 1) + cur; // point (cur+1) needs level req + cur
+    if (run.level < need) return { ok: false, reason: `Lv ${need}`, needLevel: need };
+    const missing = (s.pre || []).filter((p) => !hasPoint(p));
+    if (missing.length) return { ok: false, reason: `needs ${missing.map((p) => skName(p)).join(', ')}`, missing };
+    return { ok: true };
+  }
+  function investSkill(id) { if (run.skillPoints <= 0) return { ok: false, reason: 'no points' };
+    const gate = skillGate(id); if (!gate.ok) return gate;
     run.skillPoints -= 1; run.skillHard[id] = (run.skillHard[id] || 0) + 1; return { ok: true }; }
 
   // ---- map / nodes ----
   function beginDescent() { run.choices = nextChoices(rng, run.map); run.phase = 'map'; }
   function rint(lo, hi) { return lo + rng.int(hi - lo + 1); }
 
+  // size is the TOTAL pack (a support caster + its guard + an archer are counted
+  // within it, not stacked on top) — a surround you chew through over a few turns,
+  // not a wall that deletes you now that AoE only catches a couple foes at a time.
   function genEncounter(depth) {
-    const pack = []; const size = Math.min(3 + Math.floor(depth / 1.5), 7);
-    if (depth >= 2 && rng.next() < 0.7) { pack.push({ id: 'shaman' }); const guards = 1 + (depth >= 5 ? 1 : 0); for (let i = 0; i < guards; i++) pack.push({ id: 'guardian', guards: 0 }); }
+    const pack = []; const size = Math.min(3 + Math.floor(depth / 2.5), 5);
+    if (depth >= 2 && rng.next() < 0.65) { pack.push({ id: 'shaman' }); if (depth >= 4) pack.push({ id: 'guardian', guards: 0 }); }
+    if (depth >= 4 && rng.next() < 0.4) pack.push({ id: 'archer' });
     while (pack.length < size) { const r = rng.next(); pack.push({ id: r < 0.6 ? 'fallen' : r < 0.82 ? 'goatman' : 'zombie' }); }
-    if (depth >= 3 && rng.next() < 0.5) pack.push({ id: 'archer' });
     return pack;
   }
   function genElite(depth) {
@@ -124,9 +138,11 @@ export function createGame(seed = 'bloodrune', opts = {}) {
 
   function getRun() {
     const s = statsNow();
-    const tree = ['guard', ...cls.tree.filter((t) => t !== 'guard')].map((id) => ({ id, level: 1 + (run.skillHard[id] || 0),
-      learned: (run.skillHard[id] || 0) > 0 || (run.equipment.weapon && run.equipment.weapon.grants && run.equipment.weapon.grants.skill === id) || id === 'guard',
-      eff: skillEffect({ hard: run.skillHard, plusSkills: s.plusSkills }, id), name: skName(id) }));
+    const tree = ['guard', ...cls.tree.filter((t) => t !== 'guard')].map((id) => { const sk = SKILLS[id] || {}; const gate = skillGate(id);
+      return { id, level: 1 + (run.skillHard[id] || 0), req: sk.req || 1, pre: sk.pre || [],
+        learned: hasPoint(id) || id === 'guard',
+        canInvest: run.skillPoints > 0 && gate.ok, gateReason: gate.ok ? null : gate.reason,
+        eff: skillEffect({ hard: run.skillHard, plusSkills: s.plusSkills }, id), name: skName(id) }; });
     return { seed: run.seed, difficulty: run.difficulty, className: run.className, glyph: run.glyph, phase: run.phase,
       stats: s, life: run.life, maxLife: s.maxLife, level: run.level, xp: run.xp, xpToNext: xpForLevel(run.level), skillPoints: run.skillPoints,
       abilities: abilitiesNow(), tree,

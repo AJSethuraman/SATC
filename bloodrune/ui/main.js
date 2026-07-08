@@ -124,7 +124,7 @@ function renderCombat() {
 }
 function abilityHTML(c, i) {
   const h = combat.getState().hero; const affordable = c.cost <= h.mana;
-  const tag = c.type === 'breakthrough' ? 'reach · EXPOSES' : c.type === 'summon' ? 'summon · each turn' : c.target === 'aoe' ? (c.reach ? 'all · reaches outer' : 'all · inner') : c.type === 'skill' ? 'skill' : (c.reach ? 'reaches outer' : 'inner ring');
+  const tag = c.type === 'breakthrough' ? 'reach · EXPOSES' : c.type === 'summon' ? 'summon · each turn' : c.target === 'aoe' ? (`×${c.maxTargets || 3}` + (c.reach ? ' · reaches outer' : ' · inner')) : c.type === 'skill' ? 'skill' : (c.reach ? 'reaches outer' : 'inner ring');
   return `<button class="card ${c.type === 'skill' ? 'skill' : c.type === 'summon' ? 'summon' : c.type === 'breakthrough' ? 'breakthrough' : 'attack'}" data-i="${i}" ${affordable ? '' : 'disabled'}>
     <div class="cn"><span>${c.name} <span class="lv">Lv ${c.eff.lvl}</span></span><span>${c.cost}⬡</span></div>
     <div class="ct">${tag}</div><div class="cx">${c.eff.text}</div></button>`;
@@ -159,11 +159,13 @@ function renderOverlay() { if (invOpen) return renderInventory(); if (treeOpen) 
 
 function renderTree() {
   const r = game.getRun();
-  const rows = r.tree.map((sk) => `<div class="sk-row"><div class="sk-info"><div class="sn">${sk.name} <span style="color:var(--gold)">Lv ${sk.level}</span>${sk.learned ? '' : ' <span style="color:#6f6357">— locked</span>'}</div><div class="se">${sk.eff.text}</div></div>
-    <div class="sk-btns"><button data-inv="${sk.id}" ${r.skillPoints > 0 ? '' : 'disabled'}>${sk.learned ? 'Improve ▲' : 'Learn +'}</button></div></div>`).join('');
+  const rows = r.tree.map((sk) => { const req = sk.pre && sk.pre.length ? ` · needs ${sk.pre.map((p) => (r.tree.find((t) => t.id === p) || {}).name || p).join(', ')}` : '';
+    const tag = sk.learned ? '' : sk.canInvest ? ' <span style="color:var(--gold)">— can learn</span>' : ` <span style="color:#6f6357">— locked (${sk.gateReason || 'Lv ' + sk.req})</span>`;
+    return `<div class="sk-row ${sk.canInvest ? '' : sk.learned ? '' : 'locked'}"><div class="sk-info"><div class="sn">${sk.name} <span style="color:var(--gold)">Lv ${sk.level}</span> <span style="color:#5f6b7a;font-size:10px">Lv${sk.req}${req}</span>${tag}</div><div class="se">${sk.eff.text}</div></div>
+    <div class="sk-btns"><button data-inv="${sk.id}" ${sk.canInvest ? '' : 'disabled'}>${sk.learned ? 'Improve ▲' : 'Learn +'}</button></div></div>`; }).join('');
   ov.className = 'overlay inv';
   ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">⚔ Skill Tree — ${r.skillPoints} pts</div><button class="inv-close" id="cx">✕</button></div>
-    <div class="sk-sub">Spend points to <b>learn</b> a skill (it joins your always-ready skills) or <b>improve</b> it — each scales its own way. +Skills gear raises every skill's level.</div>${rows}</div>`;
+    <div class="sk-sub">Skills unlock by <b>level</b> and <b>prerequisite</b> — you build toward the big ones. Each point needs a higher level than the last, so you can't dump a pile into one skill. +Skills gear raises every skill's level.</div>${rows}</div>`;
   document.getElementById('cx').addEventListener('click', () => { treeOpen = false; render(); });
   ov.querySelectorAll('[data-inv]').forEach((b) => b.addEventListener('click', () => { game.investSkill(b.dataset.inv); expose(); renderTree(); }));
 }

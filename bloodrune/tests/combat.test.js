@@ -31,6 +31,14 @@ test('melee reaches only the inner ring; a ranged skill reaches the outer', () =
   assert.ok(dealt >= 1 && dealt <= 3, `guarded arrow ${dealt}`);
 });
 
+test('AoE catches only a few foes, never the whole ring', () => {
+  // five Fallen inner; Cleave (maxTargets 2) can hit at most two of them
+  const c = fight([{ id: 'fallen' }, { id: 'fallen' }, { id: 'fallen' }, { id: 'fallen' }, { id: 'fallen' }]);
+  c.useSkill(ai(c, 'cleave'));
+  const hit = c.getState().enemies.filter((e) => e.hp < e.maxHp).length;
+  assert.ok(hit <= 3, `cleave hit ${hit} (cap 3)`);
+});
+
 test('when the front rank falls, the outer ring steps into melee range', () => {
   const c = fight([{ id: 'shaman' }, { id: 'fallen' }]); // shaman outer (ring1), fallen inner (ring0)
   // melee can't reach the shaman while the fallen shields the front
