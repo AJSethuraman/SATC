@@ -45,6 +45,7 @@ function autoRun(seed, classId, learnPref) {
     const run = S();
     if (run.phase === 'victory' || run.phase === 'dead') break;
     if (run.phase === 'map') { const i = run.choices.findIndex((c) => c.type === 'combat' || c.type === 'elite'); g.chooseDirection(i >= 0 ? i : 0); continue; }
+    if (run.phase === 'shop') { g.continueFromReward(); continue; }
     if (run.phase === 'reward') { let sp = 0; while (S().skillPoints > 0 && sp++ < 20) { const tree = S().tree;
       const want = learnPref.map((id) => tree.find((t) => t.id === id)).find((t) => t && t.canInvest) || tree.find((t) => t.canInvest);
       if (!want) break; g.investSkill(want.id); } g.continueFromReward(); continue; }
@@ -95,6 +96,30 @@ test('the skill tree gates by level and prerequisite — you cannot learn everyt
   assert.equal(strike.req, 1);
 });
 
+test('inventory is space-limited; Shop sells for gold and buys potions', () => {
+  const g = createGame('econ', { classId: 'barbarian' }); g.beginDescent();
+  let guard = 0;
+  while (guard++ < 30 && !['dead', 'victory'].includes(g.getRun().phase)) {
+    const r = g.getRun();
+    if (r.phase === 'shop' || r.phase === 'reward') { g.continueFromReward(); continue; }
+    if (r.phase === 'map') { const i = r.choices.findIndex((c) => ['combat', 'treasure', 'elite'].includes(c.type)); g.chooseDirection(i >= 0 ? i : 0); continue; }
+    if (r.phase === 'combat') { const cb = g.getCombat(); let t = 0;
+      while (!cb.getState().over && t++ < 40) { const st = cb.getState(); const liv = st.enemies.filter((e) => e.hp > 0); cb.setFocus(liv[0] ? liv[0].uid : 0);
+        let a = true; while (a) { a = false; const c = cb.getState(); if (c.over) break; const idx = c.hero.abilities.findIndex((x) => x.cost <= c.hero.mana && x.id !== 'guard'); if (idx >= 0 && cb.useSkill(idx).ok) a = true; } cb.endTurn(); }
+      if (!cb.getState().over) g.flee(); else g.resolveCombat(); continue; }
+    break;
+  }
+  const run = g.getRun();
+  assert.equal(run.bagCap, 12);
+  assert.ok(run.bag.length <= run.bagCap, 'bag never exceeds its cap');
+  assert.equal(typeof run.gold, 'number');
+  if (run.bag.length > 0) { const before = g.getRun().gold, n = g.getRun().bag.length; const s = g.sellFromBag(run.bag[0].id);
+    assert.equal(s.ok, true); assert.ok(g.getRun().gold > before); assert.equal(g.getRun().bag.length, n - 1); }
+  while (g.getRun().bag.length > 0) g.sellFromBag(g.getRun().bag[0].id);
+  if (g.getRun().gold >= 12) { const before = g.getRun().potions.mana, gold = g.getRun().gold; const b = g.buyPotion('mana');
+    assert.equal(b.ok, true); assert.equal(g.getRun().potions.mana, before + 1); assert.equal(g.getRun().gold, gold - 12); }
+});
+
 test('Mana persists across the run (no free refill); Mana potions restore it', () => {
   const g = createGame('manatest', { classId: 'necromancer' });
   g.beginDescent();
@@ -102,7 +127,7 @@ test('Mana persists across the run (no free refill); Mana potions restore it', (
   let guard = 0;
   while (guard++ < 15 && g.getRun().phase !== 'combat') {
     const r = g.getRun();
-    if (r.phase === 'reward') { g.continueFromReward(); continue; }
+    if (r.phase === 'reward' || r.phase === 'shop') { g.continueFromReward(); continue; }
     if (r.phase !== 'map') break;
     let i = ['combat', 'elite', 'treasure'].map((t) => r.choices.findIndex((c) => c.type === t)).find((x) => x >= 0);
     g.chooseDirection(i == null ? 0 : i);

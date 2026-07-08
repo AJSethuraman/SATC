@@ -46,6 +46,7 @@ function render() {
   const r = game.getRun();
   if (r.phase === 'combat') renderCombat();
   else if (r.phase === 'map') renderMap(r);
+  else if (r.phase === 'shop') renderShop(r);
   else if (r.phase === 'reward') renderReward(r);
   else if (r.phase === 'dead') renderDead(r);
   else if (r.phase === 'victory') renderVictory(r);
@@ -115,7 +116,7 @@ function renderMap(r) {
   document.getElementById('openInv').addEventListener('click', () => { invOpen = true; renderOverlay(); });
   const t = document.getElementById('openTree'); if (t) t.addEventListener('click', () => { treeOpen = true; renderOverlay(); });
 }
-function runHeader(r) { return `<div class="run-header"><span class="rh-diff">${r.difficulty}</span><span>Depth ${Math.min(r.mapStep + 1, r.mapLength + 1)}/${r.mapLength + 1}</span><span class="rh-life">❤ ${r.life}/${r.maxLife}</span><span class="rh-xp">Lv ${r.level} · XP ${r.xp}/${r.xpToNext}</span>${r.skillPoints ? `<span style="color:var(--gold)">● ${r.skillPoints} pts</span>` : ''}</div>`; }
+function runHeader(r) { return `<div class="run-header"><span class="rh-diff">${r.difficulty}</span><span>Depth ${Math.min(r.mapStep + 1, r.mapLength + 1)}/${r.mapLength + 1}</span><span class="rh-life">❤ ${r.life}/${r.maxLife}</span><span style="color:var(--gold)">◉ ${r.gold}g</span><span class="rh-xp">Lv ${r.level} · XP ${r.xp}/${r.xpToNext}</span>${r.skillPoints ? `<span style="color:var(--gold)">● ${r.skillPoints} pts</span>` : ''}</div>`; }
 
 // ---------- combat (arena) ----------
 function potionBtn(kind, count, full) {
@@ -203,7 +204,23 @@ function renderReward(r) {
   const t = document.getElementById('openTree'); if (t) t.addEventListener('click', () => { treeOpen = true; renderOverlay(); });
   document.getElementById('cont').addEventListener('click', () => { game.continueFromReward(); render(); });
 }
-function lootChip(it) { return `<div class="loot-chip" style="border-color:${it.color || 'var(--gold)'}"><div class="lc-name" style="color:${it.color || 'var(--gold)'}">${it.name}</div><div class="lc-slot">${SLOT_LABEL[it.slot] || it.slot}${it.grants && it.grants.skill ? ' · grants a skill' : ''}</div><div class="lc-text">${it.text || ''}</div></div>`; }
+function lootChip(it) { return `<div class="loot-chip" style="border-color:${it.color || 'var(--gold)'}"><div class="lc-name" style="color:${it.color || 'var(--gold)'}">${it.name}</div><div class="lc-slot">${SLOT_LABEL[it.slot] || it.slot}${it.grants && it.grants.skill ? ' · grants a skill' : ''}${it.autosold ? ` · <span style="color:var(--gold)">bag full → +${it.autosold}g</span>` : ''}</div><div class="lc-text">${it.text || ''}</div></div>`; }
+
+// ---------- shop ----------
+function renderShop(r) {
+  board.innerHTML = `<div class="prep">${runHeader(r)}<div class="prep-title" style="font-size:26px">🛒 WANDERING TRADER</div>
+    <div class="prep-sub">Sell your spoils, restock the belt. Bag <b>${r.bag.length}/${r.bagCap}</b> · Belt 🩹${r.potions.life} 🔷${r.potions.mana}</div>
+    <div class="shop-buy"><button class="act ghost small" id="buyLife">Buy 🩹 Life (12g)</button><button class="act ghost small" id="buyMana">Buy 🔷 Mana (12g)</button></div>
+    <div class="loot-list">${r.bag.length ? r.bag.map(shopSellChip).join('') : '<div class="deck-note">Bag empty — nothing to sell.</div>'}</div>
+    <div class="prep-actions"><button class="act ghost" id="openInv">🎒 INVENTORY</button><button class="act" id="cont">LEAVE</button></div></div>`;
+  logEl.innerHTML = '';
+  document.getElementById('buyLife').addEventListener('click', () => { game.buyPotion('life'); render(); });
+  document.getElementById('buyMana').addEventListener('click', () => { game.buyPotion('mana'); render(); });
+  document.getElementById('openInv').addEventListener('click', () => { invOpen = true; renderOverlay(); });
+  board.querySelectorAll('[data-sell]').forEach((b) => b.addEventListener('click', () => { game.sellFromBag(b.dataset.sell); render(); }));
+  document.getElementById('cont').addEventListener('click', () => { game.continueFromReward(); render(); });
+}
+function shopSellChip(it) { const val = it.grants ? 12 : ({ normal: 3, magic: 8, rare: 18 }[it.rarity] || 4); return `<div class="loot-chip" style="border-color:${it.color || 'var(--gold)'}"><div class="lc-name" style="color:${it.color || 'var(--gold)'}">${it.name}</div><div class="lc-slot">${SLOT_LABEL[it.slot] || it.slot}</div><button class="act ghost small" data-sell="${it.id}" style="margin-top:4px">SELL ${val}g</button></div>`; }
 
 // ---------- dead / victory ----------
 function renderDead(r) { const m = meta(); ov.className = 'overlay'; ov.innerHTML = `<h2 class="dead">YOU HAVE DIED</h2><div class="deck-note">You fell at depth ${r.mapStep + 1}, level ${r.level}, on ${r.difficulty}.</div><div class="deck-note" style="color:#6f6357">${m.wins} cleared · ${m.deaths} lost</div><button class="act" id="again">NEW DESCENT</button>`; board.innerHTML = ''; logEl.innerHTML = ''; document.getElementById('again').addEventListener('click', () => { window.__seed = Math.floor(performance.now()); newRun('Normal', classId); }); }

@@ -51,6 +51,7 @@ try {
       if (ph === 'dead' || ph === 'victory') break;
       if (ph === 'prep') { q('#descend').click(); continue; }
       if (ph === 'map') { const p = q('.path'); if (!p) break; p.click(); continue; }
+      if (ph === 'shop') { const c = q('#cont'); if (c) c.click(); continue; }
       if (ph === 'combat') { combatTurn(); continue; }
       if (ph === 'reward') {
         if (B().run.skillPoints > 0) { const t = q('#openTree'); if (t) { t.click(); // learn/level reach+summons
