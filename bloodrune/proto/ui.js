@@ -11,7 +11,7 @@ let fight, skillsOpen = false, focusUid = null;
 window.__proto = {};
 
 const HERO = { maxLife: 60, maxMana: 12, handSize: 5, plusSkills: 0, skillPoints: 5, hard: { strike: 0, cleave: 0, guard: 0 } };
-const DECK = ['strike', 'cleave', 'guard', 'zeal', 'smite', 'charge', 'cleave'];
+const DECK = ['strike', 'cleave', 'guard', 'zeal', 'shoot', 'charge', 'raise_skeleton'];
 // A Fallen camp: a Shaman (caster) guarded by two Champions, plus grunts + a goatman.
 const PACK = [{ id: 'shaman' }, { id: 'archer' }, { id: 'guardian', guards: 0 }, { id: 'guardian', guards: 0 },
   { id: 'fallen' }, { id: 'fallen' }, { id: 'fallen' }, { id: 'goatman' }];
@@ -72,10 +72,11 @@ function render() {
     </div>
     <div class="arena">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none">${lines}</svg>
-      <div class="hero-tok"><div class="ring"></div><div class="g">${h.plusSkills ? '🏹' : '🪓'}</div></div>
+      <div class="hero-tok"><div class="ring"></div><div class="g">${h.plusSkills ? '🏹' : '🪓'}</div>
+        ${h.summons.length ? `<div class="summons">${h.summons.map(() => '💀').join('')}<span class="scount">×${h.summons.length}</span></div>` : ''}</div>
       ${mobs}
     </div>
-    <div class="hint">You're surrounded — everyone hits you each turn. Tap an enemy to target it. The <b>Shaman is guarded</b> (🛡) while its Champions live: clear them, or <b>Charge</b> to break through (but you'll be <b>Exposed</b>).</div>
+    <div class="hint">You're surrounded — everyone hits you each turn. Tap an enemy to <b>target</b> it. Your <b>melee only reaches the inner ring</b>; the outer casters need <b>reach</b> (Arrow), a <b>Charge</b> (full hit but you're <b>Exposed</b>), or <b>Skeletons</b> — they strike your target each turn, even past the guard.</div>
     <div class="hand">${s.hand.map(cardHTML).join('')}</div>
     <div class="controls">
       <div>
@@ -88,7 +89,7 @@ function render() {
   logEl.innerHTML = s.log.slice(-7).map((l) => `<div>${l}</div>`).join('');
   logEl.scrollTop = logEl.scrollHeight;
 
-  board.querySelectorAll('.mob').forEach((m) => m.addEventListener('click', () => { focusUid = Number(m.dataset.uid); render(); }));
+  board.querySelectorAll('.mob').forEach((m) => m.addEventListener('click', () => { focusUid = Number(m.dataset.uid); fight.setFocus(focusUid); render(); }));
   document.getElementById('end').addEventListener('click', () => { fight.endTurn(); render(); });
   document.getElementById('skills').addEventListener('click', () => { skillsOpen = true; renderSkills(); });
   document.getElementById('amu').addEventListener('click', () => { fight.addPlusSkills(fight.getState().hero.plusSkills ? -2 : 2); render(); });
@@ -99,7 +100,11 @@ function render() {
 function cardHTML(c, i) {
   const s = fight.getState();
   const playable = c.cost <= s.hero.mana;
-  const tag = c.type === 'breakthrough' ? 'breakthrough · exposes you' : c.target === 'aoe' ? 'attack · ALL' : c.type === 'skill' ? 'skill' : 'attack · target';
+  const tag = c.type === 'breakthrough' ? 'charge · reach · exposes you'
+    : c.type === 'summon' ? 'summon · strikes each turn'
+    : c.target === 'aoe' ? 'attack · inner ring'
+    : c.type === 'skill' ? 'skill'
+    : c.reach ? 'attack · reaches outer' : 'attack · inner ring';
   return `<button class="card ${c.type}" data-i="${i}" ${playable ? '' : 'disabled'}>
     <div class="cn"><span>${c.name} <span class="lv">Lv ${c.eff.lvl}</span></span><span>${c.cost}⬡</span></div>
     <div class="ct">${tag}</div><div class="cx">${c.eff.text}</div>
