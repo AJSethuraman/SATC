@@ -10,17 +10,20 @@ const ov = document.getElementById('ov');
 let fight, skillsOpen = false, focusUid = null;
 window.__proto = {};
 
-const HERO = { maxLife: 60, maxMana: 12, handSize: 5, plusSkills: 0, skillPoints: 5, hard: { strike: 0, cleave: 0, guard: 0 } };
-const DECK = ['strike', 'cleave', 'guard', 'zeal', 'shoot', 'charge', 'raise_skeleton'];
-// A Fallen camp: a Shaman (caster) guarded by two Champions, plus grunts + a goatman.
-const PACK = [{ id: 'shaman' }, { id: 'archer' }, { id: 'guardian', guards: 0 }, { id: 'guardian', guards: 0 },
-  { id: 'fallen' }, { id: 'fallen' }, { id: 'fallen' }, { id: 'goatman' }];
+// Start NAKED, D2-style: a worn club that grants Strike, plus a basic brace
+// (Guard). Low Life/Mana. Everything else — Cleave, reach (Arrow), Charge,
+// Raise Skeleton — is EARNED by killing things (XP -> skill points) and levelled.
+const HERO = { maxLife: 52, maxMana: 10, plusSkills: 0, skillPoints: 0, hard: {} };
+const DECK = ['strike', 'guard']; // the only skills you begin with
+// A small starter pack — a Shaman guarded by one Champion, and a few Fallen. You
+// can't reach the Shaman at first; you must LEVEL and learn reach/summons to win.
+const PACK = [{ id: 'shaman' }, { id: 'guardian', guards: 0 }, { id: 'fallen' }, { id: 'fallen' }, { id: 'fallen' }];
 
 function newFight() {
   fight = createFight({ deck: [...DECK], hero: JSON.parse(JSON.stringify(HERO)), pack: PACK.map((e) => ({ ...e })), seed: 'arena-' + (window.__seed || 'a') });
   skillsOpen = false; focusUid = null; render();
 }
-function expose() { window.__proto.state = fight.getState(); }
+function expose() { window.__proto.state = fight.getState(); window.__proto.fight = fight; }
 function pv(a, b) { return b > 0 ? Math.max(0, Math.min(100, a / b * 100)) : 0; }
 
 function render() {
@@ -67,6 +70,8 @@ function render() {
       <div class="stat"><span class="k">Mana</span><span class="v mana">${h.mana}/${h.maxMana}</span></div>
       <div class="stat"><span class="k">Block</span><span class="v block">${h.block}</span></div>
       <div class="stat"><span class="k">+Skills</span><span class="v sk">${h.plusSkills}</span></div>
+      <div class="stat"><span class="k">Lv</span><span class="v">${h.level}</span></div>
+      <div class="stat"><span class="k">XP</span><span class="v" style="color:#b9c56a;font-size:13px">${h.xp}/${h.xpToNext}</span></div>
       ${h.exposed ? '<span class="expo">⚠ EXPOSED — block won\'t hold</span>' : ''}
       <div class="stat"><span class="k">Turn</span><span class="v">${s.turn}</span></div>
     </div>
@@ -76,11 +81,11 @@ function render() {
         ${h.summons.length ? `<div class="summons">${h.summons.map(() => '💀').join('')}<span class="scount">×${h.summons.length}</span></div>` : ''}</div>
       ${mobs}
     </div>
-    <div class="hint">You're surrounded — everyone hits you each turn. Tap an enemy to <b>target</b> it. Your <b>melee only reaches the inner ring</b>; the outer casters need <b>reach</b> (Arrow), a <b>Charge</b> (full hit but you're <b>Exposed</b>), or <b>Skeletons</b> — they strike your target each turn, even past the guard.</div>
-    <div class="hand">${s.hand.map(cardHTML).join('')}</div>
+    <div class="hint">No cards, no draw — your <b>skills are always ready</b>; spend <b>Mana</b> on the ones you choose (damage rolls in a <b>range</b>). Tap an enemy to <b>target</b> it. Melee reaches only the <b>inner ring</b>; the outer casters need <b>reach</b> (Arrow), a <b>Charge</b> (full hit but <b>Exposed</b>), or <b>Skeletons</b> that strike past the guard each turn.</div>
+    <div class="hand">${s.abilities.map(cardHTML).join('')}</div>
     <div class="controls">
       <div>
-        <button class="act ghost" id="skills">⚔ SKILLS (pts ${h.skillPoints})</button>
+        <button class="act ${h.skillPoints > 0 ? '' : 'ghost'}" id="skills">⚔ SKILLS${h.skillPoints > 0 ? ` ● ${h.skillPoints} pt${h.skillPoints > 1 ? 's' : ''}!` : ''}</button>
         <button class="act ghost" id="amu">${h.plusSkills ? 'DROP +Skills GEAR' : 'LOOT +2 SKILLS AMULET'}</button>
       </div>
       <button class="act" id="end">END TURN</button>
@@ -115,7 +120,7 @@ function renderOverlay() { if (skillsOpen) renderSkills(); else { ov.className =
 function renderSkills() {
   const s = fight.getState(); const h = s.hero;
   const rows = Object.keys(SKILLS).map((id) => {
-    const eff = skillEffect(h, id); const can = h.skillPoints > 0; const known = s.deckSkills.includes(id);
+    const eff = skillEffect(h, id); const can = h.skillPoints > 0; const known = s.knownSkills.includes(id);
     return `<div class="sk-row"><div class="sk-info"><div class="sn">${SKILLS[id].name} <span style="color:var(--gold)">Lv ${eff.lvl}</span></div><div class="se">${eff.text}</div></div>
       <div class="sk-btns">${known ? `<button data-imp="${id}" ${can ? '' : 'disabled'}>Improve ▲</button>` : `<button data-learn="${id}" ${can ? '' : 'disabled'}>Learn +Deck</button>`}</div></div>`;
   }).join('');
