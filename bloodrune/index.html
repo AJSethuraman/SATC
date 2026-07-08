@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bloodrune — M1</title>
+<style>
+  :root {
+    --bg: #0a0607;
+    --ink: #e7dcd0;
+    --muted: #8a7d72;
+    --blood: #8e1c1c;
+    --blood-bright: #c62828;
+    --gold: #c8a24a;
+    --steel: #6f8a99;
+    --panel: #140d0e;
+    --panel-edge: #2a1a1b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; min-height: 100%;
+    background:
+      radial-gradient(1000px 700px at 50% -15%, #1c1012 0%, var(--bg) 60%),
+      var(--bg);
+    color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  #app { max-width: 860px; margin: 0 auto; padding: 18px 16px 60px; }
+  h1 {
+    text-align: center; margin: 6px 0 2px; letter-spacing: 3px; font-weight: 700;
+    font-size: 30px; color: #d8c4b0;
+    text-shadow: 0 0 18px rgba(198,40,40,0.35);
+  }
+  h1 .rune { color: var(--blood-bright); }
+  .subtitle { text-align: center; color: var(--muted); font-size: 12px; letter-spacing: 2px;
+    text-transform: uppercase; margin-bottom: 14px; }
+
+  .hero-bar {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    background: linear-gradient(180deg, var(--panel), #0d0809);
+    border: 1px solid var(--panel-edge); border-radius: 10px; padding: 10px 14px;
+  }
+  .hero-name { font-size: 20px; font-weight: 700; }
+  .stat { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
+  .stat .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; }
+  .stat .v { font-size: 19px; font-weight: 700; }
+  .v.life { color: var(--blood-bright); } .v.mana { color: var(--steel); } .v.block { color: var(--gold); }
+  .lifebar { flex: 1 1 160px; height: 12px; background: #2a0d0d; border-radius: 7px; overflow: hidden;
+    border: 1px solid #3a1414; min-width: 120px; }
+  .lifebar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--blood), var(--blood-bright)); }
+
+  .lane {
+    margin: 18px 0; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; min-height: 130px;
+  }
+  .monster {
+    width: 130px; background: linear-gradient(180deg, #16101a, #0c0710);
+    border: 1px solid #2c2233; border-radius: 12px; padding: 12px 10px; text-align: center;
+    box-shadow: inset 0 0 22px rgba(0,0,0,0.6);
+  }
+  .monster.dead { opacity: 0.25; filter: grayscale(1); }
+  .monster .glyph { font-size: 40px; line-height: 1; }
+  .monster .mname { font-size: 13px; margin: 6px 0 4px; color: #cbb9c9; }
+  .monster .mhp { height: 8px; background: #2a0d0d; border-radius: 5px; overflow: hidden; border: 1px solid #3a1414; }
+  .monster .mhp > i { display: block; height: 100%; background: linear-gradient(90deg,#7a1616,#c62828); }
+  .monster .hpnum { font-size: 11px; color: var(--muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .intent { margin-top: 8px; font-size: 13px; font-weight: 700; color: #e0a0a0; }
+  .intent.none { color: var(--muted); font-weight: 400; }
+
+  .hand { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+  .card {
+    width: 128px; min-height: 92px; text-align: left; cursor: pointer;
+    background: linear-gradient(180deg, #1b1210, #0f0a09);
+    border: 1px solid #3a2a22; border-radius: 10px; padding: 8px 10px; color: var(--ink);
+    font-family: inherit; transition: transform 0.08s ease, border-color 0.15s ease;
+  }
+  .card:hover:not(:disabled) { transform: translateY(-4px); border-color: var(--gold); }
+  .card:disabled { opacity: 0.4; cursor: not-allowed; }
+  .card .cname { font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; }
+  .card .cost { color: var(--steel); }
+  .card .ctype { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin: 2px 0 6px; }
+  .card .ctext { font-size: 12px; color: #cbbfb4; line-height: 1.35; }
+  .card.attack { border-left: 3px solid var(--blood-bright); }
+  .card.skill { border-left: 3px solid var(--steel); }
+
+  .controls { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 12px; }
+  .piles { color: var(--muted); font-size: 12px; letter-spacing: 1px; }
+  button.act {
+    font-family: inherit; font-size: 15px; font-weight: 700; letter-spacing: 1px;
+    padding: 10px 22px; border-radius: 8px; cursor: pointer; color: #f0e6da;
+    background: linear-gradient(180deg, var(--blood), #5e1212); border: 1px solid #7a1a1a;
+    box-shadow: 0 6px 18px rgba(142,28,28,0.3);
+  }
+  button.act:hover { filter: brightness(1.12); }
+  button.act.ghost { background: #1a1213; border-color: #3a2a2b; box-shadow: none; color: var(--ink); }
+
+  .overlay {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column;
+    text-align: center; background: rgba(6,3,4,0.9); padding: 24px; gap: 14px;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h2 { font-size: 40px; margin: 0; letter-spacing: 3px; }
+  .overlay h2.win { color: var(--gold); text-shadow: 0 0 20px rgba(200,162,74,0.4); }
+  .overlay h2.dead { color: var(--blood-bright); text-shadow: 0 0 20px rgba(198,40,40,0.5); }
+  .loot-card {
+    background: linear-gradient(180deg, #1c130b, #0f0a06); border: 1px solid var(--gold);
+    border-radius: 12px; padding: 16px 20px; max-width: 340px;
+    box-shadow: 0 0 30px rgba(200,162,74,0.25);
+  }
+  .loot-card .lname { color: var(--gold); font-size: 18px; font-weight: 700; }
+  .loot-card .ltext { color: #cbbfb4; font-size: 13px; margin-top: 6px; }
+  .deck-note { color: var(--muted); font-size: 13px; max-width: 380px; line-height: 1.5; }
+  .deck-note b { color: var(--ink); }
+  .log { margin-top: 18px; max-height: 90px; overflow-y: auto; font-size: 12px; color: var(--muted);
+    border-top: 1px solid var(--panel-edge); padding-top: 8px; line-height: 1.5; }
+  .foot { text-align: center; color: #5c5049; font-size: 11px; letter-spacing: 1px; margin-top: 22px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>BLOOD<span class="rune">RUNE</span></h1>
+  <div class="subtitle">M1 · Barbarian · the Bleeding Dark</div>
+  <div id="board"></div>
+  <div class="log" id="log"></div>
+  <div class="foot">M1 tracer bullet — one class, one lane. Full design in <span style="color:var(--muted)">docs/prd-bloodrune.md</span>.</div>
+</div>
+
+<div class="overlay hidden" id="overlay"></div>
+
+<script type="module" src="./ui/main.js"></script>
+</body>
+</html>

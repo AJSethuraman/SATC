@@ -1,0 +1,11 @@
+{
+  "name": "bloodrune",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Dark-fantasy roguelite deckbuilding card-battler — Slay the Spire's turn engine, but your deck is a Diablo 2 character.",
+  "scripts": {
+    "test": "node --test",
+    "serve": "python3 -m http.server 8000"
+  }
+}

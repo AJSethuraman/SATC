@@ -5,13 +5,50 @@ engine, but your deck **is** a *Diablo 2* character. You loot gear and runewords
 slot them onto a hero body, and your equipment grants your cards and summons.
 Gothic, bloody, loot-hungry; D2, not D3/D4.
 
-> **Status: design phase.** The spec is written; the build hasn't started. See
-> the PRD before writing code.
+> **Status: M1 built (playable tracer bullet).** One class (Barbarian), one
+> lane, Mana + telegraphed monsters + Hero Life + gear-that-grants-cards. The
+> rest of v1 (map, town, full loot ladder, runewords, the other classes,
+> difficulty ladder) is issued out as slices M2–M7 — see the PRD.
 
 ## 📜 Spec
 
 - **[docs/prd-bloodrune.md](docs/prd-bloodrune.md)** — the full PRD (design,
   requirements, testing seams, milestones, roadmap). Build from this.
+
+## ▶️ Play it (M1)
+
+Native ES modules don't load over `file://`, so serve it:
+
+```bash
+cd bloodrune && python3 -m http.server 8000   # then open http://localhost:8000
+```
+
+Play a card by clicking it (attacks hit the front monster; Cleave/Whirlwind hit
+all). Watch each monster's telegraphed intent (⚔️ N) — that's the damage it deals
+when you **End Turn**. Reduce it with Block. Kill the pack to win and loot a
+weapon that rewrites your deck; drop to 0 Life and the run is over.
+
+## ✅ Tests
+
+```bash
+node --test            # engine seam: deterministic combat + the gear->deck loot seam
+node tests/smoke.mjs   # headless UI smoke (needs Playwright/Chromium): plays a
+                       # fight to a win, equips loot, asserts zero console errors
+```
+
+The engine suite is pure and dependency-free. The smoke needs a browser and
+skips cleanly if Playwright isn't installed.
+
+## 🧭 What's built vs. planned
+
+**Built (M1):** `engine/` (seeded RNG · card/combat resolution · gear→deck ·
+loot) fully split from `ui/` (DOM render + input); Barbarian; one lane;
+telegraphed monsters; win/loot/lose flow.
+
+**Next slices (issued):** M2 branching map + town, M3 rarity ladder + affixes +
+Magic Find, M4 sockets/runes/runewords, M5 3-lane board + summons + Necromancer
+& Sorceress, M6 elites + monster affixes + boss + gambling, M7 permadeath meta +
+Normal/Nightmare/Hell ladder.
 
 ## Isolation (hard rule)
 
