@@ -1,56 +1,63 @@
-// Combat state machine — "Swarm" pass. You are SURROUNDED by a large pack;
-// every living monster swings each turn, so AoE and Accuracy matter. Hit
-// resolution has two stages:
-//   1) attacker Accuracy roll — does the blow land at all? (attacker-driven
-//      avoidance: clumsy attackers miss, whether it's a monster hitting you or
-//      you hitting a monster)
-//   2) defender Evasion roll — a defender's chance to dodge a landed blow. This
-//      is 0 for the Barbarian; it's the hook for an Amazon-style dodge class and
-//      for evasive enemies (which is what makes YOUR Accuracy matter long-term).
-// Pure engine — NO DOM, NO Math.random (all rolls come from the injected rng).
+// Combat state machine — swarm + accuracy + elites + XP + flee. Pure engine,
+// no DOM, all rolls from the injected seeded rng.
 //
-// Turn shape (telegraphed a turn ahead): startTurn sets standing Block, refills
-// Mana, draws, and rolls each living monster's intent for the UPCOMING phase.
+// Hit resolution is two-stage: attacker Accuracy (does it land?), then defender
+// Evasion (dodge a landed blow; 0 for the Barbarian). Elite monsters carry
+// affixes (frenzied/brutal/hardened/unerring/vampiric). Killing monsters grants
+// XP. Flee ends the fight but every living monster gets a parting swing.
 
-import { CARDS, MONSTERS } from './content.js';
+import { CARDS, MONSTERS, ELITE_AFFIXES } from './content.js';
 
 const clampAcc = (a) => Math.max(5, Math.min(100, a));
+
+function buildMonster(entry, i) {
+  const id = typeof entry === 'string' ? entry : entry.id;
+  const affixes = (typeof entry === 'object' && entry.affixes) ? entry.affixes : [];
+  const base = MONSTERS[id];
+  let hp = base.hp, attack = base.attack, accuracy = base.accuracy != null ? base.accuracy : 100;
+  let extraAttack = false, leech = false;
+  for (const af of affixes) {
+    const mods = (ELITE_AFFIXES[af] && ELITE_AFFIXES[af].mods) || {};
+    if (mods.hpMul) hp = Math.round(hp * mods.hpMul);
+    if (mods.attackMul) attack = Math.round(attack * mods.attackMul);
+    if (mods.accuracy != null) accuracy = mods.accuracy;
+    if (mods.extraAttack) extraAttack = true;
+    if (mods.leech) leech = true;
+  }
+  return { index: i, id, name: base.name, glyph: base.glyph, hp, maxHp: hp, attack, accuracy,
+    role: base.role || 'attacker', heal: base.heal || 0, extraAttack, leech,
+    affixes, elite: affixes.length > 0, intent: null };
+}
 
 export function createCombat({ deck, hero, pack, rng }) {
   const state = {
     hero: {
       name: hero.name, glyph: hero.glyph,
-      life: hero.maxLife, maxLife: hero.maxLife,
+      life: hero.life != null ? Math.min(hero.life, hero.maxLife) : hero.maxLife, maxLife: hero.maxLife,
       block: 0, startBlock: hero.startBlock || 0,
       mana: hero.maxMana, maxMana: hero.maxMana,
       handSize: hero.handSize,
       plusSkills: hero.plusSkills || 0,
       accuracy: hero.accuracy != null ? hero.accuracy : 100,
-      evasion: hero.evasion || 0, // defender dodge (Amazon hook; 0 for Barbarian)
+      evasion: hero.evasion || 0,
     },
-    lane: pack.map((id, i) => {
-      const m = MONSTERS[id];
-      return { index: i, id: m.id, name: m.name, glyph: m.glyph, hp: m.hp, maxHp: m.hp,
-        attack: m.attack, accuracy: m.accuracy != null ? m.accuracy : 100,
-        evasion: m.evasion || 0, role: m.role || 'attacker', heal: m.heal || 0, intent: null };
-    }),
+    lane: pack.map(buildMonster),
     drawPile: rng.shuffle(deck),
     hand: [],
     discardPile: [],
     turn: 0,
+    xpEarned: 0,
     over: false,
-    result: null,
+    result: null, // 'win' | 'lose' | 'fled'
     log: [],
   };
 
   const living = () => state.lane.filter((m) => m.hp > 0);
   const front = () => state.lane.find((m) => m.hp > 0) || null;
 
-  // Two-stage hit resolution. Only consumes the evasion roll when the defender
-  // actually has evasion, so rng sequences (and tests) stay stable at evasion 0.
   function lands(accuracy, defenderEvasion) {
-    if (rng.next() * 100 >= clampAcc(accuracy)) return false; // missed (inaccurate)
-    if (defenderEvasion > 0 && rng.next() * 100 < defenderEvasion) return false; // dodged
+    if (rng.next() * 100 >= clampAcc(accuracy)) return false;
+    if (defenderEvasion > 0 && rng.next() * 100 < defenderEvasion) return false;
     return true;
   }
 
@@ -69,7 +76,7 @@ export function createCombat({ deck, hero, pack, rng }) {
     for (const m of state.lane) {
       if (m.hp <= 0) { m.intent = null; continue; }
       if (m.role === 'healer' && woundedAllies(m).length > 0) m.intent = { type: 'mend', value: m.heal };
-      else m.intent = { type: 'attack', value: m.attack };
+      else m.intent = { type: 'attack', value: m.attack, times: m.extraAttack ? 2 : 1 };
     }
   }
 
@@ -84,7 +91,11 @@ export function createCombat({ deck, hero, pack, rng }) {
 
   function hurt(m, amount) {
     m.hp = Math.max(0, m.hp - amount);
-    if (m.hp === 0) { m.intent = null; state.log.push(`${m.name} dies.`); }
+    if (m.hp === 0) {
+      m.intent = null;
+      state.xpEarned += MONSTERS[m.id].xp || 0;
+      state.log.push(`${m.name} dies.`);
+    }
   }
 
   function playCard(handIndex, targetIndex) {
@@ -102,7 +113,6 @@ export function createCombat({ deck, hero, pack, rng }) {
       const dmg = card.damage + state.hero.plusSkills;
       const acc = state.hero.accuracy + (card.acc || 0);
       if (card.target === 'aoe') {
-        // each enemy is rolled independently — a wild sweep can miss some
         for (const m of living()) {
           if (lands(acc, m.evasion)) hurt(m, dmg);
           else state.log.push(`${card.name} misses ${m.name}.`);
@@ -128,37 +138,58 @@ export function createCombat({ deck, hero, pack, rng }) {
     return { ok: true };
   }
 
+  // One monster attack against the hero (Block absorbs, then Life). Handles
+  // Vampiric leech. Returns false if the hero has died.
+  function monsterHit(m, raw) {
+    if (!lands(m.accuracy, state.hero.evasion)) { state.log.push(`${m.name} misses.`); return true; }
+    const absorbed = Math.min(state.hero.block, raw);
+    state.hero.block -= absorbed;
+    const dmg = raw - absorbed;
+    state.hero.life = Math.max(0, state.hero.life - dmg);
+    state.log.push(`${m.name} hits Hero for ${dmg}${absorbed ? ` (${absorbed} blocked)` : ''}.`);
+    if (m.leech && dmg > 0) { m.hp = Math.min(m.maxHp, m.hp + dmg); state.log.push(`${m.name} leeches ${dmg}.`); }
+    return state.hero.life > 0;
+  }
+
   function endTurn() {
     if (state.over) return;
     while (state.hand.length) state.discardPile.push(state.hand.pop());
     for (const m of state.lane) {
       if (m.hp <= 0 || !m.intent) continue;
       if (m.intent.type === 'attack') {
-        if (!lands(m.accuracy, state.hero.evasion)) { state.log.push(`${m.name} misses.`); continue; }
-        const raw = m.intent.value;
-        const absorbed = Math.min(state.hero.block, raw);
-        state.hero.block -= absorbed;
-        const dmg = raw - absorbed;
-        state.hero.life = Math.max(0, state.hero.life - dmg);
-        state.log.push(`${m.name} hits Hero for ${dmg}${absorbed ? ` (${absorbed} blocked)` : ''}.`);
+        const times = m.intent.times || 1;
+        for (let t = 0; t < times; t++) {
+          if (!monsterHit(m, m.intent.value)) { finish('lose'); return; }
+        }
       } else if (m.intent.type === 'mend') {
         const allies = woundedAllies(m).sort((x, y) => (y.maxHp - y.hp) - (x.maxHp - x.hp));
         if (allies.length) {
-          const t = allies[0];
-          const before = t.hp;
-          t.hp = Math.min(t.maxHp, t.hp + m.intent.value);
-          state.log.push(`${m.name} mends ${t.name} +${t.hp - before}.`);
+          const target = allies[0];
+          const before = target.hp;
+          target.hp = Math.min(target.maxHp, target.hp + m.intent.value);
+          state.log.push(`${m.name} mends ${target.name} +${target.hp - before}.`);
         }
       }
     }
-    if (state.hero.life <= 0) { finish('lose'); return; }
     startTurn();
+  }
+
+  // Flee: every living monster gets ONE parting swing; if you survive you escape
+  // the fight (result 'fled') — but you gain nothing from it (no loot). If the
+  // parting blows kill you, it's a loss.
+  function flee() {
+    if (state.over) return { result: state.result };
+    for (const m of living()) {
+      if (!monsterHit(m, m.attack)) { finish('lose'); return { result: 'lose' }; }
+    }
+    finish('fled');
+    return { result: 'fled' };
   }
 
   function finish(result) {
     state.over = true;
     state.result = result;
-    state.log.push(result === 'win' ? 'Victory.' : 'You have died.');
+    state.log.push(result === 'win' ? 'Victory.' : result === 'fled' ? 'You break away.' : 'You have died.');
   }
 
   function getState() {
@@ -169,6 +200,7 @@ export function createCombat({ deck, hero, pack, rng }) {
       drawCount: state.drawPile.length,
       discardCount: state.discardPile.length,
       turn: state.turn,
+      xpEarned: state.xpEarned,
       over: state.over,
       result: state.result,
       log: state.log.slice(),
@@ -176,5 +208,5 @@ export function createCombat({ deck, hero, pack, rng }) {
   }
 
   startTurn();
-  return { playCard, endTurn, getState };
+  return { playCard, endTurn, flee, getState };
 }

@@ -5,15 +5,17 @@ engine, but your deck **is** a *Diablo 2* character. You loot gear and runewords
 slot them onto a hero body, and your equipment grants your cards and summons.
 Gothic, bloody, loot-hungry; D2, not D3/D4.
 
-> **Status: M1 + M1.5 built (playable).** One class (Barbarian), one lane, a
-> real **Mana pool**, **targetable** attacks (tap a monster to focus it),
-> telegraphed monsters, Hero Life, and a **Diablo-style inventory** — the full
-> equipment slot set with found items that grant **cards** and **passive mods**
-> (+Life, +Mana, standing Block, **+to Skills**). The rest of v1 (map, town,
-> full rarity ladder + affixes, runewords, the other classes, difficulty ladder)
-> is issued as slices M2–M7 — see the PRD. The full **D2 affix vocabulary**
-> (+skills, resists, cast/attack-speed re-maps, leech, crit) and how each
-> translates to a turn-based card game is specified in the PRD (§6).
+> **Status: playable end-to-end run.** One class (Barbarian) through a full
+> descent: pick **one of three directions** each step (**no backtracking**),
+> fight **swarms** and **elites** (D2 monster affixes), take **randomized loot**
+> (rarity + affixes + a paper-doll inventory), **level up** and choose a boon
+> (build-crafting), **camp** to heal, **Flee** at a cost, and face the **act
+> boss** — with **permadeath** and a **Normal → Nightmare → Hell** ladder that
+> persists in `localStorage`. Combat is a real **Mana pool**, **tap-to-target**,
+> telegraphed monsters, and **Accuracy** (attacker-driven miss + an Evasion hook
+> for a future Amazon). Still to come: runewords, the other three classes, a
+> town economy, and the deeper build-crafting/affix systems — see the PRD (§6,
+> §12) and issues #92–#98.
 >
 > Combat is a **swarm**: you're surrounded by a **large** seeded pack
 > (`engine/encounters.js`) — mostly homogeneous D2-style groups with a

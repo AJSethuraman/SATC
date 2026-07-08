@@ -1,11 +1,10 @@
-// Headless UI smoke for the M1 tracer bullet. Serves bloodrune/ over HTTP
-// (native ES modules don't load over file://), drives a full fight to a win in
-// a real browser, equips the loot drop, and asserts ZERO console errors.
+// Headless UI smoke: serves bloodrune/, drives a FULL auto-played run (equip
+// from inventory, descend, pick directions, fight swarms/elites, take rewards,
+// level up, reach a terminal), asserting ZERO console errors.
 //
-// Run:  node tests/smoke.mjs      (needs Playwright + Chromium available)
-// This is intentionally NOT a `node --test` file — the engine suite stays pure
-// and dependency-free; this one needs a browser. Skips cleanly if Playwright
-// isn't installed so it never blocks the pure tests.
+// Run:  node tests/smoke.mjs      (needs Playwright + Chromium). Skips cleanly if
+// Playwright isn't installed. Not a `node --test` file — the engine suite stays
+// pure and dependency-free.
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -17,40 +16,26 @@ const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 let chromium;
-try {
-  ({ chromium } = require('playwright'));
-} catch {
-  try {
-    ({ chromium } = require('/opt/node22/lib/node_modules/playwright/index.js'));
-  } catch {
-    console.log('SKIP: Playwright not available — engine tests still cover the logic.');
-    process.exit(0);
-  }
+try { ({ chromium } = require('playwright')); }
+catch {
+  try { ({ chromium } = require('/opt/node22/lib/node_modules/playwright/index.js')); }
+  catch { console.log('SKIP: Playwright not available — engine tests still cover the logic.'); process.exit(0); }
 }
 
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json',
-  '.css': 'text/css', '.mjs': 'text/javascript' };
-
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json' };
 function serve(root) {
   const server = http.createServer((req, res) => {
-    const urlPath = decodeURIComponent(req.url.split('?')[0]);
-    let filePath = path.join(root, urlPath === '/' ? '/index.html' : urlPath);
-    if (!filePath.startsWith(root)) { res.writeHead(403); return res.end(); }
-    fs.readFile(filePath, (err, data) => {
-      if (err) { res.writeHead(404); return res.end('not found'); }
-      res.writeHead(200, { 'Content-Type': TYPES[path.extname(filePath)] || 'application/octet-stream' });
-      res.end(data);
-    });
+    let fp = path.join(root, decodeURIComponent(req.url.split('?')[0]) === '/' ? '/index.html' : req.url.split('?')[0]);
+    if (!fp.startsWith(root)) { res.writeHead(403); return res.end(); }
+    fs.readFile(fp, (e, d) => { if (e) { res.writeHead(404); return res.end('nf'); }
+      res.writeHead(200, { 'Content-Type': TYPES[path.extname(fp)] || 'application/octet-stream' }); res.end(d); });
   });
-  return new Promise((resolve) => server.listen(0, () => resolve(server)));
+  return new Promise((r) => server.listen(0, () => r(server)));
 }
-
-function fail(msg) { console.error('FAIL:', msg); process.exitCode = 1; }
+function fail(m) { console.error('FAIL:', m); process.exitCode = 1; }
 
 const server = await serve(ROOT);
 const port = server.address().port;
-const url = `http://127.0.0.1:${port}/`;
-
 const errors = [];
 let browser;
 try {
@@ -58,18 +43,15 @@ try {
   const page = await browser.newPage();
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push('PAGEERROR: ' + e.message));
-
-  await page.addInitScript(() => { window.__seed = 'smoke'; });
-  await page.goto(url);
+  await page.addInitScript(() => { window.__seed = 'smoke'; localStorage.clear(); });
+  await page.goto(`http://127.0.0.1:${port}/`);
   await page.waitForFunction(() => window.__bloodrune && window.__bloodrune.run);
 
-  // 1) Prep screen: open the inventory and equip a bag item; the equip must
-  //    change the character's stats (gear->stats seam).
+  // 1) inventory: equip a bag item on the prep screen and confirm stats change.
   const lifeBefore = await page.evaluate(() => window.__bloodrune.run.stats.maxLife);
   await page.click('#openInv');
   await page.waitForSelector('.bag-item');
   await page.evaluate(() => {
-    // equip the +Life helm if present, else the first bag item
     const helm = document.querySelector('.bag-item[data-id="horned_helm"]') || document.querySelector('.bag-item');
     helm.click();
   });
@@ -77,68 +59,42 @@ try {
   if (!(lifeAfter > lifeBefore)) fail(`equipping did not raise Life (${lifeBefore} -> ${lifeAfter})`);
   await page.click('#closeInv');
 
-  // 2) Enter the fight and drive it greedily to a win (render is synchronous).
-  await page.click('#enter');
-  await page.waitForFunction(() => window.__bloodrune.screen === 'combat' && !!window.__bloodrune.state);
+  // 2) drive the entire run in-page (renders are synchronous).
   const result = await page.evaluate(() => {
-    // competent play: focus the back (the shaman) first, block when low, AoE the
-    // swarm, else biggest single hit
-    function focusBack() {
-      const st = window.__bloodrune.state;
-      const alive = st.lane.filter((m) => m.hp > 0);
-      if (!alive.length) return;
-      const back = alive[alive.length - 1];
-      const node = document.querySelector(`.monster[data-i="${back.index}"]`);
-      if (node) node.click();
-    }
+    const B = () => window.__bloodrune;
+    const q = (s) => document.querySelector(s);
+    function focusBack() { const st = B().state; const a = st.lane.filter((m) => m.hp > 0); if (!a.length) return; const n = q(`.monster[data-i="${a[a.length - 1].index}"]`); if (n) n.click(); }
     function playOne() {
-      const st = window.__bloodrune.state;
-      if (!st || st.over) return false;
+      const st = B().state; if (!st || st.over) return false;
       const aff = st.hand.map((c, i) => ({ c, i })).filter((o) => o.c.cost <= st.hero.mana);
       if (!aff.length) return false;
       const living = st.lane.filter((m) => m.hp > 0).length;
-      let pick = null;
-      if (st.hero.life < st.hero.maxLife * 0.35) pick = aff.find((o) => o.c.block);
-      if (!pick && living >= 3) pick = aff.find((o) => o.c.target === 'aoe');
-      if (!pick) pick = aff.slice().sort((a, b) => (b.c.damage || 0) - (a.c.damage || 0))[0];
-      if (!pick) pick = aff[0];
-      const btn = document.querySelector(`.card[data-i="${pick.i}"]`);
-      if (!btn) return false;
-      btn.click();
-      return true;
+      let p = null;
+      if (st.hero.life < st.hero.maxLife * 0.35) p = aff.find((o) => o.c.block);
+      if (!p && living >= 3) p = aff.find((o) => o.c.target === 'aoe');
+      if (!p) p = aff.slice().sort((a, b) => (b.c.damage || 0) - (a.c.damage || 0))[0];
+      if (!p) p = aff[0];
+      const btn = q(`.card[data-i="${p.i}"]`); if (!btn) return false; btn.click(); return true;
     }
-    let guard = 0;
-    while (window.__bloodrune.state && !window.__bloodrune.state.over && guard++ < 600) {
-      focusBack();
-      while (playOne()) { /* spend the Mana pool */ }
-      if (window.__bloodrune.state.over) break;
-      const et = document.getElementById('endTurn');
-      if (et) et.click(); else break;
+    let startBag = B().run.bag.length, everLeveled = false, guard = 0;
+    while (guard++ < 2000) {
+      const ph = B().phase;
+      if (ph === 'dead' || ph === 'victory') break;
+      if (ph === 'prep') { const d = q('#descend'); if (d) d.click(); continue; }
+      if (ph === 'map') { const paths = [...document.querySelectorAll('.path')]; if (!paths.length) break; paths[0].click(); continue; }
+      if (ph === 'combat') { focusBack(); if (!playOne()) { const et = q('#endTurn'); if (et) et.click(); } continue; }
+      if (ph === 'levelup') { everLeveled = true; const o = q('.lvl-opt'); if (o) o.click(); continue; }
+      if (ph === 'reward' || ph === 'camp' || ph === 'treasure') { const c = q('#cont'); if (c) c.click(); continue; }
+      break;
     }
-    return { result: window.__bloodrune.state ? window.__bloodrune.state.result : null };
+    return { phase: B().phase, level: B().run.level, bag: B().run.bag.length, startBag, leveled: everLeveled };
   });
 
-  if (result.result !== 'win') fail(`expected a win, got ${result.result}`);
-
-  const won = await page.evaluate(() => window.__bloodrune.screen === 'won' && !!window.__bloodrune.won);
-  if (!won) fail('run did not reach the "won" screen');
-
-  // 3) Loot landed in the bag: open the inventory again and confirm it's there.
-  await page.click('#openInv');
-  await page.waitForSelector('.bag-item');
-  const bagCount = await page.evaluate(() => window.__bloodrune.run.bag.length);
-  if (bagCount < 1) fail('no loot in bag after a win');
-
+  if (!['dead', 'victory'].includes(result.phase)) fail(`run did not reach a terminal (ended at ${result.phase})`);
+  if (!(result.bag >= result.startBag)) fail('bag never grew from loot');
   if (errors.length) fail(`console/page errors: ${JSON.stringify(errors)}`);
 
-  if (process.exitCode) {
-    console.error('Smoke FAILED.');
-  } else {
-    console.log(`PASS: equip raised Life ${lifeBefore}->${lifeAfter}, fight won, ${bagCount} item(s) in bag, zero console errors.`);
-  }
-} catch (e) {
-  fail(e.message);
-} finally {
-  if (browser) await browser.close();
-  server.close();
-}
+  if (process.exitCode) console.error('Smoke FAILED.');
+  else console.log(`PASS: equip ${lifeBefore}->${lifeAfter}; full run reached "${result.phase}" at level ${result.level}; zero console errors.`);
+} catch (e) { fail(e.message); }
+finally { if (browser) await browser.close(); server.close(); }

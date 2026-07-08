@@ -178,6 +178,64 @@
     .char-stats { grid-template-columns: 1fr; }
     .char { flex-direction: column; }
   }
+  /* --- run header --- */
+  .run-header { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; align-items: center;
+    background: linear-gradient(180deg, var(--panel), #0d0809); border: 1px solid var(--panel-edge);
+    border-radius: 10px; padding: 8px 14px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .run-header .rh-diff { color: var(--blood-bright); font-weight: 700; letter-spacing: 1px; }
+  .run-header .rh-life { color: #e08a8a; } .run-header .rh-xp { color: #b9c56a; }
+
+  /* --- path choices --- */
+  .paths { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin: 14px 0; }
+  .path { width: 190px; min-height: 150px; cursor: pointer; text-align: center; font-family: inherit; color: var(--ink);
+    background: linear-gradient(180deg, #17110f, #0e0908); border: 1px solid #33261f; border-radius: 14px;
+    padding: 18px 12px; transition: transform 0.1s ease, border-color 0.15s ease; }
+  .path:hover { transform: translateY(-5px); border-color: var(--gold); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+  .path .path-glyph { font-size: 44px; }
+  .path .path-name { font-size: 16px; font-weight: 700; margin: 8px 0 6px; letter-spacing: 0.5px; }
+  .path .path-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .path.elite { border-color: #5a2a2a; } .path.elite:hover { border-color: var(--blood-bright); }
+  .path.camp:hover { border-color: #c8863a; } .path.boss { border-color: #6a1a1a; background: linear-gradient(180deg,#20100f,#0e0807); }
+  .path.boss .path-name { color: var(--blood-bright); }
+
+  /* --- meta row --- */
+  .meta-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; font-size: 12px; color: var(--muted); }
+  .pill { font-family: inherit; font-size: 12px; padding: 4px 12px; border-radius: 999px; cursor: pointer;
+    background: #1a1213; border: 1px solid #3a2a2b; color: var(--ink); }
+  .pill.on { background: linear-gradient(180deg, var(--blood), #5e1212); border-color: #7a1a1a; }
+  .pill.locked { opacity: 0.35; cursor: not-allowed; }
+  .tally { margin-left: 6px; }
+
+  /* --- loot chips --- */
+  .loot-list { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: 560px; }
+  .loot-chip { background: linear-gradient(180deg, #17110b, #0f0a06); border: 1px solid var(--gold); border-radius: 10px;
+    padding: 10px 14px; min-width: 180px; max-width: 240px; text-align: left; }
+  .loot-chip .lc-name { font-weight: 700; font-size: 14px; }
+  .loot-chip .lc-slot { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin: 2px 0 4px; }
+  .loot-chip .lc-text { font-size: 12px; color: #cbbfb4; line-height: 1.35; }
+
+  /* --- level-up options --- */
+  .lvl-opts { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; max-width: 640px; }
+  .lvl-opt { width: 190px; min-height: 96px; cursor: pointer; text-align: left; font-family: inherit; color: var(--ink);
+    background: linear-gradient(180deg, #1b140f, #100a08); border: 1px solid #4a3a2a; border-radius: 12px; padding: 12px 14px;
+    transition: transform 0.1s ease, border-color 0.15s ease; }
+  .lvl-opt:hover { transform: translateY(-4px); border-color: var(--gold); }
+  .lvl-opt .lo-name { font-weight: 700; font-size: 15px; color: var(--gold); }
+  .lvl-opt .lo-text { font-size: 12px; color: #cbbfb4; margin-top: 5px; line-height: 1.4; }
+
+  /* --- elites --- */
+  .monster.elite { border-color: var(--blood-bright); box-shadow: 0 0 18px rgba(198,40,40,0.3), inset 0 0 22px rgba(0,0,0,0.6); }
+  .monster .elite-tag { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); font-size: 8px;
+    letter-spacing: 1px; color: #ffd9d9; background: #4a1414; border: 1px solid var(--blood-bright);
+    padding: 1px 6px; border-radius: 999px; white-space: nowrap; text-transform: uppercase; }
+
+  button.act.small { padding: 8px 16px; font-size: 13px; }
+
+  @media (max-width: 560px) {
+    .path { width: 45%; min-height: 130px; padding: 12px 8px; }
+    .lvl-opt { width: 100%; }
+    .run-header { font-size: 12px; gap: 10px; }
+  }
 </style>
 </head>
 <body>

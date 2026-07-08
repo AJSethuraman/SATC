@@ -93,15 +93,49 @@ export const M1_DROP_TABLE = [
 // avoidance). Relentless undead (skeleton, ghoul) rarely miss; clumsy things
 // (zombie, fallen) miss more. `role: 'healer'` = supports its pack (mend).
 export const MONSTERS = {
-  fallen: { id: 'fallen', name: 'Fallen', hp: 8, attack: 3, accuracy: 80, glyph: '👺' },
+  fallen: { id: 'fallen', name: 'Fallen', hp: 8, attack: 3, accuracy: 80, xp: 4, glyph: '👺' },
   fallen_shaman: { id: 'fallen_shaman', name: 'Fallen Shaman', hp: 16, attack: 4, accuracy: 80,
-    role: 'healer', heal: 4, glyph: '🧙' },
-  zombie: { id: 'zombie', name: 'Zombie', hp: 18, attack: 4, accuracy: 65, glyph: '🧟' },
-  skeleton: { id: 'skeleton', name: 'Skeleton', hp: 14, attack: 5, accuracy: 100, glyph: '💀' },
-  skeleton_archer: { id: 'skeleton_archer', name: 'Skeleton Archer', hp: 11, attack: 6, accuracy: 90, glyph: '🏹' },
-  goatman: { id: 'goatman', name: 'Goatman', hp: 18, attack: 6, accuracy: 85, glyph: '🐐' },
-  ghoul: { id: 'ghoul', name: 'Ghoul', hp: 26, attack: 7, accuracy: 100, glyph: '👹' },
+    role: 'healer', heal: 4, xp: 10, glyph: '🧙' },
+  zombie: { id: 'zombie', name: 'Zombie', hp: 18, attack: 4, accuracy: 65, xp: 7, glyph: '🧟' },
+  skeleton: { id: 'skeleton', name: 'Skeleton', hp: 14, attack: 5, accuracy: 100, xp: 6, glyph: '💀' },
+  skeleton_archer: { id: 'skeleton_archer', name: 'Skeleton Archer', hp: 11, attack: 6, accuracy: 90, xp: 6, glyph: '🏹' },
+  goatman: { id: 'goatman', name: 'Goatman', hp: 18, attack: 6, accuracy: 85, xp: 9, glyph: '🐐' },
+  ghoul: { id: 'ghoul', name: 'Ghoul', hp: 26, attack: 7, accuracy: 100, xp: 12, glyph: '👹' },
+  // Act boss.
+  the_smith: { id: 'the_smith', name: 'The Flayed Smith', hp: 120, attack: 12, accuracy: 90, xp: 60, glyph: '🔨' },
 };
+
+// Elite monster affixes (D2 boss-pack modifiers) applied by the encounter/run
+// layer. Each tweaks an elite's stats/behaviour. Curated for the current combat.
+export const ELITE_AFFIXES = {
+  frenzied: { id: 'frenzied', name: 'Frenzied', mods: { extraAttack: true }, glyph: '💢',
+    text: 'Attacks twice.' },
+  brutal: { id: 'brutal', name: 'Brutal', mods: { attackMul: 1.6 }, glyph: '🩸',
+    text: 'Hits much harder.' },
+  hardened: { id: 'hardened', name: 'Hardened', mods: { hpMul: 1.8 }, glyph: '🛡️',
+    text: 'Far tougher.' },
+  unerring: { id: 'unerring', name: 'Unerring', mods: { accuracy: 100 }, glyph: '🎯',
+    text: 'Never misses.' },
+  vampiric: { id: 'vampiric', name: 'Vampiric', mods: { leech: true }, glyph: '🦇',
+    text: 'Heals when it hits you.' },
+};
+
+// Level-up option pool. Each option either adds a card to the deck or grants a
+// permanent run stat (build-crafting between fights). The run offers 3 random
+// distinct options per level.
+export const LEVELUP_OPTIONS = [
+  { id: 'card_smite', kind: 'card', card: 'smite', name: 'Learn Smite', text: 'Add Smite (accurate single hit) to your deck.' },
+  { id: 'card_rend', kind: 'card', card: 'rend', name: 'Learn Rend', text: 'Add Rend (heavy single hit) to your deck.' },
+  { id: 'card_zeal', kind: 'card', card: 'zeal', name: 'Learn Zeal', text: 'Add Zeal (wide sweep) to your deck.' },
+  { id: 'card_cleave', kind: 'card', card: 'cleave', name: 'Learn Cleave', text: 'Add Cleave (AoE) to your deck.' },
+  { id: 'card_frenzy', kind: 'card', card: 'frenzy', name: 'Learn Frenzy', text: 'Add Frenzy (refunds Mana) to your deck.' },
+  { id: 'card_warcry', kind: 'card', card: 'warcry', name: 'Learn War Cry', text: 'Add War Cry (big Block) to your deck.' },
+  { id: 'stat_skills', kind: 'stat', mod: { plusSkills: 1 }, name: '+1 to Skills', text: 'All your cards deal +1.' },
+  { id: 'stat_life', kind: 'stat', mod: { maxLife: 10 }, name: 'Toughness', text: '+10 max Life.' },
+  { id: 'stat_mana', kind: 'stat', mod: { maxMana: 1 }, name: 'Focus', text: '+1 max Mana.' },
+  { id: 'stat_block', kind: 'stat', mod: { startBlock: 2 }, name: 'Bulwark', text: '+2 Block each turn.' },
+  { id: 'stat_acc', kind: 'stat', mod: { accuracy: 6 }, name: 'Precision', text: '+6 Accuracy.' },
+];
 
 // ---- Packs (LARGE, D2-style) ----------------------------------------------
 // filler = [[monsterId, minCount, maxCount], ...] rolled per fight; a leader
@@ -112,6 +146,56 @@ export const PACKS = {
   rotting_pit: { name: 'Rotting Pit', filler: [['zombie', 3, 5], ['ghoul', 1, 2]] },
   goat_warren: { name: 'Goat Warren', filler: [['goatman', 3, 5]] },
 };
+
+// The act boss encounter.
+export const BOSS_PACK = ['the_smith'];
+
+// ---- Loot generation tables (random rarity + affixes) ---------------------
+// Item bases per slot. Weapon bases grant a starting card; everything else is
+// a pure affix carrier. The loot generator (loot.js) rolls rarity + affixes.
+export const BASES = {
+  weapon: [
+    { base: 'Hand Axe', card: 'strike' }, { base: 'Short Sword', card: 'strike' },
+    { base: 'War Maul', card: 'smite' }, { base: 'Battle Cleaver', card: 'cleave' },
+    { base: 'Halberd', card: 'rend' },
+  ],
+  offhand: [{ base: 'Buckler' }, { base: 'Kite Shield' }, { base: 'Bone Charm' }],
+  helm: [{ base: 'Leather Cap' }, { base: 'Iron Helm' }, { base: 'Great Helm' }],
+  body: [{ base: 'Quilted Armor' }, { base: 'Chain Mail' }, { base: 'Plate' }],
+  gloves: [{ base: 'Leather Gloves' }, { base: 'Gauntlets' }],
+  boots: [{ base: 'Boots' }, { base: 'Greaves' }],
+  belt: [{ base: 'Sash' }, { base: 'Heavy Belt' }],
+  amulet: [{ base: 'Amulet' }, { base: 'Talisman' }],
+  ring: [{ base: 'Ring' }, { base: 'Band' }],
+};
+
+// Rollable affixes. `mods` use the same additive stat keys as gear passives.
+export const PREFIXES = [
+  { name: 'Sturdy', mod: { maxLife: 8 } },
+  { name: 'Vigorous', mod: { maxLife: 15 } },
+  { name: 'Keen', mod: { accuracy: 8 } },
+  { name: 'Deadeye', mod: { accuracy: 15 } },
+  { name: 'Runed', mod: { maxMana: 2 } },
+  { name: 'Cruel', mod: { plusSkills: 2 } },
+  { name: 'Warded', mod: { startBlock: 2 } },
+  { name: 'Savage', mod: { plusSkills: 1, accuracy: 6 } },
+];
+export const SUFFIXES = [
+  { name: 'of the Bear', mod: { maxLife: 10 } },
+  { name: 'of Precision', mod: { accuracy: 10 } },
+  { name: 'of the Magi', mod: { maxMana: 2 } },
+  { name: 'of Wrath', mod: { plusSkills: 1 } },
+  { name: 'of the Turtle', mod: { startBlock: 2 } },
+  { name: 'of Fury', mod: { plusSkills: 2 } },
+  { name: 'of Warding', mod: { startBlock: 3 } },
+];
+
+// Rarity weights (before Magic Find). MF shifts weight toward magic/rare.
+export const RARITY = [
+  { rarity: 'normal', weight: 40, affixes: 0, color: '#cfcfcf' },
+  { rarity: 'magic', weight: 40, affixes: 2, color: '#6f8aff' },
+  { rarity: 'rare', weight: 20, affixes: 4, color: '#e5d54a' },
+];
 
 // ---- Classes --------------------------------------------------------------
 export const CLASSES = {
