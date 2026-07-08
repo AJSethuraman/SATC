@@ -95,9 +95,16 @@ function renderStats() {
     <div class="stblk"><b>Potions used</b> — 🩹 ${TEL.potions.life} · 🔷 ${TEL.potions.mana}</div>
     <div class="stblk"><b>Most-used skills</b><br>${topSkills.map(([k, v]) => `${k} ×${v}`).join(' · ') || '—'}</div>
     <div class="stblk"><b>Recent deaths</b><br>${deaths}</div>
+    <textarea id="telBox" class="export-ta" readonly onclick="this.select()"></textarea>
     <div class="prep-actions"><button class="act ghost small" id="telExport">COPY DATA</button><button class="act ghost small" id="telReset">RESET</button></div></div>`;
+  document.getElementById('telBox').value = JSON.stringify(TEL); // fallback: always here to select + Ctrl/Cmd+C
   document.getElementById('cx').addEventListener('click', () => { ov.className = 'overlay hidden'; ov.innerHTML = ''; });
-  document.getElementById('telExport').addEventListener('click', () => { const txt = JSON.stringify(TEL); try { navigator.clipboard.writeText(txt); } catch {} const t = document.getElementById('telExport'); t.textContent = 'COPIED ✓'; });
+  document.getElementById('telExport').addEventListener('click', () => {
+    const box = document.getElementById('telBox'); box.focus(); box.select(); box.setSelectionRange(0, box.value.length);
+    let ok = false; try { ok = document.execCommand('copy'); } catch {}
+    if (!ok && navigator.clipboard) { try { navigator.clipboard.writeText(box.value); ok = true; } catch {} }
+    document.getElementById('telExport').textContent = ok ? 'COPIED ✓' : 'SELECTED — press Ctrl/Cmd+C';
+  });
   document.getElementById('telReset').addEventListener('click', () => { TEL = blankTel(); saveTel(); renderStats(); });
 }
 
