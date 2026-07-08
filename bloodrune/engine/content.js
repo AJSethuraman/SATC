@@ -37,11 +37,11 @@ export const SKILLS = {
 // You begin NAKED: `startWeapon` grants ONE skill; `tree` is what you can LEARN
 // with skill points. maxLife/maxMana are low and grow with level (see game.js).
 export const CLASSES = {
-  barbarian: { id: 'barbarian', name: 'Barbarian', glyph: '🪓', maxLife: 56, maxMana: 10, startBlock: 0,
+  barbarian: { id: 'barbarian', name: 'Barbarian', glyph: '🪓', maxLife: 56, maxMana: 10, manaRegen: 4, startBlock: 0,
     startWeapon: 'worn_axe', tree: ['strike', 'cleave', 'zeal', 'smite', 'whirlwind', 'charge', 'warcry'] },
-  amazon: { id: 'amazon', name: 'Amazon', glyph: '🏹', maxLife: 42, maxMana: 9, startBlock: 0,
+  amazon: { id: 'amazon', name: 'Amazon', glyph: '🏹', maxLife: 44, maxMana: 9, manaRegen: 5, startBlock: 0,
     startWeapon: 'short_bow', tree: ['arrow', 'power_shot', 'strafe', 'pierce', 'guard'] },
-  necromancer: { id: 'necromancer', name: 'Necromancer', glyph: '💀', maxLife: 44, maxMana: 11, startBlock: 0,
+  necromancer: { id: 'necromancer', name: 'Necromancer', glyph: '💀', maxLife: 44, maxMana: 11, manaRegen: 5, startBlock: 0,
     startWeapon: 'bone_wand', tree: ['raise_skeleton', 'raise_golem', 'bone_spear', 'teeth', 'bone_armor'] },
 };
 

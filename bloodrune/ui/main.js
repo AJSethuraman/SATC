@@ -105,7 +105,7 @@ function renderCombat() {
   board.innerHTML = `
     <div class="bar ${h.exposed ? 'exposed' : ''}">
       <div class="stat"><span class="k">Life</span><span class="v life">${h.life}/${h.maxLife}</span></div>
-      <div class="stat"><span class="k">Mana</span><span class="v mana">${h.mana}/${h.maxMana}</span></div>
+      <div class="stat"><span class="k">Mana</span><span class="v mana">${h.mana}/${h.maxMana}</span><span class="regen">+${h.manaRegen}/t</span></div>
       <div class="stat"><span class="k">Block</span><span class="v block">${h.block}</span></div>
       <div class="stat"><span class="k">Lv</span><span class="v">${game.getRun().level}</span></div>
       ${h.exposed ? '<span class="expo">⚠ EXPOSED</span>' : ''}

@@ -44,6 +44,7 @@ export function createCombat({ hero, pack, rng }) {
     hero: { name: hero.name, glyph: hero.glyph,
       life: hero.life != null ? Math.min(hero.life, hero.maxLife) : hero.maxLife, maxLife: hero.maxLife,
       block: 0, startBlock: hero.startBlock || 0, mana: hero.maxMana, maxMana: hero.maxMana,
+      manaRegen: hero.manaRegen != null ? hero.manaRegen : 4,
       plusSkills: hero.plusSkills || 0, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
       exposed: false, summons: [], focusUid: null },
     enemies: pack.map(buildMonster),
@@ -63,7 +64,12 @@ export function createCombat({ hero, pack, rng }) {
     if (e.role === 'caster') e.intent = { type: 'support', value: e.heal };
     else e.intent = { type: 'attack', value: e.attack, times: e.extraAttack ? 2 : 1 }; } }
 
-  function startTurn() { state.turn += 1; state.hero.block = state.hero.startBlock; state.hero.mana = state.hero.maxMana; state.hero.exposed = false; telegraph(); state.log.push(`— Turn ${state.turn} —`); }
+  // Mana is a POOL, not a per-turn allowance: you open full (turn 1 min() is a
+  // no-op) and only regen a few points each turn — so mashing one expensive AoE
+  // drains you and forces cheaper choices. Block still resets each turn.
+  function startTurn() { state.turn += 1; state.hero.block = state.hero.startBlock;
+    state.hero.mana = Math.min(state.hero.maxMana, state.hero.mana + state.hero.manaRegen);
+    state.hero.exposed = false; telegraph(); state.log.push(`— Turn ${state.turn} —`); }
 
   function hurt(e, dmg) { e.hp = Math.max(0, e.hp - dmg); if (e.hp === 0) { e.intent = null; if (!e.raised) state.xpEarned += ENEMIES[e.id].xp || 0; state.log.push(`${e.name} ${e.raised ? 'falls again.' : 'dies.'}`); } }
   function applyHit(e, dmg, pierce) { let d = dmg; if (!pierce && isGuarded(e)) { d = Math.max(1, Math.round(dmg * (1 - GUARD_MITIGATION))); state.log.push(`${e.name} is guarded — only ${d} lands.`); } hurt(e, d); }
