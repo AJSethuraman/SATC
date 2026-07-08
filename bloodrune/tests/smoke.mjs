@@ -81,22 +81,36 @@ try {
   await page.click('#enter');
   await page.waitForFunction(() => window.__bloodrune.screen === 'combat' && !!window.__bloodrune.state);
   const result = await page.evaluate(() => {
-    function clickAffordable() {
+    // competent play: focus the back (the shaman) first, block when low, AoE the
+    // swarm, else biggest single hit
+    function focusBack() {
+      const st = window.__bloodrune.state;
+      const alive = st.lane.filter((m) => m.hp > 0);
+      if (!alive.length) return;
+      const back = alive[alive.length - 1];
+      const node = document.querySelector(`.monster[data-i="${back.index}"]`);
+      if (node) node.click();
+    }
+    function playOne() {
       const st = window.__bloodrune.state;
       if (!st || st.over) return false;
-      for (let i = 0; i < st.hand.length; i++) {
-        if (st.hand[i].cost <= st.hero.mana) {
-          const btn = document.querySelector(`.card[data-i="${i}"]`);
-          if (!btn) return false;
-          btn.click();
-          return true;
-        }
-      }
-      return false;
+      const aff = st.hand.map((c, i) => ({ c, i })).filter((o) => o.c.cost <= st.hero.mana);
+      if (!aff.length) return false;
+      const living = st.lane.filter((m) => m.hp > 0).length;
+      let pick = null;
+      if (st.hero.life < st.hero.maxLife * 0.35) pick = aff.find((o) => o.c.block);
+      if (!pick && living >= 3) pick = aff.find((o) => o.c.target === 'aoe');
+      if (!pick) pick = aff.slice().sort((a, b) => (b.c.damage || 0) - (a.c.damage || 0))[0];
+      if (!pick) pick = aff[0];
+      const btn = document.querySelector(`.card[data-i="${pick.i}"]`);
+      if (!btn) return false;
+      btn.click();
+      return true;
     }
     let guard = 0;
-    while (window.__bloodrune.state && !window.__bloodrune.state.over && guard++ < 400) {
-      while (clickAffordable()) { /* keep spending the Mana pool */ }
+    while (window.__bloodrune.state && !window.__bloodrune.state.over && guard++ < 600) {
+      focusBack();
+      while (playOne()) { /* spend the Mana pool */ }
       if (window.__bloodrune.state.over) break;
       const et = document.getElementById('endTurn');
       if (et) et.click(); else break;

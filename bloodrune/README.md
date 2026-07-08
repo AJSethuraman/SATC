@@ -15,10 +15,18 @@ Gothic, bloody, loot-hungry; D2, not D3/D4.
 > (+skills, resists, cast/attack-speed re-maps, leech, crit) and how each
 > translates to a turn-based card game is specified in the PRD (§6).
 >
-> Fights use **seeded pack encounters** (`engine/encounters.js`): mostly
-> homogeneous D2-style packs with a leader/support at the back — e.g. a Fallen
-> Camp of several Fallen plus a **Fallen Shaman** that *mends* wounded allies
-> (kill it first) — with a chance to drag in a second pack for a mixed fight.
+> Combat is a **swarm**: you're surrounded by a **large** seeded pack
+> (`engine/encounters.js`) — mostly homogeneous D2-style groups with a
+> leader/support at the back (a Fallen Camp of several Fallen + a **Fallen
+> Shaman** that mends allies — kill it first), sometimes a second pack dragged
+> in. Everything swings each turn, so **AoE + Accuracy matter**. Hits resolve in
+> two stages: **attacker Accuracy** (clumsy attackers miss — your hits *and*
+> theirs; non-punitive, but stacking Accuracy on gear matters for heavy hits)
+> then **defender Evasion** (0 for the Barbarian; the hook for an Amazon-style
+> dodge class and evasive enemies). **Smite** (single, accurate) vs **Zeal**
+> (AoE, weaker, less accurate) is the sweep-vs-delete tradeoff. Post-playtest
+> design directions (Amazon, skill-tree build-crafting, class-specific effects)
+> are captured in PRD §12.
 
 ## 📜 Spec
 

@@ -28,6 +28,8 @@ export function deriveStats(cls, equipment) {
     maxMana: cls.maxMana,
     startBlock: cls.startBlock || 0,
     plusSkills: 0,
+    accuracy: cls.accuracy != null ? cls.accuracy : 100,
+    evasion: cls.evasion || 0, // Amazon-style dodge; 0 for the Barbarian
     handSize: cls.handSize,
   };
   for (const slot of SLOTS) {
@@ -72,7 +74,8 @@ export function createGame(seed = 'bloodrune') {
   function hero() {
     const s = deriveStats(cls, run.equipment);
     return { name: cls.name, glyph: cls.glyph, maxLife: s.maxLife, maxMana: s.maxMana,
-      handSize: s.handSize, startBlock: s.startBlock, plusSkills: s.plusSkills };
+      handSize: s.handSize, startBlock: s.startBlock, plusSkills: s.plusSkills,
+      accuracy: s.accuracy, evasion: s.evasion };
   }
 
   function deck() { return deriveDeck(cls, run.equipment); }
@@ -99,7 +102,7 @@ export function createGame(seed = 'bloodrune') {
   }
 
   function startFight() {
-    const pack = generateEncounter(rng, { maxMonsters: 5 });
+    const pack = generateEncounter(rng, { maxMonsters: 9 });
     combat = createCombat({ deck: deck(), hero: hero(), pack, rng });
     run.phase = 'combat';
     return combat;

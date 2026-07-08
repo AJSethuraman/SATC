@@ -86,6 +86,7 @@ function renderCombat() {
 
 function heroBar(h, turn) {
   const skills = h.plusSkills ? `<div class="stat"><span class="k">+Skills</span><span class="v skills">${h.plusSkills}</span></div>` : '';
+  const evade = h.evasion ? `<div class="stat"><span class="k">Evade</span><span class="v evade">${h.evasion}%</span></div>` : '';
   return `
     <div class="hero-bar">
       <div class="hero-name">${h.glyph} ${h.name}</div>
@@ -93,7 +94,8 @@ function heroBar(h, turn) {
       <div class="stat"><span class="k">Life</span><span class="v life">${h.life}/${h.maxLife}</span></div>
       <div class="stat"><span class="k">Mana</span><span class="v mana">${h.mana}/${h.maxMana}</span></div>
       <div class="stat"><span class="k">Block</span><span class="v block">${h.block}</span></div>
-      ${skills}
+      <div class="stat"><span class="k">Acc</span><span class="v acc">${h.accuracy}%</span></div>
+      ${evade}${skills}
       <div class="stat"><span class="k">Turn</span><span class="v">${turn}</span></div>
     </div>`;
 }
@@ -121,10 +123,12 @@ function monsterCard(m) {
 function cardBtn(c, i, h) {
   const affordable = c.cost <= h.mana;
   const tag = c.target === 'aoe' ? 'ALL' : c.target === 'single' ? '→ target' : '';
+  const hit = c.type === 'attack'
+    ? ` · ~${Math.max(5, Math.min(100, h.accuracy + (c.acc || 0)))}% hit` : '';
   return `
     <button class="card ${c.type}" data-i="${i}" ${affordable ? '' : 'disabled'}>
       <div class="cname"><span>${c.name}</span><span class="cost">${c.cost}⬡</span></div>
-      <div class="ctype">${c.type}${tag ? ` · ${tag}` : ''}</div>
+      <div class="ctype">${c.type}${tag ? ` · ${tag}` : ''}${hit}</div>
       <div class="ctext">${c.text}</div>
     </button>`;
 }
@@ -153,6 +157,7 @@ function renderCharacterScreen() {
           <div><span class="k">Life</span> <b class="life">${st.maxLife}</b></div>
           <div><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></div>
           <div><span class="k">Block/turn</span> <b class="block">${st.startBlock}</b></div>
+          <div><span class="k">Accuracy</span> <b class="acc">${st.accuracy}%</b></div>
           <div><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></div>
           <div><span class="k">Deck</span> <b>${run.deck.length} cards</b></div>
         </div>
@@ -210,6 +215,7 @@ function renderInventory() {
         <span><span class="k">Life</span> <b class="life">${st.maxLife}</b></span>
         <span><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></span>
         <span><span class="k">Block/turn</span> <b class="block">${st.startBlock}</b></span>
+        <span><span class="k">Accuracy</span> <b class="acc">${st.accuracy}%</b></span>
         <span><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></span>
         <span><span class="k">Deck</span> <b>${run.deck.length}</b></span>
       </div>

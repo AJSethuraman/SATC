@@ -116,8 +116,10 @@
     border-top: 1px solid var(--panel-edge); padding-top: 8px; line-height: 1.5; }
   .foot { text-align: center; color: #5c5049; font-size: 11px; letter-spacing: 1px; margin-top: 22px; }
 
-  /* --- targeting --- */
+  /* --- targeting / accuracy --- */
   .v.skills { color: var(--gold); }
+  .v.acc { color: #b9c56a; } .v.evade { color: #6fd08a; }
+  .char-stats .acc, .inv-stats .acc { color: #b9c56a; }
   .monster { cursor: pointer; position: relative; transition: border-color 0.12s ease, transform 0.1s ease; }
   .monster:not(.dead):hover { border-color: #6b5636; }
   .monster.focused { border-color: var(--gold); box-shadow: 0 0 20px rgba(200,162,74,0.35), inset 0 0 22px rgba(0,0,0,0.6); }
@@ -184,7 +186,7 @@
   <div class="subtitle">M1 · Barbarian · the Bleeding Dark</div>
   <div id="board"></div>
   <div class="log" id="log"></div>
-  <div class="foot">M1 tracer bullet — one class, one lane. Full design in <span style="color:var(--muted)">docs/prd-bloodrune.md</span>.</div>
+  <div class="foot">Bloodrune M1 — one class, big swarms. Full design in <span style="color:var(--muted)">docs/prd-bloodrune.md</span>.</div>
 </div>
 
 <div class="overlay hidden" id="overlay"></div>

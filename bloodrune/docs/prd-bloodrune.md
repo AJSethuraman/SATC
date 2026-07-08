@@ -1,6 +1,6 @@
 # PRD: Bloodrune
 
-**Status:** Draft · M1 + M1.5 built · **Owner:** iamtrispec@gmail.com · **Last updated:** 2026-07-08
+**Status:** Draft · M1–M1.6 built (see §12 addenda) · **Owner:** iamtrispec@gmail.com · **Last updated:** 2026-07-08
 
 > A dark-fantasy roguelite deckbuilding **card-battler**: *Slay the Spire's* turn
 > engine, but your deck **is** a *Diablo 2* character — you loot gear and
@@ -419,3 +419,73 @@ files. Optional minimal procedural WebAudio SFX ([P2]).
       self-contained / no-network / no-PII isolation.
 - [ ] `[LOG]` items appended to `PLAN.md` (balance principle, deferred
       persistence, roadmap).
+
+---
+
+## 12. Design addenda (from playtest iteration)
+
+Directions confirmed with the owner while playing the M1 build. These refine and
+extend the sections above; the numbered milestones (§9) still hold.
+
+### 12.1 Combat is a SWARM (built, M1.6)
+No lanes for the solo hero: you are **surrounded** by a **large, mostly
+homogeneous pack** (D2-style — many Fallen + a Fallen Shaman, sometimes a second
+pack dragged in). **Every living monster swings each turn**, so **AoE** and
+**accuracy** are load-bearing. Packs are seeded (`engine/encounters.js`). Lanes
+return later only as the *summon/positioning* layer for the Necromancer (M5), not
+as the base combat frame.
+
+### 12.2 Accuracy & Evasion — two-stage hit resolution (built, M1.6)
+A blow resolves in two independent rolls:
+1. **Attacker Accuracy** — does it land at all? Attacker-driven avoidance:
+   clumsy attackers (Zombies) miss; this applies to **monsters hitting you** *and*
+   **you hitting them**. Non-punitive base (~85%); heavy hits (Rend) and wild AoE
+   (Zeal/Whirlwind) carry accuracy penalties, so **stacking Accuracy on gear
+   matters — especially for melee**. Accuracy is a first-class affix family.
+2. **Defender Evasion** — a defender's chance to dodge a *landed* blow. **0 for
+   the Barbarian**; it's the identity of an **Amazon-style class** and of evasive
+   enemies (which is the long-term reason your Accuracy matters). Built as a hook
+   now (`hero.evasion` / `monster.evasion`).
+
+**AoE-vs-single as cards (Smite/Zeal):** single-target cards (Smite) are strong &
+accurate — delete a priority target (the Shaman); AoE cards (Zeal) hit the whole
+swarm but are **weaker per hit and less accurate**. Your drawn loadout decides
+sweep-vs-delete — the throughput-vs-value axis on one screen.
+
+### 12.3 Class roster gains the Amazon (evasion) — 4 archetypes
+Add **Amazon** to Necromancer/Barbarian/Sorceress: her identity is **Dodge /
+Evade / Avoid** (defender Evasion), a fragile-but-slippery ranged skirmisher. She
+slots onto the built evasion hook.
+
+### 12.4 Skill trees are the build backbone; cards & items *augment* skills
+D2 build-crafting is the point. Each class has a **skill tree**; a skill is a
+**card**. Cards and **items add/upgrade/augment skills via effects** — "+X to
+[skill]", "[skill] also does Y", synergies that pump a skill you've invested in.
+Building = choosing a skill line and stacking gear/cards that amplify *that* line.
+This is the heart of the M2 progression slice (issue #92) and M3/M4 itemization.
+
+### 12.5 Class-specific vs generic effects (a blessing and a curse)
+Item effects come in two pools:
+- **Generic** — any build can use/find them.
+- **Class-specific** — "+skills"/synergy effects that are **only findable/usable
+  when you've invested skills in that class**. Specializing **unlocks class-only
+  power but narrows you** (you can't leverage other classes' effects) — a
+  deliberate build tradeoff, very D2 (class skill bonuses / class charms).
+
+### 12.6 `[LOG]` / roadmap additions
+Route to the roadmap alongside the §9 milestones: the **swarm+accuracy combat
+model** (shipped), the **Amazon/evasion class**, **skill-tree build-crafting**
+(cards & items augment skills), and **class-specific vs generic effect pools**.
+
+### 12.7 Run structure — commit to a direction, and a costly flee (refines M2/#93)
+Diablo drops you into bad spots and makes you live with them. The branching map
+(§5 R21–22) sharpens to:
+- **Directional choice, no backtracking:** at each step you pick **one of ~3
+  forward directions** (seeded) and **cannot go back** (at least for now) — you
+  commit to the path and whatever it holds.
+- **Flee, but it must cost:** combat gains a **Flee** option that isn't a free
+  escape — it only makes sense as a *bad-situation* release valve. Design intent:
+  fleeing exacts a price (e.g., the swarm gets a parting free hit, you drop
+  gold/loot, or it's only available before you've been reduced below a threshold).
+  Exact cost TBD in the M2 build; the principle is "flee is a real decision, not
+  a reset button."

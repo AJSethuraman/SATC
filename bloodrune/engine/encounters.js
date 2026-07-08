@@ -20,7 +20,7 @@ function addPack(out, pack, rng, cap, fillerOnly) {
 }
 
 // Returns an ordered array of monster ids (index 0 = front of the lane).
-export function generateEncounter(rng, { maxMonsters = 5, mixChance = 0.35 } = {}) {
+export function generateEncounter(rng, { maxMonsters = 8, mixChance = 0.4 } = {}) {
   const ids = Object.keys(PACKS);
   const out = [];
   const primaryId = rng.pick(ids);

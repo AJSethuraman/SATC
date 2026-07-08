@@ -1,51 +1,58 @@
-// Combat state machine (M1.5): one lane, a real Mana pool, TARGETABLE single
-// attacks, telegraphed monsters, Hero Life, standing Block from armor, and a
-// +to-Skills damage bonus from gear. Pure engine — NO DOM, NO Math.random (all
-// randomness comes from the injected seeded rng).
+// Combat state machine — "Swarm" pass. You are SURROUNDED by a large pack;
+// every living monster swings each turn, so AoE and Accuracy matter. Hit
+// resolution has two stages:
+//   1) attacker Accuracy roll — does the blow land at all? (attacker-driven
+//      avoidance: clumsy attackers miss, whether it's a monster hitting you or
+//      you hitting a monster)
+//   2) defender Evasion roll — a defender's chance to dodge a landed blow. This
+//      is 0 for the Barbarian; it's the hook for an Amazon-style dodge class and
+//      for evasive enemies (which is what makes YOUR Accuracy matter long-term).
+// Pure engine — NO DOM, NO Math.random (all rolls come from the injected rng).
 //
-// Turn shape (this is what makes intents "telegraphed a turn ahead"):
-//   startTurn(): set Block to the hero's standing Block, refill Mana, draw to
-//                hand size, then roll each living monster's intent for the
-//                UPCOMING enemy phase.
-//   player plays cards (killing a monster cancels its telegraphed intent)
-//   endTurn(): living monsters execute their already-shown intent -> resolve
-//              damage to Hero (Block absorbs first) -> check win/lose -> if the
-//              fight continues, startTurn() again (new telegraphs).
+// Turn shape (telegraphed a turn ahead): startTurn sets standing Block, refills
+// Mana, draws, and rolls each living monster's intent for the UPCOMING phase.
 
 import { CARDS, MONSTERS } from './content.js';
+
+const clampAcc = (a) => Math.max(5, Math.min(100, a));
 
 export function createCombat({ deck, hero, pack, rng }) {
   const state = {
     hero: {
-      name: hero.name,
-      glyph: hero.glyph,
-      life: hero.maxLife,
-      maxLife: hero.maxLife,
-      block: 0,
-      startBlock: hero.startBlock || 0,
-      mana: hero.maxMana,
-      maxMana: hero.maxMana,
+      name: hero.name, glyph: hero.glyph,
+      life: hero.maxLife, maxLife: hero.maxLife,
+      block: 0, startBlock: hero.startBlock || 0,
+      mana: hero.maxMana, maxMana: hero.maxMana,
       handSize: hero.handSize,
-      plusSkills: hero.plusSkills || 0, // flat bonus to card damage (+to Skills)
+      plusSkills: hero.plusSkills || 0,
+      accuracy: hero.accuracy != null ? hero.accuracy : 100,
+      evasion: hero.evasion || 0, // defender dodge (Amazon hook; 0 for Barbarian)
     },
-    lane: pack.map((id) => {
+    lane: pack.map((id, i) => {
       const m = MONSTERS[id];
-      return { index: 0, id: m.id, name: m.name, glyph: m.glyph, hp: m.hp, maxHp: m.hp,
-        attack: m.attack, role: m.role || 'attacker', heal: m.heal || 0, intent: null };
+      return { index: i, id: m.id, name: m.name, glyph: m.glyph, hp: m.hp, maxHp: m.hp,
+        attack: m.attack, accuracy: m.accuracy != null ? m.accuracy : 100,
+        evasion: m.evasion || 0, role: m.role || 'attacker', heal: m.heal || 0, intent: null };
     }),
     drawPile: rng.shuffle(deck),
     hand: [],
     discardPile: [],
     turn: 0,
     over: false,
-    result: null, // 'win' | 'lose'
+    result: null,
     log: [],
   };
-  // stable lane indices for targeting
-  state.lane.forEach((m, i) => { m.index = i; });
 
   const living = () => state.lane.filter((m) => m.hp > 0);
   const front = () => state.lane.find((m) => m.hp > 0) || null;
+
+  // Two-stage hit resolution. Only consumes the evasion roll when the defender
+  // actually has evasion, so rng sequences (and tests) stay stable at evasion 0.
+  function lands(accuracy, defenderEvasion) {
+    if (rng.next() * 100 >= clampAcc(accuracy)) return false; // missed (inaccurate)
+    if (defenderEvasion > 0 && rng.next() * 100 < defenderEvasion) return false; // dodged
+    return true;
+  }
 
   function drawOne() {
     if (state.drawPile.length === 0) {
@@ -56,30 +63,21 @@ export function createCombat({ deck, hero, pack, rng }) {
     state.hand.push(state.drawPile.pop());
   }
 
-  function woundedAllies(self) {
-    return living().filter((a) => a !== self && a.hp < a.maxHp);
-  }
+  const woundedAllies = (self) => living().filter((a) => a !== self && a.hp < a.maxHp);
 
   function telegraph() {
     for (const m of state.lane) {
       if (m.hp <= 0) { m.intent = null; continue; }
-      // Support monsters (Fallen Shaman) mend a wounded ally instead of hitting;
-      // if nothing needs healing, they attack. This is why you target them first.
-      if (m.role === 'healer' && woundedAllies(m).length > 0) {
-        m.intent = { type: 'mend', value: m.heal };
-      } else {
-        m.intent = { type: 'attack', value: m.attack };
-      }
+      if (m.role === 'healer' && woundedAllies(m).length > 0) m.intent = { type: 'mend', value: m.heal };
+      else m.intent = { type: 'attack', value: m.attack };
     }
   }
 
   function startTurn() {
     state.turn += 1;
-    state.hero.block = state.hero.startBlock; // standing Block from armor
+    state.hero.block = state.hero.startBlock;
     state.hero.mana = state.hero.maxMana;
-    while (state.hand.length < state.hero.handSize && (state.drawPile.length || state.discardPile.length)) {
-      drawOne();
-    }
+    while (state.hand.length < state.hero.handSize && (state.drawPile.length || state.discardPile.length)) drawOne();
     telegraph();
     state.log.push(`— Turn ${state.turn} —`);
   }
@@ -89,8 +87,6 @@ export function createCombat({ deck, hero, pack, rng }) {
     if (m.hp === 0) { m.intent = null; state.log.push(`${m.name} dies.`); }
   }
 
-  // targetIndex: which monster a single-target card hits. Falls back to the
-  // front living monster when omitted or when the chosen target is dead.
   function playCard(handIndex, targetIndex) {
     if (state.over) return { ok: false, reason: 'combat is over' };
     const cardId = state.hand[handIndex];
@@ -104,8 +100,13 @@ export function createCombat({ deck, hero, pack, rng }) {
 
     if (card.damage) {
       const dmg = card.damage + state.hero.plusSkills;
+      const acc = state.hero.accuracy + (card.acc || 0);
       if (card.target === 'aoe') {
-        for (const m of living()) hurt(m, dmg);
+        // each enemy is rolled independently — a wild sweep can miss some
+        for (const m of living()) {
+          if (lands(acc, m.evasion)) hurt(m, dmg);
+          else state.log.push(`${card.name} misses ${m.name}.`);
+        }
       } else {
         let target = null;
         if (Number.isInteger(targetIndex)) {
@@ -113,7 +114,10 @@ export function createCombat({ deck, hero, pack, rng }) {
           if (chosen && chosen.hp > 0) target = chosen;
         }
         if (!target) target = front();
-        if (target) hurt(target, dmg);
+        if (target) {
+          if (lands(acc, target.evasion)) hurt(target, dmg);
+          else state.log.push(`${card.name} misses ${target.name}.`);
+        }
       }
     }
     state.log.push(`Play ${card.name}.`);
@@ -130,6 +134,7 @@ export function createCombat({ deck, hero, pack, rng }) {
     for (const m of state.lane) {
       if (m.hp <= 0 || !m.intent) continue;
       if (m.intent.type === 'attack') {
+        if (!lands(m.accuracy, state.hero.evasion)) { state.log.push(`${m.name} misses.`); continue; }
         const raw = m.intent.value;
         const absorbed = Math.min(state.hero.block, raw);
         state.hero.block -= absorbed;
@@ -137,7 +142,6 @@ export function createCombat({ deck, hero, pack, rng }) {
         state.hero.life = Math.max(0, state.hero.life - dmg);
         state.log.push(`${m.name} hits Hero for ${dmg}${absorbed ? ` (${absorbed} blocked)` : ''}.`);
       } else if (m.intent.type === 'mend') {
-        // heal the most-wounded living ally (never itself)
         const allies = woundedAllies(m).sort((x, y) => (y.maxHp - y.hp) - (x.maxHp - x.hp));
         if (allies.length) {
           const t = allies[0];
