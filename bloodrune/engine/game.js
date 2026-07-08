@@ -15,7 +15,7 @@ const xpForLevel = (lvl) => 6 + lvl * 4;
 export function deriveStats(cls, equipment, level, bonus = {}) {
   const stats = { maxLife: cls.maxLife + (level - 1) * 5, maxMana: cls.maxMana + (level - 1),
     manaRegen: (cls.manaRegen || 4) + Math.floor((level - 1) / 4), startBlock: cls.startBlock || 0,
-    accuracy: (cls.acc || 6) + (level - 1), evade: cls.eva || 0, plusSkills: 0 };
+    accuracy: (cls.acc || 6) + (level - 1), evade: cls.eva || 0, actions: cls.actions || 3, plusSkills: 0 };
   const add = (m) => { for (const [k, v] of Object.entries(m)) stats[k] = (stats[k] || 0) + v; };
   for (const s of SLOTS) { const it = equipment[s]; if (it && it.passive) add(it.passive); }
   add(bonus);
@@ -39,10 +39,12 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     equipment: emptyEquipment(), bag: [],
     skillHard: {}, skillPoints: 0, level: 1, xp: 0,
     map: makeMap({ length: 9 }), choices: null, node: null,
-    pendingLoot: [], lastResult: null, gained: null, life: 0, phase: 'prep',
+    pendingLoot: [], lastResult: null, gained: null, life: 0, mana: 0, potions: { life: 3, mana: 3 }, phase: 'prep',
   };
   run.equipment.weapon = ITEMS[cls.startWeapon];
   run.life = statsNow().maxLife;
+  run.mana = statsNow().maxMana; // Mana starts full and then PERSISTS across the run
+  const POTION_CAP = 6;
   let combat = null;
 
   function emptyEquipment() { const e = {}; for (const s of SLOTS) e[s] = null; return e; }
@@ -50,15 +52,23 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function abilitiesNow() { return deriveAbilities(run.equipment, run.skillHard); }
   function weaponNow() { const w = run.equipment.weapon; return w ? { dmg: w.dmg, wtype: w.wtype } : null; }
   function heroForFight() { const s = statsNow(); return { name: cls.name, glyph: cls.glyph, maxLife: s.maxLife, life: run.life,
-    maxMana: s.maxMana, manaRegen: s.manaRegen, startBlock: s.startBlock, plusSkills: s.plusSkills,
-    accuracy: s.accuracy, evade: s.evade, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
+    maxMana: s.maxMana, mana: Math.min(run.mana, s.maxMana), manaRegen: s.manaRegen, startBlock: s.startBlock, plusSkills: s.plusSkills,
+    accuracy: s.accuracy, evade: s.evade, actions: s.actions, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
 
   // ---- gear ----
   function slotFor(it) { if (it.slot === 'ring') return run.equipment.ring1 ? (run.equipment.ring2 ? 'ring1' : 'ring2') : 'ring1'; return it.slot; }
   function equipFromBag(id) { const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false };
     const it = run.bag[i]; const slot = slotFor(it); run.bag.splice(i, 1); if (run.equipment[slot]) run.bag.push(run.equipment[slot]); run.equipment[slot] = it; clampLife(); return { ok: true }; }
   function unequip(slot) { const it = run.equipment[slot]; if (!it) return { ok: false }; if (slot === 'weapon') return { ok: false, reason: 'need a weapon' }; run.bag.push(it); run.equipment[slot] = null; clampLife(); return { ok: true }; }
-  function clampLife() { run.life = Math.min(run.life, statsNow().maxLife); }
+  function clampLife() { const s = statsNow(); run.life = Math.min(run.life, s.maxLife); run.mana = Math.min(run.mana, s.maxMana); }
+
+  // ---- potions (the belt persists across the run) ----
+  function quaff(type) { if (!combat || (type !== 'life' && type !== 'mana')) return { ok: false };
+    if (run.potions[type] <= 0) return { ok: false, reason: 'none left' };
+    const s = statsNow(); const amt = type === 'life' ? Math.round(s.maxLife * 0.4) : Math.round(s.maxMana * 0.5);
+    const r = combat.quaff(type, amt); if (!r.ok) return r; run.potions[type] -= 1;
+    run.life = combat.getState().hero.life; run.mana = combat.getState().hero.mana; return { ok: true }; }
+  function addPotions(life, mana) { run.potions.life = Math.min(POTION_CAP, run.potions.life + life); run.potions.mana = Math.min(POTION_CAP, run.potions.mana + mana); }
 
   // ---- skill tree (D2-style gates: tier level-req, prerequisites, per-point gate) ----
   function hasPoint(id) { return (run.skillHard[id] || 0) > 0 || (run.equipment.weapon && run.equipment.weapon.grants && run.equipment.weapon.grants.skill === id); }
@@ -110,8 +120,10 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     if (node.type === 'superunique') return startFight(genSuperUnique(depth));
     if (node.type === 'elite') return startFight(genElite(depth));
     if (node.type === 'boss') return startFight(BOSS_PACK.map((e) => ({ ...e })));
-    if (node.type === 'treasure') { grantLoot(2, 15); run.lastResult = 'treasure'; run.gained = null; run.phase = 'reward'; advance(); return { ok: true }; }
-    if (node.type === 'camp') { const s = statsNow(); run.life = Math.min(s.maxLife, run.life + Math.round(s.maxLife * 0.4)); run.skillPoints += 1; run.gained = { levels: 0, points: 1, heal: true }; run.lastResult = 'camp'; run.pendingLoot = []; run.phase = 'reward'; advance(); return { ok: true }; }
+    if (node.type === 'treasure') { grantLoot(2, 15); addPotions(1, 1); run.lastResult = 'treasure'; run.gained = { potions: 2 }; run.phase = 'reward'; advance(); return { ok: true }; }
+    if (node.type === 'camp') { const s = statsNow(); run.life = Math.min(s.maxLife, run.life + Math.round(s.maxLife * 0.4));
+      run.mana = s.maxMana; addPotions(2, 2); run.skillPoints += 1; // rest: heal, restore Mana, restock the belt
+      run.gained = { levels: 0, points: 1, heal: true, potions: 4 }; run.lastResult = 'camp'; run.pendingLoot = []; run.phase = 'reward'; advance(); return { ok: true }; }
     return { ok: false };
   }
   function startFight(pack) { combat = createCombat({ hero: heroForFight(), pack, rng }); run.phase = 'combat'; return { ok: true }; }
@@ -119,17 +131,22 @@ export function createGame(seed = 'bloodrune', opts = {}) {
 
   function resolveCombat() {
     const s = combat.getState(); if (!s.over) return run.phase;
-    run.life = s.hero.life;
+    run.life = s.hero.life; run.mana = s.hero.mana; // Life AND Mana carry out of the fight
     if (s.result === 'lose') { run.phase = 'dead'; return run.phase; }
     const boss = run.node && run.node.type === 'boss';
     if (s.result === 'win') {
       const beforeLvl = run.level; run.xp += s.xpEarned;
       while (run.xp >= xpForLevel(run.level)) { run.xp -= xpForLevel(run.level); run.level += 1; run.skillPoints += 1; }
-      run.life = Math.min(statsNow().maxLife, run.life); // level-up may raise max; keep current
+      const ns = statsNow();
+      if (run.level > beforeLvl) { run.life = ns.maxLife; run.mana = ns.maxMana; } // leveling FULLY restores Life & Mana
+      else run.life = Math.min(ns.maxLife, run.life);
       const elite = run.node && run.node.type === 'elite';
       const su = run.node && run.node.type === 'superunique';
       grantLoot(su ? 3 : elite ? 2 : boss ? 3 : 1, su ? 30 : elite ? 20 : boss ? 45 : 5);
-      run.gained = { levels: run.level - beforeLvl, points: run.level - beforeLvl };
+      // spoils sometimes include a potion for the belt (more from the big fights)
+      const pots = su || boss ? 2 : (rng.next() < 0.5 ? 1 : 0);
+      for (let n = 0; n < pots; n++) { if (rng.next() < 0.5) addPotions(1, 0); else addPotions(0, 1); }
+      run.gained = { levels: run.level - beforeLvl, points: run.level - beforeLvl, potions: pots };
       run.lastResult = 'win';
       if (boss) { run.phase = 'victory'; return run.phase; }
       advance();
@@ -156,7 +173,8 @@ export function createGame(seed = 'bloodrune', opts = {}) {
         canInvest: run.skillPoints > 0 && gate.ok, gateReason: gate.ok ? null : gate.reason,
         eff: skillEffect({ hard: run.skillHard, plusSkills: s.plusSkills, weapon: weaponNow() }, id), name: skName(id) }; });
     return { seed: run.seed, difficulty: run.difficulty, className: run.className, glyph: run.glyph, phase: run.phase,
-      stats: s, life: run.life, maxLife: s.maxLife, level: run.level, xp: run.xp, xpToNext: xpForLevel(run.level), skillPoints: run.skillPoints,
+      stats: s, life: run.life, maxLife: s.maxLife, mana: run.mana, maxMana: s.maxMana, potions: { ...run.potions },
+      level: run.level, xp: run.xp, xpToNext: xpForLevel(run.level), skillPoints: run.skillPoints,
       abilities: abilitiesNow(), tree,
       equipment: Object.fromEntries(SLOTS.map((sl) => [sl, run.equipment[sl] ? { ...run.equipment[sl] } : null])),
       bag: run.bag.map((i) => ({ ...i })), pendingLoot: run.pendingLoot.map((i) => ({ ...i })), lastResult: run.lastResult, gained: run.gained,
@@ -165,6 +183,6 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   }
   function skName(id) { return SKILLS[id] ? SKILLS[id].name : id; }
 
-  return { beginDescent, chooseDirection, resolveCombat, flee, equipFromBag, unequip, investSkill, continueFromReward,
+  return { beginDescent, chooseDirection, resolveCombat, flee, equipFromBag, unequip, investSkill, quaff, continueFromReward,
     getRun, getCombat: () => combat, deriveStats: () => statsNow(), deriveAbilities: () => abilitiesNow() };
 }

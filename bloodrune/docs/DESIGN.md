@@ -128,7 +128,20 @@ interact with your engagement-cap identity.
 - ~~Lean attributes~~ — **DECIDED: no attributes.** Level (guaranteed drip) +
   gear (spiky) carry progression; accuracy/evade/life come from class base +
   level + gear affixes, not a stat-point screen. Keeps the run lean.
-- **Potions / between-fight resource** (active mid-fight management). ⬜
+- ~~Potions / between-fight resource~~ **✅ BUILT.** D2-authentic Mana economy:
+  Mana **persists across the whole run** (no free refill between packs), regens
+  **slowly** per turn, and you top up with a **potion belt** (Life + Mana),
+  refilled at camps and found as drops. **Basic attacks are free** (0 Mana) —
+  Mana gates *skills*; **action points** (3/turn) bound *how many* things you do
+  (sets up "attack speed = more actions" as a future gear stat). **Leveling up
+  fully restores Life & Mana.**
+- **Inventory is space-limited + vendors to sell** ⬜ (your ask). D2 was grid/
+  space-based; you can't hoard infinitely. *Sketch:* cap the bag (N slots or a
+  small grid); a between-node **Shop** to sell for gold (and later buy/gamble).
+  Overflow forces keep-or-sell decisions — the loot economy's pressure valve.
+- **Telemetry ✅ BUILT.** Unbiased play logging (runs, win/loss by class, skill
+  usage, potions, hit rate, dmg dealt/taken, avg turns, deaths by depth) in a
+  Stats screen + JSON export — so balance is data-driven, not eyeballed.
 - **Between-run meta-hub** (Hades' House, *not* an in-run town) + light
   meta-progression that banks every run. ⬜
 - **Mercenary** — build it as an *extension of the summon actor*: a persistent,

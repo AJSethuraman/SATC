@@ -10,7 +10,7 @@ import { CLASSES, ITEMS } from '../engine/content.js';
 test('you start NAKED: one weapon-granted skill + a universal Guard', () => {
   const g = createGame('naked', { classId: 'barbarian' });
   const run = g.getRun();
-  assert.deepEqual(run.abilities.sort(), ['cleave', 'guard'].sort()); // Worn Axe -> Cleave, + Guard
+  assert.deepEqual(run.abilities.sort(), ['strike', 'guard'].sort()); // Worn Axe -> Strike (free basic), + Guard
   assert.equal(run.level, 1);
   assert.equal(run.skillPoints, 0);
 });
@@ -63,7 +63,7 @@ function autoRun(seed, classId, learnPref) {
         }
         cb.endTurn();
       }
-      g.resolveCombat();
+      if (!cb.getState().over) g.flee(); else g.resolveCombat(); // bail on a stalemate instead of spinning
       continue;
     }
     break;
@@ -95,6 +95,35 @@ test('the skill tree gates by level and prerequisite — you cannot learn everyt
   assert.equal(strike.req, 1);
 });
 
+test('Mana persists across the run (no free refill); Mana potions restore it', () => {
+  const g = createGame('manatest', { classId: 'necromancer' });
+  g.beginDescent();
+  // descend into a fight (prefer fights; advance via treasure — never camp, which restores Mana)
+  let guard = 0;
+  while (guard++ < 15 && g.getRun().phase !== 'combat') {
+    const r = g.getRun();
+    if (r.phase === 'reward') { g.continueFromReward(); continue; }
+    if (r.phase !== 'map') break;
+    let i = ['combat', 'elite', 'treasure'].map((t) => r.choices.findIndex((c) => c.type === t)).find((x) => x >= 0);
+    g.chooseDirection(i == null ? 0 : i);
+  }
+  const cb = g.getCombat(); assert.ok(cb && g.getRun().phase === 'combat', 'reached a fight');
+  const maxMana = cb.getState().hero.maxMana;
+  // spend Mana (raise skeletons / cast)
+  let g2 = 0; while (g2++ < 12) { const st = cb.getState(); if (st.over) break; const idx = st.hero.abilities.findIndex((a) => a.id !== 'guard' && a.cost <= st.hero.mana); if (idx < 0) break; if (!cb.useSkill(idx).ok) break; }
+  const low = cb.getState().hero.mana;
+  assert.ok(low < maxMana, 'Mana was spent');
+  // quaff a Mana potion: restores Mana, decrements the belt
+  const potsBefore = g.getRun().potions.mana;
+  const r = g.quaff('mana');
+  assert.equal(r.ok, true); assert.equal(g.getRun().potions.mana, potsBefore - 1);
+  assert.ok(cb.getState().hero.mana > low, 'potion restored Mana');
+  // leave the fight; Mana carries to the run — you did NOT refill to full
+  if (!cb.getState().over) g.flee();
+  assert.equal(g.getRun().mana, cb.getState().hero.mana, 'run Mana = what you left the fight with');
+  assert.ok(g.getRun().mana < maxMana, 'no magical refill between packs');
+});
+
 test('leveling grants skill points and investing raises a skill', () => {
   const g = createGame('lvl', { classId: 'barbarian' });
   g.beginDescent();
@@ -103,7 +132,7 @@ test('leveling grants skill points and investing raises a skill', () => {
   g.chooseDirection(i >= 0 ? i : 0);
   const cb = g.getCombat();
   if (cb) { let t = 0; while (!cb.getState().over && t++ < 40) { const st = cb.getState(); const liv = st.enemies.filter((e) => e.hp > 0); cb.setFocus(liv[0] ? liv[0].uid : 0);
-    let acted = true; while (acted) { acted = false; const c = cb.getState(); if (c.over) break; const idx = c.hero.abilities.findIndex((a) => a.id !== 'guard' && a.cost <= c.hero.mana); if (idx >= 0) { cb.useSkill(idx); acted = true; } } cb.endTurn(); }
+    let acted = true; while (acted) { acted = false; const c = cb.getState(); if (c.over) break; const idx = c.hero.abilities.findIndex((a) => a.id !== 'guard' && a.cost <= c.hero.mana); if (idx >= 0 && cb.useSkill(idx).ok) { acted = true; } } cb.endTurn(); }
     g.resolveCombat(); }
   const run = g.getRun();
   if (run.skillPoints > 0) { const before = run.tree.find((t) => t.id === 'strike').level; g.investSkill('strike'); assert.equal(g.getRun().tree.find((t) => t.id === 'strike').level, before + 1); }

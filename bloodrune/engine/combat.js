@@ -62,13 +62,15 @@ export function createCombat({ hero, pack, rng }) {
   const state = {
     hero: { name: hero.name, glyph: hero.glyph,
       life: hero.life != null ? Math.min(hero.life, hero.maxLife) : hero.maxLife, maxLife: hero.maxLife,
-      block: 0, startBlock: hero.startBlock || 0, mana: hero.maxMana, maxMana: hero.maxMana,
+      block: 0, startBlock: hero.startBlock || 0,
+      mana: hero.mana != null ? Math.min(hero.mana, hero.maxMana) : hero.maxMana, maxMana: hero.maxMana,
       manaRegen: hero.manaRegen != null ? hero.manaRegen : 4, weapon: hero.weapon || null,
-      accuracy: hero.accuracy, evade: hero.evade || 0,
+      accuracy: hero.accuracy, evade: hero.evade || 0, actions: 0, maxActions: hero.actions || 3,
       plusSkills: hero.plusSkills || 0, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
       exposed: false, summons: [], focusUid: null },
     enemies: pack.map(buildMonster),
     turn: 0, xpEarned: 0, over: false, result: null, log: [],
+    tally: { hits: 0, misses: 0, evades: 0, kills: 0, dmgDealt: 0, dmgTaken: 0 }, // unbiased combat telemetry
   };
 
   const alive = () => state.enemies.filter((e) => e.hp > 0);
@@ -93,16 +95,17 @@ export function createCombat({ hero, pack, rng }) {
   // drains you and forces cheaper choices. Block still resets each turn.
   function startTurn() { state.turn += 1; state.hero.block = state.hero.startBlock;
     state.hero.mana = Math.min(state.hero.maxMana, state.hero.mana + state.hero.manaRegen);
+    state.hero.actions = state.hero.maxActions; // action points bound how MANY things you do; Mana gates WHICH
     state.hero.exposed = false; telegraph(); state.log.push(`— Turn ${state.turn} —`); }
 
-  function hurt(e, dmg) { e.hp = Math.max(0, e.hp - dmg); if (e.hp === 0) { e.intent = null; if (!e.raised) state.xpEarned += e.xp || 0; state.log.push(`${e.name} ${e.raised ? 'falls again.' : 'dies.'}`); } }
+  function hurt(e, dmg) { e.hp = Math.max(0, e.hp - dmg); if (e.hp === 0) { e.intent = null; state.tally.kills++; if (!e.raised) state.xpEarned += e.xp || 0; state.log.push(`${e.name} ${e.raised ? 'falls again.' : 'dies.'}`); } }
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   // Physical attacks roll to-hit (Accuracy vs the target's Evade); a wide floor/
   // cap so accuracy MATTERS without being punitive. `acc == null` => auto-hit
   // (spells and summons never miss — the caster's edge).
   function applyHit(e, dmg, pierce, acc) {
-    if (acc != null && rng.next() > clamp(0.75 + (acc - (e.eva || 0)) * 0.04, 0.35, 0.95)) { state.log.push(`You miss ${e.name}.`); return false; }
-    let d = dmg; if (!pierce && isGuarded(e)) { d = Math.max(1, Math.round(dmg * (1 - GUARD_MITIGATION))); state.log.push(`${e.name} is guarded — only ${d} lands.`); } hurt(e, d); return true; }
+    if (acc != null) { if (rng.next() > clamp(0.75 + (acc - (e.eva || 0)) * 0.04, 0.35, 0.95)) { state.tally.misses++; state.log.push(`You miss ${e.name}.`); return false; } state.tally.hits++; }
+    let d = dmg; if (!pierce && isGuarded(e)) { d = Math.max(1, Math.round(dmg * (1 - GUARD_MITIGATION))); state.log.push(`${e.name} is guarded — only ${d} lands.`); } hurt(e, d); state.tally.dmgDealt += d; return true; }
   function setFocus(uid) { state.hero.focusUid = uid; }
   // The front rank shields the ranks behind it. Reach r strikes the nearest r+1
   // occupied rings — so melee (reach 0) can only hit the frontmost living rank,
@@ -117,6 +120,7 @@ export function createCombat({ hero, pack, rng }) {
     if (focusUid != null) state.hero.focusUid = focusUid;
     const id = state.hero.abilities[abilityIndex]; if (id == null) return { ok: false };
     const s = SKILLS[id]; const eff = skillEffect(state.hero, id);
+    if (state.hero.actions <= 0) return { ok: false, reason: 'no actions left this turn' };
     if (s.cost > state.hero.mana) return { ok: false, reason: 'not enough Mana' };
     state.hero.mana -= s.cost;
     const acc = s.weapon === 'spell' ? null : state.hero.accuracy; // physical skills roll to-hit; spells auto-hit
@@ -132,6 +136,7 @@ export function createCombat({ hero, pack, rng }) {
       if (s.type === 'breakthrough') { applyHit(t, roll(eff.min, eff.max), true, acc); state.hero.exposed = true; state.log.push('You break through — and drop your guard.'); }
       else if (s.scale === 'hits') { for (let h = 0; h < eff.hits && t.hp > 0; h++) applyHit(t, roll(eff.min, eff.max), false, acc); }
       else applyHit(t, roll(eff.min, eff.max), false, acc); }
+    state.hero.actions -= 1; // a successful action spends one action point
     state.log.push(`Cast ${s.name}.`);
     if (!alive().length) finish('win');
     return { ok: true };
@@ -148,9 +153,9 @@ export function createCombat({ hero, pack, rng }) {
     // Evade: dodge the blow entirely, scaled against the ATTACKER's accuracy (a
     // sloppy foe is easy to juke, a precise one punches through). The Amazon's edge.
     if (state.hero.evade > 0 && rng.next() > clamp(0.80 + ((e.acc != null ? e.acc : 5) - state.hero.evade) * 0.04, 0.30, 0.95)) {
-      state.log.push(`You evade ${e.name}.`); return true; }
+      state.tally.evades++; state.log.push(`You evade ${e.name}.`); return true; }
     const absorbed = state.hero.exposed ? 0 : Math.min(state.hero.block, raw); state.hero.block -= absorbed;
-    const dmg = raw - absorbed; state.hero.life = Math.max(0, state.hero.life - dmg);
+    const dmg = raw - absorbed; state.hero.life = Math.max(0, state.hero.life - dmg); state.tally.dmgTaken += dmg;
     state.log.push(`${e.name} hits you for ${dmg}${absorbed ? ` (${absorbed} blocked)` : ''}${state.hero.exposed ? ' (exposed!)' : ''}.`);
     if (e.leech && dmg > 0) { e.hp = Math.min(e.maxHp, e.hp + dmg); }
     return state.hero.life > 0;
@@ -194,6 +199,16 @@ export function createCombat({ hero, pack, rng }) {
 
   function endTurn() { if (state.over) return; summonsPhase(); if (state.over) return; if (!enemyPhase()) return; startTurn(); }
 
+  // Quaff a belt potion — a free action (doesn't end your turn); scarcity is the
+  // limiter. Returns whether it was consumed so the run can decrement the belt.
+  function quaff(kind, amount) {
+    if (state.over) return { ok: false };
+    const h = state.hero;
+    if (kind === 'life') { if (h.life >= h.maxLife) return { ok: false, reason: 'full' }; h.life = Math.min(h.maxLife, h.life + amount); state.log.push(`You quaff a Life potion (+${amount}).`); }
+    else { if (h.mana >= h.maxMana) return { ok: false, reason: 'full' }; h.mana = Math.min(h.maxMana, h.mana + amount); state.log.push(`You quaff a Mana potion (+${amount}).`); }
+    return { ok: true };
+  }
+
   // Flee: every living enemy gets one parting swing; survive -> escape (no loot), die -> loss.
   function flee() { if (state.over) return { result: state.result };
     for (const e of alive()) { if (!monsterHit(e, e.attack)) { finish('lose'); return { result: 'lose' }; } }
@@ -206,10 +221,10 @@ export function createCombat({ hero, pack, rng }) {
       hero: { ...state.hero, hard: { ...state.hero.hard }, summons: state.hero.summons.map((s) => ({ ...s })),
         abilities: state.hero.abilities.map((id) => ({ id, ...SKILLS[id], eff: skillEffect(state.hero, id) })) },
       enemies: state.enemies.map((e) => ({ ...e, guarded: isGuarded(e), guardianCount: livingGuardians(e).length })),
-      turn: state.turn, xpEarned: state.xpEarned, over: state.over, result: state.result, log: state.log.slice(),
+      turn: state.turn, xpEarned: state.xpEarned, over: state.over, result: state.result, log: state.log.slice(), tally: { ...state.tally },
     };
   }
 
   startTurn();
-  return { useSkill, endTurn, flee, setFocus, getState };
+  return { useSkill, endTurn, flee, setFocus, quaff, getState };
 }

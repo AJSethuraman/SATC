@@ -20,7 +20,7 @@ export const SKILLS = {
   // universal
   guard: { id: 'guard', name: 'Guard', type: 'skill', weapon: 'spell', cost: 2, scale: 'block', base: 8, grow: 2, req: 1, pre: [], text: 'Brace — gain Block.' },
   // Barbarian — melee (axe-powered) + a Charge to break into the outer ring
-  strike: { id: 'strike', name: 'Strike', type: 'attack', target: 'single', reach: 0, cost: 2, scale: 'damage', weapon: 'melee', wpn: 1.0, grow: 2, req: 1, pre: [] },
+  strike: { id: 'strike', name: 'Strike', type: 'attack', target: 'single', reach: 0, cost: 0, scale: 'damage', weapon: 'melee', wpn: 1.0, grow: 2, req: 1, pre: [] },
   cleave: { id: 'cleave', name: 'Cleave', type: 'attack', target: 'aoe', reach: 0, cost: 3, scale: 'damage', weapon: 'melee', wpn: 0.85, grow: 1, maxTargets: 2, req: 1, pre: [] },
   zeal: { id: 'zeal', name: 'Zeal', type: 'attack', target: 'single', reach: 0, cost: 3, scale: 'hits', weapon: 'melee', wpn: 0.7, hitCap: 5, req: 3, pre: ['strike'] },
   smite: { id: 'smite', name: 'Smite', type: 'attack', target: 'single', reach: 0, cost: 3, scale: 'damage', weapon: 'melee', wpn: 1.6, grow: 3, req: 6, pre: ['zeal'] },
@@ -28,7 +28,7 @@ export const SKILLS = {
   charge: { id: 'charge', name: 'Charge', type: 'breakthrough', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'melee', wpn: 1.25, grow: 2, req: 4, pre: ['cleave'] },
   warcry: { id: 'warcry', name: 'War Cry', type: 'skill', weapon: 'spell', cost: 4, scale: 'block', base: 14, grow: 3, req: 2, pre: [], text: 'A defiant roar — big Block.' },
   // Amazon — ranged (bow-powered), reaches the outer ring natively
-  arrow: { id: 'arrow', name: 'Arrow', type: 'attack', target: 'single', reach: 1, cost: 2, scale: 'damage', weapon: 'ranged', wpn: 1.0, grow: 2, req: 1, pre: [] },
+  arrow: { id: 'arrow', name: 'Arrow', type: 'attack', target: 'single', reach: 1, cost: 0, scale: 'damage', weapon: 'ranged', wpn: 1.0, grow: 2, req: 1, pre: [] },
   power_shot: { id: 'power_shot', name: 'Power Shot', type: 'attack', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'ranged', wpn: 1.55, grow: 3, req: 4, pre: ['arrow'] },
   strafe: { id: 'strafe', name: 'Strafe', type: 'attack', target: 'aoe', reach: 1, cost: 4, scale: 'damage', weapon: 'ranged', wpn: 0.8, grow: 2, maxTargets: 3, req: 6, pre: ['power_shot'], text: 'A volley — hits several, reaches outer.' },
   pierce: { id: 'pierce', name: 'Pierce', type: 'breakthrough', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'ranged', wpn: 1.15, grow: 2, req: 2, pre: ['arrow'], text: 'A shot through the guard (reaches, ignores guard) — you stay Exposed.' },
@@ -46,11 +46,14 @@ export const SKILLS = {
 export const CLASSES = {
   // acc = base Accuracy (physical to-hit); eva = base Evade (dodge chance). The
   // Amazon is the nimble one (high Evade); melee wants Accuracy as it scales.
-  barbarian: { id: 'barbarian', name: 'Barbarian', glyph: '🪓', maxLife: 56, maxMana: 10, manaRegen: 6, startBlock: 0, acc: 7, eva: 1,
+  // manaRegen is SLOW and per-turn — Mana persists across the whole run (no free
+  // refill between packs); you top up with Mana potions and rest at camps. Casters
+  // carry a larger pool + slightly better regen.
+  barbarian: { id: 'barbarian', name: 'Barbarian', glyph: '🪓', maxLife: 56, maxMana: 12, manaRegen: 2, startBlock: 0, acc: 7, eva: 1,
     startWeapon: 'worn_axe', tree: ['strike', 'cleave', 'zeal', 'smite', 'whirlwind', 'charge', 'warcry'] },
-  amazon: { id: 'amazon', name: 'Amazon', glyph: '🏹', maxLife: 47, maxMana: 9, manaRegen: 6, startBlock: 0, acc: 8, eva: 6,
+  amazon: { id: 'amazon', name: 'Amazon', glyph: '🏹', maxLife: 47, maxMana: 12, manaRegen: 2, startBlock: 0, acc: 8, eva: 6,
     startWeapon: 'short_bow', tree: ['arrow', 'power_shot', 'strafe', 'pierce', 'guard'] },
-  necromancer: { id: 'necromancer', name: 'Necromancer', glyph: '💀', maxLife: 40, maxMana: 11, manaRegen: 5, startBlock: 0, acc: 6, eva: 1,
+  necromancer: { id: 'necromancer', name: 'Necromancer', glyph: '💀', maxLife: 40, maxMana: 16, manaRegen: 3, startBlock: 0, acc: 6, eva: 1,
     startWeapon: 'bone_wand', tree: ['raise_skeleton', 'raise_golem', 'bone_spear', 'teeth', 'bone_armor'] },
 };
 
@@ -62,7 +65,7 @@ export const CLASSES = {
 // Cleave at all. 'focus' weapons (wands/staves) deal no weapon damage: they power
 // the Necromancer, whose spells scale on +Skills, not on a swung weapon.
 export const ITEMS = {
-  worn_axe: { id: 'worn_axe', name: 'Worn Axe', slot: 'weapon', wtype: 'melee', dmg: [5, 8], grants: { skill: 'cleave' }, text: 'A pitted axe (5-8). Grants Cleave.' },
+  worn_axe: { id: 'worn_axe', name: 'Worn Axe', slot: 'weapon', wtype: 'melee', dmg: [5, 8], grants: { skill: 'strike' }, text: 'A pitted axe (5-8). Grants Strike.' },
   short_bow: { id: 'short_bow', name: 'Short Bow', slot: 'weapon', wtype: 'ranged', dmg: [5, 8], grants: { skill: 'arrow' }, text: 'A hunting bow (5-8). Grants Arrow.' },
   bone_wand: { id: 'bone_wand', name: 'Bone Wand', slot: 'weapon', wtype: 'focus', grants: { skill: 'raise_skeleton' }, text: 'A focus for the dead. Grants Raise Skeleton.' },
   // droppable weapons — better damage/mods; type gates which skills they empower

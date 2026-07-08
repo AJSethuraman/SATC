@@ -19,13 +19,24 @@ window.__bloodrune = {};
 function meta() { try { const m = JSON.parse(localStorage.getItem('bloodrune.meta')) || {}; return { unlocked: m.unlocked || ['Normal'], wins: m.wins || 0, deaths: m.deaths || 0 }; } catch { return { unlocked: ['Normal'], wins: 0, deaths: 0 }; } }
 function saveMeta(m) { try { localStorage.setItem('bloodrune.meta', JSON.stringify(m)); } catch {} }
 
+// ---- Telemetry: log what actually happens, unbiased, so balance is data-driven.
+// Everything persists in localStorage; view via the Stats screen or export the JSON.
+const TKEY = 'bloodrune.telemetry';
+function blankTel() { return { v: 1, runs: 0, wins: 0, deaths: 0, byClass: {}, skills: {}, nodes: {},
+  potions: { life: 0, mana: 0 }, combat: { fights: 0, fled: 0, hits: 0, misses: 0, evades: 0, kills: 0, dmgDealt: 0, dmgTaken: 0, turns: 0 }, deathLog: [], events: [] }; }
+let TEL; try { TEL = JSON.parse(localStorage.getItem(TKEY)) || blankTel(); } catch { TEL = blankTel(); }
+function saveTel() { try { if (TEL.events.length > 400) TEL.events = TEL.events.slice(-400); localStorage.setItem(TKEY, JSON.stringify(TEL)); } catch {} }
+function tel(event, data) { TEL.events.push({ t: Date.now(), event, ...(data || {}) }); saveTel(); }
+function telClass(c) { return TEL.byClass[c] || (TEL.byClass[c] = { runs: 0, wins: 0, deaths: 0, deepestStep: 0, maxLevel: 0 }); }
+
 function newRun(diff, cls) {
   difficulty = diff || difficulty; if (cls) classId = cls;
   game = createGame('run-' + (window.__seed || 'ashes') + '-' + difficulty + '-' + classId, { classId, difficulty });
   combat = null; invOpen = false; treeOpen = false; focusUid = null; countedTerminal = false;
+  TEL.runs++; telClass(classId).runs++; tel('run_start', { class: classId, difficulty });
   render();
 }
-function expose() { const r = game.getRun(); window.__bloodrune.run = r; window.__bloodrune.state = combat ? combat.getState() : null; window.__bloodrune.phase = r.phase; window.__bloodrune.game = game; }
+function expose() { const r = game.getRun(); window.__bloodrune.run = r; window.__bloodrune.state = combat ? combat.getState() : null; window.__bloodrune.phase = r.phase; window.__bloodrune.game = game; window.__bloodrune.telemetry = TEL; }
 function pv(a, b) { return b > 0 ? Math.max(0, Math.min(100, a / b * 100)) : 0; }
 
 function render() {
@@ -56,16 +67,37 @@ function renderPrep(r) {
         <div><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></div>
         <div><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></div>
         <div><span class="k">Level</span> <b>${r.level}</b></div>
-        <div><span class="k">Skills</span> <b>${r.abilities.length}</b></div>
+        <div><span class="k">Potions</span> <b>🩹${r.potions.life} 🔷${r.potions.mana}</b></div>
       </div></div>
     <div class="meta-row">Difficulty: ${DIFFS.map((d) => `<button class="pill ${d === difficulty ? 'on' : ''} ${m.unlocked.includes(d) ? '' : 'locked'}" data-diff="${d}" ${m.unlocked.includes(d) ? '' : 'disabled'}>${d}</button>`).join('')}<span class="tally">wins ${m.wins} · deaths ${m.deaths}</span></div>
-    <div class="prep-actions"><button class="act ghost" id="openInv">🎒 INVENTORY</button><button class="act" id="descend">DESCEND</button></div>
+    <div class="prep-actions"><button class="act ghost" id="openInv">🎒 INVENTORY</button><button class="act ghost small" id="openStats">📊 STATS</button><button class="act" id="descend">DESCEND</button></div>
   </div>`;
   logEl.innerHTML = '';
   board.querySelectorAll('.pill[data-class]').forEach((b) => b.addEventListener('click', () => newRun(difficulty, b.dataset.class)));
   board.querySelectorAll('.pill[data-diff]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) newRun(b.dataset.diff, classId); }));
   document.getElementById('openInv').addEventListener('click', () => { invOpen = true; renderOverlay(); });
+  document.getElementById('openStats').addEventListener('click', () => renderStats());
   document.getElementById('descend').addEventListener('click', () => { game.beginDescent(); render(); });
+}
+
+// ---- Stats screen (reads the telemetry aggregates; export shares them with the dev) ----
+function renderStats() {
+  const c = TEL.combat; const pct = (a, b) => b > 0 ? Math.round(a / b * 100) : 0;
+  const topSkills = Object.entries(TEL.skills).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const classRows = Object.entries(TEL.byClass).map(([k, v]) => `<tr><td>${k}</td><td>${v.runs}</td><td>${v.wins}</td><td>${v.deaths}</td><td>${v.maxLevel}</td><td>${v.deepestStep}</td></tr>`).join('');
+  const deaths = TEL.deathLog.slice(-8).reverse().map((d) => `${d.class} · L${d.level} · step ${d.step}${d.node ? ' (' + d.node + ')' : ''}`).join('<br>') || '—';
+  ov.className = 'overlay inv';
+  ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">📊 Play Statistics</div><button class="inv-close" id="cx">✕</button></div>
+    <div class="sk-sub">Unbiased log of what actually happens — so balance is driven by data, not vibes. Runs: <b>${TEL.runs}</b> · Wins: <b>${TEL.wins}</b> · Deaths: <b>${TEL.deaths}</b></div>
+    <table class="stt"><tr><th>Class</th><th>Runs</th><th>W</th><th>D</th><th>Max Lv</th><th>Deepest</th></tr>${classRows || '<tr><td colspan=6>no runs yet</td></tr>'}</table>
+    <div class="stblk"><b>Combat</b> — fights ${c.fights} (fled ${c.fled}) · hit rate ${pct(c.hits, c.hits + c.misses)}% · evades ${c.evades} · kills ${c.kills}<br>dmg dealt ${c.dmgDealt} · dmg taken ${c.dmgTaken} · avg turns/fight ${c.fights ? (c.turns / c.fights).toFixed(1) : 0}</div>
+    <div class="stblk"><b>Potions used</b> — 🩹 ${TEL.potions.life} · 🔷 ${TEL.potions.mana}</div>
+    <div class="stblk"><b>Most-used skills</b><br>${topSkills.map(([k, v]) => `${k} ×${v}`).join(' · ') || '—'}</div>
+    <div class="stblk"><b>Recent deaths</b><br>${deaths}</div>
+    <div class="prep-actions"><button class="act ghost small" id="telExport">COPY DATA</button><button class="act ghost small" id="telReset">RESET</button></div></div>`;
+  document.getElementById('cx').addEventListener('click', () => { ov.className = 'overlay hidden'; ov.innerHTML = ''; });
+  document.getElementById('telExport').addEventListener('click', () => { const txt = JSON.stringify(TEL); try { navigator.clipboard.writeText(txt); } catch {} const t = document.getElementById('telExport'); t.textContent = 'COPIED ✓'; });
+  document.getElementById('telReset').addEventListener('click', () => { TEL = blankTel(); saveTel(); renderStats(); });
 }
 
 // ---------- map (blind) ----------
@@ -79,15 +111,19 @@ function renderMap(r) {
     <div class="paths">${cards}</div>
     <div class="prep-actions"><button class="act ghost" id="openInv">🎒 INVENTORY</button>${r.skillPoints ? `<button class="act" id="openTree">⚔ SKILLS ● ${r.skillPoints}</button>` : ''}</div>`;
   logEl.innerHTML = '';
-  board.querySelectorAll('.path').forEach((b) => b.addEventListener('click', () => { game.chooseDirection(Number(b.dataset.i)); render(); }));
+  board.querySelectorAll('.path').forEach((b) => b.addEventListener('click', () => { const r = game.getRun(); const t = r.choices && r.choices[Number(b.dataset.i)] ? r.choices[Number(b.dataset.i)].type : '?'; TEL.nodes[t] = (TEL.nodes[t] || 0) + 1; tel('node', { type: t, step: r.mapStep }); game.chooseDirection(Number(b.dataset.i)); render(); }));
   document.getElementById('openInv').addEventListener('click', () => { invOpen = true; renderOverlay(); });
   const t = document.getElementById('openTree'); if (t) t.addEventListener('click', () => { treeOpen = true; renderOverlay(); });
 }
 function runHeader(r) { return `<div class="run-header"><span class="rh-diff">${r.difficulty}</span><span>Depth ${Math.min(r.mapStep + 1, r.mapLength + 1)}/${r.mapLength + 1}</span><span class="rh-life">❤ ${r.life}/${r.maxLife}</span><span class="rh-xp">Lv ${r.level} · XP ${r.xp}/${r.xpToNext}</span>${r.skillPoints ? `<span style="color:var(--gold)">● ${r.skillPoints} pts</span>` : ''}</div>`; }
 
 // ---------- combat (arena) ----------
+function potionBtn(kind, count, full) {
+  const label = kind === 'life' ? '🩹 Life' : '🔷 Mana';
+  return `<button class="pot ${kind}" data-quaff="${kind}" ${count <= 0 || full ? 'disabled' : ''}>${label} <span class="pn">×${count}</span></button>`;
+}
 function renderCombat() {
-  const s = combat.getState(); const h = s.hero;
+  const s = combat.getState(); const h = s.hero; const pot = game.getRun().potions;
   const living = s.enemies.filter((e) => e.hp > 0);
   if (focusUid == null || !living.find((e) => e.uid === focusUid)) focusUid = living[0] ? living[0].uid : null;
   const pos = {};
@@ -109,6 +145,7 @@ function renderCombat() {
       <div class="stat"><span class="k">Block</span><span class="v block">${h.block}</span></div>
       <div class="stat"><span class="k">Acc</span><span class="v">${h.accuracy}</span></div>
       ${h.evade > 0 ? `<div class="stat"><span class="k">Eva</span><span class="v">${h.evade}</span></div>` : ''}
+      <div class="stat"><span class="k">Act</span><span class="v acts">${'◆'.repeat(h.actions)}${'◇'.repeat(Math.max(0, h.maxActions - h.actions))}</span></div>
       <div class="stat"><span class="k">Lv</span><span class="v">${game.getRun().level}</span></div>
       ${h.exposed ? '<span class="expo">⚠ EXPOSED</span>' : ''}
       <div class="stat"><span class="k">Turn</span><span class="v">${s.turn}</span></div>
@@ -117,15 +154,21 @@ function renderCombat() {
       <div class="hero-tok"><div class="ring"></div><div class="g">${h.glyph}</div>${h.summons.length ? `<div class="summons">${h.summons.map((x) => x.glyph).join('')}</div>` : ''}</div>${mobs}</div>
     <div class="hint">Surrounded — only the front rank can reach you each turn (the rest ⏳ wait). Ranged foes hold the back (“out of reach”); thin the front to pin them, or strike past with a ranged skill / Charge / Summons. A Shaman raises the Fallen — kill it first.</div>
     <div class="hand">${h.abilities.map(abilityHTML).join('')}</div>
+    <div class="belt">${potionBtn('life', pot.life, h.life >= h.maxLife)}${potionBtn('mana', pot.mana, h.mana >= h.maxMana)}</div>
     <div class="controls"><button class="act ghost small" id="flee">FLEE</button><button class="act" id="end">END TURN</button></div>`;
   logEl.innerHTML = s.log.slice(-6).map((l) => `<div>${l}</div>`).join(''); logEl.scrollTop = logEl.scrollHeight;
   board.querySelectorAll('.mob').forEach((mb) => mb.addEventListener('click', () => { focusUid = Number(mb.dataset.uid); combat.setFocus(focusUid); render(); }));
-  document.querySelectorAll('.card').forEach((b) => b.addEventListener('click', () => { combat.useSkill(Number(b.dataset.i), focusUid); afterCombat(); }));
+  document.querySelectorAll('.card').forEach((b) => b.addEventListener('click', () => { const id = (combat.getState().hero.abilities[Number(b.dataset.i)] || {}).id; const r = combat.useSkill(Number(b.dataset.i), focusUid); if (r && r.ok && id) { TEL.skills[id] = (TEL.skills[id] || 0) + 1; saveTel(); } afterCombat(); }));
+  board.querySelectorAll('[data-quaff]').forEach((b) => b.addEventListener('click', () => { const r = game.quaff(b.dataset.quaff); if (r && r.ok) { TEL.potions[b.dataset.quaff]++; tel('quaff', { kind: b.dataset.quaff }); } render(); }));
   document.getElementById('end').addEventListener('click', () => { combat.endTurn(); afterCombat(); });
-  document.getElementById('flee').addEventListener('click', () => { game.flee(); combat = game.getCombat(); afterTerminal(); render(); });
+  document.getElementById('flee').addEventListener('click', () => { const s = combat.getState(); game.flee(); recordCombatEnd(combat.getState()); combat = game.getCombat(); afterTerminal(); render(); });
 }
+let lastRecorded = null;
+function recordCombatEnd(s) { if (!s || !s.over || s === lastRecorded) return; lastRecorded = s; const ty = s.tally; const c = TEL.combat;
+  c.fights++; if (s.result === 'fled') c.fled++; c.hits += ty.hits; c.misses += ty.misses; c.evades += ty.evades; c.kills += ty.kills; c.dmgDealt += ty.dmgDealt; c.dmgTaken += ty.dmgTaken; c.turns += s.turn;
+  tel('combat', { result: s.result, node: game.getRun().node ? game.getRun().node.type : null, turns: s.turn, tally: ty }); }
 function abilityHTML(c, i) {
-  const s = combat.getState(); const h = s.hero; const affordable = c.cost <= h.mana;
+  const s = combat.getState(); const h = s.hero; const affordable = c.cost <= h.mana && h.actions > 0;
   const tag = c.type === 'breakthrough' ? 'reach · EXPOSES' : c.type === 'summon' ? 'summon · each turn' : c.target === 'aoe' ? (`×${c.maxTargets || 3}` + (c.reach ? ' · reaches outer' : ' · inner')) : c.type === 'skill' ? 'skill' : (c.reach ? 'reaches outer' : 'inner ring');
   // physical attacks roll to-hit; show the chance vs the focused foe so accuracy reads
   let hit = '';
@@ -137,8 +180,12 @@ function abilityHTML(c, i) {
     <div class="cn"><span>${c.name} <span class="lv">Lv ${c.eff.lvl}</span></span><span>${c.cost}⬡</span></div>
     <div class="ct">${tag}${hit}</div><div class="cx">${c.eff.text}</div></button>`;
 }
-function afterCombat() { const s = combat.getState(); if (s.over) { game.resolveCombat(); afterTerminal(); } render(); }
-function afterTerminal() { const p = game.getRun().phase; if (!countedTerminal && (p === 'dead' || p === 'victory')) { countedTerminal = true; const m = meta(); if (p === 'dead') m.deaths++; if (p === 'victory') { m.wins++; const ni = DIFFS.indexOf(game.getRun().difficulty) + 1; if (DIFFS[ni] && !m.unlocked.includes(DIFFS[ni])) m.unlocked.push(DIFFS[ni]); } saveMeta(m); } }
+function afterCombat() { const s = combat.getState(); if (s.over) { recordCombatEnd(s); game.resolveCombat(); afterTerminal(); } render(); }
+function afterTerminal() { const p = game.getRun().phase; if (!countedTerminal && (p === 'dead' || p === 'victory')) { countedTerminal = true; const m = meta(); if (p === 'dead') m.deaths++; if (p === 'victory') { m.wins++; const ni = DIFFS.indexOf(game.getRun().difficulty) + 1; if (DIFFS[ni] && !m.unlocked.includes(DIFFS[ni])) m.unlocked.push(DIFFS[ni]); } saveMeta(m);
+    const run = game.getRun(); const bc = telClass(classId); bc.maxLevel = Math.max(bc.maxLevel, run.level); bc.deepestStep = Math.max(bc.deepestStep, run.mapStep);
+    if (p === 'dead') { TEL.deaths++; bc.deaths++; TEL.deathLog.push({ class: classId, level: run.level, step: run.mapStep, node: run.node ? run.node.type : null }); if (TEL.deathLog.length > 100) TEL.deathLog = TEL.deathLog.slice(-100); }
+    else { TEL.wins++; bc.wins++; }
+    tel('run_end', { result: p, class: classId, level: run.level, step: run.mapStep }); } }
 
 // ---------- reward ----------
 function renderReward(r) {
