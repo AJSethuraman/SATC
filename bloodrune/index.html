@@ -240,6 +240,40 @@
     .lvl-opt { width: 100%; }
     .run-header { font-size: 12px; gap: 10px; }
   }
+  /* --- surrounded arena --- */
+  .bar { display:flex; gap:14px; align-items:center; flex-wrap:wrap; justify-content:center;
+    background:linear-gradient(180deg,var(--panel),#0d0809); border:1px solid var(--panel-edge); border-radius:10px;
+    padding:8px 12px; font-variant-numeric:tabular-nums; }
+  .bar.exposed { border-color:var(--blood-bright); box-shadow:0 0 16px rgba(198,40,40,.35); }
+  .bar .stat { display:flex; gap:5px; align-items:baseline; }
+  .expo { color:var(--blood-bright); font-weight:700; font-size:12px; letter-spacing:1px; }
+  .arena { position:relative; width:100%; max-width:500px; aspect-ratio:1; margin:14px auto 6px; }
+  .arena svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  .hero-tok { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); text-align:center; z-index:2; }
+  .hero-tok .g { font-size:44px; filter:drop-shadow(0 0 10px rgba(200,162,74,.4)); }
+  .hero-tok .ring { width:96px; height:96px; border-radius:50%; border:1px solid #3a2a1a; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); }
+  .hero-tok .summons { margin-top:2px; font-size:16px; letter-spacing:-3px; white-space:nowrap; filter:drop-shadow(0 0 4px rgba(120,140,200,.6)); }
+  .mob { position:absolute; transform:translate(-50%,-50%); width:76px; text-align:center; cursor:pointer; z-index:2; }
+  .mob .card2 { background:linear-gradient(180deg,#16101a,#0c0710); border:1px solid #2c2233; border-radius:9px; padding:5px 3px; }
+  .mob.guardian .card2 { border-color:#3a4a7a; } .mob.caster .card2 { border-color:#5a3a6a; }
+  .mob.elite .card2 { border-color:var(--blood-bright); }
+  .mob.focus .card2 { border-color:var(--gold); box-shadow:0 0 14px rgba(200,162,74,.5); }
+  .mob .g { font-size:26px; line-height:1; } .mob .n { font-size:10px; color:#cbb9c9; }
+  .mob .hp { height:5px; background:#2a0d0d; border-radius:3px; overflow:hidden; margin-top:2px; }
+  .mob .hp > i { display:block; height:100%; background:linear-gradient(90deg,#7a1616,#c62828); }
+  .mob .in { font-size:11px; font-weight:700; color:#e0a0a0; margin-top:1px; } .mob .in.heal { color:#6fd08a; }
+  .mob .badge { position:absolute; top:-9px; left:50%; transform:translateX(-50%); font-size:8px; letter-spacing:.5px; padding:0 5px; border-radius:999px; white-space:nowrap; text-transform:uppercase; }
+  .mob .badge.guarded { color:#cdd8ff; background:#1a2340; border:1px solid #4a7bff; }
+  .mob .badge.elite2 { color:#ffd9d9; background:#4a1414; border:1px solid var(--blood-bright); }
+  .mob .focus-tag { position:absolute; bottom:-9px; left:50%; transform:translateX(-50%); font-size:9px; color:var(--gold); background:#1a1206; border:1px solid var(--gold); border-radius:999px; padding:0 5px; }
+  .hint { text-align:center; color:#6f6357; font-size:11px; margin:2px 0 8px; line-height:1.5; }
+  .card.summon { border-left:3px solid #6a6f8a; } .card.breakthrough { border-left:3px solid var(--gold); }
+  .sk-sub { font-size:12px; color:var(--muted); margin-bottom:10px; line-height:1.5; }
+  .sk-row { display:flex; justify-content:space-between; align-items:center; gap:10px; border:1px solid #2a1f20; border-radius:9px; padding:8px 10px; margin-bottom:7px; }
+  .sk-info .sn { font-weight:700; font-size:14px; } .sk-info .se { font-size:11px; color:#cbbfb4; }
+  .sk-btns button { font-family:inherit; font-size:12px; padding:5px 10px; border-radius:7px; cursor:pointer; background:#1a1213; border:1px solid #4a3a2a; color:var(--gold); }
+  .sk-btns button:disabled { opacity:.35; cursor:not-allowed; }
+  button.act.small { padding:8px 16px; font-size:13px; }
 </style>
 </head>
 <body>

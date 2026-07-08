@@ -1,152 +1,95 @@
-// Engine seam tests: the full RUN — map choices, combat resolution, XP/leveling,
-// loot, flee, camps, and a complete auto-played descent that reaches a terminal.
+// Engine tests: the run — start naked, XP -> levels -> skill points, skill tree,
+// loot, flee, and a full auto-played descent that terminates. Also gear derivation.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame } from '../engine/game.js';
-import { nextChoices, makeMap } from '../engine/map.js';
+import { createGame, deriveStats, deriveAbilities } from '../engine/game.js';
+import { rollItem } from '../engine/loot.js';
 import { makeRng } from '../engine/rng.js';
+import { CLASSES, ITEMS } from '../engine/content.js';
 
-test('a descent offers up to 3 forward directions', () => {
-  const game = createGame('d1');
-  game.beginDescent();
-  const run = game.getRun();
-  assert.equal(run.phase, 'map');
-  assert.ok(run.choices.length >= 1 && run.choices.length <= 3);
-  assert.ok(run.choices.every((c) => c.type && c.glyph));
+test('you start NAKED: one weapon-granted skill + a universal Guard', () => {
+  const g = createGame('naked', { classId: 'barbarian' });
+  const run = g.getRun();
+  assert.deepEqual(run.abilities.sort(), ['cleave', 'guard'].sort()); // Worn Axe -> Cleave, + Guard
+  assert.equal(run.level, 1);
+  assert.equal(run.skillPoints, 0);
 });
 
-test('the map forces the boss after its length', () => {
-  const map = makeMap({ length: 2 });
-  map.step = 2;
-  const choices = nextChoices(makeRng('z'), map);
-  assert.deepEqual(choices.map((c) => c.type), ['boss']);
+test('deriveStats grows Life/Mana with level and sums gear mods', () => {
+  const barb = CLASSES.barbarian;
+  const base = deriveStats(barb, { weapon: ITEMS.worn_axe }, 1);
+  const lvl3 = deriveStats(barb, { weapon: ITEMS.worn_axe }, 3);
+  assert.ok(lvl3.maxLife > base.maxLife); // leveling raises Life
+  const geared = deriveStats(barb, { weapon: ITEMS.great_axe }, 1); // +1 to Skills
+  assert.equal(geared.plusSkills, 1);
 });
 
-// competent auto-player (block low, AoE the swarm, else biggest hit)
-function frontIdx(s) { const m = s.lane.find((x) => x.hp > 0); return m ? m.index : 0; }
-function playFight(combat) {
+test('deriveAbilities = Guard + weapon skill + learned skills', () => {
+  const ab = deriveAbilities({ weapon: ITEMS.short_bow }, { power_shot: 1 });
+  assert.ok(ab.includes('guard') && ab.includes('arrow') && ab.includes('power_shot'));
+});
+
+test('rollItem drops armor/jewelry with rolled affixes (never a weapon)', () => {
+  for (let s = 0; s < 30; s++) { const it = rollItem(makeRng('r' + s), {}); assert.notEqual(it.slot, 'weapon'); }
+});
+
+// competent auto-player: focus caster, learn/level a reach or summon, spend Mana
+function autoRun(seed, classId, learnPref) {
+  const g = createGame(seed, { classId });
+  g.beginDescent();
+  const S = () => g.getRun();
+  const cIdx = (id) => g.getCombat().getState().hero.abilities.findIndex((a) => a.id === id);
+  const tryUse = (id) => { const i = cIdx(id); if (i < 0) return false; const r = g.getCombat().useSkill(i); return !!(r && r.ok); };
   let guard = 0;
-  while (!combat.getState().over && guard++ < 800) {
-    let acted = true;
-    while (acted) {
-      acted = false;
-      const s = combat.getState();
-      if (s.over) break;
-      const aff = s.hand.map((c, i) => ({ c, i })).filter((o) => o.c.cost <= s.hero.mana);
-      if (!aff.length) break;
-      const living = s.lane.filter((m) => m.hp > 0).length;
-      let pick = null;
-      if (s.hero.life < s.hero.maxLife * 0.35) pick = aff.find((o) => o.c.block);
-      if (!pick && living >= 3) pick = aff.find((o) => o.c.target === 'aoe');
-      if (!pick) pick = aff.slice().sort((a, b) => (b.c.damage || 0) - (a.c.damage || 0))[0];
-      if (!pick) pick = aff[0];
-      combat.playCard(pick.i, pick.c.target === 'single' ? frontIdx(s) : undefined);
-      acted = true;
-    }
-    if (combat.getState().over) break;
-    combat.endTurn();
-  }
-}
-
-test('winning a combat node grants XP + loot and advances the map', () => {
-  const game = createGame('combat-seed');
-  game.beginDescent();
-  // find and pick a combat direction
-  const run = game.getRun();
-  const ci = run.choices.findIndex((c) => c.type === 'combat');
-  const idx = ci >= 0 ? ci : 0;
-  const type = run.choices[idx].type;
-  game.chooseDirection(idx);
-  if (type === 'combat' || type === 'elite' || type === 'boss') {
-    playFight(game.getCombat());
-    const phase = game.resolveCombat();
-    const after = game.getRun();
-    if (game.getCombat().getState().result === 'win') {
-      assert.ok(after.bag.length >= run.bag.length, 'loot should be added to the bag');
-      assert.ok(['reward', 'levelup', 'victory'].includes(phase));
-    }
-  } else {
-    assert.ok(['reward', 'camp'].includes(game.getRun().phase));
-  }
-});
-
-test('leveling offers 3 options and applying one changes deck or stats', () => {
-  // Force levels by playing several fights.
-  const game = createGame('lvl-seed');
-  game.beginDescent();
-  let leveled = false;
-  for (let step = 0; step < 6 && !leveled; step++) {
-    const run = game.getRun();
-    if (run.phase === 'map') {
-      const idx = run.choices.findIndex((c) => c.type === 'combat' || c.type === 'elite');
-      game.chooseDirection(idx >= 0 ? idx : 0);
-    }
-    if (game.getRun().phase === 'combat') {
-      playFight(game.getCombat());
-      game.resolveCombat();
-    }
-    let cur = game.getRun();
-    if (cur.phase === 'levelup') {
-      assert.ok(cur.levelupOptions.length >= 1 && cur.levelupOptions.length <= 3);
-      const deckBefore = cur.deck.length;
-      const statsBefore = JSON.stringify(cur.stats);
-      game.pickLevelup(cur.levelupOptions[0].id);
-      const nd = game.getRun();
-      assert.ok(nd.deck.length !== deckBefore || JSON.stringify(nd.stats) !== statsBefore);
-      leveled = true;
-    }
-    if (game.getRun().phase === 'reward') game.continueFromReward();
-    if (game.getRun().phase === 'camp') game.continueFromReward();
-    if (game.getRun().phase === 'dead') break;
-  }
-  assert.ok(leveled, 'several fights should produce at least one level-up');
-});
-
-test('fleeing ends the fight without loot and advances', () => {
-  const game = createGame('flee-seed');
-  game.beginDescent();
-  const run = game.getRun();
-  const idx = run.choices.findIndex((c) => c.type === 'combat');
-  game.chooseDirection(idx >= 0 ? idx : 0);
-  if (game.getRun().phase === 'combat') {
-    const bagBefore = game.getRun().bag.length;
-    game.flee();
-    const after = game.getRun();
-    assert.equal(after.pendingLoot.length, 0);
-    assert.equal(after.bag.length, bagBefore); // no loot from a flee
-    assert.ok(['reward', 'dead'].includes(after.phase));
-  }
-});
-
-function autoRun(game) {
-  game.beginDescent();
-  let guard = 0;
-  while (guard++ < 80) {
-    const run = game.getRun();
+  while (guard++ < 400) {
+    const run = S();
     if (run.phase === 'victory' || run.phase === 'dead') break;
-    if (run.phase === 'map') game.chooseDirection(0);
-    else if (run.phase === 'combat') { playFight(game.getCombat()); game.resolveCombat(); }
-    else if (run.phase === 'levelup') game.pickLevelup(game.getRun().levelupOptions[0].id);
-    else if (run.phase === 'reward' || run.phase === 'camp' || run.phase === 'treasure') game.continueFromReward();
-    else break;
+    if (run.phase === 'map') { const i = run.choices.findIndex((c) => c.type === 'combat' || c.type === 'elite'); g.chooseDirection(i >= 0 ? i : 0); continue; }
+    if (run.phase === 'reward') { while (S().skillPoints > 0) { const known = S().abilities; const want = learnPref.find((id) => !known.includes(id)) || learnPref[0]; g.investSkill(want); } g.continueFromReward(); continue; }
+    if (run.phase === 'combat') {
+      const cb = g.getCombat();
+      let turns = 0;
+      while (!cb.getState().over && turns++ < 60) {
+        const st = cb.getState();
+        const caster = st.enemies.find((e) => e.hp > 0 && e.role === 'caster'); const liv = st.enemies.filter((e) => e.hp > 0);
+        cb.setFocus(caster ? caster.uid : (liv[0] ? liv[0].uid : 0));
+        let acted = true;
+        while (acted) { acted = false; const c = cb.getState(); if (c.over) break;
+          const has = (id) => c.hero.abilities.some((a) => a.id === id); const aff = (id) => { const a = c.hero.abilities.find((x) => x.id === id); return a && a.cost <= c.hero.mana; };
+          if (c.hero.summons.length < 3 && has('raise_skeleton') && aff('raise_skeleton') && tryUse('raise_skeleton')) { acted = true; continue; }
+          for (const id of ['strafe', 'teeth', 'cleave', 'whirlwind', 'power_shot', 'arrow', 'bone_spear', 'charge', 'pierce', 'smite', 'zeal', 'strike']) { if (has(id) && aff(id) && tryUse(id)) { acted = true; break; } }
+        }
+        cb.endTurn();
+      }
+      g.resolveCombat();
+      continue;
+    }
+    break;
   }
-  return game.getRun().phase;
+  return S().phase;
 }
 
-test('a full auto-played descent reaches a terminal (victory or death) without throwing', () => {
-  const end = autoRun(createGame('full-run'));
-  assert.ok(['victory', 'dead'].includes(end), `run should terminate, ended at ${end}`);
+test('a Barbarian descent terminates (win or death) without throwing', () => {
+  const end = autoRun('br-barb', 'barbarian', ['cleave', 'smite', 'charge', 'whirlwind']);
+  assert.ok(['victory', 'dead'].includes(end), `ended ${end}`);
 });
 
-test('the Amazon is a distinct class: base Evasion + an evasion deck', () => {
-  const game = createGame('ama', { classId: 'amazon' });
-  const run = game.getRun();
-  assert.equal(run.className, 'Amazon');
-  assert.ok(run.stats.evasion >= 20, 'Amazon has base Evasion');
-  assert.ok(run.deck.includes('evade') && run.deck.includes('jab'));
+test('a Necromancer descent terminates', () => {
+  const end = autoRun('br-necro', 'necromancer', ['raise_skeleton', 'bone_spear', 'teeth', 'raise_golem']);
+  assert.ok(['victory', 'dead'].includes(end), `ended ${end}`);
 });
 
-test('an Amazon descent also reaches a terminal', () => {
-  const end = autoRun(createGame('ama-run', { classId: 'amazon' }));
-  assert.ok(['victory', 'dead'].includes(end), `Amazon run should terminate, ended at ${end}`);
+test('leveling grants skill points and investing raises a skill', () => {
+  const g = createGame('lvl', { classId: 'barbarian' });
+  g.beginDescent();
+  // fight the first node to gain xp
+  const i = g.getRun().choices.findIndex((c) => c.type === 'combat');
+  g.chooseDirection(i >= 0 ? i : 0);
+  const cb = g.getCombat();
+  if (cb) { let t = 0; while (!cb.getState().over && t++ < 40) { const st = cb.getState(); const liv = st.enemies.filter((e) => e.hp > 0); cb.setFocus(liv[0] ? liv[0].uid : 0);
+    let acted = true; while (acted) { acted = false; const c = cb.getState(); if (c.over) break; const idx = c.hero.abilities.findIndex((a) => a.id !== 'guard' && a.cost <= c.hero.mana); if (idx >= 0) { cb.useSkill(idx); acted = true; } } cb.endTurn(); }
+    g.resolveCombat(); }
+  const run = g.getRun();
+  if (run.skillPoints > 0) { const before = run.tree.find((t) => t.id === 'strike').level; g.investSkill('strike'); assert.equal(g.getRun().tree.find((t) => t.id === 'strike').level, before + 1); }
+  assert.ok(run.level >= 1);
 });

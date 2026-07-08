@@ -6,7 +6,8 @@
 
 import { BASES, PREFIXES, SUFFIXES, RARITY, SLOTS } from './content.js';
 
-const REAL_SLOTS = SLOTS.filter((s) => s !== 'ring2').map((s) => (s === 'ring1' ? 'ring' : s));
+// weapons are skill-granters (not random-rolled); exclude them + the 2nd ring.
+const REAL_SLOTS = SLOTS.filter((s) => s !== 'ring2' && s !== 'weapon').map((s) => (s === 'ring1' ? 'ring' : s));
 
 function sumMods(a, b) {
   const out = { ...a };

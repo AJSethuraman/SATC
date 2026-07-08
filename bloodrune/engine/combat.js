@@ -1,216 +1,147 @@
-// Combat state machine — swarm + accuracy + elites + XP + flee. Pure engine,
-// no DOM, all rolls from the injected seeded rng.
-//
-// Hit resolution is two-stage: attacker Accuracy (does it land?), then defender
-// Evasion (dodge a landed blow; 0 for the Barbarian). Elite monsters carry
-// affixes (frenzied/brutal/hardened/unerring/vampiric). Killing monsters grants
-// XP. Flee ends the fight but every living monster gets a parting swing.
+// Bloodrune combat — SURROUNDED ABILITIES engine. You stand in a ring of foes:
+// an INNER ring (melee reach) and an OUTER ring (casters/archers) reachable only
+// by ranged skills, a Charge/Pierce (breakthrough -> Exposed), or Summons that
+// flank the guard. Skills are always available (no cards), Mana-gated, and roll
+// damage in RANGES. Casters are GUARDED (reduced damage) while an escort lives.
+// Every living enemy hits you each turn. Killing grants XP. Pure engine, seeded rng.
 
-import { CARDS, MONSTERS, ELITE_AFFIXES } from './content.js';
+import { SKILLS, ENEMIES, ELITE_AFFIXES } from './content.js';
 
-const clampAcc = (a) => Math.max(5, Math.min(100, a));
+export const GUARD_MITIGATION = 0.6;
+
+export function skillLevel(hero, id) { return 1 + ((hero.hard && hero.hard[id]) || 0) + (hero.plusSkills || 0); }
+
+export function skillEffect(hero, id) {
+  const s = SKILLS[id]; const lvl = skillLevel(hero, id); const g = s.grow || 0;
+  if (s.scale === 'damage') { const min = s.dmg[0] + g * (lvl - 1), max = s.dmg[1] + g * (lvl - 1);
+    return { lvl, min, max, text: `Deal ${min}-${max}${s.target === 'aoe' ? ' to ALL in range' : ''}${s.reach ? ' (reaches outer)' : ''}.` }; }
+  if (s.scale === 'hits') { const hits = Math.min(s.hitCap, 1 + lvl); return { lvl, hits, min: s.dmg[0], max: s.dmg[1], text: `Strike ${hits}× for ${s.dmg[0]}-${s.dmg[1]}.` }; }
+  if (s.scale === 'block') { const block = s.base + g * (lvl - 1); return { lvl, block, text: `Gain ${block} Block.` }; }
+  if (s.scale === 'summons') { const count = s.solo ? 1 : 1 + Math.floor((lvl - 1) / 2); const min = s.dmg[0] + (lvl - 1), max = s.dmg[1] + (lvl - 1);
+    const hp = (s.hp || 5) + (s.hpGrow || 0) * (lvl - 1);
+    return { lvl, count, min, max, hp, text: `Raise ${count} ${s.solo ? 'golem' : 'skeleton' + (count > 1 ? 's' : '')} (${min}-${max}, ${hp} HP) — strikes your target each turn and body-blocks the surround.` }; }
+  return { lvl, text: '' };
+}
+
+const GUARDABLE = new Set(['caster', 'elite']);
 
 function buildMonster(entry, i) {
   const id = typeof entry === 'string' ? entry : entry.id;
   const affixes = (typeof entry === 'object' && entry.affixes) ? entry.affixes : [];
-  const base = MONSTERS[id];
-  let hp = base.hp, attack = base.attack, accuracy = base.accuracy != null ? base.accuracy : 100;
-  let extraAttack = false, leech = false;
-  for (const af of affixes) {
-    const mods = (ELITE_AFFIXES[af] && ELITE_AFFIXES[af].mods) || {};
-    if (mods.hpMul) hp = Math.round(hp * mods.hpMul);
-    if (mods.attackMul) attack = Math.round(attack * mods.attackMul);
-    if (mods.accuracy != null) accuracy = mods.accuracy;
-    if (mods.extraAttack) extraAttack = true;
-    if (mods.leech) leech = true;
-  }
-  return { index: i, id, name: base.name, glyph: base.glyph, hp, maxHp: hp, attack, accuracy,
-    role: base.role || 'attacker', heal: base.heal || 0, extraAttack, leech,
-    affixes, elite: affixes.length > 0, intent: null };
+  const base = ENEMIES[id];
+  let hp = base.hp, attack = base.attack, extraAttack = false, leech = false;
+  for (const af of affixes) { const m = (ELITE_AFFIXES[af] && ELITE_AFFIXES[af].mods) || {};
+    if (m.hpMul) hp = Math.round(hp * m.hpMul); if (m.attackMul) attack = Math.round(attack * m.attackMul);
+    if (m.extraAttack) extraAttack = true; if (m.leech) leech = true; }
+  return { uid: i, id, name: base.name, glyph: base.glyph, hp, maxHp: hp, attack, role: base.role,
+    ring: base.ring || 0, heal: base.heal || 0, guardsUid: (typeof entry === 'object' && entry.guards != null) ? entry.guards : null,
+    affixes, elite: affixes.length > 0 || base.role === 'elite', extraAttack, leech, intent: null };
 }
 
-export function createCombat({ deck, hero, pack, rng }) {
+export function createCombat({ hero, pack, rng }) {
   const state = {
-    hero: {
-      name: hero.name, glyph: hero.glyph,
+    hero: { name: hero.name, glyph: hero.glyph,
       life: hero.life != null ? Math.min(hero.life, hero.maxLife) : hero.maxLife, maxLife: hero.maxLife,
-      block: 0, startBlock: hero.startBlock || 0,
-      mana: hero.maxMana, maxMana: hero.maxMana,
-      handSize: hero.handSize,
-      plusSkills: hero.plusSkills || 0,
-      accuracy: hero.accuracy != null ? hero.accuracy : 100,
-      evasion: hero.evasion || 0,
-      tempEvasion: 0, // from the Evade card; reset each turn like Block
-    },
-    lane: pack.map(buildMonster),
-    drawPile: rng.shuffle(deck),
-    hand: [],
-    discardPile: [],
-    turn: 0,
-    xpEarned: 0,
-    over: false,
-    result: null, // 'win' | 'lose' | 'fled'
-    log: [],
+      block: 0, startBlock: hero.startBlock || 0, mana: hero.maxMana, maxMana: hero.maxMana,
+      plusSkills: hero.plusSkills || 0, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
+      exposed: false, summons: [], focusUid: null },
+    enemies: pack.map(buildMonster),
+    turn: 0, xpEarned: 0, over: false, result: null, log: [],
   };
 
-  const living = () => state.lane.filter((m) => m.hp > 0);
-  const front = () => state.lane.find((m) => m.hp > 0) || null;
+  const alive = () => state.enemies.filter((e) => e.hp > 0);
+  const byUid = (u) => state.enemies.find((e) => e.uid === u);
+  const livingGuardians = (t) => alive().filter((g) => g.role === 'guardian' && g.guardsUid === t.uid);
+  const isGuarded = (e) => GUARDABLE.has(e.role) && livingGuardians(e).length > 0;
+  const roll = (min, max) => min + rng.int(max - min + 1);
+  const woundedAllies = (self) => alive().filter((a) => a !== self && a.hp < a.maxHp);
 
-  function lands(accuracy, defenderEvasion) {
-    if (rng.next() * 100 >= clampAcc(accuracy)) return false;
-    if (defenderEvasion > 0 && rng.next() * 100 < defenderEvasion) return false;
-    return true;
-  }
+  function telegraph() { for (const e of state.enemies) { if (e.hp <= 0) { e.intent = null; continue; }
+    if (e.role === 'caster' && woundedAllies(e).length > 0) e.intent = { type: 'mend', value: e.heal };
+    else e.intent = { type: 'attack', value: e.attack, times: e.extraAttack ? 2 : 1 }; } }
 
-  function drawOne() {
-    if (state.drawPile.length === 0) {
-      if (state.discardPile.length === 0) return;
-      state.drawPile = rng.shuffle(state.discardPile);
-      state.discardPile = [];
-    }
-    state.hand.push(state.drawPile.pop());
-  }
+  function startTurn() { state.turn += 1; state.hero.block = state.hero.startBlock; state.hero.mana = state.hero.maxMana; state.hero.exposed = false; telegraph(); state.log.push(`— Turn ${state.turn} —`); }
 
-  const woundedAllies = (self) => living().filter((a) => a !== self && a.hp < a.maxHp);
+  function hurt(e, dmg) { e.hp = Math.max(0, e.hp - dmg); if (e.hp === 0) { e.intent = null; state.xpEarned += ENEMIES[e.id].xp || 0; state.log.push(`${e.name} dies.`); } }
+  function applyHit(e, dmg, pierce) { let d = dmg; if (!pierce && isGuarded(e)) { d = Math.max(1, Math.round(dmg * (1 - GUARD_MITIGATION))); state.log.push(`${e.name} is guarded — only ${d} lands.`); } hurt(e, d); }
+  function setFocus(uid) { state.hero.focusUid = uid; }
+  function pickTarget(s) { const reach = s.reach || 0; const f = byUid(state.hero.focusUid);
+    if (f && f.hp > 0 && f.ring <= reach) return f; return alive().filter((e) => e.ring <= reach)[0] || null; }
 
-  function telegraph() {
-    for (const m of state.lane) {
-      if (m.hp <= 0) { m.intent = null; continue; }
-      if (m.role === 'healer' && woundedAllies(m).length > 0) m.intent = { type: 'mend', value: m.heal };
-      else m.intent = { type: 'attack', value: m.attack, times: m.extraAttack ? 2 : 1 };
-    }
-  }
-
-  function startTurn() {
-    state.turn += 1;
-    state.hero.block = state.hero.startBlock;
-    state.hero.tempEvasion = 0;
-    state.hero.mana = state.hero.maxMana;
-    while (state.hand.length < state.hero.handSize && (state.drawPile.length || state.discardPile.length)) drawOne();
-    telegraph();
-    state.log.push(`— Turn ${state.turn} —`);
-  }
-
-  function hurt(m, amount) {
-    m.hp = Math.max(0, m.hp - amount);
-    if (m.hp === 0) {
-      m.intent = null;
-      state.xpEarned += MONSTERS[m.id].xp || 0;
-      state.log.push(`${m.name} dies.`);
-    }
-  }
-
-  function playCard(handIndex, targetIndex) {
-    if (state.over) return { ok: false, reason: 'combat is over' };
-    const cardId = state.hand[handIndex];
-    if (cardId == null) return { ok: false, reason: 'no such card' };
-    const card = CARDS[cardId];
-    if (card.cost > state.hero.mana) return { ok: false, reason: 'not enough Mana' };
-
-    state.hero.mana -= card.cost;
-    if (card.refund) state.hero.mana += card.refund;
-    if (card.block) state.hero.block += card.block;
-    if (card.evasion) state.hero.tempEvasion += card.evasion;
-
-    if (card.damage) {
-      const dmg = card.damage + state.hero.plusSkills;
-      const acc = state.hero.accuracy + (card.acc || 0);
-      if (card.target === 'aoe') {
-        for (const m of living()) {
-          if (lands(acc, m.evasion)) hurt(m, dmg);
-          else state.log.push(`${card.name} misses ${m.name}.`);
-        }
-      } else {
-        let target = null;
-        if (Number.isInteger(targetIndex)) {
-          const chosen = state.lane[targetIndex];
-          if (chosen && chosen.hp > 0) target = chosen;
-        }
-        if (!target) target = front();
-        if (target) {
-          if (lands(acc, target.evasion)) hurt(target, dmg);
-          else state.log.push(`${card.name} misses ${target.name}.`);
-        }
-      }
-    }
-    state.log.push(`Play ${card.name}.`);
-    state.hand.splice(handIndex, 1);
-    state.discardPile.push(cardId);
-
-    if (living().length === 0) finish('win');
+  function useSkill(abilityIndex, focusUid) {
+    if (state.over) return { ok: false };
+    if (focusUid != null) state.hero.focusUid = focusUid;
+    const id = state.hero.abilities[abilityIndex]; if (id == null) return { ok: false };
+    const s = SKILLS[id]; const eff = skillEffect(state.hero, id);
+    if (s.cost > state.hero.mana) return { ok: false, reason: 'not enough Mana' };
+    state.hero.mana -= s.cost;
+    if (s.type === 'skill') { if (eff.block) state.hero.block += eff.block; }
+    else if (s.type === 'summon') { for (let i = 0; i < eff.count; i++) state.hero.summons.push({ glyph: s.solo ? '🗿' : '💀', min: eff.min, max: eff.max, hp: eff.hp, maxHp: eff.hp }); state.log.push(`${s.name}.`); }
+    else if (s.target === 'aoe') { const hits = alive().filter((x) => x.ring <= (s.reach || 0));
+      if (!hits.length) { state.hero.mana += s.cost; return { ok: false, reason: 'no target in reach' }; }
+      for (const e of hits) applyHit(e, roll(eff.min, eff.max), false); }
+    else { const t = pickTarget(s); if (!t) { state.hero.mana += s.cost; return { ok: false, reason: 'no target in reach' }; }
+      if (s.type === 'breakthrough') { applyHit(t, roll(eff.min, eff.max), true); state.hero.exposed = true; state.log.push('You break through — and drop your guard.'); }
+      else if (s.scale === 'hits') { for (let h = 0; h < eff.hits && t.hp > 0; h++) applyHit(t, roll(eff.min, eff.max), false); }
+      else applyHit(t, roll(eff.min, eff.max), false); }
+    state.log.push(`Cast ${s.name}.`);
+    if (!alive().length) finish('win');
     return { ok: true };
   }
 
-  // One monster attack against the hero (Block absorbs, then Life). Handles
-  // Vampiric leech. Returns false if the hero has died.
-  function monsterHit(m, raw) {
-    const evasion = state.hero.evasion + state.hero.tempEvasion;
-    if (!lands(m.accuracy, evasion)) { state.log.push(`${m.name} misses.`); return true; }
-    const absorbed = Math.min(state.hero.block, raw);
-    state.hero.block -= absorbed;
-    const dmg = raw - absorbed;
-    state.hero.life = Math.max(0, state.hero.life - dmg);
-    state.log.push(`${m.name} hits Hero for ${dmg}${absorbed ? ` (${absorbed} blocked)` : ''}.`);
-    if (m.leech && dmg > 0) { m.hp = Math.min(m.maxHp, m.hp + dmg); state.log.push(`${m.name} leeches ${dmg}.`); }
+  function summonsPhase() { if (!state.hero.summons.length || !alive().length) return;
+    const focus = byUid(state.hero.focusUid);
+    for (const sk of state.hero.summons) { if (!alive().length) break;
+      const t = (focus && focus.hp > 0) ? focus : alive().find((e) => e.role === 'caster') || alive()[0];
+      const d = roll(sk.min, sk.max); applyHit(t, d, true); state.log.push(`${sk.glyph === '🗿' ? 'Golem' : 'Skeleton'} strikes ${t.name} for ${d}.`); }
+    if (!alive().length) finish('win'); }
+
+  function monsterHit(e, raw) {
+    const absorbed = state.hero.exposed ? 0 : Math.min(state.hero.block, raw); state.hero.block -= absorbed;
+    const dmg = raw - absorbed; state.hero.life = Math.max(0, state.hero.life - dmg);
+    state.log.push(`${e.name} hits you for ${dmg}${absorbed ? ` (${absorbed} blocked)` : ''}${state.hero.exposed ? ' (exposed!)' : ''}.`);
+    if (e.leech && dmg > 0) { e.hp = Math.min(e.maxHp, e.hp + dmg); }
     return state.hero.life > 0;
   }
 
-  function endTurn() {
-    if (state.over) return;
-    while (state.hand.length) state.discardPile.push(state.hand.pop());
-    for (const m of state.lane) {
-      if (m.hp <= 0 || !m.intent) continue;
-      if (m.intent.type === 'attack') {
-        const times = m.intent.times || 1;
-        for (let t = 0; t < times; t++) {
-          if (!monsterHit(m, m.intent.value)) { finish('lose'); return; }
-        }
-      } else if (m.intent.type === 'mend') {
-        const allies = woundedAllies(m).sort((x, y) => (y.maxHp - y.hp) - (x.maxHp - x.hp));
-        if (allies.length) {
-          const target = allies[0];
-          const before = target.hp;
-          target.hp = Math.min(target.maxHp, target.hp + m.intent.value);
-          state.log.push(`${m.name} mends ${target.name} +${target.hp - before}.`);
-        }
-      }
-    }
-    startTurn();
+  // A living summon body-blocks one incoming swing (the biggest first), taking the
+  // hit itself and shattering if worn down — the Necromancer's wall of undead.
+  function blockWithSummon(value) { const w = state.hero.summons[0]; if (!w) return false;
+    w.hp -= value; state.log.push(`${w.glyph === '🗿' ? 'Golem' : 'Skeleton'} takes the blow (${Math.max(0, w.hp)}/${w.maxHp}).`);
+    if (w.hp <= 0) { state.hero.summons.shift(); state.log.push('It shatters.'); } return true; }
+
+  function enemyPhase() {
+    // heals first (casters mend), then the surround swings — biggest hits blocked by summons.
+    for (const e of state.enemies) { if (e.hp <= 0 || !e.intent || e.intent.type !== 'mend') continue;
+      const al = woundedAllies(e).sort((x, y) => (y.maxHp - y.hp) - (x.maxHp - x.hp));
+      if (al.length) { const tt = al[0]; const b = tt.hp; tt.hp = Math.min(tt.maxHp, tt.hp + e.intent.value); state.log.push(`${e.name} mends ${tt.name} +${tt.hp - b}.`); } }
+    const swings = [];
+    for (const e of state.enemies) { if (e.hp <= 0 || !e.intent || e.intent.type !== 'attack') continue;
+      for (let t = 0; t < (e.intent.times || 1); t++) swings.push({ e, value: e.intent.value }); }
+    swings.sort((a, b) => b.value - a.value); // summons soak the heaviest blows
+    for (const sw of swings) { if (state.hero.summons.length && blockWithSummon(sw.value)) continue;
+      if (!monsterHit(sw.e, sw.value)) { finish('lose'); return false; } }
+    return true;
   }
 
-  // Flee: every living monster gets ONE parting swing; if you survive you escape
-  // the fight (result 'fled') — but you gain nothing from it (no loot). If the
-  // parting blows kill you, it's a loss.
-  function flee() {
-    if (state.over) return { result: state.result };
-    for (const m of living()) {
-      if (!monsterHit(m, m.attack)) { finish('lose'); return { result: 'lose' }; }
-    }
-    finish('fled');
-    return { result: 'fled' };
-  }
+  function endTurn() { if (state.over) return; summonsPhase(); if (state.over) return; if (!enemyPhase()) return; startTurn(); }
 
-  function finish(result) {
-    state.over = true;
-    state.result = result;
-    state.log.push(result === 'win' ? 'Victory.' : result === 'fled' ? 'You break away.' : 'You have died.');
-  }
+  // Flee: every living enemy gets one parting swing; survive -> escape (no loot), die -> loss.
+  function flee() { if (state.over) return { result: state.result };
+    for (const e of alive()) { if (!monsterHit(e, e.attack)) { finish('lose'); return { result: 'lose' }; } }
+    finish('fled'); return { result: 'fled' }; }
+
+  function finish(r) { state.over = true; state.result = r; state.log.push(r === 'win' ? 'The ring breaks.' : r === 'fled' ? 'You break away.' : 'You have died.'); }
 
   function getState() {
     return {
-      hero: { ...state.hero },
-      lane: state.lane.map((m) => ({ ...m })),
-      hand: state.hand.map((id) => ({ ...CARDS[id] })),
-      drawCount: state.drawPile.length,
-      discardCount: state.discardPile.length,
-      turn: state.turn,
-      xpEarned: state.xpEarned,
-      over: state.over,
-      result: state.result,
-      log: state.log.slice(),
+      hero: { ...state.hero, hard: { ...state.hero.hard }, summons: state.hero.summons.map((s) => ({ ...s })),
+        abilities: state.hero.abilities.map((id) => ({ id, ...SKILLS[id], eff: skillEffect(state.hero, id) })) },
+      enemies: state.enemies.map((e) => ({ ...e, guarded: isGuarded(e), guardianCount: livingGuardians(e).length })),
+      turn: state.turn, xpEarned: state.xpEarned, over: state.over, result: state.result, log: state.log.slice(),
     };
   }
 
   startTurn();
-  return { playCard, endTurn, flee, getState };
+  return { useSkill, endTurn, flee, setFocus, getState };
 }
