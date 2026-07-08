@@ -80,9 +80,9 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   // within it, not stacked on top) — a surround you chew through over a few turns,
   // not a wall that deletes you now that AoE only catches a couple foes at a time.
   function genEncounter(depth) {
-    const pack = []; const size = Math.min(3 + Math.floor(depth / 2.5), 5);
-    if (depth >= 2 && rng.next() < 0.65) { pack.push({ id: 'shaman' }); if (depth >= 4) pack.push({ id: 'guardian', guards: 0 }); }
-    if (depth >= 4 && rng.next() < 0.4) pack.push({ id: 'archer' });
+    const pack = []; const size = Math.min(4 + Math.floor(depth / 1.5), 8);
+    if (depth >= 2 && rng.next() < 0.65) { pack.push({ id: 'shaman' }); if (depth >= 3) pack.push({ id: 'guardian', guards: 0 }); }
+    if (depth >= 3 && rng.next() < 0.45) pack.push({ id: 'archer' });
     while (pack.length < size) { const r = rng.next(); pack.push({ id: r < 0.6 ? 'fallen' : r < 0.82 ? 'goatman' : 'zombie' }); }
     return pack;
   }

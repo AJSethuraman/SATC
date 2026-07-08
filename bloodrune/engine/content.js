@@ -17,7 +17,7 @@ export const SKILLS = {
   guard: { id: 'guard', name: 'Guard', type: 'skill', cost: 2, scale: 'block', base: 8, grow: 2, req: 1, pre: [], text: 'Brace — gain Block.' },
   // Barbarian — melee + a Charge to break into the outer ring
   strike: { id: 'strike', name: 'Strike', type: 'attack', target: 'single', reach: 0, cost: 2, scale: 'damage', dmg: [5, 8], grow: 2, req: 1, pre: [] },
-  cleave: { id: 'cleave', name: 'Cleave', type: 'attack', target: 'aoe', reach: 0, cost: 3, scale: 'damage', dmg: [5, 8], grow: 2, maxTargets: 3, req: 1, pre: [] },
+  cleave: { id: 'cleave', name: 'Cleave', type: 'attack', target: 'aoe', reach: 0, cost: 3, scale: 'damage', dmg: [4, 7], grow: 1, maxTargets: 2, req: 1, pre: [] },
   zeal: { id: 'zeal', name: 'Zeal', type: 'attack', target: 'single', reach: 0, cost: 3, scale: 'hits', dmg: [3, 5], hitCap: 5, req: 3, pre: ['strike'] },
   smite: { id: 'smite', name: 'Smite', type: 'attack', target: 'single', reach: 0, cost: 3, scale: 'damage', dmg: [8, 12], grow: 3, req: 6, pre: ['zeal'] },
   whirlwind: { id: 'whirlwind', name: 'Whirlwind', type: 'attack', target: 'aoe', reach: 0, cost: 4, scale: 'damage', dmg: [6, 10], grow: 2, maxTargets: 4, req: 8, pre: ['cleave', 'smite'] },

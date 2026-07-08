@@ -8,6 +8,9 @@
 import { SKILLS, ENEMIES, ELITE_AFFIXES } from './content.js';
 
 export const GUARD_MITIGATION = 0.6;
+// A surround has only so many slots — this many melee foes can reach you at once.
+// The rest are in the horde but WAIT their turn; as front-liners die, they step up.
+export const ENGAGE_CAP = 4;
 
 export function skillLevel(hero, id) { return 1 + ((hero.hard && hero.hard[id]) || 0) + (hero.plusSkills || 0); }
 
@@ -58,11 +61,15 @@ export function createCombat({ hero, pack, rng }) {
   const roll = (min, max) => min + rng.int(max - min + 1);
   const woundedAllies = (self) => alive().filter((a) => a !== self && a.hp < a.maxHp);
 
-  // Casters CHANNEL — they don't wind up a blow, they support. What they actually
-  // do is decided at end of round, reacting to that round's casualties (below).
-  function telegraph() { for (const e of state.enemies) { if (e.hp <= 0) { e.intent = null; continue; }
-    if (e.role === 'caster') e.intent = { type: 'support', value: e.heal };
-    else e.intent = { type: 'attack', value: e.attack, times: e.extraAttack ? 2 : 1 }; } }
+  // Casters CHANNEL support (resolved reactively at end of round). Melee foes can
+  // only reach you ENGAGE_CAP at a time — the front rank swings, the rest WAIT.
+  // Ranged foes (outer ring) always act; they don't need a melee slot.
+  function telegraph() {
+    const frontMelee = new Set(alive().filter((e) => (e.ring || 0) === 0).slice(0, ENGAGE_CAP).map((e) => e.uid));
+    for (const e of state.enemies) { if (e.hp <= 0) { e.intent = null; continue; }
+      if (e.role === 'caster') e.intent = { type: 'support', value: e.heal };
+      else if ((e.ring || 0) === 0 && !frontMelee.has(e.uid)) e.intent = { type: 'wait' };
+      else e.intent = { type: 'attack', value: e.attack, times: e.extraAttack ? 2 : 1 }; } }
 
   // Mana is a POOL, not a per-turn allowance: you open full (turn 1 min() is a
   // no-op) and only regen a few points each turn — so mashing one expensive AoE

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeRng } from '../engine/rng.js';
-import { createCombat, skillEffect, skillLevel } from '../engine/combat.js';
+import { createCombat, skillEffect, skillLevel, ENGAGE_CAP } from '../engine/combat.js';
 
 const HERO = { name: 'Hero', glyph: '🪓', maxLife: 60, maxMana: 14, startBlock: 0, plusSkills: 0, hard: {},
   abilities: ['strike', 'guard', 'arrow', 'charge', 'raise_skeleton', 'cleave', 'zeal'] };
@@ -31,12 +31,22 @@ test('melee reaches only the inner ring; a ranged skill reaches the outer', () =
   assert.ok(dealt >= 1 && dealt <= 3, `guarded arrow ${dealt}`);
 });
 
+test('a big horde only reaches you ENGAGE_CAP at a time (the rest WAIT)', () => {
+  const horde = Array.from({ length: 6 }, () => ({ id: 'goatman' })); // 6 goatmen, atk 6
+  const c = fight(horde);
+  const waiting = c.getState().enemies.filter((e) => e.intent && e.intent.type === 'wait').length;
+  assert.equal(waiting, 6 - ENGAGE_CAP); // only the front rank is engaged
+  const before = c.getState().hero.life;
+  c.endTurn();
+  assert.equal(before - c.getState().hero.life, ENGAGE_CAP * 6); // only ENGAGE_CAP swing
+});
+
 test('AoE catches only a few foes, never the whole ring', () => {
   // five Fallen inner; Cleave (maxTargets 2) can hit at most two of them
   const c = fight([{ id: 'fallen' }, { id: 'fallen' }, { id: 'fallen' }, { id: 'fallen' }, { id: 'fallen' }]);
   c.useSkill(ai(c, 'cleave'));
   const hit = c.getState().enemies.filter((e) => e.hp < e.maxHp).length;
-  assert.ok(hit <= 3, `cleave hit ${hit} (cap 3)`);
+  assert.ok(hit <= 2, `cleave hit ${hit} (cap 2)`);
 });
 
 test('when the front rank falls, the outer ring steps into melee range', () => {
