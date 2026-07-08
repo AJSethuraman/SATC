@@ -20,11 +20,14 @@ export const SKILLS = {
   guard: { id: 'guard', name: 'Guard', type: 'skill', cost: 2, scale: 'block', base: 7, grow: 2 },
 };
 
+// ring: 0 = inner (the melee bodies on top of you), 1 = outer (support/back-line
+// you want dead — casters, archers — sitting behind their escorts).
 export const ENEMIES = {
-  fallen: { id: 'fallen', name: 'Fallen', hp: 8, attack: 3, glyph: '👺', role: 'grunt' },
-  guardian: { id: 'guardian', name: 'Fallen Champion', hp: 15, attack: 4, glyph: '🛡️', role: 'guardian' },
-  shaman: { id: 'shaman', name: 'Fallen Shaman', hp: 16, attack: 3, glyph: '🧙', role: 'caster', heal: 5 },
-  goatman: { id: 'goatman', name: 'Goatman', hp: 18, attack: 6, glyph: '🐐', role: 'grunt' },
+  fallen: { id: 'fallen', name: 'Fallen', hp: 8, attack: 3, glyph: '👺', role: 'grunt', ring: 0 },
+  guardian: { id: 'guardian', name: 'Fallen Champion', hp: 15, attack: 4, glyph: '🛡️', role: 'guardian', ring: 0 },
+  goatman: { id: 'goatman', name: 'Goatman', hp: 18, attack: 6, glyph: '🐐', role: 'grunt', ring: 0 },
+  shaman: { id: 'shaman', name: 'Fallen Shaman', hp: 16, attack: 3, glyph: '🧙', role: 'caster', heal: 5, ring: 1 },
+  archer: { id: 'archer', name: 'Dark Archer', hp: 9, attack: 5, glyph: '🏹', role: 'archer', ring: 1 },
 };
 const GUARDABLE = new Set(['caster', 'elite']);
 
@@ -133,10 +136,9 @@ export function createFight({ deck, hero, pack, seed = 'proto' } = {}) {
   function finish(r) { state.over = true; state.result = r; state.log.push(r === 'win' ? 'The ring breaks.' : 'You have died.'); }
 
   function getState() {
-    const n = state.enemies.length;
     return {
       hero: { ...state.hero, hard: { ...state.hero.hard } },
-      enemies: state.enemies.map((e, i) => ({ ...e, guarded: isGuarded(e), guardianCount: livingGuardians(e).length, angle: (i / n) * Math.PI * 2 })),
+      enemies: state.enemies.map((e) => ({ ...e, ring: ENEMIES[e.id].ring || 0, guarded: isGuarded(e), guardianCount: livingGuardians(e).length })),
       hand: state.hand.map((id) => ({ id, ...SKILLS[id], eff: skillEffect(state.hero, id) })),
       drawCount: state.drawPile.length, discardCount: state.discardPile.length,
       deckSkills: [...new Set([...state.drawPile, ...state.hand, ...state.discardPile])],

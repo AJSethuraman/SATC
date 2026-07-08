@@ -13,7 +13,7 @@ window.__proto = {};
 const HERO = { maxLife: 60, maxMana: 12, handSize: 5, plusSkills: 0, skillPoints: 5, hard: { strike: 0, cleave: 0, guard: 0 } };
 const DECK = ['strike', 'cleave', 'guard', 'zeal', 'smite', 'charge', 'cleave'];
 // A Fallen camp: a Shaman (caster) guarded by two Champions, plus grunts + a goatman.
-const PACK = [{ id: 'shaman' }, { id: 'guardian', guards: 0 }, { id: 'guardian', guards: 0 },
+const PACK = [{ id: 'shaman' }, { id: 'archer' }, { id: 'guardian', guards: 0 }, { id: 'guardian', guards: 0 },
   { id: 'fallen' }, { id: 'fallen' }, { id: 'fallen' }, { id: 'goatman' }];
 
 function newFight() {
@@ -23,12 +23,6 @@ function newFight() {
 function expose() { window.__proto.state = fight.getState(); }
 function pv(a, b) { return b > 0 ? Math.max(0, Math.min(100, a / b * 100)) : 0; }
 
-// place an enemy on the ring; returns {x%,y%}
-function ringPos(angle) {
-  const r = 39; // % radius
-  return { x: 50 + r * Math.cos(angle - Math.PI / 2), y: 50 + r * Math.sin(angle - Math.PI / 2) };
-}
-
 function render() {
   expose();
   const s = fight.getState();
@@ -37,13 +31,25 @@ function render() {
   const living = s.enemies.filter((e) => e.hp > 0);
   if (focusUid == null || !living.find((e) => e.uid === focusUid)) focusUid = living[0] ? living[0].uid : null;
 
-  // guard lines (guardian -> its caster)
+  // place enemies on CONCENTRIC rings: inner (melee bodies on you) and outer
+  // (casters/archers behind them). Spread each ring evenly around the hero.
+  const pos = {};
+  [0, 1].forEach((ring) => {
+    const grp = living.filter((e) => (e.ring || 0) === ring);
+    const R = ring === 0 ? 30 : 47;
+    grp.forEach((e, idx) => {
+      const a = -Math.PI / 2 + (idx / grp.length) * Math.PI * 2 + (ring === 1 ? Math.PI / (grp.length || 1) : 0);
+      pos[e.uid] = { x: 50 + R * Math.cos(a), y: 50 + R * Math.sin(a) };
+    });
+  });
+
+  // guard lines: each guardian (inner) -> the caster it protects (outer)
   const lines = s.enemies.filter((e) => e.hp > 0 && e.role === 'guardian' && e.guardsUid != null)
-    .map((g) => { const t = s.enemies.find((e) => e.uid === g.guardsUid && e.hp > 0); if (!t) return ''; const a = ringPos(g.angle), b = ringPos(t.angle);
+    .map((g) => { const t = s.enemies.find((e) => e.uid === g.guardsUid && e.hp > 0); if (!t || !pos[g.uid] || !pos[t.uid]) return ''; const a = pos[g.uid], b = pos[t.uid];
       return `<line x1="${a.x}%" y1="${a.y}%" x2="${b.x}%" y2="${b.y}%" stroke="#4a7bff" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="3 3"/>`; }).join('');
 
   const mobs = s.enemies.filter((e) => e.hp > 0).map((e) => {
-    const p = ringPos(e.angle);
+    const p = pos[e.uid];
     const intent = e.intent ? (e.intent.type === 'mend' ? `<div class="in heal">✚ ${e.intent.value}</div>` : `<div class="in">⚔️ ${e.intent.value}</div>`) : '';
     const badge = e.guarded ? `<div class="badge guarded">🛡 guarded ×${e.guardianCount}</div>` : '';
     const roleClass = e.role === 'guardian' ? 'guardian' : e.role === 'caster' ? 'caster' : '';
