@@ -480,9 +480,11 @@ model** (shipped), the **Amazon/evasion class**, **skill-tree build-crafting**
 ### 12.7 Run structure — commit to a direction, and a costly flee (refines M2/#93)
 Diablo drops you into bad spots and makes you live with them. The branching map
 (§5 R21–22) sharpens to:
-- **Directional choice, no backtracking:** at each step you pick **one of ~3
-  forward directions** (seeded) and **cannot go back** (at least for now) — you
-  commit to the path and whatever it holds.
+- **Directional choice, no backtracking, BLIND:** at each step you pick **one of
+  ~3 forward directions** (seeded) and **cannot go back** — and the paths are
+  **blind**: you do *not* see what a direction holds (fight / elite / cache /
+  camp) until you commit, Diablo-style. The act boss at the map's end is the one
+  exception (you know you're walking into it). *(Built.)*
 - **Flee, but it must cost:** combat gains a **Flee** option that isn't a free
   escape — it only makes sense as a *bad-situation* release valve. Design intent:
   fleeing exacts a price (e.g., the swarm gets a parting free hit, you drop

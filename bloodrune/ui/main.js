@@ -99,16 +99,27 @@ function charCard(run) {
 }
 
 // ---------- map ----------
+// Blind flavor for unknown passages — no mechanical tell of what waits.
+const BLIND_PATHS = [
+  ['🕳️', 'A Yawning Dark', 'The path drops into black. You cannot see what waits.'],
+  ['🚪', 'An Unlit Passage', 'Cold air breathes from the tunnel ahead.'],
+  ['🩸', 'A Blood-Slick Trail', 'Something dragged itself down this way.'],
+  ['🕯️', 'A Guttering Corridor', 'One dying torch, and shadow beyond it.'],
+];
+
 function renderMap(run) {
+  const isBoss = run.choices.length === 1 && run.choices[0].type === 'boss';
+  const cards = run.choices.map((c, i) => {
+    if (isBoss) return `<button class="path boss" data-i="${i}">
+        <div class="path-glyph">${c.glyph}</div><div class="path-name">${c.name}</div><div class="path-desc">${c.desc}</div></button>`;
+    const f = BLIND_PATHS[i % BLIND_PATHS.length];
+    return `<button class="path blind" data-i="${i}">
+        <div class="path-glyph">${f[0]}</div><div class="path-name">${f[1]}</div><div class="path-desc">${f[2]}</div></button>`;
+  }).join('');
   board.innerHTML = `
     ${runHeader(run)}
-    <div class="prep-sub" style="text-align:center;margin:6px 0 2px">Choose your path — you cannot turn back.</div>
-    <div class="paths">${run.choices.map((c, i) => `
-      <button class="path ${c.type}" data-i="${i}">
-        <div class="path-glyph">${c.glyph}</div>
-        <div class="path-name">${c.name}</div>
-        <div class="path-desc">${c.desc}</div>
-      </button>`).join('')}</div>
+    <div class="prep-sub" style="text-align:center;margin:6px 0 2px">${isBoss ? 'The way forward ends here.' : 'Choose a path into the dark — you cannot see what waits, and cannot turn back.'}</div>
+    <div class="paths">${cards}</div>
     <div class="prep-actions"><button class="act ghost" id="openInv">🎒 INVENTORY (${run.bag.length})</button></div>`;
   logEl.innerHTML = '';
   board.querySelectorAll('.path').forEach((b) => b.addEventListener('click', () => { game.chooseDirection(Number(b.dataset.i)); render(); }));
