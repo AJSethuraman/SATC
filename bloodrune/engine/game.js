@@ -125,10 +125,10 @@ export function createGame(seed = 'bloodrune', opts = {}) {
 
   function chooseDirection(i) { if (run.phase !== 'map' || !run.choices || !run.choices[i]) return { ok: false };
     const node = run.choices[i]; run.node = node; const depth = run.map.step + 1;
-    if (node.type === 'combat') return startFight(genEncounter(depth));
-    if (node.type === 'superunique') return startFight(genSuperUnique(depth));
-    if (node.type === 'elite') return startFight(genElite(depth));
-    if (node.type === 'boss') return startFight(BOSS_PACK.map((e) => ({ ...e })));
+    if (node.type === 'combat') return startFight(scalePack(genEncounter(depth), depth));
+    if (node.type === 'superunique') return startFight(scalePack(genSuperUnique(depth), depth));
+    if (node.type === 'elite') return startFight(scalePack(genElite(depth), depth));
+    if (node.type === 'boss') return startFight(scalePack(BOSS_PACK.map((e) => ({ ...e })), depth));
     if (node.type === 'treasure') { grantLoot(2, 15); addPotions(1, 1); run.lastResult = 'treasure'; run.gained = { potions: 2 }; run.phase = 'reward'; advance(); return { ok: true }; }
     if (node.type === 'shop') { run.lastResult = 'shop'; run.gained = null; run.pendingLoot = []; run.phase = 'shop'; advance(); return { ok: true }; }
     if (node.type === 'camp') { const s = statsNow(); run.life = Math.min(s.maxLife, run.life + Math.round(s.maxLife * 0.4));
@@ -136,6 +136,10 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       run.gained = { levels: 0, points: 1, heal: true, potions: 4 }; run.lastResult = 'camp'; run.pendingLoot = []; run.phase = 'reward'; advance(); return { ok: true }; }
     return { ok: false };
   }
+  // Area level: deeper packs hit harder and take more killing, so your rising
+  // power stays challenged (the boss is hand-tuned, so it's exempt).
+  function scalePack(pack, depth) { const hpMul = 1 + depth * 0.12, atkMul = 1 + depth * 0.07;
+    for (const e of pack) { if (e.id === 'the_smith') continue; e.hpMul = hpMul; e.atkMul = atkMul; } return pack; }
   function startFight(pack) { combat = createCombat({ hero: heroForFight(), pack, rng }); run.phase = 'combat'; return { ok: true }; }
   function advance() { run.map.step += 1; run.choices = nextChoices(rng, run.map); }
 

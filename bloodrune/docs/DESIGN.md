@@ -139,11 +139,19 @@ interact with your engagement-cap identity.
   a sip is a real tradeoff. Mana gates *which* skills; AP gates *how many* actions.
   (Sets up "attack speed = more actions" as a future gear stat.)
 - **Data-driven difficulty ✅ (telemetry loop working).** Playtest data showed a
-  faceroll (15:1 damage dealt/taken, Necro 268:1, zero deaths). Tuned off it:
-  tougher/harder-hitting enemies, engagement cap 4→5, the skeleton wall blocks
-  only the single heaviest blow (was every blow), lower Amazon evade. Bot now:
-  Barbarian 13/16 (median 20% life), Amazon 15/16 (22%), Necro 16/16 (35%) —
-  real danger and deaths, ratios down to ~2.6:1 / 7:1.
+  faceroll (15:1 dealt/taken, Necro 268:1, zero deaths) — worst in the LATE game
+  (geared level-13 one-shotting whole packs in 1 turn). Tuned off it: tougher/
+  harder-hitting enemies, engagement cap 4→5, skeleton wall blocks only the
+  single heaviest blow (was every blow), lower Amazon evade, and — the key
+  late-game fix — **area-level scaling**: packs scale HP (+12%/depth) & attack
+  (+7%/depth) so your rising power stays challenged (boss hand-tuned, exempt).
+  Balance bot (now equips gear, so it measures real power): Barbarian 14/16,
+  Amazon 10/16, Necro 15/16 — all dropping to ~20% life, ratios ~4:1 / 7:1,
+  fights 4-6 turns (no more 1-turn wipes).
+- **Rezzer fairness ✅.** A Shaman/Blood Raven can only raise a body while it
+  still has a screen (a living inner-ring ally). Clear the whole front and the
+  caster is pinned — it can't instantly re-wall itself; you earned the turn to
+  strike it.
 - **Space-limited inventory + Shops ✅ BUILT.** Bag capped at 12; loot drops on
   the **ground** and must be **taken** (space permitting) — **overflow is left
   behind, never auto-sold** (no reward for nothing; managing space is the

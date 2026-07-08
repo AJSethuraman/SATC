@@ -49,7 +49,8 @@ function buildMonster(entry, i) {
   const id = su ? su.id : (typeof entry === 'string' ? entry : entry.id);
   const base = su || ENEMIES[id];
   const affixes = (!su && typeof entry === 'object' && entry.affixes) ? entry.affixes : [];
-  let hp = base.hp, attack = base.attack, extraAttack = !!base.extraAttack, leech = !!base.leech;
+  const o = typeof entry === 'object' ? entry : {};
+  let hp = Math.round(base.hp * (o.hpMul || 1)), attack = Math.round(base.attack * (o.atkMul || 1)), extraAttack = !!base.extraAttack, leech = !!base.leech;
   for (const af of affixes) { const m = (ELITE_AFFIXES[af] && ELITE_AFFIXES[af].mods) || {};
     if (m.hpMul) hp = Math.round(hp * m.hpMul); if (m.attackMul) attack = Math.round(attack * m.attackMul);
     if (m.extraAttack) extraAttack = true; if (m.leech) leech = true; }
@@ -183,7 +184,11 @@ export function createCombat({ hero, pack, rng }) {
   // hybrids (Blood Raven) also swing via their own attack intent.
   function casterSupport() {
     for (const e of state.enemies) { if (e.hp <= 0 || (e.rezLeft <= 0 && !e.heal)) continue;
-      const corpse = e.rezLeft > 0 ? raisableCorpse() : null;
+      // A rezzer can only raise a body while it still has a SCREEN (a living inner-
+      // ring ally). Once you've cleared the front and pinned it, it can't wall
+      // itself back up — you earned the turn to strike it. (Fairness fix.)
+      const screened = alive().some((a) => a !== e && (a.ring || 0) === 0);
+      const corpse = (e.rezLeft > 0 && screened) ? raisableCorpse() : null;
       if (corpse) { e.rezLeft -= 1; corpse.hp = corpse.maxHp; corpse.raised = true;
         corpse.intent = { type: 'attack', value: corpse.attack, times: 1 }; state.log.push(`${e.name} raises ${corpse.name} from the dead!`); continue; }
       if (!e.heal) continue;

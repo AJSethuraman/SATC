@@ -89,7 +89,7 @@ export const ENEMIES = {
   goatman: { id: 'goatman', name: 'Goatman', hp: 17, attack: 7, glyph: '🐐', role: 'grunt', ring: 0, xp: 7, acc: 6, eva: 3 },
   shaman: { id: 'shaman', name: 'Fallen Shaman', hp: 20, attack: 4, glyph: '🧙', role: 'caster', heal: 5, rez: 3, ring: 1, xp: 10, acc: 4, eva: 2 },
   archer: { id: 'archer', name: 'Dark Archer', hp: 12, attack: 6, glyph: '🏹', role: 'archer', ring: 1, xp: 6, acc: 7, eva: 3 },
-  the_smith: { id: 'the_smith', name: 'The Flayed Smith', hp: 110, attack: 12, glyph: '🔨', role: 'elite', ring: 0, xp: 60, acc: 8, eva: 3 },
+  the_smith: { id: 'the_smith', name: 'The Flayed Smith', hp: 210, attack: 14, glyph: '🔨', role: 'elite', ring: 0, xp: 60, acc: 8, eva: 3 },
 };
 
 // Elite affixes (rolled onto a champion for Elite nodes).

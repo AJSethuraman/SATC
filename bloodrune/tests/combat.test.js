@@ -182,13 +182,13 @@ test('summons body-block the surround (the skeleton wall) and can shatter', () =
 });
 
 test('a super unique leads a pack (Blood Raven: named, ranged, raises the slain)', () => {
-  const c = fight([{ sid: 'blood_raven' }, { id: 'fallen' }]);
+  const c = fight([{ sid: 'blood_raven' }, { id: 'fallen' }, { id: 'zombie' }]); // zombie keeps her screened
   const raven = c.getState().enemies[0];
   assert.equal(raven.name, 'Blood Raven');
   assert.equal(raven.unique, true);
   assert.equal(raven.ring, 1); // a ranged leader — behind her pack
   c.useSkill(ai(c, 'strike'), 1); if (c.getState().enemies[1].hp > 0) c.useSkill(ai(c, 'strike'), 1);
-  assert.equal(c.getState().enemies[1].hp, 0); // slew the fallen
+  assert.equal(c.getState().enemies[1].hp, 0); // slew the fallen (zombie still screens her)
   c.endTurn();
   assert.ok(c.getState().enemies[1].hp > 0, 'Blood Raven raised the fallen — kill HER first');
 });
@@ -206,17 +206,25 @@ test('the Shaman reacts at end of round: mends the most-wounded ally', () => {
   assert.ok(c.getState().enemies[1].hp > wounded, 'shaman mended the goatman');
 });
 
-test('the Shaman raises a slain Fallen — kill the Shaman or they come back (no XP farm)', () => {
-  const c = fight([{ id: 'shaman' }, { id: 'fallen' }]);
+test('the Shaman raises a slain Fallen while it still has a screen (no XP farm)', () => {
+  const c = fight([{ id: 'shaman' }, { id: 'fallen' }, { id: 'goatman' }]); // goatman keeps screening it
   c.useSkill(ai(c, 'strike'), 1); if (c.getState().enemies[1].hp > 0) c.useSkill(ai(c, 'strike'), 1);
-  assert.equal(c.getState().enemies[1].hp, 0); // Fallen slain
+  assert.equal(c.getState().enemies[1].hp, 0); // Fallen slain (goatman still up)
   const xpAfterKill = c.getState().xpEarned;
-  c.endTurn(); // shaman raises it
+  c.endTurn(); // shaman still screened -> raises it
   assert.ok(c.getState().enemies[1].hp > 0, 'the Fallen was raised');
   // re-killing a raised Fallen grants no XP
   c.useSkill(ai(c, 'strike'), 1); if (c.getState().enemies[1].hp > 0) c.useSkill(ai(c, 'strike'), 1);
   assert.equal(c.getState().enemies[1].hp, 0);
   assert.equal(c.getState().xpEarned, xpAfterKill, 'raised Fallen give no XP when re-killed');
+});
+
+test('a pinned Shaman cannot re-wall itself — clear the front and you get to strike it', () => {
+  const c = fight([{ id: 'shaman' }, { id: 'fallen' }]); // the fallen is the ONLY screen
+  c.useSkill(ai(c, 'strike'), 1); if (c.getState().enemies[1].hp > 0) c.useSkill(ai(c, 'strike'), 1);
+  assert.equal(c.getState().enemies[1].hp, 0); // front cleared — shaman now pinned
+  c.endTurn(); // it may NOT raise a body back into the inner ring while exposed
+  assert.equal(c.getState().enemies[1].hp, 0, 'no instant re-wall while the caster is exposed');
 });
 
 test('flee ends the fight without a win; parting blows can kill', () => {
