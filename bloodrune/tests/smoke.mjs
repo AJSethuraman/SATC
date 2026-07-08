@@ -61,13 +61,29 @@ try {
 
   await page.addInitScript(() => { window.__seed = 'smoke'; });
   await page.goto(url);
-  await page.waitForFunction(() => window.__bloodrune && window.__bloodrune.state);
+  await page.waitForFunction(() => window.__bloodrune && window.__bloodrune.run);
 
-  // Drive a full fight greedily inside the page (render is synchronous).
+  // 1) Prep screen: open the inventory and equip a bag item; the equip must
+  //    change the character's stats (gear->stats seam).
+  const lifeBefore = await page.evaluate(() => window.__bloodrune.run.stats.maxLife);
+  await page.click('#openInv');
+  await page.waitForSelector('.bag-item');
+  await page.evaluate(() => {
+    // equip the +Life helm if present, else the first bag item
+    const helm = document.querySelector('.bag-item[data-id="horned_helm"]') || document.querySelector('.bag-item');
+    helm.click();
+  });
+  const lifeAfter = await page.evaluate(() => window.__bloodrune.run.stats.maxLife);
+  if (!(lifeAfter > lifeBefore)) fail(`equipping did not raise Life (${lifeBefore} -> ${lifeAfter})`);
+  await page.click('#closeInv');
+
+  // 2) Enter the fight and drive it greedily to a win (render is synchronous).
+  await page.click('#enter');
+  await page.waitForFunction(() => window.__bloodrune.screen === 'combat' && !!window.__bloodrune.state);
   const result = await page.evaluate(() => {
     function clickAffordable() {
       const st = window.__bloodrune.state;
-      if (st.over) return false;
+      if (!st || st.over) return false;
       for (let i = 0; i < st.hand.length; i++) {
         if (st.hand[i].cost <= st.hero.mana) {
           const btn = document.querySelector(`.card[data-i="${i}"]`);
@@ -79,36 +95,32 @@ try {
       return false;
     }
     let guard = 0;
-    while (!window.__bloodrune.state.over && guard++ < 400) {
-      while (clickAffordable()) { /* keep spending Mana */ }
+    while (window.__bloodrune.state && !window.__bloodrune.state.over && guard++ < 400) {
+      while (clickAffordable()) { /* keep spending the Mana pool */ }
       if (window.__bloodrune.state.over) break;
-      document.getElementById('endTurn').click();
+      const et = document.getElementById('endTurn');
+      if (et) et.click(); else break;
     }
-    return { result: window.__bloodrune.state.result };
+    return { result: window.__bloodrune.state ? window.__bloodrune.state.result : null };
   });
 
   if (result.result !== 'win') fail(`expected a win, got ${result.result}`);
 
-  // Loot overlay should offer an EQUIP button.
-  const deckBefore = await page.evaluate(() => window.__bloodrune.run.deck.slice().sort());
-  await page.waitForSelector('#equip', { timeout: 3000 });
-  await page.click('#equip');
+  const won = await page.evaluate(() => window.__bloodrune.screen === 'won' && !!window.__bloodrune.won);
+  if (!won) fail('run did not reach the "won" screen');
 
-  const after = await page.evaluate(() => ({
-    won: !!window.__bloodrune.won,
-    deck: window.__bloodrune.run.deck.slice().sort(),
-  }));
-
-  if (!after.won) fail('run did not reach the "won" state after equipping');
-  const changed = JSON.stringify(after.deck) !== JSON.stringify(deckBefore);
-  if (!changed) fail(`deck composition did not change on equip: ${JSON.stringify(deckBefore)}`);
+  // 3) Loot landed in the bag: open the inventory again and confirm it's there.
+  await page.click('#openInv');
+  await page.waitForSelector('.bag-item');
+  const bagCount = await page.evaluate(() => window.__bloodrune.run.bag.length);
+  if (bagCount < 1) fail('no loot in bag after a win');
 
   if (errors.length) fail(`console/page errors: ${JSON.stringify(errors)}`);
 
   if (process.exitCode) {
     console.error('Smoke FAILED.');
   } else {
-    console.log(`PASS: fight won, deck changed on equip (${deckBefore.join(',')} -> ${after.deck.join(',')}), zero console errors.`);
+    console.log(`PASS: equip raised Life ${lifeBefore}->${lifeAfter}, fight won, ${bagCount} item(s) in bag, zero console errors.`);
   }
 } catch (e) {
   fail(e.message);

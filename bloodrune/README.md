@@ -5,10 +5,20 @@ engine, but your deck **is** a *Diablo 2* character. You loot gear and runewords
 slot them onto a hero body, and your equipment grants your cards and summons.
 Gothic, bloody, loot-hungry; D2, not D3/D4.
 
-> **Status: M1 built (playable tracer bullet).** One class (Barbarian), one
-> lane, Mana + telegraphed monsters + Hero Life + gear-that-grants-cards. The
-> rest of v1 (map, town, full loot ladder, runewords, the other classes,
-> difficulty ladder) is issued out as slices M2–M7 — see the PRD.
+> **Status: M1 + M1.5 built (playable).** One class (Barbarian), one lane, a
+> real **Mana pool**, **targetable** attacks (tap a monster to focus it),
+> telegraphed monsters, Hero Life, and a **Diablo-style inventory** — the full
+> equipment slot set with found items that grant **cards** and **passive mods**
+> (+Life, +Mana, standing Block, **+to Skills**). The rest of v1 (map, town,
+> full rarity ladder + affixes, runewords, the other classes, difficulty ladder)
+> is issued as slices M2–M7 — see the PRD. The full **D2 affix vocabulary**
+> (+skills, resists, cast/attack-speed re-maps, leech, crit) and how each
+> translates to a turn-based card game is specified in the PRD (§6).
+>
+> Fights use **seeded pack encounters** (`engine/encounters.js`): mostly
+> homogeneous D2-style packs with a leader/support at the back — e.g. a Fallen
+> Camp of several Fallen plus a **Fallen Shaman** that *mends* wounded allies
+> (kill it first) — with a chance to drag in a second pack for a mixed fight.
 
 ## 📜 Spec
 

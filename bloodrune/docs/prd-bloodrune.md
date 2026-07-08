@@ -1,6 +1,6 @@
 # PRD: Bloodrune
 
-**Status:** Draft · **Owner:** iamtrispec@gmail.com · **Last updated:** 2026-07-08
+**Status:** Draft · M1 + M1.5 built · **Owner:** iamtrispec@gmail.com · **Last updated:** 2026-07-08
 
 > A dark-fantasy roguelite deckbuilding **card-battler**: *Slay the Spire's* turn
 > engine, but your deck **is** a *Diablo 2* character — you loot gear and
@@ -197,8 +197,10 @@ get headless `node --test` coverage.
 16. [P0] Full rarity ladder with curated pools: **Normal** (socketable) →
     **Magic** (1 prefix + 1 suffix) → **Rare** (multi-affix) → **Set** (multi-piece
     bonuses) → **Unique** (fixed, build-defining).
-17. [P0] Items roll **random affixes** from a curated prefix/suffix pool;
-    **item level gates** which affixes can roll.
+17. [P0] Items roll **random affixes** from a curated prefix/suffix pool drawn
+    from the D2 affix families (+to Skills, resistances, FCR/IAS re-maps, leech,
+    +Life/+Mana, crit — see §6 "Affix vocabulary" for the card-battler
+    translation); **item level gates** which affixes can roll.
 18. [P0] **Magic Find** stat biases rarity rolls upward.
 19. [P0] **Sockets + ~8 runes + ~6 named runewords** with real recipes (specific
     runes, in order, in a valid base → a named runeword). Runewords grant **both**
@@ -281,12 +283,34 @@ logic, so they're tunable.
 
 **Itemization data model.** An item is a plain object: `{ base, slot, rarity,
 itemLevel, requirements:{str,dex}, affixes:[...], sockets:[...runes],
-grants:{cards:[...], passives:[...]} }`. Rarity + affix generation is a pure
+grants:{cards:[...], mods:{...}} }`. Rarity + affix generation is a pure
 pipeline: pick base → roll rarity (biased by Magic Find) → roll N affixes from
 the pool eligible at `itemLevel` → compute `grants`. **Runewords** are validated
 by matching an ordered rune sequence against a recipe table keyed by base type;
-a valid match adds the runeword's `card` and/or `passive` keystone. Affix pools,
+a valid match adds the runeword's `card` and/or `mods` keystone. Affix pools,
 rarity weights, rune list, and runeword recipes are **data tables** in `engine/`.
+
+**Affix vocabulary (D2 families → card-battler translation).** Item mods are an
+additive map summed across equipped slots (`deriveStats`); the affix pool draws
+from these families. Two of D2's stats are *real-time* and have no literal
+meaning in a turn-based card game, so they are **deliberately re-mapped** — this
+is a design decision, not an oversight:
+
+| D2 affix | Bloodrune meaning |
+|---|---|
+| **+to Skills / +% skill damage** | flat/percent bonus to your cards' damage & block (`plusSkills`) — *live in M1.5* |
+| **Resistances (fire/cold/lightning/poison %)** | reduce incoming *typed* damage; matters once monsters/elite-affixes deal elemental damage (M6). Present on gear before then, inert until sources exist. |
+| **Faster Cast Rate (FCR)** | *re-map:* **skill cards cost less Mana** (you "cast" more per pool) |
+| **Increased Attack Speed (IAS)** | *re-map:* **draw more / an extra card play** (you "swing" more per turn) |
+| **Life / Mana Leech** | heal Life / regain Mana when your cards deal damage |
+| **Faster Hit Recovery (FHR)** | more standing Block (`startBlock`) / recover Block mid-turn |
+| **+Max Life / +Max Mana** | as written (`maxLife`, `maxMana`) — *live in M1.5* |
+| **Deadly Strike / Crushing Blow** | chance to deal double / %-of-current-HP damage |
+| **Magic Find** | biases loot rarity rolls upward (see §5 R18) |
+
+Resists, FCR, IAS, leech, and crit land in the **M3/M4** slices (issue #94/#95);
+M1.5 wires `maxLife`, `maxMana`, `startBlock`, and `plusSkills` as the first
+members of this same additive-mod system, so the rest drop in without a refactor.
 
 **Map generation.** A seeded branching DAG of ~12–15 nodes with typed nodes and a
 Boss terminal; generation is a pure function of the seed + difficulty tier.

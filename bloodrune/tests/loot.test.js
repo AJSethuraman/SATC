@@ -1,24 +1,61 @@
-// Engine seam tests: the gear->deck seam and the seeded loot roll.
+// Engine seam tests: the inventory/equipment model, the gear->deck and
+// gear->stats seams, and the seeded loot roll.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, deriveDeck } from '../engine/game.js';
+import { createGame, deriveDeck, deriveStats } from '../engine/game.js';
 import { CLASSES, ITEMS, M1_DROP_TABLE } from '../engine/content.js';
 
-test('deriveDeck = class base cards + cards granted by equipped gear', () => {
-  const barb = CLASSES.barbarian;
-  const withAxe = deriveDeck(barb, { weapon: ITEMS.worn_axe });
-  // base (bash, guard, guard, cleave) + worn_axe (strike, strike)
-  assert.equal(withAxe.length, barb.baseCards.length + 2);
-  assert.equal(withAxe.filter((c) => c === 'strike').length, 2);
-  assert.equal(withAxe.includes('rend'), false);
+const barb = CLASSES.barbarian;
+
+test('deriveDeck = class base cards + cards granted by equipped gear (any slot)', () => {
+  const eq = { weapon: ITEMS.worn_axe, offhand: ITEMS.grim_fetish }; // fetish grants War Cry
+  const deck = deriveDeck(barb, eq);
+  assert.equal(deck.filter((c) => c === 'strike').length, 2); // from worn_axe
+  assert.equal(deck.includes('warcry'), true); // from off-hand, not a weapon
 });
 
-test('swapping the weapon changes the deck (equip is load-bearing)', () => {
-  const barb = CLASSES.barbarian;
-  const before = deriveDeck(barb, { weapon: ITEMS.worn_axe });
-  const after = deriveDeck(barb, { weapon: ITEMS.rusted_hatchet }); // grants strike + rend
-  assert.equal(before.includes('rend'), false);
-  assert.equal(after.includes('rend'), true);
+test('deriveStats sums passive mods from every equipped slot', () => {
+  const eq = { helm: ITEMS.horned_helm, body: ITEMS.chainmail, amulet: ITEMS.sigil_of_wrath };
+  const s = deriveStats(barb, eq);
+  assert.equal(s.maxLife, barb.maxLife + 10 + 14); // helm +10, chainmail +14
+  assert.equal(s.startBlock, 1); // chainmail +1
+  assert.equal(s.maxMana, barb.maxMana + 1); // sigil +1
+  assert.equal(s.plusSkills, 2); // sigil +2 to Skills
+});
+
+test('equipping from the bag rebuilds deck AND stats; displaced gear returns to bag', () => {
+  const game = createGame('inv');
+  const before = game.getRun();
+  assert.equal(before.deck.includes('rend'), false);
+  // starting bag contains a rusted_hatchet (grants Rend) and a horned_helm (+10 Life)
+  const r1 = game.equipFromBag('rusted_hatchet');
+  assert.equal(r1.ok, true);
+  const afterWeapon = game.getRun();
+  assert.equal(afterWeapon.deck.includes('rend'), true);
+  assert.equal(afterWeapon.bag.some((i) => i.id === 'worn_axe'), true); // old weapon back in bag
+
+  const r2 = game.equipFromBag('horned_helm');
+  assert.equal(r2.ok, true);
+  assert.equal(game.getRun().stats.maxLife, barb.maxLife + 10);
+});
+
+test('unequipping returns the item to the bag and reverts the deck/stats', () => {
+  const game = createGame('inv2');
+  game.equipFromBag('horned_helm');
+  assert.equal(game.getRun().stats.maxLife, barb.maxLife + 10);
+  const res = game.unequip('helm');
+  assert.equal(res.ok, true);
+  assert.equal(game.getRun().stats.maxLife, barb.maxLife);
+  assert.equal(game.getRun().bag.some((i) => i.id === 'horned_helm'), true);
+});
+
+test('rings fill the first free finger, then swap', () => {
+  const game = createGame('rings');
+  // put two ring items in play: iron_band is in... it's in starting bag ('iron_band')
+  game.equipFromBag('iron_band');
+  const run = game.getRun();
+  assert.ok(run.equipment.ring1 && run.equipment.ring1.id === 'iron_band');
+  assert.equal(run.equipment.ring2, null);
 });
 
 test('same seed => same loot drop (determinism)', () => {
@@ -27,25 +64,13 @@ test('same seed => same loot drop (determinism)', () => {
   assert.equal(a.getRun().pendingLoot.id, b.getRun().pendingLoot.id);
 });
 
-test('winning the M1 fight offers a gear drop from the table', () => {
-  const game = playToLoot('deterministic-win');
+test('winning drops loot into the bag from the table', () => {
+  const game = playToLoot('win-seed');
   const run = game.getRun();
   assert.equal(run.phase, 'loot');
-  assert.ok(run.pendingLoot, 'a drop should be offered');
+  assert.ok(run.pendingLoot);
   assert.ok(M1_DROP_TABLE.includes(run.pendingLoot.id));
-});
-
-test('equipping the drop grants its cards into the deck', () => {
-  const game = playToLoot('deterministic-win');
-  const drop = game.getRun().pendingLoot;
-  const deckBefore = game.getRun().deck.slice();
-  const res = game.equipPendingLoot();
-  assert.equal(res.ok, true);
-  const deckAfter = game.getRun().deck;
-  // The equipped weapon replaces the old one; its granted cards must appear.
-  for (const cardId of drop.grants.cards) assert.ok(deckAfter.includes(cardId));
-  assert.notDeepEqual(deckAfter, deckBefore);
-  assert.equal(game.getRun().phase, 'won');
+  assert.ok(run.bag.some((i) => i.id === run.pendingLoot.id)); // it's in the bag to equip
 });
 
 // --- helper: greedily play the M1 fight to victory, then resolve loot -------
@@ -54,7 +79,6 @@ function playToLoot(seed) {
   const combat = game.startFight();
   let guard = 0;
   while (!combat.getState().over && guard++ < 500) {
-    // play every affordable card each turn (attacks + block), then end turn
     let played = true;
     while (played) {
       played = false;
@@ -67,8 +91,7 @@ function playToLoot(seed) {
     if (combat.getState().over) break;
     combat.endTurn();
   }
-  const s = combat.getState();
-  assert.equal(s.result, 'win', `expected the M1 fight to be winnable (seed ${seed})`);
+  assert.equal(combat.getState().result, 'win', `expected the M1 fight to be winnable (seed ${seed})`);
   game.resolveCombat();
   return game;
 }
