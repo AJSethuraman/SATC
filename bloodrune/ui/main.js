@@ -11,7 +11,8 @@ const logEl = document.getElementById('log');
 const overlay = document.getElementById('overlay');
 
 const DIFFS = ['Normal', 'Nightmare', 'Hell'];
-let game, combat, invOpen = false, focus = null, difficulty = 'Normal';
+const CLASSES_UI = [['barbarian', 'Barbarian'], ['amazon', 'Amazon']];
+let game, combat, invOpen = false, focus = null, difficulty = 'Normal', selectedClass = 'barbarian';
 let countedTerminal = false;
 window.__bloodrune = {};
 
@@ -22,10 +23,11 @@ function loadMeta() {
 function saveMeta(m) { try { localStorage.setItem('bloodrune.meta', JSON.stringify(m)); } catch {} }
 function meta() { const m = loadMeta(); return { unlocked: m.unlocked || ['Normal'], wins: m.wins || 0, deaths: m.deaths || 0 }; }
 
-function newRun(diff) {
+function newRun(diff, classId) {
   difficulty = diff || difficulty || 'Normal';
-  const seed = 'run-' + (window.__seed || 'ashes') + '-' + difficulty;
-  game = createGame(seed, { difficulty });
+  if (classId) selectedClass = classId;
+  const seed = 'run-' + (window.__seed || 'ashes') + '-' + difficulty + '-' + selectedClass;
+  game = createGame(seed, { difficulty, classId: selectedClass });
   combat = null; invOpen = false; focus = null; countedTerminal = false;
   render();
 }
@@ -64,6 +66,7 @@ function renderPrep(run) {
       <div class="prep-title">THE BLEEDING DARK</div>
       <div class="prep-sub">Descend the act. Commit to a direction — there is no turning back. Fall, and the dark keeps you.</div>
       ${charCard(run)}
+      <div class="meta-row">Class: ${CLASSES_UI.map(([id, label]) => `<button class="pill ${id === selectedClass ? 'on' : ''}" data-class="${id}">${label}</button>`).join('')}</div>
       <div class="meta-row">Difficulty: ${DIFFS.map((d) => `<button class="pill ${d === difficulty ? 'on' : ''} ${m.unlocked.includes(d) ? '' : 'locked'}" data-diff="${d}" ${m.unlocked.includes(d) ? '' : 'disabled'}>${d}</button>`).join('')}
         <span class="tally">wins ${m.wins} · deaths ${m.deaths}</span></div>
       <div class="prep-actions">
@@ -72,6 +75,7 @@ function renderPrep(run) {
       </div>
     </div>`;
   logEl.innerHTML = '';
+  board.querySelectorAll('.pill[data-class]').forEach((b) => b.addEventListener('click', () => newRun(difficulty, b.dataset.class)));
   board.querySelectorAll('.pill[data-diff]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) { difficulty = b.dataset.diff; newRun(difficulty); } }));
   document.getElementById('openInv').addEventListener('click', () => { invOpen = true; renderOverlay(); });
   document.getElementById('descend').addEventListener('click', () => { game.beginDescent(); render(); });
@@ -149,7 +153,8 @@ function renderCombat() {
 }
 
 function heroBar(h, turn) {
-  const evade = h.evasion ? `<div class="stat"><span class="k">Evade</span><span class="v evade">${h.evasion}%</span></div>` : '';
+  const totalEvade = (h.evasion || 0) + (h.tempEvasion || 0);
+  const evade = totalEvade ? `<div class="stat"><span class="k">Evade</span><span class="v evade">${totalEvade}%</span></div>` : '';
   const skills = h.plusSkills ? `<div class="stat"><span class="k">+Sk</span><span class="v skills">${h.plusSkills}</span></div>` : '';
   return `<div class="hero-bar">
     <div class="hero-name">${h.glyph} ${h.name}</div>

@@ -118,25 +118,35 @@ test('fleeing ends the fight without loot and advances', () => {
   }
 });
 
-test('a full auto-played descent reaches a terminal (victory or death) without throwing', () => {
-  const game = createGame('full-run');
+function autoRun(game) {
   game.beginDescent();
   let guard = 0;
-  while (guard++ < 60) {
+  while (guard++ < 80) {
     const run = game.getRun();
     if (run.phase === 'victory' || run.phase === 'dead') break;
-    if (run.phase === 'map') {
-      // prefer non-boss until forced; pick something
-      game.chooseDirection(0);
-    } else if (run.phase === 'combat') {
-      playFight(game.getCombat());
-      game.resolveCombat();
-    } else if (run.phase === 'levelup') {
-      game.pickLevelup(game.getRun().levelupOptions[0].id);
-    } else if (run.phase === 'reward' || run.phase === 'camp' || run.phase === 'treasure') {
-      game.continueFromReward();
-    } else break;
+    if (run.phase === 'map') game.chooseDirection(0);
+    else if (run.phase === 'combat') { playFight(game.getCombat()); game.resolveCombat(); }
+    else if (run.phase === 'levelup') game.pickLevelup(game.getRun().levelupOptions[0].id);
+    else if (run.phase === 'reward' || run.phase === 'camp' || run.phase === 'treasure') game.continueFromReward();
+    else break;
   }
-  const end = game.getRun().phase;
+  return game.getRun().phase;
+}
+
+test('a full auto-played descent reaches a terminal (victory or death) without throwing', () => {
+  const end = autoRun(createGame('full-run'));
   assert.ok(['victory', 'dead'].includes(end), `run should terminate, ended at ${end}`);
+});
+
+test('the Amazon is a distinct class: base Evasion + an evasion deck', () => {
+  const game = createGame('ama', { classId: 'amazon' });
+  const run = game.getRun();
+  assert.equal(run.className, 'Amazon');
+  assert.ok(run.stats.evasion >= 20, 'Amazon has base Evasion');
+  assert.ok(run.deck.includes('evade') && run.deck.includes('jab'));
+});
+
+test('an Amazon descent also reaches a terminal', () => {
+  const end = autoRun(createGame('ama-run', { classId: 'amazon' }));
+  assert.ok(['victory', 'dead'].includes(end), `Amazon run should terminate, ended at ${end}`);
 });

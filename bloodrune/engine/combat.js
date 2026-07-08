@@ -40,6 +40,7 @@ export function createCombat({ deck, hero, pack, rng }) {
       plusSkills: hero.plusSkills || 0,
       accuracy: hero.accuracy != null ? hero.accuracy : 100,
       evasion: hero.evasion || 0,
+      tempEvasion: 0, // from the Evade card; reset each turn like Block
     },
     lane: pack.map(buildMonster),
     drawPile: rng.shuffle(deck),
@@ -83,6 +84,7 @@ export function createCombat({ deck, hero, pack, rng }) {
   function startTurn() {
     state.turn += 1;
     state.hero.block = state.hero.startBlock;
+    state.hero.tempEvasion = 0;
     state.hero.mana = state.hero.maxMana;
     while (state.hand.length < state.hero.handSize && (state.drawPile.length || state.discardPile.length)) drawOne();
     telegraph();
@@ -108,6 +110,7 @@ export function createCombat({ deck, hero, pack, rng }) {
     state.hero.mana -= card.cost;
     if (card.refund) state.hero.mana += card.refund;
     if (card.block) state.hero.block += card.block;
+    if (card.evasion) state.hero.tempEvasion += card.evasion;
 
     if (card.damage) {
       const dmg = card.damage + state.hero.plusSkills;
@@ -141,7 +144,8 @@ export function createCombat({ deck, hero, pack, rng }) {
   // One monster attack against the hero (Block absorbs, then Life). Handles
   // Vampiric leech. Returns false if the hero has died.
   function monsterHit(m, raw) {
-    if (!lands(m.accuracy, state.hero.evasion)) { state.log.push(`${m.name} misses.`); return true; }
+    const evasion = state.hero.evasion + state.hero.tempEvasion;
+    if (!lands(m.accuracy, evasion)) { state.log.push(`${m.name} misses.`); return true; }
     const absorbed = Math.min(state.hero.block, raw);
     state.hero.block -= absorbed;
     const dmg = raw - absorbed;

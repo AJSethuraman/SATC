@@ -131,6 +131,18 @@ test('a low-accuracy monster sometimes misses YOU (attacker-driven avoidance)', 
   assert.ok(took > 0 && dodged > 0, `zombie acc 65 should mix: took=${took} dodged=${dodged}`);
 });
 
+test('the Evade card grants temporary Evasion that dodges incoming hits', () => {
+  let took = 0, dodged = 0;
+  for (let s = 0; s < 60; s++) {
+    const c = createCombat({ deck: ['evade'], hero: { ...HERO, evasion: 0 }, pack: ['skeleton'], rng: makeRng(s) });
+    c.playCard(0); // Evade -> +45% Evasion this turn
+    const before = c.getState().hero.life;
+    c.endTurn();
+    if (c.getState().hero.life < before) took++; else dodged++;
+  }
+  assert.ok(took > 0 && dodged > 0, `evade should mix hits/dodges: took=${took} dodged=${dodged}`);
+});
+
 test('Evasion hook: a defender with high Evasion dodges landed blows', () => {
   // skeleton has 100 accuracy, but hero Evasion 100 dodges every landed hit.
   const dodgy = { ...HERO, evasion: 100 };

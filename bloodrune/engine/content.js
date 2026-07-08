@@ -31,6 +31,15 @@ export const CARDS = {
     text: 'Deal 6 to a target. Refund 2 Mana.' },
   warcry: { id: 'warcry', name: 'War Cry', type: 'skill', cost: 4, block: 10, refund: 1,
     text: 'Gain 10 Block. Refund 1 Mana.' },
+  // Amazon cards (ranged, accurate, evasion-based)
+  jab: { id: 'jab', name: 'Jab', type: 'attack', cost: 2, target: 'single', damage: 5, acc: 8,
+    text: 'Deal 5 to a target. Accurate.' },
+  power_strike: { id: 'power_strike', name: 'Power Strike', type: 'attack', cost: 3, target: 'single', damage: 9, acc: 10,
+    text: 'Deal 9 to a target. Very accurate.' },
+  strafe: { id: 'strafe', name: 'Strafe', type: 'attack', cost: 4, target: 'aoe', damage: 5, acc: -4,
+    text: 'Deal 5 to ALL enemies (volley).' },
+  evade: { id: 'evade', name: 'Evade', type: 'skill', cost: 2, evasion: 45,
+    text: 'Gain 45% Evasion this turn (dodge attacks).' },
 };
 
 // ---- Items ----------------------------------------------------------------
@@ -55,6 +64,10 @@ export const ITEMS = {
     passive: { maxLife: 10 }, text: '+10 Life.' },
   hunters_hood: { id: 'hunters_hood', name: "Hunter's Hood", slot: 'helm',
     passive: { accuracy: 10 }, text: '+10 Accuracy.' },
+  short_bow: { id: 'short_bow', name: 'Short Bow', slot: 'weapon',
+    grants: { cards: ['jab', 'power_strike'] }, text: 'Grants Jab + Power Strike.' },
+  spectral_shawl: { id: 'spectral_shawl', name: 'Spectral Shawl', slot: 'body',
+    passive: { evasion: 10, maxLife: 6 }, text: '+10% Evasion. +6 Life.' },
   berserker_mask: { id: 'berserker_mask', name: 'Berserker Mask', slot: 'helm',
     grants: { cards: ['frenzy'] }, passive: { maxMana: 2 }, text: 'Grants Frenzy. +2 Mana.' },
   chainmail: { id: 'chainmail', name: 'Rusted Chainmail', slot: 'body',
@@ -212,5 +225,19 @@ export const CLASSES = {
     // AoE-capable base deck so you can survive being swarmed from turn one.
     baseCards: ['cleave', 'zeal', 'guard', 'guard', 'bash'],
     startingBag: ['bloodied_cleaver', 'war_maul', 'horned_helm', 'reaver_gloves', 'grim_fetish', 'hunters_band'],
+  },
+  amazon: {
+    id: 'amazon',
+    name: 'Amazon',
+    glyph: '🏹',
+    maxLife: 54,       // fragile
+    maxMana: 10,
+    accuracy: 92,      // deadly accurate
+    evasion: 20,       // her identity: dodge/evade/avoid
+    handSize: 5,
+    startBlock: 0,
+    startingWeapon: 'short_bow',
+    baseCards: ['jab', 'jab', 'strafe', 'evade', 'power_strike'],
+    startingBag: ['spectral_shawl', 'hunters_hood', 'reaver_gloves', 'bone_amulet', 'hunters_band'],
   },
 };
