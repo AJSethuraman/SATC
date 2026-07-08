@@ -136,16 +136,18 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       run.gained = { levels: 0, points: 1, heal: true, potions: 4 }; run.lastResult = 'camp'; run.pendingLoot = []; run.phase = 'reward'; advance(); return { ok: true }; }
     return { ok: false };
   }
-  // Two multipliers on enemy HP/attack: AREA LEVEL (deeper packs are tougher, so
-  // your rising power stays challenged) and DIFFICULTY (Nightmare/Hell are real
-  // harder tiers, D2-style — not just labels). The boss is hand-tuned so it only
-  // takes the difficulty multiplier, not the depth one.
+  // Enemy HP/attack scale with AREA LEVEL (depth). Harder tiers make that descent
+  // STEEPER — they do NOT slap a flat multiplier on step 1. You always start a run
+  // at level 1, so early packs must stay survivable on every tier; the tiers pull
+  // apart as you go deeper. The boss is hand-tuned, so it takes a fixed per-tier bump.
   function scalePack(pack, depth) {
-    const dHP = { Nightmare: 1.4, Hell: 1.85 }[run.difficulty] || 1;
-    const dATK = { Nightmare: 1.25, Hell: 1.5 }[run.difficulty] || 1;
+    const slope = { Nightmare: 0.24, Hell: 0.36 }[run.difficulty] || 0.13;
+    const aslope = { Nightmare: 0.13, Hell: 0.19 }[run.difficulty] || 0.075;
+    const bossHP = { Nightmare: 1.5, Hell: 2.0 }[run.difficulty] || 1;
+    const bossATK = { Nightmare: 1.3, Hell: 1.6 }[run.difficulty] || 1;
     for (const e of pack) {
-      if (e.id === 'the_smith') { e.hpMul = dHP; e.atkMul = dATK; }
-      else { e.hpMul = (1 + depth * 0.13) * dHP; e.atkMul = (1 + depth * 0.075) * dATK; }
+      if (e.id === 'the_smith') { e.hpMul = bossHP; e.atkMul = bossATK; }
+      else { e.hpMul = 1 + depth * slope; e.atkMul = 1 + depth * aslope; }
     }
     return pack;
   }
