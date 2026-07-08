@@ -65,9 +65,9 @@ export const WEAPON_DROPS = ['great_axe', 'war_bow', 'bone_staff'];
 export const ENEMIES = {
   fallen: { id: 'fallen', name: 'Fallen', hp: 7, attack: 2, glyph: '👺', role: 'grunt', ring: 0, xp: 3 },
   zombie: { id: 'zombie', name: 'Zombie', hp: 14, attack: 4, glyph: '🧟', role: 'grunt', ring: 0, xp: 5 },
-  guardian: { id: 'guardian', name: 'Fallen Champion', hp: 13, attack: 3, glyph: '🛡️', role: 'guardian', ring: 0, xp: 6 },
-  goatman: { id: 'goatman', name: 'Goatman', hp: 16, attack: 5, glyph: '🐐', role: 'grunt', ring: 0, xp: 7 },
-  shaman: { id: 'shaman', name: 'Fallen Shaman', hp: 16, attack: 3, glyph: '🧙', role: 'caster', heal: 4, ring: 1, xp: 10 },
+  guardian: { id: 'guardian', name: 'Fallen Champion', hp: 13, attack: 4, glyph: '🛡️', role: 'guardian', ring: 0, xp: 6 },
+  goatman: { id: 'goatman', name: 'Goatman', hp: 16, attack: 6, glyph: '🐐', role: 'grunt', ring: 0, xp: 7 },
+  shaman: { id: 'shaman', name: 'Fallen Shaman', hp: 16, attack: 3, glyph: '🧙', role: 'caster', heal: 4, rez: 3, ring: 1, xp: 10 },
   archer: { id: 'archer', name: 'Dark Archer', hp: 9, attack: 4, glyph: '🏹', role: 'archer', ring: 1, xp: 6 },
   the_smith: { id: 'the_smith', name: 'The Flayed Smith', hp: 85, attack: 9, glyph: '🔨', role: 'elite', ring: 0, xp: 60 },
 };

@@ -34,8 +34,9 @@ function buildMonster(entry, i) {
     if (m.hpMul) hp = Math.round(hp * m.hpMul); if (m.attackMul) attack = Math.round(attack * m.attackMul);
     if (m.extraAttack) extraAttack = true; if (m.leech) leech = true; }
   return { uid: i, id, name: base.name, glyph: base.glyph, hp, maxHp: hp, attack, role: base.role,
-    ring: base.ring || 0, heal: base.heal || 0, guardsUid: (typeof entry === 'object' && entry.guards != null) ? entry.guards : null,
-    affixes, elite: affixes.length > 0 || base.role === 'elite', extraAttack, leech, intent: null };
+    ring: base.ring || 0, heal: base.heal || 0, rezLeft: base.role === 'caster' ? (base.rez || 0) : 0,
+    guardsUid: (typeof entry === 'object' && entry.guards != null) ? entry.guards : null,
+    affixes, elite: affixes.length > 0 || base.role === 'elite', extraAttack, leech, raised: false, intent: null };
 }
 
 export function createCombat({ hero, pack, rng }) {
@@ -56,17 +57,24 @@ export function createCombat({ hero, pack, rng }) {
   const roll = (min, max) => min + rng.int(max - min + 1);
   const woundedAllies = (self) => alive().filter((a) => a !== self && a.hp < a.maxHp);
 
+  // Casters CHANNEL — they don't wind up a blow, they support. What they actually
+  // do is decided at end of round, reacting to that round's casualties (below).
   function telegraph() { for (const e of state.enemies) { if (e.hp <= 0) { e.intent = null; continue; }
-    if (e.role === 'caster' && woundedAllies(e).length > 0) e.intent = { type: 'mend', value: e.heal };
+    if (e.role === 'caster') e.intent = { type: 'support', value: e.heal };
     else e.intent = { type: 'attack', value: e.attack, times: e.extraAttack ? 2 : 1 }; } }
 
   function startTurn() { state.turn += 1; state.hero.block = state.hero.startBlock; state.hero.mana = state.hero.maxMana; state.hero.exposed = false; telegraph(); state.log.push(`— Turn ${state.turn} —`); }
 
-  function hurt(e, dmg) { e.hp = Math.max(0, e.hp - dmg); if (e.hp === 0) { e.intent = null; state.xpEarned += ENEMIES[e.id].xp || 0; state.log.push(`${e.name} dies.`); } }
+  function hurt(e, dmg) { e.hp = Math.max(0, e.hp - dmg); if (e.hp === 0) { e.intent = null; if (!e.raised) state.xpEarned += ENEMIES[e.id].xp || 0; state.log.push(`${e.name} ${e.raised ? 'falls again.' : 'dies.'}`); } }
   function applyHit(e, dmg, pierce) { let d = dmg; if (!pierce && isGuarded(e)) { d = Math.max(1, Math.round(dmg * (1 - GUARD_MITIGATION))); state.log.push(`${e.name} is guarded — only ${d} lands.`); } hurt(e, d); }
   function setFocus(uid) { state.hero.focusUid = uid; }
+  // The front rank shields the ranks behind it. Reach r strikes the nearest r+1
+  // occupied rings — so melee (reach 0) can only hit the frontmost living rank,
+  // but once you clear the front the outer ring STEPS IN and melee reaches it.
+  function frontRing() { const a = alive(); return a.length ? Math.min(...a.map((e) => e.ring)) : 0; }
+  function inReach(e, reach) { return e.ring <= frontRing() + reach; }
   function pickTarget(s) { const reach = s.reach || 0; const f = byUid(state.hero.focusUid);
-    if (f && f.hp > 0 && f.ring <= reach) return f; return alive().filter((e) => e.ring <= reach)[0] || null; }
+    if (f && f.hp > 0 && inReach(f, reach)) return f; return alive().filter((e) => inReach(e, reach))[0] || null; }
 
   function useSkill(abilityIndex, focusUid) {
     if (state.over) return { ok: false };
@@ -75,9 +83,11 @@ export function createCombat({ hero, pack, rng }) {
     const s = SKILLS[id]; const eff = skillEffect(state.hero, id);
     if (s.cost > state.hero.mana) return { ok: false, reason: 'not enough Mana' };
     state.hero.mana -= s.cost;
-    if (s.type === 'skill') { if (eff.block) state.hero.block += eff.block; }
+    if (s.type === 'skill') { if (eff.block != null) { // bracing doesn't STACK — you're either braced or you're not
+      if (state.hero.block >= eff.block) { state.hero.mana += s.cost; return { ok: false, reason: 'already braced' }; }
+      state.hero.block = eff.block; } }
     else if (s.type === 'summon') { for (let i = 0; i < eff.count; i++) state.hero.summons.push({ glyph: s.solo ? '🗿' : '💀', min: eff.min, max: eff.max, hp: eff.hp, maxHp: eff.hp }); state.log.push(`${s.name}.`); }
-    else if (s.target === 'aoe') { const hits = alive().filter((x) => x.ring <= (s.reach || 0));
+    else if (s.target === 'aoe') { const hits = alive().filter((x) => inReach(x, s.reach || 0));
       if (!hits.length) { state.hero.mana += s.cost; return { ok: false, reason: 'no target in reach' }; }
       for (const e of hits) applyHit(e, roll(eff.min, eff.max), false); }
     else { const t = pickTarget(s); if (!t) { state.hero.mana += s.cost; return { ok: false, reason: 'no target in reach' }; }
@@ -110,11 +120,24 @@ export function createCombat({ hero, pack, rng }) {
     w.hp -= value; state.log.push(`${w.glyph === '🗿' ? 'Golem' : 'Skeleton'} takes the blow (${Math.max(0, w.hp)}/${w.maxHp}).`);
     if (w.hp <= 0) { state.hero.summons.shift(); state.log.push('It shatters.'); } return true; }
 
-  function enemyPhase() {
-    // heals first (casters mend), then the surround swings — biggest hits blocked by summons.
-    for (const e of state.enemies) { if (e.hp <= 0 || !e.intent || e.intent.type !== 'mend') continue;
+  // A slain Fallen is a corpse a Shaman can raise (Fallen only — the Fallen Shaman's
+  // signature). Raised Fallen give no XP when re-killed, so you can't farm them.
+  const fallenCorpse = () => state.enemies.find((e) => e.hp <= 0 && e.id === 'fallen');
+
+  // Casters react to the round that just happened: raise a slain Fallen (capped so
+  // it can't rez forever), else mend the most-wounded ally. This is why you kill —
+  // or reach — the Shaman first, instead of grinding a pack it keeps restoring.
+  function casterSupport() {
+    for (const e of state.enemies) { if (e.hp <= 0 || e.role !== 'caster' || !e.intent || e.intent.type !== 'support') continue;
+      const corpse = e.rezLeft > 0 ? fallenCorpse() : null;
+      if (corpse) { e.rezLeft -= 1; corpse.hp = corpse.maxHp; corpse.raised = true;
+        corpse.intent = { type: 'attack', value: corpse.attack, times: 1 }; state.log.push(`${e.name} raises ${corpse.name} from the dead!`); continue; }
       const al = woundedAllies(e).sort((x, y) => (y.maxHp - y.hp) - (x.maxHp - x.hp));
-      if (al.length) { const tt = al[0]; const b = tt.hp; tt.hp = Math.min(tt.maxHp, tt.hp + e.intent.value); state.log.push(`${e.name} mends ${tt.name} +${tt.hp - b}.`); } }
+      if (al.length) { const tt = al[0]; const b = tt.hp; tt.hp = Math.min(tt.maxHp, tt.hp + e.heal); state.log.push(`${e.name} mends ${tt.name} +${tt.hp - b}.`); } }
+  }
+
+  function enemyPhase() {
+    casterSupport(); // the backline reacts first, then the surround swings
     const swings = [];
     for (const e of state.enemies) { if (e.hp <= 0 || !e.intent || e.intent.type !== 'attack') continue;
       for (let t = 0; t < (e.intent.times || 1); t++) swings.push({ e, value: e.intent.value }); }

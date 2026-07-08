@@ -94,9 +94,12 @@ function renderCombat() {
   [0, 1].forEach((ring) => { const grp = living.filter((e) => (e.ring || 0) === ring); const R = ring === 0 ? 30 : 47;
     grp.forEach((e, i) => { const a = -Math.PI / 2 + (i / grp.length) * Math.PI * 2 + (ring === 1 ? Math.PI / (grp.length || 1) : 0); pos[e.uid] = { x: 50 + R * Math.cos(a), y: 50 + R * Math.sin(a) }; }); });
   const lines = s.enemies.filter((e) => e.hp > 0 && e.role === 'guardian' && e.guardsUid != null).map((g) => { const t = s.enemies.find((e) => e.uid === g.guardsUid && e.hp > 0); if (!t || !pos[g.uid] || !pos[t.uid]) return ''; const a = pos[g.uid], b = pos[t.uid]; return `<line x1="${a.x}%" y1="${a.y}%" x2="${b.x}%" y2="${b.y}%" stroke="#4a7bff" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="3 3"/>`; }).join('');
-  const mobs = living.map((e) => { const p = pos[e.uid]; const intent = e.intent ? (e.intent.type === 'mend' ? `<div class="in heal">✚ ${e.intent.value}</div>` : `<div class="in">⚔️ ${e.intent.value}${e.intent.times > 1 ? '×' + e.intent.times : ''}</div>`) : '';
-    return `<div class="mob ${e.role === 'guardian' ? 'guardian' : e.role === 'caster' ? 'caster' : ''} ${e.elite ? 'elite' : ''} ${e.uid === focusUid ? 'focus' : ''}" data-uid="${e.uid}" style="left:${p.x}%;top:${p.y}%">
-      ${e.guarded ? `<div class="badge guarded">🛡 ×${e.guardianCount}</div>` : e.elite ? `<div class="badge elite2">ELITE</div>` : ''}
+  const frontRing = Math.min(...living.map((e) => e.ring || 0));
+  const mobs = living.map((e) => { const p = pos[e.uid];
+    const intent = e.intent ? (e.intent.type === 'support' ? '<div class="in heal">🌀 channels</div>' : `<div class="in">⚔️ ${e.intent.value}${e.intent.times > 1 ? '×' + e.intent.times : ''}</div>`) : '';
+    const screened = (e.ring || 0) > frontRing; // held safe behind the front rank — melee can't reach it yet
+    return `<div class="mob ${e.role === 'guardian' ? 'guardian' : e.role === 'caster' ? 'caster' : ''} ${e.elite ? 'elite' : ''} ${screened ? 'screened' : ''} ${e.uid === focusUid ? 'focus' : ''}" data-uid="${e.uid}" style="left:${p.x}%;top:${p.y}%">
+      ${e.guarded ? `<div class="badge guarded">🛡 ×${e.guardianCount}</div>` : screened ? '<div class="badge screened">out of reach</div>' : e.elite ? `<div class="badge elite2">ELITE</div>` : ''}
       <div class="card2"><div class="g">${e.glyph}</div><div class="n">${e.name}</div><div class="hp"><i style="width:${pv(e.hp, e.maxHp)}%"></i></div>${intent}</div>
       ${e.uid === focusUid ? '<div class="focus-tag">🎯</div>' : ''}</div>`; }).join('');
   board.innerHTML = `
@@ -110,7 +113,7 @@ function renderCombat() {
     </div>
     <div class="arena"><svg viewBox="0 0 100 100" preserveAspectRatio="none">${lines}</svg>
       <div class="hero-tok"><div class="ring"></div><div class="g">${h.glyph}</div>${h.summons.length ? `<div class="summons">${h.summons.map((x) => x.glyph).join('')}</div>` : ''}</div>${mobs}</div>
-    <div class="hint">Surrounded — tap an enemy to target. Melee reaches the inner ring; outer casters need a ranged skill, a Charge (Exposed), or Summons.</div>
+    <div class="hint">Surrounded — tap an enemy to target. Ranged foes hold the back behind their screen (“out of reach”); thin the front to pin them, or strike past with a ranged skill / Charge / Summons. A Shaman raises the Fallen — kill it first.</div>
     <div class="hand">${h.abilities.map(abilityHTML).join('')}</div>
     <div class="controls"><button class="act ghost small" id="flee">FLEE</button><button class="act" id="end">END TURN</button></div>`;
   logEl.innerHTML = s.log.slice(-6).map((l) => `<div>${l}</div>`).join(''); logEl.scrollTop = logEl.scrollHeight;
