@@ -169,10 +169,12 @@ interact with your engagement-cap identity.
 
 ## 4. Design calls the research settled (worth knowing)
 
-- **No Normal/Nightmare/Hell.** A single deepening descent where depth rolls
-  more affixes, raises monster level, and improves loot reproduces D2's
-  escalation in one dial. Reserve difficulty *tiers* for a post-launch
-  ascension/prestige mode. `[mob]`
+- ~~No Normal/Nightmare/Hell~~ **REVERSED after playtest data.** The game already
+  had the tiers in the UI but they did *nothing* — a skilled player facerolled
+  even "Hell." Now they're real multipliers on enemy HP/attack (Nightmare
+  ×1.4/1.25, Hell ×1.85/1.5), stacked on area-level depth scaling. Normal =
+  approachable, Nightmare = a genuine test, Hell = brutal endgame. Geared bot:
+  Normal 9-13/16, Nightmare 0-3/16, Hell 0/16. `[mob]`
 - **Your dodge idea beats D2's.** Real D2 avoidance is a flat roll that ignores
   the attacker; scaling evade against attacker accuracy (as you wanted) is a
   genuine improvement — do it your way. `[math]`

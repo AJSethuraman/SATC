@@ -136,10 +136,19 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       run.gained = { levels: 0, points: 1, heal: true, potions: 4 }; run.lastResult = 'camp'; run.pendingLoot = []; run.phase = 'reward'; advance(); return { ok: true }; }
     return { ok: false };
   }
-  // Area level: deeper packs hit harder and take more killing, so your rising
-  // power stays challenged (the boss is hand-tuned, so it's exempt).
-  function scalePack(pack, depth) { const hpMul = 1 + depth * 0.12, atkMul = 1 + depth * 0.07;
-    for (const e of pack) { if (e.id === 'the_smith') continue; e.hpMul = hpMul; e.atkMul = atkMul; } return pack; }
+  // Two multipliers on enemy HP/attack: AREA LEVEL (deeper packs are tougher, so
+  // your rising power stays challenged) and DIFFICULTY (Nightmare/Hell are real
+  // harder tiers, D2-style — not just labels). The boss is hand-tuned so it only
+  // takes the difficulty multiplier, not the depth one.
+  function scalePack(pack, depth) {
+    const dHP = { Nightmare: 1.4, Hell: 1.85 }[run.difficulty] || 1;
+    const dATK = { Nightmare: 1.25, Hell: 1.5 }[run.difficulty] || 1;
+    for (const e of pack) {
+      if (e.id === 'the_smith') { e.hpMul = dHP; e.atkMul = dATK; }
+      else { e.hpMul = (1 + depth * 0.13) * dHP; e.atkMul = (1 + depth * 0.075) * dATK; }
+    }
+    return pack;
+  }
   function startFight(pack) { combat = createCombat({ hero: heroForFight(), pack, rng }); run.phase = 'combat'; return { ok: true }; }
   function advance() { run.map.step += 1; run.choices = nextChoices(rng, run.map); }
 
