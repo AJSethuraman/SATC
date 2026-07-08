@@ -135,10 +135,11 @@ interact with your engagement-cap identity.
   Mana gates *skills*; **action points** (3/turn) bound *how many* things you do
   (sets up "attack speed = more actions" as a future gear stat). **Leveling up
   fully restores Life & Mana.**
-- **Inventory is space-limited + vendors to sell** ⬜ (your ask). D2 was grid/
-  space-based; you can't hoard infinitely. *Sketch:* cap the bag (N slots or a
-  small grid); a between-node **Shop** to sell for gold (and later buy/gamble).
-  Overflow forces keep-or-sell decisions — the loot economy's pressure valve.
+- **Space-limited inventory + Shops ✅ BUILT.** Bag capped at 12; loot drops on
+  the **ground** and must be **taken** (space permitting) — **overflow is left
+  behind, never auto-sold** (no reward for nothing; managing space is the
+  looter's tension). DROP an item to make room; a **Shop** node sells bag items
+  for gold and buys potions. Gold in the header.
 - **Telemetry ✅ BUILT.** Unbiased play logging (runs, win/loss by class, skill
   usage, potions, hit rate, dmg dealt/taken, avg turns, deaths by depth) in a
   Stats screen + JSON export — so balance is data-driven, not eyeballed.

@@ -96,12 +96,19 @@ test('the skill tree gates by level and prerequisite — you cannot learn everyt
   assert.equal(strike.req, 1);
 });
 
-test('inventory is space-limited; Shop sells for gold and buys potions', () => {
+test('space-limited bag: loot must be TAKEN, overflow is left behind (never free gold)', () => {
   const g = createGame('econ', { classId: 'barbarian' }); g.beginDescent();
   let guard = 0;
-  while (guard++ < 30 && !['dead', 'victory'].includes(g.getRun().phase)) {
+  while (guard++ < 40 && !['dead', 'victory'].includes(g.getRun().phase)) {
     const r = g.getRun();
-    if (r.phase === 'shop' || r.phase === 'reward') { g.continueFromReward(); continue; }
+    if (r.phase === 'shop') { g.continueFromReward(); continue; }
+    if (r.phase === 'reward') {
+      const goldBefore = g.getRun().gold;
+      for (const it of g.getRun().pendingLoot.slice()) g.takeLoot(it.id); // take all you can; overflow simply fails
+      assert.equal(g.getRun().gold, goldBefore, 'taking/leaving loot never grants gold');
+      assert.ok(g.getRun().bag.length <= g.getRun().bagCap, 'bag never exceeds cap');
+      g.continueFromReward(); continue;
+    }
     if (r.phase === 'map') { const i = r.choices.findIndex((c) => ['combat', 'treasure', 'elite'].includes(c.type)); g.chooseDirection(i >= 0 ? i : 0); continue; }
     if (r.phase === 'combat') { const cb = g.getCombat(); let t = 0;
       while (!cb.getState().over && t++ < 40) { const st = cb.getState(); const liv = st.enemies.filter((e) => e.hp > 0); cb.setFocus(liv[0] ? liv[0].uid : 0);
@@ -111,13 +118,15 @@ test('inventory is space-limited; Shop sells for gold and buys potions', () => {
   }
   const run = g.getRun();
   assert.equal(run.bagCap, 12);
-  assert.ok(run.bag.length <= run.bagCap, 'bag never exceeds its cap');
-  assert.equal(typeof run.gold, 'number');
-  if (run.bag.length > 0) { const before = g.getRun().gold, n = g.getRun().bag.length; const s = g.sellFromBag(run.bag[0].id);
-    assert.equal(s.ok, true); assert.ok(g.getRun().gold > before); assert.equal(g.getRun().bag.length, n - 1); }
+  assert.ok(run.bag.length <= run.bagCap);
+  // DROP frees a slot for nothing (no gold); SELL frees a slot for gold
+  if (run.bag.length > 0) { const n = g.getRun().bag.length, gold = g.getRun().gold; assert.equal(g.dropFromBag(run.bag[0].id).ok, true);
+    assert.equal(g.getRun().bag.length, n - 1); assert.equal(g.getRun().gold, gold, 'dropping gives no gold'); }
+  if (g.getRun().bag.length > 0) { const n = g.getRun().bag.length, gold = g.getRun().gold; const s = g.sellFromBag(g.getRun().bag[0].id);
+    assert.equal(s.ok, true); assert.ok(g.getRun().gold > gold); assert.equal(g.getRun().bag.length, n - 1); }
   while (g.getRun().bag.length > 0) g.sellFromBag(g.getRun().bag[0].id);
-  if (g.getRun().gold >= 12) { const before = g.getRun().potions.mana, gold = g.getRun().gold; const b = g.buyPotion('mana');
-    assert.equal(b.ok, true); assert.equal(g.getRun().potions.mana, before + 1); assert.equal(g.getRun().gold, gold - 12); }
+  if (g.getRun().gold >= 12) { const pm = g.getRun().potions.mana, gd = g.getRun().gold; assert.equal(g.buyPotion('mana').ok, true);
+    assert.equal(g.getRun().potions.mana, pm + 1); assert.equal(g.getRun().gold, gd - 12); }
 });
 
 test('Mana persists across the run (no free refill); Mana potions restore it', () => {

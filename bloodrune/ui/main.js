@@ -196,15 +196,17 @@ function renderReward(r) {
   else if (r.node && r.node.type === 'treasure') { title = '📦 A CACHE'; body = 'Spoils, unguarded.'; }
   else { title = 'THE RING BREAKS'; body = 'Loot falls among the corpses.'; }
   const gained = r.gained && (r.gained.levels || r.gained.points) ? `<div class="deck-note" style="color:var(--gold)">${r.gained.levels ? `Level up! Now level ${r.level}. ` : ''}${r.gained.points ? `+${r.gained.points} skill point${r.gained.points > 1 ? 's' : ''}.` : ''}</div>` : '';
-  const loot = r.pendingLoot.length ? `<div class="loot-list">${r.pendingLoot.map(lootChip).join('')}</div>` : '<div class="deck-note">No spoils.</div>';
+  const full = r.bag.length >= r.bagCap;
+  const loot = r.pendingLoot.length ? `<div class="prep-sub" style="margin:6px 0 2px">On the ground — take what you can carry (Bag <b>${r.bag.length}/${r.bagCap}</b>${full ? ', <span style="color:var(--blood-bright)">full — drop something</span>' : ''}). What you leave is lost.</div><div class="loot-list">${r.pendingLoot.map((it) => lootChip(it, full)).join('')}</div>` : '<div class="deck-note">No spoils.</div>';
   board.innerHTML = `<div class="prep">${runHeader(r)}<div class="prep-title" style="font-size:26px">${title}</div><div class="prep-sub">${body}</div>${gained}${loot}
     <div class="prep-actions"><button class="act ghost" id="openInv">🎒 INVENTORY</button>${r.skillPoints ? `<button class="act" id="openTree">⚔ SKILLS ● ${r.skillPoints}</button>` : ''}<button class="act" id="cont">PRESS ON</button></div></div>`;
   logEl.innerHTML = '';
   document.getElementById('openInv').addEventListener('click', () => { invOpen = true; renderOverlay(); });
   const t = document.getElementById('openTree'); if (t) t.addEventListener('click', () => { treeOpen = true; renderOverlay(); });
+  board.querySelectorAll('[data-take]').forEach((b) => b.addEventListener('click', () => { game.takeLoot(b.dataset.take); render(); }));
   document.getElementById('cont').addEventListener('click', () => { game.continueFromReward(); render(); });
 }
-function lootChip(it) { return `<div class="loot-chip" style="border-color:${it.color || 'var(--gold)'}"><div class="lc-name" style="color:${it.color || 'var(--gold)'}">${it.name}</div><div class="lc-slot">${SLOT_LABEL[it.slot] || it.slot}${it.grants && it.grants.skill ? ' · grants a skill' : ''}${it.autosold ? ` · <span style="color:var(--gold)">bag full → +${it.autosold}g</span>` : ''}</div><div class="lc-text">${it.text || ''}</div></div>`; }
+function lootChip(it, bagFull) { return `<div class="loot-chip" style="border-color:${it.color || 'var(--gold)'}"><div class="lc-name" style="color:${it.color || 'var(--gold)'}">${it.name}</div><div class="lc-slot">${SLOT_LABEL[it.slot] || it.slot}${it.grants && it.grants.skill ? ' · grants a skill' : ''}</div><div class="lc-text">${it.text || ''}</div><button class="act ghost small" data-take="${it.id}" ${bagFull ? 'disabled' : ''} style="margin-top:4px">${bagFull ? 'BAG FULL' : 'TAKE'}</button></div>`; }
 
 // ---------- shop ----------
 function renderShop(r) {
@@ -245,14 +247,15 @@ function renderTree() {
 function renderInventory() {
   const r = game.getRun(); const st = r.stats;
   const cells = SLOTS.map((slot) => { const it = r.equipment[slot]; return `<div class="slot ${it ? 'filled' : ''}" data-slot="${slot}"><div class="slot-k">${SLOT_LABEL[slot]}</div><div class="slot-v" style="${it && it.color ? `color:${it.color}` : ''}">${it ? it.name : '<span class="empty">— empty —</span>'}</div>${it ? `<div class="slot-t">${it.text || ''}</div>${slot !== 'weapon' ? '<div class="slot-x">tap to unequip</div>' : ''}` : ''}</div>`; }).join('');
-  const bag = r.bag.length ? r.bag.map((it) => `<button class="bag-item" data-id="${it.id}" style="${it.color ? `border-color:${it.color}` : ''}"><div class="bi-name" style="${it.color ? `color:${it.color}` : ''}">${it.name}</div><div class="bi-slot">${SLOT_LABEL[it.slot] || it.slot}${it.grants && it.grants.skill ? ' · grants a skill' : ''}</div><div class="bi-text">${it.text || ''}</div></button>`).join('') : '<div class="bag-empty">Your bag is empty.</div>';
+  const bag = r.bag.length ? r.bag.map((it) => `<div class="bag-item" style="${it.color ? `border-color:${it.color}` : ''}"><div class="bi-name" style="${it.color ? `color:${it.color}` : ''}">${it.name}</div><div class="bi-slot">${SLOT_LABEL[it.slot] || it.slot}${it.grants && it.grants.skill ? ' · grants a skill' : ''}</div><div class="bi-text">${it.text || ''}</div><div class="bi-btns"><button class="act ghost small" data-equip="${it.id}">EQUIP</button><button class="act ghost small" data-drop="${it.id}">DROP</button></div></div>`).join('') : '<div class="bag-empty">Your bag is empty.</div>';
   ov.className = 'overlay inv';
   ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">🎒 Inventory</div><button class="inv-close" id="cx">✕</button></div>
-    <div class="inv-stats"><span><span class="k">Life</span> <b class="life">${r.life}/${st.maxLife}</b></span><span><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></span><span><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></span><span><span class="k">Block/turn</span> <b class="block">${st.startBlock}</b></span></div>
-    <div class="inv-cols"><div class="paperdoll">${cells}</div><div class="bag"><div class="bag-head">Bag (${r.bag.length})</div><div class="bag-list">${bag}</div></div></div></div>`;
+    <div class="inv-stats"><span><span class="k">Life</span> <b class="life">${r.life}/${st.maxLife}</b></span><span><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></span><span><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></span><span><span class="k">Gold</span> <b style="color:var(--gold)">${r.gold}</b></span></div>
+    <div class="inv-cols"><div class="paperdoll">${cells}</div><div class="bag"><div class="bag-head">Bag (${r.bag.length}/${r.bagCap})</div><div class="bag-list">${bag}</div></div></div></div>`;
   document.getElementById('cx').addEventListener('click', () => { invOpen = false; render(); });
   ov.querySelectorAll('.slot.filled').forEach((el) => el.addEventListener('click', () => { game.unequip(el.dataset.slot); expose(); renderInventory(); }));
-  ov.querySelectorAll('.bag-item').forEach((el) => el.addEventListener('click', () => { game.equipFromBag(el.dataset.id); expose(); renderInventory(); }));
+  ov.querySelectorAll('[data-equip]').forEach((el) => el.addEventListener('click', () => { game.equipFromBag(el.dataset.equip); expose(); renderInventory(); }));
+  ov.querySelectorAll('[data-drop]').forEach((el) => el.addEventListener('click', () => { game.dropFromBag(el.dataset.drop); expose(); renderInventory(); }));
 }
 
 newRun('Normal', 'barbarian');

@@ -165,17 +165,22 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   }
   function flee() { if (!combat) return; combat.flee(); return resolveCombat(); }
 
+  // Loot drops on the GROUND — you must TAKE it, and only if you have space.
+  // Untaken loot is left behind (no reward for nothing); managing the bag is the
+  // looter's tension.
   function grantLoot(count, mf) {
     run.pendingLoot = [];
     for (let n = 0; n < count; n++) {
       let item; if (rng.next() < 0.28) { item = { ...ITEMS[rng.pick(WEAPON_DROPS)] }; item = { ...item, id: item.id + '_' + Math.floor(rng.next() * 1e6) }; }
       else item = rollItem(rng, { magicFind: mf });
-      if (run.bag.length < BAG_CAP) run.bag.push(item);
-      else { run.gold += itemValue(item); item = { ...item, autosold: itemValue(item) }; } // bag full -> spoils turn to gold
       run.pendingLoot.push(item);
     }
   }
-  function continueFromReward() { run.phase = 'map'; }
+  function takeLoot(id) { const i = run.pendingLoot.findIndex((x) => x.id === id); if (i < 0) return { ok: false };
+    if (run.bag.length >= BAG_CAP) return { ok: false, reason: 'bag full — drop something' };
+    run.bag.push(run.pendingLoot[i]); run.pendingLoot.splice(i, 1); return { ok: true }; }
+  function dropFromBag(id) { const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false }; run.bag.splice(i, 1); return { ok: true }; } // left behind, no gold
+  function continueFromReward() { run.pendingLoot = []; run.phase = 'map'; } // untaken loot is left behind
 
   function getRun() {
     const s = statsNow();
@@ -196,6 +201,6 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   }
   function skName(id) { return SKILLS[id] ? SKILLS[id].name : id; }
 
-  return { beginDescent, chooseDirection, resolveCombat, flee, equipFromBag, unequip, investSkill, quaff, sellFromBag, buyPotion, continueFromReward,
+  return { beginDescent, chooseDirection, resolveCombat, flee, equipFromBag, unequip, investSkill, quaff, sellFromBag, buyPotion, takeLoot, dropFromBag, continueFromReward,
     getRun, getCombat: () => combat, deriveStats: () => statsNow(), deriveAbilities: () => abilitiesNow() };
 }
