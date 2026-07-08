@@ -36,6 +36,7 @@ function modText(mod) {
   if (mod.maxLife) parts.push(`+${mod.maxLife} Life`);
   if (mod.maxMana) parts.push(`+${mod.maxMana} Mana`);
   if (mod.accuracy) parts.push(`+${mod.accuracy} Accuracy`);
+  if (mod.evade) parts.push(`+${mod.evade} Evade`);
   if (mod.plusSkills) parts.push(`+${mod.plusSkills} to Skills`);
   if (mod.startBlock) parts.push(`+${mod.startBlock} Block/turn`);
   return parts.join(', ');

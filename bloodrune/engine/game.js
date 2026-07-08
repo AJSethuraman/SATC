@@ -14,7 +14,8 @@ const xpForLevel = (lvl) => 6 + lvl * 4;
 // Stats scale with LEVEL (Life/Mana growth) + gear passive mods.
 export function deriveStats(cls, equipment, level, bonus = {}) {
   const stats = { maxLife: cls.maxLife + (level - 1) * 5, maxMana: cls.maxMana + (level - 1),
-    manaRegen: (cls.manaRegen || 4) + Math.floor((level - 1) / 4), startBlock: cls.startBlock || 0, plusSkills: 0 };
+    manaRegen: (cls.manaRegen || 4) + Math.floor((level - 1) / 4), startBlock: cls.startBlock || 0,
+    accuracy: (cls.acc || 6) + (level - 1), evade: cls.eva || 0, plusSkills: 0 };
   const add = (m) => { for (const [k, v] of Object.entries(m)) stats[k] = (stats[k] || 0) + v; };
   for (const s of SLOTS) { const it = equipment[s]; if (it && it.passive) add(it.passive); }
   add(bonus);
@@ -49,7 +50,8 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function abilitiesNow() { return deriveAbilities(run.equipment, run.skillHard); }
   function weaponNow() { const w = run.equipment.weapon; return w ? { dmg: w.dmg, wtype: w.wtype } : null; }
   function heroForFight() { const s = statsNow(); return { name: cls.name, glyph: cls.glyph, maxLife: s.maxLife, life: run.life,
-    maxMana: s.maxMana, manaRegen: s.manaRegen, startBlock: s.startBlock, plusSkills: s.plusSkills, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
+    maxMana: s.maxMana, manaRegen: s.manaRegen, startBlock: s.startBlock, plusSkills: s.plusSkills,
+    accuracy: s.accuracy, evade: s.evade, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
 
   // ---- gear ----
   function slotFor(it) { if (it.slot === 'ring') return run.equipment.ring1 ? (run.equipment.ring2 ? 'ring1' : 'ring2') : 'ring1'; return it.slot; }

@@ -32,6 +32,36 @@ test('weapon TYPE matters: a bow cannot Cleave, an axe cannot fire a Power Shot'
   assert.ok(dmg({ dmg: [20, 20], wtype: 'melee' }, 'strike') > dmg(axe, 'strike'));
 });
 
+test('accuracy vs evade: physical attacks can miss; spells never do', () => {
+  // an evasive dummy; a hero with modest accuracy misses it sometimes but not always
+  const DUMMY = { id: 'goatman' }; // eva 3
+  let hits = 0, n = 120;
+  for (let s = 0; s < n; s++) {
+    const c = createCombat({ hero: { ...HERO, accuracy: 6, hard: {}, abilities: ['strike', 'bone_spear'] }, pack: [{ id: 'zombie', eva: 6 }], rng: makeRng('acc' + s) });
+    const before = c.getState().enemies[0].hp; c.useSkill(0); // strike (physical) once
+    if (c.getState().enemies[0].hp < before) hits++;
+  }
+  assert.ok(hits > n * 0.4 && hits < n * 0.85, `strike landed ${hits}/${n} vs Evade 6 (should be partial)`);
+  // a spell (bone_spear) ALWAYS lands regardless of evade
+  let spellHits = 0;
+  for (let s = 0; s < 40; s++) {
+    const c = createCombat({ hero: { ...HERO, accuracy: 1, abilities: ['bone_spear'] }, pack: [{ id: 'zombie', eva: 20 }], rng: makeRng('sp' + s) });
+    const before = c.getState().enemies[0].hp; c.useSkill(0);
+    if (c.getState().enemies[0].hp < before) spellHits++;
+  }
+  assert.equal(spellHits, 40, 'spells ignore accuracy/evade');
+});
+
+test('Evade dodges incoming blows, scaled to the attacker’s accuracy', () => {
+  // a dodgy hero (Evade 8) takes fewer hits than a clumsy one (Evade 0) from the same foe
+  const dodges = (evade, n = 120) => { let taken = 0; for (let s = 0; s < n; s++) {
+    const c = createCombat({ hero: { ...HERO, evade, abilities: ['guard'] }, pack: [{ id: 'fallen' }], rng: makeRng('ev' + evade + s) });
+    const before = c.getState().hero.life; c.endTurn(); if (c.getState().hero.life < before) taken++; } return taken; };
+  const clumsy = dodges(0), nimble = dodges(8);
+  assert.equal(clumsy, 120, 'Evade 0 never dodges');
+  assert.ok(nimble < 120 * 0.85, `Evade 8 dodged some (${nimble}/120 landed)`);
+});
+
 test('melee reaches only the inner ring; a ranged skill reaches the outer', () => {
   const c = fight([{ id: 'shaman' }, { id: 'guardian', guards: 0 }]);
   const gBefore = c.getState().enemies[1].hp;

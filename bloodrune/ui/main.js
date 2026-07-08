@@ -107,6 +107,8 @@ function renderCombat() {
       <div class="stat"><span class="k">Life</span><span class="v life">${h.life}/${h.maxLife}</span></div>
       <div class="stat"><span class="k">Mana</span><span class="v mana">${h.mana}/${h.maxMana}</span><span class="regen">+${h.manaRegen}/t</span></div>
       <div class="stat"><span class="k">Block</span><span class="v block">${h.block}</span></div>
+      <div class="stat"><span class="k">Acc</span><span class="v">${h.accuracy}</span></div>
+      ${h.evade > 0 ? `<div class="stat"><span class="k">Eva</span><span class="v">${h.evade}</span></div>` : ''}
       <div class="stat"><span class="k">Lv</span><span class="v">${game.getRun().level}</span></div>
       ${h.exposed ? '<span class="expo">⚠ EXPOSED</span>' : ''}
       <div class="stat"><span class="k">Turn</span><span class="v">${s.turn}</span></div>
@@ -123,11 +125,17 @@ function renderCombat() {
   document.getElementById('flee').addEventListener('click', () => { game.flee(); combat = game.getCombat(); afterTerminal(); render(); });
 }
 function abilityHTML(c, i) {
-  const h = combat.getState().hero; const affordable = c.cost <= h.mana;
+  const s = combat.getState(); const h = s.hero; const affordable = c.cost <= h.mana;
   const tag = c.type === 'breakthrough' ? 'reach · EXPOSES' : c.type === 'summon' ? 'summon · each turn' : c.target === 'aoe' ? (`×${c.maxTargets || 3}` + (c.reach ? ' · reaches outer' : ' · inner')) : c.type === 'skill' ? 'skill' : (c.reach ? 'reaches outer' : 'inner ring');
+  // physical attacks roll to-hit; show the chance vs the focused foe so accuracy reads
+  let hit = '';
+  if ((c.type === 'attack' || c.type === 'breakthrough') && c.weapon !== 'spell') {
+    const f = s.enemies.find((e) => e.uid === h.focusUid && e.hp > 0);
+    if (f) { const p = Math.round(Math.max(0.35, Math.min(0.95, 0.75 + (h.accuracy - (f.eva || 0)) * 0.04)) * 100); hit = ` <span class="hitc">${p}% hit</span>`; }
+  } else if (c.weapon === 'spell' && (c.type === 'attack')) { hit = ' <span class="hitc">always hits</span>'; }
   return `<button class="card ${c.type === 'skill' ? 'skill' : c.type === 'summon' ? 'summon' : c.type === 'breakthrough' ? 'breakthrough' : 'attack'}" data-i="${i}" ${affordable ? '' : 'disabled'}>
     <div class="cn"><span>${c.name} <span class="lv">Lv ${c.eff.lvl}</span></span><span>${c.cost}⬡</span></div>
-    <div class="ct">${tag}</div><div class="cx">${c.eff.text}</div></button>`;
+    <div class="ct">${tag}${hit}</div><div class="cx">${c.eff.text}</div></button>`;
 }
 function afterCombat() { const s = combat.getState(); if (s.over) { game.resolveCombat(); afterTerminal(); } render(); }
 function afterTerminal() { const p = game.getRun().phase; if (!countedTerminal && (p === 'dead' || p === 'victory')) { countedTerminal = true; const m = meta(); if (p === 'dead') m.deaths++; if (p === 'victory') { m.wins++; const ni = DIFFS.indexOf(game.getRun().difficulty) + 1; if (DIFFS[ni] && !m.unlocked.includes(DIFFS[ni])) m.unlocked.push(DIFFS[ni]); } saveMeta(m); } }

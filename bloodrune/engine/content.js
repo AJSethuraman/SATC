@@ -44,11 +44,13 @@ export const SKILLS = {
 // You begin NAKED: `startWeapon` grants ONE skill; `tree` is what you can LEARN
 // with skill points. maxLife/maxMana are low and grow with level (see game.js).
 export const CLASSES = {
-  barbarian: { id: 'barbarian', name: 'Barbarian', glyph: '🪓', maxLife: 56, maxMana: 10, manaRegen: 6, startBlock: 0,
+  // acc = base Accuracy (physical to-hit); eva = base Evade (dodge chance). The
+  // Amazon is the nimble one (high Evade); melee wants Accuracy as it scales.
+  barbarian: { id: 'barbarian', name: 'Barbarian', glyph: '🪓', maxLife: 56, maxMana: 10, manaRegen: 6, startBlock: 0, acc: 7, eva: 1,
     startWeapon: 'worn_axe', tree: ['strike', 'cleave', 'zeal', 'smite', 'whirlwind', 'charge', 'warcry'] },
-  amazon: { id: 'amazon', name: 'Amazon', glyph: '🏹', maxLife: 47, maxMana: 9, manaRegen: 6, startBlock: 0,
+  amazon: { id: 'amazon', name: 'Amazon', glyph: '🏹', maxLife: 47, maxMana: 9, manaRegen: 6, startBlock: 0, acc: 8, eva: 6,
     startWeapon: 'short_bow', tree: ['arrow', 'power_shot', 'strafe', 'pierce', 'guard'] },
-  necromancer: { id: 'necromancer', name: 'Necromancer', glyph: '💀', maxLife: 40, maxMana: 11, manaRegen: 5, startBlock: 0,
+  necromancer: { id: 'necromancer', name: 'Necromancer', glyph: '💀', maxLife: 40, maxMana: 11, manaRegen: 5, startBlock: 0, acc: 6, eva: 1,
     startWeapon: 'bone_wand', tree: ['raise_skeleton', 'raise_golem', 'bone_spear', 'teeth', 'bone_armor'] },
 };
 
@@ -74,13 +76,14 @@ export const WEAPON_DROPS = ['great_axe', 'war_bow', 'bone_staff'];
 // ring: 0 inner (melee reaches), 1 outer (needs reach/summons). role 'caster'
 // heals + is guardable; 'guardian' protects a caster.
 export const ENEMIES = {
-  fallen: { id: 'fallen', name: 'Fallen', hp: 7, attack: 2, glyph: '👺', role: 'grunt', ring: 0, xp: 3 },
-  zombie: { id: 'zombie', name: 'Zombie', hp: 12, attack: 4, glyph: '🧟', role: 'grunt', ring: 0, xp: 5 },
-  guardian: { id: 'guardian', name: 'Fallen Champion', hp: 12, attack: 4, glyph: '🛡️', role: 'guardian', ring: 0, xp: 6 },
-  goatman: { id: 'goatman', name: 'Goatman', hp: 14, attack: 6, glyph: '🐐', role: 'grunt', ring: 0, xp: 7 },
-  shaman: { id: 'shaman', name: 'Fallen Shaman', hp: 16, attack: 3, glyph: '🧙', role: 'caster', heal: 4, rez: 3, ring: 1, xp: 10 },
-  archer: { id: 'archer', name: 'Dark Archer', hp: 9, attack: 4, glyph: '🏹', role: 'archer', ring: 1, xp: 6 },
-  the_smith: { id: 'the_smith', name: 'The Flayed Smith', hp: 70, attack: 9, glyph: '🔨', role: 'elite', ring: 0, xp: 60 },
+  // acc = to-hit vs your Evade; eva = how hard it is to hit (vs your Accuracy).
+  fallen: { id: 'fallen', name: 'Fallen', hp: 7, attack: 2, glyph: '👺', role: 'grunt', ring: 0, xp: 3, acc: 4, eva: 1 },
+  zombie: { id: 'zombie', name: 'Zombie', hp: 12, attack: 4, glyph: '🧟', role: 'grunt', ring: 0, xp: 5, acc: 5, eva: 0 },
+  guardian: { id: 'guardian', name: 'Fallen Champion', hp: 12, attack: 4, glyph: '🛡️', role: 'guardian', ring: 0, xp: 6, acc: 5, eva: 2 },
+  goatman: { id: 'goatman', name: 'Goatman', hp: 14, attack: 6, glyph: '🐐', role: 'grunt', ring: 0, xp: 7, acc: 6, eva: 3 },
+  shaman: { id: 'shaman', name: 'Fallen Shaman', hp: 16, attack: 3, glyph: '🧙', role: 'caster', heal: 4, rez: 3, ring: 1, xp: 10, acc: 4, eva: 2 },
+  archer: { id: 'archer', name: 'Dark Archer', hp: 9, attack: 4, glyph: '🏹', role: 'archer', ring: 1, xp: 6, acc: 7, eva: 3 },
+  the_smith: { id: 'the_smith', name: 'The Flayed Smith', hp: 70, attack: 9, glyph: '🔨', role: 'elite', ring: 0, xp: 60, acc: 8, eva: 3 },
 };
 
 // Elite affixes (rolled onto a champion for Elite nodes).
@@ -100,16 +103,16 @@ export const BOSS_PACK = [{ id: 'the_smith' }, { id: 'shaman', guards: 0 }, { id
 // role/ring behave like ENEMIES; rez/heal are resolved reactively (see combat).
 export const SUPERUNIQUES = {
   blood_raven: { id: 'blood_raven', name: 'Blood Raven', glyph: '🩸', role: 'archer', ring: 1,
-    hp: 46, attack: 8, rez: 8, xp: 42, minions: ['zombie', 'zombie', 'fallen', 'fallen'],
+    hp: 46, attack: 8, acc: 8, eva: 4, rez: 8, xp: 42, minions: ['zombie', 'zombie', 'fallen', 'fallen'],
     text: 'Looses burning arrows and raises your slain foes — put her down fast.' },
   rakanishu: { id: 'rakanishu', name: 'Rakanishu', glyph: '⚡', role: 'grunt', ring: 0,
-    hp: 40, attack: 8, extraAttack: true, xp: 36, minions: ['goatman', 'goatman', 'fallen'],
+    hp: 40, attack: 8, acc: 7, eva: 5, extraAttack: true, xp: 36, minions: ['goatman', 'goatman', 'fallen'],
     text: 'A shrieking champion — strikes twice each turn.' },
   corpsefire: { id: 'corpsefire', name: 'Corpsefire', glyph: '🩸', role: 'grunt', ring: 0,
-    hp: 66, attack: 7, leech: true, xp: 38, minions: ['zombie', 'zombie', 'zombie'],
+    hp: 66, attack: 7, acc: 6, eva: 1, leech: true, xp: 38, minions: ['zombie', 'zombie', 'zombie'],
     text: 'A bloated horror that heals on every blow it lands.' },
   bishibosh: { id: 'bishibosh', name: 'Bishibosh', glyph: '🔥', role: 'caster', ring: 1,
-    hp: 42, attack: 4, heal: 7, rez: 6, xp: 40, minions: ['fallen', 'fallen', 'goatman', 'fallen'],
+    hp: 42, attack: 4, acc: 5, eva: 3, heal: 7, rez: 6, xp: 40, minions: ['fallen', 'fallen', 'goatman', 'fallen'],
     text: 'A fallen shaman of great power — mends and raises his pack without pause.' },
 };
 export const SUPERUNIQUE_IDS = Object.keys(SUPERUNIQUES);
@@ -135,11 +138,13 @@ export const PREFIXES = [
   { name: 'Sturdy', mod: { maxLife: 8 } }, { name: 'Vigorous', mod: { maxLife: 15 } },
   { name: 'Runed', mod: { maxMana: 2 } }, { name: 'Cruel', mod: { plusSkills: 1 } },
   { name: 'Warded', mod: { startBlock: 2 } }, { name: 'Savage', mod: { plusSkills: 1, maxLife: 6 } },
+  { name: 'Keen', mod: { accuracy: 3 } }, { name: 'Nimble', mod: { evade: 3 } },
 ];
 export const SUFFIXES = [
   { name: 'of the Bear', mod: { maxLife: 10 } }, { name: 'of the Magi', mod: { maxMana: 2 } },
   { name: 'of Wrath', mod: { plusSkills: 1 } }, { name: 'of the Turtle', mod: { startBlock: 2 } },
   { name: 'of Fury', mod: { plusSkills: 2 } }, { name: 'of Vigor', mod: { maxLife: 14 } },
+  { name: 'of Precision', mod: { accuracy: 4 } }, { name: 'of the Cat', mod: { evade: 3 } },
 ];
 export const RARITY = [
   { rarity: 'normal', weight: 40, affixes: 0, color: '#cfcfcf' },

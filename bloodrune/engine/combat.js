@@ -52,6 +52,8 @@ function buildMonster(entry, i) {
     if (m.extraAttack) extraAttack = true; if (m.leech) leech = true; }
   return { uid: i, id, name: base.name, glyph: base.glyph, hp, maxHp: hp, attack, role: base.role,
     ring: base.ring || 0, heal: base.heal || 0, rezLeft: base.rez || 0, xp: base.xp || 0,
+    acc: (typeof entry === 'object' && entry.acc != null) ? entry.acc : (base.acc != null ? base.acc : 5),
+    eva: (typeof entry === 'object' && entry.eva != null) ? entry.eva : (base.eva || 0),
     guardsUid: (!su && typeof entry === 'object' && entry.guards != null) ? entry.guards : null,
     affixes, elite: su ? true : (affixes.length > 0 || base.role === 'elite'), unique: !!su, extraAttack, leech, raised: false, intent: null };
 }
@@ -62,6 +64,7 @@ export function createCombat({ hero, pack, rng }) {
       life: hero.life != null ? Math.min(hero.life, hero.maxLife) : hero.maxLife, maxLife: hero.maxLife,
       block: 0, startBlock: hero.startBlock || 0, mana: hero.maxMana, maxMana: hero.maxMana,
       manaRegen: hero.manaRegen != null ? hero.manaRegen : 4, weapon: hero.weapon || null,
+      accuracy: hero.accuracy, evade: hero.evade || 0,
       plusSkills: hero.plusSkills || 0, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
       exposed: false, summons: [], focusUid: null },
     enemies: pack.map(buildMonster),
@@ -93,7 +96,13 @@ export function createCombat({ hero, pack, rng }) {
     state.hero.exposed = false; telegraph(); state.log.push(`— Turn ${state.turn} —`); }
 
   function hurt(e, dmg) { e.hp = Math.max(0, e.hp - dmg); if (e.hp === 0) { e.intent = null; if (!e.raised) state.xpEarned += e.xp || 0; state.log.push(`${e.name} ${e.raised ? 'falls again.' : 'dies.'}`); } }
-  function applyHit(e, dmg, pierce) { let d = dmg; if (!pierce && isGuarded(e)) { d = Math.max(1, Math.round(dmg * (1 - GUARD_MITIGATION))); state.log.push(`${e.name} is guarded — only ${d} lands.`); } hurt(e, d); }
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  // Physical attacks roll to-hit (Accuracy vs the target's Evade); a wide floor/
+  // cap so accuracy MATTERS without being punitive. `acc == null` => auto-hit
+  // (spells and summons never miss — the caster's edge).
+  function applyHit(e, dmg, pierce, acc) {
+    if (acc != null && rng.next() > clamp(0.75 + (acc - (e.eva || 0)) * 0.04, 0.35, 0.95)) { state.log.push(`You miss ${e.name}.`); return false; }
+    let d = dmg; if (!pierce && isGuarded(e)) { d = Math.max(1, Math.round(dmg * (1 - GUARD_MITIGATION))); state.log.push(`${e.name} is guarded — only ${d} lands.`); } hurt(e, d); return true; }
   function setFocus(uid) { state.hero.focusUid = uid; }
   // The front rank shields the ranks behind it. Reach r strikes the nearest r+1
   // occupied rings — so melee (reach 0) can only hit the frontmost living rank,
@@ -110,6 +119,7 @@ export function createCombat({ hero, pack, rng }) {
     const s = SKILLS[id]; const eff = skillEffect(state.hero, id);
     if (s.cost > state.hero.mana) return { ok: false, reason: 'not enough Mana' };
     state.hero.mana -= s.cost;
+    const acc = s.weapon === 'spell' ? null : state.hero.accuracy; // physical skills roll to-hit; spells auto-hit
     if (s.type === 'skill') { if (eff.block != null) { // bracing doesn't STACK — you're either braced or you're not
       if (state.hero.block >= eff.block) { state.hero.mana += s.cost; return { ok: false, reason: 'already braced' }; }
       state.hero.block = eff.block; } }
@@ -117,11 +127,11 @@ export function createCombat({ hero, pack, rng }) {
     else if (s.target === 'aoe') { let pool = alive().filter((x) => inReach(x, s.reach || 0));
       if (!pool.length) { state.hero.mana += s.cost; return { ok: false, reason: 'no target in reach' }; }
       const f = byUid(state.hero.focusUid); if (f && pool.includes(f)) pool = [f, ...pool.filter((e) => e !== f)]; // your focus is struck first
-      for (const e of pool.slice(0, s.maxTargets || pool.length)) applyHit(e, roll(eff.min, eff.max), false); } // AoE catches only a few, never the whole ring
+      for (const e of pool.slice(0, s.maxTargets || pool.length)) applyHit(e, roll(eff.min, eff.max), false, acc); } // AoE catches only a few, never the whole ring
     else { const t = pickTarget(s); if (!t) { state.hero.mana += s.cost; return { ok: false, reason: 'no target in reach' }; }
-      if (s.type === 'breakthrough') { applyHit(t, roll(eff.min, eff.max), true); state.hero.exposed = true; state.log.push('You break through — and drop your guard.'); }
-      else if (s.scale === 'hits') { for (let h = 0; h < eff.hits && t.hp > 0; h++) applyHit(t, roll(eff.min, eff.max), false); }
-      else applyHit(t, roll(eff.min, eff.max), false); }
+      if (s.type === 'breakthrough') { applyHit(t, roll(eff.min, eff.max), true, acc); state.hero.exposed = true; state.log.push('You break through — and drop your guard.'); }
+      else if (s.scale === 'hits') { for (let h = 0; h < eff.hits && t.hp > 0; h++) applyHit(t, roll(eff.min, eff.max), false, acc); }
+      else applyHit(t, roll(eff.min, eff.max), false, acc); }
     state.log.push(`Cast ${s.name}.`);
     if (!alive().length) finish('win');
     return { ok: true };
@@ -135,6 +145,10 @@ export function createCombat({ hero, pack, rng }) {
     if (!alive().length) finish('win'); }
 
   function monsterHit(e, raw) {
+    // Evade: dodge the blow entirely, scaled against the ATTACKER's accuracy (a
+    // sloppy foe is easy to juke, a precise one punches through). The Amazon's edge.
+    if (state.hero.evade > 0 && rng.next() > clamp(0.80 + ((e.acc != null ? e.acc : 5) - state.hero.evade) * 0.04, 0.30, 0.95)) {
+      state.log.push(`You evade ${e.name}.`); return true; }
     const absorbed = state.hero.exposed ? 0 : Math.min(state.hero.block, raw); state.hero.block -= absorbed;
     const dmg = raw - absorbed; state.hero.life = Math.max(0, state.hero.life - dmg);
     state.log.push(`${e.name} hits you for ${dmg}${absorbed ? ` (${absorbed} blocked)` : ''}${state.hero.exposed ? ' (exposed!)' : ''}.`);

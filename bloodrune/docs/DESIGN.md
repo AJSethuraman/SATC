@@ -65,16 +65,16 @@ feedback.
 ### Wave 2 — Accuracy & the defensive layers you asked for `[math][char]`
 D2 stacks independent gates (hit? block? dodge? mitigate?). Adding them is what
 makes builds matter — and you explicitly asked for accuracy and Amazon evade.
-- **To-hit: Attack Rating vs Defense.** A hit-chance roll gates each attack;
-  **spells/guaranteed abilities bypass it** (the caster-vs-melee asymmetry).
-  Neglect AR and you visibly miss — "struggle with accuracy until you fix it."
-  *Turn-based tuning:* a miss wastes a whole turn (harsh), so use a **~35%
-  floor** (not D2's 5%) and/or a "graze" (min-of-range) on near-misses; show the
-  % on the attack button. ⬜
-- **Amazon Dodge/Evade.** A telegraphed **avoid %**, and — your idea, which is
-  actually *better than D2* (real D2 avoidance ignores the attacker) — **scaled
-  against the attacker's accuracy**: a sloppy foe gets juked, a precise one
-  punches through. Cap ~45%, float "EVADE". ⬜
+- **To-hit: Accuracy vs Evade.** ✅ Physical attacks roll to-hit
+  (`clamp(0.75 + (acc − eva)·0.04, 0.35, 0.95)`); **spells/summons auto-hit** (the
+  caster edge). Accuracy = class base + level + gear (Keen/of Precision affixes);
+  enemies carry Evade (goatman/archer are nimble). Hit % shows on the attack
+  button; misses narrate. Kept light — "matters, not punitive."
+- **Amazon Dodge/Evade.** ✅ Incoming blows can be dodged, **scaled against the
+  attacker's accuracy** (your idea, better than D2's attacker-blind roll): a
+  sloppy foe is juked, a precise one connects. Amazon has high base Evade (her
+  identity — it lifted her from ~7/16 to ~12/16); gear adds more (Nimble/of the
+  Cat). Evade shows in the bar; dodges narrate.
 - **Block as a % chance to negate** (D2's real model), alongside the current
   flat-absorb Guard — room for both (chance-block shields vs absorb-barriers). ⬜
 - **Round out per-class defense:** Barb soak (have Guard/War Cry), Necro **curse**
@@ -125,9 +125,9 @@ interact with your engagement-cap identity.
   style) so runs differ by *build*, not just map RNG. ⬜
 - **Node choice = risk/reward:** deeper branch = higher monster level = better
   loot + more affixes. Makes the blind map a *decision*. ⬜
-- **Lean attributes** — NOT full D2 (Str/Dex/Vit/Energy is shallower than its
-  reputation). A **3-stat** model: Power (damage + weapon reqs), Finesse
-  (accuracy/block/dodge), Vigor (life). ❓ ⬜
+- ~~Lean attributes~~ — **DECIDED: no attributes.** Level (guaranteed drip) +
+  gear (spiky) carry progression; accuracy/evade/life come from class base +
+  level + gear affixes, not a stat-point screen. Keeps the run lean.
 - **Potions / between-fight resource** (active mid-fight management). ⬜
 - **Between-run meta-hub** (Hades' House, *not* an in-run town) + light
   meta-progression that banks every run. ⬜
