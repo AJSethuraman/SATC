@@ -1,10 +1,12 @@
 # Bloodrune — Design Doc
 
 The reference we build from, so genre-obvious requirements are on the table
-*before* they show up as bugs in playtesting. Grounded in Diablo 2 (see
-`research-d2-skills.md` and the research notes folded in below). Living doc.
+*before* they show up as playtest corrections. Grounded in Diablo 2 via five
+research passes (itemization, character systems, combat math, monsters/
+difficulty, core-loop/feel) — citations in §6. Companion: `research-d2-skills.md`.
+Living doc.
 
-> **Status legend:** ✅ built · 🟡 partial · ⬜ not yet · ❓ open decision
+> **Status:** ✅ built · 🟡 partial · ⬜ not yet · ❓ open decision
 
 ---
 
@@ -12,109 +14,200 @@ The reference we build from, so genre-obvious requirements are on the table
 
 1. **Diablo 2, turned tactical.** The D2 fantasy — a dark gothic crawl, a
    character *body* you gear, skills you spec into, loot that defines you —
-   expressed as **turn-based tactical combat** instead of real-time clicking.
-   Explicitly D2, not the sanitized feel of D3/D4.
-2. **Surrounded and outnumbered.** You are one hero ringed by a horde.
-   Positioning is abstracted to **rings + an engagement cap**; the tension is
-   *who can reach whom* and *who do I kill first* (the healer, the rezzer, the
-   elite).
-3. **Start naked, become a god — or die.** Begin with one weapon-granted skill;
-   scale through XP, the skill tree, and loot. Some runs you fix your build's
-   weakness; some you die to it. Permadeath roguelite.
-4. **Your build is your character.** Class + skill tree + **weapon type** + gear
-   = a distinct way to fight. Items must matter (weapon damage feeds skills;
-   affixes should change how you *play*, not just raise a number). Specialization
-   pays off.
-5. **Readable depth.** Every mechanic is telegraphed and legible — enemy intents,
-   reach, "out of reach", waiting foes, damage ranges. Complexity comes from
+   as **turn-based tactical combat**. Explicitly D2, not D3/D4's feel.
+2. **Surrounded and outnumbered.** One hero ringed by a horde. Positioning is
+   abstracted to **rings + an engagement cap**; tension is *who can reach whom*
+   and *who do I kill first*.
+3. **Start naked, become a god — or die.** One weapon-granted skill → scale via
+   XP, the tree, and loot. Fix your build's weakness, or die to it. Permadeath.
+4. **Your build is your character.** Class + tree + **weapon type** + gear = a
+   distinct way to fight. Items change how you *play*, not just a number.
+5. **Readable depth.** Everything telegraphed and legible. Complexity from
    systems interacting, not hidden math or twitch.
 
 ---
 
-## 2. What's built today
+## 2. What's built today (snapshot)
 
-### Combat — the surrounded arena ✅
-- **Rings:** inner (melee-reachable) / outer (casters & archers). Melee reaches
-  only the frontmost living rank; clear the front and the back is **pinned**.
-  Reach skills (Charge / ranged / summons) strike past a living screen.
-- **Engagement cap:** only ~4 melee foes reach you per turn; the rest **wait**
-  and step up as front-liners fall. Decouples horde *size* from incoming *damage*.
-- **Abilities, not cards:** always available, **Mana-gated**, roll damage in
-  **ranges**. Mana is a **regenerating pool** (open full, regen a few/turn) — no
-  free per-turn refill, so spamming one skill drains you.
-- **Guarded casters / breakthrough / Exposed:** a guarded caster takes reduced
-  damage; Charge/Pierce pierce the guard but leave you Exposed next enemy phase.
-- **Reactive casters:** the Shaman (and rezzer super uniques) **channel** and, at
-  end of round, react to the casualties you just caused — raise a slain grunt
-  (capped) or mend the most-wounded. "Kill the rezzer first."
-- **Summons:** the Necromancer's skeletons **body-block** the surround and strike
-  your focus; they shatter and must be re-raised (Mana tradeoff).
-
-### Characters 🟡
-- 3 classes: **Barbarian** (melee + Charge to reach), **Amazon** (ranged reach),
-  **Necromancer** (summons + spell damage, weapon-independent).
-- **Skill tree** ✅ — D2-style **level-req tiers + prerequisite arrows +
-  per-point level gate**; capstones (Whirlwind req 8) you build toward. `+Skills`
-  gear raises every skill's level.
-- Each skill **scales its own way** (Zeal +1 hit/level, Raise Skeleton +1
-  skeleton/2 levels, damage skills grow per level).
-- **No attributes** (Str/Dex/Vit/Energy) ⬜ · **no synergies** ⬜ · **no respec** ⬜.
-
-### Items 🟡
-- **Weapons** ✅ carry damage + a **type** (melee/ranged/focus). A physical
-  skill's base damage **is** the equipped weapon's damage × the skill's factor —
-  a better axe = a harder Cleave; wrong type = you flail. Focus weapons power the
-  Necro's spells (which scale on +Skills).
-- **Armor/jewelry** ✅ roll prefix/suffix affixes at rarities normal/magic/rare.
-- **No sockets/runes/runewords** ⬜ · **no set/unique items** ⬜ · **no item-level
-  affix gating** ⬜ · **no gold/vendors/gambling** ⬜.
-
-### Monsters 🟡
-- Roster: fallen, zombie, goatman, guardian, shaman (heal+rez), archer.
-- **Elite affixes** (frenzied/brutal/hardened/vampiric) 🟡 — only 4 of D2's ~20.
-- **Super uniques** ✅ — named leaders + minions + a signature (Blood Raven rez,
-  Rakanishu double-strike, Corpsefire leech, Bishibosh heal+rez), gated to mid-run.
-- **One act boss** (the Flayed Smith). One difficulty. ⬜ no NM/Hell, no 2nd act.
-
-### The run / loop 🟡
-- Descend a **9-step branching blind map** (Combat / Elite / Super-unique /
-  Treasure / Camp / Boss). XP→levels→skill points + loot. Permadeath.
-- Minimal meta (localStorage). ⬜ no gold, vendors, gambling, town, waypoints,
-  potions/consumables, or real meta-progression.
+- **Combat:** surrounded arena (inner/outer rings, front-rank screen, **engagement
+  cap**), abilities (no cards) that roll damage ranges, **Mana as a regenerating
+  pool**, guarded casters + breakthrough/Exposed, **reactive rezzer/healer
+  casters**, summon **body-block** wall. ✅
+- **Characters:** 3 classes (Barbarian/Amazon/Necromancer); **D2-style skill
+  tree** (level+prereq+per-point gates, capstones, +Skills). No attributes,
+  synergies, or respec. 🟡
+- **Items:** **weapon damage feeds physical skills, weapon type gates them**;
+  armor/jewelry roll magic/rare affixes. No sockets/runes/runewords, sets,
+  uniques, or ilvl gating. 🟡
+- **Monsters:** roster + 4 elite affixes + **super uniques** (Blood Raven et al.)
+  + one act boss. One difficulty. 🟡
+- **Loop:** 9-step branching blind map, XP→levels→points + loot, permadeath,
+  minimal meta. No feel/juice, node-choice risk/reward, gold, potions, or
+  meta-progression. 🟡
 
 ---
 
-## 3. Fantasy Gaps — the backlog (my first cut; research is enriching this)
+## 3. The sequenced roadmap
 
-Ranked roughly by **impact-to-effort**. These are the "obvious in terms of
-design and fantasy" items — the things a D2 grounding demands that we don't have.
+Ordered by impact-to-effort **and** dependency. Each wave is a coherent,
+shippable increment. Source tags: `[loot] [char] [math] [mob] [loop]`.
 
-| # | Gap | Why it matters | Sketch |
-|---|-----|----------------|--------|
-| 1 | **Accuracy & Dodge/Evade** ⬜ | Everything auto-hits; the Amazon has no signature avoidance. You explicitly want accuracy to matter and evade to be "not punitive but real." | A hit-chance roll (attacker accuracy vs target evade), telegraphed as a %; Amazon gets an innate Dodge% avoid roll. |
-| 2 | **Resistances & elemental damage** ⬜ | Everything is physical → no build adaptation, no "this pack resists fire, swap." The spine of D2 build variety and difficulty. | Add fire/cold/lightning/poison to some skills & enemies; enemies carry resists/immunities; gear grants res. Cold = slow, poison = DoT, etc. |
-| 3 | **Sockets + runes + runewords** ⬜ | The signature D2 hook, promised in the PRD. The best "loot excitement" per unit effort. | Items roll sockets; runes drop; ordered rune recipes = runewords granting skills/mods. |
-| 4 | **Set & unique items** ⬜ | Chase loot that *defines* a build; the dopamine of a gold/green drop. | A small table of named uniques with build-warping mods; a 2–3 piece set. |
-| 5 | **Attributes (Str/Dex/Vit/Energy)** ❓ | D2's per-level stat choice; gear requirements; ties Dex→accuracy/block, Vit→life. | Stat points per level; or fold into a lighter roguelite model. Decision: full attributes vs streamlined. |
-| 6 | **More monster affixes / curses** ⬜ | D2's ~20 boss mods (Extra Fast, Cursed, Aura Enchanted, Mana Burn, Cold/Fire Enchanted…) are what create "oh no" packs. | Add a handful with the most tactical texture; some debuff the player. |
-| 7 | **Skill synergies** ⬜ | Hard points in one skill boosting another = specialization depth, the reason to go deep not wide. | Each skill lists synergy skills; hard points add %. |
-| 8 | **Economy: gold / vendors / gambling / potions** ⬜ | The town rhythm and the "spend to gear/heal" loop; potions are core ARPG safety. | Gold drops; a between-node vendor/gamble; healing/mana potions with a belt limit. |
-| 9 | **Depth beyond one act** ❓ | One act, one difficulty caps the run. Roguelite answer may be escalating descent rather than NM/Hell. | Longer/looping descent with rising area level, or Normal→Nightmare tiers. |
-| 10 | **Mercenary / hireling** ⬜ | An ally that adds a tactical body & an aura; classic D2 flavor. | A hireable unit that acts each turn; auras buff you. |
+### Wave 1 — Make it FEEL like an ARPG *(highest ROI, no engine risk)* `[loop]`
+The research's loudest finding: the biggest gap isn't a system, it's **feel**.
+Turn-based *helps* — time isn't scarce, so you can afford elaborate per-hit
+feedback.
+- **Juice + audio** on every hit / death / loot / level-up: hit-flash, screen
+  shake, animated (not snapping) damage numbers, death particle burst, a
+  **loot-drop "jackpot" moment**, a **pack-wipe cascade**. ⬜
+- **Telegraphed enemy intent** is already partly there (attack/support/wait) —
+  push it: every enemy shows its next action clearly, so a turn is a *puzzle*.
+
+### Wave 2 — Accuracy & the defensive layers you asked for `[math][char]`
+D2 stacks independent gates (hit? block? dodge? mitigate?). Adding them is what
+makes builds matter — and you explicitly asked for accuracy and Amazon evade.
+- **To-hit: Attack Rating vs Defense.** A hit-chance roll gates each attack;
+  **spells/guaranteed abilities bypass it** (the caster-vs-melee asymmetry).
+  Neglect AR and you visibly miss — "struggle with accuracy until you fix it."
+  *Turn-based tuning:* a miss wastes a whole turn (harsh), so use a **~35%
+  floor** (not D2's 5%) and/or a "graze" (min-of-range) on near-misses; show the
+  % on the attack button. ⬜
+- **Amazon Dodge/Evade.** A telegraphed **avoid %**, and — your idea, which is
+  actually *better than D2* (real D2 avoidance ignores the attacker) — **scaled
+  against the attacker's accuracy**: a sloppy foe gets juked, a precise one
+  punches through. Cap ~45%, float "EVADE". ⬜
+- **Block as a % chance to negate** (D2's real model), alongside the current
+  flat-absorb Guard — room for both (chance-block shields vs absorb-barriers). ⬜
+- **Round out per-class defense:** Barb soak (have Guard/War Cry), Necro **curse**
+  (Amplify — weaken enemies / your minions already tank). ⬜
+
+### Wave 3 — Damage types + resistances *(the build-variety spine)* `[math][mob]`
+Everything is physical today, so there's no "this pack resists fire, adapt."
+This is the prerequisite for resistances, immunities, elemental affixes, and
+elemental runes/uniques later.
+- **Damage types:** Physical + Fire/Cold/Lightning/Poison + Magic; tag skills &
+  enemies. Physical routes through armor/block; elements through resists. ⬜
+- **Resistances:** linear % mitigation, 75% cap; **depth-scaled resist penalty**
+  (your Nightmare/Hell analog in one dial). **Immunities** sparingly on back-half
+  elites, always with an in-run break/bypass. Status flavor: cold=slow,
+  poison=DoT, fire=on-death burn. ⬜
+
+### Wave 4 — Elite/monster texture *(cheap, and it plays off your identity)* `[mob]`
+The cheapest tactical texture in the game, and several affixes specifically
+interact with your engagement-cap identity.
+- **Affix-count by depth** = the whole difficulty curve (steps 1–3: 1 affix;
+  4–6: 2; 7–9: 3). **This replaces Normal/Nightmare/Hell** — a single deepening
+  descent, not three playthroughs. ⬜
+- **Aura Enchanted** (Fanaticism = pack hits harder; Conviction = your resists
+  down; Holy Freeze = you're slowed) → *kill the carrier first*. ⬜
+- **On-death AoE** (Cold nova / Fire burst) → killing order & where you stand
+  matter. ⬜
+- **Screen-breakers** — **Teleport** and **Extra Fast** ignore/beat the
+  engagement cap and hit your back line. Your signature "the cap won't save you
+  this time." ⬜
+- **Champion pack** tier (buffed identical pack, no leader/affix); **Cursed/
+  Amplify**; **Multishot** archer; Fallen **flee** behavior. ⬜
+
+### Wave 5 — Loot depth *(the chase)* `[loot]`
+- **Depth-gated affix tiers (ilvl):** deeper drops roll higher tiers — deeper
+  runs *feel* better. Reuses the affix roller. ⬜
+- **Unique items** that **grant abilities / auras / +skills** (in an ability
+  game, a unique that adds a *way to play* beats +damage). ⬜
+- **Sockets + runes + runewords** — the top loot hook: deterministic goals amid
+  RNG, and **runewords can grant a skill** (a perfect fit for weapon-type-gates-
+  skills — a runeword can unlock a skill your weapon type wouldn't allow). ⬜
+- **Set items** (collection/synergy meta-goal). ⬜
+
+### Wave 6 — Progression & build-per-run depth `[char][loop]`
+- **Skill synergies:** hard points in one skill boost a related one (compressed
+  magnitudes so a 3–5 point cluster already *feels* specialized). Turns "spent
+  points" into "a build." ⬜
+- **Drafted build-per-run powers** offered at camps/elites (Hades/Death-Must-Die
+  style) so runs differ by *build*, not just map RNG. ⬜
+- **Node choice = risk/reward:** deeper branch = higher monster level = better
+  loot + more affixes. Makes the blind map a *decision*. ⬜
+- **Lean attributes** — NOT full D2 (Str/Dex/Vit/Energy is shallower than its
+  reputation). A **3-stat** model: Power (damage + weapon reqs), Finesse
+  (accuracy/block/dodge), Vigor (life). ❓ ⬜
+- **Potions / between-fight resource** (active mid-fight management). ⬜
+- **Between-run meta-hub** (Hades' House, *not* an in-run town) + light
+  meta-progression that banks every run. ⬜
+- **Mercenary** — build it as an *extension of the summon actor*: a persistent,
+  gear-wearing ally that projects one party aura. ⬜
 
 ---
 
-## 4. Open decisions to talk through
-- **Attributes:** full Str/Dex/Vit/Energy with level-up allocation, or a leaner
-  roguelite stat model? (Affects accuracy, block, life, gear reqs.)
-- **Damage types:** how far into elemental/resist land do we go for a turn-based
-  roguelite — full 4 elements + immunities, or a lighter 2–3?
-- **Run shape:** deepen one escalating descent, or add Nightmare/Hell tiers?
-- **Economy weight:** how much town/vendor/gold, vs. keeping the run lean and
-  combat-forward?
+## 4. Design calls the research settled (worth knowing)
+
+- **No Normal/Nightmare/Hell.** A single deepening descent where depth rolls
+  more affixes, raises monster level, and improves loot reproduces D2's
+  escalation in one dial. Reserve difficulty *tiers* for a post-launch
+  ascension/prestige mode. `[mob]`
+- **Your dodge idea beats D2's.** Real D2 avoidance is a flat roll that ignores
+  the attacker; scaling evade against attacker accuracy (as you wanted) is a
+  genuine improvement — do it your way. `[math]`
+- **Don't copy D2 attributes literally.** In practice 90% of D2 builds do "min
+  Str for gear, all Vit, ignore Energy." Port the *tension* (every point off
+  life costs survival) with a lean 3-stat model, not four stats. `[char]`
+- **Gold/vendors/town are the LOWEST-priority asks.** A persistent town clashes
+  with bounded runs; D2's economy is a release valve. The roguelite-correct
+  version is a between-run meta-hub. Feel > intent/choice > build-draft > loot
+  depth > economy. `[loop]`
+- **Runewords should grant skills**, not just stats — deterministic build
+  enablement that rides your existing weapon-type-gates-skills system. `[loot]`
+- **Miss = a wasted turn is harsher than in real-time D2** — soften with a ~35%
+  hit floor and/or graze, so neglected accuracy is *frustrating-fixable*, not a
+  dead run. `[math]`
+- **Two power axes, both firing:** keep level (guaranteed drip) AND gear (spiky,
+  luck-driven). Don't collapse them. `[loop]`
 
 ---
 
-*Next: fold in the five research streams (itemization, character systems, combat
-math, monsters/difficulty, core-loop/feel) with citations, then sequence the
-backlog with you.*
+## 5. Open decisions (for us to talk through)
+- **Attributes:** lean 3-stat model, or none (let level/gear carry it)? `[char]`
+- **Damage types:** full 4 elements + poison + magic, or a lighter 2–3 to start? `[math]`
+- **Where to start:** I recommend **Wave 1 (feel) + the accuracy/dodge half of
+  Wave 2** — they're your explicit asks, highest ROI, and low risk. Then Wave 3
+  (damage types) unlocks the biggest downstream depth.
+- **Build-draft vs. pure skill tree:** do we want Hades-style drafted powers on
+  top of the tree, or keep progression tree-only?
+
+---
+
+## 6. Research citations
+
+**Itemization** — [Item Rarity (Wowhead)](https://www.wowhead.com/diablo-2/guide/item-rarity-explained) ·
+[Item quality (DiabloWiki)](https://diablo2.diablowiki.net/Item_quality) ·
+[Item Affixes (PD2)](https://wiki.projectdiablo2.com/wiki/Item_Affixes) ·
+[Item Level (Fandom)](https://diablo.fandom.com/wiki/Item_Level) ·
+[Runewords (Arreat Summit)](https://classic.battle.net/diablo2exp/items/runewords.shtml) ·
+[Runeword Tier List (Maxroll)](https://maxroll.gg/d2/tierlists/runeword-tier-list) ·
+[Unique Items (Maxroll)](https://maxroll.gg/d2/items/unique-items) ·
+[Set Items (Maxroll)](https://maxroll.gg/d2/items/sets) ·
+[Magic Find (Maxroll)](https://maxroll.gg/d2/resources/gold-magic-find)
+
+**Character systems** — [Attributes (Fandom)](https://diablo.fandom.com/wiki/Character_Attributes) ·
+[Synergies (DiabloWiki)](https://diablo2.diablowiki.net/Synergies) ·
+[Skill Trees (Fandom)](https://diablo.fandom.com/wiki/Skill_Trees) ·
+[Mercenary Mechanics (Maxroll)](https://maxroll.gg/d2/resources/mercenary) ·
+[Breakpoints (DiabloWiki)](https://diablo2.diablowiki.net/Breakpoints)
+
+**Combat math** — [Hit Chance Mechanics (Maxroll)](https://maxroll.gg/d2/resources/hit-chance-mechanics) ·
+[Block Mechanics (Maxroll)](https://maxroll.gg/d2/resources/block-mechanics) ·
+[Evade (Fandom)](https://diablo.fandom.com/wiki/Evade) ·
+[Monster Immunities (Maxroll)](https://maxroll.gg/d2/resources/immunities) ·
+[Resistances (Arreat Summit)](https://classic.battle.net/diablo2exp/basics/resistances.shtml) ·
+[Life & Mana Mechanics (Maxroll)](https://maxroll.gg/d2/resources/life-mana-mechanics)
+
+**Monsters & difficulty** — [Monster modifier (DiabloWiki)](https://diablo2.diablowiki.net/Monster_modifier) ·
+[Monster Bonuses (Arreat Summit)](https://classic.battle.net/diablo2exp/monsters/bonus.shtml) ·
+[Aura Enchanted (Fandom)](https://diablo.fandom.com/wiki/Aura_Enchanted) ·
+[Elite Monsters (Maxroll)](https://maxroll.gg/d2/resources/elite-monster) ·
+[Difficulty (DiabloWiki)](https://diablo2.diablowiki.net/Difficulty) ·
+[Item Generation / Treasure Class (Wowhead)](https://www.wowhead.com/diablo-2/guide/item-generation-treasure-class)
+
+**Core loop & feel** — [D2 Loot Interview (TheGamer)](https://www.thegamer.com/diablo-2-loot-interview/) ·
+[Experience Mechanics (Maxroll)](https://maxroll.gg/d2/resources/experience) ·
+[Potion Belt (Wowhead)](https://www.wowhead.com/diablo-2/guide/potion-belt-healing-mana-antidote-tips) ·
+[Roguelite Meta-Progression (Bugnet)](https://bugnet.io/blog/how-to-design-a-roguelite-meta-progression) ·
+[Slay the Spire (Wikipedia)](https://en.wikipedia.org/wiki/Slay_the_Spire) ·
+[Squeezing juice (GameAnalytics)](https://www.gameanalytics.com/blog/squeezing-more-juice-out-of-your-game-design)
