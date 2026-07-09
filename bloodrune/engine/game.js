@@ -12,7 +12,10 @@ import { skillEffect } from './combat.js';
 import { createArena } from './arena.js';
 import { rollItem } from './loot.js';
 
-const xpForLevel = (lvl) => 12 + lvl * 10; // brisk but not runaway — you land ~lvl 30 by Andariel, so the tree stays a CHOICE
+// Quadratic curve: fast to ~15 (core skills online), then each point is precious —
+// so the swarm's huge kill-count can't rocket you to level 60 and max the whole tree.
+// You land ~level 25 by Andariel; the tree stays a real CHOICE.
+const xpForLevel = (lvl) => 10 + 3 * lvl * lvl;
 
 // Stats scale with LEVEL (Life/Mana growth) + gear passive mods.
 export function deriveStats(cls, equipment, level, bonus = {}) {
@@ -128,7 +131,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   // Magic-find scales with the kill's tier (elite/unique/boss).
   const WEAP_BY_TYPE = { melee: 'great_axe', ranged: 'war_bow', focus: 'bone_staff' };
   function rollGroundItem(mf) {
-    if (rng.next() < 0.12) { const wt = (run.equipment.weapon && run.equipment.weapon.wtype) || 'melee';
+    if (rng.next() < 0.06) { const wt = (run.equipment.weapon && run.equipment.weapon.wtype) || 'melee';
       const w = { ...ITEMS[WEAP_BY_TYPE[wt] || rng.pick(WEAPON_DROPS)] }; return { ...w, id: w.id + '_' + Math.floor(rng.next() * 1e6) }; }
     return rollItem(rng, { magicFind: 4 + mf * 6 });
   }

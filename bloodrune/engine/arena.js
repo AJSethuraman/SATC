@@ -110,7 +110,9 @@ export function createArena({ hero, pack, rng, survival }) {
     if (!e.raised) { state.xpEarned += e.xp || 0; state.gems.push({ x: e.x, y: e.y, xp: e.xp || 0, life: 8, t: 0.15 }); }
     // Monsters drop random loot for the hero to grab off the ground (survival only).
     if (surv && surv.rollLoot && !e.raised) {
-      const chance = e.boss ? 1 : e.unique ? 1 : e.elite ? 0.5 : (0.06 + (e.drop || 0)); // trimmed from the spammy 0.10 — a drop should mean something, but early game still trickles
+      // Loot comes from NOTABLE kills (elites, super-uniques, gates/bosses) — trash barely
+      // drops. At ~7 kills/s a per-trash-kill drop just spams; this makes a drop mean something.
+      const chance = e.boss ? 1 : e.unique ? 1 : e.elite ? 0.25 : (0.008 + (e.drop || 0));
       if (rng.next() < chance) { const it = surv.rollLoot(e.boss ? 3 : e.unique ? 2 : e.elite ? 1 : 0);
         if (it) state.pickups.push({ x: e.x, y: e.y, r: 11, item: it }); }
     }
@@ -282,7 +284,7 @@ export function createArena({ hero, pack, rng, survival }) {
     const n = Math.min(14, 3 + Math.floor(min * 1.7)); // denser waves — standing still gets you surrounded
     for (let k = 0; k < n; k++) {
       const entry = { id: rng.pick(area.pool), hpMul: sc.hpMul, atkMul: sc.atkMul };
-      if (min >= 2 && rng.next() < 0.10) { entry.affixes = [rng.pick(Object.keys(ELITE_AFFIXES))]; entry.drop = 0.3; }
+      if (min >= 2 && rng.next() < 0.05) { entry.affixes = [rng.pick(Object.keys(ELITE_AFFIXES))]; entry.drop = 0.2; } // champions are rarer now — and they're where loot comes from
       spawnAtRing(entry);
     }
   }
