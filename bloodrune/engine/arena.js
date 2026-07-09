@@ -43,12 +43,38 @@ const RAD = { the_smith: 23 };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const len = (x, y) => Math.hypot(x, y) || 1;
 
-function buildRtMonster(entry, uid, rng) {
+// Elemental damage after resistance. Penetration (gear −enemy-resist) lowers the
+// effective resist, but a true IMMUNITY (100%) yields 0 — uncrackable by ordinary
+// penetration, so you must swap element. Returns 0 iff immune to that element.
+export function resistedDamage(dmg, resist, immune, element, penetration) {
+  if (!element || !resist) return dmg;
+  if (immune === element) return 0;
+  const effRes = Math.max(-0.5, Math.min(0.95, (resist[element] || 0) - (penetration || 0)));
+  return Math.max(1, Math.round(dmg * (1 - effRes)));
+}
+
+const ELEMENTS = ['fire', 'cold', 'lightning'];
+// Resistances make difficulty a BUILD problem, not an HP sponge. Normal = none;
+// Nightmare packs resist one element (~40%); Hell resist harder (~60%) and some
+// become IMMUNE (100%) to one element — you must swap element or use penetration.
+function resistFor(base, tier, rng) {
+  const res = { fire: base.resist && base.resist.fire || 0, cold: base.resist && base.resist.cold || 0, lightning: base.resist && base.resist.lightning || 0 };
+  let immune = base.immune || null;
+  if (tier === 'Nightmare' || tier === 'Hell') { const el = ELEMENTS[rng.int(3)]; const r = tier === 'Hell' ? 0.6 : 0.4;
+    res[el] = Math.max(res[el], r); for (const o of ELEMENTS) if (o !== el) res[o] = Math.max(res[o], tier === 'Hell' ? 0.25 : 0.1);
+    if (tier === 'Hell' && !immune && rng.next() < 0.15) { immune = el; } }
+  if (immune) res[immune] = 1;
+  return { res, immune };
+}
+function buildRtMonster(entry, uid, rng, tier) {
   const su = (typeof entry === 'object' && entry.sid) ? SUPERUNIQUES[entry.sid] : null;
   const id = su ? su.id : (typeof entry === 'string' ? entry : entry.id);
   const base = su || ENEMIES[id];
   const affixes = (!su && typeof entry === 'object' && entry.affixes) ? entry.affixes : [];
   const o = typeof entry === 'object' ? entry : {};
+  const rr = resistFor(base, tier || null, rng); const res = rr.res; let immune = rr.immune;
+  if (o.resist) for (const k in o.resist) res[k] = o.resist[k]; // thematic/test overrides
+  if (o.immune) { immune = o.immune; res[o.immune] = 1; }
   let hp = Math.round(base.hp * (o.hpMul || 1)), attack = Math.round(base.attack * (o.atkMul || 1));
   let extraAttack = !!base.extraAttack, leech = !!base.leech;
   for (const af of affixes) { const m = (ELITE_AFFIXES[af] && ELITE_AFFIXES[af].mods) || {};
@@ -65,6 +91,7 @@ function buildRtMonster(entry, uid, rng) {
     touchCd: (rd.touch || 0.9) / (extraAttack ? 2 : 1), touchT: 0.4,
     fireCd: rd.fire || 1.7, fireT: 1.0, range: rd.range || 250,
     supportCd: rd.support || 2.1, supportT: 1.4, flash: 0, raised: false, deadAt: -1, drop: (o.drop || 0), gate: false,
+    resist: res, immune,
     boss: !!base.boss || id === 'the_smith', elite: su ? true : (affixes.length > 0 || role === 'elite'), unique: !!su };
 }
 
@@ -78,7 +105,7 @@ export function createArena({ hero, pack, rng, survival }) {
       mana: hero.mana != null ? Math.min(hero.mana, hero.maxMana) : hero.maxMana, maxMana: hero.maxMana,
       manaRegen: hero.manaRegen != null ? hero.manaRegen : 4,
       accuracy: hero.accuracy, evade: hero.evade || 0, weapon: hero.weapon || null,
-      plusSkills: hero.plusSkills || 0, fcr: hero.fcr || 0, ias: hero.ias || 0, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
+      plusSkills: hero.plusSkills || 0, fcr: hero.fcr || 0, ias: hero.ias || 0, penetration: hero.penetration || 0, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
       shield: 0, shieldT: 0, invT: 0, dir: { x: 0, y: -1 }, cd: {}, disabled: new Set() },
     enemies: [], projectiles: [], minions: [], gems: [], fx: [], pickups: [], collected: [],
     time: 0, xpEarned: 0, over: false, result: null, nextUid: 0,
@@ -89,7 +116,7 @@ export function createArena({ hero, pack, rng, survival }) {
   const areas = (surv && surv.areas) || [];
 
   if (!surv) { // PACK mode: a fixed ring around the hero
-    state.enemies = pack.map((e) => buildRtMonster(e, state.nextUid++, rng));
+    state.enemies = pack.map((e) => buildRtMonster(e, state.nextUid++, rng, null));
     const N = state.enemies.length;
     state.enemies.forEach((e, i) => {
       const a = (i / N) * Math.PI * 2 + rng.next() * 0.4;
@@ -118,9 +145,16 @@ export function createArena({ hero, pack, rng, survival }) {
     }
   }
 
-  function hitEnemy(e, dmg, physical) {
+  function hitEnemy(e, dmg, physical, element) {
     if (physical) { if (rng.next() > clamp(0.75 + (state.hero.accuracy - (e.eva || 0)) * 0.04, 0.35, 0.95)) {
       state.tally.misses++; fx({ type: 'miss', x: e.x, y: e.y - e.r - 6, life: 0.5 }); return false; } state.tally.hits++; }
+    // Elemental resistance/immunity: penetration (gear −enemy-resist) lowers resist
+    // but can't crack a true immunity — you must swap element for those.
+    if (element && e.resist) {
+      const out = resistedDamage(dmg, e.resist, e.immune, element, state.hero.penetration || 0);
+      if (out === 0) { fx({ type: 'immune', x: e.x, y: e.y - e.r - 6, life: 0.6 }); return false; } // immune — swap element
+      dmg = out;
+    }
     e.hp = Math.max(0, e.hp - dmg); e.flash = 0.15; state.tally.dmgDealt += dmg;
     fx({ type: 'dmg', x: e.x, y: e.y - e.r - 4, val: dmg, life: 0.6, vy: -26 });
     if (e.hp === 0) kill(e); return true;
@@ -152,7 +186,7 @@ export function createArena({ hero, pack, rng, survival }) {
         const R = s.radius || 140; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= R + e.r);
         if (!pool.length) continue; if (s.cost > h.mana) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
         fx({ type: 'cast', x: h.x, y: h.y, r: R, life: 0.35, color: '#8a90c8' });
-        for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), false);
+        for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), false, s.element);
         continue; }
       if (s.type === 'skill') {
         if (h.shield > (eff.block || 0) * 0.5) continue;
@@ -172,12 +206,12 @@ export function createArena({ hero, pack, rng, survival }) {
         const R = MELEE_REACH + 48; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= R + e.r);
         if (!pool.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
         fx({ type: 'sweep', x: h.x, y: h.y, r: R, life: 0.3 });
-        for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), physical);
+        for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), physical, s.element);
         continue; }
       if (s.target === 'aoe' && ranged) { // ranged AoE volley at the nearest few (Strafe / Teeth)
         const targets = alive().sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y)).slice(0, s.maxTargets || 3);
         if (!targets.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
-        for (const t of targets) spawnBolt(h, t, roll(eff.min, eff.max), physical, 0, s.weapon === 'spell' ? '🦴' : '➶');
+        for (const t of targets) spawnBolt(h, t, roll(eff.min, eff.max), physical, 0, s.weapon === 'spell' ? '🦴' : '➶', s.element);
         continue; }
       const tgt = nearest(h.x, h.y); if (!tgt) continue;
       if (!ranged && tgt.d > MELEE_REACH + tgt.e.r + h.r + 6) continue;
@@ -186,20 +220,20 @@ export function createArena({ hero, pack, rng, survival }) {
         const dx = (tgt.e.x - h.x) / tgt.d, dy = (tgt.e.y - h.y) / tgt.d; const step = Math.min(tgt.d - tgt.e.r, 120);
         h.x = clamp(h.x + dx * step, h.r, world.w - h.r); h.y = clamp(h.y + dy * step, h.r, world.h - h.r);
         fx({ type: 'dash', x: h.x, y: h.y, life: 0.25 });
-        if (ranged) spawnBolt(h, tgt.e, roll(eff.min, eff.max), physical, 3, '➶'); else hitEnemy(tgt.e, roll(eff.min, eff.max), physical);
+        if (ranged) spawnBolt(h, tgt.e, roll(eff.min, eff.max), physical, 3, '➶', s.element); else hitEnemy(tgt.e, roll(eff.min, eff.max), physical, s.element);
         h.cd[id] = cdMul * CD.breakthrough; continue; }
-      if (s.scale === 'hits') { for (let hh = 0; hh < eff.hits; hh++) { const t = nearest(h.x, h.y); if (!t || t.d > MELEE_REACH + t.e.r + h.r + 6) break; hitEnemy(t.e, roll(eff.min, eff.max), physical); }
+      if (s.scale === 'hits') { for (let hh = 0; hh < eff.hits; hh++) { const t = nearest(h.x, h.y); if (!t || t.d > MELEE_REACH + t.e.r + h.r + 6) break; hitEnemy(t.e, roll(eff.min, eff.max), physical, s.element); }
         h.cd[id] = cdMul * CD.hits; fx({ type: 'sweep', x: h.x, y: h.y, r: MELEE_REACH, life: 0.2 }); continue; }
-      if (ranged) spawnBolt(h, tgt.e, roll(eff.min, eff.max), physical, 0, s.weapon === 'spell' ? '🦴' : '➶');
-      else { hitEnemy(tgt.e, roll(eff.min, eff.max), physical); fx({ type: 'sweep', x: h.x, y: h.y, r: MELEE_REACH, life: 0.18 }); }
+      if (ranged) spawnBolt(h, tgt.e, roll(eff.min, eff.max), physical, 0, s.weapon === 'spell' ? '🦴' : '➶', s.element);
+      else { hitEnemy(tgt.e, roll(eff.min, eff.max), physical, s.element); fx({ type: 'sweep', x: h.x, y: h.y, r: MELEE_REACH, life: 0.18 }); }
       h.cd[id] = cdMul * (id === 'attack' ? CD.attack : CD.damage);
     }
   }
 
-  function spawnBolt(from, target, dmg, physical, pierce, glyph) {
+  function spawnBolt(from, target, dmg, physical, pierce, glyph, element) {
     const d = Math.hypot(target.x - from.x, target.y - from.y) || 1;
     state.projectiles.push({ x: from.x, y: from.y, vx: (target.x - from.x) / d * PROJ_SPEED, vy: (target.y - from.y) / d * PROJ_SPEED,
-      r: 6, dmg, physical, pierce: pierce || 0, hostile: false, home: true, life: 2.2, glyph: glyph || '•', hitUids: [] });
+      r: 6, dmg, physical, element, pierce: pierce || 0, hostile: false, home: true, life: 2.2, glyph: glyph || '•', hitUids: [] });
   }
 
   function homeBolt(p, dt) { // VS-style auto-aim so ranged reliably connects
@@ -217,7 +251,7 @@ export function createArena({ hero, pack, rng, survival }) {
       if (p.x < -20 || p.x > world.w + 20 || p.y < -20 || p.y > world.h + 20) p.life = 0;
       if (p.hostile) { const h = state.hero; if (Math.hypot(p.x - h.x, p.y - h.y) <= p.r + h.r) { hitHero(p.from, p.dmg); p.life = 0; } continue; }
       for (const e of state.enemies) { if (e.hp <= 0 || p.hitUids.includes(e.uid)) continue;
-        if (Math.hypot(p.x - e.x, p.y - e.y) <= p.r + e.r) { hitEnemy(e, p.dmg, p.physical); p.hitUids.push(e.uid);
+        if (Math.hypot(p.x - e.x, p.y - e.y) <= p.r + e.r) { hitEnemy(e, p.dmg, p.physical, p.element); p.hitUids.push(e.uid);
           if (p.pierce > 0) p.pierce -= 1; else { p.life = 0; break; } } }
     }
     state.projectiles = state.projectiles.filter((p) => p.life > 0);
@@ -274,7 +308,7 @@ export function createArena({ hero, pack, rng, survival }) {
     const as = { Nightmare: 0.20, Hell: 0.30 }[t] || 0.13;
     return { hpMul: 1 + min * hs, atkMul: 1 + min * as };
   }
-  function spawnAtRing(entry) { const e = buildRtMonster(entry, state.nextUid++, rng);
+  function spawnAtRing(entry) { const e = buildRtMonster(entry, state.nextUid++, rng, surv && surv.tier);
     const a = rng.next() * Math.PI * 2, rad = 520 + rng.next() * 120;
     e.x = clamp(state.hero.x + Math.cos(a) * rad, 24, world.w - 24);
     e.y = clamp(state.hero.y + Math.sin(a) * rad, 24, world.h - 24); state.enemies.push(e); return e; }
@@ -296,6 +330,7 @@ export function createArena({ hero, pack, rng, survival }) {
     const hpMul = isBoss ? (1 + min * 0.09) * bossHP : sc.hpMul, atkMul = isBoss ? (1 + min * 0.05) * bossATK : sc.atkMul;
     const entry = SUPERUNIQUES[area.gate] ? { sid: area.gate, hpMul, atkMul } : { id: area.gate, hpMul, atkMul };
     const gate = spawnAtRing(entry); gate.gate = true; gate.boss = isBoss; gate.spawnT = state.time; gate.baseSpd = gate.spd; gate.baseAtk = gate.attack;
+    gate.resist = { fire: 0, cold: 0, lightning: 0 }; gate.immune = null; // a gate is never immune — you can always kill your way forward
     state.gate = gate; state.gateSpawned = true;
     const su = SUPERUNIQUES[area.gate]; const mins = su ? su.minions : [area.pool[0], area.pool[0]];
     for (const m of mins) spawnAtRing({ id: m, hpMul: sc.hpMul, atkMul: sc.atkMul });
@@ -397,7 +432,7 @@ export function createArena({ hero, pack, rng, survival }) {
     if (p.accuracy != null) h.accuracy = p.accuracy;
     if (p.evade != null) h.evade = p.evade;
     if (p.manaRegen != null) h.manaRegen = p.manaRegen;
-    if (p.fcr != null) h.fcr = p.fcr; if (p.ias != null) h.ias = p.ias;
+    if (p.fcr != null) h.fcr = p.fcr; if (p.ias != null) h.ias = p.ias; if (p.penetration != null) h.penetration = p.penetration;
     if (p.plusSkills != null) { h.plusSkills = p.plusSkills; ctx.plusSkills = p.plusSkills; }
     if (p.hard) { h.hard = { ...p.hard }; ctx.hard = h.hard; }
     if (p.weapon !== undefined) { h.weapon = p.weapon; ctx.weapon = p.weapon; }
@@ -418,10 +453,10 @@ export function createArena({ hero, pack, rng, survival }) {
     return {
       hero: { name: h.name, glyph: h.glyph, x: h.x, y: h.y, r: h.r, life: h.life, maxLife: h.maxLife,
         mana: Math.floor(h.mana), maxMana: h.maxMana, manaRegen: h.manaRegen, shield: Math.round(h.shield),
-        accuracy: h.accuracy, evade: h.evade, fcr: h.fcr, ias: h.ias, invuln: h.invT > 0, dir: { ...h.dir }, weapon: h.weapon,
+        accuracy: h.accuracy, evade: h.evade, fcr: h.fcr, ias: h.ias, penetration: h.penetration, invuln: h.invT > 0, dir: { ...h.dir }, weapon: h.weapon,
         cd: { ...h.cd }, abilities: h.abilities.map((id) => ({ id, ...SKILLS[id], eff: skillEffect(ctx, id), cd: h.cd[id] || 0, off: h.disabled.has(id), ready: !h.disabled.has(id) && (h.cd[id] || 0) <= 0 && SKILLS[id].cost <= h.mana })) },
       enemies: state.enemies.filter((e) => e.hp > 0).map((e) => ({ uid: e.uid, id: e.id, name: e.name, glyph: e.glyph, x: e.x, y: e.y, r: e.r,
-        hp: e.hp, maxHp: e.maxHp, kind: e.kind, role: e.role, elite: e.elite, unique: e.unique, boss: e.boss, gate: e.gate, flash: e.flash, raised: e.raised })),
+        hp: e.hp, maxHp: e.maxHp, kind: e.kind, role: e.role, elite: e.elite, unique: e.unique, boss: e.boss, gate: e.gate, flash: e.flash, raised: e.raised, resist: e.resist, immune: e.immune })),
       projectiles: state.projectiles.map((p) => ({ x: p.x, y: p.y, r: p.r, hostile: p.hostile, glyph: p.glyph })),
       minions: state.minions.map((m) => ({ x: m.x, y: m.y, r: m.r, glyph: m.glyph, hp: m.hp, maxHp: m.maxHp })),
       gems: state.gems.map((g) => ({ x: g.x, y: g.y })),

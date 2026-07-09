@@ -251,6 +251,7 @@ function drawFx(c, f) {
   else if (f.type === 'dmg') { c.fillStyle = `rgba(255,225,180,${Math.min(1, t * 1.5)})`; c.font = 'bold 14px sans-serif'; c.textAlign = 'center'; c.fillText(f.val, f.x, f.y); }
   else if (f.type === 'miss') { c.fillStyle = `rgba(150,150,160,${t})`; c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('miss', f.x, f.y); }
   else if (f.type === 'evade') { c.fillStyle = `rgba(150,200,255,${t})`; c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('dodge', f.x, f.y); }
+  else if (f.type === 'immune') { c.fillStyle = `rgba(180,180,190,${t})`; c.font = 'bold 11px sans-serif'; c.textAlign = 'center'; c.fillText('IMMUNE', f.x, f.y); }
   else if (f.type === 'hurt') { c.strokeStyle = `rgba(220,40,40,${0.5 * t})`; c.lineWidth = 3; c.beginPath(); c.arc(f.x, f.y, 20 * (1.4 - t), 0, 7); c.stroke(); }
 }
 function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
