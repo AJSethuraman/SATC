@@ -7,7 +7,7 @@
 // class profile). Uniques are fixed items pulled from a minTier-gated table.
 // Pure + deterministic given the injected rng.
 
-import { BASES, RARITY, AFFIXES, TIER_MULT, ITEM_TIERS, UNIQUES, CLASS_PROFILE, SLOTS } from './content.js';
+import { BASES, RARITY, AFFIXES, TIER_MULT, ITEM_TIERS, UNIQUES, CLASS_PROFILE, SLOTS, RUNES, RUNEWORDS, RUNE_BY_ID } from './content.js';
 
 // armor/jewelry slots only (weapons are separate skill-granters; ring2 shares 'ring').
 const REAL_SLOTS = SLOTS.filter((s) => s !== 'ring2' && s !== 'weapon').map((s) => (s === 'ring1' ? 'ring' : s));
@@ -161,8 +161,43 @@ export function rollItem(rng, { tier = 'Normal', magicFind = 0, slot = null, all
     itemTier: useTier, color: rarity.color, passive: mods,
     affixes: affixNames.map((a) => a.name), tags: [...tagSet],
     req: reqFor(baseDef, useTier, rarity.rarity),
+    sockets: rollSockets(rng, useSlot, useTier), socketRunes: [], socketMods: {},
     text: affixNames.length ? (modText(mods) || '(plain)') : '(plain)',
   };
+}
+
+// Socketable bases (armor/jewelry loot.js produces): how many sockets they CAN
+// hold. The drop tier caps how many actually roll — deeper drops carry more, and a
+// 4-socket offhand (for Spirit) only shows up at Hell.
+const SOCKETABLE = { body: 3, helm: 2, offhand: 4 };
+function rollSockets(rng, slot, tier) {
+  const cap = SOCKETABLE[slot]; if (!cap) return 0;
+  if (rng.next() >= 0.5) return 0; // ~half of socketable bases roll clean
+  const max = Math.min(cap, 2 + (TIER_INDEX[tier] || 0));
+  return 1 + Math.floor(rng.next() * max);
+}
+
+// Resolve an item's socket contribution — PURE. If every socket is filled with a
+// runeword's exact rune SEQUENCE (on a base in its slot list), it returns that
+// runeword's fixed mods; otherwise the socketed runes each add their small mod.
+export function resolveSockets(slot, sockets, runeIds) {
+  const runes = runeIds || [];
+  const rw = RUNEWORDS.find((w) => w.slots.includes(slot) && w.runes.length === sockets
+    && runes.length === sockets && w.runes.every((r, i) => r === runes[i]));
+  if (rw) return { runeword: rw.name, mods: { ...rw.mods } };
+  const mods = {};
+  for (const rid of runes) { const r = RUNE_BY_ID[rid]; if (r) for (const [k, v] of Object.entries(r.mod)) mods[k] = (mods[k] || 0) + v; }
+  return { runeword: null, mods };
+}
+
+// Roll a RUNE drop, tier-gated (high runes only appear deeper). Returns a rune
+// "item" that lives in the bag/stash like loot and is consumed by socketing.
+export function rollRune(rng, tier = 'Normal') {
+  const ti = TIER_INDEX[tier] || 0;
+  const pool = RUNES.filter((r) => ti >= (TIER_INDEX[r.minTier] || 0));
+  const r = pool[Math.floor(rng.next() * pool.length)] || RUNES[0];
+  return { id: `rune_${r.id}_${counter++}`, isRune: true, runeId: r.id, name: `${r.name} Rune`, slot: 'rune',
+    rarity: 'rune', color: '#d98b3a', itemTier: tier, mod: { ...r.mod }, text: `${r.name} — socket it (${modText(r.mod)}).` };
 }
 
 // ---- build-fit scoring -----------------------------------------------------

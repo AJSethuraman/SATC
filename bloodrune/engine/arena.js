@@ -98,7 +98,7 @@ function buildRtMonster(entry, uid, rng, tier) {
 export function createArena({ hero, pack, rng, survival }) {
   const surv = survival || null;
   const world = surv ? { w: WORLD_W, h: WORLD_H } : { w: ARENA_W, h: ARENA_H };
-  const ctx = { hard: hero.hard || {}, plusSkills: hero.plusSkills || 0, weapon: hero.weapon || null };
+  const ctx = { hard: hero.hard || {}, plusSkills: hero.plusSkills || 0, plusElem: hero.plusElem || {}, weapon: hero.weapon || null };
   const state = {
     hero: { name: hero.name, glyph: hero.glyph, x: world.w / 2, y: world.h / 2, r: HERO_R,
       life: hero.life != null ? Math.min(hero.life, hero.maxLife) : hero.maxLife, maxLife: hero.maxLife,
@@ -434,6 +434,7 @@ export function createArena({ hero, pack, rng, survival }) {
     if (p.manaRegen != null) h.manaRegen = p.manaRegen;
     if (p.fcr != null) h.fcr = p.fcr; if (p.ias != null) h.ias = p.ias; if (p.penetration != null) h.penetration = p.penetration;
     if (p.plusSkills != null) { h.plusSkills = p.plusSkills; ctx.plusSkills = p.plusSkills; }
+    if (p.plusElem != null) { h.plusElem = p.plusElem; ctx.plusElem = p.plusElem; }
     if (p.hard) { h.hard = { ...p.hard }; ctx.hard = h.hard; }
     if (p.weapon !== undefined) { h.weapon = p.weapon; ctx.weapon = p.weapon; }
     if (p.abilities) h.abilities = [...p.abilities];

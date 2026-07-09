@@ -14,7 +14,15 @@ export const ENGAGE_CAP = 5;
 // Summons body-block only the single heaviest blow per turn — a wall, not immunity.
 export const SUMMON_BLOCK_CAP = 1;
 
-export function skillLevel(hero, id) { return 1 + ((hero.hard && hero.hard[id]) || 0) + (hero.plusSkills || 0); }
+// A skill's LEVEL = 1 + hard points + global +Skills + per-ELEMENT +Skills (from
+// enabler uniques / runewords, e.g. "+2 to Fire Skills"). Level raises BASE damage
+// only — never the synergy bracket (that's hard points alone). Per-element +Skills
+// is how an enabler unique makes a single-element build spike.
+export function skillLevel(hero, id) {
+  const s = SKILLS[id]; const elem = s && s.element;
+  const elemBonus = (elem && hero.plusElem && hero.plusElem[elem]) || 0;
+  return 1 + ((hero.hard && hero.hard[id]) || 0) + (hero.plusSkills || 0) + elemBonus;
+}
 
 // A physical skill's base damage IS the equipped weapon's damage (× the skill's
 // wpn factor); the wrong weapon type — a bow for Cleave — leaves you flailing.

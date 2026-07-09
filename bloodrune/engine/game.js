@@ -6,11 +6,11 @@
 // to clear the tier. Permadeath ends the run. The moment-to-moment sim is in
 // engine/arena.js (survival mode); this file owns the meta/progression.
 
-import { CLASSES, ITEMS, SLOTS, WEAPON_DROPS, SKILLS, ACT1 } from './content.js';
+import { CLASSES, ITEMS, SLOTS, WEAPON_DROPS, SKILLS, ACT1, RUNE_BY_ID } from './content.js';
 import { makeRng } from './rng.js';
 import { skillEffect } from './combat.js';
 import { createArena } from './arena.js';
-import { rollItem, itemScore } from './loot.js';
+import { rollItem, itemScore, rollRune, resolveSockets } from './loot.js';
 
 // Quadratic curve: fast to ~15 (core skills online), then each point is precious —
 // so the swarm's huge kill-count can't rocket you to level 60 and max the whole tree.
@@ -29,10 +29,10 @@ export const VIT_LIFE = 4, ENERGY_MANA = 2;
 // so callers that don't track a run still get sane numbers).
 export function deriveStats(cls, equipment, level, attr = null, bonus = {}) {
   const a = attr || cls.attr || { str: 0, dex: 0, vit: 0, energy: 0 };
-  // sum every gear passive (and the caller's bonus) into one mod bag first
+  // sum every gear passive + socket/runeword mods (and the caller's bonus) into one bag
   const gear = {};
   const add = (m) => { for (const [k, v] of Object.entries(m)) gear[k] = (gear[k] || 0) + v; };
-  for (const s of SLOTS) { const it = equipment[s]; if (it && it.passive) add(it.passive); }
+  for (const s of SLOTS) { const it = equipment[s]; if (it) { if (it.passive) add(it.passive); if (it.socketMods) add(it.socketMods); } }
   add(bonus);
   // total attributes = invested + whatever gear grants (so +Vit/+Energy gear counts)
   const str = (a.str || 0) + (gear.str || 0), dex = (a.dex || 0) + (gear.dex || 0);
@@ -45,6 +45,7 @@ export function deriveStats(cls, equipment, level, attr = null, bonus = {}) {
     accuracy: (cls.acc || 6) + (level - 1) + Math.floor(dex / 6) + (gear.accuracy || 0),
     evade: (cls.eva || 0) + (gear.evade || 0), actions: cls.actions || 3,
     plusSkills: gear.plusSkills || 0, fcr: gear.fcr || 0, ias: gear.ias || 0, penetration: gear.penetration || 0,
+    plusElem: { fire: gear.plusFire || 0, cold: gear.plusCold || 0, lightning: gear.plusLight || 0 }, // per-element +Skills
     str, dex, vit, energy,
   };
 }
@@ -63,7 +64,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   const cls = CLASSES[opts.classId || 'barbarian'];
   const run = {
     seed, difficulty: opts.difficulty || 'Normal', className: cls.name, glyph: cls.glyph,
-    equipment: emptyEquipment(), bag: [],
+    equipment: emptyEquipment(), bag: (opts.bag || []).map((it) => ({ ...it })),
     skillHard: {}, skillPoints: 0, level: 1, xp: 0,
     // Attributes reset every run: start at the class base, earn ~5 to spend per level.
     attr: { ...(cls.attr || { str: 0, dex: 0, vit: 0, energy: 0 }) }, attrPoints: 0,
@@ -89,7 +90,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function weaponNow() { const w = run.equipment.weapon; return w ? { dmg: w.dmg, wtype: w.wtype } : null; }
   function heroForFight() { const s = statsNow(); return { name: cls.name, glyph: cls.glyph, maxLife: s.maxLife, life: run.life,
     maxMana: s.maxMana, mana: Math.min(run.mana, s.maxMana), manaRegen: s.manaRegen, startBlock: s.startBlock, plusSkills: s.plusSkills,
-    accuracy: s.accuracy, evade: s.evade, actions: s.actions, fcr: s.fcr, ias: s.ias, penetration: s.penetration, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
+    accuracy: s.accuracy, evade: s.evade, actions: s.actions, fcr: s.fcr, ias: s.ias, penetration: s.penetration, plusElem: s.plusElem, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
 
   // ---- gear ----
   function slotFor(it) { if (it.slot === 'ring') return run.equipment.ring1 ? (run.equipment.ring2 ? 'ring1' : 'ring2') : 'ring1'; return it.slot; }
@@ -225,7 +226,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       run.stash.splice(worst, 1);
     }
   }
-  const stashScore = (it) => it.grants ? 50 : itemScore(it, cls.id) + ({ unique: 40, rare: 12, magic: 4 }[it.rarity] || 0);
+  const stashScore = (it) => it.isRune ? 15 + ((RUNE_BY_ID[it.runeId] && RUNE_BY_ID[it.runeId].num) || 0) : (it.grants ? 50 : itemScore(it, cls.id) + ({ unique: 40, rare: 12, magic: 4 }[it.rarity] || 0));
 
   // Draw a COPY of a stash item onto the character (town only). The stash keeps the
   // original — it's your permanent gear library — so equipping never risks it.
@@ -261,11 +262,43 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     run.respecUsedThisAct = true; clampLife(); pushHeroStats(); return { ok: true };
   }
 
+  // ---- sockets, runes & runewords ----------------------------------------------
+  // Socket a rune (from the bag) into a socketable item you own (bag or worn). Fill
+  // EVERY socket with a runeword's exact rune SEQUENCE and it resolves to that
+  // runeword's fixed mods; otherwise each rune contributes its own small mod. Town
+  // only — you re-forge your gear at the smith, never mid-field.
+  function findOwned(itemId) {
+    for (const s of SLOTS) if (run.equipment[s] && run.equipment[s].id === itemId) return { it: run.equipment[s], where: 'equip', slot: s };
+    const bi = run.bag.findIndex((x) => x.id === itemId); if (bi >= 0) return { it: run.bag[bi], where: 'bag', idx: bi };
+    return null;
+  }
+  function socketRune(itemId, runeItemId) {
+    if (run.phase === 'arena') return { ok: false, reason: 'not in the field' };
+    const owned = findOwned(itemId); if (!owned) return { ok: false, reason: 'no such item' };
+    const it = owned.it; if (!it.sockets) return { ok: false, reason: 'no sockets' };
+    it.socketRunes = it.socketRunes || [];
+    if (it.socketRunes.length >= it.sockets) return { ok: false, reason: 'sockets full' };
+    const ri = run.bag.findIndex((x) => x.id === runeItemId && x.isRune); if (ri < 0) return { ok: false, reason: 'no such rune' };
+    const [rune] = run.bag.splice(ri, 1);
+    it.socketRunes.push(rune.runeId);
+    resolveSocketed(it);
+    clampLife(); if (owned.where === 'equip') pushHeroStats();
+    return { ok: true, runeword: it.runeword || null, socketMods: { ...it.socketMods } };
+  }
+  // Recompute an item's socket contribution: a completed runeword (every socket
+  // filled, exact sequence) overrides the raw runes with its fixed, stronger mods.
+  function resolveSocketed(it) {
+    const { runeword, mods } = resolveSockets(it.slot, it.sockets, it.socketRunes || []);
+    it.socketMods = mods; it.runeword = runeword;
+    if (runeword && !it.runewordNamed) { it.name = `${runeword} (${it.name})`; it.runewordNamed = true; }
+  }
+
   // What a monster drops — usually armor/jewelry (useful to any class), sometimes a
   // weapon that MATCHES your type (a Sorceress won't be buried in Great Axes).
   // Magic-find scales with the kill's tier (elite/unique/boss).
   const WEAP_BY_TYPE = { melee: 'great_axe', ranged: 'war_bow', focus: 'bone_staff' };
   function rollGroundItem(mf) {
+    if (rng.next() < 0.05) return rollRune(rng, run.difficulty);   // ~5% of drops are runes (the runeword chase)
     if (rng.next() < 0.06) { const wt = (run.equipment.weapon && run.equipment.weapon.wtype) || 'melee';
       const w = { ...ITEMS[WEAP_BY_TYPE[wt] || rng.pick(WEAPON_DROPS)] }; return { ...w, id: w.id + '_' + Math.floor(rng.next() * 1e6) }; }
     return rollItem(rng, { tier: run.difficulty, magicFind: 4 + mf * 6 });
@@ -274,7 +307,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   // Push live progression (level-ups, gear) into the in-flight survival hero.
   function pushHeroStats() { if (!combat) return; const s = statsNow();
     combat.setHero({ maxLife: s.maxLife, maxMana: s.maxMana, accuracy: s.accuracy, evade: s.evade,
-      manaRegen: s.manaRegen, plusSkills: s.plusSkills, fcr: s.fcr, ias: s.ias, penetration: s.penetration, hard: { ...run.skillHard }, weapon: weaponNow(), abilities: abilitiesNow() }); }
+      manaRegen: s.manaRegen, plusSkills: s.plusSkills, fcr: s.fcr, ias: s.ias, penetration: s.penetration, plusElem: s.plusElem, hard: { ...run.skillHard }, weapon: weaponNow(), abilities: abilitiesNow() }); }
 
   // Called each frame by the UI while surviving: fold the engine's earned XP into
   // levels/points, and its collected drops into the at-risk bag. Loot does NOT
@@ -326,7 +359,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       return { id, level: 1 + (run.skillHard[id] || 0), req: sk.req || 1, pre: sk.pre || [], tab: sk.tab || null, passive: sk.type === 'passive',
         learned: hasPoint(id) || id === 'guard',
         canInvest: run.skillPoints > 0 && gate.ok, gateReason: gate.ok ? null : gate.reason,
-        eff: skillEffect({ hard: run.skillHard, plusSkills: s.plusSkills, weapon: weaponNow() }, id), name: skName(id) }; });
+        eff: skillEffect({ hard: run.skillHard, plusSkills: s.plusSkills, plusElem: s.plusElem, weapon: weaponNow() }, id), name: skName(id) }; });
     return { seed: run.seed, difficulty: run.difficulty, className: run.className, glyph: run.glyph, phase: run.phase,
       stats: s, life: run.life, maxLife: s.maxLife, mana: run.mana, maxMana: s.maxMana, potions: { ...run.potions },
       gold: run.gold, shards: run.shards, bagCap: BAG_CAP, stashCap: STASH_CAP,
@@ -344,7 +377,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function getStash() { return run.stash.map((i) => ({ ...i })); } // for the UI to persist to storage
 
   return { beginDescent, startRun, descend, syncArena, resolveArena, flee, toTown, bank, bankAll, equipFromStash, respec, getStash,
-    salvage, salvageAll, compareItem, reroll,
+    salvage, salvageAll, compareItem, reroll, socketRune,
     equipFromBag, unequip, canEquip, investSkill, investAttr, quaff, sellFromBag, buyPotion, dropFromBag,
     getRun, getCombat: () => combat, deriveStats: () => statsNow(), deriveAbilities: () => abilitiesNow() };
 }

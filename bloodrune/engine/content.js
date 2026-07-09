@@ -265,12 +265,50 @@ export const UNIQUES = [
   { id: 'u_frostburn', name: 'Frostburn', slot: 'gloves', minTier: 'Nightmare', passive: { maxMana: 30, fcr: 10 }, text: 'Frostburn — huge Mana, +Cast Speed.' },
   { id: 'u_vipermagi', name: "Skin of the Vipermagi", slot: 'body', minTier: 'Nightmare', passive: { plusSkills: 1, fcr: 30, penetration: 0.08 }, text: 'Vipermagi — +1 Skills, +30% FCR, pierce.', enabler: true },
   { id: 'u_death', name: "Death's Fathom", slot: 'offhand', minTier: 'Hell', passive: { plusSkills: 2, penetration: 0.15 }, text: "Death's Fathom — +2 Skills, deep pierce.", enabler: true },
+  // Per-ELEMENT +Skills enablers — the single-element build spike. +Skills raises
+  // the whole element's BASE damage (never the synergy bracket), so an already
+  // committed fire/cold/light build jumps when it finds its amulet.
+  { id: 'u_ember', name: 'Ember Choker', slot: 'amulet', minTier: 'Normal', passive: { plusFire: 2, maxMana: 12 }, text: 'Ember Choker — +2 Fire Skills, +Mana.', enabler: true },
+  { id: 'u_rime', name: 'Rimeward Torc', slot: 'amulet', minTier: 'Normal', passive: { plusCold: 2, maxMana: 12 }, text: 'Rimeward Torc — +2 Cold Skills, +Mana.', enabler: true },
+  { id: 'u_storm', name: 'Stormcaller Beads', slot: 'amulet', minTier: 'Normal', passive: { plusLight: 2, maxMana: 12 }, text: 'Stormcaller Beads — +2 Lightning Skills, +Mana.', enabler: true },
+];
+
+// ---- Sockets, runes & runewords (the aspiration ladder) --------------------
+// Socketable bases roll empty sockets (loot.js). A single rune socketed grants its
+// small `mod`; fill EVERY socket of a base on a runeword's list with the exact rune
+// SEQUENCE and it resolves to that runeword's fixed, far stronger `mods`. Runes are
+// tier-gated (high runes only drop deeper), so runewords are a real chase.
+export const RUNES = [
+  { id: 'el', name: 'El', num: 1, minTier: 'Normal', mod: { accuracy: 2, maxLife: 3 } },
+  { id: 'eld', name: 'Eld', num: 2, minTier: 'Normal', mod: { evade: 3 } },
+  { id: 'tir', name: 'Tir', num: 3, minTier: 'Normal', mod: { maxMana: 6 } },
+  { id: 'nef', name: 'Nef', num: 4, minTier: 'Normal', mod: { evade: 4 } },
+  { id: 'eth', name: 'Eth', num: 5, minTier: 'Normal', mod: { penetration: 0.05 } },
+  { id: 'ith', name: 'Ith', num: 6, minTier: 'Normal', mod: { maxLife: 9 } },
+  { id: 'tal', name: 'Tal', num: 7, minTier: 'Normal', mod: { manaRegen: 2, maxMana: 4 } },
+  { id: 'ral', name: 'Ral', num: 8, minTier: 'Nightmare', mod: { fcr: 6 } },
+  { id: 'ort', name: 'Ort', num: 9, minTier: 'Nightmare', mod: { maxMana: 12 } },
+  { id: 'thul', name: 'Thul', num: 10, minTier: 'Nightmare', mod: { maxLife: 16 } },
+  { id: 'amn', name: 'Amn', num: 11, minTier: 'Nightmare', mod: { maxLife: 20 } },
+  { id: 'sol', name: 'Sol', num: 12, minTier: 'Hell', mod: { maxLife: 26 } },
+  { id: 'shael', name: 'Shael', num: 13, minTier: 'Hell', mod: { fcr: 13 } },
+  { id: 'um', name: 'Um', num: 14, minTier: 'Hell', mod: { penetration: 0.12 } },
+];
+export const RUNE_BY_ID = Object.fromEntries(RUNES.map((r) => [r.id, r]));
+
+// A runeword = an ordered rune sequence filling EVERY socket of a base on `slots`.
+// `runes.length` is the exact socket count required. Mods override the raw runes.
+export const RUNEWORDS = [
+  { id: 'stealth', name: 'Stealth', runes: ['tal', 'eth'], slots: ['body'], mods: { fcr: 25, evade: 8, maxMana: 15 }, text: 'Stealth — swift and slippery (+25% FCR, evade, Mana).' },
+  { id: 'lore', name: 'Lore', runes: ['ort', 'sol'], slots: ['helm'], mods: { plusSkills: 1, maxMana: 16 }, text: 'Lore — +1 to Skills, +Mana.' },
+  { id: 'ancients', name: "Ancient's Pledge", runes: ['ral', 'ort', 'tal'], slots: ['offhand'], mods: { penetration: 0.13, maxLife: 12 }, text: "Ancient's Pledge — pierces resist, +Life." },
+  { id: 'spirit', name: 'Spirit', runes: ['tal', 'thul', 'ort', 'amn'], slots: ['offhand'], mods: { plusSkills: 2, fcr: 30, maxMana: 40, penetration: 0.08 }, text: 'Spirit — the caster crown: +2 Skills, +30% FCR, big Mana, pierce.' },
 ];
 
 // Per-class loot value weights — what an affix is WORTH to a build, for "is this an
 // upgrade?" (off-build affixes score ~0, so most drops aren't upgrades for you).
 export const CLASS_PROFILE = {
-  sorceress: { plusSkills: 14, fcr: 2.5, penetration: 80, maxMana: 1.4, manaRegen: 4, energy: 1.4, maxLife: 1, vit: 1.2, ias: 0, accuracy: 0, evade: 0.2, startBlock: 0.2, str: 0.2, dex: 0.2 },
+  sorceress: { plusSkills: 14, plusFire: 10, plusCold: 10, plusLight: 10, fcr: 2.5, penetration: 80, maxMana: 1.4, manaRegen: 4, energy: 1.4, maxLife: 1, vit: 1.2, ias: 0, accuracy: 0, evade: 0.2, startBlock: 0.2, str: 0.2, dex: 0.2 },
   barbarian: { plusSkills: 14, ias: 2.5, accuracy: 1.5, startBlock: 2, maxLife: 1.6, str: 1, dex: 0.8, vit: 1.2, evade: 0.5, fcr: 0, maxMana: 0.3, manaRegen: 0.3, penetration: 0, energy: 0.2 },
   amazon: { plusSkills: 14, ias: 2.5, accuracy: 2, evade: 1.5, maxLife: 1.4, dex: 1.2, str: 0.6, vit: 1.1, startBlock: 0.8, fcr: 0, maxMana: 0.3, manaRegen: 0.3, penetration: 0, energy: 0.2 },
   necromancer: { plusSkills: 14, fcr: 2.5, maxMana: 1.4, manaRegen: 3.5, energy: 1.3, maxLife: 1.1, vit: 1.2, penetration: 40, ias: 0, accuracy: 0, evade: 0.2, startBlock: 0.3, str: 0.2, dex: 0.2 },
