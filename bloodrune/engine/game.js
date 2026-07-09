@@ -12,7 +12,7 @@ import { skillEffect } from './combat.js';
 import { createArena } from './arena.js';
 import { rollItem } from './loot.js';
 
-const xpForLevel = (lvl) => 5 + lvl * 4; // brisk — you feel yourself grow as you farm through Act 1
+const xpForLevel = (lvl) => 12 + lvl * 10; // brisk but not runaway — you land ~lvl 30 by Andariel, so the tree stays a CHOICE
 
 // Stats scale with LEVEL (Life/Mana growth) + gear passive mods.
 export function deriveStats(cls, equipment, level, bonus = {}) {
@@ -122,10 +122,13 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   }
   const beginDescent = startRun; // (the prep screen's "descend" button)
 
-  // What a monster drops — sometimes a weapon (skill-granter), usually armor/jewelry
-  // with rolled affixes. Magic-find scales with the kill's tier (elite/unique/boss).
+  // What a monster drops — usually armor/jewelry (useful to any class), sometimes a
+  // weapon that MATCHES your type (a Sorceress won't be buried in Great Axes).
+  // Magic-find scales with the kill's tier (elite/unique/boss).
+  const WEAP_BY_TYPE = { melee: 'great_axe', ranged: 'war_bow', focus: 'bone_staff' };
   function rollGroundItem(mf) {
-    if (rng.next() < 0.22) { const w = { ...ITEMS[rng.pick(WEAPON_DROPS)] }; return { ...w, id: w.id + '_' + Math.floor(rng.next() * 1e6) }; }
+    if (rng.next() < 0.12) { const wt = (run.equipment.weapon && run.equipment.weapon.wtype) || 'melee';
+      const w = { ...ITEMS[WEAP_BY_TYPE[wt] || rng.pick(WEAPON_DROPS)] }; return { ...w, id: w.id + '_' + Math.floor(rng.next() * 1e6) }; }
     return rollItem(rng, { magicFind: 4 + mf * 6 });
   }
 

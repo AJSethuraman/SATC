@@ -212,7 +212,7 @@ export const SUFFIXES = [
   { name: 'of Precision', mod: { accuracy: 4 } }, { name: 'of the Cat', mod: { evade: 3 } },
 ];
 export const RARITY = [
-  { rarity: 'normal', weight: 40, affixes: 0, color: '#cfcfcf' },
-  { rarity: 'magic', weight: 40, affixes: 2, color: '#6f8aff' },
-  { rarity: 'rare', weight: 20, affixes: 4, color: '#e5d54a' },
+  { rarity: 'normal', weight: 18, affixes: 0, color: '#cfcfcf' }, // whites are now rare — most drops carry affixes
+  { rarity: 'magic', weight: 47, affixes: 2, color: '#6f8aff' },
+  { rarity: 'rare', weight: 35, affixes: 4, color: '#e5d54a' },
 ];

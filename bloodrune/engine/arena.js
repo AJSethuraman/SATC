@@ -110,7 +110,7 @@ export function createArena({ hero, pack, rng, survival }) {
     if (!e.raised) { state.xpEarned += e.xp || 0; state.gems.push({ x: e.x, y: e.y, xp: e.xp || 0, life: 8, t: 0.15 }); }
     // Monsters drop random loot for the hero to grab off the ground (survival only).
     if (surv && surv.rollLoot && !e.raised) {
-      const chance = e.boss ? 1 : e.unique ? 1 : e.elite ? 0.6 : (0.10 + (e.drop || 0));
+      const chance = e.boss ? 1 : e.unique ? 1 : e.elite ? 0.5 : (0.04 + (e.drop || 0)); // thinned: trash rarely drops, so a drop MEANS something
       if (rng.next() < chance) { const it = surv.rollLoot(e.boss ? 3 : e.unique ? 2 : e.elite ? 1 : 0);
         if (it) state.pickups.push({ x: e.x, y: e.y, r: 11, item: it }); }
     }
