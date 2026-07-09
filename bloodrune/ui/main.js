@@ -144,15 +144,15 @@ function renderArena() {
       <div class="rt-meta"><span>Lv <b id="rtLvl">${game.getRun().level}</b></span><span>Foes <b id="rtFoes"></b></span><span id="rtTimeWrap">⏱ <b id="rtTime"></b></span></div>
     </div>
     <div class="rt-canvas-wrap"><canvas id="rtCanvas" width="${ARENA_W}" height="${ARENA_H}"></canvas><div class="loot-toast" id="rtLoot"></div></div>
-    <div class="rt-skills" id="rtSkills">${h.abilities.map((a) => `<div class="rt-skill ${a.type}" data-id="${a.id}"><div class="rs-n">${a.name}</div><div class="rs-c">${a.cost ? a.cost + '⬡' : 'free'}</div><div class="rs-cd"></div></div>`).join('')}</div>
+    <div class="rt-skills" id="rtSkills">${skillChipsHTML(h.abilities)}</div>
     <div class="belt">${potionBtn('life', pot.life, h.life >= h.maxLife)}${potionBtn('mana', pot.mana, h.mana >= h.maxMana)}
       <button class="act ghost small" id="aInv">🎒</button><button class="act ghost small" id="aTree">⚔<span id="aTreePts"></span></button></div>
-    <div class="rt-hint">Move: <b>WASD / arrows</b> or <b>drag</b> the arena. Skills fire on their own; monsters <b>drop loot</b> — walk over it. Survive to the <b>Smith</b> and put it down.</div>
+    <div class="rt-hint">Move: <b>WASD / arrows</b> or <b>drag</b> the arena. Skills auto-fire — <b>tap a skill to turn it off</b> (e.g. Cleave, so only Whirlwind swings). Monsters <b>drop loot</b> — walk over it. Survive to the <b>Smith</b>.</div>
     <div class="controls" style="display:flex;gap:12px;justify-content:center"><button class="act ghost small" id="abandon">ABANDON</button></div>
   </div>`;
   logEl.innerHTML = '';
   rtCanvas = document.getElementById('rtCanvas'); rtCtx = rtCanvas.getContext('2d');
-  rtSkillEls = {}; board.querySelectorAll('.rt-skill').forEach((el) => { rtSkillEls[el.dataset.id] = el; });
+  bindSkillChips();
   bindArenaPointer();
   board.querySelectorAll('[data-quaff]').forEach((b) => b.addEventListener('click', (ev) => { ev.preventDefault(); const r = game.quaff(b.dataset.quaff); if (r && r.ok) { TEL.potions[b.dataset.quaff]++; tel('quaff', { kind: b.dataset.quaff }); } }));
   document.getElementById('aInv').addEventListener('click', () => { invOpen = true; pauseArena(); renderOverlay(); });
@@ -160,6 +160,12 @@ function renderArena() {
   document.getElementById('abandon').addEventListener('click', () => { if (!arenaActive) return; game.flee(); endArena(combat.getState()); });
   arenaActive = true; arenaPaused = false; lastT = performance.now(); tacc = 0; raf = requestAnimationFrame(arenaFrame);
 }
+
+// Skill chips: tap to toggle a skill's auto-fire off/on (e.g. Whirlwind, not Cleave).
+function skillChipsHTML(abilities) { return abilities.map((a) => `<div class="rt-skill ${a.type}${a.off ? ' off' : ''}" data-id="${a.id}"><div class="rs-n">${a.name}</div><div class="rs-c">${a.cost ? a.cost + '⬡' : 'free'}</div><div class="rs-cd"></div></div>`).join(''); }
+function bindSkillChips() { rtSkillEls = {}; board.querySelectorAll('.rt-skill').forEach((el) => { rtSkillEls[el.dataset.id] = el;
+  el.addEventListener('click', () => { const on = combat.toggleAbility(el.dataset.id); el.classList.toggle('off', !on); tel('toggle_skill', { id: el.dataset.id, on }); }); }); }
+function rebuildSkillChips(h) { const wrap = document.getElementById('rtSkills'); if (!wrap) return; wrap.innerHTML = skillChipsHTML(h.abilities); bindSkillChips(); }
 
 function pauseArena() { arenaPaused = true; cancelAnimationFrame(raf); keys.clear(); touchVec = null; joy = null; }
 function resumeArena() { if (!arenaActive || !arenaPaused) return; arenaPaused = false; lastT = performance.now(); tacc = 0; raf = requestAnimationFrame(arenaFrame); }
@@ -276,8 +282,9 @@ function updateHUD(s, dt) {
   // boss bar
   const bw = document.getElementById('rtBossWrap');
   if (bw) { if (s.boss) { bw.style.display = ''; const bi = document.getElementById('rtBoss'); if (bi) bi.style.width = pv(s.boss.hp, s.boss.maxHp) + '%'; set('rtBossT', `☠ ${s.boss.name}`); } else bw.style.display = 'none'; }
+  if (h.abilities.length !== Object.keys(rtSkillEls).length || h.abilities.some((a) => !rtSkillEls[a.id])) rebuildSkillChips(h); // a newly-learned skill grew the kit
   for (const a of h.abilities) { const el = rtSkillEls[a.id]; if (!el) continue;
-    el.classList.toggle('ready', a.ready); const bar = el.querySelector('.rs-cd'); if (bar) bar.style.height = Math.min(100, (a.cd / 1.8) * 100) + '%'; }
+    el.classList.toggle('ready', a.ready); el.classList.toggle('off', !!a.off); const bar = el.querySelector('.rs-cd'); if (bar) bar.style.height = Math.min(100, (a.cd / 1.8) * 100) + '%'; }
   const pot = r.potions;
   const lb = board.querySelector('[data-quaff="life"]'), mb = board.querySelector('[data-quaff="mana"]');
   if (lb) { lb.disabled = pot.life <= 0 || h.life >= h.maxLife; lb.querySelector('.pn').textContent = '×' + pot.life; }

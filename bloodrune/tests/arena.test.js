@@ -100,6 +100,16 @@ test('quaff restores Life and Mana; flee ends the fight', () => {
   const r = a.flee(); assert.ok(['fled', 'lose'].includes(r.result)); assert.equal(a.getState().over, true);
 });
 
+test('you can toggle a skill OFF so it stops auto-firing (Whirlwind, not Cleave)', () => {
+  const a = arena([{ id: 'zombie' }, { id: 'zombie' }, { id: 'zombie' }], hero({ maxLife: 300 }), 'tg');
+  a.setDisabled(['attack', 'cleave', 'guard']); // silence every offense
+  for (let i = 0; i < 200 && !a.getState().over; i++) a.tick({ x: 0, y: 0 });
+  assert.equal(a.getState().tally.dmgDealt, 0, 'disabled skills deal no damage');
+  assert.equal(a.toggleAbility('cleave'), true); // toggling flips it back on
+  for (let i = 0; i < 120 && !a.getState().over; i++) a.tick({ x: 0, y: 0 });
+  assert.ok(a.getState().tally.dmgDealt > 0, 're-enabled skill fires again');
+});
+
 test('DT is a sane fixed step and arena has real dimensions', () => {
   assert.ok(DT > 0 && DT <= 1 / 20); assert.ok(ARENA_W > 200 && ARENA_H > 200);
 });

@@ -315,6 +315,10 @@
   .rt-skill .rs-n { font-weight:700; font-size:11px; letter-spacing:.3px; }
   .rt-skill .rs-c { font-size:9px; color:var(--steel); opacity:.85; }
   .rt-skill .rs-cd { position:absolute; left:0; bottom:0; width:100%; background:rgba(74,123,255,.18); height:0%; }
+  .rt-skill { cursor:pointer; user-select:none; }
+  .rt-skill.off { opacity:.4; }
+  .rt-skill.off .rs-n { text-decoration:line-through; }
+  .rt-skill.off::after { content:'off'; position:absolute; top:2px; right:4px; font-size:8px; color:#b06; letter-spacing:.5px; }
   .rt-skill.attack { border-left:3px solid #7a5a3a; } .rt-skill.summon { border-left:3px solid #6a6f8a; }
   .rt-skill.breakthrough { border-left:3px solid var(--gold); } .rt-skill.skill { border-left:3px solid #6fd08a; }
   .rt-hint { text-align:center; color:#6f6357; font-size:11px; line-height:1.5; margin:2px 0 4px; }

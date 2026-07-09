@@ -79,7 +79,7 @@ export function createArena({ hero, pack, rng, survival }) {
       manaRegen: hero.manaRegen != null ? hero.manaRegen : 4,
       accuracy: hero.accuracy, evade: hero.evade || 0, weapon: hero.weapon || null,
       plusSkills: hero.plusSkills || 0, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
-      shield: 0, shieldT: 0, invT: 0, dir: { x: 0, y: -1 }, cd: {} },
+      shield: 0, shieldT: 0, invT: 0, dir: { x: 0, y: -1 }, cd: {}, disabled: new Set() },
     enemies: [], projectiles: [], minions: [], gems: [], fx: [], pickups: [], collected: [],
     time: 0, xpEarned: 0, over: false, result: null, nextUid: 0,
     spawnTimer: surv ? 0.6 : 0, bossSpawned: false, boss: null,
@@ -137,6 +137,7 @@ export function createArena({ hero, pack, rng, survival }) {
   function fireHeroAbilities() {
     const h = state.hero; if (!alive().length) return;
     for (const id of h.abilities) {
+      if (h.disabled.has(id)) continue;                // you can toggle a skill OFF so only the ones you want auto-fire
       if ((h.cd[id] || 0) > 0) continue;
       const s = SKILLS[id]; if (!s) continue;
       const physical = s.weapon !== 'spell';
@@ -376,6 +377,8 @@ export function createArena({ hero, pack, rng, survival }) {
   }
   function heal(amount) { const h = state.hero; h.life = Math.min(h.maxLife, h.life + amount); }
   function takeCollected() { const c = state.collected; state.collected = []; return c; } // game drains dropped loot
+  function setDisabled(ids) { state.hero.disabled = new Set(ids || []); } // curate which skills auto-fire
+  function toggleAbility(id) { if (state.hero.disabled.has(id)) state.hero.disabled.delete(id); else state.hero.disabled.add(id); return !state.hero.disabled.has(id); }
 
   function flee() { if (state.over) return { result: state.result };
     for (const e of alive()) { if (Math.hypot(e.x - state.hero.x, e.y - state.hero.y) < 220) { state.hero.invT = 0; if (!hitHero(e, e.attack)) return { result: 'lose' }; } }
@@ -388,7 +391,7 @@ export function createArena({ hero, pack, rng, survival }) {
       hero: { name: h.name, glyph: h.glyph, x: h.x, y: h.y, r: h.r, life: h.life, maxLife: h.maxLife,
         mana: Math.floor(h.mana), maxMana: h.maxMana, manaRegen: h.manaRegen, shield: Math.round(h.shield),
         accuracy: h.accuracy, evade: h.evade, invuln: h.invT > 0, dir: { ...h.dir }, weapon: h.weapon,
-        cd: { ...h.cd }, abilities: h.abilities.map((id) => ({ id, ...SKILLS[id], eff: skillEffect(ctx, id), cd: h.cd[id] || 0, ready: (h.cd[id] || 0) <= 0 && SKILLS[id].cost <= h.mana })) },
+        cd: { ...h.cd }, abilities: h.abilities.map((id) => ({ id, ...SKILLS[id], eff: skillEffect(ctx, id), cd: h.cd[id] || 0, off: h.disabled.has(id), ready: !h.disabled.has(id) && (h.cd[id] || 0) <= 0 && SKILLS[id].cost <= h.mana })) },
       enemies: state.enemies.filter((e) => e.hp > 0).map((e) => ({ uid: e.uid, id: e.id, name: e.name, glyph: e.glyph, x: e.x, y: e.y, r: e.r,
         hp: e.hp, maxHp: e.maxHp, kind: e.kind, role: e.role, elite: e.elite, unique: e.unique, boss: e.boss, flash: e.flash, raised: e.raised })),
       projectiles: state.projectiles.map((p) => ({ x: p.x, y: p.y, r: p.r, hostile: p.hostile, glyph: p.glyph })),
@@ -405,5 +408,5 @@ export function createArena({ hero, pack, rng, survival }) {
     };
   }
 
-  return { tick, autoInput, quaff, flee, setHero, heal, takeCollected, getState, DT };
+  return { tick, autoInput, quaff, flee, setHero, heal, takeCollected, setDisabled, toggleAbility, getState, DT };
 }
