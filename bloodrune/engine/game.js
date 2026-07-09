@@ -73,7 +73,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     // `bag` is the at-risk run inventory — forfeited on death, safe once banked.
     act: 1, questIdx: 0, quests: ACT1.map((a) => ({ name: a.name, quest: a.quest, questText: a.questText, done: false })),
     stash: (opts.stash || []).map((it) => ({ ...it })), respecUsedThisAct: false,
-    lastResult: null, gained: null, life: 0, mana: 0, potions: { life: 3, mana: 3 }, gold: 0, phase: 'town',
+    lastResult: null, gained: null, life: 0, mana: 0, potions: { life: 3, mana: 3 }, gold: 0, shards: 0, phase: 'town',
   };
   run.equipment.weapon = ITEMS[cls.startWeapon];
   const STASH_CAP = 40, POTION_CAP = 6, BAG_CAP = 12, POTION_PRICE = 12;
@@ -102,28 +102,57 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     if ((r.level || 0) > run.level) return { ok: false, reason: `Req Lv ${r.level}` };
     return { ok: true };
   }
-  function equipFromBag(id) { const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false };
+  // Equipping is an EXPLICIT choice made OUT of the field (town / prep / after a
+  // run) — never mid-survival and never automatic. Any gear you meet the
+  // requirement for is your call (including a deliberate weapon-type change).
+  function equipFromBag(id) {
+    if (run.phase === 'arena') return { ok: false, reason: 'not in the field' };
+    const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false, reason: 'not in bag' };
     const it = run.bag[i]; const gate = canEquip(it); if (!gate.ok) return gate;
     const slot = slotFor(it); run.bag.splice(i, 1); if (run.equipment[slot]) run.bag.push(run.equipment[slot]); run.equipment[slot] = it; clampLife(); pushHeroStats(); return { ok: true }; }
-  function unequip(slot) { const it = run.equipment[slot]; if (!it) return { ok: false }; if (slot === 'weapon') return { ok: false, reason: 'need a weapon' }; run.bag.push(it); run.equipment[slot] = null; clampLife(); pushHeroStats(); return { ok: true }; }
+  function unequip(slot) {
+    if (run.phase === 'arena') return { ok: false, reason: 'not in the field' };
+    const it = run.equipment[slot]; if (!it) return { ok: false }; if (slot === 'weapon') return { ok: false, reason: 'need a weapon' };
+    run.bag.push(it); run.equipment[slot] = null; clampLife(); pushHeroStats(); return { ok: true }; }
   function clampLife() { const s = statsNow(); run.life = Math.min(run.life, s.maxLife); run.mana = Math.min(run.mana, s.maxMana); }
 
-  // Auto-equip a dropped item ONLY when it's a clear upgrade — fill an empty slot,
-  // or beat the score of what's there. NEVER auto-swap the weapon TYPE (that would
-  // brick a build); a wrong-type weapon goes to the bag for you to decide.
-  const weaponScore = (w) => (w && w.dmg ? (w.dmg[0] + w.dmg[1]) / 2 : 0) + ((w && w.passive && w.passive.plusSkills) || 0) * 4 + (w && w.grants ? 2 : 0);
-  const armorScore = (it) => { const p = it.passive || {}; return (p.maxLife || 0) + (p.maxMana || 0) * 3 + (p.plusSkills || 0) * 10 + (p.startBlock || 0) * 3 + (p.accuracy || 0) * 2 + (p.evade || 0) * 2; };
-  function autoEquipIfUpgrade(it) {
-    if (!canEquip(it).ok) return false;                               // can't wear it -> stays in the bag
-    if (it.slot === 'weapon') { const cur = run.equipment.weapon;
-      if (cur && cur.wtype !== it.wtype) return false;               // never auto-swap weapon type
-      if (cur && weaponScore(cur) >= weaponScore(it)) return false;
-      if (cur && run.bag.length < BAG_CAP) run.bag.push(cur); run.equipment.weapon = it; clampLife(); return true; }
-    const slot = slotFor(it); const cur = run.equipment[slot];
-    if (!cur) { run.equipment[slot] = it; clampLife(); return true; } // fill an empty slot
-    if (armorScore(it) > armorScore(cur)) { if (run.bag.length < BAG_CAP) run.bag.push(cur); run.equipment[slot] = it; clampLife(); return true; }
-    return false;
+  // ---- salvage: junk -> Arcane Shards (a craft/reroll currency) ----------------
+  // Rarity + drop tier set the yield. Salvage is a town action; overflow loot (a
+  // full bag mid-field) is auto-salvaged so nothing you pick up is simply lost.
+  const shardValue = (it) => Math.max(1, Math.round(({ common: 1, magic: 3, rare: 8, unique: 20 }[it.rarity] || (it.grants ? 5 : 2)) * ({ Normal: 1, Nightmare: 2, Hell: 3 }[it.itemTier] || 1)));
+  function salvage(id) {
+    if (run.phase === 'arena') return { ok: false, reason: 'not in the field' };
+    const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false, reason: 'not in bag' };
+    const [it] = run.bag.splice(i, 1); const got = shardValue(it); run.shards += got; return { ok: true, shards: run.shards, gained: got }; }
+  function salvageAll() {
+    if (run.phase === 'arena') return { ok: false, reason: 'not in the field' };
+    let got = 0; for (const it of run.bag) got += shardValue(it); run.shards += got; const n = run.bag.length; run.bag = []; return { ok: true, banked: n, gained: got }; }
+
+  // Compare an item to what's worn in its slot, by class build-fit — for the town's
+  // "is this an upgrade?" readout. Pure; safe to call any time.
+  function compareItem(it) {
+    if (!it) return null;
+    let cur; // rings compare against your WEAKER ring (that's the one it would replace)
+    if (it.slot === 'ring') { const r1 = run.equipment.ring1, r2 = run.equipment.ring2;
+      cur = itemScore(r1, cls.id) <= itemScore(r2, cls.id) ? r1 : r2; }
+    else cur = run.equipment[it.slot];
+    const a = itemScore(it, cls.id), b = itemScore(cur, cls.id);
+    return { score: a, equippedScore: b, delta: Math.round((a - b) * 100) / 100, isUpgrade: a > b, wearable: canEquip(it).ok };
   }
+
+  // Reroll a magic/rare item's affixes for Shards (a soft chase — burn junk yield to
+  // fish for a build-fit roll on a base you like). Keeps slot/tier/rarity; town only.
+  const REROLL_COST = 6;
+  function reroll(id) {
+    if (run.phase === 'arena') return { ok: false, reason: 'not in the field' };
+    const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false, reason: 'not in bag' };
+    const it = run.bag[i];
+    if (it.rarity !== 'magic' && it.rarity !== 'rare') return { ok: false, reason: 'only magic/rare reroll' };
+    if (run.shards < REROLL_COST) return { ok: false, reason: 'not enough Shards' };
+    run.shards -= REROLL_COST;
+    const fresh = rollItem(rng, { tier: it.itemTier || run.difficulty, slot: it.slot === 'ring' ? 'ring' : it.slot, allowUnique: false });
+    run.bag[i] = { ...fresh, id: it.id }; // keep the identity; refresh the rolls
+    return { ok: true, shards: run.shards, item: { ...run.bag[i] } }; }
 
   // ---- potions (the belt persists across the run) ----
   function quaff(type) { if (!combat || (type !== 'life' && type !== 'mana')) return { ok: false };
@@ -248,23 +277,25 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       manaRegen: s.manaRegen, plusSkills: s.plusSkills, fcr: s.fcr, ias: s.ias, penetration: s.penetration, hard: { ...run.skillHard }, weapon: weaponNow(), abilities: abilitiesNow() }); }
 
   // Called each frame by the UI while surviving: fold the engine's earned XP into
-  // levels/points, and its collected drops into the bag (auto-equipping upgrades).
+  // levels/points, and its collected drops into the at-risk bag. Loot does NOT
+  // auto-equip — you gear up EXPLICITLY back in town. A full bag mid-field auto-
+  // salvages overflow to Shards so a pickup is never silently wasted.
   function syncArena() {
-    if (!combat) return { leveled: 0, loot: [], equipped: [], cleared: 0 };
+    if (!combat) return { leveled: 0, loot: [], salvaged: 0, cleared: 0 };
     const s = combat.getState();
     let leveled = 0; const delta = s.xpEarned - lastXp; lastXp = s.xpEarned;
     if (delta > 0) { run.xp += delta;
       while (run.xp >= xpForLevel(run.level)) { run.xp -= xpForLevel(run.level); run.level += 1; run.skillPoints += 1; run.attrPoints += ATTR_PER_LEVEL; leveled += 1; } }
-    const got = combat.takeCollected(); const equipped = [];
-    for (const it of got) { if (autoEquipIfUpgrade(it)) equipped.push(it); else if (run.bag.length < BAG_CAP) run.bag.push(it); }
+    const got = combat.takeCollected(); let salvaged = 0;
+    for (const it of got) { if (run.bag.length < BAG_CAP) run.bag.push(it); else { run.shards += shardValue(it); salvaged += 1; } }
     // clearing an area completes its QUEST — reward skill points, a heal, and a restock
     let cleared = 0;
     if (s.areaCleared > lastCleared) { cleared = s.areaCleared - lastCleared; lastCleared = s.areaCleared;
       for (let k = 0; k < cleared; k++) { run.skillPoints += 2; combat.heal(Math.round(statsNow().maxLife * 0.5)); addPotions(1, 1); } }
-    if (leveled || equipped.length) pushHeroStats();
+    if (leveled) pushHeroStats();
     run.life = s.hero.life; run.mana = s.hero.mana;
     if (s.over) resolveArena();
-    return { leveled, loot: got, equipped, cleared, phase: run.phase };
+    return { leveled, loot: got, salvaged, cleared, phase: run.phase };
   }
 
   // A segment ended: WIN clears the quest (turn it in -> town, or the act is won on
@@ -298,7 +329,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
         eff: skillEffect({ hard: run.skillHard, plusSkills: s.plusSkills, weapon: weaponNow() }, id), name: skName(id) }; });
     return { seed: run.seed, difficulty: run.difficulty, className: run.className, glyph: run.glyph, phase: run.phase,
       stats: s, life: run.life, maxLife: s.maxLife, mana: run.mana, maxMana: s.maxMana, potions: { ...run.potions },
-      gold: run.gold, bagCap: BAG_CAP, stashCap: STASH_CAP,
+      gold: run.gold, shards: run.shards, bagCap: BAG_CAP, stashCap: STASH_CAP,
       level: run.level, xp: run.xp, xpToNext: xpForLevel(run.level), skillPoints: run.skillPoints,
       attr: { ...run.attr }, attrPoints: run.attrPoints,
       act: run.act, questIdx: run.questIdx, quests: run.quests.map((q) => ({ ...q })),
@@ -313,6 +344,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function getStash() { return run.stash.map((i) => ({ ...i })); } // for the UI to persist to storage
 
   return { beginDescent, startRun, descend, syncArena, resolveArena, flee, toTown, bank, bankAll, equipFromStash, respec, getStash,
+    salvage, salvageAll, compareItem, reroll,
     equipFromBag, unequip, canEquip, investSkill, investAttr, quaff, sellFromBag, buyPotion, dropFromBag,
     getRun, getCombat: () => combat, deriveStats: () => statsNow(), deriveAbilities: () => abilitiesNow() };
 }
