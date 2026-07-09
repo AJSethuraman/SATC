@@ -266,6 +266,19 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
 
 ## Decisions log
 
+- **2026-07-09 — Bloodrune v1 redesign BUILT + hosted.** The redesign spec'd below is
+  now implemented, tested (98 engine tests via `node --test`), and playable as a hosted
+  artifact — Sorceress + Act 1, the 8 vertical slices S1–S8 (`bloodrune/docs/ISSUES-v1.md`).
+  Shipped: synergy-webbed 3-tab Sorceress trees; elements/resistances/penetration/Hell
+  immunities; tier-gated build-fit loot with `itemScore`; Str/Dex/Vit/Energy + equip gates;
+  no-auto-equip with town equip/salvage→Shards; sockets/runes/runewords (Spirit et al.) +
+  per-element +Skills enabler uniques; the town-checkpoint loop with a persistent
+  localStorage stash (at-risk field loot, bank-in-town) + starting-loadout picker + per-act
+  respec; and **enclosure pressure that makes standing still lethal** (only moving bleeds it
+  off). Balance is data-driven (`scratchpad/balance.mjs`): a **naked Sorceress is challenged
+  and dies mid-act** (no more faceroll), a **geared one wins 4/4** — gear + synergy + the
+  +element enabler + attributes all pay off as designed. Roadmap: Acts 2–5, the other three
+  classes' full multi-tab trees, more runewords/sets, a full ~45–60 min run, juice/audio.
 - **2026-07-09 — Bloodrune full redesign spec'd** (`bloodrune/docs/prd-bloodrune-redesign.md`,
   via `/occam` grill→PRD). Pivot to a Diablo-2-authentic ARPG condensed into roguelite acts
   in the Vampire-Survivors style. Load-bearing decisions: **synergy IS the damage** (a

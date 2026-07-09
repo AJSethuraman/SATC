@@ -10,7 +10,67 @@ Living doc.
 
 ---
 
-## 0. PIVOT — real-time survivors on ONE big map (current direction)
+## 0c. v1 REDESIGN — BUILT (current; supersedes the tuning notes in §0/§0b)
+
+The `/occam` redesign (`prd-bloodrune-redesign.md`, `ISSUES-v1.md`) is **implemented,
+tested (98 engine tests), and hosted** as a playable v1 (Sorceress + Act 1). It
+turns the faceroll survivors prototype into a Diablo-2-authentic build game where
+**committing to a synergy web, adapting to resistances, chasing the right gear, and
+MOVING** are all load-bearing. Systems, each testable at the deterministic engine
+seam (`tests/*.test.js`):
+
+- **Synergy IS the damage (M1).** `skillEffect` = `base(level = hard+gear) ×
+  synergyMult(HARD points in same-tree siblings) × masteryMult(HARD mastery)`. A
+  fed capstone lands ~3× an unsupported one; **gear +Skills raises base only, ZERO
+  synergy**; cross-tree = 0. Committing to one tree is mathematically dominant.
+  Sorceress = 3 tabs (Fire/Cold/Lightning) × 6 with synergy maps + one-point
+  utilities (Warmth) and Masteries. `combat.js`, `content.js`.
+- **Elements / resistances / penetration / immunities (M2).** Every hit carries an
+  element; enemies roll per-element resist (tier-scaled) + Hell immunities.
+  `resistedDamage` — 50% resist halves, immune = 0, gear **penetration** lowers
+  resist but *can't crack* an immunity (swap element or die). Mastery multiplies its
+  own element but never breaks immunity. Difficulty is a **build check**, not an HP
+  sponge. `arena.js`.
+- **Loot: rarity + itemTier + build-fit (M3a).** 4 rarities (common/magic/rare/
+  unique); the **drop tier multiplies affix magnitude** (Normal<NM<Hell — lower gear
+  can never rival higher); affixes carry build tags so **most drops aren't upgrades**
+  (`itemScore`/`isUpgradeFor` vs a class profile); minTier-gated fixed uniques. `loot.js`.
+- **Attributes + equip gates (M4).** Str/Dex/Vit/Energy, +5/level, reset per run.
+  Vit→Life, Energy→Mana; **Str/Dex GATE equipping** (greed locks you out of heavy
+  gear until you invest). `deriveStats`/`canEquip`.
+- **No auto-equip; town equip/compare/salvage (M3b).** Drops land in the at-risk
+  bag; you gear up **explicitly in town**. Junk salvages to **Arcane Shards**
+  (reroll currency); `compareItem` shows build-fit ▲/▽. `game.js`.
+- **Sockets / runes / runewords + enabler uniques (M6).** Socketable bases roll
+  sockets (4-socket offhands only at Hell); tier-gated runes; a filled base + exact
+  rune **sequence** → a fixed runeword (Stealth/Lore/Ancient's Pledge/**Spirit**).
+  **Per-element +Skills** enabler amulets spike a committed element's base damage.
+  `content.js`, `loot.resolveSockets`, `game.socketRune`.
+- **Town-checkpoint loot loop + meta (M5).** An act = ordered quests; clear ONE per
+  descent, then **town** to turn in / bank / respec (once/act) / re-loadout. The
+  **stash persists** across runs (localStorage, tier-capped gear + breadth — never
+  raw power); the run inventory is **at-risk** (forfeited on death, safe once
+  banked). Starting-loadout picker. Character level/skills/attrs reset each run.
+- **Moment-to-moment: standing-still is LETHAL (M7).** **Enclosure pressure** — a
+  rooted hero in a crowd takes unblockable, ramping chip from the closing horde
+  regardless of AoE clear; only MOVING bleeds it off. Nukes carry cooldowns, fillers
+  are spammable; auto-fire **focuses the area gate** so a swarm can't shield the boss.
+- **Balance proven, not eyeballed** (`scratchpad/balance.mjs`): a **naked** Sorceress
+  is genuinely challenged (dies mid-act — no more faceroll); a Sorceress with a
+  **banked caster loadout WINS 4/4** — gear + synergy + the +element enabler +
+  attributes all pay off. Punchy ~6-7 min act (durations 32-48s/area).
+
+**Roadmap (v1 → beyond):** Acts 2–5 (same area→gate shape, new pools/gates/bosses;
+`ACT1` is the template); the other three classes get the full multi-tab synergy-web
+treatment (Barbarian/Amazon/Necromancer are still on their smaller single-list
+trees); more runewords/uniques/set items; a full ~45–60 min run; juice/audio pass.
+
+The tuning notes in §0/§0b and Waves 3–6 below are **superseded** by the above
+where they overlap (they're kept for the design history / rationale).
+
+---
+
+## 0. PIVOT — real-time survivors on ONE big map (prior direction — see §0c for current)
 
 Bloodrune is now a **Vampire-Survivors / Halls-of-Torment shape**: you drop into
 **ONE big continuous arena**, and the only control is **moving** (WASD / arrows /
