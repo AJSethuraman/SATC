@@ -266,6 +266,20 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
 
 ## Decisions log
 
+- **2026-07-09 — Bloodrune full redesign spec'd** (`bloodrune/docs/prd-bloodrune-redesign.md`,
+  via `/occam` grill→PRD). Pivot to a Diablo-2-authentic ARPG condensed into roguelite acts
+  in the Vampire-Survivors style. Load-bearing decisions: **synergy IS the damage** (a
+  skill scales off hard points in same-tree siblings, ~3× fed-vs-unsupported, cross-tree = 0,
+  gear +skills = level/raw-power only, ZERO synergy) so committing to one tree is dominant;
+  **loot is mostly NOT an upgrade** (4 rarities + sockets/runes/runewords, no auto-equip,
+  ~10–15% upgrade rate, equip/salvage in town); **greed punished by dry loot not death**
+  (playable-but-limp until enabler drops arrive). **Attributes REINSTATED** (Str/Dex/Vit/
+  Energy with equip gates) — *reverses the earlier "skip attributes, let level carry it"
+  call.* **Meta carries tier-capped gear + breadth, NEVER raw power** (persistent stash +
+  starting loadout, but Normal gear can't rival NM/Hell; character level/skills/attrs reset
+  each run). **Town-checkpoint loot loop**: field loot is at-risk until you reach town to
+  turn in a quest and bank it; die in the field and unbanked finds are lost. **v1 = Sorceress
+  + Act 1 vertical slice**; Acts 2–5, the full ~45–60 min run, and other classes are roadmap.
 - **2026-07-03 — Review & research pass ordered.** Owner directive: review everything,
   fix what's wrong, research industry norms, design for handoff ("time to look higher").
   Big changes require owner sign-off.
