@@ -10,7 +10,7 @@ import { CLASSES, ITEMS, SLOTS, WEAPON_DROPS, SKILLS, ACT1 } from './content.js'
 import { makeRng } from './rng.js';
 import { skillEffect } from './combat.js';
 import { createArena } from './arena.js';
-import { rollItem } from './loot.js';
+import { rollItem, itemScore } from './loot.js';
 
 // Quadratic curve: fast to ~15 (core skills online), then each point is precious —
 // so the swarm's huge kill-count can't rocket you to level 60 and max the whole tree.
@@ -67,14 +67,21 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     skillHard: {}, skillPoints: 0, level: 1, xp: 0,
     // Attributes reset every run: start at the class base, earn ~5 to spend per level.
     attr: { ...(cls.attr || { str: 0, dex: 0, vit: 0, energy: 0 }) }, attrPoints: 0,
-    lastResult: null, gained: null, life: 0, mana: 0, potions: { life: 3, mana: 3 }, gold: 0, phase: 'prep',
+    // Town / checkpoint loop: an ACT is an ordered list of quests (ACT1 areas). You
+    // clear one quest per field descent, then return to TOWN to bank/turn-in/respec
+    // before the next. `stash` PERSISTS across runs (injected by the UI from storage);
+    // `bag` is the at-risk run inventory — forfeited on death, safe once banked.
+    act: 1, questIdx: 0, quests: ACT1.map((a) => ({ name: a.name, quest: a.quest, questText: a.questText, done: false })),
+    stash: (opts.stash || []).map((it) => ({ ...it })), respecUsedThisAct: false,
+    lastResult: null, gained: null, life: 0, mana: 0, potions: { life: 3, mana: 3 }, gold: 0, phase: 'town',
   };
   run.equipment.weapon = ITEMS[cls.startWeapon];
+  const STASH_CAP = 40, POTION_CAP = 6, BAG_CAP = 12, POTION_PRICE = 12;
+  const itemValue = (it) => it.grants ? 12 : ({ common: 2, magic: 8, rare: 20, unique: 60 }[it.rarity] || 3);
+  let combat = null, lastXp = 0, equipSeq = 0;
+  if (opts.loadout) applyLoadout(opts.loadout); // start equipped with chosen stash gear
   run.life = statsNow().maxLife;
   run.mana = statsNow().maxMana;
-  const POTION_CAP = 6, BAG_CAP = 12, POTION_PRICE = 12;
-  const itemValue = (it) => it.grants ? 12 : ({ common: 2, magic: 8, rare: 20, unique: 60 }[it.rarity] || 3);
-  let combat = null, lastXp = 0;
 
   function emptyEquipment() { const e = {}; for (const s of SLOTS) e[s] = null; return e; }
   function statsNow() { const st = deriveStats(cls, run.equipment, run.level, run.attr); st.manaRegen += (run.skillHard.warmth || 0); return st; } // Warmth: +Mana regen
@@ -157,14 +164,73 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     if (key === 'energy') { const s = statsNow(); run.mana += ENERGY_MANA; run.mana = Math.min(run.mana, s.maxMana); }
     pushHeroStats(); return { ok: true }; }
 
-  // ---- the Act 1 gauntlet run ----
+  // ---- town / checkpoint loop ----
+  // A DESCENT plays exactly ONE quest (the current ACT1 area) as a survival segment.
+  // Clear its gate -> back to TOWN (bank/turn-in/respec) for the next; the final
+  // quest (Andariel) wins the act. You can only descend FROM town.
   let lastCleared = 0;
-  function startRun() {
-    run.life = statsNow().maxLife; run.mana = statsNow().maxMana; lastXp = 0; lastCleared = 0;
-    combat = createArena({ hero: heroForFight(), rng, survival: { areas: ACT1, tier: run.difficulty, rollLoot: rollGroundItem } });
+  function descend() {
+    if (run.phase !== 'town') return { ok: false, reason: 'not in town' };
+    lastXp = 0; lastCleared = 0;
+    combat = createArena({ hero: heroForFight(), rng, survival: { areas: [ACT1[run.questIdx]], tier: run.difficulty, rollLoot: rollGroundItem } });
     run.phase = 'arena'; return { ok: true };
   }
-  const beginDescent = startRun; // (the prep screen's "descend" button)
+  const startRun = descend; const beginDescent = descend; // (the town's "descend" button)
+
+  // BANK the at-risk run inventory into the persistent stash — town only. This is
+  // the ONLY way loot survives the run; anything unbanked is lost on death.
+  function bank(id) {
+    if (run.phase !== 'town') return { ok: false, reason: 'bank only in town' };
+    const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false, reason: 'not in bag' };
+    const [it] = run.bag.splice(i, 1); pushToStash(it); return { ok: true, stash: run.stash.length };
+  }
+  function bankAll() {
+    if (run.phase !== 'town') return { ok: false, reason: 'bank only in town' };
+    const n = run.bag.length; for (const it of run.bag) pushToStash(it); run.bag = []; return { ok: true, banked: n };
+  }
+  // Keep the stash under its cap by evicting the LEAST build-valuable item when full.
+  function pushToStash(it) {
+    run.stash.push(it);
+    if (run.stash.length > STASH_CAP) {
+      let worst = 0; for (let i = 1; i < run.stash.length; i++) if (stashScore(run.stash[i]) < stashScore(run.stash[worst])) worst = i;
+      run.stash.splice(worst, 1);
+    }
+  }
+  const stashScore = (it) => it.grants ? 50 : itemScore(it, cls.id) + ({ unique: 40, rare: 12, magic: 4 }[it.rarity] || 0);
+
+  // Draw a COPY of a stash item onto the character (town only). The stash keeps the
+  // original — it's your permanent gear library — so equipping never risks it.
+  function equipFromStash(id) {
+    if (run.phase !== 'town') return { ok: false, reason: 'town only' };
+    const src = run.stash.find((x) => x.id === id); if (!src) return { ok: false, reason: 'not in stash' };
+    const copy = { ...src, id: src.id + '_eq' + (equipSeq++) };
+    const gate = canEquip(copy); if (!gate.ok) return gate;
+    const slot = slotFor(copy); if (run.equipment[slot]) run.bag.push(run.equipment[slot]);
+    run.equipment[slot] = copy; clampLife(); pushHeroStats(); return { ok: true };
+  }
+
+  // Start a run equipped with chosen stash gear (a COPY of each; stash retained).
+  // Silently skips anything you can't wear yet (level/str/dex gates still apply).
+  function applyLoadout(picks) {
+    for (const p of picks) {
+      const src = (p && p.slot) ? p : run.stash.find((x) => x.id === p);
+      if (!src) continue;
+      const copy = { ...src, id: (src.id || 'load') + '_ld' + (equipSeq++) };
+      if (!canEquip(copy).ok) continue;
+      const slot = slotFor(copy); if (run.equipment[slot] && slot !== 'weapon') run.bag.push(run.equipment[slot]);
+      run.equipment[slot] = copy;
+    }
+  }
+
+  // One FREE full respec (skills + attributes) per act — refund every spent point.
+  function respec() {
+    if (run.phase !== 'town') return { ok: false, reason: 'town only' };
+    if (run.respecUsedThisAct) return { ok: false, reason: 'respec already used this act' };
+    for (const v of Object.values(run.skillHard)) run.skillPoints += v; run.skillHard = {};
+    const base = cls.attr || { str: 0, dex: 0, vit: 0, energy: 0 };
+    for (const k of ['str', 'dex', 'vit', 'energy']) { run.attrPoints += (run.attr[k] - base[k]); run.attr[k] = base[k]; }
+    run.respecUsedThisAct = true; clampLife(); pushHeroStats(); return { ok: true };
+  }
 
   // What a monster drops — usually armor/jewelry (useful to any class), sometimes a
   // weapon that MATCHES your type (a Sorceress won't be buried in Great Axes).
@@ -197,12 +263,29 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       for (let k = 0; k < cleared; k++) { run.skillPoints += 2; combat.heal(Math.round(statsNow().maxLife * 0.5)); addPotions(1, 1); } }
     if (leveled || equipped.length) pushHeroStats();
     run.life = s.hero.life; run.mana = s.hero.mana;
-    return { leveled, loot: got, equipped, cleared };
+    if (s.over) resolveArena();
+    return { leveled, loot: got, equipped, cleared, phase: run.phase };
   }
 
-  function resolveArena() { if (!combat) return run.phase; const s = combat.getState(); if (!s.over) return run.phase;
+  // A segment ended: WIN clears the quest (turn it in -> town, or the act is won on
+  // the last quest); LOSE is death (forfeit the unbanked run inventory; stash is
+  // safe); FLEE is a safe retreat back to town (quest not cleared, loot kept).
+  function resolveArena() {
+    if (!combat) return run.phase; const s = combat.getState(); if (!s.over) return run.phase;
     run.life = s.hero.life; run.mana = s.hero.mana; run.lastResult = s.result;
-    run.phase = s.result === 'win' ? 'victory' : 'dead'; return run.phase; }
+    if (s.result === 'win') {
+      run.quests[run.questIdx].done = true;
+      if (run.questIdx >= ACT1.length - 1) { run.phase = 'victory'; }
+      else { run.questIdx += 1; toTown(); }
+    } else if (s.result === 'fled') {
+      toTown(); // retreated — the current quest still stands, but the loot came home
+    } else {
+      run.phase = 'dead'; run.bag = []; // death forfeits everything unbanked; the stash persists
+    }
+    combat = null; return run.phase;
+  }
+  // Arrive in town: rest to full and top the belt. (Banking/turn-in are your calls.)
+  function toTown() { run.phase = 'town'; const st = statsNow(); run.life = st.maxLife; run.mana = st.maxMana; addPotions(1, 1); }
   function flee() { if (!combat) return run.phase; combat.flee(); return resolveArena(); }
 
   function getRun() {
@@ -215,15 +298,21 @@ export function createGame(seed = 'bloodrune', opts = {}) {
         eff: skillEffect({ hard: run.skillHard, plusSkills: s.plusSkills, weapon: weaponNow() }, id), name: skName(id) }; });
     return { seed: run.seed, difficulty: run.difficulty, className: run.className, glyph: run.glyph, phase: run.phase,
       stats: s, life: run.life, maxLife: s.maxLife, mana: run.mana, maxMana: s.maxMana, potions: { ...run.potions },
-      gold: run.gold, bagCap: BAG_CAP,
+      gold: run.gold, bagCap: BAG_CAP, stashCap: STASH_CAP,
       level: run.level, xp: run.xp, xpToNext: xpForLevel(run.level), skillPoints: run.skillPoints,
       attr: { ...run.attr }, attrPoints: run.attrPoints,
+      act: run.act, questIdx: run.questIdx, quests: run.quests.map((q) => ({ ...q })),
+      quest: run.quests[run.questIdx] ? { ...run.quests[run.questIdx] } : null,
+      respecUsedThisAct: run.respecUsedThisAct, canRespec: run.phase === 'town' && !run.respecUsedThisAct,
       abilities: abilitiesNow(), tree, tabs: cls.tabs || null,
       equipment: Object.fromEntries(SLOTS.map((sl) => [sl, run.equipment[sl] ? { ...run.equipment[sl] } : null])),
-      bag: run.bag.map((i) => ({ ...i })), lastResult: run.lastResult, gained: run.gained };
+      bag: run.bag.map((i) => ({ ...i })), stash: run.stash.map((i) => ({ ...i })),
+      lastResult: run.lastResult, gained: run.gained };
   }
   function skName(id) { return SKILLS[id] ? SKILLS[id].name : id; }
+  function getStash() { return run.stash.map((i) => ({ ...i })); } // for the UI to persist to storage
 
-  return { beginDescent, startRun, syncArena, resolveArena, flee, equipFromBag, unequip, canEquip, investSkill, investAttr, quaff, sellFromBag, buyPotion, dropFromBag,
+  return { beginDescent, startRun, descend, syncArena, resolveArena, flee, toTown, bank, bankAll, equipFromStash, respec, getStash,
+    equipFromBag, unequip, canEquip, investSkill, investAttr, quaff, sellFromBag, buyPotion, dropFromBag,
     getRun, getCombat: () => combat, deriveStats: () => statsNow(), deriveAbilities: () => abilitiesNow() };
 }

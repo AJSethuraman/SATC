@@ -47,13 +47,22 @@ function survive(g, maxTicks) {
   return { s: cb.getState(), collected, levels };
 }
 
-test('a survival run terminates in victory or death', () => {
+// Play the whole ACT: descend from town into each quest, survive the segment,
+// bank + return to town between quests, until the act is won or the hero dies.
+function playAct(g, perSegmentTicks) {
+  for (let guard = 0; guard < 40; guard++) {
+    const p = g.getRun().phase;
+    if (p === 'victory' || p === 'dead') break;
+    if (p === 'town') { g.bankAll(); if (!g.descend().ok) break; }
+    survive(g, perSegmentTicks);
+  }
+  return g.getRun().phase;
+}
+
+test('a survival run terminates in victory or death (across the town loop)', () => {
   const g = createGame('sv-term', { classId: 'amazon', difficulty: 'Normal' });
-  g.startRun();
-  const { s } = survive(g, 30 * 60 * 20); // 20-min hard cap (8 areas + gates, enrage guarantees each resolves)
-  assert.equal(s.over, true);
-  g.resolveArena();
-  assert.ok(['victory', 'dead'].includes(g.getRun().phase), `ended ${g.getRun().phase}`);
+  const phase = playAct(g, 30 * 90); // per-quest hard cap; enrage guarantees each gate resolves
+  assert.ok(['victory', 'dead'].includes(phase), `ended ${phase}`);
 });
 
 test('monsters drop loot the hero collects — into gear or the bag', () => {
