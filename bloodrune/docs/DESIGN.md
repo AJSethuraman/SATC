@@ -48,6 +48,29 @@ D2 build, not just weapon-evolutions.
   the knobs. Juice (bigger sprites, hit-stop, screen shake, XP-gem magnetism) is
   still thin. Level-up currently pauses per level — VS-style would be smoother.
 
+### 0b. Act 1 gauntlet + real skill trees (latest)
+
+The run is now **all of Act 1 as a sequence of areas** (Blood Moor → Cold Plains →
+Sisters' Burial Grounds → Stony Field → Dark Wood → Forgotten Tower → Jail &
+Barracks → Catacombs), no exploration. Each area runs a **timer**; when it elapses
+its **time-gate** — a named super-unique (Corpsefire, Bishibosh, Blood Raven,
+Rakanishu, Treehead Woodfist, The Countess, The Smith, then **Andariel**) —
+spawns. Kill the gate to clear the area (and its **quest**: Den of Evil, Sisters'
+Burial Grounds, Tools of the Trade, Sisters to the Slaughter…) and transition on.
+Andariel's death = Act 1 cleared. Gates **enrage** if kited too long (ramping
+speed/attack) so no run can stall forever. Pacing is brisk (fast XP curve, high
+drop rate, quest reward = +2 points + heal + restock); level-ups **bank** points
+(no per-level pause) — spend anytime in the tree (⚔ pulses).
+Config: `ACT1` in `content.js`; the area director in `arena.js`; quest rewards in
+`game.js syncArena`. Next: Acts 2–5 (same shape, new areas/gates).
+
+**Skill trees are now real D2 trees.** The **Sorceress** is a faithful clone with
+**three tabs** (Fire / Cold / Lightning), 18 skills, prerequisite chains, and
+passives — **Warmth** (+Mana regen) and **Masteries** (+spell damage). New engine
+scale types: `nova` (blast all foes around you) and `passive` (don't auto-fire).
+The other classes keep their (smaller) single-list trees for now; giving them the
+full 3-tab treatment is the follow-on.
+
 The turn-based sections below (§1–§5) are the **prior** design, kept for history.
 
 ---
