@@ -10,14 +10,46 @@ Living doc.
 
 ---
 
+## 0. PIVOT — real-time movement (current direction)
+
+Combat moved from **turn-based rings** to **real-time movement** (a
+Vampire-Survivors / Halls-of-Torment shape): you are a token in an arena and the
+only control is **moving** (WASD / arrows / drag). Abilities **auto-fire on
+cooldown** when Mana allows — *positioning is the skill*: kite the swarm, line up
+a Cleave, back off to regen. The **progression is unchanged and load-bearing** —
+same XP→levels→skill tree, same weapon-driven damage (`skillEffect`), same
+to-hit/dodge math, loot (take-or-leave), super uniques, difficulty tiers
+(Normal/Nightmare/Hell), permadeath, telemetry. **Our niche vs. VS/HoT: it's
+*skill-tree* and *item-find* driven** (a D2 build, not just weapon-evolutions).
+
+- **Engine:** `engine/arena.js` — deterministic fixed-step (`DT = 1/30`) sim,
+  seeded rng, no DOM. Replaces `combat.js` at the moment-to-moment; keeps the
+  `getState()/quaff()/flee()` contract `game.js` expects, adds `tick(input)` +
+  `autoInput()` (headless movement autopilot for the balance bot/tests). Bolts
+  **home** (VS-style auto-aim) so ranged classes reliably connect.
+- **UI:** `ui/main.js` `renderCombat` is now a `<canvas>` rAF loop (movement
+  input + auto-fire skill chips + potion belt); everything else (prep, blind map,
+  reward, shop, skill tree, inventory, stats) is unchanged.
+- **What didn't port:** rings / engagement cap / action points / front-rank
+  screen / guardian body-block — replaced by real positioning. Guardians are now
+  melee bruisers; casters kite-and-support.
+- **Open tuning:** melee (Barbarian) is the weak class (must stand in the swarm)
+  — the classic VS melee problem; needs survivability/lifesteal or reach love.
+  Juice (bigger sprites, hit-stop, screen shake, XP-gem magnetism) is thin.
+
+The turn-based sections below (§1–§5) are the **prior** design, kept for history.
+
+---
+
 ## 1. Pillars (the fantasy)
 
 1. **Diablo 2, turned tactical.** The D2 fantasy — a dark gothic crawl, a
    character *body* you gear, skills you spec into, loot that defines you —
-   as **turn-based tactical combat**. Explicitly D2, not D3/D4's feel.
-2. **Surrounded and outnumbered.** One hero ringed by a horde. Positioning is
-   abstracted to **rings + an engagement cap**; tension is *who can reach whom*
-   and *who do I kill first*.
+   as combat you play. Explicitly D2, not D3/D4's feel. *(Pivot §0: now
+   real-time movement, was turn-based tactical.)*
+2. **Surrounded and outnumbered.** One hero ringed by a horde; tension is
+   *who do I kill first* and *where do I stand*. *(Pivot §0: positioning is
+   now literal — you move — not rings + an engagement cap.)*
 3. **Start naked, become a god — or die.** One weapon-granted skill → scale via
    XP, the tree, and loot. Fix your build's weakness, or die to it. Permadeath.
 4. **Your build is your character.** Class + tree + **weapon type** + gear = a

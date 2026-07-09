@@ -5,7 +5,8 @@
 
 import { CLASSES, ITEMS, SLOTS, WEAPON_DROPS, ELITE_AFFIXES, BOSS_PACK, SKILLS, SUPERUNIQUES, SUPERUNIQUE_IDS } from './content.js';
 import { makeRng } from './rng.js';
-import { createCombat, skillEffect } from './combat.js';
+import { skillEffect } from './combat.js';
+import { createArena } from './arena.js';
 import { makeMap, nextChoices, NODE_TYPES } from './map.js';
 import { rollItem } from './loot.js';
 
@@ -151,7 +152,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     }
     return pack;
   }
-  function startFight(pack) { combat = createCombat({ hero: heroForFight(), pack, rng }); run.phase = 'combat'; return { ok: true }; }
+  function startFight(pack) { combat = createArena({ hero: heroForFight(), pack, rng }); run.phase = 'combat'; return { ok: true }; }
   function advance() { run.map.step += 1; run.choices = nextChoices(rng, run.map); }
 
   function resolveCombat() {

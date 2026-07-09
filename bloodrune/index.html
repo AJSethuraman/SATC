@@ -293,12 +293,37 @@
   .sk-btns button { font-family:inherit; font-size:12px; padding:5px 10px; border-radius:7px; cursor:pointer; background:#1a1213; border:1px solid #4a3a2a; color:var(--gold); }
   .sk-btns button:disabled { opacity:.35; cursor:not-allowed; }
   button.act.small { padding:8px 16px; font-size:13px; }
+  /* --- real-time arena --- */
+  .rt { display:flex; flex-direction:column; gap:8px; align-items:stretch; }
+  .rt-hud { display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:space-between;
+    background:linear-gradient(180deg,var(--panel),#0d0809); border:1px solid var(--panel-edge); border-radius:10px; padding:7px 12px; font-variant-numeric:tabular-nums; }
+  .rt-bars { display:flex; flex-direction:column; gap:5px; flex:1 1 220px; min-width:180px; }
+  .rt-bar { position:relative; height:15px; border-radius:8px; overflow:hidden; border:1px solid #3a1414; background:#22090a; }
+  .rt-bar.mana { border-color:#25406e; background:#0c1524; }
+  .rt-bar > i { display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--blood),var(--blood-bright)); transition:width .08s linear; }
+  .rt-bar.mana > i { background:linear-gradient(90deg,#274a86,#4a7bff); }
+  .rt-bar > span { position:absolute; inset:0; text-align:center; font-size:10px; line-height:15px; font-weight:700; color:#f2e6da; text-shadow:0 1px 2px #000; letter-spacing:.5px; }
+  .rt-meta { display:flex; gap:12px; font-size:12px; color:#cbbfb4; }
+  .rt-meta b { color:var(--gold); }
+  .rt-canvas-wrap { position:relative; width:100%; max-width:620px; margin:0 auto; }
+  #rtCanvas { display:block; width:100%; height:auto; background:radial-gradient(120% 90% at 50% 40%, #17101a 0%, #0a0709 78%);
+    border:1px solid #2a1f2a; border-radius:12px; touch-action:none; cursor:crosshair; box-shadow:inset 0 0 40px rgba(0,0,0,.7); }
+  .rt-skills { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
+  .rt-skill { position:relative; min-width:66px; padding:5px 8px 4px; border-radius:8px; overflow:hidden; text-align:center;
+    background:#140f14; border:1px solid #3a2a3a; font-size:11px; color:#8a7f88; }
+  .rt-skill.ready { color:#e7dcd0; border-color:#5a4a3a; }
+  .rt-skill .rs-n { font-weight:700; font-size:11px; letter-spacing:.3px; }
+  .rt-skill .rs-c { font-size:9px; color:var(--steel); opacity:.85; }
+  .rt-skill .rs-cd { position:absolute; left:0; bottom:0; width:100%; background:rgba(74,123,255,.18); height:0%; }
+  .rt-skill.attack { border-left:3px solid #7a5a3a; } .rt-skill.summon { border-left:3px solid #6a6f8a; }
+  .rt-skill.breakthrough { border-left:3px solid var(--gold); } .rt-skill.skill { border-left:3px solid #6fd08a; }
+  .rt-hint { text-align:center; color:#6f6357; font-size:11px; line-height:1.5; margin:2px 0 4px; }
 </style>
 </head>
 <body>
 <div id="app">
   <h1>BLOOD<span class="rune">RUNE</span></h1>
-  <div class="subtitle">A dark-fantasy roguelite deckbuilder</div>
+  <div class="subtitle">A dark-fantasy roguelite — move, survive the swarm</div>
   <div id="board"></div>
   <div class="log" id="log"></div>
   <div class="foot">Bloodrune — full design in <span style="color:var(--muted)">docs/prd-bloodrune.md</span>.</div>

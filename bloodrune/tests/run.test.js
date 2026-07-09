@@ -33,13 +33,24 @@ test('rollItem drops armor/jewelry with rolled affixes (never a weapon)', () => 
   for (let s = 0; s < 30; s++) { const it = rollItem(makeRng('r' + s), {}); assert.notEqual(it.slot, 'weapon'); }
 });
 
-// competent auto-player: focus caster, learn/level a reach or summon, spend Mana
+// Drive one REAL-TIME fight to its end with the engine's movement autopilot (skills
+// auto-fire; the bot only moves). Auto-quaff when low, flee if it somehow runs long.
+function clearFight(g, cap = 30 * 80) {
+  const cb = g.getCombat(); let t = 0;
+  while (!cb.getState().over && t++ < cap) {
+    const s = cb.getState();
+    if (s.hero.life < s.hero.maxLife * 0.4) g.quaff('life');
+    if (s.hero.mana < s.hero.maxMana * 0.15) g.quaff('mana');
+    cb.tick(cb.autoInput());
+  }
+  if (!cb.getState().over) g.flee(); else g.resolveCombat();
+}
+
+// competent auto-player: learn a preferred build, then move-and-survive each fight
 function autoRun(seed, classId, learnPref) {
   const g = createGame(seed, { classId });
   g.beginDescent();
   const S = () => g.getRun();
-  const cIdx = (id) => g.getCombat().getState().hero.abilities.findIndex((a) => a.id === id);
-  const tryUse = (id) => { const i = cIdx(id); if (i < 0) return false; const r = g.getCombat().useSkill(i); return !!(r && r.ok); };
   let guard = 0;
   while (guard++ < 400) {
     const run = S();
@@ -49,24 +60,7 @@ function autoRun(seed, classId, learnPref) {
     if (run.phase === 'reward') { let sp = 0; while (S().skillPoints > 0 && sp++ < 20) { const tree = S().tree;
       const want = learnPref.map((id) => tree.find((t) => t.id === id)).find((t) => t && t.canInvest) || tree.find((t) => t.canInvest);
       if (!want) break; g.investSkill(want.id); } g.continueFromReward(); continue; }
-    if (run.phase === 'combat') {
-      const cb = g.getCombat();
-      let turns = 0;
-      while (!cb.getState().over && turns++ < 60) {
-        const st = cb.getState();
-        const caster = st.enemies.find((e) => e.hp > 0 && e.role === 'caster'); const liv = st.enemies.filter((e) => e.hp > 0);
-        cb.setFocus(caster ? caster.uid : (liv[0] ? liv[0].uid : 0));
-        let acted = true;
-        while (acted) { acted = false; const c = cb.getState(); if (c.over) break;
-          const has = (id) => c.hero.abilities.some((a) => a.id === id); const aff = (id) => { const a = c.hero.abilities.find((x) => x.id === id); return a && a.cost <= c.hero.mana; };
-          if (c.hero.summons.length < 3 && has('raise_skeleton') && aff('raise_skeleton') && tryUse('raise_skeleton')) { acted = true; continue; }
-          for (const id of ['strafe', 'teeth', 'cleave', 'whirlwind', 'power_shot', 'bone_spear', 'charge', 'pierce', 'smite', 'zeal', 'attack']) { if (has(id) && aff(id) && tryUse(id)) { acted = true; break; } }
-        }
-        cb.endTurn();
-      }
-      if (!cb.getState().over) g.flee(); else g.resolveCombat(); // bail on a stalemate instead of spinning
-      continue;
-    }
+    if (run.phase === 'combat') { clearFight(g); continue; }
     break;
   }
   return S().phase;
@@ -110,10 +104,7 @@ test('space-limited bag: loot must be TAKEN, overflow is left behind (never free
       g.continueFromReward(); continue;
     }
     if (r.phase === 'map') { const i = r.choices.findIndex((c) => ['combat', 'treasure', 'elite'].includes(c.type)); g.chooseDirection(i >= 0 ? i : 0); continue; }
-    if (r.phase === 'combat') { const cb = g.getCombat(); let t = 0;
-      while (!cb.getState().over && t++ < 40) { const st = cb.getState(); const liv = st.enemies.filter((e) => e.hp > 0); cb.setFocus(liv[0] ? liv[0].uid : 0);
-        let a = true; while (a) { a = false; const c = cb.getState(); if (c.over) break; const idx = c.hero.abilities.findIndex((x) => x.cost <= c.hero.mana && x.id !== 'guard'); if (idx >= 0 && cb.useSkill(idx).ok) a = true; } cb.endTurn(); }
-      if (!cb.getState().over) g.flee(); else g.resolveCombat(); continue; }
+    if (r.phase === 'combat') { clearFight(g); continue; }
     break;
   }
   const run = g.getRun();
@@ -143,10 +134,10 @@ test('Mana persists across the run (no free refill); Mana potions restore it', (
   }
   const cb = g.getCombat(); assert.ok(cb && g.getRun().phase === 'combat', 'reached a fight');
   const maxMana = cb.getState().hero.maxMana;
-  // spend Mana on a real skill (Raise Skeleton), leaving an action for the potion
-  let g2 = 0; while (g2++ < 2) { const st = cb.getState(); const idx = st.hero.abilities.findIndex((a) => a.id === 'raise_skeleton' && a.cost <= st.hero.mana); if (idx < 0 || !cb.useSkill(idx).ok) break; }
+  // let the auto-firing skills (Raise Skeleton / Guard) spend Mana over a few frames
+  for (let i = 0; i < 3; i++) cb.tick(cb.autoInput());
   const low = cb.getState().hero.mana;
-  assert.ok(low < maxMana, 'Mana was spent');
+  assert.ok(low < maxMana, 'casting spent Mana (no free per-fight refill to full)');
   // quaff a Mana potion: restores Mana, decrements the belt
   const potsBefore = g.getRun().potions.mana;
   const r = g.quaff('mana');
@@ -165,9 +156,7 @@ test('leveling grants skill points and investing raises a skill', () => {
   const i = g.getRun().choices.findIndex((c) => c.type === 'combat');
   g.chooseDirection(i >= 0 ? i : 0);
   const cb = g.getCombat();
-  if (cb) { let t = 0; while (!cb.getState().over && t++ < 40) { const st = cb.getState(); const liv = st.enemies.filter((e) => e.hp > 0); cb.setFocus(liv[0] ? liv[0].uid : 0);
-    let acted = true; while (acted) { acted = false; const c = cb.getState(); if (c.over) break; const idx = c.hero.abilities.findIndex((a) => a.id !== 'guard' && a.cost <= c.hero.mana); if (idx >= 0 && cb.useSkill(idx).ok) { acted = true; } } cb.endTurn(); }
-    g.resolveCombat(); }
+  if (cb) clearFight(g);
   const run = g.getRun();
   if (run.skillPoints > 0) { const before = run.tree.find((t) => t.id === 'cleave').level; g.investSkill('cleave'); assert.equal(g.getRun().tree.find((t) => t.id === 'cleave').level, before + 1); }
   assert.ok(run.level >= 1);

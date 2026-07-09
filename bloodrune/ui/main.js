@@ -5,6 +5,7 @@
 
 import { createGame } from '../engine/game.js';
 import { SLOTS, SLOT_LABEL, CLASSES } from '../engine/content.js';
+import { DT, ARENA_W, ARENA_H } from '../engine/arena.js';
 
 const board = document.getElementById('board');
 const logEl = document.getElementById('log');
@@ -125,71 +126,139 @@ function renderMap(r) {
 }
 function runHeader(r) { return `<div class="run-header"><span class="rh-diff">${r.difficulty}</span><span>Depth ${Math.min(r.mapStep + 1, r.mapLength + 1)}/${r.mapLength + 1}</span><span class="rh-life">❤ ${r.life}/${r.maxLife}</span><span style="color:var(--gold)">◉ ${r.gold}g</span><span class="rh-xp">Lv ${r.level} · XP ${r.xp}/${r.xpToNext}</span>${r.skillPoints ? `<span style="color:var(--gold)">● ${r.skillPoints} pts</span>` : ''}</div>`; }
 
-// ---------- combat (arena) ----------
-function potionBtn(kind, count, full) {
-  const label = kind === 'life' ? '🩹 Life' : '🔷 Mana';
-  return `<button class="pot ${kind}" data-quaff="${kind}" ${count <= 0 || full ? 'disabled' : ''}>${label} <span class="pn">×${count}</span></button>`;
+// ---------- combat (REAL-TIME arena) ----------
+// You are a token in an arena and MOVE (WASD / arrows / drag). Abilities auto-fire
+// on cooldown when Mana allows — positioning is the whole game. We drive our own
+// rAF loop here (not render()): the engine ticks at a fixed DT, the canvas paints.
+const keys = new Set();
+let touchVec = null, joy = null;               // joy = {ox,oy,cx,cy} for the on-canvas stick
+let arenaActive = false, raf = 0, lastT = 0, tacc = 0;
+let rtCanvas = null, rtCtx = null, rtSkillEls = {};
+const KEYMAP = { arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down', arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right' };
+window.addEventListener('keydown', (e) => { if (!arenaActive) return; const m = KEYMAP[e.key.toLowerCase()]; if (m) { keys.add(m); e.preventDefault(); } });
+window.addEventListener('keyup', (e) => { if (!arenaActive) return; const m = KEYMAP[e.key.toLowerCase()]; if (m) { keys.delete(m); } });
+function inputVector() {
+  if (touchVec) return touchVec;
+  let x = 0, y = 0; if (keys.has('left')) x -= 1; if (keys.has('right')) x += 1; if (keys.has('up')) y -= 1; if (keys.has('down')) y += 1;
+  const l = Math.hypot(x, y); return l > 0 ? { x: x / l, y: y / l } : { x: 0, y: 0 };
 }
+function potionBtn(kind, count, full) { const label = kind === 'life' ? '🩹 Life' : '🔷 Mana';
+  return `<button class="pot ${kind}" data-quaff="${kind}" ${count <= 0 || full ? 'disabled' : ''}>${label} <span class="pn">×${count}</span></button>`; }
+
 function renderCombat() {
+  if (arenaActive) return; // the loop owns the DOM once it's up; don't rebuild mid-fight
   const s = combat.getState(); const h = s.hero; const pot = game.getRun().potions;
-  const living = s.enemies.filter((e) => e.hp > 0);
-  if (focusUid == null || !living.find((e) => e.uid === focusUid)) focusUid = living[0] ? living[0].uid : null;
-  const pos = {};
-  [0, 1].forEach((ring) => { const grp = living.filter((e) => (e.ring || 0) === ring); const R = ring === 0 ? 30 : 47;
-    grp.forEach((e, i) => { const a = -Math.PI / 2 + (i / grp.length) * Math.PI * 2 + (ring === 1 ? Math.PI / (grp.length || 1) : 0); pos[e.uid] = { x: 50 + R * Math.cos(a), y: 50 + R * Math.sin(a) }; }); });
-  const lines = s.enemies.filter((e) => e.hp > 0 && e.role === 'guardian' && e.guardsUid != null).map((g) => { const t = s.enemies.find((e) => e.uid === g.guardsUid && e.hp > 0); if (!t || !pos[g.uid] || !pos[t.uid]) return ''; const a = pos[g.uid], b = pos[t.uid]; return `<line x1="${a.x}%" y1="${a.y}%" x2="${b.x}%" y2="${b.y}%" stroke="#4a7bff" stroke-opacity="0.5" stroke-width="1.5" stroke-dasharray="3 3"/>`; }).join('');
-  const frontRing = Math.min(...living.map((e) => e.ring || 0));
-  const mobs = living.map((e) => { const p = pos[e.uid];
-    const intent = e.intent ? (e.intent.type === 'support' ? '<div class="in heal">🌀 channels</div>' : e.intent.type === 'wait' ? '<div class="in wait">⏳ waiting</div>' : `<div class="in">⚔️ ${e.intent.value}${e.intent.times > 1 ? '×' + e.intent.times : ''}</div>`) : '';
-    const screened = (e.ring || 0) > frontRing; // held safe behind the front rank — melee can't reach it yet
-    return `<div class="mob ${e.role === 'guardian' ? 'guardian' : e.role === 'caster' ? 'caster' : ''} ${e.unique ? 'unique' : e.elite ? 'elite' : ''} ${screened ? 'screened' : ''} ${e.uid === focusUid ? 'focus' : ''}" data-uid="${e.uid}" style="left:${p.x}%;top:${p.y}%">
-      ${e.unique ? '<div class="badge unique2">☠ SUPER UNIQUE</div>' : e.guarded ? `<div class="badge guarded">🛡 ×${e.guardianCount}</div>` : screened ? '<div class="badge screened">out of reach</div>' : e.elite ? `<div class="badge elite2">ELITE</div>` : ''}
-      <div class="card2"><div class="g">${e.glyph}</div><div class="n">${e.name}</div><div class="hp"><i style="width:${pv(e.hp, e.maxHp)}%"></i></div>${intent}</div>
-      ${e.uid === focusUid ? '<div class="focus-tag">🎯</div>' : ''}</div>`; }).join('');
-  board.innerHTML = `
-    <div class="bar ${h.exposed ? 'exposed' : ''}">
-      <div class="stat"><span class="k">Life</span><span class="v life">${h.life}/${h.maxLife}</span></div>
-      <div class="stat"><span class="k">Mana</span><span class="v mana">${h.mana}/${h.maxMana}</span><span class="regen">+${h.manaRegen}/t</span></div>
-      <div class="stat"><span class="k">Block</span><span class="v block">${h.block}</span></div>
-      <div class="stat"><span class="k">Acc</span><span class="v">${h.accuracy}</span></div>
-      ${h.evade > 0 ? `<div class="stat"><span class="k">Eva</span><span class="v">${h.evade}</span></div>` : ''}
-      <div class="stat"><span class="k">Act</span><span class="v acts">${'◆'.repeat(h.actions)}${'◇'.repeat(Math.max(0, h.maxActions - h.actions))}</span></div>
-      <div class="stat"><span class="k">Lv</span><span class="v">${game.getRun().level}</span></div>
-      ${h.exposed ? '<span class="expo">⚠ EXPOSED</span>' : ''}
-      <div class="stat"><span class="k">Turn</span><span class="v">${s.turn}</span></div>
+  board.innerHTML = `<div class="rt">
+    <div class="rt-hud">
+      <div class="rt-bars">
+        <div class="rt-bar life"><i id="rtLife"></i><span id="rtLifeT"></span></div>
+        <div class="rt-bar mana"><i id="rtMana"></i><span id="rtManaT"></span></div>
+      </div>
+      <div class="rt-meta"><span>Lv <b id="rtLvl">${game.getRun().level}</b></span><span>Foes <b id="rtFoes"></b></span><span>⏱ <b id="rtTime"></b></span></div>
     </div>
-    <div class="arena"><svg viewBox="0 0 100 100" preserveAspectRatio="none">${lines}</svg>
-      <div class="hero-tok"><div class="ring"></div><div class="g">${h.glyph}</div>${h.summons.length ? `<div class="summons">${h.summons.map((x) => x.glyph).join('')}</div>` : ''}</div>${mobs}</div>
-    <div class="hint">Surrounded — only the front rank can reach you each turn (the rest ⏳ wait). Ranged foes hold the back (“out of reach”); thin the front to pin them, or strike past with a ranged skill / Charge / Summons. A Shaman raises the Fallen — kill it first.</div>
-    <div class="hand">${h.abilities.map(abilityHTML).join('')}</div>
-    <div class="belt">${potionBtn('life', pot.life, h.life >= h.maxLife || h.actions <= 0)}${potionBtn('mana', pot.mana, h.mana >= h.maxMana || h.actions <= 0)}</div>
-    <div class="controls"><button class="act ghost small" id="flee">FLEE</button><button class="act" id="end">END TURN</button></div>`;
-  logEl.innerHTML = s.log.slice(-6).map((l) => `<div>${l}</div>`).join(''); logEl.scrollTop = logEl.scrollHeight;
-  board.querySelectorAll('.mob').forEach((mb) => mb.addEventListener('click', () => { focusUid = Number(mb.dataset.uid); combat.setFocus(focusUid); render(); }));
-  document.querySelectorAll('.card').forEach((b) => b.addEventListener('click', () => { const id = (combat.getState().hero.abilities[Number(b.dataset.i)] || {}).id; const r = combat.useSkill(Number(b.dataset.i), focusUid); if (r && r.ok && id) { TEL.skills[id] = (TEL.skills[id] || 0) + 1; saveTel(); } afterCombat(); }));
-  board.querySelectorAll('[data-quaff]').forEach((b) => b.addEventListener('click', () => { const r = game.quaff(b.dataset.quaff); if (r && r.ok) { TEL.potions[b.dataset.quaff]++; tel('quaff', { kind: b.dataset.quaff }); } render(); }));
-  document.getElementById('end').addEventListener('click', () => { combat.endTurn(); afterCombat(); });
-  document.getElementById('flee').addEventListener('click', () => { const s = combat.getState(); game.flee(); recordCombatEnd(combat.getState()); combat = game.getCombat(); afterTerminal(); render(); });
+    <div class="rt-canvas-wrap"><canvas id="rtCanvas" width="${ARENA_W}" height="${ARENA_H}"></canvas></div>
+    <div class="rt-skills" id="rtSkills">${h.abilities.map((a) => `<div class="rt-skill ${a.type}" data-id="${a.id}"><div class="rs-n">${a.name}</div><div class="rs-c">${a.cost ? a.cost + '⬡' : 'free'}</div><div class="rs-cd"></div></div>`).join('')}</div>
+    <div class="belt">${potionBtn('life', pot.life, h.life >= h.maxLife)}${potionBtn('mana', pot.mana, h.mana >= h.maxMana)}</div>
+    <div class="rt-hint">Move: <b>WASD / arrows</b> on a keyboard, or <b>drag</b> anywhere on the arena. Your skills fire on their own — kite the swarm, line up a swing, back off to regen Mana. Kill the caster (🧙) fast: it raises the dead.</div>
+    <div class="controls" style="display:flex;gap:12px;justify-content:center"><button class="act ghost small" id="flee">FLEE</button></div>
+  </div>`;
+  logEl.innerHTML = '';
+  rtCanvas = document.getElementById('rtCanvas'); rtCtx = rtCanvas.getContext('2d');
+  rtSkillEls = {}; board.querySelectorAll('.rt-skill').forEach((el) => { rtSkillEls[el.dataset.id] = el; });
+  bindArenaPointer();
+  board.querySelectorAll('[data-quaff]').forEach((b) => b.addEventListener('click', (ev) => { ev.preventDefault(); const r = game.quaff(b.dataset.quaff); if (r && r.ok) { TEL.potions[b.dataset.quaff]++; tel('quaff', { kind: b.dataset.quaff }); } }));
+  document.getElementById('flee').addEventListener('click', () => { if (!arenaActive) return; game.flee(); endArena(combat.getState()); });
+  arenaActive = true; lastT = performance.now(); tacc = 0; raf = requestAnimationFrame(arenaFrame);
 }
+
+function bindArenaPointer() {
+  const toArena = (ev) => { const r = rtCanvas.getBoundingClientRect(); return { x: (ev.clientX - r.left) / r.width * ARENA_W, y: (ev.clientY - r.top) / r.height * ARENA_H }; };
+  rtCanvas.addEventListener('pointerdown', (ev) => { ev.preventDefault(); rtCanvas.setPointerCapture(ev.pointerId); const p = toArena(ev); joy = { ox: p.x, oy: p.y, cx: p.x, cy: p.y }; touchVec = { x: 0, y: 0 }; });
+  rtCanvas.addEventListener('pointermove', (ev) => { if (!joy) return; const p = toArena(ev); joy.cx = p.x; joy.cy = p.y; let dx = p.x - joy.ox, dy = p.y - joy.oy; const l = Math.hypot(dx, dy); const dead = 8; if (l < dead) { touchVec = { x: 0, y: 0 }; } else { const m = Math.min(1, l / 70); touchVec = { x: dx / l * m, y: dy / l * m }; } });
+  const end = () => { joy = null; touchVec = null; };
+  rtCanvas.addEventListener('pointerup', end); rtCanvas.addEventListener('pointercancel', end); rtCanvas.addEventListener('pointerleave', () => { if (joy) { /* keep moving if captured */ } });
+}
+
+function arenaFrame(now) {
+  if (!arenaActive) return;
+  let dt = (now - lastT) / 1000; lastT = now; if (dt > 0.05) dt = 0.05; tacc += dt * (window.__timescale || 1); // __timescale: headless fast-forward
+  const input = window.__autopilot ? combat.autoInput() : inputVector(); // __autopilot: headless-test movement driver
+  const cap = window.__timescale ? 400 : 6;
+  let guard = 0; while (tacc >= DT && guard < cap) { combat.tick(input); tacc -= DT; guard++; if (combat.getState().over) break; }
+  const s = combat.getState();
+  drawArena(s); updateHUD(s);
+  window.__bloodrune.state = s; window.__bloodrune.phase = 'combat';
+  if (s.over) { endArena(s); return; }
+  raf = requestAnimationFrame(arenaFrame);
+}
+
+function endArena(s) {
+  arenaActive = false; cancelAnimationFrame(raf); touchVec = null; joy = null; keys.clear();
+  recordCombatEnd(s); game.resolveCombat(); afterTerminal(); render();
+}
+
+// ---- canvas painting ----
+const ROLE_FILL = { grunt: '#2a1622', guardian: '#1c2542', archer: '#16233f', caster: '#2a183a', elite: '#3a1414' };
+function drawArena(s) {
+  const c = rtCtx; c.clearRect(0, 0, ARENA_W, ARENA_H);
+  // gems (spent XP motes) + fx underlay
+  for (const g of s.gems) { c.fillStyle = 'rgba(120,200,220,0.5)'; c.beginPath(); c.arc(g.x, g.y, 2.5, 0, 7); c.fill(); }
+  for (const f of s.fx) drawFx(c, f);
+  // minions
+  for (const m of s.minions) { c.fillStyle = '#1a2038'; c.strokeStyle = '#6a6f8a'; c.lineWidth = 1.5; disc(c, m.x, m.y, m.r); glyph(c, m.glyph, m.x, m.y, m.r * 1.5); }
+  // projectiles
+  for (const p of s.projectiles) { c.fillStyle = p.hostile ? '#ff6a5a' : '#e7cf8a'; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill();
+    if (p.hostile) { c.strokeStyle = 'rgba(255,90,70,.4)'; c.lineWidth = 1; c.stroke(); } }
+  // enemies
+  for (const e of s.enemies) { if (e.hp <= 0) continue;
+    const flash = e.flash > 0; c.fillStyle = flash ? '#ffffff' : (ROLE_FILL[e.role] || '#241521');
+    c.strokeStyle = e.unique ? '#c8a24a' : e.elite ? '#c62828' : e.raised ? '#6f8a6f' : '#4a3a4a'; c.lineWidth = e.unique || e.elite ? 2.5 : 1.5;
+    disc(c, e.x, e.y, e.r); glyph(c, e.glyph, e.x, e.y - 1, e.r * 1.7);
+    // hp bar
+    const w = e.r * 2.2, hpf = Math.max(0, e.hp / e.maxHp); c.fillStyle = '#320c0c'; c.fillRect(e.x - w / 2, e.y - e.r - 8, w, 3.5);
+    c.fillStyle = e.unique ? '#c8a24a' : '#c62828'; c.fillRect(e.x - w / 2, e.y - e.r - 8, w * hpf, 3.5);
+  }
+  // hero
+  const h = s.hero; if (h.shield > 0) { c.strokeStyle = 'rgba(200,162,74,.7)'; c.lineWidth = 2.5; c.beginPath(); c.arc(h.x, h.y, h.r + 6, 0, 7); c.stroke(); }
+  c.globalAlpha = h.invuln ? 0.55 : 1; c.fillStyle = '#2a1a10'; c.strokeStyle = '#c8a24a'; c.lineWidth = 2.5; disc(c, h.x, h.y, h.r); glyph(c, h.glyph, h.x, h.y - 1, h.r * 2); c.globalAlpha = 1;
+  // aim reticle toward last move dir
+  // joystick
+  if (joy) { c.strokeStyle = 'rgba(200,180,150,.35)'; c.lineWidth = 2; c.beginPath(); c.arc(joy.ox, joy.oy, 40, 0, 7); c.stroke();
+    c.fillStyle = 'rgba(200,180,150,.55)'; c.beginPath(); c.arc(joy.cx, joy.cy, 14, 0, 7); c.fill(); }
+}
+function disc(c, x, y, r) { c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); c.stroke(); }
+function glyph(c, g, x, y, size) { c.font = `${Math.round(size)}px serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(g, x, y); }
+function drawFx(c, f) {
+  const t = f.life / f.maxLife;
+  if (f.type === 'sweep') { c.strokeStyle = `rgba(230,200,150,${0.5 * t})`; c.lineWidth = 3; c.beginPath(); c.arc(f.x, f.y, f.r * (1.2 - t * 0.3), 0, 7); c.stroke(); }
+  else if (f.type === 'cast') { c.strokeStyle = hexA(f.color || '#c8a24a', 0.6 * t); c.lineWidth = 2.5; c.beginPath(); c.arc(f.x, f.y, f.r * (1.4 - t * 0.5), 0, 7); c.stroke(); }
+  else if (f.type === 'dash') { c.fillStyle = `rgba(200,162,74,${0.4 * t})`; c.beginPath(); c.arc(f.x, f.y, 22 * (1.2 - t), 0, 7); c.fill(); }
+  else if (f.type === 'dmg') { c.fillStyle = `rgba(255,225,180,${Math.min(1, t * 1.5)})`; c.font = 'bold 14px sans-serif'; c.textAlign = 'center'; c.fillText(f.val, f.x, f.y); }
+  else if (f.type === 'miss') { c.fillStyle = `rgba(150,150,160,${t})`; c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('miss', f.x, f.y); }
+  else if (f.type === 'evade') { c.fillStyle = `rgba(150,200,255,${t})`; c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('dodge', f.x, f.y); }
+  else if (f.type === 'hurt') { c.strokeStyle = `rgba(220,40,40,${0.5 * t})`; c.lineWidth = 3; c.beginPath(); c.arc(f.x, f.y, 20 * (1.4 - t), 0, 7); c.stroke(); }
+}
+function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
+
+function updateHUD(s) {
+  const h = s.hero; const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const wl = document.getElementById('rtLife'), wm = document.getElementById('rtMana');
+  if (wl) wl.style.width = pv(h.life, h.maxLife) + '%'; if (wm) wm.style.width = pv(h.mana, h.maxMana) + '%';
+  set('rtLifeT', `${Math.ceil(h.life)}/${h.maxLife}`); set('rtManaT', `${Math.floor(h.mana)}/${h.maxMana}`);
+  set('rtFoes', s.enemies.filter((e) => e.hp > 0).length); set('rtTime', s.turn + 's'); set('rtLvl', game.getRun().level);
+  for (const a of h.abilities) { const el = rtSkillEls[a.id]; if (!el) continue;
+    el.classList.toggle('ready', a.ready); const bar = el.querySelector('.rs-cd'); if (bar) bar.style.height = Math.min(100, (a.cd / 1.8) * 100) + '%'; }
+  // potion buttons reflect the belt
+  const pot = game.getRun().potions;
+  const lb = board.querySelector('[data-quaff="life"]'), mb = board.querySelector('[data-quaff="mana"]');
+  if (lb) { lb.disabled = pot.life <= 0 || h.life >= h.maxLife; lb.querySelector('.pn').textContent = '×' + pot.life; }
+  if (mb) { mb.disabled = pot.mana <= 0 || h.mana >= h.maxMana; mb.querySelector('.pn').textContent = '×' + pot.mana; }
+}
+
 let lastRecorded = null;
 function recordCombatEnd(s) { if (!s || !s.over || s === lastRecorded) return; lastRecorded = s; const ty = s.tally; const c = TEL.combat;
   c.fights++; if (s.result === 'fled') c.fled++; c.hits += ty.hits; c.misses += ty.misses; c.evades += ty.evades; c.kills += ty.kills; c.dmgDealt += ty.dmgDealt; c.dmgTaken += ty.dmgTaken; c.turns += s.turn;
-  tel('combat', { result: s.result, node: game.getRun().node ? game.getRun().node.type : null, turns: s.turn, tally: ty }); }
-function abilityHTML(c, i) {
-  const s = combat.getState(); const h = s.hero; const affordable = c.cost <= h.mana && h.actions > 0;
-  const autoReach = c.weapon === 'weapon' && h.weapon && h.weapon.wtype === 'ranged'; // auto-attack follows the weapon
-  const tag = c.type === 'breakthrough' ? 'reach · EXPOSES' : c.type === 'summon' ? 'summon · each turn' : c.target === 'aoe' ? (`×${c.maxTargets || 3}` + (c.reach ? ' · reaches outer' : ' · inner')) : c.type === 'skill' ? 'skill' : ((c.reach || autoReach) ? 'reaches outer' : 'inner ring');
-  // physical attacks roll to-hit; show the chance vs the focused foe so accuracy reads
-  let hit = '';
-  if ((c.type === 'attack' || c.type === 'breakthrough') && c.weapon !== 'spell') {
-    const f = s.enemies.find((e) => e.uid === h.focusUid && e.hp > 0);
-    if (f) { const p = Math.round(Math.max(0.35, Math.min(0.95, 0.75 + (h.accuracy - (f.eva || 0)) * 0.04)) * 100); hit = ` <span class="hitc">${p}% hit</span>`; }
-  } else if (c.weapon === 'spell' && (c.type === 'attack')) { hit = ' <span class="hitc">always hits</span>'; }
-  return `<button class="card ${c.type === 'skill' ? 'skill' : c.type === 'summon' ? 'summon' : c.type === 'breakthrough' ? 'breakthrough' : 'attack'}" data-i="${i}" ${affordable ? '' : 'disabled'}>
-    <div class="cn"><span>${c.name} <span class="lv">Lv ${c.eff.lvl}</span></span><span>${c.cost}⬡</span></div>
-    <div class="ct">${tag}${hit}</div><div class="cx">${c.eff.text}</div></button>`;
-}
-function afterCombat() { const s = combat.getState(); if (s.over) { recordCombatEnd(s); game.resolveCombat(); afterTerminal(); } render(); }
+  tel('combat', { result: s.result, node: game.getRun().node ? game.getRun().node.type : null, secs: s.turn, tally: ty }); }
 function afterTerminal() { const p = game.getRun().phase; if (!countedTerminal && (p === 'dead' || p === 'victory')) { countedTerminal = true; const m = meta(); if (p === 'dead') m.deaths++; if (p === 'victory') { m.wins++; const ni = DIFFS.indexOf(game.getRun().difficulty) + 1; if (DIFFS[ni] && !m.unlocked.includes(DIFFS[ni])) m.unlocked.push(DIFFS[ni]); } saveMeta(m);
     const run = game.getRun(); const bc = telClass(classId); bc.maxLevel = Math.max(bc.maxLevel, run.level); bc.deepestStep = Math.max(bc.deepestStep, run.mapStep);
     if (p === 'dead') { TEL.deaths++; bc.deaths++; TEL.deathLog.push({ class: classId, level: run.level, step: run.mapStep, node: run.node ? run.node.type : null }); if (TEL.deathLog.length > 100) TEL.deathLog = TEL.deathLog.slice(-100); }
