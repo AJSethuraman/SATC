@@ -27,19 +27,29 @@ function weaponBase(hero, s) {
   return [1, 3];
 }
 
-// Sorceress Masteries add flat spell damage (a point in any Mastery boosts every spell).
-function masteryBonus(hero, s) { if (!s || s.weapon !== 'spell') return 0; const h = hero.hard || {};
-  return ((h.fire_mastery || 0) + (h.cold_mastery || 0) + (h.light_mastery || 0)) * 2; }
+// SYNERGY IS THE DAMAGE. A skill's power lives in the HARD points sunk into its
+// named same-tree siblings (gear +skills add ZERO synergy — they raise the skill's
+// LEVEL, i.e. base damage, only). A tree's MASTERY then multiplies on top. Read
+// `hero.hard` only; a fully-fed capstone lands ~3x an unsupported one, so
+// committing to one tree is mathematically dominant. Cross-tree synergy = 0.
+const MASTERY_OF = { fire: 'fire_mastery', cold: 'cold_mastery', light: 'light_mastery' };
+const hardOf = (hero, id) => (hero.hard && hero.hard[id]) || 0;
+function synergyMult(hero, s) { if (!s.syn) return 1; let m = 1; for (const sib in s.syn) m += s.syn[sib] * hardOf(hero, sib); return m; }
+function masteryMult(hero, s) { const mid = s.tab && MASTERY_OF[s.tab]; if (!mid) return 1;
+  const mp = (SKILLS[mid] && SKILLS[mid].masteryPct) || 0; return 1 + mp * hardOf(hero, mid); }
+const synText = (mult) => (mult > 1.001 ? ` · +${Math.round((mult - 1) * 100)}% synergy` : '');
 
 export function skillEffect(hero, id) {
   const s = SKILLS[id]; const lvl = skillLevel(hero, id); const g = s.grow || 0;
-  if (s.scale === 'passive') return { lvl, text: s.text || '' };
-  if (s.scale === 'nova') { const mb = masteryBonus(hero, s);
-    const min = Math.round(s.dmg[0]) + g * (lvl - 1) + mb, max = Math.round(s.dmg[1]) + g * (lvl - 1) + mb;
-    return { lvl, min, max, text: `Blast ${min}-${max} to up to ${s.maxTargets || 6} foes around you.` }; }
-  if (s.scale === 'damage') { const [wmin, wmax] = weaponBase(hero, s); const m = s.wpn || 1; const mb = masteryBonus(hero, s);
-    const min = Math.round(wmin * m) + g * (lvl - 1) + mb, max = Math.round(wmax * m) + g * (lvl - 1) + mb;
-    return { lvl, min, max, text: `Deal ${min}-${max}${s.target === 'aoe' ? ` to up to ${s.maxTargets || 3}` : ''}${s.reach ? ' (reaches outer)' : ''}.` }; }
+  if (s.scale === 'passive') { const mp = s.masteryPct ? Math.round(s.masteryPct * 100 * hardOf(hero, id)) : 0;
+    return { lvl, text: s.kind === 'mastery' ? `+${mp || Math.round((s.masteryPct || 0) * 100)}% ${s.tab} damage${s.masteryPct && hardOf(hero, id) ? ` (now +${mp}%)` : ' per point'}.` : (s.text || '') }; }
+  if (s.scale === 'nova') { const syn = synergyMult(hero, s), mas = masteryMult(hero, s), scale = syn * mas;
+    const min = Math.round((s.dmg[0] + g * (lvl - 1)) * scale), max = Math.round((s.dmg[1] + g * (lvl - 1)) * scale);
+    return { lvl, min, max, syn, mas, element: s.element, text: `Blast ${min}-${max} to up to ${s.maxTargets || 6} around you${synText(scale)}.` }; }
+  if (s.scale === 'damage') { const [wmin, wmax] = weaponBase(hero, s); const m = s.wpn || 1;
+    const syn = synergyMult(hero, s), mas = masteryMult(hero, s), scale = syn * mas;
+    const min = Math.round((Math.round(wmin * m) + g * (lvl - 1)) * scale), max = Math.round((Math.round(wmax * m) + g * (lvl - 1)) * scale);
+    return { lvl, min, max, syn, mas, element: s.element, text: `Deal ${min}-${max}${s.target === 'aoe' ? ` to up to ${s.maxTargets || 3}` : ''}${s.reach ? ' (reaches)' : ''}${synText(scale)}.` }; }
   if (s.scale === 'hits') { const [wmin, wmax] = weaponBase(hero, s); const m = s.wpn || 0.7;
     const min = Math.max(1, Math.round(wmin * m)), max = Math.max(1, Math.round(wmax * m));
     const hits = Math.min(s.hitCap, 1 + lvl); return { lvl, hits, min, max, text: `Strike ${hits}× for ${min}-${max}.` }; }

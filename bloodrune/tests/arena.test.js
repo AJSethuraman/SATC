@@ -117,11 +117,13 @@ test('Sorceress nova blasts every foe around you and clears a pack', () => {
   assert.equal(s.result, 'win'); assert.ok(s.tally.dmgDealt > 0);
 });
 
-test('Sorceress Masteries add flat damage to every spell', () => {
-  const base = skillEffect({ hard: {}, weapon: { wtype: 'focus' } }, 'fire_bolt');
-  const mastered = skillEffect({ hard: { fire_mastery: 3 }, weapon: { wtype: 'focus' } }, 'fire_bolt');
-  assert.equal(mastered.min - base.min, 6, '+2 per Mastery point'); // 3 points -> +6
-  assert.equal(mastered.max - base.max, 6);
+test('Sorceress Mastery multiplies its OWN element (not flat, not cross-element)', () => {
+  const focus = { wtype: 'focus' };
+  const base = skillEffect({ hard: { fire_bolt: 5 }, weapon: focus }, 'fire_bolt');
+  const fireM = skillEffect({ hard: { fire_bolt: 5, fire_mastery: 5 }, weapon: focus }, 'fire_bolt');
+  assert.ok(fireM.mas > 1 && fireM.min / base.min > 1.2, 'Fire Mastery multiplies fire damage');
+  const coldM = skillEffect({ hard: { fire_bolt: 5, cold_mastery: 5 }, weapon: focus }, 'fire_bolt');
+  assert.equal(coldM.min, base.min, 'Cold Mastery does not touch fire damage');
 });
 
 test('DT is a sane fixed step and arena has real dimensions', () => {
