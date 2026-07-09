@@ -1,16 +1,18 @@
-// Run orchestration for the ABILITIES model. You start NAKED (a weapon that
-// grants one skill + a basic Guard), descend a blind branching map, fight
-// SURROUNDED packs, and SCALE via XP -> levels -> skill points (spend in the
-// class skill tree) + loot. Life carries between fights; permadeath ends the run.
+// Run orchestration — SURVIVORS model. You drop into ONE big arena and survive
+// escalating waves; MOVEMENT is the only control and your skills auto-fire. You
+// start NAKED (a weapon that grants one skill + a universal Guard) and SCALE the
+// same way as ever: XP -> levels -> skill points (spent in the class skill tree)
+// and LOOT that monsters drop for you to grab. A boss lands at bossTime — kill it
+// to clear the tier. Permadeath ends the run. The moment-to-moment sim is in
+// engine/arena.js (survival mode); this file owns the meta/progression.
 
-import { CLASSES, ITEMS, SLOTS, WEAPON_DROPS, ELITE_AFFIXES, BOSS_PACK, SKILLS, SUPERUNIQUES, SUPERUNIQUE_IDS } from './content.js';
+import { CLASSES, ITEMS, SLOTS, WEAPON_DROPS, SKILLS } from './content.js';
 import { makeRng } from './rng.js';
 import { skillEffect } from './combat.js';
 import { createArena } from './arena.js';
-import { makeMap, nextChoices, NODE_TYPES } from './map.js';
 import { rollItem } from './loot.js';
 
-const xpForLevel = (lvl) => 6 + lvl * 4;
+const xpForLevel = (lvl) => 8 + lvl * 6; // paced so a full ~8-min run lands you deep in the tree
 
 // Stats scale with LEVEL (Life/Mana growth) + gear passive mods.
 export function deriveStats(cls, equipment, level, bonus = {}) {
@@ -23,14 +25,15 @@ export function deriveStats(cls, equipment, level, bonus = {}) {
   return stats;
 }
 
-// Your abilities = a universal Guard + the skill your weapon grants + everything
-// you've LEARNED in the tree (skillHard[id] > 0).
+// Your abilities = a universal Guard + the skill your weapon grants + everything learned.
 export function deriveAbilities(equipment, skillHard) {
-  const list = ['attack', 'guard']; // a basic weapon swing + a universal brace, always available
+  const list = ['attack', 'guard'];
   for (const s of SLOTS) { const it = equipment[s]; if (it && it.grants && it.grants.skill) list.push(it.grants.skill); }
   for (const id of Object.keys(skillHard)) if (skillHard[id] > 0) list.push(id);
   return [...new Set(list)];
 }
+
+const BOSS_TIME = 300; // 5 minutes: waves ramp, then The Smith lands — kill it to clear the tier
 
 export function createGame(seed = 'bloodrune', opts = {}) {
   const rng = makeRng(seed);
@@ -39,15 +42,14 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     seed, difficulty: opts.difficulty || 'Normal', className: cls.name, glyph: cls.glyph,
     equipment: emptyEquipment(), bag: [],
     skillHard: {}, skillPoints: 0, level: 1, xp: 0,
-    map: makeMap({ length: 9 }), choices: null, node: null,
-    pendingLoot: [], lastResult: null, gained: null, life: 0, mana: 0, potions: { life: 3, mana: 3 }, gold: 0, phase: 'prep',
+    lastResult: null, gained: null, life: 0, mana: 0, potions: { life: 3, mana: 3 }, gold: 0, phase: 'prep',
   };
   run.equipment.weapon = ITEMS[cls.startWeapon];
   run.life = statsNow().maxLife;
-  run.mana = statsNow().maxMana; // Mana starts full and then PERSISTS across the run
-  const POTION_CAP = 6, BAG_CAP = 12, POTION_PRICE = 12; // space-limited holding — sell/buy at Shops
+  run.mana = statsNow().maxMana;
+  const POTION_CAP = 6, BAG_CAP = 12, POTION_PRICE = 12;
   const itemValue = (it) => it.grants ? 12 : ({ normal: 3, magic: 8, rare: 18 }[it.rarity] || 4);
-  let combat = null;
+  let combat = null, lastXp = 0;
 
   function emptyEquipment() { const e = {}; for (const s of SLOTS) e[s] = null; return e; }
   function statsNow() { return deriveStats(cls, run.equipment, run.level); }
@@ -60,9 +62,25 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   // ---- gear ----
   function slotFor(it) { if (it.slot === 'ring') return run.equipment.ring1 ? (run.equipment.ring2 ? 'ring1' : 'ring2') : 'ring1'; return it.slot; }
   function equipFromBag(id) { const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false };
-    const it = run.bag[i]; const slot = slotFor(it); run.bag.splice(i, 1); if (run.equipment[slot]) run.bag.push(run.equipment[slot]); run.equipment[slot] = it; clampLife(); return { ok: true }; }
-  function unequip(slot) { const it = run.equipment[slot]; if (!it) return { ok: false }; if (slot === 'weapon') return { ok: false, reason: 'need a weapon' }; run.bag.push(it); run.equipment[slot] = null; clampLife(); return { ok: true }; }
+    const it = run.bag[i]; const slot = slotFor(it); run.bag.splice(i, 1); if (run.equipment[slot]) run.bag.push(run.equipment[slot]); run.equipment[slot] = it; clampLife(); pushHeroStats(); return { ok: true }; }
+  function unequip(slot) { const it = run.equipment[slot]; if (!it) return { ok: false }; if (slot === 'weapon') return { ok: false, reason: 'need a weapon' }; run.bag.push(it); run.equipment[slot] = null; clampLife(); pushHeroStats(); return { ok: true }; }
   function clampLife() { const s = statsNow(); run.life = Math.min(run.life, s.maxLife); run.mana = Math.min(run.mana, s.maxMana); }
+
+  // Auto-equip a dropped item ONLY when it's a clear upgrade — fill an empty slot,
+  // or beat the score of what's there. NEVER auto-swap the weapon TYPE (that would
+  // brick a build); a wrong-type weapon goes to the bag for you to decide.
+  const weaponScore = (w) => (w && w.dmg ? (w.dmg[0] + w.dmg[1]) / 2 : 0) + ((w && w.passive && w.passive.plusSkills) || 0) * 4 + (w && w.grants ? 2 : 0);
+  const armorScore = (it) => { const p = it.passive || {}; return (p.maxLife || 0) + (p.maxMana || 0) * 3 + (p.plusSkills || 0) * 10 + (p.startBlock || 0) * 3 + (p.accuracy || 0) * 2 + (p.evade || 0) * 2; };
+  function autoEquipIfUpgrade(it) {
+    if (it.slot === 'weapon') { const cur = run.equipment.weapon;
+      if (cur && cur.wtype !== it.wtype) return false;               // never auto-swap weapon type
+      if (cur && weaponScore(cur) >= weaponScore(it)) return false;
+      if (cur && run.bag.length < BAG_CAP) run.bag.push(cur); run.equipment.weapon = it; clampLife(); return true; }
+    const slot = slotFor(it); const cur = run.equipment[slot];
+    if (!cur) { run.equipment[slot] = it; clampLife(); return true; } // fill an empty slot
+    if (armorScore(it) > armorScore(cur)) { if (run.bag.length < BAG_CAP) run.bag.push(cur); run.equipment[slot] = it; clampLife(); return true; }
+    return false;
+  }
 
   // ---- potions (the belt persists across the run) ----
   function quaff(type) { if (!combat || (type !== 'life' && type !== 'mana')) return { ok: false };
@@ -72,20 +90,21 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     run.life = combat.getState().hero.life; run.mana = combat.getState().hero.mana; return { ok: true }; }
   function addPotions(life, mana) { run.potions.life = Math.min(POTION_CAP, run.potions.life + life); run.potions.mana = Math.min(POTION_CAP, run.potions.mana + mana); }
 
-  // ---- economy: a space-limited bag; sell/buy at Shops (overflow auto-sells) ----
+  // ---- economy: sell/drop bag items ----
   function sellFromBag(id) { const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false };
     run.gold += itemValue(run.bag[i]); run.bag.splice(i, 1); return { ok: true, gold: run.gold }; }
   function buyPotion(type) { if (type !== 'life' && type !== 'mana') return { ok: false };
     if (run.gold < POTION_PRICE) return { ok: false, reason: 'not enough gold' };
     if (run.potions[type] >= POTION_CAP) return { ok: false, reason: 'belt full' };
     run.gold -= POTION_PRICE; run.potions[type] += 1; return { ok: true }; }
+  function dropFromBag(id) { const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false }; run.bag.splice(i, 1); return { ok: true }; }
 
   // ---- skill tree (D2-style gates: tier level-req, prerequisites, per-point gate) ----
   function hasPoint(id) { return (run.skillHard[id] || 0) > 0 || (run.equipment.weapon && run.equipment.weapon.grants && run.equipment.weapon.grants.skill === id); }
   function skillGate(id) {
     const s = SKILLS[id]; if (!s) return { ok: false, reason: 'unknown' };
     if (!cls.tree.includes(id) && id !== 'guard') return { ok: false, reason: 'not in your tree' };
-    const cur = run.skillHard[id] || 0; const need = (s.req || 1) + cur; // point (cur+1) needs level req + cur
+    const cur = run.skillHard[id] || 0; const need = (s.req || 1) + cur;
     if (run.level < need) return { ok: false, reason: `Lv ${need}`, needLevel: need };
     const missing = (s.pre || []).filter((p) => !hasPoint(p));
     if (missing.length) return { ok: false, reason: `needs ${missing.map((p) => skName(p)).join(', ')}`, missing };
@@ -93,110 +112,47 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   }
   function investSkill(id) { if (run.skillPoints <= 0) return { ok: false, reason: 'no points' };
     const gate = skillGate(id); if (!gate.ok) return gate;
-    run.skillPoints -= 1; run.skillHard[id] = (run.skillHard[id] || 0) + 1; return { ok: true }; }
+    run.skillPoints -= 1; run.skillHard[id] = (run.skillHard[id] || 0) + 1; pushHeroStats(); return { ok: true }; }
 
-  // ---- map / nodes ----
-  function beginDescent() { run.choices = nextChoices(rng, run.map); run.phase = 'map'; }
-  function rint(lo, hi) { return lo + rng.int(hi - lo + 1); }
+  // ---- the survival run ----
+  function startRun() {
+    run.life = statsNow().maxLife; run.mana = statsNow().maxMana; lastXp = 0;
+    combat = createArena({ hero: heroForFight(), rng, survival: { bossTime: BOSS_TIME, tier: run.difficulty, rollLoot: rollGroundItem } });
+    run.phase = 'arena'; return { ok: true };
+  }
+  const beginDescent = startRun; // (the prep screen's "descend" button)
 
-  // size is the TOTAL pack (a support caster + its guard + an archer are counted
-  // within it, not stacked on top) — a surround you chew through over a few turns,
-  // not a wall that deletes you now that AoE only catches a couple foes at a time.
-  function genEncounter(depth) {
-    const pack = []; const size = Math.min(4 + Math.floor(depth / 1.5), 8);
-    if (depth >= 2 && rng.next() < 0.65) { pack.push({ id: 'shaman' }); if (depth >= 3) pack.push({ id: 'guardian', guards: 0 }); }
-    if (depth >= 3 && rng.next() < 0.45) pack.push({ id: 'archer' });
-    while (pack.length < size) { const r = rng.next(); pack.push({ id: r < 0.6 ? 'fallen' : r < 0.82 ? 'goatman' : 'zombie' }); }
-    return pack;
-  }
-  function genSuperUnique(depth) {
-    const sid = rng.pick(SUPERUNIQUE_IDS); const su = SUPERUNIQUES[sid];
-    const pack = [{ sid }];
-    for (const m of su.minions) pack.push({ id: m });
-    if (depth >= 5) pack.push({ id: su.minions[0] }); // deeper terrors bring an extra thrall
-    return pack;
-  }
-  function genElite(depth) {
-    const pack = genEncounter(Math.max(1, depth - 1));
-    const keys = Object.keys(ELITE_AFFIXES); const n = 1 + rng.int(2); const affixes = [];
-    while (affixes.length < n) { const a = rng.pick(keys); if (!affixes.includes(a)) affixes.push(a); }
-    pack.push({ id: rng.pick(['goatman', 'zombie']), affixes });
-    return pack;
+  // What a monster drops — sometimes a weapon (skill-granter), usually armor/jewelry
+  // with rolled affixes. Magic-find scales with the kill's tier (elite/unique/boss).
+  function rollGroundItem(mf) {
+    if (rng.next() < 0.22) { const w = { ...ITEMS[rng.pick(WEAPON_DROPS)] }; return { ...w, id: w.id + '_' + Math.floor(rng.next() * 1e6) }; }
+    return rollItem(rng, { magicFind: 4 + mf * 6 });
   }
 
-  function chooseDirection(i) { if (run.phase !== 'map' || !run.choices || !run.choices[i]) return { ok: false };
-    const node = run.choices[i]; run.node = node; const depth = run.map.step + 1;
-    if (node.type === 'combat') return startFight(scalePack(genEncounter(depth), depth));
-    if (node.type === 'superunique') return startFight(scalePack(genSuperUnique(depth), depth));
-    if (node.type === 'elite') return startFight(scalePack(genElite(depth), depth));
-    if (node.type === 'boss') return startFight(scalePack(BOSS_PACK.map((e) => ({ ...e })), depth));
-    if (node.type === 'treasure') { grantLoot(2, 15); addPotions(1, 1); run.lastResult = 'treasure'; run.gained = { potions: 2 }; run.phase = 'reward'; advance(); return { ok: true }; }
-    if (node.type === 'shop') { run.lastResult = 'shop'; run.gained = null; run.pendingLoot = []; run.phase = 'shop'; advance(); return { ok: true }; }
-    if (node.type === 'camp') { const s = statsNow(); run.life = Math.min(s.maxLife, run.life + Math.round(s.maxLife * 0.4));
-      run.mana = s.maxMana; addPotions(2, 2); run.skillPoints += 1; // rest: heal, restore Mana, restock the belt
-      run.gained = { levels: 0, points: 1, heal: true, potions: 4 }; run.lastResult = 'camp'; run.pendingLoot = []; run.phase = 'reward'; advance(); return { ok: true }; }
-    return { ok: false };
-  }
-  // Enemy HP/attack scale with AREA LEVEL (depth). Harder tiers make that descent
-  // STEEPER — they do NOT slap a flat multiplier on step 1. You always start a run
-  // at level 1, so early packs must stay survivable on every tier; the tiers pull
-  // apart as you go deeper. The boss is hand-tuned, so it takes a fixed per-tier bump.
-  function scalePack(pack, depth) {
-    const slope = { Nightmare: 0.24, Hell: 0.36 }[run.difficulty] || 0.13;
-    const aslope = { Nightmare: 0.13, Hell: 0.19 }[run.difficulty] || 0.075;
-    const bossHP = { Nightmare: 1.5, Hell: 2.0 }[run.difficulty] || 1;
-    const bossATK = { Nightmare: 1.3, Hell: 1.6 }[run.difficulty] || 1;
-    for (const e of pack) {
-      if (e.id === 'the_smith') { e.hpMul = bossHP; e.atkMul = bossATK; }
-      else { e.hpMul = 1 + depth * slope; e.atkMul = 1 + depth * aslope; }
-    }
-    return pack;
-  }
-  function startFight(pack) { combat = createArena({ hero: heroForFight(), pack, rng }); run.phase = 'combat'; return { ok: true }; }
-  function advance() { run.map.step += 1; run.choices = nextChoices(rng, run.map); }
+  // Push live progression (level-ups, gear) into the in-flight survival hero.
+  function pushHeroStats() { if (!combat) return; const s = statsNow();
+    combat.setHero({ maxLife: s.maxLife, maxMana: s.maxMana, accuracy: s.accuracy, evade: s.evade,
+      manaRegen: s.manaRegen, plusSkills: s.plusSkills, hard: { ...run.skillHard }, weapon: weaponNow(), abilities: abilitiesNow() }); }
 
-  function resolveCombat() {
-    const s = combat.getState(); if (!s.over) return run.phase;
-    run.life = s.hero.life; run.mana = s.hero.mana; // Life AND Mana carry out of the fight
-    if (s.result === 'lose') { run.phase = 'dead'; return run.phase; }
-    const boss = run.node && run.node.type === 'boss';
-    if (s.result === 'win') {
-      const beforeLvl = run.level; run.xp += s.xpEarned;
-      while (run.xp >= xpForLevel(run.level)) { run.xp -= xpForLevel(run.level); run.level += 1; run.skillPoints += 1; }
-      const ns = statsNow();
-      if (run.level > beforeLvl) { run.life = ns.maxLife; run.mana = ns.maxMana; } // leveling FULLY restores Life & Mana
-      else run.life = Math.min(ns.maxLife, run.life);
-      const elite = run.node && run.node.type === 'elite';
-      const su = run.node && run.node.type === 'superunique';
-      grantLoot(su ? 3 : elite ? 2 : boss ? 3 : 1, su ? 30 : elite ? 20 : boss ? 45 : 5);
-      // spoils sometimes include a potion for the belt (more from the big fights)
-      const pots = su || boss ? 2 : (rng.next() < 0.5 ? 1 : 0);
-      for (let n = 0; n < pots; n++) { if (rng.next() < 0.5) addPotions(1, 0); else addPotions(0, 1); }
-      run.gained = { levels: run.level - beforeLvl, points: run.level - beforeLvl, potions: pots };
-      run.lastResult = 'win';
-      if (boss) { run.phase = 'victory'; return run.phase; }
-      advance();
-    } else { run.lastResult = 'fled'; run.pendingLoot = []; run.gained = null; advance(); }
-    run.phase = 'reward'; return run.phase;
+  // Called each frame by the UI while surviving: fold the engine's earned XP into
+  // levels/points, and its collected drops into the bag (auto-equipping upgrades).
+  function syncArena() {
+    if (!combat) return { leveled: 0, loot: [], equipped: [] };
+    const s = combat.getState();
+    let leveled = 0; const delta = s.xpEarned - lastXp; lastXp = s.xpEarned;
+    if (delta > 0) { run.xp += delta;
+      while (run.xp >= xpForLevel(run.level)) { run.xp -= xpForLevel(run.level); run.level += 1; run.skillPoints += 1; leveled += 1; } }
+    const got = combat.takeCollected(); const equipped = [];
+    for (const it of got) { if (autoEquipIfUpgrade(it)) equipped.push(it); else if (run.bag.length < BAG_CAP) run.bag.push(it); }
+    if (leveled || equipped.length) pushHeroStats();
+    run.life = s.hero.life; run.mana = s.hero.mana;
+    return { leveled, loot: got, equipped };
   }
-  function flee() { if (!combat) return; combat.flee(); return resolveCombat(); }
 
-  // Loot drops on the GROUND — you must TAKE it, and only if you have space.
-  // Untaken loot is left behind (no reward for nothing); managing the bag is the
-  // looter's tension.
-  function grantLoot(count, mf) {
-    run.pendingLoot = [];
-    for (let n = 0; n < count; n++) {
-      let item; if (rng.next() < 0.28) { item = { ...ITEMS[rng.pick(WEAPON_DROPS)] }; item = { ...item, id: item.id + '_' + Math.floor(rng.next() * 1e6) }; }
-      else item = rollItem(rng, { magicFind: mf });
-      run.pendingLoot.push(item);
-    }
-  }
-  function takeLoot(id) { const i = run.pendingLoot.findIndex((x) => x.id === id); if (i < 0) return { ok: false };
-    if (run.bag.length >= BAG_CAP) return { ok: false, reason: 'bag full — drop something' };
-    run.bag.push(run.pendingLoot[i]); run.pendingLoot.splice(i, 1); return { ok: true }; }
-  function dropFromBag(id) { const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false }; run.bag.splice(i, 1); return { ok: true }; } // left behind, no gold
-  function continueFromReward() { run.pendingLoot = []; run.phase = 'map'; } // untaken loot is left behind
+  function resolveArena() { if (!combat) return run.phase; const s = combat.getState(); if (!s.over) return run.phase;
+    run.life = s.hero.life; run.mana = s.hero.mana; run.lastResult = s.result;
+    run.phase = s.result === 'win' ? 'victory' : 'dead'; return run.phase; }
+  function flee() { if (!combat) return run.phase; combat.flee(); return resolveArena(); }
 
   function getRun() {
     const s = statsNow();
@@ -211,12 +167,10 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       level: run.level, xp: run.xp, xpToNext: xpForLevel(run.level), skillPoints: run.skillPoints,
       abilities: abilitiesNow(), tree,
       equipment: Object.fromEntries(SLOTS.map((sl) => [sl, run.equipment[sl] ? { ...run.equipment[sl] } : null])),
-      bag: run.bag.map((i) => ({ ...i })), pendingLoot: run.pendingLoot.map((i) => ({ ...i })), lastResult: run.lastResult, gained: run.gained,
-      choices: run.choices ? run.choices.map((c) => ({ type: c.type, ...NODE_TYPES[c.type] })) : null,
-      node: run.node ? { type: run.node.type, ...NODE_TYPES[run.node.type] } : null, mapStep: run.map.step, mapLength: run.map.length };
+      bag: run.bag.map((i) => ({ ...i })), lastResult: run.lastResult, gained: run.gained };
   }
   function skName(id) { return SKILLS[id] ? SKILLS[id].name : id; }
 
-  return { beginDescent, chooseDirection, resolveCombat, flee, equipFromBag, unequip, investSkill, quaff, sellFromBag, buyPotion, takeLoot, dropFromBag, continueFromReward,
+  return { beginDescent, startRun, syncArena, resolveArena, flee, equipFromBag, unequip, investSkill, quaff, sellFromBag, buyPotion, dropFromBag,
     getRun, getCombat: () => combat, deriveStats: () => statsNow(), deriveAbilities: () => abilitiesNow() };
 }

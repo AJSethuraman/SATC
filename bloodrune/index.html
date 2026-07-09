@@ -318,6 +318,21 @@
   .rt-skill.attack { border-left:3px solid #7a5a3a; } .rt-skill.summon { border-left:3px solid #6a6f8a; }
   .rt-skill.breakthrough { border-left:3px solid var(--gold); } .rt-skill.skill { border-left:3px solid #6fd08a; }
   .rt-hint { text-align:center; color:#6f6357; font-size:11px; line-height:1.5; margin:2px 0 4px; }
+  .rt-bar.xp { height:9px; border-color:#4a3a1a; background:#1a1408; }
+  .rt-bar.xp > i { background:linear-gradient(90deg,#8a6a2a,#e5c04a); }
+  .rt-bar.xp > span { line-height:9px; font-size:8px; color:#e9d9a8; }
+  .boss-bar { position:relative; height:16px; border-radius:8px; overflow:hidden; border:1px solid #7a1414; background:#1c0808; box-shadow:0 0 14px rgba(198,40,40,.4); }
+  .boss-bar > i { display:block; height:100%; width:100%; background:linear-gradient(90deg,#7a1414,#ff3b3b); transition:width .1s linear; }
+  .boss-bar > span { position:absolute; inset:0; text-align:center; font-size:10px; line-height:16px; font-weight:700; letter-spacing:1px; color:#ffe1e1; text-shadow:0 1px 2px #000; }
+  .loot-toast { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); font-size:13px; font-weight:700; letter-spacing:.5px; pointer-events:none; text-shadow:0 1px 3px #000; transition:opacity .2s; opacity:0; }
+  .lvlup { background:linear-gradient(180deg,#1a1013,#0d0809); border:1px solid var(--gold); border-radius:14px; padding:18px 16px; max-width:520px; width:92%; box-shadow:0 0 40px rgba(200,162,74,.3); }
+  .lvlup-h { text-align:center; color:var(--gold); font-weight:700; letter-spacing:2px; font-size:16px; margin-bottom:12px; }
+  .lvlup-cards { display:flex; flex-direction:column; gap:8px; }
+  .lvl-card { text-align:left; font-family:inherit; cursor:pointer; background:#140f14; border:1px solid #4a3a2a; border-radius:10px; padding:10px 12px; color:var(--ink); }
+  .lvl-card:hover { border-color:var(--gold); background:#1c1510; }
+  .lvl-card.skip { border-style:dashed; color:#8a7f72; }
+  .lvl-card .lc-n { font-weight:700; font-size:14px; } .lvl-card .lc-lv { color:var(--gold); font-size:11px; font-weight:600; }
+  .lvl-card .lc-e { font-size:11px; color:#cbbfb4; margin-top:2px; }
 </style>
 </head>
 <body>

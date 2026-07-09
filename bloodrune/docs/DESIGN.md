@@ -10,32 +10,43 @@ Living doc.
 
 ---
 
-## 0. PIVOT — real-time movement (current direction)
+## 0. PIVOT — real-time survivors on ONE big map (current direction)
 
-Combat moved from **turn-based rings** to **real-time movement** (a
-Vampire-Survivors / Halls-of-Torment shape): you are a token in an arena and the
-only control is **moving** (WASD / arrows / drag). Abilities **auto-fire on
-cooldown** when Mana allows — *positioning is the skill*: kite the swarm, line up
-a Cleave, back off to regen. The **progression is unchanged and load-bearing** —
-same XP→levels→skill tree, same weapon-driven damage (`skillEffect`), same
-to-hit/dodge math, loot (take-or-leave), super uniques, difficulty tiers
-(Normal/Nightmare/Hell), permadeath, telemetry. **Our niche vs. VS/HoT: it's
-*skill-tree* and *item-find* driven** (a D2 build, not just weapon-evolutions).
+Bloodrune is now a **Vampire-Survivors / Halls-of-Torment shape**: you drop into
+**ONE big continuous arena**, and the only control is **moving** (WASD / arrows /
+drag) — the camera follows you. Abilities **auto-fire on cooldown** when Mana
+allows; *positioning is the skill*. A spawn **director** pours in ever-tougher
+waves; **monsters drop loot** you walk over (auto-magnet); **The Smith lands at
+the 5-min mark** — kill it to clear the tier. The **progression is unchanged and
+load-bearing** — same XP→levels→**skill tree** (level-up = pick a skill card),
+weapon-driven damage (`skillEffect`), to-hit/dodge math, **item-find** (drops →
+auto-equip upgrades, else the bag), super uniques (now roaming mini-bosses),
+difficulty tiers (Normal/Nightmare/Hell → steeper wave ramp), permadeath,
+telemetry. **Our niche vs. VS/HoT: it's *skill-tree* and *item-find* driven** — a
+D2 build, not just weapon-evolutions.
 
 - **Engine:** `engine/arena.js` — deterministic fixed-step (`DT = 1/30`) sim,
-  seeded rng, no DOM. Replaces `combat.js` at the moment-to-moment; keeps the
-  `getState()/quaff()/flee()` contract `game.js` expects, adds `tick(input)` +
-  `autoInput()` (headless movement autopilot for the balance bot/tests). Bolts
-  **home** (VS-style auto-aim) so ranged classes reliably connect.
-- **UI:** `ui/main.js` `renderCombat` is now a `<canvas>` rAF loop (movement
-  input + auto-fire skill chips + potion belt); everything else (prep, blind map,
-  reward, shop, skill tree, inventory, stats) is unchanged.
+  seeded rng, no DOM. Two modes off one core: **pack** (a fixed surround, used by
+  tests) and **survival** (the director: ramping waves on a `2600×1700` world,
+  loot drops via a `rollLoot` callback, the 5-min boss, corpse pruning). Keeps the
+  `getState()/quaff()/flee()` contract; adds `tick(input)`, `setHero()` (push
+  live level/gear changes into the running hero), `takeCollected()` (drain picked-
+  up loot), and `autoInput()` (headless movement autopilot). Bolts **home**
+  (auto-aim) so ranged reliably connects.
+- **Meta (`game.js`):** the branching map/reward/shop is **gone** — one
+  `startRun()` → `syncArena()` each frame folds earned XP → levels/points and
+  collected drops → bag/auto-equip, pushing stat/ability changes back via
+  `setHero()`. `resolveArena()` → victory (boss) | dead.
+- **UI (`ui/main.js`):** a `<canvas>` rAF loop with a **camera**, XP bar, survival
+  timer + **boss bar**, a **level-up skill-card overlay** (pause + pick from the
+  tree), ground-loot rendering + a pickup toast, and in-run 🎒/⚔ overlays.
 - **What didn't port:** rings / engagement cap / action points / front-rank
-  screen / guardian body-block — replaced by real positioning. Guardians are now
-  melee bruisers; casters kite-and-support.
-- **Open tuning:** melee (Barbarian) is the weak class (must stand in the swarm)
-  — the classic VS melee problem; needs survivability/lifesteal or reach love.
-  Juice (bigger sprites, hit-stop, screen shake, XP-gem magnetism) is thin.
+  screen / guardian body-block — replaced by real positioning. Guardians are melee
+  bruisers; casters kite-and-support.
+- **Open tuning (data-driven, via the balance bot):** melee (Barbarian) survives
+  the crude bot best but all classes are swingy; boss/ramp/`BOSS_TIME`(=300s) are
+  the knobs. Juice (bigger sprites, hit-stop, screen shake, XP-gem magnetism) is
+  still thin. Level-up currently pauses per level — VS-style would be smoother.
 
 The turn-based sections below (§1–§5) are the **prior** design, kept for history.
 

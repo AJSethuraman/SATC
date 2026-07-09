@@ -1,7 +1,7 @@
-// UI for Bloodrune — the abilities/surrounded model in the full run. Reads engine
-// state, renders it; owns no rules. Phases: prep(class+difficulty) -> map(blind)
-// -> combat(arena) -> reward(loot + skill tree) -> ... -> victory | dead. Meta
-// (difficulty ladder + tallies) persists in localStorage.
+// UI for Bloodrune — the SURVIVORS model. Reads engine state, renders it; owns no
+// rules. Phases: prep(class+difficulty) -> arena(one big real-time map: move,
+// survive ramping waves, grab dropped loot, level up your tree, kill the boss) ->
+// victory | dead. Meta (difficulty ladder + telemetry) persists in localStorage.
 
 import { createGame } from '../engine/game.js';
 import { SLOTS, SLOT_LABEL, CLASSES } from '../engine/content.js';
@@ -42,13 +42,10 @@ function pv(a, b) { return b > 0 ? Math.max(0, Math.min(100, a / b * 100)) : 0; 
 
 function render() {
   const r0 = game.getRun();
-  if (r0.phase === 'combat') combat = game.getCombat();
+  if (r0.phase === 'arena') combat = game.getCombat();
   expose();
   const r = game.getRun();
-  if (r.phase === 'combat') renderCombat();
-  else if (r.phase === 'map') renderMap(r);
-  else if (r.phase === 'shop') renderShop(r);
-  else if (r.phase === 'reward') renderReward(r);
+  if (r.phase === 'arena') renderArena();
   else if (r.phase === 'dead') renderDead(r);
   else if (r.phase === 'victory') renderVictory(r);
   else renderPrep(r);
@@ -109,34 +106,21 @@ function renderStats() {
   document.getElementById('telReset').addEventListener('click', () => { TEL = blankTel(); saveTel(); renderStats(); });
 }
 
-// ---------- map (blind) ----------
-const BLIND = [['🕳️', 'A Yawning Dark', 'The path drops into black.'], ['🚪', 'An Unlit Passage', 'Cold air breathes from the tunnel.'], ['🩸', 'A Blood-Slick Trail', 'Something dragged itself down here.']];
-function renderMap(r) {
-  const boss = r.choices.length === 1 && r.choices[0].type === 'boss';
-  const cards = r.choices.map((c, i) => boss
-    ? `<button class="path boss" data-i="${i}"><div class="path-glyph">${c.glyph}</div><div class="path-name">${c.name}</div><div class="path-desc">${c.desc}</div></button>`
-    : (() => { const f = BLIND[i % BLIND.length]; return `<button class="path blind" data-i="${i}"><div class="path-glyph">${f[0]}</div><div class="path-name">${f[1]}</div><div class="path-desc">${f[2]}</div></button>`; })()).join('');
-  board.innerHTML = `${runHeader(r)}<div class="prep-sub" style="text-align:center;margin:6px 0">${boss ? 'The way ends here.' : 'Choose a path into the dark — you cannot see what waits, and cannot turn back.'}</div>
-    <div class="paths">${cards}</div>
-    <div class="prep-actions"><button class="act ghost" id="openInv">🎒 INVENTORY</button>${r.skillPoints ? `<button class="act" id="openTree">⚔ SKILLS ● ${r.skillPoints}</button>` : ''}</div>`;
-  logEl.innerHTML = '';
-  board.querySelectorAll('.path').forEach((b) => b.addEventListener('click', () => { const r = game.getRun(); const t = r.choices && r.choices[Number(b.dataset.i)] ? r.choices[Number(b.dataset.i)].type : '?'; TEL.nodes[t] = (TEL.nodes[t] || 0) + 1; tel('node', { type: t, step: r.mapStep }); game.chooseDirection(Number(b.dataset.i)); render(); }));
-  document.getElementById('openInv').addEventListener('click', () => { invOpen = true; renderOverlay(); });
-  const t = document.getElementById('openTree'); if (t) t.addEventListener('click', () => { treeOpen = true; renderOverlay(); });
-}
-function runHeader(r) { return `<div class="run-header"><span class="rh-diff">${r.difficulty}</span><span>Depth ${Math.min(r.mapStep + 1, r.mapLength + 1)}/${r.mapLength + 1}</span><span class="rh-life">❤ ${r.life}/${r.maxLife}</span><span style="color:var(--gold)">◉ ${r.gold}g</span><span class="rh-xp">Lv ${r.level} · XP ${r.xp}/${r.xpToNext}</span>${r.skillPoints ? `<span style="color:var(--gold)">● ${r.skillPoints} pts</span>` : ''}</div>`; }
 
-// ---------- combat (REAL-TIME arena) ----------
-// You are a token in an arena and MOVE (WASD / arrows / drag). Abilities auto-fire
-// on cooldown when Mana allows — positioning is the whole game. We drive our own
-// rAF loop here (not render()): the engine ticks at a fixed DT, the canvas paints.
+// ---------- the SURVIVAL arena (real-time, one big map) ----------
+// You are a token in a big arena and MOVE (WASD / arrows / drag); the camera follows
+// you. Abilities auto-fire on cooldown when Mana allows. Waves ramp, monsters drop
+// loot you walk over, and The Smith lands at the 5-min mark — kill it to clear the
+// tier. We drive our own rAF loop (not render()): engine ticks at fixed DT, canvas paints.
 const keys = new Set();
-let touchVec = null, joy = null;               // joy = {ox,oy,cx,cy} for the on-canvas stick
-let arenaActive = false, raf = 0, lastT = 0, tacc = 0;
+let touchVec = null, joy = null;
+let arenaActive = false, arenaPaused = false, raf = 0, lastT = 0, tacc = 0;
 let rtCanvas = null, rtCtx = null, rtSkillEls = {};
+let pendingLevel = 0, lootToast = null, lastArena = null;
+const clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const KEYMAP = { arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down', arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right' };
-window.addEventListener('keydown', (e) => { if (!arenaActive) return; const m = KEYMAP[e.key.toLowerCase()]; if (m) { keys.add(m); e.preventDefault(); } });
-window.addEventListener('keyup', (e) => { if (!arenaActive) return; const m = KEYMAP[e.key.toLowerCase()]; if (m) { keys.delete(m); } });
+window.addEventListener('keydown', (e) => { if (!arenaActive || arenaPaused) return; const m = KEYMAP[e.key.toLowerCase()]; if (m) { keys.add(m); e.preventDefault(); } });
+window.addEventListener('keyup', (e) => { const m = KEYMAP[e.key.toLowerCase()]; if (m) keys.delete(m); });
 function inputVector() {
   if (touchVec) return touchVec;
   let x = 0, y = 0; if (keys.has('left')) x -= 1; if (keys.has('right')) x += 1; if (keys.has('up')) y -= 1; if (keys.has('down')) y += 1;
@@ -145,84 +129,124 @@ function inputVector() {
 function potionBtn(kind, count, full) { const label = kind === 'life' ? '🩹 Life' : '🔷 Mana';
   return `<button class="pot ${kind}" data-quaff="${kind}" ${count <= 0 || full ? 'disabled' : ''}>${label} <span class="pn">×${count}</span></button>`; }
 
-function renderCombat() {
-  if (arenaActive) return; // the loop owns the DOM once it's up; don't rebuild mid-fight
+function renderArena() {
+  if (arenaActive) return; // the loop owns the DOM once it's up
   const s = combat.getState(); const h = s.hero; const pot = game.getRun().potions;
+  pendingLevel = 0; lootToast = null;
   board.innerHTML = `<div class="rt">
+    <div class="boss-bar" id="rtBossWrap" style="display:none"><i id="rtBoss"></i><span id="rtBossT"></span></div>
     <div class="rt-hud">
       <div class="rt-bars">
         <div class="rt-bar life"><i id="rtLife"></i><span id="rtLifeT"></span></div>
         <div class="rt-bar mana"><i id="rtMana"></i><span id="rtManaT"></span></div>
+        <div class="rt-bar xp"><i id="rtXp"></i><span id="rtXpT"></span></div>
       </div>
-      <div class="rt-meta"><span>Lv <b id="rtLvl">${game.getRun().level}</b></span><span>Foes <b id="rtFoes"></b></span><span>⏱ <b id="rtTime"></b></span></div>
+      <div class="rt-meta"><span>Lv <b id="rtLvl">${game.getRun().level}</b></span><span>Foes <b id="rtFoes"></b></span><span id="rtTimeWrap">⏱ <b id="rtTime"></b></span></div>
     </div>
-    <div class="rt-canvas-wrap"><canvas id="rtCanvas" width="${ARENA_W}" height="${ARENA_H}"></canvas></div>
+    <div class="rt-canvas-wrap"><canvas id="rtCanvas" width="${ARENA_W}" height="${ARENA_H}"></canvas><div class="loot-toast" id="rtLoot"></div></div>
     <div class="rt-skills" id="rtSkills">${h.abilities.map((a) => `<div class="rt-skill ${a.type}" data-id="${a.id}"><div class="rs-n">${a.name}</div><div class="rs-c">${a.cost ? a.cost + '⬡' : 'free'}</div><div class="rs-cd"></div></div>`).join('')}</div>
-    <div class="belt">${potionBtn('life', pot.life, h.life >= h.maxLife)}${potionBtn('mana', pot.mana, h.mana >= h.maxMana)}</div>
-    <div class="rt-hint">Move: <b>WASD / arrows</b> on a keyboard, or <b>drag</b> anywhere on the arena. Your skills fire on their own — kite the swarm, line up a swing, back off to regen Mana. Kill the caster (🧙) fast: it raises the dead.</div>
-    <div class="controls" style="display:flex;gap:12px;justify-content:center"><button class="act ghost small" id="flee">FLEE</button></div>
+    <div class="belt">${potionBtn('life', pot.life, h.life >= h.maxLife)}${potionBtn('mana', pot.mana, h.mana >= h.maxMana)}
+      <button class="act ghost small" id="aInv">🎒</button><button class="act ghost small" id="aTree">⚔<span id="aTreePts"></span></button></div>
+    <div class="rt-hint">Move: <b>WASD / arrows</b> or <b>drag</b> the arena. Skills fire on their own; monsters <b>drop loot</b> — walk over it. Survive to the <b>Smith</b> and put it down.</div>
+    <div class="controls" style="display:flex;gap:12px;justify-content:center"><button class="act ghost small" id="abandon">ABANDON</button></div>
   </div>`;
   logEl.innerHTML = '';
   rtCanvas = document.getElementById('rtCanvas'); rtCtx = rtCanvas.getContext('2d');
   rtSkillEls = {}; board.querySelectorAll('.rt-skill').forEach((el) => { rtSkillEls[el.dataset.id] = el; });
   bindArenaPointer();
   board.querySelectorAll('[data-quaff]').forEach((b) => b.addEventListener('click', (ev) => { ev.preventDefault(); const r = game.quaff(b.dataset.quaff); if (r && r.ok) { TEL.potions[b.dataset.quaff]++; tel('quaff', { kind: b.dataset.quaff }); } }));
-  document.getElementById('flee').addEventListener('click', () => { if (!arenaActive) return; game.flee(); endArena(combat.getState()); });
-  arenaActive = true; lastT = performance.now(); tacc = 0; raf = requestAnimationFrame(arenaFrame);
+  document.getElementById('aInv').addEventListener('click', () => { invOpen = true; pauseArena(); renderOverlay(); });
+  document.getElementById('aTree').addEventListener('click', () => { treeOpen = true; pauseArena(); renderOverlay(); });
+  document.getElementById('abandon').addEventListener('click', () => { if (!arenaActive) return; game.flee(); endArena(combat.getState()); });
+  arenaActive = true; arenaPaused = false; lastT = performance.now(); tacc = 0; raf = requestAnimationFrame(arenaFrame);
 }
 
+function pauseArena() { arenaPaused = true; cancelAnimationFrame(raf); keys.clear(); touchVec = null; joy = null; }
+function resumeArena() { if (!arenaActive || !arenaPaused) return; arenaPaused = false; lastT = performance.now(); tacc = 0; raf = requestAnimationFrame(arenaFrame); }
+
 function bindArenaPointer() {
-  const toArena = (ev) => { const r = rtCanvas.getBoundingClientRect(); return { x: (ev.clientX - r.left) / r.width * ARENA_W, y: (ev.clientY - r.top) / r.height * ARENA_H }; };
-  rtCanvas.addEventListener('pointerdown', (ev) => { ev.preventDefault(); rtCanvas.setPointerCapture(ev.pointerId); const p = toArena(ev); joy = { ox: p.x, oy: p.y, cx: p.x, cy: p.y }; touchVec = { x: 0, y: 0 }; });
-  rtCanvas.addEventListener('pointermove', (ev) => { if (!joy) return; const p = toArena(ev); joy.cx = p.x; joy.cy = p.y; let dx = p.x - joy.ox, dy = p.y - joy.oy; const l = Math.hypot(dx, dy); const dead = 8; if (l < dead) { touchVec = { x: 0, y: 0 }; } else { const m = Math.min(1, l / 70); touchVec = { x: dx / l * m, y: dy / l * m }; } });
+  const toCanvas = (ev) => { const r = rtCanvas.getBoundingClientRect(); return { x: (ev.clientX - r.left) / r.width * ARENA_W, y: (ev.clientY - r.top) / r.height * ARENA_H }; };
+  rtCanvas.addEventListener('pointerdown', (ev) => { ev.preventDefault(); rtCanvas.setPointerCapture(ev.pointerId); const p = toCanvas(ev); joy = { ox: p.x, oy: p.y, cx: p.x, cy: p.y }; touchVec = { x: 0, y: 0 }; });
+  rtCanvas.addEventListener('pointermove', (ev) => { if (!joy) return; const p = toCanvas(ev); joy.cx = p.x; joy.cy = p.y; const dx = p.x - joy.ox, dy = p.y - joy.oy; const l = Math.hypot(dx, dy); if (l < 8) { touchVec = { x: 0, y: 0 }; } else { const m = Math.min(1, l / 70); touchVec = { x: dx / l * m, y: dy / l * m }; } });
   const end = () => { joy = null; touchVec = null; };
-  rtCanvas.addEventListener('pointerup', end); rtCanvas.addEventListener('pointercancel', end); rtCanvas.addEventListener('pointerleave', () => { if (joy) { /* keep moving if captured */ } });
+  rtCanvas.addEventListener('pointerup', end); rtCanvas.addEventListener('pointercancel', end);
 }
 
 function arenaFrame(now) {
-  if (!arenaActive) return;
-  let dt = (now - lastT) / 1000; lastT = now; if (dt > 0.05) dt = 0.05; tacc += dt * (window.__timescale || 1); // __timescale: headless fast-forward
-  const input = window.__autopilot ? combat.autoInput() : inputVector(); // __autopilot: headless-test movement driver
+  if (!arenaActive || arenaPaused) return;
+  let dt = (now - lastT) / 1000; lastT = now; if (dt > 0.05) dt = 0.05; tacc += dt * (window.__timescale || 1);
+  const input = window.__autopilot ? combat.autoInput() : inputVector();
   const cap = window.__timescale ? 400 : 6;
   let guard = 0; while (tacc >= DT && guard < cap) { combat.tick(input); tacc -= DT; guard++; if (combat.getState().over) break; }
+  const sync = game.syncArena(); // fold earned XP -> levels, collected drops -> gear/bag
+  if (sync.loot && sync.loot.length) { const it = sync.loot[sync.loot.length - 1]; lootToast = { name: it.name, color: it.color || '#c8a24a', t: 1.6 }; TEL.events && tel('loot', { name: it.name }); }
   const s = combat.getState();
-  drawArena(s); updateHUD(s);
-  window.__bloodrune.state = s; window.__bloodrune.phase = 'combat';
+  drawArena(s); updateHUD(s, dt);
+  window.__bloodrune.state = s; window.__bloodrune.phase = 'arena';
   if (s.over) { endArena(s); return; }
+  if (sync.leveled) { pendingLevel += sync.leveled; showLevelUp(); return; } // pause + pick a skill
   raf = requestAnimationFrame(arenaFrame);
 }
 
-function endArena(s) {
-  arenaActive = false; cancelAnimationFrame(raf); touchVec = null; joy = null; keys.clear();
-  recordCombatEnd(s); game.resolveCombat(); afterTerminal(); render();
+// Level-up: pause and offer a few learnable/upgradable skills from your tree as cards.
+function showLevelUp() {
+  const r = game.getRun();
+  const options = r.tree.filter((t) => t.canInvest).slice(0, 4);
+  if (!options.length || r.skillPoints <= 0) { pendingLevel = 0; resumeArena(); return; } // nothing to spend on: bank it
+  pauseArena();
+  ov.className = 'overlay';
+  ov.innerHTML = `<div class="lvlup"><div class="lvlup-h">LEVEL ${r.level} — choose a skill</div>
+    <div class="lvlup-cards">${options.map((sk) => `<button class="lvl-card" data-id="${sk.id}">
+      <div class="lc-n">${sk.name} <span class="lc-lv">Lv ${sk.level} → ${sk.level + 1}</span></div>
+      <div class="lc-e">${sk.eff.text}</div></button>`).join('')}
+      <button class="lvl-card skip" data-id="__skip">Bank the point<div class="lc-e">Save it — spend later in ⚔ Skills.</div></button></div></div>`;
+  ov.querySelectorAll('.lvl-card').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.id !== '__skip') { const res = game.investSkill(b.dataset.id); if (res && res.ok) { TEL.skills[b.dataset.id] = (TEL.skills[b.dataset.id] || 0) + 1; saveTel(); } }
+    pendingLevel -= 1;
+    if (pendingLevel > 0) showLevelUp(); else { ov.className = 'overlay hidden'; ov.innerHTML = ''; resumeArena(); }
+  }));
 }
 
-// ---- canvas painting ----
+function endArena(s) {
+  arenaActive = false; arenaPaused = false; cancelAnimationFrame(raf); touchVec = null; joy = null; keys.clear(); lastArena = s;
+  recordCombatEnd(s); game.resolveArena(); afterTerminal(); render();
+}
+
+// ---- canvas painting (camera follows the hero across the big world) ----
 const ROLE_FILL = { grunt: '#2a1622', guardian: '#1c2542', archer: '#16233f', caster: '#2a183a', elite: '#3a1414' };
+let camX = 0, camY = 0;
 function drawArena(s) {
-  const c = rtCtx; c.clearRect(0, 0, ARENA_W, ARENA_H);
-  // gems (spent XP motes) + fx underlay
-  for (const g of s.gems) { c.fillStyle = 'rgba(120,200,220,0.5)'; c.beginPath(); c.arc(g.x, g.y, 2.5, 0, 7); c.fill(); }
-  for (const f of s.fx) drawFx(c, f);
-  // minions
-  for (const m of s.minions) { c.fillStyle = '#1a2038'; c.strokeStyle = '#6a6f8a'; c.lineWidth = 1.5; disc(c, m.x, m.y, m.r); glyph(c, m.glyph, m.x, m.y, m.r * 1.5); }
-  // projectiles
-  for (const p of s.projectiles) { c.fillStyle = p.hostile ? '#ff6a5a' : '#e7cf8a'; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill();
+  const c = rtCtx; const h = s.hero; const w = s.world || { w: ARENA_W, h: ARENA_H };
+  camX = clampN(h.x - ARENA_W / 2, 0, Math.max(0, w.w - ARENA_W));
+  camY = clampN(h.y - ARENA_H / 2, 0, Math.max(0, w.h - ARENA_H));
+  c.clearRect(0, 0, ARENA_W, ARENA_H);
+  const vis = (x, y, r) => x + r > camX - 30 && x - r < camX + ARENA_W + 30 && y + r > camY - 30 && y - r < camY + ARENA_H + 30;
+  c.save(); c.translate(-camX, -camY);
+  // ground grid (so movement across the empty map reads) + world border
+  c.strokeStyle = 'rgba(90,66,74,0.16)'; c.lineWidth = 1;
+  const gx0 = Math.floor(camX / 100) * 100, gy0 = Math.floor(camY / 100) * 100;
+  for (let x = gx0; x <= camX + ARENA_W; x += 100) { c.beginPath(); c.moveTo(x, camY); c.lineTo(x, camY + ARENA_H); c.stroke(); }
+  for (let y = gy0; y <= camY + ARENA_H; y += 100) { c.beginPath(); c.moveTo(camX, y); c.lineTo(camX + ARENA_W, y); c.stroke(); }
+  c.strokeStyle = 'rgba(150,44,44,0.5)'; c.lineWidth = 4; c.strokeRect(0, 0, w.w, w.h);
+  // dropped loot on the ground (a glowing gem in the item's rarity color)
+  for (const p of (s.pickups || [])) { if (!vis(p.x, p.y, 14)) continue;
+    c.save(); c.translate(p.x, p.y); c.rotate(Math.PI / 4); c.fillStyle = p.color; c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 1.5;
+    c.beginPath(); c.rect(-6, -6, 12, 12); c.fill(); c.stroke(); c.restore();
+    c.fillStyle = hexA(p.color, 0.18); c.beginPath(); c.arc(p.x, p.y, 15, 0, 7); c.fill(); }
+  for (const g of s.gems) { if (!vis(g.x, g.y, 3)) continue; c.fillStyle = 'rgba(120,200,220,0.5)'; c.beginPath(); c.arc(g.x, g.y, 2.5, 0, 7); c.fill(); }
+  for (const f of s.fx) if (vis(f.x, f.y, (f.r || 24) + 20)) drawFx(c, f);
+  for (const m of s.minions) { if (!vis(m.x, m.y, m.r)) continue; c.fillStyle = '#1a2038'; c.strokeStyle = '#6a6f8a'; c.lineWidth = 1.5; disc(c, m.x, m.y, m.r); glyph(c, m.glyph, m.x, m.y, m.r * 1.5); }
+  for (const p of s.projectiles) { if (!vis(p.x, p.y, p.r)) continue; c.fillStyle = p.hostile ? '#ff6a5a' : '#e7cf8a'; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill();
     if (p.hostile) { c.strokeStyle = 'rgba(255,90,70,.4)'; c.lineWidth = 1; c.stroke(); } }
-  // enemies
-  for (const e of s.enemies) { if (e.hp <= 0) continue;
-    const flash = e.flash > 0; c.fillStyle = flash ? '#ffffff' : (ROLE_FILL[e.role] || '#241521');
-    c.strokeStyle = e.unique ? '#c8a24a' : e.elite ? '#c62828' : e.raised ? '#6f8a6f' : '#4a3a4a'; c.lineWidth = e.unique || e.elite ? 2.5 : 1.5;
+  for (const e of s.enemies) { if (e.hp <= 0 || !vis(e.x, e.y, e.r + 4)) continue;
+    c.fillStyle = e.flash > 0 ? '#ffffff' : (ROLE_FILL[e.role] || '#241521');
+    c.strokeStyle = e.boss ? '#ff3b3b' : e.unique ? '#c8a24a' : e.elite ? '#c62828' : e.raised ? '#6f8a6f' : '#4a3a4a'; c.lineWidth = e.boss || e.unique || e.elite ? 2.5 : 1.5;
     disc(c, e.x, e.y, e.r); glyph(c, e.glyph, e.x, e.y - 1, e.r * 1.7);
-    // hp bar
-    const w = e.r * 2.2, hpf = Math.max(0, e.hp / e.maxHp); c.fillStyle = '#320c0c'; c.fillRect(e.x - w / 2, e.y - e.r - 8, w, 3.5);
-    c.fillStyle = e.unique ? '#c8a24a' : '#c62828'; c.fillRect(e.x - w / 2, e.y - e.r - 8, w * hpf, 3.5);
-  }
-  // hero
-  const h = s.hero; if (h.shield > 0) { c.strokeStyle = 'rgba(200,162,74,.7)'; c.lineWidth = 2.5; c.beginPath(); c.arc(h.x, h.y, h.r + 6, 0, 7); c.stroke(); }
+    const bw = e.r * 2.2, hpf = Math.max(0, e.hp / e.maxHp); c.fillStyle = '#320c0c'; c.fillRect(e.x - bw / 2, e.y - e.r - 8, bw, 3.5);
+    c.fillStyle = e.unique || e.boss ? '#c8a24a' : '#c62828'; c.fillRect(e.x - bw / 2, e.y - e.r - 8, bw * hpf, 3.5); }
+  if (h.shield > 0) { c.strokeStyle = 'rgba(200,162,74,.7)'; c.lineWidth = 2.5; c.beginPath(); c.arc(h.x, h.y, h.r + 6, 0, 7); c.stroke(); }
   c.globalAlpha = h.invuln ? 0.55 : 1; c.fillStyle = '#2a1a10'; c.strokeStyle = '#c8a24a'; c.lineWidth = 2.5; disc(c, h.x, h.y, h.r); glyph(c, h.glyph, h.x, h.y - 1, h.r * 2); c.globalAlpha = 1;
-  // aim reticle toward last move dir
-  // joystick
+  c.restore();
   if (joy) { c.strokeStyle = 'rgba(200,180,150,.35)'; c.lineWidth = 2; c.beginPath(); c.arc(joy.ox, joy.oy, 40, 0, 7); c.stroke();
     c.fillStyle = 'rgba(200,180,150,.55)'; c.beginPath(); c.arc(joy.cx, joy.cy, 14, 0, 7); c.fill(); }
 }
@@ -240,69 +264,44 @@ function drawFx(c, f) {
 }
 function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
 
-function updateHUD(s) {
-  const h = s.hero; const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-  const wl = document.getElementById('rtLife'), wm = document.getElementById('rtMana');
+function updateHUD(s, dt) {
+  const h = s.hero; const r = game.getRun(); const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const wl = document.getElementById('rtLife'), wm = document.getElementById('rtMana'), wx = document.getElementById('rtXp');
   if (wl) wl.style.width = pv(h.life, h.maxLife) + '%'; if (wm) wm.style.width = pv(h.mana, h.maxMana) + '%';
-  set('rtLifeT', `${Math.ceil(h.life)}/${h.maxLife}`); set('rtManaT', `${Math.floor(h.mana)}/${h.maxMana}`);
-  set('rtFoes', s.enemies.filter((e) => e.hp > 0).length); set('rtTime', s.turn + 's'); set('rtLvl', game.getRun().level);
+  if (wx) wx.style.width = pv(r.xp, r.xpToNext) + '%';
+  set('rtLifeT', `${Math.ceil(h.life)}/${h.maxLife}`); set('rtManaT', `${Math.floor(h.mana)}/${h.maxMana}`); set('rtXpT', `XP ${r.xp}/${r.xpToNext}`);
+  set('rtFoes', s.aliveCount != null ? s.aliveCount : s.enemies.length); set('rtLvl', r.level);
+  const mm = Math.floor(s.time / 60), ss = String(Math.floor(s.time % 60)).padStart(2, '0');
+  set('rtTime', s.boss ? `${mm}:${ss}` : (s.bossIn > 0 ? `boss ${Math.ceil(s.bossIn)}s` : `${mm}:${ss}`));
+  // boss bar
+  const bw = document.getElementById('rtBossWrap');
+  if (bw) { if (s.boss) { bw.style.display = ''; const bi = document.getElementById('rtBoss'); if (bi) bi.style.width = pv(s.boss.hp, s.boss.maxHp) + '%'; set('rtBossT', `☠ ${s.boss.name}`); } else bw.style.display = 'none'; }
   for (const a of h.abilities) { const el = rtSkillEls[a.id]; if (!el) continue;
     el.classList.toggle('ready', a.ready); const bar = el.querySelector('.rs-cd'); if (bar) bar.style.height = Math.min(100, (a.cd / 1.8) * 100) + '%'; }
-  // potion buttons reflect the belt
-  const pot = game.getRun().potions;
+  const pot = r.potions;
   const lb = board.querySelector('[data-quaff="life"]'), mb = board.querySelector('[data-quaff="mana"]');
   if (lb) { lb.disabled = pot.life <= 0 || h.life >= h.maxLife; lb.querySelector('.pn').textContent = '×' + pot.life; }
   if (mb) { mb.disabled = pot.mana <= 0 || h.mana >= h.maxMana; mb.querySelector('.pn').textContent = '×' + pot.mana; }
+  const pts = document.getElementById('aTreePts'); if (pts) pts.textContent = r.skillPoints ? ' ' + r.skillPoints : '';
+  // loot toast
+  const lt = document.getElementById('rtLoot');
+  if (lt) { if (lootToast && lootToast.t > 0) { lootToast.t -= dt; lt.textContent = '＋ ' + lootToast.name; lt.style.color = lootToast.color; lt.style.opacity = Math.min(1, lootToast.t); } else lt.style.opacity = 0; }
 }
 
 let lastRecorded = null;
 function recordCombatEnd(s) { if (!s || !s.over || s === lastRecorded) return; lastRecorded = s; const ty = s.tally; const c = TEL.combat;
-  c.fights++; if (s.result === 'fled') c.fled++; c.hits += ty.hits; c.misses += ty.misses; c.evades += ty.evades; c.kills += ty.kills; c.dmgDealt += ty.dmgDealt; c.dmgTaken += ty.dmgTaken; c.turns += s.turn;
-  tel('combat', { result: s.result, node: game.getRun().node ? game.getRun().node.type : null, secs: s.turn, tally: ty }); }
+  c.fights++; if (s.result === 'fled') c.fled++; c.hits += ty.hits; c.misses += ty.misses; c.evades += ty.evades; c.kills += ty.kills; c.dmgDealt += ty.dmgDealt; c.dmgTaken += ty.dmgTaken; c.turns += Math.round(s.time || 0);
+  tel('combat', { result: s.result, secs: Math.round(s.time || 0), level: game.getRun().level, tally: ty }); }
 function afterTerminal() { const p = game.getRun().phase; if (!countedTerminal && (p === 'dead' || p === 'victory')) { countedTerminal = true; const m = meta(); if (p === 'dead') m.deaths++; if (p === 'victory') { m.wins++; const ni = DIFFS.indexOf(game.getRun().difficulty) + 1; if (DIFFS[ni] && !m.unlocked.includes(DIFFS[ni])) m.unlocked.push(DIFFS[ni]); } saveMeta(m);
-    const run = game.getRun(); const bc = telClass(classId); bc.maxLevel = Math.max(bc.maxLevel, run.level); bc.deepestStep = Math.max(bc.deepestStep, run.mapStep);
-    if (p === 'dead') { TEL.deaths++; bc.deaths++; TEL.deathLog.push({ class: classId, level: run.level, step: run.mapStep, node: run.node ? run.node.type : null }); if (TEL.deathLog.length > 100) TEL.deathLog = TEL.deathLog.slice(-100); }
+    const run = game.getRun(); const secs = Math.round((lastArena && lastArena.time) || 0); const bc = telClass(classId); bc.maxLevel = Math.max(bc.maxLevel, run.level); bc.deepestStep = Math.max(bc.deepestStep, secs);
+    if (p === 'dead') { TEL.deaths++; bc.deaths++; TEL.deathLog.push({ class: classId, level: run.level, secs }); if (TEL.deathLog.length > 100) TEL.deathLog = TEL.deathLog.slice(-100); }
     else { TEL.wins++; bc.wins++; }
-    tel('run_end', { result: p, class: classId, level: run.level, step: run.mapStep }); } }
+    tel('run_end', { result: p, class: classId, level: run.level, secs }); } }
 
-// ---------- reward ----------
-function renderReward(r) {
-  let title, body;
-  if (r.lastResult === 'camp') { title = '🔥 BLOODFIRE CAMP'; body = 'You bind your wounds and steel yourself.'; }
-  else if (r.lastResult === 'fled') { title = 'YOU BREAK AWAY'; body = 'You escape with your life — and nothing else.'; }
-  else if (r.node && r.node.type === 'treasure') { title = '📦 A CACHE'; body = 'Spoils, unguarded.'; }
-  else { title = 'THE RING BREAKS'; body = 'Loot falls among the corpses.'; }
-  const gained = r.gained && (r.gained.levels || r.gained.points) ? `<div class="deck-note" style="color:var(--gold)">${r.gained.levels ? `Level up! Now level ${r.level}. ` : ''}${r.gained.points ? `+${r.gained.points} skill point${r.gained.points > 1 ? 's' : ''}.` : ''}</div>` : '';
-  const full = r.bag.length >= r.bagCap;
-  const loot = r.pendingLoot.length ? `<div class="prep-sub" style="margin:6px 0 2px">On the ground — take what you can carry (Bag <b>${r.bag.length}/${r.bagCap}</b>${full ? ', <span style="color:var(--blood-bright)">full — drop something</span>' : ''}). What you leave is lost.</div><div class="loot-list">${r.pendingLoot.map((it) => lootChip(it, full)).join('')}</div>` : '<div class="deck-note">No spoils.</div>';
-  board.innerHTML = `<div class="prep">${runHeader(r)}<div class="prep-title" style="font-size:26px">${title}</div><div class="prep-sub">${body}</div>${gained}${loot}
-    <div class="prep-actions"><button class="act ghost" id="openInv">🎒 INVENTORY</button>${r.skillPoints ? `<button class="act" id="openTree">⚔ SKILLS ● ${r.skillPoints}</button>` : ''}<button class="act" id="cont">PRESS ON</button></div></div>`;
-  logEl.innerHTML = '';
-  document.getElementById('openInv').addEventListener('click', () => { invOpen = true; renderOverlay(); });
-  const t = document.getElementById('openTree'); if (t) t.addEventListener('click', () => { treeOpen = true; renderOverlay(); });
-  board.querySelectorAll('[data-take]').forEach((b) => b.addEventListener('click', () => { game.takeLoot(b.dataset.take); render(); }));
-  document.getElementById('cont').addEventListener('click', () => { game.continueFromReward(); render(); });
-}
-function lootChip(it, bagFull) { return `<div class="loot-chip" style="border-color:${it.color || 'var(--gold)'}"><div class="lc-name" style="color:${it.color || 'var(--gold)'}">${it.name}</div><div class="lc-slot">${SLOT_LABEL[it.slot] || it.slot}${it.grants && it.grants.skill ? ' · grants a skill' : ''}</div><div class="lc-text">${it.text || ''}</div><button class="act ghost small" data-take="${it.id}" ${bagFull ? 'disabled' : ''} style="margin-top:4px">${bagFull ? 'BAG FULL' : 'TAKE'}</button></div>`; }
-
-// ---------- shop ----------
-function renderShop(r) {
-  board.innerHTML = `<div class="prep">${runHeader(r)}<div class="prep-title" style="font-size:26px">🛒 WANDERING TRADER</div>
-    <div class="prep-sub">Sell your spoils, restock the belt. Bag <b>${r.bag.length}/${r.bagCap}</b> · Belt 🩹${r.potions.life} 🔷${r.potions.mana}</div>
-    <div class="shop-buy"><button class="act ghost small" id="buyLife">Buy 🩹 Life (12g)</button><button class="act ghost small" id="buyMana">Buy 🔷 Mana (12g)</button></div>
-    <div class="loot-list">${r.bag.length ? r.bag.map(shopSellChip).join('') : '<div class="deck-note">Bag empty — nothing to sell.</div>'}</div>
-    <div class="prep-actions"><button class="act ghost" id="openInv">🎒 INVENTORY</button><button class="act" id="cont">LEAVE</button></div></div>`;
-  logEl.innerHTML = '';
-  document.getElementById('buyLife').addEventListener('click', () => { game.buyPotion('life'); render(); });
-  document.getElementById('buyMana').addEventListener('click', () => { game.buyPotion('mana'); render(); });
-  document.getElementById('openInv').addEventListener('click', () => { invOpen = true; renderOverlay(); });
-  board.querySelectorAll('[data-sell]').forEach((b) => b.addEventListener('click', () => { game.sellFromBag(b.dataset.sell); render(); }));
-  document.getElementById('cont').addEventListener('click', () => { game.continueFromReward(); render(); });
-}
-function shopSellChip(it) { const val = it.grants ? 12 : ({ normal: 3, magic: 8, rare: 18 }[it.rarity] || 4); return `<div class="loot-chip" style="border-color:${it.color || 'var(--gold)'}"><div class="lc-name" style="color:${it.color || 'var(--gold)'}">${it.name}</div><div class="lc-slot">${SLOT_LABEL[it.slot] || it.slot}</div><button class="act ghost small" data-sell="${it.id}" style="margin-top:4px">SELL ${val}g</button></div>`; }
 
 // ---------- dead / victory ----------
-function renderDead(r) { const m = meta(); ov.className = 'overlay'; ov.innerHTML = `<h2 class="dead">YOU HAVE DIED</h2><div class="deck-note">You fell at depth ${r.mapStep + 1}, level ${r.level}, on ${r.difficulty}.</div><div class="deck-note" style="color:#6f6357">${m.wins} cleared · ${m.deaths} lost</div><button class="act" id="again">NEW DESCENT</button>`; board.innerHTML = ''; logEl.innerHTML = ''; document.getElementById('again').addEventListener('click', () => { window.__seed = Math.floor(performance.now()); newRun('Normal', classId); }); }
+function renderDead(r) { const m = meta(); const secs = Math.round((lastArena && lastArena.time) || 0); const mm = Math.floor(secs / 60), ss = String(secs % 60).padStart(2, '0');
+  ov.className = 'overlay'; ov.innerHTML = `<h2 class="dead">YOU HAVE DIED</h2><div class="deck-note">You fell at level ${r.level} after ${mm}:${ss}, on ${r.difficulty}.</div><div class="deck-note" style="color:#6f6357">${m.wins} cleared · ${m.deaths} lost</div><button class="act" id="again">NEW DESCENT</button>`; board.innerHTML = ''; logEl.innerHTML = ''; document.getElementById('again').addEventListener('click', () => { window.__seed = Math.floor(performance.now()); newRun('Normal', classId); }); }
 function renderVictory(r) { const cur = DIFFS.indexOf(r.difficulty); const next = DIFFS[cur + 1]; ov.className = 'overlay'; ov.innerHTML = `<h2 class="win">THE SMITH FALLS</h2><div class="deck-note">You cleared the act on <b>${r.difficulty}</b> at level ${r.level}.</div>${next ? `<div class="deck-note" style="color:var(--gold)">${next} unlocked.</div>` : '<div class="deck-note" style="color:var(--gold)">You have conquered Hell.</div>'}<div style="display:flex;gap:12px;margin-top:6px">${next ? `<button class="act" id="next">DESCEND ${next.toUpperCase()}</button>` : ''}<button class="act ghost" id="again">NEW DESCENT</button></div>`; board.innerHTML = ''; logEl.innerHTML = ''; const nb = document.getElementById('next'); if (nb) nb.addEventListener('click', () => { window.__seed = Math.floor(performance.now()); newRun(next, classId); }); document.getElementById('again').addEventListener('click', () => { window.__seed = Math.floor(performance.now()); newRun('Normal', classId); }); }
 
 // ---------- overlays ----------
@@ -317,7 +316,7 @@ function renderTree() {
   ov.className = 'overlay inv';
   ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">⚔ Skill Tree — ${r.skillPoints} pts</div><button class="inv-close" id="cx">✕</button></div>
     <div class="sk-sub">Skills unlock by <b>level</b> and <b>prerequisite</b> — you build toward the big ones. Each point needs a higher level than the last, so you can't dump a pile into one skill. +Skills gear raises every skill's level.</div>${rows}</div>`;
-  document.getElementById('cx').addEventListener('click', () => { treeOpen = false; render(); });
+  document.getElementById('cx').addEventListener('click', () => { treeOpen = false; render(); if (arenaActive) resumeArena(); });
   ov.querySelectorAll('[data-inv]').forEach((b) => b.addEventListener('click', () => { game.investSkill(b.dataset.inv); expose(); renderTree(); }));
 }
 
@@ -329,7 +328,7 @@ function renderInventory() {
   ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">🎒 Inventory</div><button class="inv-close" id="cx">✕</button></div>
     <div class="inv-stats"><span><span class="k">Life</span> <b class="life">${r.life}/${st.maxLife}</b></span><span><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></span><span><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></span><span><span class="k">Gold</span> <b style="color:var(--gold)">${r.gold}</b></span></div>
     <div class="inv-cols"><div class="paperdoll">${cells}</div><div class="bag"><div class="bag-head">Bag (${r.bag.length}/${r.bagCap})</div><div class="bag-list">${bag}</div></div></div></div>`;
-  document.getElementById('cx').addEventListener('click', () => { invOpen = false; render(); });
+  document.getElementById('cx').addEventListener('click', () => { invOpen = false; render(); if (arenaActive) resumeArena(); });
   ov.querySelectorAll('.slot.filled').forEach((el) => el.addEventListener('click', () => { game.unequip(el.dataset.slot); expose(); renderInventory(); }));
   ov.querySelectorAll('[data-equip]').forEach((el) => el.addEventListener('click', () => { game.equipFromBag(el.dataset.equip); expose(); renderInventory(); }));
   ov.querySelectorAll('[data-drop]').forEach((el) => el.addEventListener('click', () => { game.dropFromBag(el.dataset.drop); expose(); renderInventory(); }));
