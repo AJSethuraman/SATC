@@ -13,6 +13,25 @@ import { BASES, RARITY, AFFIXES, TIER_MULT, ITEM_TIERS, UNIQUES, CLASS_PROFILE, 
 const REAL_SLOTS = SLOTS.filter((s) => s !== 'ring2' && s !== 'weapon').map((s) => (s === 'ring1' ? 'ring' : s));
 const TIER_INDEX = Object.fromEntries(ITEM_TIERS.map((t, i) => [t, i]));
 
+// Equip requirements climb with the drop tier — a Hell Plate demands far more Str
+// than a Normal one, so the greed-punisher (all-Energy caster locked out of heavy
+// gear) bites harder deeper in. LEVEL_REQ also gates by tier + rarity.
+const REQ_TIER = { Normal: 1, Nightmare: 1.6, Hell: 2.3 };
+const LEVEL_REQ = { Normal: 1, Nightmare: 14, Hell: 26 };
+
+// Build an item's { str, dex, level } requirement from its base + drop tier + rarity.
+function reqFor(baseDef, tier, rarity) {
+  const f = REQ_TIER[tier] || 1;
+  const req = {};
+  const str = Math.round((baseDef.str || 0) * f);
+  const dex = Math.round((baseDef.dex || 0) * f);
+  if (str) req.str = str;
+  if (dex) req.dex = dex;
+  const lvl = (LEVEL_REQ[tier] || 1) + (rarity === 'rare' ? 4 : rarity === 'magic' ? 2 : 0);
+  if (lvl > 1) req.level = lvl;
+  return req;
+}
+
 // flavor names for rares (D2-style two-word titles)
 const RARE_PRE = ['Bramble', 'Gale', 'Corpse', 'Dread', 'Storm', 'Vortex', 'Doom', 'Grim', 'Hailstone', 'Ember', 'Rune', 'Venom', 'Blight', 'Soul', 'Wraith', 'Shadow'];
 const RARE_SUF = ['Song', 'Bite', 'Shard', 'Coil', 'Ward', 'Whisper', 'Grasp', 'Sunder', 'Veil', 'Root', 'Fang', 'Sigil'];
@@ -101,7 +120,8 @@ export function rollItem(rng, { tier = 'Normal', magicFind = 0, slot = null, all
       return {
         id: `${u.id}_${counter++}`, uid: u.id, name: u.name, slot: u.slot, rarity: 'unique',
         itemTier: useTier, color: rarity.color, unique: true, enabler: !!u.enabler,
-        passive: { ...u.passive }, affixes: [], tags: ['unique'], text: u.text,
+        passive: { ...u.passive }, affixes: [], tags: ['unique'],
+        req: { level: LEVEL_REQ[useTier] || 1 }, text: u.text,
       };
     }
     rarity = RARITY.find((r) => r.rarity === 'rare'); // no eligible unique -> rare
@@ -140,6 +160,7 @@ export function rollItem(rng, { tier = 'Normal', magicFind = 0, slot = null, all
     id: `gen_${useSlot}_${counter++}`, name, slot: useSlot, rarity: rarity.rarity,
     itemTier: useTier, color: rarity.color, passive: mods,
     affixes: affixNames.map((a) => a.name), tags: [...tagSet],
+    req: reqFor(baseDef, useTier, rarity.rarity),
     text: affixNames.length ? (modText(mods) || '(plain)') : '(plain)',
   };
 }

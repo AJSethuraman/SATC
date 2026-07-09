@@ -82,14 +82,21 @@ export const CLASSES = {
   // manaRegen is SLOW and per-turn — Mana persists across the whole run (no free
   // refill between packs); you top up with Mana potions and rest at camps. Casters
   // carry a larger pool + slightly better regen.
+  // attr = base Str/Dex/Vit/Energy (D2 starting stats). Str/Dex gate what gear you
+  // can wear; Vit -> Life, Energy -> Mana/regen. You earn ~5 attr points per level
+  // to spend, and greed (all Energy) locks you out of heavy Str/Dex gear.
   barbarian: { id: 'barbarian', name: 'Barbarian', glyph: '🪓', maxLife: 56, maxMana: 12, manaRegen: 2, startBlock: 0, acc: 7, eva: 1,
+    attr: { str: 30, dex: 20, vit: 25, energy: 10 },
     startWeapon: 'worn_axe', tree: ['cleave', 'zeal', 'smite', 'whirlwind', 'charge', 'warcry'] },
   amazon: { id: 'amazon', name: 'Amazon', glyph: '🏹', maxLife: 47, maxMana: 12, manaRegen: 2, startBlock: 0, acc: 8, eva: 4,
+    attr: { str: 20, dex: 25, vit: 20, energy: 15 },
     startWeapon: 'short_bow', tree: ['power_shot', 'strafe', 'pierce', 'guard'] },
   necromancer: { id: 'necromancer', name: 'Necromancer', glyph: '💀', maxLife: 40, maxMana: 16, manaRegen: 3, startBlock: 0, acc: 6, eva: 1,
+    attr: { str: 15, dex: 25, vit: 15, energy: 25 },
     startWeapon: 'bone_wand', tree: ['raise_skeleton', 'raise_golem', 'bone_spear', 'teeth', 'bone_armor'] },
   // A faithful D2 Sorceress — three elemental trees; spells scale on level + Masteries.
   sorceress: { id: 'sorceress', name: 'Sorceress', glyph: '🔮', maxLife: 38, maxMana: 20, manaRegen: 4, startBlock: 0, acc: 6, eva: 2,
+    attr: { str: 10, dex: 25, vit: 10, energy: 35 },
     startWeapon: 'sorc_orb', tabs: ['fire', 'cold', 'light'],
     tree: ['fire_bolt', 'warmth', 'inferno', 'fire_ball', 'fire_mastery', 'meteor',
       'ice_bolt', 'frozen_armor', 'frost_nova', 'ice_blast', 'cold_mastery', 'glacial_spike',
@@ -103,15 +110,18 @@ export const CLASSES = {
 // physical skills of its type — a better axe means a harder Cleave; a bow can't
 // Cleave at all. 'focus' weapons (wands/staves) deal no weapon damage: they power
 // the Necromancer, whose spells scale on +Skills, not on a swung weapon.
+// `req` = equip requirements (Str/Dex/level). Starting weapons require nothing (you
+// can always wield your own start); droppable weapons gate on the stat their class
+// leans on (an axe wants Str, a bow Dex) so a greedy build can't just grab them.
 export const ITEMS = {
-  worn_axe: { id: 'worn_axe', name: 'Worn Axe', slot: 'weapon', wtype: 'melee', dmg: [5, 8], grants: { skill: 'cleave' }, text: 'A pitted axe (5-8). Grants Cleave.' },
-  short_bow: { id: 'short_bow', name: 'Short Bow', slot: 'weapon', wtype: 'ranged', dmg: [5, 8], grants: { skill: 'power_shot' }, text: 'A hunting bow (5-8). Grants Power Shot.' },
-  bone_wand: { id: 'bone_wand', name: 'Bone Wand', slot: 'weapon', wtype: 'focus', grants: { skill: 'raise_skeleton' }, text: 'A focus for the dead. Grants Raise Skeleton.' },
-  sorc_orb: { id: 'sorc_orb', name: 'Sorceress Orb', slot: 'weapon', wtype: 'focus', grants: { skill: 'fire_bolt' }, text: 'A crystal orb. Grants Fire Bolt.' },
+  worn_axe: { id: 'worn_axe', name: 'Worn Axe', slot: 'weapon', wtype: 'melee', dmg: [5, 8], grants: { skill: 'cleave' }, req: {}, text: 'A pitted axe (5-8). Grants Cleave.' },
+  short_bow: { id: 'short_bow', name: 'Short Bow', slot: 'weapon', wtype: 'ranged', dmg: [5, 8], grants: { skill: 'power_shot' }, req: {}, text: 'A hunting bow (5-8). Grants Power Shot.' },
+  bone_wand: { id: 'bone_wand', name: 'Bone Wand', slot: 'weapon', wtype: 'focus', grants: { skill: 'raise_skeleton' }, req: {}, text: 'A focus for the dead. Grants Raise Skeleton.' },
+  sorc_orb: { id: 'sorc_orb', name: 'Sorceress Orb', slot: 'weapon', wtype: 'focus', grants: { skill: 'fire_bolt' }, req: {}, text: 'A crystal orb. Grants Fire Bolt.' },
   // droppable weapons — better damage/mods; type gates which skills they empower
-  great_axe: { id: 'great_axe', name: 'Great Axe of Smiting', slot: 'weapon', wtype: 'melee', dmg: [8, 13], grants: { skill: 'smite' }, passive: { plusSkills: 1 }, text: 'A brutal axe (8-13). Grants Smite. +1 to Skills.' },
-  war_bow: { id: 'war_bow', name: 'War Bow', slot: 'weapon', wtype: 'ranged', dmg: [8, 12], grants: { skill: 'power_shot' }, passive: { maxMana: 2 }, text: 'A heavy bow (8-12). Grants Power Shot. +2 Mana.' },
-  bone_staff: { id: 'bone_staff', name: 'Bone Staff', slot: 'weapon', wtype: 'focus', grants: { skill: 'bone_spear' }, passive: { plusSkills: 1 }, text: 'A staff of bone. Grants Bone Spear. +1 to Skills.' },
+  great_axe: { id: 'great_axe', name: 'Great Axe of Smiting', slot: 'weapon', wtype: 'melee', dmg: [8, 13], grants: { skill: 'smite' }, passive: { plusSkills: 1 }, req: { str: 40, level: 6 }, text: 'A brutal axe (8-13). Grants Smite. +1 to Skills. (Req Str 40)' },
+  war_bow: { id: 'war_bow', name: 'War Bow', slot: 'weapon', wtype: 'ranged', dmg: [8, 12], grants: { skill: 'power_shot' }, passive: { maxMana: 2 }, req: { dex: 36, level: 6 }, text: 'A heavy bow (8-12). Grants Power Shot. +2 Mana. (Req Dex 36)' },
+  bone_staff: { id: 'bone_staff', name: 'Bone Staff', slot: 'weapon', wtype: 'focus', grants: { skill: 'bone_spear' }, passive: { plusSkills: 1 }, req: { level: 4 }, text: 'A staff of bone. Grants Bone Spear. +1 to Skills.' },
 };
 export const WEAPON_DROPS = ['great_axe', 'war_bow', 'bone_staff'];
 
@@ -193,32 +203,75 @@ export const SLOT_LABEL = { weapon: 'Weapon', offhand: 'Off-hand', helm: 'Helm',
 
 // ---- Random-loot tables (armor/jewelry; weapons are separate skill-granters) --
 // Consumed by loot.js. No weapon bases here — weapons come from WEAPON_DROPS.
+// Each base carries a Normal-tier Str/Dex equip requirement; heavier bases demand
+// more (loot.js scales the requirement by the drop tier). Cloth/jewelry ask for
+// nothing — the light-armor casters can always wear their own kit. Shields lean on
+// Str; there's a Dex-gated body ('Studded') so the Dex requirement is real.
 export const BASES = {
-  offhand: [{ base: 'Buckler' }, { base: 'Kite Shield' }, { base: 'Bone Charm' }],
-  helm: [{ base: 'Leather Cap' }, { base: 'Iron Helm' }, { base: 'Great Helm' }],
-  body: [{ base: 'Quilted Armor' }, { base: 'Chain Mail' }, { base: 'Plate' }],
-  gloves: [{ base: 'Leather Gloves' }, { base: 'Gauntlets' }],
-  boots: [{ base: 'Boots' }, { base: 'Greaves' }],
-  belt: [{ base: 'Sash' }, { base: 'Heavy Belt' }],
+  offhand: [{ base: 'Buckler', str: 6 }, { base: 'Kite Shield', str: 20 }, { base: 'Bone Charm' }],
+  helm: [{ base: 'Leather Cap' }, { base: 'Iron Helm', str: 12 }, { base: 'Great Helm', str: 22 }],
+  body: [{ base: 'Quilted Armor' }, { base: 'Chain Mail', str: 22 }, { base: 'Studded Leather', dex: 20, str: 10 }, { base: 'Plate', str: 40 }],
+  gloves: [{ base: 'Leather Gloves' }, { base: 'Gauntlets', str: 14 }],
+  boots: [{ base: 'Boots' }, { base: 'Greaves', str: 14 }],
+  belt: [{ base: 'Sash' }, { base: 'Heavy Belt', str: 10 }],
   amulet: [{ base: 'Amulet' }, { base: 'Talisman' }],
   ring: [{ base: 'Ring' }, { base: 'Band' }],
 };
-export const PREFIXES = [
-  { name: 'Sturdy', mod: { maxLife: 8 } }, { name: 'Vigorous', mod: { maxLife: 15 } },
-  { name: 'Runed', mod: { maxMana: 2 } }, { name: 'Cruel', mod: { plusSkills: 1 } },
-  { name: 'Warded', mod: { startBlock: 2 } }, { name: 'Savage', mod: { plusSkills: 1, maxLife: 6 } },
-  { name: 'Keen', mod: { accuracy: 3 } }, { name: 'Nimble', mod: { evade: 3 } },
-  { name: 'Hexing', mod: { fcr: 15 } }, { name: 'Vicious', mod: { ias: 15 } }, // Faster Cast Rate / Increased Attack Speed
-];
-export const SUFFIXES = [
-  { name: 'of the Bear', mod: { maxLife: 10 } }, { name: 'of the Magi', mod: { maxMana: 2 } },
-  { name: 'of Wrath', mod: { plusSkills: 1 } }, { name: 'of the Turtle', mod: { startBlock: 2 } },
-  { name: 'of Fury', mod: { plusSkills: 2 } }, { name: 'of Vigor', mod: { maxLife: 14 } },
-  { name: 'of Precision', mod: { accuracy: 4 } }, { name: 'of the Cat', mod: { evade: 3 } },
-  { name: 'of Sorcery', mod: { fcr: 20 } }, { name: 'of Fervor', mod: { ias: 20 } }, // the spam-your-main-skill affixes
-];
+// Item TIER = the difficulty it dropped in; it multiplies affix magnitudes so a
+// Normal item can NEVER rival Nightmare, nor Nightmare rival Hell.
+export const ITEM_TIERS = ['Normal', 'Nightmare', 'Hell'];
+export const TIER_MULT = { Normal: 1, Nightmare: 2.2, Hell: 4 };
+
+// 4 honest rarities. common = no affixes (vendor trash); magic 1-2; rare 3-5;
+// unique = a fixed item pulled from UNIQUES. Each up widens the roll space and a
+// common can never match a unique.
 export const RARITY = [
-  { rarity: 'normal', weight: 18, affixes: 0, color: '#cfcfcf' }, // whites are now rare — most drops carry affixes
-  { rarity: 'magic', weight: 47, affixes: 2, color: '#6f8aff' },
-  { rarity: 'rare', weight: 35, affixes: 4, color: '#e5d54a' },
+  { rarity: 'common', weight: 40, affixes: 0, affixMax: 0, color: '#cfcfcf' },
+  { rarity: 'magic', weight: 40, affixes: 1, affixMax: 2, color: '#6f8aff' },
+  { rarity: 'rare', weight: 17, affixes: 3, affixMax: 5, color: '#e5d54a' },
+  { rarity: 'unique', weight: 3, affixes: 0, affixMax: 0, color: '#c8863a' },
 ];
+
+// Affix pool. `mod` values are Normal-tier [min,max] ranges (the drop tier
+// multiplies them via TIER_MULT). `tags` mark which builds actually want the
+// affix — so most drops are sidegrades/junk for any ONE build (a caster does not
+// want Increased Attack Speed or Accuracy). `pen` is a fraction (−enemy resist).
+export const AFFIXES = [
+  { id: 'sturdy', name: 'Sturdy', pos: 'prefix', mod: { maxLife: [7, 13] }, tags: ['all'] },
+  { id: 'vigor', name: 'of Vigor', pos: 'suffix', mod: { maxLife: [9, 16] }, tags: ['all'] },
+  { id: 'magi', name: 'of the Magi', pos: 'suffix', mod: { maxMana: [5, 10] }, tags: ['caster'] },
+  { id: 'warm', name: 'Warm', pos: 'prefix', mod: { manaRegen: [1, 2] }, tags: ['caster'] },
+  { id: 'sorcery', name: 'of Sorcery', pos: 'suffix', mod: { fcr: [8, 16] }, tags: ['caster'] },
+  { id: 'hexing', name: 'Hexing', pos: 'prefix', mod: { fcr: [6, 12] }, tags: ['caster'] },
+  { id: 'piercing', name: 'of Piercing', pos: 'suffix', mod: { penetration: [0.03, 0.07] }, tags: ['caster'] },
+  { id: 'mind', name: 'of the Mind', pos: 'suffix', mod: { energy: [3, 7] }, tags: ['caster'] },
+  { id: 'adept', name: 'of the Adept', pos: 'suffix', mod: { plusSkills: [1, 1] }, tags: ['all'], plusSkills: true },
+  { id: 'fervor', name: 'of Fervor', pos: 'suffix', mod: { ias: [8, 16] }, tags: ['melee'] },
+  { id: 'vicious', name: 'Vicious', pos: 'prefix', mod: { ias: [6, 12] }, tags: ['melee'] },
+  { id: 'keen', name: 'Keen', pos: 'prefix', mod: { accuracy: [3, 6] }, tags: ['melee'] },
+  { id: 'cat', name: 'of the Cat', pos: 'suffix', mod: { evade: [2, 4] }, tags: ['melee'] },
+  { id: 'warded', name: 'Warded', pos: 'prefix', mod: { startBlock: [2, 4] }, tags: ['melee'] },
+  { id: 'might', name: 'of Might', pos: 'suffix', mod: { str: [3, 7] }, tags: ['melee'] },
+  { id: 'oflife', name: 'of Life', pos: 'suffix', mod: { vit: [3, 7] }, tags: ['all'] },
+];
+
+// Fixed UNIQUES (the treasure-hunt peaks + build enablers). minTier gates which
+// difficulty they can drop in. S7 expands this into the full enabler/runeword set.
+export const UNIQUES = [
+  { id: 'u_tarnhelm', name: 'Tarnhelm', slot: 'helm', minTier: 'Normal', passive: { plusSkills: 1, maxMana: 8 }, text: 'Tarnhelm — +1 Skills, +Mana.' },
+  { id: 'u_magefist', name: 'Magefist', slot: 'gloves', minTier: 'Normal', passive: { fcr: 20, manaRegen: 2 }, text: 'Magefist — +20% Cast Speed, +Mana regen.', enabler: true },
+  { id: 'u_nagel', name: 'Nagelring', slot: 'ring', minTier: 'Normal', passive: { maxLife: 14, penetration: 0.06 }, text: 'Nagelring — +Life, pierces resist.' },
+  { id: 'u_soj', name: 'Stone of Jordan', slot: 'ring', minTier: 'Nightmare', passive: { plusSkills: 1, maxMana: 24, manaRegen: 2 }, text: 'Stone of Jordan — +1 Skills, big Mana.', enabler: true },
+  { id: 'u_frostburn', name: 'Frostburn', slot: 'gloves', minTier: 'Nightmare', passive: { maxMana: 30, fcr: 10 }, text: 'Frostburn — huge Mana, +Cast Speed.' },
+  { id: 'u_vipermagi', name: "Skin of the Vipermagi", slot: 'body', minTier: 'Nightmare', passive: { plusSkills: 1, fcr: 30, penetration: 0.08 }, text: 'Vipermagi — +1 Skills, +30% FCR, pierce.', enabler: true },
+  { id: 'u_death', name: "Death's Fathom", slot: 'offhand', minTier: 'Hell', passive: { plusSkills: 2, penetration: 0.15 }, text: "Death's Fathom — +2 Skills, deep pierce.", enabler: true },
+];
+
+// Per-class loot value weights — what an affix is WORTH to a build, for "is this an
+// upgrade?" (off-build affixes score ~0, so most drops aren't upgrades for you).
+export const CLASS_PROFILE = {
+  sorceress: { plusSkills: 14, fcr: 2.5, penetration: 80, maxMana: 1.4, manaRegen: 4, energy: 1.4, maxLife: 1, vit: 1.2, ias: 0, accuracy: 0, evade: 0.2, startBlock: 0.2, str: 0.2, dex: 0.2 },
+  barbarian: { plusSkills: 14, ias: 2.5, accuracy: 1.5, startBlock: 2, maxLife: 1.6, str: 1, dex: 0.8, vit: 1.2, evade: 0.5, fcr: 0, maxMana: 0.3, manaRegen: 0.3, penetration: 0, energy: 0.2 },
+  amazon: { plusSkills: 14, ias: 2.5, accuracy: 2, evade: 1.5, maxLife: 1.4, dex: 1.2, str: 0.6, vit: 1.1, startBlock: 0.8, fcr: 0, maxMana: 0.3, manaRegen: 0.3, penetration: 0, energy: 0.2 },
+  necromancer: { plusSkills: 14, fcr: 2.5, maxMana: 1.4, manaRegen: 3.5, energy: 1.3, maxLife: 1.1, vit: 1.2, penetration: 40, ias: 0, accuracy: 0, evade: 0.2, startBlock: 0.3, str: 0.2, dex: 0.2 },
+};

@@ -17,16 +17,36 @@ import { rollItem } from './loot.js';
 // You land ~level 25 by Andariel; the tree stays a real CHOICE.
 const xpForLevel = (lvl) => 10 + 3 * lvl * lvl;
 
-// Stats scale with LEVEL (Life/Mana growth) + gear passive mods.
-export function deriveStats(cls, equipment, level, bonus = {}) {
-  const stats = { maxLife: cls.maxLife + (level - 1) * 5, maxMana: cls.maxMana + (level - 1),
-    manaRegen: (cls.manaRegen || 4) + Math.floor((level - 1) / 4), startBlock: cls.startBlock || 0,
-    accuracy: (cls.acc || 6) + (level - 1), evade: cls.eva || 0, actions: cls.actions || 3, plusSkills: 0,
-    fcr: 0, ias: 0, penetration: 0 }; // Faster Cast Rate (spells) / Increased Attack Speed (physical) — from gear
-  const add = (m) => { for (const [k, v] of Object.entries(m)) stats[k] = (stats[k] || 0) + v; };
+// Attribute points earned per level (D2 gives 5). Spent on Str/Dex/Vit/Energy.
+const ATTR_PER_LEVEL = 5;
+
+// Each Vitality point adds Life; each Energy point adds Mana (and a trickle of
+// regen). Str/Dex are mostly equip gates but toss in a small Block/Accuracy nudge.
+export const VIT_LIFE = 4, ENERGY_MANA = 2;
+
+// Stats scale with LEVEL (Life/Mana growth) + ATTRIBUTES (Vit/Energy) + gear mods.
+// `attr` = the Str/Dex/Vit/Energy the run has invested (defaults to the class base
+// so callers that don't track a run still get sane numbers).
+export function deriveStats(cls, equipment, level, attr = null, bonus = {}) {
+  const a = attr || cls.attr || { str: 0, dex: 0, vit: 0, energy: 0 };
+  // sum every gear passive (and the caller's bonus) into one mod bag first
+  const gear = {};
+  const add = (m) => { for (const [k, v] of Object.entries(m)) gear[k] = (gear[k] || 0) + v; };
   for (const s of SLOTS) { const it = equipment[s]; if (it && it.passive) add(it.passive); }
   add(bonus);
-  return stats;
+  // total attributes = invested + whatever gear grants (so +Vit/+Energy gear counts)
+  const str = (a.str || 0) + (gear.str || 0), dex = (a.dex || 0) + (gear.dex || 0);
+  const vit = (a.vit || 0) + (gear.vit || 0), energy = (a.energy || 0) + (gear.energy || 0);
+  return {
+    maxLife: cls.maxLife + (level - 1) * 5 + vit * VIT_LIFE + (gear.maxLife || 0),
+    maxMana: cls.maxMana + (level - 1) + energy * ENERGY_MANA + (gear.maxMana || 0),
+    manaRegen: (cls.manaRegen || 4) + Math.floor((level - 1) / 4) + Math.floor(energy / 12) + (gear.manaRegen || 0),
+    startBlock: (cls.startBlock || 0) + Math.floor(str / 30) + (gear.startBlock || 0),
+    accuracy: (cls.acc || 6) + (level - 1) + Math.floor(dex / 6) + (gear.accuracy || 0),
+    evade: (cls.eva || 0) + (gear.evade || 0), actions: cls.actions || 3,
+    plusSkills: gear.plusSkills || 0, fcr: gear.fcr || 0, ias: gear.ias || 0, penetration: gear.penetration || 0,
+    str, dex, vit, energy,
+  };
 }
 
 // Your abilities = a universal Guard + the skill your weapon grants + everything learned.
@@ -45,6 +65,8 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     seed, difficulty: opts.difficulty || 'Normal', className: cls.name, glyph: cls.glyph,
     equipment: emptyEquipment(), bag: [],
     skillHard: {}, skillPoints: 0, level: 1, xp: 0,
+    // Attributes reset every run: start at the class base, earn ~5 to spend per level.
+    attr: { ...(cls.attr || { str: 0, dex: 0, vit: 0, energy: 0 }) }, attrPoints: 0,
     lastResult: null, gained: null, life: 0, mana: 0, potions: { life: 3, mana: 3 }, gold: 0, phase: 'prep',
   };
   run.equipment.weapon = ITEMS[cls.startWeapon];
@@ -55,7 +77,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   let combat = null, lastXp = 0;
 
   function emptyEquipment() { const e = {}; for (const s of SLOTS) e[s] = null; return e; }
-  function statsNow() { const st = deriveStats(cls, run.equipment, run.level); st.manaRegen += (run.skillHard.warmth || 0); return st; } // Warmth: +Mana regen
+  function statsNow() { const st = deriveStats(cls, run.equipment, run.level, run.attr); st.manaRegen += (run.skillHard.warmth || 0); return st; } // Warmth: +Mana regen
   function abilitiesNow() { return deriveAbilities(run.equipment, run.skillHard); }
   function weaponNow() { const w = run.equipment.weapon; return w ? { dmg: w.dmg, wtype: w.wtype } : null; }
   function heroForFight() { const s = statsNow(); return { name: cls.name, glyph: cls.glyph, maxLife: s.maxLife, life: run.life,
@@ -64,8 +86,18 @@ export function createGame(seed = 'bloodrune', opts = {}) {
 
   // ---- gear ----
   function slotFor(it) { if (it.slot === 'ring') return run.equipment.ring1 ? (run.equipment.ring2 ? 'ring1' : 'ring2') : 'ring1'; return it.slot; }
+  // Equip GATE: an item's Str/Dex/level requirement is checked against your INVESTED
+  // attributes (gear +stats don't count toward wearing OTHER gear) — greed is punished.
+  function canEquip(it) {
+    const r = (it && it.req) || {};
+    if ((r.str || 0) > run.attr.str) return { ok: false, reason: `Req ${r.str} Str` };
+    if ((r.dex || 0) > run.attr.dex) return { ok: false, reason: `Req ${r.dex} Dex` };
+    if ((r.level || 0) > run.level) return { ok: false, reason: `Req Lv ${r.level}` };
+    return { ok: true };
+  }
   function equipFromBag(id) { const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false };
-    const it = run.bag[i]; const slot = slotFor(it); run.bag.splice(i, 1); if (run.equipment[slot]) run.bag.push(run.equipment[slot]); run.equipment[slot] = it; clampLife(); pushHeroStats(); return { ok: true }; }
+    const it = run.bag[i]; const gate = canEquip(it); if (!gate.ok) return gate;
+    const slot = slotFor(it); run.bag.splice(i, 1); if (run.equipment[slot]) run.bag.push(run.equipment[slot]); run.equipment[slot] = it; clampLife(); pushHeroStats(); return { ok: true }; }
   function unequip(slot) { const it = run.equipment[slot]; if (!it) return { ok: false }; if (slot === 'weapon') return { ok: false, reason: 'need a weapon' }; run.bag.push(it); run.equipment[slot] = null; clampLife(); pushHeroStats(); return { ok: true }; }
   function clampLife() { const s = statsNow(); run.life = Math.min(run.life, s.maxLife); run.mana = Math.min(run.mana, s.maxMana); }
 
@@ -75,6 +107,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   const weaponScore = (w) => (w && w.dmg ? (w.dmg[0] + w.dmg[1]) / 2 : 0) + ((w && w.passive && w.passive.plusSkills) || 0) * 4 + (w && w.grants ? 2 : 0);
   const armorScore = (it) => { const p = it.passive || {}; return (p.maxLife || 0) + (p.maxMana || 0) * 3 + (p.plusSkills || 0) * 10 + (p.startBlock || 0) * 3 + (p.accuracy || 0) * 2 + (p.evade || 0) * 2; };
   function autoEquipIfUpgrade(it) {
+    if (!canEquip(it).ok) return false;                               // can't wear it -> stays in the bag
     if (it.slot === 'weapon') { const cur = run.equipment.weapon;
       if (cur && cur.wtype !== it.wtype) return false;               // never auto-swap weapon type
       if (cur && weaponScore(cur) >= weaponScore(it)) return false;
@@ -116,6 +149,13 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function investSkill(id) { if (run.skillPoints <= 0) return { ok: false, reason: 'no points' };
     const gate = skillGate(id); if (!gate.ok) return gate;
     run.skillPoints -= 1; run.skillHard[id] = (run.skillHard[id] || 0) + 1; pushHeroStats(); return { ok: true }; }
+  // Spend an attribute point (str/dex/vit/energy). Vit/Energy retune Life/Mana live.
+  function investAttr(key) { if (run.attrPoints <= 0) return { ok: false, reason: 'no points' };
+    if (!['str', 'dex', 'vit', 'energy'].includes(key)) return { ok: false, reason: 'bad attr' };
+    run.attrPoints -= 1; run.attr[key] += 1;
+    if (key === 'vit') { const s = statsNow(); run.life += VIT_LIFE; run.life = Math.min(run.life, s.maxLife); } // new Life is usable now
+    if (key === 'energy') { const s = statsNow(); run.mana += ENERGY_MANA; run.mana = Math.min(run.mana, s.maxMana); }
+    pushHeroStats(); return { ok: true }; }
 
   // ---- the Act 1 gauntlet run ----
   let lastCleared = 0;
@@ -148,7 +188,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     const s = combat.getState();
     let leveled = 0; const delta = s.xpEarned - lastXp; lastXp = s.xpEarned;
     if (delta > 0) { run.xp += delta;
-      while (run.xp >= xpForLevel(run.level)) { run.xp -= xpForLevel(run.level); run.level += 1; run.skillPoints += 1; leveled += 1; } }
+      while (run.xp >= xpForLevel(run.level)) { run.xp -= xpForLevel(run.level); run.level += 1; run.skillPoints += 1; run.attrPoints += ATTR_PER_LEVEL; leveled += 1; } }
     const got = combat.takeCollected(); const equipped = [];
     for (const it of got) { if (autoEquipIfUpgrade(it)) equipped.push(it); else if (run.bag.length < BAG_CAP) run.bag.push(it); }
     // clearing an area completes its QUEST — reward skill points, a heal, and a restock
@@ -177,12 +217,13 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       stats: s, life: run.life, maxLife: s.maxLife, mana: run.mana, maxMana: s.maxMana, potions: { ...run.potions },
       gold: run.gold, bagCap: BAG_CAP,
       level: run.level, xp: run.xp, xpToNext: xpForLevel(run.level), skillPoints: run.skillPoints,
+      attr: { ...run.attr }, attrPoints: run.attrPoints,
       abilities: abilitiesNow(), tree, tabs: cls.tabs || null,
       equipment: Object.fromEntries(SLOTS.map((sl) => [sl, run.equipment[sl] ? { ...run.equipment[sl] } : null])),
       bag: run.bag.map((i) => ({ ...i })), lastResult: run.lastResult, gained: run.gained };
   }
   function skName(id) { return SKILLS[id] ? SKILLS[id].name : id; }
 
-  return { beginDescent, startRun, syncArena, resolveArena, flee, equipFromBag, unequip, investSkill, quaff, sellFromBag, buyPotion, dropFromBag,
+  return { beginDescent, startRun, syncArena, resolveArena, flee, equipFromBag, unequip, canEquip, investSkill, investAttr, quaff, sellFromBag, buyPotion, dropFromBag,
     getRun, getCombat: () => combat, deriveStats: () => statsNow(), deriveAbilities: () => abilitiesNow() };
 }
