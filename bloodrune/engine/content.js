@@ -41,6 +41,32 @@ export const SKILLS = {
   bone_spear: { id: 'bone_spear', name: 'Bone Spear', type: 'attack', target: 'single', reach: 1, cost: 3, scale: 'damage', weapon: 'spell', dmg: [6, 10], grow: 2, req: 4, pre: ['teeth'] },
   teeth: { id: 'teeth', name: 'Teeth', type: 'attack', target: 'aoe', reach: 1, cost: 3, scale: 'damage', weapon: 'spell', dmg: [2, 5], grow: 1, maxTargets: 3, req: 2, pre: [], text: 'A spray of bone — hits several, reaches outer.' },
   bone_armor: { id: 'bone_armor', name: 'Bone Armor', type: 'skill', weapon: 'spell', cost: 3, scale: 'block', base: 9, grow: 2, req: 2, pre: [], text: 'Shield of bone — Block.' },
+
+  // ---- Sorceress — a faithful D2 clone across THREE trees (tab: fire/cold/light) --
+  // All spells are weapon-independent (the Orb just grants a skill + power). New
+  // scale types: 'nova' = a burst that blasts every foe around you; 'passive' =
+  // Warmth (Mana regen) and Masteries (+ spell damage), which don't auto-fire.
+  // Fire
+  fire_bolt: { id: 'fire_bolt', name: 'Fire Bolt', tab: 'fire', type: 'attack', target: 'single', reach: 1, cost: 2, scale: 'damage', weapon: 'spell', dmg: [4, 7], grow: 2, req: 1, pre: [] },
+  warmth: { id: 'warmth', name: 'Warmth', tab: 'fire', type: 'passive', scale: 'passive', kind: 'warmth', cost: 0, req: 2, pre: [], text: '+1 Mana regen per level.' },
+  inferno: { id: 'inferno', name: 'Inferno', tab: 'fire', type: 'attack', target: 'aoe', reach: 1, cost: 3, scale: 'nova', weapon: 'spell', dmg: [3, 6], grow: 1, radius: 120, maxTargets: 6, req: 3, pre: ['fire_bolt'], text: 'A gout of flame — burns foes around you.' },
+  fire_ball: { id: 'fire_ball', name: 'Fire Ball', tab: 'fire', type: 'attack', target: 'single', reach: 1, cost: 4, scale: 'damage', weapon: 'spell', dmg: [9, 14], grow: 3, req: 5, pre: ['fire_bolt'] },
+  fire_mastery: { id: 'fire_mastery', name: 'Fire Mastery', tab: 'fire', type: 'passive', scale: 'passive', kind: 'mastery', cost: 0, req: 6, pre: ['warmth'], text: '+2 spell damage per level.' },
+  meteor: { id: 'meteor', name: 'Meteor', tab: 'fire', type: 'attack', target: 'aoe', reach: 1, cost: 6, scale: 'nova', weapon: 'spell', dmg: [14, 22], grow: 3, radius: 150, maxTargets: 8, req: 9, pre: ['fire_ball'], text: 'Call down a meteor — heavy blast.' },
+  // Cold
+  ice_bolt: { id: 'ice_bolt', name: 'Ice Bolt', tab: 'cold', type: 'attack', target: 'single', reach: 1, cost: 2, scale: 'damage', weapon: 'spell', dmg: [3, 6], grow: 2, req: 1, pre: [] },
+  frozen_armor: { id: 'frozen_armor', name: 'Frozen Armor', tab: 'cold', type: 'skill', weapon: 'spell', cost: 3, scale: 'block', base: 8, grow: 2, req: 2, pre: [], text: 'A shell of ice — Block.' },
+  frost_nova: { id: 'frost_nova', name: 'Frost Nova', tab: 'cold', type: 'attack', target: 'aoe', reach: 1, cost: 3, scale: 'nova', weapon: 'spell', dmg: [2, 5], grow: 1, radius: 130, maxTargets: 8, req: 3, pre: ['ice_bolt'], text: 'A ring of frost — hits all around you.' },
+  ice_blast: { id: 'ice_blast', name: 'Ice Blast', tab: 'cold', type: 'attack', target: 'single', reach: 1, cost: 4, scale: 'damage', weapon: 'spell', dmg: [7, 11], grow: 3, req: 5, pre: ['ice_bolt'] },
+  cold_mastery: { id: 'cold_mastery', name: 'Cold Mastery', tab: 'cold', type: 'passive', scale: 'passive', kind: 'mastery', cost: 0, req: 6, pre: ['frozen_armor'], text: '+2 spell damage per level.' },
+  glacial_spike: { id: 'glacial_spike', name: 'Glacial Spike', tab: 'cold', type: 'attack', target: 'aoe', reach: 1, cost: 5, scale: 'nova', weapon: 'spell', dmg: [10, 16], grow: 3, radius: 140, maxTargets: 6, req: 8, pre: ['ice_blast'], text: 'A burst of ice shards.' },
+  // Lightning
+  charged_bolt: { id: 'charged_bolt', name: 'Charged Bolt', tab: 'light', type: 'attack', target: 'aoe', reach: 1, cost: 2, scale: 'damage', weapon: 'spell', dmg: [2, 4], grow: 1, maxTargets: 4, req: 1, pre: [], text: 'A spray of bolts — hits several.' },
+  static_field: { id: 'static_field', name: 'Static Field', tab: 'light', type: 'attack', target: 'aoe', reach: 1, cost: 3, scale: 'nova', weapon: 'spell', dmg: [3, 6], grow: 1, radius: 150, maxTargets: 10, req: 3, pre: [], text: 'Crackling static — jolts everything near.' },
+  nova: { id: 'nova', name: 'Nova', tab: 'light', type: 'attack', target: 'aoe', reach: 1, cost: 4, scale: 'nova', weapon: 'spell', dmg: [5, 9], grow: 2, radius: 150, maxTargets: 12, req: 5, pre: ['charged_bolt'], text: 'A shockwave of lightning in all directions.' },
+  lightning: { id: 'lightning', name: 'Lightning', tab: 'light', type: 'attack', target: 'single', reach: 1, cost: 4, scale: 'damage', weapon: 'spell', dmg: [4, 16], grow: 3, req: 6, pre: ['charged_bolt'] },
+  light_mastery: { id: 'light_mastery', name: 'Lightning Mastery', tab: 'light', type: 'passive', scale: 'passive', kind: 'mastery', cost: 0, req: 6, pre: ['static_field'], text: '+2 spell damage per level.' },
+  chain_lightning: { id: 'chain_lightning', name: 'Chain Lightning', tab: 'light', type: 'attack', target: 'aoe', reach: 1, cost: 5, scale: 'nova', weapon: 'spell', dmg: [8, 14], grow: 3, radius: 150, maxTargets: 8, req: 8, pre: ['lightning'], text: 'Arcs from foe to foe.' },
 };
 
 // ---- Classes ---------------------------------------------------------------
@@ -58,6 +84,12 @@ export const CLASSES = {
     startWeapon: 'short_bow', tree: ['power_shot', 'strafe', 'pierce', 'guard'] },
   necromancer: { id: 'necromancer', name: 'Necromancer', glyph: '💀', maxLife: 40, maxMana: 16, manaRegen: 3, startBlock: 0, acc: 6, eva: 1,
     startWeapon: 'bone_wand', tree: ['raise_skeleton', 'raise_golem', 'bone_spear', 'teeth', 'bone_armor'] },
+  // A faithful D2 Sorceress — three elemental trees; spells scale on level + Masteries.
+  sorceress: { id: 'sorceress', name: 'Sorceress', glyph: '🔮', maxLife: 38, maxMana: 20, manaRegen: 4, startBlock: 0, acc: 6, eva: 2,
+    startWeapon: 'sorc_orb', tabs: ['fire', 'cold', 'light'],
+    tree: ['fire_bolt', 'warmth', 'inferno', 'fire_ball', 'fire_mastery', 'meteor',
+      'ice_bolt', 'frozen_armor', 'frost_nova', 'ice_blast', 'cold_mastery', 'glacial_spike',
+      'charged_bolt', 'static_field', 'nova', 'lightning', 'light_mastery', 'chain_lightning'] },
 };
 
 // ---- Items -----------------------------------------------------------------
@@ -71,6 +103,7 @@ export const ITEMS = {
   worn_axe: { id: 'worn_axe', name: 'Worn Axe', slot: 'weapon', wtype: 'melee', dmg: [5, 8], grants: { skill: 'cleave' }, text: 'A pitted axe (5-8). Grants Cleave.' },
   short_bow: { id: 'short_bow', name: 'Short Bow', slot: 'weapon', wtype: 'ranged', dmg: [5, 8], grants: { skill: 'power_shot' }, text: 'A hunting bow (5-8). Grants Power Shot.' },
   bone_wand: { id: 'bone_wand', name: 'Bone Wand', slot: 'weapon', wtype: 'focus', grants: { skill: 'raise_skeleton' }, text: 'A focus for the dead. Grants Raise Skeleton.' },
+  sorc_orb: { id: 'sorc_orb', name: 'Sorceress Orb', slot: 'weapon', wtype: 'focus', grants: { skill: 'fire_bolt' }, text: 'A crystal orb. Grants Fire Bolt.' },
   // droppable weapons — better damage/mods; type gates which skills they empower
   great_axe: { id: 'great_axe', name: 'Great Axe of Smiting', slot: 'weapon', wtype: 'melee', dmg: [8, 13], grants: { skill: 'smite' }, passive: { plusSkills: 1 }, text: 'A brutal axe (8-13). Grants Smite. +1 to Skills.' },
   war_bow: { id: 'war_bow', name: 'War Bow', slot: 'weapon', wtype: 'ranged', dmg: [8, 12], grants: { skill: 'power_shot' }, passive: { maxMana: 2 }, text: 'A heavy bow (8-12). Grants Power Shot. +2 Mana.' },

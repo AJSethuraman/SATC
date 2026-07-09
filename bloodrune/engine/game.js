@@ -30,7 +30,7 @@ export function deriveAbilities(equipment, skillHard) {
   const list = ['attack', 'guard'];
   for (const s of SLOTS) { const it = equipment[s]; if (it && it.grants && it.grants.skill) list.push(it.grants.skill); }
   for (const id of Object.keys(skillHard)) if (skillHard[id] > 0) list.push(id);
-  return [...new Set(list)];
+  return [...new Set(list)].filter((id) => !(SKILLS[id] && SKILLS[id].type === 'passive')); // passives don't auto-fire
 }
 
 
@@ -51,7 +51,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   let combat = null, lastXp = 0;
 
   function emptyEquipment() { const e = {}; for (const s of SLOTS) e[s] = null; return e; }
-  function statsNow() { return deriveStats(cls, run.equipment, run.level); }
+  function statsNow() { const st = deriveStats(cls, run.equipment, run.level); st.manaRegen += (run.skillHard.warmth || 0); return st; } // Warmth: +Mana regen
   function abilitiesNow() { return deriveAbilities(run.equipment, run.skillHard); }
   function weaponNow() { const w = run.equipment.weapon; return w ? { dmg: w.dmg, wtype: w.wtype } : null; }
   function heroForFight() { const s = statsNow(); return { name: cls.name, glyph: cls.glyph, maxLife: s.maxLife, life: run.life,
@@ -160,8 +160,9 @@ export function createGame(seed = 'bloodrune', opts = {}) {
 
   function getRun() {
     const s = statsNow();
-    const tree = ['guard', ...cls.tree.filter((t) => t !== 'guard')].map((id) => { const sk = SKILLS[id] || {}; const gate = skillGate(id);
-      return { id, level: 1 + (run.skillHard[id] || 0), req: sk.req || 1, pre: sk.pre || [],
+    const treeIds = cls.tabs ? cls.tree.slice() : ['guard', ...cls.tree.filter((t) => t !== 'guard')]; // Sorceress builds tabs, others prepend Guard
+    const tree = treeIds.map((id) => { const sk = SKILLS[id] || {}; const gate = skillGate(id);
+      return { id, level: 1 + (run.skillHard[id] || 0), req: sk.req || 1, pre: sk.pre || [], tab: sk.tab || null, passive: sk.type === 'passive',
         learned: hasPoint(id) || id === 'guard',
         canInvest: run.skillPoints > 0 && gate.ok, gateReason: gate.ok ? null : gate.reason,
         eff: skillEffect({ hard: run.skillHard, plusSkills: s.plusSkills, weapon: weaponNow() }, id), name: skName(id) }; });
@@ -169,7 +170,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       stats: s, life: run.life, maxLife: s.maxLife, mana: run.mana, maxMana: s.maxMana, potions: { ...run.potions },
       gold: run.gold, bagCap: BAG_CAP,
       level: run.level, xp: run.xp, xpToNext: xpForLevel(run.level), skillPoints: run.skillPoints,
-      abilities: abilitiesNow(), tree,
+      abilities: abilitiesNow(), tree, tabs: cls.tabs || null,
       equipment: Object.fromEntries(SLOTS.map((sl) => [sl, run.equipment[sl] ? { ...run.equipment[sl] } : null])),
       bag: run.bag.map((i) => ({ ...i })), lastResult: run.lastResult, gained: run.gained };
   }

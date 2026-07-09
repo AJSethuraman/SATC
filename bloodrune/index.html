@@ -282,6 +282,12 @@
   .sk-sub { font-size:12px; color:var(--muted); margin-bottom:10px; line-height:1.5; }
   .sk-row { display:flex; justify-content:space-between; align-items:center; gap:10px; border:1px solid #2a1f20; border-radius:9px; padding:8px 10px; margin-bottom:7px; }
   .sk-row.locked { opacity:.5; border-style:dashed; }
+  .sk-tabs { display:flex; gap:8px; align-items:flex-start; }
+  .sk-tab { flex:1; min-width:0; } .sk-tab-h { text-align:center; font-weight:700; letter-spacing:1px; font-size:12px; color:var(--gold); padding:4px 0 6px; border-bottom:1px solid #2a1f20; margin-bottom:6px; }
+  .sk-tab .sk-row { flex-direction:column; align-items:stretch; gap:5px; }
+  .sk-tab .sk-btns button { width:100%; }
+  .sk-pass { font-size:8px; color:#6fd08a; border:1px solid #2a4a2a; border-radius:4px; padding:0 3px; letter-spacing:.5px; text-transform:uppercase; }
+  @media (max-width:560px) { .sk-tabs { flex-direction:column; } }
   .stt { width:100%; border-collapse:collapse; margin:6px 0 10px; font-size:12px; }
   .stt th, .stt td { border:1px solid #2a1f20; padding:4px 6px; text-align:center; } .stt th { color:var(--muted); text-transform:uppercase; font-size:10px; letter-spacing:1px; }
   .stt td:first-child, .stt th:first-child { text-align:left; text-transform:capitalize; }

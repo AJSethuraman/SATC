@@ -23,7 +23,7 @@ function runOne(cls, diff, seed) {
     equipped: Object.values(r.equipment).filter(Boolean).length };
 }
 
-for (const cls of ['barbarian', 'amazon', 'necromancer']) {
+for (const cls of ['barbarian', 'amazon', 'necromancer', 'sorceress']) {
   for (const diff of ['Normal', 'Nightmare', 'Hell']) {
     let wins = 0, mins = 0, lvls = 0, kills = 0, drops = 0, timeouts = 0; const M = 6;
     for (let i = 0; i < M; i++) { const r = runOne(cls, diff, cls + diff + i);

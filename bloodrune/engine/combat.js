@@ -27,10 +27,18 @@ function weaponBase(hero, s) {
   return [1, 3];
 }
 
+// Sorceress Masteries add flat spell damage (a point in any Mastery boosts every spell).
+function masteryBonus(hero, s) { if (!s || s.weapon !== 'spell') return 0; const h = hero.hard || {};
+  return ((h.fire_mastery || 0) + (h.cold_mastery || 0) + (h.light_mastery || 0)) * 2; }
+
 export function skillEffect(hero, id) {
   const s = SKILLS[id]; const lvl = skillLevel(hero, id); const g = s.grow || 0;
-  if (s.scale === 'damage') { const [wmin, wmax] = weaponBase(hero, s); const m = s.wpn || 1;
-    const min = Math.round(wmin * m) + g * (lvl - 1), max = Math.round(wmax * m) + g * (lvl - 1);
+  if (s.scale === 'passive') return { lvl, text: s.text || '' };
+  if (s.scale === 'nova') { const mb = masteryBonus(hero, s);
+    const min = Math.round(s.dmg[0]) + g * (lvl - 1) + mb, max = Math.round(s.dmg[1]) + g * (lvl - 1) + mb;
+    return { lvl, min, max, text: `Blast ${min}-${max} to up to ${s.maxTargets || 6} foes around you.` }; }
+  if (s.scale === 'damage') { const [wmin, wmax] = weaponBase(hero, s); const m = s.wpn || 1; const mb = masteryBonus(hero, s);
+    const min = Math.round(wmin * m) + g * (lvl - 1) + mb, max = Math.round(wmax * m) + g * (lvl - 1) + mb;
     return { lvl, min, max, text: `Deal ${min}-${max}${s.target === 'aoe' ? ` to up to ${s.maxTargets || 3}` : ''}${s.reach ? ' (reaches outer)' : ''}.` }; }
   if (s.scale === 'hits') { const [wmin, wmax] = weaponBase(hero, s); const m = s.wpn || 0.7;
     const min = Math.max(1, Math.round(wmin * m)), max = Math.max(1, Math.round(wmax * m));

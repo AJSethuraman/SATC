@@ -12,7 +12,7 @@ const logEl = document.getElementById('log');
 const ov = document.getElementById('overlay');
 
 const DIFFS = ['Normal', 'Nightmare', 'Hell'];
-const CLASS_LIST = ['barbarian', 'amazon', 'necromancer'];
+const CLASS_LIST = ['barbarian', 'amazon', 'necromancer', 'sorceress'];
 let game, combat, difficulty = 'Normal', classId = 'barbarian';
 let invOpen = false, treeOpen = false, focusUid = null, countedTerminal = false;
 window.__bloodrune = {};
@@ -192,7 +192,7 @@ function arenaFrame(now) {
   const s = combat.getState();
   if (sync.cleared && s.area) { const a = ACT1[Math.max(0, s.area.idx - 1)] || {}; questToast = { t: 3, text: a.quest ? 'QUEST COMPLETE — ' + a.quest : 'AREA CLEARED', reward: '+2 skill points · restored' }; tel('area_clear', { area: a.name }); }
   drawArena(s); updateHUD(s, dt);
-  window.__bloodrune.state = s; window.__bloodrune.phase = 'arena';
+  window.__bloodrune.state = s; window.__bloodrune.phase = 'arena'; window.__bloodrune.run = game.getRun();
   if (s.over) { endArena(s); return; }
   raf = requestAnimationFrame(arenaFrame);
 }
@@ -310,15 +310,20 @@ function renderVictory(r) { const cur = DIFFS.indexOf(r.difficulty); const next 
 // ---------- overlays ----------
 function renderOverlay() { if (invOpen) return renderInventory(); if (treeOpen) return renderTree(); const p = game.getRun().phase; if (p === 'dead') return renderDead(game.getRun()); if (p === 'victory') return renderVictory(game.getRun()); ov.className = 'overlay hidden'; ov.innerHTML = ''; }
 
+const TAB_LABEL = { fire: '🔥 Fire', cold: '❄ Cold', light: '⚡ Lightning' };
+function skRow(r, sk) { const req = sk.pre && sk.pre.length ? ` · needs ${sk.pre.map((p) => (r.tree.find((t) => t.id === p) || {}).name || p).join(', ')}` : '';
+  const tag = sk.learned ? '' : sk.canInvest ? ' <span style="color:var(--gold)">— can learn</span>' : ` <span style="color:#6f6357">— locked (${sk.gateReason || 'Lv ' + sk.req})</span>`;
+  return `<div class="sk-row ${sk.canInvest ? '' : sk.learned ? '' : 'locked'}"><div class="sk-info"><div class="sn">${sk.name}${sk.passive ? ' <span class="sk-pass">passive</span>' : ''} <span style="color:var(--gold)">Lv ${sk.level}</span> <span style="color:#5f6b7a;font-size:10px">Lv${sk.req}${req}</span>${tag}</div><div class="se">${sk.eff.text}</div></div>
+    <div class="sk-btns"><button data-inv="${sk.id}" ${sk.canInvest ? '' : 'disabled'}>${sk.learned ? 'Improve ▲' : 'Learn +'}</button></div></div>`; }
 function renderTree() {
   const r = game.getRun();
-  const rows = r.tree.map((sk) => { const req = sk.pre && sk.pre.length ? ` · needs ${sk.pre.map((p) => (r.tree.find((t) => t.id === p) || {}).name || p).join(', ')}` : '';
-    const tag = sk.learned ? '' : sk.canInvest ? ' <span style="color:var(--gold)">— can learn</span>' : ` <span style="color:#6f6357">— locked (${sk.gateReason || 'Lv ' + sk.req})</span>`;
-    return `<div class="sk-row ${sk.canInvest ? '' : sk.learned ? '' : 'locked'}"><div class="sk-info"><div class="sn">${sk.name} <span style="color:var(--gold)">Lv ${sk.level}</span> <span style="color:#5f6b7a;font-size:10px">Lv${sk.req}${req}</span>${tag}</div><div class="se">${sk.eff.text}</div></div>
-    <div class="sk-btns"><button data-inv="${sk.id}" ${sk.canInvest ? '' : 'disabled'}>${sk.learned ? 'Improve ▲' : 'Learn +'}</button></div></div>`; }).join('');
+  let body;
+  if (r.tabs) { // Sorceress — three elemental trees, side by side
+    body = `<div class="sk-tabs">${r.tabs.map((tb) => `<div class="sk-tab"><div class="sk-tab-h">${TAB_LABEL[tb] || tb}</div>${r.tree.filter((sk) => sk.tab === tb).map((sk) => skRow(r, sk)).join('')}</div>`).join('')}</div>`;
+  } else { body = r.tree.map((sk) => skRow(r, sk)).join(''); }
   ov.className = 'overlay inv';
   ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">⚔ Skill Tree — ${r.skillPoints} pts</div><button class="inv-close" id="cx">✕</button></div>
-    <div class="sk-sub">Skills unlock by <b>level</b> and <b>prerequisite</b> — you build toward the big ones. Each point needs a higher level than the last, so you can't dump a pile into one skill. +Skills gear raises every skill's level.</div>${rows}</div>`;
+    <div class="sk-sub">Skills unlock by <b>level</b> and <b>prerequisite</b> — build toward the big ones. Each point needs a higher level than the last.${r.tabs ? ' <b>Masteries</b> boost all spell damage; <b>Warmth</b> speeds Mana regen.' : ''}</div>${body}</div>`;
   document.getElementById('cx').addEventListener('click', () => { treeOpen = false; render(); if (arenaActive) resumeArena(); });
   ov.querySelectorAll('[data-inv]').forEach((b) => b.addEventListener('click', () => { game.investSkill(b.dataset.inv); expose(); renderTree(); }));
 }

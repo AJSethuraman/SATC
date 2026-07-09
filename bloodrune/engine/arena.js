@@ -141,9 +141,15 @@ export function createArena({ hero, pack, rng, survival }) {
     for (const id of h.abilities) {
       if (h.disabled.has(id)) continue;                // you can toggle a skill OFF so only the ones you want auto-fire
       if ((h.cd[id] || 0) > 0) continue;
-      const s = SKILLS[id]; if (!s) continue;
+      const s = SKILLS[id]; if (!s || s.type === 'passive') continue; // passives (Warmth/Masteries) don't fire
       const physical = s.weapon !== 'spell';
       const eff = skillEffect(ctx, id);
+      if (s.scale === 'nova') { // a burst around you that hits every foe in radius (Nova / Frost Nova / Meteor…)
+        const R = s.radius || 140; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= R + e.r);
+        if (!pool.length) continue; if (s.cost > h.mana) continue; h.mana -= s.cost; h.cd[id] = CD.aoe;
+        fx({ type: 'cast', x: h.x, y: h.y, r: R, life: 0.35, color: '#8a90c8' });
+        for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), false);
+        continue; }
       if (s.type === 'skill') {
         if (h.shield > (eff.block || 0) * 0.5) continue;
         if (s.cost > h.mana) continue; const near = nearest(h.x, h.y); if (!near || near.d > 300) continue;

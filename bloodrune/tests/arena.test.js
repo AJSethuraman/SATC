@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createArena, DT, ARENA_W, ARENA_H } from '../engine/arena.js';
+import { skillEffect } from '../engine/combat.js';
 import { makeRng } from '../engine/rng.js';
 import { ITEMS } from '../engine/content.js';
 
@@ -108,6 +109,19 @@ test('you can toggle a skill OFF so it stops auto-firing (Whirlwind, not Cleave)
   assert.equal(a.toggleAbility('cleave'), true); // toggling flips it back on
   for (let i = 0; i < 120 && !a.getState().over; i++) a.tick({ x: 0, y: 0 });
   assert.ok(a.getState().tally.dmgDealt > 0, 're-enabled skill fires again');
+});
+
+test('Sorceress nova blasts every foe around you and clears a pack', () => {
+  const h = hero({ glyph: '🔮', maxLife: 60, maxMana: 40, mana: 40, manaRegen: 6, weapon: { dmg: null, wtype: 'focus' }, abilities: ['attack', 'nova'] });
+  const s = run(arena([{ id: 'fallen' }, { id: 'fallen' }, { id: 'zombie' }, { id: 'fallen' }], h, 'nova'));
+  assert.equal(s.result, 'win'); assert.ok(s.tally.dmgDealt > 0);
+});
+
+test('Sorceress Masteries add flat damage to every spell', () => {
+  const base = skillEffect({ hard: {}, weapon: { wtype: 'focus' } }, 'fire_bolt');
+  const mastered = skillEffect({ hard: { fire_mastery: 3 }, weapon: { wtype: 'focus' } }, 'fire_bolt');
+  assert.equal(mastered.min - base.min, 6, '+2 per Mastery point'); // 3 points -> +6
+  assert.equal(mastered.max - base.max, 6);
 });
 
 test('DT is a sane fixed step and arena has real dimensions', () => {
