@@ -83,13 +83,13 @@ function renderPrep(r) {
 function renderStats() {
   const c = TEL.combat; const pct = (a, b) => b > 0 ? Math.round(a / b * 100) : 0;
   const topSkills = Object.entries(TEL.skills).sort((a, b) => b[1] - a[1]).slice(0, 8);
-  const classRows = Object.entries(TEL.byClass).map(([k, v]) => `<tr><td>${k}</td><td>${v.runs}</td><td>${v.wins}</td><td>${v.deaths}</td><td>${v.maxLevel}</td><td>${v.deepestStep}</td></tr>`).join('');
-  const deaths = TEL.deathLog.slice(-8).reverse().map((d) => `${d.class} · L${d.level} · step ${d.step}${d.node ? ' (' + d.node + ')' : ''}`).join('<br>') || '—';
+  const classRows = Object.entries(TEL.byClass).map(([k, v]) => `<tr><td>${k}</td><td>${v.runs}</td><td>${v.wins}</td><td>${v.deaths}</td><td>${v.maxLevel}</td><td>${v.bestArea || 0}/8</td></tr>`).join('');
+  const deaths = TEL.deathLog.slice(-8).reverse().map((d) => `${d.class} · L${d.level} · Area ${d.area || '?'}${d.areaName ? ' (' + d.areaName + ')' : ''}${d.diff ? ' · ' + d.diff : ''}`).join('<br>') || '—';
   ov.className = 'overlay inv';
   ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">📊 Play Statistics</div><button class="inv-close" id="cx">✕</button></div>
     <div class="sk-sub">Unbiased log of what actually happens — so balance is driven by data, not vibes. Runs: <b>${TEL.runs}</b> · Wins: <b>${TEL.wins}</b> · Deaths: <b>${TEL.deaths}</b></div>
-    <table class="stt"><tr><th>Class</th><th>Runs</th><th>W</th><th>D</th><th>Max Lv</th><th>Deepest</th></tr>${classRows || '<tr><td colspan=6>no runs yet</td></tr>'}</table>
-    <div class="stblk"><b>Combat</b> — fights ${c.fights} (fled ${c.fled}) · hit rate ${pct(c.hits, c.hits + c.misses)}% · evades ${c.evades} · kills ${c.kills}<br>dmg dealt ${c.dmgDealt} · dmg taken ${c.dmgTaken} · avg turns/fight ${c.fights ? (c.turns / c.fights).toFixed(1) : 0}</div>
+    <table class="stt"><tr><th>Class</th><th>Runs</th><th>W</th><th>D</th><th>Max Lv</th><th>Best Area</th></tr>${classRows || '<tr><td colspan=6>no runs yet</td></tr>'}</table>
+    <div class="stblk"><b>Combat</b> — runs ${c.fights} · hit rate ${pct(c.hits, c.hits + c.misses)}% · evades ${c.evades} · kills ${c.kills}<br>dmg dealt ${c.dmgDealt} · dmg taken ${c.dmgTaken} · avg run length ${c.fights ? (c.turns / c.fights).toFixed(0) + 's' : '0s'}</div>
     <div class="stblk"><b>Potions used</b> — 🩹 ${TEL.potions.life} · 🔷 ${TEL.potions.mana}</div>
     <div class="stblk"><b>Most-used skills</b><br>${topSkills.map(([k, v]) => `${k} ×${v}`).join(' · ') || '—'}</div>
     <div class="stblk"><b>Recent deaths</b><br>${deaths}</div>
@@ -296,10 +296,12 @@ function recordCombatEnd(s) { if (!s || !s.over || s === lastRecorded) return; l
   c.fights++; if (s.result === 'fled') c.fled++; c.hits += ty.hits; c.misses += ty.misses; c.evades += ty.evades; c.kills += ty.kills; c.dmgDealt += ty.dmgDealt; c.dmgTaken += ty.dmgTaken; c.turns += Math.round(s.time || 0);
   tel('combat', { result: s.result, secs: Math.round(s.time || 0), level: game.getRun().level, tally: ty }); }
 function afterTerminal() { const p = game.getRun().phase; if (!countedTerminal && (p === 'dead' || p === 'victory')) { countedTerminal = true; const m = meta(); if (p === 'dead') m.deaths++; if (p === 'victory') { m.wins++; const ni = DIFFS.indexOf(game.getRun().difficulty) + 1; if (DIFFS[ni] && !m.unlocked.includes(DIFFS[ni])) m.unlocked.push(DIFFS[ni]); } saveMeta(m);
-    const run = game.getRun(); const secs = Math.round((lastArena && lastArena.time) || 0); const bc = telClass(classId); bc.maxLevel = Math.max(bc.maxLevel, run.level); bc.deepestStep = Math.max(bc.deepestStep, secs);
-    if (p === 'dead') { TEL.deaths++; bc.deaths++; TEL.deathLog.push({ class: classId, level: run.level, secs }); if (TEL.deathLog.length > 100) TEL.deathLog = TEL.deathLog.slice(-100); }
+    const run = game.getRun(); const secs = Math.round((lastArena && lastArena.time) || 0);
+    const area = (lastArena && lastArena.area) ? lastArena.area.idx + 1 : (p === 'victory' ? 8 : 1); const areaName = (lastArena && lastArena.area) ? lastArena.area.name : (p === 'victory' ? 'Catacombs' : '?');
+    const bc = telClass(classId); bc.maxLevel = Math.max(bc.maxLevel, run.level); bc.deepestStep = Math.max(bc.deepestStep, secs); bc.bestArea = Math.max(bc.bestArea || 0, area);
+    if (p === 'dead') { TEL.deaths++; bc.deaths++; TEL.deathLog.push({ class: classId, level: run.level, secs, area, areaName, diff: run.difficulty }); if (TEL.deathLog.length > 100) TEL.deathLog = TEL.deathLog.slice(-100); }
     else { TEL.wins++; bc.wins++; }
-    tel('run_end', { result: p, class: classId, level: run.level, secs }); } }
+    tel('run_end', { result: p, class: classId, level: run.level, secs, area, difficulty: run.difficulty }); } }
 
 
 // ---------- dead / victory ----------
