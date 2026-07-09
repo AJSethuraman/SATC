@@ -50,7 +50,7 @@ function survive(g, maxTicks) {
 test('a survival run terminates in victory or death', () => {
   const g = createGame('sv-term', { classId: 'amazon', difficulty: 'Normal' });
   g.startRun();
-  const { s } = survive(g, 30 * 60 * 12); // 12-min hard cap
+  const { s } = survive(g, 30 * 60 * 20); // 20-min hard cap (8 areas + gates, enrage guarantees each resolves)
   assert.equal(s.over, true);
   g.resolveArena();
   assert.ok(['victory', 'dead'].includes(g.getRun().phase), `ended ${g.getRun().phase}`);

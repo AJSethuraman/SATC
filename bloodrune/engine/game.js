@@ -6,13 +6,13 @@
 // to clear the tier. Permadeath ends the run. The moment-to-moment sim is in
 // engine/arena.js (survival mode); this file owns the meta/progression.
 
-import { CLASSES, ITEMS, SLOTS, WEAPON_DROPS, SKILLS } from './content.js';
+import { CLASSES, ITEMS, SLOTS, WEAPON_DROPS, SKILLS, ACT1 } from './content.js';
 import { makeRng } from './rng.js';
 import { skillEffect } from './combat.js';
 import { createArena } from './arena.js';
 import { rollItem } from './loot.js';
 
-const xpForLevel = (lvl) => 8 + lvl * 6; // paced so a full ~8-min run lands you deep in the tree
+const xpForLevel = (lvl) => 5 + lvl * 4; // brisk — you feel yourself grow as you farm through Act 1
 
 // Stats scale with LEVEL (Life/Mana growth) + gear passive mods.
 export function deriveStats(cls, equipment, level, bonus = {}) {
@@ -33,7 +33,6 @@ export function deriveAbilities(equipment, skillHard) {
   return [...new Set(list)];
 }
 
-const BOSS_TIME = 300; // 5 minutes: waves ramp, then The Smith lands — kill it to clear the tier
 
 export function createGame(seed = 'bloodrune', opts = {}) {
   const rng = makeRng(seed);
@@ -114,10 +113,11 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     const gate = skillGate(id); if (!gate.ok) return gate;
     run.skillPoints -= 1; run.skillHard[id] = (run.skillHard[id] || 0) + 1; pushHeroStats(); return { ok: true }; }
 
-  // ---- the survival run ----
+  // ---- the Act 1 gauntlet run ----
+  let lastCleared = 0;
   function startRun() {
-    run.life = statsNow().maxLife; run.mana = statsNow().maxMana; lastXp = 0;
-    combat = createArena({ hero: heroForFight(), rng, survival: { bossTime: BOSS_TIME, tier: run.difficulty, rollLoot: rollGroundItem } });
+    run.life = statsNow().maxLife; run.mana = statsNow().maxMana; lastXp = 0; lastCleared = 0;
+    combat = createArena({ hero: heroForFight(), rng, survival: { areas: ACT1, tier: run.difficulty, rollLoot: rollGroundItem } });
     run.phase = 'arena'; return { ok: true };
   }
   const beginDescent = startRun; // (the prep screen's "descend" button)
@@ -137,16 +137,20 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   // Called each frame by the UI while surviving: fold the engine's earned XP into
   // levels/points, and its collected drops into the bag (auto-equipping upgrades).
   function syncArena() {
-    if (!combat) return { leveled: 0, loot: [], equipped: [] };
+    if (!combat) return { leveled: 0, loot: [], equipped: [], cleared: 0 };
     const s = combat.getState();
     let leveled = 0; const delta = s.xpEarned - lastXp; lastXp = s.xpEarned;
     if (delta > 0) { run.xp += delta;
       while (run.xp >= xpForLevel(run.level)) { run.xp -= xpForLevel(run.level); run.level += 1; run.skillPoints += 1; leveled += 1; } }
     const got = combat.takeCollected(); const equipped = [];
     for (const it of got) { if (autoEquipIfUpgrade(it)) equipped.push(it); else if (run.bag.length < BAG_CAP) run.bag.push(it); }
+    // clearing an area completes its QUEST — reward skill points, a heal, and a restock
+    let cleared = 0;
+    if (s.areaCleared > lastCleared) { cleared = s.areaCleared - lastCleared; lastCleared = s.areaCleared;
+      for (let k = 0; k < cleared; k++) { run.skillPoints += 2; combat.heal(Math.round(statsNow().maxLife * 0.5)); addPotions(1, 1); } }
     if (leveled || equipped.length) pushHeroStats();
     run.life = s.hero.life; run.mana = s.hero.mana;
-    return { leveled, loot: got, equipped };
+    return { leveled, loot: got, equipped, cleared };
   }
 
   function resolveArena() { if (!combat) return run.phase; const s = combat.getState(); if (!s.over) return run.phase;

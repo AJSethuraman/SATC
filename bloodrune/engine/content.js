@@ -83,13 +83,16 @@ export const WEAPON_DROPS = ['great_axe', 'war_bow', 'bone_staff'];
 // heals + is guardable; 'guardian' protects a caster.
 export const ENEMIES = {
   // acc = to-hit vs your Evade; eva = how hard it is to hit (vs your Accuracy).
+  quill_rat: { id: 'quill_rat', name: 'Quill Rat', hp: 6, attack: 3, glyph: '🦔', role: 'grunt', ring: 0, xp: 2, acc: 5, eva: 4 },
   fallen: { id: 'fallen', name: 'Fallen', hp: 9, attack: 3, glyph: '👺', role: 'grunt', ring: 0, xp: 3, acc: 4, eva: 1 },
   zombie: { id: 'zombie', name: 'Zombie', hp: 15, attack: 5, glyph: '🧟', role: 'grunt', ring: 0, xp: 5, acc: 5, eva: 0 },
   guardian: { id: 'guardian', name: 'Fallen Champion', hp: 15, attack: 5, glyph: '🛡️', role: 'guardian', ring: 0, xp: 6, acc: 6, eva: 2 },
-  goatman: { id: 'goatman', name: 'Goatman', hp: 17, attack: 7, glyph: '🐐', role: 'grunt', ring: 0, xp: 7, acc: 6, eva: 3 },
+  goatman: { id: 'goatman', name: 'Moon Clan Goatman', hp: 17, attack: 7, glyph: '🐐', role: 'grunt', ring: 0, xp: 7, acc: 6, eva: 3 },
   shaman: { id: 'shaman', name: 'Fallen Shaman', hp: 20, attack: 4, glyph: '🧙', role: 'caster', heal: 5, rez: 3, ring: 1, xp: 10, acc: 4, eva: 2 },
-  archer: { id: 'archer', name: 'Dark Archer', hp: 12, attack: 6, glyph: '🏹', role: 'archer', ring: 1, xp: 6, acc: 7, eva: 3 },
-  the_smith: { id: 'the_smith', name: 'The Flayed Smith', hp: 210, attack: 14, glyph: '🔨', role: 'elite', ring: 0, xp: 60, acc: 8, eva: 3 },
+  archer: { id: 'archer', name: 'Dark Ranger', hp: 12, attack: 6, glyph: '🏹', role: 'archer', ring: 1, xp: 6, acc: 7, eva: 3 },
+  the_smith: { id: 'the_smith', name: 'The Smith', hp: 210, attack: 14, glyph: '🔨', role: 'elite', ring: 0, xp: 60, acc: 8, eva: 3 },
+  // Andariel — Act 1 boss (Maiden of Anguish). A big, ranged poison-flinger.
+  andariel: { id: 'andariel', name: 'Andariel', hp: 340, attack: 17, glyph: '🕷️', role: 'archer', ring: 1, xp: 220, acc: 9, eva: 2, boss: true },
 };
 
 // Elite affixes (rolled onto a champion for Elite nodes).
@@ -120,8 +123,31 @@ export const SUPERUNIQUES = {
   bishibosh: { id: 'bishibosh', name: 'Bishibosh', glyph: '🔥', role: 'caster', ring: 1,
     hp: 42, attack: 4, acc: 5, eva: 3, heal: 7, rez: 6, xp: 40, minions: ['fallen', 'fallen', 'goatman', 'fallen'],
     text: 'A fallen shaman of great power — mends and raises his pack without pause.' },
+  treehead_woodfist: { id: 'treehead_woodfist', name: 'Treehead Woodfist', glyph: '🪵', role: 'grunt', ring: 0,
+    hp: 120, attack: 13, acc: 7, eva: 1, extraAttack: true, xp: 70, minions: ['goatman', 'goatman', 'goatman'],
+    text: 'A monstrous brute of the Dark Wood — slow, but each swing lands twice.' },
+  the_countess: { id: 'the_countess', name: 'The Countess', glyph: '🩸', role: 'archer', ring: 1,
+    hp: 110, attack: 14, acc: 8, eva: 4, xp: 80, minions: ['archer', 'archer', 'goatman'],
+    text: 'Mistress of the Forgotten Tower — she rains fire from the ramparts.' },
 };
 export const SUPERUNIQUE_IDS = Object.keys(SUPERUNIQUES);
+
+// ---- Act 1 — the gauntlet ---------------------------------------------------
+// One run walks all of Act 1 as a SEQUENCE of areas (no exploration). Each area
+// spawns waves from its pool; when its timer runs out, the area's time-GATE — a
+// named super-unique — appears. Kill the gate to clear the area (and its QUEST)
+// and transition to the next. The final gate is Andariel; put her down to win.
+// pool = enemy ids (weighted by repetition); gate = super-unique id or ENEMIES id.
+export const ACT1 = [
+  { name: 'Blood Moor', quest: 'Den of Evil', questText: 'Cleanse the Den — slay Corpsefire.', dur: 50, pool: ['quill_rat', 'fallen', 'fallen', 'zombie'], gate: 'corpsefire' },
+  { name: 'Cold Plains', quest: null, questText: 'Cut across the plains — Bishibosh bars the way.', dur: 55, pool: ['fallen', 'goatman', 'zombie', 'quill_rat'], gate: 'bishibosh' },
+  { name: "Sisters' Burial Grounds", quest: "Sisters' Burial Grounds", questText: 'Put down Blood Raven.', dur: 55, pool: ['zombie', 'zombie', 'fallen', 'archer'], gate: 'blood_raven' },
+  { name: 'Stony Field', quest: null, questText: 'Shatter Rakanishu at the cairn stones.', dur: 60, pool: ['goatman', 'fallen', 'archer', 'zombie'], gate: 'rakanishu' },
+  { name: 'Dark Wood', quest: 'The Tree of Inifuss', questText: 'Fell Treehead Woodfist.', dur: 60, pool: ['goatman', 'zombie', 'shaman', 'goatman'], gate: 'treehead_woodfist' },
+  { name: 'Forgotten Tower', quest: 'The Forgotten Tower', questText: 'Loot the tower — end the Countess.', dur: 62, pool: ['archer', 'goatman', 'zombie', 'shaman'], gate: 'the_countess' },
+  { name: 'Jail & Barracks', quest: 'Tools of the Trade', questText: 'Reclaim the Horadric Malus — kill The Smith.', dur: 66, pool: ['guardian', 'goatman', 'archer', 'zombie'], gate: 'the_smith' },
+  { name: 'Catacombs', quest: 'Sisters to the Slaughter', questText: 'Slay Andariel, Maiden of Anguish.', dur: 70, pool: ['zombie', 'archer', 'shaman', 'guardian'], gate: 'andariel' },
+];
 
 // Loot slots (armor/jewelry roll random affixes via loot.js; weapon grants skills).
 export const SLOTS = ['weapon', 'offhand', 'helm', 'body', 'gloves', 'boots', 'belt', 'amulet', 'ring1', 'ring2'];

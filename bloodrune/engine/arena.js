@@ -64,8 +64,8 @@ function buildRtMonster(entry, uid, rng) {
     heal: base.heal || 0, rezLeft: base.rez || 0, xp: base.xp || 0, extraAttack, leech,
     touchCd: (rd.touch || 0.9) / (extraAttack ? 2 : 1), touchT: 0.4,
     fireCd: rd.fire || 1.7, fireT: 1.0, range: rd.range || 250,
-    supportCd: rd.support || 2.1, supportT: 1.4, flash: 0, raised: false, deadAt: -1, drop: (o.drop || 0),
-    boss: id === 'the_smith', elite: su ? true : (affixes.length > 0 || role === 'elite'), unique: !!su };
+    supportCd: rd.support || 2.1, supportT: 1.4, flash: 0, raised: false, deadAt: -1, drop: (o.drop || 0), gate: false,
+    boss: !!base.boss || id === 'the_smith', elite: su ? true : (affixes.length > 0 || role === 'elite'), unique: !!su };
 }
 
 export function createArena({ hero, pack, rng, survival }) {
@@ -82,9 +82,11 @@ export function createArena({ hero, pack, rng, survival }) {
       shield: 0, shieldT: 0, invT: 0, dir: { x: 0, y: -1 }, cd: {}, disabled: new Set() },
     enemies: [], projectiles: [], minions: [], gems: [], fx: [], pickups: [], collected: [],
     time: 0, xpEarned: 0, over: false, result: null, nextUid: 0,
-    spawnTimer: surv ? 0.6 : 0, bossSpawned: false, boss: null,
+    spawnTimer: surv ? 0.6 : 0,
+    areaIdx: 0, areaT: 0, gate: null, gateSpawned: false, areaCleared: 0, banner: 0, // Act 1 gauntlet state
     tally: { hits: 0, misses: 0, evades: 0, kills: 0, dmgDealt: 0, dmgTaken: 0 },
   };
+  const areas = (surv && surv.areas) || [];
 
   if (!surv) { // PACK mode: a fixed ring around the hero
     state.enemies = pack.map((e) => buildRtMonster(e, state.nextUid++, rng));
@@ -108,7 +110,7 @@ export function createArena({ hero, pack, rng, survival }) {
     if (!e.raised) { state.xpEarned += e.xp || 0; state.gems.push({ x: e.x, y: e.y, xp: e.xp || 0, life: 8, t: 0.15 }); }
     // Monsters drop random loot for the hero to grab off the ground (survival only).
     if (surv && surv.rollLoot && !e.raised) {
-      const chance = e.boss ? 1 : e.unique ? 1 : e.elite ? 0.6 : (0.05 + (e.drop || 0));
+      const chance = e.boss ? 1 : e.unique ? 1 : e.elite ? 0.6 : (0.10 + (e.drop || 0));
       if (rng.next() < chance) { const it = surv.rollLoot(e.boss ? 3 : e.unique ? 2 : e.elite ? 1 : 0);
         if (it) state.pickups.push({ x: e.x, y: e.y, r: 11, item: it }); }
     }
@@ -266,39 +268,52 @@ export function createArena({ hero, pack, rng, survival }) {
     const a = rng.next() * Math.PI * 2, rad = 520 + rng.next() * 120;
     e.x = clamp(state.hero.x + Math.cos(a) * rad, 24, world.w - 24);
     e.y = clamp(state.hero.y + Math.sin(a) * rad, 24, world.h - 24); state.enemies.push(e); return e; }
-  function spawnWave() {
-    const min = state.time / 60; const sc = scaleFor();
-    const n = Math.min(11, 2 + Math.floor(min * 1.5));
+  const curArea = () => areas[state.areaIdx] || areas[areas.length - 1];
+  function spawnWave() { // pour in this area's foes from its pool, scaled by overall time
+    const area = curArea(); const sc = scaleFor(); const min = state.time / 60;
+    const n = Math.min(11, 2 + Math.floor(min * 1.4));
     for (let k = 0; k < n; k++) {
-      const r = rng.next(); let id = 'fallen';
-      if (min >= 4 && r < 0.12) id = 'goatman'; else if (min >= 2 && r < 0.24) id = 'zombie';
-      else if (r < 0.5) id = 'fallen'; else if (r < 0.72) id = 'goatman'; else id = 'zombie';
-      const entry = { id, hpMul: sc.hpMul, atkMul: sc.atkMul };
-      if (min >= 3 && rng.next() < 0.10) { entry.affixes = [rng.pick(Object.keys(ELITE_AFFIXES))]; entry.drop = 0.3; }
+      const entry = { id: rng.pick(area.pool), hpMul: sc.hpMul, atkMul: sc.atkMul };
+      if (min >= 2 && rng.next() < 0.10) { entry.affixes = [rng.pick(Object.keys(ELITE_AFFIXES))]; entry.drop = 0.3; }
       spawnAtRing(entry);
     }
-    // support foes trickle in as the run deepens
-    if (min >= 2 && rng.next() < 0.5) spawnAtRing({ id: 'shaman', hpMul: sc.hpMul, atkMul: sc.atkMul });
-    if (min >= 3 && rng.next() < 0.5) spawnAtRing({ id: 'archer', hpMul: sc.hpMul, atkMul: sc.atkMul });
-    // a named terror every couple minutes (mini-boss with rich loot)
-    if (min >= 2 && !state.bossSpawned && rng.next() < 0.06) spawnAtRing({ sid: rng.pick(Object.keys(SUPERUNIQUES)), hpMul: sc.hpMul, atkMul: sc.atkMul });
+  }
+  // The area's time-GATE: a named super-unique (or boss). Killing it clears the area.
+  function spawnGate(area) {
+    const sc = scaleFor(); const bt = surv.tier; const min = state.time / 60;
+    const isBoss = !SUPERUNIQUES[area.gate]; // the_smith / andariel are ENEMIES bosses (huge base) — scale them MILDLY
+    const bossHP = { Nightmare: 1.5, Hell: 2.0 }[bt] || 1, bossATK = { Nightmare: 1.3, Hell: 1.6 }[bt] || 1;
+    const hpMul = isBoss ? (1 + min * 0.09) * bossHP : sc.hpMul, atkMul = isBoss ? (1 + min * 0.05) * bossATK : sc.atkMul;
+    const entry = SUPERUNIQUES[area.gate] ? { sid: area.gate, hpMul, atkMul } : { id: area.gate, hpMul, atkMul };
+    const gate = spawnAtRing(entry); gate.gate = true; gate.boss = isBoss; gate.spawnT = state.time; gate.baseSpd = gate.spd; gate.baseAtk = gate.attack;
+    state.gate = gate; state.gateSpawned = true;
+    const su = SUPERUNIQUES[area.gate]; const mins = su ? su.minions : [area.pool[0], area.pool[0]];
+    for (const m of mins) spawnAtRing({ id: m, hpMul: sc.hpMul, atkMul: sc.atkMul });
+    fx({ type: 'cast', x: state.hero.x, y: state.hero.y, r: 140, life: 1.0, color: '#c62828' });
   }
   function director(dt) {
-    if (!state.bossSpawned && state.time >= surv.bossTime) {
-      // The boss takes a MILD time-scale (its 210 base is already big) + a per-tier bump.
-      const bt = surv.tier; const min = state.time / 60;
-      const bossHP = { Nightmare: 1.5, Hell: 2.0 }[bt] || 1, bossATK = { Nightmare: 1.3, Hell: 1.6 }[bt] || 1;
-      state.boss = spawnAtRing({ id: 'the_smith', hpMul: (1 + min * 0.10) * bossHP, atkMul: (1 + min * 0.06) * bossATK });
-      state.bossSpawned = true; fx({ type: 'cast', x: state.hero.x, y: state.hero.y, r: 120, life: 0.9, color: '#c62828' });
+    const area = curArea();
+    if (!state.gateSpawned) { state.areaT += dt; if (state.areaT >= area.dur) spawnGate(area); }
+    // ENRAGE: a gate that's dragged on too long grows faster and hits harder, so a
+    // kiting stalemate always resolves (you kill it, or it runs you down). No infinite runs.
+    if (state.gate && state.gate.hp > 0) { const age = state.time - state.gate.spawnT;
+      if (age > 18) { const k = 1 + (age - 18) * 0.09; state.gate.spd = state.gate.baseSpd * Math.min(3.6, k);
+        state.gate.attack = Math.round(state.gate.baseAtk * Math.min(3, 1 + (age - 18) * 0.06));
+        if (state.gate.kind !== 'melee' && age > 28) state.gate.kind = 'melee'; } } // charges you down so it can't be kited forever
+    // area cleared when its gate falls: advance to the next area, or win after Andariel
+    if (state.gate && state.gate.hp <= 0) {
+      state.areaCleared++;
+      if (state.areaIdx >= areas.length - 1) { finish('win'); return; }
+      state.areaIdx++; state.areaT = 0; state.gate = null; state.gateSpawned = false; state.banner = 2.4;
+      state.enemies = []; state.projectiles = state.projectiles.filter((p) => !p.hostile); state.spawnTimer = 0.8; // clean, simple transition
+      fx({ type: 'cast', x: state.hero.x, y: state.hero.y, r: 100, life: 0.8, color: '#c8a24a' });
     }
-    if (state.boss && state.boss.hp <= 0) { finish('win'); return; }
     state.spawnTimer -= dt;
-    // Once the boss is up, waves THIN OUT so you can focus it down.
-    if (state.spawnTimer <= 0 && alive().length < (state.bossSpawned ? 22 : CAP_ALIVE)) {
-      spawnWave(); state.spawnTimer = (state.bossSpawned ? 3.2 : 1) * Math.max(0.55, 1.9 - (state.time / 60) * 0.13);
+    if (state.spawnTimer <= 0 && alive().length < (state.gateSpawned ? 20 : CAP_ALIVE)) { // once the gate is up, waves thin so you can focus it
+      spawnWave(); state.spawnTimer = (state.gateSpawned ? 3.4 : 1) * Math.max(0.55, 1.9 - (state.time / 60) * 0.13);
     }
-    // prune stale corpses (keep the field + array bounded); the boss corpse stays for the win check
-    if (state.enemies.length > 90) state.enemies = state.enemies.filter((e) => e.hp > 0 || e.boss || (e.deadAt >= 0 && state.time - e.deadAt < CORPSE_TTL));
+    if (state.banner > 0) state.banner -= dt;
+    if (state.enemies.length > 90) state.enemies = state.enemies.filter((e) => e.hp > 0 || e.gate || (e.deadAt >= 0 && state.time - e.deadAt < CORPSE_TTL));
   }
 
   function stepPickups() { // loot magnets toward you, collected on contact -> game drains it
@@ -393,7 +408,7 @@ export function createArena({ hero, pack, rng, survival }) {
         accuracy: h.accuracy, evade: h.evade, invuln: h.invT > 0, dir: { ...h.dir }, weapon: h.weapon,
         cd: { ...h.cd }, abilities: h.abilities.map((id) => ({ id, ...SKILLS[id], eff: skillEffect(ctx, id), cd: h.cd[id] || 0, off: h.disabled.has(id), ready: !h.disabled.has(id) && (h.cd[id] || 0) <= 0 && SKILLS[id].cost <= h.mana })) },
       enemies: state.enemies.filter((e) => e.hp > 0).map((e) => ({ uid: e.uid, id: e.id, name: e.name, glyph: e.glyph, x: e.x, y: e.y, r: e.r,
-        hp: e.hp, maxHp: e.maxHp, kind: e.kind, role: e.role, elite: e.elite, unique: e.unique, boss: e.boss, flash: e.flash, raised: e.raised })),
+        hp: e.hp, maxHp: e.maxHp, kind: e.kind, role: e.role, elite: e.elite, unique: e.unique, boss: e.boss, gate: e.gate, flash: e.flash, raised: e.raised })),
       projectiles: state.projectiles.map((p) => ({ x: p.x, y: p.y, r: p.r, hostile: p.hostile, glyph: p.glyph })),
       minions: state.minions.map((m) => ({ x: m.x, y: m.y, r: m.r, glyph: m.glyph, hp: m.hp, maxHp: m.maxHp })),
       gems: state.gems.map((g) => ({ x: g.x, y: g.y })),
@@ -401,8 +416,11 @@ export function createArena({ hero, pack, rng, survival }) {
       fx: state.fx.map((f) => ({ ...f })),
       time: state.time, turn: Math.round(state.time), xpEarned: state.xpEarned,
       over: state.over, result: state.result, tally: { ...state.tally },
-      survival: !!surv, bossIn: surv ? Math.max(0, surv.bossTime - state.time) : 0,
-      boss: state.boss ? { hp: Math.max(0, state.boss.hp), maxHp: state.boss.maxHp, name: state.boss.name } : null,
+      survival: !!surv,
+      area: surv ? { idx: state.areaIdx, total: areas.length, name: curArea().name, quest: curArea().quest, questText: curArea().questText,
+        timeLeft: Math.max(0, curArea().dur - state.areaT), gateSpawned: state.gateSpawned, gateName: state.gate ? state.gate.name : null } : null,
+      areaCleared: state.areaCleared, banner: state.banner,
+      boss: state.gate && state.gate.hp > 0 ? { hp: Math.max(0, state.gate.hp), maxHp: state.gate.maxHp, name: state.gate.name } : null,
       aliveCount: state.enemies.reduce((n, e) => n + (e.hp > 0 ? 1 : 0), 0),
       world: { w: world.w, h: world.h }, arena: { w: ARENA_W, h: ARENA_H },
     };

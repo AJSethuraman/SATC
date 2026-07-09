@@ -4,7 +4,7 @@
 // victory | dead. Meta (difficulty ladder + telemetry) persists in localStorage.
 
 import { createGame } from '../engine/game.js';
-import { SLOTS, SLOT_LABEL, CLASSES } from '../engine/content.js';
+import { SLOTS, SLOT_LABEL, CLASSES, ACT1 } from '../engine/content.js';
 import { DT, ARENA_W, ARENA_H } from '../engine/arena.js';
 
 const board = document.getElementById('board');
@@ -116,7 +116,7 @@ const keys = new Set();
 let touchVec = null, joy = null;
 let arenaActive = false, arenaPaused = false, raf = 0, lastT = 0, tacc = 0;
 let rtCanvas = null, rtCtx = null, rtSkillEls = {};
-let pendingLevel = 0, lootToast = null, lastArena = null;
+let lootToast = null, levelToast = null, questToast = null, lastArena = null;
 const clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const KEYMAP = { arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down', arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right' };
 window.addEventListener('keydown', (e) => { if (!arenaActive || arenaPaused) return; const m = KEYMAP[e.key.toLowerCase()]; if (m) { keys.add(m); e.preventDefault(); } });
@@ -132,8 +132,10 @@ function potionBtn(kind, count, full) { const label = kind === 'life' ? '🩹 Li
 function renderArena() {
   if (arenaActive) return; // the loop owns the DOM once it's up
   const s = combat.getState(); const h = s.hero; const pot = game.getRun().potions;
-  pendingLevel = 0; lootToast = null;
+  lootToast = levelToast = questToast = null;
   board.innerHTML = `<div class="rt">
+    <div class="area-head"><span class="ah-name" id="rtAreaName"></span><span class="ah-prog" id="rtAreaProg"></span></div>
+    <div class="area-quest" id="rtQuest"></div>
     <div class="boss-bar" id="rtBossWrap" style="display:none"><i id="rtBoss"></i><span id="rtBossT"></span></div>
     <div class="rt-hud">
       <div class="rt-bars">
@@ -143,11 +145,11 @@ function renderArena() {
       </div>
       <div class="rt-meta"><span>Lv <b id="rtLvl">${game.getRun().level}</b></span><span>Foes <b id="rtFoes"></b></span><span id="rtTimeWrap">⏱ <b id="rtTime"></b></span></div>
     </div>
-    <div class="rt-canvas-wrap"><canvas id="rtCanvas" width="${ARENA_W}" height="${ARENA_H}"></canvas><div class="loot-toast" id="rtLoot"></div></div>
+    <div class="rt-canvas-wrap"><canvas id="rtCanvas" width="${ARENA_W}" height="${ARENA_H}"></canvas><div class="loot-toast" id="rtLoot"></div><div class="arena-banner" id="rtBanner"></div></div>
     <div class="rt-skills" id="rtSkills">${skillChipsHTML(h.abilities)}</div>
     <div class="belt">${potionBtn('life', pot.life, h.life >= h.maxLife)}${potionBtn('mana', pot.mana, h.mana >= h.maxMana)}
       <button class="act ghost small" id="aInv">🎒</button><button class="act ghost small" id="aTree">⚔<span id="aTreePts"></span></button></div>
-    <div class="rt-hint">Move: <b>WASD / arrows</b> or <b>drag</b> the arena. Skills auto-fire — <b>tap a skill to turn it off</b> (e.g. Cleave, so only Whirlwind swings). Monsters <b>drop loot</b> — walk over it. Survive to the <b>Smith</b>.</div>
+    <div class="rt-hint">Move: <b>WASD / arrows</b> or <b>drag</b>. Skills auto-fire — <b>tap one to toggle it off</b>. Monsters <b>drop loot</b> — walk over it. Outlast the timer, then kill the <b>gate</b> to clear the area.</div>
     <div class="controls" style="display:flex;gap:12px;justify-content:center"><button class="act ghost small" id="abandon">ABANDON</button></div>
   </div>`;
   logEl.innerHTML = '';
@@ -184,33 +186,15 @@ function arenaFrame(now) {
   const input = window.__autopilot ? combat.autoInput() : inputVector();
   const cap = window.__timescale ? 400 : 6;
   let guard = 0; while (tacc >= DT && guard < cap) { combat.tick(input); tacc -= DT; guard++; if (combat.getState().over) break; }
-  const sync = game.syncArena(); // fold earned XP -> levels, collected drops -> gear/bag
-  if (sync.loot && sync.loot.length) { const it = sync.loot[sync.loot.length - 1]; lootToast = { name: it.name, color: it.color || '#c8a24a', t: 1.6 }; TEL.events && tel('loot', { name: it.name }); }
+  const sync = game.syncArena(); // fold earned XP -> levels, collected drops -> gear/bag, area clears -> quest rewards
+  if (sync.loot && sync.loot.length) { const it = sync.loot[sync.loot.length - 1]; lootToast = { name: it.name, color: it.color || '#c8a24a', t: 1.6 }; tel('loot', { name: it.name }); }
+  if (sync.leveled) { levelToast = { t: 1.4, lvl: game.getRun().level }; tel('level', { level: game.getRun().level }); } // banks points, no pause
   const s = combat.getState();
+  if (sync.cleared && s.area) { const a = ACT1[Math.max(0, s.area.idx - 1)] || {}; questToast = { t: 3, text: a.quest ? 'QUEST COMPLETE — ' + a.quest : 'AREA CLEARED', reward: '+2 skill points · restored' }; tel('area_clear', { area: a.name }); }
   drawArena(s); updateHUD(s, dt);
   window.__bloodrune.state = s; window.__bloodrune.phase = 'arena';
   if (s.over) { endArena(s); return; }
-  if (sync.leveled) { pendingLevel += sync.leveled; showLevelUp(); return; } // pause + pick a skill
   raf = requestAnimationFrame(arenaFrame);
-}
-
-// Level-up: pause and offer a few learnable/upgradable skills from your tree as cards.
-function showLevelUp() {
-  const r = game.getRun();
-  const options = r.tree.filter((t) => t.canInvest).slice(0, 4);
-  if (!options.length || r.skillPoints <= 0) { pendingLevel = 0; resumeArena(); return; } // nothing to spend on: bank it
-  pauseArena();
-  ov.className = 'overlay';
-  ov.innerHTML = `<div class="lvlup"><div class="lvlup-h">LEVEL ${r.level} — choose a skill</div>
-    <div class="lvlup-cards">${options.map((sk) => `<button class="lvl-card" data-id="${sk.id}">
-      <div class="lc-n">${sk.name} <span class="lc-lv">Lv ${sk.level} → ${sk.level + 1}</span></div>
-      <div class="lc-e">${sk.eff.text}</div></button>`).join('')}
-      <button class="lvl-card skip" data-id="__skip">Bank the point<div class="lc-e">Save it — spend later in ⚔ Skills.</div></button></div></div>`;
-  ov.querySelectorAll('.lvl-card').forEach((b) => b.addEventListener('click', () => {
-    if (b.dataset.id !== '__skip') { const res = game.investSkill(b.dataset.id); if (res && res.ok) { TEL.skills[b.dataset.id] = (TEL.skills[b.dataset.id] || 0) + 1; saveTel(); } }
-    pendingLevel -= 1;
-    if (pendingLevel > 0) showLevelUp(); else { ov.className = 'overlay hidden'; ov.innerHTML = ''; resumeArena(); }
-  }));
 }
 
 function endArena(s) {
@@ -277,11 +261,22 @@ function updateHUD(s, dt) {
   if (wx) wx.style.width = pv(r.xp, r.xpToNext) + '%';
   set('rtLifeT', `${Math.ceil(h.life)}/${h.maxLife}`); set('rtManaT', `${Math.floor(h.mana)}/${h.maxMana}`); set('rtXpT', `XP ${r.xp}/${r.xpToNext}`);
   set('rtFoes', s.aliveCount != null ? s.aliveCount : s.enemies.length); set('rtLvl', r.level);
-  const mm = Math.floor(s.time / 60), ss = String(Math.floor(s.time % 60)).padStart(2, '0');
-  set('rtTime', s.boss ? `${mm}:${ss}` : (s.bossIn > 0 ? `boss ${Math.ceil(s.bossIn)}s` : `${mm}:${ss}`));
-  // boss bar
+  // area header + quest + gate timer
+  const ar = s.area;
+  if (ar) { set('rtAreaName', ar.name); set('rtAreaProg', `Area ${ar.idx + 1}/${ar.total}`);
+    const q = document.getElementById('rtQuest'); if (q) q.textContent = (ar.quest ? '✦ ' + ar.quest + ' — ' : '') + ar.questText;
+    set('rtTime', ar.gateSpawned ? '⚔ GATE' : `gate ${Math.ceil(ar.timeLeft)}s`);
+    const tw = document.getElementById('rtTimeWrap'); if (tw) tw.classList.toggle('gate', ar.gateSpawned); }
+  else { const mm = Math.floor(s.time / 60), ss = String(Math.floor(s.time % 60)).padStart(2, '0'); set('rtTime', `${mm}:${ss}`); }
+  // gate/boss bar
   const bw = document.getElementById('rtBossWrap');
   if (bw) { if (s.boss) { bw.style.display = ''; const bi = document.getElementById('rtBoss'); if (bi) bi.style.width = pv(s.boss.hp, s.boss.maxHp) + '%'; set('rtBossT', `☠ ${s.boss.name}`); } else bw.style.display = 'none'; }
+  // transient banner: area-clear / level-up flourish (no pause)
+  const bn = document.getElementById('rtBanner');
+  if (bn) { let txt = '', cls = 'arena-banner';
+    if (questToast && questToast.t > 0) { questToast.t -= dt; txt = `<div class="ab-big">${questToast.text}</div><div class="ab-sub">${questToast.reward}</div>`; cls += ' show gold'; }
+    else if (levelToast && levelToast.t > 0) { levelToast.t -= dt; txt = `<div class="ab-big">LEVEL ${levelToast.lvl}</div>`; cls += ' show'; }
+    bn.innerHTML = txt; bn.className = cls; }
   if (h.abilities.length !== Object.keys(rtSkillEls).length || h.abilities.some((a) => !rtSkillEls[a.id])) rebuildSkillChips(h); // a newly-learned skill grew the kit
   for (const a of h.abilities) { const el = rtSkillEls[a.id]; if (!el) continue;
     el.classList.toggle('ready', a.ready); el.classList.toggle('off', !!a.off); const bar = el.querySelector('.rs-cd'); if (bar) bar.style.height = Math.min(100, (a.cd / 1.8) * 100) + '%'; }
@@ -290,6 +285,7 @@ function updateHUD(s, dt) {
   if (lb) { lb.disabled = pot.life <= 0 || h.life >= h.maxLife; lb.querySelector('.pn').textContent = '×' + pot.life; }
   if (mb) { mb.disabled = pot.mana <= 0 || h.mana >= h.maxMana; mb.querySelector('.pn').textContent = '×' + pot.mana; }
   const pts = document.getElementById('aTreePts'); if (pts) pts.textContent = r.skillPoints ? ' ' + r.skillPoints : '';
+  const treeBtn = document.getElementById('aTree'); if (treeBtn) treeBtn.classList.toggle('pulse', r.skillPoints > 0);
   // loot toast
   const lt = document.getElementById('rtLoot');
   if (lt) { if (lootToast && lootToast.t > 0) { lootToast.t -= dt; lt.textContent = '＋ ' + lootToast.name; lt.style.color = lootToast.color; lt.style.opacity = Math.min(1, lootToast.t); } else lt.style.opacity = 0; }
@@ -309,7 +305,7 @@ function afterTerminal() { const p = game.getRun().phase; if (!countedTerminal &
 // ---------- dead / victory ----------
 function renderDead(r) { const m = meta(); const secs = Math.round((lastArena && lastArena.time) || 0); const mm = Math.floor(secs / 60), ss = String(secs % 60).padStart(2, '0');
   ov.className = 'overlay'; ov.innerHTML = `<h2 class="dead">YOU HAVE DIED</h2><div class="deck-note">You fell at level ${r.level} after ${mm}:${ss}, on ${r.difficulty}.</div><div class="deck-note" style="color:#6f6357">${m.wins} cleared · ${m.deaths} lost</div><button class="act" id="again">NEW DESCENT</button>`; board.innerHTML = ''; logEl.innerHTML = ''; document.getElementById('again').addEventListener('click', () => { window.__seed = Math.floor(performance.now()); newRun('Normal', classId); }); }
-function renderVictory(r) { const cur = DIFFS.indexOf(r.difficulty); const next = DIFFS[cur + 1]; ov.className = 'overlay'; ov.innerHTML = `<h2 class="win">THE SMITH FALLS</h2><div class="deck-note">You cleared the act on <b>${r.difficulty}</b> at level ${r.level}.</div>${next ? `<div class="deck-note" style="color:var(--gold)">${next} unlocked.</div>` : '<div class="deck-note" style="color:var(--gold)">You have conquered Hell.</div>'}<div style="display:flex;gap:12px;margin-top:6px">${next ? `<button class="act" id="next">DESCEND ${next.toUpperCase()}</button>` : ''}<button class="act ghost" id="again">NEW DESCENT</button></div>`; board.innerHTML = ''; logEl.innerHTML = ''; const nb = document.getElementById('next'); if (nb) nb.addEventListener('click', () => { window.__seed = Math.floor(performance.now()); newRun(next, classId); }); document.getElementById('again').addEventListener('click', () => { window.__seed = Math.floor(performance.now()); newRun('Normal', classId); }); }
+function renderVictory(r) { const cur = DIFFS.indexOf(r.difficulty); const next = DIFFS[cur + 1]; ov.className = 'overlay'; ov.innerHTML = `<h2 class="win">ANDARIEL FALLS — ACT 1 CLEARED</h2><div class="deck-note">You walked all of Act 1 on <b>${r.difficulty}</b> and slew the Maiden of Anguish at level ${r.level}.</div>${next ? `<div class="deck-note" style="color:var(--gold)">${next} unlocked.</div>` : '<div class="deck-note" style="color:var(--gold)">You have conquered Hell.</div>'}<div style="display:flex;gap:12px;margin-top:6px">${next ? `<button class="act" id="next">ENTER ${next.toUpperCase()}</button>` : ''}<button class="act ghost" id="again">NEW RUN</button></div>`; board.innerHTML = ''; logEl.innerHTML = ''; const nb = document.getElementById('next'); if (nb) nb.addEventListener('click', () => { window.__seed = Math.floor(performance.now()); newRun(next, classId); }); document.getElementById('again').addEventListener('click', () => { window.__seed = Math.floor(performance.now()); newRun('Normal', classId); }); }
 
 // ---------- overlays ----------
 function renderOverlay() { if (invOpen) return renderInventory(); if (treeOpen) return renderTree(); const p = game.getRun().phase; if (p === 'dead') return renderDead(game.getRun()); if (p === 'victory') return renderVictory(game.getRun()); ov.className = 'overlay hidden'; ov.innerHTML = ''; }
