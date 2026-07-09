@@ -27,6 +27,15 @@ const MELEE_REACH = 42;
 const PROJ_SPEED = 210, HOSTILE_PROJ_SPEED = 190;
 const CAP_ALIVE = 82;                        // survival: max live foes (perf + fairness)
 const CORPSE_TTL = 5;                         // survival: how long a corpse lingers (rez window + cleanup)
+// ENCLOSURE PRESSURE (survival): standing still in a crowd is LETHAL regardless of
+// how hard you clear — foes press in from every side and the squeeze grows the
+// longer you're rooted. MOVING resets it (kiting is the pressure valve). This is
+// what makes the game about movement, not a stationary AoE turret.
+// R is the CLOSING radius (the horde bearing down), not just melee reach — a
+// stationary ranged hero who deletes the inner ring is still being encircled by
+// the wider swarm. Only stationary heroes accrue stillT, so a moving/kiting hero
+// (stillT=0) is never touched by this no matter how many foes chase.
+const ENCLOSE_R = 520, ENCLOSE_MIN = 6, ENCLOSE_GRACE = 1.6, ENCLOSE_K = 0.42, ENCLOSE_RAMP_CAP = 12;
 
 const CD = { attack: 0.55, damage: 0.95, hits: 0.9, aoe: 1.25, breakthrough: 1.6, block: 4, summon: 2.6 };
 const ROLE_DEF = {
@@ -106,7 +115,7 @@ export function createArena({ hero, pack, rng, survival }) {
       manaRegen: hero.manaRegen != null ? hero.manaRegen : 4,
       accuracy: hero.accuracy, evade: hero.evade || 0, weapon: hero.weapon || null,
       plusSkills: hero.plusSkills || 0, fcr: hero.fcr || 0, ias: hero.ias || 0, penetration: hero.penetration || 0, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
-      shield: 0, shieldT: 0, invT: 0, dir: { x: 0, y: -1 }, cd: {}, disabled: new Set() },
+      shield: 0, shieldT: 0, invT: 0, stillT: 0, dir: { x: 0, y: -1 }, cd: {}, disabled: new Set() },
     enemies: [], projectiles: [], minions: [], gems: [], fx: [], pickups: [], collected: [],
     time: 0, xpEarned: 0, over: false, result: null, nextUid: 0,
     spawnTimer: surv ? 0.6 : 0,
@@ -160,6 +169,23 @@ export function createArena({ hero, pack, rng, survival }) {
     if (e.hp === 0) kill(e); return true;
   }
 
+  // The SQUEEZE: while you're rooted in a crowd, unblockable chip damage builds —
+  // scaling with how many foes ring you AND how long you've stood still. Clearing
+  // the inner ring doesn't save you (fresh foes stream in); only MOVING (which
+  // zeroes stillT) bleeds it off. This is why standing still is death.
+  function enclosurePressure(dt) {
+    const h = state.hero; if (h.stillT <= ENCLOSE_GRACE) return;
+    let crowd = 0; for (const e of state.enemies) { if (e.hp <= 0) continue; const dx = e.x - h.x, dy = e.y - h.y; if (dx * dx + dy * dy < ENCLOSE_R * ENCLOSE_R) crowd++; }
+    if (crowd < ENCLOSE_MIN) return;
+    const ramp = Math.min(ENCLOSE_RAMP_CAP, h.stillT - ENCLOSE_GRACE);
+    const chip = ENCLOSE_K * (crowd - ENCLOSE_MIN + 1) * ramp * dt;
+    if (chip <= 0) return;
+    const absorbed = Math.min(h.shield, chip); h.shield -= absorbed; const dmg = chip - absorbed;
+    h.life = Math.max(0, h.life - dmg); state.tally.dmgTaken += dmg;
+    if (dmg > 0.5) fx({ type: 'hurt', x: h.x, y: h.y, life: 0.25 });
+    if (h.life <= 0) finish('lose');
+  }
+
   function hitHero(e, raw) {
     const h = state.hero; if (h.invT > 0) return true;
     if (h.evade > 0 && rng.next() > clamp(0.80 + ((e.acc != null ? e.acc : 5) - h.evade) * 0.04, 0.30, 0.95)) {
@@ -170,6 +196,11 @@ export function createArena({ hero, pack, rng, survival }) {
     if (e && e.leech && dmg > 0) e.hp = Math.min(e.maxHp, e.hp + dmg);
     if (h.life <= 0) { finish('lose'); return false; } return true;
   }
+
+  // The area GATE (a super-unique / boss), if present and alive — auto-fire FOCUSES
+  // it so a swarm can't shield the boss forever (mirrors how you'd play: kill the
+  // named threat, don't farm trash while it enrages you to death).
+  const liveGate = () => (state.gate && state.gate.hp > 0) ? state.gate : null;
 
   // ---- hero abilities (auto-fire on cooldown; Mana gates which ones) ----------
   function fireHeroAbilities() {
@@ -208,12 +239,16 @@ export function createArena({ hero, pack, rng, survival }) {
         fx({ type: 'sweep', x: h.x, y: h.y, r: R, life: 0.3 });
         for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), physical, s.element);
         continue; }
-      if (s.target === 'aoe' && ranged) { // ranged AoE volley at the nearest few (Strafe / Teeth)
-        const targets = alive().sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y)).slice(0, s.maxTargets || 3);
+      if (s.target === 'aoe' && ranged) { // ranged AoE volley — focus the gate, then the nearest few (Fire Ball / Strafe / Teeth)
+        let targets = alive().sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y));
+        const gt = liveGate(); if (gt && !targets.slice(0, s.maxTargets || 3).includes(gt)) targets = [gt, ...targets.filter((e) => e !== gt)];
+        targets = targets.slice(0, s.maxTargets || 3);
         if (!targets.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
         for (const t of targets) spawnBolt(h, t, roll(eff.min, eff.max), physical, 0, s.weapon === 'spell' ? '🦴' : '➶', s.element);
         continue; }
-      const tgt = nearest(h.x, h.y); if (!tgt) continue;
+      // single-target: a ranged skill FOCUSES the gate (you can hit it anywhere); melee takes the nearest in reach
+      const gt = liveGate();
+      const tgt = (ranged && gt) ? { e: gt, d: Math.hypot(gt.x - h.x, gt.y - h.y) } : nearest(h.x, h.y); if (!tgt) continue;
       if (!ranged && tgt.d > MELEE_REACH + tgt.e.r + h.r + 6) continue;
       h.mana -= s.cost;
       if (s.type === 'breakthrough') {
@@ -380,13 +415,15 @@ export function createArena({ hero, pack, rng, survival }) {
     let mx = input && input.x || 0, my = input && input.y || 0; const ml = Math.hypot(mx, my);
     if (ml > 0.05) { const n = ml > 1 ? ml : 1; mx /= n; my /= n; h.dir = { x: mx, y: my };
       h.x = clamp(h.x + mx * HERO_SPEED * dt * Math.min(1, ml), h.r, world.w - h.r); h.y = clamp(h.y + my * HERO_SPEED * dt * Math.min(1, ml), h.r, world.h - h.r);
-      state.tally.moveT += dt; state.tally.moveDist += HERO_SPEED * Math.min(1, ml) * dt; }
-    else state.tally.idleT += dt; // standing still is tracked — so telemetry shows what actually happened
+      state.tally.moveT += dt; state.tally.moveDist += HERO_SPEED * Math.min(1, ml) * dt; h.stillT = 0; }
+    else { state.tally.idleT += dt; h.stillT += dt; } // standing still is tracked AND punished (see enclosure below)
     if (surv) director(dt);
     fireHeroAbilities();
     stepProjectiles(dt);
     stepMinions(dt);
     stepEnemies(dt);
+    if (state.over) return getState();
+    if (surv) enclosurePressure(dt); // the squeeze — inexorable while you're rooted in a crowd
     if (state.over) return getState();
     if (surv) stepPickups();
     for (const f of state.fx) { f.life -= dt; if (f.vy) f.y += f.vy * dt; }

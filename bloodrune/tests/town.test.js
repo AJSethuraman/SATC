@@ -44,7 +44,7 @@ test('a fresh game starts in TOWN at the first quest; descend needs town', () =>
 });
 
 test('clearing a quest turns it in and returns to TOWN at the next quest', () => {
-  const g = createGame('town-quest', { classId: 'barbarian' });
+  const g = createGame('town-quest', { classId: 'barbarian', stash: BEEF, loadout: BEEF });
   g.descend();
   survive(g, 30 * 160);
   const r = g.getRun();

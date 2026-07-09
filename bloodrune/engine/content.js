@@ -95,7 +95,7 @@ export const CLASSES = {
     attr: { str: 15, dex: 25, vit: 15, energy: 25 },
     startWeapon: 'bone_wand', tree: ['raise_skeleton', 'raise_golem', 'bone_spear', 'teeth', 'bone_armor'] },
   // A faithful D2 Sorceress — three elemental trees; spells scale on level + Masteries.
-  sorceress: { id: 'sorceress', name: 'Sorceress', glyph: '🔮', maxLife: 38, maxMana: 20, manaRegen: 4, startBlock: 0, acc: 6, eva: 2,
+  sorceress: { id: 'sorceress', name: 'Sorceress', glyph: '🔮', maxLife: 52, maxMana: 34, manaRegen: 5, startBlock: 0, acc: 6, eva: 2,
     attr: { str: 10, dex: 25, vit: 10, energy: 35 },
     startWeapon: 'sorc_orb', tabs: ['fire', 'cold', 'light'],
     tree: ['fire_bolt', 'warmth', 'inferno', 'fire_ball', 'fire_mastery', 'meteor',
@@ -185,15 +185,18 @@ export const SUPERUNIQUE_IDS = Object.keys(SUPERUNIQUES);
 // named super-unique — appears. Kill the gate to clear the area (and its QUEST)
 // and transition to the next. The final gate is Andariel; put her down to win.
 // pool = enemy ids (weighted by repetition); gate = super-unique id or ENEMIES id.
+// dur = seconds of ramping waves before the area's GATE appears. Kept punchy (a
+// condensed roguelite act ~6-7 min), so a squishy build isn't ground down in a
+// long pre-gate survival slog before it can even fight the boss.
 export const ACT1 = [
-  { name: 'Blood Moor', quest: 'Den of Evil', questText: 'Cleanse the Den — slay Corpsefire.', dur: 50, pool: ['quill_rat', 'fallen', 'fallen', 'zombie'], gate: 'corpsefire' },
-  { name: 'Cold Plains', quest: null, questText: 'Cut across the plains — Bishibosh bars the way.', dur: 55, pool: ['fallen', 'goatman', 'zombie', 'quill_rat'], gate: 'bishibosh' },
-  { name: "Sisters' Burial Grounds", quest: "Sisters' Burial Grounds", questText: 'Put down Blood Raven.', dur: 55, pool: ['zombie', 'zombie', 'fallen', 'archer'], gate: 'blood_raven' },
-  { name: 'Stony Field', quest: null, questText: 'Shatter Rakanishu at the cairn stones.', dur: 60, pool: ['goatman', 'fallen', 'archer', 'zombie'], gate: 'rakanishu' },
-  { name: 'Dark Wood', quest: 'The Tree of Inifuss', questText: 'Fell Treehead Woodfist.', dur: 60, pool: ['goatman', 'zombie', 'shaman', 'goatman'], gate: 'treehead_woodfist' },
-  { name: 'Forgotten Tower', quest: 'The Forgotten Tower', questText: 'Loot the tower — end the Countess.', dur: 62, pool: ['archer', 'goatman', 'zombie', 'shaman'], gate: 'the_countess' },
-  { name: 'Jail & Barracks', quest: 'Tools of the Trade', questText: 'Reclaim the Horadric Malus — kill The Smith.', dur: 66, pool: ['guardian', 'goatman', 'archer', 'zombie'], gate: 'the_smith' },
-  { name: 'Catacombs', quest: 'Sisters to the Slaughter', questText: 'Slay Andariel, Maiden of Anguish.', dur: 70, pool: ['zombie', 'archer', 'shaman', 'guardian'], gate: 'andariel' },
+  { name: 'Blood Moor', quest: 'Den of Evil', questText: 'Cleanse the Den — slay Corpsefire.', dur: 32, pool: ['quill_rat', 'fallen', 'fallen', 'zombie'], gate: 'corpsefire' },
+  { name: 'Cold Plains', quest: null, questText: 'Cut across the plains — Bishibosh bars the way.', dur: 34, pool: ['fallen', 'goatman', 'zombie', 'quill_rat'], gate: 'bishibosh' },
+  { name: "Sisters' Burial Grounds", quest: "Sisters' Burial Grounds", questText: 'Put down Blood Raven.', dur: 36, pool: ['zombie', 'zombie', 'fallen', 'archer'], gate: 'blood_raven' },
+  { name: 'Stony Field', quest: null, questText: 'Shatter Rakanishu at the cairn stones.', dur: 38, pool: ['goatman', 'fallen', 'archer', 'zombie'], gate: 'rakanishu' },
+  { name: 'Dark Wood', quest: 'The Tree of Inifuss', questText: 'Fell Treehead Woodfist.', dur: 40, pool: ['goatman', 'zombie', 'shaman', 'goatman'], gate: 'treehead_woodfist' },
+  { name: 'Forgotten Tower', quest: 'The Forgotten Tower', questText: 'Loot the tower — end the Countess.', dur: 42, pool: ['archer', 'goatman', 'zombie', 'shaman'], gate: 'the_countess' },
+  { name: 'Jail & Barracks', quest: 'Tools of the Trade', questText: 'Reclaim the Horadric Malus — kill The Smith.', dur: 44, pool: ['guardian', 'goatman', 'archer', 'zombie'], gate: 'the_smith' },
+  { name: 'Catacombs', quest: 'Sisters to the Slaughter', questText: 'Slay Andariel, Maiden of Anguish.', dur: 48, pool: ['zombie', 'archer', 'shaman', 'guardian'], gate: 'andariel' },
 ];
 
 // Loot slots (armor/jewelry roll random affixes via loot.js; weapon grants skills).

@@ -19,6 +19,10 @@ window.__bloodrune = {};
 
 function meta() { try { const m = JSON.parse(localStorage.getItem('bloodrune.meta')) || {}; return { unlocked: m.unlocked || ['Normal'], wins: m.wins || 0, deaths: m.deaths || 0 }; } catch { return { unlocked: ['Normal'], wins: 0, deaths: 0 }; } }
 function saveMeta(m) { try { localStorage.setItem('bloodrune.meta', JSON.stringify(m)); } catch {} }
+// The STASH is the only thing that carries between runs (tier-capped gear + runes).
+const STASH_KEY = 'bloodrune.stash';
+function loadStash() { try { return JSON.parse(localStorage.getItem(STASH_KEY)) || []; } catch { return []; } }
+function saveStash() { try { if (game) localStorage.setItem(STASH_KEY, JSON.stringify(game.getStash())); } catch {} }
 
 // ---- Telemetry: log what actually happens, unbiased, so balance is data-driven.
 // Everything persists in localStorage; view via the Stats screen or export the JSON.
@@ -32,7 +36,7 @@ function telClass(c) { return TEL.byClass[c] || (TEL.byClass[c] = { runs: 0, win
 
 function newRun(diff, cls) {
   difficulty = diff || difficulty; if (cls) classId = cls;
-  game = createGame('run-' + (window.__seed || 'ashes') + '-' + difficulty + '-' + classId, { classId, difficulty });
+  game = createGame('run-' + (window.__seed || 'ashes') + '-' + difficulty + '-' + classId, { classId, difficulty, stash: loadStash() });
   combat = null; invOpen = false; treeOpen = false; focusUid = null; countedTerminal = false;
   TEL.runs++; telClass(classId).runs++; tel('run_start', { class: classId, difficulty });
   render();
@@ -48,35 +52,53 @@ function render() {
   if (r.phase === 'arena') renderArena();
   else if (r.phase === 'dead') renderDead(r);
   else if (r.phase === 'victory') renderVictory(r);
-  else renderPrep(r);
+  else renderTown(r);
   renderOverlay();
 }
 
-// ---------- prep ----------
-function renderPrep(r) {
-  const m = meta(); const st = r.stats;
-  board.innerHTML = `<div class="prep">
-    <div class="prep-title">THE BLEEDING DARK</div>
-    <div class="prep-sub">Choose a bloodline and descend. You begin with almost nothing — kill, level, and loot your way into power, or die in the dark.</div>
-    <div class="meta-row">Class: ${CLASS_LIST.map((c) => `<button class="pill ${c === classId ? 'on' : ''}" data-class="${c}">${CLASSES[c].glyph} ${CLASSES[c].name}</button>`).join('')}</div>
+// ---------- town (the checkpoint hub — start of run AND between quests) ----------
+const ATTR_LABEL = { str: 'Strength', dex: 'Dexterity', vit: 'Vitality', energy: 'Energy' };
+function renderTown(r) {
+  const m = meta(); const st = r.stats; const a = r.attr || {};
+  const fresh = r.level === 1 && r.questIdx === 0 && !r.quests.some((q) => q.done); // start of a run: pick class/difficulty
+  const q = r.quest || {};
+  const questRow = r.quests.map((qq, i) => `<span class="qpip ${qq.done ? 'done' : i === r.questIdx ? 'cur' : ''}" title="${qq.name}">${qq.done ? '✓' : i === r.questIdx ? '◆' : '○'}</span>`).join('');
+  const attrRow = ['str', 'dex', 'vit', 'energy'].map((k) => `<div class="attr-row"><span class="k">${ATTR_LABEL[k]}</span> <b>${a[k] || 0}</b>${r.attrPoints > 0 ? `<button class="attr-plus" data-attr="${k}">＋</button>` : ''}</div>`).join('');
+  board.innerHTML = `<div class="prep town">
+    <div class="prep-title">${fresh ? 'THE BLEEDING DARK' : 'ROGUE ENCAMPMENT'}</div>
+    <div class="prep-sub">${fresh ? 'Choose a bloodline and descend. You begin with almost nothing — bank your finds in town between quests, or lose them in the dark.' : `Act ${r.act} · rest, bank your spoils, spend your points, then descend.`}</div>
+    <div class="quest-track">${questRow}</div>
+    <div class="quest-now">✦ <b>${q.name || 'Act 1'}</b> — ${q.questText || ''}</div>
+    ${fresh ? `<div class="meta-row">Class: ${CLASS_LIST.map((c) => `<button class="pill ${c === classId ? 'on' : ''}" data-class="${c}">${CLASSES[c].glyph} ${CLASSES[c].name}</button>`).join('')}</div>
+    <div class="meta-row">Difficulty: ${DIFFS.map((d) => `<button class="pill ${d === difficulty ? 'on' : ''} ${m.unlocked.includes(d) ? '' : 'locked'}" data-diff="${d}" ${m.unlocked.includes(d) ? '' : 'disabled'}>${d}</button>`).join('')}<span class="tally">wins ${m.wins} · deaths ${m.deaths}</span></div>` : ''}
     <div class="char"><div class="char-glyph">${r.glyph}</div>
       <div class="char-stats">
-        <div><span class="k">Class</span> <b>${r.className}</b></div>
-        <div><span class="k">Life</span> <b class="life">${r.life}/${st.maxLife}</b></div>
-        <div><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></div>
-        <div><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></div>
-        <div><span class="k">Level</span> <b>${r.level}</b></div>
-        <div><span class="k">Potions</span> <b>🩹${r.potions.life} 🔷${r.potions.mana}</b></div>
-      </div></div>
-    <div class="meta-row">Difficulty: ${DIFFS.map((d) => `<button class="pill ${d === difficulty ? 'on' : ''} ${m.unlocked.includes(d) ? '' : 'locked'}" data-diff="${d}" ${m.unlocked.includes(d) ? '' : 'disabled'}>${d}</button>`).join('')}<span class="tally">wins ${m.wins} · deaths ${m.deaths}</span></div>
-    <div class="prep-actions"><button class="act ghost" id="openInv">🎒 INVENTORY</button><button class="act ghost small" id="openStats">📊 STATS</button><button class="act" id="descend">DESCEND</button></div>
+        <div><span class="k">Class</span> <b>${r.className}</b> <span class="k">Lv</span> <b>${r.level}</b></div>
+        <div><span class="k">Life</span> <b class="life">${Math.round(r.life)}/${st.maxLife}</b> <span class="k">Mana</span> <b class="mana">${st.maxMana}</b></div>
+        <div><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b>${st.fcr ? ` <span class="k">FCR</span> <b style="color:#9ab6ff">+${st.fcr}%</b>` : ''}${st.penetration ? ` <span class="k">Pierce</span> <b style="color:#c58">-${Math.round(st.penetration * 100)}%</b>` : ''}</div>
+        <div><span class="k">Gold</span> <b style="color:var(--gold)">${r.gold}</b> <span class="k">Shards</span> <b style="color:#d98b3a">${r.shards}</b> <span class="k">Potions</span> <b>🩹${r.potions.life} 🔷${r.potions.mana}</b></div>
+      </div>
+      <div class="char-attrs"><div class="attr-h">Attributes ${r.attrPoints > 0 ? `<span class="pts">${r.attrPoints} pts</span>` : ''}</div>${attrRow}</div>
+    </div>
+    <div class="prep-actions">
+      <button class="act ghost" id="openInv">🎒 STASH & GEAR</button>
+      <button class="act ghost" id="openTree">⚔ SKILLS${r.skillPoints ? ' ·' + r.skillPoints : ''}</button>
+      ${r.canRespec ? '<button class="act ghost small" id="respec">↺ RESPEC</button>' : ''}
+      <button class="act ghost small" id="openStats">📊 STATS</button>
+      <button class="act" id="descend">DESCEND ▸</button>
+    </div>
   </div>`;
   logEl.innerHTML = '';
-  board.querySelectorAll('.pill[data-class]').forEach((b) => b.addEventListener('click', () => newRun(difficulty, b.dataset.class)));
-  board.querySelectorAll('.pill[data-diff]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) newRun(b.dataset.diff, classId); }));
+  if (fresh) {
+    board.querySelectorAll('.pill[data-class]').forEach((b) => b.addEventListener('click', () => newRun(difficulty, b.dataset.class)));
+    board.querySelectorAll('.pill[data-diff]').forEach((b) => b.addEventListener('click', () => { if (!b.disabled) newRun(b.dataset.diff, classId); }));
+  }
+  board.querySelectorAll('[data-attr]').forEach((b) => b.addEventListener('click', () => { game.investAttr(b.dataset.attr); expose(); renderTown(game.getRun()); }));
   document.getElementById('openInv').addEventListener('click', () => { invOpen = true; renderOverlay(); });
+  document.getElementById('openTree').addEventListener('click', () => { treeOpen = true; renderOverlay(); });
   document.getElementById('openStats').addEventListener('click', () => renderStats());
-  document.getElementById('descend').addEventListener('click', () => { game.beginDescent(); render(); });
+  const rb = document.getElementById('respec'); if (rb) rb.addEventListener('click', () => { game.respec(); expose(); renderTown(game.getRun()); });
+  document.getElementById('descend').addEventListener('click', () => { const res = game.descend(); if (res.ok) render(); });
 }
 
 // ---- Stats screen (reads the telemetry aggregates; export shares them with the dev) ----
@@ -187,14 +209,13 @@ function arenaFrame(now) {
   const input = window.__autopilot ? combat.autoInput() : inputVector();
   const cap = window.__timescale ? 400 : 6;
   let guard = 0; while (tacc >= DT && guard < cap) { combat.tick(input); tacc -= DT; guard++; if (combat.getState().over) break; }
-  const sync = game.syncArena(); // fold earned XP -> levels, collected drops -> gear/bag, area clears -> quest rewards
+  const s = combat.getState();   // capture BEFORE syncArena — it may resolve the segment and null combat
+  const sync = game.syncArena(); // fold earned XP -> levels, collected drops -> bag, quest clear -> town
   if (sync.loot && sync.loot.length) { const it = sync.loot[sync.loot.length - 1]; lootToast = { name: it.name, color: it.color || '#c8a24a', t: 1.6 }; tel('loot', { name: it.name }); }
   if (sync.leveled) { levelToast = { t: 1.4, lvl: game.getRun().level }; tel('level', { level: game.getRun().level }); } // banks points, no pause
-  const s = combat.getState();
-  if (sync.cleared && s.area) { const a = ACT1[Math.max(0, s.area.idx - 1)] || {}; questToast = { t: 3, text: a.quest ? 'QUEST COMPLETE — ' + a.quest : 'AREA CLEARED', reward: '+2 skill points · restored' }; tel('area_clear', { area: a.name }); }
   drawArena(s); updateHUD(s, dt);
-  window.__bloodrune.state = s; window.__bloodrune.phase = 'arena'; window.__bloodrune.run = game.getRun();
-  if (s.over) { endArena(s); return; }
+  window.__bloodrune.state = s; window.__bloodrune.phase = game.getRun().phase; window.__bloodrune.run = game.getRun();
+  if (s.over || game.getRun().phase !== 'arena') { endArena(s); return; } // died, fled, or cleared the quest -> leave the field
   raf = requestAnimationFrame(arenaFrame);
 }
 
@@ -300,6 +321,8 @@ function recordCombatEnd(s) { if (!s || !s.over || s === lastRecorded) return; l
   const movePct = (ty.moveT + ty.idleT) > 0 ? Math.round(ty.moveT / (ty.moveT + ty.idleT) * 100) : 0;
   tel('combat', { result: s.result, secs: Math.round(s.time || 0), level: game.getRun().level, movePct, moveDist: Math.round(ty.moveDist || 0), tally: ty }); }
 function afterTerminal() { const p = game.getRun().phase; if (!countedTerminal && (p === 'dead' || p === 'victory')) { countedTerminal = true; const m = meta(); if (p === 'dead') m.deaths++; if (p === 'victory') { m.wins++; const ni = DIFFS.indexOf(game.getRun().difficulty) + 1; if (DIFFS[ni] && !m.unlocked.includes(DIFFS[ni])) m.unlocked.push(DIFFS[ni]); } saveMeta(m);
+    // Persist the stash: on victory you keep the final quest's unbanked spoils too; on death only what was already banked survives.
+    try { if (p === 'victory') localStorage.setItem(STASH_KEY, JSON.stringify(game.getStash().concat(game.getRun().bag).slice(-40))); else saveStash(); } catch {}
     const run = game.getRun(); const secs = Math.round((lastArena && lastArena.time) || 0);
     const area = (lastArena && lastArena.area) ? lastArena.area.idx + 1 : (p === 'victory' ? 8 : 1); const areaName = (lastArena && lastArena.area) ? lastArena.area.name : (p === 'victory' ? 'Catacombs' : '?');
     const bc = telClass(classId); bc.maxLevel = Math.max(bc.maxLevel, run.level); bc.deepestStep = Math.max(bc.deepestStep, secs); bc.bestArea = Math.max(bc.bestArea || 0, area);
@@ -335,18 +358,52 @@ function renderTree() {
   ov.querySelectorAll('[data-inv]').forEach((b) => b.addEventListener('click', () => { game.investSkill(b.dataset.inv); expose(); renderTree(); }));
 }
 
+let socketTargetId = null; // when set, the bag shows a rune-picker for this item
+function cmpTag(it) { if (!it || it.isRune || it.slot === 'weapon') return ''; const c = game.compareItem(it); if (!c) return '';
+  if (!c.wearable) return ' <span class="cmp locked">✗ req</span>'; if (c.isUpgrade) return ` <span class="cmp up">▲ +${c.delta}</span>`; return ' <span class="cmp dn">▽</span>'; }
+function itemCard(it, where) {
+  const isRune = it.isRune; const inField = game.getRun().phase === 'arena';
+  const sockInfo = it.sockets ? ` <span class="bi-sock">◈${(it.socketRunes || []).length}/${it.sockets}</span>` : '';
+  let btns = '';
+  if (socketTargetId && isRune) { btns = `<button class="act ghost small" data-put="${it.id}">◈ SOCKET THIS</button>`; }
+  else if (where === 'bag') {
+    if (!isRune) btns += `<button class="act ghost small" data-equip="${it.id}" ${inField ? 'disabled' : ''}>EQUIP</button>`;
+    if (it.sockets && (it.socketRunes || []).length < it.sockets) btns += `<button class="act ghost small" data-socket="${it.id}" ${inField ? 'disabled' : ''}>◈ SOCKET</button>`;
+    if (it.rarity === 'magic' || it.rarity === 'rare') btns += `<button class="act ghost small" data-reroll="${it.id}" ${inField || r0().shards < 6 ? 'disabled' : ''}>⟳ ${'6◈'}</button>`;
+    btns += `<button class="act ghost small" data-bank="${it.id}" ${inField ? 'disabled' : ''}>BANK</button>`;
+    btns += `<button class="act ghost small" data-salvage="${it.id}" ${inField ? 'disabled' : ''}>SALVAGE</button>`;
+  } else if (where === 'stash') {
+    if (!isRune) btns += `<button class="act ghost small" data-eqstash="${it.id}" ${inField ? 'disabled' : ''}>EQUIP</button>`;
+  }
+  return `<div class="bag-item${isRune ? ' rune' : ''}" style="${it.color ? `border-color:${it.color}` : ''}"><div class="bi-name" style="${it.color ? `color:${it.color}` : ''}">${it.name}${sockInfo}${where === 'bag' ? cmpTag(it) : ''}</div><div class="bi-slot">${isRune ? 'Rune' : (SLOT_LABEL[it.slot] || it.slot)}${it.grants && it.grants.skill ? ' · grants a skill' : ''}${it.itemTier && it.itemTier !== 'Normal' ? ' · ' + it.itemTier : ''}</div><div class="bi-text">${it.text || ''}</div><div class="bi-btns">${btns}</div></div>`;
+}
+function r0() { return game.getRun(); }
 function renderInventory() {
   const r = game.getRun(); const st = r.stats;
-  const cells = SLOTS.map((slot) => { const it = r.equipment[slot]; return `<div class="slot ${it ? 'filled' : ''}" data-slot="${slot}"><div class="slot-k">${SLOT_LABEL[slot]}</div><div class="slot-v" style="${it && it.color ? `color:${it.color}` : ''}">${it ? it.name : '<span class="empty">— empty —</span>'}</div>${it ? `<div class="slot-t">${it.text || ''}</div>${slot !== 'weapon' ? '<div class="slot-x">tap to unequip</div>' : ''}` : ''}</div>`; }).join('');
-  const bag = r.bag.length ? r.bag.map((it) => `<div class="bag-item" style="${it.color ? `border-color:${it.color}` : ''}"><div class="bi-name" style="${it.color ? `color:${it.color}` : ''}">${it.name}</div><div class="bi-slot">${SLOT_LABEL[it.slot] || it.slot}${it.grants && it.grants.skill ? ' · grants a skill' : ''}</div><div class="bi-text">${it.text || ''}</div><div class="bi-btns"><button class="act ghost small" data-equip="${it.id}">EQUIP</button><button class="act ghost small" data-drop="${it.id}">DROP</button></div></div>`).join('') : '<div class="bag-empty">Your bag is empty.</div>';
+  const cells = SLOTS.map((slot) => { const it = r.equipment[slot]; const inField = r.phase === 'arena';
+    return `<div class="slot ${it ? 'filled' : ''}" ${it && slot !== 'weapon' && !inField ? `data-slot="${slot}"` : ''}><div class="slot-k">${SLOT_LABEL[slot]}</div><div class="slot-v" style="${it && it.color ? `color:${it.color}` : ''}">${it ? it.name : '<span class="empty">— empty —</span>'}</div>${it ? `<div class="slot-t">${it.text || ''}</div>${slot !== 'weapon' && !inField ? '<div class="slot-x">tap to unequip</div>' : ''}` : ''}</div>`; }).join('');
+  const bag = r.bag.length ? r.bag.map((it) => itemCard(it, 'bag')).join('') : '<div class="bag-empty">Your bag is empty.</div>';
+  const stash = r.stash.length ? r.stash.map((it) => itemCard(it, 'stash')).join('') : '<div class="bag-empty">Stash empty — bank finds in town to keep them.</div>';
+  const sockNote = socketTargetId ? '<div class="sock-note">Pick a rune to socket (◈), or ✕ to cancel.</div>' : '';
   ov.className = 'overlay inv';
-  ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">🎒 Inventory</div><button class="inv-close" id="cx">✕</button></div>
-    <div class="inv-stats"><span><span class="k">Life</span> <b class="life">${r.life}/${st.maxLife}</b></span><span><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></span><span><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></span>${st.fcr ? `<span><span class="k">Cast Spd</span> <b style="color:#9ab6ff">+${st.fcr}%</b></span>` : ''}${st.ias ? `<span><span class="k">Atk Spd</span> <b style="color:#e79a9a">+${st.ias}%</b></span>` : ''}<span><span class="k">Gold</span> <b style="color:var(--gold)">${r.gold}</b></span></div>
-    <div class="inv-cols"><div class="paperdoll">${cells}</div><div class="bag"><div class="bag-head">Bag (${r.bag.length}/${r.bagCap})</div><div class="bag-list">${bag}</div></div></div></div>`;
-  document.getElementById('cx').addEventListener('click', () => { invOpen = false; render(); if (arenaActive) resumeArena(); });
-  ov.querySelectorAll('.slot.filled').forEach((el) => el.addEventListener('click', () => { game.unequip(el.dataset.slot); expose(); renderInventory(); }));
-  ov.querySelectorAll('[data-equip]').forEach((el) => el.addEventListener('click', () => { game.equipFromBag(el.dataset.equip); expose(); renderInventory(); }));
-  ov.querySelectorAll('[data-drop]').forEach((el) => el.addEventListener('click', () => { game.dropFromBag(el.dataset.drop); expose(); renderInventory(); }));
+  ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">🎒 Stash & Gear</div><button class="inv-close" id="cx">✕</button></div>
+    <div class="inv-stats"><span><span class="k">Life</span> <b class="life">${Math.round(r.life)}/${st.maxLife}</b></span><span><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></span><span><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></span>${st.fcr ? `<span><span class="k">FCR</span> <b style="color:#9ab6ff">+${st.fcr}%</b></span>` : ''}${st.penetration ? `<span><span class="k">Pierce</span> <b style="color:#c58">-${Math.round(st.penetration * 100)}%</b></span>` : ''}<span><span class="k">Gold</span> <b style="color:var(--gold)">${r.gold}</b></span><span><span class="k">Shards</span> <b style="color:#d98b3a">${r.shards}</b></span></div>
+    ${sockNote}
+    <div class="inv-cols"><div class="paperdoll">${cells}</div>
+      <div class="bag"><div class="bag-head">Bag (${r.bag.length}/${r.bagCap})${r.bag.length && r.phase !== 'arena' ? ' <button class="act ghost xs" id="bankAll">BANK ALL</button>' : ''}</div><div class="bag-list">${bag}</div>
+        <div class="bag-head" style="margin-top:10px">Stash (${r.stash.length}/${r.stashCap})</div><div class="bag-list">${stash}</div></div></div></div>`;
+  const close = () => { invOpen = false; socketTargetId = null; render(); if (arenaActive) resumeArena(); };
+  document.getElementById('cx').addEventListener('click', close);
+  const refresh = () => { expose(); saveStash(); renderInventory(); };
+  ov.querySelectorAll('.slot[data-slot]').forEach((el) => el.addEventListener('click', () => { game.unequip(el.dataset.slot); refresh(); }));
+  ov.querySelectorAll('[data-equip]').forEach((el) => el.addEventListener('click', () => { game.equipFromBag(el.dataset.equip); refresh(); }));
+  ov.querySelectorAll('[data-eqstash]').forEach((el) => el.addEventListener('click', () => { game.equipFromStash(el.dataset.eqstash); refresh(); }));
+  ov.querySelectorAll('[data-bank]').forEach((el) => el.addEventListener('click', () => { game.bank(el.dataset.bank); refresh(); }));
+  ov.querySelectorAll('[data-salvage]').forEach((el) => el.addEventListener('click', () => { game.salvage(el.dataset.salvage); refresh(); }));
+  ov.querySelectorAll('[data-reroll]').forEach((el) => el.addEventListener('click', () => { game.reroll(el.dataset.reroll); refresh(); }));
+  ov.querySelectorAll('[data-socket]').forEach((el) => el.addEventListener('click', () => { socketTargetId = el.dataset.socket; renderInventory(); }));
+  ov.querySelectorAll('[data-put]').forEach((el) => el.addEventListener('click', () => { game.socketRune(socketTargetId, el.dataset.put); socketTargetId = null; refresh(); }));
+  const ba = document.getElementById('bankAll'); if (ba) ba.addEventListener('click', () => { game.bankAll(); refresh(); });
 }
 
 newRun('Normal', 'barbarian');
