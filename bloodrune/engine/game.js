@@ -51,7 +51,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   run.life = statsNow().maxLife;
   run.mana = statsNow().maxMana;
   const POTION_CAP = 6, BAG_CAP = 12, POTION_PRICE = 12;
-  const itemValue = (it) => it.grants ? 12 : ({ normal: 3, magic: 8, rare: 18 }[it.rarity] || 4);
+  const itemValue = (it) => it.grants ? 12 : ({ common: 2, magic: 8, rare: 20, unique: 60 }[it.rarity] || 3);
   let combat = null, lastXp = 0;
 
   function emptyEquipment() { const e = {}; for (const s of SLOTS) e[s] = null; return e; }
@@ -133,7 +133,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function rollGroundItem(mf) {
     if (rng.next() < 0.06) { const wt = (run.equipment.weapon && run.equipment.weapon.wtype) || 'melee';
       const w = { ...ITEMS[WEAP_BY_TYPE[wt] || rng.pick(WEAPON_DROPS)] }; return { ...w, id: w.id + '_' + Math.floor(rng.next() * 1e6) }; }
-    return rollItem(rng, { magicFind: 4 + mf * 6 });
+    return rollItem(rng, { tier: run.difficulty, magicFind: 4 + mf * 6 });
   }
 
   // Push live progression (level-ups, gear) into the in-flight survival hero.

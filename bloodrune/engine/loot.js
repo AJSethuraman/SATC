@@ -1,13 +1,21 @@
-// Seeded loot generation: roll a random item (base + rarity + affixes). Rarity
-// is weighted, biased upward by Magic Find. Affixes roll from the prefix/suffix
-// pools and stack additively into the item's `passive` mods — the same stat keys
-// gear already uses, so generated items drop straight into the equip system.
+// Seeded loot generation — the S3 rework. An item is base + rarity + tier +
+// affixes. Rarity (common/magic/rare/unique) widens the affix space; the drop
+// TIER (Normal/Nightmare/Hell) multiplies affix magnitudes, so a Normal item can
+// NEVER rival a Nightmare one, nor Nightmare a Hell one. Affixes carry build
+// `tags` — most rolls are off-build sidegrades, so only a slice are real upgrades
+// for any ONE build (that's what `itemScore`/`isUpgradeFor` measure against a
+// class profile). Uniques are fixed items pulled from a minTier-gated table.
 // Pure + deterministic given the injected rng.
 
-import { BASES, PREFIXES, SUFFIXES, RARITY, SLOTS } from './content.js';
+import { BASES, RARITY, AFFIXES, TIER_MULT, ITEM_TIERS, UNIQUES, CLASS_PROFILE, SLOTS } from './content.js';
 
-// weapons are skill-granters (not random-rolled); exclude them + the 2nd ring.
+// armor/jewelry slots only (weapons are separate skill-granters; ring2 shares 'ring').
 const REAL_SLOTS = SLOTS.filter((s) => s !== 'ring2' && s !== 'weapon').map((s) => (s === 'ring1' ? 'ring' : s));
+const TIER_INDEX = Object.fromEntries(ITEM_TIERS.map((t, i) => [t, i]));
+
+// flavor names for rares (D2-style two-word titles)
+const RARE_PRE = ['Bramble', 'Gale', 'Corpse', 'Dread', 'Storm', 'Vortex', 'Doom', 'Grim', 'Hailstone', 'Ember', 'Rune', 'Venom', 'Blight', 'Soul', 'Wraith', 'Shadow'];
+const RARE_SUF = ['Song', 'Bite', 'Shard', 'Coil', 'Ward', 'Whisper', 'Grasp', 'Sunder', 'Veil', 'Root', 'Fang', 'Sigil'];
 
 function sumMods(a, b) {
   const out = { ...a };
@@ -16,12 +24,13 @@ function sumMods(a, b) {
 }
 
 function rollRarity(rng, magicFind) {
-  // Magic Find shifts weight off 'normal' toward 'magic'/'rare'.
+  // Magic Find shifts weight off 'common' toward the better tiers.
   const mf = Math.max(0, magicFind || 0);
   const weights = RARITY.map((r) => {
-    if (r.rarity === 'normal') return Math.max(1, r.weight - mf);
-    if (r.rarity === 'magic') return r.weight + mf * 0.6;
-    return r.weight + mf * 0.4; // rare
+    if (r.rarity === 'common') return Math.max(1, r.weight - mf);
+    if (r.rarity === 'magic') return r.weight + mf * 0.5;
+    if (r.rarity === 'rare') return r.weight + mf * 0.4;
+    return r.weight + mf * 0.15; // unique
   });
   const total = weights.reduce((a, b) => a + b, 0);
   let roll = rng.next() * total;
@@ -31,50 +40,128 @@ function rollRarity(rng, magicFind) {
   return RARITY[0];
 }
 
-function modText(mod) {
+// Roll ONE affix stat value at a given tier. plusSkills is the premium stat — it
+// does NOT multiply by tier magnitude (that would mint +4-skill gloves); instead
+// higher tiers add a flat +1 (Normal +1, NM +2, Hell +3). penetration stays a
+// fraction (never rounded to an int). Everything else scales by TIER_MULT.
+function rollStat(rng, key, range, tier) {
+  const base = range[0] + rng.next() * (range[1] - range[0]);
+  if (key === 'plusSkills') return Math.round(base) + (TIER_INDEX[tier] || 0);
+  if (key === 'penetration') return Math.round(base * (TIER_MULT[tier] || 1) * 1000) / 1000;
+  return Math.max(1, Math.round(base * (TIER_MULT[tier] || 1)));
+}
+
+// Pick `count` DISTINCT affixes from the pool (no dup ids on one item).
+function pickAffixes(rng, count) {
+  const pool = AFFIXES.slice();
+  const out = [];
+  for (let i = 0; i < count && pool.length; i++) {
+    const idx = Math.floor(rng.next() * pool.length);
+    out.push(pool.splice(idx, 1)[0]);
+  }
+  return out;
+}
+
+const KEY_TEXT = {
+  maxLife: (v) => `+${v} Life`, maxMana: (v) => `+${v} Mana`, manaRegen: (v) => `+${v} Mana Regen`,
+  plusSkills: (v) => `+${v} to Skills`, fcr: (v) => `+${v}% Faster Cast Rate`, ias: (v) => `+${v}% Attack Speed`,
+  penetration: (v) => `-${Math.round(v * 100)}% to Enemy Resist`, accuracy: (v) => `+${v} Accuracy`,
+  evade: (v) => `+${v} Evade`, startBlock: (v) => `+${v} Block`, energy: (v) => `+${v} Energy`,
+  str: (v) => `+${v} Strength`, dex: (v) => `+${v} Dexterity`, vit: (v) => `+${v} Vitality`,
+};
+function modText(mods) {
   const parts = [];
-  if (mod.maxLife) parts.push(`+${mod.maxLife} Life`);
-  if (mod.maxMana) parts.push(`+${mod.maxMana} Mana`);
-  if (mod.accuracy) parts.push(`+${mod.accuracy} Accuracy`);
-  if (mod.evade) parts.push(`+${mod.evade} Evade`);
-  if (mod.plusSkills) parts.push(`+${mod.plusSkills} to Skills`);
-  if (mod.startBlock) parts.push(`+${mod.startBlock} Block/turn`);
+  for (const [k, v] of Object.entries(mods)) { if (KEY_TEXT[k] && v) parts.push(KEY_TEXT[k](v)); }
   return parts.join(', ');
 }
 
 let counter = 0; // uniquifies generated item ids within a session
 
-// Generate one random item. itemLevel gently scales nothing yet (hook for later
-// gating); magicFind biases rarity.
-export function rollItem(rng, { magicFind = 0, slot = null } = {}) {
+// Pull a fixed unique for a slot at a tier (minTier-gated). Returns null if none
+// eligible (caller downgrades to rare).
+function pickUnique(rng, slot, tier) {
+  const ti = TIER_INDEX[tier] || 0;
+  const pool = UNIQUES.filter((u) => (!slot || u.slot === slot) && ti >= (TIER_INDEX[u.minTier] || 0));
+  if (!pool.length) return null;
+  return pool[Math.floor(rng.next() * pool.length)];
+}
+
+// Generate one random item. `tier` gates affix magnitude (and which uniques can
+// appear); `magicFind` biases rarity upward; `slot` forces a slot; `allowUnique`
+// lets callers suppress uniques (e.g. guaranteed non-unique drops).
+export function rollItem(rng, { tier = 'Normal', magicFind = 0, slot = null, allowUnique = true } = {}) {
+  const useTier = TIER_MULT[tier] ? tier : 'Normal';
   const useSlot = slot || rng.pick(REAL_SLOTS);
+  let rarity = rollRarity(rng, magicFind);
+
+  // ---- unique: a fixed item from the table ----
+  if (rarity.rarity === 'unique' && allowUnique) {
+    const u = pickUnique(rng, useSlot, useTier);
+    if (u) {
+      return {
+        id: `${u.id}_${counter++}`, uid: u.id, name: u.name, slot: u.slot, rarity: 'unique',
+        itemTier: useTier, color: rarity.color, unique: true, enabler: !!u.enabler,
+        passive: { ...u.passive }, affixes: [], tags: ['unique'], text: u.text,
+      };
+    }
+    rarity = RARITY.find((r) => r.rarity === 'rare'); // no eligible unique -> rare
+  }
+
+  // ---- common/magic/rare: rolled affixes ----
   const baseDef = rng.pick(BASES[useSlot]);
-  const rarity = rollRarity(rng, magicFind);
+  const affixCount = rarity.affixes === 0 ? 0
+    : rarity.affixes + Math.floor(rng.next() * (rarity.affixMax - rarity.affixes + 1));
+  const chosen = pickAffixes(rng, affixCount);
 
   let mods = {};
-  const affixNames = { prefix: null, suffix: null };
-  if (rarity.affixes >= 1) {
-    const p = rng.pick(PREFIXES); mods = sumMods(mods, p.mod); affixNames.prefix = p.name;
-  }
-  if (rarity.affixes >= 2) {
-    const s = rng.pick(SUFFIXES); mods = sumMods(mods, s.mod); affixNames.suffix = s.name;
-  }
-  // rare items roll extra affixes (stack more of the same pools)
-  for (let i = 2; i < rarity.affixes; i++) {
-    const pool = rng.next() < 0.5 ? PREFIXES : SUFFIXES;
-    mods = sumMods(mods, rng.pick(pool).mod);
+  const affixNames = [];
+  const tagSet = new Set();
+  for (const af of chosen) {
+    let rolled = {};
+    for (const [key, range] of Object.entries(af.mod)) rolled[key] = rollStat(rng, key, range, useTier);
+    mods = sumMods(mods, rolled);
+    affixNames.push({ name: af.name, pos: af.pos });
+    (af.tags || []).forEach((t) => tagSet.add(t));
   }
 
-  const name = [affixNames.prefix, baseDef.base, affixNames.suffix].filter(Boolean).join(' ');
-  const item = {
-    id: `gen_${useSlot}_${counter++}`,
-    name,
-    slot: useSlot,
-    rarity: rarity.rarity,
-    color: rarity.color,
-    passive: mods,
-    text: rarity.affixes === 0 ? '(plain)' : modText(mods) || '(plain)',
+  // name: magic uses prefix/suffix; rare gets a flavor title; common is plain.
+  let name;
+  if (rarity.rarity === 'common' || affixNames.length === 0) {
+    name = baseDef.base;
+  } else if (rarity.rarity === 'magic') {
+    const pre = affixNames.find((a) => a.pos === 'prefix');
+    const suf = affixNames.find((a) => a.pos === 'suffix');
+    name = [pre && pre.name, baseDef.base, suf && suf.name].filter(Boolean).join(' ');
+  } else {
+    name = `${rng.pick(RARE_PRE)} ${rng.pick(RARE_SUF)} ${baseDef.base}`;
+  }
+
+  return {
+    id: `gen_${useSlot}_${counter++}`, name, slot: useSlot, rarity: rarity.rarity,
+    itemTier: useTier, color: rarity.color, passive: mods,
+    affixes: affixNames.map((a) => a.name), tags: [...tagSet],
+    text: affixNames.length ? (modText(mods) || '(plain)') : '(plain)',
   };
-  if (baseDef.card) item.grants = { cards: [baseDef.card] };
-  return item;
+}
+
+// ---- build-fit scoring -----------------------------------------------------
+// How much an item is WORTH to a build: sum of its stat mods weighted by the
+// class profile. Off-build stats (ias/accuracy for a caster) weigh ~0, so most
+// random drops score low for any one build. `profile` is a CLASS_PROFILE entry
+// or a class id string.
+export function itemScore(item, profile) {
+  if (!item) return 0;
+  const w = typeof profile === 'string' ? CLASS_PROFILE[profile] : profile;
+  if (!w) return 0;
+  let score = 0;
+  const mods = item.passive || {};
+  for (const [k, v] of Object.entries(mods)) score += (w[k] || 0) * v;
+  return Math.round(score * 100) / 100;
+}
+
+// Is `item` a strict build-upgrade over what's `equipped` in its slot for this
+// profile? An empty slot scores 0, so any positive-value item fills it.
+export function isUpgradeFor(item, equipped, profile) {
+  if (!item) return false;
+  return itemScore(item, profile) > itemScore(equipped, profile);
 }
