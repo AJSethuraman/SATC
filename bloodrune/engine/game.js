@@ -18,7 +18,8 @@ const xpForLevel = (lvl) => 12 + lvl * 10; // brisk but not runaway — you land
 export function deriveStats(cls, equipment, level, bonus = {}) {
   const stats = { maxLife: cls.maxLife + (level - 1) * 5, maxMana: cls.maxMana + (level - 1),
     manaRegen: (cls.manaRegen || 4) + Math.floor((level - 1) / 4), startBlock: cls.startBlock || 0,
-    accuracy: (cls.acc || 6) + (level - 1), evade: cls.eva || 0, actions: cls.actions || 3, plusSkills: 0 };
+    accuracy: (cls.acc || 6) + (level - 1), evade: cls.eva || 0, actions: cls.actions || 3, plusSkills: 0,
+    fcr: 0, ias: 0 }; // Faster Cast Rate (spells) / Increased Attack Speed (physical) — from gear
   const add = (m) => { for (const [k, v] of Object.entries(m)) stats[k] = (stats[k] || 0) + v; };
   for (const s of SLOTS) { const it = equipment[s]; if (it && it.passive) add(it.passive); }
   add(bonus);
@@ -56,7 +57,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function weaponNow() { const w = run.equipment.weapon; return w ? { dmg: w.dmg, wtype: w.wtype } : null; }
   function heroForFight() { const s = statsNow(); return { name: cls.name, glyph: cls.glyph, maxLife: s.maxLife, life: run.life,
     maxMana: s.maxMana, mana: Math.min(run.mana, s.maxMana), manaRegen: s.manaRegen, startBlock: s.startBlock, plusSkills: s.plusSkills,
-    accuracy: s.accuracy, evade: s.evade, actions: s.actions, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
+    accuracy: s.accuracy, evade: s.evade, actions: s.actions, fcr: s.fcr, ias: s.ias, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
 
   // ---- gear ----
   function slotFor(it) { if (it.slot === 'ring') return run.equipment.ring1 ? (run.equipment.ring2 ? 'ring1' : 'ring2') : 'ring1'; return it.slot; }
@@ -135,7 +136,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   // Push live progression (level-ups, gear) into the in-flight survival hero.
   function pushHeroStats() { if (!combat) return; const s = statsNow();
     combat.setHero({ maxLife: s.maxLife, maxMana: s.maxMana, accuracy: s.accuracy, evade: s.evade,
-      manaRegen: s.manaRegen, plusSkills: s.plusSkills, hard: { ...run.skillHard }, weapon: weaponNow(), abilities: abilitiesNow() }); }
+      manaRegen: s.manaRegen, plusSkills: s.plusSkills, fcr: s.fcr, ias: s.ias, hard: { ...run.skillHard }, weapon: weaponNow(), abilities: abilitiesNow() }); }
 
   // Called each frame by the UI while surviving: fold the engine's earned XP into
   // levels/points, and its collected drops into the bag (auto-equipping upgrades).

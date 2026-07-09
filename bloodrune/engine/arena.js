@@ -25,7 +25,7 @@ const HERO_SPEED = 158, HERO_R = 13;
 const INVULN = 0.34;
 const MELEE_REACH = 42;
 const PROJ_SPEED = 210, HOSTILE_PROJ_SPEED = 190;
-const CAP_ALIVE = 68;                        // survival: max live foes (perf + fairness)
+const CAP_ALIVE = 82;                        // survival: max live foes (perf + fairness)
 const CORPSE_TTL = 5;                         // survival: how long a corpse lingers (rez window + cleanup)
 
 const CD = { attack: 0.55, damage: 0.95, hits: 0.9, aoe: 1.25, breakthrough: 1.6, block: 4, summon: 2.6 };
@@ -36,8 +36,8 @@ const ROLE_DEF = {
   caster:   { spd: 52, r: 14, support: 2.1, range: 205 },
   elite:    { spd: 46, r: 23, touch: 1.1 },
 };
-const SPD = { fallen: 74, zombie: 46, guardian: 62, goatman: 84, shaman: 52, archer: 66, the_smith: 46,
-  rakanishu: 84, corpsefire: 56, blood_raven: 72, bishibosh: 54 };
+const SPD = { quill_rat: 92, fallen: 82, zombie: 52, guardian: 66, goatman: 92, shaman: 56, archer: 70, the_smith: 48,
+  rakanishu: 90, corpsefire: 60, blood_raven: 76, bishibosh: 58 };
 const RAD = { the_smith: 23 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -78,13 +78,13 @@ export function createArena({ hero, pack, rng, survival }) {
       mana: hero.mana != null ? Math.min(hero.mana, hero.maxMana) : hero.maxMana, maxMana: hero.maxMana,
       manaRegen: hero.manaRegen != null ? hero.manaRegen : 4,
       accuracy: hero.accuracy, evade: hero.evade || 0, weapon: hero.weapon || null,
-      plusSkills: hero.plusSkills || 0, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
+      plusSkills: hero.plusSkills || 0, fcr: hero.fcr || 0, ias: hero.ias || 0, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
       shield: 0, shieldT: 0, invT: 0, dir: { x: 0, y: -1 }, cd: {}, disabled: new Set() },
     enemies: [], projectiles: [], minions: [], gems: [], fx: [], pickups: [], collected: [],
     time: 0, xpEarned: 0, over: false, result: null, nextUid: 0,
     spawnTimer: surv ? 0.6 : 0,
     areaIdx: 0, areaT: 0, gate: null, gateSpawned: false, areaCleared: 0, banner: 0, // Act 1 gauntlet state
-    tally: { hits: 0, misses: 0, evades: 0, kills: 0, dmgDealt: 0, dmgTaken: 0 },
+    tally: { hits: 0, misses: 0, evades: 0, kills: 0, dmgDealt: 0, dmgTaken: 0, moveDist: 0, idleT: 0, moveT: 0 }, // moveDist/idleT/moveT: is the player actually MOVING?
   };
   const areas = (surv && surv.areas) || [];
 
@@ -110,7 +110,7 @@ export function createArena({ hero, pack, rng, survival }) {
     if (!e.raised) { state.xpEarned += e.xp || 0; state.gems.push({ x: e.x, y: e.y, xp: e.xp || 0, life: 8, t: 0.15 }); }
     // Monsters drop random loot for the hero to grab off the ground (survival only).
     if (surv && surv.rollLoot && !e.raised) {
-      const chance = e.boss ? 1 : e.unique ? 1 : e.elite ? 0.5 : (0.04 + (e.drop || 0)); // thinned: trash rarely drops, so a drop MEANS something
+      const chance = e.boss ? 1 : e.unique ? 1 : e.elite ? 0.5 : (0.06 + (e.drop || 0)); // trimmed from the spammy 0.10 — a drop should mean something, but early game still trickles
       if (rng.next() < chance) { const it = surv.rollLoot(e.boss ? 3 : e.unique ? 2 : e.elite ? 1 : 0);
         if (it) state.pickups.push({ x: e.x, y: e.y, r: 11, item: it }); }
     }
@@ -144,16 +144,18 @@ export function createArena({ hero, pack, rng, survival }) {
       const s = SKILLS[id]; if (!s || s.type === 'passive') continue; // passives (Warmth/Masteries) don't fire
       const physical = s.weapon !== 'spell';
       const eff = skillEffect(ctx, id);
+      // Faster Cast Rate (spells) / Increased Attack Speed (physical) shrink cooldowns — late-game gear lets you SPAM your main skill.
+      const cdMul = 1 / (1 + Math.min(220, (physical ? h.ias : h.fcr) || 0) / 100);
       if (s.scale === 'nova') { // a burst around you that hits every foe in radius (Nova / Frost Nova / Meteor…)
         const R = s.radius || 140; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= R + e.r);
-        if (!pool.length) continue; if (s.cost > h.mana) continue; h.mana -= s.cost; h.cd[id] = CD.aoe;
+        if (!pool.length) continue; if (s.cost > h.mana) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
         fx({ type: 'cast', x: h.x, y: h.y, r: R, life: 0.35, color: '#8a90c8' });
         for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), false);
         continue; }
       if (s.type === 'skill') {
         if (h.shield > (eff.block || 0) * 0.5) continue;
         if (s.cost > h.mana) continue; const near = nearest(h.x, h.y); if (!near || near.d > 300) continue;
-        h.mana -= s.cost; h.shield = Math.max(h.shield, eff.block || 0); h.shieldT = 6; h.cd[id] = CD.block;
+        h.mana -= s.cost; h.shield = Math.max(h.shield, eff.block || 0); h.shieldT = 6; h.cd[id] = cdMul * CD.block;
         fx({ type: 'cast', x: h.x, y: h.y, r: 46, life: 0.4, color: '#c8a24a' }); continue; }
       if (s.type === 'summon') { const cap = 3 + (eff.count || 1);
         if (state.minions.length >= cap) continue; if (s.cost > h.mana) continue;
@@ -161,18 +163,18 @@ export function createArena({ hero, pack, rng, survival }) {
           const a = rng.next() * Math.PI * 2; state.minions.push({ x: h.x + Math.cos(a) * 26, y: h.y + Math.sin(a) * 26,
             r: 9, hp: eff.hp, maxHp: eff.hp, min: eff.min, max: eff.max, fireCd: 1.0, fireT: 0.3, solo: !!s.solo,
             glyph: s.solo ? '🗿' : '💀' }); }
-        h.cd[id] = CD.summon; fx({ type: 'cast', x: h.x, y: h.y, r: 30, life: 0.35, color: '#8a90c8' }); continue; }
+        h.cd[id] = cdMul * CD.summon; fx({ type: 'cast', x: h.x, y: h.y, r: 30, life: 0.35, color: '#8a90c8' }); continue; }
       if (s.cost > h.mana) continue;
       const ranged = physical ? s.weapon === 'ranged' : (s.reach || s.target === 'aoe' || s.weapon === 'spell');
       if (s.target === 'aoe' && !ranged) { // melee AoE: a wide arc around you (Cleave / Whirlwind)
         const R = MELEE_REACH + 48; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= R + e.r);
-        if (!pool.length) continue; h.mana -= s.cost; h.cd[id] = CD.aoe;
+        if (!pool.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
         fx({ type: 'sweep', x: h.x, y: h.y, r: R, life: 0.3 });
         for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), physical);
         continue; }
       if (s.target === 'aoe' && ranged) { // ranged AoE volley at the nearest few (Strafe / Teeth)
         const targets = alive().sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y)).slice(0, s.maxTargets || 3);
-        if (!targets.length) continue; h.mana -= s.cost; h.cd[id] = CD.aoe;
+        if (!targets.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
         for (const t of targets) spawnBolt(h, t, roll(eff.min, eff.max), physical, 0, s.weapon === 'spell' ? '🦴' : '➶');
         continue; }
       const tgt = nearest(h.x, h.y); if (!tgt) continue;
@@ -183,12 +185,12 @@ export function createArena({ hero, pack, rng, survival }) {
         h.x = clamp(h.x + dx * step, h.r, world.w - h.r); h.y = clamp(h.y + dy * step, h.r, world.h - h.r);
         fx({ type: 'dash', x: h.x, y: h.y, life: 0.25 });
         if (ranged) spawnBolt(h, tgt.e, roll(eff.min, eff.max), physical, 3, '➶'); else hitEnemy(tgt.e, roll(eff.min, eff.max), physical);
-        h.cd[id] = CD.breakthrough; continue; }
+        h.cd[id] = cdMul * CD.breakthrough; continue; }
       if (s.scale === 'hits') { for (let hh = 0; hh < eff.hits; hh++) { const t = nearest(h.x, h.y); if (!t || t.d > MELEE_REACH + t.e.r + h.r + 6) break; hitEnemy(t.e, roll(eff.min, eff.max), physical); }
-        h.cd[id] = CD.hits; fx({ type: 'sweep', x: h.x, y: h.y, r: MELEE_REACH, life: 0.2 }); continue; }
+        h.cd[id] = cdMul * CD.hits; fx({ type: 'sweep', x: h.x, y: h.y, r: MELEE_REACH, life: 0.2 }); continue; }
       if (ranged) spawnBolt(h, tgt.e, roll(eff.min, eff.max), physical, 0, s.weapon === 'spell' ? '🦴' : '➶');
       else { hitEnemy(tgt.e, roll(eff.min, eff.max), physical); fx({ type: 'sweep', x: h.x, y: h.y, r: MELEE_REACH, life: 0.18 }); }
-      h.cd[id] = id === 'attack' ? CD.attack : CD.damage;
+      h.cd[id] = cdMul * (id === 'attack' ? CD.attack : CD.damage);
     }
   }
 
@@ -277,7 +279,7 @@ export function createArena({ hero, pack, rng, survival }) {
   const curArea = () => areas[state.areaIdx] || areas[areas.length - 1];
   function spawnWave() { // pour in this area's foes from its pool, scaled by overall time
     const area = curArea(); const sc = scaleFor(); const min = state.time / 60;
-    const n = Math.min(11, 2 + Math.floor(min * 1.4));
+    const n = Math.min(14, 3 + Math.floor(min * 1.7)); // denser waves — standing still gets you surrounded
     for (let k = 0; k < n; k++) {
       const entry = { id: rng.pick(area.pool), hpMul: sc.hpMul, atkMul: sc.atkMul };
       if (min >= 2 && rng.next() < 0.10) { entry.affixes = [rng.pick(Object.keys(ELITE_AFFIXES))]; entry.drop = 0.3; }
@@ -316,16 +318,16 @@ export function createArena({ hero, pack, rng, survival }) {
     }
     state.spawnTimer -= dt;
     if (state.spawnTimer <= 0 && alive().length < (state.gateSpawned ? 20 : CAP_ALIVE)) { // once the gate is up, waves thin so you can focus it
-      spawnWave(); state.spawnTimer = (state.gateSpawned ? 3.4 : 1) * Math.max(0.55, 1.9 - (state.time / 60) * 0.13);
+      spawnWave(); state.spawnTimer = (state.gateSpawned ? 3.4 : 1) * Math.max(0.5, 1.5 - (state.time / 60) * 0.12);
     }
     if (state.banner > 0) state.banner -= dt;
     if (state.enemies.length > 90) state.enemies = state.enemies.filter((e) => e.hp > 0 || e.gate || (e.deadAt >= 0 && state.time - e.deadAt < CORPSE_TTL));
   }
 
-  function stepPickups() { // loot magnets toward you, collected on contact -> game drains it
+  function stepPickups() { // loot magnets toward you (generous, survivors-style), collected on contact -> game drains it
     const h = state.hero;
     for (const p of state.pickups) { const dx = h.x - p.x, dy = h.y - p.y, d = len(dx, dy);
-      if (d < 96) { p.x += dx / d * Math.min(d, 220 * DT); p.y += dy / d * Math.min(d, 220 * DT); }
+      if (d < 170) { p.x += dx / d * Math.min(d, 300 * DT); p.y += dy / d * Math.min(d, 300 * DT); }
       if (d <= h.r + p.r + 4) { p.got = true; state.collected.push(p.item); fx({ type: 'cast', x: h.x, y: h.y, r: 18, life: 0.3, color: p.item.color || '#c8a24a' }); } }
     state.pickups = state.pickups.filter((p) => !p.got);
   }
@@ -339,8 +341,10 @@ export function createArena({ hero, pack, rng, survival }) {
     h.mana = Math.min(h.maxMana, h.mana + h.manaRegen * dt);
     for (const id of h.abilities) if (h.cd[id] > 0) h.cd[id] -= dt;
     let mx = input && input.x || 0, my = input && input.y || 0; const ml = Math.hypot(mx, my);
-    if (ml > 0.01) { mx /= ml > 1 ? ml : 1; my /= ml > 1 ? ml : 1; h.dir = { x: mx, y: my };
-      h.x = clamp(h.x + mx * HERO_SPEED * dt, h.r, world.w - h.r); h.y = clamp(h.y + my * HERO_SPEED * dt, h.r, world.h - h.r); }
+    if (ml > 0.05) { const n = ml > 1 ? ml : 1; mx /= n; my /= n; h.dir = { x: mx, y: my };
+      h.x = clamp(h.x + mx * HERO_SPEED * dt * Math.min(1, ml), h.r, world.w - h.r); h.y = clamp(h.y + my * HERO_SPEED * dt * Math.min(1, ml), h.r, world.h - h.r);
+      state.tally.moveT += dt; state.tally.moveDist += HERO_SPEED * Math.min(1, ml) * dt; }
+    else state.tally.idleT += dt; // standing still is tracked — so telemetry shows what actually happened
     if (surv) director(dt);
     fireHeroAbilities();
     stepProjectiles(dt);
@@ -391,6 +395,7 @@ export function createArena({ hero, pack, rng, survival }) {
     if (p.accuracy != null) h.accuracy = p.accuracy;
     if (p.evade != null) h.evade = p.evade;
     if (p.manaRegen != null) h.manaRegen = p.manaRegen;
+    if (p.fcr != null) h.fcr = p.fcr; if (p.ias != null) h.ias = p.ias;
     if (p.plusSkills != null) { h.plusSkills = p.plusSkills; ctx.plusSkills = p.plusSkills; }
     if (p.hard) { h.hard = { ...p.hard }; ctx.hard = h.hard; }
     if (p.weapon !== undefined) { h.weapon = p.weapon; ctx.weapon = p.weapon; }
@@ -411,7 +416,7 @@ export function createArena({ hero, pack, rng, survival }) {
     return {
       hero: { name: h.name, glyph: h.glyph, x: h.x, y: h.y, r: h.r, life: h.life, maxLife: h.maxLife,
         mana: Math.floor(h.mana), maxMana: h.maxMana, manaRegen: h.manaRegen, shield: Math.round(h.shield),
-        accuracy: h.accuracy, evade: h.evade, invuln: h.invT > 0, dir: { ...h.dir }, weapon: h.weapon,
+        accuracy: h.accuracy, evade: h.evade, fcr: h.fcr, ias: h.ias, invuln: h.invT > 0, dir: { ...h.dir }, weapon: h.weapon,
         cd: { ...h.cd }, abilities: h.abilities.map((id) => ({ id, ...SKILLS[id], eff: skillEffect(ctx, id), cd: h.cd[id] || 0, off: h.disabled.has(id), ready: !h.disabled.has(id) && (h.cd[id] || 0) <= 0 && SKILLS[id].cost <= h.mana })) },
       enemies: state.enemies.filter((e) => e.hp > 0).map((e) => ({ uid: e.uid, id: e.id, name: e.name, glyph: e.glyph, x: e.x, y: e.y, r: e.r,
         hp: e.hp, maxHp: e.maxHp, kind: e.kind, role: e.role, elite: e.elite, unique: e.unique, boss: e.boss, gate: e.gate, flash: e.flash, raised: e.raised })),

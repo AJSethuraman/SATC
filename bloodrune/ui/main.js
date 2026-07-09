@@ -24,7 +24,7 @@ function saveMeta(m) { try { localStorage.setItem('bloodrune.meta', JSON.stringi
 // Everything persists in localStorage; view via the Stats screen or export the JSON.
 const TKEY = 'bloodrune.telemetry';
 function blankTel() { return { v: 1, runs: 0, wins: 0, deaths: 0, byClass: {}, skills: {}, nodes: {},
-  potions: { life: 0, mana: 0 }, combat: { fights: 0, fled: 0, hits: 0, misses: 0, evades: 0, kills: 0, dmgDealt: 0, dmgTaken: 0, turns: 0 }, deathLog: [], events: [] }; }
+  potions: { life: 0, mana: 0 }, combat: { fights: 0, fled: 0, hits: 0, misses: 0, evades: 0, kills: 0, dmgDealt: 0, dmgTaken: 0, turns: 0, moveDist: 0, idleT: 0, moveT: 0 }, deathLog: [], events: [] }; }
 let TEL; try { TEL = JSON.parse(localStorage.getItem(TKEY)) || blankTel(); } catch { TEL = blankTel(); }
 function saveTel() { try { if (TEL.events.length > 400) TEL.events = TEL.events.slice(-400); localStorage.setItem(TKEY, JSON.stringify(TEL)); } catch {} }
 function tel(event, data) { TEL.events.push({ t: Date.now(), event, ...(data || {}) }); saveTel(); }
@@ -90,6 +90,7 @@ function renderStats() {
     <div class="sk-sub">Unbiased log of what actually happens — so balance is driven by data, not vibes. Runs: <b>${TEL.runs}</b> · Wins: <b>${TEL.wins}</b> · Deaths: <b>${TEL.deaths}</b></div>
     <table class="stt"><tr><th>Class</th><th>Runs</th><th>W</th><th>D</th><th>Max Lv</th><th>Best Area</th></tr>${classRows || '<tr><td colspan=6>no runs yet</td></tr>'}</table>
     <div class="stblk"><b>Combat</b> — runs ${c.fights} · hit rate ${pct(c.hits, c.hits + c.misses)}% · evades ${c.evades} · kills ${c.kills}<br>dmg dealt ${c.dmgDealt} · dmg taken ${c.dmgTaken} · avg run length ${c.fights ? (c.turns / c.fights).toFixed(0) + 's' : '0s'}</div>
+    <div class="stblk"><b>Movement</b> — moving <b>${pct(c.moveT, c.moveT + c.idleT)}%</b> of the time · idle ${Math.round(c.idleT)}s · traveled ${Math.round(c.moveDist / 100)} screens<br><span style="color:#6f6357">low %? standing still shouldn't work — that's the balance signal</span></div>
     <div class="stblk"><b>Potions used</b> — 🩹 ${TEL.potions.life} · 🔷 ${TEL.potions.mana}</div>
     <div class="stblk"><b>Most-used skills</b><br>${topSkills.map(([k, v]) => `${k} ×${v}`).join(' · ') || '—'}</div>
     <div class="stblk"><b>Recent deaths</b><br>${deaths}</div>
@@ -294,14 +295,17 @@ function updateHUD(s, dt) {
 let lastRecorded = null;
 function recordCombatEnd(s) { if (!s || !s.over || s === lastRecorded) return; lastRecorded = s; const ty = s.tally; const c = TEL.combat;
   c.fights++; if (s.result === 'fled') c.fled++; c.hits += ty.hits; c.misses += ty.misses; c.evades += ty.evades; c.kills += ty.kills; c.dmgDealt += ty.dmgDealt; c.dmgTaken += ty.dmgTaken; c.turns += Math.round(s.time || 0);
-  tel('combat', { result: s.result, secs: Math.round(s.time || 0), level: game.getRun().level, tally: ty }); }
+  c.moveDist += ty.moveDist || 0; c.idleT += ty.idleT || 0; c.moveT += ty.moveT || 0;
+  const movePct = (ty.moveT + ty.idleT) > 0 ? Math.round(ty.moveT / (ty.moveT + ty.idleT) * 100) : 0;
+  tel('combat', { result: s.result, secs: Math.round(s.time || 0), level: game.getRun().level, movePct, moveDist: Math.round(ty.moveDist || 0), tally: ty }); }
 function afterTerminal() { const p = game.getRun().phase; if (!countedTerminal && (p === 'dead' || p === 'victory')) { countedTerminal = true; const m = meta(); if (p === 'dead') m.deaths++; if (p === 'victory') { m.wins++; const ni = DIFFS.indexOf(game.getRun().difficulty) + 1; if (DIFFS[ni] && !m.unlocked.includes(DIFFS[ni])) m.unlocked.push(DIFFS[ni]); } saveMeta(m);
     const run = game.getRun(); const secs = Math.round((lastArena && lastArena.time) || 0);
     const area = (lastArena && lastArena.area) ? lastArena.area.idx + 1 : (p === 'victory' ? 8 : 1); const areaName = (lastArena && lastArena.area) ? lastArena.area.name : (p === 'victory' ? 'Catacombs' : '?');
     const bc = telClass(classId); bc.maxLevel = Math.max(bc.maxLevel, run.level); bc.deepestStep = Math.max(bc.deepestStep, secs); bc.bestArea = Math.max(bc.bestArea || 0, area);
     if (p === 'dead') { TEL.deaths++; bc.deaths++; TEL.deathLog.push({ class: classId, level: run.level, secs, area, areaName, diff: run.difficulty }); if (TEL.deathLog.length > 100) TEL.deathLog = TEL.deathLog.slice(-100); }
     else { TEL.wins++; bc.wins++; }
-    tel('run_end', { result: p, class: classId, level: run.level, secs, area, difficulty: run.difficulty }); } }
+    const mt = lastArena && lastArena.tally; const movePct = mt && (mt.moveT + mt.idleT) > 0 ? Math.round(mt.moveT / (mt.moveT + mt.idleT) * 100) : 0;
+    tel('run_end', { result: p, class: classId, level: run.level, secs, area, difficulty: run.difficulty, movePct }); } }
 
 
 // ---------- dead / victory ----------
@@ -336,7 +340,7 @@ function renderInventory() {
   const bag = r.bag.length ? r.bag.map((it) => `<div class="bag-item" style="${it.color ? `border-color:${it.color}` : ''}"><div class="bi-name" style="${it.color ? `color:${it.color}` : ''}">${it.name}</div><div class="bi-slot">${SLOT_LABEL[it.slot] || it.slot}${it.grants && it.grants.skill ? ' · grants a skill' : ''}</div><div class="bi-text">${it.text || ''}</div><div class="bi-btns"><button class="act ghost small" data-equip="${it.id}">EQUIP</button><button class="act ghost small" data-drop="${it.id}">DROP</button></div></div>`).join('') : '<div class="bag-empty">Your bag is empty.</div>';
   ov.className = 'overlay inv';
   ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">🎒 Inventory</div><button class="inv-close" id="cx">✕</button></div>
-    <div class="inv-stats"><span><span class="k">Life</span> <b class="life">${r.life}/${st.maxLife}</b></span><span><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></span><span><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></span><span><span class="k">Gold</span> <b style="color:var(--gold)">${r.gold}</b></span></div>
+    <div class="inv-stats"><span><span class="k">Life</span> <b class="life">${r.life}/${st.maxLife}</b></span><span><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></span><span><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></span>${st.fcr ? `<span><span class="k">Cast Spd</span> <b style="color:#9ab6ff">+${st.fcr}%</b></span>` : ''}${st.ias ? `<span><span class="k">Atk Spd</span> <b style="color:#e79a9a">+${st.ias}%</b></span>` : ''}<span><span class="k">Gold</span> <b style="color:var(--gold)">${r.gold}</b></span></div>
     <div class="inv-cols"><div class="paperdoll">${cells}</div><div class="bag"><div class="bag-head">Bag (${r.bag.length}/${r.bagCap})</div><div class="bag-list">${bag}</div></div></div></div>`;
   document.getElementById('cx').addEventListener('click', () => { invOpen = false; render(); if (arenaActive) resumeArena(); });
   ov.querySelectorAll('.slot.filled').forEach((el) => el.addEventListener('click', () => { game.unequip(el.dataset.slot); expose(); renderInventory(); }));

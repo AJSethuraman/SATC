@@ -204,12 +204,14 @@ export const PREFIXES = [
   { name: 'Runed', mod: { maxMana: 2 } }, { name: 'Cruel', mod: { plusSkills: 1 } },
   { name: 'Warded', mod: { startBlock: 2 } }, { name: 'Savage', mod: { plusSkills: 1, maxLife: 6 } },
   { name: 'Keen', mod: { accuracy: 3 } }, { name: 'Nimble', mod: { evade: 3 } },
+  { name: 'Hexing', mod: { fcr: 15 } }, { name: 'Vicious', mod: { ias: 15 } }, // Faster Cast Rate / Increased Attack Speed
 ];
 export const SUFFIXES = [
   { name: 'of the Bear', mod: { maxLife: 10 } }, { name: 'of the Magi', mod: { maxMana: 2 } },
   { name: 'of Wrath', mod: { plusSkills: 1 } }, { name: 'of the Turtle', mod: { startBlock: 2 } },
   { name: 'of Fury', mod: { plusSkills: 2 } }, { name: 'of Vigor', mod: { maxLife: 14 } },
   { name: 'of Precision', mod: { accuracy: 4 } }, { name: 'of the Cat', mod: { evade: 3 } },
+  { name: 'of Sorcery', mod: { fcr: 20 } }, { name: 'of Fervor', mod: { ias: 20 } }, // the spam-your-main-skill affixes
 ];
 export const RARITY = [
   { rarity: 'normal', weight: 18, affixes: 0, color: '#cfcfcf' }, // whites are now rare — most drops carry affixes
