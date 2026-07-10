@@ -66,10 +66,11 @@ test('a survival run terminates in victory or death (across the town loop)', () 
 });
 
 test('monsters drop loot the hero collects — into gear or the bag', () => {
-  // across a few melee runs (kills drop loot underfoot), the pipeline yields spoils
+  // an Amazon farms reliably (ranged: kills while kiting, the magnet vacuums the
+  // drops) — we're testing the drop->collect->bag pipeline, not a class's survival.
   let evidence = 0;
   for (const seed of ['loot-a', 'loot-b', 'loot-c']) {
-    const g = createGame(seed, { classId: 'barbarian', difficulty: 'Normal' }); g.startRun();
+    const g = createGame(seed, { classId: 'amazon', difficulty: 'Normal' }); g.startRun();
     const before = Object.values(g.getRun().equipment).filter(Boolean).length;
     const { collected } = survive(g, 30 * 200);
     const r = g.getRun();

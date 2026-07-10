@@ -130,7 +130,7 @@ export const WEAPON_DROPS = ['great_axe', 'war_bow', 'bone_staff'];
 // heals + is guardable; 'guardian' protects a caster.
 export const ENEMIES = {
   // acc = to-hit vs your Evade; eva = how hard it is to hit (vs your Accuracy).
-  quill_rat: { id: 'quill_rat', name: 'Quill Rat', hp: 6, attack: 3, glyph: '🦔', role: 'grunt', ring: 0, xp: 2, acc: 5, eva: 4 },
+  quill_rat: { id: 'quill_rat', name: 'Quill Rat', hp: 7, attack: 4, glyph: '🦔', role: 'archer', ring: 1, xp: 2, acc: 5, eva: 4 }, // ranged quill-thrower — early pressure you can't outrun
   fallen: { id: 'fallen', name: 'Fallen', hp: 9, attack: 3, glyph: '👺', role: 'grunt', ring: 0, xp: 3, acc: 4, eva: 1 },
   zombie: { id: 'zombie', name: 'Zombie', hp: 15, attack: 5, glyph: '🧟', role: 'grunt', ring: 0, xp: 5, acc: 5, eva: 0 },
   guardian: { id: 'guardian', name: 'Fallen Champion', hp: 15, attack: 5, glyph: '🛡️', role: 'guardian', ring: 0, xp: 6, acc: 6, eva: 2 },
@@ -189,8 +189,8 @@ export const SUPERUNIQUE_IDS = Object.keys(SUPERUNIQUES);
 // condensed roguelite act ~6-7 min), so a squishy build isn't ground down in a
 // long pre-gate survival slog before it can even fight the boss.
 export const ACT1 = [
-  { name: 'Blood Moor', quest: 'Den of Evil', questText: 'Cleanse the Den — slay Corpsefire.', dur: 32, pool: ['quill_rat', 'fallen', 'fallen', 'zombie'], gate: 'corpsefire' },
-  { name: 'Cold Plains', quest: null, questText: 'Cut across the plains — Bishibosh bars the way.', dur: 34, pool: ['fallen', 'goatman', 'zombie', 'quill_rat'], gate: 'bishibosh' },
+  { name: 'Blood Moor', quest: 'Den of Evil', questText: 'Cleanse the Den — slay Corpsefire.', dur: 32, pool: ['quill_rat', 'fallen', 'archer', 'zombie'], gate: 'corpsefire' },
+  { name: 'Cold Plains', quest: null, questText: 'Cut across the plains — Bishibosh bars the way.', dur: 34, pool: ['fallen', 'goatman', 'quill_rat', 'archer'], gate: 'bishibosh' },
   { name: "Sisters' Burial Grounds", quest: "Sisters' Burial Grounds", questText: 'Put down Blood Raven.', dur: 36, pool: ['zombie', 'zombie', 'fallen', 'archer'], gate: 'blood_raven' },
   { name: 'Stony Field', quest: null, questText: 'Shatter Rakanishu at the cairn stones.', dur: 38, pool: ['goatman', 'fallen', 'archer', 'zombie'], gate: 'rakanishu' },
   { name: 'Dark Wood', quest: 'The Tree of Inifuss', questText: 'Fell Treehead Woodfist.', dur: 40, pool: ['goatman', 'zombie', 'shaman', 'goatman'], gate: 'treehead_woodfist' },

@@ -87,9 +87,13 @@ test('a rezzer raises a slain grunt, but raised foes yield no XP (no farming)', 
 });
 
 test('Evade lets a nimble hero dodge blows (statistical)', () => {
-  const h = hero({ evade: 6, maxLife: 200, abilities: ['attack'] });
+  // very tanky hero, and we SILENCE its offense so the pack never dies — it just
+  // stands and takes swings. Evade is ~20%/hit, so over the many blows across 30s
+  // at least one dodge is a near-certainty regardless of seed.
+  const h = hero({ evade: 6, maxLife: 4000, abilities: ['attack'] });
   const a = arena([{ id: 'goatman' }, { id: 'goatman' }, { id: 'goatman' }], h, 'eva');
-  for (let i = 0; i < 30 * 20; i++) { a.tick({ x: 0, y: 0 }); if (a.getState().over) break; }
+  a.setDisabled(['attack', 'guard']); // don't kill the pack — keep it swinging
+  for (let i = 0; i < 30 * 30; i++) { a.tick({ x: 0, y: 0 }); if (a.getState().over) break; }
   assert.ok(a.getState().tally.evades > 0, 'dodged at least one hit over many');
 });
 

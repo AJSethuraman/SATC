@@ -38,15 +38,18 @@ const CORPSE_TTL = 5;                         // survival: how long a corpse lin
 const ENCLOSE_R = 520, ENCLOSE_MIN = 6, ENCLOSE_GRACE = 1.6, ENCLOSE_K = 0.42, ENCLOSE_RAMP_CAP = 12;
 
 const CD = { attack: 0.55, damage: 0.95, hits: 0.9, aoe: 1.25, breakthrough: 1.6, block: 4, summon: 2.6 };
+// Foes move at a real fraction of the hero's 158 — fast enough that kiting takes
+// SKILL (weave, don't get boxed), not a free stroll. Combined with ranged fire that
+// LEADS you and enclosure pressure, a MOVING hero must actually work to stay clean.
 const ROLE_DEF = {
-  grunt:    { spd: 70, r: 13, touch: 0.9 },
-  guardian: { spd: 62, r: 15, touch: 1.0 },
-  archer:   { spd: 66, r: 13, fire: 1.7, range: 250 },
-  caster:   { spd: 52, r: 14, support: 2.1, range: 205 },
-  elite:    { spd: 46, r: 23, touch: 1.1 },
+  grunt:    { spd: 118, r: 13, touch: 0.85 },
+  guardian: { spd: 104, r: 15, touch: 0.95 },
+  archer:   { spd: 106, r: 13, fire: 1.25, range: 300 },
+  caster:   { spd: 90, r: 14, support: 2.1, range: 240, fire: 1.6 },
+  elite:    { spd: 96, r: 23, touch: 1.0 },
 };
-const SPD = { quill_rat: 92, fallen: 82, zombie: 52, guardian: 66, goatman: 92, shaman: 56, archer: 70, the_smith: 48,
-  rakanishu: 90, corpsefire: 60, blood_raven: 76, bishibosh: 58 };
+const SPD = { quill_rat: 118, fallen: 120, zombie: 96, guardian: 104, goatman: 128, shaman: 96, archer: 112, the_smith: 84,
+  rakanishu: 138, corpsefire: 104, blood_raven: 122, bishibosh: 100 };
 const RAD = { the_smith: 23 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -148,7 +151,7 @@ export function createArena({ hero, pack, rng, survival }) {
     if (surv && surv.rollLoot && !e.raised) {
       // Loot comes from NOTABLE kills (elites, super-uniques, gates/bosses) — trash barely
       // drops. At ~7 kills/s a per-trash-kill drop just spams; this makes a drop mean something.
-      const chance = e.boss ? 1 : e.unique ? 1 : e.elite ? 0.25 : (0.008 + (e.drop || 0));
+      const chance = e.boss ? 1 : e.unique ? 1 : e.elite ? 0.3 : (0.02 + (e.drop || 0));
       if (rng.next() < chance) { const it = surv.rollLoot(e.boss ? 3 : e.unique ? 2 : e.elite ? 1 : 0);
         if (it) state.pickups.push({ x: e.x, y: e.y, r: 11, item: it }); }
     }
@@ -321,7 +324,11 @@ export function createArena({ hero, pack, rng, survival }) {
         e.x = clamp(e.x + (ux * drift + ox * 0.5) * e.spd * dt, 20, world.w - 20);
         e.y = clamp(e.y + (uy * drift + oy * 0.5) * e.spd * dt, 20, world.h - 20);
         if (e.kind === 'ranged') { e.fireT -= dt; if (d < e.range + 90 && e.fireT <= 0) { e.fireT = e.fireCd;
-          state.projectiles.push({ x: e.x, y: e.y, vx: ux * HOSTILE_PROJ_SPEED, vy: uy * HOSTILE_PROJ_SPEED, r: 6,
+          // LEAD the shot: aim where the hero will be, so kiting perpendicular no
+          // longer dodges for free — you have to break line-of-fire, not just stroll.
+          const tof = d / HOSTILE_PROJ_SPEED; const lx = h.x + (h.dir.x || 0) * HERO_SPEED * tof, ly = h.y + (h.dir.y || 0) * HERO_SPEED * tof;
+          const ld = len(lx - e.x, ly - e.y);
+          state.projectiles.push({ x: e.x, y: e.y, vx: (lx - e.x) / ld * HOSTILE_PROJ_SPEED, vy: (ly - e.y) / ld * HOSTILE_PROJ_SPEED, r: 6,
             dmg: e.attack, hostile: true, from: e, pierce: 0, life: 3, glyph: '➹' }); } }
         e.supportT -= dt; if ((e.rezLeft > 0 || e.heal) && e.supportT <= 0) { e.supportT = e.supportCd;
           const corpse = e.rezLeft > 0 ? raisableCorpse() : null;
@@ -399,7 +406,9 @@ export function createArena({ hero, pack, rng, survival }) {
   function stepPickups() { // loot magnets toward you (generous, survivors-style), collected on contact -> game drains it
     const h = state.hero;
     for (const p of state.pickups) { const dx = h.x - p.x, dy = h.y - p.y, d = len(dx, dy);
-      if (d < 170) { p.x += dx / d * Math.min(d, 300 * DT); p.y += dy / d * Math.min(d, 300 * DT); }
+      // generous magnet + pull FASTER than the hero runs, so a kiting hero still
+      // vacuums up the loot its kills leave behind (no backtracking to farm).
+      if (d < 340) { p.x += dx / d * Math.min(d, 440 * DT); p.y += dy / d * Math.min(d, 440 * DT); }
       if (d <= h.r + p.r + 4) { p.got = true; state.collected.push(p.item); fx({ type: 'cast', x: h.x, y: h.y, r: 18, life: 0.3, color: p.item.color || '#c8a24a' }); } }
     state.pickups = state.pickups.filter((p) => !p.got);
   }
