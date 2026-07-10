@@ -156,7 +156,7 @@ function renderArena() {
   if (arenaActive) return; // the loop owns the DOM once it's up
   const s = combat.getState(); const h = s.hero; const pot = game.getRun().potions;
   lootToast = levelToast = questToast = null;
-  particles.length = 0; prevHeroLife = null; shakeMag = 0; // fresh render state per segment
+  particles.length = 0; prevHeroLife = null; shakeMag = 0; prevHeroX = null; prevHeroY = null; // fresh render state per segment
   board.innerHTML = `<div class="rt">
     <div class="area-head"><span class="ah-name" id="rtAreaName"></span><span class="ah-prog" id="rtAreaProg"></span></div>
     <div class="area-quest" id="rtQuest"></div>
@@ -231,7 +231,7 @@ function endArena(s) {
 // system, and screen shake. No sprite assets — everything is drawn in code.
 const ROLE_BODY = { grunt: '#3a1f2c', guardian: '#22304f', archer: '#1d2f4a', caster: '#331d46', elite: '#4a1a1a', archer_alt: '#243a24' };
 const ELEM_COLOR = { fire: '#ff7a3a', cold: '#8fc4ff', lightning: '#d6a6ff', poison: '#8fe07a' };
-let camX = 0, camY = 0, shakeMag = 0, prevHeroLife = null, ambientT = 0;
+let camX = 0, camY = 0, shakeMag = 0, prevHeroLife = null, ambientT = 0, prevHeroX = null, prevHeroY = null, heroFaceLeft = false;
 const particles = []; // {x,y,vx,vy,life,maxLife,r,color,grav}
 function spawnParticle(x, y, vx, vy, life, r, color, grav) { if (particles.length > 340) return; particles.push({ x, y, vx, vy, life, maxLife: life, r, color, grav: grav || 0 }); }
 function burst(x, y, n, spd, color, life) { for (let i = 0; i < n; i++) { const a = Math.random() * 7, s2 = spd * (0.4 + Math.random() * 0.8); spawnParticle(x, y, Math.cos(a) * s2, Math.sin(a) * s2, life * (0.6 + Math.random() * 0.6), 1.5 + Math.random() * 2.5, color, 40); } }
@@ -261,9 +261,20 @@ function getSprite(id) {
   const img = new Image(); img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg); spriteCache[id] = img; return img;
 }
 const HERO_SPRITE = { '🔮': 'sorceress', '🪓': 'barbarian', '🏹': 'amazon', '💀': 'necromancer' };
-function drawSprite(c, id, x, y, r) {
+// Sprites come alive in CODE (no extra art): flip to face travel, a walk-bob, a
+// lean into movement, and a squash-pop on hit. Anchored at the feet so scaling
+// keeps them planted. opt: { faceLeft, bob, lean, squash }.
+function drawSprite(c, id, x, y, r, opt) {
   const img = getSprite(id); if (!img || !img.complete || !img.naturalWidth) return false;
-  const s = r * 2.9; c.drawImage(img, x - s / 2, y + r - s * 0.96, s, s); return true;
+  opt = opt || {}; const s = r * 2.9;
+  c.save();
+  c.translate(x, y + r);                     // anchor at the feet
+  if (opt.lean) c.rotate(opt.lean);
+  const sq = opt.squash || 0;                // hit pop: widen + flatten briefly
+  c.scale((opt.faceLeft ? -1 : 1) * (1 + sq * 0.22), 1 - sq * 0.26);
+  c.drawImage(img, -s / 2, -s * 0.96 + (opt.bob || 0), s, s);
+  c.restore();
+  return true;
 }
 
 function drawArena(s) {
@@ -311,7 +322,9 @@ function drawArena(s) {
     const tier = e.boss ? '#ff3b3b' : e.unique ? '#c8a24a' : e.elite ? '#e0484a' : e.raised ? '#8fbf8f' : '#5a4450';
     if (e.boss || e.unique || e.elite) { c.fillStyle = hexA(tier, 0.16); c.beginPath(); c.arc(e.x, e.y, e.r + 10 + Math.sin(ambientT * 4) * 2, 0, 7); c.fill(); }
     drawShadow(c, e.x, e.y, e.r);
-    if (!drawSprite(c, e.id, e.x, e.y, e.r)) { // hand-drawn sprite, else procedural body+glyph
+    const eopt = { faceLeft: e.x > h.x + 4, bob: Math.sin(ambientT * 8 + e.x * 0.25) * 1.4, // shamble toward you
+      lean: clampN((h.x - e.x) * 0.0007, -0.13, 0.13), squash: e.flash > 0 ? 1 : 0 };
+    if (!drawSprite(c, e.id, e.x, e.y, e.r, eopt)) { // hand-drawn sprite, else procedural body+glyph
       const body = e.flash > 0 ? '#ffffff' : (ROLE_BODY[e.role] || '#2a1721');
       drawBody(c, e.x, e.y, e.r, body, tier, (e.boss || e.unique || e.elite) ? 2.5 : 1.5);
       glyph(c, e.glyph, e.x, e.y - 1, e.r * 1.7);
@@ -332,8 +345,13 @@ function drawArena(s) {
   c.fillStyle = 'rgba(255,210,140,0.10)'; c.beginPath(); c.arc(hx, hy, 40, 0, 7); c.fill(); // torch aura
   drawShadow(c, hx, hy, h.r);
   if (h.shield > 0) { c.strokeStyle = `rgba(210,175,90,${0.5 + Math.sin(ambientT * 8) * 0.2})`; c.lineWidth = 2.5; c.beginPath(); c.arc(hx, hy, h.r + 7, 0, 7); c.stroke(); }
+  const moved = prevHeroX != null && (Math.abs(hx - prevHeroX) + Math.abs(hy - prevHeroY)) > 0.6;
+  prevHeroX = hx; prevHeroY = hy;
+  if (dir.x < -0.15) heroFaceLeft = true; else if (dir.x > 0.15) heroFaceLeft = false;
+  const hopt = { faceLeft: heroFaceLeft, lean: moved ? clampN(dir.x, -1, 1) * 0.11 : 0,
+    bob: moved ? Math.sin(ambientT * 12) * 1.9 : Math.sin(ambientT * 3) * 0.7, squash: h.invuln ? 0.25 : 0 };
   c.globalAlpha = h.invuln ? 0.5 : 1;
-  if (!drawSprite(c, HERO_SPRITE[h.glyph], hx, hy, h.r)) { // class sprite, else procedural
+  if (!drawSprite(c, HERO_SPRITE[h.glyph], hx, hy, h.r, hopt)) { // class sprite, else procedural
     drawBody(c, hx, hy, h.r, '#3a2616', '#e6c24a', 2.5);
     c.strokeStyle = 'rgba(240,220,160,0.9)'; c.lineWidth = 3; c.beginPath(); c.moveTo(hx + dir.x * h.r * 0.7, hy + dir.y * h.r * 0.7); c.lineTo(hx + dir.x * (h.r + 9), hy + dir.y * (h.r + 9)); c.stroke();
     glyph(c, h.glyph, hx, hy - 1, h.r * 2);
