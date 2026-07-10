@@ -1,0 +1,13 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Missing Items Report</title>
+<style>
+body{font-family:Arial;background:#FBF9F4;color:#0E1726;margin:24px}
+h1{color:#0B1F3A}.card{background:#EFE9DC;border:1px solid #D9CFB8;padding:12px;margin:10px 0}
+table{width:100%;border-collapse:collapse}th,td{border:1px solid #D9CFB8;padding:6px;font-size:12px}th{background:#061A35;color:#fff}
+</style></head><body>
+<h1>Tax Packet QA - Missing/Review Items</h1>
+<div class="card"><b>Client/Folder:</b> {{client_name}}<br><b>Run Timestamp:</b> {{run_ts}}</div>
+<h2>Detected Modules</h2><ul>{{detected_modules}}</ul>
+<h2>Needs Review & Missing Items</h2>
+<table><thead><tr><th>Module</th><th>Item</th><th>Status</th><th>Reason</th><th>Matched Aliases</th><th>Matched Files</th><th>Confidence</th></tr></thead><tbody>{{missing_rows}}</tbody></table>
+<h2>Preparer Notes</h2><ul>{{preparer_notes}}</ul>
+</body></html>
