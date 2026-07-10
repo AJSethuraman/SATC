@@ -71,7 +71,7 @@ function renderTown(r) {
     <div class="quest-now">✦ <b>${q.name || 'Act 1'}</b> — ${q.questText || ''}</div>
     ${fresh ? `<div class="meta-row">Class: ${CLASS_LIST.map((c) => `<button class="pill ${c === classId ? 'on' : ''}" data-class="${c}">${CLASSES[c].glyph} ${CLASSES[c].name}</button>`).join('')}</div>
     <div class="meta-row">Difficulty: ${DIFFS.map((d) => `<button class="pill ${d === difficulty ? 'on' : ''} ${m.unlocked.includes(d) ? '' : 'locked'}" data-diff="${d}" ${m.unlocked.includes(d) ? '' : 'disabled'}>${d}</button>`).join('')}<span class="tally">wins ${m.wins} · deaths ${m.deaths}</span></div>` : ''}
-    <div class="char"><div class="char-glyph">${r.glyph}</div>
+    <div class="char"><div class="char-glyph">${(SPRITE_SVG[HERO_SPRITE[r.glyph]] || '').replace('<svg ', '<svg width="70" height="80" ') || r.glyph}</div>
       <div class="char-stats">
         <div><span class="k">Class</span> <b>${r.className}</b> <span class="k">Lv</span> <b>${r.level}</b></div>
         <div><span class="k">Life</span> <b class="life">${Math.round(r.life)}/${st.maxLife}</b> <span class="k">Mana</span> <b class="mana">${st.maxMana}</b></div>
@@ -237,6 +237,35 @@ function spawnParticle(x, y, vx, vy, life, r, color, grav) { if (particles.lengt
 function burst(x, y, n, spd, color, life) { for (let i = 0; i < n; i++) { const a = Math.random() * 7, s2 = spd * (0.4 + Math.random() * 0.8); spawnParticle(x, y, Math.cos(a) * s2, Math.sin(a) * s2, life * (0.6 + Math.random() * 0.6), 1.5 + Math.random() * 2.5, color, 40); } }
 function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
 
+// ---- SVG SPRITES (hand-drawn vector art, embedded as data-URIs — CSP-safe) ----
+// Each is a small viewBox drawn as layered shapes; rendered to the canvas over the
+// unit's shadow, with the procedural body as fallback for anything not spritted.
+const SPRITE_SVG = {
+  // heroes (mapped by class glyph)
+  sorceress: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 46"><path d="M8 42 Q6 22 20 16 Q34 22 32 42Z" fill="#33306a"/><path d="M20 16 Q34 22 32 42 L24 42 Q26 26 20 20Z" fill="#25234d"/><path d="M10 21 Q20 3 30 21 Q25 12 20 12 Q15 12 10 21Z" fill="#463f86"/><circle cx="20" cy="19" r="5.2" fill="#ecdcc6"/><circle cx="18" cy="19" r="1.1" fill="#2e2450"/><circle cx="22" cy="19" r="1.1" fill="#2e2450"/><path d="M10 21 Q20 3 30 21 Q24 10 20 10 Q16 10 10 21Z" fill="none" stroke="#5a52a4" stroke-width="1.4" opacity=".7"/><circle cx="32" cy="31" r="4.6" fill="#7fe3ff" opacity=".5"/><circle cx="32" cy="31" r="2.6" fill="#e6fbff"/></svg>`,
+  barbarian: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 46"><path d="M12 44 L11 26 Q20 22 29 26 L28 44Z" fill="#6a4a30"/><path d="M11 27 Q20 30 29 27 L28 34 Q20 37 12 34Z" fill="#7d3a2a"/><circle cx="20" cy="16" r="6" fill="#d8b088"/><path d="M14 12 Q20 4 26 12 Q24 8 20 8 Q16 8 14 12Z" fill="#5a3a22"/><path d="M13 12 Q10 6 8 9 M27 12 Q30 6 32 9" stroke="#e8ddc8" stroke-width="2" fill="none"/><circle cx="18" cy="16" r="1" fill="#3a2416"/><circle cx="22" cy="16" r="1" fill="#3a2416"/><rect x="30" y="10" width="3" height="30" rx="1" fill="#7a6250" transform="rotate(18 31 25)"/><path d="M31 8 L40 14 L33 18Z" fill="#b8bcc4" transform="rotate(18 31 25)"/></svg>`,
+  amazon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 46"><path d="M12 44 L12 26 Q20 22 28 26 L28 44Z" fill="#3f5540"/><path d="M12 27 Q20 30 28 27 L27 33 Q20 36 13 33Z" fill="#5a7a4e"/><circle cx="20" cy="16" r="5.6" fill="#e0b892"/><path d="M15 12 Q20 5 25 12 L26 22 Q20 15 14 22Z" fill="#6b4a2a"/><circle cx="18" cy="16" r="1" fill="#3a2416"/><circle cx="22" cy="16" r="1" fill="#3a2416"/><path d="M31 8 Q37 20 31 34" stroke="#8a6a44" stroke-width="2" fill="none"/><line x1="31" y1="8" x2="31" y2="34" stroke="#e8ddc8" stroke-width="1"/></svg>`,
+  necromancer: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 46"><path d="M8 42 Q7 22 20 16 Q33 22 32 42Z" fill="#2a2e34"/><path d="M20 16 Q33 22 32 42 L25 42 Q26 26 20 20Z" fill="#1c2024"/><path d="M11 21 Q20 4 29 21 Q24 11 20 11 Q16 11 11 21Z" fill="#3a4046"/><circle cx="20" cy="19" r="5" fill="#dfe4e0"/><circle cx="17.6" cy="19" r="1.4" fill="#1a1a1a"/><circle cx="22.4" cy="19" r="1.4" fill="#1a1a1a"/><path d="M18 23 L22 23" stroke="#8a8a8a" stroke-width="1"/><line x1="32" y1="8" x2="32" y2="40" stroke="#c9bfa8" stroke-width="2"/><circle cx="32" cy="9" r="3" fill="#e6ddc8"/></svg>`,
+  // monsters (mapped by enemy id)
+  fallen: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 46"><path d="M14 42 Q12 28 20 26 Q28 28 26 42Z" fill="#7a2f24"/><circle cx="20" cy="20" r="8" fill="#9a3a2a"/><path d="M13 15 Q8 8 6 14 M27 15 Q32 8 34 14" stroke="#c85a3a" stroke-width="2.2" fill="none"/><path d="M12 18 Q4 18 3 22 Q9 22 12 21Z M28 18 Q36 18 37 22 Q31 22 28 21Z" fill="#8a3326"/><circle cx="16.5" cy="20" r="2" fill="#ffd23a"/><circle cx="23.5" cy="20" r="2" fill="#ffd23a"/><circle cx="16.5" cy="20" r=".8" fill="#3a1a00"/><circle cx="23.5" cy="20" r=".8" fill="#3a1a00"/><path d="M16 25 Q20 28 24 25" stroke="#3a1400" stroke-width="1.3" fill="none"/></svg>`,
+  zombie: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 46"><path d="M13 43 Q11 26 20 22 Q29 26 27 43Z" fill="#4a5e3a"/><path d="M6 30 Q10 26 14 30 M34 30 Q30 26 26 30" stroke="#5a6e46" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="20" cy="16" r="6.5" fill="#7a8a5a"/><path d="M14 15 L26 15" stroke="#3a4a2a" stroke-width="1" opacity=".6"/><circle cx="17.5" cy="16" r="1.6" fill="#1a1a10"/><circle cx="22.5" cy="16" r="1.6" fill="#c8c8a0"/><path d="M16 20 L24 20" stroke="#2a1a10" stroke-width="1.4"/><path d="M18 26 Q20 30 22 26" fill="#6a1a1a"/></svg>`,
+  quill_rat: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 46"><path d="M8 34 Q20 20 34 34 Q30 40 20 40 Q10 40 8 34Z" fill="#6a4a30"/><path d="M12 30 L8 20 M17 27 L15 16 M22 27 L24 16 M27 30 L31 20" stroke="#8a6a44" stroke-width="2.4" stroke-linecap="round"/><circle cx="30" cy="34" r="6" fill="#7d5636"/><circle cx="32" cy="33" r="1.6" fill="#2a0a00"/><path d="M35 31 Q40 30 40 33" stroke="#d89a7a" stroke-width="1.4" fill="none"/><path d="M8 36 Q2 38 3 42" stroke="#5a3a22" stroke-width="2" fill="none"/></svg>`,
+  goatman: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 46"><path d="M13 44 L12 24 Q20 20 28 24 L27 44Z" fill="#5a4632"/><path d="M12 25 Q20 28 28 25 L27 33 Q20 36 13 33Z" fill="#6e5a40"/><circle cx="20" cy="16" r="6.5" fill="#8a7458"/><path d="M14 12 Q7 4 5 12 Q9 9 13 12Z M26 12 Q33 4 35 12 Q31 9 27 12Z" fill="#d8cdb8"/><path d="M18 22 Q20 25 22 22" fill="#3a2a1a"/><circle cx="17.5" cy="16" r="1.2" fill="#c0102a"/><circle cx="22.5" cy="16" r="1.2" fill="#c0102a"/><rect x="30" y="14" width="2.6" height="26" rx="1" fill="#5a4432" transform="rotate(14 31 27)"/></svg>`,
+  archer: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 46"><path d="M10 42 Q9 22 20 16 Q31 22 30 42Z" fill="#243626"/><path d="M20 16 Q31 22 30 42 L24 42 Q25 26 20 20Z" fill="#182619"/><path d="M11 21 Q20 6 29 21 Q24 13 20 13 Q16 13 11 21Z" fill="#2e4230"/><circle cx="20" cy="19" r="4.6" fill="#c8a882"/><circle cx="18.4" cy="19" r="1" fill="#1a2a10"/><circle cx="21.6" cy="19" r="1" fill="#1a2a10"/><path d="M9 8 Q3 23 9 38" stroke="#7a5a34" stroke-width="2.2" fill="none"/><line x1="9" y1="8" x2="9" y2="38" stroke="#d8cdb0" stroke-width="1"/><line x1="9" y1="23" x2="26" y2="23" stroke="#e8ddc8" stroke-width="1.4"/><path d="M26 23 L22 21 M26 23 L22 25" stroke="#e8ddc8" stroke-width="1.4" fill="none"/></svg>`,
+};
+const spriteCache = {};
+function getSprite(id) {
+  if (!id) return null;
+  if (id in spriteCache) return spriteCache[id];
+  const svg = SPRITE_SVG[id]; if (!svg) { spriteCache[id] = null; return null; }
+  const img = new Image(); img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg); spriteCache[id] = img; return img;
+}
+const HERO_SPRITE = { '🔮': 'sorceress', '🪓': 'barbarian', '🏹': 'amazon', '💀': 'necromancer' };
+function drawSprite(c, id, x, y, r) {
+  const img = getSprite(id); if (!img || !img.complete || !img.naturalWidth) return false;
+  const s = r * 2.9; c.drawImage(img, x - s / 2, y + r - s * 0.96, s, s); return true;
+}
+
 function drawArena(s) {
   const c = rtCtx; const h = s.hero; const w = s.world || { w: ARENA_W, h: ARENA_H }; const dt = 1 / 30;
   ambientT += dt;
@@ -282,9 +311,11 @@ function drawArena(s) {
     const tier = e.boss ? '#ff3b3b' : e.unique ? '#c8a24a' : e.elite ? '#e0484a' : e.raised ? '#8fbf8f' : '#5a4450';
     if (e.boss || e.unique || e.elite) { c.fillStyle = hexA(tier, 0.16); c.beginPath(); c.arc(e.x, e.y, e.r + 10 + Math.sin(ambientT * 4) * 2, 0, 7); c.fill(); }
     drawShadow(c, e.x, e.y, e.r);
-    const body = e.flash > 0 ? '#ffffff' : (e.role === 'archer' && e.id === 'quill_rat' ? ROLE_BODY.archer_alt : (ROLE_BODY[e.role] || '#2a1721'));
-    drawBody(c, e.x, e.y, e.r, body, tier, (e.boss || e.unique || e.elite) ? 2.5 : 1.5);
-    glyph(c, e.glyph, e.x, e.y - 1, e.r * 1.7);
+    if (!drawSprite(c, e.id, e.x, e.y, e.r)) { // hand-drawn sprite, else procedural body+glyph
+      const body = e.flash > 0 ? '#ffffff' : (ROLE_BODY[e.role] || '#2a1721');
+      drawBody(c, e.x, e.y, e.r, body, tier, (e.boss || e.unique || e.elite) ? 2.5 : 1.5);
+      glyph(c, e.glyph, e.x, e.y - 1, e.r * 1.7);
+    } else if (e.flash > 0) { c.save(); c.globalAlpha = 0.5; c.fillStyle = '#fff'; c.beginPath(); c.arc(e.x, e.y - e.r * 0.25, e.r * 1.05, 0, 7); c.fill(); c.restore(); }
     const bw = e.r * 2.2, hpf = Math.max(0, e.hp / e.maxHp); c.fillStyle = 'rgba(20,6,6,0.85)'; c.fillRect(e.x - bw / 2, e.y - e.r - 9, bw, 3.6);
     c.fillStyle = e.unique || e.boss ? '#e6c24a' : '#d23a3a'; c.fillRect(e.x - bw / 2, e.y - e.r - 9, bw * hpf, 3.6); }
 
@@ -302,10 +333,12 @@ function drawArena(s) {
   drawShadow(c, hx, hy, h.r);
   if (h.shield > 0) { c.strokeStyle = `rgba(210,175,90,${0.5 + Math.sin(ambientT * 8) * 0.2})`; c.lineWidth = 2.5; c.beginPath(); c.arc(hx, hy, h.r + 7, 0, 7); c.stroke(); }
   c.globalAlpha = h.invuln ? 0.5 : 1;
-  drawBody(c, hx, hy, h.r, '#3a2616', '#e6c24a', 2.5);
-  // facing glint (a blade nub pointing where you move)
-  c.strokeStyle = 'rgba(240,220,160,0.9)'; c.lineWidth = 3; c.beginPath(); c.moveTo(hx + dir.x * h.r * 0.7, hy + dir.y * h.r * 0.7); c.lineTo(hx + dir.x * (h.r + 9), hy + dir.y * (h.r + 9)); c.stroke();
-  glyph(c, h.glyph, hx, hy - 1, h.r * 2); c.globalAlpha = 1;
+  if (!drawSprite(c, HERO_SPRITE[h.glyph], hx, hy, h.r)) { // class sprite, else procedural
+    drawBody(c, hx, hy, h.r, '#3a2616', '#e6c24a', 2.5);
+    c.strokeStyle = 'rgba(240,220,160,0.9)'; c.lineWidth = 3; c.beginPath(); c.moveTo(hx + dir.x * h.r * 0.7, hy + dir.y * h.r * 0.7); c.lineTo(hx + dir.x * (h.r + 9), hy + dir.y * (h.r + 9)); c.stroke();
+    glyph(c, h.glyph, hx, hy - 1, h.r * 2);
+  }
+  c.globalAlpha = 1;
 
   // particles (additive glow)
   c.globalCompositeOperation = 'lighter';
