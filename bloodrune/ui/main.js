@@ -6,6 +6,7 @@
 import { createGame } from '../engine/game.js';
 import { SLOTS, SLOT_LABEL, CLASSES, ACT1 } from '../engine/content.js';
 import { DT, ARENA_W, ARENA_H } from '../engine/arena.js';
+import { RASTER_SPRITES } from './sprites.js';
 
 const board = document.getElementById('board');
 const logEl = document.getElementById('log');
@@ -71,7 +72,7 @@ function renderTown(r) {
     <div class="quest-now">✦ <b>${q.name || 'Act 1'}</b> — ${q.questText || ''}</div>
     ${fresh ? `<div class="meta-row">Class: ${CLASS_LIST.map((c) => `<button class="pill ${c === classId ? 'on' : ''}" data-class="${c}">${CLASSES[c].glyph} ${CLASSES[c].name}</button>`).join('')}</div>
     <div class="meta-row">Difficulty: ${DIFFS.map((d) => `<button class="pill ${d === difficulty ? 'on' : ''} ${m.unlocked.includes(d) ? '' : 'locked'}" data-diff="${d}" ${m.unlocked.includes(d) ? '' : 'disabled'}>${d}</button>`).join('')}<span class="tally">wins ${m.wins} · deaths ${m.deaths}</span></div>` : ''}
-    <div class="char"><div class="char-glyph">${(SPRITE_SVG[HERO_SPRITE[r.glyph]] || '').replace('<svg ', '<svg width="70" height="80" ') || r.glyph}</div>
+    <div class="char"><div class="char-glyph">${RASTER[HERO_SPRITE[r.glyph]] ? `<img src="${RASTER[HERO_SPRITE[r.glyph]]}" width="78" height="92" style="object-fit:contain">` : ((SPRITE_SVG[HERO_SPRITE[r.glyph]] || '').replace('<svg ', '<svg width="70" height="80" ') || r.glyph)}</div>
       <div class="char-stats">
         <div><span class="k">Class</span> <b>${r.className}</b> <span class="k">Lv</span> <b>${r.level}</b></div>
         <div><span class="k">Life</span> <b class="life">${Math.round(r.life)}/${st.maxLife}</b> <span class="k">Mana</span> <b class="mana">${st.maxMana}</b></div>
@@ -253,12 +254,15 @@ const SPRITE_SVG = {
   goatman: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 46"><path d="M13 44 L12 24 Q20 20 28 24 L27 44Z" fill="#5a4632"/><path d="M12 25 Q20 28 28 25 L27 33 Q20 36 13 33Z" fill="#6e5a40"/><circle cx="20" cy="16" r="6.5" fill="#8a7458"/><path d="M14 12 Q7 4 5 12 Q9 9 13 12Z M26 12 Q33 4 35 12 Q31 9 27 12Z" fill="#d8cdb8"/><path d="M18 22 Q20 25 22 22" fill="#3a2a1a"/><circle cx="17.5" cy="16" r="1.2" fill="#c0102a"/><circle cx="22.5" cy="16" r="1.2" fill="#c0102a"/><rect x="30" y="14" width="2.6" height="26" rx="1" fill="#5a4432" transform="rotate(14 31 27)"/></svg>`,
   archer: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 46"><path d="M10 42 Q9 22 20 16 Q31 22 30 42Z" fill="#243626"/><path d="M20 16 Q31 22 30 42 L24 42 Q25 26 20 20Z" fill="#182619"/><path d="M11 21 Q20 6 29 21 Q24 13 20 13 Q16 13 11 21Z" fill="#2e4230"/><circle cx="20" cy="19" r="4.6" fill="#c8a882"/><circle cx="18.4" cy="19" r="1" fill="#1a2a10"/><circle cx="21.6" cy="19" r="1" fill="#1a2a10"/><path d="M9 8 Q3 23 9 38" stroke="#7a5a34" stroke-width="2.2" fill="none"/><line x1="9" y1="8" x2="9" y2="38" stroke="#d8cdb0" stroke-width="1"/><line x1="9" y1="23" x2="26" y2="23" stroke="#e8ddc8" stroke-width="1.4"/><path d="M26 23 L22 21 M26 23 L22 25" stroke="#e8ddc8" stroke-width="1.4" fill="none"/></svg>`,
 };
+const RASTER = (typeof RASTER_SPRITES !== 'undefined') ? RASTER_SPRITES : {};
 const spriteCache = {};
 function getSprite(id) {
   if (!id) return null;
   if (id in spriteCache) return spriteCache[id];
-  const svg = SPRITE_SVG[id]; if (!svg) { spriteCache[id] = null; return null; }
-  const img = new Image(); img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg); spriteCache[id] = img; return img;
+  // painted art first; hand-drawn SVG as fallback (e.g. the zombie placeholder)
+  const src = RASTER[id] || (SPRITE_SVG[id] ? 'data:image/svg+xml;utf8,' + encodeURIComponent(SPRITE_SVG[id]) : null);
+  if (!src) { spriteCache[id] = null; return null; }
+  const img = new Image(); img.src = src; spriteCache[id] = img; return img;
 }
 const HERO_SPRITE = { '🔮': 'sorceress', '🪓': 'barbarian', '🏹': 'amazon', '💀': 'necromancer' };
 // Sprites come alive in CODE (no extra art): flip to face travel, a walk-bob, a
