@@ -274,8 +274,8 @@ function drawSprite(c, id, x, y, r, opt) {
   c.save();
   c.translate(x, y + r);                     // anchor at the feet
   if (opt.lean) c.rotate(opt.lean);
-  const sq = opt.squash || 0;                // hit pop: widen + flatten briefly
-  c.scale((opt.faceLeft ? -1 : 1) * (1 + sq * 0.22), 1 - sq * 0.26);
+  const sq = opt.squash || 0;                // hit pop: a SUBTLE flatten (realistic art, not cartoon rubber)
+  c.scale((opt.faceLeft ? -1 : 1) * (1 + sq * 0.09), 1 - sq * 0.12);
   c.drawImage(img, -s / 2, -s * 0.96 + (opt.bob || 0), s, s);
   c.restore();
   return true;
@@ -326,8 +326,8 @@ function drawArena(s) {
     const tier = e.boss ? '#ff3b3b' : e.unique ? '#c8a24a' : e.elite ? '#e0484a' : e.raised ? '#8fbf8f' : '#5a4450';
     if (e.boss || e.unique || e.elite) { c.fillStyle = hexA(tier, 0.16); c.beginPath(); c.arc(e.x, e.y, e.r + 10 + Math.sin(ambientT * 4) * 2, 0, 7); c.fill(); }
     drawShadow(c, e.x, e.y, e.r);
-    const eopt = { faceLeft: e.x > h.x + 4, bob: Math.sin(ambientT * 8 + e.x * 0.25) * 1.4, // shamble toward you
-      lean: clampN((h.x - e.x) * 0.0007, -0.13, 0.13), squash: e.flash > 0 ? 1 : 0 };
+    const eopt = { faceLeft: e.x > h.x + 4, bob: Math.sin(ambientT * 7 + e.x * 0.25) * 1.0, // shamble toward you
+      lean: clampN((h.x - e.x) * 0.0004, -0.06, 0.06), squash: e.flash > 0 ? 0.7 : 0 };
     if (!drawSprite(c, e.id, e.x, e.y, e.r, eopt)) { // hand-drawn sprite, else procedural body+glyph
       const body = e.flash > 0 ? '#ffffff' : (ROLE_BODY[e.role] || '#2a1721');
       drawBody(c, e.x, e.y, e.r, body, tier, (e.boss || e.unique || e.elite) ? 2.5 : 1.5);
@@ -352,8 +352,8 @@ function drawArena(s) {
   const moved = prevHeroX != null && (Math.abs(hx - prevHeroX) + Math.abs(hy - prevHeroY)) > 0.6;
   prevHeroX = hx; prevHeroY = hy;
   if (dir.x < -0.15) heroFaceLeft = true; else if (dir.x > 0.15) heroFaceLeft = false;
-  const hopt = { faceLeft: heroFaceLeft, lean: moved ? clampN(dir.x, -1, 1) * 0.11 : 0,
-    bob: moved ? Math.sin(ambientT * 12) * 1.9 : Math.sin(ambientT * 3) * 0.7, squash: h.invuln ? 0.25 : 0 };
+  const hopt = { faceLeft: heroFaceLeft, lean: moved ? clampN(dir.x, -1, 1) * 0.05 : 0,
+    bob: moved ? Math.sin(ambientT * 10) * 1.3 : Math.sin(ambientT * 3) * 0.6, squash: 0 }; // hero hit-feedback is the i-frame flicker, not a squash
   c.globalAlpha = h.invuln ? 0.5 : 1;
   if (!drawSprite(c, HERO_SPRITE[h.glyph], hx, hy, h.r, hopt)) { // class sprite, else procedural
     drawBody(c, hx, hy, h.r, '#3a2616', '#e6c24a', 2.5);
