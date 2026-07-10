@@ -504,7 +504,7 @@ export function createArena({ hero, pack, rng, survival }) {
         cd: { ...h.cd }, abilities: h.abilities.map((id) => ({ id, ...SKILLS[id], eff: skillEffect(ctx, id), cd: h.cd[id] || 0, off: h.disabled.has(id), ready: !h.disabled.has(id) && (h.cd[id] || 0) <= 0 && SKILLS[id].cost <= h.mana })) },
       enemies: state.enemies.filter((e) => e.hp > 0).map((e) => ({ uid: e.uid, id: e.id, name: e.name, glyph: e.glyph, x: e.x, y: e.y, r: e.r,
         hp: e.hp, maxHp: e.maxHp, kind: e.kind, role: e.role, elite: e.elite, unique: e.unique, boss: e.boss, gate: e.gate, flash: e.flash, raised: e.raised, resist: e.resist, immune: e.immune })),
-      projectiles: state.projectiles.map((p) => ({ x: p.x, y: p.y, r: p.r, hostile: p.hostile, glyph: p.glyph })),
+      projectiles: state.projectiles.map((p) => ({ x: p.x, y: p.y, r: p.r, hostile: p.hostile, glyph: p.glyph, element: p.element, vx: p.vx, vy: p.vy })),
       minions: state.minions.map((m) => ({ x: m.x, y: m.y, r: m.r, glyph: m.glyph, hp: m.hp, maxHp: m.maxHp })),
       gems: state.gems.map((g) => ({ x: g.x, y: g.y })),
       pickups: state.pickups.map((p) => ({ x: p.x, y: p.y, r: p.r, color: p.item.color || '#c8a24a', slot: p.item.slot })),

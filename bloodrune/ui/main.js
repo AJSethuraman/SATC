@@ -156,6 +156,7 @@ function renderArena() {
   if (arenaActive) return; // the loop owns the DOM once it's up
   const s = combat.getState(); const h = s.hero; const pot = game.getRun().potions;
   lootToast = levelToast = questToast = null;
+  particles.length = 0; prevHeroLife = null; shakeMag = 0; // fresh render state per segment
   board.innerHTML = `<div class="rt">
     <div class="area-head"><span class="ah-name" id="rtAreaName"></span><span class="ah-prog" id="rtAreaProg"></span></div>
     <div class="area-quest" id="rtQuest"></div>
@@ -225,57 +226,134 @@ function endArena(s) {
 }
 
 // ---- canvas painting (camera follows the hero across the big world) ----
-const ROLE_FILL = { grunt: '#2a1622', guardian: '#1c2542', archer: '#16233f', caster: '#2a183a', elite: '#3a1414' };
-let camX = 0, camY = 0;
+// ---- procedural "graphics": atmospheric lighting, drawn creature bodies with
+// depth (ground shadow + top highlight), glowing elemental spells, a particle
+// system, and screen shake. No sprite assets — everything is drawn in code.
+const ROLE_BODY = { grunt: '#3a1f2c', guardian: '#22304f', archer: '#1d2f4a', caster: '#331d46', elite: '#4a1a1a', archer_alt: '#243a24' };
+const ELEM_COLOR = { fire: '#ff7a3a', cold: '#8fc4ff', lightning: '#d6a6ff', poison: '#8fe07a' };
+let camX = 0, camY = 0, shakeMag = 0, prevHeroLife = null, ambientT = 0;
+const particles = []; // {x,y,vx,vy,life,maxLife,r,color,grav}
+function spawnParticle(x, y, vx, vy, life, r, color, grav) { if (particles.length > 340) return; particles.push({ x, y, vx, vy, life, maxLife: life, r, color, grav: grav || 0 }); }
+function burst(x, y, n, spd, color, life) { for (let i = 0; i < n; i++) { const a = Math.random() * 7, s2 = spd * (0.4 + Math.random() * 0.8); spawnParticle(x, y, Math.cos(a) * s2, Math.sin(a) * s2, life * (0.6 + Math.random() * 0.6), 1.5 + Math.random() * 2.5, color, 40); } }
+function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
+
 function drawArena(s) {
-  const c = rtCtx; const h = s.hero; const w = s.world || { w: ARENA_W, h: ARENA_H };
+  const c = rtCtx; const h = s.hero; const w = s.world || { w: ARENA_W, h: ARENA_H }; const dt = 1 / 30;
+  ambientT += dt;
+  // screen shake when the hero takes a hit
+  if (prevHeroLife != null && h.life < prevHeroLife - 0.5) shakeMag = Math.min(11, shakeMag + Math.min(9, (prevHeroLife - h.life) * 0.25 + 2));
+  prevHeroLife = h.life; shakeMag *= 0.86;
+  const shx = shakeMag ? (Math.random() - 0.5) * shakeMag : 0, shy = shakeMag ? (Math.random() - 0.5) * shakeMag : 0;
   camX = clampN(h.x - ARENA_W / 2, 0, Math.max(0, w.w - ARENA_W));
   camY = clampN(h.y - ARENA_H / 2, 0, Math.max(0, w.h - ARENA_H));
-  c.clearRect(0, 0, ARENA_W, ARENA_H);
-  const vis = (x, y, r) => x + r > camX - 30 && x - r < camX + ARENA_W + 30 && y + r > camY - 30 && y - r < camY + ARENA_H + 30;
-  c.save(); c.translate(-camX, -camY);
-  // ground grid (so movement across the empty map reads) + world border
-  c.strokeStyle = 'rgba(90,66,74,0.16)'; c.lineWidth = 1;
-  const gx0 = Math.floor(camX / 100) * 100, gy0 = Math.floor(camY / 100) * 100;
-  for (let x = gx0; x <= camX + ARENA_W; x += 100) { c.beginPath(); c.moveTo(x, camY); c.lineTo(x, camY + ARENA_H); c.stroke(); }
-  for (let y = gy0; y <= camY + ARENA_H; y += 100) { c.beginPath(); c.moveTo(camX, y); c.lineTo(camX + ARENA_W, y); c.stroke(); }
-  c.strokeStyle = 'rgba(150,44,44,0.5)'; c.lineWidth = 4; c.strokeRect(0, 0, w.w, w.h);
-  // dropped loot on the ground (a glowing gem in the item's rarity color)
-  for (const p of (s.pickups || [])) { if (!vis(p.x, p.y, 14)) continue;
-    c.save(); c.translate(p.x, p.y); c.rotate(Math.PI / 4); c.fillStyle = p.color; c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 1.5;
-    c.beginPath(); c.rect(-6, -6, 12, 12); c.fill(); c.stroke(); c.restore();
-    c.fillStyle = hexA(p.color, 0.18); c.beginPath(); c.arc(p.x, p.y, 15, 0, 7); c.fill(); }
-  for (const g of s.gems) { if (!vis(g.x, g.y, 3)) continue; c.fillStyle = 'rgba(120,200,220,0.5)'; c.beginPath(); c.arc(g.x, g.y, 2.5, 0, 7); c.fill(); }
-  for (const f of s.fx) if (vis(f.x, f.y, (f.r || 24) + 20)) drawFx(c, f);
-  for (const m of s.minions) { if (!vis(m.x, m.y, m.r)) continue; c.fillStyle = '#1a2038'; c.strokeStyle = '#6a6f8a'; c.lineWidth = 1.5; disc(c, m.x, m.y, m.r); glyph(c, m.glyph, m.x, m.y, m.r * 1.5); }
-  for (const p of s.projectiles) { if (!vis(p.x, p.y, p.r)) continue; c.fillStyle = p.hostile ? '#ff6a5a' : '#e7cf8a'; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill();
-    if (p.hostile) { c.strokeStyle = 'rgba(255,90,70,.4)'; c.lineWidth = 1; c.stroke(); } }
-  for (const e of s.enemies) { if (e.hp <= 0 || !vis(e.x, e.y, e.r + 4)) continue;
-    c.fillStyle = e.flash > 0 ? '#ffffff' : (ROLE_FILL[e.role] || '#241521');
-    c.strokeStyle = e.boss ? '#ff3b3b' : e.unique ? '#c8a24a' : e.elite ? '#c62828' : e.raised ? '#6f8a6f' : '#4a3a4a'; c.lineWidth = e.boss || e.unique || e.elite ? 2.5 : 1.5;
-    disc(c, e.x, e.y, e.r); glyph(c, e.glyph, e.x, e.y - 1, e.r * 1.7);
-    const bw = e.r * 2.2, hpf = Math.max(0, e.hp / e.maxHp); c.fillStyle = '#320c0c'; c.fillRect(e.x - bw / 2, e.y - e.r - 8, bw, 3.5);
-    c.fillStyle = e.unique || e.boss ? '#c8a24a' : '#c62828'; c.fillRect(e.x - bw / 2, e.y - e.r - 8, bw * hpf, 3.5); }
-  if (h.shield > 0) { c.strokeStyle = 'rgba(200,162,74,.7)'; c.lineWidth = 2.5; c.beginPath(); c.arc(h.x, h.y, h.r + 6, 0, 7); c.stroke(); }
-  c.globalAlpha = h.invuln ? 0.55 : 1; c.fillStyle = '#2a1a10'; c.strokeStyle = '#c8a24a'; c.lineWidth = 2.5; disc(c, h.x, h.y, h.r); glyph(c, h.glyph, h.x, h.y - 1, h.r * 2); c.globalAlpha = 1;
+  const vis = (x, y, r) => x + r > camX - 40 && x - r < camX + ARENA_W + 40 && y + r > camY - 40 && y - r < camY + ARENA_H + 40;
+  // ground base
+  c.fillStyle = '#0b0709'; c.fillRect(0, 0, ARENA_W, ARENA_H);
+  c.save(); c.translate(-camX + shx, -camY + shy);
+
+  // --- ground: torch-lit stone with a drifting warm pool under the hero ---
+  const gpool = c.createRadialGradient(h.x, h.y, 20, h.x, h.y, 460);
+  gpool.addColorStop(0, 'rgba(60,34,26,0.55)'); gpool.addColorStop(0.5, 'rgba(30,18,20,0.28)'); gpool.addColorStop(1, 'rgba(10,7,9,0)');
+  c.fillStyle = gpool; c.fillRect(camX, camY, ARENA_W, ARENA_H);
+  c.strokeStyle = 'rgba(70,50,55,0.10)'; c.lineWidth = 1; // faint flagstone seams
+  const gx0 = Math.floor(camX / 120) * 120, gy0 = Math.floor(camY / 120) * 120;
+  for (let x = gx0; x <= camX + ARENA_W; x += 120) { c.beginPath(); c.moveTo(x, camY); c.lineTo(x, camY + ARENA_H); c.stroke(); }
+  for (let y = gy0; y <= camY + ARENA_H; y += 120) { c.beginPath(); c.moveTo(camX, y); c.lineTo(camX + ARENA_W, y); c.stroke(); }
+  // ruined, blood-lit world border
+  c.strokeStyle = 'rgba(150,30,30,0.55)'; c.lineWidth = 6; c.strokeRect(0, 0, w.w, w.h);
+  c.strokeStyle = 'rgba(255,90,70,0.18)'; c.lineWidth = 16; c.strokeRect(0, 0, w.w, w.h);
+
+  // gems (xp motes) — drifting cyan sparks
+  for (const g of s.gems) { if (!vis(g.x, g.y, 4)) continue; c.fillStyle = 'rgba(130,210,225,0.55)'; c.beginPath(); c.arc(g.x, g.y, 2.4, 0, 7); c.fill(); }
+  // dropped loot — a glowing gem in its rarity color, bobbing
+  for (const p of (s.pickups || [])) { if (!vis(p.x, p.y, 20)) continue; const bob = Math.sin(ambientT * 3 + p.x) * 2;
+    c.fillStyle = hexA(p.color, 0.22); c.beginPath(); c.arc(p.x, p.y + bob, 16, 0, 7); c.fill();
+    c.save(); c.translate(p.x, p.y + bob); c.rotate(Math.PI / 4); c.fillStyle = p.color; c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 1.5;
+    c.beginPath(); c.rect(-6, -6, 12, 12); c.fill(); c.stroke(); c.restore(); }
+
+  // fx UNDER units (cast rings, sweeps, ground bursts)
+  for (const f of s.fx) if (f.type !== 'dmg' && f.type !== 'miss' && f.type !== 'evade' && f.type !== 'immune' && vis(f.x, f.y, (f.r || 24) + 24)) drawFx(c, f);
+
+  // minions (undead allies)
+  for (const m of s.minions) { if (!vis(m.x, m.y, m.r)) continue; drawShadow(c, m.x, m.y, m.r); drawBody(c, m.x, m.y, m.r, '#1a2038', '#7a80a0', 0); glyph(c, m.glyph, m.x, m.y - 1, m.r * 1.5); }
+
+  // enemies — drawn creature bodies with depth, threat-tinted rim + aura, hp bar
+  for (const e of s.enemies) { if (e.hp <= 0 || !vis(e.x, e.y, e.r + 6)) continue;
+    const tier = e.boss ? '#ff3b3b' : e.unique ? '#c8a24a' : e.elite ? '#e0484a' : e.raised ? '#8fbf8f' : '#5a4450';
+    if (e.boss || e.unique || e.elite) { c.fillStyle = hexA(tier, 0.16); c.beginPath(); c.arc(e.x, e.y, e.r + 10 + Math.sin(ambientT * 4) * 2, 0, 7); c.fill(); }
+    drawShadow(c, e.x, e.y, e.r);
+    const body = e.flash > 0 ? '#ffffff' : (e.role === 'archer' && e.id === 'quill_rat' ? ROLE_BODY.archer_alt : (ROLE_BODY[e.role] || '#2a1721'));
+    drawBody(c, e.x, e.y, e.r, body, tier, (e.boss || e.unique || e.elite) ? 2.5 : 1.5);
+    glyph(c, e.glyph, e.x, e.y - 1, e.r * 1.7);
+    const bw = e.r * 2.2, hpf = Math.max(0, e.hp / e.maxHp); c.fillStyle = 'rgba(20,6,6,0.85)'; c.fillRect(e.x - bw / 2, e.y - e.r - 9, bw, 3.6);
+    c.fillStyle = e.unique || e.boss ? '#e6c24a' : '#d23a3a'; c.fillRect(e.x - bw / 2, e.y - e.r - 9, bw * hpf, 3.6); }
+
+  // projectiles — glowing elemental orbs with a trail
+  for (const p of s.projectiles) { if (!vis(p.x, p.y, p.r + 8)) continue;
+    const col = p.hostile ? '#ff5a4a' : (ELEM_COLOR[p.element] || '#ffd98a');
+    if (Math.random() < 0.7) spawnParticle(p.x, p.y, (p.vx || 0) * -0.05, (p.vy || 0) * -0.05, 0.35, p.r * 0.9, col, 0);
+    c.fillStyle = hexA(col, 0.25); c.beginPath(); c.arc(p.x, p.y, p.r + 5, 0, 7); c.fill();
+    c.fillStyle = col; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.85)'; c.beginPath(); c.arc(p.x - p.r * 0.3, p.y - p.r * 0.3, p.r * 0.4, 0, 7); c.fill(); }
+
+  // the hero — a lit figure with a facing weapon-glint, aura, shield/invuln
+  const hx = h.x, hy = h.y; const dir = h.dir || { x: 0, y: -1 };
+  c.fillStyle = 'rgba(255,210,140,0.10)'; c.beginPath(); c.arc(hx, hy, 40, 0, 7); c.fill(); // torch aura
+  drawShadow(c, hx, hy, h.r);
+  if (h.shield > 0) { c.strokeStyle = `rgba(210,175,90,${0.5 + Math.sin(ambientT * 8) * 0.2})`; c.lineWidth = 2.5; c.beginPath(); c.arc(hx, hy, h.r + 7, 0, 7); c.stroke(); }
+  c.globalAlpha = h.invuln ? 0.5 : 1;
+  drawBody(c, hx, hy, h.r, '#3a2616', '#e6c24a', 2.5);
+  // facing glint (a blade nub pointing where you move)
+  c.strokeStyle = 'rgba(240,220,160,0.9)'; c.lineWidth = 3; c.beginPath(); c.moveTo(hx + dir.x * h.r * 0.7, hy + dir.y * h.r * 0.7); c.lineTo(hx + dir.x * (h.r + 9), hy + dir.y * (h.r + 9)); c.stroke();
+  glyph(c, h.glyph, hx, hy - 1, h.r * 2); c.globalAlpha = 1;
+
+  // particles (additive glow)
+  c.globalCompositeOperation = 'lighter';
+  for (let i = particles.length - 1; i >= 0; i--) { const pt = particles[i]; pt.life -= dt; if (pt.life <= 0) { particles.splice(i, 1); continue; }
+    pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.vy += pt.grav * dt; pt.vx *= 0.94; pt.vy *= 0.94;
+    if (!vis(pt.x, pt.y, pt.r + 2)) continue; const a = Math.max(0, pt.life / pt.maxLife);
+    c.fillStyle = hexA(pt.color, a * 0.8); c.beginPath(); c.arc(pt.x, pt.y, pt.r * (0.4 + a * 0.6), 0, 7); c.fill(); }
+  c.globalCompositeOperation = 'source-over';
+
+  // floating text fx OVER everything (damage / miss / dodge / immune)
+  for (const f of s.fx) if ((f.type === 'dmg' || f.type === 'miss' || f.type === 'evade' || f.type === 'immune') && vis(f.x, f.y, 24)) drawFx(c, f);
   c.restore();
-  if (joy) { c.strokeStyle = 'rgba(200,180,150,.35)'; c.lineWidth = 2; c.beginPath(); c.arc(joy.ox, joy.oy, 40, 0, 7); c.stroke();
-    c.fillStyle = 'rgba(200,180,150,.55)'; c.beginPath(); c.arc(joy.cx, joy.cy, 14, 0, 7); c.fill(); }
+
+  // --- lighting: vignette darkens the edges so the torch-lit centre pops ---
+  const vg = c.createRadialGradient(ARENA_W / 2, ARENA_H / 2, ARENA_H * 0.35, ARENA_W / 2, ARENA_H / 2, ARENA_H * 0.85);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.62)');
+  c.fillStyle = vg; c.fillRect(0, 0, ARENA_W, ARENA_H);
+
+  if (joy) { c.strokeStyle = 'rgba(210,185,150,.35)'; c.lineWidth = 2; c.beginPath(); c.arc(joy.ox, joy.oy, 40, 0, 7); c.stroke();
+    c.fillStyle = 'rgba(210,185,150,.55)'; c.beginPath(); c.arc(joy.cx, joy.cy, 14, 0, 7); c.fill(); }
 }
-function disc(c, x, y, r) { c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); c.stroke(); }
-function glyph(c, g, x, y, size) { c.font = `${Math.round(size)}px serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(g, x, y); }
+// a soft ground shadow gives every unit weight
+function drawShadow(c, x, y, r) { c.fillStyle = 'rgba(0,0,0,0.38)'; c.beginPath(); c.ellipse(x, y + r * 0.72, r * 0.95, r * 0.42, 0, 0, 7); c.fill(); }
+// a body disc lit from top-left (cheap fake lighting: dark base + offset highlight)
+function drawBody(c, x, y, r, base, rim, rimW) {
+  c.fillStyle = base; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+  c.fillStyle = 'rgba(255,255,255,0.12)'; c.beginPath(); c.arc(x - r * 0.28, y - r * 0.32, r * 0.62, 0, 7); c.fill();
+  if (rimW) { c.strokeStyle = rim; c.lineWidth = rimW; c.beginPath(); c.arc(x, y, r, 0, 7); c.stroke(); }
+}
+function glyph(c, g, x, y, size) { c.font = `${Math.round(size)}px serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillText(g, x + 1, y + 1.5); c.fillStyle = '#fff'; c.fillText(g, x, y); }
 function drawFx(c, f) {
   const t = f.life / f.maxLife;
-  if (f.type === 'sweep') { c.strokeStyle = `rgba(230,200,150,${0.5 * t})`; c.lineWidth = 3; c.beginPath(); c.arc(f.x, f.y, f.r * (1.2 - t * 0.3), 0, 7); c.stroke(); }
-  else if (f.type === 'cast') { c.strokeStyle = hexA(f.color || '#c8a24a', 0.6 * t); c.lineWidth = 2.5; c.beginPath(); c.arc(f.x, f.y, f.r * (1.4 - t * 0.5), 0, 7); c.stroke(); }
-  else if (f.type === 'dash') { c.fillStyle = `rgba(200,162,74,${0.4 * t})`; c.beginPath(); c.arc(f.x, f.y, 22 * (1.2 - t), 0, 7); c.fill(); }
-  else if (f.type === 'dmg') { c.fillStyle = `rgba(255,225,180,${Math.min(1, t * 1.5)})`; c.font = 'bold 14px sans-serif'; c.textAlign = 'center'; c.fillText(f.val, f.x, f.y); }
-  else if (f.type === 'miss') { c.fillStyle = `rgba(150,150,160,${t})`; c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('miss', f.x, f.y); }
+  if (f.type === 'sweep') { c.strokeStyle = `rgba(240,210,160,${0.55 * t})`; c.lineWidth = 3.5; c.beginPath(); c.arc(f.x, f.y, f.r * (1.15 - t * 0.25), 0, 7); c.stroke(); }
+  else if (f.type === 'cast') { const col = f.color || '#c8a24a';
+    c.strokeStyle = hexA(col, 0.7 * t); c.lineWidth = 3; c.beginPath(); c.arc(f.x, f.y, f.r * (1.4 - t * 0.5), 0, 7); c.stroke();
+    c.fillStyle = hexA(col, 0.10 * t); c.beginPath(); c.arc(f.x, f.y, f.r * (1.4 - t * 0.5), 0, 7); c.fill();
+    if (t > 0.94) burst(f.x, f.y, 6, 120, col, 0.5); } // one-time spark when the ring is born
+  else if (f.type === 'dash') { c.fillStyle = `rgba(210,175,90,${0.4 * t})`; c.beginPath(); c.arc(f.x, f.y, 22 * (1.2 - t), 0, 7); c.fill(); }
+  else if (f.type === 'hurt') { c.strokeStyle = `rgba(230,40,40,${0.55 * t})`; c.lineWidth = 3.5; c.beginPath(); c.arc(f.x, f.y, 22 * (1.4 - t), 0, 7); c.stroke();
+    if (t > 0.9) burst(f.x, f.y, 5, 90, '#c62828', 0.45); }
+  else if (f.type === 'dmg') { const rise = (1 - t) * 16; c.font = 'bold 15px sans-serif'; c.textAlign = 'center';
+    c.fillStyle = `rgba(0,0,0,${0.5 * Math.min(1, t * 1.5)})`; c.fillText(f.val, f.x + 1, f.y - rise + 1);
+    c.fillStyle = `rgba(255,232,190,${Math.min(1, t * 1.5)})`; c.fillText(f.val, f.x, f.y - rise); }
+  else if (f.type === 'miss') { c.fillStyle = `rgba(160,160,170,${t})`; c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('miss', f.x, f.y); }
   else if (f.type === 'evade') { c.fillStyle = `rgba(150,200,255,${t})`; c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('dodge', f.x, f.y); }
-  else if (f.type === 'immune') { c.fillStyle = `rgba(180,180,190,${t})`; c.font = 'bold 11px sans-serif'; c.textAlign = 'center'; c.fillText('IMMUNE', f.x, f.y); }
-  else if (f.type === 'hurt') { c.strokeStyle = `rgba(220,40,40,${0.5 * t})`; c.lineWidth = 3; c.beginPath(); c.arc(f.x, f.y, 20 * (1.4 - t), 0, 7); c.stroke(); }
+  else if (f.type === 'immune') { c.fillStyle = `rgba(190,190,200,${t})`; c.font = 'bold 11px sans-serif'; c.textAlign = 'center'; c.fillText('IMMUNE', f.x, f.y); }
 }
-function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
 
 function updateHUD(s, dt) {
   const h = s.hero; const r = game.getRun(); const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
