@@ -1,0 +1,66 @@
+from __future__ import annotations
+import re
+from dataclasses import dataclass, field
+
+PROHIBITED=[r"\brecommend\s+approval\b",r"\brecommend\s+decline\b",r"\bapproved\s+for\s+credit\b",r"\bdeclined\s+for\s+credit\b",r"\bbuy\s+rating\b",r"\bsell\s+rating\b",r"\bhold\s+rating\b",r"\binvestment\s+recommendation\b",r"\bcredit\s+rating\s*:",r"\brisk\s+rating\s*:",r"\bshould\s+lend\b",r"\bshould\s+not\s+lend\b",r"\bsafe\s+investment\b",r"\bgood\s+credit\s+risk\b",r"\bbad\s+credit\s+risk\b",r"\bstrong\s+credit\b",r"\bweak\s+credit\b",r"\bfinancially\s+distressed\b",r"\blikely\s+bankruptcy\b",r"\blikely\s+default\b",r"\blow\s+risk\b",r"\bhigh\s+risk\b",r"\bmaterially\s+improved\b",r"\bmaterially\s+deteriorated\b"]
+
+@dataclass
+class ValidationResult:
+    is_valid: bool
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+
+def _num_matches(text:str):
+    return list(re.finditer(r"(?<![A-Za-z:])[-+]?\d+(?:\.\d+)?%?", text))
+
+
+def _has_bad(text:str)->bool:
+    return any(re.search(p,text,re.I) for p in PROHIBITED)
+
+
+def validate_source_bound_output(payload: dict, valid_ids:set[str], allowed_values:set[str]) -> ValidationResult:
+    errs=[]; warns=[]
+    for k in ('summary_points','review_themes','review_questions','missing_information'):
+        if k not in payload: errs.append(f'missing key {k}')
+    if errs: return ValidationResult(False,errs,warns)
+
+    def chk_sources(arr,key,src_key):
+        for i,it in enumerate(arr):
+            if not (it.get(key) or '').strip(): errs.append(f'{key} empty {i}')
+            srcs=it.get(src_key,[])
+            if not srcs: errs.append(f'{src_key} empty {i}')
+            for s in srcs:
+                if s not in valid_ids: errs.append(f'invalid source id {s}')
+
+    chk_sources(payload['summary_points'],'text','sources')
+    chk_sources(payload['review_themes'],'theme','sources')
+    for i,it in enumerate(payload['review_themes']):
+        if not (it.get('why_it_matters') or '').strip(): errs.append(f'why_it_matters empty {i}')
+    chk_sources(payload['review_questions'],'question','based_on')
+
+    for i,it in enumerate(payload.get('missing_information',[])):
+        if not (it.get('item') or '').strip(): errs.append(f'missing_information item empty {i}')
+        if not (it.get('reason') or '').strip(): errs.append(f'missing_information reason empty {i}')
+        if _has_bad((it.get('item','')+' '+it.get('reason','')).lower()): errs.append(f'prohibited language in missing_information {i}')
+
+    text_fields=[]
+    for it in payload.get('summary_points',[]): text_fields.append(str(it.get('text','')))
+    for it in payload.get('review_themes',[]): text_fields.extend([str(it.get('theme','')),str(it.get('why_it_matters',''))])
+    for it in payload.get('review_questions',[]): text_fields.append(str(it.get('question','')))
+    for it in payload.get('missing_information',[]): text_fields.extend([str(it.get('item','')),str(it.get('reason',''))])
+    joined=' '.join(text_fields).lower()
+    for pat in PROHIBITED:
+        if re.search(pat,joined,re.I): errs.append(f'prohibited phrase {pat}')
+
+    allowed=allowed_values | {v.replace('%','') for v in allowed_values}
+    for m in _num_matches(joined):
+        n=m.group(0)
+        # Context-aware allowance only when part of filing form tokens like 10-k / 10-q / 8-k
+        ctx=joined[max(0,m.start()-3):min(len(joined),m.end()+3)]
+        if n in {'10','8'} and re.search(r"\b(10\s*-?\s*[kq]|8\s*-?\s*k)\b", ctx):
+            continue
+        if n not in allowed and n.rstrip('%') not in allowed:
+            errs.append(f'unsupported numeric value {n}')
+            break
+    return ValidationResult(len(errs)==0,errs,warns)
