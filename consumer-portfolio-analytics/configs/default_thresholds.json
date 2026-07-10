@@ -1,0 +1,44 @@
+{
+  "_comment": "Firm-standard asset-quality expectations for unsecured consumer credit cards. Limits are decimal fractions unless noted. Override per client with a JSON file passed via --config; client values deep-merge over these defaults.",
+  "credit_card": {
+    "delinquency": {
+      "max_dpd30plus_balance_rate": 0.035,
+      "max_dpd90plus_balance_rate": 0.018
+    },
+    "time_series": {
+      "max_dpd30plus_yoy_delta": 0.010,
+      "max_gross_co_rate_yoy_delta": 0.015,
+      "max_balance_growth_12m": 0.40
+    },
+    "roll_rates": {
+      "max_current_to_dpd30": 0.013,
+      "max_dpd30_to_dpd60": 0.50,
+      "min_dpd30_cure_rate": 0.20
+    },
+    "vintage": {
+      "max_cum_loss_mob12": 0.030,
+      "max_recent_vs_seasoned_mob12_ratio": 1.60
+    },
+    "charge_offs": {
+      "max_gross_co_rate_t12": 0.055,
+      "max_net_co_rate_t12": 0.050
+    },
+    "recoveries": {
+      "min_recovery_rate_t12": 0.08
+    },
+    "concentration": {
+      "max_subprime_balance_share": 0.15,
+      "max_below_prime_balance_share": 0.35,
+      "max_vintage_year_share": 0.45,
+      "max_score_band_hhi": 0.40
+    },
+    "utilization": {
+      "max_portfolio_utilization": 0.40,
+      "max_high_util_balance_share": 0.35
+    },
+    "line_management": {
+      "max_increase_share_below_prime": 0.20,
+      "max_increases_gone_bad_rate": 0.10
+    }
+  }
+}
