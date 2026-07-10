@@ -1,0 +1,10 @@
+{
+  "name": "Meridian Fabrication LLC (sample)",
+  "segment": "cni",
+  "years": [
+    { "fy": 2022, "revenue": 252, "ebitda": 40, "total_debt": 140, "cash": 9, "interest_expense": 8.4, "capex": 7.5, "cogs": 172, "receivables": 33, "inventory": 38, "payables": 23, "current_assets": 84, "current_liabilities": 44, "total_assets": 206 },
+    { "fy": 2023, "revenue": 246, "ebitda": 35.5, "total_debt": 150, "cash": 7, "interest_expense": 11.6, "capex": 7, "cogs": 170, "receivables": 36, "inventory": 41, "payables": 22, "current_assets": 88, "current_liabilities": 45, "total_assets": 208 },
+    { "fy": 2024, "revenue": 240, "ebitda": 32, "total_debt": 162, "cash": 6, "interest_expense": 14.6, "capex": 7, "cogs": 168, "receivables": 38, "inventory": 42, "payables": 21, "current_assets": 90, "current_liabilities": 46, "total_assets": 210 }
+  ],
+  "_units": "All values in $M, fiscal-year basis. Paste into the workbench via the Paste button."
+}

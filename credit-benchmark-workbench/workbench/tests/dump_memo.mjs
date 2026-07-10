@@ -1,0 +1,17 @@
+import { JSDOM } from "jsdom";
+import { writeFileSync } from "fs";
+const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "http://localhost/" });
+global.window = dom.window; global.document = dom.window.document;
+Object.defineProperty(global, "navigator", { value: dom.window.navigator, configurable: true });
+global.Blob = dom.window.Blob; global.URL = dom.window.URL;
+const React = (await import("react")).default;
+const { createRoot } = await import("react-dom/client");
+const { act } = await import("react");
+const Workbench = (await import("./compiled.js")).default;
+global.IS_REACT_ACT_ENVIRONMENT = true;
+const root = createRoot(document.getElementById("root"));
+await act(async () => { root.render(React.createElement(Workbench)); });
+const memoBtn = [...document.body.querySelectorAll("button")].find((b) => b.textContent === "Export memo");
+await act(async () => { memoBtn.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); });
+writeFileSync("sample_memo.md", document.body.querySelector("pre").textContent);
+console.log("memo dumped");
