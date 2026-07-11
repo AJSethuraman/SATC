@@ -119,7 +119,7 @@ export function createArena({ hero, pack, rng, survival }) {
       manaRegen: hero.manaRegen != null ? hero.manaRegen : 4,
       accuracy: hero.accuracy, evade: hero.evade || 0, weapon: hero.weapon || null,
       plusSkills: hero.plusSkills || 0, fcr: hero.fcr || 0, ias: hero.ias || 0, penetration: hero.penetration || 0, skillMods: hero.skillMods || {}, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
-      shield: 0, shieldT: 0, invT: 0, stillT: 0, dir: { x: 0, y: -1 }, cd: {}, disabled: new Set() },
+      shield: 0, shieldT: 0, invT: 0, stillT: 0, dir: { x: 0, y: -1 }, aim: { x: 1, y: 0 }, cd: {}, disabled: new Set() },
     enemies: [], projectiles: [], minions: [], gems: [], fx: [], pickups: [], collected: [], pending: [],
     time: 0, xpEarned: 0, over: false, result: null, nextUid: 0,
     spawnTimer: surv ? 0.6 : 0,
@@ -257,6 +257,26 @@ export function createArena({ hero, pack, rng, survival }) {
           fx({ type: 'ring', x: h.x, y: h.y, r: R, life: 0.4, color: col });
           for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, dmg(), false, s.element);
           continue; }
+        if (s.geo === 'storm') { // THUNDER STORM — lightning falls from the sky onto scattered foes around you
+          const range = s.stormRange || 360; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= range);
+          if (!pool.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          const strikes = Math.min(pool.length, (s.strikeBase || 2) + Math.floor((eff.lvl - 1) / 2)); const avail = pool.slice();
+          for (let k = 0; k < strikes && avail.length; k++) { const e = avail.splice(rng.int(avail.length), 1)[0];
+            hitEnemy(e, dmg(), false, s.element);
+            fx({ type: 'chain', x: e.x, y: e.y - 94, x2: e.x, y2: e.y, life: 0.22, color: col }); // a bolt from above
+            fx({ type: 'impact', x: e.x, y: e.y, r: 20, life: 0.2, color: col }); }
+          continue; }
+        if (s.geo === 'cone') { // INFERNO — a cone of flame toward the nearest foe (hero turns to face it)
+          const ft = faceTarget(); if (!ft) continue;
+          const ang = Math.atan2(ft.e.y - h.y, ft.e.x - h.x); const range = (s.coneRange || 165) * aoe, half = s.coneArc || 0.6;
+          const inCone = alive().filter((e) => { const dd = Math.hypot(e.x - h.x, e.y - h.y); if (dd > range + e.r) return false;
+            let da = Math.atan2(e.y - h.y, e.x - h.x) - ang; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI; return Math.abs(da) <= half; });
+          if (!inCone.length) continue;
+          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          const cap = s.maxTargets || 99; let hit = 0;
+          for (const e of inCone) { if (hit++ >= cap) break; hitEnemy(e, dmg(), false, s.element); }
+          fx({ type: 'cone', x: h.x, y: h.y, ang, range, half, life: 0.22, color: col });
+          continue; }
         // every other geometry needs a direction/target — aim at the boss (on-screen) else nearest
         const aim = aimPoint(); if (!aim) continue;
         if (s.geo === 'arc') { // CHAIN LIGHTNING — auto-seeks, then LEAPS to a few (jumps grow with skill + gear)
@@ -269,23 +289,14 @@ export function createArena({ hero, pack, rng, survival }) {
             let best = null, bd = 1e9; for (const e2 of alive()) { if (hitU.has(e2.uid)) continue; const dd = Math.hypot(e2.x - fx1, e2.y - fy1); if (dd < range && dd < bd) { bd = dd; best = e2; } }
             node = best; }
           continue; }
-        if (s.geo === 'beam') { // LIGHTNING — an instant line of raw current down a lane: HUGE damage, dead straight
-          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
-          const ang = Math.atan2(aim.e.y - h.y, aim.e.x - h.x); const L = s.beamLen || 520, halfW = (s.beamW || 34) / 2;
+        if (s.geo === 'beam') { // LIGHTNING — an instant line of raw current toward the nearest foe: HUGE damage, dead straight
+          const ft = faceTarget() || aim; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          const ang = Math.atan2(ft.e.y - h.y, ft.e.x - h.x); const L = s.beamLen || 520, halfW = (s.beamW || 34) / 2;
           const ux = Math.cos(ang), uy = Math.sin(ang);
           for (const e of alive()) { const rx = e.x - h.x, ry = e.y - h.y; const along = rx * ux + ry * uy;
             if (along < 0 || along > L) continue; const perp = Math.abs(rx * -uy + ry * ux);
             if (perp <= halfW + e.r) hitEnemy(e, dmg(), false, s.element); }
           fx({ type: 'beam', x: h.x, y: h.y, x2: h.x + ux * L, y2: h.y + uy * L, life: 0.18, color: col });
-          continue; }
-        if (s.geo === 'cone') { // INFERNO — a cone of flame poured out in front of you
-          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
-          const ang = Math.atan2(aim.e.y - h.y, aim.e.x - h.x); const range = (s.coneRange || 165) * aoe, half = s.coneArc || 0.6;
-          let hit = 0; const cap = s.maxTargets || 99;
-          for (const e of alive()) { if (hit >= cap) break; const dd = Math.hypot(e.x - h.x, e.y - h.y); if (dd > range + e.r) continue;
-            let da = Math.atan2(e.y - h.y, e.x - h.x) - ang; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
-            if (Math.abs(da) <= half) { hitEnemy(e, dmg(), false, s.element); hit++; } }
-          fx({ type: 'cone', x: h.x, y: h.y, ang, range, half, life: 0.22, color: col });
           continue; }
         if (s.geo === 'ground') { // METEOR — a telegraphed blast that falls onto the pack
           h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe; const R = (s.radius || 140) * aoe;
@@ -297,9 +308,9 @@ export function createArena({ hero, pack, rng, survival }) {
           const b = spawnBolt(h, aim.e, dmg(), false, 0, s.glyph || '☄', s.element);
           b.splash = { r: (s.splashR || 90) * aoe, min: Math.round(eff.min * sdm), max: Math.round(eff.max * sdm), element: s.element, n: s.maxTargets || 8, color: col };
           continue; }
-        if (s.geo === 'spread') { // CHARGED BOLT — a fan of erratic bolts that scatter (they do NOT seek); +bolts/pierce from gear
-          h.mana -= s.cost; h.cd[id] = cdMul * CD.damage;
-          const ang = Math.atan2(aim.e.y - h.y, aim.e.x - h.x); const n = Math.min((s.boltMax || 9) + (sm.bolts || 0), (s.boltBase || 3) + Math.floor((eff.lvl - 1) / 2) + (sm.bolts || 0)); const arc = s.spreadArc || 0.9;
+        if (s.geo === 'spread') { // CHARGED BOLT — a fan of erratic bolts toward the nearest foe that scatter (they do NOT seek); +bolts/pierce from gear
+          const ft = faceTarget() || aim; h.mana -= s.cost; h.cd[id] = cdMul * CD.damage;
+          const ang = Math.atan2(ft.e.y - h.y, ft.e.x - h.x); const n = Math.min((s.boltMax || 9) + (sm.bolts || 0), (s.boltBase || 3) + Math.floor((eff.lvl - 1) / 2) + (sm.bolts || 0)); const arc = s.spreadArc || 0.9;
           for (let k = 0; k < n; k++) { const a = ang + (n === 1 ? 0 : (k / (n - 1) - 0.5) * arc) + (rng.next() - 0.5) * 0.18;
             const b = spawnBolt(h, { x: h.x + Math.cos(a) * 400, y: h.y + Math.sin(a) * 400 }, dmg(), false, pierce, '⚡', s.element); b.home = false; b.life = 0.85; }
           continue; }
@@ -367,11 +378,16 @@ export function createArena({ hero, pack, rng, survival }) {
     for (const e of pool) hitEnemy(e, roll(s.min, s.max), false, s.element);
   }
   // Auto-aim helper: FOCUS the boss if it's on-screen, else the nearest foe within view.
+  // Used by targeted/homing casts (bolts, balls, meteor, chain) that commit to a target.
   function aimPoint() {
     const h = state.hero; const gt = liveGate();
     if (gt && Math.hypot(gt.x - h.x, gt.y - h.y) <= SCREEN_RANGE) return { e: gt, d: Math.hypot(gt.x - h.x, gt.y - h.y) };
     const n = nearest(h.x, h.y); if (!n || n.d > SCREEN_RANGE) return null; return n;
   }
+  // FACING target: the nearest foe, full stop (no boss-focus). This is where the hero
+  // TURNS to aim — Halls-of-Torment style, decoupled from movement — so directional
+  // skills (cone/beam/spread) fire at the nearest threat while you move any direction.
+  function faceTarget() { const h = state.hero; const n = nearest(h.x, h.y); if (!n || n.d > SCREEN_RANGE) return null; return n; }
 
   function homeBolt(p, dt) { // VS-style auto-aim so ranged reliably connects
     const t = nearest(p.x, p.y, (e) => !p.hitUids.includes(e.uid)); if (!t) return;
@@ -552,6 +568,8 @@ export function createArena({ hero, pack, rng, survival }) {
       h.x = clamp(h.x + mx * HERO_SPEED * dt * Math.min(1, ml), h.r, world.w - h.r); h.y = clamp(h.y + my * HERO_SPEED * dt * Math.min(1, ml), h.r, world.h - h.r);
       state.tally.moveT += dt; state.tally.moveDist += HERO_SPEED * Math.min(1, ml) * dt; }
     else state.tally.idleT += dt; // idle time is tracked for telemetry (no synthetic punishment)
+    // the hero TURNS to face the nearest foe (aim ≠ movement) — Halls-of-Torment style
+    const at = nearest(h.x, h.y); if (at && at.d > 1) h.aim = { x: (at.e.x - h.x) / at.d, y: (at.e.y - h.y) / at.d };
     if (surv) director(dt);
     fireHeroAbilities();
     stepProjectiles(dt);
@@ -627,7 +645,7 @@ export function createArena({ hero, pack, rng, survival }) {
     return {
       hero: { name: h.name, glyph: h.glyph, x: h.x, y: h.y, r: h.r, life: h.life, maxLife: h.maxLife,
         mana: Math.floor(h.mana), maxMana: h.maxMana, manaRegen: h.manaRegen, shield: Math.round(h.shield),
-        accuracy: h.accuracy, evade: h.evade, fcr: h.fcr, ias: h.ias, penetration: h.penetration, invuln: h.invT > 0, dir: { ...h.dir }, weapon: h.weapon,
+        accuracy: h.accuracy, evade: h.evade, fcr: h.fcr, ias: h.ias, penetration: h.penetration, invuln: h.invT > 0, dir: { ...h.dir }, aim: { ...h.aim }, weapon: h.weapon,
         cd: { ...h.cd }, abilities: h.abilities.map((id) => ({ id, ...SKILLS[id], eff: skillEffect(ctx, id), cd: h.cd[id] || 0, off: h.disabled.has(id), ready: !h.disabled.has(id) && (h.cd[id] || 0) <= 0 && SKILLS[id].cost <= h.mana })) },
       enemies: state.enemies.filter((e) => e.hp > 0).map((e) => ({ uid: e.uid, id: e.id, name: e.name, glyph: e.glyph, x: e.x, y: e.y, r: e.r,
         hp: e.hp, maxHp: e.maxHp, kind: e.kind, role: e.role, elite: e.elite, unique: e.unique, boss: e.boss, gate: e.gate, flash: e.flash, raised: e.raised, resist: e.resist, immune: e.immune })),

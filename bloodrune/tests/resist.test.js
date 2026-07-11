@@ -32,11 +32,11 @@ test('Sorceress damage skills carry an element', () => {
   assert.equal(skillEffect({ hard: { nova: 1 }, weapon: { wtype: 'focus' } }, 'nova').element, 'lightning');
 });
 
-test('a fire nova cannot damage a fire-immune foe in the live sim (must swap element)', () => {
+test('a fire spell cannot damage a fire-immune foe in the live sim (must swap element)', () => {
   const hero = { name: 'S', glyph: '🔮', maxLife: 900, life: 900, maxMana: 60, mana: 60, manaRegen: 10,
-    accuracy: 8, evade: 0, weapon: { wtype: 'focus' }, hard: { inferno: 6 }, plusSkills: 0, abilities: ['inferno'] };
+    accuracy: 8, evade: 0, weapon: { wtype: 'focus' }, hard: { fire_ball: 6 }, plusSkills: 0, abilities: ['fire_ball'] };
   // one fire-IMMUNE zombie + one normal zombie, both very tanky so neither dies.
-  // Stand still so both walk into Inferno's radius.
+  // Stand still; both walk to the hero and Fire Ball's burst splashes them both.
   const a = createArena({ hero, pack: [{ id: 'zombie', hpMul: 80, immune: 'fire' }, { id: 'zombie', hpMul: 80 }], rng: makeRng('imm') });
   for (let i = 0; i < 30 * 20 && !a.getState().over; i++) a.tick({ x: 0, y: 0 });
   const s = a.getState(); const im = s.enemies.find((e) => e.immune === 'fire'); const norm = s.enemies.find((e) => !e.immune);

@@ -356,7 +356,10 @@ function drawArena(s) {
   if (h.shield > 0) { c.strokeStyle = `rgba(210,175,90,${0.5 + Math.sin(ambientT * 8) * 0.2})`; c.lineWidth = 2.5; c.beginPath(); c.arc(hx, hy, h.r + 7, 0, 7); c.stroke(); }
   const moved = prevHeroX != null && (Math.abs(hx - prevHeroX) + Math.abs(hy - prevHeroY)) > 0.6;
   prevHeroX = hx; prevHeroY = hy;
-  if (dir.x < -0.15) heroFaceLeft = true; else if (dir.x > 0.15) heroFaceLeft = false;
+  // the hero TURNS to face the nearest foe (aim), not the way they're walking — so you
+  // can strafe/retreat while still shooting toward the swarm (Halls-of-Torment feel).
+  const face = (h.aim && (h.aim.x || h.aim.y)) ? h.aim : dir;
+  if (face.x < -0.15) heroFaceLeft = true; else if (face.x > 0.15) heroFaceLeft = false;
   const hopt = { faceLeft: heroFaceLeft, lean: moved ? clampN(dir.x, -1, 1) * 0.05 : 0,
     bob: moved ? Math.sin(ambientT * 10) * 1.3 : Math.sin(ambientT * 3) * 0.6, squash: 0 }; // hero hit-feedback is the i-frame flicker, not a squash
   c.globalAlpha = h.invuln ? 0.5 : 1;
