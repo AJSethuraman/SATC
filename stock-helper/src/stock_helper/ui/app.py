@@ -701,6 +701,49 @@ elif page == "Company Valuation":
 
     st.divider()
 
+    # --- Row 3b: Monte Carlo fair-value spread ---
+    mc = val.monte_carlo
+    if mc is not None:
+        st.subheader("Monte Carlo — how wide is the fair value?")
+        mcc1, mcc2, mcc3 = st.columns(3)
+        with mcc1:
+            st.markdown(
+                theme.metric_tile("Median fair value", per_share(mc.median),
+                                  f"{mc.n_sims:,} valid draws · seed {mc.seed}"),
+                unsafe_allow_html=True,
+            )
+        with mcc2:
+            st.markdown(
+                theme.metric_tile("Middle 80% (p10–p90)",
+                                  f"{per_share(mc.p10)} – {per_share(mc.p90)}",
+                                  "input-uncertainty fan"),
+                unsafe_allow_html=True,
+            )
+        with mcc3:
+            if mc.prob_undervalued is not None:
+                st.markdown(
+                    theme.metric_tile("Draws above price", pct(mc.prob_undervalued),
+                                      "diagnostic, NOT a forecast"),
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    theme.metric_tile("Draws above price", "n/a", "no price"),
+                    unsafe_allow_html=True,
+                )
+        st.plotly_chart(
+            theme.monte_carlo_fan(mc, val.price),
+            use_container_width=True,
+        )
+        st.caption(
+            "⚠️ Spread reflects **input** uncertainty only (growth, discount, "
+            "terminal growth, FCF base) — not model risk or the chance the base "
+            "assumptions are simply wrong. A sensitivity fan around one editable "
+            "scenario, **not** a probability the stock goes up or a price target."
+        )
+
+        st.divider()
+
     # --- Row 4: multiples table ---
     st.subheader("Multiples — company vs peers")
     if val.multiples:

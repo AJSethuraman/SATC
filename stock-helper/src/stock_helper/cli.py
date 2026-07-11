@@ -374,6 +374,11 @@ def value(
         vt.add_row("Cost of equity (CAPM Ke = DCF discount)",
                    f"{pct(coc.ke)}  (rf {pct(coc.risk_free)} + β {coc.beta:.2f} × ERP {pct(coc.erp)})")
         vt.add_row("WACC (for ROIC spread)", pct(coc.wacc))
+    mc = val.monte_carlo
+    if mc is not None:
+        pu = f" · P(undervalued) {pct(mc.prob_undervalued)}" if mc.prob_undervalued is not None else ""
+        vt.add_row("Monte Carlo fair value (p10–p90)",
+                   f"{per_share(mc.p10)} – {per_share(mc.p90)} (median {per_share(mc.median)}){pu}")
     ri = val.residual_income
     if ri is not None and ri.fair_value_per_share is not None:
         vt.add_row("Residual-income fair value / share", per_share(ri.fair_value_per_share))
@@ -509,6 +514,61 @@ def screen(
         "\n[dim]Candidate screens — NOT buy lists. Unscored and not backtested; "
         "distress/manipulation flags are screens to READ, never verdicts.[/dim]"
     )
+
+
+@app.command()
+def backtest(
+    signal: str = typer.Option("value_composite", "--signal",
+                               help="Signal to evaluate (value_composite, quality_composite, "
+                               "earnings_yield, fcf_yield, piotroski_f)."),
+    start: str = typer.Option(..., "--start", help="First rebalance date (YYYY-MM-DD)."),
+    end: str = typer.Option(..., "--end", help="Last rebalance date (YYYY-MM-DD)."),
+    step_days: int = typer.Option(63, "--step-days", help="Days between rebalances (~quarterly)."),
+    horizon_days: int = typer.Option(63, "--horizon-days", help="Forward-return holding window (trading days)."),
+    n_trials: int = typer.Option(1, "--n-trials", help="How many signal variants you've tried (Deflated-Sharpe penalty)."),
+) -> None:
+    """Walk-forward test whether SIGNAL sorted future returns (point-in-time).
+
+    EDUCATIONAL ONLY: runs on non-canonical, survivorship-biased free prices —
+    delisted names are absent, which inflates results. NOT a performance claim."""
+    settings = _setup()
+    from stock_helper.backtest.panel import SIGNAL_FUNCTIONS, run_backtest
+    from stock_helper.storage.db import get_session, init_db
+
+    if signal not in SIGNAL_FUNCTIONS:
+        console.print(f"[red]✗[/red] Unknown signal {signal!r}. Choices: "
+                      + ", ".join(sorted(SIGNAL_FUNCTIONS)))
+        raise typer.Exit(1)
+    start_d, end_d = _parse_cli_date(start), _parse_cli_date(end)
+    init_db(settings)
+    with get_session(settings) as session:
+        result = run_backtest(
+            session, signal_name=signal, start=start_d, end=end_d,
+            step_days=step_days, horizon_days=horizon_days, settings=settings, n_trials=n_trials,
+        )
+
+    def _f(v, fmt="{:+.3f}"):
+        return fmt.format(v) if v is not None else "—"
+
+    t = Table(title=f"Walk-forward: '{signal}' · {start} → {end} · {horizon_days}d horizon")
+    t.add_column("Metric")
+    t.add_column("Value", justify="right")
+    t.add_row("Rebalance dates used", str(result.n_dates))
+    t.add_row("Avg names / date", _f(result.n_names_avg, "{:.0f}"))
+    t.add_row("Mean IC (rank corr signal→fwd return)", _f(result.mean_ic))
+    t.add_row("IC t-stat", _f(result.ic_t_stat, "{:.2f}"))
+    lo, hi, mean = result.ic_ci
+    t.add_row("IC 95% bootstrap CI", f"[{_f(lo)}, {_f(hi)}]")
+    t.add_row("Top−bottom decile fwd return", _f(result.quantile_spread_mean, "{:+.2%}"))
+    t.add_row("Top-quantile net return / period", _f(result.net_return_mean, "{:+.2%}"))
+    t.add_row("Sharpe (annualized, net)", _f(result.sharpe_annualized, "{:.2f}"))
+    t.add_row("Max drawdown", _f(result.max_drawdown, "{:.1%}"))
+    t.add_row("Deflated Sharpe (prob. real, "
+              f"{n_trials} trial{'s' if n_trials != 1 else ''})", _f(result.deflated_sharpe, "{:.2f}"))
+    console.print(t)
+    console.print("[bold yellow]Read this before trusting any number above:[/bold yellow]")
+    for c in result.caveats:
+        console.print(f"[yellow]•[/yellow] {c}")
 
 
 @app.command()

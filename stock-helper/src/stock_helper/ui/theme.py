@@ -278,6 +278,67 @@ def fair_value_bar(
     return apply_plotly(fig)
 
 
+def monte_carlo_fan(mc: Any, price: float | None = None,
+                    *, title: str = "Monte Carlo fair-value spread") -> Any:
+    """Horizontal percentile fan of a Monte Carlo DCF distribution.
+
+    Draws the 10th–90th percentile as a thin whisker, the 25th–75th as a thick
+    band (the "interquartile" mass), a median marker, and the current price as a
+    diamond. This is a SENSITIVITY fan around one editable scenario — it shows
+    how wide the fair value gets when the inputs wobble, NOT a probability the
+    stock rises. Only the summary percentiles are stored, so this is a fan, not
+    a histogram (nothing is re-simulated in the browser).
+    """
+    import plotly.graph_objects as go
+
+    if mc is None:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="Monte Carlo not computable", showarrow=False,
+            font={"color": NEUTRAL}, x=0.5, y=0.5, xref="paper", yref="paper",
+        )
+        fig.update_xaxes(visible=False)
+        fig.update_yaxes(visible=False)
+        fig.update_layout(height=150)
+        return apply_plotly(fig)
+
+    hi = max(mc.p90, price or 0.0) * 1.12
+    lo = min(mc.p10, price or mc.p10) * 0.9
+    fig = go.Figure()
+    # 10-90 whisker.
+    fig.add_shape(type="line", x0=mc.p10, x1=mc.p90, y0=0.5, y1=0.5,
+                  line={"color": ACCENT, "width": 4})
+    # 25-75 interquartile band.
+    fig.add_shape(type="rect", x0=mc.p25, x1=mc.p75, y0=0.30, y1=0.70,
+                  fillcolor=ACCENT_BG, line={"color": ACCENT, "width": 1})
+    # Median.
+    fig.add_shape(type="line", x0=mc.median, x1=mc.median, y0=0.18, y1=0.82,
+                  line={"color": NAVY, "width": 3})
+    fig.add_annotation(x=mc.median, y=0.98, xref="x", yref="y",
+                       text=f"median ${mc.median:,.2f}", showarrow=False,
+                       font={"size": 11, "color": NAVY})
+    for x, lab in ((mc.p10, "p10"), (mc.p90, "p90")):
+        fig.add_annotation(x=x, y=0.06, xref="x", yref="y",
+                           text=f"{lab} ${x:,.2f}", showarrow=False,
+                           font={"size": 10, "color": ACCENT})
+    if price is not None and price > 0:
+        marker_color = POSITIVE if price <= mc.median else NEGATIVE
+        fig.add_trace(go.Scatter(
+            x=[price], y=[0.5], mode="markers",
+            marker={"symbol": "diamond", "size": 16, "color": marker_color,
+                    "line": {"color": "white", "width": 2}},
+            hovertemplate="price $%{x:,.2f}<extra></extra>",
+        ))
+        fig.add_annotation(x=price, y=1.30, xref="x", yref="y",
+                           text=f"price ${price:,.2f}", showarrow=False,
+                           font={"size": 11, "color": marker_color})
+    fig.update_xaxes(range=[lo, hi], tickprefix="$", showgrid=False, zeroline=False)
+    fig.update_yaxes(range=[-0.1, 1.5], visible=False)
+    fig.update_layout(height=160, showlegend=False, title=title,
+                      margin={"l": 8, "r": 8, "t": 40, "b": 20})
+    return apply_plotly(fig)
+
+
 # --- injected CSS -------------------------------------------------------------
 # Extends the original tokens (.sh-card / .sh-badge / .sh-ok / .sh-na / .sh-warn
 # / .sh-plan / .sh-caveat / .sh-source) with a hero card, valuation badges, a

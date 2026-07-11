@@ -31,6 +31,7 @@ from stock_helper.valuation.forensics import (
     compute_montier_c_score,
     compute_stress_report,
 )
+from stock_helper.valuation.monte_carlo import run_monte_carlo_from_dcf
 from stock_helper.valuation.multiples import (
     compute_enterprise_value,
     compute_multiples,
@@ -268,6 +269,11 @@ def compute_valuation(
     roic = magic.detail.get("roic") if magic and getattr(magic, "detail", None) else None
     economic_profit = compute_economic_profit(roic, coc.wacc)
 
+    # --- Monte Carlo: uncertainty fan around the DCF (input uncertainty only) --
+    monte_carlo = None
+    if dcf.status == "OK" and not is_financial(bucket):
+        monte_carlo = run_monte_carlo_from_dcf(dcf, derived, price=price)
+
     # --- headline + flags ------------------------------------------------------
     fair_value = dcf.fair_value_per_share
     mos = dcf.margin_of_safety
@@ -305,6 +311,7 @@ def compute_valuation(
         cost_of_capital=coc,
         residual_income=residual,
         economic_profit=economic_profit,
+        monte_carlo=monte_carlo,
         fair_value_per_share=fair_value,
         margin_of_safety=mos,
         implied_growth=reverse.implied_growth if reverse else None,
