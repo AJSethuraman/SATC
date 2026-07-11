@@ -8,7 +8,7 @@
 
 import { CLASSES, ITEMS, SLOTS, WEAPON_DROPS, SKILLS, ACT1, RUNE_BY_ID } from './content.js';
 import { makeRng } from './rng.js';
-import { skillEffect } from './combat.js';
+import { skillEffect, castInfo } from './combat.js';
 import { createArena } from './arena.js';
 import { rollItem, itemScore, rollRune, resolveSockets } from './loot.js';
 
@@ -47,7 +47,8 @@ export function deriveStats(cls, equipment, level, attr = null, bonus = {}) {
     plusSkills: gear.plusSkills || 0, fcr: gear.fcr || 0, ias: gear.ias || 0, penetration: gear.penetration || 0,
     plusElem: { fire: gear.plusFire || 0, cold: gear.plusCold || 0, lightning: gear.plusLight || 0 }, // per-element +Skills
     // gear that reshapes HOW spells behave (fed into each skill's geometry at cast time)
-    skillMods: { spellPct: gear.spellPct || 0, aoePct: gear.aoePct || 0, jumps: gear.plusJumps || 0, bolts: gear.plusBolts || 0, pierce: gear.pierce || 0 },
+    skillMods: { spellPct: gear.spellPct || 0, aoePct: gear.aoePct || 0, jumps: gear.plusJumps || 0, bolts: gear.plusBolts || 0, pierce: gear.pierce || 0, costReduce: gear.costReduce || 0 },
+    cast: castInfo(cls.id, gear.fcr || 0), // FCR breakpoint the character is on (for the UI)
     str, dex, vit, energy,
   };
 }
@@ -90,7 +91,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function statsNow() { const st = deriveStats(cls, run.equipment, run.level, run.attr); st.manaRegen += (run.skillHard.warmth || 0); return st; } // Warmth: +Mana regen
   function abilitiesNow() { return deriveAbilities(run.equipment, run.skillHard); }
   function weaponNow() { const w = run.equipment.weapon; return w ? { dmg: w.dmg, wtype: w.wtype } : null; }
-  function heroForFight() { const s = statsNow(); return { name: cls.name, glyph: cls.glyph, maxLife: s.maxLife, life: run.life,
+  function heroForFight() { const s = statsNow(); return { name: cls.name, glyph: cls.glyph, classId: cls.id, maxLife: s.maxLife, life: run.life,
     maxMana: s.maxMana, mana: Math.min(run.mana, s.maxMana), manaRegen: s.manaRegen, startBlock: s.startBlock, plusSkills: s.plusSkills,
     accuracy: s.accuracy, evade: s.evade, actions: s.actions, fcr: s.fcr, ias: s.ias, penetration: s.penetration, plusElem: s.plusElem, skillMods: s.skillMods, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
 

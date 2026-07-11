@@ -95,7 +95,7 @@ const KEY_TEXT = {
   penetration: (v) => `-${Math.round(v * 100)}% to Enemy Resist`, accuracy: (v) => `+${v} Accuracy`,
   evade: (v) => `+${v} Evade`, startBlock: (v) => `+${v} Block`, energy: (v) => `+${v} Energy`,
   str: (v) => `+${v} Strength`, dex: (v) => `+${v} Dexterity`, vit: (v) => `+${v} Vitality`,
-  spellPct: (v) => `+${v}% Spell Damage`, aoePct: (v) => `+${v}% Blast Radius`,
+  spellPct: (v) => `+${v}% Spell Damage`, aoePct: (v) => `+${v}% Blast Radius`, costReduce: (v) => `−${v}% Skill Mana Cost`,
   plusJumps: (v) => `+${v} to Chain Lightning Jumps`, plusBolts: (v) => `+${v} Charged Bolt`,
   pierce: (v) => `Bolts Pierce +${v} foe${v > 1 ? 's' : ''}`,
   plusFire: (v) => `+${v} to Fire Skills`, plusCold: (v) => `+${v} to Cold Skills`, plusLight: (v) => `+${v} to Lightning Skills`,
@@ -129,11 +129,15 @@ export function rollItem(rng, { tier = 'Normal', magicFind = 0, slot = null, all
   if (rarity.rarity === 'unique' && allowUnique) {
     const u = pickUnique(rng, useSlot, useTier);
     if (u) {
+      // randomized rolls: fixed passives stay fixed; `roll` ranges vary each drop, and
+      // the rolled values are appended to the text so a HIGH roll is visible and enticing.
+      const passive = { ...u.passive }; const rolled = {};
+      if (u.roll) for (const [k, range] of Object.entries(u.roll)) { const v = rollStat(rng, k, range, useTier); passive[k] = v; rolled[k] = v; }
       return {
         id: `${u.id}_${counter++}`, uid: u.id, name: u.name, slot: u.slot, rarity: 'unique',
         itemTier: useTier, color: rarity.color, unique: true, enabler: !!u.enabler,
-        passive: { ...u.passive }, affixes: [], tags: ['unique'],
-        req: { level: LEVEL_REQ[useTier] || 1 }, text: u.text,
+        passive, affixes: [], tags: ['unique'],
+        req: { level: LEVEL_REQ[useTier] || 1 }, text: u.roll ? `${u.text} [${modText(rolled)}]` : u.text,
       };
     }
     rarity = RARITY.find((r) => r.rarity === 'rare'); // no eligible unique -> rare

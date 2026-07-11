@@ -16,7 +16,7 @@
 // Pure engine: no DOM, deterministic, all randomness through the seeded rng.
 
 import { SKILLS, ENEMIES, ELITE_AFFIXES, SUPERUNIQUES } from './content.js';
-import { skillEffect } from './combat.js';
+import { skillEffect, skillManaCost, skillCostMul, castSpeedMul, castInfo } from './combat.js';
 
 export const DT = 1 / 30;                    // fixed sim step — determinism
 export const ARENA_W = 1120, ARENA_H = 630;  // camera viewport — a standard 16:9 widescreen play area
@@ -113,7 +113,7 @@ export function createArena({ hero, pack, rng, survival }) {
   const world = surv ? { w: WORLD_W, h: WORLD_H } : { w: ARENA_W, h: ARENA_H };
   const ctx = { hard: hero.hard || {}, plusSkills: hero.plusSkills || 0, plusElem: hero.plusElem || {}, weapon: hero.weapon || null };
   const state = {
-    hero: { name: hero.name, glyph: hero.glyph, x: world.w / 2, y: world.h / 2, r: HERO_R,
+    hero: { name: hero.name, glyph: hero.glyph, classId: hero.classId || null, x: world.w / 2, y: world.h / 2, r: HERO_R,
       life: hero.life != null ? Math.min(hero.life, hero.maxLife) : hero.maxLife, maxLife: hero.maxLife,
       mana: hero.mana != null ? Math.min(hero.mana, hero.maxMana) : hero.maxMana, maxMana: hero.maxMana,
       manaRegen: hero.manaRegen != null ? hero.manaRegen : 4,
@@ -241,27 +241,29 @@ export function createArena({ hero, pack, rng, survival }) {
       const s = SKILLS[id]; if (!s || s.type === 'passive') continue; // passives (Warmth/Masteries) don't fire
       const physical = s.weapon !== 'spell';
       const eff = skillEffect(ctx, id);
-      // Faster Cast Rate (spells) / Increased Attack Speed (physical) shrink cooldowns — late-game gear lets you SPAM your main skill.
-      const cdMul = 1 / (1 + Math.min(220, (physical ? h.ias : h.fcr) || 0) / 100);
+      const cost = skillManaCost(h, id); // effective mana cost — gear +skills & −%cost make it cheaper
+      // Increased Attack Speed (physical, smooth) / Faster Cast Rate (spells, D2-style
+      // BREAKPOINTS per class) shrink the cooldown — cast-rate gear is a planning target.
+      const cdMul = physical ? 1 / (1 + Math.min(220, h.ias || 0) / 100) : castSpeedMul(h.classId, h.fcr || 0);
       // ---- Sorceress spells: each is routed by its GEOMETRY (`geo`), not a generic
       // "hit N nearest". geometry (shape/behavior) is decoupled from `scale` (the
       // damage number), so a bolt seeks, a ball bursts, a beam is a line, a cone is a
       // cone, a nova is a ring, a spread scatters, and chain leaps. -------------------
       if (s.weapon === 'spell' && s.geo && s.type === 'attack') {
-        if (s.cost > h.mana) continue; const col = elemColor(s.element);
+        if (cost > h.mana) continue; const col = elemColor(s.element);
         // GEAR skill-mods reshape geometry: spellPct scales damage, aoePct scales blast
         // size, +jumps/+bolts extend chain/spread, pierce lets bolts pass through foes.
         const sm = h.skillMods || {}; const sdm = 1 + (sm.spellPct || 0) / 100; const aoe = 1 + (sm.aoePct || 0) / 100;
         const dmg = () => Math.round(roll(eff.min, eff.max) * sdm); const pierce = sm.pierce || 0;
         if (s.geo === 'nova') { // FROST NOVA / NOVA / STATIC FIELD — a ring bursting from you
           const R = (s.radius || 140) * aoe; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= R + e.r);
-          if (!pool.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          if (!pool.length) continue; h.mana -= cost; h.cd[id] = cdMul * CD.aoe;
           fx({ type: 'ring', x: h.x, y: h.y, r: R, life: 0.4, color: col });
           for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, dmg(), false, s.element);
           continue; }
         if (s.geo === 'storm') { // THUNDER STORM — lightning falls from the sky onto scattered foes around you
           const range = s.stormRange || 360; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= range);
-          if (!pool.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          if (!pool.length) continue; h.mana -= cost; h.cd[id] = cdMul * CD.aoe;
           const strikes = Math.min(pool.length, (s.strikeBase || 2) + Math.floor((eff.lvl - 1) / 2)); const avail = pool.slice();
           for (let k = 0; k < strikes && avail.length; k++) { const e = avail.splice(rng.int(avail.length), 1)[0];
             hitEnemy(e, dmg(), false, s.element);
@@ -271,7 +273,7 @@ export function createArena({ hero, pack, rng, survival }) {
         if (s.geo === 'cone') { // INFERNO — a CHANNELED cone toward the nearest foe: it stays ON, burning
           // everything in front continuously and DRAINING mana per second (a real flamethrower).
           const ft = faceTarget(); if (!ft) continue;
-          const pulse = 0.12, perSec = s.manaPerSec || 8; // pulse fast so it reads as a continuous stream
+          const pulse = 0.12, perSec = (s.manaPerSec || 8) * skillCostMul(h, id); // channel drain, cheaper with +skills/−cost gear
           if (h.mana < perSec * pulse) continue;           // flame sputters out when you run dry
           const ang = Math.atan2(ft.e.y - h.y, ft.e.x - h.x); const range = (s.coneRange || 165) * aoe, half = s.coneArc || 0.6;
           const inCone = alive().filter((e) => { const dd = Math.hypot(e.x - h.x, e.y - h.y); if (dd > range + e.r) return false;
@@ -285,7 +287,7 @@ export function createArena({ hero, pack, rng, survival }) {
         // every other geometry needs a direction/target — aim at the boss (on-screen) else nearest
         const aim = aimPoint(); if (!aim) continue;
         if (s.geo === 'arc') { // CHAIN LIGHTNING — auto-seeks, then LEAPS to a few (jumps grow with skill + gear)
-          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          h.mana -= cost; h.cd[id] = cdMul * CD.aoe;
           const jumps = Math.min((s.jumpMax || 8) + (sm.jumps || 0), (s.jumpBase || 3) + Math.floor((eff.lvl - 1) / 2) + (sm.jumps || 0)); const range = s.jumpRange || 215;
           const hitU = new Set(); let fx1 = h.x, fy1 = h.y, node = aim.e;
           for (let j = 0; j < jumps && node; j++) { hitU.add(node.uid);
@@ -295,7 +297,7 @@ export function createArena({ hero, pack, rng, survival }) {
             node = best; }
           continue; }
         if (s.geo === 'beam') { // LIGHTNING — an instant line of raw current toward the nearest foe: HUGE damage, dead straight
-          const ft = faceTarget() || aim; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          const ft = faceTarget() || aim; h.mana -= cost; h.cd[id] = cdMul * CD.aoe;
           const ang = Math.atan2(ft.e.y - h.y, ft.e.x - h.x); const L = s.beamLen || 520, halfW = (s.beamW || 34) / 2;
           const ux = Math.cos(ang), uy = Math.sin(ang);
           for (const e of alive()) { const rx = e.x - h.x, ry = e.y - h.y; const along = rx * ux + ry * uy;
@@ -304,42 +306,42 @@ export function createArena({ hero, pack, rng, survival }) {
           fx({ type: 'beam', x: h.x, y: h.y, x2: h.x + ux * L, y2: h.y + uy * L, life: 0.18, color: col });
           continue; }
         if (s.geo === 'ground') { // METEOR — a telegraphed blast that falls onto the pack
-          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe; const R = (s.radius || 140) * aoe;
+          h.mana -= cost; h.cd[id] = cdMul * CD.aoe; const R = (s.radius || 140) * aoe;
           fx({ type: 'telegraph', x: aim.e.x, y: aim.e.y, r: R, life: 0.6, color: col });
           state.pending.push({ x: aim.e.x, y: aim.e.y, r: R, min: Math.round(eff.min * sdm), max: Math.round(eff.max * sdm), element: s.element, n: s.maxTargets || 8, t: 0.6, big: true, color: col });
           continue; }
         if (s.geo === 'ball') { // FIRE BALL / GLACIAL SPIKE — a projectile that BURSTS in an AoE on impact
-          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          h.mana -= cost; h.cd[id] = cdMul * CD.aoe;
           const b = spawnBolt(h, aim.e, dmg(), false, 0, s.glyph || '☄', s.element);
           b.splash = { r: (s.splashR || 90) * aoe, min: Math.round(eff.min * sdm), max: Math.round(eff.max * sdm), element: s.element, n: s.maxTargets || 8, color: col };
           continue; }
         if (s.geo === 'spread') { // CHARGED BOLT — a fan of erratic bolts toward the nearest foe that scatter (they do NOT seek); +bolts/pierce from gear
-          const ft = faceTarget() || aim; h.mana -= s.cost; h.cd[id] = cdMul * CD.damage;
+          const ft = faceTarget() || aim; h.mana -= cost; h.cd[id] = cdMul * CD.damage;
           const ang = Math.atan2(ft.e.y - h.y, ft.e.x - h.x); const n = Math.min((s.boltMax || 9) + (sm.bolts || 0), (s.boltBase || 3) + Math.floor((eff.lvl - 1) / 2) + (sm.bolts || 0)); const arc = s.spreadArc || 0.9;
           for (let k = 0; k < n; k++) { const a = ang + (n === 1 ? 0 : (k / (n - 1) - 0.5) * arc) + (rng.next() - 0.5) * 0.18;
             const b = spawnBolt(h, { x: h.x + Math.cos(a) * 400, y: h.y + Math.sin(a) * 400 }, dmg(), false, pierce, '⚡', s.element); b.home = false; b.life = 0.85; }
           continue; }
         // geo 'seeker' (default) — FIRE BOLT / ICE BOLT / ICE BLAST: a single homing bolt (pierces with gear)
-        h.mana -= s.cost; h.cd[id] = cdMul * CD.damage;
+        h.mana -= cost; h.cd[id] = cdMul * CD.damage;
         spawnBolt(h, aim.e, dmg(), false, pierce, s.glyph || '•', s.element);
         continue; }
       if (s.type === 'skill') {
         if (h.shield > (eff.block || 0) * 0.5) continue;
-        if (s.cost > h.mana) continue; const near = nearest(h.x, h.y); if (!near || near.d > 300) continue;
-        h.mana -= s.cost; h.shield = Math.max(h.shield, eff.block || 0); h.shieldT = 6; h.cd[id] = cdMul * CD.block;
+        if (cost > h.mana) continue; const near = nearest(h.x, h.y); if (!near || near.d > 300) continue;
+        h.mana -= cost; h.shield = Math.max(h.shield, eff.block || 0); h.shieldT = 6; h.cd[id] = cdMul * CD.block;
         fx({ type: 'cast', x: h.x, y: h.y, r: 46, life: 0.4, color: '#c8a24a' }); continue; }
       if (s.type === 'summon') { const cap = 3 + (eff.count || 1);
-        if (state.minions.length >= cap) continue; if (s.cost > h.mana) continue;
-        h.mana -= s.cost; for (let k = 0; k < (eff.count || 1); k++) {
+        if (state.minions.length >= cap) continue; if (cost > h.mana) continue;
+        h.mana -= cost; for (let k = 0; k < (eff.count || 1); k++) {
           const a = rng.next() * Math.PI * 2; state.minions.push({ x: h.x + Math.cos(a) * 26, y: h.y + Math.sin(a) * 26,
             r: 9, hp: eff.hp, maxHp: eff.hp, min: eff.min, max: eff.max, fireCd: 1.0, fireT: 0.3, solo: !!s.solo,
             glyph: s.solo ? '🗿' : '💀' }); }
         h.cd[id] = cdMul * CD.summon; fx({ type: 'cast', x: h.x, y: h.y, r: 30, life: 0.35, color: '#8a90c8' }); continue; }
-      if (s.cost > h.mana) continue;
+      if (cost > h.mana) continue;
       const ranged = physical ? s.weapon === 'ranged' : (s.reach || s.target === 'aoe' || s.weapon === 'spell');
       if (s.target === 'aoe' && !ranged) { // melee AoE: a wide arc around you (Cleave / Whirlwind)
         const R = MELEE_REACH + 48; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= R + e.r);
-        if (!pool.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+        if (!pool.length) continue; h.mana -= cost; h.cd[id] = cdMul * CD.aoe;
         fx({ type: 'sweep', x: h.x, y: h.y, r: R, life: 0.3 });
         for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), physical, s.element);
         continue; }
@@ -347,7 +349,7 @@ export function createArena({ hero, pack, rng, survival }) {
         let targets = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= SCREEN_RANGE).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y));
         const gt = liveGate(); if (gt && Math.hypot(gt.x - h.x, gt.y - h.y) <= SCREEN_RANGE && !targets.slice(0, s.maxTargets || 3).includes(gt)) targets = [gt, ...targets.filter((e) => e !== gt)];
         targets = targets.slice(0, s.maxTargets || 3);
-        if (!targets.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+        if (!targets.length) continue; h.mana -= cost; h.cd[id] = cdMul * CD.aoe;
         for (const t of targets) spawnBolt(h, t, roll(eff.min, eff.max), physical, 0, s.weapon === 'spell' ? '🦴' : '➶', s.element);
         continue; }
       // single-target: a ranged skill FOCUSES the gate (you can hit it anywhere); melee takes the nearest in reach
@@ -355,7 +357,7 @@ export function createArena({ hero, pack, rng, survival }) {
       const tgt = (ranged && gt && Math.hypot(gt.x - h.x, gt.y - h.y) <= SCREEN_RANGE) ? { e: gt, d: Math.hypot(gt.x - h.x, gt.y - h.y) } : nearest(h.x, h.y); if (!tgt) continue;
       if (!ranged && tgt.d > MELEE_REACH + tgt.e.r + h.r + 6) continue;
       if (ranged && tgt.d > SCREEN_RANGE) continue; // no more sniping foes off-screen
-      h.mana -= s.cost;
+      h.mana -= cost;
       if (s.type === 'breakthrough') {
         const dx = (tgt.e.x - h.x) / tgt.d, dy = (tgt.e.y - h.y) / tgt.d; const step = Math.min(tgt.d - tgt.e.r, 120);
         h.x = clamp(h.x + dx * step, h.r, world.w - h.r); h.y = clamp(h.y + dy * step, h.r, world.h - h.r);
@@ -650,8 +652,8 @@ export function createArena({ hero, pack, rng, survival }) {
     return {
       hero: { name: h.name, glyph: h.glyph, x: h.x, y: h.y, r: h.r, life: h.life, maxLife: h.maxLife,
         mana: Math.floor(h.mana), maxMana: h.maxMana, manaRegen: h.manaRegen, shield: Math.round(h.shield),
-        accuracy: h.accuracy, evade: h.evade, fcr: h.fcr, ias: h.ias, penetration: h.penetration, invuln: h.invT > 0, dir: { ...h.dir }, aim: { ...h.aim }, weapon: h.weapon,
-        cd: { ...h.cd }, abilities: h.abilities.map((id) => ({ id, ...SKILLS[id], eff: skillEffect(ctx, id), cd: h.cd[id] || 0, off: h.disabled.has(id), ready: !h.disabled.has(id) && (h.cd[id] || 0) <= 0 && SKILLS[id].cost <= h.mana })) },
+        accuracy: h.accuracy, evade: h.evade, fcr: h.fcr, ias: h.ias, penetration: h.penetration, cast: castInfo(h.classId, h.fcr || 0), invuln: h.invT > 0, dir: { ...h.dir }, aim: { ...h.aim }, weapon: h.weapon,
+        cd: { ...h.cd }, abilities: h.abilities.map((id) => ({ id, ...SKILLS[id], eff: skillEffect(ctx, id), manaCost: skillManaCost(h, id), cd: h.cd[id] || 0, off: h.disabled.has(id), ready: !h.disabled.has(id) && (h.cd[id] || 0) <= 0 && skillManaCost(h, id) <= h.mana })) },
       enemies: state.enemies.filter((e) => e.hp > 0).map((e) => ({ uid: e.uid, id: e.id, name: e.name, glyph: e.glyph, x: e.x, y: e.y, r: e.r,
         hp: e.hp, maxHp: e.maxHp, kind: e.kind, role: e.role, elite: e.elite, unique: e.unique, boss: e.boss, gate: e.gate, flash: e.flash, raised: e.raised, resist: e.resist, immune: e.immune })),
       projectiles: state.projectiles.map((p) => ({ x: p.x, y: p.y, r: p.r, hostile: p.hostile, glyph: p.glyph, element: p.element, vx: p.vx, vy: p.vy })),

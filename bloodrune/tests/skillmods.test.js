@@ -17,12 +17,12 @@ test('deriveStats folds skill-behavior passives off gear into a skillMods bag', 
   const sorc = CLASSES.sorceress;
   const eq = { gloves: { passive: { spellPct: 12, aoePct: 20 } }, ring1: { passive: { plusJumps: 2, pierce: 1 } }, amulet: { passive: { plusBolts: 1 } } };
   const s = deriveStats(sorc, eq, 5, sorc.attr);
-  assert.deepEqual(s.skillMods, { spellPct: 12, aoePct: 20, jumps: 2, bolts: 1, pierce: 1 });
+  assert.deepEqual(s.skillMods, { spellPct: 12, aoePct: 20, jumps: 2, bolts: 1, pierce: 1, costReduce: 0 });
 });
 
 test('a bare character has an all-zero skillMods bag (no gear, no reshaping)', () => {
   const s = deriveStats(CLASSES.sorceress, {}, 1);
-  assert.deepEqual(s.skillMods, { spellPct: 0, aoePct: 0, jumps: 0, bolts: 0, pierce: 0 });
+  assert.deepEqual(s.skillMods, { spellPct: 0, aoePct: 0, jumps: 0, bolts: 0, pierce: 0, costReduce: 0 });
 });
 
 // --- (2) the behavior mods actually roll onto items, flat (not tier-scaled) -----

@@ -84,14 +84,15 @@ test('socketRune gating — full sockets, wrong ids, and no field access', () =>
   assert.equal(g.socketRune('cap', 'r_ort').ok, false, 'no socketing in the field');
 });
 
-test('a per-element enabler raises that element BASE damage, not synergy — and only its element', () => {
+test('a per-element enabler lifts that element (base damage + PARTIAL synergy) — and only its element', () => {
   const fed = { hard: { fire_bolt: 5, fire_ball: 5, meteor: 5, inferno: 5, fire_mastery: 5 }, plusSkills: 0, weapon: { wtype: 'focus' } };
   const base = skillEffect({ ...fed, plusElem: { fire: 0 } }, 'meteor');
   const embered = skillEffect({ ...fed, plusElem: { fire: 2 } }, 'meteor');
   assert.ok(embered.min > base.min, 'the fire enabler lifts fire capstone base damage');
-  assert.equal(embered.syn, base.syn, 'per-element +Skills changes base, NOT the synergy bracket');
+  assert.ok(embered.syn > base.syn, "and now feeds its own element's synergy partially (~40%)");
   const cold = skillEffect({ ...fed, plusElem: { cold: 2 } }, 'meteor');
-  assert.equal(cold.min, base.min, 'a cold enabler is worthless to a fire capstone');
+  assert.equal(cold.min, base.min, 'a cold enabler is worthless to a fire capstone (base)');
+  assert.equal(cold.syn, base.syn, 'a cold enabler does not touch fire synergy either');
 });
 
 test('an enabler unique equipped in the run feeds per-element +Skills into the hero', () => {

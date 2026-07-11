@@ -1,6 +1,7 @@
 // S1 — the synergy engine. Synergy IS the damage: a capstone scales with HARD
-// points in its named same-tree siblings (+ the tree's Mastery), gear +skills add
-// ZERO synergy, and cross-tree points add ZERO. Committing to one tree dominates.
+// points in its named same-tree siblings (+ the tree's Mastery). Gear +skills feed
+// synergy PARTIALLY (~40% of a hard point — enough that a "+3 Fire" find is a real
+// spike), and cross-tree points add ZERO. Committing to one tree still dominates.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { skillEffect } from '../engine/combat.js';
@@ -19,12 +20,15 @@ test('synergy web + mastery make a fed capstone ~3x an unfed one at the SAME lev
   assert.equal(unfed.syn, 1); assert.equal(unfed.mas, 1);
 });
 
-test('gear +skills raises base damage but adds ZERO synergy', () => {
+test('gear +skills feed synergy PARTIALLY (~40% of a hard point) — a spike, not a rounding error', () => {
   const hard = { fire_ball: 8, fire_bolt: 8, meteor: 8 };
   const bare = eff(hard, 0), geared = eff(hard, 6);
-  assert.equal(geared.syn, bare.syn, 'synergy multiplier unchanged by +skills');
-  assert.equal(geared.mas, bare.mas, 'mastery multiplier unchanged by +skills');
-  assert.ok(avg(geared) > avg(bare), '+skills still raises raw damage (via skill level)');
+  assert.ok(geared.syn > bare.syn, '+skills now raises the synergy multiplier');
+  assert.equal(geared.mas, bare.mas, 'mastery multiplier is still HARD-points only');
+  // but each +skill is worth only a FRACTION of a hard point: +6 skills < +6 hard sibling points
+  const hardier = eff({ fire_ball: 8, fire_bolt: 14, meteor: 14 }, 0);
+  assert.ok(geared.syn < hardier.syn, 'gear +skills is weaker than the same count of HARD points');
+  assert.ok(avg(geared) > avg(bare), '+skills also raises raw damage (via skill level)');
 });
 
 test('cross-tree points add ZERO synergy to a capstone', () => {

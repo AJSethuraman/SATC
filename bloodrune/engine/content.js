@@ -261,6 +261,7 @@ export const AFFIXES = [
   // so the same fire/light build plays differently as you find gear. Generic (caster)
   // first; class-flavored versions live in the uniques/sets below.
   { id: 'conflag', name: 'of Conflagration', pos: 'suffix', mod: { spellPct: [8, 18] }, tags: ['caster'] }, // +% spell damage
+  { id: 'efficient', name: 'of Efficiency', pos: 'suffix', mod: { costReduce: [8, 16] }, tags: ['caster'] }, // −% skill mana cost — makes channels/nukes affordable
   { id: 'detonating', name: 'Detonating', pos: 'prefix', mod: { aoePct: [15, 30] }, tags: ['caster'] },     // bigger blasts/cones/novas
   { id: 'arcing', name: 'Arcing', pos: 'prefix', mod: { plusJumps: [1, 1] }, tags: ['caster'] },            // Chain Lightning leaps +1 further
   { id: 'scattering', name: 'Scattering', pos: 'prefix', mod: { plusBolts: [1, 1] }, tags: ['caster'] },    // Charged Bolt throws +1 bolt
@@ -280,14 +281,17 @@ export const UNIQUES = [
   // Per-ELEMENT +Skills enablers — the single-element build spike. +Skills raises
   // the whole element's BASE damage (never the synergy bracket), so an already
   // committed fire/cold/light build jumps when it finds its amulet.
-  { id: 'u_ember', name: 'Ember Choker', slot: 'amulet', minTier: 'Normal', passive: { plusFire: 2, maxMana: 12 }, text: 'Ember Choker — +2 Fire Skills, +Mana.', enabler: true },
-  { id: 'u_rime', name: 'Rimeward Torc', slot: 'amulet', minTier: 'Normal', passive: { plusCold: 2, maxMana: 12 }, text: 'Rimeward Torc — +2 Cold Skills, +Mana.', enabler: true },
-  { id: 'u_storm', name: 'Stormcaller Beads', slot: 'amulet', minTier: 'Normal', passive: { plusLight: 2, maxMana: 12 }, text: 'Stormcaller Beads — +2 Lightning Skills, +Mana.', enabler: true },
+  // `roll` fields vary each drop within a range (D2-style min–max) so finding a HIGH
+  // roll is a real event — worth banking, worth chasing. Fixed fields (like +Skills)
+  // stay fixed; only the ranged ones vary. modText spells the actual rolled values out.
+  { id: 'u_ember', name: 'Ember Choker', slot: 'amulet', minTier: 'Normal', passive: { plusFire: 2 }, roll: { maxMana: [8, 18] }, text: 'Ember Choker — +2 Fire Skills, +Mana.', enabler: true },
+  { id: 'u_rime', name: 'Rimeward Torc', slot: 'amulet', minTier: 'Normal', passive: { plusCold: 2 }, roll: { maxMana: [8, 18] }, text: 'Rimeward Torc — +2 Cold Skills, +Mana.', enabler: true },
+  { id: 'u_storm', name: 'Stormcaller Beads', slot: 'amulet', minTier: 'Normal', passive: { plusLight: 2 }, roll: { maxMana: [8, 18] }, text: 'Stormcaller Beads — +2 Lightning Skills, +Mana.', enabler: true },
   // Class-oriented signatures — a unique that reshapes ONE tree's payoff, the tier the
   // generic affixes graduate into. Sorceress-flavored, Normal-tier so they drop in v1.
-  { id: 'u_arcnexus', name: 'Arc Nexus', slot: 'offhand', minTier: 'Normal', passive: { plusLight: 1, plusJumps: 2, fcr: 10 }, text: 'Arc Nexus — +1 Lightning, Chain Lightning leaps +2 further, +Cast Speed.', enabler: true },
-  { id: 'u_cinderbrand', name: 'Cinderbrand', slot: 'gloves', minTier: 'Normal', passive: { plusFire: 1, aoePct: 35, spellPct: 8 }, text: 'Cinderbrand — +1 Fire, +35% Blast radius, +8% Spell damage.', enabler: true },
-  { id: 'u_voltstone', name: 'Voltstone', slot: 'ring', minTier: 'Normal', passive: { pierce: 1, spellPct: 10 }, text: 'Voltstone — your bolts pierce +1 foe, +10% Spell damage.' },
+  { id: 'u_arcnexus', name: 'Arc Nexus', slot: 'offhand', minTier: 'Normal', passive: { plusLight: 1, plusJumps: 2 }, roll: { fcr: [6, 16] }, text: 'Arc Nexus — +1 Lightning, Chain Lightning leaps +2 further, +Cast Speed.', enabler: true },
+  { id: 'u_cinderbrand', name: 'Cinderbrand', slot: 'gloves', minTier: 'Normal', passive: { plusFire: 1 }, roll: { aoePct: [25, 45], costReduce: [6, 14] }, text: 'Cinderbrand — +1 Fire, +Blast radius, −Fire mana cost.', enabler: true },
+  { id: 'u_voltstone', name: 'Voltstone', slot: 'ring', minTier: 'Normal', passive: { pierce: 1 }, roll: { spellPct: [6, 16] }, text: 'Voltstone — your bolts pierce +1 foe, +Spell damage.' },
 ];
 
 // ---- Sockets, runes & runewords (the aspiration ladder) --------------------

@@ -42,10 +42,54 @@ function weaponBase(hero, s) {
 // committing to one tree is mathematically dominant. Cross-tree synergy = 0.
 const MASTERY_OF = { fire: 'fire_mastery', cold: 'cold_mastery', light: 'light_mastery' };
 const hardOf = (hero, id) => (hero.hard && hero.hard[id]) || 0;
-function synergyMult(hero, s) { if (!s.syn) return 1; let m = 1; for (const sib in s.syn) m += s.syn[sib] * hardOf(hero, sib); return m; }
+// Gear +Skills now feed synergy at a FRACTION of a hard point (SYN_GEAR_FRAC) — so a
+// "+3 Fire Skills" find is a real spike, not a rounding error — while HARD points still
+// dominate your tree identity. (Cross-TREE hard points still add ZERO: only a sibling's
+// own +skills bonus counts, because we read gearSkillBonus per named synergy sibling.)
+export const SYN_GEAR_FRAC = 0.4;
+function gearSkillBonus(hero, sibId) {
+  const s = SKILLS[sibId]; const elem = s && s.element;
+  return (hero.plusSkills || 0) + ((elem && hero.plusElem && hero.plusElem[elem]) || 0);
+}
+function synergyMult(hero, s) { if (!s.syn) return 1; let m = 1;
+  for (const sib in s.syn) m += s.syn[sib] * (hardOf(hero, sib) + SYN_GEAR_FRAC * gearSkillBonus(hero, sib));
+  return m; }
 function masteryMult(hero, s) { const mid = s.tab && MASTERY_OF[s.tab]; if (!mid) return 1;
   const mp = (SKILLS[mid] && SKILLS[mid].masteryPct) || 0; return 1 + mp * hardOf(hero, mid); }
 const synText = (mult) => (mult > 1.001 ? ` · +${Math.round((mult - 1) * 100)}% synergy` : '');
+
+// EFFECTIVE mana cost. Gear is the enabler here: a higher effective skill LEVEL (hard
+// points + gear +Skills) shaves the cost, and a −% Skill Mana Cost affix shaves more —
+// so a mana-hungry channel like Inferno becomes sustainable BECAUSE of your gear.
+export function skillCostMul(hero, id) {
+  const lvl = skillLevel(hero, id);
+  const lvlCut = Math.min(0.25, 0.015 * (lvl - 1));
+  const gearCut = Math.min(0.5, ((hero.skillMods && hero.skillMods.costReduce) || 0) / 100);
+  return Math.max(0.35, (1 - lvlCut) * (1 - gearCut));
+}
+export function skillManaCost(hero, id) { const s = SKILLS[id]; return s && s.cost ? Math.max(1, Math.round(s.cost * skillCostMul(hero, id))) : 0; }
+
+// FASTER CAST RATE works on D2-style BREAKPOINTS, not a smooth curve: you only gain a
+// speed tier when you cross a threshold, so cast-rate gear is a planning target. Each
+// class has its own table (fewer frames = faster) — the Sorceress is the premier caster
+// (reaches tiers cheaply); melee classes can reach frames but rarely care to. Frames are
+// on a 25-"frame"/sec clock like D2. [FCR%, castFrames], sorted HIGH→LOW.
+export const FCR_BREAKS = {
+  sorceress:   [[200, 7], [105, 8], [63, 9], [37, 10], [20, 11], [9, 12], [0, 13]],
+  amazon:      [[152, 11], [99, 12], [68, 13], [42, 14], [22, 15], [11, 16], [0, 17]],
+  barbarian:   [[70, 12], [42, 13], [20, 14], [9, 15], [0, 16]],
+  necromancer: [[125, 9], [75, 10], [48, 11], [30, 12], [18, 13], [9, 14], [0, 15]],
+  _default:    [[63, 9], [37, 10], [20, 11], [9, 12], [0, 13]],
+};
+// Cast-time multiplier vs. 0 FCR (frames_at_FCR / base_frames) + the breakpoint you're on.
+export function castInfo(classId, fcr) {
+  const tbl = FCR_BREAKS[classId] || FCR_BREAKS._default; const base = tbl[tbl.length - 1][1];
+  let frames = base, hitBp = 0, nextBp = null;
+  for (const [bp, fr] of tbl) { if ((fcr || 0) >= bp) { frames = fr; hitBp = bp; break; } }
+  for (let i = tbl.length - 1; i >= 0; i--) { if (tbl[i][0] > (fcr || 0)) { nextBp = { fcr: tbl[i][0], frames: tbl[i][1] }; break; } }
+  return { frames, base, mul: frames / base, hitBp, next: nextBp };
+}
+export const castSpeedMul = (classId, fcr) => castInfo(classId, fcr).mul;
 
 export function skillEffect(hero, id) {
   const s = SKILLS[id]; const lvl = skillLevel(hero, id); const g = s.grow || 0;

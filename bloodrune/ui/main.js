@@ -189,7 +189,7 @@ function renderArena() {
 }
 
 // Skill chips: tap to toggle a skill's auto-fire off/on (e.g. Whirlwind, not Cleave).
-function skillChipsHTML(abilities) { return abilities.map((a) => `<div class="rt-skill ${a.type}${a.off ? ' off' : ''}" data-id="${a.id}"><div class="rs-n">${a.name}</div><div class="rs-c">${a.cost ? a.cost + '⬡' : 'free'}</div><div class="rs-cd"></div></div>`).join(''); }
+function skillChipsHTML(abilities) { return abilities.map((a) => { const mc = a.manaCost != null ? a.manaCost : a.cost; return `<div class="rt-skill ${a.type}${a.off ? ' off' : ''}" data-id="${a.id}"><div class="rs-n">${a.name}</div><div class="rs-c">${mc ? mc + '⬡' : 'free'}</div><div class="rs-cd"></div></div>`; }).join(''); }
 function bindSkillChips() { rtSkillEls = {}; board.querySelectorAll('.rt-skill').forEach((el) => { rtSkillEls[el.dataset.id] = el;
   el.addEventListener('click', () => { const on = combat.toggleAbility(el.dataset.id); el.classList.toggle('off', !on); tel('toggle_skill', { id: el.dataset.id, on }); }); }); }
 function rebuildSkillChips(h) { const wrap = document.getElementById('rtSkills'); if (!wrap) return; wrap.innerHTML = skillChipsHTML(h.abilities); bindSkillChips(); }
@@ -552,7 +552,15 @@ function skillModChips(m) {
   if (m.jumps) c.push(`<span><span class="k">Chain</span> <b style="color:#c9a6ff">+${m.jumps}</b></span>`);
   if (m.bolts) c.push(`<span><span class="k">Bolts</span> <b style="color:#c9a6ff">+${m.bolts}</b></span>`);
   if (m.pierce) c.push(`<span><span class="k">Pierce</span> <b style="color:#8fd0ff">+${m.pierce}</b></span>`);
+  if (m.costReduce) c.push(`<span><span class="k">−Cost</span> <b style="color:#7ee2b8">${m.costReduce}%</b></span>`);
   return c.join('');
+}
+// FCR as a breakpoint readout: "+30% FCR · 13→10 frames (next: 63)". Makes the payoff visible.
+function fcrChip(st) {
+  if (!st.fcr && !(st.cast && st.cast.hitBp)) return '';
+  const cast = st.cast; const frames = cast ? `${cast.base}→${cast.frames}f` : '';
+  const next = cast && cast.next ? ` <span class="k">next ${cast.next.fcr}</span>` : '';
+  return `<span><span class="k">FCR</span> <b style="color:#9ab6ff">+${st.fcr || 0}%</b> <b style="color:#8fb4ff">${frames}</b>${next}</span>`;
 }
 function itemCard(it, where) {
   const isRune = it.isRune; const inField = game.getRun().phase === 'arena';
@@ -583,7 +591,7 @@ function renderInventory() {
   const sockNote = socketTargetId ? '<div class="sock-note">Pick a rune to socket (◈), or ✕ to cancel.</div>' : '';
   ov.className = 'overlay inv';
   ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">🎒 Stash & Gear</div><button class="inv-close" id="cx">✕</button></div>
-    <div class="inv-stats"><span><span class="k">Life</span> <b class="life">${Math.round(r.life)}/${st.maxLife}</b></span><span><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></span><span><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></span>${st.fcr ? `<span><span class="k">FCR</span> <b style="color:#9ab6ff">+${st.fcr}%</b></span>` : ''}${st.penetration ? `<span><span class="k">Pierce</span> <b style="color:#c58">-${Math.round(st.penetration * 100)}%</b></span>` : ''}<span><span class="k">Gold</span> <b style="color:var(--gold)">${r.gold}</b></span>${skillModChips(st.skillMods)}<span><span class="k">Shards</span> <b style="color:#d98b3a">${r.shards}</b></span></div>
+    <div class="inv-stats"><span><span class="k">Life</span> <b class="life">${Math.round(r.life)}/${st.maxLife}</b></span><span><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></span><span><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></span>${fcrChip(st)}${st.penetration ? `<span><span class="k">Pierce</span> <b style="color:#c58">-${Math.round(st.penetration * 100)}%</b></span>` : ''}<span><span class="k">Gold</span> <b style="color:var(--gold)">${r.gold}</b></span>${skillModChips(st.skillMods)}<span><span class="k">Shards</span> <b style="color:#d98b3a">${r.shards}</b></span></div>
     ${sockNote}
     <div class="inv-cols"><div class="paperdoll">${cells}</div>
       <div class="bag"><div class="bag-head">Bag (${r.bag.length}/${r.bagCap})${r.bag.length && r.phase !== 'arena' ? ' <button class="act ghost xs" id="bankAll">BANK ALL</button>' : ''}</div><div class="bag-list">${bag}</div>
