@@ -1,10 +1,35 @@
 # Installing stock-helper
 
-## Prerequisites
+## Easiest path — no terminal needed
+
+1. Install **Python 3.11+** from <https://www.python.org/downloads/>. On Windows,
+   tick **"Add python.exe to PATH"** in the installer.
+2. Double-click **`Start stock-helper.command`** (macOS/Linux) or
+   **`Start stock-helper.bat`** (Windows).
+
+That launcher is self-bootstrapping: it uses [`uv`](https://docs.astral.sh/uv/)
+if you have it, otherwise it creates a local virtual environment and installs
+everything the first time (~1–2 min), copies `.env` from `.env.example`, and
+opens the UI. If Python is missing it tells you exactly what to install. **You do
+not need `uv` and you do not need to touch the terminal.**
+
+On first run, open the freshly-created **`.env`** and set `SEC_USER_AGENT` to your
+name + email (SEC fair-access rules require it) before fetching data.
+
+The manual steps below are for people who prefer the command line.
+
+## Prerequisites (manual path)
 
 - Python **3.11+**
 - [`uv`](https://docs.astral.sh/uv/) (recommended) or plain `pip`
-- Internet access to `data.sec.gov` / `www.sec.gov` (and optionally `stooq.com`)
+- Internet access to `data.sec.gov` / `www.sec.gov` (and optionally `stooq.com`
+  for prices and `fred.stlouisfed.org` for the risk-free rate)
+
+> **Running on Claude Code on the web?** The default sandbox blocks outbound
+> access to SEC/Stooq/FRED (you'll see `403` at the proxy), so live fetches fail
+> there — the tool is meant to run on your own machine. To fetch inside a web
+> environment instead, recreate it with a network policy that allows these hosts:
+> `data.sec.gov`, `www.sec.gov`, `stooq.com`, `fred.stlouisfed.org`.
 
 ## 1. Install dependencies
 
