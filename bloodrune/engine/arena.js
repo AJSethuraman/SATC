@@ -153,7 +153,8 @@ export function createArena({ hero, pack, rng, survival }) {
       // Loot comes from NOTABLE kills (elites, super-uniques, gates/bosses) — trash barely
       // drops. At ~7 kills/s a per-trash-kill drop just spams; this makes a drop mean something.
       const chance = e.boss ? 1 : e.unique ? 1 : e.elite ? 0.3 : (0.02 + (e.drop || 0));
-      if (rng.next() < chance) { const it = surv.rollLoot(e.boss ? 3 : e.unique ? 2 : e.elite ? 1 : 0);
+      // Thread the CURRENT area's ilvl into the drop so deeper areas roll a better pool.
+      if (rng.next() < chance) { const it = surv.rollLoot(e.boss ? 3 : e.unique ? 2 : e.elite ? 1 : 0, curArea().ilvl);
         if (it) state.pickups.push({ x: e.x, y: e.y, r: 11, item: it }); }
     }
   }

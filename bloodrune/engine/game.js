@@ -69,6 +69,12 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     seed, difficulty: opts.difficulty || 'Normal', className: cls.name, glyph: cls.glyph,
     equipment: emptyEquipment(), bag: (opts.bag || []).map((it) => ({ ...it })),
     skillHard: {}, skillPoints: 0, level: 1, xp: 0,
+    // ACTIVE SKILL SLOTS: only these learned skills auto-fire (up to ACTIVE_CAP);
+    // the rest stay idle. 'attack' is the basic swing — it ALWAYS fires and is never
+    // one of the slotted picks. Persists across descents within a run (lives on `run`).
+    // `idledSkills` = skills the player DELIBERATELY turned off, so auto-fill leaves
+    // them alone (only skills you never touched get auto-slotted into empty room).
+    activeSkills: [], idledSkills: [],
     // Attributes reset every run: start at the class base, earn ~5 to spend per level.
     attr: { ...(cls.attr || { str: 0, dex: 0, vit: 0, energy: 0 }) }, attrPoints: 0,
     // Town / checkpoint loop: an ACT is an ordered list of quests (ACT1 areas). You
@@ -80,7 +86,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     lastResult: null, gained: null, life: 0, mana: 0, potions: { life: 3, mana: 3 }, gold: 0, shards: 0, phase: 'town',
   };
   run.equipment.weapon = ITEMS[cls.startWeapon];
-  const STASH_CAP = 40, POTION_CAP = 6, BAG_CAP = 12, POTION_PRICE = 12;
+  const STASH_CAP = 40, POTION_CAP = 6, BAG_CAP = 12, POTION_PRICE = 12, ACTIVE_CAP = 3;
   const itemValue = (it) => it.grants ? 12 : ({ common: 2, magic: 8, rare: 20, unique: 60 }[it.rarity] || 3);
   let combat = null, lastXp = 0, equipSeq = 0;
   if (opts.loadout) applyLoadout(opts.loadout); // start equipped with chosen stash gear
@@ -94,6 +100,47 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function heroForFight() { const s = statsNow(); return { name: cls.name, glyph: cls.glyph, classId: cls.id, maxLife: s.maxLife, life: run.life,
     maxMana: s.maxMana, mana: Math.min(run.mana, s.maxMana), manaRegen: s.manaRegen, startBlock: s.startBlock, plusSkills: s.plusSkills,
     accuracy: s.accuracy, evade: s.evade, actions: s.actions, fcr: s.fcr, ias: s.ias, penetration: s.penetration, plusElem: s.plusElem, skillMods: s.skillMods, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
+
+  // ---- active skill slots (which learned skills auto-fire) ---------------------
+  // The slottable pool = every learned/granted ability EXCEPT the basic 'attack'
+  // (which always fires). 'guard' and summons count — anything that auto-fires.
+  function selectableAbilities() { return abilitiesNow().filter((id) => id !== 'attack'); }
+  // Auto-pick order for filling empty slots: damage skills first, then by investment
+  // (highest hard-points), ties broken by learn order (abilitiesNow is stable).
+  function activeRank(id) { const s = SKILLS[id] || {}; return [s.type === 'attack' ? 0 : 1, -(run.skillHard[id] || 0)]; }
+  // Keep the active set valid + sensibly seeded: drop anything no longer learned, then
+  // (only while there's room) auto-fill from the pool so a fresh character — and each
+  // newly-learned skill up to the cap — auto-fires without the player micromanaging.
+  function ensureActiveDefaults() {
+    const pool = selectableAbilities(); const have = new Set(pool);
+    run.activeSkills = run.activeSkills.filter((id) => have.has(id));
+    run.idledSkills = run.idledSkills.filter((id) => have.has(id));
+    if (run.activeSkills.length >= ACTIVE_CAP) return;
+    const idled = new Set(run.idledSkills);
+    const cand = pool.filter((id) => !run.activeSkills.includes(id) && !idled.has(id)) // never auto-slot a skill you idled on purpose
+      .sort((a, b) => { const ra = activeRank(a), rb = activeRank(b); return ra[0] - rb[0] || ra[1] - rb[1]; });
+    for (const id of cand) { if (run.activeSkills.length >= ACTIVE_CAP) break; run.activeSkills.push(id); }
+  }
+  function getActiveSkills() { ensureActiveDefaults(); return [...run.activeSkills]; }
+  // The disabled set the arena needs = every slottable ability NOT active. 'attack'
+  // is never disabled, so the basic swing always carries a naked / all-idle build.
+  function computeDisabled() { ensureActiveDefaults(); const on = new Set(run.activeSkills);
+    return abilitiesNow().filter((id) => id !== 'attack' && !on.has(id)); }
+  function syncActiveToCombat() { if (combat) combat.setDisabled(computeDisabled()); }
+  function setActiveSkill(id, on) {
+    ensureActiveDefaults();
+    if (!selectableAbilities().includes(id)) return { ok: false, reason: 'not a slottable skill' };
+    const has = run.activeSkills.includes(id);
+    if (on) { run.idledSkills = run.idledSkills.filter((x) => x !== id); // no longer deliberately idle
+      if (has) return { ok: true, active: [...run.activeSkills] };
+      if (run.activeSkills.length >= ACTIVE_CAP) return { ok: false, reason: `only ${ACTIVE_CAP} active` };
+      run.activeSkills.push(id); }
+    else { if (!run.idledSkills.includes(id)) run.idledSkills.push(id); // remember the player chose to idle it
+      if (!has) return { ok: true, active: [...run.activeSkills] };
+      run.activeSkills = run.activeSkills.filter((x) => x !== id); }
+    syncActiveToCombat(); return { ok: true, active: [...run.activeSkills] };
+  }
+  function toggleActiveSkill(id) { return setActiveSkill(id, !run.activeSkills.includes(id)); }
 
   // ---- gear ----
   function slotFor(it) { if (it.slot === 'ring') return run.equipment.ring1 ? (run.equipment.ring2 ? 'ring1' : 'ring2') : 'ring1'; return it.slot; }
@@ -207,9 +254,11 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   let lastCleared = 0;
   function descend() {
     if (run.phase !== 'town') return { ok: false, reason: 'not in town' };
+    for (const it of run.stash) delete it.locked; // the new descent frees everything banked this visit
     lastXp = 0; lastCleared = 0;
     const chunk = ACT1.slice(run.questIdx, run.questIdx + DESCENT_CHUNK);
     combat = createArena({ hero: heroForFight(), rng, survival: { areas: chunk, tier: run.difficulty, rollLoot: rollGroundItem } });
+    syncActiveToCombat(); // only the slotted skills auto-fire (attack always does)
     run.phase = 'arena'; return { ok: true };
   }
   const startRun = descend; const beginDescent = descend; // (the town's "descend" button)
@@ -226,7 +275,11 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     const n = run.bag.length; for (const it of run.bag) pushToStash(it); run.bag = []; return { ok: true, banked: n };
   }
   // Keep the stash under its cap by evicting the LEAST build-valuable item when full.
+  // A freshly-banked item is LOCKED for the rest of THIS town visit — committed to
+  // storage, it can't be equipped/withdrawn again until you START the next descent
+  // (descend() clears the flag). Items already in the stash from prior visits stay usable.
   function pushToStash(it) {
+    it.locked = true;
     run.stash.push(it);
     if (run.stash.length > STASH_CAP) {
       let worst = 0; for (let i = 1; i < run.stash.length; i++) if (stashScore(run.stash[i]) < stashScore(run.stash[worst])) worst = i;
@@ -240,7 +293,8 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function equipFromStash(id) {
     if (run.phase !== 'town') return { ok: false, reason: 'town only' };
     const src = run.stash.find((x) => x.id === id); if (!src) return { ok: false, reason: 'not in stash' };
-    const copy = { ...src, id: src.id + '_eq' + (equipSeq++) };
+    if (src.locked) return { ok: false, reason: 'locked until next descent' };
+    const copy = { ...src, id: src.id + '_eq' + (equipSeq++) }; delete copy.locked;
     const gate = canEquip(copy); if (!gate.ok) return gate;
     const slot = slotFor(copy); if (run.equipment[slot]) run.bag.push(run.equipment[slot]);
     run.equipment[slot] = copy; clampLife(); pushHeroStats(); return { ok: true };
@@ -252,7 +306,8 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     for (const p of picks) {
       const src = (p && p.slot) ? p : run.stash.find((x) => x.id === p);
       if (!src) continue;
-      const copy = { ...src, id: (src.id || 'load') + '_ld' + (equipSeq++) };
+      if (src.locked) continue; // a stash item locked this visit can't be drawn into a loadout
+      const copy = { ...src, id: (src.id || 'load') + '_ld' + (equipSeq++) }; delete copy.locked;
       if (!canEquip(copy).ok) continue;
       const slot = slotFor(copy); if (run.equipment[slot] && slot !== 'weapon') run.bag.push(run.equipment[slot]);
       run.equipment[slot] = copy;
@@ -304,19 +359,21 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   // weapon that MATCHES your type (a Sorceress won't be buried in Great Axes).
   // Magic-find scales with the kill's tier (elite/unique/boss).
   const WEAP_BY_TYPE = { melee: 'great_axe', ranged: 'war_bow' };
-  function rollGroundItem(mf) {
+  function rollGroundItem(mf, ilvl) {
     if (rng.next() < 0.05) return rollRune(rng, run.difficulty);   // ~5% of drops are runes (the runeword chase)
     const wt = (run.equipment.weapon && run.equipment.weapon.wtype) || 'melee';
     // only drop a weapon that MATCHES your type — a caster never gets buried in wrong-class weapons
     if (WEAP_BY_TYPE[wt] && rng.next() < 0.05) { const w = { ...ITEMS[WEAP_BY_TYPE[wt]] }; return { ...w, id: w.id + '_' + Math.floor(rng.next() * 1e6) }; }
-    // bias armor/jewelry affixes to YOUR build so drops are actually usable
-    return rollItem(rng, { tier: run.difficulty, magicFind: 4 + mf * 6, prefer: wt === 'focus' ? 'caster' : 'melee' });
+    // bias armor/jewelry affixes to YOUR build so drops are actually usable; the area's
+    // ilvl (delve depth) gates the unique pool + nudges affix magnitude upward.
+    return rollItem(rng, { tier: run.difficulty, ilvl, magicFind: 4 + mf * 6, prefer: wt === 'focus' ? 'caster' : 'melee' });
   }
 
   // Push live progression (level-ups, gear) into the in-flight survival hero.
   function pushHeroStats() { if (!combat) return; const s = statsNow();
     combat.setHero({ maxLife: s.maxLife, maxMana: s.maxMana, accuracy: s.accuracy, evade: s.evade,
-      manaRegen: s.manaRegen, plusSkills: s.plusSkills, fcr: s.fcr, ias: s.ias, penetration: s.penetration, plusElem: s.plusElem, skillMods: s.skillMods, hard: { ...run.skillHard }, weapon: weaponNow(), abilities: abilitiesNow() }); }
+      manaRegen: s.manaRegen, plusSkills: s.plusSkills, fcr: s.fcr, ias: s.ias, penetration: s.penetration, plusElem: s.plusElem, skillMods: s.skillMods, hard: { ...run.skillHard }, weapon: weaponNow(), abilities: abilitiesNow() });
+    syncActiveToCombat(); } // setHero replaces the ability list; re-derive the disabled set (a newly-learned skill may auto-slot)
 
   // Called each frame by the UI while surviving: fold the engine's earned XP into
   // levels/points, and its collected drops into the at-risk bag. Loot does NOT
@@ -371,9 +428,13 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function getRun() {
     const s = statsNow();
     const treeIds = cls.tabs ? cls.tree.slice() : ['guard', ...cls.tree.filter((t) => t !== 'guard')]; // Sorceress builds tabs, others prepend Guard
+    const active = new Set(getActiveSkills());
     const tree = treeIds.map((id) => { const sk = SKILLS[id] || {}; const gate = skillGate(id);
+      const learned = hasPoint(id) || id === 'guard';
       return { id, level: 1 + (run.skillHard[id] || 0), req: sk.req || 1, pre: sk.pre || [], tab: sk.tab || null, passive: sk.type === 'passive',
-        learned: hasPoint(id) || id === 'guard',
+        learned,
+        // slottable = a learned, non-passive skill you can toggle into an active slot
+        slottable: learned && sk.type !== 'passive' && id !== 'attack', active: active.has(id),
         canInvest: run.skillPoints > 0 && gate.ok, gateReason: gate.ok ? null : gate.reason,
         eff: skillEffect({ hard: run.skillHard, plusSkills: s.plusSkills, plusElem: s.plusElem, weapon: weaponNow() }, id), name: skName(id) }; });
     return { seed: run.seed, difficulty: run.difficulty, className: run.className, glyph: run.glyph, phase: run.phase,
@@ -385,15 +446,19 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       quest: run.quests[run.questIdx] ? { ...run.quests[run.questIdx] } : null,
       respecUsedThisAct: run.respecUsedThisAct, canRespec: run.phase === 'town' && !run.respecUsedThisAct,
       abilities: abilitiesNow(), tree, tabs: cls.tabs || null,
+      activeSkills: getActiveSkills(), activeCap: ACTIVE_CAP, // the slotted auto-fire picks (attack always fires, not counted)
       equipment: Object.fromEntries(SLOTS.map((sl) => [sl, run.equipment[sl] ? { ...run.equipment[sl] } : null])),
       bag: run.bag.map((i) => ({ ...i })), stash: run.stash.map((i) => ({ ...i })),
       lastResult: run.lastResult, gained: run.gained };
   }
   function skName(id) { return SKILLS[id] ? SKILLS[id].name : id; }
-  function getStash() { return run.stash.map((i) => ({ ...i })); } // for the UI to persist to storage
+  // for the UI to persist to storage — drop the within-visit lock so a reloaded
+  // stash comes back fully usable (the lock is a THIS-visit concept, not stored state).
+  function getStash() { return run.stash.map((i) => { const c = { ...i }; delete c.locked; return c; }); }
 
   return { beginDescent, startRun, descend, syncArena, resolveArena, flee, toTown, bank, bankAll, equipFromStash, respec, getStash,
     salvage, salvageAll, compareItem, reroll, socketRune,
     equipFromBag, unequip, canEquip, investSkill, investAttr, quaff, sellFromBag, buyPotion, dropFromBag,
+    getActiveSkills, setActiveSkill, toggleActiveSkill,
     getRun, getCombat: () => combat, deriveStats: () => statsNow(), deriveAbilities: () => abilitiesNow() };
 }

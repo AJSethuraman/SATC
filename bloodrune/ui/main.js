@@ -171,10 +171,11 @@ function renderArena() {
       <div class="rt-meta"><span>Lv <b id="rtLvl">${game.getRun().level}</b></span><span>Foes <b id="rtFoes"></b></span><span id="rtTimeWrap">⏱ <b id="rtTime"></b></span></div>
     </div>
     <div class="rt-canvas-wrap"><canvas id="rtCanvas" width="${ARENA_W}" height="${ARENA_H}"></canvas><div class="loot-toast" id="rtLoot"></div><div class="arena-banner" id="rtBanner"></div></div>
+    <div class="rt-slots" id="rtSlots"></div>
     <div class="rt-skills" id="rtSkills">${skillChipsHTML(h.abilities)}</div>
     <div class="belt">${potionBtn('life', pot.life, h.life >= h.maxLife)}${potionBtn('mana', pot.mana, h.mana >= h.maxMana)}
       <button class="act ghost small" id="aInv">🎒</button><button class="act ghost small" id="aTree">⚔<span id="aTreePts"></span></button></div>
-    <div class="rt-hint">Move: <b>WASD / arrows</b> or <b>drag</b>. Skills auto-fire — <b>tap one to toggle it off</b>. Monsters <b>drop loot</b> — walk over it. Outlast the timer, then kill the <b>gate</b> to clear the area.</div>
+    <div class="rt-hint">Move: <b>WASD / arrows</b> or <b>drag</b>. Only your <b>active skills</b> auto-fire — <b>tap a skill to slot it</b> (up to 3); the rest stay idle. <b>Attack</b> always swings. Monsters <b>drop loot</b> — walk over it. Outlast the timer, then kill the <b>gate</b>.</div>
     <div class="controls" style="display:flex;gap:12px;justify-content:center"><button class="act ghost small" id="abandon">ABANDON</button></div>
   </div>`;
   logEl.innerHTML = '';
@@ -188,10 +189,19 @@ function renderArena() {
   arenaActive = true; arenaPaused = false; lastT = performance.now(); tacc = 0; raf = requestAnimationFrame(arenaFrame);
 }
 
-// Skill chips: tap to toggle a skill's auto-fire off/on (e.g. Whirlwind, not Cleave).
-function skillChipsHTML(abilities) { return abilities.map((a) => { const mc = a.manaCost != null ? a.manaCost : a.cost; return `<div class="rt-skill ${a.type}${a.off ? ' off' : ''}" data-id="${a.id}"><div class="rs-n">${a.name}</div><div class="rs-c">${mc ? mc + '⬡' : 'free'}</div><div class="rs-cd"></div></div>`; }).join(''); }
+// Skill chips: tap a learned skill to SLOT it (active, auto-fires) or unslot it (idle,
+// dimmed) — up to 3 active. 'attack' is the basic swing: it always fires, never a slot.
+function skillChipsHTML(abilities) { return abilities.map((a) => { const mc = a.manaCost != null ? a.manaCost : a.cost;
+  const basic = a.id === 'attack'; const idle = !basic && a.off;
+  return `<div class="rt-skill ${a.type}${idle ? ' off' : ''}${basic ? ' basic' : ' active'}" data-id="${a.id}"><div class="rs-n">${a.name}</div><div class="rs-c">${mc ? mc + '⬡' : 'free'}</div><div class="rs-cd"></div></div>`; }).join(''); }
 function bindSkillChips() { rtSkillEls = {}; board.querySelectorAll('.rt-skill').forEach((el) => { rtSkillEls[el.dataset.id] = el;
-  el.addEventListener('click', () => { const on = combat.toggleAbility(el.dataset.id); el.classList.toggle('off', !on); tel('toggle_skill', { id: el.dataset.id, on }); }); }); }
+  el.addEventListener('click', () => { const id = el.dataset.id; if (id === 'attack') return; // the basic swing can't be slotted/unslotted
+    const r = game.toggleActiveSkill(id); if (!r.ok) { el.classList.add('reject'); setTimeout(() => el.classList.remove('reject'), 260); return; } // slots full
+    const active = r.active.includes(id); el.classList.toggle('off', !active); el.classList.toggle('active', active); updateSlotCount(); tel('toggle_skill', { id, on: active }); }); });
+  updateSlotCount(); }
+// "N/3 active" readout above the rotation bar.
+function updateSlotCount() { const el = document.getElementById('rtSlots'); if (!el) return; const r = game.getRun();
+  el.textContent = `${(r.activeSkills || []).length}/${r.activeCap || 3} active`; el.classList.toggle('full', (r.activeSkills || []).length >= (r.activeCap || 3)); }
 function rebuildSkillChips(h) { const wrap = document.getElementById('rtSkills'); if (!wrap) return; wrap.innerHTML = skillChipsHTML(h.abilities); bindSkillChips(); }
 
 function pauseArena() { arenaPaused = true; cancelAnimationFrame(raf); keys.clear(); touchVec = null; joy = null; }
@@ -283,6 +293,15 @@ function drawSprite(c, id, x, y, r, opt) {
   return true;
 }
 
+// Camera zoom scaled to the viewport: desktop stays at 1.55; narrow screens zoom
+// in (toward 2.2) so the painted sprites read BIG on a phone. Portrait gets a nudge.
+function pickZoom() {
+  const w0 = window.innerWidth || ARENA_W, h0 = window.innerHeight || ARENA_H;
+  const t = clampN((900 - w0) / (900 - 380), 0, 1); // 0 on a wide desktop, 1 by phone width
+  let z = 1.55 + t * (2.1 - 1.55);
+  if (h0 > w0) z += 0.12; // portrait: a touch more zoom so sprites fill the tall view
+  return clampN(z, 1.55, 2.2);
+}
 function drawArena(s) {
   const c = rtCtx; const h = s.hero; const w = s.world || { w: ARENA_W, h: ARENA_H }; const dt = 1 / 30;
   ambientT += dt;
@@ -291,8 +310,9 @@ function drawArena(s) {
   prevHeroLife = h.life; shakeMag *= 0.86;
   const shx = shakeMag ? (Math.random() - 0.5) * shakeMag : 0, shy = shakeMag ? (Math.random() - 0.5) * shakeMag : 0;
   // ZOOM the camera in so the painted sprites read BIG — the viewport shows fewer
-  // world units, and everything is drawn scaled up.
-  const ZOOM = 1.55; const viewW = ARENA_W / ZOOM, viewH = ARENA_H / ZOOM;
+  // world units, and everything is drawn scaled up. Responsive: ~1.55 on desktop,
+  // up to ~2.2 on a narrow/portrait phone so sprites read big on a small screen.
+  const ZOOM = pickZoom(); const viewW = ARENA_W / ZOOM, viewH = ARENA_H / ZOOM;
   camX = clampN(h.x - viewW / 2, 0, Math.max(0, w.w - viewW));
   camY = clampN(h.y - viewH / 2, 0, Math.max(0, w.h - viewH));
   const vis = (x, y, r) => x + r > camX - 40 && x - r < camX + viewW + 40 && y + r > camY - 40 && y - r < camY + viewH + 40;
@@ -469,8 +489,9 @@ function updateHUD(s, dt) {
     else if (levelToast && levelToast.t > 0) { levelToast.t -= dt; txt = `<div class="ab-big">LEVEL ${levelToast.lvl}</div>`; cls += ' show'; }
     bn.innerHTML = txt; bn.className = cls; }
   if (h.abilities.length !== Object.keys(rtSkillEls).length || h.abilities.some((a) => !rtSkillEls[a.id])) rebuildSkillChips(h); // a newly-learned skill grew the kit
-  for (const a of h.abilities) { const el = rtSkillEls[a.id]; if (!el) continue;
-    el.classList.toggle('ready', a.ready); el.classList.toggle('off', !!a.off); const bar = el.querySelector('.rs-cd'); if (bar) bar.style.height = Math.min(100, (a.cd / 1.8) * 100) + '%'; }
+  for (const a of h.abilities) { const el = rtSkillEls[a.id]; if (!el) continue; const idle = a.id !== 'attack' && !!a.off;
+    el.classList.toggle('ready', a.ready); el.classList.toggle('off', idle); el.classList.toggle('active', a.id !== 'attack' && !a.off); const bar = el.querySelector('.rs-cd'); if (bar) bar.style.height = Math.min(100, (a.cd / 1.8) * 100) + '%'; }
+  updateSlotCount();
   const pot = r.potions;
   const lb = board.querySelector('[data-quaff="life"]'), mb = board.querySelector('[data-quaff="mana"]');
   if (lb) { lb.disabled = pot.life <= 0 || h.life >= h.maxLife; lb.querySelector('.pn').textContent = '×' + pot.life; }
@@ -511,8 +532,9 @@ function renderOverlay() { if (invOpen) return renderInventory(); if (treeOpen) 
 const TAB_LABEL = { fire: '🔥 Fire', cold: '❄ Cold', light: '⚡ Lightning' };
 function skRow(r, sk) { const req = sk.pre && sk.pre.length ? ` · needs ${sk.pre.map((p) => (r.tree.find((t) => t.id === p) || {}).name || p).join(', ')}` : '';
   const tag = sk.learned ? '' : sk.canInvest ? ' <span style="color:var(--gold)">— can learn</span>' : ` <span style="color:#6f6357">— locked (${sk.gateReason || 'Lv ' + sk.req})</span>`;
-  return `<div class="sk-row ${sk.canInvest ? '' : sk.learned ? '' : 'locked'}"><div class="sk-info"><div class="sn">${sk.name}${sk.passive ? ' <span class="sk-pass">passive</span>' : ''} <span style="color:var(--gold)">Lv ${sk.level}</span> <span style="color:#5f6b7a;font-size:10px">Lv${sk.req}${req}</span>${tag}</div><div class="se">${sk.eff.text}</div></div>
-    <div class="sk-btns"><button data-inv="${sk.id}" ${sk.canInvest ? '' : 'disabled'}>${sk.learned ? 'Improve ▲' : 'Learn +'}</button></div></div>`; }
+  const slot = sk.slottable ? `<button class="sk-slot ${sk.active ? 'on' : ''}" data-active="${sk.id}">${sk.active ? '★ Active' : '☆ Idle'}</button>` : '';
+  return `<div class="sk-row ${sk.canInvest ? '' : sk.learned ? '' : 'locked'}${sk.slottable && !sk.active ? ' idle' : ''}"><div class="sk-info"><div class="sn">${sk.name}${sk.passive ? ' <span class="sk-pass">passive</span>' : ''} <span style="color:var(--gold)">Lv ${sk.level}</span> <span style="color:#5f6b7a;font-size:10px">Lv${sk.req}${req}</span>${tag}</div><div class="se">${sk.eff.text}</div></div>
+    <div class="sk-btns">${slot}<button data-inv="${sk.id}" ${sk.canInvest ? '' : 'disabled'}>${sk.learned ? 'Improve ▲' : 'Learn +'}</button></div></div>`; }
 function renderTree() {
   const r = game.getRun();
   let body;
@@ -520,10 +542,11 @@ function renderTree() {
     body = `<div class="sk-tabs">${r.tabs.map((tb) => `<div class="sk-tab"><div class="sk-tab-h">${TAB_LABEL[tb] || tb}</div>${r.tree.filter((sk) => sk.tab === tb).map((sk) => skRow(r, sk)).join('')}</div>`).join('')}</div>`;
   } else { body = r.tree.map((sk) => skRow(r, sk)).join(''); }
   ov.className = 'overlay inv';
-  ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">⚔ Skill Tree — ${r.skillPoints} pts</div><button class="inv-close" id="cx">✕</button></div>
-    <div class="sk-sub">Skills unlock by <b>level</b> and <b>prerequisite</b> — build toward the big ones. Each point needs a higher level than the last.${r.tabs ? ' <b>Masteries</b> boost all spell damage; <b>Warmth</b> speeds Mana regen.' : ''}</div><div class="ov-scroll">${body}</div></div>`;
+  ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">⚔ Skill Tree — ${r.skillPoints} pts <span style="color:var(--gold)">· ${r.activeSkills.length}/${r.activeCap} active</span></div><button class="inv-close" id="cx">✕</button></div>
+    <div class="sk-sub">Skills unlock by <b>level</b> and <b>prerequisite</b>. <b>★ Active</b> skills auto-fire (up to ${r.activeCap}); ☆ idle ones don't — <b>Attack</b> always swings.${r.tabs ? ' <b>Masteries</b> boost all spell damage; <b>Warmth</b> speeds Mana regen.' : ''}</div><div class="ov-scroll">${body}</div></div>`;
   document.getElementById('cx').addEventListener('click', () => { treeOpen = false; render(); if (arenaActive) resumeArena(); });
   ov.querySelectorAll('[data-inv]').forEach((b) => b.addEventListener('click', () => { game.investSkill(b.dataset.inv); expose(); renderTree(); }));
+  ov.querySelectorAll('[data-active]').forEach((b) => b.addEventListener('click', () => { game.toggleActiveSkill(b.dataset.active); expose(); renderTree(); }));
 }
 
 let socketTargetId = null; // when set, the bag shows a rune-picker for this item
@@ -576,10 +599,12 @@ function itemCard(it, where) {
     btns += `<button class="act ghost small" data-bank="${it.id}" ${inField ? 'disabled' : ''}>BANK</button>`;
     btns += `<button class="act ghost small" data-salvage="${it.id}" ${inField ? 'disabled' : ''}>SALVAGE</button>`;
   } else if (where === 'stash') {
-    if (!isRune) btns += `<button class="act ghost small" data-eqstash="${it.id}" ${inField || !wearable ? 'disabled' : ''}${!wearable ? ` title="${gate.reason}"` : ''}>EQUIP</button>`;
+    if (!isRune) btns += `<button class="act ghost small" data-eqstash="${it.id}" ${inField || !wearable || it.locked ? 'disabled' : ''}${!wearable ? ` title="${gate.reason}"` : it.locked ? ' title="Committed to storage — frees on your next descent"' : ''}>EQUIP</button>`;
   }
-  const lock = (!isRune && !wearable) ? `<div class="bi-lock">🔒 Can't equip yet — ${gate.reason}</div>` : '';
-  return `<div class="bag-item${isRune ? ' rune' : ''}" style="${it.color ? `border-color:${it.color}` : ''}"><div class="bi-name" style="${it.color ? `color:${it.color}` : ''}">${it.name}${sockInfo}${where === 'bag' ? cmpTag(it) : ''}</div><div class="bi-slot">${isRune ? 'Rune' : (SLOT_LABEL[it.slot] || it.slot)}${it.grants && it.grants.skill ? ' · grants a skill' : ''}${it.itemTier && it.itemTier !== 'Normal' ? ' · ' + it.itemTier : ''}</div><div class="bi-text">${it.text || ''}</div>${reqReadout(it)}${lock}<div class="bi-btns">${btns}</div></div>`;
+  const stashLocked = where === 'stash' && it.locked; // banked this visit — dimmed + refused until next descent
+  const lock = (!isRune && !wearable) ? `<div class="bi-lock">🔒 Can't equip yet — ${gate.reason}</div>`
+    : stashLocked ? '<div class="bi-lock">🔒 Banked — available next descent</div>' : '';
+  return `<div class="bag-item${isRune ? ' rune' : ''}${stashLocked ? ' locked' : ''}" style="${it.color ? `border-color:${it.color}` : ''}${stashLocked ? ';opacity:.5' : ''}"><div class="bi-name" style="${it.color ? `color:${it.color}` : ''}">${it.name}${sockInfo}${where === 'bag' ? cmpTag(it) : ''}</div><div class="bi-slot">${isRune ? 'Rune' : (SLOT_LABEL[it.slot] || it.slot)}${it.grants && it.grants.skill ? ' · grants a skill' : ''}${it.itemTier && it.itemTier !== 'Normal' ? ' · ' + it.itemTier : ''}</div><div class="bi-text">${it.text || ''}</div>${reqReadout(it)}${lock}<div class="bi-btns">${btns}</div></div>`;
 }
 function r0() { return game.getRun(); }
 function renderInventory() {

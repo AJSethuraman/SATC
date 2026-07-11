@@ -59,25 +59,33 @@ function rollRarity(rng, magicFind) {
   return RARITY[0];
 }
 
-// Roll ONE affix stat value at a given tier. plusSkills is the premium stat — it
-// does NOT multiply by tier magnitude (that would mint +4-skill gloves); instead
+// Item level applies a MODEST magnitude bump ON TOP of the tier multiplier — deeper
+// areas roll subtly bigger numbers (+2% per area-level, capped) without ever letting
+// a lower tier rival a higher one. plusSkills / penetration / behavior counts are NOT
+// ilvl-scaled (they stay flat/fractional like they stay tier-flat). Omitting ilvl (or
+// ilvl 1) yields a flat 1.0 — unchanged legacy behavior.
+function ilvlMult(ilvl) { return Math.min(1.3, 1 + 0.02 * (Math.max(1, ilvl || 1) - 1)); }
+
+// Roll ONE affix stat value at a given tier + ilvl. plusSkills is the premium stat —
+// it does NOT multiply by tier magnitude (that would mint +4-skill gloves); instead
 // higher tiers add a flat +1 (Normal +1, NM +2, Hell +3). penetration stays a
-// fraction (never rounded to an int). Everything else scales by TIER_MULT.
-function rollStat(rng, key, range, tier) {
+// fraction (never rounded to an int). Everything else scales by TIER_MULT × ilvl.
+function rollStat(rng, key, range, tier, ilvl = 1) {
   const base = range[0] + rng.next() * (range[1] - range[0]);
   if (key === 'plusSkills') return Math.round(base) + (TIER_INDEX[tier] || 0);
   if (key === 'penetration') return Math.round(base * (TIER_MULT[tier] || 1) * 1000) / 1000;
   // behavior COUNTS (+jumps/+bolts/+pierce) are flat — a +1 leap is a +1 leap at any
   // tier; tier-multiplying them would mint absurd "+6 bolts" gloves.
   if (key === 'plusJumps' || key === 'plusBolts' || key === 'pierce') return Math.round(base);
-  return Math.max(1, Math.round(base * (TIER_MULT[tier] || 1)));
+  return Math.max(1, Math.round(base * (TIER_MULT[tier] || 1) * ilvlMult(ilvl)));
 }
 
 // Pick `count` DISTINCT affixes. `prefer` (a build tag like 'caster'/'melee')
 // biases ~75% of rolls toward on-build affixes so your drops are actually FOR your
 // build — you find gear you can use, not a stream of wrong-class junk.
-function pickAffixes(rng, count, prefer) {
-  const pool = AFFIXES.slice();
+function pickAffixes(rng, count, prefer, ilvl = 99) {
+  // shallow (low-ilvl) drops can't roll the strongest behavior affixes (minIlvl-gated).
+  const pool = AFFIXES.filter((a) => (a.minIlvl || 0) <= (ilvl || 99));
   const out = [];
   for (let i = 0; i < count && pool.length; i++) {
     let idx;
@@ -110,28 +118,36 @@ let counter = 0; // uniquifies generated item ids within a session
 
 // Pull a fixed unique for a slot at a tier (minTier-gated). Returns null if none
 // eligible (caller downgrades to rare).
-function pickUnique(rng, slot, tier) {
+function pickUnique(rng, slot, tier, ilvl = 99) {
   const ti = TIER_INDEX[tier] || 0;
-  const pool = UNIQUES.filter((u) => (!slot || u.slot === slot) && ti >= (TIER_INDEX[u.minTier] || 0));
+  // TWO independent gates: the drop TIER must be >= the unique's minTier, AND the
+  // area's ilvl (delve depth) must be >= the unique's ilvl — so a strong unique
+  // literally cannot appear until you push deep enough, even at the right difficulty.
+  const pool = UNIQUES.filter((u) => (!slot || u.slot === slot)
+    && ti >= (TIER_INDEX[u.minTier] || 0) && (u.ilvl || 1) <= (ilvl || 99));
   if (!pool.length) return null;
   return pool[Math.floor(rng.next() * pool.length)];
 }
 
 // Generate one random item. `tier` gates affix magnitude (and which uniques can
-// appear); `magicFind` biases rarity upward; `slot` forces a slot; `allowUnique`
-// lets callers suppress uniques (e.g. guaranteed non-unique drops).
-export function rollItem(rng, { tier = 'Normal', magicFind = 0, slot = null, allowUnique = true, prefer = null } = {}) {
+// appear); `ilvl` is the AREA's item level — deeper areas surface higher-ilvl
+// uniques and roll subtly bigger affixes. Omitting ilvl means the FULL pool with no
+// magnitude bump (unchanged legacy behavior). `magicFind` biases rarity upward;
+// `slot` forces a slot; `allowUnique` lets callers suppress uniques.
+export function rollItem(rng, { tier = 'Normal', ilvl, magicFind = 0, slot = null, allowUnique = true, prefer = null } = {}) {
   const useTier = TIER_MULT[tier] ? tier : 'Normal';
   const useSlot = slot || rng.pick(REAL_SLOTS);
   let rarity = rollRarity(rng, magicFind);
 
   // ---- unique: a fixed item from the table ----
   if (rarity.rarity === 'unique' && allowUnique) {
-    const u = pickUnique(rng, useSlot, useTier);
+    const u = pickUnique(rng, useSlot, useTier, ilvl);
     if (u) {
       // randomized rolls: fixed passives stay fixed; `roll` ranges vary each drop, and
       // the rolled values are appended to the text so a HIGH roll is visible and enticing.
       const passive = { ...u.passive }; const rolled = {};
+      // unique `roll` ranges are declared min–max — NOT ilvl-scaled — so a high roll
+      // means the same thing at any depth (ilvl gates WHICH uniques appear, above).
       if (u.roll) for (const [k, range] of Object.entries(u.roll)) { const v = rollStat(rng, k, range, useTier); passive[k] = v; rolled[k] = v; }
       return {
         id: `${u.id}_${counter++}`, uid: u.id, name: u.name, slot: u.slot, rarity: 'unique',
@@ -147,14 +163,14 @@ export function rollItem(rng, { tier = 'Normal', magicFind = 0, slot = null, all
   const baseDef = rng.pick(BASES[useSlot]);
   const affixCount = rarity.affixes === 0 ? 0
     : rarity.affixes + Math.floor(rng.next() * (rarity.affixMax - rarity.affixes + 1));
-  const chosen = pickAffixes(rng, affixCount, prefer);
+  const chosen = pickAffixes(rng, affixCount, prefer, ilvl);
 
   let mods = {};
   const affixNames = [];
   const tagSet = new Set();
   for (const af of chosen) {
     let rolled = {};
-    for (const [key, range] of Object.entries(af.mod)) rolled[key] = rollStat(rng, key, range, useTier);
+    for (const [key, range] of Object.entries(af.mod)) rolled[key] = rollStat(rng, key, range, useTier, ilvl);
     mods = sumMods(mods, rolled);
     affixNames.push({ name: af.name, pos: af.pos });
     (af.tags || []).forEach((t) => tagSet.add(t));

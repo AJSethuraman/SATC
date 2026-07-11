@@ -188,15 +188,19 @@ export const SUPERUNIQUE_IDS = Object.keys(SUPERUNIQUES);
 // dur = seconds of ramping waves before the area's GATE appears. Kept punchy (a
 // condensed roguelite act ~6-7 min), so a squishy build isn't ground down in a
 // long pre-gate survival slog before it can even fight the boss.
+// `ilvl` = the area's ITEM LEVEL: it climbs 1..N across the act and gates the drop
+// POOL — deeper areas can surface higher-ilvl uniques (see loot.js pickUnique) and
+// roll subtly bigger affix magnitudes. This is the delve incentive: the same tier
+// (Normal/NM/Hell) drops a strictly better pool the further in you push.
 export const ACT1 = [
-  { name: 'Blood Moor', quest: 'Den of Evil', questText: 'Cleanse the Den — slay Corpsefire.', dur: 32, pool: ['quill_rat', 'fallen', 'fallen', 'zombie'], gate: 'corpsefire' },
-  { name: 'Cold Plains', quest: null, questText: 'Cut across the plains — Bishibosh bars the way.', dur: 34, pool: ['fallen', 'goatman', 'quill_rat', 'archer'], gate: 'bishibosh' },
-  { name: "Sisters' Burial Grounds", quest: "Sisters' Burial Grounds", questText: 'Put down Blood Raven.', dur: 36, pool: ['zombie', 'zombie', 'fallen', 'archer'], gate: 'blood_raven' },
-  { name: 'Stony Field', quest: null, questText: 'Shatter Rakanishu at the cairn stones.', dur: 38, pool: ['goatman', 'fallen', 'archer', 'zombie'], gate: 'rakanishu' },
-  { name: 'Dark Wood', quest: 'The Tree of Inifuss', questText: 'Fell Treehead Woodfist.', dur: 40, pool: ['goatman', 'zombie', 'shaman', 'goatman'], gate: 'treehead_woodfist' },
-  { name: 'Forgotten Tower', quest: 'The Forgotten Tower', questText: 'Loot the tower — end the Countess.', dur: 42, pool: ['archer', 'goatman', 'zombie', 'shaman'], gate: 'the_countess' },
-  { name: 'Jail & Barracks', quest: 'Tools of the Trade', questText: 'Reclaim the Horadric Malus — kill The Smith.', dur: 44, pool: ['guardian', 'goatman', 'archer', 'zombie'], gate: 'the_smith' },
-  { name: 'Catacombs', quest: 'Sisters to the Slaughter', questText: 'Slay Andariel, Maiden of Anguish.', dur: 48, pool: ['zombie', 'archer', 'shaman', 'guardian'], gate: 'andariel' },
+  { name: 'Blood Moor', quest: 'Den of Evil', questText: 'Cleanse the Den — slay Corpsefire.', dur: 32, ilvl: 1, pool: ['quill_rat', 'fallen', 'fallen', 'zombie'], gate: 'corpsefire' },
+  { name: 'Cold Plains', quest: null, questText: 'Cut across the plains — Bishibosh bars the way.', dur: 34, ilvl: 2, pool: ['fallen', 'goatman', 'quill_rat', 'archer'], gate: 'bishibosh' },
+  { name: "Sisters' Burial Grounds", quest: "Sisters' Burial Grounds", questText: 'Put down Blood Raven.', dur: 36, ilvl: 3, pool: ['zombie', 'zombie', 'fallen', 'archer'], gate: 'blood_raven' },
+  { name: 'Stony Field', quest: null, questText: 'Shatter Rakanishu at the cairn stones.', dur: 38, ilvl: 4, pool: ['goatman', 'fallen', 'archer', 'zombie'], gate: 'rakanishu' },
+  { name: 'Dark Wood', quest: 'The Tree of Inifuss', questText: 'Fell Treehead Woodfist.', dur: 40, ilvl: 5, pool: ['goatman', 'zombie', 'shaman', 'goatman'], gate: 'treehead_woodfist' },
+  { name: 'Forgotten Tower', quest: 'The Forgotten Tower', questText: 'Loot the tower — end the Countess.', dur: 42, ilvl: 6, pool: ['archer', 'goatman', 'zombie', 'shaman'], gate: 'the_countess' },
+  { name: 'Jail & Barracks', quest: 'Tools of the Trade', questText: 'Reclaim the Horadric Malus — kill The Smith.', dur: 44, ilvl: 7, pool: ['guardian', 'goatman', 'archer', 'zombie'], gate: 'the_smith' },
+  { name: 'Catacombs', quest: 'Sisters to the Slaughter', questText: 'Slay Andariel, Maiden of Anguish.', dur: 48, ilvl: 8, pool: ['zombie', 'archer', 'shaman', 'guardian'], gate: 'andariel' },
 ];
 
 // Loot slots (armor/jewelry roll random affixes via loot.js; weapon grants skills).
@@ -262,36 +266,43 @@ export const AFFIXES = [
   // first; class-flavored versions live in the uniques/sets below.
   { id: 'conflag', name: 'of Conflagration', pos: 'suffix', mod: { spellPct: [8, 18] }, tags: ['caster'] }, // +% spell damage
   { id: 'efficient', name: 'of Efficiency', pos: 'suffix', mod: { costReduce: [8, 16] }, tags: ['caster'] }, // −% skill mana cost — makes channels/nukes affordable
-  { id: 'detonating', name: 'Detonating', pos: 'prefix', mod: { aoePct: [15, 30] }, tags: ['caster'] },     // bigger blasts/cones/novas
-  { id: 'arcing', name: 'Arcing', pos: 'prefix', mod: { plusJumps: [1, 1] }, tags: ['caster'] },            // Chain Lightning leaps +1 further
+  // `minIlvl` gates the strongest BEHAVIOR affixes to deeper areas — the biggest
+  // blasts and extra leaps can't roll on a shallow (low-ilvl) drop (see loot.js pickAffixes).
+  { id: 'detonating', name: 'Detonating', pos: 'prefix', mod: { aoePct: [15, 30] }, tags: ['caster'], minIlvl: 4 }, // bigger blasts/cones/novas
+  { id: 'arcing', name: 'Arcing', pos: 'prefix', mod: { plusJumps: [1, 1] }, tags: ['caster'], minIlvl: 3 },        // Chain Lightning leaps +1 further
   { id: 'scattering', name: 'Scattering', pos: 'prefix', mod: { plusBolts: [1, 1] }, tags: ['caster'] },    // Charged Bolt throws +1 bolt
   { id: 'transfixing', name: 'Transfixing', pos: 'prefix', mod: { pierce: [1, 1] }, tags: ['caster'] },     // your bolts pass through +1 foe
 ];
 
 // Fixed UNIQUES (the treasure-hunt peaks + build enablers). minTier gates which
-// difficulty they can drop in. S7 expands this into the full enabler/runeword set.
+// difficulty they can drop in; `ilvl` is the min AREA-level (delve depth) needed —
+// basic/early uniques carry a LOW ilvl (drop right away), stronger ones a HIGHER
+// ilvl so they literally can't appear until you push deep. minTier and ilvl are
+// independent gates (both must pass) — see loot.js pickUnique. S7 expands this into
+// the full enabler/runeword set.
 export const UNIQUES = [
-  { id: 'u_tarnhelm', name: 'Tarnhelm', slot: 'helm', minTier: 'Normal', passive: { plusSkills: 1, maxMana: 8 }, text: 'Tarnhelm — +1 Skills, +Mana.' },
-  { id: 'u_magefist', name: 'Magefist', slot: 'gloves', minTier: 'Normal', passive: { fcr: 20, manaRegen: 2 }, text: 'Magefist — +20% Cast Speed, +Mana regen.', enabler: true },
-  { id: 'u_nagel', name: 'Nagelring', slot: 'ring', minTier: 'Normal', passive: { maxLife: 14, penetration: 0.06 }, text: 'Nagelring — +Life, pierces resist.' },
-  { id: 'u_soj', name: 'Stone of Jordan', slot: 'ring', minTier: 'Nightmare', passive: { plusSkills: 1, maxMana: 24, manaRegen: 2 }, text: 'Stone of Jordan — +1 Skills, big Mana.', enabler: true },
-  { id: 'u_frostburn', name: 'Frostburn', slot: 'gloves', minTier: 'Nightmare', passive: { maxMana: 30, fcr: 10 }, text: 'Frostburn — huge Mana, +Cast Speed.' },
-  { id: 'u_vipermagi', name: "Skin of the Vipermagi", slot: 'body', minTier: 'Nightmare', passive: { plusSkills: 1, fcr: 30, penetration: 0.08 }, text: 'Vipermagi — +1 Skills, +30% FCR, pierce.', enabler: true },
-  { id: 'u_death', name: "Death's Fathom", slot: 'offhand', minTier: 'Hell', passive: { plusSkills: 2, penetration: 0.15 }, text: "Death's Fathom — +2 Skills, deep pierce.", enabler: true },
+  { id: 'u_tarnhelm', name: 'Tarnhelm', slot: 'helm', minTier: 'Normal', ilvl: 1, passive: { plusSkills: 1, maxMana: 8 }, text: 'Tarnhelm — +1 Skills, +Mana.' },
+  { id: 'u_magefist', name: 'Magefist', slot: 'gloves', minTier: 'Normal', ilvl: 2, passive: { fcr: 20, manaRegen: 2 }, text: 'Magefist — +20% Cast Speed, +Mana regen.', enabler: true },
+  { id: 'u_nagel', name: 'Nagelring', slot: 'ring', minTier: 'Normal', ilvl: 2, passive: { maxLife: 14, penetration: 0.06 }, text: 'Nagelring — +Life, pierces resist.' },
+  { id: 'u_soj', name: 'Stone of Jordan', slot: 'ring', minTier: 'Nightmare', ilvl: 7, passive: { plusSkills: 1, maxMana: 24, manaRegen: 2 }, text: 'Stone of Jordan — +1 Skills, big Mana.', enabler: true },
+  { id: 'u_frostburn', name: 'Frostburn', slot: 'gloves', minTier: 'Nightmare', ilvl: 6, passive: { maxMana: 30, fcr: 10 }, text: 'Frostburn — huge Mana, +Cast Speed.' },
+  { id: 'u_vipermagi', name: "Skin of the Vipermagi", slot: 'body', minTier: 'Nightmare', ilvl: 8, passive: { plusSkills: 1, fcr: 30, penetration: 0.08 }, text: 'Vipermagi — +1 Skills, +30% FCR, pierce.', enabler: true },
+  { id: 'u_death', name: "Death's Fathom", slot: 'offhand', minTier: 'Hell', ilvl: 8, passive: { plusSkills: 2, penetration: 0.15 }, text: "Death's Fathom — +2 Skills, deep pierce.", enabler: true },
   // Per-ELEMENT +Skills enablers — the single-element build spike. +Skills raises
   // the whole element's BASE damage (never the synergy bracket), so an already
   // committed fire/cold/light build jumps when it finds its amulet.
   // `roll` fields vary each drop within a range (D2-style min–max) so finding a HIGH
   // roll is a real event — worth banking, worth chasing. Fixed fields (like +Skills)
   // stay fixed; only the ranged ones vary. modText spells the actual rolled values out.
-  { id: 'u_ember', name: 'Ember Choker', slot: 'amulet', minTier: 'Normal', passive: { plusFire: 2 }, roll: { maxMana: [8, 18] }, text: 'Ember Choker — +2 Fire Skills, +Mana.', enabler: true },
-  { id: 'u_rime', name: 'Rimeward Torc', slot: 'amulet', minTier: 'Normal', passive: { plusCold: 2 }, roll: { maxMana: [8, 18] }, text: 'Rimeward Torc — +2 Cold Skills, +Mana.', enabler: true },
-  { id: 'u_storm', name: 'Stormcaller Beads', slot: 'amulet', minTier: 'Normal', passive: { plusLight: 2 }, roll: { maxMana: [8, 18] }, text: 'Stormcaller Beads — +2 Lightning Skills, +Mana.', enabler: true },
+  { id: 'u_ember', name: 'Ember Choker', slot: 'amulet', minTier: 'Normal', ilvl: 3, passive: { plusFire: 2 }, roll: { maxMana: [8, 18] }, text: 'Ember Choker — +2 Fire Skills, +Mana.', enabler: true },
+  { id: 'u_rime', name: 'Rimeward Torc', slot: 'amulet', minTier: 'Normal', ilvl: 3, passive: { plusCold: 2 }, roll: { maxMana: [8, 18] }, text: 'Rimeward Torc — +2 Cold Skills, +Mana.', enabler: true },
+  { id: 'u_storm', name: 'Stormcaller Beads', slot: 'amulet', minTier: 'Normal', ilvl: 3, passive: { plusLight: 2 }, roll: { maxMana: [8, 18] }, text: 'Stormcaller Beads — +2 Lightning Skills, +Mana.', enabler: true },
   // Class-oriented signatures — a unique that reshapes ONE tree's payoff, the tier the
-  // generic affixes graduate into. Sorceress-flavored, Normal-tier so they drop in v1.
-  { id: 'u_arcnexus', name: 'Arc Nexus', slot: 'offhand', minTier: 'Normal', passive: { plusLight: 1, plusJumps: 2 }, roll: { fcr: [6, 16] }, text: 'Arc Nexus — +1 Lightning, Chain Lightning leaps +2 further, +Cast Speed.', enabler: true },
-  { id: 'u_cinderbrand', name: 'Cinderbrand', slot: 'gloves', minTier: 'Normal', passive: { plusFire: 1 }, roll: { aoePct: [25, 45], costReduce: [6, 14] }, text: 'Cinderbrand — +1 Fire, +Blast radius, −Fire mana cost.', enabler: true },
-  { id: 'u_voltstone', name: 'Voltstone', slot: 'ring', minTier: 'Normal', passive: { pierce: 1 }, roll: { spellPct: [6, 16] }, text: 'Voltstone — your bolts pierce +1 foe, +Spell damage.' },
+  // generic affixes graduate into. Sorceress-flavored, Normal-tier so they drop in v1;
+  // HIGH ilvl so the tree-reshaping peaks only surface once you delve deep.
+  { id: 'u_arcnexus', name: 'Arc Nexus', slot: 'offhand', minTier: 'Normal', ilvl: 5, passive: { plusLight: 1, plusJumps: 2 }, roll: { fcr: [6, 16] }, text: 'Arc Nexus — +1 Lightning, Chain Lightning leaps +2 further, +Cast Speed.', enabler: true },
+  { id: 'u_cinderbrand', name: 'Cinderbrand', slot: 'gloves', minTier: 'Normal', ilvl: 5, passive: { plusFire: 1 }, roll: { aoePct: [25, 45], costReduce: [6, 14] }, text: 'Cinderbrand — +1 Fire, +Blast radius, −Fire mana cost.', enabler: true },
+  { id: 'u_voltstone', name: 'Voltstone', slot: 'ring', minTier: 'Normal', ilvl: 4, passive: { pierce: 1 }, roll: { spellPct: [6, 16] }, text: 'Voltstone — your bolts pierce +1 foe, +Spell damage.' },
 ];
 
 // ---- Sockets, runes & runewords (the aspiration ladder) --------------------
