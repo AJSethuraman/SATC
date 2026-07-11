@@ -11,10 +11,12 @@ import { SKILLS, ACT1 } from '../engine/content.js';
 // omnidirectional = the skill sprays a full ring around you (not a directed bolt/cone/line)
 const OMNI = new Set(['nova', 'arc', 'spread', 'ground']);
 
-test('standing still is LETHAL; moving survives far longer', () => {
-  const mkHero = () => ({ name: 'S', glyph: '🔮', maxLife: 70, life: 70, maxMana: 60, mana: 60, manaRegen: 8,
-    accuracy: 7, evade: 1, weapon: { wtype: 'focus' }, hard: { fire_bolt: 3, inferno: 3, fire_ball: 2 }, plusSkills: 0,
-    abilities: ['fire_bolt', 'inferno', 'fire_ball'] });
+test('movement matters — a stationary hero is swarmed and overwhelmed ORGANICALLY (no synthetic field)', () => {
+  // a weak, single-target hero (can't clear the ring): rooted, the whole horde
+  // converges on its spot and real contact damage piles up; moving spreads them into
+  // a chasing tail. Death comes from foes hitting you, not a "you-stopped" penalty.
+  const mkHero = () => ({ name: 'S', glyph: '🔮', maxLife: 60, life: 60, maxMana: 60, mana: 60, manaRegen: 8,
+    accuracy: 7, evade: 1, weapon: { wtype: 'focus' }, hard: { fire_bolt: 2 }, plusSkills: 0, abilities: ['fire_bolt'] });
   const play = (pickInput) => {
     const a = createArena({ hero: mkHero(), rng: makeRng('mm-still'), survival: { areas: ACT1, tier: 'Normal', rollLoot: () => null } });
     let t = 0; while (!a.getState().over && t < 30 * 80) { a.tick(pickInput(a)); t++; }
@@ -22,8 +24,10 @@ test('standing still is LETHAL; moving survives far longer', () => {
   };
   const still = play(() => ({ x: 0, y: 0 }));
   const moving = play((a) => a.autoInput());
-  assert.equal(still.result, 'lose', 'a stationary hero is overwhelmed and dies');
-  assert.ok(!moving.over || moving.time > still.time * 1.4, `moving (${moving.time.toFixed(0)}s) outlasts standing still (${still.time.toFixed(0)}s)`);
+  const rate = (s) => s.tally.dmgTaken / Math.max(1, s.time); // damage PER SECOND — total favors whoever lives longer
+  assert.equal(still.result, 'lose', 'the rooted weak hero is overwhelmed by the converging swarm');
+  assert.ok(rate(still) > rate(moving) * 1.4, `standing takes damage far FASTER (still ${rate(still).toFixed(1)}/s vs moving ${rate(moving).toFixed(1)}/s)`);
+  assert.ok(!moving.over || moving.time > still.time * 1.2, `a moving hero outlasts a stationary one (moving ${moving.time.toFixed(0)}s vs still ${still.time.toFixed(0)}s)`);
 });
 
 test('every NUKE carries a cooldown; every FILLER is spammable (no cooldown)', () => {

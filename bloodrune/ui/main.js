@@ -290,21 +290,24 @@ function drawArena(s) {
   if (prevHeroLife != null && h.life < prevHeroLife - 0.5) shakeMag = Math.min(11, shakeMag + Math.min(9, (prevHeroLife - h.life) * 0.25 + 2));
   prevHeroLife = h.life; shakeMag *= 0.86;
   const shx = shakeMag ? (Math.random() - 0.5) * shakeMag : 0, shy = shakeMag ? (Math.random() - 0.5) * shakeMag : 0;
-  camX = clampN(h.x - ARENA_W / 2, 0, Math.max(0, w.w - ARENA_W));
-  camY = clampN(h.y - ARENA_H / 2, 0, Math.max(0, w.h - ARENA_H));
-  const vis = (x, y, r) => x + r > camX - 40 && x - r < camX + ARENA_W + 40 && y + r > camY - 40 && y - r < camY + ARENA_H + 40;
+  // ZOOM the camera in so the painted sprites read BIG — the viewport shows fewer
+  // world units, and everything is drawn scaled up.
+  const ZOOM = 1.55; const viewW = ARENA_W / ZOOM, viewH = ARENA_H / ZOOM;
+  camX = clampN(h.x - viewW / 2, 0, Math.max(0, w.w - viewW));
+  camY = clampN(h.y - viewH / 2, 0, Math.max(0, w.h - viewH));
+  const vis = (x, y, r) => x + r > camX - 40 && x - r < camX + viewW + 40 && y + r > camY - 40 && y - r < camY + viewH + 40;
   // ground base
   c.fillStyle = '#0b0709'; c.fillRect(0, 0, ARENA_W, ARENA_H);
-  c.save(); c.translate(-camX + shx, -camY + shy);
+  c.save(); c.scale(ZOOM, ZOOM); c.translate(-camX + shx / ZOOM, -camY + shy / ZOOM);
 
   // --- ground: torch-lit stone with a drifting warm pool under the hero ---
   const gpool = c.createRadialGradient(h.x, h.y, 20, h.x, h.y, 460);
   gpool.addColorStop(0, 'rgba(60,34,26,0.55)'); gpool.addColorStop(0.5, 'rgba(30,18,20,0.28)'); gpool.addColorStop(1, 'rgba(10,7,9,0)');
-  c.fillStyle = gpool; c.fillRect(camX, camY, ARENA_W, ARENA_H);
+  c.fillStyle = gpool; c.fillRect(camX, camY, viewW, viewH);
   c.strokeStyle = 'rgba(70,50,55,0.10)'; c.lineWidth = 1; // faint flagstone seams
   const gx0 = Math.floor(camX / 120) * 120, gy0 = Math.floor(camY / 120) * 120;
-  for (let x = gx0; x <= camX + ARENA_W; x += 120) { c.beginPath(); c.moveTo(x, camY); c.lineTo(x, camY + ARENA_H); c.stroke(); }
-  for (let y = gy0; y <= camY + ARENA_H; y += 120) { c.beginPath(); c.moveTo(camX, y); c.lineTo(camX + ARENA_W, y); c.stroke(); }
+  for (let x = gx0; x <= camX + viewW; x += 120) { c.beginPath(); c.moveTo(x, camY); c.lineTo(x, camY + viewH); c.stroke(); }
+  for (let y = gy0; y <= camY + viewH; y += 120) { c.beginPath(); c.moveTo(camX, y); c.lineTo(camX + viewW, y); c.stroke(); }
   // ruined, blood-lit world border
   c.strokeStyle = 'rgba(150,30,30,0.55)'; c.lineWidth = 6; c.strokeRect(0, 0, w.w, w.h);
   c.strokeStyle = 'rgba(255,90,70,0.18)'; c.lineWidth = 16; c.strokeRect(0, 0, w.w, w.h);

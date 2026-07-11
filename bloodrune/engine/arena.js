@@ -27,15 +27,11 @@ const MELEE_REACH = 42;
 const PROJ_SPEED = 210, HOSTILE_PROJ_SPEED = 190;
 const CAP_ALIVE = 82;                        // survival: max live foes (perf + fairness)
 const CORPSE_TTL = 5;                         // survival: how long a corpse lingers (rez window + cleanup)
-// ENCLOSURE PRESSURE (survival): standing still in a crowd is LETHAL regardless of
-// how hard you clear — foes press in from every side and the squeeze grows the
-// longer you're rooted. MOVING resets it (kiting is the pressure valve). This is
-// what makes the game about movement, not a stationary AoE turret.
-// R is the CLOSING radius (the horde bearing down), not just melee reach — a
-// stationary ranged hero who deletes the inner ring is still being encircled by
-// the wider swarm. Only stationary heroes accrue stillT, so a moving/kiting hero
-// (stillT=0) is never touched by this no matter how many foes chase.
-const ENCLOSE_R = 520, ENCLOSE_MIN = 6, ENCLOSE_GRACE = 1.6, ENCLOSE_K = 0.42, ENCLOSE_RAMP_CAP = 12;
+// Standing still is dangerous ORGANICALLY, not by a synthetic "you stopped -> take
+// damage" field: hold position and the whole horde converges on your spot, so many
+// foes reach melee at once and their real contact/attacks pile up and overwhelm you.
+// Movement spreads them into a chasing tail (fewer in contact). A strong-enough AoE
+// build CAN hold a spot — that's earned, and it's meant to be hard, not forbidden.
 
 const CD = { attack: 0.55, damage: 0.95, hits: 0.9, aoe: 1.25, breakthrough: 1.6, block: 4, summon: 2.6 };
 const ELEM_FX = { fire: '#ff7a3a', cold: '#8fc4ff', lightning: '#d6a6ff', poison: '#8fe07a' };
@@ -172,23 +168,6 @@ export function createArena({ hero, pack, rng, survival }) {
     e.hp = Math.max(0, e.hp - dmg); e.flash = 0.15; state.tally.dmgDealt += dmg;
     fx({ type: 'dmg', x: e.x, y: e.y - e.r - 4, val: dmg, life: 0.6, vy: -26 });
     if (e.hp === 0) kill(e); return true;
-  }
-
-  // The SQUEEZE: while you're rooted in a crowd, unblockable chip damage builds —
-  // scaling with how many foes ring you AND how long you've stood still. Clearing
-  // the inner ring doesn't save you (fresh foes stream in); only MOVING (which
-  // zeroes stillT) bleeds it off. This is why standing still is death.
-  function enclosurePressure(dt) {
-    const h = state.hero; if (h.stillT <= ENCLOSE_GRACE) return;
-    let crowd = 0; for (const e of state.enemies) { if (e.hp <= 0) continue; const dx = e.x - h.x, dy = e.y - h.y; if (dx * dx + dy * dy < ENCLOSE_R * ENCLOSE_R) crowd++; }
-    if (crowd < ENCLOSE_MIN) return;
-    const ramp = Math.min(ENCLOSE_RAMP_CAP, h.stillT - ENCLOSE_GRACE);
-    const chip = ENCLOSE_K * (crowd - ENCLOSE_MIN + 1) * ramp * dt;
-    if (chip <= 0) return;
-    const absorbed = Math.min(h.shield, chip); h.shield -= absorbed; const dmg = chip - absorbed;
-    h.life = Math.max(0, h.life - dmg); state.tally.dmgTaken += dmg;
-    if (dmg > 0.5) fx({ type: 'hurt', x: h.x, y: h.y, life: 0.25 });
-    if (h.life <= 0) finish('lose');
   }
 
   // Delayed ground strikes (Meteor / Glacial Spike): after the telegraph, the AoE lands.
@@ -477,8 +456,8 @@ export function createArena({ hero, pack, rng, survival }) {
     let mx = input && input.x || 0, my = input && input.y || 0; const ml = Math.hypot(mx, my);
     if (ml > 0.05) { const n = ml > 1 ? ml : 1; mx /= n; my /= n; h.dir = { x: mx, y: my };
       h.x = clamp(h.x + mx * HERO_SPEED * dt * Math.min(1, ml), h.r, world.w - h.r); h.y = clamp(h.y + my * HERO_SPEED * dt * Math.min(1, ml), h.r, world.h - h.r);
-      state.tally.moveT += dt; state.tally.moveDist += HERO_SPEED * Math.min(1, ml) * dt; h.stillT = 0; }
-    else { state.tally.idleT += dt; h.stillT += dt; } // standing still is tracked AND punished (see enclosure below)
+      state.tally.moveT += dt; state.tally.moveDist += HERO_SPEED * Math.min(1, ml) * dt; }
+    else state.tally.idleT += dt; // idle time is tracked for telemetry (no synthetic punishment)
     if (surv) director(dt);
     fireHeroAbilities();
     stepProjectiles(dt);
@@ -486,7 +465,6 @@ export function createArena({ hero, pack, rng, survival }) {
     stepEnemies(dt);
     if (state.over) return getState();
     processPending(dt);              // delayed ground impacts (Meteor / Glacial Spike land)
-    if (surv) enclosurePressure(dt); // the squeeze — inexorable while you're rooted in a crowd
     if (state.over) return getState();
     if (surv) stepPickups();
     for (const f of state.fx) { f.life -= dt; if (f.vy) f.y += f.vy * dt; }
