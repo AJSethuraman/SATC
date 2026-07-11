@@ -158,18 +158,20 @@ export function createArena({ hero, pack, rng, survival }) {
     }
   }
 
-  function hitEnemy(e, dmg, physical, element) {
+  // `quiet` skips the floating damage number (for fast CHANNELED ticks like Inferno,
+  // where 30 popups/sec per foe would be noise — the flame + enemy flash carry it).
+  function hitEnemy(e, dmg, physical, element, quiet) {
     if (physical) { if (rng.next() > clamp(0.75 + (state.hero.accuracy - (e.eva || 0)) * 0.04, 0.35, 0.95)) {
       state.tally.misses++; fx({ type: 'miss', x: e.x, y: e.y - e.r - 6, life: 0.5 }); return false; } state.tally.hits++; }
     // Elemental resistance/immunity: penetration (gear −enemy-resist) lowers resist
     // but can't crack a true immunity — you must swap element for those.
     if (element && e.resist) {
       const out = resistedDamage(dmg, e.resist, e.immune, element, state.hero.penetration || 0);
-      if (out === 0) { fx({ type: 'immune', x: e.x, y: e.y - e.r - 6, life: 0.6 }); return false; } // immune — swap element
+      if (out === 0) { if (!quiet) fx({ type: 'immune', x: e.x, y: e.y - e.r - 6, life: 0.6 }); return false; } // immune — swap element
       dmg = out;
     }
     e.hp = Math.max(0, e.hp - dmg); e.flash = 0.15; state.tally.dmgDealt += dmg;
-    fx({ type: 'dmg', x: e.x, y: e.y - e.r - 4, val: dmg, life: 0.6, vy: -26 });
+    if (!quiet) fx({ type: 'dmg', x: e.x, y: e.y - e.r - 4, val: dmg, life: 0.6, vy: -26 });
     if (e.hp === 0) kill(e); return true;
   }
 
@@ -266,16 +268,19 @@ export function createArena({ hero, pack, rng, survival }) {
             fx({ type: 'chain', x: e.x, y: e.y - 94, x2: e.x, y2: e.y, life: 0.22, color: col }); // a bolt from above
             fx({ type: 'impact', x: e.x, y: e.y, r: 20, life: 0.2, color: col }); }
           continue; }
-        if (s.geo === 'cone') { // INFERNO — a cone of flame toward the nearest foe (hero turns to face it)
+        if (s.geo === 'cone') { // INFERNO — a CHANNELED cone toward the nearest foe: it stays ON, burning
+          // everything in front continuously and DRAINING mana per second (a real flamethrower).
           const ft = faceTarget(); if (!ft) continue;
+          const pulse = 0.12, perSec = s.manaPerSec || 8; // pulse fast so it reads as a continuous stream
+          if (h.mana < perSec * pulse) continue;           // flame sputters out when you run dry
           const ang = Math.atan2(ft.e.y - h.y, ft.e.x - h.x); const range = (s.coneRange || 165) * aoe, half = s.coneArc || 0.6;
           const inCone = alive().filter((e) => { const dd = Math.hypot(e.x - h.x, e.y - h.y); if (dd > range + e.r) return false;
             let da = Math.atan2(e.y - h.y, e.x - h.x) - ang; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI; return Math.abs(da) <= half; });
-          if (!inCone.length) continue;
-          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          if (!inCone.length) continue;                    // don't drain into empty air
+          h.mana -= perSec * pulse; h.cd[id] = pulse;       // mana per SECOND, applied per pulse
           const cap = s.maxTargets || 99; let hit = 0;
-          for (const e of inCone) { if (hit++ >= cap) break; hitEnemy(e, dmg(), false, s.element); }
-          fx({ type: 'cone', x: h.x, y: h.y, ang, range, half, life: 0.22, color: col });
+          for (const e of inCone) { if (hit++ >= cap) break; hitEnemy(e, dmg(), false, s.element, true); } // quiet: no popup spam
+          fx({ type: 'cone', x: h.x, y: h.y, ang, range, half, life: pulse + 0.06, color: col }); // overlap keeps the flame solid
           continue; }
         // every other geometry needs a direction/target — aim at the boss (on-screen) else nearest
         const aim = aimPoint(); if (!aim) continue;

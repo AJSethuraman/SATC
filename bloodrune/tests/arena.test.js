@@ -117,8 +117,21 @@ test('you can toggle a skill OFF so it stops auto-firing (Whirlwind, not Cleave)
 
 test('Sorceress nova blasts every foe around you and clears a pack', () => {
   const h = hero({ glyph: '🔮', maxLife: 60, maxMana: 40, mana: 40, manaRegen: 6, weapon: { dmg: null, wtype: 'focus' }, abilities: ['attack', 'nova'] });
-  const s = run(arena([{ id: 'fallen' }, { id: 'fallen' }, { id: 'zombie' }, { id: 'fallen' }], h, 'nova'));
+  const s = run(arena([{ id: 'fallen' }, { id: 'fallen' }, { id: 'zombie' }, { id: 'zombie' }], h, 'nova'));
   assert.equal(s.result, 'win'); assert.ok(s.tally.dmgDealt > 0);
+});
+
+test('Inferno CHANNELS — it drains mana per second while a foe is in the cone', () => {
+  // a fixed mana pool, no regen; a very tanky foe stands in front. Over one second of
+  // channeling, a per-second drain empties far more than one discrete cast ever could.
+  const h = hero({ glyph: '🔮', maxLife: 9000, life: 9000, maxMana: 100, mana: 100, manaRegen: 0,
+    weapon: { dmg: null, wtype: 'focus' }, hard: { inferno: 6, fire_bolt: 3 }, abilities: ['inferno'] });
+  const a = arena([{ id: 'zombie', hpMul: 300 }], h, 'chan');
+  const m0 = a.getState().hero.mana;
+  for (let i = 0; i < 30; i++) a.tick({ x: 0, y: 0 }); // ~1s
+  const s = a.getState();
+  assert.ok(m0 - s.hero.mana >= 5, `channel drains mana per second (drained ${(m0 - s.hero.mana).toFixed(1)} in ~1s)`);
+  assert.ok(s.tally.dmgDealt > 0, 'and burns the foe the whole time it is lit');
 });
 
 test('Sorceress Mastery multiplies its OWN element (not flat, not cross-element)', () => {
