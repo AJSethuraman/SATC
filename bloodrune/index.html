@@ -149,8 +149,10 @@
     background: linear-gradient(180deg, #17100f, #0d0809);
     border: 1px solid var(--panel-edge); border-radius: 14px; padding: 16px 18px; }
   .inv-head { display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; }
-  .inv-stats, .sock-note { flex: 0 0 auto; }
-  .inv-cols { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  .inv-stats, .sock-note, .sk-sub { flex: 0 0 auto; }
+  /* the scrollable region of an overlay: it (not the page behind it) takes the touch.
+     overscroll-behavior:contain stops the scroll from chaining to the window on phones. */
+  .inv-cols, .ov-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
   .inv-title { font-size: 20px; letter-spacing: 1px; color: #d8c4b0; }
   .inv-close { background: #1a1213; border: 1px solid #3a2a2b; color: var(--ink); width: 34px; height: 34px;
     border-radius: 8px; font-size: 16px; cursor: pointer; }

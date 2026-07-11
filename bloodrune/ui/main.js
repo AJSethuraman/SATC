@@ -521,7 +521,7 @@ function renderTree() {
   } else { body = r.tree.map((sk) => skRow(r, sk)).join(''); }
   ov.className = 'overlay inv';
   ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">⚔ Skill Tree — ${r.skillPoints} pts</div><button class="inv-close" id="cx">✕</button></div>
-    <div class="sk-sub">Skills unlock by <b>level</b> and <b>prerequisite</b> — build toward the big ones. Each point needs a higher level than the last.${r.tabs ? ' <b>Masteries</b> boost all spell damage; <b>Warmth</b> speeds Mana regen.' : ''}</div>${body}</div>`;
+    <div class="sk-sub">Skills unlock by <b>level</b> and <b>prerequisite</b> — build toward the big ones. Each point needs a higher level than the last.${r.tabs ? ' <b>Masteries</b> boost all spell damage; <b>Warmth</b> speeds Mana regen.' : ''}</div><div class="ov-scroll">${body}</div></div>`;
   document.getElementById('cx').addEventListener('click', () => { treeOpen = false; render(); if (arenaActive) resumeArena(); });
   ov.querySelectorAll('[data-inv]').forEach((b) => b.addEventListener('click', () => { game.investSkill(b.dataset.inv); expose(); renderTree(); }));
 }
