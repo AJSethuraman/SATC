@@ -213,7 +213,9 @@ function arenaFrame(now) {
   let guard = 0; while (tacc >= DT && guard < cap) { combat.tick(input); tacc -= DT; guard++; if (combat.getState().over) break; }
   const s = combat.getState();   // capture BEFORE syncArena — it may resolve the segment and null combat
   const sync = game.syncArena(); // fold earned XP -> levels, collected drops -> bag, quest clear -> town
-  if (sync.loot && sync.loot.length) { const it = sync.loot[sync.loot.length - 1]; lootToast = { name: it.name, color: it.color || '#c8a24a', t: 1.6 }; tel('loot', { name: it.name }); }
+  if (sync.loot && sync.loot.length) { const it = sync.loot[sync.loot.length - 1];
+    const up = !it.isRune && game.compareItem && game.compareItem(it); const isUp = up && up.isUpgrade && up.wearable;
+    lootToast = { name: (isUp ? '▲ ' : '') + it.name, color: isUp ? '#7ee27e' : (it.color || '#c8a24a'), t: isUp ? 2.4 : 1.6 }; tel('loot', { name: it.name }); }
   if (sync.leveled) { levelToast = { t: 1.4, lvl: game.getRun().level }; tel('level', { level: game.getRun().level }); } // banks points, no pause
   drawArena(s); updateHUD(s, dt);
   window.__bloodrune.state = s; window.__bloodrune.phase = game.getRun().phase; window.__bloodrune.run = game.getRun();
@@ -316,7 +318,7 @@ function drawArena(s) {
     c.beginPath(); c.rect(-6, -6, 12, 12); c.fill(); c.stroke(); c.restore(); }
 
   // fx UNDER units (cast rings, sweeps, ground bursts)
-  for (const f of s.fx) if (f.type !== 'dmg' && f.type !== 'miss' && f.type !== 'evade' && f.type !== 'immune' && vis(f.x, f.y, (f.r || 24) + 24)) drawFx(c, f);
+  for (const f of s.fx) if (f.type !== 'dmg' && f.type !== 'miss' && f.type !== 'evade' && f.type !== 'immune' && f.type !== 'chain' && vis(f.x, f.y, (f.r || 24) + 24)) drawFx(c, f);
 
   // minions (undead allies)
   for (const m of s.minions) { if (!vis(m.x, m.y, m.r)) continue; drawShadow(c, m.x, m.y, m.r); drawBody(c, m.x, m.y, m.r, '#1a2038', '#7a80a0', 0); glyph(c, m.glyph, m.x, m.y - 1, m.r * 1.5); }
@@ -371,7 +373,7 @@ function drawArena(s) {
   c.globalCompositeOperation = 'source-over';
 
   // floating text fx OVER everything (damage / miss / dodge / immune)
-  for (const f of s.fx) if ((f.type === 'dmg' || f.type === 'miss' || f.type === 'evade' || f.type === 'immune') && vis(f.x, f.y, 24)) drawFx(c, f);
+  for (const f of s.fx) if ((f.type === 'dmg' || f.type === 'miss' || f.type === 'evade' || f.type === 'immune' || f.type === 'chain') && vis(f.x, f.y, 200)) drawFx(c, f);
   c.restore();
 
   // --- lighting: vignette darkens the edges so the torch-lit centre pops ---
@@ -400,6 +402,22 @@ function drawFx(c, f) {
     c.fillStyle = hexA(col, 0.10 * t); c.beginPath(); c.arc(f.x, f.y, f.r * (1.4 - t * 0.5), 0, 7); c.fill();
     if (t > 0.94) burst(f.x, f.y, 6, 120, col, 0.5); } // one-time spark when the ring is born
   else if (f.type === 'dash') { c.fillStyle = `rgba(210,175,90,${0.4 * t})`; c.beginPath(); c.arc(f.x, f.y, 22 * (1.2 - t), 0, 7); c.fill(); }
+  else if (f.type === 'ring') { const rr = (f.r || 130) * (0.35 + (1 - t) * 0.85); // Nova / Frost Nova / Static Field — an expanding burst-ring
+    c.strokeStyle = hexA(f.color || '#c8a24a', 0.75 * t); c.lineWidth = 3 + (1 - t) * 4; c.beginPath(); c.arc(f.x, f.y, rr, 0, 7); c.stroke();
+    c.fillStyle = hexA(f.color || '#c8a24a', 0.08 * t); c.beginPath(); c.arc(f.x, f.y, rr, 0, 7); c.fill(); }
+  else if (f.type === 'telegraph') { const pulse = 0.45 + 0.4 * Math.abs(Math.sin(f.life * 24)); // ground warning before a strike lands
+    c.strokeStyle = hexA(f.color || '#ff5a4a', pulse); c.lineWidth = 2.5; c.setLineDash([7, 6]); c.beginPath(); c.arc(f.x, f.y, f.r || 120, 0, 7); c.stroke(); c.setLineDash([]);
+    c.fillStyle = hexA(f.color || '#ff5a4a', 0.12); c.beginPath(); c.arc(f.x, f.y, (f.r || 120) * (1 - t * 0.25), 0, 7); c.fill(); }
+  else if (f.type === 'impact') { const rr = (f.r || 130) * (0.5 + (1 - t) * 0.7); // Meteor / Glacial Spike landing
+    c.fillStyle = hexA(f.color || '#ff7a3a', 0.4 * t); c.beginPath(); c.arc(f.x, f.y, rr, 0, 7); c.fill();
+    c.strokeStyle = `rgba(255,255,255,${0.6 * t})`; c.lineWidth = 3; c.beginPath(); c.arc(f.x, f.y, rr, 0, 7); c.stroke();
+    if (t > 0.86) burst(f.x, f.y, 12, 200, f.color || '#ff7a3a', 0.55); }
+  else if (f.type === 'chain') { // Chain Lightning — a jagged bolt leaping between foes
+    const col = f.color || '#d6a6ff'; const seg = 7;
+    c.strokeStyle = hexA(col, 0.9 * t); c.lineWidth = 3; c.beginPath(); c.moveTo(f.x, f.y);
+    for (let i = 1; i < seg; i++) { const u = i / seg; c.lineTo(f.x + (f.x2 - f.x) * u + (Math.random() - 0.5) * 11, f.y + (f.y2 - f.y) * u + (Math.random() - 0.5) * 11); }
+    c.lineTo(f.x2, f.y2); c.stroke();
+    c.strokeStyle = `rgba(255,255,255,${0.85 * t})`; c.lineWidth = 1.2; c.stroke(); }
   else if (f.type === 'hurt') { c.strokeStyle = `rgba(230,40,40,${0.55 * t})`; c.lineWidth = 3.5; c.beginPath(); c.arc(f.x, f.y, 22 * (1.4 - t), 0, 7); c.stroke();
     if (t > 0.9) burst(f.x, f.y, 5, 90, '#c62828', 0.45); }
   else if (f.type === 'dmg') { const rise = (1 - t) * 16; c.font = 'bold 15px sans-serif'; c.textAlign = 'center';

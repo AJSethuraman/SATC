@@ -189,7 +189,7 @@ export const SUPERUNIQUE_IDS = Object.keys(SUPERUNIQUES);
 // condensed roguelite act ~6-7 min), so a squishy build isn't ground down in a
 // long pre-gate survival slog before it can even fight the boss.
 export const ACT1 = [
-  { name: 'Blood Moor', quest: 'Den of Evil', questText: 'Cleanse the Den — slay Corpsefire.', dur: 32, pool: ['quill_rat', 'fallen', 'archer', 'zombie'], gate: 'corpsefire' },
+  { name: 'Blood Moor', quest: 'Den of Evil', questText: 'Cleanse the Den — slay Corpsefire.', dur: 32, pool: ['quill_rat', 'fallen', 'fallen', 'zombie'], gate: 'corpsefire' },
   { name: 'Cold Plains', quest: null, questText: 'Cut across the plains — Bishibosh bars the way.', dur: 34, pool: ['fallen', 'goatman', 'quill_rat', 'archer'], gate: 'bishibosh' },
   { name: "Sisters' Burial Grounds", quest: "Sisters' Burial Grounds", questText: 'Put down Blood Raven.', dur: 36, pool: ['zombie', 'zombie', 'fallen', 'archer'], gate: 'blood_raven' },
   { name: 'Stony Field', quest: null, questText: 'Shatter Rakanishu at the cairn stones.', dur: 38, pool: ['goatman', 'fallen', 'archer', 'zombie'], gate: 'rakanishu' },

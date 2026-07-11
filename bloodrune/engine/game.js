@@ -296,12 +296,14 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   // What a monster drops — usually armor/jewelry (useful to any class), sometimes a
   // weapon that MATCHES your type (a Sorceress won't be buried in Great Axes).
   // Magic-find scales with the kill's tier (elite/unique/boss).
-  const WEAP_BY_TYPE = { melee: 'great_axe', ranged: 'war_bow', focus: 'bone_staff' };
+  const WEAP_BY_TYPE = { melee: 'great_axe', ranged: 'war_bow' };
   function rollGroundItem(mf) {
     if (rng.next() < 0.05) return rollRune(rng, run.difficulty);   // ~5% of drops are runes (the runeword chase)
-    if (rng.next() < 0.06) { const wt = (run.equipment.weapon && run.equipment.weapon.wtype) || 'melee';
-      const w = { ...ITEMS[WEAP_BY_TYPE[wt] || rng.pick(WEAPON_DROPS)] }; return { ...w, id: w.id + '_' + Math.floor(rng.next() * 1e6) }; }
-    return rollItem(rng, { tier: run.difficulty, magicFind: 4 + mf * 6 });
+    const wt = (run.equipment.weapon && run.equipment.weapon.wtype) || 'melee';
+    // only drop a weapon that MATCHES your type — a caster never gets buried in wrong-class weapons
+    if (WEAP_BY_TYPE[wt] && rng.next() < 0.05) { const w = { ...ITEMS[WEAP_BY_TYPE[wt]] }; return { ...w, id: w.id + '_' + Math.floor(rng.next() * 1e6) }; }
+    // bias armor/jewelry affixes to YOUR build so drops are actually usable
+    return rollItem(rng, { tier: run.difficulty, magicFind: 4 + mf * 6, prefer: wt === 'focus' ? 'caster' : 'melee' });
   }
 
   // Push live progression (level-ups, gear) into the in-flight survival hero.

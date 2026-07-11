@@ -70,12 +70,17 @@ function rollStat(rng, key, range, tier) {
   return Math.max(1, Math.round(base * (TIER_MULT[tier] || 1)));
 }
 
-// Pick `count` DISTINCT affixes from the pool (no dup ids on one item).
-function pickAffixes(rng, count) {
+// Pick `count` DISTINCT affixes. `prefer` (a build tag like 'caster'/'melee')
+// biases ~75% of rolls toward on-build affixes so your drops are actually FOR your
+// build — you find gear you can use, not a stream of wrong-class junk.
+function pickAffixes(rng, count, prefer) {
   const pool = AFFIXES.slice();
   const out = [];
   for (let i = 0; i < count && pool.length; i++) {
-    const idx = Math.floor(rng.next() * pool.length);
+    let idx;
+    const pref = prefer ? pool.filter((a) => (a.tags || []).includes(prefer) || (a.tags || []).includes('all')) : [];
+    if (pref.length && rng.next() < 0.75) { idx = pool.indexOf(pref[Math.floor(rng.next() * pref.length)]); }
+    else idx = Math.floor(rng.next() * pool.length);
     out.push(pool.splice(idx, 1)[0]);
   }
   return out;
@@ -108,7 +113,7 @@ function pickUnique(rng, slot, tier) {
 // Generate one random item. `tier` gates affix magnitude (and which uniques can
 // appear); `magicFind` biases rarity upward; `slot` forces a slot; `allowUnique`
 // lets callers suppress uniques (e.g. guaranteed non-unique drops).
-export function rollItem(rng, { tier = 'Normal', magicFind = 0, slot = null, allowUnique = true } = {}) {
+export function rollItem(rng, { tier = 'Normal', magicFind = 0, slot = null, allowUnique = true, prefer = null } = {}) {
   const useTier = TIER_MULT[tier] ? tier : 'Normal';
   const useSlot = slot || rng.pick(REAL_SLOTS);
   let rarity = rollRarity(rng, magicFind);
@@ -131,7 +136,7 @@ export function rollItem(rng, { tier = 'Normal', magicFind = 0, slot = null, all
   const baseDef = rng.pick(BASES[useSlot]);
   const affixCount = rarity.affixes === 0 ? 0
     : rarity.affixes + Math.floor(rng.next() * (rarity.affixMax - rarity.affixes + 1));
-  const chosen = pickAffixes(rng, affixCount);
+  const chosen = pickAffixes(rng, affixCount, prefer);
 
   let mods = {};
   const affixNames = [];
