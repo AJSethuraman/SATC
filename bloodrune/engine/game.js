@@ -195,14 +195,18 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     pushHeroStats(); return { ok: true }; }
 
   // ---- town / checkpoint loop ----
-  // A DESCENT plays exactly ONE quest (the current ACT1 area) as a survival segment.
-  // Clear its gate -> back to TOWN (bank/turn-in/respec) for the next; the final
-  // quest (Andariel) wins the act. You can only descend FROM town.
+  // A DESCENT plays a CHUNK of quests (DESCENT_CHUNK areas) back-to-back as one
+  // continuous survival gauntlet — clearing an area's gate rolls straight into the
+  // next with no town break, so you push deeper before resting. Only when the chunk
+  // (or the act) is done do you return to TOWN (bank/turn-in/respec). Fewer, longer
+  // descents = more sustained pressure, mana attrition, and gear that has to last.
+  const DESCENT_CHUNK = 2;
   let lastCleared = 0;
   function descend() {
     if (run.phase !== 'town') return { ok: false, reason: 'not in town' };
     lastXp = 0; lastCleared = 0;
-    combat = createArena({ hero: heroForFight(), rng, survival: { areas: [ACT1[run.questIdx]], tier: run.difficulty, rollLoot: rollGroundItem } });
+    const chunk = ACT1.slice(run.questIdx, run.questIdx + DESCENT_CHUNK);
+    combat = createArena({ hero: heroForFight(), rng, survival: { areas: chunk, tier: run.difficulty, rollLoot: rollGroundItem } });
     run.phase = 'arena'; return { ok: true };
   }
   const startRun = descend; const beginDescent = descend; // (the town's "descend" button)
@@ -323,10 +327,16 @@ export function createGame(seed = 'bloodrune', opts = {}) {
       while (run.xp >= xpForLevel(run.level)) { run.xp -= xpForLevel(run.level); run.level += 1; run.skillPoints += 1; run.attrPoints += ATTR_PER_LEVEL; leveled += 1; } }
     const got = combat.takeCollected(); let salvaged = 0;
     for (const it of got) { if (run.bag.length < BAG_CAP) run.bag.push(it); else { run.shards += shardValue(it); salvaged += 1; } }
-    // clearing an area completes its QUEST — reward skill points, a heal, and a restock
+    // clearing an area completes its QUEST — mark it done and advance so progression
+    // tracks each gate mid-descent (not just at the town break), then reward skill
+    // points, a heal, and a restock. Advancing questIdx here keeps the town's "next
+    // descent" pointed at the first UNcleared quest even after a multi-area chunk.
     let cleared = 0;
     if (s.areaCleared > lastCleared) { cleared = s.areaCleared - lastCleared; lastCleared = s.areaCleared;
-      for (let k = 0; k < cleared; k++) { run.skillPoints += 2; combat.heal(Math.round(statsNow().maxLife * 0.5)); addPotions(1, 1); } }
+      for (let k = 0; k < cleared; k++) {
+        if (run.quests[run.questIdx]) run.quests[run.questIdx].done = true;
+        if (run.questIdx < ACT1.length - 1) run.questIdx += 1;
+        run.skillPoints += 2; combat.heal(Math.round(statsNow().maxLife * 0.5)); addPotions(1, 1); } }
     if (leveled) pushHeroStats();
     run.life = s.hero.life; run.mana = s.hero.mana;
     if (s.over) resolveArena();
@@ -340,9 +350,10 @@ export function createGame(seed = 'bloodrune', opts = {}) {
     if (!combat) return run.phase; const s = combat.getState(); if (!s.over) return run.phase;
     run.life = s.hero.life; run.mana = s.hero.mana; run.lastResult = s.result;
     if (s.result === 'win') {
-      run.quests[run.questIdx].done = true;
-      if (run.questIdx >= ACT1.length - 1) { run.phase = 'victory'; }
-      else { run.questIdx += 1; toTown(); }
+      // quests were marked done + questIdx advanced as each area cleared (syncArena).
+      // A 'win' means the whole chunk fell; the act is won only if that was the last quest.
+      if (run.quests.every((q) => q.done)) { run.phase = 'victory'; }
+      else { toTown(); }
     } else if (s.result === 'fled') {
       toTown(); // retreated — the current quest still stands, but the loot came home
     } else {

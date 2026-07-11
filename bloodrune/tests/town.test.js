@@ -43,14 +43,16 @@ test('a fresh game starts in TOWN at the first quest; descend needs town', () =>
   assert.equal(g.descend().ok, false, 'cannot descend again mid-field');
 });
 
-test('clearing a quest turns it in and returns to TOWN at the next quest', () => {
+test('a descent clears a CHUNK of quests back-to-back, then returns to TOWN', () => {
+  // one descent now plays a 2-area gauntlet with no town break between them, so
+  // clearing it turns in BOTH quests and the next descent starts at quest 3.
   const g = createGame('town-quest', { classId: 'barbarian', stash: BEEF, loadout: BEEF });
   g.descend();
-  survive(g, 30 * 160);
+  survive(g, 30 * 320);
   const r = g.getRun();
   assert.equal(r.phase, 'town', `expected town, got ${r.phase}`);
-  assert.equal(r.questIdx, 1, 'advanced to quest 2');
-  assert.ok(r.quests[0].done, 'quest 1 turned in');
+  assert.equal(r.questIdx, 2, 'advanced two quests in one descent (chunk of 2)');
+  assert.ok(r.quests[0].done && r.quests[1].done, 'both quests in the chunk turned in');
 });
 
 test('banking moves the run inventory into the stash — and ONLY in town', () => {

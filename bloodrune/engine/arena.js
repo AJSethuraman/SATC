@@ -36,6 +36,9 @@ const CORPSE_TTL = 5;                         // survival: how long a corpse lin
 const CD = { attack: 0.55, damage: 0.95, hits: 0.9, aoe: 1.25, breakthrough: 1.6, block: 4, summon: 2.6 };
 const ELEM_FX = { fire: '#ff7a3a', cold: '#8fc4ff', lightning: '#d6a6ff', poison: '#8fe07a' };
 const elemColor = (el) => ELEM_FX[el] || '#c8a24a';
+// Auto-fire only reaches roughly what's ON SCREEN — you engage the fight you can see,
+// not snipe things off the edge of the world.
+const SCREEN_RANGE = 340;
 // Foes move at a real fraction of the hero's 158 — fast enough that kiting takes
 // SKILL (weave, don't get boxed), not a free stroll. Combined with ranged fire that
 // LEADS you and enclosure pressure, a MOVING hero must actually work to stay clean.
@@ -190,6 +193,26 @@ export function createArena({ hero, pack, rng, survival }) {
       state.projectiles.push({ x: g.x, y: g.y, vx: Math.cos(a) * HOSTILE_PROJ_SPEED * 0.85, vy: Math.sin(a) * HOSTILE_PROJ_SPEED * 0.85,
         r: 7, dmg, hostile: true, from: g, pierce: 0, life: 2.6, glyph: '✸', element: g.slamElem || 'fire' }); }
   }
+  // Second signature: the boss AIMS a tight fan of bolts straight at you — dodge SIDEWAYS,
+  // not away (running back-pedals into the spread). A different read from the ring-slam.
+  function gateCone(g) {
+    const h = state.hero; const base = Math.atan2(h.y - g.y, h.x - g.x);
+    fx({ type: 'telegraph', x: g.x, y: g.y, r: 110, life: 0.55, color: '#ffd45a' });
+    const n = 7, dmg = Math.max(6, Math.round(g.attack * 0.85));
+    for (let i = 0; i < n; i++) { const a = base + (i - (n - 1) / 2) * 0.18;
+      state.projectiles.push({ x: g.x, y: g.y, vx: Math.cos(a) * HOSTILE_PROJ_SPEED, vy: Math.sin(a) * HOSTILE_PROJ_SPEED,
+        r: 7, dmg, hostile: true, from: g, pierce: 0, life: 2.4, glyph: '✦', element: g.slamElem || 'fire' }); }
+  }
+  // Third signature: the boss SUMMONS a knot of its minions right on top of you — you
+  // can't just kite it forever, the adds cut off your escape lane and force a reposition.
+  function gateSummon(g) {
+    const area = curArea(); const sc = scaleFor(); const kind = (area.pool && area.pool[0]) || 'fallen';
+    fx({ type: 'cast', x: g.x, y: g.y, r: 120, life: 0.7, color: '#c62828' });
+    const n = 3; for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2;
+      const e = spawnAtRing({ id: kind, hpMul: sc.hpMul, atkMul: sc.atkMul });
+      e.x = clamp(state.hero.x + Math.cos(a) * 150, 40, world.w - 40); e.y = clamp(state.hero.y + Math.sin(a) * 150, 40, world.h - 40); }
+  }
+  const GATE_ABILITIES = [gateSlam, gateCone, gateSummon];
 
   function hitHero(e, raw) {
     const h = state.hero; if (h.invT > 0) return true;
@@ -221,7 +244,7 @@ export function createArena({ hero, pack, rng, survival }) {
       if (s.scale === 'nova') { // AoE spells — each realizes its own fantasy via `geo`
         if (s.cost > h.mana) continue; const col = elemColor(s.element);
         if (s.geo === 'arc') { // CHAIN LIGHTNING — a bolt that leaps from foe to foe
-          const first = nearest(h.x, h.y); if (!first || first.d > (s.radius || 150) + 60) continue;
+          const first = nearest(h.x, h.y); if (!first || first.d > SCREEN_RANGE) continue;
           h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
           const hitU = new Set(); let fx1 = h.x, fy1 = h.y, node = first.e; const jumps = s.maxTargets || 6;
           for (let j = 0; j < jumps && node; j++) { hitU.add(node.uid);
@@ -231,7 +254,7 @@ export function createArena({ hero, pack, rng, survival }) {
             node = best; }
           continue; }
         if (s.geo === 'ground') { // METEOR / GLACIAL SPIKE — falls at the pack after a telegraph
-          const tgt = nearest(h.x, h.y); if (!tgt || tgt.d > (s.radius || 150) + 160) continue;
+          const tgt = nearest(h.x, h.y); if (!tgt || tgt.d > SCREEN_RANGE) continue;
           h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe; const R = s.radius || 140;
           fx({ type: 'telegraph', x: tgt.e.x, y: tgt.e.y, r: R, life: s.id === 'meteor' ? 0.6 : 0.4, color: col });
           state.pending.push({ x: tgt.e.x, y: tgt.e.y, r: R, min: eff.min, max: eff.max, element: s.element, n: s.maxTargets || 8, t: s.id === 'meteor' ? 0.6 : 0.4, big: s.id === 'meteor', color: col });
@@ -263,16 +286,17 @@ export function createArena({ hero, pack, rng, survival }) {
         for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), physical, s.element);
         continue; }
       if (s.target === 'aoe' && ranged) { // ranged AoE volley — focus the gate, then the nearest few (Fire Ball / Strafe / Teeth)
-        let targets = alive().sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y));
-        const gt = liveGate(); if (gt && !targets.slice(0, s.maxTargets || 3).includes(gt)) targets = [gt, ...targets.filter((e) => e !== gt)];
+        let targets = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= SCREEN_RANGE).sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y));
+        const gt = liveGate(); if (gt && Math.hypot(gt.x - h.x, gt.y - h.y) <= SCREEN_RANGE && !targets.slice(0, s.maxTargets || 3).includes(gt)) targets = [gt, ...targets.filter((e) => e !== gt)];
         targets = targets.slice(0, s.maxTargets || 3);
         if (!targets.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
         for (const t of targets) spawnBolt(h, t, roll(eff.min, eff.max), physical, 0, s.weapon === 'spell' ? '🦴' : '➶', s.element);
         continue; }
       // single-target: a ranged skill FOCUSES the gate (you can hit it anywhere); melee takes the nearest in reach
       const gt = liveGate();
-      const tgt = (ranged && gt) ? { e: gt, d: Math.hypot(gt.x - h.x, gt.y - h.y) } : nearest(h.x, h.y); if (!tgt) continue;
+      const tgt = (ranged && gt && Math.hypot(gt.x - h.x, gt.y - h.y) <= SCREEN_RANGE) ? { e: gt, d: Math.hypot(gt.x - h.x, gt.y - h.y) } : nearest(h.x, h.y); if (!tgt) continue;
       if (!ranged && tgt.d > MELEE_REACH + tgt.e.r + h.r + 6) continue;
+      if (ranged && tgt.d > SCREEN_RANGE) continue; // no more sniping foes off-screen
       h.mana -= s.cost;
       if (s.type === 'breakthrough') {
         const dx = (tgt.e.x - h.x) / tgt.d, dy = (tgt.e.y - h.y) / tgt.d; const step = Math.min(tgt.d - tgt.e.r, 120);
@@ -381,9 +405,20 @@ export function createArena({ hero, pack, rng, survival }) {
     const area = curArea(); const sc = scaleFor(); const min = state.time / 60;
     const n = Math.min(14, 3 + Math.floor(min * 1.7)); // denser waves — standing still gets you surrounded
     const WAVE_HP = 1.12; // trash stays light — the CHALLENGE is the boss fight, not chip from the swarm
+    const AFFIX = Object.keys(ELITE_AFFIXES);
+    // CHAMPION PACK: every so often a tight cluster of same-affixed elites converges
+    // together — a real threat that drops real loot (the D2 champion/minion pack).
+    if (min >= 0.5 && rng.next() < 0.16) {
+      const af = rng.pick(AFFIX); const packId = rng.pick(area.pool); const size = 2 + Math.floor(rng.next() * 2);
+      const a = rng.next() * Math.PI * 2, rad = 540 + rng.next() * 120; // one ring anchor, so the pack arrives as a wall
+      const ax = clamp(state.hero.x + Math.cos(a) * rad, 60, world.w - 60), ay = clamp(state.hero.y + Math.sin(a) * rad, 60, world.h - 60);
+      for (let k = 0; k < size; k++) { const e = spawnAtRing({ id: packId, affixes: [af], hpMul: sc.hpMul, atkMul: sc.atkMul, drop: 0.28 }); e.x = clamp(ax + (rng.next() - 0.5) * 80, 40, world.w - 40); e.y = clamp(ay + (rng.next() - 0.5) * 80, 40, world.h - 40); }
+    }
+    // lone champions: more common and earlier now — the swarm should have teeth in it
+    const eliteChance = Math.min(0.16, 0.06 + min * 0.03);
     for (let k = 0; k < n; k++) {
       const entry = { id: rng.pick(area.pool), hpMul: sc.hpMul * WAVE_HP, atkMul: sc.atkMul };
-      if (min >= 2 && rng.next() < 0.05) { entry.affixes = [rng.pick(Object.keys(ELITE_AFFIXES))]; entry.drop = 0.2; } // champions are rarer now — and they're where loot comes from
+      if (min >= 1 && rng.next() < eliteChance) { entry.affixes = [rng.pick(AFFIX)]; entry.drop = 0.24; }
       spawnAtRing(entry);
     }
   }
@@ -412,7 +447,10 @@ export function createArena({ hero, pack, rng, survival }) {
     // ENRAGE: a gate that's dragged on too long grows faster and hits harder, so a
     // kiting stalemate always resolves (you kill it, or it runs you down). No infinite runs.
     if (state.gate && state.gate.hp > 0) { const age = state.time - state.gate.spawnT;
-      state.gate.slamT -= dt; if (state.gate.slamT <= 0) { state.gate.slamT = 3.2; gateSlam(state.gate); } // the boss's signature ring-slam
+      // the boss cycles through its signatures (ring-slam → aimed cone → summon adds) so
+      // the fight keeps changing what it asks of you instead of one dodge on repeat.
+      state.gate.slamT -= dt; if (state.gate.slamT <= 0) { state.gate.slamT = 3.2;
+        state.gate.abilIdx = ((state.gate.abilIdx || 0) + 1) % GATE_ABILITIES.length; GATE_ABILITIES[state.gate.abilIdx](state.gate); }
       if (age > 26) { const k = 1 + (age - 26) * 0.08; state.gate.spd = state.gate.baseSpd * Math.min(3.4, k);
         state.gate.attack = Math.round(state.gate.baseAtk * Math.min(2.6, 1 + (age - 26) * 0.05));
         if (state.gate.kind !== 'melee' && age > 40) state.gate.kind = 'melee'; } } // charges you down so it can't be kited forever

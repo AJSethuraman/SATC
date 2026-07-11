@@ -515,21 +515,37 @@ function renderTree() {
 let socketTargetId = null; // when set, the bag shows a rune-picker for this item
 function cmpTag(it) { if (!it || it.isRune || it.slot === 'weapon') return ''; const c = game.compareItem(it); if (!c) return '';
   if (!c.wearable) return ' <span class="cmp locked">✗ req</span>'; if (c.isUpgrade) return ` <span class="cmp up">▲ +${c.delta}</span>`; return ' <span class="cmp dn">▽</span>'; }
+// A gear item's equip requirements, spelled out: each Str/Dex/Lv gate shown green if
+// you meet it, red (with how far short you are) if you don't — so it's never a mystery
+// why a piece won't equip.
+function reqReadout(it) {
+  if (!it || it.isRune || !it.req) return '';
+  const r = game.getRun(); const a = r.attr || {};
+  const gates = [];
+  const add = (label, need, have) => { if (!need) return; const ok = (have || 0) >= need;
+    gates.push(`<span class="rq ${ok ? 'ok' : 'no'}">${label} ${need}${ok ? '' : ` <em>(${have || 0})</em>`}</span>`); };
+  add('Str', it.req.str, a.str); add('Dex', it.req.dex, a.dex); add('Lv', it.req.level, r.level);
+  if (!gates.length) return '';
+  return `<div class="bi-req"><span class="rq-lead">Requires</span>${gates.join('')}</div>`;
+}
 function itemCard(it, where) {
   const isRune = it.isRune; const inField = game.getRun().phase === 'arena';
+  const gate = (!isRune && game.canEquip) ? game.canEquip(it) : { ok: true };
+  const wearable = gate.ok;
   const sockInfo = it.sockets ? ` <span class="bi-sock">◈${(it.socketRunes || []).length}/${it.sockets}</span>` : '';
   let btns = '';
   if (socketTargetId && isRune) { btns = `<button class="act ghost small" data-put="${it.id}">◈ SOCKET THIS</button>`; }
   else if (where === 'bag') {
-    if (!isRune) btns += `<button class="act ghost small" data-equip="${it.id}" ${inField ? 'disabled' : ''}>EQUIP</button>`;
+    if (!isRune) btns += `<button class="act ghost small" data-equip="${it.id}" ${inField || !wearable ? 'disabled' : ''}${!wearable ? ` title="${gate.reason}"` : ''}>EQUIP</button>`;
     if (it.sockets && (it.socketRunes || []).length < it.sockets) btns += `<button class="act ghost small" data-socket="${it.id}" ${inField ? 'disabled' : ''}>◈ SOCKET</button>`;
     if (it.rarity === 'magic' || it.rarity === 'rare') btns += `<button class="act ghost small" data-reroll="${it.id}" ${inField || r0().shards < 6 ? 'disabled' : ''}>⟳ ${'6◈'}</button>`;
     btns += `<button class="act ghost small" data-bank="${it.id}" ${inField ? 'disabled' : ''}>BANK</button>`;
     btns += `<button class="act ghost small" data-salvage="${it.id}" ${inField ? 'disabled' : ''}>SALVAGE</button>`;
   } else if (where === 'stash') {
-    if (!isRune) btns += `<button class="act ghost small" data-eqstash="${it.id}" ${inField ? 'disabled' : ''}>EQUIP</button>`;
+    if (!isRune) btns += `<button class="act ghost small" data-eqstash="${it.id}" ${inField || !wearable ? 'disabled' : ''}${!wearable ? ` title="${gate.reason}"` : ''}>EQUIP</button>`;
   }
-  return `<div class="bag-item${isRune ? ' rune' : ''}" style="${it.color ? `border-color:${it.color}` : ''}"><div class="bi-name" style="${it.color ? `color:${it.color}` : ''}">${it.name}${sockInfo}${where === 'bag' ? cmpTag(it) : ''}</div><div class="bi-slot">${isRune ? 'Rune' : (SLOT_LABEL[it.slot] || it.slot)}${it.grants && it.grants.skill ? ' · grants a skill' : ''}${it.itemTier && it.itemTier !== 'Normal' ? ' · ' + it.itemTier : ''}</div><div class="bi-text">${it.text || ''}</div><div class="bi-btns">${btns}</div></div>`;
+  const lock = (!isRune && !wearable) ? `<div class="bi-lock">🔒 Can't equip yet — ${gate.reason}</div>` : '';
+  return `<div class="bag-item${isRune ? ' rune' : ''}" style="${it.color ? `border-color:${it.color}` : ''}"><div class="bi-name" style="${it.color ? `color:${it.color}` : ''}">${it.name}${sockInfo}${where === 'bag' ? cmpTag(it) : ''}</div><div class="bi-slot">${isRune ? 'Rune' : (SLOT_LABEL[it.slot] || it.slot)}${it.grants && it.grants.skill ? ' · grants a skill' : ''}${it.itemTier && it.itemTier !== 'Normal' ? ' · ' + it.itemTier : ''}</div><div class="bi-text">${it.text || ''}</div>${reqReadout(it)}${lock}<div class="bi-btns">${btns}</div></div>`;
 }
 function r0() { return game.getRun(); }
 function renderInventory() {

@@ -171,6 +171,14 @@
   .bi-name { font-weight: 700; font-size: 13px; color: var(--gold); }
   .bi-slot { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin: 1px 0 3px; }
   .bi-text { font-size: 12px; color: #cbbfb4; line-height: 1.35; }
+  /* equip-requirement readout: green = you meet it, red = you're short (and by how much) */
+  .bi-req { font-size: 10.5px; margin: 4px 0 2px; letter-spacing: .3px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+  .bi-req .rq-lead { color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-size: 9.5px; }
+  .bi-req .rq { padding: 1px 6px; border-radius: 5px; border: 1px solid transparent; font-variant-numeric: tabular-nums; }
+  .bi-req .rq.ok { color: #7ee27e; border-color: #2f5a2f; background: #14210f; }
+  .bi-req .rq.no { color: #ff8a7a; border-color: #6a2a22; background: #260f0c; font-weight: 700; }
+  .bi-req .rq.no em { color: #ffb3a6; font-style: normal; opacity: .85; }
+  .bi-lock { font-size: 10.5px; color: #ff8a7a; margin-top: 2px; font-weight: 700; }
   .bag-empty { color: var(--muted); font-size: 13px; padding: 10px 0; }
 
   @media (max-width: 560px) {
