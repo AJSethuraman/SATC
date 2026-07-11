@@ -241,29 +241,67 @@ export function createArena({ hero, pack, rng, survival }) {
       const eff = skillEffect(ctx, id);
       // Faster Cast Rate (spells) / Increased Attack Speed (physical) shrink cooldowns — late-game gear lets you SPAM your main skill.
       const cdMul = 1 / (1 + Math.min(220, (physical ? h.ias : h.fcr) || 0) / 100);
-      if (s.scale === 'nova') { // AoE spells — each realizes its own fantasy via `geo`
+      // ---- Sorceress spells: each is routed by its GEOMETRY (`geo`), not a generic
+      // "hit N nearest". geometry (shape/behavior) is decoupled from `scale` (the
+      // damage number), so a bolt seeks, a ball bursts, a beam is a line, a cone is a
+      // cone, a nova is a ring, a spread scatters, and chain leaps. -------------------
+      if (s.weapon === 'spell' && s.geo && s.type === 'attack') {
         if (s.cost > h.mana) continue; const col = elemColor(s.element);
-        if (s.geo === 'arc') { // CHAIN LIGHTNING — a bolt that leaps from foe to foe
-          const first = nearest(h.x, h.y); if (!first || first.d > SCREEN_RANGE) continue;
+        if (s.geo === 'nova') { // FROST NOVA / NOVA / STATIC FIELD — a ring bursting from you
+          const R = s.radius || 140; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= R + e.r);
+          if (!pool.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          fx({ type: 'ring', x: h.x, y: h.y, r: R, life: 0.4, color: col });
+          for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), false, s.element);
+          continue; }
+        // every other geometry needs a direction/target — aim at the boss (on-screen) else nearest
+        const aim = aimPoint(); if (!aim) continue;
+        if (s.geo === 'arc') { // CHAIN LIGHTNING — auto-seeks, then LEAPS to a few (jumps grow with skill)
           h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
-          const hitU = new Set(); let fx1 = h.x, fy1 = h.y, node = first.e; const jumps = s.maxTargets || 6;
+          const jumps = Math.min(s.jumpMax || 8, (s.jumpBase || 3) + Math.floor((eff.lvl - 1) / 2)); const range = s.jumpRange || 215;
+          const hitU = new Set(); let fx1 = h.x, fy1 = h.y, node = aim.e;
           for (let j = 0; j < jumps && node; j++) { hitU.add(node.uid);
             fx({ type: 'chain', x: fx1, y: fy1, x2: node.x, y2: node.y, life: 0.16, color: col });
             hitEnemy(node, roll(eff.min, eff.max), false, s.element); fx1 = node.x; fy1 = node.y;
-            let best = null, bd = 1e9; for (const e2 of alive()) { if (hitU.has(e2.uid)) continue; const dd = Math.hypot(e2.x - fx1, e2.y - fy1); if (dd < 215 && dd < bd) { bd = dd; best = e2; } }
+            let best = null, bd = 1e9; for (const e2 of alive()) { if (hitU.has(e2.uid)) continue; const dd = Math.hypot(e2.x - fx1, e2.y - fy1); if (dd < range && dd < bd) { bd = dd; best = e2; } }
             node = best; }
           continue; }
-        if (s.geo === 'ground') { // METEOR / GLACIAL SPIKE — falls at the pack after a telegraph
-          const tgt = nearest(h.x, h.y); if (!tgt || tgt.d > SCREEN_RANGE) continue;
-          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe; const R = s.radius || 140;
-          fx({ type: 'telegraph', x: tgt.e.x, y: tgt.e.y, r: R, life: s.id === 'meteor' ? 0.6 : 0.4, color: col });
-          state.pending.push({ x: tgt.e.x, y: tgt.e.y, r: R, min: eff.min, max: eff.max, element: s.element, n: s.maxTargets || 8, t: s.id === 'meteor' ? 0.6 : 0.4, big: s.id === 'meteor', color: col });
+        if (s.geo === 'beam') { // LIGHTNING — an instant line of raw current down a lane: HUGE damage, dead straight
+          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          const ang = Math.atan2(aim.e.y - h.y, aim.e.x - h.x); const L = s.beamLen || 520, halfW = (s.beamW || 34) / 2;
+          const ux = Math.cos(ang), uy = Math.sin(ang);
+          for (const e of alive()) { const rx = e.x - h.x, ry = e.y - h.y; const along = rx * ux + ry * uy;
+            if (along < 0 || along > L) continue; const perp = Math.abs(rx * -uy + ry * ux);
+            if (perp <= halfW + e.r) hitEnemy(e, roll(eff.min, eff.max), false, s.element); }
+          fx({ type: 'beam', x: h.x, y: h.y, x2: h.x + ux * L, y2: h.y + uy * L, life: 0.18, color: col });
           continue; }
-        // NOVA / FROST NOVA / STATIC FIELD / INFERNO — a burst-ring around you
-        const R = s.radius || 140; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= R + e.r);
-        if (!pool.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
-        fx({ type: 'ring', x: h.x, y: h.y, r: R, life: 0.4, color: col });
-        for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), false, s.element);
+        if (s.geo === 'cone') { // INFERNO — a cone of flame poured out in front of you
+          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          const ang = Math.atan2(aim.e.y - h.y, aim.e.x - h.x); const range = s.coneRange || 165, half = s.coneArc || 0.6;
+          let hit = 0; const cap = s.maxTargets || 99;
+          for (const e of alive()) { if (hit >= cap) break; const dd = Math.hypot(e.x - h.x, e.y - h.y); if (dd > range + e.r) continue;
+            let da = Math.atan2(e.y - h.y, e.x - h.x) - ang; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+            if (Math.abs(da) <= half) { hitEnemy(e, roll(eff.min, eff.max), false, s.element); hit++; } }
+          fx({ type: 'cone', x: h.x, y: h.y, ang, range, half, life: 0.22, color: col });
+          continue; }
+        if (s.geo === 'ground') { // METEOR — a telegraphed blast that falls onto the pack
+          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe; const R = s.radius || 140;
+          fx({ type: 'telegraph', x: aim.e.x, y: aim.e.y, r: R, life: 0.6, color: col });
+          state.pending.push({ x: aim.e.x, y: aim.e.y, r: R, min: eff.min, max: eff.max, element: s.element, n: s.maxTargets || 8, t: 0.6, big: true, color: col });
+          continue; }
+        if (s.geo === 'ball') { // FIRE BALL / GLACIAL SPIKE — a projectile that BURSTS in an AoE on impact
+          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
+          const b = spawnBolt(h, aim.e, roll(eff.min, eff.max), false, 0, s.glyph || '☄', s.element);
+          b.splash = { r: s.splashR || 90, min: eff.min, max: eff.max, element: s.element, n: s.maxTargets || 8, color: col };
+          continue; }
+        if (s.geo === 'spread') { // CHARGED BOLT — a fan of erratic bolts that scatter (they do NOT seek)
+          h.mana -= s.cost; h.cd[id] = cdMul * CD.damage;
+          const ang = Math.atan2(aim.e.y - h.y, aim.e.x - h.x); const n = Math.min(s.boltMax || 9, (s.boltBase || 3) + Math.floor((eff.lvl - 1) / 2)); const arc = s.spreadArc || 0.9;
+          for (let k = 0; k < n; k++) { const a = ang + (n === 1 ? 0 : (k / (n - 1) - 0.5) * arc) + (rng.next() - 0.5) * 0.18;
+            const b = spawnBolt(h, { x: h.x + Math.cos(a) * 400, y: h.y + Math.sin(a) * 400 }, roll(eff.min, eff.max), false, 0, '⚡', s.element); b.home = false; b.life = 0.85; }
+          continue; }
+        // geo 'seeker' (default) — FIRE BOLT / ICE BOLT / ICE BLAST: a single homing bolt
+        h.mana -= s.cost; h.cd[id] = cdMul * CD.damage;
+        spawnBolt(h, aim.e, roll(eff.min, eff.max), false, 0, s.glyph || '•', s.element);
         continue; }
       if (s.type === 'skill') {
         if (h.shield > (eff.block || 0) * 0.5) continue;
@@ -314,8 +352,21 @@ export function createArena({ hero, pack, rng, survival }) {
 
   function spawnBolt(from, target, dmg, physical, pierce, glyph, element) {
     const d = Math.hypot(target.x - from.x, target.y - from.y) || 1;
-    state.projectiles.push({ x: from.x, y: from.y, vx: (target.x - from.x) / d * PROJ_SPEED, vy: (target.y - from.y) / d * PROJ_SPEED,
-      r: 6, dmg, physical, element, pierce: pierce || 0, hostile: false, home: true, life: 2.2, glyph: glyph || '•', hitUids: [] });
+    const p = { x: from.x, y: from.y, vx: (target.x - from.x) / d * PROJ_SPEED, vy: (target.y - from.y) / d * PROJ_SPEED,
+      r: 6, dmg, physical, element, pierce: pierce || 0, hostile: false, home: true, life: 2.2, glyph: glyph || '•', hitUids: [] };
+    state.projectiles.push(p); return p;
+  }
+  // A ball-spell BURSTS on impact: an AoE splash at the point it landed (Fire Ball / Glacial Spike).
+  function burstSplash(p) { const s = p.splash;
+    fx({ type: 'impact', x: p.x, y: p.y, r: s.r, life: 0.4, color: s.color });
+    const pool = alive().filter((e) => Math.hypot(e.x - p.x, e.y - p.y) <= s.r + e.r).slice(0, s.n);
+    for (const e of pool) hitEnemy(e, roll(s.min, s.max), false, s.element);
+  }
+  // Auto-aim helper: FOCUS the boss if it's on-screen, else the nearest foe within view.
+  function aimPoint() {
+    const h = state.hero; const gt = liveGate();
+    if (gt && Math.hypot(gt.x - h.x, gt.y - h.y) <= SCREEN_RANGE) return { e: gt, d: Math.hypot(gt.x - h.x, gt.y - h.y) };
+    const n = nearest(h.x, h.y); if (!n || n.d > SCREEN_RANGE) return null; return n;
   }
 
   function homeBolt(p, dt) { // VS-style auto-aim so ranged reliably connects
@@ -334,6 +385,7 @@ export function createArena({ hero, pack, rng, survival }) {
       if (p.hostile) { const h = state.hero; if (Math.hypot(p.x - h.x, p.y - h.y) <= p.r + h.r) { hitHero(p.from, p.dmg); p.life = 0; } continue; }
       for (const e of state.enemies) { if (e.hp <= 0 || p.hitUids.includes(e.uid)) continue;
         if (Math.hypot(p.x - e.x, p.y - e.y) <= p.r + e.r) { hitEnemy(e, p.dmg, p.physical, p.element); p.hitUids.push(e.uid);
+          if (p.splash) { burstSplash(p); p.life = 0; break; } // a ball detonates on the first thing it touches
           if (p.pierce > 0) p.pierce -= 1; else { p.life = 0; break; } } }
     }
     state.projectiles = state.projectiles.filter((p) => p.life > 0);

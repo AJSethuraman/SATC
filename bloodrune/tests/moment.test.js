@@ -8,8 +8,9 @@ import { createArena } from '../engine/arena.js';
 import { makeRng } from '../engine/rng.js';
 import { SKILLS, ACT1 } from '../engine/content.js';
 
-// omnidirectional = the skill sprays a full ring around you (not a directed bolt/cone/line)
-const OMNI = new Set(['nova', 'arc', 'spread', 'ground']);
+// omnidirectional = the skill sprays a full 360° ring around you (not a directed
+// bolt/ball/cone/line/beam, an aimed spread, a leaping arc, or a targeted ground blast)
+const OMNI = new Set(['nova']);
 
 test('movement matters — a stationary hero is swarmed and overwhelmed ORGANICALLY (no synthetic field)', () => {
   // a weak, single-target hero (can't clear the ring): rooted, the whole horde

@@ -421,6 +421,17 @@ function drawFx(c, f) {
     for (let i = 1; i < seg; i++) { const u = i / seg; c.lineTo(f.x + (f.x2 - f.x) * u + (Math.random() - 0.5) * 11, f.y + (f.y2 - f.y) * u + (Math.random() - 0.5) * 11); }
     c.lineTo(f.x2, f.y2); c.stroke();
     c.strokeStyle = `rgba(255,255,255,${0.85 * t})`; c.lineWidth = 1.2; c.stroke(); }
+  else if (f.type === 'beam') { // Lightning — a straight lance of current down a lane
+    const col = f.color || '#d6a6ff'; c.lineCap = 'round';
+    c.strokeStyle = hexA(col, 0.85 * t); c.lineWidth = 10; c.beginPath(); c.moveTo(f.x, f.y); c.lineTo(f.x2, f.y2); c.stroke();
+    c.strokeStyle = `rgba(255,255,255,${0.92 * t})`; c.lineWidth = 2.6; c.stroke();
+    for (let i = 0; i < 4; i++) { const u = 0.2 + 0.2 * i; burst(f.x + (f.x2 - f.x) * u, f.y + (f.y2 - f.y) * u, 1, 40, col, 0.3); }
+    c.lineCap = 'butt'; }
+  else if (f.type === 'cone') { // Inferno — a wedge of flame poured out in front
+    const col = f.color || '#ff7a3a';
+    const g = c.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.range);
+    g.addColorStop(0, hexA(col, 0.55 * t)); g.addColorStop(0.6, hexA(col, 0.28 * t)); g.addColorStop(1, hexA(col, 0));
+    c.fillStyle = g; c.beginPath(); c.moveTo(f.x, f.y); c.arc(f.x, f.y, f.range, f.ang - f.half, f.ang + f.half); c.closePath(); c.fill(); }
   else if (f.type === 'hurt') { c.strokeStyle = `rgba(230,40,40,${0.55 * t})`; c.lineWidth = 3.5; c.beginPath(); c.arc(f.x, f.y, 22 * (1.4 - t), 0, 7); c.stroke();
     if (t > 0.9) burst(f.x, f.y, 5, 90, '#c62828', 0.45); }
   else if (f.type === 'dmg') { const rise = (1 - t) * 16; c.font = 'bold 15px sans-serif'; c.textAlign = 'center';

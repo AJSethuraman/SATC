@@ -53,11 +53,14 @@ export function skillEffect(hero, id) {
     return { lvl, text: s.kind === 'mastery' ? `+${mp || Math.round((s.masteryPct || 0) * 100)}% ${s.tab} damage${s.masteryPct && hardOf(hero, id) ? ` (now +${mp}%)` : ' per point'}.` : (s.text || '') }; }
   if (s.scale === 'nova') { const syn = synergyMult(hero, s), mas = masteryMult(hero, s), scale = syn * mas;
     const min = Math.round((s.dmg[0] + g * (lvl - 1)) * scale), max = Math.round((s.dmg[1] + g * (lvl - 1)) * scale);
-    return { lvl, min, max, syn, mas, element: s.element, text: `Blast ${min}-${max} to up to ${s.maxTargets || 6} around you${synText(scale)}.` }; }
+    // when a skill authors its own `blurb` (its true geometry), lead with that + live numbers
+    const text = s.blurb ? `${s.blurb} — ${min}-${max}${synText(scale)}.` : `Blast ${min}-${max} to up to ${s.maxTargets || 6} around you${synText(scale)}.`;
+    return { lvl, min, max, syn, mas, element: s.element, text }; }
   if (s.scale === 'damage') { const [wmin, wmax] = weaponBase(hero, s); const m = s.wpn || 1;
     const syn = synergyMult(hero, s), mas = masteryMult(hero, s), scale = syn * mas;
     const min = Math.round((Math.round(wmin * m) + g * (lvl - 1)) * scale), max = Math.round((Math.round(wmax * m) + g * (lvl - 1)) * scale);
-    return { lvl, min, max, syn, mas, element: s.element, text: `Deal ${min}-${max}${s.target === 'aoe' ? ` to up to ${s.maxTargets || 3}` : ''}${s.reach ? ' (reaches)' : ''}${synText(scale)}.` }; }
+    const text = s.blurb ? `${s.blurb} — ${min}-${max}${synText(scale)}.` : `Deal ${min}-${max}${s.target === 'aoe' ? ` to up to ${s.maxTargets || 3}` : ''}${s.reach ? ' (reaches)' : ''}${synText(scale)}.`;
+    return { lvl, min, max, syn, mas, element: s.element, text }; }
   if (s.scale === 'hits') { const [wmin, wmax] = weaponBase(hero, s); const m = s.wpn || 0.7;
     const min = Math.max(1, Math.round(wmin * m)), max = Math.max(1, Math.round(wmax * m));
     const hits = Math.min(s.hitCap, 1 + lvl); return { lvl, hits, min, max, text: `Strike ${hits}× for ${min}-${max}.` }; }
