@@ -425,14 +425,61 @@ def _render_valuation_section(val: ValuationResult, add) -> None:
            else "n/m — needs price data (ENABLE_PRICE_DATA)"))
     add("")
 
+    coc = val.cost_of_capital
+    if coc is not None:
+        add("**Cost of capital** (drives the discount rate — a scenario input, not a fact):")
+        add("")
+        add(f"- **Cost of equity (CAPM):** {pct(coc.ke)} "
+            f"= rf {pct(coc.risk_free)} + β {coc.beta:.2f} × ERP {pct(coc.erp)}")
+        if coc.kd_after_tax is not None:
+            add(f"- **After-tax cost of debt:** {pct(coc.kd_after_tax)} "
+                f"(effective tax rate {pct(coc.tax_rate)})")
+        we = f"{pct(coc.weight_equity)} equity" if coc.weight_equity is not None else "equity"
+        wd = f" / {pct(coc.weight_debt)} debt" if coc.weight_debt is not None else ""
+        add(f"- **WACC:** {pct(coc.wacc)} ({we}{wd}) — used for the ROIC−WACC spread")
+        add("")
+
+    ri = val.residual_income
+    if ri is not None and ri.status == "OK" and ri.fair_value_per_share is not None:
+        add(f"- **Residual-income (EBO) fair value / share:** {money(ri.fair_value_per_share)} "
+            f"— independent cross-check on the DCF "
+            f"(ROE {pct(ri.roe)} vs Ke {pct(ri.cost_of_equity)})")
+    ep = val.economic_profit
+    if ep is not None and ep.spread is not None:
+        verdict = "creates economic value" if ep.creates_value else "destroys economic value"
+        add(f"- **Economic profit (ROIC − WACC):** {pct(ep.spread)} "
+            f"(ROIC {pct(ep.roic)} − WACC {pct(ep.wacc)}) — {verdict} at these inputs")
+    if (ri is not None and ri.fair_value_per_share is not None) or (
+        ep is not None and ep.spread is not None):
+        add("")
+
+    mc = val.monte_carlo
+    if mc is not None:
+        add("**Monte Carlo fair-value spread** (input-uncertainty fan — **not** a probability "
+            "the stock rises, **not** a price target):")
+        add("")
+        add(f"- **Median:** {money(mc.median)} · **middle 80% (p10–p90):** "
+            f"{money(mc.p10)} – {money(mc.p90)} · **IQR (p25–p75):** "
+            f"{money(mc.p25)} – {money(mc.p75)}")
+        add(f"- Simulated {mc.n_sims:,} valid draws (seed {mc.seed}), perturbing growth / "
+            "discount / terminal growth around the base scenario.")
+        if mc.prob_undervalued is not None:
+            add(f"- **Share of draws above current price:** {pct(mc.prob_undervalued)} "
+                "(a diagnostic under the assumed input spread, not a forecast).")
+        add("")
+
     add("**Multiples** (n/m = undefined, with reason):")
     add("")
     if val.multiples:
         add("| Multiple | Value | Basis |")
         add("|---|---|---|")
-        for m in val.multiples.values():
-            shown = (multiple(m.value) if m.value is not None
-                     else f"n/m — {m.undefined_reason or 'undefined'}")
+        for key, m in val.multiples.items():
+            if m.value is None:
+                shown = f"n/m — {m.undefined_reason or 'undefined'}"
+            elif key.endswith("_yield"):
+                shown = pct(m.value)  # yields are percentages, not "x" multiples
+            else:
+                shown = multiple(m.value)
             add(f"| {m.label} | {shown} | {m.denominator_label} |")
     else:
         add("_No market multiples — price data unavailable (ENABLE_PRICE_DATA)._")
