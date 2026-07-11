@@ -118,7 +118,7 @@ export function createArena({ hero, pack, rng, survival }) {
       mana: hero.mana != null ? Math.min(hero.mana, hero.maxMana) : hero.maxMana, maxMana: hero.maxMana,
       manaRegen: hero.manaRegen != null ? hero.manaRegen : 4,
       accuracy: hero.accuracy, evade: hero.evade || 0, weapon: hero.weapon || null,
-      plusSkills: hero.plusSkills || 0, fcr: hero.fcr || 0, ias: hero.ias || 0, penetration: hero.penetration || 0, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
+      plusSkills: hero.plusSkills || 0, fcr: hero.fcr || 0, ias: hero.ias || 0, penetration: hero.penetration || 0, skillMods: hero.skillMods || {}, hard: { ...(hero.hard || {}) }, abilities: [...hero.abilities],
       shield: 0, shieldT: 0, invT: 0, stillT: 0, dir: { x: 0, y: -1 }, cd: {}, disabled: new Set() },
     enemies: [], projectiles: [], minions: [], gems: [], fx: [], pickups: [], collected: [], pending: [],
     time: 0, xpEarned: 0, over: false, result: null, nextUid: 0,
@@ -247,21 +247,25 @@ export function createArena({ hero, pack, rng, survival }) {
       // cone, a nova is a ring, a spread scatters, and chain leaps. -------------------
       if (s.weapon === 'spell' && s.geo && s.type === 'attack') {
         if (s.cost > h.mana) continue; const col = elemColor(s.element);
+        // GEAR skill-mods reshape geometry: spellPct scales damage, aoePct scales blast
+        // size, +jumps/+bolts extend chain/spread, pierce lets bolts pass through foes.
+        const sm = h.skillMods || {}; const sdm = 1 + (sm.spellPct || 0) / 100; const aoe = 1 + (sm.aoePct || 0) / 100;
+        const dmg = () => Math.round(roll(eff.min, eff.max) * sdm); const pierce = sm.pierce || 0;
         if (s.geo === 'nova') { // FROST NOVA / NOVA / STATIC FIELD — a ring bursting from you
-          const R = s.radius || 140; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= R + e.r);
+          const R = (s.radius || 140) * aoe; const pool = alive().filter((e) => Math.hypot(e.x - h.x, e.y - h.y) <= R + e.r);
           if (!pool.length) continue; h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
           fx({ type: 'ring', x: h.x, y: h.y, r: R, life: 0.4, color: col });
-          for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, roll(eff.min, eff.max), false, s.element);
+          for (const e of pool.slice(0, s.maxTargets || pool.length)) hitEnemy(e, dmg(), false, s.element);
           continue; }
         // every other geometry needs a direction/target — aim at the boss (on-screen) else nearest
         const aim = aimPoint(); if (!aim) continue;
-        if (s.geo === 'arc') { // CHAIN LIGHTNING — auto-seeks, then LEAPS to a few (jumps grow with skill)
+        if (s.geo === 'arc') { // CHAIN LIGHTNING — auto-seeks, then LEAPS to a few (jumps grow with skill + gear)
           h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
-          const jumps = Math.min(s.jumpMax || 8, (s.jumpBase || 3) + Math.floor((eff.lvl - 1) / 2)); const range = s.jumpRange || 215;
+          const jumps = Math.min((s.jumpMax || 8) + (sm.jumps || 0), (s.jumpBase || 3) + Math.floor((eff.lvl - 1) / 2) + (sm.jumps || 0)); const range = s.jumpRange || 215;
           const hitU = new Set(); let fx1 = h.x, fy1 = h.y, node = aim.e;
           for (let j = 0; j < jumps && node; j++) { hitU.add(node.uid);
             fx({ type: 'chain', x: fx1, y: fy1, x2: node.x, y2: node.y, life: 0.16, color: col });
-            hitEnemy(node, roll(eff.min, eff.max), false, s.element); fx1 = node.x; fy1 = node.y;
+            hitEnemy(node, dmg(), false, s.element); fx1 = node.x; fy1 = node.y;
             let best = null, bd = 1e9; for (const e2 of alive()) { if (hitU.has(e2.uid)) continue; const dd = Math.hypot(e2.x - fx1, e2.y - fy1); if (dd < range && dd < bd) { bd = dd; best = e2; } }
             node = best; }
           continue; }
@@ -271,37 +275,37 @@ export function createArena({ hero, pack, rng, survival }) {
           const ux = Math.cos(ang), uy = Math.sin(ang);
           for (const e of alive()) { const rx = e.x - h.x, ry = e.y - h.y; const along = rx * ux + ry * uy;
             if (along < 0 || along > L) continue; const perp = Math.abs(rx * -uy + ry * ux);
-            if (perp <= halfW + e.r) hitEnemy(e, roll(eff.min, eff.max), false, s.element); }
+            if (perp <= halfW + e.r) hitEnemy(e, dmg(), false, s.element); }
           fx({ type: 'beam', x: h.x, y: h.y, x2: h.x + ux * L, y2: h.y + uy * L, life: 0.18, color: col });
           continue; }
         if (s.geo === 'cone') { // INFERNO — a cone of flame poured out in front of you
           h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
-          const ang = Math.atan2(aim.e.y - h.y, aim.e.x - h.x); const range = s.coneRange || 165, half = s.coneArc || 0.6;
+          const ang = Math.atan2(aim.e.y - h.y, aim.e.x - h.x); const range = (s.coneRange || 165) * aoe, half = s.coneArc || 0.6;
           let hit = 0; const cap = s.maxTargets || 99;
           for (const e of alive()) { if (hit >= cap) break; const dd = Math.hypot(e.x - h.x, e.y - h.y); if (dd > range + e.r) continue;
             let da = Math.atan2(e.y - h.y, e.x - h.x) - ang; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
-            if (Math.abs(da) <= half) { hitEnemy(e, roll(eff.min, eff.max), false, s.element); hit++; } }
+            if (Math.abs(da) <= half) { hitEnemy(e, dmg(), false, s.element); hit++; } }
           fx({ type: 'cone', x: h.x, y: h.y, ang, range, half, life: 0.22, color: col });
           continue; }
         if (s.geo === 'ground') { // METEOR — a telegraphed blast that falls onto the pack
-          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe; const R = s.radius || 140;
+          h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe; const R = (s.radius || 140) * aoe;
           fx({ type: 'telegraph', x: aim.e.x, y: aim.e.y, r: R, life: 0.6, color: col });
-          state.pending.push({ x: aim.e.x, y: aim.e.y, r: R, min: eff.min, max: eff.max, element: s.element, n: s.maxTargets || 8, t: 0.6, big: true, color: col });
+          state.pending.push({ x: aim.e.x, y: aim.e.y, r: R, min: Math.round(eff.min * sdm), max: Math.round(eff.max * sdm), element: s.element, n: s.maxTargets || 8, t: 0.6, big: true, color: col });
           continue; }
         if (s.geo === 'ball') { // FIRE BALL / GLACIAL SPIKE — a projectile that BURSTS in an AoE on impact
           h.mana -= s.cost; h.cd[id] = cdMul * CD.aoe;
-          const b = spawnBolt(h, aim.e, roll(eff.min, eff.max), false, 0, s.glyph || '☄', s.element);
-          b.splash = { r: s.splashR || 90, min: eff.min, max: eff.max, element: s.element, n: s.maxTargets || 8, color: col };
+          const b = spawnBolt(h, aim.e, dmg(), false, 0, s.glyph || '☄', s.element);
+          b.splash = { r: (s.splashR || 90) * aoe, min: Math.round(eff.min * sdm), max: Math.round(eff.max * sdm), element: s.element, n: s.maxTargets || 8, color: col };
           continue; }
-        if (s.geo === 'spread') { // CHARGED BOLT — a fan of erratic bolts that scatter (they do NOT seek)
+        if (s.geo === 'spread') { // CHARGED BOLT — a fan of erratic bolts that scatter (they do NOT seek); +bolts/pierce from gear
           h.mana -= s.cost; h.cd[id] = cdMul * CD.damage;
-          const ang = Math.atan2(aim.e.y - h.y, aim.e.x - h.x); const n = Math.min(s.boltMax || 9, (s.boltBase || 3) + Math.floor((eff.lvl - 1) / 2)); const arc = s.spreadArc || 0.9;
+          const ang = Math.atan2(aim.e.y - h.y, aim.e.x - h.x); const n = Math.min((s.boltMax || 9) + (sm.bolts || 0), (s.boltBase || 3) + Math.floor((eff.lvl - 1) / 2) + (sm.bolts || 0)); const arc = s.spreadArc || 0.9;
           for (let k = 0; k < n; k++) { const a = ang + (n === 1 ? 0 : (k / (n - 1) - 0.5) * arc) + (rng.next() - 0.5) * 0.18;
-            const b = spawnBolt(h, { x: h.x + Math.cos(a) * 400, y: h.y + Math.sin(a) * 400 }, roll(eff.min, eff.max), false, 0, '⚡', s.element); b.home = false; b.life = 0.85; }
+            const b = spawnBolt(h, { x: h.x + Math.cos(a) * 400, y: h.y + Math.sin(a) * 400 }, dmg(), false, pierce, '⚡', s.element); b.home = false; b.life = 0.85; }
           continue; }
-        // geo 'seeker' (default) — FIRE BOLT / ICE BOLT / ICE BLAST: a single homing bolt
+        // geo 'seeker' (default) — FIRE BOLT / ICE BOLT / ICE BLAST: a single homing bolt (pierces with gear)
         h.mana -= s.cost; h.cd[id] = cdMul * CD.damage;
-        spawnBolt(h, aim.e, roll(eff.min, eff.max), false, 0, s.glyph || '•', s.element);
+        spawnBolt(h, aim.e, dmg(), false, pierce, s.glyph || '•', s.element);
         continue; }
       if (s.type === 'skill') {
         if (h.shield > (eff.block || 0) * 0.5) continue;
@@ -603,6 +607,7 @@ export function createArena({ hero, pack, rng, survival }) {
     if (p.fcr != null) h.fcr = p.fcr; if (p.ias != null) h.ias = p.ias; if (p.penetration != null) h.penetration = p.penetration;
     if (p.plusSkills != null) { h.plusSkills = p.plusSkills; ctx.plusSkills = p.plusSkills; }
     if (p.plusElem != null) { h.plusElem = p.plusElem; ctx.plusElem = p.plusElem; }
+    if (p.skillMods != null) h.skillMods = p.skillMods;
     if (p.hard) { h.hard = { ...p.hard }; ctx.hard = h.hard; }
     if (p.weapon !== undefined) { h.weapon = p.weapon; ctx.weapon = p.weapon; }
     if (p.abilities) h.abilities = [...p.abilities];

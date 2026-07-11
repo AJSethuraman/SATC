@@ -46,6 +46,8 @@ export function deriveStats(cls, equipment, level, attr = null, bonus = {}) {
     evade: (cls.eva || 0) + (gear.evade || 0), actions: cls.actions || 3,
     plusSkills: gear.plusSkills || 0, fcr: gear.fcr || 0, ias: gear.ias || 0, penetration: gear.penetration || 0,
     plusElem: { fire: gear.plusFire || 0, cold: gear.plusCold || 0, lightning: gear.plusLight || 0 }, // per-element +Skills
+    // gear that reshapes HOW spells behave (fed into each skill's geometry at cast time)
+    skillMods: { spellPct: gear.spellPct || 0, aoePct: gear.aoePct || 0, jumps: gear.plusJumps || 0, bolts: gear.plusBolts || 0, pierce: gear.pierce || 0 },
     str, dex, vit, energy,
   };
 }
@@ -90,7 +92,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   function weaponNow() { const w = run.equipment.weapon; return w ? { dmg: w.dmg, wtype: w.wtype } : null; }
   function heroForFight() { const s = statsNow(); return { name: cls.name, glyph: cls.glyph, maxLife: s.maxLife, life: run.life,
     maxMana: s.maxMana, mana: Math.min(run.mana, s.maxMana), manaRegen: s.manaRegen, startBlock: s.startBlock, plusSkills: s.plusSkills,
-    accuracy: s.accuracy, evade: s.evade, actions: s.actions, fcr: s.fcr, ias: s.ias, penetration: s.penetration, plusElem: s.plusElem, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
+    accuracy: s.accuracy, evade: s.evade, actions: s.actions, fcr: s.fcr, ias: s.ias, penetration: s.penetration, plusElem: s.plusElem, skillMods: s.skillMods, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
 
   // ---- gear ----
   function slotFor(it) { if (it.slot === 'ring') return run.equipment.ring1 ? (run.equipment.ring2 ? 'ring1' : 'ring2') : 'ring1'; return it.slot; }
@@ -313,7 +315,7 @@ export function createGame(seed = 'bloodrune', opts = {}) {
   // Push live progression (level-ups, gear) into the in-flight survival hero.
   function pushHeroStats() { if (!combat) return; const s = statsNow();
     combat.setHero({ maxLife: s.maxLife, maxMana: s.maxMana, accuracy: s.accuracy, evade: s.evade,
-      manaRegen: s.manaRegen, plusSkills: s.plusSkills, fcr: s.fcr, ias: s.ias, penetration: s.penetration, plusElem: s.plusElem, hard: { ...run.skillHard }, weapon: weaponNow(), abilities: abilitiesNow() }); }
+      manaRegen: s.manaRegen, plusSkills: s.plusSkills, fcr: s.fcr, ias: s.ias, penetration: s.penetration, plusElem: s.plusElem, skillMods: s.skillMods, hard: { ...run.skillHard }, weapon: weaponNow(), abilities: abilitiesNow() }); }
 
   // Called each frame by the UI while surviving: fold the engine's earned XP into
   // levels/points, and its collected drops into the at-risk bag. Loot does NOT

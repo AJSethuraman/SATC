@@ -256,6 +256,15 @@ export const AFFIXES = [
   { id: 'warded', name: 'Warded', pos: 'prefix', mod: { startBlock: [2, 4] }, tags: ['melee'] },
   { id: 'might', name: 'of Might', pos: 'suffix', mod: { str: [3, 7] }, tags: ['melee'] },
   { id: 'oflife', name: 'of Life', pos: 'suffix', mod: { vit: [3, 7] }, tags: ['all'] },
+  // ---- skill-BEHAVIOR affixes: gear that changes how your spells work, not just the
+  // numbers. These plug into each skill's geometry params (jumps/bolts/radius/pierce),
+  // so the same fire/light build plays differently as you find gear. Generic (caster)
+  // first; class-flavored versions live in the uniques/sets below.
+  { id: 'conflag', name: 'of Conflagration', pos: 'suffix', mod: { spellPct: [8, 18] }, tags: ['caster'] }, // +% spell damage
+  { id: 'detonating', name: 'Detonating', pos: 'prefix', mod: { aoePct: [15, 30] }, tags: ['caster'] },     // bigger blasts/cones/novas
+  { id: 'arcing', name: 'Arcing', pos: 'prefix', mod: { plusJumps: [1, 1] }, tags: ['caster'] },            // Chain Lightning leaps +1 further
+  { id: 'scattering', name: 'Scattering', pos: 'prefix', mod: { plusBolts: [1, 1] }, tags: ['caster'] },    // Charged Bolt throws +1 bolt
+  { id: 'transfixing', name: 'Transfixing', pos: 'prefix', mod: { pierce: [1, 1] }, tags: ['caster'] },     // your bolts pass through +1 foe
 ];
 
 // Fixed UNIQUES (the treasure-hunt peaks + build enablers). minTier gates which
@@ -274,6 +283,11 @@ export const UNIQUES = [
   { id: 'u_ember', name: 'Ember Choker', slot: 'amulet', minTier: 'Normal', passive: { plusFire: 2, maxMana: 12 }, text: 'Ember Choker — +2 Fire Skills, +Mana.', enabler: true },
   { id: 'u_rime', name: 'Rimeward Torc', slot: 'amulet', minTier: 'Normal', passive: { plusCold: 2, maxMana: 12 }, text: 'Rimeward Torc — +2 Cold Skills, +Mana.', enabler: true },
   { id: 'u_storm', name: 'Stormcaller Beads', slot: 'amulet', minTier: 'Normal', passive: { plusLight: 2, maxMana: 12 }, text: 'Stormcaller Beads — +2 Lightning Skills, +Mana.', enabler: true },
+  // Class-oriented signatures — a unique that reshapes ONE tree's payoff, the tier the
+  // generic affixes graduate into. Sorceress-flavored, Normal-tier so they drop in v1.
+  { id: 'u_arcnexus', name: 'Arc Nexus', slot: 'offhand', minTier: 'Normal', passive: { plusLight: 1, plusJumps: 2, fcr: 10 }, text: 'Arc Nexus — +1 Lightning, Chain Lightning leaps +2 further, +Cast Speed.', enabler: true },
+  { id: 'u_cinderbrand', name: 'Cinderbrand', slot: 'gloves', minTier: 'Normal', passive: { plusFire: 1, aoePct: 35, spellPct: 8 }, text: 'Cinderbrand — +1 Fire, +35% Blast radius, +8% Spell damage.', enabler: true },
+  { id: 'u_voltstone', name: 'Voltstone', slot: 'ring', minTier: 'Normal', passive: { pierce: 1, spellPct: 10 }, text: 'Voltstone — your bolts pierce +1 foe, +10% Spell damage.' },
 ];
 
 // ---- Sockets, runes & runewords (the aspiration ladder) --------------------

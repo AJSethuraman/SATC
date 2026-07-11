@@ -67,6 +67,9 @@ function rollStat(rng, key, range, tier) {
   const base = range[0] + rng.next() * (range[1] - range[0]);
   if (key === 'plusSkills') return Math.round(base) + (TIER_INDEX[tier] || 0);
   if (key === 'penetration') return Math.round(base * (TIER_MULT[tier] || 1) * 1000) / 1000;
+  // behavior COUNTS (+jumps/+bolts/+pierce) are flat — a +1 leap is a +1 leap at any
+  // tier; tier-multiplying them would mint absurd "+6 bolts" gloves.
+  if (key === 'plusJumps' || key === 'plusBolts' || key === 'pierce') return Math.round(base);
   return Math.max(1, Math.round(base * (TIER_MULT[tier] || 1)));
 }
 
@@ -92,6 +95,10 @@ const KEY_TEXT = {
   penetration: (v) => `-${Math.round(v * 100)}% to Enemy Resist`, accuracy: (v) => `+${v} Accuracy`,
   evade: (v) => `+${v} Evade`, startBlock: (v) => `+${v} Block`, energy: (v) => `+${v} Energy`,
   str: (v) => `+${v} Strength`, dex: (v) => `+${v} Dexterity`, vit: (v) => `+${v} Vitality`,
+  spellPct: (v) => `+${v}% Spell Damage`, aoePct: (v) => `+${v}% Blast Radius`,
+  plusJumps: (v) => `+${v} to Chain Lightning Jumps`, plusBolts: (v) => `+${v} Charged Bolt`,
+  pierce: (v) => `Bolts Pierce +${v} foe${v > 1 ? 's' : ''}`,
+  plusFire: (v) => `+${v} to Fire Skills`, plusCold: (v) => `+${v} to Cold Skills`, plusLight: (v) => `+${v} to Lightning Skills`,
 };
 function modText(mods) {
   const parts = [];

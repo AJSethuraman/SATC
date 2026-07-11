@@ -539,6 +539,18 @@ function reqReadout(it) {
   if (!gates.length) return '';
   return `<div class="bi-req"><span class="rq-lead">Requires</span>${gates.join('')}</div>`;
 }
+// Aggregated skill-BEHAVIOR bonuses from gear (how your spells are reshaped), shown
+// as their own chips in the character readout so the build's payoff is legible.
+function skillModChips(m) {
+  if (!m) return '';
+  const c = [];
+  if (m.spellPct) c.push(`<span><span class="k">Spell Dmg</span> <b style="color:#ffb86b">+${m.spellPct}%</b></span>`);
+  if (m.aoePct) c.push(`<span><span class="k">Blast</span> <b style="color:#ff9d5c">+${m.aoePct}%</b></span>`);
+  if (m.jumps) c.push(`<span><span class="k">Chain</span> <b style="color:#c9a6ff">+${m.jumps}</b></span>`);
+  if (m.bolts) c.push(`<span><span class="k">Bolts</span> <b style="color:#c9a6ff">+${m.bolts}</b></span>`);
+  if (m.pierce) c.push(`<span><span class="k">Pierce</span> <b style="color:#8fd0ff">+${m.pierce}</b></span>`);
+  return c.join('');
+}
 function itemCard(it, where) {
   const isRune = it.isRune; const inField = game.getRun().phase === 'arena';
   const gate = (!isRune && game.canEquip) ? game.canEquip(it) : { ok: true };
@@ -568,7 +580,7 @@ function renderInventory() {
   const sockNote = socketTargetId ? '<div class="sock-note">Pick a rune to socket (◈), or ✕ to cancel.</div>' : '';
   ov.className = 'overlay inv';
   ov.innerHTML = `<div class="inv-panel"><div class="inv-head"><div class="inv-title">🎒 Stash & Gear</div><button class="inv-close" id="cx">✕</button></div>
-    <div class="inv-stats"><span><span class="k">Life</span> <b class="life">${Math.round(r.life)}/${st.maxLife}</b></span><span><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></span><span><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></span>${st.fcr ? `<span><span class="k">FCR</span> <b style="color:#9ab6ff">+${st.fcr}%</b></span>` : ''}${st.penetration ? `<span><span class="k">Pierce</span> <b style="color:#c58">-${Math.round(st.penetration * 100)}%</b></span>` : ''}<span><span class="k">Gold</span> <b style="color:var(--gold)">${r.gold}</b></span><span><span class="k">Shards</span> <b style="color:#d98b3a">${r.shards}</b></span></div>
+    <div class="inv-stats"><span><span class="k">Life</span> <b class="life">${Math.round(r.life)}/${st.maxLife}</b></span><span><span class="k">Mana</span> <b class="mana">${st.maxMana}</b></span><span><span class="k">+Skills</span> <b class="skills">${st.plusSkills}</b></span>${st.fcr ? `<span><span class="k">FCR</span> <b style="color:#9ab6ff">+${st.fcr}%</b></span>` : ''}${st.penetration ? `<span><span class="k">Pierce</span> <b style="color:#c58">-${Math.round(st.penetration * 100)}%</b></span>` : ''}<span><span class="k">Gold</span> <b style="color:var(--gold)">${r.gold}</b></span>${skillModChips(st.skillMods)}<span><span class="k">Shards</span> <b style="color:#d98b3a">${r.shards}</b></span></div>
     ${sockNote}
     <div class="inv-cols"><div class="paperdoll">${cells}</div>
       <div class="bag"><div class="bag-head">Bag (${r.bag.length}/${r.bagCap})${r.bag.length && r.phase !== 'arena' ? ' <button class="act ghost xs" id="bankAll">BANK ALL</button>' : ''}</div><div class="bag-list">${bag}</div>
