@@ -19,7 +19,7 @@ import { SKILLS, ENEMIES, ELITE_AFFIXES, SUPERUNIQUES } from './content.js';
 import { skillEffect } from './combat.js';
 
 export const DT = 1 / 30;                    // fixed sim step — determinism
-export const ARENA_W = 920, ARENA_H = 560;   // pack-mode arena (also the camera viewport size)
+export const ARENA_W = 1120, ARENA_H = 630;  // camera viewport — a standard 16:9 widescreen play area
 export const WORLD_W = 2600, WORLD_H = 1700; // survival: one big map you roam
 const HERO_SPEED = 158, HERO_R = 13;
 const INVULN = 0.34;
