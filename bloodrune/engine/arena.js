@@ -373,10 +373,15 @@ export function createArena({ hero, pack, rng, survival }) {
     }
   }
 
+  // Bolts fly STRAIGHT — fired at where the target is NOW, no course-correction. Aim it
+  // (the hero auto-faces the nearest foe), and it hits only if the foe is still in its
+  // path when it arrives; a mover can slip it. Nothing homes by default — tracking is
+  // reserved for skills where it's intrinsic (Chain Lightning leaps foe to foe). Set
+  // home:true explicitly to opt a bolt into the auto-aim below.
   function spawnBolt(from, target, dmg, physical, pierce, glyph, element) {
     const d = Math.hypot(target.x - from.x, target.y - from.y) || 1;
     const p = { x: from.x, y: from.y, vx: (target.x - from.x) / d * PROJ_SPEED, vy: (target.y - from.y) / d * PROJ_SPEED,
-      r: 6, dmg, physical, element, pierce: pierce || 0, hostile: false, home: true, life: 2.2, glyph: glyph || '•', hitUids: [] };
+      r: 6, dmg, physical, element, pierce: pierce || 0, hostile: false, home: false, life: 2.2, glyph: glyph || '•', hitUids: [] };
     state.projectiles.push(p); return p;
   }
   // A ball-spell BURSTS on impact: an AoE splash at the point it landed (Fire Ball / Glacial Spike).
@@ -431,7 +436,7 @@ export function createArena({ hero, pack, rng, survival }) {
   }
   function spawnMinionBolt(m, target) { const d = Math.hypot(target.x - m.x, target.y - m.y) || 1;
     state.projectiles.push({ x: m.x, y: m.y, vx: (target.x - m.x) / d * PROJ_SPEED, vy: (target.y - m.y) / d * PROJ_SPEED,
-      r: 5, dmg: roll(m.min, m.max), physical: false, pierce: 0, hostile: false, home: true, life: 1.8, glyph: '·', hitUids: [] }); }
+      r: 5, dmg: roll(m.min, m.max), physical: false, pierce: 0, hostile: false, home: false, life: 1.8, glyph: '·', hitUids: [] }); }
 
   const raisableCorpse = () => state.enemies.find((e) => e.hp <= 0 && e.role === 'grunt');
 
