@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createArena, DT, ARENA_W, ARENA_H } from '../engine/arena.js';
 import { skillEffect } from '../engine/combat.js';
 import { makeRng } from '../engine/rng.js';
-import { ITEMS } from '../engine/content.js';
+import { ITEMS, ACT1 } from '../engine/content.js';
 
 function hero(over = {}) {
   return { name: 'Test', glyph: '🪓', maxLife: 60, life: 60, maxMana: 14, mana: 14, manaRegen: 2,
@@ -119,6 +119,22 @@ test('Sorceress nova blasts every foe around you and clears a pack', () => {
   const h = hero({ glyph: '🔮', maxLife: 60, maxMana: 40, mana: 40, manaRegen: 6, weapon: { dmg: null, wtype: 'focus' }, abilities: ['attack', 'nova'] });
   const s = run(arena([{ id: 'fallen' }, { id: 'fallen' }, { id: 'zombie' }, { id: 'zombie' }], h, 'nova'));
   assert.equal(s.result, 'win'); assert.ok(s.tally.dmgDealt > 0);
+});
+
+test('movement DODGES ranged fire — a moving hero eats far less than a stationary one (no prediction, pure positioning)', () => {
+  // ranged foes fire at where you ARE; the bolt travels, so a moving hero has left that
+  // spot by the time it lands. Standing still eats the crossfire — not a penalty the game
+  // applies, just the consequence of not moving out of the way. Tanky hero so it survives
+  // the window and we can compare damage TAKEN cleanly.
+  const mk = () => hero({ glyph: '🔮', maxLife: 5000, life: 5000, maxMana: 9999, mana: 9999, manaRegen: 99,
+    weapon: { dmg: null, wtype: 'focus' }, hard: { fire_bolt: 5 }, abilities: ['fire_bolt'] });
+  const taken = (moving) => {
+    const a = createArena({ hero: mk(), rng: makeRng('dodge'), survival: { areas: ACT1, tier: 'Normal', rollLoot: () => null } });
+    for (let t = 0; t < 30 * 20 && !a.getState().over; t++) a.tick(moving ? a.autoInput() : { x: 0, y: 0 });
+    return a.getState().tally.dmgTaken;
+  };
+  const planted = taken(false), moved = taken(true);
+  assert.ok(planted > moved * 2.5, `standing still eats the crossfire a kiting hero dodges (planted ${planted} vs kiting ${moved})`);
 });
 
 test('Inferno CHANNELS — it drains mana per second while a foe is in the cone', () => {

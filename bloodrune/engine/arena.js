@@ -450,11 +450,11 @@ export function createArena({ hero, pack, rng, survival }) {
         e.x = clamp(e.x + (ux * drift + ox * strafe) * e.spd * dt, 20, world.w - 20);
         e.y = clamp(e.y + (uy * drift + oy * strafe) * e.spd * dt, 20, world.h - 20);
         if (e.kind === 'ranged') { e.fireT -= dt; if (d < e.range + 90 && e.fireT <= 0) { e.fireT = e.fireCd;
-          // LEAD the shot: aim where the hero will be, so kiting perpendicular no
-          // longer dodges for free — you have to break line-of-fire, not just stroll.
-          const tof = d / HOSTILE_PROJ_SPEED; const lx = h.x + (h.dir.x || 0) * HERO_SPEED * tof, ly = h.y + (h.dir.y || 0) * HERO_SPEED * tof;
-          const ld = len(lx - e.x, ly - e.y);
-          state.projectiles.push({ x: e.x, y: e.y, vx: (lx - e.x) / ld * HOSTILE_PROJ_SPEED, vy: (ly - e.y) / ld * HOSTILE_PROJ_SPEED, r: 6,
+          // Fire at where you ARE right now — NO prediction. The bolt then travels, so a
+          // MOVING hero simply isn't there when it arrives (you dodged), while a hero who
+          // stands still is exactly where it lands. Getting hit is YOUR inaction, not a
+          // penalty the game applies for standing — pure positioning.
+          state.projectiles.push({ x: e.x, y: e.y, vx: ux * HOSTILE_PROJ_SPEED, vy: uy * HOSTILE_PROJ_SPEED, r: 6,
             dmg: e.attack, hostile: true, from: e, pierce: 0, life: 3, glyph: '➹' }); } }
         e.supportT -= dt; if ((e.rezLeft > 0 || e.heal) && e.supportT <= 0) { e.supportT = e.supportCd;
           const corpse = e.rezLeft > 0 ? raisableCorpse() : null;
@@ -575,7 +575,7 @@ export function createArena({ hero, pack, rng, survival }) {
     if (ml > 0.05) { const n = ml > 1 ? ml : 1; mx /= n; my /= n; h.dir = { x: mx, y: my };
       h.x = clamp(h.x + mx * HERO_SPEED * dt * Math.min(1, ml), h.r, world.w - h.r); h.y = clamp(h.y + my * HERO_SPEED * dt * Math.min(1, ml), h.r, world.h - h.r);
       state.tally.moveT += dt; state.tally.moveDist += HERO_SPEED * Math.min(1, ml) * dt; }
-    else state.tally.idleT += dt; // idle time is tracked for telemetry (no synthetic punishment)
+    else state.tally.idleT += dt; // idle time tracked for telemetry — no synthetic penalty for it
     // the hero TURNS to face the nearest foe (aim ≠ movement) — Halls-of-Torment style
     const at = nearest(h.x, h.y); if (at && at.d > 1) h.aim = { x: (at.e.x - h.x) / at.d, y: (at.e.y - h.y) / at.d };
     if (surv) director(dt);
