@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Neon Breakout</title>
+<style>
+  :root {
+    --bg: #070b16;
+    --ink: #e8f0ff;
+    --accent: #37f0d0;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: radial-gradient(1200px 800px at 50% -10%, #10203f 0%, var(--bg) 60%);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #wrap {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+  }
+  #stage {
+    position: relative;
+    border-radius: 14px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 30px 80px rgba(0,0,0,0.6);
+    overflow: hidden;
+  }
+  canvas { display: block; background: linear-gradient(180deg, #0a1226 0%, #060a14 100%); }
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 18px;
+    font-variant-numeric: tabular-nums;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.7);
+    pointer-events: none;
+  }
+  #hud .label { opacity: 0.55; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; }
+  #hud .val { font-size: 20px; font-weight: 700; }
+  #combo { color: var(--accent); }
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    background: rgba(6, 10, 22, 0.82);
+    backdrop-filter: blur(4px);
+    transition: opacity 0.25s ease;
+    gap: 10px;
+    padding: 24px;
+  }
+  #overlay.hidden { opacity: 0; pointer-events: none; }
+  #overlay h1 {
+    margin: 0;
+    font-size: 46px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, #37f0d0, #4a7bff, #b06bff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 18px rgba(74,123,255,0.35));
+  }
+  #overlay p { margin: 4px 0; opacity: 0.8; max-width: 420px; line-height: 1.5; }
+  #overlay .hint { font-size: 13px; opacity: 0.55; }
+  #overlay button {
+    margin-top: 12px;
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #041016;
+    background: linear-gradient(90deg, #37f0d0, #4a7bff);
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(55,240,208,0.25);
+    transition: transform 0.1s ease, box-shadow 0.2s ease;
+  }
+  #overlay button:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(55,240,208,0.4); }
+  #overlay button:active { transform: translateY(0); }
+  #foot { font-size: 12px; opacity: 0.4; letter-spacing: 1px; }
+  .kbd {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 5px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="game" width="720" height="600"></canvas>
+    <div id="hud">
+      <div><div class="label">Score</div><div class="val" id="score">0</div></div>
+      <div style="text-align:center"><div class="label">Level</div><div class="val" id="level">1</div></div>
+      <div style="text-align:center"><div class="label">Combo</div><div class="val" id="combo">x1</div></div>
+      <div style="text-align:right"><div class="label">Lives</div><div class="val" id="lives">3</div></div>
+    </div>
+    <div id="overlay">
+      <h1>NEON BREAKOUT</h1>
+      <p>Clear every brick. Keep the ball alive. Chain hits for a bigger combo multiplier and catch falling power-ups.</p>
+      <p class="hint">Move: <span class="kbd">←</span> <span class="kbd">→</span> or mouse &nbsp;·&nbsp; Launch / Pause: <span class="kbd">Space</span></p>
+      <button id="startBtn">PLAY</button>
+    </div>
+  </div>
+  <div id="foot">A tiny arcade demo · runs entirely in your browser · no build step</div>
+</div>
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+
+  const el = {
+    score: document.getElementById("score"),
+    level: document.getElementById("level"),
+    combo: document.getElementById("combo"),
+    lives: document.getElementById("lives"),
+    overlay: document.getElementById("overlay"),
+    startBtn: document.getElementById("startBtn"),
+  };
+
+  // ---- tiny procedural sound (WebAudio, no assets) ----
+  let audioCtx = null;
+  function beep(freq, dur = 0.06, type = "square", gain = 0.04) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.value = gain;
+      o.connect(g); g.connect(audioCtx.destination);
+      const t = audioCtx.currentTime;
+      o.start(t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.stop(t + dur);
+    } catch (e) { /* audio optional */ }
+  }
+
+  // ---- game state ----
+  const STATE = { MENU: 0, READY: 1, PLAYING: 2, PAUSED: 3, DEAD: 4, WON: 5 };
+  let state = STATE.MENU;
+
+  const paddle = { w: 108, h: 14, x: W / 2, y: H - 40, speed: 9, targetX: W / 2 };
+  const balls = [];
+  let bricks = [];
+  const particles = [];
+  const powerups = [];
+
+  let score = 0, level = 1, lives = 3, combo = 1, comboTimer = 0;
+  let shake = 0;
+  const keys = {};
+
+  const COLORS = ["#ff5d7a", "#ffb14a", "#ffe14a", "#5dff9b", "#37f0d0", "#4a7bff", "#b06bff"];
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  function makeBall(x, y, vx, vy) {
+    return { x, y, vx, vy, r: 8, stuck: false };
+  }
+
+  function resetBallOnPaddle() {
+    balls.length = 0;
+    const b = makeBall(paddle.x, paddle.y - 16, 0, 0);
+    b.stuck = true;
+    balls.push(b);
+  }
+
+  function buildLevel(n) {
+    bricks = [];
+    const cols = 11;
+    const rows = Math.min(4 + n, 9);
+    const pad = 6;
+    const top = 70;
+    const bw = (W - pad * (cols + 1)) / cols;
+    const bh = 24;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        // carve a little variety so levels aren't solid walls
+        if (n > 2 && (r + c) % 7 === 0) continue;
+        const hp = 1 + Math.floor(r / 3) + (n > 4 && c % 5 === 0 ? 1 : 0);
+        bricks.push({
+          x: pad + c * (bw + pad),
+          y: top + r * (bh + pad),
+          w: bw, h: bh,
+          hp, maxHp: hp,
+          color: COLORS[(r + c) % COLORS.length],
+        });
+      }
+    }
+  }
+
+  function spawnParticles(x, y, color, n = 12) {
+    for (let i = 0; i < n; i++) {
+      const a = rand(0, Math.PI * 2);
+      const sp = rand(1, 5);
+      particles.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        life: rand(20, 40), max: 40,
+        color, size: rand(2, 4.5),
+      });
+    }
+  }
+
+  const POWER_TYPES = ["expand", "multi", "slow", "life"];
+  function maybeDropPowerup(x, y) {
+    if (Math.random() < 0.12) {
+      const type = POWER_TYPES[Math.floor(Math.random() * POWER_TYPES.length)];
+      powerups.push({ x, y, vy: 2.2, type, r: 12 });
+    }
+  }
+
+  function applyPowerup(type) {
+    beep(880, 0.12, "sine", 0.05);
+    if (type === "expand") {
+      paddle.w = Math.min(paddle.w + 34, 220);
+    } else if (type === "multi") {
+      const source = balls.filter(b => !b.stuck);
+      const seed = source.length ? source : balls;
+      seed.slice(0, 3).forEach(b => {
+        for (let i = 0; i < 2; i++) {
+          const ang = rand(-0.6, 0.6);
+          balls.push(makeBall(b.x, b.y, Math.sin(ang) * 6, -Math.abs(Math.cos(ang) * 6)));
+        }
+      });
+    } else if (type === "slow") {
+      balls.forEach(b => { b.vx *= 0.7; b.vy *= 0.7; });
+    } else if (type === "life") {
+      lives++;
+    }
+  }
+
+  function launchBall() {
+    balls.forEach(b => {
+      if (b.stuck) {
+        b.stuck = false;
+        const ang = rand(-0.4, 0.4);
+        const speed = 6.5;
+        b.vx = Math.sin(ang) * speed;
+        b.vy = -Math.abs(Math.cos(ang) * speed);
+      }
+    });
+    beep(520, 0.08, "triangle");
+  }
+
+  function startGame() {
+    score = 0; level = 1; lives = 3; combo = 1; comboTimer = 0;
+    paddle.w = 108; paddle.x = W / 2; paddle.targetX = W / 2;
+    powerups.length = 0; particles.length = 0;
+    buildLevel(level);
+    resetBallOnPaddle();
+    state = STATE.READY;
+    hideOverlay();
+    beep(660, 0.1, "sine");
+  }
+
+  function nextLevel() {
+    level++;
+    paddle.w = Math.max(90, paddle.w - 6);
+    buildLevel(level);
+    resetBallOnPaddle();
+    state = STATE.READY;
+    beep(720, 0.14, "sine");
+  }
+
+  function loseLife() {
+    lives--;
+    combo = 1;
+    shake = 14;
+    beep(140, 0.3, "sawtooth", 0.05);
+    if (lives <= 0) {
+      state = STATE.DEAD;
+      showOverlay("GAME OVER", `You scored ${score.toLocaleString()} across ${level} level${level > 1 ? "s" : ""}.`, "PLAY AGAIN");
+    } else {
+      paddle.w = Math.min(paddle.w + 8, 220);
+      resetBallOnPaddle();
+      state = STATE.READY;
+    }
+  }
+
+  // ---- collision helpers ----
+  function ballBrick(b, br) {
+    return b.x + b.r > br.x && b.x - b.r < br.x + br.w &&
+           b.y + b.r > br.y && b.y - b.r < br.y + br.h;
+  }
+
+  function update() {
+    // paddle movement
+    if (keys.left) paddle.targetX -= paddle.speed;
+    if (keys.right) paddle.targetX += paddle.speed;
+    paddle.targetX = Math.max(paddle.w / 2, Math.min(W - paddle.w / 2, paddle.targetX));
+    paddle.x += (paddle.targetX - paddle.x) * 0.35;
+
+    if (state === STATE.READY) {
+      balls.forEach(b => { if (b.stuck) { b.x = paddle.x; b.y = paddle.y - 16; } });
+    }
+
+    if (state === STATE.PLAYING) {
+      // combo decay
+      if (comboTimer > 0) { comboTimer--; if (comboTimer === 0) combo = 1; }
+
+      for (let i = balls.length - 1; i >= 0; i--) {
+        const b = balls[i];
+        b.x += b.vx; b.y += b.vy;
+
+        // walls
+        if (b.x - b.r < 0) { b.x = b.r; b.vx *= -1; beep(400, 0.03); }
+        if (b.x + b.r > W) { b.x = W - b.r; b.vx *= -1; beep(400, 0.03); }
+        if (b.y - b.r < 0) { b.y = b.r; b.vy *= -1; beep(400, 0.03); }
+
+        // floor
+        if (b.y - b.r > H) {
+          balls.splice(i, 1);
+          continue;
+        }
+
+        // paddle
+        if (b.vy > 0 && b.y + b.r > paddle.y && b.y - b.r < paddle.y + paddle.h &&
+            b.x > paddle.x - paddle.w / 2 && b.x < paddle.x + paddle.w / 2) {
+          b.y = paddle.y - b.r;
+          const hit = (b.x - paddle.x) / (paddle.w / 2); // -1..1
+          const speed = Math.min(Math.hypot(b.vx, b.vy) * 1.01, 12);
+          const ang = hit * 1.1;
+          b.vx = Math.sin(ang) * speed;
+          b.vy = -Math.abs(Math.cos(ang) * speed);
+          combo = 1; // reset combo on paddle touch — reward is per rally of bricks
+          beep(300, 0.05, "square");
+        }
+
+        // bricks
+        for (let j = bricks.length - 1; j >= 0; j--) {
+          const br = bricks[j];
+          if (!ballBrick(b, br)) continue;
+
+          // decide bounce axis by smallest overlap
+          const overlapL = b.x + b.r - br.x;
+          const overlapR = br.x + br.w - (b.x - b.r);
+          const overlapT = b.y + b.r - br.y;
+          const overlapB = br.y + br.h - (b.y - b.r);
+          const minX = Math.min(overlapL, overlapR);
+          const minY = Math.min(overlapT, overlapB);
+          if (minX < minY) b.vx *= -1; else b.vy *= -1;
+
+          br.hp--;
+          spawnParticles(b.x, b.y, br.color, 8);
+          if (br.hp <= 0) {
+            score += 50 * combo;
+            spawnParticles(br.x + br.w / 2, br.y + br.h / 2, br.color, 16);
+            maybeDropPowerup(br.x + br.w / 2, br.y + br.h / 2);
+            bricks.splice(j, 1);
+            combo++;
+            comboTimer = 120;
+            shake = Math.min(shake + 3, 10);
+            beep(500 + combo * 40, 0.05, "square");
+          } else {
+            score += 10;
+            beep(360, 0.03);
+          }
+          break; // one brick per frame per ball keeps physics sane
+        }
+      }
+
+      if (balls.length === 0) loseLife();
+      if (bricks.length === 0 && state === STATE.PLAYING) {
+        state = STATE.WON;
+        showOverlay("LEVEL CLEAR", `Level ${level} down. Score: ${score.toLocaleString()}.`, "NEXT LEVEL");
+      }
+    }
+
+    // powerups fall
+    for (let i = powerups.length - 1; i >= 0; i--) {
+      const p = powerups[i];
+      p.y += p.vy;
+      if (p.y + p.r > paddle.y && p.y - p.r < paddle.y + paddle.h &&
+          p.x > paddle.x - paddle.w / 2 && p.x < paddle.x + paddle.w / 2) {
+        applyPowerup(p.type);
+        powerups.splice(i, 1);
+      } else if (p.y > H + 20) {
+        powerups.splice(i, 1);
+      }
+    }
+
+    // particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.vx *= 0.98; p.life--;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    if (shake > 0) shake *= 0.86;
+  }
+
+  // ---- rendering ----
+  const POWER_LABEL = { expand: "W", multi: "3", slow: "S", life: "+" };
+  const POWER_COLOR = { expand: "#4a7bff", multi: "#b06bff", slow: "#37f0d0", life: "#5dff9b" };
+
+  function draw() {
+    ctx.save();
+    if (shake > 0.4) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+
+    ctx.clearRect(-20, -20, W + 40, H + 40);
+
+    // subtle starfield backdrop
+    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    for (let i = 0; i < 40; i++) {
+      const sx = (i * 137.5) % W;
+      const sy = (i * 89.3) % H;
+      ctx.fillRect(sx, sy, 2, 2);
+    }
+
+    // bricks
+    for (const br of bricks) {
+      const alpha = 0.45 + 0.55 * (br.hp / br.maxHp);
+      ctx.fillStyle = br.color;
+      ctx.globalAlpha = alpha;
+      roundRect(br.x, br.y, br.w, br.h, 5);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+      ctx.lineWidth = 1;
+      roundRect(br.x + 0.5, br.y + 0.5, br.w - 1, br.h - 1, 5);
+      ctx.stroke();
+    }
+
+    // powerups
+    for (const p of powerups) {
+      ctx.fillStyle = POWER_COLOR[p.type];
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#041016";
+      ctx.font = "bold 14px system-ui";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(POWER_LABEL[p.type], p.x, p.y + 1);
+    }
+
+    // particles
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life / p.max);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+
+    // paddle (glowing)
+    const grd = ctx.createLinearGradient(0, paddle.y, 0, paddle.y + paddle.h);
+    grd.addColorStop(0, "#8effe8");
+    grd.addColorStop(1, "#37f0d0");
+    ctx.fillStyle = grd;
+    ctx.shadowColor = "#37f0d0";
+    ctx.shadowBlur = 18;
+    roundRect(paddle.x - paddle.w / 2, paddle.y, paddle.w, paddle.h, 7);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // balls
+    for (const b of balls) {
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = "#8ab6ff";
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    ctx.restore();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function syncHud() {
+    el.score.textContent = score.toLocaleString();
+    el.level.textContent = level;
+    el.combo.textContent = "x" + combo;
+    el.lives.textContent = lives;
+  }
+
+  // ---- overlay ----
+  function showOverlay(title, body, btn) {
+    el.overlay.classList.remove("hidden");
+    el.overlay.querySelector("h1").textContent = title;
+    const ps = el.overlay.querySelectorAll("p");
+    ps[0].textContent = body;
+    el.startBtn.textContent = btn;
+  }
+  function hideOverlay() { el.overlay.classList.add("hidden"); }
+
+  // ---- input ----
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "ArrowLeft") keys.left = true;
+    if (e.code === "ArrowRight") keys.right = true;
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (state === STATE.READY) { state = STATE.PLAYING; launchBall(); }
+      else if (state === STATE.PLAYING) { state = STATE.PAUSED; showOverlay("PAUSED", "Take a breath.", "RESUME"); }
+      else if (state === STATE.PAUSED) { hideOverlay(); state = STATE.PLAYING; }
+    }
+  });
+  window.addEventListener("keyup", (e) => {
+    if (e.code === "ArrowLeft") keys.left = false;
+    if (e.code === "ArrowRight") keys.right = false;
+  });
+
+  canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    paddle.targetX = (e.clientX - rect.left) * (W / rect.width);
+  });
+  canvas.addEventListener("click", () => {
+    if (state === STATE.READY) { state = STATE.PLAYING; launchBall(); }
+  });
+  // touch
+  canvas.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    paddle.targetX = (e.touches[0].clientX - rect.left) * (W / rect.width);
+  }, { passive: false });
+  canvas.addEventListener("touchstart", () => {
+    if (state === STATE.READY) { state = STATE.PLAYING; launchBall(); }
+  });
+
+  el.startBtn.addEventListener("click", () => {
+    if (state === STATE.MENU || state === STATE.DEAD) startGame();
+    else if (state === STATE.WON) { hideOverlay(); nextLevel(); }
+    else if (state === STATE.PAUSED) { hideOverlay(); state = STATE.PLAYING; }
+  });
+
+  // ---- main loop ----
+  function loop() {
+    update();
+    draw();
+    syncHud();
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>

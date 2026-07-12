@@ -1,0 +1,464 @@
+// Run orchestration — SURVIVORS model. You drop into ONE big arena and survive
+// escalating waves; MOVEMENT is the only control and your skills auto-fire. You
+// start NAKED (a weapon that grants one skill + a universal Guard) and SCALE the
+// same way as ever: XP -> levels -> skill points (spent in the class skill tree)
+// and LOOT that monsters drop for you to grab. A boss lands at bossTime — kill it
+// to clear the tier. Permadeath ends the run. The moment-to-moment sim is in
+// engine/arena.js (survival mode); this file owns the meta/progression.
+
+import { CLASSES, ITEMS, SLOTS, WEAPON_DROPS, SKILLS, ACT1, RUNE_BY_ID } from './content.js';
+import { makeRng } from './rng.js';
+import { skillEffect, castInfo } from './combat.js';
+import { createArena } from './arena.js';
+import { rollItem, itemScore, rollRune, resolveSockets } from './loot.js';
+
+// Quadratic curve: fast to ~15 (core skills online), then each point is precious —
+// so the swarm's huge kill-count can't rocket you to level 60 and max the whole tree.
+// You land ~level 25 by Andariel; the tree stays a real CHOICE.
+const xpForLevel = (lvl) => 10 + 3 * lvl * lvl;
+
+// Attribute points earned per level (D2 gives 5). Spent on Str/Dex/Vit/Energy.
+const ATTR_PER_LEVEL = 5;
+
+// Each Vitality point adds Life; each Energy point adds Mana (and a trickle of
+// regen). Str/Dex are mostly equip gates but toss in a small Block/Accuracy nudge.
+export const VIT_LIFE = 4, ENERGY_MANA = 2;
+
+// Stats scale with LEVEL (Life/Mana growth) + ATTRIBUTES (Vit/Energy) + gear mods.
+// `attr` = the Str/Dex/Vit/Energy the run has invested (defaults to the class base
+// so callers that don't track a run still get sane numbers).
+export function deriveStats(cls, equipment, level, attr = null, bonus = {}) {
+  const a = attr || cls.attr || { str: 0, dex: 0, vit: 0, energy: 0 };
+  // sum every gear passive + socket/runeword mods (and the caller's bonus) into one bag
+  const gear = {};
+  const add = (m) => { for (const [k, v] of Object.entries(m)) gear[k] = (gear[k] || 0) + v; };
+  for (const s of SLOTS) { const it = equipment[s]; if (it) { if (it.passive) add(it.passive); if (it.socketMods) add(it.socketMods); } }
+  add(bonus);
+  // total attributes = invested + whatever gear grants (so +Vit/+Energy gear counts)
+  const str = (a.str || 0) + (gear.str || 0), dex = (a.dex || 0) + (gear.dex || 0);
+  const vit = (a.vit || 0) + (gear.vit || 0), energy = (a.energy || 0) + (gear.energy || 0);
+  return {
+    maxLife: cls.maxLife + (level - 1) * 5 + vit * VIT_LIFE + (gear.maxLife || 0),
+    maxMana: cls.maxMana + (level - 1) + energy * ENERGY_MANA + (gear.maxMana || 0),
+    manaRegen: (cls.manaRegen || 4) + Math.floor((level - 1) / 4) + Math.floor(energy / 12) + (gear.manaRegen || 0),
+    startBlock: (cls.startBlock || 0) + Math.floor(str / 30) + (gear.startBlock || 0),
+    accuracy: (cls.acc || 6) + (level - 1) + Math.floor(dex / 6) + (gear.accuracy || 0),
+    evade: (cls.eva || 0) + (gear.evade || 0), actions: cls.actions || 3,
+    plusSkills: gear.plusSkills || 0, fcr: gear.fcr || 0, ias: gear.ias || 0, penetration: gear.penetration || 0,
+    plusElem: { fire: gear.plusFire || 0, cold: gear.plusCold || 0, lightning: gear.plusLight || 0 }, // per-element +Skills
+    // gear that reshapes HOW spells behave (fed into each skill's geometry at cast time)
+    skillMods: { spellPct: gear.spellPct || 0, aoePct: gear.aoePct || 0, jumps: gear.plusJumps || 0, bolts: gear.plusBolts || 0, pierce: gear.pierce || 0, costReduce: gear.costReduce || 0 },
+    cast: castInfo(cls.id, gear.fcr || 0), // FCR breakpoint the character is on (for the UI)
+    str, dex, vit, energy,
+  };
+}
+
+// Your abilities = a universal Guard + the skill your weapon grants + everything learned.
+export function deriveAbilities(equipment, skillHard) {
+  const list = ['attack', 'guard'];
+  for (const s of SLOTS) { const it = equipment[s]; if (it && it.grants && it.grants.skill) list.push(it.grants.skill); }
+  for (const id of Object.keys(skillHard)) if (skillHard[id] > 0) list.push(id);
+  return [...new Set(list)].filter((id) => !(SKILLS[id] && SKILLS[id].type === 'passive')); // passives don't auto-fire
+}
+
+
+export function createGame(seed = 'bloodrune', opts = {}) {
+  const rng = makeRng(seed);
+  const cls = CLASSES[opts.classId || 'barbarian'];
+  const run = {
+    seed, difficulty: opts.difficulty || 'Normal', className: cls.name, glyph: cls.glyph,
+    equipment: emptyEquipment(), bag: (opts.bag || []).map((it) => ({ ...it })),
+    skillHard: {}, skillPoints: 0, level: 1, xp: 0,
+    // ACTIVE SKILL SLOTS: only these learned skills auto-fire (up to ACTIVE_CAP);
+    // the rest stay idle. 'attack' is the basic swing — it ALWAYS fires and is never
+    // one of the slotted picks. Persists across descents within a run (lives on `run`).
+    // `idledSkills` = skills the player DELIBERATELY turned off, so auto-fill leaves
+    // them alone (only skills you never touched get auto-slotted into empty room).
+    activeSkills: [], idledSkills: [],
+    // Attributes reset every run: start at the class base, earn ~5 to spend per level.
+    attr: { ...(cls.attr || { str: 0, dex: 0, vit: 0, energy: 0 }) }, attrPoints: 0,
+    // Town / checkpoint loop: an ACT is an ordered list of quests (ACT1 areas). You
+    // clear one quest per field descent, then return to TOWN to bank/turn-in/respec
+    // before the next. `stash` PERSISTS across runs (injected by the UI from storage);
+    // `bag` is the at-risk run inventory — forfeited on death, safe once banked.
+    act: 1, questIdx: 0, quests: ACT1.map((a) => ({ name: a.name, quest: a.quest, questText: a.questText, done: false })),
+    stash: (opts.stash || []).map((it) => ({ ...it })), respecUsedThisAct: false,
+    lastResult: null, gained: null, life: 0, mana: 0, potions: { life: 3, mana: 3 }, gold: 0, shards: 0, phase: 'town',
+  };
+  run.equipment.weapon = ITEMS[cls.startWeapon];
+  const STASH_CAP = 40, POTION_CAP = 6, BAG_CAP = 12, POTION_PRICE = 12, ACTIVE_CAP = 3;
+  const itemValue = (it) => it.grants ? 12 : ({ common: 2, magic: 8, rare: 20, unique: 60 }[it.rarity] || 3);
+  let combat = null, lastXp = 0, equipSeq = 0;
+  if (opts.loadout) applyLoadout(opts.loadout); // start equipped with chosen stash gear
+  run.life = statsNow().maxLife;
+  run.mana = statsNow().maxMana;
+
+  function emptyEquipment() { const e = {}; for (const s of SLOTS) e[s] = null; return e; }
+  function statsNow() { const st = deriveStats(cls, run.equipment, run.level, run.attr); st.manaRegen += (run.skillHard.warmth || 0); return st; } // Warmth: +Mana regen
+  function abilitiesNow() { return deriveAbilities(run.equipment, run.skillHard); }
+  function weaponNow() { const w = run.equipment.weapon; return w ? { dmg: w.dmg, wtype: w.wtype } : null; }
+  function heroForFight() { const s = statsNow(); return { name: cls.name, glyph: cls.glyph, classId: cls.id, maxLife: s.maxLife, life: run.life,
+    maxMana: s.maxMana, mana: Math.min(run.mana, s.maxMana), manaRegen: s.manaRegen, startBlock: s.startBlock, plusSkills: s.plusSkills,
+    accuracy: s.accuracy, evade: s.evade, actions: s.actions, fcr: s.fcr, ias: s.ias, penetration: s.penetration, plusElem: s.plusElem, skillMods: s.skillMods, weapon: weaponNow(), hard: { ...run.skillHard }, abilities: abilitiesNow() }; }
+
+  // ---- active skill slots (which learned skills auto-fire) ---------------------
+  // The slottable pool = every learned/granted ability EXCEPT the basic 'attack'
+  // (which always fires). 'guard' and summons count — anything that auto-fires.
+  function selectableAbilities() { return abilitiesNow().filter((id) => id !== 'attack'); }
+  // Auto-pick order for filling empty slots: damage skills first, then by investment
+  // (highest hard-points), ties broken by learn order (abilitiesNow is stable).
+  function activeRank(id) { const s = SKILLS[id] || {}; return [s.type === 'attack' ? 0 : 1, -(run.skillHard[id] || 0)]; }
+  // Keep the active set valid + sensibly seeded: drop anything no longer learned, then
+  // (only while there's room) auto-fill from the pool so a fresh character — and each
+  // newly-learned skill up to the cap — auto-fires without the player micromanaging.
+  function ensureActiveDefaults() {
+    const pool = selectableAbilities(); const have = new Set(pool);
+    run.activeSkills = run.activeSkills.filter((id) => have.has(id));
+    run.idledSkills = run.idledSkills.filter((id) => have.has(id));
+    if (run.activeSkills.length >= ACTIVE_CAP) return;
+    const idled = new Set(run.idledSkills);
+    const cand = pool.filter((id) => !run.activeSkills.includes(id) && !idled.has(id)) // never auto-slot a skill you idled on purpose
+      .sort((a, b) => { const ra = activeRank(a), rb = activeRank(b); return ra[0] - rb[0] || ra[1] - rb[1]; });
+    for (const id of cand) { if (run.activeSkills.length >= ACTIVE_CAP) break; run.activeSkills.push(id); }
+  }
+  function getActiveSkills() { ensureActiveDefaults(); return [...run.activeSkills]; }
+  // The disabled set the arena needs = every slottable ability NOT active. 'attack'
+  // is never disabled, so the basic swing always carries a naked / all-idle build.
+  function computeDisabled() { ensureActiveDefaults(); const on = new Set(run.activeSkills);
+    return abilitiesNow().filter((id) => id !== 'attack' && !on.has(id)); }
+  function syncActiveToCombat() { if (combat) combat.setDisabled(computeDisabled()); }
+  function setActiveSkill(id, on) {
+    ensureActiveDefaults();
+    if (!selectableAbilities().includes(id)) return { ok: false, reason: 'not a slottable skill' };
+    const has = run.activeSkills.includes(id);
+    if (on) { run.idledSkills = run.idledSkills.filter((x) => x !== id); // no longer deliberately idle
+      if (has) return { ok: true, active: [...run.activeSkills] };
+      if (run.activeSkills.length >= ACTIVE_CAP) return { ok: false, reason: `only ${ACTIVE_CAP} active` };
+      run.activeSkills.push(id); }
+    else { if (!run.idledSkills.includes(id)) run.idledSkills.push(id); // remember the player chose to idle it
+      if (!has) return { ok: true, active: [...run.activeSkills] };
+      run.activeSkills = run.activeSkills.filter((x) => x !== id); }
+    syncActiveToCombat(); return { ok: true, active: [...run.activeSkills] };
+  }
+  function toggleActiveSkill(id) { return setActiveSkill(id, !run.activeSkills.includes(id)); }
+
+  // ---- gear ----
+  function slotFor(it) { if (it.slot === 'ring') return run.equipment.ring1 ? (run.equipment.ring2 ? 'ring1' : 'ring2') : 'ring1'; return it.slot; }
+  // Equip GATE: an item's Str/Dex/level requirement is checked against your INVESTED
+  // attributes (gear +stats don't count toward wearing OTHER gear) — greed is punished.
+  function canEquip(it) {
+    const r = (it && it.req) || {};
+    if ((r.str || 0) > run.attr.str) return { ok: false, reason: `Req ${r.str} Str` };
+    if ((r.dex || 0) > run.attr.dex) return { ok: false, reason: `Req ${r.dex} Dex` };
+    if ((r.level || 0) > run.level) return { ok: false, reason: `Req Lv ${r.level}` };
+    return { ok: true };
+  }
+  // Equipping is an EXPLICIT choice made OUT of the field (town / prep / after a
+  // run) — never mid-survival and never automatic. Any gear you meet the
+  // requirement for is your call (including a deliberate weapon-type change).
+  function equipFromBag(id) {
+    if (run.phase === 'arena') return { ok: false, reason: 'not in the field' };
+    const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false, reason: 'not in bag' };
+    const it = run.bag[i]; const gate = canEquip(it); if (!gate.ok) return gate;
+    const slot = slotFor(it); run.bag.splice(i, 1); if (run.equipment[slot]) run.bag.push(run.equipment[slot]); run.equipment[slot] = it; clampLife(); pushHeroStats(); return { ok: true }; }
+  function unequip(slot) {
+    if (run.phase === 'arena') return { ok: false, reason: 'not in the field' };
+    const it = run.equipment[slot]; if (!it) return { ok: false }; if (slot === 'weapon') return { ok: false, reason: 'need a weapon' };
+    run.bag.push(it); run.equipment[slot] = null; clampLife(); pushHeroStats(); return { ok: true }; }
+  function clampLife() { const s = statsNow(); run.life = Math.min(run.life, s.maxLife); run.mana = Math.min(run.mana, s.maxMana); }
+
+  // ---- salvage: junk -> Arcane Shards (a craft/reroll currency) ----------------
+  // Rarity + drop tier set the yield. Salvage is a town action; overflow loot (a
+  // full bag mid-field) is auto-salvaged so nothing you pick up is simply lost.
+  const shardValue = (it) => Math.max(1, Math.round(({ common: 1, magic: 3, rare: 8, unique: 20 }[it.rarity] || (it.grants ? 5 : 2)) * ({ Normal: 1, Nightmare: 2, Hell: 3 }[it.itemTier] || 1)));
+  function salvage(id) {
+    if (run.phase === 'arena') return { ok: false, reason: 'not in the field' };
+    const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false, reason: 'not in bag' };
+    const [it] = run.bag.splice(i, 1); const got = shardValue(it); run.shards += got; return { ok: true, shards: run.shards, gained: got }; }
+  function salvageAll() {
+    if (run.phase === 'arena') return { ok: false, reason: 'not in the field' };
+    let got = 0; for (const it of run.bag) got += shardValue(it); run.shards += got; const n = run.bag.length; run.bag = []; return { ok: true, banked: n, gained: got }; }
+
+  // Compare an item to what's worn in its slot, by class build-fit — for the town's
+  // "is this an upgrade?" readout. Pure; safe to call any time.
+  function compareItem(it) {
+    if (!it) return null;
+    let cur; // rings compare against your WEAKER ring (that's the one it would replace)
+    if (it.slot === 'ring') { const r1 = run.equipment.ring1, r2 = run.equipment.ring2;
+      cur = itemScore(r1, cls.id) <= itemScore(r2, cls.id) ? r1 : r2; }
+    else cur = run.equipment[it.slot];
+    const a = itemScore(it, cls.id), b = itemScore(cur, cls.id);
+    return { score: a, equippedScore: b, delta: Math.round((a - b) * 100) / 100, isUpgrade: a > b, wearable: canEquip(it).ok };
+  }
+
+  // Reroll a magic/rare item's affixes for Shards (a soft chase — burn junk yield to
+  // fish for a build-fit roll on a base you like). Keeps slot/tier/rarity; town only.
+  const REROLL_COST = 6;
+  function reroll(id) {
+    if (run.phase === 'arena') return { ok: false, reason: 'not in the field' };
+    const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false, reason: 'not in bag' };
+    const it = run.bag[i];
+    if (it.rarity !== 'magic' && it.rarity !== 'rare') return { ok: false, reason: 'only magic/rare reroll' };
+    if (run.shards < REROLL_COST) return { ok: false, reason: 'not enough Shards' };
+    run.shards -= REROLL_COST;
+    const fresh = rollItem(rng, { tier: it.itemTier || run.difficulty, slot: it.slot === 'ring' ? 'ring' : it.slot, allowUnique: false });
+    run.bag[i] = { ...fresh, id: it.id }; // keep the identity; refresh the rolls
+    return { ok: true, shards: run.shards, item: { ...run.bag[i] } }; }
+
+  // ---- potions (the belt persists across the run) ----
+  function quaff(type) { if (!combat || (type !== 'life' && type !== 'mana')) return { ok: false };
+    if (run.potions[type] <= 0) return { ok: false, reason: 'none left' };
+    const s = statsNow(); const amt = type === 'life' ? Math.round(s.maxLife * 0.4) : Math.round(s.maxMana * 0.5);
+    const r = combat.quaff(type, amt); if (!r.ok) return r; run.potions[type] -= 1;
+    run.life = combat.getState().hero.life; run.mana = combat.getState().hero.mana; return { ok: true }; }
+  function addPotions(life, mana) { run.potions.life = Math.min(POTION_CAP, run.potions.life + life); run.potions.mana = Math.min(POTION_CAP, run.potions.mana + mana); }
+
+  // ---- economy: sell/drop bag items ----
+  function sellFromBag(id) { const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false };
+    run.gold += itemValue(run.bag[i]); run.bag.splice(i, 1); return { ok: true, gold: run.gold }; }
+  function buyPotion(type) { if (type !== 'life' && type !== 'mana') return { ok: false };
+    if (run.gold < POTION_PRICE) return { ok: false, reason: 'not enough gold' };
+    if (run.potions[type] >= POTION_CAP) return { ok: false, reason: 'belt full' };
+    run.gold -= POTION_PRICE; run.potions[type] += 1; return { ok: true }; }
+  function dropFromBag(id) { const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false }; run.bag.splice(i, 1); return { ok: true }; }
+
+  // ---- skill tree (D2-style gates: tier level-req, prerequisites, per-point gate) ----
+  function hasPoint(id) { return (run.skillHard[id] || 0) > 0 || (run.equipment.weapon && run.equipment.weapon.grants && run.equipment.weapon.grants.skill === id); }
+  function skillGate(id) {
+    const s = SKILLS[id]; if (!s) return { ok: false, reason: 'unknown' };
+    if (!cls.tree.includes(id) && id !== 'guard') return { ok: false, reason: 'not in your tree' };
+    const cur = run.skillHard[id] || 0; const need = (s.req || 1) + cur;
+    if (run.level < need) return { ok: false, reason: `Lv ${need}`, needLevel: need };
+    const missing = (s.pre || []).filter((p) => !hasPoint(p));
+    if (missing.length) return { ok: false, reason: `needs ${missing.map((p) => skName(p)).join(', ')}`, missing };
+    return { ok: true };
+  }
+  function investSkill(id) { if (run.skillPoints <= 0) return { ok: false, reason: 'no points' };
+    const gate = skillGate(id); if (!gate.ok) return gate;
+    run.skillPoints -= 1; run.skillHard[id] = (run.skillHard[id] || 0) + 1; pushHeroStats(); return { ok: true }; }
+  // Spend an attribute point (str/dex/vit/energy). Vit/Energy retune Life/Mana live.
+  function investAttr(key) { if (run.attrPoints <= 0) return { ok: false, reason: 'no points' };
+    if (!['str', 'dex', 'vit', 'energy'].includes(key)) return { ok: false, reason: 'bad attr' };
+    run.attrPoints -= 1; run.attr[key] += 1;
+    if (key === 'vit') { const s = statsNow(); run.life += VIT_LIFE; run.life = Math.min(run.life, s.maxLife); } // new Life is usable now
+    if (key === 'energy') { const s = statsNow(); run.mana += ENERGY_MANA; run.mana = Math.min(run.mana, s.maxMana); }
+    pushHeroStats(); return { ok: true }; }
+
+  // ---- town / checkpoint loop ----
+  // A DESCENT plays a CHUNK of quests (DESCENT_CHUNK areas) back-to-back as one
+  // continuous survival gauntlet — clearing an area's gate rolls straight into the
+  // next with no town break, so you push deeper before resting. Only when the chunk
+  // (or the act) is done do you return to TOWN (bank/turn-in/respec). Fewer, longer
+  // descents = more sustained pressure, mana attrition, and gear that has to last.
+  const DESCENT_CHUNK = 2;
+  let lastCleared = 0;
+  function descend() {
+    if (run.phase !== 'town') return { ok: false, reason: 'not in town' };
+    for (const it of run.stash) delete it.locked; // the new descent frees everything banked this visit
+    lastXp = 0; lastCleared = 0;
+    const chunk = ACT1.slice(run.questIdx, run.questIdx + DESCENT_CHUNK);
+    combat = createArena({ hero: heroForFight(), rng, survival: { areas: chunk, tier: run.difficulty, rollLoot: rollGroundItem } });
+    syncActiveToCombat(); // only the slotted skills auto-fire (attack always does)
+    run.phase = 'arena'; return { ok: true };
+  }
+  const startRun = descend; const beginDescent = descend; // (the town's "descend" button)
+
+  // BANK the at-risk run inventory into the persistent stash — town only. This is
+  // the ONLY way loot survives the run; anything unbanked is lost on death.
+  function bank(id) {
+    if (run.phase !== 'town') return { ok: false, reason: 'bank only in town' };
+    const i = run.bag.findIndex((x) => x.id === id); if (i < 0) return { ok: false, reason: 'not in bag' };
+    const [it] = run.bag.splice(i, 1); pushToStash(it); return { ok: true, stash: run.stash.length };
+  }
+  function bankAll() {
+    if (run.phase !== 'town') return { ok: false, reason: 'bank only in town' };
+    const n = run.bag.length; for (const it of run.bag) pushToStash(it); run.bag = []; return { ok: true, banked: n };
+  }
+  // Keep the stash under its cap by evicting the LEAST build-valuable item when full.
+  // A freshly-banked item is LOCKED for the rest of THIS town visit — committed to
+  // storage, it can't be equipped/withdrawn again until you START the next descent
+  // (descend() clears the flag). Items already in the stash from prior visits stay usable.
+  function pushToStash(it) {
+    it.locked = true;
+    run.stash.push(it);
+    if (run.stash.length > STASH_CAP) {
+      let worst = 0; for (let i = 1; i < run.stash.length; i++) if (stashScore(run.stash[i]) < stashScore(run.stash[worst])) worst = i;
+      run.stash.splice(worst, 1);
+    }
+  }
+  const stashScore = (it) => it.isRune ? 15 + ((RUNE_BY_ID[it.runeId] && RUNE_BY_ID[it.runeId].num) || 0) : (it.grants ? 50 : itemScore(it, cls.id) + ({ unique: 40, rare: 12, magic: 4 }[it.rarity] || 0));
+
+  // Draw a COPY of a stash item onto the character (town only). The stash keeps the
+  // original — it's your permanent gear library — so equipping never risks it.
+  function equipFromStash(id) {
+    if (run.phase !== 'town') return { ok: false, reason: 'town only' };
+    const src = run.stash.find((x) => x.id === id); if (!src) return { ok: false, reason: 'not in stash' };
+    if (src.locked) return { ok: false, reason: 'locked until next descent' };
+    const copy = { ...src, id: src.id + '_eq' + (equipSeq++) }; delete copy.locked;
+    const gate = canEquip(copy); if (!gate.ok) return gate;
+    const slot = slotFor(copy); if (run.equipment[slot]) run.bag.push(run.equipment[slot]);
+    run.equipment[slot] = copy; clampLife(); pushHeroStats(); return { ok: true };
+  }
+
+  // Start a run equipped with chosen stash gear (a COPY of each; stash retained).
+  // Silently skips anything you can't wear yet (level/str/dex gates still apply).
+  function applyLoadout(picks) {
+    for (const p of picks) {
+      const src = (p && p.slot) ? p : run.stash.find((x) => x.id === p);
+      if (!src) continue;
+      if (src.locked) continue; // a stash item locked this visit can't be drawn into a loadout
+      const copy = { ...src, id: (src.id || 'load') + '_ld' + (equipSeq++) }; delete copy.locked;
+      if (!canEquip(copy).ok) continue;
+      const slot = slotFor(copy); if (run.equipment[slot] && slot !== 'weapon') run.bag.push(run.equipment[slot]);
+      run.equipment[slot] = copy;
+    }
+  }
+
+  // One FREE full respec (skills + attributes) per act — refund every spent point.
+  function respec() {
+    if (run.phase !== 'town') return { ok: false, reason: 'town only' };
+    if (run.respecUsedThisAct) return { ok: false, reason: 'respec already used this act' };
+    for (const v of Object.values(run.skillHard)) run.skillPoints += v; run.skillHard = {};
+    const base = cls.attr || { str: 0, dex: 0, vit: 0, energy: 0 };
+    for (const k of ['str', 'dex', 'vit', 'energy']) { run.attrPoints += (run.attr[k] - base[k]); run.attr[k] = base[k]; }
+    run.respecUsedThisAct = true; clampLife(); pushHeroStats(); return { ok: true };
+  }
+
+  // ---- sockets, runes & runewords ----------------------------------------------
+  // Socket a rune (from the bag) into a socketable item you own (bag or worn). Fill
+  // EVERY socket with a runeword's exact rune SEQUENCE and it resolves to that
+  // runeword's fixed mods; otherwise each rune contributes its own small mod. Town
+  // only — you re-forge your gear at the smith, never mid-field.
+  function findOwned(itemId) {
+    for (const s of SLOTS) if (run.equipment[s] && run.equipment[s].id === itemId) return { it: run.equipment[s], where: 'equip', slot: s };
+    const bi = run.bag.findIndex((x) => x.id === itemId); if (bi >= 0) return { it: run.bag[bi], where: 'bag', idx: bi };
+    return null;
+  }
+  function socketRune(itemId, runeItemId) {
+    if (run.phase === 'arena') return { ok: false, reason: 'not in the field' };
+    const owned = findOwned(itemId); if (!owned) return { ok: false, reason: 'no such item' };
+    const it = owned.it; if (!it.sockets) return { ok: false, reason: 'no sockets' };
+    it.socketRunes = it.socketRunes || [];
+    if (it.socketRunes.length >= it.sockets) return { ok: false, reason: 'sockets full' };
+    const ri = run.bag.findIndex((x) => x.id === runeItemId && x.isRune); if (ri < 0) return { ok: false, reason: 'no such rune' };
+    const [rune] = run.bag.splice(ri, 1);
+    it.socketRunes.push(rune.runeId);
+    resolveSocketed(it);
+    clampLife(); if (owned.where === 'equip') pushHeroStats();
+    return { ok: true, runeword: it.runeword || null, socketMods: { ...it.socketMods } };
+  }
+  // Recompute an item's socket contribution: a completed runeword (every socket
+  // filled, exact sequence) overrides the raw runes with its fixed, stronger mods.
+  function resolveSocketed(it) {
+    const { runeword, mods } = resolveSockets(it.slot, it.sockets, it.socketRunes || []);
+    it.socketMods = mods; it.runeword = runeword;
+    if (runeword && !it.runewordNamed) { it.name = `${runeword} (${it.name})`; it.runewordNamed = true; }
+  }
+
+  // What a monster drops — usually armor/jewelry (useful to any class), sometimes a
+  // weapon that MATCHES your type (a Sorceress won't be buried in Great Axes).
+  // Magic-find scales with the kill's tier (elite/unique/boss).
+  const WEAP_BY_TYPE = { melee: 'great_axe', ranged: 'war_bow' };
+  function rollGroundItem(mf, ilvl) {
+    if (rng.next() < 0.05) return rollRune(rng, run.difficulty);   // ~5% of drops are runes (the runeword chase)
+    const wt = (run.equipment.weapon && run.equipment.weapon.wtype) || 'melee';
+    // only drop a weapon that MATCHES your type — a caster never gets buried in wrong-class weapons
+    if (WEAP_BY_TYPE[wt] && rng.next() < 0.05) { const w = { ...ITEMS[WEAP_BY_TYPE[wt]] }; return { ...w, id: w.id + '_' + Math.floor(rng.next() * 1e6) }; }
+    // bias armor/jewelry affixes to YOUR build so drops are actually usable; the area's
+    // ilvl (delve depth) gates the unique pool + nudges affix magnitude upward.
+    return rollItem(rng, { tier: run.difficulty, ilvl, magicFind: 4 + mf * 6, prefer: wt === 'focus' ? 'caster' : 'melee' });
+  }
+
+  // Push live progression (level-ups, gear) into the in-flight survival hero.
+  function pushHeroStats() { if (!combat) return; const s = statsNow();
+    combat.setHero({ maxLife: s.maxLife, maxMana: s.maxMana, accuracy: s.accuracy, evade: s.evade,
+      manaRegen: s.manaRegen, plusSkills: s.plusSkills, fcr: s.fcr, ias: s.ias, penetration: s.penetration, plusElem: s.plusElem, skillMods: s.skillMods, hard: { ...run.skillHard }, weapon: weaponNow(), abilities: abilitiesNow() });
+    syncActiveToCombat(); } // setHero replaces the ability list; re-derive the disabled set (a newly-learned skill may auto-slot)
+
+  // Called each frame by the UI while surviving: fold the engine's earned XP into
+  // levels/points, and its collected drops into the at-risk bag. Loot does NOT
+  // auto-equip — you gear up EXPLICITLY back in town. A full bag mid-field auto-
+  // salvages overflow to Shards so a pickup is never silently wasted.
+  function syncArena() {
+    if (!combat) return { leveled: 0, loot: [], salvaged: 0, cleared: 0 };
+    const s = combat.getState();
+    let leveled = 0; const delta = s.xpEarned - lastXp; lastXp = s.xpEarned;
+    if (delta > 0) { run.xp += delta;
+      while (run.xp >= xpForLevel(run.level)) { run.xp -= xpForLevel(run.level); run.level += 1; run.skillPoints += 1; run.attrPoints += ATTR_PER_LEVEL; leveled += 1; } }
+    const got = combat.takeCollected(); let salvaged = 0;
+    for (const it of got) { if (run.bag.length < BAG_CAP) run.bag.push(it); else { run.shards += shardValue(it); salvaged += 1; } }
+    // clearing an area completes its QUEST — mark it done and advance so progression
+    // tracks each gate mid-descent (not just at the town break), then reward skill
+    // points, a heal, and a restock. Advancing questIdx here keeps the town's "next
+    // descent" pointed at the first UNcleared quest even after a multi-area chunk.
+    let cleared = 0;
+    if (s.areaCleared > lastCleared) { cleared = s.areaCleared - lastCleared; lastCleared = s.areaCleared;
+      for (let k = 0; k < cleared; k++) {
+        if (run.quests[run.questIdx]) run.quests[run.questIdx].done = true;
+        if (run.questIdx < ACT1.length - 1) run.questIdx += 1;
+        run.skillPoints += 2; combat.heal(Math.round(statsNow().maxLife * 0.5)); addPotions(1, 1); } }
+    if (leveled) pushHeroStats();
+    run.life = s.hero.life; run.mana = s.hero.mana;
+    if (s.over) resolveArena();
+    return { leveled, loot: got, salvaged, cleared, phase: run.phase };
+  }
+
+  // A segment ended: WIN clears the quest (turn it in -> town, or the act is won on
+  // the last quest); LOSE is death (forfeit the unbanked run inventory; stash is
+  // safe); FLEE is a safe retreat back to town (quest not cleared, loot kept).
+  function resolveArena() {
+    if (!combat) return run.phase; const s = combat.getState(); if (!s.over) return run.phase;
+    run.life = s.hero.life; run.mana = s.hero.mana; run.lastResult = s.result;
+    if (s.result === 'win') {
+      // quests were marked done + questIdx advanced as each area cleared (syncArena).
+      // A 'win' means the whole chunk fell; the act is won only if that was the last quest.
+      if (run.quests.every((q) => q.done)) { run.phase = 'victory'; }
+      else { toTown(); }
+    } else if (s.result === 'fled') {
+      toTown(); // retreated — the current quest still stands, but the loot came home
+    } else {
+      run.phase = 'dead'; run.bag = []; // death forfeits everything unbanked; the stash persists
+    }
+    combat = null; return run.phase;
+  }
+  // Arrive in town: rest to full and top the belt. (Banking/turn-in are your calls.)
+  function toTown() { run.phase = 'town'; const st = statsNow(); run.life = st.maxLife; run.mana = st.maxMana; addPotions(1, 1); }
+  function flee() { if (!combat) return run.phase; combat.flee(); return resolveArena(); }
+
+  function getRun() {
+    const s = statsNow();
+    const treeIds = cls.tabs ? cls.tree.slice() : ['guard', ...cls.tree.filter((t) => t !== 'guard')]; // Sorceress builds tabs, others prepend Guard
+    const active = new Set(getActiveSkills());
+    const tree = treeIds.map((id) => { const sk = SKILLS[id] || {}; const gate = skillGate(id);
+      const learned = hasPoint(id) || id === 'guard';
+      return { id, level: 1 + (run.skillHard[id] || 0), req: sk.req || 1, pre: sk.pre || [], tab: sk.tab || null, passive: sk.type === 'passive',
+        learned,
+        // slottable = a learned, non-passive skill you can toggle into an active slot
+        slottable: learned && sk.type !== 'passive' && id !== 'attack', active: active.has(id),
+        canInvest: run.skillPoints > 0 && gate.ok, gateReason: gate.ok ? null : gate.reason,
+        eff: skillEffect({ hard: run.skillHard, plusSkills: s.plusSkills, plusElem: s.plusElem, weapon: weaponNow() }, id), name: skName(id) }; });
+    return { seed: run.seed, difficulty: run.difficulty, className: run.className, glyph: run.glyph, phase: run.phase,
+      stats: s, life: run.life, maxLife: s.maxLife, mana: run.mana, maxMana: s.maxMana, potions: { ...run.potions },
+      gold: run.gold, shards: run.shards, bagCap: BAG_CAP, stashCap: STASH_CAP,
+      level: run.level, xp: run.xp, xpToNext: xpForLevel(run.level), skillPoints: run.skillPoints,
+      attr: { ...run.attr }, attrPoints: run.attrPoints,
+      act: run.act, questIdx: run.questIdx, quests: run.quests.map((q) => ({ ...q })),
+      quest: run.quests[run.questIdx] ? { ...run.quests[run.questIdx] } : null,
+      respecUsedThisAct: run.respecUsedThisAct, canRespec: run.phase === 'town' && !run.respecUsedThisAct,
+      abilities: abilitiesNow(), tree, tabs: cls.tabs || null,
+      activeSkills: getActiveSkills(), activeCap: ACTIVE_CAP, // the slotted auto-fire picks (attack always fires, not counted)
+      equipment: Object.fromEntries(SLOTS.map((sl) => [sl, run.equipment[sl] ? { ...run.equipment[sl] } : null])),
+      bag: run.bag.map((i) => ({ ...i })), stash: run.stash.map((i) => ({ ...i })),
+      lastResult: run.lastResult, gained: run.gained };
+  }
+  function skName(id) { return SKILLS[id] ? SKILLS[id].name : id; }
+  // for the UI to persist to storage — drop the within-visit lock so a reloaded
+  // stash comes back fully usable (the lock is a THIS-visit concept, not stored state).
+  function getStash() { return run.stash.map((i) => { const c = { ...i }; delete c.locked; return c; }); }
+
+  return { beginDescent, startRun, descend, syncArena, resolveArena, flee, toTown, bank, bankAll, equipFromStash, respec, getStash,
+    salvage, salvageAll, compareItem, reroll, socketRune,
+    equipFromBag, unequip, canEquip, investSkill, investAttr, quaff, sellFromBag, buyPotion, dropFromBag,
+    getActiveSkills, setActiveSkill, toggleActiveSkill,
+    getRun, getCombat: () => combat, deriveStats: () => statsNow(), deriveAbilities: () => abilitiesNow() };
+}
