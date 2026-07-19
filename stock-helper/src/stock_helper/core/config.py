@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     # fundamental factors still work with it off. Every price-derived output is
     # labeled non-canonical. Set ENABLE_PRICE_DATA=false to disable.
     enable_price_data: bool = True
+    # Which free price source(s) to use: "auto" (Yahoo -> Stooq, default),
+    # "yahoo", or "stooq". Yahoo has wider coverage and no tight per-IP daily
+    # cap, so it is the better default for a large universe and the backtest.
+    price_source: str = "auto"
     log_level: str = "INFO"
     sec_cache_ttl_hours: float = 24.0
     data_dir: Path = Path("data")
