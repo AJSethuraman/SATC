@@ -690,5 +690,7 @@ def write_report(report: Report, settings: Settings | None = None) -> str:
     suffix = f"_asof_{report.as_of.isoformat()}" if report.as_of else ""
     filename = f"{report.ticker}{suffix}_{report.generated_at.strftime('%Y%m%d_%H%M%S')}.md"
     path = settings.reports_dir / filename
-    path.write_text(render_markdown(report))
+    # Force UTF-8: the report contains → — ≥ etc.; Windows' default cp1252
+    # raises UnicodeEncodeError on them.
+    path.write_text(render_markdown(report), encoding="utf-8")
     return str(path)

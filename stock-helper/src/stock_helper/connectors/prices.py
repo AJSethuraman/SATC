@@ -20,6 +20,18 @@ STOOQ_URL = "https://stooq.com/q/d/l/?s={symbol}.us&i=d"
 PRICE_SOURCE_LABEL = "Stooq daily CSV (non-canonical price data)"
 _CACHE_TTL = timedelta(hours=24)
 
+# Stooq's CSV endpoint returns 404 (an HTML stub) to clients that send no
+# browser-like User-Agent, so httpx's default "python-httpx/..." is rejected.
+# Send a realistic UA. (This is not scraping evasion — it's a public CSV that
+# simply gates on UA; still rate-limited per-IP, so failures fall back to None.)
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    ),
+    "Accept": "text/csv,text/plain,*/*",
+}
+
 
 def fetch_daily_prices(ticker: str, settings: Settings | None = None) -> pd.DataFrame | None:
     """Return a Date/Close (+OHLCV) DataFrame, or None if disabled/unavailable."""
@@ -34,9 +46,17 @@ def fetch_daily_prices(ticker: str, settings: Settings | None = None) -> pd.Data
             return pd.read_csv(cache, parse_dates=["Date"])
     url = STOOQ_URL.format(symbol=ticker.lower())
     try:
-        response = httpx.get(url, timeout=20.0, follow_redirects=True)
+        response = httpx.get(url, timeout=20.0, follow_redirects=True, headers=_HEADERS)
         response.raise_for_status()
-        frame = pd.read_csv(io.StringIO(response.text), parse_dates=["Date"])
+        text = response.text
+        # Stooq returns HTTP 200 with a plain-text body like "No data" or an
+        # HTML stub when a symbol is unknown or the per-IP daily cap is hit;
+        # that has no "Date" header, so guard before handing it to the parser.
+        if not text.lstrip().lower().startswith("date"):
+            log.warning("price data unavailable ticker=%s (stooq: %s)",
+                        ticker, text.strip()[:80])
+            return None
+        frame = pd.read_csv(io.StringIO(text), parse_dates=["Date"])
     except Exception as exc:  # any failure just means "no price chart"
         log.warning("price fetch failed ticker=%s err=%s", ticker, exc)
         return None
