@@ -533,6 +533,7 @@ def backtest(
     delisted names are absent, which inflates results. NOT a performance claim."""
     settings = _setup()
     from stock_helper.backtest.panel import SIGNAL_FUNCTIONS, run_backtest
+    from stock_helper.backtest.verdict import backtest_verdict
     from stock_helper.storage.db import get_session, init_db
 
     if signal not in SIGNAL_FUNCTIONS:
@@ -550,25 +551,87 @@ def backtest(
     def _f(v, fmt="{:+.3f}"):
         return fmt.format(v) if v is not None else "—"
 
-    t = Table(title=f"Walk-forward: '{signal}' · {start} → {end} · {horizon_days}d horizon")
+    # --- Plain-English verdict FIRST (the part you actually act on) ---
+    v = backtest_verdict(result)
+    color = {"good": "bold green", "bad": "bold red", "neutral": "bold yellow"}[v.tone]
+    console.print()
+    console.print(f"[{color}]VERDICT: {v.label}[/{color}] — testing '{signal}', "
+                  f"{start} → {end}")
+    console.print(f"[italic]{v.headline}[/italic]")
+    for pt in v.plain_points:
+        console.print(f"  • {pt}")
+    console.print()
+
+    # --- Detailed stats underneath, for the curious ---
+    t = Table(title="Detailed stats (for reference)")
     t.add_column("Metric")
     t.add_column("Value", justify="right")
-    t.add_row("Rebalance dates used", str(result.n_dates))
-    t.add_row("Avg names / date", _f(result.n_names_avg, "{:.0f}"))
-    t.add_row("Mean IC (rank corr signal→fwd return)", _f(result.mean_ic))
-    t.add_row("IC t-stat", _f(result.ic_t_stat, "{:.2f}"))
-    lo, hi, mean = result.ic_ci
-    t.add_row("IC 95% bootstrap CI", f"[{_f(lo)}, {_f(hi)}]")
-    t.add_row("Top−bottom decile fwd return", _f(result.quantile_spread_mean, "{:+.2%}"))
-    t.add_row("Top-quantile net return / period", _f(result.net_return_mean, "{:+.2%}"))
-    t.add_row("Sharpe (annualized, net)", _f(result.sharpe_annualized, "{:.2f}"))
-    t.add_row("Max drawdown", _f(result.max_drawdown, "{:.1%}"))
-    t.add_row("Deflated Sharpe (prob. real, "
-              f"{n_trials} trial{'s' if n_trials != 1 else ''})", _f(result.deflated_sharpe, "{:.2f}"))
+    t.add_row("Rebalance dates tested", str(result.n_dates))
+    t.add_row("Avg companies / date", _f(result.n_names_avg, "{:.0f}"))
+    t.add_row("Skill score (−100..+100, 0=luck)",
+              _f(round((result.mean_ic or 0) * 100), "{:+.0f}") if result.mean_ic is not None else "—")
+    t.add_row("  ↳ raw IC / t-stat",
+              f"{_f(result.mean_ic)} / {_f(result.ic_t_stat, '{:.2f}')}")
+    t.add_row("Cheap-minus-expensive return / period", _f(result.quantile_spread_mean, "{:+.2%}"))
+    t.add_row("Sharpe (annualized) — mostly market, ignore",
+              _f(result.sharpe_annualized, "{:.2f}"))
     console.print(t)
-    console.print("[bold yellow]Read this before trusting any number above:[/bold yellow]")
-    for c in result.caveats:
-        console.print(f"[yellow]•[/yellow] {c}")
+    console.print("[dim]Reminder: free, survivorship-biased prices — delisted names are "
+                  "absent, which flatters every number. Educational, not a performance claim.[/dim]")
+
+
+@app.command("backtest-compare")
+def backtest_compare(
+    start: str = typer.Option(..., "--start", help="First rebalance date (YYYY-MM-DD)."),
+    end: str = typer.Option(..., "--end", help="Last rebalance date (YYYY-MM-DD)."),
+    step_days: int = typer.Option(63, "--step-days", help="Days between rebalances (~quarterly)."),
+    horizon_days: int = typer.Option(63, "--horizon-days", help="Forward-return holding window."),
+) -> None:
+    """Test EVERY signal over the same period and rank them by skill — one table.
+
+    Runs each available signal through the same walk-forward and shows a plain
+    leaderboard so you can see at a glance which (if any) actually sorted future
+    winners from losers. EDUCATIONAL: survivorship-biased free prices."""
+    settings = _setup()
+    from stock_helper.backtest.panel import SIGNAL_FUNCTIONS, run_backtest
+    from stock_helper.backtest.verdict import backtest_verdict
+    from stock_helper.storage.db import get_session, init_db
+
+    start_d, end_d = _parse_cli_date(start), _parse_cli_date(end)
+    init_db(settings)
+    rows = []
+    with get_session(settings) as session:
+        for name in sorted(SIGNAL_FUNCTIONS):
+            console.print(f"[dim]testing {name}…[/dim]")
+            result = run_backtest(
+                session, signal_name=name, start=start_d, end=end_d,
+                step_days=step_days, horizon_days=horizon_days,
+                settings=settings, n_trials=len(SIGNAL_FUNCTIONS),
+            )
+            v = backtest_verdict(result)
+            rows.append((name, v, result))
+
+    # Rank: best skill score first (None/ untestable sinks to the bottom).
+    rows.sort(key=lambda r: (r[2].mean_ic if r[2].mean_ic is not None else -9), reverse=True)
+
+    tone_tag = {"good": "[green]WORTH A LOOK[/green]",
+                "bad": "[red]BACKWARDS[/red]",
+                "neutral": "[yellow]NO EDGE[/yellow]"}
+    t = Table(title=f"Signal leaderboard · {start} → {end} · {horizon_days}d hold")
+    t.add_column("Signal")
+    t.add_column("Verdict")
+    t.add_column("Skill (−100..+100)", justify="right")
+    t.add_column("Cheap−exp / period", justify="right")
+    for name, v, result in rows:
+        score = f"{round((result.mean_ic or 0) * 100):+d}" if result.mean_ic is not None else "—"
+        spread = f"{result.quantile_spread_mean:+.2%}" if result.quantile_spread_mean is not None else "—"
+        label = tone_tag.get(v.tone, v.label) if v.label != "COULDN'T TEST" else "[dim]couldn't test[/dim]"
+        t.add_row(name, label, score, spread)
+    console.print(t)
+    console.print("\n[bold]How to read this:[/bold] 'Skill' is 0 for a coin flip; "
+                  "positive means the cheaper/better-ranked stocks tended to win afterward. "
+                  "Only [green]WORTH A LOOK[/green] cleared the not-luck bar — and even that "
+                  "needs a longer, survivorship-free test before you'd trust it with money.")
 
 
 @app.command()
