@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 import httpx
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session, select
 
 from stock_helper.connectors.sec import SecClient, TickerNotFoundError
@@ -95,7 +96,12 @@ def fetch_universe(
             else:
                 fetch_and_store(ticker, session, client, with_documents=with_documents)
                 result.fetched.append(ticker)
-        except (TickerNotFoundError, httpx.HTTPError, ValueError, KeyError) as exc:
+        except (
+            TickerNotFoundError, httpx.HTTPError, ValueError, KeyError, SQLAlchemyError,
+        ) as exc:
+            # Roll back the failed ticker and keep going — one bad filer (DB
+            # integrity error, malformed payload, network blip) must never abort
+            # a hundreds-of-names run.
             session.rollback()
             reason = f"{exc.__class__.__name__}: {exc}"
             result.failed.append((ticker, reason))

@@ -10,6 +10,7 @@ so a future backtester can replay what was knowable when (point-in-time).
 
 from datetime import date, datetime
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -47,9 +48,17 @@ class SecurityIdentifier(SQLModel, table=True):
 
 
 class Filing(SQLModel, table=True):
+    # An SEC accession is unique per FILER, but a single filing (e.g. a utility
+    # holding company's 8-K) can list several co-registrants, so the same
+    # accession legitimately appears in multiple companies' feeds. Uniqueness is
+    # therefore per (company, accession), not global on accession alone.
+    __table_args__ = (
+        UniqueConstraint("company_id", "accession", name="uq_filing_company_accession"),
+    )
+
     id: int | None = Field(default=None, primary_key=True)
     company_id: int = Field(foreign_key="company.id", index=True)
-    accession: str = Field(index=True, unique=True)
+    accession: str = Field(index=True)
     form: str = Field(index=True)
     filed_date: date
     acceptance_datetime: datetime | None = None
