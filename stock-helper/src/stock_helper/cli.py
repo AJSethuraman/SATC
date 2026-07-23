@@ -516,6 +516,86 @@ def screen(
     )
 
 
+@app.command("valuation-scan")
+def valuation_scan(
+    top: int = typer.Option(20, "--top", help="How many names to show on each side."),
+    as_of: str = typer.Option(None, "--as-of", help="Point-in-time date (YYYY-MM-DD)."),
+) -> None:
+    """Rank the whole universe by price vs DCF fair value: cheapest to priciest.
+
+    Answers the plain question 'which companies look under- or over-valued right
+    now?' The gap is (fair value − price) / fair value: positive = the market
+    price is BELOW the model's fair value (looks cheap); negative = ABOVE (looks
+    expensive). Fair value is a simple, editable DCF scenario — a starting point
+    for research, NOT a price target or advice."""
+    settings = _setup()
+    from stock_helper.core.format import money, pct
+    from stock_helper.screening.metrics import build_universe_rows
+    from stock_helper.storage.db import get_session, init_db
+
+    init_db(settings)
+    as_of_date = _parse_cli_date(as_of)
+    with get_session(settings) as session:
+        rows = build_universe_rows(session, settings=settings, as_of=as_of_date)
+
+    # Keep only names where we have BOTH a fair value and a price (so the gap is
+    # real). Financials fall out here — a DCF doesn't fit banks/insurers.
+    scored = [r for r in rows if r.metrics.get("fair_value_gap") is not None
+              and r.price and r.fair_value]
+    if not scored:
+        console.print("[yellow]![/yellow] No priced valuations yet. Fetch a universe with "
+                      "prices on: [bold]stock-helper fetch-universe --top 500[/bold] "
+                      "(ENABLE_PRICE_DATA=true).")
+        raise typer.Exit(0)
+
+    scored.sort(key=lambda r: r.metrics["fair_value_gap"], reverse=True)
+    undervalued = scored[:top]
+    # Take the overvalued side from the remainder so no name appears on both
+    # sides when the universe is smaller than 2*top.
+    remainder = scored[len(undervalued):]
+    overvalued = list(reversed(remainder[-top:]))
+
+    console.print(f"[cyan]ℹ[/cyan] Scanned {len(scored)} companies with a price and a "
+                  f"DCF fair value (financials excluded — a DCF doesn't fit them)"
+                  + (f" · as of {as_of_date}" if as_of_date else ""))
+
+    def _render(title: str, items, color: str) -> None:
+        tbl = Table(title=title)
+        tbl.add_column("#", justify="right")
+        tbl.add_column("Ticker")
+        tbl.add_column("Company", max_width=22)
+        tbl.add_column("Price", justify="right")
+        tbl.add_column("Fair value", justify="right")
+        tbl.add_column("Gap", justify="right")
+        tbl.add_column("Read this", max_width=30)
+        for i, r in enumerate(items, 1):
+            gap = r.metrics["fair_value_gap"]
+            warn = [f for f in r.flags if f in {
+                "beneish_manipulation_flag", "altman_distress",
+                "distress_models_agree", "value_trap"}]
+            note = ("⚠ also flagged: " + ", ".join(w.replace("_", " ") for w in warn)
+                    if warn else "")
+            tbl.add_row(str(i), r.ticker, r.name, money(r.price), money(r.fair_value),
+                        f"[{color}]{pct(gap)}[/{color}]", note)
+        console.print(tbl)
+
+    _render(f"Looks UNDERVALUED — price below DCF fair value (top {len(undervalued)})",
+            undervalued, "green")
+    _render(f"Looks OVERVALUED — price above DCF fair value (top {len(overvalued)})",
+            overvalued, "red")
+
+    console.print(
+        "\n[bold]How to read this:[/bold] a green (+) gap means the price sits below what "
+        "a plain discounted-cash-flow model thinks the business is worth; red (−) means "
+        "above. This is a [bold]starting point for research, not a buy/sell call[/bold]."
+    )
+    console.print(
+        "[yellow]Cheap can be a trap.[/yellow] A big positive gap often means the market "
+        "expects trouble the model doesn't — check the ⚠ flags, and remember fair value "
+        "is one editable DCF scenario (terminal-value-heavy, growth-sensitive), not truth."
+    )
+
+
 @app.command()
 def backtest(
     signal: str = typer.Option("value_composite", "--signal",

@@ -54,6 +54,11 @@ class UniverseRow:
     market_cap: float | None
     metrics: dict[str, float | None] = field(default_factory=dict)
     flags: list[str] = field(default_factory=list)
+    # Concrete price vs DCF fair value (both None when unavailable), so a
+    # value-oriented view can show the actual gap, not just its z-score.
+    price: float | None = None
+    fair_value: float | None = None
+    method: str = ""  # dcf / ddm / n/m — how fair value was derived
 
 
 def _factor_value(quality: Any, key: str) -> float | None:
@@ -163,6 +168,9 @@ def build_universe_row(
         market_cap=market_cap,
         metrics=_metrics_from_result(val),
         flags=_flags_from_result(val),
+        price=val.price,
+        fair_value=val.fair_value_per_share,
+        method=(val.dcf.method if val.dcf is not None else "") or "",
     )
 
 
