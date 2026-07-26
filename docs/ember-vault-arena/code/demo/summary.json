@@ -1,6 +1,6 @@
 {
   "seed": 52,
-  "match_id": "ember-52-493ece14",
+  "match_id": "ember-52-135e096e",
   "ruleset_version": "ember-vault-0.2",
   "ended_reason": "extraction",
   "winner": {
@@ -260,96 +260,96 @@
           "type": "agent_speech",
           "actor": "bramble",
           "target": null,
-          "text": "Bramble the Unsubtle: “Try to keep up.”",
+          "text": "Bramble the Unsubtle: “Make way, make way.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "threshold",
-            "speech": "Try to keep up."
+            "speech": "Make way, make way."
           }
         },
         {
           "type": "agent_speech",
           "actor": "hex",
           "target": null,
-          "text": "Hex Marrow: “Try to keep up.”",
+          "text": "Hex Marrow: “Trust me, this way.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "threshold",
-            "speech": "Try to keep up."
+            "speech": "Trust me, this way."
           }
         },
         {
           "type": "agent_speech",
           "actor": "morrow",
           "target": null,
-          "text": "Morrow-on-the-Wind: “The vault will remember my footsteps.”",
+          "text": "Morrow-on-the-Wind: “No time, no time.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "threshold",
-            "speech": "The vault will remember my footsteps."
+            "speech": "No time, no time."
           }
         },
         {
           "type": "agent_speech",
           "actor": "nix",
           "target": null,
-          "text": "Nix Quickfingers: “The vault will remember my footsteps.”",
+          "text": "Nix Quickfingers: “Quick feet, quicker fingers.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "threshold",
-            "speech": "The vault will remember my footsteps."
+            "speech": "Quick feet, quicker fingers."
           }
         },
         {
           "type": "agent_speech",
           "actor": "quill",
           "target": null,
-          "text": "Quill of Two Graves: “I dislike this plan, which means it may work.”",
+          "text": "Quill of Two Graves: “Onward, into the interesting dark.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "threshold",
-            "speech": "I dislike this plan, which means it may work."
+            "speech": "Onward, into the interesting dark."
           }
         },
         {
           "type": "agent_speech",
           "actor": "rook",
           "target": null,
-          "text": "Rook Ironweather: “Try to keep up.”",
+          "text": "Rook Ironweather: “No tricks in it.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "threshold",
-            "speech": "Try to keep up."
+            "speech": "No tricks in it."
           }
         },
         {
           "type": "agent_speech",
           "actor": "sable",
           "target": null,
-          "text": "Sable of the Last Candle: “The vault will remember my footsteps.”",
+          "text": "Sable of the Last Candle: “I follow where the wax runs.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "threshold",
-            "speech": "The vault will remember my footsteps."
+            "speech": "I follow where the wax runs."
           }
         },
         {
           "type": "agent_speech",
           "actor": "vetch",
           "target": null,
-          "text": "Vetch the Reasonable: “I dislike this plan, which means it may work.”",
+          "text": "Vetch the Reasonable: “Purely a precaution.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "threshold",
-            "speech": "I dislike this plan, which means it may work."
+            "speech": "Purely a precaution."
           }
         },
         {
@@ -646,7 +646,7 @@
           "type": "round_narration",
           "actor": null,
           "target": null,
-          "text": "Round 1: the vault answers every decision with a consequence. Act I — The Gates opens. Bramble the Unsubtle: “Try to keep up.” Hex Marrow: “Try to keep up.” Morrow-on-the-Wind: “The vault will remember my footsteps.” Nix Quickfingers: “The vault will remember my footsteps.” Quill of Two Graves: “I dislike this plan, which means it may work.” Rook Ironweather: “Try to keep up.” Sable of the Last Candle: “The vault will remember my footsteps.” Vetch the Reasonable: “I dislike this plan, which means it may work.” Initiative locks in: Quill of Two Graves (16), Rook Ironweather (16), Hex Marrow (13), Bramble the Unsubtle (12), Nix Quickfingers (9), Vetch the Reasonable (8), Morrow-on-the-Wind (4), Sable of the Last Candle (4) Quill of Two Graves moves to The Ironwood Gate. Rook Ironweather moves to The Ironwood Gate. Hex Marrow moves to The Ironwood Gate. Bramble the Unsubtle moves to The Ossuary Gate. Nix Quickfingers moves to The Ironwood Gate. Vetch the Reasonable moves to The Ossuary Gate. Morrow-on-the-Wind moves to The Ironwood Gate. Sable of the Last Candle moves to The Ironwood Gate. Ironwood Guardian hits Quill of Two Graves for 8. Ossuary Guardian lunges at Vetch the Reasonabl",
+          "text": "Round 1: the vault answers every decision with a consequence. Act I — The Gates opens. Bramble the Unsubtle: “Make way, make way.” Hex Marrow: “Trust me, this way.” Morrow-on-the-Wind: “No time, no time.” Nix Quickfingers: “Quick feet, quicker fingers.” Quill of Two Graves: “Onward, into the interesting dark.” Rook Ironweather: “No tricks in it.” Sable of the Last Candle: “I follow where the wax runs.” Vetch the Reasonable: “Purely a precaution.” Initiative locks in: Quill of Two Graves (16), Rook Ironweather (16), Hex Marrow (13), Bramble the Unsubtle (12), Nix Quickfingers (9), Vetch the Reasonable (8), Morrow-on-the-Wind (4), Sable of the Last Candle (4) Quill of Two Graves moves to The Ironwood Gate. Rook Ironweather moves to The Ironwood Gate. Hex Marrow moves to The Ironwood Gate. Bramble the Unsubtle moves to The Ossuary Gate. Nix Quickfingers moves to The Ironwood Gate. Vetch the Reasonable moves to The Ossuary Gate. Morrow-on-the-Wind moves to The Ironwood Gate. Sable of the Last Candle moves to The Ironwood Gate. Ironwood Guardian hits Quill of Two Graves for 8. Ossuary Guardian lunges at Vetch the Reasonable and misses.",
           "roll": null,
           "payload": {
             "source_event_count": 20
@@ -781,96 +781,96 @@
           "type": "agent_speech",
           "actor": "bramble",
           "target": null,
-          "text": "Bramble the Unsubtle: “This is either brave or extremely stupid.”",
+          "text": "Bramble the Unsubtle: “Bramble solves it! Loudly!”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ossuary_gate",
-            "speech": "This is either brave or extremely stupid."
+            "speech": "Bramble solves it! Loudly!"
           }
         },
         {
           "type": "agent_speech",
           "actor": "hex",
           "target": null,
-          "text": "Hex Marrow: “This is either brave or extremely stupid.”",
+          "text": "Hex Marrow: “Friend, this is business.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "This is either brave or extremely stupid."
+            "speech": "Friend, this is business."
           }
         },
         {
           "type": "agent_speech",
           "actor": "morrow",
           "target": null,
-          "text": "Morrow-on-the-Wind: “You had your warning.”",
+          "text": "Morrow-on-the-Wind: “This will absolutely work.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "You had your warning."
+            "speech": "This will absolutely work."
           }
         },
         {
           "type": "agent_speech",
           "actor": "nix",
           "target": null,
-          "text": "Nix Quickfingers: “This is either brave or extremely stupid.”",
+          "text": "Nix Quickfingers: “You were standing on my payday.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "This is either brave or extremely stupid."
+            "speech": "You were standing on my payday."
           }
         },
         {
           "type": "agent_speech",
           "actor": "quill",
           "target": null,
-          "text": "Quill of Two Graves: “You had your warning.”",
+          "text": "Quill of Two Graves: “Two graves. I dug both.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "You had your warning."
+            "speech": "Two graves. I dug both."
           }
         },
         {
           "type": "agent_speech",
           "actor": "rook",
           "target": null,
-          "text": "Rook Ironweather: “You had your warning.”",
+          "text": "Rook Ironweather: “Guard up. I am not gentle.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "You had your warning."
+            "speech": "Guard up. I am not gentle."
           }
         },
         {
           "type": "agent_speech",
           "actor": "sable",
           "target": null,
-          "text": "Sable of the Last Candle: “This is either brave or extremely stupid.”",
+          "text": "Sable of the Last Candle: “This was written. Sorry.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "This is either brave or extremely stupid."
+            "speech": "This was written. Sorry."
           }
         },
         {
           "type": "agent_speech",
           "actor": "vetch",
           "target": null,
-          "text": "Vetch the Reasonable: “This is either brave or extremely stupid.”",
+          "text": "Vetch the Reasonable: “Regrettable. Necessary.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ossuary_gate",
-            "speech": "This is either brave or extremely stupid."
+            "speech": "Regrettable. Necessary."
           }
         },
         {
@@ -1435,7 +1435,7 @@
           "type": "round_narration",
           "actor": null,
           "target": null,
-          "text": "Round 2: the vault answers every decision with a consequence. Bramble the Unsubtle: “This is either brave or extremely stupid.” Hex Marrow: “This is either brave or extremely stupid.” Morrow-on-the-Wind: “You had your warning.” Nix Quickfingers: “This is either brave or extremely stupid.” Quill of Two Graves: “You had your warning.” Rook Ironweather: “You had your warning.” Sable of the Last Candle: “This is either brave or extremely stupid.” Vetch the Reasonable: “This is either brave or extremely stupid.” Initiative locks in: Nix Quickfingers (21), Morrow-on-the-Wind (20), Quill of Two Graves (17), Rook Ironweather (16), Hex Marrow (15), Vetch the Reasonable (6), Bramble the Unsubtle (3), Sable of the Last Candle (3) Nix Quickfingers swings at Ironwood Guardian, misses, and the arena takes it personally. The swing shears a blade of ironwood off the gate; it clatters to the floor. Morrow-on-the-Wind hits Ironwood Guardian for 6. Quill of Two Graves hits Ironwood Guardian for 4. Rook Ironweather hits Ironwood Guardian for 8. Ironwood Guardian falls. Hex Marrow's action finds nothing there. Vetch the Reasonable hits Ossuary Guardian for 6. Bramble the Unsubtle hits Ossuary Guardian ",
+          "text": "Round 2: the vault answers every decision with a consequence. Bramble the Unsubtle: “Bramble solves it! Loudly!” Hex Marrow: “Friend, this is business.” Morrow-on-the-Wind: “This will absolutely work.” Nix Quickfingers: “You were standing on my payday.” Quill of Two Graves: “Two graves. I dug both.” Rook Ironweather: “Guard up. I am not gentle.” Sable of the Last Candle: “This was written. Sorry.” Vetch the Reasonable: “Regrettable. Necessary.” Initiative locks in: Nix Quickfingers (21), Morrow-on-the-Wind (20), Quill of Two Graves (17), Rook Ironweather (16), Hex Marrow (15), Vetch the Reasonable (6), Bramble the Unsubtle (3), Sable of the Last Candle (3) Nix Quickfingers swings at Ironwood Guardian, misses, and the arena takes it personally. The swing shears a blade of ironwood off the gate; it clatters to the floor. Morrow-on-the-Wind hits Ironwood Guardian for 6. Quill of Two Graves hits Ironwood Guardian for 4. Rook Ironweather hits Ironwood Guardian for 8. Ironwood Guardian falls. Hex Marrow's action finds nothing there. Vetch the Reasonable hits Ossuary Guardian for 6. Bramble the Unsubtle hits Ossuary Guardian for 8. Ossuary Guardian falls. Sable of the Last Candle's action",
           "roll": null,
           "payload": {
             "source_event_count": 20
@@ -1591,96 +1591,96 @@
           "type": "agent_speech",
           "actor": "bramble",
           "target": null,
-          "text": "Bramble the Unsubtle: “One seal lit. Applause is optional.”",
+          "text": "Bramble the Unsubtle: “Bramble lights it. Remember that.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ossuary_gate",
-            "speech": "One seal lit. Applause is optional."
+            "speech": "Bramble lights it. Remember that."
           }
         },
         {
           "type": "agent_speech",
           "actor": "hex",
           "target": null,
-          "text": "Hex Marrow: “One seal lit. Applause is optional.”",
+          "text": "Hex Marrow: “Consider it a favour owed.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "One seal lit. Applause is optional."
+            "speech": "Consider it a favour owed."
           }
         },
         {
           "type": "agent_speech",
           "actor": "morrow",
           "target": null,
-          "text": "Morrow-on-the-Wind: “One seal lit. Applause is optional.”",
+          "text": "Morrow-on-the-Wind: “See? Reckless works.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "One seal lit. Applause is optional."
+            "speech": "See? Reckless works."
           }
         },
         {
           "type": "agent_speech",
           "actor": "nix",
           "target": null,
-          "text": "Nix Quickfingers: “One lock down. One betrayal closer.”",
+          "text": "Nix Quickfingers: “Seal lit. Invoice pending.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "One lock down. One betrayal closer."
+            "speech": "Seal lit. Invoice pending."
           }
         },
         {
           "type": "agent_speech",
           "actor": "quill",
           "target": null,
-          "text": "Quill of Two Graves: “One lock down. One betrayal closer.”",
+          "text": "Quill of Two Graves: “The seal sings. Badly. I love it.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "One lock down. One betrayal closer."
+            "speech": "The seal sings. Badly. I love it."
           }
         },
         {
           "type": "agent_speech",
           "actor": "rook",
           "target": null,
-          "text": "Rook Ironweather: “One lock down. One betrayal closer.”",
+          "text": "Rook Ironweather: “Done properly.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "One lock down. One betrayal closer."
+            "speech": "Done properly."
           }
         },
         {
           "type": "agent_speech",
           "actor": "sable",
           "target": null,
-          "text": "Sable of the Last Candle: “One lock down. One betrayal closer.”",
+          "text": "Sable of the Last Candle: “The seal wakes. So does something else.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "One lock down. One betrayal closer."
+            "speech": "The seal wakes. So does something else."
           }
         },
         {
           "type": "agent_speech",
           "actor": "vetch",
           "target": null,
-          "text": "Vetch the Reasonable: “One lock down. One betrayal closer.”",
+          "text": "Vetch the Reasonable: “A courtesy. Note who paid it.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ossuary_gate",
-            "speech": "One lock down. One betrayal closer."
+            "speech": "A courtesy. Note who paid it."
           }
         },
         {
@@ -1790,7 +1790,7 @@
               "item": null,
               "memory_write": "R3: interact ironwood_seal",
               "reasoning_summary": "Advance lorekeeper without losing the route to the Crown.",
-              "speech": "One lock down. One betrayal closer.",
+              "speech": "The seal wakes. So does something else.",
               "target": "ironwood_seal"
             }
           }
@@ -1811,7 +1811,7 @@
               "item": null,
               "memory_write": "R3: interact ironwood_seal",
               "reasoning_summary": "Advance treasure hoarder without losing the route to the Crown.",
-              "speech": "One lock down. One betrayal closer.",
+              "speech": "Seal lit. Invoice pending.",
               "target": "ironwood_seal"
             }
           }
@@ -1832,7 +1832,7 @@
               "item": null,
               "memory_write": "R3: interact ossuary_seal",
               "reasoning_summary": "Advance monster hunter without losing the route to the Crown.",
-              "speech": "One seal lit. Applause is optional.",
+              "speech": "Bramble lights it. Remember that.",
               "target": "ossuary_seal"
             }
           }
@@ -1853,7 +1853,7 @@
               "item": null,
               "memory_write": "R3: interact ironwood_seal",
               "reasoning_summary": "Advance treasure hoarder without losing the route to the Crown.",
-              "speech": "One seal lit. Applause is optional.",
+              "speech": "See? Reckless works.",
               "target": "ironwood_seal"
             }
           }
@@ -1874,7 +1874,7 @@
               "item": null,
               "memory_write": "R3: interact ironwood_seal",
               "reasoning_summary": "Advance monster hunter without losing the route to the Crown.",
-              "speech": "One lock down. One betrayal closer.",
+              "speech": "Done properly.",
               "target": "ironwood_seal"
             }
           }
@@ -1895,7 +1895,7 @@
               "item": null,
               "memory_write": "R3: interact ironwood_seal",
               "reasoning_summary": "Advance lorekeeper without losing the route to the Crown.",
-              "speech": "One lock down. One betrayal closer.",
+              "speech": "The seal sings. Badly. I love it.",
               "target": "ironwood_seal"
             }
           }
@@ -1904,7 +1904,7 @@
           "type": "round_narration",
           "actor": null,
           "target": null,
-          "text": "Round 3: the vault answers every decision with a consequence. Bramble the Unsubtle: “One seal lit. Applause is optional.” Hex Marrow: “One seal lit. Applause is optional.” Morrow-on-the-Wind: “One seal lit. Applause is optional.” Nix Quickfingers: “One lock down. One betrayal closer.” Quill of Two Graves: “One lock down. One betrayal closer.” Rook Ironweather: “One lock down. One betrayal closer.” Sable of the Last Candle: “One lock down. One betrayal closer.” Vetch the Reasonable: “One lock down. One betrayal closer.” Initiative locks in: Vetch the Reasonable (16), Hex Marrow (14), Sable of the Last Candle (13), Nix Quickfingers (12), Bramble the Unsubtle (11), Morrow-on-the-Wind (6), Rook Ironweather (5), Quill of Two Graves (4) Vetch the Reasonable wakes the The Ossuary Gate seal. Hex Marrow wakes the The Ironwood Gate seal. Both seals burn. The Ember Vault stands open. Sable of the Last Candle's action finds nothing there. Nix Quickfingers's action finds nothing there. Bramble the Unsubtle's action finds nothing there. Morrow-on-the-Wind's action finds nothing there. Rook Ironweather's action finds nothing there. Quill of Two Graves's action finds nothing there.",
+          "text": "Round 3: the vault answers every decision with a consequence. Bramble the Unsubtle: “Bramble lights it. Remember that.” Hex Marrow: “Consider it a favour owed.” Morrow-on-the-Wind: “See? Reckless works.” Nix Quickfingers: “Seal lit. Invoice pending.” Quill of Two Graves: “The seal sings. Badly. I love it.” Rook Ironweather: “Done properly.” Sable of the Last Candle: “The seal wakes. So does something else.” Vetch the Reasonable: “A courtesy. Note who paid it.” Initiative locks in: Vetch the Reasonable (16), Hex Marrow (14), Sable of the Last Candle (13), Nix Quickfingers (12), Bramble the Unsubtle (11), Morrow-on-the-Wind (6), Rook Ironweather (5), Quill of Two Graves (4) Vetch the Reasonable wakes the The Ossuary Gate seal. Hex Marrow wakes the The Ironwood Gate seal. Both seals burn. The Ember Vault stands open. Sable of the Last Candle's action finds nothing there. Nix Quickfingers's action finds nothing there. Bramble the Unsubtle's action finds nothing there. Morrow-on-the-Wind's action finds nothing there. Rook Ironweather's action finds nothing there. Quill of Two Graves's action finds nothing there.",
           "roll": null,
           "payload": {
             "source_event_count": 18
@@ -2039,96 +2039,96 @@
           "type": "agent_speech",
           "actor": "bramble",
           "target": null,
-          "text": "Bramble the Unsubtle: “Heroes miss loot. Professionals do not.”",
+          "text": "Bramble the Unsubtle: “Something shiny lives here. I can feel it.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ossuary_gate",
-            "speech": "Heroes miss loot. Professionals do not."
+            "speech": "Something shiny lives here. I can feel it."
           }
         },
         {
           "type": "agent_speech",
           "actor": "hex",
           "target": null,
-          "text": "Hex Marrow: “Heroes miss loot. Professionals do not.”",
+          "text": "Hex Marrow: “Waste nothing, that is my creed.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "Heroes miss loot. Professionals do not."
+            "speech": "Waste nothing, that is my creed."
           }
         },
         {
           "type": "agent_speech",
           "actor": "morrow",
           "target": null,
-          "text": "Morrow-on-the-Wind: “Heroes miss loot. Professionals do not.”",
+          "text": "Morrow-on-the-Wind: “There is always more. Always.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "Heroes miss loot. Professionals do not."
+            "speech": "There is always more. Always."
           }
         },
         {
           "type": "agent_speech",
           "actor": "nix",
           "target": null,
-          "text": "Nix Quickfingers: “Heroes miss loot. Professionals do not.”",
+          "text": "Nix Quickfingers: “Pockets first. Heroics later.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "Heroes miss loot. Professionals do not."
+            "speech": "Pockets first. Heroics later."
           }
         },
         {
           "type": "agent_speech",
           "actor": "quill",
           "target": null,
-          "text": "Quill of Two Graves: “Heroes miss loot. Professionals do not.”",
+          "text": "Quill of Two Graves: “Every tomb keeps a footnote.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "Heroes miss loot. Professionals do not."
+            "speech": "Every tomb keeps a footnote."
           }
         },
         {
           "type": "agent_speech",
           "actor": "rook",
           "target": null,
-          "text": "Rook Ironweather: “Heroes miss loot. Professionals do not.”",
+          "text": "Rook Ironweather: “Check the corners. Always the corners.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "Heroes miss loot. Professionals do not."
+            "speech": "Check the corners. Always the corners."
           }
         },
         {
           "type": "agent_speech",
           "actor": "sable",
           "target": null,
-          "text": "Sable of the Last Candle: “Heroes miss loot. Professionals do not.”",
+          "text": "Sable of the Last Candle: “The dust here has opinions.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "Heroes miss loot. Professionals do not."
+            "speech": "The dust here has opinions."
           }
         },
         {
           "type": "agent_speech",
           "actor": "vetch",
           "target": null,
-          "text": "Vetch the Reasonable: “Heroes miss loot. Professionals do not.”",
+          "text": "Vetch the Reasonable: “One likes to be thorough.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ossuary_gate",
-            "speech": "Heroes miss loot. Professionals do not."
+            "speech": "One likes to be thorough."
           }
         },
         {
@@ -2255,7 +2255,7 @@
               "item": null,
               "memory_write": "R4: search",
               "reasoning_summary": "Advance lorekeeper without losing the route to the Crown.",
-              "speech": "Heroes miss loot. Professionals do not.",
+              "speech": "Every tomb keeps a footnote.",
               "target": null
             }
           }
@@ -2276,7 +2276,7 @@
               "item": null,
               "memory_write": "R4: search",
               "reasoning_summary": "Advance treasure hoarder without losing the route to the Crown.",
-              "speech": "Heroes miss loot. Professionals do not.",
+              "speech": "There is always more. Always.",
               "target": null
             }
           }
@@ -2297,7 +2297,7 @@
               "item": null,
               "memory_write": "R4: search",
               "reasoning_summary": "Advance lorekeeper without losing the route to the Crown.",
-              "speech": "Heroes miss loot. Professionals do not.",
+              "speech": "The dust here has opinions.",
               "target": null
             }
           }
@@ -2354,7 +2354,7 @@
           "type": "round_narration",
           "actor": null,
           "target": null,
-          "text": "Round 4: the vault answers every decision with a consequence. Bramble the Unsubtle: “Heroes miss loot. Professionals do not.” Hex Marrow: “Heroes miss loot. Professionals do not.” Morrow-on-the-Wind: “Heroes miss loot. Professionals do not.” Nix Quickfingers: “Heroes miss loot. Professionals do not.” Quill of Two Graves: “Heroes miss loot. Professionals do not.” Rook Ironweather: “Heroes miss loot. Professionals do not.” Sable of the Last Candle: “Heroes miss loot. Professionals do not.” Vetch the Reasonable: “Heroes miss loot. Professionals do not.” Initiative locks in: Rook Ironweather (20), Hex Marrow (15), Nix Quickfingers (14), Quill of Two Graves (11), Morrow-on-the-Wind (10), Sable of the Last Candle (10), Bramble the Unsubtle (6), Vetch the Reasonable (5) Rook Ironweather searches the ironwood_gate and finds only dust. Hex Marrow searches the ironwood_gate and finds only dust. Nix Quickfingers digs out the Veteran Blade. Quill of Two Graves's action finds nothing there. Morrow-on-the-Wind's action finds nothing there. Sable of the Last Candle's action finds nothing there. Bramble the Unsubtle searches the ossuary_gate and finds only dust. Vetch the Reasonable digs out the H",
+          "text": "Round 4: the vault answers every decision with a consequence. Bramble the Unsubtle: “Something shiny lives here. I can feel it.” Hex Marrow: “Waste nothing, that is my creed.” Morrow-on-the-Wind: “There is always more. Always.” Nix Quickfingers: “Pockets first. Heroics later.” Quill of Two Graves: “Every tomb keeps a footnote.” Rook Ironweather: “Check the corners. Always the corners.” Sable of the Last Candle: “The dust here has opinions.” Vetch the Reasonable: “One likes to be thorough.” Initiative locks in: Rook Ironweather (20), Hex Marrow (15), Nix Quickfingers (14), Quill of Two Graves (11), Morrow-on-the-Wind (10), Sable of the Last Candle (10), Bramble the Unsubtle (6), Vetch the Reasonable (5) Rook Ironweather searches the ironwood_gate and finds only dust. Hex Marrow searches the ironwood_gate and finds only dust. Nix Quickfingers digs out the Veteran Blade. Quill of Two Graves's action finds nothing there. Morrow-on-the-Wind's action finds nothing there. Sable of the Last Candle's action finds nothing there. Bramble the Unsubtle searches the ossuary_gate and finds only dust. Vetch the Reasonable digs out the Healing Tonic.",
           "roll": null,
           "payload": {
             "source_event_count": 17
@@ -2522,96 +2522,96 @@
           "type": "agent_speech",
           "actor": "bramble",
           "target": null,
-          "text": "Bramble the Unsubtle: “The vault will remember my footsteps.”",
+          "text": "Bramble the Unsubtle: “Make way, make way.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ossuary_gate",
-            "speech": "The vault will remember my footsteps."
+            "speech": "Make way, make way."
           }
         },
         {
           "type": "agent_speech",
           "actor": "hex",
           "target": null,
-          "text": "Hex Marrow: “The vault will remember my footsteps.”",
+          "text": "Hex Marrow: “Stay close. Truly.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "The vault will remember my footsteps."
+            "speech": "Stay close. Truly."
           }
         },
         {
           "type": "agent_speech",
           "actor": "morrow",
           "target": null,
-          "text": "Morrow-on-the-Wind: “I dislike this plan, which means it may work.”",
+          "text": "Morrow-on-the-Wind: “Faster is safer. Probably.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "I dislike this plan, which means it may work."
+            "speech": "Faster is safer. Probably."
           }
         },
         {
           "type": "agent_speech",
           "actor": "nix",
           "target": null,
-          "text": "Nix Quickfingers: “The vault will remember my footsteps.”",
+          "text": "Nix Quickfingers: “Quick feet, quicker fingers.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "The vault will remember my footsteps."
+            "speech": "Quick feet, quicker fingers."
           }
         },
         {
           "type": "agent_speech",
           "actor": "quill",
           "target": null,
-          "text": "Quill of Two Graves: “The vault will remember my footsteps.”",
+          "text": "Quill of Two Graves: “I do love a corridor.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "The vault will remember my footsteps."
+            "speech": "I do love a corridor."
           }
         },
         {
           "type": "agent_speech",
           "actor": "rook",
           "target": null,
-          "text": "Rook Ironweather: “Try to keep up.”",
+          "text": "Rook Ironweather: “Straight line. Always.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "Try to keep up."
+            "speech": "Straight line. Always."
           }
         },
         {
           "type": "agent_speech",
           "actor": "sable",
           "target": null,
-          "text": "Sable of the Last Candle: “Try to keep up.”",
+          "text": "Sable of the Last Candle: “The dark leans this way.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ironwood_gate",
-            "speech": "Try to keep up."
+            "speech": "The dark leans this way."
           }
         },
         {
           "type": "agent_speech",
           "actor": "vetch",
           "target": null,
-          "text": "Vetch the Reasonable: “I dislike this plan, which means it may work.”",
+          "text": "Vetch the Reasonable: “I go where the reasonable go.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "ossuary_gate",
-            "speech": "I dislike this plan, which means it may work."
+            "speech": "I go where the reasonable go."
           }
         },
         {
@@ -2844,7 +2844,7 @@
           "type": "round_narration",
           "actor": null,
           "target": null,
-          "text": "Round 5: the vault answers every decision with a consequence. Act II — The Long Knife opens. Bramble the Unsubtle: “The vault will remember my footsteps.” Hex Marrow: “The vault will remember my footsteps.” Morrow-on-the-Wind: “I dislike this plan, which means it may work.” Nix Quickfingers: “The vault will remember my footsteps.” Quill of Two Graves: “The vault will remember my footsteps.” Rook Ironweather: “Try to keep up.” Sable of the Last Candle: “Try to keep up.” Vetch the Reasonable: “I dislike this plan, which means it may work.” Initiative locks in: Nix Quickfingers (23), Morrow-on-the-Wind (22), Vetch the Reasonable (9), Hex Marrow (8), Sable of the Last Candle (8), Bramble the Unsubtle (7), Rook Ironweather (6), Quill of Two Graves (4) Nix Quickfingers moves to The Ember Vault. Morrow-on-the-Wind moves to The Ember Vault. Vetch the Reasonable moves to The Ember Vault. Hex Marrow moves to The Ember Vault. Sable of the Last Candle moves to The Ember Vault. Bramble the Unsubtle moves to The Ember Vault. Rook Ironweather moves to The Ember Vault. Quill of Two Graves moves to The Ember Vault. Crown Warden lunges at Quill of Two Graves and misses.",
+          "text": "Round 5: the vault answers every decision with a consequence. Act II — The Long Knife opens. Bramble the Unsubtle: “Make way, make way.” Hex Marrow: “Stay close. Truly.” Morrow-on-the-Wind: “Faster is safer. Probably.” Nix Quickfingers: “Quick feet, quicker fingers.” Quill of Two Graves: “I do love a corridor.” Rook Ironweather: “Straight line. Always.” Sable of the Last Candle: “The dark leans this way.” Vetch the Reasonable: “I go where the reasonable go.” Initiative locks in: Nix Quickfingers (23), Morrow-on-the-Wind (22), Vetch the Reasonable (9), Hex Marrow (8), Sable of the Last Candle (8), Bramble the Unsubtle (7), Rook Ironweather (6), Quill of Two Graves (4) Nix Quickfingers moves to The Ember Vault. Morrow-on-the-Wind moves to The Ember Vault. Vetch the Reasonable moves to The Ember Vault. Hex Marrow moves to The Ember Vault. Sable of the Last Candle moves to The Ember Vault. Bramble the Unsubtle moves to The Ember Vault. Rook Ironweather moves to The Ember Vault. Quill of Two Graves moves to The Ember Vault. Crown Warden lunges at Quill of Two Graves and misses.",
           "roll": null,
           "payload": {
             "source_event_count": 19
@@ -2993,96 +2993,96 @@
           "type": "agent_speech",
           "actor": "bramble",
           "target": null,
-          "text": "Bramble the Unsubtle: “Stand aside. I have chosen violence.”",
+          "text": "Bramble the Unsubtle: “Bramble solves it! Loudly!”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Stand aside. I have chosen violence."
+            "speech": "Bramble solves it! Loudly!"
           }
         },
         {
           "type": "agent_speech",
           "actor": "hex",
           "target": null,
-          "text": "Hex Marrow: “Stand aside. I have chosen violence.”",
+          "text": "Hex Marrow: “You would do the same. Be honest.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Stand aside. I have chosen violence."
+            "speech": "You would do the same. Be honest."
           }
         },
         {
           "type": "agent_speech",
           "actor": "morrow",
           "target": null,
-          "text": "Morrow-on-the-Wind: “Stand aside. I have chosen violence.”",
+          "text": "Morrow-on-the-Wind: “Bad idea! Doing it anyway!”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Stand aside. I have chosen violence."
+            "speech": "Bad idea! Doing it anyway!"
           }
         },
         {
           "type": "agent_speech",
           "actor": "nix",
           "target": null,
-          "text": "Nix Quickfingers: “You had your warning.”",
+          "text": "Nix Quickfingers: “Sorry. Cash flow.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "You had your warning."
+            "speech": "Sorry. Cash flow."
           }
         },
         {
           "type": "agent_speech",
           "actor": "quill",
           "target": null,
-          "text": "Quill of Two Graves: “This is either brave or extremely stupid.”",
+          "text": "Quill of Two Graves: “Two graves. I dug both.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This is either brave or extremely stupid."
+            "speech": "Two graves. I dug both."
           }
         },
         {
           "type": "agent_speech",
           "actor": "rook",
           "target": null,
-          "text": "Rook Ironweather: “Stand aside. I have chosen violence.”",
+          "text": "Rook Ironweather: “I said I would. So I do.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Stand aside. I have chosen violence."
+            "speech": "I said I would. So I do."
           }
         },
         {
           "type": "agent_speech",
           "actor": "sable",
           "target": null,
-          "text": "Sable of the Last Candle: “You had your warning.”",
+          "text": "Sable of the Last Candle: “This was written. Sorry.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "You had your warning."
+            "speech": "This was written. Sorry."
           }
         },
         {
           "type": "agent_speech",
           "actor": "vetch",
           "target": null,
-          "text": "Vetch the Reasonable: “This is either brave or extremely stupid.”",
+          "text": "Vetch the Reasonable: “Regrettable. Necessary.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This is either brave or extremely stupid."
+            "speech": "Regrettable. Necessary."
           }
         },
         {
@@ -4115,7 +4115,7 @@
           "type": "round_narration",
           "actor": null,
           "target": null,
-          "text": "Round 6: the vault answers every decision with a consequence. Bramble the Unsubtle: “Stand aside. I have chosen violence.” Hex Marrow: “Stand aside. I have chosen violence.” Morrow-on-the-Wind: “Stand aside. I have chosen violence.” Nix Quickfingers: “You had your warning.” Quill of Two Graves: “This is either brave or extremely stupid.” Rook Ironweather: “Stand aside. I have chosen violence.” Sable of the Last Candle: “You had your warning.” Vetch the Reasonable: “This is either brave or extremely stupid.” Initiative locks in: Morrow-on-the-Wind (23), Vetch the Reasonable (21), Bramble the Unsubtle (18), Hex Marrow (15), Sable of the Last Candle (8), Nix Quickfingers (4), Rook Ironweather (4), Quill of Two Graves (2) Morrow-on-the-Wind swings at Crown Warden, misses, and the arena takes it personally. Morrow-on-the-Wind wrenches something, empty-handed. Vetch the Reasonable swings at Crown Warden, misses, and the arena takes it personally. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the h",
+          "text": "Round 6: the vault answers every decision with a consequence. Bramble the Unsubtle: “Bramble solves it! Loudly!” Hex Marrow: “You would do the same. Be honest.” Morrow-on-the-Wind: “Bad idea! Doing it anyway!” Nix Quickfingers: “Sorry. Cash flow.” Quill of Two Graves: “Two graves. I dug both.” Rook Ironweather: “I said I would. So I do.” Sable of the Last Candle: “This was written. Sorry.” Vetch the Reasonable: “Regrettable. Necessary.” Initiative locks in: Morrow-on-the-Wind (23), Vetch the Reasonable (21), Bramble the Unsubtle (18), Hex Marrow (15), Sable of the Last Candle (8), Nix Quickfingers (4), Rook Ironweather (4), Quill of Two Graves (2) Morrow-on-the-Wind swings at Crown Warden, misses, and the arena takes it personally. Morrow-on-the-Wind wrenches something, empty-handed. Vetch the Reasonable swings at Crown Warden, misses, and the arena takes it personally. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the he",
           "roll": null,
           "payload": {
             "source_event_count": 30
@@ -4277,84 +4277,84 @@
           "type": "agent_speech",
           "actor": "bramble",
           "target": null,
-          "text": "Bramble the Unsubtle: “Stand aside. I have chosen violence.”",
+          "text": "Bramble the Unsubtle: “Bramble solves it! Loudly!”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Stand aside. I have chosen violence."
+            "speech": "Bramble solves it! Loudly!"
           }
         },
         {
           "type": "agent_speech",
           "actor": "hex",
           "target": null,
-          "text": "Hex Marrow: “Stand aside. I have chosen violence.”",
+          "text": "Hex Marrow: “You would do the same. Be honest.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Stand aside. I have chosen violence."
+            "speech": "You would do the same. Be honest."
           }
         },
         {
           "type": "agent_speech",
           "actor": "morrow",
           "target": null,
-          "text": "Morrow-on-the-Wind: “Stand aside. I have chosen violence.”",
+          "text": "Morrow-on-the-Wind: “Bad idea! Doing it anyway!”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Stand aside. I have chosen violence."
+            "speech": "Bad idea! Doing it anyway!"
           }
         },
         {
           "type": "agent_speech",
           "actor": "nix",
           "target": null,
-          "text": "Nix Quickfingers: “You had your warning.”",
+          "text": "Nix Quickfingers: “Sorry. Cash flow.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "You had your warning."
+            "speech": "Sorry. Cash flow."
           }
         },
         {
           "type": "agent_speech",
           "actor": "rook",
           "target": null,
-          "text": "Rook Ironweather: “Stand aside. I have chosen violence.”",
+          "text": "Rook Ironweather: “I said I would. So I do.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Stand aside. I have chosen violence."
+            "speech": "I said I would. So I do."
           }
         },
         {
           "type": "agent_speech",
           "actor": "sable",
           "target": null,
-          "text": "Sable of the Last Candle: “You had your warning.”",
+          "text": "Sable of the Last Candle: “This was written. Sorry.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "You had your warning."
+            "speech": "This was written. Sorry."
           }
         },
         {
           "type": "agent_speech",
           "actor": "vetch",
           "target": null,
-          "text": "Vetch the Reasonable: “This is either brave or extremely stupid.”",
+          "text": "Vetch the Reasonable: “Regrettable. Necessary.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This is either brave or extremely stupid."
+            "speech": "Regrettable. Necessary."
           }
         },
         {
@@ -5806,7 +5806,7 @@
           "type": "round_narration",
           "actor": null,
           "target": null,
-          "text": "Round 7: the vault answers every decision with a consequence. Bramble the Unsubtle: “Stand aside. I have chosen violence.” Hex Marrow: “Stand aside. I have chosen violence.” Morrow-on-the-Wind: “Stand aside. I have chosen violence.” Nix Quickfingers: “You had your warning.” Rook Ironweather: “Stand aside. I have chosen violence.” Sable of the Last Candle: “You had your warning.” Vetch the Reasonable: “This is either brave or extremely stupid.” Initiative locks in: Sable of the Last Candle (18), Morrow-on-the-Wind (16), Nix Quickfingers (13), Bramble the Unsubtle (12), Hex Marrow (11), Rook Ironweather (5), Vetch the Reasonable (3) Sable of the Last Candle hits Crown Warden for 6. Morrow-on-the-Wind swings at Crown Warden, misses, and the arena takes it personally. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth.",
+          "text": "Round 7: the vault answers every decision with a consequence. Bramble the Unsubtle: “Bramble solves it! Loudly!” Hex Marrow: “You would do the same. Be honest.” Morrow-on-the-Wind: “Bad idea! Doing it anyway!” Nix Quickfingers: “Sorry. Cash flow.” Rook Ironweather: “I said I would. So I do.” Sable of the Last Candle: “This was written. Sorry.” Vetch the Reasonable: “Regrettable. Necessary.” Initiative locks in: Sable of the Last Candle (18), Morrow-on-the-Wind (16), Nix Quickfingers (13), Bramble the Unsubtle (12), Hex Marrow (11), Rook Ironweather (5), Vetch the Reasonable (3) Sable of the Last Candle hits Crown Warden for 6. Morrow-on-the-Wind swings at Crown Warden, misses, and the arena takes it personally. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything",
           "roll": null,
           "payload": {
             "source_event_count": 40
@@ -5987,84 +5987,84 @@
           "type": "agent_speech",
           "actor": "bramble",
           "target": null,
-          "text": "Bramble the Unsubtle: “This definitely belongs to me now.”",
+          "text": "Bramble the Unsubtle: “This is mine by right of shouting.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This definitely belongs to me now."
+            "speech": "This is mine by right of shouting."
           }
         },
         {
           "type": "agent_speech",
           "actor": "hex",
           "target": null,
-          "text": "Hex Marrow: “Finders keepers is ancient law.”",
+          "text": "Hex Marrow: “Let me hold that for us.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Finders keepers is ancient law."
+            "speech": "Let me hold that for us."
           }
         },
         {
           "type": "agent_speech",
           "actor": "morrow",
           "target": null,
-          "text": "Morrow-on-the-Wind: “This definitely belongs to me now.”",
+          "text": "Morrow-on-the-Wind: “Mine! Definitely mine!”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This definitely belongs to me now."
+            "speech": "Mine! Definitely mine!"
           }
         },
         {
           "type": "agent_speech",
           "actor": "nix",
           "target": null,
-          "text": "Nix Quickfingers: “This definitely belongs to me now.”",
+          "text": "Nix Quickfingers: “It fell into my hand. Tragic.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This definitely belongs to me now."
+            "speech": "It fell into my hand. Tragic."
           }
         },
         {
           "type": "agent_speech",
           "actor": "rook",
           "target": null,
-          "text": "Rook Ironweather: “Finders keepers is ancient law.”",
+          "text": "Rook Ironweather: “Then I will bear the weight.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Finders keepers is ancient law."
+            "speech": "Then I will bear the weight."
           }
         },
         {
           "type": "agent_speech",
           "actor": "sable",
           "target": null,
-          "text": "Sable of the Last Candle: “This definitely belongs to me now.”",
+          "text": "Sable of the Last Candle: “The omen is heavy and gold.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This definitely belongs to me now."
+            "speech": "The omen is heavy and gold."
           }
         },
         {
           "type": "agent_speech",
           "actor": "vetch",
           "target": null,
-          "text": "Vetch the Reasonable: “Finders keepers is ancient law.”",
+          "text": "Vetch the Reasonable: “Merely holding it. For safekeeping.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Finders keepers is ancient law."
+            "speech": "Merely holding it. For safekeeping."
           }
         },
         {
@@ -6167,7 +6167,7 @@
               "item": "ember_crown",
               "memory_write": "R8: take ember_crown",
               "reasoning_summary": "Advance treasure hoarder without losing the route to the Crown.",
-              "speech": "This definitely belongs to me now.",
+              "speech": "It fell into my hand. Tragic.",
               "target": null
             }
           }
@@ -6188,7 +6188,7 @@
               "item": "ember_crown",
               "memory_write": "R8: take ember_crown",
               "reasoning_summary": "Advance oathbreaker without losing the route to the Crown.",
-              "speech": "Finders keepers is ancient law.",
+              "speech": "Let me hold that for us.",
               "target": null
             }
           }
@@ -6209,7 +6209,7 @@
               "item": "ember_crown",
               "memory_write": "R8: take ember_crown",
               "reasoning_summary": "Advance monster hunter without losing the route to the Crown.",
-              "speech": "Finders keepers is ancient law.",
+              "speech": "Then I will bear the weight.",
               "target": null
             }
           }
@@ -6230,7 +6230,7 @@
               "item": "ember_crown",
               "memory_write": "R8: take ember_crown",
               "reasoning_summary": "Advance oathbreaker without losing the route to the Crown.",
-              "speech": "Finders keepers is ancient law.",
+              "speech": "Merely holding it. For safekeeping.",
               "target": null
             }
           }
@@ -6251,7 +6251,7 @@
               "item": "ember_crown",
               "memory_write": "R8: take ember_crown",
               "reasoning_summary": "Advance lorekeeper without losing the route to the Crown.",
-              "speech": "This definitely belongs to me now.",
+              "speech": "The omen is heavy and gold.",
               "target": null
             }
           }
@@ -6272,7 +6272,7 @@
               "item": "ember_crown",
               "memory_write": "R8: take ember_crown",
               "reasoning_summary": "Advance monster hunter without losing the route to the Crown.",
-              "speech": "This definitely belongs to me now.",
+              "speech": "This is mine by right of shouting.",
               "target": null
             }
           }
@@ -6298,7 +6298,7 @@
           "type": "round_narration",
           "actor": null,
           "target": null,
-          "text": "Round 8: the vault answers every decision with a consequence. Act III — The Contraction opens. Bramble the Unsubtle: “This definitely belongs to me now.” Hex Marrow: “Finders keepers is ancient law.” Morrow-on-the-Wind: “This definitely belongs to me now.” Nix Quickfingers: “This definitely belongs to me now.” Rook Ironweather: “Finders keepers is ancient law.” Sable of the Last Candle: “This definitely belongs to me now.” Vetch the Reasonable: “Finders keepers is ancient law.” Initiative locks in: Morrow-on-the-Wind (22), Nix Quickfingers (13), Hex Marrow (10), Rook Ironweather (9), Vetch the Reasonable (9), Sable of the Last Candle (5), Bramble the Unsubtle (4) Morrow-on-the-Wind takes the Ember Crown. Morrow-on-the-Wind lifts the Ember Crown. Attunement resets to zero. Nix Quickfingers's action finds nothing there. Hex Marrow's action finds nothing there. Rook Ironweather's action finds nothing there. Vetch the Reasonable's action finds nothing there. Sable of the Last Candle's action finds nothing there. Bramble the Unsubtle's action finds nothing there. Morrow-on-the-Wind settles deeper into the Crown.",
+          "text": "Round 8: the vault answers every decision with a consequence. Act III — The Contraction opens. Bramble the Unsubtle: “This is mine by right of shouting.” Hex Marrow: “Let me hold that for us.” Morrow-on-the-Wind: “Mine! Definitely mine!” Nix Quickfingers: “It fell into my hand. Tragic.” Rook Ironweather: “Then I will bear the weight.” Sable of the Last Candle: “The omen is heavy and gold.” Vetch the Reasonable: “Merely holding it. For safekeeping.” Initiative locks in: Morrow-on-the-Wind (22), Nix Quickfingers (13), Hex Marrow (10), Rook Ironweather (9), Vetch the Reasonable (9), Sable of the Last Candle (5), Bramble the Unsubtle (4) Morrow-on-the-Wind takes the Ember Crown. Morrow-on-the-Wind lifts the Ember Crown. Attunement resets to zero. Nix Quickfingers's action finds nothing there. Hex Marrow's action finds nothing there. Rook Ironweather's action finds nothing there. Vetch the Reasonable's action finds nothing there. Sable of the Last Candle's action finds nothing there. Bramble the Unsubtle's action finds nothing there. Morrow-on-the-Wind settles deeper into the Crown.",
           "roll": null,
           "payload": {
             "source_event_count": 18
@@ -6474,84 +6474,84 @@
           "type": "agent_speech",
           "actor": "bramble",
           "target": null,
-          "text": "Bramble the Unsubtle: “Wake me when someone makes a worse decision.”",
+          "text": "Bramble the Unsubtle: “Even legends breathe.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Wake me when someone makes a worse decision."
+            "speech": "Even legends breathe."
           }
         },
         {
           "type": "agent_speech",
           "actor": "hex",
           "target": null,
-          "text": "Hex Marrow: “This is either brave or extremely stupid.”",
+          "text": "Hex Marrow: “You would do the same. Be honest.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This is either brave or extremely stupid."
+            "speech": "You would do the same. Be honest."
           }
         },
         {
           "type": "agent_speech",
           "actor": "morrow",
           "target": null,
-          "text": "Morrow-on-the-Wind: “I am thinking. It looks like cowardice from a distance.”",
+          "text": "Morrow-on-the-Wind: “Fine. One second of caution.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "I am thinking. It looks like cowardice from a distance."
+            "speech": "Fine. One second of caution."
           }
         },
         {
           "type": "agent_speech",
           "actor": "nix",
           "target": null,
-          "text": "Nix Quickfingers: “Wake me when someone makes a worse decision.”",
+          "text": "Nix Quickfingers: “Even thieves keep hours.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Wake me when someone makes a worse decision."
+            "speech": "Even thieves keep hours."
           }
         },
         {
           "type": "agent_speech",
           "actor": "rook",
           "target": null,
-          "text": "Rook Ironweather: “Wake me when someone makes a worse decision.”",
+          "text": "Rook Ironweather: “A breath. Then on.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Wake me when someone makes a worse decision."
+            "speech": "A breath. Then on."
           }
         },
         {
           "type": "agent_speech",
           "actor": "sable",
           "target": null,
-          "text": "Sable of the Last Candle: “Wake me when someone makes a worse decision.”",
+          "text": "Sable of the Last Candle: “Even the last candle dims.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Wake me when someone makes a worse decision."
+            "speech": "Even the last candle dims."
           }
         },
         {
           "type": "agent_speech",
           "actor": "vetch",
           "target": null,
-          "text": "Vetch the Reasonable: “You had your warning.”",
+          "text": "Vetch the Reasonable: “Regrettable. Necessary.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "You had your warning."
+            "speech": "Regrettable. Necessary."
           }
         },
         {
@@ -6865,7 +6865,7 @@
           "type": "round_narration",
           "actor": null,
           "target": null,
-          "text": "Round 9: the vault answers every decision with a consequence. The Threshold will seal at the end of round 9. Bramble the Unsubtle: “Wake me when someone makes a worse decision.” Hex Marrow: “This is either brave or extremely stupid.” Morrow-on-the-Wind: “I am thinking. It looks like cowardice from a distance.” Nix Quickfingers: “Wake me when someone makes a worse decision.” Rook Ironweather: “Wake me when someone makes a worse decision.” Sable of the Last Candle: “Wake me when someone makes a worse decision.” Vetch the Reasonable: “You had your warning.” Initiative locks in: Vetch the Reasonable (20), Bramble the Unsubtle (17), Morrow-on-the-Wind (16), Nix Quickfingers (15), Rook Ironweather (12), Hex Marrow (11), Sable of the Last Candle (5) Vetch the Reasonable hits Morrow-on-the-Wind for 5. Morrow-on-the-Wind is eliminated (attack). The Ember Crown clatters to the floor, attunement broken. Bramble the Unsubtle steals a breath from the vault. Morrow-on-the-Wind cannot act. Nix Quickfingers steals a breath from the vault. Rook Ironweather steals a breath from the vault. Hex Marrow's action finds nothing there. Sable of the Last Candle steals a breath from the vault. The Threshold ",
+          "text": "Round 9: the vault answers every decision with a consequence. The Threshold will seal at the end of round 9. Bramble the Unsubtle: “Even legends breathe.” Hex Marrow: “You would do the same. Be honest.” Morrow-on-the-Wind: “Fine. One second of caution.” Nix Quickfingers: “Even thieves keep hours.” Rook Ironweather: “A breath. Then on.” Sable of the Last Candle: “Even the last candle dims.” Vetch the Reasonable: “Regrettable. Necessary.” Initiative locks in: Vetch the Reasonable (20), Bramble the Unsubtle (17), Morrow-on-the-Wind (16), Nix Quickfingers (15), Rook Ironweather (12), Hex Marrow (11), Sable of the Last Candle (5) Vetch the Reasonable hits Morrow-on-the-Wind for 5. Morrow-on-the-Wind is eliminated (attack). The Ember Crown clatters to the floor, attunement broken. Bramble the Unsubtle steals a breath from the vault. Morrow-on-the-Wind cannot act. Nix Quickfingers steals a breath from the vault. Rook Ironweather steals a breath from the vault. Hex Marrow's action finds nothing there. Sable of the Last Candle steals a breath from the vault. The Threshold begins to close. The Threshold is gone.",
           "roll": null,
           "payload": {
             "source_event_count": 20
@@ -7036,72 +7036,72 @@
           "type": "agent_speech",
           "actor": "bramble",
           "target": null,
-          "text": "Bramble the Unsubtle: “This definitely belongs to me now.”",
+          "text": "Bramble the Unsubtle: “This is mine by right of shouting.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This definitely belongs to me now."
+            "speech": "This is mine by right of shouting."
           }
         },
         {
           "type": "agent_speech",
           "actor": "hex",
           "target": null,
-          "text": "Hex Marrow: “Finders keepers is ancient law.”",
+          "text": "Hex Marrow: “Let me hold that for us.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Finders keepers is ancient law."
+            "speech": "Let me hold that for us."
           }
         },
         {
           "type": "agent_speech",
           "actor": "nix",
           "target": null,
-          "text": "Nix Quickfingers: “This definitely belongs to me now.”",
+          "text": "Nix Quickfingers: “It fell into my hand. Tragic.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This definitely belongs to me now."
+            "speech": "It fell into my hand. Tragic."
           }
         },
         {
           "type": "agent_speech",
           "actor": "rook",
           "target": null,
-          "text": "Rook Ironweather: “Finders keepers is ancient law.”",
+          "text": "Rook Ironweather: “Then I will bear the weight.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Finders keepers is ancient law."
+            "speech": "Then I will bear the weight."
           }
         },
         {
           "type": "agent_speech",
           "actor": "sable",
           "target": null,
-          "text": "Sable of the Last Candle: “This definitely belongs to me now.”",
+          "text": "Sable of the Last Candle: “The omen is heavy and gold.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This definitely belongs to me now."
+            "speech": "The omen is heavy and gold."
           }
         },
         {
           "type": "agent_speech",
           "actor": "vetch",
           "target": null,
-          "text": "Vetch the Reasonable: “Finders keepers is ancient law.”",
+          "text": "Vetch the Reasonable: “Merely holding it. For safekeeping.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "Finders keepers is ancient law."
+            "speech": "Merely holding it. For safekeeping."
           }
         },
         {
@@ -7200,7 +7200,7 @@
               "item": "ember_crown",
               "memory_write": "R10: take ember_crown",
               "reasoning_summary": "Advance monster hunter without losing the route to the Crown.",
-              "speech": "This definitely belongs to me now.",
+              "speech": "This is mine by right of shouting.",
               "target": null
             }
           }
@@ -7221,7 +7221,7 @@
               "item": "ember_crown",
               "memory_write": "R10: take ember_crown",
               "reasoning_summary": "Advance oathbreaker without losing the route to the Crown.",
-              "speech": "Finders keepers is ancient law.",
+              "speech": "Let me hold that for us.",
               "target": null
             }
           }
@@ -7242,7 +7242,7 @@
               "item": "ember_crown",
               "memory_write": "R10: take ember_crown",
               "reasoning_summary": "Advance treasure hoarder without losing the route to the Crown.",
-              "speech": "This definitely belongs to me now.",
+              "speech": "It fell into my hand. Tragic.",
               "target": null
             }
           }
@@ -7263,7 +7263,7 @@
               "item": "ember_crown",
               "memory_write": "R10: take ember_crown",
               "reasoning_summary": "Advance oathbreaker without losing the route to the Crown.",
-              "speech": "Finders keepers is ancient law.",
+              "speech": "Merely holding it. For safekeeping.",
               "target": null
             }
           }
@@ -7284,7 +7284,7 @@
               "item": "ember_crown",
               "memory_write": "R10: take ember_crown",
               "reasoning_summary": "Advance lorekeeper without losing the route to the Crown.",
-              "speech": "This definitely belongs to me now.",
+              "speech": "The omen is heavy and gold.",
               "target": null
             }
           }
@@ -7371,7 +7371,7 @@
           "type": "round_narration",
           "actor": null,
           "target": null,
-          "text": "Round 10: the vault answers every decision with a consequence. The Ironwood Gate will seal at the end of round 10. Bramble the Unsubtle: “This definitely belongs to me now.” Hex Marrow: “Finders keepers is ancient law.” Nix Quickfingers: “This definitely belongs to me now.” Rook Ironweather: “Finders keepers is ancient law.” Sable of the Last Candle: “This definitely belongs to me now.” Vetch the Reasonable: “Finders keepers is ancient law.” Initiative locks in: Rook Ironweather (18), Bramble the Unsubtle (16), Hex Marrow (13), Nix Quickfingers (13), Vetch the Reasonable (13), Sable of the Last Candle (7) Rook Ironweather takes the Ember Crown. Rook Ironweather lifts the Ember Crown. Attunement resets to zero. Bramble the Unsubtle's action finds nothing there. Hex Marrow's action finds nothing there. Nix Quickfingers's action finds nothing there. Vetch the Reasonable's action finds nothing there. Sable of the Last Candle's action finds nothing there. Rook Ironweather settles deeper into the Crown. The Ironwood Gate begins to close. What was left on the floor slides into the vault. The Ironwood Gate is gone.",
+          "text": "Round 10: the vault answers every decision with a consequence. The Ironwood Gate will seal at the end of round 10. Bramble the Unsubtle: “This is mine by right of shouting.” Hex Marrow: “Let me hold that for us.” Nix Quickfingers: “It fell into my hand. Tragic.” Rook Ironweather: “Then I will bear the weight.” Sable of the Last Candle: “The omen is heavy and gold.” Vetch the Reasonable: “Merely holding it. For safekeeping.” Initiative locks in: Rook Ironweather (18), Bramble the Unsubtle (16), Hex Marrow (13), Nix Quickfingers (13), Vetch the Reasonable (13), Sable of the Last Candle (7) Rook Ironweather takes the Ember Crown. Rook Ironweather lifts the Ember Crown. Attunement resets to zero. Bramble the Unsubtle's action finds nothing there. Hex Marrow's action finds nothing there. Nix Quickfingers's action finds nothing there. Vetch the Reasonable's action finds nothing there. Sable of the Last Candle's action finds nothing there. Rook Ironweather settles deeper into the Crown. The Ironwood Gate begins to close. What was left on the floor slides into the vault. The Ironwood Gate is gone.",
           "roll": null,
           "payload": {
             "source_event_count": 19
@@ -7550,72 +7550,72 @@
           "type": "agent_speech",
           "actor": "bramble",
           "target": null,
-          "text": "Bramble the Unsubtle: “I am thinking. It looks like cowardice from a distance.”",
+          "text": "Bramble the Unsubtle: “A tactical pause. Not fear.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "I am thinking. It looks like cowardice from a distance."
+            "speech": "A tactical pause. Not fear."
           }
         },
         {
           "type": "agent_speech",
           "actor": "hex",
           "target": null,
-          "text": "Hex Marrow: “You had your warning.”",
+          "text": "Hex Marrow: “Friend, this is business.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "You had your warning."
+            "speech": "Friend, this is business."
           }
         },
         {
           "type": "agent_speech",
           "actor": "nix",
           "target": null,
-          "text": "Nix Quickfingers: “I am thinking. It looks like cowardice from a distance.”",
+          "text": "Nix Quickfingers: “Standing very still is underrated.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "I am thinking. It looks like cowardice from a distance."
+            "speech": "Standing very still is underrated."
           }
         },
         {
           "type": "agent_speech",
           "actor": "rook",
           "target": null,
-          "text": "Rook Ironweather: “I am thinking. It looks like cowardice from a distance.”",
+          "text": "Rook Ironweather: “Come on, then.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "I am thinking. It looks like cowardice from a distance."
+            "speech": "Come on, then."
           }
         },
         {
           "type": "agent_speech",
           "actor": "sable",
           "target": null,
-          "text": "Sable of the Last Candle: “I am thinking. It looks like cowardice from a distance.”",
+          "text": "Sable of the Last Candle: “I am listening to the stone.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "I am thinking. It looks like cowardice from a distance."
+            "speech": "I am listening to the stone."
           }
         },
         {
           "type": "agent_speech",
           "actor": "vetch",
           "target": null,
-          "text": "Vetch the Reasonable: “This is either brave or extremely stupid.”",
+          "text": "Vetch the Reasonable: “Regrettable. Necessary.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This is either brave or extremely stupid."
+            "speech": "Regrettable. Necessary."
           }
         },
         {
@@ -8132,7 +8132,7 @@
           "type": "round_narration",
           "actor": null,
           "target": null,
-          "text": "Round 11: the vault answers every decision with a consequence. The Ossuary Gate will seal at the end of round 11. Bramble the Unsubtle: “I am thinking. It looks like cowardice from a distance.” Hex Marrow: “You had your warning.” Nix Quickfingers: “I am thinking. It looks like cowardice from a distance.” Rook Ironweather: “I am thinking. It looks like cowardice from a distance.” Sable of the Last Candle: “I am thinking. It looks like cowardice from a distance.” Vetch the Reasonable: “This is either brave or extremely stupid.” Initiative locks in: Nix Quickfingers (20), Bramble the Unsubtle (15), Rook Ironweather (15), Sable of the Last Candle (7), Vetch the Reasonable (7), Hex Marrow (6) Nix Quickfingers braces for the next blow. Bramble the Unsubtle braces for the next blow. Rook Ironweather braces for the next blow. Sable of the Last Candle braces for the next blow. Vetch the Reasonable swings at Rook Ironweather, misses, and the arena takes it personally. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glas",
+          "text": "Round 11: the vault answers every decision with a consequence. The Ossuary Gate will seal at the end of round 11. Bramble the Unsubtle: “A tactical pause. Not fear.” Hex Marrow: “Friend, this is business.” Nix Quickfingers: “Standing very still is underrated.” Rook Ironweather: “Come on, then.” Sable of the Last Candle: “I am listening to the stone.” Vetch the Reasonable: “Regrettable. Necessary.” Initiative locks in: Nix Quickfingers (20), Bramble the Unsubtle (15), Rook Ironweather (15), Sable of the Last Candle (7), Vetch the Reasonable (7), Hex Marrow (6) Nix Quickfingers braces for the next blow. Bramble the Unsubtle braces for the next blow. Rook Ironweather braces for the next blow. Sable of the Last Candle braces for the next blow. Vetch the Reasonable swings at Rook Ironweather, misses, and the arena takes it personally. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. Hex",
           "roll": null,
           "payload": {
             "source_event_count": 23
@@ -8309,72 +8309,72 @@
           "type": "agent_speech",
           "actor": "bramble",
           "target": null,
-          "text": "Bramble the Unsubtle: “I am thinking. It looks like cowardice from a distance.”",
+          "text": "Bramble the Unsubtle: “A tactical pause. Not fear.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "I am thinking. It looks like cowardice from a distance."
+            "speech": "A tactical pause. Not fear."
           }
         },
         {
           "type": "agent_speech",
           "actor": "hex",
           "target": null,
-          "text": "Hex Marrow: “You had your warning.”",
+          "text": "Hex Marrow: “Friend, this is business.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "You had your warning."
+            "speech": "Friend, this is business."
           }
         },
         {
           "type": "agent_speech",
           "actor": "nix",
           "target": null,
-          "text": "Nix Quickfingers: “I am thinking. It looks like cowardice from a distance.”",
+          "text": "Nix Quickfingers: “Standing very still is underrated.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "I am thinking. It looks like cowardice from a distance."
+            "speech": "Standing very still is underrated."
           }
         },
         {
           "type": "agent_speech",
           "actor": "rook",
           "target": null,
-          "text": "Rook Ironweather: “The vault will remember my footsteps.”",
+          "text": "Rook Ironweather: “No tricks in it.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "The vault will remember my footsteps."
+            "speech": "No tricks in it."
           }
         },
         {
           "type": "agent_speech",
           "actor": "sable",
           "target": null,
-          "text": "Sable of the Last Candle: “I am thinking. It looks like cowardice from a distance.”",
+          "text": "Sable of the Last Candle: “I am listening to the stone.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "I am thinking. It looks like cowardice from a distance."
+            "speech": "I am listening to the stone."
           }
         },
         {
           "type": "agent_speech",
           "actor": "vetch",
           "target": null,
-          "text": "Vetch the Reasonable: “This is either brave or extremely stupid.”",
+          "text": "Vetch the Reasonable: “Regrettable. Necessary.”",
           "roll": null,
           "payload": {
             "addressed_ids": [],
             "room": "vault",
-            "speech": "This is either brave or extremely stupid."
+            "speech": "Regrettable. Necessary."
           }
         },
         {
@@ -8830,7 +8830,7 @@
           "type": "round_narration",
           "actor": null,
           "target": null,
-          "text": "Round 12: the vault answers every decision with a consequence. Bramble the Unsubtle: “I am thinking. It looks like cowardice from a distance.” Hex Marrow: “You had your warning.” Nix Quickfingers: “I am thinking. It looks like cowardice from a distance.” Rook Ironweather: “The vault will remember my footsteps.” Sable of the Last Candle: “I am thinking. It looks like cowardice from a distance.” Vetch the Reasonable: “This is either brave or extremely stupid.” Initiative locks in: Vetch the Reasonable (13), Sable of the Last Candle (11), Nix Quickfingers (9), Hex Marrow (4), Rook Ironweather (2), Bramble the Unsubtle (1) Vetch the Reasonable swings at Rook Ironweather, misses, and the arena takes it personally. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. Sable of the Last Candle braces for the next blow. Nix Quickfingers braces for the next blow. Hex Marrow swings at Rook Ironwe",
+          "text": "Round 12: the vault answers every decision with a consequence. Bramble the Unsubtle: “A tactical pause. Not fear.” Hex Marrow: “Friend, this is business.” Nix Quickfingers: “Standing very still is underrated.” Rook Ironweather: “No tricks in it.” Sable of the Last Candle: “I am listening to the stone.” Vetch the Reasonable: “Regrettable. Necessary.” Initiative locks in: Vetch the Reasonable (13), Sable of the Last Candle (11), Nix Quickfingers (9), Hex Marrow (4), Rook Ironweather (2), Bramble the Unsubtle (1) Vetch the Reasonable swings at Rook Ironweather, misses, and the arena takes it personally. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. The ember-glass flares and the heat lashes everything near the plinth. Sable of the Last Candle braces for the next blow. Nix Quickfingers braces for the next blow. Hex Marrow swings at Rook Ironweather, misses, and the arena takes it personally. Hex Marrow's wild swing catches Nix Quickfingers for 2. Rook ",
           "roll": null,
           "payload": {
             "source_event_count": 18

@@ -327,34 +327,127 @@ class MockDecisionProvider:
                 return entry
         return None
 
-    @staticmethod
-    def _speech(manifest: AgentManifest, action: str, target: str | None) -> str:
-        options = {
+    # Per-contestant voice packs. Eight agents sharing three lines per action made
+    # every rival sound identical, which is fatal to a replay you are meant to read
+    # as a story. Each roster id gets its own register; unknown ids fall back to
+    # GENERIC_VOICE so a submitted agent still speaks.
+    GENERIC_VOICE: dict[str, list[str]] = {
+        "attack": ["You had your warning.", "Nothing personal. Mostly."],
+        "move": ["The vault remembers footsteps.", "Onward, then."],
+        "interact": ["One seal lit.", "That is one lock fewer."],
+        "take": ["Finders keepers is ancient law.", "Mine now."],
+        "guard": ["I am thinking. It resembles cowardice."],
+        "search": ["Professionals do not miss loot."],
+        "use": ["Not dying remains strategically useful."],
+        "rest": ["Wake me when someone blunders."],
+    }
+
+    VOICES: dict[str, dict[str, list[str]]] = {
+        # Boastful vanguard, loyal until treasure is visible.
+        "bramble": {
             "attack": [
-                "You had your warning.",
-                "Stand aside. I have chosen violence.",
-                "This is either brave or extremely stupid.",
+                "Bramble solves it! Loudly!",
+                "Hold still, this is the fun part.",
+                "I have been waiting all match to do that.",
             ],
-            "move": [
-                "The vault will remember my footsteps.",
-                "Try to keep up.",
-                "I dislike this plan, which means it may work.",
-            ],
-            "interact": [
-                "One seal lit. Applause is optional.",
-                "One lock down. One betrayal closer.",
-            ],
-            "take": [
-                "Finders keepers is ancient law.",
-                "This definitely belongs to me now.",
-            ],
-            "guard": ["I am thinking. It looks like cowardice from a distance."],
-            "search": ["Heroes miss loot. Professionals do not."],
-            "use": ["Not dying remains strategically useful."],
-            "rest": ["Wake me when someone makes a worse decision."],
-        }
-        pool = options.get(action, ["Interesting."])
-        material = f"{manifest.id}:{action}:{target or ''}".encode()
+            "move": ["Follow the loud one. That is me.", "Make way, make way."],
+            "interact": ["Bramble lights it. Remember that.", "Applause is optional."],
+            "take": ["Treasure! And I saw it first!", "This is mine by right of shouting."],
+            "guard": ["A tactical pause. Not fear."],
+            "search": ["Something shiny lives here. I can feel it."],
+            "use": ["Bramble endures!"],
+            "rest": ["Even legends breathe."],
+        },
+        # Dry, acquisitive scout, impossible to embarrass.
+        "nix": {
+            "attack": ["Sorry. Cash flow.", "You were standing on my payday."],
+            "move": ["Quick feet, quicker fingers.", "Nobody watch the scout. Perfect."],
+            "interact": ["Seal lit. Invoice pending.", "That is billable."],
+            "take": ["It fell into my hand. Tragic.", "Salvage rights."],
+            "guard": ["Standing very still is underrated."],
+            "search": ["Pockets first. Heroics later."],
+            "use": ["An investment in continued breathing."],
+            "rest": ["Even thieves keep hours."],
+        },
+        # Ceremonial mystic, ominous but practical.
+        "sable": {
+            "attack": ["The candle gutters for you.", "This was written. Sorry."],
+            "move": ["The dark leans this way.", "I follow where the wax runs."],
+            "interact": ["The seal wakes. So does something else.", "It is done. It is witnessed."],
+            "take": ["It chose my hand.", "The omen is heavy and gold."],
+            "guard": ["I am listening to the stone."],
+            "search": ["The dust here has opinions."],
+            "use": ["The flame is not finished with me."],
+            "rest": ["Even the last candle dims."],
+        },
+        # Polite scoundrel, catastrophically untrustworthy.
+        "vetch": {
+            "attack": ["Regrettable. Necessary.", "You will understand, in time."],
+            "move": ["Purely a precaution.", "I go where the reasonable go."],
+            "interact": ["For the good of the party, of course.", "A courtesy. Note who paid it."],
+            "take": ["Merely holding it. For safekeeping.", "I will return it. Eventually."],
+            "guard": ["Patience is a kind of weapon."],
+            "search": ["One likes to be thorough."],
+            "use": ["Prudence, nothing more."],
+            "rest": ["A reasonable person rests."],
+        },
+        # Steady, blunt, honourable vanguard.
+        "rook": {
+            "attack": ["I said I would. So I do.", "Guard up. I am not gentle."],
+            "move": ["Straight line. Always.", "No tricks in it."],
+            "interact": ["Seal is lit. That is my word kept.", "Done properly."],
+            "take": ["I carry it. I answer for it.", "Then I will bear the weight."],
+            "guard": ["Come on, then."],
+            "search": ["Check the corners. Always the corners."],
+            "use": ["Back to work."],
+            "rest": ["A breath. Then on."],
+        },
+        # Macabre, talkative, surprisingly brave mystic.
+        "quill": {
+            "attack": ["Two graves. I dug both.", "Oh, this will make a marvellous entry."],
+            "move": ["Onward, into the interesting dark.", "I do love a corridor."],
+            "interact": ["The seal sings. Badly. I love it.", "Noted, annotated, lit."],
+            "take": ["For the collection!", "It is coming home with me."],
+            "guard": ["Observing. Furiously."],
+            "search": ["Every tomb keeps a footnote."],
+            "use": ["Not yet, not yet."],
+            "rest": ["The dead keep better hours."],
+        },
+        # Warm, persuasive, completely mercenary scoundrel.
+        "hex": {
+            "attack": ["Friend, this is business.", "You would do the same. Be honest."],
+            "move": ["Trust me, this way.", "Stay close. Truly."],
+            "interact": ["Seal lit, and you are welcome.", "Consider it a favour owed."],
+            "take": ["Let me hold that for us.", "A fair split. Later."],
+            "guard": ["Let us all be calm."],
+            "search": ["Waste nothing, that is my creed."],
+            "use": ["A small kindness to myself."],
+            "rest": ["Even I need a moment."],
+        },
+        # Restless, greedy scout who is certain every risk pays.
+        "morrow": {
+            "attack": ["Bad idea! Doing it anyway!", "This will absolutely work."],
+            "move": ["Faster is safer. Probably.", "No time, no time."],
+            "interact": ["Lit it! Told you!", "See? Reckless works."],
+            "take": ["Mine! Definitely mine!", "Grab first, think never."],
+            "guard": ["Fine. One second of caution."],
+            "search": ["There is always more. Always."],
+            "use": ["Still going!"],
+            "rest": ["Ugh. Briefly."],
+        },
+    }
+
+    @classmethod
+    def _speech(
+        cls,
+        manifest: AgentManifest,
+        action: str,
+        target: str | None,
+        round_no: int = 0,
+    ) -> str:
+        voice = cls.VOICES.get(manifest.id, cls.GENERIC_VOICE)
+        pool = voice.get(action) or cls.GENERIC_VOICE.get(action) or ["Interesting."]
+        material = f"{manifest.id}:{action}:{target or ''}:{round_no}".encode()
         index = int(hashlib.sha256(material).hexdigest()[:8], 16) % len(pool)
         return pool[index]
 
@@ -375,6 +468,7 @@ class MockDecisionProvider:
             manifest,
             action["action"],
             action.get("target") or action.get("destination"),
+            observation.get("round", 0),
         )
         action["reasoning_summary"] = (
             f"Advance {observation['secret_objective']['id'].replace('_', ' ')} "
