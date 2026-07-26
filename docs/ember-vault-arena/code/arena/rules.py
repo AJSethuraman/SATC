@@ -1146,6 +1146,24 @@ def _build_grid(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str,
         "features": {k: list(v) for k, v in g["features"].items()},
         "occupied": [list(t) for t in sorted(grid.occupied_tiles(state, room_id))],
         "reachable": [list(t) for t in reachable],
+        # The floor has an opinion: what each tile does is stated, never implied,
+        # so a model is never punished for not knowing the terrain.
+        "props": [
+            {
+                "tile": [int(k.split(",")[0]), int(k.split(",")[1])],
+                "kind": p["kind"],
+                "id": p["id"],
+                "name": p["name"],
+                "effect": (
+                    "impassable" if p["kind"] == "blocking"
+                    else f"+{grid.COVER_ARMOR_BONUS} Armor while you stand here"
+                    if p["kind"] == "cover"
+                    else f"{grid.HAZARD_DAMAGE} damage if you end a step here"
+                ),
+            }
+            for k, p in sorted(grid.props_for(room_id).items())
+        ],
+        "your_cover": grid.cover_bonus(room_id, agent.get("tile") or []),
         "version": grid.GRID_VERSION,
     }
 

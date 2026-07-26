@@ -91,6 +91,18 @@ svg.board{display:block; width:100%; height:auto;}
   text-transform:uppercase; font-family:var(--sans);}
 .chamber.active text.rn{fill:var(--ember);}
 .cell{fill:rgba(255,255,255,.022); stroke:rgba(255,255,255,.05); stroke-width:.7;}
+.prop .pshape{stroke-width:1;}
+.prop.blocking .pshape{fill:#3b3128; stroke:#54463a;}
+.prop.cover .pshape{fill:rgba(79,199,159,.20); stroke:var(--verd);}
+.prop.hazard .pshape{fill:rgba(224,68,44,.14); stroke:var(--kiln);}
+.prop.hazard .pcore{fill:var(--kiln); opacity:.85;}
+.legend{display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--ash);
+  align-items:center;}
+.legend i{width:9px; height:9px; display:inline-block; margin-right:5px;
+  vertical-align:-1px; border:1px solid;}
+.legend i.blk{background:#3b3128; border-color:#54463a;}
+.legend i.cov{background:rgba(79,199,159,.20); border-color:var(--verd); border-radius:50% 50% 2px 2px;}
+.legend i.haz{background:rgba(224,68,44,.30); border-color:var(--kiln); border-radius:50%;}
 .cell.door{fill:rgba(255,138,36,.10); stroke:rgba(255,138,36,.30);}
 .cell.feat{fill:rgba(79,199,159,.11); stroke:rgba(79,199,159,.30);}
 .corridor{stroke:var(--edge); stroke-width:9; stroke-linecap:round; fill:none;
@@ -163,6 +175,11 @@ button.b[aria-pressed="true"]{border-color:var(--ember); color:var(--ember);}
     <button class="b" id="next" type="button" aria-label="Next beat">&rarr;</button>
     <button class="b" id="rst" type="button">Restart</button>
     <div class="prog"><i id="bar"></i></div><div class="cnt" id="cnt"></div>
+  </div>
+  <div class="legend">
+    <span><i class="blk"></i>impassable</span>
+    <span><i class="cov"></i>cover &mdash; +1 Armor</span>
+    <span><i class="haz"></i>hazard &mdash; 1 damage on entry</span>
   </div>
   <div class="hint">Space plays and pauses &middot; arrows step &middot; sprites walk the same rooms the referee recorded</div>
   <div class="final" id="final"><h2>Final Standing</h2><div id="places"></div></div>
@@ -264,6 +281,27 @@ function buildBoard(){
           cell.dataset.room = rid; cell.dataset.tile = cx + "," + cy;
           cells.appendChild(cell);
         }
+      }
+      // Props: terrain the rules actually read, drawn so the board explains
+      // itself without a legend lookup.
+      for (const pr of (gd.props || [])){
+        const c = tileXY(rid, pr.tile);
+        const pg = el("g", { class:"prop " + pr.kind });
+        const s2 = Math.min(cw, ch) * .42;
+        if (pr.kind === "blocking"){
+          pg.appendChild(el("rect", { x:c.x-s2, y:c.y-s2, width:s2*2, height:s2*2,
+            rx:1.5, class:"pshape" }));
+        } else if (pr.kind === "cover"){
+          pg.appendChild(el("path", {
+            d:"M"+(c.x-s2)+","+(c.y+s2)+" L"+(c.x-s2)+","+(c.y-s2*.2)+" L"+c.x+","+(c.y-s2)
+              +" L"+(c.x+s2)+","+(c.y-s2*.2)+" L"+(c.x+s2)+","+(c.y+s2)+" Z",
+            class:"pshape" }));
+        } else {
+          pg.appendChild(el("circle", { cx:c.x, cy:c.y, r:s2*.8, class:"pshape" }));
+          pg.appendChild(el("circle", { cx:c.x, cy:c.y, r:s2*.38, class:"pcore" }));
+        }
+        const ttl = el("title"); ttl.textContent = pr.name; pg.appendChild(ttl);
+        cells.appendChild(pg);
       }
       g.appendChild(cells);
     }
@@ -510,6 +548,13 @@ def main() -> int:
                 "w": g["w"], "h": g["h"],
                 "doors": {n: list(t) for n, t in g["doors"].items()},
                 "features": {k: list(v) for k, v in g["features"].items()},
+                "props": [
+                    {
+                        "tile": [int(k.split(",")[0]), int(k.split(",")[1])],
+                        "kind": pr["kind"], "id": pr["id"], "name": pr["name"],
+                    }
+                    for k, pr in sorted(arena_grid.ROOM_PROPS.get(rid, {}).items())
+                ],
             }
             for rid, g in arena_grid.ROOM_GRIDS.items()
         },

@@ -18,7 +18,7 @@ callable and returns data.
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Sequence
 
-from . import items
+from . import grid, items
 
 
 COMBAT_TABLE_VERSION = "ember-vault-0.2/combat-1"
@@ -109,7 +109,9 @@ def combatant_from_agent(agent: Mapping[str, Any]) -> Combatant:
         hp=agent["hp"],
         max_hp=agent["max_hp"],
         power=agent["power"],
-        armor=agent["armor"],
+        # Cover is armour you get from the floor: standing behind a fallen
+        # pillar raises the DC to hit you exactly like worn plate would.
+        armor=agent["armor"] + grid.cover_bonus(agent["room"], agent.get("tile") or []),
         guard=agent.get("guard", 0),
         inventory=tuple(agent.get("inventory", ())),
         alive=agent.get("status") == "active" and agent["hp"] > 0,

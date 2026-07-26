@@ -53,6 +53,8 @@ RELEVANT_EVENT_TYPES: Mapping[str, str] = {
     "wild_swing_self_damage": "damage",
     "wild_swing_bystander": "damage",
     "wild_swing_room_reaction": "damage",
+    # Walking into a brazier is damage you chose; worth remembering.
+    "hazard_burn": "damage",
     # elimination
     "agent_eliminated": "elimination",
     # crown

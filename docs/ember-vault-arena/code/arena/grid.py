@@ -195,7 +195,7 @@ def reachable_tiles(
     start = as_tile(origin)
     if not start:
         return []
-    taken = occupied_tiles(state, room, exclude=mover_id)
+    taken = occupied_tiles(state, room, exclude=mover_id) | blocked_tiles(room)
     out: list[tuple[int, int]] = []
     for x in range(g["w"]):
         for y in range(g["h"]):
@@ -220,7 +220,7 @@ def free_tile_near(
     """
     g = ROOM_GRIDS[room]
     want = as_tile(preferred) or (0, 0)
-    taken = occupied_tiles(state, room, exclude=mover_id)
+    taken = occupied_tiles(state, room, exclude=mover_id) | blocked_tiles(room)
     if want not in taken and in_bounds(room, want):
         return want
     candidates = [
@@ -231,7 +231,11 @@ def free_tile_near(
     ]
     if not candidates:
         return want
-    candidates.sort(key=lambda t: (distance(want, t), t))
+    # Nearest free tile, but never volunteer to stand in a fire when an equally
+    # close safe tile exists.
+    candidates.sort(
+        key=lambda t: (distance(want, t), 1 if hazard_at(room, t) else 0, t)
+    )
     return candidates[0]
 
 
@@ -284,7 +288,7 @@ def step_toward(
     for _ in range(max(0, steps)):
         if distance(cur, want) <= 1:
             break
-        taken = occupied_tiles(state, room, exclude=mover_id)
+        taken = occupied_tiles(state, room, exclude=mover_id) | blocked_tiles(room)
         best = None
         for dx in (-1, 0, 1):
             for dy in (-1, 0, 1):
@@ -300,3 +304,98 @@ def step_toward(
             break
         cur = best[1]
     return cur
+
+
+# ---------------------------------------------------------------------------
+# environment props
+# ---------------------------------------------------------------------------
+#
+# Empty grids make position a formality: every free tile is as good as any
+# other, so "move range" only measures how fast you cross a void.  Props give
+# the floor an opinion.
+#
+#   blocking  cannot be entered at all, and blocks nothing else -- it is simply
+#             not a tile. Creates lanes, corners and chokepoints.
+#   cover     enterable; +1 Armor while you stand on it, which raises the DC to
+#             hit you. The reason to give up tempo for a specific tile.
+#   hazard    enterable; 1 damage when you END a step on it. The reason a
+#             shortcut can cost you.
+#
+# Each room's props are flavoured to that room, so the two routes play
+# differently rather than being mirrored reskins.
+PROP_KINDS = ("blocking", "cover", "hazard")
+
+ROOM_PROPS: dict[str, dict[str, dict[str, Any]]] = {
+    "threshold": {
+        "1,0": {"kind": "blocking", "id": "broken_statue", "name": "Broken Statue"},
+        "3,0": {"kind": "blocking", "id": "broken_statue_2", "name": "Toppled Statue"},
+        "0,0": {"kind": "cover", "id": "stair_wall", "name": "Stair Wall"},
+        "4,0": {"kind": "cover", "id": "rain_barrel", "name": "Rain Barrel"},
+    },
+    "ironwood_gate": {
+        "1,1": {"kind": "blocking", "id": "ironwood_trunk", "name": "Ironwood Trunk"},
+        "3,1": {"kind": "blocking", "id": "ironwood_trunk_2", "name": "Split Trunk"},
+        "0,2": {"kind": "cover", "id": "root_tangle", "name": "Root Tangle"},
+        "4,2": {"kind": "cover", "id": "bark_shield", "name": "Bark Shelf"},
+        "1,2": {"kind": "hazard", "id": "sap_pool", "name": "Boiling Sap"},
+        "3,2": {"kind": "hazard", "id": "sap_pool_2", "name": "Sap Seep"},
+    },
+    "ossuary_gate": {
+        "1,1": {"kind": "blocking", "id": "bone_stack", "name": "Bone Stack"},
+        "3,1": {"kind": "blocking", "id": "bone_stack_2", "name": "Femur Pile"},
+        "0,2": {"kind": "cover", "id": "skull_wall", "name": "Skull Wall"},
+        "4,2": {"kind": "cover", "id": "rib_arch", "name": "Rib Arch"},
+        "2,1": {"kind": "hazard", "id": "marrow_pit", "name": "Marrow Pit"},
+    },
+    "vault": {
+        "1,1": {"kind": "blocking", "id": "vault_pillar", "name": "Ember Pillar"},
+        "5,1": {"kind": "blocking", "id": "vault_pillar_2", "name": "Ember Pillar"},
+        "2,3": {"kind": "cover", "id": "fallen_pillar", "name": "Fallen Pillar"},
+        "4,3": {"kind": "cover", "id": "shield_wall", "name": "Warden's Shieldwall"},
+        "0,2": {"kind": "hazard", "id": "brazier", "name": "Open Brazier"},
+        "6,2": {"kind": "hazard", "id": "brazier_2", "name": "Open Brazier"},
+        "3,1": {"kind": "hazard", "id": "ember_vent", "name": "Ember Vent"},
+    },
+    "egress": {
+        "0,0": {"kind": "blocking", "id": "egress_rubble", "name": "Rubble"},
+        "2,0": {"kind": "cover", "id": "arch_stone", "name": "Arch Stone"},
+    },
+}
+
+COVER_ARMOR_BONUS = 1
+HAZARD_DAMAGE = 1
+
+
+def blocked_tiles(room: str) -> set[tuple[int, int]]:
+    """Tiles that are structurally not floor. Cached-cheap: rooms are tiny."""
+    out: set[tuple[int, int]] = set()
+    for key, prop in ROOM_PROPS.get(room, {}).items():
+        if prop["kind"] != "blocking":
+            continue
+        x, y = key.split(",")
+        out.add((int(x), int(y)))
+    return out
+
+
+def props_for(room: str) -> dict[str, dict[str, Any]]:
+    return ROOM_PROPS.get(room, {})
+
+
+def prop_at(room: str, tile: Iterable[int]) -> dict[str, Any] | None:
+    t = as_tile(tile)
+    return ROOM_PROPS.get(room, {}).get(tile_key(t)) if t else None
+
+
+def is_blocked(room: str, tile: Iterable[int]) -> bool:
+    p = prop_at(room, tile)
+    return bool(p and p["kind"] == "blocking")
+
+
+def cover_bonus(room: str, tile: Iterable[int]) -> int:
+    p = prop_at(room, tile)
+    return COVER_ARMOR_BONUS if p and p["kind"] == "cover" else 0
+
+
+def hazard_at(room: str, tile: Iterable[int]) -> dict[str, Any] | None:
+    p = prop_at(room, tile)
+    return p if p and p["kind"] == "hazard" else None

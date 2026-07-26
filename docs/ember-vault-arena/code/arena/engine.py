@@ -613,19 +613,54 @@ class ArenaEngine:
             self._invalid_action(agent_id, action, "tile is beyond move range")
             return
         agent["tile"] = list(want)
+        hazard = grid.hazard_at(room, want)
+        cover = grid.cover_bonus(room, want)
         self._event(
             self.state["round"],
             "agent",
             "step",
             agent_id,
             None,
-            f"{agent['name']} moves to [{want[0]},{want[1]}].",
+            f"{agent['name']} moves to [{want[0]},{want[1]}]"
+            + (f", into cover behind the {grid.prop_at(room, want)['name']}." if cover
+               else "."),
             {
                 "changes": {"tile": [before, list(want)]},
                 "move_range": agent.get("move_range"),
                 "distance": grid.distance(before, want),
+                "cover": cover,
+                "hazard": hazard["id"] if hazard else None,
             },
         )
+        if hazard:
+            # Ending a step in a hazard costs you. Chosen, not inflicted: the
+            # tile was labelled in the observation the agent read.
+            before_hp = agent["hp"]
+            agent["hp"] = max(0, agent["hp"] - grid.HAZARD_DAMAGE)
+            self._event(
+                self.state["round"],
+                "hazard",
+                "hazard_burn",
+                agent_id,
+                None,
+                f"The {hazard['name']} scorches {agent['name']} for "
+                f"{before_hp - agent['hp']}.",
+                {
+                    "changes": {"hp": [before_hp, agent["hp"]]},
+                    "hazard_id": hazard["id"],
+                    "tile": list(want),
+                    "collateral": True,
+                    "credited_to": None,
+                },
+            )
+            if agent["hp"] <= 0:
+                # Nobody is credited for a fire: it scores like any accident.
+                self._eliminate(
+                    agent_id,
+                    f"burned by the {hazard['name']}",
+                    credited_to=None,
+                    collateral=True,
+                )
 
     def _place_on_arrival(self, agent_id: str, destination: str, origin: str) -> None:
         """Arriving through a doorway puts you AT that doorway, or the nearest
