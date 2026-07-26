@@ -98,6 +98,10 @@ IGNORED_EVENT_TYPES: frozenset[str] = frozenset(
         "act_two_survival",
         "guard",
         "move",
+        # Tactical repositioning is noise at memory scale: six slots belong to
+        # damage, promises, seals, the Crown, items and deaths, not to footwork.
+        "step",
+        "monster_step",
         "rest",
         "attack_miss",
         "wild_swing_no_bystander",

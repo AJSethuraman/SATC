@@ -21,7 +21,12 @@ OBJECTIVES = {
     "treasure_hoarder",
 }
 
-ACTIONS = {"move", "attack", "guard", "search", "interact", "take", "use", "rest"}
+# "step" is intra-room tactical movement to a tile; "move" remains room-to-room
+# transit. Keeping them separate leaves every existing move rule and test intact
+# instead of overloading one action with two meanings.
+ACTIONS = {
+    "move", "step", "attack", "guard", "search", "interact", "take", "use", "rest",
+}
 
 
 class ValidationError(ValueError):
@@ -123,6 +128,7 @@ class AgentAction:
     target: str | None = None
     destination: str | None = None
     item: str | None = None
+    tile: tuple[int, int] | None = None
     speech: str = ""
     reasoning_summary: str = ""
     memory_write: str = ""
@@ -136,6 +142,7 @@ class AgentAction:
             "target",
             "destination",
             "item",
+            "tile",
             "speech",
             "reasoning_summary",
             "memory_write",
@@ -153,11 +160,27 @@ class AgentAction:
                 return None
             return _bounded_text(value, field, maximum)
 
+        tile_raw = raw.get("tile")
+        tile: tuple[int, int] | None = None
+        if tile_raw is not None:
+            # Accept [x, y] only. A tile is coordinates, not free text, so it is
+            # validated here rather than trusted downstream.
+            if (
+                not isinstance(tile_raw, (list, tuple))
+                or len(tile_raw) != 2
+                or not all(isinstance(v, int) and not isinstance(v, bool) for v in tile_raw)
+            ):
+                raise ValidationError("tile must be [x, y] integers")
+            if not all(0 <= v < 32 for v in tile_raw):
+                raise ValidationError("tile coordinates out of range")
+            tile = (int(tile_raw[0]), int(tile_raw[1]))
+
         return cls(
             action=action,
             target=optional("target", 64),
             destination=optional("destination", 32),
             item=optional("item", 64),
+            tile=tile,
             speech=_bounded_text(raw.get("speech", ""), "speech", 120),
             reasoning_summary=_bounded_text(
                 raw.get("reasoning_summary", ""), "reasoning_summary", 240
@@ -173,6 +196,7 @@ class AgentAction:
             "target": self.target,
             "destination": self.destination,
             "item": self.item,
+            "tile": list(self.tile) if self.tile else None,
             "speech": self.speech,
             "reasoning_summary": self.reasoning_summary,
             "memory_write": self.memory_write,

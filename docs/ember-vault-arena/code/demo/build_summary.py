@@ -292,6 +292,9 @@ def state_projection(state: dict) -> dict:
                 "hp": agent["hp"],
                 "max_hp": agent["max_hp"],
                 "room": agent["room"],
+                "tile": list(agent.get("tile") or []),
+                "move_range": agent.get("move_range"),
+                "reach": agent.get("reach"),
                 "score": agent["score"],
                 "status": agent["status"],
                 # self-describing, exactly as the observation publishes them
@@ -315,6 +318,8 @@ def state_projection(state: dict) -> dict:
             monster_id: {
                 "hp": monster["hp"],
                 "room": monster["room"],
+                "tile": list(monster.get("tile") or []),
+                "reach": monster.get("reach"),
                 "alive": monster["hp"] > 0,
             }
             for monster_id, monster in sorted(state["monsters"].items())

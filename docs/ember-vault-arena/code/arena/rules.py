@@ -25,7 +25,7 @@ implementation and no second predicate that can drift from what the agent saw.
 from copy import deepcopy
 from typing import Any, Mapping, Sequence
 
-from . import combat, items, memory, scoring
+from . import combat, grid, items, memory, scoring
 from .models import AgentAction, AgentManifest, BUILDS, RULESET_VERSION
 
 
@@ -124,6 +124,8 @@ MONSTER_TEMPLATES: dict[str, dict[str, Any]] = {
         "name": "Ironwood Guardian",
         "kind": "guardian",
         "room": "ironwood_gate",
+        "tile": [2, 1],
+        "reach": 1,
         "max_hp": 12,
         "hp": 12,
         "power": 3,
@@ -138,6 +140,8 @@ MONSTER_TEMPLATES: dict[str, dict[str, Any]] = {
         "name": "Ossuary Guardian",
         "kind": "guardian",
         "room": "ossuary_gate",
+        "tile": [2, 1],
+        "reach": 1,
         "max_hp": 12,
         "hp": 12,
         "power": 3,
@@ -152,6 +156,8 @@ MONSTER_TEMPLATES: dict[str, dict[str, Any]] = {
         "name": "Crown Warden",
         "kind": "warden",
         "room": "vault",
+        "tile": [3, 2],
+        "reach": 2,
         "max_hp": 20,
         "hp": 20,
         "power": 4,
@@ -183,13 +189,18 @@ def new_match_state(
     max_rounds: int = DEFAULT_MAX_ROUNDS,
 ) -> dict[str, Any]:
     agents: dict[str, Any] = {}
-    for manifest in manifests:
+    for seat_index, manifest in enumerate(manifests):
         stats = BUILDS[manifest.build]
         agents[manifest.id] = {
             "id": manifest.id,
             "name": manifest.name,
             "build": manifest.build,
             "room": START_ROOM,
+            # Tactical position. Seat order fixes the opening formation, so the
+            # same roster always starts identically.
+            "tile": list(grid.spawn_tile(START_ROOM, seat_index)),
+            "move_range": grid.move_range(stats["speed"]),
+            "reach": grid.reach_for_build(manifest.build),
             "hp": stats["max_hp"],
             "max_hp": stats["max_hp"],
             "power": stats["power"],
@@ -634,6 +645,7 @@ def crown_ledger_ok(state: Mapping[str, Any]) -> bool:
 
 ACTION_ORDER: tuple[str, ...] = (
     "move",
+    "step",
     "attack",
     "take",
     "use",
@@ -655,6 +667,7 @@ SIGNIFICANT_SLOTS: Mapping[str, tuple[str, ...]] = {
     "take": ("item",),
     "use": ("item",),
     "interact": ("target",),
+    "step": ("tile",),
 }
 
 
@@ -669,30 +682,42 @@ def _norm_id(value: Any) -> str | None:
     return value.casefold() if value else None
 
 
+def _norm_tile(value: Any) -> str | None:
+    t = grid.as_tile(value)
+    return grid.tile_key(t) if t else None
+
+
 def normalize_key(
     action: str,
     target: Any = None,
     destination: Any = None,
     item: Any = None,
-) -> tuple[str, str | None, str | None, str | None]:
+    tile: Any = None,
+) -> tuple[str, str | None, str | None, str | None, str | None]:
     verb = (action or "").strip().lower()
     significant = SIGNIFICANT_SLOTS.get(verb)
     if significant is None:
         # Unknown verb: keep it raw. It can never match an enumerated entry.
-        return (verb, _norm_id(target), _norm_id(destination), _norm_id(item))
+        return (
+            verb, _norm_id(target), _norm_id(destination), _norm_id(item),
+            _norm_tile(tile),
+        )
     return (
         verb,
         _norm_id(target) if "target" in significant else None,
         _norm_id(destination) if "destination" in significant else None,
         _norm_id(item) if "item" in significant else None,
+        _norm_tile(tile) if "tile" in significant else None,
     )
 
 
-def action_key(action: Any) -> tuple[str, str | None, str | None, str | None]:
-    """Accepts an AgentAction or any mapping with the four slots."""
+def action_key(
+    action: Any,
+) -> tuple[str, str | None, str | None, str | None, str | None]:
+    """Accepts an AgentAction or any mapping with the five slots."""
     if isinstance(action, AgentAction):
         return normalize_key(
-            action.action, action.target, action.destination, action.item
+            action.action, action.target, action.destination, action.item, action.tile
         )
     if isinstance(action, Mapping):
         return normalize_key(
@@ -700,6 +725,7 @@ def action_key(action: Any) -> tuple[str, str | None, str | None, str | None]:
             action.get("target"),
             action.get("destination"),
             action.get("item"),
+            action.get("tile"),
         )
     raise TypeError(f"cannot key {type(action).__name__}")
 
@@ -711,12 +737,14 @@ def _entry(
     target: str | None = None,
     destination: str | None = None,
     item: str | None = None,
+    tile: Any = None,
 ) -> dict[str, Any]:
     return {
         "action": action,
         "target": target,
         "destination": destination,
         "item": item,
+        "tile": list(tile) if tile else None,
         "label": label,  # COSMETIC ONLY — never part of the key
     }
 
@@ -734,6 +762,28 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
     monsters = observation.get("visible_monsters", [])
     entries: list[dict[str, Any]] = [_entry("guard", "guard (brace: +2 Armor)")]
 
+    # Tactical geometry, all read from the observation so the list the agent saw
+    # is the list it is judged against.
+    my_tile = grid.as_tile(me.get("tile"))
+    my_move = int(me.get("move_range") or 1)
+    my_reach = int(me.get("reach") or 1)
+    grid_info = room.get("grid") or {}
+    doors = grid_info.get("doors") or {}
+
+    def _within(other_tile: Any, limit: int) -> bool:
+        """True when no tile is known on either side -- a roomful of bodies with
+        no geometry must stay playable rather than silently losing every action."""
+        a, b = my_tile, grid.as_tile(other_tile)
+        if not a or not b:
+            return True
+        return grid.distance(a, b) <= limit
+
+    # RULING: room transit is legal from anywhere in the room and costs the whole
+    # action, arriving at the destination's doorway. Gating transit on reaching
+    # the door first was tried and abandoned -- a Vanguard (move range 1) needed
+    # three turns to cross a gate room to the vault door, which is crippling
+    # inside twelve rounds. Range governs WITHIN-room movement, where the
+    # tactical decisions actually live.
     for destination in room.get("neighbors", []):
         if destination == VAULT_ROOM and not public.get("vault_open"):
             continue
@@ -760,18 +810,29 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
             )
         )
 
+    def _range_note(other_tile: Any) -> str:
+        a, b = my_tile, grid.as_tile(other_tile)
+        if not a or not b:
+            return ""
+        return f", range {grid.distance(a, b)}/{my_reach}"
+
     for monster in monsters:
+        if not _within(monster.get("tile"), my_reach):
+            continue
         entries.append(
             _entry(
                 "attack",
                 f"attack {monster['id']} ({monster['name']}, "
-                f"{monster['hp']}/{monster['max_hp']} HP)",
+                f"{monster['hp']}/{monster['max_hp']} HP"
+                f"{_range_note(monster.get('tile'))})",
                 target=monster["id"],
             )
         )
     if public.get("agent_attacks_allowed"):
         for other in observation.get("visible_agents", []):
             if other.get("status") != "active":
+                continue
+            if not _within(other.get("tile"), my_reach):
                 continue
             entries.append(
                 _entry(
@@ -781,6 +842,21 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
                     target=other["id"],
                 )
             )
+
+    # step: every free tile inside move range. Enumerated exhaustively, which is
+    # affordable because range is small and the grids are tiny.
+    for tile in (grid_info.get("reachable") or []):
+        t = grid.as_tile(tile)
+        if not t:
+            continue
+        entries.append(
+            _entry(
+                "step",
+                f"step to [{t[0]},{t[1]}] "
+                f"(distance {grid.distance(my_tile, t) if my_tile else '?'}/{my_move})",
+                tile=t,
+            )
+        )
 
     # DEDUPE: keys form a set, so two Healing Tonics must not enumerate twice.
     for item_id in sorted({view["id"] for view in room.get("floor_items", [])}):
@@ -815,12 +891,14 @@ def enumerate_legal_actions(observation: Mapping[str, Any]) -> list[dict[str, An
     return entries
 
 
-def _entry_sort_key(entry: Mapping[str, Any]) -> tuple[int, str, str, str]:
+def _entry_sort_key(entry: Mapping[str, Any]) -> tuple[int, str, str, str, str]:
+    tile = entry.get("tile")
     return (
         ACTION_ORDER.index(entry["action"]),
         entry["target"] or "",
         entry["destination"] or "",
         entry["item"] or "",
+        grid.tile_key(tile) if tile else "",
     )
 
 
@@ -981,6 +1059,10 @@ def _build_self(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str,
         "build": agent["build"],
         "room": agent["room"],
         "status": agent["status"],
+        # Tactical position and the two ranges derived from the build.
+        "tile": list(agent.get("tile") or []),
+        "move_range": agent.get("move_range", 1),
+        "reach": agent.get("reach", 1),
         "hp": agent["hp"],
         "max_hp": agent["max_hp"],
         "power_base": agent["power"],
@@ -1037,6 +1119,34 @@ def _build_room(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str,
         "seal": seal,
         "cache": cache,
         "floor_items": items.describe_items(list(state["floor_items"][room_id])),
+        "grid": _build_grid(state, agent),
+    }
+
+
+def _build_grid(state: Mapping[str, Any], agent: Mapping[str, Any]) -> dict[str, Any]:
+    """The room's tactical geometry, from this agent's seat.
+
+    ``reachable`` is precomputed here rather than in the enumerator so the tile
+    list the agent reads and the tile list its step is judged against are
+    literally the same values.
+    """
+    room_id = agent["room"]
+    g = grid.grid_for(room_id)
+    here = grid.as_tile(agent.get("tile"))
+    rng = int(agent.get("move_range") or 1)
+    reachable = (
+        grid.reachable_tiles(state, room_id, here, rng, mover_id=agent["id"])
+        if here
+        else []
+    )
+    return {
+        "width": g["w"],
+        "height": g["h"],
+        "doors": {n: list(t) for n, t in g["doors"].items()},
+        "features": {k: list(v) for k, v in g["features"].items()},
+        "occupied": [list(t) for t in sorted(grid.occupied_tiles(state, room_id))],
+        "reachable": [list(t) for t in reachable],
+        "version": grid.GRID_VERSION,
     }
 
 
@@ -1055,6 +1165,8 @@ def _build_visible_agents(
                 "name": other["name"],
                 "build": other["build"],
                 "status": other["status"],
+                "tile": list(other.get("tile") or []),
+                "reach": other.get("reach", 1),
                 "hp": other["hp"],
                 "max_hp": other["max_hp"],
                 "armor_effective": (
@@ -1084,6 +1196,8 @@ def _build_visible_monsters(
             "max_hp": monster["max_hp"],
             "armor_effective": monster["armor"] + monster["guard"],
             "guard": monster["guard"],
+            "tile": list(monster.get("tile") or []),
+            "reach": monster.get("reach", 1),
         }
         for monster in living_monsters_in(state, agent["room"])
     ]

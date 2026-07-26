@@ -20,7 +20,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Mapping, Protocol, Sequence
 
-from . import scoring
+from . import grid, scoring
 from .models import AgentManifest, ProviderResult
 from .storage import canonical_json
 
@@ -155,6 +155,7 @@ def _entry_key(entry: Mapping[str, Any]) -> tuple[Any, ...]:
         entry.get("target"),
         entry.get("destination"),
         entry.get("item"),
+        tuple(entry.get("tile") or ()),
     )
 
 
@@ -244,6 +245,60 @@ class MockDecisionProvider:
             ordered = list(reversed(ordered))
         return ordered[0]
 
+    @staticmethod
+    def _step_toward(
+        observation: Mapping[str, Any], goal_tile: Any
+    ) -> dict[str, Any] | None:
+        """Pick the legal step that lands nearest a goal.
+
+        Without this the mock never moves inside a room, so melee builds can
+        never close on the Warden -- it sits mid-vault while everyone arrives at
+        a doorway three tiles out, permanently out of reach.
+        """
+        goal = grid.as_tile(goal_tile)
+        if not goal:
+            return None
+        here = grid.as_tile(observation["you"].get("tile"))
+        steps = [a for a in observation["legal_actions"] if a["action"] == "step"]
+        if not steps:
+            return None
+        best = min(
+            steps,
+            key=lambda a: (
+                grid.distance(grid.as_tile(a["tile"]) or goal, goal),
+                grid.tile_key(grid.as_tile(a["tile"]) or goal),
+            ),
+        )
+        if here and grid.distance(
+            grid.as_tile(best["tile"]) or here, goal
+        ) >= grid.distance(here, goal):
+            return None  # no step actually improves the position
+        return dict(best)
+
+    def _close_on_nearest_threat(
+        self, observation: Mapping[str, Any]
+    ) -> dict[str, Any] | None:
+        """Nothing in reach but something worth hitting is here: close."""
+        bodies = list(observation.get("visible_monsters") or [])
+        if observation["public_state"].get("agent_attacks_allowed"):
+            bodies += [
+                a for a in observation.get("visible_agents") or []
+                if a.get("status") == "active"
+            ]
+        here = grid.as_tile(observation["you"].get("tile"))
+        candidates = [b for b in bodies if grid.as_tile(b.get("tile"))]
+        if not here or not candidates:
+            return None
+        quarry = min(
+            candidates,
+            key=lambda b: (
+                grid.distance(here, grid.as_tile(b["tile"])),
+                b.get("hp", 0),
+                str(b.get("id")),
+            ),
+        )
+        return self._step_toward(observation, quarry.get("tile"))
+
     def _choose(
         self, observation: Mapping[str, Any]
     ) -> dict[str, Any]:
@@ -270,6 +325,9 @@ class MockDecisionProvider:
                 attack = self._attack_lowest_monster(legal, monsters)
                 if attack:
                     return attack
+            close = self._close_on_nearest_threat(observation)
+            if close:
+                return close
             return self._find(legal, "guard") or dict(legal[0])
 
         # 3. The Crown is on this floor.
@@ -294,6 +352,12 @@ class MockDecisionProvider:
             attack = self._attack_lowest_monster(legal, monsters)
             if attack:
                 return attack
+            # Something hostile is here but nothing is in reach: close the gap.
+            # Without this a melee build stands at the doorway staring at a
+            # Warden three tiles away and the Crown never unlocks.
+            close = self._close_on_nearest_threat(observation)
+            if close:
+                return close
 
         # 6. Seal, then loot.
         seal = self._find(legal, "interact")
@@ -312,10 +376,13 @@ class MockDecisionProvider:
                 if step:
                     return step
 
-        # 8. Recover or brace.
+        # 8. Recover, reposition, or brace.
         rest = self._find(legal, "rest")
         if rest:
             return rest
+        close = self._close_on_nearest_threat(observation)
+        if close:
+            return close
         return self._find(legal, "guard") or dict(legal[0])
 
     def _attack_lowest_monster(
@@ -463,6 +530,7 @@ class MockDecisionProvider:
             "target": chosen.get("target"),
             "destination": chosen.get("destination"),
             "item": chosen.get("item"),
+            "tile": list(chosen["tile"]) if chosen.get("tile") else None,
         }
         action["speech"] = self._speech(
             manifest,

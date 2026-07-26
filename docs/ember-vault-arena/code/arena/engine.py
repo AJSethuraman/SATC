@@ -30,7 +30,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from . import combat, items, rules, scoring
+from . import combat, grid, items, rules, scoring
 from .models import (
     AgentAction,
     AgentManifest,
@@ -548,6 +548,7 @@ class ArenaEngine:
         handler: dict[str, Callable[[], None]] = {
             "guard": lambda: self._guard(agent_id),
             "move": lambda: self._move(agent_id, action),
+            "step": lambda: self._step(agent_id, action),
             "attack": lambda: self._attack(agent_id, action.target),
             "search": lambda: self._search(agent_id, action),
             "interact": lambda: self._interact(agent_id, action),
@@ -591,10 +592,55 @@ class ArenaEngine:
             return
         self._move_agent(agent_id, destination, "move")
 
+    def _step(self, agent_id: str, action: AgentAction) -> None:
+        """Intra-room repositioning. Legality already proved the tile was free
+        and in range at freeze time; a rival may have taken it since, which is
+        STALE and never a penalty."""
+        agent = self.state["agents"][agent_id]
+        want = grid.as_tile(action.tile)
+        if not want:
+            self._invalid_action(agent_id, action, "step needs a tile")
+            return
+        room = agent["room"]
+        if not grid.in_bounds(room, want):
+            self._invalid_action(agent_id, action, "tile is outside the room")
+            return
+        if want in grid.occupied_tiles(self.state, room, exclude=agent_id):
+            self._stale(agent_id, action, "another body reached that tile first")
+            return
+        before = list(agent.get("tile") or [])
+        if grid.distance(before, want) > int(agent.get("move_range") or 1):
+            self._invalid_action(agent_id, action, "tile is beyond move range")
+            return
+        agent["tile"] = list(want)
+        self._event(
+            self.state["round"],
+            "agent",
+            "step",
+            agent_id,
+            None,
+            f"{agent['name']} moves to [{want[0]},{want[1]}].",
+            {
+                "changes": {"tile": [before, list(want)]},
+                "move_range": agent.get("move_range"),
+                "distance": grid.distance(before, want),
+            },
+        )
+
+    def _place_on_arrival(self, agent_id: str, destination: str, origin: str) -> None:
+        """Arriving through a doorway puts you AT that doorway, or the nearest
+        free tile when the threshold is crowded."""
+        agent = self.state["agents"][agent_id]
+        door = grid.door_tile(destination, origin) or grid.spawn_tile(destination, 0)
+        agent["tile"] = list(
+            grid.free_tile_near(self.state, destination, door, mover_id=agent_id)
+        )
+
     def _move_agent(self, agent_id: str, destination: str, event_type: str) -> None:
         agent = self.state["agents"][agent_id]
         before = agent["room"]
         agent["room"] = destination
+        self._place_on_arrival(agent_id, destination, before)
         visited_added = None
         if destination not in agent["visited"]:
             agent["visited"].append(destination)
@@ -1219,15 +1265,60 @@ class ArenaEngine:
             monster = self.state["monsters"][monster_id]
             if monster["hp"] <= 0:
                 continue
-            candidates = [
-                combat.combatant_from_agent(self.state["agents"][agent_id])
+            present = [
+                self.state["agents"][agent_id]
                 for agent_id in sorted(self.state["agents"])
                 if self.state["agents"][agent_id]["room"] == monster["room"]
                 and self.state["agents"][agent_id]["status"] == "active"
                 and self.state["agents"][agent_id]["hp"] > 0
             ]
-            if not candidates:
+            if not present:
                 continue
+
+            # A monster attacks only what it can reach; otherwise it closes.
+            # Deterministic throughout: nearest, then lowest HP, then id.
+            reach = int(monster.get("reach", 1))
+            m_tile = grid.as_tile(monster.get("tile"))
+            in_reach = [
+                a for a in present
+                if not m_tile
+                or not grid.as_tile(a.get("tile"))
+                or grid.in_reach(m_tile, a["tile"], reach)
+            ]
+            if not in_reach and m_tile:
+                quarry = min(
+                    present,
+                    key=lambda a: (
+                        grid.distance(m_tile, grid.as_tile(a.get("tile")) or m_tile),
+                        a["hp"],
+                        a["id"],
+                    ),
+                )
+                goal = grid.as_tile(quarry.get("tile"))
+                before_tile = list(m_tile)
+                moved_to = grid.step_toward(
+                    self.state, monster["room"], m_tile, goal,
+                    grid.MONSTER_STEP, mover_id=monster_id,
+                )
+                if tuple(moved_to) != tuple(m_tile):
+                    monster["tile"] = list(moved_to)
+                    self._event(
+                        round_no, "monster", "monster_step", monster_id, quarry["id"],
+                        f"{monster['name']} stalks toward {quarry['name']}.",
+                        {
+                            "changes": {"tile": [before_tile, list(moved_to)]},
+                            "reach": reach,
+                        },
+                    )
+                m_tile = grid.as_tile(monster.get("tile"))
+                in_reach = [
+                    a for a in present
+                    if grid.in_reach(m_tile, a.get("tile") or m_tile, reach)
+                ]
+            if not in_reach:
+                continue
+
+            candidates = [combat.combatant_from_agent(a) for a in in_reach]
             monster_view = combat.combatant_from_monster(monster)
 
             def roll(sides: int, label: str, mid: str = monster_id) -> int:
@@ -1408,6 +1499,16 @@ class ArenaEngine:
             before_room = agent["room"]
             gate_bypassed = not rules.vault_open(self.state)
             agent["room"] = rules.CONTRACTION_REFUGE
+            # Shoved through the nearest opening, not teleported onto a body.
+            agent["tile"] = list(
+                grid.free_tile_near(
+                    self.state,
+                    rules.CONTRACTION_REFUGE,
+                    grid.door_tile(rules.CONTRACTION_REFUGE, before_room)
+                    or grid.spawn_tile(rules.CONTRACTION_REFUGE, 0),
+                    mover_id=agent_id,
+                )
+            )
             visited_added = None
             if rules.CONTRACTION_REFUGE not in agent["visited"]:
                 agent["visited"].append(rules.CONTRACTION_REFUGE)

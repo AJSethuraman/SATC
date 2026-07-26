@@ -23,7 +23,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from build_story import build_beats  # noqa: E402
+from arena import grid as arena_grid  # noqa: E402
+from arena import rules as arena_rules  # noqa: E402
 
 # Board geometry: a diamond that matches the real adjacency graph.
 #   egress            (top, the way out)
@@ -31,11 +34,11 @@ from build_story import build_beats  # noqa: E402
 #   ironwood / ossuary  (the two routes, side by side)
 #   threshold         (bottom, where everyone starts)
 LAYOUT = {
-    "threshold":     {"x": 500, "y": 604, "w": 244, "h": 116, "label": "The Threshold"},
-    "ironwood_gate": {"x": 208, "y": 410, "w": 244, "h": 130, "label": "Ironwood Gate"},
-    "ossuary_gate":  {"x": 792, "y": 410, "w": 244, "h": 130, "label": "Ossuary Gate"},
-    "vault":         {"x": 500, "y": 232, "w": 300, "h": 140, "label": "The Ember Vault"},
-    "egress":        {"x": 500, "y": 68,  "w": 200, "h": 78,  "label": "Moonlit Egress"},
+    "threshold":     {"x": 500, "y": 596, "w": 210, "h": 132, "label": "The Threshold"},
+    "ironwood_gate": {"x": 196, "y": 392, "w": 210, "h": 172, "label": "Ironwood Gate"},
+    "ossuary_gate":  {"x": 804, "y": 392, "w": 210, "h": 172, "label": "Ossuary Gate"},
+    "vault":         {"x": 500, "y": 214, "w": 294, "h": 214, "label": "The Ember Vault"},
+    "egress":        {"x": 500, "y": 58,  "w": 132, "h": 92,  "label": "Moonlit Egress"},
 }
 CORRIDORS = [
     ("threshold", "ironwood_gate"), ("threshold", "ossuary_gate"),
@@ -87,6 +90,9 @@ svg.board{display:block; width:100%; height:auto;}
 .chamber text.rn{fill:var(--ash); font-size:12px; letter-spacing:.14em;
   text-transform:uppercase; font-family:var(--sans);}
 .chamber.active text.rn{fill:var(--ember);}
+.cell{fill:rgba(255,255,255,.022); stroke:rgba(255,255,255,.05); stroke-width:.7;}
+.cell.door{fill:rgba(255,138,36,.10); stroke:rgba(255,138,36,.30);}
+.cell.feat{fill:rgba(79,199,159,.11); stroke:rgba(79,199,159,.30);}
 .corridor{stroke:var(--edge); stroke-width:9; stroke-linecap:round; fill:none;
   transition:stroke .5s;}
 .corridor.dead{stroke:#1a140e;}
@@ -204,12 +210,24 @@ function drawSprite(parent, cells, color, px, opts){
 }
 
 /* ---- board ---------------------------------------------------------------- */
-function slotXY(room, idx, total){
-  const r = L[room]; if (!r) return { x: 500, y: 660 };
-  const per = Math.min(4, Math.max(1, total));
-  const col = idx % per, row = Math.floor(idx / per);
-  const spanW = r.w - 46, stepX = per > 1 ? spanW/(per-1) : 0;
-  return { x: r.x - spanW/2 + col*stepX, y: r.y + 12 + row*30 };
+/* A tile's centre in board coordinates. Cells are inset from the chamber wall
+   so a sprite standing on the edge still reads as inside the room. */
+const PAD = 15, HEAD = 15;
+function cellSize(room){
+  const r = L[room], g = DATA.grids[room];
+  if (!r || !g) return { cw: 20, ch: 20, x0: (r||{}).x || 0, y0: (r||{}).y || 0 };
+  const usableW = r.w - PAD*2, usableH = r.h - PAD*2 - HEAD;
+  return {
+    cw: usableW / g.w, ch: usableH / g.h,
+    x0: r.x - r.w/2 + PAD, y0: r.y - r.h/2 + PAD + HEAD,
+  };
+}
+function tileXY(room, tile){
+  const g = DATA.grids[room], r = L[room];
+  if (!g || !r) return { x: 500, y: 660 };
+  const t = (tile && tile.length === 2) ? tile : [Math.floor(g.w/2), g.h-1];
+  const { cw, ch, x0, y0 } = cellSize(room);
+  return { x: x0 + (t[0] + .5) * cw, y: y0 + (t[1] + .5) * ch };
 }
 
 function buildBoard(){
@@ -227,6 +245,28 @@ function buildBoard(){
       width:r.w, height:r.h, rx:5 }));
     const t = el("text", { class:"rn", x:r.x-r.w/2+9, y:r.y-r.h/2+18 });
     T(t, r.label); g.appendChild(t);
+    // The tactical grid: the spaces bodies actually stand on and move between.
+    const gd = DATA.grids[rid];
+    if (gd){
+      const { cw, ch, x0, y0 } = cellSize(rid);
+      const cells = el("g", { class:"cells" });
+      for (let cx = 0; cx < gd.w; cx++){
+        for (let cy = 0; cy < gd.h; cy++){
+          const isDoor = Object.values(gd.doors || {})
+            .some(d => d[0] === cx && d[1] === cy);
+          const feat = Object.entries(gd.features || {})
+            .find(([, f]) => f[0] === cx && f[1] === cy);
+          const cell = el("rect", {
+            class: "cell" + (isDoor ? " door" : "") + (feat ? " feat" : ""),
+            x: x0 + cx*cw + 1, y: y0 + cy*ch + 1,
+            width: Math.max(1, cw-2), height: Math.max(1, ch-2), rx: 1.5,
+          });
+          cell.dataset.room = rid; cell.dataset.tile = cx + "," + cy;
+          cells.appendChild(cell);
+        }
+      }
+      g.appendChild(cells);
+    }
     gR.appendChild(g);
   }
   // props: seal glyphs on the two routes, pedestal in the vault, arch at the egress
@@ -265,14 +305,14 @@ function buildBoard(){
     const g = el("g", { class:"sprite" }); g.dataset.agent = a.id;
     g.appendChild(el("ellipse", { class:"ring", cx:0, cy:2, rx:17, ry:7,
       fill:"none", stroke:a.color, "stroke-width":2 }));
-    const inner = el("g", { transform:"translate(-10,-26)" });
-    drawSprite(inner, SPRITES[a.build] || SPRITES.scout, a.color, 1.7);
+    const inner = el("g", { transform:"translate(-7.5,-19)" });
+    drawSprite(inner, SPRITES[a.build] || SPRITES.scout, a.color, 1.25);
     g.appendChild(inner);
-    const hp = el("g", { class:"hpbar", transform:"translate(-11,-33)" });
-    hp.appendChild(el("rect", { class:"bg", x:-1, y:-1, width:24, height:5, rx:1 }));
-    const fg = el("rect", { class:"fg", x:0, y:0, width:22, height:3, fill:"var(--verd)" });
+    const hp = el("g", { class:"hpbar", transform:"translate(-9,-25)" });
+    hp.appendChild(el("rect", { class:"bg", x:-1, y:-1, width:20, height:4.5, rx:1 }));
+    const fg = el("rect", { class:"fg", x:0, y:0, width:18, height:2.5, fill:"var(--verd)" });
     hp.appendChild(fg); g.appendChild(hp);
-    const nm = el("text", { class:"nameplate", y:20, fill:a.color });
+    const nm = el("text", { class:"nameplate", y:16, fill:a.color });
     T(nm, a.name.split(" ")[0]); g.appendChild(nm);
     gA.appendChild(g);
   });
@@ -317,20 +357,20 @@ function render(prev){
     g.classList.toggle("gone", dead);
     g.classList.toggle("act", b.actor === id || b.target === id);
     const room = where[id];
-    const list = occupancy[room] || [];
-    const p = slotXY(room, Math.max(0, list.indexOf(id)), list.length);
+    const p = tileXY(room, (b.tiles || {})[id]);
     g.setAttribute("transform", "translate(" + p.x + "," + p.y + ")");
     const fg = g.querySelector(".hpbar .fg");
     const pct = s.max_hp ? Math.max(0, s.hp)/s.max_hp : 0;
-    fg.setAttribute("width", (22*pct).toFixed(1));
+    fg.setAttribute("width", (18*pct).toFixed(1));
     fg.setAttribute("fill", pct <= .25 ? "var(--kiln)" : (pct <= .55 ? "var(--ember)" : "var(--verd)"));
   }
   for (const g of window.__layers.monsters.children){
     const room = MROOM[g.dataset.mon];
     const alive = (st.monsters_alive || []).includes(g.dataset.mon);
     g.classList.toggle("gone", !alive);
-    const r = L[room];
-    g.setAttribute("transform", "translate(" + r.x + "," + (r.y - 6) + ")");
+    const mt = (DATA.monster_tiles || {})[g.dataset.mon];
+    const p = tileXY(room, mt);
+    g.setAttribute("transform", "translate(" + p.x + "," + p.y + ")");
   }
 
   // caption
@@ -459,6 +499,20 @@ def main() -> int:
         "layout": LAYOUT,
         "corridors": CORRIDORS,
         "monster_rooms": MONSTER_ROOM,
+        "monster_tiles": {
+            mid: list(m.get("tile") or [])
+            for mid, m in arena_rules.MONSTER_TEMPLATES.items()
+        },
+        # The authoritative grid, imported from the engine so the board can
+        # never disagree with the rules about where a tile is.
+        "grids": {
+            rid: {
+                "w": g["w"], "h": g["h"],
+                "doors": {n: list(t) for n, t in g["doors"].items()},
+                "features": {k: list(v) for k, v in g["features"].items()},
+            }
+            for rid, g in arena_grid.ROOM_GRIDS.items()
+        },
     }
     payload = json.dumps(data, separators=(",", ":"), ensure_ascii=False).replace("</", "<\\/")
     out = root / args.out

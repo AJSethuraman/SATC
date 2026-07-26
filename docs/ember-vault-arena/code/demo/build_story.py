@@ -73,12 +73,20 @@ def build_beats(summary: dict) -> list[dict]:
     # teleport everyone to their final room on the round's first beat.  Everyone
     # starts at the Threshold, per new_match_state.
     pos = {a["id"]: "threshold" for a in summary["roster"]}
+    # Tactical tile alongside the room, advanced the same way.
+    tiles = {a["id"]: None for a in summary["roster"]}
+    for rnd0 in summary["timeline"][:1]:
+        for a in (rnd0.get("state_after") or {}).get("agents") or []:
+            tiles.setdefault(a["id"], None)
 
     for rnd in summary["timeline"]:
         round_no = rnd["round"]
         act = rnd.get("act")
         act_name = rnd.get("act_name") or ""
         state = rnd.get("state_after") or {}
+        for _a in (state.get("agents") or []):
+            if tiles.get(_a["id"]) is None and _a.get("tile"):
+                tiles[_a["id"]] = list(_a["tile"])
 
         # The engine emits every agent's speech up front, during intent
         # collection, before any action resolves.  Shown as its own shot that is
@@ -109,6 +117,10 @@ def build_beats(summary: dict) -> list[dict]:
                 dest = (ev_payload["changes"].get("room") or [None, None])[-1]
                 if dest:
                     pos[ev["actor"]] = dest
+                    tiles[ev["actor"]] = None  # re-seeded from state below
+                moved_tile = (ev_payload["changes"].get("tile") or [None, None])[-1]
+                if moved_tile:
+                    tiles[ev["actor"]] = list(moved_tile)
             if ev["type"] == "room_sealed":
                 for moved in ev_payload.get("agents_moved") or []:
                     aid = moved if isinstance(moved, str) else moved.get("agent_id")
@@ -160,6 +172,7 @@ def build_beats(summary: dict) -> list[dict]:
                     "amount": payload.get("amount") or payload.get("applied"),
                     "accident": bool(payload.get("accident")),
                     "pos": dict(pos),
+                    "tiles": {k: (list(v) if v else None) for k, v in tiles.items()},
                     "state": {
                         "agents": {
                             a["id"]: {
