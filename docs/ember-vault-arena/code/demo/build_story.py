@@ -68,6 +68,12 @@ def build_beats(summary: dict) -> list[dict]:
     by_id = {a["id"]: a for a in summary["roster"]}
     beats: list[dict] = []
 
+    # Live position per agent, advanced event by event.  The round's state_after
+    # snapshot is the *end* of the round, so driving sprites from it would
+    # teleport everyone to their final room on the round's first beat.  Everyone
+    # starts at the Threshold, per new_match_state.
+    pos = {a["id"]: "threshold" for a in summary["roster"]}
+
     for rnd in summary["timeline"]:
         round_no = rnd["round"]
         act = rnd.get("act")
@@ -90,6 +96,25 @@ def build_beats(summary: dict) -> list[dict]:
         for ev in rnd.get("events", []):
             if ev["type"] == "agent_speech":
                 continue
+
+            # Advance positions from *every* move, including the ones that never
+            # become their own shot, plus the forced relocations a collapsing
+            # room produces.
+            ev_payload = ev.get("payload") or {}
+            # Any event that records a room change relocates its actor -- ordinary
+            # movement, but also the extraction, which is a crown_extracted event
+            # rather than a move and would otherwise leave the winner standing in
+            # the Vault as they escape.
+            if ev.get("actor") and isinstance(ev_payload.get("changes"), dict):
+                dest = (ev_payload["changes"].get("room") or [None, None])[-1]
+                if dest:
+                    pos[ev["actor"]] = dest
+            if ev["type"] == "room_sealed":
+                for moved in ev_payload.get("agents_moved") or []:
+                    aid = moved if isinstance(moved, str) else moved.get("agent_id")
+                    if aid:
+                        pos[aid] = "vault"
+
             kind = SHOT_KIND.get(ev["type"])
             if not kind:
                 continue
@@ -134,6 +159,7 @@ def build_beats(summary: dict) -> list[dict]:
                     "face": face,
                     "amount": payload.get("amount") or payload.get("applied"),
                     "accident": bool(payload.get("accident")),
+                    "pos": dict(pos),
                     "state": {
                         "agents": {
                             a["id"]: {
