@@ -188,12 +188,20 @@ research pass before a spec, no exceptions.
 The hosted app (port 5050 on the Forge) should be the practice front door:
 client adder + interviewer (SHIPPED), plus:
 
-- [~] **Email template library** (feat/comms-templates): grow configs/comms/
-      beyond the two seed files into a rendered, per-client template set -
-      document request, missing items, engagement letter, interview invite,
-      return delivery, invoice cover. Pure logic in src/satc/comms/ +
-      thin blueprint + tests, per ARCHITECTURE.md. No SMTP - drafts to copy;
-      sending stays a human act in the mail client.
+- [x] **Email template library** SHIPPED 2026-07-31 (feat/comms-templates):
+      configs/comms/ grew from two seed files to a seven-template registry
+      (templates.yaml + one .txt body each) - interview invite, engagement
+      letter, document request, missing items, return delivery, cover letter,
+      invoice cover. Pure logic in src/satc/comms/ (library / context /
+      render), thin blueprint at /comms + nav entry, 43 tests across
+      tests/test_comms.py + tests/test_comms_app.py. Prefills from real state
+      (document register, return refund/balance, engagement fee, vault name);
+      a merge field with no fact behind it renders as a visible
+      "[[ Fee: fill in ]]" marker and is listed on the screen - never guessed.
+      Slots only a human can answer (meeting times, scope, fee terms, invoice
+      number) get a text box. No SMTP anywhere: an ast-parsing test asserts the
+      area never imports smtplib or calls sendmail. The two seed files stay
+      byte-identical, so satc.drake.comms still renders them.
 - [ ] **Invoice generation folded in**: port the standalone invoice-generator
       Flask app in as a satc_system piece (drop Stripe for local-first v1;
       invoice numbering, line items, PDF/HTML render, per-client history).
