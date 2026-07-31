@@ -125,6 +125,18 @@ def test_a_blank_value_counts_as_unfilled(lib):
     assert "requested_items" in draft.unfilled
 
 
+def test_a_block_keeps_its_indentation(lib):
+    """Every bullet lines up — including the first, which sits at the slot."""
+    draft = render_key("missing_items", {
+        "missing_items": "  • 1099-DIV\n  • Form 8879"}, library=lib)
+    assert "\n  • 1099-DIV\n  • Form 8879\n" in draft.body
+
+
+def test_a_single_line_value_is_still_tidied(lib):
+    draft = render_key("document_request", {"salutation": "  Jordan  "}, library=lib)
+    assert "Dear Jordan," in draft.body
+
+
 def test_a_complete_draft_reports_itself_complete(lib):
     tpl = lib.template("interview_invite")
     values = {name: f"value for {name}" for name in placeholder_names(tpl)}
@@ -230,14 +242,17 @@ def test_document_register_splits_outstanding_from_received():
 
 def test_return_results_become_a_client_readable_summary():
     returns = [
-        ReturnRecord(return_key="R1", client_id="C", tax_year=2024, return_type="1040",
-                     jurisdiction="US", refund_amount=Decimal("1200")),
         ReturnRecord(return_key="R2", client_id="C", tax_year=2024, return_type="1040",
                      jurisdiction="OH", balance_due_amount=Decimal("300")),
+        ReturnRecord(return_key="R1", client_id="C", tax_year=2024, return_type="1040",
+                     jurisdiction="US", refund_amount=Decimal("1200")),
     ]
     values = build_context(returns=returns, tax_year=2024)
-    assert "Federal (1040): REFUND $1,200" in values["jurisdiction_summary"]
-    assert "Ohio (1040): BALANCE DUE $300" in values["jurisdiction_summary"]
+    summary = values["jurisdiction_summary"]
+    assert "Federal (1040): REFUND $1,200" in summary
+    assert "Ohio (1040): BALANCE DUE $300" in summary
+    # Federal leads regardless of the order the records came off the mart.
+    assert summary.index("Federal") < summary.index("Ohio")
     assert values["net_result_sentence"] == (
         "Across all jurisdictions you have a net refund of $900.")
 

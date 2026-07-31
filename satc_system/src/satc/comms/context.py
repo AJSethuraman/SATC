@@ -59,10 +59,16 @@ def _bullets(lines) -> str:
     return "\n".join(_BULLET + item for item in items)
 
 
+def _jurisdiction_order(ret) -> tuple[int, str]:
+    """Federal leads, then states by name — how a client expects to read it."""
+    juris = getattr(ret, "jurisdiction", "")
+    return (0 if juris == "US" else 1, JURISDICTION_NAMES.get(juris, juris))
+
+
 def _jurisdiction_lines(returns) -> list[str]:
     """One plain-language result line per return on file."""
     lines: list[str] = []
-    for ret in returns:
+    for ret in sorted(returns, key=_jurisdiction_order):
         name = JURISDICTION_NAMES.get(ret.jurisdiction, ret.jurisdiction)
         label = f"{name} ({ret.return_type})"
         refund = _money(getattr(ret, "refund_amount", None))

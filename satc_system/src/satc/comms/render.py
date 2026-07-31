@@ -61,13 +61,30 @@ class RenderedDraft:
         return f"Subject: {self.subject}\n\n{self.body}" if self.subject else self.body
 
 
+def _merge_text(value) -> str:
+    """The text a value contributes — ``""`` when it holds nothing.
+
+    Whitespace handling differs by shape, because the two shapes mean different
+    things. A single-line value is a stray fact off a record, so it is stripped.
+    A multi-line value is a formatted BLOCK (a bullet list of requested items),
+    where leading spaces are the indentation — stripping it would left-align the
+    first bullet and leave the rest indented.
+    """
+    if value is None:
+        return ""
+    text = str(value)
+    if not text.strip():
+        return ""
+    return text.strip("\n").rstrip() if "\n" in text else text.strip()
+
+
 def render(template: CommsTemplate, values: dict[str, str], *,
            library: CommsLibrary | None = None) -> RenderedDraft:
     """Merge ``values`` into ``template``; mark every slot they didn't fill.
 
-    A value counts as filled only if it is a non-empty string after stripping —
-    an empty string means "we don't hold this fact", which is exactly the case
-    the marker exists for.
+    A value counts as filled only if it holds non-whitespace text — a blank
+    means "we don't hold this fact", which is exactly the case the marker
+    exists for.
     """
     filled: list[str] = []
     unfilled: list[str] = []
@@ -78,8 +95,7 @@ def render(template: CommsTemplate, values: dict[str, str], *,
 
     def substitute(match: re.Match[str]) -> str:
         name = match.group(1)
-        value = values.get(name)
-        text = "" if value is None else str(value).strip()
+        text = _merge_text(values.get(name))
         if text:
             if name not in filled:
                 filled.append(name)
