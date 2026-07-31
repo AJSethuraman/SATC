@@ -182,3 +182,19 @@ research pass before a spec, no exceptions.
 - 2026-07-02 — Bureau review pass: 16 findings fixed (heat inversion,
   IFERROR empty-cell coercion, raw_slots guard, MS-OVBA protection keys).
 - 2026-06-30..07-01 — Templates #1 (FRED) and #2 (bureau) shipped; PR #53.
+
+## 6 - Hosted practice app (satc_system) - the "hodgepodge" build-out (AJ, 2026-07-30)
+
+The hosted app (port 5050 on the Forge) should be the practice front door:
+client adder + interviewer (SHIPPED), plus:
+
+- [~] **Email template library** (feat/comms-templates): grow configs/comms/
+      beyond the two seed files into a rendered, per-client template set -
+      document request, missing items, engagement letter, interview invite,
+      return delivery, invoice cover. Pure logic in src/satc/comms/ +
+      thin blueprint + tests, per ARCHITECTURE.md. No SMTP - drafts to copy;
+      sending stays a human act in the mail client.
+- [ ] **Invoice generation folded in**: port the standalone invoice-generator
+      Flask app in as a satc_system piece (drop Stripe for local-first v1;
+      invoice numbering, line items, PDF/HTML render, per-client history).
+      Bigger job - own session.
