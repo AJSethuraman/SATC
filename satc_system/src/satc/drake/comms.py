@@ -21,7 +21,9 @@ from satc.drake.preparer_set_parser import PreparerSet
 
 _TEMPLATE_DIR = Path(__file__).resolve().parents[3] / "configs" / "comms"
 
-_JURIS_NAME = {"US": "Federal", "OH": "Ohio", "MI": "Michigan", "MA": "Massachusetts"}
+# Shared with satc.comms (the client-communication library), which names the same
+# jurisdictions in its own drafts.
+JURISDICTION_NAMES = {"US": "Federal", "OH": "Ohio", "MI": "Michigan", "MA": "Massachusetts"}
 _PAY_PORTAL = {
     "US": "IRS Direct Pay (irs.gov/payments)",
     "OH": "the Ohio ID Confirmation / OH|TAX eServices portal",
@@ -65,7 +67,7 @@ def build_delivery_summary(ps: PreparerSet) -> DeliverySummary:
             pay = (f"Pay online at {_PAY_PORTAL.get(fi.jurisdiction, 'the state portal')} "
                    f"or mail a payment voucher" if fi.balance_due else "Refund will be direct-deposited / mailed")
         summary.results.append(JurisdictionResult(
-            jurisdiction=fi.jurisdiction, name=_JURIS_NAME.get(fi.jurisdiction, fi.jurisdiction),
+            jurisdiction=fi.jurisdiction, name=JURISDICTION_NAMES.get(fi.jurisdiction, fi.jurisdiction),
             form=fi.form, method=fi.filing_method, due_date=fi.due_date,
             refund=fi.refund, balance_due=fi.balance_due, mail_to=fi.mail_to,
             ef_status=(f"{ef.status} {ef.date}".strip() if ef else "pending"),

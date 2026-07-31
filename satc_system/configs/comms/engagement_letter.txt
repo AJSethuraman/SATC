@@ -1,0 +1,53 @@
+SETHURAMAN  ·  Accounting · Tax · Consulting
+"{firm_tagline}"
+
+{date}
+
+{client_name}
+Client ID: {client_id}   ·   Taxpayer ID on file: {tin_masked}
+
+RE: Engagement for {tax_year} tax services
+
+Dear {salutation},
+
+Thank you for the opportunity to work with you. This letter confirms what we have agreed
+to do for the {tax_year} tax year, so that we both start from the same understanding.
+
+SCOPE OF SERVICES
+
+{scope_of_services}
+
+WHAT WE NEED FROM YOU
+
+You are responsible for the completeness and accuracy of the records and representations
+you provide. We will prepare your return from the information you give us; we do not
+audit or independently verify it. If we notice something that looks incorrect or
+incomplete, we will raise it with you.
+
+FEES
+
+{fee_terms}
+
+OUR RECORDS
+
+Your return is prepared and filed through Drake Software, which remains the system of
+record for the filed return and its computations. We retain supporting documents and
+correspondence in accordance with our records-retention policy.
+
+If this reflects your understanding, please sign below and return one copy. We are glad
+to walk through any part of it first.
+
+Sincerely,
+
+
+{preparer_name}
+{firm_name}
+
+
+ACCEPTED AND AGREED:
+
+
+_______________________________________          Date: ______________
+{client_name}
+
+— DRAFT engagement letter for preparer review. —

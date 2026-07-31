@@ -1,0 +1,194 @@
+# CLIENT COMMUNICATION TEMPLATES — the registry behind the Comms screen.
+#
+# Data, not code. Each template is a plain-text body file in this folder plus the
+# metadata below. Nothing here sends anything: the app renders a DRAFT the
+# preparer reads, edits, and sends from their own mail client. (Sending stays a
+# human act — see satc_system/ARCHITECTURE.md and BACKLOG §6.)
+#
+# Merge fields are written `{placeholder}` in the subject and body. Every one used
+# must be declared under `placeholders:` below — `tests/test_comms.py` fails the
+# build otherwise, so a body can never quietly reference a slot nothing fills.
+#
+# A placeholder's `source` decides who fills it:
+#   state    — prefilled from real client / engagement / return data on file.
+#              If the practice doesn't hold that fact yet, the slot is left
+#              VISIBLY UNFILLED. We never invent a value.
+#   config   — firm identity, from the `firm:` block in this file.
+#   preparer — genuinely a human decision (meeting times, fee scope, invoice
+#              number). The screen offers a box to type it in.
+
+firm:
+  name: "Sethuraman Accounting, Tax & Consulting"
+  short_name: "SATC"
+  tagline: "Complex work, made clear."
+  email: "arjun_sethuraman@satcllp.com"
+  preparer_name: "A. Sethuraman"
+
+placeholders:
+  # -- who the client is (vault-side; masked identifiers only) ---------------
+  client_name:
+    label: "Client name"
+    source: state
+    note: "Legal name from the identity vault."
+  salutation:
+    label: "Salutation"
+    source: state
+    note: "First name for a person; the entity name for a business."
+  client_id:
+    label: "Client ID"
+    source: state
+  tin_masked:
+    label: "Taxpayer ID (masked)"
+    source: state
+    note: "Masked form only — ***-**-1234. A full TIN never enters a draft."
+
+  # -- the engagement -------------------------------------------------------
+  tax_year:
+    label: "Tax year"
+    source: state
+  date:
+    label: "Today's date"
+    source: state
+  due_date:
+    label: "Engagement due date"
+    source: state
+  engagement_name:
+    label: "Engagement / workflow name"
+    source: state
+    note: "e.g. \"Individual 1040 — core\"."
+
+  # -- document tracking ----------------------------------------------------
+  requested_items:
+    label: "Requested items"
+    source: state
+    note: "Every client-facing ask on the newest engagement, in its own words."
+  missing_items:
+    label: "Still outstanding"
+    source: state
+    note: "Documents still sitting at Requested in the document register."
+  received_items:
+    label: "Already received"
+    source: state
+
+  # -- the finished return --------------------------------------------------
+  jurisdiction_summary:
+    label: "Per-jurisdiction result"
+    source: state
+    note: "Refund / balance due per return on file. Drake remains the system of record."
+  net_result_sentence:
+    label: "Net result sentence"
+    source: state
+
+  # -- money ----------------------------------------------------------------
+  fee_amount_text:
+    label: "Fee"
+    source: state
+    note: "From the engagement's fee record, when one is on file."
+  invoice_number:
+    label: "Invoice number"
+    source: preparer
+    note: "Until invoicing is folded in (BACKLOG §6), this is typed by hand."
+  payment_instructions:
+    label: "How to pay"
+    source: preparer
+
+  # -- genuinely human decisions -------------------------------------------
+  scope_of_services:
+    label: "Scope of services"
+    source: preparer
+    note: "What this engagement covers — the preparer's words, per client."
+  fee_terms:
+    label: "Fee terms"
+    source: preparer
+  proposed_times:
+    label: "Proposed meeting times"
+    source: preparer
+  meeting_place:
+    label: "Where / how you'll meet"
+    source: preparer
+    note: "e.g. \"a phone call\", \"our office\", a video link."
+
+  # -- the firm (config) ----------------------------------------------------
+  firm_name:
+    label: "Firm name"
+    source: config
+  firm_short_name:
+    label: "Firm short name"
+    source: config
+  firm_tagline:
+    label: "Firm tagline"
+    source: config
+  firm_email:
+    label: "Firm email"
+    source: config
+  preparer_name:
+    label: "Preparer name"
+    source: config
+
+templates:
+  - key: interview_invite
+    name: "Interview invite"
+    kind: email
+    stage: "1 · Onboarding"
+    description: >-
+      Invites a client to the intake interview. Fill in the times and where
+      you'll meet; everything else comes from their record.
+    subject: "Let's get your {tax_year} return started — {firm_short_name}"
+    body_file: interview_invite.txt
+
+  - key: engagement_letter
+    name: "Engagement letter"
+    kind: letter
+    stage: "1 · Onboarding"
+    description: >-
+      The scope-and-fee letter a client signs before work begins. Scope and fee
+      terms are yours to write; the header block is prefilled.
+    body_file: engagement_letter.txt
+
+  - key: document_request
+    name: "Document request"
+    kind: email
+    stage: "2 · Gathering"
+    description: >-
+      The opening ask, built from the client-facing tasks on their newest
+      engagement — the same list the Engagements screen tracks.
+    subject: "Requested items for your {tax_year} return — {firm_short_name}"
+    body_file: document_request.txt
+
+  - key: missing_items
+    name: "Missing items follow-up"
+    kind: email
+    stage: "2 · Gathering"
+    description: >-
+      The nudge. Lists only what is still marked Requested in the document
+      register, and credits what already arrived.
+    subject: "Still need a few things for your {tax_year} return"
+    body_file: missing_items.txt
+
+  - key: return_delivery
+    name: "Return delivery email"
+    kind: email
+    stage: "3 · Delivery"
+    description: >-
+      Tells the client their return is ready, with the per-jurisdiction result
+      and the signature/payment next steps.
+    body_file: delivery_email.txt
+
+  - key: cover_letter
+    name: "Return cover letter"
+    kind: letter
+    stage: "3 · Delivery"
+    description: >-
+      The printed letter that rides with the return package.
+    body_file: cover_letter.txt
+
+  - key: invoice_cover
+    name: "Invoice cover email"
+    kind: email
+    stage: "4 · Billing"
+    description: >-
+      The note that accompanies an invoice. Fee prefills from the engagement
+      record; the invoice number and payment instructions are typed until
+      invoicing is folded into the app (BACKLOG §6).
+    subject: "Invoice for your {tax_year} tax preparation — {firm_short_name}"
+    body_file: invoice_cover.txt
