@@ -19,8 +19,6 @@ because a missing document is not a finding. People close accounts.
 from __future__ import annotations
 
 from satc.rollover.diff import (
-    IN_HAND,
-    OUTSTANDING,
     DocumentKind,
     OmissionReport,
     as_questions,
@@ -29,8 +27,6 @@ from satc.rollover.diff import (
 )
 
 __all__ = [
-    "IN_HAND",
-    "OUTSTANDING",
     "DocumentKind",
     "OmissionReport",
     "as_questions",

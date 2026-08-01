@@ -266,7 +266,11 @@ def engagement_detail(engagement_id: str):
         groups[index[category]][1].append(task)
 
     # Status of any document linked to a client request (Requested/Received badge).
-    doc_status = {d.document_id: d.status for d in STATE.documents()}
+    # A task points at the RequestedItem it opened; the item knows whether it
+    # is still open. The old join went through a status string on a merged
+    # register that could not say which lifecycle it meant.
+    doc_status = {i.request_id: ("Received" if not i.is_open else "Requested")
+                  for i in STATE.requested_items()}
 
     client_tasks = [t for t in eng.tasks if t.audience == "client"]
     internal_tasks = [t for t in eng.tasks if t.audience != "client"]

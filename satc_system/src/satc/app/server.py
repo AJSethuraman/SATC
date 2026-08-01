@@ -20,7 +20,7 @@ from flask import Flask, Response, redirect, render_template, request, send_file
 
 from satc.app.comms_views import bp as comms_bp
 from satc.app.intake_views import bp as intake_bp
-from satc.app.state import DOC_FLOW, STATE
+from satc.app.state import STATE
 from satc.app.today_views import bp as today_bp
 from satc.app.withholding_views import bp as withholding_bp
 from satc.app.workflow_views import bp as workflow_bp
@@ -103,9 +103,10 @@ def create_app() -> Flask:
                               "confidence": c.confidence, "extractable": c.extractable})
         elif folder:
             # Demo fallback: show the synthetic documents as if found in the folder.
-            found = [{"name": f"{d.document_id}.pdf", "type": str(d.doc_type),
-                      "method": "filename", "confidence": "LOW", "extractable": True}
-                     for d in STATE.documents()]
+            found = [{"name": d.display_name or f"{d.document_id}.pdf",
+                      "type": str(d.doc_type), "method": "filename",
+                      "confidence": "LOW", "extractable": True}
+                     for d in STATE.received_documents()]
         return render_template("intake.html", title="Intake", folder=folder, found=found,
                                client=client, tax_year=tax_year)
 
@@ -182,12 +183,15 @@ def create_app() -> Flask:
 
     @app.route("/documents")
     def documents():
+        """The register, now honestly two registers: asked for, and arrived."""
         return render_template("documents.html", title="Documents",
-                               documents=STATE.documents(), flow=DOC_FLOW)
+                               requested=STATE.requested_items(),
+                               received=STATE.received_documents())
 
-    @app.route("/documents/<document_id>/<status>", methods=["POST"])
-    def documents_status(document_id: str, status: str):
-        STATE.set_document_status(document_id, status)
+    @app.route("/documents/<request_id>/close", methods=["POST"])
+    def close_request(request_id: str):
+        """Close an open request — satisfied, or N/A with the client's reason."""
+        STATE.close_request(request_id, reason=request.form.get("reason", "").strip())
         return redirect(url_for("documents"))
 
     @app.route("/setup")
@@ -251,7 +255,7 @@ def create_app() -> Flask:
         ret_keys = {r.return_key for r in rets}
         lines = sorted((li for li in STATE.mart.line_items if li.return_key in ret_keys),
                        key=lambda li: (li.schedule, li.line_code))
-        docs = [d for d in STATE.documents() if d.client_id == client_id]
+        docs = [d for d in STATE.received_documents() if d.client_id == client_id]
         eng = next((e for e in STATE.mart.engagements if e.client_id == client_id), None)
         return render_template("client.html", title=STATE.name(client_id),
                                client_id=client_id, returns=rets, docs=docs, engagement=eng,

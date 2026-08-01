@@ -7,7 +7,8 @@ Two single-file databases (no server, no setup — sqlite3 is built into Python)
     permissions, so a copied/synced database yields no readable client data.
   * ``satc_mart.db``  — the WORKING DATA MART (de-identified: client_id, masked
     last-4, returns, line items, carryforwards, basis, payments, engagements,
-    documents). This is what the app reads/writes and what exports to Excel.
+    requested items, received documents). This is what the app reads/writes
+    and what exports to Excel.
 
 The dataclasses in :mod:`satc.models` are already SQL-shaped, so the mapping here
 is mechanical. Money is stored as TEXT (Decimal string) to preserve precision;
@@ -49,7 +50,6 @@ from satc.models.intake import IntakeEngagement, IntakeTask, Relationship
 from satc.models.mart import (
     Carryforward,
     DataMart,
-    DocumentRecord,
     EngagementRecord,
     EstimatePayment,
     LineItem,
@@ -110,9 +110,6 @@ CREATE TABLE IF NOT EXISTS engagements (
   client_id TEXT, tax_year INTEGER, engagement_letter_status TEXT, fee_amount TEXT,
   invoiced INTEGER, paid INTEGER, preparer_id TEXT, note TEXT,
   PRIMARY KEY (client_id, tax_year));
-CREATE TABLE IF NOT EXISTS documents (
-  document_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, doc_type TEXT,
-  status TEXT, as_of TEXT, sharepoint_link TEXT, actor TEXT, note TEXT);
 CREATE TABLE IF NOT EXISTS requested_items (
   request_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, doc_type TEXT,
   request_text TEXT, blocking TEXT, status TEXT, not_applicable_reason TEXT,
@@ -164,7 +161,7 @@ def _pdt(x: str | None) -> date | None:
 # register HERE and nowhere else.
 _MART_TABLES_BY_CLIENT = (
     "public_clients", "returns", "carryforwards", "owner_basis",
-    "estimate_payments", "engagements", "documents", "intake_engagements",
+    "estimate_payments", "engagements", "intake_engagements",
     "requested_items", "received_documents",
 )
 
@@ -422,10 +419,8 @@ class SATCStore:
             m.execute("INSERT OR REPLACE INTO engagements VALUES (?,?,?,?,?,?,?,?)",
                       (e.client_id, e.tax_year, e.engagement_letter_status, _d(e.fee_amount),
                        int(e.invoiced), int(e.paid), e.preparer_id, e.note))
-        for d in mart.documents:
-            m.execute("INSERT OR REPLACE INTO documents VALUES (?,?,?,?,?,?,?,?,?)",
-                      (d.document_id, d.client_id, d.tax_year, str(d.doc_type), d.status,
-                       _dt(d.as_of), d.sharepoint_link, d.actor, d.note))
+        self.save_requested_items(mart.requested_items)
+        self.save_received_documents(mart.received_documents)
         m.commit()
 
     def delete_intake_line_items(self, return_key: str) -> None:
@@ -438,10 +433,6 @@ class SATCStore:
         """
         self.mart.execute("DELETE FROM line_items WHERE return_key=? AND source_kind=?",
                           (return_key, "SOURCE_DOC"))
-        self.mart.commit()
-
-    def set_document_status(self, document_id: str, status: str) -> None:
-        self.mart.execute("UPDATE documents SET status=? WHERE document_id=?", (status, document_id))
         self.mart.commit()
 
     def set_filing_status(self, client_id: str, filing_status: str) -> None:
@@ -655,11 +646,8 @@ class SATCStore:
             engagement_letter_status=r["engagement_letter_status"], fee_amount=_pd(r["fee_amount"]),
             invoiced=bool(r["invoiced"]), paid=bool(r["paid"]), preparer_id=r["preparer_id"],
             note=r["note"]) for r in m.execute("SELECT * FROM engagements")]
-        mart.documents = [DocumentRecord(
-            document_id=r["document_id"], client_id=r["client_id"], tax_year=r["tax_year"],
-            doc_type=r["doc_type"], status=r["status"], as_of=_pdt(r["as_of"]),
-            sharepoint_link=r["sharepoint_link"] or "", actor=r["actor"] or "", note=r["note"] or "")
-            for r in m.execute("SELECT * FROM documents ORDER BY document_id")]
+        mart.requested_items = self.load_requested_items()
+        mart.received_documents = self.load_received_documents()
         return mart
 
     def close(self) -> None:

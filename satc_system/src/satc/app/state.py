@@ -31,12 +31,10 @@ from satc.ingest.readers import (
     TextAnchorReader,
     VisionDocumentReader,
 )
-from satc.models.mart import DataMart, DocumentRecord, ReturnRecord
+from satc.models.mart import DataMart, ReturnRecord
 from satc.persistence import SATCStore
 from satc.settings import cloud_vision_enabled
 
-# Status flow for a document in the repository.
-DOC_FLOW = ["Requested", "Received", "Sent", "Signed", "N/A"]
 
 # Friendly names for the reader backends (shown in intake notes).
 _READER_LABELS = {
@@ -142,11 +140,21 @@ class AppState:
                 return same[-1]
         return engs[-1] if engs else None
 
-    def documents(self) -> list[DocumentRecord]:
-        return self.mart.documents
+    def requested_items(self) -> list:
+        """Everything asked of clients — open or closed."""
+        return self.mart.requested_items
 
-    def outstanding(self) -> list[DocumentRecord]:
-        return [d for d in self.mart.documents if d.status == "Requested"]
+    def received_documents(self) -> list:
+        """Everything that has actually arrived."""
+        return self.mart.received_documents
+
+    def outstanding(self) -> list:
+        """Open requests. Injected into every page by the context processor."""
+        return [i for i in self.mart.requested_items if i.is_open]
+
+    def blocking_outstanding(self) -> list:
+        """Open requests that stop prep — the ones that are not just noise."""
+        return [i for i in self.outstanding() if i.blocks_prep]
 
     def returns(self):
         return self.mart.returns
@@ -159,13 +167,24 @@ class AppState:
         return seen
 
     # -- mutations (write through to the store) ---------------------------
-    def set_document_status(self, document_id: str, status: str) -> None:
-        if status not in DOC_FLOW:
+    def close_request(self, request_id: str, *, reason: str = "") -> None:
+        """Close an open request — satisfied, or not applicable WITH A REASON.
+
+        Replaces set_document_status(). The old call took any of five statuses
+        spanning four lifecycles and wrote it to one column; this one can only
+        do the thing a request can actually do.
+        """
+        from satc.models.evidence import mark_not_applicable
+
+        for item in self.mart.requested_items:
+            if item.request_id != request_id:
+                continue
+            if reason:
+                mark_not_applicable(item, reason)
+            else:
+                item.status = "satisfied"
+            self.store.save_requested_items([item])
             return
-        self.store.set_document_status(document_id, status)   # durable
-        for d in self.mart.documents:                          # keep view in sync
-            if d.document_id == document_id:
-                d.status = status
 
     def confirm_field(self, field_id: str) -> None:
         self.gate.confirm(field_id, acting_actor())

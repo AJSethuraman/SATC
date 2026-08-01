@@ -23,10 +23,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-# Register statuses that mean the document is actually in hand. "Requested"
-# deliberately is not one — asking for something is not receiving it.
-IN_HAND = {"Received", "Signed"}
-OUTSTANDING = {"Requested"}
+# The diff now reads the two evidence entities directly rather than filtering one
+# register by a status string. "Asked for" and "arrived" are different tables,
+# which is the whole point of the split — a single status could never say that a
+# document was both requested last year and received this year.
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,32 +90,37 @@ class OmissionReport:
         return f"{' · '.join(bits)} of {self.prior_year_count} on file for {self.prior_year}."
 
 
-def _kinds(documents, *, statuses: set[str] | None = None) -> dict[str, DocumentKind]:
-    """Index documents by type, keeping the first detail seen for each."""
+def _kinds(rows, *, detail_attr: str = "note") -> dict[str, DocumentKind]:
+    """Index rows by doc_type, keeping the first detail seen for each."""
     out: dict[str, DocumentKind] = {}
-    for doc in documents:
-        if statuses is not None and str(getattr(doc, "status", "")) not in statuses:
-            continue
-        doc_type = (getattr(doc, "doc_type", "") or "").strip()
+    for row in rows:
+        doc_type = (getattr(row, "doc_type", "") or "").strip()
         if not doc_type or doc_type in out:
             continue
-        out[doc_type] = DocumentKind(doc_type, (getattr(doc, "note", "") or "").strip())
+        out[doc_type] = DocumentKind(
+            doc_type, (getattr(row, detail_attr, "") or "").strip())
     return out
 
 
-def omission_diff(documents, *, client_id: str, prior_year: int,
-                  current_year: int) -> OmissionReport:
-    """Compare two years of one client's document register.
+def _for_year(rows, client_id: str, year: int) -> list:
+    return [r for r in rows
+            if getattr(r, "client_id", None) == client_id
+            and getattr(r, "tax_year", None) == year]
 
-    ``documents`` may be the whole register; it is narrowed here. Nothing is
-    written — this is a question generator, not a decision.
+
+def omission_diff(received=(), requested=(), *, client_id: str, prior_year: int,
+                  current_year: int) -> OmissionReport:
+    """Compare two years of one client's evidence.
+
+    ``received`` is what arrived (any year); ``requested`` is what was asked for
+    and is still open. Both may be the whole practice — they are narrowed here.
+    Nothing is written: this is a question generator, not a decision.
     """
-    mine = [d for d in documents if getattr(d, "client_id", None) == client_id]
-    prior = _kinds([d for d in mine if getattr(d, "tax_year", None) == prior_year],
-                   statuses=IN_HAND)
-    current_all = [d for d in mine if getattr(d, "tax_year", None) == current_year]
-    current_in_hand = _kinds(current_all, statuses=IN_HAND)
-    current_outstanding = _kinds(current_all, statuses=OUTSTANDING)
+    prior = _kinds(_for_year(received, client_id, prior_year))
+    current_in_hand = _kinds(_for_year(received, client_id, current_year))
+    current_outstanding = _kinds(
+        [r for r in _for_year(requested, client_id, current_year)
+         if getattr(r, "is_open", True)], detail_attr="request_text")
 
     # A prior-year document is "missing" only if this year has NO trace of it —
     # neither received nor even requested. Something already on the chase list is
@@ -133,7 +138,7 @@ def omission_diff(documents, *, client_id: str, prior_year: int,
         new_this_year=sorted(new_this_year, key=key), carried=sorted(carried, key=key))
 
 
-def opening_request_list(documents, *, client_id: str, prior_year: int) -> list[DocumentKind]:
+def opening_request_list(received=(), *, client_id: str, prior_year: int) -> list[DocumentKind]:
     """Last year's documents, as this year's expected list.
 
     The other half of rollover: rather than asking a returning client to answer
@@ -141,10 +146,8 @@ def opening_request_list(documents, *, client_id: str, prior_year: int) -> list[
     research called this the single highest-leverage automated-junior move, and
     it is the same set the diff measures against.
     """
-    return sorted(_kinds([d for d in documents
-                          if getattr(d, "client_id", None) == client_id
-                          and getattr(d, "tax_year", None) == prior_year],
-                         statuses=IN_HAND).values(), key=lambda k: k.doc_type)
+    return sorted(_kinds(_for_year(received, client_id, prior_year)).values(),
+                  key=lambda k: k.doc_type)
 
 
 def as_questions(report: OmissionReport) -> list[str]:

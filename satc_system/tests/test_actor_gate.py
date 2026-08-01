@@ -330,15 +330,15 @@ def _store_with_request(tmp):
     """A store holding one outstanding W-2 request."""
     from datetime import date
 
-    from satc.models.mart import DocumentRecord
+    from satc.models.evidence import RequestedItem
     from satc.persistence import SATCStore
 
     store = SATCStore(tmp)
     mart = store.load_mart()
-    mart.documents.append(DocumentRecord(
-        document_id="req-1", client_id="C", tax_year=2025, doc_type="W-2",
-        status="Requested", as_of=date.today(), actor="intake",
-        note="Your W-2 from each employer"))
+    mart.requested_items.append(RequestedItem(
+        request_id="req-1", client_id="C", tax_year=2025, doc_type="W-2",
+        request_text="Your W-2 from each employer", blocking="blocking",
+        requested_at=date.today()))
     store.save_mart(mart)
     return store
 
@@ -354,8 +354,8 @@ def test_a_model_classified_arrival_cannot_close_a_request():
         matched = reconcile_received(store, client_id="C", doc_type="W-2",
                                      classified_by=Actor.model("vision"))
         assert matched is None
-        still = store.load_mart().documents[0]
-        assert still.status == "Requested", "a model closed a client request"
+        still = store.load_requested_items("C")[0]
+        assert still.is_open, "a model closed a client request"
 
 
 def test_a_deterministic_classification_still_closes_the_request():
@@ -368,7 +368,7 @@ def test_a_deterministic_classification_still_closes_the_request():
         matched = reconcile_received(store, client_id="C", doc_type="W-2",
                                      classified_by=Actor.system("classifier:text"))
         assert matched is not None
-        assert store.load_mart().documents[0].status == "Received"
+        assert not store.load_requested_items("C")[0].is_open
 
 
 def test_the_model_still_gets_to_point_at_the_request():
@@ -380,7 +380,7 @@ def test_the_model_still_gets_to_point_at_the_request():
     with tempfile.TemporaryDirectory() as tmp, _store_with_request(tmp) as store:
         likely = find_match(store, client_id="C", doc_type="W-2")
         assert likely is not None and likely.doc_type == "W-2"
-        assert store.load_mart().documents[0].status == "Requested"   # read-only
+        assert store.load_requested_items("C")[0].is_open   # read-only
 
 
 def test_only_the_vision_rung_counts_as_a_model():

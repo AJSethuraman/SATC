@@ -25,7 +25,7 @@ bp = Blueprint("today", __name__)
 
 _DISMISSED = "today_dismissed"
 
-def working_tax_year(documents, today: date) -> int:
+def working_tax_year(rows, today: date) -> int:
     """The year the practice is actually working on.
 
     Derived from the register — the most recent year with documents on file —
@@ -36,7 +36,7 @@ def working_tax_year(documents, today: date) -> int:
 
     Principle 3: computed, never stored.
     """
-    years = [d.tax_year for d in documents if getattr(d, "tax_year", None)]
+    years = [r.tax_year for r in rows if getattr(r, "tax_year", None)]
     return max(years) if years else today.year - 1
 
 
@@ -72,14 +72,15 @@ def _dismissed() -> set[str]:
 @bp.route("/today")
 def today():
     as_of = date.today()
-    documents = STATE.documents()
-    requested = request.args.get("tax_year", "")
-    year = (int(requested) if requested.strip().isdigit()
-            else working_tax_year(documents, as_of))
+    requested = STATE.requested_items()
+    received = STATE.received_documents()
+    asked_year = request.args.get("tax_year", "")
+    year = (int(asked_year) if asked_year.strip().isdigit()
+            else working_tax_year(list(received) + list(requested), as_of))
 
     queue = build_queue(
         clients=[cid for cid, _ in STATE.client_choices()],
-        documents=documents,
+        requested=requested, received=received,
         obligations=_obligations(year),
         engaged_clients=[e.client_id for e in STATE.intake_engagements()],
         tax_year=year, today=as_of)

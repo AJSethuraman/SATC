@@ -8,17 +8,22 @@ from satc.fixtures import synthetic_identities
 from satc.persistence import SATCStore, export_mart_to_excel
 
 
-def test_status_change_survives_a_restart(tmp_path):
+def test_closing_a_request_survives_a_restart(tmp_path):
+    """And the REASON survives with it — that reason is the record."""
+    from satc.models.evidence import mark_not_applicable
+
     store = SATCStore(tmp_path)
     store.seed_if_empty()
-    doc = next(d for d in store.load_mart().documents if d.status == "Requested")
-    store.set_document_status(doc.document_id, "Received")
+    item = next(i for i in store.load_requested_items() if i.is_open)
+    store.save_requested_items([mark_not_applicable(item, "account closed in March")])
     store.close()
 
     # Reopen the same directory — a fresh process would see exactly this.
     store2 = SATCStore(tmp_path)
-    reloaded = {d.document_id: d.status for d in store2.load_mart().documents}
-    assert reloaded[doc.document_id] == "Received"
+    reloaded = {i.request_id: i for i in store2.load_requested_items()}
+    assert reloaded[item.request_id].status == "not_applicable"
+    assert reloaded[item.request_id].not_applicable_reason == "account closed in March"
+    store2.close()
 
 
 def test_pii_lives_only_in_the_vault_file_not_the_mart(tmp_path):
@@ -56,7 +61,8 @@ def test_loaded_mart_matches_fixture_shape(tmp_path):
     store.seed_if_empty()
     mart = store.load_mart()
     assert len(mart.returns) == 6
-    assert len(mart.documents) == 14   # 10 current-year + 4 prior-year (2023)
+    assert len(mart.requested_items) == 4
+    assert len(mart.received_documents) == 6
     assert any(c.kind == "NOL" for c in mart.carryforwards)
 
 

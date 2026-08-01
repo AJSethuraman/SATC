@@ -25,10 +25,6 @@ from decimal import Decimal
 
 from satc.drake.comms import JURISDICTION_NAMES
 
-# Statuses in the document register that mean "still waiting" / "in hand".
-_OUTSTANDING = {"Requested"}
-_IN_HAND = {"Received", "Signed"}
-
 _BULLET = "  • "
 
 
@@ -114,12 +110,11 @@ def _client_requests(engagement) -> list[str]:
     return out
 
 
-def _doc_lines(documents, statuses: set[str]) -> list[str]:
+def _doc_lines(rows) -> list[str]:
+    """Distinct doc types, first-seen order."""
     out: list[str] = []
-    for doc in documents:
-        if str(getattr(doc, "status", "")) not in statuses:
-            continue
-        label = (getattr(doc, "doc_type", "") or "").strip()
+    for row in rows:
+        label = (getattr(row, "doc_type", "") or "").strip()
         if label and label not in out:
             out.append(label)
     return out
@@ -131,7 +126,8 @@ def build_context(
     client_name: str = "",
     public_client=None,
     returns=(),
-    documents=(),
+    requested=(),
+    received=(),
     engagement=None,
     fee_record=None,
     engagement_name: str = "",
@@ -144,8 +140,8 @@ def build_context(
 
     Every key is omitted (not blanked) when the practice holds no fact for it, so
     the renderer marks it unfilled rather than sending an empty gap. ``returns``
-    and ``documents`` should already be narrowed to this client; when ``tax_year``
-    resolves, they are narrowed to that year here.
+    ``requested`` and ``received`` should already be narrowed to this client;
+    when ``tax_year`` resolves, they are narrowed to that year here.
     """
     values: dict[str, str] = dict(firm_values or {})
     today = today or date.today()
@@ -162,7 +158,7 @@ def build_context(
         values["tin_masked"] = masked
 
     # -- the year this communication is about ---------------------------------
-    all_documents = list(documents)
+    all_received = list(received)
     year = tax_year
     if year is None:
         year = getattr(engagement, "tax_year", None)
@@ -172,21 +168,23 @@ def build_context(
     if year:
         values["tax_year"] = str(year)
         returns = [r for r in returns if getattr(r, "tax_year", None) == year]
-        year_docs = [d for d in documents if getattr(d, "tax_year", None) == year]
-        # Only narrow the register when that year actually has documents —
-        # otherwise a mis-keyed year would silently empty the list.
-        documents = year_docs or documents
+        # Narrow to the year only when that year actually has rows — otherwise a
+        # mis-keyed year would silently empty the list.
+        requested = [r for r in requested
+                     if getattr(r, "tax_year", None) == year] or requested
+        received = [d for d in received
+                    if getattr(d, "tax_year", None) == year] or received
 
     values["date"] = today.strftime("%B %d, %Y")
 
     # -- the prior-year omission diff ----------------------------------------
-    # Runs against `all_documents`, captured before the year-narrowing above:
+    # Runs against `all_received`, captured before the year-narrowing above:
     # the diff IS a comparison across two years, so the narrowed register would
     # make it structurally unable to see the prior year at all.
     if prior_year is not None and client_id:
         from satc.rollover import as_questions, omission_diff
 
-        report = omission_diff(all_documents, client_id=client_id,
+        report = omission_diff(all_received, requested, client_id=client_id,
                                prior_year=prior_year, current_year=year or 0)
         questions = _bullets(as_questions(report))
         if questions:
@@ -208,12 +206,12 @@ def build_context(
     requests = _bullets(_client_requests(engagement))
     if requests:
         values["requested_items"] = requests
-    missing = _bullets(_doc_lines(documents, _OUTSTANDING))
+    missing = _bullets(_doc_lines(r for r in requested if getattr(r, "is_open", True)))
     if missing:
         values["missing_items"] = missing
-    received = _bullets(_doc_lines(documents, _IN_HAND))
-    if received:
-        values["received_items"] = received
+    in_hand = _bullets(_doc_lines(received))
+    if in_hand:
+        values["received_items"] = in_hand
 
     # -- the finished return --------------------------------------------------
     if returns:

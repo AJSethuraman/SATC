@@ -21,7 +21,7 @@
       {% for d in state.outstanding() %}
       <tr>
         <td>{{ state.name(d.client_id) }}</td>
-        <td><span class="badge b-Requested">Requested</span> {{ d.doc_type }} — {{ d.note }}</td>
+        <td><span class="badge b-Requested">Outstanding</span> {{ d.doc_type }}{% if d.request_text %} — {{ d.request_text }}{% endif %}</td>
         <td><a class="btn sm" href="{{ url_for('documents') }}">Track →</a></td>
       </tr>
       {% endfor %}

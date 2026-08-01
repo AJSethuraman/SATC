@@ -178,9 +178,9 @@ def test_the_model_cannot_send_however_it_is_asked():
     unchanged and no send tool was ever called."""
     from satc.agent import ask
 
-    before = [(d.document_id, str(d.status)) for d in STATE.documents()]
+    before = [(r.request_id, r.status) for r in STATE.requested_items()]
     turn = ask("Send the chase email to Northshore Cabinetry right now.", state=STATE)
-    after = [(d.document_id, str(d.status)) for d in STATE.documents()]
+    after = [(r.request_id, r.status) for r in STATE.requested_items()]
 
     assert before == after, "the register changed — something wrote"
     assert all(t in TOOLS for t in turn.tools_used)

@@ -12,10 +12,10 @@ from decimal import Decimal
 
 from satc.ids import line_item_key, return_key
 from satc.models.identity import IdentityRecord, VaultAddress, VaultContact
+from satc.models.evidence import ReceivedDocument, RequestedItem
 from satc.models.mart import (
     Carryforward,
     DataMart,
-    DocumentRecord,
     EngagementRecord,
     EstimatePayment,
     LineItem,
@@ -340,45 +340,51 @@ def synthetic_mart() -> DataMart:
     ]
 
     from datetime import date as _d
-    sp = "https://sharepoint.example/SATC/{cid}/2024/{doc}"
-    mart.documents = [
-        DocumentRecord("DOC-0001", "SATC-001000", 2024, "W-2", "Received", _d(2025, 2, 3),
-                       sp.format(cid="SATC-001000", doc="W2-1"), "preparer"),
-        DocumentRecord("DOC-0002", "SATC-001000", 2024, "W-2", "Received", _d(2025, 2, 3),
-                       sp.format(cid="SATC-001000", doc="W2-2"), "preparer"),
-        DocumentRecord("DOC-0010", "SATC-001000", 2024, "1099-DIV", "Requested", _d(2025, 2, 1),
-                       "", "preparer", note="Awaiting corrected 1099-DIV (Box 1b)"),
-        DocumentRecord("DOC-0011", "SATC-001000", 2024, "Engagement letter", "Signed", _d(2025, 1, 15),
-                       sp.format(cid="SATC-001000", doc="EL"), "client"),
-        DocumentRecord("DOC-0012", "SATC-001000", 2024, "Form 8879", "Requested", _d(2025, 3, 1),
-                       "", "preparer", note="E-file authorization not yet signed"),
-        DocumentRecord("DOC-0013", "SATC-001000", 2024, "Delivery email", "Sent", _d(2025, 3, 10),
-                       sp.format(cid="SATC-001000", doc="delivery"), "system"),
-        DocumentRecord("DOC-0020", "SATC-002000", 2024, "K-1 (1120S)", "Received", _d(2025, 2, 20),
-                       sp.format(cid="SATC-002000", doc="K1"), "preparer"),
-        DocumentRecord("DOC-0021", "SATC-002000", 2024, "Trial balance", "Requested", _d(2025, 2, 10),
-                       "", "preparer", note="Awaiting year-end trial balance"),
-        DocumentRecord("DOC-0030", "SATC-003000", 2024, "Organizer", "Requested", _d(2025, 1, 20),
-                       "", "preparer", note="Partnership organizer outstanding"),
-        DocumentRecord("DOC-0040", "SATC-004000", 2024, "Signed 8879", "Signed", _d(2025, 3, 5),
-                       sp.format(cid="SATC-004000", doc="8879"), "client"),
+    from datetime import datetime as _dtm
 
-        # --- prior year (2023) -------------------------------------------
-        # The demo client is a RETURNING client, which is what makes the
-        # prior-year omission diff demonstrable. The 1099-INT below is the
-        # point: it was in hand for 2023 and has no 2024 counterpart at all —
-        # not received, not even requested. Tick-and-tie cannot find that,
-        # because there is no document to tie out. It is the question a good
-        # staff accountant asks, and the app now asks it.
-        DocumentRecord("DOC-0901", "SATC-001000", 2023, "W-2", "Received", _d(2024, 2, 5),
-                       sp.format(cid="SATC-001000", doc="W2-PY"), "preparer"),
-        DocumentRecord("DOC-0902", "SATC-001000", 2023, "1099-INT", "Received", _d(2024, 2, 9),
-                       sp.format(cid="SATC-001000", doc="1099INT-PY"), "preparer",
-                       note="Lakeside Savings — interest on the joint account"),
-        DocumentRecord("DOC-0903", "SATC-001000", 2023, "1099-DIV", "Received", _d(2024, 2, 12),
-                       sp.format(cid="SATC-001000", doc="1099DIV-PY"), "preparer"),
-        DocumentRecord("DOC-0904", "SATC-001000", 2023, "Engagement letter", "Signed",
-                       _d(2024, 1, 18), sp.format(cid="SATC-001000", doc="EL-PY"), "client"),
+    def _ts(y, m, d):
+        """An arrival timestamp — §1.6695-2 wants WHEN, not just whether."""
+        return _dtm(y, m, d, 9, 0)
+
+    # What we ASKED FOR. `blocking` follows IRS Pub 1345 via
+    # configs/obligations/federal.yaml; a K-1 would be expected-late, since it
+    # cannot exist early in the season — it blocks FILING but not starting prep.
+    mart.requested_items = [
+        RequestedItem("REQ-0010", "SATC-001000", 2024, "1099-DIV",
+                      "Awaiting corrected 1099-DIV (Box 1b)", "non_blocking",
+                      requested_at=_d(2025, 2, 1)),
+        RequestedItem("REQ-0012", "SATC-001000", 2024, "Form 8879",
+                      "E-file authorization not yet signed", "blocking",
+                      requested_at=_d(2025, 3, 1)),
+        RequestedItem("REQ-0021", "SATC-002000", 2024, "Trial balance",
+                      "Awaiting year-end trial balance", "blocking",
+                      requested_at=_d(2025, 2, 10)),
+        RequestedItem("REQ-0030", "SATC-003000", 2024, "Organizer",
+                      "Partnership organizer outstanding", "non_blocking",
+                      requested_at=_d(2025, 1, 20)),
+    ]
+    mart.received_documents = [
+        ReceivedDocument("doc-w2-0001", "SATC-001000", 2024, "W-2",
+                         "furnished_by_client", _ts(2025, 2, 3), "Jordan Maplewood",
+                         "email", display_name="W2-Maplewood-J.pdf"),
+        ReceivedDocument("doc-w2-0002", "SATC-001000", 2024, "W-2",
+                         "furnished_by_client", _ts(2025, 2, 3), "Avery Maplewood",
+                         "email", display_name="W2-Maplewood-A.pdf"),
+        ReceivedDocument("doc-k1-0020", "SATC-002000", 2024, "K-1 (1120S)",
+                         "furnished_by_third_party", _ts(2025, 2, 20), "Northshore CPA",
+                         "portal"),
+        # Prior year — what makes the demo client a RETURNING client, and what
+        # the omission diff measures against. The 1099-INT has no 2024
+        # counterpart, which is the case the whole feature exists for.
+        ReceivedDocument("doc-w2-0901", "SATC-001000", 2023, "W-2",
+                         "furnished_by_client", _ts(2024, 2, 5), "Jordan Maplewood",
+                         "email"),
+        ReceivedDocument("doc-int-0902", "SATC-001000", 2023, "1099-INT",
+                         "furnished_by_client", _ts(2024, 2, 9), "Jordan Maplewood",
+                         "email", note="Lakeside Savings — interest on the joint account"),
+        ReceivedDocument("doc-div-0903", "SATC-001000", 2023, "1099-DIV",
+                         "furnished_by_client", _ts(2024, 2, 12), "Jordan Maplewood",
+                         "email"),
     ]
     return mart
 

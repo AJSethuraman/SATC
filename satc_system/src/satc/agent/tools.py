@@ -98,11 +98,12 @@ def today(state, *, tax_year: int | None = None) -> dict[str, Any]:
     from satc.app.today_views import _obligations, working_tax_year
 
     as_of = date.today()
-    documents = state.documents()
-    year = tax_year or working_tax_year(documents, as_of)
+    requested = state.requested_items()
+    received = state.received_documents()
+    year = tax_year or working_tax_year(list(received) + list(requested), as_of)
     queue = build_queue(
         clients=[cid for cid, _ in state.client_choices()],
-        documents=documents, obligations=_obligations(year),
+        requested=requested, received=received, obligations=_obligations(year),
         engaged_clients=[e.client_id for e in state.intake_engagements()],
         tax_year=year, today=as_of)
 
@@ -125,9 +126,10 @@ def client_brief(state, *, client: str) -> dict[str, Any]:
         return resolved
     client_id, name = resolved
 
-    docs = [d for d in state.documents() if d.client_id == client_id]
-    outstanding = [d.doc_type for d in docs if str(d.status) == "Requested"]
-    received = [d.doc_type for d in docs if str(d.status) in ("Received", "Signed")]
+    outstanding = [r.doc_type for r in state.requested_items()
+                   if r.client_id == client_id and r.is_open]
+    received = [d.doc_type for d in state.received_documents()
+                if d.client_id == client_id]
     returns = [r for r in state.returns() if r.client_id == client_id]
     pc = state.public_client(client_id)
 
@@ -156,8 +158,10 @@ def prior_year_check(state, *, client: str, tax_year: int | None = None) -> dict
     client_id, name = resolved
 
     from satc.app.today_views import working_tax_year
-    year = tax_year or working_tax_year(state.documents(), date.today())
-    report = omission_diff(state.documents(), client_id=client_id,
+    received = state.received_documents()
+    requested = state.requested_items()
+    year = tax_year or working_tax_year(list(received) + list(requested), date.today())
+    report = omission_diff(received, requested, client_id=client_id,
                            prior_year=year - 1, current_year=year)
     return {"client": name, "tax_year": year, "prior_year": year - 1,
             "summary": report.summary_line(),

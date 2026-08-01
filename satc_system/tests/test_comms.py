@@ -17,7 +17,7 @@ from satc.comms import build_context, library, placeholder_names, render, render
 from satc.comms.library import load_library
 from satc.models.identity import PublicClient
 from satc.models.intake import IntakeEngagement, IntakeTask
-from satc.models.mart import DocumentRecord, EngagementRecord, ReturnRecord
+from satc.models.mart import EngagementRecord, ReturnRecord
 
 # The set the practice runs on. A new template is a deliberate act — adding one
 # means updating this list, which is the point.
@@ -225,16 +225,18 @@ def test_context_omits_what_the_practice_does_not_know():
         assert key not in values
 
 
-def test_document_register_splits_outstanding_from_received():
-    docs = [
-        DocumentRecord(document_id="D1", client_id="C", tax_year=2024,
-                       doc_type="W-2", status="Requested"),
-        DocumentRecord(document_id="D2", client_id="C", tax_year=2024,
-                       doc_type="1099-INT", status="Received"),
-        DocumentRecord(document_id="D3", client_id="C", tax_year=2024,
-                       doc_type="Form 8879", status="Signed"),
+def test_the_two_registers_stay_separate_in_a_draft():
+    from satc.models.evidence import ReceivedDocument, RequestedItem
+
+    requested = [RequestedItem(request_id="R1", client_id="C", tax_year=2024,
+                               doc_type="W-2")]
+    received = [
+        ReceivedDocument(document_id="D2", client_id="C", tax_year=2024,
+                         doc_type="1099-INT"),
+        ReceivedDocument(document_id="D3", client_id="C", tax_year=2024,
+                         doc_type="Form 8879"),
     ]
-    values = build_context(documents=docs, tax_year=2024)
+    values = build_context(requested=requested, received=received, tax_year=2024)
     assert values["missing_items"] == "  • W-2"
     assert "1099-INT" in values["received_items"]
     assert "Form 8879" in values["received_items"]

@@ -45,8 +45,9 @@ __all__ = [
 ]
 
 
-def build_queue(*, clients, documents, obligations=(), engaged_clients=(),
-                tax_year: int, today: date | None = None) -> ActionQueue:
+def build_queue(*, clients, requested=(), received=(), obligations=(),
+                engaged_clients=(), tax_year: int,
+                today: date | None = None) -> ActionQueue:
     """Run every proposer over the practice and return the ordered queue.
 
     Takes plain records — no Flask, no STATE — so the whole queue is a pure
@@ -58,29 +59,30 @@ def build_queue(*, clients, documents, obligations=(), engaged_clients=(),
     out: list[ProposedAction] = []
 
     for client_id in clients:
-        signature = chase_signature(documents, client_id=client_id,
+        signature = chase_signature(requested, client_id=client_id,
                                     tax_year=tax_year, today=today)
         if signature is not None:
             out.append(signature)
 
-        chase = chase_outstanding(documents, client_id=client_id,
+        chase = chase_outstanding(requested, client_id=client_id,
                                   tax_year=tax_year, today=today)
         # An 8879 chase already covers the outstanding list for this client; two
         # rows saying "chase them" is how a queue starts getting ignored.
         if chase is not None and signature is None:
             out.append(chase)
 
-        prior = ask_prior_year_questions(documents, client_id=client_id,
+        prior = ask_prior_year_questions(received, requested, client_id=client_id,
                                          tax_year=tax_year, prior_year=tax_year - 1)
         if prior is not None:
             out.append(prior)
 
-        extension = extension_candidate(documents, obligations, client_id=client_id,
+        extension = extension_candidate(requested, obligations, client_id=client_id,
                                         tax_year=tax_year, today=today)
         if extension is not None:
             out.append(extension)
 
-        invite = invite_to_interview(documents, client_id=client_id, tax_year=tax_year,
+        invite = invite_to_interview(received, requested, client_id=client_id,
+                                     tax_year=tax_year,
                                      has_engagement=client_id in engaged)
         if invite is not None:
             out.append(invite)

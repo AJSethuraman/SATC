@@ -127,9 +127,9 @@ def _build_server(allow_writes: bool = False):
         return tools.post_confirmed_intake(state, client_id=client_id, tax_year=tax_year)
 
     @mcp.tool()
-    def set_document_status(document_id: str, status: str) -> dict:
+    def close_request(request_id: str, reason: str = "") -> dict:
         """Set a document's status (Requested / Received / Sent / Signed / N/A)."""
-        return tools.set_document_status(state, document_id=document_id, status=status)
+        return tools.close_request(state, request_id=request_id, reason=reason)
 
     return mcp
 

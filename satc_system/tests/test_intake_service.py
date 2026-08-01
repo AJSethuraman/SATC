@@ -103,8 +103,8 @@ def test_create_engagement_opens_requested_docs_and_persists(tmp_path):
     assert all(t.document_id for t in client_tasks)
 
     mart = store.load_mart()
-    requested = [d for d in mart.documents
-                 if d.client_id == cid and d.status == "Requested"]
+    requested = [i for i in mart.requested_items
+                 if i.client_id == cid and i.is_open]
     assert len(requested) == len(client_tasks)
 
     # The engagement is durably persisted.
@@ -129,22 +129,22 @@ def test_reconcile_received_marks_doc_and_completes_task(tmp_path):
                       answers={"newSatcClient": "yes"})
 
     # Pick a real outstanding request and reconcile against its doc_type.
-    requested = [d for d in store.load_mart().documents
-                 if d.client_id == cid and d.status == "Requested"]
+    requested = [i for i in store.load_requested_items()
+                 if i.client_id == cid and i.is_open]
     assert requested
     target_type = requested[0].doc_type
 
     result = reconcile_received(store, client_id=cid, doc_type=target_type)
     assert result is not None
-    assert result.status == "Received"
+    assert result.status == "satisfied"
 
-    # Reloading the store shows the document Received and its linked task complete.
+    # Reloading shows the request satisfied and its linked task complete.
     reloaded = SATCStore(tmp_path)
-    docs = {d.document_id: d.status for d in reloaded.load_mart().documents}
-    assert docs[result.document_id] == "Received"
+    items = {i.request_id: i for i in reloaded.load_requested_items()}
+    assert not items[result.request_id].is_open
 
     linked_tasks = [t for e in reloaded.load_intake_engagements() for t in e.tasks
-                    if t.document_id == result.document_id]
+                    if t.document_id == result.request_id]
     assert linked_tasks, "the received document should be linked to a task"
     assert all(t.completed for t in linked_tasks)
 

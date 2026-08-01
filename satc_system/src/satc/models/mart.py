@@ -162,29 +162,6 @@ class EngagementRecord:
     note: str = ""
 
 
-# Document & communication repository status (audit trail).
-DocStatus = Literal["Requested", "Received", "Sent", "Signed", "N/A"]
-
-
-@dataclass(slots=True)
-class DocumentRecord:
-    """Document & communication repository row — metadata + link, never the file.
-
-    Proves what was requested, sent, received, or signed. The file itself stays in
-    SharePoint; this holds only metadata + the link. Drives the missing-documents
-    tracker and the proof-of-communication audit trail.
-    """
-
-    document_id: str
-    client_id: str
-    tax_year: int
-    doc_type: str               # W-2, 1099, organizer, signed 8879, delivery email, ...
-    status: DocStatus | str
-    as_of: date | None = None
-    sharepoint_link: str = ""
-    actor: str = ""             # who (preparer/system); de-identified handle
-    note: str = ""
-
 
 @dataclass(slots=True)
 class DataMart:
@@ -197,4 +174,5 @@ class DataMart:
     owner_basis: list[OwnerBasis] = field(default_factory=list)
     estimate_payments: list[EstimatePayment] = field(default_factory=list)
     engagements: list[EngagementRecord] = field(default_factory=list)
-    documents: list[DocumentRecord] = field(default_factory=list)
+    requested_items: list = field(default_factory=list)     # evidence.RequestedItem
+    received_documents: list = field(default_factory=list)  # evidence.ReceivedDocument

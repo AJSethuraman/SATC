@@ -138,7 +138,7 @@ class IntakeTask:
     completed: bool = False
     notes: str = ""
     relationship_generated: bool = False
-    document_id: str = ""          # links a client request to its DocumentRecord
+    document_id: str = ""          # the RequestedItem this task opened (request_id)
 
 
 @dataclass(slots=True)

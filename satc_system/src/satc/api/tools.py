@@ -67,7 +67,7 @@ def get_client(state, client_id: str) -> dict:
     rets = [r for r in state.returns() if r.client_id == client_id]
     rk_set = {r.return_key for r in rets}
     lines = [li for li in state.mart.line_items if li.return_key in rk_set]
-    docs = [d for d in state.documents() if d.client_id == client_id]
+    docs = [d for d in state.received_documents() if d.client_id == client_id]
     return {
         "client_id": client_id,
         "name": pc.display_label,   # de-identified label, NOT the vault legal name
@@ -125,7 +125,12 @@ def post_confirmed_intake(state, *, client_id: str, tax_year: int = 2024) -> dic
     return _to_json(state.post_confirmed(client_id=client_id, tax_year=tax_year))
 
 
-def set_document_status(state, *, document_id: str, status: str) -> dict:
-    """Set a document's status (Requested / Received / Sent / Signed / N/A)."""
-    state.set_document_status(document_id, status)
-    return {"ok": True, "document_id": document_id, "status": status}
+def close_request(state, *, request_id: str, reason: str = "") -> dict:
+    """Close an open client request — satisfied, or not applicable WITH a reason.
+
+    Replaces set_document_status(), which took any of five statuses spanning
+    four different lifecycles and wrote it to one column.
+    """
+    state.close_request(request_id, reason=reason)
+    return {"ok": True, "request_id": request_id,
+            "status": "not_applicable" if reason else "satisfied"}

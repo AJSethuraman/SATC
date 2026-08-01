@@ -21,21 +21,31 @@ from satc.actions.propose import (
     deadline_pressure,
     extension_candidate,
 )
-from satc.models.mart import DocumentRecord
+from satc.models.evidence import ReceivedDocument, RequestedItem
 
 TODAY = date(2026, 3, 10)
 
 
 def _doc(doc_type, year=2025, status="Requested", *, client="C", asked_days_ago=10, note=""):
-    return DocumentRecord(
-        document_id=f"{client}-{doc_type}-{year}-{status}", client_id=client,
-        tax_year=year, doc_type=doc_type, status=status, note=note,
-        as_of=TODAY - timedelta(days=asked_days_ago))
+    """An open REQUEST by default; status="Received" makes it an ARRIVAL."""
+    if status == "Received":
+        return ReceivedDocument(document_id=f"{client}-{doc_type}-{year}",
+                                client_id=client, tax_year=year, doc_type=doc_type,
+                                note=note)
+    return RequestedItem(request_id=f"req-{client}-{doc_type}-{year}", client_id=client,
+                         tax_year=year, doc_type=doc_type, request_text=note,
+                         requested_at=TODAY - timedelta(days=asked_days_ago))
 
 
-def _queue(documents, **kw):
-    return build_queue(clients=["C"], documents=documents, tax_year=2025,
-                       today=TODAY, **kw)
+def _is_ask(row):
+    return isinstance(row, RequestedItem)
+
+
+def _queue(rows, **kw):
+    return build_queue(clients=["C"],
+                       requested=[r for r in rows if _is_ask(r)],
+                       received=[r for r in rows if not _is_ask(r)],
+                       tax_year=2025, today=TODAY, **kw)
 
 
 # --- chasing ------------------------------------------------------------------
@@ -65,8 +75,8 @@ def test_a_long_wait_escalates_the_urgency():
 
 
 def test_nothing_outstanding_means_no_chase():
-    assert chase_outstanding([_doc("W-2", status="Received")],
-                             client_id="C", tax_year=2025, today=TODAY) is None
+    """No open REQUESTS — arrivals are a different list entirely now."""
+    assert chase_outstanding([], client_id="C", tax_year=2025, today=TODAY) is None
 
 
 # --- the signature, which blocks the filing ----------------------------------
@@ -164,15 +174,16 @@ def test_it_never_says_the_extension_is_filed_or_decided():
 
 
 def test_a_complete_file_past_the_cutoff_is_not_an_extension_candidate():
-    action = extension_candidate([_doc("W-2", status="Received")], _duties(),
-                                 client_id="C", tax_year=2025, today=date(2026, 3, 20))
+    """Past the cutoff but nothing outstanding — no extension needed."""
+    action = extension_candidate([], _duties(), client_id="C", tax_year=2025,
+                                 today=date(2026, 3, 20))
     assert action is None
 
 
 # --- the queue as a whole -----------------------------------------------------
 
 def test_the_queue_is_ordered_by_how_much_it_hurts_to_leave():
-    queue = build_queue(clients=["C"], documents=[_doc("1099-DIV")],
+    queue = build_queue(clients=["C"], requested=[_doc("1099-DIV")],
                         obligations=_duties(), tax_year=2025, today=date(2026, 4, 20))
     urgencies = [a.urgency for a in queue.actions]
     order = {"overdue": 0, "urgent": 1, "soon": 2, "routine": 3}
@@ -189,15 +200,15 @@ def test_regenerating_the_queue_produces_the_same_ids():
 
 def test_ids_do_not_depend_on_when_the_queue_was_built():
     docs = [_doc("1099-DIV", asked_days_ago=10)]
-    early = build_queue(clients=["C"], documents=docs, tax_year=2025, today=TODAY)
-    later = build_queue(clients=["C"], documents=docs, tax_year=2025,
+    early = build_queue(clients=["C"], requested=docs, tax_year=2025, today=TODAY)
+    later = build_queue(clients=["C"], requested=docs, tax_year=2025,
                         today=TODAY + timedelta(days=5))
     assert {a.action_id for a in early.actions} == {a.action_id for a in later.actions}
 
 
 def test_the_counts_view_is_small_enough_for_a_model_to_read():
     """Doctrine rule 2: hand a small model categories, not rows."""
-    queue = build_queue(clients=["C"], documents=[_doc("1099-DIV")],
+    queue = build_queue(clients=["C"], requested=[_doc("1099-DIV")],
                         obligations=_duties(), tax_year=2025, today=date(2026, 4, 1))
     counts = queue.counts()
     assert all(isinstance(k, str) and isinstance(v, int) for k, v in counts.items())
@@ -210,7 +221,7 @@ def test_one_click_actions_are_the_ones_with_a_draft():
 
 
 def test_an_empty_practice_says_so_rather_than_inventing_work():
-    queue = build_queue(clients=["C"], documents=[], tax_year=2025, today=TODAY,
+    queue = build_queue(clients=["C"], tax_year=2025, today=TODAY,
                         engaged_clients=["C"])
     assert len(queue) == 0
     assert queue.summary_line() == "Nothing needs you right now."
@@ -223,7 +234,7 @@ def test_the_summary_counts_what_is_already_drafted():
 
 def test_every_action_carries_auditable_evidence():
     """A proposal the owner cannot check in one line is one they have to redo."""
-    queue = build_queue(clients=["C"], documents=[_doc("1099-DIV"), _doc("Form 8879")],
+    queue = build_queue(clients=["C"], requested=[_doc("1099-DIV"), _doc("Form 8879")],
                         obligations=_duties(), tax_year=2025, today=date(2026, 4, 1))
     for action in queue.actions:
         assert action.why.strip()
@@ -234,10 +245,10 @@ def test_every_action_carries_auditable_evidence():
 def test_nothing_in_the_queue_writes_anything():
     """Propose, never dispose."""
     docs = [_doc("1099-DIV"), _doc("Form 8879")]
-    before = [(d.document_id, d.status) for d in docs]
-    build_queue(clients=["C"], documents=docs, obligations=_duties(),
+    before = [(d.request_id, d.status) for d in docs]
+    build_queue(clients=["C"], requested=docs, obligations=_duties(),
                 tax_year=2025, today=date(2026, 4, 1))
-    assert [(d.document_id, d.status) for d in docs] == before
+    assert [(d.request_id, d.status) for d in docs] == before
 
 
 # --- against the seeded practice ---------------------------------------------
@@ -247,7 +258,7 @@ def test_it_runs_against_the_real_seeded_practice():
 
     queue = build_queue(
         clients=[cid for cid, _ in STATE.client_choices()],
-        documents=STATE.documents(),
+        requested=STATE.requested_items(), received=STATE.received_documents(),
         engaged_clients=[e.client_id for e in STATE.intake_engagements()],
         tax_year=2024, today=date(2025, 3, 20))
     assert len(queue) > 0, "the seeded practice should have something worth doing"

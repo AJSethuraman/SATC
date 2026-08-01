@@ -4,7 +4,7 @@ This is the seam between the checklist workflows and SATC's data model:
 
   * New clients are minted into the IDENTITY VAULT (sensitive name/TIN) with a
     de-identified projection in the mart — never plaintext PII in the working data.
-  * An engagement's client-facing tasks each create a ``Requested`` DocumentRecord
+  * An engagement's client-facing tasks each open a ``RequestedItem``
     (the expected-documents checklist), linked back to the task.
   * :func:`reconcile_received` closes the loop: when the document pipeline reports a
     received document of some type, the matching outstanding request flips to
@@ -26,7 +26,8 @@ from satc.intake.importer import ParsedClient
 from satc.intake.workflows import build_engagement, load_workflow
 from satc.models.identity import IdentityRecord, PublicClient, VaultAddress, VaultContact
 from satc.models.intake import IntakeEngagement, Relationship
-from satc.models.mart import DocumentRecord
+from satc.models.evidence import RequestedItem
+from satc.models.readiness import blocking_class_for
 
 # Map the vault's entity type to the checklist app's person/business + tax treatment.
 _ENTITY_TO_VIEW = {
@@ -153,18 +154,23 @@ def create_engagement(store, *, client_id: str, workflow_key: str, due_date: dat
     for task in eng.tasks:
         if task.audience != "client":
             continue
-        doc = DocumentRecord(
-            document_id=opaque_id("doc"), client_id=client_id, tax_year=tax_year or 0,
-            doc_type=template_doc_types.get(task.template_id, task.title), status="Requested",
-            as_of=date.today(), actor="intake", note=task.client_request_text or task.title)
-        task.document_id = doc.document_id
-        mart.documents.append(doc)
+        doc_type = template_doc_types.get(task.template_id, task.title)
+        item = RequestedItem(
+            request_id=opaque_id("req"), client_id=client_id, tax_year=tax_year or 0,
+            doc_type=doc_type,
+            request_text=task.client_request_text or task.title,
+            # What BLOCKS comes from the cited obligation rule, not from a
+            # literal here — see configs/obligations/federal.yaml (Pub 1345).
+            blocking=blocking_class_for(doc_type, _blocking_docs()),
+            requested_at=date.today(), task_id=task.task_id)
+        task.document_id = item.request_id
+        mart.requested_items.append(item)
     store.save_mart(mart)
     store.save_intake_engagement(eng)
     return eng
 
 
-def find_match(store, *, client_id: str, doc_type: str) -> DocumentRecord | None:
+def find_match(store, *, client_id: str, doc_type: str) -> RequestedItem | None:
     """The outstanding request an arriving document would satisfy. Reads only.
 
     A request's type AND its prose description (stored in ``note``) are both
@@ -172,16 +178,26 @@ def find_match(store, *, client_id: str, doc_type: str) -> DocumentRecord | None
     When several requests match, the most specific one wins.
     """
     mart = store.load_mart()
-    candidates = [d for d in mart.documents
-                  if d.client_id == client_id and d.status == "Requested"
-                  and matching.matches(doc_type, str(d.doc_type), d.note)]
+    candidates = [i for i in mart.requested_items
+                  if i.client_id == client_id and i.is_open
+                  and matching.matches(doc_type, str(i.doc_type), i.request_text)]
     if not candidates:
         return None
-    return min(candidates, key=lambda d: matching.specificity(str(d.doc_type), d.note))
+    return min(candidates,
+               key=lambda i: matching.specificity(str(i.doc_type), i.request_text))
+
+
+def _blocking_docs():
+    """Which document types block, per the cited federal 1040 rule."""
+    try:
+        from satc.obligations.rules import rule
+        return rule("form_1040").blocking_docs
+    except Exception:  # noqa: BLE001 - config absent should not stop intake
+        return ()
 
 
 def reconcile_received(store, *, client_id: str, doc_type: str,
-                       classified_by: Actor = INTAKE) -> DocumentRecord | None:
+                       classified_by: Actor = INTAKE) -> RequestedItem | None:
     """Flip the best matching outstanding request to ``Received`` and complete its task.
 
     Called when the document pipeline classifies an arriving document; closes the
@@ -202,11 +218,11 @@ def reconcile_received(store, *, client_id: str, doc_type: str,
     match = find_match(store, client_id=client_id, doc_type=doc_type)
     if match is None:
         return None
-    store.set_document_status(match.document_id, "Received")
-    match.status = "Received"
+    match.status = "satisfied"
+    store.save_requested_items([match])
     for eng in store.load_intake_engagements():
         for task in eng.tasks:
-            if task.document_id == match.document_id and not task.completed:
+            if task.document_id == match.request_id and not task.completed:
                 task.completed = True
                 store.save_task(task)
     return match

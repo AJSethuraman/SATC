@@ -113,25 +113,26 @@ def _plural(n: int, one: str, many: str) -> str:
 # rule can be changed, tested, or switched off on its own.
 
 
-def chase_outstanding(documents, *, client_id: str, tax_year: int,
+def chase_outstanding(requested, *, client_id: str, tax_year: int,
                       today: date, stale_after_days: int = 3) -> ProposedAction | None:
     """Outstanding requests that have been sitting long enough to nudge.
 
     The 3-day default is FIRM POLICY with no citation behind it — a practitioner
     convention, not a rule. It is a parameter for exactly that reason.
     """
-    outstanding = [d for d in documents
-                   if d.client_id == client_id and str(d.status) == "Requested"
-                   and getattr(d, "tax_year", None) == tax_year]
+    outstanding = [r for r in requested
+                   if r.client_id == client_id and r.is_open
+                   and getattr(r, "tax_year", None) == tax_year]
     if not outstanding:
         return None
 
-    oldest = min((d.as_of for d in outstanding if getattr(d, "as_of", None)), default=None)
+    oldest = min((r.requested_at for r in outstanding
+                  if getattr(r, "requested_at", None)), default=None)
     waiting = (today - oldest).days if oldest else None
     if waiting is not None and waiting < stale_after_days:
         return None
 
-    types = [d.doc_type for d in outstanding]
+    types = [r.doc_type for r in outstanding]
     since = f", the oldest asked {waiting} days ago" if waiting is not None else ""
     return ProposedAction(
         action_id=action_id("chase_documents", client_id, str(tax_year)),
@@ -142,7 +143,7 @@ def chase_outstanding(documents, *, client_id: str, tax_year: int,
         template_key="missing_items", evidence=tuple(types))
 
 
-def ask_prior_year_questions(documents, *, client_id: str, tax_year: int,
+def ask_prior_year_questions(received, requested=(), *, client_id: str, tax_year: int,
                              prior_year: int) -> ProposedAction | None:
     """Documents in hand last year with no trace this year.
 
@@ -151,7 +152,7 @@ def ask_prior_year_questions(documents, *, client_id: str, tax_year: int,
     """
     from satc.rollover import omission_diff
 
-    report = omission_diff(documents, client_id=client_id,
+    report = omission_diff(received, requested, client_id=client_id,
                            prior_year=prior_year, current_year=tax_year)
     if not report.missing:
         return None
@@ -165,20 +166,20 @@ def ask_prior_year_questions(documents, *, client_id: str, tax_year: int,
         urgency="soon", template_key="prior_year_check", evidence=tuple(types))
 
 
-def chase_signature(documents, *, client_id: str, tax_year: int,
+def chase_signature(requested, *, client_id: str, tax_year: int,
                     today: date) -> ProposedAction | None:
     """An e-file authorization that is out and not back.
 
     Called out separately from ordinary document chasing because nothing can be
     transmitted without it — an unsigned 8879 blocks the filing, not just the file.
     """
-    pending = [d for d in documents
-               if d.client_id == client_id and getattr(d, "tax_year", None) == tax_year
-               and str(d.status) == "Requested"
-               and "8879" in str(d.doc_type)]
+    pending = [r for r in requested
+               if r.client_id == client_id and getattr(r, "tax_year", None) == tax_year
+               and r.is_open and "8879" in str(r.doc_type)]
     if not pending:
         return None
-    oldest = min((d.as_of for d in pending if getattr(d, "as_of", None)), default=None)
+    oldest = min((r.requested_at for r in pending
+                  if getattr(r, "requested_at", None)), default=None)
     waiting = (today - oldest).days if oldest else None
     return ProposedAction(
         action_id=action_id("signature_outstanding", client_id, str(tax_year)),
@@ -216,7 +217,7 @@ def deadline_pressure(obligations, *, client_id: str, today: date,
     return out
 
 
-def extension_candidate(documents, obligations, *, client_id: str, tax_year: int,
+def extension_candidate(requested, obligations, *, client_id: str, tax_year: int,
                         today: date) -> ProposedAction | None:
     """The firm cutoff has passed and the file is still incomplete.
 
@@ -229,9 +230,9 @@ def extension_candidate(documents, obligations, *, client_id: str, tax_year: int
                  and str(o.period_key) == str(tax_year)), None)
     if duty is None or duty.documents_due is None or today <= duty.documents_due:
         return None
-    outstanding = [d for d in documents
-                   if d.client_id == client_id and str(d.status) == "Requested"
-                   and getattr(d, "tax_year", None) == tax_year]
+    outstanding = [r for r in requested
+                   if r.client_id == client_id and r.is_open
+                   and getattr(r, "tax_year", None) == tax_year]
     if not outstanding:
         return None
     return ProposedAction(
@@ -242,16 +243,16 @@ def extension_candidate(documents, obligations, *, client_id: str, tax_year: int
              f"{_plural(len(outstanding), 'item is', 'items are')} still outstanding. "
              f"An extension needs the client's written authorisation before you file it."),
         urgency="urgent", due=duty.due,
-        evidence=tuple(d.doc_type for d in outstanding))
+        evidence=tuple(r.doc_type for r in outstanding))
 
 
-def invite_to_interview(documents, *, client_id: str, tax_year: int,
+def invite_to_interview(received, requested=(), *, client_id: str, tax_year: int,
                         has_engagement: bool) -> ProposedAction | None:
     """A client with nothing started for the year."""
     if has_engagement:
         return None
-    this_year = [d for d in documents
-                 if d.client_id == client_id and getattr(d, "tax_year", None) == tax_year]
+    this_year = [r for r in list(received) + list(requested)
+                 if r.client_id == client_id and getattr(r, "tax_year", None) == tax_year]
     if this_year:
         return None
     return ProposedAction(

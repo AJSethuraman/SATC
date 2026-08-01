@@ -40,13 +40,13 @@ def _sample_values() -> dict[str, str]:
     """Real ids from the seeded store, so routes hit their populated path."""
     clients = STATE.client_choices()
     client_id = clients[0][0] if clients else "SATC-001000"
-    docs = STATE.documents()
+    requested = STATE.requested_items()
     engagements = STATE.intake_engagements()
     workflows = STATE.all_workflows()
     fields = STATE.gate.all_fields()
     return {
         "client_id": client_id,
-        "document_id": docs[0].document_id if docs else "DOC-0001",
+        "request_id": requested[0].request_id if requested else "REQ-0001",
         "engagement_id": engagements[0].engagement_id if engagements else "ENG-1",
         "task_id": "TASK-1",
         "key": workflows[0].key if workflows else "personal_1040_core",
@@ -115,13 +115,14 @@ def test_outstanding_rows_expose_what_every_page_reads():
     for row in STATE.outstanding():
         assert hasattr(row, "client_id")
         assert hasattr(row, "doc_type")
-        assert hasattr(row, "note")
+        assert hasattr(row, "request_text")
+        assert row.is_open
 
 
-def test_the_document_register_is_not_empty_in_the_seeded_practice():
-    """_doc_lines in comms/context.py folds this into the chase email; an empty
-    register silently produces a chase with nothing in it."""
-    assert STATE.documents(), "seeded fixtures should hold documents"
+def test_both_evidence_registers_are_populated_in_the_seeded_practice():
+    """An empty register silently produces a chase with nothing in it."""
+    assert STATE.requested_items(), "seeded fixtures should hold open requests"
+    assert STATE.received_documents(), "seeded fixtures should hold arrivals"
 
 
 def test_comms_still_finds_outstanding_and_received_for_the_demo_client():
@@ -132,7 +133,8 @@ def test_comms_still_finds_outstanding_and_received_for_the_demo_client():
     client_id = STATE.client_choices()[0][0]
     values = build_context(
         client_id=client_id,
-        documents=[d for d in STATE.documents() if d.client_id == client_id],
+        requested=[r for r in STATE.requested_items() if r.client_id == client_id],
+        received=[d for d in STATE.received_documents() if d.client_id == client_id],
         tax_year=2024)
     assert values.get("missing_items") or values.get("received_items"), \
         "neither outstanding nor received items survived — the register lost its split"
