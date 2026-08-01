@@ -14,6 +14,7 @@ chosen are the ones that actually go wrong in practice:
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -303,3 +304,82 @@ def test_an_extended_deadline_is_always_later_than_the_original():
         period = quarter(2026, 1) if r.basis == "quarter_end" else tax_year(2026)
         d = compute(r, period)
         assert d.extended_due > d.due, r.key
+
+
+# --- firm policy: the owner's dates, kept apart from the law ------------------
+
+def test_the_document_cutoff_is_a_fixed_date_before_the_deadline():
+    d = compute(rule("form_1040"), tax_year(2025))
+    assert d.due == date(2026, 4, 15)
+    assert d.documents_due == date(2026, 3, 1)
+    assert d.documents_due_is_firm_policy
+
+
+def test_a_fixed_cutoff_does_not_follow_a_shifted_deadline():
+    """Accepted trade-off of fixed dates: when April 15 moves to April 18 the
+    March 1 cutoff stays put and the working window grows. Harmless this way."""
+    d = compute(rule("form_1040"), tax_year(2027))
+    assert d.due == date(2028, 4, 18)          # shifted
+    assert d.documents_due == date(2028, 3, 1)  # not shifted
+
+
+def test_a_cutoff_on_or_after_its_deadline_is_refused():
+    """Asking for documents after the return was due is meaningless."""
+    from satc.obligations.policy import FirmPolicy
+
+    bad = FirmPolicy(cutoffs={"form_1040": (5, 1)})
+    with pytest.raises(ConfigError, match="not before the deadline"):
+        compute(rule("form_1040"), tax_year(2025), policy=bad)
+
+
+def test_an_impossible_cutoff_date_is_refused():
+    from satc.obligations.policy import FirmPolicy
+
+    with pytest.raises(ConfigError, match="not a real date"):
+        FirmPolicy(cutoffs={"form_1040": (2, 30)}).cutoff_for(
+            "form_1040", date(2026, 4, 15))
+
+
+def test_a_rule_with_no_cutoff_set_simply_has_none():
+    from satc.obligations.policy import FirmPolicy
+
+    d = compute(rule("form_1040"), tax_year(2025), policy=FirmPolicy())
+    assert d.documents_due is None
+
+
+def test_firm_policy_carries_no_citation_and_that_is_deliberate():
+    """The statutory loader refuses an uncited rule; policy needs none."""
+    from satc.obligations.policy import load_policy, policy as installed
+
+    p = installed()
+    assert p.cutoffs, "expected the firm to have set some cutoffs"
+    assert not hasattr(p, "source")
+    assert load_policy(Path("/nonexistent")).cutoffs == {}   # missing file is fine
+
+
+# --- the refusal: a missing state never becomes the federal date -------------
+
+def test_federal_rules_are_available():
+    from satc.obligations.rules import has_jurisdiction, rules_for_jurisdiction
+
+    assert has_jurisdiction("US")
+    assert rules_for_jurisdiction("us")          # case-insensitive
+
+
+def test_an_unsourced_state_raises_instead_of_guessing():
+    """The most dangerous thing a tax calendar can do is answer confidently."""
+    from satc.obligations.rules import rules_for_jurisdiction
+
+    with pytest.raises(ConfigError) as exc:
+        rules_for_jurisdiction("MA")
+    message = str(exc.value)
+    assert "will not fall back" in message
+    assert "configs/obligations/ma.yaml" in message      # names the next step
+    assert "US" in message                               # says what IS sourced
+
+
+def test_has_jurisdiction_is_false_for_unsourced_states():
+    from satc.obligations.rules import has_jurisdiction
+
+    assert not has_jurisdiction("MA")
+    assert not has_jurisdiction("OH")

@@ -84,6 +84,8 @@ class DueDates:
     extended_shift_reason: str = ""
     extension_form: str = ""
     installment: int | None = None
+    documents_due: date | None = None
+    documents_due_is_firm_policy: bool = True
 
     @property
     def was_shifted(self) -> bool:
@@ -183,13 +185,23 @@ def _extended_statutory(rule: ObligationRule, statutory: date) -> date | None:
 
 
 def compute(rule: ObligationRule, period: Period, *,
-            installment: int | None = None) -> DueDates:
-    """Land a rule on a period and apply the calendar."""
+            installment: int | None = None, policy=None) -> DueDates:
+    """Land a rule on a period and apply the calendar.
+
+    ``policy`` supplies the firm's own document cutoff. Pass ``None`` to use the
+    installed one; the resulting ``documents_due`` is always flagged as firm
+    policy so the UI never renders it like a statutory date.
+    """
+    from satc.obligations.policy import policy as installed_policy
+
     statutory = _statutory_due(rule, period, installment)
     due = shift_for_weekend_holiday(statutory)
 
     ext_statutory = _extended_statutory(rule, statutory)
     ext_due = shift_for_weekend_holiday(ext_statutory) if ext_statutory else None
+
+    firm = installed_policy() if policy is None else policy
+    documents_due = firm.cutoff_for(rule.key, due) if firm else None
 
     return DueDates(
         rule_key=rule.key,
@@ -198,7 +210,8 @@ def compute(rule: ObligationRule, period: Period, *,
         statutory=statutory, due=due, shift_reason=why_shifted(statutory),
         extended_statutory=ext_statutory, extended_due=ext_due,
         extended_shift_reason=why_shifted(ext_statutory) if ext_statutory else "",
-        extension_form=rule.extension.form, installment=installment)
+        extension_form=rule.extension.form, installment=installment,
+        documents_due=documents_due)
 
 
 def installment_due_dates(rule: ObligationRule, period: Period) -> list[DueDates]:

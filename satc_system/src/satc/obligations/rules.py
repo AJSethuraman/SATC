@@ -172,6 +172,45 @@ def rule(key: str) -> ObligationRule:
     raise ConfigError(f"No obligation rule named {key!r}")
 
 
+def jurisdictions() -> tuple[str, ...]:
+    """Every jurisdiction SATC actually holds sourced rules for."""
+    seen: list[str] = []
+    for r in rules():
+        if r.jurisdiction not in seen:
+            seen.append(r.jurisdiction)
+    return tuple(sorted(seen))
+
+
+def rules_for_jurisdiction(jurisdiction: str) -> tuple[ObligationRule, ...]:
+    """Every rule for a jurisdiction — or a refusal naming what is missing.
+
+    **This function exists to refuse.** The single most dangerous thing a tax
+    calendar can do is default an unknown state deadline to the federal one:
+    Massachusetts has Patriots' Day, Virginia's extension is automatic with no
+    form, and several states diverge on the date itself. Silently answering
+    "April 15" for a state whose rules were never sourced produces a confident
+    wrong deadline, which is worse than no deadline at all.
+
+    So a jurisdiction with no config raises, and the error names the exact next
+    step (doctrine rule 3) rather than saying "not found".
+    """
+    code = (jurisdiction or "").strip().upper()
+    matching = tuple(r for r in rules() if r.jurisdiction.upper() == code)
+    if matching:
+        return matching
+    raise ConfigError(
+        f"No obligation rules on file for jurisdiction {code!r}. SATC will not "
+        f"fall back to the federal calendar — a state deadline guessed from the "
+        f"federal one is a confident wrong answer. Add "
+        f"configs/obligations/{code.lower()}.yaml with cited rules. "
+        f"Currently sourced: {', '.join(jurisdictions())}.")
+
+
+def has_jurisdiction(jurisdiction: str) -> bool:
+    """Whether rules exist for a jurisdiction — the check before offering it."""
+    return (jurisdiction or "").strip().upper() in jurisdictions()
+
+
 def rules_for_entity(entity_type: str) -> tuple[ObligationRule, ...]:
     """Every rule that could attach to this entity type.
 

@@ -1,0 +1,44 @@
+# FIRM POLICY — SATC's own dates. NOT law.
+#
+# Everything in this file is the owner's choice and carries NO citation. It is
+# kept in a separate file from the statutory rules on purpose: the operating
+# model's hardest-won lesson is that a firm-policy date and a statutory date
+# must never be mistaken for each other. Law is in federal.yaml (and, once
+# sourced, per-state files); preference is here.
+#
+# The UI must render these visibly differently from computed statutory dates.
+# `is_firm_policy` is True on anything derived from this file.
+
+meta:
+  note: >-
+    Owner-set dates. Edit freely — nothing here has a source because nothing
+    here has an authority behind it. If a date in this file ever acquires a
+    citation, it belongs in the statutory config instead.
+
+# The internal document cutoff: "have your documents to us by this date, or we
+# extend." A FIXED calendar date rather than an offset from the deadline —
+# the owner's call, on the grounds that a fixed date is what you actually tell
+# a client, and "March 1" survives a conversation better than "45 days before
+# your deadline."
+#
+# Trade-off accepted: a fixed date does NOT follow the statutory date when the
+# deadline shifts for a weekend or holiday. In a year where April 15 moves to
+# April 18, a March 1 cutoff stays March 1 and the working window quietly grows
+# by three days. That is harmless in this direction; it would not be if a
+# cutoff were ever set AFTER a deadline, which the loader refuses.
+#
+# Deliberately NOT shifted off weekends: a cutoff is a request to a client, not
+# an act with legal consequence, and "get it to us by Sunday March 1" is a
+# perfectly good thing to say.
+cutoffs:
+  form_1040: {month: 3, day: 1}
+  form_1065: {month: 2, day: 1}
+  form_1120s: {month: 2, day: 1}
+  form_1120: {month: 3, day: 1}
+  form_1041: {month: 3, day: 1}
+  form_990: {month: 4, day: 1}
+
+# How long before a deadline the queue starts shouting. Also pure preference.
+alerts:
+  approaching_days: 30      # "coming up"
+  urgent_days: 7            # "this week"
