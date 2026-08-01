@@ -202,14 +202,29 @@ def test_the_model_refuses_a_client_that_does_not_exist():
 
 
 @live
-def test_the_model_finds_the_prior_year_omission():
-    """The capability that pays, driven end to end by the model."""
+def test_the_model_reaches_for_the_prior_year_check():
+    """The capability that pays, driven end to end — asserted on BEHAVIOUR.
+
+    An earlier version required the literal string "1099-INT" in the answer and
+    was flaky: the model sometimes writes "the interest form from Lakeside"
+    instead, which is a better answer, not a worse one.
+
+    What matters is that a vague human question ("what might be missing?")
+    routes to the right tool. That the tool then finds the 1099-INT is tested
+    deterministically in test_prior_year_check_finds_the_seeded_omission, where
+    it cannot be flaky.
+    """
     from satc.agent import ask
 
     turn = ask("What might be missing for the Maplewoods that they sent last year?",
                state=STATE)
     assert turn.ok, turn.error
-    assert "1099-INT" in turn.answer, turn.answer
+    assert "satc_prior_year_check" in turn.tools_used, turn.tools_used
+
+    # And the tool it called really did surface the omission — checked against
+    # the tool RESULT, which is engine state, not the model's wording.
+    results = " ".join(str(r) for r in turn.tool_results)
+    assert "1099-INT" in results
 
 
 # --- naming a client the way a person actually would --------------------------
