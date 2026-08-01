@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from satc.config import load_extraction_map
+from satc.models.actor import INTAKE, Actor
 from satc.fixtures import synthetic_documents
 from satc.ids import return_key
 from satc.ingest import (
@@ -42,6 +43,29 @@ _READER_LABELS = {
     "PdfFormReader": "fillable form fields (free)",
     "TextAnchorReader": "text layer (free)",
 }
+
+
+def acting_actor() -> Actor:
+    """WHO is acting right now — derived from context, never accepted as an argument.
+
+    This is the enforcement point the whole actor model rests on. The old shape
+    let a caller pass ``by="preparer"`` and be believed; here nothing can claim
+    to be the owner, it can only *be* in a live browser request.
+
+    A request context means a real person is driving the local UI: the app binds
+    to loopback only, rejects non-loopback Host headers, and blocks cross-origin
+    state changes (``server.py``), so a live request is the single human.
+
+    Anything else — a script, a scheduled sweep, an API tool, a model rung —
+    gets a system actor and is refused by :func:`~satc.models.actor.require_human`
+    at the gate. That refusal is the point: it holds from every path, including
+    paths that do not exist yet.
+    """
+    try:
+        from flask import has_request_context
+    except ImportError:          # app extras not installed — headless use
+        return Actor.system("headless")
+    return Actor.owner() if has_request_context() else Actor.system("headless")
 
 
 @dataclass
@@ -144,10 +168,10 @@ class AppState:
                 d.status = status
 
     def confirm_field(self, field_id: str) -> None:
-        self.gate.confirm(field_id, by="preparer (UI)")
+        self.gate.confirm(field_id, acting_actor())
 
     def reject_field(self, field_id: str) -> None:
-        self.gate.reject(field_id, by="preparer (UI)")
+        self.gate.reject(field_id, acting_actor())
 
     def unconfirm_field(self, field_id: str) -> None:
         self.gate.unconfirm(field_id)
@@ -159,10 +183,11 @@ class AppState:
         """Hand-correct a staged value (parses money the same conservative way reads do)."""
         from satc.ingest.extractors.base import parse_money
         amount, _conf, _note = parse_money(raw_value)   # None if it isn't a clean number
-        self.gate.edit(field_id, value_text=raw_value.strip(), value_amount=amount)
+        self.gate.edit(field_id, acting_actor(),
+                       value_text=raw_value.strip(), value_amount=amount)
 
     def auto_confirm(self) -> int:
-        return self.gate.auto_confirm_high(by="auto (UI)")
+        return self.gate.auto_confirm_high(INTAKE)
 
     # -- sample data (the built-in demo) ----------------------------------
     def _sample_client_ids(self) -> set[str]:
@@ -277,7 +302,7 @@ class AppState:
                     notes.append(f"{doc_id} → {c.label} ({how}): staged "
                                  f"{len(staged.fields)} fields via {via}.")
 
-        self.gate.auto_confirm_high(by="auto (intake)")
+        self.gate.auto_confirm_high(INTAKE)
         if reconciled:
             self.reload()              # refresh documents view with the new Received statuses
         self.intake_summary = {"folder": folder, "files_read": files_read,

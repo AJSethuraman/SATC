@@ -15,6 +15,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
+from satc.models.actor import Actor
 from satc.models.provenance import Provenance
 
 StagingStatus = Literal["STAGED", "NEEDS_REVIEW", "CONFIRMED", "REJECTED"]
@@ -51,7 +52,11 @@ class StagedField:
     note: str = ""
     confirmed_value_text: str = ""
     confirmed_value_amount: Decimal | None = None
-    confirmed_by: str = ""
+    confirmed_by: Actor | None = None
+    """WHO accepted this value — a typed Actor, never a caller-supplied string.
+
+    ``None`` means nobody has; there is no default that asserts a human.
+    """
     confirmed_at: datetime | None = None
 
     @property

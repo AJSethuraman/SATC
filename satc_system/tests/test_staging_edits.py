@@ -5,6 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from satc.ingest.staging_gate import StagingGate
+from satc.models.actor import Actor
 from satc.models.provenance import Provenance, SourceRef
 from satc.models.staging import StagedDocument, StagedField
 
@@ -23,10 +24,10 @@ def _gate(status="STAGED", confidence="HIGH", amount=None, text=""):
 
 def test_unconfirm_sends_a_confirmed_value_back_to_review():
     g, f = _gate(status="CONFIRMED")
-    f.confirmed_by = "auto"
+    f.confirmed_by = Actor.owner()
     assert g.unconfirm("f1")
     assert f.status == "STAGED"
-    assert f.confirmed_by == "" and f.confirmed_at is None
+    assert f.confirmed_by is None and f.confirmed_at is None
 
 
 def test_delete_removes_the_field_entirely():
@@ -38,7 +39,7 @@ def test_delete_removes_the_field_entirely():
 
 def test_edit_hand_corrects_and_confirms_with_exact_amount():
     g, _ = _gate(amount=Decimal("145000"), text="145000")
-    assert g.edit("f1", value_text="145030", value_amount=Decimal("145030"))
+    assert g.edit("f1", Actor.owner(), value_text="145030", value_amount=Decimal("145030"))
     f = g.all_fields()[0]
     assert f.status == "CONFIRMED"
     assert f.effective_text() == "145030"
