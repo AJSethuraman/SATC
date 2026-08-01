@@ -56,5 +56,5 @@ def test_loaded_mart_matches_fixture_shape(tmp_path):
     store.seed_if_empty()
     mart = store.load_mart()
     assert len(mart.returns) == 6
-    assert len(mart.documents) == 10
+    assert len(mart.documents) == 14   # 10 current-year + 4 prior-year (2023)
     assert any(c.kind == "NOL" for c in mart.carryforwards)

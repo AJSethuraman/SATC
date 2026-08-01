@@ -362,6 +362,23 @@ def synthetic_mart() -> DataMart:
                        "", "preparer", note="Partnership organizer outstanding"),
         DocumentRecord("DOC-0040", "SATC-004000", 2024, "Signed 8879", "Signed", _d(2025, 3, 5),
                        sp.format(cid="SATC-004000", doc="8879"), "client"),
+
+        # --- prior year (2023) -------------------------------------------
+        # The demo client is a RETURNING client, which is what makes the
+        # prior-year omission diff demonstrable. The 1099-INT below is the
+        # point: it was in hand for 2023 and has no 2024 counterpart at all —
+        # not received, not even requested. Tick-and-tie cannot find that,
+        # because there is no document to tie out. It is the question a good
+        # staff accountant asks, and the app now asks it.
+        DocumentRecord("DOC-0901", "SATC-001000", 2023, "W-2", "Received", _d(2024, 2, 5),
+                       sp.format(cid="SATC-001000", doc="W2-PY"), "preparer"),
+        DocumentRecord("DOC-0902", "SATC-001000", 2023, "1099-INT", "Received", _d(2024, 2, 9),
+                       sp.format(cid="SATC-001000", doc="1099INT-PY"), "preparer",
+                       note="Lakeside Savings — interest on the joint account"),
+        DocumentRecord("DOC-0903", "SATC-001000", 2023, "1099-DIV", "Received", _d(2024, 2, 12),
+                       sp.format(cid="SATC-001000", doc="1099DIV-PY"), "preparer"),
+        DocumentRecord("DOC-0904", "SATC-001000", 2023, "Engagement letter", "Signed",
+                       _d(2024, 1, 18), sp.format(cid="SATC-001000", doc="EL-PY"), "client"),
     ]
     return mart
 
