@@ -113,6 +113,16 @@ CREATE TABLE IF NOT EXISTS engagements (
 CREATE TABLE IF NOT EXISTS documents (
   document_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, doc_type TEXT,
   status TEXT, as_of TEXT, sharepoint_link TEXT, actor TEXT, note TEXT);
+CREATE TABLE IF NOT EXISTS requested_items (
+  request_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, doc_type TEXT,
+  request_text TEXT, blocking TEXT, status TEXT, not_applicable_reason TEXT,
+  requested_at TEXT, satisfied_by_document_id TEXT, task_id TEXT,
+  follow_up_round INTEGER);
+CREATE TABLE IF NOT EXISTS received_documents (
+  document_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, doc_type TEXT,
+  obtained_how TEXT, obtained_at TEXT, furnished_by TEXT, channel TEXT,
+  satisfies_request_id TEXT, classified_by TEXT, display_name TEXT,
+  source_path TEXT, note TEXT);
 CREATE TABLE IF NOT EXISTS relationships (
   rel_id TEXT PRIMARY KEY, from_client_id TEXT, to_client_id TEXT,
   relationship_type TEXT, ownership_pct TEXT, is_primary INTEGER, note TEXT);
@@ -155,10 +165,22 @@ def _pdt(x: str | None) -> date | None:
 _MART_TABLES_BY_CLIENT = (
     "public_clients", "returns", "carryforwards", "owner_basis",
     "estimate_payments", "engagements", "documents", "intake_engagements",
+    "requested_items", "received_documents",
 )
 
 # Vault tables keyed by client_id.
 _VAULT_TABLES_BY_CLIENT = ("identities", "vault_addresses", "vault_contacts")
+
+
+def _ts(x) -> str | None:
+    """A datetime -> ISO text. The store previously handled dates only."""
+    return None if x is None else x.isoformat()
+
+
+def _pts(x: str | None):
+    from datetime import datetime
+
+    return None if x in (None, "") else datetime.fromisoformat(x)
 
 
 def _col(row, name: str):
@@ -427,6 +449,61 @@ class SATCStore:
         self.mart.execute("UPDATE public_clients SET filing_status=? WHERE client_id=?",
                           (filing_status, client_id))
         self.mart.commit()
+
+    # -- evidence (requested items + received documents) ------------------
+
+    def save_requested_items(self, items) -> None:
+        for i in items:
+            self.mart.execute(
+                "INSERT OR REPLACE INTO requested_items VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (i.request_id, i.client_id, i.tax_year, i.doc_type, i.request_text,
+                 i.blocking, i.status, i.not_applicable_reason, _dt(i.requested_at),
+                 i.satisfied_by_document_id, i.task_id, int(i.follow_up_round)))
+        self.mart.commit()
+
+    def load_requested_items(self, client_id: str = "") -> list:
+        from satc.models.evidence import RequestedItem
+
+        sql = "SELECT * FROM requested_items"
+        args: tuple = ()
+        if client_id:
+            sql += " WHERE client_id=?"
+            args = (client_id,)
+        return [RequestedItem(
+            request_id=r["request_id"], client_id=r["client_id"], tax_year=r["tax_year"],
+            doc_type=r["doc_type"], request_text=r["request_text"] or "",
+            blocking=r["blocking"] or "non_blocking", status=r["status"] or "outstanding",
+            not_applicable_reason=r["not_applicable_reason"] or "",
+            requested_at=_pdt(r["requested_at"]),
+            satisfied_by_document_id=r["satisfied_by_document_id"] or "",
+            task_id=r["task_id"] or "", follow_up_round=r["follow_up_round"] or 0)
+            for r in self.mart.execute(sql, args)]
+
+    def save_received_documents(self, docs) -> None:
+        for d in docs:
+            self.mart.execute(
+                "INSERT OR REPLACE INTO received_documents VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (d.document_id, d.client_id, d.tax_year, d.doc_type, d.obtained_how,
+                 _ts(d.obtained_at), d.furnished_by, d.channel, d.satisfies_request_id,
+                 _actor(d.classified_by), d.display_name, d.source_path, d.note))
+        self.mart.commit()
+
+    def load_received_documents(self, client_id: str = "") -> list:
+        from satc.models.evidence import ReceivedDocument
+
+        sql = "SELECT * FROM received_documents"
+        args: tuple = ()
+        if client_id:
+            sql += " WHERE client_id=?"
+            args = (client_id,)
+        return [ReceivedDocument(
+            document_id=r["document_id"], client_id=r["client_id"], tax_year=r["tax_year"],
+            doc_type=r["doc_type"], obtained_how=r["obtained_how"] or "unknown",
+            obtained_at=_pts(r["obtained_at"]), furnished_by=r["furnished_by"] or "",
+            channel=r["channel"] or "", satisfies_request_id=r["satisfies_request_id"] or "",
+            classified_by=_pactor(r["classified_by"]), display_name=r["display_name"] or "",
+            source_path=r["source_path"] or "", note=r["note"] or "")
+            for r in self.mart.execute(sql, args)]
 
     def delete_client(self, client_id: str) -> None:
         """Remove a client everywhere — vault identity + every mart row keyed to it.

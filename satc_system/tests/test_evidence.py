@@ -215,3 +215,87 @@ def test_the_old_single_status_could_not_express_this():
         for i in states.values()
     }
     assert len(signatures) == len(states), "two states are still indistinguishable"
+
+
+# --- persistence --------------------------------------------------------------
+
+def _store(tmp):
+    from satc.persistence import SATCStore
+
+    return SATCStore(tmp)
+
+
+def test_a_requested_item_survives_a_round_trip():
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp, _store(tmp) as store:
+        store.save_requested_items([
+            RequestedItem(request_id="r1", client_id="C", tax_year=2025,
+                          doc_type="W-2", request_text="Your W-2 from each employer",
+                          blocking="blocking", requested_at=date(2026, 2, 1))])
+        item = store.load_requested_items("C")[0]
+        assert item.blocking == "blocking"
+        assert item.blocks_prep
+        assert item.request_text == "Your W-2 from each employer"
+        assert item.requested_at == date(2026, 2, 1)
+
+
+def test_a_not_applicable_reason_survives_a_round_trip():
+    """The reason IS the record. Losing it on reload would make the refusal
+    that demanded it pointless."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp, _store(tmp) as store:
+        store.save_requested_items([
+            mark_not_applicable(_item("1099-INT", "blocking"),
+                                "closed that account in March")])
+        item = store.load_requested_items("C")[0]
+        assert item.status == "not_applicable"
+        assert item.not_applicable_reason == "closed that account in March"
+
+
+def test_the_model_taint_on_a_classification_survives_a_round_trip():
+    """The same class of bug that silently killed the provenance taint: an
+    Actor rebuilt as None on load makes a model-classified arrival look
+    deterministic."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp, _store(tmp) as store:
+        store.save_received_documents([
+            ReceivedDocument(document_id="doc-a", client_id="C", tax_year=2025,
+                             doc_type="W-2", classified_by=MODEL)])
+        doc = store.load_received_documents("C")[0]
+        assert doc.is_model_classified
+        assert doc.classified_by.handle == MODEL.handle
+
+
+def test_document_provenance_survives_a_round_trip():
+    """§1.6695-2(b)(4)(i)(C) requires how, when, and from whom — all three."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp, _store(tmp) as store:
+        store.save_received_documents([
+            ReceivedDocument(
+                document_id="doc-a", client_id="C", tax_year=2025, doc_type="W-2",
+                obtained_how="furnished_by_client",
+                obtained_at=datetime(2026, 2, 3, 9, 30),
+                furnished_by="Jordan Maplewood", channel="email")])
+        doc = store.load_received_documents("C")[0]
+        assert doc.has_known_provenance
+        assert doc.furnished_by == "Jordan Maplewood"
+        assert doc.obtained_at == datetime(2026, 2, 3, 9, 30)
+        assert doc.channel == "email"
+
+
+def test_evidence_rows_are_removed_with_their_client():
+    """Registered in _MART_TABLES_BY_CLIENT, so §10.28 deletion is complete."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp, _store(tmp) as store:
+        store.save_requested_items([_item("W-2", "blocking")])
+        store.save_received_documents([
+            ReceivedDocument(document_id="doc-a", client_id="C", tax_year=2025,
+                             doc_type="W-2")])
+        store.delete_client("C")
+        assert store.load_requested_items("C") == []
+        assert store.load_received_documents("C") == []
