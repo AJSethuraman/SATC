@@ -16,7 +16,7 @@ from pathlib import Path
 from satc.config import load_extraction_map
 from satc.models.actor import INTAKE, Actor
 from satc.fixtures import synthetic_documents
-from satc.ids import return_key
+from satc.ids import content_document_id_for_path, part_document_id, return_key
 from satc.ingest import (
     MAPPING_1040,
     MapExtractor,
@@ -263,43 +263,51 @@ class AppState:
         with tempfile.TemporaryDirectory() as tmp:
             for path in files:
                 parts = split_to_dir(path, tmp, classifier) if path.suffix.lower() == ".pdf" else []
+                # The id is a CONTENT HASH, not the filename: two files named
+                # W2.pdf in different year folders used to collide, and a staged
+                # field id is f"{document_id}:{field_path}" — so a confirm could
+                # land on the wrong document's field. The filename survives as a
+                # display label, which stays local and is never exported.
+                parent_id = content_document_id_for_path(path)
                 if parts:
                     notes.append(f"{path.name}: combined PDF — split into {len(parts)} documents.")
-                    docs = [(c, fp, f"{path.name} ▸ part {i} · {c.label}")
+                    docs = [(c, fp, part_document_id(parent_id, i),
+                             f"{path.name} ▸ part {i} · {c.label}")
                             for i, (c, fp) in enumerate(parts, start=1)]
                 else:
                     c = classifier.classify_path(path)
-                    docs = [(c, path, path.name)]
+                    docs = [(c, path, parent_id, path.name)]
 
-                for c, fpath, doc_id in docs:
+                for c, fpath, doc_id, display in docs:
                     how = f"detected by {c.method}" if c.classified else "could not identify"
                     if c.classified:   # close the loop: does this satisfy an open request?
                         matched = reconcile_received(self.store, client_id=client_id, doc_type=c.label)
                         if matched is not None:
                             reconciled += 1
-                            notes.append(f"{doc_id} → ✓ satisfies your request “{matched.doc_type}” "
+                            notes.append(f"{display} → ✓ satisfies your request “{matched.doc_type}” "
                                          f"— marked Received.")
                     if not c.extractable:
                         what = c.label if c.classified else "unrecognized document"
-                        notes.append(f"{doc_id} → {what} ({how}): filed, not extracted.")
+                        notes.append(f"{display} → {what} ({how}): filed, not extracted.")
                         continue
                     cfg = load_extraction_map(c.key)
                     result, problem = self._read_document(fpath, cfg, allow_cloud)
                     if result is None:
-                        notes.append(f"{doc_id} → {c.label} ({how}): {problem}")
+                        notes.append(f"{display} → {c.label} ({how}): {problem}")
                         continue
                     staged = MapExtractor(cfg).extract(
                         document_id=doc_id, client_id=client_id, tax_year=tax_year,
                         labeled_fields=result.labeled_fields, confidences=result.confidence_map())
                     staged.source_path = str(path)        # retain the file for compare-to-source
+                    staged.display_name = display          # local UI label; never exported
                     if parts:
-                        staged.source_note = doc_id        # which part of the combined PDF
+                        staged.source_note = display       # which part of the combined PDF
                     self.gate.add(staged)
                     self.intake_sources.add(str(path))
                     files_read += 1
                     fields_staged += len(staged.fields)
                     via = _READER_LABELS.get(result.backend, result.backend)
-                    notes.append(f"{doc_id} → {c.label} ({how}): staged "
+                    notes.append(f"{display} → {c.label} ({how}): staged "
                                  f"{len(staged.fields)} fields via {via}.")
 
         self.gate.auto_confirm_high(INTAKE)

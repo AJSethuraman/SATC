@@ -50,8 +50,19 @@ class StagingGate:
     documents: list[StagedDocument] = field(default_factory=list)
 
     def add(self, doc: StagedDocument) -> StagingGate:
+        """Stage a document. Re-staging the same one is a no-op, not a duplicate.
+
+        Document ids are content hashes, so an original and the copy sort_folder
+        made hash identically — and re-reading a folder must not stage the same
+        W-2 twice. Doctrine rule 4: "already staged as requested" is success.
+        """
+        if any(d.document_id == doc.document_id for d in self.documents):
+            return self
         self.documents.append(doc)
         return self
+
+    def find_document(self, document_id: str) -> StagedDocument | None:
+        return next((d for d in self.documents if d.document_id == document_id), None)
 
     def all_fields(self) -> list[StagedField]:
         return [f for doc in self.documents for f in doc.fields]
