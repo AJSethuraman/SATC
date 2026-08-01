@@ -69,6 +69,13 @@ placeholders:
   received_items:
     label: "Already received"
     source: state
+  prior_year_questions:
+    label: "Prior-year questions"
+    source: state
+    note: >-
+      Documents in hand last year with no counterpart this year, phrased as
+      questions. Tick-and-tie cannot catch a document that never arrived, so
+      this is the one gap an arithmetic review leaves open.
 
   # -- the finished return --------------------------------------------------
   jurisdiction_summary:
@@ -164,6 +171,16 @@ templates:
       register, and credits what already arrived.
     subject: "Still need a few things for your {tax_year} return"
     body_file: missing_items.txt
+
+  - key: prior_year_check
+    name: "Prior-year check"
+    kind: email
+    stage: "2 · Gathering"
+    description: >-
+      Asks about documents you had last year and have not seen this year. The
+      question a good staff accountant asks and an arithmetic review cannot.
+    subject: "A couple of questions about your {tax_year} return"
+    body_file: prior_year_check.txt
 
   - key: return_delivery
     name: "Return delivery email"

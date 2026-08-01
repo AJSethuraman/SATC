@@ -136,6 +136,7 @@ def build_context(
     fee_record=None,
     engagement_name: str = "",
     tax_year: int | None = None,
+    prior_year: int | None = None,
     today: date | None = None,
     firm_values: dict[str, str] | None = None,
 ) -> dict[str, str]:
@@ -161,6 +162,7 @@ def build_context(
         values["tin_masked"] = masked
 
     # -- the year this communication is about ---------------------------------
+    all_documents = list(documents)
     year = tax_year
     if year is None:
         year = getattr(engagement, "tax_year", None)
@@ -176,6 +178,19 @@ def build_context(
         documents = year_docs or documents
 
     values["date"] = today.strftime("%B %d, %Y")
+
+    # -- the prior-year omission diff ----------------------------------------
+    # Runs against `all_documents`, captured before the year-narrowing above:
+    # the diff IS a comparison across two years, so the narrowed register would
+    # make it structurally unable to see the prior year at all.
+    if prior_year is not None and client_id:
+        from satc.rollover import as_questions, omission_diff
+
+        report = omission_diff(all_documents, client_id=client_id,
+                               prior_year=prior_year, current_year=year or 0)
+        questions = _bullets(as_questions(report))
+        if questions:
+            values["prior_year_questions"] = questions
 
     # -- the engagement -------------------------------------------------------
     if engagement_name:

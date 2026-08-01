@@ -78,6 +78,10 @@ def _context(client_id: str, tax_year: int | None) -> dict[str, str]:
         fee_record=_fee_record(client_id, year),
         engagement_name=_workflow_name(engagement),
         tax_year=tax_year,
+        # The prior year is always one back from whichever year this comms is
+        # about — that comparison is what surfaces a document that stopped
+        # arriving, which no amount of tick-and-tie can find.
+        prior_year=(year - 1) if year else None,
         firm_values=lib.firm_values(),
     )
 

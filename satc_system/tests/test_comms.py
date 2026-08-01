@@ -23,7 +23,8 @@ from satc.models.mart import DocumentRecord, EngagementRecord, ReturnRecord
 # means updating this list, which is the point.
 EXPECTED_KEYS = [
     "interview_invite", "engagement_letter", "document_request",
-    "missing_items", "return_delivery", "cover_letter", "invoice_cover",
+    "missing_items", "prior_year_check", "return_delivery", "cover_letter",
+    "invoice_cover",
 ]
 
 
