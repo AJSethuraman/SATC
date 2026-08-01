@@ -58,3 +58,55 @@ def test_loaded_mart_matches_fixture_shape(tmp_path):
     assert len(mart.returns) == 6
     assert len(mart.documents) == 14   # 10 current-year + 4 prior-year (2023)
     assert any(c.kind == "NOL" for c in mart.carryforwards)
+
+
+def test_every_client_keyed_table_is_registered_for_deletion():
+    """A table missing from the delete registry survives delete_client.
+
+    Not tidiness: §10.28 requires returning a client's records, and a "deleted"
+    client whose evidence rows are still on disk is a compliance defect. This
+    test fails the moment a new client_id-keyed table is added without
+    registering it, which is exactly when it is cheap to fix.
+    """
+    import tempfile
+
+    from satc.persistence.store import (
+        _MART_TABLES_BY_CLIENT,
+        _VAULT_TABLES_BY_CLIENT,
+        SATCStore,
+    )
+
+    with tempfile.TemporaryDirectory() as tmp, SATCStore(tmp) as store:
+        for conn, registered in ((store.mart, _MART_TABLES_BY_CLIENT),
+                                 (store.vault, _VAULT_TABLES_BY_CLIENT)):
+            for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"):
+                table = row["name"]
+                cols = {c["name"] for c in conn.execute(f"PRAGMA table_info({table})")}
+                if "client_id" in cols:
+                    assert table in registered, (
+                        f"{table} is keyed by client_id but is not in the delete "
+                        f"registry — deleting a client would leave its rows behind")
+
+
+def test_deleting_a_client_leaves_nothing_behind():
+    """The property the registry exists to guarantee, checked directly."""
+    import tempfile
+
+    from satc.persistence.store import (
+        _MART_TABLES_BY_CLIENT,
+        _VAULT_TABLES_BY_CLIENT,
+        SATCStore,
+    )
+
+    with tempfile.TemporaryDirectory() as tmp, SATCStore(tmp) as store:
+        store.seed_if_empty()
+        victim = next(iter(store.names()))
+        store.delete_client(victim)
+        for conn, tables in ((store.mart, _MART_TABLES_BY_CLIENT),
+                             (store.vault, _VAULT_TABLES_BY_CLIENT)):
+            for table in tables:
+                left = conn.execute(
+                    f"SELECT COUNT(*) AS n FROM {table} WHERE client_id=?",
+                    (victim,)).fetchone()["n"]
+                assert left == 0, f"{table} still holds rows for the deleted client"

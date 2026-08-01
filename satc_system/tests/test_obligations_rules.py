@@ -387,3 +387,25 @@ def test_has_jurisdiction_is_false_for_unsourced_states():
 
     assert not has_jurisdiction("WY")
     assert not has_jurisdiction("OH")       # sourced next; MA already is
+
+
+def test_every_blocking_document_can_actually_be_classified():
+    """A blocking doc no classifier can emit makes the guard DECORATIVE.
+
+    IRS Pub 1345 forbids originating an e-filed return before the W-2, W-2G and
+    1099-R are in hand. If the readiness check looks for a doc type the
+    classifier cannot produce, it passes with that document missing — every
+    time, silently. W-2G was in exactly that state.
+    """
+    import yaml
+
+    from satc.config import CONFIG_ROOT
+
+    registry = yaml.safe_load((CONFIG_ROOT / "classification.yaml").read_text(encoding="utf-8"))
+    emittable = {d["code"] for d in registry["doc_types"]}
+    for r in rules():
+        for doc in r.blocking_docs:
+            assert doc in emittable, (
+                f"{r.key} treats {doc!r} as blocking, but no classifier can emit it — "
+                f"the readiness guard would pass with it missing. Add it to "
+                f"configs/classification.yaml or stop claiming it blocks.")

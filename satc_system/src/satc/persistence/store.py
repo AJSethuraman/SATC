@@ -147,6 +147,20 @@ def _pdt(x: str | None) -> date | None:
     return None if x in (None, "") else date.fromisoformat(x)
 
 
+# Every mart table keyed directly by client_id. A table missing from this list
+# survives delete_client — which is not a tidiness problem: §10.28 requires
+# returning a client's records, and a "deleted" client whose evidence rows are
+# still on disk is a compliance defect, not a leak of disk space. New tables
+# register HERE and nowhere else.
+_MART_TABLES_BY_CLIENT = (
+    "public_clients", "returns", "carryforwards", "owner_basis",
+    "estimate_payments", "engagements", "documents", "intake_engagements",
+)
+
+# Vault tables keyed by client_id.
+_VAULT_TABLES_BY_CLIENT = ("identities", "vault_addresses", "vault_contacts")
+
+
 def _col(row, name: str):
     """Read a column that may not exist on a store created by an older build.
 
@@ -428,13 +442,12 @@ class SATCStore:
             self.mart.execute("DELETE FROM line_items WHERE return_key=?", (rk,))
         for eid in eng_ids:
             self.mart.execute("DELETE FROM intake_tasks WHERE engagement_id=?", (eid,))
-        for table in ("public_clients", "returns", "carryforwards", "owner_basis",
-                      "estimate_payments", "engagements", "documents", "intake_engagements"):
+        for table in _MART_TABLES_BY_CLIENT:
             self.mart.execute(f"DELETE FROM {table} WHERE client_id=?", (client_id,))
         self.mart.execute("DELETE FROM relationships WHERE from_client_id=? OR to_client_id=?",
                           (client_id, client_id))
         self.mart.commit()
-        for table in ("identities", "vault_addresses", "vault_contacts"):
+        for table in _VAULT_TABLES_BY_CLIENT:
             self.vault.execute(f"DELETE FROM {table} WHERE client_id=?", (client_id,))
         self.vault.commit()
 

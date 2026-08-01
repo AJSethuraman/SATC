@@ -16,6 +16,8 @@ import dataclasses
 from datetime import date, datetime
 from decimal import Decimal
 
+from satc.models.actor import Actor
+
 
 def _to_json(obj):
     """Recursively convert dataclasses / Decimals / dates to JSON-safe values."""
@@ -27,8 +29,20 @@ def _to_json(obj):
         return {k: _to_json(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple, set)):
         return [_to_json(x) for x in obj]
+    # An Actor serialises to its HANDLE, not to its fields. dataclasses.asdict
+    # would expand it to {"kind": "human", "name": "owner", ...}, giving the wire
+    # two representations of an actor — one here and the handle everywhere else
+    # (audit rows, stored provenance). Consumers would have to know which they
+    # were looking at, and the one that reads "kind: human" is the one that
+    # invites a caller to reconstruct a human actor from a payload.
+    if isinstance(obj, Actor):
+        return obj.handle
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-        return _to_json(dataclasses.asdict(obj))
+        # Walk FIELDS rather than using dataclasses.asdict: asdict deep-converts
+        # every nested dataclass in one go, so a nested Actor would already be a
+        # dict by the time the branch above could turn it into a handle.
+        return {f.name: _to_json(getattr(obj, f.name))
+                for f in dataclasses.fields(obj)}
     return obj
 
 

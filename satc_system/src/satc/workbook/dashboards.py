@@ -16,9 +16,26 @@ from satc.workbook.styles import NF
 
 _STATUSES = ["Awaiting docs", "In prep", "In review", "Ready to file", "Filed", "Accepted"]
 _TYPES = ["1040", "1120S", "1065", "1120"]
-# Original / extended federal due dates by return type (month, day).
-_DUE = {"1040": (4, 15), "1120": (4, 15), "1120S": (3, 15), "1065": (3, 15)}
-_EXT = {"1040": (10, 15), "1120": (10, 15), "1120S": (9, 15), "1065": (9, 15)}
+
+# Return type -> the obligation rule that owns its dates. The dates themselves
+# are NOT here: they come from satc.obligations, the same clock the app uses.
+#
+# They used to be hardcoded (month, day) pairs with a flat "+6 months" extension.
+# That is wrong twice over — it ignores the weekend/holiday shift entirely, and
+# +6 months is wrong for a 1041 (5.5 months) — but the real problem is subtler:
+# a workbook that computes its own deadlines answers "when is this due"
+# DIFFERENTLY from the app, forever, and nothing ever notices.
+_RULE_FOR_TYPE = {"1040": "form_1040", "1120": "form_1120",
+                  "1120S": "form_1120s", "1065": "form_1065"}
+
+
+def _due_dates(return_type: str, tax_year: int):
+    """(original, extended) for a return type, straight from the clock."""
+    from satc.obligations.due_dates import compute, tax_year as period
+    from satc.obligations.rules import rule
+
+    dates = compute(rule(_RULE_FOR_TYPE[return_type]), period(tax_year))
+    return dates.due, dates.extended_due
 
 
 def _rng(sheet: str, col: str, first: int, last: int) -> str:
@@ -71,12 +88,16 @@ def build_dashboards_sheet(ws: Worksheet, *, mart_ranges: dict, repo_ranges: dic
     row = X.column_headers(ws, row, ["", "return type", "original due", "extended due",
                                      "days to due", "open (not filed)"], start_col=1)
     for rt in _TYPES:
-        m, d = _DUE[rt]
-        em, ed = _EXT[rt]
+        due, extended = _due_dates(rt, tax_year)
         X.write(ws, row, 2, rt, S.LABEL)
-        X.write(ws, row, 3, f"=DATE({tax_year + 1},{m},{d})", S.COMPUTED, number_format=NF.DATE)
-        X.write(ws, row, 4, f"=DATE({tax_year + 1},{em},{ed})", S.COMPUTED, number_format=NF.DATE)
-        X.write(ws, row, 5, f"=DATE({tax_year + 1},{m},{d})-TODAY()", S.COMPUTED, number_format=NF.NUM)
+        X.write(ws, row, 3, f"=DATE({due.year},{due.month},{due.day})",
+                S.COMPUTED, number_format=NF.DATE)
+        X.write(ws, row, 4,
+                (f"=DATE({extended.year},{extended.month},{extended.day})"
+                 if extended else "—"),
+                S.COMPUTED, number_format=NF.DATE if extended else None)
+        X.write(ws, row, 5, f"=DATE({due.year},{due.month},{due.day})-TODAY()",
+                S.COMPUTED, number_format=NF.NUM)
         X.write(ws, row, 6,
                 f'=COUNTIFS({type_r},"{rt}",{status_r},"<>Filed",{status_r},"<>Accepted")',
                 S.COMPUTED, number_format=NF.NUM)
