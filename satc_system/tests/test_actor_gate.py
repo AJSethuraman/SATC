@@ -322,3 +322,75 @@ def test_the_auto_confirm_sweep_has_no_defaulted_actor():
 
     sig = inspect.signature(StagingGate.auto_confirm_high)
     assert sig.parameters["by"].default is inspect.Parameter.empty
+
+
+# --- the only automatic durable write is gated too ---------------------------
+
+def _store_with_request(tmp):
+    """A store holding one outstanding W-2 request."""
+    from datetime import date
+
+    from satc.models.mart import DocumentRecord
+    from satc.persistence import SATCStore
+
+    store = SATCStore(tmp)
+    mart = store.load_mart()
+    mart.documents.append(DocumentRecord(
+        document_id="req-1", client_id="C", tax_year=2025, doc_type="W-2",
+        status="Requested", as_of=date.today(), actor="intake",
+        note="Your W-2 from each employer"))
+    store.save_mart(mart)
+    return store
+
+
+def test_a_model_classified_arrival_cannot_close_a_request():
+    """reconcile_received is the ONLY automatic durable write in the app, and it
+    was reachable from the vision rung with no actor and no check."""
+    import tempfile
+
+    from satc.intake.service import reconcile_received
+
+    with tempfile.TemporaryDirectory() as tmp, _store_with_request(tmp) as store:
+        matched = reconcile_received(store, client_id="C", doc_type="W-2",
+                                     classified_by=Actor.model("vision"))
+        assert matched is None
+        still = store.load_mart().documents[0]
+        assert still.status == "Requested", "a model closed a client request"
+
+
+def test_a_deterministic_classification_still_closes_the_request():
+    """The gate must not break the loop for the rungs that can be proven."""
+    import tempfile
+
+    from satc.intake.service import reconcile_received
+
+    with tempfile.TemporaryDirectory() as tmp, _store_with_request(tmp) as store:
+        matched = reconcile_received(store, client_id="C", doc_type="W-2",
+                                     classified_by=Actor.system("classifier:text"))
+        assert matched is not None
+        assert store.load_mart().documents[0].status == "Received"
+
+
+def test_the_model_still_gets_to_point_at_the_request():
+    """Propose, never dispose: the owner closes it in one click."""
+    import tempfile
+
+    from satc.intake.service import find_match
+
+    with tempfile.TemporaryDirectory() as tmp, _store_with_request(tmp) as store:
+        likely = find_match(store, client_id="C", doc_type="W-2")
+        assert likely is not None and likely.doc_type == "W-2"
+        assert store.load_mart().documents[0].status == "Requested"   # read-only
+
+
+def test_only_the_vision_rung_counts_as_a_model():
+    """Tesseract OCR and the text layer are deterministic — they can be proven."""
+    from satc.ingest.classify import Classification
+
+    def c(method):
+        return Classification(key="w2", label="W-2", code="W-2",
+                              confidence="HIGH", method=method, evidence="")
+
+    assert c("vision").is_model_classified
+    for deterministic in ("form fields", "text", "filename", "ocr"):
+        assert not c(deterministic).is_model_classified, deterministic

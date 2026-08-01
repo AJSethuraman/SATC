@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from satc.ids import opaque_id
+from satc.models.actor import INTAKE, Actor
 from satc.intake import matching
 from satc.intake.importer import ParsedClient
 from satc.intake.workflows import build_engagement, load_workflow
@@ -163,12 +164,10 @@ def create_engagement(store, *, client_id: str, workflow_key: str, due_date: dat
     return eng
 
 
-def reconcile_received(store, *, client_id: str, doc_type: str) -> DocumentRecord | None:
-    """Flip the best matching outstanding request to ``Received`` and complete its task.
+def find_match(store, *, client_id: str, doc_type: str) -> DocumentRecord | None:
+    """The outstanding request an arriving document would satisfy. Reads only.
 
-    Called when the document pipeline classifies an arriving document; closes the
-    loop between what was requested at intake and what has actually come in. A
-    request's type AND its prose description (stored in ``note``) are both
+    A request's type AND its prose description (stored in ``note``) are both
     considered, so a received "W-2" satisfies a "core income documents" bundle.
     When several requests match, the most specific one wins.
     """
@@ -178,7 +177,31 @@ def reconcile_received(store, *, client_id: str, doc_type: str) -> DocumentRecor
                   and matching.matches(doc_type, str(d.doc_type), d.note)]
     if not candidates:
         return None
-    match = min(candidates, key=lambda d: matching.specificity(str(d.doc_type), d.note))
+    return min(candidates, key=lambda d: matching.specificity(str(d.doc_type), d.note))
+
+
+def reconcile_received(store, *, client_id: str, doc_type: str,
+                       classified_by: Actor = INTAKE) -> DocumentRecord | None:
+    """Flip the best matching outstanding request to ``Received`` and complete its task.
+
+    Called when the document pipeline classifies an arriving document; closes the
+    loop between what was requested at intake and what has actually come in.
+
+    **This is the only automatic durable write in the app**, which is why it is
+    gated. It was previously reachable from ANY classifier rung — including the
+    vision rung, where a MODEL decides what the document is — with no actor and
+    no check. A model could therefore mark a client request satisfied, complete
+    the task, and have it recorded as ordinary intake.
+
+    A model-classified arrival now closes nothing. It is still reported, and
+    :func:`find_match` names the request it *probably* satisfies, so the owner
+    closes it in one click on the Documents screen. Propose, never dispose.
+    """
+    if classified_by.is_model:
+        return None
+    match = find_match(store, client_id=client_id, doc_type=doc_type)
+    if match is None:
+        return None
     store.set_document_status(match.document_id, "Received")
     match.status = "Received"
     for eng in store.load_intake_engagements():

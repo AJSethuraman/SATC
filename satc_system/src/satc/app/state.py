@@ -281,11 +281,26 @@ class AppState:
                 for c, fpath, doc_id, display in docs:
                     how = f"detected by {c.method}" if c.classified else "could not identify"
                     if c.classified:   # close the loop: does this satisfy an open request?
-                        matched = reconcile_received(self.store, client_id=client_id, doc_type=c.label)
+                        # The actor is derived from WHICH RUNG classified it. Only
+                        # the vision rung asks a model, and a model may not close a
+                        # client request — it may only point at one.
+                        classified_by = (Actor.model("vision") if c.is_model_classified
+                                         else Actor.system(f"classifier:{c.method}"))
+                        matched = reconcile_received(self.store, client_id=client_id,
+                                                     doc_type=c.label,
+                                                     classified_by=classified_by)
                         if matched is not None:
                             reconciled += 1
                             notes.append(f"{display} → ✓ satisfies your request “{matched.doc_type}” "
                                          f"— marked Received.")
+                        elif c.is_model_classified:
+                            from satc.intake.service import find_match
+                            likely = find_match(self.store, client_id=client_id, doc_type=c.label)
+                            if likely is not None:
+                                notes.append(
+                                    f"{display} → looks like it satisfies your request "
+                                    f"“{likely.doc_type}”, but a model read it — open Documents "
+                                    f"and mark it Received if you agree.")
                     if not c.extractable:
                         what = c.label if c.classified else "unrecognized document"
                         notes.append(f"{display} → {what} ({how}): filed, not extracted.")

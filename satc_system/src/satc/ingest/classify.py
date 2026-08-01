@@ -84,8 +84,20 @@ class Classification:
     key: str | None
     code: str
     confidence: str          # HIGH / MEDIUM / LOW / UNCERTAIN
-    method: str              # "form fields" / "text" / "filename" / "vision" / "unclassified"
+    method: str              # "form fields" / "text" / "filename" / "ocr" / "vision" / "unclassified"
     evidence: str = ""
+
+    @property
+    def is_model_classified(self) -> bool:
+        """Whether a MODEL decided what this document is.
+
+        Only the vision rung asks a model. Form fields, the text layer, the
+        filename hint and Tesseract OCR are all deterministic — they can be read,
+        tested, and proven wrong. This distinction is what decides whether a
+        classification is allowed to close a client request on its own.
+        """
+        return self.method == "vision"
+
 
     @property
     def extractable(self) -> bool:
