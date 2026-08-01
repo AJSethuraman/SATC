@@ -60,6 +60,17 @@ def tax_year(year: int, *, fiscal_year_end: date | None = None) -> Period:
     return Period(str(year), start, fiscal_year_end)
 
 
+def month_period(year: int, month: int) -> Period:
+    """A calendar month, keyed ``2026-03``.
+
+    The period for monthly sales-tax and withholding duties.
+    """
+    if not 1 <= month <= 12:
+        raise ConfigError(f"Month must be 1-12, got {month}")
+    return Period(f"{year}-{month:02d}", date(year, month, 1),
+                  date(year, month, monthrange(year, month)[1]))
+
+
 def quarter(year: int, q: int) -> Period:
     """A calendar quarter, keyed ``2026Q1``."""
     if not 1 <= q <= 4:

@@ -41,6 +41,15 @@ class Extension:
     form: str = ""
     months: float = 0.0
     note: str = ""
+    condition: str = ""
+    """What must be true for the extension to be VALID.
+
+    Load-bearing, not commentary: Massachusetts grants its extensions
+    automatically but only if 80% of the liability (or, for corporate excise,
+    the greater of 50% of tax or the minimum excise) is paid by the original
+    due date. An extension that fails its condition was never an extension, and
+    the return is late — so this has to travel with the rule.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,7 +99,8 @@ def _extension(raw) -> Extension:
         available=bool(raw.get("available", False)),
         form=str(raw.get("form", "") or ""),
         months=float(raw.get("months", 0) or 0),
-        note=" ".join(str(raw.get("note", "")).split()))
+        note=" ".join(str(raw.get("note", "")).split()),
+        condition=" ".join(str(raw.get("condition", "")).split()))
 
 
 def _rule(entry: dict, jurisdiction: str) -> ObligationRule:

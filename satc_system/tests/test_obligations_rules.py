@@ -370,16 +370,20 @@ def test_an_unsourced_state_raises_instead_of_guessing():
     """The most dangerous thing a tax calendar can do is answer confidently."""
     from satc.obligations.rules import rules_for_jurisdiction
 
+    # Wyoming: no income tax and not a state this practice files in, so it
+    # stays unsourced permanently — a stable stand-in for "any state we have
+    # not researched". (MA and OH are deliberately NOT used here: MA is now
+    # sourced, and OH is next.)
     with pytest.raises(ConfigError) as exc:
-        rules_for_jurisdiction("MA")
+        rules_for_jurisdiction("WY")
     message = str(exc.value)
     assert "will not fall back" in message
-    assert "configs/obligations/ma.yaml" in message      # names the next step
+    assert "configs/obligations/wy.yaml" in message      # names the next step
     assert "US" in message                               # says what IS sourced
 
 
 def test_has_jurisdiction_is_false_for_unsourced_states():
     from satc.obligations.rules import has_jurisdiction
 
-    assert not has_jurisdiction("MA")
-    assert not has_jurisdiction("OH")
+    assert not has_jurisdiction("WY")
+    assert not has_jurisdiction("OH")       # sourced next; MA already is
