@@ -14,6 +14,7 @@ from pathlib import Path
 from satc.config import load_extraction_map
 from satc.ingest import StagingGate, read_and_stage
 from satc.ingest.readers import PdfFormReader, VisionDocumentReader
+from satc.models.actor import INTAKE
 
 
 def test_pdf_form_reader_maps_named_fields():
@@ -86,7 +87,7 @@ def test_vision_reader_flags_uncertain_and_masks_tin(tmp_path):
     assert by_path["w2.box17_state_wh"].value_amount is None
 
     gate = StagingGate().add(staged)
-    gate.auto_confirm_high()
+    gate.auto_confirm_high(INTAKE)
     confirmed = {f.field_path for f in gate.confirmed()}
     # A clean, confident field auto-confirms…
     assert "w2.box1_wages" in confirmed

@@ -93,7 +93,8 @@ CREATE TABLE IF NOT EXISTS returns (
   filed_date TEXT, accepted_date TEXT, refund_amount TEXT, balance_due_amount TEXT, note TEXT);
 CREATE TABLE IF NOT EXISTS line_items (
   line_item_key TEXT PRIMARY KEY, return_key TEXT, schedule TEXT, line_code TEXT,
-  label TEXT, amount TEXT, text_value TEXT, source_kind TEXT, citation TEXT);
+  label TEXT, amount TEXT, text_value TEXT, source_kind TEXT, citation TEXT,
+  confidence TEXT, produced_by TEXT, document_id TEXT);
 CREATE TABLE IF NOT EXISTS carryforwards (
   cf_id TEXT PRIMARY KEY, client_id TEXT, return_type TEXT, jurisdiction TEXT, kind TEXT,
   tax_year_generated INTEGER, amount TEXT, applied_to_year INTEGER, expires_after_year INTEGER, note TEXT);
@@ -146,6 +147,38 @@ def _pdt(x: str | None) -> date | None:
     return None if x in (None, "") else date.fromisoformat(x)
 
 
+def _col(row, name: str):
+    """Read a column that may not exist on a store created by an older build.
+
+    ``sqlite3.Row`` raises ``IndexError`` for an unknown key, and the migration
+    runs at open time — but a row object held across a schema change would still
+    blow up. Returning ``None`` keeps a load from failing on a column that is
+    about to be added.
+    """
+    try:
+        return row[name]
+    except (IndexError, KeyError):
+        return None
+
+
+def _actor(a) -> str | None:
+    """An Actor -> its stable handle, for storage."""
+    return None if a is None else a.handle
+
+
+def _pactor(x: str | None):
+    """A stored handle -> an Actor, for READING HISTORY ONLY.
+
+    parse_handle never upgrades an unrecognised handle into a human, so a
+    round-tripped actor cannot be used to assert humanity. See the warning in
+    satc.models.actor.parse_handle: the result of this describes something that
+    already happened and must never be passed into a gate as the actor
+    performing a NEW act.
+    """
+    from satc.models.actor import parse_handle
+    return None if x in (None, "") else parse_handle(x)
+
+
 class SATCStore:
     """Facade over the vault + mart databases."""
 
@@ -171,6 +204,26 @@ class SATCStore:
         self._migrate()
         self._encrypt_vault_at_rest()
 
+    def close(self) -> None:
+        """Close both database connections.
+
+        Long-lived in the app (one process, one store), but tests and any
+        short-lived tool need this: on Windows an open SQLite handle keeps the
+        file locked, so a temp directory cannot be cleaned up underneath it.
+        Idempotent — closing twice is not an error.
+        """
+        for conn in (self.vault, self.mart):
+            try:
+                conn.close()
+            except Exception:      # noqa: BLE001 - already closed is fine
+                pass
+
+    def __enter__(self) -> "SATCStore":
+        return self
+
+    def __exit__(self, *_exc) -> None:
+        self.close()
+
     def _migrate(self) -> None:
         """Add columns introduced after a database was first created.
 
@@ -182,6 +235,17 @@ class SATCStore:
         if "filing_status" not in cols:
             self.mart.execute("ALTER TABLE public_clients ADD COLUMN filing_status TEXT")
             self.mart.commit()
+
+        # Provenance must survive a reload. Without these, Provenance was rebuilt
+        # with produced_by=None on every load — and AppState.reload() runs after
+        # EVERY mutation — so a model-produced value came back from SQLite
+        # indistinguishable from a preparer entry, silently defeating the sticky
+        # taint the staging gate depends on.
+        li_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(line_items)")}
+        for column in ("confidence", "produced_by", "document_id"):
+            if column not in li_cols:
+                self.mart.execute(f"ALTER TABLE line_items ADD COLUMN {column} TEXT")
+        self.mart.commit()
 
     def _encrypt_vault_at_rest(self) -> None:
         """Encrypt any legacy plaintext PII left by a pre-encryption build, then
@@ -289,11 +353,20 @@ class SATCStore:
                        r.status, r.preparer_id, r.residency, int(r.is_extended), _dt(r.filed_date),
                        _dt(r.accepted_date), _d(r.refund_amount), _d(r.balance_due_amount), r.note))
         for li in mart.line_items:
-            sk = li.provenance.source_kind if li.provenance else ""
-            cit = (li.provenance.short_source() if li.provenance else "")
-            m.execute("INSERT OR REPLACE INTO line_items VALUES (?,?,?,?,?,?,?,?,?)",
+            prov = li.provenance
+            ref = prov.source_ref if prov else None
+            m.execute("INSERT OR REPLACE INTO line_items VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                       (li.line_item_key, li.return_key, li.schedule, li.line_code, li.label,
-                       _d(li.amount), li.text_value, sk, cit))
+                       _d(li.amount), li.text_value,
+                       prov.source_kind if prov else "",
+                       # Citation is a TAX-LAW citation, never a filename. The
+                       # document is referenced by id in its own column so the
+                       # evidence chain survives without a client filename
+                       # reaching the exported workbook.
+                       (ref.citation or "") if ref else "",
+                       prov.confidence if prov else "",
+                       _actor(prov.produced_by) if prov else None,
+                       (ref.document_id or "") if ref else ""))
         for c in mart.carryforwards:
             m.execute("INSERT OR REPLACE INTO carryforwards VALUES (?,?,?,?,?,?,?,?,?,?)",
                       (c.cf_id, c.client_id, c.return_type, c.jurisdiction, c.kind,
@@ -458,8 +531,12 @@ class SATCStore:
             line_item_key=r["line_item_key"], return_key=r["return_key"], schedule=r["schedule"],
             line_code=r["line_code"], label=r["label"], amount=_pd(r["amount"]),
             text_value=r["text_value"] or "",
-            provenance=Provenance(source_kind=r["source_kind"] or "COMPUTED",
-                                  source_ref=SourceRef(citation=r["citation"] or "")))
+            provenance=Provenance(
+                source_kind=r["source_kind"] or "COMPUTED",
+                confidence=_col(r, "confidence") or "HIGH",
+                produced_by=_pactor(_col(r, "produced_by")),
+                source_ref=SourceRef(citation=r["citation"] or "",
+                                     document_id=_col(r, "document_id") or None)))
             for r in m.execute("SELECT * FROM line_items")]
         mart.carryforwards = [Carryforward(
             cf_id=r["cf_id"], client_id=r["client_id"], return_type=r["return_type"],

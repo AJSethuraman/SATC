@@ -226,3 +226,99 @@ def test_confirming_outside_a_request_is_refused():
     with pytest.raises(ActorRefused):
         STATE.confirm_field("f1")
     assert f.status == "STAGED"
+
+
+# --- the invariant must survive persistence ----------------------------------
+
+def test_provenance_survives_a_round_trip_through_sqlite():
+    """The hole that made the sticky taint decorative.
+
+    Provenance was rebuilt on load with produced_by=None — and AppState.reload()
+    runs after EVERY mutation — so a model-produced value came back from SQLite
+    indistinguishable from a preparer entry. The gate held in memory and leaked
+    at the database boundary.
+    """
+    import tempfile
+    from decimal import Decimal
+
+    from satc.models.mart import DataMart, LineItem, ReturnRecord
+    from satc.models.provenance import Provenance, SourceRef
+    from satc.persistence import SATCStore
+
+    with tempfile.TemporaryDirectory() as tmp, SATCStore(tmp) as store:
+        mart = DataMart()
+        mart.returns.append(ReturnRecord(
+            return_key="RK", client_id="C", tax_year=2025,
+            return_type="1040", jurisdiction="US"))
+        mart.line_items.append(LineItem(
+            line_item_key="LK", return_key="RK", schedule="1040", line_code="1a",
+            label="Wages", amount=Decimal("1000"),
+            provenance=Provenance(source_kind="SOURCE_DOC", confidence="LOW",
+                                  produced_by=MODEL,
+                                  source_ref=SourceRef(document_id="doc-abc"))))
+        store.save_mart(mart)
+
+        reloaded = store.load_mart()
+        prov = reloaded.line_items[0].provenance
+        assert prov.is_model_produced, "the model taint died in SQLite"
+        assert prov.produced_by.handle == MODEL.handle
+        assert prov.confidence == "LOW", "confidence silently became HIGH on reload"
+        assert prov.source_ref.document_id == "doc-abc"
+
+
+def test_a_stored_human_actor_reads_back_as_human_but_only_as_history():
+    import tempfile
+    from decimal import Decimal
+
+    from satc.models.mart import DataMart, LineItem, ReturnRecord
+    from satc.models.provenance import Provenance
+    from satc.persistence import SATCStore
+
+    with tempfile.TemporaryDirectory() as tmp, SATCStore(tmp) as store:
+        mart = DataMart()
+        mart.returns.append(ReturnRecord(return_key="RK", client_id="C", tax_year=2025,
+                                         return_type="1040", jurisdiction="US"))
+        mart.line_items.append(LineItem(
+            line_item_key="LK", return_key="RK", schedule="1040", line_code="1a",
+            label="Wages", amount=Decimal("1"),
+            provenance=Provenance(source_kind="PREPARER_ENTRY",
+                                  produced_by=Actor.owner())))
+        store.save_mart(mart)
+        prov = store.load_mart().line_items[0].provenance
+        assert prov.produced_by.is_human
+        assert not prov.is_model_produced
+
+
+def test_no_client_filename_reaches_the_citation_column():
+    """A live PII leak: citation used to be short_source(), which renders
+    "Doc <document_id>" — and document_id was the client's own filename, which
+    then went into the exported workbook. Citations are tax-law citations."""
+    import tempfile
+    from decimal import Decimal
+
+    from satc.models.mart import DataMart, LineItem, ReturnRecord
+    from satc.models.provenance import Provenance, SourceRef
+    from satc.persistence import SATCStore
+
+    with tempfile.TemporaryDirectory() as tmp, SATCStore(tmp) as store:
+        mart = DataMart()
+        mart.returns.append(ReturnRecord(return_key="RK", client_id="C", tax_year=2025,
+                                         return_type="1040", jurisdiction="US"))
+        mart.line_items.append(LineItem(
+            line_item_key="LK", return_key="RK", schedule="1040", line_code="1a",
+            label="Wages", amount=Decimal("1"),
+            provenance=Provenance(
+                source_kind="SOURCE_DOC",
+                source_ref=SourceRef(document_id="Maplewood_Jordan_W2_2024.pdf"))))
+        store.save_mart(mart)
+        row = next(store.mart.execute("SELECT citation FROM line_items"))
+        assert "Maplewood" not in (row["citation"] or "")
+        assert "Jordan" not in (row["citation"] or "")
+
+
+def test_the_auto_confirm_sweep_has_no_defaulted_actor():
+    """The last place a caller could be believed by omission."""
+    import inspect
+
+    sig = inspect.signature(StagingGate.auto_confirm_high)
+    assert sig.parameters["by"].default is inspect.Parameter.empty

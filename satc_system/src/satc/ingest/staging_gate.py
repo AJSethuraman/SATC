@@ -63,8 +63,12 @@ class StagingGate:
         return None
 
     # -- gate operations ---------------------------------------------------
-    def auto_confirm_high(self, by: Actor = INTAKE) -> int:
+    def auto_confirm_high(self, by: Actor) -> int:
         """Confirm HIGH-confidence, cleanly-parsed, NON-model fields. Returns count.
+
+        ``by`` is required and has no default — a defaulted actor is the exact
+        shape this whole model exists to remove, and leaving one here would be
+        the last place a caller could be believed by omission.
 
         Two gates, not one. Confidence says the read was clean; provenance says
         what produced it. A model-produced value is never auto-confirmed at any
