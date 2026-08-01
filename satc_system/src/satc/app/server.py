@@ -21,6 +21,7 @@ from flask import Flask, Response, redirect, render_template, request, send_file
 from satc.app.comms_views import bp as comms_bp
 from satc.app.intake_views import bp as intake_bp
 from satc.app.state import DOC_FLOW, STATE
+from satc.app.today_views import bp as today_bp
 from satc.app.withholding_views import bp as withholding_bp
 from satc.app.workflow_views import bp as workflow_bp
 from satc.ingest import load_classifier
@@ -59,6 +60,7 @@ def create_app() -> Flask:
     app.register_blueprint(workflow_bp)
     app.register_blueprint(withholding_bp)
     app.register_blueprint(comms_bp)
+    app.register_blueprint(today_bp)
 
     @app.before_request
     def _local_only_guard():

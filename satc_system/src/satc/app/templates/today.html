@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>{{ queue.summary_line() }}</h2>
+  <div class="muted">
+    Everything below was noticed for you — from your document register, the tax calendar,
+    and last year's return. Nothing here has been sent, signed or filed; each one is
+    <strong>ready except the decision</strong>.
+  </div>
+</div>
+
+{% if not queue.actions %}
+<div class="panel">
+  <h2>Nothing needs you</h2>
+  <div class="body">
+    <p class="muted">No outstanding requests past their nudge date, no deadlines inside 30 days,
+      and nothing from {{ tax_year - 1 }} missing a {{ tax_year }} counterpart.</p>
+    {% if hidden_count %}
+    <form method="post" action="{{ url_for('today.restore') }}">
+      <input type="hidden" name="tax_year" value="{{ tax_year }}">
+      <button class="btn sm" type="submit">Show {{ hidden_count }} dismissed</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% for urgency, actions in queue.by_urgency() %}
+<div class="panel">
+  <h2>
+    {% if urgency == 'overdue' %}Overdue
+    {% elif urgency == 'urgent' %}This week
+    {% elif urgency == 'soon' %}Coming up
+    {% else %}When you get to it{% endif %}
+    <span class="muted">· {{ actions|length }}</span>
+  </h2>
+  <div class="body">
+    <table>
+      <tr><th>Client</th><th>What</th><th class="right">Do it</th></tr>
+      {% for a in actions %}
+      <tr>
+        <td>
+          <strong>{{ names.get(a.client_id, a.client_id) }}</strong>
+          {% if a.due %}<div class="muted mono">due {{ a.due.strftime('%b %d') }}</div>{% endif %}
+        </td>
+        <td>
+          <div><strong>{{ a.title }}</strong>
+            {% if a.is_from_model %}<span class="badge b-NEEDS_REVIEW">proposed by the model</span>{% endif %}
+          </div>
+          <div class="muted">{{ a.why }}</div>
+        </td>
+        <td class="right">
+          {% if a.has_draft %}
+          <a class="btn sm primary"
+             href="{{ url_for('comms.comms', client=a.client_id, template=a.template_key, tax_year=tax_year) }}">
+            Read the draft →</a>
+          {% else %}
+          <a class="btn sm" href="{{ url_for('client', client_id=a.client_id) }}">Open client →</a>
+          {% endif %}
+          <form class="inline" method="post" action="{{ url_for('today.dismiss') }}">
+            <input type="hidden" name="action_id" value="{{ a.action_id }}">
+            <input type="hidden" name="tax_year" value="{{ tax_year }}">
+            <button class="btn sm" type="submit" title="Hide for this session — nothing is resolved">Not now</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+{% if queue.actions and hidden_count %}
+<form method="post" action="{{ url_for('today.restore') }}" style="margin-top:6px">
+  <input type="hidden" name="tax_year" value="{{ tax_year }}">
+  <button class="btn sm" type="submit">Show {{ hidden_count }} dismissed</button>
+</form>
+{% endif %}
+
+<p class="note">
+  “Not now” hides a row for this session only — it resolves nothing. The unsigned 8879 or the
+  missing 1099 is still there, so the row comes back until the reason for it does not.
+</p>
+{% endblock %}
