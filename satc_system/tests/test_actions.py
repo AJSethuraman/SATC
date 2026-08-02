@@ -259,7 +259,7 @@ def test_it_runs_against_the_real_seeded_practice():
     queue = build_queue(
         clients=[cid for cid, _ in STATE.client_choices()],
         requested=STATE.requested_items(), received=STATE.received_documents(),
-        engaged_clients=[e.client_id for e in STATE.intake_engagements()],
+        engaged_clients=[e.client_id for e in STATE.jobs()],
         tax_year=2024, today=date(2025, 3, 20))
     assert len(queue) > 0, "the seeded practice should have something worth doing"
     assert queue.summary_line() != "Nothing needs you right now."

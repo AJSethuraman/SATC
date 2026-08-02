@@ -27,8 +27,10 @@ from datetime import date
 from typing import Any, Literal
 
 # Who a task speaks to. Client-facing tasks drive document requests + client comms;
-# internal tasks drive the preparer's own checklist.
-TaskAudience = Literal["internal", "client"]
+# internal tasks drive the preparer's own checklist. Re-exported from
+# satc.models.work, which owns the runtime shapes; this module now holds only
+# the CONFIG shapes loaded from configs/workflows/.
+from satc.models.work import TaskAudience  # noqa: F401
 
 # Relationship kinds in the client graph (ported from the checklist app).
 RELATIONSHIP_TYPES = (
@@ -114,46 +116,3 @@ class Relationship:
     ownership_pct: str = ""
     is_primary: bool = False
     note: str = ""
-
-
-@dataclass(slots=True)
-class IntakeTask:
-    """A generated task on an engagement. PK = ``task_id``.
-
-    A client-facing task is linked to the ``Requested`` document it created via
-    ``document_id``; when that document is later received, the task completes.
-    """
-
-    task_id: str
-    engagement_id: str
-    template_id: str
-    title: str
-    category: str = "General"
-    audience: TaskAudience = "internal"
-    client_request_text: str = ""
-    accepted_alternatives: str = ""
-    why_needed: str = ""
-    internal_instructions: str = ""
-    suggested_date: date | None = None
-    completed: bool = False
-    notes: str = ""
-    relationship_generated: bool = False
-    document_id: str = ""          # the RequestedItem this task opened (request_id)
-
-
-@dataclass(slots=True)
-class IntakeEngagement:
-    """A generated engagement (a workflow instance). PK = ``engagement_id``."""
-
-    engagement_id: str
-    client_id: str
-    workflow_key: str
-    engagement_type: str = ""
-    tax_year: int | None = None
-    period_end: str = ""
-    due_date: date | None = None
-    intake_answers: dict[str, str] = field(default_factory=dict)
-    risk_flags: list[str] = field(default_factory=list)
-    created_at: str = ""
-    updated_at: str = ""
-    tasks: list[IntakeTask] = field(default_factory=list)

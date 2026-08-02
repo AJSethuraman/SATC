@@ -124,7 +124,7 @@ class AppState:
     # -- new vs returning client (drives the branched interview) ----------
     def is_returning(self, client_id: str) -> bool:
         """A client we've worked with before — prior engagement OR a return on file."""
-        if any(e.client_id == client_id for e in self.store.load_intake_engagements()):
+        if any(e.client_id == client_id for e in self.store.load_jobs()):
             return True
         return any(r.client_id == client_id for r in self.mart.returns)
 
@@ -133,7 +133,7 @@ class AppState:
 
         Used to pre-fill a returning client's interview with last year's answers.
         """
-        engs = [e for e in self.store.load_intake_engagements() if e.client_id == client_id]
+        engs = [e for e in self.store.load_jobs() if e.client_id == client_id]
         if workflow_key:
             same = [e for e in engs if e.workflow_key == workflow_key]
             if same:
@@ -445,13 +445,13 @@ class AppState:
         return self.posted_summary
 
     # -- client intake & engagement workflows -----------------------------
-    def intake_engagements(self) -> list:
+    def jobs(self) -> list:
         """All generated engagements (workflow instances), newest first."""
-        return list(reversed(self.store.load_intake_engagements()))
+        return list(reversed(self.store.load_jobs()))
 
-    def engagement(self, engagement_id: str):
-        return next((e for e in self.store.load_intake_engagements()
-                     if e.engagement_id == engagement_id), None)
+    def engagement(self, job_id: str):
+        return next((e for e in self.store.load_jobs()
+                     if e.job_id == job_id), None)
 
     def relationships(self) -> list:
         return self.store.load_relationships()
@@ -480,10 +480,10 @@ class AppState:
 
     def set_task_completed(self, task_id: str, completed: bool = True) -> None:
         """Mark an engagement task done/undone (durable)."""
-        for eng in self.store.load_intake_engagements():
+        for eng in self.store.load_jobs():
             for task in eng.tasks:
                 if task.task_id == task_id:
-                    task.completed = completed
+                    task.status = "done" if completed else "not_started"
                     self.store.save_task(task)
                     return
 

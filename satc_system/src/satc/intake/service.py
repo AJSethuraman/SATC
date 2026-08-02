@@ -25,7 +25,8 @@ from satc.intake import matching
 from satc.intake.importer import ParsedClient
 from satc.intake.workflows import build_engagement, load_workflow
 from satc.models.identity import IdentityRecord, PublicClient, VaultAddress, VaultContact
-from satc.models.intake import IntakeEngagement, Relationship
+from satc.models.intake import Relationship
+from satc.models.work import Job
 from satc.models.evidence import RequestedItem
 from satc.models.readiness import blocking_class_for
 
@@ -135,17 +136,17 @@ def _linked_clients(store, client_id: str, relationships, names) -> list[ClientV
 
 def create_engagement(store, *, client_id: str, workflow_key: str, due_date: date | str,
                       answers: dict | None = None, tax_year: int | None = None,
-                      period_end: str = "") -> IntakeEngagement:
+                      period_key: str = "") -> Job:
     """Generate an engagement and open a ``Requested`` document for each client ask."""
     workflow = load_workflow(workflow_key)
     names = store.names()
     relationships = store.load_relationships()
-    existing = store.load_intake_engagements()
+    existing = store.load_jobs()
     linked = _linked_clients(store, client_id, relationships, names)
     my_rels = [r for r in relationships if client_id in (r.from_client_id, r.to_client_id)]
 
     eng = build_engagement(workflow, client_id=client_id, due_date=due_date, answers=answers,
-                           tax_year=tax_year, period_end=period_end, linked_clients=linked,
+                           tax_year=tax_year, period_key=period_key, linked_clients=linked,
                            relationships=my_rels, existing_engagements=existing)
 
     # Each client-facing task opens a Requested document (the expected-docs checklist).
@@ -163,10 +164,10 @@ def create_engagement(store, *, client_id: str, workflow_key: str, due_date: dat
             # literal here — see configs/obligations/federal.yaml (Pub 1345).
             blocking=blocking_class_for(doc_type, _blocking_docs()),
             requested_at=date.today(), task_id=task.task_id)
-        task.document_id = item.request_id
+        task.request_id = item.request_id
         mart.requested_items.append(item)
     store.save_mart(mart)
-    store.save_intake_engagement(eng)
+    store.save_job(eng)
     return eng
 
 
@@ -220,10 +221,10 @@ def reconcile_received(store, *, client_id: str, doc_type: str,
         return None
     match.status = "satisfied"
     store.save_requested_items([match])
-    for eng in store.load_intake_engagements():
+    for eng in store.load_jobs():
         for task in eng.tasks:
-            if task.document_id == match.request_id and not task.completed:
-                task.completed = True
+            if task.request_id == match.request_id and task.is_open:
+                task.status = "done"
                 store.save_task(task)
     return match
 

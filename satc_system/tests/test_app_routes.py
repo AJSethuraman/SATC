@@ -41,13 +41,13 @@ def _sample_values() -> dict[str, str]:
     clients = STATE.client_choices()
     client_id = clients[0][0] if clients else "SATC-001000"
     requested = STATE.requested_items()
-    engagements = STATE.intake_engagements()
+    engagements = STATE.jobs()
     workflows = STATE.all_workflows()
     fields = STATE.gate.all_fields()
     return {
         "client_id": client_id,
         "request_id": requested[0].request_id if requested else "REQ-0001",
-        "engagement_id": engagements[0].engagement_id if engagements else "ENG-1",
+        "job_id": engagements[0].job_id if engagements else "ENG-1",
         "task_id": "TASK-1",
         "key": workflows[0].key if workflows else "personal_1040_core",
         "field_id": fields[0].field_id if fields else "f1",

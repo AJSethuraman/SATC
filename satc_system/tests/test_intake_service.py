@@ -100,7 +100,7 @@ def test_create_engagement_opens_requested_docs_and_persists(tmp_path):
     client_tasks = [t for t in eng.tasks if t.audience == "client"]
     assert client_tasks, "the engagement should produce client-facing tasks"
     # Every client-facing task is linked to the document it requested.
-    assert all(t.document_id for t in client_tasks)
+    assert all(t.request_id for t in client_tasks)
 
     mart = store.load_mart()
     requested = [i for i in mart.requested_items
@@ -108,12 +108,12 @@ def test_create_engagement_opens_requested_docs_and_persists(tmp_path):
     assert len(requested) == len(client_tasks)
 
     # The engagement is durably persisted.
-    persisted = store.load_intake_engagements()
-    assert any(e.engagement_id == eng.engagement_id for e in persisted)
+    persisted = store.load_jobs()
+    assert any(e.job_id == eng.job_id for e in persisted)
 
     # Internal-only tasks do not open documents.
     internal_tasks = [t for t in eng.tasks if t.audience != "client"]
-    assert all(not t.document_id for t in internal_tasks)
+    assert all(not t.request_id for t in internal_tasks)
 
 
 # ---------------------------------------------------------------------------
@@ -143,10 +143,10 @@ def test_reconcile_received_marks_doc_and_completes_task(tmp_path):
     items = {i.request_id: i for i in reloaded.load_requested_items()}
     assert not items[result.request_id].is_open
 
-    linked_tasks = [t for e in reloaded.load_intake_engagements() for t in e.tasks
-                    if t.document_id == result.request_id]
+    linked_tasks = [t for e in reloaded.load_jobs() for t in e.tasks
+                    if t.request_id == result.request_id]
     assert linked_tasks, "the received document should be linked to a task"
-    assert all(t.completed for t in linked_tasks)
+    assert all(t.is_done for t in linked_tasks)
 
 
 def test_reconcile_received_returns_none_for_unknown_doc_type(tmp_path):

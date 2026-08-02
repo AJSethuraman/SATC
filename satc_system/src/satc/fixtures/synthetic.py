@@ -13,10 +13,10 @@ from decimal import Decimal
 from satc.ids import line_item_key, return_key
 from satc.models.identity import IdentityRecord, VaultAddress, VaultContact
 from satc.models.evidence import ReceivedDocument, RequestedItem
+from satc.models.work import Engagement
 from satc.models.mart import (
     Carryforward,
     DataMart,
-    EngagementRecord,
     EstimatePayment,
     LineItem,
     OwnerBasis,
@@ -326,15 +326,15 @@ def synthetic_mart() -> DataMart:
     ]
 
     mart.engagements = [
-        EngagementRecord(client_id="SATC-001000", tax_year=2024,
+        Engagement(client_id="SATC-001000", tax_year=2024,
                          engagement_letter_status="Signed", fee_amount=Decimal("650"),
                          invoiced=True, paid=False),
-        EngagementRecord(client_id="SATC-002000", tax_year=2024,
+        Engagement(client_id="SATC-002000", tax_year=2024,
                          engagement_letter_status="Signed", fee_amount=Decimal("2400"),
                          invoiced=True, paid=True),
-        EngagementRecord(client_id="SATC-003000", tax_year=2024,
+        Engagement(client_id="SATC-003000", tax_year=2024,
                          engagement_letter_status="Sent", fee_amount=Decimal("3200")),
-        EngagementRecord(client_id="SATC-004000", tax_year=2024,
+        Engagement(client_id="SATC-004000", tax_year=2024,
                          engagement_letter_status="Signed", fee_amount=Decimal("5500"),
                          invoiced=True, paid=True),
     ]

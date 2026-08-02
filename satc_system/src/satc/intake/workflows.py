@@ -23,12 +23,11 @@ from typing import Any
 from satc.config import CONFIG_ROOT, ConfigError, _load_yaml
 from satc.ids import opaque_id
 from satc.models.intake import (
-    IntakeEngagement,
-    IntakeTask,
     TaskTemplate,
     WorkflowDef,
     WorkflowQuestion,
 )
+from satc.models.work import Job, Task
 
 _WORKFLOW_DIR = "workflows"
 
@@ -264,11 +263,11 @@ def generate_risk_flags(workflow: WorkflowDef, answers: dict[str, Any], *,
 # Task + engagement construction
 # ---------------------------------------------------------------------------
 
-def _make_task(engagement_id: str, template: TaskTemplate, due_date: date | str, *,
-               existing: IntakeTask | None, relationship_generated: bool = False) -> IntakeTask:
-    return IntakeTask(
+def _make_task(job_id: str, template: TaskTemplate, due_date: date | str, *,
+               existing: Task | None, relationship_generated: bool = False) -> Task:
+    return Task(
         task_id=existing.task_id if existing else opaque_id("task"),
-        engagement_id=engagement_id,
+        job_id=job_id,
         template_id=template.template_id,
         title=template.title,
         category=template.category,
@@ -278,16 +277,16 @@ def _make_task(engagement_id: str, template: TaskTemplate, due_date: date | str,
         why_needed=template.why_needed,
         internal_instructions=template.internal_instructions,
         suggested_date=calculate_suggested_date(due_date, template.days_before_due),
-        completed=existing.completed if existing else False,
+        status=existing.status if existing else "not_started",
         notes=existing.notes if existing else "",
         relationship_generated=relationship_generated,
-        document_id=existing.document_id if existing else "",
+        request_id=existing.request_id if existing else "",
     )
 
 
-def _build_workflow_tasks(workflow: WorkflowDef, engagement_id: str, due_date: date | str,
-                          answers: dict[str, str], existing: dict[str, IntakeTask]) -> list[IntakeTask]:
-    return [_make_task(engagement_id, t, due_date, existing=existing.get(t.template_id))
+def _build_workflow_tasks(workflow: WorkflowDef, job_id: str, due_date: date | str,
+                          answers: dict[str, str], existing: dict[str, Task]) -> list[Task]:
+    return [_make_task(job_id, t, due_date, existing=existing.get(t.template_id))
             for t in workflow.tasks if evaluate_condition(t.condition, answers)]
 
 
@@ -353,17 +352,17 @@ def _relationship_templates(workflow_key: str, *, linked_clients: list[Any],
 
 def build_engagement(workflow: WorkflowDef, *, client_id: str, due_date: date | str,
                      answers: dict[str, Any] | None = None, tax_year: int | None = None,
-                     period_end: str = "", linked_clients: list[Any] | None = None,
+                     period_key: str = "", linked_clients: list[Any] | None = None,
                      relationships: list[Any] | None = None,
                      existing_engagements: list[Any] | None = None,
-                     existing_tasks: list[IntakeTask] | None = None,
-                     engagement_id: str | None = None,
-                     created_at: str = "", now: str | None = None) -> IntakeEngagement:
+                     existing_tasks: list[Task] | None = None,
+                     job_id: str | None = None,
+                     created_at: str = "", now: str | None = None) -> Job:
     """Generate a full engagement: conditional tasks + relationship tasks + risk flags."""
     from datetime import datetime, timezone
 
     stamp = now or datetime.now(timezone.utc).isoformat()
-    eng_id = engagement_id or opaque_id("engagement")
+    eng_id = job_id or opaque_id("engagement")
     normalized = _normalize_answers(workflow, answers or {})
     existing_by_template = {t.template_id: t for t in (existing_tasks or []) if t.template_id}
 
@@ -378,16 +377,16 @@ def build_engagement(workflow: WorkflowDef, *, client_id: str, due_date: date | 
     flags = generate_risk_flags(workflow, normalized,
                                 linked_clients=linked_clients, relationships=relationships)
     due = date.fromisoformat(due_date) if isinstance(due_date, str) else due_date
-    return IntakeEngagement(
-        engagement_id=eng_id, client_id=client_id, workflow_key=workflow.key,
-        engagement_type=workflow.engagement_type, tax_year=tax_year, period_end=period_end,
+    return Job(
+        job_id=eng_id, client_id=client_id, workflow_key=workflow.key,
+        engagement_type=workflow.engagement_type, tax_year=tax_year, period_key=period_key,
         due_date=due, intake_answers=normalized, risk_flags=flags,
         created_at=created_at or stamp, updated_at=stamp, tasks=tasks)
 
 
-def regenerate_engagement(engagement: IntakeEngagement, workflow: WorkflowDef, *,
+def regenerate_engagement(engagement: Job, workflow: WorkflowDef, *,
                           answers: dict[str, Any] | None = None,
-                          due_date: date | str | None = None, **context: Any) -> IntakeEngagement:
+                          due_date: date | str | None = None, **context: Any) -> Job:
     """Rebuild an engagement after intake answers change, preserving task progress."""
     return build_engagement(
         workflow,
@@ -395,10 +394,10 @@ def regenerate_engagement(engagement: IntakeEngagement, workflow: WorkflowDef, *
         due_date=due_date or engagement.due_date,
         answers=answers if answers is not None else engagement.intake_answers,
         tax_year=context.get("tax_year", engagement.tax_year),
-        period_end=context.get("period_end", engagement.period_end),
+        period_key=context.get("period_key", engagement.period_key),
         linked_clients=context.get("linked_clients"),
         relationships=context.get("relationships"),
         existing_engagements=context.get("existing_engagements"),
         existing_tasks=engagement.tasks,
-        engagement_id=engagement.engagement_id,
+        job_id=engagement.job_id,
         created_at=engagement.created_at)

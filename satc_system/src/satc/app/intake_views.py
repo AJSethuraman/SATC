@@ -61,8 +61,13 @@ def _client_type(public_client) -> str:
 
 @bp.route("/engagements")
 def engagements():
-    return render_template("engagements.html", title="Engagements",
-                           engagements=STATE.intake_engagements())
+    jobs = STATE.jobs()
+    return render_template(
+        "engagements.html", title="Engagements", engagements=jobs,
+        # Counted HERE, not in the template. selectattr over a STATUS string
+        # counts every task as done, because any non-empty string is truthy —
+        # a 200 with a wrong number, which is worse than a crash.
+        progress={j.job_id: j.progress() for j in jobs})
 
 
 @bp.route("/clients/new", methods=["GET", "POST"])
@@ -217,7 +222,7 @@ def new_engagement():
         eng = STATE.create_engagement(
             client_id=client_id, workflow_key=workflow_key, due_date=due_date,
             answers=answers, tax_year=tax_year)
-        return redirect(url_for("intake.engagement_detail", engagement_id=eng.engagement_id))
+        return redirect(url_for("intake.engagement_detail", job_id=eng.job_id))
 
     client_id = request.args.get("client", "")
     public_client = _public_client(client_id)
@@ -249,9 +254,9 @@ def new_engagement():
         gate_question=NEW_CLIENT_GATE)
 
 
-@bp.route("/engagements/<engagement_id>", endpoint="engagement_detail")
-def engagement_detail(engagement_id: str):
-    eng = STATE.engagement(engagement_id)
+@bp.route("/engagements/<job_id>", endpoint="engagement_detail")
+def engagement_detail(job_id: str):
+    eng = STATE.engagement(job_id)
     if eng is None:
         return redirect(url_for("intake.engagements"))
 
@@ -272,36 +277,44 @@ def engagement_detail(engagement_id: str):
     doc_status = {i.request_id: ("Received" if not i.is_open else "Requested")
                   for i in STATE.requested_items()}
 
+    # Counted HERE, not in the template. selectattr('status') over a status
+    # string counts every task as done, because any non-empty string is truthy
+    # — a 200 with a wrong number, which is worse than a crash.
+    done_count = eng.done_count()
+    settled, total = eng.progress()
+
     client_tasks = [t for t in eng.tasks if t.audience == "client"]
     internal_tasks = [t for t in eng.tasks if t.audience != "client"]
 
     received = sum(1 for t in client_tasks
-                   if (t.document_id and doc_status.get(t.document_id) == "Received") or t.completed)
+                   if (t.request_id and doc_status.get(t.request_id) == "Received")
+                   or t.is_done)
     total_requests = len(client_tasks)
 
     return render_template(
         "engagement_detail.html", title="Engagements",
         eng=eng, groups=groups, doc_status=doc_status,
         client_tasks=client_tasks, internal_tasks=internal_tasks,
-        received=received, total_requests=total_requests)
+        received=received, total_requests=total_requests,
+        done_count=done_count, settled=settled, total=total)
 
 
-@bp.route("/engagements/<engagement_id>/tasks/<task_id>", methods=["POST"])
-def toggle_task(engagement_id: str, task_id: str):
-    eng = STATE.engagement(engagement_id)
+@bp.route("/engagements/<job_id>/tasks/<task_id>", methods=["POST"])
+def toggle_task(job_id: str, task_id: str):
+    eng = STATE.engagement(job_id)
     current = False
     if eng is not None:
         for task in eng.tasks:
             if task.task_id == task_id:
-                current = task.completed
+                current = task.is_done
                 break
     STATE.set_task_completed(task_id, not current)
-    return redirect(url_for("intake.engagement_detail", engagement_id=engagement_id))
+    return redirect(url_for("intake.engagement_detail", job_id=job_id))
 
 
-@bp.route("/engagements/<engagement_id>/email")
-def engagement_email(engagement_id: str):
-    eng = STATE.engagement(engagement_id)
+@bp.route("/engagements/<job_id>/email")
+def engagement_email(job_id: str):
+    eng = STATE.engagement(job_id)
     if eng is None:
         return redirect(url_for("intake.engagements"))
     try:
@@ -313,11 +326,11 @@ def engagement_email(engagement_id: str):
         mimetype="text/plain")
 
 
-@bp.route("/engagements/<engagement_id>/email/outlook", methods=["POST"],
+@bp.route("/engagements/<job_id>/email/outlook", methods=["POST"],
           endpoint="engagement_email_outlook")
-def engagement_email_outlook(engagement_id: str):
+def engagement_email_outlook(job_id: str):
     """Pop a ready-to-send Outlook draft of the client request email."""
-    eng = STATE.engagement(engagement_id)
+    eng = STATE.engagement(job_id)
     if eng is None:
         return redirect(url_for("intake.engagements"))
     from satc.intake.email_draft import mailto_url, open_outlook_draft
@@ -330,7 +343,7 @@ def engagement_email_outlook(engagement_id: str):
         "draft_result.html", title="Engagements", result=result, what="request email",
         to=to, subject=subject, body=body,
         mailto=mailto_url(to=to, subject=subject, body=body),
-        back_url=url_for("intake.engagement_detail", engagement_id=engagement_id),
+        back_url=url_for("intake.engagement_detail", job_id=job_id),
         attachment_url="", attachment_name="")
 
 
@@ -433,9 +446,9 @@ def organizer_email():
         attachment_name="tax_organizer.pdf")
 
 
-@bp.route("/engagements/<engagement_id>/print")
-def engagement_print(engagement_id: str):
-    eng = STATE.engagement(engagement_id)
+@bp.route("/engagements/<job_id>/print")
+def engagement_print(job_id: str):
+    eng = STATE.engagement(job_id)
     if eng is None:
         return redirect(url_for("intake.engagements"))
     try:
@@ -447,9 +460,9 @@ def engagement_print(engagement_id: str):
         mimetype="text/html")
 
 
-@bp.route("/engagements/<engagement_id>/print-internal")
-def engagement_print_internal(engagement_id: str):
-    eng = STATE.engagement(engagement_id)
+@bp.route("/engagements/<job_id>/print-internal")
+def engagement_print_internal(job_id: str):
+    eng = STATE.engagement(job_id)
     if eng is None:
         return redirect(url_for("intake.engagements"))
     try:

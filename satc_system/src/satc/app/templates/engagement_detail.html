@@ -11,7 +11,7 @@
 
 <div class="cards">
   <div class="card accent"><div class="n">{{ received }}/{{ total_requests }}</div><div class="l">Requests received</div></div>
-  <div class="card"><div class="n">{{ eng.tasks | selectattr('completed') | list | length }}/{{ eng.tasks | length }}</div><div class="l">Tasks complete</div></div>
+  <div class="card"><div class="n">{{ done_count }}/{{ eng.tasks | length }}</div><div class="l">Tasks complete</div></div>
   <div class="card{{ ' alert' if eng.risk_flags }}"><div class="n">{{ eng.risk_flags | length }}</div><div class="l">Risk flags</div></div>
 </div>
 
@@ -30,19 +30,19 @@
   <h2>Requested documents <span class="muted">— what we asked the client for</span></h2>
   <div class="body">
     <div style="margin-bottom:14px">
-      <form class="inline" method="post" action="{{ url_for('intake.engagement_email_outlook', engagement_id=eng.engagement_id) }}">
+      <form class="inline" method="post" action="{{ url_for('intake.engagement_email_outlook', job_id=eng.job_id) }}">
         <button class="btn primary" type="submit">✉ Email request (Outlook draft)</button>
       </form>
       <a class="btn" href="{{ url_for('intake.organizer', client=eng.client_id, workflow=eng.workflow_key) }}">Send organizer to verify</a>
-      <a class="btn" href="{{ url_for('intake.engagement_email', engagement_id=eng.engagement_id) }}" target="_blank">View email text</a>
-      <a class="btn" href="{{ url_for('intake.engagement_print', engagement_id=eng.engagement_id) }}" target="_blank">Print client list</a>
-      <a class="btn" href="{{ url_for('intake.engagement_print_internal', engagement_id=eng.engagement_id) }}" target="_blank">Print internal checklist</a>
+      <a class="btn" href="{{ url_for('intake.engagement_email', job_id=eng.job_id) }}" target="_blank">View email text</a>
+      <a class="btn" href="{{ url_for('intake.engagement_print', job_id=eng.job_id) }}" target="_blank">Print client list</a>
+      <a class="btn" href="{{ url_for('intake.engagement_print_internal', job_id=eng.job_id) }}" target="_blank">Print internal checklist</a>
     </div>
     {% if client_tasks %}
     <table>
       <tr><th>Status</th><th>Request</th><th>Suggested by</th><th class="right">Mark</th></tr>
       {% for t in client_tasks %}
-      {% set is_received = (t.document_id and doc_status.get(t.document_id) == 'Received') or t.completed %}
+      {% set is_received = (t.request_id and doc_status.get(t.request_id) == 'Received') or t.is_done %}
       <tr>
         <td><span class="badge {{ 'b-Received' if is_received else 'b-Requested' }}">{{ 'Received' if is_received else 'Requested' }}</span></td>
         <td>
@@ -51,8 +51,8 @@
         </td>
         <td class="muted">{{ t.suggested_date or '—' }}</td>
         <td class="right">
-          <form class="inline" method="post" action="{{ url_for('intake.toggle_task', engagement_id=eng.engagement_id, task_id=t.task_id) }}">
-            <button class="btn sm {{ 'primary' if not t.completed }}" type="submit">{{ 'Undo' if t.completed else 'Done' }}</button>
+          <form class="inline" method="post" action="{{ url_for('intake.toggle_task', job_id=eng.job_id, task_id=t.task_id) }}">
+            <button class="btn sm {{ 'primary' if not t.is_done }}" type="submit">{{ 'Undo' if t.is_done else 'Done' }}</button>
           </form>
         </td>
       </tr>
@@ -72,7 +72,7 @@
       <tr><th>Status</th><th>Task</th><th>Category</th><th>Suggested by</th><th class="right">Mark</th></tr>
       {% for t in internal_tasks %}
       <tr>
-        <td><span class="badge {{ 'b-Received' if t.completed else 'b-Requested' }}">{{ 'Done' if t.completed else 'Open' }}</span></td>
+        <td><span class="badge {{ 'b-Received' if t.is_done else 'b-Requested' }}">{{ t.status.replace('_', ' ') }}</span></td>
         <td>
           <strong>{{ t.title }}</strong>
           {% if t.internal_instructions %}<div class="muted">{{ t.internal_instructions }}</div>{% endif %}
@@ -80,8 +80,8 @@
         <td class="muted">{{ t.category }}</td>
         <td class="muted">{{ t.suggested_date or '—' }}</td>
         <td class="right">
-          <form class="inline" method="post" action="{{ url_for('intake.toggle_task', engagement_id=eng.engagement_id, task_id=t.task_id) }}">
-            <button class="btn sm {{ 'primary' if not t.completed }}" type="submit">{{ 'Undo' if t.completed else 'Done' }}</button>
+          <form class="inline" method="post" action="{{ url_for('intake.toggle_task', job_id=eng.job_id, task_id=t.task_id) }}">
+            <button class="btn sm {{ 'primary' if not t.is_done }}" type="submit">{{ 'Undo' if t.is_done else 'Done' }}</button>
           </form>
         </td>
       </tr>

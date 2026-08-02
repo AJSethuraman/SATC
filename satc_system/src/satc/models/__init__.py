@@ -21,12 +21,12 @@ from satc.models.identity import (
 from satc.models.mart import (
     Carryforward,
     DataMart,
-    EngagementRecord,
     EstimatePayment,
     LineItem,
     OwnerBasis,
     ReturnRecord,
 )
+from satc.models.work import Engagement, Job, Task
 from satc.models.provenance import Provenance, SourceRef
 from satc.models.review import Checklist, ReviewItem, completion_pct, open_exceptions
 from satc.models.staging import StagedDocument, StagedField
@@ -38,7 +38,7 @@ __all__ = [
     "VaultContact",
     "Carryforward",
     "DataMart",
-    "EngagementRecord",
+    "Engagement",
     "EstimatePayment",
     "LineItem",
     "OwnerBasis",

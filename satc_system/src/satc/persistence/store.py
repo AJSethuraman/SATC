@@ -46,11 +46,11 @@ def _restrict_file(path: Path) -> None:
 
 from satc.fixtures import synthetic_identities, synthetic_mart
 from satc.models.identity import IdentityRecord, PublicClient
-from satc.models.intake import IntakeEngagement, IntakeTask, Relationship
+from satc.models.intake import Relationship
+from satc.models.work import Engagement, Job, Task
 from satc.models.mart import (
     Carryforward,
     DataMart,
-    EngagementRecord,
     EstimatePayment,
     LineItem,
     OwnerBasis,
@@ -123,15 +123,16 @@ CREATE TABLE IF NOT EXISTS received_documents (
 CREATE TABLE IF NOT EXISTS relationships (
   rel_id TEXT PRIMARY KEY, from_client_id TEXT, to_client_id TEXT,
   relationship_type TEXT, ownership_pct TEXT, is_primary INTEGER, note TEXT);
-CREATE TABLE IF NOT EXISTS intake_engagements (
-  engagement_id TEXT PRIMARY KEY, client_id TEXT, workflow_key TEXT, engagement_type TEXT,
-  tax_year INTEGER, period_end TEXT, due_date TEXT, intake_answers TEXT, risk_flags TEXT,
+CREATE TABLE IF NOT EXISTS jobs (
+  job_id TEXT PRIMARY KEY, client_id TEXT, workflow_key TEXT, engagement_type TEXT,
+  tax_year INTEGER, period_key TEXT, due_date TEXT, intake_answers TEXT, risk_flags TEXT,
   created_at TEXT, updated_at TEXT);
-CREATE TABLE IF NOT EXISTS intake_tasks (
-  task_id TEXT PRIMARY KEY, engagement_id TEXT, template_id TEXT, title TEXT, category TEXT,
+CREATE TABLE IF NOT EXISTS tasks (
+  task_id TEXT PRIMARY KEY, job_id TEXT, template_id TEXT, title TEXT, category TEXT,
   audience TEXT, client_request_text TEXT, accepted_alternatives TEXT, why_needed TEXT,
-  internal_instructions TEXT, suggested_date TEXT, completed INTEGER, notes TEXT,
-  relationship_generated INTEGER, document_id TEXT);
+  internal_instructions TEXT, suggested_date TEXT, status TEXT, notes TEXT,
+  relationship_generated INTEGER, request_id TEXT, due_date TEXT, waived_reason TEXT,
+  follow_up_round INTEGER, completed_by TEXT, completed_at TEXT, procedure TEXT);
 CREATE TABLE IF NOT EXISTS workflow_overrides (
   workflow_key TEXT PRIMARY KEY, data TEXT);
 CREATE TABLE IF NOT EXISTS app_meta (k TEXT PRIMARY KEY, v TEXT);
@@ -161,7 +162,7 @@ def _pdt(x: str | None) -> date | None:
 # register HERE and nowhere else.
 _MART_TABLES_BY_CLIENT = (
     "public_clients", "returns", "carryforwards", "owner_basis",
-    "estimate_payments", "engagements", "intake_engagements",
+    "estimate_payments", "engagements", "jobs",
     "requested_items", "received_documents",
 )
 
@@ -172,6 +173,17 @@ _VAULT_TABLES_BY_CLIENT = ("identities", "vault_addresses", "vault_contacts")
 def _ts(x) -> str | None:
     """A datetime -> ISO text. The store previously handled dates only."""
     return None if x is None else x.isoformat()
+
+
+def _completion(row):
+    """Rebuild a Completion from storage — history only, never a live actor."""
+    from satc.models.work import Completion
+
+    who = _pactor(_col(row, "completed_by"))
+    when = _pts(_col(row, "completed_at"))
+    if who is None or when is None:
+        return None
+    return Completion(by=who, at=when, procedure=_col(row, "procedure") or "")
 
 
 def _pts(x: str | None):
@@ -504,12 +516,12 @@ class SATCStore:
         """
         return_keys = [r["return_key"] for r in self.mart.execute(
             "SELECT return_key FROM returns WHERE client_id=?", (client_id,))]
-        eng_ids = [r["engagement_id"] for r in self.mart.execute(
-            "SELECT engagement_id FROM intake_engagements WHERE client_id=?", (client_id,))]
+        eng_ids = [r["job_id"] for r in self.mart.execute(
+            "SELECT job_id FROM jobs WHERE client_id=?", (client_id,))]
         for rk in return_keys:
             self.mart.execute("DELETE FROM line_items WHERE return_key=?", (rk,))
         for eid in eng_ids:
-            self.mart.execute("DELETE FROM intake_tasks WHERE engagement_id=?", (eid,))
+            self.mart.execute("DELETE FROM tasks WHERE job_id=?", (eid,))
         for table in _MART_TABLES_BY_CLIENT:
             self.mart.execute(f"DELETE FROM {table} WHERE client_id=?", (client_id,))
         self.mart.execute("DELETE FROM relationships WHERE from_client_id=? OR to_client_id=?",
@@ -533,26 +545,31 @@ class SATCStore:
             is_primary=bool(r["is_primary"]), note=r["note"] or "")
             for r in self.mart.execute("SELECT * FROM relationships ORDER BY rel_id")]
 
-    def save_intake_engagement(self, eng: IntakeEngagement) -> None:
+    def save_job(self, eng: Job) -> None:
         """Persist an engagement and (replace) its task list."""
-        self.mart.execute("INSERT OR REPLACE INTO intake_engagements VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                          (eng.engagement_id, eng.client_id, eng.workflow_key, eng.engagement_type,
-                           eng.tax_year, eng.period_end, _dt(eng.due_date),
+        self.mart.execute("INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                          (eng.job_id, eng.client_id, eng.workflow_key, eng.engagement_type,
+                           eng.tax_year, eng.period_key, _dt(eng.due_date),
                            json.dumps(eng.intake_answers), json.dumps(eng.risk_flags),
                            eng.created_at, eng.updated_at))
-        self.mart.execute("DELETE FROM intake_tasks WHERE engagement_id=?", (eng.engagement_id,))
+        self.mart.execute("DELETE FROM tasks WHERE job_id=?", (eng.job_id,))
         for t in eng.tasks:
             self._insert_task(t)
         self.mart.commit()
 
-    def _insert_task(self, t: IntakeTask) -> None:
-        self.mart.execute("INSERT OR REPLACE INTO intake_tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                          (t.task_id, t.engagement_id, t.template_id, t.title, t.category, t.audience,
-                           t.client_request_text, t.accepted_alternatives, t.why_needed,
-                           t.internal_instructions, _dt(t.suggested_date), int(t.completed), t.notes,
-                           int(t.relationship_generated), t.document_id))
+    def _insert_task(self, t: Task) -> None:
+        c = t.completion
+        self.mart.execute(
+            "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (t.task_id, t.job_id, t.template_id, t.title, t.category, t.audience,
+             t.client_request_text, t.accepted_alternatives, t.why_needed,
+             t.internal_instructions, _dt(t.suggested_date), t.status, t.notes,
+             int(t.relationship_generated), t.request_id, _dt(t.due_date),
+             t.waived_reason, int(t.follow_up_round),
+             _actor(c.by) if c else None, _ts(c.at) if c else None,
+             c.procedure if c else ""))
 
-    def save_task(self, t: IntakeTask) -> None:
+    def save_task(self, t: Task) -> None:
         self._insert_task(t)
         self.mart.commit()
 
@@ -571,25 +588,31 @@ class SATCStore:
         return {r["workflow_key"]
                 for r in self.mart.execute("SELECT workflow_key FROM workflow_overrides")}
 
-    def load_intake_engagements(self) -> list[IntakeEngagement]:
-        tasks_by_eng: dict[str, list[IntakeTask]] = {}
-        for r in self.mart.execute("SELECT * FROM intake_tasks ORDER BY suggested_date, task_id"):
-            tasks_by_eng.setdefault(r["engagement_id"], []).append(IntakeTask(
-                task_id=r["task_id"], engagement_id=r["engagement_id"], template_id=r["template_id"],
+    def load_jobs(self) -> list[Job]:
+        tasks_by_eng: dict[str, list[Task]] = {}
+        for r in self.mart.execute("SELECT * FROM tasks ORDER BY suggested_date, task_id"):
+            tasks_by_eng.setdefault(r["job_id"], []).append(Task(
+                task_id=r["task_id"], job_id=r["job_id"], template_id=r["template_id"],
                 title=r["title"], category=r["category"], audience=r["audience"],
                 client_request_text=r["client_request_text"] or "",
                 accepted_alternatives=r["accepted_alternatives"] or "",
                 why_needed=r["why_needed"] or "", internal_instructions=r["internal_instructions"] or "",
-                suggested_date=_pdt(r["suggested_date"]), completed=bool(r["completed"]),
+                suggested_date=_pdt(r["suggested_date"]),
+                status=r["status"] or "not_started",
                 notes=r["notes"] or "", relationship_generated=bool(r["relationship_generated"]),
-                document_id=r["document_id"] or ""))
-        return [IntakeEngagement(
-            engagement_id=r["engagement_id"], client_id=r["client_id"], workflow_key=r["workflow_key"],
-            engagement_type=r["engagement_type"], tax_year=r["tax_year"], period_end=r["period_end"] or "",
+                request_id=_col(r, "request_id") or "",
+                due_date=_pdt(_col(r, "due_date")),
+                waived_reason=_col(r, "waived_reason") or "",
+                follow_up_round=_col(r, "follow_up_round") or 0,
+                completion=_completion(r)))
+        return [Job(
+            job_id=r["job_id"], client_id=r["client_id"], workflow_key=r["workflow_key"],
+            engagement_type=r["engagement_type"], tax_year=r["tax_year"],
+            period_key=_col(r, "period_key") or "",
             due_date=_pdt(r["due_date"]), intake_answers=json.loads(r["intake_answers"] or "{}"),
             risk_flags=json.loads(r["risk_flags"] or "[]"), created_at=r["created_at"] or "",
-            updated_at=r["updated_at"] or "", tasks=tasks_by_eng.get(r["engagement_id"], []))
-            for r in self.mart.execute("SELECT * FROM intake_engagements ORDER BY created_at")]
+            updated_at=r["updated_at"] or "", tasks=tasks_by_eng.get(r["job_id"], []))
+            for r in self.mart.execute("SELECT * FROM jobs ORDER BY created_at")]
 
     # -- mart read --------------------------------------------------------
     def load_mart(self) -> DataMart:
@@ -641,7 +664,7 @@ class SATCStore:
             payment_id=r["payment_id"], client_id=r["client_id"], tax_year=r["tax_year"],
             jurisdiction=r["jurisdiction"], period=r["period"], amount=_pd(r["amount"]) or Decimal("0"),
             paid_date=_pdt(r["paid_date"])) for r in m.execute("SELECT * FROM estimate_payments")]
-        mart.engagements = [EngagementRecord(
+        mart.engagements = [Engagement(
             client_id=r["client_id"], tax_year=r["tax_year"],
             engagement_letter_status=r["engagement_letter_status"], fee_amount=_pd(r["fee_amount"]),
             invoiced=bool(r["invoiced"]), paid=bool(r["paid"]), preparer_id=r["preparer_id"],

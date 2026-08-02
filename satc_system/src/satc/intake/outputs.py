@@ -20,7 +20,8 @@ from datetime import date
 from typing import Any
 
 from satc.intake.workflows import NEW_CLIENT_GATE, load_workflow
-from satc.models.intake import IntakeEngagement, IntakeTask, WorkflowDef
+from satc.models.intake import WorkflowDef
+from satc.models.work import Job, Task
 
 # Month abbreviations, mirroring the JS ``{ month: 'short' }`` formatter.
 _MONTHS = (
@@ -35,16 +36,16 @@ _AUDIENCE_LABELS = {"client": "Client", "internal": "Internal"}
 # Small helpers (direct ports of the JS utilities)
 # ---------------------------------------------------------------------------
 
-def client_facing_tasks(tasks: list[IntakeTask] | None) -> list[IntakeTask]:
+def client_facing_tasks(tasks: list[Task] | None) -> list[Task]:
     """Only the tasks that speak to the client (``audience == "client"``)."""
     return [t for t in (tasks or []) if getattr(t, "audience", None) == "client"]
 
 
 def group_tasks_by_category(
-    tasks: list[IntakeTask] | None,
-) -> list[tuple[str, list[IntakeTask]]]:
+    tasks: list[Task] | None,
+) -> list[tuple[str, list[Task]]]:
     """Group tasks by category, preserving first-seen category order."""
-    groups: list[tuple[str, list[IntakeTask]]] = []
+    groups: list[tuple[str, list[Task]]] = []
     index: dict[str, int] = {}
     for task in tasks or []:
         category = getattr(task, "category", "") or "General"
@@ -102,13 +103,13 @@ def _load_workflow_safe(workflow_key: str) -> Any:
         return None
 
 
-def _workflow_name(engagement: IntakeEngagement, workflow: Any) -> str:
+def _workflow_name(engagement: Job, workflow: Any) -> str:
     if workflow is not None and getattr(workflow, "name", ""):
         return workflow.name
     return getattr(engagement, "workflow_key", "") or "engagement"
 
 
-def _display_label(engagement: IntakeEngagement, client_name: str | None) -> str:
+def _display_label(engagement: Job, client_name: str | None) -> str:
     """A name to address the client by: explicit name, else the client id."""
     if client_name:
         return client_name
@@ -120,7 +121,7 @@ def _display_label(engagement: IntakeEngagement, client_name: str | None) -> str
 # ---------------------------------------------------------------------------
 
 def build_request_email(
-    engagement: IntakeEngagement,
+    engagement: Job,
     *,
     client_name: str | None = None,
     firm_name: str = "SAT-C LLP",
@@ -178,7 +179,7 @@ def build_request_email(
 
 
 def generate_client_request_email(
-    engagement: IntakeEngagement,
+    engagement: Job,
     *,
     client_name: str | None = None,
     firm_name: str = "SAT-C LLP",
@@ -194,7 +195,7 @@ def generate_client_request_email(
 # ---------------------------------------------------------------------------
 
 def _render_task_list(
-    tasks: list[IntakeTask] | None, *, include_internal_details: bool = False
+    tasks: list[Task] | None, *, include_internal_details: bool = False
 ) -> str:
     parts: list[str] = []
     for category, category_tasks in group_tasks_by_category(tasks):
@@ -249,7 +250,7 @@ def _render_task_list(
     return "".join(parts)
 
 
-def _render_risk_flags(engagement: IntakeEngagement) -> str:
+def _render_risk_flags(engagement: Job) -> str:
     flags = getattr(engagement, "risk_flags", None) or []
     if not flags:
         return "<p>No risk flags generated.</p>"
@@ -257,7 +258,7 @@ def _render_risk_flags(engagement: IntakeEngagement) -> str:
     return f"<ul>{items}</ul>"
 
 
-def _render_intake_answers(engagement: IntakeEngagement, workflow: Any) -> str:
+def _render_intake_answers(engagement: Job, workflow: Any) -> str:
     answers = getattr(engagement, "intake_answers", None) or {}
     questions = getattr(workflow, "questions", None) or [] if workflow else []
     if not questions:
@@ -304,7 +305,7 @@ def _build_print_document(*, title: str, intro: str, body: str) -> str:
 
 
 def generate_client_request_print_html(
-    engagement: IntakeEngagement, *, client_name: str | None = None
+    engagement: Job, *, client_name: str | None = None
 ) -> str:
     """Printable HTML of the client-facing requests only."""
     workflow = _load_workflow_safe(getattr(engagement, "workflow_key", ""))
@@ -491,7 +492,7 @@ def generate_intake_organizer_pdf(
 
 
 def generate_internal_checklist_print_html(
-    engagement: IntakeEngagement, *, client_name: str | None = None
+    engagement: Job, *, client_name: str | None = None
 ) -> str:
     """Printable internal checklist: risk flags, intake answers, all tasks."""
     workflow = _load_workflow_safe(getattr(engagement, "workflow_key", ""))

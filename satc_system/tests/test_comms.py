@@ -16,8 +16,9 @@ import pytest
 from satc.comms import build_context, library, placeholder_names, render, render_key
 from satc.comms.library import load_library
 from satc.models.identity import PublicClient
-from satc.models.intake import IntakeEngagement, IntakeTask
-from satc.models.mart import EngagementRecord, ReturnRecord
+from satc.models.work import Job, Task
+from satc.models.mart import ReturnRecord
+from satc.models.work import Engagement
 
 # The set the practice runs on. A new template is a deliberate act — adding one
 # means updating this list, which is the point.
@@ -180,13 +181,13 @@ def _public_client(entity_type="INDIVIDUAL"):
 
 
 def _engagement():
-    return IntakeEngagement(
-        engagement_id="ENG-1", client_id="SATC-001000", workflow_key="personal_1040_core",
+    return Job(
+        job_id="ENG-1", client_id="SATC-001000", workflow_key="personal_1040_core",
         engagement_type="1040", tax_year=2024, due_date=date(2025, 4, 15),
         tasks=[
-            IntakeTask(task_id="T1", engagement_id="ENG-1", template_id="w2", title="W-2",
+            Task(task_id="T1", job_id="ENG-1", template_id="w2", title="W-2",
                        audience="client", client_request_text="Your W-2 from each employer"),
-            IntakeTask(task_id="T2", engagement_id="ENG-1", template_id="rev", title="Review",
+            Task(task_id="T2", job_id="ENG-1", template_id="rev", title="Review",
                        audience="internal", internal_instructions="Preparer only"),
         ])
 
@@ -282,7 +283,7 @@ def test_returns_are_narrowed_to_the_communication_year():
 
 
 def test_fee_prefills_from_the_engagement_record():
-    rec = EngagementRecord(client_id="C", tax_year=2024, fee_amount=Decimal("1250"))
+    rec = Engagement(client_id="C", tax_year=2024, fee_amount=Decimal("1250"))
     assert build_context(fee_record=rec)["fee_amount_text"] == "$1,250"
 
 

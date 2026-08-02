@@ -64,6 +64,6 @@ def test_reconcile_completes_the_linked_task(tmp_path):
     cid = _engagement(store)
     matched = reconcile_received(store, client_id=cid, doc_type="1095-A")
     assert matched is not None
-    tasks = [t for e in store.load_intake_engagements() for t in e.tasks
-             if t.document_id == matched.request_id]
-    assert tasks and all(t.completed for t in tasks)
+    tasks = [t for e in store.load_jobs() for t in e.tasks
+             if t.request_id == matched.request_id]
+    assert tasks and all(t.is_done for t in tasks)

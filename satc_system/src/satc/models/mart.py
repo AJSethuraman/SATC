@@ -148,20 +148,6 @@ class EstimatePayment:
     provenance: Provenance | None = None
 
 
-@dataclass(slots=True)
-class EngagementRecord:
-    """Engagement & fee data (lightweight). PK = (client_id, tax_year)."""
-
-    client_id: str
-    tax_year: int
-    engagement_letter_status: str = "Not sent"   # Not sent / Sent / Signed
-    fee_amount: Decimal | None = None
-    invoiced: bool = False
-    paid: bool = False
-    preparer_id: str = ""
-    note: str = ""
-
-
 
 @dataclass(slots=True)
 class DataMart:
@@ -173,6 +159,6 @@ class DataMart:
     carryforwards: list[Carryforward] = field(default_factory=list)
     owner_basis: list[OwnerBasis] = field(default_factory=list)
     estimate_payments: list[EstimatePayment] = field(default_factory=list)
-    engagements: list[EngagementRecord] = field(default_factory=list)
+    engagements: list = field(default_factory=list)          # work.Engagement
     requested_items: list = field(default_factory=list)     # evidence.RequestedItem
     received_documents: list = field(default_factory=list)  # evidence.ReceivedDocument

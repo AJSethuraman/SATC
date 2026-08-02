@@ -40,7 +40,7 @@ def _int_or_none(raw: str):
 
 def _newest_engagement(client_id: str):
     """The client's most recent generated engagement, or ``None``."""
-    return next((e for e in STATE.intake_engagements() if e.client_id == client_id), None)
+    return next((e for e in STATE.jobs() if e.client_id == client_id), None)
 
 
 def _workflow_name(engagement) -> str:

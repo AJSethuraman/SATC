@@ -104,7 +104,7 @@ def today(state, *, tax_year: int | None = None) -> dict[str, Any]:
     queue = build_queue(
         clients=[cid for cid, _ in state.client_choices()],
         requested=requested, received=received, obligations=_obligations(year),
-        engaged_clients=[e.client_id for e in state.intake_engagements()],
+        engaged_clients=[e.client_id for e in state.jobs()],
         tax_year=year, today=as_of)
 
     names = _client_names(state)

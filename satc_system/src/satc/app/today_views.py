@@ -82,7 +82,7 @@ def today():
         clients=[cid for cid, _ in STATE.client_choices()],
         requested=requested, received=received,
         obligations=_obligations(year),
-        engaged_clients=[e.client_id for e in STATE.intake_engagements()],
+        engaged_clients=[e.client_id for e in STATE.jobs()],
         tax_year=year, today=as_of)
 
     hidden = _dismissed()
