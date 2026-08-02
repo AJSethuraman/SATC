@@ -195,3 +195,80 @@ def test_the_workable_stages_are_the_ones_with_preparing_left():
         (workable if view.is_workable else waiting).append(view.stage)
     assert workable == ["prep_ready", "in_prep", "in_review"]
     assert set(waiting) == {"ready_to_deliver", "waiting_on_documents"}
+
+
+# --- the two stages that need a recorded fact -------------------------------
+#
+# derive_stage refused "delivered" and "complete" for a session, correctly:
+# "every task is ticked" and "the return went to the client" are different
+# facts. Now a Deliverable records the second one. What must NOT change is the
+# refusal when nothing was recorded.
+
+def a_delivery(**kw):
+    from satc.models.actor import Actor
+    from satc.models.deliverable import record_delivery
+
+    args = dict(client_id="CL-1", tax_year=2025, kind="return_for_review",
+                delivered_on=date(2026, 4, 2), return_key="CL-1-2025-1040")
+    args.update(kw)
+    return record_delivery(actor=Actor.owner(), **args)
+
+
+class _Ack:
+    """The bit of Filing derive_stage actually reads."""
+
+    def __init__(self, accepted, on=None):
+        self.is_accepted, self.ack_date = accepted, on
+
+
+def test_a_recorded_delivery_is_what_makes_a_job_delivered():
+    job = a_job(a_task("Enter W-2", status="done"))
+    view = derive_stage(job, readiness=readiness_with(), delivery=a_delivery())
+    assert view.stage == "delivered"
+    assert not view.undecidable
+    assert "signed authorization" in view.next_step
+
+
+def test_with_no_recorded_delivery_it_still_refuses():
+    """The refusal is the thing that was right. It must not quietly relax now
+    that a way to record the fact exists."""
+    job = a_job(a_task("Enter W-2", status="done"))
+    view = derive_stage(job, readiness=readiness_with())
+    assert view.stage == "ready_to_deliver"
+    assert view.undecidable
+
+
+def test_an_accepted_filing_is_what_makes_a_job_complete():
+    """IRS Pub 1345: transmitted is not filed and filed is not accepted."""
+    job = a_job(a_task("Enter W-2", status="done"))
+    view = derive_stage(job, readiness=readiness_with(), delivery=a_delivery(),
+                        filings=[_Ack(True, date(2026, 4, 9))])
+    assert view.stage == "complete"
+
+
+def test_a_transmitted_but_unaccepted_return_is_not_complete():
+    job = a_job(a_task("Enter W-2", status="done"))
+    view = derive_stage(job, readiness=readiness_with(), delivery=a_delivery(),
+                        filings=[_Ack(False)])
+    assert view.stage == "delivered"
+
+
+def test_a_delivered_return_is_not_dragged_back_by_a_late_document():
+    """A recorded fact outranks the task-derived stages. A return that went out
+    is not "waiting on documents" because a charity receipt never arrived."""
+    job = a_job(a_task("Enter W-2", status="done"))
+    view = derive_stage(job, readiness=readiness_with(an_open_item("W-2")),
+                        delivery=a_delivery())
+    assert view.stage == "delivered"
+
+
+def test_delivery_is_never_inferred_from_a_finished_task_list():
+    """Mutation check — principle 12. The ONLY route to these two stages is a
+    recorded fact; if a clause were added that inferred either from the tasks,
+    this is what would catch it."""
+    for job in [a_job(a_task("A", status="done")),
+                a_job(a_task("A", status="done"),
+                      a_task("R", category="Review", status="done")),
+                a_job(a_task("A", status="waived"), a_task("B", status="done"))]:
+        view = derive_stage(job, readiness=readiness_with())
+        assert view.stage not in ("delivered", "complete")

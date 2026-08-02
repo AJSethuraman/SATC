@@ -93,8 +93,34 @@ class StageView:
         return self.stage == "waiting_on_documents"
 
 
+def _delivered_view(delivery, filings) -> StageView | None:
+    """The two stages that need a RECORDED fact, and only ever from one.
+
+    ``delivered`` comes from a :class:`~satc.models.deliverable.Deliverable`
+    somebody wrote down; ``complete`` from an accepted
+    :class:`~satc.models.filing.Filing`. Neither is ever inferred from the task
+    list — that was the whole point of refusing them, and the refusal survives
+    here as "no record, no conclusion" rather than being quietly dropped now
+    that a record exists.
+    """
+    accepted = [f for f in filings if getattr(f, "is_accepted", False)]
+    if accepted:
+        landed = min(accepted, key=lambda f: f.ack_date or date.max)
+        return StageView(
+            stage="complete",
+            why=(f"Accepted by the IRS on {landed.ack_date:%b %d, %Y}."
+                 if landed.ack_date else "Accepted by the IRS."),
+            next_step="")
+    if delivery is not None:
+        return StageView(
+            stage="delivered",
+            why=delivery.describe() + ".",
+            next_step="Chase the signed authorization, then transmit.")
+    return None
+
+
 def derive_stage(job: Job, *, readiness: Readiness | None = None,
-                 today: date | None = None) -> StageView:
+                 today: date | None = None, delivery=None, filings=()) -> StageView:
     """Work out where this job stands from what the practice actually knows.
 
     Order matters: the most blocking condition wins, because a job with a
@@ -103,6 +129,15 @@ def derive_stage(job: Job, *, readiness: Readiness | None = None,
     optimistic reading, and the optimistic reading is what lets a return sit.
     """
     del today  # reserved: overdue tasks do not change the STAGE, only urgency
+
+    # A RECORDED delivery or acceptance outranks everything below it. Unlike the
+    # task-derived stages, these rest on a fact somebody wrote down, so they are
+    # not contradicted by an outstanding document: a return that went out and
+    # was accepted is not "waiting on documents" because a charity receipt never
+    # arrived.
+    landed = _delivered_view(delivery, filings)
+    if landed is not None:
+        return landed
 
     internal = [t for t in job.tasks if t.audience == "internal"]
     prep = [t for t in internal if not _is_review(t)]
