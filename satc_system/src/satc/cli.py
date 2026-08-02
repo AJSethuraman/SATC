@@ -50,6 +50,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="copy files into the clean tree (default: preview only)")
     p_sort.add_argument("--dest", default=None, help="destination root (default: FOLDER/_SATC_Sorted)")
 
+    sub.add_parser("prices",
+                   help="check and print the service catalogue and rate plans")
+
     p_seed = sub.add_parser("seed", help="initialize the SQLite store from fixtures")
     p_seed.add_argument("--dir", default=None)
 
@@ -100,6 +103,40 @@ def main(argv: list[str] | None = None) -> int:
         print()
         print(f"Written to {path}")
         print("Edit that file any time — it is an ordinary template now.")
+        return 0
+
+    if args.cmd == "prices":
+        # Prices are edited by hand, in YAML, often in a hurry. This is the
+        # check you run after editing — before the file's first client sees it.
+        from satc.billing.catalogue import by_category, default_plan_key, plans
+        from satc.config import ConfigError
+
+        try:
+            groups, rate_plans, fallback = by_category(), plans(), default_plan_key()
+        except ConfigError as exc:
+            print(f"The billing config will not load:\n\n  {exc}\n")
+            print("Nothing can be invoiced until that is fixed.")
+            return 1
+
+        for category, items in groups:
+            print(f"\n{category}")
+            for svc in items:
+                unit = {"per_form": " each", "per_hour": " /hr", "fixed": ""}[svc.unit]
+                free = "   (no charge)" if svc.is_free else ""
+                print(f"  {svc.code:<20} {svc.standard_rate:>8,.2f}{unit:<5} "
+                      f"{svc.label_for_client}{free}")
+
+        print("\nRate plans")
+        for key, rate_plan in rate_plans.items():
+            mark = "  <- default" if key == fallback else ""
+            needs = " needs a written reason" if rate_plan.requires_basis else ""
+            print(f"  {key:<20} {rate_plan.discount_pct:>3g}% off   "
+                  f"{rate_plan.name}{needs}{mark}")
+
+        print(f"\n{sum(len(i) for _, i in groups)} services, {len(rate_plans)} plans. "
+              f"Both load cleanly.")
+        print("Edit configs/billing/*.yaml — the app picks changes up on the next "
+              "page load, no restart.")
         return 0
 
     if args.cmd == "scoreboard":

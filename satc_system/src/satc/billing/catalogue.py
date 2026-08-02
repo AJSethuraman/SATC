@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
-from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
@@ -175,22 +174,62 @@ def default_plan_key(config_root: Path | None = None) -> str:
     return str((data.get("meta") or {}).get("default_plan", "standard"))
 
 
-@lru_cache(maxsize=1)
-def _cached_services() -> dict[str, Service]:
-    return load_services()
+# --- reading the files, and noticing when they change ----------------------
+#
+# Prices are the part of this system the owner changes most often and by hand:
+# a rate moves, a service gets added mid-March, a discount is renamed. Caching
+# them for the life of the process means an edit appears to do nothing until
+# someone remembers to restart the app — and the failure mode is silent, which
+# is the worst kind. A price that quietly did not take effect is a client
+# invoiced at the old rate.
+#
+# So the cache is keyed on what the FILES look like. Touch the YAML, and the
+# next page load reads it.
+
+_cache: dict[str, tuple[object, object]] = {}
 
 
-@lru_cache(maxsize=1)
-def _cached_plans() -> dict[str, RatePlan]:
-    return load_plans()
+def _stamp(path: Path) -> tuple:
+    """A cheap fingerprint of a file: does it look the way it did last time?
+
+    mtime and size together, because an editor that rewrites in place can leave
+    a same-second mtime on a file whose contents changed.
+    """
+    try:
+        st = path.stat()
+    except OSError:
+        return ()
+    return (st.st_mtime_ns, st.st_size)
+
+
+def _fresh(name: str, path: Path, loader):
+    """Return the loaded config, re-reading it if the file has changed.
+
+    A load that FAILS is not papered over with the previous good version.
+    Serving the last-known-good prices after a bad edit would mean invoicing at
+    a rate that is no longer in the file the owner is looking at — principle 5,
+    refuse rather than default. The error names the file; fix it and reload.
+    """
+    stamp = _stamp(path)
+    hit = _cache.get(name)
+    if hit is not None and hit[0] == stamp:
+        return hit[1]
+    value = loader()
+    _cache[name] = (stamp, value)
+    return value
+
+
+def forget_prices() -> None:
+    """Drop the cache. For tests, and for anything that edits config in-process."""
+    _cache.clear()
 
 
 def services() -> dict[str, Service]:
-    return _cached_services()
+    return _fresh("services", billing_dir() / "services.yaml", load_services)
 
 
 def plans() -> dict[str, RatePlan]:
-    return _cached_plans()
+    return _fresh("plans", billing_dir() / "rate_plans.yaml", load_plans)
 
 
 def service(code: str) -> Service:
