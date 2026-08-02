@@ -22,6 +22,19 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("app", help="launch the local web GUI")
     sub.add_parser("doctor", help="check what's ready on this machine")
+    p_new = sub.add_parser(
+        "comms-new",
+        help="draft a new client-letter template from a one-line description")
+    p_new.add_argument("description",
+                       help='what the letter is for, e.g. "reminds a client their '
+                            'quarterly estimate is due soon"')
+    p_new.add_argument("--name", default="", help="display name (default: the description)")
+    p_new.add_argument("--kind", default="email", choices=["email", "letter"])
+    p_new.add_argument("--stage", default="5 · Relationship")
+    p_new.add_argument("--subject", default="", help="subject line for an email")
+    p_new.add_argument("--write", action="store_true",
+                       help="install it into configs/comms/ (default: preview only)")
+
     p_score = sub.add_parser(
         "scoreboard",
         help="measure document-reading accuracy against the local corpus")
@@ -58,6 +71,35 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "doctor":
         from satc.doctor import format_report
         print(format_report())
+        return 0
+
+    if args.cmd == "comms-new":
+        from satc.comms.author import author, install
+
+        try:
+            drafted = author(args.description, name=args.name, kind=args.kind,
+                             stage=args.stage, subject=args.subject)
+        except Exception as exc:  # noqa: BLE001 - surface, do not stack-trace
+            print(f"Could not draft it: {exc}")
+            return 1
+
+        print(f"--- {drafted.name}  ({drafted.kind}, {drafted.key}) ---")
+        if drafted.subject:
+            print(f"Subject: {drafted.subject}")
+            print()
+        print(drafted.body)
+        if drafted.unknown_fields:
+            print()
+            print("Stripped merge fields that do not exist: "
+                  + ", ".join(drafted.unknown_fields))
+        if not args.write:
+            print()
+            print("Preview only. Re-run with --write to add it to the library.")
+            return 0
+        path = install(drafted)
+        print()
+        print(f"Written to {path}")
+        print("Edit that file any time — it is an ordinary template now.")
         return 0
 
     if args.cmd == "scoreboard":

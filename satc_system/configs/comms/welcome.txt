@@ -1,0 +1,21 @@
+Dear {salutation},
+
+Welcome to {firm_name} — we're glad you're here.
+
+Here's what happens next, so nothing is a surprise:
+
+  • We'll agree what we're doing for you in writing, so you know the scope and the cost
+    before any work starts.
+  • We'll tell you exactly which documents to gather. Not a generic checklist — the
+    specific things your situation needs.
+  • We prepare the return, you review it, and nothing is filed until you've signed.
+
+You can reach us any time at {firm_email}. If something is confusing, that's our job to
+fix, not yours to decipher.
+
+Looking forward to working with you,
+{preparer_name}
+{firm_name}
+"{firm_tagline}"
+
+— DRAFT for preparer review. Not sent automatically. —

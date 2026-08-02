@@ -99,6 +99,18 @@ placeholders:
     label: "Fee"
     source: state
     note: "From the engagement's fee record, when one is on file."
+  extension_reason:
+    label: "Why we're extending"
+    source: drafted
+    note: "One or two sentences. The model writes it; the owner edits."
+  records_return_note:
+    label: "How records are returned"
+    source: firm
+    note: >-
+      Standing wording. §10.28(a) requires returning a client's own records
+      promptly and NOT withholding them over a fee dispute — so this text is
+      firm-standing and deliberately not per-client wording anyone can soften.
+
   invoice_number:
     label: "Invoice number"
     source: preparer
@@ -155,6 +167,16 @@ templates:
     subject: "Let's get your {tax_year} return started — {firm_short_name}"
     body_file: interview_invite.txt
 
+  - key: welcome
+    name: "Welcome (new client)"
+    kind: email
+    stage: "1 · Onboarding"
+    description: >-
+      The first note to someone who has just signed on — what happens next, so
+      nothing is a surprise.
+    subject: "Welcome to {firm_short_name}"
+    body_file: welcome.txt
+
   - key: engagement_letter
     name: "Engagement letter"
     kind: letter
@@ -184,6 +206,35 @@ templates:
     subject: "Still need a few things for your {tax_year} return"
     body_file: missing_items.txt
 
+  - key: organizer_send
+    name: "Send the organizer"
+    kind: email
+    stage: "2 · Gathering"
+    description: "The covering note that goes with a client's organizer."
+    subject: "Your {tax_year} tax organizer"
+    body_file: organizer_send.txt
+
+  - key: status_update
+    name: "Status update"
+    kind: email
+    stage: "2 · Gathering"
+    description: >-
+      Where their return stands, so they are not left wondering. Lists what is
+      still outstanding and asks for nothing else.
+    subject: "Where your {tax_year} return stands"
+    body_file: status_update.txt
+
+  - key: extension_request
+    name: "Extension — ask permission"
+    kind: email
+    stage: "2 · Gathering"
+    description: >-
+      Asks the client to authorise an extension IN WRITING. Filing one without
+      permission can destroy their reasonable-cause defence, so this is a
+      request, never a notification.
+    subject: "May we file an extension for your {tax_year} return?"
+    body_file: extension_request.txt
+
   - key: prior_year_check
     name: "Prior-year check"
     kind: email
@@ -211,6 +262,16 @@ templates:
       The printed letter that rides with the return package.
     body_file: cover_letter.txt
 
+  - key: signature_request
+    name: "Signature chase (8879)"
+    kind: email
+    stage: "3 · Delivery"
+    description: >-
+      The e-file authorisation is out and not back. Nothing can be transmitted
+      until it is — an IRS rule, not a preference.
+    subject: "One signature needed on your {tax_year} return"
+    body_file: signature_request.txt
+
   - key: invoice_cover
     name: "Invoice cover email"
     kind: email
@@ -221,3 +282,52 @@ templates:
       invoicing is folded into the app (BACKLOG §6).
     subject: "Invoice for your {tax_year} tax preparation — {firm_short_name}"
     body_file: invoice_cover.txt
+
+  - key: season_thanks
+    name: "Season thank-you"
+    kind: email
+    stage: "5 · Relationship"
+    description: >-
+      Filed and behind them. Also the one moment they will actually read the
+      "send us any IRS notice before you do anything" line.
+    subject: "Your {tax_year} return is filed — thank you"
+    body_file: season_thanks.txt
+
+  - key: year_end_planning
+    name: "Year-end planning"
+    kind: email
+    stage: "5 · Relationship"
+    description: >-
+      December outreach — the last point where the year's outcome can still be
+      changed rather than just reported.
+    subject: "Worth a conversation before year-end?"
+    body_file: year_end_planning.txt
+
+  - key: referral_thanks
+    name: "Referral thank-you"
+    kind: email
+    stage: "5 · Relationship"
+    description: "Someone sent you a client. Say thank you."
+    subject: "Thank you"
+    body_file: referral_thanks.txt
+
+  - key: birthday
+    name: "Birthday note"
+    kind: email
+    stage: "5 · Relationship"
+    description: >-
+      No tax content and nothing needed from them. Needs a date of birth on the
+      client record before it can be prompted automatically.
+    subject: "Happy birthday from {firm_short_name}"
+    body_file: birthday.txt
+
+  - key: disengagement
+    name: "Disengagement letter"
+    kind: letter
+    stage: "6 · Ending"
+    description: >-
+      Ending the relationship. Confirms no further returns will be filed and
+      that their own records are returned — which §10.28(a) requires promptly
+      and regardless of any unpaid fee.
+    body_file: disengagement.txt
+

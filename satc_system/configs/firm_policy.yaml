@@ -50,6 +50,10 @@ alerts:
 # nothing here can be wrong about one — it is just how this firm says things.
 standing_text:
   meeting_place: "a phone call or our office, whichever is easier for you"
+  records_return_note: >-
+    Any records you gave us are yours and will be returned to you promptly on
+    request, at no charge and regardless of any outstanding fee. Tell us where
+    to send them and we will do so.
   payment_instructions: >-
     You can pay by check made out to Sethuraman Accounting, Tax & Consulting, or
     ask us for bank details if you would rather transfer it.

@@ -22,10 +22,17 @@ from satc.models.work import Engagement
 
 # The set the practice runs on. A new template is a deliberate act — adding one
 # means updating this list, which is the point.
+# The set the practice runs on. Adding one is a deliberate act — and since
+# `satc comms-new` can add them, this list is what stops the library growing
+# without anyone noticing.
 EXPECTED_KEYS = [
-    "interview_invite", "engagement_letter", "document_request",
-    "missing_items", "prior_year_check", "return_delivery", "cover_letter",
+    "interview_invite", "welcome", "engagement_letter",
+    "document_request", "missing_items", "organizer_send", "status_update",
+    "extension_request", "prior_year_check",
+    "return_delivery", "cover_letter", "signature_request",
     "invoice_cover",
+    "season_thanks", "year_end_planning", "referral_thanks", "birthday",
+    "disengagement",
 ]
 
 
