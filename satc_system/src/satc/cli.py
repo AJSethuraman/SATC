@@ -61,8 +61,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "scoreboard":
-        from pathlib import Path
-
+        # NOTE: no local "from pathlib import Path" here. Path is imported at
+        # module level, and a function-local import of the same name makes it
+        # local for the WHOLE function — which turned every other branch's use
+        # of Path into an UnboundLocalError.
         from satc.ingest.scoreboard import score
 
         board = score(directory=Path(args.dir) if args.dir else None)
