@@ -22,6 +22,10 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("app", help="launch the local web GUI")
     sub.add_parser("doctor", help="check what's ready on this machine")
+    p_score = sub.add_parser(
+        "scoreboard",
+        help="measure document-reading accuracy against the local corpus")
+    p_score.add_argument("--dir", default="", help="corpus directory (default: corpus/)")
 
     p_build = sub.add_parser("build", help="build the demo workpaper workbook")
     p_build.add_argument("out", nargs="?", default=None)
@@ -55,6 +59,18 @@ def main(argv: list[str] | None = None) -> int:
         from satc.doctor import format_report
         print(format_report())
         return 0
+
+    if args.cmd == "scoreboard":
+        from pathlib import Path
+
+        from satc.ingest.scoreboard import score
+
+        board = score(directory=Path(args.dir) if args.dir else None)
+        print(board.report())
+        # Non-zero ONLY on a silent error — a value accepted without review and
+        # wrong. Missed reads and caught errors are not failures; treating them
+        # as such would train the owner to ignore the exit code.
+        return 0 if board.is_acceptable else 1
 
     if args.cmd == "build":
         from satc.build import build_demo_workbook
