@@ -183,3 +183,109 @@ def test_a_task_survives_persistence_with_its_status_and_completion():
         rental = reloaded["tpl-Rental"]
         assert rental.status == "waived"
         assert rental.waived_reason == "sold the property in 2024"
+
+
+# --- the rate plan is a term of the CONTRACT ----------------------------------
+
+def _engagement(client_id="C", tax_year=2025, **kw):
+    from satc.models.work import Engagement
+
+    return Engagement(client_id=client_id, tax_year=tax_year, **kw)
+
+
+def test_the_agreed_rate_plan_survives_persistence(tmp_path):
+    """It is agreed once, on the contract — so it has to still be there next year.
+
+    Deciding it per-invoice meant re-deciding it every time and never being able
+    to answer "what is this client on?" without reading old invoices.
+    """
+    from satc.models.mart import DataMart
+    from satc.persistence import SATCStore
+
+    mart = DataMart()
+    mart.engagements = [_engagement(rate_plan_key="household",
+                                    rate_plan_basis="single income, two children")]
+    with SATCStore(tmp_path) as store:
+        store.save_mart(mart)
+
+    with SATCStore(tmp_path) as store:
+        back = store.load_mart().engagements
+    assert len(back) == 1
+    assert back[0].rate_plan_key == "household"
+    assert back[0].rate_plan_basis == "single income, two children"
+
+
+def test_a_reduced_plan_with_no_basis_loads_and_is_visible_as_such(tmp_path):
+    """History must ALWAYS load. The refusal belongs at invoice-issue time,
+    where it already lives — a store that raised here would make the record
+    unreadable exactly when the owner needs to see what went wrong."""
+    from satc.models.mart import DataMart
+    from satc.models.work import rate_plan_for
+    from satc.persistence import SATCStore
+
+    mart = DataMart()
+    mart.engagements = [_engagement(rate_plan_key="hardship", rate_plan_basis="")]
+    with SATCStore(tmp_path) as store:
+        store.save_mart(mart)
+
+    with SATCStore(tmp_path) as store:
+        back = store.load_mart().engagements          # no raise
+
+    on_file = rate_plan_for(back, client_id="C", tax_year=2025)
+    assert on_file.plan_key == "hardship"
+    assert on_file.is_agreed
+    assert on_file.basis_missing                       # VISIBLE, not fatal
+    assert "no basis is recorded" in on_file.why()
+
+
+def test_the_default_is_reported_as_a_fallback_not_as_a_decision():
+    """Principle 2: an unanswered question is not an answer. A client nobody has
+    priced and a client explicitly put on standard read the same as bare strings."""
+    from satc.models.work import rate_plan_for
+
+    nobody_decided = rate_plan_for([], client_id="C", tax_year=2025)
+    decided = rate_plan_for([_engagement(rate_plan_key="standard")],
+                            client_id="C", tax_year=2025)
+
+    assert nobody_decided.plan_key == decided.plan_key == "standard"
+    assert nobody_decided.is_fallback and not nobody_decided.is_agreed
+    assert decided.is_agreed and not decided.is_fallback
+    assert nobody_decided.why() != decided.why()
+    assert "No rate plan agreed" in nobody_decided.why()
+    assert "agreed on the 2025 engagement" in decided.why()
+
+
+def test_an_engagement_for_another_year_is_not_this_years_agreement():
+    """The contract is per (client, year). Last year's household rate is not
+    this year's — means change, and honouring a lapsed term silently is how a
+    discount becomes permanent by accident."""
+    from satc.models.work import rate_plan_for
+
+    prior = [_engagement(tax_year=2024, rate_plan_key="hardship",
+                         rate_plan_basis="job loss")]
+    assert rate_plan_for(prior, client_id="C", tax_year=2025).is_fallback
+    assert rate_plan_for(prior, client_id="C", tax_year=2024).is_agreed
+    assert rate_plan_for(prior, client_id="OTHER", tax_year=2024).is_fallback
+
+
+def test_a_blank_plan_key_is_an_empty_slot_not_the_standard_rate():
+    """A row that predates the field carries NULL, which is silence. Reading
+    silence as "standard" would invent a value nobody recorded."""
+    from satc.models.work import rate_plan_for
+
+    on_file = rate_plan_for([_engagement(rate_plan_key="")],
+                            client_id="C", tax_year=2025)
+    assert on_file.plan_key == "standard"       # what applies meanwhile
+    assert on_file.is_fallback                  # but nobody agreed it
+    assert not on_file.basis_missing            # nothing to be missing yet
+
+
+def test_a_full_rate_plan_needs_no_basis_to_be_complete():
+    """`requires_basis` is the catalogue's rule, not this helper's. Standard is
+    the default; asking for a reason to charge full price is noise."""
+    from satc.models.work import rate_plan_for
+
+    on_file = rate_plan_for([_engagement(rate_plan_key="standard")],
+                            client_id="C", tax_year=2025)
+    assert not on_file.requires_basis
+    assert not on_file.basis_missing

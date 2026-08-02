@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Invoice {{ invoice.invoice_id }} — {{ client_name }}</h2>
+  <div class="muted">
+    This is the invoice as the client reads it. It was issued
+    {{ invoice.issued_on.strftime('%B %d, %Y') if invoice.issued_on else '—' }} and cannot be
+    edited; correcting it means a new invoice or a credit.
+  </div>
+</div>
+
+{% if error %}<p class="flag">{{ error }}</p>{% endif %}
+
+<div class="panel">
+  <h2>The invoice</h2>
+  <div class="body">
+    <div class="kv">
+      <div><b>Client</b> {{ client_name }} <span class="mono muted">{{ invoice.client_id }}</span></div>
+      <div><b>Tax year</b> {{ invoice.tax_year }}</div>
+      <div><b>Rate plan</b> {{ invoice.rate_plan.name }}
+        {% if invoice.plan_basis %}<span class="muted">— {{ invoice.plan_basis }}</span>{% endif %}</div>
+      <div><b>Issued</b> {{ invoice.issued_on.strftime('%Y-%m-%d') if invoice.issued_on else '—' }}</div>
+      <div><b>Due</b> {{ invoice.due_on.strftime('%Y-%m-%d') if invoice.due_on else '—' }}
+        {% if invoice.is_paid %}<span class="tie">· paid {{ invoice.paid_on.strftime('%Y-%m-%d') }}</span>
+        {% elif invoice.is_overdue(today) %}<span class="flag">· overdue</span>{% endif %}</div>
+      <div><b>Amount due</b> <span class="mono"><strong>{{ '{:,.2f}'.format(invoice.total) }}</strong></span></div>
+    </div>
+
+    <textarea class="codebox" rows="16" readonly>{{ invoice.summary_block() }}</textarea>
+    <p>{{ invoice.client_sentence() }}</p>
+
+    <p style="margin-top:12px">
+      <a class="btn primary" href="{{ url_for('billing.print_invoice', invoice_id=invoice.invoice_id) }}">Printable copy</a>
+      <a class="btn" href="{{ url_for('comms.comms', client=invoice.client_id, template='invoice_cover', tax_year=invoice.tax_year) }}">Draft the covering email →</a>
+      <a class="btn" href="{{ url_for('billing.invoices') }}">← All invoices</a>
+    </p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Payment</h2>
+  <div class="body">
+    {% if invoice.is_paid %}
+    <p class="tie">Paid {{ invoice.paid_on.strftime('%B %d, %Y') }}.</p>
+    {% elif invoice.rate_plan.is_free %}
+    <p class="note">Nothing to collect — this invoice is itemised at full value so the client can
+      see what they were given, but there is no charge.</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('billing.mark_paid', invoice_id=invoice.invoice_id) }}">
+      <p>
+        <label class="muted">{{ 'Correct the payment date' if invoice.is_paid else 'The day the money arrived' }}</label><br>
+        <input class="field-input" type="date" name="paid_on"
+               value="{{ invoice.paid_on.isoformat() if invoice.paid_on else today.isoformat() }}" style="width:180px">
+      </p>
+      <button class="btn" type="submit">Record payment</button>
+    </form>
+    <p class="note">
+      SATC records that the money arrived; it does not take it. Nothing here charges a card or
+      moves a balance.
+    </p>
+  </div>
+</div>
+{% endblock %}

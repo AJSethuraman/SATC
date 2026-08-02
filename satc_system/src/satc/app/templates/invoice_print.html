@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Invoice {{ invoice.invoice_id }} — {{ client_name }}</title>
+<style>
+  /* Deliberately standalone: no nav, no buttons, nothing that behaves. This
+     page is a piece of paper, and the only thing it has to do is print. */
+  body{margin:0;background:#f4f1ea;color:#20303f;
+       font-family:Georgia,"Iowan Old Style","Times New Roman",serif;font-size:13.5px;line-height:1.55}
+  .sheet{max-width:7.2in;margin:28px auto;background:#fff;padding:0.7in 0.75in;
+         border:1px solid #e3dccb;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;
+        border-bottom:2px solid #20303f;padding-bottom:12px;margin-bottom:22px}
+  .firm{font-size:16px;font-weight:700;letter-spacing:.02em}
+  .tagline{font-size:11px;color:#7a6f5d;font-style:italic}
+  .meta{text-align:right;font-size:12px}
+  .meta .num{font-family:ui-monospace,Consolas,monospace;font-size:14px;font-weight:700}
+  h1{font-size:15px;margin:0 0 4px;letter-spacing:.04em;text-transform:uppercase}
+  .to{margin-bottom:20px}
+  .to .name{font-size:14px;font-weight:700}
+  pre.block{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.7;
+            white-space:pre;overflow-x:auto;margin:0 0 20px;padding:14px 0;
+            border-top:1px solid #e3dccb;border-bottom:2px solid #20303f}
+  .sentence{margin:0 0 18px}
+  .terms{font-size:11.5px;color:#5c6b78;border-top:1px solid #e3dccb;padding-top:12px}
+  .paid{font-weight:700;color:#2f6b4f}
+  @media print{
+    body{background:#fff}
+    .sheet{max-width:none;margin:0;padding:0;border:none;box-shadow:none}
+    pre.block{overflow-x:visible}
+    @page{margin:0.75in}
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="head">
+    <div>
+      <div class="firm">{{ firm.firm_name or 'Invoice' }}</div>
+      {% if firm.firm_tagline %}<div class="tagline">{{ firm.firm_tagline }}</div>{% endif %}
+      {% if firm.firm_email %}<div class="tagline">{{ firm.firm_email }}</div>{% endif %}
+    </div>
+    <div class="meta">
+      <h1>Invoice</h1>
+      <div class="num">{{ invoice.invoice_id }}</div>
+      <div>Issued {{ invoice.issued_on.strftime('%B %d, %Y') if invoice.issued_on else '—' }}</div>
+      <div>Due {{ invoice.due_on.strftime('%B %d, %Y') if invoice.due_on else '—' }}</div>
+      <div>Tax year {{ invoice.tax_year }}</div>
+    </div>
+  </div>
+
+  <div class="to">
+    <div class="tagline">Billed to</div>
+    <div class="name">{{ client_name }}</div>
+  </div>
+
+  <pre class="block">{{ invoice.summary_block() }}</pre>
+
+  <p class="sentence">{{ invoice.client_sentence() }}</p>
+
+  {% if invoice.is_paid %}
+  <p class="paid">Paid in full {{ invoice.paid_on.strftime('%B %d, %Y') }} — thank you.</p>
+  {% endif %}
+
+  <div class="terms">
+    {% if not invoice.rate_plan.is_free %}
+    Payable by {{ invoice.due_on.strftime('%B %d, %Y') if invoice.due_on else 'the due date above' }}.
+    {% endif %}
+    Work is itemised at its full standard value{% if invoice.shows_a_discount %},
+    with the {{ (invoice.rate_plan.client_label or invoice.rate_plan.name)|lower }} shown as a
+    separate line{% endif %}, so you can see what was done and what it is worth.
+    Questions about anything on this invoice are welcome{% if firm.preparer_name %} —
+    just reply to {{ firm.preparer_name }}{% endif %}.
+  </div>
+</div>
+</body>
+</html>

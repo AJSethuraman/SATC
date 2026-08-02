@@ -41,6 +41,9 @@ ActionKind = Literal[
     "extension_candidate",    # cutoff passed with the file incomplete
     "interview_invite",       # a client with no engagement for the year
     "deliver_return",         # the return is done and the client has not been told
+    "unbilled_work",          # delivered to the client, and never billed at all
+    "invoice_overdue",        # issued, unpaid, past its due date
+    "invoice_unissued",       # a draft bill that was never sent
 ]
 
 Urgency = Literal["overdue", "urgent", "soon", "routine"]
@@ -261,6 +264,164 @@ def invite_to_interview(received, requested=(), *, client_id: str, tax_year: int
         title=f"Nothing started for {tax_year}",
         why=f"No engagement and no {tax_year} documents on file.",
         urgency="routine", template_key="interview_invite")
+
+
+# --- the money, which was the one thing the queue never mentioned -------------
+#
+# Everything above chases paper. None of it ever noticed that the paper was
+# delivered and never charged for. Unbilled work does not announce itself: there
+# is no client asking about it, no deadline attached to it, and no screen that
+# goes red. It is the only failure mode here that costs the practice money
+# directly, and it was invisible.
+
+_BILLABLE_STAGES = ("delivered", "complete")
+"""The stages at which the work has left the building. Billing happens at
+DELIVERY, not at filing — waiting for the ACK is how a bill gets forgotten."""
+
+
+def _job_label(job) -> str:
+    """How the owner would name this job out loud."""
+    label = (getattr(job, "engagement_type", "") or getattr(job, "workflow_key", "")
+             or "Work")
+    return str(label).replace("_", " ")
+
+
+def _job_year(job) -> int | None:
+    """The year a job belongs to, from whichever field the job actually carries."""
+    year = getattr(job, "tax_year", None)
+    if year is not None:
+        return int(year)
+    period = str(getattr(job, "period_key", "") or "")
+    return int(period) if period.isdigit() else None
+
+
+def _amount(invoice) -> str:
+    return f"${invoice.total:,.2f}"
+
+
+def unbilled_work(jobs, invoices=(), *, client_id: str,
+                  tax_year: int) -> ProposedAction | None:
+    """Work that reached the client with no bill behind it.
+
+    Not a late payment — money the practice never asked for. A return that was
+    delivered and never invoiced is the one failure here that nothing else
+    surfaces: the client is happy, the file looks finished, and the fee is gone.
+
+    One row per client-year, never one per job. A client with three delivered
+    jobs and no invoice has one problem, not three.
+    """
+    delivered = [j for j in jobs
+                 if j.client_id == client_id and j.stage in _BILLABLE_STAGES
+                 and _job_year(j) == tax_year]
+    if not delivered:
+        return None
+
+    # A bill that already exists — issued, or a draft with something on it —
+    # gets its own row from the two proposers below. Two rows both saying "this
+    # year is not paid for" is exactly how a queue becomes noise (principle 13).
+    if any(inv.client_id == client_id and inv.tax_year == tax_year
+           and (inv.is_issued or inv.lines) for inv in invoices):
+        return None
+
+    closed = [j for j in delivered if j.stage == "complete"]
+    labels = sorted({_job_label(j) for j in delivered})
+    return ProposedAction(
+        action_id=action_id("unbilled_work", client_id, str(tax_year)),
+        kind="unbilled_work", client_id=client_id,
+        title=f"Bill the {tax_year} work",
+        why=(f"{', '.join(labels)} for {tax_year} "
+             f"{'is' if len(delivered) == 1 else 'are'} "
+             f"{'complete' if closed else 'delivered'} and there is no invoice at "
+             f"all — the work has gone to the client unbilled."),
+        # A file closed without ever being billed is money already lost; a
+        # delivery that just happened is simply the next thing to do.
+        urgency="urgent" if closed else "soon",
+        evidence=tuple(j.job_id for j in delivered))
+
+
+def invoice_overdue(invoices, *, client_id: str, today: date,
+                    chase_after_days: int = 14,
+                    serious_after_days: int = 45) -> list[ProposedAction]:
+    """Issued, unpaid, and past its due date — one row per invoice.
+
+    Separate rows because separate invoices are separate facts: different
+    numbers, different amounts, different dates, and the client will ask about
+    one of them by number.
+
+    The two thresholds are FIRM POLICY with nothing statutory behind them
+    (principle 4). An invoice four days past due is usually sitting in somebody's
+    inbox; treating that as a collection problem is how a client learns to
+    ignore what you send.
+    """
+    out: list[ProposedAction] = []
+    for inv in invoices:
+        if inv.client_id != client_id or not inv.is_overdue(today):
+            continue
+        late = (today - inv.due_on).days
+        if late >= serious_after_days:
+            urgency: Urgency = "overdue"
+        elif late >= chase_after_days:
+            urgency = "urgent"
+        else:
+            urgency = "soon"
+        out.append(ProposedAction(
+            action_id=action_id("invoice_overdue", client_id, str(inv.invoice_id)),
+            kind="invoice_overdue", client_id=client_id,
+            title=f"Invoice {inv.invoice_id} unpaid — {_amount(inv)}",
+            why=(f"Invoice {inv.invoice_id} for {_amount(inv)} ({inv.tax_year} work) "
+                 f"was due {inv.due_on:%b %d} and is {_plural(late, 'day', 'days')} "
+                 f"unpaid."),
+            urgency=urgency, due=inv.due_on, template_key="invoice_cover",
+            evidence=(str(inv.invoice_id),)))
+    return out
+
+
+def invoice_unissued(invoices, *, client_id: str, today: date,
+                     stale_after_days: int = 7,
+                     urgent_after_days: int = 30) -> list[ProposedAction]:
+    """A draft bill that was never sent.
+
+    The same lost money as unbilled work, one step later and easier to miss —
+    the invoice exists, so anything that counts invoices looks right. Nobody is
+    waiting on it, because nobody outside this machine knows it was written.
+    """
+    out: list[ProposedAction] = []
+    for inv in invoices:
+        # A draft with no lines is not a bill someone forgot: there is nothing on
+        # it, and issue() would refuse it anyway. Surfacing it would be a row
+        # about zero dollars.
+        if inv.client_id != client_id or inv.is_issued or not inv.lines:
+            continue
+
+        dated = [line.performed_on for line in inv.lines if line.performed_on]
+        waiting = (today - max(dated)).days if dated else None
+        if waiting is not None and waiting < stale_after_days:
+            continue                       # billing in progress is not a problem
+
+        if waiting is None:
+            # No line carries a date, so the practice holds no fact about how
+            # long this has sat. Say what is known and claim nothing more
+            # (principle 1) — an invented age would read as evidence.
+            urgency: Urgency = "routine"
+            why = (f"Invoice {inv.invoice_id} for {_amount(inv)} ({inv.tax_year} work) "
+                   f"is drafted and has never been issued — nothing has gone to "
+                   f"the client.")
+        else:
+            urgency = "urgent" if waiting >= urgent_after_days else "soon"
+            why = (f"Invoice {inv.invoice_id} for {_amount(inv)} ({inv.tax_year} work) "
+                   f"has sat as a draft {_plural(waiting, 'day', 'days')} since the "
+                   f"work was done — it has never been issued.")
+
+        out.append(ProposedAction(
+            action_id=action_id("invoice_unissued", client_id, str(inv.invoice_id)),
+            kind="invoice_unissued", client_id=client_id,
+            title=f"Issue invoice {inv.invoice_id} — {_amount(inv)}",
+            why=why, urgency=urgency,
+            # No template: the click here is *issuing the bill*, which fixes the
+            # numbers permanently. That is the owner's decision on the billing
+            # screen, not an email this queue can pre-write for them.
+            evidence=(str(inv.invoice_id),)))
+    return out
 
 
 # --- the queue ----------------------------------------------------------------

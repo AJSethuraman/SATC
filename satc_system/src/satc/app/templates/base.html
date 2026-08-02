@@ -24,6 +24,7 @@
       <a href="{{ url_for('intake.engagements') }}" class="{{ 'active' if title in ['Engagements','New client','Intake'] }}"><span class="ic">☑</span> Engagements</a>
       <a href="{{ url_for('workflows.workflows_index') }}" class="{{ 'active' if title=='Questionnaires' }}"><span class="ic">?</span> Questionnaires</a>
       <a href="{{ url_for('comms.comms') }}" class="{{ 'active' if title=='Client comms' }}"><span class="ic">✉</span> Client comms</a>
+      <a href="{{ url_for('billing.invoices') }}" class="{{ 'active' if 'Invoice' in title }}"><span class="ic">$</span> Invoices</a>
       <a href="{{ url_for('withholding.withholding') }}" class="{{ 'active' if title=='Withholding' }}"><span class="ic">％</span> Withholding</a>
       <a href="{{ url_for('export') }}"><span class="ic">⬇</span> Export to Excel</a>
       <a href="{{ url_for('setup') }}" class="{{ 'active' if title=='Setup' }}"><span class="ic">⚙</span> Setup</a>

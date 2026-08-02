@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Raise an invoice</h2>
+  <div class="muted">
+    Pick the client, pick what they pay relative to standard, and add what they received
+    <strong>from the catalogue</strong>. The totals below are the ones the client will see —
+    full value first, then the named reduction. Nothing is written down until you issue it.
+  </div>
+</div>
+
+{% if error %}<p class="flag">{{ error }}</p>{% endif %}
+{% if note %}<p class="note">{{ note }}</p>{% endif %}
+
+<div class="panel">
+  <h2>1 · Who it's for</h2>
+  <div class="body">
+    <form method="post" action="{{ url_for('billing.new_invoice') }}">
+      <input type="hidden" name="action" value="header">
+      <p>
+        <label class="muted">Client</label><br>
+        <select class="field-input" name="client_id">
+          <option value="">— choose a client —</option>
+          {% for cid, name in clients %}
+          <option value="{{ cid }}" {{ 'selected' if cid == draft.client_id }}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        <label class="muted">Tax year</label><br>
+        <input class="field-input" type="number" name="tax_year" value="{{ tax_year }}">
+      </p>
+      <p>
+        <label class="muted">Rate plan</label><br>
+        <select class="field-input" name="plan_key">
+          {% for p in plans.values() %}
+          <option value="{{ p.key }}" {{ 'selected' if p.key == (draft.plan_key or 'standard') }}>
+            {{ p.name }}{% if p.discount_pct %} — {{ '{:g}'.format(p.discount_pct) }}% off{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        <label class="muted">Why this client is on that plan</label>
+        <span class="hint"> — required for any reduced rate</span><br>
+        <textarea class="field-input" name="plan_basis" rows="2"
+                  placeholder="e.g. Retired, social security and a small pension">{{ draft.plan_basis or '' }}</textarea>
+      </p>
+      <button class="btn" type="submit">Set</button>
+      {% if draft.client_id %}
+      <span class="muted" style="margin-left:10px"><span class="mono">{{ draft.client_id }}</span></span>
+      {% endif %}
+    </form>
+    <p class="note">
+      A reduced rate with no recorded basis is improvisation, and improvisation is what looks
+      arbitrary when two clients compare notes — so the engine refuses to issue one.
+    </p>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>2 · What they received</h2>
+  <div class="body">
+    <form method="post" action="{{ url_for('billing.new_invoice') }}">
+      <input type="hidden" name="action" value="add">
+      <p>
+        <label class="muted">Service</label><br>
+        <select class="field-input" name="service_code">
+          <option value="">— pick from the catalogue —</option>
+          {% for category, svcs in catalogue %}
+          <optgroup label="{{ category }}">
+            {% for s in svcs %}
+            <option value="{{ s.code }}">{{ s.name }} · {{ '{:,.2f}'.format(s.standard_rate) }}{% if s.unit == 'per_form' %} each{% elif s.unit == 'per_hour' %} / hour{% endif %}</option>
+            {% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        <label class="muted">How many</label>
+        <span class="hint"> — three rentals is three Schedule Es; a fixed-price service is always 1</span><br>
+        <input class="field-input" type="text" name="quantity" value="1" style="width:120px">
+      </p>
+      <p>
+        <label class="muted">What it was worth</label>
+        <span class="hint"> — leave blank for the catalogue rate. This changes the VALUE, never the discount</span><br>
+        <input class="field-input" type="text" name="rate_override" placeholder="catalogue rate" style="width:160px">
+      </p>
+      <p>
+        <label class="muted">Note on the line</label> <span class="hint"> — optional</span><br>
+        <input class="field-input" type="text" name="note" placeholder="e.g. Two businesses merged into one">
+      </p>
+      <button class="btn primary" type="submit">Add to the invoice</button>
+    </form>
+
+    {% if invoice and invoice.lines %}
+    <table style="margin-top:16px">
+      <tr><th>What</th><th class="right">Full value</th><th class="right"></th></tr>
+      {% for line in invoice.lines %}
+      <tr>
+        <td>{{ line.describe() }}
+          {% if line.note %}<div class="muted">{{ line.note }}</div>{% endif %}
+          <div class="muted mono">{{ line.service_code }}</div>
+        </td>
+        <td class="right mono">{{ '{:,.2f}'.format(line.standard_amount) }}</td>
+        <td class="right">
+          <form class="inline" method="post" action="{{ url_for('billing.new_invoice') }}">
+            <input type="hidden" name="action" value="drop">
+            <input type="hidden" name="line_no" value="{{ loop.index0 }}">
+            <button class="btn sm" type="submit">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <p class="note">Nothing on this invoice yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if invoice and invoice.lines %}
+<div class="panel">
+  <h2>3 · What the client will see</h2>
+  <div class="body">
+    <div class="well">
+      <div class="kv">
+        <div><b>Full value of work</b> <span class="mono right">{{ '{:,.2f}'.format(invoice.standard_total) }}</span></div>
+        {% if invoice.shows_a_discount %}
+        <div><b>{{ invoice.rate_plan.client_label or invoice.rate_plan.name }}
+          {{ '{:g}'.format(invoice.rate_plan.discount_pct) }}%</b>
+          <span class="mono right">-{{ '{:,.2f}'.format(invoice.discount_total) }}</span></div>
+        {% endif %}
+        <div><b>{{ 'Total — no charge' if invoice.rate_plan.is_free else 'Total due' }}</b>
+          <span class="mono right"><strong>{{ '{:,.2f}'.format(invoice.total) }}</strong></span></div>
+      </div>
+    </div>
+
+    <textarea class="codebox" rows="14" readonly>{{ invoice.summary_block() }}</textarea>
+    <p class="muted">{{ invoice.client_sentence() }}</p>
+
+    <form method="post" action="{{ url_for('billing.issue', invoice_id=invoice.invoice_id) }}">
+      <p>
+        <label class="muted">Issue date</label><br>
+        <input class="field-input" type="date" name="issued_on" value="{{ today.isoformat() }}" style="width:180px">
+      </p>
+      <p>
+        <label class="muted">Payable within</label><br>
+        <input class="field-input" type="number" name="due_in_days" value="30" style="width:120px"> <span class="muted">days</span>
+      </p>
+      <button class="btn primary" type="submit">Issue invoice {{ invoice.invoice_id }}</button>
+      <span class="hint">numbered when issued, in the issue date's year</span>
+      <button class="btn" type="submit" formaction="{{ url_for('billing.new_invoice') }}" name="action" value="discard">Discard draft</button>
+    </form>
+    <p class="note">
+      Issuing fixes this invoice and writes it down — after that it cannot be edited, only
+      credited or replaced. It still doesn't send anything: the covering email is a separate,
+      deliberate act on the Client comms screen.
+    </p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

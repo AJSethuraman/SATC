@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 
 from flask import Flask, Response, redirect, render_template, request, send_file, url_for
 
+from satc.app.billing_views import bp as billing_bp
 from satc.app.comms_views import bp as comms_bp
 from satc.app.intake_views import bp as intake_bp
 from satc.app.state import STATE
@@ -61,6 +62,7 @@ def create_app() -> Flask:
     app.register_blueprint(withholding_bp)
     app.register_blueprint(comms_bp)
     app.register_blueprint(today_bp)
+    app.register_blueprint(billing_bp)
 
     @app.before_request
     def _local_only_guard():

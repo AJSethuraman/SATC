@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS estimate_payments (
 CREATE TABLE IF NOT EXISTS engagements (
   client_id TEXT, tax_year INTEGER, engagement_letter_status TEXT, fee_amount TEXT,
   invoiced INTEGER, paid INTEGER, preparer_id TEXT, note TEXT,
+  rate_plan_key TEXT, rate_plan_basis TEXT,
   PRIMARY KEY (client_id, tax_year));
 CREATE TABLE IF NOT EXISTS requested_items (
   request_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, doc_type TEXT,
@@ -304,6 +305,15 @@ class SATCStore:
                 self.mart.execute(f"ALTER TABLE line_items ADD COLUMN {column} TEXT")
         self.mart.commit()
 
+        # The rate plan moved onto the engagement (the contract) from the
+        # invoice. Positional INSERT means an older, narrower table would take
+        # the plan key into a column that does not exist and fail the whole save.
+        eng_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(engagements)")}
+        for column in ("rate_plan_key", "rate_plan_basis"):
+            if column not in eng_cols:
+                self.mart.execute(f"ALTER TABLE engagements ADD COLUMN {column} TEXT")
+        self.mart.commit()
+
     def _encrypt_vault_at_rest(self) -> None:
         """Encrypt any legacy plaintext PII left by a pre-encryption build, then
         VACUUM so the old plaintext pages are reclaimed from the file (otherwise a
@@ -440,9 +450,10 @@ class SATCStore:
                       (p.payment_id, p.client_id, p.tax_year, p.jurisdiction, p.period,
                        _d(p.amount), _dt(p.paid_date)))
         for e in mart.engagements:
-            m.execute("INSERT OR REPLACE INTO engagements VALUES (?,?,?,?,?,?,?,?)",
+            m.execute("INSERT OR REPLACE INTO engagements VALUES (?,?,?,?,?,?,?,?,?,?)",
                       (e.client_id, e.tax_year, e.engagement_letter_status, _d(e.fee_amount),
-                       int(e.invoiced), int(e.paid), e.preparer_id, e.note))
+                       int(e.invoiced), int(e.paid), e.preparer_id, e.note,
+                       e.rate_plan_key, e.rate_plan_basis))
         self.save_requested_items(mart.requested_items)
         self.save_received_documents(mart.received_documents)
         m.commit()
@@ -755,7 +766,14 @@ class SATCStore:
             client_id=r["client_id"], tax_year=r["tax_year"],
             engagement_letter_status=r["engagement_letter_status"], fee_amount=_pd(r["fee_amount"]),
             invoiced=bool(r["invoiced"]), paid=bool(r["paid"]), preparer_id=r["preparer_id"],
-            note=r["note"]) for r in m.execute("SELECT * FROM engagements")]
+            note=r["note"],
+            # A row written before the rate plan lived on the contract has NULL
+            # here. It reads back BLANK rather than "standard": nobody agreed a
+            # plan on it, and rate_plan_for reports a blank key as a fallback,
+            # not as a decision.
+            rate_plan_key=_col(r, "rate_plan_key") or "",
+            rate_plan_basis=_col(r, "rate_plan_basis") or "")
+            for r in m.execute("SELECT * FROM engagements")]
         mart.requested_items = self.load_requested_items()
         mart.received_documents = self.load_received_documents()
         return mart

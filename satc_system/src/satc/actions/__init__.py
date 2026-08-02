@@ -31,7 +31,10 @@ from satc.actions.propose import (
     deadline_pressure,
     extension_candidate,
     invite_to_interview,
+    invoice_overdue,
+    invoice_unissued,
     sort_key,
+    unbilled_work,
 )
 
 __all__ = [
@@ -46,7 +49,7 @@ __all__ = [
 
 
 def build_queue(*, clients, requested=(), received=(), obligations=(),
-                engaged_clients=(), tax_year: int,
+                engaged_clients=(), jobs=(), invoices=(), tax_year: int,
                 today: date | None = None) -> ActionQueue:
     """Run every proposer over the practice and return the ordered queue.
 
@@ -88,6 +91,19 @@ def build_queue(*, clients, requested=(), received=(), obligations=(),
             out.append(invite)
 
         out.extend(deadline_pressure(obligations, client_id=client_id, today=today))
+
+        # Money. Every proposer above chases paper; none of them ever noticed
+        # that the paper went out and was never charged for.
+        out.extend(invoice_overdue(invoices, client_id=client_id, today=today))
+        out.extend(invoice_unissued(invoices, client_id=client_id, today=today))
+
+        # unbilled_work stands down whenever a bill already exists for the year,
+        # so a client with an overdue invoice never also gets told the year is
+        # unbilled — one problem, one row (principle 13).
+        unbilled = unbilled_work(jobs, invoices, client_id=client_id,
+                                 tax_year=tax_year)
+        if unbilled is not None:
+            out.append(unbilled)
 
     out.sort(key=sort_key)
     return ActionQueue(actions=out, generated_for=today)

@@ -23,6 +23,7 @@ whether the job can advance.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any, Literal
@@ -239,9 +240,11 @@ class Job:
 class Engagement:
     """The CONTRACT with a client for a period. PK = (client_id, tax_year).
 
-    Was ``EngagementRecord``. Deliberately unchanged in shape: it has exactly
-    one producer (the fixtures) and two readers, so widening it now would add
-    columns nothing writes. Renamed only, so that "engagement" means one thing.
+    Was ``EngagementRecord``. It stayed deliberately narrow while it had one
+    producer and two readers — but the rate plan changed that. What a client
+    pays is a term of the contract: agreed once, with a reason, and then
+    honoured. Deciding it per-invoice meant the owner re-decided it every time
+    and nothing on file ever said "this household is on the household rate".
     """
 
     client_id: str
@@ -252,3 +255,104 @@ class Engagement:
     paid: bool = False
     preparer_id: str = ""
     note: str = ""
+
+    rate_plan_key: str = "standard"
+    """Which rate plan was agreed for this year — a key into the plan catalogue.
+
+    Not a discount percentage. A percentage stored here would drift from the
+    catalogue the first time the practice moved the household rate, and there
+    would be no way to tell a stale number from a deliberate one.
+    """
+
+    rate_plan_basis: str = ""
+    """WHY that plan was agreed, in the owner's words.
+
+    A sliding scale with no recorded reason is not a sliding scale, it is
+    improvisation — and improvisation is what looks like discrimination when
+    two clients compare notes. Empty is a legitimate state here (history must
+    always load); the refusal lives at invoice-issue time, where a reduced plan
+    with no basis cannot be issued.
+    """
+
+
+RatePlanSource = Literal["engagement", "practice_default"]
+"""Where a client's plan for a year came from — an agreement, or the absence of one."""
+
+
+@dataclass(frozen=True, slots=True)
+class RatePlanOnFile:
+    """What a client pays for a year, and how we know it.
+
+    :attr:`source` is the whole point of this type. A client on ``standard``
+    because the owner sat down and agreed standard is a DIFFERENT FACT from a
+    client on ``standard`` because nobody ever decided. As a bare string both
+    read ``"standard"`` — and the second one is the one worth a conversation.
+    An unanswered question is not an answer.
+    """
+
+    client_id: str
+    tax_year: int
+    plan_key: str
+    basis: str
+    source: RatePlanSource
+    requires_basis: bool = False
+    """Whether the catalogue demands a reason for this plan — reduced plans do."""
+
+    @property
+    def is_agreed(self) -> bool:
+        """Somebody decided this. There is a contract term behind the number."""
+        return self.source == "engagement"
+
+    @property
+    def is_fallback(self) -> bool:
+        """Nothing is on file; this is what applies until someone decides."""
+        return not self.is_agreed
+
+    @property
+    def basis_missing(self) -> bool:
+        """An agreed reduced plan carrying no reason — visible, not fatal.
+
+        Reported rather than raised on purpose: history must always load, and
+        an invoice cannot be ISSUED on a reduced plan with no basis anyway. The
+        refusal belongs where the money moves, not where the record is read.
+        """
+        return self.is_agreed and self.requires_basis and not self.basis.strip()
+
+    def why(self) -> str:
+        """One line the owner can read without opening anything else."""
+        if self.is_fallback:
+            return (f"No rate plan agreed for {self.tax_year} — the practice default "
+                    f"{self.plan_key!r} applies until one is recorded.")
+        if self.basis_missing:
+            return (f"{self.plan_key!r} agreed on the {self.tax_year} engagement, but "
+                    f"no basis is recorded. Record why before invoicing.")
+        if self.basis:
+            return f"{self.plan_key!r} agreed on the {self.tax_year} engagement: {self.basis}"
+        return f"{self.plan_key!r} agreed on the {self.tax_year} engagement."
+
+
+def rate_plan_for(engagements: Iterable[Engagement], *, client_id: str,
+                  tax_year: int) -> RatePlanOnFile:
+    """What plan this client is on for this year, and why.
+
+    Answers for every client, including one with no engagement on file — but it
+    answers DIFFERENTLY, and says which it is doing. Silently returning the
+    default plan for a client nobody has ever priced is exactly the confident
+    wrong answer this system is built not to give.
+
+    A blank plan key on an existing engagement is treated the same way: the slot
+    is empty, so nothing was agreed, so the default applies AS A FALLBACK.
+    """
+    # Local import: the catalogue reads YAML, and a data shape should not drag
+    # the billing config in at import time just to be defined.
+    from satc.billing.catalogue import default_plan_key, plan
+
+    found = next((e for e in engagements
+                  if e.client_id == client_id and e.tax_year == tax_year), None)
+    agreed = (found.rate_plan_key or "").strip() if found else ""
+    key = agreed or default_plan_key()
+    return RatePlanOnFile(
+        client_id=client_id, tax_year=tax_year, plan_key=key,
+        basis=((found.rate_plan_basis or "").strip() if found else ""),
+        source="engagement" if agreed else "practice_default",
+        requires_basis=plan(key).requires_basis)
