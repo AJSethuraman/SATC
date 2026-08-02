@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="hero">
+  <h2>Payments</h2>
+  <div class="muted">
+    Money that arrived, and which invoice it was for. SATC <strong>records</strong> payments;
+    it never collects them — nothing on this page charges a card, sends a request or moves a
+    balance. An invoice is "paid" because the ledger below says so, never because someone
+    ticked a box.
+  </div>
+</div>
+
+{% if error %}<p class="flag">{{ error }}</p>{% endif %}
+{% if note %}<p class="note">{{ note }}</p>{% endif %}
+
+{# --- the tray: money that has not found an invoice ------------------------
+   Rungs 1 and 2 of the ladder resolve on their own and say why. Rung 3 hands
+   back a shortlist and decides nothing, so the page offers exactly that
+   shortlist and nothing else. #}
+<div class="panel">
+  <h2>Waiting on an invoice — {{ tray | length }}</h2>
+  <div class="body">
+    {% if not tray %}
+    <p class="muted">Every payment on the ledger is attributed. Nothing is waiting.</p>
+    {% endif %}
+    {% for row in tray %}
+    <div class="well">
+      <div class="kv">
+        <div><b>Received</b> {{ row.payment.received_on.strftime('%B %d, %Y') }}</div>
+        <div><b>Amount</b> <span class="mono"><strong>{{ '{:,.2f}'.format(row.payment.amount) }}</strong></span></div>
+        <div><b>Client</b> {{ row.name }} <span class="mono muted">{{ row.payment.client_id }}</span></div>
+        <div><b>How</b> {{ method_label[row.payment.method] }}</div>
+        <div><b>Reference</b> <span class="mono">{{ row.payment.reference or '—' }}</span></div>
+        {% if row.payment.note %}<div><b>Note</b> {{ row.payment.note }}</div>{% endif %}
+      </div>
+
+      {# The engine's own sentence, verbatim. It is written for the owner and
+         the page has no business paraphrasing it. #}
+      <p class="{{ 'muted' if row.match.is_resolved else 'hint' }}">{{ row.match.why }}</p>
+
+      {% if row.match.is_resolved %}
+      <form method="post"
+            action="{{ url_for('billing.match_payment', payment_id=row.payment.payment_id) }}">
+        <button class="btn primary" type="submit">
+          Attribute to {{ row.match.invoice_id }}</button>
+        <span class="hint">
+          {{ how_matched[row.match.basis] }} — nobody has to decide this one</span>
+      </form>
+
+      {% elif row.match.needs_a_decision %}
+      <form method="post"
+            action="{{ url_for('billing.match_payment', payment_id=row.payment.payment_id) }}">
+        <p class="muted" style="margin-bottom:4px">
+          Pick the invoice this was against. These are the only open invoices it could be —
+          anything else is refused.
+        </p>
+        {% for invoice in row.candidates %}
+        <div style="padding:3px 0">
+          <label>
+            <input type="radio" name="invoice_id" value="{{ invoice.invoice_id }}"
+                   {{ 'checked' if loop.first }}>
+            <span class="mono">{{ invoice.invoice_id }}</span>
+            — {{ '{:,.2f}'.format(invoice.total) }} for tax year {{ invoice.tax_year }},
+            issued {{ invoice.issued_on.strftime('%Y-%m-%d') if invoice.issued_on else '—' }}
+          </label>
+        </div>
+        {% endfor %}
+        <button class="btn primary" type="submit" style="margin-top:8px">
+          Attribute to the invoice I picked</button>
+        <span class="hint">recorded as your decision, not as a match</span>
+      </form>
+
+      {% else %}
+      <p class="muted">
+        Nothing to choose between yet. Issue the invoice this was for, and it will appear here
+        as a candidate.
+      </p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{# --- the ledger ----------------------------------------------------------- #}
+<div class="panel">
+  <h2>Attributed — {{ matched | length }}</h2>
+  <div class="body">
+    {% if not matched %}
+    <p class="muted">No payment has been attributed to an invoice yet.</p>
+    {% else %}
+    <table>
+      <tr><th>Received</th><th class="right">Amount</th><th>Client</th><th>Invoice</th>
+        <th>How</th><th>Reference</th><th>How we know it's that invoice</th></tr>
+      {% for row in matched %}
+      <tr>
+        <td>{{ row.payment.received_on.strftime('%Y-%m-%d') }}</td>
+        <td class="right mono">{{ '{:,.2f}'.format(row.payment.amount) }}</td>
+        <td>{{ row.name }} <span class="mono muted">{{ row.payment.client_id }}</span></td>
+        <td><a class="mono"
+               href="{{ url_for('billing.view', invoice_id=row.payment.invoice_id) }}">{{ row.payment.invoice_id }}</a></td>
+        <td>{{ method_label[row.payment.method] }}</td>
+        <td class="mono muted">{{ row.payment.reference or '—' }}</td>
+        {# A payment the reference NAMED and one a model picked are not the same
+           fact, so they must not read the same. Automatic bases are stated
+           quietly; a chosen one is called out. #}
+        <td class="{{ 'muted' if row.payment.basis.is_automatic else 'hint' }}">
+          {{ how_matched[row.payment.basis] }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+{# --- money that did not come in through an invoice screen ------------------ #}
+<div class="panel">
+  <h2>Record a payment</h2>
+  <div class="body">
+    <form method="post" action="{{ url_for('billing.record_payment') }}">
+      <p>
+        <label class="muted">Client</label><br>
+        <select class="field-input" name="client_id">
+          <option value="">— choose a client —</option>
+          {% for cid, name in clients %}
+          <option value="{{ cid }}">{{ name }}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        <label class="muted">How much arrived</label><br>
+        <input class="field-input" type="text" name="amount" style="width:160px"
+               placeholder="e.g. 450.00">
+      </p>
+      <p>
+        <label class="muted">The day it arrived</label><br>
+        <input class="field-input" type="date" name="received_on"
+               value="{{ today.isoformat() }}" style="width:180px">
+      </p>
+      <p>
+        <label class="muted">How it arrived</label><br>
+        <select class="field-input" name="method" style="width:180px">
+          {% for m in methods %}
+          <option value="{{ m.value }}">{{ method_label[m] }}</option>
+          {% endfor %}
+        </select>
+      </p>
+      <p>
+        <label class="muted">Reference</label>
+        <span class="hint"> — whatever the rail gave you. If it names an invoice number,
+          reconciliation reads it and nobody has to decide anything</span><br>
+        <input class="field-input" type="text" name="reference"
+               placeholder="e.g. check 1042, or 2026-0007">
+      </p>
+      <p>
+        <label class="muted">Note</label>
+        <span class="hint"> — optional, for you</span><br>
+        <input class="field-input" type="text" name="note">
+      </p>
+      <button class="btn primary" type="submit">Record it</button>
+      <a class="btn" href="{{ url_for('billing.invoices') }}">← All invoices</a>
+    </form>
+    <p class="note">
+      Recorded unattributed on purpose. It goes into the tray above, where reconciliation says
+      out loud which invoice it thinks this is and why — rather than this form quietly picking
+      one for you.
+    </p>
+  </div>
+</div>
+{% endblock %}

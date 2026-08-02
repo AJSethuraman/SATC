@@ -88,6 +88,12 @@ def today():
         # failure here that costs the practice directly and that no other screen
         # ever mentions, so it belongs on the front door with everything else.
         jobs=jobs, invoices=STATE.store.load_invoices(),
+        # The LEDGER, and it is not optional. Money arriving is a fact; "paid"
+        # is a conclusion computed from it (principle 11b). Drop this argument
+        # and the screen falls back to each invoice's paid_on flag: it chases
+        # an invoice settled without anyone ticking the box, and asks a client
+        # who has already part-paid for the whole total again.
+        payments=STATE.store.load_payments(),
         tax_year=year, today=as_of)
 
     hidden = _dismissed()

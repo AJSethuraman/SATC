@@ -30,15 +30,31 @@
         <label class="muted">Tax year</label><br>
         <input class="field-input" type="number" name="tax_year" value="{{ tax_year }}">
       </p>
+      {# The picker starts on what the ENGAGEMENT agreed, not on the practice
+         default. ``plan_shown`` records what it was drawn with, so the view can
+         tell "the owner chose this" from "the owner left it alone" when the
+         client changes underneath it. #}
+      {% set prefill = draft.plan_key or on_file.plan_key %}
       <p>
         <label class="muted">Rate plan</label><br>
+        <input type="hidden" name="plan_shown" value="{{ prefill }}">
         <select class="field-input" name="plan_key">
           {% for p in plans.values() %}
-          <option value="{{ p.key }}" {{ 'selected' if p.key == (draft.plan_key or 'standard') }}>
+          <option value="{{ p.key }}" {{ 'selected' if p.key == prefill }}>
             {{ p.name }}{% if p.discount_pct %} — {{ '{:g}'.format(p.discount_pct) }}% off{% endif %}
           </option>
           {% endfor %}
         </select>
+        {% if draft.client_id %}
+        {% if on_file.is_fallback %}
+        <div class="flag" style="margin-top:6px">Nobody has priced this client yet —
+          {{ on_file.why() }}</div>
+        {% elif on_file.basis_missing or on_file.plan_missing %}
+        <div class="flag" style="margin-top:6px">{{ on_file.why() }}</div>
+        {% else %}
+        <div class="muted" style="margin-top:6px">{{ on_file.why() }}</div>
+        {% endif %}
+        {% endif %}
       </p>
       <p>
         <label class="muted">Why this client is on that plan</label>
@@ -98,7 +114,10 @@
 
     {% if invoice and invoice.lines %}
     <table style="margin-top:16px">
-      <tr><th>What</th><th class="right">Full value</th><th class="right"></th></tr>
+      {# The line's own value — the catalogue rate, or what this line was
+         recorded as being worth. Not "full value": after an override the two
+         are different numbers. #}
+      <tr><th>What</th><th class="right">What it was worth</th><th class="right"></th></tr>
       {% for line in invoice.lines %}
       <tr>
         <td>{{ line.describe() }}
@@ -145,7 +164,9 @@
     <p class="muted">Recorded against the lines, and shown on the client's copy:</p>
     <ul class="muted">
       {% for line in adjusted %}
-      <li>{{ line.describe() }} — {{ line.note }}</li>
+      {# ``describe()`` already folds the note in on an adjusted line, so the
+         label is used here — otherwise the reason reads twice. #}
+      <li>{{ line.label }} — {{ line.note }}</li>
       {% endfor %}
     </ul>
     {% endif %}

@@ -70,12 +70,25 @@ class MatchBasis(str, Enum):
 
 
 def payment_id(*, client_id: str, amount: Decimal, received_on: date,
-               method: Method | str, reference: str) -> str:
+               method: Method | str, reference: str, sequence: int = 0) -> str:
     """An id derived from what the payment IS, never from when we imported it.
 
     This is the whole defence against double-counting. Re-import the same bank
     export, replay the same webhook, paste the same deposit twice — it lands on
     the same id and merges instead of becoming a second payment. Principle 8.
+
+    WHAT IS DELIBERATELY NOT IN HERE: the invoice. Attributing a payment must
+    not change its identity, or reconciling it would file a second copy of the
+    same money.
+
+    WHAT ``sequence`` IS FOR: two genuinely separate payments can be identical
+    in every recorded respect — the same client hands over two $450 cheques on
+    the same morning with no reference on either. Nothing in the payment itself
+    can tell those apart, so the practice has to say. ``sequence`` is that
+    statement, and it is the owner's to make: the ledger surfaces "this is
+    already recorded" and only counts a second one when somebody confirms it
+    really is a second one. Money is never silently merged away, and never
+    silently doubled — the choice is put to a human. Principle 9.
     """
     raw = "|".join([
         client_id.strip().lower(),
@@ -83,6 +96,7 @@ def payment_id(*, client_id: str, amount: Decimal, received_on: date,
         received_on.isoformat(),
         str(getattr(method, "value", method)),
         " ".join(reference.split()).lower(),
+        str(int(sequence)),
     ])
     return "pay_" + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
@@ -102,23 +116,52 @@ class Payment:
     invoice_id: str = ""
     basis: MatchBasis = MatchBasis.UNMATCHED
     note: str = ""
+    sequence: int = 0
+    """Which one of several otherwise-identical payments this is.
+
+    Zero for the ordinary case. Raised only when a human has confirmed that a
+    payment identical to one already on the ledger is genuinely a second one —
+    see :func:`payment_id`."""
 
     @property
     def payment_id(self) -> str:
         return payment_id(client_id=self.client_id, amount=self.amount,
                           received_on=self.received_on, method=self.method,
-                          reference=self.reference)
+                          reference=self.reference, sequence=self.sequence)
 
     @property
     def is_matched(self) -> bool:
         return bool(self.invoice_id) and self.basis is not MatchBasis.UNMATCHED
 
+    def _replace(self, **changes) -> "Payment":
+        fields = dict(client_id=self.client_id, amount=self.amount,
+                      received_on=self.received_on, method=self.method,
+                      reference=self.reference, invoice_id=self.invoice_id,
+                      basis=self.basis, note=self.note, sequence=self.sequence)
+        fields.update(changes)
+        return Payment(**fields)
+
     def against(self, invoice_id: str, basis: MatchBasis) -> "Payment":
-        """The same payment, now attributed. Frozen, so this returns a new one."""
-        return Payment(client_id=self.client_id, amount=self.amount,
-                       received_on=self.received_on, method=self.method,
-                       reference=self.reference, invoice_id=invoice_id,
-                       basis=basis, note=self.note)
+        """The same payment, now attributed. Frozen, so this returns a new one.
+
+        The id does NOT change — attributing money is not receiving it again.
+        """
+        return self._replace(invoice_id=invoice_id, basis=basis)
+
+    def as_another_one(self, existing) -> "Payment":
+        """This payment again, recorded as a genuinely separate arrival.
+
+        For the case a content hash cannot resolve on its own: two identical
+        cheques, the same morning, no reference. The caller has been shown the
+        payment already on file and has said this is a different one, so we take
+        the next free sequence rather than overwriting money that is already
+        recorded.
+        """
+        taken = {p.payment_id for p in existing}
+        candidate = self
+        while candidate.payment_id in taken:
+            candidate = candidate._replace(sequence=candidate.sequence + 1)
+        return candidate
 
 
 # --- what an invoice is actually owed --------------------------------------

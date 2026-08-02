@@ -30,6 +30,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field, replace
 from datetime import date
+from decimal import Decimal
 from typing import Literal
 
 from satc.models.actor import INTAKE, Actor
@@ -346,6 +347,10 @@ def _amount(invoice) -> str:
     return f"${invoice.total:,.2f}"
 
 
+def _dollars(amount: Decimal) -> str:
+    return f"${amount:,.2f}"
+
+
 def _billable_jobs(jobs, *, client_id: str) -> list:
     return [j for j in jobs
             if j.client_id == client_id and j.stage in _BILLABLE_STAGES]
@@ -358,9 +363,42 @@ def _bills_raised(invoices, *, client_id: str, tax_year: int) -> list:
             and (inv.is_issued or inv.lines)]
 
 
-def unbilled_work(jobs, invoices=(), *, client_id: str,
+def balance_owed(invoice, payments=()) -> Decimal:
+    """What is still owed on one invoice — from the LEDGER, not from a flag.
+
+    Money arriving is a FACT; "paid" is a CONCLUSION computed from the payment
+    ledger (principle 11b). So wherever the ledger has anything to say about an
+    invoice, it decides: a fully settled invoice whose ``paid_on`` was never
+    written is not chased, and a part-paid invoice is owed its BALANCE rather
+    than its total. Chasing a client for money they already sent is the kind of
+    confident wrong answer that costs the practice the client.
+
+    ``paid_on`` is not ignored, because it is the only record the practice has
+    of money that arrived before the ledger existed. It is the FALLBACK,
+    consulted only when no payment on file names this invoice at all — never a
+    veto over a ledger entry that contradicts it.
+    """
+    from satc.billing.payment import outstanding
+
+    mine = [p for p in payments if p.invoice_id == invoice.invoice_id]
+    if mine:
+        return outstanding(invoice, mine)
+    return Decimal("0.00") if invoice.is_paid else invoice.total
+
+
+def _year_is_settled(raised, payments) -> bool:
+    """Every bill raised for this client-year is out and paid in full.
+
+    "Paid" is read off the ledger (:func:`balance_owed`), not off the flag —
+    principle 11b. A year in this state produces no other money row anywhere on
+    the screen, which is precisely why it is the dangerous one.
+    """
+    return all(inv.is_issued and balance_owed(inv, payments) == 0 for inv in raised)
+
+
+def unbilled_work(jobs, invoices=(), payments=(), *, client_id: str,
                   tax_year: int) -> ProposedAction | None:
-    """Work that reached the client with more of it delivered than billed.
+    """Work that reached the client that no bill on file accounts for.
 
     Not a late payment — money the practice never asked for. A return that was
     delivered and never invoiced is the one failure here that nothing else
@@ -369,17 +407,31 @@ def unbilled_work(jobs, invoices=(), *, client_id: str,
     One row per client-year, never one per job. A client with three delivered
     jobs and no invoice has one problem, not three.
 
-    THE STAND-DOWN COMPARES SIZE, NOT EXISTENCE. Invoicing here is piecemeal by
-    design (see billing/invoice.py) — an engagement produces several bills as
-    work happens, so ONE SMALL INVOICE IS THE NORMAL CASE, not the billed case.
-    Treating any invoice as covering everything is how three completed jobs and
-    one $450 bill for the 1040 leave the rental and the payroll fee unmentioned
-    by anything, ever again.
+    WHAT THE PRACTICE ACTUALLY KNOWS ABOUT COVERAGE. Nothing on file ties an
+    invoice line to a job — no line carries a ``job_id`` and no job carries an
+    invoice number (principle 2: that fact was never recorded, so it cannot be
+    read). Counting lines against jobs was a proxy for that missing fact, and it
+    was wrong in BOTH directions: one line for a package of work that produced
+    two jobs invented a shortfall the practice does not have, and a line for a
+    consultation "covered" a delivered return it had nothing to do with. A
+    proxy that can invent either answer is not evidence.
 
-    Nothing here claims to know WHICH job a line paid for — no such fact is
-    recorded (principle 2). What it does know is a lower bound: N invoice lines
-    cannot cover more than N jobs. It stands down only where coverage is
-    possible, and speaks up where coverage is arithmetically impossible.
+    So this answers only what it can stand behind:
+
+    * **No bill raised for the year at all.** Zero lines cannot cover anything.
+      This is arithmetic, not judgment, and it is the whole reason the proposer
+      exists. It says so, loudly.
+    * **Bills exist and the year is not yet settled.** Whatever is unbilled is
+      indistinguishable, from here, from what is merely unpaid — and the bill
+      itself already has a row from :func:`invoice_unissued` or
+      :func:`invoice_overdue`. Silence here, because a second row about the
+      same year is how the owner learns to scroll past the queue (principle 13).
+    * **Bills exist and the year is settled in full.** Now nothing else on the
+      screen mentions this year at all, and the practice STILL cannot say
+      whether every delivered job was billed. Silence would be the confident
+      wrong answer (principle 5), so it says the thing it actually knows: that
+      it cannot tell, and why. Quietly — this is a look before closing the
+      year, not an alarm.
     """
     delivered = [j for j in _billable_jobs(jobs, client_id=client_id)
                  if _job_year(j) == tax_year]
@@ -387,38 +439,40 @@ def unbilled_work(jobs, invoices=(), *, client_id: str,
         return None
 
     raised = _bills_raised(invoices, client_id=client_id, tax_year=tax_year)
-    covered = sum(len(inv.lines) for inv in raised)
-    short = len(delivered) - covered
-    if short <= 0:
-        # Every delivered job could be on one of these lines, and each bill has
-        # its own row from the two proposers below. Two rows both saying "this
-        # year is not paid for" is how a queue becomes noise (principle 13).
-        return None
-
     closed = [j for j in delivered if j.stage == "complete"]
     labels = sorted({_job_label(j) for j in delivered})
-    state = 'complete' if closed else 'delivered'
+    state = "complete" if closed else "delivered"
+    work = (f"{', '.join(labels)} for {tax_year} "
+            f"{'is' if len(delivered) == 1 else 'are'} {state}")
+
     if not raised:
-        why = (f"{', '.join(labels)} for {tax_year} "
-               f"{'is' if len(delivered) == 1 else 'are'} {state} and there is no "
-               f"invoice at all — the work has gone to the client unbilled.")
-    else:
-        why = (f"{', '.join(labels)} for {tax_year} "
-               f"{'is' if len(delivered) == 1 else 'are'} {state}. The "
-               f"{_plural(len(raised), 'invoice', 'invoices')} for {tax_year} "
-               f"{'carries' if len(raised) == 1 else 'carry'} "
-               f"{_plural(covered, 'line', 'lines')}, which cannot cover "
-               f"{_plural(len(delivered), 'job', 'jobs')} — at least "
-               f"{_plural(short, 'job has', 'jobs have')} never been billed.")
+        return ProposedAction(
+            action_id=action_id("unbilled_work", client_id, str(tax_year)),
+            kind="unbilled_work", client_id=client_id,
+            title=f"Bill the {tax_year} work",
+            why=(f"{work} and there is no invoice at all — the work has gone to "
+                 f"the client unbilled."),
+            # A file closed without ever being billed is money already lost; a
+            # delivery that just happened is simply the next thing to do.
+            urgency="urgent" if closed else "soon",
+            evidence=tuple(j.job_id for j in delivered))
+
+    if not _year_is_settled(raised, payments):
+        return None
+
     return ProposedAction(
-        action_id=action_id("unbilled_work", client_id, str(tax_year)),
+        # A DIFFERENT assertion about the same year, so a different id. Standing
+        # down "I cannot confirm this was all billed" must not also silence
+        # "this was never billed at all" if a later delivery makes that true.
+        action_id=action_id("unbilled_work", client_id, f"{tax_year}-coverage"),
         kind="unbilled_work", client_id=client_id,
-        title=(f"Bill the {tax_year} work" if not raised
-               else f"Finish billing the {tax_year} work"),
-        why=why,
-        # A file closed without ever being billed is money already lost; a
-        # delivery that just happened is simply the next thing to do.
-        urgency="urgent" if closed else "soon",
+        title=f"Check the {tax_year} billing before you close the year",
+        why=(f"{work}, and the {_plural(len(raised), 'invoice', 'invoices')} for "
+             f"{tax_year} {'is' if len(raised) == 1 else 'are'} issued and paid in "
+             f"full. Nothing on file records which job any invoice line was for, "
+             f"so SATC cannot confirm every delivered job was billed — it can only "
+             f"tell you it does not know. Worth one look while the year is fresh."),
+        urgency="routine",
         evidence=tuple(j.job_id for j in delivered))
 
 
@@ -432,6 +486,15 @@ def undated_work(jobs, *, client_id: str) -> ProposedAction | None:
 
     Filed under its own id rather than folded into a year's row, because
     assigning it to a year is the one thing we have just said we cannot do.
+
+    NO BILL CAN STAND THIS ROW DOWN, and that is the trap. The check that would
+    clear it — compare this job against that year's invoices — needs the year,
+    and the year is the missing thing. So a job with an unreadable period that
+    HAS in fact been billed used to sit in "Coming up" forever, and a row that
+    can never go away is exactly the row that trains the owner to scroll past
+    the queue (principle 13). It stays, because dropping it silently is worse,
+    but it stays QUIET and it names the one act that resolves it (principle 10):
+    record the year on the job, and every ordinary check starts working again.
     """
     undated = [j for j in _billable_jobs(jobs, client_id=client_id)
                if _job_year(j) is None]
@@ -447,19 +510,30 @@ def undated_work(jobs, *, client_id: str) -> ProposedAction | None:
              f"{'has' if len(undated) == 1 else 'have'} left the building carrying no "
              f"tax year and a period of {', '.join(periods[:4])} — SATC cannot say which "
              f"year to check them against, so nothing else will ever ask whether they "
-             f"were billed. Check them by hand."),
-        urgency="soon",
+             f"were billed. Put a tax year on the job and this row goes away; until "
+             f"then it has to be checked by hand."),
+        # Deliberately the quietest setting there is. Nothing the practice can
+        # record about billing will clear it, so it must not sit in a band that
+        # implies a deadline it does not have.
+        urgency="routine",
         evidence=tuple(j.job_id for j in undated))
 
 
-def invoice_overdue(invoices, *, client_id: str, today: date,
+def invoice_overdue(invoices, payments=(), *, client_id: str, today: date,
                     chase_after_days: int = 14,
                     serious_after_days: int = 45) -> list[ProposedAction]:
-    """Issued, unpaid, and past its due date — one row per invoice.
+    """Issued, still owed, and past its due date — one row per invoice.
 
     Separate rows because separate invoices are separate facts: different
     numbers, different amounts, different dates, and the client will ask about
     one of them by number.
+
+    WHAT IS OWED COMES FROM THE LEDGER, never from ``paid_on`` (principle 11b,
+    and :func:`balance_owed`). Two things turn on that. A client who settled in
+    full without anyone ticking the flag is not chased for money they already
+    sent. And a client who paid part of it is chased for the BALANCE — the row
+    says $150 is owed on a $450 invoice, because asking for $450 when $300 has
+    arrived is the kind of letter that ends a relationship.
 
     The two thresholds are FIRM POLICY with nothing statutory behind them
     (principle 4). An invoice four days past due is usually sitting in somebody's
@@ -468,7 +542,10 @@ def invoice_overdue(invoices, *, client_id: str, today: date,
     """
     out: list[ProposedAction] = []
     for inv in invoices:
-        if inv.client_id != client_id or not inv.is_overdue(today):
+        if inv.client_id != client_id or not inv.is_issued or inv.due_on is None:
+            continue
+        owed = balance_owed(inv, payments)
+        if owed <= 0 or inv.due_on >= today:
             continue
         late = (today - inv.due_on).days
         if late >= serious_after_days:
@@ -477,13 +554,23 @@ def invoice_overdue(invoices, *, client_id: str, today: date,
             urgency = "urgent"
         else:
             urgency = "soon"
+        part_paid = owed < inv.total
+        if part_paid:
+            title = f"Invoice {inv.invoice_id} part-paid — {_dollars(owed)} still owed"
+            why = (f"Invoice {inv.invoice_id} for {_amount(inv)} ({inv.tax_year} work) "
+                   f"was due {inv.due_on:%b %d}. "
+                   f"{_dollars(inv.total - owed)} has been received against it and "
+                   f"{_dollars(owed)} is still owed, {_plural(late, 'day', 'days')} "
+                   f"past due.")
+        else:
+            title = f"Invoice {inv.invoice_id} unpaid — {_amount(inv)}"
+            why = (f"Invoice {inv.invoice_id} for {_amount(inv)} ({inv.tax_year} work) "
+                   f"was due {inv.due_on:%b %d} and is {_plural(late, 'day', 'days')} "
+                   f"unpaid.")
         out.append(ProposedAction(
             action_id=action_id("invoice_overdue", client_id, str(inv.invoice_id)),
             kind="invoice_overdue", client_id=client_id,
-            title=f"Invoice {inv.invoice_id} unpaid — {_amount(inv)}",
-            why=(f"Invoice {inv.invoice_id} for {_amount(inv)} ({inv.tax_year} work) "
-                 f"was due {inv.due_on:%b %d} and is {_plural(late, 'day', 'days')} "
-                 f"unpaid."),
+            title=title, why=why,
             urgency=urgency, due=inv.due_on, template_key="invoice_cover",
             # The draft has to be about THIS invoice. Handing the comms screen
             # only the client and the year lets it pick the newest bill, and a

@@ -25,6 +25,10 @@
   .sentence{margin:0 0 18px}
   .terms{font-size:11.5px;color:#5c6b78;border-top:1px solid #e3dccb;padding-top:12px}
   .paid{font-weight:700;color:#2f6b4f}
+  .owing{font-weight:700;color:#8a3a2f}
+  .reasons{margin:0 0 18px;font-size:12px}
+  .reasons ul{margin:4px 0 0;padding-left:18px}
+  .reasons li{margin-bottom:3px}
   @media print{
     body{background:#fff}
     .sheet{max-width:none;margin:0;padding:0;border:none;box-shadow:none}
@@ -57,10 +61,37 @@
 
   <pre class="block">{{ invoice.summary_block() }}</pre>
 
+  {# WHY a line reads the way it does, on the copy the client actually receives.
+     ``summary_block()`` carries the reason through ``InvoiceLine.describe()``,
+     but only while the line still knows it was priced away from the catalogue —
+     and ``rate_adjusted`` does not survive a trip through the store, so the
+     printed sheet was silently dropping it. A reduction the client cannot see
+     is the exact thing this invoice exists to prevent, so it is stated here in
+     its own right rather than left to a flag that may or may not have been
+     reloaded. #}
+  {% set explained = invoice.lines | selectattr('note') | list %}
+  {% if explained %}
+  <div class="reasons">
+    <div class="tagline">Why these lines read as they do</div>
+    <ul>
+      {% for line in explained %}
+      <li>{{ line.label }}{% if line.quantity != 1 %} (x{{ '{:g}'.format(line.quantity) }}){% endif %}
+        — {{ line.note }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
   <p class="sentence">{{ invoice.client_sentence() }}</p>
 
-  {% if invoice.is_paid %}
+  {% if over > 0 %}
+  <p class="paid">Received {{ '{:,.2f}'.format(paid) }} — {{ '{:,.2f}'.format(over) }} more than
+    was due. We'll be in touch about the difference.</p>
+  {% elif invoice.is_paid %}
   <p class="paid">Paid in full {{ invoice.paid_on.strftime('%B %d, %Y') }} — thank you.</p>
+  {% elif paid > 0 %}
+  <p class="owing">Received {{ '{:,.2f}'.format(paid) }} — thank you.
+    {{ '{:,.2f}'.format(owed) }} remains outstanding.</p>
   {% endif %}
 
   <div class="terms">

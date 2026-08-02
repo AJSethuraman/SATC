@@ -85,14 +85,61 @@ def _situation(client_id: str, values: dict) -> str:
     return "; ".join(bits)
 
 
-def _latest_invoice(client_id: str, tax_year: int | None):
-    """The newest ISSUED invoice for this client — what a covering email is about."""
+class WrongInvoice(Exception):
+    """The draft was asked for an invoice this client does not have.
+
+    Its own exception rather than a ``None`` return, because the two outcomes
+    must not be confused: "nobody named an invoice" falls back to the newest
+    one, and "somebody named an invoice that is not this client's" must not
+    fall back to anything at all.
+    """
+
+
+def _requested_invoice(client_id: str, invoice_id: str):
+    """The ONE invoice this draft is about, or a refusal.
+
+    The Today queue titles a row "Invoice 2026-9001 unpaid" and hands that
+    number over in the link. If this resolved anything else, the client would
+    read a covering note quoting a different number and a different amount than
+    the row asserted — principle 1, reaching a client.
+
+    So an id that is not on file, or belongs to somebody else, REFUSES
+    (principle 5). Falling back to the newest bill here is the confident wrong
+    answer: a covering email quoting the wrong bill is worse than no draft, and
+    unlike a missing draft nobody would ever notice it.
+    """
+    found = next((i for i in STATE.store.load_invoices()
+                  if str(i.invoice_id) == invoice_id), None)
+    if found is None:
+        raise WrongInvoice(
+            f"No invoice {invoice_id} is on file, so there is nothing to draft a "
+            f"covering note about. Open the invoice from the billing screen and "
+            f"check the number.")
+    if found.client_id != client_id:
+        raise WrongInvoice(
+            f"Invoice {invoice_id} does not belong to {STATE.name(client_id)}. "
+            f"Drafting from it would quote another client's bill, so nothing has "
+            f"been prefilled. Pick the right client, or the right invoice.")
+    return found
+
+
+def _latest_invoice(client_id: str, tax_year: int | None, invoice_id: str = ""):
+    """The invoice a covering email is about.
+
+    With an explicit ``invoice_id`` — which is what a Today row hands over —
+    that number is the fact the row already asserted, and nothing else will do;
+    see :func:`_requested_invoice`. With none, the newest ISSUED invoice for the
+    year, which is all a preparer arriving cold at ``/comms`` has said.
+    """
+    if invoice_id:
+        return _requested_invoice(client_id, invoice_id)
     issued = [i for i in STATE.store.load_invoices(client_id)
               if i.is_issued and (tax_year is None or i.tax_year == tax_year)]
     return max(issued, key=lambda i: (i.issued_on, i.invoice_id)) if issued else None
 
 
-def _context(client_id: str, tax_year: int | None) -> dict[str, str]:
+def _context(client_id: str, tax_year: int | None,
+             invoice_id: str = "") -> dict[str, str]:
     """Assemble the merge values for a client from everything on file."""
     lib = library()
     engagement = _newest_engagement(client_id)
@@ -106,7 +153,7 @@ def _context(client_id: str, tax_year: int | None) -> dict[str, str]:
         received=[d for d in STATE.received_documents() if d.client_id == client_id],
         engagement=engagement,
         fee_record=_fee_record(client_id, year),
-        invoice=_latest_invoice(client_id, year),
+        invoice=_latest_invoice(client_id, year, invoice_id),
         engagement_name=_workflow_name(engagement),
         standing_text=firm_policy().standing_text,
         tax_year=tax_year,
@@ -125,7 +172,8 @@ def _fills(form) -> dict[str, str]:
 
 
 def _render_screen(*, client_id: str, template_key: str, tax_year: int | None,
-                   fills: dict[str, str], notes: list[str] | None = None):
+                   fills: dict[str, str], invoice_id: str = "",
+                   notes: list[str] | None = None):
     lib = library()
     template = lib.template(template_key) if template_key in lib.keys() else None
 
@@ -133,8 +181,18 @@ def _render_screen(*, client_id: str, template_key: str, tax_year: int | None,
     values: dict[str, str] = {}
     preparer_fields: list = []
     model_drafted: list[str] = []
+    notes = list(notes or [])
     if template is not None and client_id:
-        values = _context(client_id, tax_year)
+        try:
+            values = _context(client_id, tax_year, invoice_id)
+        except WrongInvoice as refused:
+            # The whole screen stands down, template included, so there is
+            # nothing here to copy. Rendering a draft anyway would mean
+            # rendering it from some OTHER invoice — the exact failure being
+            # refused. The note says which invoice, and what to do instead.
+            template, values, notes = None, {}, notes + [str(refused)]
+
+    if template is not None and client_id:
         values.update(fills)
         draft = render(template, values, library=lib)
 
@@ -164,14 +222,14 @@ def _render_screen(*, client_id: str, template_key: str, tax_year: int | None,
         clients=STATE.client_choices(), client_id=client_id,
         client_email=STATE.client_email(client_id) if client_id else "",
         tax_year=tax_year or "", fills=fills,
-        preparer_fields=preparer_fields,
+        preparer_fields=preparer_fields, invoice_id=invoice_id,
         model_drafted=[lib.placeholder(n).label if lib.placeholder(n) else n
                        for n in model_drafted],
         prefilled=[(lib.placeholder(n).label if lib.placeholder(n) else n)
                    for n in (draft.filled if draft else []) if not n.startswith("firm_")],
         unfilled_labels=[(lib.placeholder(n).label if lib.placeholder(n) else n, n)
                          for n in (draft.unfilled if draft else [])],
-        notes=notes or [])
+        notes=notes)
 
 
 @bp.route("/comms", methods=["GET", "POST"])
@@ -181,6 +239,10 @@ def comms():
         client_id=(src.get("client") or "").strip(),
         template_key=(src.get("template") or "").strip(),
         tax_year=_int_or_none(src.get("tax_year", "")),
+        # request.values, not src: a Today row arrives as a GET with ?invoice=,
+        # and the screen's own re-render posts it back as a form field. Either
+        # way it is the number the row already put in front of the owner.
+        invoice_id=(request.values.get("invoice") or "").strip(),
         fills=_fills(request.form) if request.method == "POST" else {})
 
 
@@ -194,7 +256,16 @@ def comms_outlook():
         return redirect(url_for("comms.comms"))
 
     tax_year = _int_or_none(request.form.get("tax_year", ""))
-    values = _context(client_id, tax_year)
+    invoice_id = (request.values.get("invoice") or "").strip()
+    try:
+        values = _context(client_id, tax_year, invoice_id)
+    except WrongInvoice as refused:
+        # This route opens a compose window aimed at the client. Handing it a
+        # draft built from a DIFFERENT invoice is the one outcome worse than
+        # handing it nothing, so it goes back to the screen with the refusal.
+        return _render_screen(client_id=client_id, template_key=template_key,
+                              tax_year=tax_year, fills=_fills(request.form),
+                              invoice_id=invoice_id, notes=[str(refused)])
     values.update(_fills(request.form))
     template = lib.template(template_key)
     draft = render(template, values, library=lib)
@@ -208,7 +279,7 @@ def comms_outlook():
         to=to, subject=draft.subject, body=draft.body,
         mailto=mailto_url(to=to, subject=draft.subject, body=draft.body),
         back_url=url_for("comms.comms", client=client_id, template=template_key,
-                         tax_year=tax_year or ""),
+                         tax_year=tax_year or "", invoice=invoice_id or None),
         attachment_url="", attachment_name="")
 
 

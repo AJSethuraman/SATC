@@ -218,3 +218,66 @@ def test_the_gate_would_actually_fail_if_it_stopped_checking():
     assert "2026-9999" not in match.candidates
     with pytest.raises(BillingError):
         accept_choice(payment, "2026-9999", match, by_model=False)
+
+
+# --- two payments that look identical but are not ---------------------------
+#
+# Found by an adversarial recheck: the id hashed client, amount, date, method
+# and reference, so two separate $450 cheques handed over on the same morning
+# with nothing written on either collapsed to one row. The money did not bounce
+# or error — it simply stopped existing.
+
+def test_attributing_a_payment_does_not_change_its_identity():
+    """Reconciling money is not receiving it again."""
+    arrived = a_payment("450.00")
+    assert arrived.against("2026-0001", MatchBasis.REFERENCE).payment_id == arrived.payment_id
+
+
+def test_the_same_deposit_recorded_against_two_invoices_is_still_one_deposit():
+    """The invoice is deliberately not in the id — otherwise reconciling would
+    file a second copy of the same money."""
+    arrived = a_payment("450.00")
+    one = arrived.against("2026-0001", MatchBasis.REFERENCE)
+    two = arrived.against("2026-0002", MatchBasis.CHOSEN_BY_HUMAN)
+    assert one.payment_id == two.payment_id
+
+
+def test_two_identical_cheques_are_two_payments_once_a_human_says_so():
+    first = a_payment("450.00", reference="")
+    ledger, added = merge([], [first])
+    assert len(added) == 1
+
+    # Recording it again is a no-op — that is the duplicate defence working.
+    ledger, added = merge(ledger, [a_payment("450.00", reference="")])
+    assert added == []
+
+    # But the owner, shown the one on file, says it really is a second cheque.
+    second = a_payment("450.00", reference="").as_another_one(ledger)
+    assert second.payment_id != first.payment_id
+    ledger, added = merge(ledger, [second])
+    assert len(added) == 1
+    assert sum(p.amount for p in ledger) == Decimal("900.00")
+
+
+def test_a_third_identical_cheque_does_not_land_on_the_second():
+    ledger = [a_payment("450.00")]
+    second = a_payment("450.00").as_another_one(ledger)
+    ledger.append(second)
+    third = a_payment("450.00").as_another_one(ledger)
+    assert len({p.payment_id for p in [*ledger, third]}) == 3
+
+
+def test_money_is_never_lost_to_a_hash_collision():
+    """Mutation check — principle 12.
+
+    This is the shape the recheck exploited: two payments differing ONLY in
+    which invoice they are against. If sequence came back out of payment_id and
+    invoice_id went in instead, the first assertion here would start failing;
+    if neither is present, the second would.
+    """
+    base = a_payment("450.00")
+    one = base.against("2026-0001", MatchBasis.REFERENCE)
+    two = base.against("2026-0002", MatchBasis.REFERENCE)
+    assert one.payment_id == two.payment_id           # same money, two guesses
+    genuinely_second = base.as_another_one([base])
+    assert genuinely_second.payment_id != base.payment_id   # different money

@@ -286,6 +286,18 @@ def _invoice(*, client="C", year=2025, number="2026-0001", issued=None,
     return inv
 
 
+def _payment(amount, *, client="C", invoice="2026-0001", days_ago=5):
+    """Money that arrived, recorded as a fact in the ledger."""
+    from decimal import Decimal
+
+    from satc.billing.payment import MatchBasis, Method, Payment
+
+    return Payment(client_id=client, amount=Decimal(str(amount)),
+                   received_on=TODAY - timedelta(days=days_ago),
+                   method=Method.CHECK, reference=invoice, invoice_id=invoice,
+                   basis=MatchBasis.REFERENCE)
+
+
 # --- work that went out the door and was never billed -------------------------
 
 def test_delivered_work_with_no_invoice_is_money_the_practice_lost():
@@ -386,6 +398,60 @@ def test_two_overdue_invoices_are_two_facts_with_their_own_numbers():
          _invoice(number="2026-0002", issued=TODAY - timedelta(days=50))],
         client_id="C", today=TODAY)
     assert len({r.action_id for r in rows}) == 2
+
+
+# --- what is owed comes from the ledger, not from the flag (principle 11b) -----
+
+
+def test_a_settled_invoice_is_not_chased_because_nobody_ticked_the_flag():
+    """Money arriving is a FACT; "paid" is a CONCLUSION computed from the
+    ledger. Reading ``paid_on`` chases a client for money they already sent —
+    the confident wrong answer, addressed to the client."""
+    inv = _invoice(issued=TODAY - timedelta(days=40))
+    assert inv.paid_on is None, "the flag was never written; the ledger has it"
+    assert invoice_overdue([inv], [_payment(inv.total)],
+                           client_id="C", today=TODAY) == []
+
+
+def test_a_part_paid_invoice_is_chased_for_the_balance_not_the_total():
+    """Asking for $450 when $300 has arrived is the letter that ends a
+    relationship. The row says what is genuinely still owed."""
+    inv = _invoice(issued=TODAY - timedelta(days=40))          # $450.00
+    rows = invoice_overdue([inv], [_payment("300.00")], client_id="C", today=TODAY)
+    assert len(rows) == 1
+    assert "$150.00 still owed" in rows[0].title
+    assert "$300.00 has been received" in rows[0].why
+    assert "$150.00 is still owed" in rows[0].why
+
+
+def test_money_against_another_invoice_does_not_settle_this_one():
+    inv = _invoice(number="2026-0005", issued=TODAY - timedelta(days=40))
+    rows = invoice_overdue([inv], [_payment(inv.total, invoice="2026-0006")],
+                           client_id="C", today=TODAY)
+    assert len(rows) == 1
+    assert f"{inv.total:,.2f}" in rows[0].title
+
+
+def test_the_flag_still_speaks_for_money_that_arrived_before_the_ledger():
+    """``paid_on`` is the only record of a payment taken before the ledger
+    existed, so it is the FALLBACK — consulted when no payment names the
+    invoice at all. Where the ledger does say something, it decides, even when
+    it contradicts the flag."""
+    inv = _invoice(issued=TODAY - timedelta(days=40), paid=TODAY - timedelta(days=2))
+    assert invoice_overdue([inv], [], client_id="C", today=TODAY) == []
+    contradicted = invoice_overdue([inv], [_payment("50.00")],
+                                   client_id="C", today=TODAY)
+    assert len(contradicted) == 1
+    assert "$400.00 still owed" in contradicted[0].title
+
+
+def test_the_queue_takes_the_ledger_through_the_seam():
+    """``build_queue(..., payments=...)`` — the caller hands over
+    ``store.load_payments()``, and the money rows are computed from it."""
+    inv = _invoice(issued=TODAY - timedelta(days=40))
+    queue = build_queue(clients=["C"], invoices=[inv], payments=[_payment(inv.total)],
+                        engaged_clients=["C"], tax_year=2025, today=TODAY)
+    assert [a.kind for a in queue.actions] == []
 
 
 # --- the draft nobody ever sent -----------------------------------------------
@@ -592,38 +658,80 @@ def test_an_invoice_that_actually_went_out_is_allowed_to_be_calmer():
     assert queue.actions[0].urgency == "soon"
 
 
-# --- one small invoice is the normal case, not the billed case ----------------
+def test_a_year_that_is_billed_and_paid_does_not_escalate_an_unrelated_draft():
+    """The escalation clause asked what the year looks like with EVERY invoice
+    thrown away, so a year that was billed AND settled still read as "nothing
+    has ever been billed" and pushed an unrelated draft to urgent — an urgency
+    the settled invoice beside it on the same screen flatly contradicts. What a
+    row claims has to agree with what the rest of the screen says."""
+    settled = _invoice(number="2026-0001", issued=TODAY - timedelta(days=40))
+    draft = _invoice(number="2026-0002", performed_on=None)
+    queue = build_queue(clients=["C"], jobs=[_job("complete")],
+                        invoices=[settled, draft],
+                        payments=[_payment(settled.total, invoice="2026-0001")],
+                        engaged_clients=["C"], tax_year=2025, today=TODAY)
+    rows = {a.kind: a for a in queue.actions}
+    assert set(rows) == {"invoice_unissued"}
+    assert rows["invoice_unissued"].urgency == "routine"
+    assert "already delivered" not in rows["invoice_unissued"].why
 
 
-def test_one_invoice_does_not_stand_down_three_jobs_worth_of_work():
-    """Invoicing here is piecemeal by design. Treating any invoice as covering
-    the year is how the rental and the payroll fee stop being mentioned by
-    anything, ever again."""
+# --- coverage is a fact nobody ever recorded ----------------------------------
+#
+# No invoice line carries a job_id and no job carries an invoice number. Counting
+# lines against jobs was a proxy for that missing fact, and a proxy that can
+# invent a shortfall AND invent coverage is not evidence of either.
+
+
+def test_no_row_claims_a_number_of_unbilled_jobs_that_nothing_records():
+    """One invoice line for a package of work that produced three jobs is an
+    ordinary billing shape. Reading it as "at least 2 jobs have never been
+    billed" states a shortfall the practice has no record of — principle 1, in
+    the direction that costs the owner an afternoon chasing nothing."""
     jobs = [_job("complete", job_id="j1", engagement_type="Individual 1040"),
             _job("complete", job_id="j2", engagement_type="Rental schedule"),
             _job("complete", job_id="j3", engagement_type="Payroll")]
-    action = unbilled_work(jobs, [_invoice(issued=TODAY - timedelta(days=3))],
+    one_bill = [_invoice(issued=TODAY - timedelta(days=3))]
+    assert unbilled_work(jobs, one_bill, client_id="C", tax_year=2025) is None
+
+    queue = build_queue(clients=["C"], jobs=jobs, invoices=one_bill,
+                        engaged_clients=["C"], tax_year=2025, today=TODAY)
+    assert all("never been billed" not in a.why for a in queue.actions)
+
+
+def test_a_settled_year_says_it_cannot_confirm_rather_than_going_quiet():
+    """The other direction of the same fallacy. Two lines against one delivered
+    job counted as coverage and the row went silent — a confident answer to a
+    question no record on file can settle. Once the bills are issued and paid,
+    NOTHING else on the screen mentions the year, so silence here is the whole
+    answer the owner gets. Principles 1 and 5 beat a confident silence."""
+    inv = _invoice(issued=TODAY - timedelta(days=40),
+                   services=("return_1040", "schedule_e_rental"))
+    action = unbilled_work([_job("complete")], [inv], [_payment(inv.total)],
                            client_id="C", tax_year=2025)
     assert action is not None
-    assert "at least 2 jobs have never been billed" in action.why
-    assert set(action.evidence) == {"j1", "j2", "j3"}
+    assert action.urgency == "routine"
+    assert "cannot confirm" in action.why
+    assert "does not know" in action.why
+    assert action.evidence == ("job-1",)
 
 
-def test_a_partial_bill_is_not_described_as_no_bill_at_all():
-    """The row must not assert a fact the invoice list contradicts."""
+def test_the_coverage_row_stays_off_while_a_bill_is_still_owed():
+    """Principle 13. Whatever is unbilled is indistinguishable from what is
+    merely unpaid while money is still owed, and that bill already has its own
+    row — two rows about one year is how the owner learns to scroll past."""
+    inv = _invoice(issued=TODAY - timedelta(days=40))
+    queue = build_queue(clients=["C"], jobs=[_job("complete")], invoices=[inv],
+                        payments=[_payment("100.00")],
+                        engaged_clients=["C"], tax_year=2025, today=TODAY)
+    assert [a.kind for a in queue.actions] == ["invoice_overdue"]
+
+
+def test_a_draft_still_standing_holds_the_coverage_row_back_too():
+    """A draft for the year is billing in progress, and it has its own row."""
     jobs = [_job("complete", job_id="j1"), _job("complete", job_id="j2")]
-    action = unbilled_work(jobs, [_invoice(issued=TODAY - timedelta(days=3))],
-                           client_id="C", tax_year=2025)
-    assert "no invoice at all" not in action.why
-    assert "1 invoice" in action.why and "1 line" in action.why
-
-
-def test_a_bill_big_enough_to_cover_the_work_still_stands_the_row_down():
-    """Principle 13 — two rows saying the same thing is how a queue gets ignored."""
-    jobs = [_job("complete", job_id="j1"), _job("complete", job_id="j2")]
-    covering = _invoice(issued=TODAY - timedelta(days=3),
-                        services=("return_1040", "schedule_e_rental"))
-    assert unbilled_work(jobs, [covering], client_id="C", tax_year=2025) is None
+    assert unbilled_work(jobs, [_invoice(performed_on=TODAY - timedelta(days=21))],
+                         client_id="C", tax_year=2025) is None
 
 
 # --- the year of a quarterly or monthly job -----------------------------------
@@ -659,6 +767,18 @@ def test_a_period_nobody_can_read_is_marked_rather_than_dropped():
     assert "cannot say" in queue.actions[0].why
 
 
+def test_the_unreadable_period_row_is_quiet_and_names_what_clears_it():
+    """No bill can stand this row down: the check that would clear it needs the
+    year, and the year is the missing thing. Left in "Coming up" it is a row
+    that can never go away — exactly the row that teaches the owner to scroll
+    past the queue (principle 13). So it drops to the quietest band and names
+    the one act that removes it (principle 10)."""
+    row = undated_work([_dateless_job("FY26", "x")], client_id="C")
+    assert row is not None
+    assert row.urgency == "routine"
+    assert "Put a tax year on the job" in row.why
+
+
 def test_work_still_in_prep_with_no_readable_year_is_not_a_row_either():
     """Billing happens at delivery — an unreadable period does not change that."""
     assert undated_work([_dateless_job("FY26", stage="in_prep")], client_id="C") is None
@@ -676,6 +796,26 @@ def test_it_runs_against_the_real_seeded_practice():
         tax_year=2024, today=date(2025, 3, 20))
     assert len(queue) > 0, "the seeded practice should have something worth doing"
     assert queue.summary_line() != "Nothing needs you right now."
+
+
+def test_the_today_screen_actually_reads_the_ledger(monkeypatch):
+    """The seam has to be wired, not merely available.
+
+    ``build_queue(payments=...)`` defaults to empty, so a screen that never
+    fetches the ledger passes every unit test above and still chases invoices
+    the client settled months ago. This is the only place that can catch it.
+    """
+    from satc.app.server import create_app
+    from satc.app.state import STATE
+
+    read = []
+    real = STATE.store.load_payments
+    monkeypatch.setattr(STATE.store, "load_payments",
+                        lambda *a, **kw: read.append(True) or real(*a, **kw))
+
+    resp = create_app().test_client().get("/today")
+    assert resp.status_code == 200
+    assert read, "the money rows were computed without reading the payment ledger"
 
 
 # --- the working year is derived, not hardcoded ------------------------------

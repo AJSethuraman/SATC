@@ -50,7 +50,7 @@ __all__ = [
 ]
 
 
-def _carry_severity(money, jobs, invoices, *, client_id: str, tax_year: int):
+def _carry_severity(money, jobs, invoices, payments, *, client_id: str, tax_year: int):
     """Stand a row down without turning the volume down with it.
 
     A bill half-written and abandoned is STRICTLY WORSE than one never written:
@@ -63,8 +63,19 @@ def _carry_severity(money, jobs, invoices, *, client_id: str, tax_year: int):
     Only the DRAFT rows inherit it. An issued invoice has actually asked the
     client for the money, and "five days past due" is genuinely a smaller
     problem than "never billed" — demoting that one is the right answer.
+
+    THE QUESTION IS WHAT THE YEAR LOOKS LIKE WITHOUT *THIS DRAFT*, not what it
+    looks like with the whole book thrown away. Dropping every invoice made the
+    answer "nothing has ever been billed", so a year that was fully billed AND
+    PAID escalated an unrelated draft to urgent — an escalation the settled
+    invoice sitting beside it on the same screen flatly contradicts, and an
+    urgency the ``why`` then could not explain. The bills that actually went out
+    stay in the recomputation; only the drafts, which are the rows being
+    weighed, come out of it.
     """
-    stood_down = unbilled_work(jobs, (), client_id=client_id, tax_year=tax_year)
+    issued = [inv for inv in invoices if inv.is_issued]
+    stood_down = unbilled_work(jobs, issued, payments,
+                               client_id=client_id, tax_year=tax_year)
     if stood_down is None:
         return money
     for_year = {str(inv.invoice_id) for inv in invoices
@@ -77,13 +88,20 @@ def _carry_severity(money, jobs, invoices, *, client_id: str, tax_year: int):
 
 
 def build_queue(*, clients, requested=(), received=(), obligations=(),
-                engaged_clients=(), jobs=(), invoices=(), tax_year: int,
-                today: date | None = None) -> ActionQueue:
+                engaged_clients=(), jobs=(), invoices=(), payments=(),
+                tax_year: int, today: date | None = None) -> ActionQueue:
     """Run every proposer over the practice and return the ordered queue.
 
     Takes plain records — no Flask, no STATE — so the whole queue is a pure
     function of the practice's data and one date. That is what makes it
     testable, and what makes "why is this here?" always answerable.
+
+    ``payments`` is the LEDGER (``store.load_payments()``). It defaults to empty
+    so every existing caller keeps working, and an empty ledger falls back to
+    each invoice's own ``paid_on`` — but a caller that has the ledger and does
+    not pass it will chase invoices that are already settled and ask for totals
+    that are already part-paid. Principle 11b: the money rows are computed from
+    what arrived, not from a flag.
     """
     today = today or date.today()
     engaged = set(engaged_clients)
@@ -122,19 +140,19 @@ def build_queue(*, clients, requested=(), received=(), obligations=(),
 
         # Money. Every proposer above chases paper; none of them ever noticed
         # that the paper went out and was never charged for.
-        money = invoice_overdue(invoices, client_id=client_id, today=today)
+        money = invoice_overdue(invoices, payments, client_id=client_id, today=today)
         money += invoice_unissued(invoices, client_id=client_id, today=today)
 
-        # unbilled_work stands down when the bills already raised for the year
-        # could cover the jobs delivered in it, so a client with an overdue
-        # invoice is not also told the year is unbilled — one problem, one row
-        # (principle 13).
-        unbilled = unbilled_work(jobs, invoices, client_id=client_id,
+        # unbilled_work stands down while a bill for the year is still unissued
+        # or still owed, because that bill already has its own row here — a
+        # client with an overdue invoice is not also told the year is unbilled
+        # (one problem, one row, principle 13).
+        unbilled = unbilled_work(jobs, invoices, payments, client_id=client_id,
                                  tax_year=tax_year)
         if unbilled is not None:
             money.append(unbilled)
         else:
-            money = _carry_severity(money, jobs, invoices,
+            money = _carry_severity(money, jobs, invoices, payments,
                                     client_id=client_id, tax_year=tax_year)
         out.extend(money)
 

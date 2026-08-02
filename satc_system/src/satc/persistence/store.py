@@ -23,7 +23,7 @@ import os
 import sqlite3
 import sys
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from satc.persistence.crypto import open_cipher
@@ -128,6 +128,17 @@ CREATE TABLE IF NOT EXISTS invoice_lines (
   invoice_id TEXT, line_no INTEGER, service_code TEXT, label TEXT, quantity TEXT,
   standard_rate TEXT, note TEXT, performed_on TEXT,
   PRIMARY KEY (invoice_id, line_no));
+-- The payment ledger. payment_id is a content hash of the payment itself, so
+-- PRIMARY KEY is what makes re-importing the same bank export a no-op instead
+-- of a double count. invoice_id carries no FOREIGN KEY on purpose: an orphaned
+-- attribution must still LOAD and be visible, not make the ledger unreadable.
+-- sequence distinguishes two payments that are identical in every recorded
+-- respect — two cheques, same morning, no reference. It is part of the hash, so
+-- losing it here would silently merge them back together on the next reload.
+CREATE TABLE IF NOT EXISTS payments (
+  payment_id TEXT PRIMARY KEY, client_id TEXT, amount TEXT, received_on TEXT,
+  method TEXT, reference TEXT, invoice_id TEXT, basis TEXT, note TEXT,
+  sequence INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS filings (
   filing_id TEXT PRIMARY KEY, return_key TEXT, client_id TEXT, transmitted_at TEXT,
   transmitted_by TEXT, submission_id TEXT, ack_code TEXT, ack_date TEXT,
@@ -176,7 +187,7 @@ def _pdt(x: str | None) -> date | None:
 _MART_TABLES_BY_CLIENT = (
     "public_clients", "returns", "carryforwards", "owner_basis",
     "estimate_payments", "engagements", "jobs", "filings", "invoices",
-    "requested_items", "received_documents",
+    "payments", "requested_items", "received_documents",
 )
 
 # Vault tables keyed by client_id.
@@ -217,6 +228,93 @@ def _col(row, name: str):
         return row[name]
     except (IndexError, KeyError):
         return None
+
+
+def _payment(row):
+    """Rebuild a Payment from storage. Deliberately total — no row is refused.
+
+    Every field comes back, including the two that carry the meaning and are the
+    easiest to drop: the BASIS (how we know this payment belongs to that
+    invoice) and the INVOICE_ID (empty when nobody has attributed it yet).
+    """
+    from satc.billing.payment import MatchBasis, Method, Payment
+
+    problems: list[str] = []
+
+    # TEXT in, Decimal out. A REAL column would round cents silently, and a
+    # ledger that is out by a cent is a ledger nobody trusts.
+    raw_amount = _col(row, "amount")
+    try:
+        amount = Decimal(str(raw_amount))
+        if not amount.is_finite():
+            raise InvalidOperation
+    except (InvalidOperation, ArithmeticError, ValueError, TypeError):
+        # NEVER invented as zero and left looking ordinary (principle 1). Zero
+        # keeps it out of every balance, and the note is what the owner sees.
+        amount = Decimal("0.00")
+        problems.append(f"amount unreadable in the store ({raw_amount!r}) — "
+                        f"recorded as 0.00 until it is corrected")
+
+    try:
+        received_on = _pdt(_col(row, "received_on"))
+    except (ValueError, TypeError):
+        received_on = None
+    if received_on is None:
+        # A payment has to sit somewhere on a timeline for settled_on to mean
+        # anything, and payment_id needs a date at all. The epoch is obviously
+        # wrong on sight, which is the point — it reads as broken, not as a
+        # plausible date somebody might act on.
+        received_on = date(1970, 1, 1)
+        problems.append(f"date unreadable in the store "
+                        f"({_col(row, 'received_on')!r}) — shown as 1970-01-01")
+
+    note = _col(row, "note") or ""
+    if problems:
+        note = " · ".join([note, *problems]) if note else " · ".join(problems)
+
+    return Payment(
+        client_id=_col(row, "client_id") or "",
+        amount=amount,
+        received_on=received_on,
+        method=_penum(Method, _col(row, "method"), Method.OTHER),
+        reference=_col(row, "reference") or "",
+        # An invoice_id naming an invoice that no longer exists still loads. The
+        # payment is a FACT; a stale attribution is something to SHOW the owner,
+        # not a reason to hide the deposit.
+        invoice_id=_col(row, "invoice_id") or "",
+        basis=_penum(MatchBasis, _col(row, "basis"), MatchBasis.UNMATCHED),
+        note=note,
+        sequence=int(_col(row, "sequence") or 0))
+
+
+def _enum(x) -> str:
+    """An Enum member -> the stored value. Tolerates a bare string.
+
+    Nothing stops a caller building a Payment with ``method="check"`` instead of
+    ``Method.CHECK``, and a save that raised on it would lose the deposit over a
+    type. Mirrors the same tolerance in satc.billing.payment.payment_id.
+    """
+    return str(getattr(x, "value", x) or "")
+
+
+def _penum(kind, x, fallback):
+    """A stored value -> its Enum member, for READING HISTORY ONLY.
+
+    A value this build does not recognise — a renamed basis, a hand-edited row,
+    a database from a newer version — must not stop the ledger loading. The
+    refusals belong at reconciliation time, where a human is present to answer
+    them, not at read time where there is only a stack trace (principle 5 is
+    about not guessing, not about refusing to open the books).
+
+    It comes back as the FALLBACK, which for a match basis is UNMATCHED: the
+    weakest claim available, so an unreadable basis surfaces in the tray of
+    payments nobody has attributed rather than passing as a match we cannot
+    substantiate.
+    """
+    try:
+        return kind(x)
+    except ValueError:
+        return fallback
 
 
 def _actor(a) -> str | None:
@@ -520,6 +618,76 @@ class SATCStore:
             due_on=_pdt(r["due_on"]), paid_on=_pdt(r["paid_on"]),
             lines=lines_by_invoice.get(r["invoice_id"], []), note=r["note"] or "")
             for r in self.mart.execute(sql + " ORDER BY invoice_id", args)]
+
+    # -- payments (the ledger behind "paid") -------------------------------
+
+    def save_payments(self, payments) -> None:
+        """Record money that arrived. Idempotent on ``payment_id``.
+
+        ``Payment.payment_id`` is derived from the payment itself — client,
+        amount, date, method, reference, sequence — so the same deposit written
+        twice lands on the same primary key and REPLACES its row instead of
+        becoming a second one. That is the whole defence against a re-imported
+        bank export double-counting the practice's revenue (principle 8), and it
+        is why this is an upsert and not an append.
+
+        Attributing a payment does NOT change its id, so reconciling one updates
+        its row rather than filing a second copy of the same money. Two payments
+        that are genuinely separate but identical on paper differ by ``sequence``
+        — see ``Payment.as_another_one``, which a human has to ask for.
+        """
+        for p in payments:
+            self.mart.execute(
+                "INSERT OR REPLACE INTO payments VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (p.payment_id, p.client_id, _d(p.amount), _dt(p.received_on),
+                 _enum(p.method), p.reference, p.invoice_id, _enum(p.basis),
+                 p.note, int(p.sequence)))
+        self.mart.commit()
+
+    def load_payments(self, client_id: str = "") -> list:
+        """The ledger back off disk. Never raises on a row it finds odd.
+
+        The BASIS round-trips with the payment because "how do we know this
+        belongs to that invoice" outlives "what we concluded" — principle 2. A
+        payment that came back having forgotten it was CHOSEN_BY_MODEL rather
+        than named by its REFERENCE would have lost the only fact that lets a
+        later reviewer tell a machine's guess from the bank's own statement.
+        """
+        sql = "SELECT * FROM payments"
+        args: tuple = ()
+        if client_id:
+            sql += " WHERE client_id=?"
+            args = (client_id,)
+        return [_payment(r) for r in self.mart.execute(
+            sql + " ORDER BY received_on, payment_id", args)]
+
+    def load_unmatched_payments(self, client_id: str = "") -> list:
+        """Money that arrived and has not been attributed to anything.
+
+        This is the tray the owner actually works through, so it is asked for
+        by the database rather than by loading the whole ledger and filtering —
+        it is read on every reconciliation screen.
+
+        "Unmatched" here is exactly ``not Payment.is_matched``: no invoice_id,
+        or a basis that does not attribute (UNMATCHED, or a value this build
+        cannot read — see ``_penum``). The attributing bases are taken from the
+        enum rather than spelled out, so adding a rung to the ladder cannot
+        leave this query quietly disagreeing with the model.
+        """
+        from satc.billing.payment import MatchBasis
+
+        attributing = [b.value for b in MatchBasis if b is not MatchBasis.UNMATCHED]
+        holes = ",".join("?" * len(attributing))
+        sql = (f"SELECT * FROM payments WHERE (invoice_id IS NULL OR invoice_id=''"
+               f" OR basis IS NULL OR basis NOT IN ({holes}))")
+        args: list = list(attributing)
+        if client_id:
+            sql += " AND client_id=?"
+            args.append(client_id)
+        # Decoded by the same function as load_payments, so the tray and the
+        # ledger can never disagree about what a row says.
+        return [_payment(r) for r in self.mart.execute(
+            sql + " ORDER BY received_on, payment_id", tuple(args))]
 
     # -- filings (many per return) ----------------------------------------
 

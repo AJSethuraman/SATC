@@ -1,4 +1,4 @@
-"""Invoicing screens (Flask blueprint) — raise a bill, see what the client sees.
+"""Invoicing and payment screens (Flask blueprint) — raise a bill, record money in.
 
 The billing engine (:mod:`satc.billing`) has been complete for a while and was
 reachable only from Python, which meant the owner could not actually raise an
@@ -27,14 +27,25 @@ number is derived from what is already stored at the moment of issue, never held
 in the draft, so two half-finished drafts can never be given the same number
 (principle 8).
 
+PAID IS NOT A FLAG. These screens used to write ``invoice.paid_on`` straight off
+a form, which made "paid" something the owner asserted rather than something the
+ledger computed. An assertion cannot tell a part payment from a settled bill,
+cannot notice the same deposit entered twice, and cannot say WHEN the balance
+actually cleared. So every payment screen here records a
+:class:`~satc.billing.payment.Payment` — money arriving is the fact — and
+``paid_on`` is brought into line from the ledger afterwards (principle 11b).
+
 Routes:
   GET  /invoices                  - every invoice, plus what each client is into us for
   GET  /invoices/new              - build one from the catalogue
   POST /invoices/new              - set the header, add a line, drop a line, discard
   POST /invoices/<id>/issue       - fix it and write it down (or show why it refused)
-  POST /invoices/<id>/paid        - record that the money arrived
-  GET  /invoices/<id>             - the invoice as the client reads it
+  POST /invoices/<id>/paid        - record a payment against this invoice
+  GET  /invoices/<id>             - the invoice as the client reads it, and its ledger
   GET  /invoices/<id>/print       - the same thing, printable, with nothing to click
+  GET  /payments                  - the ledger, and the tray of unattributed money
+  POST /payments/record           - money that did not arrive through an invoice screen
+  POST /payments/<id>/match       - attribute one, off the shortlist reconciliation offered
 """
 
 from __future__ import annotations
@@ -64,14 +75,34 @@ from satc.billing import (
     plans,
     service,
 )
+from satc.billing.payment import (
+    MatchBasis,
+    Method,
+    Payment,
+    accept_choice,
+    apply_all,
+    apply_to_invoice,
+    merge,
+    outstanding,
+    overpaid_by,
+    paid_on_invoice,
+    reconcile,
+    settled_on,
+)
 from satc.config import ConfigError
 from satc.models.actor import ActorRefused, require_human
+from satc.models.work import rate_plan_for
 
 bp = Blueprint("billing", __name__)
 
 # The half-built invoice, kept per browser session. See the module docstring:
 # a draft is not yet a fact about the practice.
 _DRAFT = "invoice_draft"
+
+# The number THIS session last issued. Held only so a re-submitted issue form
+# can be recognised as the same request arriving twice; see
+# ``_is_the_same_invoice``.
+_LAST_ISSUED = "invoice_last_issued"
 
 # What a refusal from this file tells the owner to do instead. The actor gate is
 # unreachable from a live browser request by construction, so this only ever
@@ -85,6 +116,70 @@ _ISSUE_INSTEAD = ("open Invoices in the local app and issue it there — an invo
 # rather than *checked* puts the invoice in a different season's running total,
 # where nobody looking for it will find it.
 _EARLIEST_TAX_YEAR = 2000
+
+# How each way of arriving reads on screen. The engine hands back a KEY from a
+# finite set and this looks up the words — the same rule the model answers to
+# (principle 6a), applied to the view so no screen can invent a sixth method.
+_METHOD_LABEL = {
+    Method.CARD: "Card",
+    Method.CHECK: "Check",
+    Method.TRANSFER: "Bank transfer",
+    Method.CASH: "Cash",
+    Method.OTHER: "Other",
+}
+
+# WHY we believe a payment belongs to an invoice, in the owner's words. These
+# must not read alike: a payment the reference NAMED and a payment a model
+# picked are different facts, and a screen that renders both as "matched" throws
+# away the only thing that tells them apart a year later.
+_HOW_MATCHED = {
+    MatchBasis.REFERENCE: "The payment named the invoice",
+    MatchBasis.SOLE_AMOUNT: "The only open invoice that amount could clear",
+    MatchBasis.CHOSEN_BY_HUMAN: "You picked the invoice",
+    MatchBasis.CHOSEN_BY_MODEL: "A model picked the invoice — worth a look",
+    MatchBasis.UNMATCHED: "Not attributed to an invoice yet",
+}
+
+
+# --- the ledger ---------------------------------------------------------------
+#
+# Everything below goes through the store's payment seam —
+# ``save_payments(payments)`` / ``load_payments(client_id="")`` — and never
+# through ``invoice.paid_on``. Money arriving is recorded once; the paid state
+# is recomputed from it (principle 11b).
+
+
+def _ledger(client_id: str = "") -> list[Payment]:
+    """Every payment recorded — for one client, or the whole book."""
+    return list(STATE.store.load_payments(client_id))
+
+
+def _record(payments) -> list[Payment]:
+    """Fold payments into the ledger, and say which ones were actually NEW.
+
+    The same deposit pasted twice, or a form re-submitted, lands on the same
+    ``payment_id`` and is dropped rather than counted twice (principle 8). The
+    return value is what makes that visible: the caller can tell the owner
+    "already recorded" instead of silently doing nothing.
+    """
+    _, added = merge(_ledger(), payments)
+    if added:
+        STATE.store.save_payments(added)
+    return added
+
+
+def _settle(invoice: Invoice, ledger) -> Invoice:
+    """Bring an invoice's ``paid_on`` into line with the ledger, and store it.
+
+    ``paid_on`` is a cached SUMMARY of the payments, kept because the queue, the
+    overdue check and the client's copy all read it. It is never the fact — a
+    part payment leaves it None and the invoice correctly still owed.
+    """
+    before = invoice.paid_on
+    apply_to_invoice(invoice, ledger)
+    if invoice.paid_on != before:
+        STATE.store.save_invoices([invoice])
+    return invoice
 
 
 # --- the draft ----------------------------------------------------------------
@@ -171,6 +266,19 @@ def _a_tax_year(raw: str) -> tuple[int | None, str]:
     return int(text), ""
 
 
+def _plan_on_file(client_id: str, tax_year: int):
+    """What this client is on for the year, and whether anybody actually decided.
+
+    The invoice screen must not present the practice default as though it were
+    an agreement. :func:`~satc.models.work.rate_plan_for` answers for every
+    client, including one nobody has priced, and says WHICH it is doing — that
+    distinction is the whole reason the screen asks it instead of reaching for
+    ``default_plan_key()`` (principle 2: an unanswered question is not an answer).
+    """
+    return rate_plan_for(STATE.mart.engagements, client_id=client_id,
+                         tax_year=tax_year)
+
+
 def _set_header(draft: dict, form) -> str:
     """Who the invoice is for, which year, and what they pay relative to standard.
 
@@ -181,14 +289,29 @@ def _set_header(draft: dict, form) -> str:
     year, problem = _a_tax_year(form.get("tax_year", ""))
     if problem:
         return problem
+    client_id = (form.get("client_id") or "").strip()
     key = (form.get("plan_key") or "").strip() or default_plan_key()
+    basis = " ".join((form.get("plan_basis") or "").split())
+
+    # The plan picker was drawn for whoever was selected when the page was
+    # rendered. If the owner has now changed the client and left the picker
+    # alone, what it shows was never a decision about THIS client — so take the
+    # plan their engagement actually agreed rather than carrying the previous
+    # client's across. ``plan_shown`` is what the picker was rendered with, so
+    # "the owner touched it" is a recorded fact rather than a guess.
+    if key == (form.get("plan_shown") or "").strip() \
+            and client_id != (draft.get("client_id") or ""):
+        on_file = _plan_on_file(client_id, year)
+        key = on_file.plan_key
+        basis = basis or on_file.basis
+
     if key not in plans():
         return (f"There is no rate plan called {key!r}. Pick one of: "
                 f"{', '.join(sorted(plans()))}.")
-    draft["client_id"] = (form.get("client_id") or "").strip()
+    draft["client_id"] = client_id
     draft["tax_year"] = year
     draft["plan_key"] = key
-    draft["plan_basis"] = " ".join((form.get("plan_basis") or "").split())
+    draft["plan_basis"] = basis
     _save_draft(draft)
     return ""
 
@@ -323,6 +446,51 @@ def _a_date(raw: str, *, fallback: date) -> tuple[date | None, str]:
                       f"(for example {fallback.isoformat()}).")
 
 
+_NOT_AN_ARRIVAL = ("Write what arrived as a plain number of dollars, like 450 "
+                   "or 187.50.")
+
+
+def _an_amount(raw: str) -> tuple[Decimal | None, str]:
+    """Parse what arrived, refusing rather than assuming the balance.
+
+    Filling a blank in with the outstanding balance would be the screen deciding
+    how much the client paid (principle 1). The form shows the balance as a
+    starting figure the owner can see and change; a field actually left empty is
+    an unanswered question, and it is refused.
+    """
+    text = (raw or "").strip().lstrip("$").replace(",", "").strip()
+    if not text:
+        return None, (f"How much arrived? {_NOT_AN_ARRIVAL} A payment with no "
+                      f"amount is not a fact about the practice.")
+    try:
+        amount = Decimal(text)
+    except InvalidOperation:
+        return None, f"{(raw or '').strip()!r} is not an amount. {_NOT_AN_ARRIVAL}"
+    # Decimal() hands back NaN and Infinity happily, and every guard written as
+    # a comparison passes NaN. Finiteness is asked first, as it is on a rate.
+    if not amount.is_finite():
+        return None, f"{(raw or '').strip()!r} is not an amount. {_NOT_AN_ARRIVAL}"
+    if amount <= 0:
+        return None, (f"{amount:,.2f} is not money arriving. A refund or a "
+                      f"correction is its own act, not a negative row on the "
+                      f"payment ledger — every total in the practice sums this.")
+    return amount, ""
+
+
+def _a_method(raw: str) -> tuple[Method | None, str]:
+    """Read the method off the picker, and refuse anything not in the set.
+
+    There is no field anywhere on these screens that types how money arrived,
+    for the same reason there is none that types a service name: the set is
+    finite and the engine owns it (principle 6a).
+    """
+    try:
+        return Method((raw or "").strip().lower()), ""
+    except ValueError:
+        return None, (f"{(raw or '').strip()!r} is not a way money arrives. Pick "
+                      f"one of: {', '.join(_METHOD_LABEL[m] for m in Method)}.")
+
+
 # --- the screens --------------------------------------------------------------
 
 def _build_screen(*, error: str = "", note: str = ""):
@@ -341,10 +509,12 @@ def _build_screen(*, error: str = "", note: str = ""):
         error = error or (f"{exc} This draft can't be shown as it stands — "
                           f"discard it and start again.")
 
+    year = int(draft.get("tax_year") or _working_year())
     return render_template(
         "invoice_build.html", title="New invoice",
         draft=draft, invoice=invoice, catalogue=by_category(), plans=plans(),
-        clients=STATE.client_choices(), tax_year=draft.get("tax_year") or _working_year(),
+        clients=STATE.client_choices(), tax_year=year,
+        on_file=_plan_on_file((draft.get("client_id") or "").strip(), year),
         today=date.today(), error=error, note=note)
 
 
@@ -438,28 +608,71 @@ def issue(invoice_id: str):
 
     STATE.store.save_invoices([invoice])
     session.pop(_DRAFT, None)
+    # Remember what THIS session issued. The draft is gone, so a re-submitted
+    # form has nothing left to compare against; this is what lets the second
+    # arrival be recognised as the same request rather than as a stranger
+    # asking about a number that happens to be taken.
+    session[_LAST_ISSUED] = invoice.invoice_id
     session.modified = True
     return redirect(url_for("billing.view", invoice_id=invoice.invoice_id))
 
 
 @bp.route("/invoices/<invoice_id>/paid", methods=["POST"])
 def mark_paid(invoice_id: str):
-    """Record that the money arrived, on the day it arrived."""
+    """Record money arriving against this invoice — a fact, not a flag.
+
+    What used to happen here was ``invoice.paid_on = whatever the form said``,
+    which accepted a 1999 date on a 2026 invoice, silently overwrote itself on a
+    second submit, and could not represent half the bill arriving at all. A
+    payment is written to the ledger instead, and ``paid_on`` is recomputed from
+    it: a part payment leaves the invoice unpaid and still owed (principle 11b).
+    """
     invoice = _find(invoice_id)
-    paid_on, problem = _a_date(request.form.get("paid_on", ""), fallback=date.today())
-    if not problem:
-        try:
-            require_human(acting_actor(), "record a payment", instead=_ISSUE_INSTEAD)
-        except ActorRefused as exc:
-            problem = str(exc)
+    problem = ""
+    try:
+        require_human(acting_actor(), "record a payment", instead=_ISSUE_INSTEAD)
+    except ActorRefused as exc:
+        problem = str(exc)
     if not problem and not invoice.is_issued:
         problem = (f"Invoice {invoice.invoice_id} has not been issued, so there is "
                    f"nothing to have been paid. Issue it first.")
+
+    amount, trouble = _an_amount(request.form.get("amount", ""))
+    problem = problem or trouble
+    received_on, trouble = _a_date(request.form.get("received_on", ""),
+                                   fallback=date.today())
+    problem = problem or trouble
+    method, trouble = _a_method(request.form.get("method", ""))
+    problem = problem or trouble
+    if not problem and invoice.issued_on and received_on < invoice.issued_on:
+        # Money cannot have arrived against a bill that did not exist yet. The
+        # old screen took the date on trust, so a mistyped year filed a payment
+        # decades before the work — and nothing downstream could tell.
+        problem = (f"{received_on:%B %d, %Y} is before invoice "
+                   f"{invoice.invoice_id} was issued on "
+                   f"{invoice.issued_on:%B %d, %Y}. Money cannot have arrived "
+                   f"against a bill that did not exist yet — check the date on "
+                   f"the deposit, or record it against the invoice it paid.")
     if problem:
         return _view_screen(invoice, error=problem)
 
-    invoice.paid_on = paid_on
-    STATE.store.save_invoices([invoice])
+    payment = Payment(
+        client_id=invoice.client_id, amount=amount, received_on=received_on,
+        method=method,
+        reference=" ".join((request.form.get("reference") or "").split()),
+        invoice_id=invoice.invoice_id,
+        # Recorded on this invoice's own page: the owner said which invoice it
+        # was, and the ledger keeps that as the reason rather than pretending
+        # something reconciled it.
+        basis=MatchBasis.CHOSEN_BY_HUMAN)
+
+    added = _record([payment])
+    _settle(invoice, _ledger(invoice.client_id))
+    if not added:
+        return _view_screen(invoice, note=(
+            f"Already on the ledger: {amount:,.2f} by "
+            f"{_METHOD_LABEL[method].lower()} on {received_on:%B %d, %Y}. "
+            f"Nothing was counted twice."))
     return redirect(url_for("billing.view", invoice_id=invoice.invoice_id))
 
 
@@ -475,11 +688,153 @@ def print_invoice(invoice_id: str):
     from satc.comms import library
 
     invoice = _find(invoice_id)
+    # The client's copy tells the truth about their balance, so it reads the
+    # ledger too. A sheet that says PAID IN FULL because a flag was set, when
+    # half the bill is still outstanding, is the one piece of paper that must
+    # never be wrong.
+    ledger = _ledger(invoice.client_id)
+    apply_to_invoice(invoice, ledger)
     # The letterhead comes from the practice's own config, not from a string in
     # a template — the firm's name is a recorded fact like any other.
     return render_template("invoice_print.html", invoice=invoice,
                            client_name=STATE.name(invoice.client_id),
+                           paid=paid_on_invoice(invoice, ledger),
+                           owed=outstanding(invoice, ledger),
+                           over=overpaid_by(invoice, ledger),
                            firm=library().firm_values(), today=date.today())
+
+
+# --- money arriving, and which invoice it was for ------------------------------
+
+@bp.route("/payments")
+def payments():
+    """Every payment recorded, and the ones still looking for an invoice."""
+    return _payments_screen()
+
+
+def _payments_screen(*, error: str = "", note: str = ""):
+    """The reconciliation screen.
+
+    Two halves, deliberately separate. What is ATTRIBUTED shows how it was
+    attributed, because a payment the reference named and one a model picked are
+    different facts. What is not attributed goes in a TRAY, and each row is put
+    back through :func:`~satc.billing.payment.reconcile` on every load — the
+    ladder is re-run rather than cached, so an invoice issued this morning
+    changes what yesterday's orphan deposit can be.
+    """
+    ledger = _ledger()
+    # ``paid_on`` is only a summary, so reconcile against invoices brought into
+    # line with the ledger first — otherwise a stale flag decides which invoices
+    # count as open, and the ladder answers the wrong question.
+    invoices = apply_all(STATE.store.load_invoices(), ledger)
+    newest = sorted(ledger, key=lambda p: (p.received_on, p.payment_id), reverse=True)
+
+    matched = [{"payment": p, "name": STATE.name(p.client_id)}
+               for p in newest if p.is_matched]
+    tray = []
+    for payment in (p for p in newest if not p.is_matched):
+        match = reconcile(payment, invoices, ledger)
+        tray.append({
+            "payment": payment, "name": STATE.name(payment.client_id),
+            "match": match,
+            # Only the invoices reconciliation actually offered. The template
+            # renders these and nothing else, and ``accept_choice`` refuses
+            # anything outside the same list on the way back in.
+            "candidates": [i for i in invoices if i.invoice_id in match.candidates],
+        })
+
+    return render_template(
+        "payments.html", title="Payments", matched=matched, tray=tray,
+        clients=STATE.client_choices(), methods=list(Method),
+        method_label=_METHOD_LABEL, how_matched=_HOW_MATCHED,
+        today=date.today(), error=error, note=note)
+
+
+@bp.route("/payments/record", methods=["POST"])
+def record_payment():
+    """Money that did not come in through an invoice screen.
+
+    A cheque in the post, a transfer against nothing in particular. It is
+    recorded UNMATCHED on purpose: the tray then reconciles it in the open,
+    where the owner can read what the ladder concluded and why, rather than this
+    form quietly picking an invoice for it (principle 5).
+    """
+    problem = ""
+    try:
+        require_human(acting_actor(), "record a payment", instead=_ISSUE_INSTEAD)
+    except ActorRefused as exc:
+        problem = str(exc)
+
+    client_id = (request.form.get("client_id") or "").strip()
+    if not problem and not client_id:
+        problem = ("Whose money is this? A payment belonging to nobody can never "
+                   "be reconciled against an invoice, and it distorts every "
+                   "client total that sums the ledger.")
+    amount, trouble = _an_amount(request.form.get("amount", ""))
+    problem = problem or trouble
+    received_on, trouble = _a_date(request.form.get("received_on", ""),
+                                   fallback=date.today())
+    problem = problem or trouble
+    method, trouble = _a_method(request.form.get("method", ""))
+    problem = problem or trouble
+    if problem:
+        return _payments_screen(error=problem)
+
+    payment = Payment(
+        client_id=client_id, amount=amount, received_on=received_on,
+        method=method,
+        reference=" ".join((request.form.get("reference") or "").split()),
+        note=" ".join((request.form.get("note") or "").split()))
+    if not _record([payment]):
+        return _payments_screen(note=(
+            f"Already on the ledger: {amount:,.2f} by "
+            f"{_METHOD_LABEL[method].lower()} on {received_on:%B %d, %Y}. "
+            f"Nothing was counted twice."))
+    return redirect(url_for("billing.payments"))
+
+
+@bp.route("/payments/<payment_id>/match", methods=["POST"])
+def match_payment(payment_id: str):
+    """Attribute a payment — to what reconciliation found, or to a choice off
+    the shortlist it offered.
+
+    The ladder is re-run here rather than trusted from the page that drew the
+    form, because the page may be minutes old. On rungs 1 and 2 nothing from the
+    form is read at all: the reference named the invoice, or only one invoice
+    that amount could clear was open, and neither is a decision anybody makes.
+    On rung 3 the id goes through :func:`accept_choice`, which refuses anything
+    that was not among the candidates — the engine checks the answer, and a
+    posted invoice belonging to another client bounces off it (principle 6).
+    """
+    ledger = _ledger()
+    payment = next((p for p in ledger if p.payment_id == payment_id), None)
+    if payment is None:
+        abort(404, description=(
+            f"No payment {payment_id} on the ledger. Payments are recorded on "
+            f"an invoice's own page or on the Payments screen — if this one has "
+            f"never been recorded, record it there first."))
+
+    invoices = apply_all(STATE.store.load_invoices(), ledger)
+    match = reconcile(payment, invoices, ledger)
+    try:
+        require_human(acting_actor(), "attribute a payment", instead=_ISSUE_INSTEAD)
+        if match.is_resolved:
+            attributed = payment.against(match.invoice_id, match.basis)
+        else:
+            attributed = accept_choice(
+                payment, (request.form.get("invoice_id") or "").strip(),
+                match, by_model=False)
+    except (BillingError, ActorRefused) as exc:
+        return _payments_screen(error=str(exc))
+
+    # The id derives from the payment itself, so attributing it REPLACES the
+    # unattributed row rather than adding a second one (principle 8).
+    STATE.store.save_payments([attributed])
+    fresh = _ledger(attributed.client_id)
+    for invoice in STATE.store.load_invoices(attributed.client_id):
+        if invoice.invoice_id == attributed.invoice_id:
+            _settle(invoice, fresh)
+    return redirect(url_for("billing.payments"))
 
 
 def _is_the_same_invoice(taken: Invoice, draft: dict) -> bool:
@@ -493,9 +848,13 @@ def _is_the_same_invoice(taken: Invoice, draft: dict) -> bool:
     and the draft sat in the session looking unsaved.
     """
     if not draft.get("lines"):
-        # Nothing is being asked for: the draft was cleared by the issue that
-        # succeeded, and this is that same submit arriving twice.
-        return True
+        # Nothing is being asked for. That is the SAME request only when this
+        # session is the one that issued it and the draft was cleared by that
+        # success. A browser that has never issued anything — a fresh session, a
+        # pasted URL — posting a number that happens to be taken is asking about
+        # somebody else's invoice, and redirecting there would hand one client's
+        # bill to a session that was never given it (principle 11).
+        return session.get(_LAST_ISSUED) == taken.invoice_id
     if taken.client_id != (draft.get("client_id") or "").strip():
         return False
     try:
@@ -521,8 +880,26 @@ def _find(invoice_id: str) -> Invoice:
     return found
 
 
-def _view_screen(invoice: Invoice, *, error: str = ""):
+def _view_screen(invoice: Invoice, *, error: str = "", note: str = ""):
+    """The invoice, and the ledger its paid state is computed from.
+
+    Every figure here comes off :mod:`satc.billing.payment` — what has been
+    paid, what is still owed, whether the client OVERPAID. The last one is
+    surfaced rather than swallowed: money beyond the total is owed a
+    conversation, and an invoice screen that just says "paid" is where that
+    conversation stops happening.
+    """
+    ledger = _ledger(invoice.client_id)
+    apply_to_invoice(invoice, ledger)          # show the computed state, not a flag
+    mine = sorted((p for p in ledger if p.invoice_id == invoice.invoice_id),
+                  key=lambda p: (p.received_on, p.payment_id), reverse=True)
     return render_template(
         "invoice_view.html", title=f"Invoice {invoice.invoice_id}",
         invoice=invoice, client_name=STATE.name(invoice.client_id),
-        today=date.today(), error=error)
+        payments=mine, methods=list(Method), method_label=_METHOD_LABEL,
+        how_matched=_HOW_MATCHED,
+        paid=paid_on_invoice(invoice, ledger),
+        owed=outstanding(invoice, ledger),
+        over=overpaid_by(invoice, ledger),
+        settled=settled_on(invoice, ledger),
+        today=date.today(), error=error, note=note)

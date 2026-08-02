@@ -129,6 +129,110 @@ def test_outlook_route_guards_a_missing_selection(client):
     assert resp.status_code == 302
 
 
+# --- the draft is about the invoice the row named ----------------------------
+#
+# The Today queue titles a row "Invoice 2026-9001 unpaid — $450.00" and hands
+# that number over in the link. A draft that resolves its figures from whichever
+# invoice happens to be newest puts a different number and a different amount in
+# front of the CLIENT — principle 1, on the one path where nobody would catch it.
+
+
+def _two_issued_invoices(client_id, *, other_client="ZZ-OTHER"):
+    """Two issued bills for one client, and one belonging to somebody else."""
+    from datetime import date
+
+    from satc.billing.invoice import Invoice
+
+    older = Invoice(invoice_id="2026-9001", client_id=client_id, tax_year=2025)
+    older.add("return_1040")                                   # $450.00
+    older.issue(on=date(2026, 1, 10))
+
+    newer = Invoice(invoice_id="2026-9002", client_id=client_id, tax_year=2025)
+    newer.add("return_1040")
+    newer.add("schedule_e_rental")                             # $635.00 together
+    newer.issue(on=date(2026, 2, 20))
+
+    theirs = Invoice(invoice_id="2026-9003", client_id=other_client, tax_year=2025)
+    theirs.add("return_1040")
+    theirs.issue(on=date(2026, 2, 25))
+    return [older, newer, theirs]
+
+
+def _with_invoices(monkeypatch, invoices):
+    def load(client_id: str = ""):
+        return [i for i in invoices if not client_id or i.client_id == client_id]
+
+    monkeypatch.setattr(STATE.store, "load_invoices", load)
+
+
+def _draft(client, client_id, **extra):
+    resp = client.get("/comms", query_string={
+        "client": client_id, "template": "invoice_cover", "tax_year": 2025, **extra})
+    assert resp.status_code == 200
+    return resp.data.decode("utf-8")
+
+
+def test_the_draft_quotes_the_invoice_the_row_named_not_the_newest(
+        client, demo_client_id, monkeypatch):
+    older, newer, _ = _two_issued_invoices(demo_client_id)
+    _with_invoices(monkeypatch, [older, newer])
+
+    body = _draft(client, demo_client_id, invoice=older.invoice_id)
+    assert f"${older.total:,.2f}" in body
+    assert f"${newer.total:,.2f}" not in body, (
+        "the row said 2026-9001; the client must not read 2026-9002's amount")
+
+
+def test_with_no_invoice_named_the_newest_is_still_what_a_cold_start_gets(
+        client, demo_client_id, monkeypatch):
+    """The only thing a preparer arriving at /comms has said is the client and
+    the year, so the behaviour every existing caller relies on is untouched."""
+    older, newer, _ = _two_issued_invoices(demo_client_id)
+    _with_invoices(monkeypatch, [older, newer])
+
+    body = _draft(client, demo_client_id)
+    assert f"${newer.total:,.2f}" in body
+
+
+def test_an_invoice_that_is_not_on_file_refuses_instead_of_quoting_another(
+        client, demo_client_id, monkeypatch):
+    """Refuse rather than default (principle 5). A covering email quoting the
+    wrong bill is worse than no draft, and unlike a missing draft nobody would
+    ever notice it."""
+    older, newer, _ = _two_issued_invoices(demo_client_id)
+    _with_invoices(monkeypatch, [older, newer])
+
+    body = _draft(client, demo_client_id, invoice="2026-0000")
+    assert "No invoice 2026-0000 is on file" in body
+    assert "Copy the draft" not in body
+    assert f"${newer.total:,.2f}" not in body
+
+
+def test_another_clients_invoice_is_refused_rather_than_merged(
+        client, demo_client_id, monkeypatch):
+    older, newer, theirs = _two_issued_invoices(demo_client_id)
+    _with_invoices(monkeypatch, [older, newer, theirs])
+
+    body = _draft(client, demo_client_id, invoice=theirs.invoice_id)
+    assert "does not belong to" in body
+    assert "Copy the draft" not in body
+
+
+def test_the_outlook_route_refuses_the_wrong_invoice_too(
+        client, demo_client_id, monkeypatch):
+    """This route opens a compose window aimed at the client, so it is the last
+    place a draft built from the wrong bill may survive."""
+    older, newer, _ = _two_issued_invoices(demo_client_id)
+    _with_invoices(monkeypatch, [older, newer])
+
+    resp = client.post("/comms/outlook", data={
+        "client": demo_client_id, "template": "invoice_cover",
+        "tax_year": "2025", "invoice": "2026-0000"})
+    body = resp.data.decode("utf-8")
+    assert "No invoice 2026-0000 is on file" in body
+    assert "Sent to Outlook" not in body
+
+
 def test_the_comms_area_has_no_send_path():
     """The hard rule: sending stays a human act in the mail client (BACKLOG §6).
 
