@@ -16,6 +16,7 @@ is config, not code (mirroring SATC's extraction/classification configs).
 
 from __future__ import annotations
 
+import hashlib
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
@@ -263,10 +264,29 @@ def generate_risk_flags(workflow: WorkflowDef, answers: dict[str, Any], *,
 # Task + engagement construction
 # ---------------------------------------------------------------------------
 
+def task_id_for(job_id: str, template_id: str) -> str:
+    """A task's id, derived from WHAT IT IS: this template, on this job.
+
+    Principle 8. A uuid minted per call meant re-running the interview without
+    the previous task rows in hand produced a whole new set of ids for the same
+    work — so anything holding a task id (a RequestedItem, a note, an audit
+    row) pointed at a task that no longer existed. Same job, same template,
+    same id, on every machine and every run.
+
+    Falls back to a uuid only for a template with no id at all, which the
+    config loader does not produce.
+    """
+    if not template_id:
+        return opaque_id("task")
+    blob = f"{job_id}|{template_id}".encode("utf-8")
+    return f"task-{hashlib.sha256(blob).hexdigest()[:16]}"
+
+
 def _make_task(job_id: str, template: TaskTemplate, due_date: date | str, *,
                existing: Task | None, relationship_generated: bool = False) -> Task:
     return Task(
-        task_id=existing.task_id if existing else opaque_id("task"),
+        task_id=(existing.task_id if existing
+                 else task_id_for(job_id, template.template_id)),
         job_id=job_id,
         template_id=template.template_id,
         title=template.title,

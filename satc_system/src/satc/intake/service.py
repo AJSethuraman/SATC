@@ -171,6 +171,70 @@ def create_engagement(store, *, client_id: str, workflow_key: str, due_date: dat
     return eng
 
 
+def create_engagement_from_intake(store, *, client_id: str, workflow_key: str,
+                                  tax_year: int, answers: dict | None = None,
+                                  today: date | None = None, jurisdiction: str = "US",
+                                  fiscal_year_end: date | None = None):
+    """Create an engagement from the interview alone — no keyed-in due date.
+
+    The preferred door. :func:`create_engagement` above takes a ``due_date``
+    argument, which means a date somebody typed into a form drives every task
+    on the engagement; here the deadline is COMPUTED from the cited obligation
+    rule for the entity and jurisdiction, the ``obligation_key`` is recorded so
+    the work queue can find the duty behind the job, and the quote and the
+    engagement letter's facts fall out of the same answers.
+
+    Idempotent. Re-running with the same answers finds the same job and opens
+    no second copy of any document request; re-running with CHANGED answers
+    preserves progress and reports what left scope on
+    :attr:`~satc.intake.fanout.EngagementPlan.out_of_scope`.
+
+    Returns the whole :class:`~satc.intake.fanout.EngagementPlan`, not just the
+    job, so the caller does not re-derive any of it.
+    """
+    from satc.intake.fanout import fan_out
+
+    workflow = load_workflow(workflow_key)
+    names = store.names()
+    relationships = store.load_relationships()
+    jobs = store.load_jobs()
+    mart = store.load_mart()
+    linked = _linked_clients(store, client_id, relationships, names)
+    my_rels = [r for r in relationships if client_id in (r.from_client_id, r.to_client_id)]
+
+    # A job already on file for this client/workflow/year is the SAME job. Its
+    # id and its tasks carry over so progress survives and nothing duplicates —
+    # including a legacy job whose id was a uuid rather than a derived one.
+    period = str(tax_year)
+    prior = next((j for j in jobs
+                  if j.client_id == client_id and j.workflow_key == workflow_key
+                  and (j.period_key or str(j.tax_year or "")) == period), None)
+
+    # The client's RECORDED entity type decides which filing rule applies. It is
+    # a fact on the client record; the workflow key is only what the owner
+    # clicked, and the two disagreeing is how a partnership gets a 1040 date.
+    public = next((p for p in mart.public_clients if p.client_id == client_id), None)
+
+    plan = fan_out(
+        workflow, answers or {}, client_id=client_id, tax_year=tax_year,
+        today=today or date.today(), engagements=mart.engagements,
+        existing_tasks=prior.tasks if prior else [], jurisdiction=jurisdiction,
+        fiscal_year_end=fiscal_year_end,
+        entity_type=(public.entity_type if public else ""),
+        linked_clients=linked, relationships=my_rels,
+        existing_jobs=jobs, job_id=prior.job_id if prior else "",
+        created_at=prior.created_at if prior else "")
+
+    if plan.requests:
+        known = {i.request_id for i in mart.requested_items}
+        # "Already exists as requested" is success, never a conflict — the ids
+        # are derived, so this is a re-run guard rather than an error path.
+        mart.requested_items.extend(r for r in plan.requests if r.request_id not in known)
+        store.save_mart(mart)
+    store.save_job(plan.job)
+    return plan
+
+
 def find_match(store, *, client_id: str, doc_type: str) -> RequestedItem | None:
     """The outstanding request an arriving document would satisfy. Reads only.
 

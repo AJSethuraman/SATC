@@ -9,6 +9,7 @@ Screens (built out by the UI workstream):
   POST /clients/new                  - create the client, jump into intake
   GET  /intake/new                   - pick a client + workflow, answer the interview
   POST /intake/new                   - generate the engagement (opens Requested docs)
+  GET  /intake/plan                  - the whole engagement the answers imply (reads only)
   GET  /engagements                  - list generated engagements
   GET  /engagements/<id>             - tasks grouped by category, risk flags, requests
   POST /engagements/<id>/tasks/<tid> - toggle a task complete
@@ -21,10 +22,13 @@ from __future__ import annotations
 
 import dataclasses
 import json
+from dataclasses import dataclass
+from datetime import date
 
 from flask import (
     Blueprint,
     Response,
+    abort,
     redirect,
     render_template,
     request,
@@ -33,6 +37,7 @@ from flask import (
 )
 
 from satc.app.state import STATE
+from satc.config import ConfigError
 from satc.intake.workflows import NEW_CLIENT_GATE
 
 bp = Blueprint("intake", __name__)
@@ -253,6 +258,311 @@ def new_engagement():
         prior_summary=_prior_summary(client_id) if returning else {},
         filing_statuses=FILING_STATUSES, filing_status=STATE.filing_status(client_id),
         gate_question=NEW_CLIENT_GATE)
+
+
+# ---------------------------------------------------------------------------
+# THE ENGAGEMENT PLAN — everything that falls out of the interview, on one page
+# ---------------------------------------------------------------------------
+#
+# The interview is the ORIGIN FACT of an engagement. What we will need from the
+# client, what it will cost, when it is due and what we promised are all
+# DERIVED from those answers rather than maintained beside them — a second
+# place to record "this client has a rental" is a second place for it to be
+# wrong. So this screen holds no facts of its own and derives nothing twice:
+# one call to :func:`satc.intake.fanout.fan_out` produces the whole plan, and
+# every panel below renders part of the same object.
+#
+# NOTHING HERE COMMITS. ``fan_out`` writes nothing; generating the engagement
+# stays the click the owner makes, and drafting the letter stays a draft
+# (principle 9). ``test_intake_app.py`` walks the AST of these functions to
+# prove it.
+#
+# FOUR KINDS OF STATEMENT SHARE THIS PAGE AND MUST NOT READ ALIKE. Principle 4
+# is a UI obligation here, not only a loading one:
+#
+#   statute      computed from a CITED rule; cannot be argued with.
+#   firm_policy  the owner's own cutoff; no citation, changed over coffee.
+#   promise      an SLA. Neither law nor a cutoff — breaking one costs an
+#                apology, and the module that loads it REFUSES a citation.
+#   estimate     a quote. Not a bill. Nobody has been charged anything.
+#
+# Each is marked in the MARKUP (``data-kind``) as well as in prose, because a
+# template edit that rewrites the sentences must not be able to quietly make a
+# promise look like a statute.
+
+
+@dataclass(frozen=True, slots=True)
+class Need:
+    """One document the answers imply we will have to ask the client for."""
+
+    doc_type: str
+    title: str
+    ask: str
+    why: str
+    alternatives: str
+    blocking: str          # blocking | expected_late | non_blocking
+    because: str
+    """WHICH ANSWER put this on the list, in the owner's words.
+
+    The point of the whole screen. A request whose cause cannot be named is a
+    request nobody can defend to the client who asks why we want it."""
+
+    by: date | None = None
+
+
+# --- the seams other modules own ---------------------------------------------
+#
+# Each is a single call kept in its own function, so the screen's dependency on
+# it is one patchable, testable point — and so a build without the engine
+# produces a sentence rather than a stack trace (principle 10).
+
+def _fan_out(workflow, answers: dict, *, client_id: str, tax_year: int, today: date,
+             entity_type: str = ""):
+    """Answers in, the whole engagement out. Writes nothing.
+
+    ``entity_type`` is the client's RECORDED type off the mart, and it is passed
+    rather than left to the workflow's own map because a recorded fact outranks
+    a derivation from what the owner clicked (principle 2).
+
+    Deliberately NOT given the existing job's tasks. This screen shows what the
+    answers imply IN FULL — an engagement already generated would otherwise come
+    back with an empty request list, because ``fan_out`` correctly does not
+    re-mint an ask already sitting in the register. What has actually arrived is
+    the Engagement screen's question, not this one's.
+    """
+    from satc.intake.fanout import fan_out
+
+    return fan_out(workflow, answers, client_id=client_id, tax_year=tax_year,
+                   today=today, entity_type=entity_type,
+                   engagements=list(STATE.mart.engagements))
+
+
+def _sla_outcomes(*, started: dict, today: date):
+    """Every promise on file, each either landed or honestly refused.
+
+    ``compliance`` and not ``promised_by``: a bare ``None`` from ``promised_by``
+    is not "kept" and not "fine", and a screen that rendered it as an empty cell
+    would be the exact silence principle 1 forbids. ``compliance`` never returns
+    nothing — it returns the refusal with the missing fact named.
+    """
+    from satc.work.sla import compliance, slas
+
+    return [compliance(kind, started_on=started.get(spec.starts_when.key), today=today)
+            for kind, spec in sorted(slas().items())]
+
+
+def _recorded_starts(client_id: str) -> dict[str, date]:
+    """The SLA clock-starts SATC actually records, for this client.
+
+    Exactly one today. ``satc.work.sla.FACTS`` is candid that most ends of most
+    promises are recorded nowhere — there is no inbound message, no "documents
+    went complete" moment, no delivery fact — so those promises refuse by name
+    and this function has nothing to offer them. The e-file rejection is the one
+    both of whose ends are keyed off Drake and written down.
+
+    Resolving a fact that would be refused anyway would be lookup nobody reads.
+    """
+    rejected = [f for f in STATE.filings()
+                if getattr(f, "client_id", "") == client_id
+                and getattr(f, "is_rejected", False) and f.ack_date]
+    return {"efile_rejected": max(f.ack_date for f in rejected)} if rejected else {}
+
+
+# --- reading the answers, and naming what they caused -------------------------
+
+def _plan_answers(workflow, src) -> dict[str, str]:
+    """The interview answers off the request, for THIS workflow's questions only.
+
+    The same convention the generate form uses, so the plan is drawn from
+    exactly what would be recorded — a preview built from a different reading of
+    the form would be a preview of a different engagement.
+    """
+    answers: dict[str, str] = {}
+    for q in workflow.questions:
+        if q.id == NEW_CLIENT_GATE:
+            continue
+        given = src.get(f"q_{q.id}")
+        if given is not None:
+            answers[q.id] = given
+    mode = (src.get("mode") or "").strip()
+    if mode:
+        answers[NEW_CLIENT_GATE] = "yes" if mode == "new" else "no"
+    return answers
+
+
+def _because(condition, labels: dict[str, str], answers: dict[str, str]) -> str:
+    """Name the answer that caused a task, reading the condition it was gated on.
+
+    Only the EXPLANATION lives here; whether the condition passes is
+    ``evaluate_condition``'s business and is asked of the engine (principle 6).
+    A question id the workflow no longer defines is printed as the id, because a
+    prettified guess at what it once asked would be an invented value.
+    """
+    if not condition:
+        return ""
+    for joiner, key in ((" and ", "all"), (" or ", "any")):
+        if key in condition:
+            parts = [_because(c, labels, answers) for c in condition[key] or []]
+            return joiner.join(p for p in parts if p)
+
+    qid = str(condition.get("question_id", "") or "")
+    label = labels.get(qid, qid) or "an unnamed question"
+    given = str(answers.get(qid, "") or "").strip()
+    if not given:
+        return f"“{label}” has no answer recorded"
+    return f"you answered “{given}” to “{label}”"
+
+
+def _needs(plan, workflow) -> list[Need]:
+    """The client asks this plan opens, each carrying the answer that caused it.
+
+    The rows, the wording and the BLOCKING CLASS all come off the plan's own
+    ``RequestedItem``s — what blocks is the duty's cited rule (Pub 1345 on a
+    1040), not a literal in a view. Only the cause is assembled here, by reading
+    the condition the engine has already evaluated.
+    """
+    labels = {q.id: q.label for q in workflow.questions}
+    templates = {t.template_id: t for t in workflow.tasks}
+    tasks = {t.task_id: t for t in plan.job.tasks}
+    answers = plan.job.intake_answers or {}
+
+    out: list[Need] = []
+    for item in plan.requests:
+        task = tasks.get(item.task_id)
+        template = templates.get(task.template_id) if task is not None else None
+        cause = _because(template.condition if template else None, labels, answers)
+        out.append(Need(
+            doc_type=str(item.doc_type), title=(task.title if task else str(item.doc_type)),
+            ask=item.request_text, why=(task.why_needed if task else ""),
+            alternatives=(task.accepted_alternatives if task else ""),
+            blocking=item.blocking,
+            because=(f"Because {cause}." if cause
+                     else f"Asked on every {workflow.name} engagement."),
+            by=(task.suggested_date if task else None)))
+    return out
+
+
+def _fee_slot(plan) -> str:
+    """Why the engagement letter's fee slot is empty, when it is.
+
+    ``fan_out`` omits a key it holds no fact for rather than blanking it, so the
+    draft renders ``[[ Fee: fill in ]]``. That is right on the letter and
+    useless on this screen — here the owner wants to know WHICH of the two
+    conditions failed, because they are different problems with different fixes.
+    """
+    if "fee_amount_text" in plan.letter_facts:
+        return ""
+    quote = plan.quote
+    if quote is None:
+        return (f"The letter cannot state a fee: {plan.quote_unavailable or 'there is no quote.'}")
+    if getattr(quote, "plan_is_fallback", True):
+        return ("The letter will not state a fee, because nobody has agreed a rate plan "
+                "with this client — a letter quoting the practice default claims a term "
+                "of a contract that was never negotiated. Agree a plan on the engagement "
+                "first.")
+    if getattr(quote, "unpriced", ()):
+        return ("The letter will not state a bare figure, because the total leaves out "
+                "the work below that has no price yet. It states the fee terms in words "
+                "instead, which can say so.")
+    return ""
+
+
+@bp.route("/intake/plan", methods=["GET", "POST"], endpoint="engagement_plan")
+def engagement_plan():
+    """The whole engagement the interview implies — and not one write.
+
+    Answer the interview and SEE what falls out of it: what we will need, what
+    it will cost, when it is due, what we promised. Every section is derived
+    from the same answers by one call, so they cannot disagree with each other,
+    and nothing on the page is stored anywhere.
+    """
+    src = request.form if request.method == "POST" else request.args
+    client_id = (src.get("client") or "").strip()
+    workflow_key = (src.get("workflow") or src.get("workflow_key") or "").strip()
+    public_client = _public_client(client_id)
+    client_type = _client_type(public_client)
+    year = _int_or_none(src.get("tax_year", ""))
+    today = date.today()
+
+    if not workflow_key:
+        # Nothing has been asked yet. A picker, not a refusal — "which workflow"
+        # is a question with an answer, and 404 is for a workflow that does not
+        # exist rather than one nobody has named.
+        return render_template(
+            "engagement_plan.html", title="Engagement plan", workflow=None, plan=None,
+            client_id=client_id, public_client=public_client,
+            workflows=STATE.workflow_catalog().get(client_type, []),
+            tax_year=year or "", today=today)
+
+    try:
+        from satc.intake.workflows import load_workflow
+        workflow = load_workflow(workflow_key)
+    except ConfigError as exc:
+        abort(404, description=(
+            f"{exc} There is no engagement to plan from a workflow SATC does not "
+            f"have. Pick one from the interview screen, or add the config."))
+
+    answers = _plan_answers(workflow, src)
+
+    def screen(**extra):
+        return render_template(
+            "engagement_plan.html", title="Engagement plan",
+            workflow=workflow, client_id=client_id, public_client=public_client,
+            client_name=STATE.name(client_id) if client_id else "",
+            tax_year=year or "", today=today, answers=answers,
+            generate_url=url_for("intake.new_engagement"),
+            letter_url=url_for("comms.comms", client=client_id,
+                               template="engagement_letter", tax_year=year or ""),
+            mode=(src.get("mode") or "").strip(),
+            **extra)
+
+    if year is None:
+        # A deadline is a rule landed on a PERIOD. Without the year there is no
+        # period, and every date on the page would be a guess (principles 1, 3).
+        return screen(plan=None, refusal=(
+            "Set the tax year. Every date on this page is a rule landed on a "
+            "period, so until SATC knows which year this engagement is for there "
+            "is nothing it can compute — and a plausible date would be worse than "
+            "none."))
+
+    try:
+        plan = _fan_out(workflow, answers, client_id=client_id, tax_year=year,
+                        today=today,
+                        entity_type=getattr(public_client, "entity_type", "") or "")
+    except ImportError:
+        return screen(plan=None, refusal=(
+            "satc.intake.fanout is not installed on this build, so nothing can turn "
+            "these answers into an engagement. Generate it from the interview screen "
+            "in the meantime."))
+    except ConfigError as exc:
+        # The designed refusal. A bookkeeping engagement discharges no statutory
+        # duty, and an unsourced jurisdiction refuses by name rather than falling
+        # back to the federal calendar. The message already says what to do; this
+        # renders it instead of rewriting it (principles 5 and 10).
+        return screen(plan=None, refusal=str(exc))
+
+    needs = _needs(plan, workflow)
+    promises, promise_refusal = [], ""
+    try:
+        promises = _sla_outcomes(started=_recorded_starts(client_id), today=today)
+    except ImportError:
+        promise_refusal = (
+            "SATC holds no turnaround promises on this build — satc.work.sla is not "
+            "installed, so nothing has been promised that this screen could show.")
+    except ConfigError as exc:
+        promise_refusal = str(exc)
+
+    return screen(
+        plan=plan, refusal="",
+        # WHAT WE NEED — the three-way blocking split, which means something: a
+        # K-1 that cannot exist until September does not stop prep, and a screen
+        # that lumps it in with a missing W-2 throws that away.
+        blocking=[n for n in needs if n.blocking == "blocking"],
+        expected_late=[n for n in needs if n.blocking == "expected_late"],
+        other_needs=[n for n in needs if n.blocking == "non_blocking"],
+        needs_total=len(needs),
+        # WHAT WE PROMISED, and WHY THE LETTER'S FEE SLOT IS EMPTY when it is.
+        promises=promises, promise_refusal=promise_refusal, fee_slot=_fee_slot(plan))
 
 
 @bp.route("/engagements/<job_id>", endpoint="engagement_detail")

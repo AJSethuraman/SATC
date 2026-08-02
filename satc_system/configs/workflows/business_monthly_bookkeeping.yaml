@@ -25,6 +25,15 @@ questions:
     label: Are there uncleared or uncategorized transactions?
     type: boolean
 
+# What the answers cost — schema documented in personal_1040_core.yaml.
+# The monthly close itself is not in the catalogue: it is a retainer the owner
+# agrees with the client, not a per-engagement price. Only the extra work a
+# month's answers imply is quoted, and it is hourly, so it has no number yet.
+services:
+  - service: bookkeeping_cleanup
+    condition: {question_id: unclearedTransactions, equals: "yes"}
+    because: you told us there are uncleared or uncategorized transactions
+
 tasks:
   - template_id: monthly-request-bank-statements
     title: Request bank, credit card, and loan statements

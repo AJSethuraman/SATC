@@ -12,6 +12,21 @@
 #                audience ("client" | "internal"), days_before_due (offset from due date),
 #                condition (optional gate against answers), doc_type (for received-matching),
 #                client_request_text / accepted_alternatives / why_needed / internal_instructions
+#   services[]:  WHAT THE ANSWERS COST. Each entry is one line of the quote:
+#                  service   — a code from configs/billing/services.yaml (required)
+#                  condition — optional, the SAME grammar tasks use; no condition means
+#                              every engagement of this type gets it
+#                  quantity  — how many (default 1), or the word "unknown" when the
+#                              interview does not record it
+#                  because   — the practice's sentence for why it is on the quote, in the
+#                              client's second person ("you told us about a rental"). Leave
+#                              it out and the engine writes one from the question labels.
+#                ONE ENTRY = ONE QUOTE LINE, so two entries naming the same service bill it
+#                twice. Where two answers mean the same work, use ONE entry with an `any:`
+#                condition (see schedule_d below) rather than two entries.
+#                NOTHING HERE IS GUESSED. A per-hour service, and anything with quantity
+#                "unknown", is listed on the quote as work that cannot be priced yet —
+#                visible, with the answer that implied it, and outside the total.
 #
 # NOTE: quote "yes"/"no" — bare yes/no are booleans in YAML and would break condition matching.
 key: personal_1040_core
@@ -65,6 +80,27 @@ questions:
   - id: expectedK1s
     label: Expected S-corp or partnership K-1s?
     type: boolean
+
+services:
+  - service: return_1040
+    because: this is your federal individual return
+
+  # No question records WHICH states, or how many, so the count is not on file.
+  # Assuming one would understate a client who moved and overstate a client who
+  # lives in a state with no income tax — so the quote shows the rate and says
+  # the number is not known yet.
+  - service: return_state
+    quantity: unknown
+    because: a state return goes alongside the federal one
+
+  # One entry, not two: brokerage sales and crypto sales are the same Schedule D
+  # work, and two entries would bill it twice.
+  - service: schedule_d
+    condition:
+      any:
+        - {question_id: brokerageActivity, equals: "yes"}
+        - {question_id: digitalAssets, equals: "yes"}
+    because: you told us about investment sales or digital asset activity
 
 tasks:
   - template_id: personal-1040-upload-w2-1099-core

@@ -25,6 +25,13 @@ questions:
     label: Are there suspense or uncategorized items?
     type: boolean
 
+# What the answers cost — schema documented in personal_1040_core.yaml.
+# The whole engagement is hourly, so the quote is a rate and an honest "we do
+# not know the hours until we open the file" rather than a number.
+services:
+  - service: bookkeeping_cleanup
+    because: getting the books ready for the return is what this engagement is
+
 tasks:
   - template_id: year-end-lock-periods-backup-file
     title: Lock prior reviewed periods and backup accounting file

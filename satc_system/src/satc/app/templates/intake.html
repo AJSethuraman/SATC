@@ -6,6 +6,14 @@
   {% if client or tax_year %}
   <p class="note" style="margin-top:10px">Reading documents for <strong>{{ state.name(client) if client else 'demo client' }}</strong>{% if tax_year %} · {{ tax_year }}{% endif %}</p>
   {% endif %}
+  {# The other way in. Scanning a folder finds what ARRIVED; the interview says what
+     we should have asked for in the first place — and everything else about the
+     engagement falls out of the same answers. #}
+  <p class="note" style="margin-top:10px">Nothing to scan yet?
+    <a href="{{ url_for('intake.engagement_plan', client=client, tax_year=tax_year) }}">Answer the interview
+    and see the whole engagement →</a>
+    <span class="muted">what we will need, what it will cost, when it is due — nothing is generated.</span>
+  </p>
   <form method="post" style="margin-top:14px">
     <input type="hidden" name="client" value="{{ client }}">
     <input type="hidden" name="tax_year" value="{{ tax_year }}">

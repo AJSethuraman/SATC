@@ -81,6 +81,80 @@ queue:
     unblocks: 0.3     # how much other work finishing this one frees up
     quick_win: 0.2    # how few tasks are left — the one that clears the board
 
+# WHAT WE PROMISE — turnaround this practice offers. Preference, not law.
+#
+# "We come back on a notice within two business days" is something the owner
+# said and can unsay. Nothing enforces it, nobody can fine you for it, and the
+# worst consequence of breaking one is an apology. That is the whole difference
+# from the dates in configs/obligations/, and it is why these live here: a
+# missed promise and a missed filing date must never render the same way.
+#
+# The loader REFUSES an SLA that carries a citation, a source or an authority —
+# the mirror image of the statutory loader, which refuses a rule that carries
+# none. If a turnaround here ever turns out to be required by law (the 24-hour
+# taxpayer notification after an e-file rejection is a real example, and is
+# deliberately NOT in this file), it is an obligation and belongs in
+# configs/obligations/ with its source.
+#
+# Each promise needs four things, and business_days is not optional: two
+# business days and two calendar days are different promises, and SATC will not
+# guess which one you meant.
+#
+#   days           how long
+#   business_days  true skips weekends and federal holidays; false counts every
+#                  day, including Sunday. A calendar-day promise is NOT moved
+#                  off a weekend — §7503 shifts acts with legal consequence, and
+#                  shifting a promise would hand us time we never offered.
+#   starts_when    the fact the clock starts at
+#   ends_when      the fact that stops it
+#
+# starts_when/ends_when are picked from a fixed list SATC knows (see
+# satc/work/sla.py) — and MOST OF THEM ARE NOT RECORDED ANYWHERE YET. There is
+# no inbound message in this system, no "the documents went complete" moment,
+# and no delivery fact at all. Where a fact is missing SATC refuses to say
+# whether the promise was kept and names what is missing, rather than showing a
+# green tick derived from a guess. Four of the five below are in that state
+# today; that is a fair picture of the practice, not a bug in the config.
+slas:
+  first_response:
+    label: First reply to a client's message
+    days: 1
+    business_days: true
+    starts_when: client_message_received
+    ends_when: reply_sent
+
+  notice_turnaround:
+    label: Substantive response to an IRS or state notice
+    days: 2
+    business_days: true
+    starts_when: notice_received
+    ends_when: notice_response_sent
+
+  return_turnaround:
+    label: Return out once the documents are complete
+    days: 10
+    business_days: true
+    starts_when: documents_complete
+    ends_when: return_delivered
+
+  signature_acknowledged:
+    label: Acknowledging a signed 8879
+    days: 1
+    business_days: true
+    starts_when: authorization_signed
+    ends_when: acknowledgement_sent
+
+  # The one promise SATC can actually check today, because both ends of its
+  # clock are keyed off Drake and recorded: the rejection ack, and the next
+  # transmission. Not the Pub 1345 notification — that is a legal duty and is
+  # not in this file.
+  efile_reject_turnaround:
+    label: Fixing and retransmitting a rejected return
+    days: 2
+    business_days: true
+    starts_when: efile_rejected
+    ends_when: efile_retransmitted
+
 # STANDING TEXT — wording that is the same for every client, written once.
 #
 # These were previously "fill it in yourself" slots on every single draft, which

@@ -39,6 +39,17 @@ questions:
     label: Was there a casualty loss or insurance claim?
     type: boolean
 
+# What the answers cost — schema documented in personal_1040_core.yaml.
+# This workflow is ONE property, so the Schedule E quantity is 1. A second
+# rental is a second engagement, and therefore a second line.
+services:
+  - service: schedule_e_rental
+    because: you told us about a rental property
+
+  - service: return_state
+    condition: {question_id: outOfStateProperty, equals: "yes"}
+    because: the property is in another state, so that state wants a return too
+
 tasks:
   - template_id: rental-request-rent-roll
     title: Request rent roll and annual income summary

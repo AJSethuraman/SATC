@@ -29,6 +29,18 @@ questions:
     label: Does the client need bookkeeping setup?
     type: boolean
 
+# What the answers cost — schema documented in personal_1040_core.yaml.
+# Onboarding itself is not billed; what is billed is the work it uncovers, and
+# both of these are hourly, so the quote names them without a number.
+services:
+  - service: notice_response
+    condition: {question_id: hasIrsNotices, equals: "yes"}
+    because: you told us there are IRS or state notices outstanding
+
+  - service: bookkeeping_cleanup
+    condition: {question_id: needsBookkeepingSetup, equals: "yes"}
+    because: you told us the books need setting up
+
 tasks:
   - template_id: onboarding-send-welcome-email
     title: Send welcome email and secure portal invitation
