@@ -101,6 +101,29 @@ def headline_for(board) -> str:
     return "Nothing on file to rank."
 
 
+def _workflow_names(jobs) -> dict[str, str]:
+    """Job kind -> the name a person reads.
+
+    ``Job.engagement_type`` is the machine value ("businessMonthlyBookkeeping").
+    The readable name is already in the workflow config next to it, and showing
+    the identifier instead put a code token on a screen the owner reads all day.
+    A key whose config will not load keeps the key rather than a guessed
+    prettification — principle 1, and a wrong name is worse than an ugly one.
+    """
+    from satc.intake.workflows import load_workflow
+
+    out: dict[str, str] = {}
+    for job in jobs:
+        for token in (job.engagement_type, job.workflow_key):
+            if not token or token in out:
+                continue
+            try:
+                out[token] = load_workflow(job.workflow_key).name or token
+            except Exception:  # noqa: BLE001 - an unreadable config is not a 500
+                out[token] = token
+    return out
+
+
 @bp.route("/work")
 def work():
     """The queue. Workable jobs in the order the ranking rule returned them."""
@@ -142,7 +165,8 @@ def work():
                   else headline_for(board)),
         empty_note=("" if board is None
                     else empty_queue_note(board, jobs=jobs, tax_year=year)),
-        names={cid: name for cid, name in STATE.client_choices()})
+        names={cid: name for cid, name in STATE.client_choices()},
+        kinds=_workflow_names(jobs))
 
 
 @bp.route("/work/<job_id>")

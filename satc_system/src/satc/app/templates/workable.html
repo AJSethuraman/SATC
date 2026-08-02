@@ -43,7 +43,7 @@
           <div class="muted mono">{{ item.job.client_id }}</div>
         </td>
         <td>
-          <div><strong>{{ item.job.engagement_type or item.job.workflow_key or 'Untitled job' }}</strong></div>
+          <div><strong>{{ kinds.get(item.job.engagement_type) or kinds.get(item.job.workflow_key) or item.job.engagement_type or 'Untitled job' }}</strong></div>
           <div class="muted">
             {% if item.job.tax_year %}TY{{ item.job.tax_year }}{% else %}<span class="flag">no tax year on file</span>{% endif %}
             ·
@@ -110,7 +110,7 @@
       <tr>
         <td>{{ names.get(blocked.job.client_id, blocked.job.client_id) }}</td>
         <td>
-          {{ blocked.job.engagement_type or blocked.job.workflow_key or 'Untitled job' }}
+          {{ kinds.get(blocked.job.engagement_type) or kinds.get(blocked.job.workflow_key) or blocked.job.engagement_type or 'Untitled job' }}
           <div class="muted">
             {% if blocked.job.tax_year %}TY{{ blocked.job.tax_year }}{% else %}<span class="flag">no tax year on file</span>{% endif %}
           </div>
@@ -145,7 +145,7 @@
       <tr>
         <td>{{ names.get(blocked.job.client_id, blocked.job.client_id) }}</td>
         <td>
-          {{ blocked.job.engagement_type or blocked.job.workflow_key or 'Untitled job' }}
+          {{ kinds.get(blocked.job.engagement_type) or kinds.get(blocked.job.workflow_key) or blocked.job.engagement_type or 'Untitled job' }}
           <div class="muted">
             {% if blocked.job.tax_year %}TY{{ blocked.job.tax_year }}{% else %}<span class="flag">no tax year on file</span>{% endif %}
           </div>
