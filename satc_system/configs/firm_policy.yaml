@@ -42,3 +42,14 @@ cutoffs:
 alerts:
   approaching_days: 30      # "coming up"
   urgent_days: 7            # "this week"
+
+# STANDING TEXT — wording that is the same for every client, written once.
+#
+# These were previously "fill it in yourself" slots on every single draft, which
+# is not caution, it is homework. Nothing here is a fact about a client, so
+# nothing here can be wrong about one — it is just how this firm says things.
+standing_text:
+  meeting_place: "a phone call or our office, whichever is easier for you"
+  payment_instructions: >-
+    You can pay by check made out to Sethuraman Accounting, Tax & Consulting, or
+    ask us for bank details if you would rather transfer it.

@@ -60,14 +60,25 @@ def test_drafting_for_a_real_client_prefills_from_state(client, demo_client_id):
     assert "Prefilled from their record" in body
 
 
-def test_unfilled_slots_are_shown_not_hidden(client, demo_client_id):
-    """The screen must say what it couldn't fill, so nothing goes out half-done."""
+def test_the_interview_invite_now_arrives_finished(client, demo_client_id):
+    """It used to hand back three blanks — meeting place, times, and nothing
+    else to do. Standing firm wording comes from config and the judgement
+    wording is drafted, so the owner edits rather than composes."""
     resp = client.get("/comms", query_string={
         "client": demo_client_id, "template": "interview_invite"})
     body = resp.data.decode("utf-8")
+    assert "a phone call or our office" in body      # standing firm wording
+    assert "Copy the draft" in body
+
+
+def test_a_genuine_unknown_fact_is_still_marked(client, demo_client_id):
+    """The guarantee that did NOT change: a fact nothing supplies stays
+    visibly blank. An invoice number is not something a model may invent."""
+    resp = client.get("/comms", query_string={
+        "client": demo_client_id, "template": "invoice_cover"})
+    body = resp.data.decode("utf-8")
     assert "fill in ]]" in body
-    assert "Still to fill" in body
-    assert "Proposed meeting times" in body
+    assert "Invoice number" in body
 
 
 def test_preparer_typed_values_are_merged_in(client, demo_client_id):

@@ -61,7 +61,7 @@ def test_every_merge_field_used_is_declared(lib):
 
 def test_declared_placeholders_have_a_known_source(lib):
     for p in lib.placeholders.values():
-        assert p.source in ("state", "config", "preparer"), p
+        assert p.source in ("state", "config", "firm", "drafted", "preparer"), p
 
 
 def test_every_template_says_it_is_a_draft(lib):

@@ -14,8 +14,16 @@
 #              If the practice doesn't hold that fact yet, the slot is left
 #              VISIBLY UNFILLED. We never invent a value.
 #   config   — firm identity, from the `firm:` block in this file.
-#   preparer — genuinely a human decision (meeting times, fee scope, invoice
-#              number). The screen offers a box to type it in.
+#   firm     — standing wording, identical for every client, written once in
+#              configs/firm_policy.yaml. Not a fact about anyone, so it cannot
+#              be wrong about anyone.
+#   drafted  — WORDING the local model writes, so a draft arrives finished and
+#              the owner edits rather than composes. The model is never given a
+#              figure and its output is discarded if it states one; anything it
+#              writes is marked so the owner knows which sentences are machine
+#              words.
+#   preparer — a genuine FACT only the owner has (an invoice number). Stays
+#              visibly marked until it is supplied. Never guessed.
 
 firm:
   name: "Sethuraman Accounting, Tax & Consulting"
@@ -97,22 +105,26 @@ placeholders:
     note: "Until invoicing is folded in (BACKLOG §6), this is typed by hand."
   payment_instructions:
     label: "How to pay"
-    source: preparer
+    source: firm
 
-  # -- genuinely human decisions -------------------------------------------
+  # -- wording the model drafts, and the one fact it may not -----------------
   scope_of_services:
     label: "Scope of services"
-    source: preparer
-    note: "What this engagement covers — the preparer's words, per client."
+    source: drafted
+    note: "Drafted by the local model; the owner edits rather than composes."
   fee_terms:
     label: "Fee terms"
-    source: preparer
+    source: drafted
+    note: "Wording only — the model never states an amount."
   proposed_times:
     label: "Proposed meeting times"
-    source: preparer
+    source: drafted
+    note: >-
+      The model invites the client to suggest times rather than inventing any —
+      it cannot see the owner's calendar, so it must not pretend to.
   meeting_place:
     label: "Where / how you'll meet"
-    source: preparer
+    source: firm
     note: "e.g. \"a phone call\", \"our office\", a video link."
 
   # -- the firm (config) ----------------------------------------------------

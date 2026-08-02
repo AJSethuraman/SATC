@@ -26,7 +26,7 @@ import yaml
 from satc.config import CONFIG_ROOT, ConfigError
 
 # Who fills a merge field. See the header of ``configs/comms/templates.yaml``.
-PlaceholderSource = Literal["state", "config", "preparer"]
+PlaceholderSource = Literal["state", "config", "firm", "drafted", "preparer"]
 
 TEMPLATE_REGISTRY = "templates.yaml"
 
@@ -46,8 +46,22 @@ class Placeholder:
 
     @property
     def preparer_filled(self) -> bool:
-        """Whether a human types this one (no stored fact can supply it)."""
+        """Whether the OWNER must type this — a fact nothing else can supply.
+
+        Only ``preparer`` now. Standing firm wording comes from config and
+        judgement wording is drafted by the model, so what is left here is a
+        genuine unknown fact (an invoice number), not homework.
+        """
         return self.source == "preparer"
+
+    @property
+    def model_drafted(self) -> bool:
+        """Wording the local model writes so the draft arrives finished."""
+        return self.source == "drafted"
+
+    @property
+    def from_firm_standing_text(self) -> bool:
+        return self.source == "firm"
 
 
 @dataclass(frozen=True, slots=True)

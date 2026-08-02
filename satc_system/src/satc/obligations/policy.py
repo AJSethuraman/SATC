@@ -41,6 +41,11 @@ class FirmPolicy:
     cutoffs: dict[str, tuple[int, int]] = field(default_factory=dict)
     approaching_days: int = _DEFAULT_APPROACHING_DAYS
     urgent_days: int = _DEFAULT_URGENT_DAYS
+    standing_text: dict[str, str] = field(default_factory=dict)
+    """Wording identical for every client — how the firm says a thing.
+
+    Not a fact about anyone, so it cannot be wrong about anyone. Written once
+    here instead of asked for on every draft."""
 
     def cutoff_for(self, rule_key: str, deadline: date) -> date | None:
         """The document cutoff preceding a deadline, or ``None`` if unset.
@@ -89,7 +94,9 @@ def load_policy(config_root: Path | None = None) -> FirmPolicy:
     return FirmPolicy(
         cutoffs=cutoffs,
         approaching_days=int(alerts.get("approaching_days", _DEFAULT_APPROACHING_DAYS)),
-        urgent_days=int(alerts.get("urgent_days", _DEFAULT_URGENT_DAYS)))
+        urgent_days=int(alerts.get("urgent_days", _DEFAULT_URGENT_DAYS)),
+        standing_text={str(k): " ".join(str(v).split())
+                       for k, v in (data.get("standing_text") or {}).items()})
 
 
 @lru_cache(maxsize=1)

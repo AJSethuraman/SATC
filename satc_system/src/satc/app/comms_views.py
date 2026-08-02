@@ -26,6 +26,7 @@ from flask import Blueprint, redirect, render_template, request, url_for
 
 from satc.app.state import STATE
 from satc.comms import build_context, library, render
+from satc.obligations.policy import policy as firm_policy
 
 bp = Blueprint("comms", __name__)
 
@@ -78,6 +79,7 @@ def _context(client_id: str, tax_year: int | None) -> dict[str, str]:
         engagement=engagement,
         fee_record=_fee_record(client_id, year),
         engagement_name=_workflow_name(engagement),
+        standing_text=firm_policy().standing_text,
         tax_year=tax_year,
         # The prior year is always one back from whichever year this comms is
         # about — that comparison is what surfaces a document that stopped
@@ -101,10 +103,29 @@ def _render_screen(*, client_id: str, template_key: str, tax_year: int | None,
     draft = None
     values: dict[str, str] = {}
     preparer_fields: list = []
+    model_drafted: list[str] = []
     if template is not None and client_id:
         values = _context(client_id, tax_year)
         values.update(fills)
         draft = render(template, values, library=lib)
+
+        # Anything still unfilled that is WORDING rather than a fact gets
+        # written by the local model, so the draft arrives finished. Facts are
+        # never composed — they stay visibly marked. See satc.agent.compose.
+        composable = [n for n in draft.unfilled
+                      if (p := lib.placeholder(n)) is not None and p.model_drafted]
+        if composable:
+            from satc.agent.compose import compose_slots
+
+            written = compose_slots(
+                composable, client_name=STATE.name(client_id),
+                tax_year=values.get("tax_year", ""),
+                engagement_name=values.get("engagement_name", ""))
+            if written:
+                values.update(written)
+                model_drafted = sorted(written)
+                draft = render(template, values, library=lib)
+
         preparer_fields = lib.preparer_fields(template)
 
     return render_template(
@@ -114,6 +135,8 @@ def _render_screen(*, client_id: str, template_key: str, tax_year: int | None,
         client_email=STATE.client_email(client_id) if client_id else "",
         tax_year=tax_year or "", fills=fills,
         preparer_fields=preparer_fields,
+        model_drafted=[lib.placeholder(n).label if lib.placeholder(n) else n
+                       for n in model_drafted],
         prefilled=[(lib.placeholder(n).label if lib.placeholder(n) else n)
                    for n in (draft.filled if draft else []) if not n.startswith("firm_")],
         unfilled_labels=[(lib.placeholder(n).label if lib.placeholder(n) else n, n)

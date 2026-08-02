@@ -135,6 +135,7 @@ def build_context(
     prior_year: int | None = None,
     today: date | None = None,
     firm_values: dict[str, str] | None = None,
+    standing_text: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Build the merge dictionary for one client.
 
@@ -144,6 +145,9 @@ def build_context(
     when ``tax_year`` resolves, they are narrowed to that year here.
     """
     values: dict[str, str] = dict(firm_values or {})
+    # Standing firm wording — identical for every client, so it cannot be wrong
+    # about one. Previously these were blank slots on every single draft.
+    values.update({k: v for k, v in (standing_text or {}).items() if v})
     today = today or date.today()
     entity_type = str(getattr(public_client, "entity_type", "") or "")
 

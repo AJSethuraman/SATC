@@ -261,3 +261,55 @@ def test_a_stopword_alone_does_not_match_everything():
 
     for junk in ("Inc", "LLC", "the"):
         assert isinstance(_resolve_client(STATE, junk), dict), junk
+
+
+# --- the model writes WORDING, never a figure ---------------------------------
+
+def test_the_money_guard_rejects_an_amount():
+    """Doctrine rule 6: policy at the choke point, not in the prompt. The
+    prompt says "no numbers"; this is what actually enforces it."""
+    from satc.agent.compose import states_a_figure
+
+    for bad in ("Our fee is $1,200.", "A 15% discount applies.",
+                "We will meet on the 14th.", "£500 due"):
+        assert states_a_figure(bad, known_year="2024"), bad
+
+
+def test_the_money_guard_allows_the_established_tax_year():
+    """Rejecting any digit threw away every usable draft — the year is a fact
+    the engine already established and reads naturally in a sentence."""
+    from satc.agent.compose import states_a_figure
+
+    assert not states_a_figure("We will prepare your 2024 return.", known_year="2024")
+
+
+def test_only_declared_wording_slots_are_ever_composed():
+    """An invoice number is a FACT. It is not in the composable map, so the
+    model is never even asked — it stays visibly blank until supplied."""
+    from satc.agent.compose import COMPOSABLE
+
+    assert "invoice_number" not in COMPOSABLE
+    assert "fee_amount_text" not in COMPOSABLE
+    assert set(COMPOSABLE) == {"scope_of_services", "fee_terms", "proposed_times"}
+
+
+def test_an_unreachable_model_leaves_the_slot_marked():
+    """The honest failure direction: no draft rather than a fabricated one."""
+    from satc.agent.compose import compose_slots
+
+    out = compose_slots(["scope_of_services"], host="http://127.0.0.1:9", timeout=1)
+    assert out == {}
+
+
+@live
+def test_the_model_actually_writes_usable_wording():
+    from satc.agent.compose import compose_slots, states_a_figure
+
+    out = compose_slots(["proposed_times"], client_name="Jordan Rivera",
+                        tax_year="2024", engagement_name="Individual 1040")
+    assert out, "the model produced nothing usable"
+    for name, text in out.items():
+        assert len(text) > 20
+        assert not states_a_figure(text, known_year="2024")
+        # It must not have invented times it cannot know.
+        assert "am" not in text.lower().split() and "pm" not in text.lower().split()
