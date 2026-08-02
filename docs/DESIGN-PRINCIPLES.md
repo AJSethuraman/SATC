@@ -165,6 +165,41 @@ content hashes and the readable name never leaves the local UI.
 *Enforced:* `test_comms.py` scans every rendered draft for a TIN pattern; a test
 asserts no filename can reach the exported `citation` column.
 
+## 11a · The machine that holds the vault does not face the internet
+
+SATC runs on localhost and stays there. Anything that needs a public endpoint —
+a payment rail, a webhook, a client-facing portal — lives in a **different
+project on different hardware**, and SATC talks to it over a narrow seam
+carrying masked values only.
+
+Collection is the live case. Taking card payments needs a public URL for the
+webhook; the Invoicer project already has one, with Stripe Connect and
+idempotent replay handling. Rebuilding that inside SATC would put the machine
+holding the encrypted identity vault on the public network to save an API call.
+
+So the split is: **SATC decides what to bill and why; Invoicer collects it.**
+SATC records that money arrived and reconciles it. It never holds a card, never
+receives a webhook, and never becomes the thing an attacker would point at.
+
+*Enforced:* no inbound network listener beyond the local GUI port; the seam
+carries display names and amounts, never TINs.
+
+## 11b · Money arriving is a fact; "paid" is a conclusion
+
+A `paid` flag cannot answer *did they pay all of it*, *when did the balance
+clear*, or *have I recorded this deposit already*. Payments are recorded facts
+with ids derived from the payment itself, and every balance is computed from
+them — principles 2, 3 and 8 pointed at money.
+
+Reconciliation is a ladder, and the model is on the bottom rung only: a payment
+that names its invoice, or that matches exactly one open balance, is decided by
+nobody. Only genuine ambiguity reaches a human or a model, which then picks an
+**invoice id from the shortlist of open invoices** — never an amount. A choice
+outside that list is refused, not believed.
+
+*Enforced:* `billing/payment.py`; `accept_choice` membership gate, mutation-
+tested in `test_payments.py`.
+
 ## 12 · A check that has never failed is not evidence
 
 Invariants get **mutation-tested**: break the rule on purpose, confirm the suite
