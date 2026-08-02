@@ -120,6 +120,13 @@ CREATE TABLE IF NOT EXISTS received_documents (
   obtained_how TEXT, obtained_at TEXT, furnished_by TEXT, channel TEXT,
   satisfies_request_id TEXT, classified_by TEXT, display_name TEXT,
   source_path TEXT, note TEXT);
+CREATE TABLE IF NOT EXISTS invoices (
+  invoice_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, plan_key TEXT,
+  plan_basis TEXT, issued_on TEXT, due_on TEXT, paid_on TEXT, note TEXT);
+CREATE TABLE IF NOT EXISTS invoice_lines (
+  invoice_id TEXT, line_no INTEGER, service_code TEXT, label TEXT, quantity TEXT,
+  standard_rate TEXT, note TEXT, performed_on TEXT,
+  PRIMARY KEY (invoice_id, line_no));
 CREATE TABLE IF NOT EXISTS filings (
   filing_id TEXT PRIMARY KEY, return_key TEXT, client_id TEXT, transmitted_at TEXT,
   transmitted_by TEXT, submission_id TEXT, ack_code TEXT, ack_date TEXT,
@@ -167,7 +174,7 @@ def _pdt(x: str | None) -> date | None:
 # register HERE and nowhere else.
 _MART_TABLES_BY_CLIENT = (
     "public_clients", "returns", "carryforwards", "owner_basis",
-    "estimate_payments", "engagements", "jobs", "filings",
+    "estimate_payments", "engagements", "jobs", "filings", "invoices",
     "requested_items", "received_documents",
 )
 
@@ -457,6 +464,51 @@ class SATCStore:
         self.mart.execute("UPDATE public_clients SET filing_status=? WHERE client_id=?",
                           (filing_status, client_id))
         self.mart.commit()
+
+    # -- invoices ---------------------------------------------------------
+
+    def save_invoices(self, invoices) -> None:
+        for inv in invoices:
+            self.mart.execute(
+                "INSERT OR REPLACE INTO invoices VALUES (?,?,?,?,?,?,?,?,?)",
+                (inv.invoice_id, inv.client_id, inv.tax_year, inv.plan_key,
+                 inv.plan_basis, _dt(inv.issued_on), _dt(inv.due_on),
+                 _dt(inv.paid_on), inv.note))
+            self.mart.execute("DELETE FROM invoice_lines WHERE invoice_id=?",
+                              (inv.invoice_id,))
+            for n, line in enumerate(inv.lines):
+                self.mart.execute(
+                    "INSERT OR REPLACE INTO invoice_lines VALUES (?,?,?,?,?,?,?,?)",
+                    (inv.invoice_id, n, line.service_code, line.label,
+                     str(line.quantity), str(line.standard_rate), line.note,
+                     _dt(line.performed_on)))
+        self.mart.commit()
+
+    def load_invoices(self, client_id: str = "") -> list:
+        from decimal import Decimal
+
+        from satc.billing.invoice import Invoice, InvoiceLine
+
+        lines_by_invoice: dict[str, list] = {}
+        for r in self.mart.execute("SELECT * FROM invoice_lines ORDER BY invoice_id, line_no"):
+            lines_by_invoice.setdefault(r["invoice_id"], []).append(InvoiceLine(
+                service_code=r["service_code"], label=r["label"],
+                quantity=Decimal(r["quantity"] or "1"),
+                standard_rate=Decimal(r["standard_rate"] or "0"),
+                note=r["note"] or "", performed_on=_pdt(r["performed_on"])))
+
+        sql = "SELECT * FROM invoices"
+        args: tuple = ()
+        if client_id:
+            sql += " WHERE client_id=?"
+            args = (client_id,)
+        return [Invoice(
+            invoice_id=r["invoice_id"], client_id=r["client_id"],
+            tax_year=r["tax_year"], plan_key=r["plan_key"] or "standard",
+            plan_basis=r["plan_basis"] or "", issued_on=_pdt(r["issued_on"]),
+            due_on=_pdt(r["due_on"]), paid_on=_pdt(r["paid_on"]),
+            lines=lines_by_invoice.get(r["invoice_id"], []), note=r["note"] or "")
+            for r in self.mart.execute(sql + " ORDER BY invoice_id", args)]
 
     # -- filings (many per return) ----------------------------------------
 

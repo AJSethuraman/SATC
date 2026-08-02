@@ -1,18 +1,15 @@
 Dear {salutation},
 
-Thank you for letting us prepare your {tax_year} return. Our invoice for that work is
-attached.
+Thank you for letting us prepare your {tax_year} return. Here is what that covered:
 
-  Invoice:  {invoice_number}
-  Amount:   {fee_amount_text}
-  For:      {engagement_name}, tax year {tax_year}
+{invoice_breakdown}
+
+{invoice_summary_sentence}
 
 {payment_instructions}
 
-If anything on the invoice doesn't look right, or you'd like a breakdown of the work,
-reply here and we'll walk through it with you.
-
-We appreciate your business, and we look forward to working with you again next year.
+If anything looks wrong, or you'd like me to walk through any part of it, just reply —
+I'd rather explain it than have you wondering.
 
 Warm regards,
 {preparer_name}

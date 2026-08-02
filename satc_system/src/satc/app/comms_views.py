@@ -64,6 +64,13 @@ def _fee_record(client_id: str, tax_year: int | None):
     return rows[-1] if rows else None
 
 
+def _latest_invoice(client_id: str, tax_year: int | None):
+    """The newest ISSUED invoice for this client — what a covering email is about."""
+    issued = [i for i in STATE.store.load_invoices(client_id)
+              if i.is_issued and (tax_year is None or i.tax_year == tax_year)]
+    return max(issued, key=lambda i: (i.issued_on, i.invoice_id)) if issued else None
+
+
 def _context(client_id: str, tax_year: int | None) -> dict[str, str]:
     """Assemble the merge values for a client from everything on file."""
     lib = library()
@@ -78,6 +85,7 @@ def _context(client_id: str, tax_year: int | None) -> dict[str, str]:
         received=[d for d in STATE.received_documents() if d.client_id == client_id],
         engagement=engagement,
         fee_record=_fee_record(client_id, year),
+        invoice=_latest_invoice(client_id, year),
         engagement_name=_workflow_name(engagement),
         standing_text=firm_policy().standing_text,
         tax_year=tax_year,

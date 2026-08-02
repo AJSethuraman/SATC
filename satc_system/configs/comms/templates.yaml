@@ -111,6 +111,18 @@ placeholders:
       promptly and NOT withholding them over a fee dispute — so this text is
       firm-standing and deliberately not per-client wording anyone can soften.
 
+  invoice_breakdown:
+    label: "Invoice breakdown"
+    source: state
+    note: >-
+      What the client received, itemised at FULL value, with the discount and
+      its name shown. Someone on a reduced rate should be able to see what they
+      were given rather than just a smaller number.
+  invoice_summary_sentence:
+    label: "Invoice summary sentence"
+    source: state
+    note: "One honest line: what the work was worth and what is actually due."
+
   invoice_number:
     label: "Invoice number"
     source: preparer
@@ -280,7 +292,7 @@ templates:
       The note that accompanies an invoice. Fee prefills from the engagement
       record; the invoice number and payment instructions are typed until
       invoicing is folded into the app (BACKLOG §6).
-    subject: "Invoice for your {tax_year} tax preparation — {firm_short_name}"
+    subject: "Invoice {invoice_number} for your {tax_year} tax preparation"
     body_file: invoice_cover.txt
 
   - key: season_thanks

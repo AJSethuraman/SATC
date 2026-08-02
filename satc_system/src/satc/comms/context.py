@@ -130,6 +130,7 @@ def build_context(
     received=(),
     engagement=None,
     fee_record=None,
+    invoice=None,
     engagement_name: str = "",
     tax_year: int | None = None,
     prior_year: int | None = None,
@@ -228,5 +229,14 @@ def build_context(
     fee = _money(getattr(fee_record, "fee_amount", None))
     if fee:
         values["fee_amount_text"] = fee
+
+    # A real invoice fills its own number, its breakdown and its honest
+    # sentence — so the covering email arrives finished rather than asking the
+    # owner to retype figures that already exist.
+    if invoice is not None:
+        values["invoice_number"] = invoice.invoice_id
+        values["invoice_breakdown"] = invoice.summary_block()
+        values["invoice_summary_sentence"] = invoice.client_sentence()
+        values["fee_amount_text"] = _money(invoice.total)
 
     return values

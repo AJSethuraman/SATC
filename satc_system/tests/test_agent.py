@@ -302,14 +302,30 @@ def test_an_unreachable_model_leaves_the_slot_marked():
 
 
 @live
-def test_the_model_actually_writes_usable_wording():
+def test_the_model_writes_usable_wording_and_never_a_figure():
+    """Two assertions with different standards, on purpose.
+
+    The INVARIANT — nothing that comes back ever contains a figure — must hold
+    every single time, so it is asserted on every attempt.
+
+    The CAPABILITY — that the model produces something usable — is
+    probabilistic: an attempt that gets discarded for containing a number is
+    the guard WORKING, not a failure. An earlier version of this test asserted
+    a single attempt produced output, and duly failed the build whenever the
+    guard did its job. Three attempts, at least one usable.
+    """
     from satc.agent.compose import compose_slots, states_a_figure
 
-    out = compose_slots(["proposed_times"], client_name="Jordan Rivera",
-                        tax_year="2024", engagement_name="Individual 1040")
-    assert out, "the model produced nothing usable"
-    for name, text in out.items():
-        assert len(text) > 20
-        assert not states_a_figure(text, known_year="2024")
-        # It must not have invented times it cannot know.
-        assert "am" not in text.lower().split() and "pm" not in text.lower().split()
+    attempts = [compose_slots(["proposed_times"], client_name="Jordan Rivera",
+                              tax_year="2024", engagement_name="Individual 1040")
+                for _ in range(3)]
+
+    for out in attempts:                       # the invariant, every time
+        for text in out.values():
+            assert not states_a_figure(text, known_year="2024"), text
+            assert "am" not in text.lower().split(), text
+            assert "pm" not in text.lower().split(), text
+
+    usable = [o for o in attempts if o.get("proposed_times", "").strip()]
+    assert usable, "three attempts produced nothing usable — the model may be wrong"
+    assert len(usable[0]["proposed_times"]) > 20
