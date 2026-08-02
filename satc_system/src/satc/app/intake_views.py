@@ -172,7 +172,8 @@ def _prior_summary(client_id: str) -> dict:
             if t.audience == "client" and t.category not in requested:
                 requested.append(t.category)
     return {
-        "returns": [(r.tax_year, r.return_type, r.status) for r in returns[:4]],
+        "returns": [(r.tax_year, r.return_type, STATE.return_status(r.return_key))
+                    for r in returns[:4]],
         "prior_year": prior.tax_year if prior else None,
         "requested_categories": requested,
     }

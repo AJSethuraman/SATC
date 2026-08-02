@@ -24,10 +24,12 @@ from satc.models.provenance import Provenance
 # Controlled vocabularies (port to SQL lookup tables / enums)
 # ---------------------------------------------------------------------------
 
-# Pipeline status drives the practice dashboards.
-PipelineStatus = Literal[
-    "Awaiting docs", "In prep", "In review", "Ready to file", "Filed", "Accepted", "Rejected",
-]
+# ReturnRecord no longer carries a status. Three authorities, three homes:
+#   Job.stage        — what the OWNER does next          (models/work.py)
+#   Job.client_status— what the CLIENT is told           (derived, coarser)
+#   Filing.ack_code  — whether the IRS actually has it   (models/filing.py)
+# The old PipelineStatus collapsed all three into one column and called
+# transmission "Filed", which IRS Pub 1345 contradicts.
 
 # Carryforward kinds the mart stores and rolls forward. Drake computes these; the
 # mart STORES and CARRIES them so we always hold each client's record-level data
@@ -64,12 +66,8 @@ class ReturnRecord:
     tax_year: int
     return_type: str            # "1040" | "1120S" | "1065" | "1120"
     jurisdiction: str           # "US" | "OH" | "MI" | "MA" | ...
-    status: PipelineStatus = "Awaiting docs"
     preparer_id: str = ""       # seam for multiple preparers; "" = solo default
     residency: ResidencyStatus = "NA"
-    is_extended: bool = False
-    filed_date: date | None = None
-    accepted_date: date | None = None
     # Headline results stored at the return level for fast dashboards / comparison.
     refund_amount: Decimal | None = None
     balance_due_amount: Decimal | None = None

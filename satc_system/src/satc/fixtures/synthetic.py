@@ -255,23 +255,23 @@ def synthetic_mart() -> DataMart:
 
     mart.returns = [
         ReturnRecord(return_key=rk_23, client_id="SATC-001000", tax_year=2023,
-                     return_type="1040", jurisdiction="US", status="Accepted",
+                     return_type="1040", jurisdiction="US",
                      residency="FULL_YEAR", refund_amount=Decimal("1500")),
         ReturnRecord(return_key=rk_24, client_id="SATC-001000", tax_year=2024,
-                     return_type="1040", jurisdiction="US", status="In review",
+                     return_type="1040", jurisdiction="US",
                      residency="FULL_YEAR", balance_due_amount=Decimal("1767")),
         ReturnRecord(return_key=rk_24_oh, client_id="SATC-001000", tax_year=2024,
-                     return_type="1040", jurisdiction="OH", status="In review",
+                     return_type="1040", jurisdiction="OH",
                      residency="FULL_YEAR", refund_amount=Decimal("300")),
         ReturnRecord(return_key=return_key("SATC-002000", 2024, "1120S", "MI"),
                      client_id="SATC-002000", tax_year=2024, return_type="1120S",
-                     jurisdiction="MI", status="Ready to file"),
+                     jurisdiction="MI"),
         ReturnRecord(return_key=return_key("SATC-003000", 2024, "1065", "MA"),
                      client_id="SATC-003000", tax_year=2024, return_type="1065",
-                     jurisdiction="MA", status="In prep"),
+                     jurisdiction="MA"),
         ReturnRecord(return_key=return_key("SATC-004000", 2024, "1120", "OH"),
                      client_id="SATC-004000", tax_year=2024, return_type="1120",
-                     jurisdiction="OH", status="Filed", is_extended=True),
+                     jurisdiction="OH"),
     ]
 
     mart.line_items = [

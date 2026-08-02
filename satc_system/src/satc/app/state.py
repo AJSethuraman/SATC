@@ -159,6 +159,26 @@ class AppState:
     def returns(self):
         return self.mart.returns
 
+    def filings(self, return_key: str = "") -> list:
+        return self.store.load_filings(return_key)
+
+    def return_status(self, return_key: str) -> str:
+        """A return's honest FILING status, DERIVED from its acks.
+
+        Named ``return_status`` and not ``filing_status`` because
+        :meth:`filing_status` already means the client's TAX filing status
+        (single, married filing jointly). Two very different things that both
+        want the word "filing"; a shadowing definition silently broke the
+        interview screen until a test caught it.
+
+        Never stored. The truth is the ack the owner keyed off Drake; a second
+        stored copy is how a dashboard ends up saying "Filed" about a return
+        the IRS rejected.
+        """
+        from satc.models.filing import status_line_for
+
+        return status_line_for(self.store.load_filings(return_key))
+
     def clients(self) -> list[str]:
         seen: list[str] = []
         for r in self.mart.returns:
@@ -421,7 +441,7 @@ class AppState:
         ret = next((r for r in self.mart.returns if r.return_key == rk), None)
         if ret is None:
             ret = ReturnRecord(return_key=rk, client_id=client_id, tax_year=tax_year,
-                               return_type=return_type, jurisdiction=jurisdiction, status="In prep")
+                               return_type=return_type, jurisdiction=jurisdiction)
             self.mart.returns.append(ret)
 
         items = self.gate.to_line_items(rk, MAPPING_1040)
@@ -537,7 +557,8 @@ class AppState:
     def pipeline_counts(self) -> dict[str, int]:
         out: dict[str, int] = {}
         for r in self.mart.returns:
-            out[r.status] = out.get(r.status, 0) + 1
+            label = self.filing_status(r.return_key)
+            out[label] = out.get(label, 0) + 1
         return out
 
     def fees_total(self) -> float:

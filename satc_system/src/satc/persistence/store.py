@@ -89,8 +89,8 @@ CREATE TABLE IF NOT EXISTS public_clients (
   filing_status TEXT);
 CREATE TABLE IF NOT EXISTS returns (
   return_key TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, return_type TEXT,
-  jurisdiction TEXT, status TEXT, preparer_id TEXT, residency TEXT, is_extended INTEGER,
-  filed_date TEXT, accepted_date TEXT, refund_amount TEXT, balance_due_amount TEXT, note TEXT);
+  jurisdiction TEXT, preparer_id TEXT, residency TEXT,
+  refund_amount TEXT, balance_due_amount TEXT, note TEXT);
 CREATE TABLE IF NOT EXISTS line_items (
   line_item_key TEXT PRIMARY KEY, return_key TEXT, schedule TEXT, line_code TEXT,
   label TEXT, amount TEXT, text_value TEXT, source_kind TEXT, citation TEXT,
@@ -120,6 +120,11 @@ CREATE TABLE IF NOT EXISTS received_documents (
   obtained_how TEXT, obtained_at TEXT, furnished_by TEXT, channel TEXT,
   satisfies_request_id TEXT, classified_by TEXT, display_name TEXT,
   source_path TEXT, note TEXT);
+CREATE TABLE IF NOT EXISTS filings (
+  filing_id TEXT PRIMARY KEY, return_key TEXT, client_id TEXT, transmitted_at TEXT,
+  transmitted_by TEXT, submission_id TEXT, ack_code TEXT, ack_date TEXT,
+  reject_rule_id TEXT, reject_element TEXT, reject_message TEXT, attempt INTEGER,
+  note TEXT);
 CREATE TABLE IF NOT EXISTS relationships (
   rel_id TEXT PRIMARY KEY, from_client_id TEXT, to_client_id TEXT,
   relationship_type TEXT, ownership_pct TEXT, is_primary INTEGER, note TEXT);
@@ -162,7 +167,7 @@ def _pdt(x: str | None) -> date | None:
 # register HERE and nowhere else.
 _MART_TABLES_BY_CLIENT = (
     "public_clients", "returns", "carryforwards", "owner_basis",
-    "estimate_payments", "engagements", "jobs",
+    "estimate_payments", "engagements", "jobs", "filings",
     "requested_items", "received_documents",
 )
 
@@ -393,10 +398,10 @@ class SATCStore:
                        pc.tin_masked, pc.default_return_type, pc.home_state,
                        getattr(pc, "filing_status", "") or ""))
         for r in mart.returns:
-            m.execute("INSERT OR REPLACE INTO returns VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            m.execute("INSERT OR REPLACE INTO returns VALUES (?,?,?,?,?,?,?,?,?,?)",
                       (r.return_key, r.client_id, r.tax_year, r.return_type, r.jurisdiction,
-                       r.status, r.preparer_id, r.residency, int(r.is_extended), _dt(r.filed_date),
-                       _dt(r.accepted_date), _d(r.refund_amount), _d(r.balance_due_amount), r.note))
+                       r.preparer_id, r.residency, _d(r.refund_amount),
+                       _d(r.balance_due_amount), r.note))
         for li in mart.line_items:
             prov = li.provenance
             ref = prov.source_ref if prov else None
@@ -452,6 +457,37 @@ class SATCStore:
         self.mart.execute("UPDATE public_clients SET filing_status=? WHERE client_id=?",
                           (filing_status, client_id))
         self.mart.commit()
+
+    # -- filings (many per return) ----------------------------------------
+
+    def save_filings(self, filings) -> None:
+        for f in filings:
+            self.mart.execute(
+                "INSERT OR REPLACE INTO filings VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (f.filing_id, f.return_key, f.client_id, _ts(f.transmitted_at),
+                 _actor(f.transmitted_by), f.submission_id, f.ack_code,
+                 _dt(f.ack_date), f.reject_rule_id, f.reject_element,
+                 f.reject_message, int(f.attempt), f.note))
+        self.mart.commit()
+
+    def load_filings(self, return_key: str = "") -> list:
+        from satc.models.filing import Filing
+
+        sql = "SELECT * FROM filings"
+        args: tuple = ()
+        if return_key:
+            sql += " WHERE return_key=?"
+            args = (return_key,)
+        sql += " ORDER BY attempt, filing_id"
+        return [Filing(
+            filing_id=r["filing_id"], return_key=r["return_key"], client_id=r["client_id"],
+            transmitted_at=_pts(r["transmitted_at"]),
+            transmitted_by=_pactor(r["transmitted_by"]),
+            submission_id=r["submission_id"] or "", ack_code=r["ack_code"] or "",
+            ack_date=_pdt(r["ack_date"]), reject_rule_id=r["reject_rule_id"] or "",
+            reject_element=r["reject_element"] or "",
+            reject_message=r["reject_message"] or "", attempt=r["attempt"] or 1,
+            note=r["note"] or "") for r in self.mart.execute(sql, args)]
 
     # -- evidence (requested items + received documents) ------------------
 
@@ -626,9 +662,8 @@ class SATCStore:
             for r in m.execute("SELECT * FROM public_clients ORDER BY client_id")]
         mart.returns = [ReturnRecord(
             return_key=r["return_key"], client_id=r["client_id"], tax_year=r["tax_year"],
-            return_type=r["return_type"], jurisdiction=r["jurisdiction"], status=r["status"],
-            preparer_id=r["preparer_id"], residency=r["residency"], is_extended=bool(r["is_extended"]),
-            filed_date=_pdt(r["filed_date"]), accepted_date=_pdt(r["accepted_date"]),
+            return_type=r["return_type"], jurisdiction=r["jurisdiction"],
+            preparer_id=r["preparer_id"], residency=r["residency"],
             refund_amount=_pd(r["refund_amount"]), balance_due_amount=_pd(r["balance_due_amount"]),
             note=r["note"]) for r in m.execute("SELECT * FROM returns ORDER BY tax_year, return_key")]
         mart.line_items = [LineItem(

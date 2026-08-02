@@ -141,7 +141,8 @@ def client_brief(state, *, client: str) -> dict[str, Any]:
         "filing_status": getattr(pc, "filing_status", "") if pc else "",
         "outstanding": out_rows, "outstanding_count": len(outstanding),
         "received": rec_rows, "received_count": len(received),
-        "returns": [f"{r.tax_year} {r.return_type} ({r.jurisdiction}) — {r.status}"
+        "returns": [f"{r.tax_year} {r.return_type} ({r.jurisdiction}) — "
+                    f"{state.return_status(r.return_key)}"
                     for r in returns][:MAX_ROWS],
         **({"note": " · ".join(n for n in (out_note, rec_note) if n)}
            if (out_note or rec_note) else {}),
