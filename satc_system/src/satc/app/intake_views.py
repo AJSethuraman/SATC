@@ -205,8 +205,11 @@ def new_engagement():
     if request.method == "POST":
         client_id = request.form.get("client", "")
         workflow_key = request.form.get("workflow_key", "")
-        due_date = request.form.get("due_date", "")
-        mode = request.form.get("mode", "new")
+        # NOTE: due_date is deliberately NOT read off the form any more. The
+        # deadline is computed from a cited rule (principle 3); a date typed
+        # into a box drove the whole engagement, including its place in the
+        # work queue.
+        mode = request.form.get("mode", "")
         tax_year = _int_or_none(request.form.get("tax_year", ""))
 
         from satc.intake.workflows import load_workflow
@@ -219,16 +222,41 @@ def new_engagement():
             val = request.form.get(f"q_{q.id}")
             if val is not None:
                 answers[q.id] = val
-        answers[NEW_CLIENT_GATE] = "yes" if mode == "new" else "no"
+        # Whether this is a new client is a RECORDED FACT — the practice either
+        # has a prior engagement on file or it does not. Defaulting an absent
+        # form field to "new" invented that answer for returning clients, and it
+        # is the gate the whole interview branches on: it generated a different
+        # engagement from the plan the owner had just read.
+        if mode in ("new", "returning"):
+            answers[NEW_CLIENT_GATE] = "yes" if mode == "new" else "no"
+        else:
+            answers[NEW_CLIENT_GATE] = "no" if STATE.is_returning(client_id) else "yes"
 
         filing_status = request.form.get("filing_status", "").strip()
         if filing_status:
             STATE.set_filing_status(client_id, filing_status)
 
-        eng = STATE.create_engagement(
-            client_id=client_id, workflow_key=workflow_key, due_date=due_date,
-            answers=answers, tax_year=tax_year)
-        return redirect(url_for("intake.engagement_detail", job_id=eng.job_id))
+        try:
+            plan = STATE.create_engagement_from_intake(
+                client_id=client_id, workflow_key=workflow_key,
+                answers=answers, tax_year=tax_year)
+        except (ConfigError, ValueError) as refused:
+            # A jurisdiction with no sourced rules refuses rather than borrowing
+            # the federal calendar. That refusal is the product; a 500 is not.
+            # Re-rendered rather than redirected, so the answers survive it.
+            return render_template(
+                "intake_new.html", title="Intake", refusal=str(refused),
+                client_id=client_id, public_client=_public_client(client_id),
+                client_type=_client_type(_public_client(client_id)),
+                workflows=STATE.workflow_catalog().get(
+                    _client_type(_public_client(client_id)), []),
+                workflow=workflow, mode=mode, returning=(mode == "returning"),
+                prefill=answers, prior=STATE.prior_engagement(client_id, workflow_key),
+                prior_summary={}, filing_statuses=FILING_STATUSES,
+                filing_status=STATE.filing_status(client_id),
+                gate_question=NEW_CLIENT_GATE)
+        job = getattr(plan, "job", plan)
+        return redirect(url_for("intake.engagement_detail", job_id=job.job_id))
 
     client_id = request.args.get("client", "")
     public_client = _public_client(client_id)

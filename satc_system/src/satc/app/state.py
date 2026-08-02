@@ -498,6 +498,23 @@ class AppState:
         self.reload()
         return eng
 
+    def create_engagement_from_intake(self, **kw):
+        """The door the app uses. Deadline computed, not keyed in.
+
+        ``create_engagement`` above takes a ``due_date`` off a form, which makes
+        a typed date drive the whole engagement — and left ``obligation_key``
+        empty, which is why the work queue's deadline ranking could never fire
+        on a real job. This routes through the interview instead, so the
+        engagement the owner GENERATES is derived the same way as the plan they
+        just READ. Two derivations for one engagement is two answers to the same
+        question.
+        """
+        from satc.intake.service import create_engagement_from_intake
+
+        plan = create_engagement_from_intake(self.store, **kw)
+        self.reload()
+        return plan
+
     def set_task_completed(self, task_id: str, completed: bool = True) -> None:
         """Mark an engagement task done/undone (durable)."""
         for eng in self.store.load_jobs():

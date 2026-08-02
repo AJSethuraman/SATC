@@ -539,3 +539,77 @@ def test_generating_the_engagement_is_a_separate_deliberate_post(client, practic
     # and so does the COMPUTED deadline, not one anybody typed.
     assert 'name="q_expectedK1s" value="yes"' in page
     assert f'name="due_date" value="{a_real_plan().duty.due.isoformat()}"' in page
+
+
+# --- the button and the plan must be the same derivation --------------------
+#
+# The plan screen called fan_out; the Generate button called the legacy door.
+# So the engagement the owner READ and the engagement they GENERATED came from
+# two different derivations, and could disagree. These walk the real route.
+
+def _post_engagement(web, *, year=2025, **extra):
+    """Each test uses its OWN tax year: creating the same engagement twice is a
+    no-op by design, so shared years would make these order-dependent."""
+    data = {"client": "SATC-001000", "workflow_key": "personal_1040_core",
+            "tax_year": str(year)}
+    data.update(extra)
+    return web.post("/intake/new", data=data)
+
+
+def test_a_typed_due_date_no_longer_drives_the_engagement(client):
+    """A date in a form box is not a statutory deadline (principles 3 and 4)."""
+    from satc.app.state import STATE
+
+    before = {j.job_id for j in STATE.store.load_jobs()}
+    _post_engagement(client, year=2031, due_date="2031-12-25")
+    STATE.reload()
+    made = [j for j in STATE.store.load_jobs() if j.job_id not in before]
+
+    assert made, "the route must still create an engagement"
+    for job in made:
+        assert str(job.due_date) != "2031-12-25", (
+            "the deadline must come from the cited rule, not the form")
+
+
+def test_generating_an_engagement_sets_the_obligation_key(client):
+    """Nothing wrote this, which is why the work queue's deadline ranking could
+    never fire on a real job."""
+    from satc.app.state import STATE
+
+    before = {j.job_id for j in STATE.store.load_jobs()}
+    _post_engagement(client, year=2032)
+    STATE.reload()
+    made = [j for j in STATE.store.load_jobs() if j.job_id not in before]
+
+    assert made
+    assert all(j.obligation_key for j in made), "obligation_key is still empty"
+
+
+def test_pressing_generate_twice_does_not_make_two_engagements(client):
+    """Principle 8. The screen told the owner this was safe; it was not."""
+    from satc.app.state import STATE
+
+    _post_engagement(client, year=2033)
+    STATE.reload()
+    after_first = {j.job_id for j in STATE.store.load_jobs()}
+
+    _post_engagement(client, year=2033)
+    STATE.reload()
+    assert {j.job_id for j in STATE.store.load_jobs()} == after_first
+
+
+def test_a_returning_client_is_not_recorded_as_new_when_the_form_omits_it(client):
+    """Whether this is a new client is a RECORDED FACT. Defaulting an absent
+    field to "new" invented the answer the whole interview branches on."""
+    from satc.app.intake_views import NEW_CLIENT_GATE
+    from satc.app.state import STATE
+
+    cid = "SATC-001000"
+    if not STATE.is_returning(cid):
+        return                      # nothing to assert on this fixture
+    before = {j.job_id for j in STATE.store.load_jobs()}
+    _post_engagement(client, year=2034)   # no "mode" field at all
+    STATE.reload()
+    made = [j for j in STATE.store.load_jobs() if j.job_id not in before]
+    for job in made:
+        assert (job.intake_answers or {}).get(NEW_CLIENT_GATE) != "yes"
