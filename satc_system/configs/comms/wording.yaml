@@ -1,0 +1,91 @@
+# WORDING VARIANTS — the sentences the model may choose between.
+#
+# THE PRINCIPLE (docs/DESIGN-PRINCIPLES.md §6, doctrine rule 5): give the model
+# the same limited choices the human has. A person picks a client from a list, a
+# template from eighteen, a service from the catalogue. Wording should work the
+# same way — the practice writes the sentences, the model picks which fits.
+#
+# The alternative, which this replaces, was free generation with a filter
+# checking afterwards for dollar signs. That has an infinite output space, so
+# nobody can ever read every sentence that might reach a client. Here the output
+# space is four, and you are reading all of them right now.
+#
+# `when` is the only thing the model is asked to judge. It never writes prose.
+#
+# To add a variant: write the sentence and say when it fits. To stop one ever
+# being used: delete it. Both are edits to this file and nothing else.
+
+slots:
+  scope_of_services:
+    label: "Scope of services"
+    variants:
+      - key: personal_simple
+        when: "an ordinary personal return — W-2 income, maybe some interest"
+        text: >-
+          We will prepare and file your federal and state individual income tax
+          returns for the year, from the documents you provide. That includes
+          checking this year against last year, and raising anything that looks
+          inconsistent with you before we file.
+      - key: personal_complex
+        when: "a personal return with self-employment, rentals or investments"
+        text: >-
+          We will prepare and file your federal and state individual income tax
+          returns for the year, including the schedules your situation needs —
+          self-employment, rental property and investment activity as
+          applicable. We will raise anything that looks inconsistent with you
+          before we file.
+      - key: business_entity
+        when: "a partnership, S corporation or company return"
+        text: >-
+          We will prepare and file the entity's federal and state returns for
+          the year, and produce the K-1s for each owner. Preparation of the
+          owners' personal returns is a separate engagement.
+      - key: advisory_only
+        when: "planning or advice with no return being filed"
+        text: >-
+          We will advise on the matters you have raised, in writing where a
+          record is useful. This engagement does not include preparing or filing
+          any tax return.
+
+  fee_terms:
+    label: "Fee terms"
+    variants:
+      - key: on_delivery
+        when: "the usual arrangement — billed when the work is delivered"
+        text: >-
+          We invoice when the work is delivered, and the invoice itemises what
+          was done so you can see what you are paying for. Payment is due within
+          thirty days.
+      - key: staged
+        when: "a larger engagement billed in stages as work progresses"
+        text: >-
+          We invoice in stages as the work progresses rather than in one sum at
+          the end, so the cost is visible as it accrues. Each invoice itemises
+          what it covers, and payment is due within thirty days.
+      - key: reduced_rate
+        when: "the client is on a reduced rate and should know it"
+        text: >-
+          Our invoice will show the full value of the work and the reduction
+          applied to your account, so you can see both. Payment is due within
+          thirty days, and if the timing is difficult please say so — we would
+          rather know.
+      - key: no_charge
+        when: "there is no charge for this engagement"
+        text: >-
+          There is no fee for this engagement. You will still receive an
+          itemised statement of the work, because you should be able to see what
+          was done.
+
+  proposed_times:
+    label: "Proposed meeting times"
+    variants:
+      - key: ask_them
+        when: "almost always — we cannot see the client's calendar"
+        text: >-
+          Let us know a couple of times over the next week or two that suit you,
+          and we will make one work.
+      - key: ask_them_urgent
+        when: "a deadline is close and the conversation cannot wait"
+        text: >-
+          There is a deadline coming up, so sooner is better than later — send
+          us any times in the next few days that work and we will fit around you.

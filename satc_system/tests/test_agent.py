@@ -263,69 +263,28 @@ def test_a_stopword_alone_does_not_match_everything():
         assert isinstance(_resolve_client(STATE, junk), dict), junk
 
 
-# --- the model writes WORDING, never a figure ---------------------------------
 
-def test_the_money_guard_rejects_an_amount():
-    """Doctrine rule 6: policy at the choke point, not in the prompt. The
-    prompt says "no numbers"; this is what actually enforces it."""
-    from satc.agent.compose import states_a_figure
+# --- the model may not write prose that reaches a client ---------------------
 
-    for bad in ("Our fee is $1,200.", "A 15% discount applies.",
-                "We will meet on the 14th.", "£500 due"):
-        assert states_a_figure(bad, known_year="2024"), bad
+def test_free_text_composition_no_longer_exists():
+    """DESIGN-PRINCIPLES §6a. This existed for a day and was wrong: an infinite
+    output space means nobody can read every sentence that might reach a client.
 
+    Deleted rather than deprecated, because a module that still works is a
+    module someone will use again — me, most likely."""
+    import importlib
 
-def test_the_money_guard_allows_the_established_tax_year():
-    """Rejecting any digit threw away every usable draft — the year is a fact
-    the engine already established and reads naturally in a sentence."""
-    from satc.agent.compose import states_a_figure
-
-    assert not states_a_figure("We will prepare your 2024 return.", known_year="2024")
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("satc.agent.compose")
 
 
-def test_only_declared_wording_slots_are_ever_composed():
-    """An invoice number is a FACT. It is not in the composable map, so the
-    model is never even asked — it stays visibly blank until supplied."""
-    from satc.agent.compose import COMPOSABLE
+def test_the_model_only_ever_returns_a_key_for_wording():
+    """It picks; the engine looks up the text."""
+    from satc.comms.wording import Choice, wording
 
-    assert "invoice_number" not in COMPOSABLE
-    assert "fee_amount_text" not in COMPOSABLE
-    assert set(COMPOSABLE) == {"scope_of_services", "fee_terms", "proposed_times"}
-
-
-def test_an_unreachable_model_leaves_the_slot_marked():
-    """The honest failure direction: no draft rather than a fabricated one."""
-    from satc.agent.compose import compose_slots
-
-    out = compose_slots(["scope_of_services"], host="http://127.0.0.1:9", timeout=1)
-    assert out == {}
-
-
-@live
-def test_the_model_writes_usable_wording_and_never_a_figure():
-    """Two assertions with different standards, on purpose.
-
-    The INVARIANT — nothing that comes back ever contains a figure — must hold
-    every single time, so it is asserted on every attempt.
-
-    The CAPABILITY — that the model produces something usable — is
-    probabilistic: an attempt that gets discarded for containing a number is
-    the guard WORKING, not a failure. An earlier version of this test asserted
-    a single attempt produced output, and duly failed the build whenever the
-    guard did its job. Three attempts, at least one usable.
-    """
-    from satc.agent.compose import compose_slots, states_a_figure
-
-    attempts = [compose_slots(["proposed_times"], client_name="Jordan Rivera",
-                              tax_year="2024", engagement_name="Individual 1040")
-                for _ in range(3)]
-
-    for out in attempts:                       # the invariant, every time
-        for text in out.values():
-            assert not states_a_figure(text, known_year="2024"), text
-            assert "am" not in text.lower().split(), text
-            assert "pm" not in text.lower().split(), text
-
-    usable = [o for o in attempts if o.get("proposed_times", "").strip()]
-    assert usable, "three attempts produced nothing usable — the model may be wrong"
-    assert len(usable[0]["proposed_times"]) > 20
+    slots = wording()
+    assert slots, "no wording variants are configured"
+    for slot in slots.values():
+        assert len(slot.variants) >= 1
+        for variant in slot.variants:
+            assert variant.key and variant.text

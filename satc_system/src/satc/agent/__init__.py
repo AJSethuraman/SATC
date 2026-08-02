@@ -4,7 +4,13 @@ A natural-language front door: *"what needs me today?"*, *"what's missing for
 Northshore?"*, *"draft the chase for Beacon Hill."* The model reads through a
 small, read-only tool surface and answers in plain language.
 
-What it can do: read aggregated views, render a draft, and say it doesn't know.
+What it can do: read aggregated views, render a draft, choose between sentences
+the practice wrote, and say it doesn't know.
+
+What it does NOT do, deliberately: write prose that reaches a client. See
+`docs/DESIGN-PRINCIPLES.md` §6a — wherever a human picks from a list, the model
+picks from the same list. `satc.comms.wording` returns a KEY; the engine looks
+up the text.
 
 What it cannot do — not by prompt, but because the capability does not exist and
 the engine refuses it anyway: send, sign, file, confirm a staged value, close a
@@ -12,8 +18,8 @@ client request, or compute a tax figure. See `docs/DESIGN-PRINCIPLES.md` §6 and
 §9, and `docs/LOCAL-LLM-PATTERN.md`.
 
 The deterministic engine did the noticing before the model was ever involved
-(`satc.actions`). The model's budget goes on the margin: phrasing, and answering
-the question the owner actually asked.
+(`satc.actions`). The model's budget goes on the margin: choosing which
+pre-written wording fits, and answering the question the owner actually asked.
 """
 
 from __future__ import annotations

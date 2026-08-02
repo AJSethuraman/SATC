@@ -64,6 +64,27 @@ def _fee_record(client_id: str, tax_year: int | None):
     return rows[-1] if rows else None
 
 
+def _situation(client_id: str, values: dict) -> str:
+    """A short description of this client, for choosing between wordings.
+
+    Deliberately facts the engine already established — entity type, what is on
+    file — never a judgement. The model's job is to match a situation to a
+    pre-written sentence, not to characterise the client.
+    """
+    pc = STATE.public_client(client_id)
+    bits = [f"client {STATE.name(client_id)}"]
+    if pc is not None and pc.entity_type:
+        bits.append(f"entity type {pc.entity_type}")
+    if values.get("tax_year"):
+        bits.append(f"tax year {values['tax_year']}")
+    if values.get("engagement_name"):
+        bits.append(f"engagement: {values['engagement_name']}")
+    docs = {d.doc_type for d in STATE.received_documents() if d.client_id == client_id}
+    if docs:
+        bits.append("documents on file: " + ", ".join(sorted(docs)[:6]))
+    return "; ".join(bits)
+
+
 def _latest_invoice(client_id: str, tax_year: int | None):
     """The newest ISSUED invoice for this client — what a covering email is about."""
     issued = [i for i in STATE.store.load_invoices(client_id)
@@ -119,19 +140,20 @@ def _render_screen(*, client_id: str, template_key: str, tax_year: int | None,
 
         # Anything still unfilled that is WORDING rather than a fact gets
         # written by the local model, so the draft arrives finished. Facts are
-        # never composed — they stay visibly marked. See satc.agent.compose.
+        # never chosen for — they stay visibly marked. See comms/wording.py.
         composable = [n for n in draft.unfilled
                       if (p := lib.placeholder(n)) is not None and p.model_drafted]
         if composable:
-            from satc.agent.compose import compose_slots
+            from satc.comms.wording import choose
 
-            written = compose_slots(
-                composable, client_name=STATE.name(client_id),
-                tax_year=values.get("tax_year", ""),
-                engagement_name=values.get("engagement_name", ""))
-            if written:
-                values.update(written)
-                model_drafted = sorted(written)
+            # The model picks between sentences the PRACTICE wrote; it never
+            # writes prose. Same limited choices a human has from a dropdown —
+            # the output space is what is in configs/comms/wording.yaml, and
+            # nothing else can reach a client.
+            picked = choose(composable, context=_situation(client_id, values))
+            if picked:
+                values.update({name: c.text for name, c in picked.items()})
+                model_drafted = sorted(n for n, c in picked.items() if c.chosen_by_model)
                 draft = render(template, values, library=lib)
 
         preparer_fields = lib.preparer_fields(template)

@@ -86,6 +86,34 @@ including from paths that do not exist yet.
 *Enforced:* `models/actor.py`; `acting_actor()`; `test_actor_gate.py`, mutation-
 tested both ways.
 
+## 6a · The model chooses from a finite set — it does not generate
+
+Wherever a human picks from a list, the model picks from the **same list**. A
+client from the client list, a template from the eighteen, a service from the
+catalogue, a *sentence from the sentences the practice wrote*.
+
+This is rule 6 pointed at language rather than rows, and it was the easiest to
+lose. Free generation feels like what a model is for — but its output space is
+infinite, so nobody can ever read every sentence that might reach a client, and
+the only protection is a filter run afterwards. A finite set can be read in a
+minute and edited in a second.
+
+**The model returns a KEY. The engine looks up the text.** A model that answers
+with something not on the list gets the default, never its own words. The worst
+case is a slightly wrong sentence the practice already approved — a different
+order of problem from an invented one.
+
+Corollary: it works with no model at all. Absent Ollama the default variant is
+used, which is a real answer rather than a blank.
+
+> This principle was violated within a day of this document being written, in
+> `compose.py`, **because the document did not contain it.** That is what drift
+> looks like: every individual commit reasonable, the boundary quietly moving.
+
+*Enforced:* `configs/comms/wording.yaml`; `comms/wording.py` returns a
+`Choice`, never prose; `test_wording.py` asserts no client-facing sentence can
+originate from a model.
+
 ## 7 · Provenance is sticky and transitive
 
 A model taint follows the **value**, not the reader that last touched it.
