@@ -19,6 +19,7 @@ from satc.actions.propose import (
     ask_prior_year_questions,
     chase_outstanding,
     chase_signature,
+    credit_on_account,
     deadline_pressure,
     extension_candidate,
     invoice_overdue,
@@ -262,13 +263,46 @@ def test_nothing_in_the_queue_writes_anything():
 # been delivered and never charged for. These are the rows that say so.
 
 
-def _job(stage="delivered", *, client="C", year=2025, job_id="job-1",
-         engagement_type="Individual 1040"):
+def _tasks(status="done", *, job_id="job-1", settled_days_ago=None):
+    """One internal task, in whatever state the job is meant to be in.
+
+    Jobs are described by their TASKS here, never by ``stage``. The stage is
+    derived from these rows (``satc.work.stage.derive_stage``) and the field is
+    a cache nothing in the app writes — a test that set it would be testing a
+    value the running system never produces.
+    """
+    from datetime import datetime, time
+
+    from satc.models.actor import Actor
+    from satc.models.work import Completion, Task
+
+    task = Task(task_id=f"{job_id}-t1", job_id=job_id, template_id="tpl-prep",
+                title="Prepare the return", category="prep", audience="internal",
+                status=status)
+    if settled_days_ago is not None:
+        task.completion = Completion(
+            by=Actor.owner(),
+            at=datetime.combine(TODAY - timedelta(days=settled_days_ago), time(16, 0)),
+            procedure="prepared and self-reviewed")
+    return [task]
+
+
+def _job(status="done", *, client="C", year=2025, job_id="job-1",
+         engagement_type="Individual 1040", settled_days_ago=None):
+    """A job whose internal work is FINISHED by default — every task settled.
+
+    ``status`` is a TASK status, not a stage: "done" makes the derivation say
+    ``ready_to_deliver``, "in_progress" makes it say ``in_prep``. There is no
+    way to ask for "delivered", because the practice records no fact that could
+    mean it.
+    """
     from satc.models.work import Job
 
     return Job(job_id=job_id, client_id=client, workflow_key="individual_1040",
                engagement_type=engagement_type, tax_year=year,
-               period_key=str(year), stage=stage)
+               period_key=str(year),
+               tasks=_tasks(status, job_id=job_id,
+                            settled_days_ago=settled_days_ago))
 
 
 def _invoice(*, client="C", year=2025, number="2026-0001", issued=None,
@@ -298,12 +332,12 @@ def _payment(amount, *, client="C", invoice="2026-0001", days_ago=5):
                    basis=MatchBasis.REFERENCE)
 
 
-# --- work that went out the door and was never billed -------------------------
+# --- finished work that was never billed --------------------------------------
 
-def test_delivered_work_with_no_invoice_is_money_the_practice_lost():
+def test_finished_work_with_no_invoice_is_money_the_practice_lost():
     """Nothing else in the system would ever mention this again: the client is
     happy, the file looks finished, and the fee was never asked for."""
-    action = unbilled_work([_job("delivered")], [], client_id="C", tax_year=2025)
+    action = unbilled_work([_job()], [], client_id="C", tax_year=2025)
     assert action is not None
     assert action.kind == "unbilled_work"
     assert "Individual 1040" in action.why
@@ -312,33 +346,95 @@ def test_delivered_work_with_no_invoice_is_money_the_practice_lost():
     assert action.evidence == ("job-1",)
 
 
+def test_the_queue_asks_the_derivation_where_a_job_stands_not_the_stored_field():
+    """``Job.stage`` has no producer anywhere in the app, so keying on it made
+    every row in this section dead code: the field said "not_started" for jobs
+    whose work was finished months ago, and the proposer never fired once in
+    the running system.
+
+    Both directions, because either alone would pass on a coincidence."""
+    finished = _job()                       # every task settled, stage untouched
+    finished.stage = "not_started"          # a stale cache claiming the opposite
+    assert unbilled_work([finished], [], client_id="C", tax_year=2025) is not None
+
+    unfinished = _job(status="in_progress")
+    unfinished.stage = "delivered"          # a stale cache flattering the file
+    assert unbilled_work([unfinished], [], client_id="C", tax_year=2025) is None
+
+
+def test_no_row_claims_the_return_actually_reached_the_client():
+    """The derivation refuses to conclude ``delivered``, so this cannot assert
+    it. What the row is allowed to say is that the WORK is finished — and it has
+    to say which of the two it means, or the owner reads the stronger one
+    (principles 1 and 5)."""
+    action = unbilled_work([_job()], [], client_id="C", tax_year=2025)
+    assert "finished" in action.why
+    assert "not confirmed delivery" in action.why
+    assert "delivered" not in action.title
+
+
 def test_work_still_in_prep_is_not_billable_yet():
-    """Billing happens at delivery. Chasing a fee for work in progress is worse
-    than not chasing at all."""
-    assert unbilled_work([_job("in_prep")], [], client_id="C", tax_year=2025) is None
+    """Billing happens when the work is done. Chasing a fee for work in progress
+    is worse than not chasing at all."""
+    assert unbilled_work([_job(status="in_progress")], [], client_id="C", tax_year=2025) is None
 
 
-def test_delivered_work_that_was_actually_billed_says_nothing():
+def test_a_job_whose_tasks_are_ticked_while_a_document_is_missing_is_not_billable():
+    """Readiness is part of the derivation, not decoration. Every task ticked
+    with a blocking W-2 still outstanding is a file that cannot have been
+    finished — and billing it would be the confident wrong answer with an
+    invoice attached."""
+    blocking = RequestedItem(request_id="req-w2", client_id="C", tax_year=2025,
+                             doc_type="W-2", blocking="blocking",
+                             requested_at=TODAY - timedelta(days=20))
+    from satc.models.readiness import assess
+
+    waiting = assess([blocking], client_id="C", tax_year=2025)
+    assert unbilled_work([_job()], [], client_id="C", tax_year=2025,
+                         readiness=waiting) is None
+
+    queue = build_queue(clients=["C"], jobs=[_job()], requested=[blocking],
+                        engaged_clients=["C"], tax_year=2025, today=TODAY)
+    assert "unbilled_work" not in [a.kind for a in queue.actions]
+
+
+def test_finished_work_that_was_actually_billed_says_nothing():
     invoices = [_invoice(issued=TODAY - timedelta(days=3))]
-    assert unbilled_work([_job("delivered")], invoices,
+    assert unbilled_work([_job()], invoices,
                          client_id="C", tax_year=2025) is None
 
 
 def test_an_invoice_for_a_different_year_does_not_count_as_billed():
     """Last year's bill is not this year's."""
     invoices = [_invoice(year=2024, issued=TODAY - timedelta(days=3))]
-    action = unbilled_work([_job("delivered")], invoices,
+    action = unbilled_work([_job()], invoices,
                            client_id="C", tax_year=2025)
     assert action is not None
 
 
-def test_a_closed_file_that_was_never_billed_is_louder_than_a_fresh_delivery():
-    """A delivery this week is the next thing to do. A file marked complete with
-    no invoice behind it is money already gone."""
-    fresh = unbilled_work([_job("delivered")], [], client_id="C", tax_year=2025)
-    closed = unbilled_work([_job("complete")], [], client_id="C", tax_year=2025)
+def test_work_finished_a_month_ago_and_never_billed_is_louder_than_this_week_s():
+    """The old escalation read ``stage == "complete"`` — a value nothing wrote.
+    The replacement is a fact that exists: when the last task on the job was
+    actually settled. A file finished in January and still unbilled is money
+    the practice has lost track of; one finished on Monday is just the next
+    thing to do."""
+    fresh = unbilled_work([_job(settled_days_ago=2)], [], client_id="C",
+                          tax_year=2025, today=TODAY)
+    cold = unbilled_work([_job(settled_days_ago=60)], [], client_id="C",
+                         tax_year=2025, today=TODAY)
     assert fresh.urgency == "soon"
-    assert closed.urgency == "urgent"
+    assert cold.urgency == "urgent"
+    assert "60 days ago" in cold.why
+
+
+def test_an_age_nobody_recorded_is_not_reported_as_finished_today():
+    """No completion on file means the practice does not know when this was
+    finished. Principle 1 — the row says what it knows and claims nothing more,
+    rather than reading "no timestamp" as "settled today"."""
+    action = unbilled_work([_job(settled_days_ago=None)], [], client_id="C",
+                           tax_year=2025, today=TODAY)
+    assert action.urgency == "soon"
+    assert "The last task" not in action.why
 
 
 def test_three_unbilled_jobs_are_one_problem_not_three_rows():
@@ -445,6 +541,66 @@ def test_the_flag_still_speaks_for_money_that_arrived_before_the_ledger():
     assert "$400.00 still owed" in contradicted[0].title
 
 
+# --- the overpayment that fell through the floor ------------------------------
+
+
+def test_an_overpayment_surfaces_rather_than_vanishing():
+    """``balance_owed`` floors at zero, correctly — an overpayment is a credit,
+    not a debt owed to the practice. But the floor also made the money
+    disappear: settled, so nothing chases it; issued, so it is not a draft; paid
+    in full, so no billing row mentions it. A client who sent $600 for a $450
+    bill read, everywhere on this screen, as a client who was square."""
+    inv = _invoice(number="2026-0011", issued=TODAY - timedelta(days=40))
+    rows = credit_on_account([inv], [_payment("600.00", invoice="2026-0011")],
+                             client_id="C")
+    assert len(rows) == 1
+    assert rows[0].kind == "credit_on_account"
+    assert "$150.00" in rows[0].title
+    assert "2026-0011" in rows[0].title
+    assert "$600.00 has arrived" in rows[0].why
+    assert f"{inv.total:,.2f}" in rows[0].why
+    assert rows[0].invoice_id == "2026-0011"
+
+
+def test_an_invoice_paid_to_the_penny_is_not_a_credit():
+    inv = _invoice(issued=TODAY - timedelta(days=40))
+    assert credit_on_account([inv], [_payment(inv.total)], client_id="C") == []
+    assert credit_on_account([inv], [_payment("100.00")], client_id="C") == []
+
+
+def test_the_credit_row_proposes_the_conversation_and_decides_nothing():
+    """Refund or hold it against the next bill is the owner's call with a figure
+    attached. Pre-writing either one would be choosing for them (principle 9)."""
+    rows = credit_on_account([_invoice(issued=TODAY - timedelta(days=40))],
+                             [_payment("600.00")], client_id="C")
+    assert rows[0].template_key == ""
+    assert "Refund it or hold it against" in rows[0].why
+    # And the screen actually renders it — a new kind that 500s in front of the
+    # owner is worse than the row not existing.
+    assert "/invoices/2026-0001" in _today_html(rows)
+
+
+def test_an_overpaid_client_reaches_the_queue_at_all():
+    """The unit above passes whether or not build_queue ever calls it."""
+    inv = _invoice(number="2026-0011", issued=TODAY - timedelta(days=40))
+    queue = build_queue(clients=["C"], invoices=[inv],
+                        payments=[_payment("600.00", invoice="2026-0011")],
+                        engaged_clients=["C"], tax_year=2025, today=TODAY)
+    assert "credit_on_account" in [a.kind for a in queue.actions]
+
+
+def test_a_credit_row_keeps_its_id_across_a_rebuild():
+    inv = _invoice(number="2026-0011", issued=TODAY - timedelta(days=40))
+
+    def ids(today):
+        queue = build_queue(clients=["C"], invoices=[inv],
+                            payments=[_payment("600.00", invoice="2026-0011")],
+                            engaged_clients=["C"], tax_year=2025, today=today)
+        return {a.action_id for a in queue.actions}
+
+    assert ids(TODAY) == ids(TODAY + timedelta(days=9))
+
+
 def test_the_queue_takes_the_ledger_through_the_seam():
     """``build_queue(..., payments=...)`` — the caller hands over
     ``store.load_payments()``, and the money rows are computed from it."""
@@ -503,7 +659,7 @@ def test_an_overdue_invoice_does_not_also_say_the_year_is_unbilled():
     """The client owes you for the 2025 work. Saying that twice — once as an
     unpaid bill and once as work you forgot to bill — is how the owner learns to
     scroll past the row that mattered."""
-    queue = build_queue(clients=["C"], jobs=[_job("complete")],
+    queue = build_queue(clients=["C"], jobs=[_job()],
                         invoices=[_invoice(issued=TODAY - timedelta(days=60))],
                         engaged_clients=["C"], tax_year=2025, today=TODAY)
     kinds = [a.kind for a in queue.actions]
@@ -512,7 +668,7 @@ def test_an_overdue_invoice_does_not_also_say_the_year_is_unbilled():
 
 
 def test_a_draft_invoice_also_stands_the_unbilled_row_down():
-    queue = build_queue(clients=["C"], jobs=[_job("delivered")],
+    queue = build_queue(clients=["C"], jobs=[_job()],
                         invoices=[_invoice(performed_on=TODAY - timedelta(days=21))],
                         engaged_clients=["C"], tax_year=2025, today=TODAY)
     kinds = [a.kind for a in queue.actions]
@@ -521,7 +677,7 @@ def test_a_draft_invoice_also_stands_the_unbilled_row_down():
 
 
 def test_delivered_work_with_no_bill_anywhere_still_reaches_the_queue():
-    queue = build_queue(clients=["C"], jobs=[_job("delivered")],
+    queue = build_queue(clients=["C"], jobs=[_job()],
                         engaged_clients=["C"], tax_year=2025, today=TODAY)
     assert [a.kind for a in queue.actions] == ["unbilled_work"]
 
@@ -530,7 +686,7 @@ def test_the_money_rows_keep_their_ids_across_a_rebuild():
     """A dismissed invoice chase that reappears every refresh is worse than no
     chase at all."""
     def ids(today):
-        queue = build_queue(clients=["C"], jobs=[_job("complete", client="D")],
+        queue = build_queue(clients=["C"], jobs=[_job(client="D")],
                             invoices=[_invoice(issued=TODAY - timedelta(days=40)),
                                       _invoice(number="2026-0002",
                                                performed_on=TODAY - timedelta(days=20))],
@@ -541,7 +697,7 @@ def test_the_money_rows_keep_their_ids_across_a_rebuild():
 
 
 def test_every_money_row_is_auditable_in_one_line():
-    queue = build_queue(clients=["C", "D"], jobs=[_job("complete", client="D")],
+    queue = build_queue(clients=["C", "D"], jobs=[_job(client="D")],
                         invoices=[_invoice(issued=TODAY - timedelta(days=40)),
                                   _invoice(number="2026-0002",
                                            performed_on=TODAY - timedelta(days=20))],
@@ -555,7 +711,7 @@ def test_every_money_row_is_auditable_in_one_line():
 
 
 def test_the_queue_still_says_nothing_when_there_is_no_money_to_chase():
-    queue = build_queue(clients=["C"], jobs=[_job("in_prep")], invoices=[],
+    queue = build_queue(clients=["C"], jobs=[_job(status="in_progress")], invoices=[],
                         engaged_clients=["C"], tax_year=2025, today=TODAY)
     assert queue.summary_line() == "Nothing needs you right now."
 
@@ -632,18 +788,20 @@ def test_an_abandoned_draft_is_never_quieter_than_no_draft_at_all():
     one: the work is out, the fee is unasked-for, and now the drafting is done
     too, so nobody comes back to it. The stand-down was there to remove a
     duplicate, not to downgrade the problem."""
+    cold = _job(settled_days_ago=60)     # finished two months ago, still unbilled
+
     def loudest(**kw):
-        queue = build_queue(clients=["C"], jobs=[_job("complete")],
+        queue = build_queue(clients=["C"], jobs=[cold],
                             engaged_clients=["C"], tax_year=2025, today=TODAY, **kw)
         return min(_URGENCY_ORDER[a.urgency] for a in queue.actions)
 
     # An undated draft: the invoice_unissued row on its own is only "routine".
-    abandoned = build_queue(clients=["C"], jobs=[_job("complete")],
+    abandoned = build_queue(clients=["C"], jobs=[cold],
                             invoices=[_invoice(performed_on=None)],
                             engaged_clients=["C"], tax_year=2025, today=TODAY)
     assert [a.kind for a in abandoned.actions] == ["invoice_unissued"]
     assert abandoned.actions[0].urgency == "urgent"
-    assert "already delivered" in abandoned.actions[0].why
+    assert "already finished" in abandoned.actions[0].why
     assert loudest(invoices=[_invoice(performed_on=None)]) <= loudest(invoices=[])
 
 
@@ -651,7 +809,7 @@ def test_an_invoice_that_actually_went_out_is_allowed_to_be_calmer():
     """An issued bill five days past due HAS asked the client for the money.
     Escalating that to "you never billed for finished work" is the opposite
     mistake, and it teaches the owner to ignore the loud rows."""
-    queue = build_queue(clients=["C"], jobs=[_job("complete")],
+    queue = build_queue(clients=["C"], jobs=[_job()],
                         invoices=[_invoice(issued=TODAY - timedelta(days=35))],
                         engaged_clients=["C"], tax_year=2025, today=TODAY)
     assert [a.kind for a in queue.actions] == ["invoice_overdue"]
@@ -666,14 +824,14 @@ def test_a_year_that_is_billed_and_paid_does_not_escalate_an_unrelated_draft():
     row claims has to agree with what the rest of the screen says."""
     settled = _invoice(number="2026-0001", issued=TODAY - timedelta(days=40))
     draft = _invoice(number="2026-0002", performed_on=None)
-    queue = build_queue(clients=["C"], jobs=[_job("complete")],
+    queue = build_queue(clients=["C"], jobs=[_job()],
                         invoices=[settled, draft],
                         payments=[_payment(settled.total, invoice="2026-0001")],
                         engaged_clients=["C"], tax_year=2025, today=TODAY)
     rows = {a.kind: a for a in queue.actions}
     assert set(rows) == {"invoice_unissued"}
     assert rows["invoice_unissued"].urgency == "routine"
-    assert "already delivered" not in rows["invoice_unissued"].why
+    assert "already finished" not in rows["invoice_unissued"].why
 
 
 # --- coverage is a fact nobody ever recorded ----------------------------------
@@ -688,9 +846,9 @@ def test_no_row_claims_a_number_of_unbilled_jobs_that_nothing_records():
     ordinary billing shape. Reading it as "at least 2 jobs have never been
     billed" states a shortfall the practice has no record of — principle 1, in
     the direction that costs the owner an afternoon chasing nothing."""
-    jobs = [_job("complete", job_id="j1", engagement_type="Individual 1040"),
-            _job("complete", job_id="j2", engagement_type="Rental schedule"),
-            _job("complete", job_id="j3", engagement_type="Payroll")]
+    jobs = [_job(job_id="j1", engagement_type="Individual 1040"),
+            _job(job_id="j2", engagement_type="Rental schedule"),
+            _job(job_id="j3", engagement_type="Payroll")]
     one_bill = [_invoice(issued=TODAY - timedelta(days=3))]
     assert unbilled_work(jobs, one_bill, client_id="C", tax_year=2025) is None
 
@@ -707,7 +865,7 @@ def test_a_settled_year_says_it_cannot_confirm_rather_than_going_quiet():
     answer the owner gets. Principles 1 and 5 beat a confident silence."""
     inv = _invoice(issued=TODAY - timedelta(days=40),
                    services=("return_1040", "schedule_e_rental"))
-    action = unbilled_work([_job("complete")], [inv], [_payment(inv.total)],
+    action = unbilled_work([_job()], [inv], [_payment(inv.total)],
                            client_id="C", tax_year=2025)
     assert action is not None
     assert action.urgency == "routine"
@@ -721,7 +879,7 @@ def test_the_coverage_row_stays_off_while_a_bill_is_still_owed():
     merely unpaid while money is still owed, and that bill already has its own
     row — two rows about one year is how the owner learns to scroll past."""
     inv = _invoice(issued=TODAY - timedelta(days=40))
-    queue = build_queue(clients=["C"], jobs=[_job("complete")], invoices=[inv],
+    queue = build_queue(clients=["C"], jobs=[_job()], invoices=[inv],
                         payments=[_payment("100.00")],
                         engaged_clients=["C"], tax_year=2025, today=TODAY)
     assert [a.kind for a in queue.actions] == ["invoice_overdue"]
@@ -729,7 +887,7 @@ def test_the_coverage_row_stays_off_while_a_bill_is_still_owed():
 
 def test_a_draft_still_standing_holds_the_coverage_row_back_too():
     """A draft for the year is billing in progress, and it has its own row."""
-    jobs = [_job("complete", job_id="j1"), _job("complete", job_id="j2")]
+    jobs = [_job(job_id="j1"), _job(job_id="j2")]
     assert unbilled_work(jobs, [_invoice(performed_on=TODAY - timedelta(days=21))],
                          client_id="C", tax_year=2025) is None
 
@@ -737,11 +895,12 @@ def test_a_draft_still_standing_holds_the_coverage_row_back_too():
 # --- the year of a quarterly or monthly job -----------------------------------
 
 
-def _dateless_job(period, job_id="p1", *, stage="complete", label="Payroll"):
+def _dateless_job(period, job_id="p1", *, status="done", label="Payroll"):
     from satc.models.work import Job
 
     return Job(job_id=job_id, client_id="C", workflow_key="payroll",
-               engagement_type=label, tax_year=None, period_key=period, stage=stage)
+               engagement_type=label, tax_year=None, period_key=period,
+               tasks=_tasks(status, job_id=job_id))
 
 
 def test_a_quarterly_or_monthly_period_still_names_a_year():
@@ -781,7 +940,7 @@ def test_the_unreadable_period_row_is_quiet_and_names_what_clears_it():
 
 def test_work_still_in_prep_with_no_readable_year_is_not_a_row_either():
     """Billing happens at delivery — an unreadable period does not change that."""
-    assert undated_work([_dateless_job("FY26", stage="in_prep")], client_id="C") is None
+    assert undated_work([_dateless_job("FY26", status="in_progress")], client_id="C") is None
 
 
 # --- against the seeded practice ---------------------------------------------
@@ -796,6 +955,57 @@ def test_it_runs_against_the_real_seeded_practice():
         tax_year=2024, today=date(2025, 3, 20))
     assert len(queue) > 0, "the seeded practice should have something worth doing"
     assert queue.summary_line() != "Nothing needs you right now."
+
+
+def test_the_model_and_the_owner_are_looking_at_the_same_queue(monkeypatch):
+    """``satc_today`` built its queue with no jobs, no invoices and no payment
+    ledger, and every one of those arguments defaults to empty — so a model
+    asked "what needs doing?" answered with the paper chase alone and never
+    mentioned the unbilled year, the overdue invoice or the client sitting on a
+    credit, while the owner's screen two feet away listed all three.
+
+    Principle 6 puts the model on the proposing side of the engine. That means
+    nothing at all if it is proposing against a different practice.
+    """
+    from satc.agent import tools
+    from satc.app import today_views as views
+    from satc.app.server import create_app
+    from satc.app.state import STATE
+
+    ids = [cid for cid, _ in STATE.client_choices()]
+    unbilled_client, owing_client = ids[0], ids[1]
+    year = 2025
+
+    # One fabricated practice, read by both paths. Held flat on purpose: this
+    # test is about the seam, and a real client's own outstanding requests would
+    # decide the money rows for reasons that have nothing to do with it.
+    monkeypatch.setattr(STATE, "requested_items", lambda: [])
+    monkeypatch.setattr(STATE, "received_documents",
+                        lambda: [_doc("W-2", year, "Received", client=unbilled_client)])
+    monkeypatch.setattr(STATE, "jobs",
+                        lambda: [_job(client=unbilled_client, year=year, job_id="j-seam")])
+    monkeypatch.setattr(STATE.store, "load_invoices", lambda *a, **kw: [
+        _invoice(client=owing_client, year=year, number="2026-0044",
+                 issued=date.today() - timedelta(days=40)),
+        _invoice(client=owing_client, year=year, number="2026-0045",
+                 issued=date.today() - timedelta(days=40))])
+    monkeypatch.setattr(STATE.store, "load_payments", lambda *a, **kw: [
+        _payment("600.00", client=owing_client, invoice="2026-0045")])
+
+    captured: dict = {}
+    monkeypatch.setattr(views, "render_template",
+                        lambda _name, **ctx: captured.update(ctx) or "")
+    assert create_app().test_client().get("/today").status_code == 200
+    screen = captured["queue"]
+
+    model = tools.today(STATE)
+
+    assert model["tax_year"] == captured["tax_year"]
+    assert model["counts_by_kind"] == screen.counts()
+    assert model["summary"] == screen.summary_line()
+    # Non-vacuous: these are exactly the kinds the missing arguments dropped.
+    for kind in ("unbilled_work", "invoice_overdue", "credit_on_account"):
+        assert kind in model["counts_by_kind"], f"the model never saw {kind}"
 
 
 def test_the_today_screen_actually_reads_the_ledger(monkeypatch):

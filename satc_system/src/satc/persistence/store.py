@@ -147,16 +147,23 @@ CREATE TABLE IF NOT EXISTS filings (
 CREATE TABLE IF NOT EXISTS relationships (
   rel_id TEXT PRIMARY KEY, from_client_id TEXT, to_client_id TEXT,
   relationship_type TEXT, ownership_pct TEXT, is_primary INTEGER, note TEXT);
+-- A job carries NO stage column, and that is deliberate. The stage is DERIVED
+-- from these rows by satc.work.stage.derive_stage; Job.stage is only ever a
+-- cache of what that says, and a cache written to disk is a stale status field
+-- wearing a new name (principle 3 — it lies the moment a document arrives).
+-- What has to survive instead are the FACTS the derivation reads: every task's
+-- status, audience, category, blocked_by and dates, below.
 CREATE TABLE IF NOT EXISTS jobs (
   job_id TEXT PRIMARY KEY, client_id TEXT, workflow_key TEXT, engagement_type TEXT,
   tax_year INTEGER, period_key TEXT, due_date TEXT, intake_answers TEXT, risk_flags TEXT,
-  created_at TEXT, updated_at TEXT);
+  created_at TEXT, updated_at TEXT, obligation_key TEXT);
 CREATE TABLE IF NOT EXISTS tasks (
   task_id TEXT PRIMARY KEY, job_id TEXT, template_id TEXT, title TEXT, category TEXT,
   audience TEXT, client_request_text TEXT, accepted_alternatives TEXT, why_needed TEXT,
   internal_instructions TEXT, suggested_date TEXT, status TEXT, notes TEXT,
   relationship_generated INTEGER, request_id TEXT, due_date TEXT, waived_reason TEXT,
-  follow_up_round INTEGER, completed_by TEXT, completed_at TEXT, procedure TEXT);
+  follow_up_round INTEGER, completed_by TEXT, completed_at TEXT, procedure TEXT,
+  blocked_by TEXT, escalated_at TEXT);
 CREATE TABLE IF NOT EXISTS workflow_overrides (
   workflow_key TEXT PRIMARY KEY, data TEXT);
 CREATE TABLE IF NOT EXISTS app_meta (k TEXT PRIMARY KEY, v TEXT);
@@ -410,6 +417,22 @@ class SATCStore:
         for column in ("rate_plan_key", "rate_plan_basis"):
             if column not in eng_cols:
                 self.mart.execute(f"ALTER TABLE engagements ADD COLUMN {column} TEXT")
+        self.mart.commit()
+
+        # The facts a job's STAGE is derived from. Without blocked_by, a task
+        # waiting on earlier work in the same job came back off disk looking
+        # startable — so a job the derivation calls "in_prep, waiting on its own
+        # dependencies" read as ready to pick up, which is the optimistic
+        # reading and the one that lets a return sit. obligation_key is the link
+        # from a job to the duty it discharges, and escalated_at is when a chase
+        # was escalated: both were written to nothing and silently lost.
+        job_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(jobs)")}
+        if "obligation_key" not in job_cols:
+            self.mart.execute("ALTER TABLE jobs ADD COLUMN obligation_key TEXT")
+        task_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(tasks)")}
+        for column in ("blocked_by", "escalated_at"):
+            if column not in task_cols:
+                self.mart.execute(f"ALTER TABLE tasks ADD COLUMN {column} TEXT")
         self.mart.commit()
 
     def _encrypt_vault_at_rest(self) -> None:
@@ -813,12 +836,31 @@ class SATCStore:
             for r in self.mart.execute("SELECT * FROM relationships ORDER BY rel_id")]
 
     def save_job(self, eng: Job) -> None:
-        """Persist an engagement and (replace) its task list."""
-        self.mart.execute("INSERT OR REPLACE INTO jobs VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                          (eng.job_id, eng.client_id, eng.workflow_key, eng.engagement_type,
-                           eng.tax_year, eng.period_key, _dt(eng.due_date),
-                           json.dumps(eng.intake_answers), json.dumps(eng.risk_flags),
-                           eng.created_at, eng.updated_at))
+        """Persist a job and (replace) its task list.
+
+        Columns are NAMED rather than positional. A positional INSERT is only
+        correct while the DDL's column order and the migration's order agree,
+        and nothing forces them to: ``ALTER TABLE`` can only append, so a column
+        added to the middle of the DDL — the natural place to put it, next to
+        the ones it belongs with — lands at the END of every store that already
+        exists. The two orders would then differ by build age, and each value
+        would be written into its neighbour's column on exactly the machines
+        that have history on them. Naming the columns removes the coupling
+        rather than asking the next person to remember it.
+
+        ``stage`` is not written, and there is no column for it. See the note on
+        the jobs table: what the store owes the derivation is the facts, not the
+        conclusion.
+        """
+        self.mart.execute(
+            "INSERT OR REPLACE INTO jobs "
+            "(job_id, client_id, workflow_key, engagement_type, tax_year, period_key,"
+            " due_date, intake_answers, risk_flags, created_at, updated_at, obligation_key)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (eng.job_id, eng.client_id, eng.workflow_key, eng.engagement_type,
+             eng.tax_year, eng.period_key, _dt(eng.due_date),
+             json.dumps(eng.intake_answers), json.dumps(eng.risk_flags),
+             eng.created_at, eng.updated_at, eng.obligation_key))
         self.mart.execute("DELETE FROM tasks WHERE job_id=?", (eng.job_id,))
         for t in eng.tasks:
             self._insert_task(t)
@@ -827,14 +869,24 @@ class SATCStore:
     def _insert_task(self, t: Task) -> None:
         c = t.completion
         self.mart.execute(
-            "INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT OR REPLACE INTO tasks "
+            "(task_id, job_id, template_id, title, category, audience,"
+            " client_request_text, accepted_alternatives, why_needed,"
+            " internal_instructions, suggested_date, status, notes,"
+            " relationship_generated, request_id, due_date, waived_reason,"
+            " follow_up_round, completed_by, completed_at, procedure,"
+            " blocked_by, escalated_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (t.task_id, t.job_id, t.template_id, t.title, t.category, t.audience,
              t.client_request_text, t.accepted_alternatives, t.why_needed,
              t.internal_instructions, _dt(t.suggested_date), t.status, t.notes,
              int(t.relationship_generated), t.request_id, _dt(t.due_date),
              t.waived_reason, int(t.follow_up_round),
              _actor(c.by) if c else None, _ts(c.at) if c else None,
-             c.procedure if c else ""))
+             c.procedure if c else "",
+             # JSON, not a delimited string: a task title is free text and can
+             # contain whatever separator we picked.
+             json.dumps(list(t.blocked_by)), _dt(t.escalated_at)))
 
     def save_task(self, t: Task) -> None:
         self._insert_task(t)
@@ -856,6 +908,13 @@ class SATCStore:
                 for r in self.mart.execute("SELECT workflow_key FROM workflow_overrides")}
 
     def load_jobs(self) -> list[Job]:
+        """Every job with its tasks. ``Job.stage`` comes back at its default.
+
+        Nothing is restored into it because nothing is stored: ask
+        :func:`satc.work.stage.derive_stage` where a loaded job stands. Every
+        fact that derivation reads — each task's status, audience, category,
+        ``blocked_by`` and dates — is rebuilt here.
+        """
         tasks_by_eng: dict[str, list[Task]] = {}
         for r in self.mart.execute("SELECT * FROM tasks ORDER BY suggested_date, task_id"):
             tasks_by_eng.setdefault(r["job_id"], []).append(Task(
@@ -871,10 +930,17 @@ class SATCStore:
                 due_date=_pdt(_col(r, "due_date")),
                 waived_reason=_col(r, "waived_reason") or "",
                 follow_up_round=_col(r, "follow_up_round") or 0,
+                # A tuple, because that is what Task declares and what
+                # derive_stage tests for truthiness. A legacy row has NULL here,
+                # which is "nobody recorded a dependency" — the same thing an
+                # empty list means, and the only reading available.
+                blocked_by=tuple(json.loads(_col(r, "blocked_by") or "[]")),
+                escalated_at=_pdt(_col(r, "escalated_at")),
                 completion=_completion(r)))
         return [Job(
             job_id=r["job_id"], client_id=r["client_id"], workflow_key=r["workflow_key"],
             engagement_type=r["engagement_type"], tax_year=r["tax_year"],
+            obligation_key=_col(r, "obligation_key") or "",
             period_key=_col(r, "period_key") or "",
             due_date=_pdt(r["due_date"]), intake_answers=json.loads(r["intake_answers"] or "{}"),
             risk_flags=json.loads(r["risk_flags"] or "[]"), created_at=r["created_at"] or "",

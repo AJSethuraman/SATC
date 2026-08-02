@@ -24,6 +24,7 @@ from satc.app.intake_views import bp as intake_bp
 from satc.app.state import STATE
 from satc.app.today_views import bp as today_bp
 from satc.app.withholding_views import bp as withholding_bp
+from satc.app.work_views import bp as work_bp
 from satc.app.workflow_views import bp as workflow_bp
 from satc.ingest import load_classifier
 from satc.persistence import export_mart_to_excel
@@ -63,6 +64,7 @@ def create_app() -> Flask:
     app.register_blueprint(comms_bp)
     app.register_blueprint(today_bp)
     app.register_blueprint(billing_bp)
+    app.register_blueprint(work_bp)
 
     @app.before_request
     def _local_only_guard():

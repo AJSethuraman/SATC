@@ -142,3 +142,56 @@ def test_the_stored_stage_is_not_consulted():
     job.stage = "complete"
     view = derive_stage(job, readiness=readiness_with(an_open_item("W-2")))
     assert view.stage == "waiting_on_documents"
+
+
+# --- two bugs an adversarial recheck found ----------------------------------
+
+def test_a_job_whose_tasks_were_all_cancelled_is_not_ready_to_deliver():
+    """"Settled" covers cancelled, so an abandoned job read as finished — and
+    got proposed for billing as work that had been done."""
+    job = a_job(a_task("Enter W-2", status="cancelled"),
+                a_task("Enter 1099", status="cancelled"))
+    view = derive_stage(job, readiness=readiness_with())
+    assert view.stage != "ready_to_deliver"
+    assert view.is_abandoned
+    assert "cancelled" in view.why
+    assert not view.is_workable
+
+
+def test_one_real_completion_is_enough_to_be_ready_to_deliver():
+    """Guards against over-fixing: waiving the inapplicable half of a checklist
+    is ordinary, not abandonment."""
+    job = a_job(a_task("Enter W-2", status="done"),
+                a_task("Foreign accounts", status="waived"))
+    view = derive_stage(job, readiness=readiness_with())
+    assert view.stage == "ready_to_deliver"
+    assert not view.is_abandoned
+
+
+def test_a_job_with_nothing_left_to_do_is_not_offered_as_work():
+    """It scored as the smallest job on the board and sat at rank 1 forever,
+    because nothing the practice can record would move it. Principle 13."""
+    job = a_job(a_task("Enter W-2", status="done"))
+    view = derive_stage(job, readiness=readiness_with())
+    assert view.stage == "ready_to_deliver"
+    assert not view.is_workable, (
+        "a job with no preparing left is not something to pick up — the "
+        "outstanding act is recording delivery, which is a different thing")
+
+
+def test_the_workable_stages_are_the_ones_with_preparing_left():
+    """Mutation check — principle 12. If ready_to_deliver were added back to
+    is_workable, this is the assertion that would fail."""
+    workable, waiting = [], []
+    for job, ready in [
+        (a_job(a_task("A")), readiness_with()),                       # prep_ready
+        (a_job(a_task("A", status="in_progress"), a_task("B")), readiness_with()),
+        (a_job(a_task("A", status="done"),
+               a_task("R", category="Review")), readiness_with()),    # in_review
+        (a_job(a_task("A", status="done")), readiness_with()),        # ready_to_deliver
+        (a_job(a_task("A")), readiness_with(an_open_item("W-2"))),    # waiting
+    ]:
+        view = derive_stage(job, readiness=ready)
+        (workable if view.is_workable else waiting).append(view.stage)
+    assert workable == ["prep_ready", "in_prep", "in_review"]
+    assert set(waiting) == {"ready_to_deliver", "waiting_on_documents"}

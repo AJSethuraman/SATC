@@ -71,9 +71,22 @@ class StageView:
 
     @property
     def is_workable(self) -> bool:
-        """Can somebody sit down and do this right now?"""
-        return self.stage in ("prep_ready", "in_prep", "in_review",
-                              "ready_to_deliver")
+        """Can somebody sit down and DO this right now?
+
+        ``ready_to_deliver`` is deliberately excluded. There is no preparing
+        left on it — the only thing outstanding is recording that it went to the
+        client, which is a different act. Counting it as workable put a job with
+        nothing left to do at the top of the queue, permanently, above real prep
+        work: it scored as the smallest job on the board and nothing the practice
+        can record would ever move it. That is precisely the row principle 13
+        warns about, the one that teaches the owner to scroll past the queue.
+        """
+        return self.stage in ("prep_ready", "in_prep", "in_review")
+
+    @property
+    def is_abandoned(self) -> bool:
+        """Every task cancelled — the job was called off, not finished."""
+        return self.stage == "not_started" and self.undecidable
 
     @property
     def is_waiting(self) -> bool:
@@ -122,14 +135,28 @@ def derive_stage(job: Job, *, readiness: Readiness | None = None,
             next_step="Run the interview to generate its tasks.")
 
     if all(t.is_settled for t in internal):
+        # "Settled" covers done, waived AND cancelled — and a job whose tasks
+        # were all CANCELLED was called off, not finished. Reading that as ready
+        # to deliver proposed abandoned work for billing as though it had been
+        # done, which is the worst direction for this mistake to run.
+        if not any(t.is_done for t in internal):
+            return StageView(
+                stage="not_started",
+                why="Every task on this job was cancelled or waived — nothing "
+                    "was actually performed.",
+                next_step=("Confirm this job was called off. If work really was "
+                           "done, it is not recorded anywhere, and nothing "
+                           "downstream — billing included — can see it."),
+                undecidable=True)
+
         # Everything internal is done — but "done preparing" is not "delivered",
         # and the practice records no fact that could tell them apart.
         return StageView(
             stage="ready_to_deliver",
             why="Every task on this job is settled.",
-            next_step=("Record that the return went to the client. SATC cannot "
-                       "tell delivery from a finished task list, and will not "
-                       "guess at the one step that matters most."),
+            next_step=("There is no record that this went to the client. Record "
+                       "it — SATC cannot tell delivery from a finished task "
+                       "list, and will not guess at the step that matters most."),
             undecidable=True)
 
     if review and all(t.is_settled for t in prep):

@@ -29,6 +29,7 @@ from satc.actions.propose import (
     at_least,
     chase_outstanding,
     chase_signature,
+    credit_on_account,
     deadline_pressure,
     extension_candidate,
     invite_to_interview,
@@ -38,6 +39,7 @@ from satc.actions.propose import (
     unbilled_work,
     undated_work,
 )
+from satc.models.readiness import assess
 
 __all__ = [
     "ActionKind",
@@ -50,7 +52,8 @@ __all__ = [
 ]
 
 
-def _carry_severity(money, jobs, invoices, payments, *, client_id: str, tax_year: int):
+def _carry_severity(money, jobs, invoices, payments, *, client_id: str, tax_year: int,
+                    readiness=None, today: date | None = None):
     """Stand a row down without turning the volume down with it.
 
     A bill half-written and abandoned is STRICTLY WORSE than one never written:
@@ -74,13 +77,16 @@ def _carry_severity(money, jobs, invoices, payments, *, client_id: str, tax_year
     weighed, come out of it.
     """
     issued = [inv for inv in invoices if inv.is_issued]
-    stood_down = unbilled_work(jobs, issued, payments,
-                               client_id=client_id, tax_year=tax_year)
+    stood_down = unbilled_work(jobs, issued, payments, client_id=client_id,
+                               tax_year=tax_year, readiness=readiness, today=today)
     if stood_down is None:
         return money
     for_year = {str(inv.invoice_id) for inv in invoices
                 if inv.client_id == client_id and inv.tax_year == tax_year}
-    because = (f"The {tax_year} work behind it is already delivered, and nothing "
+    # "Finished", not "delivered": the derivation refuses to conclude delivery,
+    # so a stand-down note that asserts it would smuggle the stronger claim back
+    # in through the one sentence the owner actually reads.
+    because = (f"The {tax_year} work behind it is already finished, and nothing "
                f"else in this queue is chasing that fee.")
     return [at_least(row, stood_down.urgency, because=because)
             if row.kind == "invoice_unissued" and row.invoice_id in for_year else row
@@ -142,21 +148,31 @@ def build_queue(*, clients, requested=(), received=(), obligations=(),
         # that the paper went out and was never charged for.
         money = invoice_overdue(invoices, payments, client_id=client_id, today=today)
         money += invoice_unissued(invoices, client_id=client_id, today=today)
+        # An overpayment is the one money fact with no chase attached, so it is
+        # the one nothing else would ever surface.
+        money += credit_on_account(invoices, payments, client_id=client_id)
+
+        # Whether a job is FINISHED is derived from its tasks and from what is
+        # still outstanding — never read off Job.stage, which nothing sets. A
+        # job whose tasks are all ticked while a blocking document is still out
+        # has not been done, and must not be proposed for billing.
+        readiness = assess(requested, client_id=client_id, tax_year=tax_year)
 
         # unbilled_work stands down while a bill for the year is still unissued
         # or still owed, because that bill already has its own row here — a
         # client with an overdue invoice is not also told the year is unbilled
         # (one problem, one row, principle 13).
         unbilled = unbilled_work(jobs, invoices, payments, client_id=client_id,
-                                 tax_year=tax_year)
+                                 tax_year=tax_year, readiness=readiness, today=today)
         if unbilled is not None:
             money.append(unbilled)
         else:
             money = _carry_severity(money, jobs, invoices, payments,
-                                    client_id=client_id, tax_year=tax_year)
+                                    client_id=client_id, tax_year=tax_year,
+                                    readiness=readiness, today=today)
         out.extend(money)
 
-        # Delivered work whose year nobody can read is not covered by any of
+        # Finished work whose year nobody can read is not covered by any of
         # the above, because every one of them compares against a year.
         undated = undated_work(jobs, client_id=client_id)
         if undated is not None:

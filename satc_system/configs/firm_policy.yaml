@@ -43,6 +43,44 @@ alerts:
   approaching_days: 30      # "coming up"
   urgent_days: 7            # "this week"
 
+# WHAT TO PICK UP FIRST — the owner's judgement about their own week.
+#
+# In March almost everything is blocked on somebody else, so the scarce thing is
+# not hours, it is unblocked work. The queue answers "what can I pick up right
+# now, and which one first". WHICH ONE FIRST is a preference and nothing more.
+# There is no authority anywhere that says a file nobody has touched in a
+# fortnight outranks one due in three weeks — that is a judgement about how this
+# practice likes to work, and a different owner would weigh it differently.
+#
+# So, like everything else in this file, none of it carries a citation, and
+# anything derived from it is flagged `ordering_is_firm_policy` so the screen can
+# render a rank as a suggestion rather than as a fact. Turn a weight to 0 and
+# that factor stops mattering; the ordering changes and nothing breaks.
+#
+# The one thing NOT settable here is the deadline itself. How close a deadline
+# is comes from the cited statutory rules in configs/obligations/ — a date typed
+# into this file would be a preference wearing the clothes of law, which is the
+# exact confusion this file exists to prevent.
+queue:
+  # Inside this many days, a statutory deadline starts pulling a job up the
+  # list; further out than this it contributes nothing. Overdue keeps pulling
+  # harder, up to double, and then stops — so one ancient file cannot own the
+  # top of the queue forever.
+  horizon_days: 45
+
+  # A job with no recorded movement for this long counts as fully stale. This is
+  # the "quietly slipping" detector, and it is guesswork about attention span,
+  # not about tax.
+  stale_after_days: 14
+
+  # How much each factor pulls. Relative to each other only — the absolute
+  # numbers mean nothing.
+  weights:
+    deadline: 1.0     # how close the STATUTORY deadline is (computed, never typed)
+    idle: 0.4         # how long since anything was recorded against this job
+    unblocks: 0.3     # how much other work finishing this one frees up
+    quick_win: 0.2    # how few tasks are left — the one that clears the board
+
 # STANDING TEXT — wording that is the same for every client, written once.
 #
 # These were previously "fill it in yourself" slots on every single draft, which

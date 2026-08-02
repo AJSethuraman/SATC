@@ -101,10 +101,22 @@ def today(state, *, tax_year: int | None = None) -> dict[str, Any]:
     requested = state.requested_items()
     received = state.received_documents()
     year = tax_year or working_tax_year(list(received) + list(requested), as_of)
+    jobs = state.jobs()
     queue = build_queue(
         clients=[cid for cid, _ in state.client_choices()],
         requested=requested, received=received, obligations=_obligations(year),
-        engaged_clients=[e.client_id for e in state.jobs()],
+        engaged_clients=[j.client_id for j in jobs],
+        # THE SAME ARGUMENTS THE /today SCREEN PASSES, and they are not optional.
+        # Every one of these defaults to empty, so leaving them out builds a
+        # queue that is silently missing every money row: a model asked "what
+        # needs doing?" answered with the paper chase alone and never mentioned
+        # the unbilled year, the unissued draft, the overdue invoice or the
+        # client sitting on a credit — while the owner's screen, two feet away,
+        # listed all four. Principle 6 puts the model on the proposing side of
+        # the engine; that only means anything if it is proposing against what
+        # the owner is actually looking at.
+        jobs=jobs, invoices=state.store.load_invoices(),
+        payments=state.store.load_payments(),
         tax_year=year, today=as_of)
 
     names = _client_names(state)
@@ -226,7 +238,9 @@ TOOL_SPECS = [
         "name": "satc_today",
         "description": ("What needs the owner's attention right now across the whole "
                         "practice: outstanding documents, unsigned e-file authorisations, "
-                        "approaching deadlines, and documents missing since last year."),
+                        "approaching deadlines, documents missing since last year, and "
+                        "the money — work finished but never billed, drafts never issued, "
+                        "invoices overdue, and clients who have overpaid."),
         "parameters": {"type": "object", "properties": {}, "required": []}}},
     {"type": "function", "function": {
         "name": "satc_client_brief",
