@@ -280,6 +280,109 @@ def test_a_blank_plan_key_is_an_empty_slot_not_the_standard_rate():
     assert not on_file.basis_missing            # nothing to be missing yet
 
 
+def test_an_engagement_born_with_no_plan_recorded_is_not_an_agreement():
+    """The shape that actually occurs in production, which nothing else covers.
+
+    Every other test here hands ``rate_plan_key=`` in explicitly, or passes no
+    engagement at all. Neither is what the code does: it builds
+    ``Engagement(client_id=..., tax_year=...)`` and lets the field default
+    stand. While that default was ``"standard"``, every engagement in the
+    system was born carrying an explicit agreement to pay full rate, so
+    ``is_fallback`` — which consumers surface as "nobody has priced this
+    client" — could only ever be true for legacy NULL rows. Principle 2: an
+    unanswered question is not an answer.
+    """
+    from satc.models.work import Engagement, rate_plan_for
+
+    born = Engagement(client_id="C", tax_year=2025)      # no plan argument
+    assert born.rate_plan_key == "", (
+        "The empty slot has to read as silence. A default plan key is an "
+        "agreement nobody made.")
+
+    on_file = rate_plan_for([born], client_id="C", tax_year=2025)
+    assert on_file.is_fallback and not on_file.is_agreed
+    assert "No rate plan agreed" in on_file.why()
+
+
+def test_no_client_in_the_shipped_fixtures_arrives_already_priced():
+    """The reproduction, against the real fixtures rather than a hand-built one.
+
+    Nobody sat down and priced SATC-001000. If the demo data says somebody did,
+    the flag is worthless everywhere it is shown.
+    """
+    from satc.fixtures.synthetic import synthetic_mart
+    from satc.models.work import rate_plan_for
+
+    engagements = synthetic_mart().engagements
+    assert engagements                                   # the fixture still has some
+    on_file = [rate_plan_for(engagements, client_id=e.client_id, tax_year=e.tax_year)
+               for e in engagements]
+    assert all(r.is_fallback for r in on_file), (
+        "A fixture client whose price nobody chose must read as unpriced: "
+        + "; ".join(f"{r.client_id} {r.why()}" for r in on_file if r.is_agreed))
+
+
+# --- the catalogue is hand-edited, so a plan key can go stale ------------------
+
+def test_an_engagement_on_a_retired_plan_still_loads_and_says_so(tmp_path):
+    """Renaming a plan in the YAML must not make last year's contract unreadable.
+
+    The store goes out of its way to keep history loading; resolving the key
+    through ``plan()`` put the raise back one layer up. Resolving it to the
+    default instead would be worse — that invents an agreement (principle 1) —
+    so the stale key is carried through, flagged, and named.
+    """
+    from satc.models.mart import DataMart
+    from satc.models.work import rate_plan_for
+    from satc.persistence import SATCStore
+
+    mart = DataMart()
+    mart.engagements = [_engagement(rate_plan_key="legacy_rate",
+                                    rate_plan_basis="agreed back in 2019")]
+    with SATCStore(tmp_path) as store:
+        store.save_mart(mart)
+    with SATCStore(tmp_path) as store:
+        back = store.load_mart().engagements              # no raise
+
+    on_file = rate_plan_for(back, client_id="C", tax_year=2025)
+    assert on_file.plan_key == "legacy_rate"              # NOT quietly 'standard'
+    assert on_file.plan_missing
+    assert on_file.is_agreed and not on_file.is_fallback  # somebody did decide
+    assert "no longer in the rate plan catalogue" in on_file.why()
+
+
+def test_a_plan_the_catalogue_still_has_is_not_flagged_as_missing():
+    """The other direction of the same switch — so `plan_missing` means something."""
+    from satc.models.work import rate_plan_for
+
+    assert not rate_plan_for([_engagement(rate_plan_key="hardship")],
+                             client_id="C", tax_year=2025).plan_missing
+    assert not rate_plan_for([], client_id="C", tax_year=2025).plan_missing
+
+
+def test_pricing_a_screenful_of_clients_reads_the_yaml_once(monkeypatch):
+    """The fallback answer is one line long and is needed once per unpriced
+    client. Parsing rate_plans.yaml per row cost milliseconds a client and let
+    two reads inside one request see different versions of the file."""
+    from satc.billing import catalogue
+    from satc.models.work import rate_plan_for
+
+    reads: list = []
+    real_load = catalogue._load
+    monkeypatch.setattr(catalogue, "_load",
+                        lambda p: (reads.append(p), real_load(p))[1])
+    catalogue.forget_prices()
+    try:
+        for n in range(50):
+            assert rate_plan_for([], client_id=f"C{n}", tax_year=2025).is_fallback
+    finally:
+        catalogue.forget_prices()
+
+    assert len(reads) <= 2, (
+        f"rate_plans.yaml was parsed {len(reads)} times for 50 clients — "
+        f"the mtime cache exists so it is parsed once.")
+
+
 def test_a_full_rate_plan_needs_no_basis_to_be_complete():
     """`requires_basis` is the catalogue's rule, not this helper's. Standard is
     the default; asking for a reason to charge full price is noise."""

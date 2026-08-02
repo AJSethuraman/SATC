@@ -51,9 +51,15 @@
         </td>
         <td class="right">
           {% if a.has_draft %}
+          {# The invoice number travels with the link. Without it the comms screen
+             merges from whichever invoice is newest, and a row about 2026-0004
+             opens a draft quoting a different number and a different amount. #}
           <a class="btn sm primary"
-             href="{{ url_for('comms.comms', client=a.client_id, template=a.template_key, tax_year=tax_year) }}">
+             href="{{ url_for('comms.comms', client=a.client_id, template=a.template_key,
+                              tax_year=tax_year, invoice=(a.invoice_id or None)) }}">
             Read the draft →</a>
+          {% elif a.invoice_id %}
+          <a class="btn sm" href="{{ url_for('billing.view', invoice_id=a.invoice_id) }}">Open invoice →</a>
           {% else %}
           <a class="btn sm" href="{{ url_for('client', client_id=a.client_id) }}">Open client →</a>
           {% endif %}

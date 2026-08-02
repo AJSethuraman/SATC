@@ -78,11 +78,16 @@ def today():
     year = (int(asked_year) if asked_year.strip().isdigit()
             else working_tax_year(list(received) + list(requested), as_of))
 
+    jobs = STATE.jobs()
     queue = build_queue(
         clients=[cid for cid, _ in STATE.client_choices()],
         requested=requested, received=received,
         obligations=_obligations(year),
-        engaged_clients=[e.client_id for e in STATE.jobs()],
+        engaged_clients=[e.client_id for e in jobs],
+        # The money. Work that went out and was never charged for is the one
+        # failure here that costs the practice directly and that no other screen
+        # ever mentions, so it belongs on the front door with everything else.
+        jobs=jobs, invoices=STATE.store.load_invoices(),
         tax_year=year, today=as_of)
 
     hidden = _dismissed()

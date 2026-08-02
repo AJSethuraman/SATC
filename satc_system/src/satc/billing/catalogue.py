@@ -170,8 +170,17 @@ def load_plans(config_root: Path | None = None) -> dict[str, RatePlan]:
 
 
 def default_plan_key(config_root: Path | None = None) -> str:
-    data = _load(billing_dir(config_root) / "rate_plans.yaml")
-    return str((data.get("meta") or {}).get("default_plan", "standard"))
+    """The plan that applies to a client nobody has priced.
+
+    Goes through the same mtime cache as :func:`plans`. This is asked once per
+    unpriced client, so on a list screen it is asked per row — and re-parsing
+    the YAML each time costs milliseconds a row for an answer one line long.
+    Sharing the cache also stops it reading a different version of the file
+    than :func:`plans` did a moment earlier in the same request.
+    """
+    path = billing_dir(config_root) / "rate_plans.yaml"
+    meta = _fresh(f"plans:meta:{path}", path, lambda: _load(path).get("meta") or {})
+    return str(meta.get("default_plan", "standard"))
 
 
 # --- reading the files, and noticing when they change ----------------------

@@ -26,6 +26,7 @@ from satc.actions.propose import (
     Urgency,
     action_id,
     ask_prior_year_questions,
+    at_least,
     chase_outstanding,
     chase_signature,
     deadline_pressure,
@@ -35,6 +36,7 @@ from satc.actions.propose import (
     invoice_unissued,
     sort_key,
     unbilled_work,
+    undated_work,
 )
 
 __all__ = [
@@ -46,6 +48,32 @@ __all__ = [
     "build_queue",
     "sort_key",
 ]
+
+
+def _carry_severity(money, jobs, invoices, *, client_id: str, tax_year: int):
+    """Stand a row down without turning the volume down with it.
+
+    A bill half-written and abandoned is STRICTLY WORSE than one never written:
+    the work is out, the fee is unasked-for, and now the drafting is done too,
+    so nobody will come back to it. Yet an undated draft demoted the year from
+    "urgent — never billed" to "routine — a draft is sitting there", purely
+    because the draft existed. The stand-down was there to remove a duplicate,
+    not to downgrade the problem.
+
+    Only the DRAFT rows inherit it. An issued invoice has actually asked the
+    client for the money, and "five days past due" is genuinely a smaller
+    problem than "never billed" — demoting that one is the right answer.
+    """
+    stood_down = unbilled_work(jobs, (), client_id=client_id, tax_year=tax_year)
+    if stood_down is None:
+        return money
+    for_year = {str(inv.invoice_id) for inv in invoices
+                if inv.client_id == client_id and inv.tax_year == tax_year}
+    because = (f"The {tax_year} work behind it is already delivered, and nothing "
+               f"else in this queue is chasing that fee.")
+    return [at_least(row, stood_down.urgency, because=because)
+            if row.kind == "invoice_unissued" and row.invoice_id in for_year else row
+            for row in money]
 
 
 def build_queue(*, clients, requested=(), received=(), obligations=(),
@@ -94,16 +122,27 @@ def build_queue(*, clients, requested=(), received=(), obligations=(),
 
         # Money. Every proposer above chases paper; none of them ever noticed
         # that the paper went out and was never charged for.
-        out.extend(invoice_overdue(invoices, client_id=client_id, today=today))
-        out.extend(invoice_unissued(invoices, client_id=client_id, today=today))
+        money = invoice_overdue(invoices, client_id=client_id, today=today)
+        money += invoice_unissued(invoices, client_id=client_id, today=today)
 
-        # unbilled_work stands down whenever a bill already exists for the year,
-        # so a client with an overdue invoice never also gets told the year is
-        # unbilled — one problem, one row (principle 13).
+        # unbilled_work stands down when the bills already raised for the year
+        # could cover the jobs delivered in it, so a client with an overdue
+        # invoice is not also told the year is unbilled — one problem, one row
+        # (principle 13).
         unbilled = unbilled_work(jobs, invoices, client_id=client_id,
                                  tax_year=tax_year)
         if unbilled is not None:
-            out.append(unbilled)
+            money.append(unbilled)
+        else:
+            money = _carry_severity(money, jobs, invoices,
+                                    client_id=client_id, tax_year=tax_year)
+        out.extend(money)
+
+        # Delivered work whose year nobody can read is not covered by any of
+        # the above, because every one of them compares against a year.
+        undated = undated_work(jobs, client_id=client_id)
+        if undated is not None:
+            out.append(undated)
 
     out.sort(key=sort_key)
     return ActionQueue(actions=out, generated_for=today)

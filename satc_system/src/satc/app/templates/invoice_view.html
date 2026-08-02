@@ -27,6 +27,22 @@
     </div>
 
     <textarea class="codebox" rows="16" readonly>{{ invoice.summary_block() }}</textarea>
+
+    {# Why each line reads the way it does. A line billed below what it is worth
+       is a reduction, and a reduction the client cannot see is the thing this
+       invoice exists to prevent — the same reason the rate plan is shown by
+       name rather than folded into a smaller total. #}
+    <table style="margin-top:12px">
+      <tr><th>What</th><th>Why it reads that way</th><th class="right">Full value</th></tr>
+      {% for line in invoice.lines %}
+      <tr>
+        <td>{{ line.describe() }} <span class="muted mono">{{ line.service_code }}</span></td>
+        <td class="muted">{{ line.note or '—' }}</td>
+        <td class="right mono">{{ '{:,.2f}'.format(line.standard_amount) }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+
     <p>{{ invoice.client_sentence() }}</p>
 
     <p style="margin-top:12px">

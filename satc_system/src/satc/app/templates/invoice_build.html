@@ -87,7 +87,10 @@
         <input class="field-input" type="text" name="rate_override" placeholder="catalogue rate" style="width:160px">
       </p>
       <p>
-        <label class="muted">Note on the line</label> <span class="hint"> — optional</span><br>
+        <label class="muted">Note on the line</label>
+        <span class="hint"> — optional, <strong>except below the catalogue rate</strong>: billing
+          less than the work is worth is a reduction, and it goes on the client's copy with its
+          reason, the same as a reduced rate plan does</span><br>
         <input class="field-input" type="text" name="note" placeholder="e.g. Two businesses merged into one">
       </p>
       <button class="btn primary" type="submit">Add to the invoice</button>
@@ -137,6 +140,15 @@
     </div>
 
     <textarea class="codebox" rows="14" readonly>{{ invoice.summary_block() }}</textarea>
+    {% set adjusted = invoice.lines | selectattr('note') | list %}
+    {% if adjusted %}
+    <p class="muted">Recorded against the lines, and shown on the client's copy:</p>
+    <ul class="muted">
+      {% for line in adjusted %}
+      <li>{{ line.describe() }} — {{ line.note }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
     <p class="muted">{{ invoice.client_sentence() }}</p>
 
     <form method="post" action="{{ url_for('billing.issue', invoice_id=invoice.invoice_id) }}">

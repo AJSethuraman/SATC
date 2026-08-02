@@ -49,6 +49,12 @@ class InvoiceLine:
     standard_rate: Decimal = Decimal(0)
     note: str = ""
     performed_on: date | None = None
+    rate_adjusted: bool = False
+    """Whether this line was priced away from the catalogue.
+
+    Recorded rather than re-derived, because the catalogue is hot-reloaded: a
+    rate that moves next March must not silently turn an ordinary line into an
+    adjusted one, or an adjusted line into an ordinary one."""
 
     @property
     def standard_amount(self) -> Decimal:
@@ -60,11 +66,20 @@ class InvoiceLine:
     def charged_amount(self, rate_plan: RatePlan) -> Decimal:
         return rate_plan.charge_on(self.standard_amount)
 
+    def is_reduced_from(self, catalogue_rate: Decimal) -> bool:
+        return self.standard_rate < catalogue_rate
+
     def describe(self) -> str:
-        """How the line reads on the invoice."""
-        if self.quantity != 1:
-            return f"{self.label} (x{self.quantity:g})"
-        return self.label
+        """How the line reads on the invoice.
+
+        A line priced below the catalogue carries its reason INTO the
+        description, so the adjustment reaches the printed invoice and the
+        covering email rather than living only on the screen the owner typed it
+        into. A smaller number with no explanation is the thing this whole
+        module exists to avoid.
+        """
+        head = f"{self.label} (x{self.quantity:g})" if self.quantity != 1 else self.label
+        return f"{head} — {self.note}" if self.note and self.rate_adjusted else head
 
 
 @dataclass(slots=True)
@@ -143,6 +158,10 @@ class Invoice:
                 f"cannot be changed. Raise a new invoice, or credit this one.")
         svc: Service = service(service_code)
         qty = Decimal(str(quantity))
+        if not qty.is_finite():
+            raise BillingError(
+                f"{quantity!r} is not a quantity. Write how many as a plain "
+                f"number, like 1 or 2 — three rentals is three Schedule Es.")
         if qty <= 0:
             raise BillingError(f"Quantity for {service_code!r} must be positive")
         if svc.unit == "fixed" and qty != 1:
@@ -150,13 +169,61 @@ class Invoice:
                 f"{svc.name} is a fixed-price service — quantity must be 1. "
                 f"If it genuinely took more, use rate_override to record what it "
                 f"was worth.")
+        rate = svc.standard_rate if rate_override is None else Decimal(str(rate_override))
+        # Finiteness first: a signalling NaN raises InvalidOperation on the very
+        # comparison used to decide whether the rate moved, so it has to be
+        # refused before anything looks at it.
+        self._check_is_an_amount(rate)
+        adjusted = rate_override is not None and rate != svc.standard_rate
+        self._check_the_rate(svc, rate, note=note, adjusted=adjusted)
         line = InvoiceLine(
             service_code=svc.code, label=svc.label_for_client, quantity=qty,
-            standard_rate=Decimal(str(rate_override)) if rate_override is not None
-            else svc.standard_rate,
-            note=note, performed_on=performed_on)
+            standard_rate=rate, note=note, performed_on=performed_on,
+            rate_adjusted=adjusted)
         self.lines.append(line)
         return line
+
+    @staticmethod
+    def _check_is_an_amount(rate: Decimal) -> None:
+        """``Decimal()`` accepts NaN and Infinity, and every guard written as a
+        comparison silently passes NaN — so this is asked before any comparison
+        is made, not alongside them."""
+        if not rate.is_finite():
+            raise BillingError(
+                f"{rate} is not an amount. A price has to be a plain number of "
+                f"dollars, like 450 or 187.50.")
+
+    @staticmethod
+    def _check_the_rate(svc: Service, rate: Decimal, *, note: str,
+                        adjusted: bool) -> None:
+        """Guard the one hole a per-line price opens in the whole design.
+
+        ``issue()`` refuses a reduced PLAN with no recorded basis. A rate
+        override is a reduction by another route, and left unguarded it walks
+        straight past that refusal: bill a 450 return at 180, and the invoice
+        shows no discount, records no reason, and tells the client the amount
+        due is $180 — the exact opacity the plan_basis rule exists to prevent.
+
+        This lives on ``add()`` rather than on the screen deliberately. A guard
+        in the view only covers the path the view takes; a draft restored from
+        a session, rebuilt at issue time, or written by a script would slip
+        past it. The engine is the only place every caller has to go through.
+
+        Pricing something HIGHER needs no defence — that is the work genuinely
+        being worth more, and it is recorded in plain sight either way.
+        """
+        if rate < 0:
+            raise BillingError(
+                f"{svc.name} cannot be billed at {rate}. A negative invoice is "
+                f"not a credit note — if money is owed back, that is a separate "
+                f"act, not a line on this bill.")
+        if adjusted and rate < svc.standard_rate and not note.strip():
+            raise BillingError(
+                f"Billing {svc.name} at {rate:,.2f} when the catalogue says it "
+                f"is worth {svc.standard_rate:,.2f} is a reduction, and it needs "
+                f"a recorded reason — the same rule as a reduced rate plan. "
+                f"Write why, and the client sees the adjustment rather than just "
+                f"a smaller number they cannot interpret.")
 
     def issue(self, *, on: date, due_in_days: int = 30) -> "Invoice":
         """Fix the invoice. After this it cannot change.

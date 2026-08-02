@@ -125,7 +125,8 @@ def test_money_is_never_a_float():
 
 def test_rounding_is_half_up_to_the_cent():
     inv = _invoice("household", "basis")
-    inv.add("return_1040", rate_override=Decimal("333.33"))
+    inv.add("return_1040", rate_override=Decimal("333.33"),
+            note="Agreed at signing")
     assert inv.discount_total == Decimal("83.33")     # 25% of 333.33 = 83.3325
     assert inv.total == Decimal("250.00")
 
@@ -349,3 +350,76 @@ def test_without_an_invoice_the_number_stays_visibly_blank():
     # It lives in the SUBJECT now, since the breakdown carries the body.
     assert "[[ Invoice number: fill in ]]" in draft.subject
     assert "[[ Invoice breakdown: fill in ]]" in draft.body
+
+
+# --- a per-line price is a discount by another route --------------------------
+#
+# These live here, on the ENGINE, rather than on the screen. A guard in the view
+# only covers the path the view takes — and the adversarial review found exactly
+# that: a draft restored from a session issued a 60% cut with nothing recorded,
+# because the screen's check had already been passed and was never asked again.
+
+def test_pricing_below_the_catalogue_with_no_reason_is_refused():
+    inv = _invoice("standard", "")
+    with pytest.raises(BillingError) as refusal:
+        inv.add("return_1040", rate_override=Decimal("180"))
+    assert "reduction" in str(refusal.value)
+    assert "450.00" in str(refusal.value)      # names what it is actually worth
+    assert inv.lines == []
+
+
+def test_a_recorded_reason_lets_the_reduction_through():
+    inv = _invoice("standard", "")
+    inv.add("return_1040", rate_override=Decimal("180"), note="Priced at signing")
+    assert inv.total == Decimal("180.00")
+
+
+def test_the_reason_reaches_the_invoice_the_client_reads():
+    """Not just the screen the owner typed it into — the printed copy and the
+    covering email are built from summary_block()."""
+    inv = _invoice("standard", "")
+    inv.add("return_1040", rate_override=Decimal("180"), note="Priced at signing")
+    assert "Priced at signing" in inv.summary_block()
+
+
+def test_pricing_above_the_catalogue_needs_no_defence():
+    """Guards against over-fixing: work genuinely worth more is not a discount."""
+    inv = _invoice("standard", "")
+    inv.add("schedule_c", rate_override=Decimal("400"))
+    assert inv.total == Decimal("400.00")
+
+
+def test_a_negative_price_is_refused():
+    inv = _invoice("standard", "")
+    with pytest.raises(BillingError) as refusal:
+        inv.add("schedule_c", rate_override=Decimal("-500"), note="goodwill")
+    assert "credit note" in str(refusal.value)
+
+
+@pytest.mark.parametrize("poison", ["Infinity", "-Infinity", "NaN", "sNaN"])
+def test_a_price_that_is_not_a_number_is_refused(poison):
+    """Decimal() accepts all of these, and every guard written as a comparison
+    silently passes NaN."""
+    inv = _invoice("standard", "")
+    with pytest.raises(BillingError):
+        inv.add("return_1040", rate_override=Decimal(poison), note="whatever")
+
+
+@pytest.mark.parametrize("poison", ["NaN", "Infinity"])
+def test_a_quantity_that_is_not_a_number_is_refused(poison):
+    inv = _invoice("standard", "")
+    with pytest.raises(BillingError) as refusal:
+        inv.add("return_state", quantity=Decimal(poison))
+    assert "not a quantity" in str(refusal.value)
+
+
+def test_the_engine_refuses_even_when_the_screen_already_said_yes():
+    """Mutation check for the structural claim — principle 12.
+
+    This is the shape the review actually exploited: a line assembled outside
+    the form and handed straight to the engine. If _check_the_rate moved back
+    into the view, this is the test that would start passing silently.
+    """
+    inv = _invoice("standard", "")
+    with pytest.raises(BillingError):
+        inv.add("return_1040", rate_override=Decimal("180"), note="   ")

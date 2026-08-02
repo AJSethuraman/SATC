@@ -13,8 +13,9 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from satc.actions import ProposedAction, build_queue
+from satc.actions import ActionQueue, ProposedAction, build_queue
 from satc.actions.propose import (
+    _URGENCY_ORDER,
     ask_prior_year_questions,
     chase_outstanding,
     chase_signature,
@@ -23,6 +24,7 @@ from satc.actions.propose import (
     invoice_overdue,
     invoice_unissued,
     unbilled_work,
+    undated_work,
 )
 from satc.models.evidence import ReceivedDocument, RequestedItem
 
@@ -490,6 +492,176 @@ def test_the_queue_still_says_nothing_when_there_is_no_money_to_chase():
     queue = build_queue(clients=["C"], jobs=[_job("in_prep")], invoices=[],
                         engaged_clients=["C"], tax_year=2025, today=TODAY)
     assert queue.summary_line() == "Nothing needs you right now."
+
+
+# --- the row and the draft have to be about the same invoice ------------------
+
+
+def _today_html(actions, *, tax_year=2025):
+    """The Today screen as it is actually served, for a queue we chose.
+
+    Rendered through the real app so the links are the ones the owner clicks —
+    a test against ``url_for`` in isolation passes whether or not the template
+    ever calls it with anything.
+    """
+    from flask import render_template
+
+    from satc.app.server import create_app
+
+    app = create_app()
+    with app.test_request_context("/today"):
+        return render_template("today.html", title="Today",
+                               queue=ActionQueue(actions=list(actions),
+                                                 generated_for=TODAY),
+                               tax_year=tax_year, as_of=TODAY, hidden_count=0,
+                               names={"C": "Client C"})
+
+
+def test_an_overdue_row_names_the_invoice_it_is_about():
+    rows = invoice_overdue(
+        [_invoice(number="2026-0003", issued=TODAY - timedelta(days=40)),
+         _invoice(number="2026-0004", issued=TODAY - timedelta(days=50))],
+        client_id="C", today=TODAY)
+    assert {r.invoice_id for r in rows} == {"2026-0003", "2026-0004"}
+    for row in rows:
+        assert row.invoice_id in row.title
+
+
+def test_the_draft_link_carries_the_invoice_the_row_is_about():
+    """With two overdue invoices, a link built from client + year alone lets the
+    comms screen merge from whichever is newest — so the row titled "Invoice
+    2026-0003 unpaid" opens a draft quoting a different number and a different
+    amount. A figure in a client-facing draft that is not the fact the row
+    asserts is principle 1."""
+    rows = invoice_overdue(
+        [_invoice(number="2026-0003", issued=TODAY - timedelta(days=40)),
+         _invoice(number="2026-0004", issued=TODAY - timedelta(days=50))],
+        client_id="C", today=TODAY)
+    html = _today_html(rows)
+    assert "invoice=2026-0003" in html
+    assert "invoice=2026-0004" in html
+
+
+def test_a_row_with_no_invoice_behind_it_does_not_pretend_to_have_one():
+    action = ProposedAction(action_id="a", kind="chase_documents", client_id="C",
+                            title="Chase", why="because", template_key="missing_items")
+    assert "invoice=" not in _today_html([action])
+
+
+def test_the_unissued_row_opens_the_invoice_rather_than_a_client_to_hunt_through():
+    rows = invoice_unissued([_invoice(number="2026-0009",
+                                      performed_on=TODAY - timedelta(days=21))],
+                            client_id="C", today=TODAY)
+    assert rows[0].invoice_id == "2026-0009"
+    html = _today_html(rows)
+    assert "/invoices/2026-0009" in html
+    assert "Open client" not in html
+
+
+# --- standing a row down must not turn the volume down ------------------------
+
+
+def test_an_abandoned_draft_is_never_quieter_than_no_draft_at_all():
+    """Half-writing a bill and giving up is strictly worse than never writing
+    one: the work is out, the fee is unasked-for, and now the drafting is done
+    too, so nobody comes back to it. The stand-down was there to remove a
+    duplicate, not to downgrade the problem."""
+    def loudest(**kw):
+        queue = build_queue(clients=["C"], jobs=[_job("complete")],
+                            engaged_clients=["C"], tax_year=2025, today=TODAY, **kw)
+        return min(_URGENCY_ORDER[a.urgency] for a in queue.actions)
+
+    # An undated draft: the invoice_unissued row on its own is only "routine".
+    abandoned = build_queue(clients=["C"], jobs=[_job("complete")],
+                            invoices=[_invoice(performed_on=None)],
+                            engaged_clients=["C"], tax_year=2025, today=TODAY)
+    assert [a.kind for a in abandoned.actions] == ["invoice_unissued"]
+    assert abandoned.actions[0].urgency == "urgent"
+    assert "already delivered" in abandoned.actions[0].why
+    assert loudest(invoices=[_invoice(performed_on=None)]) <= loudest(invoices=[])
+
+
+def test_an_invoice_that_actually_went_out_is_allowed_to_be_calmer():
+    """An issued bill five days past due HAS asked the client for the money.
+    Escalating that to "you never billed for finished work" is the opposite
+    mistake, and it teaches the owner to ignore the loud rows."""
+    queue = build_queue(clients=["C"], jobs=[_job("complete")],
+                        invoices=[_invoice(issued=TODAY - timedelta(days=35))],
+                        engaged_clients=["C"], tax_year=2025, today=TODAY)
+    assert [a.kind for a in queue.actions] == ["invoice_overdue"]
+    assert queue.actions[0].urgency == "soon"
+
+
+# --- one small invoice is the normal case, not the billed case ----------------
+
+
+def test_one_invoice_does_not_stand_down_three_jobs_worth_of_work():
+    """Invoicing here is piecemeal by design. Treating any invoice as covering
+    the year is how the rental and the payroll fee stop being mentioned by
+    anything, ever again."""
+    jobs = [_job("complete", job_id="j1", engagement_type="Individual 1040"),
+            _job("complete", job_id="j2", engagement_type="Rental schedule"),
+            _job("complete", job_id="j3", engagement_type="Payroll")]
+    action = unbilled_work(jobs, [_invoice(issued=TODAY - timedelta(days=3))],
+                           client_id="C", tax_year=2025)
+    assert action is not None
+    assert "at least 2 jobs have never been billed" in action.why
+    assert set(action.evidence) == {"j1", "j2", "j3"}
+
+
+def test_a_partial_bill_is_not_described_as_no_bill_at_all():
+    """The row must not assert a fact the invoice list contradicts."""
+    jobs = [_job("complete", job_id="j1"), _job("complete", job_id="j2")]
+    action = unbilled_work(jobs, [_invoice(issued=TODAY - timedelta(days=3))],
+                           client_id="C", tax_year=2025)
+    assert "no invoice at all" not in action.why
+    assert "1 invoice" in action.why and "1 line" in action.why
+
+
+def test_a_bill_big_enough_to_cover_the_work_still_stands_the_row_down():
+    """Principle 13 — two rows saying the same thing is how a queue gets ignored."""
+    jobs = [_job("complete", job_id="j1"), _job("complete", job_id="j2")]
+    covering = _invoice(issued=TODAY - timedelta(days=3),
+                        services=("return_1040", "schedule_e_rental"))
+    assert unbilled_work(jobs, [covering], client_id="C", tax_year=2025) is None
+
+
+# --- the year of a quarterly or monthly job -----------------------------------
+
+
+def _dateless_job(period, job_id="p1", *, stage="complete", label="Payroll"):
+    from satc.models.work import Job
+
+    return Job(job_id=job_id, client_id="C", workflow_key="payroll",
+               engagement_type=label, tax_year=None, period_key=period, stage=stage)
+
+
+def test_a_quarterly_or_monthly_period_still_names_a_year():
+    """``2026Q1`` and ``2026-03`` are work.py's own examples of a period key.
+    Payroll and quarterly work is exactly the recurring, easily-forgotten
+    billing this section exists to catch."""
+    action = unbilled_work([_dateless_job("2026Q1", "q"), _dateless_job("2026-03", "m")],
+                           [], client_id="C", tax_year=2026)
+    assert action is not None
+    assert set(action.evidence) == {"q", "m"}
+
+
+def test_a_period_nobody_can_read_is_marked_rather_than_dropped():
+    """No fact, so the slot is visible — not guessed at, and not discarded
+    (principle 1). A silently dropped job is surfaced by nothing, ever."""
+    job = _dateless_job("FY26", "x", label="Notice response")
+    assert unbilled_work([job], [], client_id="C", tax_year=2026) is None
+
+    queue = build_queue(clients=["C"], jobs=[job], engaged_clients=["C"],
+                        tax_year=2026, today=TODAY)
+    assert [a.kind for a in queue.actions] == ["unbilled_work"]
+    assert "FY26" in queue.actions[0].why
+    assert "cannot say" in queue.actions[0].why
+
+
+def test_work_still_in_prep_with_no_readable_year_is_not_a_row_either():
+    """Billing happens at delivery — an unreadable period does not change that."""
+    assert undated_work([_dateless_job("FY26", stage="in_prep")], client_id="C") is None
 
 
 # --- against the seeded practice ---------------------------------------------

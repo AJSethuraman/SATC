@@ -27,7 +27,8 @@ Three rules shape it:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass, field, replace
 from datetime import date
 from typing import Literal
 
@@ -67,6 +68,17 @@ class ProposedAction:
     due: date | None = None
     template_key: str = ""
     """Which comms template drafts this. Empty when the action is not a message."""
+
+    invoice_id: str = ""
+    """WHICH invoice this row is about, when it is about one.
+
+    Carried as its own field rather than left in :attr:`evidence` because a LINK
+    needs one unambiguous value. Without it the screen can only say "this client,
+    this year", and the comms draft then resolves its figures from whichever
+    invoice is newest — so a row titled "Invoice 2026-0004 unpaid" opens a draft
+    quoting a different number and a different amount. A figure in a
+    client-facing draft that is not the fact the row asserts is principle 1.
+    """
 
     evidence: tuple[str, ...] = ()
     proposed_by: Actor = INTAKE
@@ -108,6 +120,23 @@ def _urgency_from_days(days: int | None, *, soon: int = 30, urgent: int = 7) -> 
 
 def _plural(n: int, one: str, many: str) -> str:
     return f"{n} {one}" if n == 1 else f"{n} {many}"
+
+
+def at_least(action: ProposedAction, urgency: Urgency, *,
+             because: str = "") -> ProposedAction:
+    """The same action, never quieter than ``urgency``.
+
+    For the case where one row stands another down. Suppressing a duplicate is
+    right; suppressing it into a calmer row is not — the practice ends up
+    quieter about a worse situation than it would have been about a better one.
+    The surviving row inherits the severity of the row it replaced, and says
+    why it got louder, because an urgency the ``why`` cannot explain is a
+    proposal the owner has to re-derive.
+    """
+    if _URGENCY_ORDER[urgency] >= _URGENCY_ORDER[action.urgency]:
+        return action
+    why = f"{action.why} {because}".strip() if because else action.why
+    return replace(action, urgency=urgency, why=why)
 
 
 # --- the individual proposers -------------------------------------------------
@@ -286,22 +315,52 @@ def _job_label(job) -> str:
     return str(label).replace("_", " ")
 
 
+_YEAR_AT_START = re.compile(r"^(\d{4})(?!\d)")
+"""A period key opens with its year, or it does not tell us one.
+
+``period_key`` is the recurrence anchor and work.py's own examples for it are
+``2025``, ``2026Q1`` and ``2026-03``. Reading only a bare ``2025`` dropped every
+quarterly and monthly job — payroll and bookkeeping, which is exactly the
+recurring, easily-forgotten billing this section exists to catch.
+
+Deliberately anchored and deliberately narrow: ``20251`` is not a year followed
+by something, it is a number nobody here can read, and guessing at it would be
+principle 5 in reverse.
+"""
+
+
 def _job_year(job) -> int | None:
-    """The year a job belongs to, from whichever field the job actually carries."""
+    """The year a job belongs to, or ``None`` when the practice cannot say.
+
+    ``None`` is not "no year" — it is "we do not know", and the caller has to
+    treat it as a question rather than silently dropping the job.
+    """
     year = getattr(job, "tax_year", None)
     if year is not None:
         return int(year)
-    period = str(getattr(job, "period_key", "") or "")
-    return int(period) if period.isdigit() else None
+    found = _YEAR_AT_START.match(str(getattr(job, "period_key", "") or "").strip())
+    return int(found.group(1)) if found else None
 
 
 def _amount(invoice) -> str:
     return f"${invoice.total:,.2f}"
 
 
+def _billable_jobs(jobs, *, client_id: str) -> list:
+    return [j for j in jobs
+            if j.client_id == client_id and j.stage in _BILLABLE_STAGES]
+
+
+def _bills_raised(invoices, *, client_id: str, tax_year: int) -> list:
+    """The bills that exist for this client-year — issued, or a draft with something on it."""
+    return [inv for inv in invoices
+            if inv.client_id == client_id and inv.tax_year == tax_year
+            and (inv.is_issued or inv.lines)]
+
+
 def unbilled_work(jobs, invoices=(), *, client_id: str,
                   tax_year: int) -> ProposedAction | None:
-    """Work that reached the client with no bill behind it.
+    """Work that reached the client with more of it delivered than billed.
 
     Not a late payment — money the practice never asked for. A return that was
     delivered and never invoiced is the one failure here that nothing else
@@ -309,34 +368,88 @@ def unbilled_work(jobs, invoices=(), *, client_id: str,
 
     One row per client-year, never one per job. A client with three delivered
     jobs and no invoice has one problem, not three.
+
+    THE STAND-DOWN COMPARES SIZE, NOT EXISTENCE. Invoicing here is piecemeal by
+    design (see billing/invoice.py) — an engagement produces several bills as
+    work happens, so ONE SMALL INVOICE IS THE NORMAL CASE, not the billed case.
+    Treating any invoice as covering everything is how three completed jobs and
+    one $450 bill for the 1040 leave the rental and the payroll fee unmentioned
+    by anything, ever again.
+
+    Nothing here claims to know WHICH job a line paid for — no such fact is
+    recorded (principle 2). What it does know is a lower bound: N invoice lines
+    cannot cover more than N jobs. It stands down only where coverage is
+    possible, and speaks up where coverage is arithmetically impossible.
     """
-    delivered = [j for j in jobs
-                 if j.client_id == client_id and j.stage in _BILLABLE_STAGES
-                 and _job_year(j) == tax_year]
+    delivered = [j for j in _billable_jobs(jobs, client_id=client_id)
+                 if _job_year(j) == tax_year]
     if not delivered:
         return None
 
-    # A bill that already exists — issued, or a draft with something on it —
-    # gets its own row from the two proposers below. Two rows both saying "this
-    # year is not paid for" is exactly how a queue becomes noise (principle 13).
-    if any(inv.client_id == client_id and inv.tax_year == tax_year
-           and (inv.is_issued or inv.lines) for inv in invoices):
+    raised = _bills_raised(invoices, client_id=client_id, tax_year=tax_year)
+    covered = sum(len(inv.lines) for inv in raised)
+    short = len(delivered) - covered
+    if short <= 0:
+        # Every delivered job could be on one of these lines, and each bill has
+        # its own row from the two proposers below. Two rows both saying "this
+        # year is not paid for" is how a queue becomes noise (principle 13).
         return None
 
     closed = [j for j in delivered if j.stage == "complete"]
     labels = sorted({_job_label(j) for j in delivered})
+    state = 'complete' if closed else 'delivered'
+    if not raised:
+        why = (f"{', '.join(labels)} for {tax_year} "
+               f"{'is' if len(delivered) == 1 else 'are'} {state} and there is no "
+               f"invoice at all — the work has gone to the client unbilled.")
+    else:
+        why = (f"{', '.join(labels)} for {tax_year} "
+               f"{'is' if len(delivered) == 1 else 'are'} {state}. The "
+               f"{_plural(len(raised), 'invoice', 'invoices')} for {tax_year} "
+               f"{'carries' if len(raised) == 1 else 'carry'} "
+               f"{_plural(covered, 'line', 'lines')}, which cannot cover "
+               f"{_plural(len(delivered), 'job', 'jobs')} — at least "
+               f"{_plural(short, 'job has', 'jobs have')} never been billed.")
     return ProposedAction(
         action_id=action_id("unbilled_work", client_id, str(tax_year)),
         kind="unbilled_work", client_id=client_id,
-        title=f"Bill the {tax_year} work",
-        why=(f"{', '.join(labels)} for {tax_year} "
-             f"{'is' if len(delivered) == 1 else 'are'} "
-             f"{'complete' if closed else 'delivered'} and there is no invoice at "
-             f"all — the work has gone to the client unbilled."),
+        title=(f"Bill the {tax_year} work" if not raised
+               else f"Finish billing the {tax_year} work"),
+        why=why,
         # A file closed without ever being billed is money already lost; a
         # delivery that just happened is simply the next thing to do.
         urgency="urgent" if closed else "soon",
         evidence=tuple(j.job_id for j in delivered))
+
+
+def undated_work(jobs, *, client_id: str) -> ProposedAction | None:
+    """Delivered work whose year the practice genuinely cannot read.
+
+    A job with no ``tax_year`` and a ``period_key`` nobody here can parse used
+    to fall out of every year's comparison and be surfaced by nothing. That is
+    the silent drop principle 1 exists to forbid: no fact, so the slot is marked
+    VISIBLY, not guessed and not discarded.
+
+    Filed under its own id rather than folded into a year's row, because
+    assigning it to a year is the one thing we have just said we cannot do.
+    """
+    undated = [j for j in _billable_jobs(jobs, client_id=client_id)
+               if _job_year(j) is None]
+    if not undated:
+        return None
+    periods = sorted({str(getattr(j, "period_key", "") or "").strip() or "(blank)"
+                      for j in undated})
+    return ProposedAction(
+        action_id=action_id("unbilled_work", client_id, "undated"),
+        kind="unbilled_work", client_id=client_id,
+        title=f"{_plural(len(undated), 'delivered job has', 'delivered jobs have')} no readable year",
+        why=(f"{', '.join(sorted({_job_label(j) for j in undated}))} "
+             f"{'has' if len(undated) == 1 else 'have'} left the building carrying no "
+             f"tax year and a period of {', '.join(periods[:4])} — SATC cannot say which "
+             f"year to check them against, so nothing else will ever ask whether they "
+             f"were billed. Check them by hand."),
+        urgency="soon",
+        evidence=tuple(j.job_id for j in undated))
 
 
 def invoice_overdue(invoices, *, client_id: str, today: date,
@@ -372,6 +485,11 @@ def invoice_overdue(invoices, *, client_id: str, today: date,
                  f"was due {inv.due_on:%b %d} and is {_plural(late, 'day', 'days')} "
                  f"unpaid."),
             urgency=urgency, due=inv.due_on, template_key="invoice_cover",
+            # The draft has to be about THIS invoice. Handing the comms screen
+            # only the client and the year lets it pick the newest bill, and a
+            # client then reads a covering note whose number and amount are not
+            # the ones this row named.
+            invoice_id=str(inv.invoice_id),
             evidence=(str(inv.invoice_id),)))
     return out
 
@@ -419,7 +537,10 @@ def invoice_unissued(invoices, *, client_id: str, today: date,
             why=why, urgency=urgency,
             # No template: the click here is *issuing the bill*, which fixes the
             # numbers permanently. That is the owner's decision on the billing
-            # screen, not an email this queue can pre-write for them.
+            # screen, not an email this queue can pre-write for them. The id
+            # still travels, so the screen opens THAT invoice rather than making
+            # the owner hunt for the draft the row is about.
+            invoice_id=str(inv.invoice_id),
             evidence=(str(inv.invoice_id),)))
     return out
 

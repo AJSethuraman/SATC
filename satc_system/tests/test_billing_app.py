@@ -399,6 +399,183 @@ def test_the_print_page_has_no_nav_and_nothing_to_click(client):
     assert "no charge" in body.lower()
 
 
+# --- the rate override is not a back door round the basis rule ----------------
+#
+# The whole engine exists to make a reduction VISIBLE and JUSTIFIED. A reduced
+# plan cannot issue without a recorded basis; billing 450.00 of work at 180.00
+# is the same reduction wearing a different hat, so it answers to the same rule.
+
+def test_a_cut_rate_with_no_recorded_reason_is_refused_like_a_plan_with_no_basis(client):
+    """The worst version of this bug: a 60% cut, no discount shown, nothing
+    recorded, and the client simply told a smaller number."""
+    _header(client, plan_key="standard")            # full rate, no basis anywhere
+    body = _text(_add(client, "return_1040", rate_override="180"))
+
+    assert "improvisation" in body, "the refusal speaks in the engine's own voice"
+    assert "450.00" in body and "180" in body, "it names what the work is worth"
+    assert "Nothing on this invoice yet" in body, "the cut line must not have gone on"
+
+    # And nothing can be issued off it, because nothing was added.
+    resp = client.post(f"/invoices/{_next_number()}/issue", data={})
+    assert "nothing on this draft" in _text(resp)
+
+
+def test_a_recorded_reason_lets_the_cut_rate_through_and_reaches_the_client(client):
+    """The refusal names what would have been right — and doing it works. The
+    reason is then on the client's copy, so they see the adjustment rather than
+    just a smaller number."""
+    reason = "Half the return was already done by the prior preparer"
+    _header(client, plan_key="standard")
+    _add(client, "return_1040", rate_override="180", note=reason)
+    number, resp = _issue(client)
+
+    assert resp.status_code == 302
+    stored = _stored(number)
+    assert stored.standard_total == Decimal("180.00")
+    assert stored.lines[0].note == reason
+
+    body = _text(client.get(f"/invoices/{number}"))
+    assert reason in body, "the client's copy must show why the line reads as it does"
+
+
+def test_a_rate_above_the_catalogue_needs_no_defence(client):
+    """Work genuinely being worth more is not a discount and owes no explanation."""
+    _header(client, plan_key="standard")
+    _add(client, "return_1040", rate_override="600")
+    number, resp = _issue(client)
+
+    assert resp.status_code == 302
+    assert _stored(number).standard_total == Decimal("600.00")
+
+
+def test_a_negative_rate_override_is_refused_rather_than_billed(client):
+    """A negative invoice is not a credit note."""
+    _header(client, plan_key="standard")
+    body = _text(_add(client, "schedule_c", rate_override="-500", note="goodwill"))
+
+    assert "not a credit note" in body
+    assert "Nothing on this invoice yet" in body
+    assert "Total due" not in body, "no total may be struck from a negative line"
+    resp = client.post(f"/invoices/{_next_number()}/issue", data={})
+    assert "nothing on this draft" in _text(resp)
+
+
+@pytest.mark.parametrize("poison", ["Infinity", "-Infinity", "NaN", "nan", "-inf"])
+def test_a_non_finite_rate_is_refused_and_never_reaches_the_session(client, poison):
+    """``Decimal()`` accepts these; money does not. And a row must never be
+    written to the draft before it has been validated — a poisoned draft used to
+    500 every later visit to the only page with a Discard button on it."""
+    _header(client, plan_key="standard")
+    resp = _add(client, "schedule_c", rate_override=poison, note="whatever")
+
+    assert resp.status_code == 200
+    assert "is not an amount" in _text(resp)
+
+    later = client.get("/invoices/new")
+    assert later.status_code == 200, "the build screen must still open afterwards"
+    assert "Nothing on this invoice yet" in _text(later)
+
+
+def test_a_draft_that_cannot_be_priced_still_renders_with_a_way_out(client):
+    """Belt and braces for the lock-out. A row no current guard would admit —
+    left in a cookie by an older build — must still produce a page, because
+    this screen carries the only Discard button in the app."""
+    from satc.app.billing_views import _DRAFT
+
+    with client.session_transaction() as sess:
+        sess[_DRAFT] = {"client_id": CLIENT, "tax_year": YEAR, "plan_key": "standard",
+                        "plan_basis": "", "lines": [{"service_code": "return_1040",
+                                                     "quantity": "1", "note": "",
+                                                     "rate_override": "Infinity"}]}
+
+    resp = client.get("/invoices/new")
+    assert resp.status_code == 200, "a draft that cannot be priced is not a 500"
+    assert "discard it and start again" in _text(resp)
+
+    resp = client.post("/invoices/new", data={"action": "discard"})
+    assert resp.status_code == 200
+    assert "Nothing was ever written down" in _text(resp)
+
+
+@pytest.mark.parametrize("bad", ["NaN", "Infinity", "-inf", "how many"])
+def test_a_quantity_that_is_not_a_number_is_refused_in_words(client, bad):
+    """Phrased like the bad-rate branch, never rendered as a repr."""
+    _header(client, plan_key="standard")
+    body = _text(_add(client, "schedule_e_rental", quantity=bad))
+
+    assert "InvalidOperation" not in body
+    assert "is not a quantity" in body
+    later = client.get("/invoices/new")
+    assert later.status_code == 200
+    assert "Nothing on this invoice yet" in _text(later)
+
+
+# --- the tax year is a fact, not a default ------------------------------------
+
+@pytest.mark.parametrize("bad", ["two thousand twenty five", "12", "-5", "3025", "1899"])
+def test_a_tax_year_that_is_not_a_year_is_refused_not_quietly_replaced(client, bad):
+    resp = client.post("/invoices/new", data={
+        "action": "header", "client_id": CLIENT, "plan_key": "standard",
+        "plan_basis": "", "tax_year": bad})
+    assert resp.status_code == 200
+    assert "is not a tax year" in _text(resp)
+
+
+def test_a_refused_tax_year_leaves_the_draft_as_it_was(client):
+    """``tax_year`` is what the running total groups by, so a silently accepted
+    one puts the invoice in another year's figures."""
+    _header(client)                                     # a good year: 2025
+    _add(client, "return_1040")
+    client.post("/invoices/new", data={
+        "action": "header", "client_id": CLIENT, "plan_key": "standard",
+        "tax_year": "12"})
+    number, resp = _issue(client)
+
+    assert resp.status_code == 302
+    assert _stored(number).tax_year == YEAR
+
+
+# --- "already exists" is only success when it is the SAME thing ---------------
+
+def test_a_number_that_now_belongs_to_someone_else_is_not_success(client):
+    """Principle 8 is about the same request yielding the same result, not about
+    any request that names a taken number. A stale tab carries a number that has
+    since been issued to another client; redirecting to THEIR invoice tells the
+    owner this bill was raised when nothing was written at all."""
+    _header(client, client_id="SATC-STALE-A")
+    _add(client, "return_1040")
+    a_number, resp = _issue(client)
+    assert resp.status_code == 302
+
+    # A second tab, opened before A was issued, still carries A's number.
+    _header(client, client_id="SATC-STALE-B")
+    _add(client, "schedule_d")
+    resp = client.post(f"/invoices/{a_number}/issue", data={})
+
+    assert resp.status_code == 302
+    b_number = resp.headers["Location"].rsplit("/", 1)[-1]
+    assert b_number != a_number, "B must not be redirected to A's invoice"
+    assert _stored(b_number) is not None, "B's invoice must actually be written"
+    assert _stored(b_number).client_id == "SATC-STALE-B"
+    assert _stored(a_number).client_id == "SATC-STALE-A", "A is untouched"
+
+
+# --- the running total lists only clients with activity that year -------------
+
+def test_billed_to_date_omits_clients_with_nothing_in_that_year(client):
+    """A row of pure zeros — including 'Outstanding 0.00' next to a client who
+    owes money in an adjacent year — is worse than no row (principle 13)."""
+    client.post("/invoices/new", data={
+        "action": "header", "client_id": "SATC-PRIORYEAR", "plan_key": "standard",
+        "tax_year": "2001"})
+    _add(client, "return_1040")
+    _, resp = _issue(client)
+    assert resp.status_code == 302
+
+    running = _text(client.get("/invoices")).split("Billed to date", 1)[1]
+    assert "SATC-PRIORYEAR" not in running
+
+
 # --- nothing here sends anything ---------------------------------------------
 
 def test_the_invoicing_screens_have_no_send_path():

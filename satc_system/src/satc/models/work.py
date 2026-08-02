@@ -256,12 +256,19 @@ class Engagement:
     preparer_id: str = ""
     note: str = ""
 
-    rate_plan_key: str = "standard"
+    rate_plan_key: str = ""
     """Which rate plan was agreed for this year — a key into the plan catalogue.
 
     Not a discount percentage. A percentage stored here would drift from the
     catalogue the first time the practice moved the household rate, and there
     would be no way to tell a stale number from a deliberate one.
+
+    Defaults to SILENCE, not to ``"standard"``. A default of "standard" would
+    make every engagement ever constructed in code carry an explicit agreement
+    to pay full rate, so a client nobody has priced would be indistinguishable
+    from one the owner sat down and priced — and :class:`RatePlanOnFile` exists
+    precisely to tell those two apart. Blank is the same thing the store reads
+    back from a legacy NULL column: nobody has decided yet (principles 1 and 2).
     """
 
     rate_plan_basis: str = ""
@@ -298,6 +305,27 @@ class RatePlanOnFile:
     requires_basis: bool = False
     """Whether the catalogue demands a reason for this plan — reduced plans do."""
 
+    in_catalogue: bool = True
+    """Whether the recorded key is still a plan the catalogue knows about.
+
+    The catalogue is hand-edited and hot-reloaded, so a plan can be renamed or
+    retired under engagements that already reference it. Those engagements must
+    still LOAD — history that cannot be read is history that cannot be fixed —
+    so the stale key is carried through and flagged rather than raised on. It
+    is deliberately NOT resolved to the default: silently reading a retired key
+    as "standard" would invent an agreement nobody made (principle 1).
+    """
+
+    @property
+    def plan_missing(self) -> bool:
+        """The recorded plan is no longer in the catalogue — visible, not fatal.
+
+        Nothing can be priced from this record. The refusal lives at
+        invoice-issue time, where the catalogue lookup raises anyway; here the
+        job is to say so plainly instead of failing to load.
+        """
+        return not self.in_catalogue
+
     @property
     def is_agreed(self) -> bool:
         """Somebody decided this. There is a contract term behind the number."""
@@ -320,6 +348,18 @@ class RatePlanOnFile:
 
     def why(self) -> str:
         """One line the owner can read without opening anything else."""
+        if self.plan_missing:
+            # Principle 10: name the next step. Which step depends on whether
+            # the dangling key came from the contract or from the config's own
+            # default — those are two different files to go and fix.
+            if self.is_fallback:
+                return (f"No rate plan agreed for {self.tax_year}, and the practice "
+                        f"default {self.plan_key!r} is not in the rate plan "
+                        f"catalogue. Fix configs/billing/rate_plans.yaml before "
+                        f"invoicing anyone.")
+            return (f"The {self.tax_year} engagement records rate plan "
+                    f"{self.plan_key!r}, which is no longer in the rate plan "
+                    f"catalogue. Agree a current plan before invoicing.")
         if self.is_fallback:
             return (f"No rate plan agreed for {self.tax_year} — the practice default "
                     f"{self.plan_key!r} applies until one is recorded.")
@@ -342,17 +382,27 @@ def rate_plan_for(engagements: Iterable[Engagement], *, client_id: str,
 
     A blank plan key on an existing engagement is treated the same way: the slot
     is empty, so nothing was agreed, so the default applies AS A FALLBACK.
+
+    Never raises on the recorded key. A plan renamed or retired in the
+    hand-edited catalogue would otherwise make every engagement carrying the
+    old key unloadable — the store goes out of its way to keep history readable
+    and this helper is not the place to undo that. A key the catalogue no
+    longer has comes back flagged (:attr:`RatePlanOnFile.plan_missing`), and
+    the refusal stays at invoice-issue time where the money moves.
     """
     # Local import: the catalogue reads YAML, and a data shape should not drag
     # the billing config in at import time just to be defined.
-    from satc.billing.catalogue import default_plan_key, plan
+    from satc.billing.catalogue import default_plan_key, plans
 
     found = next((e for e in engagements
                   if e.client_id == client_id and e.tax_year == tax_year), None)
     agreed = (found.rate_plan_key or "").strip() if found else ""
     key = agreed or default_plan_key()
+    # .get, not plan(): a missing plan is reported, not raised.
+    known = plans().get(key)
     return RatePlanOnFile(
         client_id=client_id, tax_year=tax_year, plan_key=key,
         basis=((found.rate_plan_basis or "").strip() if found else ""),
         source="engagement" if agreed else "practice_default",
-        requires_basis=plan(key).requires_basis)
+        requires_basis=bool(known and known.requires_basis),
+        in_catalogue=known is not None)
