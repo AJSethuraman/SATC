@@ -17,7 +17,17 @@ when everything behind it is right:
   preference the owner changes over coffee reads like law (principle 4);
 * it invents a promised date rather than naming the fact nobody records;
 * it flattens the three-way blocking split, so a K-1 that cannot exist until
-  September reads like a missing W-2.
+  September reads like a missing W-2;
+* it supplies a deadline the ENGINE refused to compute, by answering "which
+  return is this" from a fact that was not asked about — so a bookkeeping
+  engagement gets a statute and a mis-clicked workflow gets a confident wrong
+  one (principle 5);
+* it attributes the blocking split to the deadline's citation, which is not
+  where any of its three classes comes from (principle 4);
+* it renders a promise the engine has already judged as a bare date, throwing
+  the judgement away;
+* it 500s where it should refuse;
+* it posts something other than the plan the owner just read.
 
 Everything goes through the real ``create_app()`` and, except where a known
 shape is needed, through the real ``satc.intake.fanout``. A fixture that
@@ -88,6 +98,16 @@ def plan_url(workflow=WORKFLOW, tax_year=YEAR, **answers) -> str:
 def body_of(resp) -> str:
     assert resp.status_code == 200, resp.status_code
     return resp.data.decode("utf-8")
+
+
+def flat(html: str) -> str:
+    """One-line the markup, so a sentence can be asserted across a line wrap.
+
+    Only for prose. Anything asserting about STRUCTURE — which half of the page a
+    row landed in, which ``data-kind`` wraps it — reads the raw markup, because
+    that is the thing under test.
+    """
+    return " ".join(html.split())
 
 
 def a_real_plan(**answers):
@@ -234,6 +254,79 @@ def test_a_request_the_rule_says_blocks_prep_renders_in_the_blocking_half(
     prep_half = page.split("Blocks starting prep", 1)[1].split(
         "Useful, not load-bearing", 1)[0]
     assert "1095-A" in prep_half
+    # ...and the "nothing ever lands here" warning goes away when something does.
+    # A warning that cannot clear is the row the owner learns to scroll past.
+    assert "the classifier failing to fire" not in page
+
+
+def test_each_blocking_class_is_attributed_to_where_it_actually_comes_from(
+        client, practice):
+    """Principle 4, upside down and put back. The page asserted that all three
+    classes "come from the same cited rule the deadline does". None of them does.
+
+    ``blocking`` comes from the rule's own ``blocking_docs``, cited by its
+    ``blocking_source`` (Pub 1345) — a DIFFERENT rule from the one that says when
+    the return is due (IRC §6072(a)). ``expected_late`` comes from a hardcoded
+    Python literal that nobody sourced. ``non_blocking`` is the default. A screen
+    that dresses the uncited one as law is the exact failure principle 4 names.
+    """
+    practice()
+    expected = a_real_plan()
+
+    page = body_of(client.get(plan_url(expectedK1s="yes")))
+    assert "it comes from" not in page, "the false attribution must be gone"
+
+    # The blocking list, cited to its OWN source and visibly not the deadline's.
+    cited = flat(page.split('data-kind="cited_rule"', 1)[1].split("</div>", 1)[0])
+    assert "IRS Pub 1345" in cited
+    assert "W-2" in cited and "1099-R" in cited
+    assert expected.citation in cited          # named, precisely to be told apart
+    assert "two rules answering two questions" in cited
+
+    # The judgement, marked as a judgement — in the markup, not only in prose.
+    judgement = flat(page.split('data-kind="uncited_judgement"', 1)[1].split("</div>", 1)[0])
+    assert "No citation" in judgement
+    assert "satc.models.readiness.blocking_class_for" in judgement
+    # Pub 1345 belongs to the class above it and must not bleed onto this one.
+    assert "Pub 1345" not in judgement
+
+
+def test_a_blocking_class_nothing_can_ever_reach_says_so_rather_than_reading_empty(
+        client, practice):
+    """The W-2 ask renders under "Useful, not load-bearing" on every 1040 plan
+    there has ever been, and the page said a cited rule put it there.
+
+    Root cause is not on this screen: ``configs/workflows/personal_1040_core.yaml``
+    types the ask that collects W-2s as ``doc_type: Core income documents``, a
+    bucket, while the rule's ``blocking_docs`` are form numbers, and
+    ``blocking_class_for`` matches the whole string. So the class is unreachable
+    for every plan. The screen cannot honestly reclassify — what blocks is the
+    cited rule's business, not a literal in a view — but it must not present an
+    empty top bucket as though the file were clean (principles 1 and 13).
+    """
+    practice()
+
+    page = body_of(client.get(plan_url(marketplaceInsurance="yes")))
+    assert "Blocks starting prep" not in page          # still genuinely unreachable
+    assert "the classifier failing to fire, not a clean file" in page
+    # It names the rule's documents, the bucket that failed to match them, and
+    # both places the fix could go (principle 10).
+    assert "W-2, W-2G, 1099-R" in page
+    assert "Core income documents" in page
+    assert "configs/workflows/personal_1040_core.yaml" in page
+    assert "satc.models.readiness.blocking_class_for" in page
+    assert "treat the split below as unanswered" in page
+
+
+def test_a_rule_that_names_no_blocking_documents_says_that_instead_of_warning(
+        client, practice):
+    """The 1120-S rule lists none — that is the rule's answer, not a classifier
+    that failed. Warning about it would be noise on every S-corp plan forever."""
+    practice(entity_type="SCORP")
+
+    page = body_of(client.get(plan_url(workflow="business_scorp_tax")))
+    assert "names no such documents at all" in page
+    assert "the classifier failing to fire" not in page
 
 
 # --- what it will cost --------------------------------------------------------
@@ -368,20 +461,76 @@ def test_the_firm_cutoff_is_the_one_the_owners_own_config_sets(client, practice)
 
 
 def test_work_with_no_statutory_duty_gets_no_date_at_all(client, practice):
-    """A bookkeeping engagement discharges no filing duty. April 15 shown
-    against one would be a confident wrong answer, which is the worst failure
-    there is (principle 5). The engine's refusal is rendered, not rewritten."""
-    practice()
+    """A bookkeeping engagement discharges no filing duty — AND THAT IS TRUE OF A
+    REAL S-CORP, which is the only version of this that matters.
 
-    practice(entity_type="")
+    The engine refuses a workflow that names no return. The screen used to defeat
+    that refusal by supplying the client's recorded entity type, which answers a
+    question nobody asked — "what would this taxpayer file if they were filing" —
+    so a monthly-bookkeeping plan for an S corporation came back with a STATUTE
+    badge, March 16 and a citation to IRC §6072(b). The engagement files nothing;
+    the client is an S corporation; both are true and only one of them is about
+    this engagement.
+
+    The refusal has to be THE RIGHT ONE, not merely some refusal. "SATC does not
+    know how it knows this client is an S-corp" invites the owner to record the
+    basis, after which bookkeeping would get a filing deadline again. The true
+    answer does not depend on the client at all.
+    """
+    practice(entity_type="SCORP")
 
     page = body_of(client.get(plan_url(workflow="business_monthly_bookkeeping")))
-    assert "SATC will not plan this engagement" in page
-    assert "business_monthly_bookkeeping" in page      # the refusal names it
-    assert "cannot compute a deadline for it" in page
+
+    # It PLANS — refusing outright made two of the four business workflows
+    # unreachable, which is worse than the deadline it was preventing.
+    assert "SATC will not plan this engagement" not in page
+
+    # ...but carries no statutory anything. The absence IS the answer.
     assert 'data-kind="statute"' not in page
-    assert "April" not in page
+    assert "NO STATUTORY DEADLINE" in page
+    assert "1120S" not in page
     assert "no date has been guessed at" in page
+    assert "files nothing" in page
+
+
+def test_a_workflow_and_a_client_record_that_disagree_reach_the_screen_as_a_refusal(
+        client, practice):
+    """Principle 5. Two recorded facts claim to say what this engagement files:
+    the workflow the owner clicked declares an S-corp return, the client record
+    says INDIVIDUAL. The screen printed "STATUTE April 15, 2026 — Form 1040" with
+    a citation over a mis-clicked S-corp workflow, and never said a second fact
+    disagreed.
+
+    ``duty_rule_for`` now refuses the disagreement itself, and the screen's job
+    is to let that refusal through instead of a date — which is what this guards.
+    A view holding its own opinion about which duty applies would be a second
+    place for the answer to be wrong."""
+    practice(entity_type="INDIVIDUAL")
+
+    page = body_of(client.get(plan_url(workflow="business_scorp_tax")))
+    assert "SATC will not plan this engagement" in page
+    # BOTH facts named, because the fix is to correct one of them and the owner
+    # cannot do that without knowing which two are in conflict (principle 10).
+    assert "INDIVIDUAL" in page and "SCORP" in page
+    assert "will not pick between" in page
+    # ...and not one date, from either of them.
+    assert 'data-kind="statute"' not in page
+    assert "April 15" not in page and "March 16" not in page
+
+
+def test_a_workflow_that_does_prepare_a_return_still_gets_its_deadline(
+        client, practice):
+    """The other half of the two rules above — otherwise they are checks that can
+    only ever refuse, which is not evidence of anything (principle 12). An S-corp
+    client on the S-corp workflow is one engagement, one duty, one cited date."""
+    practice(entity_type="SCORP")
+
+    page = body_of(client.get(plan_url(workflow="business_scorp_tax")))
+    assert "SATC will not plan this engagement" not in page
+    statute = page.split('data-kind="statute"', 1)[1].split(
+        'data-kind="firm_policy"', 1)[0]
+    assert "Form 1120S" in statute
+    assert "IRC" in statute
 
 
 def test_no_tax_year_is_refused_rather_than_guessed(client, practice):
@@ -390,6 +539,24 @@ def test_no_tax_year_is_refused_rather_than_guessed(client, practice):
 
     page = body_of(client.get(plan_url(tax_year=None)))
     assert "Set the tax year." in page
+    assert 'data-kind="statute"' not in page
+
+
+def test_a_year_the_calendar_has_no_period_for_is_refused_and_not_a_stack_trace(
+        client, practice):
+    """``_int_or_none`` returns the integer 0 for ``tax_year=0``, and 0 is falsy
+    but not ``None`` — a year somebody typed, not a year nobody gave. It reached
+    ``obligations.due_dates.tax_year``, which rightly refuses to invent a period
+    for it, and the ValueError came out of the browser as a stack trace. A 500 is
+    not a refusal; it is the absence of one (principles 5 and 10)."""
+    practice()
+
+    resp = client.get(plan_url(tax_year=0))
+    assert resp.status_code == 200, "a nonsense year must refuse, not crash"
+    page = resp.data.decode("utf-8")
+    assert "SATC will not plan this engagement" in page
+    assert "tax year 0" in page                       # the refusal names it back
+    assert "Set the tax year to the year the return is for." in page
     assert 'data-kind="statute"' not in page
 
 
@@ -428,6 +595,35 @@ def test_a_promise_with_a_recorded_start_fact_shows_the_date(client, practice):
     page = body_of(client.get(plan_url()))
     assert lands.strftime("%B %d, %Y") in page
     assert "2 business days from" in page
+
+
+def test_a_promise_the_engine_has_already_judged_never_renders_as_a_bare_date(
+        client, practice):
+    """``compliance`` returns a STATUS and a sentence; the row printed the date and
+    threw both away, so a promise the engine calls missed was pixel-identical to
+    one still comfortably on track. That is principle 4's failure mode inside a
+    single class of statement: two different things rendering the same.
+
+    The verdict is read back off the engine rather than spelled out here, so this
+    still holds when the status vocabulary grows."""
+    from satc.work.sla import compliance
+
+    rejected_on = date(2020, 3, 10)   # years past — this promise is long resolved or blown
+    practice(filings=[Filing(filing_id="F-1", return_key="RK-1", client_id=CLIENT,
+                             ack_code="R", ack_date=rejected_on)])
+    verdict = compliance("efile_reject_turnaround", started_on=rejected_on,
+                         today=date.today())
+    assert verdict.status != "open" and verdict.promise is not None, (
+        "the fixture must produce a promise the engine has actually judged")
+
+    page = body_of(client.get(plan_url()))
+    row = page.split('data-kind="promise"', 1)[1].split("</tr>", 1)[0]
+    assert verdict.status.upper() in row, "the judgement is computed and must be shown"
+    assert '<span class="badge' in row
+    # ...and the sentence, which carries what a date on its own cannot say.
+    assert f"we promised 2 business days from {rejected_on}" in row
+    # Still a promise, never a deadline. An apology, not a penalty.
+    assert 'data-kind="statute"' not in row
 
 
 # --- the edges ----------------------------------------------------------------
@@ -476,7 +672,8 @@ def test_the_letters_fee_slot_says_which_condition_left_it_empty(client, practic
 
 _PLAN_FUNCTIONS = {
     "engagement_plan", "_plan_answers", "_because", "_needs", "_fan_out",
-    "_sla_outcomes", "_recorded_starts", "_fee_slot",
+    "_sla_outcomes", "_recorded_starts", "_fee_slot", "_entity_type_for",
+    "_blocking_basis",
 }
 
 _DISPOSING = {
@@ -539,6 +736,38 @@ def test_generating_the_engagement_is_a_separate_deliberate_post(client, practic
     # and so does the COMPUTED deadline, not one anybody typed.
     assert 'name="q_expectedK1s" value="yes"' in page
     assert f'name="due_date" value="{a_real_plan().duty.due.isoformat()}"' in page
+
+
+def test_the_button_does_not_invent_a_new_client_the_owner_never_claimed(
+        client, practice, monkeypatch):
+    """Whether this is a new SAT-C client is a RECORDED FACT, and it is the gate
+    the whole interview branches on.
+
+    ``value="{{ mode or 'new' }}"`` invented it: an owner who never touched the
+    new/returning switch posted ``mode=new``, which /intake/new takes as the
+    owner having SAID so — overriding the record for a returning client and
+    generating a different engagement from the plan just read. Absent, the route
+    now reads it off the record, which is where this screen's own plan came from.
+    """
+    practice()
+    monkeypatch.setattr(STATE, "is_returning", lambda cid: True)
+
+    # No mode in the URL: nobody said which this is.
+    page = body_of(client.get(f"/intake/plan?client={CLIENT}&workflow={WORKFLOW}"
+                              f"&tax_year={YEAR}"))
+    assert 'name="mode"' not in page, (
+        "posting a mode nobody chose hands /intake/new an answer as if the owner "
+        "had given it")
+    # ...and the plan itself resolved the gate the same way the route will, so the
+    # two are one derivation. A returning client is not asked for prior-year
+    # returns, which is the task that answer gates.
+    assert "Request prior-year returns" not in page
+
+    # An explicit choice still travels — the owner may know better than the record.
+    chosen = body_of(client.get(f"/intake/plan?client={CLIENT}&workflow={WORKFLOW}"
+                                f"&tax_year={YEAR}&mode=new"))
+    assert 'name="mode" value="new"' in chosen
+    assert "Request prior-year returns" in chosen
 
 
 # --- the button and the plan must be the same derivation --------------------

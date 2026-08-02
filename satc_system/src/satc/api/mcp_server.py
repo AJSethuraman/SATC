@@ -104,7 +104,7 @@ def _build_server(allow_writes: bool = False):
                                           ssn=ssn, email=email, phone=phone, address=address)
 
     @mcp.tool()
-    def create_business_client(legal_name: str, entity_type: str = "SCORP", ein: str = "",
+    def create_business_client(legal_name: str, entity_type: str = "", ein: str = "",
                                email: str = "", phone: str = "", address: dict | None = None) -> dict:
         """Create a business client (S-corp / partnership / C-corp / etc.)."""
         return tools.create_business_client(state, legal_name=legal_name, entity_type=entity_type,

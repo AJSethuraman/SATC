@@ -95,12 +95,27 @@ def create_person_client(store, *, first_name: str, last_name: str, ssn: str = "
     return cid
 
 
-def create_business_client(store, *, legal_name: str, entity_type: str = "SCORP", ein: str = "",
+def create_business_client(store, *, legal_name: str, entity_type: str = "", ein: str = "",
                            email: str = "", phone: str = "", address: dict | None = None,
                            client_id: str | None = None) -> str:
-    """Create a business client (vault + de-identified mart projection)."""
+    """Create a business client (vault + de-identified mart projection).
+
+    An entity type nobody stated is REFUSED rather than defaulted. This line
+    used to read ``entity_type.strip().upper() or "SCORP"``, which recorded an
+    S election nobody made — and an S election is assigned by the IRS in
+    writing. Everything downstream then treated it as a fact about the taxpayer:
+    which return is due, and when.
+    """
+    if not (entity_type or "").strip():
+        raise ValueError(
+            f"No entity type was given for {legal_name.strip() or 'this business'}, and "
+            f"SATC will not pick one — whether an entity is an S corporation, a "
+            f"partnership or a C corporation is assigned by the IRS in writing and it "
+            f"decides which return is due and when. Take it from the acceptance letter "
+            f"(Form 2553 acceptance / CP261) or the last filed return: SCORP, "
+            f"PARTNERSHIP, CCORP.")
     cid = client_id or next_client_id(store)
-    rec = IdentityRecord(client_id=cid, entity_type=entity_type.strip().upper() or "SCORP",
+    rec = IdentityRecord(client_id=cid, entity_type=entity_type.strip().upper(),
                          legal_name=legal_name.strip(), tin=ein.strip(),
                          addresses=[_address(address)] if address else [],
                          contacts=[VaultContact(name=legal_name.strip(), email=email.strip(),
@@ -171,6 +186,22 @@ def create_engagement(store, *, client_id: str, workflow_key: str, due_date: dat
     return eng
 
 
+def _job_jurisdiction(job) -> str:
+    """Which jurisdiction's duty a job on file discharges.
+
+    Read off ``obligation_key`` (``client/kind/form/JURISDICTION/period``)
+    rather than stored twice — the key is already the composite identity of the
+    duty, and a second copy of the jurisdiction is a second thing to disagree.
+
+    A job with no ``obligation_key`` predates the fan-out, and every door that
+    could create one before it took a keyed-in date with no jurisdiction at all,
+    so it is federal. That is a reading of what the code could produce, not a
+    guess about the taxpayer.
+    """
+    parts = (getattr(job, "obligation_key", "") or "").split("/")
+    return parts[3].upper() if len(parts) >= 5 and parts[3].strip() else "US"
+
+
 def create_engagement_from_intake(store, *, client_id: str, workflow_key: str,
                                   tax_year: int, answers: dict | None = None,
                                   today: date | None = None, jurisdiction: str = "US",
@@ -202,17 +233,35 @@ def create_engagement_from_intake(store, *, client_id: str, workflow_key: str,
     linked = _linked_clients(store, client_id, relationships, names)
     my_rels = [r for r in relationships if client_id in (r.from_client_id, r.to_client_id)]
 
-    # A job already on file for this client/workflow/year is the SAME job. Its
-    # id and its tasks carry over so progress survives and nothing duplicates —
-    # including a legacy job whose id was a uuid rather than a derived one.
+    # A job already on file for this client/workflow/year/JURISDICTION is the
+    # SAME job. Its id and its tasks carry over so progress survives and nothing
+    # duplicates — including a legacy job whose id was a uuid rather than a
+    # derived one.
+    #
+    # Jurisdiction belongs in that test. Without it the Massachusetts return
+    # matched the federal job for the same client, workflow and year, inherited
+    # its id, and OVERWROTE it on save: two duties with two deadlines collapsed
+    # into one row.
     period = str(tax_year)
     prior = next((j for j in jobs
                   if j.client_id == client_id and j.workflow_key == workflow_key
-                  and (j.period_key or str(j.tax_year or "")) == period), None)
+                  and (j.period_key or str(j.tax_year or "")) == period
+                  and _job_jurisdiction(j) == (jurisdiction or "US").upper()), None)
 
-    # The client's RECORDED entity type decides which filing rule applies. It is
-    # a fact on the client record; the workflow key is only what the owner
-    # clicked, and the two disagreeing is how a partnership gets a 1040 date.
+    # The client's RECORDED entity type decides which filing rule applies — but
+    # only when the practice can say how it knows. It is a fact on the client
+    # record; the workflow key is only what the owner clicked, and the two
+    # disagreeing is how a partnership gets a 1040 date.
+    #
+    # THE MART CANNOT SAY YET, which is exactly why this is read through
+    # ``getattr`` and defaults to unsourced rather than to a basis. Nothing on
+    # ``PublicClient`` records where its ``entity_type`` came from, so a value
+    # the importer INVENTED (it defaults an unknown business to SCORP) is
+    # indistinguishable from one an IRS acceptance letter established. Until
+    # that field exists the value is treated as unsourced and ``fan_out``
+    # refuses to build a citation on it; the day
+    # ``IdentityRecord``/``PublicClient`` carry ``entity_type_basis``, this
+    # starts honouring it with no change here.
     public = next((p for p in mart.public_clients if p.client_id == client_id), None)
 
     plan = fan_out(
@@ -221,8 +270,13 @@ def create_engagement_from_intake(store, *, client_id: str, workflow_key: str,
         existing_tasks=prior.tasks if prior else [], jurisdiction=jurisdiction,
         fiscal_year_end=fiscal_year_end,
         entity_type=(public.entity_type if public else ""),
+        entity_type_basis=str(getattr(public, "entity_type_basis", "") or ""),
         linked_clients=linked, relationships=my_rels,
         existing_jobs=jobs, job_id=prior.job_id if prior else "",
+        # The register itself, so an ask that has already been satisfied stops
+        # being a reason to keep reporting a task nobody has to do any more.
+        open_request_ids={i.request_id for i in mart.requested_items
+                          if i.client_id == client_id and i.is_open},
         created_at=prior.created_at if prior else "")
 
     if plan.requests:
@@ -233,6 +287,57 @@ def create_engagement_from_intake(store, *, client_id: str, workflow_key: str,
         store.save_mart(mart)
     store.save_job(plan.job)
     return plan
+
+
+def letter_facts_for_job(store, job, *, today: date | None = None,
+                         jurisdiction: str = "US") -> dict[str, str]:
+    """What an engagement letter about ``job`` can honestly say. Writes nothing.
+
+    THE HALF OF THE FAN-OUT'S THIRD CLAIM THAT IS NOT WIRED. ``fan_out``
+    derives ``letter_facts``; the comms screen builds its merge values in
+    ``satc.app.comms_views._context`` and has never been handed them, so the
+    engagement letter renders its scope and its fee from standing wording
+    rather than from what this engagement actually agreed. This is the seam
+    that closes it, and the call site is one line::
+
+        values = build_context(...)                        # who the client is
+        values.update(letter_facts_for_job(STATE.store, engagement))
+
+    In that order: a fact derived from the answers outranks wording a model
+    drafted (principle 6). ``fee_amount_text`` is the one key both sides can
+    fill, which is why the fan-out's value states that it is an estimate —
+    ``build_context`` fills the same name from an ISSUED INVOICE total, and an
+    estimate rendered as a bill is a number a client will hold us to.
+
+    RECOMPUTED, NEVER STORED (principle 3). The job carries the answers; a
+    second copy of "what we promised" beside them is a second thing to be
+    wrong. Refuses the same way ``create_engagement_from_intake`` does — a job
+    with no tax year has no computable statutory deadline, and a letter is not
+    the place to discover that.
+    """
+    if not getattr(job, "tax_year", None):
+        raise ValueError(
+            f"Job {getattr(job, 'job_id', '?')} has no tax year on it, so nothing can "
+            f"compute the deadline or the fee an engagement letter states. Regenerate "
+            f"the engagement from intake, which records the year and the duty behind it.")
+
+    from satc.intake.fanout import fan_out
+
+    mart = store.load_mart()
+    public = next((p for p in mart.public_clients
+                   if p.client_id == job.client_id), None)
+    plan = fan_out(
+        load_workflow(job.workflow_key), dict(job.intake_answers or {}),
+        client_id=job.client_id, tax_year=job.tax_year, today=today or date.today(),
+        engagements=mart.engagements, existing_tasks=list(job.tasks),
+        jurisdiction=_job_jurisdiction(job) or jurisdiction,
+        entity_type=(public.entity_type if public else ""),
+        entity_type_basis=str(getattr(public, "entity_type_basis", "") or ""),
+        existing_jobs=[job], job_id=job.job_id,
+        open_request_ids={i.request_id for i in mart.requested_items
+                          if i.client_id == job.client_id and i.is_open},
+        created_at=job.created_at)
+    return plan.letter_facts
 
 
 def find_match(store, *, client_id: str, doc_type: str) -> RequestedItem | None:

@@ -13,6 +13,13 @@
     data-kind="promise"      an SLA — an apology if broken, never a penalty
     data-kind="estimate"     a quote. Not a bill.
 
+  Three more mark WHERE THE BLOCKING SPLIT COMES FROM, which is the same obligation on a
+  different axis: what is being said about a document rather than about a date.
+
+    data-kind="cited_rule"          the duty rule's own blocking_docs + blocking_source
+    data-kind="uncited_judgement"   a Python literal nobody sourced. Says so.
+    data-kind="default"             what is left when neither claimed it
+
   Nothing on this page writes anything.
 #}
 {% block content %}
@@ -69,8 +76,9 @@
 <div class="panel"><h2>SATC will not plan this engagement</h2><div class="body">
   <p class="note flag">{{ refusal }}</p>
   <p class="note">Nothing has been generated, and no date has been guessed at. A plausible
-    deadline against work the law has no opinion about is the confident wrong answer this
-    system is built not to give.</p>
+    deadline — against work the law has no opinion about, or computed from whichever of two
+    disagreeing facts happened to win — is the confident wrong answer this system is built
+    not to give.</p>
 </div></div>
 {% else %}
 
@@ -81,6 +89,55 @@
     {% if not needs_total %}
     <p class="note">These answers ask the client for nothing at all. That is either a very
       simple return or an interview nobody has answered yet.</p>
+    {% endif %}
+
+    {% if blocking_basis %}
+    {# THE LEGEND, ABOVE THE TABLE IT EXPLAINS — three classes, three DIFFERENT
+       provenances, and only one of them has a citation at all. Attributing all three
+       to the deadline's citation was principle 4 upside down: an uncited judgement in
+       Python dressed as a sourced rule. Each is marked for what it is, in `data-kind`
+       as well as in the words. Deliberately worded so as never to repeat a class
+       heading verbatim — one phrase, one place, or the page says it twice. #}
+    <div class="kv" style="margin-bottom:14px">
+      <div data-kind="cited_rule">
+        <b style="display:block;min-width:0">Blocking, on this rule's own authority</b>
+        <span class="muted">
+          {% if blocking_basis.docs %}
+          The documents the Form {{ blocking_basis.form }} rule itself lists —
+          {{ blocking_basis.docs|join(', ') }} — cited to
+          <em>{{ blocking_basis.source or 'no source recorded on the rule' }}</em>.
+          A different citation from the deadline's ({{ plan.citation }}): when a return
+          is due and what must be in hand before it is originated are two rules
+          answering two questions.
+          {% else %}
+          The Form {{ blocking_basis.form }} rule names no such documents at all, so
+          nothing on this engagement can land in that class. That is the rule's answer,
+          not a gap.
+          {% endif %}
+        </span>
+      </div>
+      <div data-kind="uncited_judgement">
+        <b style="display:block;min-width:0">Expected late, on nobody's authority</b>
+        <span class="muted"><span class="flag">No citation — a judgement, not a rule.</span>
+          A K&#8209;1, a 1099&#8209;B or a consolidated 1099 genuinely cannot exist early in
+          the season. That is true, and nobody sourced it: it is a Python literal in
+          <span class="mono">satc.models.readiness.blocking_class_for</span>, and it is said
+          here so it cannot be mistaken for law.</span>
+      </div>
+      <div data-kind="default">
+        <b style="display:block;min-width:0">Everything else, by default</b>
+        <span class="muted">What neither of the two above claimed. A default, which is why a
+          document landing there proves nothing on its own. The split is what lets work start
+          on a file that is complete apart from something which cannot exist yet.</span>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if blocking_basis and blocking_basis.gap %}
+    {# An empty first class is not "the file is clean" — it is the classifier never
+       firing. Said out loud, because a split whose top bucket can never fill is the
+       row that teaches the owner to scroll past it (principle 13). #}
+    <p class="note flag">{{ blocking_basis.gap }}</p>
     {% endif %}
 
     {% for heading, rows, tone in [
@@ -109,10 +166,6 @@
     </table>
     {% endif %}
     {% endfor %}
-
-    <p class="note">Which of those three a document is in is not a preference — it comes from
-      the same cited rule the deadline does ({{ plan.citation }}). That is what lets work
-      start on a file that is complete apart from something which cannot exist yet.</p>
   </div>
 </div>
 
@@ -192,6 +245,18 @@
 <div class="panel">
   <h2>When it is due</h2>
   <div class="body">
+    {% if not plan.files_something %}
+    {# Bookkeeping, a cleanup, onboarding. Real work with real dates — but the
+       dates are the PRACTICE'S, so this must not carry the statute styling, the
+       badge, or a citation. Principle 4 is a UI obligation: the absence of a
+       statutory deadline is the true answer here, not a gap to fill. #}
+    <div class="dateline" data-kind="none"
+         style="border-left:4px solid var(--gold, #b8964f);background:var(--paper);padding:10px 14px;border-radius:6px">
+      <div><span class="badge">NO STATUTORY DEADLINE</span></div>
+      <div class="muted">This engagement files nothing, so no statute has an opinion about
+        when it is due. Its dates are the practice's own — no date has been guessed at.</div>
+    </div>
+    {% else %}
     <div class="dateline statute" data-kind="statute"
          style="border-left:4px solid var(--navy);background:var(--paper);padding:10px 14px;border-radius:6px">
       <div><span class="badge b-Sent">STATUTE</span>
@@ -208,8 +273,9 @@
         {% if plan.duty.extension_condition %}{{ plan.duty.extension_condition }}{% endif %}</div>
       {% endif %}
     </div>
+    {% endif %}
 
-    {% if plan.duty.documents_due %}
+    {% if plan.files_something and plan.duty.documents_due %}
     <div class="dateline firm-policy" data-kind="firm_policy"
          style="border-left:4px dashed var(--gold-deep);background:var(--cream);padding:10px 14px;
                 border-radius:6px;margin-top:10px">
@@ -221,8 +287,10 @@
     </div>
     {% endif %}
 
+    {% if plan.files_something %}
     <p class="note">Those two dates are different kinds of thing. The first cannot be argued
       with and missing it costs a penalty; the second you can move over coffee.</p>
+    {% endif %}
   </div>
 </div>
 
@@ -248,9 +316,24 @@
           <div class="muted mono">{{ p.kind }}</div></td>
         <td class="right">
           {% if p.promise %}
+          {# THE STATUS, NOT JUST THE DATE. `compliance` has already judged this one;
+             rendering the bare date threw the judgement away and made a promise the
+             engine calls MISSED read exactly like one still on track. The sentence
+             comes with it wherever the answer is not simply "still running", because
+             that is where the date alone does not say what happened.
+
+             An UNKNOWN status falls to gold and its own name rather than to the calm
+             blue of "on track": a status this screen has not been taught yet is not
+             evidence that nothing is wrong. #}
+          <span class="badge {{ {'missed': 'b-Requested', 'met': 'b-Received',
+                                 'open': 'b-Sent'}.get(p.status, 'b-STAGED') }}">{{
+            {'missed': 'MISSED', 'met': 'KEPT', 'open': 'ON TRACK'}.get(p.status, p.status|upper) }}</span>
           <span class="mono">{{ p.promise.promised_date.strftime('%B %d, %Y') }}</span>
           <div class="muted">{{ p.promise.duration }} from
             {{ p.promise.started_on.strftime('%b %d, %Y') }}</div>
+          {% if p.status != 'open' %}
+          <div class="{{ 'flag' if p.is_missed else 'muted' }}">{{ p.why }}</div>
+          {% endif %}
           {% else %}
           {# The named refusal, verbatim. It says which fact nobody records and
              what would have to exist for the promise to be answerable. #}
@@ -292,9 +375,17 @@
     <form method="post" action="{{ generate_url }}" style="margin-top:14px">
       <input type="hidden" name="client" value="{{ client_id }}">
       <input type="hidden" name="workflow_key" value="{{ workflow.key }}">
-      <input type="hidden" name="due_date" value="{{ plan.duty.due.isoformat() }}">
+      {% if plan.files_something %}<input type="hidden" name="due_date" value="{{ plan.duty.due.isoformat() }}">{% endif %}
       <input type="hidden" name="tax_year" value="{{ tax_year }}">
-      <input type="hidden" name="mode" value="{{ mode or 'new' }}">
+      {# Whether this is a new SAT-C client is a RECORDED FACT, and `mode or 'new'`
+         invented it: an owner who never touched the new/returning switch posted "new"
+         for a returning client, flipping the gate the whole interview branches on and
+         generating a different engagement from the plan they had just read. Posted only
+         when the owner actually said so; absent, /intake/new reads it off the record —
+         which is exactly what this screen's own plan was derived from. #}
+      {% if mode in ('new', 'returning') %}
+      <input type="hidden" name="mode" value="{{ mode }}">
+      {% endif %}
       {% for qid, given in answers.items() %}
       <input type="hidden" name="q_{{ qid }}" value="{{ given }}">
       {% endfor %}

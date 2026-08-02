@@ -348,9 +348,10 @@ def _fan_out(workflow, answers: dict, *, client_id: str, tax_year: int, today: d
              entity_type: str = ""):
     """Answers in, the whole engagement out. Writes nothing.
 
-    ``entity_type`` is the client's RECORDED type off the mart, and it is passed
-    rather than left to the workflow's own map because a recorded fact outranks
-    a derivation from what the owner clicked (principle 2).
+    ``entity_type`` is what :func:`_entity_type_for` decided is RELEVANT — not
+    the client's recorded type handed over unconditionally. A workflow that files
+    nothing gets nothing, so the engine's refusal survives contact with the
+    screen.
 
     Deliberately NOT given the existing job's tasks. This screen shows what the
     answers imply IN FULL — an engagement already generated would otherwise come
@@ -363,6 +364,34 @@ def _fan_out(workflow, answers: dict, *, client_id: str, tax_year: int, today: d
     return fan_out(workflow, answers, client_id=client_id, tax_year=tax_year,
                    today=today, entity_type=entity_type,
                    engagements=list(STATE.mart.engagements))
+
+
+def _entity_type_for(workflow, public_client) -> str:
+    """The client's recorded entity type — WHEN this engagement files a return at all.
+
+    A WORKFLOW ABSENT FROM ``ENTITY_TYPE_BY_WORKFLOW`` PREPARES NO RETURN,
+    WHOEVER THE CLIENT IS. Monthly bookkeeping and a year-end cleanup are work
+    the practice agreed to do and no statute has an opinion about when they are
+    due, so ``duty_rule_for`` refuses them by name — and the screen used to
+    defeat that refusal by handing over the client's entity type anyway. That
+    answers a question nobody asked ("what would this taxpayer file *if* they
+    were filing") and put a STATUTE badge, a computed March 16 and a citation to
+    IRC §6072(b) on a bookkeeping engagement.
+
+    The engine cannot make this call: from inside, a supplied entity type is a
+    caller that has the client record, which is exactly what this screen is.
+    Whether it is RELEVANT to the engagement being planned is the caller's
+    question, and the answer is what the owner clicked.
+
+    Where the workflow does declare a return, the record is passed through
+    untouched and the engine decides — including refusing when the two disagree.
+    A second opinion about which duty applies does not belong in a view.
+    """
+    from satc.intake.fanout import ENTITY_TYPE_BY_WORKFLOW
+
+    if not ENTITY_TYPE_BY_WORKFLOW.get(workflow.key, ""):
+        return ""
+    return (getattr(public_client, "entity_type", "") or "").strip().upper()
 
 
 def _sla_outcomes(*, started: dict, today: date):
@@ -398,12 +427,16 @@ def _recorded_starts(client_id: str) -> dict[str, date]:
 
 # --- reading the answers, and naming what they caused -------------------------
 
-def _plan_answers(workflow, src) -> dict[str, str]:
+def _plan_answers(workflow, src, *, client_id: str) -> dict[str, str]:
     """The interview answers off the request, for THIS workflow's questions only.
 
-    The same convention the generate form uses, so the plan is drawn from
-    exactly what would be recorded — a preview built from a different reading of
-    the form would be a preview of a different engagement.
+    The same convention the generate form uses, and — since the fix to
+    ``/intake/new`` — the same resolution of the new-vs-returning gate. That gate
+    is a RECORDED FACT: the practice either has a prior engagement on file or it
+    does not, and it is what the whole interview branches on. Leaving it out here
+    while the generate route reads it off the record made the plan and the
+    engagement two different derivations of the same answers, which is the one
+    thing this screen exists not to be.
     """
     answers: dict[str, str] = {}
     for q in workflow.questions:
@@ -413,8 +446,10 @@ def _plan_answers(workflow, src) -> dict[str, str]:
         if given is not None:
             answers[q.id] = given
     mode = (src.get("mode") or "").strip()
-    if mode:
+    if mode in ("new", "returning"):
         answers[NEW_CLIENT_GATE] = "yes" if mode == "new" else "no"
+    else:
+        answers[NEW_CLIENT_GATE] = "no" if STATE.is_returning(client_id) else "yes"
     return answers
 
 
@@ -470,6 +505,76 @@ def _needs(plan, workflow) -> list[Need]:
     return out
 
 
+@dataclass(frozen=True, slots=True)
+class BlockingBasis:
+    """Where each of the three blocking classes actually comes from.
+
+    Three headings, three DIFFERENT provenances, and only one of them has a
+    citation at all:
+
+    * *blocks prep* — the documents the duty's own rule lists in
+      ``blocking_docs``, cited by its ``blocking_source`` (Pub 1345 on a 1040).
+      That is **not** the deadline's citation: the rule that says when a return
+      is due and the rule that says what must be in hand before originating it
+      are two different rules answering two different questions.
+    * *blocks filing, not prep* — no citation whatsoever. "A K-1 cannot exist in
+      February" is a judgement written into
+      ``satc.models.readiness.blocking_class_for`` as a Python literal. It is
+      true, and nobody sourced it, and the screen must not dress it as law
+      (principle 4).
+    * *useful, not load-bearing* — the default for everything else.
+    """
+
+    form: str = ""
+    docs: tuple[str, ...] = ()
+    source: str = ""
+    """The blocking list's OWN citation. Empty when the rule cites none."""
+
+    gap: str = ""
+    """Set when the rule names blocking documents and NO request matched one —
+    an empty class that means "the classifier never fired", not "the file is
+    clean". A split whose first bucket can never fill teaches the owner it does
+    not matter (principle 13), so it says so instead of rendering empty."""
+
+
+def _blocking_basis(plan, workflow, needs: list[Need]) -> BlockingBasis:
+    """Which rule put a document in which class — read off the rule, not asserted."""
+    from satc.obligations.rules import rule as obligation_rule
+
+    if plan.duty is None:
+        # Work that files nothing has no cited rule, so nothing here can be
+        # attributed to one. An empty basis renders as "no rule says what blocks
+        # this" rather than borrowing a citation from a duty that does not exist
+        # — principle 4, and the reason bookkeeping must not read like a filing.
+        return BlockingBasis(form="", docs=())
+
+    try:
+        rule = obligation_rule(plan.duty.rule_key)
+    except ConfigError:
+        # The duty came from somewhere this build's rule set no longer holds. The
+        # duty's own copy of the blocking list survives; its citation does not,
+        # and an uncited list is rendered as exactly that rather than borrowed.
+        return BlockingBasis(form=plan.duty.form, docs=tuple(plan.duty.blocking_docs))
+
+    basis = BlockingBasis(form=rule.form, docs=tuple(rule.blocking_docs),
+                          source=rule.blocking_source)
+    if not basis.docs or any(n.blocking == "blocking" for n in needs):
+        return basis
+
+    typed = ", ".join(sorted({n.doc_type for n in needs})) or "nothing at all"
+    return dataclasses.replace(basis, gap=(
+        f"Nothing on this plan blocks starting prep — and that is the classifier failing "
+        f"to fire, not a clean file. The Form {basis.form} rule requires "
+        f"{', '.join(basis.docs)} in hand before the return is originated, and no request "
+        f"here is typed as one of them: the asks on this plan are typed {typed}. A request "
+        f"typed as a BUCKET rather than as the form the rule names cannot match it, so "
+        f"every document on this plan is being classed as optional, including the ones "
+        f"that ask for exactly those forms. Type the ask as the form the rule names "
+        f"(doc_type in configs/workflows/{workflow.key}.yaml), or teach "
+        f"satc.models.readiness.blocking_class_for to match a form inside a bucket. Until "
+        f"one of those happens, treat the split below as unanswered."))
+
+
 def _fee_slot(plan) -> str:
     """Why the engagement letter's fee slot is empty, when it is.
 
@@ -520,7 +625,7 @@ def engagement_plan():
             "engagement_plan.html", title="Engagement plan", workflow=None, plan=None,
             client_id=client_id, public_client=public_client,
             workflows=STATE.workflow_catalog().get(client_type, []),
-            tax_year=year or "", today=today)
+            tax_year="" if year is None else year, today=today)
 
     try:
         from satc.intake.workflows import load_workflow
@@ -530,24 +635,35 @@ def engagement_plan():
             f"{exc} There is no engagement to plan from a workflow SATC does not "
             f"have. Pick one from the interview screen, or add the config."))
 
-    answers = _plan_answers(workflow, src)
+    answers = _plan_answers(workflow, src, client_id=client_id)
 
     def screen(**extra):
-        return render_template(
-            "engagement_plan.html", title="Engagement plan",
+        # Defaults merged rather than passed through ``**extra``, so a refusal
+        # path renders the same template without every panel's variable having
+        # to be repeated at each of the six places that can refuse.
+        context = dict(
+            title="Engagement plan",
             workflow=workflow, client_id=client_id, public_client=public_client,
             client_name=STATE.name(client_id) if client_id else "",
-            tax_year=year or "", today=today, answers=answers,
+            tax_year="" if year is None else year, today=today, answers=answers,
             generate_url=url_for("intake.new_engagement"),
             letter_url=url_for("comms.comms", client=client_id,
-                               template="engagement_letter", tax_year=year or ""),
+                               template="engagement_letter",
+                               tax_year="" if year is None else year),
             mode=(src.get("mode") or "").strip(),
-            **extra)
+            plan=None, refusal="", blocking=(), expected_late=(), other_needs=(),
+            needs_total=0, blocking_basis=None,
+            promises=(), promise_refusal="", fee_slot="")
+        context.update(extra)
+        return render_template("engagement_plan.html", **context)
 
     if year is None:
         # A deadline is a rule landed on a PERIOD. Without the year there is no
         # period, and every date on the page would be a guess (principles 1, 3).
-        return screen(plan=None, refusal=(
+        # ``is None`` and not falsiness: ``_int_or_none`` returns the integer 0
+        # for ``tax_year=0``, and 0 is a year somebody typed, not a year nobody
+        # gave. It gets the refusal below, which names it.
+        return screen(refusal=(
             "Set the tax year. Every date on this page is a rule landed on a "
             "period, so until SATC knows which year this engagement is for there "
             "is nothing it can compute — and a plausible date would be worse than "
@@ -556,9 +672,9 @@ def engagement_plan():
     try:
         plan = _fan_out(workflow, answers, client_id=client_id, tax_year=year,
                         today=today,
-                        entity_type=getattr(public_client, "entity_type", "") or "")
+                        entity_type=_entity_type_for(workflow, public_client))
     except ImportError:
-        return screen(plan=None, refusal=(
+        return screen(refusal=(
             "satc.intake.fanout is not installed on this build, so nothing can turn "
             "these answers into an engagement. Generate it from the interview screen "
             "in the meantime."))
@@ -567,7 +683,18 @@ def engagement_plan():
         # duty, and an unsourced jurisdiction refuses by name rather than falling
         # back to the federal calendar. The message already says what to do; this
         # renders it instead of rewriting it (principles 5 and 10).
-        return screen(plan=None, refusal=str(exc))
+        return screen(refusal=str(exc))
+    except ValueError as exc:
+        # A year the calendar cannot represent at all — 0, negative, five digits.
+        # ``obligations.due_dates.tax_year`` raises rather than inventing a
+        # period, which is right; a stack trace in the browser is not the
+        # refusal, it is the absence of one (principles 5 and 10). The bound is
+        # not restated here: the calendar owns which years exist.
+        return screen(refusal=(
+            f"SATC cannot land a filing rule on tax year {year}: {exc}. A deadline is a "
+            f"rule landed on a real period, so a year the calendar has no such period "
+            f"for has no dates on it at all. Set the tax year to the year the return "
+            f"is for."))
 
     needs = _needs(plan, workflow)
     promises, promise_refusal = [], ""
@@ -581,14 +708,16 @@ def engagement_plan():
         promise_refusal = str(exc)
 
     return screen(
-        plan=plan, refusal="",
+        plan=plan,
         # WHAT WE NEED — the three-way blocking split, which means something: a
         # K-1 that cannot exist until September does not stop prep, and a screen
-        # that lumps it in with a missing W-2 throws that away.
+        # that lumps it in with a missing W-2 throws that away. Where each class
+        # came FROM is a separate question with three separate answers, and only
+        # one of them has a citation — see :class:`BlockingBasis`.
         blocking=[n for n in needs if n.blocking == "blocking"],
         expected_late=[n for n in needs if n.blocking == "expected_late"],
         other_needs=[n for n in needs if n.blocking == "non_blocking"],
-        needs_total=len(needs),
+        needs_total=len(needs), blocking_basis=_blocking_basis(plan, workflow, needs),
         # WHAT WE PROMISED, and WHY THE LETTER'S FEE SLOT IS EMPTY when it is.
         promises=promises, promise_refusal=promise_refusal, fee_slot=_fee_slot(plan))
 

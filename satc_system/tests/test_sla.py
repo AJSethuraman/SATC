@@ -17,17 +17,25 @@ derived from "the last task was ticked" would be indistinguishable from a
 measured one, and that is how a metric becomes a lie.
 """
 
-from datetime import date
+import tempfile
+from contextlib import contextmanager
+from datetime import date, datetime
 
 import pytest
 
 from satc.config import ConfigError
+from satc.ids import return_key
+from satc.models.filing import Filing
 from satc.obligations.profile import ObligationInstance
+from satc.persistence import SATCStore
 from satc.work import sla as sla_mod
 from satc.work.sla import (
     FACTS,
+    clocks_for,
     compliance,
+    compliance_for,
     load_slas,
+    measurable_slas,
     promised_by,
     unmeasurable_promises,
 )
@@ -139,27 +147,86 @@ def test_a_promise_closed_after_its_date_is_missed(policy):
 
 
 def test_a_promise_still_running_is_neither_met_nor_missed(policy):
-    """Not yet is not a verdict. An unanswered question is not an answer."""
+    """Not yet is not a verdict. An unanswered question is not an answer.
+
+    ``closed_on=None`` says we looked and it has not happened yet — which is
+    what makes "still running" an answer rather than a shrug.
+    """
     write(policy, days=2)
     out = compliance("fix_a_reject", started_on=date(2026, 3, 3),
-                     today=date(2026, 3, 4))
+                     closed_on=None, today=date(2026, 3, 4))
     assert out.status == "open"
     assert not out.is_met and not out.is_missed
 
 
 def test_a_measurable_promise_past_its_date_with_nothing_recorded_is_missed(policy):
-    """Only reachable when the closing fact CAN be recorded.
+    """Only reachable when the closing fact CAN be recorded AND was looked for.
 
     Then silence is a real answer about this item — we can see retransmissions,
     and there isn't one. Where the closing fact cannot be recorded at all, the
     gate above this one refuses instead, and that is the difference between a
-    statement about a client and a statement about the codebase.
+    statement about a client and a statement about the codebase. And where
+    nobody looked, ``closed_on`` is not passed at all and the verdict is
+    withheld — see the trap tests below.
+    """
+    write(policy, days=2)
+    out = compliance("fix_a_reject", started_on=date(2026, 3, 3),
+                     closed_on=None, today=date(2026, 3, 20))
+    assert out.status == "missed"
+    assert "nothing records when the fixed return went back out" in out.why
+
+
+# --- the argument you cannot forget -----------------------------------------
+
+
+def test_forgetting_the_stop_fact_is_not_a_promise_broken(policy):
+    """THE TRAP. An omitted ``closed_on`` used to read as "there was no stop".
+
+    The only promise this practice can measure was reported MISSED on a return
+    that had been retransmitted the next morning, because the one caller
+    resolved the clock's start and never its stop. A compliance API where
+    forgetting an argument silently produces the accusing answer is a trap, and
+    the answer it produces is a lie about the practice, not about the client.
     """
     write(policy, days=2)
     out = compliance("fix_a_reject", started_on=date(2026, 3, 3),
                      today=date(2026, 3, 20))
-    assert out.status == "missed"
-    assert "nothing records when the fixed return went back out" in out.why
+
+    assert out.status == "unresolved", (
+        "An unresolved stop was reported as a promise broken. Nobody looked — "
+        "that is a statement about the caller, not about the client.")
+    assert not out.is_met and not out.is_missed and not out.is_resolved
+    assert out.missing_fact == "", (
+        "Nothing is known to be missing here. Naming a missing fact turns "
+        "'nobody looked' into 'there is nothing to find'.")
+    # Principle 10: the refusal names both next steps, and they are different.
+    assert "clocks_for" in out.why
+    assert "closed_on=None to say you looked" in out.why
+
+
+def test_the_promise_still_lands_on_the_calendar_when_the_stop_is_unresolved(policy):
+    """What is withheld is the VERDICT, not the date.
+
+    The start is a recorded fact, so the day we owed the client is real and
+    blanking it would be its own invention (principle 1).
+    """
+    write(policy, days=2)
+    out = compliance("fix_a_reject", started_on=date(2026, 3, 3),
+                     today=date(2026, 3, 20))
+    assert out.promise is not None
+    assert out.promise.promised_date == date(2026, 3, 5)
+
+
+def test_saying_none_is_a_claim_about_having_looked_and_none_is_not_the_default(policy):
+    """The two spellings must not agree, or the distinction is decoration.
+
+    ``None`` means "I read the records and there is no retransmission"; the
+    default means "I never read them". Same date, same day, opposite answers.
+    """
+    write(policy, days=2)
+    args = dict(started_on=date(2026, 3, 3), today=date(2026, 3, 20))
+    assert compliance("fix_a_reject", closed_on=None, **args).status == "missed"
+    assert compliance("fix_a_reject", **args).status == "unresolved"
 
 
 # --- refusing, by name ------------------------------------------------------
@@ -408,3 +475,203 @@ def test_the_one_measurable_promise_answers_for_real():
     out = compliance("efile_reject_turnaround", started_on=date(2026, 3, 3),
                      closed_on=date(2026, 3, 4), today=date(2026, 3, 10))
     assert out.status == "met"
+
+
+# --- reading the clock out of the records ------------------------------------
+#
+# These go through the REAL store rather than a list of hand-built objects. The
+# bug they guard was invisible in memory: it needed a client with a history —
+# several returns, several years, an old rejection that had long since been
+# fixed — which is what a store has and a fixture list does not.
+
+CID = "SATC-001000"
+RK_2025 = return_key(CID, 2025, "1040", "US")
+RK_2023 = return_key(CID, 2023, "1065", "US")
+
+
+def _filing(rk, *, ack="", attempt=1, ack_date=None, sent=None):
+    return Filing(filing_id=f"F-{rk}-{attempt}", return_key=rk, client_id=CID,
+                  transmitted_at=sent, ack_code=ack, ack_date=ack_date,
+                  attempt=attempt)
+
+
+@contextmanager
+def _stored(*filings):
+    """A real SATCStore holding these filings, read back the way the app reads."""
+    with tempfile.TemporaryDirectory() as tmp, SATCStore(tmp) as store:
+        store.save_filings(list(filings))
+        yield store.load_filings()
+
+
+def test_recording_the_retransmission_clears_the_promise():
+    """Principle 13, and the row that could never be cleared.
+
+    A rejection older than the promise window used to make the plan say
+    "missed" forever — and NOTHING the practice could record would clear it,
+    because the only thing that would (the retransmission) was never read. A
+    row the owner cannot clear by doing the work is a row they learn to scroll
+    past, which costs more than never having shown it.
+    """
+    rejected_on = date(2026, 3, 10)
+    with _stored(
+            _filing(RK_2025, ack="R", ack_date=rejected_on, attempt=1,
+                    sent=datetime(2026, 3, 9, 16, 0)),
+            _filing(RK_2025, ack="A", ack_date=date(2026, 3, 12), attempt=2,
+                    sent=datetime(2026, 3, 11, 9, 30))) as filings:
+        clocks = clocks_for("efile_reject_turnaround", filings=filings,
+                            client_id=CID)
+
+        assert len(clocks) == 1
+        assert clocks[0].closed_on == date(2026, 3, 11), (
+            "The retransmission was never read, so the clock had no stop.")
+        assert not clocks[0].is_open
+
+        out = compliance_for("efile_reject_turnaround", clocks[0],
+                             today=date(2026, 8, 2))
+        assert out.status == "met", (
+            "The return was fixed and back out the next morning, months ago, "
+            "and the practice was still being told it broke this promise.")
+        assert out.subject == RK_2025
+
+
+def test_a_rejection_with_no_retransmission_is_still_owed():
+    """The other half — otherwise the fix above is just a way to never say no."""
+    with _stored(_filing(RK_2025, ack="R", ack_date=date(2026, 3, 10),
+                         sent=datetime(2026, 3, 9, 16, 0))) as filings:
+        clock, = clocks_for("efile_reject_turnaround", filings=filings,
+                            client_id=CID)
+        assert clock.closed_on is None and clock.is_open
+        assert compliance_for("efile_reject_turnaround", clock,
+                              today=date(2026, 8, 2)).status == "missed"
+
+
+def test_a_rejection_in_another_tax_year_is_not_this_years_promise():
+    """Cross-year leak. The clock was read off every filing the client ever had.
+
+    The 2023 partnership's rejection is a fact about the 2023 partnership. Shown
+    against the 2025 1040 it is a promise this engagement never made, dated from
+    a job that closed two years ago.
+    """
+    with _stored(
+            _filing(RK_2023, ack="R", ack_date=date(2024, 4, 2),
+                    sent=datetime(2024, 4, 1, 10, 0)),
+            _filing(RK_2025, ack="A", ack_date=date(2026, 3, 1),
+                    sent=datetime(2026, 2, 28, 10, 0))) as filings:
+        this_year = clocks_for("efile_reject_turnaround", filings=filings,
+                               client_id=CID, tax_year=2025)
+        assert this_year == (), (
+            "A rejection on the 2023 1065 became a broken promise on the 2025 "
+            "1040 — a different return, in a different year.")
+
+        # And the 2023 one is not swallowed: it is still answerable, in its year.
+        old, = clocks_for("efile_reject_turnaround", filings=filings,
+                          client_id=CID, tax_year=2023)
+        assert old.subject == RK_2023 and old.tax_year == 2023
+
+
+def test_two_returns_in_one_year_keep_their_own_clocks():
+    """Cross-RETURN leak, which no year filter catches.
+
+    Taking the max ack_date across a client's filings answers about whichever
+    return was rejected last, under the label of whichever one you asked about.
+    """
+    federal = return_key(CID, 2025, "1040", "US")
+    ohio = return_key(CID, 2025, "1040", "OH")
+    with _stored(
+            _filing(federal, ack="R", ack_date=date(2026, 3, 2),
+                    sent=datetime(2026, 3, 1, 10, 0)),
+            _filing(federal, ack="A", ack_date=date(2026, 3, 4), attempt=2,
+                    sent=datetime(2026, 3, 3, 10, 0)),
+            _filing(ohio, ack="R", ack_date=date(2026, 4, 20),
+                    sent=datetime(2026, 4, 19, 10, 0))) as filings:
+        clocks = {c.subject: c for c in clocks_for(
+            "efile_reject_turnaround", filings=filings, client_id=CID,
+            tax_year=2025)}
+
+        assert clocks[federal].started_on == date(2026, 3, 2)
+        assert clocks[federal].closed_on == date(2026, 3, 3)
+        assert clocks[ohio].started_on == date(2026, 4, 20), (
+            "The Ohio clock started from the federal rejection.")
+        assert clocks[ohio].closed_on is None
+
+
+def test_an_earlier_rejection_already_fixed_does_not_reopen():
+    """Attempt 3 is the promise we owe. Attempt 1 was kept and is history."""
+    with _stored(
+            _filing(RK_2025, ack="R", ack_date=date(2026, 3, 2), attempt=1,
+                    sent=datetime(2026, 3, 1, 10, 0)),
+            _filing(RK_2025, ack="R", ack_date=date(2026, 3, 3), attempt=2,
+                    sent=datetime(2026, 3, 3, 8, 0)),
+            _filing(RK_2025, ack="A", ack_date=date(2026, 3, 6), attempt=3,
+                    sent=datetime(2026, 3, 4, 8, 0))) as filings:
+        clock, = clocks_for("efile_reject_turnaround", filings=filings,
+                            client_id=CID)
+        assert clock.started_on == date(2026, 3, 3)
+        assert clock.closed_on == date(2026, 3, 4)
+
+
+def test_a_return_never_rejected_owes_nothing_and_says_nothing():
+    """No promise was made, so there is no row. Silence is right here."""
+    with _stored(_filing(RK_2025, ack="A", ack_date=date(2026, 3, 4),
+                         sent=datetime(2026, 3, 3, 10, 0))) as filings:
+        assert clocks_for("efile_reject_turnaround", filings=filings,
+                          client_id=CID) == ()
+
+
+def test_another_clients_rejection_is_never_this_clients_promise():
+    other = return_key("SATC-002000", 2025, "1040", "US")
+    stray = Filing(filing_id="F-X", return_key=other, client_id="SATC-002000",
+                   ack_code="R", ack_date=date(2026, 3, 10),
+                   transmitted_at=datetime(2026, 3, 9, 10, 0))
+    with _stored(stray) as filings:
+        assert clocks_for("efile_reject_turnaround", filings=filings,
+                          client_id=CID) == ()
+
+
+def test_a_clock_nothing_records_refuses_rather_than_reading_as_nothing_owed():
+    """An empty tuple would render as a clean board (principle 5)."""
+    with pytest.raises(ConfigError) as exc:
+        clocks_for("return_turnaround", filings=[])
+    assert "unmeasurable_promises()" in str(exc.value)
+    assert "once per job" in str(exc.value)
+
+
+# --- said once, not once per engagement --------------------------------------
+
+
+def test_the_per_item_list_carries_no_row_that_is_the_same_on_every_screen():
+    """Principle 13. Four byte-identical refusals appeared on every plan.
+
+    They are RIGHT — SATC genuinely cannot measure a promise whose start fact
+    nobody records, and saying so beats a green tick from a proxy. But they say
+    the same thing for every client, every workflow, every week, and a row that
+    can never change is one the owner learns to skip. So they are said ONCE, as
+    a capability the build lacks, and the per-item list carries only rows that
+    move when somebody keys something.
+    """
+    per_item = measurable_slas()
+    per_practice = {o.kind for o in unmeasurable_promises()}
+
+    assert set(per_item) == {"efile_reject_turnaround"}
+    assert per_practice == {"first_response", "notice_turnaround",
+                            "return_turnaround", "signature_acknowledged"}
+
+    # Neither list loses a promise, and neither says a thing twice.
+    assert set(per_item) | per_practice == set(load_slas())
+    assert not set(per_item) & per_practice
+
+    for spec in per_item.values():
+        out = compliance(spec.key, started_on=None, today=date(2026, 8, 2))
+        assert out.status != "unmeasurable" or out.missing_fact, (
+            "A per-item row refused for a reason that is not about this item.")
+
+
+def test_the_structural_refusals_are_kept_and_each_names_its_own_gap():
+    """Losing the noise must not lose the honesty — or four different missing
+    capabilities collapse into one shrug."""
+    rows = unmeasurable_promises()
+    assert len({r.missing_fact for r in rows}) == len(rows), (
+        "Two rows said the same thing, which is the noise this was meant to cut.")
+    for row in rows:
+        assert row.why.startswith("SATC cannot tell you whether this was met:")
+        assert FACTS[row.missing_fact].would_need in row.why  # the next step

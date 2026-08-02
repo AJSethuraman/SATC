@@ -23,10 +23,22 @@
 #                              it out and the engine writes one from the question labels.
 #                ONE ENTRY = ONE QUOTE LINE, so two entries naming the same service bill it
 #                twice. Where two answers mean the same work, use ONE entry with an `any:`
-#                condition (see schedule_d below) rather than two entries.
+#                condition (see schedule_d below) rather than two entries. Two entries for
+#                one service are safe ONLY when their conditions cannot both be true (see
+#                return_state below, where they differ on one question's answer).
 #                NOTHING HERE IS GUESSED. A per-hour service, and anything with quantity
 #                "unknown", is listed on the quote as work that cannot be priced yet —
 #                visible, with the answer that implied it, and outside the total.
+#                AN UNANSWERED QUESTION IS NOT AN ANSWER. A condition satisfied only
+#                because a question has not been answered yet (`not_equals` is the usual
+#                way) never becomes money — the service is listed as not-priceable-yet,
+#                naming the question still to be answered. So a gate cannot be dodged by
+#                leaving the interview blank, and nothing silently disappears either.
+#                A condition naming a question this file does not ask, or using a word
+#                that is not one of equals / not_equals / includes / greater_than /
+#                less_than, is REFUSED at load — an unreadable test would otherwise be
+#                true for everybody. A `fixed`-unit service may only be quoted at
+#                quantity 1; an invoice refuses anything else, so the quote does too.
 #
 # NOTE: quote "yes"/"no" — bare yes/no are booleans in YAML and would break condition matching.
 key: personal_1040_core
@@ -49,6 +61,20 @@ questions:
     label: Moved states during the year?
     type: boolean
     change_label: Moved to a different state since last year?
+  # The two questions that decide the state return. They exist because nothing
+  # else in this interview records the answer: a mover files two, someone in
+  # Texas files none, and a New Yorker with a Connecticut job files two without
+  # moving anywhere. Deriving the count from `movedStates` would be a fact
+  # inferred rather than recorded (principle 2), and it would be wrong for two
+  # of those three people.
+  - id: stateReturnNeeded
+    label: State income tax return required?
+    type: boolean
+    change_label: Any change to whether a state income tax return is required?
+  - id: multipleStateReturns
+    label: State returns needed in more than one state?
+    type: boolean
+    change_label: Any change to the number of states you file in?
   - id: marketplaceInsurance
     label: Marketplace health insurance coverage?
     type: boolean
@@ -85,13 +111,38 @@ services:
   - service: return_1040
     because: this is your federal individual return
 
-  # No question records WHICH states, or how many, so the count is not on file.
-  # Assuming one would understate a client who moved and overstate a client who
-  # lives in a state with no income tax — so the quote shows the rate and says
-  # the number is not known yet.
+  # THE STATE RETURN, in the three states the interview can actually be in.
+  # This was one unconditional `quantity: unknown` entry, which meant every 1040
+  # quote ever produced carried a warning no answer could clear and no 1040
+  # engagement letter could ever state a fee. A warning that is always on is not
+  # a warning (principle 13) — the cause was that nothing recorded the answer,
+  # so the interview now asks.
+  #
+  # TWO ENTRIES NAMING ONE SERVICE, which the schema warns against, and it is
+  # safe here for a reason worth stating: the gates are mutually exclusive on
+  # `multipleStateReturns` — "no" fires the first and only the first, anything
+  # else fires the second and only the second — so no client can be billed
+  # twice. Where two answers mean the SAME work, use one `any:` entry (see
+  # schedule_d); this is two different pieces of work, one priced and one not.
+  - service: return_state
+    condition:
+      all:
+        - {question_id: stateReturnNeeded, equals: "yes"}
+        - {question_id: multipleStateReturns, equals: "no"}
+    because: you file one state return alongside the federal one
+
+  # More than one state, and no yes/no question can say how many — so this one
+  # keeps the honest "we cannot price it yet", now shown only to the clients it
+  # is actually true of. While either question is unanswered this gate is
+  # satisfied by silence, and the engine lists it as unpriceable-for-now rather
+  # than pricing it: a quote that has not been told cannot claim to know.
   - service: return_state
     quantity: unknown
-    because: a state return goes alongside the federal one
+    condition:
+      all:
+        - {question_id: stateReturnNeeded, not_equals: "no"}
+        - {question_id: multipleStateReturns, not_equals: "no"}
+    because: you told us you file in more than one state
 
   # One entry, not two: brokerage sales and crypto sales are the same Schedule D
   # work, and two entries would bill it twice.

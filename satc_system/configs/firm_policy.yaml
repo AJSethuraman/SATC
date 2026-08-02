@@ -115,6 +115,19 @@ queue:
 # whether the promise was kept and names what is missing, rather than showing a
 # green tick derived from a guess. Four of the five below are in that state
 # today; that is a fair picture of the practice, not a bug in the config.
+#
+# THAT REFUSAL IS SAID ONCE, NOT ONCE PER JOB. Which promises this build can
+# measure is a fact about the SOFTWARE — identical for every client, every
+# workflow and every week — so it belongs on a capability screen
+# (`unmeasurable_promises()`), beside the other things this build cannot do. A
+# per-engagement screen walks `measurable_slas()` instead and shows only rows
+# that move when the owner keys something. Four byte-identical refusals on
+# every plan the owner ever opens is how a screen teaches its reader to scroll
+# (principle 13) — and the row they scroll past next is the one that mattered.
+#
+# Leave the four unmeasurable promises here. They are what this practice
+# actually offers, and each row disappears from the capability list on the day
+# the entity it names lands — which is what makes that list a real one.
 slas:
   first_response:
     label: First reply to a client's message

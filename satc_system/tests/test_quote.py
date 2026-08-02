@@ -201,6 +201,54 @@ def test_a_rate_plan_the_catalogue_no_longer_has_refuses_to_price():
     assert "Agree a current plan" in str(refusal.value)
 
 
+def test_a_reduced_plan_with_no_recorded_basis_is_not_quoted():
+    """The refusal Invoice.issue already makes, moved to where the client first
+    reads a number. Quoting a 60% discount the invoice engine will then refuse
+    to bill leaves the practice withdrawing it in front of the client — worse
+    than never offering it, and the exact shape of a guard put on one path while
+    the exploit walks in through the other."""
+    engagement = Engagement(client_id=CLIENT, tax_year=YEAR,
+                            rate_plan_key="hardship", rate_plan_basis="")
+    wf, said = core()
+    with pytest.raises(ConfigError) as refusal:
+        quote_for(wf, said, client_id=CLIENT, tax_year=YEAR,
+                  engagements=[engagement])
+
+    words = str(refusal.value)
+    assert "hardship" in words
+    assert "no basis is recorded" in words
+    # Principle 10: both ways out, named. A refusal that only says no ends a run.
+    assert f"Record why on the {YEAR} engagement" in words
+    assert "plan that needs no basis" in words
+
+
+def test_the_quote_refuses_exactly_what_the_invoice_refuses():
+    """The pair, asserted together. Two engines that disagree about whether a
+    plan is billable is how a client is told one number and sent another."""
+    from satc.billing.invoice import BillingError
+
+    engagement = Engagement(client_id=CLIENT, tax_year=YEAR,
+                            rate_plan_key="hardship", rate_plan_basis="")
+    wf, said = core()
+
+    with pytest.raises(ConfigError):
+        quote_for(wf, said, client_id=CLIENT, tax_year=YEAR,
+                  engagements=[engagement])
+    invoice = Invoice(invoice_id="2025-0001", client_id=CLIENT, tax_year=YEAR,
+                      plan_key="hardship", plan_basis="")
+    invoice.add("return_1040")
+    with pytest.raises(BillingError, match="needs a recorded reason"):
+        invoice.issue(on=None)
+
+
+def test_a_reduced_plan_with_a_basis_quotes_normally():
+    """The other half of the mutation: the refusal is on the MISSING BASIS, not
+    on the discount. 450.00 less 60% is 180.00, hand-checked."""
+    priced = quote(plan_key="hardship", basis="Job loss in March, agreed by phone")
+    assert priced.total == Decimal("180.00")
+    assert priced.shows_a_discount
+
+
 # --- work the catalogue cannot price ------------------------------------------
 
 def test_hourly_work_is_listed_rather_than_dropped_or_guessed():
@@ -221,8 +269,9 @@ def test_hourly_work_is_listed_rather_than_dropped_or_guessed():
 
 
 def test_an_unknown_quantity_is_shown_rather_than_assumed_to_be_one():
-    """No question records how many states, so no line claims to know."""
-    priced = quote()
+    """Filing in more than one state: no yes/no question can say how many, so
+    no line claims to know."""
+    priced = quote(stateReturnNeeded="yes", multipleStateReturns="yes")
     assert "return_state" not in codes(priced)
     listed = next(u for u in priced.unpriced if u.service_code == "return_state")
     assert "does not record how many" in listed.reason
@@ -230,9 +279,57 @@ def test_an_unknown_quantity_is_shown_rather_than_assumed_to_be_one():
 
 
 def test_the_client_sentence_says_what_the_number_leaves_out():
-    said = quote().client_sentence()
+    said = quote(stateReturnNeeded="yes",
+                 multipleStateReturns="yes").client_sentence()
     assert "estimate" in said and "not a bill" in said
     assert "state tax return" in said.lower()
+
+
+# --- a warning every client gets is a warning nobody reads (principle 13) ------
+
+def test_the_state_return_warning_can_be_cleared_by_an_answer():
+    """It used to be on every 1040 quote ever produced, because the interview
+    recorded nothing about states — so it taught the owner to scroll past the
+    one place the quote says "this number is not the whole number"."""
+    one_state = quote(stateReturnNeeded="yes", multipleStateReturns="no")
+    assert one_state.unpriced == (), "one state is a priced state, not a warning"
+
+    no_state = quote(stateReturnNeeded="no", multipleStateReturns="no")
+    assert no_state.unpriced == () and "return_state" not in codes(no_state), (
+        "somebody in a state with no income tax files no state return, and a "
+        "quote that warns about one is warning about work nobody will do")
+
+
+def test_one_state_return_is_priced_rather_than_warned_about():
+    """450.00 federal + 95.00 for the one state = 545.00, hand-checked."""
+    priced = quote(stateReturnNeeded="yes", multipleStateReturns="no")
+    assert codes(priced) == ["return_1040", "return_state"]
+    assert priced.standard_total == RETURN_1040 + STATE_RETURN == Decimal("545.00")
+    line = next(l for l in priced.lines if l.service_code == "return_state")
+    assert line.quantity == 1
+    assert line.because == "you file one state return alongside the federal one"
+
+
+def test_the_state_return_is_never_quoted_twice():
+    """Two entries name return_state. They are gated to be mutually exclusive,
+    and a client billed twice for one state return is what a mistake here looks
+    like — so it is asserted over every answer pair, not just the likely one."""
+    for needed in ("yes", "no", ""):
+        for many in ("yes", "no", ""):
+            priced = quote(stateReturnNeeded=needed, multipleStateReturns=many)
+            named = ([l.service_code for l in priced.lines]
+                     + [u.service_code for u in priced.unpriced])
+            assert named.count("return_state") <= 1, (needed, many)
+
+
+def test_a_1040_quote_can_be_a_whole_number_the_letter_may_state():
+    """The engagement letter states a bare fee only when the total is the WHOLE
+    price. While every 1040 carried an unpriceable state return, that was never
+    true of any of them — so no 1040 letter could ever carry a fee."""
+    priced = quote(plan_key="standard", stateReturnNeeded="yes",
+                   multipleStateReturns="no")
+    assert priced.unpriced == ()
+    assert priced.total == Decimal("545.00")
 
 
 def test_an_entirely_hourly_engagement_is_not_quoted_as_zero():
@@ -378,6 +475,199 @@ def test_a_quantity_that_is_not_a_number_refuses(tmp_path):
                               "    quantity: a few\n")
     with pytest.raises(ConfigError, match="unknown"):
         load_service_map("tiny", tmp_path)
+
+
+def test_a_fixed_price_service_cannot_be_quoted_more_than_once(tmp_path):
+    """schedule_d is one charge however many trades there were. Quoting two of
+    them produces 290.00 — a total the invoice engine structurally refuses, so
+    the owner would have to walk the number back with a client who read it."""
+    _write_workflow(tmp_path, "services:\n  - service: schedule_d\n"
+                              "    quantity: 2\n")
+    wf = load_workflow("tiny", tmp_path)
+    with pytest.raises(ConfigError) as refusal:
+        quote_for(wf, {}, client_id=CLIENT, tax_year=YEAR, config_root=tmp_path)
+
+    words = str(refusal.value)
+    assert "tiny.yaml" in words and "configs/billing/services.yaml" in words
+    assert "FIXED-price" in words
+    assert "per_form" in words, "principle 10: name the way out"
+
+
+def test_the_invoice_refuses_the_quantity_the_quote_now_refuses():
+    """The same pair again. The quote learned this rule from the invoice; if the
+    invoice ever stops enforcing it, this says so rather than quietly agreeing."""
+    from satc.billing.invoice import BillingError
+
+    invoice = Invoice(invoice_id="2025-0002", client_id=CLIENT, tax_year=YEAR)
+    with pytest.raises(BillingError, match="fixed-price service"):
+        invoice.add("schedule_d", quantity=2)
+
+
+def test_a_fixed_price_service_cannot_be_quoted_at_an_unknown_quantity(tmp_path):
+    """"unknown" is a legitimate answer for a per-form service and a nonsense
+    one here: there is exactly one of a fixed charge, always."""
+    _write_workflow(tmp_path, "services:\n  - service: schedule_d\n"
+                              "    quantity: unknown\n")
+    with pytest.raises(ConfigError, match="FIXED-price"):
+        quote_for(load_workflow("tiny", tmp_path), {}, client_id=CLIENT,
+                  tax_year=YEAR, config_root=tmp_path)
+
+
+def test_a_per_form_service_still_multiplies(tmp_path):
+    """The mutation in the other direction: the guard is about the UNIT, not
+    about quantities. Two state returns are 190.00 and always were."""
+    _write_workflow(tmp_path, "services:\n  - service: return_state\n"
+                              "    quantity: 2\n")
+    priced = quote_for(load_workflow("tiny", tmp_path), {}, client_id=CLIENT,
+                       tax_year=YEAR, config_root=tmp_path)
+    assert priced.total == STATE_RETURN * 2 == Decimal("190.00")
+
+
+# --- silence is not an answer -------------------------------------------------
+
+def test_an_unanswered_question_cannot_put_money_on_the_quote(tmp_path):
+    """`not_equals` is the hole: an unanswered question is not None-equal to
+    "no", so silence satisfied the gate and bought a $145 line — carrying a
+    sentence that told the client they had answered "". Principle 2."""
+    _write_workflow(tmp_path, """
+services:
+  - service: schedule_d
+    condition: {question_id: soldShares, not_equals: "no"}
+""")
+    priced = quote_for(load_workflow("tiny", tmp_path), {}, client_id=CLIENT,
+                       tax_year=YEAR, config_root=tmp_path)
+
+    assert codes(priced) == [], "silence must not become money"
+    assert priced.total == Decimal("0.00")
+    assert 'answered ""' not in priced.summary_block()
+    assert '""' not in priced.client_sentence()
+
+
+def test_what_silence_gated_is_shown_rather_than_dropped(tmp_path):
+    """And it does not vanish either — a $145 service disappearing from an
+    estimate with nothing said is principle 1 in the other direction. It is
+    listed as work nobody can price yet, naming the question still to answer."""
+    _write_workflow(tmp_path, """
+services:
+  - service: schedule_d
+    condition: {question_id: soldShares, not_equals: "no"}
+    because: you told us you sold shares
+""")
+    priced = quote_for(load_workflow("tiny", tmp_path), {}, client_id=CLIENT,
+                       tax_year=YEAR, config_root=tmp_path)
+
+    listed = next(u for u in priced.unpriced if u.service_code == "schedule_d")
+    assert "Did you sell shares?" in listed.reason
+    assert "cannot tell whether this applies" in listed.reason
+    # And it must NOT keep the config's sentence, which says the client told us
+    # something they have not told us.
+    assert listed.because == "nothing on file yet says whether this applies"
+
+
+def test_an_answered_question_still_prices_the_line(tmp_path):
+    """The mutation: the rule is about SILENCE, not about `not_equals`. An
+    explicit "yes" through the same gate is money, exactly as before."""
+    _write_workflow(tmp_path, """
+services:
+  - service: schedule_d
+    condition: {question_id: soldShares, not_equals: "no"}
+    because: you told us you sold shares
+""")
+    priced = quote_for(load_workflow("tiny", tmp_path), {"soldShares": "yes"},
+                       client_id=CLIENT, tax_year=YEAR, config_root=tmp_path)
+    assert codes(priced) == ["schedule_d"]
+    assert priced.total == SCHEDULE_D
+
+
+def test_one_answered_branch_of_an_any_still_prices_and_says_only_what_was_said(tmp_path):
+    """Half-answered `any:`: the answer that fired it is real, so the line is
+    real — but the sentence must quote only the question that was actually
+    answered, never `"" to "Did you sell crypto?"`. An empty pair of quotes on a
+    client-facing line reports silence as though the client had said it."""
+    folder = tmp_path / "workflows"
+    folder.mkdir(exist_ok=True)
+    (folder / "tiny.yaml").write_text(
+        "key: tiny\nname: Tiny workflow\nengagement_type: tiny\n"
+        "questions:\n"
+        "  - id: soldShares\n    label: Did you sell shares?\n    type: boolean\n"
+        "  - id: soldCrypto\n    label: Did you sell crypto?\n    type: boolean\n"
+        "tasks:\n  - template_id: tiny-task\n    title: Do the thing\n"
+        "services:\n"
+        "  - service: schedule_d\n"
+        "    condition:\n"
+        "      any:\n"
+        "        - {question_id: soldShares, equals: \"yes\"}\n"
+        "        - {question_id: soldCrypto, equals: \"yes\"}\n",
+        encoding="utf-8")
+
+    priced = quote_for(load_workflow("tiny", tmp_path), {"soldShares": "yes"},
+                       client_id=CLIENT, tax_year=YEAR, config_root=tmp_path)
+    assert codes(priced) == ["schedule_d"], "a real answer is still real money"
+    assert priced.lines[0].because == 'you answered "yes" to "Did you sell shares?"'
+    assert '""' not in priced.summary_block()
+    assert '""' not in priced.client_sentence()
+
+
+# --- a hand-edited condition that the engine cannot read ----------------------
+
+def test_a_condition_naming_a_question_the_workflow_does_not_ask_refuses(tmp_path):
+    """A typo'd question id consults nothing forever. Principles 5 and 10: name
+    the question, the file, and what this workflow actually asks."""
+    _write_workflow(tmp_path, """
+services:
+  - service: schedule_d
+    condition: {question_id: soldShare, equals: "yes"}
+""")
+    with pytest.raises(ConfigError) as refusal:
+        load_service_map("tiny", tmp_path)
+
+    words = str(refusal.value)
+    assert "soldShare" in words and "tiny.yaml" in words
+    assert "soldShares" in words, "say what the workflow does ask"
+
+
+def test_a_mistyped_operator_refuses_rather_than_pricing_everybody(tmp_path):
+    """The expensive one. `equal:` is not a comparison the engine knows, so it
+    falls off the end of the ladder and returns True — the line lands on every
+    quote, with a `because` that is not true of the client reading it."""
+    _write_workflow(tmp_path, """
+services:
+  - service: schedule_d
+    condition: {question_id: soldShares, equal: "yes"}
+    because: you told us you sold shares
+""")
+    with pytest.raises(ConfigError) as refusal:
+        load_service_map("tiny", tmp_path)
+
+    words = str(refusal.value)
+    assert "equal" in words and "not_equals" in words
+    assert "TRUE for everybody" in words
+
+
+def test_the_mistyped_operator_would_otherwise_have_priced_everybody(tmp_path):
+    """The mutation for the test above: prove the typo really is silent money
+    rather than a broken config that would have failed anyway."""
+    from satc.intake.workflows import evaluate_condition
+
+    assert evaluate_condition({"question_id": "soldShares", "equal": "yes"},
+                              {"soldShares": "no"}) is True
+
+
+def test_a_condition_with_no_comparison_at_all_refuses(tmp_path):
+    _write_workflow(tmp_path, """
+services:
+  - service: schedule_d
+    condition: {question_id: soldShares}
+""")
+    with pytest.raises(ConfigError, match="no comparison at all"):
+        load_service_map("tiny", tmp_path)
+
+
+def test_every_condition_in_every_shipped_workflow_is_readable():
+    """The check that makes the two above worth having: run it over the real
+    configs, so a typo in the file the owner edits fails the build."""
+    for wf in list_workflows():
+        load_service_map(wf.key)
 
 
 def test_a_workflow_with_no_services_block_prices_nothing(tmp_path):

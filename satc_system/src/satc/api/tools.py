@@ -107,7 +107,7 @@ def create_person_client(state, *, first_name: str, last_name: str, ssn: str = "
     return {"client_id": cid, "name": state.name(cid)}
 
 
-def create_business_client(state, *, legal_name: str, entity_type: str = "SCORP", ein: str = "",
+def create_business_client(state, *, legal_name: str, entity_type: str = "", ein: str = "",
                            email: str = "", phone: str = "", address: dict | None = None) -> dict:
     """Create a business client (S-corp / partnership / etc.)."""
     cid = state.create_business_client(legal_name=legal_name, entity_type=entity_type, ein=ein,

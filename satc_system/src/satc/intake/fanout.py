@@ -24,17 +24,27 @@ Three things this fixes, each of which was genuinely broken:
    ``obligation_key()`` builds, so a plan's duty merges cleanly into the
    client's materialised obligation set.
 
-3. **The engagement letter was not fed.** ``configs/comms/`` has the template
-   and nothing gave it the derived scope. :attr:`EngagementPlan.letter_facts`
-   is a merge dictionary in the same shape ``comms.context.build_context``
-   produces — and under the same rule: **a key the practice holds no fact for
-   is OMITTED, never blanked**, so ``RenderedDraft.unfilled`` marks it. In
-   particular a fee is stated only when the quote is complete AND somebody
-   actually agreed a rate plan; a fallback plan or unpriced work leaves the
-   slot visibly empty rather than quoting a number nobody agreed.
+3. **The engagement letter had nothing to say.** ``configs/comms/`` has the
+   template and nothing produced the derived scope.
+   :attr:`EngagementPlan.letter_facts` is a merge dictionary in the same shape
+   ``comms.context.build_context`` produces — and under the same rule: **a key
+   the practice holds no fact for is OMITTED, never blanked**, so
+   ``RenderedDraft.unfilled`` marks it. In particular a fee is stated only when
+   the quote is complete AND somebody actually agreed a rate plan; a fallback
+   plan or unpriced work leaves the slot visibly empty rather than quoting a
+   number nobody agreed.
+
+   Producing the facts is not the same as the letter being fed, and this
+   module can only do the first. The comms path builds its merge values in
+   ``satc.app.comms_views._context`` and has never been given these; the seam
+   that closes it is ``satc.intake.service.letter_facts_for_job``, which that
+   function must layer OVER ``build_context``. Until it does, the letter still
+   renders its scope and fee from standing wording rather than from what this
+   engagement actually agreed.
 
 RE-RUNNING IS SAFE BY CONSTRUCTION (principle 8). Every id here derives from
-what the thing IS — the job from ``{client, workflow, period}``, a document
+what the thing IS — the job from ``{client, workflow, jurisdiction, period}``
+(without the jurisdiction the state engagement IS the federal one), a document
 request from ``{client, year, job, template}`` — so the same answers twice
 produce the same plan, byte for byte, and open no second request. A CHANGED
 answer preserves progress by ``template_id`` (``build_engagement`` already
@@ -82,6 +92,28 @@ from satc.obligations.rules import ObligationRule, rules_for_jurisdiction
 # answer, not a gap: monthly bookkeeping and a year-end cleanup are work the
 # practice agreed to do, and no statute has an opinion about when they are due.
 # :func:`duty_rule_for` refuses those by name rather than inventing a deadline.
+NO_FILING_DUTY: frozenset[str] = frozenset({
+    "business_monthly_bookkeeping",
+    "business_year_end_cleanup",
+    "new_client_onboarding",
+})
+"""Workflows that discharge no filing duty. Stated explicitly rather than
+inferred from absence: a filing workflow somebody forgets to register would
+otherwise become service work silently, and lose its deadline without a word."""
+
+
+class NoFilingDuty(Exception):
+    """This workflow discharges no filing duty, so it has no statutory deadline.
+
+    Not an error — an answer. Bookkeeping and onboarding are real work with real
+    dates, but those dates are the PRACTICE'S and not the law's, and rendering
+    them with a citation is principle 4 inverted. Raised rather than returned so
+    a caller cannot absent-mindedly treat "no duty" as "duty unknown".
+    """
+
+
+# Workflows that file something, and what they file. Being IN here is what makes
+# a statutory deadline computable.
 ENTITY_TYPE_BY_WORKFLOW: dict[str, str] = {
     "personal_1040_core": "INDIVIDUAL",
     "personal_schedule_c": "INDIVIDUAL",
@@ -89,6 +121,26 @@ ENTITY_TYPE_BY_WORKFLOW: dict[str, str] = {
     "business_scorp_tax": "SCORP",
     "business_partnership_tax": "PARTNERSHIP",
 }
+
+# WHICH BASES COUNT AS KNOWING (principle 2).
+#
+# The same vocabulary :class:`satc.obligations.profile.ProfileFact` uses, and
+# the same split: four ways of having been TOLD, and ``assumed_default``, which
+# is not one of them. Anything else — including the empty string a caller that
+# holds no provenance at all passes — is unsourced.
+#
+# This matters here more than almost anywhere else in the system. Whether an
+# entity is an S corporation is ASSIGNED BY THE IRS IN WRITING (a Form 2553
+# acceptance, a CP261 notice); it is not derivable from a name, a spreadsheet
+# column, or "most small businesses are". An entity type is not a detail of a
+# duty — it decides WHICH DUTY EXISTS, so a guessed one does not produce a
+# slightly-off deadline, it produces a whole filing obligation for a form the
+# taxpayer may not owe at all, keyed and merged into their obligation set where
+# nothing can ever clear it. That is why an unsourced entity type is REFUSED
+# here rather than flagged ``is_assumed`` and let through (principles 2 and 5).
+RECORDED_BASES: frozenset[str] = frozenset({
+    "agency_notice", "stated_by_client", "prior_filing", "observed_document",
+})
 
 _ID_CHARS = 16
 _BULLET = "  • "
@@ -121,21 +173,75 @@ def _bullets(lines) -> str:
 # ---------------------------------------------------------------------------
 
 def duty_rule_for(workflow: WorkflowDef, jurisdiction: str = "US",
-                  entity_type: str = "") -> ObligationRule:
+                  entity_type: str = "", *, entity_type_basis: str = "") -> ObligationRule:
     """The cited filing rule this workflow discharges, or a refusal naming it.
 
     ``entity_type`` is the client's RECORDED entity type, and it wins when the
-    caller has it. The workflow map is a fallback for callers that hold only
-    the interview — a recorded fact about the taxpayer beats a table keyed on
-    which form the owner clicked (principle 2).
+    caller has it — but only when ``entity_type_basis`` says how the practice
+    knows (one of :data:`RECORDED_BASES`). A value with no basis is a value
+    somebody's importer may have invented, and it is treated as unsourced.
 
-    Refuses in three distinguishable ways, because the next step differs:
-    nothing says what is being filed, the jurisdiction has no sourced rules
-    (that refusal comes from ``rules_for_jurisdiction`` and names the file to
-    create), or the jurisdiction is sourced but holds nothing for this entity.
+    The workflow map is the other authority, and it is a different KIND of
+    thing: it says what the owner sat down to prepare. "Prepare this client's
+    1120-S" is a human act; "most small businesses are S-corps" is a guess. So
+    an unsourced entity type may not overrule the owner's choice, and may not
+    stand in for it either.
+
+    Refuses in five distinguishable ways, because the next step differs each
+    time: nothing says what is being filed; an unsourced entity type is the
+    only thing offering to; an unsourced entity type CONTRADICTS the workflow
+    the owner chose; the jurisdiction has no sourced rules (that refusal comes
+    from ``rules_for_jurisdiction`` and names the file to create); or the
+    jurisdiction is sourced but holds nothing for this entity.
     """
-    entity_type = (entity_type or "").strip().upper() or \
-        ENTITY_TYPE_BY_WORKFLOW.get(workflow.key, "")
+    # ASKED FIRST, before anything looks at the entity type. Bookkeeping does not
+    # become a filing because the client happens to be an S-corp, and refusing it
+    # for want of a sourced entity type made two of the four workflows the app
+    # offers a business client unreachable — a worse failure than the one the
+    # entity guard was added to prevent.
+    if workflow.key in NO_FILING_DUTY:
+        raise NoFilingDuty(
+            f"{workflow.name} discharges no filing duty, so there is no statutory "
+            f"deadline to compute. Its dates are the practice's own.")
+
+    stated = (entity_type or "").strip().upper()
+    from_workflow = ENTITY_TYPE_BY_WORKFLOW.get(workflow.key, "")
+
+    if not from_workflow:
+        # In NEITHER list. Deliberately a refusal rather than a shrug: treating
+        # an unrecognised workflow as service work is how a filing workflow
+        # someone forgot to register silently loses its deadline.
+        raise ConfigError(
+            f"SATC does not know whether workflow {workflow.key!r} files anything. "
+            f"Add it to ENTITY_TYPE_BY_WORKFLOW with the return it prepares, or to "
+            f"NO_FILING_DUTY if it is service work whose dates the practice sets. "
+            f"Guessing either way puts a wrong date in front of a client.")
+
+    if stated and entity_type_basis not in RECORDED_BASES:
+        # An unsourced entity type cannot buy a citation. It can only agree with
+        # something that already has standing — the return the owner chose to
+        # prepare — in which case it is redundant and the choice is the
+        # authority. Anything else is a guess about to become a deadline.
+        record_it = (f"Record the entity type from the IRS acceptance letter (Form 2553 "
+                     f"acceptance / CP261) or the last filed return, with its basis — one "
+                     f"of {', '.join(sorted(RECORDED_BASES))}")
+        if not from_workflow:
+            raise ConfigError(
+                f"SATC holds {stated!r} as this client's entity type but no record of how "
+                f"it knows, and workflow {workflow.key!r} does not say what it files "
+                f"either. Whether an entity is an S corporation is assigned by the IRS in "
+                f"writing, so SATC will not turn an unsourced entity type into a cited "
+                f"statutory deadline. {record_it}.")
+        if stated != from_workflow:
+            raise ConfigError(
+                f"The client record says {stated!r} with no record of how it knows, and "
+                f"workflow {workflow.key!r} prepares a {from_workflow} return. SATC will "
+                f"not pick between an unsourced entity type and the return you chose to "
+                f"prepare — one of them is wrong, and whether an entity is an S corporation "
+                f"is assigned by the IRS in writing rather than settled by whichever was "
+                f"typed last. {record_it}, or choose the workflow that matches it.")
+
+    entity_type = stated if entity_type_basis in RECORDED_BASES and stated else from_workflow
     if not entity_type:
         raise ConfigError(
             f"Nothing says what workflow {workflow.key!r} files, so SATC cannot compute a "
@@ -168,16 +274,25 @@ def duty_rule_for(workflow: WorkflowDef, jurisdiction: str = "US",
 
 def duty_for(workflow: WorkflowDef, *, client_id: str, tax_year: int,
              jurisdiction: str = "US", fiscal_year_end: date | None = None,
-             entity_type: str = "",
-             ) -> tuple[ObligationInstance, ObligationRule, DueDates]:
+             entity_type: str = "", entity_type_basis: str = "",
+             ) -> tuple[ObligationInstance, ObligationRule, DueDates] | None:
     """Land this workflow's rule on the tax year: the duty, its rule, its dates.
+
+    Returns ``None`` for work that files nothing — bookkeeping, onboarding —
+    because "no statutory deadline" is a true answer about that engagement, not
+    a failure to compute one. Callers must render it as an absence rather than
+    reaching for the firm's own cutoff and dressing it in a citation.
 
     The returned :class:`ObligationInstance` carries the same
     ``obligation_key`` :func:`satc.obligations.profile.materialise` would
     produce, so a plan's duty and the client's materialised obligation set are
     the same row, not two rows that disagree.
     """
-    rule = duty_rule_for(workflow, jurisdiction, entity_type)
+    try:
+        rule = duty_rule_for(workflow, jurisdiction, entity_type,
+                             entity_type_basis=entity_type_basis)
+    except NoFilingDuty:
+        return None
     period = tax_year_period(tax_year, fiscal_year_end=fiscal_year_end)
     dues = compute(rule, period)
     duty = ObligationInstance(
@@ -198,66 +313,128 @@ def duty_for(workflow: WorkflowDef, *, client_id: str, tax_year: int,
 
 @dataclass(frozen=True, slots=True)
 class OutOfScope:
-    """Work the previous answers called for and these answers do not.
+    """Work the previous answers called for that still needs a decision.
 
     Reported rather than quietly dropped. "They said no to the rental this
     year" and "somebody already spent an afternoon on the rental schedule" are
     both true at once, and only one of them is visible from the answers.
+
+    NOT a list of everything that left scope. A row here is a row asking the
+    owner for something — finish it, cancel it, or close the request behind it
+    — and doing that thing makes the row go away next run. Work that left scope
+    with nothing outstanding stays on the job and is not reported, because a row
+    the owner can never clear is the one that teaches them to scroll past
+    (principle 13).
     """
 
     template_id: str
     title: str
     status: str
     had_progress: bool
-    """Somebody's work, or an ask already sitting with the client. Either way
-    there is something to lose — see :func:`_why_keep`."""
+    """Somebody's work in flight, or an ask still sitting with the client.
+    Either way there is something to lose — see :func:`_needs_a_decision`."""
 
     retained: bool
     """Kept on the job (flagged) rather than dropped. Always tracks
-    :attr:`had_progress`: nothing with anything at stake is ever deleted here,
-    because cancelling is the owner's call, not the interview's."""
+    :attr:`had_progress` on a reported row: nothing with anything at stake is
+    ever deleted here, because cancelling is the owner's call, not the
+    interview's."""
 
     why: str
 
 
-def _why_keep(task: Task) -> str:
-    """Why this task must survive leaving scope — ``""`` when nothing is at stake.
+def _keep_on_job(task: Task) -> bool:
+    """Whether this task survives leaving scope — history is never deleted here.
 
-    Two different things are worth keeping and they are not the same thing.
-    Somebody's WORK: a status past ``not_started``, a note, a recorded
-    completion. And an ASK ALREADY OUT: a client task carrying a
-    ``request_id`` has a row sitting in the document register, and dropping the
-    task strands that row where nobody can ever close it — principle 13's worst
-    case, a queue entry that can never be cleared.
+    Anything but the state a task is born in: a status past ``not_started``, a
+    note, a recorded completion, or an ask that was actually sent. A pristine
+    never-started task loses nothing by being dropped, and keeping it would be
+    the noise.
 
-    A never-started internal task with neither is the state a task is born in.
-    Nothing is lost by dropping it, and keeping it would be the noise.
+    Deliberately SEPARATE from whether the owner is told about it. Kept and
+    reported used to be the same test, which is how a finished task became a
+    permanent row — see :func:`_needs_a_decision`.
     """
-    if (task.status != "not_started" or (task.notes or "").strip()
-            or task.completion is not None):
+    return bool(task.status != "not_started" or (task.notes or "").strip()
+                or task.completion is not None or task.request_id)
+
+
+def _ask_is_outstanding(task: Task, open_request_ids: set[str] | None) -> bool:
+    """Whether this task's ask is still sitting open in the document register.
+
+    ``open_request_ids`` is the register itself, from a caller that holds it
+    (:func:`satc.intake.service.create_engagement_from_intake` does). Having
+    EVER had a ``request_id`` is not the question — a satisfied request is
+    closed, and a task reported forever because it once carried one is the row
+    principle 13 is about.
+
+    With no register in hand the best evidence available is the task: SATC's own
+    ``reconcile_received`` completes the task when the request is satisfied, so
+    a settled task is a settled ask. That is a reading of a recorded fact, not
+    a guess about one.
+    """
+    if not task.request_id:
+        return False
+    if open_request_ids is None:
+        return task.is_open
+    return task.request_id in open_request_ids
+
+
+def _needs_a_decision(task: Task, open_request_ids: set[str] | None) -> str:
+    """What this out-of-scope task still needs from the owner — ``""`` if nothing.
+
+    Two things can still be outstanding, and they are not the same thing.
+    Somebody's WORK IN FLIGHT: an open task with progress on it, which somebody
+    must either finish or cancel. And an ASK STILL OUT: a live row in the
+    document register, which must be closed or the client will be chased for a
+    document nobody wants any more.
+
+    A task the owner has already dealt with — done, waived, cancelled — with
+    nothing outstanding behind it needs no decision, so it gets no row. That is
+    what makes the row CLEARABLE: doing the thing the row asks for makes it go
+    away next run. It stays on the job either way (:func:`_keep_on_job`); what
+    it stops doing is asking for attention it no longer needs.
+    """
+    if task.is_open and (task.status != "not_started" or (task.notes or "").strip()
+                         or task.completion is not None):
         return (f"it is marked {task.status.replace('_', ' ')} — kept so the work "
                 f"already done is not lost")
-    if task.request_id:
+    if _ask_is_outstanding(task, open_request_ids):
         return ("the client has already been asked for it — kept so that request "
                 "can be closed rather than left outstanding forever")
     return ""
 
 
-def _out_of_scope(existing: list[Task], kept_template_ids: set[str]) -> list[OutOfScope]:
+def _out_of_scope(existing: list[Task], kept_template_ids: set[str],
+                  open_request_ids: set[str] | None = None,
+                  ) -> tuple[list[OutOfScope], list[Task]]:
+    """What these answers took away: the rows to show, and the tasks to keep.
+
+    Two returns because they answer different questions. Every task with any
+    history is KEPT; only the ones with something still outstanding are
+    REPORTED.
+    """
     out: list[OutOfScope] = []
+    keep: list[Task] = []
     for task in existing:
         if not task.template_id or task.template_id in kept_template_ids:
             continue
-        keep = _why_keep(task)
-        why = (f"{task.title!r} is no longer in scope for these answers, but {keep}. "
-               f"Cancel it if it truly does not apply."
-               if keep else
-               f"{task.title!r} is no longer in scope for these answers and nobody "
-               f"had started it, so it has been dropped.")
+        kept = _keep_on_job(task)
+        if kept:
+            keep.append(task)
+        decision = _needs_a_decision(task, open_request_ids)
+        if decision:
+            why = (f"{task.title!r} is no longer in scope for these answers, but "
+                   f"{decision}. Cancel it if it truly does not apply.")
+        elif kept:
+            continue          # settled: kept on the job, nothing left to decide
+        else:
+            why = (f"{task.title!r} is no longer in scope for these answers and nobody "
+                   f"had started it, so it has been dropped.")
         out.append(OutOfScope(template_id=task.template_id, title=task.title,
-                              status=task.status, had_progress=bool(keep),
-                              retained=bool(keep), why=why))
-    return out
+                              status=task.status, had_progress=bool(decision),
+                              retained=bool(decision), why=why))
+    return out, keep
 
 
 # ---------------------------------------------------------------------------
@@ -311,7 +488,17 @@ class EngagementPlan:
     @property
     def documents_due(self) -> date | None:
         """The firm's own cutoff. NOT law — see ``configs/firm_policy.yaml``."""
-        return self.duty.documents_due
+        return self.duty.documents_due if self.duty is not None else None
+
+    @property
+    def files_something(self) -> bool:
+        """Whether a statute has any opinion about when this is due.
+
+        False for bookkeeping and onboarding. The screen must key its STATUTE
+        badge on this rather than on the presence of a date — the job still has
+        dates, they are just the practice's own (principle 4).
+        """
+        return self.duty is not None
 
 
 # ---------------------------------------------------------------------------
@@ -322,9 +509,10 @@ def fan_out(workflow: WorkflowDef, answers: dict[str, Any] | None = None, *,
             client_id: str, tax_year: int, today: date,
             engagements: Any = (), existing_tasks: Any = (),
             jurisdiction: str = "US", fiscal_year_end: date | None = None,
-            entity_type: str = "",
+            entity_type: str = "", entity_type_basis: str = "",
             linked_clients: Any = (), relationships: Any = (),
             existing_jobs: Any = (), job_id: str = "",
+            open_request_ids: Any = None,
             created_at: str = "", now: str | None = None) -> EngagementPlan:
     """Answers in; the whole engagement out.
 
@@ -332,46 +520,80 @@ def fan_out(workflow: WorkflowDef, answers: dict[str, Any] | None = None, *,
     contracts (they decide the rate plan); ``existing_jobs`` are other jobs on
     file, which only the relationship-aware K-1 templates look at. Two
     different things that used to share a word.
+
+    ``open_request_ids`` is the document register, from a caller that holds it:
+    which asks are still outstanding, so a request that has already been
+    satisfied stops being reported as a reason to keep a task (principle 13).
+    ``None`` means the caller does not hold it, not that nothing is open.
     """
     from satc.intake.workflows import build_engagement
 
-    duty, rule, _dues = duty_for(workflow, client_id=client_id, tax_year=tax_year,
-                                 jurisdiction=jurisdiction, fiscal_year_end=fiscal_year_end,
-                                 entity_type=entity_type)
+    landed = duty_for(workflow, client_id=client_id, tax_year=tax_year,
+                      jurisdiction=jurisdiction, fiscal_year_end=fiscal_year_end,
+                      entity_type=entity_type, entity_type_basis=entity_type_basis)
+
+    if landed is None:
+        # SERVICE WORK — bookkeeping, onboarding. It files nothing, so there is
+        # no statutory deadline and no obligation_key, and both absences are the
+        # truth rather than a gap. The tasks still need an anchor for their
+        # day-offsets: the period end, which is a PRACTICE choice and is carried
+        # as one. Nothing here may render with a citation (principle 4).
+        duty, rule = None, None
+        anchor = date(int(tax_year), 12, 31)
+    else:
+        duty, rule, _dues = landed
+        anchor = duty.due
 
     # Derived, so re-running finds the same job rather than minting a second.
-    eng_id = job_id or _derived_id("engagement", client_id, workflow.key, duty.period_key)
+    #
+    # JURISDICTION IS PART OF WHAT THIS JOB IS. Without it the federal and the
+    # Massachusetts engagement for one client, one workflow and one year derive
+    # the SAME id, and the second silently overwrites the first — two duties,
+    # two deadlines, two sets of tasks, one row. The same composite the duty
+    # itself is keyed on (principle 8).
+    period_key = duty.period_key if duty is not None else f"{tax_year}"
+    eng_id = job_id or _derived_id("engagement", client_id, workflow.key,
+                                   (duty.jurisdiction if duty is not None
+                                    else jurisdiction), period_key)
 
     existing = [t for t in (existing_tasks or [])]
     job = build_engagement(
-        workflow, client_id=client_id, due_date=duty.due, answers=answers,
-        tax_year=tax_year, period_key=duty.period_key,
+        workflow, client_id=client_id, due_date=anchor, answers=answers,
+        tax_year=tax_year, period_key=period_key,
         linked_clients=list(linked_clients or []), relationships=list(relationships or []),
         existing_engagements=list(existing_jobs or []), existing_tasks=existing,
         job_id=eng_id, created_at=created_at, now=now)
 
     # (2) The link the work queue orders on. Nothing else has ever written it.
-    job.obligation_key = duty.obligation_key
+    # Left EMPTY for service work: there is no duty, so a key pointing at one
+    # would be a fabricated row in the client's obligation set.
+    job.obligation_key = duty.obligation_key if duty is not None else ""
 
-    # What a changed answer takes away — reported, and kept when somebody had
-    # already done it. Appended to the job so it stays visible and cancellable.
+    # What a changed answer takes away — reported while anything is outstanding,
+    # and kept whenever there is history, so nobody's work is deleted by an
+    # answer changing.
     kept = {t.template_id for t in job.tasks if t.template_id}
-    gone = _out_of_scope(existing, kept)
-    by_template = {t.template_id: t for t in existing}
-    for item in gone:
-        if item.retained:
-            job.tasks.append(by_template[item.template_id])
+    ids = None if open_request_ids is None else {str(r) for r in open_request_ids}
+    gone, retained = _out_of_scope(existing, kept, ids)
 
+    # ASKED BEFORE THE RETAINED WORK GOES BACK ON THE JOB, and that order is
+    # load-bearing. A retained task is work these answers say we are NOT doing;
+    # opening a fresh document request against it would ask the client for a
+    # document the same call reports as out of scope.
     requests = _open_requests(job, workflow, client_id=client_id, tax_year=tax_year,
                               today=today, rule=rule)
+
+    out_of_scope_templates = {t.template_id for t in retained}
+    job.tasks.extend(retained)
 
     quote, quote_unavailable = _quote(workflow, answers or {}, client_id=client_id,
                                       tax_year=tax_year, engagements=engagements)
 
     return EngagementPlan(
-        job=job, duty=duty, citation=rule.source,
+        job=job, duty=duty, citation=(rule.source if rule is not None else ""),
         requests=tuple(requests), quote=quote, quote_unavailable=quote_unavailable,
-        letter_facts=_letter_facts(workflow, job, duty, quote, tax_year=tax_year),
+        letter_facts=_letter_facts(workflow, job, duty, quote, tax_year=tax_year,
+                                   out_of_scope_templates=out_of_scope_templates),
         out_of_scope=tuple(gone))
 
 
@@ -397,7 +619,12 @@ def _open_requests(job: Job, workflow: WorkflowDef, *, client_id: str, tax_year:
         out.append(RequestedItem(
             request_id=request_id, client_id=client_id, tax_year=tax_year,
             doc_type=doc_type, request_text=task.client_request_text or task.title,
-            blocking=blocking_class_for(doc_type, rule.blocking_docs),
+            blocking=blocking_class_for(
+                doc_type,
+                # No filing duty means no cited list of what blocks prep. The
+                # three-way split is a RULE, so with no rule every ask is
+                # non_blocking — stated, not guessed at from the doc type.
+                rule.blocking_docs if rule is not None else ()),
             requested_at=today, task_id=task.task_id))
         task.request_id = request_id
     return out
@@ -471,7 +698,8 @@ def _scope_lines(quote: Any) -> list[str]:
 
 
 def _letter_facts(workflow: WorkflowDef, job: Job, duty: ObligationInstance,
-                  quote: Any, *, tax_year: int) -> dict[str, str]:
+                  quote: Any, *, tax_year: int,
+                  out_of_scope_templates: set[str] | None = None) -> dict[str, str]:
     """Merge values for the engagement letter — omitting anything we don't hold.
 
     Layered ON TOP of ``comms.context.build_context``, which supplies who the
@@ -484,14 +712,25 @@ def _letter_facts(workflow: WorkflowDef, job: Job, duty: ObligationInstance,
         "tax_year": str(tax_year),
         "client_id": job.client_id,
         "engagement_name": workflow.name,
-        # The COMPUTED statutory deadline, already shifted off weekends and
-        # holidays. Never a date anyone typed.
-        "due_date": duty.due.strftime("%B %d, %Y"),
     }
 
+    # OMITTED, never blanked, when this work files nothing: RenderedDraft.unfilled
+    # then marks it visibly rather than a letter promising a deadline that no
+    # statute sets (principles 1 and 4).
+    if duty is not None:
+        # The COMPUTED statutory deadline, already shifted off weekends and
+        # holidays. Never a date anyone typed.
+        facts["due_date"] = duty.due.strftime("%B %d, %Y")
+
+    # ONE CALL MUST NOT SAY TWO THINGS. ``job.tasks`` carries the retained
+    # out-of-scope work as well as the scope, because a task somebody started is
+    # never deleted by an answer changing — but a letter that asks the client
+    # for a document the same plan reports as out of scope contradicts itself in
+    # front of the client, and the client is the one who cannot see the plan.
+    gone = out_of_scope_templates or set()
     asks = []
     for task in job.tasks:
-        if task.audience != "client":
+        if task.audience != "client" or task.template_id in gone:
             continue
         text = (task.client_request_text or task.title).strip()
         if text and text not in asks:
@@ -510,7 +749,13 @@ def _letter_facts(workflow: WorkflowDef, job: Job, duty: ObligationInstance,
     # agreed rate plan behind it and nothing more.
     #
     # `fee_amount_text` is a bare number with no room for a caveat, so it is
-    # stated only when the total is genuinely the whole price.
+    # stated only when the total is genuinely the whole price — and it CARRIES
+    # ITS MARKER. That name is filled from an ISSUED INVOICE TOTAL by
+    # `comms.context.build_context`; a quote landing in the same slot is an
+    # estimate standing where a bill stood, and a client holds a practice to a
+    # number in a letter. The marker travels with the value because whoever
+    # merges these dictionaries cannot be relied on to remember which key came
+    # from where.
     #
     # Neither is guessed. Where the condition fails the key is simply absent and
     # the draft renders `[[ Fee: fill in ]]` — loudly unfinished beats quietly
@@ -518,6 +763,7 @@ def _letter_facts(workflow: WorkflowDef, job: Job, duty: ObligationInstance,
     if _price_is_agreed(quote):
         facts["fee_terms"] = quote.client_sentence()
         if _total_is_whole(quote):
-            facts["fee_amount_text"] = f"${Decimal(str(quote.total)):,.2f}"
+            facts["fee_amount_text"] = (
+                f"${Decimal(str(quote.total)):,.2f} (estimate — not a bill)")
 
     return facts
