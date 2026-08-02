@@ -268,6 +268,29 @@ def accept_choice(payment: Payment, invoice_id: str, match: Match, *,
     return payment.against(invoice_id, basis)
 
 
+def apply_to_invoice(invoice: Invoice, payments) -> Invoice:
+    """Bring the invoice's ``paid_on`` into line with the ledger.
+
+    The ledger is the truth; ``paid_on`` is a cached summary of it, kept
+    because the queue, the overdue check and every existing screen read it. A
+    part-paid invoice stays UNPAID here — it is still owed, and an overdue
+    chase for the balance is the correct thing to surface.
+
+    Idempotent: running it twice, or on an invoice already in step, changes
+    nothing. Principle 8.
+    """
+    settled = settled_on(invoice, payments)
+    if invoice.paid_on != settled:
+        invoice.paid_on = settled
+    return invoice
+
+
+def apply_all(invoices, payments) -> list[Invoice]:
+    """The same, across the book. Cheap enough to run on every page load, which
+    is the point — a summary that can drift is a summary nobody can trust."""
+    return [apply_to_invoice(inv, payments) for inv in invoices]
+
+
 def merge(existing, arriving) -> tuple[list[Payment], list[Payment]]:
     """Fold new payments into the ledger, ignoring ones already recorded.
 

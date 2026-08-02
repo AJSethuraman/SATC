@@ -11,6 +11,7 @@ from satc.billing.payment import (
     Method,
     Payment,
     accept_choice,
+    apply_to_invoice,
     is_settled,
     merge,
     outstanding,
@@ -74,6 +75,41 @@ def test_two_genuinely_different_payments_are_not_merged():
     ledger, _ = merge([], [a_payment("450.00", reference="check 1041"),
                            a_payment("450.00", reference="check 1042")])
     assert len(ledger) == 2
+
+
+# --- keeping paid_on in step with the ledger --------------------------------
+
+def test_a_part_payment_does_not_mark_the_invoice_paid():
+    """It is still owed, and the chase for the balance is correct to surface."""
+    inv = an_invoice("2026-0001")
+    part = a_payment("200.00").against("2026-0001", MatchBasis.REFERENCE)
+    apply_to_invoice(inv, [part])
+    assert not inv.is_paid
+    assert inv.is_overdue(date(2026, 6, 1))
+
+
+def test_the_balance_clearing_marks_it_paid_on_the_right_date():
+    inv = an_invoice("2026-0001")
+    ledger = [
+        a_payment("200.00", when=date(2026, 4, 10)).against("2026-0001", MatchBasis.REFERENCE),
+        a_payment("250.00", when=date(2026, 6, 2)).against("2026-0001", MatchBasis.REFERENCE),
+    ]
+    apply_to_invoice(inv, ledger)
+    assert inv.paid_on == date(2026, 6, 2)
+    assert not inv.is_overdue(date(2026, 7, 1))
+
+
+def test_applying_it_twice_changes_nothing():
+    inv = an_invoice("2026-0001")
+    ledger = [a_payment("450.00").against("2026-0001", MatchBasis.REFERENCE)]
+    first = apply_to_invoice(inv, ledger).paid_on
+    assert apply_to_invoice(inv, ledger).paid_on == first
+
+
+def test_a_payment_attributed_elsewhere_does_not_settle_this_one():
+    inv = an_invoice("2026-0001")
+    apply_to_invoice(inv, [a_payment("450.00").against("2026-0002", MatchBasis.REFERENCE)])
+    assert not inv.is_paid
 
 
 # --- rung 1: it told us -----------------------------------------------------
