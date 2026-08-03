@@ -319,14 +319,22 @@ def test_an_unknown_job_id_is_a_404_and_not_a_500(client, practice):
 
 # --- it proposes; it never disposes ------------------------------------------
 
-def test_the_work_screen_can_only_be_read(client):
+# Recording a delivery is the one write this blueprint may do, and it is not
+# the kind principle 9 forbids: it writes down something the OWNER did, rather
+# than doing anything itself. SATC still sends nothing.
+_MAY_WRITE = {"work.record_delivered"}
+
+
+def test_the_work_queue_can_only_be_read(client):
     """Principle 9. A queue that ORDERS is proposing; one that assigns, starts
-    or reserves is disposing. Neither route may accept a state-changing method,
-    and the view may not call anything that writes."""
+    or reserves is disposing. The queue and the job view stay read-only, and the
+    view may not call anything that assigns or starts work."""
     app = create_app()
     rules = [r for r in app.url_map.iter_rules() if r.endpoint.startswith("work.")]
     assert rules, "the work blueprint is not registered"
     for rule in rules:
+        if rule.endpoint in _MAY_WRITE:
+            continue
         assert rule.methods <= {"GET", "HEAD", "OPTIONS"}, f"{rule.endpoint} accepts writes"
 
     banned = {"set_task_completed", "save_task", "save_mart", "save_requested_items",
@@ -364,3 +372,53 @@ def test_the_order_comes_from_satc_work_queue_and_nowhere_else():
     assert out == "the board"
     assert seen == {"jobs": [1, 2], "requested": ["r"], "obligations": ["o"],
                     "today": TODAY, "tax_year": 2025}
+
+
+# --- recording that work went out --------------------------------------------
+
+def test_recording_a_delivery_needs_a_human_and_writes_only_that(client, practice):
+    """It records that the OWNER sent something. SATC sends nothing — an AST
+    scan proves this blueprint has no send path at all."""
+    import ast as _ast
+    from pathlib import Path as _Path
+
+    from satc.app import work_views as _wv
+
+    source = _Path(_wv.__file__).read_text(encoding="utf-8")
+    tree = _ast.parse(source)
+
+    # AST, not a substring scan. A docstring that SAYS "SATC has no SMTP" is
+    # the point of the file, and a text search flags it — a check that fires on
+    # its own explanation is a check nobody keeps.
+    imported = set()
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.Import):
+            imported |= {a.name.split(".")[0] for a in node.names}
+        elif isinstance(node, _ast.ImportFrom) and node.module:
+            imported.add(node.module.split(".")[0])
+    assert "smtplib" not in imported, "work_views imports smtplib"
+
+    names = {getattr(n.func, "attr", None) or getattr(n.func, "id", None)
+             for n in _ast.walk(tree) if isinstance(n, _ast.Call)}
+    assert "record_delivery" in names, "the route must go through the guarded helper"
+    assert "acting_actor" in names, (
+        "the actor must be DERIVED from the request, never taken off the form")
+
+
+def test_a_delivery_dated_in_the_future_is_refused(client, practice):
+    """The mirror of the payment guard. A mistyped year passes every naive check
+    and then anchors a promise nobody can have kept yet."""
+    practice(jobs=[a_job(a_task("Enter W-2"), job_id="J-DLV", client_id="CL-DLV")])
+    resp = client.post("/work/J-DLV/delivered", data={
+        "kind": "return_for_review", "return_key": "CL-DLV-2024-1040",
+        "delivered_on": "2062-03-01", "channel": "portal"})
+    assert resp.status_code == 200, "a refusal is a page, not a redirect"
+    assert "in the future" in body_of(resp)
+
+
+def test_a_delivery_that_does_not_say_which_return_is_refused(client, practice):
+    practice(jobs=[a_job(a_task("Enter W-2"), job_id="J-DLV2", client_id="CL-DLV2")])
+    resp = client.post("/work/J-DLV2/delivered", data={
+        "kind": "return_for_review", "return_key": "",
+        "delivered_on": "2026-04-02", "channel": "portal"})
+    assert "WHICH return" in body_of(resp)

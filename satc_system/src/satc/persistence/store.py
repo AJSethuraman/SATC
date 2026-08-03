@@ -124,9 +124,15 @@ CREATE TABLE IF NOT EXISTS received_documents (
 CREATE TABLE IF NOT EXISTS invoices (
   invoice_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, plan_key TEXT,
   plan_basis TEXT, issued_on TEXT, due_on TEXT, paid_on TEXT, note TEXT);
+-- rate_adjusted says this line was priced AWAY from the catalogue, and it is
+-- stored rather than re-derived because the catalogue hot-reloads: a rate that
+-- moves next March must not retroactively turn an ordinary line into an adjusted
+-- one. Dropping it lost the reduction REASON from summary_block() on every
+-- reloaded invoice — so the printed copy and the covering email showed a smaller
+-- number with no explanation, which is the one thing this module exists to stop.
 CREATE TABLE IF NOT EXISTS invoice_lines (
   invoice_id TEXT, line_no INTEGER, service_code TEXT, label TEXT, quantity TEXT,
-  standard_rate TEXT, note TEXT, performed_on TEXT,
+  standard_rate TEXT, note TEXT, performed_on TEXT, rate_adjusted INTEGER DEFAULT 0,
   PRIMARY KEY (invoice_id, line_no));
 -- The payment ledger. payment_id is a content hash of the payment itself, so
 -- PRIMARY KEY is what makes re-importing the same bank export a no-op instead
@@ -139,6 +145,13 @@ CREATE TABLE IF NOT EXISTS payments (
   payment_id TEXT PRIMARY KEY, client_id TEXT, amount TEXT, received_on TEXT,
   method TEXT, reference TEXT, invoice_id TEXT, basis TEXT, note TEXT,
   sequence INTEGER DEFAULT 0);
+-- What went OUT to the client. The outbound mirror of received_documents, and
+-- the fact three derivations were waiting on: derive_stage cannot conclude
+-- "delivered" without it, and refused to guess. deliverable_id is a content hash
+-- of what was delivered, so recording the same delivery twice is once.
+CREATE TABLE IF NOT EXISTS deliverables (
+  deliverable_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, kind TEXT,
+  delivered_on TEXT, channel TEXT, delivered_by TEXT, return_key TEXT, note TEXT);
 CREATE TABLE IF NOT EXISTS filings (
   filing_id TEXT PRIMARY KEY, return_key TEXT, client_id TEXT, transmitted_at TEXT,
   transmitted_by TEXT, submission_id TEXT, ack_code TEXT, ack_date TEXT,
@@ -194,7 +207,7 @@ def _pdt(x: str | None) -> date | None:
 _MART_TABLES_BY_CLIENT = (
     "public_clients", "returns", "carryforwards", "owner_basis",
     "estimate_payments", "engagements", "jobs", "filings", "invoices",
-    "payments", "requested_items", "received_documents",
+    "payments", "deliverables", "requested_items", "received_documents",
 )
 
 # Vault tables keyed by client_id.
@@ -610,10 +623,10 @@ class SATCStore:
                               (inv.invoice_id,))
             for n, line in enumerate(inv.lines):
                 self.mart.execute(
-                    "INSERT OR REPLACE INTO invoice_lines VALUES (?,?,?,?,?,?,?,?)",
+                    "INSERT OR REPLACE INTO invoice_lines VALUES (?,?,?,?,?,?,?,?,?)",
                     (inv.invoice_id, n, line.service_code, line.label,
                      str(line.quantity), str(line.standard_rate), line.note,
-                     _dt(line.performed_on)))
+                     _dt(line.performed_on), int(bool(line.rate_adjusted))))
         self.mart.commit()
 
     def load_invoices(self, client_id: str = "") -> list:
@@ -627,7 +640,10 @@ class SATCStore:
                 service_code=r["service_code"], label=r["label"],
                 quantity=Decimal(r["quantity"] or "1"),
                 standard_rate=Decimal(r["standard_rate"] or "0"),
-                note=r["note"] or "", performed_on=_pdt(r["performed_on"])))
+                note=r["note"] or "", performed_on=_pdt(r["performed_on"]),
+                # _col, not r[...]: an invoice written by a build before this
+                # column existed must still load.
+                rate_adjusted=bool(_col(r, "rate_adjusted") or 0)))
 
         sql = "SELECT * FROM invoices"
         args: tuple = ()
@@ -713,6 +729,56 @@ class SATCStore:
             sql + " ORDER BY received_on, payment_id", tuple(args))]
 
     # -- filings (many per return) ----------------------------------------
+
+    # -- deliverables (what went OUT) --------------------------------------
+
+    def save_deliverables(self, deliverables) -> None:
+        """Record what was sent. Idempotent on the content-derived id.
+
+        The owner checking whether they already sent something, and then sending
+        it, must not produce two deliveries — and a second delivery would move
+        the settled_on of any promise measured from it (principle 8).
+        """
+        for d in deliverables:
+            self.mart.execute(
+                "INSERT OR REPLACE INTO deliverables VALUES (?,?,?,?,?,?,?,?,?)",
+                (d.deliverable_id, d.client_id, int(d.tax_year), str(d.kind),
+                 _dt(d.delivered_on), str(d.channel), d.delivered_by,
+                 d.return_key, d.note))
+        self.mart.commit()
+
+    def load_deliverables(self, client_id: str = "") -> list:
+        """What has gone out. Never raises on a row it finds odd.
+
+        A deliverable naming a return that no longer exists still loads, for the
+        same reason an orphaned payment attribution does: it is a FACT about
+        something the practice did, and hiding it would lose the record of an
+        act rather than tidy it.
+        """
+        from satc.models.deliverable import Deliverable
+
+        sql = "SELECT * FROM deliverables"
+        args: tuple = ()
+        if client_id:
+            sql += " WHERE client_id=?"
+            args = (client_id,)
+        out = []
+        for r in self.mart.execute(sql + " ORDER BY delivered_on, deliverable_id", args):
+            on = _pdt(_col(r, "delivered_on"))
+            if on is None:
+                # Obviously wrong on sight rather than plausible — a delivery
+                # with no date cannot anchor a promise, and must not look as
+                # though it can (principle 1).
+                on = date(1970, 1, 1)
+            out.append(Deliverable(
+                client_id=_col(r, "client_id") or "",
+                tax_year=int(_col(r, "tax_year") or 0),
+                kind=_col(r, "kind") or "letter",
+                delivered_on=on, channel=_col(r, "channel") or "portal",
+                delivered_by=_col(r, "delivered_by") or "",
+                return_key=_col(r, "return_key") or "",
+                note=_col(r, "note") or ""))
+        return out
 
     def save_filings(self, filings) -> None:
         for f in filings:

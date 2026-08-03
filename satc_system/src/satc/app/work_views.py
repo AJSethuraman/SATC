@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from flask import Blueprint, render_template
+from flask import Blueprint, abort, g, redirect, render_template, request, url_for
 
 from satc.app.state import STATE
 # Both borrowed rather than re-derived. A second copy of "which year is the
@@ -169,6 +169,94 @@ def work():
         kinds=_workflow_names(jobs))
 
 
+# The finite sets the owner picks from when recording a delivery. Offered as
+# lists, never typed — the same limit the model gets everywhere else (principle 6a).
+DELIVERY_KINDS = [
+    ("return_for_review", "the draft return, for review"),
+    ("authorization_form", "the e-file authorization, for signature"),
+    ("signed_copy", "their copy of the filed return"),
+    ("organizer", "the organizer"),
+    ("letter", "a letter"),
+    ("workpapers", "the workpapers"),
+]
+DELIVERY_CHANNELS = [("portal", "the portal"), ("email", "email"),
+                     ("mail", "post"), ("hand", "by hand"), ("fax", "fax")]
+
+
+def _delivery_and_filings(job):
+    """The two RECORDED facts that can move a job past preparation.
+
+    Read here rather than derived: derive_stage refuses to conclude delivery or
+    acceptance from anything else, so if these are not passed the job correctly
+    reads as ready_to_deliver and says nobody has recorded that it went out.
+    """
+    from satc.models.deliverable import delivery_of
+
+    year = job.tax_year
+    if year is None:
+        return None, []
+    delivery = delivery_of(STATE.store.load_deliverables(job.client_id),
+                           client_id=job.client_id, tax_year=year)
+    filings = [f for f in STATE.filings() if f.client_id == job.client_id]
+    return delivery, filings
+
+
+@bp.route("/work/<job_id>/delivered", methods=["POST"])
+def record_delivered(job_id: str):
+    """Record that this went to the client. RECORDING IS NOT SENDING.
+
+    SATC has no SMTP and this does not change that (principle 9). The owner
+    sends it however they send it; this writes down that they did, which is the
+    fact ``derive_stage`` refuses to infer from a finished task list.
+    """
+    from satc.app.state import acting_actor
+    from satc.models.actor import ActorRefused
+    from satc.models.deliverable import DeliveryError, record_delivery
+
+    job = STATE.engagement(job_id)
+    if job is None:
+        abort(404)
+
+    raw = (request.form.get("delivered_on") or "").strip()
+    try:
+        on = date.fromisoformat(raw)
+    except ValueError:
+        return _job_screen(job_id, error=(
+            f"{raw or 'A date'} is not a date. Write when it actually went out, "
+            f"as YYYY-MM-DD — the turnaround promise is measured from it."))
+    if on > date.today():
+        # The mirror of the payment guard, and for the same reason: a mistyped
+        # year that lands in the future is accepted by every naive check and
+        # then anchors a promise nobody can have kept yet.
+        return _job_screen(job_id, error=(
+            f"{on:%B %d, %Y} is in the future. Record a delivery when it has "
+            f"happened, not before."))
+
+    try:
+        recorded = record_delivery(
+            actor=acting_actor(), client_id=job.client_id,
+            tax_year=job.tax_year or 0,
+            kind=request.form.get("kind", "return_for_review"),
+            delivered_on=on, channel=request.form.get("channel", "portal"),
+            return_key=request.form.get("return_key", "").strip(),
+            note=request.form.get("note", "").strip())
+    except (DeliveryError, ActorRefused) as refused:
+        return _job_screen(job_id, error=str(refused))
+
+    STATE.store.save_deliverables([recorded])
+    STATE.reload()
+    return redirect(url_for("work.job_detail", job_id=job_id))
+
+
+def _job_screen(job_id: str, *, error: str = ""):
+    """Re-render the job page carrying a refusal, rather than a 500 or a redirect
+    that loses what the owner typed."""
+    from flask import g
+
+    g.delivery_error = error
+    return job_detail(job_id)
+
+
 @bp.route("/work/<job_id>")
 def job_detail(job_id: str):
     """One job: where it stands, what is blocked on what, and what is missing."""
@@ -188,11 +276,15 @@ def job_detail(job_id: str):
     requested = STATE.requested_items()
     year = working_tax_year(list(STATE.received_documents()) + list(requested), as_of)
     readiness = _readiness(found, requested, year)
-    view = derive_stage(found, readiness=readiness, today=as_of)
+    delivery, filings = _delivery_and_filings(found)
+    view = derive_stage(found, readiness=readiness, today=as_of,
+                        delivery=delivery, filings=filings)
 
     return render_template(
         "job.html", title="Work", job=found, job_id=job_id, refusal="",
-        view=view, readiness=readiness, as_of=as_of,
+        view=view, readiness=readiness, as_of=as_of, delivery=delivery,
+        delivery_error=getattr(g, "delivery_error", ""),
+        kinds=DELIVERY_KINDS, channels=DELIVERY_CHANNELS,
         # The stored stage is a cache and is shown ONLY as a disagreement. It is
         # never what this screen reports, and a drifted one is worth seeing —
         # that drift is what made the old status field untrustworthy.

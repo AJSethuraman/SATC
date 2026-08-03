@@ -129,6 +129,56 @@
   </div>
 </div>
 
+{# ------------------------------------------------------- what went out #}
+<div class="panel">
+  <h2>What has gone to the client</h2>
+  <div class="body">
+    {% if delivery_error %}
+    <p class="flag">{{ delivery_error }}</p>
+    {% endif %}
+
+    {% if delivery %}
+    <p><strong>{{ delivery.describe() }}</strong>
+      {% if delivery.return_key %}<span class="muted mono">· {{ delivery.return_key }}</span>{% endif %}</p>
+    <p class="muted">Recorded by {{ delivery.delivered_by }}. This is the fact that lets SATC say
+      the job was delivered — it will not infer it from a finished task list.</p>
+    {% else %}
+    <p class="note">Nothing recorded. SATC will not treat this job as delivered until somebody
+      writes down that it went out, however complete the task list looks.</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('work.record_delivered', job_id=job_id) }}">
+      <div class="kv" style="gap:10px">
+        <div>
+          <label class="muted">What went</label>
+          <select class="field-input" name="kind">
+            {% for value, label in kinds %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="muted">How</label>
+          <select class="field-input" name="channel">
+            {% for value, label in channels %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="muted">When it actually went</label>
+          <input class="field-input" type="date" name="delivered_on"
+                 value="{{ as_of.isoformat() }}" max="{{ as_of.isoformat() }}">
+        </div>
+        <div>
+          <label class="muted">Which return</label>
+          <input class="field-input" name="return_key"
+                 value="{{ job.client_id }}-{{ job.tax_year }}-{{ job.engagement_type }}">
+        </div>
+      </div>
+      <button class="btn primary" type="submit" style="margin-top:10px">Record that this went out</button>
+      <p class="note">Recording is not sending. SATC has no way to send anything — you send it
+        however you send it, and this writes down that you did.</p>
+    </form>
+  </div>
+</div>
+
 <a class="btn sm" href="{{ url_for('work.work') }}">← Back to the work queue</a>
 {% endif %}
 {% endblock %}
