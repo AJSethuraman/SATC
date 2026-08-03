@@ -448,6 +448,22 @@ class SATCStore:
                 self.mart.execute(f"ALTER TABLE tasks ADD COLUMN {column} TEXT")
         self.mart.commit()
 
+        # MONEY COLUMNS ADDED AFTER THE FACT. Both of these were put in the DDL
+        # and NOT here, which works perfectly on a fresh store and fails on every
+        # existing one — and the tests all build fresh stores, so nothing caught
+        # it. A live demo did, immediately: the positional INSERT supplied one
+        # value too many, invoice_lines refused the whole write, and an invoice
+        # was left ISSUED WITH NO LINES. A bill for zero pounds, in the register,
+        # for work that was done.
+        line_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(invoice_lines)")}
+        if "rate_adjusted" not in line_cols:
+            self.mart.execute(
+                "ALTER TABLE invoice_lines ADD COLUMN rate_adjusted INTEGER DEFAULT 0")
+        pay_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(payments)")}
+        if "sequence" not in pay_cols:
+            self.mart.execute("ALTER TABLE payments ADD COLUMN sequence INTEGER DEFAULT 0")
+        self.mart.commit()
+
     def _encrypt_vault_at_rest(self) -> None:
         """Encrypt any legacy plaintext PII left by a pre-encryption build, then
         VACUUM so the old plaintext pages are reclaimed from the file (otherwise a
@@ -613,6 +629,22 @@ class SATCStore:
     # -- invoices ---------------------------------------------------------
 
     def save_invoices(self, invoices) -> None:
+        """An invoice and its lines are ONE fact, so they are written as one.
+
+        They were not, and a schema mismatch proved why: the invoice row wrote,
+        the lines raised, and what stayed on disk was an ISSUED INVOICE WITH NO
+        LINES — a bill for zero against work that had been done, sitting in the
+        register looking exactly like an ordinary one. An invoice without its
+        lines is not a partial record, it is a wrong one, so a failure anywhere
+        in here leaves nothing behind.
+        """
+        try:
+            self._write_invoices(invoices)
+        except Exception:
+            self.mart.rollback()
+            raise
+
+    def _write_invoices(self, invoices) -> None:
         for inv in invoices:
             self.mart.execute(
                 "INSERT OR REPLACE INTO invoices VALUES (?,?,?,?,?,?,?,?,?)",

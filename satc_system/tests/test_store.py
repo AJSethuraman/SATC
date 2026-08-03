@@ -10,6 +10,8 @@ survive the round trip or the derivation answers from a file with holes in it.
 
 from __future__ import annotations
 
+import pytest
+
 import dataclasses
 import sqlite3
 from datetime import date, datetime
@@ -407,3 +409,102 @@ def test_re_saving_a_job_replaces_its_tasks_rather_than_accumulating_them(tmp_pa
         loaded, = store.load_jobs()
 
     assert [(t.task_id, t.status) for t in loaded.tasks] == [("t1", "done")]
+
+
+# --- columns added after a store already existed -----------------------------
+#
+# CREATE TABLE IF NOT EXISTS never alters an existing table. Two money columns
+# were added to the DDL and not to _migrate, which works on every fresh store —
+# and every test builds a fresh store, so the suite stayed green while a real
+# install broke. A live demo hit it in under a minute: the positional INSERT
+# supplied one value too many, invoice_lines refused the write, and an invoice
+# was left ISSUED WITH NO LINES.
+
+def _old_schema_store(tmp_path):
+    """A store as an earlier build left it: narrower invoice_lines and payments."""
+    import sqlite3
+
+    con = sqlite3.connect(tmp_path / "satc_mart.db")
+    con.executescript("""
+    CREATE TABLE invoice_lines (
+      invoice_id TEXT, line_no INTEGER, service_code TEXT, label TEXT,
+      quantity TEXT, standard_rate TEXT, note TEXT, performed_on TEXT,
+      PRIMARY KEY (invoice_id, line_no));
+    CREATE TABLE payments (
+      payment_id TEXT PRIMARY KEY, client_id TEXT, amount TEXT, received_on TEXT,
+      method TEXT, reference TEXT, invoice_id TEXT, basis TEXT, note TEXT);
+    """)
+    con.commit()
+    con.close()
+    from satc.persistence.store import SATCStore
+    return SATCStore(tmp_path)
+
+
+def test_an_invoice_saves_into_a_store_built_by_an_older_build(tmp_path):
+    from datetime import date
+    from decimal import Decimal
+
+    from satc.billing import Invoice
+
+    store = _old_schema_store(tmp_path)
+    inv = Invoice(invoice_id="2026-0001", client_id="CL-1", tax_year=2025)
+    inv.add("return_1040", rate_override=Decimal("180"), note="Agreed at signing")
+    inv.issue(on=date(2026, 4, 1))
+    store.save_invoices([inv])
+
+    back = store.load_invoices("CL-1")[0]
+    assert len(back.lines) == 1, "the lines were dropped — the bill is now zero"
+    assert back.total == Decimal("180.00")
+    assert back.lines[0].rate_adjusted
+    assert "Agreed at signing" in back.summary_block()
+
+
+def test_a_payment_saves_into_a_store_built_by_an_older_build(tmp_path):
+    from datetime import date
+    from decimal import Decimal
+
+    from satc.billing.payment import Method, Payment
+
+    store = _old_schema_store(tmp_path)
+    store.save_payments([Payment(client_id="CL-1", amount=Decimal("450.00"),
+                                 received_on=date(2026, 4, 2), method=Method.CHECK,
+                                 sequence=1)])
+    got = store.load_payments("CL-1")
+    assert len(got) == 1
+    assert got[0].sequence == 1, "sequence is part of the id — losing it merges payments"
+
+
+def test_an_invoice_is_never_stored_without_its_lines(tmp_path):
+    """They are ONE fact. A half-written invoice is not a partial record, it is
+    a wrong one — a bill for zero against work that was done."""
+    from datetime import date
+
+    from satc.billing import Invoice
+    from satc.persistence.store import SATCStore
+
+    store = SATCStore(tmp_path)
+    inv = Invoice(invoice_id="2026-0002", client_id="CL-1", tax_year=2025)
+    inv.add("return_1040")
+    inv.issue(on=date(2026, 4, 1))
+
+    # Fail PART WAY THROUGH: the invoice row is written, then the lines raise —
+    # which is exactly what a column mismatch did.
+    original = store._write_invoices
+
+    def half_write(invoices):
+        for one in invoices:
+            store.mart.execute(
+                "INSERT OR REPLACE INTO invoices VALUES (?,?,?,?,?,?,?,?,?)",
+                (one.invoice_id, one.client_id, one.tax_year, one.plan_key,
+                 one.plan_basis, str(one.issued_on), str(one.due_on), None, ""))
+        raise RuntimeError("simulated schema failure on the lines")
+
+    store._write_invoices = half_write
+    try:
+        with pytest.raises(RuntimeError):
+            store.save_invoices([inv])
+    finally:
+        store._write_invoices = original
+
+    assert not store.load_invoices("CL-1"), (
+        "the invoice header survived a failure that lost its lines")
