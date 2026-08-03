@@ -177,9 +177,39 @@ def _settle(invoice: Invoice, ledger) -> Invoice:
     """
     before = invoice.paid_on
     apply_to_invoice(invoice, ledger)
+
+    # NEVER ERASE A PRE-LEDGER PAID DATE. An invoice settled before payments
+    # were recorded facts carries paid_on and no rows. Record a PART payment
+    # against it and the ledger's answer is "not settled" — so this used to
+    # overwrite a real record of full payment with None, and the client's copy
+    # silently stopped saying "paid in full".
+    #
+    # Two records disagree, and neither is a stale flag: one is coarse, one is
+    # detailed, and only a human knows which is right. So the coarse one is KEPT
+    # and the disagreement is surfaced (principles 2 and 5) rather than resolved
+    # by whichever code ran last.
+    if before is not None and invoice.paid_on is None:
+        invoice.paid_on = before
+        return invoice
+
     if invoice.paid_on != before:
         STATE.store.save_invoices([invoice])
     return invoice
+
+
+def _records_disagree(invoice: Invoice, ledger) -> str:
+    """The sentence to show when the flag and the ledger cannot both be right."""
+    if invoice.paid_on is None:
+        return ""
+    owed = outstanding(invoice, ledger)
+    if owed <= 0:
+        return ""
+    return (f"Two records of this invoice disagree. It is marked paid on "
+            f"{invoice.paid_on:%B %d, %Y} — a record made before payments were "
+            f"itemised — but the payments now on the ledger leave "
+            f"${owed:,.2f} outstanding. SATC will not pick between them: if the "
+            f"older record is right, the missing payments have not been entered; "
+            f"if the ledger is right, this was never settled in full.")
 
 
 def _in_step(invoices, ledger) -> list[Invoice]:
@@ -901,7 +931,11 @@ def mark_paid(invoice_id: str):
         basis=MatchBasis.CHOSEN_BY_HUMAN)
 
     added = _record([payment])
-    _settle(invoice, _ledger(invoice.client_id))
+    ledger = _ledger(invoice.client_id)
+    _settle(invoice, ledger)
+    clash = _records_disagree(invoice, ledger)
+    if clash:
+        return _view_screen(invoice, note=clash)
     if not added:
         return _view_screen(invoice, note=(
             f"Already on the ledger: {amount:,.2f} by "

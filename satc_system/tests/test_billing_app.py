@@ -1150,3 +1150,50 @@ def test_the_invoicing_screens_have_no_send_path():
         elif isinstance(node, ast.Call):
             name = getattr(node.func, "attr", None) or getattr(node.func, "id", None)
             assert name not in banned_calls, f"billing_views calls {name}"
+
+
+# --- when two records of the same invoice disagree ---------------------------
+#
+# An invoice settled before payments were itemised carries paid_on and no rows.
+# Recording a PART payment against it made the ledger say "not settled", which
+# overwrote a real record of full payment with None — and the client's copy
+# silently stopped saying paid in full.
+
+def _pre_ledger_invoice(number="2024-9001", paid=date(2024, 3, 4)):
+    inv = Invoice(invoice_id=number, client_id=CLIENT, tax_year=2024)
+    inv.add("return_1040")
+    inv.issue(on=date(2024, 2, 1))
+    inv.paid_on = paid
+    STATE.store.save_invoices([inv])
+    return inv
+
+
+def test_a_part_payment_does_not_erase_a_pre_ledger_paid_date(client):
+    _pre_ledger_invoice("2024-9001")
+    client.post("/invoices/2024-9001/paid",
+                data={"amount": "100.00", "received_on": "2024-04-01",
+                      "method": "check", "reference": "cheque 9001"})
+    stored = _stored("2024-9001")
+    assert stored.paid_on == date(2024, 3, 4), (
+        "the older record is coarser, not stale — erasing it loses a real fact")
+
+
+def test_the_disagreement_is_shown_rather_than_resolved(client):
+    """Neither record is a stale flag: one is coarse, one is detailed, and only
+    a human knows which is right (principles 2 and 5)."""
+    _pre_ledger_invoice("2024-9002")
+    body = _text(client.post("/invoices/2024-9002/paid",
+                             data={"amount": "100.00", "received_on": "2024-04-02",
+                                   "method": "check", "reference": "cheque 9002"}))
+    assert "disagree" in body
+    assert "350.00" in body                    # what the ledger says is left
+    assert "March 04, 2024" in body            # what the older record says
+
+
+def test_a_payment_that_settles_it_raises_no_disagreement(client):
+    """Guards against over-fixing: the records agreeing is the ordinary case."""
+    _pre_ledger_invoice("2024-9003")
+    body = _text(client.post("/invoices/2024-9003/paid",
+                             data={"amount": "450.00", "received_on": "2024-04-03",
+                                   "method": "check", "reference": "cheque 9003"}))
+    assert "disagree" not in body

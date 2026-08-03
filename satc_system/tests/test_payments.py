@@ -281,3 +281,45 @@ def test_money_is_never_lost_to_a_hash_collision():
     assert one.payment_id == two.payment_id           # same money, two guesses
     genuinely_second = base.as_another_one([base])
     assert genuinely_second.payment_id != base.payment_id   # different money
+
+
+# --- money cannot arrive against a bill that did not exist ------------------
+#
+# The invoice screen refused a payment dated before its invoice. The Payments
+# screen records a cheque with no invoice to compare against, so the check could
+# not run there — and reconciliation never made it. A 1999 cheque matched a 2026
+# invoice on the amount alone, on rung 2, with nobody deciding.
+
+def test_a_payment_cannot_be_auto_matched_to_a_later_invoice():
+    inv = an_invoice("2026-0001")                       # issued 2026-04-01
+    match = reconcile(a_payment("450.00", when=date(1999, 2, 14)), [inv])
+    assert not match.is_resolved
+    assert match.candidates == ()
+
+
+def test_it_says_the_invoice_exists_but_came_later():
+    """"Nothing open" and "nothing open YET when this arrived" want different
+    next steps, and reporting the second as the first sends the owner hunting
+    for an invoice sitting right in front of them."""
+    inv = an_invoice("2026-0001")
+    match = reconcile(a_payment("450.00", when=date(1999, 2, 14)), [inv])
+    assert "before any open invoice" in match.why
+    assert "held on account" in match.why
+
+
+def test_a_payment_on_the_day_the_invoice_was_issued_still_matches():
+    """Guards against over-fixing: same-day is ordinary, not suspicious."""
+    inv = an_invoice("2026-0001")                       # ISSUED = 2026-04-01
+    match = reconcile(a_payment("450.00", when=ISSUED), [inv])
+    assert match.invoice_id == "2026-0001"
+
+
+def test_a_later_invoice_is_not_even_offered_as_a_choice():
+    """Mutation check — principle 12. If the arrival filter were dropped, the
+    ambiguous case would start offering an invoice that postdates the money, and
+    accept_choice would then happily take it."""
+    early, late = an_invoice("2026-0001"), an_invoice("2026-0002")
+    late.issued_on = date(2026, 9, 1)
+    match = reconcile(a_payment("450.00", when=date(2026, 5, 1)), [early, late])
+    assert "2026-0002" not in match.candidates
+    assert "2026-0002" != match.invoice_id

@@ -230,11 +230,29 @@ class Match:
         return not self.is_resolved and bool(self.candidates)
 
 
-def _open_for(client_id: str, invoices, payments) -> list[Invoice]:
-    """Issued, not yet settled, belonging to this client."""
-    return [inv for inv in invoices
-            if inv.client_id == client_id and inv.is_issued
-            and not is_settled(inv, payments)]
+def _open_for(client_id: str, invoices, payments,
+              *, arrived_on: date | None = None) -> list[Invoice]:
+    """Issued, not yet settled, belonging to this client — and already in
+    existence when the money arrived.
+
+    THE LAST CLAUSE IS THE ONE THAT WAS MISSING. The invoice screen refused a
+    payment dated before the invoice was issued, but the Payments screen records
+    a cheque with no invoice to compare against, so the check could not run
+    there — and reconciliation never made it. A cheque dated 1999 matched a 2026
+    invoice on the amount alone, on rung 2, with NOBODY DECIDING.
+
+    Money cannot have arrived against a bill that did not exist yet. A payment
+    that predates every open invoice is a real payment about something else —
+    a retainer, a prior year, a mistyped date — and all three want a human, not
+    an automatic match to whatever happens to total the same.
+    """
+    out = [inv for inv in invoices
+           if inv.client_id == client_id and inv.is_issued
+           and not is_settled(inv, payments)]
+    if arrived_on is None:
+        return out
+    return [inv for inv in out
+            if inv.issued_on is None or inv.issued_on <= arrived_on]
 
 
 def reconcile(payment: Payment, invoices, payments=()) -> Match:
@@ -244,9 +262,22 @@ def reconcile(payment: Payment, invoices, payments=()) -> Match:
     CANDIDATES and stops — deciding is somebody else's job, and this function
     will not guess between them. Principle 5.
     """
-    candidates = _open_for(payment.client_id, invoices, payments)
+    candidates = _open_for(payment.client_id, invoices, payments,
+                           arrived_on=payment.received_on)
 
     if not candidates:
+        # Distinguish "nothing open" from "nothing open YET when this arrived".
+        # They want different next steps, and reporting the second as the first
+        # sends the owner looking for an invoice that is sitting right there.
+        later = _open_for(payment.client_id, invoices, payments)
+        if later:
+            soonest = min(i.issued_on for i in later if i.issued_on)
+            return Match(basis=MatchBasis.UNMATCHED, why=(
+                f"${payment.amount:,.2f} arrived on "
+                f"{payment.received_on:%B %d, %Y}, before any open invoice for "
+                f"{payment.client_id} existed — the earliest was issued "
+                f"{soonest:%B %d, %Y}. Either the date on the deposit is wrong, "
+                f"or this is money held on account rather than payment of a bill."))
         return Match(basis=MatchBasis.UNMATCHED, why=(
             f"No open invoice for {payment.client_id}. Either this is for an "
             f"invoice not yet issued, or it belongs to a different client."))
