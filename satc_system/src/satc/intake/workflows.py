@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import date, timedelta
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -167,16 +168,51 @@ def list_workflows(config_root: Path | None = None) -> list[WorkflowDef]:
     return [load_workflow(p.stem, config_root) for p in sorted(root.glob("*.yaml"))]
 
 
-def workflows_for_client_type(client_type: str, config_root: Path | None = None) -> list[WorkflowDef]:
-    """Workflows offered for a person or business (keeps personal/entity work apart)."""
+@dataclass(frozen=True, slots=True)
+class UnreadableWorkflow:
+    """A workflow file the owner has broken, and what it says.
+
+    Carried alongside the good ones rather than swallowed. Skipping it silently
+    made a workflow VANISH from the picker after a one-character typo — the
+    owner sees a shorter list, not an error, and nothing anywhere says why. That
+    is a worse failure than the typo the validation was added to catch: a
+    refusal nobody is shown is a workflow nobody can choose.
+    """
+
+    key: str
+    problem: str
+
+
+def workflows_for_client_type(client_type: str, config_root: Path | None = None,
+                              ) -> list[WorkflowDef]:
+    """Workflows offered for a person or business (keeps personal/entity work apart).
+
+    Only the readable ones. Callers that can show a problem should use
+    :func:`workflow_catalog_with_problems` instead — an empty picker and a
+    broken file are different facts (principle 1).
+    """
+    good, _bad = workflow_catalog_with_problems(client_type, config_root)
+    return good
+
+
+def workflow_catalog_with_problems(
+        client_type: str, config_root: Path | None = None,
+) -> tuple[list[WorkflowDef], list[UnreadableWorkflow]]:
+    """The workflows that load, AND the ones that do not with the reason.
+
+    These configs are hand-edited, so a broken one is an ordinary event. It is
+    reported rather than hidden, and the message is the loader's own — it
+    already names the file and the fix (principle 10).
+    """
     keys = WORKFLOW_KEYS_BY_CLIENT_TYPE.get(client_type, [])
     out: list[WorkflowDef] = []
+    broken: list[UnreadableWorkflow] = []
     for key in keys:
         try:
             out.append(load_workflow(key, config_root))
-        except ConfigError:
-            continue
-    return out
+        except ConfigError as unreadable:
+            broken.append(UnreadableWorkflow(key=key, problem=str(unreadable)))
+    return out, broken
 
 
 # ---------------------------------------------------------------------------

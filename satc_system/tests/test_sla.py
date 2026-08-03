@@ -694,3 +694,59 @@ def test_the_structural_refusals_are_kept_and_each_names_its_own_gap():
     for row in rows:
         assert row.why.startswith("SATC cannot tell you whether this was met:")
         assert FACTS[row.missing_fact].would_need in row.why  # the next step
+
+
+# --- the scope that must not be optional -------------------------------------
+
+def test_another_clients_rejection_is_never_this_clients_promise():
+    """The cross-year leak was fixed and the cross-CLIENT one left open on the
+    adjacent line — the year scoped unconditionally, the client only
+    ``if client_id``. A filter that can be switched off by an empty string
+    eventually is, by a caller with nothing to pass."""
+    from satc.config import ConfigError
+    from satc.work.sla import clocks_for
+
+    from satc.models.filing import Filing
+
+    def _F(client_id, return_key, ack_code, ack_date):
+        # The REAL Filing: is_rejected is derived from the ack code, and a stand-in
+        # that only carries the attributes this test happens to read would pass
+        # whether or not the resolver looks at the right ones.
+        return Filing(filing_id=f"F-{client_id}-{ack_date}", return_key=return_key,
+                      client_id=client_id, ack_code=ack_code, ack_date=ack_date)
+
+    theirs = _F("SATC-AAA", "SATC-AAA|2025|1040|US", "R", date(2026, 1, 5))
+
+    # Asking with no client is REFUSED rather than answered with everybody's.
+    with pytest.raises(ConfigError) as refusal:
+        clocks_for("efile_reject_turnaround", filings=[theirs], client_id="",
+                   tax_year=2025)
+    assert "one client" in str(refusal.value)
+
+    # And a different client sees nothing of theirs.
+    mine = clocks_for("efile_reject_turnaround", filings=[theirs],
+                      client_id="SATC-BBB", tax_year=2025)
+    assert not mine
+
+
+def test_the_client_scope_would_actually_fail_if_it_were_dropped():
+    """Mutation check — principle 12. Every other promise test hardcodes one
+    client, so the filter was untested in both directions and a mutation that
+    removed it left the suite green."""
+    from satc.work.sla import clocks_for
+
+    from satc.models.filing import Filing
+
+    def _F(client_id, return_key, ack_code, ack_date):
+        # The REAL Filing: is_rejected is derived from the ack code, and a stand-in
+        # that only carries the attributes this test happens to read would pass
+        # whether or not the resolver looks at the right ones.
+        return Filing(filing_id=f"F-{client_id}-{ack_date}", return_key=return_key,
+                      client_id=client_id, ack_code=ack_code, ack_date=ack_date)
+
+    both = [_F("SATC-AAA", "SATC-AAA|2025|1040|US", "R", date(2026, 1, 5)),
+            _F("SATC-BBB", "SATC-BBB|2025|1040|US", "R", date(2026, 1, 6))]
+    for who in ("SATC-AAA", "SATC-BBB"):
+        clocks = clocks_for("efile_reject_turnaround", filings=both,
+                            client_id=who, tax_year=2025)
+        assert len(clocks) == 1, "one client's rejections only"

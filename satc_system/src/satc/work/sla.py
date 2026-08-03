@@ -763,9 +763,24 @@ def _reject_clocks(filings, *, client_id: str, tax_year: int | None,
     A return with no rejection yields no clock at all: there is no promise to
     keep, and a row that says "nothing owed here" is a row to scroll past.
     """
+    # SCOPED UNCONDITIONALLY, on every axis.
+    #
+    # The year was scoped unconditionally and the client only ``if client_id``,
+    # one line apart — so a caller that passed no client (or an empty one) got
+    # every client's rejections rendered as this client's promise. That is the
+    # cross-year leak this function was written to fix, on the other axis, and
+    # an optional filter is what made it possible: a scope that can be switched
+    # off by an empty string will be, eventually, by a caller that has nothing
+    # to pass. Callers with nothing to pass must be refused, not served.
+    if not client_id:
+        raise ConfigError(
+            "A promise belongs to one client. Reading clocks with no client "
+            "would attribute another taxpayer's rejection to this engagement — "
+            "pass the client_id the plan is about.")
+
     grouped: dict[str, list] = {}
     for f in filings:
-        if client_id and getattr(f, "client_id", "") != client_id:
+        if getattr(f, "client_id", "") != client_id:
             continue
         key = getattr(f, "return_key", "") or ""
         if return_key and key != return_key:

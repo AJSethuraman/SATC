@@ -526,8 +526,18 @@ class AppState:
 
     def workflow_catalog(self) -> dict[str, list]:
         """Workflows offered per client type, for the intake screens."""
-        from satc.intake.workflows import workflows_for_client_type
-        return {ct: workflows_for_client_type(ct) for ct in ("person", "business")}
+        from satc.intake.workflows import workflow_catalog_with_problems
+
+        catalog: dict[str, list] = {}
+        broken: list = []
+        for ct in ("person", "business"):
+            good, bad = workflow_catalog_with_problems(ct)
+            catalog[ct] = good
+            broken.extend(bad)
+        # Kept so a screen can SAY a workflow file is broken. A picker that is
+        # simply shorter than it was yesterday tells the owner nothing.
+        self.broken_workflows = broken
+        return catalog
 
     # -- bulk client import (CSV / spreadsheet / Drake export) ------------
     def preview_client_import(self, *, csv_text: str | None = None, rows: list[dict] | None = None):
