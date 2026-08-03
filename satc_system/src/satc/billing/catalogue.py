@@ -24,7 +24,7 @@ from typing import Literal
 
 import yaml
 
-from satc.config import CONFIG_ROOT, ConfigError
+from satc.config import CONFIG_ROOT, ConfigError, read_yaml
 
 Unit = Literal["fixed", "per_form", "per_hour"]
 
@@ -100,7 +100,7 @@ def _money(value: Decimal) -> Decimal:
 def _load(path: Path) -> dict:
     if not path.exists():
         raise ConfigError(f"Billing config not found: {path}")
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = read_yaml(path)
     if not isinstance(data, dict):
         raise ConfigError(f"Billing config must be a mapping: {path}")
     return data

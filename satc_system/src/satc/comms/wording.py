@@ -38,6 +38,8 @@ from pathlib import Path
 
 import yaml
 
+from satc.config import read_yaml
+
 from satc.comms.library import comms_dir
 
 WORDING_FILE = "wording.yaml"
@@ -77,7 +79,7 @@ def load_wording(config_root: Path | None = None) -> dict[str, WordingSlot]:
     path = comms_dir(config_root) / WORDING_FILE
     if not path.exists():
         return {}
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    data = read_yaml(path) or {}
     out: dict[str, WordingSlot] = {}
     for name, spec in (data.get("slots") or {}).items():
         variants = tuple(

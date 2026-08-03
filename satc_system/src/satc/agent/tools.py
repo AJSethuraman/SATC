@@ -210,13 +210,24 @@ def draft(state, *, client: str, template: str) -> dict[str, Any]:
         return resolved
     client_id, name = resolved
 
-    values = _context(client_id, None)
+    # template_key is NOT optional here. Without it the "letter that states
+    # terms" branch never fires, and the engagement letter — the one a client
+    # SIGNS — takes its agreed fee from an ISSUED INVOICE TOTAL. That is the
+    # exact substitution the browser door guards against, and this door was
+    # walking straight past it because it omitted one argument.
+    notes: list[str] = []
+    values = _context(client_id, None, template_key=template, notes=notes)
     rendered = render_draft(lib.template(template), values, library=lib)
     return {
         "client": name, "template": template, "subject": rendered.subject,
         "body": rendered.body,
         "unfilled": [lib.placeholder(n).label if lib.placeholder(n) else n
                      for n in rendered.unfilled],
+        # Whatever the browser screen would have shown the owner, the model is
+        # told too — a year mismatch or a refusal to derive the terms changes
+        # what this draft is, and a model reporting "ready" over it would be
+        # reporting something it was not shown.
+        "notes": notes,
         "ready_to_send": rendered.is_complete,
         "reminder": ("This is a DRAFT. SATC never sends mail — the owner reads "
                      "it and sends it from their own mail client."),

@@ -51,7 +51,7 @@ from pathlib import Path
 
 import yaml
 
-from satc.config import CONFIG_ROOT, ConfigError
+from satc.config import CONFIG_ROOT, ConfigError, read_yaml
 from satc.models.readiness import Readiness, assess
 from satc.models.work import Job
 from satc.work.stage import StageView, derive_stage
@@ -180,7 +180,7 @@ def load_queue_policy(config_root: Path | None = None) -> QueuePolicy:
     if not path.exists():
         return QueuePolicy()
 
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = read_yaml(path)
     if not isinstance(data, dict):
         raise ConfigError(f"Firm policy must be a mapping: {path}")
 

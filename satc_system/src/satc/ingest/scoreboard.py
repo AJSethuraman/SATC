@@ -34,6 +34,8 @@ from pathlib import Path
 
 import yaml
 
+from satc.config import read_yaml
+
 CORPUS_ENV = "SATC_CORPUS_DIR"
 
 # Confidence at which the staging gate accepts a value with no human review.
@@ -65,7 +67,7 @@ class Expectation:
 
     @classmethod
     def load(cls, expected_path: Path) -> "Expectation":
-        data = yaml.safe_load(expected_path.read_text(encoding="utf-8")) or {}
+        data = read_yaml(expected_path) or {}
         # foo.expected.yaml describes foo.pdf (or foo.png, foo.jpg...).
         stem = expected_path.name[: -len(".expected.yaml")]
         matches = [p for p in expected_path.parent.iterdir()

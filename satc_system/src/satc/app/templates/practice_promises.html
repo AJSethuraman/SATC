@@ -20,6 +20,19 @@
   survives a rewrite of the prose (principle 4).
 #}
 {% block content %}
+{% if refusal %}
+{# The promises are hand-edited firm policy, so a typo in them is ordinary — and
+   this is the screen somebody opens to find out why the promises stopped
+   working. It must not be the screen that 500s at that moment. #}
+<div class="panel">
+  <h2>SATC cannot read the promises on file</h2>
+  <div class="body">
+    <p class="flag" data-kind="promise">{{ refusal }}</p>
+    <p class="note">Nothing below is shown, because none of it could be worked out.
+      Fix the file and reload — nothing has been lost.</p>
+  </div>
+</div>
+{% else %}
 
 <div class="hero">
   <h2>What we promised, and what SATC can actually check</h2>
@@ -82,4 +95,5 @@
   </div>
 </div>
 
+{% endif %}
 {% endblock %}

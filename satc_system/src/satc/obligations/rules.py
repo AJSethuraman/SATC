@@ -20,7 +20,7 @@ from typing import Literal
 
 import yaml
 
-from satc.config import CONFIG_ROOT, ConfigError
+from satc.config import CONFIG_ROOT, ConfigError, read_yaml
 
 ObligationKind = Literal["file", "pay", "furnish", "deposit", "report"]
 
@@ -148,7 +148,7 @@ def load_rules(config_root: Path | None = None) -> tuple[ObligationRule, ...]:
 
     out: list[ObligationRule] = []
     for path in sorted(folder.glob("*.yaml")):
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        data = read_yaml(path)
         if not isinstance(data, dict):
             raise ConfigError(f"Obligation config must be a mapping: {path}")
         jurisdiction = str((data.get("meta") or {}).get("jurisdiction", "US"))

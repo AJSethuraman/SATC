@@ -23,7 +23,7 @@ from typing import Literal
 
 import yaml
 
-from satc.config import CONFIG_ROOT, ConfigError
+from satc.config import CONFIG_ROOT, ConfigError, read_yaml
 
 # Who fills a merge field. See the header of ``configs/comms/templates.yaml``.
 PlaceholderSource = Literal["state", "config", "firm", "drafted", "preparer"]
@@ -170,7 +170,7 @@ def load_library(config_root: Path | None = None) -> CommsLibrary:
     registry = folder / TEMPLATE_REGISTRY
     if not registry.exists():
         raise ConfigError(f"Comms template registry not found: {registry}")
-    data = yaml.safe_load(registry.read_text(encoding="utf-8"))
+    data = read_yaml(registry)
     if not isinstance(data, dict):
         raise ConfigError(f"Comms registry must be a mapping: {registry}")
 

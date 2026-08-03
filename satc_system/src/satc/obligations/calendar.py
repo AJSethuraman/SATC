@@ -27,7 +27,7 @@ from pathlib import Path
 
 import yaml
 
-from satc.config import CONFIG_ROOT, ConfigError
+from satc.config import CONFIG_ROOT, ConfigError, read_yaml
 
 _WEEKDAYS = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
 
@@ -109,7 +109,7 @@ def load_holidays(config_root: Path | None = None) -> tuple[Holiday, ...]:
     path = (config_root or CONFIG_ROOT) / "calendar" / "holidays.yaml"
     if not path.exists():
         raise ConfigError(f"Holiday calendar not found: {path}")
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = read_yaml(path)
     if not isinstance(data, dict) or not data.get("holidays"):
         raise ConfigError(f"Holiday calendar declares no holidays: {path}")
     out = []

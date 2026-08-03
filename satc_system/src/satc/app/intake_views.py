@@ -509,11 +509,25 @@ def promise_capability():
     """
     from satc.work.sla import measurable_slas
 
+    try:
+        gaps = practice_promise_gaps()
+        measurable = sorted(measurable_slas().values(), key=lambda d: d.label)
+    except ConfigError as unreadable:
+        # The promises live in configs/firm_policy.yaml, which the doc calls a
+        # thing the owner changes over coffee — so a typo in it is an ordinary
+        # event, and this is the screen someone opens to find out WHY the
+        # promises stopped working. Taking it down with a stack trace at exactly
+        # that moment is the least useful thing it could do. The loader's own
+        # message already names the file and the fix (principle 10).
+        return render_template(
+            "practice_promises.html", title="Setup",
+            header="What we promised — and what SATC can actually check",
+            refusal=str(unreadable), gaps=(), measurable=())
+
     return render_template(
         "practice_promises.html", title="Setup",
         header="What we promised — and what SATC can actually check",
-        gaps=practice_promise_gaps(), measurable=sorted(
-            measurable_slas().values(), key=lambda d: d.label))
+        refusal="", gaps=gaps, measurable=measurable)
 
 
 # --- reading the answers, and naming what they caused -------------------------

@@ -96,7 +96,7 @@ from typing import Literal
 
 import yaml
 
-from satc.config import CONFIG_ROOT, ConfigError
+from satc.config import CONFIG_ROOT, ConfigError, read_yaml
 from satc.ids import parse_return_key
 from satc.obligations.calendar import next_business_day
 
@@ -455,7 +455,7 @@ def load_slas(config_root: Path | None = None) -> dict[str, SLADef]:
     path = policy_file(config_root)
     if not path.exists():
         return {}
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = read_yaml(path)
     if not isinstance(data, dict):
         raise ConfigError(f"Firm policy must be a mapping: {path}")
 

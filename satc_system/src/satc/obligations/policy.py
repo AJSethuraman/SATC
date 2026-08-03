@@ -25,7 +25,7 @@ from pathlib import Path
 
 import yaml
 
-from satc.config import CONFIG_ROOT, ConfigError
+from satc.config import CONFIG_ROOT, ConfigError, read_yaml
 
 POLICY_FILE = "firm_policy.yaml"
 
@@ -80,7 +80,7 @@ def load_policy(config_root: Path | None = None) -> FirmPolicy:
     if not path.exists():
         return FirmPolicy()
 
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = read_yaml(path)
     if not isinstance(data, dict):
         raise ConfigError(f"Firm policy must be a mapping: {path}")
 

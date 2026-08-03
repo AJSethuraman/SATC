@@ -48,9 +48,22 @@ def _int_or_none(raw: str):
     return int(raw) if raw.isdigit() else None
 
 
-def _newest_engagement(client_id: str):
-    """The client's most recent generated engagement, or ``None``."""
-    return next((e for e in STATE.jobs() if e.client_id == client_id), None)
+def _newest_engagement(client_id: str, year: int | None = None):
+    """The engagement this letter is ABOUT, or the newest if no year is named.
+
+    Year first, and it is not a nicety. This used to take whichever job came
+    back first — which is whichever was SAVED last — so entering a late
+    prior-year engagement made every current-year letter quote the prior year's
+    terms. The mismatch note downstream would then fire on the right client and
+    the wrong pair of years, and the wording that landed still looked like an
+    agreement.
+    """
+    mine = [e for e in STATE.jobs() if e.client_id == client_id]
+    if year is not None:
+        same_year = [e for e in mine if getattr(e, "tax_year", None) == year]
+        if same_year:
+            return same_year[0]
+    return mine[0] if mine else None
 
 
 def _workflow_name(engagement) -> str:
@@ -203,7 +216,7 @@ def _context(client_id: str, tax_year: int | None, invoice_id: str = "", *,
              notes: list[str] | None = None) -> dict[str, str]:
     """Assemble the merge values for a client from everything on file."""
     lib = library()
-    engagement = _newest_engagement(client_id)
+    engagement = _newest_engagement(client_id, tax_year)
     year = tax_year if tax_year is not None else getattr(engagement, "tax_year", None)
     values = build_context(
         client_id=client_id,
