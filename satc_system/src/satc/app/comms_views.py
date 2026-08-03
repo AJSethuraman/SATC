@@ -33,6 +33,15 @@ bp = Blueprint("comms", __name__)
 # Form fields that aren't merge values (so everything else can be swept up as one).
 _FILL_PREFIX = "fill_"
 
+# The templates whose fee slot means WHAT WE AGREED rather than what we billed.
+#
+# ``fee_amount_text`` is one merge name for two different facts. Everywhere else
+# it is the amount on a bill — money already owed for work already done, which
+# :func:`_latest_invoice` resolves with some care. On a letter a client SIGNS it
+# is the fee this engagement agreed, and only the engagement can say that.
+# See :func:`_context`, which drops the one before the other gets its turn.
+_STATES_TERMS = frozenset({"engagement_letter"})
+
 
 def _int_or_none(raw: str):
     raw = (raw or "").strip()
@@ -138,13 +147,65 @@ def _latest_invoice(client_id: str, tax_year: int | None, invoice_id: str = ""):
     return max(issued, key=lambda i: (i.issued_on, i.invoice_id)) if issued else None
 
 
-def _context(client_id: str, tax_year: int | None,
-             invoice_id: str = "") -> dict[str, str]:
+def _agreed_terms(engagement, year: int | None, *, template_key: str,
+                  notes: list[str]) -> dict[str, str]:
+    """What THIS engagement agreed — the layer that stops every letter being one letter.
+
+    ``build_context`` knows the client, the firm and the dates; it cannot know
+    what anybody promised, so the scope and the fee came from standing wording
+    that reads the same for a $450 return and a $5,500 partnership. These facts
+    are derived from the interview answers behind the job — the origin fact —
+    and RECOMPUTED rather than read off a stored copy (principle 3).
+
+    Three ways this answers "nothing", and only one of them is a problem:
+
+    * No engagement on file at all. The draft is for a client we have not
+      quoted, standing wording is the honest thing to offer, and the screen
+      already marks it as machine-drafted.
+    * An engagement for a DIFFERENT YEAR. Terms belong to the year that agreed
+      them, so last year's scope may not be restated as this year's. On a letter
+      that states terms this is worth saying out loud, because the wording that
+      lands instead looks exactly like an agreement.
+    * The facts would not derive. Named with the refusal, because falling back
+      to standing wording silently is how the letter stops being this client's.
+    """
+    if engagement is None:
+        return {}
+
+    if year is not None and getattr(engagement, "tax_year", None) != year:
+        if template_key in _STATES_TERMS:
+            notes.append(
+                f"The newest engagement on file for {STATE.name(engagement.client_id)} "
+                f"is for {engagement.tax_year}, not {year} — a different year's "
+                f"engagement agreed different terms, so nothing below is taken from "
+                f"it. Generate the {year} engagement from intake, or draft the "
+                f"letter for {engagement.tax_year}.")
+        return {}
+
+    from satc.intake.service import letter_facts_for_job
+
+    try:
+        return letter_facts_for_job(STATE.store, engagement)
+    except Exception as refused:  # noqa: BLE001 - a config refusal must not 500 a draft
+        # A comms screen is not where a config refusal should take the app down.
+        # It is also not where standing wording should quietly stand in for what
+        # an engagement agreed: the facts stay ABSENT, so every slot they would
+        # have filled renders `[[ ... : fill in ]]`, and the refusal is shown
+        # with the step that clears it (principles 1 and 10).
+        notes.append(
+            f"SATC could not work out what this engagement agreed, so the scope and "
+            f"fee below are not taken from it. {refused}")
+        return {}
+
+
+def _context(client_id: str, tax_year: int | None, invoice_id: str = "", *,
+             template_key: str = "",
+             notes: list[str] | None = None) -> dict[str, str]:
     """Assemble the merge values for a client from everything on file."""
     lib = library()
     engagement = _newest_engagement(client_id)
     year = tax_year if tax_year is not None else getattr(engagement, "tax_year", None)
-    return build_context(
+    values = build_context(
         client_id=client_id,
         client_name=STATE.name(client_id),
         public_client=STATE.public_client(client_id),
@@ -163,6 +224,36 @@ def _context(client_id: str, tax_year: int | None,
         prior_year=(year - 1) if year else None,
         firm_values=lib.firm_values(),
     )
+
+    # -- what this engagement agreed, LAYERED OVER the generic prefill --------
+    #
+    # In that order on purpose. The generic context still supplies the client,
+    # the firm and the dates; a fact derived from the answers outranks wording
+    # that reads the same for everybody, because this engagement does not.
+    notes = notes if notes is not None else []
+
+    if template_key in _STATES_TERMS:
+        # A LETTER THAT STATES TERMS TAKES ITS FEE FROM THE TERMS, OR FROM
+        # NOTHING. ``build_context`` fills this same name from an ISSUED INVOICE
+        # total: a bill for work already done, standing in the slot where a
+        # client reads what they agreed to pay — a number they will hold the
+        # practice to, on the one document they sign.
+        #
+        # Dropped BEFORE the engagement gets its turn, and dropped whether or
+        # not the engagement can answer. `[[ Fee: fill in ]]` is a question; the
+        # wrong number is not a question, and nobody would ever query it.
+        values.pop("fee_amount_text", None)
+
+    facts = _agreed_terms(engagement, year, template_key=template_key, notes=notes)
+    if facts:
+        # The plan's ask list is the generic one MINUS the work these answers
+        # took out of scope. Dropped first so that "nothing is in scope to ask
+        # for" renders as a visible blank rather than falling back to a list
+        # that asks the client for a document the same plan calls out of scope
+        # — a contradiction only the client, who cannot see the plan, would read.
+        values.pop("requested_items", None)
+        values.update(facts)
+    return values
 
 
 def _fills(form) -> dict[str, str]:
@@ -184,7 +275,8 @@ def _render_screen(*, client_id: str, template_key: str, tax_year: int | None,
     notes = list(notes or [])
     if template is not None and client_id:
         try:
-            values = _context(client_id, tax_year, invoice_id)
+            values = _context(client_id, tax_year, invoice_id,
+                              template_key=template_key, notes=notes)
         except WrongInvoice as refused:
             # The whole screen stands down, template included, so there is
             # nothing here to copy. Rendering a draft anyway would mean
@@ -258,7 +350,14 @@ def comms_outlook():
     tax_year = _int_or_none(request.form.get("tax_year", ""))
     invoice_id = (request.values.get("invoice") or "").strip()
     try:
-        values = _context(client_id, tax_year, invoice_id)
+        # THE SAME SEAM, NOT A SECOND ONE. Both doors into a draft go through
+        # `_context`, so the fee an engagement letter states comes from the
+        # engagement on this path too. The notes it collects are advice about
+        # what could not be derived, and this route hands back a finished
+        # compose window rather than a screen that could show them — the draft
+        # itself still carries every `[[ ... : fill in ]]` they refer to.
+        values = _context(client_id, tax_year, invoice_id,
+                          template_key=template_key)
     except WrongInvoice as refused:
         # This route opens a compose window aimed at the client. Handing it a
         # draft built from a DIFFERENT invoice is the one outcome worse than

@@ -69,7 +69,13 @@
      is the exact thing this invoice exists to prevent, so it is stated here in
      its own right rather than left to a flag that may or may not have been
      reloaded. #}
-  {% set explained = invoice.lines | selectattr('note') | list %}
+  {# ...and only where it is NOT already there. ``rate_adjusted`` DOES survive
+     the store now, so ``describe()`` folds the reason into the block above and
+     repeating it here printed the same sentence twice on the client's copy. A
+     sheet that says a thing twice reads as a mistake, which is a poor advert
+     for an invoice whose entire job is to be legible. #}
+  {% set explained = invoice.lines | selectattr('note')
+                                   | rejectattr('rate_adjusted') | list %}
   {% if explained %}
   <div class="reasons">
     <div class="tagline">Why these lines read as they do</div>
@@ -84,11 +90,21 @@
 
   <p class="sentence">{{ invoice.client_sentence() }}</p>
 
+  {# What the client is told about their own money, off ``_money_state`` and not
+     off a flag. Both directions of that mattered: a sheet saying PAID IN FULL
+     because ``paid_on`` was set while half the bill was still owed, and — the
+     one that actually shipped — a sheet saying NOTHING about a bill the
+     practice recorded as settled two years ago, because the page recomputed it
+     from a ledger that had never heard of it.
+
+     Which kind of record the date came off is deliberately NOT on this sheet.
+     That distinction is the owner's business; to the client, paid in full on
+     the 4th of March means one thing however the practice happens to hold it. #}
   {% if over > 0 %}
   <p class="paid">Received {{ '{:,.2f}'.format(paid) }} — {{ '{:,.2f}'.format(over) }} more than
     was due. We'll be in touch about the difference.</p>
-  {% elif invoice.is_paid %}
-  <p class="paid">Paid in full {{ invoice.paid_on.strftime('%B %d, %Y') }} — thank you.</p>
+  {% elif money.is_settled %}
+  <p class="paid">Paid in full {{ money.settled.strftime('%B %d, %Y') }} — thank you.</p>
   {% elif paid > 0 %}
   <p class="owing">Received {{ '{:,.2f}'.format(paid) }} — thank you.
     {{ '{:,.2f}'.format(owed) }} remains outstanding.</p>

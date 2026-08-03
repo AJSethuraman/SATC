@@ -10,6 +10,7 @@ Screens (built out by the UI workstream):
   GET  /intake/new                   - pick a client + workflow, answer the interview
   POST /intake/new                   - generate the engagement (opens Requested docs)
   GET  /intake/plan                  - the whole engagement the answers imply (reads only)
+  GET  /practice/promises            - which turnarounds this BUILD can check at all
   GET  /engagements                  - list generated engagements
   GET  /engagements/<id>             - tasks grouped by category, risk flags, requests
   POST /engagements/<id>/tasks/<tid> - toggle a task complete
@@ -394,35 +395,125 @@ def _entity_type_for(workflow, public_client) -> str:
     return (getattr(public_client, "entity_type", "") or "").strip().upper()
 
 
-def _sla_outcomes(*, started: dict, today: date):
-    """Every promise on file, each either landed or honestly refused.
+@dataclass(frozen=True, slots=True)
+class PromiseRow:
+    """One promise, on one return, judged — plus the return said in English.
 
-    ``compliance`` and not ``promised_by``: a bare ``None`` from ``promised_by``
-    is not "kept" and not "fine", and a screen that rendered it as an empty cell
-    would be the exact silence principle 1 forbids. ``compliance`` never returns
-    nothing — it returns the refusal with the missing fact named.
+    ``outcome.subject`` is a return KEY, which is the right thing for an engine
+    to carry and the wrong thing to print at somebody. Two rows must never say
+    the same thing (principle 13), and "which return" is what distinguishes
+    them, so it has to be legible: ``2025 Form 1040 · US``, not
+    ``SATC-001000|2025|1040|US``.
     """
-    from satc.work.sla import compliance, slas
 
-    return [compliance(kind, started_on=started.get(spec.starts_when.key), today=today)
-            for kind, spec in sorted(slas().items())]
+    outcome: object
+    about: str
 
 
-def _recorded_starts(client_id: str) -> dict[str, date]:
-    """The SLA clock-starts SATC actually records, for this client.
+def _about_return(subject: str) -> str:
+    """A return key as the owner would say it. The key itself if it is not one.
 
-    Exactly one today. ``satc.work.sla.FACTS`` is candid that most ends of most
-    promises are recorded nowhere — there is no inbound message, no "documents
-    went complete" moment, no delivery fact — so those promises refuse by name
-    and this function has nothing to offer them. The e-file rejection is the one
-    both of whose ends are keyed off Drake and written down.
-
-    Resolving a fact that would be refused anyway would be lookup nobody reads.
+    An unparseable key is printed AS the key rather than prettified into a
+    guess — a fixture key or a hand-made one says which row it is, and inventing
+    a year for it would be inventing a fact (principle 1).
     """
-    rejected = [f for f in STATE.filings()
-                if getattr(f, "client_id", "") == client_id
-                and getattr(f, "is_rejected", False) and f.ack_date]
-    return {"efile_rejected": max(f.ack_date for f in rejected)} if rejected else {}
+    from satc.ids import parse_return_key
+
+    try:
+        _client, year, form, jurisdiction = parse_return_key(subject)
+    except (ValueError, TypeError, AttributeError):
+        return subject
+    return f"{year} Form {form} · {jurisdiction}"
+
+
+def _promise_rows(*, client_id: str, tax_year: int, today: date):
+    """WHERE EACH PROMISE STANDS ON THIS ENGAGEMENT — one row per live clock.
+
+    Four things this replaces, and they were four separate ways of being wrong.
+
+    **It asks the module to resolve the clock, instead of resolving it here.**
+    ``satc.work.sla`` grew :func:`~satc.work.sla.clocks_for` precisely so the
+    two ends of a promise come out of the records together; the old lookup read
+    the START only and left the stop to a default that means *nobody looked*. So
+    every row came back ``unresolved`` and the screen could not report a verdict
+    at all — a compliance panel that had structurally stopped answering the one
+    question it exists for.
+
+    **It is scoped.** ``client_id`` AND ``tax_year``, because a rejection on the
+    2023 1065 is a fact about the 2023 1065; the old scan took the maximum
+    ``ack_date`` over every filing the client had ever had, so a partnership
+    rejection from two years ago landed on a 2025 1040 plan as a promise this
+    engagement never made. Each clock is per RETURN and carries its
+    :attr:`~satc.work.sla.Clock.subject`, which the row prints — a client with a
+    federal and a state rejection has two rows and they say which is which
+    (principle 13).
+
+    Deliberately NOT narrowed to the workflow's own form. A retransmission owed
+    on the client's other 2025 return is still owed, and a filter that hid it
+    would trade a leak for a silence — the worse of the two, because a leak is
+    visible.
+
+    **It walks ``measurable_slas()``.** The promises no amount of keying could
+    answer are not per-engagement rows; see :func:`practice_promise_gaps`.
+
+    **A return with no rejection yields no clock, so it yields no row.** There
+    is no promise outstanding, and "nothing owed here" repeated per return is
+    the wallpaper principle 13 forbids. Silence is the true answer, and the
+    panel says so once, in words, rather than in empty rows.
+    """
+    from satc.work.sla import clocks_for, compliance_for, measurable_slas
+
+    filings = STATE.filings()
+    rows = []
+    for kind in sorted(measurable_slas()):
+        for clock in clocks_for(kind, filings=filings, client_id=client_id,
+                                tax_year=tax_year):
+            # compliance_for, never compliance: the Clock carries both ends and
+            # the return they came from, so there is no argument to forget and
+            # no way for a start and a stop to arrive from different returns.
+            rows.append(PromiseRow(
+                outcome=compliance_for(kind, clock, today=today),
+                about=_about_return(clock.subject)))
+    return rows
+
+
+def practice_promise_gaps():
+    """The promises THIS BUILD cannot measure for anybody. Identical every time.
+
+    Said once, on a screen about the software, and never once per engagement.
+    Which promises are answerable is a fact about what SATC records — the same
+    sentence for every client, every workflow and every week — so rendered on
+    the plan it was five byte-identical rows on every plan the owner ever
+    opened. That is principle 13's wallpaper, and the row somebody learns to
+    scroll past is next to the row that mattered.
+
+    They are NOT deleted, because they are right: SATC genuinely cannot measure
+    a promise whose start fact nobody records, and a refusal that names the
+    missing fact beats a green tick derived from a guess. They moved to where a
+    missing capability belongs, beside the other things this build cannot do —
+    and each row disappears from that list on the day the entity it names lands,
+    which is what makes it a real list rather than decoration.
+    """
+    from satc.work.sla import unmeasurable_promises
+
+    return unmeasurable_promises()
+
+
+@bp.route("/practice/promises", endpoint="promise_capability")
+def promise_capability():
+    """WHAT THIS BUILD CAN AND CANNOT MEASURE — the capability screen.
+
+    Filed under Setup rather than under a client, because nothing here is about
+    a client. It answers "why does my plan only show one promise?", which is a
+    question with an answer, once.
+    """
+    from satc.work.sla import measurable_slas
+
+    return render_template(
+        "practice_promises.html", title="Setup",
+        header="What we promised — and what SATC can actually check",
+        gaps=practice_promise_gaps(), measurable=sorted(
+            measurable_slas().values(), key=lambda d: d.label))
 
 
 # --- reading the answers, and naming what they caused -------------------------
@@ -653,7 +744,11 @@ def engagement_plan():
             mode=(src.get("mode") or "").strip(),
             plan=None, refusal="", blocking=(), expected_late=(), other_needs=(),
             needs_total=0, blocking_basis=None,
-            promises=(), promise_refusal="", fee_slot="")
+            promises=(), promise_refusal="", fee_slot="",
+            # The practice-level gap, counted here and SAID ONCE — a footnote
+            # pointing at the capability screen, not five rows in the table.
+            promise_gaps=0,
+            promise_gaps_url=url_for("intake.promise_capability"))
         context.update(extra)
         return render_template("engagement_plan.html", **context)
 
@@ -697,15 +792,33 @@ def engagement_plan():
             f"is for."))
 
     needs = _needs(plan, workflow)
-    promises, promise_refusal = [], ""
+    promises, promise_refusal, promise_gaps = [], "", 0
     try:
-        promises = _sla_outcomes(started=_recorded_starts(client_id), today=today)
+        promises = _promise_rows(client_id=client_id, tax_year=year, today=today)
+        promise_gaps = len(practice_promise_gaps())
     except ImportError:
         promise_refusal = (
             "SATC holds no turnaround promises on this build — satc.work.sla is not "
             "installed, so nothing has been promised that this screen could show.")
-    except ConfigError as exc:
-        promise_refusal = str(exc)
+    except ConfigError:
+        # A promise both of whose ends are recorded but that nothing knows how to
+        # READ out of the records refuses here rather than rendering as a clean
+        # board. That is the shape a half-finished wiring takes, and it has to be
+        # loud rather than empty.
+        #
+        # THE ENGINE'S WORDS ARE NOT RENDERED, and this is the one place on this
+        # screen where that is right. Everywhere else the refusal is passed
+        # through verbatim because it already names the owner's next step; this
+        # one names a Python function to write, which is a true next step for
+        # somebody who is not reading it. Principle 10 is about the RIGHT next
+        # step, and right depends on the reader — so the owner is told what it
+        # means for them, and the sentence that helps a developer stays on the
+        # exception, where a developer will be standing.
+        promise_refusal = (
+            "One of the turnarounds this practice promises is on file, and this "
+            "build cannot read its clock out of the records — so no promise is "
+            "shown here at all. Nothing you key will change that, and nothing "
+            "below is a clean bill of health: it needs a change to SATC itself.")
 
     return screen(
         plan=plan,
@@ -719,7 +832,8 @@ def engagement_plan():
         other_needs=[n for n in needs if n.blocking == "non_blocking"],
         needs_total=len(needs), blocking_basis=_blocking_basis(plan, workflow, needs),
         # WHAT WE PROMISED, and WHY THE LETTER'S FEE SLOT IS EMPTY when it is.
-        promises=promises, promise_refusal=promise_refusal, fee_slot=_fee_slot(plan))
+        promises=promises, promise_refusal=promise_refusal,
+        promise_gaps=promise_gaps, fee_slot=_fee_slot(plan))
 
 
 @bp.route("/engagements/<job_id>", endpoint="engagement_detail")

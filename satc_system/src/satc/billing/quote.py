@@ -34,6 +34,15 @@ later: a reduced rate plan with no recorded basis (``Invoice.issue`` refuses it,
 and a discount promised then withdrawn is worse than one never offered), and a
 fixed-price service quoted at a quantity other than one (``Invoice.add`` refuses
 it). A guard on one path is not a guard — it is the other path.
+
+WHEN IT REFUSES. When the CONFIG IS READ, never when a client happens to fire
+the broken entry. An error found by quoting a client is an error the owner meets
+in front of that client. So :func:`load_service_map` resolves every rule against
+the catalogue and checks every quantity against its unit, whether or not any
+answer would ever select it — and the condition grammar it shares with the
+tasks: block is validated by the workflow engine that owns it
+(:func:`satc.intake.workflows.validate_conditions`), so one read of the file
+validates all of the file.
 """
 
 from __future__ import annotations
@@ -46,7 +55,12 @@ from typing import Any
 
 from satc.billing.catalogue import RatePlan, Service, _money, plan, service
 from satc.config import CONFIG_ROOT, ConfigError, _load_yaml
-from satc.intake.workflows import evaluate_condition
+from satc.intake.workflows import (
+    answered,
+    condition_holds_by_silence,
+    evaluate_condition,
+    validate_conditions,
+)
 from satc.models.intake import WorkflowDef
 from satc.models.work import Engagement, rate_plan_for
 
@@ -64,12 +78,6 @@ class QuoteError(Exception):
 # the interview does not tell us how much of it", which is a different fact from
 # leaving the service off the workflow entirely.
 _UNKNOWN_QUANTITY = "unknown"
-
-# The whole condition grammar, as :func:`evaluate_condition` actually implements
-# it. Written down here because a services: block is hand-edited and the engine
-# is silent about a word it does not recognise — see :func:`_check_condition`.
-_OPERATORS = ("equals", "not_equals", "includes", "greater_than", "less_than")
-_BRANCHES = ("all", "any")
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,74 +119,6 @@ def _questions_in(condition: dict[str, Any] | None) -> tuple[str, ...]:
     return tuple(found)
 
 
-def _check_condition(node: Any, *, asked: set[str], code: str, path: Path) -> None:
-    """Refuse a gate the engine would silently misread.
-
-    Two typos matter here and both are quiet. A ``question_id`` this workflow
-    does not ask consults nothing, so the leaf reads as an empty answer forever
-    — a $450 line that can never be quoted, or worse, a ``not_equals`` leaf that
-    is therefore always satisfied. A misspelled OPERATOR is worse still:
-    :func:`evaluate_condition` falls off the end of its ladder and returns
-    ``True``, so the line lands on EVERY quote carrying a ``because`` sentence
-    that is not true of the client reading it.
-
-    This block is meant to be hand-edited, so a typo is an ordinary event rather
-    than an exceptional one, and an ordinary event that silently prices work is
-    the kind of quiet this system is built not to have. Principles 5 and 10:
-    refuse it, and name the question and the file.
-    """
-    if node is None or node == {}:
-        return                                   # no gate at all: priced always
-    if not isinstance(node, dict):
-        raise ConfigError(
-            f"{path.name} gates {code!r} on {node!r}, which is not a condition. "
-            f"Write a mapping like {{question_id: movedStates, equals: \"yes\"}}, "
-            f"or leave condition: out to price it on every engagement.")
-
-    branches = [key for key in _BRANCHES if key in node]
-    if branches:
-        extra = sorted(set(node) - set(branches))
-        if len(branches) > 1 or extra:
-            raise ConfigError(
-                f"{path.name} gates {code!r} on a condition combining "
-                f"{', '.join(sorted(branches) + extra)}. A condition is EITHER one "
-                f"'all:'/'any:' branch OR one question test — the engine reads the "
-                f"branch and ignores everything beside it, which is a gate nobody "
-                f"reviewing this file would predict.")
-        children = node[branches[0]]
-        if not isinstance(children, list) or not children:
-            raise ConfigError(
-                f"{path.name} gates {code!r} on an empty {branches[0]!r}. List the "
-                f"conditions it combines, or leave condition: out to price "
-                f"{code!r} on every engagement.")
-        for child in children:
-            _check_condition(child, asked=asked, code=code, path=path)
-        return
-
-    qid = str(node.get("question_id", "")).strip()
-    if not qid:
-        raise ConfigError(
-            f"{path.name} gates {code!r} on {node!r}, which names no question_id. "
-            f"Name a question from this workflow's questions: block.")
-    if qid not in asked:
-        raise ConfigError(
-            f"{path.name} prices {code!r} on question {qid!r}, which this workflow "
-            f"does not ask. It asks: {', '.join(sorted(asked)) or 'nothing'}. "
-            f"Correct the spelling in the services: block, or add the question to "
-            f"questions: — a gate on a question nobody is asked is answered by "
-            f"silence, and silence is not an answer.")
-    used = [op for op in _OPERATORS if op in node]
-    if len(used) != 1:
-        seen = sorted(set(node) - {"question_id"})
-        raise ConfigError(
-            f"{path.name} tests {qid!r} for {code!r} with "
-            f"{', '.join(seen) if seen else 'no comparison at all'}, which the "
-            f"engine does not understand. Use exactly one of: "
-            f"{', '.join(_OPERATORS)}. A test it cannot read is TRUE for "
-            f"everybody, so {code!r} would be on every quote with a reason that "
-            f"is not true of the client reading it.")
-
-
 def _quantity(raw: Any, *, code: str, path: Path) -> Decimal | None:
     if raw is None:
         return Decimal(1)
@@ -216,15 +156,18 @@ def load_service_map(workflow_key: str,
     pricing takes effect on the next quote rather than on the next restart —
     same reasoning as the price cache in :mod:`satc.billing.catalogue`.
 
-    Every condition is checked against the questions THIS FILE asks, read raw
-    rather than off a loaded :class:`WorkflowDef`: the typo being caught lives in
-    the file, and a question the practice has disabled through an override is a
-    different conversation from a question that was never written down.
+    EVERYTHING THIS FILE SAYS IS CHECKED HERE, not only what a particular client
+    happens to fire. The conditions go through
+    :func:`~satc.intake.workflows.validate_conditions`, which reads the tasks:
+    block as well — reading the file validates the file, whichever question
+    brought you to it. And every rule is resolved against the catalogue now, so
+    a service code that does not exist and a quantity its unit forbids are found
+    when the config is READ rather than when somebody quotes the one client the
+    entry fires for.
     """
     path = workflow_path(workflow_key, config_root)
     data = _load_yaml(path)
-    asked = {str(q.get("id", "")).strip() for q in (data.get("questions") or [])
-             if isinstance(q, dict)} - {""}
+    validate_conditions(data, path)
     rules: list[ServiceRule] = []
     for entry in data.get("services") or []:
         if not isinstance(entry, dict):
@@ -237,13 +180,14 @@ def load_service_map(workflow_key: str,
                 f"{path.name} has a services entry with no 'service:' code: "
                 f"{entry!r}. Name a code from configs/billing/services.yaml.")
         condition = entry.get("condition")
-        _check_condition(condition, asked=asked, code=code, path=path)
-        rules.append(ServiceRule(
+        rule = ServiceRule(
             service_code=code,
             condition=condition,
             quantity=_quantity(entry.get("quantity"), code=code, path=path),
             because=" ".join(str(entry.get("because", "")).split()),
-            from_questions=_questions_in(condition)))
+            from_questions=_questions_in(condition))
+        _check_quantity_fits_the_unit(rule, _service_for(rule, path), path)
+        rules.append(rule)
     return tuple(rules)
 
 
@@ -429,43 +373,6 @@ def _and_list(items: Sequence[str], word: str = "or") -> str:
     return ", ".join(items[:-1]) + f" {word} " + items[-1]
 
 
-def _answered(value: Any) -> bool:
-    """Whether the interview holds an answer at all.
-
-    ``None`` is a question never asked and ``""`` is one the form submitted
-    empty; neither is a fact about the client. Principle 2's corollary in the
-    direction that costs money — an explicit "no" is not the same as silence.
-    """
-    return value is not None and str(value).strip() != ""
-
-
-def _fires_on_answers(condition: dict[str, Any] | None,
-                      answers: dict[str, Any]) -> bool:
-    """The condition evaluated with SILENCE COUNTING AS NOTHING.
-
-    :func:`evaluate_condition` reads a missing answer as ``None`` and then
-    compares it like any other value, so ``not_equals: "no"`` is satisfied by a
-    question nobody has answered — silence buying a $145 line, and a client-
-    facing sentence reading ``you answered ""``.
-
-    Here an unanswered leaf is simply false, in EITHER direction. The result is
-    compared against the ordinary evaluation rather than replacing it, because
-    the two disagreeing is itself a fact worth showing: a rule that fires only
-    because of the silence becomes work we cannot price yet, which is visible,
-    rather than a line nobody chose or a line silently dropped.
-    """
-    if not isinstance(condition, dict) or not condition:
-        return evaluate_condition(condition, answers)
-    for branch, combine in (("all", all), ("any", any)):
-        if branch in condition:
-            return combine(_fires_on_answers(child, answers)
-                           for child in condition[branch] or [])
-    qid = condition.get("question_id")
-    if qid is not None and not _answered(answers.get(qid)):
-        return False
-    return evaluate_condition(condition, answers)
-
-
 def _label(workflow: WorkflowDef, qid: str) -> str:
     question = workflow.question(qid)
     return question.label if question else qid
@@ -492,7 +399,7 @@ def _because(rule: ServiceRule, workflow: WorkflowDef,
     if rule.because:
         return rule.because
     said = [f'"{answers[qid]}" to "{_label(workflow, qid)}"'
-            for qid in rule.from_questions if _answered(answers.get(qid))]
+            for qid in rule.from_questions if answered(answers.get(qid))]
     if not said:
         return f"this is part of every {workflow.name.lower()} engagement"
     return "you answered " + _and_list(said)
@@ -542,21 +449,23 @@ def quote_for(workflow: WorkflowDef, answers: dict[str, Any], *, client_id: str,
             f"engagement, or move the client to a plan that needs no basis.")
     rate_plan = plan(on_file.plan_key)
 
+    path = workflow_path(workflow.key, config_root)
     lines: list[QuoteLine] = []
     unpriced: list[UnpricedWork] = []
     for rule in load_service_map(workflow.key, config_root):
-        if not evaluate_condition(rule.condition, answers):
-            continue
-        svc = _service_for(rule, workflow, config_root)
-        _check_quantity_fits_the_unit(rule, svc, workflow, config_root)
-
         # Did the answers put this here, or did the silence? A gate satisfied
         # only because a question is unanswered has decided nothing (principle
         # 2), so it may never become money — but it may not vanish either, or a
-        # $450 line disappears from an estimate with nothing said.
+        # $450 line disappears from an estimate with nothing said. The engine
+        # answers both halves; this module no longer keeps its own copy of the
+        # rule, which is how the two readings drifted apart in the first place.
+        told_us_so = evaluate_condition(rule.condition, answers)
+        if not told_us_so and not condition_holds_by_silence(rule.condition, answers):
+            continue
+        svc = _service_for(rule, path)
+
         silent = tuple(qid for qid in rule.from_questions
-                       if not _answered(answers.get(qid)))
-        told_us_so = not silent or _fires_on_answers(rule.condition, answers)
+                       if not answered(answers.get(qid)))
         because = (_because(rule, workflow, answers) if told_us_so else
                    "nothing on file yet says whether this applies")
 
@@ -595,8 +504,7 @@ def quote_for(workflow: WorkflowDef, answers: dict[str, Any], *, client_id: str,
 
 
 def _check_quantity_fits_the_unit(rule: ServiceRule, svc: Service,
-                                  workflow: WorkflowDef,
-                                  config_root: Path | None) -> None:
+                                  path: Path) -> None:
     """A fixed-price service is one charge, so a quote may only ever say one.
 
     ``Invoice.add`` already refuses any quantity but 1 on a fixed service — it
@@ -606,15 +514,18 @@ def _check_quantity_fits_the_unit(rule: ServiceRule, svc: Service,
     the invoice engine structurally cannot bill: an estimate the owner has to
     walk back with a client who has already read it.
 
-    The check belongs here rather than in :func:`_quantity`, which reads the
-    workflow file with no view of the catalogue. It is the same guard as the
-    invoice's, on the other path — which is the whole lesson of this seam.
+    CALLED FROM :func:`load_service_map`, not from the per-rule loop in
+    :func:`quote_for`. Inside the loop it only ran for entries a particular
+    client's answers fired, so a broken ``services:`` entry sat in the file
+    until somebody happened to quote the one client it applied to — a config
+    error found by a client rather than by reading the config. Every other check
+    on this file happens when the file is read, and so does this one.
     """
     if svc.unit != "fixed" or rule.quantity == 1:
         return
     said = _UNKNOWN_QUANTITY if rule.quantity is None else f"{rule.quantity:g}"
     raise ConfigError(
-        f"{workflow_path(workflow.key, config_root).name} prices {svc.code!r} at "
+        f"{path.name} prices {svc.code!r} at "
         f"a quantity of {said}, but configs/billing/services.yaml calls "
         f"{svc.name} a FIXED-price service — one charge, however long it takes. "
         f"An invoice refuses any quantity but 1 on it, so this quote could never "
@@ -622,15 +533,14 @@ def _check_quantity_fits_the_unit(rule: ServiceRule, svc: Service,
         f"catalogue if it genuinely multiplies.")
 
 
-def _service_for(rule: ServiceRule, workflow: WorkflowDef,
-                 config_root: Path | None) -> Service:
+def _service_for(rule: ServiceRule, path: Path) -> Service:
     try:
         return service(rule.service_code)
     except ConfigError as unknown:
         # Principle 10: name both files, because the fix is in one of them and
         # the reader cannot tell which without being told what each says.
         raise ConfigError(
-            f"{workflow_path(workflow.key, config_root).name} prices "
+            f"{path.name} prices "
             f"{rule.service_code!r}, which the service catalogue does not have. "
             f"Either add it to configs/billing/services.yaml or correct the "
             f"services: block. ({unknown})") from None

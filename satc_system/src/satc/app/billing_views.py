@@ -50,6 +50,7 @@ Routes:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
@@ -80,7 +81,6 @@ from satc.billing.payment import (
     Method,
     Payment,
     accept_choice,
-    apply_all,
     apply_to_invoice,
     merge,
     outstanding,
@@ -180,6 +180,173 @@ def _settle(invoice: Invoice, ledger) -> Invoice:
     if invoice.paid_on != before:
         STATE.store.save_invoices([invoice])
     return invoice
+
+
+def _in_step(invoices, ledger) -> list[Invoice]:
+    """Every invoice whose paid state the ledger can answer, brought into line.
+
+    This is ``apply_all`` with one thing held back. ``apply_to_invoice`` sets
+    ``paid_on`` to whatever the ledger says, and what an EMPTY ledger says is
+    None — so running it across the book quietly erases the paid date of any
+    invoice settled before payments were recorded facts. That is the pre-ledger
+    record described below, and it is a fact, not a stale flag. An invoice the
+    ledger has never heard of is therefore left exactly as it was found.
+
+    The corrected flag is written back rather than only computed for the page,
+    because ``paid_on`` is what the queue and the overdue check read, and a
+    summary that is right on one screen and stale on the next is worse than no
+    summary. Idempotent: nothing is written when nothing moved (principle 8).
+    """
+    known = {p.invoice_id for p in ledger if p.invoice_id}
+    for invoice in invoices:
+        if invoice.invoice_id in known:
+            _settle(invoice, ledger)
+    return list(invoices)
+
+
+# --- what KIND of record says an invoice is paid ------------------------------
+#
+# Two different facts can answer "was this paid", and they are not the same fact.
+#
+#   LEDGER      Payments are recorded against it. How much arrived, when the
+#               balance cleared, whether they overpaid — every figure is
+#               COMPUTED, and the invoice can be asked any of those questions.
+#
+#   PRE-LEDGER  ``paid_on`` is set and no payment is recorded against it. This
+#               is the flag the old screens wrote, before money arriving was a
+#               fact of its own. It says THE BILL WAS SETTLED, ON THAT DAY, and
+#               it cannot say how much arrived, in how many parts, or by what
+#               rail. Coarse — but recorded, and the practice has nothing else.
+#
+# Recomputing the second from an empty ledger is how an invoice paid two years
+# ago came back fully unpaid on its own page while the printed copy silently
+# dropped "Paid in full": data loss, in the client's favour, on the one piece of
+# paper that must never be wrong. So the coarse record is KEPT — and every
+# screen says which of the two it is showing, because a summary and a
+# computation that read identically are indistinguishable exactly when it
+# matters (principle 4's rule about two kinds of thing, pointed at money).
+#
+# Where the ledger has anything at all to say, it wins: it is the finer record,
+# and principle 11b is not negotiable once the facts exist.
+
+LEDGER = "ledger"
+PRE_LEDGER = "pre_ledger"
+NOTHING = "nothing"
+
+# How each reads on screen. A key from a finite set, words looked up here — the
+# same rule the method picker answers to.
+RECORD_LABEL = {
+    LEDGER: "computed from the payment ledger",
+    PRE_LEDGER: "recorded before the payment ledger existed",
+    NOTHING: "nothing recorded",
+}
+
+_ZERO = Decimal("0.00")
+
+
+@dataclass(frozen=True, slots=True)
+class _Money:
+    """What is known about one invoice's money, and HOW it is known.
+
+    Built once per invoice and handed to the templates whole, so the list, the
+    invoice page and the printed copy cannot answer the same question
+    differently — which is precisely what happened while each screen reached
+    for whichever of ``paid_on`` and the ledger was nearest.
+    """
+
+    record: str
+    paid: Decimal
+    owed: Decimal
+    over: Decimal
+    settled: date | None
+    payments: tuple
+
+    @property
+    def from_ledger(self) -> bool:
+        return self.record == LEDGER
+
+    @property
+    def pre_ledger(self) -> bool:
+        return self.record == PRE_LEDGER
+
+    @property
+    def is_settled(self) -> bool:
+        """Nothing is owed AND something is actually recorded as having paid it.
+
+        A nil invoice owes nothing either; that is not the same as settled, and
+        the free-plan branch on the invoice page is what says so."""
+        return self.owed == 0 and self.record != NOTHING
+
+    @property
+    def part_paid(self) -> bool:
+        return self.owed > 0 and self.paid > 0
+
+    @property
+    def how_we_know(self) -> str:
+        return RECORD_LABEL[self.record]
+
+
+def _money_state(invoice: Invoice, ledger) -> _Money:
+    """The paid state of one invoice, and which kind of record it rests on.
+
+    The single place any screen asks. Ledger first, because it is the finer
+    record; the coarse flag only answers where the ledger is silent about this
+    invoice, and it is returned LABELLED rather than laundered into a figure
+    that looks computed.
+
+    This is the same rule ``actions.propose.balance_owed`` already applies when
+    it decides whether to chase — ledger where the ledger has anything to say,
+    ``paid_on`` as the fallback and never as a veto. Deliberately identical: the
+    queue not chasing an invoice while the invoice screen shows it unpaid is the
+    same fact answered two ways, and two answers is one too many.
+    """
+    mine = tuple(sorted((p for p in ledger if p.invoice_id == invoice.invoice_id),
+                        key=lambda p: (p.received_on, p.payment_id), reverse=True))
+    if mine:
+        apply_to_invoice(invoice, ledger)
+        return _Money(record=LEDGER, paid=paid_on_invoice(invoice, ledger),
+                      owed=outstanding(invoice, ledger),
+                      over=overpaid_by(invoice, ledger),
+                      settled=settled_on(invoice, ledger), payments=mine)
+    if invoice.paid_on is not None:
+        # The flag is read, never recomputed — and never overwritten. What it
+        # says is "this bill was settled on this day", which is the meaning the
+        # screens that wrote it gave it and the meaning ``billed_to_date`` has
+        # always read out of it. Taking the total as the amount is reading that
+        # record, not inventing one; what would be an invention is presenting it
+        # as though the ledger had produced it, which is why nothing renders it
+        # without ``how_we_know`` alongside.
+        return _Money(record=PRE_LEDGER, paid=invoice.total, owed=_ZERO,
+                      over=_ZERO, settled=invoice.paid_on, payments=())
+    return _Money(record=NOTHING, paid=_ZERO, owed=outstanding(invoice, ledger),
+                  over=_ZERO, settled=None, payments=())
+
+
+def _reconcilable(invoices, ledger) -> list[Invoice]:
+    """The invoices reconciliation is allowed to consider.
+
+    ``_open_for`` in the engine asks whether an invoice is settled, and that is
+    a LEDGER question: an invoice recorded paid before the ledger existed has no
+    payments against it, so it reads as wide open and gets put forward as a
+    candidate for the next deposit that walks in. Offering to attribute money to
+    a bill already recorded as settled is how one fee ends up collected twice on
+    paper, so the coarse record is honoured and those invoices are not offered.
+
+    Held back from the CANDIDATE LIST only. They stay on every screen, and
+    nothing here hides a payment.
+    """
+    return [i for i in invoices if not _money_state(i, ledger).pre_ledger]
+
+
+def _sum(amounts) -> Decimal:
+    """Add money that is already money.
+
+    Every figure fed in here came out of ``_money()`` in the engine, so it is
+    already exact to the cent and this cannot round anything — which is the only
+    reason a view is allowed to add at all. It never derives an amount; it
+    totals ones the engine struck.
+    """
+    return sum(amounts, _ZERO)
 
 
 # --- the draft ----------------------------------------------------------------
@@ -446,6 +613,44 @@ def _a_date(raw: str, *, fallback: date) -> tuple[date | None, str]:
                       f"(for example {fallback.isoformat()}).")
 
 
+def _an_arrival_date(raw: str, *, today: date,
+                     invoice: Invoice | None = None) -> tuple[date | None, str]:
+    """The day money arrived — and it has to be a day that has happened.
+
+    THIS GUARD HAS TO BE SYMMETRICAL, and for a while it was not. A payment
+    dated before its invoice was refused, while the same mistyped year in the
+    other direction sailed through: ``received_on=2062-03-01`` settled the
+    invoice, took it off the chase, and printed "Paid in full March 01, 2062" on
+    the copy the client receives. A date in the future is not a payment, it is a
+    typo or an expectation, and neither is a fact about money that has arrived
+    (principle 2).
+
+    It also has to be on EVERY path. The invoice page had the backwards half of
+    it; the Payments screen — where a cheque in the post is recorded, with no
+    invoice to compare against — had no date guard at all in either direction.
+    So the rule lives here, once, and both callers ask it.
+    """
+    received_on, problem = _a_date(raw, fallback=today)
+    if problem:
+        return None, problem
+    if received_on > today:
+        return None, (f"{received_on:%B %d, %Y} has not happened yet, so no money "
+                      f"arrived on it. Check the year on the deposit — a date in "
+                      f"the future settles the invoice, takes it off the chase, "
+                      f"and prints a thank-you dated {received_on:%Y} on the copy "
+                      f"the client reads.")
+    if invoice is not None and invoice.issued_on and received_on < invoice.issued_on:
+        # Money cannot have arrived against a bill that did not exist yet. The
+        # old screen took the date on trust, so a mistyped year filed a payment
+        # decades before the work — and nothing downstream could tell.
+        return None, (f"{received_on:%B %d, %Y} is before invoice "
+                      f"{invoice.invoice_id} was issued on "
+                      f"{invoice.issued_on:%B %d, %Y}. Money cannot have arrived "
+                      f"against a bill that did not exist yet — check the date on "
+                      f"the deposit, or record it against the invoice it paid.")
+    return received_on, ""
+
+
 _NOT_AN_ARRIVAL = ("Write what arrived as a plain number of dollars, like 450 "
                    "or 187.50.")
 
@@ -520,11 +725,22 @@ def _build_screen(*, error: str = "", note: str = ""):
 
 @bp.route("/invoices")
 def invoices():
-    """Every invoice the practice has raised, and what each client is into us for."""
+    """Every invoice the practice has raised, and what each client is into us for.
+
+    THE HEADLINE MONEY SCREEN, and the last one still answering from the flag.
+    Both halves of it did: the status column read ``invoice.is_paid``, and the
+    running total counted a whole invoice as paid the moment ``paid_on`` was
+    non-empty. Neither could see a part payment, and neither could see a payment
+    recorded anywhere other than an invoice's own page — so a deposit written
+    through the store seam left the invoice reading Overdue while the money sat
+    on the ledger next to it.
+    """
     today = date.today()
     year = _working_year()
-    rows = sorted(STATE.store.load_invoices(),
+    ledger = _ledger()
+    rows = sorted(_in_step(STATE.store.load_invoices(), ledger),
                   key=lambda i: (i.issued_on or date.min, i.invoice_id), reverse=True)
+    listed = [{"invoice": inv, "money": _money_state(inv, ledger)} for inv in rows]
     # Only clients with something billed IN THAT YEAR get a row. Building the
     # row set from every client who has ever been invoiced puts a line of zeros
     # against someone whose work was last season — and "Outstanding 0.00" next
@@ -532,13 +748,40 @@ def invoices():
     # all (principle 13).
     billed_this_year = sorted({i.client_id for i in rows
                                if i.tax_year == year and i.is_issued})
-    running = [(cid, STATE.name(cid), billed_to_date(rows, client_id=cid, tax_year=year))
+    running = [_running_total(rows, ledger, client_id=cid, tax_year=year)
                for cid in billed_this_year]
     draft = _draft()
     return render_template(
-        "invoices.html", title="Invoices", invoices=rows, running=running,
+        "invoices.html", title="Invoices", listed=listed, running=running,
         tax_year=year, today=today,
         draft=draft, draft_lines=len(draft.get("lines", [])))
+
+
+def _running_total(invoices, ledger, *, client_id: str, tax_year: int) -> dict:
+    """What one client has been billed this season, and what has actually landed.
+
+    What was BILLED is the engine's own ``billed_to_date``. What has been PAID
+    is not taken from it: that figure is summed off ``paid_on``, so a client who
+    has paid 300 of a 450 invoice counts as having paid nothing, and one whose
+    payment came in through the tray counts as having paid nothing either. Both
+    are answered here off the ledger, invoice by invoice, and the count of
+    invoices resting on the coarse pre-ledger record travels with the row so the
+    screen can say the total is not all of one kind.
+    """
+    billed = billed_to_date(invoices, client_id=client_id, tax_year=tax_year)
+    mine = [i for i in invoices if i.client_id == client_id
+            and i.tax_year == tax_year and i.is_issued]
+    states = [_money_state(i, ledger) for i in mine]
+    return {
+        "client_id": client_id,
+        "name": STATE.name(client_id),
+        "invoices": billed["invoices"],
+        "standard_value": billed["standard_value"],
+        "charged": billed["charged"],
+        "paid": _sum(s.paid for s in states),
+        "outstanding": _sum(s.owed for s in states),
+        "pre_ledger": sum(1 for s in states if s.pre_ledger),
+    }
 
 
 @bp.route("/invoices/new", methods=["GET", "POST"])
@@ -639,20 +882,11 @@ def mark_paid(invoice_id: str):
 
     amount, trouble = _an_amount(request.form.get("amount", ""))
     problem = problem or trouble
-    received_on, trouble = _a_date(request.form.get("received_on", ""),
-                                   fallback=date.today())
+    received_on, trouble = _an_arrival_date(request.form.get("received_on", ""),
+                                            today=date.today(), invoice=invoice)
     problem = problem or trouble
     method, trouble = _a_method(request.form.get("method", ""))
     problem = problem or trouble
-    if not problem and invoice.issued_on and received_on < invoice.issued_on:
-        # Money cannot have arrived against a bill that did not exist yet. The
-        # old screen took the date on trust, so a mistyped year filed a payment
-        # decades before the work — and nothing downstream could tell.
-        problem = (f"{received_on:%B %d, %Y} is before invoice "
-                   f"{invoice.invoice_id} was issued on "
-                   f"{invoice.issued_on:%B %d, %Y}. Money cannot have arrived "
-                   f"against a bill that did not exist yet — check the date on "
-                   f"the deposit, or record it against the invoice it paid.")
     if problem:
         return _view_screen(invoice, error=problem)
 
@@ -691,16 +925,22 @@ def print_invoice(invoice_id: str):
     # The client's copy tells the truth about their balance, so it reads the
     # ledger too. A sheet that says PAID IN FULL because a flag was set, when
     # half the bill is still outstanding, is the one piece of paper that must
-    # never be wrong.
+    # never be wrong — and the mirror of that is the sheet that says nothing at
+    # all about a bill the practice has recorded as settled, which is what a
+    # pre-ledger invoice printed until ``_money_state`` started keeping it.
+    #
+    # This sheet carries the FACT and not the provenance. Which of the practice's
+    # two kinds of record a payment date came off is an internal distinction and
+    # belongs on the owner's screens; to the client, "paid in full on the 4th of
+    # March" means exactly one thing either way.
     ledger = _ledger(invoice.client_id)
-    apply_to_invoice(invoice, ledger)
+    money = _money_state(_in_step([invoice], ledger)[0], ledger)
     # The letterhead comes from the practice's own config, not from a string in
     # a template — the firm's name is a recorded fact like any other.
     return render_template("invoice_print.html", invoice=invoice,
                            client_name=STATE.name(invoice.client_id),
-                           paid=paid_on_invoice(invoice, ledger),
-                           owed=outstanding(invoice, ledger),
-                           over=overpaid_by(invoice, ledger),
+                           money=money, paid=money.paid, owed=money.owed,
+                           over=money.over,
                            firm=library().firm_values(), today=date.today())
 
 
@@ -726,14 +966,21 @@ def _payments_screen(*, error: str = "", note: str = ""):
     # ``paid_on`` is only a summary, so reconcile against invoices brought into
     # line with the ledger first — otherwise a stale flag decides which invoices
     # count as open, and the ladder answers the wrong question.
-    invoices = apply_all(STATE.store.load_invoices(), ledger)
+    invoices = _in_step(STATE.store.load_invoices(), ledger)
+    on_file = {i.invoice_id for i in invoices}
     newest = sorted(ledger, key=lambda p: (p.received_on, p.payment_id), reverse=True)
 
-    matched = [{"payment": p, "name": STATE.name(p.client_id)}
+    # An attribution can outlive the invoice it points at. The store keeps such
+    # a row loadable on purpose — a payment attributed to nothing is exactly the
+    # kind of thing the owner has to be shown — but the screen was rendering it
+    # as an ordinary row with a working link, and the link went to a 404. What
+    # is wrong with the row travels WITH the row (principle 13).
+    matched = [{"payment": p, "name": STATE.name(p.client_id),
+                "on_file": p.invoice_id in on_file}
                for p in newest if p.is_matched]
     tray = []
     for payment in (p for p in newest if not p.is_matched):
-        match = reconcile(payment, invoices, ledger)
+        match = reconcile(payment, _reconcilable(invoices, ledger), ledger)
         tray.append({
             "payment": payment, "name": STATE.name(payment.client_id),
             "match": match,
@@ -772,8 +1019,11 @@ def record_payment():
                    "client total that sums the ledger.")
     amount, trouble = _an_amount(request.form.get("amount", ""))
     problem = problem or trouble
-    received_on, trouble = _a_date(request.form.get("received_on", ""),
-                                   fallback=date.today())
+    # No invoice to compare against here — this is money that arrived against
+    # nothing in particular. The half of the guard that does not need one still
+    # applies: a day that has not happened is not a day money arrived on.
+    received_on, trouble = _an_arrival_date(request.form.get("received_on", ""),
+                                            today=date.today())
     problem = problem or trouble
     method, trouble = _a_method(request.form.get("method", ""))
     problem = problem or trouble
@@ -814,8 +1064,8 @@ def match_payment(payment_id: str):
             f"an invoice's own page or on the Payments screen — if this one has "
             f"never been recorded, record it there first."))
 
-    invoices = apply_all(STATE.store.load_invoices(), ledger)
-    match = reconcile(payment, invoices, ledger)
+    invoices = _in_step(STATE.store.load_invoices(), ledger)
+    match = reconcile(payment, _reconcilable(invoices, ledger), ledger)
     try:
         require_human(acting_actor(), "attribute a payment", instead=_ISSUE_INSTEAD)
         if match.is_resolved:
@@ -881,25 +1131,25 @@ def _find(invoice_id: str) -> Invoice:
 
 
 def _view_screen(invoice: Invoice, *, error: str = "", note: str = ""):
-    """The invoice, and the ledger its paid state is computed from.
+    """The invoice, and the record its paid state rests on.
 
     Every figure here comes off :mod:`satc.billing.payment` — what has been
     paid, what is still owed, whether the client OVERPAID. The last one is
     surfaced rather than swallowed: money beyond the total is owed a
     conversation, and an invoice screen that just says "paid" is where that
     conversation stops happening.
+
+    And it says WHICH KIND of record it is reading. An invoice settled before
+    the ledger existed used to read here as never having been paid at all,
+    because the page recomputed it from an empty ledger and believed the answer.
     """
     ledger = _ledger(invoice.client_id)
-    apply_to_invoice(invoice, ledger)          # show the computed state, not a flag
-    mine = sorted((p for p in ledger if p.invoice_id == invoice.invoice_id),
-                  key=lambda p: (p.received_on, p.payment_id), reverse=True)
+    money = _money_state(_in_step([invoice], ledger)[0], ledger)
     return render_template(
         "invoice_view.html", title=f"Invoice {invoice.invoice_id}",
         invoice=invoice, client_name=STATE.name(invoice.client_id),
-        payments=mine, methods=list(Method), method_label=_METHOD_LABEL,
+        money=money, payments=money.payments,
+        methods=list(Method), method_label=_METHOD_LABEL,
         how_matched=_HOW_MATCHED,
-        paid=paid_on_invoice(invoice, ledger),
-        owed=outstanding(invoice, ledger),
-        over=overpaid_by(invoice, ledger),
-        settled=settled_on(invoice, ledger),
+        paid=money.paid, owed=money.owed, over=money.over, settled=money.settled,
         today=date.today(), error=error, note=note)

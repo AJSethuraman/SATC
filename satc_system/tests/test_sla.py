@@ -261,11 +261,30 @@ def test_a_stop_fact_nobody_records_refuses_even_when_the_start_is_recorded():
     assert "when our response to the notice went out" in out.why
 
 
-def test_no_delivery_fact_is_invented_from_a_finished_task_list():
-    """satc.work.stage refuses to conclude delivery; this must not undo that."""
-    assert not FACTS["return_delivered"].is_recorded
-    assert "a finished task list is not a delivery" in \
-        FACTS["return_delivered"].would_need
+def test_delivery_is_now_a_recorded_fact_and_still_does_not_make_a_metric():
+    """The entry that flipped, and the half-clock it must not become.
+
+    ``satc.models.deliverable`` is persisted and reads back per client, so *when
+    the return went to the client* is a recorded fact at last — this module's
+    map of what SATC can see has to say so, or it lies in the other direction.
+
+    And it changes nothing about ``return_turnaround``, which is the point worth
+    guarding. That promise STARTS at ``documents_complete``, which is recorded
+    nowhere, and half a clock measures nothing. The tempting move once one end
+    lands is to start it from something adjacent — the job's creation, the last
+    task ticked — and report a number. The refusal must still name the START.
+    """
+    assert FACTS["return_delivered"].is_recorded, (
+        "delivery is persisted and readable; claiming otherwise is the same "
+        "lie as claiming a fact SATC does not hold, pointed the other way")
+    assert "Deliverable" in FACTS["return_delivered"].recorded_as
+
+    out = compliance("return_turnaround", started_on=date(2026, 3, 3),
+                     closed_on=date(2026, 3, 20), today=date(2026, 3, 30))
+    assert out.status == "unmeasurable"
+    assert out.missing_fact == "documents_complete", (
+        "one end of the clock landing turned the other end into a metric")
+    assert "return_turnaround" not in measurable_slas()
 
 
 def test_a_recordable_start_that_is_blank_says_where_it_would_go(policy):

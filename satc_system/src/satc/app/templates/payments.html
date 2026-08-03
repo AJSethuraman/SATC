@@ -96,8 +96,21 @@
         <td>{{ row.payment.received_on.strftime('%Y-%m-%d') }}</td>
         <td class="right mono">{{ '{:,.2f}'.format(row.payment.amount) }}</td>
         <td>{{ row.name }} <span class="mono muted">{{ row.payment.client_id }}</span></td>
+        {# An attribution can outlive the invoice it names. The store keeps the
+           row loadable on purpose — money pointing at nothing is exactly what
+           the owner needs to see — but rendering it as an ordinary link sent
+           them into a 404 with no idea why. A stale attribution is shown AS
+           stale, with what is wrong on the row itself (principle 13). #}
+        {% if row.on_file %}
         <td><a class="mono"
                href="{{ url_for('billing.view', invoice_id=row.payment.invoice_id) }}">{{ row.payment.invoice_id }}</a></td>
+        {% else %}
+        <td><span class="mono">{{ row.payment.invoice_id }}</span>
+          <div class="flag">not on file</div>
+          <div class="hint">This money is attributed to an invoice that is no longer
+            on file, so it counts towards no balance anywhere. Raise the invoice, or
+            re-attribute the payment to the one it actually paid.</div></td>
+        {% endif %}
         <td>{{ method_label[row.payment.method] }}</td>
         <td class="mono muted">{{ row.payment.reference or '—' }}</td>
         {# A payment the reference NAMED and one a model picked are not the same

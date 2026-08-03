@@ -295,7 +295,28 @@
 </div>
 
 {# ------------------------------------------------------------- what we said #}
-<div class="panel">
+{#
+  EVERY ROW HERE CAN CHANGE, AND EVERY ROW IS ABOUT THIS CLIENT.
+
+  It used to carry five rows that were byte-identical on every plan for every
+  client forever — "SATC cannot tell you whether this was met: nothing records
+  when the documents went complete" and four more like it. Those refusals are
+  RIGHT and they are not deleted; they are statements about what this BUILD
+  records, so they are said once, on the capability screen linked below, and not
+  once per engagement. A table whose rows never move is what teaches somebody to
+  scroll past the row that mattered (principle 13).
+
+  What is left is the promises SATC can actually answer, one row per RETURN with
+  a live clock, each carrying the verdict the engine reached and the return it is
+  about. A row appears when a fact starts a clock and clears when a fact stops
+  it — the retransmission being recorded clears the retransmission promise, which
+  is the whole difference between a queue and a monument.
+
+  `data-kind="promise"` sits on the panel as well as on each row: this is a
+  PROMISE panel whether or not any clock is running, and principle 4's marking
+  cannot be allowed to disappear along with the rows.
+#}
+<div class="panel" data-kind="promise">
   {# The kind is said ONCE, at the top. Repeating it on every row would be two
      rows saying the same thing (principle 13); the rows keep the distinction in
      `data-kind` and in the dashed rule down their left edge. #}
@@ -304,16 +325,24 @@
     {% if promise_refusal %}
     <p class="note flag">{{ promise_refusal }}</p>
     {% elif not promises %}
-    <p class="note">The practice has written down no turnaround promises, so none have been
-      made. That is a real answer, not a blank.</p>
+    {# NOT "no promises exist" — the practice makes several. Nothing has STARTED
+       one on this engagement, which is a different answer and a true one, and it
+       changes the day something does. #}
+    <p class="note">Nothing on this engagement has started one of our promise clocks.
+      Nothing is owed and nothing is late — and this is an answer rather than a blank:
+      the day a fact starts a clock, a return coming back rejected say, a row appears
+      here with the date we owe by.</p>
     {% else %}
     <table>
-      <tr><th>Promise</th><th class="right">Where it stands</th></tr>
-      {% for p in promises %}
-      <tr class="dateline promise" data-kind="promise">
+      <tr><th>Promise</th><th>About</th><th class="right">Where it stands</th></tr>
+      {% for row in promises %}{% set p = row.outcome %}
+      <tr class="dateline promise" data-kind="promise" data-status="{{ p.status }}">
         <td style="border-left:4px dotted var(--gold-deep);padding-left:10px">
           <strong>{{ p.label }}</strong>
           <div class="muted mono">{{ p.kind }}</div></td>
+        {# WHICH RETURN. A client with a federal and a state rejection has two rows,
+           and without this they read as the same row printed twice. #}
+        <td class="muted">{{ row.about }}</td>
         <td class="right">
           {% if p.promise %}
           {# THE STATUS, NOT JUST THE DATE. `compliance` has already judged this one;
@@ -335,8 +364,10 @@
           <div class="{{ 'flag' if p.is_missed else 'muted' }}">{{ p.why }}</div>
           {% endif %}
           {% else %}
-          {# The named refusal, verbatim. It says which fact nobody records and
-             what would have to exist for the promise to be answerable. #}
+          {# A promise with no landed date at all. Nothing on this screen can produce
+             one today — both ends are resolved before the row is built — but a
+             refusal reaching a reader must still say what it is rather than render
+             as an empty cell (principle 1). #}
           <span class="muted">{{ p.why }}</span>
           {% endif %}
         </td>
@@ -347,6 +378,16 @@
     <p class="note">A promise is neither a statute nor a cutoff. It is something this practice
       offered, and breaking one costs an apology rather than a penalty. It is only answerable
       at all where both ends of its clock are written down.</p>
+    {% if promise_gaps %}
+    {# SAID ONCE, AS A FOOTNOTE, AND NOT AS ROWS. The count is about SATC, not about
+       this client, so it is a sentence pointing at the screen where it belongs —
+       not {{ promise_gaps }} table rows repeated on every plan forever. #}
+    <p class="note muted">{{ promise_gaps }} of the turnarounds this practice promises cannot be
+      checked here at all — not for {{ client_name or 'this client' }}, but for anybody,
+      because nothing in SATC records the fact their clock starts or stops at. That is the
+      same on every plan, so it is said in one place:
+      <a href="{{ promise_gaps_url }}">what SATC can and cannot check →</a></p>
+    {% endif %}
   </div>
 </div>
 

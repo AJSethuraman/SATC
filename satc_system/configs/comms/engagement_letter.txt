@@ -19,6 +19,8 @@ SCOPE OF SERVICES
 
 WHAT WE NEED FROM YOU
 
+{requested_items}
+
 You are responsible for the completeness and accuracy of the records and representations
 you provide. We will prepare your return from the information you give us; we do not
 audit or independently verify it. If we notice something that looks incorrect or
@@ -27,6 +29,8 @@ incomplete, we will raise it with you.
 FEES
 
 {fee_terms}
+
+Fee for the work described above: {fee_amount_text}
 
 OUR RECORDS
 

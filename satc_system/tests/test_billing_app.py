@@ -957,6 +957,178 @@ def test_choosing_a_plan_yourself_is_kept_over_the_engagements(client, agreed_pl
 
 # --- nothing here sends anything ---------------------------------------------
 
+# --- every screen that states money answers from the ledger -------------------
+#
+# Principle 11b is not "the invoice page computes the balance". Money arriving is
+# the fact EVERYWHERE it is stated, and a flag left answering on one screen is
+# the same bug wearing a different URL. These drive the four screens that state
+# money — the list, the invoice, its printable copy, and the payments screen —
+# through the real app, against payments written through the real store seam.
+
+def _row_for(body: str, key: str) -> str:
+    """The one table row that mentions ``key``.
+
+    Assertions about what a row says must not be satisfiable by a different
+    row: a screen showing three invoices will contain the word "Settled"
+    somewhere whatever it says about the one being asked about.
+    """
+    for chunk in body.split("<tr>"):
+        if key in chunk:
+            return chunk
+    return ""
+
+
+def _raised(body: str) -> str:
+    return body.split("Billed to date", 1)[0]
+
+
+def _running(body: str) -> str:
+    return body.split("Billed to date", 1)[1]
+
+
+def _screen_year() -> int:
+    """The tax year the Invoices screen groups its running total by.
+
+    Asked of the screen's own helper rather than assumed: the running total only
+    lists clients with activity in the working year, so a test that hardcodes a
+    year proves nothing about the running total on any machine where the
+    practice is working on a different one.
+    """
+    from satc.app.billing_views import _working_year
+
+    return _working_year()
+
+
+def _straight_to_the_ledger(**fields):
+    """A payment written through the store seam, with no screen involved.
+
+    This is how a payment arrives from anywhere that is not the invoice page —
+    an import, another screen, the reconciliation tray — and it is the case a
+    flag-reading screen gets wrong, because ``paid_on`` is never touched.
+    """
+    from satc.billing.payment import Payment
+
+    payment = Payment(**fields)
+    STATE.store.save_payments([payment])
+    return payment
+
+
+def test_the_list_screen_answers_from_the_ledger_not_from_the_flag(client):
+    """The practice's headline money screen. Both the status column and the
+    running total used to read ``invoice.paid_on``, which cannot see a part
+    payment and cannot see a payment recorded anywhere but here."""
+    from satc.billing.payment import MatchBasis, Method
+
+    cid = "SATC-LIST-LEDGER"
+    year = _screen_year()
+    _header(client, client_id=cid, tax_year=year)
+    _add(client, "return_1040")                              # 450.00
+    part, _ = _issue(client, issued_on="2026-03-01")
+    _header(client, client_id=cid, tax_year=year)
+    _add(client, "return_1040")                              # 450.00
+    full, _ = _issue(client, issued_on="2026-03-02")
+
+    _pay(client, part, amount="300", received_on="2026-03-10")
+    _straight_to_the_ledger(
+        client_id=cid, amount=Decimal("450.00"), received_on=date(2026, 3, 11),
+        method=Method.TRANSFER, reference=full, invoice_id=full,
+        basis=MatchBasis.REFERENCE)
+    assert _stored(full).paid_on is None, "the flag really is out of step"
+
+    body = _text(client.get("/invoices"))
+
+    settled = _row_for(_raised(body), full)
+    assert "Settled" in settled
+    assert "Overdue" not in settled, "the ledger says it is paid; the flag said nothing"
+
+    owing = _row_for(_raised(body), part)
+    assert "Part paid" in owing, "half the money arriving is not 'paid' and not 'unpaid'"
+    assert "150.00" in owing, "the row has to name what is still owed"
+
+    total = _row_for(_running(body), cid)
+    assert "750.00" in total, "Billed to date must sum the ledger, part payments and all"
+    assert "150.00" in total
+
+
+def test_an_invoice_paid_before_the_ledger_existed_is_kept_and_said_to_be_coarser(client):
+    """``paid_on`` set, no payment rows — the record the old screens wrote.
+
+    Recomputing it from an empty ledger answered "fully unpaid", which is real
+    data loss in the client's favour, and the printed copy silently dropped
+    "Paid in full" altogether. It is a recorded fact, just a coarser one, and
+    every screen has to say WHICH kind it is showing.
+    """
+    cid = "SATC-PRELEDGER"
+    _header(client, client_id=cid, tax_year=_screen_year())
+    _add(client, "return_1040")                              # 450.00
+    number, _ = _issue(client, issued_on="2024-02-01")
+
+    stored = _stored(number)
+    stored.paid_on = date(2024, 3, 4)                        # the old flag, as written
+    STATE.store.save_invoices([stored])
+    assert _ledger_for(cid) == [], "no payment row exists for it"
+
+    page = _text(client.get(f"/invoices/{number}"))
+    assert "Nothing recorded against this invoice yet" not in page
+    assert "March 04, 2024" in page
+    assert "before the payment ledger" in page, "it must say which record this is"
+
+    sheet = _text(client.get(f"/invoices/{number}/print"))
+    assert "Paid in full" in sheet, "the client's own copy dropped this entirely"
+    assert "March 04, 2024" in sheet
+
+    listed = _text(client.get("/invoices"))
+    row = _row_for(_raised(listed), number)
+    assert "Overdue" not in row
+    assert "pre-ledger" in row.lower(), "a coarse record must not read as a computed one"
+    assert "450.00" in _row_for(_running(listed), cid)
+
+    # Looking at it must not quietly rewrite it out of existence.
+    assert _stored(number).paid_on == date(2024, 3, 4)
+
+
+def test_a_payment_dated_in_the_future_is_refused_on_every_path(client):
+    """The mirror of the before-the-invoice guard. An identical mistyped year in
+    the FUTURE settled the invoice, stopped the chase, and printed a thank-you
+    dated 2062 on the client's copy — and the Payments screen had no date guard
+    at all, in either direction."""
+    cid = "SATC-PAY-FUTURE"
+    _header(client, client_id=cid)
+    _add(client, "return_1040")
+    number, _ = _issue(client, issued_on="2026-03-01")
+
+    resp = _pay(client, number, amount="450", received_on="2062-03-01")
+    assert resp.status_code == 200, "a refusal is a page, not a redirect or a 500"
+    assert "has not happened yet" in _text(resp)
+    assert _ledger_for(cid) == [], "nothing may reach the ledger"
+    assert _stored(number).paid_on is None
+
+    other = _record_payment(client, client_id=cid, amount="450",
+                            received_on="2062-03-01")
+    assert other.status_code == 200
+    assert "has not happened yet" in _text(other)
+    assert _ledger_for(cid) == [], "the other path has to refuse it too"
+
+
+def test_a_payment_attributed_to_an_invoice_not_on_file_reads_as_stale(client):
+    """The store keeps such a row loadable on purpose — a stale attribution is
+    something to SHOW the owner. It was shown as a working link into a 404."""
+    from satc.billing.payment import MatchBasis, Method
+
+    cid = "SATC-STALE-ATTR"
+    _straight_to_the_ledger(
+        client_id=cid, amount=Decimal("120.00"), received_on=date(2026, 5, 1),
+        method=Method.CHECK, reference="check 9001", invoice_id="2099-9999",
+        basis=MatchBasis.CHOSEN_BY_HUMAN)
+
+    assert client.get("/invoices/2099-9999").status_code == 404
+
+    row = _row_for(_text(client.get("/payments")), "2099-9999")
+    assert row, "the stale row must still be shown, not hidden"
+    assert 'href="/invoices/2099-9999"' not in row, "a link into a 404"
+    assert "not on file" in row.lower()
+
+
 def test_the_invoicing_screens_have_no_send_path():
     """Principle 9. Parsed rather than grepped, so the module stays free to SAY
     it doesn't send while this proves it can't."""

@@ -25,7 +25,16 @@ when everything behind it is right:
 * it attributes the blocking split to the deadline's citation, which is not
   where any of its three classes comes from (principle 4);
 * it renders a promise the engine has already judged as a bare date, throwing
-  the judgement away;
+  the judgement away — or, worse, never asks the engine for a judgement at all,
+  so met/missed/on-track are all structurally unreachable and every row says
+  "nobody looked";
+* it carries rows that are byte-identical on every plan for every client
+  forever, which is what teaches somebody to scroll past the row that mattered
+  (principle 13);
+* it shows a row the practice cannot clear by doing the work;
+* it answers about this engagement with a fact from another year and another
+  return;
+* it hands the owner — a tax preparer — a refusal written for a developer;
 * it 500s where it should refuse;
 * it posts something other than the plan the owner just read.
 
@@ -39,7 +48,8 @@ from __future__ import annotations
 import ast
 import dataclasses
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
+from html import unescape
 from decimal import Decimal
 from pathlib import Path
 
@@ -48,6 +58,7 @@ import pytest
 from satc.app import intake_views
 from satc.app.server import create_app
 from satc.app.state import STATE
+from satc.ids import return_key
 from satc.models.filing import Filing
 from satc.models.identity import PublicClient
 
@@ -561,69 +572,251 @@ def test_a_year_the_calendar_has_no_period_for_is_refused_and_not_a_stack_trace(
 
 
 # --- what we promised ---------------------------------------------------------
+#
+# The panel had stopped answering the question it exists for. It resolved the
+# START of every clock and never the STOP, so `compliance` correctly withheld a
+# verdict on all of them — a compliance screen where met, missed and on-track
+# were all structurally unreachable, and every row said "nobody looked". These
+# tests go through the REAL app, the REAL policy file and REAL Filing records,
+# because that is the only way a screen can be caught not asking.
 
-def test_a_promise_whose_start_fact_is_missing_shows_the_named_refusal(
+RK_2025 = return_key(CLIENT, 2025, "1040", "US")
+RK_2025_OH = return_key(CLIENT, 2025, "1040", "OH")
+RK_2023 = return_key(CLIENT, 2023, "1065", "US")
+
+
+def _filing(rk, *, ack="", attempt=1, ack_date=None, sent=None):
+    return Filing(filing_id=f"F-{rk}-{attempt}", return_key=rk, client_id=CLIENT,
+                  transmitted_at=sent, ack_code=ack, ack_date=ack_date, attempt=attempt)
+
+
+def promise_panel(page: str) -> str:
+    """Just the promise panel, so an assertion cannot be satisfied elsewhere."""
+    assert 'data-kind="promise"' in page, "the promise panel lost its kind marking"
+    return page.split('data-kind="promise"', 1)[1].split("</div></div>", 1)[0]
+
+
+def promise_rows(page: str) -> list[str]:
+    return [chunk.split("</tr>", 1)[0]
+            for chunk in page.split('<tr class="dateline promise"')[1:]]
+
+
+def test_the_screen_reports_a_verdict_and_not_only_a_date(client, practice):
+    """The defect this panel had: it could not report ANY verdict.
+
+    ``compliance`` returns a status and a sentence. The screen resolved only the
+    start of the clock, so every row came back ``unresolved`` — and a test that
+    read the status back off the engine passed anyway, because both sides had
+    degraded to the same non-answer. So this one names MISSED literally. A
+    rejection five years old that nothing ever retransmitted is a promise this
+    practice broke, and the screen has to say so.
+    """
+    rejected_on = date(2020, 3, 10)
+    practice(filings=[_filing(RK_2025, ack="R", ack_date=rejected_on,
+                              sent=datetime(2020, 3, 9, 16, 0))])
+
+    row, = promise_rows(body_of(client.get(plan_url())))
+    assert "MISSED" in row, (
+        "the engine judged this promise broken and the screen did not say so")
+    assert '<span class="badge' in row
+    assert f"we promised 2 business days from {rejected_on}" in row
+    # An apology, never a penalty — and never dressed as a statute (principle 4).
+    assert "apology to make, not a penalty to pay" in row
+    assert 'data-kind="statute"' not in row
+
+
+def test_every_verdict_the_engine_can_reach_is_reachable_from_this_screen(
         client, practice):
-    """Principle 1. Four of the five promises on file have a clock end nothing
-    in SATC records, so the screen names the missing fact rather than blanking
-    the cell or, worse, showing a green tick derived from a guess."""
+    """Principle 12, said as a range rather than as one case.
+
+    MISSED alone proves a badge renders. It does not prove the screen can tell
+    the three answers APART — which is what it could not do, and what a panel
+    stuck on one verdict would still fail at silently.
+    """
+    seen = {}
+    for label, filings in {
+        "missed": [_filing(RK_2025, ack="R", ack_date=date(2020, 3, 10),
+                           sent=datetime(2020, 3, 9, 16, 0))],
+        "met": [_filing(RK_2025, ack="R", ack_date=date(2026, 3, 10),
+                        sent=datetime(2026, 3, 9, 16, 0)),
+                _filing(RK_2025, ack="A", attempt=2, ack_date=date(2026, 3, 13),
+                        sent=datetime(2026, 3, 11, 9, 0))],
+        "open": [_filing(RK_2025, ack="R", ack_date=date.today(),
+                         sent=datetime.now())],
+    }.items():
+        practice(filings=filings)
+        row, = promise_rows(body_of(client.get(plan_url())))
+        seen[label] = row.split('data-status="', 1)[1].split('"', 1)[0]
+
+    assert seen == {"missed": "missed", "met": "met", "open": "open"}
+
+
+def test_recording_the_retransmission_clears_a_row_nothing_could_clear(
+        client, practice):
+    """The row the practice could not clear by doing the work.
+
+    Any rejection older than two business days made the plan say so forever, and
+    keying the retransmission changed nothing — the stop was never read. It went
+    from "missed forever" to "unresolved forever", which is the same row wearing
+    a different word. A queue whose rows cannot be cleared by working is a queue
+    people stop reading (principle 13).
+    """
+    reject = _filing(RK_2025, ack="R", ack_date=date(2026, 3, 10),
+                     sent=datetime(2026, 3, 9, 16, 0))
+    practice(filings=[reject])
+    still_owed, = promise_rows(body_of(client.get(plan_url())))
+    assert "MISSED" in still_owed
+
+    # Now the owner keys the retransmission that actually went out next morning.
+    practice(filings=[reject, _filing(RK_2025, ack="A", attempt=2,
+                                      ack_date=date(2026, 3, 13),
+                                      sent=datetime(2026, 3, 11, 9, 30))])
+    cleared, = promise_rows(body_of(client.get(plan_url())))
+    assert "KEPT" in cleared and "MISSED" not in cleared, (
+        "recording the work did not clear the row that said we had not done it")
+    assert "2026-03-11" in cleared          # the day it actually went back out
+
+
+def test_a_rejection_in_another_year_on_another_return_is_not_this_promise(
+        client, practice):
+    """The cross-year, cross-return leak, seen from the screen.
+
+    The lookup scanned every filing the client had ever had, with no year and no
+    return filter, and took the maximum ack_date. So a 2023 partnership
+    rejection — fixed at the time, on a job that closed two years ago — became a
+    broken promise on the 2025 1040 plan.
+    """
+    practice(filings=[_filing(RK_2023, ack="R", ack_date=date(2024, 4, 2),
+                              sent=datetime(2024, 4, 1, 10, 0))])
+
+    panel = promise_panel(body_of(client.get(plan_url())))
+    assert promise_rows(panel) == [], (
+        "a 2023 1065 rejection was reported as a promise broken on the 2025 1040")
+    assert "Nothing on this engagement has started one of our promise clocks" in panel
+    assert "1065" not in panel
+
+
+def test_two_returns_in_one_year_get_two_rows_that_say_which(client, practice):
+    """Principle 13: two rows must never say the same thing.
+
+    A client with a federal and a state rejection in the same year owes two
+    different retransmissions. Rendered without the return they are the same row
+    printed twice — and the key itself is not something to print at somebody, so
+    the row says "2025 Form 1040 · OH".
+    """
+    practice(filings=[
+        _filing(RK_2025, ack="R", ack_date=date(2026, 3, 2),
+                sent=datetime(2026, 3, 1, 10, 0)),
+        _filing(RK_2025, ack="A", attempt=2, ack_date=date(2026, 3, 5),
+                sent=datetime(2026, 3, 3, 10, 0)),
+        _filing(RK_2025_OH, ack="R", ack_date=date(2026, 4, 20),
+                sent=datetime(2026, 4, 19, 10, 0))])
+
+    rows = promise_rows(body_of(client.get(plan_url())))
+    assert len(rows) == 2
+    assert len({flat(r) for r in rows}) == 2, "two rows said the same thing"
+    assert any("2025 Form 1040 · US" in r and "KEPT" in r for r in rows)
+    assert any("2025 Form 1040 · OH" in r and "MISSED" in r for r in rows)
+    assert not any(RK_2025_OH in r for r in rows), "the raw return key reached the screen"
+
+
+def test_the_structural_refusals_are_gone_from_the_plan_and_said_once_elsewhere(
+        client, practice):
+    """Principle 13. Five byte-identical rows on every plan, for every client.
+
+    They were RIGHT — SATC genuinely cannot measure a promise whose start fact
+    nobody records — and they must not be deleted. But they are statements about
+    the BUILD, identical whoever is on screen, so they belong on the capability
+    screen and are pointed at from here in one line.
+    """
+    practice(filings=[])
+    panel = promise_panel(body_of(client.get(plan_url())))
+
+    assert "SATC cannot tell you whether this was met" not in panel
+    assert "nothing records when the documents went complete" not in panel
+    # ...and the pointer, once, with the count.
+    assert "cannot be checked here at all" in flat(panel)
+    assert "what SATC can and cannot check" in panel
+    assert panel.count("/practice/promises") == 1
+
+    # Said in full, once, where a missing capability belongs.
+    capability = unescape(body_of(client.get("/practice/promises")))
+    for label in ("First reply to a client's message",
+                  "Substantive response to an IRS or state notice",
+                  "Return out once the documents are complete",
+                  "Acknowledging a signed 8879"):
+        assert capability.count(label) == 1, f"{label} is missing or said twice"
+    assert capability.count("SATC cannot tell you whether this was met") == 4
+    # And the promise the build CAN check is on the same page, so the list reads
+    # as a capability rather than as a list of complaints.
+    assert "Fixing and retransmitting a rejected return" in capability
+
+
+def test_the_plan_is_not_wallpaper_two_clients_do_not_render_the_same_panel(
+        client, practice):
+    """The measurable check for the defect: the panel used to hash identically
+    across every client on file, because nothing in it came from the client."""
+    import hashlib
+
+    def digest(filings) -> str:
+        practice(filings=filings)
+        panel = promise_panel(body_of(client.get(plan_url())))
+        return hashlib.sha1(flat(panel).encode("utf-8")).hexdigest()
+
+    quiet = digest([])
+    rejected = digest([_filing(RK_2025, ack="R", ack_date=date(2026, 3, 10),
+                               sent=datetime(2026, 3, 9, 16, 0))])
+    fixed = digest([_filing(RK_2025, ack="R", ack_date=date(2026, 3, 10),
+                            sent=datetime(2026, 3, 9, 16, 0)),
+                    _filing(RK_2025, ack="A", attempt=2, ack_date=date(2026, 3, 13),
+                            sent=datetime(2026, 3, 11, 9, 30))])
+
+    assert len({quiet, rejected, fixed}) == 3, (
+        "the promise panel rendered identically whatever the practice recorded")
+
+
+def test_a_promise_this_build_cannot_read_refuses_in_the_owners_language(
+        client, practice, monkeypatch):
+    """The OTHER path a refusal reaches this panel by, and it was left open.
+
+    ``clocks_for`` refuses a promise whose clock nothing knows how to read out
+    of the records — right, and loud rather than an empty table. But its message
+    tells you to add a resolver in a Python module, and the person reading the
+    engagement plan is a tax preparer. The panel is empty either way; what they
+    need to know is that it is not a clean board and not their data.
+    """
+    from satc.config import ConfigError
+    from satc.work import sla as sla_mod
+
+    def refuse(kind, **kw):
+        raise ConfigError("Add a resolver in satc.work.sla beside _reject_clocks.")
+
+    monkeypatch.setattr(sla_mod, "clocks_for", refuse)
     practice(filings=[])
 
-    page = body_of(client.get(plan_url()))
-    assert "Return out once the documents are complete" in page
-    assert "nothing records when the documents went complete" in page
-    assert "SATC cannot tell you whether this was met" in page
-    # And the one promise SATC COULD measure refuses too, differently: the fact
-    # is recordable, it is just not recorded on this client. A screen that
-    # substituted a plausible start date would show a promise nobody made.
-    assert "Fixing and retransmitting a rejected return" in page
-    assert "nothing on this one records when the rejection was keyed off Drake" in page
-    assert "2 business days from" not in page
+    panel = promise_panel(body_of(client.get(plan_url())))
+    assert "cannot read its clock out of the records" in flat(panel)
+    assert "nothing below is a clean bill of health" in flat(panel)
+    assert "satc.work.sla" not in panel and "_reject_clocks" not in panel
 
 
-def test_a_promise_with_a_recorded_start_fact_shows_the_date(client, practice):
-    """The other half of the same rule — otherwise the refusal above is a panel
-    that can only ever refuse, which is not evidence of anything (principle 12).
-    The e-file rejection is the one clock both of whose ends SATC records."""
-    from satc.work.sla import sla
-
-    rejected_on = date(2026, 3, 10)
-    practice(filings=[Filing(filing_id="F-1", return_key="RK-1", client_id=CLIENT,
-                             ack_code="R", ack_date=rejected_on)])
-    lands = sla("efile_reject_turnaround").landing(rejected_on)
-
-    page = body_of(client.get(plan_url()))
-    assert lands.strftime("%B %d, %Y") in page
-    assert "2 business days from" in page
-
-
-def test_a_promise_the_engine_has_already_judged_never_renders_as_a_bare_date(
+def test_the_owner_is_never_handed_an_instruction_written_for_a_developer(
         client, practice):
-    """``compliance`` returns a STATUS and a sentence; the row printed the date and
-    threw both away, so a promise the engine calls missed was pixel-identical to
-    one still comfortably on track. That is principle 4's failure mode inside a
-    single class of statement: two different things rendering the same.
+    """Principle 10 is about the RIGHT next step, and right depends on the reader.
 
-    The verdict is read back off the engine rather than spelled out here, so this
-    still holds when the status vocabulary grows."""
-    from satc.work.sla import compliance
+    The refusals were rendered verbatim on the owner's plan and named Python
+    modules and function calls at somebody who is a tax preparer. A refusal the
+    reader cannot act on is a refusal that only says no.
+    """
+    practice(filings=[])
+    developer_words = ("satc.work", "satc.models", "clocks_for", "closed_on",
+                       "unmeasurable_promises()", "principle", "docstring")
 
-    rejected_on = date(2020, 3, 10)   # years past — this promise is long resolved or blown
-    practice(filings=[Filing(filing_id="F-1", return_key="RK-1", client_id=CLIENT,
-                             ack_code="R", ack_date=rejected_on)])
-    verdict = compliance("efile_reject_turnaround", started_on=rejected_on,
-                         today=date.today())
-    assert verdict.status != "open" and verdict.promise is not None, (
-        "the fixture must produce a promise the engine has actually judged")
-
-    page = body_of(client.get(plan_url()))
-    row = page.split('data-kind="promise"', 1)[1].split("</tr>", 1)[0]
-    assert verdict.status.upper() in row, "the judgement is computed and must be shown"
-    assert '<span class="badge' in row
-    # ...and the sentence, which carries what a date on its own cannot say.
-    assert f"we promised 2 business days from {rejected_on}" in row
-    # Still a promise, never a deadline. An apology, not a penalty.
-    assert 'data-kind="statute"' not in row
+    for where, text in (("the plan", promise_panel(body_of(client.get(plan_url())))),
+                        ("the capability screen",
+                         body_of(client.get("/practice/promises")))):
+        for word in developer_words:
+            assert word not in text, f"{where} tells the owner about {word!r}"
 
 
 # --- the edges ----------------------------------------------------------------
@@ -672,8 +865,8 @@ def test_the_letters_fee_slot_says_which_condition_left_it_empty(client, practic
 
 _PLAN_FUNCTIONS = {
     "engagement_plan", "_plan_answers", "_because", "_needs", "_fan_out",
-    "_sla_outcomes", "_recorded_starts", "_fee_slot", "_entity_type_for",
-    "_blocking_basis",
+    "_promise_rows", "_about_return", "practice_promise_gaps", "promise_capability",
+    "_fee_slot", "_entity_type_for", "_blocking_basis",
 }
 
 _DISPOSING = {

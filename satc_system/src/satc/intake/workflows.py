@@ -54,7 +54,9 @@ def _workflow_path(key: str, config_root: Path | None) -> Path:
 
 def load_workflow(key: str, config_root: Path | None = None) -> WorkflowDef:
     """Load one workflow definition from ``configs/workflows/<key>.yaml``."""
-    data = _load_yaml(_workflow_path(key, config_root))
+    path = _workflow_path(key, config_root)
+    data = _load_yaml(path)
+    validate_conditions(data, path)
     questions = [WorkflowQuestion(
         id=q["id"], label=q.get("label", q["id"]),
         type=str(q.get("type", "boolean")), risk_flag=q.get("risk_flag") or "",
@@ -178,19 +180,173 @@ def workflows_for_client_type(client_type: str, config_root: Path | None = None)
 
 
 # ---------------------------------------------------------------------------
+# The condition grammar — one file, one validation, both blocks
+# ---------------------------------------------------------------------------
+
+# The whole grammar, as :func:`evaluate_condition` actually implements it.
+# Written down because a workflow file is hand-edited and the engine is SILENT
+# about a word it does not recognise: an unreadable test falls off the end of
+# the ladder and reads as True.
+CONDITION_OPERATORS = ("equals", "not_equals", "includes", "greater_than", "less_than")
+CONDITION_BRANCHES = ("all", "any")
+
+# The two blocks that gate on this grammar, and what a gate the engine cannot
+# read would do in each. The words differ because the damage differs — a task
+# that goes unconditional is a document every client is chased for, a service
+# that goes unconditional is money on every quote — and principle 10 wants the
+# reader's own sentence, not a generic one.
+_GATED_BLOCKS = {
+    "tasks": {
+        "unconditional": "leave condition: out to generate it for every client",
+        "always_true": ("so {name} would be generated for EVERY client — a "
+                        "conditional ask silently turned into one nobody chose"),
+    },
+    "services": {
+        "unconditional": "leave condition: out to price it on every engagement",
+        "always_true": ("so {name} would be on every quote with a reason that "
+                        "is not true of the client reading it"),
+    },
+}
+
+
+def check_condition(node: Any, *, asked: set[str], block: str, name: str,
+                    path: Path) -> None:
+    """Refuse a gate the engine would silently misread.
+
+    Two typos matter here and both are quiet. A ``question_id`` this workflow
+    does not ask consults nothing, so the leaf reads as an unanswered question
+    forever — an ask that can never fire, or a ``not_equals`` leaf that used to
+    always fire. A misspelled OPERATOR is worse still: :func:`evaluate_condition`
+    falls off the end of its ladder and returns ``True``, so the gate is open for
+    everybody.
+
+    A workflow file is meant to be hand-edited, so a typo is an ordinary event
+    rather than an exceptional one, and an ordinary event that silently generates
+    work — or prices it — is the kind of quiet this system is built not to have.
+    Principles 5 and 10: refuse it, and name the file, the entry and the fix.
+    """
+    words = _GATED_BLOCKS[block]
+    where = f"{name!r} in the {block}: block"
+    if node is None or node == {}:
+        return                                   # no gate at all: applies always
+    if not isinstance(node, dict):
+        raise ConfigError(
+            f"{path.name} gates {where} on {node!r}, which is not a condition. "
+            f"Write a mapping like {{question_id: movedStates, equals: \"yes\"}}, "
+            f"or {words['unconditional']}.")
+
+    branches = [key for key in CONDITION_BRANCHES if key in node]
+    if branches:
+        extra = sorted(set(node) - set(branches))
+        if len(branches) > 1 or extra:
+            raise ConfigError(
+                f"{path.name} gates {where} on a condition combining "
+                f"{', '.join(sorted(branches) + extra)}. A condition is EITHER one "
+                f"'all:'/'any:' branch OR one question test — the engine reads the "
+                f"branch and ignores everything beside it, which is a gate nobody "
+                f"reviewing this file would predict.")
+        children = node[branches[0]]
+        if not isinstance(children, list) or not children:
+            raise ConfigError(
+                f"{path.name} gates {where} on an empty {branches[0]!r}. List the "
+                f"conditions it combines, or {words['unconditional']}.")
+        for child in children:
+            check_condition(child, asked=asked, block=block, name=name, path=path)
+        return
+
+    qid = str(node.get("question_id", "")).strip()
+    if not qid:
+        raise ConfigError(
+            f"{path.name} gates {where} on {node!r}, which names no question_id. "
+            f"Name a question from this workflow's questions: block.")
+    if qid not in asked:
+        raise ConfigError(
+            f"{path.name} gates {where} on question {qid!r}, which this workflow "
+            f"does not ask. It asks: {', '.join(sorted(asked)) or 'nothing'}. "
+            f"Correct the spelling in the {block}: block, or add the question to "
+            f"questions: — a gate on a question nobody is asked is answered by "
+            f"silence, and silence is not an answer.")
+    used = [op for op in CONDITION_OPERATORS if op in node]
+    if len(used) != 1:
+        seen = sorted(set(node) - {"question_id"})
+        raise ConfigError(
+            f"{path.name} tests {qid!r} for {where} with "
+            f"{', '.join(seen) if seen else 'no comparison at all'}, which the "
+            f"engine does not understand. Use exactly one of: "
+            f"{', '.join(CONDITION_OPERATORS)}. A test it cannot read is TRUE for "
+            f"everybody, {words['always_true'].format(name=repr(name))}.")
+
+
+def validate_conditions(data: dict[str, Any], path: Path) -> None:
+    """Check EVERY gate in a workflow file — ``tasks:`` and ``services:`` alike.
+
+    This lived in :func:`~satc.billing.quote.load_service_map` and so guarded the
+    ``services:`` block only. The SAME typo in a ``tasks:`` condition in the SAME
+    hand-edited file was accepted in silence, and a mistyped operator turns a
+    conditional task UNCONDITIONAL — the document request goes to every client.
+    A guard on one of two paths through one file is not a guard.
+
+    So it lives here, where both readers pass: :func:`load_workflow` reads the
+    file for what to ask and chase, ``load_service_map`` reads it for what the
+    answers cost, and either door validates the whole file.
+
+    Read from the RAW data rather than a loaded :class:`WorkflowDef`, because the
+    typo being caught lives in the file: a question the practice has disabled
+    through an override is a different conversation from one never written down.
+    """
+    asked = {str(q.get("id", "")).strip() for q in (data.get("questions") or [])
+             if isinstance(q, dict)} - {""}
+    for block, id_key, unnamed in (("tasks", "template_id", "(a task with no template_id)"),
+                                   ("services", "service", "(a service with no code)")):
+        for entry in data.get(block) or []:
+            if not isinstance(entry, dict):
+                # The SHAPE of an entry is the loader's complaint, and each
+                # loader says something better about its own block than a
+                # condition checker could.
+                continue
+            check_condition(entry.get("condition"), asked=asked, block=block,
+                            name=str(entry.get(id_key, "")).strip() or unnamed,
+                            path=path)
+
+
+# ---------------------------------------------------------------------------
 # Rules engine
 # ---------------------------------------------------------------------------
 
-def evaluate_condition(condition: dict[str, Any] | None, answers: dict[str, Any]) -> bool:
-    """Evaluate a task's inclusion condition against the intake answers."""
+def answered(value: Any) -> bool:
+    """Whether the interview holds an answer at all.
+
+    ``None`` is a question never asked and ``""`` is one the form submitted
+    empty — :func:`_normalize_answers` produces the second for every question a
+    client skipped. Neither is a fact about the client.
+    """
+    return value is not None and str(value).strip() != ""
+
+
+def _evaluate(condition: dict[str, Any] | None, answers: dict[str, Any], *,
+              strict: bool) -> bool:
+    """The condition ladder. ``strict`` says what an UNANSWERED leaf does.
+
+    ``strict=True`` is the engine's answer to "does this apply": silence
+    satisfies nothing. ``strict=False`` is the old reading, kept only so
+    :func:`condition_holds_by_silence` can tell the two apart — it is not a
+    semantics any caller should act on.
+    """
     if not condition:
         return True
     if "all" in condition:
-        return all(evaluate_condition(c, answers) for c in condition["all"])
+        return all(_evaluate(c, answers, strict=strict) for c in condition["all"])
     if "any" in condition:
-        return any(evaluate_condition(c, answers) for c in condition["any"])
+        return any(_evaluate(c, answers, strict=strict) for c in condition["any"])
 
     value = answers.get(condition.get("question_id"))
+    if strict and not answered(value):
+        # Principle 2. An unanswered question is not an answer, and it is not an
+        # answer in EITHER direction: `not_equals: "no"` was satisfied by silence,
+        # so a client was asked for a document because they had NOT said
+        # something. `less_than: 100` was too, because a missing answer numbered
+        # zero. Nobody has said anything, so nothing has been decided.
+        return False
     if "equals" in condition:
         return value == condition["equals"]
     if "not_equals" in condition:
@@ -203,6 +359,32 @@ def evaluate_condition(condition: dict[str, Any] | None, answers: dict[str, Any]
     if "less_than" in condition:
         return _num(value) < _num(condition["less_than"])
     return True
+
+
+def evaluate_condition(condition: dict[str, Any] | None, answers: dict[str, Any]) -> bool:
+    """Does this gate apply to this client, on what the client has actually said?
+
+    Silence satisfies nothing. Every caller that DOES something on the strength
+    of a gate — generating a task, minting a document request, putting money on
+    a quote — reads this one, so no path can be walked through by leaving the
+    interview blank.
+    """
+    return _evaluate(condition, answers, strict=True)
+
+
+def condition_holds_by_silence(condition: dict[str, Any] | None,
+                               answers: dict[str, Any]) -> bool:
+    """True when a gate is satisfied ONLY because a question is unanswered.
+
+    Not a second opinion about whether the gate applies — the answer to that is
+    still no. It is the third state between yes and no: nobody has said. A
+    caller that must not ACT on silence ignores it; a caller that must not
+    silently DROP what the silence is hiding — the quote, where a $145 service
+    vanishing from an estimate is principle 1 in the other direction — shows it,
+    unpriced, naming the question still to answer.
+    """
+    return (_evaluate(condition, answers, strict=False)
+            and not _evaluate(condition, answers, strict=True))
 
 
 def _num(value: Any) -> float:

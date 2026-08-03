@@ -22,12 +22,25 @@
         {% if invoice.plan_basis %}<span class="muted">— {{ invoice.plan_basis }}</span>{% endif %}</div>
       <div><b>Issued</b> {{ invoice.issued_on.strftime('%Y-%m-%d') if invoice.issued_on else '—' }}</div>
       <div><b>Due</b> {{ invoice.due_on.strftime('%Y-%m-%d') if invoice.due_on else '—' }}
-        {% if invoice.is_paid %}<span class="tie">· paid {{ invoice.paid_on.strftime('%Y-%m-%d') }}</span>
+        {% if money.settled %}<span class="tie">· paid {{ money.settled.strftime('%Y-%m-%d') }}</span>
         {% elif invoice.is_overdue(today) %}<span class="flag">· overdue</span>{% endif %}</div>
       <div><b>Amount due</b> <span class="mono"><strong>{{ '{:,.2f}'.format(invoice.total) }}</strong></span></div>
-      <div><b>Paid to date</b> <span class="mono">{{ '{:,.2f}'.format(paid) }}</span></div>
+      {# Two different facts can fill this line, and they must not read alike.
+         A ledger figure is a sum of recorded payments and can be interrogated;
+         a pre-ledger figure is the invoice total, because the flag it comes
+         from says "this bill was settled" and nothing finer. Each is labelled
+         with which it is. #}
+      {% if money.pre_ledger %}
+      <div><b>Recorded paid</b> <span class="mono">{{ money.settled.strftime('%Y-%m-%d') }}</span>
+        <span class="hint">— {{ money.how_we_know }}</span></div>
+      <div><b>Still outstanding</b> <span class="mono tie">nothing owed</span>
+        <span class="hint">— recorded settled, though not payment by payment</span></div>
+      {% else %}
+      <div><b>Paid to date</b> <span class="mono">{{ '{:,.2f}'.format(paid) }}</span>
+        <span class="hint">— {{ money.how_we_know }}</span></div>
       <div><b>Still outstanding</b>
         <span class="mono {{ 'tie' if owed == 0 else 'flag' }}">{{ '{:,.2f}'.format(owed) }}</span></div>
+      {% endif %}
     </div>
 
     <textarea class="codebox" rows="16" readonly>{{ invoice.summary_block() }}</textarea>
@@ -73,6 +86,18 @@
       {{ '{:,.2f}'.format(invoice.total) }} — <strong>{{ '{:,.2f}'.format(over) }} more than
       was due</strong>. That is a credit to talk to them about: apply it to the next invoice
       or return it. SATC will not do either on its own.
+    </p>
+    {% elif money.pre_ledger %}
+    {# A recorded fact, just a coarser one. It used to be recomputed from an
+       empty ledger, which answered "never paid" and quietly lost two years of
+       the practice's own record — in the client's favour. It is kept, and it
+       says exactly what it can and cannot answer, and what would replace it. #}
+    <p class="tie">Recorded paid in full on {{ money.settled.strftime('%B %d, %Y') }}.</p>
+    <p class="hint">
+      This invoice was marked paid <strong>before the payment ledger existed</strong>, so there
+      is no payment recorded against it. The date is the practice's own record and stands; how
+      much arrived, in how many parts and by what rail are not on file and are not guessed at
+      here. Recording the payment below replaces this with the ledger's own answer.
     </p>
     {% elif owed == 0 and payments %}
     <p class="tie">Settled in full{% if settled %} on {{ settled.strftime('%B %d, %Y') }}{% endif %}.</p>

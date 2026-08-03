@@ -38,6 +38,34 @@ The owner sets durations; the code knows what it can see. When a Deliverable
 entity lands, one entry here gains a ``recorded_as`` and every promise resting
 on it starts answering — with no change to the config and no change to callers.
 
+THAT HAS NOW HAPPENED ONCE. ``satc.models.deliverable`` is persisted and reads
+back per client, so **when the return went to the client is a recorded fact**
+and ``return_delivered`` carries a ``recorded_as`` at last. This entry changed
+because the world did, which is the whole point of keeping it here rather than
+in the owner's YAML.
+
+It did not make a single promise answerable, and that is worth saying plainly.
+``return_turnaround`` runs from ``documents_complete``, and readiness is still
+computed from what is outstanding right now — so the moment the last blocking
+item landed is still nowhere, and half a clock is not a clock. The tempting
+move is to start the clock at something adjacent and report a number; that is
+the exact substitution this module exists to refuse.
+
+The other three gaps are NOT the same gap. A delivery is something that went to
+the CLIENT. A substantive response to an IRS notice goes to the agency, an
+acknowledgement is correspondence, and a first reply needs an inbound message
+that nothing records at either end. None of them is a Deliverable, and typing
+one as one to make a metric go green would be inventing the fact that it is.
+
+When the next one does flip, TWO things have to be true together:
+
+1. the fact is written down and can be read back for a client; and
+2. :func:`clocks_for` grows a resolver for that pair — because the moment a
+   promise becomes measurable it moves from :func:`unmeasurable_promises` into
+   :func:`measurable_slas`, which is the list every per-item screen walks, and
+   :func:`clocks_for` refuses a pair it cannot read. Do (1) without (2) and the
+   promise panel refuses wholesale instead of answering.
+
 AND THIS MODULE RESOLVES THE CLOCK ITSELF.
 
 ``FactRef.recorded_as`` used to be prose only — "Filing.ack_date, on a filing
@@ -124,7 +152,21 @@ class FactRef:
 
     would_need: str = ""
     """What would have to exist for this to become measurable. Principle 10:
-    a refusal that only says "no" ends the conversation."""
+    a refusal that only says "no" ends the conversation.
+
+    WRITTEN FOR THE OWNER, because the owner is who reads it. This string is
+    rendered verbatim on a screen — it is the whole of :meth:`why_unmeasurable`
+    after the first sentence — and it used to name Python modules at somebody
+    sitting in front of a browser at 9pm in March. "satc.work.stage refuses to
+    conclude delivery for this exact reason" is a true sentence addressed to
+    nobody who was going to read it. Principle 10 says a refusal names the RIGHT
+    NEXT STEP, and right is relative to the reader: what the owner can do about
+    it today, and what would have to be written down for the promise to start
+    answering by itself.
+
+    The refusals aimed at CALLERS stay in caller language and belong in the
+    ``ConfigError``s below — a developer forgetting an argument is a different
+    reader with a different next step."""
 
     @property
     def is_recorded(self) -> bool:
@@ -140,16 +182,17 @@ FACTS: dict[str, FactRef] = {f.key: f for f in (
         key="client_message_received",
         describes="when a client's message reached us",
         would_need=(
-            "SATC records documents arriving, not correspondence — nothing holds "
-            "an inbound email, call or portal note. Recording client "
-            "correspondence as it arrives would settle it.")),
+            "SATC files documents, not conversations: an email, a phone call or "
+            "a note from a client is nowhere in it. Until an arriving message is "
+            "written down the way an arriving document is, your inbox answers "
+            "this one and SATC cannot.")),
     FactRef(
         key="reply_sent",
         describes="when we replied",
         would_need=(
-            "Nothing in SATC sends, and nothing records that the owner sent "
-            "something (principle 9). A recorded 'replied on' against the "
-            "message would settle it.")),
+            "SATC drafts and never sends, so nothing here knows a reply went "
+            "out. Until a draft can be marked as sent, and on what day, your "
+            "sent items answer this one and SATC cannot.")),
     FactRef(
         key="notice_received",
         describes="when the notice reached us",
@@ -159,36 +202,45 @@ FACTS: dict[str, FactRef] = {f.key: f for f in (
         key="notice_response_sent",
         describes="when our response to the notice went out",
         would_need=(
-            "A response leaves on paper or in the owner's own mail client, and "
-            "nothing records that it did. A Deliverable with a sent date would "
-            "settle it.")),
+            "SATC now records what went out to a CLIENT, but a notice response "
+            "goes to the IRS or the state, and nothing records what went to "
+            "them or when. It leaves on paper or from your own mail client and "
+            "does not come back. Recording a response to an agency the way a "
+            "delivery to a client is recorded would settle it.")),
     FactRef(
         key="documents_complete",
         describes="when the documents went complete",
         would_need=(
-            "Readiness is computed from what is outstanding RIGHT NOW, so the "
-            "moment the last blocking item landed is nowhere. The individual "
-            "arrival times exist; a recorded 'went complete on' does not.")),
+            "What is still outstanding is worked out fresh every time you look, "
+            "so the day the last blocking item landed is nowhere. Every arrival "
+            "has a date; a recorded 'went complete on' does not. Write down the "
+            "day you judge a file ready to work and this one can be measured.")),
+    # THE ONE THAT FLIPPED. A finished task list is not a delivery, and this
+    # entry stayed empty for as long as that was the only thing on offer.
+    # `satc.models.deliverable` now records what went out, to whom and when, and
+    # it is persisted — so the fact exists and this says so. It still does not
+    # make `return_turnaround` answerable: that promise STARTS at
+    # `documents_complete`, which is recorded nowhere, and half a clock measures
+    # nothing.
     FactRef(
         key="return_delivered",
         describes="when the return went to the client",
-        would_need=(
-            "satc.work.stage refuses to conclude delivery for this exact "
-            "reason — a finished task list is not a delivery. A Deliverable "
-            "carrying a sent date would settle it.")),
+        recorded_as=("Deliverable.delivered_on, on a delivery of the return "
+                     "itself — kind 'return_for_review' or 'signed_copy'")),
     FactRef(
         key="authorization_signed",
         describes="when the signed 8879 came back",
         would_need=(
-            "An 8879 out for signature is an Authorization, which "
-            "satc.models.evidence says is deliberately not modelled yet — the "
-            "signature lifecycle comes with it.")),
+            "An 8879 out for signature is not something SATC follows yet, so "
+            "neither is the day the signed one came back. Following a signature "
+            "from sent to returned would settle it.")),
     FactRef(
         key="acknowledgement_sent",
         describes="when we acknowledged the signature",
         would_need=(
-            "Same gap as every other outbound act: SATC proposes and does not "
-            "send, so nothing records that the acknowledgement went.")),
+            "The same gap as everything else that leaves the office: SATC "
+            "drafts, you send, and nothing records that you did. Recording that "
+            "the acknowledgement went, and when, would settle it.")),
     FactRef(
         key="efile_rejected",
         describes="when the rejection was keyed off Drake",
