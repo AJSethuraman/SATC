@@ -147,8 +147,11 @@ def real_prices(tmp_path, monkeypatch):
     """The prices this practice actually ships, copied byte for byte.
 
     The hand-written fixture above is a model of the file; this is the file.
-    `services.yaml` is CRLF in this repo and `rate_plans.yaml` is LF, which is
-    the mixture that punishes anything reading in default text mode.
+
+    Do NOT assert a particular line ending off these. Git's autocrlf means the
+    checkout decides: CRLF on Windows, LF on Linux CI. Two tests here did, passed
+    locally and failed in CI for a reason unrelated to the behaviour. Both
+    endings are exercised deliberately at the bottom of this file instead.
     """
     folder = tmp_path / "billing"
     folder.mkdir()
@@ -220,10 +223,16 @@ def test_the_wrong_service_is_never_repriced(prices):
 
 
 def test_the_real_price_list_edits_surgically(real_prices):
-    """Against the file the practice actually ships — CRLF and all."""
+    """Against the file the practice actually ships.
+
+    WHATEVER LINE ENDING IT HAS, IT KEEPS. This asserted CRLF originally,
+    because that is what the file has on a Windows checkout — which is git's
+    autocrlf, not a fact about the file. On Linux CI it is LF, and the test
+    failed for a reason that had nothing to do with the behaviour under test.
+    The rule is "preserve what was there", so that is what is asserted.
+    """
     path = real_prices / "services.yaml"
     before = path.read_bytes()
-    assert b"\r\n" in before, "this test is only meaningful on the CRLF file"
 
     code = next(iter(catalogue.load_services(real_prices.parent)))
     editor.set_rate(code, Decimal("1234.50"))
@@ -557,9 +566,17 @@ def test_a_new_service_on_the_real_file_leaves_the_real_file_alone(real_prices):
     after = path.read_bytes()
     assert after.startswith(before.rstrip(b"\r\n")), (
         "the shipped catalogue was rewritten rather than appended to")
-    assert after.count(b"\n") - after.count(b"\r\n") == 0, (
+    # The appended block must use the SAME ending the file already uses —
+    # whichever that is. Asserting CRLF specifically was asserting the checkout
+    # rather than the behaviour. A mixed-ending file makes the NEXT edit's diff
+    # look like a whole-file rewrite, and that is true in both directions.
+    was_crlf = b"\r\n" in before
+    added = after[len(before.rstrip(b"\r\n")):]
+    assert (b"\r\n" in added) == was_crlf, (
         "the appended entry used a different line ending from the rest of the "
         "file, which makes the NEXT edit's diff look like a whole-file rewrite")
+    if not was_crlf:
+        assert b"\r" not in added, "a CR crept into an LF file"
     assert catalogue.service("irs_transcript").standard_rate == Decimal(75)
 
 
@@ -659,3 +676,72 @@ def test_a_packaged_build_refuses_to_edit_prices_inside_its_own_bundle(
     assert "discarded when SATC closes" in str(refusal.value)
     assert "rebuild" in str(refusal.value), "principle 10 — name the next step"
     untouched(prices / "services.yaml", before)
+
+
+# --- both line endings, on purpose, on every machine -------------------------
+#
+# Two tests here asserted CRLF because that is what a Windows checkout has —
+# git's autocrlf, not a fact about the file. They passed locally and failed on
+# Linux CI for a reason that had nothing to do with the behaviour. Whichever
+# ending the developer happens to have, the OTHER one is then untested.
+#
+# So both are built here explicitly. This is the test that would have caught it
+# before it reached CI.
+
+@pytest.mark.parametrize("ending", [b"\n", b"\r\n"], ids=["lf", "crlf"])
+def test_an_edit_preserves_whichever_line_ending_the_file_has(tmp_path, ending):
+    folder = tmp_path / "billing"
+    folder.mkdir()
+    services = (b"services:\n"
+                b"  - code: return_1040\n"
+                b"    name: \"Individual return\"\n"
+                b"    client_label: \"Your federal individual tax return\"\n"
+                b"    category: \"Tax returns\"\n"
+                b"    unit: fixed\n"
+                b"    standard_rate: 450\n").replace(b"\n", ending)
+    (folder / "services.yaml").write_bytes(services)
+    (folder / "rate_plans.yaml").write_bytes(
+        (b"meta:\n  default_plan: standard\n"
+         b"plans:\n  - key: standard\n    name: Standard\n"
+         b"    discount_pct: 0\n").replace(b"\n", ending))
+
+    catalogue.forget_prices()
+    editor.set_rate("return_1040", Decimal("495"), config_root=tmp_path)
+    after = (folder / "services.yaml").read_bytes()
+
+    assert b"standard_rate: 495" in after
+    assert after.count(b"\r\n") == (services.count(b"\r\n")), (
+        "the edit changed the file's line endings")
+    if ending == b"\n":
+        assert b"\r" not in after, "a CR was introduced into an LF file"
+    assert after.count(b"\n") == services.count(b"\n"), "the line count moved"
+
+
+@pytest.mark.parametrize("ending", [b"\n", b"\r\n"], ids=["lf", "crlf"])
+def test_an_appended_service_matches_the_file_it_joins(tmp_path, ending):
+    folder = tmp_path / "billing"
+    folder.mkdir()
+    services = (b"services:\n"
+                b"  - code: return_1040\n"
+                b"    name: \"Individual return\"\n"
+                b"    client_label: \"Your federal individual tax return\"\n"
+                b"    category: \"Tax returns\"\n"
+                b"    unit: fixed\n"
+                b"    standard_rate: 450\n").replace(b"\n", ending)
+    (folder / "services.yaml").write_bytes(services)
+    (folder / "rate_plans.yaml").write_bytes(
+        (b"meta:\n  default_plan: standard\n"
+         b"plans:\n  - key: standard\n    name: Standard\n"
+         b"    discount_pct: 0\n").replace(b"\n", ending))
+
+    catalogue.forget_prices()
+    editor.add_service({"code": "irs_transcript", "name": "IRS transcript pull",
+                        "client_label": "IRS transcript", "category": "Advice",
+                        "unit": "fixed", "standard_rate": 75}, config_root=tmp_path)
+    after = (folder / "services.yaml").read_bytes()
+    added = after[len(services.rstrip(b"\r\n")):]
+
+    assert b"irs_transcript" in added
+    assert (b"\r\n" in added) == (ending == b"\r\n"), (
+        "the appended block used the other line ending — the next edit's diff "
+        "would then look like a whole-file rewrite")
