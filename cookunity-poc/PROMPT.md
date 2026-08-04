@@ -1,93 +1,69 @@
-# Claude Code Prompt — CookUnity Meal Data Access POC
+# Local run prompt — CookUnity meal data POC
 
-> Paste everything below the line into a **local** Claude Code session (headed
-> browser + manual login required — this will not work in a remote/headless
-> sandbox). Run it from the repo root.
+The harness in this folder is already built and its self-test passes. What it
+has never done is run against CookUnity, because the sandbox it was written in
+can't reach the site and the login step needs a human at a real browser.
+
+Paste everything below the line into a **local** Claude Code session, from the
+repo root, to do the real run.
 
 ---
 
 ## Goal
 
-Prove we can access CookUnity meal data **reliably** for my own logged-in
-account. This is a read-only proof of concept: extract meal data, nothing else.
-**Do not place, modify, or cancel any orders. Do not touch cart, subscription,
-delivery, or payment settings. Navigation and reads only.**
+Prove we can access CookUnity meal data reliably for my own logged-in account,
+using the existing harness in `cookunity-poc/`. Read the README there first —
+the extraction paths and outputs are already documented.
 
-If this POC passes, the next phase is personalization, explanations, and
-eventually safe auto-selection — so structure the code and findings with that
-in mind, but do not build any of it yet.
-
-## Stack
-
-- Playwright, **TypeScript preferred** (Node). Keep dependencies minimal:
-  `playwright` plus a TS runner (`tsx` or `ts-node`).
-- Build it as a small standalone project in `cookunity-poc/` with its own
-  `package.json`, `README`, and npm scripts (`npm run poc`, `npm run poc:again`).
+**Strictly read-only. Do not place, modify, or cancel any orders. Do not touch
+cart, subscription, delivery, or payment settings. Navigation and reads only.**
+If a page action is ambiguous (a button that might add to cart), skip it and
+note it. Never automate my credentials, never ask me for them, never write them
+anywhere.
 
 ## Steps
 
-1. **Open the site.** Launch headed Chromium and navigate to
-   https://www.cookunity.com.
+1. `cd cookunity-poc && npm install && npx playwright install chromium`
+2. `npm run selftest` — confirm the harness is healthy before blaming the site.
+3. `npm run poc`. A browser opens; I'll log in by hand and press Enter.
+4. Read `output/discovery.json`. It ranks every meal-shaped JSON response seen,
+   with URLs, methods, whether a bearer token was used, and payload key names.
+5. Check `output/meals.json` — how many meals, which approach won, are the
+   fields populated?
+6. **If the extraction came up thin or empty, adapt the harness.** Likely fixes,
+   in rough order of probability:
+   - `SITE.menuPaths` in `src/config.ts` points at the wrong URLs — find the
+     real menu URL in the browser and set it.
+   - The menu needs a delivery ZIP or plan selection before it renders.
+   - The meal array scores below threshold in `findMealArray` (`src/detect.ts`)
+     — inspect the HAR and adjust `FIELD_PATTERNS` / the score cutoff.
+   - The DOM cards don't contain a visible price, so the structural card finder
+     in `src/scrape.ts` anchors on nothing — anchor on a different marker.
+   Use `output/session.har` to debug rather than re-hitting the site.
+7. `npm run poc:again` — this must NOT prompt for login. That's the reliability
+   claim; if it fails, fix session persistence before declaring success.
+8. Write `cookunity-poc/FINDINGS.md`:
+   - Which approach worked (`api` / `embedded` / `dom`) and why the others
+     didn't.
+   - If an API was found: URL shape, auth mechanism, and whether it can be
+     replayed with the saved session outside a full browser.
+   - Whether run 2 skipped login, and anything learned about session lifetime.
+   - Fragility notes: what breaks first, and how we'd notice.
+   - Go / no-go for the personalization phase.
+9. Commit the code changes and `FINDINGS.md`. Do **not** commit
+   `output/`, `storage-state.json`, or any `.har` — they carry live auth tokens
+   and are already gitignored. Keep them out of chat too.
 
-2. **Pause for manual login.** Stop and let me log in by hand (use
-   `page.pause()` or wait on a terminal keypress / a logged-in DOM signal).
-   Never automate credentials, never ask me for them, never write them
-   anywhere.
+## Pace
 
-3. **Persist the session.** Save auth state so the *second* run skips login
-   entirely — either `context.storageState()` written to a local JSON file or a
-   persistent `userDataDir`. On startup, reuse saved state if present and only
-   pause for login when it's missing or expired.
-
-4. **Capture a HAR file** of the whole menu-browsing session
-   (`recordHar` on the context) so we can debug and inspect traffic offline.
-
-5. **Approach A — detect meal API calls.** While navigating the menu/meal
-   pages, listen to network traffic (`page.on('response')` or route
-   interception). Filter for JSON/GraphQL responses whose payloads look like
-   meal or menu data. For each candidate endpoint record: URL, method,
-   auth mechanism (cookie vs. bearer token vs. other), and a payload sample.
-   If a clean endpoint exists, prefer extracting meals from it.
-
-6. **Approach B — fallback: scrape rendered pages.** If no usable API calls
-   are obvious, extract meals from the rendered DOM instead: navigate the menu,
-   scroll/paginate until everything is loaded, and parse the meal cards and/or
-   meal detail pages.
-
-7. **Output meals as JSON** to `cookunity-poc/output/meals.json`: an array of
-   meal objects with `id`, `name`, and as many fields as are visible —
-   description, chef, macros (calories, protein, carbs, fat, and anything else
-   shown), price, rating, review count, dietary/allergen tags, category/cuisine,
-   image URL, availability. Include a top-level block noting which approach
-   produced the data, the capture timestamp, and the meal count. Missing fields
-   are fine — capture what's there, don't fabricate.
-
-8. **Document which approach worked and why** in `cookunity-poc/FINDINGS.md`:
-   - API vs. scraping — which one worked, and why the other didn't (or wasn't
-     needed).
-   - Endpoint details if Approach A worked (URL shape, auth, whether it can be
-     replayed with the saved session outside a full browser).
-   - How session persistence behaved (did run #2 skip login?).
-   - Fragility notes: what's likely to break (selectors, tokens, bot
-     detection) and how we'd notice.
-   - A go/no-go recommendation for the personalization phase.
-
-## Guardrails
-
-- **Read-only.** No clicks that mutate the account. If a page action is
-  ambiguous (e.g., a button that might add to cart), skip it and note it in
-  FINDINGS.md.
-- **Never commit secrets or session material.** Add a `.gitignore` in
-  `cookunity-poc/` covering the storage-state file, `userDataDir`, `*.har`,
-  and `output/` — HARs and storage state contain auth tokens. Findings and
-  code get committed; captures do not.
-- **Human-paced.** Navigate like a person browsing the menu — no parallel
-  request hammering, no replaying endpoints in a tight loop.
+Navigate like a person browsing the menu. No parallel request hammering, no
+replaying endpoints in a loop.
 
 ## Success criteria
 
-- [ ] Run #1: manual login once, session saved, HAR captured.
-- [ ] Run #2: **no login prompt** — saved session reused successfully.
-- [ ] `output/meals.json` contains the current menu (at minimum ~20 meals),
-      each with `name` + `price` and macros for meals that display them.
-- [ ] `FINDINGS.md` written, including the go/no-go recommendation.
+- [ ] `npm run selftest` passes.
+- [ ] Run 1: manual login once, session saved, HAR captured.
+- [ ] Run 2: no login prompt.
+- [ ] `output/meals.json` has the current menu (~20+ meals), each with a name
+      and price, and macros wherever the site shows them.
+- [ ] `FINDINGS.md` written, ending in a go/no-go.

@@ -1,0 +1,6 @@
+# Session material and captures carry live auth tokens — never commit these.
+storage-state.json
+user-data/
+*.har
+output/
+node_modules/

@@ -1,0 +1,21 @@
+{
+  "name": "cookunity-poc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only proof of concept for accessing CookUnity meal data",
+  "scripts": {
+    "discover": "tsx src/run.ts discover",
+    "poc": "tsx src/run.ts extract",
+    "poc:again": "tsx src/run.ts extract --require-session",
+    "selftest": "tsx src/selftest.ts"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
