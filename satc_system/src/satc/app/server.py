@@ -21,6 +21,7 @@ from flask import Flask, Response, redirect, render_template, request, send_file
 from satc.app.billing_views import bp as billing_bp
 from satc.app.comms_views import bp as comms_bp
 from satc.app.intake_views import bp as intake_bp
+from satc.app.pricing_views import bp as pricing_bp
 from satc.app.state import STATE
 from satc.app.today_views import bp as today_bp
 from satc.app.withholding_views import bp as withholding_bp
@@ -64,6 +65,7 @@ def create_app() -> Flask:
     app.register_blueprint(comms_bp)
     app.register_blueprint(today_bp)
     app.register_blueprint(billing_bp)
+    app.register_blueprint(pricing_bp)
     app.register_blueprint(work_bp)
 
     @app.before_request

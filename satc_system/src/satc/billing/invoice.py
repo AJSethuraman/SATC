@@ -103,10 +103,47 @@ class Invoice:
     lines: list[InvoiceLine] = field(default_factory=list)
     note: str = ""
 
+    # THE PLAN AS IT STOOD WHEN THIS WAS ISSUED. Stamped, not looked up.
+    #
+    # A line already stored the rate it was raised at, so a price rise could not
+    # reprice February. The DISCOUNT did not, and was read live from
+    # configs/billing/rate_plans.yaml every time the invoice was rendered — so
+    # moving the household rate from 25% to 30% silently rewrote every household
+    # invoice ever issued. An invoice the client paid $337.50 for came back
+    # saying $270.00, on their copy, in the register, and in the covering email.
+    #
+    # An issued invoice is a statement of fact about a transaction that already
+    # happened. Nothing in a config file may change what it says.
+    plan_discount_pct: Decimal | None = None
+    plan_name: str = ""
+    plan_client_label: str = ""
+
     # -- money -------------------------------------------------------------
 
     @property
+    def is_priced(self) -> bool:
+        """Whether this invoice carries its own copy of the plan."""
+        return self.plan_discount_pct is not None
+
+    @property
     def rate_plan(self) -> RatePlan:
+        """The plan this invoice is on.
+
+        Once issued, the one stamped on it. Before that, whatever the catalogue
+        says today — a draft SHOULD follow a price change, because it has not
+        been agreed with anybody yet.
+
+        This is also why an issued invoice survives a plan being renamed or
+        deleted: it stopped needing the catalogue at the moment it was fixed.
+        """
+        if self.plan_discount_pct is not None:
+            return RatePlan(
+                key=self.plan_key, name=self.plan_name or self.plan_key,
+                discount_pct=self.plan_discount_pct,
+                # Already satisfied at issue; re-asking would let a config change
+                # retroactively invalidate an invoice that has been sent.
+                requires_basis=False,
+                client_label=self.plan_client_label)
         return plan(self.plan_key)
 
     @property
@@ -245,6 +282,14 @@ class Invoice:
                 f"invoice can go out. Write why this client is on it — a reduced "
                 f"rate with no basis is improvisation, and improvisation is what "
                 f"looks arbitrary when two clients compare notes.")
+        # STAMPED AFTER the basis check, not before: the check is about whether
+        # this invoice may go out at all, and it asks the CURRENT rule. Once it
+        # passes, the plan is frozen onto the invoice and the catalogue stops
+        # having an opinion about it.
+        self.plan_discount_pct = rate_plan.discount_pct
+        self.plan_name = rate_plan.name
+        self.plan_client_label = rate_plan.client_label
+
         self.issued_on = on
         self.due_on = on + timedelta(days=due_in_days)
         return self

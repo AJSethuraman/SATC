@@ -493,10 +493,15 @@ def test_an_invoice_is_never_stored_without_its_lines(tmp_path):
 
     def half_write(invoices):
         for one in invoices:
+            # Columns NAMED, not positional: this test hand-writes a row, and a
+            # positional insert breaks every time the table grows a column.
             store.mart.execute(
-                "INSERT OR REPLACE INTO invoices VALUES (?,?,?,?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO invoices"
+                " (invoice_id, client_id, tax_year, plan_key, plan_basis,"
+                "  issued_on, due_on, note)"
+                " VALUES (?,?,?,?,?,?,?,?)",
                 (one.invoice_id, one.client_id, one.tax_year, one.plan_key,
-                 one.plan_basis, str(one.issued_on), str(one.due_on), None, ""))
+                 one.plan_basis, str(one.issued_on), str(one.due_on), ""))
         raise RuntimeError("simulated schema failure on the lines")
 
     store._write_invoices = half_write
@@ -508,3 +513,52 @@ def test_an_invoice_is_never_stored_without_its_lines(tmp_path):
 
     assert not store.load_invoices("CL-1"), (
         "the invoice header survived a failure that lost its lines")
+
+
+def test_the_plan_an_invoice_was_issued_on_survives_a_reload(tmp_path):
+    """The stamp is worthless if it does not persist — the invoice would come
+    back off disk with no plan and fall straight back to the live catalogue."""
+    from datetime import date
+    from decimal import Decimal
+
+    from satc.billing import Invoice
+    from satc.persistence.store import SATCStore
+
+    store = SATCStore(tmp_path)
+    inv = Invoice(invoice_id="2026-0001", client_id="CL-1", tax_year=2025,
+                  plan_key="household", plan_basis="W-2 household")
+    inv.add("return_1040")
+    inv.issue(on=date(2026, 3, 1))
+    store.save_invoices([inv])
+
+    back = store.load_invoices("CL-1")[0]
+    assert back.is_priced
+    assert back.plan_discount_pct == Decimal(25)
+    assert back.plan_client_label == "Household rate applied"
+    assert back.total == inv.total
+
+
+def test_an_invoice_from_a_store_without_the_plan_columns_still_loads(tmp_path):
+    """A record written before the stamp existed never captured one. It falls
+    back to the live catalogue — the old behaviour, and the honest answer for a
+    record that has nothing else to say."""
+    from datetime import date
+
+    from satc.billing import Invoice
+
+    store = _old_schema_store(tmp_path)
+    import sqlite3
+    con = sqlite3.connect(tmp_path / "satc_mart.db")
+    con.execute("DROP TABLE IF EXISTS invoices")
+    con.execute("CREATE TABLE invoices (invoice_id TEXT PRIMARY KEY, client_id TEXT,"
+                " tax_year INTEGER, plan_key TEXT, plan_basis TEXT, issued_on TEXT,"
+                " due_on TEXT, paid_on TEXT, note TEXT)")
+    con.execute("INSERT INTO invoices VALUES ('2020-0001','CL-1',2019,'household',"
+                "'old record','2020-03-01','2020-04-01',NULL,'')")
+    con.commit(); con.close()
+
+    from satc.persistence.store import SATCStore
+    fresh = SATCStore(tmp_path)                 # runs _migrate
+    back = [i for i in fresh.load_invoices("CL-1") if i.invoice_id == "2020-0001"]
+    assert back, "a pre-stamp invoice must still load"
+    assert not back[0].is_priced

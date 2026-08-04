@@ -121,9 +121,16 @@ CREATE TABLE IF NOT EXISTS received_documents (
   obtained_how TEXT, obtained_at TEXT, furnished_by TEXT, channel TEXT,
   satisfies_request_id TEXT, classified_by TEXT, display_name TEXT,
   source_path TEXT, note TEXT);
+-- plan_discount_pct/name/client_label are the RATE PLAN AS IT STOOD at issue.
+-- Without them the discount was read live from rate_plans.yaml on every render,
+-- so moving the household rate from 25% to 30% rewrote every household invoice
+-- ever issued — an invoice the client paid 337.50 for came back saying 270.00.
+-- An issued invoice states a transaction that already happened; no config edit
+-- may change it.
 CREATE TABLE IF NOT EXISTS invoices (
   invoice_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, plan_key TEXT,
-  plan_basis TEXT, issued_on TEXT, due_on TEXT, paid_on TEXT, note TEXT);
+  plan_basis TEXT, issued_on TEXT, due_on TEXT, paid_on TEXT, note TEXT,
+  plan_discount_pct TEXT, plan_name TEXT, plan_client_label TEXT);
 -- rate_adjusted says this line was priced AWAY from the catalogue, and it is
 -- stored rather than re-derived because the catalogue hot-reloads: a rate that
 -- moves next March must not retroactively turn an ordinary line into an adjusted
@@ -179,6 +186,26 @@ CREATE TABLE IF NOT EXISTS tasks (
   blocked_by TEXT, escalated_at TEXT);
 CREATE TABLE IF NOT EXISTS workflow_overrides (
   workflow_key TEXT PRIMARY KEY, data TEXT);
+-- Every movement in what the practice charges. NOT a mirror of
+-- configs/billing/*.yaml — those files stay the source of truth and the owner
+-- still edits them by hand — but the record of how they moved, which a file
+-- cannot hold because a file only ever says what the price is now.
+-- change_id is a content hash of the change itself, so recording the same
+-- movement twice is once (principle 8).
+-- changed_by is NULL when the author is genuinely unknown: an edit made outside
+-- the app is recorded WITHOUT an author rather than credited to the engine that
+-- noticed it. An ugly authorless row beats a gap, because a gap looks exactly
+-- like nothing having happened.
+-- not_before is the last date the OLD value was still on disk, so such an edit
+-- is dated to an interval instead of to the day somebody opened the app.
+-- recorded_at is when the ROW was written, not when the price moved: two
+-- changes to the same service on one morning have no order without it, and
+-- "what were we charging" would be answered by whichever hashed higher.
+-- No client PII touches this table: subjects are catalogue codes.
+CREATE TABLE IF NOT EXISTS price_changes (
+  change_id TEXT PRIMARY KEY, kind TEXT, subject TEXT, field TEXT,
+  old_value TEXT, new_value TEXT, changed_on TEXT, not_before TEXT,
+  changed_by TEXT, note TEXT, recorded_at TEXT);
 CREATE TABLE IF NOT EXISTS app_meta (k TEXT PRIMARY KEY, v TEXT);
 """
 
@@ -455,6 +482,14 @@ class SATCStore:
         # value too many, invoice_lines refused the whole write, and an invoice
         # was left ISSUED WITH NO LINES. A bill for zero pounds, in the register,
         # for work that was done.
+        # The plan an invoice was ISSUED on. Same class of bug as the two below,
+        # and the one with the worst consequence: without these an issued invoice
+        # re-reads the live discount and silently restates what a client paid.
+        inv_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(invoices)")}
+        for column in ("plan_discount_pct", "plan_name", "plan_client_label"):
+            if column not in inv_cols:
+                self.mart.execute(f"ALTER TABLE invoices ADD COLUMN {column} TEXT")
+
         line_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(invoice_lines)")}
         if "rate_adjusted" not in line_cols:
             self.mart.execute(
@@ -462,6 +497,21 @@ class SATCStore:
         pay_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(payments)")}
         if "sequence" not in pay_cols:
             self.mart.execute("ALTER TABLE payments ADD COLUMN sequence INTEGER DEFAULT 0")
+        self.mart.commit()
+
+        # THE PRICE RECORD. Every column is listed, not just the ones added
+        # since — a table created by an earlier build is exactly what the DDL
+        # above will not touch, and the two facts most likely to arrive late
+        # here are the two that carry the honesty: not_before (an out-of-band
+        # edit is dated to an interval) and note (why the author is blank).
+        # Losing either turns "changed sometime that week, by we-do-not-know-who"
+        # into a row that reads like an ordinary dated change nobody made.
+        pc_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(price_changes)")}
+        for column in ("kind", "subject", "field", "old_value", "new_value",
+                       "changed_on", "not_before", "changed_by", "note",
+                       "recorded_at"):
+            if column not in pc_cols:
+                self.mart.execute(f"ALTER TABLE price_changes ADD COLUMN {column} TEXT")
         self.mart.commit()
 
     def _encrypt_vault_at_rest(self) -> None:
@@ -647,10 +697,12 @@ class SATCStore:
     def _write_invoices(self, invoices) -> None:
         for inv in invoices:
             self.mart.execute(
-                "INSERT OR REPLACE INTO invoices VALUES (?,?,?,?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO invoices VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 (inv.invoice_id, inv.client_id, inv.tax_year, inv.plan_key,
                  inv.plan_basis, _dt(inv.issued_on), _dt(inv.due_on),
-                 _dt(inv.paid_on), inv.note))
+                 _dt(inv.paid_on), inv.note,
+                 None if inv.plan_discount_pct is None else str(inv.plan_discount_pct),
+                 inv.plan_name, inv.plan_client_label))
             self.mart.execute("DELETE FROM invoice_lines WHERE invoice_id=?",
                               (inv.invoice_id,))
             for n, line in enumerate(inv.lines):
@@ -687,7 +739,14 @@ class SATCStore:
             tax_year=r["tax_year"], plan_key=r["plan_key"] or "standard",
             plan_basis=r["plan_basis"] or "", issued_on=_pdt(r["issued_on"]),
             due_on=_pdt(r["due_on"]), paid_on=_pdt(r["paid_on"]),
-            lines=lines_by_invoice.get(r["invoice_id"], []), note=r["note"] or "")
+            lines=lines_by_invoice.get(r["invoice_id"], []), note=r["note"] or "",
+            # _col, not r[...]: an invoice written before these columns existed
+            # must still load. It comes back with no stamped plan and therefore
+            # falls back to the live catalogue — which is the old behaviour, and
+            # is the honest answer for a record that never captured one.
+            plan_discount_pct=_pd(_col(r, "plan_discount_pct")),
+            plan_name=_col(r, "plan_name") or "",
+            plan_client_label=_col(r, "plan_client_label") or "")
             for r in self.mart.execute(sql + " ORDER BY invoice_id", args)]
 
     # -- payments (the ledger behind "paid") -------------------------------
@@ -759,6 +818,76 @@ class SATCStore:
         # ledger can never disagree about what a row says.
         return [_payment(r) for r in self.mart.execute(
             sql + " ORDER BY received_on, payment_id", tuple(args))]
+
+    # -- the price record (what the practice charges, and when it moved) ----
+
+    _PRICE_COLUMNS = ("change_id", "kind", "subject", "field", "old_value",
+                      "new_value", "changed_on", "not_before", "changed_by",
+                      "note", "recorded_at")
+
+    def save_price_changes(self, changes) -> None:
+        """Record price movements. Idempotent on the content-derived change_id.
+
+        The columns are NAMED rather than positional, which every other table
+        here does not do — because this one has a migration that appends columns
+        to a table an earlier build created. After an ALTER, the physical column
+        order is creation order, not DDL order, and a positional INSERT would
+        quietly file the actor's handle in ``not_before``. That is the same
+        family of bug as the invoice_lines one, one step further along: the
+        write succeeds, and the row is wrong.
+        """
+        holes = ",".join("?" * len(self._PRICE_COLUMNS))
+        sql = (f"INSERT OR REPLACE INTO price_changes "
+               f"({','.join(self._PRICE_COLUMNS)}) VALUES ({holes})")
+        for c in changes:
+            self.mart.execute(sql, (
+                c.change_id, c.kind, c.subject, c.field, c.old_value, c.new_value,
+                _dt(c.changed_on), _dt(c.not_before), _actor(c.changed_by), c.note,
+                _ts(c.recorded_at)))
+        self.mart.commit()
+
+    def load_price_changes(self, subject: str = "") -> list:
+        """The price record back off disk, oldest first.
+
+        ``changed_by`` comes back as None when the column is NULL and STAYS
+        None: an edit made outside the app has no author, and _pactor turning a
+        blank into a system actor would put a name on the one row whose whole
+        point is that nobody knows whose it is.
+        """
+        from satc.billing.history import PriceChange
+
+        def _when(value):
+            """A hand-edited date must not take the price screen down with it."""
+            try:
+                return _pdt(value)
+            except (ValueError, TypeError):
+                return None
+
+        def _stamp(value):
+            try:
+                return _pts(value)
+            except (ValueError, TypeError):
+                return None
+
+        sql = "SELECT * FROM price_changes"
+        args: tuple = ()
+        if subject:
+            sql += " WHERE subject=?"
+            args = (subject,)
+        return [PriceChange(
+            kind=_col(r, "kind") or "", subject=_col(r, "subject") or "",
+            field=_col(r, "field") or "",
+            old_value=_col(r, "old_value"), new_value=_col(r, "new_value"),
+            # A change with no date could not be placed on a timeline at all, so
+            # it is not silently dated today — the epoch reads as broken on
+            # sight, which is what a row this damaged should look like.
+            changed_on=_when(_col(r, "changed_on")) or date(1970, 1, 1),
+            changed_by=_pactor(_col(r, "changed_by")),
+            note=_col(r, "note") or "",
+            not_before=_when(_col(r, "not_before")),
+            recorded_at=_stamp(_col(r, "recorded_at")))
+            for r in self.mart.execute(
+                sql + " ORDER BY changed_on, recorded_at, change_id", args)]
 
     # -- filings (many per return) ----------------------------------------
 

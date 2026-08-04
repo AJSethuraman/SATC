@@ -26,6 +26,7 @@
       <a href="{{ url_for('comms.comms') }}" class="{{ 'active' if title=='Client comms' }}"><span class="ic">✉</span> Client comms</a>
       <a href="{{ url_for('work.work') }}" class="{{ 'active' if 'Work' in title }}"><span class="ic">⚒</span> Work queue</a>
       <a href="{{ url_for('billing.invoices') }}" class="{{ 'active' if 'nvoice' in title }}"><span class="ic">$</span> Invoices</a>
+      <a href="{{ url_for('pricing.pricing') }}" class="{{ 'active' if 'Pricing' in title }}"><span class="ic">≡</span> Pricing</a>
       <a href="{{ url_for('withholding.withholding') }}" class="{{ 'active' if title=='Withholding' }}"><span class="ic">％</span> Withholding</a>
       <a href="{{ url_for('export') }}"><span class="ic">⬇</span> Export to Excel</a>
       <a href="{{ url_for('setup') }}" class="{{ 'active' if title=='Setup' }}"><span class="ic">⚙</span> Setup</a>

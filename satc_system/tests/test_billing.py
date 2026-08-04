@@ -423,3 +423,116 @@ def test_the_engine_refuses_even_when_the_screen_already_said_yes():
     inv = _invoice("standard", "")
     with pytest.raises(BillingError):
         inv.add("return_1040", rate_override=Decimal("180"), note="   ")
+
+
+# --- an issued invoice does not move when the price list does ----------------
+#
+# The rate was stamped onto the line, so a price rise could not reprice
+# February. The DISCOUNT was not, and was read live on every render — so moving
+# the household rate from 25% to 30% rewrote every household invoice ever
+# issued. An invoice the client paid $337.50 for came back saying $270.00, on
+# their copy, in the register, and in the covering email.
+
+def _with_plans(tmp_path, text: str):
+    """A billing config this test owns, wired in where the engine reads from."""
+    import shutil
+
+    from satc.billing import catalogue
+
+    shutil.copytree("configs", tmp_path / "configs")
+    (tmp_path / "configs" / "billing" / "rate_plans.yaml").write_text(text, encoding="utf-8")
+    catalogue.billing_dir = lambda *a, **k: tmp_path / "configs" / "billing"
+    catalogue.forget_prices()
+
+
+PLANS = """
+meta:
+  default_plan: standard
+plans:
+  - key: standard
+    name: "Standard"
+    discount_pct: 0
+  - key: household
+    name: "Household rate"
+    discount_pct: {pct}
+    requires_basis: true
+    client_label: "Household rate applied"
+"""
+
+
+def test_changing_a_discount_does_not_reprice_an_issued_invoice(tmp_path, monkeypatch):
+    from satc.billing import catalogue
+
+    monkeypatch.setattr(catalogue, "billing_dir", catalogue.billing_dir)
+    _with_plans(tmp_path, PLANS.format(pct=25))
+
+    inv = _invoice("household", "W-2 household")
+    inv.add("return_1040")
+    inv.issue(on=date(2026, 3, 1))
+    was = inv.total
+    assert was == Decimal("337.50")
+
+    (tmp_path / "configs" / "billing" / "rate_plans.yaml").write_text(
+        PLANS.format(pct=40), encoding="utf-8")
+    catalogue.forget_prices()
+
+    assert inv.total == was, "a config edit restated what a client already paid"
+    assert inv.discount_total == Decimal("112.50")
+    assert "$337.50" in inv.client_sentence()
+
+
+def test_a_draft_still_follows_the_current_price_list(tmp_path, monkeypatch):
+    """Guards against over-fixing. A draft has been agreed with nobody, so it
+    SHOULD pick up a change."""
+    from satc.billing import catalogue
+
+    monkeypatch.setattr(catalogue, "billing_dir", catalogue.billing_dir)
+    _with_plans(tmp_path, PLANS.format(pct=25))
+
+    inv = _invoice("household", "W-2 household")
+    inv.add("return_1040")
+    assert inv.total == Decimal("337.50")
+
+    (tmp_path / "configs" / "billing" / "rate_plans.yaml").write_text(
+        PLANS.format(pct=40), encoding="utf-8")
+    catalogue.forget_prices()
+    assert inv.total == Decimal("270.00")
+
+
+def test_an_issued_invoice_survives_its_plan_being_deleted(tmp_path, monkeypatch):
+    """It stopped needing the catalogue the moment it was fixed. History must
+    always load."""
+    from satc.billing import catalogue
+
+    monkeypatch.setattr(catalogue, "billing_dir", catalogue.billing_dir)
+    _with_plans(tmp_path, PLANS.format(pct=25))
+
+    inv = _invoice("household", "W-2 household")
+    inv.add("return_1040")
+    inv.issue(on=date(2026, 3, 1))
+
+    (tmp_path / "configs" / "billing" / "rate_plans.yaml").write_text(
+        "meta:\n  default_plan: standard\nplans:\n  - key: standard\n"
+        "    name: Standard\n    discount_pct: 0\n", encoding="utf-8")
+    catalogue.forget_prices()
+
+    assert inv.total == Decimal("337.50")
+    assert "Household rate applied" in inv.summary_block()
+
+
+def test_the_stamped_plan_is_what_makes_it_hold(tmp_path, monkeypatch):
+    """Mutation check — principle 12. If issue() stopped stamping, rate_plan
+    would fall back to the live catalogue and the first test above would fail;
+    this asserts the stamp itself so the reason is visible."""
+    from satc.billing import catalogue
+
+    monkeypatch.setattr(catalogue, "billing_dir", catalogue.billing_dir)
+    _with_plans(tmp_path, PLANS.format(pct=25))
+
+    inv = _invoice("household", "W-2 household")
+    inv.add("return_1040")
+    assert not inv.is_priced, "a draft carries no stamp"
+    inv.issue(on=date(2026, 3, 1))
+    assert inv.is_priced
+    assert inv.plan_discount_pct == Decimal(25)
+    assert inv.plan_client_label == "Household rate applied"
