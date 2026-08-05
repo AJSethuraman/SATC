@@ -7,6 +7,8 @@ export interface Meal {
   description?: string | null;
   chef?: string | null;
   price?: number | null;
+  /** Surcharge charged on top of `price` for premium meals; separate field. */
+  premiumFee?: number | null;
   currency?: string | null;
   rating?: number | null;
   reviewCount?: number | null;

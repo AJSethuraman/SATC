@@ -11,6 +11,7 @@ const FIELD_PATTERNS = {
   description: [/^description$/, /^shortdescription$/, /^subtitle$/, /^summary$/],
   chef: [/^chef$/, /^chefname$/, /^brand$/, /^brandname$/, /^creator$/],
   price: [/^price$/, /^baseprice$/, /^unitprice$/, /^amount$/, /^pricecents$/, /^listprice$/],
+  premiumFee: [/^premiumfee$/, /^surcharge$/, /^upcharge$/, /^extrafee$/],
   currency: [/^currency$/, /^currencycode$/],
   rating: [/^rating$/, /^avgrating$/, /^averagerating$/, /^stars$/, /^score$/],
   reviewCount: [/^reviewcount$/, /^reviews$/, /^numreviews$/, /^ratingcount$/, /^totalreviews$/],
@@ -192,6 +193,7 @@ export function mealFromJson(obj: Record<string, unknown>): Meal | null {
     description: toStringOrNull(findField(obj, 'description')),
     chef: composeChef(obj),
     price,
+    premiumFee: normalizePrice(findField(obj, 'premiumFee')),
     // Assume USD when a price is present but no currency is stated — every
     // known CookUnity store prices in dollars.
     currency: toStringOrNull(findField(obj, 'currency')) ?? (price === null ? null : 'USD'),
