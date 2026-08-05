@@ -18,7 +18,7 @@ export const SITE = {
    * Pages to visit while listening for meal API traffic. The first that renders
    * a menu wins; the rest are tried only if it yields nothing.
    */
-  menuPaths: ['/menu', '/meals', '/'],
+  menuPaths: ['/our-menu', '/menu', '/meals', '/'],
   /**
    * Hosts whose JSON responses are worth inspecting. Third-party analytics and
    * tag managers are noise, so they are filtered out before scoring.
