@@ -2,7 +2,14 @@ import { extractEmbeddedJson, watchForMealApis, type Capture } from './capture.j
 import { PATHS, SETTLE_MS, SITE } from './config.js';
 import { mealFromJson } from './detect.js';
 import { loadAllContent, scrapeMeals } from './scrape.js';
-import { ensureOutputDir, hasSavedSession, openSession, waitForManualLogin, writeJson } from './session.js';
+import {
+  ensureOutputDir,
+  hasSavedSession,
+  isCdpMode,
+  openSession,
+  waitForManualLogin,
+  writeJson,
+} from './session.js';
 import type { Meal, MealsFile } from './types.js';
 
 async function main(): Promise<void> {
@@ -10,9 +17,13 @@ async function main(): Promise<void> {
   const requireSavedSession = process.argv.includes('--require-session');
 
   ensureOutputDir();
-  const startedWithSession = hasSavedSession();
+  // In CDP mode the operator logged in themselves before we attached.
+  const startedWithSession = isCdpMode() || hasSavedSession();
 
-  const session = await openSession({ harPath: PATHS.har, requireSavedSession });
+  const session = await openSession({
+    ...(isCdpMode() ? {} : { harPath: PATHS.har }),
+    requireSavedSession,
+  });
   const page = await session.context.newPage();
   const captures: Capture[] = [];
   watchForMealApis(page, captures);
@@ -79,7 +90,7 @@ async function main(): Promise<void> {
       embeddedCandidate: embedded?.candidate ?? null,
       domCardSignature: scraped?.cardSignature ?? null,
       domMealCount: scraped?.meals.length ?? 0,
-      harPath: PATHS.har,
+      harPath: isCdpMode() ? null : PATHS.har,
     });
 
     console.log(`\n  Approach that worked: ${approach}`);
@@ -87,7 +98,7 @@ async function main(): Promise<void> {
     console.log(`  Source: ${source}`);
     console.log(`  Wrote ${PATHS.meals}`);
     console.log(`  Wrote ${PATHS.discovery} (API candidates for FINDINGS.md)`);
-    console.log(`  HAR: ${PATHS.har}`);
+    console.log(isCdpMode() ? '  HAR: skipped (attached to an existing browser)' : `  HAR: ${PATHS.har}`);
     if (mode === 'discover') {
       console.log('\n  Discovery mode: review output/discovery.json for endpoint details.');
     }

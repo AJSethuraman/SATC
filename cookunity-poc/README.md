@@ -42,6 +42,39 @@ Outputs (all gitignored — they contain auth tokens):
 `npm run selftest` exercises the whole pipeline against a local fixture without
 touching the network.
 
+## If login is behind "Sign in with Google"
+
+Google refuses OAuth in an automated browser — you get **"Couldn't sign you in —
+this browser or app may not be secure."** It detects Playwright regardless of
+how the page looks. Two ways around it:
+
+**Option 1 — use a password instead of Google (simplest).** If the CookUnity
+account has an email/password login, use that in the Playwright window; no
+Google involved. If it was created via Google, run CookUnity's "forgot
+password" flow once to set one.
+
+**Option 2 — attach to your own Chrome.** Log in as a normal human in a normal
+Chrome, then point the harness at it. Nothing about that browser looks
+automated, so Google is happy.
+
+```bash
+# 1. Start Chrome with debugging on, in a scratch profile (macOS):
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+  --remote-debugging-port=9222 --user-data-dir=/tmp/cu-profile
+
+# Windows (PowerShell):
+& "C:\Program Files\Google\Chrome\Application\chrome.exe" `
+  --remote-debugging-port=9222 --user-data-dir="$env:TEMP\cu-profile"
+
+# 2. In that window, log into CookUnity by hand.
+# 3. In a terminal, with that Chrome still open:
+PLAYWRIGHT_CDP_URL=http://localhost:9222 npm run poc
+```
+
+The separate `--user-data-dir` keeps this away from your normal Chrome profile.
+In this mode the harness attaches instead of launching, so it never pauses for
+login and **no HAR is recorded** — `discovery.json` still lists every endpoint.
+
 ## How extraction works
 
 Three paths are tried in order, and `meals.json` records which one won:
@@ -63,6 +96,8 @@ normalised out of the signature so a deploy doesn't automatically break it.
 
 Normal local runs need neither of these.
 
+- `PLAYWRIGHT_CDP_URL` — attach to a browser you started yourself (see the
+  Google sign-in section above) instead of launching one.
 - `PLAYWRIGHT_CHROMIUM_EXECUTABLE` — use a pinned Chromium instead of
   Playwright's own download.
 - `PLAYWRIGHT_NO_SANDBOX` — disable Chromium's setuid sandbox, which cannot

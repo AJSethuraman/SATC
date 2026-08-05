@@ -43,7 +43,40 @@ export function launchChromium(headless: boolean): Promise<Browser> {
   });
 }
 
+/**
+ * True when the run should attach to a browser the operator started themselves
+ * rather than launching its own. Google refuses OAuth sign-in in a
+ * Playwright-launched browser ("This browser or app may not be secure"), so
+ * accounts behind Google SSO have to log in in a normal Chrome, which we then
+ * attach to over the DevTools protocol.
+ */
+export function isCdpMode(): boolean {
+  return Boolean(process.env['PLAYWRIGHT_CDP_URL']);
+}
+
 export async function openSession(options: SessionOptions = {}): Promise<Session> {
+  const cdpUrl = process.env['PLAYWRIGHT_CDP_URL'];
+  if (cdpUrl) {
+    const browser = await chromium.connectOverCDP(cdpUrl);
+    const context = browser.contexts()[0];
+    if (!context) {
+      throw new Error(`Attached to ${cdpUrl} but it has no open window. Open a tab and retry.`);
+    }
+    // HAR recording is a context-creation option, so it is unavailable on a
+    // context we did not create. discovery.json still captures the endpoints.
+    return {
+      browser,
+      context,
+      reusedSession: true,
+      close: async () => {
+        const target = options.storageStatePath ?? PATHS.storageState;
+        await context.storageState({ path: target }).catch(() => undefined);
+        // Detaches from the operator's browser; it keeps running.
+        await browser.close();
+      },
+    };
+  }
+
   const storageStatePath = options.storageStatePath ?? PATHS.storageState;
   const reusedSession = fs.existsSync(storageStatePath);
 
