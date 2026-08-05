@@ -22,6 +22,11 @@ const FIELD_PATTERNS = {
   category: [/^category$/, /^cuisine$/, /^cuisines$/, /^categories$/, /^mealtype$/, /^categoryname$/],
   imageUrl: [/^image$/, /^imageurl$/, /^thumbnail$/, /^photo$/, /^picture$/, /^imgurl$/],
   tags: [/^tags$/, /^labels$/, /^badges$/, /^dietarytags$/, /^attributes$/, /^allergens$/],
+  // Deliberately not /^protein$/ — that is the macro in grams, not the animal.
+  proteinType: [/^meattype$/, /^proteintype$/, /^meat$/],
+  ingredients: [/^ingredients$/, /^ingredientsdata$/, /^ingredientlist$/, /^ingredient$/],
+  sides: [/^sidedish$/, /^sidedishes$/, /^sides$/, /^side$/],
+  warnings: [/^warning$/, /^warnings$/, /^allergens$/, /^allergenwarning$/],
 } as const;
 
 type FieldName = keyof typeof FIELD_PATTERNS;
@@ -100,6 +105,33 @@ function toStringOrNull(value: unknown): string | null {
   if (typeof value === 'string') return value.trim() || null;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   return null;
+}
+
+/**
+ * Coerce a field into a list of strings. These fields (ingredients, sides,
+ * meat type) arrive in whatever shape the backend felt like: a comma-joined
+ * string, a flat array, or an array of objects with a name.
+ */
+function toStringList(value: unknown): string[] | undefined {
+  const out: string[] = [];
+  const push = (item: unknown): void => {
+    if (typeof item === 'string') {
+      // Split joined strings, but keep multi-word entries like "Chicken Thigh".
+      for (const part of item.split(/[,;|]/)) {
+        const trimmed = part.trim();
+        if (trimmed) out.push(trimmed);
+      }
+    } else if (isPlainObject(item)) {
+      const name = toStringOrNull(findField(item, 'name'));
+      if (name) out.push(name);
+    }
+  };
+
+  if (Array.isArray(value)) value.forEach(push);
+  else if (isPlainObject(value)) Object.values(value).forEach(push);
+  else push(value);
+
+  return out.length ? Array.from(new Set(out)) : undefined;
 }
 
 function toTags(value: unknown): string[] | undefined {
@@ -205,6 +237,10 @@ export function mealFromJson(obj: Record<string, unknown>): Meal | null {
     fat: macro('fat', 'fat', 'totalfat'),
     tags: toTags(findField(obj, 'tags')),
     category: toCategory(findField(obj, 'category')),
+    proteinType: toStringList(findField(obj, 'proteinType')),
+    ingredients: toStringList(findField(obj, 'ingredients')),
+    sides: toStringList(findField(obj, 'sides')),
+    warnings: toStringList(findField(obj, 'warnings')),
     imageUrl: toStringOrNull(findField(obj, 'imageUrl')),
   };
 }

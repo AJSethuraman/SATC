@@ -75,6 +75,48 @@ The separate `--user-data-dir` keeps this away from your normal Chrome profile.
 In this mode the harness attaches instead of launching, so it never pauses for
 login and **no HAR is recorded** — `discovery.json` still lists every endpoint.
 
+## Ranking meals against your preferences
+
+```bash
+npm run poc -- --url https://www.cookunity.com/our-menu   # refresh the menu
+npm run rank                                              # rank it
+npm run rank -- --top 30                                  # show more
+```
+
+Edit `preferences.json` to taste. Every score is explained — each line shows
+exactly which rules fired and what each was worth, so a surprising result is
+diagnosable rather than mysterious:
+
+```
+ 1. [7.50] Chicken Broccoli Bowl — Jose Garces
+    +3 chicken, +2 broccoli, +2 high protein, +0.5 rated 4.71
+```
+
+**How matching works.** Preference terms are matched against *all* of a meal's
+text — name, description, ingredients, sides, protein type, cuisine, tags —
+because the backend spreads the same fact across different fields from meal to
+meal. `broccoli` catches it whether it lands in the ingredient list or only in
+the description. Matching is on word boundaries, so `beet` does not fire on
+`beetroot-free`.
+
+**`limits` are hard gates**, applied before scoring; everything else is points.
+The run prints a tally of what got filtered and why, which is how you notice a
+limit set too tight.
+
+### What the data does and does not support
+
+- **Trans fat cannot be limited.** The menu API sends `nutritional_facts` with
+  calories and nothing else — no fat breakdown at all. The `tagBonuses` section
+  works on the coarse buckets CookUnity does publish (`High Fat`, `High
+  Protein`, `High Sodium`, `Low Sugar`). These are labels, not measurements.
+- **No gram-level macros**, for the same reason. `High Protein` as a tag is the
+  best available proxy.
+- Calories, rating, and review count *are* real numbers and are gated exactly.
+
+`npm run test:rank` covers the ranking rules — ordering, word-boundary
+matching, each hard gate, tag bonuses, and explanation formatting. No browser
+or network needed.
+
 ## How extraction works
 
 Three paths are tried in order, and `meals.json` records which one won:

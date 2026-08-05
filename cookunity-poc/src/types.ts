@@ -18,6 +18,12 @@ export interface Meal {
   fat?: number | null;
   tags?: string[];
   category?: string | null;
+  /** What the protein actually is, e.g. ["Poultry", "Chicken Thigh"]. */
+  proteinType?: string[];
+  ingredients?: string[];
+  /** What it comes with — the side matters as much as the protein. */
+  sides?: string[];
+  warnings?: string[];
   imageUrl?: string | null;
   sourceUrl?: string | null;
 }

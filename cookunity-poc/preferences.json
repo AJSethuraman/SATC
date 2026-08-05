@@ -1,0 +1,44 @@
+{
+  "proteins": {
+    "chicken": 3,
+    "turkey": 2,
+    "salmon": 2,
+    "fish": 1.5,
+    "shrimp": 1,
+    "beef": 1,
+    "steak": 1,
+    "pork": 0.5,
+    "tofu": 0,
+    "lamb": 0
+  },
+  "ingredients": {
+    "broccoli": 2,
+    "asparagus": 1.5,
+    "green bean": 1.5,
+    "spinach": 1,
+    "sweet potato": 1,
+    "rice": 0.5,
+    "quinoa": 0.5,
+    "cauliflower": -1,
+    "brussels": -1,
+    "kale": -0.5,
+    "mushroom": -0.5,
+    "beet": -1
+  },
+  "exclude": [],
+  "limits": {
+    "maxCalories": 950,
+    "minRating": 4.2,
+    "minReviewCount": 50
+  },
+  "tagBonuses": {
+    "High Protein": 2,
+    "Low Sugar": 0.5,
+    "High Sodium": -1,
+    "High Fat": -0.75,
+    "High Sugar": -1
+  },
+  "weights": {
+    "rating": 1.5
+  }
+}

@@ -8,7 +8,9 @@
     "discover": "tsx src/run.ts discover",
     "poc": "tsx src/run.ts extract",
     "poc:again": "tsx src/run.ts extract --require-session",
-    "selftest": "tsx src/selftest.ts"
+    "selftest": "tsx src/selftest.ts",
+    "rank": "tsx src/rank-cli.ts",
+    "test:rank": "tsx src/ranktest.ts"
   },
   "dependencies": {
     "playwright": "^1.49.0"
