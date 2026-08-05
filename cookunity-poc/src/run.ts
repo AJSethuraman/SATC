@@ -1,7 +1,7 @@
 import { extractEmbeddedJson, watchForMealApis, type Capture } from './capture.js';
 import { PATHS, SETTLE_MS, SITE } from './config.js';
 import { mealFromJson } from './detect.js';
-import { loadAllContent, scrapeMeals } from './scrape.js';
+import { loadAllContent, scrapeMeals, type ScrapeResult } from './scrape.js';
 import {
   ensureOutputDir,
   hasSavedSession,
@@ -24,12 +24,23 @@ async function main(): Promise<void> {
     ...(isCdpMode() ? {} : { harPath: PATHS.har }),
     requireSavedSession,
   });
-  const page = await session.context.newPage();
+  // An explicit --url beats every guess; in attach mode, the tab the operator
+  // is already looking at beats them too. Guessing menu paths is the last
+  // resort, because a wrong guess silently redirects to marketing pages.
+  const urlFlagIndex = process.argv.indexOf('--url');
+  const explicitUrl = urlFlagIndex === -1 ? null : (process.argv[urlFlagIndex + 1] ?? null);
+  const openTab = isCdpMode()
+    ? session.context.pages().filter((p) => p.url().includes('cookunity.')).pop()
+    : undefined;
+
+  const page = openTab ?? (await session.context.newPage());
   const captures: Capture[] = [];
   watchForMealApis(page, captures);
 
   try {
-    await page.goto(SITE.baseUrl, { waitUntil: 'domcontentloaded' });
+    if (!openTab) {
+      await page.goto(SITE.baseUrl, { waitUntil: 'domcontentloaded' });
+    }
 
     if (!startedWithSession) {
       await waitForManualLogin();
@@ -37,19 +48,37 @@ async function main(): Promise<void> {
       console.log('  Reusing saved session — no login prompt.');
     }
 
-    let scraped: Awaited<ReturnType<typeof scrapeMeals>> | null = null;
+    let scraped: ScrapeResult | null = null;
     let visited = '';
 
-    for (const menuPath of SITE.menuPaths) {
-      const url = new URL(menuPath, SITE.baseUrl).href;
-      console.log(`  Visiting ${url}`);
-      await page.goto(url, { waitUntil: 'domcontentloaded' }).catch(() => undefined);
+    /** Settle, lazy-load, scrape, and report where we actually ended up. */
+    const harvest = async (): Promise<ScrapeResult> => {
       await page.waitForTimeout(SETTLE_MS);
       await loadAllContent(page);
       visited = page.url();
+      const result = await scrapeMeals(page);
+      console.log(`    landed on ${visited} — "${await page.title()}" (${result.meals.length} cards)`);
+      return result;
+    };
 
-      scraped = await scrapeMeals(page);
-      if (captures.length > 0 || scraped.meals.length >= 5) break;
+    if (explicitUrl) {
+      console.log(`  Visiting ${explicitUrl} (from --url)`);
+      await page.goto(explicitUrl, { waitUntil: 'domcontentloaded' }).catch(() => undefined);
+      scraped = await harvest();
+    } else if (openTab) {
+      // Reload so the network listener sees the menu's own API calls; they
+      // already fired before we attached. A reload is a plain GET — read-only.
+      console.log(`  Using the tab you already have open: ${page.url()}`);
+      await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => undefined);
+      scraped = await harvest();
+    } else {
+      for (const menuPath of SITE.menuPaths) {
+        const url = new URL(menuPath, SITE.baseUrl).href;
+        console.log(`  Visiting ${url}`);
+        await page.goto(url, { waitUntil: 'domcontentloaded' }).catch(() => undefined);
+        scraped = await harvest();
+        if (captures.length > 0 || scraped.meals.length >= 5) break;
+      }
     }
 
     const embedded = captures.length === 0 ? await extractEmbeddedJson(page) : null;
@@ -86,6 +115,10 @@ async function main(): Promise<void> {
     writeJson(PATHS.discovery, {
       capturedAt: new Date().toISOString(),
       reusedSession: session.reusedSession,
+      // Where we actually ended up, so a silent redirect to a marketing page is
+      // visible rather than looking like an extraction failure.
+      landedUrl: visited,
+      usedOpenTab: Boolean(openTab),
       apiCandidates: captures.map((c) => c.candidate).sort((a, b) => b.score - a.score),
       embeddedCandidate: embedded?.candidate ?? null,
       domCardSignature: scraped?.cardSignature ?? null,
