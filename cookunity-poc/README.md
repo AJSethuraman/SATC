@@ -11,14 +11,14 @@ nothing touches cart, subscription, delivery, or payment settings.
 | Piece | State |
 |---|---|
 | Extraction harness (API / embedded / DOM) | Built, 36 self-test checks passing |
-| Session persistence + HAR capture | Built and verified |
-| Works against CookUnity itself | **Unverified** — requires a local run |
+| Session persistence | Verified — run 2 does not prompt for login |
+| Works against CookUnity itself | **Yes** — 349 meals via the `api` path |
 
-The harness is verified against a local fixture site, not against CookUnity.
-`www.cookunity.com` is blocked by this environment's egress policy (the proxy
-returns 403 on CONNECT), and the login step needs a human at a real browser
-regardless. So the open question for a local run is only *"does the site expose
-the data"* — not *"does this code run"*.
+**The POC passes.** See [`FINDINGS.md`](FINDINGS.md) for the endpoint, field
+coverage, and the two unresolved items (macros beyond calories are not served;
+`price` is $0 for two-thirds of the catalog for reasons not yet explained).
+
+The menu is at `/our-menu`, and Google SSO forces attach mode — see below.
 
 ## Running it
 
