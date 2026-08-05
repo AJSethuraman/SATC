@@ -93,7 +93,13 @@ async function main(): Promise<void> {
     if (jsonBest) {
       meals = jsonBest.items
         .map((item) => mealFromJson(item))
-        .filter((meal): meal is Meal => meal !== null);
+        .filter((meal): meal is Meal => meal !== null)
+        // Image paths come back root-relative; make them usable on their own.
+        .map((meal) =>
+          meal.imageUrl?.startsWith('/')
+            ? { ...meal, imageUrl: new URL(meal.imageUrl, SITE.baseUrl).href }
+            : meal,
+        );
       approach = jsonBest.candidate.method === 'EMBEDDED' ? 'embedded' : 'api';
       source = jsonBest.candidate.url;
     }
@@ -123,6 +129,9 @@ async function main(): Promise<void> {
       embeddedCandidate: embedded?.candidate ?? null,
       domCardSignature: scraped?.cardSignature ?? null,
       domMealCount: scraped?.meals.length ?? 0,
+      // One untouched item from the winning payload, so field-mapping gaps can
+      // be diagnosed against the real schema rather than guessed at.
+      rawSample: jsonBest?.items[0] ?? null,
       harPath: isCdpMode() ? null : PATHS.har,
     });
 

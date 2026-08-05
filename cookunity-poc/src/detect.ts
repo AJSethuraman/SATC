@@ -18,7 +18,7 @@ const FIELD_PATTERNS = {
   protein: [/^protein$/, /^proteins$/, /^proteingrams$/, /^proteing$/],
   carbs: [/^carbs$/, /^carbohydrates$/, /^carbohydrate$/, /^carbsgrams$/, /^totalcarbs$/],
   fat: [/^fat$/, /^fats$/, /^totalfat$/, /^fatgrams$/],
-  category: [/^category$/, /^cuisine$/, /^mealtype$/, /^categoryname$/],
+  category: [/^category$/, /^cuisine$/, /^cuisines$/, /^categories$/, /^mealtype$/, /^categoryname$/],
   imageUrl: [/^image$/, /^imageurl$/, /^thumbnail$/, /^photo$/, /^picture$/, /^imgurl$/],
   tags: [/^tags$/, /^labels$/, /^badges$/, /^dietarytags$/, /^attributes$/, /^allergens$/],
 } as const;
@@ -124,24 +124,85 @@ function normalizePrice(value: unknown): number | null {
   return raw;
 }
 
+/**
+ * Nutrition frequently arrives as a list of label/value pairs
+ * (`[{name: 'Protein', value: '45g'}]`) rather than an object with macro keys,
+ * which `findField` cannot see into. Flatten any such list into a lookup.
+ */
+function nutritionPairs(obj: Record<string, unknown>): Map<string, unknown> {
+  const pairs = new Map<string, unknown>();
+  for (const [key, value] of Object.entries(obj)) {
+    if (!/nutrition|nutrient|macro/i.test(key) || !Array.isArray(value)) continue;
+    for (const entry of value) {
+      if (!isPlainObject(entry)) continue;
+      const label = entry['name'] ?? entry['label'] ?? entry['key'] ?? entry['title'];
+      const amount = entry['value'] ?? entry['amount'] ?? entry['qty'] ?? entry['quantity'];
+      if (typeof label === 'string' && amount !== undefined) {
+        pairs.set(normalizeKey(label), amount);
+      }
+    }
+  }
+  return pairs;
+}
+
+/** Chef is often split across `chef_firstname` / `chef_lastname`. */
+function composeChef(obj: Record<string, unknown>): string | null {
+  let first: string | null = null;
+  let last: string | null = null;
+  for (const [key, value] of Object.entries(obj)) {
+    const normalized = normalizeKey(key);
+    if (/^cheffirst/.test(normalized)) first = toStringOrNull(value);
+    if (/^cheflast/.test(normalized)) last = toStringOrNull(value);
+  }
+  const joined = [first, last].filter(Boolean).join(' ').trim();
+  return joined || toStringOrNull(findField(obj, 'chef'));
+}
+
+/** Category fields may hold a list (`cuisines: ['Mexican']`) instead of a string. */
+function toCategory(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    const first = value[0];
+    if (typeof first === 'string') return first;
+    if (isPlainObject(first)) return toStringOrNull(findField(first, 'name'));
+    return null;
+  }
+  return toStringOrNull(value);
+}
+
 export function mealFromJson(obj: Record<string, unknown>): Meal | null {
   const name = toStringOrNull(findField(obj, 'name'));
   if (!name) return null;
+
+  const nutrition = nutritionPairs(obj);
+  /** Direct key first, then the flattened nutrition label/value list. */
+  const macro = (field: FieldName, ...labels: string[]): number | null => {
+    const direct = toNumber(findField(obj, field));
+    if (direct !== null) return direct;
+    for (const label of labels) {
+      const hit = nutrition.get(label);
+      if (hit !== undefined) return toNumber(hit);
+    }
+    return null;
+  };
+
+  const price = normalizePrice(findField(obj, 'price'));
   return {
     id: toStringOrNull(findField(obj, 'id')),
     name,
     description: toStringOrNull(findField(obj, 'description')),
-    chef: toStringOrNull(findField(obj, 'chef')),
-    price: normalizePrice(findField(obj, 'price')),
-    currency: toStringOrNull(findField(obj, 'currency')),
+    chef: composeChef(obj),
+    price,
+    // Assume USD when a price is present but no currency is stated — every
+    // known CookUnity store prices in dollars.
+    currency: toStringOrNull(findField(obj, 'currency')) ?? (price === null ? null : 'USD'),
     rating: toNumber(findField(obj, 'rating')),
     reviewCount: toNumber(findField(obj, 'reviewCount')),
-    calories: toNumber(findField(obj, 'calories')),
-    protein: toNumber(findField(obj, 'protein')),
-    carbs: toNumber(findField(obj, 'carbs')),
-    fat: toNumber(findField(obj, 'fat')),
+    calories: macro('calories', 'calories', 'energy'),
+    protein: macro('protein', 'protein', 'totalprotein'),
+    carbs: macro('carbs', 'carbs', 'carbohydrates', 'totalcarbohydrate', 'totalcarbohydrates'),
+    fat: macro('fat', 'fat', 'totalfat'),
     tags: toTags(findField(obj, 'tags')),
-    category: toStringOrNull(findField(obj, 'category')),
+    category: toCategory(findField(obj, 'category')),
     imageUrl: toStringOrNull(findField(obj, 'imageUrl')),
   };
 }
