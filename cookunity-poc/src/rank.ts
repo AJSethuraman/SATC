@@ -90,52 +90,76 @@ function disqualify(meal: Meal, text: string, prefs: Preferences): string | null
   return null;
 }
 
+/** Which preference terms a meal activates, independent of their weights. */
+export interface Features {
+  /** A meal has one protein identity; overlapping terms must not stack. */
+  protein: string | null;
+  ingredients: string[];
+  tags: string[];
+  /** Rating measured from 4.0, so an average meal contributes nothing. */
+  ratingDelta: number;
+}
+
+/**
+ * Separating "which terms fired" from "what they are worth" is what lets the
+ * same code both score a meal and learn weights from feedback.
+ */
+export function featuresOf(meal: Meal, prefs: Preferences): Features {
+  const identity = identityText(meal);
+  const everything = fullText(meal);
+
+  // Salmon is also fish; without this, salmon outscores chicken purely by
+  // matching two terms. A dislike outranks a like — avoidance should win.
+  const proteinHits = Object.keys(prefs.proteins).filter((term) => mentions(identity, term));
+  let protein: string | null = null;
+  if (proteinHits.length) {
+    const negative = proteinHits.filter((t) => (prefs.proteins[t] ?? 0) < 0);
+    const pool = negative.length ? negative : proteinHits;
+    protein = pool.reduce((best, t) =>
+      Math.abs(prefs.proteins[t] ?? 0) > Math.abs(prefs.proteins[best] ?? 0) ? t : best,
+    );
+  }
+
+  return {
+    protein,
+    ingredients: Object.keys(prefs.ingredients).filter((term) => mentions(everything, term)),
+    tags: Object.keys(prefs.tagBonuses).filter((tag) =>
+      (meal.tags ?? []).some((t) => t.toLowerCase() === tag.toLowerCase()),
+    ),
+    ratingDelta: typeof meal.rating === 'number' ? meal.rating - 4 : 0,
+  };
+}
+
 export function rankMeals(meals: Meal[], prefs: Preferences): RankResult {
   const ranked: RankedMeal[] = [];
   const excluded: Excluded[] = [];
 
   for (const meal of meals) {
-    const identity = identityText(meal);
-    const everything = fullText(meal);
-
     // Exclusions read the full text: a trace amount still disqualifies.
-    const why = disqualify(meal, everything, prefs);
+    const why = disqualify(meal, fullText(meal), prefs);
     if (why) {
       excluded.push({ meal, why });
       continue;
     }
 
+    const features = featuresOf(meal, prefs);
     const reasons: Reason[] = [];
 
-    // What the protein is matters most — it is the first thing you react to.
-    // Identity only, so chicken stock does not make it a chicken dish.
-    for (const [term, points] of Object.entries(prefs.proteins)) {
-      if (points !== 0 && mentions(identity, term)) {
-        reasons.push({ points, text: `${term}` });
-      }
+    if (features.protein) {
+      const points = prefs.proteins[features.protein] ?? 0;
+      if (points !== 0) reasons.push({ points, text: features.protein });
     }
-
-    // What it comes with matters nearly as much, and here the ingredient list
-    // is the right place to look.
-    for (const [term, points] of Object.entries(prefs.ingredients)) {
-      if (points !== 0 && mentions(everything, term)) {
-        reasons.push({ points, text: `${term}` });
-      }
+    for (const term of features.ingredients) {
+      const points = prefs.ingredients[term] ?? 0;
+      if (points !== 0) reasons.push({ points, text: term });
     }
-
-    // Coarse nutrition buckets, standing in for macros the API does not send.
-    for (const [tag, points] of Object.entries(prefs.tagBonuses)) {
-      if (points !== 0 && (meal.tags ?? []).some((t) => t.toLowerCase() === tag.toLowerCase())) {
-        reasons.push({ points, text: tag.toLowerCase() });
-      }
+    for (const tag of features.tags) {
+      const points = prefs.tagBonuses[tag] ?? 0;
+      if (points !== 0) reasons.push({ points, text: tag.toLowerCase() });
     }
-
-    // Rating, measured from 4.0 so an average meal contributes nothing.
-    if (typeof meal.rating === 'number') {
-      const points = Number(((meal.rating - 4) * prefs.weights.rating).toFixed(2));
-      if (points !== 0) {
-        reasons.push({ points, text: `rated ${meal.rating}` });
-      }
+    if (features.ratingDelta !== 0) {
+      const points = Number((features.ratingDelta * prefs.weights.rating).toFixed(2));
+      if (points !== 0) reasons.push({ points, text: `rated ${meal.rating}` });
     }
 
     const score = Number(reasons.reduce((sum, r) => sum + r.points, 0).toFixed(2));

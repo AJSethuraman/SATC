@@ -122,9 +122,60 @@ limit set too tight.
   best available proxy.
 - Calories, rating, and review count *are* real numbers and are gated exactly.
 
-`npm run test:rank` covers the ranking rules — ordering, word-boundary
-matching, each hard gate, tag bonuses, and explanation formatting. No browser
-or network needed.
+A meal has one protein identity, so overlapping protein terms count once —
+salmon does not score as both `salmon` and `fish`. When a liked and a disliked
+protein both match, the dislike wins.
+
+## Learning the weights instead of guessing them
+
+Hand-picking numbers is the wrong job for a human: you have opinions about
+meals, not about whether chicken should be 3.0 or 3.4. So rate meals and let
+the weights be fitted.
+
+```bash
+npm run tune                # rate ~12 meals, then refit
+npm run tune -- --count 25  # rate more in one sitting
+npm run tune -- --apply     # refit on existing ratings, rate nothing new
+npm run rank                # see the new order
+```
+
+Ratings accumulate in `feedback.json`; each run tops them up rather than
+starting over. The meals it asks about are spread across the current ranking,
+not taken from the top — rating fifteen meals you already rank highly teaches
+it nothing about what you dislike.
+
+It reports what moved and on what evidence, so a weight change is never a
+black box:
+
+```
+  Fitted on 12 ratings — agrees with 92% of them
+
+  What changed:
+    ↓ ingredients.cauliflower: -1 → -1.68  (0 yes / 3 no)
+    ↑ proteins.chicken: 3 → 3.24           (5 yes / 0 no)
+
+  No evidence yet for: proteins.lamb, ingredients.beet
+```
+
+**Your stated preferences are the prior, not a starting guess to be
+discarded.** Fitting is logistic regression pulled back toward the numbers you
+wrote, so a single rating nudges a weight rather than flipping it, and a term
+rated consistently several times moves further. With twelve ratings the model
+adjusts your intent; it does not replace it. Terms nothing was rated on are
+left alone and listed, so you can see where it is still flying blind.
+
+`preferences.json` is backed up to `preferences.json.bak` before every write.
+
+## Tests
+
+```bash
+npm test            # ranking + tuning rules, pure, instant
+npm run selftest    # extraction pipeline against a local fixture
+```
+
+`npm test` covers ordering, word-boundary matching, the identity/ingredient
+split, every hard gate, the protein double-count, weight fitting,
+determinism, and that fitting never mutates its input. No browser or network.
 
 ## How extraction works
 

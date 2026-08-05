@@ -10,7 +10,10 @@
     "poc:again": "tsx src/run.ts extract --require-session",
     "selftest": "tsx src/selftest.ts",
     "rank": "tsx src/rank-cli.ts",
-    "test:rank": "tsx src/ranktest.ts"
+    "test:rank": "tsx src/ranktest.ts",
+    "tune": "tsx src/tune-cli.ts",
+    "test:tune": "tsx src/tunetest.ts",
+    "test": "tsx src/ranktest.ts && tsx src/tunetest.ts"
   },
   "dependencies": {
     "playwright": "^1.49.0"

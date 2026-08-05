@@ -4,3 +4,5 @@ user-data/
 *.har
 output/
 node_modules/
+feedback.json
+preferences.json.bak
