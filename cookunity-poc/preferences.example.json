@@ -33,7 +33,6 @@
     "minReviewCount": 50
   },
   "tagBonuses": {
-    "High Protein": 1.5,
     "Spicy": -2.5,
     "Latin American": 1,
     "Mexican": 1,
@@ -41,8 +40,13 @@
     "Italian": 1,
     "American": 0.75,
     "Cajun/Creole": 0.75,
-    "Low Sugar": 0.25,
-    "High Fat": -0.5
+    "Low Sodium": 1,
+    "High Fiber": 0.75,
+    "High Protein": 1,
+    "Low Calorie": 0.5,
+    "No Added Sugar": 0.5,
+    "High Sugar": -0.75,
+    "High Fat": -0.4
   },
   "weights": {
     "rating": 1.5

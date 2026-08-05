@@ -32,11 +32,22 @@ export interface Preferences {
   };
 }
 
+/**
+ * The live file is git-ignored, because `npm run tune` rewrites it. Tracking a
+ * file that both git and the tuner write to guarantees a collision on the next
+ * pull — which is exactly what happened once. The example is tracked; your
+ * copy is yours.
+ */
 export const PREFERENCES_PATH = path.join(ROOT, 'preferences.json');
+export const EXAMPLE_PATH = path.join(ROOT, 'preferences.example.json');
 
 export function loadPreferences(filePath = PREFERENCES_PATH): Preferences {
   if (!fs.existsSync(filePath)) {
-    throw new Error(`No preferences file at ${filePath}.`);
+    if (!fs.existsSync(EXAMPLE_PATH)) {
+      throw new Error(`No preferences file at ${filePath}, and no example to seed from.`);
+    }
+    fs.copyFileSync(EXAMPLE_PATH, filePath);
+    console.log(`  Created ${path.basename(filePath)} from the example — edit it to taste.`);
   }
   return JSON.parse(fs.readFileSync(filePath, 'utf8')) as Preferences;
 }

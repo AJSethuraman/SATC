@@ -83,7 +83,10 @@ npm run rank                                              # rank it
 npm run rank -- --top 30                                  # show more
 ```
 
-Edit `preferences.json` to taste. Every score is explained — each line shows
+`preferences.json` is created from `preferences.example.json` on first run and
+is **git-ignored on purpose** — `npm run tune` rewrites it, so tracking it
+would collide with every `git pull`. To reset to the shipped defaults, delete
+it and re-run. Every score is explained — each line shows
 exactly which rules fired and what each was worth, so a surprising result is
 diagnosable rather than mysterious:
 
@@ -111,6 +114,31 @@ Terms match whole words, with plurals allowed and nothing else: `beets` and
 **`limits` are hard gates**, applied before scoring; everything else is points.
 The run prints a tally of what got filtered and why, which is how you notice a
 limit set too tight.
+
+### Choosing tags that actually discriminate
+
+Tag frequencies across the live 349-meal menu are lopsided, and a penalty on a
+near-universal tag mostly just shifts the whole board down:
+
+| Tag | Meals | Useful as a signal? |
+|---|---|---|
+| `High Fat` | 249 (71%) | Barely — most meals carry it |
+| `High Sodium` | 244 (70%) | Barely, same reason |
+| `High Protein` | 215 (62%) | Weak-ish, but it is the only protein signal there is |
+| `Spicy` | 131 (38%) | Good discriminator |
+| `Low Calorie` | 105 (30%) | Good |
+| `Low Sodium` | 41 (12%) | Strong — rewarding the rare positive beats penalising the common negative |
+| `High Fiber` | 37 (11%) | Strong |
+
+Cuisine tags are real and usable: `American` 87, `Asian` 80, `European` 75,
+`Italian` 66, `Latin American` 60, `Mediterranean` 55, `Mexican` 47.
+
+The shipped defaults follow from this — reward the scarce good tags rather
+than penalise the ubiquitous bad ones. Regenerate the table any time with:
+
+```bash
+node -e "const m=JSON.parse(require('fs').readFileSync('output/meals.json','utf8')).meals;const c={};m.forEach(x=>(x.tags||[]).forEach(t=>c[t]=(c[t]||0)+1));console.log(Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,60).map(([t,n])=>n+'  '+t).join('\n'))"
+```
 
 ### What the data does and does not support
 
