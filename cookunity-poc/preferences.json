@@ -1,29 +1,30 @@
 {
   "proteins": {
-    "chicken": 3,
-    "turkey": 2,
-    "salmon": 2,
+    "chicken": 2.5,
+    "salmon": 2.5,
+    "shrimp": 2,
+    "beef": 2,
+    "steak": 2,
+    "turkey": 1.5,
     "fish": 1.5,
-    "shrimp": 1,
-    "beef": 1,
-    "steak": 1,
-    "pork": 0.5,
-    "tofu": 0,
-    "lamb": 0
+    "pork": 1,
+    "lamb": 0.5,
+    "tofu": 0
   },
   "ingredients": {
-    "broccoli": 2,
-    "asparagus": 1.5,
-    "green bean": 1.5,
-    "spinach": 1,
+    "broccoli": 1.5,
+    "cauliflower": 1,
+    "green bean": 1,
+    "potato": 1,
     "sweet potato": 1,
-    "rice": 0.5,
+    "rice": 1,
+    "couscous": 0.75,
+    "plantain": 0.75,
+    "asparagus": 0.5,
+    "spinach": 0.5,
+    "farro": 0.5,
     "quinoa": 0.5,
-    "cauliflower": -1,
-    "brussels": -1,
-    "kale": -0.5,
-    "mushroom": -0.5,
-    "beet": -1
+    "puree": -1
   },
   "exclude": [],
   "limits": {
@@ -32,11 +33,16 @@
     "minReviewCount": 50
   },
   "tagBonuses": {
-    "High Protein": 2,
-    "Low Sugar": 0.5,
-    "High Sodium": -1,
-    "High Fat": -0.75,
-    "High Sugar": -1
+    "High Protein": 1.5,
+    "Spicy": -2.5,
+    "Latin American": 1,
+    "Mexican": 1,
+    "Mediterranean": 1,
+    "Italian": 1,
+    "American": 0.75,
+    "Cajun/Creole": 0.75,
+    "Low Sugar": 0.25,
+    "High Fat": -0.5
   },
   "weights": {
     "rating": 1.5
