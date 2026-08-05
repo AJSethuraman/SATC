@@ -68,7 +68,7 @@ automated, so Google is happy.
 
 # 2. In that window, log into CookUnity by hand.
 # 3. In a terminal, with that Chrome still open:
-PLAYWRIGHT_CDP_URL=http://localhost:9222 npm run poc
+PLAYWRIGHT_CDP_URL=http://127.0.0.1:9222 npm run poc
 ```
 
 The separate `--user-data-dir` keeps this away from your normal Chrome profile.
