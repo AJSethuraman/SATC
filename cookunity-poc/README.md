@@ -92,12 +92,21 @@ diagnosable rather than mysterious:
     +3 chicken, +2 broccoli, +2 high protein, +0.5 rated 4.71
 ```
 
-**How matching works.** Preference terms are matched against *all* of a meal's
-text — name, description, ingredients, sides, protein type, cuisine, tags —
-because the backend spreads the same fact across different fields from meal to
-meal. `broccoli` catches it whether it lands in the ingredient list or only in
-the description. Matching is on word boundaries, so `beet` does not fire on
-`beetroot-free`.
+**How matching works.** Where a term is looked for depends on what it means:
+
+| Section | Searched in | Why |
+|---|---|---|
+| `proteins` | name, description, cuisine, protein type, tags | What the meal **is** |
+| `ingredients` | all of the above **plus** the ingredient list and sides | What the meal **contains** |
+| `exclude` | everything, including trace ingredients | Avoidance must not miss |
+
+That split is not cosmetic. CookUnity publishes a full ingredient declaration,
+and **chicken stock appears in mole, dirty rice and most pilafs** — matching
+protein preferences against it scored salmon, shrimp, pork and beef dishes all
+as "chicken". Protein type and tags state the real answer.
+
+Terms match whole words, with plurals allowed and nothing else: `beets` and
+`green beans` hit, `broccolini` does not match `broccoli`.
 
 **`limits` are hard gates**, applied before scoring; everything else is points.
 The run prints a tally of what got filtered and why, which is how you notice a

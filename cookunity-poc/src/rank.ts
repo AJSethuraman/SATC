@@ -24,21 +24,34 @@ export interface RankResult {
 }
 
 /**
- * Every piece of text the meal carries, lowercased. Preferences match against
- * this rather than one designated field, because the backend puts the same
- * fact in different places from meal to meal — "broccoli" may appear in the
- * ingredient list on one and only in the description on another.
+ * What the meal *is*: name, description, cuisine, protein type and tags.
+ *
+ * Deliberately excludes the ingredient list. CookUnity ships a full
+ * declaration listing every trace component, and stock is the trap: mole,
+ * dirty rice and most pilafs contain chicken stock, so matching protein
+ * preferences against ingredients labelled a salmon dish, a shrimp dish and a
+ * beef dish all as "chicken". Protein type and tags state the real answer
+ * ("Salmon", "Fish", "Poultry", "Chicken Thigh").
  */
-function haystack(meal: Meal): string {
+function identityText(meal: Meal): string {
   return [
     meal.name,
     meal.description ?? '',
     meal.category ?? '',
     ...(meal.proteinType ?? []),
-    ...(meal.ingredients ?? []),
-    ...(meal.sides ?? []),
     ...(meal.tags ?? []),
   ]
+    .join(' | ')
+    .toLowerCase();
+}
+
+/**
+ * Everything, including the full ingredient declaration and sides. Used for
+ * ingredient preferences — where a trace mention is a genuine hit — and for
+ * exclusions, where catching trace amounts is the entire point.
+ */
+function fullText(meal: Meal): string {
+  return [identityText(meal), ...(meal.ingredients ?? []), ...(meal.sides ?? [])]
     .join(' | ')
     .toLowerCase();
 }
@@ -82,9 +95,11 @@ export function rankMeals(meals: Meal[], prefs: Preferences): RankResult {
   const excluded: Excluded[] = [];
 
   for (const meal of meals) {
-    const text = haystack(meal);
+    const identity = identityText(meal);
+    const everything = fullText(meal);
 
-    const why = disqualify(meal, text, prefs);
+    // Exclusions read the full text: a trace amount still disqualifies.
+    const why = disqualify(meal, everything, prefs);
     if (why) {
       excluded.push({ meal, why });
       continue;
@@ -93,15 +108,17 @@ export function rankMeals(meals: Meal[], prefs: Preferences): RankResult {
     const reasons: Reason[] = [];
 
     // What the protein is matters most — it is the first thing you react to.
+    // Identity only, so chicken stock does not make it a chicken dish.
     for (const [term, points] of Object.entries(prefs.proteins)) {
-      if (points !== 0 && mentions(text, term)) {
+      if (points !== 0 && mentions(identity, term)) {
         reasons.push({ points, text: `${term}` });
       }
     }
 
-    // What it comes with matters nearly as much.
+    // What it comes with matters nearly as much, and here the ingredient list
+    // is the right place to look.
     for (const [term, points] of Object.entries(prefs.ingredients)) {
-      if (points !== 0 && mentions(text, term)) {
+      if (points !== 0 && mentions(everything, term)) {
         reasons.push({ points, text: `${term}` });
       }
     }

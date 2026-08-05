@@ -53,12 +53,48 @@ const scoreOf = (m: Meal): number => rankMeals([m], prefs).ranked[0]?.score ?? N
   check('disliked side costs points', withCauli < scoreOf(meal({ name: 'Chicken' })));
 }
 
-// Preferences match anywhere in the meal's text, not one designated field.
+// Ingredient preferences read the full declaration, wherever the term lands.
 {
+  const plain = scoreOf(meal({ name: 'Bowl' }));
   const inIngredients = scoreOf(meal({ name: 'Bowl', ingredients: ['Broccoli', 'Rice'] }));
   const inDescription = scoreOf(meal({ name: 'Bowl', description: 'with broccoli' }));
-  check('matches from the ingredient list', inIngredients > scoreOf(meal({ name: 'Bowl' })));
+  const inSides = scoreOf(meal({ name: 'Bowl', sides: ['Steamed Broccoli'] }));
+  check('matches from the ingredient list', inIngredients > plain);
   check('matches from the description too', inDescription === inIngredients);
+  check('matches from the side dish too', inSides === inIngredients);
+}
+
+// Protein preferences read identity only. This is the stock trap: the live
+// menu declares chicken stock in mole, dirty rice and most pilafs, which had
+// salmon, shrimp, pork and beef dishes all scoring as "chicken".
+{
+  const plain = scoreOf(meal({ name: 'Salmon Bowl', proteinType: ['Salmon'] }));
+  const withStock = scoreOf(
+    meal({
+      name: 'Salmon Bowl',
+      proteinType: ['Salmon'],
+      ingredients: ['Chicken Stock', 'Rice', 'Salmon'],
+    }),
+  );
+  check('chicken stock does not make it a chicken dish', withStock === plain, `${withStock} vs ${plain}`);
+  check(
+    'protein type is what counts',
+    scoreOf(meal({ name: 'Mystery Bowl', proteinType: ['Chicken Thigh'] })) > scoreOf(meal({ name: 'Mystery Bowl' })),
+  );
+  check(
+    'a protein tag counts too',
+    scoreOf(meal({ name: 'Mystery Bowl', tags: ['Chicken'] })) > scoreOf(meal({ name: 'Mystery Bowl' })),
+  );
+  check('the name still counts', scoreOf(meal({ name: 'Grilled Chicken' })) > scoreOf(meal({ name: 'Grilled Tofu' })));
+}
+
+// Exclusions are the opposite: a trace amount in the declaration must catch.
+{
+  const run = (m: Meal) => rankMeals([m], prefs);
+  check(
+    'exclusion catches a trace ingredient',
+    run(meal({ name: 'Caesar Bowl', ingredients: ['Anchovy Paste', 'Romaine'] })).excluded.length === 1,
+  );
 }
 
 // Word-boundary matching, so substrings do not fire by accident.
