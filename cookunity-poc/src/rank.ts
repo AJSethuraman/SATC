@@ -43,10 +43,17 @@ function haystack(meal: Meal): string {
     .toLowerCase();
 }
 
-/** A term matches on a word boundary, so "beet" does not match "beetroot-free". */
+/**
+ * Match a term on whole-word boundaries, allowing only a plural suffix.
+ *
+ * Both ends have to be anchored: without a trailing boundary "broccoli" fires
+ * on "broccolini", which is a different vegetable. But a bare boundary would
+ * miss "beets" and "green beans", so an optional s/es is permitted — and
+ * nothing else.
+ */
 function mentions(text: string, term: string): boolean {
   const escaped = term.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|[^a-z])${escaped}`, 'i').test(text);
+  return new RegExp(`(^|[^a-z])${escaped}(e?s)?([^a-z]|$)`, 'i').test(text);
 }
 
 /** Hard gates. Returns the reason for dropping the meal, or null to keep it. */

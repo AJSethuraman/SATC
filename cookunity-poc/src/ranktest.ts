@@ -63,10 +63,28 @@ const scoreOf = (m: Meal): number => rankMeals([m], prefs).ranked[0]?.score ?? N
 
 // Word-boundary matching, so substrings do not fire by accident.
 {
-  const beetScore = scoreOf(meal({ name: 'Beef Bowl' }));
   const plain = scoreOf(meal({ name: 'Plain Bowl' }));
-  check('"beef" does not match inside another word', beetScore > plain);
-  check('unrelated word does not match', scoreOf(meal({ name: 'Chickpea Stew' })) === plain);
+  check('exact word matches', scoreOf(meal({ name: 'Beef Bowl' })) > plain);
+  check('"chicken" does not match "chickpea"', scoreOf(meal({ name: 'Chickpea Stew' })) === plain);
+  // The bug this guards: broccolini is a different vegetable from broccoli.
+  check(
+    '"broccoli" does not match "broccolini"',
+    scoreOf(meal({ name: 'Bowl', sides: ['Roasted Broccolini'] })) === plain,
+  );
+  check(
+    'plurals still match',
+    scoreOf(meal({ name: 'Bowl', sides: ['Roasted Broccoli Florets'] })) === plain + 2,
+  );
+  // Compare against a baseline rather than an absolute: the stock test meal
+  // carries a 4.5 rating, which contributes points of its own.
+  {
+    const withBean = (m: Meal): number =>
+      rankMeals([m], { ...prefs, ingredients: { 'green bean': 1.5 } }).ranked[0]?.score ?? Number.NaN;
+    check(
+      'multi-word plurals still match',
+      withBean(meal({ name: 'Bowl', sides: ['Green Beans'] })) === withBean(meal({ name: 'Bowl' })) + 1.5,
+    );
+  }
 }
 
 // Hard gates.
