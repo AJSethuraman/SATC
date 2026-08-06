@@ -13,7 +13,8 @@
     "test:rank": "tsx src/ranktest.ts",
     "tune": "tsx src/tune-cli.ts",
     "test:tune": "tsx src/tunetest.ts",
-    "test": "tsx src/ranktest.ts && tsx src/tunetest.ts"
+    "test": "tsx src/ranktest.ts && tsx src/tunetest.ts && tsx src/audittest.ts",
+    "audit": "tsx src/audit-cli.ts"
   },
   "dependencies": {
     "playwright": "^1.49.0"

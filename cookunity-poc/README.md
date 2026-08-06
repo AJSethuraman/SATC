@@ -172,6 +172,35 @@ A meal has one protein identity, so overlapping protein terms count once —
 salmon does not score as both `salmon` and `fish`. When a liked and a disliked
 protein both match, the dislike wins.
 
+## Auditing your terms
+
+```bash
+npm run audit          # only terms worth a look
+npm run audit -- --all # every term
+```
+
+Every false positive found so far had the same shape: a term matching text
+that doesn't mean what the term means. Chicken stock made salmon a chicken
+dish. Mirin made steak a rice dish. Broccolini matched broccoli. Each was
+spotted by eye in a top-15 listing, which only catches the ones that happen to
+surface.
+
+The audit walks every term against the whole menu and flags three things:
+
+| Flag | Means |
+|---|---|
+| **matches as a modifier** | `rice` matched `Rice Wine`. The term isn't the head of the phrase, so it probably isn't the ingredient. |
+| **never fires** | The term looks like a preference but does nothing — a typo, or not on this menu. |
+| **weak discriminator** | Fires on >40% of meals, so it shifts the whole board rather than separating it. |
+
+The modifier check is the sharp one. `Jasmine Rice` is rice; `Rice Wine` is
+not. `Steamed Broccoli` is broccoli; `Chicken Stock` is not chicken. Counting
+distinct matches would flag every term with more than one preparation —
+checking *position* finds only the ones that changed meaning.
+
+Fix a modifier match with a zero weight: `"rice wine": 0` claims the match and
+scores nothing, so the general term stops firing.
+
 ## Learning the weights instead of guessing them
 
 Hand-picking numbers is the wrong job for a human: you have opinions about

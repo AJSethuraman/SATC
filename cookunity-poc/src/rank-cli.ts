@@ -18,7 +18,11 @@ function main(): void {
 
   const { ranked, excluded } = rankMeals(file.meals, prefs);
 
-  console.log(`\n  ${file.mealCount} meals from ${file.capturedAt.slice(0, 10)}`);
+  // The menu rotates weekly, so a stale capture recommends meals that are no
+  // longer orderable — and does it silently, which is the dangerous part.
+  const ageDays = Math.floor((Date.now() - Date.parse(file.capturedAt)) / 86_400_000);
+  const staleness = ageDays >= 7 ? `  ⚠ ${ageDays} days old — re-run "npm run poc" before trusting this` : '';
+  console.log(`\n  ${file.mealCount} meals from ${file.capturedAt.slice(0, 10)}${staleness}`);
   console.log(`  ${excluded.length} filtered out, ${ranked.length} ranked`);
   console.log(`  Preferences: ${PREFERENCES_PATH}\n`);
 
