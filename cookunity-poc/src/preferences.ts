@@ -16,6 +16,12 @@ export interface Preferences {
   proteins: Record<string, number>;
   /** Ingredient and preparation preferences, same scale. */
   ingredients: Record<string, number>;
+  /**
+   * Cuisine preferences, matched against tags. Like proteins, only the
+   * strongest match counts: the menu tags some meals with three cuisines at
+   * once, and stacking them let tag-count beat what the food actually is.
+   */
+  cuisines?: Record<string, number>;
   /** Any meal matching one of these is excluded outright, with a reason. */
   exclude: string[];
   limits: {

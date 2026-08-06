@@ -97,11 +97,22 @@ diagnosable rather than mysterious:
 
 **How matching works.** Where a term is looked for depends on what it means:
 
-| Section | Searched in | Why |
+| Section | Searched in | Counts |
 |---|---|---|
-| `proteins` | name, description, cuisine, protein type, tags | What the meal **is** |
-| `ingredients` | all of the above **plus** the ingredient list and sides | What the meal **contains** |
-| `exclude` | everything, including trace ingredients | Avoidance must not miss |
+| `proteins` | name, description, cuisine, protein type, tags | **Once** — strongest match |
+| `cuisines` | tags | **Once** — strongest match |
+| `ingredients` | all of the above **plus** the ingredient list and sides | Every match |
+| `tagBonuses` | tags | Every match |
+| `exclude` | everything, including trace ingredients | Hard gate |
+
+**A meal has one protein and one cuisine.** Salmon is also fish; the live menu
+tags some dishes `Mexican`, `Latin American` *and* `Mediterranean` at once.
+Letting either stack meant tag-count beat what the food actually is — a Spicy
+meal ranked third on +3 of cuisine bonuses despite a −2.5 penalty. Only the
+strongest match in each counts, and a dislike outranks a like.
+
+Ingredients and tag bonuses *do* stack, because a meal genuinely can contain
+several things you care about.
 
 That split is not cosmetic. CookUnity publishes a full ingredient declaration,
 and **chicken stock appears in mole, dirty rice and most pilafs** — matching

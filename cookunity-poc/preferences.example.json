@@ -11,6 +11,16 @@
     "lamb": 0.5,
     "tofu": 0
   },
+  "cuisines": {
+    "Mexican": 1.25,
+    "Latin American": 1,
+    "Italian": 1,
+    "Mediterranean": 1,
+    "American": 0.75,
+    "Cajun/Creole": 0.75,
+    "European": 0.5,
+    "Asian": 0
+  },
   "ingredients": {
     "broccoli": 1.5,
     "cauliflower": 1,
@@ -35,12 +45,6 @@
   },
   "tagBonuses": {
     "Spicy": -2.5,
-    "Latin American": 1,
-    "Mexican": 1,
-    "Mediterranean": 1,
-    "Italian": 1,
-    "American": 0.75,
-    "Cajun/Creole": 0.75,
     "Low Sodium": 1,
     "High Fiber": 0.75,
     "High Protein": 1,

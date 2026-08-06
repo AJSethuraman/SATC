@@ -94,10 +94,27 @@ function disqualify(meal: Meal, text: string, prefs: Preferences): string | null
 export interface Features {
   /** A meal has one protein identity; overlapping terms must not stack. */
   protein: string | null;
+  /** Likewise one cuisine, though the menu often tags three. */
+  cuisine: string | null;
   ingredients: string[];
   tags: string[];
   /** Rating measured from 4.0, so an average meal contributes nothing. */
   ratingDelta: number;
+}
+
+/**
+ * Of several matching terms, pick the one that should speak for the meal: the
+ * strongest dislike if there is one, otherwise the strongest like. Avoidance
+ * outranks attraction — a dish you won't eat is not redeemed by also being
+ * something you would.
+ */
+function dominant(matches: string[], weights: Record<string, number>): string | null {
+  if (!matches.length) return null;
+  const negative = matches.filter((term) => (weights[term] ?? 0) < 0);
+  const pool = negative.length ? negative : matches;
+  return pool.reduce((best, term) =>
+    Math.abs(weights[term] ?? 0) > Math.abs(weights[best] ?? 0) ? term : best,
+  );
 }
 
 /**
@@ -109,16 +126,21 @@ export function featuresOf(meal: Meal, prefs: Preferences): Features {
   const everything = fullText(meal);
 
   // Salmon is also fish; without this, salmon outscores chicken purely by
-  // matching two terms. A dislike outranks a like — avoidance should win.
-  const proteinHits = Object.keys(prefs.proteins).filter((term) => mentions(identity, term));
-  let protein: string | null = null;
-  if (proteinHits.length) {
-    const negative = proteinHits.filter((t) => (prefs.proteins[t] ?? 0) < 0);
-    const pool = negative.length ? negative : proteinHits;
-    protein = pool.reduce((best, t) =>
-      Math.abs(prefs.proteins[t] ?? 0) > Math.abs(prefs.proteins[best] ?? 0) ? t : best,
-    );
-  }
+  // matching two terms.
+  const protein = dominant(
+    Object.keys(prefs.proteins).filter((term) => mentions(identity, term)),
+    prefs.proteins,
+  );
+
+  // Cuisine tags stack three-deep on some meals, which let tag-count outweigh
+  // both the protein and a stated dislike. One cuisine per meal.
+  const cuisineWeights = prefs.cuisines ?? {};
+  const cuisine = dominant(
+    Object.keys(cuisineWeights).filter((name) =>
+      (meal.tags ?? []).some((tag) => tag.toLowerCase() === name.toLowerCase()),
+    ),
+    cuisineWeights,
+  );
 
   // The most specific matching term wins. "cauliflower puree" matches both
   // "cauliflower" (+1) and "puree" (-1), netting zero — but the dish is
@@ -127,6 +149,7 @@ export function featuresOf(meal: Meal, prefs: Preferences): Features {
 
   return {
     protein,
+    cuisine,
     ingredients: matchedIngredients.filter(
       (term) => !matchedIngredients.some((other) => other !== term && other.includes(term)),
     ),
@@ -155,6 +178,10 @@ export function rankMeals(meals: Meal[], prefs: Preferences): RankResult {
     if (features.protein) {
       const points = prefs.proteins[features.protein] ?? 0;
       if (points !== 0) reasons.push({ points, text: features.protein });
+    }
+    if (features.cuisine) {
+      const points = (prefs.cuisines ?? {})[features.cuisine] ?? 0;
+      if (points !== 0) reasons.push({ points, text: features.cuisine.toLowerCase() });
     }
     for (const term of features.ingredients) {
       const points = prefs.ingredients[term] ?? 0;

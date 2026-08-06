@@ -18,6 +18,7 @@ function check(label: string, condition: boolean, detail = ''): void {
 
 const prefs: Preferences = {
   proteins: { chicken: 3, salmon: 2, fish: 1.5, beef: 1, pork: -2 },
+  cuisines: { Mexican: 1, Italian: 1 },
   ingredients: { broccoli: 2, cauliflower: -1 },
   exclude: [],
   limits: {},
@@ -116,6 +117,33 @@ const labels: Label[] = [
   const oneW = one.preferences.ingredients['cauliflower'] ?? 0;
   const twoW = two.preferences.ingredients['cauliflower'] ?? 0;
   check('more evidence moves a weight further', twoW < oneW, `${twoW} vs ${oneW}`);
+}
+
+// Cuisine weights are fitted too, not silently ignored.
+{
+  const cuisineMenu = [
+    meal({ name: 'Mex One', tags: ['Mexican'] }),
+    meal({ name: 'Mex Two', tags: ['Mexican'] }),
+    meal({ name: 'It One', tags: ['Italian'] }),
+    meal({ name: 'It Two', tags: ['Italian'] }),
+  ];
+  const result = fitWeights(cuisineMenu, prefs, [
+    { id: 'Mex One', verdict: 'like' },
+    { id: 'Mex Two', verdict: 'like' },
+    { id: 'It One', verdict: 'dislike' },
+    { id: 'It Two', verdict: 'dislike' },
+  ]);
+  check(
+    'liked cuisine rises',
+    (result.preferences.cuisines?.['Mexican'] ?? 0) > prefs.cuisines!['Mexican']!,
+    String(result.preferences.cuisines?.['Mexican']),
+  );
+  check(
+    'disliked cuisine falls',
+    (result.preferences.cuisines?.['Italian'] ?? 0) < prefs.cuisines!['Italian']!,
+    String(result.preferences.cuisines?.['Italian']),
+  );
+  check('cuisine changes are reported', result.changes.some((c) => c.section === 'cuisines'));
 }
 
 // Determinism — same labels, same weights, every time.

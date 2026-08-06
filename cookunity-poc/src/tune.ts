@@ -12,7 +12,7 @@ export interface Label {
 }
 
 export interface WeightChange {
-  section: 'proteins' | 'ingredients' | 'tagBonuses' | 'weights';
+  section: 'proteins' | 'cuisines' | 'ingredients' | 'tagBonuses' | 'weights';
   term: string;
   from: number;
   to: number;
@@ -89,6 +89,7 @@ export function fitWeights(
   };
   for (const example of examples) {
     if (example.features.protein) bump(`proteins:${example.features.protein}`, example.target);
+    if (example.features.cuisine) bump(`cuisines:${example.features.cuisine}`, example.target);
     for (const term of example.features.ingredients) bump(`ingredients:${term}`, example.target);
     for (const tag of example.features.tags) bump(`tagBonuses:${tag}`, example.target);
   }
@@ -96,6 +97,7 @@ export function fitWeights(
   const scoreOf = (features: ReturnType<typeof featuresOf>): number => {
     let total = features.ratingDelta * fitted.weights.rating;
     if (features.protein) total += fitted.proteins[features.protein] ?? 0;
+    if (features.cuisine) total += (fitted.cuisines ?? {})[features.cuisine] ?? 0;
     for (const term of features.ingredients) total += fitted.ingredients[term] ?? 0;
     for (const tag of features.tags) total += fitted.tagBonuses[tag] ?? 0;
     return total;
@@ -107,6 +109,9 @@ export function fitWeights(
       const step = learningRate * error;
       if (features.protein && features.protein in fitted.proteins) {
         fitted.proteins[features.protein] = (fitted.proteins[features.protein] ?? 0) + step;
+      }
+      if (features.cuisine && fitted.cuisines && features.cuisine in fitted.cuisines) {
+        fitted.cuisines[features.cuisine] = (fitted.cuisines[features.cuisine] ?? 0) + step;
       }
       for (const term of features.ingredients) {
         fitted.ingredients[term] = (fitted.ingredients[term] ?? 0) + step;
@@ -122,6 +127,9 @@ export function fitWeights(
       Math.max(-clamp, Math.min(clamp, value - regularisation * (value - priorValue)));
     for (const key of Object.keys(fitted.proteins)) {
       fitted.proteins[key] = pull(fitted.proteins[key] ?? 0, prior.proteins[key] ?? 0);
+    }
+    for (const key of Object.keys(fitted.cuisines ?? {})) {
+      fitted.cuisines![key] = pull(fitted.cuisines![key] ?? 0, prior.cuisines?.[key] ?? 0);
     }
     for (const key of Object.keys(fitted.ingredients)) {
       fitted.ingredients[key] = pull(fitted.ingredients[key] ?? 0, prior.ingredients[key] ?? 0);
@@ -142,6 +150,10 @@ export function fitWeights(
     fitted.proteins[key] = round(fitted.proteins[key] ?? 0);
     record('proteins', key, prior.proteins[key] ?? 0, fitted.proteins[key] ?? 0);
   }
+  for (const key of Object.keys(fitted.cuisines ?? {})) {
+    fitted.cuisines![key] = round(fitted.cuisines![key] ?? 0);
+    record('cuisines', key, prior.cuisines?.[key] ?? 0, fitted.cuisines![key] ?? 0);
+  }
   for (const key of Object.keys(fitted.ingredients)) {
     fitted.ingredients[key] = round(fitted.ingredients[key] ?? 0);
     record('ingredients', key, prior.ingredients[key] ?? 0, fitted.ingredients[key] ?? 0);
@@ -157,6 +169,7 @@ export function fitWeights(
 
   const untouched = [
     ...Object.keys(prior.proteins).map((k) => `proteins:${k}`),
+    ...Object.keys(prior.cuisines ?? {}).map((k) => `cuisines:${k}`),
     ...Object.keys(prior.ingredients).map((k) => `ingredients:${k}`),
     ...Object.keys(prior.tagBonuses).map((k) => `tagBonuses:${k}`),
   ].filter((key) => !counts.has(key));

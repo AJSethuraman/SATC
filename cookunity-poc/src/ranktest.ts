@@ -17,6 +17,7 @@ function check(label: string, condition: boolean, detail = ''): void {
 
 const prefs: Preferences = {
   proteins: { chicken: 3, beef: 1, pork: 0 },
+  cuisines: { Mexican: 1, 'Latin American': 1, Mediterranean: 1 },
   ingredients: { broccoli: 2, cauliflower: -1 },
   exclude: ['anchovy'],
   limits: { maxCalories: 900, minRating: 4.2, minReviewCount: 50 },
@@ -204,6 +205,26 @@ const scoreOf = (m: Meal): number => rankMeals([m], prefs).ranked[0]?.score ?? N
     'explanation leads with the biggest factor',
     text.startsWith('+3 chicken'),
     text,
+  );
+}
+
+// Cuisine tags stack three-deep on the live menu, which let tag-count beat a
+// stated dislike: a Spicy meal ranked third on +3 of cuisine bonuses.
+{
+  const one = scoreOf(meal({ name: 'Bowl', tags: ['Mexican'] }));
+  const three = scoreOf(meal({ name: 'Bowl', tags: ['Mexican', 'Latin American', 'Mediterranean'] }));
+  const plain = scoreOf(meal({ name: 'Bowl' }));
+  check('one cuisine tag scores', one === plain + 1, `${one} vs ${plain}`);
+  check('three cuisine tags do not stack', three === one, `${three} vs ${one}`);
+  check(
+    'only one cuisine reason is shown',
+    (rankMeals([meal({ name: 'Bowl', tags: ['Mexican', 'Latin American'] })], prefs).ranked[0]?.reasons ?? [])
+      .filter((r) => ['mexican', 'latin american'].includes(r.text)).length === 1,
+  );
+  check(
+    'a dislike still outweighs cuisine',
+    scoreOf(meal({ name: 'Bowl', tags: ['Mexican', 'Latin American', 'Mediterranean'], sides: ['Cauliflower'] })) <
+      three,
   );
 }
 
