@@ -122,6 +122,13 @@ as "chicken". Protein type and tags state the real answer.
 Terms match whole words, with plurals allowed and nothing else: `beets` and
 `green beans` hit, `broccolini` does not match `broccoli`.
 
+**The most specific matching term wins.** `"cauliflower puree": -1.5` overrides
+both `cauliflower` and `puree` rather than letting +1 and −1 cancel to nothing.
+The same mechanism neutralises false positives from the ingredient
+declaration: mirin is rice wine, so a steak dish with no rice on the plate
+scored `+1 rice` until `"rice wine": 0` was added to suppress it. A zero weight
+contributes nothing but still claims the match.
+
 **`limits` are hard gates**, applied before scoring; everything else is points.
 The run prints a tally of what got filtered and why, which is how you notice a
 limit set too tight.

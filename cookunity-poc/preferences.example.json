@@ -35,7 +35,9 @@
     "farro": 0.5,
     "quinoa": 0.5,
     "puree": -1,
-    "cauliflower puree": -1.5
+    "cauliflower puree": -1.5,
+    "rice wine": 0,
+    "rice vinegar": 0
   },
   "exclude": [],
   "limits": {

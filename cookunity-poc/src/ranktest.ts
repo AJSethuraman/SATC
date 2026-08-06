@@ -111,6 +111,25 @@ const scoreOf = (m: Meal): number => rankMeals([m], prefs).ranked[0]?.score ?? N
   check('only the specific reason is shown', ingredientReasons.join(',') === 'cauliflower puree', ingredientReasons.join(','));
 }
 
+// A zero-weight specific term is how you neutralise a false positive: mirin is
+// rice wine, so a steak dish with no rice on the plate was scoring +1 rice.
+{
+  const neutralised: Preferences = {
+    ...prefs,
+    ingredients: { rice: 1, 'rice wine': 0 },
+  };
+  const score = (m: Meal): number => rankMeals([m], neutralised).ranked[0]?.score ?? Number.NaN;
+  const plain = score(meal({ name: 'Steak' }));
+  check(
+    'a zero-weight specific term cancels the general one',
+    score(meal({ name: 'Steak', ingredients: ['Rice Wine', 'Beef'] })) === plain,
+  );
+  check(
+    'actual rice still scores',
+    score(meal({ name: 'Steak', ingredients: ['Jasmine Rice'] })) === plain + 1,
+  );
+}
+
 // Exclusions are the opposite: a trace amount in the declaration must catch.
 {
   const run = (m: Meal) => rankMeals([m], prefs);
