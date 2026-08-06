@@ -159,6 +159,20 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE TABLE IF NOT EXISTS deliverables (
   deliverable_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, kind TEXT,
   delivered_on TEXT, channel TEXT, delivered_by TEXT, return_key TEXT, note TEXT);
+-- The record the autonomy ladder counts (docs/AUTONOMY-CHARTER.md §11): did the
+-- owner send a rendered draft unchanged, or correct it, and why. approval_id is
+-- a content hash of the decision itself (template, client, day, what was
+-- rendered, what was sent, sequence) so logging the same decision twice is
+-- once. reason carries a key from the five in satc.autonomy.approval.REASON_
+-- CODES, or '' for an approval — never free text as the primary record. This
+-- is a NEW table, so CREATE TABLE IF NOT EXISTS is the whole migration: an
+-- existing store gets it created the next time it opens, same as every other
+-- table here did when it was added. No ALTER is needed because there is no
+-- existing table to alter.
+CREATE TABLE IF NOT EXISTS approvals (
+  approval_id TEXT PRIMARY KEY, template_key TEXT, client_id TEXT, decided_on TEXT,
+  decided_by TEXT, rendered_hash TEXT, sent_hash TEXT, reason TEXT, note TEXT,
+  sequence INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS filings (
   filing_id TEXT PRIMARY KEY, return_key TEXT, client_id TEXT, transmitted_at TEXT,
   transmitted_by TEXT, submission_id TEXT, ack_code TEXT, ack_date TEXT,
@@ -235,6 +249,7 @@ _MART_TABLES_BY_CLIENT = (
     "public_clients", "returns", "carryforwards", "owner_basis",
     "estimate_payments", "engagements", "jobs", "filings", "invoices",
     "payments", "deliverables", "requested_items", "received_documents",
+    "approvals",
 )
 
 # Vault tables keyed by client_id.
@@ -939,6 +954,65 @@ class SATCStore:
                 delivered_by=_col(r, "delivered_by") or "",
                 return_key=_col(r, "return_key") or "",
                 note=_col(r, "note") or ""))
+        return out
+
+    # -- approvals (charter §11 — the record the autonomy ladder counts) ---
+
+    def save_approvals(self, approvals) -> None:
+        """Record owner decisions on rendered drafts. Idempotent on ``approval_id``.
+
+        ``Approval.approval_id`` is derived from the decision itself — template,
+        client, day, what was rendered, what was sent, sequence — so the same
+        decision written twice (a double-click, a re-import) lands on the same
+        primary key and REPLACES its row rather than becoming a second one
+        (principle 8). That includes a reason code being reclassified for the
+        same decision: the row updates in place, because ``reason`` is not part
+        of the id (see the note on ``approval_id``).
+        """
+        for a in approvals:
+            self.mart.execute(
+                "INSERT OR REPLACE INTO approvals "
+                "(approval_id, template_key, client_id, decided_on, decided_by,"
+                " rendered_hash, sent_hash, reason, note, sequence)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (a.approval_id, a.template_key, a.client_id, _dt(a.decided_on),
+                 a.decided_by, a.rendered_hash, a.sent_hash, a.reason, a.note,
+                 int(a.sequence)))
+        self.mart.commit()
+
+    def load_approvals(self, client_id: str = "") -> list:
+        """The whole decision record back off disk. Never raises on a row it finds odd.
+
+        An approval naming a template that no longer exists still loads — it is
+        a FACT about something that happened, and hiding it would lose the
+        record of an act rather than tidy it (same reasoning as an orphaned
+        payment attribution or deliverable). Any refusal about an unknown
+        template belongs at ``record_approval``/``record_correction`` time,
+        where a human is present to fix it, not here.
+        """
+        from satc.autonomy.approval import Approval
+
+        sql = "SELECT * FROM approvals"
+        args: tuple = ()
+        if client_id:
+            sql += " WHERE client_id=?"
+            args = (client_id,)
+        out = []
+        for r in self.mart.execute(sql + " ORDER BY decided_on, approval_id", args):
+            on = _pdt(_col(r, "decided_on"))
+            if on is None:
+                # Obviously wrong on sight rather than plausible — a decision
+                # with no date cannot sit on the streak timeline, and must not
+                # look as though it can (principle 1).
+                on = date(1970, 1, 1)
+            out.append(Approval(
+                template_key=_col(r, "template_key") or "",
+                client_id=_col(r, "client_id") or "",
+                decided_on=on, decided_by=_col(r, "decided_by") or "",
+                rendered_hash=_col(r, "rendered_hash") or "",
+                sent_hash=_col(r, "sent_hash") or "",
+                reason=_col(r, "reason") or "", note=_col(r, "note") or "",
+                sequence=int(_col(r, "sequence") or 0)))
         return out
 
     def save_filings(self, filings) -> None:

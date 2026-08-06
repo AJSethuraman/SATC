@@ -2,6 +2,7 @@
 
     satc app                 launch the local web GUI (opens your browser)
     satc doctor              check what's ready on this machine (OCR, Ollama, ...)
+    satc drill               run the nightly trap drill against a synthetic practice
     satc build [out.xlsx]    build the demo workpaper workbook (and recalc note)
     satc sort FOLDER         classify + re-label a folder of client documents
     satc seed [--dir DIR]    initialize the SQLite store from synthetic fixtures
@@ -22,6 +23,10 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("app", help="launch the local web GUI")
     sub.add_parser("doctor", help="check what's ready on this machine")
+    sub.add_parser(
+        "drill",
+        help="run the nightly trap drill against a synthetic practice "
+             "(docs/AUTONOMY-CHARTER.md section 7)")
     p_new = sub.add_parser(
         "comms-new",
         help="draft a new client-letter template from a one-line description")
@@ -74,6 +79,26 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "doctor":
         from satc.doctor import format_report
         print(format_report())
+        return 0
+
+    if args.cmd == "drill":
+        from datetime import date
+
+        from satc.autonomy.traps import run_drill
+
+        result = run_drill(today=date.today())
+        width = max((len(t.key) for t in result.traps), default=10)
+        for t in result.traps:
+            mark = "PASS" if t.passed else "MISS"
+            print(f"[{mark}] {t.key:<{width}}  ({t.capability})")
+            print(f"       {t.why}")
+        print()
+        if result.misses:
+            print(f"{len(result.misses)} of {len(result.traps)} trap(s) missed: "
+                  f"{', '.join(result.misses)}")
+            print(f"Demoted to draft_only: {', '.join(result.demotions)}")
+            return 1
+        print(f"All {len(result.traps)} traps held. Nothing demoted.")
         return 0
 
     if args.cmd == "comms-new":

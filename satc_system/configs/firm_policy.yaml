@@ -182,3 +182,66 @@ standing_text:
   payment_instructions: >-
     You can pay by check made out to Sethuraman Accounting, Tax & Consulting, or
     ask us for bank details if you would rather transfer it.
+
+# AUTONOMY — how many clean sends in a row it takes to trust a (template,
+# client) pair. Governed by docs/AUTONOMY-CHARTER.md; this is the ONE knob the
+# charter leaves to the owner rather than the code (charter §4). Like
+# everything else in this file, none of it carries a citation — there is no
+# authority anywhere that says five is right and six is wrong, only a
+# practice's own comfort with how much evidence is enough.
+#
+# Nothing here turns "earned" into "sends anything". A pair reaching earned
+# still changes exactly one recorded fact — see the charter §10 and the
+# no-SMTP test that has to keep passing regardless of what these numbers say.
+autonomy:
+  # How many CONSECUTIVE zero-edit approvals, for the SAME pair, it takes to
+  # move draft_only -> earned. Two thresholds because getting a birthday note
+  # wrong and getting an invoice amount wrong are not the same size of
+  # mistake, and the evidence bar should not pretend otherwise.
+  thresholds:
+    routine: 5              # informational, no money, no date, no filing step
+    money_or_deadline: 10   # carries an amount, a statutory date, or a filing
+                             # consequence — a wrong send here is the expensive
+                             # kind of wrong, so it needs twice the proof
+
+  # How often the three preconditions in satc/autonomy/preconditions.py have
+  # to be re-confirmed before the gate goes stale. Quarterly, on the theory
+  # that a backup nobody has checked in three months might as well not exist,
+  # and that is a cadence the owner can live with checking. A lapsed
+  # confirmation FREEZES accrual — it does not erase what is already earned.
+  precondition_reconfirm_days: 90
+
+  # WHICH TEMPLATES ARE money_or_deadline, decided by hand, not inferred from
+  # the template's name or content (charter §4: "config, not inference"). A
+  # template left off BOTH lists below is treated as money_or_deadline anyway
+  # — the stricter rung — because a template nobody has classified is a
+  # template nobody has thought about, and that is not evidence it is safe.
+  #
+  # The routine list is the one that actually does something: everything not
+  # on it is money_or_deadline, full stop. The money_or_deadline list below is
+  # kept anyway so a reviewer can see the reasoning written down, and so the
+  # loader can catch a template accidentally listed under both.
+  templates:
+    routine:
+      - interview_invite       # scheduling only, nothing at stake if reworded
+      - welcome
+      - missing_items          # a nudge; the deadline it serves is elsewhere
+      - organizer_send
+      - status_update          # explicitly asks for nothing
+      - prior_year_check
+      - season_thanks
+      - year_end_planning      # an invitation to talk, not a stated date
+      - referral_thanks
+      - birthday
+
+    money_or_deadline:
+      - engagement_letter      # states the fee
+      - document_request       # states the engagement due date
+      - extension_request      # a wrong send here can cost reasonable-cause
+                                # protection on a late return — filing consequence
+      - return_delivery        # states the refund/balance-due result
+      - cover_letter            # rides with the same result as return_delivery
+      - signature_request      # nothing can be transmitted without this — an
+                                # IRS rule, not a preference
+      - invoice_cover          # states the fee
+      - disengagement          # states that no further returns will be filed

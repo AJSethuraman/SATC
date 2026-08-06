@@ -465,25 +465,41 @@ def test_drafting_still_sends_nothing(client, monkeypatch):
     assert "Copy the draft" in body
 
 
-def test_the_comms_area_has_no_send_path():
-    """The hard rule: sending stays a human act in the mail client (BACKLOG §6).
+def test_no_module_anywhere_has_a_send_path():
+    """The hard rule: sending stays a human act in the mail client.
 
-    Parsed rather than grepped, so the modules stay free to *say* "no SMTP" in
-    their docstrings while this proves they never import or call one.
+    Parsed rather than grepped, so a module stays free to *say* "no SMTP" in its
+    docstring while this proves it never imports or calls one.
+
+    THE SCOPE IS THE WHOLE PACKAGE, and it was not. This walked satc/comms and
+    satc/app/comms_views only — so the guarantee held exactly where somebody had
+    already thought about it, and nowhere else. Three separate reviewers of the
+    new satc/autonomy package found the gap the same way: one PLANTED a working
+    smtplib send path in satc/autonomy/approval.py and this test still passed.
+
+    A no-send invariant scoped to one directory is not an invariant, it is a
+    convention in that directory — the same "guarded on one path" shape this
+    project keeps producing. It now walks every module under satc/, so a send
+    path added anywhere, including a package that does not exist yet, fails
+    here.
+
+    ``docs/AUTONOMY-CHARTER.md`` §10 names THIS test as the standing guarantee
+    and requires that retiring it be an explicit, named act in the same commit
+    that amends principle 9. That only means anything if it covers the code.
     """
     import ast
     from pathlib import Path
 
-    import satc.app.comms_views as views
-    import satc.comms as comms
+    import satc
 
     banned_modules = {"smtplib", "ssl"}
     banned_calls = {"sendmail", "send_message", "starttls", "SMTP", "SMTP_SSL"}
 
-    roots = [Path(comms.__file__).parent, Path(views.__file__)]
-    files = [p for root in roots
-             for p in ([root] if root.is_file() else sorted(root.glob("*.py")))]
-    assert files, "expected to find the comms modules on disk"
+    root = Path(satc.__file__).parent
+    files = sorted(root.rglob("*.py"))
+    assert len(files) > 100, (
+        f"only {len(files)} modules found under {root} — this test is worthless "
+        f"if it silently stops finding the package")
 
     for path in files:
         tree = ast.parse(path.read_text(encoding="utf-8"))
