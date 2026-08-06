@@ -5,7 +5,6 @@
     "shrimp": 2,
     "beef": 2,
     "steak": 2,
-    "turkey": 1.5,
     "fish": 1.5,
     "pork": 1,
     "lamb": 0.5,
@@ -37,7 +36,11 @@
     "puree": -1,
     "cauliflower puree": -1.5,
     "rice wine": 0,
-    "rice vinegar": 0
+    "rice vinegar": 0,
+    "rice flour": 0,
+    "rice tortilla": 0,
+    "potato starch": 0,
+    "potato bread": 0
   },
   "exclude": [],
   "limits": {

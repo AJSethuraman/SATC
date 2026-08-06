@@ -62,25 +62,39 @@ export function auditTerms(meals: Meal[], prefs: Preferences): TermAudit[] {
   const total = meals.length || 1;
   const report: TermAudit[] = [];
 
+  /**
+   * `exact` mirrors how the ranker matches: cuisines and tag bonuses compare
+   * whole tags, everything else does word matching. Auditing with a looser
+   * rule than the ranker reports matches that never actually score.
+   *
+   * `checkModifiers` is only meaningful where the ingredient declaration is
+   * searched. Cut names like "Chicken Breast" or "Pork Loin" are legitimate,
+   * so flagging them in identity fields is noise.
+   */
   const scan = (
     section: TermAudit['section'],
     term: string,
     weight: number | null,
     fieldsOf: (meal: Meal) => string[],
+    { exact = false, checkModifiers = false }: { exact?: boolean; checkModifiers?: boolean } = {},
   ): void => {
     const modifierMatches = new Set<string>();
     const examples: string[] = [];
     let count = 0;
 
     for (const meal of meals) {
-      const hits = fieldsOf(meal).filter((field) => field && mentions(field, term));
+      const hits = fieldsOf(meal).filter((field) =>
+        field && (exact ? field.toLowerCase() === term.toLowerCase() : mentions(field, term)),
+      );
       if (!hits.length) continue;
       count += 1;
-      for (const hit of hits) {
-        // The name and description are human-written and trustworthy; the
-        // ingredient declaration is where compound names hide.
-        if (hit === meal.name || hit === meal.description) continue;
-        if (!isHeadOfPhrase(hit, term)) modifierMatches.add(hit.trim());
+      if (checkModifiers) {
+        for (const hit of hits) {
+          // The name and description are human-written and trustworthy; the
+          // ingredient declaration is where compound names hide.
+          if (hit === meal.name || hit === meal.description) continue;
+          if (!isHeadOfPhrase(hit, term)) modifierMatches.add(hit.trim());
+        }
       }
       if (examples.length < 3) examples.push(meal.name);
     }
@@ -107,17 +121,17 @@ export function auditTerms(meals: Meal[], prefs: Preferences): TermAudit[] {
     scan('proteins', term, weight, identityFields);
   }
   for (const [term, weight] of Object.entries(prefs.cuisines ?? {})) {
-    scan('cuisines', term, weight, (meal) => meal.tags ?? []);
+    scan('cuisines', term, weight, (meal) => meal.tags ?? [], { exact: true });
   }
   for (const [term, weight] of Object.entries(prefs.ingredients)) {
-    scan('ingredients', term, weight, contentFields);
+    scan('ingredients', term, weight, contentFields, { checkModifiers: true });
   }
   for (const [term, weight] of Object.entries(prefs.tagBonuses)) {
-    scan('tagBonuses', term, weight, (meal) => meal.tags ?? []);
+    scan('tagBonuses', term, weight, (meal) => meal.tags ?? [], { exact: true });
   }
   // Exclusions matter most: an over-firing one silently removes the menu.
   for (const term of prefs.exclude) {
-    scan('exclude', term, null, contentFields);
+    scan('exclude', term, null, contentFields, { checkModifiers: true });
   }
 
   return report.sort((a, b) => b.flags.length - a.flags.length || b.meals - a.meals);

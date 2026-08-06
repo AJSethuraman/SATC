@@ -27,15 +27,15 @@ function main(): void {
     const weight = row.weight === null ? 'hard filter' : `weight ${row.weight}`;
     console.log(`  ${row.section}.${row.term}  (${weight}, ${row.meals} meals)`);
     for (const flag of row.flags) console.log(`      ! ${flag}`);
-    if (row.matchedText.length > 1) {
+    if (row.matchedText.length) {
       console.log(`      matched: ${row.matchedText.join(' · ')}`);
     }
     if (row.examples.length) console.log(`      e.g. ${row.examples.join('; ')}`);
     console.log('');
   }
 
-  console.log('  A term matching several distinct strings is the usual tell: if "rice"');
-  console.log('  also matched "Rice Wine", add \'"rice wine": 0\' to suppress it.\n');
+  console.log('  A modifier match is the usual tell: if "rice" also matched "Rice Wine",');
+  console.log('  add \'"rice wine": 0\' to claim the match without scoring it.\n');
 }
 
 try {

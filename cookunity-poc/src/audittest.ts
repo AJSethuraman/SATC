@@ -100,3 +100,40 @@ check('flagged terms sort first', (report[0]?.flags ?? []).length > 0);
 
 console.log(failures === 0 ? '\nAll audit tests passed.\n' : `\n${failures} audit test(s) failed.\n`);
 process.exitCode = failures === 0 ? 0 : 1;
+
+// --- regressions found by running the audit against the live menu ---
+
+// Cuisines and tag bonuses match whole tags in the ranker, so the audit must
+// too. Substring matching reported "American" on 150 meals when the ranker
+// only ever scores the 87 tagged exactly that.
+{
+  const tagged: Meal[] = [
+    meal({ name: 'A', tags: ['American'] }),
+    meal({ name: 'B', tags: ['Latin American'] }),
+  ];
+  const r = auditTerms(tagged, { ...prefs, cuisines: { American: 1 }, tagBonuses: { American: 1 } });
+  check('cuisine audit matches whole tags only', r.find((x) => x.section === 'cuisines')?.meals === 1);
+  check('tag audit matches whole tags only', r.find((x) => x.section === 'tagBonuses')?.meals === 1);
+}
+
+// Cut names are legitimate, and proteins never scan the ingredient
+// declaration, so the modifier check is noise there.
+{
+  const cuts: Meal[] = [meal({ name: 'Roast', proteinType: ['Chicken Thigh', 'Chicken Breast'] })];
+  const r = auditTerms(cuts, { ...prefs, proteins: { chicken: 3 } });
+  const chicken = r.find((x) => x.term === 'chicken');
+  check('cut names do not flag a protein', !(chicken?.flags ?? []).some((f) => f.includes('modifier')));
+  check('the protein still counts the meal', chicken?.meals === 1);
+}
+
+// But the ingredient declaration is still checked.
+{
+  const r = auditTerms([meal({ name: 'Steak', ingredients: ['Potato Starch'] })], {
+    ...prefs,
+    ingredients: { potato: 1 },
+  });
+  check('ingredient modifiers are still flagged', (r.find((x) => x.term === 'potato')?.flags ?? []).some((f) => f.includes('modifier')));
+}
+
+console.log(failures === 0 ? 'Audit regressions passed.\n' : `${failures} audit regression(s) failed.\n`);
+process.exitCode = failures === 0 ? 0 : 1;
