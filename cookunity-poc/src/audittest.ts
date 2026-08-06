@@ -137,3 +137,45 @@ process.exitCode = failures === 0 ? 0 : 1;
 
 console.log(failures === 0 ? 'Audit regressions passed.\n' : `${failures} audit regression(s) failed.\n`);
 process.exitCode = failures === 0 ? 0 : 1;
+
+// --- the audit must reflect what the ranker actually does ---
+
+// Once '"rice wine": 0' claims the match, "rice" must stop reporting it, or
+// the audit nags forever about a false positive its own advice already fixed.
+{
+  const menu3: Meal[] = [
+    meal({ name: 'Steak', ingredients: ['Rice Wine', 'Beef'] }),
+    meal({ name: 'Bowl', ingredients: ['Jasmine Rice'] }),
+  ];
+  const withSuppression = auditTerms(menu3, { ...prefs, ingredients: { rice: 1, 'rice wine': 0 } });
+  const rice = withSuppression.find((x) => x.term === 'rice');
+  check('a claimed match is not counted for the general term', rice?.meals === 1, String(rice?.meals));
+  // Only the modifier flag should clear; a 1-of-2 menu still trips frequency.
+  check(
+    'and no longer flagged as a modifier',
+    !(rice?.flags ?? []).some((f) => f.includes('modifier')),
+    JSON.stringify(rice?.flags),
+  );
+  check('nor reports the claimed string', rice?.matchedText.length === 0, JSON.stringify(rice?.matchedText));
+
+  const withoutSuppression = auditTerms(menu3, { ...prefs, ingredients: { rice: 1 } });
+  check(
+    'without the suppression it is still flagged',
+    (withoutSuppression.find((x) => x.term === 'rice')?.flags ?? []).some((f) => f.includes('modifier')),
+  );
+}
+
+// The suppressor itself absorbs modifier matches by design.
+{
+  const r = auditTerms([meal({ name: 'A', ingredients: ['Rice Wine Vinegar'] })], {
+    ...prefs,
+    ingredients: { rice: 1, 'rice wine': 0 },
+  });
+  check(
+    'a zero-weight term is not flagged for doing its job',
+    !(r.find((x) => x.term === 'rice wine')?.flags ?? []).some((f) => f.includes('modifier')),
+  );
+}
+
+console.log(failures === 0 ? 'Audit fidelity checks passed.\n' : `${failures} audit fidelity check(s) failed.\n`);
+process.exitCode = failures === 0 ? 0 : 1;

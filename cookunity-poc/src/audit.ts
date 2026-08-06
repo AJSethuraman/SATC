@@ -76,15 +76,28 @@ export function auditTerms(meals: Meal[], prefs: Preferences): TermAudit[] {
     term: string,
     weight: number | null,
     fieldsOf: (meal: Meal) => string[],
-    { exact = false, checkModifiers = false }: { exact?: boolean; checkModifiers?: boolean } = {},
+    {
+      exact = false,
+      checkModifiers = false,
+      siblings = [],
+    }: { exact?: boolean; checkModifiers?: boolean; siblings?: string[] } = {},
   ): void => {
+    // Mirror the ranker's specificity rule: a match claimed by a longer term
+    // does not belong to this one. Without this the audit keeps reporting the
+    // very false positives its own advice already fixed — "rice" would forever
+    // flag "Rice Wine" even after '"rice wine": 0' silenced it.
+    const claimedByMoreSpecific = (text: string): boolean =>
+      siblings.some((other) => other !== term && other.includes(term) && mentions(text, other));
     const modifierMatches = new Set<string>();
     const examples: string[] = [];
     let count = 0;
 
     for (const meal of meals) {
-      const hits = fieldsOf(meal).filter((field) =>
-        field && (exact ? field.toLowerCase() === term.toLowerCase() : mentions(field, term)),
+      const hits = fieldsOf(meal).filter(
+        (field) =>
+          field &&
+          (exact ? field.toLowerCase() === term.toLowerCase() : mentions(field, term)) &&
+          !claimedByMoreSpecific(field),
       );
       if (!hits.length) continue;
       count += 1;
@@ -102,7 +115,9 @@ export function auditTerms(meals: Meal[], prefs: Preferences): TermAudit[] {
     const flags: string[] = [];
     if (count === 0) flags.push('never fires — dead weight');
     if (count / total > 0.4) flags.push(`fires on ${Math.round((count / total) * 100)}% — weak discriminator`);
-    if (modifierMatches.size) {
+    // A zero weight exists precisely to absorb a modifier match, so flagging
+    // it for having one is circular.
+    if (modifierMatches.size && weight !== 0) {
       flags.push(`matches as a modifier — probably not the actual ingredient`);
     }
 
@@ -123,15 +138,16 @@ export function auditTerms(meals: Meal[], prefs: Preferences): TermAudit[] {
   for (const [term, weight] of Object.entries(prefs.cuisines ?? {})) {
     scan('cuisines', term, weight, (meal) => meal.tags ?? [], { exact: true });
   }
+  const ingredientTerms = Object.keys(prefs.ingredients);
   for (const [term, weight] of Object.entries(prefs.ingredients)) {
-    scan('ingredients', term, weight, contentFields, { checkModifiers: true });
+    scan('ingredients', term, weight, contentFields, { checkModifiers: true, siblings: ingredientTerms });
   }
   for (const [term, weight] of Object.entries(prefs.tagBonuses)) {
     scan('tagBonuses', term, weight, (meal) => meal.tags ?? [], { exact: true });
   }
   // Exclusions matter most: an over-firing one silently removes the menu.
   for (const term of prefs.exclude) {
-    scan('exclude', term, null, contentFields, { checkModifiers: true });
+    scan('exclude', term, null, contentFields, { checkModifiers: true, siblings: prefs.exclude });
   }
 
   return report.sort((a, b) => b.flags.length - a.flags.length || b.meals - a.meals);
