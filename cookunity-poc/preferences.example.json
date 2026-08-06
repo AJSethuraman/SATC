@@ -24,7 +24,8 @@
     "spinach": 0.5,
     "farro": 0.5,
     "quinoa": 0.5,
-    "puree": -1
+    "puree": -1,
+    "cauliflower puree": -1.5
   },
   "exclude": [],
   "limits": {

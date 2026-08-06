@@ -120,9 +120,16 @@ export function featuresOf(meal: Meal, prefs: Preferences): Features {
     );
   }
 
+  // The most specific matching term wins. "cauliflower puree" matches both
+  // "cauliflower" (+1) and "puree" (-1), netting zero — but the dish is
+  // precisely the form being avoided, so the general terms must not score.
+  const matchedIngredients = Object.keys(prefs.ingredients).filter((term) => mentions(everything, term));
+
   return {
     protein,
-    ingredients: Object.keys(prefs.ingredients).filter((term) => mentions(everything, term)),
+    ingredients: matchedIngredients.filter(
+      (term) => !matchedIngredients.some((other) => other !== term && other.includes(term)),
+    ),
     tags: Object.keys(prefs.tagBonuses).filter((tag) =>
       (meal.tags ?? []).some((t) => t.toLowerCase() === tag.toLowerCase()),
     ),

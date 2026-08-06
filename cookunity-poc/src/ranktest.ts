@@ -88,6 +88,28 @@ const scoreOf = (m: Meal): number => rankMeals([m], prefs).ranked[0]?.score ?? N
   check('the name still counts', scoreOf(meal({ name: 'Grilled Chicken' })) > scoreOf(meal({ name: 'Grilled Tofu' })));
 }
 
+// The most specific matching term wins, so a general like cannot cancel out a
+// specific dislike. Live example: "Spinach Cauliflower Puree" scored
+// +1 cauliflower -1 puree = 0, and still ranked sixth.
+{
+  const specific: Preferences = {
+    ...prefs,
+    ingredients: { cauliflower: 1, puree: -1, 'cauliflower puree': -1.5 },
+  };
+  const score = (m: Meal): number => rankMeals([m], specific).ranked[0]?.score ?? Number.NaN;
+  const plain = score(meal({ name: 'Bowl' }));
+  const puree = score(meal({ name: 'Bowl', sides: ['Spinach Cauliflower Puree'] }));
+  const whole = score(meal({ name: 'Bowl', sides: ['Roasted Cauliflower'] }));
+  check('specific term replaces the general ones', puree === plain - 1.5, `${puree} vs ${plain}`);
+  check('the general term still scores on its own', whole === plain + 1, `${whole} vs ${plain}`);
+  // Assert on the ingredient reasons only; a rating reason is always present.
+  const ingredientReasons = (rankMeals([meal({ name: 'Bowl', sides: ['Cauliflower Puree'] })], specific)
+    .ranked[0]?.reasons ?? [])
+    .map((r) => r.text)
+    .filter((t) => !t.startsWith('rated '));
+  check('only the specific reason is shown', ingredientReasons.join(',') === 'cauliflower puree', ingredientReasons.join(','));
+}
+
 // Exclusions are the opposite: a trace amount in the declaration must catch.
 {
   const run = (m: Meal) => rankMeals([m], prefs);
