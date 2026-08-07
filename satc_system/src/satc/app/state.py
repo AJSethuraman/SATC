@@ -498,6 +498,22 @@ class AppState:
         self.reload()
         return eng
 
+    def record_decision(self, approval) -> bool:
+        """Write down what the owner did with a draft. Returns whether it was NEW.
+
+        Idempotent on the approval's own derived id (principle 8): a double
+        click, a page reload, or the owner checking whether they already logged
+        it lands on the same row. The return value is what lets the screen say
+        "already recorded" rather than silently doing nothing — which is the
+        difference between a no-op the owner understands and one they do not.
+        """
+        from satc.autonomy.approval import merge
+
+        _ledger, added = merge(self.store.load_approvals(), [approval])
+        if added:
+            self.store.save_approvals(added)
+        return bool(added)
+
     def create_engagement_from_intake(self, **kw):
         """The door the app uses. Deadline computed, not keyed in.
 

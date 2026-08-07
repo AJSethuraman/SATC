@@ -123,6 +123,68 @@
       </p>
     </form>
 
+    {# ---------------------------------------------------- what happened to it #}
+    {# The click the autonomy ladder was waiting for. Everything under
+       /autonomy derives from these records, and until this form existed the
+       scoreboard was complete and permanently empty (charter §11).
+
+       Recording is NOT sending. It says what the owner did after SATC handed
+       them the text, which is the only thing SATC can honestly know. #}
+    <div class="panel" style="margin-top:16px">
+      <h2>What did you do with it?</h2>
+      <div class="body">
+        <p class="note">Worth a click even though nothing is automated: it is the only
+          way SATC finds out whether its drafts are any good, and the reason codes are
+          what tell a wrong <em>fact</em> apart from a letter that should not have been
+          suggested at all. Nothing here sends anything.</p>
+
+        <form method="post" action="{{ url_for('comms.comms_decide') }}">
+          <input type="hidden" name="client" value="{{ client_id }}">
+          <input type="hidden" name="template" value="{{ selected }}">
+          <input type="hidden" name="tax_year" value="{{ tax_year or '' }}">
+          <input type="hidden" name="invoice" value="{{ invoice_id or '' }}">
+          {# Whatever the preparer typed into the fill-in boxes has to travel with
+             the decision, or the server re-renders a DIFFERENT draft than the one
+             on screen and compares a hash of text nobody saw. #}
+          {% for name, value in (fills or {}).items() %}
+          <input type="hidden" name="fill_{{ name }}" value="{{ value }}">
+          {% endfor %}
+
+          <p>
+            <button class="btn primary" type="submit" name="outcome" value="as_written">
+              ✓ I sent this as written</button>
+          </p>
+
+          <details style="margin-top:6px">
+            <summary class="muted">I changed it, or didn't send it</summary>
+            <div style="margin-top:10px">
+              <label class="muted">Why — pick the closest</label>
+              <select class="field-input" name="reason">
+                {% for code, means in reason_codes.items() %}
+                <option value="{{ code }}">{{ means }}</option>
+                {% endfor %}
+              </select>
+
+              <label class="muted" style="margin-top:10px;display:block">
+                What you actually sent — <span class="muted">leave empty if nothing went
+                out. Pasting it lets SATC see exactly what it got wrong.</span></label>
+              <textarea class="codebox" name="sent_text" rows="8"
+                        placeholder="Paste the version you sent, or leave empty"></textarea>
+
+              <label class="muted" style="margin-top:10px;display:block">
+                Anything worth remembering (optional)</label>
+              <input class="field-input" name="note" placeholder="e.g. the fee was last year's">
+
+              <p style="margin-top:10px">
+                <button class="btn" type="submit" name="outcome" value="changed">
+                  Record the correction</button>
+              </p>
+            </div>
+          </details>
+        </form>
+      </div>
+    </div>
+
     {% if unfilled_labels %}
     <table style="margin-top:10px">
       <tr><th>Still to fill</th><th>Merge field</th></tr>

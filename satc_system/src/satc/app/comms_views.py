@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from flask import Blueprint, redirect, render_template, request, url_for
 
-from satc.app.state import STATE
+from satc.app.state import STATE, acting_actor
 from satc.comms import build_context, library, render
 from satc.obligations.policy import policy as firm_policy
 
@@ -275,6 +275,13 @@ def _fills(form) -> dict[str, str]:
             if k.startswith(_FILL_PREFIX) and (v or "").strip()}
 
 
+def _reason_codes() -> dict[str, str]:
+    """The finite five, straight from the record that enforces them."""
+    from satc.autonomy.approval import REASON_CODES
+
+    return REASON_CODES
+
+
 def _render_screen(*, client_id: str, template_key: str, tax_year: int | None,
                    fills: dict[str, str], invoice_id: str = "",
                    notes: list[str] | None = None):
@@ -326,7 +333,10 @@ def _render_screen(*, client_id: str, template_key: str, tax_year: int | None,
         stages=lib.by_stage(), template=template, draft=draft,
         clients=STATE.client_choices(), client_id=client_id,
         client_email=STATE.client_email(client_id) if client_id else "",
-        tax_year=tax_year or "", fills=fills,
+        tax_year=tax_year or "", fills=fills, selected=template_key,
+        # The five, from the engine — never a list retyped in a template, or the
+        # screen and the record could offer different sets (principle 6a).
+        reason_codes=_reason_codes(),
         preparer_fields=preparer_fields, invoice_id=invoice_id,
         model_drafted=[lib.placeholder(n).label if lib.placeholder(n) else n
                        for n in model_drafted],
@@ -400,3 +410,100 @@ def client_comms(client_id: str):
     """Jump into the comms screen for one client (linked from their page)."""
     return redirect(url_for("comms.comms", client=client_id,
                             template=request.args.get("template", "")))
+
+
+# --- what happened to the draft ------------------------------------------------
+#
+# THE CLICK THE WHOLE AUTONOMY LADDER WAS WAITING FOR. Everything under
+# satc/autonomy — the streak, the rungs, the digest, the traps — derives from
+# Approval records, and until this route existed nothing in the app created one.
+# The scoreboard was complete and permanently empty (charter §11).
+#
+# NOTHING HERE SENDS. It records what the owner did after SATC handed them the
+# text, which is the only thing SATC can honestly know (principle 9, and the
+# module docstring of satc.autonomy.approval on what is and is not observable).
+
+
+def _draft_text(draft) -> str:
+    """The canonical bytes an approval is a hash OF.
+
+    Subject and body together, because an edit to either is an edit — a corrected
+    subject line with an untouched body is still the owner deciding SATC got it
+    wrong. Built the same way on both sides of the comparison, which is the whole
+    reason it is a function rather than an expression written twice.
+    """
+    return f"{draft.subject}\n\n{draft.body}"
+
+
+@bp.route("/comms/decide", methods=["POST"])
+def comms_decide():
+    """Record that the owner sent this draft as written, or changed it.
+
+    The rendered text is RE-DERIVED here rather than read off the form. A hidden
+    field saying "this is what you rendered" is a claim the browser makes about
+    the engine, and the one thing this record exists to compare is the engine's
+    own output — taking it from the page would let an edit to the page launder
+    itself into an approval.
+    """
+    from satc.autonomy.approval import (
+        REASON_CODES,
+        ApprovalError,
+        record_approval,
+        record_correction,
+    )
+    from satc.models.actor import ActorRefused
+
+    client_id = (request.form.get("client") or "").strip()
+    template_key = (request.form.get("template") or "").strip()
+    tax_year = _int_or_none(request.form.get("tax_year", ""))
+    invoice_id = (request.form.get("invoice") or "").strip()
+    outcome = (request.form.get("outcome") or "").strip()
+
+    lib = library()
+    if not client_id or template_key not in lib.keys():
+        return redirect(url_for("comms.comms"))
+
+    notes: list[str] = []
+    try:
+        values = _context(client_id, tax_year, invoice_id,
+                          template_key=template_key, notes=notes)
+    except WrongInvoice as refused:
+        return _render_screen(client_id=client_id, template_key=template_key,
+                              tax_year=tax_year, invoice_id=invoice_id,
+                              fills={}, notes=[str(refused)])
+    values.update(_fills(request.form))
+    rendered = _draft_text(render(lib.template(template_key), values, library=lib))
+
+    try:
+        if outcome == "as_written":
+            record = record_approval(
+                actor=acting_actor(), template_key=template_key,
+                client_id=client_id, rendered_text=rendered,
+                note=" ".join((request.form.get("note") or "").split()))
+            said = "Recorded: sent exactly as drafted."
+        else:
+            # Empty means NOTHING WENT OUT, which is the truth for "should not
+            # have flagged", "gave up" and "missing capability" — and is a real
+            # answer rather than a blank (principle 1). For an edit that did go
+            # out, the owner pastes what they actually sent and the hash of that
+            # is what the ladder compares.
+            record = record_correction(
+                actor=acting_actor(), template_key=template_key,
+                client_id=client_id, rendered_text=rendered,
+                sent_text=(request.form.get("sent_text") or ""),
+                reason=(request.form.get("reason") or "").strip(),
+                note=" ".join((request.form.get("note") or "").split()))
+            said = (f"Recorded as a correction — "
+                    f"{REASON_CODES.get(record.reason, record.reason)}. "
+                    f"This resets the streak for this letter and this client.")
+    except (ApprovalError, ActorRefused) as refused:
+        return _render_screen(client_id=client_id, template_key=template_key,
+                              tax_year=tax_year, invoice_id=invoice_id,
+                              fills=_fills(request.form), notes=[str(refused)])
+
+    added = STATE.record_decision(record)
+    if not added:
+        said = ("Already on the record for today — nothing was counted twice.")
+    return _render_screen(client_id=client_id, template_key=template_key,
+                          tax_year=tax_year, invoice_id=invoice_id,
+                          fills={}, notes=[said])

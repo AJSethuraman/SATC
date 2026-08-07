@@ -433,15 +433,32 @@ def test_the_engine_refuses_even_when_the_screen_already_said_yes():
 # issued. An invoice the client paid $337.50 for came back saying $270.00, on
 # their copy, in the register, and in the covering email.
 
-def _with_plans(tmp_path, text: str):
-    """A billing config this test owns, wired in where the engine reads from."""
+@pytest.fixture
+def own_plans(tmp_path, monkeypatch):
+    """A billing config this test owns, wired in where the engine reads from.
+
+    A FIXTURE, not a helper, because the helper left the price cache warm and
+    pointing at a temp directory that had been deleted. Under random test order
+    that made an unrelated hot-reload test fail perhaps one run in ten — the
+    worst kind of failure, since it looks like flakiness in the code rather than
+    in the test that caused it.
+    """
     import shutil
 
     from satc.billing import catalogue
 
     shutil.copytree("configs", tmp_path / "configs")
-    (tmp_path / "configs" / "billing" / "rate_plans.yaml").write_text(text, encoding="utf-8")
-    catalogue.billing_dir = lambda *a, **k: tmp_path / "configs" / "billing"
+    monkeypatch.setattr(catalogue, "billing_dir",
+                        lambda *a, **k: tmp_path / "configs" / "billing")
+
+    def write(text: str) -> None:
+        (tmp_path / "configs" / "billing" / "rate_plans.yaml").write_text(
+            text, encoding="utf-8")
+        catalogue.forget_prices()
+
+    yield write
+    # Cleared on the way OUT as well as in: the next test must not inherit a
+    # cache keyed on a directory that is about to stop existing.
     catalogue.forget_prices()
 
 
@@ -460,11 +477,10 @@ plans:
 """
 
 
-def test_changing_a_discount_does_not_reprice_an_issued_invoice(tmp_path, monkeypatch):
+def test_changing_a_discount_does_not_reprice_an_issued_invoice(tmp_path, own_plans):
     from satc.billing import catalogue
 
-    monkeypatch.setattr(catalogue, "billing_dir", catalogue.billing_dir)
-    _with_plans(tmp_path, PLANS.format(pct=25))
+    own_plans(PLANS.format(pct=25))
 
     inv = _invoice("household", "W-2 household")
     inv.add("return_1040")
@@ -472,40 +488,34 @@ def test_changing_a_discount_does_not_reprice_an_issued_invoice(tmp_path, monkey
     was = inv.total
     assert was == Decimal("337.50")
 
-    (tmp_path / "configs" / "billing" / "rate_plans.yaml").write_text(
-        PLANS.format(pct=40), encoding="utf-8")
-    catalogue.forget_prices()
+    own_plans(PLANS.format(pct=40))
 
     assert inv.total == was, "a config edit restated what a client already paid"
     assert inv.discount_total == Decimal("112.50")
     assert "$337.50" in inv.client_sentence()
 
 
-def test_a_draft_still_follows_the_current_price_list(tmp_path, monkeypatch):
+def test_a_draft_still_follows_the_current_price_list(tmp_path, own_plans):
     """Guards against over-fixing. A draft has been agreed with nobody, so it
     SHOULD pick up a change."""
     from satc.billing import catalogue
 
-    monkeypatch.setattr(catalogue, "billing_dir", catalogue.billing_dir)
-    _with_plans(tmp_path, PLANS.format(pct=25))
+    own_plans(PLANS.format(pct=25))
 
     inv = _invoice("household", "W-2 household")
     inv.add("return_1040")
     assert inv.total == Decimal("337.50")
 
-    (tmp_path / "configs" / "billing" / "rate_plans.yaml").write_text(
-        PLANS.format(pct=40), encoding="utf-8")
-    catalogue.forget_prices()
+    own_plans(PLANS.format(pct=40))
     assert inv.total == Decimal("270.00")
 
 
-def test_an_issued_invoice_survives_its_plan_being_deleted(tmp_path, monkeypatch):
+def test_an_issued_invoice_survives_its_plan_being_deleted(tmp_path, own_plans):
     """It stopped needing the catalogue the moment it was fixed. History must
     always load."""
     from satc.billing import catalogue
 
-    monkeypatch.setattr(catalogue, "billing_dir", catalogue.billing_dir)
-    _with_plans(tmp_path, PLANS.format(pct=25))
+    own_plans(PLANS.format(pct=25))
 
     inv = _invoice("household", "W-2 household")
     inv.add("return_1040")
@@ -520,14 +530,13 @@ def test_an_issued_invoice_survives_its_plan_being_deleted(tmp_path, monkeypatch
     assert "Household rate applied" in inv.summary_block()
 
 
-def test_the_stamped_plan_is_what_makes_it_hold(tmp_path, monkeypatch):
+def test_the_stamped_plan_is_what_makes_it_hold(tmp_path, own_plans):
     """Mutation check — principle 12. If issue() stopped stamping, rate_plan
     would fall back to the live catalogue and the first test above would fail;
     this asserts the stamp itself so the reason is visible."""
     from satc.billing import catalogue
 
-    monkeypatch.setattr(catalogue, "billing_dir", catalogue.billing_dir)
-    _with_plans(tmp_path, PLANS.format(pct=25))
+    own_plans(PLANS.format(pct=25))
 
     inv = _invoice("household", "W-2 household")
     inv.add("return_1040")
