@@ -345,3 +345,88 @@ def test_the_freeze_date_is_what_separates_the_two():
     assert lapsed.frozen_since is not None
     assert clean.frozen_since is None, "nothing is frozen when the gate holds"
     assert lapsed.frozen_since < today
+
+
+# --- the four things the reviewers found, pinned ------------------------------
+
+def test_an_off_ladder_capability_cannot_accrue_at_all():
+    """Charter §2 calls these "not a rung; not a rung that exists" — and nothing
+    enforced it, so any string was a valid template_key and a capability that
+    must never graduate could quietly build a streak."""
+    from satc.autonomy.approval import ApprovalError
+
+    for key in ("efile_the_return", "sign_8879", "charge_the_card", "delete_client"):
+        with pytest.raises(ApprovalError) as refusal:
+            record_approval(actor=Actor.owner(), template_key=key, client_id="CL-1",
+                            rendered_text="x", decided_on=date(2026, 3, 1))
+        assert "permanently off the autonomy ladder" in str(refusal.value)
+        # BOTH doors — a correction is a fact about a pair too.
+        with pytest.raises(ApprovalError):
+            record_correction(actor=Actor.owner(), template_key=key, client_id="CL-1",
+                              rendered_text="x", sent_text="y", reason="wrong_fact",
+                              decided_on=date(2026, 3, 1))
+
+
+def test_every_shipped_template_is_still_allowed():
+    """Guards against over-fixing. 'signature_request' ASKS a client to sign and
+    is an ordinary letter; banning it would leave the ladder with nothing on it."""
+    from satc.autonomy.approval import scope_refusal
+    from satc.comms import library
+
+    refused = [k for k in library().keys() if scope_refusal(k)]
+    assert not refused, f"legitimate templates refused: {refused}"
+
+
+def test_a_missed_trap_actually_demotes_the_templates_it_holds():
+    """Charter §7. DrillResult.demotions was read in exactly one place in the
+    whole codebase — a print statement in the CLI — so the digest reported a
+    demotion that never happened."""
+    import dataclasses
+
+    from satc.autonomy.traps import run_drill, templates_held
+
+    today = date(2026, 6, 1)
+    gate = _clean_gate(today)
+    approvals = [_approve("invoice_cover", "C-11", today - timedelta(days=n + 1))
+                 for n in reversed(range(DEFAULT_POLICY.money_or_deadline_n))]
+
+    clean = run_drill(today=today)
+    earned = rung_for(("invoice_cover", "C-11"), approvals, policy=DEFAULT_POLICY,
+                      preconditions=gate, today=today, held=templates_held(clean))
+    assert earned.state == "earned"
+
+    missed = dataclasses.replace(
+        clean,
+        traps=tuple(dataclasses.replace(t, passed=False)
+                    if "invoice_cover" in t.holds else t for t in clean.traps))
+    held = rung_for(("invoice_cover", "C-11"), approvals, policy=DEFAULT_POLICY,
+                    preconditions=gate, today=today, held=templates_held(missed))
+    assert held.state == "draft_only", "a trap miss demoted nothing"
+    assert "missed last night" in held.why
+
+
+def test_no_drill_on_file_holds_everything():
+    """"Nobody ran it" is the strongest version of "could not run", and charter
+    §7 says that counts as a miss. A scoreboard reading a silent night as a
+    clean one is the failure the rule exists to prevent."""
+    from satc.autonomy.traps import HOLD_EVERYTHING, templates_held
+
+    assert templates_held(None) == HOLD_EVERYTHING
+
+    today = date(2026, 6, 1)
+    approvals = [_approve("welcome", "C-12", today - timedelta(days=n + 1))
+                 for n in reversed(range(DEFAULT_POLICY.routine_n))]
+    rung = rung_for(("welcome", "C-12"), approvals, policy=DEFAULT_POLICY,
+                    preconditions=_clean_gate(today), today=today,
+                    held=templates_held(None))
+    assert rung.state == "draft_only"
+
+
+def test_a_precondition_ticked_today_does_not_hold_for_last_march():
+    """A record that improves the past is not a record."""
+    from satc.autonomy.preconditions import gate_status
+
+    ticked_now = _clean_gate(date(2026, 8, 7))
+    past = gate_status(ticked_now, cadence_days=90, today=date(2026, 3, 20))
+    assert not past.holds
+    assert past.missing, "a confirmation recorded later must not cover an earlier day"

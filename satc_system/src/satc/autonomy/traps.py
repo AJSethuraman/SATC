@@ -89,6 +89,40 @@ class TrapResult:
     — the same discipline as :class:`~satc.actions.propose.ProposedAction.why`
     (principle 13)."""
 
+    holds: tuple[str, ...] = ()
+    """Which templates a miss on this trap holds at draft_only.
+
+    EMPTY MEANS ALL OF THEM, and that is the fail-safe reading rather than an
+    oversight: a capability whose blast radius nobody has written down is one
+    nobody has thought about, and assuming it is narrow is how a demotion
+    becomes decorative. Declared in configs/autonomy/traps.yaml."""
+
+
+HOLD_EVERYTHING = "*"
+"""What :func:`templates_held` returns when a missed trap holds every template."""
+
+
+def templates_held(result: "DrillResult | None") -> frozenset[str] | str:
+    """Which templates last night's misses hold at draft_only.
+
+    Returns :data:`HOLD_EVERYTHING` when any missed trap declares no blast
+    radius. ``None`` — no drill on file for the day at all — also holds
+    everything: charter section 7 says a tripwire that could not run counts as a
+    MISS, and "nobody ran it" is the strongest version of could-not-run. A
+    scoreboard that reads a silent night as a clean one is the failure this rule
+    exists to prevent.
+    """
+    if result is None:
+        return HOLD_EVERYTHING
+    held: set[str] = set()
+    for trap in result.traps:
+        if trap.passed:
+            continue
+        if not trap.holds:
+            return HOLD_EVERYTHING
+        held.update(trap.holds)
+    return frozenset(held)
+
 
 @dataclass(frozen=True, slots=True)
 class DrillResult:
@@ -374,7 +408,14 @@ def _load_declared_traps(config_root: Path | None) -> list[dict[str, str]]:
             raise ConfigError(f"Duplicate trap key {key!r} in {path}")
         seen.add(key)
         summary = " ".join(str(entry.get("summary", "")).split())
-        declared.append({"key": key, "capability": capability, "summary": summary})
+        # Absent, empty, or not a list all mean the same thing: hold everything.
+        # Never inferred narrower from the capability name — a guess about blast
+        # radius is exactly what makes a demotion decorative.
+        raw_holds = entry.get("holds")
+        holds = tuple(str(h).strip() for h in raw_holds
+                      if str(h).strip()) if isinstance(raw_holds, list) else ()
+        declared.append({"key": key, "capability": capability, "summary": summary,
+                         "holds": holds})
     return declared
 
 
@@ -410,6 +451,7 @@ def run_drill(*, today: date, config_root: Path | None = None) -> DrillResult:
         traps = tuple(
             TrapResult(
                 key=d["key"], capability=d["capability"],
+                holds=d["holds"],
                 expected=d["summary"] or "the trap runs and passes",
                 observed=f"the synthetic practice would not build: {exc}",
                 passed=False,
@@ -427,6 +469,7 @@ def run_drill(*, today: date, config_root: Path | None = None) -> DrillResult:
         if check is None:
             traps.append(TrapResult(
                 key=d["key"], capability=d["capability"],
+                holds=d["holds"],
                 expected=d["summary"] or "a check exists for this trap",
                 observed="no check function is registered for this key",
                 passed=False,
@@ -439,12 +482,14 @@ def run_drill(*, today: date, config_root: Path | None = None) -> DrillResult:
         except Exception as exc:  # noqa: BLE001 - this IS the "cannot run" path
             traps.append(TrapResult(
                 key=d["key"], capability=d["capability"],
+                holds=d["holds"],
                 expected=d["summary"] or "the trap runs and passes",
                 observed=f"the check raised: {exc}", passed=False,
                 why=(f"{d['key']} could not run ({exc}). A tripwire that "
                      f"cannot run counts as a miss, never a skip.")))
             continue
         traps.append(TrapResult(key=d["key"], capability=d["capability"],
+                holds=d["holds"],
                                 expected=expected, observed=observed,
                                 passed=passed, why=why))
 

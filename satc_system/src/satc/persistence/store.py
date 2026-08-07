@@ -172,7 +172,7 @@ CREATE TABLE IF NOT EXISTS deliverables (
 CREATE TABLE IF NOT EXISTS approvals (
   approval_id TEXT PRIMARY KEY, template_key TEXT, client_id TEXT, decided_on TEXT,
   decided_by TEXT, rendered_hash TEXT, sent_hash TEXT, reason TEXT, note TEXT,
-  sequence INTEGER DEFAULT 0);
+  sequence INTEGER DEFAULT 0, recorded_at TEXT);
 CREATE TABLE IF NOT EXISTS filings (
   filing_id TEXT PRIMARY KEY, return_key TEXT, client_id TEXT, transmitted_at TEXT,
   transmitted_by TEXT, submission_id TEXT, ack_code TEXT, ack_date TEXT,
@@ -509,6 +509,13 @@ class SATCStore:
         if "rate_adjusted" not in line_cols:
             self.mart.execute(
                 "ALTER TABLE invoice_lines ADD COLUMN rate_adjusted INTEGER DEFAULT 0")
+        # recorded_at is what puts two same-day decisions in order — without it
+        # a SHA-256 decides whether a correction demoted a pair or a later
+        # approval accrued on top of it.
+        apr_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(approvals)")}
+        if apr_cols and "recorded_at" not in apr_cols:
+            self.mart.execute("ALTER TABLE approvals ADD COLUMN recorded_at TEXT")
+
         pay_cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(payments)")}
         if "sequence" not in pay_cols:
             self.mart.execute("ALTER TABLE payments ADD COLUMN sequence INTEGER DEFAULT 0")
@@ -973,11 +980,11 @@ class SATCStore:
             self.mart.execute(
                 "INSERT OR REPLACE INTO approvals "
                 "(approval_id, template_key, client_id, decided_on, decided_by,"
-                " rendered_hash, sent_hash, reason, note, sequence)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?)",
+                " rendered_hash, sent_hash, reason, note, sequence, recorded_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 (a.approval_id, a.template_key, a.client_id, _dt(a.decided_on),
                  a.decided_by, a.rendered_hash, a.sent_hash, a.reason, a.note,
-                 int(a.sequence)))
+                 int(a.sequence), _ts(a.recorded_at)))
         self.mart.commit()
 
     def load_approvals(self, client_id: str = "") -> list:
@@ -1012,7 +1019,11 @@ class SATCStore:
                 rendered_hash=_col(r, "rendered_hash") or "",
                 sent_hash=_col(r, "sent_hash") or "",
                 reason=_col(r, "reason") or "", note=_col(r, "note") or "",
-                sequence=int(_col(r, "sequence") or 0)))
+                sequence=int(_col(r, "sequence") or 0),
+                # None on a row written before the column existed. all_approvals
+                # sorts those first within their day — the honest place for
+                # "we do not know when".
+                recorded_at=_pts(_col(r, "recorded_at"))))
         return out
 
     def save_filings(self, filings) -> None:

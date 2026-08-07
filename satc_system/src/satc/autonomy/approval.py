@@ -44,8 +44,9 @@ attestation worth recording.
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from satc.models.actor import Actor, require_human
@@ -145,6 +146,17 @@ class Approval:
     note: str = ""
     sequence: int = 0
 
+    recorded_at: datetime | None = None
+    """The moment the owner clicked — what puts two same-day decisions in order.
+
+    DELIBERATELY OUTSIDE ``approval_id``: the id says WHICH decision this is, and
+    re-recording the same decision has to stay a no-op (principle 8). This says
+    WHEN it was keyed, which is a different question and the one that stops a
+    SHA-256 deciding whether a correction demoted a pair or a later approval
+    accrued on top of it. ``None`` on a row written before this existed, and
+    those sort first within their day — the only honest place for "we do not
+    know when"."""
+
     @property
     def approval_id(self) -> str:
         return approval_id(template_key=self.template_key, client_id=self.client_id,
@@ -200,6 +212,56 @@ class Approval:
 # --- recording a decision (the only door in) --------------------------------
 
 
+# CHARTER SECTION 2 — WHAT CAN NEVER BE ON THE LADDER.
+#
+# Signing, filing, transmitting, moving money, computing a tax figure, closing a
+# client request on model evidence, deleting a record. The charter calls these
+# "not a rung; not a rung that exists" — but nothing enforced it, so any string
+# was a valid template_key and a capability that must never graduate could quietly
+# build a streak and reach "earned".
+#
+# Held HERE, at the record, rather than on the ladder: the ladder derives from
+# these facts, so a fact that should never have existed would already have been
+# counted by the time any reader saw it. Refusing at the point of record means
+# there is nothing to filter later, from any path (principle 5).
+#
+# Matched on the WHOLE key and on word-ish boundaries, not as a substring: a
+# template legitimately called "signature_request" ASKS the client to sign and is
+# a perfectly ordinary letter, while one called "sign" or "efile_the_return"
+# would be doing the act. Getting that backwards would ban the eighteen real
+# templates and permit nothing.
+OFF_THE_LADDER: frozenset[str] = frozenset({
+    "sign", "signs", "signing", "countersign",
+    "file", "files", "filing", "efile", "e_file", "transmit", "transmits",
+    "submit", "submits",
+    "pay", "pays", "payment", "charge", "charges", "refund", "refunds",
+    "compute", "computes", "calculate", "calculates",
+    "close_request", "delete", "deletes", "amend", "amends",
+})
+
+_WORD = re.compile(r"[a-z0-9]+")
+
+
+def scope_refusal(template_key: str) -> str:
+    """Why this capability may never accrue, or "" if it may.
+
+    Returns the sentence rather than raising, so a caller can ask without
+    handling an exception — and so the same words reach the owner from every
+    path that asks (principle 10).
+    """
+    words = set(_WORD.findall(template_key.strip().lower()))
+    banned = sorted(words & OFF_THE_LADDER)
+    if not banned:
+        return ""
+    return (
+        f"{template_key!r} names an act that is permanently off the autonomy "
+        f"ladder ({', '.join(banned)}). Charter section 2: anything that signs, "
+        f"files, transmits, moves money, computes a tax figure, closes a client "
+        f"request or deletes a record cannot accrue a streak at all — it is not a "
+        f"rung that exists. Nothing is recorded. If this really is an ordinary "
+        f"client letter, name it for what the CLIENT reads rather than for the act.")
+
+
 def record_approval(*, actor: Actor, template_key: str, client_id: str,
                     rendered_text: str, sent_text: str | None = None,
                     decided_on: date | None = None, note: str = "") -> Approval:
@@ -225,6 +287,9 @@ def record_approval(*, actor: Actor, template_key: str, client_id: str,
         raise ApprovalError(
             "An approval has to name WHICH template was reviewed — nothing "
             "else can tell one client-facing letter from another.")
+    refusal = scope_refusal(key)
+    if refusal:
+        raise ApprovalError(refusal)
     if not client:
         raise ApprovalError(
             "An approval has to name WHICH client the draft was for — the "
@@ -242,7 +307,8 @@ def record_approval(*, actor: Actor, template_key: str, client_id: str,
 
     return Approval(template_key=key, client_id=client,
                     decided_on=decided_on or date.today(), decided_by=actor.handle,
-                    rendered_hash=rendered_hash, sent_hash=sent_hash, note=note.strip())
+                    rendered_hash=rendered_hash, sent_hash=sent_hash, note=note.strip(),
+                    recorded_at=datetime.now())
 
 
 def record_correction(*, actor: Actor, template_key: str, client_id: str,
@@ -265,6 +331,12 @@ def record_correction(*, actor: Actor, template_key: str, client_id: str,
         raise ApprovalError(
             "A correction has to name WHICH template was reviewed — nothing "
             "else can tell one client-facing letter from another.")
+    # BOTH write paths, not one. A correction is a fact about a pair too, and a
+    # pair that may never exist must not be creatable by the other door — which
+    # is the defect shape this project produces more than any other.
+    refusal = scope_refusal(key)
+    if refusal:
+        raise ApprovalError(refusal)
     if not client:
         raise ApprovalError(
             "A correction has to name WHICH client the draft was for — the "
@@ -287,7 +359,7 @@ def record_correction(*, actor: Actor, template_key: str, client_id: str,
     return Approval(template_key=key, client_id=client,
                     decided_on=decided_on or date.today(), decided_by=actor.handle,
                     rendered_hash=rendered_hash, sent_hash=sent_hash,
-                    reason=reason, note=note.strip())
+                    reason=reason, note=note.strip(), recorded_at=datetime.now())
 
 
 # --- reading the record back -------------------------------------------------
@@ -311,9 +383,25 @@ def approvals_for(approvals, pair: tuple[str, str]) -> list[Approval]:
 
 
 def all_approvals(approvals) -> list[Approval]:
-    """The whole record, oldest first, then stably ordered within a day."""
-    return sorted(approvals,
-                  key=lambda a: (a.decided_on, a.template_key, a.client_id, a.approval_id))
+    """The whole record, oldest first, then in the order the decisions happened.
+
+    WITHIN A DAY THIS USED TO BE DECIDED BY A SHA-256. The record carried a date
+    and nothing finer, so two decisions about the same pair on the same day were
+    ordered by ``approval_id`` — meaning whether a correction demoted the pair or
+    a later approval accrued on top of it depended on the hash of the draft text.
+    Same facts, same day, opposite answers, and no way for the owner to tell
+    which they were looking at.
+
+    ``recorded_at`` is the fix and it is a RECORDED FACT (principle 2): the
+    moment the owner clicked. It is deliberately NOT part of ``approval_id`` —
+    the id says WHICH decision this is, and re-recording the same decision must
+    stay a no-op (principle 8). An older row with no timestamp sorts first within
+    its day, which is the only honest place for "we do not know when".
+    """
+    return sorted(approvals, key=lambda a: (
+        a.decided_on,
+        a.recorded_at or datetime.min,
+        a.template_key, a.client_id, a.approval_id))
 
 
 def merge(existing, arriving) -> tuple[list[Approval], list[Approval]]:

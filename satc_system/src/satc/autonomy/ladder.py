@@ -217,10 +217,35 @@ class Rung:
 
 
 def _build_rung(pair: Pair, info: _PairState, *, policy: AutonomyPolicy,
-                earned_before: bool = False,
+                earned_before: bool = False, held: object = None,
                 gate: PreconditionGate) -> Rung:
     template_key, _client_id = pair
     needed = policy.threshold_for(template_key)
+
+    # A TRAP MISS ACTUALLY DEMOTES NOW.
+    #
+    # Charter section 7 says a miss "auto-demotes the affected capability to
+    # draft_only", and the digest said so on screen — while DrillResult.demotions
+    # was read in exactly one place in the whole codebase: a print statement in
+    # the CLI. The ladder took no drill input at all, so nothing was ever
+    # demoted. A screen reporting a safety action that does not happen is worse
+    # than no screen, because it is trusted.
+    #
+    # Checked BEFORE the streak, and before the precondition gate, because a
+    # capability that failed its own drill last night is the strongest reason
+    # not to trust it — stronger than any amount of clean history.
+    if held is not None:
+        from satc.autonomy.traps import HOLD_EVERYTHING
+
+        everything = held == HOLD_EVERYTHING
+        if everything or template_key in held:
+            reason = ("no drill is on file for this day, or a missed trap holds "
+                      "every template" if everything
+                      else "a trap this template depends on missed last night")
+            return Rung(pair=pair, state="draft_only", streak=info.streak,
+                       needed=needed,
+                       why=f"Held at draft-only — {reason}.",
+                       blocked_reason=reason)
 
     if gate.missing:
         # Charter §3: never confirmed at all means nothing has ever been
@@ -264,7 +289,8 @@ def _build_rung(pair: Pair, info: _PairState, *, policy: AutonomyPolicy,
 
 
 def rung_for(pair: Pair, approvals: Sequence[Approval], *, policy: AutonomyPolicy,
-            preconditions: Sequence[PreconditionRecord], today: date | None = None) -> Rung:
+            preconditions: Sequence[PreconditionRecord], today: date | None = None,
+            held: object = None) -> Rung:
     """Where ONE pair stands. Walks the WHOLE approval record, not just this
     pair's rows — a wrong_fact correction elsewhere on the same template can
     be the reason this pair is at zero, and the only way to know that is to
@@ -281,11 +307,13 @@ def rung_for(pair: Pair, approvals: Sequence[Approval], *, policy: AutonomyPolic
     # crossed before the gate went stale". Never the streak that is displayed.
     before = _compute(approvals, gate.frozen_since).get(pair, _PairState())
     earned = before.streak >= policy.threshold_for(pair[0])
-    return _build_rung(pair, info, policy=policy, gate=gate, earned_before=earned)
+    return _build_rung(pair, info, policy=policy, gate=gate, earned_before=earned,
+                       held=held)
 
 
 def streaks(approvals: Sequence[Approval], *, policy: AutonomyPolicy,
-           preconditions: Sequence[PreconditionRecord], today: date | None = None) -> list[Rung]:
+           preconditions: Sequence[PreconditionRecord], today: date | None = None,
+           held: object = None) -> list[Rung]:
     """Every pair the approval record has ever seen, each at its current rung.
 
     Ordered by (template_key, client_id) so the screen is stable run to run
@@ -295,7 +323,7 @@ def streaks(approvals: Sequence[Approval], *, policy: AutonomyPolicy,
     gate = gate_status(preconditions, cadence_days=policy.precondition_cadence_days, today=today)
     computed = _compute(approvals)
     before = _compute(approvals, gate.frozen_since) if gate.frozen_since else computed
-    return [_build_rung(pair, computed[pair], policy=policy, gate=gate,
+    return [_build_rung(pair, computed[pair], policy=policy, gate=gate, held=held,
                         earned_before=(before.get(pair, _PairState()).streak
                                        >= policy.threshold_for(pair[0])))
             for pair in sorted(computed)]

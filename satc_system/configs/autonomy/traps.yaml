@@ -25,8 +25,14 @@
 # one client's history looks bad, so the demotion is area-wide.
 
 traps:
+  # `holds` names the templates a miss on this capability holds at draft_only.
+  # OMIT IT AND EVERY TEMPLATE IS HELD — that is deliberate, and it is the
+  # direction a tripwire has to fail in. A capability whose blast radius nobody
+  # has written down is one nobody has thought about, and guessing it is narrow
+  # is how a demotion becomes decorative (charter section 7).
   - key: zero_line_invoice
     capability: billing.invoice_issue
+    holds: [invoice_cover]
     summary: >-
       An invoice with no lines must never be issuable — a bill for $0.00
       against real work, sitting in the register looking ordinary.
@@ -35,6 +41,7 @@ traps:
 
   - key: stale_chase_date
     capability: documents.chase
+    holds: [document_request, missing_items, prior_year_check]
     summary: >-
       How long a document has been outstanding must be computed against the
       day the drill actually runs, never a date baked in when the row was
@@ -43,6 +50,8 @@ traps:
       "A chase whose date has gone stale" — docs/AUTONOMY-CHARTER.md
       section 7.
 
+  # No `holds`: every draft in the practice goes through render, so a merge that
+  # can put one client's fact in another's letter holds ALL of them.
   - key: cross_client_merge
     capability: comms.render
     summary: >-
@@ -55,6 +64,7 @@ traps:
 
   - key: duplicate_payment
     capability: payments.dedupe
+    holds: [invoice_cover]
     summary: >-
       The same payment arriving twice — a re-imported bank export, a replayed
       webhook, a second read of the same deposit — must fold into the
@@ -67,6 +77,7 @@ traps:
 
   - key: stale_cheque_matches_future_invoice
     capability: payments.reconcile
+    holds: [invoice_cover]
     summary: >-
       A payment cannot be auto-matched to an invoice that did not exist yet
       when the money arrived — that is a coincidence in the amount, not

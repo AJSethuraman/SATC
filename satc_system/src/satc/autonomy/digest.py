@@ -66,7 +66,7 @@ from typing import Sequence
 from satc.autonomy.approval import REASON_CODES, Approval
 from satc.autonomy.ladder import AutonomyPolicy, Pair, Rung, load_autonomy_policy, streaks
 from satc.autonomy.preconditions import PreconditionGate, PreconditionRecord, gate_status
-from satc.autonomy.traps import DrillResult
+from satc.autonomy.traps import templates_held, DrillResult
 
 __all__ = [
     "Digest",
@@ -237,10 +237,6 @@ def digest_for(day: date, *, approvals: Sequence[Approval],
     # asked as of `day`, the rungs were asked as of now. Regenerating last
     # week's digest tomorrow gave a different answer, which makes it a claim
     # rather than a record (charter section 8).
-    rungs = tuple(streaks(history, policy=policy, preconditions=preconditions,
-                          today=day))
-    gate = gate_status(preconditions, cadence_days=policy.precondition_cadence_days, today=day)
-
     matching_drills = [d for d in drill_results if d.today == day]
     # More than one on file for the same day should not happen — the drill is
     # a nightly job — but if it ever does, the last one supplied is treated as
@@ -248,6 +244,25 @@ def digest_for(day: date, *, approvals: Sequence[Approval],
     # for a re-confirmed fact rather than raising over something a screen can
     # show plainly instead.
     drill = matching_drills[-1] if matching_drills else None
+
+    # THE DRILL IS RESOLVED BEFORE THE RUNGS, not after. It was built after
+    # them and never handed over, which is how the digest came to report a
+    # demotion that had not happened: this screen said "held at draft-only" in
+    # its trap panel while every rung beside it read exactly as if the night had
+    # been clean.
+    #
+    # Passing `drill` (which may be None — meaning no drill on file for that day,
+    # which holds everything) is what makes charter section 7 real rather than
+    # narrated.
+    # RESOLVED HERE, by the caller that actually knows. Handing the ladder a
+    # bare None conflated two opposite facts — "I did not ask about drills" and
+    # "no drill ran that night" — and the second one has to hold EVERYTHING
+    # (charter section 7: a tripwire that could not run is a miss, and nobody
+    # running it is the strongest version of that). templates_held(None) says so.
+    rungs = tuple(streaks(history, policy=policy, preconditions=preconditions,
+                          today=day, held=templates_held(drill)))
+    gate = gate_status(preconditions, cadence_days=policy.precondition_cadence_days,
+                       today=day)
 
     proposed = sum(1 for p in actions if p.day == day)
 

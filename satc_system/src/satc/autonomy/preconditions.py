@@ -111,8 +111,18 @@ def record_precondition(*, actor: Actor, key: PreconditionKey, confirmed_on: dat
                               confirmed_by=actor.handle, note=note.strip())
 
 
-def _latest(records: Sequence[PreconditionRecord], key: str) -> PreconditionRecord | None:
-    mine = [r for r in records if r.key == key]
+def _latest(records: Sequence[PreconditionRecord], key: str,
+            as_of: date | None = None) -> PreconditionRecord | None:
+    """The most recent confirmation of one precondition AS OF a given day.
+
+    ``as_of`` is not optional in spirit. Without it the gate answered a question
+    about last March using a confirmation recorded this morning: tick "backup
+    done" today and every past day retroactively reported the gate as holding,
+    so a digest for a day the practice was NOT compliant would say it was. A
+    record that improves the past is not a record.
+    """
+    mine = [r for r in records
+            if r.key == key and (as_of is None or r.confirmed_on <= as_of)]
     return max(mine, key=lambda r: r.confirmed_on) if mine else None
 
 
@@ -157,7 +167,7 @@ def gate_status(records: Sequence[PreconditionRecord], *, cadence_days: int,
     missing: list[PreconditionKey] = []
     lapsed: list[PreconditionKey] = []
     for key in ALL_PRECONDITIONS:
-        latest = _latest(records, key)
+        latest = _latest(records, key, as_of)
         if latest is None:
             missing.append(key)
             continue
@@ -179,7 +189,7 @@ def gate_status(records: Sequence[PreconditionRecord], *, cadence_days: int,
     # not count; everything up to it stands (charter section 3).
     frozen_since = None
     if lapsed:
-        stale = [_latest(records, k) for k in lapsed]
+        stale = [_latest(records, k, as_of) for k in lapsed]
         dates = [r.confirmed_on for r in stale if r is not None]
         if dates:
             frozen_since = min(dates) + timedelta(days=cadence_days)

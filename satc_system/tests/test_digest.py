@@ -71,6 +71,24 @@ def all_preconditions(*, confirmed_on=DAY):
     return [a_precondition(k, confirmed_on=confirmed_on) for k in ALL_PRECONDITIONS]
 
 
+
+def a_clean_night(day):
+    """A drill that ran and passed, for the day in question.
+
+    Needed by any test about something OTHER than the drill: charter §7 says a
+    tripwire that could not run counts as a MISS, and "nobody ran it" is the
+    strongest version of that — so a digest with no drill on file holds every
+    template at draft-only. That is the correct fail-safe and it is deliberate;
+    it just means a test isolating the precondition gate has to say the night
+    was clean.
+    """
+    import dataclasses
+
+    from satc.autonomy.traps import run_drill
+
+    return dataclasses.replace(run_drill(today=day), today=day)
+
+
 # --- digest_for: pure, regenerable, never a combined figure ------------------
 
 def test_digest_for_is_identical_on_two_generations_for_a_past_day():
@@ -142,7 +160,8 @@ def test_a_pair_blocked_by_a_missing_precondition_names_which_one():
     """Charter §3: 'streaks() returns every pair at rung zero with the reason
     named.' No preconditions recorded at all — the harder case."""
     approvals = [approved(decided_on=DAY)]
-    d = digest_for(DAY, approvals=approvals, preconditions=[])
+    d = digest_for(DAY, approvals=approvals, preconditions=[],
+                   drill_results=[a_clean_night(DAY)])
     assert len(d.rungs) == 1
     rung = d.rungs[0]
     assert rung.state == "draft_only"
@@ -182,7 +201,8 @@ def test_all_preconditions_current_lets_a_routine_pair_earn():
     preconditions = all_preconditions(confirmed_on=today)
     approvals = [approved(decided_on=today - timedelta(days=i), template_key="welcome")
                 for i in range(5)]
-    d = digest_for(today, approvals=approvals, preconditions=preconditions)
+    d = digest_for(today, approvals=approvals, preconditions=preconditions,
+                   drill_results=[a_clean_night(today)])
     assert d.rungs[0].state == "earned"
 
 
