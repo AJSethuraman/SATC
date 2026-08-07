@@ -173,7 +173,18 @@ def _compute(approvals: Sequence[Approval],
         # A cutoff is used ONLY to answer "what had this pair earned before the
         # freeze". It is never used for the streak the owner is shown — see
         # _build_rung for why the two answers differ.
-        if frozen_since is not None and ev.decided_on >= frozen_since:
+        #
+        # STRICTLY AFTER, and the difference is a whole day of real evidence.
+        # frozen_since is last_confirmed + cadence, and gate_status still
+        # reports the gate as HOLDING on that day — it lapses the day after,
+        # because the test over there is `(as_of - confirmed).days >
+        # cadence_days`. So a decision made ON frozen_since was made while the
+        # practice genuinely met the bar, and PreconditionGate.frozen_since's
+        # own docstring says so: "approvals after this day do not count, and
+        # everything up to it stands". Excluding it demoted a pair that had
+        # completed its streak on the last good day — a demotion for a
+        # paperwork lapse, which is precisely what charter §3 forbids.
+        if frozen_since is not None and ev.decided_on > frozen_since:
             continue
         pair = ev.pair
         if ev.is_correction:

@@ -21,15 +21,27 @@ nothing except a precondition confirmation, and even that goes through
 :func:`satc.autonomy.preconditions.record_precondition`, which refuses a
 non-human actor before this file ever sees the result.
 
-A STOPGAP PERSISTENCE SEAM, NAMED AS SUCH. ``satc.persistence.store.SATCStore``
-already has ``save_approvals``/``load_approvals`` (charter §11's ledger). It
-has nothing yet for precondition confirmations (charter §3) — that seam has
-not been built. Rather than reach into ``store.py`` to add it (out of scope
-for this slice) or silently drop every confirmation the owner records, this
-file keeps a small JSON ledger next to the store's own database. It is real,
-durable, and actor-gated the same way the approval ledger is; it is NOT where
-this belongs long-term. See the closing report on this slice for exactly what
-to replace it with.
+PRECONDITION CONFIRMATIONS LIVE IN THE STORE.
+``satc.persistence.store.SATCStore.save_preconditions``/``load_preconditions``
+is the record now — the same durability and the same idempotent-on-record_id
+discipline as ``save_approvals``/``load_approvals`` (charter §11's ledger).
+
+An earlier build of this slice kept a small JSON file
+(``autonomy_preconditions.json``) next to the store's own database instead.
+That was a real bug, not a style complaint: ``satc reset`` deletes the
+database files in that directory and nothing else, so a fresh reset started
+with zero clients, zero approvals, and every precondition still "confirmed
+and current" — the one gate that exists to hold a freshly-wiped practice back
+was the one thing a wipe could not touch. See the "Finding 3" section of
+``tests/test_traps.py`` for the reset case made into a test that can fail
+(that file, not one named for this module, because it is the only test file
+this slice is permitted to touch).
+
+A store that finds the old JSON file still sitting on disk imports it ONCE
+(see :func:`_import_legacy_preconditions_once`) and renames it out of the way
+so it is never read again — never silently dropped, and never silently
+trusted forever: a file this code cannot parse is renamed to say so rather
+than being ignored.
 
 WHAT IS HONESTLY MISSING FOR "actions proposed" AND THE DRILL, on a day other
 than today: neither has a historical record anywhere in this codebase (see
@@ -79,48 +91,83 @@ _RECORD_INSTEAD = ("open Autonomy in the local app and record it there — a "
                    "the owner can make it")
 
 
-# --- the stopgap precondition ledger (see the module docstring) -------------
+# --- the precondition ledger (see the module docstring) ---------------------
 
-def _preconditions_path() -> Path:
+def _legacy_preconditions_path() -> Path:
+    """Where an earlier build of this slice wrote confirmations, outside the
+    store. Only ever read from here, once, to migrate off it — see
+    :func:`_import_legacy_preconditions_once`."""
     return Path(STATE.store.dir) / _PRECONDITIONS_FILE
+
+
+def _import_legacy_preconditions_once() -> None:
+    """Migrate the pre-store JSON ledger into the store, exactly once.
+
+    Called at the top of every :func:`load_preconditions` — cheap, because
+    after the first successful run (or the first unreadable one) the file is
+    renamed and :meth:`Path.exists` on the original name is ``False`` forever
+    after, so every later call is a single stat and nothing more.
+
+    NEVER SILENTLY IGNORED, NEVER SILENTLY TRUSTED. A file that parses is
+    imported into the store (idempotent on ``record_id``, so importing it
+    twice is harmless) and renamed to ``.json.imported`` so it cannot be
+    re-read. A file that does NOT parse is left on disk, renamed to
+    ``.json.unreadable`` — visible, named for what is wrong with it, and
+    never treated as a source of facts nobody could actually check.
+    """
+    path = _legacy_preconditions_path()
+    if not path.exists():
+        return
+    try:
+        rows = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        path.replace(path.with_suffix(".json.unreadable"))
+        return
+    if not isinstance(rows, list):
+        # Parsed, but not the shape a ledger has. Naming it "imported" would say
+        # a migration happened when nothing was read at all.
+        path.replace(path.with_suffix(".json.unreadable"))
+        return
+
+    records: list[PreconditionRecord] = []
+    dropped = 0
+    for row in rows:
+        try:
+            records.append(PreconditionRecord(
+                key=row["key"], confirmed_on=date.fromisoformat(row["confirmed_on"]),
+                confirmed_by=row["confirmed_by"], note=row.get("note", "")))
+        except (KeyError, TypeError, ValueError):
+            dropped += 1
+    if records:
+        STATE.store.save_preconditions(records)
+
+    # THE FILENAME IS THE RECORD OF WHAT HAPPENED, so it may not overstate it.
+    # Every unusable row used to be skipped in silence and the file renamed
+    # ".imported" regardless — which says a clean migration happened, about a
+    # file that had rows nobody could read. These are confirmations that gate
+    # everything; losing one quietly is the opposite of what a gate is for.
+    #
+    # A partial import keeps its rows ON DISK under a name that says so, so the
+    # ones that were dropped can still be looked at. It is not re-read: it no
+    # longer ends in .json.
+    suffix = ".json.imported" if not dropped else ".json.partly-imported"
+    path.replace(path.with_suffix(suffix))
 
 
 def load_preconditions() -> list[PreconditionRecord]:
     """Every recorded precondition confirmation, oldest first.
 
-    Never raises on a row it finds odd — a hand-edited or half-written JSON
-    file is a support problem, not a reason for this screen to 500 (principle
-    10). A row that cannot be read is skipped rather than believed.
+    Reads from the store — never raises on a row it finds odd (principle
+    10); a row this app cannot make sense of is skipped by
+    :meth:`~satc.persistence.store.SATCStore.load_preconditions` rather than
+    believed or allowed to take the whole screen down.
     """
-    path = _preconditions_path()
-    if not path.exists():
-        return []
-    try:
-        rows = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return []
-    if not isinstance(rows, list):
-        return []
-    out: list[PreconditionRecord] = []
-    for row in rows:
-        try:
-            out.append(PreconditionRecord(
-                key=row["key"], confirmed_on=date.fromisoformat(row["confirmed_on"]),
-                confirmed_by=row["confirmed_by"], note=row.get("note", "")))
-        except (KeyError, TypeError, ValueError):
-            continue
-    return sorted(out, key=lambda r: (r.confirmed_on, r.key))
-
-
-def _save_preconditions(records: list[PreconditionRecord]) -> None:
-    rows = [{"key": r.key, "confirmed_on": r.confirmed_on.isoformat(),
-            "confirmed_by": r.confirmed_by, "note": r.note} for r in records]
-    _preconditions_path().write_text(
-        json.dumps(rows, indent=2, sort_keys=True), encoding="utf-8")
+    _import_legacy_preconditions_once()
+    return sorted(STATE.store.load_preconditions(), key=lambda r: (r.confirmed_on, r.key))
 
 
 def _record_precondition(record: PreconditionRecord) -> bool:
-    """Merge one confirmation into the ledger. Returns whether it was new.
+    """Save one confirmation to the store. Returns whether it was new.
 
     Idempotent on ``record_id`` (principle 8): confirming the same
     precondition again today — a reload, a double click — lands on the same
@@ -130,7 +177,7 @@ def _record_precondition(record: PreconditionRecord) -> bool:
     existing = load_preconditions()
     if record.record_id in {r.record_id for r in existing}:
         return False
-    _save_preconditions(existing + [record])
+    STATE.store.save_preconditions([record])
     return True
 
 

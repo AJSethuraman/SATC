@@ -225,7 +225,20 @@ def main(argv: list[str] | None = None) -> int:
             if input("Type YES to confirm: ").strip() != "YES":
                 print("Aborted.")
                 return 1
-        for name in ("satc_vault.db", "satc_mart.db"):
+        for name in (
+            "satc_vault.db", "satc_mart.db",
+            # The pre-store autonomy preconditions ledger (see
+            # satc.app.autonomy_views's module docstring) — a legacy file
+            # from before that gate moved into satc_mart.db. Left behind
+            # un-imported, it would resurrect exactly the confirmations this
+            # reset exists to clear the next time the autonomy screen loads
+            # and migrates it in. A reset has to remove every copy of the
+            # gate, not just the one inside the database files, including
+            # the renamed markers a prior import already left behind.
+            "autonomy_preconditions.json",
+            "autonomy_preconditions.json.imported",
+            "autonomy_preconditions.json.unreadable",
+        ):
             (d / name).unlink(missing_ok=True)
         print(f"Reset store in {d}")
         return 0

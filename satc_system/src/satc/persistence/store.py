@@ -221,6 +221,26 @@ CREATE TABLE IF NOT EXISTS price_changes (
   old_value TEXT, new_value TEXT, changed_on TEXT, not_before TEXT,
   changed_by TEXT, note TEXT, recorded_at TEXT);
 CREATE TABLE IF NOT EXISTS app_meta (k TEXT PRIMARY KEY, v TEXT);
+-- THE AUTONOMY PRECONDITIONS GATE (charter §3): the three facts about the
+-- MACHINE — an off-disk backup proven restorable, Tailnet Lock, MFA — that
+-- have to hold before any streak anywhere is allowed to mean anything.
+-- record_id is a content hash of what was confirmed (key, confirmed_on,
+-- confirmed_by — see satc.autonomy.preconditions.precondition_id), so
+-- recording the same day's confirmation twice (a reload, a double click)
+-- lands on the same row rather than piling up (principle 8).
+-- NOT client-scoped — this is a fact about the practice as a whole, not any
+-- one client, so it is deliberately absent from _MART_TABLES_BY_CLIENT below.
+-- This is a NEW table, so CREATE TABLE IF NOT EXISTS is the whole migration,
+-- same reasoning as approvals above: an existing store gets it created the
+-- next time it opens, and there is no existing table to ALTER.
+-- MUST live here rather than a JSON file beside the store: `satc reset`
+-- clears the databases in this directory and nothing else, and a file
+-- living outside them is the one thing left standing after a reset wipes
+-- everything this gate exists to hold back — verified as a real, durable
+-- defect, not a theoretical one.
+CREATE TABLE IF NOT EXISTS autonomy_preconditions (
+  record_id TEXT PRIMARY KEY, key TEXT, confirmed_on TEXT,
+  confirmed_by TEXT, note TEXT);
 """
 
 
@@ -1024,6 +1044,46 @@ class SATCStore:
                 # sorts those first within their day — the honest place for
                 # "we do not know when".
                 recorded_at=_pts(_col(r, "recorded_at"))))
+        return out
+
+    # -- autonomy preconditions (charter §3 — the gate the ladder is held on) --
+
+    def save_preconditions(self, records) -> None:
+        """Record precondition confirmations. Idempotent on ``record_id``
+        (principle 8): the same confirmation written twice — a reload, a
+        double click, a re-import of the legacy JSON ledger — REPLACES its
+        row rather than becoming a second one, exactly like ``save_approvals``.
+        """
+        for r in records:
+            self.mart.execute(
+                "INSERT OR REPLACE INTO autonomy_preconditions "
+                "(record_id, key, confirmed_on, confirmed_by, note) VALUES (?,?,?,?,?)",
+                (r.record_id, r.key, _dt(r.confirmed_on), r.confirmed_by, r.note))
+        self.mart.commit()
+
+    def load_preconditions(self) -> list:
+        """Every recorded precondition confirmation, oldest first.
+
+        Never raises on a row it finds odd — same discipline as
+        :meth:`load_approvals`: a row this store cannot make sense of is
+        skipped rather than believed or allowed to take the whole load down.
+        """
+        from satc.autonomy.preconditions import PreconditionRecord
+
+        out = []
+        for r in self.mart.execute(
+                "SELECT * FROM autonomy_preconditions ORDER BY confirmed_on, key"):
+            on = _pdt(_col(r, "confirmed_on"))
+            key = _col(r, "key")
+            if on is None or not key:
+                continue
+            try:
+                out.append(PreconditionRecord(
+                    key=key, confirmed_on=on,
+                    confirmed_by=_col(r, "confirmed_by") or "",
+                    note=_col(r, "note") or ""))
+            except (KeyError, TypeError, ValueError):
+                continue
         return out
 
     def save_filings(self, filings) -> None:

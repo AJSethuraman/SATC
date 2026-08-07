@@ -329,13 +329,31 @@ def test_a_pair_blocked_by_a_missing_precondition_says_which_one_on_screen(clien
     assert "never recorded" in body.lower()
 
 
-def test_recording_a_precondition_is_durable_and_names_who_and_when(client, monkeypatch, tmp_path):
-    path = tmp_path / "autonomy_preconditions.json"
-    monkeypatch.setattr(autonomy_views, "_preconditions_path", lambda: path)
+@pytest.fixture()
+def precondition_ledger(monkeypatch):
+    """A precondition ledger this test owns, in the STORE.
 
+    These tests used to monkeypatch a JSON path — which was the right seam until
+    the ledger moved into SQLite, because a JSON file beside the databases
+    survived `satc reset`: a wiped practice came back with zero clients and "all
+    three autonomy preconditions confirmed and current" still on record, so the
+    gate that exists to hold everything back was the one thing that outlived the
+    wipe. Patching the store is now the honest seam, and one that cannot drift
+    from where the app actually reads.
+    """
+    rows: list = []
+    monkeypatch.setattr(STATE.store, "load_preconditions", lambda: list(rows))
+    monkeypatch.setattr(STATE.store, "save_preconditions",
+                        lambda added: rows.extend(
+                            r for r in added
+                            if r.record_id not in {x.record_id for x in rows}))
+    return rows
+
+
+def test_recording_a_precondition_is_durable_and_names_who_and_when(
+        client, precondition_ledger):
     resp = client.post("/autonomy/precondition", data={"key": "mfa", "note": "checked it"})
     assert resp.status_code == 302
-    assert path.exists()
 
     recorded = autonomy_views.load_preconditions()
     assert len(recorded) == 1
@@ -344,23 +362,18 @@ def test_recording_a_precondition_is_durable_and_names_who_and_when(client, monk
     assert recorded[0].confirmed_on == date.today()
 
 
-def test_recording_the_same_precondition_twice_today_is_recorded_once(client, monkeypatch, tmp_path):
-    path = tmp_path / "autonomy_preconditions.json"
-    monkeypatch.setattr(autonomy_views, "_preconditions_path", lambda: path)
-
+def test_recording_the_same_precondition_twice_today_is_recorded_once(
+        client, precondition_ledger):
     client.post("/autonomy/precondition", data={"key": "tailnet_lock"})
     client.post("/autonomy/precondition", data={"key": "tailnet_lock"})
     assert len(autonomy_views.load_preconditions()) == 1
 
 
-def test_an_unknown_precondition_key_is_refused_by_name(client, monkeypatch, tmp_path):
-    path = tmp_path / "autonomy_preconditions.json"
-    monkeypatch.setattr(autonomy_views, "_preconditions_path", lambda: path)
-
+def test_an_unknown_precondition_key_is_refused_by_name(client, precondition_ledger):
     resp = client.post("/autonomy/precondition", data={"key": "not_a_real_precondition"})
     assert resp.status_code == 200
     assert b"not one of the autonomy preconditions" in resp.data
-    assert not path.exists()
+    assert not precondition_ledger, "a refused key must not be recorded"
 
 
 # --- nothing on these screens comes from a model ------------------------------
@@ -409,3 +422,61 @@ def test_neither_file_writes_html_from_a_free_text_field_that_could_hide_a_promp
     for call in calls:
         assert call.args and isinstance(call.args[0], ast.Constant), (
             "render_template's template name must be a literal, never assembled at runtime")
+
+
+# --- the legacy ledger, migrated honestly -------------------------------------
+#
+# The preconditions used to live in a JSON file beside the databases, which
+# meant `satc reset` wiped every client and every approval and left "all three
+# autonomy preconditions confirmed and current" on record — the gate that exists
+# to hold everything back was the one thing that outlived the wipe. They are in
+# the store now, and the one-time import must not overstate what it managed.
+
+def _legacy(tmp_path, payload):
+    import json
+
+    path = tmp_path / "autonomy_preconditions.json"
+    path.write_text("{{{" if payload is None else json.dumps(payload), encoding="utf-8")
+    return path
+
+
+GOOD_ROW = {"key": "mfa", "confirmed_on": "2026-03-01", "confirmed_by": "human:owner"}
+
+
+@pytest.mark.parametrize("payload,expected_suffix,expected_imported", [
+    ([GOOD_ROW], ".json.imported", 1),
+    ([GOOD_ROW, {"key": "mfa", "confirmed_on": "nope", "confirmed_by": "x"}],
+     ".json.partly-imported", 1),
+    ({"key": "mfa"}, ".json.unreadable", 0),
+    (None, ".json.unreadable", 0),
+], ids=["clean", "one-bad-row", "wrong-shape", "not-json"])
+def test_the_legacy_file_is_renamed_for_what_actually_happened(
+        tmp_path, monkeypatch, payload, expected_suffix, expected_imported):
+    """A row nobody could read used to be skipped in SILENCE and the file
+    renamed ".imported" regardless — which claims a clean migration about a file
+    that lost rows. These are the confirmations that gate everything; losing one
+    quietly is the opposite of what a gate is for."""
+    path = _legacy(tmp_path, payload)
+    saved: list = []
+    monkeypatch.setattr(autonomy_views, "_legacy_preconditions_path", lambda: path)
+    monkeypatch.setattr(STATE.store, "save_preconditions", lambda rows: saved.extend(rows))
+
+    autonomy_views._import_legacy_preconditions_once()
+
+    assert len(saved) == expected_imported
+    left = [p.name for p in tmp_path.iterdir()]
+    assert left == [f"autonomy_preconditions{expected_suffix}"], left
+    # Whatever happened, it is not re-read: it no longer ends in .json.
+    assert not left[0].endswith(".json")
+
+
+def test_a_partial_import_keeps_the_rows_it_could_read(tmp_path, monkeypatch):
+    """Dropping the good rows because a neighbour was broken would lose facts
+    that were perfectly readable."""
+    path = _legacy(tmp_path, [GOOD_ROW, {"nonsense": True}])
+    saved: list = []
+    monkeypatch.setattr(autonomy_views, "_legacy_preconditions_path", lambda: path)
+    monkeypatch.setattr(STATE.store, "save_preconditions", lambda rows: saved.extend(rows))
+
+    autonomy_views._import_legacy_preconditions_once()
+    assert [r.key for r in saved] == ["mfa"]

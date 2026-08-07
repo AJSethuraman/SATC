@@ -52,6 +52,7 @@ store is the next piece, built against this seam.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
@@ -177,6 +178,13 @@ class SyntheticPractice:
     # -- duplicate_payment --------------------------------------------------------
     duplicate_payment: Payment
     duplicate_payment_replay: Payment
+    # A genuinely different second payment — same client, date, method and
+    # reference as `duplicate_payment`, but a different amount — so the trap
+    # can assert the OTHER direction of the payment-hash collision: two real
+    # cheques must never be folded into one. See configs/autonomy/traps.yaml's
+    # entry for this key.
+    distinct_payment_low: Payment
+    distinct_payment_high: Payment
 
     # -- stale_cheque_matches_future_invoice ---------------------------------------
     predating_invoice: Invoice
@@ -216,6 +224,15 @@ def _build_synthetic_practice(today: date) -> SyntheticPractice:
     duplicate_payment = Payment(**dup_kwargs)
     duplicate_payment_replay = Payment(**dup_kwargs)
 
+    # Two REAL cheques, same client and morning, no reference on either —
+    # exactly the shape docs/BRIEFING.md section 6 shipped: a $450 and a
+    # $4,500 cheque that must NOT collapse into one payment just because a
+    # careless hash stopped reading the amount.
+    distinct_kwargs = dict(client_id="SATC-DRILL-PAY", received_on=today,
+                           method=Method.CHECK, reference="drill-check-0002")
+    distinct_payment_low = Payment(amount=Decimal("450.00"), **distinct_kwargs)
+    distinct_payment_high = Payment(amount=Decimal("4500.00"), **distinct_kwargs)
+
     predating_invoice = Invoice(invoice_id="SATC-DRILL-1999", client_id="SATC-DRILL-STALE",
                                 tax_year=today.year)
     predating_invoice.add("return_1040")
@@ -239,6 +256,8 @@ def _build_synthetic_practice(today: date) -> SyntheticPractice:
         cross_client_leaked_value="$500",
         duplicate_payment=duplicate_payment,
         duplicate_payment_replay=duplicate_payment_replay,
+        distinct_payment_low=distinct_payment_low,
+        distinct_payment_high=distinct_payment_high,
         predating_invoice=predating_invoice, predating_payment=predating_payment)
 
 
@@ -279,8 +298,8 @@ def _check_stale_chase_date(practice: SyntheticPractice) -> CheckResult:
     expected_days = (practice.today - requested_at).days
     expected = (
         f"a chase generated against {practice.today.isoformat()} reports the "
-        f"document as {expected_days} days outstanding — computed against TODAY, "
-        f"never a cached or hardcoded date"
+        f"document as exactly {expected_days} days outstanding — computed "
+        f"against TODAY, never a cached, hardcoded, or shifted date"
     )
     action = chase_outstanding(
         practice.chase_requested, client_id=practice.chase_client_id,
@@ -293,14 +312,35 @@ def _check_stale_chase_date(practice: SyntheticPractice) -> CheckResult:
             f"against the wrong date entirely."
         )
     observed = action.why
-    if str(expected_days) not in observed:
+    # A SUBSTRING check here is exactly what made this trap vacuous: the
+    # chase's own wording also names the TAX YEAR (e.g. "for 2026"), and
+    # "2026" contains the digits "20" — so `"20" in observed` was true on
+    # every single run regardless of what the day count actually said. Pull
+    # the number chase_outstanding actually wrote out of its own sentence and
+    # compare it NUMERICALLY, so a chase that quotes the wrong age cannot
+    # hide behind a coincidental digit in the year.
+    match = re.search(r"asked (\d+) days ago", observed)
+    if match is None:
         return False, expected, observed, (
-            f"The chase's own wording does not name {expected_days} days — the "
-            f"number {practice.today.isoformat()} actually implies. A chase "
-            f"whose day-count does not move with the calendar is a chase whose "
-            f"date has gone stale."
+            f"The chase's own wording never states a day count at all, in "
+            f"the 'the oldest asked N days ago' phrasing chase_outstanding "
+            f"writes whenever it has a date to work from. Expected it to say "
+            f"{expected_days} days."
         )
-    return True, expected, observed, "the day-count tracks the date the drill actually ran on."
+    observed_days = int(match.group(1))
+    if observed_days != expected_days:
+        return False, expected, observed, (
+            f"The chase tells the client the document is {observed_days} days "
+            f"outstanding, but it was actually requested {expected_days} days "
+            f"before {practice.today.isoformat()}. A chase whose day-count "
+            f"does not match the calendar quotes a stale age to a client — "
+            f"and a check that only looked for the digits '{expected_days}' "
+            f"ANYWHERE in the sentence would have missed this, because the "
+            f"tax year itself can contain them."
+        )
+    return True, expected, observed, (
+        f"the day-count ({observed_days}) matches the date the drill actually ran on."
+    )
 
 
 def _check_cross_client_merge(practice: SyntheticPractice) -> CheckResult:
@@ -333,18 +373,64 @@ def _check_cross_client_merge(practice: SyntheticPractice) -> CheckResult:
 def _check_duplicate_payment(practice: SyntheticPractice) -> CheckResult:
     from satc.billing.payment import merge
 
-    expected = "a payment that arrives a second time merges into the existing record, adding nothing new"
-    ledger, added = merge([practice.duplicate_payment], [practice.duplicate_payment_replay])
-    observed = f"{len(added)} new payment(s) recorded; ledger now holds {len(ledger)}"
-    if added:
+    expected = (
+        "the same payment read twice merges into ONE ledger row (not zero, "
+        "not two), and two GENUINELY DIFFERENT payments — same client, date, "
+        "method and reference, but a different amount — are recorded as TWO"
+    )
+
+    # Direction 1: a replay of the exact same payment must add nothing new,
+    # and the ledger must actually hold the one row — checking only `added`
+    # cannot tell "correctly deduplicated" from "merge() silently recorded
+    # nothing at all", so the ledger's own length is asserted too.
+    dup_ledger, dup_added = merge(
+        [practice.duplicate_payment], [practice.duplicate_payment_replay])
+    observed_replay = (
+        f"replay: {len(dup_added)} new payment(s) recorded, ledger holds {len(dup_ledger)}"
+    )
+    if dup_added:
         amount = practice.duplicate_payment.amount
-        return False, expected, observed, (
+        return False, expected, observed_replay, (
             f"The same ${amount} check, read a second time with identical "
             f"client, amount, date, method and reference, was recorded as new "
             f"money. That double-counts revenue that was never actually "
             f"received twice."
         )
-    return True, expected, observed, "the replay was recognised and folded in as a no-op."
+    if len(dup_ledger) != 1:
+        return False, expected, observed_replay, (
+            f"Merging the same payment twice should leave exactly one row on "
+            f"the ledger; it left {len(dup_ledger)}. Nothing being 'added' is "
+            f"not the same fact as the payment being on record — a merge() "
+            f"that recorded nothing at all would report the same zero."
+        )
+
+    # Direction 2 — the config entry for this key's own claim: the
+    # payment-hash collision, from the direction that LOSES money. Two real
+    # cheques that only differ in amount must never fold into one.
+    distinct_ledger, distinct_added = merge(
+        [practice.distinct_payment_low], [practice.distinct_payment_high])
+    observed_distinct = (
+        f"distinct pair: {len(distinct_added)} new payment(s) recorded, "
+        f"ledger holds {len(distinct_ledger)}"
+    )
+    if len(distinct_ledger) != 2 or not distinct_added:
+        low = practice.distinct_payment_low.amount
+        high = practice.distinct_payment_high.amount
+        return False, expected, observed_distinct, (
+            f"A ${low} cheque and a ${high} cheque from the same client on "
+            f"the same day, with the same method and reference, collapsed "
+            f"into {len(distinct_ledger)} ledger row(s) instead of two. That "
+            f"is real revenue disappearing — the payment-hash collision this "
+            f"trap is named for, from the direction that loses money rather "
+            f"than the direction that double-counts it."
+        )
+
+    observed = f"{observed_replay}; {observed_distinct}"
+    return True, expected, observed, (
+        "the replay folded in as a no-op, and the two genuinely different "
+        "cheques both stayed on the ledger — both directions of the "
+        "payment-hash collision held."
+    )
 
 
 def _check_stale_cheque_matches_future_invoice(practice: SyntheticPractice) -> CheckResult:

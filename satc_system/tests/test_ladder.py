@@ -15,7 +15,8 @@ about the ladder that reads them.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+import dataclasses
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -161,6 +162,146 @@ def test_a_non_wrong_fact_correction_demotes_only_the_corrected_pair():
         assert b.streak == 3, f"{reason} must not touch a sibling pair, only wrong_fact does"
 
 
+# --- the streak is walked in TIME order, never input-list order --------------
+#
+# _compute's docstring is explicit: it has to be ONE walk, in true time order,
+# because a wrong_fact correction reaching into a sibling pair "lands at the
+# moment it actually happened" and not wherever the caller's list happened to
+# put it. A store load has no guaranteed row order, so if _compute ever trusted
+# list order instead of sorting via all_approvals(), a shuffled load would
+# silently produce a different streak than a sorted one for the exact same
+# facts.
+
+def test_streak_reflects_true_time_order_not_the_order_events_were_handed_in():
+    """True chronological order is approve, approve, correct — the correction
+    happened LAST and must win, resetting the streak to zero. Handing the same
+    three events to rung_for in a different list order must not change that."""
+    today = date(2026, 1, 1)
+    gate = _clean_gate(today)
+    d1, d2, d3 = today, today + timedelta(days=1), today + timedelta(days=2)
+
+    approve1 = _approve("status_update", "C-20", d1)
+    approve2 = _approve("status_update", "C-20", d2)
+    correct3 = _correct("status_update", "C-20", d3, reason="wrong_judgment")
+
+    # Fed out of chronological order: the correction (truly last) sits in the
+    # middle of the list.
+    shuffled = [approve1, correct3, approve2]
+
+    rung = rung_for(("status_update", "C-20"), shuffled, policy=DEFAULT_POLICY,
+                    preconditions=gate, today=today)
+    assert rung.streak == 0, "the correction happened last in TIME and must win"
+    assert rung.state == "draft_only"
+
+
+def test_wrong_fact_sibling_reset_lands_at_the_moment_it_happened_not_list_order():
+    """B approves, A's wrong_fact correction resets both A and B (B was already
+    on record at that moment), and THEN B approves again — a fresh streak of 1
+    that happened after the reset. The answer must not depend on what order the
+    caller's list put these rows in."""
+    today = date(2026, 1, 1)
+    gate = _clean_gate(today)
+    d1, d2, d3, d4 = (today, today + timedelta(days=1),
+                      today + timedelta(days=2), today + timedelta(days=3))
+
+    a_approve = _approve("missing_items", "CLIENT-A", d1)
+    b_approve1 = _approve("missing_items", "CLIENT-B", d2)
+    a_correct = _correct("missing_items", "CLIENT-A", d3, reason="wrong_fact")
+    b_approve2 = _approve("missing_items", "CLIENT-B", d4)   # truly AFTER the reset
+
+    # List order deliberately scrambled relative to decided_on order.
+    shuffled = [a_approve, b_approve2, b_approve1, a_correct]
+
+    b_rung = rung_for(("missing_items", "CLIENT-B"), shuffled, policy=DEFAULT_POLICY,
+                      preconditions=gate, today=today)
+    assert b_rung.streak == 1, (
+        "an approval that truly happened after the wrong_fact correction must "
+        "still count fresh, regardless of the order the caller supplied the rows in")
+
+
+def test_a_same_day_correction_and_approval_are_ordered_by_the_clock():
+    """The other half of time order, and the one the record USED to get wrong.
+
+    Both tests above put every decision on its own day, so ``decided_on``
+    alone answers them and the ``recorded_at`` tiebreak could vanish without
+    either noticing. Two decisions about one pair on ONE day are ordered by
+    the moment the owner clicked — nothing else in the record can say which
+    came last, and it used to be settled by whichever draft's SHA-256 sorted
+    higher.
+
+    Asserted in both directions on purpose: a hash tiebreak returns the same
+    order whichever way round the clocks are set, so one of these two has to
+    fail if the clock stops being consulted."""
+    today = date(2026, 1, 1)
+    gate = _clean_gate(today)
+    day = today + timedelta(days=1)
+    morning = datetime(2026, 1, 2, 9, 0)
+    afternoon = datetime(2026, 1, 2, 15, 0)
+
+    approve = _approve("status_update", "C-21", day)
+    correct = _correct("status_update", "C-21", day, reason="wrong_judgment")
+
+    corrected_last = rung_for(
+        ("status_update", "C-21"),
+        [dataclasses.replace(approve, recorded_at=morning),
+         dataclasses.replace(correct, recorded_at=afternoon)],
+        policy=DEFAULT_POLICY, preconditions=gate, today=today)
+    assert corrected_last.streak == 0, "the correction was keyed in last; it must win"
+
+    approved_last = rung_for(
+        ("status_update", "C-21"),
+        [dataclasses.replace(approve, recorded_at=afternoon),
+         dataclasses.replace(correct, recorded_at=morning)],
+        policy=DEFAULT_POLICY, preconditions=gate, today=today)
+    assert approved_last.streak == 1, (
+        "same two decisions, same day, clocks the other way round — the "
+        "approval was keyed in last and accrues on top of the correction")
+
+
+def test_the_ladder_reads_the_bytes_not_the_reason_column():
+    """``Approval.outcome`` is a hash comparison (charter §4) and the ladder
+    has to ASK it rather than look at ``reason`` itself. A row that carries a
+    reason code but whose sent text is byte-identical to what SATC rendered is
+    an approval — the draft went out unchanged, whatever a column says — and
+    it accrues. Every fixture in this file gets its reason from the recording
+    function that also set the hashes, so nothing here would otherwise notice
+    the ladder grading itself from the label."""
+    today = date(2026, 1, 1)
+    gate = _clean_gate(today)
+    approvals = [_approve("status_update", "C-22", today + timedelta(days=i))
+                 for i in range(3)]
+    approvals[1] = dataclasses.replace(approvals[1], reason="wrong_fact")
+
+    rung = rung_for(("status_update", "C-22"), approvals, policy=DEFAULT_POLICY,
+                    preconditions=gate, today=today)
+    assert rung.streak == 3, (
+        "a reason column on a row whose bytes match is not a correction — "
+        "the outcome is the hash comparison, never the label")
+
+
+def test_the_corrected_pair_is_told_it_was_corrected_not_swept_up_as_a_sibling():
+    """The wrong_fact sweep reaches every OTHER pair on the template, and the
+    pair that was actually corrected keeps its own sentence with the reason
+    code the owner picked. Both land on streak zero, so a test that checked
+    only the number cannot tell them apart — and telling the owner their draft
+    was "reset by a wrong-fact correction on their own draft" answers a
+    question nobody asked (principle 10)."""
+    today = date(2026, 1, 1)
+    gate = _clean_gate(today)
+    approvals = (
+        [_approve("missing_items", "CLIENT-A", today + timedelta(days=i)) for i in range(3)]
+        + [_approve("missing_items", "CLIENT-B", today + timedelta(days=i)) for i in range(3)]
+        + [_correct("missing_items", "CLIENT-A", today + timedelta(days=10),
+                    reason="wrong_fact")]
+    )
+    a = rung_for(("missing_items", "CLIENT-A"), approvals, policy=DEFAULT_POLICY,
+                 preconditions=gate, today=today)
+    assert a.streak == 0
+    assert "it stated something untrue" in a.why, (
+        "the corrected pair must read as its own correction, with its reason code")
+    assert "reset by a wrong-fact correction" not in a.why
+
+
 # --- the precondition gate is a HARD gate -------------------------------------
 
 def test_the_precondition_gate_holds_every_pair_at_zero_however_clean_the_record():
@@ -205,6 +346,27 @@ def test_streaks_lists_every_pair_the_record_has_seen():
     rungs = streaks(approvals, policy=DEFAULT_POLICY, preconditions=gate, today=today)
     pairs = {r.pair for r in rungs}
     assert pairs == {("welcome", "C-6"), ("welcome", "C-7"), ("welcome", "C-8")}
+
+
+def test_streaks_is_ordered_by_pair_not_by_when_each_pair_first_appeared():
+    """``streaks``' own claim: ordered by (template_key, client_id) so the
+    screen is stable run to run rather than shuffling with whatever order the
+    store happened to load rows in — "a queue that reorders itself for no
+    reason is noise" (principle 13). The test above compares a SET, which
+    cannot see order at all, and the pairs below are deliberately introduced
+    in an order that is not their sorted one."""
+    today = date(2026, 1, 1)
+    gate = _clean_gate(today)
+    approvals = [
+        _approve("welcome", "C-33", today),
+        _approve("birthday", "C-31", today + timedelta(days=1)),
+        _approve("welcome", "C-30", today + timedelta(days=2)),
+        _approve("birthday", "C-32", today + timedelta(days=3)),
+    ]
+    rungs = streaks(approvals, policy=DEFAULT_POLICY, preconditions=gate, today=today)
+    assert [r.pair for r in rungs] == [
+        ("birthday", "C-31"), ("birthday", "C-32"),
+        ("welcome", "C-30"), ("welcome", "C-33")]
 
 
 # --- N is firm policy: a config edit changes the answer, no code change -----
@@ -258,6 +420,25 @@ def test_a_template_listed_under_both_routine_and_money_or_deadline_is_refused(t
         "    money_or_deadline:\n"
         "      - welcome\n",
         encoding="utf-8")
+    with pytest.raises(ConfigError):
+        load_autonomy_policy(tmp_path)
+
+
+def test_a_firm_policy_file_that_is_not_a_policy_is_refused_not_defaulted(tmp_path):
+    """The other side of the test below, and the line between them is
+    principle 5. NO file means "no preferences recorded yet" and documents
+    itself as the strict defaults. A file that IS there and cannot be read as
+    a policy is a different fact entirely: handing back defaults would run the
+    ladder on thresholds nobody chose while a broken config sat on disk with
+    nothing said about it."""
+    from satc.config import ConfigError
+
+    (tmp_path / "firm_policy.yaml").write_text("- not\n- a mapping\n", encoding="utf-8")
+    with pytest.raises(ConfigError):
+        load_autonomy_policy(tmp_path)
+
+    (tmp_path / "firm_policy.yaml").write_text(
+        "autonomy:\n  - not a mapping either\n", encoding="utf-8")
     with pytest.raises(ConfigError):
         load_autonomy_policy(tmp_path)
 
@@ -331,6 +512,59 @@ def test_approvals_after_the_freeze_still_count_as_evidence():
                     preconditions=gate, today=today)
     assert rung.streak == DEFAULT_POLICY.routine_n, "the evidence was discarded"
     assert rung.state == "draft_only", "it crossed while the gate was stale"
+
+
+def test_an_approval_on_the_last_day_the_gate_still_held_counts_toward_earned():
+    """The boundary itself, which both tests above step around.
+
+    ``frozen_since`` is ``last_confirmed + cadence``, and ``gate_status``
+    still reports the gate as HOLDING on that day — it goes stale the day
+    after (``(as_of - confirmed).days > cadence_days``). So an approval
+    decided ON ``frozen_since`` happened while the practice genuinely met the
+    bar, and it has to count: ``PreconditionGate.frozen_since``'s own
+    docstring says "approvals after this day do not count, and everything up
+    to it stands". Discarding it demotes a pair that had crossed, over a
+    paperwork lapse — exactly the thing charter §3 forbids."""
+    today = date(2026, 6, 1)
+    cadence = DEFAULT_POLICY.precondition_cadence_days
+    gate = _lapsed_gate(today, cadence)
+    frozen_from = gate_status(gate, cadence_days=cadence, today=today).frozen_since
+    assert frozen_from is not None
+    # Said out loud, because the whole test rests on it: on frozen_from the
+    # gate had not lapsed yet.
+    assert gate_status(gate, cadence_days=cadence, today=frozen_from).holds
+    assert not gate_status(gate, cadence_days=cadence,
+                           today=frozen_from + timedelta(days=1)).holds
+
+    n = DEFAULT_POLICY.routine_n
+    approvals = [_approve("status_update", "C-13", frozen_from - timedelta(days=n - 1 - i))
+                 for i in range(n)]
+    assert approvals[-1].decided_on == frozen_from, "the last one lands on the boundary"
+
+    rung = rung_for(("status_update", "C-13"), approvals, policy=DEFAULT_POLICY,
+                    preconditions=gate, today=today)
+    assert rung.state == "earned", (
+        "the pair completed its streak on the last day the gate still held, "
+        "and the lapse afterwards must not take that away")
+
+
+def test_streaks_does_not_promote_a_pair_that_only_crossed_during_the_freeze():
+    """``rung_for`` is not the only door onto this answer. ``streaks()``
+    renders the whole screen and computes ``earned_before`` by its own second
+    walk — every lapse test above goes through ``rung_for``, so that walk
+    could stop being cut off at the freeze and nothing would notice."""
+    today = date(2026, 6, 1)
+    gate = _lapsed_gate(today, DEFAULT_POLICY.precondition_cadence_days)
+    pair = ("status_update", "C-14")
+    approvals = [_approve(*pair, today - timedelta(days=n + 1))
+                 for n in reversed(range(DEFAULT_POLICY.routine_n))]
+
+    rung = {r.pair: r for r in streaks(approvals, policy=DEFAULT_POLICY,
+                                       preconditions=gate, today=today)}[pair]
+    assert rung.streak == DEFAULT_POLICY.routine_n, "the evidence still shows"
+    assert rung.state == "draft_only", (
+        "every one of these approvals landed after the freeze — none of them "
+        "may carry the pair across")
 
 
 def test_the_freeze_date_is_what_separates_the_two():
