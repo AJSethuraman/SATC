@@ -168,8 +168,11 @@ func _on_player_attacked(origin: Vector2, facing: Vector2) -> void:
 	var hit_any := false
 	var any_crit := false
 
-	for e in enemies_root.get_children():
-		if not (e is Enemy) or e.is_queued_for_deletion():
+	for node in enemies_root.get_children():
+		# Cast rather than `is`-check: get_children() is typed Array[Node], and
+		# GDScript does not narrow through a branch, so member access needs this.
+		var e := node as Enemy
+		if e == null or e.is_queued_for_deletion():
 			continue
 		var to_enemy: Vector2 = e.global_position - origin
 		if to_enemy.length() > Feel.ATTACK_RANGE + 16.0:

@@ -6,7 +6,8 @@ extends RefCounted
 ## The offer is always distinct by group, always legal given owned boons and
 ## gear tags, and never empty unless the pool is genuinely exhausted.
 
-var boons: Array = []  # of Boon
+## Typed so that `for b in boons` yields a Boon rather than a Variant.
+var boons: Array[Boon] = []
 
 
 static func from_json(path: String) -> BoonPool:

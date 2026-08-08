@@ -8,7 +8,7 @@ extends SceneTree
 ## Anything after `--` is a substring filter on the test-file name. Exits
 ## non-zero on failure so CI fails the build.
 
-const TEST_SCRIPTS := [
+const TEST_SCRIPTS: Array[String] = [
 	"res://tests/test_rng.gd",
 	"res://tests/test_damage.gd",
 	"res://tests/test_items.gd",
@@ -45,7 +45,7 @@ func _initialize() -> void:
 			continue
 
 		var suite: TestCase = script.new()
-		var short_name := path.get_file()
+		var short_name: String = path.get_file()
 
 		var methods: Array[String] = []
 		for m in suite.get_method_list():

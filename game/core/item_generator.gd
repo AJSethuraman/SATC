@@ -7,8 +7,10 @@ extends RefCounted
 ## item comes out. That is what lets tests pin exact drops and lets the balance
 ## simulator replay a run.
 
-var bases: Array = []  # of Dictionary
-var affixes: Array = []  # of Affix
+var bases: Array = []  # of Dictionary, straight from JSON
+## Typed so that `for a in affixes` yields an Affix rather than a Variant —
+## otherwise every `:=` downstream of a loop over this fails to infer.
+var affixes: Array[Affix] = []
 
 ## Relative rarity weights before magic find is applied.
 const BASE_RARITY_WEIGHTS := {

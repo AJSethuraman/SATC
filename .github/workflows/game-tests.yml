@@ -39,11 +39,22 @@ jobs:
           sudo chmod +x /usr/local/bin/godot
           godot --version
 
-      - name: Import project
-        # Generates .godot/, including the global class_name cache that every
-        # `class_name` reference in the suite resolves through. Without this the
-        # first run fails on unresolved identifiers rather than on a real bug.
-        run: godot --headless --path game --import
+      - name: Import project and check every script parses
+        # Import generates .godot/, including the global class_name cache that
+        # every `class_name` reference resolves through.
+        #
+        # It also parses every .gd file in the project — but it exits 0 even
+        # when a script fails to parse, so the error is only visible in the
+        # log. Grepping for it here is what turns a parse error into a failed
+        # build, and it covers scripts no test or scene loads (sim/, for one).
+        run: |
+          set -uo pipefail
+          godot --headless --path game --import 2>&1 | tee import.log
+          if grep -qE 'SCRIPT ERROR|Parse Error|Failed to load script' import.log; then
+            echo "::error::Script parse errors during import"
+            grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|^ +at:' import.log
+            exit 1
+          fi
 
       - name: Run test suite
         run: godot --headless --path game --script res://tests/run_tests.gd

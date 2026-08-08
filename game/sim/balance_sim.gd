@@ -35,6 +35,9 @@ const FLOOR_HEAL := 0.25
 const ITEMS_PATH := "res://data/items.json"
 const BOONS_PATH := "res://data/boons.json"
 
+## Typed so the loop variable is a String rather than a Variant.
+const POLICIES: Array[String] = ["greedy_damage", "random"]
+
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -49,7 +52,7 @@ func _initialize() -> void:
 	print("==========================")
 	print("runs=%d  dodge=%.2f  max_floor=%d" % [runs, dodge, MAX_FLOOR])
 
-	for policy in ["greedy_damage", "random"]:
+	for policy in POLICIES:
 		var result := _simulate_many(gen, pool, runs, dodge, policy)
 		_report(policy, result, runs)
 

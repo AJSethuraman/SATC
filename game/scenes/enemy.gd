@@ -84,8 +84,9 @@ func _physics_process(delta: float) -> void:
 ## become a single unavoidable damage source.
 func _separation() -> Vector2:
 	var push := Vector2.ZERO
-	for other in get_parent().get_children():
-		if other == self or not (other is Enemy):
+	for node in get_parent().get_children():
+		var other := node as Enemy
+		if other == null or other == self:
 			continue
 		var away: Vector2 = global_position - other.global_position
 		var d := away.length()
