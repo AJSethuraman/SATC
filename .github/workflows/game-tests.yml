@@ -69,5 +69,20 @@ jobs:
       - name: Run test suite
         run: godot --headless --path game --script res://tests/run_tests.gd
 
+      - name: Smoke-test that the game actually boots
+        # The suite covers core/ thoroughly and scenes/ not at all, so a _ready()
+        # that dies takes the entire game down while CI stays green. That is not
+        # hypothetical — it shipped. Boot the real main scene headlessly for a
+        # few seconds so _ready, _process and _physics_process all run, and fail
+        # on any runtime script error.
+        run: |
+          set -uo pipefail
+          godot --headless --path game --quit-after 240 2>&1 | tee boot.log
+          if grep -qE 'SCRIPT ERROR|Cannot call|Invalid |Attempt to call|Trying to (assign|call)' boot.log; then
+            echo "::error::Runtime script errors while booting the main scene"
+            grep -E 'SCRIPT ERROR|Cannot call|Invalid |Attempt to call|Trying to|^ +at:' boot.log
+            exit 1
+          fi
+
       - name: Smoke-test the balance simulator
         run: godot --headless --path game --script res://sim/balance_sim.gd -- 200 0.5
