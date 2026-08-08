@@ -2,8 +2,11 @@
 
 An action-roguelite prototype: **Diablo II's itemisation inside a Hades-shaped run.**
 
-Godot 4, GDScript, no addons, no asset dependencies. Everything you can see is
-placeholder shapes; everything you can't see is tested.
+Godot 4, GDScript, no addons, no asset dependencies, no art files at all. The
+scene is a lit isometric view built entirely from primitives — capsules, boxes,
+one directional light — with every bit of character animation done procedurally
+in code. Everything you can see is placeholder; everything you can't see is
+tested.
 
 ---
 
@@ -174,10 +177,16 @@ core/           pure simulation — no scene tree, fully tested
   boon_pool.gd      the three-way offer
   run_state.gd      base + gear + boons -> combat stats; enemy scaling
 data/           content as JSON, validated by the suite
-scenes/         Godot node layer — built in code, placeholder art
-  feel.gd           EVERY game-feel constant, in one place (read its header)
+scenes/         Godot node layer — built in code, primitives only
+  feel.gd           EVERY game-feel and presentation constant (read its header)
+  iso_camera.gd     fixed isometric orthographic rig + screen-to-ground aiming
+  shapes.gd         procedurally-built meshes and materials
+  player.gd         movement, dash, attack state machine, procedural animation
+  enemy.gd          chaser with a telegraphed attack
+  main.gd           arena, lighting, waves, rewards, HUD
 sim/            headless balance simulator
 tests/          the suite + a ~90-line assertion base class
+tools/          headless frame capture, so CI can see the game is drawing
 ```
 
 The split is the point: `core/` never imports a scene node, so a run can be
@@ -192,12 +201,25 @@ rarity-to-affix-count, magic find, boon offers, tag gating, prerequisite chains,
 stat rebuilds on unequip, enemy depth scaling, and validation of every key in
 both JSON files.
 
-**Placeholder:** all art (circles and wedges), all audio (none), all narrative
-(none), one enemy archetype, one weapon behaviour, no meta-progression, no hub,
-no bosses.
+**Drawn, but placeholder:** the isometric view is real — orthographic camera at a
+fixed 42°/45°, shadow-casting directional light, capsules on a lit floor. Bodies
+lean into movement, stretch along a dash, crouch and pop through a swing, bob at
+idle, flash white when struck; enemies swell through their telegraph and squash
+on impact. That is all procedural, because procedural animation is code and code
+is the half that can be written here.
+
+CI renders a real frame each build and fails if the scene stops drawing, so
+"looks like nothing" is a build error rather than a surprise (`tools/capture_frame.gd`).
+
+**Absent:** all authored art, all audio, all narrative, one enemy archetype, one
+weapon behaviour, no meta-progression, no hub, no bosses.
 
 **Unverified, and unverifiable without a person:** everything in
 `scenes/feel.gd`. Dash length, i-frame overhang, hit-stop duration, attack
-recovery, knockback, camera lag. Those numbers are genre-plausible guesses. A
-test can prove a hit deals 237 damage; nothing can prove the hit feels good.
-That file is where a human's work starts.
+recovery, knockback, camera angle and lag, every animation amplitude. Those are
+genre-plausible guesses. A test can prove a hit deals 237 damage; nothing can
+prove the hit feels good. That file is where a human's work starts.
+
+Deforming primitives is not animation. This reads as a competent prototype, not
+as Hades — that game looks the way it does because of an illustrator, and no
+amount of code closes that gap.
