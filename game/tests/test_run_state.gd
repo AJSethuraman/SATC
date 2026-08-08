@@ -176,6 +176,18 @@ func test_enemy_health_outpaces_enemy_damage() -> void:
 	assert_gt(health_growth, damage_growth, "enemy damage is outscaling enemy health")
 
 
+func test_enemy_damage_growth_stays_within_what_a_build_can_answer() -> void:
+	# Guards the finding that prompted lowering DAMAGE_GROWTH. Player survival
+	# scales roughly 3x across a run — flat armour and health from gear and
+	# defensive boons — so enemy damage compounding far past that makes boon
+	# choice irrelevant, which the simulator measured directly.
+	assert_lt(RunState.DAMAGE_GROWTH, RunState.HEALTH_GROWTH, "damage must not outgrow health")
+	assert_lt(
+		pow(RunState.DAMAGE_GROWTH, 14.0), 5.0,
+		"enemy damage compounds past what a build's survival can answer"
+	)
+
+
 func test_enemy_resistances_phase_in_and_stay_capped() -> void:
 	var early := RunState.enemy_for_floor(1)
 	assert_almost_eq(early.resistances.get(Damage.Type.FIRE, 0.0), 0.0, 0.0001, "floor 1 must be resist-free")

@@ -108,18 +108,29 @@ func take_boon(b: Boon.Rolled) -> void:
 	boons.append(b)
 
 
-## Enemy stat line for a given depth.
+## Per-floor compounding rates for enemy scaling.
 ##
 ## Health climbs faster than damage on purpose: deeper floors should test
 ## whether your build actually scales, not whether you can survive a one-shot.
-## The exponents here are guesses — sim/balance_sim.gd exists to check them.
+##
+## DAMAGE_GROWTH is the constant the balance simulator flagged. At 1.16 it
+## compounded to roughly 8x over a fifteen-floor run, while player survival only
+## grows in flat lumps (armour and max health from gear and defensive boons,
+## maybe 3x). Runs therefore ended to attrition no matter which boons were
+## taken — measurably so: random boon picks performed as well as greedy ones.
+## Lowered to sit nearer the rate player health actually scales at.
+const HEALTH_GROWTH := 1.28
+const DAMAGE_GROWTH := 1.10
+
+
+## Enemy stat line for a given depth.
 static func enemy_for_floor(n: int, elite: bool = false) -> StatBlock:
 	var e := StatBlock.new()
 	var depth := maxf(0.0, float(n - 1))
 
-	e.max_health = 40.0 * pow(1.28, depth)
-	e.weapon_min = 5.0 * pow(1.16, depth)
-	e.weapon_max = 9.0 * pow(1.16, depth)
+	e.max_health = 40.0 * pow(HEALTH_GROWTH, depth)
+	e.weapon_min = 5.0 * pow(DAMAGE_GROWTH, depth)
+	e.weapon_max = 9.0 * pow(DAMAGE_GROWTH, depth)
 	e.weapon_split = {Damage.Type.PHYSICAL: 1.0}
 	e.armor = 1.0 * depth
 	e.move_speed = 150.0 + 4.0 * depth
