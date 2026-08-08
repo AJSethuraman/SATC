@@ -86,3 +86,73 @@ jobs:
 
       - name: Smoke-test the balance simulator
         run: godot --headless --path game --script res://sim/balance_sim.gd -- 200 0.5
+
+      - name: Render a frame
+        # A boot test proves nothing crashed; it cannot notice that the screen is
+        # empty. Render one real frame under a virtual display so the result can
+        # be looked at, and fail if the frame comes out uniformly blank — which
+        # is what "camera pointed at nothing" actually looks like.
+        run: |
+          set -uo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb
+          xvfb-run -a godot --path game --rendering-driver opengl3 \
+            --script res://tools/capture_frame.gd 2>&1 | tee render.log
+          test -f game/frame.png || { echo "::error::no frame was rendered"; exit 1; }
+          python3 - <<'PY'
+          import struct, zlib, sys, collections
+          # Minimal PNG reader: enough to count distinct colours without pillow.
+          data = open("game/frame.png","rb").read()
+          pos, idat, w, h, bpp = 8, b"", 0, 0, 4
+          while pos < len(data):
+              ln = struct.unpack(">I", data[pos:pos+4])[0]
+              typ = data[pos+4:pos+8]
+              body = data[pos+8:pos+8+ln]
+              if typ == b"IHDR":
+                  w, h, depth, color = struct.unpack(">IIBB", body[:10])
+                  bpp = {0:1, 2:3, 3:1, 4:2, 6:4}[color]
+              elif typ == b"IDAT":
+                  idat += body
+              pos += 12 + ln
+          raw = zlib.decompress(idat)
+          stride = w * bpp
+          prev = bytearray(stride)
+          counts = collections.Counter()
+          off = 0
+          for y in range(h):
+              ft = raw[off]; off += 1
+              line = bytearray(raw[off:off+stride]); off += stride
+              for i in range(stride):
+                  a = line[i-bpp] if i >= bpp else 0
+                  b = prev[i]
+                  c = prev[i-bpp] if i >= bpp else 0
+                  if ft == 1: line[i] = (line[i] + a) & 255
+                  elif ft == 2: line[i] = (line[i] + b) & 255
+                  elif ft == 3: line[i] = (line[i] + (a+b)//2) & 255
+                  elif ft == 4:
+                      p = a + b - c
+                      pa, pb, pc = abs(p-a), abs(p-b), abs(p-c)
+                      pr = a if (pa <= pb and pa <= pc) else (b if pb <= pc else c)
+                      line[i] = (line[i] + pr) & 255
+              if y % 8 == 0:  # sample every 8th row, plenty for a blank check
+                  for x in range(0, stride, bpp * 8):
+                      counts[bytes(line[x:x+3])] += 1
+              prev = line
+          total = sum(counts.values())
+          top, top_n = counts.most_common(1)[0]
+          share = top_n / total
+          print(f"frame {w}x{h}: {len(counts)} distinct sampled colours; "
+                f"most common {top.hex()} covers {share:.1%}")
+          if share > 0.98:
+              print("::error::rendered frame is essentially one flat colour — "
+                    "the scene is not drawing")
+              sys.exit(1)
+          PY
+
+      - name: Upload the rendered frame
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frame-godot-${{ matrix.godot }}
+          path: game/frame.png
+          if-no-files-found: warn
