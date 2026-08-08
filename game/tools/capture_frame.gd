@@ -40,25 +40,17 @@ func _initialize() -> void:
 		return
 
 	_main = packed.instantiate()
-	# Diagnostics, because a scene that builds nothing looks identical to a scene
-	# that built everything off-camera, and both render a flat frame.
 	print("capture_frame: root is %s, script=%s" % [_main.get_class(), _main.get_script()])
 	root.add_child(_main)
 	print("capture_frame: viewport %s" % str(root.get_visible_rect().size))
-	print("capture_frame: %d children after _ready:" % _main.get_child_count())
-	for c in _main.get_children():
-		var where := ""
-		if c is Node2D:
-			where = " at %s" % str((c as Node2D).global_position)
-		elif c is Control:
-			where = " at %s size %s" % [str((c as Control).position), str((c as Control).size)]
-		print("   - %s (%s)%s" % [c.name, c.get_class(), where])
 
 
 func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames < CAPTURE_AT_FRAME:
 		return false
+
+	_report_scene()
 
 	var image := root.get_texture().get_image()
 	if image == null:
@@ -77,6 +69,10 @@ func _process(_delta: float) -> bool:
 		"capture_frame: %s (%dx%d) — %d distinct sampled colours, most common covers %.1f%%"
 		% [OUTPUT, image.get_width(), image.get_height(), report["distinct"], report["share"] * 100.0]
 	)
+	# Which colour dominates is the whole diagnosis: the engine's default clear
+	# colour means nothing drew, the arena floor colour means it drew and the
+	# camera is simply looking at empty floor.
+	print("capture_frame: dominant colours %s" % str(report["top"]))
 
 	if report["share"] > MAX_FLAT_SHARE:
 		push_error(
@@ -90,7 +86,37 @@ func _process(_delta: float) -> bool:
 	return true
 
 
-## How dominated the frame is by its single most common colour.
+## What the scene actually contains and where the camera is pointing, at the
+## moment of capture. A scene that built nothing and a scene that built
+## everything just off-camera produce the same flat frame, so both have to be
+## ruled out explicitly rather than inferred.
+func _report_scene() -> void:
+	print("capture_frame: at frame %d, %d children:" % [_frames, _main.get_child_count()])
+	for c in _main.get_children():
+		var extra := ""
+		if c is Node2D:
+			var n2 := c as Node2D
+			extra = " pos=%s visible=%s z=%d" % [str(n2.global_position), n2.visible, n2.z_index]
+		elif c is Control:
+			var ct := c as Control
+			extra = (
+				" pos=%s size=%s visible=%s z=%d"
+				% [str(ct.global_position), str(ct.size), ct.visible, ct.z_index]
+			)
+		elif c is CanvasLayer:
+			extra = " layer=%d" % (c as CanvasLayer).layer
+		print("   - %s (%s)%s" % [c.name, c.get_class(), extra])
+
+	var cam := _main.get_viewport().get_camera_2d()
+	if cam == null:
+		print("capture_frame: NO active Camera2D")
+	else:
+		print("capture_frame: camera pos=%s zoom=%s" % [str(cam.global_position), str(cam.zoom)])
+	print("capture_frame: canvas_transform=%s" % str(_main.get_viewport().canvas_transform))
+
+
+## How dominated the frame is by its single most common colour, plus which
+## colours those are.
 func _flatness(image: Image) -> Dictionary:
 	var counts := {}
 	var total := 0
@@ -98,16 +124,23 @@ func _flatness(image: Image) -> Dictionary:
 	while y < image.get_height():
 		var x := 0
 		while x < image.get_width():
-			var key := image.get_pixel(x, y).to_rgba32()
+			var key := image.get_pixel(x, y).to_html(false)
 			counts[key] = counts.get(key, 0) + 1
 			total += 1
 			x += SAMPLE_STEP
 		y += SAMPLE_STEP
 
-	var top := 0
-	for k in counts:
-		top = maxi(top, int(counts[k]))
+	var ranked := counts.keys()
+	ranked.sort_custom(func(a, b): return int(counts[a]) > int(counts[b]))
+
+	var top_list: Array[String] = []
+	for i in mini(5, ranked.size()):
+		var key: String = ranked[i]
+		top_list.append("#%s %.1f%%" % [key, 100.0 * float(counts[key]) / maxf(1.0, float(total))])
+
+	var top := 0 if ranked.is_empty() else int(counts[ranked[0]])
 	return {
 		"distinct": counts.size(),
 		"share": float(top) / maxf(1.0, float(total)),
+		"top": top_list,
 	}
