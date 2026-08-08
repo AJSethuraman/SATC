@@ -40,6 +40,11 @@ var speed_ratio := 0.0
 ## -1 when not attacking, otherwise 0..1 across the whole swing.
 var attack_phase := -1.0
 var dashing := false
+## Forward tip of the whole body, in radians. Negative leans into the facing
+## direction. Squash-and-stretch works on a blob but not on a figure with legs —
+## stretching a standing humanoid along its facing axis reads as it lying down,
+## so a dash leans the body instead of scaling it.
+var lean := 0.0
 ## Extra silhouette scale, for hit reactions and telegraphs.
 var shape := Vector3.ONE
 var tint := Color.WHITE
@@ -107,8 +112,8 @@ func build(height: float, colour: Color, with_weapon: bool) -> void:
 	_hips.add_child(_leg_r)
 
 	if with_weapon:
-		var blade_len := height * 0.62
-		_weapon = _box(Vector3(height * 0.055, blade_len, height * 0.14), Shapes.solid(
+		var blade_len := height * 0.5
+		_weapon = _box(Vector3(height * 0.05, blade_len, height * 0.1), Shapes.solid(
 			Color(0.78, 0.80, 0.86)
 		))
 		# Held out from the fist at the end of the right arm, angled forward.
@@ -189,7 +194,7 @@ func animate(delta: float) -> void:
 	# Head stays level rather than riding the torso, which reads as attention.
 	_head.basis = Basis(Vector3.UP, -_twist * 0.5)
 
-	basis = Basis(Vector3.UP, _yaw).scaled(shape)
+	basis = (Basis(Vector3.UP, _yaw) * Basis(Vector3.RIGHT, lean)).scaled(shape)
 
 	_skin.albedo_color = _skin.albedo_color.lerp(tint, clampf(12.0 * delta, 0.0, 1.0))
 	_accent.albedo_color = _accent.albedo_color.lerp(

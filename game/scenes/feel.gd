@@ -98,8 +98,11 @@ const LEAN_DEGREES := 14.0
 const LEAN_RESPONSE := 9.0
 
 ## Dash squash: scale along travel, and the matching pinch across it.
-const DASH_STRETCH := 1.35
-const DASH_SQUASH := 0.78
+const DASH_STRETCH := 1.06
+const DASH_SQUASH := 0.94
+## Degrees the body tips into a dash. Does the work the old stretch was doing,
+## without flattening a standing figure onto the floor.
+const DASH_LEAN := -24.0
 
 ## Windup crouch before a swing, then the overshoot on release.
 const ATTACK_CROUCH := 0.88
@@ -118,10 +121,10 @@ const FLASH_TIME := 0.12
 ## Drawn as a band rather than a filled fan: a solid wedge from the feet to full
 ## reach reads as a pizza slice sitting on the floor, where a ring segment reads
 ## as the path a blade swept through. Inner edge as a fraction of reach.
-const SLASH_FADE := 7.0
+const SLASH_FADE := 15.0
 const SLASH_SEGMENTS := 20
-const SLASH_INNER_RATIO := 0.45
-const SLASH_ALPHA := 0.6
+const SLASH_INNER_RATIO := 0.7
+const SLASH_ALPHA := 0.3
 ## Lifted just off the floor so it does not z-fight with it.
 const SLASH_HEIGHT := 0.14
 

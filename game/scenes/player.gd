@@ -257,6 +257,9 @@ func _animate(delta: float) -> void:
 	_rig.face(facing)
 	_rig.speed_ratio = speed_ratio
 	_rig.dashing = _dash_timer > 0.0
+	_rig.lean = lerpf(
+		_rig.lean, deg_to_rad(Feel.DASH_LEAN) if _dash_timer > 0.0 else 0.0, blend
+	)
 	_rig.shape = _shape
 	_rig.attack_phase = _swing_phase()
 
