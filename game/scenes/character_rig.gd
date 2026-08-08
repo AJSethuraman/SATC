@@ -61,6 +61,7 @@ var _leg_r: Node3D
 var _weapon: MeshInstance3D
 
 var _skin: StandardMaterial3D
+var _head_material: StandardMaterial3D
 var _accent: StandardMaterial3D
 
 
@@ -85,7 +86,8 @@ func build(height: float, colour: Color, with_weapon: bool) -> void:
 	torso_mesh.position = Vector3(0.0, torso_h * 0.5, 0.0)
 	_torso.add_child(torso_mesh)
 
-	_head = _box(Vector3(head_size, head_size, head_size), _skin)
+	_head_material = Shapes.solid(colour.lightened(0.18))
+	_head = _box(Vector3(head_size * 0.86, head_size, head_size * 0.86), _head_material)
 	_head.position = Vector3(0.0, torso_h + head_size * 0.55, 0.0)
 	_torso.add_child(_head)
 
@@ -93,20 +95,20 @@ func build(height: float, colour: Color, with_weapon: bool) -> void:
 	# offset below its pivot so rotating the pivot swings it from the joint.
 	var shoulder_y := torso_h * 0.86
 	var shoulder_x := width * 0.5 + arm_len * 0.09
-	_arm_l = _limb(Vector3(-shoulder_x, shoulder_y, 0.0), arm_len, arm_len * 0.26, _accent)
-	_arm_r = _limb(Vector3(shoulder_x, shoulder_y, 0.0), arm_len, arm_len * 0.26, _accent)
+	_arm_l = _limb(Vector3(-shoulder_x, shoulder_y, 0.0), arm_len, arm_len * 0.17, _accent)
+	_arm_r = _limb(Vector3(shoulder_x, shoulder_y, 0.0), arm_len, arm_len * 0.17, _accent)
 	_torso.add_child(_arm_l)
 	_torso.add_child(_arm_r)
 
-	var hip_x := width * 0.24
-	_leg_l = _limb(Vector3(-hip_x, 0.0, 0.0), leg_len, leg_len * 0.3, _accent)
-	_leg_r = _limb(Vector3(hip_x, 0.0, 0.0), leg_len, leg_len * 0.3, _accent)
+	var hip_x := width * 0.30
+	_leg_l = _limb(Vector3(-hip_x, 0.0, 0.0), leg_len, leg_len * 0.21, _accent)
+	_leg_r = _limb(Vector3(hip_x, 0.0, 0.0), leg_len, leg_len * 0.21, _accent)
 	_hips.add_child(_leg_l)
 	_hips.add_child(_leg_r)
 
 	if with_weapon:
-		var blade_len := height * 0.52
-		_weapon = _box(Vector3(height * 0.045, blade_len, height * 0.11), Shapes.solid(
+		var blade_len := height * 0.62
+		_weapon = _box(Vector3(height * 0.055, blade_len, height * 0.14), Shapes.solid(
 			Color(0.78, 0.80, 0.86)
 		))
 		# Held out from the fist at the end of the right arm, angled forward.
@@ -182,7 +184,7 @@ func animate(delta: float) -> void:
 	_hips.position.y = _height * LEG_FRACTION + bob - crouch
 	_hips.basis = Basis(Vector3.UP, _twist * 0.35)
 	_torso.basis = Basis(Vector3.UP, _twist * 0.65) * Basis(
-		Vector3.RIGHT, deg_to_rad(4.0) + deg_to_rad(10.0) * stride
+		Vector3.RIGHT, deg_to_rad(2.0) + deg_to_rad(5.0) * stride
 	)
 	# Head stays level rather than riding the torso, which reads as attention.
 	_head.basis = Basis(Vector3.UP, -_twist * 0.5)
@@ -192,6 +194,9 @@ func animate(delta: float) -> void:
 	_skin.albedo_color = _skin.albedo_color.lerp(tint, clampf(12.0 * delta, 0.0, 1.0))
 	_accent.albedo_color = _accent.albedo_color.lerp(
 		tint.darkened(0.28), clampf(12.0 * delta, 0.0, 1.0)
+	)
+	_head_material.albedo_color = _head_material.albedo_color.lerp(
+		tint.lightened(0.18), clampf(12.0 * delta, 0.0, 1.0)
 	)
 
 

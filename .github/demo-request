@@ -4,4 +4,4 @@
 # The workflow renders ~16 seconds of the game playing itself, encodes it to
 # MP4, and commits it to game/docs/demo.mp4 on the same branch.
 
-requested: 2026-08-08 — re-record with jointed character rigs
+requested: 2026-08-08 — re-record after rig proportion fixes
