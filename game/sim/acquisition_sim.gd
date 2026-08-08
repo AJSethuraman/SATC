@@ -25,6 +25,8 @@ const MAX_RUNS := 60
 ## The specific recipe the second pass chases. A three-sigil word needing a
 ## top-tier sigil is the far end of the curve, so it bounds the chase.
 const CHASE_TARGET := "conflagrant"
+## And the deliberate long chase, for contrast.
+const DEEP_CHASE_TARGET := "ruin"
 const CHASE_MAX_RUNS := 400
 
 ## Chance a floor's reward is a sigil rather than an item. The other big lever
@@ -58,12 +60,13 @@ func _initialize() -> void:
 	# Pass two: one specific deep recipe. This is the actual chase the design is
 	# built around — "you are after specific things" — and it is a different
 	# question with a very different answer.
-	var chased := book.inscription_by_id(CHASE_TARGET)
-	if chased != null:
-		_run_pass(
-			"'%s' specifically (%d sigils)" % [chased.display_name, chased.pattern.size()],
-			gen, book, players, floors, [chased], CHASE_MAX_RUNS
-		)
+	for target_id in [CHASE_TARGET, DEEP_CHASE_TARGET]:
+		var chased := book.inscription_by_id(str(target_id))
+		if chased != null:
+			_run_pass(
+				"'%s' specifically (%d sigils)" % [chased.display_name, chased.pattern.size()],
+				gen, book, players, floors, [chased], CHASE_MAX_RUNS
+			)
 	print("")
 	quit(0)
 

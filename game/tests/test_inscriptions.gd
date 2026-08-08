@@ -144,13 +144,46 @@ func test_three_socket_vessels_are_gated_on_depth() -> void:
 		)
 
 
-func test_sigil_drops_are_gated_on_depth() -> void:
+func test_depth_suppresses_high_sigils_without_forbidding_them() -> void:
+	# Shallow floors should mostly hand out low sigils, but "mostly" is the point.
+	# This was a hard gate, and combined with a difficulty curve that ends most
+	# runs on floor five it made two inscriptions literally unobtainable.
 	var book := _book()
 	var rng := Rng.new(13)
-	for i in 800:
-		assert_lt(
-			float(book.roll_sigil(rng, 1).tier), 3.0,
-			"a shallow floor should not hand out high-tier sigils"
+	var high := 0
+	var n := 3000
+	for i in n:
+		if book.roll_sigil(rng, 2).tier >= 3:
+			high += 1
+	assert_lt(float(high) / float(n), 0.06, "shallow floors should rarely give high sigils")
+
+
+func test_every_inscription_component_can_drop_at_a_reachable_depth() -> void:
+	# The guard for the bug the acquisition simulator found: content that
+	# referenced only real sigils, passed every other validation, and could never
+	# be completed because a component required a depth players do not reach.
+	# Nobody finished it in four hundred simulated runs.
+	#
+	# Empirical rather than analytic on purpose — it exercises the real drop
+	# function, so it keeps working however the weighting is next rewritten.
+	var reachable_ilvl := 10
+	var book := _book()
+
+	var required: Array = []
+	for i in book.inscriptions:
+		for p in i.pattern:
+			if not required.has(p):
+				required.append(p)
+
+	var seen := {}
+	var rng := Rng.new(99)
+	for i in 60000:
+		seen[book.roll_sigil(rng, reachable_ilvl).id] = true
+
+	for id in required:
+		assert_true(
+			seen.has(id),
+			"'%s' is required by an inscription but never drops at ilvl %d" % [id, reachable_ilvl]
 		)
 
 

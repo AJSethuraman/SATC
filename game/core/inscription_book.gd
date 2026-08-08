@@ -52,19 +52,32 @@ func match_pattern(sigil_ids: Array, item_slot: String) -> Inscription:
 	return null
 
 
-## Weighted sigil drop. Higher tiers carry lower weight, which is what makes a
-## specific late-tier sigil worth banking a slot for.
+## Depth at which a sigil of a given tier reaches its full drop weight.
+const TIER_FULL_ILVL := 4
+## Floor on the out-of-depth penalty. Deliberately non-zero — see below.
+const MIN_DEPTH_FACTOR := 0.03
+
+
+## Weighted sigil drop. Higher tiers carry lower weight and are further
+## suppressed above their intended depth, which is what makes a specific
+## late-tier sigil worth banking a slot for.
+##
+## The suppression is steep but never reaches zero, and that matters. This was
+## previously a hard gate — a sigil simply could not drop below its tier's
+## depth — which combined with a difficulty curve that ends most runs on floor
+## five to make two inscriptions literally unobtainable. Both referenced real
+## sigils, both passed every validation, and nobody completed either in four
+## hundred simulated runs. A high sigil out of depth should be a story, not an
+## impossibility.
 func roll_sigil(rng: Rng, ilvl: int = 99) -> Sigil:
 	var eligible: Array = []
 	var weights: Array = []
 	for s in sigils:
-		# Tier gates roughly on depth, so floor one cannot hand you a Doom.
-		if s.tier * 4 > ilvl + 4:
-			continue
+		var intended := float(maxi(1, s.tier * TIER_FULL_ILVL))
+		var reach := clampf(float(ilvl) / intended, 0.0, 1.0)
+		var factor := maxf(MIN_DEPTH_FACTOR, reach * reach)
 		eligible.append(s)
-		weights.append(s.weight)
-	if eligible.is_empty():
-		return sigils[0]
+		weights.append(s.weight * factor)
 	return rng.weighted_pick(eligible, weights)
 
 
