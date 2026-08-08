@@ -51,6 +51,33 @@ func roll_rarity(rng: Rng, magic_find: float = 0.0) -> Item.Rarity:
 	return rng.weighted_pick(kinds, weights)
 
 
+## Socket count for a plain item.
+##
+## Three-socket vessels are gated on depth and deliberately scarce: they are the
+## only home for a three-sigil inscription, so their rate is the single biggest
+## lever on how long the chase takes. sim/acquisition_sim.gd measures exactly
+## that, and this is the number to turn if the answer comes back wrong.
+const SOCKET_WEIGHTS := {
+	0: 26.0,
+	1: 34.0,
+	2: 26.0,
+	3: 14.0,
+}
+## Depth at which three-socket vessels become possible at all.
+const THREE_SOCKET_ILVL := 8
+
+
+func roll_sockets(rng: Rng, ilvl: int) -> int:
+	var counts: Array = []
+	var weights: Array = []
+	for n in SOCKET_WEIGHTS:
+		if n == 3 and ilvl < THREE_SOCKET_ILVL:
+			continue
+		counts.append(n)
+		weights.append(SOCKET_WEIGHTS[n])
+	return int(rng.weighted_pick(counts, weights))
+
+
 ## Every affix legal on `slot` at `ilvl` whose group is not already taken.
 func eligible(slot: String, ilvl: int, used_groups: Array) -> Array:
 	var out: Array = []
@@ -79,6 +106,12 @@ func roll_item(ilvl: int, rng: Rng, magic_find: float = 0.0, slot: String = "") 
 	item.implicit = base.get("implicit", {})
 	item.ilvl = ilvl
 	item.rarity = roll_rarity(rng, magic_find)
+
+	# Sockets only on plain items. That is what makes a Normal drop worth
+	# looking at — it is the only thing an inscription can be built in, so the
+	# usual "grey is trash" instinct inverts.
+	if item.rarity == Item.Rarity.NORMAL:
+		item.sockets = roll_sockets(rng, ilvl)
 
 	var span: Array = Item.AFFIX_COUNTS[item.rarity]
 	var want := rng.randi_range(int(span[0]), int(span[1]))

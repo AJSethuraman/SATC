@@ -1,0 +1,104 @@
+{
+  "_comment": "Sigils (runes) and inscriptions (runewords). A sigil's own `mods` apply whenever it is socketed, inscription or not, so a combination that spells nothing is weak rather than wasted. Inscription `pattern` is an ORDERED sigil sequence and must be matched exactly — order is what makes these recipes rather than collections. `behaviour` names a mechanical change for the caster work to implement and is inert for now; it is written down early so the content and the code cannot drift apart.",
+
+  "sigils": [
+    { "id": "ash",    "name": "Ash",    "tier": 1, "element": "physical",  "weight": 24, "mods": { "flat.physical": 2 } },
+    { "id": "cinder", "name": "Cinder", "tier": 1, "element": "fire",      "weight": 22, "mods": { "flat.fire": 3 } },
+    { "id": "hoar",   "name": "Hoar",   "tier": 1, "element": "cold",      "weight": 22, "mods": { "flat.cold": 3 } },
+    { "id": "spark",  "name": "Spark",  "tier": 1, "element": "lightning", "weight": 22, "mods": { "flat.lightning": 4 } },
+
+    { "id": "bile",   "name": "Bile",   "tier": 2, "element": "poison",    "weight": 13, "mods": { "flat.poison": 5 } },
+    { "id": "ord",    "name": "Ord",    "tier": 2, "element": "physical",  "weight": 13, "mods": { "armor": 4 } },
+    { "id": "vow",    "name": "Vow",    "tier": 2, "element": "",          "weight": 11, "mods": { "max_health": 22 } },
+
+    { "id": "pyre",   "name": "Pyre",   "tier": 3, "element": "fire",      "weight": 6,  "mods": { "flat.fire": 9, "increased.fire": 0.12 } },
+    { "id": "rime",   "name": "Rime",   "tier": 3, "element": "cold",      "weight": 6,  "mods": { "flat.cold": 9, "increased.cold": 0.12 } },
+    { "id": "storm",  "name": "Storm",  "tier": 3, "element": "lightning", "weight": 6,  "mods": { "flat.lightning": 12 } },
+
+    { "id": "rot",    "name": "Rot",    "tier": 4, "element": "poison",    "weight": 2.5, "mods": { "flat.poison": 14, "increased.poison": 0.15 } },
+    { "id": "doom",   "name": "Doom",   "tier": 5, "element": "",          "weight": 1,   "mods": { "crit_chance": 0.07, "crit_mult": 0.2 } }
+  ],
+
+  "inscriptions": [
+    {
+      "id": "kindling",
+      "name": "Kindling",
+      "pattern": ["ash", "cinder"],
+      "slot": "weapon",
+      "description": "The first fire anyone learns to keep.",
+      "grants_tags": ["ignite"],
+      "mods": { "more.fire": 0.28 },
+      "behaviour": "bolt_ignites"
+    },
+    {
+      "id": "hoarfall",
+      "name": "Hoarfall",
+      "pattern": ["hoar", "ash"],
+      "slot": "weapon",
+      "description": "Cold that settles rather than bites.",
+      "grants_tags": ["frost"],
+      "mods": { "more.cold": 0.28 },
+      "behaviour": "bolt_chills"
+    },
+    {
+      "id": "arcwork",
+      "name": "Arcwork",
+      "pattern": ["spark", "ash"],
+      "slot": "weapon",
+      "description": "It wants to reach the next one.",
+      "grants_tags": ["chain"],
+      "mods": { "more.lightning": 0.26 },
+      "behaviour": "bolt_forks"
+    },
+    {
+      "id": "wardstone",
+      "name": "Wardstone",
+      "pattern": ["ord", "vow"],
+      "slot": "armor",
+      "description": "Something between you and the next mistake.",
+      "mods": { "armor": 7, "max_health": 30 },
+      "behaviour": "ward_on_dash"
+    },
+
+    {
+      "id": "conflagrant",
+      "name": "Conflagrant",
+      "pattern": ["cinder", "pyre", "doom"],
+      "slot": "weapon",
+      "description": "Everything you touch was already burning.",
+      "grants_tags": ["ignite"],
+      "mods": { "more.fire": 0.62, "increased.fire": 0.3 },
+      "behaviour": "nova_leaves_fire"
+    },
+    {
+      "id": "everwinter",
+      "name": "Everwinter",
+      "pattern": ["hoar", "rime", "vow"],
+      "slot": "weapon",
+      "description": "The cold stops being weather and becomes a place.",
+      "grants_tags": ["frost"],
+      "mods": { "more.cold": 0.58, "max_health": 25 },
+      "behaviour": "shatter_frozen"
+    },
+    {
+      "id": "thunderhead",
+      "name": "Thunderhead",
+      "pattern": ["spark", "storm", "doom"],
+      "slot": "weapon",
+      "description": "Held too long. Released badly.",
+      "grants_tags": ["chain"],
+      "mods": { "more.lightning": 0.6, "crit_chance": 0.05 },
+      "behaviour": "bolt_chains_three"
+    },
+    {
+      "id": "pestilence",
+      "name": "Pestilence",
+      "pattern": ["bile", "rot", "vow"],
+      "slot": "weapon",
+      "description": "Patient, and in no hurry to be noticed.",
+      "grants_tags": ["venom"],
+      "mods": { "more.poison": 0.6, "max_health": 20 },
+      "behaviour": "rot_spreads"
+    }
+  ]
+}

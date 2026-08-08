@@ -88,6 +88,9 @@ jobs:
       - name: Smoke-test the balance simulator
         run: godot --headless --path game --script res://sim/balance_sim.gd -- 200 0.5
 
+      - name: Simulate inscription acquisition
+        run: godot --headless --path game --script res://sim/acquisition_sim.gd -- 600 5
+
       - name: Render a frame and check it is not blank
         # A boot test proves nothing crashed; it cannot notice that the screen is
         # empty. Render one real frame under a virtual display. The script fails
