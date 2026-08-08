@@ -28,6 +28,7 @@ var enemies_root: Node3D
 var camera: IsoCamera
 
 var _awaiting_reward := false
+var _hitstop_frames := 0
 var _hud: Label
 var _log: Label
 var _reward_layer: CanvasLayer
@@ -200,17 +201,24 @@ func _on_player_attacked(origin: Vector3, facing: Vector3) -> void:
 
 
 ## Hit-stop and shake. The durations live in Feel; this just applies them.
+##
+## Counted down in frames rather than awaited on a timer: a wall-clock wait is
+## wrong whenever the engine is not running at real speed, and time_scale left
+## stuck at 0.05 because a coroutine never resumed is a spectacular bug.
 func _impact(crit: bool) -> void:
 	camera.add_shake(Feel.SHAKE_CRIT if crit else Feel.SHAKE_NORMAL)
-	var duration := Feel.HITSTOP_CRIT if crit else Feel.HITSTOP_NORMAL
-	Engine.time_scale = Feel.HITSTOP_SCALE
-	# ignore_time_scale so the freeze lasts a real fraction of a second rather
-	# than a scaled one, which would make it twenty times too long.
-	await get_tree().create_timer(duration, true, false, true).timeout
-	Engine.time_scale = 1.0
+	_hitstop_frames = maxi(
+		_hitstop_frames, Feel.HITSTOP_FRAMES_CRIT if crit else Feel.HITSTOP_FRAMES_NORMAL
+	)
 
 
 func _process(delta: float) -> void:
+	if _hitstop_frames > 0:
+		_hitstop_frames -= 1
+		Engine.time_scale = Feel.HITSTOP_SCALE
+	else:
+		Engine.time_scale = 1.0
+
 	if is_instance_valid(player):
 		var aim := player.aim_point() - player.global_position
 		aim.y = 0.0

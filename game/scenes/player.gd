@@ -19,6 +19,17 @@ var health: float = 100.0
 ## Horizontal facing on the ground plane. Never vertical.
 var facing := Vector3.FORWARD
 
+## Scripted-input hook. When `scripted` is true these fields replace the
+## keyboard and mouse entirely. Deliberately plain values rather than a
+## controller object, so nothing in the game depends on the thing driving it —
+## tools/demo_pilot.gd writes them to record a demo, and the same seam would
+## serve an autoplay soak test.
+var scripted := false
+var scripted_move := Vector3.ZERO
+var scripted_aim := Vector3.ZERO
+var scripted_attack := false
+var scripted_dash := false
+
 var _state: State = State.FREE
 var _state_timer := 0.0
 var _dash_timer := 0.0
@@ -139,17 +150,28 @@ func _tick_timers(delta: float) -> void:
 
 
 func _read_input() -> void:
-	if _camera != null:
-		_aim_point = _camera.ground_point(global_position + facing)
-		var to_aim := _aim_point - global_position
-		to_aim.y = 0.0
-		if to_aim.length() > 0.15:
-			facing = to_aim.normalized()
+	var want_dash := false
+	var want_attack := false
 
-	if Input.is_key_pressed(KEY_SPACE) or Input.is_key_pressed(KEY_SHIFT):
+	if scripted:
+		_aim_point = scripted_aim
+		want_dash = scripted_dash
+		want_attack = scripted_attack
+	else:
+		if _camera != null:
+			_aim_point = _camera.ground_point(global_position + facing)
+		want_dash = Input.is_key_pressed(KEY_SPACE) or Input.is_key_pressed(KEY_SHIFT)
+		want_attack = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or Input.is_key_pressed(KEY_J)
+
+	var to_aim := _aim_point - global_position
+	to_aim.y = 0.0
+	if to_aim.length() > 0.15:
+		facing = to_aim.normalized()
+
+	if want_dash:
 		_try_dash()
 
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or Input.is_key_pressed(KEY_J):
+	if want_attack:
 		if _state == State.FREE:
 			_start_attack()
 		else:
@@ -159,6 +181,11 @@ func _read_input() -> void:
 ## WASD in screen space, rotated into world space by the camera's fixed yaw, so
 ## "W" means "up the screen" rather than "negative Z".
 func _move_input() -> Vector3:
+	if scripted:
+		if scripted_move.length() < 0.01:
+			return Vector3.ZERO
+		return Vector3(scripted_move.x, 0.0, scripted_move.z).normalized()
+
 	var screen := Vector2.ZERO
 	if Input.is_key_pressed(KEY_A):
 		screen.x -= 1.0

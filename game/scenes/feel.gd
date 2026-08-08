@@ -67,10 +67,15 @@ const ATTACK_ARC := 55.0
 const ATTACK_LUNGE := 5.0
 
 # --- Impact -------------------------------------------------------------
-## Seconds of near-frozen time on a landed hit. The highest-value knob in this
+## Frames of near-frozen time on a landed hit. The highest-value knob in this
 ## file, and the easiest to overdo.
-const HITSTOP_NORMAL := 0.045
-const HITSTOP_CRIT := 0.085
+##
+## Counted in frames rather than seconds because that is how hit-stop is
+## actually authored — fighting games specify it in frames — and because a
+## wall-clock timer stretches to absurdity whenever the engine is not running at
+## real speed, which is exactly what happens while recording a demo.
+const HITSTOP_FRAMES_NORMAL := 3
+const HITSTOP_FRAMES_CRIT := 6
 const HITSTOP_SCALE := 0.05
 
 const SHAKE_NORMAL := 0.12

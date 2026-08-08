@@ -140,6 +140,12 @@ func _separation() -> Vector3:
 	return push
 
 
+## Mid-telegraph, i.e. committed to a swing that has not landed yet. Public
+## because it is the one piece of enemy state a dodging decision depends on.
+func is_winding_up() -> bool:
+	return _windup >= 0.0
+
+
 func _hit_damage(player: Player) -> float:
 	return Damage.resolve(stats, player.stats, _rng).total
 
