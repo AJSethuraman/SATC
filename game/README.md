@@ -10,6 +10,17 @@ tested.
 
 ---
 
+## Watching it
+
+[`docs/demo.mp4`](docs/demo.mp4) — 16 seconds of the game playing itself.
+
+Regenerate it by editing `.github/demo-request` and pushing. CI boots the real
+game, drives it with `tools/demo_pilot.gd`, records a PNG sequence, encodes it,
+and commits the clip back to the branch. Handy beyond showing the game off:
+watching the footage caught the camera being twice too wide, the swing arc
+reading as a pizza slice, the enemy pack collapsing into one blob, and a
+featureless floor — none of which any assertion would ever have failed on.
+
 ## Running it
 
 **Import the project before running it.** Everything here leans on `class_name`
