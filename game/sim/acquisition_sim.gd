@@ -130,7 +130,7 @@ func _completable(
 		var want_sockets: int = need["vessel_sockets"]
 
 		# Exactly, not merely enough — see docs/d2-rune-economy.md.
-		var have_vessel := banked_vessels.has(slot) and banked_vessels[slot].has(want_sockets)
+		var have_vessel: bool = banked_vessels.has(slot) and banked_vessels[slot].has(want_sockets)
 		if not have_vessel:
 			for v in loose_vessels:
 				if (slot == "" or str(v["slot"]) == slot) and int(v["sockets"]) == want_sockets:
