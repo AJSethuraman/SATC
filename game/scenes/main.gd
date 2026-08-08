@@ -65,10 +65,13 @@ func _start_run(seed_v: int) -> void:
 	player = Player.new()
 	player.add_to_group("player")
 	player.setup(run.build_stats(), camera)
-	player.global_position = Vector3.ZERO
 	player.attacked.connect(_on_player_attacked)
 	player.died.connect(_on_player_died)
 	add_child(player)
+	# Position after add_child: global_position on a node outside the tree logs
+	# an error and returns identity. Harmless at the origin, which is exactly why
+	# it sat in the log unnoticed.
+	player.global_position = Vector3.ZERO
 
 	camera.snap_to(Vector3.ZERO)
 	_say("Run %d — descend." % seed_v)

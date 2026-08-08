@@ -22,6 +22,11 @@ const SIGILS_PATH := "res://data/sigils.json"
 
 const MAX_RUNS := 60
 
+## The specific recipe the second pass chases. A three-sigil word needing a
+## top-tier sigil is the far end of the curve, so it bounds the chase.
+const CHASE_TARGET := "conflagrant"
+const CHASE_MAX_RUNS := 400
+
 ## Chance a floor's reward is a sigil rather than an item. The other big lever
 ## besides socket rates — turn this first if the answer comes back too slow.
 const SIGIL_DROP_CHANCE := 0.34
@@ -43,21 +48,22 @@ func _initialize() -> void:
 	print("reliquary: %d capacity, %d deposit per run"
 		% [Reliquary.DEFAULT_CAPACITY, Reliquary.DEPOSITS_PER_RUN])
 
-	var first_runs: Array[int] = []
-	var never := 0
-	var which := {}
+	# Pass one: any inscription at all. This is the on-ramp — how long before the
+	# system first does anything for you.
+	_run_pass(
+		"ANY inscription (the on-ramp)", gen, book, players, floors,
+		book.by_ascending_cost(), MAX_RUNS
+	)
 
-	for p in players:
-		var outcome := _play_until_inscribed(gen, book, p * 7919 + 17, floors)
-		if outcome["run"] < 0:
-			never += 1
-		else:
-			first_runs.append(outcome["run"])
-			var id: String = outcome["inscription"]
-			which[id] = int(which.get(id, 0)) + 1
-
-	first_runs.sort()
-	_report(first_runs, never, which, players)
+	# Pass two: one specific deep recipe. This is the actual chase the design is
+	# built around — "you are after specific things" — and it is a different
+	# question with a very different answer.
+	var chased := book.inscription_by_id(CHASE_TARGET)
+	if chased != null:
+		_run_pass(
+			"'%s' specifically (%d sigils)" % [chased.display_name, chased.pattern.size()],
+			gen, book, players, floors, [chased], CHASE_MAX_RUNS
+		)
 	print("")
 	quit(0)
 
@@ -68,13 +74,13 @@ func _initialize() -> void:
 ## they can still finish, bank whichever single piece most advances it, and
 ## complete the word the moment the last component is in hand mid-run.
 func _play_until_inscribed(
-	gen: ItemGenerator, book: InscriptionBook, seed_v: int, floors: int
+	gen: ItemGenerator, book: InscriptionBook, seed_v: int, floors: int, targets: Array,
+	max_runs: int
 ) -> Dictionary:
 	var rng := Rng.new(seed_v)
 	var bank := Reliquary.new()
-	var targets := book.by_ascending_cost()
 
-	for run in range(1, MAX_RUNS + 1):
+	for run in range(1, max_runs + 1):
 		bank.begin_run()
 
 		# Components in hand this run: everything banked, plus what drops now.
@@ -195,18 +201,48 @@ func _bank_best(
 		bank.deposit_sigil(book.sigil_by_id(best_sigil))
 
 
-func _report(runs: Array[int], never: int, which: Dictionary, players: int) -> void:
+func _run_pass(
+	label: String,
+	gen: ItemGenerator,
+	book: InscriptionBook,
+	players: int,
+	floors: int,
+	targets: Array,
+	max_runs: int
+) -> void:
+	var runs: Array[int] = []
+	var never := 0
+	var which := {}
+
+	for p in players:
+		var outcome := _play_until_inscribed(gen, book, p * 7919 + 17, floors, targets, max_runs)
+		if outcome["run"] < 0:
+			never += 1
+		else:
+			runs.append(outcome["run"])
+			var id: String = outcome["inscription"]
+			which[id] = int(which.get(id, 0)) + 1
+
+	runs.sort()
+	print("")
+	print("-- %s" % label)
+	_report(runs, never, which, players, max_runs)
+
+
+func _report(
+	runs: Array[int], never: int, which: Dictionary, players: int, max_runs: int
+) -> void:
 	print("")
 	if runs.is_empty():
-		print("   NOBODY completed an inscription within %d runs." % MAX_RUNS)
+		print("   NOBODY completed it within %d runs." % max_runs)
 		return
 
-	print("   runs to first inscription:  p10 %d | median %d | p90 %d | worst %d"
+	print("   runs to completion:  p10 %d | median %d | p90 %d | worst %d"
 		% [_pct(runs, 0.10), _pct(runs, 0.50), _pct(runs, 0.90), runs[runs.size() - 1]])
-	print("   never got one in %d runs: %.1f%%" % [MAX_RUNS, 100.0 * never / float(players)])
+	print("   never got one in %d runs: %.1f%%" % [max_runs, 100.0 * never / float(players)])
 
 	var line := "   share inscribed by run:"
-	for milestone in [1, 3, 5, 10, 20]:
+	for milestone in [1, 3, 5, 10, 20, 40, 80]:
 		var got := runs.filter(func(r): return r <= milestone).size()
 		line += "  r%d %.0f%%" % [milestone, 100.0 * got / float(players)]
 	print(line)
