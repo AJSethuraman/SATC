@@ -1,0 +1,52 @@
+name: Ashfall tests
+
+# Runs the game/ simulation test suite headlessly on every push that touches it.
+#
+# The suite has no addon dependencies — tests/run_tests.gd is a plain SceneTree
+# script — so CI is just "download Godot, import once, run one script". The same
+# two commands work locally; see game/README.md.
+
+on:
+  push:
+    paths:
+      - 'game/**'
+      - '.github/workflows/game-tests.yml'
+  pull_request:
+    paths:
+      - 'game/**'
+      - '.github/workflows/game-tests.yml'
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    name: Headless test suite
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: "4.3"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Godot ${{ env.GODOT_VERSION }}
+        run: |
+          set -euo pipefail
+          BASE="Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${BASE}.zip"
+          curl -fsSL -o godot.zip "$URL"
+          unzip -q godot.zip
+          sudo mv "$BASE" /usr/local/bin/godot
+          sudo chmod +x /usr/local/bin/godot
+          godot --version
+
+      - name: Import project
+        # Generates .godot/, including the global class_name cache that every
+        # `class_name` reference in the suite resolves through. Without this the
+        # first run fails on unresolved identifiers rather than on a real bug.
+        run: godot --headless --path game --import
+
+      - name: Run test suite
+        run: godot --headless --path game --script res://tests/run_tests.gd
+
+      - name: Smoke-test the balance simulator
+        run: godot --headless --path game --script res://sim/balance_sim.gd -- 200 0.5

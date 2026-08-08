@@ -1,0 +1,220 @@
+{
+  "_comment": "Run-scoped blessings from the Ashen Court. `mods` keys use the StatBlock grammar (core/stat_block.gd) and are scaled by the offer's rarity. Boons own the `more` bucket; `requires_tags` entries are satisfied by gear affixes, which is how equipment decides what a run may be offered.",
+
+  "boons": [
+    {
+      "id": "odrin_weight",
+      "name": "Weight of the Chain",
+      "god": "Odrin",
+      "group": "attack",
+      "weight": 12,
+      "description": "Your strikes land heavier.",
+      "mods": { "more": 0.18 }
+    },
+    {
+      "id": "odrin_hunger",
+      "name": "Hungering Edge",
+      "god": "Odrin",
+      "group": "crit",
+      "weight": 9,
+      "description": "Wounds you open do not close.",
+      "mods": { "crit_chance": 0.07, "crit_mult": 0.25 }
+    },
+    {
+      "id": "odrin_bulwark",
+      "name": "Iron Vigil",
+      "god": "Odrin",
+      "group": "defense",
+      "weight": 10,
+      "description": "Stand and it will break on you.",
+      "mods": { "armor": 5, "max_health": 30 }
+    },
+    {
+      "id": "odrin_butcher",
+      "name": "Butcher's Rhythm",
+      "god": "Odrin",
+      "group": "attack",
+      "weight": 6,
+      "description": "Brutality begets brutality.",
+      "requires_tags": ["brutal"],
+      "mods": { "more": 0.3 }
+    },
+
+    {
+      "id": "morrow_ember",
+      "name": "Ember in the Lung",
+      "god": "Morrow",
+      "group": "ember",
+      "weight": 10,
+      "description": "A small fire, carried.",
+      "mods": { "flat.fire": 8, "increased.fire": 0.2 }
+    },
+    {
+      "id": "morrow_pyre",
+      "name": "Feed the Pyre",
+      "god": "Morrow",
+      "group": "attack",
+      "weight": 7,
+      "description": "It grows if you let it.",
+      "requires_tags": ["ignite"],
+      "mods": { "more": 0.28 }
+    },
+    {
+      "id": "morrow_scald",
+      "name": "Scalding Ward",
+      "god": "Morrow",
+      "group": "defense",
+      "weight": 8,
+      "description": "Heat answers heat.",
+      "mods": { "resist.fire": 0.25, "armor": 3 }
+    },
+    {
+      "id": "morrow_conflagrant",
+      "name": "Conflagration",
+      "god": "Morrow",
+      "group": "capstone",
+      "weight": 2,
+      "description": "Everything you touch is already burning.",
+      "requires_tags": ["ignite"],
+      "requires_boons": ["morrow_ember"],
+      "mods": { "more": 0.4, "increased.fire": 0.5 }
+    },
+
+    {
+      "id": "vess_rime",
+      "name": "Rime on the Teeth",
+      "god": "Vess",
+      "group": "frost",
+      "weight": 10,
+      "description": "Cold enough to slow a thing down.",
+      "mods": { "flat.cold": 7, "increased.cold": 0.2 }
+    },
+    {
+      "id": "vess_stillness",
+      "name": "The Long Stillness",
+      "god": "Vess",
+      "group": "defense",
+      "weight": 8,
+      "description": "Nothing hurries here.",
+      "mods": { "resist.cold": 0.25, "max_health": 25 }
+    },
+    {
+      "id": "vess_shatter",
+      "name": "Shatterpoint",
+      "god": "Vess",
+      "group": "crit",
+      "weight": 6,
+      "description": "Frozen things break cleanly.",
+      "requires_tags": ["frost"],
+      "mods": { "crit_mult": 0.6, "crit_chance": 0.05 }
+    },
+    {
+      "id": "vess_hollow",
+      "name": "Hollow Winter",
+      "god": "Vess",
+      "group": "capstone",
+      "weight": 2,
+      "description": "The cold stops being weather and becomes a place.",
+      "requires_tags": ["frost"],
+      "requires_boons": ["vess_rime"],
+      "mods": { "more": 0.35, "resist.cold": 0.2 }
+    },
+
+    {
+      "id": "karnak_gale",
+      "name": "Gale Step",
+      "god": "Karnak",
+      "group": "speed",
+      "weight": 11,
+      "description": "Be elsewhere.",
+      "mods": { "move_speed": 30 }
+    },
+    {
+      "id": "karnak_arc",
+      "name": "Arcing Fury",
+      "god": "Karnak",
+      "group": "chain",
+      "weight": 9,
+      "description": "It looks for the next one.",
+      "mods": { "flat.lightning": 10, "increased.lightning": 0.15 }
+    },
+    {
+      "id": "karnak_stormtouch",
+      "name": "Stormtouched",
+      "god": "Karnak",
+      "group": "attack",
+      "weight": 6,
+      "description": "The air will not settle around you.",
+      "requires_tags": ["chain"],
+      "mods": { "more": 0.25, "move_speed": 15 }
+    },
+    {
+      "id": "karnak_unspent",
+      "name": "Unspent Thunder",
+      "god": "Karnak",
+      "group": "crit",
+      "weight": 7,
+      "description": "Held too long, released badly.",
+      "mods": { "crit_chance": 0.1 }
+    },
+
+    {
+      "id": "ithra_rot",
+      "name": "Patient Rot",
+      "god": "Ithra",
+      "group": "venom",
+      "weight": 9,
+      "description": "It has time.",
+      "mods": { "flat.poison": 9, "increased.poison": 0.25 }
+    },
+    {
+      "id": "ithra_seep",
+      "name": "Seeping Wound",
+      "god": "Ithra",
+      "group": "attack",
+      "weight": 6,
+      "description": "The cut keeps working after you have gone.",
+      "requires_tags": ["venom", "bleed"],
+      "mods": { "more": 0.26 }
+    },
+    {
+      "id": "ithra_thickblood",
+      "name": "Thickened Blood",
+      "god": "Ithra",
+      "group": "defense",
+      "weight": 8,
+      "description": "Harder to spoil.",
+      "mods": { "max_health": 45, "resist.poison": 0.3 }
+    },
+
+    {
+      "id": "court_swiftcruel",
+      "name": "Cruel Momentum",
+      "god": "The Court",
+      "group": "speed",
+      "weight": 3,
+      "description": "Two gods agree, for once.",
+      "requires_tags": ["swift"],
+      "requires_boons": ["karnak_gale"],
+      "mods": { "more": 0.2, "move_speed": 25 }
+    },
+    {
+      "id": "court_toll",
+      "name": "The Toll",
+      "god": "The Court",
+      "group": "capstone",
+      "weight": 2,
+      "description": "Everything given is also taken.",
+      "mods": { "more": 0.5, "max_health": -30 }
+    },
+    {
+      "id": "court_thin",
+      "name": "Thin the Veil",
+      "god": "The Court",
+      "group": "utility",
+      "weight": 8,
+      "description": "You see a little more of what drops.",
+      "mods": { "crit_chance": 0.04, "move_speed": 10 }
+    }
+  ]
+}

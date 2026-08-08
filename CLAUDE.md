@@ -18,6 +18,7 @@ collects/retains client info, and provides small services around Drake.
 | `invoice-generator/` | "Invoicer" — self-hosted invoice web app (accounts, PDF, Stripe, email, JSON API) | Python / Flask + SQLAlchemy | `pytest` in `invoice-generator/tests`; run locally (`run.ps1`, `docker compose up`, or Render) |
 | `satc_system/` | The SATC practice-ops app: local Flask GUI, client intake, document readers, tax line-sheets, encrypted identity vault + de-identified data mart, Drake input/reconcile seam, withholding estimator | Python (`satc` package), Flask, SQLite | `cd satc_system && PYTHONPATH=src pytest -q`; run the app (`SATC.bat` / `satc-app`, default port 5050); `satc doctor` for a readiness check |
 | `cowork-plugin/` | Claude/Cowork plugin + MCP server (`mcp/satc_mcp.py`) to drive SATC's withholding API in plain language; **read-only by default** | Python MCP server + plugin manifest | Load the MCP; exercise against the local withholding API |
+| `game/` | "Ashfall" — action-roguelite prototype (Diablo II itemisation in a Hades-shaped run). Unrelated to the accounting practice; lives here only because this is the working monorepo | Godot 4 / GDScript, no addons | `godot --headless --path game --script res://tests/run_tests.gd` (import once first); balance sim under `game/sim/` |
 
 ## Conventions
 

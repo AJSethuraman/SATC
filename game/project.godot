@@ -1,0 +1,24 @@
+; Ashfall — Godot 4 project.
+;
+; Controls: WASD move, mouse aim, left-click or J attack, Space or Shift dash,
+; R to restart after death.
+
+config_version=5
+
+[application]
+
+config/name="Ashfall"
+config/description="An action roguelite prototype: Diablo II's itemisation inside a Hades-shaped run."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

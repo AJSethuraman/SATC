@@ -1,0 +1,285 @@
+{
+  "_comment": "Base item types and the affix table. Affix `ranges` keys use the StatBlock modifier grammar documented in core/stat_block.gd. Affixes never grant `more` modifiers — that bucket belongs to boons, which is what keeps gear build-defining instead of power-defining.",
+
+  "bases": [
+    {
+      "name": "Falchion",
+      "slot": "weapon",
+      "implicit": { "weapon_min": 4, "weapon_max": 8 }
+    },
+    {
+      "name": "Warhammer",
+      "slot": "weapon",
+      "implicit": { "weapon_min": 9, "weapon_max": 14, "move_speed": -15 }
+    },
+    {
+      "name": "Ritual Dagger",
+      "slot": "weapon",
+      "implicit": { "weapon_min": 2, "weapon_max": 5, "crit_chance": 0.08 }
+    },
+    {
+      "name": "Leather Jerkin",
+      "slot": "armor",
+      "implicit": { "armor": 3, "max_health": 20 }
+    },
+    {
+      "name": "Chain Hauberk",
+      "slot": "armor",
+      "implicit": { "armor": 8, "max_health": 35, "move_speed": -10 }
+    },
+    {
+      "name": "Bone Charm",
+      "slot": "trinket",
+      "implicit": { "max_health": 10 }
+    },
+    {
+      "name": "Cinder Ring",
+      "slot": "trinket",
+      "implicit": { "resist.fire": 0.1 }
+    }
+  ],
+
+  "affixes": [
+    {
+      "id": "added_phys_t1",
+      "name": "Jagged ({} phys)",
+      "group": "added_phys",
+      "tier": 1,
+      "ilvl_req": 1,
+      "weight": 10,
+      "ranges": { "flat.physical": [2, 5] }
+    },
+    {
+      "id": "added_phys_t2",
+      "name": "Serrated ({} phys)",
+      "group": "added_phys",
+      "tier": 2,
+      "ilvl_req": 8,
+      "weight": 6,
+      "ranges": { "flat.physical": [6, 12] },
+      "grants_tags": ["brutal"]
+    },
+    {
+      "id": "added_fire_t1",
+      "name": "Smouldering ({} fire)",
+      "group": "added_fire",
+      "tier": 1,
+      "ilvl_req": 1,
+      "weight": 10,
+      "ranges": { "flat.fire": [3, 7] },
+      "grants_tags": ["ignite"]
+    },
+    {
+      "id": "added_fire_t2",
+      "name": "Blazing ({} fire)",
+      "group": "added_fire",
+      "tier": 2,
+      "ilvl_req": 10,
+      "weight": 5,
+      "ranges": { "flat.fire": [9, 18] },
+      "grants_tags": ["ignite"]
+    },
+    {
+      "id": "added_cold_t1",
+      "name": "Rimed ({} cold)",
+      "group": "added_cold",
+      "tier": 1,
+      "ilvl_req": 1,
+      "weight": 10,
+      "ranges": { "flat.cold": [2, 6] },
+      "grants_tags": ["frost"]
+    },
+    {
+      "id": "added_cold_t2",
+      "name": "Glacial ({} cold)",
+      "group": "added_cold",
+      "tier": 2,
+      "ilvl_req": 10,
+      "weight": 5,
+      "ranges": { "flat.cold": [8, 15] },
+      "grants_tags": ["frost"]
+    },
+    {
+      "id": "added_light_t1",
+      "name": "Static ({} lightning)",
+      "group": "added_light",
+      "tier": 1,
+      "ilvl_req": 3,
+      "weight": 9,
+      "ranges": { "flat.lightning": [1, 9] },
+      "grants_tags": ["chain"]
+    },
+    {
+      "id": "added_light_t2",
+      "name": "Thunderous ({} lightning)",
+      "group": "added_light",
+      "tier": 2,
+      "ilvl_req": 12,
+      "weight": 4,
+      "ranges": { "flat.lightning": [3, 24] },
+      "grants_tags": ["chain"]
+    },
+    {
+      "id": "added_poison_t1",
+      "name": "Septic ({} poison)",
+      "group": "added_poison",
+      "tier": 1,
+      "ilvl_req": 4,
+      "weight": 8,
+      "ranges": { "flat.poison": [4, 8] },
+      "grants_tags": ["venom"]
+    },
+    {
+      "id": "added_poison_t2",
+      "name": "Pestilent ({} poison)",
+      "group": "added_poison",
+      "tier": 2,
+      "ilvl_req": 14,
+      "weight": 4,
+      "ranges": { "flat.poison": [11, 20] },
+      "grants_tags": ["venom", "bleed"]
+    },
+    {
+      "id": "inc_phys_t1",
+      "name": "Honed ({} enhanced)",
+      "group": "inc_phys",
+      "tier": 1,
+      "ilvl_req": 1,
+      "weight": 12,
+      "ranges": { "increased.physical": [0.1, 0.25] }
+    },
+    {
+      "id": "inc_phys_t2",
+      "name": "Merciless ({} enhanced)",
+      "group": "inc_phys",
+      "tier": 2,
+      "ilvl_req": 9,
+      "weight": 6,
+      "ranges": { "increased.physical": [0.3, 0.55] },
+      "grants_tags": ["brutal"]
+    },
+    {
+      "id": "inc_fire_t1",
+      "name": "Pyric ({} fire)",
+      "group": "inc_fire",
+      "tier": 1,
+      "ilvl_req": 5,
+      "weight": 7,
+      "ranges": { "increased.fire": [0.15, 0.4] },
+      "grants_tags": ["ignite"]
+    },
+    {
+      "id": "inc_cold_t1",
+      "name": "Hoarfrost ({} cold)",
+      "group": "inc_cold",
+      "tier": 1,
+      "ilvl_req": 5,
+      "weight": 7,
+      "ranges": { "increased.cold": [0.15, 0.4] },
+      "grants_tags": ["frost"]
+    },
+    {
+      "id": "crit_chance_t1",
+      "name": "Precise ({} crit)",
+      "group": "crit_chance",
+      "tier": 1,
+      "ilvl_req": 2,
+      "weight": 8,
+      "ranges": { "crit_chance": [0.03, 0.08] }
+    },
+    {
+      "id": "crit_chance_t2",
+      "name": "Deadly ({} crit)",
+      "group": "crit_chance",
+      "tier": 2,
+      "ilvl_req": 11,
+      "weight": 4,
+      "ranges": { "crit_chance": [0.09, 0.16] },
+      "grants_tags": ["brutal"]
+    },
+    {
+      "id": "crit_mult_t1",
+      "name": "Cruel (+{} crit dmg)",
+      "group": "crit_mult",
+      "tier": 1,
+      "ilvl_req": 6,
+      "weight": 6,
+      "ranges": { "crit_mult": [0.2, 0.5] },
+      "grants_tags": ["brutal"]
+    },
+    {
+      "id": "life_t1",
+      "name": "Hale (+{} life)",
+      "group": "life",
+      "tier": 1,
+      "ilvl_req": 1,
+      "weight": 12,
+      "ranges": { "max_health": [10, 25] }
+    },
+    {
+      "id": "life_t2",
+      "name": "Vital (+{} life)",
+      "group": "life",
+      "tier": 2,
+      "ilvl_req": 9,
+      "weight": 7,
+      "ranges": { "max_health": [30, 60] }
+    },
+    {
+      "id": "armor_t1",
+      "name": "Plated (+{} armour)",
+      "group": "armor",
+      "tier": 1,
+      "ilvl_req": 2,
+      "weight": 10,
+      "ranges": { "armor": [2, 6] }
+    },
+    {
+      "id": "armor_t2",
+      "name": "Bulwark (+{} armour)",
+      "group": "armor",
+      "tier": 2,
+      "ilvl_req": 12,
+      "weight": 5,
+      "ranges": { "armor": [8, 16] }
+    },
+    {
+      "id": "resist_fire_t1",
+      "name": "Fireproof ({} fire res)",
+      "group": "resist_fire",
+      "tier": 1,
+      "ilvl_req": 3,
+      "weight": 8,
+      "ranges": { "resist.fire": [0.1, 0.25] }
+    },
+    {
+      "id": "resist_cold_t1",
+      "name": "Insulated ({} cold res)",
+      "group": "resist_cold",
+      "tier": 1,
+      "ilvl_req": 3,
+      "weight": 8,
+      "ranges": { "resist.cold": [0.1, 0.25] }
+    },
+    {
+      "id": "move_speed_t1",
+      "name": "Fleet (+{} speed)",
+      "group": "move_speed",
+      "tier": 1,
+      "ilvl_req": 4,
+      "weight": 7,
+      "ranges": { "move_speed": [15, 35] },
+      "grants_tags": ["swift"]
+    },
+    {
+      "id": "move_speed_t2",
+      "name": "Quicksilver (+{} speed)",
+      "group": "move_speed",
+      "tier": 2,
+      "ilvl_req": 13,
+      "weight": 3,
+      "ranges": { "move_speed": [40, 70] },
+      "grants_tags": ["swift", "chain"]
+    }
+  ]
+}
