@@ -89,9 +89,31 @@ near 1.4s at every depth, so offence is keeping pace fine; runs end to attrition
 that no available pick meaningfully offsets. Nothing has cleared floor 15 under
 any policy.
 
-That points at a defensive multiplicative bucket, or a flatter enemy damage
-curve, or both — but which is a design call, not a tuning one, so it is written
-down here rather than guessed at.
+**Round three — flattened the enemy damage curve.** `DAMAGE_GROWTH` 1.16 → 1.10
+(about 8x compounding over a run, down to 3.8x). Depth at 200 runs, as
+`median / p90 / best / cleared floor 15`:
+
+| policy | before | after |
+|---|---|---|
+| `greedy_damage` | 4 / 8 / 11 / 0% | 5 / 11 / 15 / 0.5% |
+| `committed` | 3 / 8 / 11 / 0% | 4 / 10 / 14 / 0% |
+| `random` | 4 / 8 / 11 / 0% | **5 / 14 / 15 / 1.5%** |
+
+Runs go roughly 40% deeper and a few finish for the first time. But the ordering
+is the interesting part: **`random` is now the best policy**, clearly ahead of
+both deliberate ones on p90.
+
+The reason is visible in the time-to-kill column. `random` kills progressively
+slower (2.9s → 5.1s by floor 13) and survives; the damage-optimising policies
+hold near 2.0s and die shallower. Random takes defensive boons about a third of
+the time. Neither `greedy_damage` nor `committed` ever takes one — they score
+purely on `expected_hit`.
+
+So the honest reading is that the tuning question is now blocked on the
+instrument, not the game. No real player picks damage exclusively, which means
+none of the three policies models one, and the most player-like behaviour in the
+set is the random baseline. A policy that trades offence against survival is
+needed before any further number here means much.
 
 Balance is not tuned. Every number above is a measurement of the current state,
 not a target.
