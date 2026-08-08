@@ -49,6 +49,25 @@ sweeping it from `0.3` to `0.7` moves the difficulty curve far more than any
 number in `data/`. That is itself a finding: the balance is more sensitive to
 how well you dodge than to what you're wearing.
 
+Read the per-floor figures with care: only runs that reached a floor contribute
+a sample to it, so deep-floor numbers describe the builds that survived, not the
+average build. The report prints `n` alongside each one for that reason.
+
+### What the first run of it found
+
+At 200 runs and `dodge=0.5`, nothing cleared floor 15 — median depth 5, best 11.
+More interestingly, the four most-taken boons under a damage-greedy policy were
+`ithra_rot`, `morrow_ember`, `karnak_arc` and `vess_rime` at 73–78% each: every
+one of them a *flat elemental damage* boon, all four picked nearly every run.
+
+That is the design leaking. Those boons grant `flat.<type>` and `increased.<type>`
+— gear's buckets — so against a weak base weapon they beat the `more%` boons the
+thesis says should own the power curve. The separation holds in the pipeline (the
+tests prove that) but not in the content. Boons wanting a damage identity should
+express it as `more%` plus a *behavioural* rider, not as flat damage.
+
+Balance is not tuned and the numbers above are a starting point, not a target.
+
 ---
 
 ## The design thesis

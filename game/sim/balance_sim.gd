@@ -193,10 +193,15 @@ func _report(policy: String, result: Dictionary, runs: int) -> void:
 	var ttk: Dictionary = result["ttk_by_floor"]
 	var floors := ttk.keys()
 	floors.sort()
-	var line := "   avg seconds-to-kill:"
+	# Only runs that reached a floor contribute a sample to it, so deep-floor
+	# figures are survivorship-biased — they describe the builds that got there,
+	# not the average build. Printing n alongside keeps that visible instead of
+	# letting a flat-looking curve read as "difficulty is fine at depth".
+	var line := "   avg seconds-to-kill (n = runs that reached the floor):"
 	for f in floors:
 		if f % 3 == 1:
-			line += "  f%d %.1fs" % [f, _mean(ttk[f])]
+			var samples: Array = ttk[f]
+			line += "  f%d %.1fs/n=%d" % [f, _mean(samples), samples.size()]
 	print(line)
 
 	print("   most-picked boons:")
