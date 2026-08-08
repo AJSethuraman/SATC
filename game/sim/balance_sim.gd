@@ -38,10 +38,15 @@ const BOONS_PATH := "res://data/boons.json"
 ## Pick policies, standing in for kinds of player.
 ##
 ## `greedy_damage` always takes the biggest immediate number; `committed` picks
-## a direction early and then scales it; `random` is the floor. If the design
-## works, committed should beat greedy — because a typed multiplier is worth
-## nothing until you have the damage type it multiplies, and greedy cannot see
-## one move ahead.
+## a direction early and then scales it; `random` is the floor.
+##
+## The expectation when `committed` was added was that it would beat greedy,
+## since a typed multiplier is worth nothing until you have the damage type it
+## multiplies and greedy cannot see one move ahead. It does not. At 200 runs it
+## is slightly *worse* (median depth 3 vs 4), and both sit level with `random`.
+## That spread — or rather the lack of one — is the most useful number this
+## simulator currently produces: it says boon choice is not what decides a run.
+## See the README for where the pressure is actually coming from.
 const POLICIES: Array[String] = ["greedy_damage", "committed", "random"]
 
 

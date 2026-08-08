@@ -53,20 +53,48 @@ Read the per-floor figures with care: only runs that reached a floor contribute
 a sample to it, so deep-floor numbers describe the builds that survived, not the
 average build. The report prints `n` alongside each one for that reason.
 
-### What the first run of it found
+### What it has found so far
 
-At 200 runs and `dodge=0.5`, nothing cleared floor 15 — median depth 5, best 11.
-More interestingly, the four most-taken boons under a damage-greedy policy were
-`ithra_rot`, `morrow_ember`, `karnak_arc` and `vess_rime` at 73–78% each: every
-one of them a *flat elemental damage* boon, all four picked nearly every run.
+**Round one — a boon monoculture.** The four most-taken boons under a
+damage-greedy policy were `ithra_rot`, `morrow_ember`, `karnak_arc` and
+`vess_rime` at 73–78% each: every one a *flat elemental damage* boon, taken in
+nearly every run. That was the design leaking — those boons granted
+`flat.<type>` and `increased.<type>`, which are gear's buckets, so against a weak
+base weapon they beat the `more%` boons meant to own the power curve.
 
-That is the design leaking. Those boons grant `flat.<type>` and `increased.<type>`
-— gear's buckets — so against a weak base weapon they beat the `more%` boons the
-thesis says should own the power curve. The separation holds in the pipeline (the
-tests prove that) but not in the content. Boons wanting a damage identity should
-express it as `more%` plus a *behavioural* rider, not as flat damage.
+Fixed by giving `more%` a typed form (`more.<type>`) and moving the elemental
+gods onto it. A typed multiplier is worth exactly zero to a build with no damage
+of that type, which is what stops it being a universally correct pick. Result at
+200 runs:
 
-Balance is not tuned and the numbers above are a starting point, not a target.
+| | before | after |
+|---|---|---|
+| most-taken boon appears in | 78% of runs | **51%** |
+| boons taken in ≥5% of runs | — | **17 of 24** |
+
+**Round two — two findings, one of them against my own prediction.**
+
+`committed` (pick a direction, then scale it) was added expecting it to beat
+`greedy_damage`, since greedy can't see that a multiplier needs something to
+multiply. It doesn't. Median depth 3 vs 4 — slightly *worse*.
+
+And the sharper version of the same result: **`random` performs about as well as
+either** (median 4, same p90 of 8, same best of 11). Boon choice is currently not
+what decides a run.
+
+The likely cause is that the power curve is one-sided. Boons scale damage
+multiplicatively but scale survival only in flat lumps — `armor: 5`,
+`max_health: 30` — while enemy damage grows at `1.16^depth`. Time-to-kill stays
+near 1.4s at every depth, so offence is keeping pace fine; runs end to attrition
+that no available pick meaningfully offsets. Nothing has cleared floor 15 under
+any policy.
+
+That points at a defensive multiplicative bucket, or a flatter enemy damage
+curve, or both — but which is a design call, not a tuning one, so it is written
+down here rather than guessed at.
+
+Balance is not tuned. Every number above is a measurement of the current state,
+not a target.
 
 ---
 
