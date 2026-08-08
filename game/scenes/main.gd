@@ -16,8 +16,8 @@ const BOONS_PATH := "res://data/boons.json"
 
 const ENEMIES_BASE := 5
 const ELITE_EVERY := 3
-const SPAWN_MARGIN := 3.0
-const MIN_SPAWN_DISTANCE := 9.0
+const SPAWN_MARGIN := 2.5
+const MIN_SPAWN_DISTANCE := 7.0
 
 var run: RunState
 var generator: ItemGenerator

@@ -26,7 +26,7 @@ extends RefCounted
 const UNITS_PER_PIXEL := 1.0 / 32.0
 
 ## Arena footprint on the ground plane, in metres.
-const ARENA := Vector2(46.0, 30.0)
+const ARENA := Vector2(26.0, 20.0)
 const WALL_THICKNESS := 1.2
 const WALL_HEIGHT := 1.6
 
@@ -113,9 +113,17 @@ const BOB_SPEED := 2.2
 ## Seconds the white hit-flash lasts on a struck body.
 const FLASH_TIME := 0.12
 
-## The swing wedge that draws the arc, and how fast it fades.
+## The swing arc, and how fast it fades.
+##
+## Drawn as a band rather than a filled fan: a solid wedge from the feet to full
+## reach reads as a pizza slice sitting on the floor, where a ring segment reads
+## as the path a blade swept through. Inner edge as a fraction of reach.
 const SLASH_FADE := 7.0
-const SLASH_SEGMENTS := 18
+const SLASH_SEGMENTS := 20
+const SLASH_INNER_RATIO := 0.45
+const SLASH_ALPHA := 0.6
+## Lifted just off the floor so it does not z-fight with it.
+const SLASH_HEIGHT := 0.14
 
 # --- Enemies ------------------------------------------------------------
 const ENEMY_CONTACT_RANGE := 1.5
@@ -123,7 +131,7 @@ const ENEMY_ATTACK_COOLDOWN := 1.25
 ## Telegraph before an enemy commits. This is what makes an attack dodgeable
 ## rather than unfair.
 const ENEMY_WINDUP := 0.35
-const ENEMY_SEPARATION := 1.3
+const ENEMY_SEPARATION := 1.7
 ## How much a winding-up enemy swells, as a scale multiplier.
 const ENEMY_TELL_SWELL := 1.18
 
@@ -135,7 +143,7 @@ const CAMERA_ELEVATION := 42.0
 const CAMERA_AZIMUTH := 45.0
 ## Orthographic, so there is no perspective distortion across the arena and
 ## depth reads purely from the angle and the shadows.
-const CAMERA_SIZE := 19.0
+const CAMERA_SIZE := 11.0
 const CAMERA_DISTANCE := 45.0
 
 ## Fraction of the distance to the player the camera closes per second. Lower

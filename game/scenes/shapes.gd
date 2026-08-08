@@ -8,10 +8,16 @@ extends RefCounted
 ## behaviour rather than about mesh plumbing.
 
 
-## A flat wedge on the XZ plane: a triangle fan spanning `2 * half_angle_deg`,
-## used to draw the attack arc. Built rather than authored because a torus
-## segment is not a primitive Godot ships and a quad reads nothing like a swing.
-static func arc_wedge(radius: float, half_angle_deg: float, segments: int) -> ArrayMesh:
+## A flat ring segment on the XZ plane spanning `2 * half_angle_deg`, used to
+## draw the attack arc.
+##
+## A band rather than a filled fan on purpose: a solid wedge running from the
+## feet out to full reach reads as a pizza slice lying on the floor, whereas a
+## segment reads as the path a blade swept through. Built rather than authored
+## because Godot ships no ring-segment primitive and a quad reads as neither.
+static func arc_band(
+	inner_radius: float, outer_radius: float, half_angle_deg: float, segments: int
+) -> ArrayMesh:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
@@ -22,18 +28,32 @@ static func arc_wedge(radius: float, half_angle_deg: float, segments: int) -> Ar
 	for i in segments:
 		var a0 := -half + step * float(i)
 		var a1 := a0 + step
-		# Forward is -Z, so the wedge points the way the body faces.
-		var p0 := Vector3(sin(a0), 0.0, -cos(a0)) * radius
-		var p1 := Vector3(sin(a1), 0.0, -cos(a1)) * radius
+		# Forward is -Z, so the arc sweeps across the way the body faces.
+		var dir0 := Vector3(sin(a0), 0.0, -cos(a0))
+		var dir1 := Vector3(sin(a1), 0.0, -cos(a1))
+		var inner0 := dir0 * inner_radius
+		var inner1 := dir1 * inner_radius
+		var outer0 := dir0 * outer_radius
+		var outer1 := dir1 * outer_radius
 
-		verts.append(Vector3.ZERO)
-		verts.append(p0)
-		verts.append(p1)
-		for _n in 3:
+		# Two triangles per segment, wound so the band faces up.
+		verts.append(inner0)
+		verts.append(outer0)
+		verts.append(outer1)
+		verts.append(inner0)
+		verts.append(outer1)
+		verts.append(inner1)
+		for _n in 6:
 			normals.append(Vector3.UP)
-		uvs.append(Vector2(0.5, 1.0))
-		uvs.append(Vector2(0.0, 0.0))
-		uvs.append(Vector2(1.0, 0.0))
+
+		var u0 := float(i) / float(segments)
+		var u1 := float(i + 1) / float(segments)
+		uvs.append(Vector2(u0, 0.0))
+		uvs.append(Vector2(u0, 1.0))
+		uvs.append(Vector2(u1, 1.0))
+		uvs.append(Vector2(u0, 0.0))
+		uvs.append(Vector2(u1, 1.0))
+		uvs.append(Vector2(u1, 0.0))
 
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)

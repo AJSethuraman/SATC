@@ -85,11 +85,16 @@ func _ready() -> void:
 	add_child(_body)
 
 	_slash = MeshInstance3D.new()
-	_slash.mesh = Shapes.arc_wedge(Feel.ATTACK_RANGE, Feel.ATTACK_ARC, Feel.SLASH_SEGMENTS)
+	_slash.mesh = Shapes.arc_band(
+		Feel.ATTACK_RANGE * Feel.SLASH_INNER_RATIO,
+		Feel.ATTACK_RANGE,
+		Feel.ATTACK_ARC,
+		Feel.SLASH_SEGMENTS
+	)
 	_slash_material = Shapes.glow(Feel.COLOUR_SLASH)
 	_slash_material.albedo_color.a = 0.0
 	_slash.material_override = _slash_material
-	_slash.position = Vector3(0.0, 0.12, 0.0)
+	_slash.position = Vector3(0.0, Feel.SLASH_HEIGHT, 0.0)
 	add_child(_slash)
 
 
@@ -138,7 +143,7 @@ func _tick_timers(delta: float) -> void:
 		State.WINDUP:
 			_state = State.ACTIVE
 			_state_timer = Feel.ATTACK_ACTIVE
-			_slash_material.albedo_color.a = 0.85
+			_slash_material.albedo_color.a = Feel.SLASH_ALPHA
 			attacked.emit(global_position, facing)
 		State.ACTIVE:
 			_state = State.RECOVERY
