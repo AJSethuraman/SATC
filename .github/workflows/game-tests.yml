@@ -90,14 +90,8 @@ jobs:
       - name: Render a frame and check it is not blank
         # A boot test proves nothing crashed; it cannot notice that the screen is
         # empty. Render one real frame under a virtual display. The script fails
-        # if the frame is one flat colour, which is what "the scene is not
-        # drawing" actually looks like.
-        #
-        # Non-blocking for now: this check is currently, correctly, red — the
-        # scene really is not drawing. It stays visible in the log and the frame
-        # still uploads, but it does not fail the build while the underlying bug
-        # is open. Flip this back to blocking once the frame is not blank.
-        continue-on-error: true
+        # if the frame is dominated by the engine's clear colour, which is what
+        # "the scene contributed nothing" actually looks like.
         run: |
           set -uo pipefail
           sudo apt-get update -qq

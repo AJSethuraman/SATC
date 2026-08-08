@@ -21,10 +21,10 @@ const OUTPUT := "res://frame.png"
 ## Sample every Nth pixel in both axes. Plenty for "is anything drawing".
 const SAMPLE_STEP := 8
 
-## If one colour covers more than this share of sampled pixels, the scene is not
-## drawing. A legitimate frame here has walls, a floor, a player and enemies on
-## it, so it never comes close.
-const MAX_FLAT_SHARE := 0.98
+## Lower bound on distinct sampled colours. Placeholder art plus anti-aliased
+## HUD text clears this comfortably; a window showing only the engine's own
+## overlay does not.
+const MIN_DISTINCT_COLOURS := 8
 
 var _frames := 0
 
@@ -74,10 +74,32 @@ func _process(_delta: float) -> bool:
 	# camera is simply looking at empty floor.
 	print("capture_frame: dominant colours %s" % str(report["top"]))
 
-	if report["share"] > MAX_FLAT_SHARE:
+	# What "nothing drew" actually looks like is not "one flat colour" — a large
+	# arena is legitimately ~99% floor, and an earlier version of this check
+	# failed the build over exactly that. It looks like the frame being dominated
+	# by the engine's own clear colour, because that is the only thing left when
+	# the scene contributes nothing.
+	#
+	# That failure is not hypothetical either: running the project before it has
+	# been imported leaves class_name globals unregistered, main.gd fails to
+	# compile, the root node silently loses its script, and the window shows the
+	# clear colour and nothing else.
+	var clear_colour: Color = ProjectSettings.get_setting(
+		"rendering/environment/defaults/default_clear_color", Color(0.3, 0.3, 0.3)
+	)
+	if report["dominant"] == clear_colour.to_html(false):
 		push_error(
-			"capture_frame: frame is one flat colour (%.1f%% of sampled pixels) — the scene is not drawing"
-			% (report["share"] * 100.0)
+			"capture_frame: the frame is mostly the engine clear colour (#%s) — the scene "
+			% clear_colour.to_html(false)
+			+ "contributed nothing. Usually a script that failed to compile."
+		)
+		quit(1)
+		return true
+
+	if int(report["distinct"]) < MIN_DISTINCT_COLOURS:
+		push_error(
+			"capture_frame: only %d distinct colours in the frame — nothing but flat background"
+			% int(report["distinct"])
 		)
 		quit(1)
 		return true
@@ -142,5 +164,6 @@ func _flatness(image: Image) -> Dictionary:
 	return {
 		"distinct": counts.size(),
 		"share": float(top) / maxf(1.0, float(total)),
+		"dominant": "" if ranked.is_empty() else str(ranked[0]),
 		"top": top_list,
 	}

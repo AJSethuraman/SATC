@@ -9,9 +9,24 @@ placeholder shapes; everything you can't see is tested.
 
 ## Running it
 
+**Import the project before running it.** Everything here leans on `class_name`
+globals (`Damage`, `StatBlock`, `ItemGenerator`, `Feel`, …), and those are
+registered in the generated `.godot/` folder. Run without it and `main.gd` fails
+to compile, the root node silently loses its script, and you get a window showing
+nothing but the engine's clear colour — no error dialog, no crash.
+
+Opening the project in the editor imports it for you. From a terminal:
+
 ```bash
-godot --path game            # or open game/project.godot in the editor and hit F5
+godot --headless --path game --import   # once
+godot --path game
 ```
+
+> **Trap:** do not leave the Godot executable inside the `game/` folder. An
+> executable sitting next to a `project.godot` *runs that project directly*
+> instead of opening the Project Manager — so it launches the game, skips the
+> import, and produces exactly the blank window above. Keep the binary anywhere
+> else and use **Import** in the Project Manager.
 
 Controls: `WASD` move · mouse aim · `LMB`/`J` attack · `Space`/`Shift` dash ·
 `R` restart after death.
