@@ -29,13 +29,30 @@ const MAX_FLAT_SHARE := 0.98
 var _frames := 0
 
 
+var _main: Node
+
+
 func _initialize() -> void:
 	var packed: PackedScene = load("res://scenes/main.tscn")
 	if packed == null:
 		push_error("capture_frame: could not load res://scenes/main.tscn")
 		quit(1)
 		return
-	root.add_child(packed.instantiate())
+
+	_main = packed.instantiate()
+	# Diagnostics, because a scene that builds nothing looks identical to a scene
+	# that built everything off-camera, and both render a flat frame.
+	print("capture_frame: root is %s, script=%s" % [_main.get_class(), _main.get_script()])
+	root.add_child(_main)
+	print("capture_frame: viewport %s" % str(root.get_visible_rect().size))
+	print("capture_frame: %d children after _ready:" % _main.get_child_count())
+	for c in _main.get_children():
+		var where := ""
+		if c is Node2D:
+			where = " at %s" % str((c as Node2D).global_position)
+		elif c is Control:
+			where = " at %s size %s" % [str((c as Control).position), str((c as Control).size)]
+		print("   - %s (%s)%s" % [c.name, c.get_class(), where])
 
 
 func _process(_delta: float) -> bool:
