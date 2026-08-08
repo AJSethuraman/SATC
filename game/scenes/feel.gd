@@ -131,7 +131,10 @@ const ENEMY_ATTACK_COOLDOWN := 1.25
 ## Telegraph before an enemy commits. This is what makes an attack dodgeable
 ## rather than unfair.
 const ENEMY_WINDUP := 0.35
-const ENEMY_SEPARATION := 1.7
+const ENEMY_SEPARATION := 2.1
+## Strength of that push. Must exceed the chase speed at close range or the pack
+## collapses into one overlapping mass — which is what it did at 4.0.
+const SEPARATION_FORCE := 9.0
 ## How much a winding-up enemy swells, as a scale multiplier.
 const ENEMY_TELL_SWELL := 1.18
 

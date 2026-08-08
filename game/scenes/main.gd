@@ -264,10 +264,12 @@ func _build_arena() -> void:
 	floor_mesh.size = Vector3(Feel.ARENA.x, 0.4, Feel.ARENA.y)
 	var floor_node := MeshInstance3D.new()
 	floor_node.mesh = floor_mesh
-	floor_node.material_override = Shapes.solid(Feel.COLOUR_FLOOR)
+	floor_node.material_override = Shapes.tiled_floor(Feel.COLOUR_FLOOR)
 	# Top face flush with y = 0, which is the plane everything else stands on.
 	floor_node.position = Vector3(0.0, -0.2, 0.0)
 	add_child(floor_node)
+
+	_scatter_rubble()
 
 	var t := Feel.WALL_THICKNESS
 	var h := Feel.WALL_HEIGHT
@@ -301,6 +303,34 @@ func _build_arena() -> void:
 		vis.material_override = wall_material
 		vis.position = centre
 		add_child(vis)
+
+
+## Low blocks scattered across the floor, purely decorative — no collision, so
+## they never interfere with a dash. They exist because a flat plane gives the
+## eye nothing to measure movement against; a handful of objects casting their
+## own small shadows makes the arena read as a place with depth rather than as a
+## backdrop. Seeded, so the layout is the same every run rather than flickering
+## into a new arrangement each restart.
+func _scatter_rubble() -> void:
+	var rng := Rng.new(4242)
+	var half := Feel.ARENA * 0.5
+	var material := Shapes.solid(Feel.COLOUR_WALL.darkened(0.15))
+
+	for i in 26:
+		var mesh := BoxMesh.new()
+		var w := rng.randf_range(0.3, 1.1)
+		mesh.size = Vector3(w, rng.randf_range(0.12, 0.34), rng.randf_range(0.3, 1.1))
+
+		var block := MeshInstance3D.new()
+		block.mesh = mesh
+		block.material_override = material
+		block.position = Vector3(
+			rng.randf_range(-half.x + 1.5, half.x - 1.5),
+			mesh.size.y * 0.5,
+			rng.randf_range(-half.y + 1.5, half.y - 1.5)
+		)
+		block.basis = Basis(Vector3.UP, rng.randf_range(0.0, TAU))
+		add_child(block)
 
 
 func _build_hud() -> void:

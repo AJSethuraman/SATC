@@ -66,6 +66,34 @@ static func arc_band(
 	return mesh
 
 
+## Tiled floor surface, generated rather than authored.
+##
+## An untextured plane is the single thing that most makes a scene of primitives
+## look unfinished: with no surface detail there is no sense of scale, no sense
+## of motion when you cross it, and the eye reads it as empty background rather
+## than as ground. A grid fixes all three for the cost of a 64px image.
+static func tiled_floor(base: Color, tile_px: int = 64) -> StandardMaterial3D:
+	var grout := base.lightened(0.16)
+	var rng := Rng.new(90210)
+
+	var img := Image.create(tile_px, tile_px, false, Image.FORMAT_RGB8)
+	for y in tile_px:
+		for x in tile_px:
+			var on_edge := x < 2 or y < 2
+			var colour := grout if on_edge else base
+			# A little per-pixel grain, so large flat areas are not perfectly
+			# uniform and the light has something to catch.
+			var grain := rng.randf_range(-0.012, 0.012)
+			img.set_pixel(x, y, Color(colour.r + grain, colour.g + grain, colour.b + grain))
+
+	var mat := solid(base)
+	mat.albedo_color = Color.WHITE
+	mat.albedo_texture = ImageTexture.create_from_image(img)
+	# One tile every two metres, so the grid gives the player a sense of pace.
+	mat.uv1_scale = Vector3(Feel.ARENA.x * 0.5, Feel.ARENA.y * 0.5, 1.0)
+	return mat
+
+
 ## Matte surface for bodies and terrain. Low specular on purpose: shiny
 ## primitives look like a physics demo, matte ones read as objects.
 static func solid(colour: Color) -> StandardMaterial3D:

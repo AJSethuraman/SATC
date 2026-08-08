@@ -136,7 +136,9 @@ func _separation() -> Vector3:
 		away.y = 0.0
 		var d := away.length()
 		if d > 0.05 and d < Feel.ENEMY_SEPARATION:
-			push += away.normalized() * (Feel.ENEMY_SEPARATION - d) * 4.0
+			# Has to out-push the chase velocity at close range, or a pack simply
+			# converges into one overlapping mass and reads as a single blob.
+			push += away.normalized() * (Feel.ENEMY_SEPARATION - d) * Feel.SEPARATION_FORCE
 	return push
 
 
