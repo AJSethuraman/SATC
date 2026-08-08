@@ -60,6 +60,26 @@ func gear_tags() -> Array[String]:
 	return out
 
 
+func boon_tags() -> Array[String]:
+	var out: Array[String] = []
+	for b in boons:
+		for t in b.tags:
+			if not out.has(t):
+				out.append(t)
+	return out
+
+
+## Everything the boon pool gates on: what you are wearing plus what you have
+## already committed to. Gear remains the wider source; entry boons exist so a
+## run is never locked out of every god by an unlucky drop sequence.
+func active_tags() -> Array[String]:
+	var out := gear_tags()
+	for t in boon_tags():
+		if not out.has(t):
+			out.append(t)
+	return out
+
+
 func owned_boon_ids() -> Array:
 	return boons.map(func(b): return b.id)
 

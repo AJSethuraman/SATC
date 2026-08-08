@@ -62,13 +62,78 @@ func test_every_boon_modifier_key_is_in_the_grammar() -> void:
 
 func test_affixes_never_grant_more_multipliers() -> void:
 	# This is the design constraint that keeps gear build-defining. If an affix
-	# ever rolls `more`, gear starts competing with boons on the power curve and
-	# the two systems stop being distinguishable.
+	# ever rolls `more` — global or typed — gear starts competing with boons on
+	# the power curve and the two systems stop being distinguishable.
 	for a in _items().get("affixes", []):
-		assert_false(
-			a.get("ranges", {}).has("more"),
-			"affix '%s' grants a `more` multiplier; that bucket belongs to boons" % a.get("id")
-		)
+		for key in a.get("ranges", {}):
+			var k := str(key)
+			assert_false(
+				k == "more" or k.begins_with("more."),
+				"affix '%s' grants '%s'; the more bucket belongs to boons" % [a.get("id"), k]
+			)
+
+
+func test_every_typed_more_boon_can_actually_do_something() -> void:
+	# A `more.<type>` modifier is worth exactly zero to a build with no damage
+	# of that type. Such a boon is therefore only legitimate if it either gates
+	# on a tag implying that type, or seeds the type itself. Without this rule
+	# it is entirely possible to ship a boon that is legal, offerable, and a
+	# guaranteed waste of the player's pick.
+	for b in _boons().get("boons", []):
+		var mods: Dictionary = b.get("mods", {})
+		for key in mods:
+			var k := str(key)
+			if not k.begins_with("more."):
+				continue
+			var dmg_type := k.substr(5)
+
+			var seeds_itself := (
+				mods.has("flat.%s" % dmg_type) or mods.has("increased.%s" % dmg_type)
+			)
+			var gated_on_type := false
+			for t in b.get("requires_tags", []):
+				if Boon.TAG_DAMAGE_TYPE.get(str(t), "") == dmg_type:
+					gated_on_type = true
+
+			assert_true(
+				seeds_itself or gated_on_type or dmg_type == "physical",
+				"boon '%s' grants '%s' but neither seeds %s damage nor gates on a tag that implies it"
+					% [b.get("id"), k, dmg_type]
+			)
+
+
+func test_boon_granted_tags_are_known() -> void:
+	for b in _boons().get("boons", []):
+		for t in b.get("grants_tags", []):
+			assert_true(
+				Boon.TAG_DAMAGE_TYPE.has(str(t)) or str(t) == "swift",
+				"boon '%s' grants unrecognised tag '%s'" % [b.get("id"), t]
+			)
+
+
+func test_each_elemental_god_has_an_ungated_way_in() -> void:
+	# If every boon of a god is tag-gated and no affix rolled that tag, the god
+	# is unreachable for the whole run. Each tag that gates something must be
+	# obtainable from a boon that is itself ungated.
+	var gating_tags: Array = []
+	for b in _boons().get("boons", []):
+		for t in b.get("requires_tags", []):
+			if not gating_tags.has(str(t)):
+				gating_tags.append(str(t))
+
+	var entry_tags: Array = []
+	for b in _boons().get("boons", []):
+		if not b.get("requires_tags", []).is_empty():
+			continue
+		if not b.get("requires_boons", []).is_empty():
+			continue
+		for t in b.get("grants_tags", []):
+			entry_tags.append(str(t))
+
+	for t in gating_tags:
+		if t == "brutal" or t == "bleed":
+			continue  # gear-only tags, deliberately not offered by any god
+		assert_has(entry_tags, t, "tag '%s' gates boons but no ungated boon grants it" % t)
 
 
 func test_affix_ranges_are_well_formed() -> void:
@@ -105,11 +170,16 @@ func test_boon_prerequisites_reference_real_boons() -> void:
 			assert_has(ids, str(req), "boon '%s' requires unknown boon '%s'" % [b.get("id"), req])
 
 
-func test_every_required_tag_is_reachable_from_some_affix() -> void:
-	# A boon gated on a tag no affix can ever grant is dead content.
+func test_every_required_tag_is_reachable() -> void:
+	# A boon gated on a tag nothing can ever grant is dead content. Tags now
+	# come from two places, so both count as a source.
 	var grantable: Array = []
 	for a in _items().get("affixes", []):
 		for t in a.get("grants_tags", []):
+			if not grantable.has(str(t)):
+				grantable.append(str(t))
+	for b in _boons().get("boons", []):
+		for t in b.get("grants_tags", []):
 			if not grantable.has(str(t)):
 				grantable.append(str(t))
 
@@ -117,7 +187,7 @@ func test_every_required_tag_is_reachable_from_some_affix() -> void:
 		for t in b.get("requires_tags", []):
 			assert_has(
 				grantable, str(t),
-				"boon '%s' requires tag '%s', which no affix grants" % [b.get("id"), t]
+				"boon '%s' requires tag '%s', which nothing grants" % [b.get("id"), t]
 			)
 
 
@@ -132,14 +202,20 @@ func test_a_prerequisite_chain_is_satisfiable_alongside_its_tag_gate() -> void:
 	for b in boons:
 		for req_id in b.get("requires_boons", []):
 			var prereq: Dictionary = by_id.get(str(req_id), {})
-			var prereq_tags: Array = prereq.get("requires_tags", [])
 			var own_tags: Array = b.get("requires_tags", [])
-			if prereq_tags.is_empty() or own_tags.is_empty():
+			if own_tags.is_empty():
 				continue
-			# Both gates are "any of", so a shared tag proves one loadout opens both.
-			var shared := own_tags.any(func(t): return prereq_tags.has(t))
+
+			# The chain is reachable if one loadout satisfies both gates. The
+			# prerequisite either shares a required tag, or grants the tag its
+			# dependent needs — which is exactly how the entry boons work.
+			var prereq_tags: Array = prereq.get("requires_tags", [])
+			var prereq_grants: Array = prereq.get("grants_tags", [])
+			var shared := own_tags.any(
+				func(t): return prereq_tags.has(t) or prereq_grants.has(t)
+			)
 			assert_true(
-				shared,
+				shared or prereq_tags.is_empty(),
 				"boon '%s' and its prerequisite '%s' need disjoint tags, so the chain is unreachable"
 					% [b.get("id"), req_id]
 			)

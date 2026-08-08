@@ -32,6 +32,21 @@ const RARITY_WEIGHTS := {
 	Rarity.HEROIC: 1.0,
 }
 
+## Which damage type a gear tag implies the wearer has a source of.
+##
+## Used to check that a `more.<type>` modifier can ever do anything for the
+## build it is offered to: a boon carrying one must either gate on a tag that
+## implies that type, or seed the type itself. Without that rule it is possible
+## to write a boon that is legal, offerable, and worth literally zero.
+const TAG_DAMAGE_TYPE := {
+	"ignite": "fire",
+	"frost": "cold",
+	"chain": "lightning",
+	"venom": "poison",
+	"brutal": "physical",
+	"bleed": "physical",
+}
+
 var id: String = ""
 var display_name: String = ""
 var god: String = ""
@@ -49,6 +64,11 @@ var requires_tags: Array[String] = []
 ## Boon ids that must already be owned — this is the duo-boon hook.
 var requires_boons: Array[String] = []
 
+## Tags this boon contributes once taken. Each god has one ungated entry boon
+## that grants its tag, so a run can commit to an element by choice instead of
+## waiting for the right weapon to drop. Gear is still the broader source.
+var grants_tags: Array[String] = []
+
 
 static func from_dict(d: Dictionary) -> Boon:
 	var b := Boon.new()
@@ -63,6 +83,8 @@ static func from_dict(d: Dictionary) -> Boon:
 		b.requires_tags.append(str(t))
 	for r in d.get("requires_boons", []):
 		b.requires_boons.append(str(r))
+	for t in d.get("grants_tags", []):
+		b.grants_tags.append(str(t))
 	return b
 
 
@@ -90,6 +112,7 @@ class Rolled extends RefCounted:
 	var description: String = ""
 	var rarity: Rarity = Rarity.COMMON
 	var mods: Dictionary = {}  # scaled
+	var tags: Array[String] = []
 
 	func label() -> String:
 		return "%s %s" % [Boon.RARITY_NAMES[rarity], display_name]
@@ -106,6 +129,7 @@ func at_rarity(r: Rarity) -> Rolled:
 	out.god = god
 	out.description = description
 	out.rarity = r
+	out.tags = grants_tags.duplicate()
 	var scale: float = RARITY_SCALE[r]
 	for k in mods:
 		out.mods[str(k)] = float(mods[k]) * scale

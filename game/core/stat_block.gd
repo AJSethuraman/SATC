@@ -8,7 +8,8 @@ extends RefCounted
 ##
 ##   flat.<type>        add flat damage of that type          e.g. "flat.fire"
 ##   increased.<type>   add to the additive increased% bucket e.g. "increased.physical"
-##   more               append a multiplicative modifier      (boons only, by convention)
+##   more               append a multiplicative modifier, all types  (boons only)
+##   more.<type>        append a multiplicative modifier, one type   (boons only)
 ##   weapon_min         raise the low end of the weapon roll
 ##   weapon_max         raise the high end of the weapon roll
 ##   crit_chance        additive, 0..1
@@ -29,7 +30,15 @@ var weapon_split: Dictionary = {Damage.Type.PHYSICAL: 1.0}
 
 var flat_damage: Dictionary = {}
 var increased_pct: Dictionary = {}
+
+## Multiplicative modifiers that apply to every damage type.
 var more_mults: Array[float] = []
+
+## Multiplicative modifiers scoped to one damage type: Type -> Array[float].
+## A fire multiplier on a build that deals no fire damage is worth exactly
+## nothing, which is the point — it is what stops elemental boons from being
+## universally correct picks.
+var more_by_type: Dictionary = {}
 
 var crit_chance: float = 0.05
 var crit_mult: float = 1.5
@@ -53,6 +62,9 @@ func clone() -> StatBlock:
 	c.flat_damage = flat_damage.duplicate()
 	c.increased_pct = increased_pct.duplicate()
 	c.more_mults = more_mults.duplicate()
+	c.more_by_type = {}
+	for t in more_by_type:
+		c.more_by_type[t] = (more_by_type[t] as Array).duplicate()
 	c.crit_chance = crit_chance
 	c.crit_mult = crit_mult
 	c.resistances = resistances.duplicate()
@@ -76,6 +88,11 @@ func apply(key: String, value: float) -> void:
 	elif key.begins_with("resist."):
 		var res_type := Damage.type_from_name(key.substr(7))
 		resistances[res_type] = resistances.get(res_type, 0.0) + value
+	elif key.begins_with("more."):
+		var more_type := Damage.type_from_name(key.substr(5))
+		if not more_by_type.has(more_type):
+			more_by_type[more_type] = []
+		(more_by_type[more_type] as Array).append(value)
 	elif key == "more":
 		more_mults.append(value)
 	elif key == "weapon_min":
@@ -113,7 +130,18 @@ const SCALAR_KEYS := [
 	"move_speed",
 ]
 
-const TYPED_PREFIXES := ["flat.", "increased.", "resist."]
+const TYPED_PREFIXES := ["flat.", "increased.", "resist.", "more."]
+
+
+## Product of every multiplicative modifier that applies to damage type `t` —
+## the global ones and the ones scoped to that type.
+func more_multiplier(t: int) -> float:
+	var m := 1.0
+	for v in more_mults:
+		m *= 1.0 + v
+	for v in more_by_type.get(t, []):
+		m *= 1.0 + float(v)
+	return m
 
 
 ## Whether `key` is part of the modifier grammar. Used by the data validation
@@ -140,9 +168,6 @@ func add_tags(new_tags: Array) -> void:
 ## itself always goes through Damage.resolve so crits actually feel random.
 func expected_hit(defender: StatBlock) -> float:
 	var base := (weapon_min + weapon_max) * 0.5
-	var more_mult := 1.0
-	for m in more_mults:
-		more_mult *= (1.0 + m)
 	var avg_crit := 1.0 + clampf(crit_chance, 0.0, 1.0) * (crit_mult - 1.0)
 
 	var total := 0.0
@@ -151,7 +176,7 @@ func expected_hit(defender: StatBlock) -> float:
 		if raw <= 0.0:
 			continue
 		raw *= 1.0 + increased_pct.get(t, 0.0)
-		raw *= more_mult * avg_crit
+		raw *= more_multiplier(t) * avg_crit
 		var resist: float = clampf(
 			defender.resistances.get(t, 0.0), Damage.RESIST_FLOOR, Damage.RESIST_CAP
 		)

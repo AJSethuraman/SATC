@@ -61,6 +61,59 @@ func test_the_two_buckets_do_not_collapse_into_each_other() -> void:
 	assert_gt(mul_hit, add_hit, "the same headline % must be stronger as more% than as increased%")
 
 
+func test_typed_more_only_scales_its_own_damage_type() -> void:
+	var a := _attacker()
+	a.apply("flat.fire", 100.0)
+	a.apply("more.fire", 1.0)
+	# physical 100 (untouched) + fire 100*2 = 300.
+	assert_almost_eq(Damage.resolve(a, _dummy(), Rng.new(1)).total, 300.0, 0.01)
+
+
+func test_typed_more_is_worthless_without_that_damage_type() -> void:
+	# The whole reason elemental boons stopped being universally correct picks:
+	# a fire multiplier is a commitment, not a free upgrade. A build dealing no
+	# fire damage must gain exactly nothing from it.
+	var plain := _attacker()
+	var fire_buffed := _attacker()
+	fire_buffed.apply("more.fire", 5.0)
+	assert_almost_eq(
+		Damage.resolve(fire_buffed, _dummy(), Rng.new(1)).total,
+		Damage.resolve(plain, _dummy(), Rng.new(1)).total,
+		0.01,
+		"more.fire changed a build that deals no fire damage"
+	)
+
+
+func test_typed_and_global_more_compound() -> void:
+	var a := _attacker()
+	a.weapon_min = 0.0
+	a.weapon_max = 0.0
+	a.apply("flat.fire", 100.0)
+	a.apply("more", 0.5)
+	a.apply("more.fire", 0.5)
+	# 100 * 1.5 * 1.5 = 225 — the two buckets multiply, they do not sum.
+	assert_almost_eq(Damage.resolve(a, _dummy(), Rng.new(1)).total, 225.0, 0.01)
+
+
+func test_more_multiplier_reports_per_type() -> void:
+	var a := _attacker()
+	a.apply("more", 0.5)
+	a.apply("more.fire", 1.0)
+	assert_almost_eq(a.more_multiplier(Damage.Type.PHYSICAL), 1.5, 0.0001)
+	assert_almost_eq(a.more_multiplier(Damage.Type.FIRE), 3.0, 0.0001)
+
+
+func test_clone_does_not_share_typed_more_arrays() -> void:
+	# A shallow copy here would let a trial build in the balance simulator
+	# permanently buff the run it was branched from.
+	var a := _attacker()
+	a.apply("more.fire", 0.5)
+	var c := a.clone()
+	c.apply("more.fire", 0.5)
+	assert_almost_eq(a.more_multiplier(Damage.Type.FIRE), 1.5, 0.0001, "clone leaked back into the original")
+	assert_almost_eq(c.more_multiplier(Damage.Type.FIRE), 2.25, 0.0001)
+
+
 func test_flat_damage_is_amplified_by_increased() -> void:
 	var a := _attacker()
 	a.apply("flat.physical", 50.0)
@@ -165,6 +218,7 @@ func test_expected_hit_matches_the_sampled_average() -> void:
 	a.apply("flat.fire", 30.0)
 	a.apply("increased.physical", 0.4)
 	a.apply("more", 0.25)
+	a.apply("more.fire", 0.6)
 	a.crit_chance = 0.3
 	a.crit_mult = 2.0
 

@@ -35,8 +35,14 @@ const FLOOR_HEAL := 0.25
 const ITEMS_PATH := "res://data/items.json"
 const BOONS_PATH := "res://data/boons.json"
 
-## Typed so the loop variable is a String rather than a Variant.
-const POLICIES: Array[String] = ["greedy_damage", "random"]
+## Pick policies, standing in for kinds of player.
+##
+## `greedy_damage` always takes the biggest immediate number; `committed` picks
+## a direction early and then scales it; `random` is the floor. If the design
+## works, committed should beat greedy — because a typed multiplier is worth
+## nothing until you have the damage type it multiplies, and greedy cannot see
+## one move ahead.
+const POLICIES: Array[String] = ["greedy_damage", "committed", "random"]
 
 
 func _initialize() -> void:
@@ -131,7 +137,7 @@ func _simulate_one(
 			run.equip(drop)
 
 		var offer := pool.offer(
-			run.boon_rng, run.owned_boon_ids(), run.owned_boon_groups(), run.gear_tags(), 3
+			run.boon_rng, run.owned_boon_ids(), run.owned_boon_groups(), run.active_tags(), 3
 		)
 		if not offer.is_empty():
 			var choice := _choose(run, offer, policy)
@@ -141,7 +147,7 @@ func _simulate_one(
 		var healed := run.build_stats().max_health * FLOOR_HEAL
 		run.health = minf(run.build_stats().max_health, run.health + healed)
 
-	return {"depth": depth, "boons": picked_ids, "tags": run.gear_tags(), "ttk": ttk}
+	return {"depth": depth, "boons": picked_ids, "tags": run.active_tags(), "ttk": ttk}
 
 
 ## Would equipping this raise expected damage against a same-depth enemy?
@@ -165,6 +171,14 @@ func _is_upgrade(run: RunState, drop: Item) -> bool:
 func _choose(run: RunState, offer: Array, policy: String) -> Boon.Rolled:
 	if policy == "random":
 		return offer[run.boon_rng.randi_range(0, offer.size() - 1)]
+
+	if policy == "committed":
+		# Take a direction before taking a number: while the build has fewer
+		# than two tags, prefer anything that grants one. After that, greedy.
+		if run.active_tags().size() < 2:
+			for candidate in offer:
+				if not candidate.tags.is_empty():
+					return candidate
 
 	# greedy_damage: take whatever raises expected damage most right now.
 	var enemy := RunState.enemy_for_floor(run.floor_number)
@@ -204,13 +218,27 @@ func _report(policy: String, result: Dictionary, runs: int) -> void:
 			line += "  f%d %.1fs/n=%d" % [f, _mean(samples), samples.size()]
 	print(line)
 
+	# Build diversity, the metric this whole rebalance was aimed at. A handful
+	# of boons appearing in nearly every run means there is one correct build
+	# and the choices are decorative.
+	var picks: Dictionary = result["boon_picks"]
+	var common := 0
+	var top_rate := 0.0
+	for k in picks:
+		var rate := float(picks[k]) / float(runs)
+		top_rate = maxf(top_rate, rate)
+		if rate >= 0.05:
+			common += 1
+	print("   diversity: %d boons taken in >=5%% of runs | most-taken appears in %.0f%%"
+		% [common, 100.0 * top_rate])
+
 	print("   most-picked boons:")
-	for entry in _top(result["boon_picks"], 5):
+	for entry in _top(picks, 5):
 		print("     %-22s %5d picks (%.0f%% of runs)" % [entry[0], entry[1], 100.0 * entry[1] / float(runs)])
 
 	var tags: Array = _top(result["tag_counts"], 5)
 	if not tags.is_empty():
-		var tag_line := "   gear tags seen:  "
+		var tag_line := "   build tags seen:  "
 		for entry in tags:
 			tag_line += "%s %.0f%%  " % [entry[0], 100.0 * entry[1] / float(runs)]
 		print(tag_line)

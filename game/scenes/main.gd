@@ -131,7 +131,7 @@ func _offer_rewards() -> void:
 	_say("Found %s  (%+.0f%% dmg)" % [drop.display_name(), 100.0 * (after / maxf(before, 0.01) - 1.0)])
 
 	var offer := boon_pool.offer(
-		run.boon_rng, run.owned_boon_ids(), run.owned_boon_groups(), run.gear_tags(), 3
+		run.boon_rng, run.owned_boon_ids(), run.owned_boon_groups(), run.active_tags(), 3
 	)
 	if offer.is_empty():
 		_next_floor()
@@ -281,7 +281,7 @@ func _refresh_hud() -> void:
 				stats.crit_chance * 100.0, stats.crit_mult, _more_product(stats)
 			],
 	]
-	var tags := run.gear_tags()
+	var tags := run.active_tags()
 	if not tags.is_empty():
 		lines.append("tags: " + ", ".join(tags))
 	if not run.boons.is_empty():
@@ -293,10 +293,7 @@ func _refresh_hud() -> void:
 
 
 func _more_product(stats: StatBlock) -> float:
-	var m := 1.0
-	for v in stats.more_mults:
-		m *= 1.0 + v
-	return m
+	return stats.more_multiplier(Damage.Type.PHYSICAL)
 
 
 func _say(msg: String) -> void:

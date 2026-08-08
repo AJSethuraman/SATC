@@ -11,11 +11,16 @@ extends RefCounted
 ##   gear  -> flat + increased%   (build-defining, sums, diminishing in feel)
 ##   boons -> more%               (power-defining, compounds inside one run)
 ##
+## `more%` comes in two forms: global, and scoped to one damage type. The scoped
+## form is what gives an elemental god a real identity — a fire multiplier does
+## nothing at all for a build with no fire damage, so it is a commitment rather
+## than a free upgrade.
+##
 ## Resolution order:
 ##   1. base weapon roll (min..max)
 ##   2. + flat added, per damage type
 ##   3. x (1 + sum of increased%)          <- additive bucket
-##   4. x product of (1 + more%)           <- multiplicative bucket
+##   4. x product of (1 + more%), global and this-type
 ##   5. x crit multiplier, on a crit roll
 ##   6. x (1 - resistance), resistance clamped to [RESIST_FLOOR, RESIST_CAP]
 ##   7. - flat armour, floored at MIN_HIT
@@ -68,11 +73,6 @@ static func resolve(attacker: StatBlock, defender: StatBlock, rng: Rng) -> Resul
 	# 1. Base weapon roll, split across the attacker's declared damage types.
 	var base := rng.randf_range(attacker.weapon_min, attacker.weapon_max)
 
-	# 4. The "more" bucket is type-agnostic — boons scale the whole hit.
-	var more_mult := 1.0
-	for m in attacker.more_mults:
-		more_mult *= (1.0 + m)
-
 	# 5. Crit is rolled once for the hit, not per damage type.
 	var crit := rng.chance(attacker.crit_chance)
 	res.was_crit = crit
@@ -86,8 +86,9 @@ static func resolve(attacker: StatBlock, defender: StatBlock, rng: Rng) -> Resul
 			continue
 		# 3. additive increased%
 		raw *= 1.0 + attacker.increased_pct.get(t, 0.0)
-		# 4 + 5
-		raw *= more_mult * crit_mult
+		# 4 + 5. The multiplier is resolved per type, so a fire-only `more`
+		# leaves the physical portion of the same hit untouched.
+		raw *= attacker.more_multiplier(t) * crit_mult
 		res.pre_mitigation += raw
 
 		# 6. resistance

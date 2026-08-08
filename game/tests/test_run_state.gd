@@ -96,6 +96,58 @@ func test_gear_tags_unlock_boons_for_the_run() -> void:
 	assert_gt(float(geared_count), float(bare_count), "tagged gear must widen the boon pool")
 
 
+func test_boon_granted_tags_join_the_active_set() -> void:
+	var pool := BoonPool.from_json(BOONS_PATH)
+	var run := RunState.start(29)
+	assert_true(run.active_tags().is_empty(), "a fresh run should carry no tags")
+
+	run.take_boon(_boon_by_id(pool, "morrow_ember").at_rarity(Boon.Rarity.COMMON))
+	assert_has(run.boon_tags(), "ignite")
+	assert_has(run.active_tags(), "ignite")
+	assert_false(run.gear_tags().has("ignite"), "a boon tag must not masquerade as a gear tag")
+
+
+func test_active_tags_unions_both_sources_without_duplicates() -> void:
+	var gen := ItemGenerator.from_json(ITEMS_PATH)
+	var pool := BoonPool.from_json(BOONS_PATH)
+	var run := RunState.start(31)
+
+	run.equip(_weapon_granting(gen, "ignite"))
+	run.take_boon(_boon_by_id(pool, "morrow_ember").at_rarity(Boon.Rarity.COMMON))
+
+	var active := run.active_tags()
+	assert_has(active, "ignite")
+	var ignite_count := 0
+	for t in active:
+		if t == "ignite":
+			ignite_count += 1
+	assert_eq(ignite_count, 1, "a tag from both gear and a boon must appear once")
+
+
+func test_a_typed_multiplier_only_pays_off_once_committed() -> void:
+	# End to end: Morrow's amplifier is dead weight on a bare physical build and
+	# live only after the entry boon has seeded fire damage.
+	var pool := BoonPool.from_json(BOONS_PATH)
+	var dummy := StatBlock.new()
+
+	var uncommitted := RunState.start(37)
+	var before := uncommitted.build_stats().expected_hit(dummy)
+	uncommitted.take_boon(_boon_by_id(pool, "morrow_pyre").at_rarity(Boon.Rarity.HEROIC))
+	assert_almost_eq(
+		uncommitted.build_stats().expected_hit(dummy), before, 0.01,
+		"a fire multiplier paid out on a build with no fire damage"
+	)
+
+	var committed := RunState.start(37)
+	committed.take_boon(_boon_by_id(pool, "morrow_ember").at_rarity(Boon.Rarity.COMMON))
+	var seeded := committed.build_stats().expected_hit(dummy)
+	committed.take_boon(_boon_by_id(pool, "morrow_pyre").at_rarity(Boon.Rarity.HEROIC))
+	assert_gt(
+		committed.build_stats().expected_hit(dummy), seeded,
+		"the same multiplier should pay out once fire damage exists"
+	)
+
+
 func test_owned_boons_report_ids_and_groups() -> void:
 	var pool := BoonPool.from_json(BOONS_PATH)
 	var run := RunState.start(19)

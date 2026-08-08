@@ -78,11 +78,38 @@ func test_prerequisite_boons_gate_their_dependents() -> void:
 
 func test_an_owned_group_is_never_offered_again() -> void:
 	var pool := _pool()
+	var owned := ["odrin_attack", "odrin_defense"]
+	# Guard against the group names drifting and this test silently passing.
+	for g in owned:
+		assert_true(
+			pool.boons.any(func(b: Boon): return b.group == g),
+			"group '%s' no longer exists in the table" % g
+		)
 	var rng := Rng.new(13)
 	for i in 200:
-		for b in pool.offer(rng, [], ["attack", "defense"], [], 3):
-			assert_ne(b.group, "attack")
-			assert_ne(b.group, "defense")
+		for b in pool.offer(rng, [], owned, [], 3):
+			assert_false(owned.has(b.group), "offered an already-owned group")
+
+
+func test_an_entry_boon_unlocks_its_god() -> void:
+	# Taking an entry boon must open the same doors that finding the gear would
+	# — otherwise a run with no elemental drops can never build into anything.
+	var pool := _pool()
+	var entry := _first_granting_tag(pool, IGNITE)
+	assert_not_null(entry, "expected an ungated boon granting '%s'" % IGNITE)
+	assert_true(entry.requires_tags.is_empty(), "the entry boon must itself be ungated")
+
+	var before := pool.candidates([], [], []).size()
+	var after := pool.candidates([entry.id], [entry.group], entry.grants_tags).size()
+	assert_gt(float(after), float(before) - 1.0, "taking the entry boon did not open its god's tree")
+
+	var gated := _first_requiring_tag(pool, IGNITE)
+	assert_true(
+		pool.candidates([entry.id], [entry.group], entry.grants_tags).any(
+			func(b: Boon): return b.id == gated.id
+		),
+		"'%s' should be reachable once the entry boon is owned" % gated.id
+	)
 
 
 func test_rarity_scales_every_modifier() -> void:
@@ -127,6 +154,13 @@ func _uncommon_rate(pool: BoonPool, luck: float) -> float:
 func _first_requiring_tag(pool: BoonPool, tag: String) -> Boon:
 	for b in pool.boons:
 		if b.requires_tags.has(tag):
+			return b
+	return null
+
+
+func _first_granting_tag(pool: BoonPool, tag: String) -> Boon:
+	for b in pool.boons:
+		if b.grants_tags.has(tag) and b.requires_tags.is_empty() and b.requires_boons.is_empty():
 			return b
 	return null
 
