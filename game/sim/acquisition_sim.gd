@@ -88,10 +88,13 @@ func _play_until_inscribed(
 
 		# Components in hand this run: everything banked, plus what drops now.
 		var held_sigils := bank.sigil_ids().duplicate()
+		# slot -> set of socket counts held, since matching is now exact.
 		var held_vessels := {}
 		for v in bank.vessels():
 			var slot := str(v.get("slot", ""))
-			held_vessels[slot] = maxi(int(held_vessels.get(slot, 0)), int(v.get("sockets", 0)))
+			if not held_vessels.has(slot):
+				held_vessels[slot] = {}
+			held_vessels[slot][int(v.get("sockets", 0))] = true
 
 		var loose_sigils: Array = []
 		var loose_vessels: Array = []
@@ -110,8 +113,9 @@ func _play_until_inscribed(
 			if done != "":
 				return {"run": run, "inscription": done}
 
-		# End of run: keep the single most useful piece.
+		# End of run: keep the single most useful piece, then convert surplus.
 		_bank_best(bank, book, targets, held_sigils, held_vessels, loose_sigils, loose_vessels, gen)
+		_transmute_surplus(bank, book, targets)
 
 	return {"run": -1, "inscription": ""}
 
@@ -125,10 +129,11 @@ func _completable(
 		var slot: String = need["slot"]
 		var want_sockets: int = need["vessel_sockets"]
 
-		var have_vessel := int(banked_vessels.get(slot, 0)) >= want_sockets
+		# Exactly, not merely enough — see docs/d2-rune-economy.md.
+		var have_vessel := banked_vessels.has(slot) and banked_vessels[slot].has(want_sockets)
 		if not have_vessel:
 			for v in loose_vessels:
-				if (slot == "" or str(v["slot"]) == slot) and int(v["sockets"]) >= want_sockets:
+				if (slot == "" or str(v["slot"]) == slot) and int(v["sockets"]) == want_sockets:
 					have_vessel = true
 					break
 		if not have_vessel:
@@ -170,10 +175,11 @@ func _bank_best(
 	var slot: String = need["slot"]
 	var want_sockets: int = need["vessel_sockets"]
 
-	if int(held_vessels.get(slot, 0)) < want_sockets:
+	var has_exact: bool = held_vessels.has(slot) and held_vessels[slot].has(want_sockets)
+	if not has_exact:
 		var best := {}
 		for v in loose_vessels:
-			if (slot == "" or str(v["slot"]) == slot) and int(v["sockets"]) >= want_sockets:
+			if (slot == "" or str(v["slot"]) == slot) and int(v["sockets"]) == want_sockets:
 				best = v
 				break
 		if not best.is_empty():
@@ -230,6 +236,60 @@ func _run_pass(
 	print("")
 	print("-- %s" % label)
 	_report(runs, never, which, players, max_runs)
+
+
+## Convert banked duplicates upward, the way D2's cube lets you cash surplus
+## commons in on the rune you are chasing.
+##
+## This is the mechanism the design was missing entirely. Ashfall's rarest sigil
+## is about thirty times *more* common than D2's Zod, so rarity was never why the
+## chase stalled — it stalled because a miss stayed a miss forever. With this,
+## every junk drop is progress toward something.
+func _transmute_surplus(bank: Reliquary, book: InscriptionBook, targets: Array) -> void:
+	var wanted := {}
+	for t in targets:
+		for id in t.requirements()["sigils"]:
+			wanted[str(id)] = int(t.requirements()["sigils"][id])
+
+	var converted := true
+	while converted:
+		converted = false
+		var counts := {}
+		for id in bank.sigil_ids():
+			counts[id] = int(counts.get(id, 0)) + 1
+
+		for id in counts:
+			var sigil := book.sigil_by_id(str(id))
+			if sigil == null:
+				continue
+			var cost := InscriptionBook.transmute_cost(sigil.tier)
+			var spare: int = int(counts[id]) - int(wanted.get(id, 0))
+			if spare < cost:
+				continue
+			var up := book.transmute_target(str(id))
+			if up == null:
+				continue
+			# Spend the duplicates, gain one of the tier above.
+			var removed := 0
+			while removed < cost:
+				var at := _find_sigil(bank, str(id))
+				if at < 0:
+					break
+				bank.discard_at(at)
+				removed += 1
+			if removed == cost:
+				bank.contents.append({"kind": "sigil", "id": up.id})
+				converted = true
+			break
+
+
+## Index of the first banked entry holding this sigil, or -1.
+func _find_sigil(bank: Reliquary, id: String) -> int:
+	for i in bank.contents.size():
+		var e: Dictionary = bank.contents[i]
+		if str(e.get("kind", "")) == "sigil" and str(e.get("id", "")) == id:
+			return i
+	return -1
 
 
 func _report(

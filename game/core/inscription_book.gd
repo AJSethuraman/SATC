@@ -45,11 +45,51 @@ func inscription_by_id(id: String) -> Inscription:
 ##
 ## Returns the first match; the data test enforces that no two inscriptions
 ## share a pattern and slot, so "first" is unambiguous.
-func match_pattern(sigil_ids: Array, item_slot: String) -> Inscription:
+func match_pattern(sigil_ids: Array, item_slot: String, item_sockets: int) -> Inscription:
 	for i in inscriptions:
-		if i.matches(sigil_ids, item_slot):
+		if i.matches(sigil_ids, item_slot, item_sockets):
 			return i
 	return null
+
+
+## Sigils of a given tier, for transmutation.
+func of_tier(tier: int) -> Array:
+	return sigils.filter(func(s: Sigil): return s.tier == tier)
+
+
+## How many identical sigils transmute into one of the next tier up.
+##
+## Straight from D2's cube recipes, including the tightening at the top: three
+## for one through the low and middle bands, two for one at the high end. That
+## tightening is deliberate — the hardest steps are proportionally *cheaper*, so
+## the top of the ladder stays reachable rather than receding.
+## See docs/d2-rune-economy.md.
+const TRANSMUTE_COST_LOW := 3
+const TRANSMUTE_COST_HIGH := 2
+## Tier at and above which the cheaper ratio applies.
+const TRANSMUTE_HIGH_TIER := 4
+
+
+static func transmute_cost(from_tier: int) -> int:
+	return TRANSMUTE_COST_HIGH if from_tier >= TRANSMUTE_HIGH_TIER else TRANSMUTE_COST_LOW
+
+
+## The cheapest sigil of `to_tier` obtainable by transmuting `from_id`, or null
+## when nothing of the next tier exists.
+func transmute_target(from_id: String) -> Sigil:
+	var from := sigil_by_id(from_id)
+	if from == null:
+		return null
+	var up := of_tier(from.tier + 1)
+	if up.is_empty():
+		return null
+	# Prefer the most common sigil of the next tier: converting surplus should
+	# feel like a floor under bad luck, not a second lottery.
+	var best: Sigil = up[0]
+	for s in up:
+		if s.weight > best.weight:
+			best = s
+	return best
 
 
 ## Depth at which a sigil of a given tier reaches its full drop weight.

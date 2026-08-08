@@ -57,7 +57,7 @@ func test_order_matters() -> void:
 func test_wrong_slot_does_not_match() -> void:
 	var book := _book()
 	var word: Inscription = book.inscription_by_id("kindling")
-	var item := _fill(_vessel("trinket", 2), book, word.pattern)
+	var item := _fill(_vessel("trinket", word.pattern.size()), book, word.pattern)
 	assert_false(item.is_inscribed(), "a weapon inscription must not form in a trinket")
 
 
@@ -66,6 +66,54 @@ func test_a_partial_sequence_forms_nothing() -> void:
 	var word: Inscription = book.inscription_by_id("conflagrant")
 	var item := _fill(_vessel(word.slot, 3), book, [word.pattern[0]])
 	assert_false(item.is_inscribed(), "one sigil of three must not complete the word")
+
+
+func test_the_socket_count_must_match_exactly() -> void:
+	# D2's rule: a four-socket item will not carry a three-socket formula. Without
+	# it, a large vessel does everything a small one does and 2-socket vessels
+	# stop being worth banking. See docs/d2-rune-economy.md.
+	var book := _book()
+	var word: Inscription = book.inscription_by_id("kindling")
+	assert_eq(word.pattern.size(), 2, "test assumes a two-sigil word")
+
+	var oversized := _vessel(word.slot, 3)
+	for id in word.pattern:
+		oversized.insert(book.sigil_by_id(str(id)))
+	oversized.reappraise(book)
+	assert_false(oversized.is_inscribed(), "a three-socket vessel must not form a two-sigil word")
+
+	var exact := _fill(_vessel(word.slot, 2), book, word.pattern)
+	assert_true(exact.is_inscribed(), "the correctly-sized vessel should still work")
+
+
+func test_transmutation_follows_d2s_tightening_ratio() -> void:
+	# Three-for-one through the low bands, two-for-one at the top. The tightening
+	# is the point: the hardest steps are proportionally cheaper, so the ladder
+	# stays reachable instead of receding. See docs/d2-rune-economy.md.
+	assert_eq(InscriptionBook.transmute_cost(1), 3)
+	assert_eq(InscriptionBook.transmute_cost(3), 3)
+	assert_eq(InscriptionBook.transmute_cost(4), 2)
+	assert_eq(InscriptionBook.transmute_cost(5), 2)
+
+
+func test_transmuting_climbs_exactly_one_tier() -> void:
+	var book := _book()
+	for s in book.sigils:
+		var up := book.transmute_target(s.id)
+		if up == null:
+			assert_eq(s.tier, 5, "only the top tier should have nowhere to go")
+		else:
+			assert_eq(up.tier, s.tier + 1, "'%s' must convert one tier up" % s.id)
+
+
+func test_transmuting_yields_the_commonest_of_the_next_tier() -> void:
+	# Converting surplus is meant to be a floor under bad luck, not a second
+	# lottery, so it hands back the most reliable sigil of the tier above.
+	var book := _book()
+	var up := book.transmute_target("ash")
+	assert_not_null(up)
+	for other in book.of_tier(up.tier):
+		assert_true(up.weight >= other.weight, "should yield the commonest tier-%d sigil" % up.tier)
 
 
 func test_sigils_still_contribute_without_an_inscription() -> void:
@@ -89,7 +137,7 @@ func test_an_inscription_beats_the_same_sigils_loose() -> void:
 	var word: Inscription = book.inscription_by_id("kindling")
 
 	var plain := RunState.base_stats()
-	var loose := _vessel("weapon", 2)
+	var loose := _vessel("weapon", word.pattern.size())
 	for id in word.pattern:
 		loose.insert(book.sigil_by_id(str(id)))
 	# Deliberately not reappraised, so only the sigils' own modifiers apply.

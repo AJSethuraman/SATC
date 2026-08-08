@@ -52,9 +52,18 @@ func socket_count() -> int:
 	return pattern.size()
 
 
-## Does this exact ordered sigil sequence, in this slot, form the inscription?
-func matches(sigil_ids: Array, item_slot: String) -> bool:
+## Does this exact ordered sigil sequence, in a vessel of exactly this many
+## sockets and this slot, form the inscription?
+##
+## The socket count must match exactly, not merely suffice. That is D2's rule —
+## "a 4 socket item will not work with a 3 socket formula" — and it is load
+## bearing rather than pedantry: without it a three-socket vessel does everything
+## a two-socket one does, which makes small vessels worthless and drains the
+## "which vessel do I bank?" decision of any tension. See docs/d2-rune-economy.md.
+func matches(sigil_ids: Array, item_slot: String, item_sockets: int) -> bool:
 	if slot != "" and slot != item_slot:
+		return false
+	if item_sockets != pattern.size():
 		return false
 	if sigil_ids.size() != pattern.size():
 		return false

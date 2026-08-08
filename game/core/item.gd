@@ -74,11 +74,13 @@ func socketed_ids() -> Array:
 	return socketed.map(func(s): return s.id)
 
 
-## Re-check whether the current sequence forms an inscription. Called after every
-## insert rather than only when full, so a two-sigil word in a three-socket
-## vessel still resolves.
+## Re-check whether the current sequence forms an inscription.
+##
+## The vessel must have exactly as many sockets as the recipe has sigils — a
+## three-socket vessel cannot carry a two-sigil word. That is D2's rule and it is
+## what keeps small vessels worth banking.
 func reappraise(book: InscriptionBook) -> void:
-	inscription = book.match_pattern(socketed_ids(), slot)
+	inscription = book.match_pattern(socketed_ids(), slot, sockets)
 
 
 func display_name() -> String:
