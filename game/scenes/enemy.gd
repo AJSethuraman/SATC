@@ -5,9 +5,9 @@ extends CharacterBody3D
 ## RunState.enemy_for_floor, so buffing depth scaling is a core/ change and never
 ## a scene change.
 ##
-## Like the player, it has no animation frames — the swell before it commits and
-## the recoil when struck are the whole of its body language, and they are what
-## make its attacks readable in a crowd.
+## Uses the same jointed rig as the player. The swell before it commits, the arm
+## visibly cocking through the telegraph and the recoil when struck are its whole
+## body language, and they are what make its attacks readable in a crowd.
 
 signal died(at: Vector3, was_elite: bool)
 
@@ -23,11 +23,9 @@ var _attack_cooldown := 0.0
 var _windup := -1.0
 var _knockback := Vector3.ZERO
 var _flash := 0.0
-var _bob := 0.0
 var _shape := Vector3.ONE
 
-var _body: MeshInstance3D
-var _material: StandardMaterial3D
+var _rig: CharacterRig
 var _health_bar: MeshInstance3D
 var _health_material: StandardMaterial3D
 
@@ -61,12 +59,11 @@ func _ready() -> void:
 	collision_layer = 4
 	collision_mask = 1
 
-	_body = MeshInstance3D.new()
-	_body.mesh = Shapes.body_capsule(_radius, _height)
-	_material = Shapes.solid(Feel.COLOUR_ELITE if is_elite else Feel.COLOUR_ENEMY)
-	_body.material_override = _material
-	_body.position = Vector3(0.0, _height * 0.5, 0.0)
-	add_child(_body)
+	_rig = CharacterRig.new()
+	# Elites carry a weapon; the rank and file come at you bare-handed, which
+	# also makes the dangerous one findable at a glance in a crowd.
+	_rig.build(_height, Feel.COLOUR_ELITE if is_elite else Feel.COLOUR_ENEMY, is_elite)
+	add_child(_rig)
 
 	# A floating slab above the head, scaled on the X axis to show health. Reads
 	# at a glance from a fixed camera angle without needing a UI layer per enemy.
@@ -167,36 +164,41 @@ func take_hit(result: Damage.Result, from: Vector3) -> void:
 
 
 func _animate(delta: float, to_player: Vector3) -> void:
-	if _body == null:
+	if _rig == null:
 		return
 	var blend := clampf(Feel.SHAPE_RECOVERY * delta, 0.0, 1.0)
-
-	var yaw := 0.0
-	if to_player.length() > 0.05:
-		yaw = atan2(to_player.x, to_player.z) + PI
 
 	# Swell while winding up, flatten while stunned. Both are readable from the
 	# fixed camera angle without any UI.
 	var want := Vector3.ONE
+	var swing := -1.0
 	if _windup >= 0.0:
 		var t := 1.0 - clampf(_windup / Feel.ENEMY_WINDUP, 0.0, 1.0)
 		var swell := lerpf(1.0, Feel.ENEMY_TELL_SWELL, t)
 		want = Vector3(swell, lerpf(1.0, 0.9, t), swell)
+		# Drive the rig's swing through the telegraph, so the arm is visibly
+		# cocked before the hit rather than the body just changing colour.
+		swing = t * 0.3
 	elif _hitstun > 0.0:
 		want = Vector3(1.12, 0.86, 1.12)
 	_shape = _shape.lerp(want, blend)
 
-	_body.basis = Basis(Vector3.UP, yaw).scaled(_shape)
+	var flat := Vector3(velocity.x, 0.0, velocity.z)
 
-	_bob += delta * Feel.BOB_SPEED
-	_body.position.y = _height * 0.5 + sin(_bob) * Feel.BOB_HEIGHT
+	_rig.face(to_player)
+	_rig.speed_ratio = clampf(
+		flat.length() / maxf(1.0, stats.move_speed * Feel.UNITS_PER_PIXEL), 0.0, 1.4
+	)
+	_rig.shape = _shape
+	_rig.attack_phase = swing
 
 	var tint := Feel.COLOUR_ELITE if is_elite else Feel.COLOUR_ENEMY
 	if _flash > 0.0:
 		tint = Color(1.0, 1.0, 1.0)
 	elif _windup >= 0.0:
 		tint = Feel.COLOUR_TELL
-	_material.albedo_color = _material.albedo_color.lerp(tint, blend)
+	_rig.tint = tint
+	_rig.animate(delta)
 
 	if stats != null and health < stats.max_health:
 		var frac := clampf(health / stats.max_health, 0.0, 1.0)

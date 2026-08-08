@@ -115,13 +115,3 @@ static func glow(colour: Color) -> StandardMaterial3D:
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.no_depth_test = false
 	return mat
-
-
-## Upright capsule mesh sized by radius and total height.
-static func body_capsule(radius: float, height: float) -> CapsuleMesh:
-	var mesh := CapsuleMesh.new()
-	mesh.radius = radius
-	mesh.height = maxf(height, radius * 2.0 + 0.01)
-	mesh.radial_segments = 16
-	mesh.rings = 6
-	return mesh

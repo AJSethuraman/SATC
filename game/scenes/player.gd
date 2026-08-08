@@ -4,10 +4,9 @@ extends CharacterBody3D
 ## The player avatar. Owns movement, dash and the attack state machine; asks
 ## core/ for every number that matters and Feel for every number that feels.
 ##
-## There are no animation frames, so all of this character's life comes from
-## deforming a capsule in code: leaning into movement, stretching along a dash,
-## crouching before a swing, popping on release. That is the cheapest convincing
-## substitute for animation, and it lives in _animate().
+## There are no animation frames, so the body is a jointed figure posed entirely
+## in code — see scenes/character_rig.gd, which owns the walk cycle and the sword
+## swing. This file only tells it what the body is doing.
 
 signal attacked(origin: Vector3, facing: Vector3)
 signal died
@@ -37,16 +36,14 @@ var _dash_cooldown := 0.0
 var _iframes := 0.0
 var _buffered_attack := 0.0
 var _flash := 0.0
-var _bob := 0.0
 var _aim_point := Vector3.ZERO
 
-## Current animated silhouette and lean, eased toward their targets each frame
-## rather than snapped, and tracked here because assigning a Basis discards scale.
+## Current animated silhouette, eased toward its target each frame rather than
+## snapped. The walk cycle and lean live in the rig; this is only the squash and
+## stretch layered on top of them.
 var _shape := Vector3.ONE
-var _lean := 0.0
 
-var _body: MeshInstance3D
-var _body_material: StandardMaterial3D
+var _rig: CharacterRig
 var _slash: MeshInstance3D
 var _slash_material: StandardMaterial3D
 var _camera: IsoCamera
@@ -77,12 +74,9 @@ func _ready() -> void:
 	collision_layer = 2
 	collision_mask = 1
 
-	_body = MeshInstance3D.new()
-	_body.mesh = Shapes.body_capsule(Feel.PLAYER_RADIUS, Feel.PLAYER_HEIGHT)
-	_body_material = Shapes.solid(Feel.COLOUR_PLAYER)
-	_body.material_override = _body_material
-	_body.position = Vector3(0.0, Feel.PLAYER_HEIGHT * 0.5, 0.0)
-	add_child(_body)
+	_rig = CharacterRig.new()
+	_rig.build(Feel.PLAYER_HEIGHT, Feel.COLOUR_PLAYER, true)
+	add_child(_rig)
 
 	_slash = MeshInstance3D.new()
 	_slash.mesh = Shapes.arc_band(
@@ -235,51 +229,46 @@ func take_damage(amount: float) -> void:
 		died.emit()
 
 
-## All of this character's animation, such as it is. Deforming a capsule is not
-## a substitute for a real animator, but a body that leans, stretches and
-## recoils reads as alive where a rigid one reads as a placeholder.
+## Feed the rig this frame's state, and layer squash and stretch on top of the
+## walk cycle it is already running.
 func _animate(delta: float) -> void:
-	if _body == null:
+	if _rig == null:
 		return
 
 	var blend := clampf(Feel.SHAPE_RECOVERY * delta, 0.0, 1.0)
-
-	# Yaw that points the capsule's -Z at the aim direction.
-	var yaw := atan2(facing.x, facing.z) + PI
-
-	# Lean into travel, proportional to how fast we are actually moving.
 	var flat := Vector3(velocity.x, 0.0, velocity.z)
 	var speed_ratio := clampf(
 		flat.length() / maxf(1.0, stats.move_speed * Feel.UNITS_PER_PIXEL), 0.0, 1.6
 	)
-	var lean_target := 0.0
-	var lean_axis := Vector3.RIGHT
-	if flat.length() > 0.05:
-		lean_axis = flat.normalized().cross(Vector3.UP)
-		lean_target = deg_to_rad(-Feel.LEAN_DEGREES) * speed_ratio
-	_lean = lerpf(_lean, lean_target, clampf(Feel.LEAN_RESPONSE * delta, 0.0, 1.0))
 
-	# Target silhouette: stretched along a dash, crouched on windup, popped on
-	# release, otherwise resting.
+	# Silhouette on top of the walk cycle: stretched along a dash, compressed on
+	# windup, popped on release.
 	var want_scale := Vector3.ONE
 	if _dash_timer > 0.0:
 		want_scale = Vector3(Feel.DASH_SQUASH, Feel.DASH_SQUASH, Feel.DASH_STRETCH)
 	elif _state == State.WINDUP:
-		want_scale = Vector3(1.06, Feel.ATTACK_CROUCH, 1.06)
+		want_scale = Vector3(1.04, Feel.ATTACK_CROUCH, 1.04)
 	elif _state == State.ACTIVE:
-		want_scale = Vector3(0.94, Feel.ATTACK_POP, 1.08)
+		want_scale = Vector3(0.96, Feel.ATTACK_POP, 1.06)
 	_shape = _shape.lerp(want_scale, blend)
 
-	# Compose once, in order: lean around the travel axis, then face, then scale.
-	# Assigning basis clears scale, so scale has to be folded into the basis
-	# rather than set separately.
-	var oriented := Basis(lean_axis, _lean) * Basis(Vector3.UP, yaw)
-	_body.basis = oriented.scaled(_shape)
-	_slash.basis = Basis(Vector3.UP, yaw)
+	# The rig runs the walk cycle and the sword swing; this only tells it what
+	# the body is doing.
+	_rig.face(facing)
+	_rig.speed_ratio = speed_ratio
+	_rig.dashing = _dash_timer > 0.0
+	_rig.shape = _shape
+	_rig.attack_phase = _swing_phase()
 
-	_bob += delta * Feel.BOB_SPEED * (1.0 + speed_ratio * 2.0)
-	var bob := sin(_bob) * Feel.BOB_HEIGHT * (0.4 + speed_ratio)
-	_body.position.y = Feel.PLAYER_HEIGHT * 0.5 + bob
+	var tint := Feel.COLOUR_PLAYER
+	if _flash > 0.0:
+		tint = Color(1.0, 0.42, 0.42)
+	elif is_invulnerable():
+		tint = Feel.COLOUR_IFRAME
+	_rig.tint = tint
+	_rig.animate(delta)
+
+	_slash.basis = Basis(Vector3.UP, atan2(facing.x, facing.z) + PI)
 
 	# Fade the swing arc out.
 	if _slash_material.albedo_color.a > 0.0:
@@ -287,10 +276,21 @@ func _animate(delta: float) -> void:
 			0.0, _slash_material.albedo_color.a - Feel.SLASH_FADE * delta
 		)
 
-	# Tint: hurt flashes red, dash i-frames read blue.
-	var tint := Feel.COLOUR_PLAYER
-	if _flash > 0.0:
-		tint = Color(1.0, 0.42, 0.42)
-	elif is_invulnerable():
-		tint = Feel.COLOUR_IFRAME
-	_body_material.albedo_color = _body_material.albedo_color.lerp(tint, blend)
+
+## Progress through the whole swing as 0..1, or -1 when not swinging. The rig
+## needs one continuous number rather than the three discrete states, so the
+## arm travels smoothly from wind-up through contact into recovery.
+func _swing_phase() -> float:
+	var windup := Feel.ATTACK_WINDUP
+	var active := Feel.ATTACK_ACTIVE
+	var recover := Feel.ATTACK_RECOVERY
+	var total := windup + active + recover
+	match _state:
+		State.WINDUP:
+			return (windup - _state_timer) / total
+		State.ACTIVE:
+			return (windup + active - _state_timer) / total
+		State.RECOVERY:
+			return (windup + active + recover - _state_timer) / total
+		_:
+			return -1.0
