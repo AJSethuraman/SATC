@@ -22,14 +22,15 @@ jobs:
     name: Headless test suite (Godot ${{ matrix.godot }})
     runs-on: ubuntu-latest
 
-    # Tested against the version this was written for and against current
-    # stable, because those are two different questions: "did I break it" and
-    # "does it still open in whatever a contributor just downloaded". Four minor
-    # versions is plenty of room for an API to have moved.
+    # Single version now. The project targets 4.7, so declaring 4.3 support here
+    # would only mean re-triggering the upgrade prompt for anyone on current
+    # stable and leaving project.godot permanently dirty in their working tree.
+    # The matrix earlier served a diagnostic purpose and confirmed the code is
+    # not version-sensitive; keeping it would cost noise for no signal.
     strategy:
       fail-fast: false
       matrix:
-        godot: ["4.3", "4.7.1"]
+        godot: ["4.7.1"]
 
     env:
       GODOT_VERSION: ${{ matrix.godot }}

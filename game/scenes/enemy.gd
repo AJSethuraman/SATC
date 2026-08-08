@@ -1,23 +1,35 @@
 class_name Enemy
-extends CharacterBody2D
+extends CharacterBody3D
 
 ## A chaser with a telegraphed contact attack. Its stat line comes from
-## RunState.enemy_for_floor, so buffing depth scaling is a core/ change and
-## never a scene change.
+## RunState.enemy_for_floor, so buffing depth scaling is a core/ change and never
+## a scene change.
+##
+## Like the player, it has no animation frames — the swell before it commits and
+## the recoil when struck are the whole of its body language, and they are what
+## make its attacks readable in a crowd.
 
-signal died(at: Vector2, was_elite: bool)
+signal died(at: Vector3, was_elite: bool)
 
 var stats: StatBlock
 var health: float = 10.0
 var is_elite := false
 
 var _rng: Rng
-var _radius := 13.0
+var _radius := Feel.ENEMY_RADIUS
+var _height := Feel.ENEMY_HEIGHT
 var _hitstun := 0.0
 var _attack_cooldown := 0.0
 var _windup := -1.0
-var _knockback := Vector2.ZERO
+var _knockback := Vector3.ZERO
 var _flash := 0.0
+var _bob := 0.0
+var _shape := Vector3.ONE
+
+var _body: MeshInstance3D
+var _material: StandardMaterial3D
+var _health_bar: MeshInstance3D
+var _health_material: StandardMaterial3D
 
 
 func setup(s: StatBlock, elite: bool, seed_v: int) -> void:
@@ -25,18 +37,48 @@ func setup(s: StatBlock, elite: bool, seed_v: int) -> void:
 	health = s.max_health
 	is_elite = elite
 	_rng = Rng.new(seed_v)
-	_radius = 18.0 if elite else 13.0
+
+	var scale_up := Feel.ELITE_SCALE if elite else 1.0
+	_radius = Feel.ENEMY_RADIUS * scale_up
+	_height = Feel.ENEMY_HEIGHT * scale_up
+
 	# Stagger the first swing so a pack does not attack in lockstep.
 	_attack_cooldown = _rng.randf() * Feel.ENEMY_ATTACK_COOLDOWN
 
-	var shape := CircleShape2D.new()
+
+func _ready() -> void:
+	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
+	up_direction = Vector3.UP
+
+	var shape := CapsuleShape3D.new()
 	shape.radius = _radius
-	var col := CollisionShape2D.new()
+	shape.height = _height
+	var col := CollisionShape3D.new()
 	col.shape = shape
+	col.position = Vector3(0.0, _height * 0.5, 0.0)
 	add_child(col)
 
 	collision_layer = 4
 	collision_mask = 1
+
+	_body = MeshInstance3D.new()
+	_body.mesh = Shapes.body_capsule(_radius, _height)
+	_material = Shapes.solid(Feel.COLOUR_ELITE if is_elite else Feel.COLOUR_ENEMY)
+	_body.material_override = _material
+	_body.position = Vector3(0.0, _height * 0.5, 0.0)
+	add_child(_body)
+
+	# A floating slab above the head, scaled on the X axis to show health. Reads
+	# at a glance from a fixed camera angle without needing a UI layer per enemy.
+	_health_bar = MeshInstance3D.new()
+	var bar := BoxMesh.new()
+	bar.size = Vector3(_radius * 2.2, 0.09, 0.09)
+	_health_bar.mesh = bar
+	_health_material = Shapes.glow(Color(0.95, 0.32, 0.32))
+	_health_material.albedo_color.a = 0.0
+	_health_bar.material_override = _health_material
+	_health_bar.position = Vector3(0.0, _height + 0.35, 0.0)
+	add_child(_health_bar)
 
 
 func _physics_process(delta: float) -> void:
@@ -47,50 +89,53 @@ func _physics_process(delta: float) -> void:
 	_hitstun = maxf(0.0, _hitstun - delta)
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_flash = maxf(0.0, _flash - delta)
-	_knockback = _knockback.lerp(Vector2.ZERO, clampf(Feel.KNOCKBACK_DECAY * delta, 0.0, 1.0))
+	_knockback = _knockback.lerp(Vector3.ZERO, clampf(Feel.KNOCKBACK_DECAY * delta, 0.0, 1.0))
 
 	var to_player := player.global_position - global_position
+	to_player.y = 0.0
 	var distance := to_player.length()
+	var reach := Feel.ENEMY_CONTACT_RANGE + _radius
 
 	if _windup >= 0.0:
 		# Committed. Standing still through the telegraph is what makes the hit
 		# dodgeable — moving during windup would make dashing a coin flip.
 		_windup -= delta
+		velocity = Vector3.ZERO
 		if _windup <= 0.0:
 			_windup = -1.0
 			_attack_cooldown = Feel.ENEMY_ATTACK_COOLDOWN
-			if global_position.distance_to(player.global_position) <= Feel.ENEMY_CONTACT_RANGE + _radius:
+			var now := player.global_position - global_position
+			now.y = 0.0
+			if now.length() <= reach:
 				player.take_damage(_hit_damage(player))
-	elif _hitstun <= 0.0:
-		if distance <= Feel.ENEMY_CONTACT_RANGE + _radius and _attack_cooldown <= 0.0:
-			_windup = Feel.ENEMY_WINDUP
-		elif distance > 1.0:
-			var dir := to_player / distance
-			velocity = dir * stats.move_speed + _separation()
-		else:
-			velocity = Vector2.ZERO
+	elif _hitstun > 0.0:
+		velocity = Vector3.ZERO
+	elif distance <= reach and _attack_cooldown <= 0.0:
+		_windup = Feel.ENEMY_WINDUP
+		velocity = Vector3.ZERO
+	elif distance > 0.05:
+		velocity = to_player / distance * stats.move_speed * Feel.UNITS_PER_PIXEL + _separation()
 	else:
-		velocity = Vector2.ZERO
-
-	if _windup >= 0.0 or _hitstun > 0.0:
-		velocity = Vector2.ZERO
+		velocity = Vector3.ZERO
 
 	velocity += _knockback
+	velocity.y = 0.0
 	move_and_slide()
-	queue_redraw()
+	_animate(delta, to_player)
 
 
-## Nudge apart from neighbours so a pack does not stack into one square and
-## become a single unavoidable damage source.
-func _separation() -> Vector2:
-	var push := Vector2.ZERO
+## Nudge apart from neighbours so a pack does not stack into one spot and become
+## a single unavoidable damage source.
+func _separation() -> Vector3:
+	var push := Vector3.ZERO
 	for node in get_parent().get_children():
 		var other := node as Enemy
 		if other == null or other == self:
 			continue
-		var away: Vector2 = global_position - other.global_position
+		var away: Vector3 = global_position - other.global_position
+		away.y = 0.0
 		var d := away.length()
-		if d > 0.1 and d < Feel.ENEMY_SEPARATION:
+		if d > 0.05 and d < Feel.ENEMY_SEPARATION:
 			push += away.normalized() * (Feel.ENEMY_SEPARATION - d) * 4.0
 	return push
 
@@ -99,36 +144,62 @@ func _hit_damage(player: Player) -> float:
 	return Damage.resolve(stats, player.stats, _rng).total
 
 
-func take_hit(result: Damage.Result, from: Vector2) -> void:
+func take_hit(result: Damage.Result, from: Vector3) -> void:
 	health -= result.total
 	_hitstun = Feel.HITSTUN
-	_flash = 0.12
+	_flash = Feel.FLASH_TIME
 	_windup = -1.0  # interrupted
-	var dir := (global_position - from)
-	if dir.length() > 0.1:
+	var dir := global_position - from
+	dir.y = 0.0
+	if dir.length() > 0.05:
 		_knockback = dir.normalized() * Feel.KNOCKBACK
 	if health <= 0.0:
 		died.emit(global_position, is_elite)
 		queue_free()
 
 
-func _draw() -> void:
-	var body := Color(0.72, 0.28, 0.30) if is_elite else Color(0.45, 0.35, 0.42)
+func _animate(delta: float, to_player: Vector3) -> void:
+	if _body == null:
+		return
+	var blend := clampf(Feel.SHAPE_RECOVERY * delta, 0.0, 1.0)
+
+	var yaw := 0.0
+	if to_player.length() > 0.05:
+		yaw = atan2(to_player.x, to_player.z) + PI
+
+	# Swell while winding up, flatten while stunned. Both are readable from the
+	# fixed camera angle without any UI.
+	var want := Vector3.ONE
+	if _windup >= 0.0:
+		var t := 1.0 - clampf(_windup / Feel.ENEMY_WINDUP, 0.0, 1.0)
+		var swell := lerpf(1.0, Feel.ENEMY_TELL_SWELL, t)
+		want = Vector3(swell, lerpf(1.0, 0.9, t), swell)
+	elif _hitstun > 0.0:
+		want = Vector3(1.12, 0.86, 1.12)
+	_shape = _shape.lerp(want, blend)
+
+	_body.basis = Basis(Vector3.UP, yaw).scaled(_shape)
+
+	_bob += delta * Feel.BOB_SPEED
+	_body.position.y = _height * 0.5 + sin(_bob) * Feel.BOB_HEIGHT
+
+	var tint := Feel.COLOUR_ELITE if is_elite else Feel.COLOUR_ENEMY
 	if _flash > 0.0:
-		body = Color(1, 1, 1)
+		tint = Color(1.0, 1.0, 1.0)
 	elif _windup >= 0.0:
-		# Telegraph reads as colour so the player can parse a crowd at a glance.
-		body = Color(1.0, 0.75, 0.25)
-	draw_circle(Vector2.ZERO, _radius, body)
+		tint = Feel.COLOUR_TELL
+	_material.albedo_color = _material.albedo_color.lerp(tint, blend)
 
 	if stats != null and health < stats.max_health:
 		var frac := clampf(health / stats.max_health, 0.0, 1.0)
-		var w := _radius * 2.0
-		var y := -_radius - 8.0
-		draw_rect(Rect2(-_radius, y, w, 3.0), Color(0, 0, 0, 0.6))
-		draw_rect(Rect2(-_radius, y, w * frac, 3.0), Color(0.9, 0.3, 0.3))
+		_health_material.albedo_color.a = 0.9
+		# Held square to the camera, since it is a flat slab, and shortened along
+		# its own X to show the remaining fraction. Folded into the basis because
+		# assigning a Basis discards any separately-set scale.
+		_health_bar.basis = Basis(Vector3.UP, deg_to_rad(Feel.CAMERA_AZIMUTH)).scaled(
+			Vector3(maxf(0.02, frac), 1.0, 1.0)
+		)
 
 
 func _player() -> Player:
-	var found := get_tree().get_first_node_in_group("player")
-	return found as Player
+	return get_tree().get_first_node_in_group("player") as Player

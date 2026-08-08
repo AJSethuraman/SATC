@@ -1,24 +1,31 @@
 ; Ashfall — Godot 4 project.
 ;
-; Controls: WASD move, mouse aim, left-click or J attack, Space or Shift dash,
-; R to restart after death.
+; Controls: WASD move (screen-relative), mouse aim, left-click or J attack,
+; Space or Shift dash, R to restart after death.
+;
+; Renderer is gl_compatibility rather than forward_plus on purpose: it needs only
+; OpenGL 3.3, so it runs on low-end machines and, just as importantly, under the
+; software rasteriser CI uses to render a frame and check the scene is drawing.
+; Directional shadows — which are doing most of the visual work here — are
+; supported in gl_compatibility.
 
 config_version=5
 
 [application]
 
 config/name="Ashfall"
-config/description="An action roguelite prototype: Diablo II's itemisation inside a Hades-shaped run."
+config/description="An action roguelite prototype: Diablo II's itemisation inside a Hades-shaped run, drawn as a lit isometric scene of primitives."
 run/main_scene="res://scenes/main.tscn"
-config/features=PackedStringArray("4.3", "GL Compatibility")
+config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [display]
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
-window/stretch/mode="canvas_items"
 
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=2
+anti_aliasing/quality/msaa_3d=2

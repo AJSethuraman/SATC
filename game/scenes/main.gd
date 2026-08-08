@@ -1,32 +1,34 @@
-extends Node2D
+extends Node3D
 
-## Game orchestration: arena, waves, rewards, HUD, death and restart.
+## Game orchestration: arena, lighting, waves, rewards, HUD, death and restart.
 ##
-## Every scene node here is built in code rather than authored as a .tscn. That
-## is a deliberate prototype choice — the whole playable layer is placeholder
-## shapes, and keeping it in script means the interesting parts stay reviewable
-## as text instead of hiding in editor state.
+## Every node here is built in code rather than authored as a .tscn. That is a
+## deliberate prototype choice — the whole presentation is procedural primitives,
+## and keeping it in script means the interesting parts stay reviewable as text
+## instead of hiding in editor state.
+##
+## Nothing in this file knows how damage, loot or boons work. That all lives in
+## core/, which never imports a scene node — which is why swapping this layer
+## from flat 2D to a lit isometric 3D scene touched none of it.
 
 const ITEMS_PATH := "res://data/items.json"
 const BOONS_PATH := "res://data/boons.json"
 
-const ARENA := Vector2(1600, 1000)
-const WALL := 40.0
 const ENEMIES_BASE := 5
 const ELITE_EVERY := 3
+const SPAWN_MARGIN := 3.0
+const MIN_SPAWN_DISTANCE := 9.0
 
 var run: RunState
 var generator: ItemGenerator
 var boon_pool: BoonPool
 
 var player: Player
-var enemies_root: Node2D
-var camera: Camera2D
+var enemies_root: Node3D
+var camera: IsoCamera
 
-var _shake := 0.0
-var _shake_rng := Rng.new(1)
 var _awaiting_reward := false
-var _hud: Control
+var _hud: Label
 var _log: Label
 var _reward_layer: CanvasLayer
 
@@ -36,14 +38,15 @@ func _ready() -> void:
 	generator = ItemGenerator.from_json(ITEMS_PATH)
 	boon_pool = BoonPool.from_json(BOONS_PATH)
 
+	_build_environment()
 	_build_arena()
 	_build_hud()
 
-	enemies_root = Node2D.new()
+	enemies_root = Node3D.new()
 	enemies_root.name = "Enemies"
 	add_child(enemies_root)
 
-	camera = Camera2D.new()
+	camera = IsoCamera.new()
 	add_child(camera)
 	camera.make_current()
 
@@ -60,12 +63,13 @@ func _start_run(seed_v: int) -> void:
 		player.queue_free()
 	player = Player.new()
 	player.add_to_group("player")
-	player.setup(run.build_stats())
-	player.global_position = ARENA * 0.5
+	player.setup(run.build_stats(), camera)
+	player.global_position = Vector3.ZERO
 	player.attacked.connect(_on_player_attacked)
 	player.died.connect(_on_player_died)
 	add_child(player)
 
+	camera.snap_to(Vector3.ZERO)
 	_say("Run %d — descend." % seed_v)
 	_start_floor()
 
@@ -84,28 +88,30 @@ func _start_floor() -> void:
 			elite,
 			run.combat_rng.randi_range(0, 0x7FFFFFFF)
 		)
-		e.global_position = _spawn_point()
 		e.died.connect(_on_enemy_died)
 		enemies_root.add_child(e)
+		e.global_position = _spawn_point()
 
 	_say("Floor %d — %d foes." % [run.floor_number, count])
 	_refresh_hud()
 
 
 ## Spawn away from the player so a floor never opens with a free hit.
-func _spawn_point() -> Vector2:
-	for attempt in 30:
-		var p := Vector2(
-			randf_range(WALL + 60.0, ARENA.x - WALL - 60.0),
-			randf_range(WALL + 60.0, ARENA.y - WALL - 60.0)
+func _spawn_point() -> Vector3:
+	var half := Feel.ARENA * 0.5
+	for _attempt in 40:
+		var p := Vector3(
+			randf_range(-half.x + SPAWN_MARGIN, half.x - SPAWN_MARGIN),
+			0.0,
+			randf_range(-half.y + SPAWN_MARGIN, half.y - SPAWN_MARGIN)
 		)
-		if not is_instance_valid(player) or p.distance_to(player.global_position) > 320.0:
+		if not is_instance_valid(player) or p.distance_to(player.global_position) > MIN_SPAWN_DISTANCE:
 			return p
-	return Vector2(WALL + 80.0, WALL + 80.0)
+	return Vector3(half.x - SPAWN_MARGIN, 0.0, half.y - SPAWN_MARGIN)
 
 
-func _on_enemy_died(at: Vector2, was_elite: bool) -> void:
-	_shake = maxf(_shake, Feel.SHAKE_CRIT if was_elite else Feel.SHAKE_NORMAL)
+func _on_enemy_died(at: Vector3, was_elite: bool) -> void:
+	camera.add_shake(Feel.SHAKE_CRIT if was_elite else Feel.SHAKE_NORMAL)
 	# The dying enemy is still in the tree for this frame.
 	if _living_enemies() > 1 or _awaiting_reward:
 		return
@@ -122,12 +128,13 @@ func _living_enemies() -> int:
 
 
 func _offer_rewards() -> void:
-	# Loot first, so a tag it grants can widen the boon offer immediately —
-	# this ordering is the whole gear-gates-boons loop in one line.
+	# Loot first, so a tag it grants can widen the boon offer immediately — this
+	# ordering is the whole gear-gates-boons loop in one line.
 	var drop := generator.roll_item(run.floor_number + 3, run.loot_rng, 0.5)
-	var before := run.build_stats().expected_hit(RunState.enemy_for_floor(run.floor_number))
+	var enemy := RunState.enemy_for_floor(run.floor_number)
+	var before := run.build_stats().expected_hit(enemy)
 	run.equip(drop)
-	var after := run.build_stats().expected_hit(RunState.enemy_for_floor(run.floor_number))
+	var after := run.build_stats().expected_hit(enemy)
 	_say("Found %s  (%+.0f%% dmg)" % [drop.display_name(), 100.0 * (after / maxf(before, 0.01) - 1.0)])
 
 	var offer := boon_pool.offer(
@@ -143,14 +150,13 @@ func _next_floor() -> void:
 	run.advance_floor()
 	var stats := run.build_stats()
 	run.health = minf(stats.max_health, run.health + stats.max_health * 0.25)
-	player.setup(stats)
+	player.setup(stats, camera)
 	player.health = run.health
 	_start_floor()
 
 
 func _on_player_died() -> void:
 	_say("You died on floor %d. Press R." % run.floor_number)
-	set_process_input(true)
 
 
 func _input(event: InputEvent) -> void:
@@ -163,7 +169,7 @@ func _input(event: InputEvent) -> void:
 # --- combat -------------------------------------------------------------
 
 
-func _on_player_attacked(origin: Vector2, facing: Vector2) -> void:
+func _on_player_attacked(origin: Vector3, facing: Vector3) -> void:
 	var arc := deg_to_rad(Feel.ATTACK_ARC)
 	var hit_any := false
 	var any_crit := false
@@ -174,10 +180,14 @@ func _on_player_attacked(origin: Vector2, facing: Vector2) -> void:
 		var e := node as Enemy
 		if e == null or e.is_queued_for_deletion():
 			continue
-		var to_enemy: Vector2 = e.global_position - origin
-		if to_enemy.length() > Feel.ATTACK_RANGE + 16.0:
+
+		var to_enemy: Vector3 = e.global_position - origin
+		to_enemy.y = 0.0
+		if to_enemy.length() > Feel.ATTACK_RANGE + Feel.ENEMY_RADIUS:
 			continue
-		if absf(facing.angle_to(to_enemy)) > arc:
+		# Angle on the ground plane only — height must not affect whether a swing
+		# connects, or standing on a slope would change your reach.
+		if absf(facing.signed_angle_to(to_enemy, Vector3.UP)) > arc:
 			continue
 
 		var result := Damage.resolve(player.stats, e.stats, run.combat_rng)
@@ -191,7 +201,7 @@ func _on_player_attacked(origin: Vector2, facing: Vector2) -> void:
 
 ## Hit-stop and shake. The durations live in Feel; this just applies them.
 func _impact(crit: bool) -> void:
-	_shake = maxf(_shake, Feel.SHAKE_CRIT if crit else Feel.SHAKE_NORMAL)
+	camera.add_shake(Feel.SHAKE_CRIT if crit else Feel.SHAKE_NORMAL)
 	var duration := Feel.HITSTOP_CRIT if crit else Feel.HITSTOP_NORMAL
 	Engine.time_scale = Feel.HITSTOP_SCALE
 	# ignore_time_scale so the freeze lasts a real fraction of a second rather
@@ -202,54 +212,86 @@ func _impact(crit: bool) -> void:
 
 func _process(delta: float) -> void:
 	if is_instance_valid(player):
-		camera.global_position = camera.global_position.lerp(
-			player.global_position, clampf(Feel.CAMERA_LAG * delta, 0.0, 1.0)
-		)
+		var aim := player.aim_point() - player.global_position
+		aim.y = 0.0
+		camera.follow(player.global_position, aim, delta)
 		run.health = player.health
-	if _shake > 0.0:
-		_shake = maxf(0.0, _shake - Feel.SHAKE_DECAY * delta)
-		camera.offset = Vector2(
-			_shake_rng.randf_range(-_shake, _shake), _shake_rng.randf_range(-_shake, _shake)
-		)
-	else:
-		camera.offset = Vector2.ZERO
 	_refresh_hud()
 
 
 # --- presentation -------------------------------------------------------
 
 
-func _build_arena() -> void:
-	var floor_rect := ColorRect.new()
-	floor_rect.color = Color(0.10, 0.09, 0.12)
-	floor_rect.size = ARENA
-	floor_rect.z_index = -10
-	add_child(floor_rect)
+## Ambient fill plus one shadow-casting directional light. The shadows are doing
+## most of the work here: they are what tells you a capsule is standing on the
+## floor rather than floating in front of it, and they are the single biggest
+## reason a scene of primitives reads as a place at all.
+func _build_environment() -> void:
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Feel.FOG_COLOUR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Feel.AMBIENT_COLOUR
+	env.ambient_light_energy = Feel.AMBIENT_ENERGY
 
-	var edges := [
-		Rect2(0, 0, ARENA.x, WALL),
-		Rect2(0, ARENA.y - WALL, ARENA.x, WALL),
-		Rect2(0, 0, WALL, ARENA.y),
-		Rect2(ARENA.x - WALL, 0, WALL, ARENA.y),
+	var holder := WorldEnvironment.new()
+	holder.environment = env
+	add_child(holder)
+
+	var light := DirectionalLight3D.new()
+	light.light_color = Feel.LIGHT_COLOUR
+	light.light_energy = Feel.LIGHT_ENERGY
+	light.shadow_enabled = true
+	light.directional_shadow_max_distance = 120.0
+	# Angled across the camera rather than along it, so bodies cast shadows to
+	# the side where they read, instead of hiding directly behind themselves.
+	light.rotation = Vector3(deg_to_rad(-52.0), deg_to_rad(Feel.CAMERA_AZIMUTH + 40.0), 0.0)
+	add_child(light)
+
+
+func _build_arena() -> void:
+	var half := Feel.ARENA * 0.5
+
+	var floor_mesh := BoxMesh.new()
+	floor_mesh.size = Vector3(Feel.ARENA.x, 0.4, Feel.ARENA.y)
+	var floor_node := MeshInstance3D.new()
+	floor_node.mesh = floor_mesh
+	floor_node.material_override = Shapes.solid(Feel.COLOUR_FLOOR)
+	# Top face flush with y = 0, which is the plane everything else stands on.
+	floor_node.position = Vector3(0.0, -0.2, 0.0)
+	add_child(floor_node)
+
+	var t := Feel.WALL_THICKNESS
+	var h := Feel.WALL_HEIGHT
+	var slabs := [
+		[Vector3(0.0, h * 0.5, -half.y - t * 0.5), Vector3(Feel.ARENA.x + t * 2.0, h, t)],
+		[Vector3(0.0, h * 0.5, half.y + t * 0.5), Vector3(Feel.ARENA.x + t * 2.0, h, t)],
+		[Vector3(-half.x - t * 0.5, h * 0.5, 0.0), Vector3(t, h, Feel.ARENA.y + t * 2.0)],
+		[Vector3(half.x + t * 0.5, h * 0.5, 0.0), Vector3(t, h, Feel.ARENA.y + t * 2.0)],
 	]
-	for r in edges:
-		var body := StaticBody2D.new()
+	var wall_material := Shapes.solid(Feel.COLOUR_WALL)
+
+	for slab in slabs:
+		var centre: Vector3 = slab[0]
+		var size: Vector3 = slab[1]
+
+		var body := StaticBody3D.new()
 		body.collision_layer = 1
 		body.collision_mask = 0
-		var shape := RectangleShape2D.new()
-		shape.size = r.size
-		var col := CollisionShape2D.new()
+		body.position = centre
+		var shape := BoxShape3D.new()
+		shape.size = size
+		var col := CollisionShape3D.new()
 		col.shape = shape
-		col.position = r.size * 0.5
-		body.position = r.position
 		body.add_child(col)
 		add_child(body)
 
-		var vis := ColorRect.new()
-		vis.color = Color(0.18, 0.16, 0.20)
-		vis.position = r.position
-		vis.size = r.size
-		vis.z_index = -9
+		var mesh := BoxMesh.new()
+		mesh.size = size
+		var vis := MeshInstance3D.new()
+		vis.mesh = mesh
+		vis.material_override = wall_material
+		vis.position = centre
 		add_child(vis)
 
 

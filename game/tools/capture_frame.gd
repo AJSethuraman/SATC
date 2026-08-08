@@ -116,7 +116,10 @@ func _report_scene() -> void:
 	print("capture_frame: at frame %d, %d children:" % [_frames, _main.get_child_count()])
 	for c in _main.get_children():
 		var extra := ""
-		if c is Node2D:
+		if c is Node3D:
+			var n3 := c as Node3D
+			extra = " pos=%s visible=%s" % [str(n3.global_position), n3.visible]
+		elif c is Node2D:
 			var n2 := c as Node2D
 			extra = " pos=%s visible=%s z=%d" % [str(n2.global_position), n2.visible, n2.z_index]
 		elif c is Control:
@@ -129,12 +132,14 @@ func _report_scene() -> void:
 			extra = " layer=%d" % (c as CanvasLayer).layer
 		print("   - %s (%s)%s" % [c.name, c.get_class(), extra])
 
-	var cam := _main.get_viewport().get_camera_2d()
+	var cam := _main.get_viewport().get_camera_3d()
 	if cam == null:
-		print("capture_frame: NO active Camera2D")
+		print("capture_frame: NO active Camera3D")
 	else:
-		print("capture_frame: camera pos=%s zoom=%s" % [str(cam.global_position), str(cam.zoom)])
-	print("capture_frame: canvas_transform=%s" % str(_main.get_viewport().canvas_transform))
+		print(
+			"capture_frame: camera pos=%s looking at %s (projection=%d, size=%.1f)"
+			% [str(cam.global_position), str(-cam.global_basis.z), cam.projection, cam.size]
+		)
 
 
 ## How dominated the frame is by its single most common colour, plus which
