@@ -37,6 +37,11 @@ func _ready() -> void:
 	_mesh.mesh = Shapes.arc_band(0.86, 1.0, 180.0, 48)
 	_material = Shapes.glow(_colour)
 	_mesh.material_override = _material
+	# Light passes through a spell. Left on, this band floats 16cm above the
+	# floor and casts its own stair-stepped shadow onto the floor directly
+	# beneath it, which shows straight back through the translucent ring as dark
+	# hatching — the artifact that survived two rounds of blaming the shadow map.
+	_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_mesh)
 	# Clear of the floor by enough to survive depth precision at this camera's
 	# grazing angle — at 0.06 the ring came back striped where it fought the

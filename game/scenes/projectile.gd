@@ -85,6 +85,7 @@ func _ready() -> void:
 	smear.material_override = Shapes.glow(faint)
 	smear.basis = lie_down
 	smear.position = -direction * LENGTH * 0.8
+	smear.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(smear)
 
 	_mesh = MeshInstance3D.new()
@@ -97,6 +98,9 @@ func _ready() -> void:
 	_material = Shapes.unlit(colour)
 	_mesh.material_override = _material
 	_mesh.basis = lie_down
+	# See the smear above: light passes through a spell rather than being
+	# stopped by it.
+	_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_mesh)
 
 	position.y = 1.0

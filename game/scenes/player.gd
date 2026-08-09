@@ -106,6 +106,7 @@ func _ready() -> void:
 	_slash_material = Shapes.glow(Feel.COLOUR_SLASH)
 	_slash_material.albedo_color.a = 0.0
 	_slash.material_override = _slash_material
+	_slash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_slash.position = Vector3(0.0, Feel.SLASH_HEIGHT, 0.0)
 	add_child(_slash)
 
