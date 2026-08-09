@@ -27,6 +27,17 @@ var _main: Node
 var _frame := 0
 var _saved := 0
 
+## Census of what was actually alive while recording.
+##
+## Reading a recording back for evidence that a system works is a trap: I spent
+## three rounds deciding bolts were missing because a colour probe kept matching
+## something else on screen, when the question — did a Projectile exist and where
+## — is one the engine can answer directly. Anything hard to see in the footage
+## gets counted here instead of eyeballed.
+var _bolt_frames := 0
+var _bolt_peak := 0
+var _nova_frames := 0
+
 
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUTPUT_DIR))
@@ -51,6 +62,7 @@ func _process(delta: float) -> bool:
 
 	if _frame <= WARMUP_FRAMES:
 		return false
+	_census()
 
 	var image := root.get_texture().get_image()
 	if image != null:
@@ -59,9 +71,34 @@ func _process(delta: float) -> bool:
 
 	if _saved >= SECONDS * FPS:
 		print("record_demo: wrote %d frames to %s" % [_saved, OUTPUT_DIR])
+		print(
+			"record_demo: bolts on screen in %d/%d frames (peak %d), nova ring in %d"
+			% [_bolt_frames, _saved, _bolt_peak, _nova_frames]
+		)
 		quit(0)
 		return true
 	return false
+
+
+## Count the spell effects alive this frame. A zero here means casts are not
+## spawning; a healthy count with nothing in the footage means they are spawning
+## and not being drawn. Those are different bugs and the log should say which.
+func _census() -> void:
+	var holder := _main.get_node_or_null("Enemies")
+	if holder == null:
+		return
+	var bolts := 0
+	for child in holder.get_children():
+		if child is Projectile:
+			bolts += 1
+	if bolts > 0:
+		_bolt_frames += 1
+	_bolt_peak = maxi(_bolt_peak, bolts)
+
+	for child in _main.get_children():
+		if child is NovaBurst:
+			_nova_frames += 1
+			break
 
 
 func _enemies() -> Array:

@@ -66,10 +66,18 @@ jobs:
         run: |
           set -uo pipefail
           xvfb-run -a godot --path game --rendering-driver opengl3 --fixed-fps 30 \
-            --script res://tools/record_demo.gd
+            --script res://tools/record_demo.gd 2>&1 | tee demo.log
           count=$(ls game/recording/frame_*.png 2>/dev/null | wc -l)
           echo "captured $count frames"
           test "$count" -gt 100 || { echo "::error::too few frames captured"; exit 1; }
+          # The recorder counts its own spell effects — see record_demo.gd. A
+          # clip with no bolts in it is the exact failure that took three rounds
+          # of squinting at footage to identify, so it fails the build now
+          # instead of shipping as a video of a caster casting nothing.
+          bolts=$(sed -n 's/.*bolts on screen in \([0-9]*\)\/.*/\1/p' demo.log | tail -1)
+          echo "bolt frames: ${bolts:-unknown}"
+          test -n "${bolts:-}" || { echo "::error::recorder printed no census"; exit 1; }
+          test "$bolts" -gt 20 || { echo "::error::bolts barely appear ($bolts frames)"; exit 1; }
 
       - name: Encode
         run: |

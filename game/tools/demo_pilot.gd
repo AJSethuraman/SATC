@@ -61,12 +61,22 @@ func drive(player: Player, enemies: Array, delta: float) -> void:
 		_dash_cooldown = DASH_INTERVAL
 		return
 
-	# Always casting — a caster with mana to spare and no bolt in the air is
-	# wasting the run.
-	player.scripted_attack = true
+	var cluster := 0
+	if player.nova != null:
+		cluster = _clustered(player, enemies, player.nova.radius)
 
-	if player.nova != null and _clustered(player, enemies, player.nova.radius) >= NOVA_MIN_TARGETS:
-		player.scripted_heavy = true
+	if player.nova != null and cluster >= NOVA_MIN_TARGETS:
+		# Hold bolts while a crowd is forming. Bolt spam keeps mana pinned near
+		# zero, so a pilot that always casts can never afford the heavy spell and
+		# the demo never shows it going off — which looks like the nova being
+		# broken rather than the pilot being greedy. Banking is also just how the
+		# class is meant to play.
+		player.scripted_heavy = player.mana >= player.nova.cost
+		player.scripted_attack = player.scripted_heavy
+	else:
+		# Otherwise cast constantly: a caster with mana to spare and no bolt in
+		# the air is wasting the run.
+		player.scripted_attack = true
 
 	if distance > COMFORT_RANGE * 1.4:
 		# Close to within range, but circle rather than walking a straight line.

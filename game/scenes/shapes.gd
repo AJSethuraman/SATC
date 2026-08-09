@@ -105,6 +105,21 @@ static func solid(colour: Color) -> StandardMaterial3D:
 	return mat
 
 
+## Unshaded opaque surface for effects that must read as their own colour.
+##
+## Additive blending (see glow) is right for a slash that flares over the body
+## it lands on, and wrong for a bolt: added onto whatever it happens to fly
+## past, the hue shifts with the background and the bolt stops being a thing
+## with a colour of its own. Opaque and unlit means an ember bolt is the same
+## ember over floor, over rubble and over a body — which is what lets you read
+## someone's element off the screen at a glance.
+static func unlit(colour: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = colour
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	return mat
+
+
 ## Unshaded additive surface for effects — a slash should glow rather than be lit.
 static func glow(colour: Color) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()

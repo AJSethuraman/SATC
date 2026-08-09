@@ -34,6 +34,7 @@ var camera: IsoCamera
 
 var _awaiting_reward := false
 var _hitstop_frames := 0
+var _hitstop_gap := 0
 var _hud: Label
 var _log: Label
 var _reward_layer: CanvasLayer
@@ -204,6 +205,13 @@ func _fire_projectile(spell: Spell, origin: Vector3, facing: Vector3) -> void:
 
 ## Everything within reach, at once. The reason a caster wants a crowd.
 func _detonate_nova(spell: Spell, origin: Vector3) -> void:
+	var burst := NovaBurst.new()
+	burst.setup(spell.radius, Projectile.tint_for(player.behaviours))
+	# Parented to the arena rather than to Enemies, which gets cleared wholesale
+	# on a floor change — a ring is not something to wipe mid-flourish.
+	add_child(burst)
+	burst.global_position = Vector3(origin.x, 0.0, origin.z)
+
 	var any_crit := false
 	var hits := 0
 	for node in enemies_root.get_children():
@@ -235,12 +243,17 @@ func _on_projectile_hit(_enemy: Node3D, result: Damage.Result, _at: Vector3) -> 
 ## stuck at 0.05 because a coroutine never resumed is a spectacular bug.
 func _impact(crit: bool) -> void:
 	camera.add_shake(Feel.SHAKE_CRIT if crit else Feel.SHAKE_NORMAL)
+	# Shake always, freeze sparingly — see Feel.HITSTOP_GAP_FRAMES.
+	if _hitstop_gap > 0 and not crit:
+		return
 	_hitstop_frames = maxi(
 		_hitstop_frames, Feel.HITSTOP_FRAMES_CRIT if crit else Feel.HITSTOP_FRAMES_NORMAL
 	)
+	_hitstop_gap = Feel.HITSTOP_GAP_FRAMES
 
 
 func _process(delta: float) -> void:
+	_hitstop_gap = maxi(0, _hitstop_gap - 1)
 	if _hitstop_frames > 0:
 		_hitstop_frames -= 1
 		Engine.time_scale = Feel.HITSTOP_SCALE

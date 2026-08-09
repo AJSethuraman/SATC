@@ -17,11 +17,19 @@ signal hit_enemy(enemy: Node3D, result: Damage.Result, at: Vector3)
 ## A sphere this small is unreadable at the camera's distance, so the bolt is a
 ## capsule stretched along travel — which also reads as motion rather than as a
 ## floating ball.
-const RADIUS := 0.22
-const LENGTH := 1.1
+const RADIUS := 0.26
+const LENGTH := 1.3
 ## Generous relative to the visual: a bolt that visibly clips a body and does
 ## nothing feels broken, and being slightly forgiving costs nothing here.
 const HIT_RADIUS := 0.85
+## Frames of travel before the bolt is allowed to connect.
+##
+## Without this, a bolt cast into a body already leaning on you resolves on the
+## frame it spawns: mana drains, damage lands, an enemy dies, and the spell is
+## never drawn once. Two frames guarantees every cast is visibly a cast, and
+## costs almost nothing in reach — after two frames the bolt has travelled
+## about 1.1m, so a body inside HIT_RADIUS + ENEMY_RADIUS is still in contact.
+const ARM_FRAMES := 2
 
 var spell: Spell
 var stats: StatBlock
@@ -33,6 +41,7 @@ var behaviours: Array = []
 var forks_left: int = 0
 
 var _life := 0.0
+var _frames: int = 0
 var _pierced: int = 0
 var _already_hit: Array = []
 var _mesh: MeshInstance3D
@@ -52,6 +61,29 @@ func setup(s: Spell, caster_stats: StatBlock, dir: Vector3, r: Rng, active: Arra
 
 
 func _ready() -> void:
+	# Capsules stand up the Y axis; lay both meshes along the direction of travel.
+	var lie_down := Basis(Vector3.UP, atan2(direction.x, direction.z)) * Basis(
+		Vector3.RIGHT, deg_to_rad(90.0)
+	)
+	var colour := tint_for(behaviours)
+
+	# A smear behind the core, additive and translucent. At 17 m/s a bolt covers
+	# half its own length per frame, so without something trailing it reads as a
+	# stuttering dash rather than as a thing moving through space.
+	var smear := MeshInstance3D.new()
+	var tail := CapsuleMesh.new()
+	tail.radius = RADIUS * 0.62
+	tail.height = LENGTH * 3.0
+	tail.radial_segments = 6
+	tail.rings = 2
+	smear.mesh = tail
+	var faint := colour
+	faint.a = 0.35
+	smear.material_override = Shapes.glow(faint)
+	smear.basis = lie_down
+	smear.position = -direction * LENGTH * 0.9
+	add_child(smear)
+
 	_mesh = MeshInstance3D.new()
 	var body := CapsuleMesh.new()
 	body.radius = RADIUS
@@ -59,24 +91,23 @@ func _ready() -> void:
 	body.radial_segments = 8
 	body.rings = 4
 	_mesh.mesh = body
-	_material = Shapes.glow(_tint())
+	_material = Shapes.unlit(colour)
 	_mesh.material_override = _material
-	# Capsules stand up the Y axis; lay it along the direction of travel.
-	_mesh.basis = Basis(Vector3.UP, atan2(direction.x, direction.z)) * Basis(
-		Vector3.RIGHT, deg_to_rad(90.0)
-	)
+	_mesh.basis = lie_down
 	add_child(_mesh)
+
 	position.y = 1.0
 
 
 ## Bolts take the colour of whatever the build has committed to, so you can read
-## someone's element off the screen without a UI.
-func _tint() -> Color:
-	if behaviours.has("bolt_ignites"):
+## someone's element off the screen without a UI. Static because the nova wants
+## the same answer — one cast should not be a different element from the next.
+static func tint_for(active: Array) -> Color:
+	if active.has("bolt_ignites"):
 		return Color(1.0, 0.55, 0.22)
-	if behaviours.has("bolt_chills"):
+	if active.has("bolt_chills"):
 		return Color(0.55, 0.85, 1.0)
-	if behaviours.has("bolt_forks") or behaviours.has("bolt_chains_three"):
+	if active.has("bolt_forks") or active.has("bolt_chains_three"):
 		return Color(0.78, 0.62, 1.0)
 	# Green, because nothing else in the palette is: the player is warm white,
 	# dash i-frames are cool blue, telegraphs are orange, elites red, bodies
@@ -87,6 +118,7 @@ func _tint() -> Color:
 
 func _process(delta: float) -> void:
 	_life += delta
+	_frames += 1
 	if _life > spell.lifetime:
 		queue_free()
 		return
@@ -103,6 +135,8 @@ func _process(delta: float) -> void:
 
 
 func _check_hits() -> void:
+	if _frames <= ARM_FRAMES:
+		return
 	var holder := get_parent()
 	if holder == null:
 		return

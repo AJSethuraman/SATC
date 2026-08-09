@@ -77,6 +77,14 @@ const ATTACK_LUNGE := 5.0
 const HITSTOP_FRAMES_NORMAL := 3
 const HITSTOP_FRAMES_CRIT := 6
 const HITSTOP_SCALE := 0.05
+## Frames that must pass before an ordinary hit may freeze the game again.
+##
+## Melee could do without this; a caster cannot. A bolt every third of a second
+## plus a nova into a crowd lands hits faster than a 3-frame freeze expires, so
+## with no refractory period time_scale simply sits at HITSTOP_SCALE and the
+## whole game runs at a twentieth speed. Hit-stop only reads as impact if it
+## releases. Crits ignore the gap — they are the hits worth interrupting for.
+const HITSTOP_GAP_FRAMES := 9
 
 const SHAKE_NORMAL := 0.12
 const SHAKE_CRIT := 0.28
