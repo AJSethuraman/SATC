@@ -82,6 +82,7 @@ func _play_until_inscribed(
 ) -> Dictionary:
 	var rng := Rng.new(seed_v)
 	var bank := Reliquary.new()
+	var blocked := {}
 
 	for run in range(1, max_runs + 1):
 		bank.begin_run()
@@ -95,6 +96,16 @@ func _play_until_inscribed(
 			if not held_vessels.has(slot):
 				held_vessels[slot] = {}
 			held_vessels[slot][int(v.get("sockets", 0))] = true
+
+		# What is this run waiting on, before anything drops? Aggregated across
+		# every run of every player, this answers the question a median cannot:
+		# a long chase caused by missing sigils and a long chase caused by a
+		# missing vessel look identical in the summary and want opposite fixes.
+		# Transmutation already puts a floor under sigil luck; nothing does that
+		# for a vessel, so if the wait is mostly vessels then no amount of sigil
+		# tuning will move it.
+		var reason := _blocked_by(targets, held_sigils, held_vessels)
+		blocked[reason] = int(blocked.get(reason, 0)) + 1
 
 		var loose_sigils: Array = []
 		var loose_vessels: Array = []
@@ -123,13 +134,49 @@ func _play_until_inscribed(
 			# Can anything be completed right now?
 			var done := _completable(targets, held_sigils + loose_sigils, held_vessels, loose_vessels)
 			if done != "":
-				return {"run": run, "inscription": done}
+				return {"run": run, "inscription": done, "blocked": blocked}
 
 		# End of run: keep the single most useful piece, then convert surplus.
 		_bank_best(bank, book, targets, held_sigils, held_vessels, loose_sigils, loose_vessels, gen)
 		_transmute_surplus(bank, book, targets)
 
-	return {"run": -1, "inscription": ""}
+	return {"run": -1, "inscription": "", "blocked": blocked}
+
+
+## What the cheapest live target is still missing, given only banked components.
+##
+## "vessel" and "sigils" want different fixes, and the distinction is invisible
+## in a median. Reported per run rather than per player so a chase that spends
+## thirty runs holding the right sigils and waiting for one three-socket dagger
+## is legible as exactly that.
+func _blocked_by(targets: Array, sigils: Array, banked_vessels: Dictionary) -> String:
+	if targets.is_empty():
+		return "none"
+	var need: Dictionary = (targets[0] as Inscription).requirements()
+	var slot: String = need["slot"]
+	var want_sockets: int = need["vessel_sockets"]
+
+	var have_vessel: bool = banked_vessels.has(slot) and banked_vessels[slot].has(want_sockets)
+
+	var pool := sigils.duplicate()
+	var have_sigils := true
+	for sigil_id in need["sigils"]:
+		for _n in int(need["sigils"][sigil_id]):
+			var at := pool.find(sigil_id)
+			if at < 0:
+				have_sigils = false
+				break
+			pool.remove_at(at)
+		if not have_sigils:
+			break
+
+	if have_vessel and have_sigils:
+		return "ready"
+	if have_vessel:
+		return "sigils"
+	if have_sigils:
+		return "vessel"
+	return "both"
 
 
 ## The first target whose every component is in hand, or "".
@@ -270,9 +317,12 @@ func _run_pass(
 	var runs: Array[int] = []
 	var never := 0
 	var which := {}
+	var blocked := {}
 
 	for p in players:
 		var outcome := _play_until_inscribed(gen, book, p * 7919 + 17, areas_deep, targets, max_runs)
+		for reason in outcome.get("blocked", {}):
+			blocked[reason] = int(blocked.get(reason, 0)) + int(outcome["blocked"][reason])
 		if outcome["run"] < 0:
 			never += 1
 		else:
@@ -284,6 +334,7 @@ func _run_pass(
 	print("")
 	print("-- %s" % label)
 	_report(runs, never, which, players, max_runs)
+	_report_blockers(blocked)
 
 
 ## Convert banked duplicates upward, the way D2's cube lets you cash surplus
@@ -372,3 +423,23 @@ func _pct(sorted_values: Array, p: float) -> int:
 		return 0
 	var idx := clampi(int(floor(p * (sorted_values.size() - 1))), 0, sorted_values.size() - 1)
 	return sorted_values[idx]
+
+
+## Where the waiting actually goes.
+##
+## A chase blocked on sigils and a chase blocked on a vessel have the same
+## median and opposite fixes: sigil luck already has a floor under it via
+## transmutation, and a vessel has none at all, so a wait dominated by vessels
+## cannot be tuned away by touching drop rates.
+func _report_blockers(blocked: Dictionary) -> void:
+	var total := 0
+	for k in blocked:
+		total += int(blocked[k])
+	if total == 0:
+		return
+	var parts: Array[String] = []
+	for reason in ["both", "vessel", "sigils", "ready"]:
+		var n := int(blocked.get(reason, 0))
+		if n > 0:
+			parts.append("%s %.0f%%" % [reason, 100.0 * float(n) / float(total)])
+	print("   run-starts blocked on:  " + "  ".join(parts))
