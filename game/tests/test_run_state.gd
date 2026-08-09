@@ -126,28 +126,53 @@ func test_active_tags_unions_both_sources_without_duplicates() -> void:
 	assert_eq(ignite_count, 1, "a tag from both gear and a boon must appear once")
 
 
-func test_a_typed_multiplier_only_pays_off_once_committed() -> void:
-	# End to end: Morrow's amplifier is dead weight on a bare physical build and
-	# live only after the entry boon has seeded fire damage.
+func test_a_typed_multiplier_only_pays_off_on_its_own_element() -> void:
+	# End to end: Morrow's fire amplifier is dead weight on a run attuned to cold
+	# and live on a run attuned to fire.
+	#
+	# This test used to phrase the same rule as "dead on a bare *physical* build",
+	# which stopped being the interesting case when the Sorceress arrived. A
+	# caster's baseline is now the element she casts, so there is no such thing as
+	# a build with no damage type at all — the question is whether a multiplier
+	# pays out on the wrong one. It must not.
 	var pool := BoonPool.from_json(BOONS_PATH)
 	var dummy := StatBlock.new()
+	var pyre := _boon_by_id(pool, "morrow_pyre").at_rarity(Boon.Rarity.HEROIC)
 
-	var uncommitted := RunState.start(37)
-	var before := uncommitted.build_stats().expected_hit(dummy)
-	uncommitted.take_boon(_boon_by_id(pool, "morrow_pyre").at_rarity(Boon.Rarity.HEROIC))
+	var wrong_school := RunState.start(37)
+	wrong_school.school = "cold"
+	var before := wrong_school.build_stats().expected_hit(dummy)
+	wrong_school.take_boon(pyre)
 	assert_almost_eq(
-		uncommitted.build_stats().expected_hit(dummy), before, 0.01,
-		"a fire multiplier paid out on a build with no fire damage"
+		wrong_school.build_stats().expected_hit(dummy), before, 0.01,
+		"a fire multiplier paid out on a cold build"
 	)
 
-	var committed := RunState.start(37)
-	committed.take_boon(_boon_by_id(pool, "morrow_ember").at_rarity(Boon.Rarity.COMMON))
-	var seeded := committed.build_stats().expected_hit(dummy)
-	committed.take_boon(_boon_by_id(pool, "morrow_pyre").at_rarity(Boon.Rarity.HEROIC))
+	var right_school := RunState.start(37)
+	right_school.school = "fire"
+	var seeded := right_school.build_stats().expected_hit(dummy)
+	right_school.take_boon(pyre)
 	assert_gt(
-		committed.build_stats().expected_hit(dummy), seeded,
-		"the same multiplier should pay out once fire damage exists"
+		right_school.build_stats().expected_hit(dummy), seeded,
+		"the same multiplier should pay out on a fire build"
 	)
+
+
+## A run's element must reach the stat block it fights with, or every school
+## would be a recolour of the same physical caster.
+func test_the_school_decides_the_baseline_damage_type() -> void:
+	for school in ["fire", "cold", "lightning"]:
+		var run := RunState.start(11)
+		run.school = school
+		var split: Dictionary = run.build_stats().weapon_split
+		assert_almost_eq(
+			float(split.get(RunState.element_of(school), 0.0)), 1.0, 0.0001,
+			"a %s run does not deal %s damage" % [school, school]
+		)
+		assert_almost_eq(
+			float(split.get(Damage.Type.PHYSICAL, 0.0)), 0.0, 0.0001,
+			"a %s caster still deals physical damage" % school
+		)
 
 
 func test_owned_boons_report_ids_and_groups() -> void:
