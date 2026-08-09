@@ -16,8 +16,6 @@ const BOONS_PATH := "res://data/boons.json"
 const SIGILS_PATH := "res://data/sigils.json"
 const SPELLS_PATH := "res://data/spells.json"
 
-const ENEMIES_BASE := 11
-const ELITE_EVERY := 3
 const SPAWN_MARGIN := 2.5
 const MIN_SPAWN_DISTANCE := 7.0
 
@@ -88,32 +86,60 @@ func _start_run(seed_v: int) -> void:
 
 	camera.snap_to(Vector3.ZERO)
 	_say("Run %d — descend." % seed_v)
-	_start_floor()
+	_start_room()
 
 
-func _start_floor() -> void:
+func _start_room() -> void:
 	_awaiting_reward = false
 	for child in enemies_root.get_children():
 		child.queue_free()
 
-	var count := ENEMIES_BASE + int(run.floor_number / 2)
+	var kind := Progression.kind_of(run.room_number)
+	if kind == Progression.RoomKind.RESPITE:
+		_open_respite()
+		return
+
+	var count := Progression.enemy_count(run.act_number, run.room_number)
+	var boss_here := kind == Progression.RoomKind.BOSS
 	for i in count:
-		var elite := (i == 0 and run.floor_number % ELITE_EVERY == 0)
+		# The act's one elite leads its room; in a boss room the lead body is the
+		# boss itself and the rest are escort.
+		var lead := i == 0
+		var elite := lead and Progression.has_elite(run.room_number)
 		var e := Enemy.new()
-		e.setup(
-			RunState.enemy_for_floor(run.floor_number, elite),
-			elite,
-			run.combat_rng.randi_range(0, 0x7FFFFFFF)
+		var stats: StatBlock = (
+			RunState.boss_for_act(run.act_number) if (lead and boss_here)
+			else RunState.enemy_for_depth(run.depth(), elite)
 		)
+		e.setup(stats, elite or (lead and boss_here), run.combat_rng.randi_range(0, 0x7FFFFFFF))
 		e.died.connect(_on_enemy_died)
 		enemies_root.add_child(e)
 		e.global_position = _spawn_point()
 
-	_say("Floor %d — %d foes." % [run.floor_number, count])
+	if boss_here:
+		_say("%s — the way out is through." % Progression.act_label(run.act_number))
+	else:
+		_say("Room %d of %d — %d foes." % [run.room_number, Progression.ROOMS_PER_ACT, count])
 	_refresh_hud()
 
 
-## Spawn away from the player so a floor never opens with a free hit.
+## A room with nothing in it. The act's only breathing space: it pays no reward
+## and simply hands back health, which is what makes the rooms either side of it
+## worth pushing through at low health.
+##
+## This is where a reliquary deposit belongs once it has a UI — banking one item
+## per run is a decision that wants somewhere the player is not being hit. The
+## reliquary rules exist in core/ already; nothing here calls them yet.
+func _open_respite() -> void:
+	var stats := run.build_stats()
+	run.health = minf(stats.max_health, run.health + stats.max_health * 0.5)
+	player.health = run.health
+	_say("A quiet room. You catch your breath.")
+	_refresh_hud()
+	_next_room()
+
+
+## Spawn away from the player so a room never opens with a free hit.
 func _spawn_point() -> Vector3:
 	var half := Feel.ARENA * 0.5
 	for _attempt in 40:
@@ -144,37 +170,66 @@ func _living_enemies() -> int:
 	return n
 
 
+## What clearing this room pays out. Combat rooms alternate gear and blessings
+## rather than granting both — see core/progression.gd for why.
 func _offer_rewards() -> void:
+	match Progression.reward_of(run.room_number):
+		Progression.Reward.ITEM:
+			_grant_item(0.5)
+			_next_room()
+		Progression.Reward.BOON:
+			_offer_boon()
+		Progression.Reward.ACT_PRIZE:
+			# Arriving somewhere pays differently from passing through: gear
+			# rolled deeper than the act would otherwise offer, and a blessing.
+			_grant_item(0.85, 4)
+			_offer_boon()
+		_:
+			_next_room()
+
+
+func _grant_item(magic_chance: float, bonus_depth: int = 0) -> void:
 	# Loot first, so a tag it grants can widen the boon offer immediately — this
 	# ordering is the whole gear-gates-boons loop in one line.
-	var drop := generator.roll_item(run.floor_number + 3, run.loot_rng, 0.5)
-	var enemy := RunState.enemy_for_floor(run.floor_number)
+	var drop := generator.roll_item(run.depth() + 3 + bonus_depth, run.loot_rng, magic_chance)
+	var enemy := RunState.enemy_for_depth(run.depth())
 	var before := run.build_stats().expected_hit(enemy)
 	run.equip(drop)
 	var after := run.build_stats().expected_hit(enemy)
 	_say("Found %s  (%+.0f%% dmg)" % [drop.display_name(), 100.0 * (after / maxf(before, 0.01) - 1.0)])
 
+
+func _offer_boon() -> void:
 	var offer := boon_pool.offer(
 		run.boon_rng, run.owned_boon_ids(), run.owned_boon_groups(), run.active_tags(), 3
 	)
 	if offer.is_empty():
-		_next_floor()
+		_next_room()
 		return
 	_show_reward_ui(offer)
 
 
-func _next_floor() -> void:
-	run.advance_floor()
+func _next_room() -> void:
+	var was_boss := Progression.kind_of(run.room_number) == Progression.RoomKind.BOSS
+	if not run.advance_room():
+		_say("Ashfall is behind you. The run is over — press R.")
+		return
 	var stats := run.build_stats()
-	run.health = minf(stats.max_health, run.health + stats.max_health * 0.25)
+	# Clearing a boss restores more than passing through a room does; the act
+	# boundary is where a run gets to breathe.
+	var heal := 0.35 if was_boss else 0.12
+	run.health = minf(stats.max_health, run.health + stats.max_health * heal)
 	player.setup(stats, camera)
 	player.equip_spells(bolt, nova, run.active_behaviours())
 	player.health = run.health
-	_start_floor()
+	if was_boss:
+		_say("%s." % Progression.act_label(run.act_number))
+	_start_room()
 
 
 func _on_player_died() -> void:
-	_say("You died on floor %d. Press R." % run.floor_number)
+	_say("You died in %s, room %d. Press R." %
+		[Progression.act_label(run.act_number), run.room_number])
 
 
 func _input(event: InputEvent) -> void:
@@ -208,7 +263,7 @@ func _detonate_nova(spell: Spell, origin: Vector3) -> void:
 	var burst := NovaBurst.new()
 	burst.setup(spell.radius, Projectile.tint_for(player.behaviours))
 	# Parented to the arena rather than to Enemies, which gets cleared wholesale
-	# on a floor change — a ring is not something to wipe mid-flourish.
+	# on a room change — a ring is not something to wipe mid-flourish.
 	add_child(burst)
 	burst.global_position = Vector3(origin.x, 0.0, origin.z)
 
@@ -407,9 +462,10 @@ func _refresh_hud() -> void:
 		return
 	var stats := player.stats
 	var lines := [
-		"Floor %d     HP %d / %d     MP %d / %d"
+		"%s   room %d/%d     HP %d / %d     MP %d / %d"
 			% [
-				run.floor_number, roundi(player.health), roundi(stats.max_health),
+				Progression.act_label(run.act_number), run.room_number,
+				Progression.ROOMS_PER_ACT, roundi(player.health), roundi(stats.max_health),
 				roundi(player.mana), roundi(stats.max_mana)
 			],
 		"dmg %d-%d   crit %.0f%%   cast x%.2f   more x%.2f"
@@ -473,7 +529,7 @@ func _on_boon_chosen(b: Boon.Rolled) -> void:
 	run.take_boon(b)
 	_say("Taken: %s" % b.label())
 	_clear_reward_ui()
-	_next_floor()
+	_next_room()
 
 
 func _clear_reward_ui() -> void:

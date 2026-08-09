@@ -8,17 +8,14 @@ extends SceneTree
 ## Args: [runs] [dodge_rate]. Plays whole runs through the same core code the
 ## real game uses, then reports how deep they got and what they picked.
 ##
-## This exists because the numbers in data/*.json and RunState.enemy_for_floor
+## This exists because the numbers in data/*.json and RunState.enemy_for_depth
 ## are guesses. Guesses are fine as long as something checks them — and a
-## thousand simulated runs answer "does anything survive floor 10" and "is one
+## thousand simulated runs answer "does anything survive act 2" and "is one
 ## boon in every winning build" far faster than playtesting can.
 ##
 ## What it deliberately does NOT tell you: whether any of this is fun. Time to
 ## kill and build diversity are proxies. A human still has to play it.
 
-const MAX_FLOOR := 15
-const ENEMIES_BASE := 5
-const ELITE_EVERY := 3
 
 ## Attacks per second, used to turn per-hit damage into a rate.
 const PLAYER_ATTACK_RATE := 1.7
@@ -29,8 +26,11 @@ const ENEMY_ATTACK_RATE := 0.8
 ## real difficulty curve is far more sensitive to it than to any table below.
 const DEFAULT_DODGE := 0.5
 
-## Healing between floors, as a fraction of max health.
-const FLOOR_HEAL := 0.25
+## Healing between rooms, and the larger restore for clearing an act. Both
+## mirror scenes/main.gd — if they drift, the simulator stops measuring the game.
+const ROOM_HEAL := 0.12
+const BOSS_HEAL := 0.35
+const RESPITE_HEAL := 0.5
 
 const ITEMS_PATH := "res://data/items.json"
 const BOONS_PATH := "res://data/boons.json"
@@ -61,7 +61,8 @@ func _initialize() -> void:
 	print("")
 	print("Ashfall balance simulation")
 	print("==========================")
-	print("runs=%d  dodge=%.2f  max_floor=%d" % [runs, dodge, MAX_FLOOR])
+	print("runs=%d  dodge=%.2f  rooms=%d (%d acts x %d)" %
+		[runs, dodge, Progression.total_rooms(), Progression.ACTS, Progression.ROOMS_PER_ACT])
 
 	for policy in POLICIES:
 		var result := _simulate_many(gen, pool, runs, dodge, policy)
@@ -77,7 +78,7 @@ func _simulate_many(
 	var depths: Array[int] = []
 	var boon_picks := {}
 	var tag_counts := {}
-	var ttk_by_floor := {}
+	var ttk_by_room := {}
 
 	for i in runs:
 		var outcome := _simulate_one(gen, pool, i * 7919 + 13, dodge, policy)
@@ -87,16 +88,16 @@ func _simulate_many(
 		for t in outcome["tags"]:
 			tag_counts[t] = tag_counts.get(t, 0) + 1
 		for f in outcome["ttk"]:
-			if not ttk_by_floor.has(f):
-				ttk_by_floor[f] = []
-			ttk_by_floor[f].append(outcome["ttk"][f])
+			if not ttk_by_room.has(f):
+				ttk_by_room[f] = []
+			ttk_by_room[f].append(outcome["ttk"][f])
 
 	depths.sort()
 	return {
 		"depths": depths,
 		"boon_picks": boon_picks,
 		"tag_counts": tag_counts,
-		"ttk_by_floor": ttk_by_floor,
+		"ttk_by_room": ttk_by_room,
 	}
 
 
@@ -108,21 +109,36 @@ func _simulate_one(
 	var ttk := {}
 	var depth := 0
 
-	for floor_n in range(1, MAX_FLOOR + 1):
-		run.floor_number = floor_n
+	while true:
+		var room := run.room_number
+		var kind := Progression.kind_of(room)
+		var here := run.depth()
 		var stats := run.build_stats()
-		# Stats are rebuilt at the top of each floor, so a boon taken last floor
-		# is live now — matching what the real game does in _next_floor.
-		var count := ENEMIES_BASE + int(floor_n / 2)
-		var floor_ttk := 0.0
+		# Stats are rebuilt at the top of each room, so a boon taken last room is
+		# live now — matching what the real game does in _next_room.
+
+		if kind == Progression.RoomKind.RESPITE:
+			run.health = minf(stats.max_health, run.health + stats.max_health * RESPITE_HEAL)
+			depth = here
+			if not run.advance_room():
+				break
+			continue
+
+		var count := Progression.enemy_count(run.act_number, room)
+		var room_ttk := 0.0
+		var boss_here := kind == Progression.RoomKind.BOSS
 
 		for e in count:
-			var elite := (e == 0 and floor_n % ELITE_EVERY == 0)
-			var enemy := RunState.enemy_for_floor(floor_n, elite)
+			var lead := e == 0
+			var elite := lead and Progression.has_elite(room)
+			var enemy: StatBlock = (
+				RunState.boss_for_act(run.act_number) if (lead and boss_here)
+				else RunState.enemy_for_depth(here, elite)
+			)
 
 			var player_dps := stats.expected_hit(enemy) * PLAYER_ATTACK_RATE
 			var seconds := enemy.max_health / maxf(player_dps, 0.01)
-			floor_ttk += seconds
+			room_ttk += seconds
 
 			var enemy_dps := enemy.expected_hit(stats) * ENEMY_ATTACK_RATE * (1.0 - dodge)
 			run.health -= seconds * enemy_dps
@@ -130,36 +146,57 @@ func _simulate_one(
 			if run.health <= 0.0:
 				break
 
-		ttk[floor_n] = floor_ttk / float(count)
+		ttk[here] = room_ttk / float(count)
 		if run.health <= 0.0:
 			break
 
-		depth = floor_n
+		depth = here
 
-		# Reward: one drop, equipped if it raises expected damage, plus a boon.
-		var drop := gen.roll_item(floor_n + 3, run.loot_rng, 0.5)
-		if _is_upgrade(run, drop):
-			run.equip(drop)
+		# Reward cadence comes from Progression, so the simulator cannot drift
+		# into measuring a more generous game than the one being played.
+		match Progression.reward_of(room):
+			Progression.Reward.ITEM:
+				_maybe_equip(gen, run, here, 3, 0.5)
+			Progression.Reward.BOON:
+				_take_boon(pool, run, policy, picked_ids)
+			Progression.Reward.ACT_PRIZE:
+				_maybe_equip(gen, run, here, 7, 0.85)
+				_take_boon(pool, run, policy, picked_ids)
 
-		var offer := pool.offer(
-			run.boon_rng, run.owned_boon_ids(), run.owned_boon_groups(), run.active_tags(), 3
-		)
-		if not offer.is_empty():
-			var choice := _choose(run, offer, policy)
-			run.take_boon(choice)
-			picked_ids.append(choice.id)
+		var heal := BOSS_HEAL if boss_here else ROOM_HEAL
+		var full := run.build_stats().max_health
+		run.health = minf(full, run.health + full * heal)
 
-		var healed := run.build_stats().max_health * FLOOR_HEAL
-		run.health = minf(run.build_stats().max_health, run.health + healed)
+		if not run.advance_room():
+			break
 
 	return {"depth": depth, "boons": picked_ids, "tags": run.active_tags(), "ttk": ttk}
+
+
+func _maybe_equip(
+	gen: ItemGenerator, run: RunState, here: int, bonus: int, magic: float
+) -> void:
+	var drop := gen.roll_item(here + bonus, run.loot_rng, magic)
+	if _is_upgrade(run, drop):
+		run.equip(drop)
+
+
+func _take_boon(pool: BoonPool, run: RunState, policy: String, picked_ids: Array) -> void:
+	var offer := pool.offer(
+		run.boon_rng, run.owned_boon_ids(), run.owned_boon_groups(), run.active_tags(), 3
+	)
+	if offer.is_empty():
+		return
+	var choice := _choose(run, offer, policy)
+	run.take_boon(choice)
+	picked_ids.append(choice.id)
 
 
 ## Would equipping this raise expected damage against a same-depth enemy?
 ## Uses the real stat pipeline rather than a heuristic, so an item that trades
 ## damage for resistance is judged the way combat will actually judge it.
 func _is_upgrade(run: RunState, drop: Item) -> bool:
-	var enemy := RunState.enemy_for_floor(run.floor_number)
+	var enemy := RunState.enemy_for_depth(run.depth())
 	var before := run.build_stats().expected_hit(enemy)
 
 	var trial := RunState.base_stats()
@@ -186,7 +223,7 @@ func _choose(run: RunState, offer: Array, policy: String) -> Boon.Rolled:
 					return candidate
 
 	# greedy_damage: take whatever raises expected damage most right now.
-	var enemy := RunState.enemy_for_floor(run.floor_number)
+	var enemy := RunState.enemy_for_depth(run.depth())
 	var best: Boon.Rolled = offer[0]
 	var best_score := -INF
 	for candidate in offer:
@@ -206,21 +243,31 @@ func _report(policy: String, result: Dictionary, runs: int) -> void:
 	print("   depth   p10 %d | median %d | p90 %d | max %d"
 		% [_pct(depths, 0.10), _pct(depths, 0.50), _pct(depths, 0.90), depths[depths.size() - 1]])
 
-	var cleared := depths.filter(func(d): return d >= MAX_FLOOR).size()
-	print("   cleared floor %d: %.1f%% of runs" % [MAX_FLOOR, 100.0 * cleared / float(runs)])
+	# Depth is in rooms, which is the right unit for a curve and the wrong one
+	# for a person. Say where the median run actually dies.
+	var median: int = _pct(depths, 0.50)
+	print("   median run ends in %s, room %d of %d"
+		% [
+			Progression.act_label(Progression.act_of_depth(median)),
+			((maxi(1, median) - 1) % Progression.ROOMS_PER_ACT) + 1,
+			Progression.ROOMS_PER_ACT,
+		])
 
-	var ttk: Dictionary = result["ttk_by_floor"]
-	var floors := ttk.keys()
-	floors.sort()
-	# Only runs that reached a floor contribute a sample to it, so deep-floor
+	var cleared := depths.filter(func(d): return d >= Progression.total_rooms()).size()
+	print("   cleared all %d acts: %.1f%% of runs" % [Progression.ACTS, 100.0 * cleared / float(runs)])
+
+	var ttk: Dictionary = result["ttk_by_room"]
+	var rooms := ttk.keys()
+	rooms.sort()
+	# Only runs that reached a room contribute a sample to it, so deep-room
 	# figures are survivorship-biased — they describe the builds that got there,
 	# not the average build. Printing n alongside keeps that visible instead of
 	# letting a flat-looking curve read as "difficulty is fine at depth".
-	var line := "   avg seconds-to-kill (n = runs that reached the floor):"
-	for f in floors:
-		if f % 3 == 1:
+	var line := "   avg seconds-to-kill (n = runs that reached the room):"
+	for f in rooms:
+		if f % 4 == 1:
 			var samples: Array = ttk[f]
-			line += "  f%d %.1fs/n=%d" % [f, _mean(samples), samples.size()]
+			line += "  r%d %.1fs/n=%d" % [f, _mean(samples), samples.size()]
 	print(line)
 
 	# Build diversity, the metric this whole rebalance was aimed at. A handful

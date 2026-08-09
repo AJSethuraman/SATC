@@ -31,7 +31,7 @@ func _holder() -> Node3D:
 
 func _enemy_at(holder: Node3D, where: Vector3) -> Enemy:
 	var e := Enemy.new()
-	e.setup(RunState.enemy_for_floor(1), false, 7)
+	e.setup(RunState.enemy_for_depth(1), false, 7)
 	holder.add_child(e)
 	e.global_position = where
 	return e

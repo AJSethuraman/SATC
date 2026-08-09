@@ -2,7 +2,7 @@ class_name Enemy
 extends CharacterBody3D
 
 ## A chaser with a telegraphed contact attack. Its stat line comes from
-## RunState.enemy_for_floor, so buffing depth scaling is a core/ change and never
+## RunState.enemy_for_depth, so buffing depth scaling is a core/ change and never
 ## a scene change.
 ##
 ## Uses the same jointed rig as the player. The swell before it commits, the arm

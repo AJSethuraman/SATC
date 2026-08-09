@@ -15,7 +15,11 @@ const STREAM_BOONS := 2
 const STREAM_COMBAT := 3
 
 var seed_value: int = 0
-var floor_number: int = 1
+## Where the run is, in Progression's terms. A run walks rooms 1..8 of an act,
+## then starts the next act's room 1 — see core/progression.gd for why the unit
+## changed from a flat floor count.
+var act_number: int = 1
+var room_number: int = 1
 var health: float = 100.0
 
 var gear: Dictionary = {}  # slot -> Item
@@ -126,36 +130,57 @@ func take_boon(b: Boon.Rolled) -> void:
 	boons.append(b)
 
 
-## Per-floor compounding rates for enemy scaling.
+## Compounding rates for enemy scaling, per room cleared and per act entered.
 ##
-## Health climbs faster than damage on purpose: deeper floors should test
-## whether your build actually scales, not whether you can survive a one-shot.
+## Health climbs faster than damage on purpose: going deeper should test whether
+## your build actually scales, not whether you can survive a one-shot.
 ##
-## DAMAGE_GROWTH is the constant the balance simulator flagged. At 1.16 it
-## compounded to roughly 8x over a fifteen-floor run, while player survival only
-## grows in flat lumps (armour and max health from gear and defensive boons,
-## maybe 3x). Runs therefore ended to attrition no matter which boons were
-## taken — measurably so: random boon picks performed as well as greedy ones.
-## Lowered to sit nearer the rate player health actually scales at.
-const HEALTH_GROWTH := 1.28
-const DAMAGE_GROWTH := 1.10
+## The old constants were per *floor* and there were fifteen of them. A run is
+## now thirty-two rooms, so applying the same rates per room would have
+## compounded damage nearly tenfold. These are the per-room equivalents of a
+## gentler curve: about 27x health and 3x damage across a full clear, against
+## the ~33x and ~3.8x the floor model reached — and the damage figure is
+## deliberately the one that came down, because that is the term the balance
+## simulator identified as outrunning the player. Defensive scaling arrives in
+## flat lumps from gear and boons; enemy damage compounds, and if it compounds
+## faster than the lumps arrive then no choice the player makes matters. That
+## showed up measurably: random boon picks performed as well as greedy ones.
+##
+## The act steps are separate from the room rates so an act boundary is a felt
+## event rather than a smooth ramp — arriving in the Sunken Works should be
+## noticeably worse than leaving the Cinderwaste.
+const ROOM_HEALTH_GROWTH := 1.09
+const ROOM_DAMAGE_GROWTH := 1.028
+const ACT_HEALTH_STEP := 1.25
+const ACT_DAMAGE_STEP := 1.10
 
 
-## Enemy stat line for a given depth.
-static func enemy_for_floor(n: int, elite: bool = false) -> StatBlock:
+## How deep the run is, counted in rooms cleared. Every curve is written against
+## this rather than against act/room, so difficulty never depends on how the run
+## happens to be chopped up.
+func depth() -> int:
+	return Progression.depth(act_number, room_number)
+
+
+## Enemy stat line at a given depth in rooms.
+static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 	var e := StatBlock.new()
-	var depth := maxf(0.0, float(n - 1))
+	var rooms := maxf(0.0, float(d - 1))
+	var acts_done := float(Progression.act_of_depth(d) - 1)
 
-	e.max_health = 40.0 * pow(HEALTH_GROWTH, depth)
-	e.weapon_min = 5.0 * pow(DAMAGE_GROWTH, depth)
-	e.weapon_max = 9.0 * pow(DAMAGE_GROWTH, depth)
+	e.max_health = 40.0 * pow(ROOM_HEALTH_GROWTH, rooms) * pow(ACT_HEALTH_STEP, acts_done)
+	var damage_scale := pow(ROOM_DAMAGE_GROWTH, rooms) * pow(ACT_DAMAGE_STEP, acts_done)
+	e.weapon_min = 5.0 * damage_scale
+	e.weapon_max = 9.0 * damage_scale
 	e.weapon_split = {Damage.Type.PHYSICAL: 1.0}
-	e.armor = 1.0 * depth
-	e.move_speed = 150.0 + 4.0 * depth
+	e.armor = 0.5 * rooms
+	# Kept just under the player's 220 at a full clear: enemies that outrun you
+	# turn dashing from a decision into a tax.
+	e.move_speed = 150.0 + 1.8 * rooms
 
-	# Resistances phase in with depth so early floors do not punish a player for
+	# Resistances phase in with depth so early rooms do not punish a player for
 	# picking the "wrong" element before they have any choice about it.
-	var res := minf(0.4, 0.05 * depth)
+	var res := minf(0.4, 0.018 * rooms)
 	for t in Damage.Type.values():
 		if t != Damage.Type.PHYSICAL:
 			e.resistances[t] = res
@@ -169,5 +194,30 @@ static func enemy_for_floor(n: int, elite: bool = false) -> StatBlock:
 	return e
 
 
-func advance_floor() -> void:
-	floor_number += 1
+## The act boss. Not an elite with a bigger multiplier bolted on: it has to
+## survive long enough for the fight to have phases the player can read, while
+## hitting hard enough that the act's whole build-up pays off.
+static func boss_for_act(act: int) -> StatBlock:
+	var e := enemy_for_depth(Progression.depth(act, Progression.BOSS_ROOM))
+	e.max_health *= 9.0
+	e.weapon_min *= 1.6
+	e.weapon_max *= 1.6
+	e.armor *= 1.5
+	# Slower than its own escort. A boss that can chase you down removes the one
+	# tool the player has for reading a long fight.
+	e.move_speed *= 0.82
+	return e
+
+
+## Move to the next room, rolling into the next act after the boss. Returns
+## false when the run has cleared the last act — the only way to finish one
+## other than dying.
+func advance_room() -> bool:
+	if room_number < Progression.ROOMS_PER_ACT:
+		room_number += 1
+		return true
+	if act_number >= Progression.ACTS:
+		return false
+	act_number += 1
+	room_number = 1
+	return true
