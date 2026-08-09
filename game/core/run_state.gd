@@ -249,8 +249,13 @@ func take_boon(b: Boon.Rolled) -> void:
 ## noticeably worse than leaving the Cinderwaste.
 ## Retuned for a 120-area run. The old rates were set for 32 and compound to
 ## absurdity over four times the distance — 1.09 per area across 119 of them is
-## a factor of twenty-eight thousand. Target is roughly 60x health and 8x damage
-## from the first area of Normal to the last of Hell.
+## a factor of twenty-eight thousand.
+##
+## The target was "roughly 60x health and 8x damage" across a full run, and the
+## health half of that is now about 310x. It was not raised for its own sake:
+## 60x was set against a player whose damage grows nearly 200x, and the
+## consequence — trash dying in a tenth of a second for half the game — is
+## written up under AREA_HEALTH_GROWTH below. Damage is still about 8x.
 ## Enemy health follows the player's power curve, which is not a straight line.
 ##
 ## Measured, and the measurement is the whole reason these numbers changed. The
@@ -346,11 +351,18 @@ static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 	# measurement this shape came from.
 	var compounding := minf(areas, POWER_SATURATION_AREAS)
 	var after_knee := maxf(0.0, areas - POWER_SATURATION_AREAS)
+	# The act step stops climbing at the same knee, and for the same reason. Past
+	# saturation the build is not compounding any more, so every term that keeps
+	# compounding is running away from it — leaving the act step uncapped put
+	# Hell trash at three to four seconds a body, which at fourteen bodies an
+	# area is a minute of chewing. The step still applies to damage, so a new act
+	# is still felt; it just stops being felt in how long things take to die.
+	var scaling_acts := minf(acts_done, POWER_SATURATION_AREAS / float(Progression.AREAS_PER_ACT))
 	e.max_health = (
 		22.0
 		* pow(AREA_HEALTH_GROWTH, compounding)
 		* pow(LATE_HEALTH_GROWTH, after_knee)
-		* pow(ACT_HEALTH_STEP, acts_done)
+		* pow(ACT_HEALTH_STEP, scaling_acts)
 		* pow(DIFFICULTY_HEALTH_STEP, passes_done)
 	)
 	var damage_scale := (
