@@ -41,11 +41,19 @@ func test_every_pass_walks_the_same_acts() -> void:
 	assert_eq(
 		Progression.total_areas(), Progression.DIFFICULTIES * Progression.areas_per_difficulty()
 	)
-	for difficulty in range(1, Progression.DIFFICULTIES + 1):
-		assert_eq(
-			Progression.area_name(1, 1), "The Ashen Verge",
-			"the first area is the same place on every pass"
-		)
+	# Names are indexed by act and area only, never by pass — which is what makes
+	# a pass a revisit rather than a new region. If a difficulty ever leaked into
+	# the lookup, the count of distinct names would stop matching one pass.
+	var distinct: Array[String] = []
+	for act in range(1, Progression.ACTS + 1):
+		for area in range(1, Progression.AREAS_PER_ACT + 1):
+			var n := Progression.area_name(act, area)
+			if not distinct.has(n):
+				distinct.append(n)
+	assert_eq(
+		distinct.size(), Progression.areas_per_difficulty(),
+		"a pass does not cover exactly one full set of places"
+	)
 
 
 ## A pass boundary must dwarf an act boundary. Nightmare has to invalidate a
@@ -167,10 +175,14 @@ func test_a_boss_outlasts_the_area_it_ends() -> void:
 	assert_lt(boss.move_speed, mob.move_speed, "boss can run the player down")
 
 
-## Every area is a named place, and no name repeats. This is the entire point of
-## calling the unit an area rather than a floor: "Floor 11" is a coordinate, and
-## a run made of coordinates has no sense of going anywhere. A missing or
-## duplicated name silently turns part of the map back into a number.
+## Every area is a named place, and no name repeats *within a pass*. This is the
+## entire point of calling the unit an area rather than a floor: "Floor 11" is a
+## coordinate, and a run made of coordinates has no sense of going anywhere. A
+## missing or duplicated name silently turns part of the map back into a number.
+##
+## Forty names cover a hundred and twenty areas because the passes revisit the
+## same places — the Cinderwaste in Hell is the Cinderwaste. That reuse is the
+## design, so this counts names per pass rather than per area.
 func test_every_area_is_named_and_no_name_repeats() -> void:
 	var seen: Array[String] = []
 	for act in range(1, Progression.ACTS + 1):
@@ -179,7 +191,7 @@ func test_every_area_is_named_and_no_name_repeats() -> void:
 			assert_ne(name_here, "", "act %d area %d has no name" % [act, area])
 			assert_false(seen.has(name_here), "duplicate area name: %s" % name_here)
 			seen.append(name_here)
-	assert_eq(seen.size(), Progression.total_areas())
+	assert_eq(seen.size(), Progression.areas_per_difficulty())
 
 
 ## The names table must actually cover the structure. A short act would silently
