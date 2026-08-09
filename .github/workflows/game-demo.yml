@@ -103,11 +103,32 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f "$DEMO_PATH"
-          if git diff --cached --quiet; then
-            echo "demo unchanged, nothing to commit"
-            exit 0
-          fi
-          # [skip ci] so committing a video does not re-trigger the test suite.
-          git commit -m "Record gameplay demo [skip ci]"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+          # Rendering takes minutes, which is ample time for someone to push to
+          # the branch underneath us — and then the recording is rejected as
+          # non-fast-forward and thrown away. So keep the file aside and replay
+          # it onto whatever the tip is now. Rebuilding the commit rather than
+          # rebasing means a video can never conflict with a video.
+          keep="$RUNNER_TEMP/demo.mp4"
+          cp "$DEMO_PATH" "$keep"
+
+          for attempt in 1 2 3; do
+            git add -f "$DEMO_PATH"
+            if git diff --cached --quiet; then
+              echo "demo unchanged, nothing to commit"
+              exit 0
+            fi
+            # [skip ci] so committing a video does not re-trigger the suite.
+            git commit -q -m "Record gameplay demo [skip ci]"
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "push rejected (attempt $attempt) — replaying onto the new tip"
+            git fetch origin "$GITHUB_REF_NAME"
+            git reset --hard "origin/${GITHUB_REF_NAME}"
+            mkdir -p "$(dirname "$DEMO_PATH")"
+            cp "$keep" "$DEMO_PATH"
+          done
+
+          echo "::error::could not push the recording after 3 attempts"
+          exit 1
