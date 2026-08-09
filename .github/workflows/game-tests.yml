@@ -91,6 +91,32 @@ jobs:
           godot --headless --path game --script res://sim/balance_sim.gd -- 200 0.5 \
             | tee "$RUNNER_TEMP/balance.log"
 
+      - name: Check that nothing dies instantly
+        # The complaint this guards against is "everything dies in one hit", and
+        # it went unnoticed for a long time because it is invisible to every
+        # other check here: the game boots, the tests pass, runs complete, and
+        # the footage looks flat for a reason no assertion was watching. Trash
+        # dying faster than a single attack cycle also silently disables every
+        # area-of-effect spell, because nothing lives long enough to be grouped.
+        #
+        # The floor is deliberately well below the target, so this catches a
+        # collapse rather than policing a tuning pass.
+        run: |
+          set -uo pipefail
+          worst=$(grep -o '[0-9.]\+s/n=' "$RUNNER_TEMP/balance.log" \
+            | tr -d 's/n=' | sort -g | head -1)
+          if [ -z "$worst" ]; then
+            echo "no seconds-to-kill figures in the balance log"
+            exit 1
+          fi
+          echo "fastest average kill anywhere in the run: ${worst}s"
+          awk -v w="$worst" 'BEGIN {
+            if (w < 0.25) {
+              print "trash dies in " w "s — under a quarter second, the kit collapses to its basic attack"
+              exit 1
+            }
+          }'
+
       - name: Simulate inscription acquisition
         run: |
           set -o pipefail

@@ -251,7 +251,35 @@ func take_boon(b: Boon.Rolled) -> void:
 ## absurdity over four times the distance — 1.09 per area across 119 of them is
 ## a factor of twenty-eight thousand. Target is roughly 60x health and 8x damage
 ## from the first area of Normal to the last of Hell.
-const AREA_HEALTH_GROWTH := 1.012
+## Enemy health follows the player's power curve, which is not a straight line.
+##
+## Measured, and the measurement is the whole reason these numbers changed. The
+## balance simulator reports average seconds-to-kill by depth, and it read 1.6s
+## in area 1, 0.3s by area 17, and then 0.1s from area 33 to area 77 — a fifth
+## of one attack cycle, for nearly half the game. Working backwards from that
+## curve, enemy health grew about 12x between areas 1 and 77 while player damage
+## grew about 190x.
+##
+## No single boon is responsible; that was the first suspicion and it was wrong.
+## The player's damage is the product of four independent axes — multiplicative
+## boons (~8x), additive increases (~5x), flat damage from gear (~4x), and crit
+## — each defensible alone and jointly enormous. Stacking like that is the point
+## of the itemisation, so the enemy curve is what has to move.
+##
+## And it has to move in the right *shape*. The boon pool holds thirty boons and
+## a run is offered three or four an act, so somewhere around the eighth act
+## there is nothing left to take and the build stops compounding; after that it
+## grows only from gear. A single exponential fitted to the compounding phase
+## makes the end of Hell absurd, and one fitted to the whole run leaves the
+## middle at 0.1s. So there are two rates with a knee between them.
+##
+## The consequence to watch for: longer fights mean more time under fire, so
+## this is a difficulty change as well as a pacing one, and the clear rate is
+## expected to come down from the 103-of-120 median the simulator last reported.
+const POWER_SATURATION_AREAS := 64.0
+const AREA_HEALTH_GROWTH := 1.047
+## After the knee, where only gear is still adding to the player's damage.
+const LATE_HEALTH_GROWTH := 1.012
 const AREA_DAMAGE_GROWTH := 1.0079
 const ACT_HEALTH_STEP := 1.10
 const ACT_DAMAGE_STEP := 1.04
@@ -314,9 +342,14 @@ static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 	# half the time — which means this is a pacing change rather than a
 	# difficulty one, and the simulator should show the clear rate roughly where
 	# it was.
+	# Two rates with a knee at POWER_SATURATION_AREAS — see the constant for the
+	# measurement this shape came from.
+	var compounding := minf(areas, POWER_SATURATION_AREAS)
+	var after_knee := maxf(0.0, areas - POWER_SATURATION_AREAS)
 	e.max_health = (
 		22.0
-		* pow(AREA_HEALTH_GROWTH, areas)
+		* pow(AREA_HEALTH_GROWTH, compounding)
+		* pow(LATE_HEALTH_GROWTH, after_knee)
 		* pow(ACT_HEALTH_STEP, acts_done)
 		* pow(DIFFICULTY_HEALTH_STEP, passes_done)
 	)
