@@ -298,6 +298,12 @@ func _build_environment() -> void:
 	# One cascade over 40m puts every texel where the game actually happens.
 	light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	light.directional_shadow_max_distance = 40.0
+	# Enough bias to stop the floor self-shadowing into fine hatching. Only ever
+	# visible through something bright drawn on the floor, but the nova ring is
+	# exactly that. Kept modest: overshoot detaches the bodies from their own
+	# shadows, which costs far more than the acne did.
+	light.shadow_bias = 0.16
+	light.shadow_normal_bias = 2.5
 	# Angled across the camera rather than along it, so bodies cast shadows to
 	# the side where they read, instead of hiding directly behind themselves.
 	light.rotation = Vector3(deg_to_rad(-52.0), deg_to_rad(Feel.CAMERA_AZIMUTH + 40.0), 0.0)
