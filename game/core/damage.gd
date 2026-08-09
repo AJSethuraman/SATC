@@ -67,11 +67,17 @@ class Result extends RefCounted:
 ## Resolve a single hit of `attacker` against `defender`.
 ##
 ## `rng` is consumed for the base weapon roll and the crit roll, in that order.
-static func resolve(attacker: StatBlock, defender: StatBlock, rng: Rng) -> Result:
+## `split_override` lets a spell decide the damage type of a hit that is
+## otherwise built entirely from the caster's stats — a Frozen Orb is cold no
+## matter what the caster is wearing. Empty means use the attacker's own split.
+static func resolve(
+	attacker: StatBlock, defender: StatBlock, rng: Rng, split_override: Dictionary = {}
+) -> Result:
 	var res := Result.new()
 
 	# 1. Base weapon roll, split across the attacker's declared damage types.
 	var base := rng.randf_range(attacker.weapon_min, attacker.weapon_max)
+	var split: Dictionary = attacker.weapon_split if split_override.is_empty() else split_override
 
 	# 5. Crit is rolled once for the hit, not per damage type.
 	var crit := rng.chance(attacker.crit_chance)
@@ -79,7 +85,7 @@ static func resolve(attacker: StatBlock, defender: StatBlock, rng: Rng) -> Resul
 	var crit_mult := attacker.crit_mult if crit else 1.0
 
 	for t in Type.values():
-		var portion: float = base * attacker.weapon_split.get(t, 0.0)
+		var portion: float = base * split.get(t, 0.0)
 		# 2. flat added
 		var raw: float = portion + attacker.flat_damage.get(t, 0.0)
 		if raw <= 0.0:
@@ -91,8 +97,19 @@ static func resolve(attacker: StatBlock, defender: StatBlock, rng: Rng) -> Resul
 		raw *= attacker.more_multiplier(t) * crit_mult
 		res.pre_mitigation += raw
 
-		# 6. resistance
-		var resist: float = clampf(defender.resistances.get(t, 0.0), RESIST_FLOOR, RESIST_CAP)
+		# 6. resistance, less whatever the attacker pierces.
+		#
+		# The subtraction happens before the clamp, which is the entire point.
+		# Clamping the defender first and then subtracting would let piercing
+		# reduce a 75% resistance to 55% and no further use than that; doing it
+		# in this order lets enough penetration carry a resistant target past
+		# zero and into taking *more* than full damage. That is why Diablo II's
+		# Cold Mastery is worth more than any flat cold multiplier, and it only
+		# works because of which side of the clamp it sits on.
+		var raw_resist: float = (
+			defender.resistances.get(t, 0.0) - attacker.resist_pierce.get(t, 0.0)
+		)
+		var resist: float = clampf(raw_resist, RESIST_FLOOR, RESIST_CAP)
 		var mitigated := raw * (1.0 - resist)
 		res.by_type[t] = mitigated
 		res.total += mitigated

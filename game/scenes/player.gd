@@ -93,7 +93,7 @@ func _ready() -> void:
 	collision_mask = 1
 
 	_rig = CharacterRig.new()
-	_rig.build(Feel.PLAYER_HEIGHT, Feel.COLOUR_PLAYER, true)
+	_rig.build(Feel.PLAYER_HEIGHT, Feel.COLOUR_PLAYER, false, CharacterRig.Kind.SORCERESS)
 	add_child(_rig)
 
 	_slash = MeshInstance3D.new()
@@ -149,7 +149,8 @@ func _physics_process(delta: float) -> void:
 
 	var target := Vector3.ZERO
 	if _dash_timer > 0.0:
-		target = facing * Feel.DASH_SPEED
+		# Arrived already; hold still for the blink so the eye can find you.
+		target = Vector3.ZERO
 	elif _state == State.FREE or _state == State.RECOVERY:
 		target = _move_input() * stats.move_speed * Feel.UNITS_PER_PIXEL
 	elif _state == State.WINDUP:
@@ -257,6 +258,14 @@ func _move_input() -> Vector3:
 	return (IsoCamera.input_basis() * Vector3(screen.x, 0.0, screen.y)).normalized()
 
 
+## Teleport. Not a dash — see Feel.TELEPORT_RANGE for why that distinction is
+## the class.
+##
+## Resolved with move_and_collide rather than by assigning position, so a blink
+## into a wall stops at the wall instead of putting the body inside it. The
+## i-frames are unchanged from the dash they replace: arriving somewhere else is
+## already the strongest defensive move in the game, and it does not need to
+## also be longer.
 func _try_dash() -> void:
 	if _dash_cooldown > 0.0 or _dash_timer > 0.0:
 		return
@@ -264,7 +273,15 @@ func _try_dash() -> void:
 	if dir == Vector3.ZERO:
 		dir = facing
 	facing = dir
-	_dash_timer = Feel.DASH_DURATION
+
+	var hit := move_and_collide(dir * Feel.TELEPORT_RANGE)
+	if hit != null:
+		# Slide the remaining distance along the surface rather than stopping
+		# dead, so a blink toward a corner still moves you.
+		move_and_collide(hit.get_remainder().slide(hit.get_normal()))
+
+	velocity = Vector3.ZERO
+	_dash_timer = Feel.TELEPORT_BLINK
 	_dash_cooldown = Feel.DASH_COOLDOWN
 	_iframes = Feel.DASH_IFRAMES
 	_state = State.FREE

@@ -21,6 +21,9 @@ var seed_value: int = 0
 var act_number: int = 1
 var area_number: int = 1
 var health: float = 100.0
+## Which of the Sorceress' three trees this run was dealt. Set by the scene
+## layer at run start; core/ only carries it so the HUD and the log agree.
+var school: String = "fire"
 
 var gear: Dictionary = {}  # slot -> Item
 var boons: Array = []  # of Boon.Rolled

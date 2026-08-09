@@ -37,6 +37,9 @@ enum Kind {
 	BRUTE,
 	## Tall and thin, long legs, whipping tail. Reads fast and it is.
 	STALKER,
+	## The player. Robed, hooded, carrying a staff rather than a sword — the
+	## Diablo II Sorceress silhouette, which is almost entirely skirt and hood.
+	SORCERESS,
 }
 
 const LEG_FRACTION := 0.44
@@ -140,6 +143,16 @@ func build(height: float, colour: Color, with_weapon: bool, kind: Kind = Kind.HU
 			horn = 0.62
 			clawed = true
 			_hunch = deg_to_rad(26.0)
+		Kind.SORCERESS:
+			# A robe reads as one tapering mass from the shoulders down, so the
+			# legs shrink to almost nothing and the skirt does the work. This is
+			# why the Sorceress is recognisable at Diablo II's zoom while a
+			# figure in trousers is not: her silhouette is a triangle.
+			leg_f = 0.30
+			torso_f = 0.36
+			head_f = 0.15
+			arm_f = 0.34
+			width_f = 0.24
 		Kind.STALKER:
 			leg_f = 0.54
 			torso_f = 0.26
@@ -198,7 +211,11 @@ func build(height: float, colour: Color, with_weapon: bool, kind: Kind = Kind.HU
 		_add_claws(_arm_l, arm_len, line, colour)
 		_add_claws(_arm_r, arm_len, line, colour)
 
-	if with_weapon:
+	if kind == Kind.SORCERESS:
+		_add_robe(height, leg_len, width, line, colour)
+		_add_hood(head_size, line, colour)
+		_add_staff(height, arm_len, line, colour)
+	elif with_weapon:
 		var blade_len := height * 0.5
 		_weapon = _box(Vector3(height * 0.05, blade_len, height * 0.1), Shapes.body(
 			Color(0.78, 0.80, 0.86)
@@ -207,6 +224,66 @@ func build(height: float, colour: Color, with_weapon: bool, kind: Kind = Kind.HU
 		_weapon.position = Vector3(0.0, -arm_len * 0.92, -blade_len * 0.34)
 		_weapon.basis = Basis(Vector3.RIGHT, deg_to_rad(-78.0))
 		_arm_r.add_child(_weapon)
+
+
+## The skirt of the robe: a wide cone from the waist to the floor.
+##
+## Hides the legs entirely, which is the point — a walking robe should read as
+## a body gliding rather than as two sticks alternating, and hiding the legs is
+## far cheaper than animating a cloth simulation nobody asked for.
+func _add_robe(height: float, leg_len: float, width: float, line: float, colour: Color) -> void:
+	var skirt := CylinderMesh.new()
+	skirt.height = leg_len + height * 0.16
+	skirt.top_radius = width * 0.52
+	skirt.bottom_radius = width * 1.15
+	skirt.radial_segments = 8
+	skirt.rings = 1
+
+	var inst := MeshInstance3D.new()
+	inst.mesh = skirt
+	inst.material_override = Shapes.body(colour.darkened(0.18), line)
+	# Hangs from the hips down; the hips sit at leg_len, so centre it below them.
+	inst.position = Vector3(0.0, -(leg_len + height * 0.16) * 0.5 + height * 0.05, 0.0)
+	_hips.add_child(inst)
+
+
+## A hood: a slightly larger, darker box sitting over the skull and back of the
+## head, open at the front so the face still catches the light.
+func _add_hood(head_size: float, line: float, colour: Color) -> void:
+	var hood := _box(
+		Vector3(head_size * 1.12, head_size * 0.78, head_size * 1.02),
+		Shapes.body(colour.darkened(0.42), line)
+	)
+	hood.position = Vector3(0.0, head_size * 0.26, head_size * 0.1)
+	_head.add_child(hood)
+
+
+## A staff, held out from the off hand, with a lit stone at the head of it.
+##
+## The stone is above the bloom threshold, so a Sorceress standing in a dark
+## arena is lit by the one thing she is carrying. It is also the only part of
+## the player that glows, which makes the staff head a second place to find her
+## when the body is behind something.
+func _add_staff(height: float, arm_len: float, line: float, colour: Color) -> void:
+	var shaft_len := height * 0.82
+	_weapon = _box(
+		Vector3(height * 0.028, shaft_len, height * 0.028),
+		Shapes.body(Color(0.42, 0.31, 0.26), line)
+	)
+	_weapon.position = Vector3(0.0, -arm_len * 0.95 + shaft_len * 0.28, 0.0)
+	_arm_l.add_child(_weapon)
+
+	var stone := SphereMesh.new()
+	stone.radius = height * 0.045
+	stone.height = height * 0.09
+	stone.radial_segments = 8
+	stone.rings = 4
+	var lit := MeshInstance3D.new()
+	lit.mesh = stone
+	lit.material_override = Shapes.glow(Color(0.72, 0.86, 1.0))
+	lit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	lit.position = Vector3(0.0, shaft_len * 0.55, 0.0)
+	_weapon.add_child(lit)
 
 
 ## A pair of cones off the top of the skull, swept out and back.

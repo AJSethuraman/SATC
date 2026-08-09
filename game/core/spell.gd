@@ -23,8 +23,29 @@ const SHAPE_NAMES := {
 
 var id: String = ""
 var display_name: String = ""
+## Which of the three trees this belongs to: "fire", "cold" or "lightning".
+var school: String = "fire"
 var description: String = ""
 var shape: Shape = Shape.PROJECTILE
+
+## The school this spell belongs to, and the damage type it deals regardless of
+## what the caster is wearing.
+##
+## This is the change that makes a Sorceress possible. Until now a spell scaled
+## the caster's own weapon split, which is physical by default — so an
+## "Emberbolt" dealt physical damage and every resistance in the game was
+## decorative. A Frozen Orb is cold because it is a Frozen Orb.
+var element: int = Damage.Type.FIRE
+
+## Asymmetric roll multiplier, low and high.
+##
+## Diablo II's lightning spells roll from 1 to a very large number: Chain
+## Lightning at high level might read "1-500", and the average is nowhere near
+## the middle of the bar you are reading. That variance is the identity of the
+## school — lightning is the gamble, fire is steady, cold is steady but slows.
+## Defaults to no variance at all, so only spells that opt in are noisy.
+var roll_low: float = 1.0
+var roll_high: float = 1.0
 
 ## Mana spent per cast. Zero would make the resource decorative.
 var cost: float = 0.0
@@ -51,8 +72,12 @@ static func from_dict(d: Dictionary) -> Spell:
 	var s := Spell.new()
 	s.id = str(d.get("id", ""))
 	s.display_name = str(d.get("name", s.id))
+	s.school = str(d.get("school", "fire"))
 	s.description = str(d.get("description", ""))
 	s.shape = Shape.NOVA if str(d.get("shape", "projectile")) == "nova" else Shape.PROJECTILE
+	s.element = Damage.type_from_name(str(d.get("element", "fire")))
+	s.roll_low = float(d.get("roll_low", 1.0))
+	s.roll_high = float(d.get("roll_high", 1.0))
 	s.cost = float(d.get("cost", 0.0))
 	s.base_cast_time = float(d.get("cast_time", 0.4))
 	s.cooldown = float(d.get("cooldown", 0.0))
@@ -73,6 +98,30 @@ func cast_time(stats: StatBlock) -> float:
 
 func can_afford(mana: float) -> bool:
 	return mana >= cost
+
+
+## The damage split to resolve this spell with: all of its own element.
+func split() -> Dictionary:
+	return {element: 1.0}
+
+
+## One roll of this spell's variance. Averages 1.0 when roll_low and roll_high
+## are symmetric about it, so widening the spread makes a spell swingier without
+## quietly making it stronger.
+func roll_variance(rng: Rng) -> float:
+	if is_equal_approx(roll_low, roll_high):
+		return roll_low
+	return rng.randf_range(roll_low, roll_high)
+
+
+## Every spell of one school, so a run can be handed a complete kit.
+static func of_school(all: Array, name: String) -> Array:
+	var out: Array = []
+	for s in all:
+		var spell := s as Spell
+		if spell != null and spell.school == name:
+			out.append(spell)
+	return out
 
 
 static func from_json(path: String) -> Array:

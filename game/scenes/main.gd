@@ -23,6 +23,7 @@ var run: RunState
 var generator: ItemGenerator
 var boon_pool: BoonPool
 var book: InscriptionBook
+var all_spells: Array = []
 var bolt: Spell
 var nova: Spell
 
@@ -43,11 +44,7 @@ func _ready() -> void:
 	generator = ItemGenerator.from_json(ITEMS_PATH)
 	boon_pool = BoonPool.from_json(BOONS_PATH)
 	book = InscriptionBook.from_json(SIGILS_PATH)
-	for spell in Spell.from_json(SPELLS_PATH):
-		if spell.id == "nova":
-			nova = spell
-		else:
-			bolt = spell
+	all_spells = Spell.from_json(SPELLS_PATH)
 
 	_build_environment()
 	_build_arena()
@@ -69,6 +66,7 @@ func _ready() -> void:
 
 func _start_run(seed_v: int) -> void:
 	run = RunState.start(seed_v)
+	_attune(seed_v)
 
 	if is_instance_valid(player):
 		player.queue_free()
@@ -85,8 +83,29 @@ func _start_run(seed_v: int) -> void:
 	player.global_position = Vector3.ZERO
 
 	camera.snap_to(Vector3.ZERO)
-	_say("Run %d — descend." % seed_v)
+	_say("You wake attuned to %s. Descend." % run.school)
 	_start_area()
+
+
+## Pick the run's school and bind its two spells.
+##
+## Diablo II's Sorceress owns all three trees at once and specialises by where
+## she spends points. There is no skill screen here and only two cast buttons,
+## so the run is dealt a school instead — which keeps the thing that actually
+## mattered about the choice: you are one element this run, and the boons and
+## gear you find either flatter it or do not.
+func _attune(seed_v: int) -> void:
+	var schools := ["fire", "cold", "lightning"]
+	run.school = schools[absi(seed_v) % schools.size()]
+	var kit := Spell.of_school(all_spells, run.school)
+	for s in kit:
+		var spell := s as Spell
+		if spell == null:
+			continue
+		if spell.shape == Spell.Shape.NOVA:
+			nova = spell
+		else:
+			bolt = spell
 
 
 func _start_area() -> void:
@@ -275,7 +294,7 @@ func _fire_projectile(spell: Spell, origin: Vector3, facing: Vector3) -> void:
 ## Everything within reach, at once. The reason a caster wants a crowd.
 func _detonate_nova(spell: Spell, origin: Vector3) -> void:
 	var burst := NovaBurst.new()
-	burst.setup(spell.radius, Projectile.tint_for(player.behaviours))
+	burst.setup(spell.radius, Projectile.tint_for_spell(spell, player.behaviours))
 	# Parented to the arena rather than to Enemies, which gets cleared wholesale
 	# on an area change — a ring is not something to wipe mid-flourish.
 	add_child(burst)
@@ -291,8 +310,8 @@ func _detonate_nova(spell: Spell, origin: Vector3) -> void:
 		to_enemy.y = 0.0
 		if to_enemy.length() > spell.radius + Feel.ENEMY_RADIUS:
 			continue
-		var result := Damage.resolve(player.stats, e.stats, run.combat_rng)
-		result.total *= spell.damage_scale
+		var result := Damage.resolve(player.stats, e.stats, run.combat_rng, spell.split())
+		result.total *= spell.damage_scale * spell.roll_variance(run.combat_rng)
 		e.take_hit(result, origin)
 		_show_hit(e.global_position, result)
 		hits += 1
@@ -518,9 +537,9 @@ func _refresh_hud() -> void:
 				Progression.AREAS_PER_ACT, roundi(player.health), roundi(stats.max_health),
 				roundi(player.mana), roundi(stats.max_mana)
 			],
-		"dmg %d-%d   crit %.0f%%   cast x%.2f   more x%.2f"
+		"%s   dmg %d-%d   crit %.0f%%   cast x%.2f   more x%.2f"
 			% [
-				roundi(stats.weapon_min), roundi(stats.weapon_max),
+				run.school, roundi(stats.weapon_min), roundi(stats.weapon_max),
 				stats.crit_chance * 100.0, stats.cast_speed, _more_product(stats)
 			],
 	]

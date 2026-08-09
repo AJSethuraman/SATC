@@ -237,3 +237,83 @@ func test_expected_hit_matches_the_sampled_average() -> void:
 		sampled / analytic, 0.97, 1.03,
 		"expected_hit (%.2f) disagrees with sampling (%.2f)" % [analytic, sampled]
 	)
+
+
+## Resistance penetration, and the ordering that makes it worth taking.
+##
+## Diablo II's Cold Mastery subtracts the target's resistance where Fire and
+## Lightning Mastery add damage, and the difference is not cosmetic. Against a
+## 75%-resistant target a damage multiplier keeps a quarter of its face value no
+## matter how large it grows; penetration attacks the denominator instead. That
+## only holds if the subtraction happens before the clamp — clamp first and a
+## 75% target can never be carried past zero, which is where the payoff is.
+func test_pierce_is_subtracted_before_the_resistance_clamp() -> void:
+	var enemy := StatBlock.new()
+	enemy.resistances = {Damage.Type.COLD: 0.75}
+
+	var plain := _cold_caster()
+	var pierced := _cold_caster()
+	pierced.resist_pierce = {Damage.Type.COLD: 0.75}
+
+	var before := plain.expected_hit(enemy)
+	var after := pierced.expected_hit(enemy)
+	# 75% resisted to 0% resisted is a fourfold swing.
+	assert_gt(after, before * 3.5, "piercing 75%% resistance barely helped")
+
+
+## Enough penetration must carry a resistant target past zero into negative
+## resistance, where it takes more than full damage. If the clamp were applied
+## to the defender first this would be impossible, and Cold Mastery would be a
+## strictly worse Fire Mastery.
+func test_enough_pierce_pushes_resistance_negative() -> void:
+	var enemy := StatBlock.new()
+	enemy.resistances = {Damage.Type.COLD: 0.5}
+
+	var unresisted := StatBlock.new()
+	unresisted.resistances = {}
+
+	var caster := _cold_caster()
+	caster.resist_pierce = {Damage.Type.COLD: 1.2}
+
+	var full := _cold_caster().expected_hit(unresisted)
+	var over := caster.expected_hit(enemy)
+	assert_gt(over, full, "pierce past zero did not exceed full damage")
+
+
+## The floor still holds, so no amount of penetration turns a hit infinite.
+func test_pierce_respects_the_resistance_floor() -> void:
+	var enemy := StatBlock.new()
+	enemy.resistances = {Damage.Type.COLD: 0.0}
+
+	var caster := _cold_caster()
+	caster.resist_pierce = {Damage.Type.COLD: 50.0}
+
+	var unresisted := StatBlock.new()
+	var capped := caster.expected_hit(enemy)
+	var full := _cold_caster().expected_hit(unresisted)
+	# RESIST_FLOOR is -1.0, so the most penetration can ever buy is double.
+	assert_lt(capped, full * 2.05, "pierce broke through the resistance floor")
+
+
+## Pierce must not leak across damage types: cold penetration is cold only.
+func test_pierce_is_per_type() -> void:
+	var enemy := StatBlock.new()
+	enemy.resistances = {Damage.Type.FIRE: 0.75}
+
+	var caster := _cold_caster()
+	caster.weapon_split = {Damage.Type.FIRE: 1.0}
+	caster.resist_pierce = {Damage.Type.COLD: 0.75}
+
+	var plain := _cold_caster()
+	plain.weapon_split = {Damage.Type.FIRE: 1.0}
+	assert_almost_eq(caster.expected_hit(enemy), plain.expected_hit(enemy), 0.001,
+		"cold penetration applied to a fire hit")
+
+
+func _cold_caster() -> StatBlock:
+	var s := StatBlock.new()
+	s.weapon_min = 100.0
+	s.weapon_max = 100.0
+	s.weapon_split = {Damage.Type.COLD: 1.0}
+	s.crit_chance = 0.0
+	return s

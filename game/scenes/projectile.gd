@@ -68,7 +68,7 @@ func _ready() -> void:
 	var lie_down := Basis(Vector3.UP, atan2(direction.x, direction.z)) * Basis(
 		Vector3.RIGHT, deg_to_rad(90.0)
 	)
-	var colour := tint_for(behaviours)
+	var colour := tint_for_spell(spell, behaviours)
 
 	# A smear behind the core, additive and translucent. At 17 m/s a bolt covers
 	# most of its own length per frame, so without something trailing it reads as
@@ -106,9 +106,22 @@ func _ready() -> void:
 	position.y = 1.0
 
 
-## Bolts take the colour of whatever the build has committed to, so you can read
-## someone's element off the screen without a UI. Static because the nova wants
-## the same answer — one cast should not be a different element from the next.
+## Bolts take the colour of the school they belong to, so you can read what
+## someone is casting off the screen without a UI. Inscriptions can still shift
+## it — a build that has committed to chaining reads violet whatever it started
+## as.
+static func tint_for_spell(spell: Spell, active: Array) -> Color:
+	if spell != null:
+		match spell.element:
+			Damage.Type.COLD:
+				return Color(0.55, 0.85, 1.0)
+			Damage.Type.LIGHTNING:
+				return Color(0.86, 0.78, 1.0)
+			_:
+				return Color(0.98, 0.46, 0.14)
+	return tint_for(active)
+
+
 static func tint_for(active: Array) -> Color:
 	if active.has("bolt_ignites"):
 		return Color(1.0, 0.74, 0.24)
@@ -163,8 +176,11 @@ func _check_hits() -> void:
 			continue
 
 		_already_hit.append(enemy.get_instance_id())
-		var result := Damage.resolve(stats, enemy.stats, rng)
-		result.total *= spell.damage_scale
+		# The spell decides the damage type, not the caster's gear — see
+		# Spell.split(). Variance is the school's signature: lightning rolls
+		# wild, fire and cold do not.
+		var result := Damage.resolve(stats, enemy.stats, rng, spell.split())
+		result.total *= spell.damage_scale * spell.roll_variance(rng)
 		enemy.take_hit(result, global_position)
 		hit_enemy.emit(enemy, result, global_position)
 

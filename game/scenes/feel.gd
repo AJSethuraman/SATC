@@ -51,6 +51,24 @@ const ELITE_SCALE := 1.5
 const MOVE_ACCEL := 18.0
 const MOVE_FRICTION := 22.0
 
+# --- Teleport -----------------------------------------------------------
+## The Sorceress does not roll, she blinks.
+##
+## Teleport is the skill that defines the class in Diablo II — not because of
+## its numbers, which it has none of, but because it changes what the game is:
+## every other class negotiates with the space between them and a pack, and the
+## Sorceress deletes it. Keeping that as the movement button rather than as an
+## extra spell is the whole reason this reads as a Sorceress and not as a mage
+## with a dodge roll.
+##
+## Range is deliberately short of the arena's width. A blink that crosses the
+## whole room makes positioning meaningless; one that crosses half of it makes
+## positioning a decision.
+const TELEPORT_RANGE := 5.2
+## Seconds of blank between vanishing and arriving. Not travel — there is no
+## travel — just enough that the eye can follow where you went.
+const TELEPORT_BLINK := 0.07
+
 # --- Dash ---------------------------------------------------------------
 const DASH_SPEED := 28.0
 const DASH_DURATION := 0.16
@@ -103,6 +121,15 @@ const KNOCKBACK_DECAY := 9.0
 
 ## Enemies stop chasing briefly when hit, so a combo does not get traded into.
 const HITSTUN := 0.18
+
+## How long a cold hit slows a body, and by how much.
+##
+## Long enough that keeping a pack chilled is a real reason to run the cold
+## school, short enough that one stray shard is not a permanent debuff. The slow
+## is deliberately large: in Diablo II cold is the weakest of the three by raw
+## damage, and it earns its place entirely by controlling when things reach you.
+const CHILL_DURATION := 2.0
+const CHILL_SLOW := 0.55
 
 # --- Procedural animation ----------------------------------------------
 ## No hand-drawn frames exist, so every bit of life in this prototype comes from
@@ -186,6 +213,7 @@ const COLOUR_ENEMY := Color(0.40, 0.17, 0.18)
 const COLOUR_ELITE := Color(0.72, 0.20, 0.16)
 const COLOUR_TELL := Color(1.0, 0.72, 0.26)
 const COLOUR_IFRAME := Color(0.48, 0.78, 1.0)
+const COLOUR_CHILL := Color(0.55, 0.82, 1.0)
 const COLOUR_SLASH := Color(1.0, 0.94, 0.76)
 
 const LIGHT_COLOUR := Color(1.0, 0.94, 0.86)

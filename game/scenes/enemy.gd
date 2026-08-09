@@ -16,6 +16,7 @@ var health: float = 10.0
 var is_elite := false
 
 var _rng: Rng
+var _chill := 0.0
 var _base_colour := Feel.COLOUR_ENEMY
 var _radius := Feel.ENEMY_RADIUS
 var _height := Feel.ENEMY_HEIGHT
@@ -107,6 +108,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_hitstun = maxf(0.0, _hitstun - delta)
+	_chill = maxf(0.0, _chill - delta)
 	_attack_cooldown = maxf(0.0, _attack_cooldown - delta)
 	_flash = maxf(0.0, _flash - delta)
 	_knockback = _knockback.lerp(Vector3.ZERO, clampf(Feel.KNOCKBACK_DECAY * delta, 0.0, 1.0))
@@ -134,7 +136,10 @@ func _physics_process(delta: float) -> void:
 		_windup = Feel.ENEMY_WINDUP
 		velocity = Vector3.ZERO
 	elif distance > 0.05:
-		velocity = to_player / distance * stats.move_speed * Feel.UNITS_PER_PIXEL + _separation()
+		var speed := stats.move_speed * Feel.UNITS_PER_PIXEL
+		if _chill > 0.0:
+			speed *= Feel.CHILL_SLOW
+		velocity = to_player / distance * speed + _separation()
 	else:
 		velocity = Vector3.ZERO
 
@@ -174,6 +179,13 @@ func _hit_damage(player: Player) -> float:
 
 func take_hit(result: Damage.Result, from: Vector3) -> void:
 	health -= result.total
+	# Anything that landed cold slows what it hits. This is why Diablo II's cold
+	# tree is worth taking even though it deals the least damage of the three:
+	# a chilled pack arrives later, arrives strung out, and stops arriving all
+	# at once — which is worth more to a caster with 100 mana than a bigger
+	# number would be.
+	if result.by_type.get(Damage.Type.COLD, 0.0) > 0.0:
+		_chill = Feel.CHILL_DURATION
 	_hitstun = Feel.HITSTUN
 	_flash = Feel.FLASH_TIME
 	_windup = -1.0  # interrupted
@@ -216,6 +228,8 @@ func _animate(delta: float, to_player: Vector3) -> void:
 	_rig.attack_phase = swing
 
 	var tint := _base_colour
+	if _chill > 0.0:
+		tint = tint.lerp(Feel.COLOUR_CHILL, 0.55)
 	if _flash > 0.0:
 		tint = Color(1.0, 1.0, 1.0)
 	elif _windup >= 0.0:

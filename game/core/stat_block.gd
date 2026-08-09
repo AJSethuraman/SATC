@@ -47,6 +47,20 @@ var crit_chance: float = 0.05
 var crit_mult: float = 1.5
 
 var resistances: Dictionary = {}
+## Enemy resistance this build subtracts before the cap is applied, per type.
+##
+## This is Diablo II's Cold Mastery, and it is the single most important stat on
+## the Sorceress for a reason worth preserving exactly. Fire and Lightning
+## Mastery add damage; Cold Mastery subtracts the target's resistance. Those are
+## not the same shape of upgrade. A damage multiplier against a 75%-resistant
+## target is worth a quarter of its face value, and it stays worth a quarter no
+## matter how large it gets. Penetration attacks the denominator: it turns the
+## same target into one taking full damage, or with enough of it, *extra*.
+##
+## Subtracted before the clamp on purpose — see Damage.resolve. That ordering is
+## the whole mechanic; clamp first and piercing a 75% target could never push it
+## below zero, which is exactly where the payoff lives.
+var resist_pierce: Dictionary = {}
 var armor: float = 0.0
 
 var max_health: float = 100.0
@@ -80,6 +94,7 @@ func clone() -> StatBlock:
 	c.crit_chance = crit_chance
 	c.crit_mult = crit_mult
 	c.resistances = resistances.duplicate()
+	c.resist_pierce = resist_pierce.duplicate()
 	c.armor = armor
 	c.max_health = max_health
 	c.move_speed = move_speed
@@ -103,6 +118,9 @@ func apply(key: String, value: float) -> void:
 	elif key.begins_with("resist."):
 		var res_type := Damage.type_from_name(key.substr(7))
 		resistances[res_type] = resistances.get(res_type, 0.0) + value
+	elif key.begins_with("pierce."):
+		var pierce_type := Damage.type_from_name(key.substr(7))
+		resist_pierce[pierce_type] = resist_pierce.get(pierce_type, 0.0) + value
 	elif key.begins_with("more."):
 		var more_type := Damage.type_from_name(key.substr(5))
 		if not more_by_type.has(more_type):
@@ -154,7 +172,7 @@ const SCALAR_KEYS := [
 	"cast_speed",
 ]
 
-const TYPED_PREFIXES := ["flat.", "increased.", "resist.", "more."]
+const TYPED_PREFIXES := ["flat.", "increased.", "resist.", "pierce.", "more."]
 
 
 ## Product of every multiplicative modifier that applies to damage type `t` —
@@ -201,8 +219,14 @@ func expected_hit(defender: StatBlock) -> float:
 			continue
 		raw *= 1.0 + increased_pct.get(t, 0.0)
 		raw *= more_multiplier(t) * avg_crit
+		# Mirrors Damage.resolve exactly, pierce and clamp order included. If
+		# these two ever disagree, every "is this an upgrade?" answer the
+		# simulator and the loot log give is computed against a game that is not
+		# the one being played.
 		var resist: float = clampf(
-			defender.resistances.get(t, 0.0), Damage.RESIST_FLOOR, Damage.RESIST_CAP
+			defender.resistances.get(t, 0.0) - resist_pierce.get(t, 0.0),
+			Damage.RESIST_FLOOR,
+			Damage.RESIST_CAP
 		)
 		total += raw * (1.0 - resist)
 	return maxf(Damage.MIN_HIT, total - defender.armor)

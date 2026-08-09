@@ -1,12 +1,14 @@
 {
-  "_comment": "Castable abilities. Damage is a multiplier on the caster's resolved hit rather than its own numbers, so affixes, sigils, inscriptions and boons all flow into every spell without any spell needing to know they exist. A spell decides shape and cost; core/damage.gd decides how much.",
+  "_comment": "The Sorceress' kit, three schools of two. Damage is a multiplier on the caster's resolved hit rather than its own numbers, so affixes, sigils, inscriptions and boons all flow into every spell without any spell needing to know they exist. A spell decides shape, cost and element; core/damage.gd decides how much. Schools follow Diablo II's split — fire is steady, cold is steady and slows, lightning is a gamble — and the identity of each is in the numbers here, not in a special case anywhere in the code.",
 
   "spells": [
     {
-      "id": "bolt",
+      "id": "bolt_fire",
       "name": "Emberbolt",
+      "school": "fire",
       "description": "The first thing anyone learns. Cheap, quick, unremarkable.",
       "shape": "projectile",
+      "element": "fire",
       "cost": 5,
       "cast_time": 0.34,
       "damage_scale": 1.0,
@@ -15,15 +17,79 @@
       "lifetime": 2.0
     },
     {
-      "id": "nova",
+      "id": "nova_fire",
       "name": "Sunder",
+      "school": "fire",
       "description": "Everything within reach, at once, at a price.",
       "shape": "nova",
+      "element": "fire",
       "cost": 28,
       "cast_time": 0.45,
       "cooldown": 1.1,
       "damage_scale": 1.55,
       "radius": 3.0,
+      "lifetime": 0.35
+    },
+
+    {
+      "id": "bolt_cold",
+      "name": "Rimeshard",
+      "school": "cold",
+      "description": "Slower than an ember, and what it touches slows with it.",
+      "shape": "projectile",
+      "element": "cold",
+      "cost": 6,
+      "cast_time": 0.38,
+      "damage_scale": 0.92,
+      "speed": 14,
+      "pierce": 1,
+      "lifetime": 2.2
+    },
+    {
+      "id": "nova_cold",
+      "name": "Hoarfront",
+      "school": "cold",
+      "description": "The air gives up its heat all at once. Little damage; nothing leaves quickly.",
+      "shape": "nova",
+      "element": "cold",
+      "cost": 24,
+      "cast_time": 0.42,
+      "cooldown": 0.9,
+      "damage_scale": 1.1,
+      "radius": 3.6,
+      "lifetime": 0.35
+    },
+
+    {
+      "id": "bolt_lightning",
+      "name": "Arcspit",
+      "school": "lightning",
+      "description": "Fast, cheap, and it will either tickle or erase.",
+      "shape": "projectile",
+      "element": "lightning",
+      "cost": 4,
+      "cast_time": 0.26,
+      "damage_scale": 1.0,
+      "roll_low": 0.12,
+      "roll_high": 1.88,
+      "speed": 24,
+      "pierce": 0,
+      "lifetime": 1.6
+    },
+    {
+      "id": "nova_lightning",
+      "name": "Stormbreak",
+      "school": "lightning",
+      "description": "A held breath, then the whole room at once. Sometimes for nothing.",
+      "shape": "nova",
+      "element": "lightning",
+      "cost": 30,
+      "cast_time": 0.5,
+      "cooldown": 1.2,
+      "damage_scale": 1.7,
+      "roll_low": 0.2,
+      "roll_high": 1.8,
+      "radius": 3.2,
       "lifetime": 0.35
     }
   ]

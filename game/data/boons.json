@@ -1,6 +1,5 @@
 {
-  "_comment": "Run-scoped blessings from the Ashen Court. `mods` keys use the StatBlock grammar (core/stat_block.gd) and are scaled by the offer's rarity. Boons own the `more` buckets; gear owns flat and increased. Each elemental god has ONE ungated entry boon that grants its tag and seeds a little of its damage type — everything else in that god's tree is `more.<type>` gated behind the tag, so it is worthless until you have committed. Odrin is the ungated generalist whose multipliers are global. Groups are per-god so gods stack rather than compete for one slot.",
-
+  "_comment": "Run-scoped blessings from the Ashen Court. `mods` keys use the StatBlock grammar (core/stat_block.gd) and are scaled by the offer's rarity. Boons own the `more` buckets; gear owns flat and increased. Each elemental god has ONE ungated entry boon that grants its tag and seeds a little of its damage type \u2014 everything else in that god's tree is `more.<type>` gated behind the tag, so it is worthless until you have committed. Odrin is the ungated generalist whose multipliers are global. Groups are per-god so gods stack rather than compete for one slot. | Masteries follow Diablo II's asymmetry deliberately: Fire and Lightning Mastery multiply your damage, Cold Mastery subtracts the target's resistance. Those are different shapes of upgrade \u2014 a multiplier against a 75% resistant target keeps a quarter of its face value forever, while penetration attacks the denominator and can carry a target past zero resistance into taking extra. See core/damage.gd for the clamp ordering that makes it work.",
   "boons": [
     {
       "id": "odrin_weight",
@@ -9,7 +8,9 @@
       "group": "odrin_attack",
       "weight": 12,
       "description": "Your strikes land heavier. All of them.",
-      "mods": { "more": 0.16 }
+      "mods": {
+        "more": 0.16
+      }
     },
     {
       "id": "odrin_hunger",
@@ -18,7 +19,10 @@
       "group": "odrin_crit",
       "weight": 10,
       "description": "Wounds you open do not close.",
-      "mods": { "crit_chance": 0.07, "crit_mult": 0.25 }
+      "mods": {
+        "crit_chance": 0.07,
+        "crit_mult": 0.25
+      }
     },
     {
       "id": "odrin_bulwark",
@@ -27,7 +31,10 @@
       "group": "odrin_defense",
       "weight": 10,
       "description": "Stand, and it will break on you.",
-      "mods": { "armor": 5, "max_health": 30 }
+      "mods": {
+        "armor": 5,
+        "max_health": 30
+      }
     },
     {
       "id": "odrin_butcher",
@@ -36,10 +43,13 @@
       "group": "odrin_capstone",
       "weight": 5,
       "description": "Brutality begets brutality.",
-      "requires_tags": ["brutal"],
-      "mods": { "more.physical": 0.42 }
+      "requires_tags": [
+        "brutal"
+      ],
+      "mods": {
+        "more.physical": 0.42
+      }
     },
-
     {
       "id": "morrow_ember",
       "name": "Ember in the Lung",
@@ -47,8 +57,13 @@
       "group": "morrow_core",
       "weight": 9,
       "description": "A small fire, carried. It is not much yet.",
-      "grants_tags": ["ignite"],
-      "mods": { "flat.fire": 4, "more.fire": 0.25 }
+      "grants_tags": [
+        "ignite"
+      ],
+      "mods": {
+        "flat.fire": 4,
+        "more.fire": 0.25
+      }
     },
     {
       "id": "morrow_pyre",
@@ -57,8 +72,12 @@
       "group": "morrow_attack",
       "weight": 8,
       "description": "It grows if you let it.",
-      "requires_tags": ["ignite"],
-      "mods": { "more.fire": 0.4 }
+      "requires_tags": [
+        "ignite"
+      ],
+      "mods": {
+        "more.fire": 0.4
+      }
     },
     {
       "id": "morrow_scald",
@@ -67,7 +86,10 @@
       "group": "morrow_defense",
       "weight": 8,
       "description": "Heat answers heat.",
-      "mods": { "resist.fire": 0.25, "armor": 3 }
+      "mods": {
+        "resist.fire": 0.25,
+        "armor": 3
+      }
     },
     {
       "id": "morrow_conflagrant",
@@ -76,11 +98,17 @@
       "group": "morrow_capstone",
       "weight": 3,
       "description": "Everything you touch is already burning.",
-      "requires_tags": ["ignite"],
-      "requires_boons": ["morrow_ember"],
-      "mods": { "more.fire": 0.75, "increased.fire": 0.4 }
+      "requires_tags": [
+        "ignite"
+      ],
+      "requires_boons": [
+        "morrow_ember"
+      ],
+      "mods": {
+        "more.fire": 0.75,
+        "increased.fire": 0.4
+      }
     },
-
     {
       "id": "vess_rime",
       "name": "Rime on the Teeth",
@@ -88,8 +116,13 @@
       "group": "vess_core",
       "weight": 9,
       "description": "Cold enough to slow a thing down. Barely.",
-      "grants_tags": ["frost"],
-      "mods": { "flat.cold": 4, "more.cold": 0.25 }
+      "grants_tags": [
+        "frost"
+      ],
+      "mods": {
+        "flat.cold": 4,
+        "more.cold": 0.25
+      }
     },
     {
       "id": "vess_shatter",
@@ -98,8 +131,13 @@
       "group": "vess_crit",
       "weight": 7,
       "description": "Frozen things break cleanly.",
-      "requires_tags": ["frost"],
-      "mods": { "crit_mult": 0.6, "crit_chance": 0.05 }
+      "requires_tags": [
+        "frost"
+      ],
+      "mods": {
+        "crit_mult": 0.6,
+        "crit_chance": 0.05
+      }
     },
     {
       "id": "vess_stillness",
@@ -108,7 +146,10 @@
       "group": "vess_defense",
       "weight": 8,
       "description": "Nothing hurries here.",
-      "mods": { "resist.cold": 0.25, "max_health": 25 }
+      "mods": {
+        "resist.cold": 0.25,
+        "max_health": 25
+      }
     },
     {
       "id": "vess_hollow",
@@ -117,11 +158,17 @@
       "group": "vess_capstone",
       "weight": 3,
       "description": "The cold stops being weather and becomes a place.",
-      "requires_tags": ["frost"],
-      "requires_boons": ["vess_rime"],
-      "mods": { "more.cold": 0.7, "resist.cold": 0.2 }
+      "requires_tags": [
+        "frost"
+      ],
+      "requires_boons": [
+        "vess_rime"
+      ],
+      "mods": {
+        "more.cold": 0.7,
+        "resist.cold": 0.2
+      }
     },
-
     {
       "id": "karnak_arc",
       "name": "Arcing Fury",
@@ -129,8 +176,13 @@
       "group": "karnak_core",
       "weight": 9,
       "description": "It looks for the next one. Give it something to find.",
-      "grants_tags": ["chain"],
-      "mods": { "flat.lightning": 5, "more.lightning": 0.22 }
+      "grants_tags": [
+        "chain"
+      ],
+      "mods": {
+        "flat.lightning": 5,
+        "more.lightning": 0.22
+      }
     },
     {
       "id": "karnak_stormtouch",
@@ -139,8 +191,13 @@
       "group": "karnak_attack",
       "weight": 8,
       "description": "The air will not settle around you.",
-      "requires_tags": ["chain"],
-      "mods": { "more.lightning": 0.38, "move_speed": 15 }
+      "requires_tags": [
+        "chain"
+      ],
+      "mods": {
+        "more.lightning": 0.38,
+        "move_speed": 15
+      }
     },
     {
       "id": "karnak_gale",
@@ -149,8 +206,12 @@
       "group": "karnak_speed",
       "weight": 10,
       "description": "Be elsewhere.",
-      "grants_tags": ["swift"],
-      "mods": { "move_speed": 30 }
+      "grants_tags": [
+        "swift"
+      ],
+      "mods": {
+        "move_speed": 30
+      }
     },
     {
       "id": "karnak_unspent",
@@ -159,9 +220,10 @@
       "group": "karnak_crit",
       "weight": 8,
       "description": "Held too long, released badly.",
-      "mods": { "crit_chance": 0.1 }
+      "mods": {
+        "crit_chance": 0.1
+      }
     },
-
     {
       "id": "ithra_rot",
       "name": "Patient Rot",
@@ -169,8 +231,13 @@
       "group": "ithra_core",
       "weight": 9,
       "description": "It has time. You may not.",
-      "grants_tags": ["venom"],
-      "mods": { "flat.poison": 4, "more.poison": 0.28 }
+      "grants_tags": [
+        "venom"
+      ],
+      "mods": {
+        "flat.poison": 4,
+        "more.poison": 0.28
+      }
     },
     {
       "id": "ithra_seep",
@@ -179,8 +246,12 @@
       "group": "ithra_attack",
       "weight": 8,
       "description": "The cut keeps working after you have gone.",
-      "requires_tags": ["venom"],
-      "mods": { "more.poison": 0.42 }
+      "requires_tags": [
+        "venom"
+      ],
+      "mods": {
+        "more.poison": 0.42
+      }
     },
     {
       "id": "ithra_thickblood",
@@ -189,7 +260,10 @@
       "group": "ithra_defense",
       "weight": 8,
       "description": "Harder to spoil.",
-      "mods": { "max_health": 45, "resist.poison": 0.3 }
+      "mods": {
+        "max_health": 45,
+        "resist.poison": 0.3
+      }
     },
     {
       "id": "ithra_bloom",
@@ -198,11 +272,17 @@
       "group": "ithra_capstone",
       "weight": 3,
       "description": "What you planted several floors ago comes due.",
-      "requires_tags": ["venom"],
-      "requires_boons": ["ithra_rot"],
-      "mods": { "more.poison": 0.72, "increased.poison": 0.35 }
+      "requires_tags": [
+        "venom"
+      ],
+      "requires_boons": [
+        "ithra_rot"
+      ],
+      "mods": {
+        "more.poison": 0.72,
+        "increased.poison": 0.35
+      }
     },
-
     {
       "id": "court_swiftcruel",
       "name": "Cruel Momentum",
@@ -210,9 +290,16 @@
       "group": "court_speed",
       "weight": 4,
       "description": "Two gods agree, for once.",
-      "requires_tags": ["swift"],
-      "requires_boons": ["karnak_gale"],
-      "mods": { "more": 0.2, "move_speed": 25 }
+      "requires_tags": [
+        "swift"
+      ],
+      "requires_boons": [
+        "karnak_gale"
+      ],
+      "mods": {
+        "more": 0.2,
+        "move_speed": 25
+      }
     },
     {
       "id": "court_toll",
@@ -221,7 +308,10 @@
       "group": "court_capstone",
       "weight": 4,
       "description": "Everything given is also taken.",
-      "mods": { "more": 0.45, "max_health": -30 }
+      "mods": {
+        "more": 0.45,
+        "max_health": -30
+      }
     },
     {
       "id": "court_thin",
@@ -230,7 +320,10 @@
       "group": "court_utility",
       "weight": 8,
       "description": "You see a little more of what is coming.",
-      "mods": { "crit_chance": 0.04, "move_speed": 10 }
+      "mods": {
+        "crit_chance": 0.04,
+        "move_speed": 10
+      }
     },
     {
       "id": "court_ledger",
@@ -239,7 +332,96 @@
       "group": "court_sustain",
       "weight": 8,
       "description": "Debts recorded, slowly repaid.",
-      "mods": { "max_health": 35, "armor": 2 }
+      "mods": {
+        "max_health": 35,
+        "armor": 2
+      }
+    },
+    {
+      "id": "vess_cold_mastery",
+      "name": "Cold Mastery",
+      "god": "Vess",
+      "group": "vess_mastery",
+      "weight": 7,
+      "description": "Their resistance to cold is a suggestion.",
+      "mods": {
+        "pierce.cold": 0.28
+      },
+      "grants_tags": [
+        "frost"
+      ]
+    },
+    {
+      "id": "morrow_fire_mastery",
+      "name": "Fire Mastery",
+      "god": "Morrow",
+      "group": "morrow_mastery",
+      "weight": 7,
+      "description": "Everything you burn, burns harder.",
+      "mods": {
+        "more.fire": 0.34
+      },
+      "grants_tags": [
+        "ignite"
+      ]
+    },
+    {
+      "id": "karnak_lightning_mastery",
+      "name": "Lightning Mastery",
+      "god": "Karnak",
+      "group": "karnak_mastery",
+      "weight": 7,
+      "description": "The arc finds more of them, and finds them harder.",
+      "mods": {
+        "more.lightning": 0.38
+      },
+      "grants_tags": [
+        "chain"
+      ]
+    },
+    {
+      "id": "vess_deep_cold",
+      "name": "The Long Winter",
+      "god": "Vess",
+      "group": "vess_mastery",
+      "weight": 5,
+      "description": "Cold enough that what it touches forgets how to hurry.",
+      "mods": {
+        "pierce.cold": 0.16,
+        "increased.cold": 0.25
+      },
+      "grants_tags": [
+        "frost"
+      ]
+    },
+    {
+      "id": "morrow_warmth",
+      "name": "Warmth",
+      "god": "Morrow",
+      "group": "morrow_sustain",
+      "weight": 9,
+      "description": "The fire feeds you back.",
+      "mods": {
+        "mana_regen": 6.0
+      },
+      "grants_tags": [
+        "ignite"
+      ]
+    },
+    {
+      "id": "karnak_wild_arc",
+      "name": "Wild Arc",
+      "god": "Karnak",
+      "group": "karnak_mastery",
+      "weight": 6,
+      "description": "Lightning was never fair. Lean into it.",
+      "mods": {
+        "crit_chance": 0.09,
+        "crit_mult": 0.45
+      },
+      "grants_tags": [
+        "chain"
+      ]
     }
   ]
 }
