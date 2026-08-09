@@ -63,6 +63,12 @@
       "mods": {
         "flat.fire": 4,
         "more.fire": 0.25
+      },
+      "synergy": {
+        "tag": "ignite",
+        "per": {
+          "increased.fire": 0.05
+        }
       }
     },
     {
@@ -77,7 +83,10 @@
       ],
       "mods": {
         "more.fire": 0.4
-      }
+      },
+      "grants_tags": [
+        "ignite"
+      ]
     },
     {
       "id": "morrow_scald",
@@ -89,7 +98,10 @@
       "mods": {
         "resist.fire": 0.25,
         "armor": 3
-      }
+      },
+      "grants_tags": [
+        "ignite"
+      ]
     },
     {
       "id": "morrow_conflagrant",
@@ -107,7 +119,10 @@
       "mods": {
         "more.fire": 0.75,
         "increased.fire": 0.4
-      }
+      },
+      "grants_tags": [
+        "ignite"
+      ]
     },
     {
       "id": "vess_rime",
@@ -122,6 +137,12 @@
       "mods": {
         "flat.cold": 4,
         "more.cold": 0.25
+      },
+      "synergy": {
+        "tag": "frost",
+        "per": {
+          "increased.cold": 0.05
+        }
       }
     },
     {
@@ -137,7 +158,10 @@
       "mods": {
         "crit_mult": 0.6,
         "crit_chance": 0.05
-      }
+      },
+      "grants_tags": [
+        "frost"
+      ]
     },
     {
       "id": "vess_stillness",
@@ -149,7 +173,10 @@
       "mods": {
         "resist.cold": 0.25,
         "max_health": 25
-      }
+      },
+      "grants_tags": [
+        "frost"
+      ]
     },
     {
       "id": "vess_hollow",
@@ -167,7 +194,10 @@
       "mods": {
         "more.cold": 0.7,
         "resist.cold": 0.2
-      }
+      },
+      "grants_tags": [
+        "frost"
+      ]
     },
     {
       "id": "karnak_arc",
@@ -182,6 +212,12 @@
       "mods": {
         "flat.lightning": 5,
         "more.lightning": 0.22
+      },
+      "synergy": {
+        "tag": "chain",
+        "per": {
+          "increased.lightning": 0.05
+        }
       }
     },
     {
@@ -197,7 +233,10 @@
       "mods": {
         "more.lightning": 0.38,
         "move_speed": 15
-      }
+      },
+      "grants_tags": [
+        "chain"
+      ]
     },
     {
       "id": "karnak_gale",
@@ -207,7 +246,8 @@
       "weight": 10,
       "description": "Be elsewhere.",
       "grants_tags": [
-        "swift"
+        "swift",
+        "chain"
       ],
       "mods": {
         "move_speed": 30
@@ -222,7 +262,10 @@
       "description": "Held too long, released badly.",
       "mods": {
         "crit_chance": 0.1
-      }
+      },
+      "grants_tags": [
+        "chain"
+      ]
     },
     {
       "id": "ithra_rot",
@@ -251,7 +294,10 @@
       ],
       "mods": {
         "more.poison": 0.42
-      }
+      },
+      "grants_tags": [
+        "venom"
+      ]
     },
     {
       "id": "ithra_thickblood",
@@ -263,7 +309,10 @@
       "mods": {
         "max_health": 45,
         "resist.poison": 0.3
-      }
+      },
+      "grants_tags": [
+        "venom"
+      ]
     },
     {
       "id": "ithra_bloom",
@@ -281,7 +330,10 @@
       "mods": {
         "more.poison": 0.72,
         "increased.poison": 0.35
-      }
+      },
+      "grants_tags": [
+        "venom"
+      ]
     },
     {
       "id": "court_swiftcruel",

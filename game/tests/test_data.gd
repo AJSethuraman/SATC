@@ -302,3 +302,37 @@ func _assert_unique_ids(entries: Array, label: String) -> void:
 		var id := str(e.get("id", ""))
 		assert_false(seen.has(id), "duplicate %s id '%s'" % [label, id])
 		seen.append(id)
+
+
+## Every boon of an elemental god must carry that god's tag.
+##
+## Synergies count companions by tag, so a school whose boons do not carry its
+## tag has nothing to synergise with — which is exactly what happened the first
+## time: only each god's entry boon granted a tag, so a fully committed cold
+## build held three frost boons and a synergy saw two companions. The mechanic
+## was correct, wired up, tested, and worth almost nothing, because the content
+## it counts did not exist.
+func test_every_elemental_boon_carries_its_school() -> void:
+	var god_tag := {"Morrow": "ignite", "Vess": "frost", "Karnak": "chain", "Ithra": "venom"}
+	for b in _boons().get("boons", []):
+		var tag: String = god_tag.get(str(b.get("god", "")), "")
+		if tag == "":
+			continue
+		assert_has(
+			b.get("grants_tags", []), tag,
+			"boon '%s' belongs to %s but does not carry '%s'" % [b.get("id"), b.get("god"), tag]
+		)
+
+
+## And a school must have enough tagged boons for commitment to mean something.
+## Three is the floor at which a synergy sees more than one companion.
+func test_each_school_has_enough_boons_to_commit_to() -> void:
+	var counts := {}
+	for b in _boons().get("boons", []):
+		for t in b.get("grants_tags", []):
+			counts[str(t)] = counts.get(str(t), 0) + 1
+	for tag in ["ignite", "frost", "chain"]:
+		assert_gt(
+			float(counts.get(tag, 0)), 3.0,
+			"'%s' has only %d boons; committing to it cannot compound" % [tag, counts.get(tag, 0)]
+		)
