@@ -197,9 +197,13 @@ static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 ## The act boss. Not an elite with a bigger multiplier bolted on: it has to
 ## survive long enough for the fight to have phases the player can read, while
 ## hitting hard enough that the act's whole build-up pays off.
+##
+## Six times health rather than nine: a boss is time on the clock, and every
+## second of it is damage taken. Nine put the act-I boss beyond what three
+## items and three boons can answer.
 static func boss_for_act(act: int) -> StatBlock:
 	var e := enemy_for_depth(Progression.depth(act, Progression.BOSS_AREA))
-	e.max_health *= 9.0
+	e.max_health *= 6.0
 	e.weapon_min *= 1.6
 	e.weapon_max *= 1.6
 	e.armor *= 1.5

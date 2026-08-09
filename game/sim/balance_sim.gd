@@ -28,7 +28,7 @@ const DEFAULT_DODGE := 0.5
 
 ## Healing between areas, and the larger restore for clearing an act. Both
 ## mirror scenes/main.gd — if they drift, the simulator stops measuring the game.
-const AREA_HEAL := 0.12
+const AREA_HEAL := 0.22
 const BOSS_HEAL := 0.35
 const RESPITE_HEAL := 0.5
 

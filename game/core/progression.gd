@@ -162,6 +162,11 @@ static func reward_of(area: int) -> Reward:
 ## Bodies in a combat area. Grows across acts rather than across areas: within
 ## an act the pressure should come from what the enemies are, not from there
 ## being more of them each time.
+##
+## Five in the first act rather than seven, because density is the term that
+## decides how much health an area costs. At seven, an act-I area took about
+## 57% of a fresh health bar and the median run died in area 2 — the run was
+## being decided before any gear had arrived to decide it with.
 static func enemy_count(act: int, area: int) -> int:
 	match kind_of(area):
 		AreaKind.RESPITE:
@@ -171,7 +176,7 @@ static func enemy_count(act: int, area: int) -> int:
 			# few enough that the fight reads as being about the one body.
 			return 3
 		_:
-			return 6 + act
+			return 4 + act
 
 
 ## Is this area the act's elite? One per act, two areas before the boss, so an

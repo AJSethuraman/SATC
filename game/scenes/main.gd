@@ -217,7 +217,7 @@ func _next_area() -> void:
 	var stats := run.build_stats()
 	# Clearing a boss restores more than passing through a area does; the act
 	# boundary is where a run gets to breathe.
-	var heal := 0.35 if was_boss else 0.12
+	var heal := 0.35 if was_boss else 0.22
 	run.health = minf(stats.max_health, run.health + stats.max_health * heal)
 	player.setup(stats, camera)
 	player.equip_spells(bolt, nova, run.active_behaviours())

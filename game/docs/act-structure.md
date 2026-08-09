@@ -102,6 +102,30 @@ So the unit inside an act is an **area**, and every one of the 32 has a name. A
 test asserts that none is missing and none repeats, because a clamped lookup
 would quietly turn part of the map back into a number.
 
+## What the simulator said about the first cut
+
+The first version of this curve was measured at 200 runs per policy and came
+back bimodal rather than merely hard:
+
+    depth   p10 1 | median 2 | p90 23 | max 32
+    cleared all 4 acts: 1.0% of runs
+    ttk:  r1 2.9s  r5 1.5s  r9 1.2s  r13 1.2s  r21 1.7s  r29 2.5s
+
+The median run died in **area 2 of act I** while the ninetieth percentile
+reached area 23. Most runs ended before any gear had arrived to decide them
+with, and the ones that survived that window snowballed — time-to-kill more
+than halved between areas 1 and 9.
+
+Density was the term at fault. At seven bodies an act-I area cost about 57% of
+a full health bar, against a 12% restore between areas, so two areas emptied
+the bar no matter what was equipped. Three changes, all aimed at the opening
+rather than the ceiling:
+
+- combat density `6 + act` → `4 + act` (five in act I rather than seven)
+- restore between areas 12% → 22%
+- boss health 9× → 6× — a boss is time on the clock, and every second of it is
+  damage taken
+
 ## Still open
 
 - **The reliquary has no home.** Banking one item per run is a decision that
