@@ -163,10 +163,13 @@ static func reward_of(area: int) -> Reward:
 ## an act the pressure should come from what the enemies are, not from there
 ## being more of them each time.
 ##
-## Five in the first act rather than seven, because density is the term that
-## decides how much health an area costs. At seven, an act-I area took about
-## 57% of a fresh health bar and the median run died in area 2 — the run was
-## being decided before any gear had arrived to decide it with.
+## Density went back up once trash health was halved and the attack-token pool
+## arrived. Those two changes are what make a crowd affordable: bodies die in
+## under a second, and only Feel.ATTACK_TOKENS of them may be mid-swing at once,
+## so eight enemies are eight things to position against and two things to
+## dodge. Before both, five was already the ceiling — an act-I area cost 57% of
+## a health bar and the median run died in area 2, decided before any gear had
+## arrived to decide it with.
 static func enemy_count(act: int, area: int) -> int:
 	match kind_of(area):
 		AreaKind.RESPITE:
@@ -176,7 +179,7 @@ static func enemy_count(act: int, area: int) -> int:
 			# few enough that the fight reads as being about the one body.
 			return 3
 		_:
-			return 4 + act
+			return 6 + act * 2
 
 
 ## Is this area the act's elite? One per act, two areas before the boss, so an

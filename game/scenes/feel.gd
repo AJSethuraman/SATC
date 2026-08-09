@@ -176,7 +176,35 @@ const ENEMY_CONTACT_RANGE := 1.5
 const ENEMY_ATTACK_COOLDOWN := 1.25
 ## Telegraph before an enemy commits. This is what makes an attack dodgeable
 ## rather than unfair.
+##
+## Per kind, because a horde needs its bodies to threaten differently or the
+## crowd reads as one texture. An imp jabs almost immediately and barely hurts;
+## a brute takes a long, obvious wind-up and hurts a lot. The long telegraph is
+## what makes the dangerous body the *readable* one — you should be able to
+## ignore the imps and watch the brute.
 const ENEMY_WINDUP := 0.35
+const ENEMY_WINDUP_IMP := 0.22
+const ENEMY_WINDUP_BRUTE := 0.62
+const ENEMY_WINDUP_STALKER := 0.34
+
+## How many enemies may be committed to an attack at the same time.
+##
+## This is the whole answer to "hordes plus Hades". Hades never puts more than a
+## few telegraphs on screen because you cannot dodge six things at once — past
+## about three simultaneous wind-ups a player stops reading and starts guessing,
+## and the fight becomes a damage race. Diablo II gets away with forty enemies
+## precisely because none of them telegraph: they are a hazard field you
+## position against, not a set of attacks you answer.
+##
+## An attack token pool gets both. The crowd can be as large as you like, but
+## only this many bodies may be mid-swing at any moment; the rest keep circling
+## and pressuring. Beat-em-ups have done this since Final Fight and the Arkham
+## games made it famous — the ring of enemies around you is real, and the number
+## actually attacking is small enough to answer.
+##
+## Must stay well under the smallest area's density or the rule never binds and
+## the crowd goes back to swinging all at once.
+const ATTACK_TOKENS := 2
 const ENEMY_SEPARATION := 2.1
 ## Strength of that push. Must exceed the chase speed at close range or the pack
 ## collapses into one overlapping mass — which is what it did at 4.0.

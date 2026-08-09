@@ -145,3 +145,33 @@ func test_the_name_table_matches_the_act_shape() -> void:
 	for act_names in Progression.AREA_NAMES:
 		var names: Array = act_names
 		assert_eq(names.size(), Progression.AREAS_PER_ACT)
+
+
+## The attack-token pool has to be smaller than the smallest crowd, or it never
+## binds and the horde goes back to swinging all at once — which is the exact
+## failure it exists to prevent, and an invisible one, because nothing looks
+## broken. It just stops being dodgeable.
+func test_the_attack_token_pool_actually_binds() -> void:
+	var smallest := Progression.enemy_count(1, 1)
+	for act in range(1, Progression.ACTS + 1):
+		for area in range(1, Progression.AREAS_PER_ACT + 1):
+			if Progression.kind_of(area) != Progression.AreaKind.COMBAT:
+				continue
+			smallest = mini(smallest, Progression.enemy_count(act, area))
+	assert_gt(
+		float(smallest), float(Feel.ATTACK_TOKENS),
+		"every body in the smallest area (%d) can swing at once with %d tokens"
+			% [smallest, Feel.ATTACK_TOKENS]
+	)
+
+
+## And a crowd has to actually be a crowd. The whole point of pairing tokens
+## with density is that the screen can hold a horde; if density drifts back down
+## the tokens are solving a problem that no longer exists.
+func test_an_area_holds_a_crowd() -> void:
+	assert_gt(float(Progression.enemy_count(1, 1)), 6.0, "act I opens too thin to read as a horde")
+	assert_gt(
+		float(Progression.enemy_count(Progression.ACTS, 1)),
+		float(Progression.enemy_count(1, 1)),
+		"the last act is no denser than the first"
+	)

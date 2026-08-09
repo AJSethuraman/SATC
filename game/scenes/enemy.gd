@@ -17,6 +17,7 @@ var is_elite := false
 
 var _rng: Rng
 var _chill := 0.0
+var _windup_time := Feel.ENEMY_WINDUP
 var _base_colour := Feel.COLOUR_ENEMY
 var _radius := Feel.ENEMY_RADIUS
 var _height := Feel.ENEMY_HEIGHT
@@ -72,7 +73,9 @@ func _ready() -> void:
 		Color.from_hsv(fmod(_rng.randf_range(0.97, 1.09), 1.0), 0.62, 0.56),
 		_rng.randf_range(0.0, 0.4)
 	)
-	_rig.build(_height, _base_colour, is_elite, _kind())
+	var kind := _kind()
+	_windup_time = _windup_for(kind)
+	_rig.build(_height, _base_colour, is_elite, kind)
 
 	add_child(_rig)
 
@@ -96,6 +99,20 @@ func _ready() -> void:
 ## out of a crowd before it reaches you, without a health bar or a colour code.
 ## The rest split between imps and stalkers off the seeded stream, so an area is
 ## a mixed pack rather than a row of the same creature.
+## Telegraph length by body. The dangerous thing should be the slow, obvious
+## thing — see Feel.ENEMY_WINDUP.
+func _windup_for(kind: CharacterRig.Kind) -> float:
+	match kind:
+		CharacterRig.Kind.IMP:
+			return Feel.ENEMY_WINDUP_IMP
+		CharacterRig.Kind.BRUTE:
+			return Feel.ENEMY_WINDUP_BRUTE
+		CharacterRig.Kind.STALKER:
+			return Feel.ENEMY_WINDUP_STALKER
+		_:
+			return Feel.ENEMY_WINDUP
+
+
 func _kind() -> CharacterRig.Kind:
 	if is_elite:
 		return CharacterRig.Kind.BRUTE
@@ -132,8 +149,8 @@ func _physics_process(delta: float) -> void:
 				player.take_damage(_hit_damage(player))
 	elif _hitstun > 0.0:
 		velocity = Vector3.ZERO
-	elif distance <= reach and _attack_cooldown <= 0.0:
-		_windup = Feel.ENEMY_WINDUP
+	elif distance <= reach and _attack_cooldown <= 0.0 and _may_commit():
+		_windup = _windup_time
 		velocity = Vector3.ZERO
 	elif distance > 0.05:
 		var speed := stats.move_speed * Feel.UNITS_PER_PIXEL
@@ -147,6 +164,26 @@ func _physics_process(delta: float) -> void:
 	velocity.y = 0.0
 	move_and_slide()
 	_animate(delta, to_player)
+
+
+## May this body start a swing, or is the pack already swinging at capacity?
+##
+## See Feel.ATTACK_TOKENS. Counted by looking at the neighbours rather than by
+## claiming from a shared pool, because a claimed token leaks the moment an
+## enemy dies mid-telegraph or has its wind-up interrupted by a hit — and both
+## happen constantly. Scanning is O(n) per body per frame against a crowd of
+## twenty, which is the same cost _separation() already pays.
+func _may_commit() -> bool:
+	var committed := 0
+	for node in get_parent().get_children():
+		var other := node as Enemy
+		if other == null or other == self:
+			continue
+		if other.is_winding_up():
+			committed += 1
+			if committed >= Feel.ATTACK_TOKENS:
+				return false
+	return true
 
 
 ## Nudge apart from neighbours so a pack does not stack into one spot and become
