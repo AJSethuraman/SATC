@@ -110,6 +110,30 @@ func _ready() -> void:
 	_slash.position = Vector3(0.0, Feel.SLASH_HEIGHT, 0.0)
 	add_child(_slash)
 
+	_build_marker()
+
+
+## A ring on the ground under the player's feet.
+##
+## Not decoration — the player is one pale figure among a crowd of bodies the
+## same size, and a single enemy standing between them and the camera hides them
+## completely. Losing track of your own character for even half a second in a
+## game about dodging is the worst readability failure available, and it is why
+## Diablo has drawn a circle under you since 1996.
+##
+## Depth test off, so the ring shows through whatever is standing on top of it.
+## That is the entire point: it has to be visible exactly when the body is not.
+func _build_marker() -> void:
+	var ring := MeshInstance3D.new()
+	ring.mesh = Shapes.arc_band(0.72, 1.0, 180.0, 32)
+	var mat := Shapes.glow(Color(Feel.COLOUR_PLAYER, 0.5))
+	mat.no_depth_test = true
+	ring.material_override = mat
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ring.scale = Vector3(Feel.PLAYER_RADIUS * 1.5, 1.0, Feel.PLAYER_RADIUS * 1.5)
+	ring.position = Vector3(0.0, 0.04, 0.0)
+	add_child(ring)
+
 
 func is_invulnerable() -> bool:
 	return _iframes > 0.0
