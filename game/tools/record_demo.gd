@@ -66,7 +66,11 @@ func _process(delta: float) -> bool:
 
 func _enemies() -> Array:
 	var holder := _main.get_node_or_null("Enemies")
-	return [] if holder == null else holder.get_children()
+	if holder == null:
+		return []
+	# Projectiles share this parent, so filter rather than handing the pilot
+	# bolts to chase.
+	return holder.get_children().filter(func(n): return n is Enemy)
 
 
 ## Click the first boon on offer. Without this the run stops dead at the reward

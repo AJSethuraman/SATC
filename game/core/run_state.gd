@@ -48,6 +48,9 @@ static func base_stats() -> StatBlock:
 	s.crit_mult = 1.5
 	s.max_health = 100.0
 	s.move_speed = 220.0
+	s.max_mana = 100.0
+	s.mana_regen = 14.0
+	s.cast_speed = 1.0
 	return s
 
 
@@ -77,6 +80,21 @@ func active_tags() -> Array[String]:
 	for t in boon_tags():
 		if not out.has(t):
 			out.append(t)
+	return out
+
+
+## Behaviour identifiers granted by inscriptions on equipped gear.
+##
+## This is where the `behaviour` vocabulary written into data/sigils.json ahead
+## of time finally connects: the scene layer asks what the build does
+## differently, without needing to know what an inscription is.
+func active_behaviours() -> Array[String]:
+	var out: Array[String] = []
+	for slot in gear:
+		var item: Item = gear[slot]
+		if item.inscription != null and item.inscription.behaviour != "":
+			if not out.has(item.inscription.behaviour):
+				out.append(item.inscription.behaviour)
 	return out
 
 

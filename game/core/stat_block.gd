@@ -18,6 +18,9 @@ extends RefCounted
 ##   armor              flat post-mitigation reduction
 ##   max_health
 ##   move_speed
+##   max_mana          the pool spells are cast from
+##   mana_regen        pool refilled per second
+##   cast_speed        additive on a base of 1.0; 0.2 means 20% faster casting
 ##
 ## `<type>` is any name in Damage.TYPE_NAMES.
 
@@ -49,6 +52,15 @@ var armor: float = 0.0
 var max_health: float = 100.0
 var move_speed: float = 220.0
 
+## Casting resource. Mana is what stops a caster holding the fire button — the
+## rhythm of an ARPG is spend, coast, spend, and without a resource there is no
+## rhythm at all, just a stream.
+var max_mana: float = 100.0
+var mana_regen: float = 12.0
+## Multiplier on cast rate. Rate of fire is half of what makes an ARPG feel good
+## and the melee prototype had no concept of it whatsoever.
+var cast_speed: float = 1.0
+
 ## Tags contributed by gear. Boon pools filter on these — this is the seam that
 ## makes gear build-defining rather than just a pile of numbers.
 var tags: Array[String] = []
@@ -71,6 +83,9 @@ func clone() -> StatBlock:
 	c.armor = armor
 	c.max_health = max_health
 	c.move_speed = move_speed
+	c.max_mana = max_mana
+	c.mana_regen = mana_regen
+	c.cast_speed = cast_speed
 	c.tags = tags.duplicate()
 	return c
 
@@ -109,6 +124,12 @@ func apply(key: String, value: float) -> void:
 		max_health += value
 	elif key == "move_speed":
 		move_speed += value
+	elif key == "max_mana":
+		max_mana += value
+	elif key == "mana_regen":
+		mana_regen += value
+	elif key == "cast_speed":
+		cast_speed += value
 	else:
 		push_error("StatBlock.apply: unknown modifier key '%s'" % key)
 
@@ -128,6 +149,9 @@ const SCALAR_KEYS := [
 	"armor",
 	"max_health",
 	"move_speed",
+	"max_mana",
+	"mana_regen",
+	"cast_speed",
 ]
 
 const TYPED_PREFIXES := ["flat.", "increased.", "resist.", "more."]

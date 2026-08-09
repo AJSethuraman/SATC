@@ -13,8 +13,10 @@ extends Node3D
 
 const ITEMS_PATH := "res://data/items.json"
 const BOONS_PATH := "res://data/boons.json"
+const SIGILS_PATH := "res://data/sigils.json"
+const SPELLS_PATH := "res://data/spells.json"
 
-const ENEMIES_BASE := 5
+const ENEMIES_BASE := 11
 const ELITE_EVERY := 3
 const SPAWN_MARGIN := 2.5
 const MIN_SPAWN_DISTANCE := 7.0
@@ -22,6 +24,9 @@ const MIN_SPAWN_DISTANCE := 7.0
 var run: RunState
 var generator: ItemGenerator
 var boon_pool: BoonPool
+var book: InscriptionBook
+var bolt: Spell
+var nova: Spell
 
 var player: Player
 var enemies_root: Node3D
@@ -38,6 +43,12 @@ func _ready() -> void:
 	randomize()
 	generator = ItemGenerator.from_json(ITEMS_PATH)
 	boon_pool = BoonPool.from_json(BOONS_PATH)
+	book = InscriptionBook.from_json(SIGILS_PATH)
+	for spell in Spell.from_json(SPELLS_PATH):
+		if spell.id == "nova":
+			nova = spell
+		else:
+			bolt = spell
 
 	_build_environment()
 	_build_arena()
@@ -65,7 +76,8 @@ func _start_run(seed_v: int) -> void:
 	player = Player.new()
 	player.add_to_group("player")
 	player.setup(run.build_stats(), camera)
-	player.attacked.connect(_on_player_attacked)
+	player.equip_spells(bolt, nova, run.active_behaviours())
+	player.cast.connect(_on_player_cast)
 	player.died.connect(_on_player_died)
 	add_child(player)
 	# Position after add_child: global_position on a node outside the tree logs
@@ -155,6 +167,7 @@ func _next_floor() -> void:
 	var stats := run.build_stats()
 	run.health = minf(stats.max_health, run.health + stats.max_health * 0.25)
 	player.setup(stats, camera)
+	player.equip_spells(bolt, nova, run.active_behaviours())
 	player.health = run.health
 	_start_floor()
 
@@ -173,34 +186,46 @@ func _input(event: InputEvent) -> void:
 # --- combat -------------------------------------------------------------
 
 
-func _on_player_attacked(origin: Vector3, facing: Vector3) -> void:
-	var arc := deg_to_rad(Feel.ATTACK_ARC)
-	var hit_any := false
-	var any_crit := false
+func _on_player_cast(spell: Spell, origin: Vector3, facing: Vector3) -> void:
+	match spell.shape:
+		Spell.Shape.PROJECTILE:
+			_fire_projectile(spell, origin, facing)
+		Spell.Shape.NOVA:
+			_detonate_nova(spell, origin)
 
+
+func _fire_projectile(spell: Spell, origin: Vector3, facing: Vector3) -> void:
+	var shot := Projectile.new()
+	shot.setup(spell, player.stats, facing, run.combat_rng, player.behaviours)
+	shot.hit_enemy.connect(_on_projectile_hit)
+	enemies_root.add_child(shot)
+	shot.global_position = origin + Vector3(0.0, 1.0, 0.0) + facing * 0.7
+
+
+## Everything within reach, at once. The reason a caster wants a crowd.
+func _detonate_nova(spell: Spell, origin: Vector3) -> void:
+	var any_crit := false
+	var hits := 0
 	for node in enemies_root.get_children():
-		# Cast rather than `is`-check: get_children() is typed Array[Node], and
-		# GDScript does not narrow through a branch, so member access needs this.
 		var e := node as Enemy
 		if e == null or e.is_queued_for_deletion():
 			continue
-
 		var to_enemy: Vector3 = e.global_position - origin
 		to_enemy.y = 0.0
-		if to_enemy.length() > Feel.ATTACK_RANGE + Feel.ENEMY_RADIUS:
+		if to_enemy.length() > spell.radius + Feel.ENEMY_RADIUS:
 			continue
-		# Angle on the ground plane only — height must not affect whether a swing
-		# connects, or standing on a slope would change your reach.
-		if absf(facing.signed_angle_to(to_enemy, Vector3.UP)) > arc:
-			continue
-
 		var result := Damage.resolve(player.stats, e.stats, run.combat_rng)
+		result.total *= spell.damage_scale
 		e.take_hit(result, origin)
-		hit_any = true
+		hits += 1
 		any_crit = any_crit or result.was_crit
-
-	if hit_any:
+	if hits > 0:
 		_impact(any_crit)
+	camera.add_shake(Feel.SHAKE_CRIT)
+
+
+func _on_projectile_hit(_enemy: Node3D, result: Damage.Result, _at: Vector3) -> void:
+	_impact(result.was_crit)
 
 
 ## Hit-stop and shake. The durations live in Feel; this just applies them.
@@ -357,16 +382,23 @@ func _refresh_hud() -> void:
 		return
 	var stats := player.stats
 	var lines := [
-		"Floor %d          HP %d / %d" % [run.floor_number, roundi(player.health), roundi(stats.max_health)],
-		"dmg %d-%d   crit %.0f%% x%.2f   more x%.2f"
+		"Floor %d     HP %d / %d     MP %d / %d"
+			% [
+				run.floor_number, roundi(player.health), roundi(stats.max_health),
+				roundi(player.mana), roundi(stats.max_mana)
+			],
+		"dmg %d-%d   crit %.0f%%   cast x%.2f   more x%.2f"
 			% [
 				roundi(stats.weapon_min), roundi(stats.weapon_max),
-				stats.crit_chance * 100.0, stats.crit_mult, _more_product(stats)
+				stats.crit_chance * 100.0, stats.cast_speed, _more_product(stats)
 			],
 	]
 	var tags := run.active_tags()
 	if not tags.is_empty():
 		lines.append("tags: " + ", ".join(tags))
+	var behaviours := run.active_behaviours()
+	if not behaviours.is_empty():
+		lines.append("inscribed: " + ", ".join(behaviours))
 	if not run.boons.is_empty():
 		var names: Array[String] = []
 		for b in run.boons:

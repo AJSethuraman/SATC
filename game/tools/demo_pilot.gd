@@ -9,8 +9,11 @@ extends RefCounted
 ## Treat its survival time as a stunt, not as a balance signal — the balance
 ## simulator in sim/ is the thing that measures anything.
 
-## Start backing off inside this range, so it does not just stand in contact.
-const COMFORT_RANGE := 1.9
+## A caster wants distance, not contact. Kite at roughly this range.
+const COMFORT_RANGE := 6.0
+## Fire the heavy spell when at least this many bodies are inside its radius —
+## a nova spent on one target is the classic beginner mistake and looks bad.
+const NOVA_MIN_TARGETS := 3
 ## Dash away when a committed enemy is at least this close.
 const PANIC_RANGE := 2.6
 ## Never dash more often than this, so the footage does not read as a twitch.
@@ -31,6 +34,7 @@ func drive(player: Player, enemies: Array, delta: float) -> void:
 
 	player.scripted = true
 	player.scripted_attack = false
+	player.scripted_heavy = false
 	player.scripted_dash = false
 	player.scripted_move = Vector3.ZERO
 
@@ -57,15 +61,33 @@ func drive(player: Player, enemies: Array, delta: float) -> void:
 		_dash_cooldown = DASH_INTERVAL
 		return
 
-	if distance > Feel.ATTACK_RANGE * 0.75:
-		# Close in, but circle rather than walking a straight line at it.
-		player.scripted_move = (forward + sideways * 0.45).normalized()
+	# Always casting — a caster with mana to spare and no bolt in the air is
+	# wasting the run.
+	player.scripted_attack = true
+
+	if player.nova != null and _clustered(player, enemies, player.nova.radius) >= NOVA_MIN_TARGETS:
+		player.scripted_heavy = true
+
+	if distance > COMFORT_RANGE * 1.4:
+		# Close to within range, but circle rather than walking a straight line.
+		player.scripted_move = (forward + sideways * 0.5).normalized()
 	elif distance < COMFORT_RANGE:
-		player.scripted_move = (-forward * 0.6 + sideways).normalized()
-		player.scripted_attack = true
+		player.scripted_move = (-forward * 0.8 + sideways * 0.6).normalized()
 	else:
-		player.scripted_move = sideways * 0.5
-		player.scripted_attack = true
+		player.scripted_move = sideways
+
+
+## How many bodies sit within `radius` of the player — the check that decides
+## whether the heavy spell is worth its mana.
+func _clustered(player: Player, enemies: Array, radius: float) -> int:
+	var n := 0
+	for node in enemies:
+		var e := node as Enemy
+		if e == null or e.is_queued_for_deletion():
+			continue
+		if e.global_position.distance_to(player.global_position) <= radius:
+			n += 1
+	return n
 
 
 func _nearest(player: Player, enemies: Array) -> Enemy:

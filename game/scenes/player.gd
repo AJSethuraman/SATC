@@ -8,13 +8,21 @@ extends CharacterBody3D
 ## in code — see scenes/character_rig.gd, which owns the walk cycle and the sword
 ## swing. This file only tells it what the body is doing.
 
-signal attacked(origin: Vector3, facing: Vector3)
+## Emitted when a spell actually goes off, after wind-up and after mana is paid.
+signal cast(spell: Spell, origin: Vector3, facing: Vector3)
 signal died
 
 enum State { FREE, WINDUP, ACTIVE, RECOVERY }
 
 var stats: StatBlock
 var health: float = 100.0
+var mana: float = 100.0
+
+## The two spells this class casts. Set by main.gd from data/spells.json.
+var bolt: Spell
+var nova: Spell
+## Behaviour ids granted by the build's inscriptions.
+var behaviours: Array = []
 ## Horizontal facing on the ground plane. Never vertical.
 var facing := Vector3.FORWARD
 
@@ -27,6 +35,7 @@ var scripted := false
 var scripted_move := Vector3.ZERO
 var scripted_aim := Vector3.ZERO
 var scripted_attack := false
+var scripted_heavy := false
 var scripted_dash := false
 
 var _state: State = State.FREE
@@ -35,6 +44,8 @@ var _dash_timer := 0.0
 var _dash_cooldown := 0.0
 var _iframes := 0.0
 var _buffered_attack := 0.0
+var _nova_cooldown := 0.0
+var _pending_heavy := false
 var _flash := 0.0
 var _aim_point := Vector3.ZERO
 
@@ -52,7 +63,14 @@ var _camera: IsoCamera
 func setup(s: StatBlock, camera: IsoCamera) -> void:
 	stats = s
 	health = s.max_health
+	mana = s.max_mana
 	_camera = camera
+
+
+func equip_spells(basic: Spell, heavy: Spell, active_behaviours: Array) -> void:
+	bolt = basic
+	nova = heavy
+	behaviours = active_behaviours
 
 
 func _ready() -> void:
@@ -125,7 +143,10 @@ func _tick_timers(delta: float) -> void:
 	_dash_cooldown = maxf(0.0, _dash_cooldown - delta)
 	_iframes = maxf(0.0, _iframes - delta)
 	_buffered_attack = maxf(0.0, _buffered_attack - delta)
+	_nova_cooldown = maxf(0.0, _nova_cooldown - delta)
 	_flash = maxf(0.0, _flash - delta)
+	if stats != null:
+		mana = minf(stats.max_mana, mana + stats.mana_regen * delta)
 
 	if _state == State.FREE:
 		return
@@ -137,14 +158,14 @@ func _tick_timers(delta: float) -> void:
 		State.WINDUP:
 			_state = State.ACTIVE
 			_state_timer = Feel.ATTACK_ACTIVE
-			_slash_material.albedo_color.a = Feel.SLASH_ALPHA
-			attacked.emit(global_position, facing)
+			_release_cast()
 		State.ACTIVE:
 			_state = State.RECOVERY
-			_state_timer = Feel.ATTACK_RECOVERY
+			_state_timer = maxf(0.04, Feel.ATTACK_RECOVERY / maxf(0.1, stats.cast_speed))
 		State.RECOVERY:
 			_state = State.FREE
-			if _buffered_attack > 0.0:
+			if _buffered_attack > 0.0 and _can_cast(bolt):
+				_pending_heavy = false
 				_start_attack()
 
 
@@ -152,15 +173,19 @@ func _read_input() -> void:
 	var want_dash := false
 	var want_attack := false
 
+	var want_heavy := false
+
 	if scripted:
 		_aim_point = scripted_aim
 		want_dash = scripted_dash
 		want_attack = scripted_attack
+		want_heavy = scripted_heavy
 	else:
 		if _camera != null:
 			_aim_point = _camera.ground_point(global_position + facing)
 		want_dash = Input.is_key_pressed(KEY_SPACE) or Input.is_key_pressed(KEY_SHIFT)
 		want_attack = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or Input.is_key_pressed(KEY_J)
+		want_heavy = Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or Input.is_key_pressed(KEY_K)
 
 	var to_aim := _aim_point - global_position
 	to_aim.y = 0.0
@@ -170,8 +195,15 @@ func _read_input() -> void:
 	if want_dash:
 		_try_dash()
 
-	if want_attack:
+	# The heavy spell wins when both are held: it costs more, is on a cooldown,
+	# and a player pressing it meant it.
+	if want_heavy and _can_cast(nova) and _nova_cooldown <= 0.0:
 		if _state == State.FREE:
+			_pending_heavy = true
+			_start_attack()
+	elif want_attack and _can_cast(bolt):
+		if _state == State.FREE:
+			_pending_heavy = false
 			_start_attack()
 		else:
 			_buffered_attack = Feel.ATTACK_BUFFER
@@ -215,8 +247,30 @@ func _try_dash() -> void:
 
 func _start_attack() -> void:
 	_state = State.WINDUP
+	# Wind-up scales with cast speed, so a faster caster visibly winds up faster
+	# rather than the extra rate appearing out of nowhere at the end.
+	var spell := nova if _pending_heavy else bolt
 	_state_timer = Feel.ATTACK_WINDUP
+	if spell != null:
+		_state_timer = maxf(0.03, Feel.ATTACK_WINDUP / maxf(0.1, stats.cast_speed))
 	_buffered_attack = 0.0
+
+
+func _can_cast(spell: Spell) -> bool:
+	return spell != null and spell.can_afford(mana)
+
+
+## Pay the cost and fire. Mana is spent here rather than on the button press, so
+## a cast that gets interrupted mid-wind-up costs nothing.
+func _release_cast() -> void:
+	var spell := nova if _pending_heavy else bolt
+	if spell == null or not spell.can_afford(mana):
+		return
+	mana -= spell.cost
+	if _pending_heavy:
+		_nova_cooldown = spell.cooldown
+		_slash_material.albedo_color.a = Feel.SLASH_ALPHA
+	cast.emit(spell, global_position, facing)
 
 
 func take_damage(amount: float) -> void:
@@ -284,9 +338,10 @@ func _animate(delta: float) -> void:
 ## needs one continuous number rather than the three discrete states, so the
 ## arm travels smoothly from wind-up through contact into recovery.
 func _swing_phase() -> float:
-	var windup := Feel.ATTACK_WINDUP
+	var rate := maxf(0.1, stats.cast_speed) if stats != null else 1.0
+	var windup := Feel.ATTACK_WINDUP / rate
 	var active := Feel.ATTACK_ACTIVE
-	var recover := Feel.ATTACK_RECOVERY
+	var recover := Feel.ATTACK_RECOVERY / rate
 	var total := windup + active + recover
 	match _state:
 		State.WINDUP:
