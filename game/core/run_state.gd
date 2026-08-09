@@ -358,8 +358,19 @@ static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 		* pow(ACT_DAMAGE_STEP, acts_done)
 		* pow(DIFFICULTY_DAMAGE_STEP, passes_done)
 	)
-	e.weapon_min = 7.0 * damage_scale
-	e.weapon_max = 12.0 * damage_scale
+	# Halved when kills stopped being instant, and the two numbers are bound
+	# together rather than independently tuned. What a fight costs the player is
+	# roughly its length times what is hitting them, so raising time-to-kill from
+	# a tenth of a second to about one second raised the price of every area by
+	# the same factor — the median run went from area 94 to area 7 on that change
+	# alone. Enemy damage is the term that pays it back.
+	#
+	# "Trash dies fast and hits hard" survives as an intent; it just cannot mean
+	# both at once at these magnitudes. Danger now comes from how many arrive and
+	# from the telegraphed attacks worth dodging, not from chip damage taken
+	# while chewing through health bars.
+	e.weapon_min = 3.5 * damage_scale
+	e.weapon_max = 6.0 * damage_scale
 	e.weapon_split = {Damage.Type.PHYSICAL: 1.0}
 	e.armor = 0.5 * areas
 	# Kept just under the player's 220 at a full clear: enemies that outrun you
