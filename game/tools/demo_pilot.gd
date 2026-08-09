@@ -13,7 +13,7 @@ extends RefCounted
 const COMFORT_RANGE := 6.0
 ## Fire the heavy spell when at least this many bodies are inside its radius —
 ## a nova spent on one target is the classic beginner mistake and looks bad.
-const NOVA_MIN_TARGETS := 3
+const NOVA_MIN_TARGETS := 4
 ## Dash away when a committed enemy is at least this close.
 const PANIC_RANGE := 2.6
 ## Never dash more often than this, so the footage does not read as a twitch.

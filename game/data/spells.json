@@ -23,7 +23,7 @@
       "cast_time": 0.45,
       "cooldown": 1.1,
       "damage_scale": 1.55,
-      "radius": 5.0,
+      "radius": 3.0,
       "lifetime": 0.35
     }
   ]
