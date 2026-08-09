@@ -36,6 +36,8 @@ var _hitstop_frames := 0
 var _hitstop_gap := 0
 var _hud: Label
 var _log: Label
+var _build_panel: Label
+var _card_slot: VBoxContainer
 var _reward_layer: CanvasLayer
 
 
@@ -224,7 +226,21 @@ func _grant_item(magic_chance: float, bonus_depth: int = 0) -> void:
 	var before := run.build_stats().expected_hit(enemy)
 	run.equip(drop)
 	var after := run.build_stats().expected_hit(enemy)
-	_say("Found %s  (%+.0f%% dmg)" % [drop.display_name(), 100.0 * (after / maxf(before, 0.01) - 1.0)])
+	_show_item_card(drop, after / maxf(before, 0.01) - 1.0)
+
+
+## Hold the drop on screen. See scenes/item_card.gd — every affix, socket and
+## inscription in the game used to collapse into one line of scrolling log.
+func _show_item_card(drop: Item, damage_delta: float) -> void:
+	if _card_slot == null:
+		return
+	# Never stack more than two; a boss area grants gear and a boon at once and
+	# a column of cards would cover the fight.
+	while _card_slot.get_child_count() >= 2:
+		_card_slot.get_child(0).free()
+	var card := ItemCard.new()
+	_card_slot.add_child(card)
+	card.setup(drop, damage_delta)
 
 
 func _offer_boon() -> void:
@@ -525,6 +541,65 @@ func _build_hud() -> void:
 	_log.modulate = Color(1, 0.93, 0.75)
 	layer.add_child(_log)
 
+	# The build, down the right-hand side. Skills, gear and blessings have all
+	# existed for a long time and none of them have ever been on screen: a viewer
+	# could watch a whole run and not learn that the character has two spells,
+	# five equipment slots or a boon list. A panel that is simply always there is
+	# the cheapest possible fix and needs no interaction to read.
+	_build_panel = Label.new()
+	_build_panel.add_theme_font_size_override("font_size", 14)
+	_build_panel.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_build_panel.anchor_left = 1.0
+	_build_panel.anchor_right = 1.0
+	_build_panel.offset_left = -330.0
+	_build_panel.offset_right = -16.0
+	_build_panel.offset_top = 12.0
+	layer.add_child(_build_panel)
+
+	_card_slot = VBoxContainer.new()
+	_card_slot.anchor_left = 1.0
+	_card_slot.anchor_right = 1.0
+	_card_slot.anchor_top = 1.0
+	_card_slot.anchor_bottom = 1.0
+	_card_slot.offset_left = -340.0
+	_card_slot.offset_right = -16.0
+	_card_slot.offset_top = -300.0
+	_card_slot.offset_bottom = -16.0
+	_card_slot.alignment = BoxContainer.ALIGNMENT_END
+	_card_slot.add_theme_constant_override("separation", 6)
+	layer.add_child(_card_slot)
+
+
+## The right-hand column: what this character is made of.
+##
+## Skills first, because the demo has never once shown that the class casts two
+## named spells with costs — a viewer could only infer it from watching mana
+## move. Then gear by slot, then blessings, so the accumulation over an act is
+## visible as a list that grows rather than as numbers that quietly change.
+func _refresh_build_panel() -> void:
+	if _build_panel == null or run == null:
+		return
+	var lines: Array[String] = []
+
+	if bolt != null:
+		lines.append("%s   %d mp" % [bolt.display_name, roundi(bolt.cost)])
+	if nova != null:
+		lines.append("%s   %d mp" % [nova.display_name, roundi(nova.cost)])
+
+	lines.append("")
+	for slot in ["weapon", "armour", "ring", "amulet", "helm", "boots"]:
+		if run.gear.has(slot):
+			var item: Item = run.gear[slot]
+			var mark := "*" if item.is_inscribed() else ""
+			lines.append("%s%s" % [item.display_name(), mark])
+
+	if not run.boons.is_empty():
+		lines.append("")
+		for b in run.boons:
+			lines.append(b.label())
+
+	_build_panel.text = "\n".join(lines)
+
 
 func _refresh_hud() -> void:
 	if _hud == null or run == null or not is_instance_valid(player):
@@ -549,6 +624,7 @@ func _refresh_hud() -> void:
 	var behaviours := run.active_behaviours()
 	if not behaviours.is_empty():
 		lines.append("inscribed: " + ", ".join(behaviours))
+	_refresh_build_panel()
 	if not run.boons.is_empty():
 		var names: Array[String] = []
 		for b in run.boons:

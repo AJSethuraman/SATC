@@ -235,10 +235,24 @@ static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 	var areas := maxf(0.0, float(d - 1))
 	var acts_done := float(Progression.act_of_depth(d) - 1)
 
-	e.max_health = 40.0 * pow(AREA_HEALTH_GROWTH, areas) * pow(ACT_HEALTH_STEP, acts_done)
+	# Trash dies fast and hits hard.
+	#
+	# The first full-act recording took about sixteen seconds an area, and almost
+	# all of that was chipping: at 40 health against a starting hit of 6-10 a
+	# single body took roughly three seconds to kill, five of them fifteen. That
+	# is not what an ARPG feels like. Diablo and Hades both delete ordinary
+	# enemies in well under a second and put the danger in *how many* arrive and
+	# how hard they hit, not in how long each one survives.
+	#
+	# So health comes down and damage goes up. The product is deliberately close
+	# to unchanged — an area should cost about the same health as before and take
+	# half the time — which means this is a pacing change rather than a
+	# difficulty one, and the simulator should show the clear rate roughly where
+	# it was.
+	e.max_health = 22.0 * pow(AREA_HEALTH_GROWTH, areas) * pow(ACT_HEALTH_STEP, acts_done)
 	var damage_scale := pow(AREA_DAMAGE_GROWTH, areas) * pow(ACT_DAMAGE_STEP, acts_done)
-	e.weapon_min = 5.0 * damage_scale
-	e.weapon_max = 9.0 * damage_scale
+	e.weapon_min = 7.0 * damage_scale
+	e.weapon_max = 12.0 * damage_scale
 	e.weapon_split = {Damage.Type.PHYSICAL: 1.0}
 	e.armor = 0.5 * areas
 	# Kept just under the player's 220 at a full clear: enemies that outrun you
@@ -278,7 +292,10 @@ static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 ## items and three boons can answer.
 static func boss_for_act(act: int) -> StatBlock:
 	var e := enemy_for_depth(Progression.depth(act, Progression.BOSS_AREA))
-	e.max_health *= 6.0
+	# Raised alongside the trash health cut so a boss stays a wall rather than
+	# becoming another body: 6x of the old 40 was 240, 7x of 22 is 154, and the
+	# fight would otherwise be over before it read as a fight.
+	e.max_health *= 11.0
 	e.weapon_min *= 1.6
 	e.weapon_max *= 1.6
 	e.armor *= 1.5
