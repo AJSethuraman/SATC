@@ -298,3 +298,47 @@ func _boon_by_id(pool: BoonPool, id: String) -> Boon:
 			return b
 	fail("boon '%s' missing from the table" % id)
 	return pool.boons[0]
+
+
+## A hypothetical must go through the same pipeline as the real thing.
+##
+## The balance simulator used to hand-roll its own trial stat block to answer
+## "would this be an upgrade?", and that copy silently omitted synergies — so
+## every pick it made was scored against a game without the mechanic it was
+## supposed to be measuring. Anything that asks what a build *would* be worth
+## now goes through _stats_from, and these pin that it agrees with reality.
+func test_a_hypothetical_boon_matches_actually_taking_it() -> void:
+	var dummy := StatBlock.new()
+	var syn := Boon.from_dict({
+		"id": "syn", "name": "syn", "group": "syn", "mods": {"increased.cold": 0.1},
+		"grants_tags": ["frost"], "synergy": {"tag": "frost", "per": {"more.cold": 0.05}},
+	}).at_rarity(Boon.Rarity.COMMON)
+	var mate := Boon.from_dict({
+		"id": "mate", "name": "mate", "group": "mate", "mods": {},
+		"grants_tags": ["frost"],
+	}).at_rarity(Boon.Rarity.COMMON)
+
+	var run := RunState.start(3)
+	run.school = "cold"
+	run.take_boon(mate)
+
+	var predicted := run.stats_with_boon(syn).expected_hit(dummy)
+	run.take_boon(syn)
+	var actual := run.build_stats().expected_hit(dummy)
+
+	assert_almost_eq(predicted, actual, 0.0001, "the prediction disagreed with the outcome")
+
+
+## And it must not mutate the run it is asked about — a scoring pass that
+## quietly equips things would make the order candidates were considered in
+## change what the player ends up with.
+func test_asking_what_if_does_not_change_the_build() -> void:
+	var run := RunState.start(3)
+	run.school = "cold"
+	var before := run.boons.size()
+	var candidate := Boon.from_dict({
+		"id": "c", "name": "c", "group": "c", "mods": {"more.cold": 0.2},
+	}).at_rarity(Boon.Rarity.COMMON)
+
+	run.stats_with_boon(candidate)
+	assert_eq(run.boons.size(), before, "scoring a candidate added it to the build")

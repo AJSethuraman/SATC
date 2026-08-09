@@ -136,17 +136,45 @@ func owned_boon_groups() -> Array:
 ## Recomputed from scratch rather than mutated in place, so there is no way for
 ## an unequip to leave a stat behind.
 func build_stats() -> StatBlock:
+	return _stats_from(gear, boons)
+
+
+## The stat block for an arbitrary gear/boon combination.
+##
+## Split out of build_stats so that "what would this be worth if I took it?" is
+## answered by the same code as "what am I actually fighting with". Anything
+## that hand-rolls a hypothetical instead will drift — and did: the balance
+## simulator built its own trial block, which meant it evaluated every candidate
+## without synergies and could not see the mechanic at all.
+func _stats_from(gear_set: Dictionary, boon_set: Array) -> StatBlock:
 	var s := RunState.base_stats(school)
-	for slot in gear:
-		gear[slot].apply_to(s)
-	for b in boons:
+	for slot in gear_set:
+		gear_set[slot].apply_to(s)
+	for b in boon_set:
 		s.apply_all(b.mods)
 	# Synergies last, and computed against the finished set rather than folded
 	# in as each boon is taken — otherwise the order you were offered things in
 	# would change what they are worth, and two identical builds could disagree.
-	for b in boons:
-		s.apply_all(b.synergy_with(boons))
+	for b in boon_set:
+		s.apply_all(b.synergy_with(boon_set))
 	return s
+
+
+## Stats as they would be with this boon taken. Includes what the boon does to
+## every synergy already in the build, and what the build does to its synergy —
+## which is the whole reason a committed pick is worth more than its own numbers.
+func stats_with_boon(candidate: Boon.Rolled) -> StatBlock:
+	var hypothetical := boons.duplicate()
+	hypothetical.append(candidate)
+	return _stats_from(gear, hypothetical)
+
+
+## Stats as they would be with this item equipped, replacing whatever occupies
+## its slot.
+func stats_with_item(drop: Item) -> StatBlock:
+	var hypothetical := gear.duplicate()
+	hypothetical[drop.slot] = drop
+	return _stats_from(hypothetical, boons)
 
 
 func equip(item: Item) -> void:

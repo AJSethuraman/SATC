@@ -209,17 +209,7 @@ func _take_boon(pool: BoonPool, run: RunState, policy: String, picked_ids: Array
 ## damage for resistance is judged the way combat will actually judge it.
 func _is_upgrade(run: RunState, drop: Item) -> bool:
 	var enemy := RunState.enemy_for_depth(run.depth())
-	var before := run.build_stats().expected_hit(enemy)
-
-	var trial := RunState.base_stats(run.school)
-	for slot in run.gear:
-		if slot != drop.slot:
-			run.gear[slot].apply_to(trial)
-	drop.apply_to(trial)
-	for b in run.boons:
-		trial.apply_all(b.mods)
-
-	return trial.expected_hit(enemy) > before
+	return run.stats_with_item(drop).expected_hit(enemy) > run.build_stats().expected_hit(enemy)
 
 
 func _choose(run: RunState, offer: Array, policy: String) -> Boon.Rolled:
@@ -253,8 +243,12 @@ func _best_by(run: RunState, offer: Array, weigh_survival: bool) -> Boon.Rolled:
 	var best: Boon.Rolled = offer[0]
 	var best_score := -INF
 	for candidate in offer:
-		var trial := run.build_stats()
-		trial.apply_all(candidate.mods)
+		# Evaluate the whole build as it would be, not the current build plus a
+		# candidate's own numbers. A synergy boon is worth nothing by its mods
+		# and a great deal by what it does to the rest of the school, so scoring
+		# the mods alone makes the simulator blind to the mechanic it is meant to
+		# be measuring.
+		var trial := run.stats_with_boon(candidate)
 		var score := trial.expected_hit(enemy)
 		if weigh_survival:
 			var incoming := maxf(0.01, enemy.expected_hit(trial))
