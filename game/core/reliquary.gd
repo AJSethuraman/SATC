@@ -3,25 +3,41 @@ extends RefCounted
 
 ## The bank: the only thing that survives a death.
 ##
-## One deposit per run, into a store that persists. That is what turns a pile of
-## unrelated runs into a campaign — you are not accumulating power, you are
-## accumulating *components*, and the choice of which single piece to keep is the
-## only decision in the game that outlives the character making it.
+## A store that persists, fed by deposits a run earns. That is what turns a pile
+## of unrelated runs into a campaign — what you set aside is the only decision in
+## the game that outlives the character making it.
 ##
-## THE LOAD-BEARING RULE: only raw sigils and empty vessels may be deposited.
-## Never a completed item, never a vessel with anything already in it.
+## THE LOAD-BEARING RULE: you may bank a finished item. You must assemble it
+## inside a single run. What the bank refuses is the half-built thing: a vessel
+## with sigils in it that do not yet spell anything.
 ##
-## Everything rests on that. An inscription needs a vessel plus two or three
-## specific sigils, and since a finished item can never be banked at any
-## allowance, you assemble it across runs and complete it *inside* one.
-## Relax the rule and the design collapses straight into "keep your best gear",
-## which the balance simulator already identified as the failure mode: farm one
-## good weapon and every subsequent run opens easy. test_reliquary.gd enforces
-## this, and it should be treated as a design invariant rather than a preference.
+## That inverts the rule this system shipped with — "only raw sigils and empty
+## vessels may be deposited, never a completed item" — and the inversion is
+## deliberate rather than a relaxation. The old rule existed for exactly one
+## reason: to stop the game collapsing into "farm one good weapon, then every
+## subsequent run opens easy", a failure mode the balance simulator identified
+## directly. It is superseded because the difficulty passes now do that job, and
+## do it better. A run is three passes over the same acts, and enemy health steps
+## about 2.2x across a pass boundary (RunState.DIFFICULTY_HEALTH_STEP, on top of
+## the act step landing at the same moment). A runeword assembled in Normal is
+## outscaled by Nightmare, so a banked item is not a permanent win — it is a leg
+## up for the *next* run's early game, which gets you deeper faster, which is the
+## only way to farm the components that exist only deeper. That ladder is the
+## progression, and it is worth more than the old prohibition was.
 ##
-## It has a pleasant side effect too. Because only inert components are storable,
-## saving is trivial — a sigil is an id and a vessel is a base name plus a socket
-## count. No item state to serialise, no versioning problem.
+## So the constraint moved rather than vanished. It used to be about what you may
+## keep; it is now about what you must do in one sitting. Assembly is the part
+## that has to happen inside a run, because holding a vessel and every sigil of a
+## recipe at the same time is precisely what depth buys you. test_reliquary.gd
+## enforces the new shape of it, and it is still a design invariant rather than a
+## preference.
+##
+## The old rule had a pleasant side effect that is now paid for. Only inert
+## components were storable, so a save was ids and counts with no item state to
+## serialise. A banked item now stores its base, socket count and sigil order,
+## and is rebuilt through the book by item_from_entry() — which re-derives the
+## inscription from the *current* book instead of trusting the stored id, so
+## editing content can never resurrect a word that no longer exists.
 
 const DEFAULT_CAPACITY := 8
 
@@ -46,8 +62,13 @@ const DEPOSITS_PER_ACT := 1
 
 var capacity: int = DEFAULT_CAPACITY
 
-## Stored components. Each entry is {"kind": "sigil", "id": ...} or
-## {"kind": "vessel", "base": ..., "slot": ..., "sockets": n}.
+## What is stored. Each entry is one of
+##   {"kind": "sigil",  "id": ...}
+##   {"kind": "vessel", "base": ..., "slot": ..., "sockets": n}
+##   {"kind": "item",   "base": ..., "slot": ..., "sockets": n,
+##                      "sigils": [id, ...], "inscription": id}
+## A finished item keeps its sigils in socket order because order is what makes
+## the inscription; a bag of the same three sigils is a different thing.
 var contents: Array = []
 
 var _deposits_earned: int = DEPOSITS_AT_START
@@ -77,14 +98,21 @@ func is_full() -> bool:
 ## Why a deposit would be refused, or "" if it would be accepted. Returns a
 ## reason rather than a bool so callers can tell the player something useful.
 func rejection_reason(item: Item) -> String:
-	if item.is_inscribed():
-		return "a completed inscription cannot be banked"
-	if not item.socketed.is_empty():
-		return "the vessel already holds sigils"
-	if not item.affixes.is_empty():
-		return "only plain vessels can be banked"
-	if item.sockets <= 0:
-		return "that vessel has no sockets"
+	if not item.is_inscribed():
+		# The one refusal the whole design now rests on. Banking a vessel with
+		# two of the three sigils already in it would let you carry the assembly
+		# across runs a piece at a time, which is exactly the work that has to
+		# happen in one sitting.
+		if not item.socketed.is_empty():
+			return "finish the inscription this run or bank the sigils loose"
+		# Rolled affixes are still refused, and deliberately conservatively so:
+		# an affixed item is neither a component nor something you assembled, and
+		# the loot that is *meant* to be worth banking unassembled — uniques and
+		# sets — does not exist yet. Revisit this when it does, not before.
+		if not item.affixes.is_empty():
+			return "only vessels and finished inscriptions can be banked"
+		if item.sockets <= 0:
+			return "that vessel has no sockets"
 	if deposits_remaining() <= 0:
 		return "you have already set something aside this run"
 	if is_full():
@@ -96,17 +124,39 @@ func can_deposit(item: Item) -> bool:
 	return rejection_reason(item) == ""
 
 
-func deposit_vessel(item: Item) -> bool:
+## Bank an item — an empty vessel or a finished inscription; the entry written
+## depends on which it is.
+func deposit(item: Item) -> bool:
 	if not can_deposit(item):
 		return false
-	contents.append({
+	contents.append(_entry_for(item))
+	_deposits_used += 1
+	return true
+
+
+## The name callers had before finished items were bankable. Kept rather than
+## renamed because the acquisition simulator banks vessels through it, and
+## because "deposit_vessel(a vessel)" still reads correctly at the call site.
+func deposit_vessel(item: Item) -> bool:
+	return deposit(item)
+
+
+func _entry_for(item: Item) -> Dictionary:
+	if item.is_inscribed():
+		return {
+			"kind": "item",
+			"base": item.base_name,
+			"slot": item.slot,
+			"sockets": item.sockets,
+			"sigils": item.socketed_ids(),
+			"inscription": item.inscription.id,
+		}
+	return {
 		"kind": "vessel",
 		"base": item.base_name,
 		"slot": item.slot,
 		"sockets": item.sockets,
-	})
-	_deposits_used += 1
-	return true
+	}
 
 
 func deposit_sigil(sigil: Sigil) -> bool:
@@ -122,6 +172,10 @@ func discard_at(index: int) -> void:
 		contents.remove_at(index)
 
 
+## Loose sigils only. The sigils inside a banked inscription are deliberately not
+## counted: they are spoken for, and a caller asking "what can I build with?"
+## would otherwise be told it owns components it would have to destroy an item to
+## get at.
 func sigil_ids() -> Array:
 	var out: Array = []
 	for entry in contents:
@@ -130,9 +184,16 @@ func sigil_ids() -> Array:
 	return out
 
 
-## Vessels held, as {"base", "slot", "sockets"} dictionaries.
+## Empty vessels held, as {"base", "slot", "sockets"} dictionaries. A banked
+## finished item is not one, for the same reason: its sockets are full.
 func vessels() -> Array:
 	return contents.filter(func(e): return str(e.get("kind", "")) == "vessel")
+
+
+## Finished inscriptions held, as entry dictionaries. Rebuild one with
+## item_from_entry() when you need the Item itself.
+func items() -> Array:
+	return contents.filter(func(e): return str(e.get("kind", "")) == "item")
 
 
 ## The largest banked vessel for a slot, or 0 if there is none.
@@ -145,6 +206,38 @@ func best_sockets(for_slot: String) -> int:
 
 
 # --- persistence --------------------------------------------------------
+
+
+## Rebuild a banked entry into a usable Item, or null if the entry is not a
+## finished item.
+##
+## The inscription is re-derived from the book rather than read back out of the
+## entry. A save holds content ids and content moves: a retuned pattern or a
+## renamed sigil must produce whatever the *current* book says the sequence
+## spells — including nothing — rather than a word the game no longer has rules
+## for. The stored "inscription" id is there so a UI can list the bank without
+## loading the book, not as the authority on what the item is.
+static func item_from_entry(entry: Dictionary, book: InscriptionBook) -> Item:
+	if book == null or str(entry.get("kind", "")) != "item":
+		return null
+	var item := Item.new()
+	item.base_name = str(entry.get("base", "Item"))
+	item.slot = str(entry.get("slot", "weapon"))
+	item.sockets = int(entry.get("sockets", 0))
+	# A save is a file on disk and may be anything by the time it comes back, so
+	# a sigil list that is not a list yields an empty vessel rather than a crash.
+	var ids: Array = []
+	var stored: Variant = entry.get("sigils", [])
+	if stored is Array:
+		ids = stored
+	for sigil_id in ids:
+		var sigil := book.sigil_by_id(str(sigil_id))
+		# A sigil this book has never heard of is dropped rather than faked, and
+		# the reappraisal below then simply finds no inscription.
+		if sigil != null:
+			item.insert(sigil)
+	item.reappraise(book)
+	return item
 
 
 func to_dict() -> Dictionary:

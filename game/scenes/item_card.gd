@@ -15,12 +15,13 @@ extends PanelContainer
 ## rather than flashing.
 
 ## Rarity colours, following the convention every ARPG since Diablo has used —
-## grey/blue/yellow/orange — because a player who has met one of those games
-## already knows what a blue name means and does not need to be taught.
+## grey/blue/yellow/orange/green — because a player who has met one of those
+## games already knows what a blue name means and does not need to be taught.
 const RARITY_COLOUR := {
 	Item.Rarity.NORMAL: Color(0.78, 0.78, 0.82),
 	Item.Rarity.MAGIC: Color(0.45, 0.62, 1.0),
 	Item.Rarity.RARE: Color(1.0, 0.92, 0.35),
+	Item.Rarity.SET: Color(0.36, 0.93, 0.36),
 	Item.Rarity.UNIQUE: Color(1.0, 0.62, 0.22),
 }
 
@@ -30,7 +31,10 @@ const FADE := 0.6
 var _life := 0.0
 
 
-func setup(item: Item, damage_delta: float) -> void:
+## `worn` is the loadout the drop is being judged against, so a set piece can say
+## how much of its set is on. Optional because the card is also shown in contexts
+## with no run behind it.
+func setup(item: Item, damage_delta: float, worn: Variant = null) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.06, 0.05, 0.09, 0.9)
 	style.border_color = RARITY_COLOUR.get(item.rarity, Color.WHITE)
@@ -51,6 +55,11 @@ func setup(item: Item, damage_delta: float) -> void:
 	for a in item.affixes:
 		box.add_child(_line(a.display_name, 15, Color(0.55, 0.72, 1.0)))
 
+	# A set piece is weaker than a rare on its own, so the card has to say what
+	# it is *toward* or the player reads a green drop as a bad yellow one.
+	if item.set_id != "":
+		box.add_child(_line(_set_line(item, worn), 14, RARITY_COLOUR[Item.Rarity.SET]))
+
 	if item.sockets > 0:
 		box.add_child(_line(
 			"sockets: %d (%d free)" % [item.sockets, item.free_sockets()],
@@ -66,6 +75,23 @@ func setup(item: Item, damage_delta: float) -> void:
 		"%+.0f%% damage" % (damage_delta * 100.0), 15,
 		Color(0.5, 0.9, 0.55) if better else Color(0.9, 0.45, 0.45)
 	))
+
+
+func _set_line(item: Item, worn: Variant) -> String:
+	var pool := UniquePool.shared()
+	var definition := pool.set_by_id(item.set_id)
+	var set_name := definition.display_name if definition != null else item.set_id
+	var total := pool.pieces_of_set(item.set_id).size()
+	if worn == null:
+		return "%s set" % set_name
+	# Counted with the drop already in its slot, because the number the player
+	# wants is what wearing it would get them, not what they have without it.
+	var loadout: Array = UniquePool.worn_items(worn).filter(
+		func(e): return (e as Item) == null or (e as Item).slot != item.slot
+	)
+	loadout.append(item)
+	var have := int(UniquePool.worn_counts(loadout).get(item.set_id, 0))
+	return "%s set — %d of %d" % [set_name, have, total]
 
 
 func _line(text: String, size: int, colour: Color) -> Label:

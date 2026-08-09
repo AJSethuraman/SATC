@@ -96,24 +96,78 @@ func test_transmutation_follows_d2s_tightening_ratio() -> void:
 	assert_eq(InscriptionBook.transmute_cost(5), 2)
 
 
-func test_transmuting_climbs_exactly_one_tier() -> void:
+func test_the_transmutation_ladder_is_a_total_order() -> void:
+	# Total, so no sigil sits off the ladder unreachable; strict, so a rung never
+	# converts into itself or into something already passed.
 	var book := _book()
-	for s in book.sigils:
-		var up := book.transmute_target(s.id)
+	var order := book.transmute_order()
+	assert_eq(order.size(), book.sigils.size(), "every sigil must sit on the ladder")
+
+	var seen := {}
+	for id in order:
+		assert_false(seen.has(id), "'%s' appears twice on the ladder" % id)
+		seen[str(id)] = true
+		assert_not_null(book.sigil_by_id(str(id)), "'%s' is not a real sigil" % id)
+
+	for i in order.size() - 1:
+		var lower: Sigil = book.sigil_by_id(str(order[i]))
+		var upper: Sigil = book.sigil_by_id(str(order[i + 1]))
+		assert_true(
+			lower.tier <= upper.tier,
+			"the ladder must not descend a tier: '%s' then '%s'" % [lower.id, upper.id]
+		)
+		if lower.tier == upper.tier:
+			# Commonest first within a tier, so the cheap end of the ladder is
+			# also the end you are most likely to be handed by the drop table.
+			var msg := "within tier %d, '%s' should not precede the commoner '%s'" % [
+				lower.tier, lower.id, upper.id
+			]
+			assert_true(lower.weight >= upper.weight, msg)
+
+
+func test_every_sigil_but_the_last_has_a_successor() -> void:
+	var book := _book()
+	var order := book.transmute_order()
+	assert_gt(float(order.size()), 1.0, "test needs a ladder with more than one rung")
+
+	for i in order.size() - 1:
+		var up := book.transmute_target(str(order[i]))
+		assert_not_null(up, "'%s' must convert into something" % order[i])
 		if up == null:
-			assert_eq(s.tier, 5, "only the top tier should have nowhere to go")
-		else:
-			assert_eq(up.tier, s.tier + 1, "'%s' must convert one tier up" % s.id)
+			continue
+		assert_eq(up.id, order[i + 1], "'%s' must convert one rung up" % order[i])
+
+	var last: String = str(order[order.size() - 1])
+	assert_eq(book.transmute_target(last), null, "'%s' tops the ladder" % last)
 
 
-func test_transmuting_yields_the_commonest_of_the_next_tier() -> void:
-	# Converting surplus is meant to be a floor under bad luck, not a second
-	# lottery, so it hands back the most reliable sigil of the tier above.
+func test_grinding_upward_reaches_every_sigil() -> void:
+	# The property the whole change exists to provide, and the one the old rule
+	# failed: transmutation jumped to the commonest sigil of the next tier, so
+	# tier 2 always produced `pyre` and `rime` and `storm` were unreachable by
+	# grinding at any price. A recipe wanting one was pure drop luck forever.
 	var book := _book()
-	var up := book.transmute_target("ash")
-	assert_not_null(up)
-	for other in book.of_tier(up.tier):
-		assert_true(up.weight >= other.weight, "should yield the commonest tier-%d sigil" % up.tier)
+	var order := book.transmute_order()
+	if order.is_empty():
+		fail("the ladder must not be empty")
+		return
+	var cheapest: String = str(order[0])
+
+	var reached := {}
+	var at := book.sigil_by_id(cheapest)
+	assert_not_null(at, "the ladder must start at a real sigil")
+	# Bounded so a ladder that ever cycles fails the test instead of hanging CI.
+	var steps := 0
+	while at != null and steps <= order.size():
+		reached[at.id] = true
+		at = book.transmute_target(at.id)
+		steps += 1
+
+	for s in book.sigils:
+		assert_true(
+			reached.has(s.id),
+			"'%s' cannot be reached by grinding up from '%s'" % [s.id, cheapest]
+		)
 
 
 func test_sigils_still_contribute_without_an_inscription() -> void:

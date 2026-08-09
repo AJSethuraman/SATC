@@ -342,3 +342,117 @@ func test_asking_what_if_does_not_change_the_build() -> void:
 
 	run.stats_with_boon(candidate)
 	assert_eq(run.boons.size(), before, "scoring a candidate added it to the build")
+
+
+## Set bonuses have to arrive through the run's own stats, not only through the
+## pool's API. A bonus that exists, is tested, and is never applied by anything
+## the player touches is indistinguishable from one that does not exist — and
+## that is exactly the state this shipped in: UniquePool had a full set mechanic
+## with no caller.
+func test_wearing_a_set_changes_the_run_stats() -> void:
+	var pool := UniquePool.shared()
+	var definition := _a_set_of_at_least(pool, 2)
+	var worn: Array = pool.pieces_of_set(definition.id)
+
+	var run := RunState.start(77)
+	var alone := _stamped(worn[0])
+	run.equip(alone)
+	var one := run.build_stats()
+
+	run.equip(_stamped(worn[1]))
+	var two := run.build_stats()
+
+	var bonus := pool.set_bonus_mods(run.gear)
+	assert_false(bonus.is_empty(), "two pieces of '%s' grant nothing" % definition.id)
+	assert_ne(
+		_fingerprint(one), _fingerprint(two),
+		"the second piece of '%s' changed no stat the run can see" % definition.id
+	)
+
+
+## And the hypothetical has to agree with the real thing, because the loot log
+## and both simulators decide every equip through stats_with_item(). If set
+## bonuses were folded in only by build_stats, completing a set would read as a
+## downgrade at the exact moment it is the best drop in the game.
+func test_a_hypothetical_sees_the_set_bonus_too() -> void:
+	var pool := UniquePool.shared()
+	var definition := _a_set_of_at_least(pool, 2)
+	var worn: Array = pool.pieces_of_set(definition.id)
+
+	var run := RunState.start(78)
+	run.equip(_stamped(worn[0]))
+	var second := _stamped(worn[1])
+	var predicted := run.stats_with_item(second)
+	run.equip(second)
+	assert_eq(
+		_fingerprint(predicted), _fingerprint(run.build_stats()),
+		"stats_with_item disagrees with build_stats once a set completes"
+	)
+
+
+## A tag a set bonus grants must widen the boon pool exactly as an item's does,
+## or the tag is decoration.
+func test_a_set_bonus_tag_reaches_the_boon_gate() -> void:
+	var pool := UniquePool.shared()
+	var definition: UniquePool.SetDefinition = null
+	var granted := ""
+	# The tag has to be one no individual piece grants, or wearing the set would
+	# produce it through the ordinary item path and this would assert nothing.
+	for entry in pool.sets:
+		var candidate := entry as UniquePool.SetDefinition
+		if candidate == null:
+			continue
+		var from_pieces: Array[String] = []
+		for m in pool.pieces_of_set(candidate.id):
+			from_pieces.append_array((m as UniquePool.Piece).grants_tags)
+		for b in candidate.bonuses:
+			var bonus := b as UniquePool.Bonus
+			if bonus == null:
+				continue
+			for t in bonus.grants_tags:
+				if not from_pieces.has(t):
+					definition = candidate
+					granted = t
+					break
+			if definition != null:
+				break
+		if definition != null:
+			break
+	if definition == null:
+		return  # no set grants a tag yet; nothing to assert
+
+	var run := RunState.start(79)
+	assert_false(run.active_tags().has(granted))
+	for piece in pool.pieces_of_set(definition.id):
+		run.equip(_stamped(piece))
+	assert_true(
+		run.active_tags().has(granted),
+		"'%s' is granted by a worn set bonus but gates nothing" % granted
+	)
+
+
+func _a_set_of_at_least(pool: UniquePool, count: int) -> UniquePool.SetDefinition:
+	for entry in pool.sets:
+		var definition := entry as UniquePool.SetDefinition
+		if definition != null and pool.pieces_of_set(definition.id).size() >= count:
+			return definition
+	fail("no set in the table has %d pieces" % count)
+	return null
+
+
+## A drop carrying a named piece, built the way the generator builds one.
+func _stamped(entry: Variant) -> Item:
+	var piece := entry as UniquePool.Piece
+	var item := Item.new()
+	item.base_name = "Test Base"
+	item.slot = piece.slot
+	piece.stamp(item)
+	return item
+
+
+## Enough of a stat block to notice a change. Compared as a string so a failure
+## says what moved rather than only that something did.
+func _fingerprint(s: StatBlock) -> String:
+	return "%.3f/%.3f/%.3f/%.3f/%.3f/%.3f" % [
+		s.weapon_min, s.weapon_max, s.max_health, s.armor, s.crit_chance, s.move_speed
+	]

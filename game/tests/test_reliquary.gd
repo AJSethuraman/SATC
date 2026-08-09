@@ -1,6 +1,7 @@
 extends TestCase
 
-## The bank, and the one rule the whole persistence design rests on.
+## The bank, and the one rule the whole persistence design rests on: you may keep
+## a finished item, but you have to have assembled it inside a single run.
 
 const SIGILS_PATH := "res://data/sigils.json"
 
@@ -13,6 +14,16 @@ func _vessel(sockets: int, slot: String = "weapon") -> Item:
 	return item
 
 
+## A finished inscription — kindling, ash then cinder in a two-socket weapon.
+func _inscribed(book: InscriptionBook) -> Item:
+	var word: Inscription = book.inscription_by_id("kindling")
+	var item := _vessel(word.socket_count(), word.slot)
+	for id in word.pattern:
+		item.insert(book.sigil_by_id(str(id)))
+	item.reappraise(book)
+	return item
+
+
 func _fresh() -> Reliquary:
 	var r := Reliquary.new()
 	r.begin_run()
@@ -22,42 +33,73 @@ func _fresh() -> Reliquary:
 # --- the load-bearing rule ---------------------------------------------
 
 
-func test_a_completed_inscription_can_never_be_banked() -> void:
-	# If this ever passes, the design has collapsed into "keep your best gear",
-	# which the balance simulator already showed trivialises every later run.
+func test_a_completed_inscription_can_be_banked() -> void:
+	# This is the flip, and it used to assert the exact opposite. The refusal
+	# existed to stop the game collapsing into "farm one good weapon, then every
+	# subsequent run opens easy" — but that job now belongs to the difficulty
+	# passes rather than to the bank: RunState.DIFFICULTY_HEALTH_STEP outscales a
+	# Normal-made word by Nightmare, so a banked item is a leg up into the next
+	# run's early game, not a permanent win. The failure mode is guarded in
+	# test_run_state.gd's scaling assertions now, not here.
 	var book := InscriptionBook.from_json(SIGILS_PATH)
-	var word: Inscription = book.inscription_by_id("kindling")
-	var item := _vessel(2)
-	for id in word.pattern:
-		item.insert(book.sigil_by_id(str(id)))
-	item.reappraise(book)
+	var item := _inscribed(book)
 	assert_true(item.is_inscribed(), "test setup should have produced an inscription")
 
 	var bank := _fresh()
-	assert_false(bank.can_deposit(item), "a completed inscription must be unbankable")
-	assert_false(bank.deposit_vessel(item))
-	assert_eq(bank.contents.size(), 0)
+	assert_true(bank.can_deposit(item), bank.rejection_reason(item))
+	assert_true(bank.deposit(item))
+	assert_eq(bank.items().size(), 1)
+
+	var entry: Dictionary = bank.items()[0]
+	assert_eq(str(entry.get("inscription", "")), "kindling")
+	# Socket order, not a bag: the same sigils in the other order spell nothing.
+	assert_eq(entry.get("sigils"), ["ash", "cinder"])
 
 
-func test_a_vessel_holding_any_sigil_cannot_be_banked() -> void:
-	# Even one sigil short of a word. Otherwise you could bank most of the work
-	# and finish it trivially next run.
+func test_a_part_assembled_vessel_cannot_be_banked() -> void:
+	# What the flip made *stricter*, and the thing the old "no completed items"
+	# rule was protecting all along. You may keep the finished word or you may
+	# keep the sigils loose; you may not keep the work in progress, because
+	# banking a vessel one sigil short is assembling across runs — precisely the
+	# work that has to happen inside a single one.
 	var book := InscriptionBook.from_json(SIGILS_PATH)
-	var item := _vessel(3)
-	item.insert(book.sigils[0])
+	var word: Inscription = book.inscription_by_id("kindling")
+	var item := _vessel(word.socket_count(), word.slot)
+	item.insert(book.sigil_by_id(str(word.pattern[0])))
+	item.reappraise(book)
+	assert_false(item.is_inscribed(), "one sigil short must not be an inscription")
 
 	var bank := _fresh()
 	assert_false(bank.can_deposit(item))
-	assert_true(bank.rejection_reason(item).contains("already holds"))
+	assert_false(bank.deposit(item))
+	assert_eq(bank.contents.size(), 0)
+	assert_true(bank.rejection_reason(item).contains("finish"))
+	assert_eq(bank.deposits_remaining(), 1, "a refused deposit must not be spent")
+
+
+func test_a_banked_item_is_not_a_pile_of_loose_components() -> void:
+	# Its sigils and its vessel are spoken for. Otherwise banking one runeword
+	# would also bank the parts of a second, which is the part-assembly loophole
+	# arriving by the back door.
+	var book := InscriptionBook.from_json(SIGILS_PATH)
+	var bank := _fresh()
+	assert_true(bank.deposit(_inscribed(book)))
+	assert_eq(bank.sigil_ids().size(), 0)
+	assert_eq(bank.vessels().size(), 0)
+	assert_eq(bank.best_sockets("weapon"), 0)
+	assert_eq(bank.deposits_remaining(), 0, "a finished item costs a deposit like anything else")
 
 
 func test_an_affixed_item_cannot_be_banked() -> void:
+	# Not a component and not something you assembled. The loot that is meant to
+	# be worth banking unassembled — uniques and sets — does not exist yet, so
+	# this stays refused until it does.
 	var item := _vessel(2)
 	var rolled := Affix.Rolled.new()
 	rolled.id = "test"
 	rolled.mods = {"max_health": 10.0}
 	item.affixes.append(rolled)
-	assert_false(_fresh().can_deposit(item), "only plain vessels are bankable")
+	assert_false(_fresh().can_deposit(item), "only vessels and finished words are bankable")
 
 
 func test_an_empty_socketed_vessel_is_bankable() -> void:
@@ -180,6 +222,51 @@ func test_it_survives_a_save_and_load() -> void:
 	assert_eq(loaded.best_sockets("weapon"), 3)
 
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+
+## A finished item is the only thing in the bank with real state to serialise,
+## which is the price of the flip: the old rule stored nothing but ids and counts
+## because nothing storable had ever been assembled.
+func test_a_banked_item_comes_back_as_the_item_it_was() -> void:
+	var book := InscriptionBook.from_json(SIGILS_PATH)
+	var bank := _fresh()
+	assert_true(bank.deposit(_inscribed(book)))
+
+	var path := "user://test_reliquary_item.json"
+	assert_eq(bank.save_to(path), OK)
+	var loaded := Reliquary.load_from(path)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+	assert_eq(loaded.items().size(), 1)
+	var entry: Dictionary = loaded.items()[0]
+	var restored := Reliquary.item_from_entry(entry, book)
+	assert_not_null(restored, "a banked item must rebuild")
+	if restored == null:
+		return
+	assert_true(restored.is_inscribed(), "and rebuild with its inscription intact")
+	assert_eq(restored.inscription.id, "kindling")
+	assert_eq(restored.socketed_ids(), ["ash", "cinder"])
+	assert_eq(restored.slot, "weapon")
+
+
+## Content ids move underneath saves. A sequence the current book no longer
+## recognises has to come back as the vessel it really is, rather than as a word
+## the game has no rules for any more.
+func test_a_rebuilt_item_is_re_judged_by_the_current_book() -> void:
+	var book := InscriptionBook.from_json(SIGILS_PATH)
+	var entry := {
+		"kind": "item",
+		"base": "Plain Rod",
+		"slot": "weapon",
+		"sockets": 2,
+		"sigils": ["ash", "no_such_sigil"],
+		"inscription": "kindling",
+	}
+	var restored := Reliquary.item_from_entry(entry, book)
+	assert_not_null(restored)
+	if restored == null:
+		return
+	assert_false(restored.is_inscribed(), "the stored inscription id must not be taken on trust")
 
 
 func test_a_missing_save_is_an_empty_reliquary_not_an_error() -> void:

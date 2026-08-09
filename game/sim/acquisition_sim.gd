@@ -126,7 +126,14 @@ func _play_until_inscribed(
 			if rng.chance(SIGIL_DROP_CHANCE):
 				loose_sigils.append(book.roll_sigil(rng, ilvl).id)
 			else:
-				var drop := gen.roll_item(ilvl, rng, 0.5)
+				# The pass is the area's, not the ilvl's. ilvl leads depth by
+				# three here, and inferring from it would let an exceptional
+				# base — the only three-socket vessel — arrive three areas
+				# before Nightmare does. The whole measurement this simulator
+				# makes is how long that vessel takes to find.
+				var drop := gen.roll_item(
+					ilvl, rng, 0.5, "", Progression.difficulty_of_depth(area_index)
+				)
 				if drop.is_empty_vessel():
 					loose_vessels.append({"slot": drop.slot, "sockets": drop.sockets})
 

@@ -1,41 +1,134 @@
 {
   "_comment": "Base item types and the affix table. Affix `ranges` keys use the StatBlock modifier grammar documented in core/stat_block.gd. Affixes never grant `more` modifiers — that bucket belongs to boons, which is what keeps gear build-defining instead of power-defining.",
 
+  "_bases_comment": "Every base exists three times, once per difficulty pass: plain (Normal), exceptional (Nightmare), elite (Hell). The higher tiers are the same item met again — same slot, same role, better numbers, and one more socket ceiling each — so the naming is a prefix on the plain name rather than a new word. That prefix is load-bearing: tests/test_items.gd pairs the tiers up by it. See docs/difficulty-and-loot.md.",
+
   "bases": [
     {
       "name": "Falchion",
+      "tier": "plain",
       "slot": "weapon",
       "implicit": { "weapon_min": 4, "weapon_max": 8 }
     },
     {
+      "name": "Tempered Falchion",
+      "tier": "exceptional",
+      "slot": "weapon",
+      "implicit": { "weapon_min": 7, "weapon_max": 13 }
+    },
+    {
+      "name": "Ashforged Falchion",
+      "tier": "elite",
+      "slot": "weapon",
+      "implicit": { "weapon_min": 11, "weapon_max": 19 }
+    },
+    {
       "name": "Warhammer",
+      "tier": "plain",
       "slot": "weapon",
       "implicit": { "weapon_min": 9, "weapon_max": 14, "move_speed": -15 }
     },
     {
+      "name": "Tempered Warhammer",
+      "tier": "exceptional",
+      "slot": "weapon",
+      "implicit": { "weapon_min": 14, "weapon_max": 22, "move_speed": -12 }
+    },
+    {
+      "name": "Ashforged Warhammer",
+      "tier": "elite",
+      "slot": "weapon",
+      "implicit": { "weapon_min": 20, "weapon_max": 31, "move_speed": -10 }
+    },
+    {
       "name": "Ritual Dagger",
+      "tier": "plain",
       "slot": "weapon",
       "implicit": { "weapon_min": 2, "weapon_max": 5, "crit_chance": 0.08 }
     },
     {
+      "name": "Tempered Ritual Dagger",
+      "tier": "exceptional",
+      "slot": "weapon",
+      "implicit": { "weapon_min": 4, "weapon_max": 9, "crit_chance": 0.1 }
+    },
+    {
+      "name": "Ashforged Ritual Dagger",
+      "tier": "elite",
+      "slot": "weapon",
+      "implicit": { "weapon_min": 7, "weapon_max": 14, "crit_chance": 0.12 }
+    },
+    {
       "name": "Leather Jerkin",
+      "tier": "plain",
       "slot": "armor",
       "implicit": { "armor": 3, "max_health": 20 }
     },
     {
+      "name": "Tempered Leather Jerkin",
+      "tier": "exceptional",
+      "slot": "armor",
+      "implicit": { "armor": 5, "max_health": 32 }
+    },
+    {
+      "name": "Ashforged Leather Jerkin",
+      "tier": "elite",
+      "slot": "armor",
+      "implicit": { "armor": 8, "max_health": 46 }
+    },
+    {
       "name": "Chain Hauberk",
+      "tier": "plain",
       "slot": "armor",
       "implicit": { "armor": 8, "max_health": 35, "move_speed": -10 }
     },
     {
+      "name": "Tempered Chain Hauberk",
+      "tier": "exceptional",
+      "slot": "armor",
+      "implicit": { "armor": 13, "max_health": 52, "move_speed": -8 }
+    },
+    {
+      "name": "Ashforged Chain Hauberk",
+      "tier": "elite",
+      "slot": "armor",
+      "implicit": { "armor": 19, "max_health": 72, "move_speed": -6 }
+    },
+    {
       "name": "Bone Charm",
+      "tier": "plain",
       "slot": "trinket",
       "implicit": { "max_health": 10 }
     },
     {
+      "name": "Tempered Bone Charm",
+      "tier": "exceptional",
+      "slot": "trinket",
+      "implicit": { "max_health": 18 }
+    },
+    {
+      "name": "Ashforged Bone Charm",
+      "tier": "elite",
+      "slot": "trinket",
+      "implicit": { "max_health": 28 }
+    },
+    {
       "name": "Cinder Ring",
+      "tier": "plain",
       "slot": "trinket",
       "implicit": { "resist.fire": 0.1 }
+    },
+    {
+      "name": "Tempered Cinder Ring",
+      "tier": "exceptional",
+      "slot": "trinket",
+      "implicit": { "resist.fire": 0.18 }
+    },
+    {
+      "name": "Ashforged Cinder Ring",
+      "tier": "elite",
+      "slot": "trinket",
+      "implicit": { "resist.fire": 0.26 }
     }
   ],
 

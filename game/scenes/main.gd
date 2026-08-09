@@ -221,7 +221,13 @@ func _offer_rewards() -> void:
 func _grant_item(magic_chance: float, bonus_depth: int = 0) -> void:
 	# Loot first, so a tag it grants can widen the boon offer immediately — this
 	# ordering is the whole gear-gates-boons loop in one line.
-	var drop := generator.roll_item(run.depth() + 3 + bonus_depth, run.loot_rng, magic_chance)
+	# ilvl runs ahead of where the player is standing, so the pass has to be
+	# passed explicitly rather than inferred from it: gear rolled three areas
+	# deep would otherwise drop an exceptional base — and its extra socket — in
+	# the last few areas of Normal, which is exactly the gate the tier ladder is.
+	var drop := generator.roll_item(
+		run.depth() + 3 + bonus_depth, run.loot_rng, magic_chance, "", run.difficulty_number
+	)
 	var enemy := RunState.enemy_for_depth(run.depth())
 	var before := run.build_stats().expected_hit(enemy)
 	run.equip(drop)
@@ -240,7 +246,7 @@ func _show_item_card(drop: Item, damage_delta: float) -> void:
 		_card_slot.get_child(0).free()
 	var card := ItemCard.new()
 	_card_slot.add_child(card)
-	card.setup(drop, damage_delta)
+	card.setup(drop, damage_delta, run.gear)
 
 
 func _offer_boon() -> void:

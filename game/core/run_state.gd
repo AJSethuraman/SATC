@@ -29,6 +29,10 @@ var school: String = "fire"
 var gear: Dictionary = {}  # slot -> Item
 var boons: Array = []  # of Boon.Rolled
 
+## The named-item table this run reads set bonuses from. Null means the shared
+## one — see UniquePool.shared(); assign only to test against a specific table.
+var uniques: UniquePool = null
+
 var loot_rng: Rng
 var boon_rng: Rng
 var combat_rng: Rng
@@ -81,12 +85,22 @@ static func base_stats(school_name: String = "fire") -> StatBlock:
 	return s
 
 
+func unique_pool() -> UniquePool:
+	return uniques if uniques != null else UniquePool.shared()
+
+
 func gear_tags() -> Array[String]:
 	var out: Array[String] = []
 	for slot in gear:
 		for t in gear[slot].tags():
 			if not out.has(t):
 				out.append(t)
+	# A set bonus that grants a tag widens the boon pool exactly as an affix that
+	# grants one does. Leaving it out would have made the tag a stat-sheet line
+	# with no consequence, which is not what a tag is for anywhere else.
+	for t in unique_pool().set_bonus_tags(gear):
+		if not out.has(t):
+			out.append(t)
 	return out
 
 
@@ -151,6 +165,12 @@ func _stats_from(gear_set: Dictionary, boon_set: Array) -> StatBlock:
 	var s := RunState.base_stats(school)
 	for slot in gear_set:
 		gear_set[slot].apply_to(s)
+	# Set bonuses are a consequence of what is worn, so they land with the gear
+	# and — because this is the only pipeline — they land in the hypotheticals
+	# too. That is the part that matters: without it, the second piece of a set
+	# reads as a downgrade in stats_with_item() and the loot log would tell the
+	# player not to complete the set.
+	unique_pool().apply_set_bonuses(gear_set, s)
 	for b in boon_set:
 		s.apply_all(b.mods)
 	# Synergies last, and computed against the finished set rather than folded

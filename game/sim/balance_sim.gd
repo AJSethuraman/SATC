@@ -191,7 +191,10 @@ func _simulate_one(
 func _maybe_equip(
 	gen: ItemGenerator, run: RunState, here: int, bonus: int, magic: float
 ) -> void:
-	var drop := gen.roll_item(here + bonus, run.loot_rng, magic)
+	# The pass comes from the run, not from `here + bonus` — a bonus-depth roll
+	# near the end of a pass would otherwise infer the next one and hand out a
+	# base that cannot drop yet.
+	var drop := gen.roll_item(here + bonus, run.loot_rng, magic, "", run.difficulty_number)
 	if _is_upgrade(run, drop):
 		run.equip(drop)
 

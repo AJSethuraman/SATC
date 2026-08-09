@@ -52,7 +52,7 @@ func match_pattern(sigil_ids: Array, item_slot: String, item_sockets: int) -> In
 	return null
 
 
-## Sigils of a given tier, for transmutation.
+## Sigils of a given tier.
 func of_tier(tier: int) -> Array:
 	return sigils.filter(func(s: Sigil): return s.tier == tier)
 
@@ -74,22 +74,78 @@ static func transmute_cost(from_tier: int) -> int:
 	return TRANSMUTE_COST_HIGH if from_tier >= TRANSMUTE_HIGH_TIER else TRANSMUTE_COST_LOW
 
 
-## The cheapest sigil of `to_tier` obtainable by transmuting `from_id`, or null
-## when nothing of the next tier exists.
+## The transmutation ladder, cheapest sigil first. Cached; see _ensure_ladder.
+var _ladder: Array[String] = []
+
+
+## Ladder order: lower tier first, then commonest first, then declaration order.
+##
+## The declaration-order tiebreak is load-bearing rather than cosmetic. Three
+## tier-1 sigils share a weight and sort_custom is not a stable sort, so without
+## a final tiebreak the ladder could come out in a different order between builds
+## and the grind cost of a recipe would silently move underneath the player.
+func _precedes(a: Sigil, b: Sigil, declared: Dictionary) -> bool:
+	if a.tier != b.tier:
+		return a.tier < b.tier
+	if a.weight != b.weight:
+		return a.weight > b.weight
+	return int(declared.get(a.id, 0)) < int(declared.get(b.id, 0))
+
+
+## Build the ladder if it does not already cover the sigil table.
+##
+## Keyed on size rather than a "built once" flag so a book assembled by hand
+## still gets a correct ladder instead of a stale one.
+func _ensure_ladder() -> void:
+	if _ladder.size() == sigils.size():
+		return
+	var declared := {}
+	for i in sigils.size():
+		var s: Sigil = sigils[i]
+		declared[s.id] = i
+	var ordered: Array = sigils.duplicate()
+	ordered.sort_custom(_precedes.bind(declared))
+	_ladder.clear()
+	for entry in ordered:
+		var rung := entry as Sigil
+		if rung != null:
+			_ladder.append(rung.id)
+
+
+## Every sigil id from cheapest to rarest — the order transmutation walks.
+##
+## A total order, the way D2's cube recipe is El -> Eld -> Tir -> ... -> Zod.
+## This replaced a jump to "the commonest sigil of the next tier", under which
+## tier 2 always produced `pyre` and `rime` and `storm` could not be obtained by
+## grinding at any price. The acquisition simulator measured the consequence: a
+## chase blocked on sigils rather than vessels, with surplus unable to help.
+## A total order means the question is only how much you convert, never whether
+## the thing you want is convertible at all. See docs/difficulty-and-loot.md.
+func transmute_order() -> Array[String]:
+	_ensure_ladder()
+	# A copy, so a caller walking the ladder cannot corrupt the cached one.
+	var out: Array[String] = []
+	out.append_array(_ladder)
+	return out
+
+
+## Position of a sigil on the ladder, or -1 when it is not in the table.
+func transmute_rank(id: String) -> int:
+	_ensure_ladder()
+	return _ladder.find(id)
+
+
+## The sigil one rung up the ladder from `from_id`, or null at the very top.
+##
+## One rung, not one tier: within a tier the ladder still climbs (ash -> cinder
+## -> hoar -> spark), which is what makes every sigil reachable from every
+## cheaper one.
 func transmute_target(from_id: String) -> Sigil:
-	var from := sigil_by_id(from_id)
-	if from == null:
+	var at := transmute_rank(from_id)
+	if at < 0 or at + 1 >= _ladder.size():
 		return null
-	var up := of_tier(from.tier + 1)
-	if up.is_empty():
-		return null
-	# Prefer the most common sigil of the next tier: converting surplus should
-	# feel like a floor under bad luck, not a second lottery.
-	var best: Sigil = up[0]
-	for s in up:
-		if s.weight > best.weight:
-			best = s
-	return best
+	var next_id: String = _ladder[at + 1]
+	return sigil_by_id(next_id)
 
 
 ## Depth at which a sigil of a given tier reaches its full drop weight.
