@@ -14,7 +14,11 @@ extends Node3D
 
 signal hit_enemy(enemy: Node3D, result: Damage.Result, at: Vector3)
 
-const RADIUS := 0.28
+## A sphere this small is unreadable at the camera's distance, so the bolt is a
+## capsule stretched along travel — which also reads as motion rather than as a
+## floating ball.
+const RADIUS := 0.22
+const LENGTH := 1.1
 ## Generous relative to the visual: a bolt that visibly clips a body and does
 ## nothing feels broken, and being slightly forgiving costs nothing here.
 const HIT_RADIUS := 0.85
@@ -49,14 +53,18 @@ func setup(s: Spell, caster_stats: StatBlock, dir: Vector3, r: Rng, active: Arra
 
 func _ready() -> void:
 	_mesh = MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = RADIUS
-	sphere.height = RADIUS * 2.0
-	sphere.radial_segments = 10
-	sphere.rings = 6
-	_mesh.mesh = sphere
+	var body := CapsuleMesh.new()
+	body.radius = RADIUS
+	body.height = LENGTH
+	body.radial_segments = 8
+	body.rings = 4
+	_mesh.mesh = body
 	_material = Shapes.glow(_tint())
 	_mesh.material_override = _material
+	# Capsules stand up the Y axis; lay it along the direction of travel.
+	_mesh.basis = Basis(Vector3.UP, atan2(direction.x, direction.z)) * Basis(
+		Vector3.RIGHT, deg_to_rad(90.0)
+	)
 	add_child(_mesh)
 	position.y = 1.0
 
@@ -69,8 +77,10 @@ func _tint() -> Color:
 	if behaviours.has("bolt_chills"):
 		return Color(0.55, 0.85, 1.0)
 	if behaviours.has("bolt_forks") or behaviours.has("bolt_chains_three"):
-		return Color(0.85, 0.8, 1.0)
-	return Feel.COLOUR_SLASH
+		return Color(0.78, 0.62, 1.0)
+	# Deliberately cool: the default bolt must not read as either the warm white
+	# player body or the orange enemy telegraph.
+	return Color(0.62, 0.86, 1.0)
 
 
 func _process(delta: float) -> void:
