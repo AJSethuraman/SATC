@@ -111,16 +111,20 @@ func _ready() -> void:
 ## the same answer — one cast should not be a different element from the next.
 static func tint_for(active: Array) -> Color:
 	if active.has("bolt_ignites"):
-		return Color(1.0, 0.55, 0.22)
+		return Color(1.0, 0.74, 0.24)
 	if active.has("bolt_chills"):
 		return Color(0.55, 0.85, 1.0)
 	if active.has("bolt_forks") or active.has("bolt_chains_three"):
 		return Color(0.78, 0.62, 1.0)
-	# Green, because nothing else in the palette is: the player is warm white,
-	# dash i-frames are cool blue, telegraphs are orange, elites red, bodies
-	# mauve, health bars pink. An unaligned bolt needs a hue of its own or it
-	# disappears into whatever it happens to fly past.
-	return Color(0.45, 1.0, 0.62)
+	# Ember, because the spell is called Emberbolt.
+	#
+	# This was green for a while. Not for any design reason — green was the one
+	# hue nothing else in the palette used, which made it findable by a pixel
+	# probe while I was working out why bolts were not rendering at all. The
+	# probe went away and the colour did not, so a spell named after a burning
+	# coal spent days firing lime. Debug affordances have to be removed with the
+	# same care they were added.
+	return Color(0.98, 0.46, 0.14)
 
 
 func _process(delta: float) -> void:

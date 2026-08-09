@@ -68,10 +68,27 @@ func _ready() -> void:
 	# the same, you stop tracking any of them individually and the fight becomes
 	# a blur to be survived rather than one to be picked apart.
 	_base_colour = Feel.COLOUR_ELITE if is_elite else Feel.COLOUR_ENEMY
+	# Vary the hue per body, through reds into ember. Bodies that are all one
+	# colour read as a mass of copies rather than a crowd of things, and once
+	# they do you stop tracking any of them individually.
 	_base_colour = _base_colour.lerp(
-		Color.from_hsv(_rng.randf_range(0.88, 1.06), 0.55, 0.62), _rng.randf_range(0.0, 0.34)
+		Color.from_hsv(fmod(_rng.randf_range(0.97, 1.09), 1.0), 0.62, 0.56),
+		_rng.randf_range(0.0, 0.4)
 	)
-	_rig.build(_height, _base_colour, is_elite)
+	_rig.build(_height, _base_colour, is_elite, _kind())
+
+
+## Which demon this body is.
+##
+## Elites are always brutes, so the one thing in the area worth being afraid of
+## is also the one with the heaviest silhouette — you should be able to pick it
+## out of a crowd before it reaches you, without a health bar or a colour code.
+## The rest split between imps and stalkers off the seeded stream, so a area is
+## a mixed pack rather than a row of the same creature.
+func _kind() -> CharacterRig.Kind:
+	if is_elite:
+		return CharacterRig.Kind.BRUTE
+	return CharacterRig.Kind.STALKER if _rng.randf() < 0.38 else CharacterRig.Kind.IMP
 	add_child(_rig)
 
 	# A floating slab above the head, scaled on the X axis to show health. Reads

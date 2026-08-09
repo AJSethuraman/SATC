@@ -17,6 +17,27 @@ extends Node3D
 ##
 ## Proportions are expressed as fractions of total height so the same rig serves
 ## the player, a regular enemy and a scaled-up elite.
+##
+## The demon kinds exist because "five bodies in slightly different reds" is not
+## a bestiary. A silhouette is the only thing readable at this camera distance
+## and this body size — you cannot see a face, a texture or a costume, so
+## whatever tells you what you are fighting has to be in the outline. Horns,
+## hunch, limb length and a tail are cheap, and between them they are the whole
+## difference between "enemy" and "imp".
+##
+## The player stays human-shaped on purpose: it is the only upright, unhorned,
+## weapon-carrying figure on the screen, so the thing you most need to find is
+## the thing least like everything else.
+
+enum Kind {
+	HUMAN,
+	## Small, hunched, oversized head, long arms. The chaff.
+	IMP,
+	## Heavy and wide, tiny head, huge arms, big horns. Reads slow and it is.
+	BRUTE,
+	## Tall and thin, long legs, whipping tail. Reads fast and it is.
+	STALKER,
+}
 
 const LEG_FRACTION := 0.44
 const TORSO_FRACTION := 0.32
@@ -50,6 +71,12 @@ var shape := Vector3.ONE
 var tint := Color.WHITE
 
 var _height := 1.7
+## The leg fraction this particular body was built with — the hips ride on it
+## every frame, and a stalker's hips are nowhere near a brute's.
+var _leg_fraction := LEG_FRACTION
+## Forward pitch of the torso, in radians. The cheapest "not human" signal
+## available: an upright figure reads as a person whatever else you hang on it.
+var _hunch := 0.0
 var _phase := 0.0
 var _twist := 0.0
 ## Tracked rather than read back from the node: assigning a scaled Basis makes
@@ -67,10 +94,11 @@ var _weapon: MeshInstance3D
 
 var _skin: StandardMaterial3D
 var _head_material: StandardMaterial3D
+var _tail_joints: Array[Node3D] = []
 var _accent: StandardMaterial3D
 
 
-func build(height: float, colour: Color, with_weapon: bool) -> void:
+func build(height: float, colour: Color, with_weapon: bool, kind: Kind = Kind.HUMAN) -> void:
 	_height = height
 	# Outline width scales with the body so an elite is not hairline-thin and
 	# a bolt-sized prop is not drawn in marker pen. At 0.011 the line came out
@@ -81,11 +109,54 @@ func build(height: float, colour: Color, with_weapon: bool) -> void:
 	_skin = Shapes.body(colour, line)
 	_accent = Shapes.body(colour.darkened(0.28), line)
 
-	var leg_len := height * LEG_FRACTION
-	var torso_h := height * TORSO_FRACTION
-	var head_size := height * HEAD_FRACTION
-	var arm_len := height * ARM_FRACTION
-	var width := height * WIDTH_FRACTION
+	# Proportions per kind. These are the whole bestiary: nothing below this
+	# point knows which creature it is building.
+	var leg_f := LEG_FRACTION
+	var torso_f := TORSO_FRACTION
+	var head_f := HEAD_FRACTION
+	var arm_f := ARM_FRACTION
+	var width_f := WIDTH_FRACTION
+	var horn := 0.0
+	var tail := 0.0
+	var clawed := false
+
+	match kind:
+		Kind.IMP:
+			leg_f = 0.32
+			torso_f = 0.30
+			head_f = 0.27
+			arm_f = 0.42
+			width_f = 0.31
+			horn = 0.46
+			tail = 0.52
+			clawed = true
+			_hunch = deg_to_rad(22.0)
+		Kind.BRUTE:
+			leg_f = 0.38
+			torso_f = 0.40
+			head_f = 0.14
+			arm_f = 0.48
+			width_f = 0.48
+			horn = 0.62
+			clawed = true
+			_hunch = deg_to_rad(26.0)
+		Kind.STALKER:
+			leg_f = 0.54
+			torso_f = 0.26
+			head_f = 0.16
+			arm_f = 0.46
+			width_f = 0.19
+			horn = 0.34
+			tail = 0.8
+			clawed = true
+			_hunch = deg_to_rad(14.0)
+
+	_leg_fraction = leg_f
+	var leg_len := height * leg_f
+	var torso_h := height * torso_f
+	var head_size := height * head_f
+	var arm_len := height * arm_f
+	var width := height * width_f
 
 	_hips = Node3D.new()
 	_hips.position = Vector3(0.0, leg_len, 0.0)
@@ -117,6 +188,16 @@ func build(height: float, colour: Color, with_weapon: bool) -> void:
 	_hips.add_child(_leg_l)
 	_hips.add_child(_leg_r)
 
+	if horn > 0.0:
+		_add_horns(head_size, horn, line, colour)
+	if kind != Kind.HUMAN:
+		_add_eyes(head_size)
+	if tail > 0.0:
+		_add_tail(height * tail, width, line, colour)
+	if clawed:
+		_add_claws(_arm_l, arm_len, line, colour)
+		_add_claws(_arm_r, arm_len, line, colour)
+
 	if with_weapon:
 		var blade_len := height * 0.5
 		_weapon = _box(Vector3(height * 0.05, blade_len, height * 0.1), Shapes.body(
@@ -126,6 +207,97 @@ func build(height: float, colour: Color, with_weapon: bool) -> void:
 		_weapon.position = Vector3(0.0, -arm_len * 0.92, -blade_len * 0.34)
 		_weapon.basis = Basis(Vector3.RIGHT, deg_to_rad(-78.0))
 		_arm_r.add_child(_weapon)
+
+
+## A pair of cones off the top of the skull, swept out and back.
+##
+## Cones rather than boxes because this is the one place the extra primitive
+## earns itself: a tapered horn reads as a horn at any size, and a rectangular
+## one reads as a block glued to a head.
+func _add_horns(head_size: float, scale_v: float, line: float, colour: Color) -> void:
+	var material := Shapes.body(colour.darkened(0.42), line)
+	for side in [-1.0, 1.0]:
+		var cone := CylinderMesh.new()
+		cone.height = head_size * scale_v * 1.5
+		cone.bottom_radius = head_size * 0.17
+		cone.top_radius = 0.0
+		# Faceted, to sit with the rest of the low-poly silhouette.
+		cone.radial_segments = 6
+		cone.rings = 1
+
+		var inst := MeshInstance3D.new()
+		inst.mesh = cone
+		inst.material_override = material
+		inst.position = Vector3(side * head_size * 0.34, head_size * 0.46, 0.0)
+		inst.basis = Basis(Vector3.FORWARD, deg_to_rad(-26.0 * side)) * Basis(
+			Vector3.RIGHT, deg_to_rad(-18.0)
+		)
+		_head.add_child(inst)
+
+
+## Two hot points on the front of the skull.
+##
+## Additive and above the bloom threshold, so they are the only part of a body
+## that glows. Worth more than their size suggests: a dark silhouette with two
+## lit eyes reads as something looking at you, and the same silhouette without
+## them reads as furniture.
+func _add_eyes(head_size: float) -> void:
+	var material := Shapes.glow(Color(1.0, 0.62, 0.22))
+	material.no_depth_test = false
+	for side in [-1.0, 1.0]:
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(head_size * 0.2, head_size * 0.11, head_size * 0.06)
+		var inst := MeshInstance3D.new()
+		inst.mesh = mesh
+		inst.material_override = material
+		inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Forward is -Z; sit them just proud of the face so they never z-fight.
+		inst.position = Vector3(side * head_size * 0.21, head_size * 0.06, -head_size * 0.46)
+		_head.add_child(inst)
+
+
+## A jointed tail hanging off the hips, tapering to a point.
+##
+## Built as a chain so it can whip rather than swing as one rigid rod — each
+## joint lags the one before it, which is what makes it read as attached to a
+## creature rather than bolted to a prop.
+func _add_tail(length: float, width: float, line: float, colour: Color) -> void:
+	var material := Shapes.body(colour.darkened(0.34), line)
+	var segments := 4
+	var parent := _hips
+	for i in segments:
+		var t := float(i) / float(segments)
+		var seg_len := length / float(segments)
+		var thick := width * lerpf(0.24, 0.06, t)
+
+		var joint := Node3D.new()
+		joint.position = Vector3(0.0, 0.0, width * 0.28) if i == 0 else Vector3(0.0, 0.0, seg_len)
+		var mesh := _box(Vector3(thick, thick, seg_len), material)
+		mesh.position = Vector3(0.0, 0.0, seg_len * 0.5)
+		joint.add_child(mesh)
+		parent.add_child(joint)
+
+		_tail_joints.append(joint)
+		parent = joint
+
+
+## Three short cones at the end of a limb.
+func _add_claws(arm: Node3D, arm_len: float, line: float, colour: Color) -> void:
+	var material := Shapes.body(colour.lightened(0.3), line)
+	for i in 3:
+		var cone := CylinderMesh.new()
+		cone.height = arm_len * 0.24
+		cone.bottom_radius = arm_len * 0.035
+		cone.top_radius = 0.0
+		cone.radial_segments = 4
+		cone.rings = 1
+
+		var inst := MeshInstance3D.new()
+		inst.mesh = cone
+		inst.material_override = material
+		inst.position = Vector3((float(i) - 1.0) * arm_len * 0.07, -arm_len * 1.02, 0.0)
+		inst.basis = Basis(Vector3.RIGHT, deg_to_rad(168.0))
+		arm.add_child(inst)
 
 
 func _limb(joint: Vector3, length: float, thickness: float, material: StandardMaterial3D) -> Node3D:
@@ -192,13 +364,21 @@ func animate(delta: float) -> void:
 	var crouch := 0.0
 	if dashing:
 		crouch = _height * 0.06
-	_hips.position.y = _height * LEG_FRACTION + bob - crouch
+	_hips.position.y = _height * _leg_fraction + bob - crouch
 	_hips.basis = Basis(Vector3.UP, _twist * 0.35)
 	_torso.basis = Basis(Vector3.UP, _twist * 0.65) * Basis(
-		Vector3.RIGHT, deg_to_rad(2.0) + deg_to_rad(5.0) * stride
+		Vector3.RIGHT, _hunch + deg_to_rad(2.0) + deg_to_rad(5.0) * stride
 	)
 	# Head stays level rather than riding the torso, which reads as attention.
 	_head.basis = Basis(Vector3.UP, -_twist * 0.5)
+
+	# Each tail joint lags the one before it, so the whip travels down the tail
+	# instead of the whole thing swinging as one rod.
+	for i in _tail_joints.size():
+		var lag := _phase - float(i) * 0.55
+		var sway := sin(lag) * deg_to_rad(11.0 + 5.0 * stride)
+		var droop := deg_to_rad(15.0) if i == 0 else deg_to_rad(7.0)
+		_tail_joints[i].basis = Basis(Vector3.UP, sway) * Basis(Vector3.RIGHT, droop)
 
 	basis = (Basis(Vector3.UP, _yaw) * Basis(Vector3.RIGHT, lean)).scaled(shape)
 
