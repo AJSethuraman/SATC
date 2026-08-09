@@ -8,22 +8,62 @@ extends TestCase
 ## boss and one respite, and that a run cannot advance past its last act.
 
 
-func test_depth_counts_areas_across_acts() -> void:
-	assert_eq(Progression.depth(1, 1), 1)
-	assert_eq(Progression.depth(1, Progression.AREAS_PER_ACT), Progression.AREAS_PER_ACT)
-	assert_eq(Progression.depth(2, 1), Progression.AREAS_PER_ACT + 1)
-	assert_eq(Progression.depth(Progression.ACTS, Progression.AREAS_PER_ACT),
-		Progression.total_areas())
+func test_depth_counts_areas_across_acts_and_passes() -> void:
+	assert_eq(Progression.depth(1, 1, 1), 1)
+	assert_eq(Progression.depth(1, 1, Progression.AREAS_PER_ACT), Progression.AREAS_PER_ACT)
+	assert_eq(Progression.depth(1, 2, 1), Progression.AREAS_PER_ACT + 1)
+	assert_eq(Progression.depth(2, 1, 1), Progression.areas_per_difficulty() + 1)
+	assert_eq(
+		Progression.depth(Progression.DIFFICULTIES, Progression.ACTS, Progression.AREAS_PER_ACT),
+		Progression.total_areas()
+	)
 
 
-## depth() and act_of_depth() are inverses, or difficulty and structure disagree
-## about where the run is.
-func test_act_of_depth_inverts_depth() -> void:
-	for act in range(1, Progression.ACTS + 1):
-		for area in range(1, Progression.AREAS_PER_ACT + 1):
-			var d := Progression.depth(act, area)
-			assert_eq(Progression.act_of_depth(d), act,
-				"depth %d should be in act %d" % [d, act])
+## depth() and its inverses must agree, or scaling and structure disagree about
+## where the run is. The Cinderwaste is act 1 in Hell exactly as in Normal, so
+## act_of_depth wraps within a pass rather than counting globally.
+func test_depth_inverts_across_every_pass() -> void:
+	for difficulty in range(1, Progression.DIFFICULTIES + 1):
+		for act in range(1, Progression.ACTS + 1):
+			for area in range(1, Progression.AREAS_PER_ACT + 1):
+				var d := Progression.depth(difficulty, act, area)
+				assert_eq(Progression.difficulty_of_depth(d), difficulty,
+					"depth %d should be in pass %d" % [d, difficulty])
+				assert_eq(Progression.act_of_depth(d), act,
+					"depth %d should be in act %d" % [d, act])
+
+
+## Every pass covers the same places. If a pass ever had a different act count
+## the whole point — that Hell *is* the Cinderwaste again, harder — would be
+## quietly gone.
+func test_every_pass_walks_the_same_acts() -> void:
+	assert_eq(Progression.areas_per_difficulty(), Progression.ACTS * Progression.AREAS_PER_ACT)
+	assert_eq(
+		Progression.total_areas(), Progression.DIFFICULTIES * Progression.areas_per_difficulty()
+	)
+	for difficulty in range(1, Progression.DIFFICULTIES + 1):
+		assert_eq(
+			Progression.area_name(1, 1), "The Ashen Verge",
+			"the first area is the same place on every pass"
+		)
+
+
+## A pass boundary must dwarf an act boundary. Nightmare has to invalidate a
+## Normal build outright, or a banked runeword carries the whole run and the
+## design collapses back into "farm one good weapon".
+func test_a_new_pass_is_a_bigger_step_than_a_new_act() -> void:
+	var across_act := (
+		RunState.enemy_for_depth(Progression.AREAS_PER_ACT + 1).max_health
+		/ RunState.enemy_for_depth(Progression.AREAS_PER_ACT).max_health
+	)
+	var per_area := Progression.areas_per_difficulty()
+	var across_pass := (
+		RunState.enemy_for_depth(per_area + 1).max_health
+		/ RunState.enemy_for_depth(per_area).max_health
+	)
+	assert_gt(across_pass, across_act * 1.5,
+		"a pass boundary (%.2fx) is not meaningfully harder than an act one (%.2fx)"
+			% [across_pass, across_act])
 
 
 func test_each_act_has_exactly_one_boss_and_one_respite() -> void:
@@ -87,6 +127,7 @@ func test_a_run_walks_every_area_then_stops() -> void:
 		assert_lt(float(visited), float(Progression.total_areas() + 1), "run overran its acts")
 
 	assert_eq(visited, Progression.total_areas())
+	assert_eq(run.difficulty_number, Progression.DIFFICULTIES)
 	assert_eq(run.act_number, Progression.ACTS)
 	assert_eq(run.area_number, Progression.AREAS_PER_ACT)
 	assert_eq(run.depth(), Progression.total_areas())
@@ -113,12 +154,15 @@ func test_damage_grows_more_slowly_than_health() -> void:
 	assert_gt(health_growth, damage_growth * 3.0,
 		"health %.1fx vs damage %.1fx — damage is compounding too fast" %
 			[health_growth, damage_growth])
-	assert_lt(damage_growth, 4.0, "damage grows %.1fx across a run" % damage_growth)
+	# Bound raised with the run length: this was 4x for a 32-area run and the
+	# run is 120 areas across three passes now. The ratio to health is the part
+	# that matters and it is asserted above; this only catches runaway.
+	assert_lt(damage_growth, 14.0, "damage grows %.1fx across a run" % damage_growth)
 
 
 func test_a_boss_outlasts_the_area_it_ends() -> void:
-	var boss := RunState.boss_for_act(1)
-	var mob := RunState.enemy_for_depth(Progression.depth(1, Progression.BOSS_AREA))
+	var boss := RunState.boss_for_act(1, 1)
+	var mob := RunState.enemy_for_depth(Progression.depth(1, 1, Progression.BOSS_AREA))
 	assert_gt(boss.max_health, mob.max_health * 4.0, "boss dies as fast as its escort")
 	assert_lt(boss.move_speed, mob.move_speed, "boss can run the player down")
 

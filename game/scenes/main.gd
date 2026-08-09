@@ -129,7 +129,7 @@ func _start_area() -> void:
 		var elite := lead and Progression.has_elite(run.area_number)
 		var e := Enemy.new()
 		var stats: StatBlock = (
-			RunState.boss_for_act(run.act_number) if (lead and boss_here)
+			RunState.boss_for_act(run.difficulty_number, run.act_number) if (lead and boss_here)
 			else RunState.enemy_for_depth(run.depth(), elite)
 		)
 		e.setup(stats, elite or (lead and boss_here), run.combat_rng.randi_range(0, 0x7FFFFFFF))
@@ -267,12 +267,13 @@ func _next_area() -> void:
 	player.equip_spells(bolt, nova, run.active_behaviours())
 	player.health = run.health
 	if was_boss:
-		_say("%s." % Progression.act_label(run.act_number))
+		_say("%s." % Progression.full_label(run.difficulty_number, run.act_number))
 	_start_area()
 
 
 func _on_player_died() -> void:
-	_say("You died in %s, %s. Press R." % [_here(), Progression.act_label(run.act_number)])
+	_say("You died in %s, %s. Press R."
+		% [_here(), Progression.full_label(run.difficulty_number, run.act_number)])
 
 
 ## Where the run is, in words rather than in coordinates. Every message that
@@ -606,8 +607,9 @@ func _refresh_hud() -> void:
 		return
 	var stats := player.stats
 	var lines := [
-		"Act %s · %s   %d/%d     HP %d / %d     MP %d / %d"
+		"%s · Act %s · %s   %d/%d     HP %d / %d     MP %d / %d"
 			% [
+				Progression.difficulty_name(run.difficulty_number),
 				Progression.act_numeral(run.act_number), _here(), run.area_number,
 				Progression.AREAS_PER_ACT, roundi(player.health), roundi(stats.max_health),
 				roundi(player.mana), roundi(stats.max_mana)

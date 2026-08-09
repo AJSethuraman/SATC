@@ -115,7 +115,6 @@ func _play_until_inscribed(
 		# deposit — so how deep a run gets is what decides how much of it you
 		# keep, which is the entire point of tying the bank to depth.
 		for area_index in range(1, areas_deep + 1):
-			var act := Progression.act_of_depth(area_index)
 			var area := ((area_index - 1) % Progression.AREAS_PER_ACT) + 1
 			var reward := Progression.reward_of(area)
 			if reward == Progression.Reward.BOON:

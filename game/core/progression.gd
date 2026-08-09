@@ -40,8 +40,19 @@ enum Reward {
 	ACT_PRIZE,
 }
 
+## Difficulty passes. A run walks every act three times, harder each pass — the
+## same places, not new ones, which is why this is an axis rather than more acts
+## bolted on the end. See docs/difficulty-and-loot.md.
+##
+## The names are Diablo II's because they are instantly legible. Nothing
+## structural depends on them.
+enum Difficulty { NORMAL, NIGHTMARE, HELL }
+
+const DIFFICULTY_NAMES: Array[String] = ["Normal", "Nightmare", "Hell"]
+const DIFFICULTIES := 3
+
 const AREAS_PER_ACT := 8
-const ACTS := 4
+const ACTS := 5
 const RESPITE_AREA := 4
 const BOSS_AREA := AREAS_PER_ACT
 
@@ -50,6 +61,7 @@ const ACT_NAMES: Array[String] = [
 	"The Cinderwaste",
 	"The Sunken Works",
 	"The Glass Reach",
+	"The Rive",
 	"Ashfall",
 ]
 
@@ -96,6 +108,16 @@ const AREA_NAMES := [
 		"The Furnace Heart",
 	],
 	[
+		"The Split Stair",
+		"Hangman's Ledge",
+		"The Undercut",
+		"Ropewalk",
+		"The Falling Dark",
+		"Gravewater",
+		"The Long Drop",
+		"The Rive",
+	],
+	[
 		"The Grey Descent",
 		"Cinderfall",
 		"The Quiet Mile",
@@ -108,21 +130,36 @@ const AREA_NAMES := [
 ]
 
 
-static func total_areas() -> int:
+## Areas in one pass through every act.
+static func areas_per_difficulty() -> int:
 	return ACTS * AREAS_PER_ACT
+
+
+static func total_areas() -> int:
+	return DIFFICULTIES * areas_per_difficulty()
 
 
 ## Areas cleared before this one, across the whole run. The single number every
 ## scaling curve is expressed in, so difficulty never depends on how the run is
-## chopped into acts.
-static func depth(act: int, area: int) -> int:
-	return (act - 1) * AREAS_PER_ACT + area
+## chopped into passes, acts and areas.
+static func depth(difficulty: int, act: int, area: int) -> int:
+	return ((difficulty - 1) * ACTS + (act - 1)) * AREAS_PER_ACT + area
 
 
-## Which act a run is in, given how many areas deep it has got. The inverse of
-## depth(), and the reason scaling can be written against one number.
+## Which difficulty pass a depth falls in.
+static func difficulty_of_depth(d: int) -> int:
+	return (maxi(1, d) - 1) / areas_per_difficulty() + 1
+
+
+## Which act *within its pass*, so the Cinderwaste is act 1 in Hell exactly as
+## it is in Normal. Together with difficulty_of_depth this inverts depth().
 static func act_of_depth(d: int) -> int:
-	return (maxi(1, d) - 1) / AREAS_PER_ACT + 1
+	return ((maxi(1, d) - 1) / AREAS_PER_ACT) % ACTS + 1
+
+
+static func difficulty_name(difficulty: int) -> String:
+	var i := clampi(difficulty - 1, 0, DIFFICULTY_NAMES.size() - 1)
+	return DIFFICULTY_NAMES[i]
 
 
 static func kind_of(area: int) -> AreaKind:
@@ -215,3 +252,10 @@ static func act_numeral(act: int) -> String:
 
 static func act_label(act: int) -> String:
 	return "Act %s — %s" % [act_numeral(act), act_name(act)]
+
+
+## The full address of a place, pass included. "Act II — The Sunken Works" is
+## three different fights depending on which pass you are on, and the label has
+## to say which or the HUD is lying by omission.
+static func full_label(difficulty: int, act: int) -> String:
+	return "%s · %s" % [difficulty_name(difficulty), act_label(act)]

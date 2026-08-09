@@ -18,6 +18,7 @@ var seed_value: int = 0
 ## Where the run is, in Progression's terms. A run walks areas 1..8 of an act,
 ## then starts the next act's area 1 — see core/progression.gd for why the unit
 ## changed from a flat floor count.
+var difficulty_number: int = 1
 var act_number: int = 1
 var area_number: int = 1
 var health: float = 100.0
@@ -204,10 +205,25 @@ func take_boon(b: Boon.Rolled) -> void:
 ## The act steps are separate from the area rates so an act boundary is a felt
 ## event rather than a smooth ramp — arriving in the Sunken Works should be
 ## noticeably worse than leaving the Cinderwaste.
-const AREA_HEALTH_GROWTH := 1.09
-const AREA_DAMAGE_GROWTH := 1.028
-const ACT_HEALTH_STEP := 1.25
-const ACT_DAMAGE_STEP := 1.10
+## Retuned for a 120-area run. The old rates were set for 32 and compound to
+## absurdity over four times the distance — 1.09 per area across 119 of them is
+## a factor of twenty-eight thousand. Target is roughly 60x health and 8x damage
+## from the first area of Normal to the last of Hell.
+const AREA_HEALTH_GROWTH := 1.012
+const AREA_DAMAGE_GROWTH := 1.0079
+const ACT_HEALTH_STEP := 1.10
+const ACT_DAMAGE_STEP := 1.04
+
+## The step between difficulty passes.
+##
+## Deliberately much larger than an act boundary. The point of replaying the
+## same five acts is that they are a different game the second time — Nightmare
+## has to invalidate a Normal build outright, or a banked runeword carries all
+## the way and the run collapses into "farm one good weapon" again. That failure
+## mode is the reason the old reliquary refused to store finished items, and the
+## difficulty step is what replaces the rule.
+const DIFFICULTY_HEALTH_STEP := 2.0
+const DIFFICULTY_DAMAGE_STEP := 1.35
 
 ## How fast enemy elemental resistance climbs, and where it stops.
 ##
@@ -226,14 +242,21 @@ const ENEMY_RESIST_MAX := 0.6
 ## this rather than against act/area, so difficulty never depends on how the run
 ## happens to be chopped up.
 func depth() -> int:
-	return Progression.depth(act_number, area_number)
+	return Progression.depth(difficulty_number, act_number, area_number)
 
 
 ## Enemy stat line at a given depth in areas.
 static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 	var e := StatBlock.new()
 	var areas := maxf(0.0, float(d - 1))
-	var acts_done := float(Progression.act_of_depth(d) - 1)
+	# Acts and passes *completed*, counted globally rather than within the pass.
+	#
+	# act_of_depth wraps — the Cinderwaste is act 1 in Hell exactly as in Normal —
+	# so using it here would reset the act multiplier at every pass boundary and
+	# Nightmare act I would land about where Normal act V did. The scaling curve
+	# wants distance travelled; the labels want position.
+	var acts_done := floorf(areas / float(Progression.AREAS_PER_ACT))
+	var passes_done := floorf(areas / float(Progression.areas_per_difficulty()))
 
 	# Trash dies fast and hits hard.
 	#
@@ -249,8 +272,17 @@ static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 	# half the time — which means this is a pacing change rather than a
 	# difficulty one, and the simulator should show the clear rate roughly where
 	# it was.
-	e.max_health = 22.0 * pow(AREA_HEALTH_GROWTH, areas) * pow(ACT_HEALTH_STEP, acts_done)
-	var damage_scale := pow(AREA_DAMAGE_GROWTH, areas) * pow(ACT_DAMAGE_STEP, acts_done)
+	e.max_health = (
+		22.0
+		* pow(AREA_HEALTH_GROWTH, areas)
+		* pow(ACT_HEALTH_STEP, acts_done)
+		* pow(DIFFICULTY_HEALTH_STEP, passes_done)
+	)
+	var damage_scale := (
+		pow(AREA_DAMAGE_GROWTH, areas)
+		* pow(ACT_DAMAGE_STEP, acts_done)
+		* pow(DIFFICULTY_DAMAGE_STEP, passes_done)
+	)
 	e.weapon_min = 7.0 * damage_scale
 	e.weapon_max = 12.0 * damage_scale
 	e.weapon_split = {Damage.Type.PHYSICAL: 1.0}
@@ -290,8 +322,8 @@ static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 ## Six times health rather than nine: a boss is time on the clock, and every
 ## second of it is damage taken. Nine put the act-I boss beyond what three
 ## items and three boons can answer.
-static func boss_for_act(act: int) -> StatBlock:
-	var e := enemy_for_depth(Progression.depth(act, Progression.BOSS_AREA))
+static func boss_for_act(difficulty: int, act: int) -> StatBlock:
+	var e := enemy_for_depth(Progression.depth(difficulty, act, Progression.BOSS_AREA))
 	# Raised alongside the trash health cut so a boss stays a wall rather than
 	# becoming another body: 6x of the old 40 was 240, 7x of 22 is 154, and the
 	# fight would otherwise be over before it read as a fight.
@@ -308,12 +340,20 @@ static func boss_for_act(act: int) -> StatBlock:
 ## Move to the next area, rolling into the next act after the boss. Returns
 ## false when the run has cleared the last act — the only way to finish one
 ## other than dying.
+## Move to the next area, rolling into the next act and then the next difficulty
+## pass. Returns false only at the very end of Hell — the one way to finish a run
+## other than dying.
 func advance_area() -> bool:
 	if area_number < Progression.AREAS_PER_ACT:
 		area_number += 1
 		return true
-	if act_number >= Progression.ACTS:
+	if act_number < Progression.ACTS:
+		act_number += 1
+		area_number = 1
+		return true
+	if difficulty_number >= Progression.DIFFICULTIES:
 		return false
-	act_number += 1
+	difficulty_number += 1
+	act_number = 1
 	area_number = 1
 	return true

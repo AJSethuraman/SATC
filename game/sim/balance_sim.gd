@@ -69,8 +69,11 @@ func _initialize() -> void:
 	print("")
 	print("Ashfall balance simulation")
 	print("==========================")
-	print("runs=%d  dodge=%.2f  areas=%d (%d acts x %d)" %
-		[runs, dodge, Progression.total_areas(), Progression.ACTS, Progression.AREAS_PER_ACT])
+	print("runs=%d  dodge=%.2f  areas=%d (%d passes x %d acts x %d)" %
+		[
+			runs, dodge, Progression.total_areas(), Progression.DIFFICULTIES,
+			Progression.ACTS, Progression.AREAS_PER_ACT,
+		])
 
 	for policy in POLICIES:
 		var result := _simulate_many(gen, pool, runs, dodge, policy)
@@ -144,7 +147,7 @@ func _simulate_one(
 			var lead := e == 0
 			var elite := lead and Progression.has_elite(area)
 			var enemy: StatBlock = (
-				RunState.boss_for_act(run.act_number) if (lead and boss_here)
+				RunState.boss_for_act(run.difficulty_number, run.act_number) if (lead and boss_here)
 				else RunState.enemy_for_depth(here, elite)
 			)
 
@@ -271,13 +274,15 @@ func _report(policy: String, result: Dictionary, runs: int) -> void:
 	var median: int = _pct(depths, 0.50)
 	print("   median run ends in %s, area %d of %d"
 		% [
-			Progression.act_label(Progression.act_of_depth(median)),
+			Progression.full_label(
+				Progression.difficulty_of_depth(median), Progression.act_of_depth(median)
+			),
 			((maxi(1, median) - 1) % Progression.AREAS_PER_ACT) + 1,
 			Progression.AREAS_PER_ACT,
 		])
 
 	var cleared := depths.filter(func(d): return d >= Progression.total_areas()).size()
-	print("   cleared all %d acts: %.1f%% of runs" % [Progression.ACTS, 100.0 * cleared / float(runs)])
+	print("   cleared every pass: %.1f%% of runs" % [100.0 * cleared / float(runs)])
 
 	var ttk: Dictionary = result["ttk_by_area"]
 	var areas := ttk.keys()
