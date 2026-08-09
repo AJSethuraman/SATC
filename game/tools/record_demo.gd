@@ -15,8 +15,17 @@ extends SceneTree
 ## a menu nobody is there to click.
 
 const FPS := 30
-const SECONDS := 16
+## Hard ceiling, not a target. The recording now ends when the *run* reaches a
+## natural stopping point — the act is cleared or the player dies — because a
+## clip that stops mid-area shows a fight without showing what it was for. This
+## only exists so a pilot that somehow survives forever cannot render until the
+## job times out.
+const MAX_SECONDS := 100
 const OUTPUT_DIR := "res://recording"
+
+## Keep rolling for a moment after the run ends, so the last kill and the act
+## banner are on screen rather than cut off by the final frame.
+const TAIL_FRAMES := 45
 
 ## Skip the first moments: the camera is still settling and the first wave has
 ## not closed yet, which makes for a limp opening shot.
@@ -37,6 +46,10 @@ var _saved := 0
 var _bolt_frames := 0
 var _bolt_peak := 0
 var _nova_frames := 0
+## The run's story, for the log: which areas were reached and when it ended.
+var _areas_seen: Array[String] = []
+var _tail := -1
+var _ending := "still going"
 
 
 func _initialize() -> void:
@@ -49,7 +62,7 @@ func _initialize() -> void:
 		return
 	_main = packed.instantiate()
 	root.add_child(_main)
-	print("record_demo: recording %d frames at %d fps" % [SECONDS * FPS, FPS])
+	print("record_demo: recording until the act ends, at most %d frames" % [MAX_SECONDS * FPS])
 
 
 func _process(delta: float) -> bool:
@@ -69,36 +82,61 @@ func _process(delta: float) -> bool:
 		image.save_png("%s/frame_%05d.png" % [OUTPUT_DIR, _saved])
 		_saved += 1
 
-	if _saved >= SECONDS * FPS:
-		print("record_demo: wrote %d frames to %s" % [_saved, OUTPUT_DIR])
-		print(
-			"record_demo: bolts on screen in %d/%d frames (peak %d), nova ring in %d"
-			% [_bolt_frames, _saved, _bolt_peak, _nova_frames]
-		)
+	if _saved >= MAX_SECONDS * FPS or _run_over():
+		_report()
 		quit(0)
 		return true
 	return false
 
 
-## Count the spell effects alive this frame. A zero here means casts are not
-## spawning; a healthy count with nothing in the footage means they are spawning
-## and not being drawn. Those are different bugs and the log should say which.
-func _census() -> void:
-	var holder := _main.get_node_or_null("Enemies")
-	if holder == null:
-		return
-	var bolts := 0
-	for child in holder.get_children():
-		if child is Projectile:
-			bolts += 1
-	if bolts > 0:
-		_bolt_frames += 1
-	_bolt_peak = maxi(_bolt_peak, bolts)
+## Has the run reached a natural stopping point?
+##
+## The act being cleared or the player dying are both endings; a fixed sixteen
+## seconds is neither. A clip that stops in the middle of area three shows a
+## fight without showing what the fight was for, which is most of why the demo
+## never communicated that this game has a structure.
+##
+## Returns true only after the tail has played out, so the last kill and the act
+## banner are on screen instead of being cut off by the final frame.
+func _run_over() -> bool:
+	if _tail >= 0:
+		_tail -= 1
+		return _tail <= 0
 
-	for child in _main.get_children():
-		if child is NovaBurst:
-			_nova_frames += 1
-			break
+	var run: RunState = _main.get("run")
+	if run == null:
+		return false
+
+	var here := "%s %d/%d" % [
+		Progression.area_name(run.act_number, run.area_number),
+		run.area_number,
+		Progression.AREAS_PER_ACT,
+	]
+	if not _areas_seen.has(here):
+		_areas_seen.append(here)
+		print("record_demo: entered %s" % here)
+
+	var player := get_first_node_in_group("player") as Player
+	if player != null and player.health <= 0.0:
+		_ending = "died in %s" % here
+		_tail = TAIL_FRAMES
+		return false
+
+	if run.act_number > 1:
+		_ending = "cleared %s" % Progression.act_label(1)
+		_tail = TAIL_FRAMES
+		return false
+
+	return false
+
+
+func _report() -> void:
+	print("record_demo: wrote %d frames to %s" % [_saved, OUTPUT_DIR])
+	print("record_demo: run %s after %d areas" % [_ending, _areas_seen.size()])
+	print(
+		"record_demo: bolts on screen in %d/%d frames (peak %d), nova ring in %d"
+		% [_bolt_frames, _saved, _bolt_peak, _nova_frames]
+	)
 
 
 func _enemies() -> Array:

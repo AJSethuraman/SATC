@@ -69,6 +69,22 @@ var requires_boons: Array[String] = []
 ## waiting for the right weapon to drop. Gear is still the broader source.
 var grants_tags: Array[String] = []
 
+## Synergy: extra modifiers granted once per *other* owned boon carrying
+## `synergy_tag`.
+##
+## This is the shape of Diablo II's skill trees, and it is what makes a tree a
+## tree rather than a menu. In D2 an Ice Bolt point is worth taking even if you
+## never cast Ice Bolt, because it adds 8% cold damage per level to Ice Blast,
+## 5% to Glacial Spike and 2% to Frozen Orb. The individually-weak skill is
+## load-bearing, and specialising compounds instead of merely accumulating.
+##
+## Counted per boon rather than per skill level because boons are the only unit
+## of investment this game has. Deliberately small numbers: a synergy that grows
+## faster than the linear boons around it makes the first pick of a school
+## decide the run, which is the opposite of a choice.
+var synergy_tag: String = ""
+var synergy_per: Dictionary = {}
+
 
 static func from_dict(d: Dictionary) -> Boon:
 	var b := Boon.new()
@@ -85,6 +101,9 @@ static func from_dict(d: Dictionary) -> Boon:
 		b.requires_boons.append(str(r))
 	for t in d.get("grants_tags", []):
 		b.grants_tags.append(str(t))
+	var syn: Dictionary = d.get("synergy", {})
+	b.synergy_tag = str(syn.get("tag", ""))
+	b.synergy_per = syn.get("per", {})
 	return b
 
 
@@ -113,6 +132,30 @@ class Rolled extends RefCounted:
 	var rarity: Rarity = Rarity.COMMON
 	var mods: Dictionary = {}  # scaled
 	var tags: Array[String] = []
+	## See Boon.synergy_tag. Also rarity-scaled, so a Heroic synergy boon is
+	## worth more per companion than a Common one.
+	var synergy_tag: String = ""
+	var synergy_per: Dictionary = {}
+
+	## How much this boon adds given the rest of the build. Returns an empty
+	## dictionary when it has no synergy or nothing to synergise with, so the
+	## caller never has to special-case a plain boon.
+	func synergy_with(all_boons: Array) -> Dictionary:
+		if synergy_tag == "" or synergy_per.is_empty():
+			return {}
+		var companions := 0
+		for entry in all_boons:
+			var other := entry as Rolled
+			if other == null or other == self:
+				continue
+			if other.tags.has(synergy_tag):
+				companions += 1
+		if companions == 0:
+			return {}
+		var out := {}
+		for k in synergy_per:
+			out[str(k)] = float(synergy_per[k]) * float(companions)
+		return out
 
 	func label() -> String:
 		return "%s %s" % [Boon.RARITY_NAMES[rarity], display_name]
@@ -130,7 +173,10 @@ func at_rarity(r: Rarity) -> Rolled:
 	out.description = description
 	out.rarity = r
 	out.tags = grants_tags.duplicate()
+	out.synergy_tag = synergy_tag
 	var scale: float = RARITY_SCALE[r]
 	for k in mods:
 		out.mods[str(k)] = float(mods[k]) * scale
+	for k in synergy_per:
+		out.synergy_per[str(k)] = float(synergy_per[k]) * scale
 	return out

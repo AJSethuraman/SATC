@@ -349,7 +349,13 @@
       },
       "grants_tags": [
         "frost"
-      ]
+      ],
+      "synergy": {
+        "tag": "frost",
+        "per": {
+          "more.cold": 0.05
+        }
+      }
     },
     {
       "id": "morrow_fire_mastery",
@@ -363,7 +369,13 @@
       },
       "grants_tags": [
         "ignite"
-      ]
+      ],
+      "synergy": {
+        "tag": "ignite",
+        "per": {
+          "more.fire": 0.05
+        }
+      }
     },
     {
       "id": "karnak_lightning_mastery",
@@ -377,7 +389,13 @@
       },
       "grants_tags": [
         "chain"
-      ]
+      ],
+      "synergy": {
+        "tag": "chain",
+        "per": {
+          "more.lightning": 0.05
+        }
+      }
     },
     {
       "id": "vess_deep_cold",
@@ -392,7 +410,13 @@
       },
       "grants_tags": [
         "frost"
-      ]
+      ],
+      "synergy": {
+        "tag": "frost",
+        "per": {
+          "pierce.cold": 0.04
+        }
+      }
     },
     {
       "id": "morrow_warmth",
@@ -406,7 +430,13 @@
       },
       "grants_tags": [
         "ignite"
-      ]
+      ],
+      "synergy": {
+        "tag": "ignite",
+        "per": {
+          "increased.fire": 0.06
+        }
+      }
     },
     {
       "id": "karnak_wild_arc",
@@ -421,7 +451,13 @@
       },
       "grants_tags": [
         "chain"
-      ]
+      ],
+      "synergy": {
+        "tag": "chain",
+        "per": {
+          "crit_chance": 0.012
+        }
+      }
     }
   ]
 }

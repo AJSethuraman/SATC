@@ -93,7 +93,11 @@ func test_every_typed_more_boon_can_actually_do_something() -> void:
 			school_elements.append(type_name)
 
 	for b in _boons().get("boons", []):
-		var mods: Dictionary = b.get("mods", {})
+		# Synergy modifiers are merged in because a `more.<type>` hiding in a
+		# synergy is exactly as dead as one in the plain mods, and harder to
+		# notice — it only ever pays out on a committed build.
+		var mods: Dictionary = (b.get("mods", {}) as Dictionary).duplicate()
+		mods.merge(b.get("synergy", {}).get("per", {}))
 		for key in mods:
 			var k := str(key)
 			if not k.begins_with("more."):
@@ -115,6 +119,44 @@ func test_every_typed_more_boon_can_actually_do_something() -> void:
 				"boon '%s' grants '%s' but %s is not a school, is not seeded, and is not gated"
 					% [b.get("id"), k, dmg_type]
 			)
+
+
+## Synergy modifier keys go through the same grammar as everything else. A typo
+## in a synergy is worse than a typo in a plain mod, because a synergy only pays
+## out on a committed build and would look like the commitment not being worth
+## it rather than like a bug.
+func test_every_synergy_key_is_in_the_grammar() -> void:
+	for b in _boons().get("boons", []):
+		var syn: Dictionary = b.get("synergy", {})
+		for key in syn.get("per", {}):
+			assert_true(
+				StatBlock.is_valid_key(str(key)),
+				"boon '%s' synergy uses unknown key '%s'" % [b.get("id"), key]
+			)
+
+
+## A synergy must name a tag something can actually grant, and the boon should
+## carry that tag itself — a cold synergy on a boon that grants no cold tag pays
+## one less than the player will expect, and the off-by-one is invisible.
+func test_every_synergy_tag_is_grantable_and_self_carried() -> void:
+	var grantable: Array = []
+	for a in _items().get("affixes", []):
+		for t in a.get("grants_tags", []):
+			grantable.append(str(t))
+	for b in _boons().get("boons", []):
+		for t in b.get("grants_tags", []):
+			grantable.append(str(t))
+
+	for b in _boons().get("boons", []):
+		var syn: Dictionary = b.get("synergy", {})
+		var tag := str(syn.get("tag", ""))
+		if tag == "":
+			continue
+		assert_has(grantable, tag, "boon '%s' synergises on ungrantable tag '%s'" % [b.get("id"), tag])
+		assert_has(
+			b.get("grants_tags", []), tag,
+			"boon '%s' synergises on '%s' but does not carry it" % [b.get("id"), tag]
+		)
 
 
 func test_boon_granted_tags_are_known() -> void:

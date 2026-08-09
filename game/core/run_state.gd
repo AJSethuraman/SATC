@@ -141,6 +141,11 @@ func build_stats() -> StatBlock:
 		gear[slot].apply_to(s)
 	for b in boons:
 		s.apply_all(b.mods)
+	# Synergies last, and computed against the finished set rather than folded
+	# in as each boon is taken — otherwise the order you were offered things in
+	# would change what they are worth, and two identical builds could disagree.
+	for b in boons:
+		s.apply_all(b.synergy_with(boons))
 	return s
 
 

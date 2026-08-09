@@ -170,3 +170,130 @@ func _first_with_prereq(pool: BoonPool) -> Boon:
 		if not b.requires_boons.is_empty():
 			return b
 	return null
+
+
+## Synergies: the shape that makes a school a tree rather than a menu.
+
+
+func _syn_boon(tag: String, per: Dictionary, grants: Array) -> Boon.Rolled:
+	var b := Boon.from_dict({
+		"id": "syn_%s_%d" % [tag, per.size()],
+		"name": "Synergy",
+		"group": "g_%s" % tag,
+		"mods": {},
+		"grants_tags": grants,
+		"synergy": {"tag": tag, "per": per},
+	})
+	return b.at_rarity(Boon.Rarity.COMMON)
+
+
+func _plain_boon(id: String, grants: Array) -> Boon.Rolled:
+	return Boon.from_dict({
+		"id": id, "name": id, "group": id, "mods": {}, "grants_tags": grants,
+	}).at_rarity(Boon.Rarity.COMMON)
+
+
+## A synergy boon on its own is worth nothing. That is the point — it is payment
+## for commitment, not a free bonus, and it must not quietly pay out to a build
+## that has not committed.
+func test_a_synergy_pays_nothing_alone() -> void:
+	var solo := _syn_boon("frost", {"more.cold": 0.05}, ["frost"])
+	assert_true(solo.synergy_with([solo]).is_empty(), "a lone synergy boon paid out")
+
+
+## And it must not count itself: one frost boon plus one frost synergy boon is
+## a single companion, not two.
+func test_a_synergy_does_not_count_itself() -> void:
+	var syn := _syn_boon("frost", {"more.cold": 0.05}, ["frost"])
+	var mate := _plain_boon("rime", ["frost"])
+	var out := syn.synergy_with([syn, mate])
+	assert_almost_eq(float(out.get("more.cold", 0.0)), 0.05, 0.0001)
+
+
+## Scales linearly with how deep the build is in that school.
+func test_a_synergy_scales_with_its_school() -> void:
+	var syn := _syn_boon("frost", {"more.cold": 0.05}, ["frost"])
+	var build: Array = [syn]
+	for i in 4:
+		build.append(_plain_boon("frost_%d" % i, ["frost"]))
+	assert_almost_eq(float(syn.synergy_with(build).get("more.cold", 0.0)), 0.20, 0.0001)
+
+
+## Boons of another school are not companions. Without this a synergy would just
+## be a bonus for taking any boons at all, and committing would mean nothing.
+func test_a_synergy_ignores_other_schools() -> void:
+	var syn := _syn_boon("frost", {"more.cold": 0.05}, ["frost"])
+	var build: Array = [syn]
+	for i in 4:
+		build.append(_plain_boon("fire_%d" % i, ["ignite"]))
+	assert_true(syn.synergy_with(build).is_empty(), "a cold synergy counted fire boons")
+
+
+## Rarity scales the synergy too, so a Heroic synergy boon is worth more per
+## companion than a Common one — otherwise rarity would be meaningless on
+## exactly the boons meant to reward commitment.
+func test_rarity_scales_the_synergy() -> void:
+	var raw := Boon.from_dict({
+		"id": "syn", "name": "syn", "group": "syn", "mods": {},
+		"grants_tags": ["frost"], "synergy": {"tag": "frost", "per": {"more.cold": 0.05}},
+	})
+	var common := raw.at_rarity(Boon.Rarity.COMMON)
+	var heroic := raw.at_rarity(Boon.Rarity.HEROIC)
+	var mate := _plain_boon("rime", ["frost"])
+	assert_gt(
+		float(heroic.synergy_with([heroic, mate]).get("more.cold", 0.0)),
+		float(common.synergy_with([common, mate]).get("more.cold", 0.0))
+	)
+
+
+## End to end through RunState: committing to a school must beat spreading the
+## same number of picks across schools. If it does not, synergies are decoration.
+func test_committing_to_a_school_beats_spreading() -> void:
+	var dummy := StatBlock.new()
+
+	var committed := RunState.start(5)
+	committed.school = "cold"
+	committed.take_boon(_syn_boon("frost", {"more.cold": 0.05}, ["frost"]))
+	for i in 4:
+		committed.take_boon(_plain_boon("frost_%d" % i, ["frost"]))
+
+	var spread := RunState.start(5)
+	spread.school = "cold"
+	spread.take_boon(_syn_boon("frost", {"more.cold": 0.05}, ["frost"]))
+	for i in 4:
+		spread.take_boon(_plain_boon("fire_%d" % i, ["ignite"]))
+
+	assert_gt(
+		committed.build_stats().expected_hit(dummy),
+		spread.build_stats().expected_hit(dummy),
+		"five cold picks are worth no more than one cold pick and four fire ones"
+	)
+
+
+## Order of acquisition must not change the result. Synergies are computed
+## against the finished build for exactly this reason: if they were folded in as
+## each boon arrived, the sequence you were offered things in would silently
+## decide what they are worth.
+func test_synergy_is_independent_of_pick_order() -> void:
+	var dummy := StatBlock.new()
+	var syn := _syn_boon("frost", {"more.cold": 0.05}, ["frost"])
+	var mates: Array = []
+	for i in 3:
+		mates.append(_plain_boon("frost_%d" % i, ["frost"]))
+
+	var first := RunState.start(9)
+	first.take_boon(syn)
+	for m in mates:
+		first.take_boon(m)
+
+	var last := RunState.start(9)
+	for m in mates:
+		last.take_boon(m)
+	last.take_boon(syn)
+
+	assert_almost_eq(
+		first.build_stats().expected_hit(dummy),
+		last.build_stats().expected_hit(dummy),
+		0.0001,
+		"taking the synergy first is worth more than taking it last"
+	)
