@@ -34,12 +34,14 @@ func _ready() -> void:
 	_mesh = MeshInstance3D.new()
 	# A band rather than a filled disc: the interior is where the bodies are,
 	# and covering them with a flare hides the one thing worth watching.
-	_mesh.mesh = Shapes.arc_band(0.78, 1.0, 180.0, 48)
+	_mesh.mesh = Shapes.arc_band(0.86, 1.0, 180.0, 48)
 	_material = Shapes.glow(_colour)
 	_mesh.material_override = _material
 	add_child(_mesh)
-	# Just clear of the floor, so the ring does not z-fight with it.
-	position.y = 0.06
+	# Clear of the floor by enough to survive depth precision at this camera's
+	# grazing angle — at 0.06 the ring came back striped where it fought the
+	# floor plane, which reads as a rendering fault rather than as a spell.
+	position.y = 0.16
 
 
 func _process(delta: float) -> void:
@@ -54,4 +56,4 @@ func _process(delta: float) -> void:
 	var eased := 1.0 - pow(1.0 - t, 3.0)
 	var r := maxf(0.01, _radius * eased)
 	scale = Vector3(r, 1.0, r)
-	_material.albedo_color.a = (1.0 - t) * 0.9
+	_material.albedo_color.a = (1.0 - t) * 0.75

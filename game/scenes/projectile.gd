@@ -17,8 +17,11 @@ signal hit_enemy(enemy: Node3D, result: Damage.Result, at: Vector3)
 ## A sphere this small is unreadable at the camera's distance, so the bolt is a
 ## capsule stretched along travel — which also reads as motion rather than as a
 ## floating ball.
-const RADIUS := 0.26
-const LENGTH := 1.3
+## Sized against the body, not against the arena. The camera shows roughly 11m
+## across a 1280px frame, so a 0.26m-wide bolt is still ~30px on screen — plenty
+## to read — while a bolt the length of the player reads as a thrown log.
+const RADIUS := 0.13
+const LENGTH := 0.55
 ## Generous relative to the visual: a bolt that visibly clips a body and does
 ## nothing feels broken, and being slightly forgiving costs nothing here.
 const HIT_RADIUS := 0.85
@@ -68,20 +71,20 @@ func _ready() -> void:
 	var colour := tint_for(behaviours)
 
 	# A smear behind the core, additive and translucent. At 17 m/s a bolt covers
-	# half its own length per frame, so without something trailing it reads as a
-	# stuttering dash rather than as a thing moving through space.
+	# most of its own length per frame, so without something trailing it reads as
+	# a stuttering dash rather than as a thing moving through space.
 	var smear := MeshInstance3D.new()
 	var tail := CapsuleMesh.new()
-	tail.radius = RADIUS * 0.62
-	tail.height = LENGTH * 3.0
+	tail.radius = RADIUS * 0.6
+	tail.height = LENGTH * 2.2
 	tail.radial_segments = 6
 	tail.rings = 2
 	smear.mesh = tail
 	var faint := colour
-	faint.a = 0.35
+	faint.a = 0.3
 	smear.material_override = Shapes.glow(faint)
 	smear.basis = lie_down
-	smear.position = -direction * LENGTH * 0.9
+	smear.position = -direction * LENGTH * 0.8
 	add_child(smear)
 
 	_mesh = MeshInstance3D.new()
