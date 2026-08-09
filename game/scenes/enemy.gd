@@ -16,6 +16,7 @@ var health: float = 10.0
 var is_elite := false
 
 var _rng: Rng
+var _base_colour := Feel.COLOUR_ENEMY
 var _radius := Feel.ENEMY_RADIUS
 var _height := Feel.ENEMY_HEIGHT
 var _hitstun := 0.0
@@ -62,7 +63,15 @@ func _ready() -> void:
 	_rig = CharacterRig.new()
 	# Elites carry a weapon; the rank and file come at you bare-handed, which
 	# also makes the dangerous one findable at a glance in a crowd.
-	_rig.build(_height, Feel.COLOUR_ELITE if is_elite else Feel.COLOUR_ENEMY, is_elite)
+	# Vary the hue per body. Eleven identically-coloured figures read as one
+	# mass of copies rather than as a crowd of things — and once they all look
+	# the same, you stop tracking any of them individually and the fight becomes
+	# a blur to be survived rather than one to be picked apart.
+	_base_colour = Feel.COLOUR_ELITE if is_elite else Feel.COLOUR_ENEMY
+	_base_colour = _base_colour.lerp(
+		Color.from_hsv(_rng.randf_range(0.88, 1.06), 0.55, 0.62), _rng.randf_range(0.0, 0.34)
+	)
+	_rig.build(_height, _base_colour, is_elite)
 	add_child(_rig)
 
 	# A floating slab above the head, scaled on the X axis to show health. Reads
@@ -192,7 +201,7 @@ func _animate(delta: float, to_player: Vector3) -> void:
 	_rig.shape = _shape
 	_rig.attack_phase = swing
 
-	var tint := Feel.COLOUR_ELITE if is_elite else Feel.COLOUR_ENEMY
+	var tint := _base_colour
 	if _flash > 0.0:
 		tint = Color(1.0, 1.0, 1.0)
 	elif _windup >= 0.0:

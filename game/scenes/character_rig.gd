@@ -72,8 +72,11 @@ var _accent: StandardMaterial3D
 
 func build(height: float, colour: Color, with_weapon: bool) -> void:
 	_height = height
-	_skin = Shapes.solid(colour)
-	_accent = Shapes.solid(colour.darkened(0.28))
+	# Outline width scales with the body so an elite is not hairline-thin and
+	# a bolt-sized prop is not drawn in marker pen.
+	var line := height * 0.011
+	_skin = Shapes.body(colour, line)
+	_accent = Shapes.body(colour.darkened(0.28), line)
 
 	var leg_len := height * LEG_FRACTION
 	var torso_h := height * TORSO_FRACTION
@@ -91,7 +94,7 @@ func build(height: float, colour: Color, with_weapon: bool) -> void:
 	torso_mesh.position = Vector3(0.0, torso_h * 0.5, 0.0)
 	_torso.add_child(torso_mesh)
 
-	_head_material = Shapes.solid(colour.lightened(0.18))
+	_head_material = Shapes.body(colour.lightened(0.18), line)
 	_head = _box(Vector3(head_size * 0.86, head_size, head_size * 0.86), _head_material)
 	_head.position = Vector3(0.0, torso_h + head_size * 0.55, 0.0)
 	_torso.add_child(_head)
@@ -113,7 +116,7 @@ func build(height: float, colour: Color, with_weapon: bool) -> void:
 
 	if with_weapon:
 		var blade_len := height * 0.5
-		_weapon = _box(Vector3(height * 0.05, blade_len, height * 0.1), Shapes.solid(
+		_weapon = _box(Vector3(height * 0.05, blade_len, height * 0.1), Shapes.body(
 			Color(0.78, 0.80, 0.86)
 		))
 		# Held out from the fist at the end of the right arm, angled forward.

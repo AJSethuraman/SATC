@@ -105,6 +105,42 @@ static func solid(colour: Color) -> StandardMaterial3D:
 	return mat
 
 
+## Surface for a living body: matte, but with a rim light and an outline.
+##
+## The two together are what separate "primitive" from "stylised". A box lit
+## only by a key light and ambient has no edge — against a near-black floor its
+## silhouette dissolves, and a figure you cannot see the shape of reads as
+## unfinished rather than as a choice. The rim relights the grazing edges so the
+## body separates from whatever is behind it, and the outline states the
+## silhouette outright.
+static func body(colour: Color, outline_width: float = 0.018) -> StandardMaterial3D:
+	var mat := solid(colour)
+	mat.rim_enabled = true
+	mat.rim = 0.62
+	mat.rim_tint = 0.2
+	mat.next_pass = outline(outline_width)
+	return mat
+
+
+## Inverted-hull outline, as a second pass rather than a second node.
+##
+## Grow the mesh slightly, draw only its back faces, unlit and nearly black:
+## everywhere the grown hull pokes out past the real silhouette you get a line,
+## and everywhere it does not the real mesh covers it. Riding on next_pass keeps
+## it to one line at each call site instead of a parallel tree of outline nodes
+## that has to be kept in step with the rig.
+static func outline(width: float) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(0.03, 0.02, 0.05)
+	mat.cull_mode = BaseMaterial3D.CULL_FRONT
+	mat.grow = true
+	mat.grow_amount = width
+	# The hull is a drawing device, not an object; it must not occlude light.
+	mat.disable_receive_shadows = true
+	return mat
+
+
 ## Unshaded opaque surface for effects that must read as their own colour.
 ##
 ## Additive blending (see glow) is right for a slash that flares over the body

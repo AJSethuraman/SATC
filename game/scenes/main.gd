@@ -123,7 +123,7 @@ func _start_area() -> void:
 	_refresh_hud()
 
 
-## A area with nothing in it. The act's only breathing space: it pays no reward
+## An area with nothing in it. The act's only breathing space: it pays no reward
 ## and simply hands back health, which is what makes the areas either side of it
 ## worth pushing through at low health.
 ##
@@ -139,7 +139,7 @@ func _open_respite() -> void:
 	_next_area()
 
 
-## Spawn away from the player so a area never opens with a free hit.
+## Spawn away from the player so an area never opens with a free hit.
 func _spawn_point() -> Vector3:
 	var half := Feel.ARENA * 0.5
 	for _attempt in 40:
@@ -155,6 +155,15 @@ func _spawn_point() -> Vector3:
 
 func _on_enemy_died(at: Vector3, was_elite: bool) -> void:
 	camera.add_shake(Feel.SHAKE_CRIT if was_elite else Feel.SHAKE_NORMAL)
+
+	# A body that simply stops existing gives the kill no weight — you register
+	# that the crowd is smaller, not that you killed something. A burst at the
+	# spot costs one node and makes the kill the event.
+	var pop := NovaBurst.new()
+	pop.setup(1.7 if was_elite else 1.15, Feel.COLOUR_ELITE if was_elite else Feel.COLOUR_ENEMY)
+	add_child(pop)
+	pop.global_position = Vector3(at.x, 0.0, at.z)
+
 	# The dying enemy is still in the tree for this frame.
 	if _living_enemies() > 1 or _awaiting_reward:
 		return
@@ -215,7 +224,7 @@ func _next_area() -> void:
 		_say("Ashfall is behind you. The run is over — press R.")
 		return
 	var stats := run.build_stats()
-	# Clearing a boss restores more than passing through a area does; the act
+	# Clearing a boss restores more than passing through an area does; the act
 	# boundary is where a run gets to breathe.
 	var heal := 0.35 if was_boss else 0.22
 	run.health = minf(stats.max_health, run.health + stats.max_health * heal)
@@ -268,7 +277,7 @@ func _detonate_nova(spell: Spell, origin: Vector3) -> void:
 	var burst := NovaBurst.new()
 	burst.setup(spell.radius, Projectile.tint_for(player.behaviours))
 	# Parented to the arena rather than to Enemies, which gets cleared wholesale
-	# on a area change — a ring is not something to wipe mid-flourish.
+	# on an area change — a ring is not something to wipe mid-flourish.
 	add_child(burst)
 	burst.global_position = Vector3(origin.x, 0.0, origin.z)
 
@@ -285,6 +294,7 @@ func _detonate_nova(spell: Spell, origin: Vector3) -> void:
 		var result := Damage.resolve(player.stats, e.stats, run.combat_rng)
 		result.total *= spell.damage_scale
 		e.take_hit(result, origin)
+		_show_hit(e.global_position, result)
 		hits += 1
 		any_crit = any_crit or result.was_crit
 	if hits > 0:
@@ -292,8 +302,20 @@ func _detonate_nova(spell: Spell, origin: Vector3) -> void:
 	camera.add_shake(Feel.SHAKE_CRIT)
 
 
-func _on_projectile_hit(_enemy: Node3D, result: Damage.Result, _at: Vector3) -> void:
+func _on_projectile_hit(enemy: Node3D, result: Damage.Result, at: Vector3) -> void:
+	var where := at if enemy == null else enemy.global_position
+	_show_hit(where, result)
 	_impact(result.was_crit)
+
+
+## Put the resolved figure on screen. Every modifier in core/ collapses into
+## this one number, and it was previously visible nowhere at all — so a boon
+## could promise anything and there was no way to tell whether it delivered.
+func _show_hit(where: Vector3, result: Damage.Result) -> void:
+	var number := HitNumber.new()
+	add_child(number)
+	number.global_position = where + Vector3(0.0, Feel.ENEMY_HEIGHT * 0.8, 0.0)
+	number.setup(result.total, result.was_crit, run.combat_rng.randf_range(-1.0, 1.0))
 
 
 ## Hit-stop and shake. The durations live in Feel; this just applies them.
@@ -342,6 +364,27 @@ func _build_environment() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Feel.AMBIENT_COLOUR
 	env.ambient_light_energy = Feel.AMBIENT_ENERGY
+
+	# Bloom. The spell materials have been additive and unlit for a while, which
+	# makes them bright — but bright is not the same as luminous, and without
+	# glow a bolt is a green shape rather than something giving off light. This
+	# is the cheapest line in the project per unit of "that looks like magic".
+	#
+	# The threshold sits just under 1.0 so only the spell effects cross it: the
+	# floor, the walls and the bodies are all far darker than that, so nothing
+	# in the arena smears.
+	env.glow_enabled = true
+	env.glow_intensity = 1.15
+	env.glow_strength = 1.1
+	env.glow_bloom = 0.12
+	env.glow_hdr_threshold = 0.92
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+
+	# A dark corner-fade so the eye is pulled to the middle of the arena rather
+	# than to its edges, and the bodies read against something that is not flat.
+	env.adjustment_enabled = true
+	env.adjustment_contrast = 1.06
+	env.adjustment_saturation = 1.12
 
 	var holder := WorldEnvironment.new()
 	holder.environment = env
