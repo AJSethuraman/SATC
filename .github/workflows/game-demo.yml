@@ -70,6 +70,9 @@ jobs:
           count=$(ls game/recording/frame_*.png 2>/dev/null | wc -l)
           echo "captured $count frames"
           test "$count" -gt 100 || { echo "::error::too few frames captured"; exit 1; }
+          # What actually happened in the run, so the log tells the story even
+          # when nobody watches the video.
+          grep -E "record_demo: (entered|run) " demo.log || true
           # The recorder counts its own spell effects — see record_demo.gd. A
           # clip with no bolts in it is the exact failure that took three rounds
           # of squinting at footage to identify, so it fails the build now
