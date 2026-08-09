@@ -139,6 +139,27 @@ func _report() -> void:
 	)
 
 
+## Count the spell effects alive this frame. A zero here means casts are not
+## spawning; a healthy count with nothing in the footage means they are spawning
+## and not being drawn. Those are different bugs and the log should say which.
+func _census() -> void:
+	var holder := _main.get_node_or_null("Enemies")
+	if holder == null:
+		return
+	var bolts := 0
+	for child in holder.get_children():
+		if child is Projectile:
+			bolts += 1
+	if bolts > 0:
+		_bolt_frames += 1
+	_bolt_peak = maxi(_bolt_peak, bolts)
+
+	for child in _main.get_children():
+		if child is NovaBurst:
+			_nova_frames += 1
+			break
+
+
 func _enemies() -> Array:
 	var holder := _main.get_node_or_null("Enemies")
 	if holder == null:
