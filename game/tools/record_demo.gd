@@ -70,6 +70,9 @@ var _bolt_frames := 0
 var _bolt_peak := 0
 var _nova_frames := 0
 ## The run's story, for the log: which areas were reached and when it ended.
+var _casts := {}
+var _kills := 0
+var _alive := 0
 var _areas_seen: Array[String] = []
 var _tail := -1
 var _ending := "still going"
@@ -87,6 +90,7 @@ func _initialize() -> void:
 	# Set before add_child, because that is what runs _ready.
 	_main.set("warm_start_depth", warm_start_depth())
 	root.add_child(_main)
+	_watch_casts()
 	print("record_demo: recording until the act ends, at most %d frames" % [MAX_SECONDS * FPS])
 
 
@@ -162,6 +166,38 @@ func _report() -> void:
 		"record_demo: bolts on screen in %d/%d frames (peak %d), nova ring in %d"
 		% [_bolt_frames, _saved, _bolt_peak, _nova_frames]
 	)
+	# The two complaints a viewer actually makes about this footage are "it looks
+	# like one skill" and "everything dies in one hit", and both were only ever
+	# arguable because nothing counted them. They are also the same complaint:
+	# an area-of-effect spell needs a crowd that is still alive, so if a bolt
+	# one-shots trash then the nova has nothing to hit and the kit collapses to
+	# its basic attack no matter how many spells the character owns.
+	var casts := 0
+	for id in _casts:
+		casts += int(_casts[id])
+	var per_kill := float(casts) / maxf(1.0, float(_kills))
+	print("record_demo: %d casts, %d kills — %.2f casts per kill" % [casts, _kills, per_kill])
+	var breakdown: Array[String] = []
+	for id in _casts:
+		breakdown.append("%s x%d" % [id, int(_casts[id])])
+	print("record_demo: casts by spell:  " + ("  ".join(breakdown) if breakdown else "(none)"))
+
+
+## Count every cast, by spell, and every death.
+##
+## Casts come from the player's own signal rather than from counting effects on
+## screen, so a spell that fires and fails to render still shows up here — which
+## is the distinction that took several rounds of frame-reading to make last
+## time something was invisible.
+func _watch_casts() -> void:
+	var player := get_first_node_in_group("player") as Player
+	if player != null:
+		player.cast.connect(_on_cast)
+
+
+func _on_cast(spell: Spell, _origin: Vector3, _facing: Vector3) -> void:
+	if spell != null:
+		_casts[spell.id] = int(_casts.get(spell.id, 0)) + 1
 
 
 ## Count the spell effects alive this frame. A zero here means casts are not
@@ -183,6 +219,14 @@ func _census() -> void:
 		if child is NovaBurst:
 			_nova_frames += 1
 			break
+
+	# Deaths, inferred from the crowd shrinking. A spawn wave grows it, so only
+	# a decrease counts — that way a new area's arrivals are never read as
+	# kills, and the ratio stays honest.
+	var now := _enemies().size()
+	if now < _alive:
+		_kills += _alive - now
+	_alive = now
 
 
 func _enemies() -> Array:

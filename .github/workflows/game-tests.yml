@@ -133,7 +133,12 @@ jobs:
         run: |
           set -uo pipefail
           echo "----- balance summary -----"
-          grep -E "policy:|depth  |median run ends|cleared all|diversity:" \
+          # seconds-to-kill is in here because "everything dies in one hit" is a
+          # thing you can only see by watching, and this is the number that says
+          # it without watching. A trash mob dying faster than a cast animation
+          # also silently disables every area-of-effect skill in the game, since
+          # nothing lives long enough to be grouped.
+          grep -E "policy:|depth  |median run ends|cleared all|diversity:|seconds-to-kill" \
             "$RUNNER_TEMP/balance.log" || echo "(balance simulator did not run)"
           echo "----- acquisition summary -----"
           # NOBODY is in this list because leaving it out hid the single worst
