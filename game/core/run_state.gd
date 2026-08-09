@@ -201,8 +201,16 @@ static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 	e.move_speed = 150.0 + 1.8 * areas
 
 	# Resistances phase in with depth so early areas do not punish a player for
-	# picking the "wrong" element before they have any choice about it.
-	var res := minf(0.4, 0.018 * areas)
+	# being dealt the "wrong" element before they have any say in it.
+	#
+	# They climb higher and faster than they used to, and that is a direct
+	# consequence of the Sorceress. Every hit the player lands is now elemental,
+	# where before the baseline was physical and these numbers were decorative —
+	# so this is the only dial that pushes back on a caster at all. It is also
+	# the dial Cold Mastery and the pierce stat are the answer to, which is the
+	# shape Diablo II has: deep enemies resist your element, and the counterplay
+	# is penetration rather than simply more damage.
+	var res := minf(0.6, 0.026 * areas)
 	for t in Damage.Type.values():
 		if t != Damage.Type.PHYSICAL:
 			e.resistances[t] = res
