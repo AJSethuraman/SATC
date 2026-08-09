@@ -86,7 +86,10 @@ jobs:
           fi
 
       - name: Smoke-test the balance simulator
-        run: godot --headless --path game --script res://sim/balance_sim.gd -- 200 0.5
+        run: |
+          set -o pipefail
+          godot --headless --path game --script res://sim/balance_sim.gd -- 200 0.5 \
+            | tee "$RUNNER_TEMP/balance.log"
 
       - name: Simulate inscription acquisition
         run: godot --headless --path game --script res://sim/acquisition_sim.gd -- 600 5
@@ -111,3 +114,16 @@ jobs:
           name: frame-godot-${{ matrix.godot }}
           path: game/frame.png
           if-no-files-found: warn
+
+      - name: Balance summary
+        # Deliberately the last step. The simulator's verdict on the difficulty
+        # curve is the most-read output of this workflow, and burying it in the
+        # middle means digging it back out of a log whose bulk is a scene dump
+        # and an artifact upload. Repeating the summary at the very end makes
+        # "where does the median run die" the last thing the log says.
+        if: always()
+        run: |
+          set -uo pipefail
+          echo "----- balance summary -----"
+          grep -E "policy:|depth  |median run ends|cleared all|diversity:" \
+            "$RUNNER_TEMP/balance.log" || echo "(simulator did not run)"
