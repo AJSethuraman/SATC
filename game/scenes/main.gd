@@ -291,7 +291,13 @@ func _build_environment() -> void:
 	light.light_color = Feel.LIGHT_COLOUR
 	light.light_energy = Feel.LIGHT_ENERGY
 	light.shadow_enabled = true
-	light.directional_shadow_max_distance = 120.0
+	# The arena is 26x20m and never moves, so spreading the shadow map over 120m
+	# across four cascades wasted almost all of its resolution. The acne that
+	# bought was invisible against a near-black floor and then showed up as
+	# stripes through the first bright thing ever drawn on it — the nova ring.
+	# One cascade over 40m puts every texel where the game actually happens.
+	light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	light.directional_shadow_max_distance = 40.0
 	# Angled across the camera rather than along it, so bodies cast shadows to
 	# the side where they read, instead of hiding directly behind themselves.
 	light.rotation = Vector3(deg_to_rad(-52.0), deg_to_rad(Feel.CAMERA_AZIMUTH + 40.0), 0.0)
