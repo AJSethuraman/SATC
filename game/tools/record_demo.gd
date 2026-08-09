@@ -15,6 +15,24 @@ extends SceneTree
 ## a menu nobody is there to click.
 
 const FPS := 30
+
+## Where the recorded run starts, in areas.
+##
+## Nightmare Act I, which is the shallowest point in the game where the loot
+## systems are all actually on. This is arithmetic rather than taste: exceptional
+## bases and the three-socket vessels a long inscription needs cannot drop before
+## area 41, and most of the named items are gated the same way. Every previous
+## recording was Normal Act I, so every previous recording was structurally
+## incapable of showing item tiers, sockets or uniques — and "the demo does not
+## show itemisation" was a true statement about the clip, not about the game.
+##
+## The character is not handed anything: scenes/main.gd rolls the skipped areas'
+## rewards through the same generator at the same depths and keeps them with the
+## same upgrade test. What is skipped is the fighting, not the earning.
+## A function rather than a const because a const initialiser has to be a
+## constant expression and this is derived from the act structure.
+static func warm_start_depth() -> int:
+	return Progression.areas_per_difficulty() + 1
 ## Hard ceiling, not a target. The recording now ends when the *run* reaches a
 ## natural stopping point — the act is cleared or the player dies — because a
 ## clip that stops mid-area shows a fight without showing what it was for. This
@@ -66,6 +84,8 @@ func _initialize() -> void:
 		quit(1)
 		return
 	_main = packed.instantiate()
+	# Set before add_child, because that is what runs _ready.
+	_main.set("warm_start_depth", warm_start_depth())
 	root.add_child(_main)
 	print("record_demo: recording until the act ends, at most %d frames" % [MAX_SECONDS * FPS])
 

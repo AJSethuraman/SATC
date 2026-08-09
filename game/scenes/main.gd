@@ -31,6 +31,23 @@ var player: Player
 var enemies_root: Node3D
 var camera: IsoCamera
 
+## Start the run already this many areas deep, with the gear and blessings those
+## areas would have paid out. Zero — the default — starts at the beginning.
+##
+## This exists for the demo, and it is a real game state rather than a rigged
+## one: the rewards are rolled by the same generator at the same depths, kept by
+## the same upgrade test, and the blessings come out of the same pool. What it
+## skips is the fighting, not the earning.
+##
+## The reason it is needed is arithmetic. Exceptional bases — and therefore the
+## three-socket vessels a long inscription lives in — cannot drop before
+## Nightmare, which begins at area 41. A clip of Normal Act I is structurally
+## incapable of showing the item ladder, the sockets, or most of the named
+## items, so recording one and concluding the game has no itemisation was
+## measuring the clip rather than the game.
+var warm_start_depth: int = 0
+
+var _warming := false
 var _awaiting_reward := false
 var _hitstop_frames := 0
 var _hitstop_gap := 0
@@ -69,6 +86,9 @@ func _ready() -> void:
 func _start_run(seed_v: int) -> void:
 	run = RunState.start(seed_v)
 	_attune(seed_v)
+	# Before the player is built, so it is built from the warmed-up stats.
+	if warm_start_depth > 1:
+		_warm_start_to(warm_start_depth)
 
 	if is_instance_valid(player):
 		player.queue_free()
@@ -85,7 +105,10 @@ func _start_run(seed_v: int) -> void:
 	player.global_position = Vector3.ZERO
 
 	camera.snap_to(Vector3.ZERO)
-	_say("You wake attuned to %s. Descend." % run.school)
+	if warm_start_depth > 1:
+		_show_arrival_summary()
+	else:
+		_say("You wake attuned to %s. Descend." % run.school)
 	_start_area()
 
 
@@ -218,6 +241,49 @@ func _offer_rewards() -> void:
 			_next_area()
 
 
+## Walk the run forward to `target`, collecting what each area pays without
+## fighting anything, then arrive there at full health.
+##
+## The reward cadence is read from Progression and the drops go through the same
+## _grant_item the real game uses, so this cannot quietly become a more generous
+## game than the one being played — the failure mode every shortcut in this
+## project has eventually had.
+func _warm_start_to(target: int) -> void:
+	_warming = true
+	var guard := Progression.total_areas() + 1
+	while run.depth() < target and guard > 0:
+		guard -= 1
+		match Progression.reward_of(run.area_number):
+			Progression.Reward.ITEM:
+				_grant_item(0.5)
+			Progression.Reward.BOON:
+				_take_offered_boon()
+			Progression.Reward.ACT_PRIZE:
+				_grant_item(0.85, 4)
+				_take_offered_boon()
+		if not run.advance_area():
+			break
+	_warming = false
+	run.health = run.build_stats().max_health
+	_say("You arrive in %s already carrying a run's worth of ruin." % _here())
+
+
+## Take one of the three on offer at random.
+##
+## Deliberately the `random` policy rather than a good one: the balance
+## simulator measures that as the floor, so a warm-started character is a
+## plausible survivor rather than an optimally-built showcase. Scoring the offer
+## here would also mean a second copy of the pick policy, which is the mistake
+## this file has made before.
+func _take_offered_boon() -> void:
+	var offer := boon_pool.offer(
+		run.boon_rng, run.owned_boon_ids(), run.owned_boon_groups(), run.active_tags(), 3
+	)
+	if offer.is_empty():
+		return
+	run.take_boon(offer[run.boon_rng.randi_range(0, offer.size() - 1)])
+
+
 func _grant_item(magic_chance: float, bonus_depth: int = 0) -> void:
 	# Loot first, so a tag it grants can widen the boon offer immediately — this
 	# ordering is the whole gear-gates-boons loop in one line.
@@ -230,23 +296,46 @@ func _grant_item(magic_chance: float, bonus_depth: int = 0) -> void:
 	)
 	var enemy := RunState.enemy_for_depth(run.depth())
 	var before := run.build_stats().expected_hit(enemy)
-	run.equip(drop)
+	# Keep the better of the two. This file used to equip whatever fell last,
+	# which in a three-pass run means a Hell drop could silently downgrade you —
+	# and made the card's damage delta a number with no consequence attached.
+	# The test is RunState.is_upgrade, the same one the balance simulator uses.
+	var took := run.is_upgrade(drop)
+	if took:
+		run.equip(drop)
 	var after := run.build_stats().expected_hit(enemy)
-	_show_item_card(drop, after / maxf(before, 0.01) - 1.0)
+	if not _warming:
+		_show_item_card(drop, after / maxf(before, 0.01) - 1.0, took)
 
 
 ## Hold the drop on screen. See scenes/item_card.gd — every affix, socket and
 ## inscription in the game used to collapse into one line of scrolling log.
-func _show_item_card(drop: Item, damage_delta: float) -> void:
+func _show_item_card(drop: Item, damage_delta: float, equipped: bool = true, cap: int = 2) -> void:
 	if _card_slot == null:
 		return
-	# Never stack more than two; a boss area grants gear and a boon at once and
-	# a column of cards would cover the fight.
-	while _card_slot.get_child_count() >= 2:
+	# Never stack more than the cap; a boss area grants gear and a boon at once
+	# and a column of cards would cover the fight. The arrival summary raises it
+	# deliberately, because there it is the whole point.
+	while _card_slot.get_child_count() >= cap:
 		_card_slot.get_child(0).free()
 	var card := ItemCard.new()
 	_card_slot.add_child(card)
-	card.setup(drop, damage_delta, run.gear)
+	card.setup(drop, damage_delta, run.gear, equipped)
+
+
+## What the character walks in wearing. Only shown on a warm start, where the
+## gear arrived during the skipped part of the run and would otherwise be a set
+## of numbers the viewer never saw a reason for.
+func _show_arrival_summary() -> void:
+	var enemy := RunState.enemy_for_depth(run.depth())
+	var slots := _worn_slots()
+	for slot in slots:
+		var item: Item = run.gear[slot]
+		# Worth of the item against going without it, which is the only honest
+		# delta for gear that is already on.
+		var bare := run.stats_without(slot).expected_hit(enemy)
+		var here := run.build_stats().expected_hit(enemy)
+		_show_item_card(item, here / maxf(bare, 0.01) - 1.0, true, slots.size())
 
 
 func _offer_boon() -> void:
@@ -594,11 +683,15 @@ func _refresh_build_panel() -> void:
 		lines.append("%s   %d mp" % [nova.display_name, roundi(nova.cost)])
 
 	lines.append("")
-	for slot in ["weapon", "armour", "ring", "amulet", "helm", "boots"]:
-		if run.gear.has(slot):
-			var item: Item = run.gear[slot]
-			var mark := "*" if item.is_inscribed() else ""
-			lines.append("%s%s" % [item.display_name(), mark])
+	# Ordered by SLOT_ORDER but driven by what is actually worn, because the
+	# hardcoded list this replaced named six slots — "armour", "ring", "amulet",
+	# "helm", "boots" — and the game has three, spelled "armor" and "trinket".
+	# Five of the six never matched, so the panel had silently shown nothing but
+	# the weapon for as long as it has existed. That is most of why the demo
+	# never looked like it had itemisation: two thirds of the gear was invisible.
+	for slot in _worn_slots():
+		var item: Item = run.gear[slot]
+		lines.append(_gear_line(item))
 
 	if not run.boons.is_empty():
 		lines.append("")
@@ -606,6 +699,35 @@ func _refresh_build_panel() -> void:
 			lines.append(b.label())
 
 	_build_panel.text = "\n".join(lines)
+
+
+## Known slots first, then anything else worn, so adding a slot to the content
+## file can never make a worn item vanish from the panel again.
+const SLOT_ORDER := ["weapon", "armor", "trinket"]
+
+
+func _worn_slots() -> Array:
+	var out: Array = []
+	for slot in SLOT_ORDER:
+		if run.gear.has(slot):
+			out.append(slot)
+	for slot in run.gear:
+		if not out.has(slot):
+			out.append(slot)
+	return out
+
+
+## One gear line: what it is, and the one thing about it that is not in the name.
+## A runeword is marked, a set piece says how much of its set is on, and an empty
+## vessel already carries its socket count in display_name().
+func _gear_line(item: Item) -> String:
+	if item.is_inscribed():
+		return "%s *" % item.display_name()
+	if item.set_id != "":
+		var worn := int(UniquePool.worn_counts(run.gear).get(item.set_id, 0))
+		var total := UniquePool.shared().pieces_of_set(item.set_id).size()
+		return "%s  [%d/%d]" % [item.display_name(), worn, total]
+	return item.display_name()
 
 
 func _refresh_hud() -> void:

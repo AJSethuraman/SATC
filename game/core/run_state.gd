@@ -198,6 +198,28 @@ func stats_with_item(drop: Item) -> StatBlock:
 	return _stats_from(hypothetical, boons)
 
 
+## Would equipping this raise expected damage against a same-depth enemy?
+##
+## Lives here rather than in whichever caller needs it because three of them do
+## — the balance simulator, the scene's drop handler, and the demo's warm-up —
+## and the first version of it lived in the simulator, which is how the scene
+## ended up with no upgrade test at all and simply wore whatever fell last.
+## Judged through the real stat pipeline, so an item trading damage for
+## resistance is weighed the way combat will actually weigh it.
+func is_upgrade(drop: Item) -> bool:
+	var enemy := RunState.enemy_for_depth(depth())
+	return stats_with_item(drop).expected_hit(enemy) > build_stats().expected_hit(enemy)
+
+
+## Stats as they would be with this slot empty — "what is this item worth?" for
+## something already worn, which is a different question from stats_with_item
+## and the only honest one to ask about gear that is already on.
+func stats_without(slot: String) -> StatBlock:
+	var hypothetical := gear.duplicate()
+	hypothetical.erase(slot)
+	return _stats_from(hypothetical, boons)
+
+
 func equip(item: Item) -> void:
 	gear[item.slot] = item
 

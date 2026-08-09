@@ -195,7 +195,9 @@ func _maybe_equip(
 	# near the end of a pass would otherwise infer the next one and hand out a
 	# base that cannot drop yet.
 	var drop := gen.roll_item(here + bonus, run.loot_rng, magic, "", run.difficulty_number)
-	if _is_upgrade(run, drop):
+	# The upgrade test lives on RunState now, so the scene and the demo judge a
+	# drop exactly the way this simulator does.
+	if run.is_upgrade(drop):
 		run.equip(drop)
 
 
@@ -210,12 +212,6 @@ func _take_boon(pool: BoonPool, run: RunState, policy: String, picked_ids: Array
 	picked_ids.append(choice.id)
 
 
-## Would equipping this raise expected damage against a same-depth enemy?
-## Uses the real stat pipeline rather than a heuristic, so an item that trades
-## damage for resistance is judged the way combat will actually judge it.
-func _is_upgrade(run: RunState, drop: Item) -> bool:
-	var enemy := RunState.enemy_for_depth(run.depth())
-	return run.stats_with_item(drop).expected_hit(enemy) > run.build_stats().expected_hit(enemy)
 
 
 func _choose(run: RunState, offer: Array, policy: String) -> Boon.Rolled:

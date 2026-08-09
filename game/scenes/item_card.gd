@@ -34,7 +34,7 @@ var _life := 0.0
 ## `worn` is the loadout the drop is being judged against, so a set piece can say
 ## how much of its set is on. Optional because the card is also shown in contexts
 ## with no run behind it.
-func setup(item: Item, damage_delta: float, worn: Variant = null) -> void:
+func setup(item: Item, damage_delta: float, worn: Variant = null, equipped: bool = true) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.06, 0.05, 0.09, 0.9)
 	style.border_color = RARITY_COLOUR.get(item.rarity, Color.WHITE)
@@ -71,9 +71,14 @@ func setup(item: Item, damage_delta: float, worn: Variant = null) -> void:
 	# The number the old log line carried, kept because it is the one thing a
 	# card of affixes does not answer: is this actually better than what I have?
 	var better := damage_delta >= 0.0
+	# Say what happened to it, not only what it was worth. A red number next to
+	# an item the game silently kept anyway reads as a bug; a red number next to
+	# "left behind" reads as a decision.
+	var verdict := "%+.0f%% damage" % (damage_delta * 100.0)
+	if not equipped:
+		verdict += "  ·  left behind"
 	box.add_child(_line(
-		"%+.0f%% damage" % (damage_delta * 100.0), 15,
-		Color(0.5, 0.9, 0.55) if better else Color(0.9, 0.45, 0.45)
+		verdict, 15, Color(0.5, 0.9, 0.55) if better else Color(0.9, 0.45, 0.45)
 	))
 
 
