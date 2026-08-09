@@ -78,9 +78,11 @@ func _tint() -> Color:
 		return Color(0.55, 0.85, 1.0)
 	if behaviours.has("bolt_forks") or behaviours.has("bolt_chains_three"):
 		return Color(0.78, 0.62, 1.0)
-	# Deliberately cool: the default bolt must not read as either the warm white
-	# player body or the orange enemy telegraph.
-	return Color(0.62, 0.86, 1.0)
+	# Green, because nothing else in the palette is: the player is warm white,
+	# dash i-frames are cool blue, telegraphs are orange, elites red, bodies
+	# mauve, health bars pink. An unaligned bolt needs a hue of its own or it
+	# disappears into whatever it happens to fly past.
+	return Color(0.45, 1.0, 0.62)
 
 
 func _process(delta: float) -> void:
