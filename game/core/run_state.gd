@@ -44,13 +44,32 @@ static func start(seed_v: int) -> RunState:
 	return r
 
 
+## The damage type a school deals.
+const SCHOOL_ELEMENT := {
+	"fire": Damage.Type.FIRE,
+	"cold": Damage.Type.COLD,
+	"lightning": Damage.Type.LIGHTNING,
+}
+
+
+static func element_of(school_name: String) -> int:
+	return SCHOOL_ELEMENT.get(school_name, Damage.Type.FIRE)
+
+
 ## The player's base line before any gear or boons. Deliberately unarmed-weak:
 ## the whole power curve is supposed to come from what the run gives you.
-static func base_stats() -> StatBlock:
+##
+## The split is the run's element, not physical. That looks like a detail and is
+## not: expected_hit() drives every "is this an upgrade?" decision the loot log
+## and the balance simulator make, and while the base was physical those were
+## all computed for a character who deals no physical damage at all. Enemy
+## elemental resistances were invisible to them, and a `more.fire` boon looked
+## worth exactly nothing. A caster's baseline is the element she casts.
+static func base_stats(school_name: String = "fire") -> StatBlock:
 	var s := StatBlock.new()
 	s.weapon_min = 6.0
 	s.weapon_max = 10.0
-	s.weapon_split = {Damage.Type.PHYSICAL: 1.0}
+	s.weapon_split = {element_of(school_name): 1.0}
 	s.crit_chance = 0.05
 	s.crit_mult = 1.5
 	s.max_health = 100.0
@@ -117,7 +136,7 @@ func owned_boon_groups() -> Array:
 ## Recomputed from scratch rather than mutated in place, so there is no way for
 ## an unequip to leave a stat behind.
 func build_stats() -> StatBlock:
-	var s := RunState.base_stats()
+	var s := RunState.base_stats(school)
 	for slot in gear:
 		gear[slot].apply_to(s)
 	for b in boons:

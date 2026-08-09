@@ -113,6 +113,10 @@ func _simulate_one(
 	gen: ItemGenerator, pool: BoonPool, seed_v: int, dodge: float, policy: String
 ) -> Dictionary:
 	var run := RunState.start(seed_v)
+	# Attune the run the same way scenes/main.gd does, so the simulator measures
+	# a caster of some element rather than a physical attacker that cannot exist.
+	var schools := ["fire", "cold", "lightning"]
+	run.school = schools[absi(seed_v) % schools.size()]
 	var picked_ids: Array = []
 	var ttk := {}
 	var depth := 0
@@ -207,7 +211,7 @@ func _is_upgrade(run: RunState, drop: Item) -> bool:
 	var enemy := RunState.enemy_for_depth(run.depth())
 	var before := run.build_stats().expected_hit(enemy)
 
-	var trial := RunState.base_stats()
+	var trial := RunState.base_stats(run.school)
 	for slot in run.gear:
 		if slot != drop.slot:
 			run.gear[slot].apply_to(trial)

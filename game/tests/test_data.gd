@@ -75,10 +75,23 @@ func test_affixes_never_grant_more_multipliers() -> void:
 
 func test_every_typed_more_boon_can_actually_do_something() -> void:
 	# A `more.<type>` modifier is worth exactly zero to a build with no damage
-	# of that type. Such a boon is therefore only legitimate if it either gates
-	# on a tag implying that type, or seeds the type itself. Without this rule
-	# it is entirely possible to ship a boon that is legal, offerable, and a
-	# guaranteed waste of the player's pick.
+	# of that type. Such a boon is therefore only legitimate if it gates on a
+	# tag implying that type, seeds the type itself, or matches the element of a
+	# school the player can actually be dealt. Without this rule it is entirely
+	# possible to ship a boon that is legal, offerable, and a guaranteed waste
+	# of the player's pick.
+	#
+	# The third clause is new and is the whole reason this test failed when the
+	# Sorceress landed: damage now comes from the *spell's* element rather than
+	# the caster's weapon split, so a `more.fire` boon is live on any fire run
+	# without needing an affix to seed fire first.
+	var school_elements: Array[String] = []
+	for entry in Spell.from_json("res://data/spells.json"):
+		var spell := entry as Spell
+		var type_name: String = Damage.TYPE_NAMES.get(spell.element, "")
+		if type_name != "" and not school_elements.has(type_name):
+			school_elements.append(type_name)
+
 	for b in _boons().get("boons", []):
 		var mods: Dictionary = b.get("mods", {})
 		for key in mods:
@@ -95,9 +108,11 @@ func test_every_typed_more_boon_can_actually_do_something() -> void:
 				if Boon.TAG_DAMAGE_TYPE.get(str(t), "") == dmg_type:
 					gated_on_type = true
 
+			var is_a_school: bool = school_elements.has(dmg_type)
+
 			assert_true(
-				seeds_itself or gated_on_type or dmg_type == "physical",
-				"boon '%s' grants '%s' but neither seeds %s damage nor gates on a tag that implies it"
+				seeds_itself or gated_on_type or is_a_school or dmg_type == "physical",
+				"boon '%s' grants '%s' but %s is not a school, is not seeded, and is not gated"
 					% [b.get("id"), k, dmg_type]
 			)
 
