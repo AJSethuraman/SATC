@@ -94,3 +94,49 @@ func test_a_bolt_that_misses_expires() -> void:
 	assert_true(shot.is_queued_for_deletion(), "bolt never expired")
 
 	holder.free()
+
+
+## An enemy must actually put a body in the scene tree.
+##
+## This exists because of a bug that cost a full render cycle to notice: a
+## helper function got inserted into the middle of Enemy._ready(), so everything
+## after it — including add_child(_rig) — became unreachable. The enemies were
+## constructed, took damage, died and awarded loot; they were simply never added
+## to the tree, so an entire recording showed damage numbers popping over an
+## empty floor. Nothing failed. GDScript is happy to end a function early when a
+## `func` appears, and no assertion in the suite looked at whether a body was
+## visible.
+func test_an_enemy_puts_a_body_in_the_tree() -> void:
+	var holder := _holder()
+	var enemy := _enemy_at(holder, Vector3(2.0, 0.0, 0.0))
+
+	var rig: CharacterRig = null
+	for child in enemy.get_children():
+		var found := child as CharacterRig
+		if found != null:
+			rig = found
+	assert_not_null(rig, "enemy has no rig in the tree — it would be invisible")
+	assert_true(rig.get_child_count() > 0, "rig is in the tree but has no meshes")
+
+	holder.free()
+
+
+## Every demon kind has to survive being built. A kind whose proportions or
+## attachments throw leaves a body with no meshes, which looks exactly like the
+## enemy not existing.
+func test_every_demon_kind_builds_a_body() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	for kind in [
+		CharacterRig.Kind.HUMAN,
+		CharacterRig.Kind.IMP,
+		CharacterRig.Kind.BRUTE,
+		CharacterRig.Kind.STALKER,
+	]:
+		var rig := CharacterRig.new()
+		tree.root.add_child(rig)
+		rig.build(1.5, Color(0.4, 0.2, 0.2), false, kind)
+		assert_true(rig.get_child_count() > 0, "kind %d built nothing" % kind)
+		# Posing must work too: the hips ride on a per-kind leg fraction, and
+		# reading the wrong one puts a body through the floor.
+		rig.animate(1.0 / 60.0)
+		rig.free()
