@@ -11,7 +11,7 @@ func test_a_fresh_run_starts_at_full_health() -> void:
 	var run := RunState.start(1234)
 	assert_almost_eq(run.health, run.build_stats().max_health, 0.01)
 	assert_eq(run.act_number, 1)
-	assert_eq(run.room_number, 1)
+	assert_eq(run.area_number, 1)
 	assert_eq(run.depth(), 1)
 
 
@@ -161,10 +161,10 @@ func test_owned_boons_report_ids_and_groups() -> void:
 
 func test_enemies_get_harder_with_depth() -> void:
 	var previous := RunState.enemy_for_depth(1)
-	for n in range(2, Progression.total_rooms() + 1):
+	for n in range(2, Progression.total_areas() + 1):
 		var current := RunState.enemy_for_depth(n)
-		assert_gt(current.max_health, previous.max_health, "room %d health did not rise" % n)
-		assert_gt(current.weapon_max, previous.weapon_max, "room %d damage did not rise" % n)
+		assert_gt(current.max_health, previous.max_health, "area %d health did not rise" % n)
+		assert_gt(current.weapon_max, previous.weapon_max, "area %d damage did not rise" % n)
 		previous = current
 
 
@@ -172,7 +172,7 @@ func test_enemy_health_outpaces_enemy_damage() -> void:
 	# Deep floors should test whether a build scales, not whether the player can
 	# survive a one-shot. If damage ever outgrows health, that stops being true.
 	var first := RunState.enemy_for_depth(1)
-	var deep := RunState.enemy_for_depth(Progression.total_rooms())
+	var deep := RunState.enemy_for_depth(Progression.total_areas())
 	var health_growth := deep.max_health / first.max_health
 	var damage_growth := deep.weapon_max / first.weapon_max
 	assert_gt(health_growth, damage_growth, "enemy damage is outscaling enemy health")
@@ -184,12 +184,12 @@ func test_enemy_damage_growth_stays_within_what_a_build_can_answer() -> void:
 	# defensive boons — so enemy damage compounding far past that makes boon
 	# choice irrelevant, which the simulator measured directly.
 	assert_lt(
-		RunState.ROOM_DAMAGE_GROWTH, RunState.ROOM_HEALTH_GROWTH,
+		RunState.AREA_DAMAGE_GROWTH, RunState.AREA_HEALTH_GROWTH,
 		"damage must not outgrow health"
 	)
-	var rooms := float(Progression.total_rooms() - 1)
+	var areas := float(Progression.total_areas() - 1)
 	var acts := float(Progression.ACTS - 1)
-	var across_a_run := pow(RunState.ROOM_DAMAGE_GROWTH, rooms) * pow(RunState.ACT_DAMAGE_STEP, acts)
+	var across_a_run := pow(RunState.AREA_DAMAGE_GROWTH, areas) * pow(RunState.ACT_DAMAGE_STEP, acts)
 	assert_lt(
 		across_a_run, 5.0,
 		"enemy damage compounds past what a build's survival can answer"
@@ -198,10 +198,10 @@ func test_enemy_damage_growth_stays_within_what_a_build_can_answer() -> void:
 
 func test_enemy_resistances_phase_in_and_stay_capped() -> void:
 	var early := RunState.enemy_for_depth(1)
-	assert_almost_eq(early.resistances.get(Damage.Type.FIRE, 0.0), 0.0, 0.0001, "room 1 must be resist-free")
-	for n in range(1, Progression.total_rooms() + 4):
+	assert_almost_eq(early.resistances.get(Damage.Type.FIRE, 0.0), 0.0, 0.0001, "area 1 must be resist-free")
+	for n in range(1, Progression.total_areas() + 4):
 		var e := RunState.enemy_for_depth(n)
-		assert_between(e.resistances.get(Damage.Type.FIRE, 0.0), 0.0, 0.4, "room %d resistance out of band" % n)
+		assert_between(e.resistances.get(Damage.Type.FIRE, 0.0), 0.0, 0.4, "area %d resistance out of band" % n)
 		assert_almost_eq(e.resistances.get(Damage.Type.PHYSICAL, 0.0), 0.0, 0.0001, "physical must stay unresisted")
 
 
@@ -213,13 +213,13 @@ func test_elites_are_strictly_harder() -> void:
 	assert_gt(elite.armor, normal.armor - 0.0001)
 
 
-func test_advance_room_walks_into_the_next_act() -> void:
+func test_advance_area_walks_into_the_next_act() -> void:
 	var run := RunState.start(23)
-	for _i in Progression.ROOMS_PER_ACT:
-		assert_true(run.advance_room(), "run stalled inside act 1")
+	for _i in Progression.AREAS_PER_ACT:
+		assert_true(run.advance_area(), "run stalled inside act 1")
 	assert_eq(run.act_number, 2)
-	assert_eq(run.room_number, 1)
-	assert_eq(run.depth(), Progression.ROOMS_PER_ACT + 1)
+	assert_eq(run.area_number, 1)
+	assert_eq(run.depth(), Progression.AREAS_PER_ACT + 1)
 
 
 func _weapon_with_affixes(gen: ItemGenerator) -> Item:

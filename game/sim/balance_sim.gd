@@ -26,9 +26,9 @@ const ENEMY_ATTACK_RATE := 0.8
 ## real difficulty curve is far more sensitive to it than to any table below.
 const DEFAULT_DODGE := 0.5
 
-## Healing between rooms, and the larger restore for clearing an act. Both
+## Healing between areas, and the larger restore for clearing an act. Both
 ## mirror scenes/main.gd — if they drift, the simulator stops measuring the game.
-const ROOM_HEAL := 0.12
+const AREA_HEAL := 0.12
 const BOSS_HEAL := 0.35
 const RESPITE_HEAL := 0.5
 
@@ -61,8 +61,8 @@ func _initialize() -> void:
 	print("")
 	print("Ashfall balance simulation")
 	print("==========================")
-	print("runs=%d  dodge=%.2f  rooms=%d (%d acts x %d)" %
-		[runs, dodge, Progression.total_rooms(), Progression.ACTS, Progression.ROOMS_PER_ACT])
+	print("runs=%d  dodge=%.2f  areas=%d (%d acts x %d)" %
+		[runs, dodge, Progression.total_areas(), Progression.ACTS, Progression.AREAS_PER_ACT])
 
 	for policy in POLICIES:
 		var result := _simulate_many(gen, pool, runs, dodge, policy)
@@ -78,7 +78,7 @@ func _simulate_many(
 	var depths: Array[int] = []
 	var boon_picks := {}
 	var tag_counts := {}
-	var ttk_by_room := {}
+	var ttk_by_area := {}
 
 	for i in runs:
 		var outcome := _simulate_one(gen, pool, i * 7919 + 13, dodge, policy)
@@ -88,16 +88,16 @@ func _simulate_many(
 		for t in outcome["tags"]:
 			tag_counts[t] = tag_counts.get(t, 0) + 1
 		for f in outcome["ttk"]:
-			if not ttk_by_room.has(f):
-				ttk_by_room[f] = []
-			ttk_by_room[f].append(outcome["ttk"][f])
+			if not ttk_by_area.has(f):
+				ttk_by_area[f] = []
+			ttk_by_area[f].append(outcome["ttk"][f])
 
 	depths.sort()
 	return {
 		"depths": depths,
 		"boon_picks": boon_picks,
 		"tag_counts": tag_counts,
-		"ttk_by_room": ttk_by_room,
+		"ttk_by_area": ttk_by_area,
 	}
 
 
@@ -110,27 +110,27 @@ func _simulate_one(
 	var depth := 0
 
 	while true:
-		var room := run.room_number
-		var kind := Progression.kind_of(room)
+		var area := run.area_number
+		var kind := Progression.kind_of(area)
 		var here := run.depth()
 		var stats := run.build_stats()
-		# Stats are rebuilt at the top of each room, so a boon taken last room is
-		# live now — matching what the real game does in _next_room.
+		# Stats are rebuilt at the top of each area, so a boon taken last area is
+		# live now — matching what the real game does in _next_area.
 
-		if kind == Progression.RoomKind.RESPITE:
+		if kind == Progression.AreaKind.RESPITE:
 			run.health = minf(stats.max_health, run.health + stats.max_health * RESPITE_HEAL)
 			depth = here
-			if not run.advance_room():
+			if not run.advance_area():
 				break
 			continue
 
-		var count := Progression.enemy_count(run.act_number, room)
-		var room_ttk := 0.0
-		var boss_here := kind == Progression.RoomKind.BOSS
+		var count := Progression.enemy_count(run.act_number, area)
+		var area_ttk := 0.0
+		var boss_here := kind == Progression.AreaKind.BOSS
 
 		for e in count:
 			var lead := e == 0
-			var elite := lead and Progression.has_elite(room)
+			var elite := lead and Progression.has_elite(area)
 			var enemy: StatBlock = (
 				RunState.boss_for_act(run.act_number) if (lead and boss_here)
 				else RunState.enemy_for_depth(here, elite)
@@ -138,7 +138,7 @@ func _simulate_one(
 
 			var player_dps := stats.expected_hit(enemy) * PLAYER_ATTACK_RATE
 			var seconds := enemy.max_health / maxf(player_dps, 0.01)
-			room_ttk += seconds
+			area_ttk += seconds
 
 			var enemy_dps := enemy.expected_hit(stats) * ENEMY_ATTACK_RATE * (1.0 - dodge)
 			run.health -= seconds * enemy_dps
@@ -146,7 +146,7 @@ func _simulate_one(
 			if run.health <= 0.0:
 				break
 
-		ttk[here] = room_ttk / float(count)
+		ttk[here] = area_ttk / float(count)
 		if run.health <= 0.0:
 			break
 
@@ -154,7 +154,7 @@ func _simulate_one(
 
 		# Reward cadence comes from Progression, so the simulator cannot drift
 		# into measuring a more generous game than the one being played.
-		match Progression.reward_of(room):
+		match Progression.reward_of(area):
 			Progression.Reward.ITEM:
 				_maybe_equip(gen, run, here, 3, 0.5)
 			Progression.Reward.BOON:
@@ -163,11 +163,11 @@ func _simulate_one(
 				_maybe_equip(gen, run, here, 7, 0.85)
 				_take_boon(pool, run, policy, picked_ids)
 
-		var heal := BOSS_HEAL if boss_here else ROOM_HEAL
+		var heal := BOSS_HEAL if boss_here else AREA_HEAL
 		var full := run.build_stats().max_health
 		run.health = minf(full, run.health + full * heal)
 
-		if not run.advance_room():
+		if not run.advance_area():
 			break
 
 	return {"depth": depth, "boons": picked_ids, "tags": run.active_tags(), "ttk": ttk}
@@ -243,28 +243,28 @@ func _report(policy: String, result: Dictionary, runs: int) -> void:
 	print("   depth   p10 %d | median %d | p90 %d | max %d"
 		% [_pct(depths, 0.10), _pct(depths, 0.50), _pct(depths, 0.90), depths[depths.size() - 1]])
 
-	# Depth is in rooms, which is the right unit for a curve and the wrong one
+	# Depth is in areas, which is the right unit for a curve and the wrong one
 	# for a person. Say where the median run actually dies.
 	var median: int = _pct(depths, 0.50)
-	print("   median run ends in %s, room %d of %d"
+	print("   median run ends in %s, area %d of %d"
 		% [
 			Progression.act_label(Progression.act_of_depth(median)),
-			((maxi(1, median) - 1) % Progression.ROOMS_PER_ACT) + 1,
-			Progression.ROOMS_PER_ACT,
+			((maxi(1, median) - 1) % Progression.AREAS_PER_ACT) + 1,
+			Progression.AREAS_PER_ACT,
 		])
 
-	var cleared := depths.filter(func(d): return d >= Progression.total_rooms()).size()
+	var cleared := depths.filter(func(d): return d >= Progression.total_areas()).size()
 	print("   cleared all %d acts: %.1f%% of runs" % [Progression.ACTS, 100.0 * cleared / float(runs)])
 
-	var ttk: Dictionary = result["ttk_by_room"]
-	var rooms := ttk.keys()
-	rooms.sort()
-	# Only runs that reached a room contribute a sample to it, so deep-room
+	var ttk: Dictionary = result["ttk_by_area"]
+	var areas := ttk.keys()
+	areas.sort()
+	# Only runs that reached a area contribute a sample to it, so deep-area
 	# figures are survivorship-biased — they describe the builds that got there,
 	# not the average build. Printing n alongside keeps that visible instead of
 	# letting a flat-looking curve read as "difficulty is fine at depth".
-	var line := "   avg seconds-to-kill (n = runs that reached the room):"
-	for f in rooms:
+	var line := "   avg seconds-to-kill (n = runs that reached the area):"
+	for f in areas:
 		if f % 4 == 1:
 			var samples: Array = ttk[f]
 			line += "  r%d %.1fs/n=%d" % [f, _mean(samples), samples.size()]

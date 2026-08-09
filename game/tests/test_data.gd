@@ -223,7 +223,7 @@ func test_a_prerequisite_chain_is_satisfiable_alongside_its_tag_gate() -> void:
 
 func test_at_least_three_boon_groups_are_available_with_no_gear() -> void:
 	# The offer is always three wide; if fewer than three groups are ungated the
-	# player would get a short choice on the very first room.
+	# player would get a short choice on the very first area.
 	var open_groups: Array = []
 	for b in _boons().get("boons", []):
 		if b.get("requires_tags", []).is_empty() and b.get("requires_boons", []).is_empty():

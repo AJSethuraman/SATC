@@ -15,11 +15,11 @@ const STREAM_BOONS := 2
 const STREAM_COMBAT := 3
 
 var seed_value: int = 0
-## Where the run is, in Progression's terms. A run walks rooms 1..8 of an act,
-## then starts the next act's room 1 — see core/progression.gd for why the unit
+## Where the run is, in Progression's terms. A run walks areas 1..8 of an act,
+## then starts the next act's area 1 — see core/progression.gd for why the unit
 ## changed from a flat floor count.
 var act_number: int = 1
-var room_number: int = 1
+var area_number: int = 1
 var health: float = 100.0
 
 var gear: Dictionary = {}  # slot -> Item
@@ -130,14 +130,14 @@ func take_boon(b: Boon.Rolled) -> void:
 	boons.append(b)
 
 
-## Compounding rates for enemy scaling, per room cleared and per act entered.
+## Compounding rates for enemy scaling, per area cleared and per act entered.
 ##
 ## Health climbs faster than damage on purpose: going deeper should test whether
 ## your build actually scales, not whether you can survive a one-shot.
 ##
 ## The old constants were per *floor* and there were fifteen of them. A run is
-## now thirty-two rooms, so applying the same rates per room would have
-## compounded damage nearly tenfold. These are the per-room equivalents of a
+## now thirty-two areas, so applying the same rates per area would have
+## compounded damage nearly tenfold. These are the per-area equivalents of a
 ## gentler curve: about 27x health and 3x damage across a full clear, against
 ## the ~33x and ~3.8x the floor model reached — and the damage figure is
 ## deliberately the one that came down, because that is the term the balance
@@ -146,41 +146,41 @@ func take_boon(b: Boon.Rolled) -> void:
 ## faster than the lumps arrive then no choice the player makes matters. That
 ## showed up measurably: random boon picks performed as well as greedy ones.
 ##
-## The act steps are separate from the room rates so an act boundary is a felt
+## The act steps are separate from the area rates so an act boundary is a felt
 ## event rather than a smooth ramp — arriving in the Sunken Works should be
 ## noticeably worse than leaving the Cinderwaste.
-const ROOM_HEALTH_GROWTH := 1.09
-const ROOM_DAMAGE_GROWTH := 1.028
+const AREA_HEALTH_GROWTH := 1.09
+const AREA_DAMAGE_GROWTH := 1.028
 const ACT_HEALTH_STEP := 1.25
 const ACT_DAMAGE_STEP := 1.10
 
 
-## How deep the run is, counted in rooms cleared. Every curve is written against
-## this rather than against act/room, so difficulty never depends on how the run
+## How deep the run is, counted in areas cleared. Every curve is written against
+## this rather than against act/area, so difficulty never depends on how the run
 ## happens to be chopped up.
 func depth() -> int:
-	return Progression.depth(act_number, room_number)
+	return Progression.depth(act_number, area_number)
 
 
-## Enemy stat line at a given depth in rooms.
+## Enemy stat line at a given depth in areas.
 static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 	var e := StatBlock.new()
-	var rooms := maxf(0.0, float(d - 1))
+	var areas := maxf(0.0, float(d - 1))
 	var acts_done := float(Progression.act_of_depth(d) - 1)
 
-	e.max_health = 40.0 * pow(ROOM_HEALTH_GROWTH, rooms) * pow(ACT_HEALTH_STEP, acts_done)
-	var damage_scale := pow(ROOM_DAMAGE_GROWTH, rooms) * pow(ACT_DAMAGE_STEP, acts_done)
+	e.max_health = 40.0 * pow(AREA_HEALTH_GROWTH, areas) * pow(ACT_HEALTH_STEP, acts_done)
+	var damage_scale := pow(AREA_DAMAGE_GROWTH, areas) * pow(ACT_DAMAGE_STEP, acts_done)
 	e.weapon_min = 5.0 * damage_scale
 	e.weapon_max = 9.0 * damage_scale
 	e.weapon_split = {Damage.Type.PHYSICAL: 1.0}
-	e.armor = 0.5 * rooms
+	e.armor = 0.5 * areas
 	# Kept just under the player's 220 at a full clear: enemies that outrun you
 	# turn dashing from a decision into a tax.
-	e.move_speed = 150.0 + 1.8 * rooms
+	e.move_speed = 150.0 + 1.8 * areas
 
-	# Resistances phase in with depth so early rooms do not punish a player for
+	# Resistances phase in with depth so early areas do not punish a player for
 	# picking the "wrong" element before they have any choice about it.
-	var res := minf(0.4, 0.018 * rooms)
+	var res := minf(0.4, 0.018 * areas)
 	for t in Damage.Type.values():
 		if t != Damage.Type.PHYSICAL:
 			e.resistances[t] = res
@@ -198,7 +198,7 @@ static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 ## survive long enough for the fight to have phases the player can read, while
 ## hitting hard enough that the act's whole build-up pays off.
 static func boss_for_act(act: int) -> StatBlock:
-	var e := enemy_for_depth(Progression.depth(act, Progression.BOSS_ROOM))
+	var e := enemy_for_depth(Progression.depth(act, Progression.BOSS_AREA))
 	e.max_health *= 9.0
 	e.weapon_min *= 1.6
 	e.weapon_max *= 1.6
@@ -209,15 +209,15 @@ static func boss_for_act(act: int) -> StatBlock:
 	return e
 
 
-## Move to the next room, rolling into the next act after the boss. Returns
+## Move to the next area, rolling into the next act after the boss. Returns
 ## false when the run has cleared the last act — the only way to finish one
 ## other than dying.
-func advance_room() -> bool:
-	if room_number < Progression.ROOMS_PER_ACT:
-		room_number += 1
+func advance_area() -> bool:
+	if area_number < Progression.AREAS_PER_ACT:
+		area_number += 1
 		return true
 	if act_number >= Progression.ACTS:
 		return false
 	act_number += 1
-	room_number = 1
+	area_number = 1
 	return true

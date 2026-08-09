@@ -1,7 +1,7 @@
 class_name BoonPool
 extends RefCounted
 
-## Builds the three-way choice the player gets after clearing a room.
+## Builds the three-way choice the player gets after clearing a area.
 ##
 ## The offer is always distinct by group, always legal given owned boons and
 ## gear tags, and never empty unless the pool is genuinely exhausted.

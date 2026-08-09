@@ -1,7 +1,7 @@
 class_name Boon
 extends RefCounted
 
-## A run-scoped blessing, offered three at a time after a cleared room.
+## A run-scoped blessing, offered three at a time after a cleared area.
 ##
 ## Boons own the multiplicative bucket (see core/damage.gd), so they are what
 ## makes a run's power curve steepen. They are also where gear cashes out: a
