@@ -20,7 +20,12 @@ const FPS := 30
 ## clip that stops mid-area shows a fight without showing what it was for. This
 ## only exists so a pilot that somehow survives forever cannot render until the
 ## job times out.
-const MAX_SECONDS := 100
+## Measured, not guessed: the pilot clears roughly one area every sixteen
+## seconds, so eight areas plus a boss needs about two and a half minutes. At
+## 100 the recording stopped in The Last Furnace, one area short of the fight
+## the whole act builds to — which is precisely the ending the old
+## fixed-length clip kept missing.
+const MAX_SECONDS := 155
 const OUTPUT_DIR := "res://recording"
 
 ## Keep rolling for a moment after the run ends, so the last kill and the act
