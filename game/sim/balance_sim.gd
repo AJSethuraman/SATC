@@ -37,17 +37,25 @@ const BOONS_PATH := "res://data/boons.json"
 
 ## Pick policies, standing in for kinds of player.
 ##
-## `greedy_damage` always takes the biggest immediate number; `committed` picks
-## a direction early and then scales it; `random` is the floor.
+## `greedy_damage` always takes the biggest immediate damage number; `committed`
+## picks a direction early and then scales it; `balanced` weighs offence against
+## survival; `random` is the floor.
 ##
-## The expectation when `committed` was added was that it would beat greedy,
-## since a typed multiplier is worth nothing until you have the damage type it
-## multiplies and greedy cannot see one move ahead. It does not. At 200 runs it
-## is slightly *worse* (median depth 3 vs 4), and both sit level with `random`.
-## That spread — or rather the lack of one — is the most useful number this
-## simulator currently produces: it says boon choice is not what decides a run.
-## See the README for where the pressure is actually coming from.
-const POLICIES: Array[String] = ["greedy_damage", "committed", "random"]
+## `balanced` exists because of a result that first read as a balance problem
+## and is actually a modelling one. Once the act curve was fixed, `random` beat
+## both of the supposedly-smart policies outright — median area 22 against 14
+## and 15, clearing all four acts 14% of the time against 4.5% and 6.5%.
+##
+## The cause is that both of those policies score candidates with
+## `expected_hit`, which measures damage dealt and nothing else. A boon granting
+## max health, armour or resistance scores exactly zero, so they never take one.
+## `random` takes defensive boons a third of the time, and survival is what
+## decides a run. So the policies were not smart players; they were players who
+## refuse to wear armour, and beating them proves nothing.
+##
+## The honest comparison is `balanced` against `random`. If choosing well cannot
+## beat choosing at all, *that* is a statement about the game.
+const POLICIES: Array[String] = ["greedy_damage", "committed", "balanced", "random"]
 
 
 func _initialize() -> void:
@@ -214,6 +222,9 @@ func _choose(run: RunState, offer: Array, policy: String) -> Boon.Rolled:
 	if policy == "random":
 		return offer[run.boon_rng.randi_range(0, offer.size() - 1)]
 
+	if policy == "balanced":
+		return _best_by(run, offer, true)
+
 	if policy == "committed":
 		# Take a direction before taking a number: while the build has fewer
 		# than two tags, prefer anything that grants one. After that, greedy.
@@ -223,6 +234,17 @@ func _choose(run: RunState, offer: Array, policy: String) -> Boon.Rolled:
 					return candidate
 
 	# greedy_damage: take whatever raises expected damage most right now.
+	return _best_by(run, offer, false)
+
+
+## Score every candidate and take the winner.
+##
+## With `weigh_survival` off this is pure damage — the naive control. With it on
+## the score is damage multiplied by effective health: how much you can deal
+## times how long you last while dealing it. That product is the smallest honest
+## way to let a boon that grants armour or max health compete with one that
+## grants a damage multiplier, which a damage-only score can never do.
+func _best_by(run: RunState, offer: Array, weigh_survival: bool) -> Boon.Rolled:
 	var enemy := RunState.enemy_for_depth(run.depth())
 	var best: Boon.Rolled = offer[0]
 	var best_score := -INF
@@ -230,6 +252,9 @@ func _choose(run: RunState, offer: Array, policy: String) -> Boon.Rolled:
 		var trial := run.build_stats()
 		trial.apply_all(candidate.mods)
 		var score := trial.expected_hit(enemy)
+		if weigh_survival:
+			var incoming := maxf(0.01, enemy.expected_hit(trial))
+			score *= trial.max_health / incoming
 		if score > best_score:
 			best_score = score
 			best = candidate
