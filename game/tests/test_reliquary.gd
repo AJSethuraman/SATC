@@ -91,9 +91,9 @@ func test_a_banked_item_is_not_a_pile_of_loose_components() -> void:
 
 
 func test_an_affixed_item_cannot_be_banked() -> void:
-	# Not a component and not something you assembled. The loot that is meant to
-	# be worth banking unassembled — uniques and sets — does not exist yet, so
-	# this stays refused until it does.
+	# A roll rather than a component or something you assembled. Uniques and set
+	# pieces are exempt — they are fixed content, not rolls — which is what
+	# test_a_unique_can_be_banked pins from the other side.
 	var item := _vessel(2)
 	var rolled := Affix.Rolled.new()
 	rolled.id = "test"
