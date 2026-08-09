@@ -281,3 +281,72 @@ func test_a_loaded_reliquary_still_owes_a_begin_run() -> void:
 	var loaded := Reliquary.from_dict({"capacity": 8, "contents": []})
 	loaded.begin_run()
 	assert_eq(loaded.deposits_remaining(), 1)
+
+
+## Uniques and sets are bankable, and that is the revisit the rejection rule
+## asked for in writing: "no affixes" was a stand-in for "not a roll", chosen
+## when named items did not exist. Now they do, and a run that never lined up
+## its sigils still has something to keep.
+func test_a_unique_can_be_banked() -> void:
+	var bank := Reliquary.new()
+	var drop := _named_drop(_any_unique())
+	assert_eq(bank.rejection_reason(drop), "", "a unique was refused")
+	assert_true(bank.deposit(drop))
+	assert_eq(bank.named_items().size(), 1)
+
+
+## And a rare still cannot, for a reason the design depends on: banking rolls
+## turns the one hard choice a run makes into a ratchet.
+func test_a_rare_still_cannot_be_banked() -> void:
+	var bank := Reliquary.new()
+	var rare := Item.new()
+	rare.rarity = Item.Rarity.RARE
+	var line := Affix.Rolled.new()
+	line.id = "test_line"
+	line.display_name = "+10 life"
+	line.mods = {"max_health": 10.0}
+	rare.affixes.append(line)
+	assert_ne(bank.rejection_reason(rare), "", "a rolled rare was accepted into the bank")
+
+
+## A banked unique comes back as itself, re-stamped from the current table
+## rather than from stored numbers — so retuning content retunes the bank.
+func test_a_banked_unique_survives_a_round_trip() -> void:
+	var bank := Reliquary.new()
+	var piece := _any_unique()
+	assert_true(bank.deposit(_named_drop(piece)))
+
+	var restored := Reliquary.item_from_entry(bank.named_items()[0], null)
+	assert_ne(restored, null, "a banked unique did not come back")
+	assert_eq(restored.unique_name, piece.display_name)
+	assert_eq(restored.rarity, Item.Rarity.UNIQUE)
+	assert_eq(restored.affixes.size(), piece.mods.size())
+
+
+## A piece cut from the content table vanishes rather than persisting as a ghost
+## with stats nothing in the game can explain.
+func test_a_banked_piece_that_content_removed_comes_back_as_nothing() -> void:
+	assert_eq(
+		Reliquary.item_from_entry(
+			{"kind": "named", "base": "Falchion", "slot": "weapon", "piece": "No Such Thing"}, null
+		),
+		null
+	)
+
+
+func _any_unique() -> UniquePool.Piece:
+	for entry in UniquePool.shared().pieces:
+		var piece := entry as UniquePool.Piece
+		if piece != null and not piece.is_set_piece():
+			return piece
+	fail("no uniques in the table")
+	return null
+
+
+func _named_drop(entry: Variant) -> Item:
+	var piece := entry as UniquePool.Piece
+	var item := Item.new()
+	item.base_name = "Test Base"
+	item.ilvl = 20
+	piece.stamp(item)
+	return item

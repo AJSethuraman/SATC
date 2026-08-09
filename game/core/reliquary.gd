@@ -8,8 +8,11 @@ extends RefCounted
 ## the game that outlives the character making it.
 ##
 ## THE LOAD-BEARING RULE: you may bank a finished item. You must assemble it
-## inside a single run. What the bank refuses is the half-built thing: a vessel
-## with sigils in it that do not yet spell anything.
+## inside a single run. What the bank refuses is the half-built thing — a vessel
+## with sigils in it that do not yet spell anything — and the merely lucky one: a
+## rare is a roll, and banking rolls makes the slot a ratchet rather than a
+## choice. Uniques and set pieces bank freely, because a named item is the same
+## item every time and keeping one is a decision about which item you want.
 ##
 ## That inverts the rule this system shipped with — "only raw sigils and empty
 ## vessels may be deposited, never a completed item" — and the inversion is
@@ -67,6 +70,7 @@ var capacity: int = DEFAULT_CAPACITY
 ##   {"kind": "vessel", "base": ..., "slot": ..., "sockets": n}
 ##   {"kind": "item",   "base": ..., "slot": ..., "sockets": n,
 ##                      "sigils": [id, ...], "inscription": id}
+##   {"kind": "named",  "base": ..., "slot": ..., "ilvl": n, "piece": name}
 ## A finished item keeps its sigils in socket order because order is what makes
 ## the inscription; a bag of the same three sigils is a different thing.
 var contents: Array = []
@@ -98,19 +102,30 @@ func is_full() -> bool:
 ## Why a deposit would be refused, or "" if it would be accepted. Returns a
 ## reason rather than a bool so callers can tell the player something useful.
 func rejection_reason(item: Item) -> String:
-	if not item.is_inscribed():
+	if not item.is_inscribed() and not item.is_named():
 		# The one refusal the whole design now rests on. Banking a vessel with
 		# two of the three sigils already in it would let you carry the assembly
 		# across runs a piece at a time, which is exactly the work that has to
 		# happen in one sitting.
 		if not item.socketed.is_empty():
 			return "finish the inscription this run or bank the sigils loose"
-		# Rolled affixes are still refused, and deliberately conservatively so:
-		# an affixed item is neither a component nor something you assembled, and
-		# the loot that is *meant* to be worth banking unassembled — uniques and
-		# sets — does not exist yet. Revisit this when it does, not before.
+		# Rolled affixes stay refused, and the line is now drawn somewhere it can
+		# be justified: what may be banked is a *fixed* thing — a finished
+		# inscription, a unique, a set piece — and what may not is a roll.
+		#
+		# This is the revisit the previous comment here asked for. Uniques and
+		# sets did not exist when the rule was written, so "no affixes" was the
+		# only available approximation of it; now that they do, banking one is
+		# the entire point of them. A run that never lined up its sigils still
+		# has something to keep, which is what makes a bad run worth finishing.
+		#
+		# Rares remain out, and not arbitrarily: a rare is a roll, so banking
+		# rares turns the reliquary into a place you hoard rerolls, and the slot
+		# that was meant to be a hard choice becomes a strictly-better ratchet.
+		# A unique is the same item every time, so keeping one is a decision
+		# about which item you want, not about which roll you got.
 		if not item.affixes.is_empty():
-			return "only vessels and finished inscriptions can be banked"
+			return "only vessels, named items and finished inscriptions can be banked"
 		if item.sockets <= 0:
 			return "that vessel has no sockets"
 	if deposits_remaining() <= 0:
@@ -142,6 +157,20 @@ func deposit_vessel(item: Item) -> bool:
 
 
 func _entry_for(item: Item) -> Dictionary:
+	# A named item stores its id and nothing else. Every stat it carries is
+	# content, so re-stamping it from the current table on load is both smaller
+	# and correct by construction: a retuned unique comes back retuned, and one
+	# deleted from the table comes back as nothing rather than as a ghost of a
+	# balance pass that no longer exists. Same reasoning as the inscription
+	# re-derivation below.
+	if item.is_named():
+		return {
+			"kind": "named",
+			"base": item.base_name,
+			"slot": item.slot,
+			"ilvl": item.ilvl,
+			"piece": item.unique_name,
+		}
 	if item.is_inscribed():
 		return {
 			"kind": "item",
@@ -218,6 +247,8 @@ func best_sockets(for_slot: String) -> int:
 ## for. The stored "inscription" id is there so a UI can list the bank without
 ## loading the book, not as the authority on what the item is.
 static func item_from_entry(entry: Dictionary, book: InscriptionBook) -> Item:
+	if str(entry.get("kind", "")) == "named":
+		return _named_from_entry(entry)
 	if book == null or str(entry.get("kind", "")) != "item":
 		return null
 	var item := Item.new()
@@ -238,6 +269,26 @@ static func item_from_entry(entry: Dictionary, book: InscriptionBook) -> Item:
 			item.insert(sigil)
 	item.reappraise(book)
 	return item
+
+
+## Re-stamp a banked unique or set piece from the current table, or null if the
+## table no longer has it — a piece cut from content should vanish from the bank
+## rather than persist with stats nothing can explain.
+static func _named_from_entry(entry: Dictionary) -> Item:
+	var piece := UniquePool.shared().piece_by_name(str(entry.get("piece", "")))
+	if piece == null:
+		return null
+	var item := Item.new()
+	item.base_name = str(entry.get("base", "Item"))
+	item.slot = str(entry.get("slot", piece.slot))
+	item.ilvl = int(entry.get("ilvl", 1))
+	piece.stamp(item)
+	return item
+
+
+## Named items held, as entry dictionaries.
+func named_items() -> Array:
+	return contents.filter(func(e): return str(e.get("kind", "")) == "named")
 
 
 func to_dict() -> Dictionary:

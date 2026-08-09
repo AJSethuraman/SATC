@@ -151,6 +151,13 @@ func is_inscribed() -> bool:
 	return inscription != null
 
 
+## A unique or a set piece — fixed content rather than a roll. The distinction
+## the Reliquary banks on: a named item is the same item every time, so keeping
+## one is a choice about which item you want rather than which roll you got.
+func is_named() -> bool:
+	return unique_name != ""
+
+
 func free_sockets() -> int:
 	return sockets - socketed.size()
 

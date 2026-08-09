@@ -78,6 +78,12 @@ The new rule inverts what is stored and keeps the thing that mattered:
 
 > **You may bank a finished item. You must assemble it inside a single run.**
 
+What counts as finished is anything that is not a roll: a completed inscription,
+a unique, a set piece. A rare stays out — banking rolls would turn the one hard
+choice a run makes into a ratchet, since the next rare is always a reroll of the
+last one. A unique is the same item every time, so keeping one is a decision
+about which item you want rather than which roll you got.
+
 The grind moves from hoarding components across runs to getting deep enough, in
 one run, to hold everything at once. And the old failure mode does not return,
 because a runeword made in Normal is outscaled by Nightmare — a banked item is a
