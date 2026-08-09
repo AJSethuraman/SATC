@@ -92,7 +92,10 @@ jobs:
             | tee "$RUNNER_TEMP/balance.log"
 
       - name: Simulate inscription acquisition
-        run: godot --headless --path game --script res://sim/acquisition_sim.gd -- 600 5
+        run: |
+          set -o pipefail
+          godot --headless --path game --script res://sim/acquisition_sim.gd -- 600 15 \
+            | tee "$RUNNER_TEMP/acquisition.log"
 
       - name: Render a frame and check it is not blank
         # A boot test proves nothing crashed; it cannot notice that the screen is
@@ -115,7 +118,7 @@ jobs:
           path: game/frame.png
           if-no-files-found: warn
 
-      - name: Balance summary
+      - name: Simulation summary
         # Deliberately the last step. The simulator's verdict on the difficulty
         # curve is the most-read output of this workflow, and burying it in the
         # middle means digging it back out of a log whose bulk is a scene dump
@@ -126,4 +129,7 @@ jobs:
           set -uo pipefail
           echo "----- balance summary -----"
           grep -E "policy:|depth  |median run ends|cleared all|diversity:" \
-            "$RUNNER_TEMP/balance.log" || echo "(simulator did not run)"
+            "$RUNNER_TEMP/balance.log" || echo "(balance simulator did not run)"
+          echo "----- acquisition summary -----"
+          grep -E "^-- |runs to completion|never got one" \
+            "$RUNNER_TEMP/acquisition.log" || echo "(acquisition simulator did not run)"
