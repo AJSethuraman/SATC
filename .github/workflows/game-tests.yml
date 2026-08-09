@@ -131,5 +131,5 @@ jobs:
           grep -E "policy:|depth  |median run ends|cleared all|diversity:" \
             "$RUNNER_TEMP/balance.log" || echo "(balance simulator did not run)"
           echo "----- acquisition summary -----"
-          grep -E "^-- |runs to completion|never got one" \
+          grep -E "^-- |runs to completion|never got one|blocked on" \
             "$RUNNER_TEMP/acquisition.log" || echo "(acquisition simulator did not run)"
