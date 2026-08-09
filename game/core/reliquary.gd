@@ -12,8 +12,8 @@ extends RefCounted
 ## Never a completed item, never a vessel with anything already in it.
 ##
 ## Everything rests on that. An inscription needs a vessel plus two or three
-## specific sigils, so at one deposit per run it is physically impossible to bank
-## a finished weapon — you assemble it across runs and complete it *inside* one.
+## specific sigils, and since a finished item can never be banked at any
+## allowance, you assemble it across runs and complete it *inside* one.
 ## Relax the rule and the design collapses straight into "keep your best gear",
 ## which the balance simulator already identified as the failure mode: farm one
 ## good weapon and every subsequent run opens easy. test_reliquary.gd enforces
@@ -24,7 +24,25 @@ extends RefCounted
 ## count. No item state to serialise, no versioning problem.
 
 const DEFAULT_CAPACITY := 8
-const DEPOSITS_PER_RUN := 1
+
+## Deposits are earned by getting deeper, not handed out flat.
+##
+## One per run was the original rule and it made the whole system arithmetic
+## rather than a game. A specific three-sigil inscription came out at a median
+## of forty-nine runs with 62% of players never seeing one in four hundred,
+## because income was capped at one component per attempt no matter how well the
+## attempt went. That is not a chase, it is a queue — and no amount of tuning
+## the drop rate fixes a cap.
+##
+## So: one for showing up, and one more for each act cleared. A run that dies in
+## the Cinderwaste banks one; a full clear banks five. That ties the bank to
+## how the run actually went, gives the difficulty curve something to pay out,
+## and makes the answer to "why push deeper" a concrete one.
+##
+## It also matches what this was always for. The bank is a ramp into the next
+## run, not a vault you fill toward one endgame item.
+const DEPOSITS_AT_START := 1
+const DEPOSITS_PER_ACT := 1
 
 var capacity: int = DEFAULT_CAPACITY
 
@@ -32,15 +50,24 @@ var capacity: int = DEFAULT_CAPACITY
 ## {"kind": "vessel", "base": ..., "slot": ..., "sockets": n}.
 var contents: Array = []
 
-var _deposits_this_run: int = 0
+var _deposits_earned: int = DEPOSITS_AT_START
+var _deposits_used: int = 0
 
 
 func begin_run() -> void:
-	_deposits_this_run = 0
+	_deposits_earned = DEPOSITS_AT_START
+	_deposits_used = 0
+
+
+## Call when an act boss falls. The deposit is banked as *allowance*, so a run
+## that earns three and spends none simply carries nothing over — it is a
+## licence to keep something, not a thing.
+func earn_deposit() -> void:
+	_deposits_earned += DEPOSITS_PER_ACT
 
 
 func deposits_remaining() -> int:
-	return maxi(0, DEPOSITS_PER_RUN - _deposits_this_run)
+	return maxi(0, _deposits_earned - _deposits_used)
 
 
 func is_full() -> bool:
@@ -78,7 +105,7 @@ func deposit_vessel(item: Item) -> bool:
 		"slot": item.slot,
 		"sockets": item.sockets,
 	})
-	_deposits_this_run += 1
+	_deposits_used += 1
 	return true
 
 
@@ -86,7 +113,7 @@ func deposit_sigil(sigil: Sigil) -> bool:
 	if deposits_remaining() <= 0 or is_full():
 		return false
 	contents.append({"kind": "sigil", "id": sigil.id})
-	_deposits_this_run += 1
+	_deposits_used += 1
 	return true
 
 

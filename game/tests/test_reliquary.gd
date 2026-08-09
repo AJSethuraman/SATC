@@ -73,15 +73,53 @@ func test_a_vessel_without_sockets_is_not_worth_banking() -> void:
 	assert_false(_fresh().can_deposit(_vessel(0)))
 
 
-# --- one deposit per run ------------------------------------------------
+# --- deposits are earned by depth ---------------------------------------
 
 
-func test_only_one_deposit_per_run() -> void:
+func test_a_run_starts_with_a_single_deposit() -> void:
 	var bank := _fresh()
 	assert_true(bank.deposit_vessel(_vessel(2)))
 	assert_eq(bank.deposits_remaining(), 0)
-	assert_false(bank.deposit_vessel(_vessel(3)), "a second deposit in one run must be refused")
+	assert_false(bank.deposit_vessel(_vessel(3)), "an unearned deposit must be refused")
 	assert_eq(bank.contents.size(), 1)
+
+
+## Clearing an act earns another. This is the fix for a chase that had a median
+## of forty-nine runs and a 62% never-finished rate: income was capped at one
+## component per attempt however well the attempt went, which is a queue rather
+## than a chase, and no drop-rate tuning fixes a cap.
+func test_clearing_an_act_earns_another_deposit() -> void:
+	var bank := _fresh()
+	assert_true(bank.deposit_vessel(_vessel(2)))
+	assert_eq(bank.deposits_remaining(), 0)
+
+	bank.earn_deposit()
+	assert_eq(bank.deposits_remaining(), 1)
+	assert_true(bank.deposit_vessel(_vessel(3)), "an earned deposit must be spendable")
+	assert_eq(bank.contents.size(), 2)
+
+
+## A full clear of every act should bank meaningfully more than a run that dies
+## early — that is the entire reason for tying the allowance to progress.
+func test_a_deep_run_banks_more_than_a_shallow_one() -> void:
+	var shallow := _fresh()
+	var deep := _fresh()
+	for _act in Progression.ACTS:
+		deep.earn_deposit()
+	assert_gt(
+		float(deep.deposits_remaining()), float(shallow.deposits_remaining()) + 1.0,
+		"clearing four acts is worth no more than dying in the first"
+	)
+
+
+## Earning is not banking. An allowance that is never spent carries nothing into
+## the next run, so a deep run still has to choose what to keep.
+func test_an_unspent_allowance_does_not_carry_over() -> void:
+	var bank := _fresh()
+	bank.earn_deposit()
+	bank.earn_deposit()
+	bank.begin_run()
+	assert_eq(bank.deposits_remaining(), Reliquary.DEPOSITS_AT_START)
 
 
 func test_the_allowance_resets_next_run() -> void:

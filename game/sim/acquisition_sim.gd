@@ -5,7 +5,7 @@ extends SceneTree
 ##   godot --headless --path game --script res://sim/acquisition_sim.gd
 ##   godot --headless --path game --script res://sim/acquisition_sim.gd -- 2000 5
 ##
-## Args: [players] [floors_cleared_per_run].
+## Args: [players] [areas_cleared_per_run].
 ##
 ## This exists to answer the one question the runeword design lives or dies on
 ## before any of it is built into the game. Too slow and the chase is a grind
@@ -37,7 +37,7 @@ const SIGIL_DROP_CHANCE := 0.34
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	var players := int(args[0]) if args.size() > 0 else 1000
-	var floors := int(args[1]) if args.size() > 1 else 5
+	var areas_deep := int(args[1]) if args.size() > 1 else 15
 
 	var gen := ItemGenerator.from_json(ITEMS_PATH)
 	var book := InscriptionBook.from_json(SIGILS_PATH)
@@ -45,15 +45,15 @@ func _initialize() -> void:
 	print("")
 	print("Ashfall acquisition simulation")
 	print("==============================")
-	print("players=%d  floors cleared per run=%d  sigil drop chance=%.2f"
-		% [players, floors, SIGIL_DROP_CHANCE])
-	print("reliquary: %d capacity, %d deposit per run"
-		% [Reliquary.DEFAULT_CAPACITY, Reliquary.DEPOSITS_PER_RUN])
+	print("players=%d  areas cleared per run=%d  sigil drop chance=%.2f"
+		% [players, areas_deep, SIGIL_DROP_CHANCE])
+	print("reliquary: %d capacity, %d deposit at start + %d per act cleared"
+		% [Reliquary.DEFAULT_CAPACITY, Reliquary.DEPOSITS_AT_START, Reliquary.DEPOSITS_PER_ACT])
 
 	# Pass one: any inscription at all. This is the on-ramp — how long before the
 	# system first does anything for you.
 	_run_pass(
-		"ANY inscription (the on-ramp)", gen, book, players, floors,
+		"ANY inscription (the on-ramp)", gen, book, players, areas_deep,
 		book.by_ascending_cost(), MAX_RUNS
 	)
 
@@ -65,7 +65,7 @@ func _initialize() -> void:
 		if chased != null:
 			_run_pass(
 				"'%s' specifically (%d sigils)" % [chased.display_name, chased.pattern.size()],
-				gen, book, players, floors, [chased], CHASE_MAX_RUNS
+				gen, book, players, areas_deep, [chased], CHASE_MAX_RUNS
 			)
 	print("")
 	quit(0)
@@ -77,7 +77,7 @@ func _initialize() -> void:
 ## they can still finish, bank whichever single piece most advances it, and
 ## complete the word the moment the last component is in hand mid-run.
 func _play_until_inscribed(
-	gen: ItemGenerator, book: InscriptionBook, seed_v: int, floors: int, targets: Array,
+	gen: ItemGenerator, book: InscriptionBook, seed_v: int, areas_deep: int, targets: Array,
 	max_runs: int
 ) -> Dictionary:
 	var rng := Rng.new(seed_v)
@@ -99,8 +99,20 @@ func _play_until_inscribed(
 		var loose_sigils: Array = []
 		var loose_vessels: Array = []
 
-		for floor_n in range(1, floors + 1):
-			var ilvl := floor_n + 3
+		# Walk the real structure rather than a flat stack of floors. Areas pay
+		# gear on the cadence Progression sets, and clearing an act earns a
+		# deposit — so how deep a run gets is what decides how much of it you
+		# keep, which is the entire point of tying the bank to depth.
+		for area_index in range(1, areas_deep + 1):
+			var act := Progression.act_of_depth(area_index)
+			var area := ((area_index - 1) % Progression.AREAS_PER_ACT) + 1
+			var reward := Progression.reward_of(area)
+			if reward == Progression.Reward.BOON:
+				continue
+			if Progression.kind_of(area) == Progression.AreaKind.BOSS:
+				bank.earn_deposit()
+
+			var ilvl := area_index + 3
 			if rng.chance(SIGIL_DROP_CHANCE):
 				loose_sigils.append(book.roll_sigil(rng, ilvl).id)
 			else:
@@ -157,6 +169,12 @@ func _completable(
 
 ## Bank the piece that most advances the cheapest live target: the vessel if we
 ## still lack one big enough, otherwise a sigil the recipe still wants.
+## Bank as much as the run earned, best piece first.
+##
+## Deposits used to be one flat allowance per run, so this kept a single item
+## and returned. They are earned by depth now — see Reliquary.DEPOSITS_PER_ACT —
+## so a deep run keeps several components and a shallow one keeps one piece,
+## which is the whole reason tying the bank to progress is worth doing.
 func _bank_best(
 	bank: Reliquary,
 	book: InscriptionBook,
@@ -167,8 +185,25 @@ func _bank_best(
 	loose_vessels: Array,
 	gen: ItemGenerator
 ) -> void:
-	if bank.is_full() or targets.is_empty():
-		return
+	while bank.deposits_remaining() > 0 and not bank.is_full():
+		if not _bank_one(bank, book, targets, held_sigils, held_vessels, loose_sigils, loose_vessels):
+			return
+
+
+## Bank the single piece that most advances the cheapest live target, and remove
+## it from what the run is still carrying. Returns false when nothing left in
+## hand is worth a deposit, which is what stops the caller looping.
+func _bank_one(
+	bank: Reliquary,
+	book: InscriptionBook,
+	targets: Array,
+	held_sigils: Array,
+	held_vessels: Dictionary,
+	loose_sigils: Array,
+	loose_vessels: Array
+) -> bool:
+	if targets.is_empty():
+		return false
 
 	var target: Inscription = targets[0]
 	var need: Dictionary = target.requirements()
@@ -177,37 +212,50 @@ func _bank_best(
 
 	var has_exact: bool = held_vessels.has(slot) and held_vessels[slot].has(want_sockets)
 	if not has_exact:
-		var best := {}
-		for v in loose_vessels:
+		for i in loose_vessels.size():
+			var v: Dictionary = loose_vessels[i]
 			if (slot == "" or str(v["slot"]) == slot) and int(v["sockets"]) == want_sockets:
-				best = v
-				break
-		if not best.is_empty():
-			var item := Item.new()
-			item.slot = str(best["slot"])
-			item.base_name = "Vessel"
-			item.sockets = int(best["sockets"])
-			bank.deposit_vessel(item)
-			return
+				var item := Item.new()
+				item.slot = str(v["slot"])
+				item.base_name = "Vessel"
+				item.sockets = int(v["sockets"])
+				if not bank.deposit_vessel(item):
+					return false
+				loose_vessels.remove_at(i)
+				if not held_vessels.has(item.slot):
+					held_vessels[item.slot] = {}
+				held_vessels[item.slot][item.sockets] = true
+				return true
 
 	for sigil_id in need["sigils"]:
 		var wanted := int(need["sigils"][sigil_id])
 		var have := held_sigils.count(sigil_id)
-		if have < wanted and loose_sigils.has(sigil_id):
-			bank.deposit_sigil(book.sigil_by_id(str(sigil_id)))
-			return
+		var at := loose_sigils.find(sigil_id)
+		if have < wanted and at >= 0:
+			if not bank.deposit_sigil(book.sigil_by_id(str(sigil_id))):
+				return false
+			loose_sigils.remove_at(at)
+			held_sigils.append(str(sigil_id))
+			return true
 
-	# Nothing on the critical path dropped — keep the rarest sigil found, which
+	# Nothing on the critical path in hand — keep the rarest sigil found, which
 	# is what a player hoarding for a later recipe would do.
 	var best_sigil := ""
 	var best_tier := -1
-	for id in loose_sigils:
-		var s := book.sigil_by_id(str(id))
-		if s != null and s.tier > best_tier:
-			best_tier = s.tier
-			best_sigil = str(id)
-	if best_sigil != "":
-		bank.deposit_sigil(book.sigil_by_id(best_sigil))
+	var best_at := -1
+	for i in loose_sigils.size():
+		var sg := book.sigil_by_id(str(loose_sigils[i]))
+		if sg != null and sg.tier > best_tier:
+			best_tier = sg.tier
+			best_sigil = str(loose_sigils[i])
+			best_at = i
+	if best_sigil == "":
+		return false
+	if not bank.deposit_sigil(book.sigil_by_id(best_sigil)):
+		return false
+	loose_sigils.remove_at(best_at)
+	held_sigils.append(best_sigil)
+	return true
 
 
 func _run_pass(
@@ -215,7 +263,7 @@ func _run_pass(
 	gen: ItemGenerator,
 	book: InscriptionBook,
 	players: int,
-	floors: int,
+	areas_deep: int,
 	targets: Array,
 	max_runs: int
 ) -> void:
@@ -224,7 +272,7 @@ func _run_pass(
 	var which := {}
 
 	for p in players:
-		var outcome := _play_until_inscribed(gen, book, p * 7919 + 17, floors, targets, max_runs)
+		var outcome := _play_until_inscribed(gen, book, p * 7919 + 17, areas_deep, targets, max_runs)
 		if outcome["run"] < 0:
 			never += 1
 		else:
