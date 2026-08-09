@@ -94,7 +94,12 @@ jobs:
       - name: Simulate inscription acquisition
         run: |
           set -o pipefail
-          godot --headless --path game --script res://sim/acquisition_sim.gd -- 600 15 \
+          # The second argument is 0 so each run draws its own depth from the
+          # balance simulator's measured quantiles. It used to be 15, which kept
+          # every simulated run inside Normal and made every three-sigil
+          # inscription unobtainable — a finding about the instrument, not the
+          # game. See the DEPTH_* constants in the simulator.
+          godot --headless --path game --script res://sim/acquisition_sim.gd -- 600 0 \
             | tee "$RUNNER_TEMP/acquisition.log"
 
       - name: Render a frame and check it is not blank
@@ -131,5 +136,10 @@ jobs:
           grep -E "policy:|depth  |median run ends|cleared all|diversity:" \
             "$RUNNER_TEMP/balance.log" || echo "(balance simulator did not run)"
           echo "----- acquisition summary -----"
-          grep -E "^-- |runs to completion|never got one|blocked on" \
+          # NOBODY is in this list because leaving it out hid the single worst
+          # result the simulator can produce: a recipe nobody completed printed
+          # only its blocker line, so the summary showed a target with no
+          # numbers next to two healthy ones and read as fine. A summary that
+          # can omit total failure is worse than no summary.
+          grep -E "^-- |runs to completion|never got one|blocked on|NOBODY" \
             "$RUNNER_TEMP/acquisition.log" || echo "(acquisition simulator did not run)"

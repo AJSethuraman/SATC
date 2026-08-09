@@ -299,3 +299,33 @@ func test_rare_sigils_are_actually_rare() -> void:
 			high += 1
 	var rate := float(high) / float(n)
 	assert_between(rate, 0.001, 0.08, "top-tier sigils should be a chase, not a routine drop")
+
+
+## Every inscription must have somewhere it can be built. A pattern longer than
+## the deepest base's socket ceiling is not a hard recipe, it is an impossible
+## one — and impossible is invisible: it validates, it displays, it simply never
+## happens. This project has shipped that bug twice (a hard tier gate that made
+## two words unobtainable, then a socket ceiling that made every three-sigil
+## word unobtainable), and both times a simulator found it long after a one-line
+## assertion would have.
+func test_every_inscription_fits_a_vessel_that_can_exist() -> void:
+	var book := InscriptionBook.from_json(SIGILS_PATH)
+	var deepest := Item.max_sockets(Item.Tier.ELITE)
+	for i in book.inscriptions:
+		assert_lt(
+			float(i.pattern.size()), float(deepest + 1),
+			"'%s' needs %d sockets; the best base in the game has %d"
+				% [i.display_name, i.pattern.size(), deepest]
+		)
+
+
+## And the vessel it needs has to be reachable before the run ends. A word whose
+## socket count only exists in Hell is fine; one that needs a tier no difficulty
+## pass grants is not.
+func test_every_socket_count_is_granted_by_some_difficulty() -> void:
+	for tier in [Item.Tier.PLAIN, Item.Tier.EXCEPTIONAL, Item.Tier.ELITE]:
+		assert_lt(
+			float(Item.min_difficulty(tier)), float(Progression.DIFFICULTIES + 1),
+			"%s bases require difficulty %d, past the last pass"
+				% [Item.TIER_NAMES[tier], Item.min_difficulty(tier)]
+		)

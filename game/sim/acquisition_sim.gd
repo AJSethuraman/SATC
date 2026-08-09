@@ -33,11 +33,57 @@ const CHASE_MAX_RUNS := 400
 ## besides socket rates — turn this first if the answer comes back too slow.
 const SIGIL_DROP_CHANCE := 0.34
 
+## How deep a run gets. These are quantiles measured by sim/balance_sim.gd, and
+## they are an *input* here rather than something this simulator models: this
+## one answers "given how deep runs go, how long is the chase?", and the other
+## one answers how deep runs go.
+##
+## They replaced a flat fifteen areas, and the difference was not cosmetic. That
+## constant dated from a thirty-two-area run where most attempts ended around
+## area five; a run is a hundred and twenty areas across three difficulty passes
+## now, and the balance simulator puts the median near a hundred. Fifteen meant
+## every simulated run stayed inside Normal — so no exceptional base could drop,
+## so no three-socket vessel could drop, so every three-sigil inscription in the
+## game was unobtainable and the simulator reported exactly that. The finding was
+## real and the cause was the instrument, which is the third time in this project
+## a measurement made outside the real pipeline has answered a question about a
+## game that does not exist.
+##
+## Refresh these when the balance curve moves. They are quantiles rather than an
+## average because the shape is what matters: a tenth of runs die almost
+## immediately and bank nothing, and a chase length averaged over a flat depth
+## quietly assumes that never happens.
+const DEPTH_P10 := 3
+const DEPTH_MEDIAN := 98
+const DEPTH_P90 := 113
+
+
+## One run's depth, drawn from the quantiles above by piecewise-linear inverse
+## CDF — the cheapest sampler that reproduces a measured shape without inventing
+## a distribution family it was never checked against.
+static func _sample_depth(rng: Rng) -> int:
+	var u := rng.randf()
+	var deepest := float(Progression.total_areas())
+	var depth := 0.0
+	if u < 0.10:
+		depth = lerpf(1.0, float(DEPTH_P10), u / 0.10)
+	elif u < 0.50:
+		depth = lerpf(float(DEPTH_P10), float(DEPTH_MEDIAN), (u - 0.10) / 0.40)
+	elif u < 0.90:
+		depth = lerpf(float(DEPTH_MEDIAN), float(DEPTH_P90), (u - 0.50) / 0.40)
+	else:
+		depth = lerpf(float(DEPTH_P90), deepest, (u - 0.90) / 0.10)
+	return clampi(roundi(depth), 1, Progression.total_areas())
+
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	var players := int(args[0]) if args.size() > 0 else 1000
-	var areas_deep := int(args[1]) if args.size() > 1 else 15
+	# 0 means "sample each run's depth from the measured quantiles", which is the
+	# realistic model and the default. A positive value pins every run to that
+	# depth, which is only useful for asking what-if questions about one rung of
+	# the difficulty ladder in isolation.
+	var areas_deep := int(args[1]) if args.size() > 1 else 0
 
 	var gen := ItemGenerator.from_json(ITEMS_PATH)
 	var book := InscriptionBook.from_json(SIGILS_PATH)
@@ -45,8 +91,12 @@ func _initialize() -> void:
 	print("")
 	print("Ashfall acquisition simulation")
 	print("==============================")
-	print("players=%d  areas cleared per run=%d  sigil drop chance=%.2f"
-		% [players, areas_deep, SIGIL_DROP_CHANCE])
+	var depth_note := (
+		"sampled p10 %d/median %d/p90 %d" % [DEPTH_P10, DEPTH_MEDIAN, DEPTH_P90]
+		if areas_deep <= 0 else "pinned at %d" % areas_deep
+	)
+	print("players=%d  areas cleared per run: %s  sigil drop chance=%.2f"
+		% [players, depth_note, SIGIL_DROP_CHANCE])
 	print("reliquary: %d capacity, %d deposit at start + %d per act cleared"
 		% [Reliquary.DEFAULT_CAPACITY, Reliquary.DEPOSITS_AT_START, Reliquary.DEPOSITS_PER_ACT])
 
@@ -87,6 +137,11 @@ func _play_until_inscribed(
 	for run in range(1, max_runs + 1):
 		bank.begin_run()
 
+		# Every run gets its own depth. A flat one would hand each attempt the
+		# same shot at the same drops, which erases the case the bank exists for:
+		# a run that dies in the Cinderwaste keeps one thing and tries again.
+		var reached: int = areas_deep if areas_deep > 0 else _sample_depth(rng)
+
 		# Components in hand this run: everything banked, plus what drops now.
 		var held_sigils := bank.sigil_ids().duplicate()
 		# slot -> set of socket counts held, since matching is now exact.
@@ -114,7 +169,7 @@ func _play_until_inscribed(
 		# gear on the cadence Progression sets, and clearing an act earns a
 		# deposit — so how deep a run gets is what decides how much of it you
 		# keep, which is the entire point of tying the bank to depth.
-		for area_index in range(1, areas_deep + 1):
+		for area_index in range(1, reached + 1):
 			var area := ((area_index - 1) % Progression.AREAS_PER_ACT) + 1
 			var reward := Progression.reward_of(area)
 			if reward == Progression.Reward.BOON:
