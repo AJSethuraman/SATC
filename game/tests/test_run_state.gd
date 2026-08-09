@@ -221,12 +221,27 @@ func test_enemy_damage_growth_stays_within_what_a_build_can_answer() -> void:
 	)
 
 
+## The resistance ramp must not aim past the clamp in Damage.resolve. Setting it
+## higher than the cap looks like a difficulty increase and does nothing at all,
+## because the clamp eats the difference — a silent no-op is worse than a wrong
+## number, since the wrong number at least shows up somewhere.
+func test_the_resistance_ramp_stays_inside_the_damage_clamp() -> void:
+	assert_true(
+		RunState.ENEMY_RESIST_MAX <= Damage.RESIST_CAP,
+		"the resistance ramp aims past the clamp, so raising it changes nothing"
+	)
+	assert_gt(RunState.ENEMY_RESIST_PER_AREA, 0.0)
+
+
 func test_enemy_resistances_phase_in_and_stay_capped() -> void:
 	var early := RunState.enemy_for_depth(1)
 	assert_almost_eq(early.resistances.get(Damage.Type.FIRE, 0.0), 0.0, 0.0001, "area 1 must be resist-free")
 	for n in range(1, Progression.total_areas() + 4):
 		var e := RunState.enemy_for_depth(n)
-		assert_between(e.resistances.get(Damage.Type.FIRE, 0.0), 0.0, 0.4, "area %d resistance out of band" % n)
+		assert_between(
+			e.resistances.get(Damage.Type.FIRE, 0.0), 0.0, RunState.ENEMY_RESIST_MAX,
+			"area %d resistance out of band" % n
+		)
 		assert_almost_eq(e.resistances.get(Damage.Type.PHYSICAL, 0.0), 0.0, 0.0001, "physical must stay unresisted")
 
 

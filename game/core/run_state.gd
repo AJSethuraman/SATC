@@ -176,6 +176,18 @@ const AREA_DAMAGE_GROWTH := 1.028
 const ACT_HEALTH_STEP := 1.25
 const ACT_DAMAGE_STEP := 1.10
 
+## How fast enemy elemental resistance climbs, and where it stops.
+##
+## Named rather than inline because they are now a balance dial rather than
+## flavour, and because a test that asserts on a literal has to be edited every
+## time the dial moves — which teaches you to edit tests to match code instead
+## of the other way round.
+##
+## Must stay at or under Damage.RESIST_CAP; past that the clamp silently eats
+## the difference and raising the number does nothing at all.
+const ENEMY_RESIST_PER_AREA := 0.026
+const ENEMY_RESIST_MAX := 0.6
+
 
 ## How deep the run is, counted in areas cleared. Every curve is written against
 ## this rather than against act/area, so difficulty never depends on how the run
@@ -210,7 +222,7 @@ static func enemy_for_depth(d: int, elite: bool = false) -> StatBlock:
 	# the dial Cold Mastery and the pierce stat are the answer to, which is the
 	# shape Diablo II has: deep enemies resist your element, and the counterplay
 	# is penetration rather than simply more damage.
-	var res := minf(0.6, 0.026 * areas)
+	var res := minf(ENEMY_RESIST_MAX, ENEMY_RESIST_PER_AREA * areas)
 	for t in Damage.Type.values():
 		if t != Damage.Type.PHYSICAL:
 			e.resistances[t] = res
