@@ -22,7 +22,25 @@ const TEST_SCRIPTS: Array[String] = [
 ]
 
 
-func _initialize() -> void:
+var _ran := false
+
+
+## The suite runs on the first frame rather than in _initialize.
+##
+## Anything scene-level needs a live tree: inside _initialize the root window is
+## not yet inside the tree, so add_child gives you a node whose global_transform
+## is silently the identity — tests/test_projectile.gd looked like a bolt that
+## refused to move. By the first idle frame the tree is real. Pure core/ tests do
+## not care either way.
+func _process(_delta: float) -> bool:
+	if _ran:
+		return true
+	_ran = true
+	_run()
+	return true
+
+
+func _run() -> void:
 	var filter := ""
 	var user_args := OS.get_cmdline_user_args()
 	if user_args.size() > 0:

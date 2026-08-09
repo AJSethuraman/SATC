@@ -22,6 +22,10 @@ func _holder() -> Node3D:
 	var tree := Engine.get_main_loop() as SceneTree
 	var holder := Node3D.new()
 	tree.root.add_child(holder)
+	# Tripwire. Outside a live tree, global_position quietly returns the identity
+	# and every assertion below passes or fails for the wrong reason — which is
+	# exactly how this file failed the first time it ran.
+	assert_true(holder.is_inside_tree(), "scene tests need a live tree")
 	return holder
 
 
