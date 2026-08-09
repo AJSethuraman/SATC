@@ -77,7 +77,7 @@ func build(height: float, colour: Color, with_weapon: bool) -> void:
 	# under two pixels at this camera distance — present in the buffer, absent
 	# to the eye. An outline either states the silhouette or it is not worth
 	# drawing.
-	var line := height * 0.03
+	var line := height * 0.038
 	_skin = Shapes.body(colour, line)
 	_accent = Shapes.body(colour.darkened(0.28), line)
 

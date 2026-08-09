@@ -17,7 +17,7 @@ const SIGILS_PATH := "res://data/sigils.json"
 const SPELLS_PATH := "res://data/spells.json"
 
 const SPAWN_MARGIN := 2.5
-const MIN_SPAWN_DISTANCE := 7.0
+const MIN_SPAWN_DISTANCE := 5.0
 
 var run: RunState
 var generator: ItemGenerator
@@ -474,7 +474,7 @@ func _scatter_rubble() -> void:
 	var half := Feel.ARENA * 0.5
 	var material := Shapes.solid(Feel.COLOUR_WALL.darkened(0.15))
 
-	for i in 26:
+	for i in 16:
 		var mesh := BoxMesh.new()
 		var w := rng.randf_range(0.3, 1.1)
 		mesh.size = Vector3(w, rng.randf_range(0.12, 0.34), rng.randf_range(0.3, 1.1))

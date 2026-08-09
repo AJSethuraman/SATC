@@ -26,7 +26,15 @@ extends RefCounted
 const UNITS_PER_PIXEL := 1.0 / 32.0
 
 ## Arena footprint on the ground plane, in metres.
-const ARENA := Vector2(26.0, 20.0)
+## Sized to the camera, not to an idea of a room.
+##
+## At 26x20 with the density cut from eleven bodies to five, a fight was five
+## figures scattered across an arena the camera can only show about 19x11m of —
+## so most of the time the screen held one enemy and a lot of floor, which is
+## "hard to tell what is going on" in its most literal form. Hades' chambers are
+## small and tight for the same reason. This fits inside the frame, so a fight
+## is something you can see all of at once.
+const ARENA := Vector2(18.0, 13.0)
 const WALL_THICKNESS := 1.2
 const WALL_HEIGHT := 1.6
 
