@@ -73,8 +73,11 @@ var _accent: StandardMaterial3D
 func build(height: float, colour: Color, with_weapon: bool) -> void:
 	_height = height
 	# Outline width scales with the body so an elite is not hairline-thin and
-	# a bolt-sized prop is not drawn in marker pen.
-	var line := height * 0.011
+	# a bolt-sized prop is not drawn in marker pen. At 0.011 the line came out
+	# under two pixels at this camera distance — present in the buffer, absent
+	# to the eye. An outline either states the silhouette or it is not worth
+	# drawing.
+	var line := height * 0.03
 	_skin = Shapes.body(colour, line)
 	_accent = Shapes.body(colour.darkened(0.28), line)
 

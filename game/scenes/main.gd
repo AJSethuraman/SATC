@@ -374,17 +374,19 @@ func _build_environment() -> void:
 	# floor, the walls and the bodies are all far darker than that, so nothing
 	# in the arena smears.
 	env.glow_enabled = true
-	env.glow_intensity = 1.15
-	env.glow_strength = 1.1
-	env.glow_bloom = 0.12
-	env.glow_hdr_threshold = 0.92
+	env.glow_intensity = 0.75
+	env.glow_strength = 1.0
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-
-	# A dark corner-fade so the eye is pulled to the middle of the arena rather
-	# than to its edges, and the bodies read against something that is not flat.
-	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.06
-	env.adjustment_saturation = 1.12
+	# glow_bloom is a floor applied to every pixel regardless of threshold, so
+	# any non-zero value blooms the whole image. At 0.12 it turned a near-black
+	# arena into a pale mauve haze and washed the bodies out — the opposite of
+	# the problem it was added to solve. Only the threshold should decide what
+	# glows.
+	env.glow_bloom = 0.0
+	# At 1.0 only pixels that clip white cross it, which in this palette means
+	# the additive spell effects and nothing else. The scene renders LDR, so a
+	# threshold below 1.0 starts catching the grout lines and the player.
+	env.glow_hdr_threshold = 1.0
 
 	var holder := WorldEnvironment.new()
 	holder.environment = env
