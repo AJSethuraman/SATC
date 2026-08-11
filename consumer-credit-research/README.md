@@ -13,6 +13,7 @@ so a claim can be re-verified and the whole doc re-pulled on the source's cadenc
 | File | What it is |
 |---|---|
 | `consumer-credit-deterioration-2026.md` | Current-state read: delinquency & charge-offs by product, the delinquency→charge-off lag, leading-vs-lagging structure, the bank-vs-whole-market divergence, the metrics to weight, and what public data can/can't show at segment level. |
+| `deep-research-pull-2026-08.md` | Output of a `/deep-research` breadth-first data grab for threshold-setting (GCO/NCO/recoveries/delinquency/non-accrual × Key segments, peers, system series, ABS, footprint states). The granular pull was blocked by this session's egress proxy (Fed/FRED/SEC/FDIC all blocked); the file holds what *was* captured (national context + reference metadata) plus a **turnkey source map** — exact FRED series IDs and EDGAR CIKs — for re-running the pull from an unblocked machine. |
 
 ## Method (repeat this for each new pass)
 
