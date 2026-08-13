@@ -189,10 +189,136 @@ This is the most bug-prone requirement in the spec. Treat it as correctness-crit
 
 ---
 
+## 6a · Phase 2 — implementation plan
+
+### Files
+
+| File | Role | Size |
+|---|---|---|
+| `website/intake-config.js` | **The edit surface.** Steps, questions, choices, branching predicates. This is the file you open to change the form. | ~250 lines |
+| `website/intake.js` | The engine. Renders the current step, tracks answers, prunes stale data, builds the payload, submits. | ~300 lines |
+| `website/index.html` | Intake `<section>` markup replaced with a mount point + two `<script src>` tags. Everything else untouched. | −250 / +30 |
+
+Nav, hero, services, footer, the CSS token block, and the contact / booking /
+mobile-nav / analytics IIFEs are **not touched**.
+
+### The step graph
+
+Predicates read the `answers` object. `∋` = "selection includes".
+
+| # | id | type | shown when |
+|---|---|---|---|
+| 1 | `services` | multi | always |
+| 2 | `individual_complexity` | multi | services ∩ {individual_tax, tax_planning, tax_resolution} |
+| 3 | `rental_count` | single | ind ∋ `rentals` |
+| 4 | `business_structure` | single | services ∩ {business_tax, bookkeeping, payroll, entity_setup} **or** ind ∋ `business_owner` |
+| 5 | `entity_count` | single | `business_structure` = multiple |
+| 6 | `business_complexity` | multi | step 4 answered, unless services = {entity_setup} only |
+| 7 | `headcount` | single | biz ∋ `employees` **or** services ∋ payroll |
+| 8 | `contractor_count` | single | biz ∋ `contractors` |
+| 9 | `states_detail` | text | ind ∋ `multistate` **or** biz ∋ `multistate` |
+| 10 | `revenue_band` | single | step 4 answered |
+| 11 | `tax_status` | single | services ∩ {individual_tax, business_tax, tax_planning, tax_resolution} |
+| 12 | `unfiled_years` | single | `tax_status` = multiple_unfiled |
+| 13 | `bookkeeping_status` | single | services ∋ bookkeeping |
+| 14 | `transaction_volume` | single | services ∋ bookkeeping |
+| 15 | `urgency` | single | always |
+| 16 | `deadline` | text | `urgency` ∈ {deadline, notice, unfiled} |
+| 17 | `notes` | textarea | always, optional |
+| 18 | `contact` | group | always, last |
+
+**Path lengths** — validates the 8–12 target:
+
+| Prospect | Steps |
+|---|---|
+| W-2 individual | 1, 2, 11, 15, 17, 18 → **6** |
+| Individual + rentals/investments | + 3 → **7** |
+| Business tax only | 1, 4, 6, 10, 11, 15, 17, 18 → **8** |
+| Bookkeeping cleanup | + 13, 14 → **9** |
+| Tax + books + payroll | → **12** |
+
+### Config shape
+
+```js
+{
+  id: 'rental_count',
+  type: 'single',
+  question: 'How many rental properties?',
+  help: 'A rough count is fine.',
+  required: true,
+  options: [
+    { value: '1',    label: 'Just one' },
+    { value: '2_3',  label: '2–3' },
+    { value: '4_9',  label: '4–9' },
+    { value: '10up', label: '10 or more' },
+  ],
+  showIf: a => (a.individual_complexity || []).includes('rentals'),
+}
+```
+
+**Decision — predicate functions, not a declarative rule DSL.** A data-only rule
+format (`{field, op, value}`) would need an interpreter, which is exactly the
+form-engine abstraction the brief rules out. With no build step and no
+framework, a one-line arrow function is readable, debuggable in the console, and
+costs nothing. Trade-off: config is JS, not JSON — acceptable, since nothing
+consumes it but the browser.
+
+### Stale-data pruning — the correctness core
+
+**One source of truth.** `showIf` decides *both* whether a step renders *and*
+whether its answer may exist. Visibility and retention cannot drift apart,
+because they are the same predicate.
+
+**Prune to a fixpoint, not one pass.** Removing an answer can strand a step
+downstream of it; that step's answer must go too.
+
+```js
+function prune(answers) {
+  let changed = true;
+  while (changed) {                       // cascade: rentals → count, business → entity_count
+    changed = false;
+    for (const step of STEPS) {
+      if (step.showIf && !step.showIf(answers) && step.id in answers) {
+        delete answers[step.id];
+        changed = true;
+      }
+    }
+  }
+}
+```
+
+Runs after every answer mutation. The canonical bug — deselect rentals, keep
+`rental_count = 3` — is structurally impossible, not patched.
+
+### Other decisions this architecture forces
+
+- **Full re-render of the current step from state**, no DOM diffing. No framework
+  to do it for us, and one step is cheap.
+- **Reuse existing classes** — `.field .two .checks .check .btn .form-status
+  .callout .fs-note` already carry the visual language. Almost no new CSS.
+- **Progress bar without a denominator.** Branching means the total isn't known
+  up front; showing "3 of 12" would be a lie. A bar over the currently-known
+  visible steps, recomputed as answers resolve.
+- **`sessionStorage` resume.** Answers survive an accidental reload; cleared on
+  successful submit. Not `localStorage` — this shouldn't outlive the visit.
+- **Contact last.** Lowest friction to start, highest completion. Trade-off:
+  abandonment yields nothing. Revisit if drop-off proves to be a problem.
+
+### Payload
+
+Preserves everything that works today — Formspree POST, mailto fallback,
+`_subject`, `_replyto`, `_gotcha` honeypot, blank stripping — and adds:
+
+- Human-readable `Label: value` lines, so the email stays legible.
+- A single-line `_json` field carrying normalized values, so a Power Automate or
+  Apps Script flow can parse it into a spreadsheet row (§5.4).
+
+---
+
 ## 7 · Progress
 
 - [x] **Phase 1 — Audit.** Complete, findings in §3.
-- [ ] **Phase 2 — Implementation plan.** Map the model in §6 onto the codebase; resolve §5.
+- [x] **Phase 2 — Implementation plan.** Complete, in §6a.
 - [ ] **Phase 3 — Implement.** Smallest reasonable change set.
 - [ ] **Phase 4 — Validate.** Ten representative paths + stale-data adversarial checks.
 
