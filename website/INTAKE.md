@@ -110,32 +110,41 @@ stripping before submit · human-readable field names in the payload.
 | 2026-08-13 | Form collects **no** SSNs/EINs/documents; documents move over a secure upload link sent in the reply | Static page, third-party form relay — wrong channel for a TIN. |
 | 2026-08-13 | Formspree as the delivery mechanism, mailto as fallback | No backend exists; keeps the form on-page and in-design. |
 | 2026-08-13 | Model **Opus 5**, effort **high**; ultracode fan-out reserved for Phase 4 validation only | Phases 1–3 are a single-file edit — parallel agents would collide. Phase 4's ten scenario paths fan out cleanly. |
+| 2026-08-13 | **Split into `intake-config.js` + `intake.js`**, loaded by plain `<script src>` | `index.html` is already 60KB; the questions and branching rules need to be editable on their own. Still zero build step. `CLAUDE.md` convention updated to match. |
+| 2026-08-13 | **Cut the "What you'll need" document checklist** | ~20 checkbox decisions of tax-organizer texture inside a 8–12 interaction target, covering items on the no-collect list. Moves to onboarding after the first conversation. |
+| 2026-08-13 | **One question per step**, contact details grouped onto a single step | Makes it read as a conversation and maps onto the 8–12 target; conditional questions simply never appear rather than leaving gaps in a page. |
+| 2026-08-13 | **Formspree for delivery + a machine-parseable block in the payload** so submissions can reach a spreadsheet without a paid tier | Formspree free retains submissions only **30 days** and gates Zapier behind a paid plan, so it cannot be the record. See §5.4. |
 
 ---
 
-## 5 · Open product decisions
+## 5 · Product decisions
 
-Blocking nothing yet, but each needs an answer before or during Phase 2.
+1–3 **resolved 2026-08-13** (see the decision log). 4 is open.
 
-1. **Split `intake.js` / `intake-config.js` out of `index.html`?**
-   The branching config plus engine will push the single file past ~90KB.
-   Plain `<script src>` keeps zero build step and directly serves the
-   "easy to edit the questions" requirement. `CLAUDE.md` currently describes the
-   site as a single `index.html`, so this changes a stated convention.
-   *Recommendation: split.* — **undecided**
+### 5.4 · Getting submissions into a spreadsheet — open
 
-2. **Drop the "What you'll need" document checklist?**
-   It currently asks prospects to confirm they hold photo ID, prior returns,
-   W-2s, etc. The new spec excludes driver's-license info, prior returns, and
-   detailed tax documents. Confirming possession is not collecting, but it is
-   organizer texture in what should be a qualification form.
-   *Recommendation: cut it, move to onboarding.* — **undecided**
+Researched 2026-08-13. The constraints are real and worth recording:
 
-3. **Is an emailed summary enough for staff?**
-   The spec asks for clean structured data. With no backend, staff get a
-   well-formatted email, not a queryable record. Adding storage is a backend
-   project outside this scope.
-   *Recommendation: accept email for v1, revisit if volume grows.* — **undecided**
+| Fact | Consequence |
+|---|---|
+| Formspree free: ~50 submissions/month, **30-day** submission history | The dashboard is **not** an archive. The email is the record. |
+| Formspree Zapier/integrations are **paid-plan** features | Cannot chain Formspree → Excel on the free tier. |
+| Power Automate **"When an HTTP request is received" is a premium trigger** | Cannot POST the page directly at a Microsoft flow without a Power Automate Premium licence. |
+| Power Automate **"When a new email arrives"** (Office 365 Outlook) is a **standard** connector | Free path to Excel exists — trigger on the Formspree notification email and parse it. |
+
+**Recommended:** make the submission email carry a compact, machine-parseable
+block (fixed `key: value` lines plus a single-line JSON payload) alongside the
+human-readable summary. Then either route works, with no lock-in and no paid
+tier:
+
+- **Microsoft-native, free:** Power Automate → *When a new email arrives* →
+  parse the JSON block → *Add a row into a table* in an Excel workbook on
+  OneDrive.
+- **Simpler, free:** the page also POSTs to a Google Apps Script web app that
+  appends a row to a Sheet; export to `.xlsx` when Excel is wanted.
+
+Designing the payload to be parseable is worth doing **either way**, so this
+does not block Phase 2 or 3.
 
 ---
 
