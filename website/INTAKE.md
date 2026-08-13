@@ -81,7 +81,7 @@ Verified against `main` @ `fe50418` on 2026-08-13.
 | Config | `SATC_CONFIG` block at `index.html:972` — contact, booking, analytics. |
 | JS modules | Six IIFEs: contact wiring · booking link · mobile nav · business-block toggle · intake submit · analytics. |
 | Tests | **None for the website.** `.github/workflows/test.yml` runs pytest for `satc_system` only. |
-| Deploy | `.github/workflows/pages.yml` → GitHub Pages on push to `main` touching `website/**`. Live at <https://ajsethuraman.github.io/satc/>. **Edits here are production changes.** |
+| Deploy | `.github/workflows/pages.yml` → GitHub Pages on push to `main` touching `website/**`. Live at <https://ajsethuraman.github.io/SATC/>. **Edits here are production changes.** |
 
 ### Preserve
 

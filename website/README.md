@@ -5,9 +5,11 @@ Consulting**. Right now it works as a **glorified intake form**: the page you
 send a lead to so they can tell you about their situation before you ever get
 on a call.
 
-- **One file:** [`index.html`](./index.html). No build step, no framework, no
-  dependencies. Open it in a browser to preview; drop it on any static host to
-  publish.
+- **Three files, no build:** [`index.html`](./index.html) is the page;
+  [`intake-config.js`](./intake-config.js) holds the intake questions, choices
+  and branching rules; [`intake.js`](./intake.js) renders them. No framework, no
+  bundler, no dependencies. Drop the folder on any static host to publish.
+  **To change a question, edit `intake-config.js` — nothing else.**
 - **Mobile-first:** works on phones, tablets, and desktop.
 - **Honest content:** no fake testimonials, metrics, or blog posts — only true
   claims you can stand behind.
@@ -37,7 +39,7 @@ submissions land in your email. Sign up, create a form, copy the ID out of the
 URL it gives you (the last part, like `xkgwabcd`), and paste it in:
 
 ```js
-const SATC_CONFIG = {
+window.SATC_CONFIG = {          // must be window.*, not const — intake.js reads it
   contact: {
     email:      "arjun_sethuraman@satcllp.com",
     formspreeId: "xkgwabcd"      // ← paste your Formspree form ID here
@@ -84,20 +86,17 @@ That's it. Commit, and the site updates.
 This is a static page on GitHub Pages. There is **no backend** — submissions
 travel to Formspree and then to your inbox. That shapes what it may ask for.
 
-**It collects:** name, email, phone, city/state, referral source, which services
-are needed, tax years, urgency, filing status, dependents, states worked in,
-prior preparer, business/rental details (entity type, headcount, bookkeeping,
-revenue band), notable events for the year, and free-text notes.
+**It collects:** which services are needed, individual tax complexity, business
+structure and complexity, current tax and bookkeeping status, conditional
+follow-ups on scale (rental count, entity count, headcount, transaction volume,
+revenue band), timing and urgency, optional free-text notes, and contact details.
+Questions that do not apply are never shown, and answers that stop applying are
+deleted rather than submitted.
 
-**It never collects:** SSNs, ITINs, EINs, dates of birth, bank account numbers,
-or document uploads. The page says so explicitly, in a callout above the first
-field.
-
-Instead, the **"What you'll need"** section lists the documents a first
-engagement needs — photo ID, last year's return, W-2s/1099s, business books,
-and so on — as checkboxes the visitor *ticks to confirm they have*. Nothing is
-required. That tells you where to start without moving a single sensitive value
-across the open internet.
+**It never collects:** SSNs, ITINs, EINs, dates of birth, bank or routing
+numbers, driver's license details, IP PINs, dependent detail, credentials, tax
+documents, prior returns, or uploads. The page says so in a callout above the
+first question. There is no file input anywhere.
 
 **The handoff:** your reply email carries a secure upload link for the actual
 documents. The page promises this in three places, so keep that promise — and
@@ -114,7 +113,7 @@ A deploy workflow is already included at
 production changes.** You can also trigger it manually from the Actions tab
 ("Run workflow").
 
-The site is live at **https://ajsethuraman.github.io/satc/**.
+The site is live at **https://ajsethuraman.github.io/SATC/**.
 
 > **Current setup:** served from the GitHub URL above. There is no `CNAME` file,
 > so nothing is pinned to a custom domain. If GitHub still shows a **Custom
@@ -134,7 +133,7 @@ while leaving **email** untouched.
 **1. Re-add the domain pin:** create a file `website/CNAME` containing one line,
 `satcllp.com`, and update the absolute URLs in `index.html` (`og:url`,
 `og:image`, `canonical`, and the JSON-LD `url`/`image`) plus `robots.txt` /
-`sitemap.xml` from `ajsethuraman.github.io/satc` back to `satcllp.com`.
+`sitemap.xml` from `ajsethuraman.github.io/SATC` back to `satcllp.com`.
 
 **2. In GitHub:** Settings → Pages → **Custom domain** → enter `satcllp.com` →
 Save. After it verifies, tick **Enforce HTTPS** (may take a few minutes for the
