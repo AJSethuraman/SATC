@@ -100,10 +100,7 @@ window.INTAKE_STEPS = [
     // inside the individual return; someone freelancing does not think of
     // themselves as running a business, and asking how it is "set up" reads as
     // an interrogation about something they never claimed to have.
-    showIf: a =>
-      wantsBusinessWork(a) ||
-      hasAny(a.services, ['entity_setup']) ||
-      hasAny(a.individual_complexity, ['business_owner']),
+    showIf: a => asksBusinessStructure(a),
     options: [
       { value: 'sole_prop',   label: 'Sole proprietor / Schedule C' },
       { value: 'smllc',       label: 'Single-member LLC' },
@@ -124,7 +121,7 @@ window.INTAKE_STEPS = [
     type: 'single',
     question: 'How many entities?',
     required: true,
-    showIf: a => a.business_structure === 'multiple',
+    showIf: a => asksBusinessStructure(a) && a.business_structure === 'multiple',
     options: [
       { value: '2',   label: 'Two' },
       { value: '3_5', label: '3–5' },
@@ -146,7 +143,7 @@ window.INTAKE_STEPS = [
     //      return who happens to own a business gets asked its structure and
     //      nothing more; scoping a business engagement we were not asked for is
     //      what makes an intake feel like an interrogation.
-    showIf: a => hasBusiness(a) && wantsBusinessWork(a),
+    showIf: a => asksBusinessComplexity(a),
     options: [
       { value: 'employees',           label: 'Employees' },
       { value: 'contractors',         label: 'Independent contractors' },
@@ -169,7 +166,7 @@ window.INTAKE_STEPS = [
     question: 'Roughly how many employees?',
     help: 'Headcount drives the scope of the return and the books.',
     required: true,
-    showIf: a => hasAny(a.business_complexity, ['employees']),
+    showIf: a => asksBusinessComplexity(a) && hasAny(a.business_complexity, ['employees']),
     options: [
       { value: 'none',  label: 'None right now' },
       { value: '1_5',   label: '1–5' },
@@ -186,7 +183,7 @@ window.INTAKE_STEPS = [
     question: 'Roughly how many contractors do you pay?',
     help: 'People you issue 1099s to.',
     required: true,
-    showIf: a => hasAny(a.business_complexity, ['contractors']),
+    showIf: a => asksBusinessComplexity(a) && hasAny(a.business_complexity, ['contractors']),
     options: [
       { value: '1_5',  label: '1–5' },
       { value: '6_20', label: '6–20' },
@@ -204,7 +201,7 @@ window.INTAKE_STEPS = [
     required: true,
     showIf: a =>
       hasAny(a.individual_complexity, ['multistate']) ||
-      hasAny(a.business_complexity, ['multistate']),
+      (asksBusinessComplexity(a) && hasAny(a.business_complexity, ['multistate'])),
   },
 
   /* ── 10 · Revenue band ────────────────────────────────────────────────── */
@@ -213,7 +210,7 @@ window.INTAKE_STEPS = [
     type: 'single',
     question: 'Roughly what does the business bring in a year?',
     help: 'A range is fine — it helps us scope the work.',
-    showIf: a => hasBusiness(a) && wantsBusinessWork(a),
+    showIf: a => asksBusinessComplexity(a),
     options: [
       { value: 'under_100k', label: 'Under $100k' },
       { value: '100k_500k',  label: '$100k – $500k' },
@@ -359,4 +356,22 @@ function wantsBusinessWork(answers) {
 /** A business that exists today. "not_yet" means they are here to start one. */
 function hasBusiness(answers) {
   return !!answers.business_structure && answers.business_structure !== 'not_yet';
+}
+
+/* The next two exist so that every business-branch rule states its OWN full
+   precondition rather than only its immediate trigger. Without them a rule like
+   `a.business_structure === 'multiple'` is correct only because prune() has
+   already removed an inapplicable business_structure — an ordering guarantee
+   that is invisible at the point you would edit the rule. */
+
+/** Do we ask how the business is set up at all? */
+function asksBusinessStructure(answers) {
+  return wantsBusinessWork(answers) ||
+         hasAny(answers.services, ['entity_setup']) ||
+         hasAny(answers.individual_complexity, ['business_owner']);
+}
+
+/** Do we scope the business itself? Requires one to exist AND to be in scope. */
+function asksBusinessComplexity(answers) {
+  return asksBusinessStructure(answers) && hasBusiness(answers) && wantsBusinessWork(answers);
 }
