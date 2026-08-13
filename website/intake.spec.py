@@ -13,7 +13,7 @@ def ok(cond, msg):
     print(("  PASS  " if cond else "  FAIL  ") + msg)
 
 def step(pg, value=None, text=None):
-    if value: pg.check("input[value='%s']" % value)
+    if value: pg.click("label.chip:has(input[value='%s'])" % value)
     if text:  pg.fill(".wiz-step input[type=text], .wiz-step textarea", text)
     pg.click("#intakeForm button[type=submit]")
     pg.wait_for_timeout(200)
@@ -61,8 +61,8 @@ with sync_playwright() as p:
         if not bk: break
         bk.click(); pg.wait_for_timeout(150)
         if "help you with" in (pg.inner_text(".wiz-q") or ""): break
-    pg.uncheck("input[value='business_tax']")
-    pg.check("input[value='individual_tax']"); pg.wait_for_timeout(250)
+    pg.click("label.chip:has(input[value='business_tax'])")        # deselect
+    pg.click("label.chip:has(input[value='individual_tax'])"); pg.wait_for_timeout(250)
     after = answers(pg)
     print("   after deselect     :", after)
     for k in ["business_structure", "business_complexity", "headcount", "revenue_band"]:
@@ -132,7 +132,7 @@ with sync_playwright() as p:
     pg = b.new_page(viewport={"width": 390, "height": 844})
     pg.add_init_script(STUB); pg.goto(U); pg.wait_for_timeout(400)
     ok(pg.evaluate("document.documentElement.scrollWidth") <= 390, "no horizontal overflow")
-    h = pg.eval_on_selector(".wiz-step .check", "e=>e.getBoundingClientRect().height")
+    h = pg.eval_on_selector(".wiz-step .chip", "e=>e.getBoundingClientRect().height")
     ok(h >= 44, "tap target %.0fpx >= 44px" % h)
     pg.close(); b.close()
 

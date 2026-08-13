@@ -299,6 +299,37 @@
     font-family: var(--sans); font-size: 14px; line-height: 1.5; color: var(--charcoal);
   }
   .check input { flex: 0 0 auto; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--gold-deep); cursor: pointer; }
+
+  /* ---- answer chips ----
+     The real checkbox/radio is still there, visually hidden inside the label —
+     so checked state is announced, radio groups keep arrow-key movement, and
+     collect() can go on reading input:checked. */
+  .chips { display: flex; flex-wrap: wrap; gap: 9px; margin: 4px 0 2px; }
+  .chip {
+    position: relative; display: inline-flex; align-items: center;
+    min-height: 46px; padding: 12px 17px;
+    font-family: var(--sans); font-size: 14px; line-height: 1.3;
+    color: var(--charcoal); background: #fff;
+    border: 1px solid var(--hairline); cursor: pointer; user-select: none;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .chip input {
+    position: absolute; opacity: 0; width: 1px; height: 1px;
+    margin: 0; pointer-events: none;
+  }
+  .chip:hover { border-color: var(--gold); color: var(--navy); }
+  .chip.on {
+    background: var(--gold); border-color: var(--gold);
+    color: var(--navy); font-weight: 600;
+  }
+  .chip.on:hover { background: var(--gold-light); border-color: var(--gold-light); }
+  /* the input is invisible, so the focus ring has to live on the chip */
+  .chip:has(input:focus-visible) { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
+  .wiz-hint {
+    font-family: var(--sans); font-size: 10.5px; letter-spacing: 0.2em;
+    text-transform: uppercase; font-weight: 600; color: var(--gold-deep);
+    margin: 0 0 12px;
+  }
   .doc-group { margin-bottom: 24px; }
   .doc-group h5 {
     font-family: var(--sans); font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase;

@@ -160,14 +160,17 @@
     const a = state.answers[step.id];
 
     if (step.type === 'multi' || step.type === 'single') {
+      // Rendered as chips, but each one is still a real checkbox/radio inside
+      // its label — visually hidden, not replaced. Buttons with aria-pressed
+      // would look identical and lose checked-state announcement, arrow-key
+      // movement within a radio group, and the input:checked reads in collect().
       const inputType = step.type === 'multi' ? 'checkbox' : 'radio';
       const chosen = step.type === 'multi' ? (a || []) : (a ? [a] : []);
-      const cols = step.options.length > 6 ? '' : ' one-col';
       const role = step.type === 'multi' ? 'group' : 'radiogroup';
-      return '<div class="checks' + cols + '" role="' + role + '" ' +
-             'aria-label="' + esc(step.question) + '">' + step.options.map((o, i) => {
+      return '<div class="chips" role="' + role + '" ' +
+             'aria-label="' + esc(step.question) + '">' + step.options.map(o => {
         const on = chosen.indexOf(o.value) !== -1;
-        return '<label class="check">' +
+        return '<label class="chip' + (on ? ' on' : '') + '">' +
           '<input type="' + inputType + '" name="' + esc(step.id) + '" ' +
                  'value="' + esc(o.value) + '"' + (on ? ' checked' : '') +
                  (o.exclusive ? ' data-exclusive="1"' : '') + ' />' +
@@ -248,6 +251,9 @@
         '<fieldset class="wiz-step">' +
           '<legend class="wiz-q">' + esc(step.question) + '</legend>' +
           (step.help ? '<p class="fs-note">' + esc(step.help) + '</p>' : '') +
+          // Chips look identical whether one or many may be picked, so say which.
+          (step.type === 'multi'  ? '<p class="wiz-hint">Select all that apply</p>' :
+           step.type === 'single' ? '<p class="wiz-hint">Choose one</p>' : '') +
           controlsFor(step) +
         '</fieldset>' +
         '<input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" ' +
@@ -287,6 +293,20 @@
           });
         });
       });
+    }
+
+    // The chip carries the visual state; its input carries the real state. Sync
+    // on the bubbled change so this runs AFTER the exclusive handler above has
+    // cleared any inputs programmatically (which fires no change event itself).
+    if (step.type === 'multi' || step.type === 'single') {
+      const syncChips = () => {
+        form.querySelectorAll('.chip').forEach(label => {
+          const input = label.querySelector('input');
+          if (input) label.classList.toggle('on', input.checked);
+        });
+      };
+      form.addEventListener('change', syncChips);
+      syncChips();
     }
 
     // Persist as they go. Saving only on navigation meant a reload mid-step
