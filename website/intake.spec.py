@@ -48,17 +48,21 @@ with sync_playwright() as p:
     ok(pg.evaluate("sessionStorage.getItem('satc_intake_v1')") is None, "sessionStorage cleared")
     pg.close()
 
-    print("\n=== STALE DATA: full cascade after deselecting business ownership ===")
+    print("\n=== STALE DATA: full cascade after dropping the business service ===")
+    # Walk the whole business subtree, then go back to step 1 and swap the
+    # service to individual-only. Structure, complexity, headcount and revenue
+    # must all vanish together — not just the one level below the change.
     pg = b.new_page(); pg.add_init_script(STUB); pg.goto(U); pg.wait_for_timeout(300)
-    step(pg, "individual_tax"); step(pg, "business_owner")
+    step(pg, "business_tax")
     step(pg, "s_corp"); step(pg, "employees"); step(pg, "6_20")
     print("   after business path:", answers(pg))
     for _ in range(10):
         bk = pg.query_selector("[data-back]")
         if not bk: break
         bk.click(); pg.wait_for_timeout(150)
-        if "apply to you" in (pg.inner_text(".wiz-q") or ""): break
-    pg.uncheck("input[value='business_owner']"); pg.wait_for_timeout(250)
+        if "help you with" in (pg.inner_text(".wiz-q") or ""): break
+    pg.uncheck("input[value='business_tax']")
+    pg.check("input[value='individual_tax']"); pg.wait_for_timeout(250)
     after = answers(pg)
     print("   after deselect     :", after)
     for k in ["business_structure", "business_complexity", "headcount", "revenue_band"]:

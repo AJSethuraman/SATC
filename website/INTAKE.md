@@ -114,6 +114,8 @@ stripping before submit · human-readable field names in the payload.
 | 2026-08-13 | **Cut the "What you'll need" document checklist** | ~20 checkbox decisions of tax-organizer texture inside a 8–12 interaction target, covering items on the no-collect list. Moves to onboarding after the first conversation. |
 | 2026-08-13 | **One question per step**, contact details grouped onto a single step | Makes it read as a conversation and maps onto the 8–12 target; conditional questions simply never appear rather than leaving gaps in a page. |
 | 2026-08-13 | **Formspree for delivery + a machine-parseable block in the payload** so submissions can reach a spreadsheet without a paid tier | Formspree free retains submissions only **30 days** and gates Zapier behind a paid plan, so it cannot be the record. See §5.4. |
+| 2026-08-13 | **Payroll removed as a service.** Dropped from the services basket and from every branching rule. | SATC does not offer payroll. Employee/contractor flags stay in the business-complexity basket — headcount still scopes the return and the books. |
+| 2026-08-13 | **Business questions are gated on asking for business *work*, not on a business existing.** `self_employment` no longer triggers the business subtree at all. | An individual filer was being walked through structure → complexity → headcount → revenue because they ticked "I own a business", and a freelancer got asked how their "business" is set up. 1099 work is a Schedule C inside the individual return. Scoping an engagement nobody asked for is what makes an intake feel like an interrogation. |
 
 ---
 
@@ -169,8 +171,9 @@ field per step. No street address.
 ### Normalized values
 
 ```
-services:               individual_tax · business_tax · bookkeeping · payroll ·
+services:               individual_tax · business_tax · bookkeeping ·
                         tax_planning · tax_resolution · entity_setup
+                        (payroll removed 2026-08-13 — SATC does not offer it)
 individual_complexity:  w2 · self_employment · business_owner · rentals ·
                         investments · k1 · retirement · crypto · multistate · foreign
 business_complexity:    employees · contractors · inventory · sales_tax · ecommerce ·
@@ -211,10 +214,10 @@ Predicates read the `answers` object. `∋` = "selection includes".
 | 1 | `services` | multi | always |
 | 2 | `individual_complexity` | multi | services ∩ {individual_tax, tax_planning, tax_resolution} |
 | 3 | `rental_count` | single | ind ∋ `rentals` |
-| 4 | `business_structure` | single | services ∩ {business_tax, bookkeeping, payroll, entity_setup} **or** ind ∋ `business_owner` |
+| 4 | `business_structure` | single | services ∩ {business_tax, bookkeeping, entity_setup} **or** ind ∋ `business_owner` |
 | 5 | `entity_count` | single | `business_structure` = multiple |
 | 6 | `business_complexity` | multi | step 4 answered, unless services = {entity_setup} only |
-| 7 | `headcount` | single | biz ∋ `employees` **or** services ∋ payroll |
+| 7 | `headcount` | single | biz ∋ `employees` |
 | 8 | `contractor_count` | single | biz ∋ `contractors` |
 | 9 | `states_detail` | text | ind ∋ `multistate` **or** biz ∋ `multistate` |
 | 10 | `revenue_band` | single | step 4 answered |
@@ -235,7 +238,7 @@ Predicates read the `answers` object. `∋` = "selection includes".
 | Individual + rentals/investments | + 3 → **7** |
 | Business tax only | 1, 4, 6, 10, 11, 15, 17, 18 → **8** |
 | Bookkeeping cleanup | + 13, 14 → **9** |
-| Tax + books + payroll | → **12** |
+| Business tax + bookkeeping, with employees | → **11** |
 
 ### Config shape
 
