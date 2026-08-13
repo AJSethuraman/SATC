@@ -4,13 +4,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SATC — Sethuraman Accounting, Tax &amp; Consulting</title>
-<meta name="description" content="Sethuraman Accounting, Tax & Consulting — accounting, tax, and consulting for small businesses, with the back-office processes handled behind the scenes. Book a free consultation." />
+<meta name="description" content="Sethuraman Accounting, Tax & Consulting — accounting, tax, and consulting for small businesses. Tell us about your situation and we'll be in touch within one business day." />
 <meta name="theme-color" content="#0B1F3A" />
 
 <!-- Open Graph / link previews -->
 <meta property="og:type" content="website" />
 <meta property="og:title" content="SATC — Sethuraman Accounting, Tax & Consulting" />
-<meta property="og:description" content="Accounting, tax, and consulting for small businesses, with the back-office processes handled behind the scenes. Book a free consultation." />
+<meta property="og:description" content="Accounting, tax, and consulting for small businesses. Tell us about your situation and we'll be in touch within one business day." />
 <meta property="og:url" content="https://ajsethuraman.github.io/satc/" />
 <meta property="og:image" content="https://ajsethuraman.github.io/satc/og-image.png" />
 <meta property="og:image:width" content="1200" />
@@ -92,8 +92,6 @@
   .btn::after { content: "→"; letter-spacing: 0; font-size: 14px; }
   .btn.gold { background: var(--gold); color: var(--navy); border-color: var(--gold); }
   .btn.gold:hover { background: var(--gold-light); border-color: var(--gold-light); }
-  .btn.outline-gold { background: transparent; color: var(--gold-light); border-color: var(--gold); }
-  .btn.outline-gold:hover { background: var(--gold); color: var(--navy); }
   .btn.outline-navy { background: transparent; color: var(--navy); border-color: var(--navy); }
   .btn.outline-navy:hover { background: var(--navy); color: var(--cream); }
   .btn-link {
@@ -161,7 +159,7 @@
   /* ============================================================ HERO */
   .hero {
     background: var(--navy); color: var(--cream);
-    padding: clamp(70px, 11vw, 140px) 0 clamp(70px, 10vw, 130px);
+    padding: clamp(70px, 11vw, 130px) 0 clamp(70px, 10vw, 120px);
     position: relative; overflow: hidden;
   }
   .hero::before, .hero::after {
@@ -210,15 +208,11 @@
   .hero-card .card-row .v { font-family: var(--serif); font-size: 16px; color: var(--cream); text-align: right; }
 
   /* ============================================================ SECTION SCAFFOLD */
-  section.band { padding: clamp(64px, 10vw, 130px) 0; }
-  section.band.tight { padding: clamp(56px, 8vw, 100px) 0; }
-  section.band.dark { background: var(--navy); color: var(--cream); }
-  section.band.dark .h2 { color: var(--cream); }
-  section.band.dark .h2 em { color: var(--gold-light); }
-  section.band.dark .lead { color: rgba(247,245,240,0.72); }
+  section.band { padding: clamp(64px, 9vw, 112px) 0; }
+  section.band.tight { padding: clamp(56px, 8vw, 92px) 0; }
   section.band .section-head {
     display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 6vw, 80px);
-    align-items: end; margin-bottom: clamp(40px, 6vw, 72px);
+    align-items: end; margin-bottom: clamp(40px, 6vw, 68px);
   }
   section.band .section-head .right { padding-bottom: 8px; }
 
@@ -245,89 +239,92 @@
   }
   .service ul li::before { content: ""; width: 4px; height: 4px; background: var(--gold); position: absolute; left: 0; top: 7px; }
 
-  /* ============================================================ OCCAM APPROACH */
-  .occam { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(40px, 6vw, 80px); align-items: center; }
-  .occam-left .badge {
-    display: inline-flex; align-items: center; gap: 12px; padding: 8px 16px;
-    border: 1px solid rgba(176,141,87,0.45); color: var(--gold-light);
-    font-family: var(--sans); font-size: 10px; letter-spacing: 0.3em;
-    text-transform: uppercase; font-weight: 600; margin-bottom: 22px;
+  /* ============================================================ INTAKE */
+  .intake { background: var(--cream-2); }
+  .intake-grid {
+    display: grid; grid-template-columns: 0.82fr 1.18fr;
+    gap: clamp(36px, 5vw, 68px); align-items: start;
   }
-  .occam-left .badge .pulse { width: 6px; height: 6px; background: var(--gold-light); border-radius: 50%; }
-  .occam-left .occam-title {
-    font-family: var(--serif); font-weight: 500; font-size: clamp(34px, 5vw, 54px);
-    line-height: 1.05; color: var(--cream); margin: 0 0 20px; letter-spacing: -0.01em;
+  .intake-aside { position: sticky; top: 104px; }
+  .steps { list-style: none; margin: 28px 0 0; padding: 0; display: flex; flex-direction: column; gap: 22px; }
+  .steps li { position: relative; padding-left: 46px; }
+  .steps li .n {
+    position: absolute; left: 0; top: -2px; width: 30px; height: 30px;
+    border: 1px solid var(--gold); color: var(--gold-deep);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-style: italic; font-size: 16px;
   }
-  .occam-left .occam-title em { font-style: italic; color: var(--gold-light); font-weight: 400; }
-  .occam-left p { font-family: var(--sans); font-size: 15px; line-height: 1.7; color: rgba(247,245,240,0.78); margin: 0 0 16px; max-width: 480px; }
-  .occam-left .features { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 30px; margin: 28px 0 34px; }
-  .occam-left .features div {
-    font-family: var(--sans); font-size: 12.5px; line-height: 1.6;
-    color: rgba(247,245,240,0.85); padding-left: 14px; position: relative;
-  }
-  .occam-left .features div::before { content: ""; width: 4px; height: 4px; background: var(--gold-light); position: absolute; left: 0; top: 7px; }
-  .occam-left .features b { color: var(--cream); font-weight: 600; letter-spacing: 0.02em; display: block; margin-bottom: 2px; }
+  .steps li b { display: block; font-family: var(--serif); font-size: 20px; font-weight: 500; color: var(--navy); margin-bottom: 4px; }
+  .steps li p { font-family: var(--sans); font-size: 13.5px; line-height: 1.65; color: var(--charcoal); margin: 0; }
+  .aside-direct { list-style: none; margin: 34px 0 0; padding: 26px 0 0; border-top: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 15px; }
+  .aside-direct li { font-family: var(--sans); font-size: 15px; color: var(--charcoal); }
+  .aside-direct li b { display: block; font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold-deep); font-weight: 600; margin-bottom: 4px; }
+  .aside-direct a { color: var(--navy); font-weight: 500; border-bottom: 1px solid rgba(176,141,87,0.5); }
+  .aside-direct a:hover { color: var(--gold-deep); }
 
-  .occam-right {
-    position: relative; aspect-ratio: 1 / 1; width: 100%; max-width: 460px;
-    margin-left: auto; border: 1px solid rgba(176,141,87,0.3); padding: clamp(20px, 4vw, 40px);
+  /* ---- the form itself ---- */
+  .intake-form { background: var(--paper); border: 1px solid var(--hairline); padding: clamp(24px, 4vw, 44px); }
+  .intake-form fieldset { border: 0; margin: 0 0 38px; padding: 0; }
+  .intake-form fieldset:last-of-type { margin-bottom: 24px; }
+  .intake-form legend {
+    font-family: var(--serif); font-size: 25px; font-weight: 500; color: var(--navy);
+    padding: 0; margin-bottom: 6px; letter-spacing: -0.005em;
   }
-  .occam-right .corner { position: absolute; width: 14px; height: 14px; border: 1px solid var(--gold); }
-  .occam-right .corner.tl { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
-  .occam-right .corner.tr { top: -1px; right: -1px; border-left: 0; border-bottom: 0; }
-  .occam-right .corner.bl { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
-  .occam-right .corner.br { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
-
-  /* ============================================================ WHY / VALUES */
-  .why { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); }
-  .why-item { background: var(--paper); padding: 38px 30px 34px; display: flex; flex-direction: column; gap: 12px; position: relative; }
-  .why-item .num { font-family: var(--serif); font-style: italic; color: var(--gold); font-size: 14px; }
-  .why-item .why-rule { width: 28px; height: 1px; background: var(--gold); margin-bottom: 4px; }
-  .why-item h4 { font-family: var(--serif); font-weight: 500; font-size: 23px; line-height: 1.15; color: var(--navy); margin: 0 0 2px; letter-spacing: -0.005em; }
-  .why-item p { font-family: var(--sans); font-size: 13px; line-height: 1.6; color: var(--charcoal); margin: 0; }
-
-  /* ============================================================ PROCESS / HOW WE WORK */
-  .process { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
-  .step { background: var(--paper); border: 1px solid var(--hairline); padding: 40px 36px; display: flex; flex-direction: column; gap: 14px; }
-  .step .step-num { font-family: var(--serif); font-style: italic; font-size: 40px; color: var(--gold); line-height: 1; }
-  .step h4 { font-family: var(--serif); font-weight: 500; font-size: 25px; color: var(--navy); margin: 0; letter-spacing: -0.005em; }
-  .step p { font-family: var(--sans); font-size: 14px; line-height: 1.65; color: var(--charcoal); margin: 0; }
-
-  /* ============================================================ BOOKING */
-  .book {
-    background: var(--navy); color: var(--cream);
-    padding: clamp(64px, 10vw, 120px) 0; position: relative; overflow: hidden;
+  .fs-note { font-family: var(--sans); font-size: 13px; line-height: 1.6; color: var(--charcoal-2); margin: 0 0 22px; }
+  .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .field > .lab {
+    font-family: var(--sans); font-size: 10.5px; letter-spacing: 0.2em;
+    text-transform: uppercase; font-weight: 600; color: var(--charcoal-2);
   }
-  .book::before, .book::after {
-    content: ""; position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%,-50%); border: 1px solid rgba(176,141,87,0.12);
-    border-radius: 50%; pointer-events: none;
+  .field > .lab .req { color: var(--gold-deep); }
+  .intake-form input[type="text"], .intake-form input[type="email"],
+  .intake-form input[type="tel"], .intake-form input[type="number"],
+  .intake-form select, .intake-form textarea {
+    font-family: var(--sans); font-size: 15px; color: var(--ink); background: #fff;
+    border: 1px solid var(--hairline); padding: 13px 14px; width: 100%;
+    letter-spacing: normal; text-transform: none; font-weight: 400; border-radius: 0;
+    -webkit-appearance: none; appearance: none;
   }
-  .book::before { width: 920px; height: 920px; }
-  .book::after  { width: 640px; height: 640px; border-color: rgba(176,141,87,0.18); }
-  .book .inner { position: relative; z-index: 1; text-align: center; }
-  .book .cta-eyebrow { font-family: var(--sans); font-size: 11px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--gold-light); font-weight: 600; margin-bottom: 20px; }
-  .book h2 { font-family: var(--serif); font-weight: 500; font-size: clamp(36px, 6vw, 60px); line-height: 1.05; color: var(--cream); margin: 0 0 24px; letter-spacing: -0.01em; }
-  .book h2 em { font-style: italic; color: var(--gold-light); font-weight: 400; }
-  .book .lede { font-family: var(--serif); font-style: italic; font-size: clamp(18px, 2.4vw, 20px); line-height: 1.55; color: rgba(247,245,240,0.8); margin: 0 auto 40px; max-width: 600px; }
-  .booking-embed {
-    background: var(--paper); border: 1px solid rgba(176,141,87,0.35);
-    max-width: 920px; margin: 0 auto; min-height: 200px;
-    position: relative; z-index: 1; overflow: hidden;
+  .intake-form select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238A6F44' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center; padding-right: 38px;
   }
-  .booking-embed iframe { display: block; }
-  /* Graceful fallback shown until a real scheduling link is configured */
-  .booking-fallback { padding: clamp(40px, 7vw, 72px) 28px; text-align: center; }
-  .booking-fallback h3 { font-family: var(--serif); font-weight: 500; font-size: clamp(26px, 4vw, 34px); color: var(--navy); margin: 0 0 12px; }
-  .booking-fallback p { font-family: var(--sans); font-size: 15px; line-height: 1.7; color: var(--charcoal); margin: 0 auto 28px; max-width: 460px; }
-  .booking-fallback .row { display: inline-flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+  .intake-form input:focus, .intake-form select:focus, .intake-form textarea:focus { outline: none; border-color: var(--gold); }
+  .intake-form textarea { resize: vertical; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 11px 22px; margin: 2px 0 4px; }
+  .checks.one-col { grid-template-columns: 1fr; }
+  .check {
+    display: flex; gap: 11px; align-items: flex-start; cursor: pointer;
+    font-family: var(--sans); font-size: 14px; line-height: 1.5; color: var(--charcoal);
+  }
+  .check input { flex: 0 0 auto; width: 17px; height: 17px; margin: 2px 0 0; accent-color: var(--gold-deep); cursor: pointer; }
+  .doc-group { margin-bottom: 24px; }
+  .doc-group h5 {
+    font-family: var(--sans); font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--gold-deep); font-weight: 600; margin: 0 0 12px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--hairline);
+  }
+  .callout {
+    border-left: 2px solid var(--gold); background: rgba(176,141,87,0.07);
+    padding: 16px 18px; margin: 0 0 24px;
+    font-family: var(--sans); font-size: 13.5px; line-height: 1.65; color: var(--charcoal);
+  }
+  .callout b { color: var(--navy); }
+  .consent { margin: 26px 0 6px; padding-top: 22px; border-top: 1px solid var(--hairline); }
+  .consent .check { font-size: 13.5px; color: var(--charcoal-2); }
+  .intake-form button[type="submit"] { border: 0; margin-top: 18px; width: 100%; justify-content: center; }
+  .form-status { font-family: var(--sans); font-size: 13.5px; line-height: 1.6; color: var(--gold-deep); margin: 14px 0 0; min-height: 18px; }
+  .form-status.err { color: #9B2C2C; }
+  .intake-done { text-align: center; padding: clamp(30px, 6vw, 60px) 10px; }
+  .intake-done h3 { font-family: var(--serif); font-weight: 500; font-size: clamp(28px, 4vw, 38px); color: var(--navy); margin: 0 0 14px; }
+  .intake-done p { font-family: var(--sans); font-size: 15px; line-height: 1.7; color: var(--charcoal); margin: 0 auto; max-width: 440px; }
 
   /* ============================================================ FOOTER */
   footer { background: var(--navy-deep); color: rgba(247,245,240,0.78); padding: clamp(56px, 8vw, 80px) 0 30px; }
-  .foot-top { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1.2fr; gap: clamp(32px, 5vw, 56px); margin-bottom: 56px; }
+  .foot-top { display: grid; grid-template-columns: 1.7fr 1fr 1.1fr; gap: clamp(32px, 5vw, 56px); margin-bottom: 52px; }
   .foot-brand .lockup { margin-bottom: 22px; }
   .foot-brand p { font-family: var(--sans); font-size: 13px; line-height: 1.65; margin: 0 0 18px; max-width: 340px; color: rgba(247,245,240,0.65); }
-  .foot-brand p em { font-style: italic; color: var(--gold-light); }
   .foot-col h5 { font-family: var(--sans); font-size: 10.5px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold-light); font-weight: 600; margin: 0 0 20px; }
   .foot-col ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
   .foot-col ul li { font-family: var(--sans); font-size: 13px; color: rgba(247,245,240,0.78); }
@@ -342,71 +339,11 @@
   .foot-bottom .legal a:hover { color: var(--gold-light); }
   [hidden] { display: none !important; }
 
-  /* ============================================================ ABOUT */
-  .about { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: clamp(36px, 6vw, 72px); align-items: center; }
-  .about-media { display: flex; flex-direction: column; gap: 22px; align-items: flex-start; }
-  .about-photo {
-    width: 100%; max-width: 340px; aspect-ratio: 4 / 5; background: var(--navy);
-    color: var(--gold-light); display: flex; align-items: center; justify-content: center;
-    font-family: var(--serif); font-size: 84px; font-weight: 500; letter-spacing: 0.04em;
-    background-size: cover; background-position: center; border: 1px solid var(--hairline);
-  }
-  .about-cred { display: flex; flex-wrap: wrap; gap: 10px; }
-  .about-cred span {
-    font-family: var(--sans); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
-    font-weight: 600; color: var(--navy); border: 1px solid var(--gold); padding: 7px 12px;
-  }
-  .about-role {
-    font-family: var(--sans); font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase;
-    font-weight: 600; color: var(--gold-deep); margin: 4px 0 18px;
-  }
-  .about-body .h2 { margin-bottom: 8px; }
-  .about-body p.bio { font-family: var(--sans); font-size: 15px; line-height: 1.75; color: var(--charcoal); margin: 0 0 16px; max-width: 560px; }
-
-  /* ============================================================ TESTIMONIALS */
-  .tn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 28px; }
-  .tn {
-    background: var(--paper); border: 1px solid var(--hairline); padding: 36px 34px;
-    display: flex; flex-direction: column; gap: 18px;
-  }
-  .tn .mark { font-family: var(--serif); font-size: 64px; line-height: 0.6; height: 26px; color: var(--gold); opacity: 0.5; }
-  .tn p { font-family: var(--serif); font-size: 21px; line-height: 1.4; color: var(--navy); margin: 0; font-weight: 500; }
-  .tn .who { font-family: var(--sans); font-size: 12.5px; color: var(--charcoal-2); margin-top: auto; }
-  .tn .who b { display: block; font-family: var(--serif); font-size: 16px; font-weight: 600; color: var(--navy); }
-
-  /* ============================================================ FAQ */
-  .faq-list { display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); }
-  .faq-list details { background: var(--paper); }
-  .faq-list summary {
-    list-style: none; cursor: pointer; padding: 26px 30px; display: flex; justify-content: space-between;
-    align-items: center; gap: 24px; font-family: var(--serif); font-size: 21px; font-weight: 500;
-    color: var(--navy); letter-spacing: -0.005em;
-  }
-  .faq-list summary::-webkit-details-marker { display: none; }
-  .faq-list summary::after { content: "+"; font-family: var(--sans); font-size: 24px; color: var(--gold); font-weight: 400; flex: 0 0 auto; transition: transform .2s; }
-  .faq-list details[open] summary::after { transform: rotate(45deg); }
-  .faq-list .faq-a { padding: 0 30px 28px; }
-  .faq-list .faq-a p { font-family: var(--sans); font-size: 14.5px; line-height: 1.7; color: var(--charcoal); margin: 0; max-width: 720px; }
-
-  /* ============================================================ CONTACT FORM */
-  .contact-wrap { display: grid; grid-template-columns: 1fr 1.1fr; gap: clamp(36px, 6vw, 72px); align-items: start; }
-  .contact-direct { list-style: none; margin: 26px 0 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
-  .contact-direct li { font-family: var(--sans); font-size: 15px; color: var(--charcoal); }
-  .contact-direct li b { display: block; font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold-deep); font-weight: 600; margin-bottom: 4px; }
-  .contact-direct a { color: var(--navy); font-weight: 500; }
-  .contact-direct a:hover { color: var(--gold-deep); }
-  .contact-form { background: var(--paper); border: 1px solid var(--hairline); padding: clamp(28px, 4vw, 40px); display: flex; flex-direction: column; gap: 18px; }
-  .contact-form label { display: flex; flex-direction: column; gap: 8px; font-family: var(--sans); font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; color: var(--charcoal-2); }
-  .contact-form input, .contact-form textarea {
-    font-family: var(--sans); font-size: 15px; color: var(--ink); background: #fff;
-    border: 1px solid var(--hairline); padding: 13px 14px; width: 100%; letter-spacing: normal; text-transform: none; font-weight: 400;
-  }
-  .contact-form input:focus, .contact-form textarea:focus { outline: none; border-color: var(--gold); }
-  .contact-form textarea { resize: vertical; }
-  .contact-form button { border: 0; margin-top: 4px; }
-  .form-status { font-family: var(--sans); font-size: 13px; color: var(--gold-deep); margin: 2px 0 0; min-height: 18px; }
-
   /* ============================================================ RESPONSIVE */
+  @media (max-width: 1080px) {
+    .intake-grid { grid-template-columns: 1fr; }
+    .intake-aside { position: static; }
+  }
   @media (max-width: 980px) {
     html { scroll-padding-top: 70px; }
     .nav-toggle { display: block; }
@@ -426,23 +363,15 @@
     .hero-grid { grid-template-columns: 1fr; }
     .hero-card { max-width: 520px; }
     .section-head { grid-template-columns: 1fr !important; align-items: start; }
-    .occam { grid-template-columns: 1fr; }
-    .occam-right { margin: 0 auto; }
     .services { grid-template-columns: 1fr 1fr; }
-    .why { grid-template-columns: 1fr 1fr; }
-    .process { grid-template-columns: 1fr; }
     .foot-top { grid-template-columns: 1fr 1fr; }
     .foot-brand { grid-column: 1 / -1; }
-    .about { grid-template-columns: 1fr; }
-    .about-media { align-items: center; }
-    .about-photo { max-width: 280px; }
-    .contact-wrap { grid-template-columns: 1fr; }
   }
   @media (max-width: 600px) {
     .services { grid-template-columns: 1fr; }
-    .why { grid-template-columns: 1fr; }
-    .occam-left .features { grid-template-columns: 1fr; }
-    .hero-ctas .btn, .booking-fallback .btn { width: 100%; justify-content: center; }
+    .checks { grid-template-columns: 1fr; }
+    .two { grid-template-columns: 1fr; }
+    .hero-ctas .btn { width: 100%; justify-content: center; }
     .foot-top { grid-template-columns: 1fr; }
     .foot-bottom { flex-direction: column; align-items: flex-start; }
   }
@@ -486,11 +415,8 @@
     </button>
     <div class="nav-links" id="navLinks">
       <a href="#services">Services</a>
-      <a href="#about">About</a>
-      <a href="#systems">Systems</a>
-      <a href="#faq">FAQ</a>
-      <a href="#contact">Contact</a>
-      <a class="nav-cta" href="#book">Schedule a Consultation</a>
+      <a href="#documents">What You'll Need</a>
+      <a class="nav-cta" href="#intake">Get Started</a>
     </div>
   </div>
 </nav>
@@ -502,24 +428,23 @@
       <p class="eyebrow eyebrow-light">Accounting · Tax · Consulting</p>
       <h1>The <em>simplest</em> option is usually the best one.</h1>
       <p class="lede">
-        Less complexity, fewer surprises, and a clear answer you can act on. We
-        handle accounting, tax, and consulting — you work directly with Arjun,
-        managing partner and a CPA — and we build the processes behind the scenes
-        so your day&#8209;to&#8209;day runs with less on your plate.
+        Accounting, tax, and consulting for small businesses and the people who
+        run them. Tell us a little about your situation and we&#39;ll come back
+        to you with a real answer — usually within one business day.
       </p>
       <div class="hero-ctas">
-        <a class="btn gold" href="#book">Book a Free Consultation</a>
-        <a class="btn-link" href="#services">Explore Services</a>
+        <a class="btn gold" href="#intake">Tell Us About Your Situation</a>
+        <a class="btn-link" href="#services">What We Do</a>
       </div>
     </div>
 
     <aside class="hero-card">
-      <div class="card-eyebrow">At a Glance</div>
-      <div class="card-title">What working<br/><em>with us</em> looks like.</div>
-      <div class="card-row"><span class="k">Books</span><span class="v">Reconciled, on time</span></div>
-      <div class="card-row"><span class="k">Tax</span><span class="v">Planned, not panicked</span></div>
-      <div class="card-row"><span class="k">Systems</span><span class="v">Built around you</span></div>
-      <div class="card-row"><span class="k">Answers</span><span class="v">Straight from a partner</span></div>
+      <div class="card-eyebrow">How This Works</div>
+      <div class="card-title">Five minutes now,<br/>a <em>real</em> answer next.</div>
+      <div class="card-row"><span class="k">Step 1</span><span class="v">You fill out the form</span></div>
+      <div class="card-row"><span class="k">Step 2</span><span class="v">We reply within a day</span></div>
+      <div class="card-row"><span class="k">Step 3</span><span class="v">We talk it through</span></div>
+      <div class="card-row"><span class="k">Cost</span><span class="v">Nothing to start</span></div>
     </aside>
   </div>
 </header>
@@ -607,281 +532,352 @@
   </div>
 </section>
 
-<!-- ============================================================ ABOUT -->
-<section class="band" id="about" style="background:var(--cream-2);">
-  <div class="wrap about">
-    <div class="about-media">
-      <div class="about-photo" id="aboutPhoto" aria-label="Portrait">AS</div>
-      <div class="about-cred" id="aboutCred"></div>
-    </div>
-    <div class="about-body">
-      <p class="eyebrow">Who You're Working With</p>
-      <h2 class="h2" id="aboutName">Arjun Sethuraman</h2>
-      <p class="about-role" id="aboutRole">Managing Partner</p>
-      <div id="aboutBio"></div>
-      <a class="btn gold" href="#book" style="margin-top:8px;">Book a Free Consultation</a>
-    </div>
-  </div>
-</section>
+<!-- ============================================================ INTAKE FORM -->
+<section class="band intake" id="intake">
+  <div class="wrap intake-grid">
 
-<!-- ============================================================ TESTIMONIALS (hidden until real quotes are added in config) -->
-<section class="band tight" id="testimonials" hidden>
-  <div class="wrap">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow">In Their Words</p>
-        <h2 class="h2">What clients<br/><em>say.</em></h2>
-      </div>
-      <div class="right">
-        <p class="lead">Real results from the businesses we work with.</p>
-      </div>
-    </div>
-    <div class="tn-grid" id="tnGrid"></div>
-  </div>
-</section>
-
-<!-- ============================================================ PROCESS & SYSTEMS -->
-<section class="band dark" id="systems">
-  <div class="wrap occam">
-    <div class="occam-left">
-      <div class="badge"><span class="pulse"></span>Process &amp; Systems</div>
-      <h2 class="occam-title">Your operations, <em>mostly</em> handled.</h2>
-      <p>
-        We set up how the work actually flows — the steps, the controls, and the
-        software behind them, including tools we built ourselves — so your routine
-        runs with as little hands&#8209;on effort from you as possible.
-      </p>
-      <p>
-        As your business changes, the process changes with it. You get a
-        day&#8209;to&#8209;day that mostly takes care of itself — and a partner who handles
-        the parts that need judgement.
+    <!-- ---------- left rail: what happens next + direct contact ---------- -->
+    <div class="intake-aside">
+      <p class="eyebrow">Get Started</p>
+      <h2 class="h2">Tell us where<br/>you&#39;re <em>starting</em> from.</h2>
+      <p class="lead">
+        The more we know before we talk, the less of your time we waste on the
+        call. Only your name and email are required — answer what you can and
+        skip the rest.
       </p>
 
-      <div class="features">
-        <div><b>Built in&#8209;house</b>Our own software runs a lot of it.</div>
-        <div><b>Built around you</b>The process fits how you actually work.</div>
-        <div><b>Hands&#8209;off by design</b>Day&#8209;to&#8209;day runs with little input from you.</div>
-        <div><b>Controls baked in</b>The right checks at each step.</div>
-      </div>
+      <ol class="steps">
+        <li>
+          <span class="n">1</span>
+          <b>You send this</b>
+          <p>About five minutes. No documents to dig up yet — just what you know off the top of your head.</p>
+        </li>
+        <li>
+          <span class="n">2</span>
+          <b>We read it and reply</b>
+          <p>Within one business day, from Arjun directly. If we need documents, that reply carries a secure upload link — we never ask for them by email or text.</p>
+        </li>
+        <li>
+          <span class="n">3</span>
+          <b>We talk it through</b>
+          <p>A straight answer on what&#39;s involved, how long it takes, and what it costs — before anything starts.</p>
+        </li>
+      </ol>
 
-      <div class="hero-ctas">
-        <a class="btn outline-gold" href="#book">Book a Free Consultation</a>
-        <a class="btn-link" href="#process" style="color:var(--gold-light);">How we work</a>
-      </div>
-    </div>
-
-    <div class="occam-right">
-      <span class="corner tl"></span><span class="corner tr"></span>
-      <span class="corner bl"></span><span class="corner br"></span>
-
-      <svg viewBox="0 0 400 400" style="width:100%; height:100%;" xmlns="http://www.w3.org/2000/svg" aria-label="Diagram: complexity reduced to clarity">
-        <g stroke="#D4B97E" stroke-width="0.7" opacity="0.55">
-          <line x1="40" y1="60" x2="160" y2="200"/>
-          <line x1="48" y1="120" x2="160" y2="200"/>
-          <line x1="36" y1="180" x2="160" y2="200"/>
-          <line x1="50" y1="240" x2="160" y2="200"/>
-          <line x1="40" y1="300" x2="160" y2="200"/>
-          <line x1="60" y1="350" x2="160" y2="200"/>
-          <line x1="90" y1="40"  x2="160" y2="200"/>
-          <line x1="80" y1="370" x2="160" y2="200"/>
-        </g>
-        <g fill="#D4B97E">
-          <circle cx="40" cy="60" r="4"/><circle cx="48" cy="120" r="4"/>
-          <circle cx="36" cy="180" r="4"/><circle cx="50" cy="240" r="4"/>
-          <circle cx="40" cy="300" r="4"/><circle cx="60" cy="350" r="4"/>
-          <circle cx="90" cy="40"  r="4"/><circle cx="80" cy="370" r="4"/>
-        </g>
-        <text x="40" y="30" font-family="Hanken Grotesk, sans-serif" font-size="11" letter-spacing="3" fill="#D4B97E" opacity="0.7" font-weight="600">COMPLEXITY</text>
-
-        <circle cx="200" cy="200" r="46" fill="none" stroke="#D4B97E" stroke-width="1.2"/>
-        <circle cx="200" cy="200" r="32" fill="#0B1F3A" stroke="#D4B97E" stroke-width="0.8"/>
-        <text x="200" y="208" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="34" font-weight="500" fill="#D4B97E">S</text>
-        <text x="200" y="270" text-anchor="middle" font-family="Hanken Grotesk, sans-serif" font-size="9" letter-spacing="4" fill="#D4B97E" opacity="0.7" font-weight="600">SATC</text>
-
-        <g stroke="#D4B97E" stroke-width="0.7">
-          <line x1="246" y1="200" x2="320" y2="100"/>
-          <line x1="246" y1="200" x2="340" y2="180"/>
-          <line x1="246" y1="200" x2="340" y2="240"/>
-          <line x1="246" y1="200" x2="320" y2="320"/>
-        </g>
-        <g>
-          <rect x="312" y="92"  width="16" height="16" fill="none" stroke="#D4B97E" stroke-width="1"/>
-          <rect x="332" y="172" width="16" height="16" fill="none" stroke="#D4B97E" stroke-width="1"/>
-          <rect x="332" y="232" width="16" height="16" fill="none" stroke="#D4B97E" stroke-width="1"/>
-          <rect x="312" y="312" width="16" height="16" fill="none" stroke="#D4B97E" stroke-width="1"/>
-        </g>
-        <text x="358" y="100" font-family="Hanken Grotesk, sans-serif" font-size="9" letter-spacing="2" fill="#D4B97E" opacity="0.85" font-weight="500">Books</text>
-        <text x="358" y="184" font-family="Hanken Grotesk, sans-serif" font-size="9" letter-spacing="2" fill="#D4B97E" opacity="0.85" font-weight="500">Filings</text>
-        <text x="358" y="244" font-family="Hanken Grotesk, sans-serif" font-size="9" letter-spacing="2" fill="#D4B97E" opacity="0.85" font-weight="500">Reports</text>
-        <text x="358" y="324" font-family="Hanken Grotesk, sans-serif" font-size="9" letter-spacing="2" fill="#D4B97E" opacity="0.85" font-weight="500">Answers</text>
-        <text x="328" y="380" text-anchor="end" font-family="Hanken Grotesk, sans-serif" font-size="11" letter-spacing="3" fill="#D4B97E" opacity="0.7" font-weight="600">CLARITY</text>
-      </svg>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ WHY / VALUES -->
-<section class="band" id="why">
-  <div class="wrap">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow">Why SATC</p>
-        <h2 class="h2">What you<br/><em>actually</em> get.</h2>
-      </div>
-      <div class="right">
-        <p class="lead">
-          Straightforward work, from the partners who run the firm.
-        </p>
-      </div>
-    </div>
-
-    <div class="why">
-      <div class="why-item">
-        <span class="num">01</span><div class="why-rule"></div>
-        <h4>You work with a partner</h4>
-        <p>You deal with Arjun directly, start to finish — the managing partner does the work.</p>
-      </div>
-      <div class="why-item">
-        <span class="num">02</span><div class="why-rule"></div>
-        <h4>A clear answer, in plain English</h4>
-        <p>The most direct way to solve it, explained so you can act on it.</p>
-      </div>
-      <div class="why-item">
-        <span class="num">03</span><div class="why-rule"></div>
-        <h4>Systems that adapt to you</h4>
-        <p>We run a lot of the work on software we built ourselves, and design the process around it — so your day&#8209;to&#8209;day keeps moving with little input from you.</p>
-      </div>
-      <div class="why-item">
-        <span class="num">04</span><div class="why-rule"></div>
-        <h4>High standards, by default</h4>
-        <p>Arjun&#39;s career was spent in a heavily regulated, high&#8209;stakes corner of finance. We hold your work to that bar.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ HOW WE WORK -->
-<section class="band tight" id="process" style="background:var(--cream-2);">
-  <div class="wrap">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow">How We Work</p>
-        <h2 class="h2">A simple path<br/>from <em>messy</em> to managed.</h2>
-      </div>
-      <div class="right">
-        <p class="lead">
-          No long onboarding decks. We start with a real conversation, agree on
-          scope, and get your back office running.
-        </p>
-      </div>
-    </div>
-
-    <div class="process">
-      <div class="step">
-        <div class="step-num">1</div>
-        <h4>Talk</h4>
-        <p>A free 30&#8209;minute consultation. Bring your messiest question — we&#39;ll give you a straight answer and what it would take to get there.</p>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <h4>Plan</h4>
-        <p>A clear, written scope and how we&#39;ll bill it — flat where the work is well&#8209;defined, hourly where it isn&#39;t — agreed before anything starts.</p>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <h4>Run</h4>
-        <p>We do the work and keep it running — books current, filings on time, questions answered — with our own tools handling the routine.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ FAQ -->
-<!-- Edit these freely — each expandable item below is one question/answer. -->
-<section class="band" id="faq">
-  <div class="wrap">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow">Questions</p>
-        <h2 class="h2">Good to know<br/><em>before</em> we talk.</h2>
-      </div>
-      <div class="right">
-        <p class="lead">Straight answers to what people ask first. Don&#39;t see yours? <a href="#contact" style="color:var(--gold-deep);text-decoration:underline;">Just ask &rarr;</a></p>
-      </div>
-    </div>
-
-    <div class="faq-list">
-      <details open>
-        <summary>How do you charge?</summary>
-        <div class="faq-a"><p>It depends on the work. Well&#8209;defined jobs (a return, a monthly close) are usually a flat fee; open&#8209;ended or build&#8209;as&#8209;we&#8209;go work is usually hourly. Either way, we agree on how we&#39;re charging before we start — no surprise bills.</p></div>
-      </details>
-      <details>
-        <summary>Do you work remotely or in person?</summary>
-        <div class="faq-a"><p>Both. Most work happens securely online so we can serve clients wherever they are, with in-person available by appointment.</p></div>
-      </details>
-      <details>
-        <summary>What kinds of businesses do you work with?</summary>
-        <div class="faq-a"><p>From owner&#8209;operated small businesses to larger finance teams — across services, trades, and professional practices. The accounting and tax work suits smaller businesses; the risk and controls advisory scales to bigger ones too. Not sure you&#39;re a fit? Ask — we&#39;ll tell you straight.</p></div>
-      </details>
-      <details>
-        <summary>What accounting software do you use?</summary>
-        <div class="faq-a"><p>We work in the tools you already use (QuickBooks, Xero, and others) and add light automation for the routine — reconciliations, deadlines, and reporting.</p></div>
-      </details>
-      <details>
-        <summary>I&#39;m behind on my books or taxes. Can you still help?</summary>
-        <div class="faq-a"><p>Yes — catch-up bookkeeping, cleanup, and back-filing are common starting points. We&#39;ll get you current and keep you there.</p></div>
-      </details>
-      <details>
-        <summary>How do we get started?</summary>
-        <div class="faq-a"><p>Book a free 30-minute consultation. We&#39;ll talk through your situation and follow up with a clear written scope and how we&#39;d bill it.</p></div>
-      </details>
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ BOOKING / FINAL CTA -->
-<section class="book" id="book">
-  <div class="wrap inner">
-    <p class="cta-eyebrow">Ready When You Are</p>
-    <h2>Ready to <em>simplify</em><br/>your finances? Let&#39;s talk.</h2>
-    <p class="lede">
-      A 30&#8209;minute conversation, no obligation. Pick a time that works and
-      we&#39;ll take it from there.
-    </p>
-
-    <!-- The scheduler renders here. Until a booking link is set in the
-         SATC_CONFIG block at the bottom of this file, a graceful
-         "email to book" fallback is shown automatically. -->
-    <div class="booking-embed" id="booking-embed" aria-live="polite"></div>
-  </div>
-</section>
-
-<!-- ============================================================ CONTACT FORM -->
-<section class="band" id="contact" style="background:var(--cream-2);">
-  <div class="wrap contact-wrap">
-    <div class="contact-intro">
-      <p class="eyebrow">Contact</p>
-      <h2 class="h2">Have a question<br/><em>first?</em></h2>
-      <p class="lead">Not ready to book a call? Send a note and Arjun will reply personally — usually within one business day.</p>
-      <ul class="contact-direct">
-        <li><b>Email</b><a data-email href="#">email</a></li>
-        <li data-phone-row hidden><b>Phone</b><a data-phone-link href="#">phone</a></li>
-        <li><b>Prefer a call?</b><a href="#book">Book a free consultation &rarr;</a></li>
+      <ul class="aside-direct">
+        <li data-booking-row hidden>
+          <b>Prefer to just book a time?</b>
+          <a data-booking-link href="#" target="_blank" rel="noopener">Pick a slot on the calendar</a>
+        </li>
+        <li>
+          <b>Email</b>
+          <a data-email href="#">email</a>
+        </li>
+        <li data-phone-row hidden>
+          <b>Phone</b>
+          <a data-phone-link href="#">phone</a>
+        </li>
       </ul>
     </div>
-    <form class="contact-form" id="contactForm" novalidate>
-      <label>Name
-        <input type="text" name="name" autocomplete="name" required />
-      </label>
-      <label>Email
-        <input type="email" name="email" autocomplete="email" required />
-      </label>
-      <label>How can we help?
-        <textarea name="message" rows="5" required></textarea>
-      </label>
+
+    <!-- ---------- the form ---------- -->
+    <form class="intake-form" id="intakeForm" novalidate>
+
+      <div class="callout">
+        <b>Please don&#39;t enter Social Security numbers, ITINs, or bank account
+        numbers here</b>, and don&#39;t attach documents. This form travels over
+        the open internet. Once we&#39;ve talked, we&#39;ll send you a secure
+        upload link for anything sensitive.
+      </div>
+
+      <!-- ── 1. About you ───────────────────────────────────── -->
+      <fieldset>
+        <legend>About you</legend>
+        <div class="two">
+          <label class="field">
+            <span class="lab">Full name <span class="req">*</span></span>
+            <input type="text" name="Full name" autocomplete="name" required />
+          </label>
+          <label class="field">
+            <span class="lab">Email <span class="req">*</span></span>
+            <input type="email" name="Email" autocomplete="email" required />
+          </label>
+        </div>
+        <div class="two">
+          <label class="field">
+            <span class="lab">Phone</span>
+            <input type="tel" name="Phone" autocomplete="tel" />
+          </label>
+          <label class="field">
+            <span class="lab">Best way to reach you</span>
+            <select name="Preferred contact method">
+              <option value="">Select…</option>
+              <option>Email</option>
+              <option>Phone call</option>
+              <option>Text message</option>
+            </select>
+          </label>
+        </div>
+        <div class="two">
+          <label class="field">
+            <span class="lab">City &amp; state</span>
+            <input type="text" name="City and state" placeholder="e.g. Tampa, FL" />
+          </label>
+          <label class="field">
+            <span class="lab">How did you hear about us?</span>
+            <select name="How they heard about us">
+              <option value="">Select…</option>
+              <option>Referred by a friend or client</option>
+              <option>Referred by another professional</option>
+              <option>Search engine</option>
+              <option>Social media</option>
+              <option>Other</option>
+            </select>
+          </label>
+        </div>
+        <label class="field">
+          <span class="lab">If someone referred you, who?</span>
+          <input type="text" name="Referred by" />
+        </label>
+      </fieldset>
+
+      <!-- ── 2. What you need ───────────────────────────────── -->
+      <fieldset>
+        <legend>What you need</legend>
+        <p class="fs-note">Tick everything that applies — it doesn&#39;t commit you to anything.</p>
+        <div class="checks">
+          <label class="check"><input type="checkbox" name="Services needed" value="Individual tax return" /><span>Individual tax return</span></label>
+          <label class="check"><input type="checkbox" name="Services needed" value="Business tax return" /><span>Business tax return</span></label>
+          <label class="check"><input type="checkbox" name="Services needed" value="Bookkeeping / monthly accounting" /><span>Bookkeeping / monthly accounting</span></label>
+          <label class="check"><input type="checkbox" name="Services needed" value="Payroll" /><span>Payroll</span></label>
+          <label class="check"><input type="checkbox" name="Services needed" value="Prior-year or amended returns" /><span>Prior&#8209;year or amended returns</span></label>
+          <label class="check"><input type="checkbox" name="Services needed" value="An IRS or state notice" /><span>An IRS or state notice</span></label>
+          <label class="check"><input type="checkbox" name="Services needed" value="Entity setup or structure question" /><span>Entity setup or structure</span></label>
+          <label class="check"><input type="checkbox" name="Services needed" value="Tax planning" /><span>Tax planning</span></label>
+          <label class="check"><input type="checkbox" name="Services needed" value="Process, controls or advisory" /><span>Process, controls or advisory</span></label>
+          <label class="check"><input type="checkbox" name="Services needed" value="Not sure yet" /><span>Not sure yet — need to talk</span></label>
+        </div>
+
+        <div class="two" style="margin-top:22px;">
+          <label class="field">
+            <span class="lab">Which tax years?</span>
+            <select name="Tax years involved">
+              <option value="">Select…</option>
+              <option>The current year</option>
+              <option>Last year only</option>
+              <option>Multiple years — I'm behind</option>
+              <option>Not sure</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="lab">How soon do you need this?</span>
+            <select name="Urgency">
+              <option value="">Select…</option>
+              <option>A deadline is close</option>
+              <option>Within the next month</option>
+              <option>Next few months</option>
+              <option>Just exploring</option>
+            </select>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- ── 3. Your situation ──────────────────────────────── -->
+      <fieldset>
+        <legend>Your situation</legend>
+        <p class="fs-note">Rough answers are fine. This just tells us what kind of conversation to prepare for.</p>
+
+        <div class="two">
+          <label class="field">
+            <span class="lab">Filing status</span>
+            <select name="Filing status">
+              <option value="">Select…</option>
+              <option>Single</option>
+              <option>Married filing jointly</option>
+              <option>Married filing separately</option>
+              <option>Head of household</option>
+              <option>Qualifying surviving spouse</option>
+              <option>Not sure</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="lab">Dependents</span>
+            <input type="number" name="Number of dependents" min="0" max="20" step="1" />
+          </label>
+        </div>
+
+        <div class="two">
+          <label class="field">
+            <span class="lab">States you lived or worked in</span>
+            <input type="text" name="States lived or worked in" placeholder="e.g. FL, GA" />
+          </label>
+          <label class="field">
+            <span class="lab">Who prepared last year&#39;s return?</span>
+            <select name="Prior year preparer">
+              <option value="">Select…</option>
+              <option>I did it myself</option>
+              <option>TurboTax or similar software</option>
+              <option>Another accountant or preparer</option>
+              <option>This is my first time filing</option>
+              <option>I haven't filed</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="lab">Do you own a business or rental property?</span>
+          <select name="Owns business or rental" id="ownsBiz">
+            <option value="">Select…</option>
+            <option>No</option>
+            <option>Yes — a business</option>
+            <option>Yes — rental property</option>
+            <option>Yes — both</option>
+          </select>
+        </label>
+
+        <div id="bizBlock" hidden>
+          <div class="two">
+            <label class="field">
+              <span class="lab">Entity type</span>
+              <select name="Entity type">
+                <option value="">Select…</option>
+                <option>Sole proprietor (Schedule C)</option>
+                <option>Single-member LLC</option>
+                <option>Partnership / multi-member LLC</option>
+                <option>S corporation</option>
+                <option>C corporation</option>
+                <option>Not sure</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="lab">Employees or contractors</span>
+              <select name="Headcount">
+                <option value="">Select…</option>
+                <option>None — just me</option>
+                <option>1–5</option>
+                <option>6–20</option>
+                <option>More than 20</option>
+              </select>
+            </label>
+          </div>
+          <div class="two">
+            <label class="field">
+              <span class="lab">How are the books kept today?</span>
+              <select name="Bookkeeping today">
+                <option value="">Select…</option>
+                <option>QuickBooks</option>
+                <option>Xero</option>
+                <option>Spreadsheet</option>
+                <option>Bank statements in a folder</option>
+                <option>Nothing yet</option>
+                <option>Not sure</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="lab">Roughly, annual revenue</span>
+              <select name="Revenue band">
+                <option value="">Select…</option>
+                <option>Under $100k</option>
+                <option>$100k – $500k</option>
+                <option>$500k – $2M</option>
+                <option>Over $2M</option>
+                <option>Prefer not to say</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <p class="lab" style="margin:24px 0 12px;font-family:var(--sans);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;color:var(--charcoal-2);">Anything unusual this year?</p>
+        <div class="checks">
+          <label class="check"><input type="checkbox" name="Notable events" value="Bought or sold a home" /><span>Bought or sold a home</span></label>
+          <label class="check"><input type="checkbox" name="Notable events" value="Sold stock or crypto" /><span>Sold stock or crypto</span></label>
+          <label class="check"><input type="checkbox" name="Notable events" value="Moved between states" /><span>Moved between states</span></label>
+          <label class="check"><input type="checkbox" name="Notable events" value="Married or divorced" /><span>Married or divorced</span></label>
+          <label class="check"><input type="checkbox" name="Notable events" value="New child or dependent" /><span>New child or dependent</span></label>
+          <label class="check"><input type="checkbox" name="Notable events" value="First year self-employed" /><span>First year self&#8209;employed</span></label>
+          <label class="check"><input type="checkbox" name="Notable events" value="Started or closed a business" /><span>Started or closed a business</span></label>
+          <label class="check"><input type="checkbox" name="Notable events" value="Retirement withdrawal" /><span>Retirement withdrawal</span></label>
+          <label class="check"><input type="checkbox" name="Notable events" value="Marketplace health insurance" /><span>Marketplace health insurance</span></label>
+          <label class="check"><input type="checkbox" name="Notable events" value="Foreign accounts or income" /><span>Foreign accounts or income</span></label>
+          <label class="check"><input type="checkbox" name="Notable events" value="Received an IRS or state notice" /><span>Got an IRS or state notice</span></label>
+        </div>
+      </fieldset>
+
+      <!-- ── 4. Documents ───────────────────────────────────── -->
+      <fieldset id="documents">
+        <legend>What you&#39;ll need</legend>
+        <p class="fs-note">
+          Don&#39;t send anything yet — just tick what you already have. It tells us
+          where to start and what we&#39;ll have to help you track down. Nothing
+          here is required.
+        </p>
+
+        <div class="doc-group">
+          <h5>Everyone</h5>
+          <div class="checks one-col">
+            <label class="check"><input type="checkbox" name="Documents on hand" value="Photo ID (driver's license or passport)" /><span>Photo ID — driver&#39;s license or passport, for you and your spouse</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="Last year's filed federal and state return" /><span>Last year&#39;s filed tax return — federal and state</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="SSN/ITIN for everyone on the return" /><span>Social Security or ITIN numbers for everyone on the return <em>(you&#39;ll send these securely later — never here)</em></span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="W-2s" /><span>W&#8209;2s from employers</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="1099s" /><span>1099s — contract work, interest, dividends, brokerage, retirement</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="Form 1095-A" /><span>Form 1095&#8209;A, if you had marketplace health insurance</span></label>
+          </div>
+        </div>
+
+        <div class="doc-group">
+          <h5>If you own a business or rental</h5>
+          <div class="checks one-col">
+            <label class="check"><input type="checkbox" name="Documents on hand" value="P&L and balance sheet or bookkeeping file" /><span>Profit &amp; loss and balance sheet — or your bookkeeping file</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="EIN letter (CP 575)" /><span>EIN letter (CP&nbsp;575), if you have one</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="Payroll reports and 1099s issued" /><span>Payroll reports and any 1099s you issued</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="Asset and depreciation schedule" /><span>Asset and depreciation schedule</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="Rental income and expense records" /><span>Rental income and expense records, plus closing statements</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="K-1s" /><span>K&#8209;1s from partnerships or S corps</span></label>
+          </div>
+        </div>
+
+        <div class="doc-group">
+          <h5>If they apply to you</h5>
+          <div class="checks one-col">
+            <label class="check"><input type="checkbox" name="Documents on hand" value="1098 mortgage interest and property tax" /><span>Form 1098 mortgage interest and property tax bills</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="Charitable contribution receipts" /><span>Charitable contribution receipts</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="1098-T tuition / 1098-E student loan interest" /><span>1098&#8209;T tuition or 1098&#8209;E student loan interest</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="Childcare provider details and amounts" /><span>Childcare provider details and amounts paid</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="Record of estimated tax payments" /><span>Record of estimated tax payments you made</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="Home purchase or sale closing statement" /><span>Closing statement, if you bought or sold a home</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="Brokerage or crypto transaction history" /><span>Brokerage or crypto transaction history</span></label>
+            <label class="check"><input type="checkbox" name="Documents on hand" value="Copies of IRS or state notices" /><span>Copies of any IRS or state notices you&#39;ve received</span></label>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- ── 5. Anything else ───────────────────────────────── -->
+      <fieldset>
+        <legend>Anything else</legend>
+        <label class="field">
+          <span class="lab">What would you most like help with?</span>
+          <textarea name="Notes" rows="5" placeholder="A sentence or two is plenty. If there's a deadline, a notice, or something you're worried about, this is the place to say it."></textarea>
+        </label>
+      </fieldset>
+
+      <!-- honeypot — bots fill this, humans never see it -->
       <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" />
-      <button class="btn gold" type="submit">Send Message</button>
-      <p class="form-status" id="formStatus" role="status"></p>
+      <input type="hidden" name="_subject" id="formSubject" value="New intake — SATC website" />
+
+      <div class="consent">
+        <label class="check">
+          <input type="checkbox" name="Acknowledged terms" value="Yes" id="consent" required />
+          <span>
+            I understand that sending this form starts a conversation and does not
+            create a client engagement. SATC is engaged only when we both sign an
+            engagement letter. See our <a href="privacy.html" style="border-bottom:1px solid var(--gold);">Privacy Policy</a>
+            and <a href="terms.html" style="border-bottom:1px solid var(--gold);">Terms</a>.
+          </span>
+        </label>
+      </div>
+
+      <button class="btn gold" type="submit">Send This to SATC</button>
+      <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>
     </form>
   </div>
 </section>
@@ -916,24 +912,14 @@
           <li><a href="#services">Accounting &amp; Bookkeeping</a></li>
           <li><a href="#services">Tax &amp; Compliance</a></li>
           <li><a href="#services">Risk, Controls &amp; Advisory</a></li>
-          <li><a href="#systems">Process &amp; Systems</a></li>
-        </ul>
-      </div>
-
-      <div class="foot-col">
-        <h5>Company</h5>
-        <ul>
-          <li><a href="#about">About Arjun</a></li>
-          <li><a href="#why">Why SATC</a></li>
-          <li><a href="#faq">FAQ</a></li>
-          <li><a href="#contact">Contact</a></li>
+          <li><a href="#intake">Get Started</a></li>
         </ul>
       </div>
 
       <div class="foot-col">
         <h5>Get In Touch</h5>
         <ul>
-          <li data-contact="email-row">
+          <li>
             <b>Email</b>
             <a data-email href="#">email</a>
           </li>
@@ -941,11 +927,11 @@
             <b>Phone</b>
             <a data-phone-link href="#">phone</a>
           </li>
-          <li data-contact="location-row">
+          <li>
             <b>Office</b>
             <span data-location>By appointment</span>
           </li>
-          <li data-contact="linkedin-row" hidden>
+          <li data-linkedin-row hidden>
             <b>LinkedIn</b>
             <a data-linkedin href="#" target="_blank" rel="noopener">Connect</a>
           </li>
@@ -958,7 +944,7 @@
       <div class="legal">
         <a href="privacy.html">Privacy</a>
         <a href="terms.html">Terms</a>
-        <a href="#book">Schedule</a>
+        <a href="#intake">Get Started</a>
         <a data-email href="#">Email Us</a>
       </div>
     </div>
@@ -969,48 +955,32 @@
 <!-- ============================================================================
      ⚙️  SATC_CONFIG — THE ONLY THING YOU NEED TO EDIT
      ----------------------------------------------------------------------------
-     1) SCHEDULING: paste your booking link below. Works with Calendly or Cal.com
-        (both have a free tier and take ~5 min to set up — see website/README.md).
-          • Calendly: provider "calendly", url like
-              "https://calendly.com/your-handle/30min"
-          • Cal.com:  provider "cal", url like
-              "https://cal.com/your-handle/consultation"
-        Leave `url` empty and the page shows a tasteful "email to book" fallback,
-        so the site is never broken before you set this up.
+     1) WHERE THE FORM GOES (do this first — it's the whole point of the page):
+        Sign up free at https://formspree.io, create a form, and paste its ID
+        below as `formspreeId` (it looks like "xkgwabcd" — the last part of the
+        URL Formspree gives you). Submissions then land in your inbox.
+        Leave it blank and the form falls back to opening the visitor's email
+        app with everything pre-filled — it works, but far fewer people finish.
 
      2) CONTACT: set your email (and optionally phone / location / LinkedIn).
         Leave a field as "" to hide it automatically.
+
+     3) OPTIONAL — BOOKING: paste a Calendly or Cal.com link and a "book a time"
+        link appears next to the form. Leave blank to hide it entirely.
      ============================================================================ -->
 <script>
   const SATC_CONFIG = {
-    booking: {
-      provider: "calendly",   // "calendly" | "cal" | "iframe"
-      url: ""                 // ← PASTE YOUR BOOKING LINK HERE to go live
-    },
     contact: {
       email:      "arjun_sethuraman@satcllp.com",
       phone:      "",                     // e.g. "+1 (305) 555-0140" — blank = hidden
       location:   "By appointment · Remote &amp; in&#8209;person",
       linkedin:   "",                     // e.g. "https://www.linkedin.com/in/your-handle"
-      formspreeId: ""                     // contact form: free at formspree.io → paste the form id (e.g. "xkgwabcd"). Blank = form opens your email app instead.
+      formspreeId: ""                     // ← PASTE YOUR FORMSPREE FORM ID HERE to get submissions by email
     },
-    // ── About section ──────────────────────────────────────────────
-    about: {
-      name: "Arjun Sethuraman",
-      role: "Managing Partner",
-      photo: "",                // drop a headshot in /website (e.g. "arjun.jpg") and put the filename here. Blank = monogram.
-      credentials: ["CPA", "Credit Risk", "Risk Governance"],   // shown as chips. Empty = none.
-      bio: [
-        "Arjun is a CPA whose career was built inside large-bank risk and internal audit — designing credit-risk assessment frameworks, full-population testing, and continuous-monitoring models across consumer, commercial, and small-business portfolios.",
-        "Through SATC he brings that same standard to smaller businesses — hands-on accounting and tax, plus the back-office processes (run on software we build ourselves) that keep the day-to-day moving with little input from you.",
-        "You work with him directly, start to finish. The goal on every engagement is the same: the clearest, most direct answer, explained so you can act on it — and work that holds up.",
-        "He runs the firm with partner Brandi Sethuraman, an accountant who works alongside him on client engagements."
-      ]
+    // ── Optional: a "book a time" link beside the form ──────────────
+    booking: {
+      url: ""                             // e.g. "https://calendly.com/your-handle/30min" — blank = hidden
     },
-    // ── Testimonials (section stays hidden until you add at least one) ──
-    testimonials: [
-      // { quote: "They took our books from chaos to current in a month.", name: "Jane Doe", role: "Owner, Acme Co." }
-    ],
     // ── Analytics (optional, off by default) ───────────────────────
     // provider "plausible" + domain, OR "cloudflare" + token, OR "ga" + id
     analytics: { provider: "", domain: "", token: "", id: "" }
@@ -1023,24 +993,34 @@
 
     if (c.email) {
       set('[data-email]', a => {
-        a.href = 'mailto:' + c.email + '?subject=' + encodeURIComponent('Consultation request — SATC');
-        if (a.hasAttribute('data-email') && a.tagName === 'A' && a.textContent.trim().toLowerCase() === 'email') a.textContent = c.email;
+        a.href = 'mailto:' + c.email + '?subject=' + encodeURIComponent('Enquiry — SATC');
+        if (a.tagName === 'A' && a.textContent.trim().toLowerCase() === 'email') a.textContent = c.email;
       });
     }
     if (c.phone) {
-      document.querySelectorAll('[data-phone-row]').forEach(el => { el.hidden = false; });
-      document.querySelectorAll('[data-phone-link]').forEach(p => {
+      set('[data-phone-row]', el => { el.hidden = false; });
+      set('[data-phone-link]', p => {
         p.href = 'tel:' + c.phone.replace(/[^+\d]/g, '');
         p.textContent = c.phone;
       });
     }
-    if (c.location) document.querySelector('[data-location]').innerHTML = c.location;
+    const loc = document.querySelector('[data-location]');
+    if (loc && c.location) loc.innerHTML = c.location;
+
     if (c.linkedin) {
-      document.querySelector('[data-contact="linkedin-row"]').hidden = false;
-      document.querySelector('[data-linkedin]').href = c.linkedin;
+      set('[data-linkedin-row]', el => { el.hidden = false; });
+      set('[data-linkedin]', a => { a.href = c.linkedin; });
     }
     const y = document.getElementById('year');
     if (y) y.textContent = new Date().getFullYear();
+  })();
+
+  /* ---------- optional booking link ---------- */
+  (function () {
+    const url = (SATC_CONFIG.booking || {}).url;
+    if (!url) return;
+    document.querySelectorAll('[data-booking-row]').forEach(el => { el.hidden = false; });
+    document.querySelectorAll('[data-booking-link]').forEach(a => { a.href = url; });
   })();
 
   /* ---------- mobile nav ---------- */
@@ -1056,145 +1036,92 @@
     document.getElementById('navLinks').addEventListener('click', e => { if (e.target.closest('a')) close(); });
   })();
 
-  /* ---------- booking embed ---------- */
+  /* ---------- show the business questions only when relevant ---------- */
   (function () {
-    const b = SATC_CONFIG.booking || {};
-    const mount = document.getElementById('booking-embed');
-    if (!mount) return;
-    const email = SATC_CONFIG.contact.email;
-
-    function fallback() {
-      const mailHref = email
-        ? 'mailto:' + email + '?subject=' + encodeURIComponent('Consultation request — SATC')
-        : '#contact';
-      mount.innerHTML =
-        '<div class="booking-fallback">' +
-          '<h3>Let&#39;s find a time</h3>' +
-          '<p>Online scheduling is being set up. In the meantime, send a note with a few times that work for you and we&#39;ll confirm by reply.</p>' +
-          '<div class="row">' +
-            '<a class="btn gold" href="' + mailHref + '">Email to Book</a>' +
-          '</div>' +
-        '</div>';
-    }
-
-    function loadScript(src, cb) {
-      const s = document.createElement('script');
-      s.src = src; s.async = true; if (cb) s.onload = cb;
-      document.body.appendChild(s);
-    }
-
-    if (!b.url) { fallback(); return; }
-
-    try {
-      if (b.provider === 'calendly') {
-        const sep = b.url.includes('?') ? '&' : '?';
-        const styled = b.url + sep +
-          'hide_gdpr_banner=1&background_color=fbf9f4&text_color=0b1f3a&primary_color=b08d57';
-        const w = document.createElement('div');
-        w.className = 'calendly-inline-widget';
-        w.setAttribute('data-url', styled);
-        w.style.minWidth = '320px';
-        w.style.height = '760px';
-        mount.appendChild(w);
-        loadScript('https://assets.calendly.com/assets/external/widget.js');
-      } else if (b.provider === 'cal') {
-        // derive the cal "link" (path after the domain) from a full URL
-        let link = b.url;
-        try { link = new URL(b.url).pathname.replace(/^\//, ''); } catch (e) {}
-        const div = document.createElement('div');
-        div.id = 'cal-inline';
-        div.style.minHeight = '760px';
-        mount.appendChild(div);
-        (function (C, A, L) { let p = function (a, ar) { a.q.push(ar); }; let d = C.document; C.Cal = C.Cal || function () { let cal = C.Cal; let ar = arguments; if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; } if (ar[0] === L) { const api = function () { p(api, arguments); }; const namespace = ar[1]; api.q = api.q || []; if (typeof namespace === "string") { cal.ns[namespace] = cal.ns[namespace] || api; p(cal.ns[namespace], ar); p(cal, ["initNamespace", namespace]); } else p(cal, ar); return; } p(cal, ar); }; })(window, "https://app.cal.com/embed/embed.js", "init");
-        window.Cal("init", { origin: "https://cal.com" });
-        window.Cal("inline", { elementOrSelector: "#cal-inline", calLink: link });
-        window.Cal("ui", { theme: "light", styles: { branding: { brandColor: "#B08D57" } }, hideEventTypeDetails: false });
-      } else {
-        const f = document.createElement('iframe');
-        f.src = b.url; f.title = 'Schedule a consultation';
-        f.style.width = '100%'; f.style.height = '760px'; f.style.border = '0';
-        f.loading = 'lazy';
-        mount.appendChild(f);
-      }
-    } catch (e) {
-      fallback();
-    }
+    const sel = document.getElementById('ownsBiz');
+    const block = document.getElementById('bizBlock');
+    if (!sel || !block) return;
+    const sync = () => { block.hidden = !/^Yes/.test(sel.value); };
+    sel.addEventListener('change', sync);
+    sync();
   })();
 
-  /* ---------- about ---------- */
+  /* ---------- intake form (Formspree if configured, else mailto) ---------- */
   (function () {
-    const a = SATC_CONFIG.about; if (!a) return;
-    const setText = (id, v) => { const el = document.getElementById(id); if (el && v) el.textContent = v; };
-    setText('aboutName', a.name);
-    setText('aboutRole', a.role);
-
-    const photo = document.getElementById('aboutPhoto');
-    if (photo) {
-      if (a.photo) {
-        photo.style.backgroundImage = "url('" + a.photo + "')";
-        photo.textContent = '';
-      } else if (a.name) {
-        photo.textContent = a.name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
-      }
-    }
-    const cred = document.getElementById('aboutCred');
-    if (cred && Array.isArray(a.credentials)) {
-      cred.innerHTML = a.credentials.map(c => '<span>' + c + '</span>').join('');
-    }
-    const bio = document.getElementById('aboutBio');
-    if (bio && Array.isArray(a.bio)) {
-      bio.innerHTML = a.bio.map(p => '<p class="bio">' + p + '</p>').join('');
-    }
-  })();
-
-  /* ---------- testimonials (only shown if at least one exists) ---------- */
-  (function () {
-    const t = SATC_CONFIG.testimonials;
-    const grid = document.getElementById('tnGrid');
-    const section = document.getElementById('testimonials');
-    if (!grid || !section || !Array.isArray(t) || t.length === 0) return;
-    grid.innerHTML = t.map(item =>
-      '<figure class="tn">' +
-        '<div class="mark">&ldquo;</div>' +
-        '<blockquote><p>' + item.quote + '</p></blockquote>' +
-        '<figcaption class="who"><b>' + (item.name || '') + '</b>' + (item.role || '') + '</figcaption>' +
-      '</figure>'
-    ).join('');
-    section.hidden = false;
-  })();
-
-  /* ---------- contact form (Formspree if configured, else mailto) ---------- */
-  (function () {
-    const form = document.getElementById('contactForm');
+    const form   = document.getElementById('intakeForm');
     const status = document.getElementById('formStatus');
     if (!form) return;
+
     const email = SATC_CONFIG.contact.email;
-    const fid = SATC_CONFIG.contact.formspreeId;
+    const fid   = SATC_CONFIG.contact.formspreeId;
     if (fid) { form.action = 'https://formspree.io/f/' + fid; form.method = 'POST'; }
+
+    const fail = msg => { status.className = 'form-status err'; status.textContent = msg; };
+    const say  = msg => { status.className = 'form-status';     status.textContent = msg; };
+
+    // Turn the form into readable "Label: value" lines. Repeated checkbox
+    // values under one name are joined, so the email reads like a summary.
+    function summarize(fd) {
+      const rows = new Map();
+      fd.forEach((v, k) => {
+        if (k.charAt(0) === '_') return;              // Formspree control fields
+        const val = String(v).trim();
+        if (!val) return;
+        rows.set(k, rows.has(k) ? rows.get(k) + ', ' + val : val);
+      });
+      return Array.from(rows, ([k, v]) => k + ': ' + v).join('\n');
+    }
+
+    function done() {
+      form.innerHTML =
+        '<div class="intake-done">' +
+          '<h3>Thank you — that&#39;s everything we need for now.</h3>' +
+          '<p>Arjun will read this personally and reply within one business day. ' +
+          'If we need documents from you, that reply will include a secure upload ' +
+          'link — we&#39;ll never ask you to email or text them.</p>' +
+        '</div>';
+    }
 
     form.addEventListener('submit', async function (e) {
       e.preventDefault();
       const fd = new FormData(form);
-      if ((fd.get('_gotcha') || '') !== '') return;           // spam honeypot
-      const name = (fd.get('name') || '').trim();
-      const from = (fd.get('email') || '').trim();
-      const msg  = (fd.get('message') || '').trim();
-      if (!name || !from || !msg) { status.textContent = 'Please fill in all three fields.'; return; }
+
+      if ((fd.get('_gotcha') || '') !== '') return;                    // spam honeypot
+
+      const name = String(fd.get('Full name') || '').trim();
+      const from = String(fd.get('Email') || '').trim();
+      if (!name || !from) { fail('Please add your name and email so we can reply.'); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)) { fail('That email address doesn’t look right — mind checking it?'); return; }
+      if (!document.getElementById('consent').checked) { fail('Please tick the acknowledgement below before sending.'); return; }
+
+      // Drop blank answers and the honeypot so what lands in the inbox is
+      // only what the visitor actually filled in.
+      const payload = new FormData();
+      fd.forEach((v, k) => {
+        if (k === '_gotcha') return;
+        if (String(v).trim()) payload.append(k, v);
+      });
+      payload.set('_subject', 'New intake — ' + name);
 
       if (!fid) {
-        const body = encodeURIComponent(msg + '\n\n— ' + name + ' <' + from + '>');
-        window.location.href = 'mailto:' + email + '?subject=' +
-          encodeURIComponent('Website inquiry from ' + name) + '&body=' + body;
-        status.textContent = 'Opening your email app…';
+        // No Formspree yet: hand the visitor a pre-filled email instead.
+        const body = summarize(payload) + '\n\n— sent from the SATC website';
+        window.location.href = 'mailto:' + email +
+          '?subject=' + encodeURIComponent('New intake — ' + name) +
+          '&body=' + encodeURIComponent(body);
+        say('Opening your email app — press send and it’s on its way.');
         return;
       }
-      status.textContent = 'Sending…';
+
+      say('Sending…');
       try {
-        const res = await fetch(form.action, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } });
-        if (res.ok) { form.reset(); status.textContent = 'Thank you — your message is on its way. We’ll be in touch shortly.'; }
-        else { status.textContent = 'Sorry, that didn’t go through. Please email ' + email + '.'; }
+        const res = await fetch(form.action, {
+          method: 'POST', body: payload, headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) { done(); }
+        else { fail('Sorry, that didn’t go through. Please email ' + email + ' and we’ll pick it up from there.'); }
       } catch (err) {
-        status.textContent = 'Network issue — please email ' + email + '.';
+        fail('Network issue — please email ' + email + ' and we’ll pick it up from there.');
       }
     });
   })();

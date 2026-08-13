@@ -1,16 +1,23 @@
 # SATC — Marketing Website
 
-A single-file, fully responsive landing site for **Sethuraman Accounting, Tax &
-Consulting**. It's the public page you share with people so they can learn what
-you do and **book a consultation** with you.
+A single-file, fully responsive site for **Sethuraman Accounting, Tax &
+Consulting**. Right now it works as a **glorified intake form**: the page you
+send a lead to so they can tell you about their situation before you ever get
+on a call.
 
 - **One file:** [`index.html`](./index.html). No build step, no framework, no
   dependencies. Open it in a browser to preview; drop it on any static host to
   publish.
-- **Mobile-first:** works on phones, tablets, and desktop (the original mockup
-  was desktop-only — this rebuild fixes that).
+- **Mobile-first:** works on phones, tablets, and desktop.
 - **Honest content:** no fake testimonials, metrics, or blog posts — only true
   claims you can stand behind.
+
+**The page is:** `Nav → Hero → Services (3) → Intake form → Footer`.
+
+> **Looking for the full marketing site?** The longer version (About, Occam
+> platform, Why SATC, How We Work, FAQ, booking embed) is preserved at
+> [`docs/website-archive/index-full-marketing-2026-08-13.html`](../docs/website-archive/index-full-marketing-2026-08-13.html)
+> and in git history. It lives outside `website/`, so it is **not** published.
 
 ---
 
@@ -19,34 +26,34 @@ you do and **book a consultation** with you.
 Everything you'll ever need to edit lives in **one block** at the very bottom of
 `index.html`, labelled `⚙️ SATC_CONFIG`.
 
-### 1. Add your booking link (the whole point of the site)
+### 1. Point the form at your inbox (the whole point of the site)
 
-Set up a free scheduler, then paste its link into the config:
+The form posts to **[Formspree](https://formspree.io)** — free, no backend, and
+submissions land in your email. Sign up, create a form, copy the ID out of the
+URL it gives you (the last part, like `xkgwabcd`), and paste it in:
 
 ```js
 const SATC_CONFIG = {
-  booking: {
-    provider: "calendly",                               // "calendly" | "cal" | "iframe"
-    url: "https://calendly.com/your-handle/30min"       // ← paste your link here
+  contact: {
+    email:      "arjun_sethuraman@satcllp.com",
+    formspreeId: "xkgwabcd"      // ← paste your Formspree form ID here
   },
   ...
 ```
 
-You don't have an account yet? Pick one (both free, ~5 minutes):
+Until you set this, the form **falls back to opening the visitor's email app**
+with every answer pre-filled. It works, but far fewer people finish — so set the
+Formspree ID before you start sending the link around.
 
-| Option | Link | In the config |
-|---|---|---|
-| **Calendly** | <https://calendly.com> → create a 30-min event type → copy its share link | `provider: "calendly"`, `url: "https://calendly.com/you/30min"` |
-| **Cal.com** (open-source) | <https://cal.com> → create an event type → copy its link | `provider: "cal"`, `url: "https://cal.com/you/consultation"` |
-
-Until you add a link, the booking section automatically shows a tidy
-**"Email to Book"** fallback — so the page is never broken in the meantime.
+The free tier is 50 submissions/month. Each email arrives as a readable
+`Label: value` list; blank answers are stripped out, so you only see what they
+actually filled in.
 
 ### 2. Set your contact details
 
 ```js
   contact: {
-    email:    "you@yourbusiness.com",   // change from the gmail default when ready
+    email:    "you@yourbusiness.com",
     phone:    "",                       // optional — leave "" to hide
     location: "By appointment · Remote & in-person",
     linkedin: ""                        // optional — leave "" to hide
@@ -55,28 +62,59 @@ Until you add a link, the booking section automatically shows a tidy
 
 Any field left as `""` is hidden automatically.
 
+### Optional: add a booking link
+
+You have Calendly through your Microsoft account. Paste the link and a
+"book a time" line appears beside the form; leave it blank and it stays hidden.
+
+```js
+  booking: { url: "https://calendly.com/your-handle/30min" }
+```
+
 That's it. Commit, and the site updates.
+
+---
+
+## 🔒 What the form does and does not collect
+
+This is a static page on GitHub Pages. There is **no backend** — submissions
+travel to Formspree and then to your inbox. That shapes what it may ask for.
+
+**It collects:** name, email, phone, city/state, referral source, which services
+are needed, tax years, urgency, filing status, dependents, states worked in,
+prior preparer, business/rental details (entity type, headcount, bookkeeping,
+revenue band), notable events for the year, and free-text notes.
+
+**It never collects:** SSNs, ITINs, EINs, dates of birth, bank account numbers,
+or document uploads. The page says so explicitly, in a callout above the first
+field.
+
+Instead, the **"What you'll need"** section lists the documents a first
+engagement needs — photo ID, last year's return, W-2s/1099s, business books,
+and so on — as checkboxes the visitor *ticks to confirm they have*. Nothing is
+required. That tells you where to start without moving a single sensitive value
+across the open internet.
+
+**The handoff:** your reply email carries a secure upload link for the actual
+documents. The page promises this in three places, so keep that promise — and
+don't collect tax documents over email or text. Anything touching real TINs
+belongs in `satc_system`'s encrypted identity vault, not here.
 
 ---
 
 ## 🚀 Hosting (GitHub Pages)
 
 A deploy workflow is already included at
-[`.github/workflows/pages.yml`](../.github/workflows/pages.yml). To turn it on:
+[`.github/workflows/pages.yml`](../.github/workflows/pages.yml). Any push to
+`main` that changes `website/` redeploys automatically — **treat edits here as
+production changes.** You can also trigger it manually from the Actions tab
+("Run workflow").
 
-1. **Merge this to `main`** (the workflow deploys from `main`).
-2. The workflow **auto-enables** Pages (Source = GitHub Actions), so there's
-   normally no toggle to flip. If your org blocks that, set it once by hand:
-   **Settings → Pages → Build and deployment → Source → "GitHub Actions"**.
-3. Wait for the **Deploy website to GitHub Pages** action to finish (Actions
-   tab). The site is then live at **https://ajsethuraman.github.io/satc/**.
+The site is live at **https://ajsethuraman.github.io/satc/**.
 
-After that, any push to `main` that changes `website/` redeploys automatically.
-You can also trigger it manually from the Actions tab ("Run workflow").
-
-> **Current setup:** the site is served from the GitHub URL above. There is no
-> `CNAME` file, so nothing is pinned to a custom domain. If GitHub still shows a
-> **Custom domain** under Settings → Pages, clear that field and Save.
+> **Current setup:** served from the GitHub URL above. There is no `CNAME` file,
+> so nothing is pinned to a custom domain. If GitHub still shows a **Custom
+> domain** under Settings → Pages, clear that field and Save.
 
 ### Later: connect the `satcllp.com` domain (Squarespace-managed DNS)
 
@@ -137,25 +175,20 @@ xdg-open website/index.html    # Linux
 start website/index.html       # Windows
 ```
 
-Or serve it (so the scheduler embed behaves exactly like production):
+Or serve it:
 
 ```bash
 cd website && python -m http.server 8000   # then visit http://localhost:8000
 ```
 
----
-
-## What's on the page
-
-`Nav → Hero → Services (3) → The Occam Platform → Why SATC (4) → How We Work
-(3 steps) → Book a Consultation → Footer / Contact`
-
-The **Occam Platform** section ties into the in-house tools already in this repo
-(`invoice-generator`, `drake-entry-assistant`) — it's real, not marketing fluff.
+To test the form without a Formspree account, submit it and check that your mail
+client opens with every answer pre-filled — that's the fallback path working.
 
 ## Editing copy / colours
 
 - **Text:** edit the HTML directly — it reads top to bottom, section by section.
+- **Form fields:** each input's `name` attribute is the label you'll see in the
+  email, so keep them human-readable (`name="Filing status"`, not `name="fs"`).
 - **Colours & fonts:** the palette is a set of CSS variables in `:root` near the
   top of the `<style>` block (navy `#0B1F3A`, gold `#B08D57`, cream `#F7F5F0`).
 - **Logo:** the "S" seal is inline SVG (search for `class="seal"`); swap in your
