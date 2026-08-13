@@ -319,8 +319,43 @@ Preserves everything that works today — Formspree POST, mailto fallback,
 
 - [x] **Phase 1 — Audit.** Complete, findings in §3.
 - [x] **Phase 2 — Implementation plan.** Complete, in §6a.
-- [ ] **Phase 3 — Implement.** Smallest reasonable change set.
-- [ ] **Phase 4 — Validate.** Ten representative paths + stale-data adversarial checks.
+- [x] **Phase 3 — Implement.** `intake-config.js` + `intake.js`; `index.html` reduced to a mount point.
+- [x] **Phase 4 — Validate.** 77 agents: 10 scenario walks + 7 review lenses, every
+      finding independently refuted before counting. **52 confirmed, 8 refuted.**
+      All fixed; 23/23 regression checks pass.
+
+### What validation caught (2026-08-13)
+
+Worth keeping, because the failure mode generalises.
+
+**Blocker — `const SATC_CONFIG` is not `window.SATC_CONFIG`.** A top-level
+`const` in a classic script is lexically scoped and never becomes a window
+property. `index.html`'s own inline IIFEs read the bare identifier and worked
+fine, so the page looked healthy; `intake.js`, loaded as a separate file, read
+`window.SATC_CONFIG`, got `undefined`, and sent **every** submission to
+`mailto:undefined`. `contact.email` was undefined for the same reason, so the
+documented fallback was broken too — no config made it work, and the error text
+read "Please email undefined". All 16 agents found it independently.
+
+*Lesson:* splitting a file across a script boundary changes variable
+reachability, and the only symptom was at submit time — which no smoke test that
+stops short of pressing the button will ever reach.
+
+**Also fixed:** `prune()` ignored orphaned answers from a changed config ·
+`business_complexity` interrogated a business the prospect said doesn't exist ·
+`entity_setup`-only suppressed the business subtree for actual business owners ·
+mailto fallback omitted name and email · honeypot wedged the form on "Sending…" ·
+three new CSS rules lost the cascade to pre-existing `.intake-form` selectors ·
+progress bar ran backwards · no visible keyboard focus on choice rows · nested
+`aria-live` re-announced the whole form · 21px tap targets · answers saved only
+on navigation, so a reload mid-step discarded them.
+
+**Held up:** the fixpoint pruning core. No agent got `rental_count` — or any
+other stale answer — to survive a deselect.
+
+**Known and accepted:** after a *failed* send the button re-enables, so each
+retry click fires a request. Cannot duplicate a lead, because a successful
+submit replaces the form immediately.
 
 ### Definition of done
 

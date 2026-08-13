@@ -135,7 +135,12 @@ window.INTAKE_STEPS = [
     question: 'Which of these does the business involve?',
     help: 'Select all that apply.',
     required: true,
-    showIf: a => !!a.business_structure && !onlyService(a, 'entity_setup'),
+    // Only for a business that actually exists. "not_yet" means they are here
+    // to start one, so asking about its inventory and receivables is nonsense.
+    // This subsumes the old entity_setup-only guard, which wrongly suppressed
+    // the whole subtree for someone who already owns a business and wants
+    // another one.
+    showIf: a => !!a.business_structure && a.business_structure !== 'not_yet',
     options: [
       { value: 'employees',           label: 'Employees' },
       { value: 'contractors',         label: 'Independent contractors' },
@@ -337,10 +342,4 @@ function hasAny(selected, values) {
   if (!selected) return false;
   const list = Array.isArray(selected) ? selected : [selected];
   return values.some(v => list.indexOf(v) !== -1);
-}
-
-/** True when `service` is the ONLY thing they picked. */
-function onlyService(answers, service) {
-  const s = answers.services || [];
-  return s.length === 1 && s[0] === service;
 }
