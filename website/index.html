@@ -313,12 +313,46 @@
   .callout b { color: var(--navy); }
   .consent { margin: 26px 0 6px; padding-top: 22px; border-top: 1px solid var(--hairline); }
   .consent .check { font-size: 13.5px; color: var(--charcoal-2); }
-  .intake-form button[type="submit"] { border: 0; margin-top: 18px; width: 100%; justify-content: center; }
+  .intake-form button[type="submit"] { border: 0; }
   .form-status { font-family: var(--sans); font-size: 13.5px; line-height: 1.6; color: var(--gold-deep); margin: 14px 0 0; min-height: 18px; }
   .form-status.err { color: #9B2C2C; }
   .intake-done { text-align: center; padding: clamp(30px, 6vw, 60px) 10px; }
   .intake-done h3 { font-family: var(--serif); font-weight: 500; font-size: clamp(28px, 4vw, 38px); color: var(--navy); margin: 0 0 14px; }
   .intake-done p { font-family: var(--sans); font-size: 15px; line-height: 1.7; color: var(--charcoal); margin: 0 auto; max-width: 440px; }
+
+  /* ---- step wizard chrome (rendered by intake.js) ----
+     Several of these need .intake-form in the selector to out-specify the
+     generic .intake-form fieldset/legend/button rules above. Without it they
+     silently lose the cascade. */
+  .wiz-bar { height: 2px; background: var(--hairline); margin-bottom: clamp(24px, 4vw, 34px); }
+  .wiz-bar span { display: block; height: 100%; background: var(--gold); transition: width .3s ease; }
+  .intake-form .wiz-step { border: 0; margin: 0; padding: 0; }
+  .intake-form .wiz-q {
+    font-family: var(--serif); font-weight: 500; font-size: clamp(24px, 3.4vw, 32px);
+    line-height: 1.15; color: var(--navy); padding: 0; margin: 0 0 6px;
+    letter-spacing: -0.005em; text-wrap: pretty;
+  }
+  .wiz-step .fs-note { margin-bottom: 20px; }
+  .wiz-nav {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--hairline);
+  }
+  .intake-form .wiz-nav .btn { min-width: 190px; width: auto; justify-content: center; margin-top: 0; }
+  .intake-form .wiz-nav .btn:disabled { opacity: .55; cursor: default; }
+  /* .btn-link on a <button> inherits the UA's grey-and-outset chrome */
+  .wiz-nav .btn-link { background: none; border: 0; cursor: pointer; font: inherit; }
+  .wiz-nav .btn-link::after { content: "←"; order: -1; }
+  .wiz-consent-link { border-bottom: 1px solid var(--gold); }
+
+  /* Keyboard focus has to be obvious on the choice rows — they are the whole
+     interaction. The bare input outline is easy to miss inside a label. */
+  .check input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .check:has(input:focus-visible) { color: var(--navy); }
+  .check:has(input:focus-visible) span { box-shadow: 0 1px 0 var(--gold); }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
 
   /* ============================================================ FOOTER */
   footer { background: var(--navy-deep); color: rgba(247,245,240,0.78); padding: clamp(56px, 8vw, 80px) 0 30px; }
@@ -371,6 +405,11 @@
     .services { grid-template-columns: 1fr; }
     .checks { grid-template-columns: 1fr; }
     .two { grid-template-columns: 1fr; }
+    .intake-form .wiz-nav .btn { min-width: 0; flex: 1; padding-left: 14px; padding-right: 14px; }
+    /* choice rows are the primary tap target — keep them thumb-sized */
+    .checks { gap: 0; }
+    .wiz-step .check { min-height: 44px; align-items: center; padding: 6px 0; }
+    .wiz-step .check input { width: 20px; height: 20px; margin: 0; }
     .hero-ctas .btn { width: 100%; justify-content: center; }
     .foot-top { grid-template-columns: 1fr; }
     .foot-bottom { flex-direction: column; align-items: flex-start; }
@@ -415,7 +454,7 @@
     </button>
     <div class="nav-links" id="navLinks">
       <a href="#services">Services</a>
-      <a href="#documents">What You'll Need</a>
+      <a href="#intake">Get Started</a>
       <a class="nav-cta" href="#intake">Get Started</a>
     </div>
   </div>
@@ -581,7 +620,7 @@
     </div>
 
     <!-- ---------- the form ---------- -->
-    <form class="intake-form" id="intakeForm" novalidate>
+    <div class="intake-form">
 
       <div class="callout">
         <b>Please don&#39;t enter Social Security numbers, ITINs, or bank account
@@ -590,295 +629,18 @@
         upload link for anything sensitive.
       </div>
 
-      <!-- ── 1. About you ───────────────────────────────────── -->
-      <fieldset>
-        <legend>About you</legend>
-        <div class="two">
-          <label class="field">
-            <span class="lab">Full name <span class="req">*</span></span>
-            <input type="text" name="Full name" autocomplete="name" required />
-          </label>
-          <label class="field">
-            <span class="lab">Email <span class="req">*</span></span>
-            <input type="email" name="Email" autocomplete="email" required />
-          </label>
-        </div>
-        <div class="two">
-          <label class="field">
-            <span class="lab">Phone</span>
-            <input type="tel" name="Phone" autocomplete="tel" />
-          </label>
-          <label class="field">
-            <span class="lab">Best way to reach you</span>
-            <select name="Preferred contact method">
-              <option value="">Select…</option>
-              <option>Email</option>
-              <option>Phone call</option>
-              <option>Text message</option>
-            </select>
-          </label>
-        </div>
-        <div class="two">
-          <label class="field">
-            <span class="lab">City &amp; state</span>
-            <input type="text" name="City and state" placeholder="e.g. Tampa, FL" />
-          </label>
-          <label class="field">
-            <span class="lab">How did you hear about us?</span>
-            <select name="How they heard about us">
-              <option value="">Select…</option>
-              <option>Referred by a friend or client</option>
-              <option>Referred by another professional</option>
-              <option>Search engine</option>
-              <option>Social media</option>
-              <option>Other</option>
-            </select>
-          </label>
-        </div>
-        <label class="field">
-          <span class="lab">If someone referred you, who?</span>
-          <input type="text" name="Referred by" />
-        </label>
-      </fieldset>
+      <!-- The intake is rendered here by intake.js, one step at a time, from
+           the questions and branching rules in intake-config.js. -->
+      <!-- Deliberately NOT aria-live: intake.js replaces this whole subtree on
+           every step, which would make a screen reader re-announce the entire
+           form. The status line inside carries role="status" instead. -->
+      <div id="intakeMount"></div>
 
-      <!-- ── 2. What you need ───────────────────────────────── -->
-      <fieldset>
-        <legend>What you need</legend>
-        <p class="fs-note">Tick everything that applies — it doesn&#39;t commit you to anything.</p>
-        <div class="checks">
-          <label class="check"><input type="checkbox" name="Services needed" value="Individual tax return" /><span>Individual tax return</span></label>
-          <label class="check"><input type="checkbox" name="Services needed" value="Business tax return" /><span>Business tax return</span></label>
-          <label class="check"><input type="checkbox" name="Services needed" value="Bookkeeping / monthly accounting" /><span>Bookkeeping / monthly accounting</span></label>
-          <label class="check"><input type="checkbox" name="Services needed" value="Payroll" /><span>Payroll</span></label>
-          <label class="check"><input type="checkbox" name="Services needed" value="Prior-year or amended returns" /><span>Prior&#8209;year or amended returns</span></label>
-          <label class="check"><input type="checkbox" name="Services needed" value="An IRS or state notice" /><span>An IRS or state notice</span></label>
-          <label class="check"><input type="checkbox" name="Services needed" value="Entity setup or structure question" /><span>Entity setup or structure</span></label>
-          <label class="check"><input type="checkbox" name="Services needed" value="Tax planning" /><span>Tax planning</span></label>
-          <label class="check"><input type="checkbox" name="Services needed" value="Process, controls or advisory" /><span>Process, controls or advisory</span></label>
-          <label class="check"><input type="checkbox" name="Services needed" value="Not sure yet" /><span>Not sure yet — need to talk</span></label>
-        </div>
-
-        <div class="two" style="margin-top:22px;">
-          <label class="field">
-            <span class="lab">Which tax years?</span>
-            <select name="Tax years involved">
-              <option value="">Select…</option>
-              <option>The current year</option>
-              <option>Last year only</option>
-              <option>Multiple years — I'm behind</option>
-              <option>Not sure</option>
-            </select>
-          </label>
-          <label class="field">
-            <span class="lab">How soon do you need this?</span>
-            <select name="Urgency">
-              <option value="">Select…</option>
-              <option>A deadline is close</option>
-              <option>Within the next month</option>
-              <option>Next few months</option>
-              <option>Just exploring</option>
-            </select>
-          </label>
-        </div>
-      </fieldset>
-
-      <!-- ── 3. Your situation ──────────────────────────────── -->
-      <fieldset>
-        <legend>Your situation</legend>
-        <p class="fs-note">Rough answers are fine. This just tells us what kind of conversation to prepare for.</p>
-
-        <div class="two">
-          <label class="field">
-            <span class="lab">Filing status</span>
-            <select name="Filing status">
-              <option value="">Select…</option>
-              <option>Single</option>
-              <option>Married filing jointly</option>
-              <option>Married filing separately</option>
-              <option>Head of household</option>
-              <option>Qualifying surviving spouse</option>
-              <option>Not sure</option>
-            </select>
-          </label>
-          <label class="field">
-            <span class="lab">Dependents</span>
-            <input type="number" name="Number of dependents" min="0" max="20" step="1" />
-          </label>
-        </div>
-
-        <div class="two">
-          <label class="field">
-            <span class="lab">States you lived or worked in</span>
-            <input type="text" name="States lived or worked in" placeholder="e.g. FL, GA" />
-          </label>
-          <label class="field">
-            <span class="lab">Who prepared last year&#39;s return?</span>
-            <select name="Prior year preparer">
-              <option value="">Select…</option>
-              <option>I did it myself</option>
-              <option>TurboTax or similar software</option>
-              <option>Another accountant or preparer</option>
-              <option>This is my first time filing</option>
-              <option>I haven't filed</option>
-            </select>
-          </label>
-        </div>
-
-        <label class="field">
-          <span class="lab">Do you own a business or rental property?</span>
-          <select name="Owns business or rental" id="ownsBiz">
-            <option value="">Select…</option>
-            <option>No</option>
-            <option>Yes — a business</option>
-            <option>Yes — rental property</option>
-            <option>Yes — both</option>
-          </select>
-        </label>
-
-        <div id="bizBlock" hidden>
-          <div class="two">
-            <label class="field">
-              <span class="lab">Entity type</span>
-              <select name="Entity type">
-                <option value="">Select…</option>
-                <option>Sole proprietor (Schedule C)</option>
-                <option>Single-member LLC</option>
-                <option>Partnership / multi-member LLC</option>
-                <option>S corporation</option>
-                <option>C corporation</option>
-                <option>Not sure</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="lab">Employees or contractors</span>
-              <select name="Headcount">
-                <option value="">Select…</option>
-                <option>None — just me</option>
-                <option>1–5</option>
-                <option>6–20</option>
-                <option>More than 20</option>
-              </select>
-            </label>
-          </div>
-          <div class="two">
-            <label class="field">
-              <span class="lab">How are the books kept today?</span>
-              <select name="Bookkeeping today">
-                <option value="">Select…</option>
-                <option>QuickBooks</option>
-                <option>Xero</option>
-                <option>Spreadsheet</option>
-                <option>Bank statements in a folder</option>
-                <option>Nothing yet</option>
-                <option>Not sure</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="lab">Roughly, annual revenue</span>
-              <select name="Revenue band">
-                <option value="">Select…</option>
-                <option>Under $100k</option>
-                <option>$100k – $500k</option>
-                <option>$500k – $2M</option>
-                <option>Over $2M</option>
-                <option>Prefer not to say</option>
-              </select>
-            </label>
-          </div>
-        </div>
-
-        <p class="lab" style="margin:24px 0 12px;font-family:var(--sans);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;color:var(--charcoal-2);">Anything unusual this year?</p>
-        <div class="checks">
-          <label class="check"><input type="checkbox" name="Notable events" value="Bought or sold a home" /><span>Bought or sold a home</span></label>
-          <label class="check"><input type="checkbox" name="Notable events" value="Sold stock or crypto" /><span>Sold stock or crypto</span></label>
-          <label class="check"><input type="checkbox" name="Notable events" value="Moved between states" /><span>Moved between states</span></label>
-          <label class="check"><input type="checkbox" name="Notable events" value="Married or divorced" /><span>Married or divorced</span></label>
-          <label class="check"><input type="checkbox" name="Notable events" value="New child or dependent" /><span>New child or dependent</span></label>
-          <label class="check"><input type="checkbox" name="Notable events" value="First year self-employed" /><span>First year self&#8209;employed</span></label>
-          <label class="check"><input type="checkbox" name="Notable events" value="Started or closed a business" /><span>Started or closed a business</span></label>
-          <label class="check"><input type="checkbox" name="Notable events" value="Retirement withdrawal" /><span>Retirement withdrawal</span></label>
-          <label class="check"><input type="checkbox" name="Notable events" value="Marketplace health insurance" /><span>Marketplace health insurance</span></label>
-          <label class="check"><input type="checkbox" name="Notable events" value="Foreign accounts or income" /><span>Foreign accounts or income</span></label>
-          <label class="check"><input type="checkbox" name="Notable events" value="Received an IRS or state notice" /><span>Got an IRS or state notice</span></label>
-        </div>
-      </fieldset>
-
-      <!-- ── 4. Documents ───────────────────────────────────── -->
-      <fieldset id="documents">
-        <legend>What you&#39;ll need</legend>
-        <p class="fs-note">
-          Don&#39;t send anything yet — just tick what you already have. It tells us
-          where to start and what we&#39;ll have to help you track down. Nothing
-          here is required.
-        </p>
-
-        <div class="doc-group">
-          <h5>Everyone</h5>
-          <div class="checks one-col">
-            <label class="check"><input type="checkbox" name="Documents on hand" value="Photo ID (driver's license or passport)" /><span>Photo ID — driver&#39;s license or passport, for you and your spouse</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="Last year's filed federal and state return" /><span>Last year&#39;s filed tax return — federal and state</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="SSN/ITIN for everyone on the return" /><span>Social Security or ITIN numbers for everyone on the return <em>(you&#39;ll send these securely later — never here)</em></span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="W-2s" /><span>W&#8209;2s from employers</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="1099s" /><span>1099s — contract work, interest, dividends, brokerage, retirement</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="Form 1095-A" /><span>Form 1095&#8209;A, if you had marketplace health insurance</span></label>
-          </div>
-        </div>
-
-        <div class="doc-group">
-          <h5>If you own a business or rental</h5>
-          <div class="checks one-col">
-            <label class="check"><input type="checkbox" name="Documents on hand" value="P&L and balance sheet or bookkeeping file" /><span>Profit &amp; loss and balance sheet — or your bookkeeping file</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="EIN letter (CP 575)" /><span>EIN letter (CP&nbsp;575), if you have one</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="Payroll reports and 1099s issued" /><span>Payroll reports and any 1099s you issued</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="Asset and depreciation schedule" /><span>Asset and depreciation schedule</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="Rental income and expense records" /><span>Rental income and expense records, plus closing statements</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="K-1s" /><span>K&#8209;1s from partnerships or S corps</span></label>
-          </div>
-        </div>
-
-        <div class="doc-group">
-          <h5>If they apply to you</h5>
-          <div class="checks one-col">
-            <label class="check"><input type="checkbox" name="Documents on hand" value="1098 mortgage interest and property tax" /><span>Form 1098 mortgage interest and property tax bills</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="Charitable contribution receipts" /><span>Charitable contribution receipts</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="1098-T tuition / 1098-E student loan interest" /><span>1098&#8209;T tuition or 1098&#8209;E student loan interest</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="Childcare provider details and amounts" /><span>Childcare provider details and amounts paid</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="Record of estimated tax payments" /><span>Record of estimated tax payments you made</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="Home purchase or sale closing statement" /><span>Closing statement, if you bought or sold a home</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="Brokerage or crypto transaction history" /><span>Brokerage or crypto transaction history</span></label>
-            <label class="check"><input type="checkbox" name="Documents on hand" value="Copies of IRS or state notices" /><span>Copies of any IRS or state notices you&#39;ve received</span></label>
-          </div>
-        </div>
-      </fieldset>
-
-      <!-- ── 5. Anything else ───────────────────────────────── -->
-      <fieldset>
-        <legend>Anything else</legend>
-        <label class="field">
-          <span class="lab">What would you most like help with?</span>
-          <textarea name="Notes" rows="5" placeholder="A sentence or two is plenty. If there's a deadline, a notice, or something you're worried about, this is the place to say it."></textarea>
-        </label>
-      </fieldset>
-
-      <!-- honeypot — bots fill this, humans never see it -->
-      <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" />
-      <input type="hidden" name="_subject" id="formSubject" value="New intake — SATC website" />
-
-      <div class="consent">
-        <label class="check">
-          <input type="checkbox" name="Acknowledged terms" value="Yes" id="consent" required />
-          <span>
-            I understand that sending this form starts a conversation and does not
-            create a client engagement. SATC is engaged only when we both sign an
-            engagement letter. See our <a href="privacy.html" style="border-bottom:1px solid var(--gold);">Privacy Policy</a>
-            and <a href="terms.html" style="border-bottom:1px solid var(--gold);">Terms</a>.
-          </span>
-        </label>
-      </div>
-
-      <button class="btn gold" type="submit">Send This to SATC</button>
-      <p class="form-status" id="formStatus" role="status" aria-live="polite"></p>
-    </form>
+      <noscript>
+        <p class="fs-note">This form needs JavaScript. Email
+          <a data-email href="#">us</a> and we&#39;ll pick it up from there.</p>
+      </noscript>
+    </div>
   </div>
 </section>
 
@@ -969,7 +731,11 @@
         link appears next to the form. Leave blank to hide it entirely.
      ============================================================================ -->
 <script>
-  const SATC_CONFIG = {
+  // Assigned onto window deliberately: intake.js is a separate file and reads
+  // this through window.SATC_CONFIG. A top-level `const` would be lexically
+  // scoped to this script and invisible to it — the inline IIFEs below would
+  // still work, so the breakage would only show up at submit time.
+  window.SATC_CONFIG = {
     contact: {
       email:      "arjun_sethuraman@satcllp.com",
       phone:      "",                     // e.g. "+1 (305) 555-0140" — blank = hidden
@@ -1036,96 +802,6 @@
     document.getElementById('navLinks').addEventListener('click', e => { if (e.target.closest('a')) close(); });
   })();
 
-  /* ---------- show the business questions only when relevant ---------- */
-  (function () {
-    const sel = document.getElementById('ownsBiz');
-    const block = document.getElementById('bizBlock');
-    if (!sel || !block) return;
-    const sync = () => { block.hidden = !/^Yes/.test(sel.value); };
-    sel.addEventListener('change', sync);
-    sync();
-  })();
-
-  /* ---------- intake form (Formspree if configured, else mailto) ---------- */
-  (function () {
-    const form   = document.getElementById('intakeForm');
-    const status = document.getElementById('formStatus');
-    if (!form) return;
-
-    const email = SATC_CONFIG.contact.email;
-    const fid   = SATC_CONFIG.contact.formspreeId;
-    if (fid) { form.action = 'https://formspree.io/f/' + fid; form.method = 'POST'; }
-
-    const fail = msg => { status.className = 'form-status err'; status.textContent = msg; };
-    const say  = msg => { status.className = 'form-status';     status.textContent = msg; };
-
-    // Turn the form into readable "Label: value" lines. Repeated checkbox
-    // values under one name are joined, so the email reads like a summary.
-    function summarize(fd) {
-      const rows = new Map();
-      fd.forEach((v, k) => {
-        if (k.charAt(0) === '_') return;              // Formspree control fields
-        const val = String(v).trim();
-        if (!val) return;
-        rows.set(k, rows.has(k) ? rows.get(k) + ', ' + val : val);
-      });
-      return Array.from(rows, ([k, v]) => k + ': ' + v).join('\n');
-    }
-
-    function done() {
-      form.innerHTML =
-        '<div class="intake-done">' +
-          '<h3>Thank you — that&#39;s everything we need for now.</h3>' +
-          '<p>Arjun will read this personally and reply within one business day. ' +
-          'If we need documents from you, that reply will include a secure upload ' +
-          'link — we&#39;ll never ask you to email or text them.</p>' +
-        '</div>';
-    }
-
-    form.addEventListener('submit', async function (e) {
-      e.preventDefault();
-      const fd = new FormData(form);
-
-      if ((fd.get('_gotcha') || '') !== '') return;                    // spam honeypot
-
-      const name = String(fd.get('Full name') || '').trim();
-      const from = String(fd.get('Email') || '').trim();
-      if (!name || !from) { fail('Please add your name and email so we can reply.'); return; }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)) { fail('That email address doesn’t look right — mind checking it?'); return; }
-      if (!document.getElementById('consent').checked) { fail('Please tick the acknowledgement below before sending.'); return; }
-
-      // Drop blank answers and the honeypot so what lands in the inbox is
-      // only what the visitor actually filled in.
-      const payload = new FormData();
-      fd.forEach((v, k) => {
-        if (k === '_gotcha') return;
-        if (String(v).trim()) payload.append(k, v);
-      });
-      payload.set('_subject', 'New intake — ' + name);
-      payload.set('_replyto', from);   // so Reply goes to the prospect, not to Formspree
-
-      if (!fid) {
-        // No Formspree yet: hand the visitor a pre-filled email instead.
-        const body = summarize(payload) + '\n\n— sent from the SATC website';
-        window.location.href = 'mailto:' + email +
-          '?subject=' + encodeURIComponent('New intake — ' + name) +
-          '&body=' + encodeURIComponent(body);
-        say('Opening your email app — press send and it’s on its way.');
-        return;
-      }
-
-      say('Sending…');
-      try {
-        const res = await fetch(form.action, {
-          method: 'POST', body: payload, headers: { 'Accept': 'application/json' }
-        });
-        if (res.ok) { done(); }
-        else { fail('Sorry, that didn’t go through. Please email ' + email + ' and we’ll pick it up from there.'); }
-      } catch (err) {
-        fail('Network issue — please email ' + email + ' and we’ll pick it up from there.');
-      }
-    });
-  })();
 
   /* ---------- analytics (optional) ---------- */
   (function () {
@@ -1152,5 +828,11 @@
     }
   })();
 </script>
+
+<!-- Intake: questions and branching rules live in intake-config.js; the
+     engine that renders them lives in intake.js. Loaded after SATC_CONFIG
+     because intake.js reads contact.formspreeId from it. -->
+<script src="intake-config.js"></script>
+<script src="intake.js"></script>
 </body>
 </html>
