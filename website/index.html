@@ -975,7 +975,7 @@
       phone:      "",                     // e.g. "+1 (305) 555-0140" — blank = hidden
       location:   "By appointment · Remote &amp; in&#8209;person",
       linkedin:   "",                     // e.g. "https://www.linkedin.com/in/your-handle"
-      formspreeId: ""                     // ← PASTE YOUR FORMSPREE FORM ID HERE to get submissions by email
+      formspreeId: "mwleqelj"             // Formspree form ID — submissions email to the address above
     },
     // ── Optional: a "book a time" link beside the form ──────────────
     booking: {
@@ -1102,6 +1102,7 @@
         if (String(v).trim()) payload.append(k, v);
       });
       payload.set('_subject', 'New intake — ' + name);
+      payload.set('_replyto', from);   // so Reply goes to the prospect, not to Formspree
 
       if (!fid) {
         // No Formspree yet: hand the visitor a pre-filled email instead.

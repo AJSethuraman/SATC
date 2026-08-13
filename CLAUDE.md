@@ -14,7 +14,7 @@ collects/retains client info, and provides small services around Drake.
 
 | Folder | What it is | Stack | How to verify a change |
 |---|---|---|---|
-| `website/` | Public marketing + booking site | Single `index.html`, no build step, no framework | Serve and eyeball it: `cd website && python -m http.server 8000` |
+| `website/` | Public site — now a prospect **intake form** (hero + services + intake). Working log and decisions: **`website/INTAKE.md` — read it first.** | Single `index.html`, no build step, no framework | Serve and eyeball it: `cd website && python -m http.server 8000` (no test suite — drive a real browser) |
 | `invoice-generator/` | "Invoicer" — self-hosted invoice web app (accounts, PDF, Stripe, email, JSON API) | Python / Flask + SQLAlchemy | `pytest` in `invoice-generator/tests`; run locally (`run.ps1`, `docker compose up`, or Render) |
 | `satc_system/` | The SATC practice-ops app: local Flask GUI, client intake, document readers, tax line-sheets, encrypted identity vault + de-identified data mart, Drake input/reconcile seam, withholding estimator | Python (`satc` package), Flask, SQLite | `cd satc_system && PYTHONPATH=src pytest -q`; run the app (`SATC.bat` / `satc-app`, default port 5050); `satc doctor` for a readiness check |
 | `cowork-plugin/` | Claude/Cowork plugin + MCP server (`mcp/satc_mcp.py`) to drive SATC's withholding API in plain language; **read-only by default** | Python MCP server + plugin manifest | Load the MCP; exercise against the local withholding API |
