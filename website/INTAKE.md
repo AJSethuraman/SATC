@@ -360,6 +360,32 @@ other stale answer — to survive a deselect.
 retry click fires a request. Cannot duplicate a lead, because a successful
 submit replaces the form immediately.
 
+### Exhaustive branching sweep (2026-08-13)
+
+After the payroll removal and the business-gating change, the rules were swept
+exhaustively rather than spot-checked: every subset of the 6 services × 8
+individual-complexity profiles × all 10 business structures × 5 business-complexity
+baskets × 7 tax statuses × 6 urgency values — **1,164,240 combinations**, each
+run through `prune()` first so only reachable states are judged.
+
+Eight invariants per case, including *no question without its trigger*,
+*individual-only prospects never see business scoping*, and *no answer may
+survive that does not belong to a visible step*.
+
+**Result: 0 anomalies, every step reachable.**
+
+The sweep also surfaced a latent fragility worth recording. Child rules such as
+`entity_count` (`business_structure === 'multiple'`) originally read only their
+*immediate* trigger, so they were correct only because `prune()` had already
+removed an inapplicable parent — an ordering guarantee invisible at the point
+you would edit the rule. The business branch now goes through
+`asksBusinessStructure()` / `asksBusinessComplexity()`, so **every rule states
+its own full precondition**. Not a live bug (prune always runs before render,
+confirmed), but the failure mode it invites is silent.
+
+**Realistic path lengths are 6–11 steps.** The sweep's longer tails (up to 18)
+come from synthetic profiles ticking many complexity flags at once.
+
 ### Definition of done
 
 Intake works in the existing site · irrelevant questions hidden · baskets produce
