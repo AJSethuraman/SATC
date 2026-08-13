@@ -42,7 +42,6 @@ window.INTAKE_STEPS = [
       { value: 'individual_tax', label: 'Individual tax preparation' },
       { value: 'business_tax',   label: 'Business tax preparation' },
       { value: 'bookkeeping',    label: 'Bookkeeping' },
-      { value: 'payroll',        label: 'Payroll' },
       { value: 'tax_planning',   label: 'Tax planning & advisory' },
       { value: 'tax_resolution', label: 'An IRS or state notice / tax issue' },
       { value: 'entity_setup',   label: 'New business or entity setup' },
@@ -97,9 +96,14 @@ window.INTAKE_STEPS = [
     question: 'How is the business set up?',
     help: "If you're not certain, say so — we'll confirm it from your filings.",
     required: true,
+    // Self-employment is deliberately NOT a trigger. 1099 work is a Schedule C
+    // inside the individual return; someone freelancing does not think of
+    // themselves as running a business, and asking how it is "set up" reads as
+    // an interrogation about something they never claimed to have.
     showIf: a =>
-      hasAny(a.services, ['business_tax', 'bookkeeping', 'payroll', 'entity_setup']) ||
-      hasAny(a.individual_complexity, ['business_owner', 'self_employment']),
+      wantsBusinessWork(a) ||
+      hasAny(a.services, ['entity_setup']) ||
+      hasAny(a.individual_complexity, ['business_owner']),
     options: [
       { value: 'sole_prop',   label: 'Sole proprietor / Schedule C' },
       { value: 'smllc',       label: 'Single-member LLC' },
@@ -135,12 +139,14 @@ window.INTAKE_STEPS = [
     question: 'Which of these does the business involve?',
     help: 'Select all that apply.',
     required: true,
-    // Only for a business that actually exists. "not_yet" means they are here
-    // to start one, so asking about its inventory and receivables is nonsense.
-    // This subsumes the old entity_setup-only guard, which wrongly suppressed
-    // the whole subtree for someone who already owns a business and wants
-    // another one.
-    showIf: a => !!a.business_structure && a.business_structure !== 'not_yet',
+    // Two gates, both required.
+    //   1. The business must actually exist — "not_yet" means they are here to
+    //      start one, so asking about its inventory is nonsense.
+    //   2. They must have ASKED for business work. Someone filing an individual
+    //      return who happens to own a business gets asked its structure and
+    //      nothing more; scoping a business engagement we were not asked for is
+    //      what makes an intake feel like an interrogation.
+    showIf: a => hasBusiness(a) && wantsBusinessWork(a),
     options: [
       { value: 'employees',           label: 'Employees' },
       { value: 'contractors',         label: 'Independent contractors' },
@@ -161,8 +167,9 @@ window.INTAKE_STEPS = [
     id: 'headcount',
     type: 'single',
     question: 'Roughly how many employees?',
+    help: 'Headcount drives the scope of the return and the books.',
     required: true,
-    showIf: a => hasAny(a.business_complexity, ['employees']) || hasAny(a.services, ['payroll']),
+    showIf: a => hasAny(a.business_complexity, ['employees']),
     options: [
       { value: 'none',  label: 'None right now' },
       { value: '1_5',   label: '1–5' },
@@ -206,7 +213,7 @@ window.INTAKE_STEPS = [
     type: 'single',
     question: 'Roughly what does the business bring in a year?',
     help: 'A range is fine — it helps us scope the work.',
-    showIf: a => !!a.business_structure && a.business_structure !== 'not_yet',
+    showIf: a => hasBusiness(a) && wantsBusinessWork(a),
     options: [
       { value: 'under_100k', label: 'Under $100k' },
       { value: '100k_500k',  label: '$100k – $500k' },
@@ -342,4 +349,14 @@ function hasAny(selected, values) {
   if (!selected) return false;
   const list = Array.isArray(selected) ? selected : [selected];
   return values.some(v => list.indexOf(v) !== -1);
+}
+
+/** They asked us to do work ON a business — not merely that one exists. */
+function wantsBusinessWork(answers) {
+  return hasAny(answers.services, ['business_tax', 'bookkeeping']);
+}
+
+/** A business that exists today. "not_yet" means they are here to start one. */
+function hasBusiness(answers) {
+  return !!answers.business_structure && answers.business_structure !== 'not_yet';
 }
