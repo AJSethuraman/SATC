@@ -14,6 +14,10 @@ on a call.
 
 **The page is:** `Nav → Hero → Services (3) → Intake form → Footer`.
 
+> **Working on the intake?** [`INTAKE.md`](./INTAKE.md) is the living log — what
+> we're building, the architecture audit, decisions made, and open questions.
+> Read it before changing the form, and update it as you go.
+
 > **Looking for the full marketing site?** The longer version (About, Occam
 > platform, Why SATC, How We Work, FAQ, booking embed) is preserved at
 > [`docs/website-archive/index-full-marketing-2026-08-13.html`](../docs/website-archive/index-full-marketing-2026-08-13.html)
