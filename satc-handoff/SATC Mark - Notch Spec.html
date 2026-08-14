@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — the Notch mark, specified</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--navy:#132437;--navy-2:#22374F;--oxblood:#6A2833;--gold:#C0A265;--shell:#F7F7F5;--paper:#fff;--hairline:#E6E5E0;--hairline-2:#D8D7D1;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",monospace}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--shell);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,p{margin:0}
+a{color:var(--oxblood);text-decoration:none}a:hover{color:#83323F}
+svg{display:block}
+.wrap{max-width:1140px;margin:0 auto;padding:0 40px}
+
+.hd{background:var(--navy);color:#fff;padding:60px 0 52px}
+.hd .k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:18px}
+.hd .top{display:flex;align-items:center;gap:34px;margin-bottom:30px}
+.hd h1{font-size:clamp(28px,3.6vw,40px);font-weight:600;letter-spacing:-.04em;line-height:1.05;margin-bottom:14px}
+.hd p{font-size:16.5px;line-height:1.62;color:rgba(255,255,255,.72);max-width:64ch}
+
+.sec{padding:56px 0;border-bottom:1px solid var(--hairline)}
+.sec:last-of-type{border-bottom:0}
+.lbl{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute);margin-bottom:8px}
+.sec h2{font-size:24px;font-weight:600;letter-spacing:-.032em;color:var(--navy);margin-bottom:8px}
+.sec .intro{font-size:15.5px;line-height:1.62;color:var(--ink-2);max-width:70ch;margin-bottom:32px}
+
+.panel{background:var(--paper);border:1px solid var(--hairline);padding:30px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+
+/* construction */
+.constr{display:flex;gap:40px;align-items:center;flex-wrap:wrap}
+.notes{flex:1;min-width:260px}
+.notes .row{display:flex;gap:14px;padding:11px 0;border-top:1px solid var(--hairline);font-size:14px;line-height:1.55}
+.notes .row:first-child{border-top:0}
+.notes .row .t{font-family:var(--mono);font-size:10.5px;color:var(--oxblood);flex:none;width:62px;padding-top:2px}
+.notes .row .d{color:var(--ink-2)}
+.notes .row .d b{color:var(--navy);font-weight:600}
+
+/* size strip */
+.sizes{display:flex;align-items:flex-end;gap:34px;flex-wrap:wrap}
+.sz{display:flex;flex-direction:column;align-items:center;gap:10px}
+.sz .n{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--mute)}
+.tile{background:var(--navy);display:flex;align-items:center;justify-content:center}
+
+/* lockups */
+.lock{display:flex;align-items:center;gap:14px}
+.lock .nm{font-size:17px;font-weight:700;letter-spacing:-.03em;color:var(--navy);line-height:1}
+.lock .tg{font-family:var(--mono);font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-top:4px;display:block}
+.lock.dk .nm{color:#fff}.lock.dk .tg{color:rgba(255,255,255,.55)}
+.lock.stack{flex-direction:column;gap:14px;text-align:center}
+.cap{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--mute);margin-top:20px;padding-top:14px;border-top:1px solid var(--hairline)}
+
+/* misuse */
+.dont{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--hairline);border:1px solid var(--hairline)}
+.dont>div{background:var(--paper);padding:22px 18px;text-align:center}
+.dont .stage{height:86px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.dont .x{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--oxblood);margin-bottom:5px}
+.dont p{font-size:13px;line-height:1.5;color:var(--ink-2)}
+
+pre{background:var(--navy);color:#fff;font-family:var(--mono);font-size:11.5px;line-height:1.75;padding:20px 22px;overflow-x:auto;margin:0}
+pre .c{color:rgba(255,255,255,.42)}
+pre .s{color:var(--gold)}
+.codecap{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--mute);margin-bottom:10px}
+
+@media(max-width:900px){.two,.three,.dont{grid-template-columns:1fr}.wrap{padding:0 24px}.dont{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<header class="hd"><div class="wrap">
+  <div class="k">SAT-C LLP · mark specification</div>
+  <div class="top">
+    <svg width="104" height="104" viewBox="0 0 32 32">
+      <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#fff" stroke-width="2.4"/>
+      <rect x="22" y="22" width="8" height="8" fill="#C0A265"/>
+    </svg>
+    <div>
+      <h1>The Notch</h1>
+      <p>A square with a square removed — and the removed piece set beside it. Subtraction stated in pure geometry, so the razor is the operation, never a depicted blade.</p>
+    </div>
+  </div>
+</div></header>
+
+<!-- CONSTRUCTION -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">01</div>
+  <h2>Construction</h2>
+  <p class="intro">Built on a 32-unit grid. <strong>The notch and the removed piece are both exactly 8×8</strong> — the piece fits the hole it came from. That equality is the whole concept; if they differ, the mark becomes decoration.</p>
+  <div class="panel">
+    <div class="constr">
+      <svg width="300" height="300" viewBox="0 0 32 32" style="flex:none">
+        <!-- grid -->
+        <g stroke="#E6E5E0" stroke-width="0.15">
+          <line x1="0" y1="3" x2="32" y2="3"/><line x1="0" y1="11" x2="32" y2="11"/>
+          <line x1="0" y1="19" x2="32" y2="19"/><line x1="0" y1="22" x2="32" y2="22"/>
+          <line x1="0" y1="30" x2="32" y2="30"/>
+          <line x1="3" y1="0" x2="3" y2="32"/><line x1="11" y1="0" x2="11" y2="32"/>
+          <line x1="19" y1="0" x2="19" y2="32"/><line x1="22" y1="0" x2="22" y2="32"/>
+          <line x1="30" y1="0" x2="30" y2="32"/>
+        </g>
+        <!-- notch ghost -->
+        <rect x="11" y="11" width="8" height="8" fill="#6A2833" opacity=".08"/>
+        <rect x="11" y="11" width="8" height="8" fill="none" stroke="#6A2833" stroke-width="0.3" stroke-dasharray="1 1"/>
+        <!-- the mark -->
+        <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+        <rect x="22" y="22" width="8" height="8" fill="#132437"/>
+        <!-- gap indicator -->
+        <line x1="20.2" y1="26" x2="22" y2="26" stroke="#6A2833" stroke-width="0.3"/>
+      </svg>
+      <div class="notes">
+        <div class="row"><span class="t">outer</span><span class="d">Square from <b>3 → 19</b> (16×16), stroke <b>2.4</b>, no fill. Drawn as one path so the notch is part of the outline, not an overlay.</span></div>
+        <div class="row"><span class="t">notch</span><span class="d"><b>8×8</b> removed from the bottom-right corner, at 11 → 19. Exactly half the outer square's side.</span></div>
+        <div class="row"><span class="t">piece</span><span class="d"><b>8×8</b> solid, at 22 → 30. Identical to the notch — shown here dashed so you can read the correspondence.</span></div>
+        <div class="row"><span class="t">gap</span><span class="d"><b>1.8 units</b> between the outline's outer edge and the piece. Tight enough to read as related, wide enough to read as separate.</span></div>
+        <div class="row"><span class="t">path</span><span class="d"><code style="font-family:var(--mono);font-size:12px">M3 3 H19 V11 H11 V19 H3 Z</code></span></div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- COLOUR -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">02</div>
+  <h2>Colour</h2>
+  <p class="intro"><strong>Navy monochrome is the primary.</strong> It prints, embosses, faxes, and photocopies without thinking about it — the test the old gold seal failed. The oxblood variant is for digital only.</p>
+  <div class="three">
+    <div class="panel" style="text-align:center">
+      <div style="height:130px;display:flex;align-items:center;justify-content:center">
+        <svg width="96" height="96" viewBox="0 0 32 32">
+          <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+          <rect x="22" y="22" width="8" height="8" fill="#132437"/>
+        </svg>
+      </div>
+      <div class="cap" style="margin-top:8px">Primary · navy mono</div>
+      <p style="font-size:13.5px;color:var(--ink-2);margin-top:10px">Documents, print, embossing, one-colour anything.</p>
+    </div>
+    <div class="panel" style="text-align:center">
+      <div style="height:130px;display:flex;align-items:center;justify-content:center">
+        <svg width="96" height="96" viewBox="0 0 32 32">
+          <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+          <rect x="22" y="22" width="8" height="8" fill="#6A2833"/>
+        </svg>
+      </div>
+      <div class="cap" style="margin-top:8px">Digital accent · oxblood piece</div>
+      <p style="font-size:13.5px;color:var(--ink-2);margin-top:10px">Website nav, app chrome. <strong>A deliberate exception</strong> to the rule that oxblood means "clickable" — identity outranks UI.</p>
+    </div>
+    <div class="panel" style="text-align:center;background:var(--navy);border-color:var(--navy)">
+      <div style="height:130px;display:flex;align-items:center;justify-content:center">
+        <svg width="96" height="96" viewBox="0 0 32 32">
+          <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#fff" stroke-width="2.4"/>
+          <rect x="22" y="22" width="8" height="8" fill="#C0A265"/>
+        </svg>
+      </div>
+      <div class="cap" style="margin-top:8px;color:rgba(255,255,255,.5);border-top-color:rgba(255,255,255,.16)">Reversed · gold piece</div>
+      <p style="font-size:13.5px;color:rgba(255,255,255,.65);margin-top:10px">Footer, dark surfaces, favicon tile. Outline goes white.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- SIZE -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">03</div>
+  <h2>Size range</h2>
+  <p class="intro">The stroke does <em>not</em> scale linearly — below 32px it must thicken or the outline vanishes. Three tuned variants cover everything.</p>
+  <div class="panel">
+    <div class="sizes">
+      <div class="sz">
+        <svg width="96" height="96" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/><rect x="22" y="22" width="8" height="8" fill="#132437"/></svg>
+        <span class="n">96 · stroke 2.4</span>
+      </div>
+      <div class="sz">
+        <svg width="48" height="48" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/><rect x="22" y="22" width="8" height="8" fill="#132437"/></svg>
+        <span class="n">48 · stroke 2.4</span>
+      </div>
+      <div class="sz">
+        <svg width="30" height="30" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.9"/><rect x="22" y="22" width="8" height="8" fill="#132437"/></svg>
+        <span class="n">30 · stroke 2.9</span>
+      </div>
+      <div class="sz">
+        <svg width="20" height="20" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="3.4"/><rect x="22" y="22" width="8" height="8" fill="#132437"/></svg>
+        <span class="n">20 · stroke 3.4</span>
+      </div>
+      <div class="sz">
+        <div class="tile" style="width:32px;height:32px">
+          <svg width="24" height="24" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#fff" stroke-width="3.4"/><rect x="22" y="22" width="8" height="8" fill="#C0A265"/></svg>
+        </div>
+        <span class="n">32 tile</span>
+      </div>
+      <div class="sz">
+        <div class="tile" style="width:16px;height:16px">
+          <svg width="13" height="13" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#fff" stroke-width="4"/><rect x="22" y="22" width="8" height="8" fill="#C0A265"/></svg>
+        </div>
+        <span class="n">16 tile · favicon</span>
+      </div>
+    </div>
+    <div class="cap">At 24px and below, use the <strong>reversed tile</strong> — white outline on a navy square. An outline on white loses its stroke at that size; a tile never does.</div>
+  </div>
+</div></section>
+
+<!-- LOCKUPS -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">04</div>
+  <h2>Lockups &amp; clear space</h2>
+  <p class="intro">Clear space is <strong>one notch</strong> (8 grid units = 25% of the mark's width) on every side. Nothing enters it — not text, not a rule, not a page edge.</p>
+  <div class="two">
+    <div class="panel">
+      <div class="lock">
+        <svg width="34" height="34" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.6"/><rect x="22" y="22" width="8" height="8" fill="#6A2833"/></svg>
+        <span><span class="nm">SETHURAMAN</span><span class="tg">Accounting · Tax · Consulting</span></span>
+      </div>
+      <div class="cap">Primary horizontal · nav, letterhead, email signature</div>
+    </div>
+    <div class="panel" style="background:var(--navy);border-color:var(--navy)">
+      <div class="lock dk">
+        <svg width="34" height="34" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#fff" stroke-width="2.6"/><rect x="22" y="22" width="8" height="8" fill="#C0A265"/></svg>
+        <span><span class="nm">SETHURAMAN</span><span class="tg">Accounting · Tax · Consulting</span></span>
+      </div>
+      <div class="cap" style="color:rgba(255,255,255,.5);border-top-color:rgba(255,255,255,.16)">Reversed horizontal · footer</div>
+    </div>
+    <div class="panel">
+      <div class="lock stack">
+        <svg width="52" height="52" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/><rect x="22" y="22" width="8" height="8" fill="#6A2833"/></svg>
+        <span><span class="nm" style="font-size:19px">SETHURAMAN</span><span class="tg">Accounting · Tax · Consulting</span></span>
+      </div>
+      <div class="cap">Stacked · business card, report cover, OG image</div>
+    </div>
+    <div class="panel">
+      <div class="lock">
+        <svg width="30" height="30" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.9"/><rect x="22" y="22" width="8" height="8" fill="#6A2833"/></svg>
+        <span class="nm" style="font-size:19px">SAT&#8209;C&nbsp;LLP</span>
+      </div>
+      <div class="cap">Compact · anywhere the full name won't fit</div>
+    </div>
+  </div>
+</div></section>
+
+<!-- MISUSE -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">05</div>
+  <h2>Don't</h2>
+  <p class="intro">The concept is <em>one</em> square, <em>one</em> subtraction. Each of these breaks it.</p>
+  <div class="dont">
+    <div>
+      <div class="stage">
+        <svg width="66" height="66" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="#132437" stroke="#132437" stroke-width="2.4"/><rect x="22" y="22" width="8" height="8" fill="#6A2833"/></svg>
+      </div>
+      <div class="x">Don't</div>
+      <p>Fill the outline. The notch stops reading as removal and becomes a shape.</p>
+    </div>
+    <div>
+      <div class="stage">
+        <svg width="66" height="66" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/><rect x="22" y="22" width="8" height="8" fill="none" stroke="#6A2833" stroke-width="2.4"/></svg>
+      </div>
+      <div class="x">Don't</div>
+      <p>Outline the piece. Solid vs. void is the contrast the mark depends on.</p>
+    </div>
+    <div>
+      <div class="stage">
+        <svg width="66" height="66" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/><rect x="22" y="22" width="5" height="5" fill="#6A2833"/></svg>
+      </div>
+      <div class="x">Don't</div>
+      <p>Resize the piece. It must stay 8×8 — it has to fit the hole it left.</p>
+    </div>
+    <div>
+      <div class="stage">
+        <svg width="66" height="66" viewBox="0 0 32 32" style="transform:rotate(-14deg)"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/><rect x="22" y="22" width="8" height="8" fill="#6A2833"/></svg>
+      </div>
+      <div class="x">Don't</div>
+      <p>Rotate it. The mark is orthogonal; tilting it reads as a lifestyle brand.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- CODE -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">06</div>
+  <h2>Production</h2>
+  <p class="intro">Drop-in replacements. Outer path takes <code style="font-family:var(--mono);font-size:13px">currentColor</code> so the reversed variant needs no separate file.</p>
+  <div class="two">
+    <div>
+      <div class="codecap">Inline SVG · replaces the .seal in nav + footer</div>
+      <pre>&lt;svg class="seal" viewBox="0 0 32 32"
+     xmlns="http://www.w3.org/2000/svg" aria-hidden="true"&gt;
+  &lt;path class="s-o" d="<span class="s">M3 3 H19 V11 H11 V19 H3 Z</span>"/&gt;
+  &lt;rect class="s-i" x="22" y="22" width="8" height="8"/&gt;
+&lt;/svg&gt;</pre>
+      <div class="codecap" style="margin-top:22px">CSS · already in satc-restyle.css</div>
+      <pre>.lockup .seal .s-o <span class="c">{</span>
+  fill: none; stroke: currentColor; stroke-width: 2.6;
+<span class="c">}</span>
+.lockup .seal .s-i <span class="c">{</span> fill: var(--oxblood); <span class="c">}</span>
+.lockup.on-dark .seal .s-i <span class="c">{</span> fill: var(--gold); <span class="c">}</span></pre>
+    </div>
+    <div>
+      <div class="codecap">Favicon · navy tile, 16px-safe</div>
+      <pre>&lt;link rel="icon" href="data:image/svg+xml,
+%3Csvg xmlns='http://www.w3.org/2000/svg'
+viewBox='0 0 32 32'%3E
+%3Crect width='32' height='32' fill='%23132437'/%3E
+%3Cpath d='M6 6 H20 V13 H13 V20 H6 Z' fill='none'
+stroke='%23fff' stroke-width='3'/%3E
+%3Crect x='21' y='21' width='6' height='6'
+fill='%23C0A265'/%3E
+%3C/svg%3E" /&gt;</pre>
+      <div class="codecap" style="margin-top:22px">Pillow · replaces mark() in make-images.py</div>
+      <pre><span class="c">def</span> mark(d, x, y, size, outer, inner):
+    k = size / 27          <span class="c"># 27-unit footprint</span>
+    w = max(2, round(2.4 * k))
+    <span class="c"># notched outline, drawn as 4 edges</span>
+    p = [(3,3),(19,3),(19,11),(11,11),(11,19),(3,19)]
+    pts = [(x+(a-3)*k, y+(b-3)*k) <span class="c">for</span> a,b <span class="c">in</span> p]
+    d.line(pts + [pts[0]], fill=outer, width=w, joint=<span class="s">"curve"</span>)
+    <span class="c"># the removed piece, 8x8</span>
+    d.rectangle([x+19*k, y+19*k, x+27*k, y+27*k], fill=inner)</pre>
+    </div>
+  </div>
+</div></section>
+
+<section class="sec" style="background:var(--navy);color:#fff;padding:44px 0 48px">
+  <div class="wrap">
+    <div class="lbl" style="color:var(--gold)">What it means, in a meeting</div>
+    <p style="font-size:18px;line-height:1.6;color:rgba(255,255,255,.86);max-width:62ch">"Occam's razor says don't keep what you don't need. The square is the work; the piece beside it is what we took out. We show it to you rather than hide it — that's the whole practice in one shape."</p>
+    <p style="font-size:14px;line-height:1.62;color:rgba(255,255,255,.55);max-width:62ch;margin-top:18px">Say it once and never again. A mark that needs explaining twice isn't working — but having a true answer ready is worth more than a mark nobody asks about.</p>
+  </div>
+</section>
+
+</body>
+</html>
