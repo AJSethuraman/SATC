@@ -212,9 +212,7 @@
         '<div class="consent"><label class="check">' +
           '<input type="checkbox" name="consent"' + (c.consent ? ' checked' : '') + ' />' +
           '<span>I understand that sending this starts a conversation and does not create ' +
-          'a client engagement. SATC is engaged only when we both sign an engagement letter. ' +
-          'See our <a class="wiz-consent-link" href="privacy.html">Privacy Policy</a> and ' +
-          '<a class="wiz-consent-link" href="terms.html">Terms</a>.</span>' +
+          'a client engagement. SATC is engaged only when we both sign an engagement letter.</span>' +
         '</label></div>';
     }
 
