@@ -178,3 +178,105 @@ switching later is a folder copy and a DNS change.
   fast fix usually means delayed mail rather than lost mail.
 - **Mail arrives but lands in spam** → an SPF/DKIM/DMARC `TXT` record is missing
   or altered. Check those three against the screenshot first.
+
+---
+
+## Recorded DNS — Squarespace panel, 14 August 2026
+
+> ⚠️ **These records are NOT live.** The Squarespace DNS page shows:
+>
+> *"You're using custom nameservers. Your DNS records are managed with your
+> third-party nameserver provider. To activate the DNS records below, switch to
+> Squarespace nameservers."*
+>
+> So something other than Squarespace is answering DNS for `satcllp.com` today.
+> This table is what Squarespace has **stored**, not what the internet is
+> using — and the two can disagree. **Before changing anything, find out who
+> the real nameservers are** (see "First, find the real nameservers" below).
+> Editing the Squarespace page while custom nameservers are set changes nothing.
+
+Everything here is public information — DNS is queryable by anyone — so it is
+safe to keep in the repo.
+
+### Squarespace Defaults (website — these are the ones that get replaced)
+
+| Type | Name | Priority | TTL | Data |
+|---|---|---|---|---|
+| A | @ | — | 4 hrs | `198.185.159.145` |
+| A | @ | — | 4 hrs | `198.49.23.144` |
+| A | @ | — | 4 hrs | `198.49.23.145` |
+| A | @ | — | 4 hrs | `198.185.159.144` |
+| CNAME | www | — | 4 hrs | `ext-sq.squarespace.com` |
+
+### Squarespace Domain Connect
+
+| Type | Name | Priority | TTL | Data |
+|---|---|---|---|---|
+| CNAME | _domainconnect | — | 4 hrs | `_domainconnect.domains.squarespace.com` |
+
+### Google Workspace verification
+
+| Type | Name | Priority | TTL | Data |
+|---|---|---|---|---|
+| TXT | @ | — | 4 hrs | `google-site-verification=JcikLSQNLDrhc9bRYX78ZriBlPXjil…` **(truncated in the UI — capture the full value)** |
+
+### Custom records — **THIS IS THE EMAIL. DO NOT TOUCH.**
+
+| Type | Name | Priority | TTL | Data |
+|---|---|---|---|---|
+| MX | @ | **0** | 4 hrs | `satcllp-com.mail.protection.outlook.com` |
+| TXT | @ | — | 4 hrs | `MS=ms36114642` |
+| CNAME | autodiscover | — | 4 hrs | `autodiscover.outlook.com` |
+| TXT | @ | — | 4 hrs | `v=spf1 include:spf.protection.outlook.com -all` |
+
+Mail is **Microsoft 365**. The four rows above are the whole of it: `MX` routes
+delivery, `MS=` proves the domain to Microsoft, `autodiscover` is what Outlook
+uses to configure clients, and the `v=spf1` line says Microsoft is the only
+server allowed to send as `satcllp.com`.
+
+---
+
+## First, find the real nameservers
+
+Because Squarespace says custom nameservers are in use, the live records live
+somewhere else. Find out where before touching anything:
+
+- Run `nslookup -type=NS satcllp.com` (Windows) or `dig NS satcllp.com +short`
+- Or use any "DNS checker" site and look up the **NS** record
+
+Whatever comes back is who actually controls the domain's DNS — that is where
+the website records must change, and where the `MX` gate above applies. If it
+comes back as Cloudflare, Path B is already half done and the job is just
+pointing the site records at the new host.
+
+---
+
+## Two gaps worth closing while you are in here
+
+Neither breaks anything today. Both affect whether **your** mail reaches other
+people's inboxes — worth attention given mail from the site has already been
+filtered as spam once.
+
+**No DKIM records.** Microsoft 365 signs outbound mail with DKIM, but only once
+two CNAMEs exist — `selector1._domainkey` and `selector2._domainkey`, pointing
+at `…onmicrosoft.com` targets Microsoft gives you. Neither is in the list above.
+Enable DKIM in the Microsoft 365 admin centre (Defender → Policies → Email
+authentication) and it will tell you the exact two records to add.
+
+**No DMARC record.** There is no `_dmarc` TXT entry. Without one, receiving
+servers have no instruction about what to do with mail that fails checks, and
+some treat that as a reason to filter. A monitoring-only policy is safe to start
+with and changes nothing about delivery:
+
+```
+Name: _dmarc     Type: TXT
+Data: v=DMARC1; p=none; rua=mailto:arjun_sethuraman@satcllp.com
+```
+
+Add DKIM first, then DMARC at `p=none`, and leave it there until you have seen
+a few reports.
+
+**One oddity:** there is a Google Workspace verification TXT alongside the
+Microsoft records. Probably left over from an earlier setup. Harmless, but if
+Google Workspace is not in use it can go — after confirming nothing depends on
+it.
