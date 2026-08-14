@@ -41,10 +41,24 @@ jobs:
         with:
           enablement: true
 
+      - name: Stage site files
+        # website/ also holds material that is NOT part of the site — the
+        # working log (INTAKE.md), the setup docs (README.md), the test suite
+        # (intake.spec.py) and the image script. Uploading the folder wholesale
+        # published all of it at ajsethuraman.github.io/SATC/INTAKE.md and
+        # friends, with robots.txt set to Allow: /. Stage a copy without them,
+        # so anything added later in these formats is excluded by default too.
+        run: |
+          rm -rf _site && mkdir -p _site
+          cp -r website/. _site/
+          find _site \( -name '*.md' -o -name '*.py' \) -delete
+          echo "Publishing:"
+          find _site -type f | sort
+
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: website
+          path: _site
 
       - name: Deploy to GitHub Pages
         id: deployment
