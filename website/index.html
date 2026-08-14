@@ -499,6 +499,7 @@ section.fit { background: var(--paper); border-top: 1px solid var(--hairline); b
 .linkish:hover { color: var(--navy); border-bottom-color: var(--oxblood); }
 .linkish:focus-visible { outline: 2px solid var(--oxblood); outline-offset: 3px; }
 .wiz-reset { margin: -14px 0 22px; text-align: right; }
+.done-book { margin: 24px 0 0; }
 .done-again { margin: 26px 0 0; }
 .wiz-hint {
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
@@ -849,11 +850,11 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
         lot. <b>Nothing to send now.</b></p>
       </div>
 
+      <!-- No "book a time" row here on purpose. Offered beside the form it is a
+           way to skip the form, and a booked call with no answers is the thing
+           the intake exists to prevent. The booking link appears on the
+           confirmation screen instead — see done() in intake.js. -->
       <ul class="aside-direct">
-        <li data-booking-row hidden>
-          <b>Prefer to just book a time?</b>
-          <a data-booking-link href="#" target="_blank" rel="noopener">Pick a slot on the calendar</a>
-        </li>
         <li>
           <b>Email</b>
           <a data-email href="#">email</a>
@@ -966,8 +967,12 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
      2) CONTACT: set your email (and optionally phone / location / LinkedIn).
         Leave a field as "" to hide it automatically.
 
-     3) OPTIONAL — BOOKING: paste a Calendly or Cal.com link and a "book a time"
-        link appears next to the form. Leave blank to hide it entirely.
+     3) OPTIONAL — BOOKING: paste a Calendly or Cal.com link and a "book a phone
+        call" button appears on the CONFIRMATION screen, after the form is sent
+        — never beside it, where it would be a way to skip the questions.
+        Point it at a PHONE CALL event type only; in-person meetings are not
+        self-scheduled. Booking is optional for the visitor either way — we say
+        we'll be in touch regardless. Leave blank to hide it entirely.
      ============================================================================ -->
 <script>
   // Assigned onto window deliberately: intake.js is a separate file and reads
@@ -1020,13 +1025,8 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
     if (y) y.textContent = new Date().getFullYear();
   })();
 
-  /* ---------- optional booking link ---------- */
-  (function () {
-    const url = (SATC_CONFIG.booking || {}).url;
-    if (!url) return;
-    document.querySelectorAll('[data-booking-row]').forEach(el => { el.hidden = false; });
-    document.querySelectorAll('[data-booking-link]').forEach(a => { a.href = url; });
-  })();
+  /* booking.url is read by intake.js when it renders the confirmation screen,
+     so there is nothing to wire up here. */
 
   /* ---------- mobile nav ---------- */
   (function () {
