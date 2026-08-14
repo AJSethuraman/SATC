@@ -175,6 +175,50 @@ culprits, in order:
 
 ---
 
+## Step 4 · Know when it breaks
+
+Add a failure alert **inside the flow** — it does better than announcing a
+problem, it hands back the lead that would otherwise be lost.
+
+1. **+** below *Add a row into a table* → **Send an email (V2)**
+2. **To:** your own address
+3. **Subject:** `Intake flow FAILED — lead not filed`
+4. **Body:** `outputs('JsonOnly')` — the whole submission
+5. Click the **⋯** on that email action → **Configure run after**
+6. **Uncheck** *is successful*; **check** *has failed*, *has timed out*, *is skipped*
+
+That inverts the action: it fires only when the row write did not happen. The
+JSON travels with it, so the lead can be filed by hand rather than
+reconstructed.
+
+### The free cross-check
+
+Every submission produces two things: an email from Formspree and a row in the
+sheet. **The email is the source of truth; the sheet is derived from it.** If an
+email arrives with no matching row, the flow is broken — and no lead has been
+lost, only its filing.
+
+### Three ways it stops quietly
+
+- **Junk.** The trigger watches the **Inbox** only. If Formspree mail starts
+  being filtered, the flow never fires — no error, no alert, nothing in the run
+  history. This is the one failure mode that no alert catches, and the reason
+  the Exchange mail-flow rule for `formspree.io` is a dependency rather than a
+  convenience.
+- **90 days idle.** Power Automate suspends flows that have not run. It emails
+  first; one click re-enables.
+- **A broken connection.** A password change or revoked MFA can invalidate the
+  stored Office 365 connection. Runs then fail with an authentication error
+  until it is reconnected — the failure alert above will catch this one.
+
+### Where it runs
+
+On Microsoft's servers, continuously. Not on any laptop. Nothing needs to be
+open — not Outlook, not Excel, not the OneDrive sync client. A submission at
+2am on a Sunday is filed at 2am on a Sunday.
+
+---
+
 ## What the values look like
 
 The spreadsheet stores the **stored values**, not the on-screen labels —
