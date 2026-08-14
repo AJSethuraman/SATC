@@ -214,7 +214,9 @@
       const c = a || {};
       return '' +
         '<div class="two">' +
-          field('Full name', 'name',  'text',  c.name,  'name',  true) +
+          // Preferred name, not legal name — this is only how we address them
+          // in a reply. The legal name comes with the engagement, not the form.
+          field('Preferred name', 'name', 'text', c.name, 'name', true) +
           field('Email',     'email', 'email', c.email, 'email', true) +
         '</div>' +
         '<div class="two">' +
