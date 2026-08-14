@@ -183,17 +183,16 @@ switching later is a folder copy and a DNS change.
 
 ## Recorded DNS — Squarespace panel, 14 August 2026
 
-> ⚠️ **These records are NOT live.** The Squarespace DNS page shows:
+> ✅ **Verified live on 14 August 2026.** Squarespace's DNS page shows a banner
+> saying *"You're using custom nameservers… to activate the DNS records below,
+> switch to Squarespace nameservers."* **Ignore it.** A direct lookup shows every
+> record below resolving publicly with matching values, and `squarespacedns.com`
+> among the domain's nameservers. Squarespace **is** serving this zone, and
+> edits made on that page **do** take effect.
 >
-> *"You're using custom nameservers. Your DNS records are managed with your
-> third-party nameserver provider. To activate the DNS records below, switch to
-> Squarespace nameservers."*
->
-> So something other than Squarespace is answering DNS for `satcllp.com` today.
-> This table is what Squarespace has **stored**, not what the internet is
-> using — and the two can disagree. **Before changing anything, find out who
-> the real nameservers are** (see "First, find the real nameservers" below).
-> Editing the Squarespace page while custom nameservers are set changes nothing.
+> (The delegation also lists `dns1–4.p08.nsone.net` alongside the four
+> `ns01–04.squarespacedns.com`, which is probably what makes Squarespace's own
+> check report "custom". It does not stop the records working.)
 
 Everything here is public information — DNS is queryable by anyone — so it is
 safe to keep in the repo.
@@ -218,7 +217,7 @@ safe to keep in the repo.
 
 | Type | Name | Priority | TTL | Data |
 |---|---|---|---|---|
-| TXT | @ | — | 4 hrs | `google-site-verification=JcikLSQNLDrhc9bRYX78ZriBlPXjil…` **(truncated in the UI — capture the full value)** |
+| TXT | @ | — | 4 hrs | `google-site-verification=JcikLSQNLDrhc9bRYX78ZriBlPXjiI9VwTFFJGVJT0k` |
 
 ### Custom records — **THIS IS THE EMAIL. DO NOT TOUCH.**
 
@@ -236,18 +235,18 @@ server allowed to send as `satcllp.com`.
 
 ---
 
-## First, find the real nameservers
+## Where things actually stand
 
-Because Squarespace says custom nameservers are in use, the live records live
-somewhere else. Find out where before touching anything:
+- **The four `A` records are the Squarespace preset**, never pointed at a real
+  site — no Squarespace site was ever published. They are exactly what Path A
+  replaces, and nothing depends on them.
+- **The custom records are the email**, added by hand for Microsoft 365. All
+  four resolve correctly, which is why mail flows.
+- **`satcllp.com` currently answers with Squarespace's IPs**, so the domain
+  shows a Squarespace placeholder rather than anything of ours.
 
-- Run `nslookup -type=NS satcllp.com` (Windows) or `dig NS satcllp.com +short`
-- Or use any "DNS checker" site and look up the **NS** record
-
-Whatever comes back is who actually controls the domain's DNS — that is where
-the website records must change, and where the `MX` gate above applies. If it
-comes back as Cloudflare, Path B is already half done and the job is just
-pointing the site records at the new host.
+So **Path A is the job**: swap the four `A` records and the `www` CNAME, leave
+every `MX` and `TXT` alone.
 
 ---
 
@@ -257,13 +256,15 @@ Neither breaks anything today. Both affect whether **your** mail reaches other
 people's inboxes — worth attention given mail from the site has already been
 filtered as spam once.
 
-**No DKIM records.** Microsoft 365 signs outbound mail with DKIM, but only once
+**No DKIM records** — confirmed by lookup: `selector1._domainkey.satcllp.com`
+does not resolve. Microsoft 365 signs outbound mail with DKIM, but only once
 two CNAMEs exist — `selector1._domainkey` and `selector2._domainkey`, pointing
 at `…onmicrosoft.com` targets Microsoft gives you. Neither is in the list above.
 Enable DKIM in the Microsoft 365 admin centre (Defender → Policies → Email
 authentication) and it will tell you the exact two records to add.
 
-**No DMARC record.** There is no `_dmarc` TXT entry. Without one, receiving
+**No DMARC record** — confirmed by lookup: `_dmarc.satcllp.com` does not
+resolve. Without one, receiving
 servers have no instruction about what to do with mail that fails checks, and
 some treat that as a reason to filter. A monitoring-only policy is safe to start
 with and changes nothing about delivery:
