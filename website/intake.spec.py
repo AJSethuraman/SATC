@@ -102,7 +102,12 @@ with sync_playwright() as p:
     pg.eval_on_selector("[name=_gotcha]", "e=>e.value='spam'")
     pg.click("#intakeForm button[type=submit]"); pg.wait_for_timeout(400)
     ok(len(pg.evaluate("window.__posts")) == 0, "no POST for a tripped honeypot")
-    ok("Thank you" in pg.inner_text("#intakeMount"), "not stuck on a disabled Sending button")
+    # The label is the real claim, so check it directly rather than inferring it
+    # from a greeting: a tripped honeypot must land on the done screen with no
+    # submit button left disabled on "Sending…".
+    ok("Thanks" in pg.inner_text("#intakeMount"), "honeypot still lands on the done screen")
+    ok(pg.locator("#intakeForm button[type=submit]").count() == 0,
+       "not stuck on a disabled Sending button")
     pg.close()
 
     print("\n=== CORRUPT sessionStorage does not break boot ===")
