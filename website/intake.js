@@ -214,7 +214,9 @@
       const c = a || {};
       return '' +
         '<div class="two">' +
-          field('Full name', 'name',  'text',  c.name,  'name',  true) +
+          // Preferred name, not legal name — this is only how we address them
+          // in a reply. The legal name comes with the engagement, not the form.
+          field('Preferred name', 'name', 'text', c.name, 'name', true) +
           field('Email',     'email', 'email', c.email, 'email', true) +
         '</div>' +
         '<div class="two">' +
@@ -527,10 +529,22 @@
   }
 
   function done() {
+    // The booking link belongs HERE and nowhere earlier: by this point the
+    // answers are already in, so self-scheduling saves a round of email rather
+    // than costing us the intake. Blank url in SATC_CONFIG = no link, and the
+    // wording falls back to us making contact.
+    const booking = ((window.SATC_CONFIG || {}).booking || {}).url;
+
     mount.innerHTML =
       '<div class="intake-done">' +
         '<h3>Thanks — that’s everything for now.</h3>' +
-        '<p>We’ll read it and be in touch to set up a time.</p>' +
+        '<p>We’ll read it and be in touch to set up a time.' +
+        (booking ? ' If you’d rather book a phone call now, pick one that suits you.' : '') +
+        '</p>' +
+        (booking
+          ? '<p class="done-book"><a class="btn gold" href="' + esc(booking) + '" ' +
+            'target="_blank" rel="noopener">Book a phone call</a></p>'
+          : '') +
         // No confirm here: the answers are already sent, so there is nothing to lose.
         '<p class="done-again"><button type="button" class="linkish" data-restart>' +
         'Send another</button></p>' +
