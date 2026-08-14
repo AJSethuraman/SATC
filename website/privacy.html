@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy — SATC</title>
+<meta name="description" content="What the SAT-C LLP intake form collects and where it goes." />
+<meta name="robots" content="index,follow" />
+<meta name="theme-color" content="#132437" />
+
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20fill='%23132437'/%3E%3Cpath%20d='M6%206%20H20%20V13%20H13%20V20%20H6%20Z'%20fill='none'%20stroke='%23fff'%20stroke-width='3'/%3E%3Crect%20x='21'%20y='21'%20width='6'%20height='6'%20fill='%23C0A265'/%3E%3C/svg%3E" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<style>
+/* Tokens lifted from index.html so the two pages stay in step. If the palette
+   moves there, move it here — there is no build step to share it. */
+:root {
+  --navy:       #132437;
+  --navy-deep:  #0D1926;
+  --charcoal:   #242C36;
+  --charcoal-2: #4A5360;
+  --mute:       #82817C;
+  --oxblood:    #6A2833;
+  --oxblood-lt: #83323F;
+  --gold:       #C0A265;
+  --gold-deep:  #8A7433;   /* the only gold approved for text on light — 4.6:1 */
+  --cream:      #F7F7F5;
+  --paper:      #FFFFFF;
+  --hairline:   #E6E5E0;
+  --hairline-2: #D8D7D1;
+  --sans: "IBM Plex Sans", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--sans); color: var(--charcoal); background: var(--cream);
+  line-height: 1.65; -webkit-font-smoothing: antialiased;
+}
+a { color: var(--oxblood); text-decoration: none; }
+a:hover { color: var(--oxblood-lt); text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--oxblood); outline-offset: 3px; }
+
+/* ---- header: same lockup as the site, on navy ---- */
+.top { background: var(--navy); padding: 20px clamp(20px, 5vw, 56px); }
+.lockup { display: inline-flex; align-items: center; gap: 13px; color: #fff; }
+.lockup .seal { width: 30px; height: 30px; flex: 0 0 auto; }
+.lockup .seal .s-o { fill: none; stroke: currentColor; stroke-width: 2.6; }
+.lockup .seal .s-i { fill: var(--gold); }
+.lockup .text { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.lockup .wm {
+  display: flex; align-items: flex-end;
+  font-size: 20px; font-weight: 700; letter-spacing: -0.04em;
+  line-height: 0.74; white-space: nowrap;
+}
+/* the square is sized in em — font-size has to stay on .wm */
+.lockup .wm .hy {
+  width: 0.3em; height: 0.3em; flex: 0 0 auto;
+  background: var(--gold); margin: 0 0.18em 0.2em;
+}
+.lockup .wm i { font-style: normal; font-weight: 500; letter-spacing: 0; margin-left: 0.22em; }
+.lockup .tag {
+  font-family: var(--mono); font-size: 8px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255,255,255,0.55); font-weight: 400;
+}
+
+.wrap { max-width: 760px; margin: 0 auto; padding: clamp(40px, 6vw, 72px) clamp(20px, 5vw, 56px) 72px; }
+
+.eyebrow {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--mute); margin: 0;
+}
+h1 {
+  font-weight: 600; font-size: clamp(30px, 5vw, 42px); color: var(--navy);
+  letter-spacing: -0.038em; line-height: 1.06; margin: 12px 0 8px; text-wrap: balance;
+}
+.updated { font-family: var(--mono); font-size: 11px; color: var(--mute); margin: 0 0 34px; }
+h2 {
+  font-weight: 600; font-size: 19px; color: var(--navy);
+  letter-spacing: -0.022em; margin: 38px 0 8px;
+}
+p, li { font-size: 15.5px; color: var(--charcoal-2); }
+p { margin: 0 0 14px; }
+ul { padding-left: 20px; margin: 0 0 14px; }
+li { margin: 7px 0; }
+strong { color: var(--navy); font-weight: 600; }
+
+/* Same shape as .need-note on the main page: gold hairline, gold tint, mono
+   label in --gold-deep (the only gold that passes as text on light). */
+.summary {
+  margin: 0 0 8px; padding: 18px 20px;
+  border-left: 2px solid var(--gold); background: rgba(192,162,101,0.08);
+}
+.summary > b {
+  display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em;
+  text-transform: uppercase; color: var(--gold-deep); font-weight: 400; margin-bottom: 8px;
+}
+.summary p { font-size: 14.5px; line-height: 1.62; margin: 0; }
+.summary p b { color: var(--navy); font-weight: 600; }
+
+.back {
+  display: inline-block; margin-top: 42px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--navy);
+  border-bottom: 1px solid var(--hairline-2); padding-bottom: 3px;
+}
+.back:hover { color: var(--oxblood); border-bottom-color: var(--oxblood); text-decoration: none; }
+
+footer {
+  border-top: 1px solid var(--hairline-2); margin-top: 52px; padding-top: 20px;
+  font-size: 12.5px; color: var(--mute);
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <a class="lockup" href="./" aria-label="SAT-C LLP — home">
+    <svg class="seal" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path class="s-o" d="M3 3 H19 V11 H11 V19 H3 Z"/>
+      <rect class="s-i" x="22" y="22" width="8" height="8"/>
+    </svg>
+    <div class="text">
+      <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span>
+      <span class="tag">Sethuraman Accounting, Tax &amp; Consulting</span>
+    </div>
+  </a>
+</div>
+
+<div class="wrap">
+
+  <p class="eyebrow">Privacy</p>
+  <h1>What we collect, and what happens to it.</h1>
+  <p class="updated">Last updated 14 August 2026</p>
+
+  <div class="summary">
+    <b>The short version</b>
+    <p>The form collects what you type into it and emails it to us. There are no cookies, no
+    analytics, and no advertising trackers on this site. We don&#39;t sell anything to anyone.</p>
+  </div>
+
+  <h2>What the form collects</h2>
+  <p>Only what you enter: your preferred name and email, optionally a phone number, city and
+  state, and contact preferences in addition to your answers about the work you&#39;re looking
+  for.</p>
+
+  <h2>What we ask you not to send</h2>
+  <p>Don&#39;t put SSNs, ITINs, EINs, bank or routing numbers, or dates of birth into the form.
+  It travels over the open internet and there&#39;s no attachment facility. If an engagement is
+  accepted, documents will be collected through a dedicated link or in&#8209;person.</p>
+
+  <h2>Where it goes</h2>
+  <p>The form is processed by <strong>Formspree</strong>, which passes it to us by email. On our
+  plan, Formspree keeps a copy for <strong>30 days</strong>. Formspree handles the submission
+  under its own privacy policy.</p>
+
+  <h2>If you book a call</h2>
+  <p>The optional booking button hands you to <strong>Calendly</strong>, which collects the
+  details it needs to make the appointment — typically name, email and phone number — and puts
+  it on our calendar. That happens under Calendly&#39;s own privacy policy. Booking with
+  Calendly is optional.</p>
+
+  <h2>Your browser</h2>
+  <p>While you&#39;re filling the form in, your answers are held in your own browser so a
+  refresh doesn&#39;t lose them. They&#39;re cleared when you close the tab. <strong>No cookies
+  are set, and no analytics or tracking scripts run on this site.</strong></p>
+
+  <h2>Sending the form isn&#39;t hiring us</h2>
+  <p>SAT&#8209;C LLP is only retained after we both sign an engagement letter.</p>
+
+  <h2>Contact us</h2>
+  <p>Email <a data-email href="#">us</a>.</p>
+
+  <a class="back" href="./">← Back to the site</a>
+
+  <footer>
+    © <span id="year">2026</span> Sethuraman Accounting, Tax &amp; Consulting
+  </footer>
+
+</div>
+
+<script>
+  // Kept in step with index.html by hand — same address, written once here.
+  (function () {
+    var email = "arjun_sethuraman@satcllp.com";
+    document.querySelectorAll('[data-email]').forEach(function (a) {
+      a.href = 'mailto:' + email;
+      if (a.textContent.trim() === 'us') a.textContent = email;
+    });
+    var y = document.getElementById('year');
+    if (y) y.textContent = new Date().getFullYear();
+  })();
+</script>
+
+</body>
+</html>
