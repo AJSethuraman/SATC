@@ -221,6 +221,12 @@
   }
   section.band .section-head .right { padding-bottom: 8px; }
 
+  .credential {
+    font-family: var(--sans); font-size: 13px; line-height: 1.6;
+    color: var(--charcoal-2); margin: 0; max-width: 46ch;
+    padding-left: 14px; border-left: 2px solid var(--gold);
+  }
+
   /* ============================================================ CORE SERVICES */
   .services {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
@@ -554,6 +560,9 @@
       <div>
         <p class="eyebrow">What We Do</p>
         <h2 class="h2">Three disciplines,<br/><em>one</em> desk.</h2>
+        <!-- One line, stated not explained. Specificity is what makes a
+             credential land — "years of experience" signals nothing. -->
+        <p class="credential">Led by a CPA whose background is large&#8209;bank credit risk and internal audit.</p>
       </div>
     </div>
 
