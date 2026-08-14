@@ -127,6 +127,26 @@ stripping before submit · human-readable field names in the payload.
 
 1–3 **resolved 2026-08-13** (see the decision log). 4 is open.
 
+### 5.5 · Deliverability — the live risk
+
+**Confirmed 2026-08-14: Formspree's confirmation email landed in spam.** The
+submission itself was fine — the form works end to end — but the same filter
+applies to every *submission notification* that follows, since they come from
+the same sender and domain.
+
+This is the highest-consequence failure mode left in the system, because it is
+silent: leads arrive, nobody sees them, and the form looks like it is working.
+
+Mitigations (mailbox side, nothing to change in code):
+
+- Mark the Formspree mail **not junk**, and add its exact From address to
+  **Safe senders** in Outlook.
+- Add a rule on subject `New intake —` (the payload sets `_subject` to
+  `New intake — <name>` on every submission) to file and flag it.
+- Microsoft 365 Business can allowlist the sender tenant-wide via Defender.
+
+Worth re-checking after any change to how submissions are sent.
+
 ### 5.4 · Getting submissions into a spreadsheet — open
 
 Researched 2026-08-13. The constraints are real and worth recording:
