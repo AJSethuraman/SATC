@@ -92,9 +92,14 @@ window.INTAKE_STEPS = [
   /* ── 4 · Business profile ─────────────────────────────────────────────── */
   {
     id: 'business_structure',
-    type: 'single',
+    // Multi-select on purpose. "More than one business" is a COUNT, not a
+    // structure, so as a competing single choice it forced someone with two
+    // S corps to say either "S corporation" or "multiple entities" and lose
+    // the other. Ticking both is now the normal answer, and a Schedule C
+    // alongside an S corp — genuinely common — is finally expressible.
+    type: 'multi',
     question: 'How is the business set up?',
-    help: "If you're not certain, say so — we'll confirm it from your filings.",
+    help: "Tick everything that applies — more than one if you have several. If you're not certain, say so and we'll confirm it from your filings.",
     required: true,
     // Self-employment is deliberately NOT a trigger. 1099 work is a Schedule C
     // inside the individual return; someone freelancing does not think of
@@ -108,10 +113,10 @@ window.INTAKE_STEPS = [
       { value: 's_corp',      label: 'S corporation' },
       { value: 'c_corp',      label: 'C corporation' },
       { value: 'nonprofit',   label: 'Nonprofit' },
-      { value: 'multiple',    label: 'Multiple businesses or entities' },
+      { value: 'multiple',    label: 'More than one business or entity' },
       { value: 'not_yet',     label: "Not set up yet — that's why I'm here" },
       { value: 'other',       label: 'Something else' },
-      { value: 'unsure',      label: "I'm not sure" },
+      { value: 'unsure',      label: "I'm not sure", exclusive: true },
     ],
   },
 
@@ -121,7 +126,7 @@ window.INTAKE_STEPS = [
     type: 'single',
     question: 'How many entities?',
     required: true,
-    showIf: a => asksBusinessStructure(a) && a.business_structure === 'multiple',
+    showIf: a => asksBusinessStructure(a) && hasAny(a.business_structure, ['multiple']),
     options: [
       { value: '2',   label: 'Two' },
       { value: '3_5', label: '3–5' },
@@ -353,9 +358,16 @@ function wantsBusinessWork(answers) {
   return hasAny(answers.services, ['business_tax', 'bookkeeping']);
 }
 
-/** A business that exists today. "not_yet" means they are here to start one. */
+/**
+ * A business that exists today. business_structure is a multi-select, so
+ * "not_yet" on its own means there is nothing yet — but "not_yet" alongside a
+ * real structure means they run one already and are setting up another.
+ */
 function hasBusiness(answers) {
-  return !!answers.business_structure && answers.business_structure !== 'not_yet';
+  var picked = answers.business_structure;
+  if (!picked || !picked.length) return false;
+  var list = Array.isArray(picked) ? picked : [picked];
+  return list.some(function (v) { return v !== 'not_yet'; });
 }
 
 /* The next two exist so that every business-branch rule states its OWN full
