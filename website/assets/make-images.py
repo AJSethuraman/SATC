@@ -63,6 +63,38 @@ def draw_centered(draw, cx, y, s, fnt, fill):
     draw.text((cx - draw.textlength(s, font=fnt) / 2, y), s, font=fnt, fill=fill)
 
 
+def wordmark(draw, cx, y, size, ink, square):
+    """SAT[square]C LLP, centered on cx, drawn from the top at y.
+
+    The proportions come straight from the CSS in the mark spec, with the
+    font-size standing in for the em: square 0.3em, 0.18em either side of it,
+    LLP set 0.22em after the C at a lighter weight. The square sits 0.2em above
+    the baseline so it reads at hyphen height rather than as a full stop.
+    """
+    bold = font(SANS_BOLD, size)
+    med = font(SANS, size)
+    sq, pad, llp_gap = 0.30 * size, 0.18 * size, 0.22 * size
+
+    w_sat = draw.textlength("SAT", font=bold)
+    w_c = draw.textlength("C", font=bold)
+    w_llp = draw.textlength("LLP", font=med)
+    total = w_sat + pad + sq + pad + w_c + llp_gap + w_llp
+
+    # Cap bottom of the bold face, so the square lines up with real letterforms
+    # rather than with the font's full em box.
+    cap_bottom = draw.textbbox((0, 0), "SATC", font=bold)[3]
+
+    x = cx - total / 2
+    draw.text((x, y), "SAT", font=bold, fill=ink)
+    x += w_sat + pad
+    sq_bottom = y + cap_bottom - 0.20 * size
+    draw.rectangle([x, sq_bottom - sq, x + sq, sq_bottom], fill=square)
+    x += sq + pad
+    draw.text((x, y), "C", font=bold, fill=ink)
+    x += w_c + llp_gap
+    draw.text((x, y), "LLP", font=med, fill=ink)
+
+
 def mark(draw, x, y, size, outer=WHITE, inner=GOLD):
     """The Notch mark. (x, y) is the top-left of the whole footprint.
 
@@ -99,9 +131,11 @@ def make_og():
 
     mark(d, W // 2 - 58, 116, 116, outer=WHITE, inner=GOLD)
 
-    draw_centered(d, W // 2, 274, "Sethuraman", font(SANS_BOLD, 88), WHITE)
-    draw_tracked(d, W // 2, 392, "ACCOUNTING · TAX · CONSULTING",
-                 font(MONO, 23), GOLD, tracking=4)
+    # The wordmark, not the firm name in full — the descriptor carries that.
+    # On navy the hyphen square goes gold, matching .lockup.on-dark .wm .hy.
+    wordmark(d, W // 2, 274, 88, ink=WHITE, square=GOLD)
+    draw_tracked(d, W // 2, 392, "SETHURAMAN ACCOUNTING, TAX & CONSULTING",
+                 font(MONO, 20), GOLD, tracking=3)
     draw_centered(d, W // 2, 452, "Everything you need, from one desk.",
                   font(SANS, 32), blend(SHELL, NAVY, 0.74))
 

@@ -162,30 +162,51 @@ img, svg { max-width: 100%; }
 .btn-link::after { content: "→"; letter-spacing: 0; font-size: 14px; color: var(--oxblood); }
 .btn-link:hover { color: var(--oxblood); }
 
-/* ---- lockup: the Notch mark replaces the circular S seal ----
-   Outer is a PATH (a square with an 8x8 notch removed at bottom-right); the
-   inner rect is the removed piece, same 8x8, set beside it. Outer takes
-   currentColor so .on-dark inverts with no second file. */
+/* ---- lockup: the Notch symbol + the SAT-C wordmark ----
+   The mark spec contradicts itself on this: §04 and §06 say the symbol is
+   favicon/app-icon/OG only, while §02 captions the oxblood-piece variant
+   "website nav, app chrome". §02 is the one we're following — the nav carries
+   the symbol with the oxblood piece, beside the wordmark.
+
+   The wordmark is a solid square standing in for the hyphen in SAT-C, LLP set
+   lighter after it, and the firm name beneath as the descriptor. */
 .lockup { display: inline-flex; align-items: center; gap: 13px; color: var(--navy); }
-.lockup .seal { width: 30px; height: 30px; flex: 0 0 auto; }
-/* the outer square takes currentColor so it inverts on dark automatically */
+.lockup .seal { width: 32px; height: 32px; flex: 0 0 auto; }
+/* the outer square takes currentColor so it inverts on dark with no second file */
 .lockup .seal .s-o { fill: none; stroke: currentColor; stroke-width: 2.6; }
 .lockup .seal .s-i { fill: var(--oxblood); }
-/* the vertical gold divider was pure ornament — drop it */
 .lockup .divider { display: none; }
-.lockup .text { display: flex; flex-direction: column; gap: 3px; }
-.lockup .name {
-  font-family: var(--sans); font-weight: 700; font-size: 16px;
-  letter-spacing: -0.03em; text-indent: 0; line-height: 1; white-space: nowrap;
+.lockup .text {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 5px;
+}
+.lockup .wm {
+  display: flex; align-items: flex-end;
+  font-family: var(--sans); font-size: 22px; font-weight: 700;
+  letter-spacing: -0.04em; line-height: 0.74; white-space: nowrap;
+}
+/* The square is sized in em, so font-size has to stay on .wm itself. Move it
+   to a parent and the square silently collapses to the inherited 16px while
+   the letters stay large — em would have no ancestor to resolve against. */
+.lockup .wm .hy {
+  width: 0.3em; height: 0.3em; flex: 0 0 auto;
+  background: var(--oxblood);
+  margin: 0 0.18em 0.2em;      /* the bottom margin lifts it to hyphen height */
+}
+/* LLP reads as a suffix, not part of the name */
+.lockup .wm i {
+  font-style: normal; font-weight: 500; letter-spacing: 0; margin-left: 0.22em;
 }
 .lockup .tag {
-  font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.16em;
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--mute); text-indent: 0;
   font-weight: 400; white-space: nowrap;
 }
+/* Reversed: outline goes white via currentColor, and BOTH squares — the
+   removed piece and the wordmark's hyphen — go gold. */
 .lockup.on-dark { color: #fff; }
 .lockup.on-dark .tag { color: rgba(255,255,255,0.55); }
 .lockup.on-dark .seal .s-i { fill: var(--gold); }
+.lockup.on-dark .wm .hy { background: var(--gold); }
 
 /* ============================================================ STICKY NAV */
 .nav {
@@ -616,15 +637,14 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
 <!-- ============================================================ NAV -->
 <nav class="nav" id="nav">
   <div class="nav-inner">
-    <a class="lockup" href="#top" aria-label="SATC — home">
+    <a class="lockup" href="#top" aria-label="SAT-C LLP — home">
       <svg class="seal" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <path class="s-o" d="M3 3 H19 V11 H11 V19 H3 Z"/>
         <rect class="s-i" x="22" y="22" width="8" height="8"/>
       </svg>
-      <div class="divider"></div>
       <div class="text">
-        <span class="name">SETHURAMAN</span>
-        <span class="tag">Accounting · Tax · Consulting</span>
+        <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span>
+        <span class="tag">Sethuraman Accounting, Tax &amp; Consulting</span>
       </div>
     </a>
     <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
@@ -875,13 +895,12 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
       <div class="foot-brand">
         <div class="lockup on-dark">
           <svg class="seal" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path class="s-o" d="M3 3 H19 V11 H11 V19 H3 Z"/>
-        <rect class="s-i" x="22" y="22" width="8" height="8"/>
-      </svg>
-          <div class="divider"></div>
+            <path class="s-o" d="M3 3 H19 V11 H11 V19 H3 Z"/>
+            <rect class="s-i" x="22" y="22" width="8" height="8"/>
+          </svg>
           <div class="text">
-            <span class="name">SETHURAMAN</span>
-            <span class="tag">Accounting · Tax · Consulting</span>
+            <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span>
+            <span class="tag">Sethuraman Accounting, Tax &amp; Consulting</span>
           </div>
         </div>
         <p>
