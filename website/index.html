@@ -357,7 +357,9 @@ section.fit { background: var(--paper); border-top: 1px solid var(--hairline); b
 .fit-col li:first-child { border-top: 0; }
 /* a small filled square for yes, a rule for no — no icons, no emoji */
 .fit-col.yes li::before { content: ""; position: absolute; left: 0; top: 19px; width: 7px; height: 7px; background: var(--oxblood); }
-.fit-col.no  li::before { content: ""; position: absolute; left: 0; top: 22px; width: 9px; height: 1px; background: var(--mute); }
+/* Same square as the "yes" column, deliberately — a dash here read as a
+   different kind of list rather than the other half of the same one. */
+.fit-col.no  li::before { content: ""; position: absolute; left: 0; top: 19px; width: 7px; height: 7px; background: var(--mute); }
 .fit-note {
   font-family: var(--sans); font-size: 14.5px; line-height: 1.62; color: var(--charcoal-2);
   margin: 26px 0 0; padding-top: 20px; border-top: 1px solid var(--hairline-2); max-width: 68ch;
@@ -730,10 +732,10 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
         <h3>Risk, Controls &amp; Advisory</h3>
         <p>Risk and controls, right&#8209;sized for your business — so the day&#8209;to&#8209;day runs without living in your head.</p>
         <ul>
-          <li>Risk assessment — know where you&#39;re exposed</li>
-          <li>Controls design &amp; testing — catch mistakes before they cost you</li>
-          <li>Process design — write down how the work gets done</li>
-          <li>Automation &amp; analytics — end busywork, see clearly</li>
+          <li>Risk assessment</li>
+          <li>Controls design &amp; testing</li>
+          <li>Process design &amp; documentation</li>
+          <li>Automation &amp; analytics</li>
         </ul>
       </article>
     </div>
@@ -768,15 +770,15 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
         <h3>Probably not a fit</h3>
         <p class="sub">We&#39;ll point you elsewhere</p>
         <ul>
-          <li>Anyone who needs assurance work — we don&#39;t offer that yet</li>
-          <li>Anyone whose first question is who&#39;s cheapest</li>
-          <li>Anyone who wants it filed without a conversation first</li>
-          <li>Anyone who wants a position we couldn&#39;t put our name to</li>
+          <li>Anyone who needs assurance work — coming soon</li>
+          <li>Anyone after a one&#8209;off filing rather than a relationship</li>
+          <li>Anyone who needs a lawyer more than an accountant</li>
+          <li>Anyone who wants a position we wouldn&#39;t put our name to</li>
         </ul>
       </div>
     </div>
 
-    <p class="fit-note"><b>Not sure which column you&#39;re in?</b> Send the form anyway. If we&#39;re not the right firm for the work, we&#39;ll say so rather than take the engagement. What we do take on, we do by the book.</p>
+    <p class="fit-note"><b>Not sure which column you&#39;re in?</b> Send the form anyway. If we&#39;re not the right firm for the work, we&#39;ll say so.</p>
   </div>
 </section>
 
@@ -789,9 +791,8 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
       <p class="eyebrow">Get Started</p>
       <h2 class="h2">Tell us where<br/>you&#39;re <em>starting</em> from.</h2>
       <p class="lead">
-        The more we know beforehand, the more we can make of your time on the
-        call. Only your name and email are required — answer what you can and
-        skip the rest.
+        The more we know beforehand, the more we can make of your time when we
+        talk. We only need your name and email, but everything else helps.
       </p>
 
       <ol class="steps">
@@ -817,8 +818,7 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
         <p>For anything we file we&#39;ll need a Social Security number for
         everyone on the return, photo ID (driver&#39;s license or state ID), and
         a mobile number. Prior&#8209;year returns aren&#39;t required but help a
-        lot. <b>Nothing to send now</b> — this is just so none of it catches you
-        out later.</p>
+        lot. <b>Nothing to send now.</b></p>
       </div>
 
       <ul class="aside-direct">
