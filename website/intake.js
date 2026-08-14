@@ -139,7 +139,7 @@
    */
   function reset(force) {
     if (!force && Object.keys(state.answers).length &&
-        !window.confirm('Start over? This clears everything you have entered.')) return;
+        !window.confirm('Start over? This clears everything you’ve entered.')) return;
     state.answers = {};
     state.currentId = STEPS[0].id;
     state.submitting = false;
@@ -230,7 +230,7 @@
         field('City & state', 'location', 'text', c.location, 'address-level2') +
         '<div class="consent"><label class="check">' +
           '<input type="checkbox" name="consent"' + (c.consent ? ' checked' : '') + ' />' +
-          '<span>I understand that sending this starts a conversation and does not create ' +
+          '<span>I understand that sending this does not create ' +
           'a client engagement. SATC is engaged only when we both sign an engagement letter.</span>' +
         '</label></div>';
     }
@@ -402,10 +402,10 @@
 
     if (step.type === 'contact') {
       const c = a || {};
-      if (!c.name)  return 'Please add your name so we know who we’re talking to.';
-      if (!c.email) return 'Please add an email so we can reply.';
+      if (!c.name)  return 'Please add your name.';
+      if (!c.email) return 'Please add an email.';
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email))
-        return 'That email address doesn’t look right — mind checking it?';
+        return 'That email address doesn’t look right.';
       if (!c.consent) return 'Please tick the acknowledgement before sending.';
       return null;
     }
@@ -504,7 +504,7 @@
       window.location.href = 'mailto:' + (email || '') +
         '?subject=' + encodeURIComponent('New intake — ' + c.name) +
         '&body='    + encodeURIComponent(body);
-      status('Opening your email app — press send and it’s on its way.');
+      status('Opening your email app — press send to finish.');
       state.submitting = false;
       if (btn) { btn.disabled = false; btn.textContent = 'Send to SATC'; }
       return;
@@ -529,12 +529,11 @@
   function done() {
     mount.innerHTML =
       '<div class="intake-done">' +
-        '<h3>Thank you — that’s everything we need for now.</h3>' +
-        '<p>We’ll read through what you’ve sent and be in touch as soon as we ' +
-        'can to set up a time to talk.</p>' +
+        '<h3>Thanks — that’s everything for now.</h3>' +
+        '<p>We’ll read it and be in touch to set up a time.</p>' +
         // No confirm here: the answers are already sent, so there is nothing to lose.
         '<p class="done-again"><button type="button" class="linkish" data-restart>' +
-        'Send another enquiry</button></p>' +
+        'Send another</button></p>' +
       '</div>';
     const again = mount.querySelector('[data-restart]');
     if (again) again.addEventListener('click', () => reset(true));
