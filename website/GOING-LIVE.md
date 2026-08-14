@@ -136,12 +136,38 @@ rm -rf _site && mkdir -p _site && cp -r website/. _site/ && find _site \( -name 
 > `assets/make-images.py` to the public web. The command above is the same
 > strip the GitHub Actions deploy does.
 
-### B5 · Switch the nameservers — this is the live moment
+### ⛔ B5a · CHECK DNSSEC FIRST — this is the one that takes mail down
 
-Cloudflare gives you two nameservers, like `xxx.ns.cloudflare.com`.
+Cloudflare lists this under "Recommended". It is not optional.
 
-- [ ] Squarespace → Domains → `satcllp.com` → **Nameservers** → replace the
-      current ones with Cloudflare's two
+If DNSSEC is enabled at Squarespace, changing nameservers **takes the whole
+domain offline — website and email both.** The signatures published for the old
+nameservers will not match Cloudflare's, and resolvers do not fall back; they
+refuse to answer at all. Nothing else in this checklist can stop mail as
+completely as this.
+
+- [ ] Squarespace → Domains → `satcllp.com` → look for **DNSSEC** / "DNS security"
+- [ ] If it is **off** — carry on to B5b
+- [ ] If it is **on** — turn it off, then **wait for the `DS` record to clear the
+      `.com` registry** before switching nameservers. Usually a few hours, up to
+      a day. Do not stack the two changes.
+- [ ] Confirm it has cleared before continuing
+
+### B5b · Switch the nameservers — this is the live moment
+
+Cloudflare assigned these two for `satcllp.com`:
+
+```
+beth.ns.cloudflare.com
+seth.ns.cloudflare.com
+```
+
+- [ ] Squarespace → Domains → `satcllp.com` → **Nameservers**
+- [ ] Add both Cloudflare nameservers
+- [ ] **Delete all eight existing ones** — `dns1–4.p08.nsone.net` and
+      `ns01–04.squarespacedns.com`. (Both sets being present is what made
+      Squarespace's DNS page claim "custom nameservers" while still serving
+      the records.)
 - [ ] Save
 
 Propagation is usually minutes, sometimes a few hours. Cloudflare emails you
