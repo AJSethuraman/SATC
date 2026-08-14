@@ -131,6 +131,25 @@
     try { sessionStorage.removeItem(STORAGE_KEY); } catch (e) {}
   }
 
+  /**
+   * Back to a blank form. Answers survive reloads by design, so without this
+   * there is no way out of a half-filled form and the thank-you screen is a
+   * dead end. Confirms first when there is work to lose — but not when the
+   * form is already empty, and not after a send, when nothing is at stake.
+   */
+  function reset(force) {
+    if (!force && Object.keys(state.answers).length &&
+        !window.confirm('Start over? This clears everything you have entered.')) return;
+    state.answers = {};
+    state.currentId = STEPS[0].id;
+    state.submitting = false;
+    state.back = false;
+    state.pct = 0;
+    state.moved = true;
+    clearSaved();
+    render();
+  }
+
   /* ----------------------------------------------------------- label help */
 
   const titleCase = id =>
@@ -245,6 +264,11 @@
 
     mount.innerHTML =
       '<div class="wiz-bar" role="presentation"><span style="width:' + pct + '%"></span></div>' +
+      // Only offered once there is something to clear, and kept quiet: it is an
+      // escape hatch sitting next to the primary flow, not a peer of Continue.
+      (Object.keys(state.answers).length
+        ? '<p class="wiz-reset"><button type="button" class="linkish" data-reset>Start over</button></p>'
+        : '') +
       '<form class="wiz-form" id="intakeForm" novalidate>' +
         '<fieldset class="wiz-step">' +
           '<legend class="wiz-q">' + esc(step.question) + '</legend>' +
@@ -264,6 +288,9 @@
           '</button>' +
         '</div>' +
       '</form>';
+
+    const resetBtn = mount.querySelector('[data-reset]');
+    if (resetBtn) resetBtn.addEventListener('click', () => reset(false));
 
     wire(step);
 
@@ -506,7 +533,12 @@
         '<p>Arjun will read this personally and reply within one business day. ' +
         'If we need documents from you, that reply will include a secure upload ' +
         'link — we’ll never ask you to email or text them.</p>' +
+        // No confirm here: the answers are already sent, so there is nothing to lose.
+        '<p class="done-again"><button type="button" class="linkish" data-restart>' +
+        'Send another enquiry</button></p>' +
       '</div>';
+    const again = mount.querySelector('[data-restart]');
+    if (again) again.addEventListener('click', () => reset(true));
     mount.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 

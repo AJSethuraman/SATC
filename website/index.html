@@ -325,6 +325,18 @@
   .chip.on:hover { background: var(--gold-light); border-color: var(--gold-light); }
   /* the input is invisible, so the focus ring has to live on the chip */
   .chip:has(input:focus-visible) { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
+  /* "Start over" / "Send another" — quiet by design, so they never compete
+     with Continue for a thumb on a phone. */
+  .linkish {
+    background: none; border: 0; padding: 0; cursor: pointer;
+    font-family: var(--sans); font-size: 12px; letter-spacing: 0.14em;
+    text-transform: uppercase; font-weight: 600; color: var(--charcoal-2);
+    border-bottom: 1px solid var(--hairline);
+  }
+  .linkish:hover { color: var(--navy); border-bottom-color: var(--gold); }
+  .linkish:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+  .wiz-reset { margin: -14px 0 22px; text-align: right; }
+  .done-again { margin: 26px 0 0; }
   .wiz-hint {
     font-family: var(--sans); font-size: 10.5px; letter-spacing: 0.2em;
     text-transform: uppercase; font-weight: 600; color: var(--gold-deep);
