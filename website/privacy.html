@@ -46,7 +46,19 @@ a:hover { color: var(--oxblood-lt); text-decoration: underline; }
 :focus-visible { outline: 2px solid var(--oxblood); outline-offset: 3px; }
 
 /* ---- header: same lockup as the site, on navy ---- */
-.top { background: var(--navy); padding: 20px clamp(20px, 5vw, 56px); }
+.top {
+  background: var(--navy); padding: 20px clamp(20px, 5vw, 56px);
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+}
+/* The lockup links home too, but that isn't obvious enough to be the only way
+   out of the page — this one says so. */
+.top-back {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255,255,255,0.66);
+  white-space: nowrap; flex: 0 0 auto;
+}
+.top-back:hover { color: #fff; text-decoration: none; }
+.top-back:focus-visible { outline-color: var(--gold); }
 .lockup { display: inline-flex; align-items: center; gap: 13px; color: #fff; }
 .lockup .seal { width: 30px; height: 30px; flex: 0 0 auto; }
 .lockup .seal .s-o { fill: none; stroke: currentColor; stroke-width: 2.6; }
@@ -129,6 +141,7 @@ footer {
       <span class="tag">Sethuraman Accounting, Tax &amp; Consulting</span>
     </div>
   </a>
+  <a class="top-back" href="./">← Back to the site</a>
 </div>
 
 <div class="wrap">
