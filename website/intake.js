@@ -530,9 +530,8 @@
     mount.innerHTML =
       '<div class="intake-done">' +
         '<h3>Thank you — that’s everything we need for now.</h3>' +
-        '<p>Arjun will read this personally and reply within one business day. ' +
-        'If we need documents from you, that reply will include a secure upload ' +
-        'link — we’ll never ask you to email or text them.</p>' +
+        '<p>We’ll read through what you’ve sent and be in touch as soon as we ' +
+        'can to set up a time to talk.</p>' +
         // No confirm here: the answers are already sent, so there is nothing to lose.
         '<p class="done-again"><button type="button" class="linkish" data-restart>' +
         'Send another enquiry</button></p>' +

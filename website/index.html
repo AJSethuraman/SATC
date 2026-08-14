@@ -4,13 +4,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SATC — Sethuraman Accounting, Tax &amp; Consulting</title>
-<meta name="description" content="Sethuraman Accounting, Tax & Consulting — accounting, tax, and consulting for small businesses. Tell us about your situation and we'll be in touch within one business day." />
+<meta name="description" content="Sethuraman Accounting, Tax & Consulting — accounting, tax, and consulting for small businesses. Tell us about your situation and we'll be in touch." />
 <meta name="theme-color" content="#0B1F3A" />
 
 <!-- Open Graph / link previews -->
 <meta property="og:type" content="website" />
 <meta property="og:title" content="SATC — Sethuraman Accounting, Tax & Consulting" />
-<meta property="og:description" content="Accounting, tax, and consulting for small businesses. Tell us about your situation and we'll be in touch within one business day." />
+<meta property="og:description" content="Accounting, tax, and consulting for small businesses. Tell us about your situation and we'll be in touch." />
 <meta property="og:url" content="https://ajsethuraman.github.io/SATC/" />
 <meta property="og:image" content="https://ajsethuraman.github.io/SATC/og-image.png" />
 <meta property="og:image:width" content="1200" />
@@ -147,6 +147,11 @@
   }
   .nav-cta::after { content: "→"; letter-spacing: 0; font-size: 13px; color: var(--gold-light); }
   .nav-cta:hover { background: var(--navy-deep); }
+  /* Same shape and size as the primary, lighter weight — so the pair reads as
+     "secondary, primary" rather than two actions competing for the same tap. */
+  .nav-cta.ghost { background: transparent; color: var(--navy); border-color: var(--hairline); }
+  .nav-cta.ghost::after { color: var(--gold); }
+  .nav-cta.ghost:hover { background: transparent; border-color: var(--gold); }
   .nav-toggle {
     display: none; background: none; border: 0; cursor: pointer;
     width: 44px; height: 44px; padding: 10px; color: var(--navy);
@@ -256,6 +261,16 @@
   }
   .steps li b { display: block; font-family: var(--serif); font-size: 20px; font-weight: 500; color: var(--navy); margin-bottom: 4px; }
   .steps li p { font-family: var(--sans); font-size: 13.5px; line-height: 1.65; color: var(--charcoal); margin: 0; }
+  .need-note {
+    margin: 32px 0 0; padding: 18px 20px;
+    border-left: 2px solid var(--gold); background: rgba(176,141,87,0.07);
+  }
+  .need-note > b {
+    display: block; font-family: var(--sans); font-size: 9px; letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--gold-deep); font-weight: 600; margin-bottom: 8px;
+  }
+  .need-note p { font-family: var(--sans); font-size: 13.5px; line-height: 1.65; color: var(--charcoal); margin: 0; }
+  .need-note p b { color: var(--navy); font-weight: 600; }
   .aside-direct { list-style: none; margin: 34px 0 0; padding: 26px 0 0; border-top: 1px solid var(--hairline); display: flex; flex-direction: column; gap: 15px; }
   .aside-direct li { font-family: var(--sans); font-size: 15px; color: var(--charcoal); }
   .aside-direct li b { display: block; font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold-deep); font-weight: 600; margin-bottom: 4px; }
@@ -433,7 +448,7 @@
     }
     .nav.open .nav-links { max-height: 420px; visibility: visible; }
     .nav-links a { padding: 14px 0; border-bottom: 1px solid var(--hairline); }
-    .nav-links .nav-cta { justify-content: center; margin-top: 14px; padding: 14px 20px; }
+    .nav-links .nav-cta { justify-content: center; margin-top: 12px; padding: 14px 20px; border-bottom: 0; }
     .nav-links a:last-child { border-bottom: 0; }
 
     .hero-grid { grid-template-columns: 1fr; }
@@ -495,8 +510,7 @@
       <span></span><span></span><span></span>
     </button>
     <div class="nav-links" id="navLinks">
-      <a href="#services">Services</a>
-      <a href="#intake">Get Started</a>
+      <a class="nav-cta ghost" href="#services">Services</a>
       <a class="nav-cta" href="#intake">Get Started</a>
     </div>
   </div>
@@ -513,8 +527,8 @@
       <h1>Everything you need, from <em>one</em> desk.</h1>
       <p class="lede">
         Accounting, tax, and consulting for small businesses and the people who
-        run them. Tell us a little about your situation and we&#39;ll come back
-        to you with a real answer — usually within one business day.
+        run them. Tell us about your situation and we&#39;ll come back with
+        answers.
       </p>
       <div class="hero-ctas">
         <a class="btn gold" href="#intake">Tell Us About Your Situation</a>
@@ -526,7 +540,7 @@
       <div class="card-eyebrow">How This Works</div>
       <div class="card-title">Five minutes now,<br/>a <em>real</em> answer next.</div>
       <div class="card-row"><span class="k">Step 1</span><span class="v">You fill out the form</span></div>
-      <div class="card-row"><span class="k">Step 2</span><span class="v">We reply within a day</span></div>
+      <div class="card-row"><span class="k">Step 2</span><span class="v">We review and reply</span></div>
       <div class="card-row"><span class="k">Step 3</span><span class="v">We talk it through</span></div>
       <div class="card-row"><span class="k">Cost</span><span class="v">Nothing to start</span></div>
     </aside>
@@ -539,14 +553,7 @@
     <div class="section-head">
       <div>
         <p class="eyebrow">What We Do</p>
-        <h2 class="h2">Three disciplines,<br/><em>done</em> properly.</h2>
-      </div>
-      <div class="right">
-        <p class="lead">
-          Accounting and tax are the core. Consulting is where Arjun&#39;s background
-          in risk and controls goes to work — turning your operations into
-          processes that run with little input from you.
-        </p>
+        <h2 class="h2">Three disciplines,<br/><em>one</em> desk.</h2>
       </div>
     </div>
 
@@ -562,7 +569,7 @@
           <line x1="20" y1="42" x2="44" y2="42" stroke="currentColor" stroke-width="1.6"/>
         </svg>
         <h3>Accounting &amp; Bookkeeping</h3>
-        <p>Books closed monthly, reconciled to the cent, and presented in clean reports your team can actually act on.</p>
+        <p>Books closed monthly and presented in clean reports you can actually act on.</p>
         <ul>
           <li>Monthly close &amp; reconciliations</li>
           <li>Financial statements &amp; reporting</li>
@@ -604,7 +611,7 @@
           <line x1="16" y1="42" x2="23" y2="42" stroke="currentColor" stroke-width="1"/>
         </svg>
         <h3>Risk, Controls &amp; Advisory</h3>
-        <p>Risk and controls know&#8209;how shaped by a career in large&#8209;bank credit risk and risk governance — right&#8209;sized for a small business, and ready to scale as you grow. In plain terms: get paid more reliably, keep cash from leaking, and make the business run without living in your head.</p>
+        <p>Risk and controls, right&#8209;sized for a small business — so the day&#8209;to&#8209;day runs without living in your head.</p>
         <ul>
           <li>Credit &amp; collections — get paid, cut bad debt</li>
           <li>Controls design &amp; testing — protect your cash</li>
@@ -625,7 +632,7 @@
       <p class="eyebrow">Get Started</p>
       <h2 class="h2">Tell us where<br/>you&#39;re <em>starting</em> from.</h2>
       <p class="lead">
-        The more we know before we talk, the less of your time we waste on the
+        The more we know beforehand, the more we can make of your time on the
         call. Only your name and email are required — answer what you can and
         skip the rest.
       </p>
@@ -634,19 +641,28 @@
         <li>
           <span class="n">1</span>
           <b>You send this</b>
-          <p>About five minutes. No documents to dig up yet — just what you know off the top of your head.</p>
+          <p>About five minutes. Nothing to dig up — just what you know off the top of your head.</p>
         </li>
         <li>
           <span class="n">2</span>
-          <b>We read it and reply</b>
-          <p>Within one business day, from Arjun directly. If we need documents, that reply carries a secure upload link — we never ask for them by email or text.</p>
+          <b>We review it</b>
+          <p>We&#39;ll read through what you&#39;ve sent and be in touch as soon as we can to set up a time.</p>
         </li>
         <li>
           <span class="n">3</span>
           <b>We talk it through</b>
-          <p>A straight answer on what&#39;s involved, how long it takes, and what it costs — before anything starts.</p>
+          <p>We go through your situation together, then discuss timeline and cost.</p>
         </li>
       </ol>
+
+      <div class="need-note">
+        <b>What we&#39;ll need later</b>
+        <p>For anything we file we&#39;ll need a Social Security number for
+        everyone on the return, photo ID (driver&#39;s license or state ID), and
+        a mobile number. Prior&#8209;year returns aren&#39;t required but help a
+        lot. <b>Nothing to send now</b> — this is just so none of it catches you
+        out later.</p>
+      </div>
 
       <ul class="aside-direct">
         <li data-booking-row hidden>
@@ -670,8 +686,8 @@
       <div class="callout">
         <b>Please don&#39;t enter Social Security numbers, ITINs, or bank account
         numbers here</b>, and don&#39;t attach documents. This form travels over
-        the open internet. Once we&#39;ve talked, we&#39;ll send you a secure
-        upload link for anything sensitive.
+        the open internet. Anything sensitive comes later, once we&#39;ve
+        spoken.
       </div>
 
       <!-- The intake is rendered here by intake.js, one step at a time, from
