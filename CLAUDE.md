@@ -22,7 +22,7 @@ collects/retains client info, and provides small services around Drake.
 ## Conventions
 
 - **Match each project's existing style.** The website is hand-edited HTML/CSS
-  with content in a `SATC_CONFIG` block at the bottom of `index.html`. Invoicer
+  with content in `website/site-config.js` (the `SATC_CONFIG` block). Invoicer
   follows a Flask module split (`app.py`, `api.py`, `models.py`, `pdf.py`,
   `email_utils.py`, `stripe_utils.py`, `config.py`). `satc_system` is a
   `src/satc/...` package; Drake-adjacent behavior stays config-driven under

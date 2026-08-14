@@ -72,69 +72,122 @@ area (see §"Which host" below).
 
 ## Path B — Cloudflare Pages + Cloudflare DNS
 
-Better hosting terms and unlimited bandwidth, but the apex domain requires DNS
-to live at Cloudflare — **so your `MX` records move house.** They still point at
-the same mail provider; they just have to be recreated at the new DNS host.
+**Do this in one sitting, in this order.** Nothing breaks until step 5, and
+everything before it is reversible.
 
-### B1 · Add the domain to Cloudflare
+### B1 · Screenshot the DNS panel
 
-- [ ] Create a Cloudflare account, **Add a site** → `satcllp.com`
+Squarespace → Domains → `satcllp.com` → **DNS Settings**. Capture every record.
+Thirty seconds, and it is your undo button.
+
+### B2 · Add the domain to Cloudflare
+
+- [ ] Create a free account at cloudflare.com
+- [ ] **Add a site** → type `satcllp.com`
 - [ ] Choose the **Free** plan
-- [ ] Let Cloudflare scan and import the existing records
+- [ ] Let it scan. It will import what it finds and show you a list.
 
-### ⛔ B2 · THE MX GATE — do not pass this without checking
+### ⛔ B3 · THE MX GATE — check every row before going further
 
-**Cloudflare's scan usually imports `MX` and `TXT` correctly. Usually is not
-always, and SPF/DKIM/DMARC are the ones that scan least reliably.**
+Cloudflare's scan is usually right. Usually is not always, and a missed `MX`
+row means mail stops. Compare its list against this table — these are the
+records verified live on 14 August 2026 — and **hand-add anything missing**.
 
-Open the imported record list beside your screenshot and fill this in:
+| Type | Name | Priority | Data | Proxy | ✓ |
+|---|---|---|---|---|---|
+| MX | `@` | **0** | `satcllp-com.mail.protection.outlook.com` | **DNS only** | ☐ |
+| TXT | `@` | — | `MS=ms36114642` | n/a | ☐ |
+| TXT | `@` | — | `v=spf1 include:spf.protection.outlook.com -all` | n/a | ☐ |
+| TXT | `@` | — | `google-site-verification=JcikLSQNLDrhc9bRYX78ZriBlPXjiI9VwTFFJGVJT0k` | n/a | ☐ |
+| CNAME | `autodiscover` | — | `autodiscover.outlook.com` | **DNS only** | ☐ |
 
-| Record | On the screenshot | Imported at Cloudflare | Match? |
-|---|---|---|---|
-| MX (priority + host) | | | ☐ |
-| MX (any additional) | | | ☐ |
-| TXT — SPF (`v=spf1 …`) | | | ☐ |
-| TXT — DKIM (often `selector._domainkey`) | | | ☐ |
-| TXT — DMARC (`_dmarc`) | | | ☐ |
-| TXT — domain verification (Microsoft `MS=…`) | | | ☐ |
-| Any other record on the screenshot | | | ☐ |
+- [ ] All five rows present and matching **character for character**
+- [ ] `MX` and `autodiscover` set to **DNS only** — the grey cloud, not orange.
+      Proxying mail records breaks delivery.
 
-- [ ] Every row above ticked, values matching **character for character**
-- [ ] Anything missing has been **added by hand** at Cloudflare
-- [ ] `MX` records are set to **DNS only** (grey cloud, not orange) — proxying
-      mail records breaks delivery
+You can **delete** these two — they belong to Squarespace and are not needed:
 
-**Only when every row matches:**
+- the four `A` records on `@` (`198.185.159.144/145`, `198.49.23.144/145`)
+- `CNAME www → ext-sq.squarespace.com`
+- `CNAME _domainconnect → _domainconnect.domains.squarespace.com`
 
-- [ ] Change the nameservers at Squarespace to the two Cloudflare gives you
+> Until step 5, Squarespace is still answering. Everything above is rehearsal
+> and mail keeps flowing while you check.
 
-> Until you change nameservers, Squarespace is still answering — so everything
-> above is rehearsal, and mail keeps flowing while you check.
+### B4 · Build the Pages project
 
-### B3 · Cloudflare Pages
+Do this **before** switching nameservers, so the site is ready and waiting.
 
-- [ ] Workers & Pages → **Create → Pages → Connect to Git** → this repo
-- [ ] Build command: **none**. Output directory: `website`
-- [ ] Add the custom domain `satcllp.com` in the Pages project
+- [ ] Cloudflare → **Workers & Pages** → **Create** → **Pages** →
+      **Connect to Git** → authorise GitHub → pick `AJSethuraman/SATC`
+- [ ] Production branch: `main`
+- [ ] **Build command** — paste exactly:
 
-> ⚠️ **`website/` contains files the public site should not serve** —
-> `INTAKE.md`, `README.md`, this file, `intake.spec.py`, `assets/make-images.py`.
-> The GitHub Actions deploy strips `.md` and `.py` before publishing
-> (`.github/workflows/pages.yml`, "Stage site files"). Cloudflare pointed
-> straight at `website/` would publish all of them. Either give the Pages
-> project a build command that does the same strip, or move those files out of
-> `website/` first.
+```
+rm -rf _site && mkdir -p _site && cp -r website/. _site/ && find _site \( -name '*.md' -o -name '*.py' \) -delete
+```
 
-### B4 · Confirm
+- [ ] **Build output directory:** `_site`
+- [ ] Save and deploy. You get a `something.pages.dev` URL — **open it and
+      check the site works** before going any further.
+
+> ⚠️ **Do not skip the build command.** Pointing Pages straight at `website/`
+> publishes `INTAKE.md`, `README.md`, this checklist, `intake.spec.py` and
+> `assets/make-images.py` to the public web. The command above is the same
+> strip the GitHub Actions deploy does.
+
+### ⛔ B5a · CHECK DNSSEC FIRST — this is the one that takes mail down
+
+Cloudflare lists this under "Recommended". It is not optional.
+
+If DNSSEC is enabled at Squarespace, changing nameservers **takes the whole
+domain offline — website and email both.** The signatures published for the old
+nameservers will not match Cloudflare's, and resolvers do not fall back; they
+refuse to answer at all. Nothing else in this checklist can stop mail as
+completely as this.
+
+- [ ] Squarespace → Domains → `satcllp.com` → look for **DNSSEC** / "DNS security"
+- [ ] If it is **off** — carry on to B5b
+- [ ] If it is **on** — turn it off, then **wait for the `DS` record to clear the
+      `.com` registry** before switching nameservers. Usually a few hours, up to
+      a day. Do not stack the two changes.
+- [ ] Confirm it has cleared before continuing
+
+### B5b · Switch the nameservers — this is the live moment
+
+Cloudflare assigned these two for `satcllp.com`:
+
+```
+beth.ns.cloudflare.com
+seth.ns.cloudflare.com
+```
+
+- [ ] Squarespace → Domains → `satcllp.com` → **Nameservers**
+- [ ] Add both Cloudflare nameservers
+- [ ] **Delete all eight existing ones** — `dns1–4.p08.nsone.net` and
+      `ns01–04.squarespacedns.com`. (Both sets being present is what made
+      Squarespace's DNS page claim "custom nameservers" while still serving
+      the records.)
+- [ ] Save
+
+Propagation is usually minutes, sometimes a few hours. Cloudflare emails you
+when the domain is active.
+
+### B6 · Attach the domain
+
+- [ ] In the Pages project → **Custom domains** → **Set up a domain** →
+      `satcllp.com`
+- [ ] Add `www.satcllp.com` too if you want it to work
+- [ ] Cloudflare adds the records and issues the certificate automatically
+
+### B7 · Check both halves
 
 - [ ] `https://satcllp.com` loads the site
+- [ ] `https://www.satcllp.com` reaches it
 - [ ] **Send yourself an email and reply to it**
-- [ ] Send a test from an *outside* address (a personal Gmail) and confirm it
+- [ ] **Send one from an outside address** (a personal Gmail) and confirm it
       arrives — this is what catches a broken SPF record
-- [ ] Turn off the GitHub Pages custom domain so two hosts aren't claiming it
-- [ ] Then do §"Repo-side URL switch" below
-
----
+- [ ] Then do the repo-side URL switch below
 
 ## Repo-side URL switch — after DNS resolves, not before
 
@@ -183,17 +236,16 @@ switching later is a folder copy and a DNS change.
 
 ## Recorded DNS — Squarespace panel, 14 August 2026
 
-> ⚠️ **These records are NOT live.** The Squarespace DNS page shows:
+> ✅ **Verified live on 14 August 2026.** Squarespace's DNS page shows a banner
+> saying *"You're using custom nameservers… to activate the DNS records below,
+> switch to Squarespace nameservers."* **Ignore it.** A direct lookup shows every
+> record below resolving publicly with matching values, and `squarespacedns.com`
+> among the domain's nameservers. Squarespace **is** serving this zone, and
+> edits made on that page **do** take effect.
 >
-> *"You're using custom nameservers. Your DNS records are managed with your
-> third-party nameserver provider. To activate the DNS records below, switch to
-> Squarespace nameservers."*
->
-> So something other than Squarespace is answering DNS for `satcllp.com` today.
-> This table is what Squarespace has **stored**, not what the internet is
-> using — and the two can disagree. **Before changing anything, find out who
-> the real nameservers are** (see "First, find the real nameservers" below).
-> Editing the Squarespace page while custom nameservers are set changes nothing.
+> (The delegation also lists `dns1–4.p08.nsone.net` alongside the four
+> `ns01–04.squarespacedns.com`, which is probably what makes Squarespace's own
+> check report "custom". It does not stop the records working.)
 
 Everything here is public information — DNS is queryable by anyone — so it is
 safe to keep in the repo.
@@ -218,7 +270,7 @@ safe to keep in the repo.
 
 | Type | Name | Priority | TTL | Data |
 |---|---|---|---|---|
-| TXT | @ | — | 4 hrs | `google-site-verification=JcikLSQNLDrhc9bRYX78ZriBlPXjil…` **(truncated in the UI — capture the full value)** |
+| TXT | @ | — | 4 hrs | `google-site-verification=JcikLSQNLDrhc9bRYX78ZriBlPXjiI9VwTFFJGVJT0k` |
 
 ### Custom records — **THIS IS THE EMAIL. DO NOT TOUCH.**
 
@@ -236,18 +288,18 @@ server allowed to send as `satcllp.com`.
 
 ---
 
-## First, find the real nameservers
+## Where things actually stand
 
-Because Squarespace says custom nameservers are in use, the live records live
-somewhere else. Find out where before touching anything:
+- **The four `A` records are the Squarespace preset**, never pointed at a real
+  site — no Squarespace site was ever published. They are exactly what Path A
+  replaces, and nothing depends on them.
+- **The custom records are the email**, added by hand for Microsoft 365. All
+  four resolve correctly, which is why mail flows.
+- **`satcllp.com` currently answers with Squarespace's IPs**, so the domain
+  shows a Squarespace placeholder rather than anything of ours.
 
-- Run `nslookup -type=NS satcllp.com` (Windows) or `dig NS satcllp.com +short`
-- Or use any "DNS checker" site and look up the **NS** record
-
-Whatever comes back is who actually controls the domain's DNS — that is where
-the website records must change, and where the `MX` gate above applies. If it
-comes back as Cloudflare, Path B is already half done and the job is just
-pointing the site records at the new host.
+So **Path A is the job**: swap the four `A` records and the `www` CNAME, leave
+every `MX` and `TXT` alone.
 
 ---
 
@@ -257,13 +309,15 @@ Neither breaks anything today. Both affect whether **your** mail reaches other
 people's inboxes — worth attention given mail from the site has already been
 filtered as spam once.
 
-**No DKIM records.** Microsoft 365 signs outbound mail with DKIM, but only once
+**No DKIM records** — confirmed by lookup: `selector1._domainkey.satcllp.com`
+does not resolve. Microsoft 365 signs outbound mail with DKIM, but only once
 two CNAMEs exist — `selector1._domainkey` and `selector2._domainkey`, pointing
 at `…onmicrosoft.com` targets Microsoft gives you. Neither is in the list above.
 Enable DKIM in the Microsoft 365 admin centre (Defender → Policies → Email
 authentication) and it will tell you the exact two records to add.
 
-**No DMARC record.** There is no `_dmarc` TXT entry. Without one, receiving
+**No DMARC record** — confirmed by lookup: `_dmarc.satcllp.com` does not
+resolve. Without one, receiving
 servers have no instruction about what to do with mail that fails checks, and
 some treat that as a reason to filter. A monitoring-only policy is safe to start
 with and changes nothing about delivery:

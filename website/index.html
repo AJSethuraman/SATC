@@ -69,7 +69,11 @@
   /* ---- gold: hairlines and rules ONLY ---- */
   --gold:        #C0A265;   /* was #B08D57 — more chroma, less brown */
   --gold-light:  #D6BE8C;   /* was #D4B97E */
-  --gold-deep:   #8A7433;   /* was #8A6F44 — only for text on light, passes AA */
+  /* Was #8A7433, which the style spec lists as AA at 4.6:1 — that figure is
+     measured on WHITE. On --cream it is 4.23:1 and on the gold-tinted
+     .need-note ground 3.99:1, both under 4.5:1. Darkened so it passes on the
+     grounds actually used: 5.54:1 on cream, 5.22:1 on the tint. */
+  --gold-deep:   #756228;   /* the only gold approved for text on light */
 
   /* ---- ground: now COOL ---- */
   --cream:       #F7F7F5;   /* was #F7F5F0 — page shell */
@@ -955,54 +959,12 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
 </footer>
 
 
-<!-- ============================================================================
-     ⚙️  SATC_CONFIG — THE ONLY THING YOU NEED TO EDIT
-     ----------------------------------------------------------------------------
-     1) WHERE THE FORM GOES (do this first — it's the whole point of the page):
-        Sign up free at https://formspree.io, create a form, and paste its ID
-        below as `formspreeId` (it looks like "xkgwabcd" — the last part of the
-        URL Formspree gives you). Submissions then land in your inbox.
-        Leave it blank and the form falls back to opening the visitor's email
-        app with everything pre-filled — it works, but far fewer people finish.
+<!-- Config lives in site-config.js so privacy.html can read the same values.
+     Loaded before the wiring below, and before intake.js, both of which read
+     window.SATC_CONFIG. -->
+<script src="site-config.js"></script>
 
-     2) CONTACT: set your email (and optionally phone / location / LinkedIn).
-        Leave a field as "" to hide it automatically.
-
-     3) OPTIONAL — BOOKING: paste a Calendly or Cal.com link and a "book a phone
-        call" button appears on the CONFIRMATION screen, after the form is sent
-        — never beside it, where it would be a way to skip the questions.
-        Point it at a PHONE CALL event type only; in-person meetings are not
-        self-scheduled. Booking is optional for the visitor either way — we say
-        we'll be in touch regardless. Leave blank to hide it entirely.
-     ============================================================================ -->
 <script>
-  // Assigned onto window deliberately: intake.js is a separate file and reads
-  // this through window.SATC_CONFIG. A top-level `const` would be lexically
-  // scoped to this script and invisible to it — the inline IIFEs below would
-  // still work, so the breakage would only show up at submit time.
-  window.SATC_CONFIG = {
-    contact: {
-      email:      "arjun_sethuraman@satcllp.com",
-      phone:      "",                     // e.g. "+1 (305) 555-0140" — blank = hidden
-      location:   "By appointment · Remote &amp; in&#8209;person",
-      linkedin:   "",                     // e.g. "https://www.linkedin.com/in/your-handle"
-      formspreeId: "mwleqelj"             // Formspree form ID — submissions email to the address above
-    },
-    // ── Optional: a "book a time" link beside the form ──────────────
-    booking: {
-      // Phone-call event type only — in-person meetings are not self-scheduled.
-      // Shown on the CONFIRMATION screen after the form is sent, never beside
-      // it. Blank = the button disappears and we just say we'll be in touch.
-      // NOTE: this is the event's URL slug, which Calendly keeps separate from
-      // its display name — renaming the event does NOT update this link, but
-      // editing the link under "event link" does, and would break it here.
-      url: "https://calendly.com/arjun_sethuraman-satcllp/new-meeting"
-    },
-    // ── Analytics (optional, off by default) ───────────────────────
-    // provider "plausible" + domain, OR "cloudflare" + token, OR "ga" + id
-    analytics: { provider: "", domain: "", token: "", id: "" }
-  };
-
   /* ---------- contact wiring ---------- */
   (function () {
     const c = SATC_CONFIG.contact;

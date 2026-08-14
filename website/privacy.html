@@ -27,7 +27,7 @@
   --oxblood:    #6A2833;
   --oxblood-lt: #83323F;
   --gold:       #C0A265;
-  --gold-deep:  #8A7433;   /* the only gold approved for text on light — 4.6:1 */
+  --gold-deep:  #756228;   /* 5.22:1 on the tinted summary ground — see index.html */
   --cream:      #F7F7F5;
   --paper:      #FFFFFF;
   --hairline:   #E6E5E0;
@@ -196,11 +196,15 @@ footer {
 
 </div>
 
+<script src="site-config.js"></script>
 <script>
-  // Kept in step with index.html by hand — same address, written once here.
+  // The address comes from the shared config, not a second copy — a stale
+  // address here would send deletion requests to a dead mailbox.
   (function () {
-    var email = "arjun_sethuraman@satcllp.com";
+    var cfg = (window.SATC_CONFIG || {}).contact || {};
+    var email = cfg.email || '';
     document.querySelectorAll('[data-email]').forEach(function (a) {
+      if (!email) { a.removeAttribute('href'); return; }
       a.href = 'mailto:' + email;
       if (a.textContent.trim() === 'us') a.textContent = email;
     });

@@ -78,7 +78,7 @@ Verified against `main` @ `fe50418` on 2026-08-13.
 | Conditional logic | Exactly one rule — `#ownsBiz` select toggles `#bizBlock` (`index.html:1039`). |
 | Submission | `fetch` POST to `https://formspree.io/f/<id>` when `SATC_CONFIG.contact.formspreeId` is set. **It is currently empty**, so every submission falls through to a pre-filled `mailto:`. |
 | Backend / DB / CRM | **None exist.** No API route, no database, no webhook. Staff receive an email. |
-| Config | `SATC_CONFIG` block at `index.html:972` — contact, booking, analytics. |
+| Config | `SATC_CONFIG` in `site-config.js` — contact, booking, analytics. Loaded by `index.html` and `privacy.html`. |
 | JS modules | Six IIFEs: contact wiring · booking link · mobile nav · business-block toggle · intake submit · analytics. |
 | Tests | **None for the website.** `.github/workflows/test.yml` runs pytest for `satc_system` only. |
 | Deploy | `.github/workflows/pages.yml` → GitHub Pages on push to `main` touching `website/**`. Live at <https://ajsethuraman.github.io/SATC/>. **Edits here are production changes.** |
