@@ -44,7 +44,13 @@ with sync_playwright() as p:
             ok(False, "_json parse: %s" % e)
         ok(r.get("_replyto") == "t@example.com", "_replyto set to the prospect")
         ok(r.get("Name") == "Test Prospect", "Name present")
-    ok("Thank you" in pg.inner_text("#intakeMount"), "thank-you rendered")
+    # Assert on the whole confirmation, not one greeting word: the point is that
+    # the form is replaced by a done screen that says we'll follow up, so a copy
+    # edit that guts the message should fail here rather than pass on "Thanks".
+    done_text = pg.inner_text("#intakeMount")
+    ok("Thanks" in done_text and "be in touch" in done_text,
+       "thank-you rendered: %r" % done_text[:60])
+    ok("Send another" in done_text, "restart offered on the done screen")
     ok(pg.evaluate("sessionStorage.getItem('satc_intake_v1')") is None, "sessionStorage cleared")
     pg.close()
 

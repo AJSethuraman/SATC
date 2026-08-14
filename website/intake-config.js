@@ -36,7 +36,6 @@ window.INTAKE_STEPS = [
     id: 'services',
     type: 'multi',
     question: 'What can we help you with?',
-    help: 'Choose everything that applies — you can change this later.',
     required: true,
     options: [
       { value: 'individual_tax', label: 'Individual tax preparation' },
@@ -55,7 +54,6 @@ window.INTAKE_STEPS = [
     id: 'individual_complexity',
     type: 'multi',
     question: 'Which of these apply to you?',
-    help: 'Select all that apply. This tells us what your return actually involves.',
     required: true,
     showIf: a => hasAny(a.services, ['individual_tax', 'tax_planning', 'tax_resolution', 'unsure']),
     options: [
@@ -85,7 +83,7 @@ window.INTAKE_STEPS = [
     // alongside an S corp — genuinely common — is finally expressible.
     type: 'multi',
     question: 'How is the business set up?',
-    help: "Tick everything that applies — more than one if you have several. If you're not certain, say so and we'll confirm it from your filings.",
+    help: "More than one is fine.",
     required: true,
     // Self-employment is deliberately NOT a trigger. 1099 work is a Schedule C
     // inside the individual return; someone freelancing does not think of
@@ -100,7 +98,7 @@ window.INTAKE_STEPS = [
       { value: 'c_corp',      label: 'C corporation' },
       { value: 'nonprofit',   label: 'Nonprofit' },
       { value: 'multiple',    label: 'More than one business or entity' },
-      { value: 'not_yet',     label: "Not set up yet — that's why I'm here" },
+      { value: 'not_yet',     label: 'Not set up yet' },
       { value: 'other',       label: 'Something else' },
       { value: 'unsure',      label: "I'm not sure", exclusive: true },
     ],
@@ -112,7 +110,6 @@ window.INTAKE_STEPS = [
     id: 'business_complexity',
     type: 'multi',
     question: 'Which of these does the business involve?',
-    help: 'Select all that apply.',
     required: true,
     // Two gates, both required.
     //   1. The business must actually exist — "not_yet" means they are here to
@@ -145,7 +142,7 @@ window.INTAKE_STEPS = [
     id: 'revenue_band',
     type: 'single',
     question: 'Roughly what does the business bring in a year?',
-    help: 'A range is fine — it helps us scope the work.',
+    help: 'A range is fine.',
     showIf: a => asksBusinessComplexity(a),
     options: [
       { value: 'under_100k', label: 'Under $100k' },
@@ -167,7 +164,7 @@ window.INTAKE_STEPS = [
     options: [
       { value: 'current',           label: 'Everything is current' },
       { value: 'current_year_only', label: 'Just the current year to file' },
-      { value: 'one_prior_year',    label: 'One prior year also needs attention' },
+      { value: 'one_prior_year',    label: 'One prior year to catch up' },
       { value: 'multiple_unfiled',  label: 'Multiple years are unfiled' },
       { value: 'received_notice',   label: 'I received an IRS or state notice' },
       { value: 'unsure',            label: "I'm not sure" },
@@ -204,9 +201,9 @@ window.INTAKE_STEPS = [
     // and the services + status answers already imply most of it.
     required: true,
     options: [
-      { value: 'deadline', label: 'Yes — there is a deadline or a notice' },
-      { value: 'soon',     label: 'Fairly — I would like to move within a few weeks' },
-      { value: 'no',       label: 'No rush — planning ahead' },
+      { value: 'deadline', label: "Yes — there's a deadline or a notice" },
+      { value: 'soon',     label: 'Soon — within a few weeks' },
+      { value: 'no',       label: 'No rush' },
     ],
   },
 
@@ -215,8 +212,8 @@ window.INTAKE_STEPS = [
     id: 'deadline',
     type: 'text',
     question: "What's the date you're working against?",
-    help: "A date, or a rough sense of it — 'end of the month' is fine.",
-    placeholder: 'e.g. March 15, or in about three weeks',
+    help: "A rough date is fine.",
+    placeholder: 'March 15, or in about three weeks',
     required: true,
     showIf: a => a.urgency === 'deadline',
   },
@@ -226,7 +223,7 @@ window.INTAKE_STEPS = [
     id: 'notes',
     type: 'textarea',
     question: "Anything else we should know?",
-    help: 'Optional. Good place for anything unusual that the questions missed.',
+    help: 'Optional — anything the questions missed.',
     placeholder: "A sentence or two is plenty.",
   },
 
