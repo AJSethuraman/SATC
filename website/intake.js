@@ -12,7 +12,7 @@
    whole subtree goes. Visibility and retention cannot drift apart, so a stale
    answer can never reach the payload.
 
-   Depends on: intake-config.js (INTAKE_STEPS) and SATC_CONFIG in index.html.
+   Depends on: intake-config.js (INTAKE_STEPS) and SATC_CONFIG in site-config.js.
    ========================================================================== */
 
 (function () {
