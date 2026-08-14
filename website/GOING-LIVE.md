@@ -72,69 +72,96 @@ area (see §"Which host" below).
 
 ## Path B — Cloudflare Pages + Cloudflare DNS
 
-Better hosting terms and unlimited bandwidth, but the apex domain requires DNS
-to live at Cloudflare — **so your `MX` records move house.** They still point at
-the same mail provider; they just have to be recreated at the new DNS host.
+**Do this in one sitting, in this order.** Nothing breaks until step 5, and
+everything before it is reversible.
 
-### B1 · Add the domain to Cloudflare
+### B1 · Screenshot the DNS panel
 
-- [ ] Create a Cloudflare account, **Add a site** → `satcllp.com`
+Squarespace → Domains → `satcllp.com` → **DNS Settings**. Capture every record.
+Thirty seconds, and it is your undo button.
+
+### B2 · Add the domain to Cloudflare
+
+- [ ] Create a free account at cloudflare.com
+- [ ] **Add a site** → type `satcllp.com`
 - [ ] Choose the **Free** plan
-- [ ] Let Cloudflare scan and import the existing records
+- [ ] Let it scan. It will import what it finds and show you a list.
 
-### ⛔ B2 · THE MX GATE — do not pass this without checking
+### ⛔ B3 · THE MX GATE — check every row before going further
 
-**Cloudflare's scan usually imports `MX` and `TXT` correctly. Usually is not
-always, and SPF/DKIM/DMARC are the ones that scan least reliably.**
+Cloudflare's scan is usually right. Usually is not always, and a missed `MX`
+row means mail stops. Compare its list against this table — these are the
+records verified live on 14 August 2026 — and **hand-add anything missing**.
 
-Open the imported record list beside your screenshot and fill this in:
+| Type | Name | Priority | Data | Proxy | ✓ |
+|---|---|---|---|---|---|
+| MX | `@` | **0** | `satcllp-com.mail.protection.outlook.com` | **DNS only** | ☐ |
+| TXT | `@` | — | `MS=ms36114642` | n/a | ☐ |
+| TXT | `@` | — | `v=spf1 include:spf.protection.outlook.com -all` | n/a | ☐ |
+| TXT | `@` | — | `google-site-verification=JcikLSQNLDrhc9bRYX78ZriBlPXjiI9VwTFFJGVJT0k` | n/a | ☐ |
+| CNAME | `autodiscover` | — | `autodiscover.outlook.com` | **DNS only** | ☐ |
 
-| Record | On the screenshot | Imported at Cloudflare | Match? |
-|---|---|---|---|
-| MX (priority + host) | | | ☐ |
-| MX (any additional) | | | ☐ |
-| TXT — SPF (`v=spf1 …`) | | | ☐ |
-| TXT — DKIM (often `selector._domainkey`) | | | ☐ |
-| TXT — DMARC (`_dmarc`) | | | ☐ |
-| TXT — domain verification (Microsoft `MS=…`) | | | ☐ |
-| Any other record on the screenshot | | | ☐ |
+- [ ] All five rows present and matching **character for character**
+- [ ] `MX` and `autodiscover` set to **DNS only** — the grey cloud, not orange.
+      Proxying mail records breaks delivery.
 
-- [ ] Every row above ticked, values matching **character for character**
-- [ ] Anything missing has been **added by hand** at Cloudflare
-- [ ] `MX` records are set to **DNS only** (grey cloud, not orange) — proxying
-      mail records breaks delivery
+You can **delete** these two — they belong to Squarespace and are not needed:
 
-**Only when every row matches:**
+- the four `A` records on `@` (`198.185.159.144/145`, `198.49.23.144/145`)
+- `CNAME www → ext-sq.squarespace.com`
+- `CNAME _domainconnect → _domainconnect.domains.squarespace.com`
 
-- [ ] Change the nameservers at Squarespace to the two Cloudflare gives you
+> Until step 5, Squarespace is still answering. Everything above is rehearsal
+> and mail keeps flowing while you check.
 
-> Until you change nameservers, Squarespace is still answering — so everything
-> above is rehearsal, and mail keeps flowing while you check.
+### B4 · Build the Pages project
 
-### B3 · Cloudflare Pages
+Do this **before** switching nameservers, so the site is ready and waiting.
 
-- [ ] Workers & Pages → **Create → Pages → Connect to Git** → this repo
-- [ ] Build command: **none**. Output directory: `website`
-- [ ] Add the custom domain `satcllp.com` in the Pages project
+- [ ] Cloudflare → **Workers & Pages** → **Create** → **Pages** →
+      **Connect to Git** → authorise GitHub → pick `AJSethuraman/SATC`
+- [ ] Production branch: `main`
+- [ ] **Build command** — paste exactly:
 
-> ⚠️ **`website/` contains files the public site should not serve** —
-> `INTAKE.md`, `README.md`, this file, `intake.spec.py`, `assets/make-images.py`.
-> The GitHub Actions deploy strips `.md` and `.py` before publishing
-> (`.github/workflows/pages.yml`, "Stage site files"). Cloudflare pointed
-> straight at `website/` would publish all of them. Either give the Pages
-> project a build command that does the same strip, or move those files out of
-> `website/` first.
+```
+rm -rf _site && mkdir -p _site && cp -r website/. _site/ && find _site \( -name '*.md' -o -name '*.py' \) -delete
+```
 
-### B4 · Confirm
+- [ ] **Build output directory:** `_site`
+- [ ] Save and deploy. You get a `something.pages.dev` URL — **open it and
+      check the site works** before going any further.
+
+> ⚠️ **Do not skip the build command.** Pointing Pages straight at `website/`
+> publishes `INTAKE.md`, `README.md`, this checklist, `intake.spec.py` and
+> `assets/make-images.py` to the public web. The command above is the same
+> strip the GitHub Actions deploy does.
+
+### B5 · Switch the nameservers — this is the live moment
+
+Cloudflare gives you two nameservers, like `xxx.ns.cloudflare.com`.
+
+- [ ] Squarespace → Domains → `satcllp.com` → **Nameservers** → replace the
+      current ones with Cloudflare's two
+- [ ] Save
+
+Propagation is usually minutes, sometimes a few hours. Cloudflare emails you
+when the domain is active.
+
+### B6 · Attach the domain
+
+- [ ] In the Pages project → **Custom domains** → **Set up a domain** →
+      `satcllp.com`
+- [ ] Add `www.satcllp.com` too if you want it to work
+- [ ] Cloudflare adds the records and issues the certificate automatically
+
+### B7 · Check both halves
 
 - [ ] `https://satcllp.com` loads the site
+- [ ] `https://www.satcllp.com` reaches it
 - [ ] **Send yourself an email and reply to it**
-- [ ] Send a test from an *outside* address (a personal Gmail) and confirm it
+- [ ] **Send one from an outside address** (a personal Gmail) and confirm it
       arrives — this is what catches a broken SPF record
-- [ ] Turn off the GitHub Pages custom domain so two hosts aren't claiming it
-- [ ] Then do §"Repo-side URL switch" below
-
----
+- [ ] Then do the repo-side URL switch below
 
 ## Repo-side URL switch — after DNS resolves, not before
 

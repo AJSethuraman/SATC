@@ -29,8 +29,9 @@ on a call.
 
 ## ✅ Go live in 2 steps
 
-Everything you'll ever need to edit lives in **one block** at the very bottom of
-`index.html`, labelled `⚙️ SATC_CONFIG`.
+Everything you'll ever need to edit lives in **one file**: `site-config.js`.
+Both `index.html` and `privacy.html` load it, so the contact address has a
+single home.
 
 ### 1. Point the form at your inbox (the whole point of the site)
 
