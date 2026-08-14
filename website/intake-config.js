@@ -73,21 +73,6 @@ window.INTAKE_STEPS = [
     ],
   },
 
-  /* ── 3 · Rental follow-up ─────────────────────────────────────────────── */
-  {
-    id: 'rental_count',
-    type: 'single',
-    question: 'How many rental properties?',
-    help: 'A rough count is fine.',
-    required: true,
-    showIf: a => hasAny(a.individual_complexity, ['rentals']),
-    options: [
-      { value: '1',    label: 'Just one' },
-      { value: '2_3',  label: '2–3' },
-      { value: '4_9',  label: '4–9' },
-      { value: '10up', label: '10 or more' },
-    ],
-  },
 
   /* ── 4 · Business profile ─────────────────────────────────────────────── */
   {
@@ -120,19 +105,6 @@ window.INTAKE_STEPS = [
     ],
   },
 
-  /* ── 5 · Entity count follow-up ───────────────────────────────────────── */
-  {
-    id: 'entity_count',
-    type: 'single',
-    question: 'How many entities?',
-    required: true,
-    showIf: a => asksBusinessStructure(a) && hasAny(a.business_structure, ['multiple']),
-    options: [
-      { value: '2',   label: 'Two' },
-      { value: '3_5', label: '3–5' },
-      { value: '6up', label: '6 or more' },
-    ],
-  },
 
   /* ── 6 · Business complexity basket ───────────────────────────────────── */
   {
@@ -164,50 +136,8 @@ window.INTAKE_STEPS = [
     ],
   },
 
-  /* ── 7 · Employee count ───────────────────────────────────────────────── */
-  {
-    id: 'headcount',
-    type: 'single',
-    question: 'Roughly how many employees?',
-    help: 'Headcount drives the scope of the return and the books.',
-    required: true,
-    showIf: a => asksBusinessComplexity(a) && hasAny(a.business_complexity, ['employees']),
-    options: [
-      { value: 'none',  label: 'None right now' },
-      { value: '1_5',   label: '1–5' },
-      { value: '6_20',  label: '6–20' },
-      { value: '21_50', label: '21–50' },
-      { value: '50up',  label: 'More than 50' },
-    ],
-  },
 
-  /* ── 8 · Contractor count ─────────────────────────────────────────────── */
-  {
-    id: 'contractor_count',
-    type: 'single',
-    question: 'Roughly how many contractors do you pay?',
-    help: 'People you issue 1099s to.',
-    required: true,
-    showIf: a => asksBusinessComplexity(a) && hasAny(a.business_complexity, ['contractors']),
-    options: [
-      { value: '1_5',  label: '1–5' },
-      { value: '6_20', label: '6–20' },
-      { value: '20up', label: 'More than 20' },
-    ],
-  },
 
-  /* ── 9 · Which states ─────────────────────────────────────────────────── */
-  {
-    id: 'states_detail',
-    type: 'text',
-    question: 'Which states are involved?',
-    help: 'Just list them — we\'ll work out the filing requirements.',
-    placeholder: 'e.g. FL, GA, NY',
-    required: true,
-    showIf: a =>
-      hasAny(a.individual_complexity, ['multistate']) ||
-      (asksBusinessComplexity(a) && hasAny(a.business_complexity, ['multistate'])),
-  },
 
   /* ── 10 · Revenue band ────────────────────────────────────────────────── */
   {
@@ -243,21 +173,6 @@ window.INTAKE_STEPS = [
     ],
   },
 
-  /* ── 12 · Unfiled years follow-up ─────────────────────────────────────── */
-  {
-    id: 'unfiled_years',
-    type: 'single',
-    question: 'How many years are unfiled?',
-    help: "An estimate is fine. This is common and fixable.",
-    required: true,
-    showIf: a => a.tax_status === 'multiple_unfiled',
-    options: [
-      { value: '2_3',    label: '2–3 years' },
-      { value: '4_5',    label: '4–5 years' },
-      { value: '6up',    label: '6 or more' },
-      { value: 'unsure', label: "I'm not sure" },
-    ],
-  },
 
   /* ── 13 · Bookkeeping status ──────────────────────────────────────────── */
   {
@@ -276,40 +191,21 @@ window.INTAKE_STEPS = [
     ],
   },
 
-  /* ── 14 · Transaction volume ──────────────────────────────────────────── */
-  {
-    id: 'transaction_volume',
-    type: 'single',
-    question: 'Roughly how many transactions a month?',
-    help: 'Bank and card transactions across all accounts. A guess is fine.',
-    showIf: a => hasAny(a.services, ['bookkeeping']),
-    options: [
-      { value: 'under_50',  label: 'Under 50' },
-      { value: '50_200',    label: '50 – 200' },
-      { value: '200_500',   label: '200 – 500' },
-      { value: '500_2000',  label: '500 – 2,000' },
-      { value: 'over_2000', label: 'More than 2,000' },
-      { value: 'unsure',    label: "I'm not sure" },
-    ],
-  },
 
   /* ── 15 · Urgency ─────────────────────────────────────────────────────── */
   {
     id: 'urgency',
     type: 'single',
-    question: "What's driving the timing?",
+    question: 'Is this urgent?',
+    // Was a ten-option "what's driving the timing?" — a menu rather than a
+    // question. What we actually need to know is whether it goes to the top of
+    // the pile. The reason behind it comes out in the first minute of the call,
+    // and the services + status answers already imply most of it.
     required: true,
     options: [
-      { value: 'normal',           label: 'Normal upcoming tax or accounting work' },
-      { value: 'filing_deadline',  label: 'A filing deadline is coming up' },
-      { value: 'notice',           label: 'An IRS or state notice' },
-      { value: 'unfiled',          label: 'Unfiled returns to catch up on' },
-      { value: 'books_cleanup',    label: 'Books need cleaning up quickly' },
-      { value: 'transaction',      label: 'A business sale, purchase or financing' },
-      { value: 'new_business',     label: 'Starting a new business' },
-      { value: 'life_event',       label: 'A major financial or life event' },
-      { value: 'nothing_urgent',   label: 'Nothing urgent — planning ahead' },
-      { value: 'other',            label: 'Something else' },
+      { value: 'deadline', label: 'Yes — there is a deadline or a notice' },
+      { value: 'soon',     label: 'Fairly — I would like to move within a few weeks' },
+      { value: 'no',       label: 'No rush — planning ahead' },
     ],
   },
 
@@ -321,7 +217,7 @@ window.INTAKE_STEPS = [
     help: "A date, or a rough sense of it — 'end of the month' is fine.",
     placeholder: 'e.g. March 15, or in about three weeks',
     required: true,
-    showIf: a => ['filing_deadline', 'notice', 'unfiled'].indexOf(a.urgency) !== -1,
+    showIf: a => a.urgency === 'deadline',
   },
 
   /* ── 17 · Free text ───────────────────────────────────────────────────── */
