@@ -989,7 +989,13 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
     },
     // ── Optional: a "book a time" link beside the form ──────────────
     booking: {
-      url: ""                             // e.g. "https://calendly.com/your-handle/30min" — blank = hidden
+      // Phone-call event type only — in-person meetings are not self-scheduled.
+      // Shown on the CONFIRMATION screen after the form is sent, never beside
+      // it. Blank = the button disappears and we just say we'll be in touch.
+      // NOTE: this is the event's URL slug, which Calendly keeps separate from
+      // its display name — renaming the event does NOT update this link, but
+      // editing the link under "event link" does, and would break it here.
+      url: "https://calendly.com/arjun_sethuraman-satcllp/new-meeting"
     },
     // ── Analytics (optional, off by default) ───────────────────────
     // provider "plausible" + domain, OR "cloudflare" + token, OR "ga" + id
