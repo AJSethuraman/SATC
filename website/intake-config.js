@@ -42,10 +42,11 @@ window.INTAKE_STEPS = [
       { value: 'individual_tax', label: 'Individual tax preparation' },
       { value: 'business_tax',   label: 'Business tax preparation' },
       { value: 'bookkeeping',    label: 'Bookkeeping' },
-      { value: 'tax_planning',   label: 'Tax planning & advisory' },
-      { value: 'tax_resolution', label: 'An IRS or state notice / tax issue' },
-      { value: 'entity_setup',   label: 'New business or entity setup' },
-      { value: 'unsure',         label: "I'm not sure yet", exclusive: true },
+      { value: 'tax_planning',      label: 'Tax planning' },
+      { value: 'business_advisory', label: 'Business advisory / fractional CFO' },
+      { value: 'tax_resolution',    label: 'An IRS or state notice / tax issue' },
+      { value: 'entity_setup',      label: 'New business or entity setup' },
+      { value: 'unsure',            label: "I'm not sure yet", exclusive: true },
     ],
   },
 
@@ -234,7 +235,7 @@ window.INTAKE_STEPS = [
     id: 'contact',
     type: 'contact',
     question: 'How do we reach you?',
-    help: "Arjun will read this personally and reply within one business day.",
+    help: "We'll read it and be in touch as soon as we can.",
   },
 ];
 
@@ -251,7 +252,10 @@ function hasAny(selected, values) {
 
 /** They asked us to do work ON a business — not merely that one exists. */
 function wantsBusinessWork(answers) {
-  return hasAny(answers.services, ['business_tax', 'bookkeeping']);
+  // business_advisory (fractional CFO and the like) is business work in its own
+  // right, separate from tax planning — it needs the structure, complexity and
+  // revenue questions even when no return is being prepared.
+  return hasAny(answers.services, ['business_tax', 'bookkeeping', 'business_advisory']);
 }
 
 /**
