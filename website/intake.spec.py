@@ -28,7 +28,7 @@ with sync_playwright() as p:
     print("\n=== BLOCKER: config reaches intake.js, Formspree POST fires ===")
     pg = b.new_page(); pg.add_init_script(STUB); pg.goto(U); pg.wait_for_timeout(400)
     ok(pg.evaluate("typeof window.SATC_CONFIG") == "object", "window.SATC_CONFIG is defined")
-    for v in ["individual_tax", "w2", "current", "normal"]: step(pg, v)
+    for v in ["individual_tax", "w2", "current", "no"]: step(pg, v)
     step(pg)                                            # notes, optional
     pg.fill("input[name=name]", "Test Prospect"); pg.fill("input[name=email]", "t@example.com")
     pg.check("input[name=consent]")
@@ -54,7 +54,7 @@ with sync_playwright() as p:
     # must all vanish together — not just the one level below the change.
     pg = b.new_page(); pg.add_init_script(STUB); pg.goto(U); pg.wait_for_timeout(300)
     step(pg, "business_tax")
-    step(pg, "s_corp"); step(pg, "employees"); step(pg, "6_20")
+    step(pg, "s_corp"); step(pg, "employees"); step(pg, "500k_2m")
     print("   after business path:", answers(pg))
     for _ in range(10):
         bk = pg.query_selector("[data-back]")
@@ -89,7 +89,7 @@ with sync_playwright() as p:
 
     print("\n=== HONEYPOT does not wedge the form ===")
     pg = b.new_page(); pg.add_init_script(STUB); pg.goto(U); pg.wait_for_timeout(300)
-    for v in ["individual_tax", "w2", "current", "normal"]: step(pg, v)
+    for v in ["individual_tax", "w2", "current", "no"]: step(pg, v)
     step(pg)
     pg.fill("input[name=name]", "Bot"); pg.fill("input[name=email]", "b@x.com")
     pg.check("input[name=consent]")
@@ -115,7 +115,7 @@ with sync_playwright() as p:
     pg = b.new_page()
     pg.add_init_script("window.__n=0;window.fetch=async()=>{window.__n++;return {ok:false};};")
     pg.goto(U); pg.wait_for_timeout(300)
-    for v in ["individual_tax", "w2", "current", "normal"]: step(pg, v)
+    for v in ["individual_tax", "w2", "current", "no"]: step(pg, v)
     step(pg)
     pg.fill("input[name=name]", "Fail Case"); pg.fill("input[name=email]", "f@x.com")
     pg.check("input[name=consent]")
