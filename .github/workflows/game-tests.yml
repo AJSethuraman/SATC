@@ -1,0 +1,176 @@
+name: Ashfall tests
+
+# Runs the game/ simulation test suite headlessly on every push that touches it.
+#
+# The suite has no addon dependencies — tests/run_tests.gd is a plain SceneTree
+# script — so CI is just "download Godot, import once, run one script". The same
+# two commands work locally; see game/README.md.
+
+on:
+  push:
+    paths:
+      - 'game/**'
+      - '.github/workflows/game-tests.yml'
+  pull_request:
+    paths:
+      - 'game/**'
+      - '.github/workflows/game-tests.yml'
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    name: Headless test suite (Godot ${{ matrix.godot }})
+    runs-on: ubuntu-latest
+
+    # Single version now. The project targets 4.7, so declaring 4.3 support here
+    # would only mean re-triggering the upgrade prompt for anyone on current
+    # stable and leaving project.godot permanently dirty in their working tree.
+    # The matrix earlier served a diagnostic purpose and confirmed the code is
+    # not version-sensitive; keeping it would cost noise for no signal.
+    strategy:
+      fail-fast: false
+      matrix:
+        godot: ["4.7.1"]
+
+    env:
+      GODOT_VERSION: ${{ matrix.godot }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Godot ${{ matrix.godot }}
+        run: |
+          set -euo pipefail
+          BASE="Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          URL="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${BASE}.zip"
+          curl -fsSL -o godot.zip "$URL"
+          unzip -q godot.zip
+          sudo mv "$BASE" /usr/local/bin/godot
+          sudo chmod +x /usr/local/bin/godot
+          godot --version
+
+      - name: Import project and check every script parses
+        # Import generates .godot/, including the global class_name cache that
+        # every `class_name` reference resolves through.
+        #
+        # It also parses every .gd file in the project — but it exits 0 even
+        # when a script fails to parse, so the error is only visible in the
+        # log. Grepping for it here is what turns a parse error into a failed
+        # build, and it covers scripts no test or scene loads (sim/, for one).
+        run: |
+          set -uo pipefail
+          godot --headless --path game --import 2>&1 | tee import.log
+          if grep -qE 'SCRIPT ERROR|Parse Error|Failed to load script' import.log; then
+            echo "::error::Script parse errors during import"
+            grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|^ +at:' import.log
+            exit 1
+          fi
+
+      - name: Run test suite
+        run: godot --headless --path game --script res://tests/run_tests.gd
+
+      - name: Smoke-test that the game actually boots
+        # The suite covers core/ thoroughly and scenes/ not at all, so a _ready()
+        # that dies takes the entire game down while CI stays green. That is not
+        # hypothetical — it shipped. Boot the real main scene headlessly for a
+        # few seconds so _ready, _process and _physics_process all run, and fail
+        # on any runtime script error.
+        run: |
+          set -uo pipefail
+          godot --headless --path game --quit-after 240 2>&1 | tee boot.log
+          if grep -qE 'SCRIPT ERROR|Cannot call|Invalid |Attempt to call|Trying to (assign|call)' boot.log; then
+            echo "::error::Runtime script errors while booting the main scene"
+            grep -E 'SCRIPT ERROR|Cannot call|Invalid |Attempt to call|Trying to|^ +at:' boot.log
+            exit 1
+          fi
+
+      - name: Smoke-test the balance simulator
+        run: |
+          set -o pipefail
+          godot --headless --path game --script res://sim/balance_sim.gd -- 200 0.5 \
+            | tee "$RUNNER_TEMP/balance.log"
+
+      - name: Check that nothing dies instantly
+        # The complaint this guards against is "everything dies in one hit", and
+        # it went unnoticed for a long time because it is invisible to every
+        # other check here: the game boots, the tests pass, runs complete, and
+        # the footage looks flat for a reason no assertion was watching. Trash
+        # dying faster than a single attack cycle also silently disables every
+        # area-of-effect spell, because nothing lives long enough to be grouped.
+        #
+        # The floor is deliberately well below the target, so this catches a
+        # collapse rather than policing a tuning pass.
+        run: |
+          set -uo pipefail
+          worst=$(grep -o '[0-9.]\+s/n=' "$RUNNER_TEMP/balance.log" \
+            | tr -d 's/n=' | sort -g | head -1)
+          if [ -z "$worst" ]; then
+            echo "no seconds-to-kill figures in the balance log"
+            exit 1
+          fi
+          echo "fastest average kill anywhere in the run: ${worst}s"
+          awk -v w="$worst" 'BEGIN {
+            if (w < 0.25) {
+              print "trash dies in " w "s — under a quarter second, the kit collapses to its basic attack"
+              exit 1
+            }
+          }'
+
+      - name: Simulate inscription acquisition
+        run: |
+          set -o pipefail
+          # The second argument is 0 so each run draws its own depth from the
+          # balance simulator's measured quantiles. It used to be 15, which kept
+          # every simulated run inside Normal and made every three-sigil
+          # inscription unobtainable — a finding about the instrument, not the
+          # game. See the DEPTH_* constants in the simulator.
+          godot --headless --path game --script res://sim/acquisition_sim.gd -- 600 0 \
+            | tee "$RUNNER_TEMP/acquisition.log"
+
+      - name: Render a frame and check it is not blank
+        # A boot test proves nothing crashed; it cannot notice that the screen is
+        # empty. Render one real frame under a virtual display. The script fails
+        # if the frame is dominated by the engine's clear colour, which is what
+        # "the scene contributed nothing" actually looks like.
+        run: |
+          set -uo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb
+          xvfb-run -a godot --path game --rendering-driver opengl3 \
+            --script res://tools/capture_frame.gd
+          test -f game/frame.png || { echo "::error::no frame was rendered"; exit 1; }
+
+      - name: Upload the rendered frame
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frame-godot-${{ matrix.godot }}
+          path: game/frame.png
+          if-no-files-found: warn
+
+      - name: Simulation summary
+        # Deliberately the last step. The simulator's verdict on the difficulty
+        # curve is the most-read output of this workflow, and burying it in the
+        # middle means digging it back out of a log whose bulk is a scene dump
+        # and an artifact upload. Repeating the summary at the very end makes
+        # "where does the median run die" the last thing the log says.
+        if: always()
+        run: |
+          set -uo pipefail
+          echo "----- balance summary -----"
+          # seconds-to-kill is in here because "everything dies in one hit" is a
+          # thing you can only see by watching, and this is the number that says
+          # it without watching. A trash mob dying faster than a cast animation
+          # also silently disables every area-of-effect skill in the game, since
+          # nothing lives long enough to be grouped.
+          grep -E "policy:|depth  |median run ends|cleared all|diversity:|seconds-to-kill" \
+            "$RUNNER_TEMP/balance.log" || echo "(balance simulator did not run)"
+          echo "----- acquisition summary -----"
+          # NOBODY is in this list because leaving it out hid the single worst
+          # result the simulator can produce: a recipe nobody completed printed
+          # only its blocker line, so the summary showed a target with no
+          # numbers next to two healthy ones and read as fine. A summary that
+          # can omit total failure is worse than no summary.
+          grep -E "^-- |runs to completion|never got one|blocked on|NOBODY" \
+            "$RUNNER_TEMP/acquisition.log" || echo "(acquisition simulator did not run)"

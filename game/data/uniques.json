@@ -1,0 +1,189 @@
+{
+  "_comment": "Named items: uniques and set pieces. Modifier keys use the StatBlock grammar documented in core/stat_block.gd, and the values are fixed — a unique does not roll, which is the whole point of it. Loaded by core/unique_pool.gd.",
+
+  "_budget_comment": "The power budget is a rule rather than a feeling, and tests/test_items.gd enforces it: a named line may only use a modifier key the affix table in items.json already rolls, may never exceed the best roll of that key, and may never grant a `more` multiplier. So a unique is at most a rare that always rolls perfectly and always rolls the lines you wanted, while an inscription's multiplicative bucket still sits on top of whatever additive pile the build has. That is what keeps runewords the strongest on average, and the assembly loop the centre of the game. See docs/difficulty-and-loot.md.",
+
+  "_binding_comment": "A named item binds to a *slot*, not to a base. It is stamped onto whatever base the drop already rolled, so the same unique found in Hell sits on an elite base and inherits its better implicit. Binding to a base name would have meant authoring every unique three times over, once per rung of the tier ladder, for no design gain. `min_difficulty` is the 1-based pass it starts appearing in, so depth still gates the good ones.",
+
+  "uniques": [
+    {
+      "id": "emberfang",
+      "name": "Emberfang",
+      "slot": "weapon",
+      "min_difficulty": 1,
+      "weight": 10,
+      "description": "It was a nail once, in something that burned.",
+      "grants_tags": ["ignite"],
+      "mods": { "flat.fire": 8, "increased.fire": 0.25, "crit_chance": 0.05 }
+    },
+    {
+      "id": "hoarbite",
+      "name": "Hoarbite",
+      "slot": "weapon",
+      "min_difficulty": 1,
+      "weight": 10,
+      "description": "Cold enough that the wound arrives late.",
+      "grants_tags": ["frost"],
+      "mods": { "flat.cold": 7, "increased.cold": 0.25, "move_speed": 15 }
+    },
+    {
+      "id": "standing_storm",
+      "name": "The Standing Storm",
+      "slot": "weapon",
+      "min_difficulty": 2,
+      "weight": 6,
+      "description": "Weather that decided to stay.",
+      "grants_tags": ["chain"],
+      "mods": { "flat.lightning": 16, "crit_chance": 0.08, "crit_mult": 0.35 }
+    },
+    {
+      "id": "sundermark",
+      "name": "Sundermark",
+      "slot": "weapon",
+      "min_difficulty": 2,
+      "weight": 6,
+      "description": "Heavy in the way a verdict is heavy.",
+      "grants_tags": ["brutal"],
+      "mods": {
+        "flat.physical": 10,
+        "increased.physical": 0.45,
+        "crit_mult": 0.3,
+        "move_speed": -10
+      }
+    },
+    {
+      "id": "rotgrave",
+      "name": "Rotgrave",
+      "slot": "weapon",
+      "min_difficulty": 3,
+      "weight": 4,
+      "description": "Nothing it opens ever closes.",
+      "grants_tags": ["venom", "bleed"],
+      "mods": { "flat.poison": 18, "crit_chance": 0.1, "max_health": 25, "armor": 6 }
+    },
+    {
+      "id": "cinderskin",
+      "name": "Cinderskin",
+      "slot": "armor",
+      "min_difficulty": 1,
+      "weight": 10,
+      "description": "Worn by someone who walked out of the first fire.",
+      "grants_tags": ["ignite"],
+      "mods": { "armor": 5, "max_health": 30, "resist.fire": 0.22 }
+    },
+    {
+      "id": "sunken_coat",
+      "name": "The Sunken Coat",
+      "slot": "armor",
+      "min_difficulty": 2,
+      "weight": 6,
+      "description": "Still wet. It has been still wet for a long time.",
+      "mods": { "armor": 14, "max_health": 45, "resist.cold": 0.2, "move_speed": -8 }
+    },
+    {
+      "id": "ashwidow_band",
+      "name": "Ashwidow's Band",
+      "slot": "trinket",
+      "min_difficulty": 1,
+      "weight": 10,
+      "description": "She kept the ring and not much else.",
+      "mods": { "flat.physical": 5, "crit_chance": 0.06, "max_health": 20 }
+    },
+    {
+      "id": "glasswater_seal",
+      "name": "Glasswater Seal",
+      "slot": "trinket",
+      "min_difficulty": 3,
+      "weight": 4,
+      "description": "Two weathers, held apart by a thumbnail of glass.",
+      "grants_tags": ["ignite", "frost"],
+      "mods": {
+        "increased.fire": 0.3,
+        "increased.cold": 0.3,
+        "resist.fire": 0.18,
+        "resist.cold": 0.18
+      }
+    }
+  ],
+
+  "_sets_comment": "A set is the horizontal version of a runeword: weak alone, strong assembled. Each piece carries less than a rare would, and the bonuses at two and three pieces are what pay that back. Bonuses accumulate — reaching three does not replace the two-piece bonus — the way Diablo II's do, so the last piece is a step rather than a swap. A set spans one piece per slot, because three slots is the whole loadout and a set you cannot finish is a set nobody chases.",
+
+  "sets": [
+    {
+      "id": "kiln_warden",
+      "name": "The Kiln-Warden",
+      "min_difficulty": 1,
+      "description": "Someone had to stay behind and keep it lit.",
+      "pieces": [
+        {
+          "id": "kiln_warden_brand",
+          "name": "Kiln-Warden's Brand",
+          "slot": "weapon",
+          "weight": 8,
+          "grants_tags": ["ignite"],
+          "mods": { "flat.fire": 5, "increased.fire": 0.15 }
+        },
+        {
+          "id": "kiln_warden_coat",
+          "name": "Kiln-Warden's Coat",
+          "slot": "armor",
+          "weight": 8,
+          "mods": { "armor": 4, "max_health": 18 }
+        },
+        {
+          "id": "kiln_warden_seal",
+          "name": "Kiln-Warden's Seal",
+          "slot": "trinket",
+          "weight": 8,
+          "mods": { "resist.fire": 0.12, "max_health": 12 }
+        }
+      ],
+      "bonuses": [
+        { "pieces": 2, "mods": { "increased.fire": 0.2, "max_health": 20 } },
+        {
+          "pieces": 3,
+          "mods": { "increased.fire": 0.4, "crit_chance": 0.08, "armor": 8 },
+          "grants_tags": ["ignite"]
+        }
+      ]
+    },
+    {
+      "id": "drowned_choir",
+      "name": "The Drowned Choir",
+      "min_difficulty": 2,
+      "description": "They are still singing. That is the problem.",
+      "pieces": [
+        {
+          "id": "drowned_choir_rime",
+          "name": "The Choirmaster's Rime",
+          "slot": "weapon",
+          "weight": 6,
+          "grants_tags": ["frost"],
+          "mods": { "flat.cold": 8, "increased.cold": 0.18 }
+        },
+        {
+          "id": "drowned_choir_shroud",
+          "name": "Choir Shroud",
+          "slot": "armor",
+          "weight": 6,
+          "mods": { "armor": 7, "max_health": 26 }
+        },
+        {
+          "id": "drowned_choir_bell",
+          "name": "The Drowned Bell",
+          "slot": "trinket",
+          "weight": 6,
+          "mods": { "resist.cold": 0.15, "crit_chance": 0.04 }
+        }
+      ],
+      "bonuses": [
+        { "pieces": 2, "mods": { "increased.cold": 0.22, "armor": 6 } },
+        {
+          "pieces": 3,
+          "mods": { "increased.cold": 0.4, "max_health": 50, "move_speed": 20 },
+          "grants_tags": ["swift"]
+        }
+      ]
+    }
+  ]
+}

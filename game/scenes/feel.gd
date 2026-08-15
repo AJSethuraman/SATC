@@ -1,0 +1,251 @@
+class_name Feel
+extends RefCounted
+
+## Every "game feel" and presentation number, in one place, on purpose.
+##
+## READ THIS BEFORE TUNING ANYTHING ELSE.
+##
+## The simulation layer (core/) is verified by tests: given a stat block, the
+## damage that comes out is provably right. Nothing in *this* file can be
+## verified that way. Whether a dash feels crisp or floaty, whether hit-stop
+## reads as impact or as lag, whether the camera angle flatters the scene —
+## those are answered by a person at a keyboard saying "no, again".
+##
+## So they are gathered here rather than scattered through the scene code, and
+## they are all plain constants. Change one, press play, change it again. That
+## loop is the actual work of making this feel like Hades rather than like a
+## spreadsheet with shapes, and it is the part no amount of testing does for you.
+##
+## Starting values are reasonable-looking guesses in the neighbourhood of the
+## genre. They are not tuned. Assume every one of them is wrong.
+
+# --- World scale --------------------------------------------------------
+## core/ speaks in pixels — 220 move speed, 78 attack range — because it was
+## written against a flat 2D prototype. The 3D presentation works in metres, so
+## everything crossing that boundary is converted here rather than in ten places.
+const UNITS_PER_PIXEL := 1.0 / 32.0
+
+## Arena footprint on the ground plane, in metres.
+## Sized to the camera, not to an idea of a room.
+##
+## At 26x20 with the density cut from eleven bodies to five, a fight was five
+## figures scattered across an arena the camera can only show about 19x11m of —
+## so most of the time the screen held one enemy and a lot of floor, which is
+## "hard to tell what is going on" in its most literal form. Hades' chambers are
+## small and tight for the same reason. This fits inside the frame, so a fight
+## is something you can see all of at once.
+const ARENA := Vector2(18.0, 13.0)
+const WALL_THICKNESS := 1.2
+const WALL_HEIGHT := 1.6
+
+# --- Body proportions ---------------------------------------------------
+const PLAYER_RADIUS := 0.42
+const PLAYER_HEIGHT := 1.7
+const ENEMY_RADIUS := 0.40
+const ENEMY_HEIGHT := 1.5
+const ELITE_SCALE := 1.5
+
+# --- Movement -----------------------------------------------------------
+## Fraction of the gap to target velocity closed per second. Higher is snappier
+## and less floaty; too high and the character feels like it teleports.
+const MOVE_ACCEL := 18.0
+const MOVE_FRICTION := 22.0
+
+# --- Teleport -----------------------------------------------------------
+## The Sorceress does not roll, she blinks.
+##
+## Teleport is the skill that defines the class in Diablo II — not because of
+## its numbers, which it has none of, but because it changes what the game is:
+## every other class negotiates with the space between them and a pack, and the
+## Sorceress deletes it. Keeping that as the movement button rather than as an
+## extra spell is the whole reason this reads as a Sorceress and not as a mage
+## with a dodge roll.
+##
+## Range is deliberately short of the arena's width. A blink that crosses the
+## whole room makes positioning meaningless; one that crosses half of it makes
+## positioning a decision.
+const TELEPORT_RANGE := 5.2
+## Seconds of blank between vanishing and arriving. Not travel — there is no
+## travel — just enough that the eye can follow where you went.
+const TELEPORT_BLINK := 0.07
+
+# --- Dash ---------------------------------------------------------------
+const DASH_SPEED := 28.0
+const DASH_DURATION := 0.16
+const DASH_COOLDOWN := 0.45
+## Invulnerability measured from the start of the dash. Deliberately a little
+## longer than the dash itself — that overhang is most of why dodging feels fair
+## rather than frame-perfect.
+const DASH_IFRAMES := 0.22
+
+# --- Attack -------------------------------------------------------------
+const ATTACK_WINDUP := 0.06
+const ATTACK_ACTIVE := 0.10
+const ATTACK_RECOVERY := 0.16
+## How late into recovery the next attack can be buffered. Without this, combos
+## feel like they are dropping inputs.
+const ATTACK_BUFFER := 0.18
+const ATTACK_RANGE := 2.6
+## Half-angle of the swing arc, in degrees.
+const ATTACK_ARC := 55.0
+## Forward lunge on the swing. Small amounts read as commitment; large amounts
+## read as a second dash and wreck spacing.
+const ATTACK_LUNGE := 5.0
+
+# --- Impact -------------------------------------------------------------
+## Frames of near-frozen time on a landed hit. The highest-value knob in this
+## file, and the easiest to overdo.
+##
+## Counted in frames rather than seconds because that is how hit-stop is
+## actually authored — fighting games specify it in frames — and because a
+## wall-clock timer stretches to absurdity whenever the engine is not running at
+## real speed, which is exactly what happens while recording a demo.
+const HITSTOP_FRAMES_NORMAL := 3
+const HITSTOP_FRAMES_CRIT := 6
+const HITSTOP_SCALE := 0.05
+## Frames that must pass before an ordinary hit may freeze the game again.
+##
+## Melee could do without this; a caster cannot. A bolt every third of a second
+## plus a nova into a crowd lands hits faster than a 3-frame freeze expires, so
+## with no refractory period time_scale simply sits at HITSTOP_SCALE and the
+## whole game runs at a twentieth speed. Hit-stop only reads as impact if it
+## releases. Crits ignore the gap — they are the hits worth interrupting for.
+const HITSTOP_GAP_FRAMES := 9
+
+const SHAKE_NORMAL := 0.12
+const SHAKE_CRIT := 0.28
+const SHAKE_DECAY := 1.4
+
+const KNOCKBACK := 7.0
+const KNOCKBACK_DECAY := 9.0
+
+## Enemies stop chasing briefly when hit, so a combo does not get traded into.
+const HITSTUN := 0.18
+
+## How long a cold hit slows a body, and by how much.
+##
+## Long enough that keeping a pack chilled is a real reason to run the cold
+## school, short enough that one stray shard is not a permanent debuff. The slow
+## is deliberately large: in Diablo II cold is the weakest of the three by raw
+## damage, and it earns its place entirely by controlling when things reach you.
+const CHILL_DURATION := 2.0
+const CHILL_SLOW := 0.55
+
+# --- Procedural animation ----------------------------------------------
+## No hand-drawn frames exist, so every bit of life in this prototype comes from
+## code deforming primitives. This is the cheapest convincing substitute for
+## animation, and the section most worth playing with.
+
+## How far the body leans into its movement direction, in degrees at full speed.
+const LEAN_DEGREES := 14.0
+const LEAN_RESPONSE := 9.0
+
+## Dash squash: scale along travel, and the matching pinch across it.
+const DASH_STRETCH := 1.06
+const DASH_SQUASH := 0.94
+## Degrees the body tips into a dash. Does the work the old stretch was doing,
+## without flattening a standing figure onto the floor.
+const DASH_LEAN := -24.0
+
+## Windup crouch before a swing, then the overshoot on release.
+const ATTACK_CROUCH := 0.88
+const ATTACK_POP := 1.12
+const SHAPE_RECOVERY := 12.0
+
+## Idle bob, so nothing ever sits perfectly still.
+const BOB_HEIGHT := 0.045
+const BOB_SPEED := 2.2
+
+## Seconds the white hit-flash lasts on a struck body.
+const FLASH_TIME := 0.12
+
+## The swing arc, and how fast it fades.
+##
+## Drawn as a band rather than a filled fan: a solid wedge from the feet to full
+## reach reads as a pizza slice sitting on the floor, where a ring segment reads
+## as the path a blade swept through. Inner edge as a fraction of reach.
+const SLASH_FADE := 15.0
+const SLASH_SEGMENTS := 20
+const SLASH_INNER_RATIO := 0.7
+const SLASH_ALPHA := 0.3
+## Lifted just off the floor so it does not z-fight with it.
+const SLASH_HEIGHT := 0.14
+
+# --- Enemies ------------------------------------------------------------
+const ENEMY_CONTACT_RANGE := 1.5
+const ENEMY_ATTACK_COOLDOWN := 1.25
+## Telegraph before an enemy commits. This is what makes an attack dodgeable
+## rather than unfair.
+##
+## Per kind, because a horde needs its bodies to threaten differently or the
+## crowd reads as one texture. An imp jabs almost immediately and barely hurts;
+## a brute takes a long, obvious wind-up and hurts a lot. The long telegraph is
+## what makes the dangerous body the *readable* one — you should be able to
+## ignore the imps and watch the brute.
+const ENEMY_WINDUP := 0.35
+const ENEMY_WINDUP_IMP := 0.22
+const ENEMY_WINDUP_BRUTE := 0.62
+const ENEMY_WINDUP_STALKER := 0.34
+
+## How many enemies may be committed to an attack at the same time.
+##
+## This is the whole answer to "hordes plus Hades". Hades never puts more than a
+## few telegraphs on screen because you cannot dodge six things at once — past
+## about three simultaneous wind-ups a player stops reading and starts guessing,
+## and the fight becomes a damage race. Diablo II gets away with forty enemies
+## precisely because none of them telegraph: they are a hazard field you
+## position against, not a set of attacks you answer.
+##
+## An attack token pool gets both. The crowd can be as large as you like, but
+## only this many bodies may be mid-swing at any moment; the rest keep circling
+## and pressuring. Beat-em-ups have done this since Final Fight and the Arkham
+## games made it famous — the ring of enemies around you is real, and the number
+## actually attacking is small enough to answer.
+##
+## Must stay well under the smallest area's density or the rule never binds and
+## the crowd goes back to swinging all at once.
+const ATTACK_TOKENS := 2
+const ENEMY_SEPARATION := 2.1
+## Strength of that push. Must exceed the chase speed at close range or the pack
+## collapses into one overlapping mass — which is what it did at 4.0.
+const SEPARATION_FORCE := 9.0
+## How much a winding-up enemy swells, as a scale multiplier.
+const ENEMY_TELL_SWELL := 1.18
+
+# --- Camera -------------------------------------------------------------
+## Fixed isometric-ish rig: the camera never rotates, it only follows.
+## Elevation is the angle above the horizon; lower is more dramatic and hides
+## less of the floor, higher reads more like a map.
+const CAMERA_ELEVATION := 42.0
+const CAMERA_AZIMUTH := 45.0
+## Orthographic, so there is no perspective distortion across the arena and
+## depth reads purely from the angle and the shadows.
+const CAMERA_SIZE := 11.0
+const CAMERA_DISTANCE := 45.0
+
+## Fraction of the distance to the player the camera closes per second. Lower
+## trails behind and feels weighty; higher is locked-on and can feel rigid.
+const CAMERA_LAG := 6.0
+## How far the camera leads the aim direction. A little makes the view feel
+## intentional; a lot makes it seasick.
+const CAMERA_AIM_LEAD := 1.6
+
+# --- Palette ------------------------------------------------------------
+## Placeholder colours. Lighting is doing the work that art would otherwise do,
+## so these are deliberately desaturated — saturated primaries on lit primitives
+## read as a debug view rather than a game.
+const COLOUR_FLOOR := Color(0.13, 0.12, 0.15)
+const COLOUR_WALL := Color(0.22, 0.20, 0.25)
+const COLOUR_PLAYER := Color(0.86, 0.87, 0.91)
+const COLOUR_ENEMY := Color(0.40, 0.17, 0.18)
+const COLOUR_ELITE := Color(0.72, 0.20, 0.16)
+const COLOUR_TELL := Color(1.0, 0.72, 0.26)
+const COLOUR_IFRAME := Color(0.48, 0.78, 1.0)
+const COLOUR_CHILL := Color(0.55, 0.82, 1.0)
+const COLOUR_SLASH := Color(1.0, 0.94, 0.76)
+
+const LIGHT_COLOUR := Color(1.0, 0.94, 0.86)
+const LIGHT_ENERGY := 1.5
+const AMBIENT_COLOUR := Color(0.30, 0.32, 0.44)
+const AMBIENT_ENERGY := 0.55
+const FOG_COLOUR := Color(0.05, 0.05, 0.07)

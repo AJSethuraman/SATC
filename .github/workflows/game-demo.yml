@@ -1,0 +1,137 @@
+name: Record Ashfall demo
+
+# Renders a short gameplay clip and commits it to the branch, so it can be
+# watched from a phone without downloading a CI artifact zip.
+#
+# Manual only. Rendering a few hundred 720p frames through a software rasteriser
+# is slow and the output is a binary blob, so this should run when a demo is
+# actually wanted rather than on every push.
+
+on:
+  workflow_dispatch: {}
+  # Also runs when the request file below is touched. That exists because API
+  # clients without the workflow-dispatch permission cannot press the button,
+  # and a committed sentinel is the least surprising way to ask for a recording
+  # from a script. The filter deliberately excludes the committed video, so the
+  # workflow cannot re-trigger itself.
+  push:
+    paths:
+      - '.github/demo-request'
+      - '.github/workflows/game-demo.yml'
+      - 'game/tools/record_demo.gd'
+      - 'game/tools/demo_pilot.gd'
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    name: Record and encode
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: "4.7.1"
+      DEMO_PATH: game/docs/demo.mp4
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Godot and ffmpeg
+        run: |
+          set -euo pipefail
+          BASE="Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          curl -fsSL -o godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${BASE}.zip"
+          unzip -q godot.zip
+          sudo mv "$BASE" /usr/local/bin/godot
+          sudo chmod +x /usr/local/bin/godot
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb ffmpeg
+          godot --version
+          ffmpeg -version | head -1
+
+      - name: Import project
+        run: |
+          set -uo pipefail
+          godot --headless --path game --import 2>&1 | tee import.log
+          if grep -qE 'SCRIPT ERROR|Parse Error|Failed to load script' import.log; then
+            echo "::error::Script parse errors during import"
+            grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|^ +at:' import.log
+            exit 1
+          fi
+
+      - name: Record gameplay
+        # --fixed-fps pins delta so the clip plays at real speed rather than at
+        # whatever rate llvmpipe manages to render at.
+        run: |
+          set -uo pipefail
+          xvfb-run -a godot --path game --rendering-driver opengl3 --fixed-fps 30 \
+            --script res://tools/record_demo.gd 2>&1 | tee demo.log
+          count=$(ls game/recording/frame_*.png 2>/dev/null | wc -l)
+          echo "captured $count frames"
+          test "$count" -gt 100 || { echo "::error::too few frames captured"; exit 1; }
+          # What actually happened in the run, so the log tells the story even
+          # when nobody watches the video.
+          grep -E "record_demo: (entered|run) " demo.log || true
+          # The recorder counts its own spell effects — see record_demo.gd. A
+          # clip with no bolts in it is the exact failure that took three rounds
+          # of squinting at footage to identify, so it fails the build now
+          # instead of shipping as a video of a caster casting nothing.
+          bolts=$(sed -n 's/.*bolts on screen in \([0-9]*\)\/.*/\1/p' demo.log | tail -1)
+          echo "bolt frames: ${bolts:-unknown}"
+          test -n "${bolts:-}" || { echo "::error::recorder printed no census"; exit 1; }
+          test "$bolts" -gt 20 || { echo "::error::bolts barely appear ($bolts frames)"; exit 1; }
+
+      - name: Encode
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$DEMO_PATH")"
+          # yuv420p and faststart so it plays in a mobile browser rather than
+          # only in a desktop video player.
+          ffmpeg -y -loglevel error \
+            -framerate 30 -i game/recording/frame_%05d.png \
+            -c:v libx264 -pix_fmt yuv420p -crf 27 -preset slow \
+            -movflags +faststart \
+            "$DEMO_PATH"
+          ls -lh "$DEMO_PATH"
+
+      - name: Upload as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ashfall-demo
+          path: ${{ env.DEMO_PATH }}
+
+      - name: Commit to the branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Rendering takes minutes, which is ample time for someone to push to
+          # the branch underneath us — and then the recording is rejected as
+          # non-fast-forward and thrown away. So keep the file aside and replay
+          # it onto whatever the tip is now. Rebuilding the commit rather than
+          # rebasing means a video can never conflict with a video.
+          keep="$RUNNER_TEMP/demo.mp4"
+          cp "$DEMO_PATH" "$keep"
+
+          for attempt in 1 2 3; do
+            git add -f "$DEMO_PATH"
+            if git diff --cached --quiet; then
+              echo "demo unchanged, nothing to commit"
+              exit 0
+            fi
+            # [skip ci] so committing a video does not re-trigger the suite.
+            git commit -q -m "Record gameplay demo [skip ci]"
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            echo "push rejected (attempt $attempt) — replaying onto the new tip"
+            git fetch origin "$GITHUB_REF_NAME"
+            git reset --hard "origin/${GITHUB_REF_NAME}"
+            mkdir -p "$(dirname "$DEMO_PATH")"
+            cp "$keep" "$DEMO_PATH"
+          done
+
+          echo "::error::could not push the recording after 3 attempts"
+          exit 1
