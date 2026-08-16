@@ -1,0 +1,2103 @@
+<title>Ember Vault Arena — Seed 52 Replay</title>
+
+<style>
+/* ============================================================
+   TOKENS — light is the base; dark overrides via media query,
+   and both are re-asserted by the host theme toggle.
+   ============================================================ */
+:root {
+  --ground:      #e7e3dc;
+  --ground-deep: #dbd5cc;
+  --panel:       #f5f2ec;
+  --panel-2:     #ece7de;
+  --rule:        #cdc4b8;
+  --rule-soft:   #ded7cc;
+  --ink:         #211d19;
+  --ink-dim:     #5f574d;
+  --ink-faint:   #8b8175;
+  --ember:       #9c5f0d;
+  --ember-lit:   #c8801d;
+  --ember-wash:  rgba(156, 95, 13, 0.10);
+  --kiln:        #a5301c;
+  --kiln-wash:   rgba(165, 48, 28, 0.09);
+  --verdigris:   #246756;
+  --verd-wash:   rgba(36, 103, 86, 0.10);
+  --shadow:      0 1px 2px rgba(33, 29, 25, .07), 0 6px 18px rgba(33, 29, 25, .06);
+  --hatch:       rgba(33, 29, 25, .10);
+
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans:  "Avenir Next", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
+  --mono:  ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground:      #100d0c;
+    --ground-deep: #0a0808;
+    --panel:       #191513;
+    --panel-2:     #211c19;
+    --rule:        #332b26;
+    --rule-soft:   #262019;
+    --ink:         #ece3d6;
+    --ink-dim:     #a1968a;
+    --ink-faint:   #6f665c;
+    --ember:       #f0a23a;
+    --ember-lit:   #ffc169;
+    --ember-wash:  rgba(240, 162, 58, 0.12);
+    --kiln:        #e05a3d;
+    --kiln-wash:   rgba(210, 72, 47, 0.14);
+    --verdigris:   #5cb59b;
+    --verd-wash:   rgba(78, 157, 134, 0.13);
+    --shadow:      0 1px 0 rgba(255,255,255,.03) inset, 0 10px 26px rgba(0, 0, 0, .45);
+    --hatch:       rgba(236, 227, 214, .09);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #100d0c;
+  --ground-deep: #0a0808;
+  --panel:       #191513;
+  --panel-2:     #211c19;
+  --rule:        #332b26;
+  --rule-soft:   #262019;
+  --ink:         #ece3d6;
+  --ink-dim:     #a1968a;
+  --ink-faint:   #6f665c;
+  --ember:       #f0a23a;
+  --ember-lit:   #ffc169;
+  --ember-wash:  rgba(240, 162, 58, 0.12);
+  --kiln:        #e05a3d;
+  --kiln-wash:   rgba(210, 72, 47, 0.14);
+  --verdigris:   #5cb59b;
+  --verd-wash:   rgba(78, 157, 134, 0.13);
+  --shadow:      0 1px 0 rgba(255,255,255,.03) inset, 0 10px 26px rgba(0, 0, 0, .45);
+  --hatch:       rgba(236, 227, 214, .09);
+}
+
+:root[data-theme="light"] {
+  --ground:      #e7e3dc;
+  --ground-deep: #dbd5cc;
+  --panel:       #f5f2ec;
+  --panel-2:     #ece7de;
+  --rule:        #cdc4b8;
+  --rule-soft:   #ded7cc;
+  --ink:         #211d19;
+  --ink-dim:     #5f574d;
+  --ink-faint:   #8b8175;
+  --ember:       #9c5f0d;
+  --ember-lit:   #c8801d;
+  --ember-wash:  rgba(156, 95, 13, 0.10);
+  --kiln:        #a5301c;
+  --kiln-wash:   rgba(165, 48, 28, 0.09);
+  --verdigris:   #246756;
+  --verd-wash:   rgba(36, 103, 86, 0.10);
+  --shadow:      0 1px 2px rgba(33, 29, 25, .07), 0 6px 18px rgba(33, 29, 25, .06);
+  --hatch:       rgba(33, 29, 25, .10);
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+* { box-sizing: border-box; }
+
+.ev-shell {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 0 clamp(10px, 2.4vw, 28px) 64px;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+.ev-shell :focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.micro {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* ============================================================
+   MASTHEAD
+   ============================================================ */
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--ground) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+  margin: 0 calc(-1 * clamp(10px, 2.4vw, 28px));
+  padding: 12px clamp(10px, 2.4vw, 28px) 0;
+}
+.masthead-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px 20px;
+  padding-bottom: 10px;
+}
+.wordmark {
+  font-family: var(--serif);
+  font-size: clamp(20px, 2.6vw, 27px);
+  font-weight: 600;
+  letter-spacing: .01em;
+  line-height: 1.05;
+  margin: 0;
+}
+.wordmark .flame { color: var(--ember); }
+.meta-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin-left: auto;
+  align-items: center;
+}
+.tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+  color: var(--ink-dim);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 2.5px 7px;
+  background: var(--panel);
+  white-space: nowrap;
+}
+.tag b { color: var(--ink); font-weight: 600; }
+.tag.lit { color: var(--ember); border-color: color-mix(in srgb, var(--ember) 45%, var(--rule)); background: var(--ember-wash); }
+
+/* transport ------------------------------------------------ */
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 11px;
+}
+.tgroup { display: flex; align-items: center; gap: 5px; }
+.tbtn {
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  height: 32px;
+  min-width: 34px;
+  padding: 0 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background .16s ease, border-color .16s ease, color .16s ease, transform .1s ease;
+}
+.tbtn:hover { border-color: var(--ember); color: var(--ember); }
+.tbtn:active { transform: translateY(1px); }
+.tbtn svg { display: block; }
+.tbtn.primary {
+  background: var(--ember);
+  border-color: var(--ember);
+  color: var(--ground);
+  font-weight: 600;
+  min-width: 86px;
+  letter-spacing: .1em;
+  font-size: 10.5px;
+  text-transform: uppercase;
+}
+.tbtn.primary:hover { background: var(--ember-lit); border-color: var(--ember-lit); color: var(--ground); }
+.tbtn[disabled] { opacity: .38; cursor: not-allowed; }
+.tbtn[disabled]:hover { border-color: var(--rule); color: var(--ink); }
+.tbtn.on { background: var(--ember-wash); border-color: var(--ember); color: var(--ember); }
+
+.clock {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.clock b { color: var(--ink); }
+.act-badge {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--ember);
+  font-style: italic;
+  white-space: nowrap;
+}
+.keyhint {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  letter-spacing: .06em;
+}
+.keyhint kbd {
+  font-family: var(--mono);
+  font-size: 10px;
+  border: 1px solid var(--rule);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 0 4px;
+  color: var(--ink-dim);
+  background: var(--panel);
+}
+
+/* scrubber -------------------------------------------------- */
+.scrub {
+  display: flex;
+  gap: 3px;
+  padding-bottom: 10px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.rtick {
+  flex: 1 1 0;
+  min-width: 44px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 4px 5px 5px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink-faint);
+  transition: background .2s ease, border-color .2s ease, color .2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.rtick .rn {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  display: block;
+  line-height: 1.1;
+  color: var(--ink-dim);
+}
+.rtick .ract { font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; display: block; }
+.rtick:hover { border-color: var(--ember); }
+.rtick.seen { color: var(--ink-dim); background: var(--panel-2); }
+.rtick.seen .rn { color: var(--ink); }
+.rtick.now {
+  border-color: var(--ember);
+  background: var(--ember-wash);
+}
+.rtick.now .rn { color: var(--ember); font-weight: 700; }
+.rtick .fill {
+  position: absolute;
+  left: 0; bottom: 0; height: 2px;
+  background: var(--ember);
+  transition: width .18s linear;
+}
+
+/* ============================================================
+   HIGHLIGHT REEL
+   ============================================================ */
+.reel-wrap { padding: 14px 0 4px; }
+.reel {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+}
+.hl {
+  flex: 0 0 auto;
+  max-width: 260px;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-dim);
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--rule);
+  border-radius: 2px;
+  padding: 6px 10px 7px;
+  cursor: pointer;
+  transition: border-color .18s ease, color .18s ease, background .18s ease, transform .18s ease;
+}
+.hl:hover { transform: translateY(-1px); color: var(--ink); border-color: var(--ink-faint); }
+.hl .hlr { font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; display: block; color: var(--ink-faint); }
+.hl .hlt { display: block; }
+.hl.k-crown { border-left-color: var(--ember); }
+.hl.k-crown .hlr { color: var(--ember); }
+.hl.k-blood { border-left-color: var(--kiln); }
+.hl.k-blood .hlr { color: var(--kiln); }
+.hl.k-seal { border-left-color: var(--verdigris); }
+.hl.k-seal .hlr { color: var(--verdigris); }
+.hl.now { background: var(--panel-2); border-color: var(--ember); color: var(--ink); }
+
+/* ============================================================
+   STAGE
+   ============================================================ */
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+  gap: clamp(12px, 1.6vw, 22px);
+  align-items: start;
+  padding-top: 8px;
+}
+@media (max-width: 1080px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.col { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+
+.slab {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  box-shadow: var(--shadow);
+}
+.slab-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+}
+.slab-head h2 {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: .01em;
+}
+
+/* ============================================================
+   BOARD
+   ============================================================ */
+.board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(58px, auto);
+  gap: 10px clamp(8px, 1.2vw, 16px);
+  padding: 14px;
+}
+.board-edges {
+  position: absolute;
+  inset: 14px;
+  width: calc(100% - 28px);
+  height: calc(100% - 28px);
+  pointer-events: none;
+  z-index: 0;
+}
+.board-edges line {
+  stroke: var(--rule);
+  stroke-width: 1.25;
+  transition: stroke .4s ease, opacity .4s ease;
+}
+.board-edges line.open { stroke: color-mix(in srgb, var(--ember) 55%, var(--rule)); }
+.board-edges line.dead { opacity: .25; stroke-dasharray: 3 4; }
+
+.room {
+  position: relative;
+  z-index: 1;
+  background: var(--panel-2);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 8px 9px 9px;
+  min-width: 0;
+  transition: opacity .45s ease, filter .45s ease, border-color .3s ease, background .3s ease, transform .35s ease;
+}
+/* The centre spine (egress / vault / threshold) spans the full width and is
+   centred, so the diamond keeps its geometry without stranding empty columns. */
+.room[data-room="egress"],
+.room[data-room="vault"],
+.room[data-room="threshold"] {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(100%, 460px);
+}
+.room[data-room="egress"]      { grid-row: 1; }
+.room[data-room="vault"]       { grid-row: 2; }
+.room[data-room="ironwood_gate"] { grid-column: 1; grid-row: 3; }
+.room[data-room="ossuary_gate"]  { grid-column: 3; grid-row: 3; }
+.room[data-room="threshold"]   { grid-row: 4; }
+
+.room-name {
+  font-family: var(--serif);
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.15;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.room-blurb { font-size: 11px; color: var(--ink-faint); line-height: 1.3; margin-top: 2px; }
+.room-strip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+
+.pip {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 1.5px 5px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  transition: color .3s ease, border-color .3s ease, background .3s ease;
+}
+.pip.lit  { color: var(--verdigris); border-color: color-mix(in srgb, var(--verdigris) 50%, var(--rule)); background: var(--verd-wash); }
+.pip.warn { color: var(--kiln); border-color: color-mix(in srgb, var(--kiln) 50%, var(--rule)); background: var(--kiln-wash); }
+.pip.gold { color: var(--ember); border-color: color-mix(in srgb, var(--ember) 50%, var(--rule)); background: var(--ember-wash); }
+
+/* monsters */
+.beast {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 7px;
+  padding: 5px 7px;
+  border: 1px solid color-mix(in srgb, var(--kiln) 32%, var(--rule));
+  border-left: 2px solid var(--kiln);
+  border-radius: 2px;
+  background: var(--kiln-wash);
+  transition: opacity .5s ease, filter .5s ease;
+}
+.beast .bn { font-family: var(--serif); font-size: 12.5px; font-weight: 600; flex: 1 1 auto; min-width: 0; }
+.beast .bhp { margin-left: auto; font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; color: var(--kiln); white-space: nowrap; }
+.beast .bbar { flex: 0 0 46px; height: 3px; background: var(--rule); border-radius: 2px; overflow: hidden; }
+.beast .bbar i { display: block; height: 100%; background: var(--kiln); transition: width .45s cubic-bezier(.3,.9,.3,1); }
+.beast.dead { opacity: .4; filter: grayscale(1); }
+.beast.dead .bn { text-decoration: line-through; }
+
+/* agent chips on the board */
+.occupants { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; min-height: 4px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--panel);
+  padding: 2px 6px 2px 4px;
+  font-size: 11.5px;
+  line-height: 1.25;
+  max-width: 100%;
+  transition: opacity .35s ease, filter .35s ease, border-color .3s ease, box-shadow .3s ease;
+}
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.chip .cn { font-family: var(--serif); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip .chp { font-family: var(--mono); font-size: 10px; font-variant-numeric: tabular-nums; color: var(--ink-faint); }
+.chip.down { opacity: .38; filter: grayscale(1); }
+.chip.down .cn { text-decoration: line-through; }
+.chip.crowned {
+  border-color: var(--ember);
+  box-shadow: 0 0 0 1px var(--ember-wash), 0 0 12px var(--ember-wash);
+  background: var(--ember-wash);
+}
+.chip.crowned .cn { color: var(--ember); }
+.chip.hurt { animation: hurt .5s ease; }
+@keyframes hurt {
+  0%   { box-shadow: 0 0 0 0 var(--kiln); }
+  30%  { box-shadow: 0 0 0 2px var(--kiln); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* room states */
+.room.contracting {
+  border-color: var(--kiln);
+  animation: throb 1.7s ease-in-out infinite;
+}
+@keyframes throb {
+  0%, 100% { box-shadow: inset 0 0 0 0 var(--kiln-wash); }
+  50%      { box-shadow: inset 0 0 22px 0 var(--kiln-wash); }
+}
+.room.sealed {
+  opacity: .5;
+  filter: grayscale(.85);
+  background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--hatch) 6px 7px);
+  border-style: dashed;
+}
+.room.sealed .room-name { text-decoration: line-through; text-decoration-thickness: 1px; }
+.room.spot { border-color: var(--ember); }
+.room .floor { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.fitem {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  border: 1px dashed var(--rule);
+  border-radius: 2px;
+  padding: 1px 5px;
+  color: var(--ink-faint);
+}
+.fitem.crown {
+  border-style: solid;
+  border-color: var(--ember);
+  color: var(--ember);
+  background: var(--ember-wash);
+  animation: gleam 2.4s ease-in-out infinite;
+}
+@keyframes gleam {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50%      { box-shadow: 0 0 14px 0 var(--ember-wash); }
+}
+
+/* ============================================================
+   CROWN METER
+   ============================================================ */
+.crownbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 13px;
+  border-top: 1px solid var(--rule);
+  background: linear-gradient(180deg, var(--ember-wash), transparent);
+}
+.crownbar.idle { background: none; }
+.crownbar .cw-label { font-family: var(--serif); font-size: 13.5px; font-weight: 600; }
+.crownbar .cw-who { color: var(--ember); }
+.attune { display: flex; align-items: center; gap: 6px; }
+.attune .seg {
+  width: 46px; height: 7px;
+  border: 1px solid color-mix(in srgb, var(--ember) 45%, var(--rule));
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+.attune .seg i {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--ember), var(--ember-lit));
+  transition: width .5s cubic-bezier(.3,.9,.3,1);
+}
+.attune .seg.on i { width: 100%; }
+.attune .att-note { font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; color: var(--ink-dim); text-transform: uppercase; }
+.attune .att-note.ready { color: var(--verdigris); font-weight: 600; }
+
+/* ============================================================
+   AGENT CARDS
+   ============================================================ */
+.roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(202px, 1fr));
+  align-items: start;
+  gap: 8px;
+  padding: 12px;
+}
+.card {
+  position: relative;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--panel-2);
+  padding: 9px 10px 10px 12px;
+  min-width: 0;
+  transition: opacity .5s ease, filter .5s ease, border-color .3s ease, transform .3s ease;
+}
+.card::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--agent, var(--rule));
+  border-radius: 3px 0 0 3px;
+  transition: opacity .5s ease;
+}
+.card.out { opacity: .45; filter: grayscale(1); }
+.card.out .cname { text-decoration: line-through; }
+.card.won { border-color: var(--ember); box-shadow: 0 0 0 1px var(--ember-wash), 0 0 24px var(--ember-wash); }
+.card-top { display: flex; align-items: baseline; gap: 8px; }
+.cname {
+  font-family: var(--serif);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.15;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cscore {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  transition: color .3s ease;
+}
+.cscore.bump { animation: bump .55s ease; color: var(--ember); }
+@keyframes bump {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+.cbuild { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+.cbuild .bname { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+.cbuild .stat { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); }
+.cbuild .stat b { color: var(--ink-dim); font-weight: 600; }
+
+.hpline { display: flex; align-items: center; gap: 7px; margin-top: 7px; }
+.hpbar {
+  flex: 1;
+  height: 6px;
+  background: var(--rule-soft);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 0;
+}
+.hpbar i {
+  display: block;
+  height: 100%;
+  background: var(--agent, var(--ink-dim));
+  transition: width .45s cubic-bezier(.3,.9,.3,1), background .3s ease;
+}
+.hpbar.low i { background: var(--kiln); }
+.hptext { font-family: var(--mono); font-size: 10.5px; font-variant-numeric: tabular-nums; color: var(--ink-dim); white-space: nowrap; }
+
+.cstatus { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.cinv { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.inv {
+  font-family: var(--mono);
+  font-size: 10px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 1.5px 5px;
+  color: var(--ink-dim);
+  cursor: help;
+  background: var(--panel);
+}
+.inv.crown { border-color: var(--ember); color: var(--ember); background: var(--ember-wash); }
+.cbreak {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.cbreak .brow {
+  display: flex;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+.cbreak .brow span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cbreak .brow b { color: var(--ember); font-weight: 600; }
+.cbreak:empty { display: none; }
+
+/* ============================================================
+   LOG
+   ============================================================ */
+.logwrap { display: flex; flex-direction: column; max-height: min(78vh, 900px); }
+@media (max-width: 1080px) { .logwrap { max-height: 640px; } }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin-left: auto; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); }
+.legend i { width: 12px; height: 0; border-top: 2px solid var(--ember); display: block; }
+.legend i.chron { border-top-style: dashed; border-color: var(--ink-faint); }
+.legend i.wild { border-color: var(--kiln); }
+
+.log {
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  scrollbar-width: thin;
+}
+/* A scrolling flex column shrinks its items; entries that establish their own
+   overflow context (the wild-swing cards) lose the automatic minimum size and
+   would collapse to their borders. Pin every entry to its content height. */
+.log > * { flex: 0 0 auto; }
+.entry {
+  border-left: 2px solid var(--rule);
+  padding: 1px 0 1px 10px;
+  animation: slip .28s ease both;
+}
+@keyframes slip {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: none; }
+}
+.etop { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.ekind {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.etext { font-size: 13.5px; line-height: 1.42; }
+.eactor { font-family: var(--serif); font-weight: 600; }
+
+/* canonical receipt */
+.entry.receipt { border-left-color: var(--ember); background: linear-gradient(90deg, var(--ember-wash), transparent 62%); }
+.entry.receipt .ekind { color: var(--ember); }
+.roll {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: var(--ink-dim);
+  margin-top: 3px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 9px;
+}
+.roll .die {
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 0 4px;
+  background: var(--panel-2);
+}
+.roll .eq { color: var(--ink-faint); }
+.roll .res { font-weight: 700; }
+.roll .res.hit  { color: var(--verdigris); }
+.roll .res.miss { color: var(--kiln); }
+.roll .lab { color: var(--ink-faint); font-size: 10px; word-break: break-all; }
+
+/* flavor narration */
+.entry.chronicle {
+  border-left-style: dashed;
+  border-left-color: var(--ink-faint);
+  color: var(--ink-dim);
+}
+.entry.chronicle .etext { font-family: var(--serif); font-style: italic; font-size: 13.5px; }
+
+/* speech */
+.entry.speech { border-left-color: var(--spk, var(--rule)); }
+.entry.speech .etext { font-family: var(--serif); }
+.entry.speech q { font-style: italic; }
+
+/* world events */
+.entry.world { border-left-color: var(--verdigris); }
+.entry.world .ekind { color: var(--verdigris); }
+.entry.crown { border-left-color: var(--ember); }
+.entry.crown .ekind { color: var(--ember); }
+.entry.crown .etext { color: var(--ember); }
+.entry.doom { border-left-color: var(--kiln); }
+.entry.doom .ekind { color: var(--kiln); }
+.entry.quiet { opacity: .62; }
+
+/* WILD SWING — the signature */
+.entry.wild {
+  border: 1px solid var(--kiln);
+  border-left-width: 3px;
+  border-radius: 2px;
+  padding: 0;
+  background: var(--kiln-wash);
+  overflow: hidden;
+  animation: ignite .45s ease both;
+}
+@keyframes ignite {
+  0%   { opacity: 0; transform: translateY(6px) scale(.985); box-shadow: 0 0 0 0 var(--kiln); }
+  45%  { box-shadow: 0 0 24px 0 var(--kiln-wash); }
+  100% { opacity: 1; transform: none; box-shadow: 0 0 0 0 transparent; }
+}
+.wild-band {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  padding: 5px 9px;
+  border-bottom: 1px solid color-mix(in srgb, var(--kiln) 35%, transparent);
+  background: color-mix(in srgb, var(--kiln) 13%, transparent);
+}
+.wild-band .ws {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: .22em;
+  font-weight: 700;
+  color: var(--kiln);
+}
+.wild-band .face {
+  font-family: var(--serif);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+.d6 {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--kiln);
+  border-radius: 2px;
+  padding: 0 5px;
+  color: var(--kiln);
+  white-space: nowrap;
+}
+.wild-body { padding: 6px 9px 8px; }
+.wild-body .etext { font-size: 13.5px; }
+.consequence {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed color-mix(in srgb, var(--kiln) 35%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  animation: slip .3s ease both;
+}
+.consequence .crow { display: flex; gap: 7px; align-items: baseline; flex-wrap: wrap; font-size: 13px; }
+.consequence .arrow { color: var(--kiln); font-family: var(--mono); font-size: 11px; }
+.victim {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--kiln);
+  border: 1px solid color-mix(in srgb, var(--kiln) 45%, transparent);
+  border-radius: 2px;
+  padding: 0 5px;
+  white-space: nowrap;
+}
+.accident {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--kiln);
+  border: 1px solid var(--kiln);
+  border-radius: 2px;
+  padding: 0 4px;
+  white-space: nowrap;
+}
+.award {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .06em;
+  color: var(--ember);
+  border: 1px solid color-mix(in srgb, var(--ember) 50%, var(--rule));
+  background: var(--ember-wash);
+  border-radius: 2px;
+  padding: 0 5px;
+  white-space: nowrap;
+}
+.round-rule {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 8px 0 1px;
+  padding: 0;
+  border: 0;
+}
+.round-rule .rr-txt {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.round-rule .rr-act { font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ember); }
+.round-rule .rr-line { flex: 1; height: 1px; background: var(--rule); }
+
+/* ============================================================
+   FINALE
+   ============================================================ */
+.finale { margin-top: 16px; }
+.finale.hidden { display: none; }
+.podium { display: flex; flex-direction: column; gap: 5px; padding: 12px; }
+.place {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1.3fr) minmax(0, 2fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 9px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--agent, var(--rule));
+  border-radius: 2px;
+  background: var(--panel-2);
+}
+.place.first { border-color: var(--ember); border-left-color: var(--ember); background: linear-gradient(90deg, var(--ember-wash), var(--panel-2) 70%); }
+.place.gone { opacity: .55; filter: grayscale(.9); }
+.place .pnum { font-family: var(--mono); font-size: 17px; font-variant-numeric: tabular-nums; color: var(--ink-faint); text-align: right; }
+.place.first .pnum { color: var(--ember); font-weight: 700; }
+.place .pname { font-family: var(--serif); font-size: 14.5px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.place .pname small { display: block; font-family: var(--sans); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); font-weight: 400; }
+.place .pbreak { display: flex; flex-wrap: wrap; gap: 3px; min-width: 0; }
+.place .pscore { font-family: var(--mono); font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.place.first .pscore { color: var(--ember); }
+@media (max-width: 620px) {
+  .place { grid-template-columns: 26px minmax(0, 1fr) auto; }
+  .place .pbreak { grid-column: 1 / -1; }
+}
+.chipx {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: .04em;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 0 4px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.chipx b { color: var(--ink-dim); font-weight: 600; }
+
+.colophon {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+  font-size: 11px;
+  color: var(--ink-faint);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-family: var(--mono);
+  letter-spacing: .03em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ev-shell *, .ev-shell *::before, .ev-shell *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+</style>
+
+<div class="ev-shell">
+
+  <header class="masthead">
+    <div class="masthead-top">
+      <h1 class="wordmark">Ember Vault <span class="flame">Arena</span></h1>
+      <div class="meta-strip" id="metaStrip"></div>
+    </div>
+
+    <div class="transport">
+      <div class="tgroup">
+        <button class="tbtn" id="btnStart" type="button" title="Jump to start (Home)" aria-label="Jump to start">
+          <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M1 1v9M10 1L3.5 5.5 10 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="tbtn" id="btnPrev" type="button" title="Previous beat (Left arrow)" aria-label="Previous beat">
+          <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M9 1L2.5 5.5 9 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="tbtn primary" id="btnPlay" type="button" title="Play / pause (Space)">Play</button>
+        <button class="tbtn" id="btnNext" type="button" title="Next beat (Right arrow)" aria-label="Next beat">
+          <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M2 1l6.5 4.5L2 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="tbtn" id="btnEnd" type="button" title="Jump to end (End)" aria-label="Jump to end">
+          <svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M10 1v9M1 1l6.5 4.5L1 10z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+
+      <div class="tgroup" id="speeds" role="group" aria-label="Playback speed"></div>
+
+      <div class="clock" id="clock"></div>
+      <div class="act-badge" id="actBadge"></div>
+
+      <div class="keyhint">
+        <kbd>Space</kbd> play · <kbd>&larr;</kbd><kbd>&rarr;</kbd> beat · <kbd>[</kbd><kbd>]</kbd> round
+      </div>
+    </div>
+
+    <div class="scrub" id="scrub" role="group" aria-label="Rounds"></div>
+  </header>
+
+  <div class="reel-wrap">
+    <div class="micro" style="margin-bottom:6px;">Highlights &mdash; click to jump</div>
+    <div class="reel" id="reel"></div>
+  </div>
+
+  <main class="stage">
+    <div class="col">
+      <section class="slab">
+        <div class="slab-head">
+          <h2>The Vault</h2>
+          <span class="micro" id="mapNote"></span>
+        </div>
+        <div class="board" id="board">
+          <svg class="board-edges" id="edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+        </div>
+        <div class="crownbar idle" id="crownbar"></div>
+      </section>
+
+      <section class="slab">
+        <div class="slab-head">
+          <h2>Rivals</h2>
+          <span class="micro">Hover an item for its effect</span>
+        </div>
+        <div class="roster" id="roster"></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="slab logwrap">
+        <div class="slab-head">
+          <h2>Round Log</h2>
+          <div class="legend">
+            <span><i></i>Ledger</span>
+            <span><i class="wild"></i>Wild swing</span>
+            <span><i class="chron"></i>Chronicle</span>
+          </div>
+        </div>
+        <ol class="log" id="log"></ol>
+      </section>
+    </div>
+  </main>
+
+  <section class="slab finale hidden" id="finale">
+    <div class="slab-head">
+      <h2>Final Placements</h2>
+      <span class="micro" id="finaleNote"></span>
+    </div>
+    <div class="podium" id="podium"></div>
+  </section>
+
+  <div class="colophon" id="colophon"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var DATA = /*__MATCH_DATA__*/null;
+
+  /* ---------- helpers ---------------------------------------------- */
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined && text !== null) n.textContent = String(text);
+    return n;
+  }
+  function svgEl(tag) { return document.createElementNS("http://www.w3.org/2000/svg", tag); }
+  function clamp(n, lo, hi) { return n < lo ? lo : (n > hi ? hi : n); }
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var ROSTER = DATA.roster.slice();
+  var AGENT = {};
+  ROSTER.forEach(function (a) { AGENT[a.id] = a; });
+
+  var MONSTER_NAME = {
+    crown_warden: "Crown Warden",
+    ironwood_guardian: "Ironwood Guardian",
+    ossuary_guardian: "Ossuary Guardian"
+  };
+  var ROOM = {};
+  DATA.rooms.forEach(function (r) { ROOM[r.id] = r; });
+
+  function bodyName(id) {
+    if (!id) return "";
+    if (AGENT[id]) return AGENT[id].name;
+    if (MONSTER_NAME[id]) return MONSTER_NAME[id];
+    if (ROOM[id]) return ROOM[id].name;
+    return id;
+  }
+  function shortName(full) { return full.split(/\s|-/)[0]; }
+
+  /* ---------- item dictionary (self-describing, harvested) ---------- */
+  var ITEMS = {};
+  function noteItem(it) { if (it && it.id) ITEMS[it.id] = it; }
+  DATA.timeline.forEach(function (f) {
+    f.events.forEach(function (e) {
+      var p = e.payload || {};
+      noteItem(p.item);
+      if (p.effect) noteItem(p.effect.item);
+    });
+    (f.state_after.agents || []).forEach(function (a) {
+      (a.inventory || []).forEach(noteItem);
+    });
+  });
+  function itemName(id) { return (ITEMS[id] && ITEMS[id].name) || id; }
+  function itemEffect(id) { return (ITEMS[id] && ITEMS[id].effect) || ""; }
+
+  /* ================================================================
+     STEP TABLE — one step per event, with fully reconstructed state.
+     Deltas are applied from event payloads, then hard-reconciled to
+     the authoritative per-round snapshot at every round boundary.
+     ================================================================ */
+  var AGENT_IDS = DATA.timeline[0].state_after.agents.map(function (a) { return a.id; });
+  var MONSTER_IDS = Object.keys(DATA.timeline[0].state_after.monsters);
+
+  function seedState(snap) {
+    var st = { agents: {}, monsters: {}, seals: {}, crown: null, sealed: [], contracting: [], floor: {}, scores: {}, breakdown: {} };
+    snap.agents.forEach(function (a) {
+      st.agents[a.id] = {
+        id: a.id, hp: a.hp, max_hp: a.max_hp, room: a.room,
+        status: a.status, score: a.score,
+        inventory: (a.inventory || []).map(function (i) { return i.id; })
+      };
+      st.breakdown[a.id] = {};
+    });
+    Object.keys(snap.monsters).forEach(function (m) {
+      st.monsters[m] = { hp: snap.monsters[m].hp, max_hp: snap.monsters[m].hp, room: snap.monsters[m].room, alive: snap.monsters[m].alive };
+    });
+    st.seals = { ironwood_gate: snap.seals.ironwood_gate, ossuary_gate: snap.seals.ossuary_gate };
+    st.crown = { status: snap.crown.status, carrier_id: snap.crown.carrier_id, room: snap.crown.room, attunement_rounds: snap.crown.attunement_rounds, transfers: snap.crown.transfers };
+    st.sealed = (snap.sealed_rooms || []).slice();
+    st.contracting = (snap.contracting_rooms || []).slice();
+    DATA.rooms.forEach(function (r) { st.floor[r.id] = []; });
+    return st;
+  }
+  function cloneState(st) {
+    var n = { agents: {}, monsters: {}, seals: {}, crown: null, sealed: st.sealed.slice(), contracting: st.contracting.slice(), floor: {}, breakdown: {} };
+    Object.keys(st.agents).forEach(function (k) {
+      var a = st.agents[k];
+      n.agents[k] = { id: a.id, hp: a.hp, max_hp: a.max_hp, room: a.room, status: a.status, score: a.score, inventory: a.inventory.slice() };
+    });
+    Object.keys(st.monsters).forEach(function (k) {
+      var m = st.monsters[k];
+      n.monsters[k] = { hp: m.hp, max_hp: m.max_hp, room: m.room, alive: m.alive };
+    });
+    n.seals = { ironwood_gate: st.seals.ironwood_gate, ossuary_gate: st.seals.ossuary_gate };
+    n.crown = { status: st.crown.status, carrier_id: st.crown.carrier_id, room: st.crown.room, attunement_rounds: st.crown.attunement_rounds, transfers: st.crown.transfers };
+    Object.keys(st.floor).forEach(function (k) { n.floor[k] = st.floor[k].slice(); });
+    Object.keys(st.breakdown).forEach(function (k) {
+      var b = st.breakdown[k], c = {};
+      Object.keys(b).forEach(function (cat) { c[cat] = b[cat]; });
+      n.breakdown[k] = c;
+    });
+    return n;
+  }
+  function isAgent(id) { return AGENT_IDS.indexOf(id) !== -1; }
+  function isMonster(id) { return MONSTER_IDS.indexOf(id) !== -1; }
+
+  function applyEvent(st, ev, awards) {
+    var p = ev.payload || {};
+    var ch = p.changes || {};
+    var actor = ev.actor, target = ev.target, t = ev.type;
+    var subject = (isAgent(target) || isMonster(target)) ? target : actor;
+    var touched = { hurt: [], moved: [], scored: [] };
+
+    Object.keys(ch).forEach(function (key) {
+      var v = ch[key];
+      if (key === "hp") {
+        if (isMonster(subject)) {
+          st.monsters[subject].hp = v[1];
+          st.monsters[subject].alive = v[1] > 0;
+        } else if (st.agents[subject]) {
+          if (v[1] < v[0]) touched.hurt.push(subject);
+          st.agents[subject].hp = v[1];
+        }
+      } else if (key === "room") {
+        var mover = st.agents[isAgent(actor) ? actor : subject];
+        if (mover) { mover.room = v[1]; touched.moved.push(mover.id); }
+      } else if (key === "status") {
+        var who = st.agents[isAgent(subject) ? subject : actor];
+        if (who) who.status = v[1];
+      } else if (key === "inventory_added") {
+        var got = st.agents[actor];
+        if (got && got.inventory.indexOf(v) === -1) got.inventory.push(v);
+      } else if (key === "floor_removed") {
+        var rm = st.agents[actor];
+        if (rm) {
+          var fl = st.floor[rm.room] || [];
+          var ix = fl.indexOf(v);
+          if (ix !== -1) fl.splice(ix, 1);
+        }
+      } else if (key.indexOf("floor_items.") === 0 && key.indexOf(".added") !== -1) {
+        var room = key.split(".")[1];
+        if (st.floor[room] && st.floor[room].indexOf(v) === -1) st.floor[room].push(v);
+      } else if (key === "dropped_items") {
+        var owner = st.agents[subject];
+        if (owner && v && v.length) {
+          v.forEach(function (iid) {
+            var jx = owner.inventory.indexOf(iid);
+            if (jx !== -1) owner.inventory.splice(jx, 1);
+            if (st.floor[owner.room] && st.floor[owner.room].indexOf(iid) === -1) st.floor[owner.room].push(iid);
+          });
+        }
+      }
+    });
+
+    if (t === "move") { st.agents[actor].room = p.to; touched.moved.push(actor); }
+    if (t === "monster_defeated") { st.monsters[p.monster_id].hp = 0; st.monsters[p.monster_id].alive = false; }
+    if (t === "seal_activated") { st.seals[p.room] = "active"; }
+    if (t === "room_contracting") { if (st.contracting.indexOf(p.room) === -1) st.contracting.push(p.room); }
+    if (t === "room_sealed") {
+      (p.sealed || []).forEach(function (r) { if (st.sealed.indexOf(r) === -1) st.sealed.push(r); });
+      st.contracting = st.contracting.filter(function (r) { return (p.sealed || []).indexOf(r) === -1; });
+    }
+    if (t === "floor_items_relocated") {
+      (p.items || []).forEach(function (iid) {
+        var from = st.floor[p.from] || [], ix = from.indexOf(iid);
+        if (ix !== -1) from.splice(ix, 1);
+        if (st.floor[p.to] && st.floor[p.to].indexOf(iid) === -1) st.floor[p.to].push(iid);
+      });
+    }
+    if (t === "crown_unlocked") { st.crown.status = "floor"; st.crown.room = p.room; }
+    if (t === "crown_dropped") {
+      st.crown.status = "floor"; st.crown.carrier_id = null;
+      st.crown.attunement_rounds = 0; st.crown.room = p.room;
+      if (st.floor[p.room] && st.floor[p.room].indexOf("ember_crown") === -1) st.floor[p.room].push("ember_crown");
+    }
+    if (t === "crown_taken") {
+      st.crown.status = "carried";
+      st.crown.carrier_id = p.agent_id || actor;
+      st.crown.attunement_rounds = 0;
+      st.crown.room = null;
+      st.crown.transfers = p.transfers !== undefined ? p.transfers : st.crown.transfers;
+    }
+    if (t === "crown_attuned") { st.crown.attunement_rounds = p.attunement_rounds; }
+    if (t === "crown_extracted") { st.crown.status = "escaped"; }
+    if (t === "item_taken" && ev.target === "ember_crown") { st.crown.status = "carried"; st.crown.carrier_id = actor; }
+
+    (awards || []).forEach(function (aw) {
+      var a = st.agents[aw.agent_id];
+      if (!a) return;
+      a.score += aw.points;
+      st.breakdown[aw.agent_id][aw.category] = (st.breakdown[aw.agent_id][aw.category] || 0) + aw.points;
+      touched.scored.push(aw.agent_id);
+    });
+
+    return touched;
+  }
+
+  function reconcile(st, snap) {
+    snap.agents.forEach(function (a) {
+      var g = st.agents[a.id];
+      g.hp = a.hp; g.room = a.room; g.status = a.status; g.score = a.score;
+      g.inventory = (a.inventory || []).map(function (i) { return i.id; });
+    });
+    Object.keys(snap.monsters).forEach(function (m) {
+      st.monsters[m].hp = snap.monsters[m].hp;
+      st.monsters[m].alive = snap.monsters[m].alive;
+    });
+    st.seals.ironwood_gate = snap.seals.ironwood_gate;
+    st.seals.ossuary_gate = snap.seals.ossuary_gate;
+    st.sealed = (snap.sealed_rooms || []).slice();
+    st.contracting = (snap.contracting_rooms || []).slice();
+    st.crown.status = snap.crown.status;
+    st.crown.carrier_id = snap.crown.carrier_id;
+    st.crown.room = snap.crown.room;
+    st.crown.attunement_rounds = snap.crown.attunement_rounds;
+    st.crown.transfers = snap.crown.transfers;
+  }
+
+  var STEPS = [];
+  (function buildSteps() {
+    var live = seedState(DATA.timeline[0].state_after);
+    var lastFrame = DATA.timeline.length - 1;
+    /* The final round's snapshot is written before secret objectives are
+       scored, so the last frame reconciles against final_state. */
+    function truthFor(fi, frame) { return fi === lastFrame ? DATA.final_state : frame.state_after; }
+    DATA.timeline.forEach(function (frame, fi) {
+      frame.events.forEach(function (ev, ei) {
+        var awards = DATA.awards[frame.round + ":" + ei] || [];
+        var touched = applyEvent(live, ev, awards);
+        if (fi > 0 && ei === frame.events.length - 1) reconcile(live, truthFor(fi, frame));
+        STEPS.push({
+          round: frame.round,
+          act: frame.act,
+          actName: frame.act_name,
+          eventIndex: ei,
+          firstOfRound: ei === 0,
+          ev: ev,
+          awards: awards,
+          touched: touched,
+          state: cloneState(live)
+        });
+      });
+      if (fi > 0) reconcile(live, truthFor(fi, frame));
+    });
+  })();
+
+  var LAST = STEPS.length - 1;
+  var roundStart = {};
+  STEPS.forEach(function (s, i) { if (roundStart[s.round] === undefined) roundStart[s.round] = i; });
+  var ROUNDS = Object.keys(roundStart).map(Number).sort(function (a, b) { return a - b; });
+
+  /* highlight -> step index */
+  DATA.highlights.forEach(function (h) {
+    var idx = roundStart[h.round] === undefined ? 0 : roundStart[h.round];
+    for (var i = idx; i <= LAST && STEPS[i].round === h.round; i++) {
+      if (STEPS[i].ev.text === h.text || STEPS[i].ev.type === h.type) { idx = i; if (STEPS[i].ev.text === h.text) break; }
+    }
+    h._step = idx;
+  });
+
+  /* ================================================================
+     CHROME
+     ================================================================ */
+  var metaStrip = document.getElementById("metaStrip");
+  [
+    ["Seed", String(DATA.seed)],
+    ["Match", DATA.match_id],
+    ["Ruleset", DATA.ruleset_version],
+    ["Rounds", DATA.rounds + "/" + DATA.max_rounds]
+  ].forEach(function (pair) {
+    var t = el("span", "tag");
+    t.appendChild(el("span", null, pair[0] + " "));
+    t.appendChild(el("b", null, pair[1]));
+    metaStrip.appendChild(t);
+  });
+  var endTag = el("span", "tag lit");
+  endTag.appendChild(el("span", null, "Ended "));
+  endTag.appendChild(el("b", null, DATA.ended_reason));
+  metaStrip.appendChild(endTag);
+
+  var colophon = document.getElementById("colophon");
+  [
+    DATA.audit.events + " committed events",
+    DATA.audit.snapshots + " state snapshots",
+    DATA.audit.decisions + " agent decisions",
+    "deterministic: seed " + DATA.seed + " reproduces this exact sequence",
+    "every roll shown is the engine's, replayed from the ledger — no model in the loop"
+  ].forEach(function (s) { colophon.appendChild(el("span", null, s)); });
+
+  /* rounds scrubber */
+  var scrub = document.getElementById("scrub");
+  var tickEls = {};
+  ROUNDS.forEach(function (r) {
+    var frame = DATA.timeline.filter(function (f) { return f.round === r; })[0];
+    var b = el("button", "rtick");
+    b.type = "button";
+    b.appendChild(el("span", "rn", r === 0 ? "—" : String(r)));
+    b.appendChild(el("span", "ract", r === 0 ? "Setup" : ("Act " + ["", "I", "II", "III"][frame.act])));
+    b.appendChild(el("i", "fill"));
+    b.title = r === 0 ? "Setup" : (frame.act_name + " — round " + r);
+    b.addEventListener("click", function () { goto(roundStart[r]); });
+    scrub.appendChild(b);
+    tickEls[r] = b;
+  });
+
+  /* speeds */
+  var SPEEDS = [0.5, 1, 2, 4];
+  var speedIdx = 1;
+  var speedBtns = [];
+  var speedsBox = document.getElementById("speeds");
+  SPEEDS.forEach(function (sp, i) {
+    var b = el("button", "tbtn" + (i === speedIdx ? " on" : ""), sp + "×");
+    b.type = "button";
+    b.addEventListener("click", function () { setSpeed(i); });
+    speedsBox.appendChild(b);
+    speedBtns.push(b);
+  });
+  function setSpeed(i) {
+    speedIdx = i;
+    speedBtns.forEach(function (b, j) { b.classList.toggle("on", j === i); });
+    if (playing) { stopTimer(); startTimer(); }
+  }
+
+  /* highlights reel */
+  var reel = document.getElementById("reel");
+  var hlEls = [];
+  var HL_CLASS = {
+    crown_taken: "k-crown", crown_dropped: "k-crown", crown_unlocked: "k-crown",
+    crown_extracted: "k-crown", score_swing: "k-crown",
+    agent_eliminated: "k-blood", wild_swing_bystander: "k-blood", monster_defeated: "k-blood",
+    seal_activated: "k-seal", vault_gate_opened: "k-seal", room_sealed: "k-seal"
+  };
+  DATA.highlights.forEach(function (h) {
+    var b = el("button", "hl " + (HL_CLASS[h.type] || ""));
+    b.type = "button";
+    b.appendChild(el("span", "hlr", (h.round === 0 ? "Setup" : "Round " + h.round) + " · " + h.type.replace(/_/g, " ")));
+    b.appendChild(el("span", "hlt", h.text));
+    b.addEventListener("click", function () { goto(h._step); });
+    reel.appendChild(b);
+    hlEls.push(b);
+  });
+
+  /* ================================================================
+     BOARD
+     ================================================================ */
+  var board = document.getElementById("board");
+  var edges = document.getElementById("edges");
+  var roomEls = {};
+
+  var CENTER = {
+    egress:        { x: 50,   y: 12.5 },
+    vault:         { x: 50,   y: 37.5 },
+    ironwood_gate: { x: 16.7, y: 62.5 },
+    ossuary_gate:  { x: 83.3, y: 62.5 },
+    threshold:     { x: 50,   y: 87.5 }
+  };
+  var edgeEls = [];
+  DATA.edges.forEach(function (pair) {
+    var l = svgEl("line");
+    l.setAttribute("x1", CENTER[pair[0]].x); l.setAttribute("y1", CENTER[pair[0]].y);
+    l.setAttribute("x2", CENTER[pair[1]].x); l.setAttribute("y2", CENTER[pair[1]].y);
+    l.setAttribute("vector-effect", "non-scaling-stroke");
+    edges.appendChild(l);
+    edgeEls.push({ el: l, a: pair[0], b: pair[1] });
+  });
+
+  DATA.rooms.forEach(function (r) {
+    var node = el("div", "room");
+    node.setAttribute("data-room", r.id);
+
+    var head = el("h3", "room-name");
+    head.appendChild(el("span", null, r.name));
+    node.appendChild(head);
+    node.appendChild(el("p", "room-blurb", r.blurb));
+
+    var strip = el("div", "room-strip");
+    node.appendChild(strip);
+
+    var beasts = el("div", "beasts");
+    node.appendChild(beasts);
+
+    var floor = el("div", "floor");
+    node.appendChild(floor);
+
+    var occ = el("div", "occupants");
+    node.appendChild(occ);
+
+    board.appendChild(node);
+    roomEls[r.id] = { node: node, head: head, strip: strip, beasts: beasts, floor: floor, occ: occ };
+  });
+
+  function renderBoard(step) {
+    var st = step.state;
+    var chipRects = {};
+    if (!reduceMotion) {
+      board.querySelectorAll("[data-chip]").forEach(function (c) {
+        chipRects[c.getAttribute("data-chip")] = c.getBoundingClientRect();
+      });
+    }
+
+    DATA.rooms.forEach(function (r) {
+      var R = roomEls[r.id];
+      var sealed = st.sealed.indexOf(r.id) !== -1;
+      var contracting = st.contracting.indexOf(r.id) !== -1;
+      R.node.classList.toggle("sealed", sealed);
+      R.node.classList.toggle("contracting", contracting && !sealed);
+
+      /* pips */
+      R.strip.textContent = "";
+      if (r.id === "ironwood_gate" || r.id === "ossuary_gate") {
+        var lit = st.seals[r.id] === "active";
+        R.strip.appendChild(el("span", "pip " + (lit ? "lit" : ""), lit ? "Seal lit" : "Seal dormant"));
+      }
+      if (r.id === "vault") {
+        var open = st.seals.ironwood_gate === "active" && st.seals.ossuary_gate === "active";
+        R.strip.appendChild(el("span", "pip " + (open ? "lit" : "warn"), open ? "Gate open" : "Gate barred"));
+      }
+      if (r.id === "egress") {
+        var carrier = st.crown.carrier_id;
+        var ready = carrier && st.crown.attunement_rounds >= 2;
+        R.strip.appendChild(el("span", "pip " + (ready ? "gold" : ""), ready ? "Escape legal" : "Attunement 2 required"));
+      }
+      if (contracting && !sealed) R.strip.appendChild(el("span", "pip warn", "Collapsing"));
+      if (sealed) R.strip.appendChild(el("span", "pip warn", "Sealed"));
+
+      /* monsters */
+      R.beasts.textContent = "";
+      Object.keys(st.monsters).forEach(function (mid) {
+        var m = st.monsters[mid];
+        if (m.room !== r.id) return;
+        var b = el("div", "beast" + (m.alive ? "" : " dead"));
+        b.appendChild(el("span", "bn", MONSTER_NAME[mid] || mid));
+        if (m.alive) {
+          var bar = el("span", "bbar");
+          var fill = el("i");
+          fill.style.width = (m.max_hp ? clamp(100 * m.hp / m.max_hp, 0, 100) : 0) + "%";
+          bar.appendChild(fill);
+          b.appendChild(bar);
+        }
+        b.appendChild(el("span", "bhp", m.alive ? m.hp + " HP" : "fallen"));
+        R.beasts.appendChild(b);
+      });
+
+      /* floor items */
+      R.floor.textContent = "";
+      (st.floor[r.id] || []).forEach(function (iid) {
+        var f = el("span", "fitem" + (iid === "ember_crown" ? " crown" : ""), itemName(iid) + " on the floor");
+        f.title = itemEffect(iid);
+        R.floor.appendChild(f);
+      });
+
+      /* occupants */
+      R.occ.textContent = "";
+      AGENT_IDS.slice().sort().forEach(function (aid) {
+        var a = st.agents[aid];
+        if (a.room !== r.id) return;
+        if (a.status === "escaped" && r.id !== "egress") return;
+        var meta = AGENT[aid];
+        var chip = el("span", "chip");
+        chip.setAttribute("data-chip", aid);
+        if (a.status === "eliminated") chip.classList.add("down");
+        if (st.crown.carrier_id === aid) chip.classList.add("crowned");
+        if (step.touched.hurt.indexOf(aid) !== -1) chip.classList.add("hurt");
+        var dot = el("span", "dot");
+        dot.style.background = meta.color;
+        chip.appendChild(dot);
+        chip.appendChild(el("span", "cn", shortName(meta.name)));
+        chip.appendChild(el("span", "chp", a.status === "eliminated" ? "down" : a.hp + "hp"));
+        chip.title = meta.name + " — " + a.hp + "/" + a.max_hp + " HP, " + a.score + " pts";
+        R.occ.appendChild(chip);
+      });
+    });
+
+    /* edges: dead when either end is sealed, lit when it is the crown road */
+    edgeEls.forEach(function (e) {
+      var dead = st.sealed.indexOf(e.a) !== -1 || st.sealed.indexOf(e.b) !== -1;
+      var vaultOpen = st.seals.ironwood_gate === "active" && st.seals.ossuary_gate === "active";
+      var open = !dead && vaultOpen && (e.a === "vault" || e.b === "vault");
+      e.el.classList.toggle("dead", dead);
+      e.el.classList.toggle("open", open);
+    });
+
+    /* FLIP the chips that moved rooms */
+    if (!reduceMotion) {
+      board.querySelectorAll("[data-chip]").forEach(function (c) {
+        var key = c.getAttribute("data-chip");
+        var prev = chipRects[key];
+        if (!prev) return;
+        var now = c.getBoundingClientRect();
+        var dx = prev.left - now.left, dy = prev.top - now.top;
+        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+        if (c.animate) {
+          c.animate(
+            [{ transform: "translate(" + dx + "px," + dy + "px)" }, { transform: "none" }],
+            { duration: 420, easing: "cubic-bezier(.3,.9,.3,1)" }
+          );
+        }
+      });
+    }
+
+    document.getElementById("mapNote").textContent =
+      st.sealed.length ? (st.sealed.length + " room" + (st.sealed.length > 1 ? "s" : "") + " sealed by the contraction")
+                       : "Both seals must be lit before anyone enters the vault";
+  }
+
+  /* ---------- crown meter ------------------------------------------ */
+  var crownbar = document.getElementById("crownbar");
+  function renderCrown(step) {
+    var c = step.state.crown;
+    crownbar.textContent = "";
+    crownbar.classList.toggle("idle", c.status === "locked");
+
+    if (c.status === "locked") {
+      crownbar.appendChild(el("span", "micro", "Ember Crown"));
+      crownbar.appendChild(el("span", "cw-label", "Sealed to the Warden"));
+      crownbar.appendChild(el("span", "tag", "Kill the Crown Warden to unlock it"));
+      return;
+    }
+    if (c.status === "floor") {
+      crownbar.appendChild(el("span", "micro", "Ember Crown"));
+      var lbl = el("span", "cw-label", "Loose on the floor of ");
+      lbl.appendChild(el("span", "cw-who", ROOM[c.room] ? ROOM[c.room].name : "the vault"));
+      crownbar.appendChild(lbl);
+      crownbar.appendChild(el("span", "tag", "Attunement reset to 0"));
+      return;
+    }
+
+    var who = AGENT[c.carrier_id];
+    crownbar.appendChild(el("span", "micro", "Ember Crown"));
+    var carried = el("span", "cw-label", c.status === "escaped" ? "Carried out by " : "Carried by ");
+    var nm = el("span", "cw-who", who ? who.name : c.carrier_id);
+    carried.appendChild(nm);
+    crownbar.appendChild(carried);
+
+    var meter = el("div", "attune");
+    meter.appendChild(el("span", "micro", "Attunement"));
+    for (var i = 0; i < 2; i++) {
+      var seg = el("span", "seg" + (c.attunement_rounds > i ? " on" : ""));
+      seg.appendChild(el("i"));
+      meter.appendChild(seg);
+    }
+    var ready = c.attunement_rounds >= 2;
+    meter.appendChild(el("span", "att-note" + (ready ? " ready" : ""),
+      ready ? "Egress unlocked" : (c.attunement_rounds + " of 2 rounds held")));
+    crownbar.appendChild(meter);
+    crownbar.appendChild(el("span", "tag", "Transfers " + c.transfers));
+  }
+
+  /* ================================================================
+     AGENT CARDS
+     ================================================================ */
+  var rosterBox = document.getElementById("roster");
+  var cardEls = {};
+  ROSTER.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).forEach(function (meta) {
+    var card = el("article", "card");
+    card.style.setProperty("--agent", meta.color);
+
+    var top = el("div", "card-top");
+    top.appendChild(el("h3", "cname", meta.name));
+    var score = el("span", "cscore num", "0");
+    top.appendChild(score);
+    card.appendChild(top);
+
+    var build = el("div", "cbuild");
+    build.appendChild(el("span", "bname", meta.build));
+    [["POW", meta.power], ["ARM", meta.armor], ["SPD", meta.speed], ["SRC", meta.search]].forEach(function (s) {
+      var st = el("span", "stat", s[0] + " ");
+      st.appendChild(el("b", null, s[1]));
+      build.appendChild(st);
+    });
+    card.appendChild(build);
+
+    var hpline = el("div", "hpline");
+    var bar = el("div", "hpbar");
+    var fill = el("i");
+    bar.appendChild(fill);
+    hpline.appendChild(bar);
+    var hptext = el("span", "hptext", meta.max_hp + "/" + meta.max_hp);
+    hpline.appendChild(hptext);
+    card.appendChild(hpline);
+
+    var status = el("div", "cstatus");
+    card.appendChild(status);
+    var inv = el("div", "cinv");
+    card.appendChild(inv);
+    var brk = el("div", "cbreak");
+    card.appendChild(brk);
+
+    card.title = meta.personality;
+    rosterBox.appendChild(card);
+    cardEls[meta.id] = { card: card, score: score, bar: bar, fill: fill, hptext: hptext, status: status, inv: inv, brk: brk, last: -1 };
+  });
+
+  var CAT_LABEL = {
+    monster_hit: "Monster damage",
+    guardian_finishing_blow: "Guardian felled",
+    warden_finishing_blow: "Warden felled",
+    seal_activated: "Seal lit",
+    cache_first_find: "Cache opened",
+    crown_taken: "Crown claimed",
+    attunement_round: "Attunement",
+    direct_elimination: "Rival eliminated",
+    survived_act_ii: "Survived Act II",
+    secret_objective: "Secret objective",
+    extraction: "Extraction"
+  };
+
+  function renderAgents(step) {
+    var st = step.state;
+    ROSTER.forEach(function (meta) {
+      var a = st.agents[meta.id];
+      var C = cardEls[meta.id];
+      var pct = clamp(100 * a.hp / a.max_hp, 0, 100);
+      C.fill.style.width = pct + "%";
+      C.bar.classList.toggle("low", pct <= 30 && a.hp > 0);
+      C.hptext.textContent = a.hp + "/" + a.max_hp;
+      C.card.classList.toggle("out", a.status === "eliminated");
+      C.card.classList.toggle("won", a.status === "escaped");
+
+      if (C.last !== a.score) {
+        C.score.textContent = String(a.score);
+        if (C.last !== -1 && a.score > C.last) {
+          C.score.classList.remove("bump");
+          void C.score.offsetWidth;
+          C.score.classList.add("bump");
+        }
+        C.last = a.score;
+      }
+
+      C.status.textContent = "";
+      var statusLabel = a.status === "escaped" ? "Escaped with the Crown"
+                      : a.status === "eliminated" ? "Eliminated"
+                      : ROOM[a.room] ? ROOM[a.room].name : a.room;
+      var sp = el("span", "pip " + (a.status === "escaped" ? "gold" : a.status === "eliminated" ? "warn" : ""), statusLabel);
+      C.status.appendChild(sp);
+      if (st.crown.carrier_id === meta.id) C.status.appendChild(el("span", "pip gold", "Crown · attune " + st.crown.attunement_rounds));
+
+      C.inv.textContent = "";
+      a.inventory.forEach(function (iid) {
+        var chip = el("span", "inv" + (iid === "ember_crown" ? " crown" : ""), itemName(iid));
+        chip.title = itemEffect(iid);
+        C.inv.appendChild(chip);
+      });
+
+      C.brk.textContent = "";
+      var b = st.breakdown[meta.id] || {};
+      Object.keys(b).sort(function (x, y) { return b[y] - b[x]; }).forEach(function (cat) {
+        var row = el("div", "brow");
+        row.appendChild(el("span", null, CAT_LABEL[cat] || cat.replace(/_/g, " ")));
+        row.appendChild(el("b", null, "+" + b[cat]));
+        C.brk.appendChild(row);
+      });
+    });
+  }
+
+  /* ================================================================
+     LOG
+     ================================================================ */
+  var logBox = document.getElementById("log");
+  var logCursor = -1;
+
+  var WORLD = { seal_activated: 1, vault_gate_opened: 1, cache_found: 1, search_failure: 1, item_taken: 1, room_contracting: 1, room_sealing: 1, room_sealed: 1, floor_items_relocated: 1, act_two_survival: 1, act_started: 1, objective_reveal: 1 };
+  var CROWNY = { crown_unlocked: 1, crown_taken: 1, crown_dropped: 1, crown_attuned: 1, crown_extracted: 1 };
+  var DOOM = { agent_eliminated: 1, monster_defeated: 1 };
+  var QUIET = { stale_action: 1, action_skipped: 1, guard: 1, rest: 1, move: 1, initiative_order: 1 };
+
+  function kindLabel(t) { return t.replace(/_/g, " "); }
+
+  function rollLine(roll, tohit) {
+    var line = el("div", "roll");
+    if (!roll) return line;
+    if (roll.kind === "tohit") {
+      var mod = tohit ? tohit.effective_power : (roll.total - roll.result);
+      line.appendChild(el("span", "die", "d20 " + roll.result));
+      line.appendChild(el("span", "eq", (mod >= 0 ? "+" : "−") + Math.abs(mod) + " power"));
+      line.appendChild(el("span", "eq", "= " + roll.total));
+      if (tohit && tohit.dc) {
+        line.appendChild(el("span", "eq", "vs DC " + tohit.dc.value + " (10 + " + tohit.dc.armor + " armor + " + tohit.dc.guard + " guard)"));
+      } else if (roll.dc !== undefined && roll.dc !== null) {
+        line.appendChild(el("span", "eq", "vs DC " + roll.dc));
+      }
+      line.appendChild(el("span", "res " + (roll.hit ? "hit" : "miss"), roll.hit ? "HIT" : "MISS"));
+    } else if (roll.kind === "search") {
+      line.appendChild(el("span", "die", "d20 " + roll.result));
+      if (roll.total !== null && roll.total !== undefined) line.appendChild(el("span", "eq", "= " + roll.total));
+    } else if (roll.kind === "bystander_pick") {
+      line.appendChild(el("span", "die", "d" + roll.sides + " " + roll.result));
+      line.appendChild(el("span", "eq", "bystander drawn from " + roll.sides + " bodies"));
+    }
+    if (roll.label) line.appendChild(el("span", "lab", roll.label));
+    return line;
+  }
+
+  function damageLine(dmg) {
+    var line = el("div", "roll");
+    line.appendChild(el("span", "die", "d6 " + dmg.roll));
+    line.appendChild(el("span", "eq", "+" + dmg.effective_power + " power"));
+    line.appendChild(el("span", "eq", "−" + dmg.target_armor + " armor"));
+    line.appendChild(el("span", "eq", "="));
+    line.appendChild(el("span", "res hit", dmg.amount + " damage"));
+    if (dmg.minimum_applied) line.appendChild(el("span", "eq", "(floored at 1)"));
+    if (dmg.label) line.appendChild(el("span", "lab", dmg.label));
+    return line;
+  }
+
+  function awardChips(host, awards) {
+    awards.forEach(function (aw) {
+      var who = AGENT[aw.agent_id];
+      host.appendChild(el("span", "award", "+" + aw.points + " " + (who ? shortName(who.name) : aw.agent_id) + " · " + (CAT_LABEL[aw.category] || aw.category)));
+    });
+  }
+
+  function buildEntry(step) {
+    var ev = step.ev, t = ev.type, p = ev.payload || {};
+
+    /* --- wild swing: the miss that starts it --------------------- */
+    if (t === "attack_miss" && p.wild_swing) {
+      var li = el("li", "entry wild");
+      li.setAttribute("data-wild", "1");
+
+      var band = el("div", "wild-band");
+      band.appendChild(el("span", "ws", "WILD SWING"));
+      band.appendChild(el("span", "face", p.wild_swing.title || kindLabel(p.wild_swing.face_id)));
+      var faces = p.wild_swing.faces ? " (face " + p.wild_swing.faces.join("–") + ")" : "";
+      band.appendChild(el("span", "d6", "d6 → " + p.wild_swing.roll + faces));
+      if (p.wild_swing.fell_through) band.appendChild(el("span", "accident", "fell through"));
+      li.appendChild(band);
+
+      var body = el("div", "wild-body");
+      body.appendChild(el("div", "etext", ev.text));
+      body.appendChild(rollLine(ev.roll, p.tohit));
+      if (p.tohit && p.tohit.passives && p.tohit.passives.length) {
+        body.appendChild(el("div", "roll", "passives applied: " + p.tohit.passives.join(", ")));
+      }
+      li.appendChild(body);
+      return li;
+    }
+
+    /* --- wild swing consequences attach to the card above -------- */
+    if (t === "wild_swing_self_damage" || t === "wild_swing_bystander" || t === "wild_swing_room_reaction") {
+      var li2 = el("li", "entry wild");
+      var b2 = el("div", "wild-band");
+      b2.appendChild(el("span", "ws", "WILD SWING"));
+      b2.appendChild(el("span", "face",
+        t === "wild_swing_self_damage" ? "YOU WEAR IT" :
+        t === "wild_swing_bystander" ? "A BYSTANDER WEARS IT" : "THE ROOM WEARS IT"));
+      li2.appendChild(b2);
+      var bd = el("div", "wild-body");
+      bd.appendChild(el("div", "etext", ev.text));
+      li2.appendChild(bd);
+      return li2;
+    }
+
+    var li = el("li", "entry");
+    var top = el("div", "etop");
+
+    if (t === "round_narration") {
+      li.classList.add("chronicle");
+      top.appendChild(el("span", "ekind", "Chronicle · flavor narration"));
+      li.appendChild(top);
+      li.appendChild(el("div", "etext", ev.text));
+      return li;
+    }
+
+    if (t === "agent_speech") {
+      li.classList.add("speech");
+      var spk = AGENT[ev.actor];
+      if (spk) li.style.setProperty("--spk", spk.color);
+      var line = el("div", "etext");
+      line.appendChild(el("span", "eactor", spk ? spk.name : ev.actor));
+      line.appendChild(document.createTextNode(" "));
+      var q = el("q", null, (p.speech !== undefined ? p.speech : ev.text));
+      line.appendChild(q);
+      li.appendChild(line);
+      return li;
+    }
+
+    if (t === "attack_hit" || t === "attack_miss") {
+      li.classList.add("receipt");
+      top.appendChild(el("span", "ekind", "Ledger · " + kindLabel(t)));
+      if (p.collateral) top.appendChild(el("span", "accident", "collateral"));
+      li.appendChild(top);
+      li.appendChild(el("div", "etext", ev.text));
+      li.appendChild(rollLine(ev.roll, p.tohit));
+      if (p.damage) li.appendChild(damageLine(p.damage));
+      if (p.tohit && p.tohit.passives && p.tohit.passives.length) {
+        li.appendChild(el("div", "roll", "passives: " + p.tohit.passives.join(", ")));
+      }
+      if (step.awards.length) {
+        var arow = el("div", "roll");
+        awardChips(arow, step.awards);
+        li.appendChild(arow);
+      }
+      return li;
+    }
+
+    if (CROWNY[t]) li.classList.add("crown");
+    else if (DOOM[t]) li.classList.add("doom");
+    else if (WORLD[t]) li.classList.add("world");
+    if (QUIET[t]) li.classList.add("quiet");
+
+    top.appendChild(el("span", "ekind", (WORLD[t] || CROWNY[t] || DOOM[t] ? "Ledger · " : "") + kindLabel(t)));
+    if (p.accident) top.appendChild(el("span", "accident", "accident · no credit"));
+    li.appendChild(top);
+    li.appendChild(el("div", "etext", ev.text));
+
+    if (ev.roll) li.appendChild(rollLine(ev.roll, p.tohit));
+    if (t === "cache_found" && p.item) {
+      var fi = el("div", "roll");
+      var chip = el("span", "die", p.item.name);
+      chip.title = p.item.effect;
+      fi.appendChild(chip);
+      fi.appendChild(el("span", "eq", p.item.effect));
+      li.appendChild(fi);
+    }
+    if (t === "room_contracting") {
+      li.classList.add("doom");
+    }
+    if (step.awards.length) {
+      var row = el("div", "roll");
+      awardChips(row, step.awards);
+      li.appendChild(row);
+    }
+    return li;
+  }
+
+  function roundHeader(step) {
+    var li = el("li", "round-rule");
+    li.appendChild(el("span", "rr-txt", step.round === 0 ? "Setup" : "Round " + step.round));
+    li.appendChild(el("span", "rr-act", step.round === 0 ? "before the doors" : step.actName));
+    li.appendChild(el("span", "rr-line"));
+    return li;
+  }
+
+  function appendStep(i) {
+    var step = STEPS[i];
+    if (step.firstOfRound) logBox.appendChild(roundHeader(step));
+    var entry = buildEntry(step);
+
+    /* attach a wild-swing consequence to the miss card above it */
+    var isConsequence = step.ev.type.indexOf("wild_swing_") === 0;
+    var prev = logBox.lastElementChild;
+    if (isConsequence && prev && prev.getAttribute && prev.getAttribute("data-wild")) {
+      var body = prev.querySelector(".wild-body");
+      var slot = body.querySelector(".consequence");
+      if (!slot) { slot = el("div", "consequence"); body.appendChild(slot); }
+      var crow = el("div", "crow");
+      crow.appendChild(el("span", "arrow", "→"));
+      var pl = step.ev.payload || {};
+      /* One event is emitted per victim, so name who actually wore it —
+         otherwise a burst reads as the same line repeated. */
+      if (pl.amount && (isAgent(step.ev.target) || isMonster(step.ev.target))) {
+        crow.appendChild(el("span", "victim", bodyName(step.ev.target) + " −" + pl.amount + " HP"));
+      }
+      crow.appendChild(el("span", null, step.ev.text));
+      if (pl.accident) crow.appendChild(el("span", "accident", "accident · 0 points"));
+      if (step.ev.roll) crow.appendChild(rollLine(step.ev.roll, null));
+      slot.appendChild(crow);
+      return;
+    }
+    logBox.appendChild(entry);
+  }
+
+  function renderLog(i) {
+    if (i > logCursor && STEPS[i].round === (logCursor >= 0 ? STEPS[logCursor].round : STEPS[i].round) && logCursor >= 0) {
+      for (var k = logCursor + 1; k <= i; k++) appendStep(k);
+    } else if (i > logCursor && logCursor >= 0 && i - logCursor < 60) {
+      for (var k2 = logCursor + 1; k2 <= i; k2++) appendStep(k2);
+    } else {
+      logBox.textContent = "";
+      var start = roundStart[STEPS[i].round];
+      for (var k3 = start; k3 <= i; k3++) appendStep(k3);
+    }
+    logCursor = i;
+    var last = logBox.lastElementChild;
+    if (last && last.scrollIntoView) {
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+  }
+
+  /* ================================================================
+     FINALE
+     ================================================================ */
+  var finale = document.getElementById("finale");
+  var podium = document.getElementById("podium");
+  (function buildPodium() {
+    var totals = {};
+    DATA.ledger.forEach(function (row) {
+      totals[row.agent_id] = totals[row.agent_id] || {};
+      totals[row.agent_id][row.category] = (totals[row.agent_id][row.category] || 0) + row.points;
+    });
+    ROSTER.forEach(function (meta) {
+      var row = el("div", "place" + (meta.placement === 1 ? " first" : "") + (meta.status === "eliminated" ? " gone" : ""));
+      row.style.setProperty("--agent", meta.color);
+      row.appendChild(el("span", "pnum num", String(meta.placement)));
+
+      var nm = el("span", "pname");
+      nm.appendChild(document.createTextNode(meta.name));
+      nm.appendChild(el("small", null, meta.build + " · " +
+        (meta.status === "escaped" ? "escaped with the Crown" : meta.status === "eliminated" ? "eliminated" : "survived") +
+        " · objective: " + meta.secret_objective.replace(/_/g, " ")));
+      row.appendChild(nm);
+
+      var brk = el("span", "pbreak");
+      var cats = totals[meta.id] || {};
+      Object.keys(cats).sort(function (a, b) { return cats[b] - cats[a]; }).forEach(function (cat) {
+        var c = el("span", "chipx", (CAT_LABEL[cat] || cat) + " ");
+        c.appendChild(el("b", null, "+" + cats[cat]));
+        brk.appendChild(c);
+      });
+      if (!Object.keys(cats).length) brk.appendChild(el("span", "chipx", "no points banked"));
+      row.appendChild(brk);
+
+      row.appendChild(el("span", "pscore num", String(meta.final_score)));
+      podium.appendChild(row);
+    });
+    document.getElementById("finaleNote").textContent =
+      DATA.winner.name + " extracted on round " + DATA.rounds + " — match ended by " + DATA.ended_reason;
+  })();
+
+  /* ================================================================
+     TRANSPORT
+     ================================================================ */
+  var cursor = 0;
+  var playing = false;
+  var timer = null;
+
+  var clock = document.getElementById("clock");
+  var actBadge = document.getElementById("actBadge");
+  var btnPlay = document.getElementById("btnPlay");
+
+  function stepDelay(step) {
+    var base = 620;
+    var t = step.ev.type;
+    if (t === "round_narration") base = 1500;
+    else if (t === "agent_speech") base = 380;
+    else if (t === "attack_hit" || t === "attack_miss") base = 900;
+    else if (t.indexOf("wild_swing_") === 0) base = 1000;
+    else if (t === "crown_taken" || t === "crown_extracted" || t === "agent_eliminated") base = 1500;
+    else if (QUIET[t]) base = 300;
+    return base / SPEEDS[speedIdx];
+  }
+
+  function render() {
+    var step = STEPS[cursor];
+    renderBoard(step);
+    renderCrown(step);
+    renderAgents(step);
+    renderLog(cursor);
+
+    clock.textContent = "";
+    clock.appendChild(document.createTextNode("Round "));
+    clock.appendChild(el("b", null, step.round === 0 ? "—" : String(step.round)));
+    clock.appendChild(document.createTextNode(" / " + DATA.max_rounds + "  ·  beat "));
+    clock.appendChild(el("b", null, String(cursor + 1)));
+    clock.appendChild(document.createTextNode(" / " + STEPS.length));
+    actBadge.textContent = step.round === 0 ? "Before the doors" : step.actName;
+
+    ROUNDS.forEach(function (r) {
+      var b = tickEls[r];
+      b.classList.toggle("now", r === step.round);
+      b.classList.toggle("seen", r < step.round);
+      var fill = b.querySelector(".fill");
+      if (r < step.round) fill.style.width = "100%";
+      else if (r > step.round) fill.style.width = "0%";
+      else {
+        var first = roundStart[r];
+        var last = r === ROUNDS[ROUNDS.length - 1] ? LAST : roundStart[ROUNDS[ROUNDS.indexOf(r) + 1]] - 1;
+        var span = Math.max(1, last - first);
+        fill.style.width = clamp(100 * (cursor - first) / span, 0, 100) + "%";
+      }
+    });
+
+    DATA.highlights.forEach(function (h, i) { hlEls[i].classList.toggle("now", h._step === cursor); });
+
+    var atEnd = cursor === LAST;
+    finale.classList.toggle("hidden", !atEnd);
+    document.getElementById("btnPrev").disabled = cursor === 0;
+    document.getElementById("btnStart").disabled = cursor === 0;
+    document.getElementById("btnNext").disabled = atEnd;
+    document.getElementById("btnEnd").disabled = atEnd;
+  }
+
+  function goto(i) {
+    cursor = clamp(i, 0, LAST);
+    render();
+    if (playing && cursor === LAST) pause();
+    else if (playing) { stopTimer(); startTimer(); }
+  }
+  function next() { if (cursor < LAST) goto(cursor + 1); else pause(); }
+  function prev() { goto(cursor - 1); }
+
+  function startTimer() {
+    timer = window.setTimeout(function () {
+      if (!playing) return;
+      if (cursor >= LAST) { pause(); return; }
+      cursor += 1;
+      render();
+      startTimer();
+    }, stepDelay(STEPS[cursor]));
+  }
+  function stopTimer() { if (timer) { window.clearTimeout(timer); timer = null; } }
+
+  function play() {
+    if (cursor >= LAST) { cursor = 0; logCursor = -1; }
+    playing = true;
+    btnPlay.textContent = "Pause";
+    startTimer();
+    render();
+  }
+  function pause() { playing = false; btnPlay.textContent = "Play"; stopTimer(); }
+  function toggle() { if (playing) pause(); else play(); }
+
+  document.getElementById("btnPlay").addEventListener("click", toggle);
+  document.getElementById("btnNext").addEventListener("click", function () { pause(); next(); });
+  document.getElementById("btnPrev").addEventListener("click", function () { pause(); prev(); });
+  document.getElementById("btnStart").addEventListener("click", function () { pause(); goto(0); });
+  document.getElementById("btnEnd").addEventListener("click", function () { pause(); goto(LAST); });
+
+  function jumpRound(delta) {
+    var r = STEPS[cursor].round;
+    var ix = ROUNDS.indexOf(r);
+    if (delta < 0 && cursor > roundStart[r]) { goto(roundStart[r]); return; }
+    var t = clamp(ix + delta, 0, ROUNDS.length - 1);
+    goto(roundStart[ROUNDS[t]]);
+  }
+
+  /* A viewport resize reflows the log and strands the scroll position
+     mid-history; re-pin it to the latest beat. */
+  var resizeTimer = null;
+  window.addEventListener("resize", function () {
+    if (resizeTimer) window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(function () {
+      logBox.scrollTop = logBox.scrollHeight;
+    }, 120);
+  });
+
+  document.addEventListener("keydown", function (e) {
+    var tag = (e.target && e.target.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === " " || e.code === "Space") { e.preventDefault(); toggle(); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); pause(); next(); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); pause(); prev(); }
+    else if (e.key === "]" || e.key === "ArrowDown") { e.preventDefault(); pause(); jumpRound(1); }
+    else if (e.key === "[" || e.key === "ArrowUp") { e.preventDefault(); pause(); jumpRound(-1); }
+    else if (e.key === "Home") { e.preventDefault(); pause(); goto(0); }
+    else if (e.key === "End") { e.preventDefault(); pause(); goto(LAST); }
+  });
+
+  render();
+})();
+</script>

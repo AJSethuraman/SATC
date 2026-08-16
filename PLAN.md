@@ -266,6 +266,18 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
 
 ## Decisions log
 
+- **2026-07-25 — Ember Vault Arena is not SATC work.** An `/occam` run spec'd an
+  eight-agent deterministic dungeon game (working Python prototype supplied as a zip;
+  verified 8/8 tests passing, 8-agent match completes, audit chain valid). Decided it
+  lives in its **own private repo** (`ember-vault-arena`), not this monorepo — a game has
+  no business next to client-PII tax software, and this repo's workflows autodeploy on
+  push. PRD staged at `docs/ember-vault-arena/PRD.md` (PR #99, draft) **only** so it
+  survives an ephemeral session; delete it once the repo exists. The GitHub App cannot
+  create repos (`403 Resource not accessible by integration`), so creation is manual.
+  Build order deliberately resequenced from the supplied spec (dossier last, not first,
+  because the spec's own observation schema presupposes the ruleset work). Deferred as
+  roadmap: hosted alpha, ranked season, content/video engine. Decided against: the
+  TypeScript referee port the prototype's older plan called for.
 - **2026-07-03 — Review & research pass ordered.** Owner directive: review everything,
   fix what's wrong, research industry norms, design for handoff ("time to look higher").
   Big changes require owner sign-off.
