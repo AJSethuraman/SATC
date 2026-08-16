@@ -16,7 +16,7 @@ INSTANT = "instant"  # balance-sheet facts
 class MetricSpec:
     key: str
     kind: str  # FLOW | INSTANT
-    unit: str  # "USD" | "shares"
+    unit: str  # "USD" | "shares" | "USD/shares" (per-share; matches SEC unit key)
     label: str
     candidates: tuple[tuple[str, str], ...]  # (taxonomy, tag), in preference order
     notes: str = field(default="")
@@ -138,6 +138,93 @@ CANONICAL_METRICS: dict[str, MetricSpec] = {
                 "AllowanceForLoanAndLeaseLossesWriteOffsNet",
             ),
             "Banking only. Gross vs net differs by tag; many filers disclose only in tables.",
+        ),
+        # --- Valuation / quality inputs (added for the valuation engine) -------
+        # Point-in-time share count for market cap + per-share fair value. The
+        # dei cover fact is dated ~weeks after fiscal year-end, so it is used ONLY
+        # as a latest scalar (never joined to a fiscal period_end).
+        MetricSpec(
+            "shares_outstanding", INSTANT, "shares", "Shares outstanding",
+            (
+                ("dei", "EntityCommonStockSharesOutstanding"),
+                ("us-gaap", "CommonStockSharesOutstanding"),
+                ("us-gaap", "CommonStockSharesIssued"),
+            ),
+            "Latest scalar only; cover-date fact does not align to fiscal year-ends.",
+        ),
+        MetricSpec("gross_profit", FLOW, "USD", "Gross profit", _usgaap("GrossProfit"),
+                   "Else derived as revenue - cost_of_revenue."),
+        MetricSpec(
+            "depreciation_amortization", FLOW, "USD", "Depreciation & amortization",
+            _usgaap(
+                "DepreciationDepletionAndAmortization",
+                "DepreciationAmortizationAndAccretionNet",
+                "DepreciationAndAmortization",
+            ),
+            "Cash-flow-statement D&A; may exceed income-statement D&A.",
+        ),
+        MetricSpec(
+            "pretax_income", FLOW, "USD", "Pre-tax income",
+            _usgaap(
+                "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+                "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+            ),
+        ),
+        MetricSpec("tax_expense", FLOW, "USD", "Income tax expense",
+                   _usgaap("IncomeTaxExpenseBenefit")),
+        MetricSpec(
+            "stock_based_comp", FLOW, "USD", "Stock-based compensation",
+            _usgaap("ShareBasedCompensation", "ShareBasedCompensationExpense"),
+            "Owner-earnings add-back; ignores future dilution (upper bound).",
+        ),
+        MetricSpec(
+            "dividends_per_share", FLOW, "USD/shares", "Dividends per share",
+            _usgaap(
+                "CommonStockDividendsPerShareDeclared",
+                "CommonStockDividendsPerShareCashPaid",
+            ),
+        ),
+        MetricSpec("eps_diluted", FLOW, "USD/shares", "Diluted EPS",
+                   _usgaap("EarningsPerShareDiluted")),
+        MetricSpec("retained_earnings", INSTANT, "USD", "Retained earnings",
+                   _usgaap("RetainedEarningsAccumulatedDeficit"),
+                   "Altman X2."),
+        MetricSpec("ppe_net", INSTANT, "USD", "Property, plant & equipment (net)",
+                   _usgaap("PropertyPlantAndEquipmentNet"),
+                   "Greenblatt tangible capital."),
+        MetricSpec("goodwill", INSTANT, "USD", "Goodwill", _usgaap("Goodwill")),
+        MetricSpec(
+            "intangible_assets", INSTANT, "USD", "Intangible assets (ex-goodwill)",
+            _usgaap("IntangibleAssetsNetExcludingGoodwill", "FiniteLivedIntangibleAssetsNet"),
+        ),
+        MetricSpec("inventory", INSTANT, "USD", "Inventory", _usgaap("InventoryNet")),
+        MetricSpec(
+            "accounts_receivable", INSTANT, "USD", "Accounts receivable",
+            _usgaap("AccountsReceivableNetCurrent", "ReceivablesNetCurrent"),
+        ),
+        MetricSpec(
+            "preferred_equity", INSTANT, "USD", "Preferred equity",
+            _usgaap(
+                "PreferredStockLiquidationPreferenceValue",
+                "PreferredStockRedemptionAmount",
+                "PreferredStockValue",
+            ),
+            "Liquidation/redemption value preferred; par (last candidate) is a weak fallback.",
+        ),
+        MetricSpec("minority_interest", INSTANT, "USD", "Minority interest",
+                   _usgaap("MinorityInterest")),
+        MetricSpec(
+            "short_term_borrowings", INSTANT, "USD", "Short-term borrowings",
+            _usgaap("ShortTermBorrowings", "CommercialPaper"),
+            "Adds to total debt beyond current portion of long-term debt.",
+        ),
+        MetricSpec(
+            "sga_expense", FLOW, "USD", "Selling, general & administrative",
+            _usgaap(
+                "SellingGeneralAndAdministrativeExpense",
+                "GeneralAndAdministrativeExpense",
+            ),
+            "Beneish SGAI input.",
         ),
     ]
 }

@@ -19,10 +19,25 @@ class Settings(BaseSettings):
 
     sec_user_agent: str = ""
     stock_helper_db_url: str = ""
-    enable_price_data: bool = False
+    # Price data (Stooq, NON-CANONICAL) is on by default: the valuation engine
+    # needs a price for margin-of-safety and market multiples. Intrinsic DCF and
+    # fundamental factors still work with it off. Every price-derived output is
+    # labeled non-canonical. Set ENABLE_PRICE_DATA=false to disable.
+    enable_price_data: bool = True
+    # Which free price source(s) to use: "auto" (Yahoo -> Stooq, default),
+    # "yahoo", or "stooq". Yahoo has wider coverage and no tight per-IP daily
+    # cap, so it is the better default for a large universe and the backtest.
+    price_source: str = "auto"
     log_level: str = "INFO"
     sec_cache_ttl_hours: float = 24.0
     data_dir: Path = Path("data")
+    # Cost-of-capital inputs. FRED supplies the risk-free rate (10-yr Treasury,
+    # DGS10); without a key we fall back to risk_free_default. The equity risk
+    # premium is a long-run assumption, not a market observation — it is a
+    # scenario input to CAPM, labeled as such wherever the discount rate appears.
+    fred_api_key: str = ""
+    risk_free_default: float = 0.042  # fallback when FRED is unavailable
+    equity_risk_premium: float = 0.05  # CAPM ERP assumption (research aid)
 
     @property
     def db_url(self) -> str:
@@ -33,6 +48,10 @@ class Settings(BaseSettings):
     @property
     def raw_sec_dir(self) -> Path:
         return self.data_dir / "raw" / "sec"
+
+    @property
+    def raw_fred_dir(self) -> Path:
+        return self.data_dir / "raw" / "fred"
 
     @property
     def price_cache_dir(self) -> Path:

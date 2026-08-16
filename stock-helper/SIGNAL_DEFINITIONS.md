@@ -62,6 +62,31 @@ prices/peers/text "as of" a past date cannot yet be reconstructed honestly.
 | `disclosure_risk_language` | `fetch-sec --with-documents` | Word rates (negative/uncertainty/litigious/constraining per 1k words) and risk-factor novelty vs prior 10-K (1 − shingle Jaccard) | Curated word-list subset over heuristic sections — directional at best; always cites chunk ids |
 | `industry_relative_context` | ≥1 same-bucket company fetched | Percentile of key metrics vs **local** fetched universe | Shows n and tickers; explicitly "not the market" |
 
+## Valuation, quality & forensic signals (require the composed `valuation`)
+
+These read `extras["valuation"]` — the composed `ValuationResult` (DCF, multiples,
+peer-relative, quality factors, Beneish, stress report) built once per current-view
+report. Like the other context signals they are **`UNAVAILABLE` in point-in-time
+history replay** (`required_extras=("valuation",)`), which keeps the
+fundamental-only screens from leaking present-day prices/peers into a past as-of view.
+Forensic scores are **SCREENS, never accusations of fraud, verdicts, or advice**.
+
+| Key | Category | What it reports | Direction rule | Applies to | Main caveat |
+|---|---|---|---|---|---|
+| `intrinsic_margin_of_safety` | Valuation | DCF fair value vs current price: `(fair - price)/fair` | >+30% supportive, <-30% flag | non-financials | Scenario from explicit DCF assumptions — not a target; needs price + DCF |
+| `reverse_dcf_implied_growth` | Valuation | Stage-1 FCF growth the current price already implies | **Unscored by design** | all | Achievability is a judgment call; needs a price and positive FCF |
+| `relative_valuation` | Valuation | Mean implied upside across peer-median multiples | bands ±25% | all | Local **fetched** universe peers only, not the market |
+| `piotroski_f` | Quality | Piotroski F-score 0-9 (nine binary accounting tests) | ≥7 strong, ≤3 weak | non-financials | Accounting screen; uncomputable tests score 0; not predictive |
+| `altman_distress` | Quality | Altman Z / Z'' distress score and zone | safe +1 / grey 0 / distress −1 | non-financials | Distress SCREEN, not a bankruptcy prediction; Z'' book-based |
+| `beneish_manipulation` | Forensic | Beneish 8-factor M-score; M > −1.78 = resemblance flag | flag → −1 | all | **Screen, not an accusation**; false positives common (high growth) |
+| `montier_c` | Forensic | Montier six-flag manipulation checklist (when computed) | ≥4 flags → −1 | non-financials | Not produced by the current engine → `UNAVAILABLE` until added |
+| `distress_panel_agreement` | Forensic | How many independent distress/forensic screens currently flag | majority flag → −1 | all | Agreement across SCREENS warrants a read, never a verdict |
+
+`distress_panel_agreement` combines whichever screens are computable (Altman zone,
+Beneish flag, the stress-scanner flag count, and Ohlson/Zmijewski if a future engine
+adds them). Confidence is data-quality only: valuation/forensic signals are `low`
+(scenario/screen), quality factor scores `medium`.
+
 \* For `banking`, revenue growth is `NOT_APPLICABLE` in v0.1 because "revenue"
 for banks (net interest income + fees) is not reliably captured by the generic
 revenue tags; a bank-specific revenue signal is planned in Phase 4.

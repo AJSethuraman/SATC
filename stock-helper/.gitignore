@@ -21,3 +21,6 @@ build/
 .pytest_cache/
 .ruff_cache/
 uv.lock
+
+# Demo seed data (throwaway synthetic universe)
+demo_data/

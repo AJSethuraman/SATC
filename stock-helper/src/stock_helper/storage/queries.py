@@ -5,7 +5,13 @@ from datetime import date
 from sqlmodel import Session, select
 
 from stock_helper.normalization.facts import FactPoint, MetricSeries, select_annual_series
-from stock_helper.storage.models import Company, CompanyFact, SecurityIdentifier
+from stock_helper.storage.models import (
+    Company,
+    CompanyFact,
+    QualityFactorRow,
+    SecurityIdentifier,
+    Valuation,
+)
 
 
 class CompanyNotFetchedError(LookupError):
@@ -52,3 +58,32 @@ def load_series(
         for row in rows
     ]
     return select_annual_series(points, as_of=as_of)
+
+
+def load_valuation(
+    session: Session, company: Company, as_of: date | None = None
+) -> Valuation | None:
+    """Most recent stored Valuation for the given view. ``as_of=None`` matches
+    only current-view runs (as_of_date IS NULL); a date matches that exact
+    point-in-time run — the two are never mixed."""
+    stmt = select(Valuation).where(Valuation.company_id == company.id)
+    if as_of is None:
+        stmt = stmt.where(Valuation.as_of_date.is_(None))  # type: ignore[attr-defined]
+    else:
+        stmt = stmt.where(Valuation.as_of_date == as_of)
+    stmt = stmt.order_by(Valuation.created_at.desc())  # type: ignore[attr-defined]
+    return session.exec(stmt).first()
+
+
+def load_quality_factors(
+    session: Session, company: Company, as_of: date | None = None
+) -> list[QualityFactorRow]:
+    """All stored quality/distress factor rows for the given view, newest first.
+    Same as-of matching semantics as :func:`load_valuation`."""
+    stmt = select(QualityFactorRow).where(QualityFactorRow.company_id == company.id)
+    if as_of is None:
+        stmt = stmt.where(QualityFactorRow.as_of_date.is_(None))  # type: ignore[attr-defined]
+    else:
+        stmt = stmt.where(QualityFactorRow.as_of_date == as_of)
+    stmt = stmt.order_by(QualityFactorRow.created_at.desc())  # type: ignore[attr-defined]
+    return list(session.exec(stmt).all())

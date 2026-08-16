@@ -10,6 +10,7 @@ from stock_helper.features.metrics import trend_direction, yoy_change
 from stock_helper.industry.sic_buckets import BANKING, FINANCIAL_BUCKETS
 from stock_helper.signals.base import (
     OK,
+    UNAVAILABLE,
     Evidence,
     SignalContext,
     SignalDef,
@@ -512,6 +513,305 @@ def _disclosure_risk_language(ctx: SignalContext) -> SignalOutcome | None:
     )
 
 
+# --- Valuation / quality / forensic signals (require the composed "valuation") --
+
+# The composed ValuationResult is built once per current-view report (see
+# features/context.build_all_extras) and passed through as extras["valuation"].
+# required_extras=("valuation",) makes every signal below report UNAVAILABLE when
+# it is absent — which is exactly the case in point-in-time history replay, where
+# extras are not reconstructed. That keeps the fundamental-only screens
+# (Piotroski/Altman/Beneish/Montier) consistent with the other extras-gated
+# signals rather than leaking present-day context into a past as-of view.
+
+_VAL_SCENARIO = ("Scenario estimate from explicit, editable DCF assumptions — "
+                 "not a price target.")
+_SCREEN_CAVEAT = ("Statistical/accounting SCREEN for research triage — NOT an "
+                  "accusation of fraud, a verdict, or advice. Read the filings.")
+_VAL_REPLAY_HINT = ("Built only for the current view; unavailable in point-in-time "
+                    "history replay (prices/peers as-of cannot be reconstructed yet).")
+
+
+def _valuation(ctx: SignalContext):
+    return ctx.extras["valuation"]  # gated non-None by required_extras
+
+
+def _factor(ctx: SignalContext, key: str):
+    quality = _valuation(ctx).quality
+    return quality.factors.get(key) if quality is not None else None
+
+
+def _factor_evidence(fr) -> Evidence:
+    return Evidence(
+        kind="fact",
+        reference=", ".join(fr.input_accessions[-3:]) if fr.input_accessions else "",
+        description=f"{fr.label}: {fr.formula}",
+    )
+
+
+def _factor_unavailable(fr, label: str) -> SignalOutcome:
+    if fr is not None and fr.reason:
+        reason = fr.reason
+    else:
+        reason = f"{label} could not be computed from the mapped fundamentals."
+    return SignalOutcome(status=UNAVAILABLE, interpretation=reason)
+
+
+def _intrinsic_margin_of_safety(ctx: SignalContext) -> SignalOutcome | None:
+    val = _valuation(ctx)
+    mos = val.margin_of_safety
+    if mos is None:
+        return SignalOutcome(
+            status=UNAVAILABLE,
+            interpretation=(
+                "Margin of safety needs BOTH an intrinsic DCF value and a current "
+                "price; one or both is unavailable (no price data, or the DCF was "
+                "not computable for this filer)."
+            ),
+        )
+    direction = "improving" if mos > 0.3 else "deteriorating" if mos < -0.3 else "stable"
+    score = 1 if mos > 0.3 else -1 if mos < -0.3 else 0
+    fv = val.fair_value_per_share
+    side = "above" if mos >= 0 else "below"
+    return SignalOutcome(
+        value_text=pct(mos),
+        numeric_value=mos,
+        direction=direction,
+        score=score,
+        interpretation=(
+            f"The DCF fair value ({money(fv)}/share) sits {pct(abs(mos))} {side} the "
+            f"current price — margin of safety {pct(mos)}. A scenario, not a target."
+        ),
+        confidence="low",
+        caveat=_VAL_SCENARIO,
+        evidence=[Evidence(kind="fact", reference=val.engine_version,
+                           description="Two-stage DCF vs non-canonical market price")],
+    )
+
+
+def _reverse_dcf_implied_growth(ctx: SignalContext) -> SignalOutcome | None:
+    val = _valuation(ctx)
+    ig = val.implied_growth
+    if ig is None:
+        return SignalOutcome(
+            status=UNAVAILABLE,
+            interpretation=(
+                "Reverse-DCF implied growth needs a current price and a positive FCF "
+                "base; not available here (no price data or non-positive FCF)."
+            ),
+        )
+    return SignalOutcome(
+        value_text=pct(ig),
+        numeric_value=ig,
+        direction="stable",
+        score=0,  # unscored by design: achievability is a judgment call
+        interpretation=(
+            f"At the current price the market is implying roughly {pct(ig)} annual "
+            "free-cash-flow growth over the explicit stage. Whether that is "
+            "achievable is a judgment call — reported without a score by design."
+        ),
+        confidence="low",
+        caveat=_VAL_SCENARIO,
+        evidence=[Evidence(kind="fact", reference=val.engine_version,
+                           description="Reverse-DCF growth solved from current price")],
+    )
+
+
+def _relative_valuation(ctx: SignalContext) -> SignalOutcome | None:
+    val = _valuation(ctx)
+    prs = val.peer_relative
+    scored = [(k, pr) for k, pr in prs.items()
+              if getattr(pr, "upside_pct", None) is not None]
+    if not scored:
+        return SignalOutcome(
+            status=UNAVAILABLE,
+            interpretation=(
+                "Peer-relative valuation needs a current price and >=3 same-bucket "
+                "peers sharing the same multiples in your local database; not "
+                "available here."
+            ),
+        )
+    upsides = [pr.upside_pct for _, pr in scored]
+    mean_up = sum(upsides) / len(upsides)
+    direction = "improving" if mean_up > 0.25 else "deteriorating" if mean_up < -0.25 else "stable"
+    score = 1 if mean_up > 0.25 else -1 if mean_up < -0.25 else 0
+    parts = ", ".join(f"{k} {pct(pr.upside_pct)}" for k, pr in sorted(scored))
+    n_peers = max((pr.n_peers for _, pr in scored), default=0)
+    return SignalOutcome(
+        value_text=pct(mean_up),
+        numeric_value=mean_up,
+        direction=direction,
+        score=score,
+        interpretation=(
+            f"Averaged across {len(scored)} peer-median multiples ({parts}), the "
+            f"implied value is {pct(mean_up)} vs the current price. Local "
+            f"fetched-universe peers only (n={n_peers}) — orientation, not a target."
+        ),
+        confidence="low",
+        caveat="Peer set is whoever you have fetched in the same SIC bucket, not the market.",
+        evidence=[Evidence(kind="fact", reference=val.engine_version,
+                           description="Robust peer-median multiples over the local universe")],
+    )
+
+
+def _piotroski_f(ctx: SignalContext) -> SignalOutcome | None:
+    fr = _factor(ctx, "piotroski_f")
+    if fr is None or fr.status != OK or fr.value is None:
+        return _factor_unavailable(fr, "Piotroski F-score")
+    score9 = fr.value
+    quality_word = "strong" if score9 >= 7 else "weak" if score9 <= 3 else "middling"
+    direction = "improving" if score9 >= 7 else "deteriorating" if score9 <= 3 else "stable"
+    band = 1 if score9 >= 7 else -1 if score9 <= 3 else 0
+    return SignalOutcome(
+        value_text=f"{score9:.0f}/9",
+        numeric_value=score9,
+        direction=direction,
+        score=band,
+        interpretation=(
+            f"Piotroski F-score is {score9:.0f}/9 — {quality_word} fundamental strength "
+            "on nine binary accounting tests (profitability, leverage, efficiency)."
+        ),
+        confidence="medium",
+        caveat="; ".join(fr.caveats) or "Nine-test accounting screen; not predictive.",
+        evidence=[_factor_evidence(fr)],
+    )
+
+
+def _altman_distress(ctx: SignalContext) -> SignalOutcome | None:
+    fr = _factor(ctx, "altman_z")
+    if fr is None or fr.status != OK or fr.value is None:
+        return _factor_unavailable(fr, "Altman distress score")
+    zone = fr.detail.get("zone", "")
+    model = fr.detail.get("model", "")
+    direction = {"safe": "improving", "grey": "stable",
+                 "distress": "deteriorating"}.get(zone, "stable")
+    score = {"safe": 1, "grey": 0, "distress": -1}.get(zone, 0)
+    return SignalOutcome(
+        value_text=f"{fr.value:.2f} ({zone})",
+        numeric_value=fr.value,
+        direction=direction,
+        score=score,
+        interpretation=(
+            f"Altman {model} score is {fr.value:.2f}, in the '{zone}' zone. "
+            "A distress SCREEN, not a bankruptcy prediction."
+        ),
+        confidence="medium",
+        caveat=_SCREEN_CAVEAT + (" " + "; ".join(fr.caveats) if fr.caveats else ""),
+        evidence=[_factor_evidence(fr)],
+    )
+
+
+def _beneish_manipulation(ctx: SignalContext) -> SignalOutcome | None:
+    beneish = _valuation(ctx).beneish
+    if beneish is None or beneish.m_score is None:
+        return SignalOutcome(
+            status=UNAVAILABLE,
+            interpretation=(
+                "Beneish M-score needs two clean consecutive fiscal years of the full "
+                "input set with non-degenerate denominators; not available for this filer."
+            ),
+        )
+    m = beneish.m_score
+    score = -1 if beneish.flag else 0
+    direction = "deteriorating" if beneish.flag else "stable"
+    tail = (
+        ", above the -1.78 screen threshold — the accrual/growth profile RESEMBLES "
+        "that of known manipulators (a screen, not a conclusion)."
+        if beneish.flag else ", below the -1.78 screen threshold."
+    )
+    return SignalOutcome(
+        value_text=f"{m:.2f}",
+        numeric_value=m,
+        direction=direction,
+        score=score,
+        interpretation=f"Beneish M-score is {m:.2f}{tail}",
+        confidence="low",
+        caveat=_SCREEN_CAVEAT + (" " + beneish.caveats[0] if beneish.caveats else ""),
+        evidence=[Evidence(
+            kind="fact",
+            reference=", ".join(beneish.input_accessions[-3:]) if beneish.input_accessions else "",
+            description="Beneish 8-factor M-score (two consecutive fiscal years)")],
+    )
+
+
+def _montier_c(ctx: SignalContext) -> SignalOutcome | None:
+    fr = _factor(ctx, "montier_c")
+    if fr is None or fr.status != OK or fr.value is None:
+        # The current valuation engine does not compute a Montier C-score; the
+        # signal is wired to light up automatically once a factor named
+        # ``montier_c`` appears in the quality bundle.
+        return SignalOutcome(
+            status=UNAVAILABLE,
+            interpretation=(
+                "Montier C-score (six-flag earnings-manipulation checklist) is not "
+                "produced by the current valuation engine — nothing to report yet."
+            ),
+        )
+    c = fr.value
+    score = -1 if c >= 4 else 0
+    direction = "deteriorating" if c >= 4 else "stable"
+    return SignalOutcome(
+        value_text=f"{c:.0f}/6",
+        numeric_value=c,
+        direction=direction,
+        score=score,
+        interpretation=(
+            f"Montier C-score is {c:.0f}/6 manipulation flags — a SCREEN, not a verdict."
+        ),
+        confidence="low",
+        caveat=_SCREEN_CAVEAT,
+        evidence=[_factor_evidence(fr)],
+    )
+
+
+def _distress_panel_agreement(ctx: SignalContext) -> SignalOutcome | None:
+    val = _valuation(ctx)
+    quality = val.quality
+    panel: list[tuple[str, bool]] = []  # (name, flagged)
+
+    alt = quality.factors.get("altman_z") if quality is not None else None
+    if alt is not None and alt.status == OK and alt.value is not None:
+        panel.append(("Altman", alt.detail.get("zone") == "distress"))
+    # Ohlson O / Zmijewski light up automatically if a future engine adds them.
+    for key, name in (("ohlson_o", "Ohlson O"), ("zmijewski", "Zmijewski")):
+        fr = quality.factors.get(key) if quality is not None else None
+        if fr is not None and fr.status == OK and fr.value is not None:
+            flagged = fr.detail.get("zone") == "distress" or bool(fr.detail.get("flag"))
+            panel.append((name, flagged))
+    beneish = val.beneish
+    if beneish is not None and beneish.m_score is not None:
+        panel.append(("Beneish", bool(beneish.flag)))
+    stress = val.stress
+    if stress is not None:
+        panel.append(("Stress-scan", stress.flag_count > 0))
+
+    if not panel:
+        return SignalOutcome(
+            status=UNAVAILABLE,
+            interpretation="No distress or forensic screen could be computed for this filer.",
+        )
+    flagged_names = [name for name, hit in panel if hit]
+    n, k = len(panel), len(flagged_names)
+    names = ", ".join(name for name, _ in panel)
+    score = -1 if (k > 0 and k * 2 >= n) else 0  # majority of the panel agrees
+    direction = "deteriorating" if score < 0 else "stable"
+    tail = f": {', '.join(flagged_names)}" if flagged_names else ""
+    return SignalOutcome(
+        value_text=f"{k}/{n} screens flag",
+        numeric_value=float(k),
+        direction=direction,
+        score=score,
+        interpretation=(
+            f"{k} of {n} independent distress/forensic screens ({names}) are currently "
+            f"raising a flag{tail}. Agreement across independent SCREENS is worth a "
+            "closer read, but none is a verdict."
+        ),
+        confidence="low",
+        caveat=_SCREEN_CAVEAT,
+        evidence=[Evidence(kind="fact", reference=val.engine_version,
+                           description="Panel of independent distress/forensic screens")],
+    )
+
+
 # --- Registry --------------------------------------------------------------------
 
 REGISTRY: list[SignalDef] = [
@@ -664,6 +964,74 @@ REGISTRY: list[SignalDef] = [
         formula="percentile rank among locally fetched same-bucket companies",
         required_extras=("peers",), evaluator=_industry_relative,
         unavailable_hint="Fetch more same-industry tickers to build a local peer set.",
+    ),
+    # --- Valuation (composed DCF / multiples / peer-relative) ---
+    SignalDef(
+        key="intrinsic_margin_of_safety", name="Intrinsic margin of safety",
+        category="Valuation",
+        description="DCF fair value vs current price. >+30% supportive, <-30% a flag.",
+        formula="(fair_value_per_share - price) / fair_value_per_share",
+        excluded_buckets=_FINANCIALS,
+        required_extras=("valuation",), evaluator=_intrinsic_margin_of_safety,
+        unavailable_hint=_VAL_REPLAY_HINT,
+    ),
+    SignalDef(
+        key="reverse_dcf_implied_growth", name="Reverse-DCF implied growth",
+        category="Valuation",
+        description="Stage-1 FCF growth the current price already implies. Unscored by design.",
+        formula="growth g s.t. DCF(g) == price x shares",
+        required_extras=("valuation",), evaluator=_reverse_dcf_implied_growth,
+        unavailable_hint=_VAL_REPLAY_HINT,
+    ),
+    SignalDef(
+        key="relative_valuation", name="Relative valuation (peer-median)",
+        category="Valuation",
+        description="Mean implied upside across peer-median multiples. Bands +-25%.",
+        formula="mean over multiples of (peer_median_implied_price / price - 1)",
+        required_extras=("valuation",), evaluator=_relative_valuation,
+        unavailable_hint=_VAL_REPLAY_HINT,
+    ),
+    # --- Quality / distress / forensic screens ---
+    SignalDef(
+        key="piotroski_f", name="Piotroski F-score", category="Quality",
+        description="Nine binary fundamental-strength tests, 0-9. >=7 strong, <=3 weak.",
+        formula="sum of 9 binary tests (profitability, leverage, efficiency)",
+        excluded_buckets=_FINANCIALS,
+        required_extras=("valuation",), evaluator=_piotroski_f,
+        unavailable_hint=_VAL_REPLAY_HINT,
+    ),
+    SignalDef(
+        key="altman_distress", name="Altman distress score", category="Quality",
+        description="Altman Z / Z'' distress score and zone (safe/grey/distress).",
+        formula="Z (manufacturer, market-based) or Z'' (book-based) by SIC + data",
+        excluded_buckets=_FINANCIALS,
+        required_extras=("valuation",), evaluator=_altman_distress,
+        unavailable_hint=_VAL_REPLAY_HINT,
+    ),
+    SignalDef(
+        key="beneish_manipulation", name="Beneish M-score (manipulation screen)",
+        category="Forensic",
+        description="Eight-factor earnings-manipulation SCREEN. M > -1.78 = resemblance flag.",
+        formula="M = -4.84 + 0.920*DSRI + ... + 4.679*TATA - 0.327*LVGI",
+        required_extras=("valuation",), evaluator=_beneish_manipulation,
+        unavailable_hint=_VAL_REPLAY_HINT,
+    ),
+    SignalDef(
+        key="montier_c", name="Montier C-score (manipulation screen)",
+        category="Forensic",
+        description="Six-flag earnings-manipulation checklist SCREEN (when computed).",
+        formula="count of 6 Montier manipulation flags",
+        excluded_buckets=_FINANCIALS,
+        required_extras=("valuation",), evaluator=_montier_c,
+        unavailable_hint=_VAL_REPLAY_HINT,
+    ),
+    SignalDef(
+        key="distress_panel_agreement", name="Distress panel agreement",
+        category="Forensic",
+        description="How many independent distress/forensic screens currently flag.",
+        formula="count of flagged screens among {Altman, Beneish, stress-scan, ...}",
+        required_extras=("valuation",), evaluator=_distress_panel_agreement,
+        unavailable_hint=_VAL_REPLAY_HINT,
     ),
     # --- Declared placeholders (implemented later; shown honestly as such) ---
     SignalDef(

@@ -76,14 +76,33 @@ def compute_derived_metrics(series: dict[str, MetricSeries]) -> dict[str, Derive
     capex = series.get("capex")
     assets = series.get("total_assets")
 
-    # Pass-through levels the signal layer reads directly
+    # Pass-through levels the signal/valuation layers read directly
     for key, label, unit in [
         ("revenue", "Revenue", "USD"),
+        ("operating_income", "Operating income", "USD"),
         ("operating_cash_flow", "Operating cash flow", "USD"),
         ("net_income", "Net income", "USD"),
         ("cash", "Cash & equivalents", "USD"),
         ("diluted_shares", "Diluted shares (wtd avg)", "shares"),
+        ("shares_outstanding", "Shares outstanding", "shares"),
         ("buybacks", "Share repurchases", "USD"),
+        ("dividends_per_share", "Dividends per share", "USD/shares"),
+        ("eps_diluted", "Diluted EPS", "USD/shares"),
+        ("total_assets", "Total assets", "USD"),
+        ("total_liabilities", "Total liabilities", "USD"),
+        ("equity", "Stockholders' equity", "USD"),
+        ("current_assets", "Current assets", "USD"),
+        ("current_liabilities", "Current liabilities", "USD"),
+        ("retained_earnings", "Retained earnings", "USD"),
+        ("ppe_net", "PP&E (net)", "USD"),
+        ("goodwill", "Goodwill", "USD"),
+        ("intangible_assets", "Intangible assets", "USD"),
+        ("inventory", "Inventory", "USD"),
+        ("depreciation_amortization", "Depreciation & amortization", "USD"),
+        ("interest_expense", "Interest expense", "USD"),
+        ("tax_expense", "Income tax expense", "USD"),
+        ("pretax_income", "Pre-tax income", "USD"),
+        ("capex", "Capital expenditures", "USD"),
         ("deposits", "Total deposits", "USD"),
         ("credit_loss_allowance", "Allowance for credit losses", "USD"),
         ("net_interest_income", "Net interest income", "USD"),
@@ -95,6 +114,24 @@ def compute_derived_metrics(series: dict[str, MetricSeries]) -> dict[str, Derive
             out[key] = DerivedMetric(
                 key=key, label=label, unit=unit, formula=f"as filed ({s.tag})",
                 points=s.values(), input_tags=[s.tag], input_accessions=s.accessions(),
+            )
+
+    # Gross profit: as-filed tag preferred, else revenue - cost_of_revenue.
+    gp = series.get("gross_profit")
+    if gp:
+        out["gross_profit"] = DerivedMetric(
+            key="gross_profit", label="Gross profit", unit="USD",
+            formula=f"as filed ({gp.tag})", points=gp.values(),
+            input_tags=[gp.tag], input_accessions=gp.accessions(),
+        )
+    elif rev and cogs:
+        points = [(end, r - c) for end, r, c in _aligned(rev, cogs)]
+        if points:
+            out["gross_profit"] = DerivedMetric(
+                key="gross_profit", label="Gross profit", unit="USD",
+                formula="revenue - cost_of_revenue", points=points,
+                input_tags=[rev.tag, cogs.tag],
+                input_accessions=sorted(set(rev.accessions()) | set(cogs.accessions())),
             )
 
     # Margins
@@ -111,6 +148,55 @@ def compute_derived_metrics(series: dict[str, MetricSeries]) -> dict[str, Derive
             )
     add(_ratio_metric("operating_margin", "Operating margin",
                       "operating_income / revenue", op, rev))
+
+    # EBITDA = operating income (== EBIT, our pinned definition) + D&A.
+    da = series.get("depreciation_amortization")
+    if op and da:
+        points = [(end, o + d) for end, o, d in _aligned(op, da)]
+        if points:
+            out["ebitda"] = DerivedMetric(
+                key="ebitda", label="EBITDA", unit="USD",
+                formula="operating_income + depreciation_amortization", points=points,
+                input_tags=[op.tag, da.tag],
+                input_accessions=sorted(set(op.accessions()) | set(da.accessions())),
+            )
+
+    # Tangible book value = equity - goodwill - intangibles (missing terms -> 0).
+    eq = series.get("equity")
+    if eq:
+        gw_map = dict(series["goodwill"].values()) if series.get("goodwill") else {}
+        intang_map = dict(series["intangible_assets"].values()) if series.get("intangible_assets") else {}
+        points = [
+            (end, v - gw_map.get(end, 0.0) - intang_map.get(end, 0.0))
+            for end, v in eq.values()
+        ]
+        tags = [eq.tag] + ([series["goodwill"].tag] if gw_map else []) + (
+            [series["intangible_assets"].tag] if intang_map else [])
+        if points:
+            out["tangible_book"] = DerivedMetric(
+                key="tangible_book", label="Tangible book value", unit="USD",
+                formula="equity - goodwill - intangible_assets", points=points,
+                input_tags=tags, input_accessions=eq.accessions(),
+            )
+
+    # ROE = net income / average equity (2-year avg, like nim_proxy).
+    if ni and eq:
+        eq_vals = eq.values()
+        avg_eq = {
+            curr_end: (prev_val + curr_val) / 2
+            for (_, prev_val), (curr_end, curr_val) in zip(eq_vals, eq_vals[1:], strict=False)
+        }
+        points = [
+            (end, v / avg_eq[end]) for end, v in ni.values()
+            if end in avg_eq and avg_eq[end] not in (0, 0.0)
+        ]
+        if points:
+            out["roe"] = DerivedMetric(
+                key="roe", label="Return on equity", unit="ratio",
+                formula="net_income / avg(equity[t-1], equity[t])", points=points,
+                input_tags=[ni.tag, eq.tag],
+                input_accessions=sorted(set(ni.accessions()) | set(eq.accessions())),
+            )
 
     # Free cash flow (OCF - capex; capex sign is positive-as-outflow in XBRL)
     if ocf and capex:
@@ -145,17 +231,28 @@ def compute_derived_metrics(series: dict[str, MetricSeries]) -> dict[str, Derive
                 ),
             )
 
-    # Total debt = long-term + short-term (either alone if only one is tagged)
-    lt, st = series.get("long_term_debt"), series.get("short_term_debt")
+    # Total debt = long-term + current portion + short-term borrowings
+    # (any subset that is tagged). Short-term borrowings (commercial paper,
+    # revolvers) are added beyond the current portion of long-term debt.
+    lt = series.get("long_term_debt")
+    st = series.get("short_term_debt")
+    stb = series.get("short_term_borrowings")
     debt_points: dict[date, float] = {}
     debt_tags, debt_accessions = [], set()
-    for part in (lt, st):
+    for part in (lt, st, stb):
         if part is None:
             continue
         debt_tags.append(part.tag)
         debt_accessions.update(part.accessions())
         for end, value in part.values():
             debt_points[end] = debt_points.get(end, 0.0) + value
+    if debt_points:
+        out["total_debt"] = DerivedMetric(
+            key="total_debt", label="Total debt", unit="USD",
+            formula="long_term_debt + current portion + short_term_borrowings",
+            points=sorted(debt_points.items()),
+            input_tags=debt_tags, input_accessions=sorted(debt_accessions),
+        )
     if debt_points and assets:
         asset_map = dict(assets.values())
         points = [
