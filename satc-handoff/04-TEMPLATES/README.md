@@ -33,9 +33,12 @@ holding **only** rules unique to that document — never a second `:root`, never
 copied-and-tweaked rule. If two templates need the same rule, it belongs in the
 shared file.
 
-> The six templates below still inline a copy of this CSS, from before the shared
-> file existed. Migrating them is queued and is a no-visual-change job. **New
-> work uses the shared file.**
+> **Migrated.** All six templates now link `satc-doc.css` and carry **no inline
+> CSS at all** — every rule they had was either already in the shared file or
+> belonged there. Two divergences were resolved rather than copied: the ledger
+> documents' sign-off spacing became `.doc .signoff` in the shared file, and
+> their inline conditional markers now use the `.cond.inline` class the shared
+> file already carried for that case. See `../RUN-LOG.md`.
 
 ## Conventions every template follows
 

@@ -49,9 +49,10 @@ spec) lives in `../02-BRAND/` or `../03-COLLATERAL/` and has no field doc.
    different, ask whether the difference is actually justified — usually it is
    not.
 
-> The six existing templates still inline a copy of this CSS, from before the
-> shared file existed. Migrating them is a queued job, not a blocker. **New work
-> uses the shared file.**
+> **All six existing templates have been migrated** and now carry no inline CSS
+> at all. Every template in the folder links the shared file, so an inline
+> `<style>` block in a new template is a claim that needs justifying, not a
+> default. **New work uses the shared file.**
 
 ### Tokens — the whole print palette
 
