@@ -21,10 +21,9 @@ fields:
     templates: [onboarding-letter]
   - field: AdditionalForms
     source: interview
-    templates: [tax-letter]
+    templates: [business-letter, tax-letter]
     notes: >-
-      Emit the literal 'None' when empty. With foreign reporting in scope, blank
-      and 'None' are different statements.
+      Emit the literal 'None' when empty. With foreign reporting in scope, blank and 'None' are different statements.
   - field: AmountDue
     source: computed
     templates: [invoice]
@@ -47,40 +46,37 @@ fields:
     templates: [bookkeeping-letter]
   - field: ClientAddress1
     source: interview
-    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
     notes: >-
       Not collected by the website intake — the interview must ask.
   - field: ClientCity
     source: interview
-    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
     notes: >-
       Website intake collects city+state together; the interview splits them.
   - field: ClientEmail
     source: interview
     templates: [onboarding-letter]
     notes: >-
-      Printed on purpose: tells the client which inbox the Encyro invitation
-      went to.
+      Printed on purpose: tells the client which inbox the Encyro invitation went to.
   - field: ClientFullName
     source: interview
-    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
     notes: >-
-      Addressee block. For a business engagement this is the entity's legal
-      name.
+      Addressee block. For a business engagement this is the entity's legal name.
   - field: ClientLetterName
     source: interview
-    templates: [bookkeeping-letter, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, onboarding-letter, organizer-letter, tax-letter]
     notes: >-
-      Salutation only. Never the legal name. Maps to the website intake's
-      'Preferred name'.
+      Salutation only. Never the legal name. Maps to the website intake's 'Preferred name'.
   - field: ClientState
     source: interview
-    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
     notes: >-
       Website intake collects city+state together; the interview splits them.
   - field: ClientZip
     source: interview
-    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
     notes: >-
       Not collected by the website intake — the interview must ask.
   - field: CreditAmount
@@ -97,13 +93,24 @@ fields:
   - field: DeliveryTarget
     source: bookkeeping
     templates: [bookkeeping-letter]
+  - field: EffectiveDate
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      Appears four times in the disengagement letter. The date everything in it
+      hinges on, and the fact the document exists to fix.
   - field: EngagementRef
     source: engagement
-    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
     notes: >-
-      Join key. YYYY-NNNN, byte-identical across letter, estimate, onboarding
-      and every invoice. A lead's number becomes its EngagementRef on
-      conversion.
+      Join key. YYYY-NNNN, byte-identical across letter, estimate, onboarding and every invoice. A lead's number becomes its EngagementRef on conversion.
+  - field: EntityType
+    source: engagement
+    templates: [business-letter]
+    notes: >-
+      A phrase, not a code -- 'an Ohio limited liability company taxed as an S
+      corporation'. Generated from the entity record, never typed, so the letter
+      and the return cannot disagree about what the entity is.
   - field: EstimateDate
     source: invoice
     templates: [invoice]
@@ -112,9 +119,20 @@ fields:
     templates: [fee-estimate, invoice]
     notes: >-
       Computed — sum the line items in code. Never typed.
+  - field: EstimatedPaymentAmount
+    source: extension
+    templates: [extension-notice]
+    notes: >-
+      Pre-formatted money string. The template does no arithmetic.
+  - field: ExtendedDeadline
+    source: extension
+    templates: [extension-notice]
+    notes: >-
+      Appears three times in the extension notice; drive all three from one
+      value. Must never equal PaymentDeadline -- if it does, something is wrong.
   - field: FederalReturns
     source: interview
-    templates: [tax-letter]
+    templates: [business-letter, tax-letter]
   - field: FeeChangeNote
     source: engagement
     templates: [organizer-letter]
@@ -134,64 +152,94 @@ fields:
       Sequential, never reused. One engagement has many invoices.
   - field: LetterDate
     source: computed
-    templates: [bookkeeping-letter, fee-estimate, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, onboarding-letter, organizer-letter, tax-letter]
     notes: >-
-      Generated at send time. On the estimate this is the LETTER's date, not
-      today's.
+      Generated at send time. On the estimate this is the LETTER's date, not today's.
   - field: LocalReturns
     source: interview
-    templates: [tax-letter]
+    templates: [business-letter, tax-letter]
     notes: >-
       Name every locality. Emit the literal 'None' when empty — never blank.
   - field: MaterialsDeadline
     source: engagement
-    templates: [onboarding-letter, organizer-letter, tax-letter]
+    templates: [business-letter, extension-notice, onboarding-letter, organizer-letter, tax-letter]
     notes: >-
-      Firm setting per return type per season, not a per-client answer. Prints
-      in three documents; a mismatch is the organizer's most likely bug.
+      Firm setting per return type per season, not a per-client answer. Prints in three documents; a mismatch is the organizer's most likely bug.
   - field: NoticePeriod
     source: bookkeeping
     templates: [bookkeeping-letter]
+  - field: OutstandingBalance
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      Pre-formatted money string. The template does no arithmetic.
+  - field: PaymentDeadline
+    source: extension
+    templates: [extension-notice]
+    notes: >-
+      The ORIGINAL due date, which the extension did not move. The whole point
+      of the notice is that this and ExtendedDeadline are different dates.
   - field: PaymentInstruction
     source: firm
     templates: [invoice]
   - field: PeriodLabel
     source: computed
-    templates: [fee-estimate, invoice, onboarding-letter]
+    templates: [business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter]
     notes: >-
-      DERIVED PER DOCUMENT, never stored. Estimate/onboarding: the engagement
-      period ('2026 tax year'). Invoice: the period BILLED ('March 2027'). One
-      shared value would print the wrong thing on one of them.
+      DERIVED PER DOCUMENT, never stored. Estimate/onboarding: the engagement period ('2026 tax year'). Invoice: the period BILLED ('March 2027'). One shared value would print the wrong thing on one of them.
   - field: PreparerEmail
     source: firm
-    templates: [onboarding-letter]
+    templates: [delivery-letter, disengagement-letter, extension-notice, onboarding-letter]
   - field: PreparerName
     source: firm
-    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
   - field: PreparerPhone
     source: firm
-    templates: [onboarding-letter]
+    templates: [delivery-letter, disengagement-letter, extension-notice, onboarding-letter]
   - field: PreparerTitle
     source: firm
-    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
   - field: PriorFirmName
     source: interview
     templates: [onboarding-letter]
+  - field: RecordsAvailableUntil
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      A real date. Records come back whether or not the account is settled.
   - field: ReturnInstruction
     source: firm
-    templates: [tax-letter]
+    templates: [business-letter, delivery-letter, tax-letter]
+  - field: ScheduleK1Target
+    source: engagement
+    templates: [business-letter]
+    notes: >-
+      When the K-1s are delivered. A promise every owner's preparer schedules
+      around; if it can only be produced as a guess, refuse rather than guess.
+      Spelled with a digit because PascalCase forbids the hyphen in 'K-1'.
+  - field: ScopeEnded
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      A phrase naming precisely what ends. Where the letter says so when another
+      engagement continues. NOT where a reason goes -- the letter states none.
+  - field: SignatureDeadline
+    source: delivery
+    templates: [delivery-letter]
+    notes: >-
+      A real date, never 'as soon as possible'. Measured from LetterDate.
   - field: SignerName
     source: interview
-    templates: [bookkeeping-letter]
+    templates: [bookkeeping-letter, business-letter]
   - field: SignerTitle
     source: interview
-    templates: [bookkeeping-letter]
+    templates: [bookkeeping-letter, business-letter]
   - field: SpouseName
     source: interview
     templates: [tax-letter]
   - field: StateReturns
     source: interview
-    templates: [tax-letter]
+    templates: [business-letter, tax-letter]
     notes: >-
       Name every state. This is the scope boundary.
   - field: Subtotal
@@ -214,24 +262,92 @@ fields:
       Not optional when the invoice exceeds the estimate.
 
 flags:
+  - flag: AccountSettled
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      Inverse of BalanceOutstanding.
+  - flag: BalanceOutstanding
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      Inverse of AccountSettled. Section 05 always
+      renders: silence about money in a disengagement letter reads as a threat.
   - flag: CatchUp
     source: bookkeeping
     templates: [bookkeeping-letter]
-  - flag: JointReturn
-    source: interview
-    templates: [tax-letter]
+  - flag: ClientInitiated
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      Inverse of FirmInitiated. Neither branch states a
+      reason, and no reason field may be added.
   - flag: CreditsApplied
     source: invoice
     templates: [invoice]
+  - flag: EFiled
+    source: delivery
+    templates: [delivery-letter]
+    notes: >-
+      Inverse of PaperFiled. Derive both from ONE stored value:
+      two booleans can both be false, and a delivery letter that says
+      nothing about how a return gets filed is the worst version of it.
   - flag: EstimateReference
     source: invoice
     templates: [invoice]
-  - flag: PriorFirm
-    source: interview
-    templates: [onboarding-letter]
+  - flag: EstimatedPayments
+    source: delivery
+    templates: [delivery-letter]
+    notes: >-
+      Next-year vouchers are in the package.
   - flag: FeeChange
     source: engagement
     templates: [organizer-letter]
+  - flag: FirmInitiated
+    source: disengagement
+    templates: [disengagement-letter]
+    notes: >-
+      Inverse of ClientInitiated.
+  - flag: JointReturn
+    source: interview
+    templates: [tax-letter]
+  - flag: NoPaymentRequired
+    source: extension
+    templates: [extension-notice]
+    notes: >-
+      Inverse of PaymentEnclosed.
+  - flag: OwnerReturnsElsewhere
+    source: engagement
+    templates: [business-letter]
+    notes: >-
+      Inverse of OwnerReturnsPrepared.
+  - flag: OwnerReturnsPrepared
+    source: engagement
+    templates: [business-letter]
+    notes: >-
+      Inverse of OwnerReturnsElsewhere. Derive both from
+      ONE stored value. Who turns the K-1 into a personal return is the
+      question the business letter exists to answer.
+  - flag: PaperFiled
+    source: delivery
+    templates: [delivery-letter]
+    notes: >-
+      Inverse of EFiled. Puts filing on the client.
+  - flag: PaymentEnclosed
+    source: extension
+    templates: [extension-notice]
+    notes: >-
+      Inverse of NoPaymentRequired. Derive both from ONE
+      stored value -- section 02 must never be silent about money.
+  - flag: PriorFirm
+    source: interview
+    templates: [onboarding-letter]
+  - flag: SCorpElection
+    source: engagement
+    templates: [business-letter]
+    notes: >-
+      Adds the officer-compensation scope exclusion, which is
+      meaningless for a partnership.
 
 lists:
   - list: ScopeItems
@@ -249,3 +365,41 @@ lists:
   - list: Requested
     templates: [organizer-letter]
     item_fields: [Category, Detail]
+  - list: ActionList
+    templates: [delivery-letter]
+    item_fields: [Action, Detail]
+    notes: >-
+      Built from the returns, never typed. Every amount is a
+      pre-formatted string -- a human must not type a tax figure here.
+  - list: ReturnsDelivered
+    templates: [delivery-letter]
+    item_fields: [Detail, Return]
+    notes: >-
+      Every return in the package, in the order they are stacked.
+  - list: ExtendedReturns
+    templates: [extension-notice]
+    item_fields: [Detail, Return]
+    notes: >-
+      EXACTLY what was filed. Some authorities extend on the
+      federal extension and some do not; assuming tells a client a return is
+      covered when it is not.
+  - list: OutstandingItems
+    templates: [extension-notice]
+    item_fields: [Detail, Document]
+    notes: >-
+      What is still missing: the onboarding letter's RequestList
+      minus what arrived. Done by hand it drifts, and a client chased for
+      something they already sent stops reading these letters.
+  - list: OpenDeadlines
+    templates: [disengagement-letter]
+    item_fields: [Detail, Obligation]
+    notes: >-
+      What the firm knows about, which the letter says in terms
+      is not everything the client owes.
+  - list: WorkStatus
+    templates: [disengagement-letter]
+    item_fields: [Status, Work]
+    notes: >-
+      EVERY engaged item, complete or not, generated from the
+      engagement scope. The callout beneath it says nothing else is being worked
+      on; that sentence is only safe if this list is generated.

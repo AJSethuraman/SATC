@@ -2,16 +2,17 @@
 
 The machinery that turns a client record into the documents a client receives.
 
-Templates live in `../satc-handoff/04-TEMPLATES` — six of them, each paired with
-a `FIELDS` doc. This folder holds the registry that describes them, the
+Templates live in `../satc-handoff/04-TEMPLATES` — **ten** of them, each paired
+with a `FIELDS` doc. This folder holds the registry that describes them, the
 interview schema that supplies the values, and the merge engine that fills them.
 
 ```
-registry/fields.yaml          every merge field across all six templates
+registry/fields.yaml          every merge field across all ten templates
 registry/interview.yaml       the pre-engagement interview — THE FILE TO EDIT
 registry/firm-settings.yaml   values that are the same on every document
 merge.py                      fill a template; refuse to ship a holed one
-samples/                      a fictional record that fills the opening package
+samples/                      fictional records: the opening package, and one per
+                              later document, lifted from its own FIELDS doc
 tests/                        reconciliation + merge behaviour
 ```
 
@@ -58,7 +59,7 @@ vault, per `CLAUDE.md`.
 
 ## Three template mismatches, resolved rather than inherited
 
-Found by reading all six `FIELDS` docs together, and recorded in
+Found by reading the `FIELDS` docs together, and recorded in
 `registry/fields.yaml`:
 
 1. **`PeriodLabel` means two different things** — the engagement period on the
@@ -68,9 +69,21 @@ Found by reading all six `FIELDS` docs together, and recorded in
    estimate, onboarding letter and every invoice. The leads workbook generates
    `2026 - 0001`; the template format wins, and a lead's number becomes its
    `EngagementRef` on conversion.
-3. **`MaterialsDeadline` prints in three documents.** A firm setting keyed by
+3. **`MaterialsDeadline` prints in five documents.** A firm setting keyed by
    return type and season, never a per-client answer — the organizer's field doc
-   calls a mismatch its most likely bug.
+   calls a mismatch its most likely bug. Two later documents widen the key
+   rather than the value: the **business return letter** needs the entity
+   deadline, which is earlier than the individual one, and the **extension
+   notice** needs the *extension-season* deadline rather than the original
+   one. Same field name, three different settings behind it.
+
+## What the merge engine also refuses to ship
+
+`SATC Engagement Letter - Business Return.html` carries **one open
+`[CONFIRM]`**, on officer compensation under an S election. `test_merge.py`
+asserts that the letter raises rather than rendering while it is there, and
+separately that everything *else* in the letter resolves — so the marker cannot
+be forgotten, and the test goes green the moment a human answers it.
 
 ## Design
 

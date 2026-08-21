@@ -25,6 +25,10 @@ useful alone — if you add a template, add its field doc in the same commit.
 | `SATC Organizer Cover Letter.html` | `FIELDS - Organizer Cover Letter.md` | **Ready to review.** 13 fields + 1 list + 1 flag. Sent in January ahead of the letter and estimate. Highest volume document in the set. |
 | `SATC Onboarding Letter.html` | `FIELDS - Onboarding Letter.md` | **Ready to review.** 18 fields + 1 list + 1 flag. Third document in the opening package — the one the client acts on. First template where a conditional drops a *numbered* section; see the numbering note. |
 | `SATC Invoice.html` | `FIELDS - Invoice.md` | **Ready to review.** 23 fields + 1 list + 2 flags. Shares the estimate's ledger vocabulary so the two compare line for line. Subtotal and amount due are computed, never typed. |
+| `SATC Engagement Letter - Business Return.html` | `FIELDS - Engagement Letter - Business Return.md` | **Ready to review.** 21 fields + 3 flags, no lists. The entity twin of the tax letter, worded identically wherever it can be. Section 02 is the K-1 timing clause the whole engagement turns on. **One open `[CONFIRM]`** — officer compensation under an S election. |
+| `SATC Tax Return Delivery Letter.html` | `FIELDS - Tax Return Delivery Letter.md` | **Ready to review.** 15 fields + 2 lists + 3 flags. Ships with the finished returns and closes the engagement at transmission. No fee and no amount payable to the firm — the invoice owns those. |
+| `SATC Extension Notice.html` | `FIELDS - Extension Notice.md` | **Ready to review.** 17 fields + 2 lists + 2 flags. The shortest document in the set and the highest volume. Sent the day the extension is filed, because the payment date does not move. |
+| `SATC Disengagement Letter.html` | `FIELDS - Disengagement Letter.md` | **Ready to review.** 17 fields + 2 lists + 4 flags. **States no reason, deliberately** — see its field doc. Records dates and facts, returns records regardless of the balance, and offers no opinion on anything. |
 
 ## Shared stylesheet
 
@@ -92,12 +96,21 @@ many invoices, so `InvoiceNumber` is its own sequence.
 
 ## Still to build
 
-Each needs the same HTML + FIELDS pair. Roughly in the order they earn their
-keep:
+**Nothing on the original list.** All four — the delivery letter, the business
+return engagement letter, the extension notice and the disengagement letter —
+are built, paired, registered in `client-documents/registry/fields.yaml`, and
+covered by tests that merge each one from the example payload in its own field
+doc.
 
-- **Tax return delivery letter** — filing instructions, what to sign, what to
-  keep, and the "our engagement ends at transmission" line.
-- **Business return engagement letter** — 1120-S / 1065, with the K-1 delivery
-  timing and the "we do not own your deadline, you do" language.
-- **Extension notice** — short, and the one most likely to be sent in volume.
-- **Disengagement letter** — the one nobody builds until they urgently need it.
+What would earn its keep next, in rough order:
+
+- **Statement of account** — an aging balance across several invoices. The
+  invoice's field doc says in terms that it has no aging table and that overdue
+  balances belong in a separate document; this is that document.
+- **Notice response engagement letter** — every other letter calls responding
+  to a notice "a separate engagement, quoted separately". Nothing yet describes
+  that engagement.
+- **Amended return engagement letter** — the delivery letter says new work
+  starts with a new letter. An amendment is the most likely new work.
+- **The bookkeeping interview**, which is a `client-documents/` job rather than
+  a template: those fields are registered and nothing asks for them yet.

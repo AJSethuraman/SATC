@@ -1,0 +1,56 @@
+{
+  "LetterDate": "April 2, 2027",
+  "EngagementRef": "2027-0114",
+  "PeriodLabel": "2026 tax year",
+  "ClientFullName": "Mr. and Mrs. Daniel Reyes",
+  "ClientLetterName": "Dan",
+  "ClientAddress1": "418 Rockwell Street",
+  "ClientCity": "Solon",
+  "ClientState": "OH",
+  "ClientZip": "44139",
+  "SignatureDeadline": "April 10, 2027",
+  "ReturnInstruction": "Sign through Encyro and it comes straight back to us.",
+  "PreparerName": "Arjun Sethuraman, CPA",
+  "PreparerTitle": "Managing Partner",
+  "PreparerEmail": "arjun@satcllp.com",
+  "PreparerPhone": "307-941-0508",
+  "EFiled": true,
+  "PaperFiled": false,
+  "EstimatedPayments": true,
+  "ReturnsDelivered": [
+    {
+      "Return": "Federal Form 1040",
+      "Detail": "Refund of $1,240.00, direct deposit to the account ending 4417"
+    },
+    {
+      "Return": "Ohio IT 1040",
+      "Detail": "Balance due of $412.00"
+    },
+    {
+      "Return": "Ohio SD 100",
+      "Detail": "Solon City School District — no balance and no refund"
+    },
+    {
+      "Return": "City of Solon municipal return",
+      "Detail": "Balance due of $86.00"
+    }
+  ],
+  "ActionList": [
+    {
+      "Action": "Sign the federal and Ohio e-file authorisations",
+      "Detail": "Form 8879 and Ohio IT 8879, both spouses, by April 10, 2027"
+    },
+    {
+      "Action": "Pay the Ohio balance due",
+      "Detail": "$412.00 to Ohio Treasurer of State by April 15, 2027"
+    },
+    {
+      "Action": "Pay the Solon municipal balance due",
+      "Detail": "$86.00 to City of Solon by April 15, 2027"
+    },
+    {
+      "Action": "File the first estimated payment for 2027",
+      "Detail": "Voucher enclosed — due April 15, 2027"
+    }
+  ]
+}
