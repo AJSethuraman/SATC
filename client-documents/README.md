@@ -179,11 +179,19 @@ three independent gaps** — they are one chain, and the order is forced:
 **2 · The engagement — DONE.** The interview creates one. Refs are allocated and
 persisted; see above.
 
-**What is still missing at this end of the chain:** the **fee schedule**. The
-interview counts billable items and nothing prices them, so `LineItems` and
-`EstimateTotal` are unfilled and **the fee estimate cannot render from an
-interview alone**. `feeds: LineItems` marks every question that will drive it.
-`doctor --engagement` reports this per client.
+**The fee schedule — BUILT, UNPRICED.** `registry/fee-schedule.yaml` turns the
+interview's counts into the estimate's line items and total. Every amount in it
+is `[CONFIRM:` until the firm sets one, because §9 of the authoring contract
+says fee figures are a human's to set and an invented one is worse than a blank.
+
+**An unpriced item does not become zero.** The `[CONFIRM:` is carried through to
+the line and then to the total, and the estimate refuses to render — quoting a
+client $0 for a service is worse than quoting nothing. `samples/fee-schedule-example.yaml`
+holds fictional numbers so the mechanism can be seen working:
+`--fee-schedule` prices against it.
+
+To price the firm: replace the placeholders in
+`registry/fee-schedule.yaml`. Nothing else changes.
 
 **3 · Delivery.** Encyro. Once an engagement exists and has documents, there is
 something to send and someone to send it to. Before that there is not.

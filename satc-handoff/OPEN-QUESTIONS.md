@@ -82,7 +82,37 @@ soon" is not**: it is a forward promise of assurance work, on the same page as
 the footer line saying the firm performs no attest services, and it is exactly
 the self-description blocked on §2 above. Recommend deleting the two words.
 
-## 5 · Things with no home yet
+## 5 · The fee schedule — structure built, numbers open
+
+`client-documents/registry/fee-schedule.yaml` exists and is wired: the
+interview's counts become the estimate's line items and total. **Every amount in
+it is a `[CONFIRM:`** — §9 says fee figures are yours to set.
+
+An unpriced item does not become zero. The placeholder is carried to the line
+and then to the total, and the estimate refuses to render rather than quoting
+$0 for a service. Fill these in and the fee estimate renders for real.
+
+**One structural decision first**, because it changes every number under it:
+
+| | |
+|---|---|
+| `base_covers` | Does the base fee cover the **first state and locality**, or the **federal return only**? Two firms can quote the same $785 from different structures, and only one can explain it to a client who asks. |
+
+**Then the amounts — 18 of them:**
+
+| Group | What is needed |
+|---|---|
+| Base, by return | 1040 · 1120-S · 1065 · 1120 — four figures |
+| Per unit | state return · local return · rental property · K-1 received · Schedule C business — five figures |
+| Brokerage band | light · medium · heavy — three figures (`none` is a real zero) |
+| Cleanup band | light · heavy — two figures (`none` is a real zero) |
+
+`samples/fee-schedule-example.yaml` shows the shape filled in with **fictional**
+numbers, and `python cli.py interview --fee-schedule samples/fee-schedule-example.yaml`
+renders a complete estimate from them. Use it to sanity-check the structure
+before committing to your own figures.
+
+## 6 · Things with no home yet
 
 Found while building; nowhere to put the answer until someone decides.
 
@@ -93,15 +123,6 @@ Found while building; nowhere to put the answer until someone decides.
 - **Does one RITA filing count as one locality or several?** Already a
   `[CONFIRM]` inside `interview.yaml` itself, on the `localities` question. It
   is a pricing input.
-- **The fee schedule — now the top blocker at this end of the chain.** The
-  interview counts billable items and nothing prices them, so `LineItems` and
-  `EstimateTotal` are unfilled and **the fee estimate cannot render from an
-  interview alone**. Everything else in the opening package is blocked only by
-  items 1–5 above. What is needed: an amount per billable unit — per state
-  return, per locality, per rental, per K-1, per Schedule C business, and a
-  figure for each brokerage and cleanup band. `feeds: LineItems` marks every
-  question that already collects the count.
-
 - **`FirstDeliverableTarget` — resolved, but check the call.** It was registered
   `source: engagement` while nothing derived it, so the onboarding letter could
   never render. It is now asked on the call, as a judgement made against the

@@ -34,6 +34,7 @@ from pathlib import Path
 import engagements
 import interview as iv
 import merge
+import pricing
 import settings as firm
 
 ROOT = Path(__file__).resolve().parent
@@ -299,6 +300,7 @@ def cmd_doctor(args) -> int:
         return _engagement_readiness(args.engagement, store)
 
     decisions = firm.open_decisions()
+    unpriced = pricing.open_amounts()
     print("SAT-C document pipeline - readiness\n")
 
     missing = [n for n, (f, _) in DOCUMENTS.items() if not (TEMPLATE_DIR / f).exists()]
@@ -312,9 +314,18 @@ def cmd_doctor(args) -> int:
     except NoPdfEngine as exc:
         print(f"  pdf engine     none - HTML only\n                 {exc}")
 
-    if not decisions:
+    if unpriced:
+        print(f"\n  {len(unpriced)} unpriced item(s) in the fee schedule. These "
+              f"block the FEE ESTIMATE only;\n  every other document renders "
+              f"without them. registry/fee-schedule.yaml.\n")
+        for path, q in unpriced:
+            print(f"    {path}\n        {q}\n")
+
+    if not decisions and not unpriced:
         print("\n  No open decisions. Real renders will produce documents.")
         return 0
+    if not decisions:
+        return 1
 
     print(f"\n  {len(decisions)} open decision(s) block every REAL render.")
     print("  Each is a question only a human can answer. Edit "
@@ -503,6 +514,18 @@ def _finish(session, args) -> int:
                               }.get(session.answers.get("federal_form"), "individual")
     record["_billable_counts"] = iv.billable_counts(session.answers)
 
+    # The estimate's lines, priced from the counts just collected. Any amount
+    # the firm has not set carries its [CONFIRM] through to the line and the
+    # total, so the estimate refuses to render rather than quoting a client
+    # nothing for a service.
+    try:
+        schedule = pricing.load(args.fee_schedule) if args.fee_schedule else None
+        record.update(pricing.price(session.answers, schedule))
+    except pricing.PricingError as exc:
+        print(f"\nfee schedule: {exc}")
+        print("engagement not created -- fix registry/fee-schedule.yaml first")
+        return 1
+
     store = Path(args.store) if args.store else engagements.STORE
     ref, path = engagements.create(record, ref=args.ref, store=store)
     engagements.save_answers(session.answers, ref, store)
@@ -655,6 +678,8 @@ def main(argv=None) -> int:
     i = sub.add_parser("interview", help="run the consultation; creates the engagement")
     i.add_argument("--lead", help="website intake payload, to prefill from")
     i.add_argument("--answers", help="replay a saved answers file, no prompts")
+    i.add_argument("--fee-schedule", dest="fee_schedule",
+                   help="price against a different schedule than the firm's")
     i.add_argument("--override-hard-no", action="store_true",
                    dest="override_hard_no",
                    help="create the engagement despite a HARD NO flag")
