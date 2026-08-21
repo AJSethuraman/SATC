@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — DOCUMENT NAME (template)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="satc-doc.css"/>
+<style>
+/* ONLY rules unique to this document. If another template needs one of these,
+   move it into satc-doc.css instead of copying it. Delete this block if empty. */
+</style>
+</head>
+<body>
+
+<doc-page size="letter" margin="0.7in">
+
+<div class="letter">
+
+<div class="mast">
+  <div class="lock">
+    <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </div>
+  <div class="contact">
+    <b>SAT-C LLP</b><br/>
+    6544 Copley Avenue<br/>
+    Solon, OH 44139<br/>
+    307-941-0508<br/>
+    satcllp.com
+  </div>
+</div>
+<div class="rule"></div>
+
+<div class="meta-line">
+  <span><span class="f">&lt;&lt;LetterDate&gt;&gt;</span></span>
+  <span class="mono">ENGAGEMENT REF <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+<div class="recipient">
+  <b><span class="f">&lt;&lt;ClientFullName&gt;&gt;</span></b><br/>
+  <span class="f">&lt;&lt;ClientAddress1&gt;&gt;</span><br/>
+  <span class="f">&lt;&lt;ClientCity&gt;&gt;</span>, <span class="f">&lt;&lt;ClientState&gt;&gt;</span> <span class="f">&lt;&lt;ClientZip&gt;&gt;</span>
+</div>
+
+<div class="subject">SUBJECT LINE — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
+
+<div class="body">
+  <p>Dear <span class="f">&lt;&lt;ClientLetterName&gt;&gt;</span>,</p>
+
+  <p>Opening paragraph: what this document is and what the client should do with it. One paragraph, no throat-clearing.</p>
+
+  <div class="sec">
+    <h2><span class="n">01</span>Section title, sentence case</h2>
+    <p>Body copy. <strong>Bold carries the thing a client must not miss</strong>, not emphasis for its own sake.</p>
+    <ul>
+      <li><b>Lead-in</b> — and the rest of the point.</li>
+    </ul>
+  </div>
+
+  <span class="cond">[[IF SomeFlag]]</span>
+  <div class="sec">
+    <h2><span class="n">02</span>Conditional section</h2>
+    <p>Renumber sections in code after a conditional drops one.</p>
+  </div>
+  <span class="cond end">[[END IF]]</span>
+
+  <div class="signoff">
+    <p>Sincerely,</p>
+    <div class="sp"></div>
+    <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of SAT-C LLP</div>
+  </div>
+</div>
+
+</div>
+
+<div slot="footer" class="foot">
+  <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139.</p>
+  <span class="id">DOCUMENT SLUG<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+</doc-page>
+
+<div class="ref">
+  <h3>Merge fields</h3>
+  <p>One sentence on what this document is for and when it is sent. <span class="warn">Fail the render on any unresolved <code>&lt;&lt;</code> or <code>[[</code>.</span></p>
+  <table>
+    <tr><th>Field</th><th>Required</th><th>Example / notes</th></tr>
+    <tr><td>&lt;&lt;FieldName&gt;&gt;</td><td class="req">Required</td><td>Example value — and the reason it is shaped that way</td></tr>
+  </table>
+  <p><b>N fields + M lists + K flags.</b></p>
+
+  <h3>Deliberately not here</h3>
+  <ol>
+    <li><b>Thing omitted</b> — and why omitting it is the right call.</li>
+  </ol>
+
+  <h3>For whoever wires the software</h3>
+  <ol>
+    <li>Strip the <code>.f</code> class and the <code>.cond</code> markers on the client-facing render.</li>
+    <li>Name the output: <code>SAT-C Document Name — Reyes — 2026.pdf</code>.</li>
+  </ol>
+</div>
+
+<script src="doc-page.js"></script>
+</body>
+</html>

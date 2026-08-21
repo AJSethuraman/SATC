@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — invoice (template)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+doc-page:not(:defined){visibility:hidden}
+:root{--navy:#132437;--oxblood:#6A2833;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--hairline:#D8D7D1;--hairline-2:#E6E5E0;--sans:"IBM Plex Sans",Helvetica,Arial,sans-serif;--mono:"IBM Plex Mono","Courier New",monospace}
+*,*::before,*::after{box-sizing:border-box}
+body{font-family:var(--sans);color:var(--ink);font-size:10pt;line-height:1.5}
+/* doc-page slots light DOM into its shadow table — declare type on selectors
+   that match the slotted elements, never on body. */
+.doc,.foot{font-family:var(--sans);color:var(--ink);font-size:10pt;line-height:1.5}
+h1,h2,h3,p{margin:0}
+
+.mast{display:flex;justify-content:space-between;align-items:flex-start;gap:0.4in}
+.lock{display:flex;flex-direction:column;align-items:flex-start;gap:4pt}
+.lock .wm{display:flex;align-items:flex-end;font-family:var(--sans);font-size:17pt;font-weight:700;letter-spacing:-.04em;line-height:.74;color:var(--navy)}
+.lock .wm .hy{width:.3em;height:.3em;flex:none;background:var(--oxblood);margin:0 .18em .2em}
+.lock .wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
+.lock .tg{font-family:var(--mono);font-size:6pt;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.mast .contact{font-family:var(--mono);font-size:7.5pt;line-height:1.75;color:var(--ink-2);text-align:right}
+.mast .contact b{color:var(--navy);font-weight:500}
+/* navy rule — gold hairlines are banned on print */
+.rule{height:1.2pt;background:var(--navy);margin:9pt 0 0}
+
+/* document title + meta */
+.doctitle{display:flex;justify-content:space-between;align-items:flex-end;gap:0.3in;margin-top:16pt}
+.doctitle h1{font-size:18pt;font-weight:600;letter-spacing:-0.035em;color:var(--navy);line-height:1}
+.doctitle .kind{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-2);margin-top:5pt}
+.smeta{border-collapse:collapse}
+.smeta td{font-size:8.5pt;padding:1.5pt 0;white-space:nowrap}
+.smeta .k{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-2);padding-right:14pt;text-align:right}
+.smeta .v{font-family:var(--mono);font-size:8.5pt;color:var(--navy);text-align:right;font-weight:500}
+
+.prepared{margin-top:16pt;padding-top:10pt;border-top:0.5pt solid var(--hairline)}
+.prepared .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6pt}
+.prepared .nm{font-weight:600;color:var(--navy)}
+.prepared .ad{font-size:9pt;line-height:1.45;color:var(--ink-2);margin-top:2pt}
+
+.intro{margin-top:14pt;font-size:9.5pt;line-height:1.55}
+.intro strong{color:var(--navy);font-weight:600}
+
+/* ledger — figures follow the house conventions: tabular numerals,
+   right-aligned, total ruled above and double-ruled below */
+.led{width:100%;border-collapse:collapse;margin-top:16pt}
+.led th{font-family:var(--mono);font-size:7pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-2);font-weight:400;text-align:left;padding:0 0 6pt;border-bottom:0.8pt solid var(--navy)}
+.led th.r{text-align:right}
+.led td{font-size:9.5pt;padding:7pt 0;border-bottom:0.5pt solid var(--hairline-2);color:var(--ink);vertical-align:top}
+.led td.r{text-align:right}
+.led .desc b{color:var(--navy);font-weight:600;display:block}
+.led .desc>span{font-size:8.5pt;color:var(--ink-2);display:block;margin-top:1pt}
+.led .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:9.5pt;color:var(--navy);white-space:nowrap}
+.led tr.tot td{border-top:0.8pt solid var(--navy);border-bottom:2.5pt double var(--navy);padding:6pt 0;font-weight:600;color:var(--navy);font-size:11pt}
+.led tr.tot .num{font-size:11pt}
+.led tr.mark td{border-bottom:0;padding:5pt 0 2pt}
+
+.notes{margin-top:18pt}
+.notes .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);padding-bottom:5pt;border-bottom:0.5pt solid var(--hairline);margin-bottom:8pt}
+.notes ul{list-style:none;margin:0;padding:0}
+.notes li{font-size:9pt;line-height:1.5;padding:3pt 0 3pt 20pt;position:relative;color:var(--ink-2)}
+.notes li::before{content:"";position:absolute;left:0;top:8.5pt;width:8pt;height:0.8pt;background:var(--mute)}
+.notes li b{color:var(--navy);font-weight:600}
+
+.signoff{margin-top:20pt}
+.signoff .nm{font-weight:600;color:var(--navy)}
+.signoff .ti{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-2);margin-top:3pt}
+
+/* merge fields — case-sensitive tokens, never uppercased by a label */
+.f{font-family:var(--mono);font-size:0.92em;color:var(--navy);background:rgba(106,40,51,0.06);border-bottom:0.5pt dotted var(--oxblood);padding:0 0.18em;white-space:nowrap;text-transform:none}
+.cond{font-family:var(--mono);font-size:7pt;letter-spacing:0.12em;color:var(--oxblood)}
+
+.foot{padding-top:8pt;border-top:0.5pt solid var(--hairline);display:flex;justify-content:space-between;gap:0.3in;align-items:flex-end}
+.foot p{font-size:7pt;line-height:1.6;color:var(--ink-2);max-width:4.8in}
+.foot b{font-weight:500}
+.foot .id{font-family:var(--mono);font-size:7pt;letter-spacing:0.1em;color:var(--ink-2);white-space:nowrap;text-align:right}
+.foot .f{font-size:7pt}
+
+/* screen-only field reference — never printed, never sent */
+.ref{max-width:7.5in;margin:30px auto 60px;font-size:13px;line-height:1.6;color:var(--ink-2)}
+.ref h3{font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--navy);margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--hairline)}
+.ref table{width:100%;border-collapse:collapse;margin-bottom:6px}
+.ref th{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-2);font-weight:400;text-align:left;padding:0 12px 6px 0;border-bottom:1px solid var(--hairline-2)}
+.ref td{font-size:12px;padding:5px 12px 5px 0;border-bottom:1px solid var(--hairline-2);vertical-align:top}
+.ref td:first-child{font-family:var(--mono);font-size:11.5px;color:var(--navy);white-space:nowrap}
+.ref .req{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--oxblood);white-space:nowrap}
+.ref p{margin-bottom:10px}
+.ref ol{margin:0 0 10px;padding-left:22px}
+.ref li{margin-bottom:5px}
+.ref code{font-family:var(--mono);font-size:11.5px;background:rgba(19,36,55,0.05);padding:1px 4px;color:var(--navy)}
+.ref .warn{color:var(--oxblood)}
+a{color:var(--oxblood)}
+a:hover{color:var(--navy)}
+@media print{.ref{display:none}}
+</style>
+<style>
+.duebox{display:flex;justify-content:space-between;align-items:flex-end;gap:0.3in;margin-top:16pt;padding:10pt 12pt;background:rgba(19,36,55,0.04);border-left:2pt solid var(--navy)}
+.duebox .k{font-family:var(--mono);font-size:7pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-2)}
+.duebox .amt{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:20pt;font-weight:500;color:var(--navy);line-height:1;letter-spacing:-0.02em;margin-top:5pt}
+.duebox .amt .f{font-size:0.92em}
+.duebox .terms{font-size:8.5pt;color:var(--ink-2);text-align:right;max-width:2.9in;line-height:1.45}
+.duebox .terms b{color:var(--navy);font-weight:600}
+.pay{display:flex;gap:0.34in;margin-top:18pt;padding-top:10pt;border-top:0.5pt solid var(--hairline)}
+.pay>div{flex:1}
+.pay .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6pt}
+.pay p{font-size:9pt;line-height:1.5;color:var(--ink-2)}
+.pay b{color:var(--navy);font-weight:600}
+.led tr.sub td{border-bottom:0.5pt solid var(--hairline);font-weight:500;color:var(--ink-2)}
+.led tr.credit .num{color:var(--oxblood)}
+</style></head>
+<body>
+
+<doc-page size="letter" margin="0.7in">
+
+<div class="doc">
+
+<div class="mast">
+  <div class="lock">
+    <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </div>
+  <div class="contact">
+    <b>SAT-C LLP</b><br/>
+    6544 Copley Avenue<br/>
+    Solon, OH 44139<br/>
+    307-941-0508<br/>
+    satcllp.com
+  </div>
+</div>
+<div class="rule"></div>
+
+<div class="doctitle">
+  <div>
+    <h1>Invoice</h1>
+    <div class="kind"><span class="f">&lt;&lt;InvoiceNumber&gt;&gt;</span></div>
+  </div>
+  <table class="smeta">
+    <tr><td class="k">Date</td><td class="v"><span class="f">&lt;&lt;InvoiceDate&gt;&gt;</span></td></tr>
+    <tr><td class="k">Engagement ref</td><td class="v"><span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></td></tr>
+    <tr><td class="k">Period</td><td class="v"><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></td></tr>
+  </table>
+</div>
+
+<div class="prepared">
+  <div class="h">Billed to</div>
+  <div class="nm"><span class="f">&lt;&lt;ClientFullName&gt;&gt;</span></div>
+  <div class="ad">
+    <span class="f">&lt;&lt;ClientAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;ClientCity&gt;&gt;</span>, <span class="f">&lt;&lt;ClientState&gt;&gt;</span> <span class="f">&lt;&lt;ClientZip&gt;&gt;</span>
+  </div>
+</div>
+
+<table class="led">
+  <tr><th>Service</th><th class="r">Amount</th></tr>
+  <tr class="mark"><td colspan="2"><span class="cond">[[EACH LineItems]]</span></td></tr>
+  <tr>
+    <td class="desc"><b><span class="f">&lt;&lt;Item.Service&gt;&gt;</span></b><span><span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></span></td>
+    <td class="r num"><span class="f">&lt;&lt;Item.Amount&gt;&gt;</span></td>
+  </tr>
+  <tr class="mark"><td colspan="2"><span class="cond">[[END EACH]]</span></td></tr>
+  <tr class="sub">
+    <td>Subtotal</td>
+    <td class="r num"><span class="f">&lt;&lt;Subtotal&gt;&gt;</span></td>
+  </tr>
+  <tr class="mark"><td colspan="2"><span class="cond">[[IF CreditsApplied]]</span></td></tr>
+  <tr class="credit">
+    <td class="desc"><b><span class="f">&lt;&lt;CreditLabel&gt;&gt;</span></b><span><span class="f">&lt;&lt;CreditDetail&gt;&gt;</span></span></td>
+    <td class="r num"><span class="f">&lt;&lt;CreditAmount&gt;&gt;</span></td>
+  </tr>
+  <tr class="mark"><td colspan="2"><span class="cond">[[END IF]]</span></td></tr>
+  <tr class="tot">
+    <td>Amount due</td>
+    <td class="r num"><span class="f">&lt;&lt;AmountDue&gt;&gt;</span></td>
+  </tr>
+</table>
+
+<div class="duebox">
+  <div>
+    <div class="k">Amount due</div>
+    <div class="amt"><span class="f">&lt;&lt;AmountDue&gt;&gt;</span></div>
+  </div>
+  <p class="terms"><b>Due on presentation.</b> Balances unpaid after thirty (30) days carry interest at the maximum rate Ohio law permits, per the <b>Fees and billing</b> section of your engagement letter.</p>
+</div>
+
+<div class="pay">
+  <div>
+    <div class="h">How to pay</div>
+    <p><span class="f">&lt;&lt;PaymentInstruction&gt;&gt;</span></p>
+  </div>
+  <div>
+    <div class="h">Remit to</div>
+    <p><b>SAT-C LLP</b><br/>6544 Copley Avenue<br/>Solon, OH 44139<br/><span class="f">&lt;&lt;InvoiceNumber&gt;&gt;</span> on the memo line</p>
+  </div>
+  <div>
+    <div class="h">Questions on this invoice</div>
+    <p><span class="f">&lt;&lt;BillingContactName&gt;&gt;</span><br/><span class="f">&lt;&lt;BillingContactEmail&gt;&gt;</span><br/><span class="f">&lt;&lt;BillingContactPhone&gt;&gt;</span></p>
+  </div>
+</div>
+
+<div class="notes">
+  <div class="h">Notes</div>
+  <ul>
+    <li>This invoice covers work performed under the <b>scope</b> section of the engagement letter referenced above. Anything outside it was quoted separately before it began.</li>
+    <li><span class="cond">[[IF EstimateReference]]</span>Estimated at <b><span class="f">&lt;&lt;EstimateTotal&gt;&gt;</span></b> on <span class="f">&lt;&lt;EstimateDate&gt;&gt;</span>. <span class="f">&lt;&lt;VarianceNote&gt;&gt;</span><span class="cond">[[END IF]]</span></li>
+    <li>Returns are not e-filed, and deliverables are not released, before the invoice for them is settled, unless we have agreed otherwise in writing.</li>
+  </ul>
+</div>
+
+<div class="signoff">
+  <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
+  <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of SAT-C LLP</div>
+</div>
+
+</div>
+
+<div slot="footer" class="foot">
+  <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139.</p>
+  <span class="id">INVOICE <span class="f">&lt;&lt;InvoiceNumber&gt;&gt;</span><br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+</doc-page>
+
+<div class="ref">
+  <h3>Merge fields</h3>
+  <p>The bill, not the quote. Shares the fee estimate's ledger vocabulary on purpose — a client who saw the estimate should recognise the invoice at a glance and be able to compare the two lines for lines. Clauses are referenced <b>by name</b>, never by number. <span class="warn">Fail the render on any unresolved <code>&lt;&lt;</code> or <code>[[</code>.</span></p>
+  <table>
+    <tr><th>Field</th><th>Required</th><th>Example / notes</th></tr>
+    <tr><td>&lt;&lt;InvoiceNumber&gt;&gt;</td><td class="req">Required</td><td>INV-2027-0361 — <b>sequential, never reused, never reissued under the same number.</b> Appears three times: title, remit block, footer. A corrected invoice gets a new number and a credit line on the old one.</td></tr>
+    <tr><td>&lt;&lt;InvoiceDate&gt;&gt;</td><td class="req">Required</td><td>April 12, 2027 — the date the clock in the terms starts from</td></tr>
+    <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the join key back to the letter and the estimate. <b>One engagement, many invoices</b>: this repeats across them, the invoice number does not.</td></tr>
+    <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td>2026 tax year · March 2027 — same field as the estimate. For recurring bookkeeping this is the <b>period billed</b>, not the engagement span. Appears twice.</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Same five fields as every other document, from the same record</td></tr>
+    <tr><td>[[EACH LineItems]]</td><td class="req">List</td><td>One or more. Three sub-fields — <b>identical shape to the fee estimate's</b>, so the same formatter serves both.</td></tr>
+    <tr><td>&lt;&lt;Item.Service&gt;&gt; &lt;&lt;Item.Detail&gt;&gt; &lt;&lt;Item.Amount&gt;&gt;</td><td class="req">Required</td><td>Federal Form 1040 · With Schedules A, C, and SE · $450. Detail is an empty string when there is nothing to add, never "None".</td></tr>
+    <tr><td>&lt;&lt;Subtotal&gt;&gt;</td><td class="req">Required</td><td>$785 — <b>computed.</b> Sum of the line items.</td></tr>
+    <tr><td>&lt;&lt;AmountDue&gt;&gt;</td><td class="req">Required</td><td>$635 — <b>computed:</b> subtotal plus credits (credits are negative). Appears twice, in the ledger and in the due box; drive both from one value.</td></tr>
+    <tr><td>&lt;&lt;CreditLabel&gt;&gt; &lt;&lt;CreditDetail&gt;&gt; &lt;&lt;CreditAmount&gt;&gt;</td><td class="opt">If CreditsApplied</td><td>Retainer applied · Received February 3, 2027 · −$150. <b>Format the minus sign as a real minus (−), not a hyphen</b>, and never as parentheses on a client-facing document.</td></tr>
+    <tr><td>[[IF CreditsApplied]]</td><td class="req">Flag</td><td>Boolean. Drops the credit row when there is nothing to apply, so a clean invoice has no empty line.</td></tr>
+    <tr><td>&lt;&lt;PaymentInstruction&gt;&gt;</td><td class="req">Required</td><td>Pay by card or bank transfer through the link in the delivery email, or by cheque to the address at right. — <b>one sentence, from settings, not per client.</b> Change it in one place when the firm's processor changes.</td></tr>
+    <tr><td>&lt;&lt;BillingContactName&gt;&gt; &lt;&lt;BillingContactEmail&gt;&gt; &lt;&lt;BillingContactPhone&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman · billing@satcllp.com · 307-941-0508. Separate from the preparer on purpose — a billing question should not have to find the preparer.</td></tr>
+    <tr><td>&lt;&lt;EstimateTotal&gt;&gt; &lt;&lt;EstimateDate&gt;&gt; &lt;&lt;VarianceNote&gt;&gt;</td><td class="opt">If EstimateReference</td><td>$785 · February 3, 2027 · "The difference is the additional state return added at your request on March 8." <b>If the invoice exceeds the estimate, the note is not optional</b> — an unexplained overage is the most common billing dispute there is.</td></tr>
+    <tr><td>[[IF EstimateReference]]</td><td class="req">Flag</td><td>Boolean. Off for recurring bookkeeping invoices, where restating the estimate every month is noise.</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner</td></tr>
+  </table>
+  <p><b>23 fields + 1 repeating list of 3 + 2 flags.</b> Nine come from the same records as the engagement letter and the estimate.</p>
+
+  <h3>Arithmetic is the software's job</h3>
+  <p><span class="warn">Never let a human type <code>Subtotal</code> or <code>AmountDue</code>.</span> Sum the line items, apply the credit, format once. A client who finds an arithmetic error on an accountant's invoice has learned something about the firm that no amount of good work undoes.</p>
+
+  <h3>Deliberately not here</h3>
+  <ol>
+    <li><b>No hours, no rates.</b> Consistent with the estimate: the line items are the answer. A rate card on an invoice invites the client to audit your time.</li>
+    <li><b>No "thank you for your business".</b> The letter and the delivery email carry the warmth; an invoice should be easy to read and easy to pay.</li>
+    <li><b>No aging table.</b> A first invoice showing a 30/60/90 grid reads as an accusation. Overdue balances are a separate statement document, not this one.</li>
+    <li><b>No restated scope or terms.</b> Both live in the engagement letter, which this one points at by name.</li>
+  </ol>
+
+  <h3>For whoever wires the software</h3>
+  <ol>
+    <li>The due box duplicates <code>&lt;&lt;AmountDue&gt;&gt;</code> from the ledger deliberately — a client who skims sees the figure without reading the table. <b>Two renders of one value, never two values.</b></li>
+    <li><code>[[IF EstimateReference]]</code> wraps text <b>inside</b> a list item, not a whole block. The marker stripper must handle inline conditionals as well as block ones.</li>
+    <li>Strip the <code>.f</code> class, the <code>.cond</code> markers, and the <code>tr.mark</code> marker rows on the client-facing render.</li>
+    <li>Name the output: <code>SAT-C Invoice INV-2027-0361 — Reyes.pdf</code>. The number goes in the filename; a client with three invoices needs to tell them apart.</li>
+  </ol>
+</div>
+
+<script src="doc-page.js"></script>
+</body>
+</html>

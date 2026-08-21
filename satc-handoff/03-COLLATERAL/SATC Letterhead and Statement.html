@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — letterhead &amp; statement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+doc-page:not(:defined){visibility:hidden}
+:root{--navy:#132437;--oxblood:#6A2833;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--hairline:#D8D7D1;--hairline-2:#E6E5E0;--sans:"IBM Plex Sans",Helvetica,Arial,sans-serif;--mono:"IBM Plex Mono","Courier New",monospace}
+*,*::before,*::after{box-sizing:border-box}
+.page{padding:0.6in 0.75in 0.5in;font-family:var(--sans);color:var(--ink);font-size:10pt;line-height:1.5;display:flex;flex-direction:column}
+h1,h2,h3,p{margin:0}
+
+/* ---------- masthead ---------- */
+.mast{display:flex;justify-content:space-between;align-items:flex-start;gap:0.4in}
+.lock{display:flex;flex-direction:column;align-items:flex-start;gap:4pt;}
+.lock .wm{display:flex;align-items:flex-end;font-size:17pt;font-weight:700;letter-spacing:-.04em;line-height:.74;color:var(--navy)}
+.lock .wm .hy{width:.3em;height:.3em;flex:none;background:var(--oxblood);margin:0 .18em .2em}
+.lock .wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
+.lock .tg{font-family:var(--mono);font-size:6pt;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);display:block;margin-top:0}
+.mast .contact{font-family:var(--mono);font-size:7.5pt;line-height:1.75;color:var(--ink-2);text-align:right}
+.mast .contact b{color:var(--navy);font-weight:500}
+
+/* navy rule — gold hairlines are banned on print (they blow out on toner) */
+.rule{height:1.2pt;background:var(--navy);margin:9pt 0 0}
+.rule-thin{height:0.5pt;background:var(--navy)}
+
+/* ---------- letter ---------- */
+.meta-line{display:flex;justify-content:space-between;gap:0.3in;margin-top:15pt;font-size:9pt;color:var(--ink-2)}
+.meta-line .mono{font-family:var(--mono);font-size:8pt;color:var(--ink-2)}
+.recipient{margin-top:14pt;font-size:10pt;line-height:1.5}
+.recipient b{color:var(--navy);font-weight:600}
+.subject{margin-top:14pt;padding-bottom:7pt;border-bottom:0.5pt solid var(--hairline);font-size:10.5pt;font-weight:600;color:var(--navy);letter-spacing:-0.01em}
+.body{margin-top:11pt}
+.body p{margin-bottom:8pt;text-wrap:pretty}
+.body p:last-child{margin-bottom:0}
+.body strong{color:var(--navy);font-weight:600}
+.scope{margin:10pt 0;border-left:1.5pt solid var(--navy);padding:2pt 0 2pt 12pt}
+.scope .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6pt}
+.scope ul{list-style:none;margin:0;padding:0}
+.scope li{font-size:9.5pt;line-height:1.45;padding:1.5pt 0}
+.scope li span{font-family:var(--mono);font-size:8pt;color:var(--navy);margin-right:8pt}
+.signoff{margin-top:14pt}
+.signoff .sp{height:26pt}
+.signoff .nm{font-size:10pt;font-weight:600;color:var(--navy)}
+.signoff .ti{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-2);margin-top:3pt}
+
+/* ---------- statement ---------- */
+.doctitle{display:flex;justify-content:space-between;align-items:flex-end;gap:0.3in;margin-top:14pt}
+.doctitle h1{font-size:18pt;font-weight:600;letter-spacing:-0.035em;color:var(--navy);line-height:1}
+.doctitle .period{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-2);margin-top:5pt}
+.smeta{border-collapse:collapse}
+.smeta td{font-size:8.5pt;padding:1.5pt 0;white-space:nowrap}
+.smeta .k{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-2);padding-right:14pt;text-align:right}
+.smeta .v{font-family:var(--mono);font-size:8.5pt;color:var(--navy);text-align:right;font-weight:500}
+
+.parties{display:flex;gap:0.5in;margin-top:12pt}
+.parties>div{flex:1}
+.parties .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6pt;padding-bottom:4pt;border-bottom:0.5pt solid var(--hairline)}
+.parties .nm{font-size:10pt;font-weight:600;color:var(--navy)}
+.parties .ad{font-size:9pt;line-height:1.45;color:var(--ink-2);margin-top:2pt}
+
+.led{width:100%;border-collapse:collapse;margin-top:14pt}
+.led th{font-family:var(--mono);font-size:7pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-2);font-weight:400;text-align:left;padding:0 0 6pt;border-bottom:0.8pt solid var(--navy)}
+.led th.r{text-align:right}
+.led td{font-size:9.5pt;padding:4pt 0;border-bottom:0.5pt solid var(--hairline-2);color:var(--ink);vertical-align:top}
+.led td.r{text-align:right}
+.led .desc b{color:var(--navy);font-weight:600;display:block}
+.led .desc span{font-size:8pt;color:var(--ink-2);display:block;margin-top:0}
+.led .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:9pt;color:var(--navy);white-space:nowrap}
+.led .num.pos{padding-right:1ch}
+.led .num.nil{color:var(--ink-2)}
+.led tr.sub td{border-top:0.8pt solid var(--navy);border-bottom:0;padding-top:5pt;font-weight:600;color:var(--navy)}
+.led tr.adj td{border-bottom:0.5pt solid var(--hairline-2)}
+.led tr.tot td{border-top:0.8pt solid var(--navy);border-bottom:2.5pt double var(--navy);padding:5pt 0;font-weight:600;color:var(--navy);font-size:11pt}
+.led tr.tot .num{font-size:11pt}
+.fn{font-size:7.5pt;line-height:1.45;color:var(--ink-2);margin-top:6pt}
+
+.remit{display:flex;gap:0.4in;margin-top:14pt;padding:10pt 12pt;border:0.8pt solid var(--navy)}
+.remit>div{flex:1}
+.remit .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6pt}
+.remit p{font-size:9pt;line-height:1.45;color:var(--ink-2)}
+.remit b{color:var(--navy);font-weight:600}
+.remit .due{font-family:var(--mono);font-size:13pt;font-weight:500;color:var(--navy);letter-spacing:-0.01em}
+
+/* ---------- footer ----------
+   Carries the Ohio LLP registration line and the full legal name, so it must
+   NEVER be clipped. Explicitly paginated pages print at a fixed box with
+   overflow:hidden — leave vertical slack so this fits Letter AND A4 (A4 is
+   narrower, so text reflows taller). Verify: scrollHeight === clientHeight. */
+.foot{margin-top:auto;padding-top:9pt;border-top:0.5pt solid var(--hairline);display:flex;justify-content:space-between;gap:0.3in;align-items:flex-end}
+.foot p{font-size:7pt;line-height:1.6;color:var(--ink-2);max-width:4.6in}
+.foot b{color:var(--ink-2);font-weight:500}
+.foot .ph{font-family:var(--mono);color:var(--oxblood)}
+.foot .pg{font-family:var(--mono);font-size:7pt;letter-spacing:0.12em;color:var(--ink-2);white-space:nowrap}
+</style>
+</head>
+<body>
+
+<doc-page size="letter">
+
+<!-- ══════════════════════ PAGE 1 · LETTERHEAD ══════════════════════ -->
+<section class="page" id="letterhead" data-screen-label="01">
+  <div class="mast">
+    <div class="lock">
+      <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+    </div>
+    <div class="contact">
+      <b>SAT-C LLP</b><br/>
+      6544 Copley Avenue<br/>
+      Solon, OH 44139<br/>
+      arjun_sethuraman@satcllp.com
+    </div>
+  </div>
+  <div class="rule"></div>
+
+  <div class="meta-line">
+    <span>August 13, 2026</span>
+    <span class="mono">ENGAGEMENT REF 2026-0114</span>
+  </div>
+
+  <div class="recipient">
+    <b>Ms. Dana Whitfield</b><br/>
+    Managing Member<br/>
+    Clifton Millworks LLC<br/>
+    2140 Vine Street<br/>
+    Cincinnati, OH 45219
+  </div>
+
+  <div class="subject">Confirmation of engagement — accounting and tax services, fiscal year 2026</div>
+
+  <div class="body">
+    <p>Dear Ms. Whitfield,</p>
+
+    <p>Thank you for meeting with me last week. This letter confirms what we agreed and sets out what each of us will do, so there is no ambiguity later about scope or cost.</p>
+
+    <p>We will take over your monthly bookkeeping beginning with the July period, bring the prior two quarters current, and prepare the federal and Ohio returns for the year ending December 31, 2026. <strong>Fees are fixed at the amounts quoted below</strong> and will not change without your written agreement in advance.</p>
+
+    <div class="scope">
+      <div class="h">Scope &amp; fees</div>
+      <ul>
+        <li><span>01</span>Monthly close and reconciliation — $1,750 per month</li>
+        <li><span>02</span>Catch-up bookkeeping, Q1–Q2 2026 — $2,400 one-time</li>
+        <li><span>03</span>Federal and Ohio business returns — $2,900</li>
+        <li><span>04</span>Quarterly estimates and planning — included</li>
+      </ul>
+    </div>
+
+    <p>Before we begin I need read-only access to your bank and card feeds, and the 2025 return as filed. Everything else we can reconstruct.</p>
+
+    <p>A note on what this engagement is not: <strong>we do not perform audits</strong> or issue assurance opinions. If a lender asks for audited statements, you will need a registered audit firm, and I am glad to recommend one.</p>
+
+    <p>If this matches your understanding, sign and return the enclosed copy. Any questions, call me directly.</p>
+  </div>
+
+  <div class="signoff">
+    <p>Sincerely,</p>
+    <div class="sp"></div>
+    <div class="nm">Arjun Sethuraman, CPA</div>
+    <div class="ti">Managing Partner</div>
+  </div>
+
+  <div class="foot">
+    <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139. <span class="ph">[CONFIRM: firm registration status with the Accountancy Board of Ohio, and required disclosure wording — see the handoff notes.]</span></p>
+    <span class="pg">PAGE 1 OF 1</span>
+  </div>
+</section>
+
+<!-- ══════════════════════ PAGE 2 · STATEMENT ══════════════════════ -->
+<section class="page" id="statement" data-screen-label="02">
+  <div class="mast">
+    <div class="lock">
+      <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+    </div>
+    <div class="contact">
+      <b>SAT-C LLP</b><br/>
+      6544 Copley Avenue<br/>
+      Solon, OH 44139<br/>
+      arjun_sethuraman@satcllp.com
+    </div>
+  </div>
+  <div class="rule"></div>
+
+  <div class="doctitle">
+    <div>
+      <h1>Statement of Account</h1>
+      <div class="period">For the period ended July 31, 2026</div>
+    </div>
+    <table class="smeta">
+      <tr><td class="k">Statement</td><td class="v">4471</td></tr>
+      <tr><td class="k">Issued</td><td class="v">08/13/2026</td></tr>
+      <tr><td class="k">Due</td><td class="v">08/27/2026</td></tr>
+      <tr><td class="k">Terms</td><td class="v">Net 14</td></tr>
+    </table>
+  </div>
+
+  <div class="parties">
+    <div>
+      <div class="h">Billed to</div>
+      <div class="nm">Clifton Millworks LLC</div>
+      <div class="ad">Attn: Dana Whitfield<br/>2140 Vine Street<br/>Cincinnati, OH 45219</div>
+    </div>
+    <div>
+      <div class="h">Engagement</div>
+      <div class="nm">2026-0114</div>
+      <div class="ad">Monthly accounting &amp; tax<br/>Commenced July 1, 2026</div>
+    </div>
+  </div>
+
+  <!-- Currency convention: this is a STATEMENT OF ACCOUNT (invoice-style), so $
+       appears on every populated row. Credits in parentheses drop the symbol.
+       A GAAP-style financial statement uses first-row-and-totals only —
+       see SATC Figures and Tables.html. -->
+  <table class="led">
+    <thead>
+      <tr>
+        <th style="width:52%">Description</th>
+        <th class="r" style="width:14%">Hours</th>
+        <th class="r" style="width:16%">Rate</th>
+        <th class="r" style="width:18%">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="desc"><b>Monthly close — July 2026</b><span>Reconciliation, categorization, close package</span></td>
+        <td class="r num pos">14.0</td><td class="r num pos">$175.00</td><td class="r num pos">$2,450.00</td>
+      </tr>
+      <tr>
+        <td class="desc"><b>Catch-up bookkeeping</b><span>Q2 2026, second of three instalments</span></td>
+        <td class="r num pos">8.0</td><td class="r num pos">$150.00</td><td class="r num pos">$1,200.00</td>
+      </tr>
+      <tr>
+        <td class="desc"><b>Multi-state nexus review</b><span>Indiana and Kentucky payroll exposure</span></td>
+        <td class="r num pos">6.5</td><td class="r num pos">$175.00</td><td class="r num pos">$1,137.50</td>
+      </tr>
+      <tr>
+        <td class="desc"><b>Notice response — Ohio CAT</b><span>No chargeable time this period</span></td>
+        <td class="r num nil">—</td><td class="r num nil">—</td><td class="r num nil">—</td>
+      </tr>
+      <tr class="sub">
+        <td>Subtotal, services</td>
+        <td class="r num pos">28.5</td><td class="r"></td><td class="r num pos">$4,787.50</td>
+      </tr>
+      <tr class="adj">
+        <td>Retainer applied</td><td class="r"></td><td class="r"></td><td class="r num">(1,500.00)</td>
+      </tr>
+      <tr class="adj">
+        <td>Prompt-payment credit, 2.5%</td><td class="r"></td><td class="r"></td><td class="r num">(119.69)</td>
+      </tr>
+      <tr class="adj">
+        <td>Filing fees advanced</td><td class="r"></td><td class="r"></td><td class="r num pos">$85.00</td>
+      </tr>
+      <tr class="tot">
+        <td>Balance due</td><td class="r"></td><td class="r"></td><td class="r num pos">$3,252.81</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="fn">Amounts in US dollars. Figures in parentheses are credits. Hours are billed in tenths; fixed-fee items show hours for information only and do not affect the amount charged.</p>
+
+  <div class="remit">
+    <div>
+      <div class="h">Amount due</div>
+      <div class="due">$3,252.81</div>
+      <p style="margin-top:4pt">By <b>August 27, 2026</b></p>
+    </div>
+    <div>
+      <div class="h">Remit to</div>
+      <p><b>SAT-C LLP</b><br/>ACH: routing [NUMBER] · account [NUMBER]<br/>Or by check to the office address above.<br/>Reference statement <b>4471</b>.</p>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Questions on this statement: arjun_sethuraman@satcllp.com. <span class="ph">[CONFIRM disclosure wording.]</span></p>
+    <span class="pg">4471 · PAGE 1 OF 1</span>
+  </div>
+</section>
+
+</doc-page>
+<script src="doc-page.js"></script>
+</body>
+</html>

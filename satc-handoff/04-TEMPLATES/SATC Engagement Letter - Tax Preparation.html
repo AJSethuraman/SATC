@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — tax preparation engagement letter (template)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+doc-page:not(:defined){visibility:hidden}
+:root{--navy:#132437;--oxblood:#6A2833;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--hairline:#D8D7D1;--hairline-2:#E6E5E0;--sans:"IBM Plex Sans",Helvetica,Arial,sans-serif;--mono:"IBM Plex Mono","Courier New",monospace}
+*,*::before,*::after{box-sizing:border-box}
+body{font-family:var(--sans);color:var(--ink);font-size:10pt;line-height:1.5}
+/* doc-page slots light DOM into its shadow table, so slotted nodes inherit from
+   the shadow .sheet — a body rule never reaches them. Declare the typeface on
+   selectors that MATCH the slotted elements themselves. */
+.letter,.foot{font-family:var(--sans);color:var(--ink);font-size:10pt;line-height:1.5}
+h1,h2,h3,p{margin:0}
+
+/* ---------- masthead (letterhead vocabulary, page 1 only) ---------- */
+.mast{display:flex;justify-content:space-between;align-items:flex-start;gap:0.4in}
+.lock{display:flex;flex-direction:column;align-items:flex-start;gap:4pt}
+.lock .wm{display:flex;align-items:flex-end;font-family:var(--sans);font-size:17pt;font-weight:700;letter-spacing:-.04em;line-height:.74;color:var(--navy)}
+.lock .wm .hy{width:.3em;height:.3em;flex:none;background:var(--oxblood);margin:0 .18em .2em}
+.lock .wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
+.lock .tg{font-family:var(--mono);font-size:6pt;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.mast .contact{font-family:var(--mono);font-size:7.5pt;line-height:1.75;color:var(--ink-2);text-align:right}
+.mast .contact b{color:var(--navy);font-weight:500}
+/* navy rule — gold hairlines are banned on print (they blow out on toner) */
+.rule{height:1.2pt;background:var(--navy);margin:9pt 0 0}
+
+.meta-line{display:flex;justify-content:space-between;gap:0.3in;margin-top:15pt;font-size:9pt;color:var(--ink-2)}
+.meta-line .mono{font-family:var(--mono);font-size:8pt}
+.recipient{margin-top:14pt;line-height:1.5}
+.recipient b{color:var(--navy);font-weight:600}
+.subject{margin-top:14pt;padding-bottom:7pt;border-bottom:0.5pt solid var(--hairline);font-size:10.5pt;font-weight:600;color:var(--navy);letter-spacing:-0.01em}
+
+/* ---------- body ---------- */
+.body{margin-top:12pt}
+.body p{margin-bottom:8pt;text-wrap:pretty}
+.body strong{color:var(--navy);font-weight:600}
+
+/* numbered clauses — numbered so a client, or a court, can point at one */
+.sec{margin-top:13pt;break-inside:avoid}
+.sec>h2{display:flex;align-items:baseline;gap:9pt;font-size:9pt;font-weight:600;color:var(--navy);letter-spacing:0.01em;padding-bottom:5pt;margin-bottom:7pt;border-bottom:0.5pt solid var(--hairline-2)}
+.sec>h2 .n{font-family:var(--mono);font-size:7.5pt;font-weight:500;color:var(--oxblood);letter-spacing:0.1em;flex:none}
+.sec p{margin-bottom:7pt;text-wrap:pretty}
+.sec p:last-child{margin-bottom:0}
+.sec ul{list-style:none;margin:0 0 7pt;padding:0}
+.sec li{font-size:9.5pt;line-height:1.45;padding:2.5pt 0 2.5pt 20pt;position:relative}
+.sec li::before{content:"";position:absolute;left:0;top:8.5pt;width:8pt;height:0.8pt;background:var(--mute)}
+.sec li b{color:var(--navy);font-weight:600}
+.sec li.mark{padding:2pt 0}
+.sec li.mark::before{display:none}
+.callout{border-left:1.5pt solid var(--navy);padding:3pt 0 3pt 12pt;margin:9pt 0}
+.callout p{font-size:9.5pt;margin-bottom:4pt}
+.callout p:last-child{margin-bottom:0}
+
+/* merge fields — visible as fields in a proof, unremarkable once filled */
+/* merge fields are case-sensitive tokens — never let a label's uppercase eat them */
+.f{font-family:var(--mono);font-size:0.92em;color:var(--navy);background:rgba(106,40,51,0.06);border-bottom:0.5pt dotted var(--oxblood);padding:0 0.18em;white-space:nowrap;text-transform:none}
+/* conditional block markers: strip these when the merge runs */
+.cond{font-family:var(--mono);font-size:7pt;letter-spacing:0.12em;color:var(--oxblood);display:block;margin:7pt 0 3pt}
+.cond.end{margin:3pt 0 7pt}
+/* open legal questions — must be resolved before this template ships */
+.ph{font-family:var(--mono);font-size:8pt;color:var(--oxblood)}
+
+/* ---------- signature block ---------- */
+.exec{margin-top:16pt;break-inside:avoid}
+.exec .lead{font-size:9.5pt;color:var(--ink-2);margin-bottom:12pt}
+.sigrow{display:flex;gap:0.45in;margin-top:14pt}
+.sigrow>div{flex:1}
+.sig{border-bottom:0.8pt solid var(--navy);height:30pt}
+.sig.short{height:24pt}
+.siglab{font-family:var(--mono);font-size:7pt;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-2);margin-top:4pt}
+.siglab b{color:var(--navy);font-weight:500}
+.execnote{font-size:8.5pt;color:var(--ink-2);margin-top:10pt}
+.accept{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--navy);margin-top:20pt;padding-bottom:5pt;border-bottom:0.8pt solid var(--navy)}
+
+.signoff{margin-top:16pt;break-inside:avoid}
+.signoff .sp{height:26pt}
+.signoff .nm{font-weight:600;color:var(--navy)}
+.signoff .ti{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-2);margin-top:3pt}
+
+/* ---------- repeating footer ---------- */
+.foot{padding-top:8pt;border-top:0.5pt solid var(--hairline);display:flex;justify-content:space-between;gap:0.3in;align-items:flex-end}
+.foot p{font-size:7pt;line-height:1.6;color:var(--ink-2);max-width:4.8in}
+.foot b{font-weight:500}
+.foot .id{font-family:var(--mono);font-size:7pt;letter-spacing:0.1em;color:var(--ink-2);white-space:nowrap;text-align:right}
+.foot .ph{font-size:inherit}
+
+/* ---------- screen-only field reference (never printed, never sent) ---------- */
+.ref{max-width:7.5in;margin:30px auto 60px;font-size:13px;line-height:1.6;color:var(--ink-2)}
+.ref h3{font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--navy);margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--hairline)}
+.ref table{width:100%;border-collapse:collapse;margin-bottom:6px}
+.ref th{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-2);font-weight:400;text-align:left;padding:0 12px 6px 0;border-bottom:1px solid var(--hairline-2)}
+.ref td{font-size:12px;padding:5px 12px 5px 0;border-bottom:1px solid var(--hairline-2);vertical-align:top}
+.ref td:first-child{font-family:var(--mono);font-size:11.5px;color:var(--navy);white-space:nowrap}
+.ref .req{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--oxblood);white-space:nowrap}
+.ref .opt{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
+.ref p{margin-bottom:10px}
+.ref ol{margin:0 0 10px;padding-left:22px}
+.ref li{margin-bottom:5px}
+.ref code{font-family:var(--mono);font-size:11.5px;background:rgba(19,36,55,0.05);padding:1px 4px;color:var(--navy)}
+.ref .warn{color:var(--oxblood)}
+a{color:var(--oxblood)}
+a:hover{color:var(--navy)}
+@media print{.ref{display:none}}
+</style>
+</head>
+<body>
+
+<doc-page size="letter" margin="0.7in">
+
+<div class="letter">
+
+<div class="mast">
+  <div class="lock">
+    <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </div>
+  <div class="contact">
+    <b>SAT-C LLP</b><br/>
+    6544 Copley Avenue<br/>
+    Solon, OH 44139<br/>
+    307-941-0508<br/>
+    satcllp.com
+  </div>
+</div>
+<div class="rule"></div>
+
+<div class="meta-line">
+  <span><span class="f">&lt;&lt;LetterDate&gt;&gt;</span></span>
+  <span class="mono">ENGAGEMENT REF <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+<div class="recipient">
+  <b><span class="f">&lt;&lt;ClientFullName&gt;&gt;</span></b><br/>
+  <span class="f">&lt;&lt;ClientAddress1&gt;&gt;</span><br/>
+  <span class="f">&lt;&lt;ClientCity&gt;&gt;</span>, <span class="f">&lt;&lt;ClientState&gt;&gt;</span> <span class="f">&lt;&lt;ClientZip&gt;&gt;</span>
+</div>
+
+<div class="subject">Preparation of your <span class="f">&lt;&lt;TaxYear&gt;&gt;</span> income tax returns</div>
+
+<div class="body">
+  <p>Dear <span class="f">&lt;&lt;ClientLetterName&gt;&gt;</span>,</p>
+
+  <p>Thank you for choosing SAT-C LLP to prepare your <span class="f">&lt;&lt;TaxYear&gt;&gt;</span> tax returns. This letter sets out what we will do, what we will not do, what we need from you, and what it costs. <strong>Please read it thoroughly.</strong></p>
+
+  <div class="sec">
+    <h2><span class="n">01</span>What we will prepare</h2>
+    <ul>
+      <li><b>Federal:</b> <span class="f">&lt;&lt;FederalReturns&gt;&gt;</span></li>
+      <li><b>State:</b> <span class="f">&lt;&lt;StateReturns&gt;&gt;</span></li>
+      <li><b>Local:</b> <span class="f">&lt;&lt;LocalReturns&gt;&gt;</span></li>
+      <li><b>Also included:</b> <span class="f">&lt;&lt;AdditionalForms&gt;&gt;</span></li>
+    </ul>
+    <p>Returns and forms not outlined above are outside of this engagement. If one is required, an updated or second engagement letter will be confirmed in writing outlining a new cost estimate.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">02</span>What this engagement is not</h2>
+    <p>We prepare returns from the information you give us. <strong>We will not audit or otherwise verify it.</strong> We may ask you to clarify an item, but our work is not designed to detect errors, fraud, theft, or other illegal acts — and should not be relied on for that purpose. If we find something material, we will tell you.</p>
+    <p>We will perform bookkeeping only as far as preparing the returns requires. <strong>We do not perform audits, reviews, or any assurance engagement</strong>, and we issue no opinion on your financial statements. If a lender or investor asks for audited statements, you will need a registered audit firm.</p>
+    <p>Representing you in an examination, notice response, or appeal is a separate engagement, quoted separately.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">03</span>What you are responsible for</h2>
+    <ul>
+      <li>Providing <b>complete, accurate, and timely</b> information for each item of income, deduction, and credit upon request.</li>
+      <li>Keeping the <b>records that substantiate</b> what is on the return, such as but not limited to mileage logs, receipts, charitable acknowledgements, and business-purpose notes for travel and meals.</li>
+      <li>Telling us about any <b>digital asset</b> activity, any <b>foreign</b> account, asset, trust, or gift, and any <b>business interest</b> you hold. These carry separate filings with potential penalties.</li>
+      <li><b>Reviewing the return before you sign it.</b> You are responsible for its contents.</li>
+    </ul>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">04</span>Your deadline, and extensions</h2>
+    <p>To file by the original due date, we need your complete information by <span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span>. Material arriving after that date, or arriving incomplete, will likely require an extension.</p>
+    <div class="callout">
+      <p><strong>An extension gives you more time to file, not more time to pay.</strong> Interest and penalties run from the original due date on anything unpaid. If we extend, we will estimate what you should pay with the extension based on the information available at that time.</p>
+    </div>
+    <p>We will file an extension on your behalf where one is needed, unless you instruct us otherwise in writing.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">05</span>Unclear law, and penalties</h2>
+    <p>The law imposes penalties when a taxpayer understates a liability. Where the law is unclear, or where positions conflict, we will set out the reasonable courses of action along with the risk and consequence of each, and <strong>we will adopt the one you choose</strong>. We will not sign a return taking a position we could not defend in writing.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">06</span>Fees and billing</h2>
+    <p>Our fee for this engagement is the amount shown on the <strong>estimate accompanying this letter</strong>. Work outside the scope described in section 01 will be quoted before we begin it.</p>
+    <p>Invoices are due on presentation. Balances unpaid after thirty (30) days carry interest at the maximum rate state law permits. <strong>We may suspend or withdraw from the engagement if an invoice goes unpaid</strong>, or if requested information is not provided. We are not responsible for a late filing that results.</p>
+    <p>We will not e-file a return before the invoice for it is settled, unless agreed upon in writing.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">07</span>Your records, our files, and delivery</h2>
+    <p>We return your original records at the end of the engagement; store them, and everything supporting them, somewhere secure. We keep copies of your records and our work papers for <strong>seven years</strong>, after which they are destroyed. Our work papers are ours, not part of your records.</p>
+    <p>We send documents for signature through <strong>Encyro</strong>, and final returns are delivered password-protected. We will use another method at your direction, though it may not be secure and we would not advise it.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">08</span>Confidentiality</h2>
+    <p>We will not disclose your return information to anyone without <strong>your written consent</strong>, except where the law requires it. This includes lenders, family members, and anyone calling on your behalf. We will speak with your attorney, banker, or advisor only if you instruct us in writing.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">09</span>Ending this engagement</h2>
+    <p>Either of us may end this engagement in writing at any time. You are responsible for fees for work done up to that point. Our engagement otherwise concludes when we deliver the completed returns to you or, for e-filed returns, when you sign the authorization and we transmit them — <strong>not when the return is accepted</strong>.</p>
+    <p>If you have chosen not to e-file, <strong>filing the returns with the taxing authorities is your responsibility</strong>, on time, with proof of mailing.</p>
+  </div>
+
+  <div class="signoff">
+    <p>Sincerely,</p>
+    <div class="sp"></div>
+    <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of SAT-C LLP</div>
+  </div>
+
+  <div class="exec">
+    <div class="accept">Acceptance</div>
+    <p class="lead" style="margin-top:12pt">If this letter states your understanding, sign and return a copy. <span class="f">&lt;&lt;ReturnInstruction&gt;&gt;</span></p>
+
+    <div class="sigrow">
+      <div>
+        <div class="sig"></div>
+        <div class="siglab"><b>Taxpayer</b> — <span class="f">&lt;&lt;TaxpayerName&gt;&gt;</span></div>
+      </div>
+      <div>
+        <div class="sig"></div>
+        <div class="siglab">Date</div>
+      </div>
+    </div>
+
+    <span class="cond">[[IF JointReturn]]</span>
+    <div class="sigrow" style="margin-top:10pt">
+      <div>
+        <div class="sig"></div>
+        <div class="siglab"><b>Spouse</b> — <span class="f">&lt;&lt;SpouseName&gt;&gt;</span></div>
+      </div>
+      <div>
+        <div class="sig"></div>
+        <div class="siglab">Date</div>
+      </div>
+    </div>
+    <p class="execnote">On a joint return, both spouses are considered clients and must sign. We may share information given by one of you with the other. If your interests diverge, we may have to withdraw and advise you both to obtain separate representation.</p>
+    <span class="cond end">[[END IF]]</span>
+  </div>
+</div>
+
+</div>
+
+<div slot="footer" class="foot">
+  <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139.</p>
+  <span class="id">ENGAGEMENT LETTER<br/><span class="f">&lt;&lt;TaxYear&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+</doc-page>
+
+<div class="ref">
+  <h3>Merge fields</h3>
+  <p>Two syntaxes, deliberately different so a regex can tell them apart: <code>&lt;&lt;Field&gt;&gt;</code> substitutes a value, <code>[[IF Name]] … [[END IF]]</code> keeps or drops a block. Every field below must resolve to something — <span class="warn">a merge that leaves <code>&lt;&lt;</code> in a letter sent to a client is the one bug that actually costs you a client</span>, so have the software fail loudly on an unresolved field rather than shipping it.</p>
+  <table>
+    <tr><th>Field</th><th>Required</th><th>Example / notes</th></tr>
+    <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>February 3, 2027 — spelled out, never 2/3/27</td></tr>
+    <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — same ref as the invoice and the statement</td></tr>
+    <tr><td>&lt;&lt;TaxYear&gt;&gt;</td><td class="req">Required</td><td>2026 — appears three times; drive them all from one value</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Mr. and Mrs. Daniel Reyes — the addressee block</td></tr>
+    <tr><td>&lt;&lt;ClientLetterName&gt;&gt;</td><td class="req">Required</td><td>Dan — the salutation only. Keep it separate from the legal name; getting this wrong reads badly.</td></tr>
+    <tr><td>&lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Add an optional Address2 line only if your data has one — an empty line in an address block looks like a bug</td></tr>
+    <tr><td>&lt;&lt;FederalReturns&gt;&gt;</td><td class="req">Required</td><td>Form 1040 with Schedules A, C, and SE</td></tr>
+    <tr><td>&lt;&lt;StateReturns&gt;&gt;</td><td class="req">Required</td><td>Ohio IT 1040 — name every state. This is your scope boundary.</td></tr>
+    <tr><td>&lt;&lt;LocalReturns&gt;&gt;</td><td class="req">Required</td><td>Solon municipal — name every locality. Emit "None" when there are none.</td></tr>
+    <tr><td>&lt;&lt;AdditionalForms&gt;&gt;</td><td class="req">Required</td><td>Two K-1s as reported · FBAR (FinCEN 114) — or "None" if empty. Never blank: with foreign reporting in scope here, blank and "None" are not the same statement.</td></tr>
+    <tr><td>&lt;&lt;MaterialsDeadline&gt;&gt;</td><td class="req">Required</td><td>March 15, 2027 — a real date, not "early March"</td></tr>
+    <tr><td>&lt;&lt;ReturnInstruction&gt;&gt;</td><td class="req">Required</td><td>Sign through Encyro and it comes straight back to us. — replaces the old "return it in the envelope provided", which is wrong for an emailed letter.</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner</td></tr>
+    <tr><td>&lt;&lt;TaxpayerName&gt;&gt;</td><td class="req">Required</td><td>Daniel Reyes — printed under the signature line so the right person signs</td></tr>
+    <tr><td>&lt;&lt;SpouseName&gt;&gt;</td><td class="opt">If joint</td><td>Maria Reyes</td></tr>
+    <tr><td>[[IF JointReturn]]</td><td class="req">Flag</td><td>Boolean. Drops the spouse signature block and the joint-representation note for a single filer.</td></tr>
+  </table>
+
+  <h3>The fee is not a field</h3>
+  <p>Section 06 points at the <b>estimate attached to the letter</b> rather than restating a number. One place for the figure means the letter and the estimate can never disagree — so the merge has nothing to get wrong, and a re-quote means reissuing the estimate, not editing the letter.</p>
+
+  <h3>Before this template ships</h3>
+  <ol>
+    <li><span class="warn">Settle the firm's legal name and use it byte-for-byte everywhere.</span> Your current documents carry three variants: "Sethuraman Accounting Tax and Consulting, LLP", "Sethuraman Accounting Tax &amp; Consulting LLP", and "Sethuraman Accounting, Tax, and Consulting LLP". Only one is on the Ohio filing. That one goes in the footer and nowhere else varies.</li>
+  </ol>
+
+  <h3>For whoever wires the software</h3>
+  <ol>
+    <li>Fields are text substitution into HTML — <b>escape the values</b>. A client named "Ross &amp; Sons" will otherwise break the page.</li>
+    <li>Fail on any unresolved <code>&lt;&lt;</code> or <code>[[</code> before rendering the PDF. No silent pass-through.</li>
+    <li>PDF at Letter, 100%, no browser headers or footers. The footer block repeats on every page automatically; nothing needs to be positioned by hand.</li>
+    <li>The merge-field styling (<code>.f</code>) exists so an unfilled proof is obvious. <b>Strip the <code>.f</code> class, and the <code>.cond</code> markers, on the client-facing render</b> — a real letter should show no field chrome at all.</li>
+    <li>Name the output for a human: <code>SAT-C Engagement Letter — Reyes — 2026.pdf</code>. It sits in a client's downloads folder for years.</li>
+  </ol>
+</div>
+
+<script src="doc-page.js"></script>
+</body>
+</html>

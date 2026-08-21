@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SAT-C LLP — Engagement Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+deck-stage:not(:defined){visibility:hidden}
+:root{
+  --navy:#132437;--navy-deep:#0D1926;--navy-soft:#22374F;--oxblood:#6A2833;
+  --gold:#C0A265;--shell:#F7F7F5;--paper:#FFFFFF;--ink:#242C36;--ink-2:#4A5360;
+  --mute:#82817C;--hairline:#E6E5E0;--hairline-2:#D8D7D1;
+  --sans:"IBM Plex Sans",Helvetica,Arial,sans-serif;
+  --mono:"IBM Plex Mono","Courier New",monospace;
+  --type-display:104px;--type-title:64px;--type-subtitle:44px;--type-lede:38px;
+  --type-body:34px;--type-small:28px;--type-micro:24px;
+  --pad-top:100px;--pad-bottom:80px;--pad-x:100px;
+  --gap-title:52px;--gap-item:28px;
+}
+*,*::before,*::after{box-sizing:border-box}
+h1,h2,h3,h4,p,ul,ol,li,table{margin:0;padding:0}
+ul,ol{list-style:none}
+a{color:var(--oxblood);text-decoration:none}a:hover{color:#83323F}
+section{font-family:var(--sans);color:var(--ink);background:var(--shell);display:flex;flex-direction:column;padding:var(--pad-top) var(--pad-x) var(--pad-bottom);overflow:hidden}
+section.navy{background:var(--navy);color:#fff}
+section.paper{background:var(--paper)}
+
+/* ── wordmark ─────────────────────────────────────────────── */
+.wm{display:flex;align-items:flex-end;font-weight:700;letter-spacing:-.04em;line-height:.74;color:var(--navy)}
+.wm .hy{width:.3em;height:.3em;flex:none;background:var(--oxblood);margin:0 .18em .2em}
+.wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
+.navy .wm{color:#fff}
+.navy .wm .hy{background:var(--gold)}
+.lockup{display:flex;flex-direction:column;gap:14px}
+.lockup .tg{font-family:var(--mono);font-size:var(--type-micro);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.navy .lockup .tg{color:rgba(255,255,255,.55)}
+
+/* ── shared slide furniture ───────────────────────────────── */
+.eyebrow{font-family:var(--mono);font-size:var(--type-micro);letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2)}
+.navy .eyebrow{color:var(--gold)}
+.slide-title{font-size:var(--type-title);font-weight:600;letter-spacing:-.038em;line-height:1.04;color:var(--navy);margin-top:24px}
+.navy .slide-title{color:#fff}
+.lede{font-size:var(--type-lede);line-height:1.42;color:var(--ink-2);max-width:34ch}
+.hr-gold{height:1px;background:var(--gold);width:200px}
+.head{margin-bottom:var(--gap-title)}
+.num{font-family:var(--mono);font-size:var(--type-small);letter-spacing:.14em;color:var(--oxblood)}
+.foot-rule{margin-top:auto;padding-top:36px;border-top:1px solid var(--hairline-2);display:flex;justify-content:space-between;align-items:baseline}
+.foot-rule .l,.foot-rule .r{font-family:var(--mono);font-size:var(--type-micro);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+
+/* ── 01 cover ─────────────────────────────────────────────── */
+.cover{justify-content:space-between;position:relative}
+.cover::before,.cover::after{content:"";position:absolute;border:1px solid rgba(192,162,101,.16);pointer-events:none}
+.cover::before{top:-260px;right:-260px;width:860px;height:860px}
+.cover::after{top:-120px;right:-120px;width:860px;height:860px;border-color:rgba(192,162,101,.08)}
+.cover>*{position:relative;z-index:1}
+.cover .wm{font-size:52px}
+.cover h1{font-size:var(--type-display);font-weight:600;letter-spacing:-.045em;line-height:1;color:#fff;max-width:22ch}
+.cover .sub{font-size:var(--type-lede);line-height:1.4;color:rgba(255,255,255,.7);max-width:30ch;margin-top:28px}
+.cover .btm{display:flex;justify-content:space-between;align-items:flex-end;gap:60px;padding-top:36px;border-top:1px solid rgba(255,255,255,.2)}
+.cover .btm .prep{font-size:var(--type-small);line-height:1.55;color:rgba(255,255,255,.62);max-width:36ch}
+.cover .btm .meta{font-family:var(--mono);font-size:var(--type-micro);letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.45);text-align:right;line-height:1.9}
+
+/* ── 02 three disciplines ─────────────────────────────────── */
+.cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--hairline-2);border:1px solid var(--hairline-2);flex:1}
+.cols3 .col{background:var(--paper);padding:52px 44px;display:flex;flex-direction:column;gap:22px}
+.cols3 .col h3{font-size:var(--type-subtitle);font-weight:600;letter-spacing:-.032em;line-height:1.08;color:var(--navy)}
+.cols3 .col p{font-size:var(--type-small);line-height:1.5;color:var(--ink-2)}
+.cols3 .col .tail{margin-top:auto;font-family:var(--mono);font-size:var(--type-micro);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);padding-top:24px;border-top:1px solid var(--hairline)}
+
+/* ── 03 depth diagram ─────────────────────────────────────── */
+.bands{display:flex;flex-direction:column;gap:20px;flex:1;justify-content:center}
+.band{display:flex;align-items:center;gap:40px;background:var(--paper);border:1px solid var(--hairline-2);padding:34px 44px;min-height:184px}
+.band .bn{font-family:var(--mono);font-size:var(--type-small);letter-spacing:.14em;color:var(--oxblood);width:56px;flex:none}
+.band .bt{font-size:var(--type-subtitle);font-weight:600;letter-spacing:-.03em;color:var(--navy);width:420px;flex:none}
+.band .bd{font-size:var(--type-small);line-height:1.5;color:var(--ink-2);width:420px;flex:none}
+/* The bar is a fixed 600px track with a growing fill, and .band carries a
+   min-height that already fits the two-line case — so every band stays the
+   same height no matter how long a label or description runs. */
+.band .bar{margin-left:auto;flex:none;width:600px;height:14px;background:var(--hairline-2);position:relative}
+.band .bar::after{content:"";position:absolute;left:0;top:0;bottom:0;background:var(--navy)}
+.band.b1 .bar::after{width:33.333%}
+.band.b2 .bar::after{width:66.667%}
+.band.b3 .bar::after{width:100%}
+.bands-note{font-size:var(--type-small);line-height:1.55;color:var(--ink-2);max-width:74ch;margin-top:32px}
+.bands-note b{color:var(--navy);font-weight:600}
+
+/* ── 04-06 depth slides (strictly parallel) ───────────────── */
+.split{display:grid;grid-template-columns:1.15fr 1fr;gap:80px;flex:1}
+.split .left{display:flex;flex-direction:column}
+.split ul{display:flex;flex-direction:column;margin-top:8px}
+.split ul li{font-size:var(--type-body);line-height:1.4;color:var(--ink);padding:26px 0 26px 42px;border-top:1px solid var(--hairline-2);position:relative}
+.split ul li::before{content:"";position:absolute;left:0;top:36px;width:14px;height:14px;background:var(--oxblood)}
+.panel{background:var(--navy);color:#fff;padding:52px 48px;display:flex;flex-direction:column;gap:26px;align-self:start}
+.panel h4{font-family:var(--mono);font-size:var(--type-micro);letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+.panel p{font-size:var(--type-body);line-height:1.42;color:rgba(255,255,255,.88)}
+.panel .rule{height:1px;background:rgba(255,255,255,.2)}
+.panel .kv{font-family:var(--mono);font-size:var(--type-micro);letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55);line-height:1.9}
+
+/* ── 07 comparison table ──────────────────────────────────── */
+table{width:100%;border-collapse:collapse;flex:1}
+thead th{text-align:left;font-family:var(--mono);font-size:var(--type-micro);letter-spacing:.14em;text-transform:uppercase;font-weight:400;color:var(--ink-2);padding:0 20px 22px 0;border-bottom:2px solid var(--navy);vertical-align:bottom}
+thead th.c{text-align:center;width:230px;color:var(--navy)}
+tbody td{font-size:var(--type-small);line-height:1.4;color:var(--ink);padding:22px 20px 22px 0;border-bottom:1px solid var(--hairline)}
+tbody td.c{text-align:center}
+tbody tr:last-child td{border-bottom:0}
+.mk{display:inline-block;width:18px;height:18px;background:var(--oxblood)}
+.mk-no{display:inline-block;width:20px;height:2px;background:var(--mute);vertical-align:middle}
+.tbl-key{display:flex;gap:44px;align-items:center;margin-top:32px;font-family:var(--mono);font-size:var(--type-micro);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.tbl-key span{display:flex;align-items:center;gap:14px}
+
+/* ── 08 cadence ───────────────────────────────────────────── */
+.cadence{display:grid;grid-template-columns:repeat(3,1fr);gap:36px;flex:1;align-content:center}
+.cad{border-top:2px solid var(--navy);padding-top:32px;display:flex;flex-direction:column;gap:20px}
+.cad .when{font-family:var(--mono);font-size:var(--type-small);letter-spacing:.14em;text-transform:uppercase;color:var(--oxblood)}
+.cad h3{font-size:var(--type-subtitle);font-weight:600;letter-spacing:-.03em;line-height:1.1;color:var(--navy)}
+.cad ul{display:flex;flex-direction:column;gap:14px;margin-top:4px}
+.cad ul li{font-size:var(--type-small);line-height:1.45;color:var(--ink-2);padding-left:28px;position:relative}
+.cad ul li::before{content:"";position:absolute;left:0;top:14px;width:10px;height:10px;background:var(--gold)}
+
+/* ── 09 fit ───────────────────────────────────────────────── */
+.fit{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hairline-2);border:1px solid var(--hairline-2);flex:1}
+.fit .c{background:var(--paper);padding:48px 44px;display:flex;flex-direction:column;gap:8px}
+.fit .c.no{background:var(--shell)}
+.fit .c h3{font-size:var(--type-subtitle);font-weight:600;letter-spacing:-.03em;color:var(--navy);margin-bottom:4px}
+.fit .c .sub{font-family:var(--mono);font-size:var(--type-micro);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin-bottom:22px}
+.fit .c li{font-size:var(--type-small);line-height:1.45;color:var(--ink-2);padding:20px 0 20px 34px;border-top:1px solid var(--hairline);position:relative}
+.fit .c li:first-of-type{border-top:0}
+.fit .c.yes li::before{content:"";position:absolute;left:0;top:28px;width:12px;height:12px;background:var(--oxblood)}
+.fit .c.no li::before{content:"";position:absolute;left:0;top:28px;width:12px;height:12px;background:var(--mute)}
+
+/* ── 10 next steps ────────────────────────────────────────── */
+.steps{display:flex;flex-direction:column;flex:1;justify-content:center;gap:0}
+.step{display:flex;align-items:flex-start;gap:44px;padding:38px 0;border-top:1px solid var(--hairline-2)}
+.step:last-child{border-bottom:1px solid var(--hairline-2)}
+.step .sn{font-family:var(--mono);font-size:var(--type-small);letter-spacing:.14em;color:var(--oxblood);width:56px;flex:none;padding-top:8px}
+.step .st{font-size:var(--type-subtitle);font-weight:600;letter-spacing:-.03em;line-height:1.1;color:var(--navy);width:440px;flex:none}
+.step .sd{font-size:var(--type-small);line-height:1.5;color:var(--ink-2);max-width:44ch}
+
+/* ── 11 contact ───────────────────────────────────────────── */
+.close{justify-content:space-between}
+.close .wm{font-size:44px}
+.close h2{font-size:var(--type-title);font-weight:600;letter-spacing:-.038em;line-height:1.06;color:#fff;max-width:26ch}
+.close .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:60px;padding-top:40px;border-top:1px solid rgba(255,255,255,.2)}
+.close .grid h5{font-family:var(--mono);font-size:var(--type-micro);letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:18px}
+.close .grid p{font-size:var(--type-small);line-height:1.6;color:rgba(255,255,255,.8)}
+.close .legal{font-size:var(--type-micro);line-height:1.6;color:rgba(255,255,255,.45);max-width:70ch;margin-top:36px}
+
+@media (prefers-reduced-motion:no-preference){
+  [data-deck-active] .head,[data-deck-active] .cover>*{animation:rise .5s both}
+  [data-deck-active] .head{animation-delay:.05s}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+}
+</style>
+</head>
+<body>
+
+<deck-stage width="1920" height="1080">
+
+<!-- ══════════════ 01 · COVER ══════════════ -->
+<section class="navy cover" data-label="Cover">
+  <div class="lockup">
+    <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span>
+    <span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </div>
+  <div>
+    <p class="eyebrow">Engagement Overview</p>
+    <h1>Everything you need, from one desk.</h1>
+    <p class="sub">What an engagement can cover, and how far you choose to take it.</p>
+  </div>
+  <div class="btm">
+    <p class="prep">Prepared for discussion. Scope and fees are set per engagement, once we understand the work.</p>
+    <p class="meta">Solon, Ohio<br/>satcllp.com</p>
+  </div>
+</section>
+
+<!-- ══════════════ 02 · DISCIPLINES ══════════════ -->
+<section data-label="Three Disciplines">
+  <div class="head">
+    <p class="eyebrow">What We Do</p>
+    <h2 class="slide-title">Three disciplines, one desk.</h2>
+  </div>
+  <div class="cols3">
+    <div class="col">
+      <span class="num">01</span>
+      <h3>Accounting &amp; Bookkeeping</h3>
+      <p>Books kept current at an interval we agree — monthly, quarterly or annually.</p>
+      <span class="tail">The foundation</span>
+    </div>
+    <div class="col">
+      <span class="num">02</span>
+      <h3>Tax &amp; Compliance</h3>
+      <p>Federal, state and multi-state filings, planned through the year.</p>
+      <span class="tail">The obligation</span>
+    </div>
+    <div class="col">
+      <span class="num">03</span>
+      <h3>Risk, Controls &amp; Advisory</h3>
+      <p>An outside read on how the business runs, and where it is exposed.</p>
+      <span class="tail">The advantage</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 03 · DEPTH ══════════════ -->
+<section data-label="How Depth Scales">
+  <div class="head">
+    <p class="eyebrow">Structure</p>
+    <h2 class="slide-title">How depth scales.</h2>
+  </div>
+  <div class="bands">
+    <div class="band b1">
+      <span class="bn">01</span>
+      <span class="bt">Books only</span>
+      <span class="bd">Bookkeeping and statements at an agreed interval.</span>
+      <span class="bar"></span>
+    </div>
+    <div class="band b2">
+      <span class="bn">02</span>
+      <span class="bt">Books and tax</span>
+      <span class="bd">One party owns the numbers and the filings.</span>
+      <span class="bar"></span>
+    </div>
+    <div class="band b3">
+      <span class="bn">03</span>
+      <span class="bt">Books, tax and advisory</span>
+      <span class="bd">Plus an outside read on controls, process and reporting.</span>
+      <span class="bar"></span>
+    </div>
+  </div>
+  <p class="bands-note"><b>These are depths, not packages.</b> Most engagements start at the first and move outward as the business needs it. Nothing is bundled — if you don't want a piece of it, we don't build it and you don't pay for it. The reporting interval is set with you, not assumed.</p>
+</section>
+
+<!-- ══════════════ 04 · FOUNDATION ══════════════ -->
+<section data-label="Foundation — Accounting">
+  <div class="head">
+    <span class="num">01</span>
+    <h2 class="slide-title">Foundation — accounting.</h2>
+  </div>
+  <div class="split">
+    <div class="left">
+      <ul>
+        <li>Bookkeeping and reconciliations at an agreed interval</li>
+        <li>Financial statements prepared for each period</li>
+        <li>Adjusting entries and year-end close</li>
+        <li>Catch-up work where the books have fallen behind</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h4>What this gives you</h4>
+      <p>Books that are current as of a date you can count on — whether that is every month, every quarter, or once a year.</p>
+      <div class="rule"></div>
+      <p class="kv">Interval agreed at engagement<br/>Monthly, quarterly or annual</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 05 · COMPLIANCE ══════════════ -->
+<section data-label="Compliance — Tax">
+  <div class="head">
+    <span class="num">02</span>
+    <h2 class="slide-title">Compliance — tax.</h2>
+  </div>
+  <div class="split">
+    <div class="left">
+      <ul>
+        <li>Business and individual return preparation</li>
+        <li>Quarterly estimates and in-year planning</li>
+        <li>Sales tax and multi-state registration</li>
+        <li>Notice response and correspondence with authorities</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h4>What this gives you</h4>
+      <p>No handoff between a bookkeeper and a preparer, and no surprises in April, because the planning happened in September.</p>
+      <div class="rule"></div>
+      <p class="kv">Led by a licensed Ohio CPA<br/>We do not perform audits</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 06 · ADVISORY ══════════════ -->
+<section data-label="Advisory">
+  <div class="head">
+    <span class="num">03</span>
+    <h2 class="slide-title">Advisory — risk, process and reporting.</h2>
+  </div>
+  <div class="split">
+    <div class="left">
+      <ul>
+        <li>Review of controls and where cash is exposed</li>
+        <li>Recommendations on credit terms and collections</li>
+        <li>Advice on process and systems, set down in writing</li>
+        <li>Reporting built around the numbers you actually watch</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h4>What this gives you</h4>
+      <p>An outside read on how the business runs, and a written recommendation you can act on.</p>
+      <div class="rule"></div>
+      <p class="kv">Advisory only — we advise,<br/>you own and operate it<br/>Scoped per project</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 07 · SCOPE TABLE ══════════════ -->
+<section class="paper" data-label="Scope Comparison">
+  <div class="head">
+    <p class="eyebrow">Comparison</p>
+    <h2 class="slide-title">What each depth includes.</h2>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Deliverable</th>
+        <th class="c">Books</th>
+        <th class="c">Books &amp; tax</th>
+        <th class="c">Full scope</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Bookkeeping and reconciliations</td>
+        <td class="c"><span class="mk"></span></td>
+        <td class="c"><span class="mk"></span></td>
+        <td class="c"><span class="mk"></span></td>
+      </tr>
+      <tr>
+        <td>Financial statements</td>
+        <td class="c"><span class="mk"></span></td>
+        <td class="c"><span class="mk"></span></td>
+        <td class="c"><span class="mk"></span></td>
+      </tr>
+      <tr>
+        <td>Business and individual returns</td>
+        <td class="c"><span class="mk-no"></span></td>
+        <td class="c"><span class="mk"></span></td>
+        <td class="c"><span class="mk"></span></td>
+      </tr>
+      <tr>
+        <td>Quarterly estimates and planning</td>
+        <td class="c"><span class="mk-no"></span></td>
+        <td class="c"><span class="mk"></span></td>
+        <td class="c"><span class="mk"></span></td>
+      </tr>
+      <tr>
+        <td>Notice response and correspondence</td>
+        <td class="c"><span class="mk-no"></span></td>
+        <td class="c"><span class="mk"></span></td>
+        <td class="c"><span class="mk"></span></td>
+      </tr>
+      <tr>
+        <td>Controls review and cash-exposure findings</td>
+        <td class="c"><span class="mk-no"></span></td>
+        <td class="c"><span class="mk-no"></span></td>
+        <td class="c"><span class="mk"></span></td>
+      </tr>
+      <tr>
+        <td>Process, systems and reporting advice</td>
+        <td class="c"><span class="mk-no"></span></td>
+        <td class="c"><span class="mk-no"></span></td>
+        <td class="c"><span class="mk"></span></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="tbl-key">
+    <span><span class="mk"></span> Included</span>
+    <span><span class="mk-no"></span> Not in this depth</span>
+    <span>Any row can be added on its own</span>
+    <span>Interval set per engagement</span>
+  </div>
+</section>
+
+<!-- ══════════════ 08 · CADENCE ══════════════ -->
+<section data-label="Reporting Cadence">
+  <div class="head">
+    <p class="eyebrow">How We Work</p>
+    <h2 class="slide-title">Reporting cadence is your choice.</h2>
+  </div>
+  <div class="cadence">
+    <div class="cad">
+      <span class="when">Monthly</span>
+      <h3>Closest view</h3>
+      <ul>
+        <li>Suits payroll, inventory or debt covenants</li>
+        <li>Statements within an agreed number of days</li>
+        <li>Problems surface while they are still fixable</li>
+      </ul>
+    </div>
+    <div class="cad">
+      <span class="when">Quarterly</span>
+      <h3>Middle ground</h3>
+      <ul>
+        <li>Suits steady businesses without monthly pressure</li>
+        <li>Estimates calculated in the same pass</li>
+        <li>One review call each quarter</li>
+      </ul>
+    </div>
+    <div class="cad">
+      <span class="when">Annually</span>
+      <h3>Lightest touch</h3>
+      <ul>
+        <li>Suits simple operations, or a first year</li>
+        <li>Books brought current once, for the year</li>
+        <li>Return prepared from the same file</li>
+      </ul>
+    </div>
+  </div>
+  <p class="bands-note">Whichever you choose is written into the engagement letter, and can change as the business does. <b>We will tell you if we think you have picked the wrong one.</b></p>
+</section>
+
+<!-- ══════════════ 09 · FIT ══════════════ -->
+<section data-label="Engagement Fit">
+  <div class="head">
+    <p class="eyebrow">Fit</p>
+    <h2 class="slide-title">Where we are the right firm.</h2>
+  </div>
+  <div class="fit">
+    <div class="c yes">
+      <h3>A good fit</h3>
+      <p class="sub">Worth a conversation</p>
+      <ul>
+        <li>Small businesses wanting books and tax owned by one party</li>
+        <li>Owners whose books need catching up first</li>
+        <li>More than one entity, or filings in more than one state</li>
+        <li>Anyone who wants an outside read on how the business runs</li>
+      </ul>
+    </div>
+    <div class="c no">
+      <h3>Not a fit</h3>
+      <p class="sub">We will point you elsewhere</p>
+      <ul>
+        <li>Companies needing a statutory audit — we do not do audit work</li>
+        <li>Anyone shopping purely on the price of a single return</li>
+        <li>Publicly traded companies and their subsidiaries</li>
+        <li>Positions we could not defend in writing</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 10 · NEXT STEPS ══════════════ -->
+<section data-label="Next Steps">
+  <div class="head">
+    <p class="eyebrow">Next Steps</p>
+    <h2 class="slide-title">What happens after this.</h2>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <span class="sn">01</span>
+      <span class="st">You send the intake form</span>
+      <span class="sd">About five minutes, from what you already know. Nothing to dig up.</span>
+    </div>
+    <div class="step">
+      <span class="sn">02</span>
+      <span class="st">We scope and quote</span>
+      <span class="sd">A written scope and a fixed fee, so there is nothing to argue about later.</span>
+    </div>
+    <div class="step">
+      <span class="sn">03</span>
+      <span class="st">Engagement letter</span>
+      <span class="sd">Signed both ways before any work starts, setting out what each side owns.</span>
+    </div>
+    <div class="step">
+      <span class="sn">04</span>
+      <span class="st">First reporting period</span>
+      <span class="sd">Runs at the interval we agreed, once any catch-up work is done.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ 11 · CONTACT ══════════════ -->
+<section class="navy close" data-label="Contact">
+  <div class="lockup">
+    <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span>
+    <span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </div>
+  <div>
+    <p class="eyebrow">Contact</p>
+    <h2>Tell us where you are starting from.</h2>
+  </div>
+  <div>
+    <div class="grid">
+      <div>
+        <h5>Email</h5>
+        <p>arjun_sethuraman@satcllp.com</p>
+      </div>
+      <div>
+        <h5>Telephone</h5>
+        <p>307-941-0508</p>
+      </div>
+      <div>
+        <h5>Office</h5>
+        <p>6544 Copley Avenue<br/>Solon, OH 44139</p>
+      </div>
+    </div>
+    <p class="legal">Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in Ohio. This overview is for discussion and does not constitute an offer of engagement or advice on which you should rely.</p>
+  </div>
+</section>
+
+</deck-stage>
+
+<script src="deck-stage.js"></script>
+</body>
+</html>

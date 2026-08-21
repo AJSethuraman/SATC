@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — figures &amp; tables</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--navy:#132437;--oxblood:#6A2833;--gold:#C0A265;--shell:#F7F7F5;--paper:#fff;--hairline:#E6E5E0;--hairline-2:#D8D7D1;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",monospace}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--shell);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,p{margin:0}
+a{color:var(--oxblood);text-decoration:none}a:hover{color:#83323F}
+.wrap{max-width:1100px;margin:0 auto;padding:0 40px}
+
+.hd{background:var(--navy);color:#fff;padding:56px 0 50px}
+.hd .k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
+.hd h1{font-size:clamp(28px,3.6vw,40px);font-weight:600;letter-spacing:-.04em;line-height:1.05;margin-bottom:14px}
+.hd p{font-size:16.5px;line-height:1.62;color:rgba(255,255,255,.72);max-width:66ch}
+
+.sec{padding:52px 0;border-bottom:1px solid var(--hairline)}
+.sec:last-of-type{border-bottom:0}
+.lbl{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px}
+.sec h2{font-size:23px;font-weight:600;letter-spacing:-.032em;color:var(--navy);margin-bottom:8px}
+.sec .intro{font-size:15.5px;line-height:1.62;color:var(--ink-2);max-width:72ch;margin-bottom:28px}
+
+/* good/bad pairs */
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hairline);border:1px solid var(--hairline)}
+.pane{background:var(--paper);padding:24px 26px 26px}
+.pane.bad{background:var(--shell)}
+.pane .tag{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:16px;display:inline-block}
+.pane .tag.y{color:#2F6B4E}
+.pane .tag.n{color:#9B2C2C}
+.pane .why{font-size:13.5px;line-height:1.55;color:var(--ink-2);margin-top:16px;padding-top:14px;border-top:1px solid var(--hairline)}
+.pane .why b{color:var(--navy);font-weight:600}
+
+/* the ledger table pattern — this IS the spec */
+.led{width:100%;border-collapse:collapse;font-size:13.5px}
+.led th{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);font-weight:400;text-align:left;padding:0 0 8px;border-bottom:1px solid var(--hairline-2)}
+.led th.r{text-align:right}
+.led td{padding:8px 0;border-bottom:1px solid var(--hairline);color:var(--ink)}
+.led td.r{text-align:right}
+.led .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--navy);white-space:nowrap}
+/* reserve the closing-paren column so positives stay aligned with negatives */
+.led .num.pos{padding-right:1ch}
+.led .nil{color:var(--ink-2)}
+.led tr.sub td{border-top:1px solid var(--navy);border-bottom:0;padding-top:9px;font-weight:600;color:var(--navy)}
+.led tr.tot td{border-top:1px solid var(--navy);border-bottom:3px double var(--navy);padding:9px 0;font-weight:600;color:var(--navy);font-size:14.5px}
+.led tr.tot .num{font-size:14.5px}
+/* bad examples */
+.bad .led .num{font-family:var(--sans);font-variant-numeric:normal}
+.bad .led td.r{text-align:left}
+
+/* rules list */
+.rules{background:var(--paper);border:1px solid var(--hairline)}
+.rules .r{display:grid;grid-template-columns:190px 1fr;gap:22px;padding:16px 24px;border-bottom:1px solid var(--hairline);align-items:start}
+.rules .r:last-child{border-bottom:0}
+.rules .k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--oxblood);padding-top:3px}
+.rules .v{font-size:14.5px;line-height:1.6;color:var(--ink-2)}
+.rules .v b{color:var(--navy);font-weight:600}
+.rules .v code,code.i{font-family:var(--mono);font-size:12.5px;background:var(--shell);border:1px solid var(--hairline);padding:1px 6px;color:var(--navy)}
+
+pre{background:var(--navy);color:#fff;font-family:var(--mono);font-size:11.5px;line-height:1.75;padding:20px 22px;overflow-x:auto;margin:0;border-radius:2px}
+pre .c{color:rgba(255,255,255,.42)}
+pre .s{color:var(--gold)}
+.codecap{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-2);margin-bottom:10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.note{background:var(--paper);border:1px solid var(--hairline);border-left:2px solid var(--gold);padding:20px 24px;margin-top:24px;font-size:14.5px;line-height:1.62;color:var(--ink-2)}
+.note b{color:var(--navy);font-weight:600}
+@media(max-width:900px){.pair,.two{grid-template-columns:1fr}.wrap{padding:0 24px}.rules .r{grid-template-columns:1fr;gap:6px}}
+.two>*,.pair>*,.tests>*,.grid>*,.locks>*,.states>*,.rules>*{min-width:0}
+</style>
+</head>
+<body>
+
+<header class="hd"><div class="wrap">
+  <div class="k">SAT-C LLP · figures &amp; tables</div>
+  <h1>The conventions that make a document read as accountants' work.</h1>
+  <p>Type and colour set the tone; the numerals establish competence. Get negatives, alignment, and totals right and a statement reads as professional before anyone checks the arithmetic. Get them wrong and good design can't rescue it.</p>
+</div></header>
+
+<!-- THE PATTERN -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">01</div>
+  <h2>The reference table</h2>
+  <p class="intro">Every convention on this page, applied at once. Copy this structure.</p>
+  <div class="pair">
+    <div class="pane">
+      <span class="tag y">Correct</span>
+      <table class="led">
+        <thead><tr><th>Matter</th><th class="r">Hours</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
+        <tbody>
+          <tr><td>Monthly close — July</td><td class="r num pos">14.0</td><td class="r num pos">$175.00</td><td class="r num pos">$2,450.00</td></tr>
+          <tr><td>Multi-state nexus review</td><td class="r num pos">6.5</td><td class="r num pos">$175.00</td><td class="r num pos">$1,137.50</td></tr>
+          <tr><td>Payroll setup</td><td class="r num pos">2.0</td><td class="r num pos">$150.00</td><td class="r num pos">$300.00</td></tr>
+          <tr><td>Notice response</td><td class="r num nil">—</td><td class="r num nil">—</td><td class="r num nil">—</td></tr>
+          <tr class="sub"><td>Subtotal</td><td class="r num pos">22.5</td><td class="r"></td><td class="r num pos">$3,887.50</td></tr>
+          <tr><td>Retainer applied</td><td class="r"></td><td class="r"></td><td class="r num">(1,500.00)</td></tr>
+          <tr><td>Prompt-payment credit</td><td class="r"></td><td class="r"></td><td class="r num">(116.63)</td></tr>
+          <tr class="tot"><td>Balance due</td><td class="r"></td><td class="r"></td><td class="r num pos">$2,270.87</td></tr>
+        </tbody>
+      </table>
+      <p class="why"><b>Note four things.</b> Negatives in parentheses, not with a minus. The positives carry a 1ch right pad so they stay aligned with the closing paren. A genuine nil is an em dash, not <code class="i">0.00</code>. And credits inside parentheses drop the <code class="i">$</code>, because the parens already carry the meaning.<br/><br/><b>Convention shown:</b> invoice / statement of account — <code class="i">$</code> on every populated row. A <em>financial</em> statement would carry it on the first row and totals only; see the currency rules below.</p>
+    </div>
+    <div class="pane bad">
+      <span class="tag n">Wrong</span>
+      <table class="led">
+        <thead><tr><th>Matter</th><th class="r">Hours</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead>
+        <tbody>
+          <tr><td>Monthly close — July</td><td class="r num">14</td><td class="r num">$175</td><td class="r num">$2450</td></tr>
+          <tr><td>Multi-state nexus review</td><td class="r num">6.5</td><td class="r num">$175</td><td class="r num">$1137.5</td></tr>
+          <tr><td>Payroll setup</td><td class="r num">2</td><td class="r num">$150</td><td class="r num">$300</td></tr>
+          <tr><td>Notice response</td><td class="r num">0.00</td><td class="r num">0.00</td><td class="r num">0.00</td></tr>
+          <tr><td>Subtotal</td><td class="r num">22.5</td><td class="r"></td><td class="r num">$3887.5</td></tr>
+          <tr><td>Retainer applied</td><td class="r"></td><td class="r"></td><td class="r num" style="color:#9B2C2C">-1500.00</td></tr>
+          <tr><td>Prompt-payment credit</td><td class="r"></td><td class="r"></td><td class="r num" style="color:#9B2C2C">-116.63</td></tr>
+          <tr><td><b>Balance due</b></td><td class="r"></td><td class="r"></td><td class="r num"><b>$2270.87</b></td></tr>
+        </tbody>
+      </table>
+      <p class="why"><b>Every one of these is a real tell.</b> Proportional numerals so columns don't line up. Inconsistent decimals. No thousands separators. A computed zero shown where the work simply didn't happen. Negatives in red with a minus — which vanishes in greyscale. And no rules to separate subtotal from total.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- RULES -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">02</div>
+  <h2>Conventions</h2>
+  <p class="intro">US practice throughout — dollars, US date order, GAAP-style parentheses.</p>
+  <div class="rules">
+    <div class="r"><span class="k">Numerals</span><span class="v"><b>IBM Plex Mono, tabular figures, always.</b> Never a proportional face in a numeric column. <code>font-variant-numeric: tabular-nums</code> even on mono, so a browser can't substitute.</span></div>
+    <div class="r"><span class="k">Alignment</span><span class="v">Numeric columns <b>right-aligned</b>; the decimal point aligns as a consequence. Description columns left. Never centre a number.</span></div>
+    <div class="r"><span class="k">Decimals</span><span class="v">Money: <b>always two</b>, including round amounts — <code>$300.00</code>, never <code>$300</code>. Hours: <b>one</b> — <code>14.0</code>. Percentages: <b>one or two</b>, consistent within a document.</span></div>
+    <div class="r"><span class="k">Negatives</span><span class="v"><b>Parentheses, never a minus sign:</b> <code>(1,500.00)</code>. This is the accounting convention and it survives photocopying, which a red minus does not. Never use colour as the only signal.</span></div>
+    <div class="r"><span class="k">Paren alignment</span><span class="v">Give positive figures <code>padding-right: 1ch</code> so they align with the closing paren of negatives. Without it the column visibly steps.</span></div>
+    <div class="r"><span class="k">Currency · invoices</span><span class="v">On an <b>invoice or statement of account</b>, put <code>$</code> on <b>every populated row</b> of a money column. Long tables may instead put <code>Amount ($)</code> in the header and drop it from cells entirely — pick one per document. No space after the symbol.</span></div>
+    <div class="r"><span class="k">Currency · statements</span><span class="v">On a <b>financial statement</b> — balance sheet, income statement, any GAAP-style presentation — the convention is stricter: <code>$</code> on the <b>first row of each column and on totals only</b>. Use <code>money(n, {symbol: false})</code> for the intermediate rows.</span></div>
+    <div class="r"><span class="k">Currency · credits</span><span class="v">Figures already in parentheses <b>omit the symbol</b> in both conventions — <code>(1,500.00)</code>, never <code>($1,500.00)</code> inside a column that already carries it. The parentheses are doing the work.</span></div>
+    <div class="r"><span class="k">Nil vs. zero</span><span class="v">These mean different things and accountants read the difference. <b>Em dash</b> <code>—</code> = nothing to report. <b><code>0.00</code></b> = a computed result that came to zero. An <b>empty cell</b> = not applicable to this row.</span></div>
+    <div class="r"><span class="k">Thousands</span><span class="v">Comma separators above 999 — <code>$1,137.50</code>. No separator in years, invoice numbers, or account references.</span></div>
+    <div class="r"><span class="k">Subtotals</span><span class="v"><b>Single rule above</b>, in navy, 0.5pt. No fill band — toner floods it and it costs nothing in legibility.</span></div>
+    <div class="r"><span class="k">Totals</span><span class="v"><b>Single rule above, double rule below.</b> The double rule is the traditional signal that a column is closed, and it's the cheapest credibility on the page.</span></div>
+    <div class="r"><span class="k">Column order</span><span class="v">Description → quantity → rate → amount. <b>Amount is always the rightmost column</b>, so the eye finds the number it's looking for in one place.</span></div>
+    <div class="r"><span class="k">Dates</span><span class="v">Prose and letterhead: <b><code>August 13, 2026</code></b>. Tabular: <code>08/13/2026</code>. Filenames and data: <b>ISO</b> <code>2026-08-13</code>, so they sort. Ranges take an en dash — <code>Jul 1 – Jul 31, 2026</code>.</span></div>
+    <div class="r"><span class="k">Periods</span><span class="v">State the period on every statement, in full: <b>"For the period ended July 31, 2026."</b> Never just a month name.</span></div>
+    <div class="r"><span class="k">Rounding</span><span class="v">If figures are rounded, say so in a footnote. <b>Never let a column's displayed rows fail to sum to the displayed total</b> — adjust the largest line or footnote the difference. An accountant will add it up.</span></div>
+    <div class="r"><span class="k">Print hygiene</span><span class="v">Long tables get a real <code>&lt;thead&gt;</code> so it repeats on every page. Rows get <code>break-inside: avoid</code>. Row separation by <b>hairline rules, not zebra fill</b>.</span></div>
+  </div>
+  <div class="note"><b>The one that matters most:</b> negatives in parentheses. It's the single fastest signal to anyone who works with financial statements that the document was produced by someone who does this professionally — and a red minus sign is the fastest signal of the opposite.</div>
+</div></section>
+
+<!-- CODE -->
+<section class="sec"><div class="wrap">
+  <div class="lbl">03</div>
+  <h2>Implementation</h2>
+  <p class="intro">Lift these directly. The CSS is framework-free and works in the web app and in the print templates alike.</p>
+  <div class="two">
+    <div>
+      <div class="codecap">CSS · the ledger table</div>
+      <pre><span class="c">/* figures */</span>
+.num <span class="c">{</span>
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--navy);
+<span class="c">}</span>
+<span class="c">/* reserve the closing paren so columns align */</span>
+.num.pos <span class="c">{</span> padding-right: 1ch; <span class="c">}</span>
+.num.nil <span class="c">{</span> color: var(--ink-2); <span class="c">}</span>
+
+<span class="c">/* subtotal: rule above */</span>
+tr.sub td <span class="c">{</span>
+  border-top: 1px solid var(--navy);
+  border-bottom: 0;
+  font-weight: 600;
+<span class="c">}</span>
+<span class="c">/* total: rule above, double below */</span>
+tr.tot td <span class="c">{</span>
+  border-top: 1px solid var(--navy);
+  border-bottom: 3px <span class="s">double</span> var(--navy);
+  font-weight: 600;
+<span class="c">}</span>
+
+<span class="c">/* print */</span>
+@media print <span class="c">{</span>
+  thead <span class="c">{</span> display: table-header-group; <span class="c">}</span>
+  tr <span class="c">{</span> break-inside: avoid; <span class="c">}</span>
+<span class="c">}</span></pre>
+    </div>
+    <div>
+      <div class="codecap">Formatting · one helper, used everywhere</div>
+      <pre><span class="c">// The only place money becomes a string.</span>
+<span class="c">// Negative => parentheses, never a minus.</span>
+<span class="s">function</span> money(n, <span class="c">{</span> symbol = <span class="s">true</span> <span class="c">} = {}) {</span>
+  <span class="s">if</span> (n === <span class="s">null</span> || n === <span class="s">undefined</span>) <span class="s">return</span> <span class="s">"—"</span>;
+  <span class="s">const</span> abs = Math.abs(n).toLocaleString(<span class="s">"en-US"</span>, <span class="c">{</span>
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  <span class="c">}</span>);
+  <span class="s">const</span> s = (symbol ? <span class="s">"$"</span> : <span class="s">""</span>) + abs;
+  <span class="s">return</span> n &lt; 0 ? <span class="s">`(${s})`</span> : s;
+<span class="c">}</span>
+
+money(2450)      <span class="c">// "$2,450.00"  — invoice row</span>
+money(-1500)     <span class="c">// "($1,500.00)"</span>
+money(-1500,<span class="c">{</span>symbol:<span class="s">false</span><span class="c">}</span>) <span class="c">// "(1,500.00)"  — credit</span>
+money(2450,<span class="c">{</span>symbol:<span class="s">false</span><span class="c">}</span>)  <span class="c">// "2,450.00"   — fin. stmt row</span>
+money(<span class="s">null</span>)      <span class="c">// "—"</span>
+
+<span class="c">// Default symbol:true suits invoices and statements</span>
+<span class="c">// of account. For GAAP-style financial statements pass</span>
+<span class="c">// symbol:false on every row except the first and totals.</span>
+
+<span class="c">// Python equivalent for the PDF templates:</span>
+<span class="c"># def money(n, symbol=True):</span>
+<span class="c">#     if n is None: return "—"</span>
+<span class="c">#     s = f"{'$' if symbol else ''}{abs(n):,.2f}"</span>
+<span class="c">#     return f"({s})" if n &lt; 0 else s</span></pre>
+    </div>
+  </div>
+  <div class="note"><b>Route every figure through one formatter.</b> The moment two places in the codebase format money, they drift — and a statement with <code class="i">$2,450.00</code> on one line and <code class="i">$2450.5</code> on the next undoes everything else on this page. This applies to the Jinja templates in <code class="i">invoice-generator/</code> as much as to the site.</div>
+</div></section>
+
+</body>
+</html>

@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — building the C into the mark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--navy:#132437;--oxblood:#6A2833;--gold:#C0A265;--shell:#F7F7F5;--paper:#fff;--hairline:#E6E5E0;--hairline-2:#D8D7D1;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",monospace}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--shell);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+a{color:var(--oxblood);text-decoration:none}a:hover{color:#83323F}
+svg{display:block}
+.wrap{max-width:1180px;margin:0 auto;padding:0 40px}
+
+.hd{background:var(--navy);color:#fff;padding:54px 0 48px}
+.hd .k{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:16px}
+.hd h1{font-size:clamp(28px,3.6vw,40px);font-weight:600;letter-spacing:-.04em;line-height:1.05;margin-bottom:14px}
+.hd p{font-size:16.5px;line-height:1.62;color:rgba(255,255,255,.72);max-width:68ch}
+.hd p+p{margin-top:11px}
+
+.strip{background:var(--paper);border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline)}
+.strip .wrap{padding-top:24px;padding-bottom:24px;display:flex;gap:26px;align-items:flex-start}
+.strip .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.17em;text-transform:uppercase;color:var(--oxblood);flex:none;padding-top:3px}
+.strip p{font-size:15px;line-height:1.62;color:var(--ink-2);max-width:80ch}
+.strip b{color:var(--navy);font-weight:600}
+
+.sec{padding:52px 0}
+.famhd{display:flex;align-items:baseline;gap:16px;margin-bottom:8px}
+.famhd .n{font-family:var(--mono);font-size:11px;letter-spacing:.15em;color:var(--oxblood)}
+.famhd h2{font-size:23px;font-weight:600;letter-spacing:-.032em;color:var(--navy)}
+.famsub{font-size:15px;color:var(--ink-2);max-width:74ch;margin-bottom:28px}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.card{background:var(--paper);border:1px solid var(--hairline);display:flex;flex-direction:column}
+.card__top{display:flex;border-bottom:1px solid var(--hairline)}
+.stage{flex:1;padding:26px;display:flex;align-items:center;justify-content:center;min-height:132px}
+.stage--dark{background:var(--navy);border-left:1px solid var(--hairline);flex:0 0 116px}
+.sizes{display:flex;align-items:center;gap:16px;padding:14px 20px;border-bottom:1px solid var(--hairline);background:var(--shell)}
+.sizes .s{display:flex;align-items:center;gap:8px}
+.sizes .n{font-family:var(--mono);font-size:8.5px;color:var(--mute)}
+.tile{background:var(--navy);display:flex;align-items:center;justify-content:center;flex:none}
+.lockrow{margin-left:auto;display:flex;align-items:center;gap:9px}
+.lockrow .nm{font-size:14px;font-weight:700;letter-spacing:-.04em;color:var(--navy);line-height:1}
+.card__body{padding:20px 22px 22px;flex:1;display:flex;flex-direction:column}
+.card__body .idea{font-family:var(--mono);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--oxblood);margin-bottom:8px}
+.card__body h3{font-size:18px;font-weight:600;letter-spacing:-.028em;color:var(--navy);margin-bottom:8px}
+.card__body p{font-size:14px;line-height:1.58;color:var(--ink-2)}
+.card__body .risk{margin-top:auto;padding-top:12px;margin-top:12px;border-top:1px solid var(--hairline);font-size:13px;line-height:1.55;color:var(--mute)}
+.card__body .risk b{color:var(--oxblood);font-weight:600}
+
+.verdict{background:var(--navy);color:#fff;padding:44px 0 48px}
+.verdict .k{font-family:var(--mono);font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:var(--gold);margin-bottom:20px}
+.verdict .cols{display:grid;grid-template-columns:1.25fr 1fr;gap:52px}
+.verdict h3{font-size:22px;font-weight:600;letter-spacing:-.03em;margin-bottom:12px}
+.verdict p{font-size:15px;line-height:1.66;color:rgba(255,255,255,.78)}
+.verdict p+p{margin-top:12px}
+.verdict b{color:#fff;font-weight:600}
+.verdict .side{border-left:1px solid rgba(255,255,255,.16);padding-left:38px}
+.verdict .side p{font-size:13.5px;line-height:1.62;color:rgba(255,255,255,.68)}
+@media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:760px){.grid,.verdict .cols{grid-template-columns:1fr}.wrap{padding:0 24px}.verdict .side{border-left:0;padding-left:0;border-top:1px solid rgba(255,255,255,.16);padding-top:24px}.strip .wrap{flex-direction:column;gap:12px}}
+</style>
+</head>
+<body>
+
+<header class="hd"><div class="wrap">
+  <div class="k">SAT-C LLP · mark, round two</div>
+  <h1>Making the notch into a C.</h1>
+  <p>If people should say <em>"sat-see,"</em> the lockup has to lead with SAT&#8209;C rather than SETHURAMAN. The question is whether the mark itself carries the letter.</p>
+  <p>Three abstract-first options, three letterform options. Judge them small — the 16px tile is the honest test, not the 96px version.</p>
+</div></header>
+
+<div class="strip"><div class="wrap">
+  <span class="tag">The good news</span>
+  <p><b>The notch already wants to be a C.</b> Move the bite from the corner to the middle of the right-hand edge and the remaining outline <em>is</em> a blocky C — same single subtraction, same concept, no new idea bolted on. That's what family A is built from, and it means you don't have to choose between the razor story and the letter.</p>
+</div></div>
+
+<!-- ══════════ FAMILY A ══════════ -->
+<section class="sec"><div class="wrap">
+  <div class="famhd"><span class="n">FAMILY A</span><h2>Abstract first</h2></div>
+  <p class="famsub">Reads as a clean geometric mark. The C is there, but it whispers — most people will see a square with a slot until you point it out. Survives 16px and embossing.</p>
+  <div class="grid">
+
+    <!-- A1 -->
+    <div class="card">
+      <div class="card__top">
+        <div class="stage">
+          <svg width="96" height="96" viewBox="0 0 32 32">
+            <path d="M3 3 H19 V8 H11 V14 H19 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+            <rect x="22" y="8" width="8" height="6" fill="#6A2833"/>
+          </svg>
+        </div>
+        <div class="stage stage--dark">
+          <svg width="62" height="62" viewBox="0 0 32 32">
+            <path d="M3 3 H19 V8 H11 V14 H19 V19 H3 Z" fill="none" stroke="#fff" stroke-width="2.4"/>
+            <rect x="22" y="8" width="8" height="6" fill="#C0A265"/>
+          </svg>
+        </div>
+      </div>
+      <div class="sizes">
+        <span class="s"><svg width="30" height="30" viewBox="0 0 32 32"><path d="M3 3 H19 V8 H11 V14 H19 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.9"/><rect x="22" y="8" width="8" height="6" fill="#6A2833"/></svg><span class="n">30</span></span>
+        <span class="s"><span class="tile" style="width:16px;height:16px"><svg width="13" height="13" viewBox="0 0 32 32"><path d="M3 3 H19 V8 H11 V14 H19 V19 H3 Z" fill="none" stroke="#fff" stroke-width="3.6"/><rect x="22" y="8" width="8" height="6" fill="#C0A265"/></svg></span><span class="n">16</span></span>
+        <span class="lockrow"><svg width="24" height="24" viewBox="0 0 32 32"><path d="M3 3 H19 V8 H11 V14 H19 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.9"/><rect x="22" y="8" width="8" height="6" fill="#6A2833"/></svg><span class="nm">SAT&#8209;C&nbsp;LLP</span></span>
+      </div>
+      <div class="card__body">
+        <div class="idea">A1 · The Slot</div>
+        <h3>The bite moves to the edge</h3>
+        <p>Exactly the Notch you approved, with the 8×6 bite taken from the middle of the right edge instead of the corner. The residual outline is a blocky C; the removed piece slides out sideways.</p>
+        <div class="risk">Cleanest evolution of what you already have. The C is genuinely legible once seen, and the razor story is unchanged.</div>
+      </div>
+    </div>
+
+    <!-- A2 -->
+    <div class="card">
+      <div class="card__top">
+        <div class="stage">
+          <svg width="96" height="96" viewBox="0 0 32 32">
+            <path d="M3 3 H19 V8 H9 V14 H19 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+            <rect x="22" y="8" width="10" height="6" fill="#6A2833"/>
+          </svg>
+        </div>
+        <div class="stage stage--dark">
+          <svg width="62" height="62" viewBox="0 0 32 32">
+            <path d="M3 3 H19 V8 H9 V14 H19 V19 H3 Z" fill="none" stroke="#fff" stroke-width="2.4"/>
+            <rect x="22" y="8" width="10" height="6" fill="#C0A265"/>
+          </svg>
+        </div>
+      </div>
+      <div class="sizes">
+        <span class="s"><svg width="30" height="30" viewBox="0 0 32 32"><path d="M3 3 H19 V8 H9 V14 H19 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.9"/><rect x="22" y="8" width="10" height="6" fill="#6A2833"/></svg><span class="n">30</span></span>
+        <span class="s"><span class="tile" style="width:16px;height:16px"><svg width="13" height="13" viewBox="0 0 32 32"><path d="M3 3 H19 V8 H9 V14 H19 V19 H3 Z" fill="none" stroke="#fff" stroke-width="3.6"/><rect x="22" y="8" width="10" height="6" fill="#C0A265"/></svg></span><span class="n">16</span></span>
+        <span class="lockrow"><svg width="24" height="24" viewBox="0 0 32 32"><path d="M3 3 H19 V8 H9 V14 H19 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.9"/><rect x="22" y="8" width="10" height="6" fill="#6A2833"/></svg><span class="nm">SAT&#8209;C&nbsp;LLP</span></span>
+      </div>
+      <div class="card__body">
+        <div class="idea">A2 · The Deep Slot</div>
+        <h3>Same idea, deeper bite</h3>
+        <p>The slot cuts further in, so the two arms of the C get shorter and the letter asserts itself more. The removed piece is correspondingly wider.</p>
+        <div class="risk">More obviously a C than A1 while staying geometric. <b>Watch:</b> the deeper the bite, the more the mark reads as a bracket rather than a letter.</div>
+      </div>
+    </div>
+
+    <!-- A3 -->
+    <div class="card">
+      <div class="card__top">
+        <div class="stage">
+          <svg width="96" height="96" viewBox="0 0 32 32">
+            <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.4"/>
+            <rect x="22" y="22" width="8" height="8" fill="#6A2833"/>
+          </svg>
+        </div>
+        <div class="stage stage--dark">
+          <svg width="62" height="62" viewBox="0 0 32 32">
+            <path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#fff" stroke-width="2.4"/>
+            <rect x="22" y="22" width="8" height="8" fill="#C0A265"/>
+          </svg>
+        </div>
+      </div>
+      <div class="sizes">
+        <span class="s"><svg width="30" height="30" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.9"/><rect x="22" y="22" width="8" height="8" fill="#6A2833"/></svg><span class="n">30</span></span>
+        <span class="s"><span class="tile" style="width:16px;height:16px"><svg width="13" height="13" viewBox="0 0 32 32"><path d="M6 6 H20 V13 H13 V20 H6 Z" fill="none" stroke="#fff" stroke-width="3"/><rect x="21" y="21" width="6" height="6" fill="#C0A265"/></svg></span><span class="n">16</span></span>
+        <span class="lockrow"><svg width="24" height="24" viewBox="0 0 32 32"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#132437" stroke-width="2.9"/><rect x="22" y="22" width="8" height="8" fill="#6A2833"/></svg><span class="nm">SAT&#8209;C&nbsp;LLP</span></span>
+      </div>
+      <div class="card__body">
+        <div class="idea">A3 · Control</div>
+        <h3>Change the words, not the mark</h3>
+        <p>The Notch exactly as specced, with SAT&#8209;C simply promoted to the wordmark. No letter in the symbol at all — the name does that work.</p>
+        <div class="risk">Worth keeping honest about: this may be enough. The mark doesn't have to spell anything for people to learn to say "sat-see."</div>
+      </div>
+    </div>
+
+  </div>
+</div></section>
+
+<!-- ══════════ FAMILY B ══════════ -->
+<section class="sec" style="padding-top:8px"><div class="wrap">
+  <div class="famhd"><span class="n">FAMILY B</span><h2>Unmistakably a C</h2></div>
+  <p class="famsub">The letter comes first. More immediately legible as SAT&#8209;C, at the cost of some of the geometric calm — and, in one case, of working at favicon size at all.</p>
+  <div class="grid">
+
+    <!-- B1 -->
+    <div class="card">
+      <div class="card__top">
+        <div class="stage">
+          <svg width="96" height="96" viewBox="0 0 32 32">
+            <path d="M20 4 H4 V20 H20" fill="none" stroke="#132437" stroke-width="3"/>
+            <rect x="23" y="23" width="7" height="7" fill="#6A2833"/>
+          </svg>
+        </div>
+        <div class="stage stage--dark">
+          <svg width="62" height="62" viewBox="0 0 32 32">
+            <path d="M20 4 H4 V20 H20" fill="none" stroke="#fff" stroke-width="3"/>
+            <rect x="23" y="23" width="7" height="7" fill="#C0A265"/>
+          </svg>
+        </div>
+      </div>
+      <div class="sizes">
+        <span class="s"><svg width="30" height="30" viewBox="0 0 32 32"><path d="M20 4 H4 V20 H20" fill="none" stroke="#132437" stroke-width="3.4"/><rect x="23" y="23" width="7" height="7" fill="#6A2833"/></svg><span class="n">30</span></span>
+        <span class="s"><span class="tile" style="width:16px;height:16px"><svg width="13" height="13" viewBox="0 0 32 32"><path d="M21 6 H6 V21 H21" fill="none" stroke="#fff" stroke-width="4"/><rect x="23" y="23" width="6" height="6" fill="#C0A265"/></svg></span><span class="n">16</span></span>
+        <span class="lockrow"><svg width="24" height="24" viewBox="0 0 32 32"><path d="M20 4 H4 V20 H20" fill="none" stroke="#132437" stroke-width="3.4"/><rect x="23" y="23" width="7" height="7" fill="#6A2833"/></svg><span class="nm">SAT&#8209;C&nbsp;LLP</span></span>
+      </div>
+      <div class="card__body">
+        <div class="idea">B1 · The Open Square</div>
+        <h3>A squared C, piece set aside</h3>
+        <p>Three strokes of a square, left open on the right. Unambiguously a C, still entirely orthogonal, and the removed piece keeps its place at the corner.</p>
+        <div class="risk">Reads as a letter instantly and holds at 16px. <b>Watch:</b> an open square is also a common bracket / crop-mark motif, so it's less ownable than A1.</div>
+      </div>
+    </div>
+
+    <!-- B2 -->
+    <div class="card">
+      <div class="card__top">
+        <div class="stage">
+          <svg width="96" height="96" viewBox="0 0 32 32">
+            <path d="M21 4 H4 V21 H21" fill="none" stroke="#132437" stroke-width="3"/>
+            <rect x="15" y="9.5" width="7" height="7" fill="#6A2833"/>
+          </svg>
+        </div>
+        <div class="stage stage--dark">
+          <svg width="62" height="62" viewBox="0 0 32 32">
+            <path d="M21 4 H4 V21 H21" fill="none" stroke="#fff" stroke-width="3"/>
+            <rect x="15" y="9.5" width="7" height="7" fill="#C0A265"/>
+          </svg>
+        </div>
+      </div>
+      <div class="sizes">
+        <span class="s"><svg width="30" height="30" viewBox="0 0 32 32"><path d="M21 4 H4 V21 H21" fill="none" stroke="#132437" stroke-width="3.4"/><rect x="15" y="9.5" width="7" height="7" fill="#6A2833"/></svg><span class="n">30</span></span>
+        <span class="s"><span class="tile" style="width:16px;height:16px"><svg width="13" height="13" viewBox="0 0 32 32"><path d="M22 6 H6 V22 H22" fill="none" stroke="#fff" stroke-width="4"/><rect x="15" y="10" width="7" height="7" fill="#C0A265"/></svg></span><span class="n">16</span></span>
+        <span class="lockrow"><svg width="24" height="24" viewBox="0 0 32 32"><path d="M21 4 H4 V21 H21" fill="none" stroke="#132437" stroke-width="3.4"/><rect x="15" y="9.5" width="7" height="7" fill="#6A2833"/></svg><span class="nm">SAT&#8209;C&nbsp;LLP</span></span>
+      </div>
+      <div class="card__body">
+        <div class="idea">B2 · Piece in the Mouth</div>
+        <h3>The removed square, held</h3>
+        <p>The C with its removed piece floating in the opening rather than beside it — the subtraction and the letter occupy the same space.</p>
+        <div class="risk"><b>Real risk:</b> a C with something in its mouth reads as a <em>G</em> to a lot of people, and at 16px the piece merges with the arms. I'd rule this out.</div>
+      </div>
+    </div>
+
+    <!-- B3 -->
+    <div class="card">
+      <div class="card__top">
+        <div class="stage" style="padding:20px">
+          <div style="display:flex;align-items:center;gap:3px;font-family:var(--sans);font-weight:700;font-size:38px;letter-spacing:-.055em;color:var(--navy);line-height:1">
+            <span>SAT</span><span style="width:13px;height:13px;background:var(--oxblood);display:block;flex:none"></span><span>C</span>
+          </div>
+        </div>
+        <div class="stage stage--dark" style="padding:16px">
+          <div style="display:flex;align-items:center;gap:2px;font-family:var(--sans);font-weight:700;font-size:23px;letter-spacing:-.055em;color:#fff;line-height:1">
+            <span>SAT</span><span style="width:8px;height:8px;background:var(--gold);display:block;flex:none"></span><span>C</span>
+          </div>
+        </div>
+      </div>
+      <div class="sizes">
+        <span class="s"><div style="display:flex;align-items:center;gap:1.5px;font-weight:700;font-size:13px;letter-spacing:-.055em;color:var(--navy);line-height:1"><span>SAT</span><span style="width:5px;height:5px;background:var(--oxblood);display:block;flex:none"></span><span>C</span></div><span class="n">small</span></span>
+        <span class="s"><span class="tile" style="width:16px;height:16px"><span style="font-weight:700;font-size:11px;color:#fff;letter-spacing:-.06em;line-height:1">SC</span></span><span class="n">16 ✕</span></span>
+        <span class="lockrow"><span class="n" style="font-size:9.5px">logotype only</span></span>
+      </div>
+      <div class="card__body">
+        <div class="idea">B3 · Logotype</div>
+        <h3>The hyphen becomes the notch</h3>
+        <p>No symbol at all — SAT&#8209;C set tight, with the hyphen replaced by the removed square. The name and the mark are the same object, which is the most direct answer to "I want people to associate SAT&#8209;C."</p>
+        <div class="risk"><b>The cost:</b> no favicon, no app icon, nothing to emboss. You'd need a separate symbol anyway — so this is really a wordmark to pair with A1, not a replacement for it.</div>
+      </div>
+    </div>
+
+  </div>
+</div></section>
+
+<!-- ══════════ VERDICT ══════════ -->
+<section class="verdict"><div class="wrap">
+  <div class="k">Verdict</div>
+  <div class="cols">
+    <div>
+      <h3>A1, paired with B3's wordmark.</h3>
+      <p><b>A1 is the answer I'd argue for.</b> It's the same single subtraction you already approved — nothing added, nothing decorative — and simply moving the bite to the edge turns the residue into a C. The razor story survives intact: <em>we take out what isn't necessary, and what's left is the C.</em> That's a better sentence than either idea alone.</p>
+      <p>Then take <b>B3's device for the wordmark</b> — the hyphen in SAT&#8209;C set as the small oxblood square. It ties the letters to the symbol without needing the symbol present, which is what you want on a letterhead where both appear.</p>
+      <p><b>A3 deserves a real hearing.</b> The mark doesn't have to spell anything. Promote SAT&#8209;C to the lockup, keep the Notch as-is, and people will learn to say "sat-see" from the wordmark alone — that's how nearly every initialism works. It's the cheapest option and it isn't wrong.</p>
+      <p>I'd rule out <b>B2</b> outright: it reads as a G.</p>
+    </div>
+    <div class="side">
+      <p><b>If you pick A1 or A2, note what changes:</b></p>
+      <p>· The mark spec, the CSS <span style="font-family:var(--mono);font-size:12px">.s-o</span> path, the favicon data-URI, and <span style="font-family:var(--mono);font-size:12px">make-images.py</span> all take a new path string — about ten minutes of work, already isolated to those four places.</p>
+      <p>· Every lockup flips from SETHURAMAN to SAT&#8209;C, with the full legal name moving to the small print. That's a one-line change per template.</p>
+      <p>· The 8×6 bite is no longer square, so "the piece fits the hole" still holds — but the misuse rule becomes "don't change the bite's proportions," not "keep it 8×8."</p>
+      <p style="margin-top:16px"><b>Say the word and I'll re-cut the whole system to whichever you pick.</b></p>
+    </div>
+  </div>
+</div></section>
+
+</body>
+</html>

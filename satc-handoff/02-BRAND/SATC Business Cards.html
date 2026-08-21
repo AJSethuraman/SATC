@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — business cards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+doc-page:not(:defined){visibility:hidden}
+:root{--navy:#132437;--navy-deep:#0D1926;--oxblood:#6A2833;--gold:#C0A265;--shell:#F7F7F5;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--hairline:#D8D7D1;--sans:"IBM Plex Sans",Helvetica,Arial,sans-serif;--mono:"IBM Plex Mono","Courier New",monospace}
+*,*::before,*::after{box-sizing:border-box}
+.page{font-family:var(--sans);color:var(--ink)}
+h1,h2,h3,p{margin:0}
+
+/* ── SHEET: proof furniture, screen and print. The cards below sit at
+   TRUE 3.5 × 2 in on Letter, so this page can be held against a real
+   card. Nothing in this block goes to the printer as artwork. ───── */
+.sheet-head{border-bottom:1px solid var(--navy);padding-bottom:10pt;margin-bottom:22pt;display:flex;align-items:baseline;justify-content:space-between;gap:16pt}
+.sheet-head .st{font-size:13pt;font-weight:600;letter-spacing:-.03em;color:var(--navy)}
+.sheet-head .sm{font-family:var(--mono);font-size:7.5pt;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+.run{margin-bottom:26pt}
+.run>.rt{font-family:var(--mono);font-size:7.5pt;letter-spacing:.14em;text-transform:uppercase;color:var(--oxblood);margin-bottom:3pt}
+.run>.rd{font-size:9pt;line-height:1.5;color:var(--ink-2);max-width:5.4in;margin-bottom:14pt}
+.grid{display:flex;flex-wrap:wrap;gap:22pt 26pt}
+.slot{display:flex;flex-direction:column;gap:5pt}
+.slot .cap{font-family:var(--mono);font-size:7pt;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+/* trim indicator: sits OUTSIDE the 3.5×2 box so it never eats into the card */
+.trim{width:3.5in;height:2in;outline:0.5pt solid var(--hairline);outline-offset:3pt}
+.card{width:3.5in;height:2in;position:relative;overflow:hidden}
+
+/* ── FRONT ───────────────────────────────────────────────── */
+/* PRINT FLOOR — 16pt uncoated stock has heavy dot gain, so nothing here
+   goes below 6pt, and anything a client must read (email, phone) is 7pt+.
+   Small type stays off --mute (3.6:1) and uses --ink-2 (7.4:1). */
+.card-front{background:var(--shell);padding:0.22in 0.24in;display:flex;flex-direction:column;justify-content:space-between}
+.lock{display:flex;flex-direction:column;align-items:flex-start;gap:3pt}
+.lock .wm{display:flex;align-items:flex-end;font-size:12pt;font-weight:700;letter-spacing:-.04em;line-height:.74;color:var(--navy)}
+.lock .wm .hy{width:.3em;height:.3em;flex:none;background:var(--oxblood);margin:0 .18em .2em}
+.lock .wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
+.lock .tg{font-family:var(--mono);font-size:6pt;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);display:block;margin-top:0}
+.who{display:flex;flex-direction:column}
+.who .name{font-size:12pt;font-weight:600;letter-spacing:-0.032em;color:var(--navy);line-height:1.05}
+.who .role{font-family:var(--mono);font-size:6.5pt;letter-spacing:0.13em;text-transform:uppercase;color:var(--oxblood);margin-top:4pt}
+/* contact runs full width under the name — never break an address mid-string */
+.who .contact{font-family:var(--mono);font-size:7pt;line-height:1.65;color:var(--ink-2);margin-top:7pt;padding-top:6pt;border-top:0.5pt solid var(--hairline);white-space:nowrap}
+.who .contact b{color:var(--navy);font-weight:500}
+
+/* ── BACK ────────────────────────────────────────────────── */
+.card-back{background:var(--navy);display:flex;flex-direction:column;justify-content:space-between;padding:0.22in 0.24in}
+.card-back::before,.card-back::after{content:"";position:absolute;border:0.6pt solid rgba(192,162,101,0.16);pointer-events:none}
+.card-back::before{top:-0.34in;right:-0.34in;width:1.5in;height:1.5in}
+.card-back::after{top:0.06in;right:0.06in;width:1.5in;height:1.5in;border-color:rgba(192,162,101,0.08)}
+.card-back .bmark{position:relative;z-index:1}
+.card-back .bmark svg{width:30pt;height:30pt}
+.card-back .line{position:relative;z-index:1}
+.card-back .line .t{font-size:9.5pt;font-weight:600;letter-spacing:-0.028em;color:#fff;line-height:1.25;max-width:2.1in}
+.card-back .line .u{font-family:var(--mono);font-size:6.5pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold);margin-top:7pt}
+
+/* ── spec page ───────────────────────────────────────────── */
+.spec{display:flex;flex-direction:column;gap:16pt;max-width:5.6in}
+.spec .row{display:flex;flex-direction:column;gap:4pt;padding-bottom:14pt;border-bottom:0.5pt solid var(--hairline)}
+.spec .row:last-child{border-bottom:0}
+.spec .k{font-family:var(--mono);font-size:7pt;letter-spacing:.14em;text-transform:uppercase;color:var(--navy)}
+.spec .v{font-size:9.5pt;line-height:1.6;color:var(--ink-2)}
+.spec .v b{color:var(--navy);font-weight:600}
+.spec .v.warn{color:var(--oxblood)}
+a{color:var(--oxblood)}
+a:hover{color:var(--navy)}
+</style>
+</head>
+<body>
+
+<doc-page size="letter" margin="0.5in">
+
+  <!-- ══ SHEET 1 · the cards, at true size ══ -->
+  <section class="page" data-screen-label="01">
+    <div class="sheet-head">
+      <div class="st">Business cards — approved artwork</div>      <div class="sm">3.5 × 2 in · true size</div>
+    </div>
+
+    <div class="run">
+      <p class="rt">Main run · two-sided</p>
+      <p class="rd">One shared back serves both partners, so the printer sets that plate up once.</p>
+      <div class="grid">
+        <div class="slot">
+          <span class="cap">Front · Arjun</span>
+          <div class="trim"><div class="card card-front">
+            <div class="lock"><span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span></div>
+            <div class="who">
+              <div class="name">Arjun Sethuraman</div>
+              <div class="role">Managing Partner · CPA</div>
+              <div class="contact"><b>arjun_sethuraman@satcllp.com</b><br/>307-941-0508 &nbsp;·&nbsp; satcllp.com</div>
+            </div>
+          </div></div>
+        </div>
+        <div class="slot">
+          <span class="cap">Front · Brandi</span>
+          <div class="trim"><div class="card card-front">
+            <div class="lock"><span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span></div>
+            <div class="who">
+              <div class="name">Brandi Sethuraman</div>
+              <div class="role">Managing Partner</div>
+              <div class="contact"><b>brandi_sethuraman@satcllp.com</b><br/>307-941-0508 &nbsp;·&nbsp; satcllp.com</div>
+            </div>
+          </div></div>
+        </div>
+        <div class="slot">
+          <span class="cap">Back · shared by both</span>
+          <div class="trim"><div class="card card-back">
+            <div class="bmark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 3 H19 V11 H11 V19 H3 Z" fill="none" stroke="#ffffff" stroke-width="2.6"/><rect x="22" y="22" width="8" height="8" fill="#C0A265"/></svg></div>
+            <div class="line"><div class="t">Everything you need,<br/>from one desk.</div><div class="u">SATCLLP.COM</div></div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="run" style="margin-bottom:0">
+      <p class="rt">Backup run · single-sided</p>
+      <p class="rd">Order only if two-sided is off the table. Same information, centred in one block, no back.</p>
+      <div class="grid">
+        <div class="slot">
+          <span class="cap">Arjun</span>
+          <div class="trim"><div class="card card-front" style="justify-content:center">
+            <div class="lock" style="margin-bottom:0.15in"><span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span></div>
+            <div class="who">
+              <div class="name" style="font-size:11.5pt">Arjun Sethuraman, CPA</div>
+              <div class="role">Managing Partner</div>
+              <div class="contact"><b>arjun_sethuraman@satcllp.com</b><br/>307-941-0508 &nbsp;·&nbsp; satcllp.com</div>
+            </div>
+          </div></div>
+        </div>
+        <div class="slot">
+          <span class="cap">Brandi</span>
+          <div class="trim"><div class="card card-front" style="justify-content:center">
+            <div class="lock" style="margin-bottom:0.15in"><span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span></div>
+            <div class="who">
+              <div class="name" style="font-size:11.5pt">Brandi Sethuraman</div>
+              <div class="role">Managing Partner</div>
+              <div class="contact"><b>brandi_sethuraman@satcllp.com</b><br/>307-941-0508 &nbsp;·&nbsp; satcllp.com</div>
+            </div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SHEET 2 · printer specification ══ -->
+  <section class="page" data-screen-label="02">
+    <div class="sheet-head">
+      <div class="st">Printer specification</div>
+      <div class="sm">Send with the artwork</div>
+    </div>
+
+    <div class="spec">
+      <div class="row">
+        <span class="k">Trim &amp; bleed</span>
+        <span class="v">Artwork is drawn at trim: <b>3.5 × 2 in</b>. Ask for <b>0.125 in bleed</b> on all four sides — the navy back is full-bleed and needs it — and keep a 0.125 in safe margin inside trim. All type sits at least 0.22 in from the trim edge, so a 1 mm cutting drift is harmless.</span>
+      </div>
+      <div class="row">
+        <span class="k">Stock</span>
+        <span class="v"><b>16pt uncoated.</b> Heavy dot gain is expected, which is why nothing on the card is set below 6pt — <b>don't let anyone shrink it to fit more in</b>.</span>
+      </div>
+      <div class="row">
+        <span class="k">Deliberately absent</span>
+        <span class="v">No mailing address and no CPA licence number on any card. Both by decision, not oversight — the printer should not add them.</span>
+      </div>
+      <div class="row">
+        <span class="k">Ink</span>
+        <span class="v">Navy <b>#132437</b>, oxblood <b>#6A2833</b>, gold <b>#C0A265</b>, shell <b>#F7F7F5</b>. Gold appears on the navy back only; it never carries a hairline or type that must survive a photocopy.</span>
+      </div>
+      <div class="row">
+        <span class="k">Checking this proof</span>
+        <span class="v warn">Printed at 100% on Letter, every card above is actual size — hold a ruler or an existing card against it. If the cards measure anything other than 3.5 × 2 in, the print scaling was wrong, not the file.</span>
+      </div>
+    </div>
+  </section>
+
+</doc-page>
+
+<script src="doc-page.js"></script>
+</body>
+</html>
