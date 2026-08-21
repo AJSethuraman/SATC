@@ -10,3 +10,4 @@ venv/
 # never belong in the repo.
 out/
 *.pdf
+engagements/

@@ -1,10 +1,12 @@
 """satc-docs — turn a client record into the documents a client receives.
 
-The entry point the rest of this folder was missing. Four commands:
+The entry point the rest of this folder was missing.
 
+    interview   run the consultation call; it creates the engagement
+    engagements list what exists
     doctor      what is still blocking a real render, and who has to answer it
-    from-lead   a website intake payload -> a record skeleton to finish
-    render      a record -> client-ready HTML, and PDF if WeasyPrint is present
+    from-lead   a website intake payload -> answers to prefill the interview
+    render      a record, or an engagement ref -> client-ready HTML and PDF
     demo        the whole chain end to end, from a fixture, in one command
 
 Two modes, and the difference matters:
@@ -22,12 +24,15 @@ Run `python cli.py --help` from `client-documents/`.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import re
 import sys
 from datetime import date
 from pathlib import Path
 
+import engagements
+import interview as iv
 import merge
 import settings as firm
 
@@ -53,6 +58,26 @@ DOCUMENTS = {
 # The three that go out together. Named because generating them in one call is
 # the reason they cannot disagree about the date, the ref or the address.
 OPENING_PACKAGE = ["tax-letter", "fee-estimate", "onboarding-letter"]
+
+# When in an engagement's life a document becomes due. Readiness is only
+# meaningful against a stage: a disengagement letter that cannot render at
+# engagement creation is not blocked, it is not due, and reporting the two the
+# same way buries the one that matters.
+STAGE = {
+    "tax-letter": "opening", "business-letter": "opening",
+    "bookkeeping-letter": "opening", "fee-estimate": "opening",
+    "onboarding-letter": "opening", "organizer-letter": "opening",
+    "extension-notice": "in flight",
+    "delivery-letter": "delivery", "invoice": "delivery",
+    "disengagement-letter": "ending",
+}
+
+# Which opening document an engagement actually uses, by return type. The rest
+# belong to a different engagement and are not this one's business.
+OPENING_BY_RETURN = {
+    "individual": "tax-letter", "s_corp": "business-letter",
+    "partnership": "business-letter", "c_corp": "business-letter",
+}
 
 
 # ── PDF backends ───────────────────────────────────────────────────────────
@@ -214,7 +239,65 @@ def output_name(doc: str, record: dict, draft: bool) -> str:
 
 # ── commands ───────────────────────────────────────────────────────────────
 
+def _engagement_readiness(ref: str, store: Path) -> int:
+    """What one engagement still needs, per document.
+
+    The firm-wide report says what blocks everybody. This says what blocks
+    *this* client, which is the question you actually have with a record open.
+    """
+    record = build_record(engagements.load(ref, store))
+    print(f"Engagement {ref} - {record.get('ClientFullName', '(no name)')}\n")
+
+    letter = OPENING_BY_RETURN.get(record.get("_return_type", "individual"))
+    relevant = [d for d in DOCUMENTS
+                if STAGE[d] != "opening" or d == letter
+                or d in ("fee-estimate", "onboarding-letter", "organizer-letter")]
+
+    ready, blocked = [], {}
+    for doc in relevant:
+        template = (TEMPLATE_DIR / DOCUMENTS[doc][0]).read_text(encoding="utf-8")
+        try:
+            merge.render(template, record)
+            ready.append(doc)
+        except merge.MergeError as exc:
+            blocked[doc] = html.unescape(str(exc))
+
+    opening_blocked = {d: w for d, w in blocked.items() if STAGE[d] == "opening"}
+    later_blocked = {d: w for d, w in blocked.items() if STAGE[d] != "opening"}
+
+    if ready:
+        print("  Ready now:")
+        for doc in ready:
+            print(f"    {doc}")
+
+    if opening_blocked:
+        print(f"\n  Blocked, and due now ({len(opening_blocked)}):")
+        for doc, why in opening_blocked.items():
+            print(f"    {doc}")
+            for part in why.split("; "):
+                print(f"        {part}")
+
+    if later_blocked:
+        print(f"\n  Not due yet - these need facts that do not exist at "
+              f"engagement creation:")
+        for doc, why in later_blocked.items():
+            fields = ""
+            for part in why.split("; "):
+                if part.startswith("unresolved fields:"):
+                    fields = part.split(":", 1)[1].strip()
+            print(f"    {doc:22s} ({STAGE[doc]})"
+                  + (f"  awaiting {fields}" if fields else ""))
+
+    print("\n  A [CONFIRM] is a firm decision -- `doctor` with no argument "
+          "lists them all.\n  An unresolved field is missing from this record.")
+    return 1 if opening_blocked else 0
+
+
 def cmd_doctor(args) -> int:
+    if args.engagement:
+        store = Path(args.store) if args.store else engagements.STORE
+        return _engagement_readiness(args.engagement, store)
+
     decisions = firm.open_decisions()
     print("SAT-C document pipeline - readiness\n")
 
@@ -287,6 +370,160 @@ def cmd_from_lead(args) -> int:
     return 0
 
 
+def _ask(section: dict, q: dict, default) -> object:
+    """One question at a terminal. The only part of the interview that is I/O."""
+    print(f"\n  {section['title']}  ·  {q['id']}")
+    print(f"  {q['question']}")
+    if q.get("help"):
+        for line in str(q["help"]).strip().split("\n"):
+            print(f"      {line.strip()}")
+
+    options = q.get("options") or []
+    for i, opt in enumerate(options, 1):
+        mark = "  HARD NO" if opt.get("hard_no") else ""
+        print(f"      {i}. {opt['label']}{mark}")
+
+    hint = {"list": "comma-separated, blank for none",
+            "multi": "numbers, comma-separated, blank for none",
+            "single": "a number",
+            "number": "a number",
+            "textarea": "one line"}.get(q["type"], "")
+    if default not in (None, "", []):
+        hint = f"website said: {default!r}" + (f"; {hint}" if hint else "")
+    req = "required" if q.get("required") else "optional"
+    raw = input(f"      [{req}{'; ' + hint if hint else ''}] > ").strip()
+
+    if not raw:
+        if q["type"] in ("multi", "list"):
+            return []
+        return None
+
+    if q["type"] == "single":
+        if raw.isdigit() and 1 <= int(raw) <= len(options):
+            return options[int(raw) - 1]["value"]
+        return raw
+    if q["type"] == "multi":
+        picked = []
+        for part in raw.split(","):
+            part = part.strip()
+            if part.isdigit() and 1 <= int(part) <= len(options):
+                picked.append(options[int(part) - 1]["value"])
+            elif part:
+                picked.append(part)
+        return picked
+    if q["type"] == "list":
+        return [p.strip() for p in raw.split(",") if p.strip()]
+    if q["type"] == "number":
+        try:
+            return int(raw)
+        except ValueError:
+            return raw
+    return raw
+
+
+def cmd_interview(args) -> int:
+    lead = json.loads(Path(args.lead).read_text(encoding="utf-8")) if args.lead else None
+    session = iv.Interview(lead=lead)
+
+    # A saved answers file replays an interview without a human at the
+    # keyboard: how the tests drive it, and how you resume one you abandoned.
+    # Answers are keyed by question id, so a schema change that renumbers the
+    # flow cannot silently shift them onto the wrong questions.
+    if args.answers:
+        canned = json.loads(Path(args.answers).read_text(encoding="utf-8"))
+        while True:
+            nxt = session.next_question()
+            if nxt is None:
+                break
+            _, q = nxt
+            if q["id"] not in canned:
+                if q.get("required"):
+                    raise SystemExit(
+                        f"answers file has nothing for required question "
+                        f"{q['id']!r} ({q['question']})"
+                    )
+                session.answer(q["id"], [] if q["type"] in ("multi", "list") else None)
+                continue
+            session.answer(q["id"], canned[q["id"]])
+        unused = {k for k in canned if not k.startswith("_")} - set(session.answers)
+        if unused:
+            print(f"note: {len(unused)} answer(s) unused -- their questions were "
+                  f"not asked: {', '.join(sorted(unused))}")
+        return _finish(session, args)
+
+    print("SAT-C consultation interview")
+    print(f"  {sum(1 for _ in iv.all_questions(session.schema))} questions, "
+          f"branching. Blank skips an optional one; Ctrl-C abandons.")
+    if lead:
+        print("  A website lead is loaded. Its answers are shown as claims to "
+              "confirm, never taken as given.")
+
+    while True:
+        nxt = session.next_question()
+        if nxt is None:
+            break
+        section, q = nxt
+        try:
+            value = _ask(section, q, iv.prefill_for(q, lead))
+            session.answer(q["id"], value)
+        except iv.InterviewError as exc:
+            print(f"      {exc} -- asking again")
+        except (KeyboardInterrupt, EOFError):
+            print("\n\nabandoned; nothing was written")
+            return 1
+
+    return _finish(session, args)
+
+
+def _finish(session, args) -> int:
+    blockers = session.hard_no()
+    if blockers:
+        print("\nHARD NO flagged:")
+        for b in blockers:
+            print(f"    {b}")
+        if not args.override_hard_no:
+            print("\nNo engagement created. These are work the firm does not "
+                  "take -- firm-settings.yaml lists them under `hard_no`, and "
+                  "the schema marks the options themselves. Re-run with "
+                  "--override-hard-no if this is genuinely a judgement call "
+                  "rather than the list being wrong.")
+            return 1
+        print("  overridden on the command line")
+
+    if session.answers.get("decision") != "yes":
+        print(f"\nDecision was {session.answers.get('decision')!r}, not 'yes'. "
+              f"No engagement created; that is what the decision question is for.")
+        return 0
+
+    record = iv.compose(session.answers)
+    record["LetterDate"] = date.today().strftime("%B %-d, %Y")
+    record["_season"] = str(session.answers.get("tax_year") or "")
+    record["_return_type"] = {"1040": "individual", "1120S": "s_corp",
+                              "1065": "partnership", "1120": "c_corp"
+                              }.get(session.answers.get("federal_form"), "individual")
+    record["_billable_counts"] = iv.billable_counts(session.answers)
+
+    store = Path(args.store) if args.store else engagements.STORE
+    ref, path = engagements.create(record, ref=args.ref, store=store)
+    engagements.save_answers(session.answers, ref, store)
+
+    print(f"\nEngagement {ref} created")
+    print(f"    {path}/record.json      the merge fields")
+    print(f"    {path}/interview.json   every answer, including the internal ones")
+    print(f"\nNext:  python cli.py render --engagement {ref} --out out")
+    return 0
+
+
+def cmd_engagements(args) -> int:
+    rows = engagements.listing(Path(args.store) if args.store else engagements.STORE)
+    if not rows:
+        print("no engagements yet -- `python cli.py interview` creates one")
+        return 0
+    for r in rows:
+        print(f"  {r['ref']}  {r['client'][:40]:42s} {r.get('period','')}")
+    return 0
+
+
 def _render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool):
     filename, _ = DOCUMENTS[doc]
     template = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
@@ -306,7 +543,13 @@ def _render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: boo
 
 
 def cmd_render(args) -> int:
-    raw = json.loads(Path(args.record).read_text(encoding="utf-8"))
+    if args.engagement:
+        store = Path(args.store) if args.store else engagements.STORE
+        raw = engagements.load(args.engagement, store)
+    elif args.record:
+        raw = json.loads(Path(args.record).read_text(encoding="utf-8"))
+    else:
+        raise SystemExit("give a record file or --engagement REF")
     record = build_record(raw)
 
     docs = args.docs or OPENING_PACKAGE
@@ -373,7 +616,7 @@ def cmd_demo(args) -> int:
 
     record = str(ROOT / "samples" / "tax-opening-package.json")
     common = dict(record=record, docs=OPENING_PACKAGE, out=str(outdir),
-                  no_pdf=args.no_pdf)
+                  no_pdf=args.no_pdf, engagement=None, store=None)
 
     print("\n2. a finished record (the interview's answers) -> documents")
     rc = cmd_render(argparse.Namespace(draft=False, **common))
@@ -395,7 +638,11 @@ def main(argv=None) -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    sub.add_parser("doctor", help="what is blocking a real render").set_defaults(fn=cmd_doctor)
+    d0 = sub.add_parser("doctor", help="what is blocking a real render")
+    d0.add_argument("--engagement", metavar="REF",
+                    help="what blocks THIS engagement, document by document")
+    d0.add_argument("--store", help="engagements directory")
+    d0.set_defaults(fn=cmd_doctor)
 
     fl = sub.add_parser("from-lead", help="website intake payload -> record skeleton")
     fl.add_argument("lead")
@@ -405,8 +652,24 @@ def main(argv=None) -> int:
     fl.add_argument("--ref", default=None, help="EngagementRef, YYYY-NNNN")
     fl.set_defaults(fn=cmd_from_lead)
 
+    i = sub.add_parser("interview", help="run the consultation; creates the engagement")
+    i.add_argument("--lead", help="website intake payload, to prefill from")
+    i.add_argument("--answers", help="replay a saved answers file, no prompts")
+    i.add_argument("--override-hard-no", action="store_true",
+                   dest="override_hard_no",
+                   help="create the engagement despite a HARD NO flag")
+    i.add_argument("--ref", help="engagement ref; allocated sequentially if omitted")
+    i.add_argument("--store", help="engagements directory")
+    i.set_defaults(fn=cmd_interview)
+
+    e = sub.add_parser("engagements", help="list what exists")
+    e.add_argument("--store")
+    e.set_defaults(fn=cmd_engagements)
+
     r = sub.add_parser("render", help="record -> client-ready documents")
-    r.add_argument("record")
+    r.add_argument("record", nargs="?", help="a record JSON; or use --engagement")
+    r.add_argument("--engagement", metavar="REF", help="render a stored engagement")
+    r.add_argument("--store", help="engagements directory")
     r.add_argument("--docs", nargs="+", metavar="DOC",
                    help=f"default: the opening package ({', '.join(OPENING_PACKAGE)})")
     r.add_argument("--out", default="out")
