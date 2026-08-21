@@ -203,6 +203,13 @@ the public page's own footer.
    and because Batch 2's own instructions say "Figures follow
    `03-COLLATERAL/SATC Figures and Tables.html`". One of the two documents
    needs correcting, and `FIELDS - Invoice.md` looks like the one.
+
+   **RESOLVED — Arjun ruled parentheses.** `FIELDS - Invoice.md` was the wrong
+   document and has been corrected, along with two other places carrying the
+   old convention: the `.ref` block inside `SATC Invoice.html` itself and the
+   example payload's `CreditAmount`. Both money formatters already implemented
+   parentheses, so no shipped output changes — the specs now agree with the
+   code instead of contradicting it and each other.
 2. **`padding-right: 1ch` cannot ship to both engines.** The Figures
    collateral's implementation snippet prescribes it for aligning positives
    with the closing paren. **xhtml2pdf raises on the `ch` unit** and drops the
@@ -652,6 +659,32 @@ rate → schedule → interview → a rendered estimate totalling $1,425.00 with
 `[CONFIRM:` in it. One bug found and fixed in the writing: `rate` was being
 popped out of the hours file *after* the hours dict was built, so it was
 offered to the engine as a priceable item and rejected.
+
+## Addendum — two rulings from Arjun
+
+**1. No accreditation is being sought, and none is claimed.** The firm is not
+pursuing registration with the Accountancy Board of Ohio and is not asking
+whether it needs to. The only credential claimed is personal: Arjun Sethuraman
+holds a CPA licence in Ohio.
+
+That closes what had been the largest open item in this run, and it closes it by
+narrowing the claim rather than by answering the question. Two consequences:
+
+- The website's item 1 placeholder is gone. The footer states the entity fact
+  and the personal credential as two separate sentences, and the comment above
+  it says why the credential is worded about a person rather than about the
+  firm, so a later edit does not flatten the distinction into "CPA firm".
+- `index.html:826` loses two words. "Anyone who needs assurance work — coming
+  soon" sat under *Probably not a fit*, so the negation was always right; the
+  forward promise was not, and with no assurance work being pursued it is now
+  plainly wrong on a page that also says the firm performs no attest services.
+
+**2. A credit prints in parentheses.** See "Contradictions found" above — the
+entry is now marked resolved and the three places carrying the old convention
+are corrected. No shipped output changes; both formatters were already right.
+
+Neither ruling required inventing regulatory or assurance wording, and neither
+one added a claim. Both removed one.
 
 ## What a human should do next
 
