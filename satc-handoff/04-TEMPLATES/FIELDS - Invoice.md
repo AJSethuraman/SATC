@@ -45,10 +45,10 @@ Clauses in the engagement letter are referenced **by name** — the fees clause 
 | `<<Item.Detail>>` | Yes | With Schedules A, C, and SE | Empty string when there is nothing to add — never "None" |
 | `<<Item.Amount>>` | Yes | $450 | Pre-formatted, including the `$` |
 | `<<Subtotal>>` | Yes | $785 | **Computed.** Sum of the line items. |
-| `<<AmountDue>>` | Yes | $635 | **Computed:** subtotal plus credits (credits negative). Appears twice — ledger and due box — from one value. |
+| `<<AmountDue>>` | Yes | $635.00 | **Computed:** subtotal plus credits (credits negative). Appears twice — ledger and due box — from one value. |
 | `<<CreditLabel>>` | If flag | Retainer applied | |
 | `<<CreditDetail>>` | If flag | Received February 3, 2027 | |
-| `<<CreditAmount>>` | If flag | −$150 | **A real minus sign (−), not a hyphen.** Never parentheses on a client-facing document. |
+| `<<CreditAmount>>` | If flag | (150.00) | **Parentheses, never a minus sign.** Ruled by Arjun; see the note below. The symbol is dropped in a column that already carries it. |
 | `[[IF CreditsApplied]]` | Flag | Boolean | Drops the credit row so a clean invoice has no empty line |
 | `<<PaymentInstruction>>` | Yes | Pay by card or bank transfer through the link in the delivery email, or by cheque to the address at right. | **One sentence, from firm settings, not per client.** Changes in one place when the processor changes. |
 | `<<BillingContactName>>` + `<<BillingContactEmail>>` + `<<BillingContactPhone>>` | Yes | Arjun Sethuraman · billing@satcllp.com · 307-941-0508 | Three fields. Separate from the preparer on purpose — a billing question shouldn't have to find the preparer. |
@@ -64,6 +64,26 @@ Not variables: firm name, remit-to address, the Ohio LLP footer, the due-on-pres
 ---
 
 ## Arithmetic is the software's job
+
+## How a credit prints
+
+**Parentheses, never a minus sign.** `(1,500.00)` — and in a column that already
+carries the symbol, the credit drops it.
+
+This document used to say the opposite: a real minus, and never parentheses on a
+client-facing document. `SATC Figures and Tables.html` said parentheses, never a
+minus, and used an invoice as its worked example. Both could not be right, and
+the disagreement was live in a document clients already read.
+
+**Arjun ruled parentheses.** This file was the wrong one and has been corrected.
+It is the accounting convention, it survives a photocopier where a thin minus
+does not, and it is what both money formatters already implement —
+`client-documents/money.py` and `invoice-generator/helpers.py`, each tested
+against the worked example in that same collateral.
+
+Everything else about figures still defers to `SATC Figures and Tables.html`:
+two decimals always, thousands separated, nil as an em dash, a computed zero as
+`$0.00`.
 
 Never let a human type `Subtotal` or `AmountDue`. Sum the line items, apply the credit, format currency in **one place** and pass strings through.
 
@@ -94,7 +114,7 @@ A client who finds an arithmetic error on an accountant's invoice has learned so
   "CreditsApplied": true,
   "CreditLabel": "Retainer applied",
   "CreditDetail": "Received February 3, 2027",
-  "CreditAmount": "−$150",
+  "CreditAmount": "(150.00)",
   "AmountDue": "$635",
   "PaymentInstruction": "Pay by card or bank transfer through the link in the delivery email, or by cheque to the address at right.",
   "BillingContactName": "Arjun Sethuraman",
