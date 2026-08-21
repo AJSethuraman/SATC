@@ -236,3 +236,113 @@ so.
    The exemption still holds — both are entity signatory fields and the tax
    interview covers individual returns — but the comment explaining it was
    wrong, and is updated.
+
+
+---
+
+# Summary
+
+## What shipped
+
+| PR | Batch | Branch |
+|---|---|---|
+| #138 | 1 (remainder) — website disclosures | `…-b1-website-disclosures` |
+| #139 | 2 — Invoicer restyle | `…-b2-invoicer-restyle` |
+| #140 | 3 — six templates onto the shared stylesheet | `…-b3-shared-stylesheet` |
+| #141 | 4 — the four remaining templates | `…-b4-new-templates` |
+
+All four are **draft**. Nothing was pushed to `main`, which publishes to
+`satcllp.com` through Cloudflare Pages.
+
+**#141 is based on #140**, not on `main` — the new templates link
+`satc-doc.css`, and building them against a stylesheet that had not been
+adopted yet would have been dishonest. Merge #140 first and GitHub retargets
+#141 automatically. #138 and #139 are independent of both and of each other.
+
+## What was skipped, and why
+
+- **Batch 1, everything except the disclosures.** Already merged (#117, #124),
+  per the status correction at the top of the brief. Redoing it was the failure
+  mode the correction exists to prevent.
+- **Batch 5, the merge-engine spec.** Superseded by instruction: the engine and
+  the registry exist. Batch 4's templates were registered and tested against
+  them instead, which is a stronger form of the same guarantee — a spec cannot
+  fail, and the tests can.
+- **The `<<TaxYear>>` rename.** Found, reported, not done. It touches two
+  templates, two field docs, the registry and the test suite at once and is a
+  content change rather than anything in these four batches. See below.
+- **The `website/index.html` marketing copy** flagged in Batch 1. The brief
+  scoped Batch 1 to the disclosures and those sentences are a human's to write.
+
+## Every [CONFIRM] left behind
+
+Seven, across four documents. None is a gap that could have been filled by
+reading harder.
+
+| # | Where | The question |
+|---|---|---|
+| 1 | `website/index.html`, footer | **Accountancy Board of Ohio** — is firm registration required, and what may the firm call itself? The placeholder ships until this is answered. |
+| 2 | `website/index.html`, intake | Is **"within one business day"** a promise to make in writing? If yes it belongs in three places at one value. |
+| 3 | `website/index.html`, intake | `privacy.html` discloses Formspree and its 30-day copy but **not the leads workbook**. |
+| 4 | `invoice-generator/`, run log | The invoice ledger keeps **Qty and Rate** columns, which `SATC Invoice.html` says not to have. Data-model question, not a styling one. |
+| 5 | `invoice-generator/`, run log | **No billing-contact field** exists, so the pay strip is two-up instead of three. |
+| 6 | `satc-handoff/04-TEMPLATES`, run log | Does **`PeriodLabel` replace `TaxYear`**, or does the contract's rule get relaxed? |
+| 7 | `SATC Engagement Letter - Business Return.html` §03 | **Officer compensation** under an S election — is the scope exclusion the whole of it? |
+
+Number 7 is the only one inside a client-facing document, and the merge engine
+refuses to render that letter while it is there.
+
+**Number 1 is still the highest-leverage unblock in the project**, exactly as
+the brief said. It is a fifteen-minute phone call and it settles the firm's
+self-description on every surface.
+
+## The contradictions, ranked by what they cost
+
+The brief says these are the most valuable output of an unattended run. In
+order of how much a reader should care:
+
+1. **Two specs disagree about how a credit prints, on the same document.**
+   `FIELDS - Invoice.md` says a real minus and **never** parentheses.
+   `SATC Figures and Tables.html` says parentheses and **never** a minus — and
+   uses an invoice as its worked example. Parentheses were used, because the
+   authoring contract defers figures to that collateral, because it claims
+   these templates by name, and because Batch 2's instructions say so. **One of
+   the two documents is wrong and it looks like the FIELDS doc.**
+2. **`<<TaxYear>>` is alive in six places** — three uses in the tax engagement
+   letter, three in the organizer, plus both field docs and the registry —
+   while §4 of the contract says *"Never add `TaxYear` back."*
+3. **`website/index.html:826` promises "assurance work — coming soon"** on the
+   same page as a new footer line saying the firm performs no attest services,
+   and it is exactly the self-description blocked on the Accountancy Board
+   question. Two words, delete them.
+4. **`privacy.html` does not mention the leads workbook.** Accurate but
+   incomplete now that every submission is filed as a durable OneDrive row.
+5. **`MaterialsDeadline` needs a wider key than the settings file gives it** —
+   entity vs individual, original season vs extension season. Same field name,
+   three settings behind it, and the registry already calls a mismatch the
+   organizer's most likely bug.
+6. **Four templates were rendering footer merge fields at 6.44pt**, under §8's
+   own 7pt floor, because they lacked `.foot .f`. Fixed by the migration.
+7. **`padding-right: 1ch`, prescribed by the figures collateral, cannot ship to
+   both PDF engines** — xhtml2pdf raises on the unit.
+8. **The brief's description of the Invoicer PDF as "on the old warm palette"
+   was wrong.** It was on the Invoicer product's own blue design system. The
+   finding was right; the description of it was not.
+9. **§8's assurance grep flags clean documents** — negations, a CV line, and
+   the words "audit trail" — and always will. It needs a human to read the
+   hits, and §8 could say so.
+10. **The contract's `--ink-2` guidance assumes a light ground.** The website
+    footer is navy, where that token is unreadable.
+11. **Path casing.** Every document refers to `SATC-HANDOFF/`; the directory is
+    `satc-handoff/`.
+
+## What a human should do next
+
+1. **Call the Accountancy Board of Ohio.** Unchanged from the brief, and still
+   the one thing no agent can do.
+2. **Decide the parentheses-vs-minus question** before #139 merges. It is the
+   only finding here that changes a document a client already reads.
+3. **Answer the officer-compensation `[CONFIRM]`**, which unblocks the business
+   return letter.
+4. **Delete two words from `index.html:826`.**
+5. **Merge #140 before #141**, and #138 and #139 whenever.
