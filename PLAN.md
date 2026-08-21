@@ -3,7 +3,7 @@
 > Living log of where the project stands, what's in flight, and what's decided.
 > Keep the date current when editing. Newest decisions at the top of the log.
 >
-> **Last updated: 2026-07-04**
+> **Last updated: 2026-08-14**
 
 ## What SATC is (positioning — read the norms through this lens)
 
@@ -257,6 +257,13 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
       from-source `satc-mcp` and future `SATC.exe --mcp` paths)
 
 ### Explicitly deferred (decided against for now)
+- **Interview and pricing for non-return services** — bookkeeping, advisory, planning,
+  entity setup, notice resolution. Each needs its own base-and-adder model; the first
+  interview build covers **tax return preparation only**. Roadmap, not a permanent no
+  (2026-08-14). See `docs/prd-interview-and-field-registry.md`.
+- **RITA locality counting** — whether one Ohio RITA filing counts as a single locality
+  or several, for both the `LocalReturns` string and the billable count. Deferred while
+  prices are deferred; it changes a fee, not a field (2026-08-14).
 - HTTP refactor of the full read+write MCP server — investigated 2026-07-03, net-negative
   today (0 of 7 heavy tools have JSON endpoints; shared store already gives write
   visibility; folder-intake provenance doesn't survive an HTTP boundary). Revisit only if
@@ -266,6 +273,25 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
 
 ## Decisions log
 
+- **2026-08-14 — `EngagementRef` format wins over the lead number.** The templates
+  specify `YYYY-NNNN` (`2027-0114`) and require it byte-identical across letter,
+  estimate, onboarding letter and every invoice. The `SATC leads.xlsx` Lead Number
+  formula generates `2026 - 0001`. The template format is authoritative; the lead number
+  changes to match, and a lead's number becomes its `EngagementRef` on conversion — one
+  identifier for a client's whole life.
+- **2026-08-14 — `PeriodLabel` is derived per document, not stored.** The estimate and
+  onboarding letter use it for the engagement period ("2026 tax year"); the invoice uses
+  it for the period billed ("March 2027"). Sharing one stored value would print the wrong
+  thing on one of them.
+- **2026-08-14 — `MaterialsDeadline` is a firm setting, not a per-client answer.** One
+  fixed date per return type per season. It prints in three documents and the organizer's
+  field doc calls a mismatch "this template's most likely bug".
+- **2026-08-14 — The interview record holds no TIN.** Legal name, address, email and
+  phone are in scope; SSN, ITIN and EIN are not, and a denylist test enforces it. The
+  record lives in OneDrive, which is not an appropriate store for identifiers.
+- **2026-08-14 — No fee quoted on the call.** A single estimate follows in writing inside
+  the engagement letter, under the standing disclosure paragraph. The live site's
+  "discuss timeline and cost" over-promises this and needs a copy fix.
 - **2026-07-03 — Review & research pass ordered.** Owner directive: review everything,
   fix what's wrong, research industry norms, design for handoff ("time to look higher").
   Big changes require owner sign-off.
