@@ -98,7 +98,8 @@ $0 for a service. Fill these in and the fee estimate renders for real.
 |---|---|
 | `base_covers` | Does the base fee cover the **first state and locality**, or the **federal return only**? Two firms can quote the same $785 from different structures, and only one can explain it to a client who asks. |
 
-**Then the amounts — 18 of them:**
+**Then the amounts — 14 of them** (an earlier draft of this file said 18; its
+own table said 14, and `python cli.py doctor` agrees with the table):
 
 | Group | What is needed |
 |---|---|
@@ -106,6 +107,19 @@ $0 for a service. Fill these in and the fee estimate renders for real.
 | Per unit | state return · local return · rental property · K-1 received · Schedule C business — five figures |
 | Brokerage band | light · medium · heavy — three figures (`none` is a real zero) |
 | Cleanup band | light · heavy — two figures (`none` is a real zero) |
+
+**If you do not have these numbers**, that is the expected case and there is a
+way in. Nobody knows their own prices in the abstract; they know their own work.
+So `python cli.py price` asks the same fourteen questions in hours —
+
+> *how long does a plain 1040 take you, start to filed?*
+
+— and multiplies by an hourly rate. **Both numbers are yours**; the tool
+supplies neither and invents nothing. Answering nine of fourteen leaves the
+other five as `[CONFIRM:`, which is a correct outcome, not a failed run.
+
+Rounding is off unless you ask. `$437.50` is what 2.5 hours at $175 costs;
+`$450.00` is a pricing policy, and `--round-to 25` is how you say you have one.
 
 `samples/fee-schedule-example.yaml` shows the shape filled in with **fictional**
 numbers, and `python cli.py interview --fee-schedule samples/fee-schedule-example.yaml`

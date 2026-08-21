@@ -31,7 +31,10 @@ import sys
 from datetime import date
 from pathlib import Path
 
+import yaml
+
 import engagements
+import fees
 import interview as iv
 import merge
 import pricing
@@ -655,6 +658,110 @@ def cmd_demo(args) -> int:
     return cmd_render(argparse.Namespace(draft=True, **common))
 
 
+def _ask_hours(label: str) -> float | None:
+    """One item. Blank leaves it unpriced -- which is the honest answer when
+    the firm genuinely does not know, and the whole point of the placeholder."""
+    while True:
+        raw = input(f"  hours for {label}\n  > ").strip()
+        if not raw:
+            return None
+        try:
+            h = float(raw)
+        except ValueError:
+            print("    a number of hours, e.g. 2 or 1.5. Blank to leave unpriced.")
+            continue
+        if h < 0:
+            print("    hours cannot be negative.")
+            continue
+        return h
+
+
+def cmd_price(args) -> int:
+    """Price the firm from what its work takes, rather than from thin air."""
+    if args.list:
+        for path, meaning in fees.ITEMS:
+            print(f"{path}\n    {meaning}")
+        return 0
+
+    source = Path(args.schedule) if args.schedule else fees.SCHEDULE
+    source_text = source.read_text(encoding="utf-8")
+    schedule = pricing.load(source)
+    hours: dict[str, float] = {}
+    covers = args.base_covers
+
+    if args.hours:
+        given = yaml.safe_load(Path(args.hours).read_text(encoding="utf-8")) or {}
+        covers = covers or given.pop("base_covers", None)
+        # Both come out before the rest becomes hours: they are settings that
+        # ride along in the same file, not priceable items.
+        rate = args.rate if args.rate is not None else given.pop("rate", None)
+        hours = {k: v for k, v in given.items() if v is not None}
+    else:
+        rate = args.rate
+        print("Pricing the firm")
+        print("  Nobody knows their own prices in the abstract; they know their")
+        print("  own work. So: what does each of these take you, in hours?")
+        print("  Blank leaves an item unpriced -- an honest blank beats a guess.")
+        print()
+        if rate is None:
+            while True:
+                raw = input("  What is an hour of your time worth, in dollars?\n  > ").strip()
+                try:
+                    rate = float(raw)
+                    if rate > 0:
+                        break
+                except ValueError:
+                    pass
+                print("    a number, e.g. 175.")
+        print()
+        if covers is None:
+            print("  One structural question first, because it changes every")
+            print("  number under it: does the base fee cover the first state and")
+            print("  locality, or the federal return only?")
+            while True:
+                raw = input("  > [federal_only / one_included, blank to leave open]\n  > ").strip()
+                if not raw:
+                    break
+                if raw in ("federal_only", "one_included"):
+                    covers = raw
+                    break
+                print("    'federal_only' or 'one_included'.")
+            print()
+        for path, meaning in fees.ITEMS:
+            h = _ask_hours(meaning)
+            if h is not None:
+                hours[path] = h
+
+    out = fees.derive(rate, hours, increment=args.round_to,
+                      base_covers=covers, schedule=schedule)
+
+    open_now = fees.still_open(out)
+    # Rewritten in place rather than dumped, so the file keeps the comments
+    # that make it fillable by hand.
+    text = fees.apply_to_text(source_text, schedule, out)
+
+    if args.write:
+        target = Path(args.write)
+        target.write_text(text, encoding="utf-8")
+        print(f"\nwrote {target}")
+        if target.resolve() == fees.SCHEDULE.resolve() and not open_now:
+            print("  The firm is priced. `tests/test_pricing.py::"
+                  "test_the_firms_schedule_is_still_unpriced` guards the "
+                  "placeholders and will now fail -- delete that test, it has "
+                  "done its job.")
+    else:
+        print()
+        print(text, end="")
+
+    if open_now:
+        print(f"\n{len(open_now)} item(s) still unpriced:")
+        for path, _ in open_now:
+            print(f"  {path}")
+        print("The estimate will refuse to render until these are set, which is"
+              "\ncorrect -- it will not quote a client $0 for a service.")
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
         prog="satc-docs", description=__doc__,
@@ -702,6 +809,19 @@ def main(argv=None) -> int:
                    help="render past open decisions, stamped DRAFT")
     r.add_argument("--no-pdf", action="store_true", help="HTML only")
     r.set_defaults(fn=cmd_render)
+
+    pr = sub.add_parser("price", help="derive the fee schedule from hours x your rate")
+    pr.add_argument("--rate", type=float, help="what an hour of your time is worth")
+    pr.add_argument("--hours", help="a YAML of hours, keyed by the paths --list prints")
+    pr.add_argument("--base-covers", dest="base_covers",
+                    choices=["federal_only", "one_included"],
+                    help="does the base fee cover the first state and locality?")
+    pr.add_argument("--round-to", dest="round_to", type=float, default=0,
+                    metavar="N", help="round each fee up to the nearest N (off by default)")
+    pr.add_argument("--schedule", help="derive against a schedule other than the firm's")
+    pr.add_argument("--write", metavar="PATH", help="write the result; prints to stdout otherwise")
+    pr.add_argument("--list", action="store_true", help="the priceable items and what each means")
+    pr.set_defaults(fn=cmd_price)
 
     d = sub.add_parser("demo", help="the whole chain end to end, in one command")
     d.add_argument("--out", default="out/demo")

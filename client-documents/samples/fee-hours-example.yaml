@@ -1,0 +1,27 @@
+# EXAMPLE ONLY — FICTIONAL HOURS AND A FICTIONAL RATE. NOT THE FIRM'S.
+#
+# What `price --hours` eats. Every key is a path from `price --list`; anything
+# omitted or left null stays unpriced in the result, which is the honest
+# outcome when you do not yet know.
+#
+# The hours are incremental where the schedule is incremental: `state_return`
+# is what ONE MORE state costs you, not what the first one costs.
+rate: 175
+base_covers: federal_only
+
+base.1040: 2.5
+base.1120S: 4.75
+base.1065: 4.75
+base.1120: 5.25
+
+per_unit.state_return.amount: 1
+per_unit.local_return.amount: 0.5
+per_unit.rental.amount: 0.75
+per_unit.k1.amount: 0.4
+per_unit.schedule_c.amount: 1.25
+
+bands.brokerage.values.light.amount: 0.35
+bands.brokerage.values.medium.amount: 0.85
+bands.brokerage.values.heavy.amount: 2
+bands.cleanup.values.light.amount: 1
+bands.cleanup.values.heavy.amount: 3.5

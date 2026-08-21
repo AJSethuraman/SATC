@@ -2,12 +2,14 @@
 #
 #   make doctor   what is blocking a real render
 #   make demo     the whole chain, lead -> PDFs, in one command
+#   make price    set the firm's fees from hours x your rate
 #   make test     everything
-.PHONY: help install doctor demo test clean
+.PHONY: help install doctor demo price test clean
 help:
 	@echo "make install   deps, including the Chromium PDF engine"
 	@echo "make doctor    what is blocking a real render"
 	@echo "make demo      lead -> record -> the opening package as PDFs"
+	@echo "make price     set the firm's fees from hours x your rate"
 	@echo "make test      the whole suite"
 
 install:
@@ -16,6 +18,9 @@ install:
 
 doctor:
 	python cli.py doctor
+
+price:
+	python cli.py price
 
 demo:
 	python cli.py demo --out out/demo
