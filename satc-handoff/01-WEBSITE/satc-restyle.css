@@ -81,7 +81,7 @@ img, svg { max-width: 100%; }
 .eyebrow {
   font-family: var(--mono);
   font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase;
-  color: var(--mute); font-weight: 400; margin: 0;
+  color: var(--ink-2); font-weight: 400; margin: 0;
 }
 .eyebrow-light { color: var(--gold); }
 
@@ -95,7 +95,7 @@ img, svg { max-width: 100%; }
 }
 /* <em> inside a heading was gold italic serif — now it just goes quiet.
    Emphasis by tone, not by ornament. */
-.h2 em { font-style: normal; font-weight: 600; color: var(--mute); }
+.h2 em { font-style: normal; font-weight: 600; color: var(--ink-2); }
 
 /* Lead paragraphs: was serif italic. Now sans, upright. */
 .lead {
@@ -121,7 +121,7 @@ img, svg { max-width: 100%; }
 .btn.gold { background: var(--oxblood); color: #fff; border-color: var(--oxblood); }
 .btn.gold:hover { background: var(--oxblood-lt); border-color: var(--oxblood-lt); }
 .btn.outline-navy { background: transparent; color: var(--navy); border-color: var(--hairline-2); }
-.btn.outline-navy:hover { background: var(--paper); color: var(--navy); border-color: var(--mute); }
+.btn.outline-navy:hover { background: var(--paper); color: var(--navy); border-color: var(--ink-2); }
 
 .btn-link {
   font-family: var(--sans); font-size: 14px; letter-spacing: -0.005em;
@@ -132,30 +132,35 @@ img, svg { max-width: 100%; }
 .btn-link::after { content: "→"; letter-spacing: 0; font-size: 14px; color: var(--oxblood); }
 .btn-link:hover { color: var(--oxblood); }
 
-/* ---- lockup: the Notch mark replaces the circular S seal ----
-   Outer is a PATH (a square with an 8x8 notch removed at bottom-right); the
-   inner rect is the removed piece, same 8x8, set beside it. Outer takes
-   currentColor so .on-dark inverts with no second file. */
-.lockup { display: inline-flex; align-items: center; gap: 13px; color: var(--navy); }
-.lockup .seal { width: 30px; height: 30px; flex: 0 0 auto; }
-/* the outer square takes currentColor so it inverts on dark automatically */
-.lockup .seal .s-o { fill: none; stroke: currentColor; stroke-width: 2.6; }
-.lockup .seal .s-i { fill: var(--oxblood); }
-/* the vertical gold divider was pure ornament — drop it */
-.lockup .divider { display: none; }
-.lockup .text { display: flex; flex-direction: column; gap: 3px; }
+/* ---- lockup: the SAT-C wordmark ----
+   A small solid square stands in for the hyphen in SAT-C, with the full firm
+   name set beneath as the descriptor. The Notch symbol is NOT used here.
+   font-size lives on .name so the square's em resolves against it — do NOT
+   move the size onto a sibling, or the square silently collapses to 16px.
+   The standalone symbol (notched square + removed piece) is unchanged and
+   still used for the favicon, the app icon, and the OG image. */
+.lockup { display: inline-flex; align-items: center; color: var(--navy); }
+.lockup .text { display: flex; flex-direction: column; gap: 4px; }
 .lockup .name {
-  font-family: var(--sans); font-weight: 700; font-size: 16px;
-  letter-spacing: -0.03em; text-indent: 0; line-height: 1; white-space: nowrap;
+  font-family: var(--sans); font-weight: 700; font-size: 21px;
+  letter-spacing: -0.04em; line-height: 0.74; text-indent: 0;
+  display: flex; align-items: flex-end; white-space: nowrap;
 }
+/* a plain solid square standing in for the hyphen — sized in em, so the
+   font-size MUST stay on .name (the element that contains it) */
+.lockup .name .hy { width: 0.3em; height: 0.3em; flex: 0 0 auto; background: var(--oxblood); margin: 0 0.18em 0.2em; }
+/* LLP set lighter and untracked so it reads as a suffix, not part of the name */
+.lockup .name i { font-style: normal; font-weight: 500; letter-spacing: 0; margin-left: 0.22em; }
+/* the old seal and gold divider are no longer part of the lockup */
+.lockup .seal, .lockup .divider { display: none; }
 .lockup .tag {
-  font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.16em;
-  text-transform: uppercase; color: var(--mute); text-indent: 0;
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink-2); text-indent: 0;
   font-weight: 400; white-space: nowrap;
 }
 .lockup.on-dark { color: #fff; }
 .lockup.on-dark .tag { color: rgba(255,255,255,0.55); }
-.lockup.on-dark .seal .s-i { fill: var(--gold); }
+.lockup.on-dark .name .hy { background: var(--gold); }
 
 /* ============================================================ STICKY NAV */
 .nav {
@@ -185,7 +190,7 @@ img, svg { max-width: 100%; }
 .nav-cta:hover { background: var(--navy-soft); border-color: var(--navy-soft); }
 .nav-cta.ghost { background: transparent; color: var(--navy); border-color: var(--hairline-2); }
 .nav-cta.ghost::after { color: var(--oxblood); }
-.nav-cta.ghost:hover { background: var(--paper); border-color: var(--mute); }
+.nav-cta.ghost:hover { background: var(--paper); border-color: var(--ink-2); }
 .nav-toggle {
   display: none; background: none; border: 0; cursor: pointer;
   width: 44px; height: 44px; padding: 10px; color: var(--navy);
@@ -273,7 +278,7 @@ section.band .section-head .right { padding-bottom: 8px; }
 /* the one place a mono micro-label earns its keep */
 .credential .lic {
   display: block; font-family: var(--mono); font-size: 10px;
-  letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute);
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-2);
   margin-bottom: 8px;
 }
 
@@ -318,7 +323,7 @@ section.fit { background: var(--paper); border-top: 1px solid var(--hairline); b
   font-family: var(--sans); font-size: 19px; font-weight: 600; letter-spacing: -0.028em;
   color: var(--navy); margin: 0 0 4px;
 }
-.fit-col .sub { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase; color: var(--mute); margin: 0 0 20px; }
+.fit-col .sub { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase; color: var(--ink-2); margin: 0 0 20px; }
 .fit-col ul { list-style: none; margin: 0; padding: 0; }
 .fit-col li {
   font-family: var(--sans); font-size: 14.5px; line-height: 1.55; color: var(--charcoal-2);
@@ -366,7 +371,7 @@ section.fit { background: var(--paper); border-top: 1px solid var(--hairline); b
 
 .aside-direct { list-style: none; margin: 32px 0 0; padding: 24px 0 0; border-top: 1px solid var(--hairline-2); display: flex; flex-direction: column; gap: 15px; }
 .aside-direct li { font-family: var(--sans); font-size: 15px; color: var(--charcoal); }
-.aside-direct li b { display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase; color: var(--mute); font-weight: 400; margin-bottom: 5px; }
+.aside-direct li b { display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase; color: var(--ink-2); font-weight: 400; margin-bottom: 5px; }
 .aside-direct a { color: var(--oxblood); font-weight: 500; border-bottom: 1px solid rgba(106,40,51,0.3); }
 .aside-direct a:hover { color: var(--oxblood-lt); border-bottom-color: var(--oxblood); }
 
@@ -382,7 +387,7 @@ section.fit { background: var(--paper); border-top: 1px solid var(--hairline); b
 .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
 .field > .lab {
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
-  text-transform: uppercase; font-weight: 400; color: var(--mute);
+  text-transform: uppercase; font-weight: 400; color: var(--ink-2);
 }
 .field > .lab .req { color: var(--oxblood); }
 .intake-form input[type="text"], .intake-form input[type="email"],
@@ -441,12 +446,12 @@ section.fit { background: var(--paper); border-top: 1px solid var(--hairline); b
 .done-again { margin: 26px 0 0; }
 .wiz-hint {
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
-  text-transform: uppercase; font-weight: 400; color: var(--mute); margin: 0 0 12px;
+  text-transform: uppercase; font-weight: 400; color: var(--ink-2); margin: 0 0 12px;
 }
 .doc-group { margin-bottom: 24px; }
 .doc-group h5 {
   font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase;
-  color: var(--mute); font-weight: 400; margin: 0 0 12px;
+  color: var(--ink-2); font-weight: 400; margin: 0 0 12px;
   padding-bottom: 8px; border-bottom: 1px solid var(--hairline);
 }
 .callout {

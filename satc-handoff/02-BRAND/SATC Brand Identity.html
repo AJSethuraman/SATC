@@ -1,0 +1,2102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1240" />
+<title>Sethuraman Accounting Tax & Consulting — Brand Identity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Hanken+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy:        #0B1F3A;
+    --navy-deep:   #061a35;
+    --navy-soft:   #173361;
+    --charcoal:    #1F2733;
+    --charcoal-2:  #3a4250;
+    --gold:        #B08D57;
+    --gold-light:  #D4B97E;
+    --gold-deep:   #8A6F44;
+    --cream:       #F6F2EA;
+    --cream-2:     #EFE9DC;
+    --paper:       #FBF9F4;
+    --hairline:    #D9CFB8;
+    --ink:         #0E1726;
+    --serif: "Cormorant Garamond", "Garamond", "Times New Roman", serif;
+    --sans:  "Hanken Grotesk", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  *,*::before,*::after { box-sizing: border-box; }
+  html,body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: #2a2825;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+    padding: 56px 0 96px;
+  }
+
+  /* ---------- document shell ---------- */
+  .doc {
+    max-width: 1240px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    padding: 0 28px;
+  }
+  .page {
+    background: var(--paper);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.18);
+    position: relative;
+    overflow: hidden;
+  }
+  .page.dark { background: var(--navy); color: var(--cream); }
+  .page-inner { padding: 88px 96px; }
+  .page-meta {
+    position: absolute;
+    top: 28px; left: 32px; right: 32px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--sans);
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--charcoal-2);
+    font-weight: 500;
+  }
+  .page.dark .page-meta { color: rgba(246,242,234,0.55); }
+  .page-meta .num {
+    font-family: var(--serif);
+    font-style: italic;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    font-size: 13px;
+  }
+
+  /* ---------- type scale ---------- */
+  .eyebrow {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 600;
+    margin: 0 0 14px;
+  }
+  .section-title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 54px;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--navy);
+    margin: 0 0 18px;
+  }
+  .page.dark .section-title { color: var(--cream); }
+  .section-sub {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 400;
+    font-size: 20px;
+    color: var(--charcoal-2);
+    margin: 0 0 0;
+    max-width: 640px;
+    line-height: 1.5;
+  }
+  .page.dark .section-sub { color: rgba(246,242,234,0.7); }
+  .body-note {
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--charcoal-2);
+    max-width: 560px;
+  }
+
+  /* ---------- ornamental divider ---------- */
+  .ornament {
+    display: flex; align-items: center; gap: 14px;
+    color: var(--gold);
+  }
+  .ornament .rule { flex: 1; height: 1px; background: var(--gold); opacity: 0.55; }
+  .ornament .dot {
+    width: 5px; height: 5px; transform: rotate(45deg);
+    background: var(--gold);
+  }
+
+  /* ============================================================
+     COVER PAGE
+     ============================================================ */
+  .cover { min-height: 880px; }
+  .cover .page-inner {
+    padding: 0;
+    height: 880px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .cover-left {
+    background: var(--navy);
+    color: var(--cream);
+    padding: 64px 64px 56px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+  }
+  .cover-left::after {
+    content: "";
+    position: absolute;
+    inset: 28px;
+    border: 1px solid rgba(176,141,87,0.35);
+    pointer-events: none;
+  }
+  .cover-top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    font-family: var(--sans);
+    font-size: 10.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(246,242,234,0.55);
+  }
+  .cover-mark {
+    align-self: center;
+    margin: auto;
+  }
+  .cover-mark svg { display: block; }
+  .cover-bottom {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    font-family: var(--sans);
+    font-size: 10.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(246,242,234,0.55);
+  }
+  .cover-right {
+    background: var(--paper);
+    padding: 96px 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .cover-title {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 64px;
+    line-height: 1.02;
+    color: var(--navy);
+    letter-spacing: -0.01em;
+    margin: 60px 0 28px;
+  }
+  .cover-title em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--gold-deep);
+  }
+  .cover-blurb {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--charcoal-2);
+    max-width: 420px;
+  }
+  .cover-meta {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 24px 32px;
+    padding-top: 28px;
+    border-top: 1px solid var(--hairline);
+  }
+  .cover-meta dt {
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--charcoal-2);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .cover-meta dd {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 17px;
+    color: var(--navy);
+  }
+
+  /* ============================================================
+     OVERVIEW PAGE (4 directions)
+     ============================================================ */
+  .grid-4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    margin-top: 56px;
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+  }
+  .grid-4 > .tile {
+    background: var(--paper);
+    aspect-ratio: 4 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    position: relative;
+  }
+  .grid-4 > .tile.dark { background: var(--navy); }
+  .tile .tile-tag {
+    position: absolute;
+    top: 18px; left: 22px;
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--charcoal-2);
+    font-weight: 600;
+  }
+  .tile.dark .tile-tag { color: rgba(246,242,234,0.55); }
+  .tile-num {
+    position: absolute;
+    top: 18px; right: 22px;
+    font-family: var(--serif);
+    font-style: italic;
+    color: var(--gold);
+    font-size: 15px;
+  }
+
+  /* ============================================================
+     LOGO DISPLAY PAGES
+     ============================================================ */
+  .logo-stage {
+    margin: 56px 0 40px;
+    background: var(--cream);
+    border: 1px solid var(--hairline);
+    padding: 96px 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 420px;
+  }
+  .logo-stage.dark {
+    background: var(--navy);
+    border-color: var(--navy-deep);
+  }
+  .logo-row {
+    display: flex; gap: 64px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .logo-caption {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    margin-top: 32px;
+    padding-top: 28px;
+    border-top: 1px solid var(--hairline);
+  }
+  .logo-caption h4 {
+    margin: 0 0 6px;
+    font-family: var(--sans);
+    font-size: 10.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--gold-deep);
+    font-weight: 600;
+  }
+  .logo-caption p {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 15.5px;
+    line-height: 1.5;
+    color: var(--charcoal);
+  }
+
+  /* ============================================================
+     CLASSIC WORDMARK
+     ============================================================ */
+  .wm-classic {
+    text-align: center;
+    color: var(--navy);
+  }
+  .wm-classic .wm-mark {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 70px;
+    letter-spacing: 0.16em;
+    line-height: 1;
+    text-indent: 0.16em; /* compensate trailing tracking */
+  }
+  .wm-classic .wm-ornament {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    margin: 22px auto 18px;
+    width: 420px;
+  }
+  .wm-classic .wm-ornament .r {
+    flex: 1; height: 1px; background: var(--gold);
+  }
+  .wm-classic .wm-ornament .d {
+    width: 5px; height: 5px;
+    background: var(--gold); border-radius: 50%;
+  }
+  .wm-classic .wm-tag {
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: var(--charcoal);
+    font-weight: 500;
+    text-indent: 0.42em;
+  }
+
+  /* SCALE variants */
+  .wm-classic.sz-l .wm-mark { font-size: 88px; }
+  .wm-classic.sz-l .wm-ornament { width: 540px; }
+  .wm-classic.sz-l .wm-tag { font-size: 13px; }
+
+  .wm-classic.sz-s .wm-mark { font-size: 34px; }
+  .wm-classic.sz-s .wm-ornament { width: 220px; margin: 12px auto 10px; }
+  .wm-classic.sz-s .wm-tag { font-size: 8px; letter-spacing: 0.36em; }
+
+  .wm-classic.on-dark { color: var(--cream); }
+  .wm-classic.on-dark .wm-ornament .r { background: var(--gold-light); }
+  .wm-classic.on-dark .wm-ornament .d { background: var(--gold-light); }
+  .wm-classic.on-dark .wm-tag { color: rgba(246,242,234,0.78); }
+
+  /* ============================================================
+     MONOGRAM (circular seal)
+     ============================================================ */
+  .monogram-seal { display: inline-block; }
+  .monogram-seal svg { display: block; }
+
+  .monogram-square { display: inline-block; }
+  .monogram-square svg { display: block; }
+
+  /* ============================================================
+     HORIZONTAL LOCKUP
+     ============================================================ */
+  .lockup-h {
+    display: inline-flex;
+    align-items: center;
+    gap: 28px;
+    color: var(--navy);
+  }
+  .lockup-h .mark-wrap { flex: 0 0 auto; }
+  .lockup-h .divider {
+    width: 1px; height: 64px;
+    background: var(--gold);
+    opacity: 0.6;
+  }
+  .lockup-h .text-wrap {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .lockup-h .wm-name {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 36px;
+    line-height: 1;
+    letter-spacing: 0.13em;
+    text-indent: 0.13em;
+  }
+  .lockup-h .wm-tag {
+    font-family: var(--sans);
+    font-size: 10.5px;
+    letter-spacing: 0.38em;
+    text-transform: uppercase;
+    color: var(--charcoal);
+    font-weight: 500;
+    text-indent: 0.38em;
+  }
+  .lockup-h.on-dark { color: var(--cream); }
+  .lockup-h.on-dark .divider { background: var(--gold-light); }
+  .lockup-h.on-dark .wm-tag { color: rgba(246,242,234,0.8); }
+  .lockup-h.sz-s .wm-name { font-size: 22px; }
+  .lockup-h.sz-s .wm-tag  { font-size: 8px; letter-spacing: 0.32em; }
+  .lockup-h.sz-s .divider { height: 40px; }
+
+  /* ============================================================
+     STACKED LOCKUP
+     ============================================================ */
+  .lockup-stack {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+    color: var(--navy);
+    text-align: center;
+  }
+  .lockup-stack .wm-name {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 38px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-indent: 0.16em;
+  }
+  .lockup-stack .wm-rule {
+    display: flex; align-items: center; gap: 12px;
+    width: 360px;
+  }
+  .lockup-stack .wm-rule .r { flex: 1; height: 1px; background: var(--gold); }
+  .lockup-stack .wm-rule .d {
+    width: 4px; height: 4px; border-radius: 50%; background: var(--gold);
+  }
+  .lockup-stack .wm-tag {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.44em;
+    text-transform: uppercase;
+    color: var(--charcoal);
+    font-weight: 500;
+    text-indent: 0.44em;
+  }
+  .lockup-stack.on-dark { color: var(--cream); }
+  .lockup-stack.on-dark .wm-rule .r { background: var(--gold-light); }
+  .lockup-stack.on-dark .wm-rule .d { background: var(--gold-light); }
+  .lockup-stack.on-dark .wm-tag { color: rgba(246,242,234,0.8); }
+
+  /* ============================================================
+     COLOR PALETTE
+     ============================================================ */
+  .palette {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    gap: 1px;
+    margin-top: 56px;
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+  }
+  .swatch {
+    aspect-ratio: 3 / 4;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: var(--cream);
+    position: relative;
+  }
+  .swatch.light { color: var(--navy); }
+  .swatch .swatch-tag {
+    font-family: var(--sans);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    font-weight: 600;
+    opacity: 0.7;
+  }
+  .swatch .swatch-name {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 30px;
+    line-height: 1.05;
+    margin-top: 8px;
+  }
+  .swatch .swatch-vals {
+    font-family: var(--sans);
+    font-size: 11px;
+    line-height: 1.8;
+    letter-spacing: 0.06em;
+  }
+  .swatch .swatch-vals .kv {
+    display: flex; justify-content: space-between;
+    border-top: 1px solid currentColor;
+    border-color: rgba(255,255,255,0.18);
+    padding-top: 4px;
+    padding-bottom: 2px;
+    opacity: 0.85;
+  }
+  .swatch.light .swatch-vals .kv { border-color: rgba(11,37,69,0.18); }
+  .swatch .swatch-vals .k {
+    font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
+    font-size: 9.5px;
+    opacity: 0.75;
+  }
+  .swatch .swatch-vals .v {
+    font-family: var(--serif); letter-spacing: 0.02em;
+    font-size: 13px;
+  }
+
+  /* ============================================================
+     TYPOGRAPHY
+     ============================================================ */
+  .type-rows {
+    margin-top: 56px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+  }
+  .type-row {
+    background: var(--paper);
+    padding: 40px 48px;
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+  .type-meta h4 {
+    margin: 0 0 8px;
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--gold-deep);
+    font-weight: 600;
+  }
+  .type-meta .name {
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--navy);
+    margin: 0 0 6px;
+    line-height: 1.1;
+  }
+  .type-meta .role {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--charcoal-2);
+    margin: 0;
+  }
+  .type-sample {
+    color: var(--navy);
+  }
+  .sample-serif-xl {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 76px;
+    line-height: 1;
+    letter-spacing: -0.005em;
+  }
+  .sample-serif-xl em { font-style: italic; font-weight: 400; color: var(--gold-deep); }
+  .sample-serif-caps {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 30px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    text-indent: 0.18em;
+    margin-top: 10px;
+  }
+  .sample-sans-row {
+    display: flex; align-items: baseline; gap: 32px; flex-wrap: wrap;
+  }
+  .sample-sans-display {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 40px;
+    color: var(--navy);
+    letter-spacing: -0.01em;
+  }
+  .sample-sans-caps {
+    font-family: var(--sans);
+    font-weight: 600;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    font-size: 14px;
+    color: var(--charcoal);
+  }
+  .sample-sans-body {
+    font-family: var(--sans);
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: var(--charcoal);
+    max-width: 600px;
+    margin-top: 18px;
+  }
+  .pair-table {
+    margin-top: 36px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    border-top: 1px solid var(--hairline);
+    padding-top: 24px;
+  }
+  .pair-table .row {
+    display: grid; grid-template-columns: 110px 1fr;
+    gap: 16px;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--charcoal);
+    letter-spacing: 0.04em;
+  }
+  .pair-table .row b {
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--gold-deep);
+    font-size: 10px;
+  }
+
+  /* ============================================================
+     BUSINESS CARD
+     ============================================================ */
+  .cards-stage {
+    margin-top: 56px;
+    background: linear-gradient(180deg, var(--cream-2), var(--cream));
+    border: 1px solid var(--hairline);
+    padding: 80px 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 48px;
+  }
+  .bcard {
+    width: 420px; height: 240px;
+    background: var(--paper);
+    box-shadow:
+      0 26px 50px -18px rgba(11,37,69,0.35),
+      0 8px 14px -8px rgba(11,37,69,0.18);
+    position: relative;
+    overflow: hidden;
+  }
+  .bcard.dark { background: var(--navy); color: var(--cream); }
+  .bcard.dark .bc-inner { color: var(--cream); }
+  .bcard .bc-inner {
+    position: absolute;
+    inset: 0;
+    padding: 30px 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  /* FRONT card layout (centered mark) */
+  .bcard.front .bc-inner {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0;
+  }
+  .bcard.front .lockup-stack .wm-name { font-size: 22px; letter-spacing: 0.18em; text-indent: 0.18em;}
+  .bcard.front .lockup-stack .wm-rule { width: 240px; }
+  .bcard.front .lockup-stack .wm-tag { font-size: 8px; letter-spacing: 0.4em; text-indent: 0.4em; }
+  .bcard.front .lockup-stack { gap: 14px; }
+  .bcard.front .bc-est {
+    position: absolute; bottom: 16px; left: 0; right: 0;
+    text-align: center;
+    font-family: var(--sans); font-size: 7.5px;
+    letter-spacing: 0.5em; text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 500;
+  }
+  /* BACK card layout (details) */
+  .bcard.back .bc-inner { flex-direction: row; justify-content: space-between; align-items: flex-start; gap: 24px; }
+  .bcard.back .bc-left { display: flex; flex-direction: column; gap: 18px; }
+  .bcard.back .bc-name {
+    font-family: var(--serif); font-weight: 500;
+    font-size: 21px; line-height: 1.1;
+    color: var(--cream);
+  }
+  .bcard.back .bc-role {
+    font-family: var(--sans);
+    font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--gold-light); font-weight: 500;
+    margin-top: 4px;
+  }
+  .bcard.back .bc-contact {
+    font-family: var(--sans);
+    font-size: 10.5px; line-height: 1.7;
+    color: rgba(246,242,234,0.85);
+  }
+  .bcard.back .bc-contact .label {
+    font-size: 8px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--gold-light); font-weight: 600;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .bcard.back .bc-right {
+    display: flex; flex-direction: column; align-items: flex-end;
+    gap: 12px;
+  }
+  .bcard.back .bc-frame {
+    position: absolute; inset: 12px;
+    border: 1px solid rgba(176,141,87,0.35);
+    pointer-events: none;
+  }
+  /* simulate slight tilt on cards */
+  .bcard.tilt-l { transform: rotate(-1.6deg); }
+  .bcard.tilt-r { transform: rotate(1.6deg); }
+
+  /* ============================================================
+     LETTERHEAD
+     ============================================================ */
+  .lh-stage {
+    margin-top: 56px;
+    background: linear-gradient(180deg, var(--cream-2), var(--cream));
+    border: 1px solid var(--hairline);
+    padding: 64px;
+    display: flex; justify-content: center;
+  }
+  .letterhead {
+    width: 640px;
+    aspect-ratio: 8.5 / 11;
+    background: var(--paper);
+    box-shadow:
+      0 30px 60px -18px rgba(11,37,69,0.32),
+      0 8px 16px -8px rgba(11,37,69,0.16);
+    position: relative;
+    padding: 56px 60px 56px;
+    display: flex; flex-direction: column;
+  }
+  .lh-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .lh-head .meta {
+    text-align: right;
+    font-family: var(--sans);
+    font-size: 8px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--charcoal-2);
+    line-height: 1.8;
+  }
+  .lh-head .meta b {
+    color: var(--gold-deep); font-weight: 600;
+    display: block;
+  }
+  .lh-body {
+    flex: 1;
+    padding: 36px 4px 24px;
+    font-family: var(--serif);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--charcoal);
+  }
+  .lh-body p { margin: 0 0 12px; }
+  .lh-body .greet { margin-bottom: 16px; }
+  .lh-body .sign {
+    margin-top: 22px;
+    font-style: italic;
+  }
+  .lh-body .signature {
+    font-family: "Cormorant Garamond", serif;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--navy);
+    margin: 12px 0 4px;
+  }
+  .lh-foot {
+    border-top: 1px solid var(--hairline);
+    padding-top: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--sans);
+    font-size: 7.5px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--charcoal-2);
+  }
+  .lh-foot .center { color: var(--gold-deep); font-weight: 600; }
+
+  /* ============================================================
+     WEBSITE HEADER MOCKUP
+     ============================================================ */
+  .web-stage {
+    margin-top: 56px;
+    background: var(--cream-2);
+    border: 1px solid var(--hairline);
+    padding: 40px;
+  }
+  .browser {
+    background: #e9e4d8;
+    border-radius: 10px 10px 4px 4px;
+    box-shadow: 0 20px 40px -16px rgba(11,37,69,0.30);
+    overflow: hidden;
+  }
+  .browser-bar {
+    background: #d8d2c2;
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .browser-bar .dot {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: #c2bba8;
+  }
+  .browser-bar .url {
+    flex: 1;
+    background: #efeadc;
+    border-radius: 6px;
+    padding: 6px 12px;
+    margin-left: 12px;
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--charcoal-2);
+    letter-spacing: 0.04em;
+  }
+  .browser-bar .url b { color: var(--navy); font-weight: 600; }
+  .site {
+    background: var(--paper);
+  }
+  .site-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px 48px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .site-nav-right {
+    display: flex; align-items: center; gap: 36px;
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--charcoal);
+    font-weight: 500;
+  }
+  .site-nav-right a { color: inherit; text-decoration: none; }
+  .site-nav-right .cta {
+    background: var(--navy);
+    color: var(--cream);
+    padding: 10px 18px;
+    letter-spacing: 0.22em;
+    border: 1px solid var(--navy);
+  }
+  .site-hero {
+    background: var(--navy);
+    color: var(--cream);
+    padding: 110px 64px 110px;
+    position: relative;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 64px;
+    align-items: center;
+    overflow: hidden;
+  }
+  .site-hero::before {
+    content: "";
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 380px; height: 380px;
+    border: 1px solid rgba(176,141,87,0.25);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .site-hero::after {
+    content: "";
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 300px; height: 300px;
+    border: 1px solid rgba(176,141,87,0.18);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .site-hero .eyebrow-h {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--gold-light);
+    font-weight: 500;
+    margin-bottom: 22px;
+  }
+  .site-hero h1 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 56px;
+    line-height: 1.08;
+    margin: 0 0 22px;
+    letter-spacing: -0.005em;
+    text-wrap: pretty;
+  }
+  .site-hero h1 em { font-style: italic; color: var(--gold-light); font-weight: 400; }
+  .site-hero p {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 17px;
+    line-height: 1.55;
+    color: rgba(246,242,234,0.78);
+    margin: 0 0 28px;
+    max-width: 460px;
+  }
+  .site-hero .h-cta {
+    display: inline-flex; align-items: center; gap: 14px;
+    border: 1px solid var(--gold);
+    color: var(--gold-light);
+    padding: 14px 22px;
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .site-hero .h-cta::after { content: "→"; letter-spacing: 0; font-size: 14px; }
+  .site-hero .h-card {
+    position: relative;
+    border: 1px solid rgba(176,141,87,0.35);
+    padding: 36px 32px;
+    display: flex; flex-direction: column; gap: 18px;
+    background: rgba(0,0,0,0.12);
+    z-index: 1;
+  }
+  .site-hero .h-card .label {
+    font-family: var(--sans);
+    font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--gold-light); font-weight: 500;
+  }
+  .site-hero .h-card .row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 8px 0;
+    border-top: 1px solid rgba(176,141,87,0.22);
+    font-family: var(--serif);
+  }
+  .site-hero .h-card .row .a { font-size: 15px; color: var(--cream); }
+  .site-hero .h-card .row .b { font-size: 13px; font-style: italic; color: rgba(246,242,234,0.6); }
+
+  /* ============================================================
+     EMAIL SIGNATURE & APPLICATIONS COMPACT
+     ============================================================ */
+  .email-stage {
+    margin-top: 56px;
+    background: var(--cream-2);
+    border: 1px solid var(--hairline);
+    padding: 48px 56px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .email-window {
+    width: 560px;
+    background: var(--paper);
+    box-shadow: 0 16px 36px -16px rgba(11,37,69,0.25);
+    padding: 28px 32px;
+    font-family: var(--sans);
+    color: var(--charcoal);
+    font-size: 12.5px;
+    line-height: 1.7;
+  }
+  .email-window .body { color: var(--charcoal-2); margin-bottom: 22px; }
+  .email-window .sig {
+    border-top: 1px solid var(--hairline);
+    padding-top: 18px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+  }
+  .email-window .sig-text {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .email-window .sig-text .name {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--navy);
+  }
+  .email-window .sig-text .role {
+    font-family: var(--sans);
+    font-size: 9.5px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--gold-deep);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .email-window .sig-text .contact {
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--charcoal);
+    line-height: 1.6;
+  }
+  .email-window .sig-text .contact b { color: var(--navy); font-weight: 600; }
+
+  /* ============================================================
+     CLOSING
+     ============================================================ */
+  .closing { min-height: 380px; }
+  .closing .page-inner {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    padding: 96px 80px;
+  }
+  .closing .end-mark {
+    font-family: var(--serif);
+    color: var(--gold);
+    font-size: 28px;
+    letter-spacing: 0.5em;
+    text-indent: 0.5em;
+  }
+  .closing .end-line {
+    margin-top: 28px;
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 22px;
+    color: var(--cream);
+    max-width: 560px;
+    line-height: 1.5;
+  }
+  .closing .end-sig {
+    margin-top: 36px;
+    font-family: var(--sans);
+    font-size: 10.5px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(246,242,234,0.6);
+    font-weight: 500;
+  }
+
+  /* ============================================================
+     LAYOUT HELPERS
+     ============================================================ */
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; }
+  .center-y { display: flex; align-items: center; }
+  .center { display: flex; align-items: center; justify-content: center; }
+
+
+  /* ============================================================
+     TAGLINE STUDIES
+     ============================================================ */
+  .descriptor-block {
+    margin-top: 56px;
+    background: var(--cream);
+    border: 1px solid var(--hairline);
+    padding: 56px 64px;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 56px;
+    align-items: start;
+  }
+  .desc-quote {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 48px;
+    line-height: 1.05;
+    color: var(--navy);
+    letter-spacing: -0.005em;
+  }
+  .desc-quote .desc-lead { display: block; }
+  .desc-quote em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--gold-deep);
+  }
+  .desc-body {
+    font-family: var(--sans);
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--charcoal);
+    margin: 0 0 14px;
+  }
+  .desc-body b {
+    color: var(--navy);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .tag-grid {
+    margin-top: 40px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+  }
+  .tag-card {
+    background: var(--paper);
+    padding: 36px 30px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 280px;
+  }
+  .tag-card.primary {
+    background: var(--navy);
+    color: var(--cream);
+  }
+  .tc-num {
+    font-family: var(--sans);
+    font-size: 9.5px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold-deep);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .tag-card.primary .tc-num { color: var(--gold-light); }
+  .tc-mark {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 16px;
+    letter-spacing: 0.22em;
+    text-indent: 0.22em;
+    color: var(--navy);
+  }
+  .tag-card.primary .tc-mark { color: var(--cream); }
+  .tc-rule {
+    height: 1px;
+    width: 36px;
+    background: var(--gold);
+    margin: 4px 0 14px;
+  }
+  .tc-line {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 26px;
+    line-height: 1.15;
+    color: var(--navy);
+    letter-spacing: -0.005em;
+    flex: 1;
+  }
+  .tag-card.primary .tc-line {
+    color: var(--cream);
+    font-size: 30px;
+  }
+  .tc-note {
+    font-family: var(--sans);
+    font-size: 11px;
+    line-height: 1.55;
+    color: var(--charcoal-2);
+    border-top: 1px solid var(--hairline);
+    padding-top: 12px;
+    margin-top: auto;
+  }
+  .tag-card.primary .tc-note {
+    color: rgba(246,242,234,0.65);
+    border-top-color: rgba(176,141,87,0.3);
+  }
+
+</style>
+</head>
+<body>
+
+<div class="doc">
+
+  <!-- ============================================================
+       1. COVER
+       ============================================================ -->
+  <section class="page cover" data-screen-label="01 Cover">
+    <div class="page-inner">
+      <!-- LEFT — navy with monogram seal -->
+      <div class="cover-left">
+        <div class="cover-top">
+          <span>Brand Identity</span>
+          <span>2026 · Vol. I</span>
+        </div>
+
+        <div class="cover-mark">
+          <!-- Large monogram seal -->
+          <svg width="260" height="260" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="130" cy="130" r="118" fill="none" stroke="#B08D57" stroke-width="1.2"/>
+            <!-- main S -->
+            <text x="130" y="170"
+                  text-anchor="middle"
+                  font-family="Cormorant Garamond, serif"
+                  font-size="170"
+                  font-weight="500"
+                  fill="#D4B97E">S</text>
+            <!-- inner small caps -->
+            <text x="130" y="208"
+                  text-anchor="middle"
+                  font-family="Hanken Grotesk, sans-serif"
+                  font-size="10"
+                  letter-spacing="6"
+                  fill="#B08D57"
+                  font-weight="500">SAT&#8201;·&#8201;C</text>
+          </svg>
+        </div>
+
+        <div class="cover-bottom">
+          <span>Accounting · Tax · Systems</span>
+          <span>Est. MMXXVI</span>
+        </div>
+      </div>
+
+      <!-- RIGHT — typographic title -->
+      <div class="cover-right">
+        <div class="eyebrow">A New Identity · Volume I</div>
+
+        <div>
+          <h1 class="cover-title">
+            Sethuraman<br/>
+            <em>Accounting,</em><br/>
+            Tax &amp; Consulting
+          </h1>
+          <p class="cover-blurb">
+            <b style="font-weight:500; color:var(--navy);">Complex work, made clear.</b><br/><br/>SATC helps businesses navigate accounting, tax, and operational challenges with precision and practicality. We bring clarity to complex financial questions and build systems that simplify the work — guided by Occam&#39;s razor: the simplest correct answer, never oversimplified, never overcomplicated.
+          </p>
+        </div>
+
+        <dl class="cover-meta">
+          <div><dt>Practice</dt><dd>Accounting · Tax · Systems</dd></div>
+          <div><dt>Filed</dt><dd>SAT‑C LLP · 2026</dd></div>
+          <div><dt>Prepared by</dt><dd>Brand Studio</dd></div>
+          <div><dt>Pages</dt><dd>Twelve</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       2. OVERVIEW — FOUR DIRECTIONS
+       ============================================================ -->
+  <section class="page" data-screen-label="02 Logo system overview">
+    <div class="page-meta"><span>Section I · The Logo System</span><span class="num">02 / 13</span></div>
+    <div class="page-inner">
+      <div class="eyebrow">Section I · Logomark</div>
+      <h2 class="section-title">Four directions, one voice.</h2>
+      <p class="section-sub">
+        Each direction reads as the same firm — precise, modern, and operational — varying only in the formality of the moment and the surface it must serve. Sized to scale from a tax organizer cover to a software product UI.
+      </p>
+
+      <div class="grid-4">
+        <!-- 01 classic wordmark -->
+        <div class="tile">
+          <div class="tile-tag">01 · Classic Wordmark</div>
+          <div class="tile-num">i</div>
+          <div class="wm-classic sz-s" style="transform:scale(1.15);">
+            <div class="wm-mark">SETHURAMAN</div>
+            <div class="wm-ornament"><span class="r"></span><span class="d"></span><span class="r"></span></div>
+            <div class="wm-tag">Accounting · Tax · Consulting</div>
+          </div>
+        </div>
+
+        <!-- 02 monogram -->
+        <div class="tile">
+          <div class="tile-tag">02 · Monogram Seal</div>
+          <div class="tile-num">ii</div>
+          <!-- circular seal inline -->
+          <svg width="190" height="190" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="92" fill="#0B1F3A"/>
+            <circle cx="100" cy="100" r="92" fill="none" stroke="#B08D57" stroke-width="1.2"/>
+            <text x="100" y="132" text-anchor="middle"
+                  font-family="Cormorant Garamond, serif" font-size="130" font-weight="500"
+                  fill="#D4B97E">S</text>
+            <text x="100" y="162" text-anchor="middle"
+                  font-family="Hanken Grotesk, sans-serif" font-size="8"
+                  letter-spacing="5" fill="#B08D57" font-weight="500">SAT&#8201;·&#8201;C</text>
+          </svg>
+        </div>
+
+        <!-- 03 modern SATC -->
+        <div class="tile">
+          <div class="tile-tag">03 · Modern Consulting</div>
+          <div class="tile-num">iii</div>
+          <div style="display:flex; align-items:center; gap:22px;">
+            <!-- SATC tile mark -->
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" fill="none" stroke="#0B1F3A" stroke-width="1.5"/>
+              <line x1="60" y1="2" x2="60" y2="118" stroke="#0B1F3A" stroke-width="0.8"/>
+              <line x1="2" y1="60" x2="118" y2="60" stroke="#0B1F3A" stroke-width="0.8"/>
+              <text x="33" y="48" text-anchor="middle" font-family="Cormorant Garamond, serif" font-weight="500" font-size="40" fill="#0B1F3A">S</text>
+              <text x="87" y="48" text-anchor="middle" font-family="Cormorant Garamond, serif" font-weight="500" font-size="40" fill="#B08D57">A</text>
+              <text x="33" y="102" text-anchor="middle" font-family="Cormorant Garamond, serif" font-weight="500" font-size="40" fill="#B08D57">T</text>
+              <text x="87" y="102" text-anchor="middle" font-family="Cormorant Garamond, serif" font-weight="500" font-size="40" fill="#0B1F3A">C</text>
+            </svg>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <div style="font-family:var(--sans); font-weight:600; font-size:18px; letter-spacing:0.22em; color:var(--navy); text-indent:0.22em;">SETHURAMAN</div>
+              <div style="font-family:var(--sans); font-size:9px; letter-spacing:0.36em; text-transform:uppercase; color:var(--charcoal); text-indent:0.36em;">Accounting · Tax · Consulting</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 04 premium navy/gold -->
+        <div class="tile dark">
+          <div class="tile-tag">04 · Premium · Navy/Gold</div>
+          <div class="tile-num">iv</div>
+          <div class="wm-classic on-dark sz-s" style="transform:scale(1.15);">
+            <div class="wm-mark" style="color:var(--gold-light)">SETHURAMAN</div>
+            <div class="wm-ornament"><span class="r"></span><span class="d"></span><span class="r"></span></div>
+            <div class="wm-tag">Accounting · Tax · Consulting</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       3. PRIMARY WORDMARK
+       ============================================================ -->
+  <section class="page" data-screen-label="03 Primary wordmark">
+    <div class="page-meta"><span>01 · Classic Wordmark</span><span class="num">03 / 13</span></div>
+    <div class="page-inner">
+      <div class="eyebrow">Direction 01</div>
+      <h2 class="section-title">The Classic Wordmark.</h2>
+      <p class="section-sub">
+        A symmetric, all‑caps wordmark in Cormorant Garamond — opened with generous tracking, anchored by a single hairline rule and a precision dot. The primary mark for letterhead, deliverables, and any place the firm signs its name.
+      </p>
+
+      <div class="logo-stage">
+        <div class="wm-classic sz-l">
+          <div class="wm-mark">SETHURAMAN</div>
+          <div class="wm-ornament"><span class="r"></span><span class="d"></span><span class="r"></span></div>
+          <div class="wm-tag">Accounting · Tax · Consulting</div>
+        </div>
+      </div>
+
+      <!-- scale lineup -->
+      <div class="logo-stage" style="padding:48px 64px; min-height:0; gap:48px; flex-direction:column; display:flex;">
+        <div class="wm-classic">
+          <div class="wm-mark">SETHURAMAN</div>
+          <div class="wm-ornament"><span class="r"></span><span class="d"></span><span class="r"></span></div>
+          <div class="wm-tag">Accounting · Tax · Consulting</div>
+        </div>
+        <div class="wm-classic sz-s">
+          <div class="wm-mark">SETHURAMAN</div>
+          <div class="wm-ornament"><span class="r"></span><span class="d"></span><span class="r"></span></div>
+          <div class="wm-tag">Accounting · Tax · Consulting</div>
+        </div>
+      </div>
+
+      <div class="logo-caption">
+        <div>
+          <h4>Best For</h4>
+          <p>Letterhead, engagement letters, tax organizers, audit reports, deliverables and formal correspondence.</p>
+        </div>
+        <div>
+          <h4>Clear Space</h4>
+          <p>Maintain a clear margin equal to the cap height on all sides; never crowd the ornament rules.</p>
+        </div>
+        <div>
+          <h4>Minimum Size</h4>
+          <p>Wordmark width of <b>1.25&nbsp;in</b> in print; <b>180&nbsp;px</b> on screen. Below this, switch to the monogram.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       4. MONOGRAM
+       ============================================================ -->
+  <section class="page" data-screen-label="04 Monogram seal">
+    <div class="page-meta"><span>02 · The Monogram Seal</span><span class="num">04 / 13</span></div>
+    <div class="page-inner">
+      <div class="eyebrow">Direction 02</div>
+      <h2 class="section-title">The Monogram Seal.</h2>
+      <p class="section-sub">
+        A serif <em>S</em> set inside a hairline gold ring — a precise seal for places that demand a single, identifiable mark. Equally at home on a tax folder, a portal favicon, or the splash of an in‑house tool.
+      </p>
+
+      <div class="logo-stage">
+        <div class="logo-row">
+
+          <!-- Primary circular -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+            <svg width="260" height="260" viewBox="0 0 260 260">
+              <circle cx="130" cy="130" r="120" fill="#0B1F3A"/>
+              <circle cx="130" cy="130" r="120" fill="none" stroke="#B08D57" stroke-width="1.4"/>
+              <text x="130" y="172" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="172" font-weight="500" fill="#D4B97E">S</text>
+              <text x="130" y="210" text-anchor="middle" font-family="Hanken Grotesk, sans-serif" font-size="10" letter-spacing="6" fill="#B08D57" font-weight="500">SAT&#8201;·&#8201;C</text>
+            </svg>
+            <div style="font-family:var(--sans); font-size:9.5px; letter-spacing:0.3em; text-transform:uppercase; color:var(--charcoal-2); font-weight:600;">Primary Seal</div>
+          </div>
+
+          <!-- Square chamfered variant -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+            <svg width="240" height="240" viewBox="0 0 240 240">
+              <!-- chamfered rect -->
+              <path d="M22 8 L218 8 L232 22 L232 218 L218 232 L22 232 L8 218 L8 22 Z"
+                    fill="#0B1F3A" stroke="#B08D57" stroke-width="1.4"/>
+              <path d="M28 18 L212 18 L222 28 L222 212 L212 222 L28 222 L18 212 L18 28 Z"
+                    fill="none" stroke="#B08D57" stroke-width="0.5"/>
+              <text x="120" y="158" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="160" font-weight="500" fill="#D4B97E">S</text>
+              <text x="120" y="196" text-anchor="middle" font-family="Hanken Grotesk, sans-serif" font-size="9" letter-spacing="5" fill="#B08D57" font-weight="500">SAT&#8201;·&#8201;C</text>
+            </svg>
+            <div style="font-family:var(--sans); font-size:9.5px; letter-spacing:0.3em; text-transform:uppercase; color:var(--charcoal-2); font-weight:600;">Cartouche Variant</div>
+          </div>
+
+          <!-- Single letter ornamental -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+            <svg width="240" height="240" viewBox="0 0 240 240">
+              <!-- twin lozenges -->
+              <g transform="translate(20 120) rotate(45)"><rect x="-5" y="-5" width="10" height="10" fill="#B08D57"/></g>
+              <g transform="translate(220 120) rotate(45)"><rect x="-5" y="-5" width="10" height="10" fill="#B08D57"/></g>
+              <!-- top + bottom hairline rule -->
+              <line x1="40" y1="120" x2="200" y2="120" stroke="#B08D57" stroke-width="0.6" opacity="0"/>
+              <text x="120" y="170"
+                    text-anchor="middle"
+                    font-family="Cormorant Garamond, serif"
+                    font-style="italic"
+                    font-size="200"
+                    font-weight="500"
+                    fill="#0B1F3A">S</text>
+            </svg>
+            <div style="font-family:var(--sans); font-size:9.5px; letter-spacing:0.3em; text-transform:uppercase; color:var(--charcoal-2); font-weight:600;">Italic Initial</div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="logo-caption">
+        <div>
+          <h4>Best For</h4>
+          <p>Avatars, app icons, favicons, portal headers, the back of a business card, deliverable folder corners.</p>
+        </div>
+        <div>
+          <h4>Reproduction</h4>
+          <p>Foil‑stamped gold on navy for print; flat navy + single gold accent for screen and product surfaces.</p>
+        </div>
+        <div>
+          <h4>Minimum Size</h4>
+          <p>Seal diameter of <b>0.5&nbsp;in</b> in print; <b>32&nbsp;px</b> on screen. Keep micro‑type legible.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       5. HORIZONTAL LOCKUP
+       ============================================================ -->
+  <section class="page" data-screen-label="05 Horizontal lockup">
+    <div class="page-meta"><span>03 · Horizontal Lockup</span><span class="num">05 / 13</span></div>
+    <div class="page-inner">
+      <div class="eyebrow">Direction 03</div>
+      <h2 class="section-title">The Horizontal Lockup.</h2>
+      <p class="section-sub">
+        Seal, hairline divider, and a stacked wordmark — sized for navigation bars,
+        invoice tops, and any landscape application. Reads cleanly at 32&nbsp;px tall.
+      </p>
+
+      <div class="logo-stage">
+        <div class="lockup-h">
+          <div class="mark-wrap">
+            <!-- small seal -->
+            <svg width="84" height="84" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="92" fill="#0B1F3A"/>
+              <circle cx="100" cy="100" r="92" fill="none" stroke="#B08D57" stroke-width="2.4"/>
+              <text x="100" y="135" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="135" font-weight="500" fill="#D4B97E">S</text>
+            </svg>
+          </div>
+          <div class="divider"></div>
+          <div class="text-wrap">
+            <div class="wm-name">SETHURAMAN</div>
+            <div class="wm-tag">Accounting · Tax · Consulting</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- on dark -->
+      <div class="logo-stage dark" style="margin-top:24px;">
+        <div class="lockup-h on-dark">
+          <div class="mark-wrap">
+            <svg width="84" height="84" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="92" fill="#0B1F3A"/>
+              <circle cx="100" cy="100" r="92" fill="none" stroke="#D4B97E" stroke-width="2.4"/>
+              <text x="100" y="135" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="135" font-weight="500" fill="#D4B97E">S</text>
+            </svg>
+          </div>
+          <div class="divider"></div>
+          <div class="text-wrap">
+            <div class="wm-name">SETHURAMAN</div>
+            <div class="wm-tag">Accounting · Tax · Consulting</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- small scale -->
+      <div class="logo-stage" style="padding:48px 64px; min-height:0;">
+        <div class="lockup-h sz-s">
+          <div class="mark-wrap">
+            <svg width="48" height="48" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="92" fill="#0B1F3A"/>
+              <circle cx="100" cy="100" r="92" fill="none" stroke="#B08D57" stroke-width="3"/>
+              <text x="100" y="135" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="135" font-weight="500" fill="#D4B97E">S</text>
+            </svg>
+          </div>
+          <div class="divider"></div>
+          <div class="text-wrap">
+            <div class="wm-name">SETHURAMAN</div>
+            <div class="wm-tag">Accounting · Tax · Consulting</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="logo-caption">
+        <div><h4>Best For</h4><p>Website headers, invoice mastheads, client portal navigation, in‑product chrome, email banners.</p></div>
+        <div><h4>Clear Space</h4><p>Maintain horizontal margin equal to the seal diameter; do not allow other elements to encroach.</p></div>
+        <div><h4>Reversed</h4><p>The lockup is approved for reversal on navy; do not use on photographic backgrounds.</p></div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       6. STACKED LOCKUP
+       ============================================================ -->
+  <section class="page" data-screen-label="06 Stacked lockup">
+    <div class="page-meta"><span>04 · Stacked Lockup</span><span class="num">06 / 13</span></div>
+    <div class="page-inner">
+      <div class="eyebrow">Direction 04</div>
+      <h2 class="section-title">The Stacked Lockup.</h2>
+      <p class="section-sub">
+        The most formal arrangement — seal, wordmark, and tagline stacked on a
+        single axis. Designed for letterhead, document covers, and award‑quality
+        printed materials where balance and presence matter.
+      </p>
+
+      <div class="logo-stage" style="padding:72px 64px;">
+        <div class="lockup-stack">
+          <svg width="120" height="120" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="92" fill="#0B1F3A"/>
+            <circle cx="100" cy="100" r="92" fill="none" stroke="#B08D57" stroke-width="2"/>
+            <text x="100" y="134" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="132" font-weight="500" fill="#D4B97E">S</text>
+            <text x="100" y="162" text-anchor="middle" font-family="Hanken Grotesk, sans-serif" font-size="8" letter-spacing="5" fill="#B08D57" font-weight="500">SAT&#8201;·&#8201;C</text>
+          </svg>
+          <div class="wm-name">SETHURAMAN</div>
+          <div class="wm-rule"><span class="r"></span><span class="d"></span><span class="r"></span></div>
+          <div class="wm-tag">Accounting · Tax · Consulting</div>
+        </div>
+      </div>
+
+      <!-- on dark -->
+      <div class="logo-stage dark" style="margin-top:24px; padding:72px 64px;">
+        <div class="lockup-stack on-dark">
+          <svg width="120" height="120" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="92" fill="#0B1F3A"/>
+            <circle cx="100" cy="100" r="92" fill="none" stroke="#D4B97E" stroke-width="2"/>
+            <text x="100" y="134" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="132" font-weight="500" fill="#D4B97E">S</text>
+            <text x="100" y="162" text-anchor="middle" font-family="Hanken Grotesk, sans-serif" font-size="8" letter-spacing="5" fill="#D4B97E" font-weight="500">SAT&#8201;·&#8201;C</text>
+          </svg>
+          <div class="wm-name">SETHURAMAN</div>
+          <div class="wm-rule"><span class="r"></span><span class="d"></span><span class="r"></span></div>
+          <div class="wm-tag">Accounting · Tax · Consulting</div>
+        </div>
+      </div>
+
+      <div class="logo-caption">
+        <div><h4>Best For</h4><p>Letterhead headers, deliverable cover pages, foil‑stamped folders, lobby and office signage.</p></div>
+        <div><h4>Clear Space</h4><p>Reserve vertical space equal to the seal diameter above and below the entire lockup.</p></div>
+        <div><h4>Reproduction</h4><p>Two‑color preferred (navy + gold). One‑color reductions render the entire lockup in navy.</p></div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       7. COLOR PALETTE
+       ============================================================ -->
+  <section class="page" data-screen-label="07 Color palette">
+    <div class="page-meta"><span>Section II · Foundations</span><span class="num">07 / 13</span></div>
+    <div class="page-inner">
+      <div class="eyebrow">Section II · Color</div>
+      <h2 class="section-title">A measured palette.</h2>
+      <p class="section-sub">
+        Four colors. Navy carries identity and weight; charcoal holds the body of
+        text; gold appears only as accent — never as fill. Cream is the page,
+        always, never pure white.
+      </p>
+
+      <div class="palette">
+        <!-- Navy — primary -->
+        <div class="swatch" style="background:#0B1F3A;">
+          <div>
+            <div class="swatch-tag">Primary</div>
+            <div class="swatch-name">Sethuraman<br/>Navy</div>
+          </div>
+          <div class="swatch-vals">
+            <div class="kv"><span class="k">Hex</span><span class="v">#0B1F3A</span></div>
+            <div class="kv"><span class="k">RGB</span><span class="v">11 · 37 · 69</span></div>
+            <div class="kv"><span class="k">CMYK</span><span class="v">100 · 80 · 30 · 65</span></div>
+            <div class="kv"><span class="k">Pantone</span><span class="v">282&nbsp;C</span></div>
+          </div>
+        </div>
+
+        <!-- Charcoal -->
+        <div class="swatch" style="background:#1F2733;">
+          <div>
+            <div class="swatch-tag">Secondary</div>
+            <div class="swatch-name">Ledger<br/>Charcoal</div>
+          </div>
+          <div class="swatch-vals">
+            <div class="kv"><span class="k">Hex</span><span class="v">#1F2733</span></div>
+            <div class="kv"><span class="k">RGB</span><span class="v">31 · 39 · 51</span></div>
+            <div class="kv"><span class="k">CMYK</span><span class="v">72 · 60 · 45 · 80</span></div>
+            <div class="kv"><span class="k">Pantone</span><span class="v">433&nbsp;C</span></div>
+          </div>
+        </div>
+
+        <!-- Gold accent -->
+        <div class="swatch" style="background:#B08D57;">
+          <div>
+            <div class="swatch-tag">Accent</div>
+            <div class="swatch-name">Heritage<br/>Gold</div>
+          </div>
+          <div class="swatch-vals">
+            <div class="kv"><span class="k">Hex</span><span class="v">#B08D57</span></div>
+            <div class="kv"><span class="k">RGB</span><span class="v">176 · 141 · 87</span></div>
+            <div class="kv"><span class="k">CMYK</span><span class="v">28 · 42 · 75 · 10</span></div>
+            <div class="kv"><span class="k">Pantone</span><span class="v">872&nbsp;C&nbsp;Metallic</span></div>
+          </div>
+        </div>
+
+        <!-- Cream -->
+        <div class="swatch light" style="background:#F6F2EA;">
+          <div>
+            <div class="swatch-tag">Ground</div>
+            <div class="swatch-name">Ledger<br/>Cream</div>
+          </div>
+          <div class="swatch-vals">
+            <div class="kv"><span class="k">Hex</span><span class="v">#F6F2EA</span></div>
+            <div class="kv"><span class="k">RGB</span><span class="v">246 · 242 · 234</span></div>
+            <div class="kv"><span class="k">CMYK</span><span class="v">3 · 3 · 7 · 0</span></div>
+            <div class="kv"><span class="k">Pantone</span><span class="v">Warm&nbsp;Gray&nbsp;1&nbsp;C</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Usage proportions -->
+      <div style="margin-top:48px; display:grid; grid-template-columns: 1fr 1fr; gap:48px;">
+        <div>
+          <h4 style="font-family:var(--sans); font-size:10.5px; letter-spacing:0.32em; text-transform:uppercase; color:var(--gold-deep); font-weight:600; margin:0 0 14px;">Usage Proportion</h4>
+          <div style="display:flex; height:36px; border:1px solid var(--hairline);">
+            <div style="flex:55; background:#F6F2EA;"></div>
+            <div style="flex:30; background:#0B1F3A;"></div>
+            <div style="flex:12; background:#1F2733;"></div>
+            <div style="flex:3;  background:#B08D57;"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-family:var(--sans); font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:var(--charcoal-2); margin-top:8px; font-weight:500;">
+            <span>Cream 55%</span><span>Navy 30%</span><span>Charcoal 12%</span><span>Gold 3%</span>
+          </div>
+        </div>
+        <div class="body-note">
+          <b style="color:var(--navy)">Discipline.</b> Gold is precious. It appears as a hairline, a dot, the letter inside the seal — never as a flood color. Reserve it for measured accent. If two pieces of gold appear on the same surface, one of them is too many.
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       8. TYPOGRAPHY
+       ============================================================ -->
+  <section class="page" data-screen-label="08 Typography">
+    <div class="page-meta"><span>Section III · Typography</span><span class="num">08 / 13</span></div>
+    <div class="page-inner">
+      <div class="eyebrow">Section III · Type</div>
+      <h2 class="section-title">A pair of voices.</h2>
+      <p class="section-sub">
+        A traditional book serif for the firm's name, headings, and signature
+        statements; a quiet contemporary grotesk for everything operational —
+        captions, tables, contact information, fine print.
+      </p>
+
+      <div class="type-rows">
+
+        <!-- Serif row -->
+        <div class="type-row">
+          <div class="type-meta">
+            <h4>Display Serif</h4>
+            <div class="name">Cormorant<br/>Garamond</div>
+            <p class="role">For wordmarks, headlines, and the firm's name in every formal context.</p>
+          </div>
+          <div class="type-sample">
+            <div class="sample-serif-xl">Aa<em>Bb</em>Ss</div>
+            <div class="sample-serif-caps">Sethuraman</div>
+            <div class="body-note" style="margin-top:16px; max-width:none;">
+              Weights in use: <b>500&nbsp;Medium</b> · 600&nbsp;Semibold · 400&nbsp;Italic. Set
+              names and headings at 0.13–0.16em tracking when in caps; 0 tracking in
+              upper‑and‑lower. Italic is reserved for emphasis and ornament.
+            </div>
+          </div>
+        </div>
+
+        <!-- Sans row -->
+        <div class="type-row">
+          <div class="type-meta">
+            <h4>Companion Sans</h4>
+            <div class="name">Hanken<br/>Grotesk</div>
+            <p class="role">For body, captions, contact blocks, tables, micro‑typography and UI.</p>
+          </div>
+          <div class="type-sample">
+            <div class="sample-sans-row">
+              <div class="sample-sans-display">AaBbSs01</div>
+              <div class="sample-sans-caps">Accounting · Tax · Consulting</div>
+            </div>
+            <p class="sample-sans-body">
+              Sethuraman Accounting, Tax &amp; Consulting is a working firm — tax, accounting, and the in‑house systems that make both run with less friction. Clarity in complexity. Weights 400 / 500 / 600 carry the operational set.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="pair-table">
+        <div>
+          <div class="row"><b>Wordmark</b><span>Cormorant Garamond 500, tracked 0.16em</span></div>
+          <div class="row"><b>Headings</b><span>Cormorant Garamond 500, 36–72&nbsp;px</span></div>
+          <div class="row"><b>Sub‑heads</b><span>Cormorant Garamond 400 Italic, 18–24&nbsp;px</span></div>
+        </div>
+        <div>
+          <div class="row"><b>Body</b><span>Hanken Grotesk 400, 14–16&nbsp;px, 1.65 line</span></div>
+          <div class="row"><b>Eyebrows</b><span>Hanken Grotesk 600, 11&nbsp;px, tracked 0.32em</span></div>
+          <div class="row"><b>Fine print</b><span>Hanken Grotesk 500, 9–10&nbsp;px, tracked 0.28em</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       9. TAGLINE STUDIES + DESCRIPTOR
+       ============================================================ -->
+  <section class="page" data-screen-label="09 Tagline studies">
+    <div class="page-meta"><span>Section V · Voice</span><span class="num">09 / 13</span></div>
+    <div class="page-inner">
+      <div class="eyebrow">Section V · Voice</div>
+      <h2 class="section-title">Tagline &amp; descriptor.</h2>
+      <p class="section-sub">
+        One idea, expressed at different lengths. <em>Clarity in complexity.</em> anchors the brand;
+        the longer descriptor and alternate lines flex into the contexts where more or less specificity is needed.
+      </p>
+
+      <!-- Descriptor card -->
+      <div class="descriptor-block">
+        <div class="desc-quote">
+          <span class="desc-lead">Complex work,</span> <em>made clear.</em>
+        </div>
+        <p class="desc-body">
+          Sethuraman Accounting Tax &amp; Consulting helps businesses navigate accounting,
+          tax, and operational challenges with precision and practicality. We bring
+          clarity to the most complex financial questions and build the systems that
+          simplify the work.
+        </p>
+        <p class="desc-body">
+          Guided by <b>Occam&#39;s razor</b>, we deliver the simplest correct answer —
+          never oversimplifying, never overcomplicating. Expert judgement, paired with
+          software we build ourselves, so clients can focus on growth with confidence.
+        </p>
+      </div>
+
+      <!-- Tagline grid -->
+      <div class="tag-grid">
+        <div class="tag-card primary">
+          <div class="tc-num">01 · Primary</div>
+          <div class="tc-mark">SETHURAMAN</div>
+          <div class="tc-rule"></div>
+          <div class="tc-line">Clarity in complexity.</div>
+          <div class="tc-note">The anchor line. Short, claimable, works at every scale.</div>
+        </div>
+        <div class="tag-card">
+          <div class="tc-num">02 · Long form</div>
+          <div class="tc-mark">SETHURAMAN</div>
+          <div class="tc-rule"></div>
+          <div class="tc-line">Complexity simplified.<br/>Clarity delivered.</div>
+          <div class="tc-note">For homepage heroes, proposal covers, capabilities decks.</div>
+        </div>
+        <div class="tag-card">
+          <div class="tc-num">03 · Operational</div>
+          <div class="tc-mark">SETHURAMAN</div>
+          <div class="tc-rule"></div>
+          <div class="tc-line">Precise answers.<br/>Simple systems.</div>
+          <div class="tc-note">For services, engagement letters, and the in‑product chrome of Occam.</div>
+        </div>
+        <div class="tag-card">
+          <div class="tc-num">04 · Product‑aware</div>
+          <div class="tc-mark">SETHURAMAN</div>
+          <div class="tc-rule"></div>
+          <div class="tc-line">Clear numbers.<br/>Seamless systems.</div>
+          <div class="tc-note">When the software side of the practice is the headline.</div>
+        </div>
+        <div class="tag-card">
+          <div class="tc-num">05 · Outcome</div>
+          <div class="tc-mark">SETHURAMAN</div>
+          <div class="tc-rule"></div>
+          <div class="tc-line">From complexity,<br/>to clarity.</div>
+          <div class="tc-note">For case studies, before/after stories, results pages.</div>
+        </div>
+        <div class="tag-card">
+          <div class="tc-num">06 · Growth</div>
+          <div class="tc-mark">SETHURAMAN</div>
+          <div class="tc-rule"></div>
+          <div class="tc-line">Simplifying finance<br/>for growth.</div>
+          <div class="tc-note">For prospect outreach to founders and operators.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       9. BUSINESS CARD
+       ============================================================ -->
+  <section class="page" data-screen-label="10 Business card">
+    <div class="page-meta"><span>Section IV · Applications</span><span class="num">10 / 13</span></div>
+    <div class="page-inner">
+      <div class="eyebrow">Application 01</div>
+      <h2 class="section-title">Business card.</h2>
+      <p class="section-sub">
+        Standard 3.5 × 2&nbsp;in stock, printed on uncoated cream. The face carries
+        only the stacked lockup, foiled in muted gold; the reverse holds the
+        details, set in navy with a fine inner rule.
+      </p>
+
+      <div class="cards-stage">
+        <!-- Front card -->
+        <div class="bcard front tilt-l">
+          <div class="bc-inner">
+            <div class="lockup-stack">
+              <svg width="48" height="48" viewBox="0 0 200 200">
+                <circle cx="100" cy="100" r="92" fill="#0B1F3A"/>
+                <circle cx="100" cy="100" r="92" fill="none" stroke="#B08D57" stroke-width="3.6"/>
+                <text x="100" y="135" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="135" font-weight="500" fill="#D4B97E">S</text>
+              </svg>
+              <div class="wm-name">SETHURAMAN</div>
+              <div class="wm-rule"><span class="r"></span><span class="d"></span><span class="r"></span></div>
+              <div class="wm-tag">Accounting · Tax · Consulting</div>
+            </div>
+          </div>
+          <div class="bc-est">Accounting&nbsp;·&nbsp;Tax&nbsp;·&nbsp;Systems</div>
+        </div>
+
+        <!-- Back card -->
+        <div class="bcard back dark tilt-r">
+          <div class="bc-frame"></div>
+          <div class="bc-inner">
+            <div class="bc-left">
+              <div>
+                <div class="bc-name">Ravi Sethuraman, <span style="font-style:italic; color:var(--gold-light); font-weight:400;">CPA</span></div>
+                <div class="bc-role">Managing Partner</div>
+              </div>
+              <div class="bc-contact">
+                <span class="label">Direct</span>
+                +1 (305) 555&nbsp;·&nbsp;0140<br/>
+                ravi@satcllp.com
+              </div>
+              <div class="bc-contact">
+                <span class="label">Office</span>
+                1428 Brickell Avenue, Suite 1900<br/>
+                Miami, Florida&nbsp;33131
+              </div>
+            </div>
+            <div class="bc-right">
+              <svg width="68" height="68" viewBox="0 0 200 200">
+                <circle cx="100" cy="100" r="92" fill="#0B1F3A"/>
+                <circle cx="100" cy="100" r="92" fill="none" stroke="#D4B97E" stroke-width="3"/>
+                <text x="100" y="135" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="135" font-weight="500" fill="#D4B97E">S</text>
+              </svg>
+              <div style="font-family:var(--sans); font-size:7px; letter-spacing:0.42em; text-transform:uppercase; color:rgba(212,185,126,0.7); text-align:right; line-height:1.6;">
+                SAT‑C LLP<br/>satcllp.com
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="logo-caption">
+        <div><h4>Stock</h4><p>Mohawk Superfine Eggshell, 130&nbsp;lb cover, duplex. Gold foil stamp on face.</p></div>
+        <div><h4>Printing</h4><p>Letterpress impression on face for the seal; flat offset navy on reverse.</p></div>
+        <div><h4>Finish</h4><p>Bevel edge optional. Square corners only — never rounded.</p></div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       10. LETTERHEAD
+       ============================================================ -->
+  <section class="page" data-screen-label="11 Letterhead">
+    <div class="page-meta"><span>Section IV · Applications</span><span class="num">11 / 13</span></div>
+    <div class="page-inner">
+      <div class="eyebrow">Application 02</div>
+      <h2 class="section-title">Letterhead.</h2>
+      <p class="section-sub">
+        US Letter, 8.5 × 11&nbsp;in. The horizontal lockup sits at the top, balanced
+        on the right by the firm's address block. The footer carries the
+        registration and partner roster, set in fine sans caps.
+      </p>
+
+      <div class="lh-stage">
+        <div class="letterhead">
+          <!-- HEAD -->
+          <div class="lh-head">
+            <div class="lockup-h sz-s">
+              <div class="mark-wrap">
+                <svg width="44" height="44" viewBox="0 0 200 200">
+                  <circle cx="100" cy="100" r="92" fill="#0B1F3A"/>
+                  <circle cx="100" cy="100" r="92" fill="none" stroke="#B08D57" stroke-width="4"/>
+                  <text x="100" y="135" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="135" font-weight="500" fill="#D4B97E">S</text>
+                </svg>
+              </div>
+              <div class="divider"></div>
+              <div class="text-wrap">
+                <div class="wm-name">SETHURAMAN</div>
+                <div class="wm-tag">Accounting · Tax · Consulting</div>
+              </div>
+            </div>
+            <div class="meta">
+              <b>SAT‑C LLP</b>
+              1428 Brickell Avenue, Suite 1900<br/>
+              Miami · Florida · 33131<br/>
+              +1 305 555 0140 · satcllp.com
+            </div>
+          </div>
+
+          <!-- BODY -->
+          <div class="lh-body">
+            <p>11 May 2026</p>
+            <p>
+              Ms. Helena Wirth<br/>
+              Chief Financial Officer<br/>
+              Calder &amp; Park Holdings<br/>
+              200 South Wacker Drive, Chicago, IL&nbsp;60606
+            </p>
+            <p class="greet"><em>Dear&nbsp;Ms. Wirth,</em></p>
+
+            <p>
+              Thank you for placing the year‑end audit and the related tax engagement with our firm. Enclosed please find the executed engagement letter, our independence confirmation, and the proposed timeline through fiscal close.
+            </p>
+            <p>
+              Anand Iyer will be the partner of record; he will be in touch this week to coordinate the preliminary walkthroughs and schedule a first call with your controller. We will route status updates and document requests to your team through the SAT‑C client portal.
+            </p>
+            <p>
+              We appreciate the trust your team has placed in the firm and look forward to a long and practical working relationship.
+            </p>
+
+            <p class="sign">With every regard,</p>
+            <div class="signature">Ravi&nbsp;Sethuraman</div>
+            <p style="font-family:var(--sans); font-size:9px; letter-spacing:0.26em; text-transform:uppercase; color:var(--charcoal-2); margin:0; font-weight:600;">Managing Partner&nbsp;·&nbsp;CPA</p>
+          </div>
+
+          <!-- FOOT -->
+          <div class="lh-foot">
+            <span>Sethuraman LLP · Registered in Florida</span>
+            <span class="center">SAT‑C</span>
+            <span>Partners&nbsp;·&nbsp;R. Sethuraman&nbsp;·&nbsp;A. Iyer&nbsp;·&nbsp;P. Mendes</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       11. WEBSITE HEADER
+       ============================================================ -->
+  <section class="page" data-screen-label="12 Website header">
+    <div class="page-meta"><span>Section IV · Applications</span><span class="num">12 / 13</span></div>
+    <div class="page-inner">
+      <div class="eyebrow">Application 03</div>
+      <h2 class="section-title">Website &amp; client portal.</h2>
+      <p class="section-sub">
+        The horizontal lockup anchors a quiet cream navigation; below it the hero
+        commits fully to navy with a single gold accent. No stock photography;
+        the firm speaks in type.
+      </p>
+
+      <div class="web-stage">
+        <div class="browser">
+          <div class="browser-bar">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="url"><b>satcllp.com</b>&nbsp;/&nbsp;Accounting, tax, and the systems that make both work.</div>
+          </div>
+          <div class="site">
+            <!-- NAV -->
+            <div class="site-nav">
+              <div class="lockup-h sz-s">
+                <div class="mark-wrap">
+                  <svg width="44" height="44" viewBox="0 0 200 200">
+                    <circle cx="100" cy="100" r="92" fill="#0B1F3A"/>
+                    <circle cx="100" cy="100" r="92" fill="none" stroke="#B08D57" stroke-width="4"/>
+                    <text x="100" y="135" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="135" font-weight="500" fill="#D4B97E">S</text>
+                  </svg>
+                </div>
+                <div class="divider"></div>
+                <div class="text-wrap">
+                  <div class="wm-name">SETHURAMAN</div>
+                  <div class="wm-tag">Accounting · Tax · Consulting</div>
+                </div>
+              </div>
+              <div class="site-nav-right">
+                <a>Practice</a><a>Services</a><a>People</a><a>Systems</a>
+                <a class="cta">Client Portal</a>
+              </div>
+            </div>
+            <!-- HERO -->
+            <div class="site-hero">
+              <div>
+                <div class="eyebrow-h">Accounting · Tax · Systems · Est. 2026</div>
+                <h1>Clarity<br/>in <em>complexity.</em></h1>
+                <p>
+                  Accounting, tax, and the in‑house systems that simplify both. Expert judgement paired with software we build ourselves — so growing companies focus on the work, not the workflow.
+                </p>
+                <div class="h-cta">Begin an Engagement</div>
+              </div>
+              <div class="h-card">
+                <div class="label">Current Engagements</div>
+                <div class="row"><span class="a">Federal Tax Year 2025</span><span class="b">Open · April</span></div>
+                <div class="row"><span class="a">Quarterly Estimates</span><span class="b">Filing · Q2</span></div>
+                <div class="row"><span class="a">Audit · Calendar 2025</span><span class="b">In review</span></div>
+                <div class="row"><span class="a">Systems &amp; Workflow Review</span><span class="b">By Appointment</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="logo-caption">
+        <div><h4>Hero rule</h4><p>One single object of color on the hero — gold. Never two. Cream typography on navy. The hero leads with a positioning line, not a photograph.</p></div>
+        <div><h4>Navigation</h4><p>Sans‑serif, tracked. Five items maximum. CTA carries the only solid block of color.</p></div>
+        <div><h4>Photography</h4><p>None on the homepage. Reserve imagery for the People and Systems sections, full‑bleed.</p></div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       12. EMAIL SIGNATURE + CLOSING
+       ============================================================ -->
+  <section class="page" data-screen-label="13 Email signature">
+    <div class="page-meta"><span>Section IV · Applications</span><span class="num">13 / 13</span></div>
+    <div class="page-inner">
+      <div class="eyebrow">Application 04</div>
+      <h2 class="section-title">Email signature.</h2>
+      <p class="section-sub">
+        A single hairline separates the message from the signature. The seal
+        appears at 64&nbsp;px; the rest is sans‑serif, in two tight blocks.
+        No graphics, no taglines, no quotations.
+      </p>
+
+      <div class="email-stage">
+        <div class="email-window">
+          <div class="body">
+            <p style="margin:0 0 12px;">Helena —</p>
+            <p style="margin:0 0 12px;">Confirmed for Thursday at ten. I will bring the revised cap‑table workings and the draft 2025 estimates. Anand will join us by phone from the Miami office.</p>
+            <p style="margin:0;">— R.</p>
+          </div>
+          <div class="sig">
+            <svg width="64" height="64" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="92" fill="#0B1F3A"/>
+              <circle cx="100" cy="100" r="92" fill="none" stroke="#B08D57" stroke-width="3"/>
+              <text x="100" y="135" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="135" font-weight="500" fill="#D4B97E">S</text>
+            </svg>
+            <div class="sig-text">
+              <div class="name">Ravi Sethuraman</div>
+              <div class="role">Managing Partner · CPA</div>
+              <div class="contact">
+                <b>Sethuraman</b> Accounting, Tax &amp; Consulting · SAT‑C LLP<br/>
+                +1 305 555 0140 · ravi@satcllp.com · satcllp.com
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="logo-caption">
+        <div><h4>Width</h4><p>Constrain the signature to 560&nbsp;px so it reads cleanly on mobile clients.</p></div>
+        <div><h4>Mark</h4><p>Use the circular seal only — never the full stacked lockup. Foil colors translate poorly in mail.</p></div>
+        <div><h4>Disclaimers</h4><p>Place any required confidentiality language in 9&nbsp;px Hanken, charcoal at 60% opacity, below the rule.</p></div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================================
+       CLOSING
+       ============================================================ -->
+  <section class="page dark closing" data-screen-label="13 Colophon">
+    <div class="page-inner">
+      <svg width="120" height="120" viewBox="0 0 200 200" style="margin-bottom:24px;">
+        <circle cx="100" cy="100" r="92" fill="none" stroke="#B08D57" stroke-width="1.4"/>
+        <text x="100" y="138" text-anchor="middle" font-family="Cormorant Garamond, serif" font-size="135" font-weight="500" fill="#D4B97E">S</text>
+      </svg>
+      <div class="end-mark">SAT&nbsp;·&nbsp;C</div>
+      <div class="end-line">
+        Sethuraman Accounting, Tax &amp; Consulting — <em>clarity in complexity.</em> End of Volume I.
+      </div>
+      <div class="end-sig">Brand Identity · 2026</div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

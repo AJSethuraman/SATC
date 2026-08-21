@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="design_doc_mode" content="canvas"/>
+<title>Direction D — tightened</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  body{margin:0;font-family:"Hanken Grotesk",sans-serif;background:#8f8f8a}
+  a{color:#132437}a:hover{color:#6A2833}
+  .frame{position:absolute}
+
+  .titleblock{width:1500px;color:#fff}
+  .titleblock .k{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:12px}
+  .titleblock h1{font-size:34px;font-weight:700;letter-spacing:-.02em;margin:0 0 9px}
+  .titleblock p{font-size:14.5px;line-height:1.6;margin:0;max-width:720px;color:rgba(255,255,255,.85)}
+
+  /* ---------- specimen ---------- */
+  .sheet{width:700px;background:#F1EEE6;box-shadow:0 20px 56px rgba(0,0,0,.3);font-family:"Spectral",serif}
+  .sheet .inner{padding:52px 56px 44px}
+
+  .lh{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:34px}
+  .wordmark{font-size:29px;font-weight:500;letter-spacing:-.022em;color:#132437;line-height:1}
+  .wordmark .llp{font-style:italic;font-weight:300;color:#6A2833}
+  .disc{font-family:"JetBrains Mono",monospace;font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;color:#8A857E;margin-top:11px}
+  .ref{font-family:"JetBrains Mono",monospace;font-size:10px;line-height:1.9;color:#6E6A66;text-align:right}
+  .ref b{color:#132437;font-weight:500}
+
+  .navyrule{height:1.5px;background:#132437;margin-bottom:30px}
+
+  .lede{font-size:15px;line-height:1.66;color:#2A3340;margin-bottom:34px;max-width:88%}
+  .lede em{font-style:italic;color:#4A5360}
+
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-family:"JetBrains Mono",monospace;font-size:8.5px;letter-spacing:.19em;text-transform:uppercase;font-weight:400;color:#8A857E;padding:0 0 11px;border-bottom:1px solid #DCD6C9}
+  th.r,td.r{text-align:right}
+  td{font-size:14.5px;color:#2A3340;padding:12px 0;border-bottom:1px solid #E4DFD3}
+  td.r{font-family:"JetBrains Mono",monospace;font-size:13px;font-variant-numeric:tabular-nums;color:#132437}
+  td .sub{display:block;font-size:11.5px;color:#8A857E;font-style:italic;margin-top:2px}
+  tr.total td{border-bottom:0;padding-top:16px;font-size:15px;font-weight:600;color:#132437}
+  tr.total td.r{font-size:19px;font-weight:500}
+  .goldrule{height:1px;background:#C0A265;margin-top:2px}
+
+  .foot{display:flex;align-items:center;gap:14px;margin-top:40px;padding-top:28px;border-top:1px solid #E4DFD3}
+  .cta{background:#6A2833;color:#F1EEE6;font-family:"Hanken Grotesk",sans-serif;font-size:13px;font-weight:600;letter-spacing:.005em;padding:13px 26px}
+  .ghost{font-family:"Hanken Grotesk",sans-serif;font-size:13px;font-weight:500;color:#4A5360;padding:13px 4px;border-bottom:1px solid #CDC7B8}
+  .terms{margin-left:auto;font-family:"JetBrains Mono",monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#8A857E}
+
+  /* ---------- annotations ---------- */
+  .col{width:520px;color:#fff}
+  .col h4{font-size:12px;font-family:"JetBrains Mono",monospace;letter-spacing:.15em;text-transform:uppercase;color:#C0A265;margin:0 0 16px;font-weight:400}
+  .move{display:flex;gap:14px;padding:13px 0;border-top:1px solid rgba(255,255,255,.16)}
+  .move .n{font-family:"JetBrains Mono",monospace;font-size:11px;color:rgba(255,255,255,.42);flex:none;width:18px;padding-top:2px}
+  .move .t{font-size:13.5px;line-height:1.6;color:rgba(255,255,255,.88)}
+  .move .t b{color:#fff;font-weight:600}
+
+  /* token block */
+  .tokens{width:520px;background:#132437;padding:28px 30px;box-shadow:0 18px 50px rgba(0,0,0,.28)}
+  .tokens .hd{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#C0A265;margin-bottom:18px}
+  .tk{display:flex;align-items:center;gap:12px;padding:6px 0}
+  .tk .chip{width:34px;height:20px;flex:none;border:1px solid rgba(255,255,255,.2)}
+  .tk .nm{font-family:"JetBrains Mono",monospace;font-size:11px;color:rgba(255,255,255,.9);width:132px}
+  .tk .hx{font-family:"JetBrains Mono",monospace;font-size:11px;color:rgba(255,255,255,.5);width:74px}
+  .tk .use{font-size:11.5px;color:rgba(255,255,255,.6)}
+  .tokens .rule{height:1px;background:rgba(255,255,255,.14);margin:14px 0}
+  .tokens .note{font-size:12px;line-height:1.6;color:rgba(255,255,255,.62);margin-top:16px}
+  .tokens .note b{color:#C0A265;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="frame titleblock" style="left:60px;top:52px;">
+  <div class="k">SAT-C LLP · direction D, refined</div>
+  <h1>Navy &amp; Oxblood — tightened</h1>
+  <p>The looseness was job creep: oxblood was carrying the wordmark, the discipline line, every table label <em>and</em> the button. Tightened, it does exactly two things. Everything it used to do is now warm grey, and the gold is a single 1px rule.</p>
+</div>
+
+<!-- SPECIMEN -->
+<div class="frame" style="left:60px;top:212px;">
+  <div class="sheet">
+    <div class="inner">
+      <div class="lh">
+        <div>
+          <div class="wordmark">Sat&nbsp;&amp;&nbsp;Co. <span class="llp">LLP</span></div>
+          <div class="disc">Chartered Accountants</div>
+        </div>
+        <div class="ref">
+          Statement <b>4471</b><br/>
+          12 August 2026<br/>
+          Period to <b>31.07.26</b>
+        </div>
+      </div>
+
+      <div class="navyrule"></div>
+
+      <div class="lede">Statement of account for the period ending 31 July 2026, <em>prepared in accordance with the engagement letter dated 2 March.</em></div>
+
+      <table>
+        <thead><tr><th>Matter</th><th class="r">Hours</th><th class="r">Amount</th></tr></thead>
+        <tbody>
+          <tr><td>Year-end audit<span class="sub">Statutory accounts &amp; filing</span></td><td class="r">42.0</td><td class="r">£14,700</td></tr>
+          <tr><td>Corporation tax return<span class="sub">CT600, period to 31.03.26</span></td><td class="r">11.5</td><td class="r">£4,025</td></tr>
+          <tr><td>Advisory — group structure<span class="sub">Two consultations</span></td><td class="r">6.0</td><td class="r">£2,400</td></tr>
+          <tr class="total">
+            <td>Total due</td>
+            <td class="r"></td>
+            <td class="r">£21,125<div class="goldrule"></div></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="foot">
+        <span class="cta">Settle account</span>
+        <span class="ghost">Download PDF</span>
+        <span class="terms">Net 14</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MOVES -->
+<div class="frame col" style="left:820px;top:212px;">
+  <h4>Six tightening moves</h4>
+  <div class="move"><span class="n">01</span><span class="t"><b>Oxblood does two jobs, not four.</b> The italic <em>LLP</em> and the action button. Labels and the discipline line move to a warm grey <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px">#8A857E</span> — instantly quieter.</span></div>
+  <div class="move"><span class="n">02</span><span class="t"><b>Navy deepens and cools</b> from <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px">#16283C</span> to <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px">#132437</span>, opening a clear value gap above the oxblood so the two never compete.</span></div>
+  <div class="move"><span class="n">03</span><span class="t"><b>Gold appears exactly once</b> — a 1px rule under the total, nowhere else. It's the last thing your eye lands on, which is the whole point.</span></div>
+  <div class="move"><span class="n">04</span><span class="t"><b>Wordmark tracking pulled to −0.022em</b> at weight 500. Spectral at 400 was too airy for a firm's name; the disciplinary line goes small with wide 0.26em tracking to hold the counterweight.</span></div>
+  <div class="move"><span class="n">05</span><span class="t"><b>All figures to tabular mono.</b> Columns align to the digit on an accounting document — this is the single biggest credibility gain in the sheet.</span></div>
+  <div class="move"><span class="n">06</span><span class="t"><b>Paper cooled</b> to <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px">#F1EEE6</span> and hairlines lightened. The old cream pushed the oxblood muddy; a touch less yellow lets it stay a red.</span></div>
+</div>
+
+<!-- TOKENS -->
+<div class="frame" style="left:820px;top:768px;">
+  <div class="tokens">
+    <div class="hd">Tokens · drop into app.css</div>
+    <div class="tk"><span class="chip" style="background:#132437"></span><span class="nm">--navy</span><span class="hx">#132437</span><span class="use">text, rules, wordmark</span></div>
+    <div class="tk"><span class="chip" style="background:#22374F"></span><span class="nm">--navy-soft</span><span class="hx">#22374F</span><span class="use">secondary headings</span></div>
+    <div class="tk"><span class="chip" style="background:#6A2833"></span><span class="nm">--oxblood</span><span class="hx">#6A2833</span><span class="use">action + LLP only</span></div>
+    <div class="tk"><span class="chip" style="background:#C0A265"></span><span class="nm">--gold</span><span class="hx">#C0A265</span><span class="use">1px rules only</span></div>
+    <div class="rule"></div>
+    <div class="tk"><span class="chip" style="background:#F1EEE6"></span><span class="nm">--paper</span><span class="hx">#F1EEE6</span><span class="use">page ground</span></div>
+    <div class="tk"><span class="chip" style="background:#E4DFD3"></span><span class="nm">--hairline</span><span class="hx">#E4DFD3</span><span class="use">table dividers</span></div>
+    <div class="tk"><span class="chip" style="background:#DCD6C9"></span><span class="nm">--hairline-2</span><span class="hx">#DCD6C9</span><span class="use">header underline</span></div>
+    <div class="rule"></div>
+    <div class="tk"><span class="chip" style="background:#2A3340"></span><span class="nm">--ink</span><span class="hx">#2A3340</span><span class="use">body copy</span></div>
+    <div class="tk"><span class="chip" style="background:#4A5360"></span><span class="nm">--ink-2</span><span class="hx">#4A5360</span><span class="use">de-emphasised copy</span></div>
+    <div class="tk"><span class="chip" style="background:#8A857E"></span><span class="nm">--mute</span><span class="hx">#8A857E</span><span class="use">labels, small caps</span></div>
+    <div class="note"><b>Ratio:</b> navy ~88% of all ink, oxblood ~9%, gold ~1%, and grey carries everything that used to be coloured. If you find yourself reaching for oxblood a third time, use <span style="font-family:'JetBrains Mono',monospace;font-size:11px">--mute</span> instead.</div>
+  </div>
+</div>
+
+</body>
+</html>

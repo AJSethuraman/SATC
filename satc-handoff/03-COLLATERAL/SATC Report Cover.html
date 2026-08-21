@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — report cover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+doc-page:not(:defined){visibility:hidden}
+:root{--navy:#132437;--navy-deep:#0D1926;--oxblood:#6A2833;--gold:#C0A265;--shell:#F7F7F5;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--hairline:#D8D7D1;--hairline-2:#E6E5E0;--sans:"IBM Plex Sans",Helvetica,Arial,sans-serif;--mono:"IBM Plex Mono","Courier New",monospace}
+*,*::before,*::after{box-sizing:border-box}
+.page{font-family:var(--sans);color:var(--ink);font-size:10pt;line-height:1.5;display:flex;flex-direction:column;overflow:hidden}
+h1,h2,h3,p{margin:0}
+
+/* ══ COVER ══════════════════════════════════════════════ */
+.cover{background:var(--navy);color:#fff;padding:0.9in 0.85in 0.7in;position:relative;justify-content:space-between}
+/* offset squares — the only ornament the imagery policy allows */
+.cover::before,.cover::after{content:"";position:absolute;border:0.75pt solid rgba(192,162,101,0.15);pointer-events:none}
+.cover::before{top:-1.5in;right:-1.5in;width:5in;height:5in}
+.cover::after{top:-0.7in;right:-0.7in;width:5in;height:5in;border-color:rgba(192,162,101,0.07)}
+.cover .top{position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;gap:4pt}
+.cover .top .wm{display:flex;align-items:flex-end;font-size:17pt;font-weight:700;letter-spacing:-.04em;line-height:.74;color:#fff}
+.cover .top .wm .hy{width:.3em;height:.3em;flex:none;background:var(--gold);margin:0 .18em .2em}
+.cover .top .wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
+.cover .top .tg{font-family:var(--mono);font-size:6pt;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.cover .mid{position:relative;z-index:1}
+.cover .kind{font-family:var(--mono);font-size:8pt;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:16pt}
+.cover h1{font-size:34pt;font-weight:600;letter-spacing:-0.045em;line-height:1.02;max-width:5.2in}
+.cover .goldrule{width:0.9in;height:1.5pt;background:var(--gold);margin:22pt 0}
+.cover .client{font-size:15pt;font-weight:500;letter-spacing:-0.025em;color:#fff}
+.cover .period{font-family:var(--mono);font-size:9pt;letter-spacing:0.13em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:7pt}
+.cover .btm{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;gap:0.3in;padding-top:14pt;border-top:0.5pt solid rgba(255,255,255,.18)}
+.cover .btm .l{font-size:8.5pt;line-height:1.6;color:rgba(255,255,255,.55);max-width:3.2in}
+.cover .btm .l b{color:rgba(255,255,255,.85);font-weight:600}
+.cover .btm .r{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.12em;color:rgba(255,255,255,.45);text-align:right;white-space:nowrap}
+
+/* ══ INSIDE PAGE ════════════════════════════════════════ */
+.inside{padding:0.6in 0.75in 0.5in}
+.mast{display:flex;justify-content:space-between;align-items:center;gap:0.3in;padding-bottom:6pt;border-bottom:1.2pt solid var(--navy)}
+.lock{display:flex;flex-direction:column;align-items:flex-start;gap:3pt;}
+.lock .wm{display:flex;align-items:flex-end;font-size:13pt;font-weight:700;letter-spacing:-.04em;line-height:.74;color:var(--navy)}
+.lock .wm .hy{width:.3em;height:.3em;flex:none;background:var(--oxblood);margin:0 .18em .2em}
+.lock .wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
+.lock .tg{font-family:var(--mono);font-size:5pt;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);display:block;margin-top:0}
+.mast .prep{font-family:var(--mono);font-size:6.5pt;letter-spacing:0.1em;line-height:1.7;color:var(--ink-2);text-align:right}
+
+.sect{margin-top:22pt}
+.sect .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--oxblood);margin-bottom:10pt;padding-bottom:5pt;border-bottom:0.5pt solid var(--hairline)}
+.toc{width:100%;border-collapse:collapse}
+.toc td{padding:7pt 0;border-bottom:0.5pt solid var(--hairline-2);font-size:10pt;vertical-align:baseline}
+.toc td.n{font-family:var(--mono);font-size:8pt;color:var(--ink-2);width:0.4in}
+.toc td.t{color:var(--navy);font-weight:500}
+.toc td.t span{display:block;font-weight:400;font-size:8.5pt;color:var(--ink-2);margin-top:1pt}
+.toc td.p{font-family:var(--mono);font-size:8.5pt;color:var(--navy);text-align:right;width:0.5in}
+.body p{font-size:10pt;line-height:1.6;color:var(--ink);margin-bottom:9pt;text-wrap:pretty}
+.body p:last-child{margin-bottom:0}
+.body b{color:var(--navy);font-weight:600}
+.callout{margin-top:16pt;padding:11pt 13pt;border:0.6pt solid var(--navy);font-size:8.5pt;line-height:1.5;color:var(--ink-2)}
+.callout b{color:var(--navy);font-weight:600}
+.callout .ph{font-family:var(--mono);color:var(--oxblood)}
+.foot{margin-top:auto;padding-top:9pt;border-top:0.5pt solid var(--hairline);display:flex;justify-content:space-between;gap:0.3in;align-items:flex-end}
+.foot p{font-size:6.8pt;line-height:1.55;color:var(--ink-2);max-width:4.4in}
+.foot b{color:var(--ink-2);font-weight:500}
+.foot .pg{font-family:var(--mono);font-size:6.8pt;letter-spacing:0.12em;color:var(--ink-2);white-space:nowrap}
+</style>
+</head>
+<body>
+
+<doc-page size="letter">
+
+<!-- ══════════════════ PAGE 1 · COVER ══════════════════ -->
+<section class="page cover" data-screen-label="01">
+  <div class="top">
+    <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </div>
+
+  <div class="mid">
+    <div class="kind">Annual Reporting Package</div>
+    <h1>Financial statements &amp; tax summary</h1>
+    <div class="goldrule"></div>
+    <div class="client">Clifton Millworks LLC</div>
+    <div class="period">Year ended December 31, 2026</div>
+  </div>
+
+  <div class="btm">
+    <div class="l">Prepared by <b>Sethuraman Accounting, Tax, and Consulting LLP</b><br/>An Ohio limited liability partnership</div>
+    <div class="r">ENGAGEMENT 2026-0114<br/>ISSUED 03/12/2027<br/>CONFIDENTIAL</div>
+  </div>
+</section>
+
+<!-- ══════════════════ PAGE 2 · CONTENTS ══════════════════ -->
+<section class="page inside" data-screen-label="02">
+  <div class="mast">
+    <div class="lock">
+      <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+    </div>
+    <div class="prep">CLIFTON MILLWORKS LLC<br/>YEAR ENDED 12/31/2026</div>
+  </div>
+
+  <div class="sect">
+    <div class="h">Contents</div>
+    <table class="toc">
+      <tr><td class="n">01</td><td class="t">Statement of Financial Position<span>As of December 31, 2026, with comparative figures</span></td><td class="p">3</td></tr>
+      <tr><td class="n">02</td><td class="t">Statement of Operations<span>Year ended December 31, 2026, with comparative period</span></td><td class="p">4</td></tr>
+      <tr><td class="n">03</td><td class="t">Statement of Cash Flows<span>Indirect method</span></td><td class="p">5</td></tr>
+      <tr><td class="n">04</td><td class="t">Statement of Members' Equity<span>Capital, distributions, and retained earnings</span></td><td class="p">6</td></tr>
+      <tr><td class="n">05</td><td class="t">Tax Summary<span>Federal and Ohio, as filed</span></td><td class="p">7</td></tr>
+      <tr><td class="n">06</td><td class="t">Supporting Schedules<span>Fixed assets, depreciation, and accrual detail</span></td><td class="p">9</td></tr>
+    </table>
+  </div>
+
+  <div class="sect">
+    <div class="h">Basis of presentation</div>
+    <div class="body">
+      <p>These statements were prepared from the accounting records of Clifton Millworks LLC and information supplied by its management. <b>Management is responsible for the accuracy and completeness of that information</b> and for the financial statements themselves.</p>
+      <p>Figures are presented in US dollars. Amounts in parentheses are deductions or credits. Comparative figures are shown for the prior period on the same basis. Where figures have been rounded, the rounding is noted on the schedule concerned.</p>
+      <p>The entity is taxed as a partnership; accordingly, no provision for federal income tax is included in these statements. Members' individual tax positions are addressed separately in the tax summary at section 05.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>No assurance is provided on these financial statements.</b> We have not audited, reviewed, or compiled them and express no opinion or conclusion on them. Substantially all disclosures required by accounting principles generally accepted in the United States have been omitted. <span class="ph">[CONFIRM exact legend wording against AR-C 70 and the engagement type.]</span>
+  </div>
+
+  <div class="foot">
+    <p>Sethuraman Accounting, Tax, and Consulting LLP · a limited liability partnership registered in <b>Ohio</b> · arjun_sethuraman@satcllp.com</p>
+    <span class="pg">PAGE 2</span>
+  </div>
+</section>
+
+</doc-page>
+<script src="doc-page.js"></script>
+</body>
+</html>

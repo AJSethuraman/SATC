@@ -148,8 +148,8 @@ Wide-tracked uppercase is the most "heritage" signal in the old page.
 | `.h2` / `.hero h1` | Sans 600, tracking `-0.038em` / `-0.045em` |
 | `.h2 em` | Upright, `--mute` — no gold, no italic |
 | `.lead` / `.hero p.lede` | Sans upright (was serif italic) |
-| `.lockup .seal` | Square mark; `.divider` set to `display:none` |
-| `.lockup .name` | Sans 700, tracking `-0.03em` (was serif, `+0.18em`) |
+| `.lockup .name` | **SAT‑C wordmark**, solid square as hyphen, 21px, tracking `-0.04em` (was serif SETHURAMAN, `+0.18em`) |
+| `.lockup .seal` / `.divider` | `display: none` — the symbol is now favicon/OG only |
 | `.hero::before/::after` | Concentric gold **circles → offset squares**, echoing the mark |
 | `.service .num` | Mono, oxblood (was serif italic gold) |
 | `.service ul li` | Now rule-separated rows |
@@ -164,26 +164,38 @@ Wide-tracked uppercase is the most "heritage" signal in the old page.
 
 ## New markup — 3 places
 
-### 1 · The mark — "the Notch" (nav + footer, 2 places)
+### 1 · The lockup — SAT‑C wordmark (nav + footer, 2 places)
 
-Replaces the circular `S` seal. Same `.seal` class, same size slot. The outer
-**path** is a square with an 8×8 notch removed at the bottom-right; the inner
-rect is that removed piece, the same 8×8, set beside it. Outer uses
-`currentColor` so `.on-dark` inverts automatically.
+Two parts to the identity:
 
-Full specification — construction grid, colour variants, size range, lockups,
-misuse — is in **`SATC Mark - Notch Spec.html`**.
+- **Symbol** — the Notch (notched square + removed piece, oxblood on light,
+  **gold on navy**). Favicon, app icon, OG image. Unchanged.
+- **Wordmark** — what appears on the page: **a small solid square stands in for
+  the hyphen** in SAT‑C (oxblood on light, gold on navy), `LLP` following
+  lighter and untracked, with the full firm name beneath as the descriptor. The
+  Notch symbol is not used in the lockup.
+
+This replaces both the circular `S` seal *and* the SETHURAMAN wordmark. The full
+legal name stays in the footer small print, where it already appears.
+
+Full specification is in **`SATC Mark - Notch Spec.html`**.
 
 ```html
-<svg class="seal" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <path class="s-o" d="M3 3 H19 V11 H11 V19 H3 Z"/>
-  <rect class="s-i" x="22" y="22" width="8" height="8"/>
-</svg>
+<a class="lockup" href="#top" aria-label="SAT-C LLP — home">
+  <span class="text">
+    <span class="name">SAT<span class="hy"></span>C<i>LLP</i></span>
+    <span class="tag">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </span>
+</a>
 ```
 
-> **The notch and the piece must both stay 8×8** — the piece fits the hole it
-> came from, and that equality is the entire concept. Don't resize either one,
-> don't fill the outline, and don't rotate the mark.
+> **The one trap.** The square is sized in `em`, so `font-size` must sit on
+> `.name` — the same element that contains the `<svg>`. Put it on a sibling and
+> the square silently collapses to the inherited 16px while the letters stay
+> large. The CSS ships correctly; don't "tidy" the size onto `.lockup`.
+
+The old `.seal` and `.divider` rules are set to `display: none` rather than
+deleted, so leftover markup in either place degrades quietly.
 
 Keep the empty `<div class="divider"></div>` in place — the CSS hides it, so no
 markup change is needed there.
@@ -268,7 +280,11 @@ What changed in it:
 - `seal()` (circle + ring + serif "S") → `mark()` drawing **the Notch**, with
   proportions normalised from the SVG so raster and vector agree exactly
 - Decorative concentric **circles → offset squares**, matching `.hero::before/::after`
-- Wordmark → sans (tries IBM Plex Sans, falls back to DejaVu), mono for tracked lines
+- Wordmark → `SAT[square]C LLP` drawn in three parts, with a **gold square in
+  place of the hyphen** at the same 0.3em / 0.18em / 0.2em geometry as `.wm .hy`,
+  so the OG image matches the HTML instead of shipping a literal `-`
+- Descriptor → the full firm name, `SETHURAMAN ACCOUNTING, TAX & CONSULTING`
+  (mono 17px, tracking 2, so it stays inside the 1200px canvas)
 - OG tagline → "Everything you need, from one desk." (the page's actual H1)
 
 > The script prefers IBM Plex Sans if installed and falls back to DejaVu, so it
@@ -296,6 +312,87 @@ All checked against the new tokens:
 Also preserved from the original: `:focus-visible` rings (now oxblood), the
 `.chip:has(input:focus-visible)` ring, 44px minimum tap targets on choice rows,
 `.sr-only`, and `prefers-reduced-motion`.
+
+---
+
+## Imagery policy
+
+**There is no photography on this site.** That's a decision, not a gap — and it
+should be written down so it isn't quietly reversed later.
+
+For a firm positioning on precision, stock photography is the visual equivalent
+of the generic palette we moved away from: handshakes, skylines, glass towers,
+and calculators on desks all signal "we couldn't think of anything." They also
+cost money and date badly.
+
+**What carries the visual load instead:**
+
+| Instead of a photo | Use |
+|---|---|
+| Hero image | The headline itself, set large. Type is the image. |
+| Decorative graphics | The offset squares from the mark, at large scale, low contrast (`.hero::before/::after`) |
+| "Trust" imagery | A well-set figures table. For an accounting firm a correctly typeset statement *is* the credential |
+| Section breaks | Rules and whitespace — `--hairline` and generous `section.band` padding |
+| Icons | The three existing line icons in `.service-icon`. Don't add more |
+
+**Rules**
+
+- No stock photography, ever. No AI-generated imagery, ever.
+- Don't add icons beyond the three service marks. An icon per list item turns a
+  professional page into a brochure.
+- No illustration, no isometric graphics, no abstract 3D shapes.
+- The grey striped placeholder boxes used in design mockups are **for design
+  only** — they must never reach production. If a slot has no real content, the
+  slot shouldn't exist.
+- **The one exception worth planning for:** a real portrait of Arjun, if you ever
+  want one. If so — plain mid-grey or navy backdrop, natural light, no office
+  props, square crop, and one treatment used consistently. One honest portrait
+  beats any amount of stock.
+
+---
+
+## Compliance — what to confirm before this goes live
+
+> **Not legal advice.** These are the questions the design raises; the answers
+> come from the Accountancy Board of Ohio, the Ohio Secretary of State, and your
+> counsel. Placeholders in the templates are marked `[LIKE THIS]`.
+
+The firm is an **Ohio LLP**, Arjun is an **individually licensed Ohio CPA**, and
+the firm does **not** perform audits. That combination sits close to a line, so
+three things need checking:
+
+**1 · Firm registration.** Ohio generally requires firms practising public
+accounting to register with the Accountancy Board of Ohio, separately from the
+individual licence. Whether SAT-C needs firm registration depends on the exact
+services offered. **Confirm this first** — it governs the two items below.
+
+**2 · How the firm may describe itself.** There's a meaningful difference between:
+
+- *"Led by a licensed CPA"* — a statement about a **person**. This is what the
+  site says, and it's the more conservative claim.
+- *"CPA firm"* / *"Certified Public Accountants"* — a statement about the
+  **firm**, which typically requires firm registration.
+
+The templates deliberately use the first form. Don't upgrade the language to the
+second without confirming item 1.
+
+**3 · No assurance language.** Since there's no audit practice, these words must
+not appear anywhere in copy, templates, or proposals: *audit, audited, auditing,
+assurance, opinion, review engagement, attest, examination.* The "Who this is
+for" section states this positively — "we don't do audit work" — which is both
+accurate and a trust signal, and the engagement letter repeats it.
+
+**Also confirm:**
+
+- Ohio Secretary of State **registration number**, and whether it must appear on
+  correspondence.
+- Arjun's **Ohio licence number** — the letterhead has `[NUMBER]` reserved.
+- **Peer review** enrolment, if any service offered triggers it.
+- The **website disclosure** wording (the general-information disclaimer in the
+  footer). The templates carry a bracketed placeholder rather than invented text.
+- The full legal name — **"Sethuraman Accounting, Tax, and Consulting LLP"** —
+  appears in the footer of every document, with `SAT-C LLP` used only as a short
+  form after the full name is established.
 
 ---
 

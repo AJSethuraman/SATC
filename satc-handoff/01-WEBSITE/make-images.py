@@ -63,6 +63,40 @@ def draw_centered(draw, cx, y, s, fnt, fill):
     draw.text((cx - draw.textlength(s, font=fnt) / 2, y), s, font=fnt, fill=fill)
 
 
+def draw_wordmark(draw, cx, baseline, size, fnt, letter_fill, square_fill):
+    """Draw SAT[square]C LLP centered on cx, sitting on `baseline`.
+
+    Mirrors the .wm rule in the stylesheet, so the raster matches the HTML:
+        square side   = 0.3em      (.wm .hy width/height)
+        side margins  = 0.18em     (.wm .hy margin-inline)
+        lifted above baseline by 0.2em
+        LLP           = lighter weight, 0.22em to the right of the C
+
+    Never draw a literal "-" here — the square IS the hyphen.
+    """
+    sq = round(0.30 * size)
+    gap = round(0.18 * size)
+    lift = round(0.20 * size)
+
+    llp_fnt = font(SANS, round(size * 0.98))
+    w_sat = draw.textlength("SAT", font=fnt)
+    w_c = draw.textlength("C", font=fnt)
+    w_llp = draw.textlength("LLP", font=llp_fnt)
+    llp_gap = round(0.22 * size)
+
+    total = w_sat + gap + sq + gap + w_c + llp_gap + w_llp
+    x = cx - total / 2
+
+    # anchor "ls" = left / baseline, so caps and square align optically
+    draw.text((x, baseline), "SAT", font=fnt, fill=letter_fill, anchor="ls")
+    x += w_sat + gap
+    draw.rectangle([x, baseline - lift - sq, x + sq, baseline - lift], fill=square_fill)
+    x += sq + gap
+    draw.text((x, baseline), "C", font=fnt, fill=letter_fill, anchor="ls")
+    x += w_c + llp_gap
+    draw.text((x, baseline), "LLP", font=llp_fnt, fill=letter_fill, anchor="ls")
+
+
 def mark(draw, x, y, size, outer=WHITE, inner=GOLD):
     """The Notch mark. (x, y) is the top-left of the whole footprint.
 
@@ -99,9 +133,11 @@ def make_og():
 
     mark(d, W // 2 - 58, 116, 116, outer=WHITE, inner=GOLD)
 
-    draw_centered(d, W // 2, 274, "Sethuraman", font(SANS_BOLD, 88), WHITE)
-    draw_tracked(d, W // 2, 392, "ACCOUNTING · TAX · CONSULTING",
-                 font(MONO, 23), GOLD, tracking=4)
+    # wordmark: SAT[gold square]C LLP, matching .wm in the stylesheet
+    draw_wordmark(d, W // 2, 336, 88, font(SANS_BOLD, 88), WHITE, GOLD)
+    # descriptor: the full firm name, as on every HTML template
+    draw_tracked(d, W // 2, 392, "SETHURAMAN ACCOUNTING, TAX & CONSULTING",
+                 font(MONO, 17), GOLD, tracking=2)
     draw_centered(d, W // 2, 452, "Everything you need, from one desk.",
                   font(SANS, 32), blend(SHELL, NAVY, 0.74))
 

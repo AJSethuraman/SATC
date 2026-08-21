@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Client Portal · SAT-C LLP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--navy:#132437;--navy-2:#22374F;--navy-deep:#0D1926;--oxblood:#6A2833;--oxblood-lt:#83323F;--gold:#C0A265;--shell:#F7F7F5;--paper:#fff;--hairline:#E6E5E0;--hairline-2:#D8D7D1;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--sans:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",monospace}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--shell);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+a{color:var(--oxblood);text-decoration:none}a:hover{color:var(--oxblood-lt)}
+svg{display:block}
+input,button{font:inherit;color:inherit}
+
+.auth{min-height:100vh;display:grid;grid-template-columns:1.05fr 0.95fr}
+
+/* ── brand side ── */
+.side{background:var(--navy);color:#fff;padding:44px 52px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.side::before,.side::after{content:"";position:absolute;border:1px solid rgba(192,162,101,.14);pointer-events:none}
+.side::before{top:-140px;right:-140px;width:440px;height:440px}
+.side::after{top:-40px;right:-40px;width:440px;height:440px;border-color:rgba(192,162,101,.07)}
+.lock{display:flex;flex-direction:column;align-items:flex-start;gap:6px;position:relative;z-index:1;}
+.lock .wm{display:flex;align-items:flex-end;font-size:21px;font-weight:700;letter-spacing:-.04em;line-height:.74;color:#fff}
+.lock .wm .hy{width:.3em;height:.3em;flex:none;background:var(--gold);margin:0 .18em .2em}
+.lock .wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
+.lock .tg{font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.5);display:block;margin-top:0}
+.side .mid{position:relative;z-index:1;max-width:30ch}
+.side .mid h2{font-size:clamp(26px,3vw,34px);font-weight:600;letter-spacing:-.04em;line-height:1.08;color:#fff}
+.side .mid p{font-size:16px;line-height:1.62;color:rgba(255,255,255,.68);margin-top:16px}
+.side .list{position:relative;z-index:1;display:flex;flex-direction:column}
+.side .list .row{display:flex;gap:14px;padding:14px 0;border-top:1px solid rgba(255,255,255,.14);align-items:flex-start}
+.side .list .row .sq{width:8px;height:8px;background:var(--gold);flex:none;margin-top:8px}
+.side .list .row .t{font-size:14.5px;line-height:1.55;color:rgba(255,255,255,.76)}
+.side .list .row .t b{color:#fff;font-weight:600;display:block}
+
+/* ── form side ── */
+.form-side{display:flex;align-items:center;justify-content:center;padding:44px 52px;background:var(--shell)}
+.card{width:100%;max-width:392px}
+.card .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:14px}
+.card h1{font-size:28px;font-weight:600;letter-spacing:-.04em;color:var(--navy);line-height:1.06}
+.card .sub{font-size:15.5px;color:var(--ink-2);margin:12px 0 30px;line-height:1.6}
+.field{margin-bottom:18px}
+.lab{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);margin-bottom:8px}
+.inp{width:100%;height:46px;padding:0 14px;font-size:15.5px;background:#fff;border:1px solid var(--hairline-2);border-radius:2px;color:var(--ink);transition:border-color .15s,box-shadow .15s}
+.inp::placeholder{color:#A8A7A2}
+.inp:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(19,36,55,.08)}
+.rowbetween{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px}
+.rowbetween a{font-size:13.5px;font-weight:600}
+.btn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:48px;background:var(--oxblood);color:#fff;border:0;border-radius:2px;font-size:15px;font-weight:600;letter-spacing:-.005em;cursor:pointer;transition:background .15s}
+.btn:hover{background:var(--oxblood-lt)}
+.btn::after{content:"→"}
+.check{display:flex;gap:11px;align-items:flex-start;font-size:14.5px;color:var(--ink-2);cursor:pointer;margin:4px 0 26px}
+.check input{width:17px;height:17px;margin-top:3px;accent-color:var(--navy);flex:none}
+.mfa{background:var(--paper);border:1px solid var(--hairline);border-left:2px solid var(--gold);padding:15px 17px;font-size:13.5px;line-height:1.6;color:var(--ink-2);margin-top:26px}
+.mfa b{color:var(--navy);font-weight:600}
+.alt{margin-top:26px;padding-top:22px;border-top:1px solid var(--hairline);font-size:14px;color:var(--ink-2);line-height:1.6}
+.alt b{color:var(--navy);font-weight:600}
+.legal{margin-top:26px;font-size:11.5px;line-height:1.6;color:var(--ink-2)}
+.legal .ph{font-family:var(--mono);color:var(--oxblood)}
+
+@media(max-width:900px){.auth{grid-template-columns:1fr}.side{padding:32px 26px;gap:32px}.side::before,.side::after{display:none}.form-side{padding:36px 26px}}
+</style>
+</head>
+<body>
+
+<div class="auth">
+
+  <!-- ══ BRAND SIDE ══ -->
+  <aside class="side">
+    <a class="lock" href="#">
+      <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+    </a>
+
+    <div class="mid">
+      <h2>The only place to send documents.</h2>
+      <p>Everything with a Social Security number, an account number, or a return attached comes through here — never email, never text.</p>
+    </div>
+
+    <div class="list">
+      <div class="row"><span class="sq"></span><span class="t"><b>Encrypted at rest and in transit</b>Documents are stored encrypted; identifying details are held separately from working data.</span></div>
+      <div class="row"><span class="sq"></span><span class="t"><b>We never ask for credentials</b>No one from SAT-C will ever email or call to ask for your password or a login code.</span></div>
+      <div class="row"><span class="sq"></span><span class="t"><b>Upload links expire</b>A link we send you is single-use and time-limited. Ask for a fresh one rather than forwarding an old one.</span></div>
+    </div>
+  </aside>
+
+  <!-- ══ FORM SIDE ══ -->
+  <main class="form-side">
+    <div class="card">
+      <div class="eyebrow">Client Portal</div>
+      <h1>Sign in to your documents.</h1>
+      <p class="sub">Use the email address we correspond with. If you haven't set a password yet, request a sign-in link below.</p>
+
+      <form onsubmit="return false">
+        <div class="field">
+          <label class="lab" for="email">Email address</label>
+          <input class="inp" id="email" type="email" placeholder="you@yourbusiness.com" autocomplete="email"/>
+        </div>
+        <div class="field">
+          <div class="rowbetween">
+            <label class="lab" for="pw" style="margin:0">Password</label>
+            <a href="#">Forgot?</a>
+          </div>
+          <input class="inp" id="pw" type="password" placeholder="••••••••••••" autocomplete="current-password"/>
+        </div>
+        <label class="check"><input type="checkbox"/><span>Keep me signed in on this device for 14 days</span></label>
+        <button class="btn" type="submit">Sign in</button>
+      </form>
+
+      <div class="mfa"><b>A six-digit code goes to your phone next.</b> Two-step verification is required on every account — it's the single cheapest protection against someone reaching your tax documents.</div>
+
+      <p class="alt"><b>No password yet?</b> <a href="#">Email me a sign-in link</a> — it arrives in a minute and expires in fifteen.</p>
+
+      <p class="legal">Sethuraman Accounting, Tax, and Consulting LLP · an Ohio limited liability partnership. Use of this portal is subject to our <a href="#">terms</a> and <a href="#">privacy notice</a>. <span class="ph">[CONFIRM portal terms wording.]</span></p>
+    </div>
+  </main>
+
+</div>
+</body>
+</html>
