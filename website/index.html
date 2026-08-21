@@ -524,6 +524,15 @@ section.fit { background: var(--paper); border-top: 1px solid var(--hairline); b
 .consent { margin: 26px 0 6px; padding-top: 22px; border-top: 1px solid var(--hairline); }
 .consent .check { font-size: 14px; color: var(--charcoal-2); }
 .intake-form button[type="submit"] { border: 0; }
+/* Sits after #intakeMount, so it is under the submit button on every step
+   without intake.js having to render it. Same shape as .need-note in the left
+   rail, navy-keyed rather than gold-keyed because it is process, not caution. */
+.next-note { margin: 28px 0 0; padding: 20px 0 0; border-top: 1px solid var(--hairline); }
+.next-note p { font-family: var(--sans); font-size: 14px; line-height: 1.62; color: var(--charcoal-2); margin: 0 0 12px; }
+.next-note p:last-child { margin-bottom: 0; }
+.next-note p b { color: var(--navy); font-weight: 600; }
+.next-note a { color: var(--oxblood); border-bottom: 1px solid rgba(106,40,51,0.3); }
+.next-note a:hover { color: var(--oxblood-lt); border-bottom-color: var(--oxblood); }
 .form-status { font-family: var(--sans); font-size: 14px; line-height: 1.6; color: var(--charcoal-2); margin: 14px 0 0; min-height: 18px; }
 .form-status.err { color: #9B2C2C; }
 .intake-done { text-align: center; padding: clamp(30px, 6vw, 60px) 10px; }
@@ -576,6 +585,17 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
 }
 .foot-bottom .legal { display: flex; gap: 24px; flex-wrap: wrap; }
 .foot-bottom .legal a:hover { color: #fff; }
+
+/* Site disclosures. WEBSITE-DISCLOSURES.md specifies 12-13px in --ink-2; that
+   token is a colour for light grounds and this footer is --navy-deep, so the
+   size is honoured and the colour is the footer's own scale. 0.55 alpha on
+   --navy-deep is ~6.0:1, above the 0.42 the copyright line runs at. */
+.foot-legal { margin-top: 22px; display: flex; flex-direction: column; gap: 12px; }
+.foot-legal p {
+  margin: 0; max-width: 84ch;
+  font-family: var(--sans); font-size: 12.5px; line-height: 1.6;
+  color: rgba(255,255,255,0.55);
+}
 [hidden] { display: none !important; }
 
 /* ============================================================ RESPONSIVE */
@@ -885,6 +905,53 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
            form. The status line inside carries role="status" instead. -->
       <div id="intakeMount"></div>
 
+      <!-- ==================== WHAT HAPPENS NEXT ====================
+           Item 3 of satc-handoff/01-WEBSITE/WEBSITE-DISCLOSURES.md. It lives
+           in this file rather than in intake.js on purpose: the draft calls it
+           intake markup, not intake logic, and intake.js is off limits.
+
+           TWO DEPARTURES FROM THE DRAFT, both because the draft predates the
+           setup it describes:
+
+           1. The draft promises a reply "within one business day". That
+              promise is not on this site anywhere - the intake, the left rail
+              and intake-config.js all say "as soon as we can" - and the
+              handoff brief records that the one-business-day wording was
+              removed deliberately. Reintroducing it here would be the only
+              place on the page making the promise, so the site's own wording
+              is used instead.
+              [CONFIRM: is "within one business day" a promise to make in
+              writing? If yes it belongs here, on the confirmation screen, and
+              as AckWindow in the onboarding letter - all three, one value.]
+
+           2. The draft's "by email" sentence was written on the assumption
+              that a submission is mailed and stored nowhere. It is not:
+              Formspree keeps a copy for 30 days and a Power Automate flow
+              files every submission as a row in SATC leads.xlsx
+              (docs/leads-to-excel.md). The draft says in terms that this
+              sentence "has to change" if that happens, so it names Formspree
+              and points at the privacy page.
+              [CONFIRM: website/privacy.html discloses Formspree and its 30-day
+              copy but not the leads workbook. That is a gap in the privacy
+              policy, not in this block, and it is not an agent's sentence to
+              write.]
+           ============================================================ -->
+      <div class="next-note">
+        <p>
+          <b>What happens next.</b> Your answers come to us by email, through
+          Formspree, which keeps a copy for 30 days. We&#39;ll read it and be in
+          touch as soon as we can &mdash; usually with questions, sometimes with
+          a time to talk. Nothing is filed, charged, or shared with anyone on
+          the strength of this form.
+          <a href="privacy.html">What we collect, and where it goes</a>.
+        </p>
+        <p>
+          <b>Don&#39;t attach documents here.</b> When we start work you will get
+          a secure upload link. A tax return holds your Social Security number,
+          your income, and your bank details, and email is not the place for it.
+        </p>
+      </div>
+
       <noscript>
         <p class="fs-note">This form needs JavaScript. Email
           <a data-email href="#">us</a> and we&#39;ll pick it up from there.</p>
@@ -954,6 +1021,41 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
         <a data-email href="#">Email Us</a>
         <a href="privacy.html">Privacy</a>
       </div>
+    </div>
+
+    <!-- ==================== SITE DISCLOSURES ====================
+         Drafted in satc-handoff/01-WEBSITE/WEBSITE-DISCLOSURES.md. Two items
+         ship here; the third does not exist yet.
+
+         Item 2 (no advice from the website) is the approved draft, verbatim.
+
+         Item 1 (what the firm is) is the PLACEHOLDER wording, not the final
+         wording. The real sentence is blocked on the Accountancy Board of
+         Ohio: SAT-C is an Ohio LLP and Arjun is an individually licensed Ohio
+         CPA, but the firm is not registered with the Board, and whether that
+         registration is required to offer paid tax and accounting services
+         under a firm name is unanswered.
+         [CONFIRM: Accountancy Board of Ohio - is firm registration required,
+         and what may the firm call itself?] Until that is answered, do not add
+         to the sentence below. Not "CPA firm", not "Certified Public
+         Accountants", not a licence number. Every word in it is currently a
+         fact the firm can evidence, which is the only reason it is safe.
+
+         Item 4 (Circular 230 legend) was considered and dropped on purpose -
+         largely obsolete since 2014. Do not add it back.
+         ========================================================== -->
+    <div class="foot-legal">
+      <p>
+        The information on this site is general and is not tax, accounting, or
+        legal advice for your situation. Reading it, or sending us your details
+        through the form, does not create a client relationship &mdash; that
+        begins when we both sign an engagement letter.
+      </p>
+      <p>
+        Sethuraman Accounting, Tax, and Consulting LLP is a limited liability
+        partnership registered in Ohio. We do not perform audits, reviews, or
+        other attest services.
+      </p>
     </div>
   </div>
 </footer>
