@@ -38,51 +38,15 @@ Four are a date. Two are a sentence. Two block nothing today.
 | 8 | `legal_name` | Nothing yet — footers hardcode it | The exact name on the Ohio LLP filing. **Three variants are in use and only one is on the filing** |
 | 9 | `hard_no[1]` | Nothing — it gates declining work | The rest of the "we don't take this" list |
 
-## 2 · The regulator question
+## 2 · One contradiction that needs a ruling
 
-**Call the Accountancy Board of Ohio.** Unchanged since the overnight brief, and
-still the highest-leverage unblock in the project: it settles how the firm may
-describe itself on every surface.
-
-SAT-C is an Ohio LLP; Arjun is an individually licensed Ohio CPA; the firm is
-**not** registered with the Board. The question is whether offering paid tax and
-accounting services under a firm name requires registration regardless of how
-the firm describes itself.
-
-Blocks: the final wording of website disclosure item 1 (a factual placeholder
-ships meanwhile), and `index.html:826` below.
-
-## 3 · Two contradictions that need a ruling
-
-**a. How does a credit print on an invoice?** Two specs disagree, about the same
-document:
-
-- `FIELDS - Invoice.md`: a real minus, and **never** parentheses on a
-  client-facing document.
-- `SATC Figures and Tables.html`: parentheses, **never** a minus — and it uses
-  an invoice as its worked example.
-
-Shipped as parentheses, because the authoring contract defers figures to that
-collateral and Batch 2's instructions say so explicitly. **One of the two
-documents is wrong and should be corrected.** This is the only open item that
-changes a document clients already read.
-
-**b. `<<TaxYear>>` is alive in six places** while §4 of the authoring contract
+**`<<TaxYear>>` is alive in six places** while §4 of the authoring contract
 says *"Never add `TaxYear` back."* Three uses in the tax engagement letter,
 three in the organizer, plus both field docs and the registry. Either
 `PeriodLabel` replaces it everywhere, or the rule is relaxed. Renaming touches
 two templates, two field docs, the registry and the tests in one commit.
 
-## 4 · Two words on the website
-
-`website/index.html:826` — **"Anyone who needs assurance work — coming soon"**.
-
-It sits in the "Probably not a fit" column, so the negation is fine. **"coming
-soon" is not**: it is a forward promise of assurance work, on the same page as
-the footer line saying the firm performs no attest services, and it is exactly
-the self-description blocked on §2 above. Recommend deleting the two words.
-
-## 5 · The fee schedule — structure built, numbers open
+## 3 · The fee schedule — structure built, numbers open
 
 `client-documents/registry/fee-schedule.yaml` exists and is wired: the
 interview's counts become the estimate's line items and total. **Every amount in
@@ -126,7 +90,7 @@ numbers, and `python cli.py interview --fee-schedule samples/fee-schedule-exampl
 renders a complete estimate from them. Use it to sanity-check the structure
 before committing to your own figures.
 
-## 6 · Things with no home yet
+## 4 · Things with no home yet
 
 Found while building; nowhere to put the answer until someone decides.
 
@@ -147,4 +111,26 @@ Found while building; nowhere to put the answer until someone decides.
 
 ## Answered
 
-Nothing yet.
+**No accreditation is being sought, and none is claimed.** *(was §2, the
+regulator question — the largest open item in the run)* The firm is not
+pursuing registration with the Accountancy Board of Ohio and is not asking
+whether it needs to. The only credential claimed is personal: Arjun Sethuraman
+holds a CPA licence in Ohio.
+
+Withdrawn rather than answered — the question stops mattering once the claim it
+was gating is this narrow. Wired in: the website's item 1 placeholder is gone,
+the footer states the entity fact and the personal credential as two sentences,
+and the comment above them records that the credential is worded about a person
+on purpose, so a later edit does not promote it to "CPA firm".
+
+**"Coming soon" is off the website.** *(was §4)* `index.html:826` read "Anyone
+who needs assurance work — coming soon" under *Probably not a fit*. The
+negation was fine; the forward promise was not, and with no assurance work
+being pursued it contradicted the same page's attest disclaimer. Two words
+deleted.
+
+**A credit prints in parentheses.** *(was §3a — the only open item that changed
+a document clients already read)* `FIELDS - Invoice.md` was the wrong document
+and is corrected, along with the `.ref` block inside `SATC Invoice.html` and
+the example payload, which still carried `−$150`. No shipped output changed:
+both money formatters already implemented parentheses.
