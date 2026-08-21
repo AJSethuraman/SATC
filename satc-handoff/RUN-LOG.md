@@ -609,6 +609,50 @@ PRs cite test counts as their verification.
 
 Until Batch 4 merges, the earlier branches are still uncovered.
 
+## Addendum — pricing the firm without knowing the prices (branch `b6-fee-basis`)
+
+Asked to share the fee schedule, with: *"not sure I even have the numbers."*
+
+That is not a scheduling problem, it is the schedule's problem. Fourteen
+questions each beginning "what do you charge for…" have no answer at a firm
+that has never priced itself, and the repo holds no past invoices to read
+prices off — there is no invoice database, and nothing under `invoice-generator/`
+carries historical figures. So the questions are re-asked in the one unit a
+preparer does know: **how long does this take you.**
+
+`python cli.py price` walks the fourteen items asking for hours, multiplies by
+an hourly rate, and writes the schedule. **Both numbers are the firm's.** The
+module supplies neither and fills no blank it was not given: an item left blank
+stays `[CONFIRM:`, so a half-finished sitting yields a half-priced schedule that
+still refuses to render, rather than a complete-looking one with invented
+figures in it. That is §9 held from the other side — the earlier work made a
+placeholder impossible to *ignore*, this makes it possible to *answer*.
+
+Three decisions worth flagging, because each could have gone the lazy way:
+
+- **Rounding is off by default.** `$437.50` is what 2.5 hours at $175 costs;
+  `$450.00` is a pricing policy, and a policy defaulted-to in a config file is
+  a policy nobody decided. `--round-to 25` is how the firm says it has one.
+- **The write is surgical, not a YAML dump.** `fee-schedule.yaml` is two thirds
+  comment and the comments are what make it fillable by hand. Amounts are
+  swapped on the lines they occupy; a dump would produce a valid file that had
+  lost all of that. Where a value cannot be located unambiguously the write
+  refuses rather than editing a line it guessed at.
+- **`base_covers` is still not derived.** It is a structure, not an amount, and
+  no number of hours implies it.
+
+**A correction to this file's own §5 count.** `OPEN-QUESTIONS.md` said "18
+amounts" while its own table listed 4 + 5 + 3 + 2 = 14. `pricing.open_amounts()`
+reports 14 amounts plus `base_covers`. The prose was wrong; it now says 14, and
+a test (`test_every_priceable_amount_has_a_prompt`) fails if the schedule ever
+grows an amount that has no prompt behind it, so the two cannot drift again.
+
+Verified: 134 pass (was 113), and the chain runs end to end — example hours →
+rate → schedule → interview → a rendered estimate totalling $1,425.00 with no
+`[CONFIRM:` in it. One bug found and fixed in the writing: `rate` was being
+popped out of the hours file *after* the hours dict was built, so it was
+offered to the engine as a priceable item and rejected.
+
 ## What a human should do next
 
 1. **Call the Accountancy Board of Ohio.** Unchanged from the brief, and still
