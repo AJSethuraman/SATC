@@ -20,9 +20,53 @@ tests/                        reconciliation + merge behaviour
 
 ```bash
 cd client-documents
-pip install pytest pyyaml
-python -m pytest -q
+make install          # deps + the Chromium PDF engine
+make doctor           # what is still blocking a real render
+make demo             # lead -> record -> the opening package as PDFs
+make test
 ```
+
+`cli.py` is the entry point. Four commands:
+
+| | |
+|---|---|
+| `doctor` | every open decision blocking a real render, and the question behind it |
+| `from-lead` | a website intake payload → a record skeleton, with what the interview still owes marked rather than guessed |
+| `render` | a record → client-ready HTML, and PDF where an engine is installed |
+| `demo` | the whole chain, from a fixture, in one command |
+
+```bash
+python cli.py render samples/tax-opening-package.json --out out
+python cli.py render record.json --docs invoice delivery-letter --out out
+python cli.py render record.json --draft --out out     # see below
+```
+
+A record needs `_season` (the tax year being filed — it selects the materials
+deadline) and optionally `_return_type`. Firm settings fill in behind it; the
+record wins where it sets something, because a per-engagement override is
+legitimate and ignoring it silently would be worse.
+
+### Two modes, and the difference is the point
+
+**Real** (default) writes nothing at all when a document would be holed. Not a
+warning, not a partial file — an unresolved field or a surviving `[CONFIRM]`
+raises and the render is abandoned. A refusal that still left a file on disk
+would be worse than no refusal, because somebody would send the file.
+
+**Draft** (`--draft`) renders anyway, so the pipeline can be exercised before
+the firm's decisions are made. Every page is stamped, every open decision is
+marked in oxblood where it would print, and the filename says DRAFT. The stamp
+goes in `doc-page`'s running header slot rather than a fixed banner, because a
+banner on page one leaves page two byte-identical to the real letter — and page
+two is what gets handed across a desk on its own.
+
+### The PDF engine
+
+Chromium is primary. The templates are flexbox and were designed and proofed in
+a browser; WeasyPrint's flex support is partial, so it renders the SAT-C
+wordmark as overlapping letters and collides clause numerals with their
+headings. The document is correct either way — it just does not look like the
+brand. `doctor` reports which engine you have.
 
 ## What the tests actually protect
 
