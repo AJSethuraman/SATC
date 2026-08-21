@@ -18,7 +18,7 @@
     "max-height:260px;overflow-y:auto;padding:4px;}" +
     ".ac-item{padding:8px 10px;border-radius:6px;font-size:14px;color:#334155;" +
     "cursor:pointer;line-height:1.4;}" +
-    ".ac-item:hover,.ac-item.ac-active{background:var(--brand-50,#eff4ff);color:var(--brand,#2563eb);}";
+    ".ac-item:hover,.ac-item.ac-active{background:var(--brand-50,#F6EEEF);color:var(--brand,#6A2833);}";
   var style = document.createElement("style");
   style.textContent = css;
   document.head.appendChild(style);

@@ -6,117 +6,212 @@
 <title>Invoice — {{ invoice.invoice_number }}</title>
 <!--
   ============================================================
-  INVOICER · INVOICE PDF TEMPLATE
+  INVOICER · INVOICE PDF TEMPLATE — SAT-C house style
   Rendered by WeasyPrint (primary) and xhtml2pdf (fallback).
+
   TABLE-BASED layout only. No flexbox, no grid, no absolute
   positioning, no external CSS — everything inline-safe so it
-  renders identically in both engines. Page size: A4.
+  renders identically in both engines.
+
+  This is the client-facing document, and its target is
+  satc-handoff/04-TEMPLATES/SATC Invoice.html — same masthead
+  (wordmark left, contact block right, navy rule under), same
+  ledger conventions, same due box, same footer. That file uses
+  flexbox and a web component; this one reaches the same result
+  with tables, because these two engines cannot do otherwise.
+
+  Figures follow 03-COLLATERAL/SATC Figures and Tables.html:
+  mono tabular numerals, right-aligned, two decimals always,
+  negatives in PARENTHESES rather than with a minus, credits
+  without the currency symbol, subtotal ruled above, total
+  ruled above and double-ruled below, hairline row separation
+  rather than zebra fill. Every money string on this page comes
+  from helpers.format_money and nothing else.
+
+  NO GOLD. Gold hairlines blow out on toner, so print is navy.
   The logo is embedded as a base64 data URI ({{ business.logo_uri }});
-  when absent the masthead falls back to a clean wordmark.
+  when absent the masthead falls back to the wordmark treatment.
   ============================================================
 -->
 <style>
-  /* ---- page ---- */
-  @page { size: A4; margin: 14mm 14mm 16mm 14mm; }
+  /* ---- page ----
+     Letter, not A4, and 0.7in margins — matching SATC Invoice.html. The firm
+     and its clients are in Ohio. */
+  @page { size: letter; margin: 0.7in; }
   html, body { margin: 0; padding: 0; }
   body {
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 9.5pt;
-    line-height: 1.45;
-    color: #1f2a44;
+    font-family: "IBM Plex Sans", "DejaVu Sans", Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.5;
+    color: #242C36;
     background: #ffffff;
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ---- the A4 sheet ---- */
   .sheet { width: 100%; background: #ffffff; margin: 0; padding: 0; }
 
   /* layout tables collapse cleanly in both engines */
   table { border-collapse: collapse; width: 100%; }
   td, th { vertical-align: top; }
 
-  .pad { padding: 4mm 2mm; }
-
-  /* ---- masthead ---- */
-  .mast-name { font-size: 15pt; font-weight: bold; color: #1f2a44; letter-spacing: -0.3pt; }
-  .mast-sub  { font-size: 8pt; color: #64748b; padding-top: 2pt; }
-  .mast-from { font-size: 8.5pt; color: #475569; line-height: 1.55; padding-top: 7pt; }
-  .logo-box  { height: 46px; padding-bottom: 6pt; }
+  /* ---- masthead ----
+     The wordmark treatment: Plex Sans 700 at 17pt, tracking -0.04em, navy.
+     A tenant that uploads a logo gets the logo instead. */
+  .wm {
+    font-size: 17pt; font-weight: bold; color: #132437;
+    letter-spacing: -0.6pt; line-height: 1.05;
+  }
+  /* The SAT-C lockup carries a mono tagline under the wordmark. There is no
+     field for it: business.name and business.lines are the whole of what pdf.py
+     assembles from the invoice's from_info snapshot, and adding one would be a
+     data-model change. See the run log. */
+  .logo-box { height: 46px; padding-bottom: 6pt; }
   .logo-box img { max-height: 46px; }
-
-  .doc-title { font-size: 26pt; font-weight: bold; color: #1f2a44; letter-spacing: 1pt; }
-  .doc-badge {
-    display: inline-block;
-    background: #eff4ff; color: #1d4ed8;
-    font-size: 7.5pt; font-weight: bold;
-    letter-spacing: 0.6pt; text-transform: uppercase;
-    padding: 3pt 8pt; border-radius: 999px; margin-top: 4pt;
+  .contact {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-size: 7.5pt; line-height: 1.75; color: #4A5360; text-align: right;
   }
-  .doc-badge.overdue { background: #fef2f2; color: #b91c1c; }
-  .doc-badge.paid { background: #f0fdf4; color: #15803d; }
 
-  /* meta rows in masthead (right) */
-  .meta { font-size: 8.5pt; }
-  .meta td { padding: 1.5pt 0; }
-  .meta .k { color: #64748b; padding-right: 12pt; text-align: right; white-space: nowrap; }
-  .meta .v { color: #1f2a44; font-weight: bold; text-align: right; white-space: nowrap; }
+  /* the navy rule under the masthead — 1.2pt, never gold */
+  .rule td { border-top: 1.2pt solid #132437; font-size: 0; line-height: 0; height: 0; }
 
-  /* divider rule */
-  .rule td { border-top: 2px solid #1f2a44; font-size: 0; line-height: 0; height: 0; }
-
-  /* bill-to / ship-to blocks */
-  .label { font-size: 7pt; font-weight: bold; letter-spacing: 0.8pt; text-transform: uppercase; color: #2563eb; padding-bottom: 4pt; }
-  .party-name { font-size: 10pt; font-weight: bold; color: #1f2a44; }
-  .party { font-size: 8.5pt; color: #475569; line-height: 1.55; padding-top: 2pt; }
-
-  /* line items */
-  .items { margin-top: 4mm; }
-  .items th {
-    background: #1f2a44; color: #ffffff;
-    font-size: 7.5pt; font-weight: bold; letter-spacing: 0.5pt; text-transform: uppercase;
-    text-align: left; padding: 6pt 8pt;
+  /* ---- document title + meta ---- */
+  .doctitle { font-size: 18pt; font-weight: bold; color: #132437; letter-spacing: -0.6pt; line-height: 1; }
+  .kind {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-size: 7.5pt; letter-spacing: 1pt; text-transform: uppercase;
+    color: #4A5360; padding-top: 5pt;
   }
-  .items th.r, .items td.r { text-align: right; }
-  .items td {
-    font-size: 9pt; color: #334155;
-    padding: 7pt 8pt; border-bottom: 1px solid #e2e8f0;
+  /* Status is a mono micro-label, not a pill. Squares and rules as ornament;
+     a rounded badge reads as app chrome on a document a client keeps. */
+  .status {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-size: 7pt; letter-spacing: 1pt; text-transform: uppercase;
+    color: #4A5360; padding-top: 6pt;
   }
-  .items tr td.desc { color: #1f2a44; font-weight: bold; }
-  .items .num { font-family: "Courier New", monospace; }
-  .zebra { background: #f8fafc; }
+  .status.overdue { color: #6A2833; }
 
-  /* totals */
-  .totals { font-size: 9pt; }
-  .totals td { padding: 3.5pt 8pt; }
-  .totals .k { color: #64748b; text-align: right; }
-  .totals .v { color: #1f2a44; text-align: right; font-weight: bold; white-space: nowrap; }
-  .totals .discount .v { color: #16a34a; }
-  .totals .grand td { border-top: 2px solid #1f2a44; padding-top: 7pt; }
-  .totals .grand .k { font-size: 10pt; font-weight: bold; color: #1f2a44; }
-  .totals .grand .v { font-size: 13pt; color: #1f2a44; }
-  .totals .balance td { background: #1f2a44; }
-  .totals .balance .k { color: #cbd5e1; font-size: 10pt; font-weight: bold; padding: 7pt 8pt; }
-  .totals .balance .v { color: #ffffff; font-size: 13pt; padding: 7pt 8pt; }
-  .totals .balance.paid td { background: #16a34a; }
-
-  /* pay online CTA */
-  .pay { background: #eff4ff; border: 1px solid #dbe6fe; border-radius: 10px; }
-  .pay td { padding: 7mm 8mm; }
-  .pay-h { font-size: 11pt; font-weight: bold; color: #1f2a44; }
-  .pay-p { font-size: 8.5pt; color: #475569; padding-top: 2pt; }
-  .pay-btn {
-    background: #2563eb; color: #ffffff;
-    font-size: 9.5pt; font-weight: bold;
-    padding: 9pt 18pt; border-radius: 8px;
-    text-decoration: none; white-space: nowrap;
+  .smeta td { font-size: 8.5pt; padding: 1.5pt 0; white-space: nowrap; }
+  .smeta .k {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-size: 7.5pt; letter-spacing: 0.7pt; text-transform: uppercase;
+    color: #4A5360; padding-right: 14pt; text-align: right;
   }
-  .pay-link { font-family: "Courier New", monospace; font-size: 7.5pt; color: #2563eb; padding-top: 5pt; }
+  .smeta .v {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-size: 8.5pt; color: #132437; text-align: right; font-weight: bold;
+  }
 
-  /* notes / footer */
-  .notes-h { font-size: 7pt; font-weight: bold; letter-spacing: 0.8pt; text-transform: uppercase; color: #64748b; padding-bottom: 3pt; }
-  .notes { font-size: 8.5pt; color: #475569; line-height: 1.55; }
-  .foot { font-size: 7.5pt; color: #94a3b8; text-align: center; padding-top: 8mm; }
-  .foot strong { color: #64748b; }
+  /* ---- billed to / ship to ---- */
+  .hair td { border-top: 0.5pt solid #D8D7D1; font-size: 0; line-height: 0; height: 0; }
+  .h {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-size: 7pt; letter-spacing: 1.3pt; text-transform: uppercase;
+    color: #4A5360; padding-bottom: 6pt;
+  }
+  .party-name { font-size: 10pt; font-weight: bold; color: #132437; }
+  .party { font-size: 9pt; color: #4A5360; line-height: 1.45; padding-top: 2pt; }
+
+  /* ---- the ledger ---- */
+  .led { margin-top: 16pt; }
+  .led th {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-size: 7pt; letter-spacing: 1.2pt; text-transform: uppercase;
+    color: #4A5360; font-weight: normal;
+    text-align: left; padding: 0 0 6pt; border-bottom: 0.8pt solid #132437;
+  }
+  .led th.r, .led td.r { text-align: right; }
+  .led td {
+    font-size: 9.5pt; color: #242C36;
+    padding: 7pt 0; border-bottom: 0.5pt solid #E6E5E0;
+  }
+  .led td.desc { color: #132437; font-weight: bold; }
+  /* figures: mono, tabular, right-aligned, never a proportional face */
+  .num {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-variant-numeric: tabular-nums;
+    color: #132437; white-space: nowrap;
+  }
+  /* Positives carry the closing paren's width so the column does not step.
+     The figures spec writes this as `padding-right: 1ch`, which xhtml2pdf
+     cannot parse -- it raises on the unit and drops the rule, so the two
+     engines would disagree. In IBM Plex Mono one character is 0.6em, and every
+     figure on this page is 9.5pt, so 1ch is 5.7pt exactly. */
+  .num.pos { padding-right: 5.7pt; }
+
+  /* ---- totals ---- */
+  .sums { margin-top: 0; }
+  .sums td { font-size: 9.5pt; padding: 4pt 0; }
+  .sums .k { color: #4A5360; text-align: right; padding-right: 14pt; }
+  .sums .v { text-align: right; white-space: nowrap; }
+  /* subtotal: single rule above, in navy. No fill band — toner floods it. */
+  .sums .sub td { border-top: 0.5pt solid #132437; font-weight: bold; padding-top: 6pt; }
+  .sums .sub .k { color: #132437; }
+  /* credits are oxblood, and already in parentheses; the colour is a second
+     signal, never the only one */
+  .sums .credit .v { color: #6A2833; }
+  /* total: rule above, double rule below — the column is closed */
+  .sums .tot td {
+    border-top: 0.8pt solid #132437; border-bottom: 2.5pt double #132437;
+    padding: 6pt 0; font-weight: bold; color: #132437; font-size: 11pt;
+  }
+  .sums .tot .k { color: #132437; }
+
+  /* ---- amount-due panel ---- */
+  .duebox { margin-top: 16pt; background: #F4F5F6; }
+  .duebox td { padding: 10pt 12pt; }
+  /* the navy edge is a border on the first cell, not a 2pt spacer cell —
+     xhtml2pdf collapses an empty cell, WeasyPrint does not */
+  .duebox td.first { border-left: 2pt solid #132437; }
+  .duebox .k {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-size: 7pt; letter-spacing: 1.2pt; text-transform: uppercase; color: #4A5360;
+  }
+  .duebox .amt {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 20pt; color: #132437; line-height: 1.1; padding-top: 5pt; white-space: nowrap;
+  }
+  .duebox .terms { font-size: 8.5pt; color: #4A5360; text-align: right; line-height: 1.45; }
+  .duebox .terms strong { color: #132437; }
+
+  /* ---- how to pay / remit ---- */
+  .pay { margin-top: 18pt; }
+  .pay td { font-size: 9pt; color: #4A5360; line-height: 1.5; padding-right: 0.34in; }
+  .pay td.last { padding-right: 0; }
+  .pay p { margin: 0; }
+  /* keep the strip whole -- an address split across a page boundary is worse
+     than the strip starting on the next page */
+  .pay tr, .duebox tr { page-break-inside: avoid; }
+  .pay strong { color: #132437; }
+  .pay-link {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-size: 7.5pt; color: #6A2833; padding-top: 4pt; word-wrap: break-word;
+  }
+
+  /* ---- notes ---- */
+  .notes { margin-top: 18pt; }
+  .notes .h { border-bottom: 0.5pt solid #E6E5E0; padding-bottom: 5pt; }
+  .notes .body { font-size: 9pt; color: #4A5360; line-height: 1.5; padding-top: 8pt; }
+  .notes .body strong { color: #132437; }
+
+  /* ---- footer ---- */
+  .foot { margin-top: 22pt; }
+  .foot td { border-top: 0.5pt solid #E6E5E0; padding-top: 8pt; }
+  .foot .legal { font-size: 7pt; line-height: 1.6; color: #4A5360; }
+  .foot .legal strong { font-weight: 500; color: #4A5360; }
+  .foot .id {
+    font-family: "IBM Plex Mono", "DejaVu Sans Mono", "Courier New", monospace;
+    font-size: 7pt; letter-spacing: 0.7pt; color: #4A5360;
+    text-align: right; white-space: nowrap;
+  }
+
+  /* Print hygiene: a long ledger repeats its head and does not split a row.
+     Scoped to .led on purpose -- as a bare `tr` rule it also applied to the
+     tall layout rows, and a pay strip that would not fit in the remaining
+     space pushed itself to a second page while page one sat half empty. */
+  thead { display: table-header-group; }
+  .led tr { page-break-inside: avoid; }
 </style>
 </head>
 <body>
@@ -124,147 +219,179 @@
 {% set bill_lines = (invoice.bill_to or "").splitlines() | select | list %}
 {% set ship_lines = (invoice.ship_to or "").splitlines() | select | list %}
 <div class="sheet">
-  <div class="pad">
 
-    <!-- MASTHEAD -->
-    <table>
+  <!-- MASTHEAD — wordmark left, contact block right, navy rule under -->
+  <table>
+    <tr>
+      <td width="55%">
+        {% if business.logo_uri %}
+        <div class="logo-box"><img src="{{ business.logo_uri }}" alt="{{ business.name }}"/></div>
+        {% else %}
+        <div class="wm">{{ business.name }}</div>
+        {% endif %}
+      </td>
+      <td width="45%">
+        {% if business.lines %}
+        <div class="contact">
+          <strong>{{ business.name }}</strong><br/>
+          {% for line in business.lines %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
+        </div>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+  <table style="margin-top:9pt;"><tr class="rule"><td></td></tr></table>
+
+  <!-- TITLE + META -->
+  <table style="margin-top:16pt;">
+    <tr>
+      <td width="52%">
+        <div class="doctitle">Invoice</div>
+        <div class="kind">{{ invoice.invoice_number }}</div>
+        {% if invoice.display_status == 'Overdue' %}
+        <div class="status overdue">Overdue</div>
+        {% elif invoice.display_status == 'Paid' %}
+        <div class="status">Paid in full</div>
+        {% endif %}
+      </td>
+      <td width="48%">
+        <table class="smeta">
+          {% if invoice.invoice_date %}<tr><td class="k">Date</td><td class="v">{{ invoice.invoice_date | fmtdate }}</td></tr>{% endif %}
+          {% if invoice.due_date %}<tr><td class="k">Due</td><td class="v">{{ invoice.due_date | fmtdate }}</td></tr>{% endif %}
+          {% if invoice.payment_terms %}<tr><td class="k">Terms</td><td class="v">{{ invoice.payment_terms }}</td></tr>{% endif %}
+          {% if invoice.po_number %}<tr><td class="k">PO</td><td class="v">{{ invoice.po_number }}</td></tr>{% endif %}
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- BILLED TO / SHIP TO -->
+  <table style="margin-top:16pt;"><tr class="hair"><td></td></tr></table>
+  <table style="margin-top:10pt;">
+    <tr>
+      <td width="50%" style="padding-right:0.3in;">
+        <div class="h">Billed to</div>
+        {% if bill_lines %}
+        <div class="party-name">{{ bill_lines[0] }}</div>
+        {% if bill_lines[1:] %}
+        <div class="party">{% for line in bill_lines[1:] %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>
+        {% endif %}
+        {% endif %}
+        {% if invoice.client_email %}<div class="party">{{ invoice.client_email }}</div>{% endif %}
+      </td>
+      <td width="50%">
+        {% if ship_lines %}
+        <div class="h">Ship to</div>
+        <div class="party-name">{{ ship_lines[0] }}</div>
+        {% if ship_lines[1:] %}
+        <div class="party">{% for line in ship_lines[1:] %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>
+        {% endif %}
+        {% endif %}
+      </td>
+    </tr>
+  </table>
+
+  <!-- LEDGER · description, quantity, rate, amount — amount always rightmost -->
+  <table class="led">
+    <thead>
       <tr>
-        <td width="55%">
-          {% if business.logo_uri %}
-          <div class="logo-box"><img src="{{ business.logo_uri }}" alt="{{ business.name }}"/></div>
-          {% endif %}
-          <div class="mast-name">{{ business.name }}</div>
-          {% if business.lines %}
-          <div class="mast-from">
-            {% for line in business.lines %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}
-          </div>
-          {% endif %}
-        </td>
-        <td width="45%" style="text-align:right;">
-          <div class="doc-title">INVOICE</div>
-          {% if invoice.display_status == 'Overdue' %}
-          <div class="doc-badge overdue">Overdue</div>
-          {% elif invoice.display_status == 'Paid' %}
-          <div class="doc-badge paid">Paid in full</div>
-          {% else %}
-          <div class="doc-badge">{{ invoice.display_status }}</div>
-          {% endif %}
-          <table class="meta" style="margin-top:8pt;">
-            <tr><td class="k">Invoice #</td><td class="v">{{ invoice.invoice_number }}</td></tr>
-            {% if invoice.invoice_date %}<tr><td class="k">Issue date</td><td class="v">{{ invoice.invoice_date | fmtdate }}</td></tr>{% endif %}
-            {% if invoice.due_date %}<tr><td class="k">Due date</td><td class="v">{{ invoice.due_date | fmtdate }}</td></tr>{% endif %}
-            {% if invoice.payment_terms %}<tr><td class="k">Terms</td><td class="v">{{ invoice.payment_terms }}</td></tr>{% endif %}
-            {% if invoice.po_number %}<tr><td class="k">PO #</td><td class="v">{{ invoice.po_number }}</td></tr>{% endif %}
-          </table>
-        </td>
+        <th width="52%">Service</th>
+        <th class="r" width="10%">Qty</th>
+        <th class="r" width="19%">Rate</th>
+        <th class="r" width="19%">Amount</th>
       </tr>
-    </table>
-
-    <table style="margin-top:7mm;"><tr class="rule"><td></td></tr></table>
-
-    <!-- BILL TO / SHIP TO -->
-    <table style="margin-top:6mm;">
+    </thead>
+    <tbody>
+      {% for item in invoice.items %}
       <tr>
-        <td width="50%" style="padding-right:8mm;">
-          <div class="label">Bill to</div>
-          {% if bill_lines %}
-          <div class="party-name">{{ bill_lines[0] }}</div>
-          {% if bill_lines[1:] %}
-          <div class="party">{% for line in bill_lines[1:] %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>
-          {% endif %}
-          {% endif %}
-          {% if invoice.client_email %}<div class="party">{{ invoice.client_email }}</div>{% endif %}
-        </td>
-        <td width="50%">
-          {% if ship_lines %}
-          <div class="label">Ship to</div>
-          <div class="party-name">{{ ship_lines[0] }}</div>
-          {% if ship_lines[1:] %}
-          <div class="party">{% for line in ship_lines[1:] %}{{ line }}{% if not loop.last %}<br/>{% endif %}{% endfor %}</div>
-          {% endif %}
-          {% endif %}
-        </td>
+        <td class="desc">{{ item.description }}</td>
+        <td class="r num pos">{{ "%.1f"|format(item.quantity or 0) }}</td>
+        <td class="r num pos">{{ format_money(item.rate, invoice.currency) }}</td>
+        <td class="r num pos">{{ format_money(item.amount, invoice.currency) }}</td>
       </tr>
-    </table>
+      {% endfor %}
+    </tbody>
+  </table>
 
-    <!-- LINE ITEMS -->
-    <table class="items">
-      <thead>
-        <tr>
-          <th width="50%">Description</th>
-          <th class="r" width="12%">Qty</th>
-          <th class="r" width="19%">Unit price</th>
-          <th class="r" width="19%">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in invoice.items %}
-        <tr{% if loop.index0 % 2 == 1 %} class="zebra"{% endif %}>
-          <td class="desc">{{ item.description }}</td>
-          <td class="r num">{{ "%g"|format(item.quantity or 0) }}</td>
-          <td class="r num">{{ format_money(item.rate, invoice.currency) }}</td>
-          <td class="r num">{{ format_money(item.amount, invoice.currency) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <!-- TOTALS + NOTES -->
-    <table style="margin-top:5mm;">
-      <tr>
-        <td width="52%" style="padding-right:8mm;">
-          {% if invoice.notes %}
-          <div class="notes-h">Notes</div>
-          <div class="notes" style="margin-bottom:5mm;">{{ invoice.notes | nl2br }}</div>
+  <!-- TOTALS -->
+  <table style="margin-top:6pt;">
+    <tr>
+      <td width="52%" style="padding-right:0.3in;"></td>
+      <td width="48%">
+        <table class="sums">
+          <tr class="sub"><td class="k">Subtotal</td><td class="v num pos">{{ format_money(invoice.subtotal, invoice.currency) }}</td></tr>
+          {% if invoice.discount_amount %}
+          <tr class="credit"><td class="k">Discount{% if invoice.discount_is_percent %} ({{ "%g"|format(invoice.discount_value) }}%){% endif %}</td><td class="v num">{{ format_money(-invoice.discount_amount, invoice.currency, symbol=False) }}</td></tr>
           {% endif %}
-          {% if invoice.terms %}
-          <div class="notes-h">Terms</div>
-          <div class="notes">{{ invoice.terms | nl2br }}</div>
+          {% if invoice.tax_amount or invoice.tax_value %}
+          <tr><td class="k">Tax{% if invoice.tax_is_percent %} ({{ "%g"|format(invoice.tax_value) }}%){% endif %}</td><td class="v num pos">{{ format_money(invoice.tax_amount, invoice.currency) }}</td></tr>
           {% endif %}
-        </td>
-        <td width="48%">
-          <table class="totals">
-            <tr><td class="k">Subtotal</td><td class="v">{{ format_money(invoice.subtotal, invoice.currency) }}</td></tr>
-            {% if invoice.discount_amount %}
-            <tr class="discount"><td class="k">Discount{% if invoice.discount_is_percent %} ({{ "%g"|format(invoice.discount_value) }}%){% endif %}</td><td class="v">−{{ format_money(invoice.discount_amount, invoice.currency) }}</td></tr>
-            {% endif %}
-            {% if invoice.tax_amount or invoice.tax_value %}
-            <tr><td class="k">Tax{% if invoice.tax_is_percent %} ({{ "%g"|format(invoice.tax_value) }}%){% endif %}</td><td class="v">{{ format_money(invoice.tax_amount, invoice.currency) }}</td></tr>
-            {% endif %}
-            {% if invoice.shipping %}
-            <tr><td class="k">Shipping</td><td class="v">{{ format_money(invoice.shipping, invoice.currency) }}</td></tr>
-            {% endif %}
-            <tr class="grand"><td class="k">Total</td><td class="v">{{ format_money(invoice.total, invoice.currency) }}</td></tr>
-            {% if invoice.amount_paid %}
-            <tr><td class="k">Amount paid</td><td class="v">−{{ format_money(invoice.amount_paid, invoice.currency) }}</td></tr>
-            {% endif %}
-            <tr class="balance{% if invoice.balance_due <= 0 %} paid{% endif %}"><td class="k">Balance due</td><td class="v">{{ format_money(invoice.balance_due, invoice.currency) }}</td></tr>
-          </table>
-        </td>
-      </tr>
-    </table>
+          {% if invoice.shipping %}
+          <tr><td class="k">Shipping</td><td class="v num pos">{{ format_money(invoice.shipping, invoice.currency) }}</td></tr>
+          {% endif %}
+          {% if invoice.amount_paid %}
+          <tr><td class="k">Total</td><td class="v num pos">{{ format_money(invoice.total, invoice.currency) }}</td></tr>
+          <tr class="credit"><td class="k">Payment received</td><td class="v num">{{ format_money(-invoice.amount_paid, invoice.currency, symbol=False) }}</td></tr>
+          {% endif %}
+          <tr class="tot"><td class="k">Balance due</td><td class="v num pos">{{ format_money(invoice.balance_due, invoice.currency) }}</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 
-    <!-- PAY ONLINE -->
-    {% if pay_url and invoice.balance_due > 0 %}
-    <table class="pay" style="margin-top:6mm;">
-      <tr>
-        <td width="64%">
-          <div class="pay-h">Pay online in seconds</div>
-          <div class="pay-p">Pay securely by card or bank transfer — powered by Stripe. No account required.</div>
-          <div class="pay-link">{{ pay_url }}</div>
-        </td>
-        <td width="36%" style="text-align:right; vertical-align:middle;">
-          <a class="pay-btn" href="{{ pay_url }}">Pay {{ format_money(invoice.balance_due, invoice.currency) }} →</a>
-        </td>
-      </tr>
-    </table>
-    {% endif %}
+  <!-- AMOUNT DUE -->
+  <table class="duebox">
+    <tr>
+      <td class="first" width="45%">
+        <div class="k">{% if invoice.balance_due > 0 %}Amount due{% else %}Paid in full{% endif %}</div>
+        <div class="amt">{{ format_money(invoice.balance_due, invoice.currency) }}</div>
+      </td>
+      <td width="55%">
+        {% if invoice.terms %}
+        <div class="terms">{{ invoice.terms | nl2br }}</div>
+        {% elif invoice.due_date %}
+        <div class="terms"><strong>Due {{ invoice.due_date | fmtdate }}.</strong></div>
+        {% endif %}
+      </td>
+    </tr>
+  </table>
 
-    <div class="foot">
-      <strong>{{ business.name }}</strong> · {{ invoice.invoice_number }} · Generated by Invoicer
-    </div>
+  <!-- HOW TO PAY / REMIT TO -->
+  {% if (pay_url and invoice.balance_due > 0) or business.lines %}
+  <table style="margin-top:18pt;"><tr class="hair"><td></td></tr></table>
+  <table class="pay">
+    <tr>
+      {% if pay_url and invoice.balance_due > 0 %}
+      <td width="50%">
+        <div class="h">How to pay</div>
+        <p>Pay by card or bank transfer at the link below. No account is needed.</p>
+        <div class="pay-link">{{ pay_url }}</div>
+      </td>
+      {% endif %}
+      <td class="last">
+        <div class="h">Remit to</div>
+        <p><strong>{{ business.name }}</strong>{% for line in business.lines %}<br/>{{ line }}{% endfor %}<br/>{{ invoice.invoice_number }} on the memo line</p>
+      </td>
+    </tr>
+  </table>
+  {% endif %}
 
-  </div>
+  <!-- NOTES -->
+  {% if invoice.notes %}
+  <table class="notes">
+    <tr><td><div class="h">Notes</div></td></tr>
+    <tr><td><div class="body">{{ invoice.notes | nl2br }}</div></td></tr>
+  </table>
+  {% endif %}
+
+  <!-- FOOTER -->
+  <table class="foot">
+    <tr>
+      <td width="62%"><div class="legal"><strong>{{ business.name }}</strong>{% if business.lines %} · {{ business.lines | join(' · ') }}{% endif %}</div></td>
+      <td width="38%"><div class="id">INVOICE {{ invoice.invoice_number }}</div></td>
+    </tr>
+  </table>
+
 </div>
 
 </body>

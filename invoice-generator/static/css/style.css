@@ -6,45 +6,71 @@
    ============================================================ */
 
 /* ---------- 1. TOKENS ---------- */
+/* SAT-C brand tokens. Every token NAME from the original Invoicer palette is
+   kept and simply re-pointed, so no rule below this block had to change --
+   swap this block and the UI restyles itself. The values come from
+   satc-handoff/01-WEBSITE/SATC-STYLE-SPEC.md and 04-TEMPLATES/satc-doc.css.
+
+   The direction, settled: cool ground, IBM Plex superfamily, navy dominant,
+   OXBLOOD as the single action colour, gold demoted to hairlines and never
+   printed. Squares, not circles -- radii collapse to 2px. */
 :root {
   /* Brand & action */
-  --ink:        #0f1729;  /* primary text — near-black navy */
-  --navy-900:   #1f2a44;  /* brand navy — dark surfaces, footer */
-  --navy-800:   #273450;
-  --navy-700:   #33405f;
+  --ink:        #242C36;  /* SAT-C ink -- body copy */
+  --navy-900:   #132437;  /* SAT-C navy -- dark surfaces, footer, mastheads */
+  --navy-800:   #1B3049;
+  --navy-700:   #22374F;  /* navy-soft */
 
-  --brand:        #2563eb; /* primary action — white text passes AA (5.1:1) */
-  --brand-hover:  #1d4ed8;
-  --brand-active: #1e40af;
-  --brand-300:    #93b4fb;
-  --brand-100:    #dbe6fe;
-  --brand-50:     #eff4ff;
-  --ring:         #93b4fb; /* focus ring */
+  /* Oxblood is the thing you click. Gold never fills again, and never prints.
+     #6A2833 on white is 9.6:1; white on #6A2833 is the same, so both
+     directions pass AA comfortably. */
+  --brand:        #6A2833;
+  --brand-hover:  #83323F;
+  --brand-active: #521E27;
+  --brand-300:    #C79AA2; /* tints: borders and hovers only, never text */
+  --brand-100:    #E8D4D8;
+  --brand-50:     #F6EEEF;
+  --ring:         #6A2833; /* focus ring -- navy/oxblood ring, per the spec */
 
-  /* Status */
+  /* Status. Deliberately NOT re-pointed at oxblood: paid/overdue/draft are a
+     semantic axis, and collapsing them into the one action colour would make
+     the dashboard unreadable. Oxblood stays the colour of an action. */
   --green-700: #15803d;  --green-600: #16a34a;  --green-50: #f0fdf4;  --green-200:#bbf7d0;
   --amber-700: #b45309;  --amber-600: #d97706;  --amber-50: #fffbeb;  --amber-200:#fde68a;
   --red-700:   #b91c1c;  --red-600:   #dc2626;  --red-50:   #fef2f2;  --red-200:  #fecaca;
 
-  /* Neutrals (cool slate, cohesive with navy) */
-  --gray-50:  #f8fafc;
-  --gray-100: #f1f5f9;
-  --gray-200: #e2e8f0;
-  --gray-300: #cbd5e1;
-  --gray-400: #94a3b8;
-  --gray-500: #64748b;
-  --gray-600: #475569;
-  --gray-700: #334155;
-  --gray-800: #1e293b;
-  --gray-900: #0f172a;
+  /* Neutrals -- the SAT-C cool ramp, warm slate removed */
+  --gray-50:  #F7F7F5;   /* cream */
+  --gray-100: #EFEFEC;   /* cream-2 */
+  --gray-200: #E6E5E0;   /* hairline */
+  --gray-300: #D8D7D1;   /* hairline-2 */
+  --gray-400: #8E8D88;   /* placeholders and icon chrome -- not body copy */
+  --gray-500: #4A5360;   /* ink-2. The ramp step the UI leans on for small type,
+                            so it is ink-2 and NOT --mute: the brand spec is
+                            explicit that --mute is 3.6:1 and never goes on
+                            text, and .muted / .hint / .kpi__label all did. */
+  --gray-600: #3E4652;
+  --gray-700: #2E353F;
+  --gray-800: #242C36;   /* ink */
+  --gray-900: #132437;   /* navy */
 
-  --surface:    #ffffff;
-  --bg:         #f6f8fb;
-  --hairline:   #e2e8f0;
+  /* --mute exists so the one legitimate use survives: rules and bullets.
+     Never put it on type. */
+  --mute: #82817C;
 
-  /* Type */
-  --sans: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Gold survives as a hairline accent on screen only. It is never printed and
+     never fills -- see the PDF template, which has no gold in it at all. */
+  --gold:      #C0A265;
+  --gold-deep: #756228;  /* the only gold approved for text on light */
+
+  --surface:    #FFFFFF;
+  --bg:         #F7F7F5;
+  --hairline:   #E6E5E0;
+
+  /* Type -- IBM Plex superfamily. Mono carries eyebrows, micro-labels,
+     reference codes and ALL FIGURES. Never mono for body copy. */
+  --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* Type scale (1rem = 16px) */
   --text-xs:   0.75rem;   /* 12 */
@@ -63,17 +89,21 @@
   --space-5: 20px;  --space-6: 24px;  --space-8: 32px;  --space-10: 40px;
   --space-12: 48px; --space-16: 64px; --space-20: 80px; --space-24: 96px;
 
-  /* Radii */
-  --radius-sm:   6px;
-  --radius:      10px;
-  --radius-lg:   16px;
-  --radius-full: 999px;
+  /* Radii. "Squares and rules as ornament; circles read traditional here."
+     --radius-full is kept as a name so no rule had to change, but it is 2px
+     now: the two things that used it (status badges, the landing pill) are
+     chrome, not avatars. The badge's 6px status DOT is still a circle -- it
+     sets border-radius:50% itself, which is the one place round is correct. */
+  --radius-sm:   2px;
+  --radius:      2px;
+  --radius-lg:   2px;
+  --radius-full: 2px;
 
-  /* Shadows (cool-tinted) */
-  --shadow-sm: 0 1px 2px rgba(15, 23, 41, 0.06), 0 1px 1px rgba(15, 23, 41, 0.04);
-  --shadow:    0 1px 3px rgba(15, 23, 41, 0.08), 0 4px 12px -2px rgba(15, 23, 41, 0.06);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 41, 0.08), 0 12px 24px -6px rgba(15, 23, 41, 0.10);
-  --shadow-lg: 0 10px 20px -6px rgba(15, 23, 41, 0.12), 0 30px 60px -16px rgba(15, 23, 41, 0.18);
+  /* Shadows (cool-tinted, keyed to navy) */
+  --shadow-sm: 0 1px 2px rgba(19, 36, 55, 0.06), 0 1px 1px rgba(19, 36, 55, 0.04);
+  --shadow:    0 1px 3px rgba(19, 36, 55, 0.08), 0 4px 12px -2px rgba(19, 36, 55, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(19, 36, 55, 0.08), 0 12px 24px -6px rgba(19, 36, 55, 0.10);
+  --shadow-lg: 0 10px 20px -6px rgba(19, 36, 55, 0.12), 0 30px 60px -16px rgba(19, 36, 55, 0.18);
 
   --container: 1120px;
 }
