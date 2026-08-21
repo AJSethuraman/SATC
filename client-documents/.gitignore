@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Rendered documents are generated from a record; they carry client data and
+# never belong in the repo.
+out/
+*.pdf
