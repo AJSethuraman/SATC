@@ -581,6 +581,34 @@ order of how much a reader should care:
 11. **Path casing.** Every document refers to `SATC-HANDOFF/`; the directory is
     `satc-handoff/`.
 
+## One thing added beyond the four batches
+
+**CI ran none of the tests this run depends on.** The only job was
+`pytest (satc_system)`. The merge engine, the field registry and the invoice
+money formatter were covered by suites that executed nowhere except a
+developer's machine — including the two guards `CLAUDE.md` describes as
+build-failing:
+
+> *"Validation tests fail the build if legal names / full TINs leak into
+> outputs."*
+
+`test_no_field_can_hold_a_tin` and `test_no_sample_contains_a_real_looking_tin`
+exist and are good. Nothing ran them.
+
+`.github/workflows/test.yml` now runs one job per project, matching the repo's
+one-folder-per-project layout, with `fail-fast: false` so a break in one still
+reports the others. The existing job keeps the name `pytest (satc_system)` so
+anything keyed to that check name still resolves. Verified from **clean
+virtualenvs** using exactly the install commands the workflow uses:
+client-documents 38 pass, invoice-generator 16 pass on the Batch 2 branch.
+
+It is **one commit on the Batch 4 branch**, deliberately separate, so it can be
+dropped without touching anything else. It is the only change in this run that
+was not asked for, and the reason it was made anyway is that three of the four
+PRs cite test counts as their verification.
+
+Until Batch 4 merges, the earlier branches are still uncovered.
+
 ## What a human should do next
 
 1. **Call the Accountancy Board of Ohio.** Unchanged from the brief, and still
