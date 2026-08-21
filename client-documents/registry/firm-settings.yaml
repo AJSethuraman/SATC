@@ -1,0 +1,59 @@
+# SATC — firm settings
+#
+# Values that are the same on every client's documents. Set once, changed rarely,
+# never asked in an interview.
+#
+# A value of the form "[CONFIRM: ...]" is a DECISION NOT YET MADE. The merge
+# engine refuses to render a client-facing document while any [CONFIRM] survives
+# in the output, so a placeholder can never reach a client. Everything else can
+# be built and tested around them.
+
+preparer:
+  # Fields: PreparerName, PreparerTitle, PreparerEmail, PreparerPhone
+  name: "Arjun Sethuraman, CPA"
+  title: "Managing Partner"
+  email: "arjun_sethuraman@satcllp.com"
+  phone: "307-941-0508"
+
+billing:
+  # Fields: BillingContactName, BillingContactEmail, BillingContactPhone.
+  # Deliberately separate from the preparer — a billing question should not have
+  # to find the preparer.
+  contact_name: "Arjun Sethuraman"
+  contact_email: "[CONFIRM: billing address — does billing@satcllp.com exist, or use the main address?]"
+  contact_phone: "307-941-0508"
+
+delivery:
+  # Field: ReturnInstruction. Replaces the old "return it in the envelope
+  # provided", which is wrong for an emailed letter.
+  return_instruction: "Sign through Encyro and it comes straight back to us."
+
+  # Field: PaymentInstruction. One sentence, from settings, not per client, so
+  # it changes in one place when the processor changes.
+  payment_instruction: "[CONFIRM: payment methods — card/ACH link, cheque, or both? Names the processor.]"
+
+  # Field: AckWindow. A duration phrased to drop into a sentence.
+  ack_window: "[CONFIRM: how long before you acknowledge received documents — e.g. 'three business days']"
+
+# Field: MaterialsDeadline. One fixed date per return type per season, set each
+# January. Read by the tax letter, the organizer and the onboarding letter — all
+# three print it, and a mismatch between them is the organizer's most likely bug.
+materials_deadlines:
+  "2026":
+    individual_1040: "[CONFIRM: 1040 materials deadline for the 2026 season]"
+    s_corp_1120s:    "[CONFIRM: 1120-S materials deadline for the 2026 season]"
+    partnership_1065:"[CONFIRM: 1065 materials deadline for the 2026 season]"
+    c_corp_1120:     "[CONFIRM: 1120 materials deadline for the 2026 season]"
+
+# The firm's legal name is HARDCODED in every template footer, not merged. It is
+# recorded here so the value has one home and the discrepancy is visible.
+#
+# Three variants exist across current documents and only one is on the Ohio
+# filing. Until this is settled, no template should ship to a client.
+legal_name: "[CONFIRM: exact legal name on the Ohio LLP filing — three variants currently in use]"
+
+# Not settled, and it gates declining work rather than producing a document, so
+# it lives here rather than in the interview schema.
+hard_no:
+  - "Needs an audit, review, or any assurance engagement"
+  - "[CONFIRM: the rest of the hard-no list]"

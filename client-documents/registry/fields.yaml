@@ -1,0 +1,251 @@
+# SATC — consolidated merge-field registry
+#
+# Generated from the six templates in satc-handoff/04-TEMPLATES by parsing every
+# <<Field>>, [[IF Flag]] and [[EACH List]] token. Regenerate with:
+#     python -m tests.extract   (see tests/test_registry.py)
+#
+# source:
+#   firm        set once in firm-settings.yaml; never asked
+#   interview   a human answers during the consultation
+#   engagement  derived when the engagement is created
+#   bookkeeping engagement fields specific to a bookkeeping engagement
+#   computed    produced by software; never typed
+#   invoice     arises at billing time, after the work
+
+fields:
+  - field: AccountingSystem
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - field: AckWindow
+    source: firm
+    templates: [onboarding-letter]
+  - field: AdditionalForms
+    source: interview
+    templates: [tax-letter]
+    notes: >-
+      Emit the literal 'None' when empty. With foreign reporting in scope, blank
+      and 'None' are different statements.
+  - field: AmountDue
+    source: computed
+    templates: [invoice]
+    notes: >-
+      Computed: subtotal plus credits (credits negative).
+  - field: BillingContactEmail
+    source: firm
+    templates: [invoice]
+  - field: BillingContactName
+    source: firm
+    templates: [invoice]
+  - field: BillingContactPhone
+    source: firm
+    templates: [invoice]
+  - field: Cadence
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - field: CatchUpPeriods
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - field: ClientAddress1
+    source: interview
+    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    notes: >-
+      Not collected by the website intake — the interview must ask.
+  - field: ClientCity
+    source: interview
+    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    notes: >-
+      Website intake collects city+state together; the interview splits them.
+  - field: ClientEmail
+    source: interview
+    templates: [onboarding-letter]
+    notes: >-
+      Printed on purpose: tells the client which inbox the Encyro invitation
+      went to.
+  - field: ClientFullName
+    source: interview
+    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    notes: >-
+      Addressee block. For a business engagement this is the entity's legal
+      name.
+  - field: ClientLetterName
+    source: interview
+    templates: [bookkeeping-letter, onboarding-letter, organizer-letter, tax-letter]
+    notes: >-
+      Salutation only. Never the legal name. Maps to the website intake's
+      'Preferred name'.
+  - field: ClientState
+    source: interview
+    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    notes: >-
+      Website intake collects city+state together; the interview splits them.
+  - field: ClientZip
+    source: interview
+    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    notes: >-
+      Not collected by the website intake — the interview must ask.
+  - field: CreditAmount
+    source: invoice
+    templates: [invoice]
+    notes: >-
+      A real minus sign (U+2212), not a hyphen. Never parentheses.
+  - field: CreditDetail
+    source: invoice
+    templates: [invoice]
+  - field: CreditLabel
+    source: invoice
+    templates: [invoice]
+  - field: DeliveryTarget
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - field: EngagementRef
+    source: engagement
+    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    notes: >-
+      Join key. YYYY-NNNN, byte-identical across letter, estimate, onboarding
+      and every invoice. A lead's number becomes its EngagementRef on
+      conversion.
+  - field: EstimateDate
+    source: invoice
+    templates: [invoice]
+  - field: EstimateTotal
+    source: computed
+    templates: [fee-estimate, invoice]
+    notes: >-
+      Computed — sum the line items in code. Never typed.
+  - field: FederalReturns
+    source: interview
+    templates: [tax-letter]
+  - field: FeeChangeNote
+    source: engagement
+    templates: [organizer-letter]
+  - field: FirstDeliverableTarget
+    source: engagement
+    templates: [onboarding-letter]
+  - field: FirstPeriod
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - field: InvoiceDate
+    source: computed
+    templates: [invoice]
+  - field: InvoiceNumber
+    source: computed
+    templates: [invoice]
+    notes: >-
+      Sequential, never reused. One engagement has many invoices.
+  - field: LetterDate
+    source: computed
+    templates: [bookkeeping-letter, fee-estimate, onboarding-letter, organizer-letter, tax-letter]
+    notes: >-
+      Generated at send time. On the estimate this is the LETTER's date, not
+      today's.
+  - field: LocalReturns
+    source: interview
+    templates: [tax-letter]
+    notes: >-
+      Name every locality. Emit the literal 'None' when empty — never blank.
+  - field: MaterialsDeadline
+    source: engagement
+    templates: [onboarding-letter, organizer-letter, tax-letter]
+    notes: >-
+      Firm setting per return type per season, not a per-client answer. Prints
+      in three documents; a mismatch is the organizer's most likely bug.
+  - field: NoticePeriod
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - field: PaymentInstruction
+    source: firm
+    templates: [invoice]
+  - field: PeriodLabel
+    source: computed
+    templates: [fee-estimate, invoice, onboarding-letter]
+    notes: >-
+      DERIVED PER DOCUMENT, never stored. Estimate/onboarding: the engagement
+      period ('2026 tax year'). Invoice: the period BILLED ('March 2027'). One
+      shared value would print the wrong thing on one of them.
+  - field: PreparerEmail
+    source: firm
+    templates: [onboarding-letter]
+  - field: PreparerName
+    source: firm
+    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+  - field: PreparerPhone
+    source: firm
+    templates: [onboarding-letter]
+  - field: PreparerTitle
+    source: firm
+    templates: [bookkeeping-letter, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+  - field: PriorFirmName
+    source: interview
+    templates: [onboarding-letter]
+  - field: ReturnInstruction
+    source: firm
+    templates: [tax-letter]
+  - field: SignerName
+    source: interview
+    templates: [bookkeeping-letter]
+  - field: SignerTitle
+    source: interview
+    templates: [bookkeeping-letter]
+  - field: SpouseName
+    source: interview
+    templates: [tax-letter]
+  - field: StateReturns
+    source: interview
+    templates: [tax-letter]
+    notes: >-
+      Name every state. This is the scope boundary.
+  - field: Subtotal
+    source: computed
+    templates: [invoice]
+    notes: >-
+      Computed.
+  - field: TaxYear
+    source: interview
+    templates: [organizer-letter, tax-letter]
+    notes: >-
+      Appears three times in the tax letter — drive them all from one value.
+  - field: TaxpayerName
+    source: interview
+    templates: [tax-letter]
+  - field: VarianceNote
+    source: invoice
+    templates: [invoice]
+    notes: >-
+      Not optional when the invoice exceeds the estimate.
+
+flags:
+  - flag: CatchUp
+    source: bookkeeping
+    templates: [bookkeeping-letter]
+  - flag: JointReturn
+    source: interview
+    templates: [tax-letter]
+  - flag: CreditsApplied
+    source: invoice
+    templates: [invoice]
+  - flag: EstimateReference
+    source: invoice
+    templates: [invoice]
+  - flag: PriorFirm
+    source: interview
+    templates: [onboarding-letter]
+  - flag: FeeChange
+    source: engagement
+    templates: [organizer-letter]
+
+lists:
+  - list: ScopeItems
+    templates: [bookkeeping-letter]
+    item_fields: [Detail, Service]
+  - list: LineItems
+    templates: [fee-estimate]
+    item_fields: [Amount, Detail, Service]
+  - list: LineItems
+    templates: [invoice]
+    item_fields: [Amount, Detail, Service]
+  - list: RequestList
+    templates: [onboarding-letter]
+    item_fields: [Detail, Document]
+  - list: Requested
+    templates: [organizer-letter]
+    item_fields: [Category, Detail]

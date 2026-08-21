@@ -1,0 +1,65 @@
+{
+  "_comment": [
+    "Fictional. No real client data belongs in this repo — CLAUDE.md is explicit that",
+    "only masked or invented values go in artifacts. Names and address follow the style",
+    "the FIELDS docs already use.",
+    "",
+    "One record, three documents: the engagement letter, the fee estimate and the",
+    "onboarding letter share LetterDate, EngagementRef, the address block and the",
+    "preparer, so generating them together is what stops them disagreeing.",
+    "",
+    "Deliberately absent: SSN, ITIN, EIN, date of birth, bank details. The interview",
+    "record never holds them, and test_registry enforces it."
+  ],
+
+  "LetterDate": "February 3, 2027",
+  "EngagementRef": "2027-0114",
+  "PeriodLabel": "2026 tax year",
+  "TaxYear": "2026",
+
+  "ClientFullName": "Mr. and Mrs. Daniel Reyes",
+  "ClientLetterName": "Dan",
+  "ClientAddress1": "418 Rockwell Street",
+  "ClientCity": "Solon",
+  "ClientState": "OH",
+  "ClientZip": "44139",
+  "ClientEmail": "dreyes@example.com",
+
+  "TaxpayerName": "Daniel Reyes",
+  "SpouseName": "Maria Reyes",
+  "JointReturn": true,
+
+  "FederalReturns": "Form 1040 with Schedules A, C, and SE",
+  "StateReturns": "Ohio IT 1040 — resident",
+  "LocalReturns": "Solon municipal",
+  "AdditionalForms": "Two K-1s as reported",
+  "MaterialsDeadline": "March 15, 2027",
+
+  "PriorFirm": true,
+  "PriorFirmName": "Halloran & Reeve CPAs",
+
+  "AckWindow": "three business days",
+  "FirstDeliverableTarget": "April 1, 2027",
+
+  "ReturnInstruction": "Sign through Encyro and it comes straight back to us.",
+  "PreparerName": "Arjun Sethuraman, CPA",
+  "PreparerTitle": "Managing Partner",
+  "PreparerEmail": "arjun_sethuraman@satcllp.com",
+  "PreparerPhone": "307-941-0508",
+
+  "LineItems": [
+    { "Service": "Federal Form 1040", "Detail": "With Schedules A, C, and SE", "Amount": "$450" },
+    { "Service": "Ohio IT 1040", "Detail": "Resident return", "Amount": "$185" },
+    { "Service": "Solon municipal return", "Detail": "", "Amount": "$95" },
+    { "Service": "Quarterly estimates for the following year", "Detail": "Calculated in the same pass", "Amount": "$55" }
+  ],
+  "EstimateTotal": "$785",
+
+  "RequestList": [
+    { "Document": "All W-2 forms", "Detail": "For both of you, including part-year employment" },
+    { "Document": "1099 forms", "Detail": "Interest, dividends, brokerage, and any contract work" },
+    { "Document": "Schedule K-1s", "Detail": "Both partnerships, when they arrive" },
+    { "Document": "Prior-year return", "Detail": "2025, as filed" },
+    { "Document": "Rental records", "Detail": "Income and expenses by property" }
+  ]
+}

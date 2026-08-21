@@ -1,0 +1,323 @@
+# SATC — pre-engagement interview schema
+#
+# The consultation call after a website lead. Its job is to decide whether to
+# take the work and to gather what the opening package needs — engagement
+# letter, fee estimate, onboarding letter.
+#
+# THIS IS THE FILE TO EDIT when the interview changes. Every question either
+# supplies a registry field or is tagged `internal: true` with a reason; the
+# reconciliation test fails otherwise, in both directions.
+#
+# Scope: TAX RETURN PREPARATION only. Bookkeeping fields exist in the registry
+# and are not asked here.
+#
+# `prefill` names the key in the website intake's `_json` payload whose answer
+# should be shown for confirmation. The website answer is a claim, not a fact —
+# every prefilled question is still asked, sharpened.
+#
+# `showIf` follows website/intake-config.js: one predicate deciding both whether
+# a question is asked and whether its answer may survive.
+
+sections:
+
+  # ── 1 · Who they are ────────────────────────────────────────────────────
+  - id: identity
+    title: Who they are
+    questions:
+      - id: client_full_name
+        question: "Full legal name, as it should appear on the letter"
+        help: "Addressee block. 'Mr. and Mrs. Daniel Reyes' for a joint return."
+        type: text
+        required: true
+        supplies: [ClientFullName]
+
+      - id: client_letter_name
+        question: "What should we call them in the salutation?"
+        help: "'Dan'. Never the legal name — getting this wrong reads badly."
+        type: text
+        required: true
+        prefill: contact.name
+        supplies: [ClientLetterName]
+
+      - id: client_address1
+        question: "Street address"
+        type: text
+        required: true
+        supplies: [ClientAddress1]
+        notes: "Not collected by the website intake."
+
+      - id: client_city
+        question: "City"
+        type: text
+        required: true
+        prefill: contact.location
+        supplies: [ClientCity]
+
+      - id: client_state
+        question: "State"
+        type: text
+        required: true
+        prefill: contact.location
+        supplies: [ClientState]
+
+      - id: client_zip
+        question: "ZIP"
+        type: text
+        required: true
+        supplies: [ClientZip]
+        notes: "Not collected by the website intake."
+
+      - id: client_email
+        question: "Email"
+        help: "Printed on the onboarding letter so they know which inbox the Encyro invitation went to."
+        type: text
+        required: true
+        prefill: contact.email
+        supplies: [ClientEmail]
+
+  # ── 2 · Filing status ───────────────────────────────────────────────────
+  - id: filing_status
+    title: Filing status
+    questions:
+      - id: joint_return
+        question: "Is this a joint return?"
+        type: single
+        required: true
+        options:
+          - { value: "yes", label: "Joint" }
+          - { value: "no",  label: "Single / head of household / other" }
+        supplies: [JointReturn]
+        notes: "Drops the spouse signature block AND the joint-representation paragraph."
+
+      - id: taxpayer_name
+        question: "Taxpayer's name, as it goes under the signature line"
+        type: text
+        required: true
+        supplies: [TaxpayerName]
+
+      - id: spouse_name
+        question: "Spouse's name"
+        type: text
+        required: true
+        showIf: "joint_return == 'yes'"
+        supplies: [SpouseName]
+
+  # ── 3 · Return composition — the scope boundary ─────────────────────────
+  - id: composition
+    title: What we will prepare
+    questions:
+      - id: tax_year
+        question: "Which tax year?"
+        type: text
+        required: true
+        supplies: [TaxYear]
+
+      - id: federal_form
+        question: "Which federal return?"
+        type: single
+        required: true
+        options:
+          - { value: "1040",  label: "Form 1040" }
+          - { value: "1120S", label: "Form 1120-S" }
+          - { value: "1065",  label: "Form 1065" }
+          - { value: "1120",  label: "Form 1120" }
+        supplies: [FederalReturns]
+
+      - id: federal_schedules
+        question: "Which schedules?"
+        help: "Tick every one. This assembles the FederalReturns sentence."
+        type: multi
+        prefill: individual_complexity
+        options:
+          - { value: "A",  label: "Schedule A — itemized deductions" }
+          - { value: "B",  label: "Schedule B — interest and dividends" }
+          - { value: "C",  label: "Schedule C — sole proprietorship" }
+          - { value: "D",  label: "Schedule D — capital gains" }
+          - { value: "E1", label: "Schedule E page 1 — rentals" }
+          - { value: "E2", label: "Schedule E page 2 — K-1 income" }
+          - { value: "F",  label: "Schedule F — farm" }
+          - { value: "SE", label: "Schedule SE — self-employment tax" }
+        showIf: "federal_form == '1040'"
+        supplies: [FederalReturns]
+
+      - id: states
+        question: "Which states, and on what basis?"
+        help: >-
+          Name every one. This is the scope boundary — a state omitted here is a
+          state we did not agree to file. Record each as
+          'Ohio — resident' / 'Michigan — non-resident'.
+        type: list
+        required: true
+        prefill: individual_complexity
+        supplies: [StateReturns]
+
+      - id: localities
+        question: "Which localities?"
+        help: >-
+          Ohio municipal returns, RITA or CCA filings, school district returns.
+          Emit 'None' when there are none — never blank.
+        type: list
+        supplies: [LocalReturns]
+        notes: "[CONFIRM: does one RITA filing count as one locality or several?]"
+
+      - id: additional_forms
+        question: "Anything else filed alongside?"
+        help: >-
+          K-1s as reported, FBAR (FinCEN 114), Form 8938, 1116, 2555, 8962.
+          Emit 'None' when empty — with foreign reporting in scope, blank and
+          'None' are not the same statement.
+        type: list
+        supplies: [AdditionalForms]
+
+  # ── 4 · Billable counts ─────────────────────────────────────────────────
+  # Counted, not priced. Amounts are attached in fee-schedule.yaml when it
+  # exists; these produce the LineItems inputs.
+  - id: counts
+    title: What drives the fee
+    questions:
+      - id: count_states
+        question: "How many state returns?"
+        type: number
+        supplies: []
+        feeds: LineItems
+
+      - id: count_localities
+        question: "How many local returns?"
+        type: number
+        supplies: []
+        feeds: LineItems
+
+      - id: count_rentals
+        question: "How many rental properties?"
+        type: number
+        showIf: "'E1' in federal_schedules"
+        supplies: []
+        feeds: LineItems
+
+      - id: count_k1s
+        question: "How many K-1s received?"
+        type: number
+        showIf: "'E2' in federal_schedules"
+        supplies: []
+        feeds: LineItems
+
+      - id: count_businesses
+        question: "How many Schedule C businesses?"
+        type: number
+        showIf: "'C' in federal_schedules"
+        supplies: []
+        feeds: LineItems
+
+      - id: brokerage_band
+        question: "Roughly how much brokerage activity?"
+        help: "Banded rather than counted — a client does not know their trade count."
+        type: single
+        showIf: "'D' in federal_schedules"
+        options:
+          - { value: "none",   label: "None" }
+          - { value: "light",  label: "A handful of transactions" }
+          - { value: "medium", label: "Consolidated 1099-B, moderate activity" }
+          - { value: "heavy",  label: "High volume, or multiple brokers" }
+        supplies: []
+        feeds: LineItems
+
+      - id: cleanup_band
+        question: "How much cleanup before the return can be prepared?"
+        type: single
+        prefill: bookkeeping_status
+        options:
+          - { value: "none",    label: "Records are complete and reconciled" }
+          - { value: "light",   label: "Some tidying" }
+          - { value: "heavy",   label: "Substantial reconstruction" }
+        supplies: []
+        feeds: LineItems
+
+  # ── 5 · Prior year and predecessor ──────────────────────────────────────
+  - id: history
+    title: Prior year
+    questions:
+      - id: prior_firm
+        question: "Was someone else preparing these?"
+        type: single
+        required: true
+        options:
+          - { value: "yes", label: "Yes — there is a predecessor" }
+          - { value: "no",  label: "No — first return, or self-prepared" }
+        supplies: [PriorFirm]
+
+      - id: prior_firm_name
+        question: "Which firm?"
+        type: text
+        required: true
+        showIf: "prior_firm == 'yes'"
+        supplies: [PriorFirmName]
+
+      - id: prior_return_available
+        question: "Can they provide the prior-year return?"
+        type: single
+        prefill: tax_status
+        options:
+          - { value: "yes",     label: "Yes" }
+          - { value: "partial", label: "Some years" }
+          - { value: "no",      label: "No" }
+        supplies: []
+        feeds: RequestList
+
+      - id: unfiled_years
+        question: "Any unfiled years?"
+        help: "A flag, and a pricing input. Record the years."
+        type: text
+        prefill: tax_status
+        supplies: []
+        flags_as: unfiled_years
+        internal: true
+        internal_reason: >-
+          A pricing input and a risk flag. Prints on no client document — the
+          letter speaks about deadlines generically in section 04.
+
+  # ── 6 · Red flags ───────────────────────────────────────────────────────
+  # Recorded against the record. The hard-no subset lives in firm-settings.yaml
+  # because it governs declining work, not producing a document.
+  - id: flags
+    title: Flags
+    questions:
+      - id: red_flags
+        question: "Anything that gives you pause?"
+        type: multi
+        options:
+          - { value: "assurance_needed",  label: "Needs assurance work — HARD NO", hard_no: true }
+          - { value: "aggressive",        label: "Wants a position we would not sign — HARD NO", hard_no: true }
+          - { value: "prior_dispute",     label: "Dispute with the previous preparer" }
+          - { value: "missing_records",   label: "Records are missing or unreliable" }
+          - { value: "notice_open",       label: "Open IRS or state notice" }
+          - { value: "foreign_exposure",  label: "Foreign accounts, assets, trusts or gifts" }
+          - { value: "digital_assets",    label: "Digital asset activity" }
+          - { value: "deadline_tight",    label: "Deadline is tight for the work involved" }
+        supplies: []
+        internal: true
+        internal_reason: >-
+          Recorded for the decision and for pricing. Does not print on any client
+          document — the letter names risk areas generically in section 03.
+
+  # ── 7 · Internal ────────────────────────────────────────────────────────
+  - id: internal
+    title: Decision
+    questions:
+      - id: decision
+        question: "Take it on?"
+        type: single
+        required: true
+        options:
+          - { value: "yes",      label: "Yes — send the opening package" }
+          - { value: "no",       label: "No — decline" }
+          - { value: "thinking", label: "Undecided" }
+        supplies: []
+        internal: true
+        internal_reason: "Drives what happens next, prints nowhere."
+
+      - id: notes
+        question: "Notes"
+        type: textarea
+        supplies: []
+        internal: true
+        internal_reason: "Working notes for the engagement, never merged."
