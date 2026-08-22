@@ -686,6 +686,54 @@ are corrected. No shipped output changes; both formatters were already right.
 Neither ruling required inventing regulatory or assurance wording, and neither
 one added a claim. Both removed one.
 
+## Addendum — the prefill was decorative (branch `b6-fee-basis`)
+
+Asked how the interview gets populated from a website lead. The honest answer
+was that it did not.
+
+`prefill` displayed what the website said — `[required; website said: 'Dan']` —
+and then `if not raw: return None` ran **before the default was ever
+consulted**. Pressing enter re-asked the question. Every prefilled value had to
+be retyped character for character, so the feature looked implemented, was
+tested (`test_prefill_offers_the_website_claim_without_answering` passed), and
+did nothing.
+
+Enter now accepts; `-` clears. That one-line change turned three latent bugs
+into live ones, which is the interesting part: **a claim nobody could accept
+was a claim nobody had checked.**
+
+1. `client_city` and `client_state` both read `contact.location`, so both were
+   offered the whole `"Solon, OH"`. Accepting both would print
+   *"Solon, OH, Solon, OH 44139"* on a client letter. `prefill_index` now says
+   which comma-separated piece a question wants.
+2. `federal_schedules` was offered `'w2', 'k1', 'rental'` — the website's
+   vocabulary, none of it a schedule code. `prefill_map` translates
+   (`rental` → E1, `k1` → E2, `sole_prop` → C and SE) and drops anything with
+   no entry, because a plain W-2 is a real thing to tell us and is not a
+   schedule.
+3. **`states` prefilled from `individual_complexity`.** It offered the
+   complexity checklist as the list of states — `w2` as a state the firm had
+   agreed to file. That list is the engagement's scope boundary, and the
+   schema's own help text says *"a state omitted here is a state we did not
+   agree to file"*. The website never asks which states. The prefill is
+   removed: a wrong claim there is worse than no claim.
+
+The guard, so this cannot recur: a prefill is acceptable with enter **only if
+it is a legal answer to its question**. An invalid one is still shown — it is
+what the client told us — but it cannot be one keystroke from a document.
+`prior_return_available` offering `'unsure'` against yes/partial/no is now
+displayed and must be answered.
+
+A schema-wide test asserts nothing is silently offered for acceptance that its
+own question would reject, and another asserts `states` is never prefilled at
+all. 145 tests pass, up from 134; twelve new. Confirmed in CI, not just
+locally: `145 passed in 6.91s`, no skips.
+
+**The lesson worth keeping.** The bug was not in the three mappings. It was that
+the mechanism made them unreachable, so nothing — not the tests, not a human
+running the interview — ever exercised them. A feature that is inert is not a
+feature that is safe; it is a feature whose faults are still ahead of you.
+
 ## What a human should do next
 
 1. **Call the Accountancy Board of Ohio.** Unchanged from the brief, and still
