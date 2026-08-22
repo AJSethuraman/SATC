@@ -35,8 +35,32 @@ Four are a date. Two are a sentence. Two block nothing today.
 | 5 | `delivery.ack_window` | Onboarding letter | A duration that drops into a sentence — "three business days" |
 | 6 | `delivery.payment_instruction` | Every invoice | One sentence naming how a client pays. **Names the processor**, so it changes when that does |
 | 7 | `billing.contact_email` | Every invoice | Does `billing@satcllp.com` exist, or use the main address? |
-| 8 | `legal_name` | Nothing yet — footers hardcode it | The exact name on the Ohio LLP filing. **Three variants are in use and only one is on the filing** |
+| 8 | `legal_name` | **Every template.** See below — this entry understated it | The exact name on the Ohio LLP filing. **Three variants are in use and only one is on the filing** |
 | 9 | `hard_no[1]` | Nothing — it gates declining work | The rest of the "we don't take this" list |
+
+### `legal_name` is worse than this list said
+
+It was recorded above as blocking "nothing yet — footers hardcode it". The
+hardcoding is precisely *why* it blocks, and `firm-settings.yaml` says so
+plainly: **"Until this is settled, no template should ship to a client."**
+
+The reasoning is mechanical. Every other open decision is a `[CONFIRM:` inside a
+merge field, and the merge engine refuses to render while one survives — the
+guard catches it. The legal name is **not a merge field**. It is typed into the
+footer of all ten templates, so nothing checks it, and a wrong one ships
+silently past every gate the pipeline has.
+
+Grepping the templates finds the three variants:
+
+| In the templates | Count |
+|---|---|
+| `Sethuraman Accounting, Tax & Consulting LLP` (footer form) | 23 |
+| `Sethuraman Accounting Tax and Consulting` | 1 |
+| `Sethuraman Accounting Tax & Consulting LLP` | 1 |
+
+Two of those three are wrong on any reading, since they cannot all match one
+Ohio filing. Answering this is one line; leaving it means the document set
+cannot go out.
 
 ## 2 · One contradiction that needs a ruling
 
