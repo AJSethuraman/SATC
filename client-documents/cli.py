@@ -402,12 +402,29 @@ def _ask(section: dict, q: dict, default) -> object:
             "single": "a number",
             "number": "a number",
             "textarea": "one line"}.get(q["type"], "")
-    if default not in (None, "", []):
-        hint = f"website said: {default!r}" + (f"; {hint}" if hint else "")
+    # A claim the question would reject is shown, but not acceptable with enter.
+    has_default = iv.prefill_is_answerable(q, default)
+    if default not in (None, "", []) and not has_default:
+        print(f"      website said: {default!r} -- not a valid answer here, "
+              f"so it needs a real one")
+    if has_default:
+        # Enter accepts it. The schema calls a prefilled answer a claim to
+        # confirm rather than a fact, and pressing enter on a value you can see
+        # IS confirming it -- retyping it character for character is not a
+        # stronger confirmation, it is just friction, and friction is what makes
+        # someone stop reading the value before they accept it.
+        hint = (f"website said: {default!r} -- enter to accept, '-' to clear"
+                + (f"; {hint}" if hint else ""))
     req = "required" if q.get("required") else "optional"
     raw = input(f"      [{req}{'; ' + hint if hint else ''}] > ").strip()
 
+    if raw == "-":
+        # An explicit "the website is wrong and the answer is nothing".
+        return [] if q["type"] in ("multi", "list") else None
+
     if not raw:
+        if has_default:
+            return default
         if q["type"] in ("multi", "list"):
             return []
         return None

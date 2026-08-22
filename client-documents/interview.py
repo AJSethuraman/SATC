@@ -107,7 +107,53 @@ def prefill_for(question: dict, lead: dict | None) -> object:
         if not isinstance(node, dict) or part not in node:
             return None
         node = node[part]
+
+    # One lead value can answer more than one question: the intake form collects
+    # location as a single "Solon, OH", and the letter needs city and state in
+    # separate lines of the address block. `prefill_index` says which comma-
+    # separated piece this question wants.
+    #
+    # Without it both questions offered the whole string, and once enter began
+    # accepting a prefill that produced "Solon, OH, Solon, OH 44139" on a client
+    # letter. A claim that cannot be accepted as shown is not a usable claim.
+    idx = question.get("prefill_index")
+    if idx is not None and isinstance(node, str):
+        pieces = [p.strip() for p in node.split(",")]
+        return pieces[idx] if idx < len(pieces) and pieces[idx] else None
+
+    # The website and this schema do not share a vocabulary. The intake form
+    # collects "rental"; the letter needs "Schedule E page 1". `prefill_map`
+    # translates, and a lead value with no entry is dropped rather than carried
+    # through -- "w2" is a real thing to tell us and not a schedule.
+    mapping = question.get("prefill_map")
+    if mapping:
+        if isinstance(node, list):
+            out = []
+            for v in node:
+                got = mapping.get(v)
+                for one in (got if isinstance(got, list) else [got]):
+                    if one is not None and one not in out:
+                        out.append(one)
+            return out or None
+        return mapping.get(node)
     return node
+
+
+def prefill_is_answerable(question: dict, value) -> bool:
+    """Could this claim be accepted as it stands?
+
+    The interview offers a prefill as a default you accept with enter, so it has
+    to be a legal answer to the question being asked. A value the question would
+    reject is still worth SHOWING -- it is what the client told us -- but it
+    must not be one keystroke from landing in a document.
+    """
+    if value in (None, "", []):
+        return False
+    options = [o["value"] for o in question.get("options", [])]
+    if not options:
+        return True
+    values = value if isinstance(value, list) else [value]
+    return all(v in options for v in values)
 
 
 # ── the flow ───────────────────────────────────────────────────────────────

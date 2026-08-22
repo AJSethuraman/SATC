@@ -51,6 +51,7 @@ sections:
         type: text
         required: true
         prefill: contact.location
+        prefill_index: 0   # 'Solon, OH' -> city
         supplies: [ClientCity]
 
       - id: client_state
@@ -58,6 +59,7 @@ sections:
         type: text
         required: true
         prefill: contact.location
+        prefill_index: 1   # 'Solon, OH' -> state
         supplies: [ClientState]
 
       - id: client_zip
@@ -128,6 +130,17 @@ sections:
         help: "Tick every one. This assembles the FederalReturns sentence."
         type: multi
         prefill: individual_complexity
+        # The intake form and this schema do not share a vocabulary. Anything
+        # not listed here (a plain W-2, say) is not a schedule and is dropped
+        # rather than carried through as a claim.
+        prefill_map:
+          rental:        E1
+          k1:            E2
+          self_employed: [C, SE]
+          sole_prop:     [C, SE]
+          brokerage:     D
+          investments:   D
+          itemize:       A
         options:
           - { value: "A",  label: "Schedule A — itemized deductions" }
           - { value: "B",  label: "Schedule B — interest and dividends" }
@@ -148,7 +161,14 @@ sections:
           'Ohio — resident' / 'Michigan — non-resident'.
         type: list
         required: true
-        prefill: individual_complexity
+        # Deliberately NOT prefilled. This used to read `prefill:
+        # individual_complexity`, which offered the complexity checklist
+        # ('w2', 'k1', 'rental') as the list of states. It was invisible while
+        # every prefill had to be retyped; once enter began accepting one it
+        # would have put 'w2' on a letter as a state we agreed to file.
+        #
+        # The website never asks which states. A wrong claim here is worse than
+        # no claim: this list is the scope boundary of the engagement.
         supplies: [StateReturns]
 
       - id: localities

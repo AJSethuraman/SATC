@@ -113,6 +113,106 @@ def test_prefill_is_silent_when_the_website_did_not_ask():
     assert iv.prefill_for(session.question("client_zip"), lead) is None
 
 
+def test_one_lead_value_splits_across_two_questions():
+    """The form collects "Solon, OH"; the address block needs two lines.
+
+    Both questions used to be offered the whole string, which was invisible
+    while every prefill had to be retyped and would have printed
+    "Solon, OH, Solon, OH 44139" the moment enter began accepting one.
+    """
+    lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))
+    session = iv.Interview(lead=lead)
+    assert iv.prefill_for(session.question("client_city"), lead) == "Solon"
+    assert iv.prefill_for(session.question("client_state"), lead) == "OH"
+
+
+def test_a_split_with_nothing_in_that_position_makes_no_claim():
+    q = {"prefill": "contact.location", "prefill_index": 1}
+    assert iv.prefill_for(q, {"contact": {"location": "Solon"}}) is None
+
+
+def test_the_websites_vocabulary_is_translated_not_carried_through():
+    """"rental" is not a schedule. "E1" is."""
+    lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))
+    session = iv.Interview(lead=lead)
+    got = iv.prefill_for(session.question("federal_schedules"), lead)
+    assert set(got) == {"E1", "E2"}
+
+
+def test_a_lead_value_with_no_translation_is_dropped():
+    """A plain W-2 is a real thing to tell us and is not a schedule."""
+    lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))
+    assert "w2" in lead["individual_complexity"]
+    session = iv.Interview(lead=lead)
+    assert "w2" not in iv.prefill_for(session.question("federal_schedules"), lead)
+
+
+def test_one_lead_answer_can_imply_two_schedules():
+    q = {"prefill": "x", "prefill_map": {"sole_prop": ["C", "SE"]}}
+    assert iv.prefill_for(q, {"x": ["sole_prop"]}) == ["C", "SE"]
+
+
+# ── a claim you can accept must be a legal answer ─────────────────────────
+
+def test_a_claim_the_question_would_reject_is_not_acceptable(schema):
+    """Enter accepts a prefill, so an invalid one is a keystroke from a
+    document. It is still shown -- it is what the client told us -- but it
+    cannot be taken as the answer."""
+    q = {"options": [{"value": "yes"}, {"value": "partial"}, {"value": "no"}]}
+    assert not iv.prefill_is_answerable(q, "unsure")
+    assert iv.prefill_is_answerable(q, "yes")
+
+
+def test_a_free_text_claim_is_always_acceptable():
+    assert iv.prefill_is_answerable({}, "anything")
+
+
+def test_an_empty_claim_is_not_a_claim():
+    for empty in (None, "", []):
+        assert not iv.prefill_is_answerable({}, empty)
+
+
+def test_a_multi_claim_is_acceptable_only_if_every_value_is_legal():
+    q = {"options": [{"value": "A"}, {"value": "B"}]}
+    assert iv.prefill_is_answerable(q, ["A", "B"])
+    assert not iv.prefill_is_answerable(q, ["A", "w2"])
+
+
+def test_every_prefill_in_the_real_schema_is_either_legal_or_flagged(schema):
+    """The guard that makes the whole mechanism safe.
+
+    Any prefill the sample lead supplies must either be a legal answer, or be
+    reported as unacceptable. Nothing may be silently offered for acceptance
+    that the question itself would reject.
+    """
+    lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))
+    for section in schema["sections"]:
+        for q in section["questions"]:
+            if not q.get("prefill"):
+                continue
+            value = iv.prefill_for(q, lead)
+            if iv.prefill_is_answerable(q, value):
+                opts = [o["value"] for o in q.get("options", [])]
+                if opts:
+                    vals = value if isinstance(value, list) else [value]
+                    assert all(v in opts for v in vals), (
+                        f"{q['id']} offers {value!r} for acceptance, but the "
+                        f"question only takes {opts}"
+                    )
+
+
+def test_the_scope_boundary_is_never_prefilled(schema):
+    """`states` is what the firm agreed to file. It once prefilled from the
+    website's complexity checklist, which would have offered 'w2' as a state."""
+    for section in schema["sections"]:
+        for q in section["questions"]:
+            if q["id"] == "states":
+                assert "prefill" not in q, (
+                    "the website never asks which states; a wrong claim here "
+                    "is worse than no claim"
+                )
+
+
 # ── composition ───────────────────────────────────────────────────────────
 
 def test_federal_returns_is_the_form_plus_its_schedules():
