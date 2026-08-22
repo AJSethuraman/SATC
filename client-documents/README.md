@@ -20,9 +20,86 @@ tests/                        reconciliation + merge behaviour
 
 ```bash
 cd client-documents
-pip install pytest pyyaml
-python -m pytest -q
+make install                       # deps + the Chromium PDF engine
+make demo                          # lead -> record -> the opening package as PDFs
+
+python cli.py interview --lead lead.json      # the consultation call
+python cli.py doctor --engagement 2026-0001   # what THIS client still needs
+python cli.py render --engagement 2026-0001 --out out
 ```
+
+`cli.py` is the entry point:
+
+| | |
+|---|---|
+| `interview` | runs the consultation from `registry/interview.yaml` — **and creates the engagement** |
+| `engagements` | what exists |
+| `doctor` | open decisions blocking every render; `--engagement REF` for one client, document by document |
+| `from-lead` | a website intake payload → a record skeleton |
+| `render` | a record, or `--engagement REF` → client-ready HTML and PDF |
+| `demo` | the whole chain, from a fixture, in one command |
+
+### The interview
+
+Thirty questions across seven sections, with branching. It asks what the schema
+says to ask, offers the website's answers as **claims to confirm rather than
+facts**, and retracts an answer whose question a later change hid — answer
+joint, name the spouse, change to single, and the spouse name goes, because left
+behind it reaches a document with no signature block for it.
+
+`--answers file.json` replays a saved interview without prompting: how the tests
+drive it, and how you resume one you abandoned. Answers are keyed by question
+id, so a schema change cannot silently shift them onto the wrong questions.
+
+Two options are marked **HARD NO** in the schema. Ticking one refuses to create
+the engagement; `--override-hard-no` exists for when it is genuinely a judgement
+call rather than the list being wrong.
+
+### The engagement
+
+The interview's output *is* an engagement. `EngagementRef` is allocated
+sequentially as `YYYY-NNNN`, never reused, validated at the door — it is
+byte-compared across every document, so a malformed one is refused rather than
+discovered on a client's letter.
+
+One engagement is one folder: `engagements/2026-0001/record.json` holds the
+merge fields, `interview.json` holds every answer including the internal ones —
+the red flags, the decision, the notes, the billable counts. The record is
+lossy on purpose; those are why the engagement was taken on, and they belong
+with it rather than in it.
+
+```bash
+python cli.py render samples/tax-opening-package.json --out out
+python cli.py render record.json --docs invoice delivery-letter --out out
+python cli.py render record.json --draft --out out     # see below
+```
+
+A record needs `_season` (the tax year being filed — it selects the materials
+deadline) and optionally `_return_type`. Firm settings fill in behind it; the
+record wins where it sets something, because a per-engagement override is
+legitimate and ignoring it silently would be worse.
+
+### Two modes, and the difference is the point
+
+**Real** (default) writes nothing at all when a document would be holed. Not a
+warning, not a partial file — an unresolved field or a surviving `[CONFIRM]`
+raises and the render is abandoned. A refusal that still left a file on disk
+would be worse than no refusal, because somebody would send the file.
+
+**Draft** (`--draft`) renders anyway, so the pipeline can be exercised before
+the firm's decisions are made. Every page is stamped, every open decision is
+marked in oxblood where it would print, and the filename says DRAFT. The stamp
+goes in `doc-page`'s running header slot rather than a fixed banner, because a
+banner on page one leaves page two byte-identical to the real letter — and page
+two is what gets handed across a desk on its own.
+
+### The PDF engine
+
+Chromium is primary. The templates are flexbox and were designed and proofed in
+a browser; WeasyPrint's flex support is partial, so it renders the SAT-C
+wordmark as overlapping letters and collides clause numerals with their
+headings. The document is correct either way — it just does not look like the
+brand. `doctor` reports which engine you have.
 
 ## What the tests actually protect
 
@@ -84,6 +161,44 @@ Found by reading the `FIELDS` docs together, and recorded in
 asserts that the letter raises rather than rendering while it is there, and
 separately that everything *else* in the letter resolves — so the marker cannot
 be forgotten, and the test goes green the moment a human answers it.
+
+## What comes next, and why in this order
+
+Three things stand between this and the practice running on it. They are **not
+three independent gaps** — they are one chain, and the order is forced:
+
+```
+   interview  ──▶  engagement  ──▶  delivery (Encyro)
+   asks the        exists, has      has something to
+   questions       a ref, and       send, and someone
+                   persists         to send it to
+```
+
+**1 · The interview — DONE.** `cli.py interview` runs the schema. See above.
+
+**2 · The engagement — DONE.** The interview creates one. Refs are allocated and
+persisted; see above.
+
+**The fee schedule — BUILT, UNPRICED.** `registry/fee-schedule.yaml` turns the
+interview's counts into the estimate's line items and total. Every amount in it
+is `[CONFIRM:` until the firm sets one, because §9 of the authoring contract
+says fee figures are a human's to set and an invented one is worse than a blank.
+
+**An unpriced item does not become zero.** The `[CONFIRM:` is carried through to
+the line and then to the total, and the estimate refuses to render — quoting a
+client $0 for a service is worse than quoting nothing. `samples/fee-schedule-example.yaml`
+holds fictional numbers so the mechanism can be seen working:
+`--fee-schedule` prices against it.
+
+To price the firm: replace the placeholders in
+`registry/fee-schedule.yaml`. Nothing else changes.
+
+**3 · Delivery.** Encyro. Once an engagement exists and has documents, there is
+something to send and someone to send it to. Before that there is not.
+
+Doing these out of order does not work: a delivery step with no engagement to
+deliver against is a file uploader, and an engagement with no interview to
+create it is a form nobody fills in.
 
 ## Design
 

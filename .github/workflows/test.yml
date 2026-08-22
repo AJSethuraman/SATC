@@ -22,7 +22,10 @@ jobs:
           - project: satc_system
             install: pip install -e ".[dev]"
           - project: client-documents
-            install: pip install -r requirements.txt
+            # Chromium too: the pipeline tests render real PDFs, and a suite
+            # that skips the one step a client actually receives is not
+            # testing the pipeline.
+            install: pip install -r requirements.txt && playwright install --with-deps chromium
           - project: invoice-generator
             install: pip install -r requirements.txt pytest
     defaults:

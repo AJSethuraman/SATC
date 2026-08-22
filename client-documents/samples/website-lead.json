@@ -1,0 +1,17 @@
+{
+  "_comment": "A website intake submission, in the shape docs/leads-to-excel.md documents: the `_json` line the Formspree notification carries. Fictional.",
+  "services": ["individual_tax", "tax_resolution"],
+  "individual_complexity": ["w2", "k1", "rental"],
+  "business_structure": ["sole_prop"],
+  "tax_status": "unsure",
+  "urgency": "no",
+  "notes": "Sold a rental in March and have a K-1 from a partnership I joined last year. Prior accountant retired.",
+  "contact": {
+    "name": "Dan",
+    "email": "dreyes@example.com",
+    "phone": "216-555-0147",
+    "preferred": "Email",
+    "location": "Solon, OH",
+    "consent": true
+  }
+}

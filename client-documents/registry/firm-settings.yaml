@@ -42,7 +42,7 @@ materials_deadlines:
   "2026":
     individual_1040: "[CONFIRM: 1040 materials deadline for the 2026 season]"
     s_corp_1120s:    "[CONFIRM: 1120-S materials deadline for the 2026 season]"
-    partnership_1065:"[CONFIRM: 1065 materials deadline for the 2026 season]"
+    partnership_1065: "[CONFIRM: 1065 materials deadline for the 2026 season]"
     c_corp_1120:     "[CONFIRM: 1120 materials deadline for the 2026 season]"
 
 # The firm's legal name is HARDCODED in every template footer, not merged. It is

@@ -232,6 +232,22 @@ sections:
         supplies: []
         feeds: LineItems
 
+      - id: first_deliverable_target
+        question: "When do we target the first deliverable?"
+        help: >-
+          The promise the client remembers, and the only date in the onboarding
+          letter that is ours rather than statutory. A real date or a phrase
+          they can hold us to — 'April 1, 2027', 'two weeks after the file is
+          complete'. Set it against the materials deadline and the workload,
+          not optimistically.
+        type: text
+        required: true
+        supplies: [FirstDeliverableTarget]
+        notes: >-
+          Registered `source: engagement` before anything asked it, which meant
+          nothing produced it and the onboarding letter could never render. It
+          is a judgement made on the call, so it is asked.
+
   # ── 5 · Prior year and predecessor ──────────────────────────────────────
   - id: history
     title: Prior year

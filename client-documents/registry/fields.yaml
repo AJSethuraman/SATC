@@ -137,8 +137,12 @@ fields:
     source: engagement
     templates: [organizer-letter]
   - field: FirstDeliverableTarget
-    source: engagement
+    source: interview
     templates: [onboarding-letter]
+    notes: >-
+      Asked on the call. Was `source: engagement` while nothing derived it, so
+      the onboarding letter could never render -- found the first time an
+      interview-created engagement was rendered.
   - field: FirstPeriod
     source: bookkeeping
     templates: [bookkeeping-letter]

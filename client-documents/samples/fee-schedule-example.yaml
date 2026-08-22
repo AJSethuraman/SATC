@@ -1,0 +1,61 @@
+# EXAMPLE ONLY — FICTIONAL NUMBERS. NOT THE FIRM'S PRICES.
+#
+# Exists so the pricing engine can be tested and so the fee estimate can be
+# seen filled in before the firm sets its own. `registry/fee-schedule.yaml` is
+# the real one and every amount in it is deliberately still `[CONFIRM:`.
+#
+# The figures echo samples/tax-opening-package.json, which has carried $450 /
+# $185 / $95 since before any of this was wired, so the two agree.
+currency: USD
+
+base_covers: "federal_only"
+
+base:
+  "1040":  450
+  "1120S": 850
+  "1065":  850
+  "1120":  950
+
+per_unit:
+  state_return:
+    count_from: count_states
+    label: "State return"
+    detail: "Per state"
+    amount: 185
+  local_return:
+    count_from: count_localities
+    label: "Local return"
+    detail: "Municipal, RITA, CCA or school district"
+    amount: 95
+  rental:
+    count_from: count_rentals
+    label: "Rental property"
+    detail: "Schedule E, per property"
+    amount: 120
+  k1:
+    count_from: count_k1s
+    label: "Schedule K-1 received"
+    detail: "Per K-1 entered"
+    amount: 75
+  schedule_c:
+    count_from: count_businesses
+    label: "Sole proprietorship"
+    detail: "Schedule C, per business"
+    amount: 225
+
+bands:
+  brokerage:
+    count_from: brokerage_band
+    label: "Brokerage activity"
+    values:
+      none:   { amount: 0,   detail: "None" }
+      light:  { amount: 60,  detail: "A handful of transactions" }
+      medium: { amount: 150, detail: "Consolidated 1099-B, moderate activity" }
+      heavy:  { amount: 350, detail: "High volume, or multiple brokers" }
+  cleanup:
+    count_from: cleanup_band
+    label: "Records cleanup"
+    values:
+      none:  { amount: 0,   detail: "Records complete and reconciled" }
+      light: { amount: 175, detail: "Some tidying before the return can be prepared" }
+      heavy: { amount: 600, detail: "Substantial reconstruction" }
