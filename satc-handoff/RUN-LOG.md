@@ -734,6 +734,59 @@ the mechanism made them unreachable, so nothing — not the tests, not a human
 running the interview — ever exercised them. A feature that is inert is not a
 feature that is safe; it is a feature whose faults are still ahead of you.
 
+## Addendum — one engine, two front doors (branch `b6-fee-basis`)
+
+Arjun's constraint, and it is architectural rather than a feature: *"every
+process requires a human to be able to do it and automation to be able to
+replicate and follow similar controls."*
+
+**The audit came before the GUI, because the GUI was the risk.** `cli._finish`
+— the terminal's own code path — held four decisions:
+
+* the HARD NO gate,
+* the `decision != 'yes'` gate,
+* the record's composition (`LetterDate`, `_season`, `_return_type`,
+  `_billable_counts`),
+* pricing.
+
+A browser UI written against `interview.py` would have skipped all four: it
+would have created engagements for work the firm does not take, and produced
+records missing the fields every document depends on. Invisible while the
+terminal was the only way in; guaranteed the moment there was a second one.
+
+`intake.finish()` now owns them and returns an **Outcome** — `created` /
+`refused` / `declined` / `error`, with an `exit_code` — rather than a printed
+message. Creating the engagement happens inside that function and nowhere else,
+so no caller reaches the store without passing the gates. Ordering is
+deliberate and tested: a HARD NO is checked *before* the decision, because it is
+not a judgement call and so is not put to one; pricing runs *before* the store
+is touched, so a malformed fee schedule cannot leave a half-made engagement.
+
+`web.py` is the second front door and decides nothing. Each route answers a
+browser with HTML and a script with JSON, content-negotiated on `Accept`,
+sharing every line up to rendering — so the API is not a parallel
+implementation that can drift, it is the same code path.
+
+**The rule for whoever comes next.** Do not write a decision into `cli.py` or
+`web.py`. Two tests read those files as *source* and fail if one appears, and a
+third drives identical answers through the browser and through `intake` and
+asserts they agree. That is what holds the constraint over time; a convention
+would not have.
+
+Drafts persist, which the terminal cannot do: the sitting is written after
+every answer, so closing the laptop mid-call does not lose the consultation. A
+created engagement clears its draft; a refused one keeps it, because refused
+work is not lost work.
+
+Verified in a real browser as well as under test — driven through Chromium end
+to end, one console error and it was a missing favicon. 179 tests pass, up from
+145; confirmed in CI at `179 passed in 26.65s` with no skips, which also proves
+Flask installs from `requirements.txt` on a clean runner.
+
+**Still terminal-only: `render`, `doctor`, `price`.** The render path has its
+own gate — the `[CONFIRM]` refusal — and it needs the same treatment before a
+UI touches it.
+
 ## What a human should do next
 
 1. **Call the Accountancy Board of Ohio.** Unchanged from the brief, and still
