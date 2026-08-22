@@ -7,96 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<style>
-doc-page:not(:defined){visibility:hidden}
-:root{--navy:#132437;--oxblood:#6A2833;--ink:#242C36;--ink-2:#4A5360;--mute:#82817C;--hairline:#D8D7D1;--hairline-2:#E6E5E0;--sans:"IBM Plex Sans",Helvetica,Arial,sans-serif;--mono:"IBM Plex Mono","Courier New",monospace}
-*,*::before,*::after{box-sizing:border-box}
-body{font-family:var(--sans);color:var(--ink);font-size:10pt;line-height:1.5}
-/* doc-page slots light DOM into its shadow table — declare type on selectors
-   that match the slotted elements, never on body. */
-.doc,.foot{font-family:var(--sans);color:var(--ink);font-size:10pt;line-height:1.5}
-h1,h2,h3,p{margin:0}
-
-.mast{display:flex;justify-content:space-between;align-items:flex-start;gap:0.4in}
-.lock{display:flex;flex-direction:column;align-items:flex-start;gap:4pt}
-.lock .wm{display:flex;align-items:flex-end;font-family:var(--sans);font-size:17pt;font-weight:700;letter-spacing:-.04em;line-height:.74;color:var(--navy)}
-.lock .wm .hy{width:.3em;height:.3em;flex:none;background:var(--oxblood);margin:0 .18em .2em}
-.lock .wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
-.lock .tg{font-family:var(--mono);font-size:6pt;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
-.mast .contact{font-family:var(--mono);font-size:7.5pt;line-height:1.75;color:var(--ink-2);text-align:right}
-.mast .contact b{color:var(--navy);font-weight:500}
-/* navy rule — gold hairlines are banned on print */
-.rule{height:1.2pt;background:var(--navy);margin:9pt 0 0}
-
-/* document title + meta */
-.doctitle{display:flex;justify-content:space-between;align-items:flex-end;gap:0.3in;margin-top:16pt}
-.doctitle h1{font-size:18pt;font-weight:600;letter-spacing:-0.035em;color:var(--navy);line-height:1}
-.doctitle .kind{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-2);margin-top:5pt}
-.smeta{border-collapse:collapse}
-.smeta td{font-size:8.5pt;padding:1.5pt 0;white-space:nowrap}
-.smeta .k{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-2);padding-right:14pt;text-align:right}
-.smeta .v{font-family:var(--mono);font-size:8.5pt;color:var(--navy);text-align:right;font-weight:500}
-
-.prepared{margin-top:16pt;padding-top:10pt;border-top:0.5pt solid var(--hairline)}
-.prepared .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6pt}
-.prepared .nm{font-weight:600;color:var(--navy)}
-.prepared .ad{font-size:9pt;line-height:1.45;color:var(--ink-2);margin-top:2pt}
-
-.intro{margin-top:14pt;font-size:9.5pt;line-height:1.55}
-.intro strong{color:var(--navy);font-weight:600}
-
-/* ledger — figures follow the house conventions: tabular numerals,
-   right-aligned, total ruled above and double-ruled below */
-.led{width:100%;border-collapse:collapse;margin-top:16pt}
-.led th{font-family:var(--mono);font-size:7pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-2);font-weight:400;text-align:left;padding:0 0 6pt;border-bottom:0.8pt solid var(--navy)}
-.led th.r{text-align:right}
-.led td{font-size:9.5pt;padding:7pt 0;border-bottom:0.5pt solid var(--hairline-2);color:var(--ink);vertical-align:top}
-.led td.r{text-align:right}
-.led .desc b{color:var(--navy);font-weight:600;display:block}
-.led .desc>span{font-size:8.5pt;color:var(--ink-2);display:block;margin-top:1pt}
-.led .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:9.5pt;color:var(--navy);white-space:nowrap}
-.led tr.tot td{border-top:0.8pt solid var(--navy);border-bottom:2.5pt double var(--navy);padding:6pt 0;font-weight:600;color:var(--navy);font-size:11pt}
-.led tr.tot .num{font-size:11pt}
-.led tr.mark td{border-bottom:0;padding:5pt 0 2pt}
-
-.notes{margin-top:18pt}
-.notes .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);padding-bottom:5pt;border-bottom:0.5pt solid var(--hairline);margin-bottom:8pt}
-.notes ul{list-style:none;margin:0;padding:0}
-.notes li{font-size:9pt;line-height:1.5;padding:3pt 0 3pt 20pt;position:relative;color:var(--ink-2)}
-.notes li::before{content:"";position:absolute;left:0;top:8.5pt;width:8pt;height:0.8pt;background:var(--mute)}
-.notes li b{color:var(--navy);font-weight:600}
-
-.signoff{margin-top:20pt}
-.signoff .nm{font-weight:600;color:var(--navy)}
-.signoff .ti{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-2);margin-top:3pt}
-
-/* merge fields — case-sensitive tokens, never uppercased by a label */
-.f{font-family:var(--mono);font-size:0.92em;color:var(--navy);background:rgba(106,40,51,0.06);border-bottom:0.5pt dotted var(--oxblood);padding:0 0.18em;white-space:nowrap;text-transform:none}
-.cond{font-family:var(--mono);font-size:7pt;letter-spacing:0.12em;color:var(--oxblood)}
-
-.foot{padding-top:8pt;border-top:0.5pt solid var(--hairline);display:flex;justify-content:space-between;gap:0.3in;align-items:flex-end}
-.foot p{font-size:7pt;line-height:1.6;color:var(--ink-2);max-width:4.8in}
-.foot b{font-weight:500}
-.foot .id{font-family:var(--mono);font-size:7pt;letter-spacing:0.1em;color:var(--ink-2);white-space:nowrap;text-align:right}
-.foot .f{font-size:7pt}
-
-/* screen-only field reference — never printed, never sent */
-.ref{max-width:7.5in;margin:30px auto 60px;font-size:13px;line-height:1.6;color:var(--ink-2)}
-.ref h3{font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--navy);margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--hairline)}
-.ref table{width:100%;border-collapse:collapse;margin-bottom:6px}
-.ref th{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-2);font-weight:400;text-align:left;padding:0 12px 6px 0;border-bottom:1px solid var(--hairline-2)}
-.ref td{font-size:12px;padding:5px 12px 5px 0;border-bottom:1px solid var(--hairline-2);vertical-align:top}
-.ref td:first-child{font-family:var(--mono);font-size:11.5px;color:var(--navy);white-space:nowrap}
-.ref .req{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--oxblood);white-space:nowrap}
-.ref p{margin-bottom:10px}
-.ref ol{margin:0 0 10px;padding-left:22px}
-.ref li{margin-bottom:5px}
-.ref code{font-family:var(--mono);font-size:11.5px;background:rgba(19,36,55,0.05);padding:1px 4px;color:var(--navy)}
-.ref .warn{color:var(--oxblood)}
-a{color:var(--oxblood)}
-a:hover{color:var(--navy)}
-@media print{.ref{display:none}}
-</style>
+<link rel="stylesheet" href="satc-doc.css"/>
 </head>
 <body>
 
@@ -143,12 +54,12 @@ a:hover{color:var(--navy)}
 
 <table class="led">
   <tr><th>Service</th><th class="r">Estimate</th></tr>
-  <tr class="mark"><td colspan="2"><span class="cond">[[EACH LineItems]]</span></td></tr>
+  <tr class="mark"><td colspan="2"><span class="cond inline">[[EACH LineItems]]</span></td></tr>
   <tr>
     <td class="desc"><b><span class="f">&lt;&lt;Item.Service&gt;&gt;</span></b><span><span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></span></td>
     <td class="r num"><span class="f">&lt;&lt;Item.Amount&gt;&gt;</span></td>
   </tr>
-  <tr class="mark"><td colspan="2"><span class="cond">[[END EACH]]</span></td></tr>
+  <tr class="mark"><td colspan="2"><span class="cond inline">[[END EACH]]</span></td></tr>
   <tr class="tot">
     <td>Total estimate</td>
     <td class="r num"><span class="f">&lt;&lt;EstimateTotal&gt;&gt;</span></td>
