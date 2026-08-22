@@ -787,6 +787,78 @@ Flask installs from `requirements.txt` on a clean runner.
 own gate — the `[CONFIRM]` refusal — and it needs the same treatment before a
 UI touches it.
 
+## Addendum — the interview covers the returns it offers (branch `b6-fee-basis`)
+
+Asked to make the interview robust and to check the flow made sense — *"if we
+don't have a business involved no need to ask about business entities"*.
+
+The flow problem was real and the bug under it was worse. **An
+interview-created business engagement refused to render its own letter.**
+`EntityType`, `ScheduleK1Target`, `SignerName` and `SignerTitle` were all
+registered as the interview's to supply and no question asked any of them.
+
+Two things hid it. The templates were proven against
+`samples/business-engagement.json`, which hand-writes all four — a payload the
+real pipeline cannot produce. And an entry in this very log justified the gap
+by saying *"the tax interview covers individual returns"* while the interview
+went on offering three entity returns in its first question. **That entry was
+written during this run and it was wrong.**
+
+Meanwhile the individual half leaked the other way: a 1120-S was asked *"Is
+this a joint return?"* under help text reading *"'Mr. and Mrs. Daniel Reyes'
+for a joint return"*.
+
+`federal_form` now comes first, because nothing could be gated on it while
+identity came first — the interview was describing a household before anything
+established there was one. A new entity section is asked only when the return
+is not a 1040; filing status is gated the other way. A C corporation is not
+asked when its K-1s go out, because it issues none.
+
+`EntityType` is assembled rather than typed — *"an Ohio limited liability
+company taxed as an S corporation"*. Two details a naive join gets wrong: the
+article follows SOUND (*an* S corporation, *a* C corporation), and "taxed as"
+is dropped where the structure already implies it, since "a limited partnership
+taxed as a partnership" reads as though something unusual had been elected.
+
+`tests/test_coverage.py` is the test whose absence let this ship. It composes a
+record from interview answers alone and asks each document what it still wants.
+**Verified capable of failing** — removing the entity section fails four of its
+tests, naming all three entity return types. It also holds the bookkeeping gap
+open deliberately, since that is the same shape and the only difference is that
+someone wrote it down.
+
+One method note worth keeping: the first version of that scan used a plain
+`<<Field>>` regex, found nothing because the templates HTML-escape their
+delimiters, and cheerfully reported every document clean. **A check that passes
+because its pattern never matches is worse than no check.** It was caught only
+because the business letter had been watched refusing a minute earlier.
+
+Owner count now prices, so the fee schedule has a **sixteenth** open
+`[CONFIRM]`, not fifteen.
+
+## Addendum — the repo was mined (branch `b6-fee-basis`)
+
+Four agents over the whole tree, all 34 open PRs, all 76 remote branches.
+Output committed to **`docs/REPO-INVENTORY.md`**; `CLAUDE.md` now points at it.
+
+The finding that explains a lot of the rest: **`CLAUDE.md` documented four of
+sixteen top-level folders**, omitting `client-documents/` and `satc-handoff/` —
+the two where this run's work lives — and `docs/`, which holds the PRD the
+interview is built to. Since that file is loaded into every session here, an
+agent starting fresh did not learn the pipeline existed. PR #100 made the same
+observation on 2026-07-29. It was still true. Now fixed.
+
+Also corrected: this project's own `OPEN-QUESTIONS.md` recorded `legal_name` as
+blocking *"nothing yet — footers hardcode it"*. The hardcoding is precisely why
+it blocks — it is not a merge field, so the `[CONFIRM:` guard cannot catch a
+wrong one and it ships silently past every gate. `firm-settings.yaml` says so
+plainly; the entry was written past it.
+
+The highest-stakes finding is not in this project at all: **OBBBA (July 2025)
+is not reconciled into `satc_system`'s tax crosswalks**, so TY2025 still
+carries the pre-OBBBA SALT cap and bonus depreciation. Flagged in-file, never
+acted on. Ohio 2025 brackets are 2024 copied forward and say so.
+
 ## What a human should do next
 
 1. **Call the Accountancy Board of Ohio.** Unchanged from the brief, and still
