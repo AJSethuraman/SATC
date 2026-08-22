@@ -107,7 +107,53 @@ def prefill_for(question: dict, lead: dict | None) -> object:
         if not isinstance(node, dict) or part not in node:
             return None
         node = node[part]
+
+    # One lead value can answer more than one question: the intake form collects
+    # location as a single "Solon, OH", and the letter needs city and state in
+    # separate lines of the address block. `prefill_index` says which comma-
+    # separated piece this question wants.
+    #
+    # Without it both questions offered the whole string, and once enter began
+    # accepting a prefill that produced "Solon, OH, Solon, OH 44139" on a client
+    # letter. A claim that cannot be accepted as shown is not a usable claim.
+    idx = question.get("prefill_index")
+    if idx is not None and isinstance(node, str):
+        pieces = [p.strip() for p in node.split(",")]
+        return pieces[idx] if idx < len(pieces) and pieces[idx] else None
+
+    # The website and this schema do not share a vocabulary. The intake form
+    # collects "rental"; the letter needs "Schedule E page 1". `prefill_map`
+    # translates, and a lead value with no entry is dropped rather than carried
+    # through -- "w2" is a real thing to tell us and not a schedule.
+    mapping = question.get("prefill_map")
+    if mapping:
+        if isinstance(node, list):
+            out = []
+            for v in node:
+                got = mapping.get(v)
+                for one in (got if isinstance(got, list) else [got]):
+                    if one is not None and one not in out:
+                        out.append(one)
+            return out or None
+        return mapping.get(node)
     return node
+
+
+def prefill_is_answerable(question: dict, value) -> bool:
+    """Could this claim be accepted as it stands?
+
+    The interview offers a prefill as a default you accept with enter, so it has
+    to be a legal answer to the question being asked. A value the question would
+    reject is still worth SHOWING -- it is what the client told us -- but it
+    must not be one keystroke from landing in a document.
+    """
+    if value in (None, "", []):
+        return False
+    options = [o["value"] for o in question.get("options", [])]
+    if not options:
+        return True
+    values = value if isinstance(value, list) else [value]
+    return all(v in options for v in values)
 
 
 # ── the flow ───────────────────────────────────────────────────────────────
@@ -154,14 +200,24 @@ class Interview:
 
     def hard_no(self) -> list[str]:
         """Options the schema marks HARD NO that were actually ticked."""
-        hit = []
-        for _, q in all_questions(self.schema):
-            picked = self.answers.get(q["id"]) or []
-            picked = [picked] if isinstance(picked, str) else picked
-            for opt in q.get("options") or []:
-                if opt.get("hard_no") and opt["value"] in picked:
-                    hit.append(opt["label"])
-        return hit
+        return hard_no(self.answers, self.schema)
+
+
+def hard_no(answers: dict, schema: dict | None = None) -> list[str]:
+    """Options the schema marks HARD NO that were actually ticked.
+
+    Takes answers rather than a session so it can be run against a saved
+    interview.json, a web form's posted body, or a live sitting -- all three
+    have to hit the same gate.
+    """
+    hit = []
+    for _, q in all_questions(schema or load_schema()):
+        picked = answers.get(q["id"]) or []
+        picked = [picked] if isinstance(picked, str) else picked
+        for opt in q.get("options") or []:
+            if opt.get("hard_no") and opt["value"] in picked:
+                hit.append(opt["label"])
+    return hit
 
 
 # ── answers -> merge fields ────────────────────────────────────────────────
@@ -211,6 +267,65 @@ def _listed(answers: dict, qid: str, *, none: bool) -> str:
     return "None" if none else ""
 
 
+_STRUCTURE = {
+    "llc": "limited liability company",
+    "corporation": "corporation",
+    "lp": "limited partnership",
+    "llp": "limited liability partnership",
+    "gp": "general partnership",
+}
+
+# What the chosen federal return says about how the entity is TAXED, which is
+# a different fact from how it is organised. An LLC taxed as an S corporation
+# is the ordinary case and the letter has to be able to say so.
+_TREATMENT = {"1120S": "S corporation", "1065": "partnership", "1120": "C corporation"}
+
+
+def _entity_type(answers: dict) -> str:
+    """"an Ohio limited liability company taxed as an S corporation".
+
+    Built rather than typed. A preparer asked to type this at speed writes
+    "an OH LLC" on one letter and "an Ohio Limited Liability Co." on the next,
+    and the phrase is the letter's description of what it is binding.
+    """
+    structure = _STRUCTURE.get(answers["entity_structure"], answers["entity_structure"])
+    state = str(answers["entity_state"]).strip()
+    phrase = f"{_article(state)} {state} {structure}"
+
+    treatment = _TREATMENT.get(answers.get("federal_form"))
+    if treatment and not _treatment_is_redundant(answers):
+        phrase += f" taxed as {_article(treatment)} {treatment}"
+    return phrase
+
+
+# "an S corporation", but "a C corporation". The rule is about SOUND, not
+# spelling: a single letter takes "an" when its name begins with a vowel sound
+# -- ess, eff, em -- which is why the naive vowel test got "a S corporation".
+_AN_LETTERS = set("AEFHILMNORSX")
+
+
+def _article(word: str) -> str:
+    word = word.strip()
+    if not word:
+        return "a"
+    first = word.split()[0]
+    if len(first) == 1:
+        return "an" if first.upper() in _AN_LETTERS else "a"
+    return "an" if first[:1].upper() in "AEIOU" else "a"
+
+
+def _treatment_is_redundant(answers: dict) -> bool:
+    """Is "taxed as ..." saying what the structure already said?
+
+    A corporation filing an 1120 is a C corporation; a limited partnership
+    filing a 1065 is a partnership. Spelling it out reads as though something
+    unusual had been elected, which is the opposite of what it means.
+    """
+    structure, form = answers["entity_structure"], answers.get("federal_form")
+    return ((structure == "corporation" and form == "1120")
+            or (structure in {"lp", "llp", "gp"} and form == "1065"))
+
+
 def compose(answers: dict) -> dict:
     """Interview answers -> the merge fields they supply.
 
@@ -228,7 +343,9 @@ def compose(answers: dict) -> dict:
         for field in q["supplies"]:
             # Composed fields are built below; a raw answer must not clobber one.
             if field in {"FederalReturns", "StateReturns", "LocalReturns",
-                         "AdditionalForms", "JointReturn", "PriorFirm"}:
+                         "AdditionalForms", "JointReturn", "PriorFirm",
+                         "EntityType", "OwnerReturnsPrepared",
+                         "OwnerReturnsElsewhere"}:
                 continue
             out[field] = value
 
@@ -240,6 +357,28 @@ def compose(answers: dict) -> dict:
         out["LocalReturns"] = _listed(answers, "localities", none=True)
     if "additional_forms" in answers:
         out["AdditionalForms"] = _listed(answers, "additional_forms", none=True)
+
+    # ── the entity half ───────────────────────────────────────────────────
+    #
+    # EntityType is a PHRASE, not a code: it drops into the letter's opening
+    # sentence after a comma, and the letter is the firm's statement of what it
+    # believes the entity is, put where the client can correct it. Assembled
+    # the same way FederalReturns is -- from structured answers, so nothing is
+    # typed twice and nothing is invented.
+    if answers.get("entity_structure") and answers.get("entity_state"):
+        out["EntityType"] = _entity_type(answers)
+
+    # Exact inverses, from one answer. Two questions could disagree; one
+    # cannot, and the letter would contradict itself if they did.
+    if "owner_returns" in answers and answers["owner_returns"]:
+        prepared = answers["owner_returns"] == "yes"
+        out["OwnerReturnsPrepared"] = prepared
+        out["OwnerReturnsElsewhere"] = not prepared
+
+    # Derived, never asked. The election is what the chosen return MEANS, so
+    # asking would invite an answer that contradicts the form.
+    if answers.get("federal_form"):
+        out["SCorpElection"] = answers["federal_form"] == "1120S"
 
     if "joint_return" in answers:
         out["JointReturn"] = answers["joint_return"] == "yes"

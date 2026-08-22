@@ -35,54 +35,42 @@ Four are a date. Two are a sentence. Two block nothing today.
 | 5 | `delivery.ack_window` | Onboarding letter | A duration that drops into a sentence — "three business days" |
 | 6 | `delivery.payment_instruction` | Every invoice | One sentence naming how a client pays. **Names the processor**, so it changes when that does |
 | 7 | `billing.contact_email` | Every invoice | Does `billing@satcllp.com` exist, or use the main address? |
-| 8 | `legal_name` | Nothing yet — footers hardcode it | The exact name on the Ohio LLP filing. **Three variants are in use and only one is on the filing** |
+| 8 | `legal_name` | **Every template.** See below — this entry understated it | The exact name on the Ohio LLP filing. **Three variants are in use and only one is on the filing** |
 | 9 | `hard_no[1]` | Nothing — it gates declining work | The rest of the "we don't take this" list |
 
-## 2 · The regulator question
+### `legal_name` is worse than this list said
 
-**Call the Accountancy Board of Ohio.** Unchanged since the overnight brief, and
-still the highest-leverage unblock in the project: it settles how the firm may
-describe itself on every surface.
+It was recorded above as blocking "nothing yet — footers hardcode it". The
+hardcoding is precisely *why* it blocks, and `firm-settings.yaml` says so
+plainly: **"Until this is settled, no template should ship to a client."**
 
-SAT-C is an Ohio LLP; Arjun is an individually licensed Ohio CPA; the firm is
-**not** registered with the Board. The question is whether offering paid tax and
-accounting services under a firm name requires registration regardless of how
-the firm describes itself.
+The reasoning is mechanical. Every other open decision is a `[CONFIRM:` inside a
+merge field, and the merge engine refuses to render while one survives — the
+guard catches it. The legal name is **not a merge field**. It is typed into the
+footer of all ten templates, so nothing checks it, and a wrong one ships
+silently past every gate the pipeline has.
 
-Blocks: the final wording of website disclosure item 1 (a factual placeholder
-ships meanwhile), and `index.html:826` below.
+Grepping the templates finds the three variants:
 
-## 3 · Two contradictions that need a ruling
+| In the templates | Count |
+|---|---|
+| `Sethuraman Accounting, Tax & Consulting LLP` (footer form) | 23 |
+| `Sethuraman Accounting Tax and Consulting` | 1 |
+| `Sethuraman Accounting Tax & Consulting LLP` | 1 |
 
-**a. How does a credit print on an invoice?** Two specs disagree, about the same
-document:
+Two of those three are wrong on any reading, since they cannot all match one
+Ohio filing. Answering this is one line; leaving it means the document set
+cannot go out.
 
-- `FIELDS - Invoice.md`: a real minus, and **never** parentheses on a
-  client-facing document.
-- `SATC Figures and Tables.html`: parentheses, **never** a minus — and it uses
-  an invoice as its worked example.
+## 2 · One contradiction that needs a ruling
 
-Shipped as parentheses, because the authoring contract defers figures to that
-collateral and Batch 2's instructions say so explicitly. **One of the two
-documents is wrong and should be corrected.** This is the only open item that
-changes a document clients already read.
-
-**b. `<<TaxYear>>` is alive in six places** while §4 of the authoring contract
+**`<<TaxYear>>` is alive in six places** while §4 of the authoring contract
 says *"Never add `TaxYear` back."* Three uses in the tax engagement letter,
 three in the organizer, plus both field docs and the registry. Either
 `PeriodLabel` replaces it everywhere, or the rule is relaxed. Renaming touches
 two templates, two field docs, the registry and the tests in one commit.
 
-## 4 · Two words on the website
-
-`website/index.html:826` — **"Anyone who needs assurance work — coming soon"**.
-
-It sits in the "Probably not a fit" column, so the negation is fine. **"coming
-soon" is not**: it is a forward promise of assurance work, on the same page as
-the footer line saying the firm performs no attest services, and it is exactly
-the self-description blocked on §2 above. Recommend deleting the two words.
-
-## 5 · The fee schedule — structure built, numbers open
+## 3 · The fee schedule — structure built, numbers open
 
 `client-documents/registry/fee-schedule.yaml` exists and is wired: the
 interview's counts become the estimate's line items and total. **Every amount in
@@ -98,7 +86,8 @@ $0 for a service. Fill these in and the fee estimate renders for real.
 |---|---|
 | `base_covers` | Does the base fee cover the **first state and locality**, or the **federal return only**? Two firms can quote the same $785 from different structures, and only one can explain it to a client who asks. |
 
-**Then the amounts — 18 of them:**
+**Then the amounts — 14 of them** (an earlier draft of this file said 18; its
+own table said 14, and `python cli.py doctor` agrees with the table):
 
 | Group | What is needed |
 |---|---|
@@ -107,12 +96,25 @@ $0 for a service. Fill these in and the fee estimate renders for real.
 | Brokerage band | light · medium · heavy — three figures (`none` is a real zero) |
 | Cleanup band | light · heavy — two figures (`none` is a real zero) |
 
+**If you do not have these numbers**, that is the expected case and there is a
+way in. Nobody knows their own prices in the abstract; they know their own work.
+So `python cli.py price` asks the same fourteen questions in hours —
+
+> *how long does a plain 1040 take you, start to filed?*
+
+— and multiplies by an hourly rate. **Both numbers are yours**; the tool
+supplies neither and invents nothing. Answering nine of fourteen leaves the
+other five as `[CONFIRM:`, which is a correct outcome, not a failed run.
+
+Rounding is off unless you ask. `$437.50` is what 2.5 hours at $175 costs;
+`$450.00` is a pricing policy, and `--round-to 25` is how you say you have one.
+
 `samples/fee-schedule-example.yaml` shows the shape filled in with **fictional**
 numbers, and `python cli.py interview --fee-schedule samples/fee-schedule-example.yaml`
 renders a complete estimate from them. Use it to sanity-check the structure
 before committing to your own figures.
 
-## 6 · Things with no home yet
+## 4 · Things with no home yet
 
 Found while building; nowhere to put the answer until someone decides.
 
@@ -133,4 +135,26 @@ Found while building; nowhere to put the answer until someone decides.
 
 ## Answered
 
-Nothing yet.
+**No accreditation is being sought, and none is claimed.** *(was §2, the
+regulator question — the largest open item in the run)* The firm is not
+pursuing registration with the Accountancy Board of Ohio and is not asking
+whether it needs to. The only credential claimed is personal: Arjun Sethuraman
+holds a CPA licence in Ohio.
+
+Withdrawn rather than answered — the question stops mattering once the claim it
+was gating is this narrow. Wired in: the website's item 1 placeholder is gone,
+the footer states the entity fact and the personal credential as two sentences,
+and the comment above them records that the credential is worded about a person
+on purpose, so a later edit does not promote it to "CPA firm".
+
+**"Coming soon" is off the website.** *(was §4)* `index.html:826` read "Anyone
+who needs assurance work — coming soon" under *Probably not a fit*. The
+negation was fine; the forward promise was not, and with no assurance work
+being pursued it contradicted the same page's attest disclaimer. Two words
+deleted.
+
+**A credit prints in parentheses.** *(was §3a — the only open item that changed
+a document clients already read)* `FIELDS - Invoice.md` was the wrong document
+and is corrected, along with the `.ref` block inside `SATC Invoice.html` and
+the example payload, which still carried `−$150`. No shipped output changed:
+both money formatters already implemented parentheses.

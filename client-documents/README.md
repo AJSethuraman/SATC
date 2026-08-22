@@ -190,8 +190,60 @@ client $0 for a service is worse than quoting nothing. `samples/fee-schedule-exa
 holds fictional numbers so the mechanism can be seen working:
 `--fee-schedule` prices against it.
 
-To price the firm: replace the placeholders in
-`registry/fee-schedule.yaml`. Nothing else changes.
+To price the firm, either replace the placeholders in
+`registry/fee-schedule.yaml` by hand, or answer the question in a unit you
+actually know:
+
+```
+python cli.py price                     # asks; blank leaves an item unpriced
+python cli.py price --list              # what it will ask about
+python cli.py price --hours mine.yaml --round-to 25 --write registry/fee-schedule.yaml
+```
+
+Nobody knows their own prices in the abstract; they know their own work. So
+`price` asks how long each item takes and multiplies by an hourly rate, both of
+which are the firm's. It supplies neither, and an item left blank stays a
+`[CONFIRM:` rather than becoming a guess — a half-finished sitting produces a
+half-priced schedule that still refuses to render.
+
+Rounding is off by default. `$437.50` is what 2.5 hours at $175 costs;
+`$450.00` is a pricing policy, and `--round-to 25` is how you say you have one.
+
+The write is surgical: amounts are swapped on the lines they occupy, so the
+file keeps the comments that explain what each one means.
+
+## Two front doors, one engine
+
+Every process here is doable by a human and replicable by automation, under the
+same controls. That is a constraint on the architecture, not a feature list.
+
+```
+make web            # the browser: http://127.0.0.1:5051
+python cli.py ...   # the terminal
+```
+
+Both call `intake.finish`, which owns every gate: a HARD NO refuses, a decision
+that is not 'yes' declines, pricing runs before the store is touched, and the
+record is composed one way. Neither front door may decide anything of its own —
+two tests read `cli.py` and `web.py` as source and fail if a rule is written
+into either.
+
+The web routes are **content-negotiated**: one handler answers a browser with
+HTML and a script with JSON, sharing every line up to rendering. So the API is
+not a parallel implementation that can drift — it is the same code path.
+
+```
+curl -X POST localhost:5051/interview       -H 'Accept: application/json'
+curl       localhost:5051/interview/<draft> -H 'Accept: application/json'
+curl -X POST localhost:5051/interview/<draft>/finish -H 'Accept: application/json'
+```
+
+A `refused` from that last call is the same refusal the browser shows and the
+same exit code the CLI returns.
+
+**Drafts persist.** The browser writes the sitting to `_drafts/` after every
+answer, so closing the laptop mid-call does not lose the consultation — which
+the terminal interview cannot survive.
 
 **3 · Delivery.** Encyro. Once an engagement exists and has documents, there is
 something to send and someone to send it to. Before that there is not.

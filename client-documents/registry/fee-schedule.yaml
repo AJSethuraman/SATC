@@ -72,6 +72,12 @@ per_unit:
     detail: "Per K-1 entered"
     amount: "[CONFIRM: fee per K-1 received]"
 
+  owner_k1:
+    count_from: count_owners
+    label: "Schedule K-1 issued"
+    detail: "Per owner — shareholder or partner"
+    amount: "[CONFIRM: fee per K-1 issued to an owner]"
+
   schedule_c:
     count_from: count_businesses
     label: "Sole proprietorship"

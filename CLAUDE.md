@@ -18,6 +18,23 @@ collects/retains client info, and provides small services around Drake.
 | `invoice-generator/` | "Invoicer" — self-hosted invoice web app (accounts, PDF, Stripe, email, JSON API) | Python / Flask + SQLAlchemy | `pytest` in `invoice-generator/tests`; run locally (`run.ps1`, `docker compose up`, or Render) |
 | `satc_system/` | The SATC practice-ops app: local Flask GUI, client intake, document readers, tax line-sheets, encrypted identity vault + de-identified data mart, Drake input/reconcile seam, withholding estimator | Python (`satc` package), Flask, SQLite | `cd satc_system && PYTHONPATH=src pytest -q`; run the app (`SATC.bat` / `satc-app`, default port 5050); `satc doctor` for a readiness check |
 | `cowork-plugin/` | Claude/Cowork plugin + MCP server (`mcp/satc_mcp.py`) to drive SATC's withholding API in plain language; **read-only by default** | Python MCP server + plugin manifest | Load the MCP; exercise against the local withholding API |
+| `client-documents/` | The document pipeline: interview → engagement → priced, merged client documents. CLI **and** browser front doors over one core | Python, Flask, YAML registries | `cd client-documents && python -m pytest -q`; `make web` for the browser front door |
+| `satc-handoff/` | Brand, the ten client document templates + their FIELDS specs, the authoring contract, the run log and the open-questions list | HTML/CSS/Markdown, no build | Read `satc-handoff/START-HERE.md`; templates render in a browser |
+| `docs/` | Specs and research that govern the above — including `prd-interview-and-field-registry.md`, which the interview is built to | Markdown | — |
+
+**The repo also holds nine credit and macro analytics projects** —
+`credit-review-os/`, `stock-helper/`, `fdic-peer-monitor/`,
+`cfpb-mortgage-monitor/`, `edgar-crit-class-tracker/`,
+`fred-credit-risk-dashboard/`, `bureau-credit-risk-dashboard/`,
+`macro-early-warning-dashboard/`, `bls-laus-county-monitor/`. They belong to a
+separate consulting line, are governed by `PROJECTS.md`, `BACKLOG.md` and
+`TEMPLATE_CONTRACT.md`, and are unrelated to the practice-ops work above. Log
+work on them to `BACKLOG.md`, not `PLAN.md`.
+
+> **Before starting anything substantial, read `docs/REPO-INVENTORY.md`.** It
+> maps what works, what is stranded on the 76 branches, what is blocked on a
+> human, and which documents are stale. It exists because this table used to
+> list four of sixteen folders and the same facts kept being rediscovered.
 
 ## Conventions
 

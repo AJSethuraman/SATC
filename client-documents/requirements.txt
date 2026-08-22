@@ -2,6 +2,10 @@
 pytest
 PyYAML
 
+# The browser front door. The CLI does not need it; `web.py` does, and so do
+# the tests that prove the two front doors enforce the same gates.
+flask
+
 # PDF. Optional -- `satc-docs render --no-pdf` writes HTML and needs neither.
 #
 # Chromium is the PRIMARY engine and the one to install. The templates are
