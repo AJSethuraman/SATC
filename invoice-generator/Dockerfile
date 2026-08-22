@@ -8,6 +8,10 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
 # Native libraries required by WeasyPrint, plus fonts for PDF rendering.
+# IBM Plex is the SAT-C house superfamily and the PDF template asks for it by
+# name. Without it WeasyPrint silently falls back to DejaVu and the invoice is
+# off-brand in a way nothing in the app reports -- so it is installed here
+# rather than left to chance. DejaVu stays as the fallback and as glyph cover.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpango-1.0-0 \
         libpangocairo-1.0-0 \
@@ -17,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libffi8 \
         shared-mime-info \
         fonts-dejavu-core \
+        fonts-ibm-plex \
         curl \
     && rm -rf /var/lib/apt/lists/*
 

@@ -6,7 +6,7 @@
 <title>{{ invoice.invoice_number }} · Invoicer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
 <style>
   .detail { display:grid; grid-template-columns: 1fr 340px; gap: var(--space-8); align-items:start; }
@@ -34,7 +34,7 @@
   .sums .grand { border-top:2px solid var(--navy-800); margin-top:6px; padding-top:10px; }
   .sums .grand .k,.sums .grand .v { font-size:var(--text-lg); font-weight:800; }
   .sums .bal { background:var(--navy-900); color:#fff; border-radius:var(--radius); padding:10px 14px; margin-top:10px; }
-  .sums .bal .k { color:var(--brand-300); } .sums .bal .v { color:#fff; font-size:var(--text-lg); font-weight:800; }
+  .sums .bal .k { color:var(--gold); } .sums .bal .v { color:#fff; font-size:var(--text-lg); font-weight:800; }
 
   /* side rail */
   .rail { display:flex; flex-direction:column; gap:var(--space-5); position:sticky; top:84px; }
@@ -135,18 +135,18 @@
             <thead><tr><th>Description</th><th class="r">Qty</th><th class="r">Unit</th><th class="r">Amount</th></tr></thead>
             <tbody>
               {% for item in invoice.items %}
-              <tr><td class="d">{{ item.description }}</td><td class="r mono">{{ "%g"|format(item.quantity or 0) }}</td><td class="r mono">{{ format_money(item.rate, invoice.currency) }}</td><td class="r mono">{{ format_money(item.amount, invoice.currency) }}</td></tr>
+              <tr><td class="d">{{ item.description }}</td><td class="r mono">{{ "%.1f"|format(item.quantity or 0) }}</td><td class="r mono">{{ format_money(item.rate, invoice.currency) }}</td><td class="r mono">{{ format_money(item.amount, invoice.currency) }}</td></tr>
               {% endfor %}
             </tbody>
           </table>
 
           <div class="sums">
             <div><span class="k">Subtotal</span><span class="v">{{ format_money(invoice.subtotal, invoice.currency) }}</span></div>
-            {% if invoice.discount_amount %}<div><span class="k">Discount{% if invoice.discount_is_percent %} ({{ "%g"|format(invoice.discount_value) }}%){% endif %}</span><span class="v" style="color:var(--green-700)">−{{ format_money(invoice.discount_amount, invoice.currency) }}</span></div>{% endif %}
+            {% if invoice.discount_amount %}<div><span class="k">Discount{% if invoice.discount_is_percent %} ({{ "%g"|format(invoice.discount_value) }}%){% endif %}</span><span class="v" style="color:var(--brand)">{{ format_money(-invoice.discount_amount, invoice.currency, symbol=False) }}</span></div>{% endif %}
             {% if invoice.tax_amount or invoice.tax_value %}<div><span class="k">Tax{% if invoice.tax_is_percent %} ({{ "%g"|format(invoice.tax_value) }}%){% endif %}</span><span class="v">{{ format_money(invoice.tax_amount, invoice.currency) }}</span></div>{% endif %}
             {% if invoice.shipping %}<div><span class="k">Shipping</span><span class="v">{{ format_money(invoice.shipping, invoice.currency) }}</span></div>{% endif %}
             <div class="grand"><span class="k">Total</span><span class="v">{{ format_money(invoice.total, invoice.currency) }}</span></div>
-            {% if invoice.amount_paid %}<div><span class="k">Amount paid</span><span class="v">−{{ format_money(invoice.amount_paid, invoice.currency) }}</span></div>{% endif %}
+            {% if invoice.amount_paid %}<div><span class="k">Amount paid</span><span class="v" style="color:var(--brand)">{{ format_money(-invoice.amount_paid, invoice.currency, symbol=False) }}</span></div>{% endif %}
             <div class="bal"><span class="k">Balance due</span><span class="v">{{ format_money(invoice.balance_due, invoice.currency) }}</span></div>
           </div>
         </div>
