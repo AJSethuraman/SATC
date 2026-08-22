@@ -18,6 +18,7 @@ per_unit.state_return.amount: 1
 per_unit.local_return.amount: 0.5
 per_unit.rental.amount: 0.75
 per_unit.k1.amount: 0.4
+per_unit.owner_k1.amount: 0.5
 per_unit.schedule_c.amount: 1.25
 
 bands.brokerage.values.light.amount: 0.35

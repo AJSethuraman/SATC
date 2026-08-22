@@ -53,6 +53,7 @@ ITEMS: list[tuple[str, str]] = [
     ("per_unit.local_return.amount", "each local return (municipal, RITA, CCA, school district)"),
     ("per_unit.rental.amount",       "each rental property on Schedule E"),
     ("per_unit.k1.amount",           "each K-1 received and entered"),
+    ("per_unit.owner_k1.amount",     "each K-1 issued to an owner of an entity"),
     ("per_unit.schedule_c.amount",   "each Schedule C business"),
     ("bands.brokerage.values.light.amount",  "a handful of brokerage transactions"),
     ("bands.brokerage.values.medium.amount", "a consolidated 1099-B, moderate activity"),

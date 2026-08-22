@@ -83,11 +83,50 @@ def test_changing_an_answer_retracts_what_it_hid():
     has a signature block for it.
     """
     session = iv.Interview()
+    session.answer("federal_form", "1040")
     session.answer("joint_return", "yes")
     session.answer("spouse_name", "Maria Reyes")
     assert session.answers["spouse_name"] == "Maria Reyes"
     session.answer("joint_return", "no")
     assert "spouse_name" not in session.answers
+
+
+def test_changing_the_return_type_retracts_the_whole_individual_half():
+    """The case the entity branch exists for.
+
+    Answer as an individual, then discover it is an S corporation. Filing
+    status and the spouse must go -- an entity has neither, and a spouse name
+    left behind would reach a letter with no signature block for it.
+    """
+    session = iv.Interview()
+    session.answer("federal_form", "1040")
+    session.answer("joint_return", "yes")
+    session.answer("spouse_name", "Maria Reyes")
+
+    session.answer("federal_form", "1120S")
+    for gone in ("joint_return", "spouse_name"):
+        assert gone not in session.answers, f"{gone} survived the change to an entity"
+
+
+def test_changing_back_retracts_the_entity_half():
+    """And the mirror, which is the half a one-way fix would miss."""
+    session = iv.Interview()
+    session.answer("federal_form", "1120S")
+    session.answer("entity_structure", "llc")
+    session.answer("signer_name", "Daniel Reyes")
+
+    session.answer("federal_form", "1040")
+    for gone in ("entity_structure", "signer_name"):
+        assert gone not in session.answers, f"{gone} survived the change to a 1040"
+
+
+def test_a_c_corporation_is_not_asked_about_k1s():
+    """It issues none. Asking is asking about something that does not exist."""
+    session = iv.Interview()
+    session.answer("federal_form", "1120")
+    pending = {q["id"] for _, q in session.pending()}
+    assert "k1_target" not in pending and "count_owners" not in pending
+    assert "signer_name" in pending, "but it still signs through a person"
 
 
 def test_a_required_question_will_not_take_a_blank():

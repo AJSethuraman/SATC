@@ -8,8 +8,16 @@
 # supplies a registry field or is tagged `internal: true` with a reason; the
 # reconciliation test fails otherwise, in both directions.
 #
-# Scope: TAX RETURN PREPARATION only. Bookkeeping fields exist in the registry
-# and are not asked here.
+# Scope: TAX RETURN PREPARATION only — and that means all four returns the
+# first question offers, individual AND entity. It did not used to: the entity
+# half of the letter set (EntityType, ScheduleK1Target, SignerName,
+# SignerTitle) was registered and unasked, so every business engagement refused
+# to render while the tests passed against a hand-written sample.
+#
+# Bookkeeping fields exist in the registry and are still not asked here. That
+# is deliberate and the PRD defers it, but it is the same shape as the bug
+# above, so `tests/test_coverage.py` holds it open rather than letting it be
+# forgotten.
 #
 # `prefill` names the key in the website intake's `_json` payload whose answer
 # should be shown for confirmation. The website answer is a claim, not a fact —
@@ -20,13 +28,48 @@
 
 sections:
 
-  # ── 1 · Who they are ────────────────────────────────────────────────────
+  # ── 1 · What we are preparing ───────────────────────────────────────────
+  # ASKED FIRST, and deliberately.
+  #
+  # Everything downstream branches on it. An entity has no filing status and no
+  # spouse; an individual has no signing officer and issues no K-1s. Until this
+  # is answered the interview cannot tell which half of itself applies, and it
+  # used to ask the individual half of anyone -- an S corporation was asked
+  # whether it was a joint return, under help text reading "'Mr. and Mrs.
+  # Daniel Reyes' for a joint return".
+  - id: scope
+    title: What we are preparing
+    questions:
+      - id: federal_form
+        question: "Which federal return?"
+        help: >-
+          Decides the rest of the interview. 1040 asks about a person and
+          their household; the others ask about an entity and who signs for it.
+        type: single
+        required: true
+        options:
+          - { value: "1040",  label: "Form 1040 — individual" }
+          - { value: "1120S", label: "Form 1120-S — S corporation" }
+          - { value: "1065",  label: "Form 1065 — partnership" }
+          - { value: "1120",  label: "Form 1120 — C corporation" }
+        supplies: [FederalReturns]
+
+      - id: tax_year
+        question: "Which tax year?"
+        type: text
+        required: true
+        supplies: [TaxYear]
+
+  # ── 2 · Who they are ────────────────────────────────────────────────────
   - id: identity
     title: Who they are
     questions:
       - id: client_full_name
         question: "Full legal name, as it should appear on the letter"
-        help: "Addressee block. 'Mr. and Mrs. Daniel Reyes' for a joint return."
+        help: >-
+          Addressee block. For an individual return, 'Mr. and Mrs. Daniel
+          Reyes' if joint. For an entity, its EXACT REGISTERED NAME -- not a
+          trading name, because the letter is what binds it.
         type: text
         required: true
         supplies: [ClientFullName]
@@ -77,7 +120,7 @@ sections:
         prefill: contact.email
         supplies: [ClientEmail]
 
-  # ── 2 · Filing status ───────────────────────────────────────────────────
+  # ── 3 · Filing status — INDIVIDUAL ONLY ─────────────────────────────────
   - id: filing_status
     title: Filing status
     questions:
@@ -90,41 +133,126 @@ sections:
           - { value: "no",  label: "Single / head of household / other" }
         supplies: [JointReturn]
         notes: "Drops the spouse signature block AND the joint-representation paragraph."
+        showIf: "federal_form == '1040'"
 
       - id: taxpayer_name
         question: "Taxpayer's name, as it goes under the signature line"
         type: text
         required: true
         supplies: [TaxpayerName]
+        showIf: "federal_form == '1040'"
 
       - id: spouse_name
         question: "Spouse's name"
         type: text
         required: true
-        showIf: "joint_return == 'yes'"
+        showIf: "federal_form == '1040' and joint_return == 'yes'"
         supplies: [SpouseName]
 
-  # ── 3 · Return composition — the scope boundary ─────────────────────────
+  # ── 4 · The entity — ENTITY RETURNS ONLY ────────────────────────────────
+  # THE ENTITY HALF. None of this is asked of a 1040.
+  #
+  # It exists because the business return letter could not be produced at all:
+  # EntityType, ScheduleK1Target, SignerName and SignerTitle were registered as
+  # the interview's to supply and no question asked them, so every business
+  # engagement refused to render. The tests passed only because the sample
+  # payload hand-wrote all four.
+  - id: entity
+    title: The entity
+    questions:
+      - id: entity_structure
+        question: "How is the entity legally organised?"
+        help: >-
+          The LEGAL structure, which is not the tax treatment -- an LLC can be
+          taxed as an S corporation, and the letter has to say both. The tax
+          side comes from the return you already chose.
+        type: single
+        required: true
+        showIf: "federal_form != '1040'"
+        options:
+          - { value: "llc",         label: "Limited liability company" }
+          - { value: "corporation", label: "Corporation" }
+          - { value: "lp",          label: "Limited partnership" }
+          - { value: "llp",         label: "Limited liability partnership" }
+          - { value: "gp",          label: "General partnership" }
+        supplies: [EntityType]
+
+      - id: entity_state
+        question: "Which state is it organised in?"
+        help: "Spelled as it reads in the letter -- 'Ohio', not 'OH'."
+        type: text
+        required: true
+        showIf: "federal_form != '1040'"
+        supplies: [EntityType]
+
+      - id: signer_name
+        question: "Who signs for the entity?"
+        help: >-
+          An entity signs through a person, and that person must be able to
+          bind it. Printed under the signature line.
+        type: text
+        required: true
+        showIf: "federal_form != '1040'"
+        supplies: [SignerName]
+
+      - id: signer_title
+        question: "In what capacity?"
+        help: "Their title as it goes beneath their name."
+        type: single
+        required: true
+        showIf: "federal_form != '1040'"
+        options:
+          - { value: "Managing Member", label: "Managing Member" }
+          - { value: "Member",          label: "Member" }
+          - { value: "President",       label: "President" }
+          - { value: "Vice President",  label: "Vice President" }
+          - { value: "Treasurer",       label: "Treasurer" }
+          - { value: "Secretary",       label: "Secretary" }
+          - { value: "General Partner", label: "General Partner" }
+          - { value: "Partner",         label: "Partner" }
+          - { value: "Officer",         label: "Officer" }
+        supplies: [SignerTitle]
+
+      # C corporations issue no K-1s, so this is asked of 1120-S and 1065 only.
+      # Asking a C corp when its K-1s go out is asking about something that
+      # does not exist.
+      - id: k1_target
+        question: "When do the K-1s go out?"
+        help: >-
+          A real date. Every owner's own preparer schedules around it, so it is
+          a commitment rather than an intention.
+        type: text
+        required: true
+        showIf: "federal_form == '1120S' or federal_form == '1065'"
+        supplies: [ScheduleK1Target]
+
+      - id: count_owners
+        question: "How many owners receive a K-1?"
+        help: >-
+          Shareholders for an S corporation, partners for a partnership. Drives
+          the fee and the K-1 delivery list.
+        type: number
+        showIf: "federal_form == '1120S' or federal_form == '1065'"
+        supplies: []
+        feeds: LineItems
+
+      - id: owner_returns
+        question: "Do we also prepare the owners' personal returns?"
+        help: >-
+          Changes a paragraph in the letter. The two states are exact
+          inverses, so this one answer sets both flags.
+        type: single
+        required: true
+        showIf: "federal_form != '1040'"
+        options:
+          - { value: "yes", label: "Yes — we prepare them too" }
+          - { value: "no",  label: "No — another firm does, or they are not prepared" }
+        supplies: [OwnerReturnsPrepared, OwnerReturnsElsewhere]
+
+  # ── 5 · Return composition — the scope boundary ─────────────────────────
   - id: composition
     title: What we will prepare
     questions:
-      - id: tax_year
-        question: "Which tax year?"
-        type: text
-        required: true
-        supplies: [TaxYear]
-
-      - id: federal_form
-        question: "Which federal return?"
-        type: single
-        required: true
-        options:
-          - { value: "1040",  label: "Form 1040" }
-          - { value: "1120S", label: "Form 1120-S" }
-          - { value: "1065",  label: "Form 1065" }
-          - { value: "1120",  label: "Form 1120" }
-        supplies: [FederalReturns]
-
       - id: federal_schedules
         question: "Which schedules?"
         help: "Tick every one. This assembles the FederalReturns sentence."
@@ -189,7 +317,7 @@ sections:
         type: list
         supplies: [AdditionalForms]
 
-  # ── 4 · Billable counts ─────────────────────────────────────────────────
+  # ── 6 · Billable counts ─────────────────────────────────────────────────
   # Counted, not priced. Amounts are attached in fee-schedule.yaml when it
   # exists; these produce the LineItems inputs.
   - id: counts
@@ -268,7 +396,7 @@ sections:
           nothing produced it and the onboarding letter could never render. It
           is a judgement made on the call, so it is asked.
 
-  # ── 5 · Prior year and predecessor ──────────────────────────────────────
+  # ── 7 · Prior year and predecessor ──────────────────────────────────────
   - id: history
     title: Prior year
     questions:
@@ -311,7 +439,7 @@ sections:
           A pricing input and a risk flag. Prints on no client document — the
           letter speaks about deadlines generically in section 04.
 
-  # ── 6 · Red flags ───────────────────────────────────────────────────────
+  # ── 8 · Red flags ───────────────────────────────────────────────────────
   # Recorded against the record. The hard-no subset lives in firm-settings.yaml
   # because it governs declining work, not producing a document.
   - id: flags
@@ -335,7 +463,7 @@ sections:
           Recorded for the decision and for pricing. Does not print on any client
           document — the letter names risk areas generically in section 03.
 
-  # ── 7 · Internal ────────────────────────────────────────────────────────
+  # ── 9 · Internal ────────────────────────────────────────────────────────
   - id: internal
     title: Decision
     questions:

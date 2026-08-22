@@ -37,6 +37,11 @@ per_unit:
     label: "Schedule K-1 received"
     detail: "Per K-1 entered"
     amount: 75
+  owner_k1:
+    count_from: count_owners
+    label: "Schedule K-1 issued"
+    detail: "Per owner — shareholder or partner"
+    amount: 85
   schedule_c:
     count_from: count_businesses
     label: "Sole proprietorship"

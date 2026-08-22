@@ -267,6 +267,65 @@ def _listed(answers: dict, qid: str, *, none: bool) -> str:
     return "None" if none else ""
 
 
+_STRUCTURE = {
+    "llc": "limited liability company",
+    "corporation": "corporation",
+    "lp": "limited partnership",
+    "llp": "limited liability partnership",
+    "gp": "general partnership",
+}
+
+# What the chosen federal return says about how the entity is TAXED, which is
+# a different fact from how it is organised. An LLC taxed as an S corporation
+# is the ordinary case and the letter has to be able to say so.
+_TREATMENT = {"1120S": "S corporation", "1065": "partnership", "1120": "C corporation"}
+
+
+def _entity_type(answers: dict) -> str:
+    """"an Ohio limited liability company taxed as an S corporation".
+
+    Built rather than typed. A preparer asked to type this at speed writes
+    "an OH LLC" on one letter and "an Ohio Limited Liability Co." on the next,
+    and the phrase is the letter's description of what it is binding.
+    """
+    structure = _STRUCTURE.get(answers["entity_structure"], answers["entity_structure"])
+    state = str(answers["entity_state"]).strip()
+    phrase = f"{_article(state)} {state} {structure}"
+
+    treatment = _TREATMENT.get(answers.get("federal_form"))
+    if treatment and not _treatment_is_redundant(answers):
+        phrase += f" taxed as {_article(treatment)} {treatment}"
+    return phrase
+
+
+# "an S corporation", but "a C corporation". The rule is about SOUND, not
+# spelling: a single letter takes "an" when its name begins with a vowel sound
+# -- ess, eff, em -- which is why the naive vowel test got "a S corporation".
+_AN_LETTERS = set("AEFHILMNORSX")
+
+
+def _article(word: str) -> str:
+    word = word.strip()
+    if not word:
+        return "a"
+    first = word.split()[0]
+    if len(first) == 1:
+        return "an" if first.upper() in _AN_LETTERS else "a"
+    return "an" if first[:1].upper() in "AEIOU" else "a"
+
+
+def _treatment_is_redundant(answers: dict) -> bool:
+    """Is "taxed as ..." saying what the structure already said?
+
+    A corporation filing an 1120 is a C corporation; a limited partnership
+    filing a 1065 is a partnership. Spelling it out reads as though something
+    unusual had been elected, which is the opposite of what it means.
+    """
+    structure, form = answers["entity_structure"], answers.get("federal_form")
+    return ((structure == "corporation" and form == "1120")
+            or (structure in {"lp", "llp", "gp"} and form == "1065"))
+
+
 def compose(answers: dict) -> dict:
     """Interview answers -> the merge fields they supply.
 
@@ -284,7 +343,9 @@ def compose(answers: dict) -> dict:
         for field in q["supplies"]:
             # Composed fields are built below; a raw answer must not clobber one.
             if field in {"FederalReturns", "StateReturns", "LocalReturns",
-                         "AdditionalForms", "JointReturn", "PriorFirm"}:
+                         "AdditionalForms", "JointReturn", "PriorFirm",
+                         "EntityType", "OwnerReturnsPrepared",
+                         "OwnerReturnsElsewhere"}:
                 continue
             out[field] = value
 
@@ -296,6 +357,28 @@ def compose(answers: dict) -> dict:
         out["LocalReturns"] = _listed(answers, "localities", none=True)
     if "additional_forms" in answers:
         out["AdditionalForms"] = _listed(answers, "additional_forms", none=True)
+
+    # ── the entity half ───────────────────────────────────────────────────
+    #
+    # EntityType is a PHRASE, not a code: it drops into the letter's opening
+    # sentence after a comma, and the letter is the firm's statement of what it
+    # believes the entity is, put where the client can correct it. Assembled
+    # the same way FederalReturns is -- from structured answers, so nothing is
+    # typed twice and nothing is invented.
+    if answers.get("entity_structure") and answers.get("entity_state"):
+        out["EntityType"] = _entity_type(answers)
+
+    # Exact inverses, from one answer. Two questions could disagree; one
+    # cannot, and the letter would contradict itself if they did.
+    if "owner_returns" in answers and answers["owner_returns"]:
+        prepared = answers["owner_returns"] == "yes"
+        out["OwnerReturnsPrepared"] = prepared
+        out["OwnerReturnsElsewhere"] = not prepared
+
+    # Derived, never asked. The election is what the chosen return MEANS, so
+    # asking would invite an answer that contradicts the form.
+    if answers.get("federal_form"):
+        out["SCorpElection"] = answers["federal_form"] == "1120S"
 
     if "joint_return" in answers:
         out["JointReturn"] = answers["joint_return"] == "yes"

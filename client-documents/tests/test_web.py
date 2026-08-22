@@ -44,6 +44,29 @@ def client(tmp_path):
         yield c
 
 
+def _plausible(q):
+    """Any answer this question will accept -- the tests below care about
+    reaching a later question, not about what the earlier ones said."""
+    if q.get("options"):
+        return [q["options"][0]["value"]] if q["type"] == "multi" \
+            else q["options"][0]["value"]
+    return 1 if q["type"] == "number" else "x"
+
+
+def answer_next(client, sid, value):
+    """Answer whichever question is actually next, and return its id.
+
+    The tests used to hard-code `client_full_name` as the first question. That
+    coupled them to the schema's ORDER rather than its behaviour, so moving
+    `federal_form` to the front -- which is what makes the branching work at
+    all -- broke four tests that were not testing ordering.
+    """
+    state = client.get(f"/interview/{sid}", headers=JSON).get_json()
+    qid = state["question"]["id"]
+    client.post(f"/interview/{sid}", json={"answer": value}, headers=JSON)
+    return qid
+
+
 def drive(client, answers):
     """Run a whole interview through the HTTP API, as automation would."""
     sid = client.post("/interview", headers=JSON).get_json()["draft"]
@@ -113,18 +136,23 @@ def test_branching_works_over_http(client, answers):
 
 def test_a_required_question_is_refused_not_skipped(client):
     sid = client.post("/interview", headers=JSON).get_json()["draft"]
+    first = client.get(f"/interview/{sid}", headers=JSON).get_json()["question"]
+    assert first["required"], "this test needs a required question to refuse"
     r = client.post(f"/interview/{sid}", json={"answer": ""}, headers=JSON)
     assert r.status_code == 400
-    assert "client_full_name" in r.get_json()["question"]
+    assert r.get_json()["question"] == first["id"]
 
 
 def test_the_claim_is_offered_and_says_whether_it_can_be_taken(client):
     lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))
     sid = client.post("/interview", json={"lead": lead},
                       headers=JSON).get_json()["draft"]
-    client.post(f"/interview/{sid}", json={"answer": "Mr. and Mrs. Daniel Reyes"},
-                headers=JSON)
-    state = client.get(f"/interview/{sid}", headers=JSON).get_json()
+    # Walk to the first question the website actually made a claim about.
+    for _ in range(12):
+        state = client.get(f"/interview/{sid}", headers=JSON).get_json()
+        if state["question"]["id"] == "client_letter_name":
+            break
+        answer_next(client, sid, _plausible(state["question"]))
     assert state["question"]["id"] == "client_letter_name"
     assert state["claim"] == "Dan" and state["claim_acceptable"] is True
 
@@ -133,10 +161,12 @@ def test_accepting_the_claim_records_it(client):
     lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))
     sid = client.post("/interview", json={"lead": lead},
                       headers=JSON).get_json()["draft"]
-    client.post(f"/interview/{sid}", json={"answer": "Mr. and Mrs. Daniel Reyes"},
-                headers=JSON)
+    for _ in range(12):
+        state = client.get(f"/interview/{sid}", headers=JSON).get_json()
+        if state["question"]["id"] == "client_letter_name":
+            break
+        answer_next(client, sid, _plausible(state["question"]))
     client.post(f"/interview/{sid}", json={"accept": True}, headers=JSON)
-    state = client.get(f"/interview/{sid}", headers=JSON).get_json()
     assert web.load_draft(client.store, sid)["answers"]["client_letter_name"] == "Dan"
 
 
@@ -153,9 +183,8 @@ def test_an_unacceptable_claim_is_marked_as_such(client):
 def test_a_half_finished_interview_survives(client, answers):
     """Closing the laptop mid-call must not lose the consultation."""
     sid = client.post("/interview", headers=JSON).get_json()["draft"]
-    client.post(f"/interview/{sid}", json={"answer": "Mr. and Mrs. Daniel Reyes"},
-                headers=JSON)
-    assert web.load_draft(client.store, sid)["answers"]["client_full_name"]
+    qid = answer_next(client, sid, "1040")
+    assert web.load_draft(client.store, sid)["answers"][qid]
     assert sid in client.get("/", headers=JSON).get_json()["drafts"]
 
 
