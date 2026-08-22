@@ -35,6 +35,7 @@ import yaml
 
 import engagements
 import fees
+import intake
 import interview as iv
 import merge
 import pricing
@@ -507,54 +508,42 @@ def cmd_interview(args) -> int:
 
 
 def _finish(session, args) -> int:
-    blockers = session.hard_no()
-    if blockers:
+    """Print what the core decided. The gates are NOT here.
+
+    Every rule this function used to enforce now lives in `intake.finish`, so
+    the web UI and anything else driving the interview hits the same ones. This
+    is a renderer over the outcome and nothing more -- if a decision appears in
+    this function again, the other front doors have quietly lost it.
+    """
+    outcome = intake.finish(
+        session.answers,
+        store=Path(args.store) if args.store else None,
+        ref=getattr(args, "ref", None),
+        fee_schedule=getattr(args, "fee_schedule", None),
+        override_hard_no=getattr(args, "override_hard_no", False),
+    )
+
+    if outcome.blockers:
         print("\nHARD NO flagged:")
-        for b in blockers:
+        for b in outcome.blockers:
             print(f"    {b}")
-        if not args.override_hard_no:
-            print("\nNo engagement created. These are work the firm does not "
-                  "take -- firm-settings.yaml lists them under `hard_no`, and "
-                  "the schema marks the options themselves. Re-run with "
-                  "--override-hard-no if this is genuinely a judgement call "
-                  "rather than the list being wrong.")
-            return 1
-        print("  overridden on the command line")
+        if outcome.overridden:
+            print("  overridden on the command line")
 
-    if session.answers.get("decision") != "yes":
-        print(f"\nDecision was {session.answers.get('decision')!r}, not 'yes'. "
-              f"No engagement created; that is what the decision question is for.")
-        return 0
-
-    record = iv.compose(session.answers)
-    record["LetterDate"] = date.today().strftime("%B %-d, %Y")
-    record["_season"] = str(session.answers.get("tax_year") or "")
-    record["_return_type"] = {"1040": "individual", "1120S": "s_corp",
-                              "1065": "partnership", "1120": "c_corp"
-                              }.get(session.answers.get("federal_form"), "individual")
-    record["_billable_counts"] = iv.billable_counts(session.answers)
-
-    # The estimate's lines, priced from the counts just collected. Any amount
-    # the firm has not set carries its [CONFIRM] through to the line and the
-    # total, so the estimate refuses to render rather than quoting a client
-    # nothing for a service.
-    try:
-        schedule = pricing.load(args.fee_schedule) if args.fee_schedule else None
-        record.update(pricing.price(session.answers, schedule))
-    except pricing.PricingError as exc:
-        print(f"\nfee schedule: {exc}")
+    if outcome.status == "refused":
+        print(f"\nNo engagement created. {outcome.reason}")
+    elif outcome.status == "declined":
+        print(f"\n{outcome.reason}")
+    elif outcome.status == "error":
+        print(f"\n{outcome.reason}")
         print("engagement not created -- fix registry/fee-schedule.yaml first")
-        return 1
+    else:
+        print(f"\nEngagement {outcome.ref} created")
+        print(f"    {outcome.path}/record.json      the merge fields")
+        print(f"    {outcome.path}/interview.json   every answer, including the internal ones")
+        print(f"\nNext:  python cli.py render --engagement {outcome.ref} --out out")
 
-    store = Path(args.store) if args.store else engagements.STORE
-    ref, path = engagements.create(record, ref=args.ref, store=store)
-    engagements.save_answers(session.answers, ref, store)
-
-    print(f"\nEngagement {ref} created")
-    print(f"    {path}/record.json      the merge fields")
-    print(f"    {path}/interview.json   every answer, including the internal ones")
-    print(f"\nNext:  python cli.py render --engagement {ref} --out out")
-    return 0
+    return outcome.exit_code
 
 
 def cmd_engagements(args) -> int:

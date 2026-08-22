@@ -200,14 +200,24 @@ class Interview:
 
     def hard_no(self) -> list[str]:
         """Options the schema marks HARD NO that were actually ticked."""
-        hit = []
-        for _, q in all_questions(self.schema):
-            picked = self.answers.get(q["id"]) or []
-            picked = [picked] if isinstance(picked, str) else picked
-            for opt in q.get("options") or []:
-                if opt.get("hard_no") and opt["value"] in picked:
-                    hit.append(opt["label"])
-        return hit
+        return hard_no(self.answers, self.schema)
+
+
+def hard_no(answers: dict, schema: dict | None = None) -> list[str]:
+    """Options the schema marks HARD NO that were actually ticked.
+
+    Takes answers rather than a session so it can be run against a saved
+    interview.json, a web form's posted body, or a live sitting -- all three
+    have to hit the same gate.
+    """
+    hit = []
+    for _, q in all_questions(schema or load_schema()):
+        picked = answers.get(q["id"]) or []
+        picked = [picked] if isinstance(picked, str) else picked
+        for opt in q.get("options") or []:
+            if opt.get("hard_no") and opt["value"] in picked:
+                hit.append(opt["label"])
+    return hit
 
 
 # ── answers -> merge fields ────────────────────────────────────────────────
