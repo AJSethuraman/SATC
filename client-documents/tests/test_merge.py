@@ -143,3 +143,90 @@ def test_screen_only_reference_block_is_removed(record):
     html = render_file(TEMPLATE_DIR / OPENING_PACKAGE["tax letter"], record).html
     assert 'class="ref"' not in html
     assert "Merge fields" not in html, "the field documentation must never reach a client"
+
+
+# ── the four templates added after the opening package ────────────────────
+
+LATER_DOCUMENTS = {
+    "delivery letter": ("SATC Tax Return Delivery Letter.html", "delivery-letter.json"),
+    "extension notice": ("SATC Extension Notice.html", "extension-notice.json"),
+    "disengagement letter": ("SATC Disengagement Letter.html", "disengagement-letter.json"),
+}
+
+
+def _sample(name):
+    data = json.loads((ROOT / "samples" / name).read_text(encoding="utf-8"))
+    data.pop("_comment", None)
+    return data
+
+
+@pytest.mark.parametrize("label,pair", LATER_DOCUMENTS.items())
+def test_later_documents_render_complete(label, pair):
+    """Each FIELDS doc's example payload fills its own template.
+
+    §7 of the authoring contract calls the example payload the acceptance test:
+    "if it does not render a clean document, the pair is not done". These
+    samples are lifted from the FIELDS docs, so the documentation and the test
+    cannot drift apart.
+    """
+    filename, sample = pair
+    result = render_file(TEMPLATE_DIR / filename, _sample(sample))
+    assert "&lt;&lt;" not in result.html, f"{label}: an unfilled field survived"
+    assert "[[" not in result.html, f"{label}: an unresolved block survived"
+    assert "[CONFIRM:" not in result.html, f"{label}: an undecided placeholder survived"
+
+
+def test_business_letter_refuses_to_render_while_a_confirm_is_open():
+    """The business return letter carries one open [CONFIRM], in section 03.
+
+    It is on officer compensation under an S election -- a substantive tax
+    position, and not an agent's wording to write. The point of this test is
+    that the marker cannot be forgotten: the letter cannot reach a client while
+    it is there, and this test goes green the moment a human resolves it.
+    """
+    with pytest.raises(MergeError) as exc:
+        render_file(TEMPLATE_DIR / "SATC Engagement Letter - Business Return.html",
+                    _sample("business-engagement.json"))
+    assert "[CONFIRM:" in str(exc.value)
+    assert "officer compensation" in str(exc.value)
+
+
+def test_business_letter_is_otherwise_complete():
+    """Everything except that one marker resolves.
+
+    Without this, the test above would also pass on a letter riddled with
+    unfilled fields -- it would just report the first problem it found.
+    """
+    result = render_file(TEMPLATE_DIR / "SATC Engagement Letter - Business Return.html",
+                         _sample("business-engagement.json"), strict=False)
+    assert "&lt;&lt;" not in result.html, "an unfilled field survived"
+    assert "[[" not in result.html, "an unresolved block survived"
+    assert result.html.count("[CONFIRM:") == 1, "exactly one open decision, and no more"
+
+
+INVERSE_PAIRS = [
+    ("SATC Tax Return Delivery Letter.html", "delivery-letter.json", "EFiled", "PaperFiled"),
+    ("SATC Extension Notice.html", "extension-notice.json", "PaymentEnclosed", "NoPaymentRequired"),
+    ("SATC Disengagement Letter.html", "disengagement-letter.json", "ClientInitiated", "FirmInitiated"),
+    ("SATC Disengagement Letter.html", "disengagement-letter.json", "BalanceOutstanding", "AccountSettled"),
+    ("SATC Engagement Letter - Business Return.html", "business-engagement.json",
+     "OwnerReturnsPrepared", "OwnerReturnsElsewhere"),
+]
+
+
+@pytest.mark.parametrize("filename,sample,a,b", INVERSE_PAIRS)
+def test_inverse_flags_render_exactly_one_branch(filename, sample, a, b):
+    """Both states, and only ever one of them.
+
+    Every one of these pairs exists because the alternative -- a section that
+    can be silent -- is the failure mode. A delivery letter that says nothing
+    about how a return gets filed, or a disengagement letter that says nothing
+    about money, is worse than no letter. Two independent booleans can both be
+    false; this test is what says they must not.
+    """
+    for on, off in ((a, b), (b, a)):
+        record = dict(_sample(sample))
+        record[on], record[off] = True, False
+        result = render_file(TEMPLATE_DIR / filename, record, strict=False)
+        assert on in result.blocks_kept, f"{on} true but its block was dropped"
+        assert off in result.blocks_dropped, f"{off} false but its block was kept"

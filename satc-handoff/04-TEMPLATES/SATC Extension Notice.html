@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — extension notice (template)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="satc-doc.css"/>
+</head>
+<body>
+
+<doc-page size="letter" margin="0.7in">
+
+<div class="letter">
+
+<div class="mast">
+  <div class="lock">
+    <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </div>
+  <div class="contact">
+    <b>SAT-C LLP</b><br/>
+    6544 Copley Avenue<br/>
+    Solon, OH 44139<br/>
+    307-941-0508<br/>
+    satcllp.com
+  </div>
+</div>
+<div class="rule"></div>
+
+<div class="meta-line">
+  <span><span class="f">&lt;&lt;LetterDate&gt;&gt;</span></span>
+  <span class="mono">ENGAGEMENT REF <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+<div class="recipient">
+  <b><span class="f">&lt;&lt;ClientFullName&gt;&gt;</span></b><br/>
+  <span class="f">&lt;&lt;ClientAddress1&gt;&gt;</span><br/>
+  <span class="f">&lt;&lt;ClientCity&gt;&gt;</span>, <span class="f">&lt;&lt;ClientState&gt;&gt;</span> <span class="f">&lt;&lt;ClientZip&gt;&gt;</span>
+</div>
+
+<div class="subject">We have filed an extension — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
+
+<div class="body">
+  <p>Dear <span class="f">&lt;&lt;ClientLetterName&gt;&gt;</span>,</p>
+
+  <p>We have filed an extension for the returns listed below. Your filing deadline moves to <span class="f">&lt;&lt;ExtendedDeadline&gt;&gt;</span>. <strong>Your payment deadline does not move</strong>, and section 02 tells you what to do about that.</p>
+
+  <div class="dateline">
+    <div>
+      <div class="k">Pay by</div>
+      <div class="v"><span class="f">&lt;&lt;PaymentDeadline&gt;&gt;</span></div>
+    </div>
+    <div style="text-align:right">
+      <div class="k">Extended filing deadline</div>
+      <div class="v"><span class="f">&lt;&lt;ExtendedDeadline&gt;&gt;</span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">01</span>What we extended</h2>
+    <span class="cond">[[EACH ExtendedReturns]]</span>
+    <ul>
+      <li><b><span class="f">&lt;&lt;Item.Return&gt;&gt;</span></b> — <span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></li>
+    </ul>
+    <span class="cond end">[[END EACH]]</span>
+    <p>Anything not listed above <strong>was not extended</strong>. Some authorities extend automatically when the federal return is extended and some do not, so the list is what we actually filed, not what we assume follows.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">02</span>An extension is more time to file, not more time to pay</h2>
+    <div class="callout">
+      <p><strong>Interest and penalties run from the original due date on anything unpaid.</strong> Filing the extension protects you from the late-filing charge. It does nothing about the late-payment charge, and the two are separate.</p>
+    </div>
+    <span class="cond">[[IF PaymentEnclosed]]</span>
+    <p>Based on the information we had when we filed, we estimated what you should pay with the extension. <strong>Pay <span class="f">&lt;&lt;EstimatedPaymentAmount&gt;&gt;</span> by <span class="f">&lt;&lt;PaymentDeadline&gt;&gt;</span></strong>, using the instructions in the enclosed voucher or the link we sent with it.</p>
+    <p>That figure is an estimate made from an incomplete file. It is not the final liability, and paying it does not settle the return. If it turns out to be short, the shortfall carries interest from the original due date; if it turns out to be long, the excess comes back with the return.</p>
+    <span class="cond end">[[END IF]]</span>
+    <span class="cond">[[IF NoPaymentRequired]]</span>
+    <p>On the information we had when we filed, we did not expect a balance to be due, so no payment was estimated. <strong>If your circumstances for the period were different from what we understood</strong> — income we have not seen, a sale, a distribution — tell us now rather than at the extended deadline, because a payment made later still carries interest from the original due date.</p>
+    <span class="cond end">[[END IF]]</span>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">03</span>What we still need from you</h2>
+    <span class="cond">[[EACH OutstandingItems]]</span>
+    <ul class="req-list">
+      <li>
+        <span class="box"></span>
+        <span class="txt"><b><span class="f">&lt;&lt;Item.Document&gt;&gt;</span></b><span><span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></span></span>
+      </li>
+    </ul>
+    <span class="cond end">[[END EACH]]</span>
+    <p>Send everything above by <strong><span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span></strong>. That date is not the extended deadline and it is deliberately earlier than it — the return still has to be prepared, reviewed by you, and signed before it can be filed.</p>
+    <p>If an item does not apply to you, <strong>tell us that rather than leaving it out</strong>. We cannot tell a missing document from one that does not exist, and we will keep asking.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">04</span>What happens if the extended deadline passes</h2>
+    <p>The extension cannot be extended again. A return filed after <span class="f">&lt;&lt;ExtendedDeadline&gt;&gt;</span> is late, and the late-filing charge applies from the original due date as though no extension had been filed.</p>
+    <p>As the <b>Fees and billing</b> section of your engagement letter sets out, <strong>we may suspend or withdraw if requested information is not provided</strong>, and we are not responsible for a late filing that results. We would much rather send you a return than that letter.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">05</span>Questions</h2>
+    <p>Ask before you guess, particularly about the payment. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span> or <span class="f">&lt;&lt;PreparerPhone&gt;&gt;</span>.</p>
+  </div>
+
+  <div class="signoff">
+    <p>Sincerely,</p>
+    <div class="sp"></div>
+    <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of SAT-C LLP</div>
+  </div>
+</div>
+
+</div>
+
+<div slot="footer" class="foot">
+  <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139.</p>
+  <span class="id">EXTENSION NOTICE<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+</doc-page>
+
+<div class="ref">
+  <h3>Merge fields</h3>
+  <p>The highest-volume document in the set, and the shortest. Sent the day an extension is filed, not weeks later — a client who learns about it at the extended deadline has already missed the payment date. Clauses in the engagement letter are referenced <b>by name</b>. <span class="warn">Fail the render on any unresolved <code>&lt;&lt;</code> or <code>[[</code>.</span></p>
+  <table>
+    <tr><th>Field</th><th>Required</th><th>Example / notes</th></tr>
+    <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>April 14, 2027 — the day the extension was filed. <b>Send it the same day.</b></td></tr>
+    <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the join key</td></tr>
+    <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td>2026 tax year — appears twice: subject and footer</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientLetterName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields, the same block every letter carries</td></tr>
+    <tr><td>&lt;&lt;ExtendedDeadline&gt;&gt;</td><td class="req">Required</td><td>October 15, 2027 — <b>appears three times.</b> Opening paragraph, dateline, section 04. Drive all three from one value.</td></tr>
+    <tr><td>&lt;&lt;PaymentDeadline&gt;&gt;</td><td class="req">Required</td><td>April 15, 2027 — the <b>original</b> due date, which the extension did not move. Appears twice. <span class="warn">If this ever equals ExtendedDeadline, something is wrong.</span></td></tr>
+    <tr><td>&lt;&lt;MaterialsDeadline&gt;&gt;</td><td class="req">Required</td><td>August 15, 2027 — <b>the extension-season value, not the original season's.</b> Same field name as the onboarding letter and the organizer, different value for this stage.</td></tr>
+    <tr><td>&lt;&lt;EstimatedPaymentAmount&gt;&gt;</td><td class="opt">If PaymentEnclosed</td><td>$2,150.00 — a pre-formatted string from the one money formatter. This template does no arithmetic.</td></tr>
+    <tr><td>[[EACH ExtendedReturns]]</td><td class="req">List</td><td>One or more. Two sub-fields. <b>Exactly what was filed</b>, not what is assumed to follow.</td></tr>
+    <tr><td>&lt;&lt;Item.Return&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>Federal Form 4868 · Extends the Form 1040 to October 15, 2027. Detail is an empty string when there is nothing to add, never "None".</td></tr>
+    <tr><td>[[EACH OutstandingItems]]</td><td class="req">List</td><td>One or more. Two sub-fields — <b>the same shape as the onboarding letter's RequestList</b>, so the same formatter serves both.</td></tr>
+    <tr><td>&lt;&lt;Item.Document&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>K-1 from Larchmere Holdings LLC · Expected from the partnership by September 1</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt; &lt;&lt;PreparerPhone&gt;&gt;</td><td class="req">Required</td><td>Four fields</td></tr>
+    <tr><td>[[IF PaymentEnclosed]]</td><td class="req">Flag</td><td>Boolean. An extension payment was estimated and is due.</td></tr>
+    <tr><td>[[IF NoPaymentRequired]]</td><td class="req">Flag</td><td>Boolean, and <b>the exact inverse of PaymentEnclosed</b>. Section 02 must never be silent — a client with no paragraph there concludes there is nothing to pay, and that has to be a statement the firm made rather than a gap it left.</td></tr>
+  </table>
+  <p><b>17 fields + 2 repeating lists of 2 + 2 flags.</b> Both conditionals sit <b>inside</b> section 02, so neither drops a numbered section and nothing needs renumbering.</p>
+
+  <h3>Deliberately not here</h3>
+  <ol>
+    <li><b>No apology, and no reason.</b> Why the extension was needed is a conversation, not a paragraph in a form letter. Whichever side it favours, putting it in writing on a document that goes out hundreds of times is a bad trade.</li>
+    <li><b>No fee.</b> The invoice owns it, and an extension notice that also asks for money reads as a bill and gets filed as one.</li>
+    <li><b>No signature line.</b> Nothing here needs signing. The extension is already filed.</li>
+    <li><b>No new deadline the firm invented.</b> Every date in this letter is either statutory or the materials deadline the firm already publishes.</li>
+    <li><b>No "don't worry".</b> An extension is routine and the letter's tone says so by being short. Saying it out loud invites the opposite reading.</li>
+  </ol>
+
+  <h3>For whoever wires the software</h3>
+  <ol>
+    <li><code>PaymentEnclosed</code> and <code>NoPaymentRequired</code> must be derived from one stored value. Two independent booleans can both be false, which would leave section 02 with a warning and no instruction — the worst possible version of this letter.</li>
+    <li><code>MaterialsDeadline</code> is <b>keyed by season stage as well as return type.</b> The onboarding letter and the organizer carry the original-season value; this letter carries the extension-season one. Same field name, different setting. <span class="warn">A registry that stores one value per return type will print the wrong date here.</span></li>
+    <li><code>OutstandingItems</code> is what is still missing, which means it is derived by subtracting what arrived from the onboarding letter's <code>RequestList</code>. If that subtraction is done by hand it will drift.</li>
+    <li>Strip the <code>.f</code> class and the <code>.cond</code> markers on the client-facing render.</li>
+    <li>Name the output: <code>SAT-C Extension Notice — Reyes — 2026.pdf</code>.</li>
+  </ol>
+</div>
+
+<script src="doc-page.js"></script>
+</body>
+</html>

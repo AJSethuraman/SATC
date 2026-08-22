@@ -27,11 +27,15 @@ TEMPLATE_DIR = ROOT.parent / "satc-handoff" / "04-TEMPLATES"
 # loudly instead of silently dropping out of the reconciliation.
 TEMPLATES = {
     "tax-letter": "SATC Engagement Letter - Tax Preparation.html",
+    "business-letter": "SATC Engagement Letter - Business Return.html",
     "bookkeeping-letter": "SATC Engagement Letter - Bookkeeping.html",
     "fee-estimate": "SATC Fee Estimate.html",
     "invoice": "SATC Invoice.html",
     "onboarding-letter": "SATC Onboarding Letter.html",
     "organizer-letter": "SATC Organizer Cover Letter.html",
+    "delivery-letter": "SATC Tax Return Delivery Letter.html",
+    "extension-notice": "SATC Extension Notice.html",
+    "disengagement-letter": "SATC Disengagement Letter.html",
 }
 
 
@@ -117,8 +121,10 @@ def test_every_interview_field_has_a_question(registry, interview):
         e.get("field") or e.get("flag")
         for e in registry["fields"] + registry["flags"]
         if e.get("source") == "interview"
-        # Bookkeeping-only signatory fields are registered but out of scope for
-        # the tax interview; they are asked when that interview is built.
+        # Entity signatory fields. Registered and used by the bookkeeping and
+        # business-return letters, but out of scope for the tax interview,
+        # which covers individual return preparation. They are asked when the
+        # entity interview is built.
         and (e.get("field") or e.get("flag")) not in {"SignerName", "SignerTitle"}
     }
     missing = expected - supplied
@@ -210,3 +216,34 @@ def test_shared_fields_are_named_identically(parsed):
             lowered.setdefault(f.lower(), set()).add(f)
     clashes = {k: sorted(v) for k, v in lowered.items() if len(v) > 1}
     assert not clashes, f"same field, different spellings across templates: {clashes}"
+
+
+def test_registry_records_the_right_item_fields(parsed, registry):
+    """A list's sub-fields must match what its EACH block actually uses.
+
+    `templates` reconciliation catches a renamed field. This catches a renamed
+    *sub*-field, which is the same bug one level down and was invisible until a
+    template carried two lists with different shapes.
+    """
+    wrong = {}
+    for entry in registry["lists"]:
+        for tname in entry["templates"]:
+            actual = parsed[tname]["list_items"].get(entry["list"])
+            claimed = sorted(entry["item_fields"])
+            if actual is None:
+                wrong[f"{tname}.{entry['list']}"] = "registered but no EACH block uses it"
+            elif sorted(actual) != claimed:
+                wrong[f"{tname}.{entry['list']}"] = {"claimed": claimed, "actual": sorted(actual)}
+    assert not wrong, f"registry disagrees with the templates about list sub-fields: {wrong}"
+
+
+def test_every_template_list_is_registered_for_that_template(parsed, registry):
+    """A list registered against one template is not registered against another.
+
+    `LineItems` is deliberately listed twice, once per template. The failure
+    this catches is a new template using an existing list name and inheriting
+    another document's entry by accident.
+    """
+    registered = {(e["list"], t) for e in registry["lists"] for t in e["templates"]}
+    missing = {(l, n) for n, tok in parsed.items() for l in tok["lists"]} - registered
+    assert not missing, f"lists used by a template but not registered against it: {sorted(missing)}"

@@ -1,7 +1,11 @@
 name: Tests
 
-# Run the SATC test suite on every push and PR — separate from the Windows
+# Run the SATC test suites on every push and PR — separate from the Windows
 # desktop build, so logic regressions are caught even when no release is cut.
+#
+# One job per project, because the repo is one-folder-per-project and each has
+# its own stack and its own way of installing. fail-fast is off so a break in
+# one project still reports the others.
 on:
   push:
     branches: ["**"]
@@ -9,11 +13,21 @@ on:
 
 jobs:
   pytest:
-    name: pytest (satc_system)
+    name: pytest (${{ matrix.project }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: satc_system
+            install: pip install -e ".[dev]"
+          - project: client-documents
+            install: pip install -r requirements.txt
+          - project: invoice-generator
+            install: pip install -r requirements.txt pytest
     defaults:
       run:
-        working-directory: satc_system
+        working-directory: ${{ matrix.project }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,7 +40,7 @@ jobs:
       - name: Install project + test deps
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          ${{ matrix.install }}
 
       - name: Run tests
         run: pytest -q

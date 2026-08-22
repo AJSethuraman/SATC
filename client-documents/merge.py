@@ -182,7 +182,13 @@ def render_file(template_path: str | Path, record: dict, **kw) -> MergeResult:
 
 
 def tokens_in(template_html: str) -> dict:
-    """Every token a template needs. Used by the reconciliation tests."""
+    """Every token a template needs. Used by the reconciliation tests.
+
+    ``item_fields`` is the union across the whole template. ``list_items`` is
+    the same information split per list, which is the useful form once a
+    template carries more than one: the delivery letter's ``ReturnsDelivered``
+    and ``ActionList`` have different sub-fields, and a union cannot say so.
+    """
     body = _REF_BLOCK.sub("", template_html)
     fields = set(_FIELD_BARE.findall(body))
     return {
@@ -190,4 +196,19 @@ def tokens_in(template_html: str) -> dict:
         "item_fields": {f.split(".", 1)[1] for f in fields if f.startswith("Item.")},
         "flags": set(re.findall(r"\[\[IF ([A-Za-z0-9_]+)\]\]", body)),
         "lists": set(re.findall(r"\[\[EACH ([A-Za-z0-9_]+)\]\]", body)),
+        "list_items": _list_items(body),
     }
+
+
+def _list_items(body: str) -> dict:
+    """{list name: sorted sub-field names} for each EACH block in `body`."""
+    out = {}
+    for m in re.finditer(r"\[\[EACH ([A-Za-z0-9_]+)\]\]", body):
+        end = body.find("[[END EACH]]", m.end())
+        span = body[m.end():end if end != -1 else len(body)]
+        out[m.group(1)] = sorted(
+            f.split(".", 1)[1]
+            for f in set(_FIELD_BARE.findall(span))
+            if f.startswith("Item.")
+        )
+    return out
