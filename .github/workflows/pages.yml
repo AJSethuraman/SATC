@@ -1,6 +1,9 @@
 name: Deploy website to GitHub Pages
 
-# Publishes the static marketing site in ./website to GitHub Pages.
+# Publishes the static marketing site in ./website to GitHub Pages, plus the
+# satirical cashew-institute site under /cashews/. Note that satcllp.com itself
+# is served by Cloudflare Pages, whose build command copies ./website only — so
+# nothing staged below under /cashews/ can reach the live practice domain.
 # One-time setup: in the repo, go to Settings → Pages → "Build and deployment"
 # → Source → select "GitHub Actions". After that, every push to main that
 # touches ./website redeploys the live site automatically.
@@ -10,6 +13,7 @@ on:
     branches: [main]
     paths:
       - 'website/**'
+      - 'cashew-institute/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch: {}
 
@@ -51,6 +55,11 @@ jobs:
         run: |
           rm -rf _site && mkdir -p _site
           cp -r website/. _site/
+          # cashew-institute/ is unrelated to the practice and is staged into its
+          # own subdirectory, so it shares no path with the marketing site. The
+          # .md sweep below drops its README along with website/'s docs.
+          mkdir -p _site/cashews
+          cp -r cashew-institute/. _site/cashews/
           find _site \( -name '*.md' -o -name '*.py' \) -delete
           echo "Publishing:"
           find _site -type f | sort
