@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GCIC — Global Cashew Integrity Council</title>
+<meta name="description" content="The Global Cashew Integrity Council is an independent standards body established to authenticate the cashew. To date, it has authenticated none. A work of satire." />
+<meta name="theme-color" content="#14181C" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Global Cashew Integrity Council" />
+<meta property="og:description" content="Forty-seven years of continuous survey. Zero authenticated specimens. A work of satire." />
+
+<!-- Favicon: the Council seal — a kidney form struck through -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20fill='%2314181C'/%3E%3Cpath%20d='M10%209c6-2%2012%201%2012%206s-6%208-12%206c4-3%204-9%200-12z'%20fill='%23E8DCC0'/%3E%3Cpath%20d='M6%2026L26%206'%20stroke='%238C3A22'%20stroke-width='2.5'/%3E%3C/svg%3E" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<style>
+/* ============================================================================
+   GLOBAL CASHEW INTEGRITY COUNCIL
+   Single-file static site. No build step, no framework, no dependencies
+   beyond the webfont link above. Edit this file directly.
+
+   Direction: "standards body annual report" — the visual register of an
+   organisation nobody questions. Ink on paper, hairline rules, small-caps
+   labels, a serif for anything that makes a claim. The joke is carried
+   entirely by the copy; the design plays it completely straight.
+   ============================================================================ */
+
+:root {
+  --ink:        #14181C;   /* body copy, headings */
+  --ink-2:      #4B5460;   /* secondary copy */
+  --mute:       #8A9099;   /* labels, captions, meta */
+
+  --paper:      #FAFAF8;   /* page ground */
+  --paper-2:    #F1EFE9;   /* banded sections */
+  --sand:       #E8DCC0;   /* the one warm note — seal, marks */
+
+  --rule:       #DCDAD3;   /* hairlines */
+  --rule-dark:  #2A3038;   /* hairlines on dark ground */
+
+  --accent:     #8C3A22;   /* cashew shell oil. Actions and emphasis. */
+  --accent-dk:  #6E2C19;
+
+  --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --sans:  "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono:  "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --wrap: 1080px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { transition: none !important; }
+}
+
+.wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 24px; }
+
+/* ---- shared type ---------------------------------------------------------- */
+
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+
+.label {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.lede { font-size: 19px; color: var(--ink-2); }
+
+a { color: var(--accent); }
+a:hover { color: var(--accent-dk); }
+
+/* ---- masthead ------------------------------------------------------------- */
+
+.masthead {
+  background: var(--ink);
+  color: #fff;
+  border-bottom: 1px solid var(--rule-dark);
+}
+
+.masthead .wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 68px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.seal { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+.seal svg { display: block; flex: none; }
+.seal .name { font-family: var(--serif); font-size: 17px; line-height: 1.2; }
+.seal .sub {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: #8F9AA6;
+}
+
+.masthead nav { margin-left: auto; display: flex; gap: 26px; flex-wrap: wrap; }
+.masthead nav a {
+  color: #D6DBE1; text-decoration: none; font-size: 14px;
+  padding: 4px 0; border-bottom: 1px solid transparent;
+}
+.masthead nav a:hover { color: #fff; border-bottom-color: var(--sand); }
+
+/* ---- notice strip --------------------------------------------------------- */
+
+.strip {
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  padding: 9px 0;
+}
+.strip .wrap { display: flex; gap: 16px; justify-content: space-between; flex-wrap: wrap; }
+.strip .dot { color: var(--accent); }
+
+/* ---- hero ----------------------------------------------------------------- */
+
+.hero { padding: 84px 0 68px; border-bottom: 1px solid var(--rule); }
+.hero .label { display: block; margin-bottom: 22px; }
+
+.hero h1 {
+  font-size: clamp(38px, 6.2vw, 66px);
+  line-height: 1.08;
+  max-width: 17ch;
+  margin-bottom: 28px;
+}
+
+.hero .lede { max-width: 62ch; font-size: 20px; }
+
+.hero-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 36px; }
+
+.btn {
+  display: inline-block;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  padding: 12px 22px;
+  border: 1px solid var(--accent);
+  transition: background-color .15s ease, color .15s ease;
+}
+.btn-solid { background: var(--accent); color: #fff; }
+.btn-solid:hover { background: var(--accent-dk); border-color: var(--accent-dk); color: #fff; }
+.btn-ghost { background: transparent; color: var(--accent); }
+.btn-ghost:hover { background: var(--accent); color: #fff; }
+
+/* ---- figures band --------------------------------------------------------- */
+
+.figures { background: var(--ink); color: #fff; padding: 54px 0; }
+.figures .grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--rule-dark);
+  border: 1px solid var(--rule-dark);
+}
+.figures .cell { background: var(--ink); padding: 26px 22px; }
+.figures .n {
+  font-family: var(--serif);
+  font-size: 46px;
+  line-height: 1;
+  color: var(--sand);
+  display: block;
+  margin-bottom: 10px;
+}
+.figures .k { font-size: 14px; color: #B9C1CA; line-height: 1.45; }
+
+/* ---- generic section ------------------------------------------------------ */
+
+section { padding: 76px 0; border-bottom: 1px solid var(--rule); }
+section.alt { background: var(--paper-2); }
+
+.sec-head { max-width: 66ch; margin-bottom: 46px; }
+.sec-head .label { display: block; margin-bottom: 14px; }
+.sec-head h2 { font-size: clamp(27px, 3.6vw, 36px); line-height: 1.2; margin-bottom: 16px; }
+.sec-head p { margin: 0; color: var(--ink-2); }
+
+/* ---- findings ------------------------------------------------------------- */
+
+.findings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+.finding { border-top: 2px solid var(--ink); padding-top: 20px; }
+.finding .no { font-family: var(--mono); font-size: 12px; color: var(--accent); letter-spacing: 0.1em; }
+.finding h3 { font-size: 21px; margin: 10px 0 12px; line-height: 1.3; }
+.finding p { margin: 0; color: var(--ink-2); font-size: 16px; }
+
+/* ---- protocol list -------------------------------------------------------- */
+
+.protocol { border-top: 1px solid var(--rule); }
+.step {
+  display: grid;
+  grid-template-columns: 90px 1fr 200px;
+  gap: 28px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: baseline;
+}
+.step .idx { font-family: var(--mono); font-size: 13px; color: var(--mute); }
+.step h3 { font-size: 19px; margin-bottom: 6px; }
+.step p { margin: 0; color: var(--ink-2); font-size: 16px; }
+.step .outcome {
+  font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--accent);
+}
+
+/* ---- pull quote / the tell ------------------------------------------------ */
+
+.tell { display: grid; grid-template-columns: 1.15fr 1fr; gap: 56px; align-items: start; }
+.tell p { color: var(--ink-2); }
+.tell p:first-of-type { margin-top: 0; }
+
+.aside {
+  border-left: 2px solid var(--accent);
+  padding: 4px 0 4px 22px;
+}
+.aside blockquote {
+  margin: 0 0 14px;
+  font-family: var(--serif);
+  font-size: 22px;
+  line-height: 1.42;
+  color: var(--ink);
+}
+.aside cite { font-style: normal; font-size: 14px; color: var(--mute); }
+
+/* ---- chronology ----------------------------------------------------------- */
+
+.chron { border-top: 1px solid var(--rule); }
+.chron .row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 28px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.chron .yr { font-family: var(--mono); font-size: 14px; color: var(--accent); }
+.chron .ev { margin: 0; color: var(--ink-2); font-size: 16px; }
+
+/* ---- FAQ ------------------------------------------------------------------ */
+
+.faq { border-top: 1px solid var(--rule); max-width: 78ch; }
+.faq details { border-bottom: 1px solid var(--rule); }
+.faq summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 20px 40px 20px 0;
+  font-family: var(--serif);
+  font-size: 19px;
+  position: relative;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after {
+  content: "+";
+  position: absolute; right: 6px; top: 18px;
+  font-family: var(--mono); font-size: 20px; color: var(--accent);
+}
+.faq details[open] summary::after { content: "\2212"; }
+.faq summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.faq .ans { padding: 0 40px 22px 0; color: var(--ink-2); margin: 0; }
+
+/* ---- council -------------------------------------------------------------- */
+
+.council { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; }
+.member { border-top: 1px solid var(--rule); padding-top: 16px; }
+.member .in {
+  font-family: var(--serif); font-size: 28px; color: var(--ink); display: block; margin-bottom: 6px;
+}
+.member .role { font-size: 14px; color: var(--ink-2); margin: 0 0 4px; }
+.member .since { font-family: var(--mono); font-size: 11px; color: var(--mute); letter-spacing: 0.08em; }
+
+/* ---- press ---------------------------------------------------------------- */
+
+.press { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px; }
+.press figure { margin: 0; }
+.press blockquote {
+  margin: 0 0 12px;
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.45;
+}
+.press figcaption { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute); }
+
+/* ---- register / CTA ------------------------------------------------------- */
+
+.register { background: var(--ink); color: #fff; border-bottom: none; }
+.register h2 { color: #fff; }
+.register .sec-head p { color: #B9C1CA; }
+.register .sec-head .label { color: var(--sand); }
+
+.reg-form { display: flex; gap: 12px; flex-wrap: wrap; max-width: 560px; }
+.reg-form input[type="email"] {
+  flex: 1 1 260px;
+  background: #1D242C;
+  border: 1px solid var(--rule-dark);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 15px;
+  padding: 12px 14px;
+}
+.reg-form input::placeholder { color: #77818C; }
+.reg-form input:focus-visible { outline: 2px solid var(--sand); outline-offset: 1px; }
+.reg-form button {
+  font-family: var(--sans); font-size: 15px; font-weight: 500;
+  background: var(--sand); color: var(--ink);
+  border: 1px solid var(--sand); padding: 12px 22px; cursor: pointer;
+}
+.reg-form button:hover { background: #F0E7D2; }
+.reg-note { font-family: var(--mono); font-size: 12px; color: #77818C; margin: 16px 0 0; }
+.reg-note[data-state="done"] { color: var(--sand); }
+
+/* ---- footer --------------------------------------------------------------- */
+
+footer { background: var(--ink); color: #99A2AC; padding: 56px 0 40px; font-size: 14px; }
+footer .cols { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 40px; padding-bottom: 34px; border-bottom: 1px solid var(--rule-dark); }
+footer h4 { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #fff; margin: 0 0 14px; font-weight: 500; }
+footer ul { list-style: none; margin: 0; padding: 0; }
+footer li { margin-bottom: 8px; }
+footer a { color: #99A2AC; text-decoration: none; }
+footer a:hover { color: #fff; text-decoration: underline; }
+footer .addr { font-style: normal; line-height: 1.7; }
+
+.disclaimer {
+  margin-top: 30px;
+  padding: 18px 20px;
+  border: 1px solid var(--rule-dark);
+  background: #1A2129;
+  color: #C3CAD2;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.disclaimer strong { color: #fff; }
+
+.colophon { margin-top: 22px; font-family: var(--mono); font-size: 11px; color: #6E7883; letter-spacing: 0.04em; }
+
+/* ---- responsive ----------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .figures .grid { grid-template-columns: repeat(2, 1fr); }
+  .findings { grid-template-columns: 1fr; gap: 26px; }
+  .tell { grid-template-columns: 1fr; gap: 32px; }
+  .council { grid-template-columns: repeat(2, 1fr); }
+  .press { grid-template-columns: 1fr; gap: 26px; }
+  footer .cols { grid-template-columns: 1fr; }
+  .step { grid-template-columns: 1fr; gap: 6px; }
+  .step .outcome { margin-top: 6px; }
+}
+
+@media (max-width: 560px) {
+  body { font-size: 16px; }
+  section { padding: 54px 0; }
+  .hero { padding: 56px 0 46px; }
+  .figures .grid { grid-template-columns: 1fr; }
+  .chron .row { grid-template-columns: 1fr; gap: 4px; }
+  .masthead nav { gap: 18px; }
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <a class="seal" href="#top" aria-label="Global Cashew Integrity Council — home">
+      <svg width="34" height="34" viewBox="0 0 32 32" role="img" aria-hidden="true">
+        <rect width="32" height="32" fill="#1D242C" stroke="#3A424C"/>
+        <path d="M10 9c6-2 12 1 12 6s-6 8-12 6c4-3 4-9 0-12z" fill="#E8DCC0"/>
+        <path d="M6 26L26 6" stroke="#8C3A22" stroke-width="2.5"/>
+      </svg>
+      <span>
+        <span class="name">Global Cashew Integrity Council</span><br />
+        <span class="sub">Established 1978 &middot; Geneva</span>
+      </span>
+    </a>
+    <nav>
+      <a href="#findings">Findings</a>
+      <a href="#methodology">Methodology</a>
+      <a href="#chronology">Chronology</a>
+      <a href="#faq">Questions</a>
+      <a href="#council">Council</a>
+    </nav>
+  </div>
+</header>
+
+<div class="strip">
+  <div class="wrap">
+    <span><span class="dot">&#9679;</span> Advisory Notice 47-C remains in effect &mdash; no specimen has cleared verification.</span>
+    <span>Last survey update: 22 August 2026</span>
+  </div>
+</div>
+
+<main id="top">
+
+  <div class="hero">
+    <div class="wrap">
+      <span class="label">Position Statement &mdash; Forty-Seventh Edition</span>
+      <h1>No cashew has ever been independently verified.</h1>
+      <p class="lede">
+        Since 1978 the Council has maintained a continuous, open-invitation programme to
+        authenticate a single specimen of <em>Anacardium occidentale</em> under controlled
+        observation. In forty-seven years the programme has authenticated none. We publish
+        this record annually, without comment, and invite the industry to correct it.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-solid" href="#findings">Read the findings</a>
+        <a class="btn btn-ghost" href="#submit">Submit a specimen</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="figures">
+    <div class="wrap">
+      <div class="grid">
+        <div class="cell">
+          <span class="n">0</span>
+          <p class="k">Specimens authenticated since the programme opened in 1978.</p>
+        </div>
+        <div class="cell">
+          <span class="n">12,481</span>
+          <p class="k">Samples submitted for verification by growers, importers and the public.</p>
+        </div>
+        <div class="cell">
+          <span class="n">47</span>
+          <p class="k">Consecutive years of survey without a single clearing result.</p>
+        </div>
+        <div class="cell">
+          <span class="n">100%</span>
+          <p class="k">Of submitted samples withdrawn, reclassified, or found to be something else.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section id="findings">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Section I</span>
+        <h2>Three findings the industry has not addressed</h2>
+        <p>
+          The Council takes no position on why the cashew supply chain operates as it does.
+          It records only what the survey has established, and notes where the record is silent.
+        </p>
+      </div>
+      <div class="findings">
+        <article class="finding">
+          <span class="no">FINDING 01</span>
+          <h3>The shell is never presented</h3>
+          <p>
+            No cashew reaches retail in its shell. Every other tree nut of commercial
+            significance does. The industry attributes this to a caustic resin in the shell
+            lining; the Council notes that this explanation is supplied entirely by the
+            parties who benefit from it, and that no third party has been permitted to
+            photograph the shelling floor since 1991.
+          </p>
+        </article>
+        <article class="finding">
+          <span class="no">FINDING 02</span>
+          <h3>The geometry does not vary</h3>
+          <p>
+            Across 12,481 submissions from nineteen producing regions, curvature clusters
+            within a tolerance of 3.1&deg;. Almonds, hazelnuts and walnuts vary by an order of
+            magnitude more. A biological population does not converge on a tolerance band.
+            A tooling specification does.
+          </p>
+        </article>
+        <article class="finding">
+          <span class="no">FINDING 03</span>
+          <h3>The fruit is discarded</h3>
+          <p>
+            The cashew is officially described as a seed appended to a large, edible fruit &mdash;
+            a fruit which is, in every producing market, thrown away at volume. The Council
+            observes that an appendage is easier to manufacture than a fruit, and that the
+            fruit is the part nobody can find in the shops.
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt" id="methodology">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Section II</span>
+        <h2>Verification protocol GCIC&#8209;4</h2>
+        <p>
+          The protocol has not changed since 1983. It is deliberately undemanding: any party
+          may satisfy it, at any time, at the Council's expense. To date, thirty-one
+          submissions have reached Stage 4. None has reached Stage 5.
+        </p>
+      </div>
+      <div class="protocol">
+        <div class="step">
+          <span class="idx">STAGE 1</span>
+          <div>
+            <h3>Chain of custody</h3>
+            <p>The specimen is accompanied from tree to Council premises by two unaffiliated observers.</p>
+          </div>
+          <span class="outcome">Cleared &mdash; 4,102</span>
+        </div>
+        <div class="step">
+          <span class="idx">STAGE 2</span>
+          <div>
+            <h3>Shell integrity</h3>
+            <p>The specimen is presented unshelled, intact, and attached to its fruiting body.</p>
+          </div>
+          <span class="outcome">Cleared &mdash; 388</span>
+        </div>
+        <div class="step">
+          <span class="idx">STAGE 3</span>
+          <div>
+            <h3>Dimensional survey</h3>
+            <p>Curvature, mass and density are recorded against the natural-variance band for tree nuts.</p>
+          </div>
+          <span class="outcome">Cleared &mdash; 96</span>
+        </div>
+        <div class="step">
+          <span class="idx">STAGE 4</span>
+          <div>
+            <h3>Provenance interview</h3>
+            <p>The submitting party describes, in their own words, the moment of harvest.</p>
+          </div>
+          <span class="outcome">Cleared &mdash; 31</span>
+        </div>
+        <div class="step">
+          <span class="idx">STAGE 5</span>
+          <div>
+            <h3>Independent re-observation</h3>
+            <p>A second Council team returns to the named tree within ninety days and locates it.</p>
+          </div>
+          <span class="outcome">Cleared &mdash; 0</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tell">
+    <div class="wrap">
+      <div class="tell">
+        <div>
+          <span class="label">Section III</span>
+          <h2 style="font-size:32px; line-height:1.2; margin:14px 0 20px;">On the matter of the tree</h2>
+          <p>
+            Stage 5 is the only stage in protocol GCIC&#8209;4 that requires nothing of the specimen.
+            It requires something of the world: that the tree described in Stage 4 be there when
+            the Council returns to look at it.
+          </p>
+          <p>
+            Thirty-one submitting parties have described a harvest in convincing and often moving
+            detail. Thirty-one named a location. In twenty-two cases the location was found and
+            no tree was present. In seven cases a tree was present and was not an
+            <em>Anacardium</em>. In two cases the Council team was met at the perimeter and asked
+            to leave, politely, by people who did not identify themselves.
+          </p>
+          <p>
+            The Council does not characterise these outcomes. It records them, annually, in the
+            same table, and it renews the invitation. The programme remains open. It has always
+            remained open.
+          </p>
+        </div>
+        <div class="aside">
+          <blockquote>
+            &ldquo;We are not saying the cashew does not exist. We are saying that in
+            forty-seven years, nobody has been able to show us one.&rdquo;
+          </blockquote>
+          <cite>&mdash; Council Secretariat, standing response to press enquiries since 1994</cite>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt" id="chronology">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Section IV</span>
+        <h2>Chronology of the survey</h2>
+        <p>Abridged. The complete register runs to 1,140 pages and is available on request.</p>
+      </div>
+      <div class="chron">
+        <div class="row"><span class="yr">1978</span><p class="ev">Council convened in Geneva by eleven signatories following the failure of the Lisbon audit. Programme opens with an expected duration of eighteen months.</p></div>
+        <div class="row"><span class="yr">1983</span><p class="ev">Protocol GCIC&#8209;4 adopted, replacing three earlier protocols judged too demanding of submitting parties.</p></div>
+        <div class="row"><span class="yr">1991</span><p class="ev">Last recorded instance of third-party access to a commercial shelling floor. Subsequent requests are declined on grounds of process confidentiality.</p></div>
+        <div class="row"><span class="yr">1994</span><p class="ev">Secretariat adopts its standing response to press enquiries. It has not been revised.</p></div>
+        <div class="row"><span class="yr">2004</span><p class="ev">Submission 8,812 clears Stage 4 with the most complete provenance file on record. The named grove is located; it is a car park, and has been since 1986.</p></div>
+        <div class="row"><span class="yr">2016</span><p class="ev">Council declines an unsolicited endowment offered on the condition that the survey conclude. The offer is entered into the register in full.</p></div>
+        <div class="row"><span class="yr">2026</span><p class="ev">Forty-seventh consecutive edition published. Advisory Notice 47-C remains in effect.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Section V</span>
+        <h2>Questions the Council receives</h2>
+        <p>Reproduced with the Secretariat's standing answers.</p>
+      </div>
+      <div class="faq">
+        <details>
+          <summary>I have eaten a cashew. Does that not settle it?</summary>
+          <p class="ans">
+            You have eaten something. The Council has never disputed that the product exists,
+            is widely available, and is by most accounts pleasant. The programme concerns
+            provenance, not palatability. Sixty-two submitting parties have opened their
+            Stage 4 interview with this exact sentence.
+          </p>
+        </details>
+        <details>
+          <summary>Cashew trees appear in photographs. Are those falsified?</summary>
+          <p class="ans">
+            The Council makes no allegation of falsification and has never done so. It notes
+            only that photographs are not specimens, that Stage 5 requires a tree rather than
+            an image of one, and that the survey remains open to anyone in possession of the
+            former.
+          </p>
+        </details>
+        <details>
+          <summary>What does the Council believe cashews are made of?</summary>
+          <p class="ans">
+            The Council does not speculate on composition. Speculation is outside the mandate
+            and has, in the Secretariat's view, done considerable damage to the seriousness of
+            the record. We ask correspondents to refrain.
+          </p>
+        </details>
+        <details>
+          <summary>Who funds the Council?</summary>
+          <p class="ans">
+            Member subscriptions and a fixed annual disbursement from the 1978 founding
+            instrument. The Council has declined eleven offers of external funding, each of
+            which is listed in the register with its stated conditions.
+          </p>
+        </details>
+        <details>
+          <summary>How do I submit a specimen?</summary>
+          <p class="ans">
+            Register your intent below. Costs of transport, custody and observation are borne
+            entirely by the Council. There is no fee, no filing requirement, and no deadline.
+            There has never been a deadline.
+          </p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt" id="council">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Section VI</span>
+        <h2>Standing Council</h2>
+        <p>
+          Members serve unpaid seven-year terms and are identified by initial only, in
+          accordance with Article 9 of the founding instrument.
+        </p>
+      </div>
+      <div class="council">
+        <div class="member">
+          <span class="in">R.&thinsp;M.</span>
+          <p class="role">Chair, Verification</p>
+          <span class="since">SEATED 2019</span>
+        </div>
+        <div class="member">
+          <span class="in">A.&thinsp;O.</span>
+          <p class="role">Secretariat</p>
+          <span class="since">SEATED 2011</span>
+        </div>
+        <div class="member">
+          <span class="in">D.&thinsp;L.</span>
+          <p class="role">Field Observation</p>
+          <span class="since">SEATED 2022</span>
+        </div>
+        <div class="member">
+          <span class="in">&mdash;</span>
+          <p class="role">Dimensional Survey</p>
+          <span class="since">VACANT SINCE 2004</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="press">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Section VII</span>
+        <h2>On the record</h2>
+      </div>
+      <div class="press">
+        <figure>
+          <blockquote>&ldquo;Meticulous, tireless, and answering a question nobody asked.&rdquo;</blockquote>
+          <figcaption>Quarterly Review of Agricultural Standards</figcaption>
+        </figure>
+        <figure>
+          <blockquote>&ldquo;The Council's paperwork is beyond reproach. That is what makes it so difficult.&rdquo;</blockquote>
+          <figcaption>Federated Growers' Bulletin</figcaption>
+        </figure>
+        <figure>
+          <blockquote>&ldquo;We have asked them repeatedly to stop. They send an annual report instead.&rdquo;</blockquote>
+          <figcaption>Statement of an industry association, 2021</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="register" id="submit">
+    <div class="wrap">
+      <div class="sec-head">
+        <span class="label">Open Invitation</span>
+        <h2>Register a specimen for verification</h2>
+        <p>
+          The programme has been open continuously since 1978 and will remain open. One
+          clearing result closes it permanently. The Council would welcome that outcome.
+        </p>
+      </div>
+      <form class="reg-form" id="reg-form" novalidate>
+        <label for="reg-email" class="label" style="position:absolute;left:-9999px;">Email address</label>
+        <input id="reg-email" type="email" name="email" placeholder="Institutional email address" autocomplete="email" required />
+        <button type="submit">Register intent</button>
+      </form>
+      <p class="reg-note" id="reg-note">
+        No fee. No deadline. Transport and custody costs borne by the Council.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h4>Global Cashew Integrity Council</h4>
+        <address class="addr">
+          Secretariat, Case Postale 1978<br />
+          1211 Geneva<br />
+          Founding instrument dated 4 April 1978
+        </address>
+      </div>
+      <div>
+        <h4>Publications</h4>
+        <ul>
+          <li><a href="#findings">Position Statement 47</a></li>
+          <li><a href="#methodology">Protocol GCIC-4</a></li>
+          <li><a href="#chronology">Survey register</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>The Council</h4>
+        <ul>
+          <li><a href="#council">Standing members</a></li>
+          <li><a href="#faq">Standing answers</a></li>
+          <li><a href="#submit">Submit a specimen</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      <strong>This is a work of satire.</strong> The Global Cashew Integrity Council does not
+      exist, and neither do its survey, its protocol, its register or its members. Cashews are
+      real. They grow on <em>Anacardium occidentale</em>, they are shelled before sale because
+      the shell contains anacardic acid and urushiol &mdash; the same irritant family as poison
+      ivy &mdash; and the cashew apple is discarded in export markets because it bruises within
+      a day of picking. Every figure, quotation and event on this page is invented for comic
+      effect. Nothing here should be cited, believed, or forwarded to anyone who might do
+      either.
+    </div>
+
+    <p class="colophon">
+      Hand-written HTML &middot; no build step, no framework, no tracking &middot; served as a
+      static file from GitHub Pages
+    </p>
+  </div>
+</footer>
+
+<script>
+/* The one piece of behaviour on the page: acknowledge the registration without
+   pretending to submit it anywhere. There is no backend, and the joke does not
+   need one. */
+(function () {
+  var form = document.getElementById('reg-form');
+  var note = document.getElementById('reg-note');
+  if (!form || !note) return;
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var email = form.querySelector('#reg-email');
+    var value = (email.value || '').trim();
+
+    if (value.indexOf('@') < 1 || value.indexOf('.') < 0) {
+      note.textContent = 'A valid institutional address is required to open a custody file.';
+      note.removeAttribute('data-state');
+      email.focus();
+      return;
+    }
+
+    form.reset();
+    note.setAttribute('data-state', 'done');
+    note.textContent =
+      'Intent recorded. Your submission has been assigned to the queue and will be ' +
+      'acknowledged in the forty-eighth edition. (Nothing was sent anywhere. This site is satire.)';
+  });
+})();
+</script>
+
+</body>
+</html>
