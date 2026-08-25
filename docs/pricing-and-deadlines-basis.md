@@ -301,3 +301,103 @@ than a rounding difference.
 read from search summaries — the primary pages are blocked from this
 environment's network egress, so **each should be confirmed against the source
 before it is quoted to anyone.**
+
+---
+
+## The three-package ladder (proposed 25 August 2026)
+
+### The diagnosis
+
+`$170` (workbook row 2, federal only) + `$30` (row 47, state) = **`$200`**.
+
+The firm's default quote is exactly the workbook's 1040 line plus its state line,
+with the locality given away. But the workbook prices **every schedule
+separately on top of that**: Schedule C at 200, Schedule D + 8949 at 55,
+Schedule E at 130. So `$200` is the workbook's price for a return with **no
+schedules**, and quoting it as the default absorbs every schedule a client turns
+out to have, silently, one client at a time.
+
+That is a structural failure, not a pricing one. The per-form prices are fine —
+see the market check below.
+
+### The ladder
+
+| Package | Price | Gate — one fact | Absorbs |
+|---|---|---|---|
+| **Essentials** | $200 | no schedules | 1040, first state, first locality, standard deduction |
+| **Standard** | $325 | schedules, nothing that scales | + itemizing, one brokerage, a gig Schedule C |
+| **Property & Business** | $500 | owns things that scale | + **one** of: up to 3 rentals, up to 4 K-1s, or a full Schedule C |
+
+Overlap rule, stated once: **the highest package whose gate is met.** A gig
+Schedule C *and* a rental is Property & Business. No judgement, no exceptions.
+
+Entities are a separate line, unchanged: $800 for an 1120-S / 1065 / 1120, plus
+a per-owner charge for each K-1 issued.
+
+### The derivation, and what in it is invented
+
+| Package | Built from | | Source |
+|---|---|---:|---|
+| Essentials | workbook 1040, row 2 | 170 | firm |
+| | workbook state, row 47 | 30 | firm |
+| | **= $200** | | |
+| Standard | Essentials | 200 | firm |
+| | Schedule D + Form 8949, rows 7+40 | 55 | firm |
+| | a mileage-only Schedule C, ⅓ of the full 200 | 65 | **inferred** |
+| | **= $320, rounded to $325** | | |
+| Property | Standard | 325 | firm |
+| | one allowance — the largest (a full Schedule C at 200), discounted because few clients use the whole allowance | 175 | **inferred** |
+| | **= $500** | | |
+
+**Only two figures are invented**, and both are the same judgement: how much less
+a light version of a thing is worth than the full version. If a gig Schedule C is
+worth 40 rather than 65, Standard becomes 300 and nothing else moves.
+
+### Market check
+
+| Proposed | Comparator | Market | |
+|---|---|---:|---|
+| Essentials $200 | NATP 2025, CPA base 1040 — *federal only* | 280 | under |
+| Standard $325 | the same, plus a state and a local | ~350 | under |
+| Property $500 | Buckeye CPA, Columbus OH — same bundle, *starting at* | 600 | under |
+| Entity $800 | 1120 $759 · 1120-S $717 · 1065 $556 | 759 | **at market** |
+| Schedule C $200 | market average for a Schedule C | 205 | **at market** |
+
+The bottom two rows are the important ones: **where the workbook prices a form,
+it is within a few dollars of the national average.** The firm did not price
+badly. Every proposed package still sits under its comparator *after* the
+increase.
+
+**Recommendation on record: adopt the structure, hold Essentials at $200.** No
+existing simple client's bill rises for the same work, so the change is
+defensible to every current client, and the leak — complex clients paying a
+simple price — stops on its own.
+
+### Why this makes time tracking load-bearing
+
+Every price above is a hypothesis about hours: $325 asserts that a Standard
+return takes 2 h 10 m, and nothing has tested it. One season of real times
+replaces this entire derivation with evidence.
+
+The strategic half matters more. **Under hourly billing, an hour saved is an
+hour not billed** — every efficiency is handed back to the client. Under fixed
+packages, an hour saved is margin retained. Packages are the mechanism that lets
+automation show up as profit rather than as a smaller invoice.
+
+But the gain is only measurable against a baseline, and **the baseline stops
+being capturable the moment the tooling lands.** If a Standard return drops from
+2 h 10 m to 1 h 20 m across two seasons, that is ~$125 of margin per return —
+invisible without a before-figure, and unarguable when it comes to re-pricing.
+
+Five fields per engagement are enough: package assigned; hours preparing; hours
+of admin (intake, chasing, assembly, e-file, invoicing); whether an assumption
+failed; and what that failure cost in hours. Two of the five — **admin hours**
+and **the cost of a failed assumption** — appear in no survey and cannot be
+bought. They are the two that decide whether this ladder is priced right.
+
+### Status
+
+Not implemented. The fee schedule still carries `[CONFIRM:` on every amount and
+refuses to render an estimate until a human sets each one. This section is a
+proposal to accept or correct. The reader-facing version is at
+https://claude.ai/code/artifact/7b9a422d-3e2c-4539-a288-19cc7ef75c34
