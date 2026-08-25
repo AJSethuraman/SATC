@@ -416,6 +416,77 @@ per_unit:
         # The first full one is inside Property & Business.
         amount: 200
 
+# ── the words the estimate assembles ──────────────────────────────────────
+#
+# Everything below is CLIENT-FACING ENGLISH that used to live in pricing.py.
+# It is here because the firm asked for it on 25 August 2026:
+#
+#   "templates should be easily customizable to the degree possible - in the
+#    sense that i can easily manually update how they read"
+#
+# The ten HTML templates were already hand-editable. These sentences were not:
+# they are stitched together at render time from the labels, details and
+# assumptions above, and the connective tissue -- "Includes:", "after the
+# first", "this estimate assumes ... and does not include work beyond it" --
+# was English written in Python. Changing a word meant changing code.
+#
+# HOW TO EDIT ONE. Rewrite the text. Keep every {slot} that is already in it,
+# spelled the same way; a slot is a hole the software fills, and a phrase
+# missing one loses whatever it was going to say. Adding a slot that is not
+# listed for that phrase is an error rather than a blank, and the test suite
+# says which phrase and which slot.
+#
+# Each pair is the same sentence twice: once with a detail already on the line
+# and once without. They are written out rather than derived, because deriving
+# them means the rule for where a comma goes lives in code again.
+phrases:
+  # The package line: what the package covers.
+  #   {detail} the package's own one-line description
+  #   {list}   its covers list, joined
+  includes:      "{detail}. Includes: {list}."
+  includes_only: "Includes: {list}."
+
+  # Which side of an either/or allowance the client got.
+  #   {detail} the package line's detail so far
+  #   {branch} the winning allowance's label
+  with_allowance: "{detail} — with {branch}"
+
+  # The old flat base fee, kept for a schedule with no package ladder.
+  base_covers_one: "Includes the first state and locality"
+
+  # A counted line whose first unit the package already paid for.
+  #   {detail} the line's own detail
+  #   {n}      how many were included
+  after_first:      "{detail}, after the first"
+  after_first_only: "After the first"
+  after_n:          "{detail}, after the {n} included"
+  after_n_only:     "After the {n} included"
+
+  # A counted line that stopped climbing.
+  #   {n} the cap
+  capped:      "{detail}, capped at {n}"
+  capped_only: "Capped at {n}"
+
+  # More than one of something.
+  #   {n} how many are charged   {each} the price of one
+  multiplier:      "{detail} — {n} × {each}"
+  multiplier_only: "{n} × {each}"
+
+  # An assumption, in the estimate's own assumptions block.
+  #   {label} {assumes} {trigger}  from the `assumed:` item
+  #   {where}       one of the two lines below it
+  #   {consequence} one of the two below that
+  assumption: "{label} — this estimate assumes {assumes}, {where}. If {trigger}, {consequence}."
+  inside_base:  "and includes it on that basis"
+  outside_base: "and does not include work beyond it"
+
+  # What happens past an assumption. One per `beyond:` value.
+  #   {rate} " at $150 an hour", or empty when no rate is set
+  beyond_hourly: "the additional time is billed{rate} as it is worked, and we will tell you as soon as we see it"
+  #   {each}   how the priced line names one of itself (`per_each`)
+  #   {amount} its price, formatted
+  beyond_priced: "{each} is {amount} — we will tell you as soon as we see it and agree it with you then, rather than adding it to your bill unannounced"
+
 # ── one price per named form ──────────────────────────────────────────────
 #
 # The firm, 25 August 2026:

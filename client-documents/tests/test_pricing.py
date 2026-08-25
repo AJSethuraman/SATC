@@ -1093,3 +1093,63 @@ def test_requote_is_still_refused():
     with pytest.raises(pricing.PricingError) as exc:
         pricing.assumptions({"federal_form": "1040"}, s)
     assert "ruled out re-quoting" in str(exc.value)
+
+
+# ── the wording is data ───────────────────────────────────────────────────
+
+def test_every_phrase_the_estimate_can_say_is_in_the_registry():
+    """The firm, 25 Aug 2026: "templates should be easily customizable to the
+    degree possible - in the sense that i can easily manually update how they
+    read". A sentence assembled in Python is one they cannot reach."""
+    s = pricing.load()
+    phrases = s.get("phrases") or {}
+    missing = sorted(set(pricing._SLOTS) - set(phrases))
+    assert not missing, f"assembled in code, not editable: {missing}"
+
+
+def test_every_phrase_renders_with_exactly_the_slots_it_declares():
+    """The guard that makes editing them safe.
+
+    A phrase that gains a slot nobody fills would print a literal brace on a
+    client's estimate, or raise mid-render. This fails first, by name.
+    """
+    s = pricing.load()
+    for key, slots in pricing._SLOTS.items():
+        out = pricing.say(s, key, **{name: f"<{name}>" for name in slots})
+        assert "{" not in out and "}" not in out, f"{key} left a brace: {out}"
+        for name in slots:
+            assert f"<{name}>" in out, f"{key} dropped its {name} slot"
+
+
+def test_a_phrase_that_invents_a_slot_says_which_one():
+    s = pricing.load()
+    s["phrases"]["after_first_only"] = "After the first {colour} one"
+    with pytest.raises(pricing.PricingError) as exc:
+        pricing.say(s, "after_first_only")
+    assert "after_first_only" in str(exc.value)
+    assert "colour" in str(exc.value)
+
+
+def test_changing_a_phrase_changes_what_the_estimate_says():
+    """The whole point: edit the file, the document changes."""
+    s = pricing.load()
+    s["phrases"]["after_first_only"] = "(the first one is on us)"
+    items = pricing.line_items({"federal_form": "1040", "count_states": 2}, s)
+    state = [i for i in items if i["Service"] == "State return"][0]
+    assert state["Detail"] == "Per state, after the first", (
+        "this line has a detail, so it uses the paired phrase"
+    )
+    s["phrases"]["after_first"] = "{detail} (the first one is on us)"
+    items = pricing.line_items({"federal_form": "1040", "count_states": 2}, s)
+    state = [i for i in items if i["Service"] == "State return"][0]
+    assert state["Detail"] == "Per state (the first one is on us)"
+
+
+def test_a_schedule_without_phrases_uses_the_firms_one_copy():
+    """A sample schedule, a test fixture and a future second schedule should
+    all say the same thing to a client, and only one file should have to be
+    edited to change it."""
+    sample = pricing.load(ROOT / "samples" / "fee-schedule-example.yaml")
+    assert "phrases" not in sample
+    said = pricing.assumptions({"federal_form": "1040"}, sample)
+    assert said and all("this estimate assumes" in t for t in said)

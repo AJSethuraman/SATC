@@ -13,6 +13,7 @@ service is worse than quoting nothing at all.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -54,6 +55,73 @@ def open_amounts(schedule: dict | None = None) -> list[tuple[str, str]]:
 
     walk(s, "")
     return found
+
+
+# Every phrase the estimate assembles, and the slots each one is allowed to
+# fill. The schedule holds the words; this holds the contract, because a slot
+# is the one part of a phrase a human editing the wording must not invent.
+_SLOTS = {
+    "includes": {"detail", "list"},        "includes_only": {"list"},
+    "with_allowance": {"detail", "branch"},
+    "base_covers_one": set(),
+    "after_first": {"detail"},             "after_first_only": set(),
+    "after_n": {"detail", "n"},            "after_n_only": {"n"},
+    "capped": {"detail", "n"},             "capped_only": {"n"},
+    "multiplier": {"detail", "n", "each"}, "multiplier_only": {"n", "each"},
+    "assumption": {"label", "assumes", "where", "trigger", "consequence"},
+    "inside_base": set(), "outside_base": set(),
+    "beyond_hourly": {"rate"},
+    "beyond_priced": {"each", "amount"},
+}
+
+
+def say(schedule: dict, key: str, **slots) -> str:
+    """One phrase from the schedule, with its slots filled.
+
+    The words are the firm's -- "templates should be easily customizable to
+    the degree possible, in the sense that i can easily manually update how
+    they read", 25 August 2026 -- so they live in the registry and this only
+    fills the holes.
+
+    A phrase that names a slot nothing supplies raises rather than printing
+    an empty one or a literal `{brace}` on a client's estimate. That is the
+    whole safety of moving prose into data: the failure is loud, at render,
+    with the phrase named.
+    """
+    text = (schedule.get("phrases") or {}).get(key)
+    if text is None:
+        # The WORDING is the firm's and there is one copy of it, in the
+        # registry. A schedule that does not carry its own falls back to that
+        # rather than to English hidden in this file -- a sample schedule, a
+        # test fixture and a future second schedule should all say the same
+        # thing to a client, and only one file should have to be edited to
+        # change what that is. A schedule MAY override any phrase; omitting
+        # them all is the normal case.
+        text = _registry_phrases().get(key)
+    if text is None:
+        raise PricingError(
+            f"the fee schedule has no phrase {key!r}, so there is no wording "
+            f"for something the estimate needs to say. Add it under "
+            f"`phrases:` rather than letting the line render blank."
+        )
+    try:
+        return text.format(**slots)
+    except (KeyError, IndexError) as exc:
+        raise PricingError(
+            f"the phrase {key!r} uses {exc} , which is not one of its slots "
+            f"({sorted(_SLOTS.get(key, slots)) or 'none'}). Keep the slots "
+            f"that are already in a phrase and do not add new ones -- a slot "
+            f"is a hole the software fills, and it can only fill the ones it "
+            f"knows about."
+        ) from None
+
+
+@lru_cache(maxsize=1)
+def _registry_phrases() -> dict:
+    try:
+        return (load().get("phrases") or {})
+    except Exception:
+        return {}
 
 
 def _line(service: str, detail: str, amount, code: str) -> dict:
@@ -530,7 +598,8 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             # the total and the estimate refuses rather than guessing.
             base = allowance["_open"]
         elif allowance.get("_branch"):
-            detail = f"{detail} — with {allowance['_branch']}"
+            detail = say(s, "with_allowance", detail=detail,
+                         branch=allowance["_branch"])
         # What the package covers, printed. Without this the estimate names a
         # package and a price and says nothing about what is inside it, which
         # is how a client reads a $500 line as "everything" and how a $200
@@ -538,13 +607,14 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         included = covers(key, tiers, f"base.{form}")
         if included:
             joined = "; ".join(included)
-            detail = f"{detail}. Includes: {joined}." if detail else f"Includes: {joined}."
+            detail = (say(s, "includes", detail=detail, list=joined) if detail
+                      else say(s, "includes_only", list=joined))
     else:
         label = {"1040": "Federal Form 1040", "1120S": "Federal Form 1120-S",
                  "1065": "Federal Form 1065", "1120": "Federal Form 1120"}.get(form, form)
         detail = ""
         if base_covers == "one_included":
-            detail = "Includes the first state and locality"
+            detail = say(s, "base_covers_one")
         elif is_open(base_covers):
             # The structure itself is undecided, so the line cannot honestly
             # describe what it covers. Carry the question, not a guess.
@@ -578,8 +648,8 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             total = capped
         detail = unit.get("detail", "")
         if capped is True:
-            detail = (f"{detail}, capped at {unit['cap_units']}" if detail
-                      else f"Capped at {unit['cap_units']}")
+            detail = (say(s, "capped", detail=detail, n=unit["cap_units"])
+                      if detail else say(s, "capped_only", n=unit["cap_units"]))
         # Say that the first ones were free. A client who is told their
         # package includes a state return and then sees a "State return"
         # line on the same page reasonably concludes they were charged for
@@ -587,13 +657,15 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         # above it looks like a lie.
         free = raw - count
         if free == 1:
-            detail = f"{detail}, after the first" if detail else "After the first"
+            detail = (say(s, "after_first", detail=detail) if detail
+                      else say(s, "after_first_only"))
         elif free > 1:
-            detail = (f"{detail}, after the {free} included" if detail
-                      else f"After the {free} included")
+            detail = (say(s, "after_n", detail=detail, n=free) if detail
+                      else say(s, "after_n_only", n=free))
         if billed > 1:
             each = amount if is_open(amount) else m.money(amount, code)
-            detail = f"{detail} — {billed} × {each}" if detail else f"{billed} × {each}"
+            detail = (say(s, "multiplier", detail=detail, n=billed, each=each)
+                      if detail else say(s, "multiplier_only", n=billed, each=each))
         items.append(_line(unit["label"], detail, total, code))
 
     # One price per named form. Ticked from a multi-select, priced flat, and
@@ -675,8 +747,8 @@ def _assumption(spec: dict, rate, *, schedule: dict | None = None,
             f"honest sentence to print, and a boundary nobody stated is "
             f"not a boundary."
         )
-    where = ("and includes it on that basis" if spec.get("inside_base")
-             else "and does not include work beyond it")
+    s = schedule or {}
+    where = say(s, "inside_base" if spec.get("inside_base") else "outside_base")
 
     beyond = spec.get("beyond", "hourly")
     if check_beyond and beyond not in _BEYOND:
@@ -688,14 +760,13 @@ def _assumption(spec: dict, rate, *, schedule: dict | None = None,
         )
 
     if beyond == "priced":
-        consequence = _priced_consequence(label, spec, schedule or {})
+        consequence = _priced_consequence(label, spec, s)
     else:
         rate_txt = f" at ${rate:,.0f} an hour" if isinstance(rate, (int, float)) else ""
-        consequence = (f"the additional time is billed{rate_txt} as it is "
-                       f"worked, and we will tell you as soon as we see it")
+        consequence = say(s, "beyond_hourly", rate=rate_txt)
 
-    return (f"{label} \u2014 this estimate assumes {assumes}, {where}. "
-            f"If {trigger}, {consequence}.")
+    return say(s, "assumption", label=label, assumes=assumes, where=where,
+               trigger=trigger, consequence=consequence)
 
 
 # What can happen past an assumption. Deliberately short, and every entry is a
@@ -748,11 +819,9 @@ def _priced_consequence(label: str, spec: dict, schedule: dict) -> str:
             f"{label} prices its overrun from per_unit.{key}, which has no "
             f"amount set. Set it before promising a client a number."
         )
-    money = m.money(amount, schedule.get("currency", "USD"))
-    each = unit.get("per_each") or "that one"
-    return (f"{each} is {money} \u2014 we will tell you as soon as we see it "
-            f"and agree it with you then, rather than adding it to your bill "
-            f"unannounced")
+    return say(schedule, "beyond_priced",
+               each=unit.get("per_each") or "that one",
+               amount=m.money(amount, schedule.get("currency", "USD")))
 
 
 def pricing_schedule(schedule: dict | None) -> dict:
