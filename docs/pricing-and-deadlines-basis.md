@@ -222,6 +222,20 @@ regenerates every January without anyone having to remember four dates.
 
 ---
 
+---
+
+## The model in one page
+
+The structure these numbers hang on — package, defenses, options — is written
+up for a reader rather than for a maintainer at
+
+  **https://claude.ai/code/artifact/7b9a422d-3e2c-4539-a288-19cc7ef75c34**
+
+It covers what the package includes, the two stated assumptions and why neither
+is priced, the countable options, a worked example, the four rules the tests
+enforce, and the three approaches that were tried and dropped. It is the page to
+hand someone who asks how the firm quotes.
+
 ## Benchmarks, and what they say about the $200 package (25 August 2026)
 
 Added because the firm asked two direct questions: what a local return is
