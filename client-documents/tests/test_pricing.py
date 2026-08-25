@@ -49,7 +49,7 @@ def test_two_decimals_always():
 
 
 def test_thousands_separated():
-    assert m.money(1400) == "$1,400.00"
+    assert m.money(1225) == "$1,225.00"
 
 
 def test_negatives_take_parentheses_never_a_minus():
@@ -124,11 +124,13 @@ def test_one_unpriced_line_poisons_the_whole_total(priced):
 
 def test_the_sample_interview_prices_and_totals(answers, priced):
     out = pricing.price(answers, priced)
-    assert out["EstimateTotal"] == "$1,400.00"
+    assert out["EstimateTotal"] == "$1,225.00", \
+        "$175 lower than it was: the sample's cleanup band was a priced line "\
+        "and cleanup is no longer priced at all"
     assert [i["Service"] for i in out["LineItems"]] == [
         "Federal Form 1040", "State return", "Local return", "Rental property",
-        "Schedule K-1 received", "Sole proprietorship", "Records cleanup",
-    ]
+        "Schedule K-1 received", "Sole proprietorship",
+    ], "cleanup is an assumption now, so it appears in words, not as a line"
 
 
 def test_the_total_is_the_sum_of_the_lines(answers, priced):
@@ -152,13 +154,16 @@ def test_a_zero_count_produces_no_line(priced):
     assert "Rental property" not in services
 
 
-def test_a_band_answered_none_produces_no_line(priced):
-    """"Brokerage activity - $0.00" invites a client to wonder what they
-    nearly paid for."""
+def test_an_assumed_item_never_becomes_a_line(priced):
+    """Brokerage and cleanup carry no price, so they carry no line. A row
+    reading "Records cleanup - hourly" is a term of business wearing a line
+    item's clothes; terms belong in the assumptions block, in words."""
     services = [i["Service"] for i in
                 pricing.line_items({"federal_form": "1040",
-                                    "brokerage_band": "none"}, priced)]
+                                    "brokerage_band": "heavy",
+                                    "cleanup_band": "heavy"}, priced)]
     assert "Brokerage activity" not in services
+    assert "Records cleanup" not in services
 
 
 def test_base_covers_one_included_stops_double_charging(priced):
@@ -186,11 +191,38 @@ def test_an_unknown_federal_form_raises(priced):
         pricing.line_items({"federal_form": "990"}, priced)
 
 
-def test_a_band_the_interview_offers_but_the_schedule_omits_raises(priced):
+def test_every_assumed_item_produces_a_sentence_every_time(priced):
+    """Not only when something looks unusual. An assumption a client hears
+    about after it fails is not an assumption, it is a surprise."""
+    lines = pricing.assumptions({}, priced)
+    assert len(lines) == len(priced["assumed"])
+    for spec in priced["assumed"].values():
+        assert any(spec["label"] in line for line in lines)
+
+
+def test_an_assumption_names_the_rate_the_overage_is_billed_at(priced):
+    """The sentence is the only place a client is told what happens when the
+    assumption fails, so it has to carry the number."""
+    rate = priced["basis"]["rate"]
+    assert all(f"${rate:,.0f} an hour" in line for line in pricing.assumptions({}, priced))
+
+
+def test_an_assumed_item_missing_its_trigger_raises(priced):
+    """A boundary nobody stated is not a boundary."""
     schedule = json.loads(json.dumps(priced))
-    del schedule["bands"]["cleanup"]["values"]["heavy"]
-    with pytest.raises(pricing.PricingError):
-        pricing.line_items({"cleanup_band": "heavy"}, schedule)
+    schedule["assumed"]["cleanup"]["trigger"] = ""
+    with pytest.raises(pricing.PricingError, match="trigger"):
+        pricing.assumptions({}, schedule)
+
+
+def test_requoting_is_refused_because_the_firm_ruled_it_out(priced):
+    """`beyond: requote` would need a workflow that stops the job and waits for
+    a second signature. That was ruled out on purpose, so the schedule may not
+    quietly ask for it."""
+    schedule = json.loads(json.dumps(priced))
+    schedule["assumed"]["cleanup"]["beyond"] = "requote"
+    with pytest.raises(pricing.PricingError, match="re-quoting"):
+        pricing.assumptions({}, schedule)
 
 
 def test_line_items_carry_exactly_the_fields_the_template_wants(answers, priced):
@@ -198,3 +230,19 @@ def test_line_items_carry_exactly_the_fields_the_template_wants(answers, priced)
     a field the estimate will not print and nobody will miss."""
     for item in pricing.price(answers, priced)["LineItems"]:
         assert set(item) == {"Service", "Detail", "Amount"}
+
+
+def test_the_price_always_carries_its_assumptions(answers, priced):
+    """They are part of the price, not an optional garnish on it: they say
+    what it covers and where it stops.
+
+    This test exists because the first wiring left them out of `price()`. The
+    estimate rendered clean and simply had no assumptions block -- the merge
+    engine treats an [[EACH]] over a missing list as an empty one, so nothing
+    anywhere failed. The document just quietly stopped telling the client what
+    the fee assumed."""
+    out = pricing.price(answers, priced)
+    assert out["Assumptions"], "an estimate with no assumptions states no boundary"
+    assert len(out["Assumptions"]) == len(priced["assumed"])
+    assert all(set(a) == {"Text"} for a in out["Assumptions"])
+    assert all(a["Text"].strip().endswith(".") for a in out["Assumptions"])

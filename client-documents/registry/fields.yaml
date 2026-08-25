@@ -357,6 +357,13 @@ lists:
   - list: ScopeItems
     templates: [bookkeeping-letter]
     item_fields: [Detail, Service]
+  - list: Assumptions
+    templates: [fee-estimate]
+    item_fields: [Text]
+    notes: >
+      Built from the schedule's `assumed:` block by pricing.assumptions(),
+      never typed. One sentence per assumed item, on every estimate -- the
+      boundary is stated before the work rather than after it fails.
   - list: LineItems
     templates: [fee-estimate]
     item_fields: [Amount, Detail, Service]

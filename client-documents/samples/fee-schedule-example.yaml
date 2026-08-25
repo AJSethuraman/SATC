@@ -8,6 +8,12 @@
 # $185 / $95 since before any of this was wired, so the two agree.
 currency: USD
 
+# Fictional too, but the shape is the real one's.
+basis:
+  rate: 200
+  round_time_to: 0.25
+  minimum_increment: 0.25
+
 base_covers: "federal_only"
 
 base:
@@ -48,19 +54,17 @@ per_unit:
     detail: "Schedule C, per business"
     amount: 225
 
-bands:
+assumed:
   brokerage:
-    count_from: brokerage_band
     label: "Brokerage activity"
-    values:
-      none:   { amount: 0,   detail: "None" }
-      light:  { amount: 60,  detail: "A handful of transactions" }
-      medium: { amount: 150, detail: "Consolidated 1099-B, moderate activity" }
-      heavy:  { amount: 350, detail: "High volume, or multiple brokers" }
+    assumes: "a single consolidated 1099-B that imports cleanly"
+    inside_base: true
+    trigger: "there is more than one broker, or a 1099-B will not import"
+    beyond: hourly
   cleanup:
-    count_from: cleanup_band
     label: "Records cleanup"
-    values:
-      none:  { amount: 0,   detail: "Records complete and reconciled" }
-      light: { amount: 175, detail: "Some tidying before the return can be prepared" }
-      heavy: { amount: 600, detail: "Substantial reconstruction" }
+    assumes: "your records arrive complete and reconciled"
+    inside_base: false
+    trigger: "the records need reconciling before the return can be prepared"
+    beyond: hourly
+    raised_at: file_review

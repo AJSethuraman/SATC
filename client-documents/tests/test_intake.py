@@ -127,7 +127,7 @@ def test_the_federal_form_picks_the_engagement_kind(answers, form, expected):
 def test_a_created_engagement_is_priced(answers, tmp_path, priced):
     out = intake.finish(answers, store=tmp_path, fee_schedule=priced)
     assert out.created
-    assert out.record["EstimateTotal"] == "$1,400.00"
+    assert out.record["EstimateTotal"] == "$1,225.00"
     assert out.record["LineItems"]
 
 

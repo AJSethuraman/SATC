@@ -356,29 +356,35 @@ sections:
         supplies: []
         feeds: LineItems
 
-      - id: brokerage_band
-        question: "Roughly how much brokerage activity?"
-        help: "Banded rather than counted — a client does not know their trade count."
-        type: single
-        showIf: "'D' in federal_schedules"
-        options:
-          - { value: "none",   label: "None" }
-          - { value: "light",  label: "A handful of transactions" }
-          - { value: "medium", label: "Consolidated 1099-B, moderate activity" }
-          - { value: "heavy",  label: "High volume, or multiple brokers" }
-        supplies: []
-        feeds: LineItems
+      - id: count_brokerages
+        question: "How many brokerage accounts will you send us a 1099-B for?"
+        help: >
+          Countable, and the client knows it. This replaced a band that asked
+          "roughly how much brokerage activity?" and offered light / moderate /
+          heavy — a question whose own help text admitted a client does not know
+          their trade count, and which then asked them to estimate it.
 
-      - id: cleanup_band
-        question: "How much cleanup before the return can be prepared?"
-        type: single
-        prefill: bookkeeping_status
-        options:
-          - { value: "none",    label: "Records are complete and reconciled" }
-          - { value: "light",   label: "Some tidying" }
-          - { value: "heavy",   label: "Substantial reconstruction" }
+          Brokerage sits inside the base fee at any volume, so this prices
+          nothing. It selects the forms, builds the document request, and is the
+          observable that says whether the estimate's brokerage assumption still
+          holds. See `assumed.brokerage` in registry/fee-schedule.yaml.
+        type: integer
+        showIf: "'D' in federal_schedules"
         supplies: []
-        feeds: LineItems
+        feeds: RequestList
+
+      # cleanup_band was here, and it was the worst question in the interview:
+      # "How much cleanup before the return can be prepared? Some tidying /
+      # Substantial reconstruction." A client whose books need reconstruction
+      # does not know that — being in that state is what makes it invisible
+      # from the inside — so it asked the person with the least information to
+      # size the work, and then priced from the answer.
+      #
+      # Cleanup is discovered, not declared. It is raised when the file is
+      # reviewed, which the onboarding letter already promises happens within
+      # three business days of the documents arriving, and it is billed hourly
+      # against the assumption the estimate states. See `assumed.cleanup` in
+      # registry/fee-schedule.yaml.
 
       - id: first_deliverable_target
         question: "When do we target the first deliverable?"

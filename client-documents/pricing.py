@@ -113,26 +113,60 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             detail = f"{detail} — {count} × {each}" if detail else f"{count} × {each}"
         items.append(_line(unit["label"], detail, total, code))
 
-    # Banded lines. A band answered "none" is dropped rather than shown at zero:
-    # the estimate lists what is being charged for, and "Brokerage activity —
-    # $0.00" invites a client to wonder what they nearly paid for.
-    for _, band in (s.get("bands") or {}).items():
-        chosen = answers.get(band["count_from"])
-        if not chosen:
-            continue
-        spec = (band.get("values") or {}).get(chosen)
-        if spec is None:
-            raise PricingError(
-                f"the fee schedule has no band {chosen!r} for "
-                f"{band['count_from']!r}; the interview offers it, so the "
-                f"schedule must price it."
-            )
-        amount = spec.get("amount")
-        if not is_open(amount) and not amount:
-            continue
-        items.append(_line(band["label"], spec.get("detail", ""), amount, code))
+    # Nothing here for `assumed:` items. They carry no price, so they produce
+    # no line: an estimate lists what is being charged for, and a line reading
+    # "Records cleanup -- included" or "-- hourly" is a term of business
+    # wearing a line item's clothes. Terms belong in `assumptions()` below,
+    # which puts them in the estimate's own assumptions block in words.
 
     return items
+
+
+def assumptions(answers: dict, schedule: dict | None = None) -> list[str]:
+    """The sentences the estimate must carry, given what the fee assumes.
+
+    One per `assumed:` item, always -- not only when something looks unusual.
+    An assumption a client is told about only after it fails is not an
+    assumption, it is a surprise, and the whole point of stating the boundary
+    is that it is stated before the work rather than after.
+    """
+    s = pricing_schedule(schedule)
+    basis = s.get("basis") or {}
+    rate = basis.get("rate")
+    out = []
+    for _, spec in (s.get("assumed") or {}).items():
+        label = spec.get("label", "").strip()
+        assumes = spec.get("assumes", "").strip()
+        trigger = spec.get("trigger", "").strip()
+        if not (label and assumes and trigger):
+            raise PricingError(
+                f"the assumed item {label or '(unnamed)'} is missing its "
+                f"label, assumption or trigger. Without all three there is no "
+                f"honest sentence to print, and a boundary nobody stated is "
+                f"not a boundary."
+            )
+        where = ("and includes it on that basis" if spec.get("inside_base")
+                 else "and does not include work beyond it")
+        if spec.get("beyond") != "hourly":
+            raise PricingError(
+                f"{label} says work beyond the assumption is "
+                f"{spec.get('beyond')!r}. Only 'hourly' is supported; the firm "
+                f"ruled out re-quoting deliberately."
+            )
+        rate_txt = f" at ${rate:,.0f} an hour" if isinstance(rate, (int, float)) else ""
+        # The label leads rather than acting as the subject, or every sentence
+        # says its own noun twice: "Brokerage activity assumes your brokerage
+        # activity arrives as...".
+        out.append(
+            f"{label} \u2014 this estimate assumes {assumes}, {where}. "
+            f"If {trigger}, the additional time is billed{rate_txt} as it is "
+            f"worked, and we will tell you as soon as we see it."
+        )
+    return out
+
+
+def pricing_schedule(schedule: dict | None) -> dict:
+    return load() if schedule is None else schedule
 
 
 def estimate_total(items: list[dict], schedule: dict | None = None) -> str:
@@ -154,11 +188,20 @@ def estimate_total(items: list[dict], schedule: dict | None = None) -> str:
 
 
 def price(answers: dict, schedule: dict | None = None) -> dict:
-    """`LineItems` and `EstimateTotal`, ready to merge."""
+    """`LineItems`, `EstimateTotal` and `Assumptions`, ready to merge.
+
+    Assumptions ride with the price rather than being fetched separately,
+    because they are part of the price: they say what it covers and what it
+    stops covering. Split them and the estimate can be built without them --
+    which is exactly what happened the first time this was wired, and the
+    template's [[EACH Assumptions]] block collapsed to nothing without the
+    render so much as warning about it.
+    """
     items = line_items(answers, schedule)
     total = estimate_total(items, schedule)
     return {
         "LineItems": [{k: v for k, v in i.items() if not k.startswith("_")}
                       for i in items],
         "EstimateTotal": total,
+        "Assumptions": [{"Text": t} for t in assumptions(answers, schedule)],
     }

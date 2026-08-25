@@ -21,8 +21,3 @@ per_unit.k1.amount: 0.4
 per_unit.owner_k1.amount: 0.5
 per_unit.schedule_c.amount: 1.25
 
-bands.brokerage.values.light.amount: 0.35
-bands.brokerage.values.medium.amount: 0.85
-bands.brokerage.values.heavy.amount: 2
-bands.cleanup.values.light.amount: 1
-bands.cleanup.values.heavy.amount: 3.5

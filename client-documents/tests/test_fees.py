@@ -69,10 +69,11 @@ def test_the_result_actually_prices_an_interview(hours, blank):
 
 def test_an_item_left_blank_stays_unpriced(blank):
     """The whole failure mode. A preparer who knows what a 1040 takes and
-    genuinely does not know what heavy cleanup takes must be able to say so."""
+    genuinely does not know what a K-1 issued to an owner takes must be able
+    to say so."""
     out = fees.derive(175, {"base.1040": 2.5}, schedule=blank)
     still = dict(fees.still_open(out))
-    assert "bands.cleanup.values.heavy.amount" in still
+    assert "per_unit.owner_k1.amount" in still
     assert "base.1040" not in still
 
 

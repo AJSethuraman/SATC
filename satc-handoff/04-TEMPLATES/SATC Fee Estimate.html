@@ -68,10 +68,13 @@
 
 <div class="notes">
   <div class="h">What this estimate assumes</div>
+  <span class="cond">[[EACH Assumptions]]</span>
   <ul>
-    <li>Records are <b>complete and reconciled</b> when we receive them. Time spent correcting or reconstructing them is not included above.</li>
-    <li>Only the work listed in the <b>scope</b> section of the engagement letter is included. Anything added later is quoted separately, in writing.</li>
-    <li>If the work required differs materially from the above, <b>we will contact you before continuing</b>.</li>
+    <li><span class="f">&lt;&lt;Item.Text&gt;&gt;</span></li>
+  </ul>
+  <span class="cond end">[[END EACH]]</span>
+  <ul>
+    <li>Only the work listed in the <b>scope</b> section of the engagement letter is included.</li>
     <li>Billing and payment terms are in the <b>Fees and billing</b> section of the engagement letter.</li>
   </ul>
 </div>
@@ -99,6 +102,8 @@
     <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the join key. Must be byte-identical to the letter's, or the pair comes apart in a file drawer.</td></tr>
     <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Mr. and Mrs. Daniel Reyes</td></tr>
     <tr><td>&lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Same four fields as the letter, from the same record</td></tr>
+    <tr><td>[[EACH Assumptions]]</td><td class="req">List</td><td>One per assumed item in the fee schedule, <b>always</b> — not only when something looks unusual. An assumption a client hears about after it fails is not an assumption, it is a surprise.</td></tr>
+    <tr><td>&lt;&lt;Item.Text&gt;&gt;</td><td class="req">Required</td><td>A whole sentence, built in <code>pricing.assumptions()</code> from the schedule's <code>assumed:</code> block. <b>Never typed here.</b> It names what the fee assumes, whether it is inside the fee, what puts a client outside it, and the hourly rate that then applies.</td></tr>
     <tr><td>[[EACH LineItems]]</td><td class="req">List</td><td>One or more. Three sub-fields per item, below.</td></tr>
     <tr><td>&lt;&lt;Item.Service&gt;&gt;</td><td class="req">Required</td><td>Federal Form 1040 — the line as a client reads it</td></tr>
     <tr><td>&lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>With Schedules A, C, and SE — emit an empty string when there is nothing to add, never the word "None"</td></tr>

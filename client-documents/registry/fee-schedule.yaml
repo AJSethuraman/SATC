@@ -121,27 +121,52 @@ per_unit:
     detail: "Schedule C, per business"
     amount: "[CONFIRM: fee per Schedule C business]"
 
-# ── banded ────────────────────────────────────────────────────────────────
-# Banded rather than counted because a client does not know their trade count
-# and cannot honestly estimate their own bookkeeping. `none` is a real zero, not
-# a placeholder: the band exists and costs nothing.
-bands:
+# ── assumed, not counted ──────────────────────────────────────────────────
+#
+# Some work cannot be priced when the quote is written, because the thing that
+# drives its cost is not knowable then. Brokerage volume and records cleanup
+# are both like that, and the schedule used to get it wrong twice over: it put
+# them in bands, and it asked the CLIENT which band they were in. A client
+# whose books need reconstruction does not know that. Being in that state is
+# what makes it invisible from the inside.
+#
+# So these carry no price. Each states what the fee ASSUMES and what happens
+# when the assumption does not hold, and the answer is never a re-quote. Work
+# beyond the assumption is billed hourly at `basis.rate`, in the increments
+# `basis` sets. A re-quote stops the job, opens a negotiation the firm did not
+# want, and is how a practice ends up absorbing work it never agreed to rather
+# than have that conversation. The meter simply runs instead.
+#
+# The assumption is not a disclaimer buried in a letter. It prints on the
+# estimate, in the client's own copy, before any of the work happens.
+assumed:
   brokerage:
-    count_from: brokerage_band
     label: "Brokerage activity"
-    values:
-      none:   { amount: 0,  detail: "None" }
-      light:  { amount: "[CONFIRM: fee for light brokerage activity]",  detail: "A handful of transactions" }
-      medium: { amount: "[CONFIRM: fee for moderate brokerage activity]", detail: "Consolidated 1099-B, moderate activity" }
-      heavy:  { amount: "[CONFIRM: fee for heavy brokerage activity]",  detail: "High volume, or multiple brokers" }
+    # Written to drop into a sentence: "... assumes <assumes>, and ..."
+    assumes: "a single consolidated 1099-B that imports cleanly"
+    # Inside the base fee: ordinary brokerage is part of preparing the return,
+    # not an extra. The workbook priced it flat at any volume, which is the
+    # same judgement reached another way.
+    inside_base: true
+    # A clause, not a noun phrase: it follows the word "If".
+    trigger: "there is more than one broker, or a 1099-B will not import"
+    beyond: hourly
 
   cleanup:
-    count_from: cleanup_band
     label: "Records cleanup"
-    values:
-      none:  { amount: 0, detail: "Records complete and reconciled" }
-      light: { amount: "[CONFIRM: fee for light records cleanup]", detail: "Some tidying before the return can be prepared" }
-      heavy: { amount: "[CONFIRM: fee for substantial records cleanup]", detail: "Substantial reconstruction" }
+    assumes: "your records arrive complete and reconciled"
+    inside_base: false
+    trigger: "the records need reconciling before the return can be prepared"
+    beyond: hourly
+    # NEVER an intake question. Cleanup is discovered, not declared, so it is
+    # raised when the file is reviewed -- which the onboarding letter already
+    # promises happens within three business days of the documents arriving.
+    raised_at: file_review
+
+# `beyond` accepts only `hourly`. A `requote` value would need a workflow to
+# stop the work, produce a second estimate and wait for a signature, and the
+# firm has ruled that out on purpose. Keeping the key means the ruling is
+# visible rather than implied by the absence of an alternative.
 
 # ── what this schedule deliberately does not do ───────────────────────────
 #

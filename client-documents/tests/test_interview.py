@@ -293,7 +293,7 @@ def test_internal_answers_never_become_merge_fields():
 
 
 def test_billable_counts_are_kept_but_are_not_fields():
-    answers = {"count_states": 2, "count_k1s": 3, "cleanup_band": "light"}
+    answers = {"count_states": 2, "count_k1s": 3, "count_brokerages": 1}
     assert iv.compose(answers) == {}
     counts = iv.billable_counts(answers)
     assert counts["LineItems"]["count_states"] == 2

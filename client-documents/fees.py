@@ -56,18 +56,16 @@ ITEMS: list[tuple[str, str]] = [
     ("per_unit.k1.amount",           "each K-1 received and entered"),
     ("per_unit.owner_k1.amount",     "each K-1 issued to an owner of an entity"),
     ("per_unit.schedule_c.amount",   "each Schedule C business"),
-    ("bands.brokerage.values.light.amount",  "a handful of brokerage transactions"),
-    ("bands.brokerage.values.medium.amount", "a consolidated 1099-B, moderate activity"),
-    ("bands.brokerage.values.heavy.amount",  "high-volume brokerage, or multiple brokers"),
-    ("bands.cleanup.values.light.amount",    "light records cleanup before the return can start"),
-    ("bands.cleanup.values.heavy.amount",    "substantial reconstruction of the records"),
 ]
 
-# `none` bands are a real zero, not a placeholder, and `base_covers` is a
-# structure rather than an amount. Neither is derived from hours.
-NOT_DERIVED = {"bands.brokerage.values.none.amount",
-               "bands.cleanup.values.none.amount",
-               "base_covers"}
+# Brokerage and cleanup used to be here, in bands. They are not priced any
+# more and cannot be: see `assumed:` in the schedule. Both are billed hourly
+# beyond a stated assumption, at the rate `basis` already carries, so there is
+# nothing for a human to set and nothing for derivation to reach.
+
+# `base_covers` is a structure rather than an amount, so it is set by hand and
+# never derived from hours.
+NOT_DERIVED = {"base_covers"}
 
 
 def _dig(node: dict, path: str):
