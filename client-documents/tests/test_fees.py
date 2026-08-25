@@ -77,7 +77,9 @@ def test_an_item_left_blank_stays_unpriced(blank):
     to say so."""
     out = fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
     still = dict(fees.still_open(out))
-    assert "per_unit.owner_k1.amount" in still
+    # An entity base, because owner_k1 got its price on 25 Aug. Same point:
+    # something the preparer genuinely does not know stays unpriced and says so.
+    assert "base.1120S" in still
     assert "base.1040.tiers.essentials.amount" not in still
 
 
@@ -88,8 +90,11 @@ def test_a_partial_sitting_still_refuses_to_total(blank):
     move to another, which is the reminder that it is about the refusal and
     not about that item."""
     out = fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
+    # Moved 25 Aug 2026, exactly as the docstring said it would have to be: the
+    # local return got its price, so the refusal is shown on an entity base,
+    # which is deliberately still open while entity work is out of scope.
     assert "[CONFIRM:" in pricing.price(
-        {"federal_form": "1040", "count_localities": 2}, out)["EstimateTotal"]
+        {"federal_form": "1120S"}, out)["EstimateTotal"]
 
 
 def test_hours_with_no_rate_refuse_rather_than_default(blank):

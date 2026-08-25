@@ -177,6 +177,8 @@ base:
       standard:
         label: "Standard"
         detail: "Schedules, but nothing that scales"
+        # Signed 25 Aug 2026. The workbook's own Schedule C price.
+        # The first full one is inside Property & Business.
         amount: 325
         covers:
           - "Everything in Essentials"
@@ -188,6 +190,11 @@ base:
         allows:
           count_brokerages: 1
           count_k1s: 2
+          # The gig Schedule C this package says it covers. A Standard client's
+          # Schedule C is always the gig tier -- the gate below sends a full one
+          # to Property & Business -- so one business absorbed here can only
+          # ever be the gig one.
+          count_businesses: 1
         gate:
           schedules_any: [A, B, D, E2, SE, C]
           # A full Schedule C is what Property & Business is for; a gig one
@@ -199,6 +206,8 @@ base:
       property:
         label: "Property & Business"
         detail: "You own things that scale"
+        # Signed 25 Aug 2026. The workbook's own Schedule C price.
+        # The first full one is inside Property & Business.
         amount: 500
         covers:
           - "Everything in Standard"
@@ -246,25 +255,42 @@ per_unit:
     count_from: count_localities
     label: "Local return"
     detail: "Municipal, RITA, CCA or school district"
-    amount: "[CONFIRM: fee per local return. PROPOSED 35, and it is an inference, not a source: no published survey breaks out an Ohio municipal return and neither RITA nor CCA publishes preparer fees. Reasoned as lighter than a state return but not trivial -- residency, workplace credit and withholding by city are real work -- so roughly two thirds of the 50 above.]"
+    # Signed 25 Aug 2026. The weakest number on the sheet and
+    # flagged as such: no published survey breaks out an Ohio municipal return
+    # and neither RITA nor CCA publishes preparer fees, so it is reasoned --
+    # lighter than a state return, but residency, the workplace credit and
+    # withholding by city are real work. Kept rather than researched: the only
+    # real research is ringing round other firms, which costs more than the
+    # answer is worth on a line that will rarely decide a quote.
+    amount: 35
 
   rental:
     count_from: count_rentals
     label: "Rental property"
     detail: "Schedule E, per property"
-    amount: "[CONFIRM: fee per rental property]"
+    # Signed 25 Aug 2026. The workbook charges 130 per group of
+    # three, which is 43 each, so 45 keeps the firm's own rate and removes the
+    # cliff at rental number four. Charged only past the package's allowance.
+    amount: 45
 
   k1:
     count_from: count_k1s
     label: "Schedule K-1 received"
     detail: "Per K-1 entered"
-    amount: "[CONFIRM: fee per K-1 received]"
+    # Signed 25 Aug 2026, AGAINST a recommendation of 25, and the
+    # reasoning was better than the recommendation: 25 reads as punitive for a
+    # page of numbers somebody else already computed. One of the four lines
+    # tagged as exposed to automation -- see docs/pricing-open-threads.md T-01.
+    amount: 15
 
   owner_k1:
     count_from: count_owners
     label: "Schedule K-1 issued"
     detail: "Per owner — shareholder or partner"
-    amount: "[CONFIRM: fee per K-1 issued to an owner]"
+    # Signed 25 Aug 2026. Nothing in the workbook priced this, so
+    # a six-owner S corp and a one-owner S corp cost the same. Allocation, a
+    # page and delivery per owner. Entity work, so it does not fire on a 1040.
+    amount: 40
 
   # A tiered item. `tier_from` names an interview answer; the tier it selects
   # supplies the label, the detail and the amount, exactly as a flat item's own
@@ -299,11 +325,17 @@ per_unit:
       simple:
         label: "Gig or contract work"
         detail: "Schedule C — standard mileage, no assets, inventory or payroll"
-        amount: "[CONFIRM: fee for a gig-worker Schedule C. May be 0: if the work is a 1099-NEC, the standard mileage rate and a trip log, it is arguably inside the base fee. Setting 0 says that on purpose; leaving it open stops the estimate.]"
+        # Signed 25 Aug 2026. The gig figure that already sits inside
+        # Standard; this is what a SECOND gig business costs.
+        # Signed 25 Aug 2026. The workbook's own Schedule C price.
+        # The first full one is inside Property & Business.
+        amount: 65
       standard:
         label: "Sole proprietorship"
         detail: "Schedule C — actual expenses, a home office, depreciation, inventory or employees"
-        amount: "[CONFIRM: fee per Schedule C business. Workbook row 6 says 200.]"
+        # Signed 25 Aug 2026. The workbook's own Schedule C price.
+        # The first full one is inside Property & Business.
+        amount: 200
 
 # ── assumed, not counted ──────────────────────────────────────────────────
 #

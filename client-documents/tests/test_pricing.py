@@ -99,8 +99,25 @@ def test_the_firms_schedule_is_still_unpriced():
     )
 
 
+def _with_one_unpriced(path=("per_unit", "rental", "amount")):
+    """The real schedule with one amount blanked.
+
+    This used to just be `pricing.load()`, because every amount in the real
+    file was open. They are set now, which is the point of the work -- so the
+    refusal path needs a schedule that is deliberately incomplete rather than
+    one that happens to be.
+    """
+    s = json.loads(json.dumps(pricing.load()))
+    node = s
+    for k in path[:-1]:
+        node = node[k]
+    node[path[-1]] = "[CONFIRM: deliberately unset, for the refusal tests]"
+    return s
+
+
 def test_an_unpriced_schedule_refuses_to_total(answers):
-    out = pricing.price(answers)          # the real, unpriced schedule
+    s = _with_one_unpriced()
+    out = pricing.price(answers, s)
     assert "[CONFIRM:" in out["EstimateTotal"]
     assert any("[CONFIRM:" in i["Amount"] for i in out["LineItems"])
 
@@ -114,7 +131,7 @@ def test_the_refusal_names_what_is_unpriced(answers):
     is that the total names every line it could not price -- not that it
     names any particular one.
     """
-    out = pricing.price(answers)
+    out = pricing.price(answers, _with_one_unpriced())
     total = out["EstimateTotal"]
     unpriced = [i["Service"] for i in out["LineItems"] if "[CONFIRM:" in i["Amount"]]
     assert unpriced, "this fixture is meant to exercise the unpriced path"
@@ -619,3 +636,46 @@ def test_an_unpriced_branch_the_client_does_not_use_is_not_grounds_to_refuse():
          "schedule_c_kind": "standard", "count_businesses": 1,
          "count_rentals": 0}, s)
     assert pricing.estimate_total(items, s) == "$500.00"
+
+
+def test_standard_absorbs_the_gig_schedule_c_it_advertises():
+    """Standard's covers list says "a gig Schedule C on standard mileage", so
+    it has to actually include one. It was billing $65 on top of the $325."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["C", "SE"],
+         "schedule_c_kind": "simple", "count_businesses": 1}, s)
+    assert [i["Service"] for i in items] == ["Standard"]
+    assert pricing.estimate_total(items, s) == "$325.00"
+
+
+def test_a_second_gig_business_is_charged():
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["C", "SE"],
+         "schedule_c_kind": "simple", "count_businesses": 2}, s)
+    assert pricing.estimate_total(items, s) == "$390.00"      # 325 + one at 65
+
+
+def test_a_gig_c_inside_property_and_business_is_currently_charged():
+    """PINS AN OPEN QUESTION rather than asserting an answer.
+
+    Property & Business covers "everything in Standard" -- which includes a
+    gig Schedule C -- PLUS either three rentals or one full Schedule C. Those
+    two clauses collide for a client with a gig C and rentals, and the signed
+    sheet does not say which wins.
+
+    Give the package a flat one-business allowance and a full-Schedule-C
+    client gets their C free AND three rentals free, which is the "not both"
+    the sheet rules out. Leave it off, as here, and a landlord with a side gig
+    pays $65 for a Schedule C that Standard would have included.
+
+    $565 is what it does today. Whether that is right is the firm's call, so
+    this test records the behaviour and the reason rather than blessing it.
+    """
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["C", "E1"],
+         "schedule_c_kind": "simple", "count_businesses": 1,
+         "count_rentals": 3}, s)
+    assert pricing.estimate_total(items, s) == "$565.00"
