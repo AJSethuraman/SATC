@@ -379,6 +379,65 @@ instead of "... at $150 an hour". That is a small change to
 narrowed it, and widening it is a policy decision wearing a config key's
 clothes. Recommendation: do it. But the firm decides.
 
+---
+
+## T-15 · Property & Business never pays for itself on rentals
+
+**Raised** 25 Aug 2026, by building the check the firm asked for:
+
+> something should be able to pretty simply determine its cheaper tier or
+> combination of pricing to get them to the cheapest thing they need to do
+
+**Status** Open. A price decision, not a bug. Nothing is blocked; the estimate
+is correct and internally consistent, it is just dearer than it needs to be for
+one client shape.
+
+**The arithmetic.** Property & Business is $500 against Standard's $325 — a
+$175 step — and what it buys a landlord is a three-rental allowance worth
+3 × $45 = **$135**. The allowance is worth less than the step, at every count:
+
+| Rentals | Property & Business | Standard + metered rentals | Client loses |
+|---:|---:|---:|---:|
+| 1 | $500 | $370 | $130 |
+| 2 | $500 | $415 | $85 |
+| 3 | $500 | $460 | $40 |
+| 4 | $545 | $505 | $40 |
+| 7 | $680 | $640 | $40 |
+
+It never crosses. The package only earns its price on a **full Schedule C**,
+where the allowance is worth $200 against the same $175 step — $500 versus
+$525, by $25.
+
+**Who it bites, and the sentence that makes it worth fixing.** Only a client
+who also holds Standard's gate, which means a landlord who *itemises*. A
+landlord who does not itemise is not eligible for Standard and has no cheaper
+option. So today: **the client with more going on pays less.** A landlord with
+a Schedule A pays $370; the same landlord without one pays $500.
+
+**Four ways out, and they are not equivalent.**
+
+1. **Drop Property & Business** to $460 or below. Makes the ladder consistent
+   and costs the firm on every landlord.
+2. **Widen the rental allowance** to five, worth $225 against the $175 step.
+   Keeps the price and makes the package genuinely better value.
+3. **Raise the per-rental price** so three of them are worth more than $175 —
+   $60 each. Changes what a fourth rental costs everyone.
+4. **Tighten Standard's gate** to exclude E1 and F, so a landlord is never
+   eligible for Standard. This makes the check pass and fixes nothing: the
+   allowance is still worth less than the step, and any client who can read
+   both prices can still see it.
+
+Recommendation: **2**. It is the only one that answers the actual complaint —
+the package should be worth what it costs — without moving a price the firm has
+already signed, and it makes Property & Business mean something to a landlord
+rather than being where the software files them.
+
+**The check is now permanent.** `test_the_ladder_always_puts_a_client_on_their
+_cheapest_package` prices every client shape on every rung they are eligible
+for and fails if a cheaper one existed. This exception is pinned by name and by
+amount, so it can shrink but not grow, and a future price change that breaks the
+ladder somewhere else fails immediately.
+
 ## Settled
 
 | # | Thread | Decision | Date |

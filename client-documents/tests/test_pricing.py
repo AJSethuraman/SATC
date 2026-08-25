@@ -1153,3 +1153,154 @@ def test_a_schedule_without_phrases_uses_the_firms_one_copy():
     assert "phrases" not in sample
     said = pricing.assumptions({"federal_form": "1040"}, sample)
     assert said and all("this estimate assumes" in t for t in said)
+
+
+# ── the mechanism gives the cheapest answer ───────────────────────────────
+
+def _forced(schedule, key):
+    """The schedule with one package, gated open, so any client gets it.
+
+    Lets a test ask "what would this client have paid on THAT rung?", which
+    is the only way to check that the rung they were put on was the cheap one.
+    """
+    tiers = schedule["base"]["1040"]["tiers"]
+    # Every rung stays: `includes:` walks the chain, so a ladder with one rung
+    # on it cannot price the rung that inherits from the one below.
+    forced = {}
+    for name, tier in tiers.items():
+        gate = {} if name == key else {"answer_is": {"__never__": "x"}}
+        forced[name] = {**tier, "gate": gate}
+    out = dict(schedule)
+    out["base"] = {**schedule["base"],
+                   "1040": {"tier_from": "derived", "tiers": forced}}
+    return out
+
+
+def _total_on(schedule, key, answers):
+    try:
+        items = pricing.line_items(answers, _forced(schedule, key))
+    except pricing.PricingError:
+        return None
+    if any(pricing.is_open(i["_raw"]) for i in items):
+        return None
+    return sum(i["_raw"] for i in items)
+
+
+def _client_shapes():
+    """A sweep of the return shapes the ladder is meant to describe."""
+    import itertools
+    schedules = ["A", "B", "C", "D", "E1", "E2", "SE", "F"]
+    combos = [list(c) for r in range(4)
+              for c in itertools.combinations(schedules, r)]
+    for scheds in combos:
+        kinds = ["simple", "standard"] if "C" in scheds else [None]
+        for kind in kinds:
+            for states, rentals, k1s, biz in itertools.product(
+                    [0, 2], [0, 1, 4], [0, 3], [0, 2]):
+                a = {"federal_form": "1040", "federal_schedules": scheds,
+                     "count_states": states, "count_localities": 1,
+                     "count_rentals": rentals, "count_k1s": k1s,
+                     "count_businesses": biz,
+                     "other_income_documents": "no", "has_dependents": "no"}
+                if kind:
+                    a["schedule_c_kind"] = kind
+                yield a
+
+
+def test_the_ladder_always_puts_a_client_on_their_cheapest_package():
+    """The property the firm asked for, 25 August 2026:
+
+        "something should be able to pretty simply determine its cheaper tier
+         or combination of pricing to get them to the cheapest thing they
+         need to do"
+
+    The mechanism does NOT search for the cheapest — it takes the first gate
+    that holds, reading most-specific first. This test is what makes that
+    simple rule trustworthy: it prices every client shape on every rung the
+    client is ELIGIBLE for, and fails if one of those would have been cheaper
+    than the rung they were given.
+
+    Eligibility is the gates, and the gates are a firm decision rather than a
+    pricing accident: Starter is $100 and W-2-only, so a client with a
+    Schedule A is not eligible for it, and quoting them $100 would underprice
+    the firm rather than save the client money. "The cheapest thing they need
+    to do" means the cheapest package that actually covers their return.
+
+    If this ever fails, do not relax it — a price moved and the ladder stopped
+    being a ladder. The fix is the price.
+        """
+    s = pricing.load()
+    tiers = s["base"]["1040"]["tiers"]
+    losses = []
+    checked = 0
+    for a in _client_shapes():
+        chosen, _ = pricing.derive_tier(s["base"]["1040"], a, "base.1040")
+        if chosen is None:
+            continue
+        eligible = [k for k, t in tiers.items()
+                    if pricing._gate_holds(t.get("gate") or {}, a, k)]
+        prices = {k: _total_on(s, k, a) for k in eligible}
+        prices = {k: v for k, v in prices.items() if v is not None}
+        if prices.get(chosen) is None:
+            continue
+        checked += 1
+        best = min(prices, key=lambda k: prices[k])
+        if prices[chosen] > prices[best]:
+            losses.append(
+                f"{a['federal_schedules']} c={a.get('schedule_c_kind')} "
+                f"rentals={a['count_rentals']} k1s={a['count_k1s']} "
+                f"biz={a['count_businesses']}: got {chosen} at "
+                f"${prices[chosen]:.0f}, {best} was ${prices[best]:.0f}")
+    assert checked > 500, "the sweep stopped covering the ladder"
+
+    # ONE KNOWN EXCEPTION, and it is a pricing question rather than a bug in
+    # the mechanism. See T-15 in docs/pricing-open-threads.md.
+    #
+    # Property & Business is $175 more than Standard and buys a three-rental
+    # allowance worth $135. It never pays for itself: at EVERY rental count,
+    # Standard plus metered rentals is $40 to $175 cheaper. The package only
+    # wins for a client with a full Schedule C, where the allowance is worth
+    # $200 against the same $175 step.
+    #
+    # It only bites a client who ALSO holds Standard's gate -- a landlord who
+    # itemises. A landlord who does not is not eligible for Standard and has
+    # no cheaper option, which produces the sentence that makes this worth
+    # raising: the client with MORE going on pays LESS.
+    #
+    # Pinned rather than fixed, because the fix is a price and prices are the
+    # firm's. The list can only shrink.
+    unexplained = [line for line in losses
+                   if "got property at" not in line or "standard was" not in line]
+    assert not unexplained, (
+        f"{len(unexplained)} client shape(s) were quoted more than they had "
+        f"to pay, and not for the known reason. First few:\n  "
+        + "\n  ".join(unexplained[:5]))
+    assert losses, (
+        "T-15 appears to be fixed -- Property & Business no longer overcharges "
+        "a landlord who itemises. Delete this block and restore the plain "
+        "`assert not losses`."
+    )
+    # And it cannot get worse without somebody deciding it should. The
+    # overcharge today runs from $40 to $175; anything past that is a price
+    # change nobody looked at.
+    worst = max(int(line.split("at $")[1].split(",")[0]) - int(line.split("was $")[1])
+                for line in losses)
+    assert worst == 175, (
+        f"the known overcharge is now ${worst}, not $175. A price moved. "
+        f"That is a decision, not a regression to paper over -- see T-15."
+    )
+
+
+def test_a_price_that_breaks_the_ladder_is_caught():
+    """The test above is only worth having if it can fail. Make Standard
+    dearer than Property and a Standard client is overpaying."""
+    s = pricing.load()
+    s["base"]["1040"]["tiers"]["standard"]["amount"] = 900
+    a = {"federal_form": "1040", "federal_schedules": ["A"],
+         "count_states": 0, "count_localities": 0}
+    chosen, _ = pricing.derive_tier(s["base"]["1040"], a, "base.1040")
+    assert chosen == "standard"
+    assert _total_on(s, "standard", a) > _total_on(s, "essentials", a), (
+        "a price change can make the chosen rung the dearest one, which is "
+        "exactly what the sweep above is watching for"
+    )
