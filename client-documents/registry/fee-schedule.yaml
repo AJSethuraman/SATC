@@ -14,6 +14,13 @@
 # TO PRICE THE FIRM: replace each placeholder with a number. Nothing else here
 # needs to change. `cd client-documents && make doctor` lists what is still open.
 #
+# MOST OF THESE ARE ALREADY ANSWERED, on paper, in the firm's own workbook. See
+# `docs/pricing-and-deadlines-basis.md` for the reconciliation: which line here
+# maps to which line there, what it costs, what hours that implies at a $150
+# rate, and the four places where the workbook's structure and this file's
+# structure disagree. They are not transcribed here because the workbook is set
+# to tax year 2023 and nobody has confirmed the prices still stand.
+#
 # Amounts are plain numbers — 450, not "$450.00". One formatter turns them into
 # money strings (see money.py), because the moment two places format money they
 # drift, and an accountant's estimate showing $450.00 on one line and $185.5 on
