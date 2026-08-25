@@ -61,6 +61,12 @@ brokerage statement, up to two K-1s, and a gig Schedule C on standard mileage.
 rental properties **or** one full Schedule C. Not both. K-1s are not part of
 this allowance; they meter from Standard upward.
 
+The gig Schedule C inside Standard **does** carry up through Property &
+Business — that was the collision this file used to warn about, and the firm
+resolved it on 25 August 2026 in the client's favour. So a landlord with a
+side gig on standard mileage pays $500 and nothing more; the either/or above
+is between rentals and a **full** Schedule C. Safe to write copy on now.
+
 ---
 
 ## 2 · What costs extra
@@ -75,10 +81,31 @@ Only past what the package already covers.
 | Each K-1 beyond the package's two | $15 |
 | Each additional gig Schedule C | $65 |
 | Each additional full Schedule C | $200 |
+| Each brokerage statement after the first | $45 |
+| Each brokerage statement that has to be entered by hand | $95 |
 | Each foreign account | $50 |
+| Any one of the named per-form situations (see below) | $50 |
 | Earned income credit, with the required due diligence | $150 |
 | Amended return | $250 |
 | Extension with a payment estimate | $75 |
+
+### The $50 per-form situations
+
+One price, whichever it is. All six are things that *happened*, so a reader
+can tell in a second whether one applies to them:
+
+- sold a home
+- had a debt cancelled or forgiven (a 1099-C arrived)
+- sold, exchanged or spent digital assets
+- had health insurance through the marketplace (a 1095-A arrived)
+- paid into or out of an HSA
+- took money out of a retirement account before 59½
+
+Each carries an assumption — the ordinary version of that situation is $50,
+and the unusual version is hourly. **Do not spell the assumptions out on the
+site**; they belong on the client's own estimate, where they are attached to
+a real engagement. On the site, "$50 each" plus the list above is the whole
+story.
 
 **Business returns** (1120-S, 1065, 1120) are **not priced on the website
 yet** — the firm has not set those figures. Say "quoted after a
@@ -110,6 +137,11 @@ assumptions in advance, in the client's own copy, before any work happens.
   the client to price-check a line they do not understand.
 - **State the assumptions wherever a price appears**, at least in short form:
   records arrive complete, and one brokerage statement is included.
+- **Every price on the page must match `fee-schedule.yaml` on the day it is
+  published.** This is not a general good practice, it is the specific cost of
+  the firm choosing a public page: a number on satcllp.com is a commitment,
+  and the estimate a client gets later has to agree with it. Anything you
+  cannot verify against the YAML does not go up.
 - **Do not invent legal, regulatory or assurance wording.** If a sentence would
   make a promise about compliance, accuracy or outcomes, leave a
   `[CONFIRM: ...]` and ask.
@@ -136,37 +168,68 @@ All of this exists in the repo and none of it is public-facing:
 
 ## 6 · What is not final
 
-Publish knowing this. The **four package prices and the per-extra prices above
-are signed and stable.** These are not:
+Publish knowing this. The **four package prices and every per-extra price
+above are signed, built and stable** — including the brokerage lines, the $50
+per-form price and the gig Schedule C inside Property & Business, all three of
+which this file used to list here as unbuilt. They are built now, they are in
+`fee-schedule.yaml`, and the estimate a client receives uses them.
 
-- **A flat $50 per additional form** — signed by the firm, not yet built, and
-  not yet in the table above. It will cover a handful of named situations (a
-  home sale, cancelled debt, digital assets, marketplace insurance, an HSA, an
-  early retirement withdrawal) at one price each. Leave room for it.
-- **Brokerage** — signed at $45 for each statement after the first and $95 for
-  one that has to be entered by hand, and not yet built.
-- **A gig Schedule C inside Property & Business.** The package covers
-  "everything in Standard", which includes a gig Schedule C, *and* an
-  either/or that is about Schedule Cs. Those two clauses collide and the firm
-  has not resolved it. Today such a client pays $65 for that Schedule C. Do
-  not write website copy that promises either reading.
+What remains genuinely unsettled:
+
+- **The three entity base fees** (1120-S, 1065, 1120). Nobody has set them.
+  They are the only prices in the schedule still carrying a `[CONFIRM:`, and
+  they are the reason §2 says "quoted after a conversation" rather than a
+  number. Do not fill this gap with a range, a "from" price, or a hint.
+- **The hourly rate is soft.** $150 is the firm's own estimate of its average,
+  described as "at least for now". It is safe to publish as the hourly rate.
+  It is not safe to build copy that treats it as a fixed, permanent figure.
+- **One thing the estimate no longer says.** Brokerage used to carry a written
+  assumption on every estimate; it is now two priced lines instead, and the
+  warning came off with it. A client whose 1099-B turns out to need keying
+  sees $95 for the first time on the invoice. That is a gap in the client's
+  *document*, not in the website's prices — the $95 is real and correct to
+  publish — but it is worth knowing about if you are writing copy that
+  promises no surprises. Tracked as T-14.
 
 ---
 
-## 7 · The decision this file cannot make
+## 7 · Where pricing goes — decided
 
-Where pricing goes is the firm's call, and the two options are meaningfully
-different:
+**The firm chose a public price page**, on 25 August 2026, in these words:
 
-**A public price page.** Anyone can read it. Sets expectations before the first
-call and filters out prospects who were never going to pay $500 — and commits
-the firm publicly to numbers that are two weeks old.
+> i plan to operate transparently and find it personally frustrating it is
+> hard to know what you will pay upfront on most tax sites
 
-**An indicative estimate at the end of the intake.** The prospect answers the
-questions they are already being asked and sees the package their answers put
-them in. This is what the pricing engine already does, so the two would agree
-by construction rather than by anyone remembering to update both. It also shows
-a number only to someone who has already told you enough for it to be roughly
-right.
+This was against the recommendation in the previous version of this file,
+which argued for showing the number at the end of the intake instead. The
+recommendation was about risk; the decision is about positioning, and
+positioning is the firm's call. Build the page.
 
-Nothing on the site should be built until the firm has chosen. Ask.
+**What the decision costs, and what to do about each.** A public number is a
+commitment in a way an estimate at the end of an intake is not, so three
+things that were merely advisable become requirements:
+
+1. **The page cannot show a price that is not in the YAML.** Not a rounded
+   one, not a "from", not a placeholder. §4's last rule is the operative one.
+2. **The entity returns say "quoted after a conversation".** A visitor
+   reading four confident individual prices will expect a fifth. Give them
+   the sentence, not a gap they fill in themselves.
+3. **The page needs a way to be re-checked when prices move.** Whatever shape
+   it takes, someone has to be able to answer "does the site still match the
+   schedule?" in under a minute. A single page that names its source beats
+   prices sprinkled through the copy.
+
+**The intake estimate is not cancelled by this — it is the second half.** The
+price page sets the expectation; the intake tells a specific person which
+package their own answers put them in. The engine that does the second one
+already exists, and the two agree by construction because both read the same
+YAML. Build the page first; that is what was asked for.
+
+---
+
+## 8 · If you need something this file does not have
+
+Ask the firm, or ask the agent working in `client-documents/`. Do not read the
+price out of the Python and do not infer one from a comparable firm. Every
+number here was argued about for a reason, and a number that appears on the
+website without going through that argument is a number nobody decided.

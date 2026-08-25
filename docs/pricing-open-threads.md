@@ -154,7 +154,10 @@ reachable from the machine these notes are written on.
 > filling stuff out
 
 **Status** Moved → `docs/workflow-friction-log.md`, first entry. The price half
-settled 25 Aug 2026: the $95 keys on what cannot be summarised.
+settled 25 Aug 2026 and **built the same day**: $45 a statement past the one
+the package includes, $95 for one that has to be keyed, and `assumed.brokerage`
+removed rather than reworded. What the removal cost the client's estimate is
+now T-14.
 
 It also produced the rule at the top of that log, which is worth repeating
 because it decides pricing questions on its own: **where our process costs more
@@ -305,7 +308,10 @@ cover a client who wants their books kept, which is the workstream.
 
 **Status** Settled 25 Aug 2026 — $50 a form, gated by the assumption behind
 each. Foreign accounts at $50 each, with a foreign *company* (Form 5471 or 8865)
-carved out as hourly. The entity gates stay individually priced.
+carved out as hourly. The entity gates stay individually priced. **Built the
+same day**, as `per_form:` in the fee schedule and an `extra_forms` question in
+the interview; each ticked form prints its own assumption on the estimate, and
+the ones nobody is filing print nothing.
 
 Two things at once, and the second is the larger.
 
@@ -332,6 +338,47 @@ Schedules L, M-1 and M-2 are three schedules and a book-to-tax reconciliation,
 not a form. Pricing those per form would misprice the exact engagements where
 mispricing hurts most.
 
+---
+
+## T-14 · A priced boundary the estimate cannot state
+
+**Raised** 25 Aug 2026, building the brokerage lines.
+
+**Status** Open. Needs a decision from the firm; nothing is blocked meanwhile.
+
+Brokerage moved off the hourly list and onto the counted one — $45 a
+statement, $95 for one that has to be keyed. `assumed.brokerage` came off in
+the same change, because an assumption *and* a price for the same overrun is
+worse than either alone: the client reads "included", then gets an invoice
+line, and afterwards nobody can say which one was operative.
+
+**What came off with it.** The old assumption printed on every estimate and
+warned, before the work, that unusual brokerage activity would cost more. The
+new lines only appear once somebody has answered how many statements need
+keying — and that is usually unanswerable when the estimate is written,
+because nobody knows until the statement arrives. So the common case is now:
+estimate goes out silent, $95 appears on the invoice.
+
+A review flag covers the firm's side (the interview raises it at file review).
+It does nothing for the client's side.
+
+**What it would take.** `assumed:` states a boundary and its consequence, and
+the consequence vocabulary is deliberately one word wide — `hourly`, with
+`requote` refused on purpose because the firm ruled out stopping the job to
+renegotiate. A boundary whose consequence is *a price already on the sheet* is
+a third thing, and it is arguably the best of the three: the client is told
+the number before the work rather than the rate.
+
+Adding it means extending that vocabulary — something like `beyond: priced`
+naming the per-unit line that prices the overrun, so the sentence reads "...
+that statement is billed at $95, which you will see as a line before you pay"
+instead of "... at $150 an hour". That is a small change to
+`pricing.assumptions()` and a one-line addition to the schedule.
+
+**Not done, on purpose.** The `beyond:` vocabulary is narrow because the firm
+narrowed it, and widening it is a policy decision wearing a config key's
+clothes. Recommendation: do it. But the firm decides.
+
 ## Settled
 
 | # | Thread | Decision | Date |
@@ -356,3 +403,8 @@ mispricing hurts most.
 | — | The per-form price | $50, gated by each form's assumption | 25 Aug 2026 |
 | — | Foreign accounts | $50 each; a foreign company stays hourly | 25 Aug 2026 |
 | — | How far the rule goes | Individual forms only; entity gates stay named | 25 Aug 2026 |
+| — | What a package covers | Prints on the estimate; `includes:` is followed, not printed | 25 Aug 2026 |
+| — | Counted lines the package paid for | Labelled "after the first" / "after the N included" | 25 Aug 2026 |
+| — | Rentals outnumbering local returns | Flagged for a human; never derived | 25 Aug 2026 |
+| — | The gig Schedule C in Property & Business | Included; the either/or is rentals vs a FULL Schedule C | 25 Aug 2026 |
+| — | Where pricing goes | A public price page, for transparency | 25 Aug 2026 |
