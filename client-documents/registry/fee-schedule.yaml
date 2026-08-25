@@ -119,10 +119,18 @@ base_covers: "one_included"
 # ── the individual ladder ─────────────────────────────────────────────────
 #
 # Four packages, one per client, DERIVED from what the interview already asked
-# rather than chosen by anyone at the call. The rule is "the highest package
-# whose gate is met", so the tiers are read TOP TO BOTTOM and the LAST one
-# whose gate holds wins. A client with a gig Schedule C and a rental lands in
-# Property & Business without a conversation about it.
+# rather than chosen by anyone at the call.
+#
+# ORDER MATTERS: the tiers are read TOP TO BOTTOM and the FIRST gate that
+# holds wins, so they are written MOST SPECIFIC FIRST and the broadest last.
+# That encodes the firm's rule -- "the highest package whose gate is met" --
+# without depending on it, and it is the only ordering that works at both
+# ends of the ladder. Starter is the most restrictive gate AND the cheapest
+# package, so a rule phrased in terms of price alone gets it wrong: a Starter
+# client also satisfies Essentials, and "the dearest match" would quote them
+# 200. Specificity is what actually decides it, so specificity is what the
+# file is ordered by. Essentials sits last as the fallback for a 1040 with no
+# schedules that nothing more specific claimed.
 #
 # GATES KEY ON `federal_schedules`, NOT ON COUNTS. This is the trap worth
 # naming, because it was found by walking the design rather than by reading
@@ -151,28 +159,39 @@ base:
           - "Federal 1040, first state, first locality"
           - "One or two W-2s"
           - "A 1098-T education credit, claimed for yourself"
-        # NOT DERIVABLE TODAY, and this placeholder is the honest way to say
-        # so. Starter's gate is "W-2 income only, standard deduction, and no
-        # other income documents". The interview asks about SCHEDULES, and a
-        # Starter client and an Essentials client answer it identically: no
-        # schedules, every count zero. Nothing asks whether a 1099 arrived,
-        # whether anyone is claimed as a dependent, or whether an education
-        # credit is in play. Until it does, this tier can never select and a
-        # student is quoted Essentials at 200 -- which is what the firm quotes
-        # them today, so it is not a regression, but it is not the intent
-        # either. `doctor` reports it for exactly that reason.
-        gate: "[CONFIRM: Starter cannot be derived from the interview as it stands. Distinguishing it from Essentials needs a question nobody has signed off -- at minimum whether any 1099 arrived and whether anyone is claimed as a dependent. Until that question exists this tier never selects and these clients are quoted Essentials.]"
-
-      essentials:
-        label: "Essentials"
-        detail: "No schedules"
-        amount: 200
-        covers:
-          - "Federal 1040, first state, first locality"
-          - "Wages, interest and dividends"
-          - "Standard deduction"
         gate:
           schedules_none: true
+          answer_is:
+            other_income_documents: "no"
+            has_dependents: "no"
+
+      property:
+        label: "Property & Business"
+        detail: "You own things that scale"
+        # Signed 25 Aug 2026. The workbook's own Schedule C price.
+        # The first full one is inside Property & Business.
+        amount: 500
+        covers:
+          - "Everything in Standard"
+          - "Up to three rentals, OR one full Schedule C"
+          - "K-1s are not here -- they meter from Standard"
+        allows:
+          count_brokerages: 1
+          count_k1s: 2
+        # EITHER/OR, as data rather than as a special case in Python. Each
+        # branch is priced and the one that saves the client most is the one
+        # applied -- a client must never lose money to an ambiguity in our own
+        # schedule -- and the winning branch's label prints on the estimate so
+        # they can see which allowance they got.
+        allows_one_of:
+          - label: "up to three rentals"
+            count_rentals: 3
+          - label: "one full Schedule C"
+            count_businesses: 1
+        gate:
+          any_of:
+            - schedules_any: [E1, F]
+            - answer_is: {schedule_c_kind: standard}
 
       standard:
         label: "Standard"
@@ -203,33 +222,16 @@ base:
             - schedules_none_of: [C]
             - answer_is: {schedule_c_kind: simple}
 
-      property:
-        label: "Property & Business"
-        detail: "You own things that scale"
-        # Signed 25 Aug 2026. The workbook's own Schedule C price.
-        # The first full one is inside Property & Business.
-        amount: 500
+      essentials:
+        label: "Essentials"
+        detail: "No schedules"
+        amount: 200
         covers:
-          - "Everything in Standard"
-          - "Up to three rentals, OR one full Schedule C"
-          - "K-1s are not here -- they meter from Standard"
-        allows:
-          count_brokerages: 1
-          count_k1s: 2
-        # EITHER/OR, as data rather than as a special case in Python. Each
-        # branch is priced and the one that saves the client most is the one
-        # applied -- a client must never lose money to an ambiguity in our own
-        # schedule -- and the winning branch's label prints on the estimate so
-        # they can see which allowance they got.
-        allows_one_of:
-          - label: "up to three rentals"
-            count_rentals: 3
-          - label: "one full Schedule C"
-            count_businesses: 1
+          - "Federal 1040, first state, first locality"
+          - "Wages, interest and dividends"
+          - "Standard deduction"
         gate:
-          any_of:
-            - schedules_any: [E1, F]
-            - answer_is: {schedule_c_kind: standard}
+          schedules_none: true
 
   "1120S": "[CONFIRM: base fee for a Form 1120-S]"
   "1065":  "[CONFIRM: base fee for a Form 1065]"

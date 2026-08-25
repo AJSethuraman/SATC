@@ -232,12 +232,15 @@ def _allowance(tier: dict, answers: dict, schedule: dict | None = None) -> dict:
 
 
 def derive_tier(unit: dict, answers: dict, where: str) -> tuple:
-    """(key, tier) for the highest tier whose gate holds -- or (None, None).
+    """(key, tier) for the first tier whose gate holds -- or (None, None).
 
-    Read top to bottom, last match wins: the ladder is ordered cheapest first
-    and "the highest package whose gate is met" is the firm's rule.
+    Read top to bottom, FIRST match wins, because the tiers are written most
+    specific first. Last-match-wins was the original rule and it is wrong at
+    the cheap end: Starter is the most restrictive gate and the least
+    expensive package, so a Starter client also satisfies Essentials, and
+    taking the later (dearer) match quotes them 200 instead of 100.
+    Specificity is what decides, so specificity is what the file is ordered by.
     """
-    chosen = (None, None)
     for key, tier in (unit.get("tiers") or {}).items():
         gate = tier.get("gate")
         if gate is None:
@@ -249,8 +252,8 @@ def derive_tier(unit: dict, answers: dict, where: str) -> tuple:
             # rather than guessed at, which is the whole point of [CONFIRM:].
             continue
         if _gate_holds(gate, answers, f"{where}.{key}"):
-            chosen = (key, tier)
-    return chosen
+            return key, tier
+    return None, None
 
 
 def _gate_sentence(key: str, tier: dict) -> str:

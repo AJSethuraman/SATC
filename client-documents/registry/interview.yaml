@@ -308,6 +308,59 @@ sections:
         supplies: [LocalReturns]
         notes: "[CONFIRM: does one RITA filing count as one locality or several?]"
 
+      # ── what separates Starter from Essentials ────────────────────────
+      # Nothing here used to be asked, and the two packages were therefore
+      # indistinguishable: a student on one W-2 and a couple with dividends
+      # answered the interview identically and were quoted the same 200.
+      # Both questions name a document or a person, not a level of
+      # complexity, so a client can answer them without being asked to
+      # judge their own return.
+      - id: other_income_documents
+        question: "Apart from W-2s, did any other income document arrive?"
+        help: >-
+          A 1099 of any kind, a K-1, an SSA-1099, interest or dividend
+          statements. A 1098-T for tuition is NOT an income document and does
+          not count here -- an education credit claimed for yourself sits
+          inside the simplest package on purpose.
+        type: single
+        required: true
+        options:
+          - { value: "no",  label: "No — wages only" }
+          - { value: "yes", label: "Yes — something else arrived" }
+        showIf: "federal_form == '1040'"
+        supplies: []
+        internal: true
+        internal_reason: >-
+          Prices, does not print. It is the fact that separates the Starter
+          package from Essentials, and until it was asked the two were
+          indistinguishable -- a student on one W-2 and a couple with dividends
+          answered the interview identically and were quoted the same fee. No
+          template says it out loud; the package name on the estimate is what
+          the client reads.
+        notes: >-
+          Gates the Starter package. Unanswered falls to Essentials, which is
+          the safe direction: silence is not evidence of simplicity.
+
+      - id: has_dependents
+        question: "Is anyone claimed as a dependent on this return?"
+        help: >-
+          A child, a relative, anyone claimed. Dependants bring credits and
+          the due-diligence that comes with them, which is why they sit
+          outside the simplest package.
+        type: single
+        required: true
+        options:
+          - { value: "no",  label: "No" }
+          - { value: "yes", label: "Yes" }
+        showIf: "federal_form == '1040'"
+        supplies: []
+        internal: true
+        internal_reason: >-
+          Prices, does not print. The other half of the Starter gate. Dependants
+          bring credits and the due diligence that comes with them, which is
+          why they sit outside the simplest package -- but no document repeats
+          the answer back, so it supplies no field.
+
       - id: additional_forms
         question: "Anything else filed alongside?"
         help: >-

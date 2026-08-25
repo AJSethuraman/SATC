@@ -542,28 +542,13 @@ def test_the_package_line_says_which_gate_selected_it():
     assert line["Detail"], "the package line must explain itself"
 
 
-def test_starter_cannot_be_derived_and_says_so():
-    """Starter's gate is a [CONFIRM:] because the interview cannot distinguish
-    it from Essentials -- a Starter client and an Essentials client answer
-    identically. It must never select silently, and `doctor` must report it.
-    """
-    opens = dict(pricing.open_amounts())
-    gate_keys = [k for k in opens if k.endswith("starter.gate")]
-    assert gate_keys, "Starter's underivable gate must be reported as open"
-    # and a would-be Starter client is quoted Essentials rather than nothing
-    assert _pkg({"federal_schedules": []})["Service"] == "Essentials"
+# `test_starter_cannot_be_derived_and_says_so` lived here. It asserted that
+# Starter's gate was a [CONFIRM:] because the interview could not tell a
+# Starter client from an Essentials one -- both answered it identically. The
+# interview now asks the two facts that separate them, so the test was
+# describing a limitation rather than a rule, and the tests just below it
+# assert the behaviour that replaced it.
 
-
-# ── the either/or, and the way it lies quietly ────────────────────────────
-#
-# Property & Business covers up to three rentals OR one full Schedule C, and
-# the branch that saves the CLIENT most is the one applied. Both branches are
-# scored in money, which is right -- and which fails silently the moment a
-# price behind one of them is not set yet. Both branches then save $0, `max`
-# keeps the first, and a client with a full Schedule C and no rentals has
-# their Schedule C billed on top of a package that was supposed to include
-# it. With the price still open a [CONFIRM:] happens to mask it. Set the
-# price and the same client is silently overcharged by it.
 
 def _priced_both_branches(priced=None):
     """The REAL schedule -- the one with the ladder -- with the two either/or
@@ -679,3 +664,48 @@ def test_a_gig_c_inside_property_and_business_is_currently_charged():
          "schedule_c_kind": "simple", "count_businesses": 1,
          "count_rentals": 3}, s)
     assert pricing.estimate_total(items, s) == "$565.00"
+
+
+# ── Starter, once the interview can see it ────────────────────────────────
+
+def test_starter_selects_for_a_w2_only_client_with_no_dependents():
+    s = pricing.load()
+    line = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": [],
+         "other_income_documents": "no", "has_dependents": "no"}, s)[0]
+    assert line["Service"] == "Starter"
+    assert line["Amount"] == "$100.00"
+
+
+def test_a_dependent_takes_a_client_out_of_starter():
+    s = pricing.load()
+    line = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": [],
+         "other_income_documents": "no", "has_dependents": "yes"}, s)[0]
+    assert line["Service"] == "Essentials"
+
+
+def test_any_other_income_document_takes_a_client_out_of_starter():
+    s = pricing.load()
+    line = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": [],
+         "other_income_documents": "yes", "has_dependents": "no"}, s)[0]
+    assert line["Service"] == "Essentials"
+
+
+def test_an_unanswered_starter_question_falls_to_essentials():
+    """The safe direction, and it has to be deliberate.
+
+    A record made before these questions existed answers neither. Falling to
+    Starter would quote $100 for a return nobody has established is a Starter
+    return; falling to Essentials quotes what the firm quotes today. Silence
+    is not evidence of simplicity.
+    """
+    s = pricing.load()
+    line = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": []}, s)[0]
+    assert line["Service"] == "Essentials"
+
+
+def test_starter_is_no_longer_an_open_decision():
+    assert not [p for p, _ in pricing.open_amounts() if p.endswith("starter.gate")]
