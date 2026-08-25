@@ -35,6 +35,7 @@ from pathlib import Path
 
 import yaml
 
+import money as m
 import engagements
 import fees
 import intake
@@ -298,6 +299,53 @@ def _engagement_readiness(ref: str, store: Path) -> int:
     print("\n  A [CONFIRM] is a firm decision -- `doctor` with no argument "
           "lists them all.\n  An unresolved field is missing from this record.")
     return 1 if opening_blocked else 0
+
+
+def cmd_ladder(args) -> int:
+    """Are the packages sensible against the prices?
+
+    Asked for by the firm, 25 August 2026: "it is a good check, too, we should
+    ensure that our tiers are sensical with our pricing altogether".
+
+    The engine picks the cheapest package a client is eligible for, which
+    means a pricing mistake no longer shows up as an overcharge -- it shows up
+    as SILENCE. A package priced above what its own allowances are worth
+    simply stops being selected and nothing complains. This is the report that
+    listens for that.
+    """
+    rows = pricing.ladder_report(form=args.form)
+    if not rows:
+        print(f"base.{args.form} is not a ladder — nothing to report.")
+        return 0
+
+    print(f"How the {args.form} packages behave across a sweep of client shapes.\n")
+    print(f"  {'Package':<22}{'Price':>8}{'Eligible':>10}{'Chosen':>8}   Beaten by")
+    dead = []
+    for r in rows:
+        amount = r["amount"]
+        price = m.money(amount, "USD") if isinstance(amount, (int, float)) else "open"
+        beaten = ", ".join(f"{k} ×{n}" for k, n in
+                           sorted(r["beaten_by"].items(), key=lambda kv: -kv[1]))
+        print(f"  {r['label']:<22}{price:>8}{r['eligible']:>10}{r['chosen']:>8}   {beaten or '—'}")
+        if r["eligible"] and not r["chosen"]:
+            dead.append(r)
+        elif not r["eligible"]:
+            dead.append(r)
+
+    print()
+    for r in dead:
+        if not r["eligible"]:
+            print(f"  {r['label']}: NO CLIENT IS EVER ELIGIBLE. Its gate cannot "
+                  f"hold — check it against what the interview actually asks.")
+        else:
+            who = ", ".join(sorted(r["beaten_by"]))
+            print(f"  {r['label']}: ELIGIBLE BUT NEVER CHOSEN. Every client who "
+                  f"qualifies for it\n      does better on {who}, so it is priced "
+                  f"above what it covers.\n      Either the price is wrong or the "
+                  f"allowances are too small.")
+    if not dead:
+        print("  Every package is reachable and is the best deal for somebody.")
+    return 1 if dead else 0
 
 
 def cmd_doctor(args) -> int:
@@ -865,6 +913,10 @@ def main(argv=None) -> int:
         prog="satc-docs", description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    la = sub.add_parser("ladder", help="are the packages sensible against the prices?")
+    la.add_argument("--form", default="1040")
+    la.set_defaults(fn=cmd_ladder)
 
     d0 = sub.add_parser("doctor", help="what is blocking a real render")
     d0.add_argument("--engagement", metavar="REF",

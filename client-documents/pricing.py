@@ -437,16 +437,13 @@ def covers(key: str, tiers: dict, where: str) -> list[str]:
     return out
 
 
-def derive_tier(unit: dict, answers: dict, where: str) -> tuple:
-    """(key, tier) for the first tier whose gate holds -- or (None, None).
+def eligible_tiers(unit: dict, answers: dict, where: str) -> list[tuple]:
+    """Every (key, tier) whose gate holds, in the file's own order.
 
-    Read top to bottom, FIRST match wins, because the tiers are written most
-    specific first. Last-match-wins was the original rule and it is wrong at
-    the cheap end: Starter is the most restrictive gate and the least
-    expensive package, so a Starter client also satisfies Essentials, and
-    taking the later (dearer) match quotes them 200 instead of 100.
-    Specificity is what decides, so specificity is what the file is ordered by.
+    The file is written MOST SPECIFIC FIRST, which is the order that decides a
+    tie. It is not the order that decides the answer -- see `derive_tier`.
     """
+    out = []
     for key, tier in (unit.get("tiers") or {}).items():
         gate = tier.get("gate")
         if gate is None:
@@ -458,8 +455,92 @@ def derive_tier(unit: dict, answers: dict, where: str) -> tuple:
             # rather than guessed at, which is the whole point of [CONFIRM:].
             continue
         if _gate_holds(gate, answers, f"{where}.{key}"):
-            return key, tier
-    return None, None
+            out.append((key, tier))
+    return out
+
+
+def derive_tier(unit: dict, answers: dict, where: str,
+                schedule: dict | None = None) -> tuple:
+    """(key, tier) for the tier that costs this client LEAST -- or (None, None).
+
+    The firm, 25 August 2026, twice:
+
+        "something should be able to pretty simply determine its cheaper tier
+         or combination of pricing to get them to the cheapest thing they need
+         to do"
+        "that logic must be built into the actual mechanism used to generate
+         invoices"
+
+    So it is here, in the one function the estimate and the invoice both go
+    through, rather than in a test that watches from outside. A guarantee a
+    test checks is a guarantee that holds until somebody edits a price on a
+    Friday; a guarantee the engine makes is one the client gets.
+
+    ELIGIBILITY IS STILL THE GATES, and they are not a pricing device -- they
+    say which packages actually cover this return. Starter is $100 and
+    W-2-only; a client with a Schedule A is not eligible for it, and quoting
+    them $100 would underprice the firm rather than save the client money.
+    "The cheapest thing they need to do" means the cheapest package that
+    covers what they have.
+
+    TIES GO TO THE FILE'S ORDER, which is most specific first. Two packages at
+    the same total are the same deal to the client, so the tie is decided on
+    which one describes them better -- and that keeps the old behaviour
+    exactly wherever the prices already agreed with it.
+
+    A tier is skipped if it cannot be totalled at all -- an unset price, an
+    unset cap. Comparing against a package whose cost is unknown is guessing,
+    and guessing cheap is how a client is quoted a number nobody can honour.
+    """
+    candidates = eligible_tiers(unit, answers, where)
+    if not candidates:
+        return None, None
+    if len(candidates) == 1 or schedule is None:
+        # No schedule to price against: fall back to the file's order, which
+        # is what the rule was before this and is right whenever the ladder is
+        # priced consistently. `line_items` always passes one.
+        return candidates[0]
+
+    best, best_total = None, None
+    for key, tier in candidates:
+        total = _total_on_tier(unit, key, answers, schedule)
+        if total is None:
+            continue
+        if best_total is None or total < best_total:
+            best, best_total = (key, tier), total
+    return best or candidates[0]
+
+
+def _total_on_tier(unit: dict, key: str, answers: dict, schedule: dict):
+    """What this client would pay in total on ONE named package.
+
+    The whole total, not the package price: a rung with a bigger allowance can
+    cost more up front and less overall, and the client pays the total.
+    """
+    tiers = unit.get("tiers") or {}
+    forced = dict(schedule)
+    forced["base"] = {
+        **(schedule.get("base") or {}),
+        answers.get("federal_form"): {
+            **unit,
+            # Every rung stays -- `includes:` walks the chain, so a ladder cut
+            # down to one rung cannot price the rung that inherits below it.
+            "tiers": {name: ({**t, "gate": {}} if name == key
+                             else {**t, "gate": _NEVER})
+                      for name, t in tiers.items()},
+        },
+    }
+    try:
+        items = line_items(answers, forced)
+    except PricingError:
+        return None
+    if any(is_open(i["_raw"]) for i in items):
+        return None
+    return sum(i["_raw"] for i in items)
+
+
+# A gate no client can hold, used to force the comparison onto one rung.
+_NEVER = {"answer_is": {"__no_such_answer__": "\u0000"}}
 
 
 def _gate_sentence(key: str, tier: dict) -> str:
@@ -572,7 +653,7 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
     allowance: dict = {}
     tiers = base.get("tiers") if isinstance(base, dict) else None
     if tiers:
-        key, tier = derive_tier(base, answers, f"base.{form}")
+        key, tier = derive_tier(base, answers, f"base.{form}", schedule=s)
         if tier is None:
             # Every gate was either undecided or unmet. Quoting the cheapest
             # tier here would be the single most expensive guess in the file.
@@ -869,3 +950,97 @@ def price(answers: dict, schedule: dict | None = None) -> dict:
         "EstimateTotal": total,
         "Assumptions": [{"Text": t} for t in assumptions(answers, schedule)],
     }
+
+
+# ── is the ladder sensible? ───────────────────────────────────────────────
+
+def ladder_report(schedule: dict | None = None, form: str = "1040") -> list[dict]:
+    """One row per package: is it ever chosen, and is it ever the cheapest?
+
+    The firm, 25 August 2026: "it is a good check, too, we should ensure that
+    our tiers are sensical with our pricing altogether".
+
+    The engine already guarantees a client is never overcharged -- it picks
+    the cheapest package they are eligible for. That guarantee turns a pricing
+    mistake into a SILENCE rather than an overcharge: a package priced above
+    what its own allowances are worth simply stops being selected, and nothing
+    complains. This is what looks for that silence.
+
+    Two failures it is built to catch:
+
+    * A package NEVER CHOSEN. Either its gate cannot hold for anybody, or it
+      is priced above every alternative its clients are also eligible for. The
+      first is a broken gate; the second is a price that does not reflect what
+      the package covers. Both are invisible from an estimate.
+    * A package chosen only for a NARROW SLICE of the clients its gate admits.
+      Not wrong on its own -- a specialist package should be specialist -- but
+      worth a look when the slice is much smaller than the gate.
+    """
+    s = pricing_schedule(schedule)
+    unit = (s.get("base") or {}).get(form) or {}
+    tiers = unit.get("tiers") or {}
+    if not tiers:
+        return []
+
+    rows = {k: {"key": k, "label": (t.get("label") or k), "amount": t.get("amount"),
+                "eligible": 0, "chosen": 0, "beaten_by": {}}
+            for k, t in tiers.items()}
+
+    for answers in _ladder_shapes(form):
+        try:
+            candidates = eligible_tiers(unit, answers, f"base.{form}")
+            chosen, _ = derive_tier(unit, answers, f"base.{form}", schedule=s)
+        except PricingError:
+            continue
+        if chosen is None:
+            continue
+        # A shape nothing can be totalled on says nothing about pricing --
+        # `derive_tier` falls back to the file's order there, and counting it
+        # as "chosen" would report a comparison that never happened.
+        totals = {k: _total_on_tier(unit, k, answers, s) for k, _ in candidates}
+        if not any(v is not None for v in totals.values()):
+            continue
+        for key, _ in candidates:
+            rows[key]["eligible"] += 1
+        rows[chosen]["chosen"] += 1
+        for key, _ in candidates:
+            if key != chosen:
+                rows[key]["beaten_by"][chosen] = rows[key]["beaten_by"].get(chosen, 0) + 1
+    return list(rows.values())
+
+
+def _ladder_shapes(form: str):
+    """A sweep of the return shapes the ladder is meant to describe.
+
+    Not every client -- a sweep, wide enough that a package nobody can reach
+    shows up as a zero. Kept here rather than in the tests because the firm
+    asked for a CHECK they can run, not only one that runs in CI.
+    """
+    import itertools
+    schedules = ["A", "B", "C", "D", "E1", "E2", "SE", "F"]
+    for r in range(4):
+        for combo in itertools.combinations(schedules, r):
+            scheds = list(combo)
+            kinds = ["simple", "standard"] if "C" in scheds else [None]
+            for kind in kinds:
+                for rentals, k1s, biz, deps in itertools.product(
+                        [0, 1, 4], [0, 3], [0, 2], ["no", "yes"]):
+                    # `has_dependents` is varied deliberately. Hold it at "no"
+                    # and every no-schedules client qualifies for Starter, so
+                    # Essentials reports as never chosen -- a sweep that cries
+                    # wolf about the schedule when the fault is its own.
+                    # Count only what is actually ON the return. A client
+                    # with two businesses and no Schedule C is not a client,
+                    # it is a contradiction -- and it prices as unknowable,
+                    # which would report as a package "chosen" on no
+                    # comparison at all.
+                    a = {"federal_form": form, "federal_schedules": scheds,
+                         "count_states": 1, "count_localities": 1,
+                         "count_rentals": rentals if "E1" in scheds else 0,
+                         "count_k1s": k1s if "E2" in scheds else 0,
+                         "count_businesses": biz if "C" in scheds else 0,
+                         "other_income_documents": "no",
+                         "has_dependents": deps}
+                    if kind:
+                        a["schedule_c_kind"] = kind
+                    yield a

@@ -557,12 +557,51 @@ def test_a_rental_is_property_and_business():
     assert _pkg({"federal_schedules": ["E1"]})["Service"] == "Property & Business"
 
 
-def test_the_highest_gate_wins_not_the_first():
-    """A gig Schedule C alone is Standard. Add a rental and the same client is
-    Property & Business -- the ladder is walked to the end, not short-circuited
-    at the first match."""
-    both = _pkg({"federal_schedules": ["C", "E1"], "schedule_c_kind": "simple"})
-    assert both["Service"] == "Property & Business"
+def test_the_cheapest_eligible_package_wins():
+    """The selection rule, changed 25 August 2026 on the firm's instruction:
+
+        "that logic must be built into the actual mechanism used to generate
+         invoices"
+
+    It used to be "the first gate that holds, reading most specific first",
+    with a test watching from outside to check that this also happened to be
+    cheapest. It is now the engine's job: among the packages whose gates hold,
+    the client gets the one with the lowest TOTAL.
+
+    A gig Schedule C with a rental holds both Standard's gate and Property &
+    Business's. Property & Business is $500; Standard is $325 and meters the
+    rental at $45. The client pays $370 and is quoted Standard.
+    """
+    a = {"federal_form": "1040", "federal_schedules": ["C", "E1"],
+         "schedule_c_kind": "simple", "count_rentals": 1}
+    s = pricing.load()
+    items = pricing.line_items(a, s)
+    assert items[0]["Service"] == "Standard"
+    assert pricing.estimate_total(items, s) == "$370.00"
+
+
+def test_a_package_the_client_is_not_eligible_for_is_never_chosen_however_cheap():
+    """Eligibility is the gates, and the gates are not a pricing device.
+
+    Starter is the cheapest thing on the sheet at $100. A client with a
+    Schedule A is not eligible for it, and quoting them $100 would underprice
+    the firm rather than save the client money.
+    """
+    line = _pkg({"federal_schedules": ["A"]})
+    assert line["Service"] == "Standard"
+
+
+def test_the_file_order_still_breaks_a_tie():
+    """Two packages at the same total are the same deal to the client, so the
+    tie goes to the one that describes them better -- which is what the file's
+    most-specific-first order encodes."""
+    s = pricing.load()
+    # Make Property & Business cost a landlord exactly what Standard does.
+    s["base"]["1040"]["tiers"]["property"]["amount"] = 370
+    a = {"federal_form": "1040", "federal_schedules": ["A", "E1"],
+         "count_rentals": 1, "count_states": 0, "count_localities": 0}
+    key, _ = pricing.derive_tier(s["base"]["1040"], a, "base.1040", schedule=s)
+    assert key == "property", "property is written first, so it wins the tie"
 
 
 def test_a_ticked_schedule_with_no_count_still_lands_in_the_right_package():
@@ -700,11 +739,21 @@ def test_a_gig_c_inside_property_and_business_is_included():
     sheet rules out, so the allowance is gated on `schedule_c_kind: simple`.
     """
     s = pricing.load()
-    items = pricing.line_items(
-        {"federal_form": "1040", "federal_schedules": ["C", "E1"],
+    a = {"federal_form": "1040", "federal_schedules": ["C", "E1"],
          "schedule_c_kind": "simple", "count_businesses": 1,
-         "count_rentals": 3}, s)
-    assert pricing.estimate_total(items, s) == "$500.00"
+         "count_rentals": 3}
+
+    # The ruling still holds where it applies: priced ON Property & Business,
+    # this client's gig C is free and their three rentals are free, so they
+    # pay the package price and nothing more.
+    forced = _forced(s, "property")
+    assert pricing.estimate_total(pricing.line_items(a, forced), forced) == "$500.00"
+
+    # But the client is not quoted it, because Standard is cheaper for them --
+    # $325 plus three metered rentals. That is T-15 showing through the new
+    # selection rule rather than hiding behind the old one: Property & Business
+    # is $175 more than Standard and its rental allowance is worth $135.
+    assert pricing.estimate_total(pricing.line_items(a, s), s) == "$460.00"
 
 
 def test_a_full_schedule_c_does_not_also_ride_in_free():
@@ -735,12 +784,15 @@ def test_a_gig_c_does_not_spend_the_either_or_it_no_longer_needs():
     halves of the ruling compose.
     """
     s = pricing.load()
-    items = pricing.line_items(
-        {"federal_form": "1040", "federal_schedules": ["C", "E1"],
+    a = {"federal_form": "1040", "federal_schedules": ["C", "E1"],
          "schedule_c_kind": "simple", "count_businesses": 1,
-         "count_rentals": 1}, s)
-    assert [i["Service"] for i in items] == ["Property & Business"]
-    assert pricing.estimate_total(items, s) == "$500.00"
+         "count_rentals": 1}
+    items = pricing.line_items(a, s)
+    # Standard is cheaper for this client now, so that is what they are
+    # quoted -- but the thing under test is that their gig Schedule C is
+    # included either way and never appears as a charged line.
+    assert "Sole proprietorship" not in [i["Service"] for i in items]
+    assert pricing.estimate_total(items, s) == "$370.00"
 
 
 def test_the_package_says_which_allowance_the_client_got():
@@ -1234,7 +1286,8 @@ def test_the_ladder_always_puts_a_client_on_their_cheapest_package():
     losses = []
     checked = 0
     for a in _client_shapes():
-        chosen, _ = pricing.derive_tier(s["base"]["1040"], a, "base.1040")
+        chosen, _ = pricing.derive_tier(s["base"]["1040"], a, "base.1040",
+                                        schedule=s)
         if chosen is None:
             continue
         eligible = [k for k, t in tiers.items()
@@ -1252,43 +1305,9 @@ def test_the_ladder_always_puts_a_client_on_their_cheapest_package():
                 f"biz={a['count_businesses']}: got {chosen} at "
                 f"${prices[chosen]:.0f}, {best} was ${prices[best]:.0f}")
     assert checked > 500, "the sweep stopped covering the ladder"
-
-    # ONE KNOWN EXCEPTION, and it is a pricing question rather than a bug in
-    # the mechanism. See T-15 in docs/pricing-open-threads.md.
-    #
-    # Property & Business is $175 more than Standard and buys a three-rental
-    # allowance worth $135. It never pays for itself: at EVERY rental count,
-    # Standard plus metered rentals is $40 to $175 cheaper. The package only
-    # wins for a client with a full Schedule C, where the allowance is worth
-    # $200 against the same $175 step.
-    #
-    # It only bites a client who ALSO holds Standard's gate -- a landlord who
-    # itemises. A landlord who does not is not eligible for Standard and has
-    # no cheaper option, which produces the sentence that makes this worth
-    # raising: the client with MORE going on pays LESS.
-    #
-    # Pinned rather than fixed, because the fix is a price and prices are the
-    # firm's. The list can only shrink.
-    unexplained = [line for line in losses
-                   if "got property at" not in line or "standard was" not in line]
-    assert not unexplained, (
-        f"{len(unexplained)} client shape(s) were quoted more than they had "
-        f"to pay, and not for the known reason. First few:\n  "
-        + "\n  ".join(unexplained[:5]))
-    assert losses, (
-        "T-15 appears to be fixed -- Property & Business no longer overcharges "
-        "a landlord who itemises. Delete this block and restore the plain "
-        "`assert not losses`."
-    )
-    # And it cannot get worse without somebody deciding it should. The
-    # overcharge today runs from $40 to $175; anything past that is a price
-    # change nobody looked at.
-    worst = max(int(line.split("at $")[1].split(",")[0]) - int(line.split("was $")[1])
-                for line in losses)
-    assert worst == 175, (
-        f"the known overcharge is now ${worst}, not $175. A price moved. "
-        f"That is a decision, not a regression to paper over -- see T-15."
-    )
+    assert not losses, (
+        f"{len(losses)} client shape(s) were quoted more than they had to "
+        f"pay. First few:\n  " + "\n  ".join(losses[:5]))
 
 
 def test_a_price_that_breaks_the_ladder_is_caught():
@@ -1304,3 +1323,47 @@ def test_a_price_that_breaks_the_ladder_is_caught():
         "a price change can make the chosen rung the dearest one, which is "
         "exactly what the sweep above is watching for"
     )
+
+
+# ── is the ladder sensible? ───────────────────────────────────────────────
+
+def test_every_package_is_reachable_and_is_somebody_s_best_deal():
+    """The firm, 25 Aug 2026: "we should ensure that our tiers are sensical
+    with our pricing altogether".
+
+    The engine picks the cheapest eligible package, which turns a pricing
+    mistake into a SILENCE rather than an overcharge: a package priced above
+    what its allowances are worth simply stops being selected and nothing
+    complains. This listens for that silence.
+    """
+    rows = pricing.ladder_report()
+    assert rows, "the 1040 base is meant to be a ladder"
+    for r in rows:
+        assert r["eligible"], (
+            f"{r['label']} has a gate no client can hold — it is invisible")
+        assert r["chosen"], (
+            f"{r['label']} is eligible for {r['eligible']} client shapes and "
+            f"chosen for none. Every client who qualifies does better on "
+            f"{sorted(r['beaten_by'])}, so it is priced above what it covers.")
+
+
+def test_the_report_notices_a_package_priced_out_of_existence():
+    """The check is only worth having if it can fail.
+
+    Raising a price alone is not enough to prove it, and that is worth
+    knowing: every package on the real ladder has clients no other package is
+    eligible for, so it stays chosen at any price. The check fires when a
+    package's clients ALL have somewhere better to go — which is what it is
+    for, and why it is a weak signal on a ladder of specialists. Read the
+    counts, not just the warning.
+    """
+    s = pricing.load()
+    tiers = s["base"]["1040"]["tiers"]
+    # Give Property & Business exactly Essentials' clients, then price it above.
+    tiers["property"]["gate"] = dict(tiers["essentials"]["gate"])
+    tiers["property"]["amount"] = 5000
+    rows = {r["key"]: r for r in pricing.ladder_report(s)}
+    assert rows["property"]["eligible"] > 0
+    assert rows["property"]["chosen"] == 0
+    assert "essentials" in rows["property"]["beaten_by"] or \
+           "starter" in rows["property"]["beaten_by"]
