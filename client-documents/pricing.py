@@ -61,6 +61,46 @@ def _line(service: str, detail: str, amount, code: str) -> dict:
             "Amount": m.money(amount, code), "_raw": amount}
 
 
+def _resolve_tier(unit: dict, answers: dict) -> dict:
+    """A tiered item, reduced to the flat one its answer selects.
+
+    Returns the unit unchanged when it has no tiers, so every caller downstream
+    sees one shape. An unanswered `tier_from` is NOT a default: which tier the
+    client is in changes the price, and picking the cheapest to keep the
+    estimate rendering would quote a business return at a gig-worker fee. It
+    carries the question instead, and the `[CONFIRM:` stops the render -- the
+    same way an unpriced line does.
+    """
+    tiers = unit.get("tiers")
+    if not tiers:
+        return unit
+    key = unit.get("tier_from")
+    if not key:
+        raise PricingError(
+            f"{unit.get('label', 'an item')!r} has tiers but no `tier_from`, so "
+            f"nothing says which one applies. Name the interview answer."
+        )
+    chosen = answers.get(key)
+    if chosen is None or chosen == "":
+        return {**unit, "label": unit.get("label", key),
+                "detail": "", "amount":
+                f"[CONFIRM: the interview did not answer {key!r}, so the tier "
+                f"is unknown. One of: {', '.join(sorted(tiers))}.]"}
+    if chosen not in tiers:
+        raise PricingError(
+            f"{key} = {chosen!r} is not a tier of {unit.get('count_from')!r}. "
+            f"Known tiers: {', '.join(sorted(tiers))}."
+        )
+    tier = tiers[chosen]
+    for field in ("label", "detail", "amount"):
+        if field not in tier:
+            raise PricingError(
+                f"tier {chosen!r} is missing {field!r}. A tier supplies the "
+                f"whole line, so a missing field would print blank."
+            )
+    return {**unit, **tier}
+
+
 def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
     """The estimate's `LineItems`, in the order they read on the page.
 
@@ -105,6 +145,7 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         if count <= 0:
             continue
 
+        unit = _resolve_tier(unit, answers)
         amount = unit["amount"]
         total = amount if is_open(amount) else amount * count
         detail = unit.get("detail", "")

@@ -50,9 +50,20 @@ per_unit:
     amount: 85
   schedule_c:
     count_from: count_businesses
-    label: "Sole proprietorship"
-    detail: "Schedule C, per business"
-    amount: 225
+    tier_from: schedule_c_kind
+    tiers:
+      simple:
+        label: "Gig or contract work"
+        detail: "Schedule C — standard mileage, no assets, inventory or payroll"
+        amount: 60
+      standard:
+        label: "Sole proprietorship"
+        detail: "Schedule C — actual expenses, a home office, or assets being depreciated"
+        amount: 225
+      books:
+        label: "Sole proprietorship with books"
+        detail: "Schedule C — inventory, employees, or its own set of books"
+        amount: 400
 
 assumed:
   brokerage:

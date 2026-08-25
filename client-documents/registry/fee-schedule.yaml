@@ -115,11 +115,35 @@ per_unit:
     detail: "Per owner — shareholder or partner"
     amount: "[CONFIRM: fee per K-1 issued to an owner]"
 
+  # A tiered item. `tier_from` names an interview answer; the tier it selects
+  # supplies the label, the detail and the amount, exactly as a flat item's own
+  # keys would. Counting still comes from `count_from`.
+  #
+  # Schedule C is the case that forced this. One price for "a Schedule C" is
+  # wrong at both ends: a driver on standard mileage who tracked their trips is
+  # a data-entry job on top of a return we are already preparing, and pricing it
+  # like a business with inventory and payroll quotes them out of the firm. The
+  # tiers are not complexity bands — each one names FACTS a client can answer
+  # correctly at the consultation call. "Do you use standard mileage or actual
+  # expenses" has a right answer they know. "How complex is your business" does
+  # not, which is why the brokerage and cleanup bands were deleted rather than
+  # retiered.
   schedule_c:
     count_from: count_businesses
-    label: "Sole proprietorship"
-    detail: "Schedule C, per business"
-    amount: "[CONFIRM: fee per Schedule C business]"
+    tier_from: schedule_c_kind
+    tiers:
+      simple:
+        label: "Gig or contract work"
+        detail: "Schedule C — standard mileage, no assets, inventory or payroll"
+        amount: "[CONFIRM: fee for a gig-worker Schedule C. May be 0: if the work is a 1099-NEC, the standard mileage rate and a trip log, it is arguably inside the base fee. Setting 0 says that on purpose; leaving it open stops the estimate.]"
+      standard:
+        label: "Sole proprietorship"
+        detail: "Schedule C — actual expenses, a home office, or assets being depreciated"
+        amount: "[CONFIRM: fee per Schedule C business. Workbook row 6 says 200.]"
+      books:
+        label: "Sole proprietorship with books"
+        detail: "Schedule C — inventory, employees, or its own set of books"
+        amount: "[CONFIRM: fee for a Schedule C with books. Not in the workbook, which prices every Schedule C the same.]"
 
 # ── assumed, not counted ──────────────────────────────────────────────────
 #

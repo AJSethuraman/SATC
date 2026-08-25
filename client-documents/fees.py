@@ -55,7 +55,12 @@ ITEMS: list[tuple[str, str]] = [
     ("per_unit.rental.amount",       "each rental property on Schedule E"),
     ("per_unit.k1.amount",           "each K-1 received and entered"),
     ("per_unit.owner_k1.amount",     "each K-1 issued to an owner of an entity"),
-    ("per_unit.schedule_c.amount",   "each Schedule C business"),
+    ("per_unit.schedule_c.tiers.simple.amount",
+     "a gig-worker Schedule C -- standard mileage, no assets or inventory"),
+    ("per_unit.schedule_c.tiers.standard.amount",
+     "a Schedule C with actual expenses, a home office or depreciation"),
+    ("per_unit.schedule_c.tiers.books.amount",
+     "a Schedule C with inventory, employees or its own books"),
 ]
 
 # Brokerage and cleanup used to be here, in bands. They are not priced any

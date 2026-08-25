@@ -246,3 +246,93 @@ def test_the_price_always_carries_its_assumptions(answers, priced):
     assert len(out["Assumptions"]) == len(priced["assumed"])
     assert all(set(a) == {"Text"} for a in out["Assumptions"])
     assert all(a["Text"].strip().endswith(".") for a in out["Assumptions"])
+
+
+# ── tiers ─────────────────────────────────────────────────────────────────
+#
+# One price for "a Schedule C" is wrong at both ends. A driver on standard
+# mileage who kept a trip log is data entry on a return already being prepared;
+# a shop with inventory and payroll is not. Tiers split that, and they split it
+# on FACTS the client can answer — which is what makes them different from the
+# brokerage and cleanup bands that were deleted.
+
+def test_a_tier_supplies_the_whole_line(priced):
+    items = pricing.line_items(
+        {"federal_form": "1040", "count_businesses": 1,
+         "schedule_c_kind": "simple"}, priced)
+    c = next(i for i in items if "Gig" in i["Service"])
+    assert c["Service"] == "Gig or contract work"
+    assert "standard mileage" in c["Detail"]
+    assert c["_raw"] == 60
+
+
+def test_the_tier_changes_the_price_and_the_words(priced):
+    def one(kind):
+        return next(i for i in pricing.line_items(
+            {"federal_form": "1040", "count_businesses": 1,
+             "schedule_c_kind": kind}, priced) if i["_raw"] in (60, 225, 400))
+    assert one("simple")["_raw"] == 60
+    assert one("standard")["_raw"] == 225
+    assert one("books")["_raw"] == 400
+    assert len({one(k)["Service"] for k in ("simple", "standard", "books")}) == 3
+
+
+def test_an_unanswered_tier_is_carried_not_defaulted(priced):
+    """The cheapest tier is the tempting default and the wrong one: it would
+    quote a business with inventory at a gig-worker's fee, and nothing
+    downstream would notice."""
+    items = pricing.line_items(
+        {"federal_form": "1040", "count_businesses": 1}, priced)
+    c = items[-1]
+    assert "[CONFIRM:" in c["Amount"]
+    assert "schedule_c_kind" in c["Amount"]
+    assert "[CONFIRM:" in pricing.estimate_total(items, priced)
+
+
+def test_a_tier_that_is_not_a_tier_raises(priced):
+    with pytest.raises(pricing.PricingError, match="not a tier"):
+        pricing.line_items({"federal_form": "1040", "count_businesses": 1,
+                            "schedule_c_kind": "medium"}, priced)
+
+
+def test_tiers_without_a_tier_from_raise(priced):
+    schedule = json.loads(json.dumps(priced))
+    del schedule["per_unit"]["schedule_c"]["tier_from"]
+    with pytest.raises(pricing.PricingError, match="tier_from"):
+        pricing.line_items({"federal_form": "1040", "count_businesses": 1,
+                            "schedule_c_kind": "simple"}, schedule)
+
+
+def test_a_tier_missing_a_field_raises_rather_than_printing_blank(priced):
+    schedule = json.loads(json.dumps(priced))
+    del schedule["per_unit"]["schedule_c"]["tiers"]["simple"]["detail"]
+    with pytest.raises(pricing.PricingError, match="detail"):
+        pricing.line_items({"federal_form": "1040", "count_businesses": 1,
+                            "schedule_c_kind": "simple"}, schedule)
+
+
+def test_a_tier_priced_at_zero_still_prints_its_line(priced):
+    """"Included" is a thing the client should SEE. A zero-priced tier that
+    silently vanished would look like work nobody did."""
+    schedule = json.loads(json.dumps(priced))
+    schedule["per_unit"]["schedule_c"]["tiers"]["simple"]["amount"] = 0
+    items = pricing.line_items({"federal_form": "1040", "count_businesses": 1,
+                                "schedule_c_kind": "simple"}, schedule)
+    c = next(i for i in items if "Gig" in i["Service"])
+    assert c["Amount"] == "$0.00"
+
+
+def test_a_tier_is_still_counted(priced):
+    """Two gig businesses are two of them, and the line shows its working."""
+    c = next(i for i in pricing.line_items(
+        {"federal_form": "1040", "count_businesses": 2,
+         "schedule_c_kind": "simple"}, priced) if "Gig" in i["Service"])
+    assert c["_raw"] == 120 and "2 × $60.00" in c["Detail"]
+
+
+def test_an_untiered_item_is_untouched(priced):
+    """The mechanism is opt-in. Every other per-unit line still prices flat."""
+    k1 = next(i for i in pricing.line_items(
+        {"federal_form": "1040", "count_k1s": 1}, priced)
+        if i["Service"] == "Schedule K-1 received")
+    assert k1["_raw"] == 75

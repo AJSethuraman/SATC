@@ -356,6 +356,28 @@ sections:
         supplies: []
         feeds: LineItems
 
+      - id: schedule_c_kind
+        question: "For the most involved of those businesses, which is true?"
+        help: >
+          Selects the Schedule C tier, and therefore the price. Every option
+          names a FACT rather than a level of complexity: a client knows
+          whether they claim standard mileage or actual expenses, and knows
+          whether they carry inventory. They do not know whether their business
+          is "moderately complex", which is why this is not a band. If two
+          businesses fall in different tiers, answer for the higher one and
+          price the second by hand.
+        type: single
+        options:
+          - { value: "simple",
+              label: "1099 or gig work — standard mileage, no assets, inventory or payroll" }
+          - { value: "standard",
+              label: "Actual vehicle expenses, a home office, or assets being depreciated" }
+          - { value: "books",
+              label: "Inventory, employees, or its own set of books" }
+        showIf: "'C' in federal_schedules"
+        supplies: []
+        feeds: LineItems
+
       - id: count_brokerages
         question: "How many brokerage accounts will you send us a 1099-B for?"
         help: >

@@ -219,3 +219,71 @@ regenerates every January without anyone having to remember four dates.
 5. The seven unpriced items in §3.
 6. Four weeks, or another lead time, for materials.
 7. Which of the four spellings is on the Ohio filing.
+
+---
+
+## Benchmarks, and what they say about the $200 package (25 August 2026)
+
+Added because the firm asked two direct questions: what a local return is
+typically worth, and whether $30 for a state return is cheap. The honest
+summary is that **one of the two has no published benchmark at all**, and the
+package they sit inside looks underpriced against every comparator found.
+
+### What the package actually is
+
+`base_covers: one_included` — already in the schedule, never answered — means
+exactly what the firm described: the base fee covers the federal return, the
+first state and the first locality. So the $200 is a three-return package, and
+`per_unit.state_return.amount` is not the price of a state return. It is the
+price of the **second** one.
+
+### What the comparators say
+
+| Source | Figure | What it covers |
+|---|---|---|
+| NATP 2025 Fee Study | **$280** | base Form 1040 (Sch. 1–3), CPA — **federal only** |
+| NATP 2025 Fee Study | $228 / $185 | same return, EA / non-credentialed |
+| NATP 2025 Fee Study | $233 | base 1040, communities of 50,000+ |
+| NATP 2025 Fee Study | $150–$350 | the minimum fee, for the half of preparers who set one |
+| Buckeye CPA, Columbus OH | **from $600** | individual return **including one state and one municipality** |
+| NSA (2020–21, last edition) | $210 | 1040 + Sch. A + state — the **cheapest** region in the country (AL/KY/MS/TN) |
+| TurboTax | $49–$64 | per state return, **self-service software** |
+
+The Columbus firm is the closest structural comparator found: same bundle,
+same state, three times the price. It is one firm and it says "starting at",
+so it is a data point rather than a market.
+
+### The two answers
+
+**Per local return — no benchmark exists.** Ohio municipal returns are a
+regional speciality; NATP and NSA do not break them out, and neither RITA nor
+CCA publishes preparer fees. Any number quoted for this would be invented.
+What can be said without inventing anything: the firm is in Solon, so nearly
+every individual client has one. A charge that every client incurs is not a
+loss-leader for an upsell — it is a fixed cost of the engagement, and giving it
+away moves it into the base fee whether or not the base fee was raised to
+carry it.
+
+**$30 for a state is cheap, and the sharpest evidence is TurboTax.** Software
+charges $49–$64 to let the client do it themselves. At the firm's $150 target
+rate, $30 is twelve minutes — for a second state, which is where a part-year or
+non-resident return and a resident-credit computation live. Whatever the right
+number is, twelve minutes is not it.
+
+**The package as a whole.** $200 for federal + state + local is below the
+national CPA average for the **federal return alone** ($280), below the
+50,000-plus community average for it ($233), and below the cheapest regional
+average in the country for federal + Schedule A + state ($210). At $150/h the
+package buys **1 h 20 m** for three returns including intake, review, e-file
+and delivery.
+
+None of this says what the firm should charge. It says the current figure is
+not a market price, and that the gap is large enough to be a decision rather
+than a rounding difference.
+
+**Sources.** NATP 2025 Fee Study (natptax.com); NSA Income & Fees Survey
+2020–21, last edition (nsacct.org); Buckeye CPA published pricing
+(buckeyecpa.com/pricing); TurboTax published state-return pricing. Figures were
+read from search summaries — the primary pages are blocked from this
+environment's network egress, so **each should be confirmed against the source
+before it is quoted to anyone.**

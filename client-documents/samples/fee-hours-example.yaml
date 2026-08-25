@@ -19,5 +19,7 @@ per_unit.local_return.amount: 0.5
 per_unit.rental.amount: 0.75
 per_unit.k1.amount: 0.4
 per_unit.owner_k1.amount: 0.5
-per_unit.schedule_c.amount: 1.25
+per_unit.schedule_c.tiers.simple.amount: 0.4
+per_unit.schedule_c.tiers.standard.amount: 1.25
+per_unit.schedule_c.tiers.books.amount: 2.5
 
