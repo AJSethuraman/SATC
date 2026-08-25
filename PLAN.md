@@ -183,6 +183,17 @@ same legal duties either way — Phase 0 below stands regardless.
 2. **CSRF tokens + Host-header allow-list** on the Flask app (H3/H2); restrictive dir/file perms (M4).
 3. Ship a **WISP template** (IRS Pub 5708) as a product artifact — turns compliance into a feature.
 
+**Fee automation (added 2026-08-25, after the pricing sign-off):**
+- **Phase A — the 1040 fee estimate renders for real.** Specified in
+  `client-documents/docs/prd-1040-fee-estimate.md`. Reshape `fee-schedule.yaml` to hold
+  the four-package ladder, the $50 per-form rule and the allowances, fill in the signed
+  prices, and prove a real estimate out of both front doors.
+- **Phase B — the invoice bridge.** Estimate line items → an invoice. Its first question
+  is the one deliberately left open below: which processor the client actually sees.
+- **Phase C — entity returns.** The `1120S/1065/1120` bases and the five business-return
+  gates (balance sheet $350, payroll $150, inventory $125, assets bought this year $95,
+  first year $250), on the pattern Phase A establishes.
+
 **Phase 1 — Actually giveable:**
 4. Merge to `main` + cut a **matching release** (code/exe/docs agree); root README; handoff quick-wins
    (fix `.mcpb` entry_point, OCR poppler→pymupdf, doctor Tesseract probe, doc fixes, data-dir doc).
@@ -257,6 +268,19 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
       from-source `satc-mcp` and future `SATC.exe --mcp` paths)
 
 ### Explicitly deferred (decided against for now)
+- **Square vs Stripe — `delivery.payment_instruction`.** The firm takes Square; Invoicer
+  is Stripe end to end (`stripe_utils.py`, a webhook, four templates). One has to move
+  before that sentence can be written honestly. Confirmed 2026-08-25 that it blocks the
+  **invoice** template only — the fee estimate references neither `PaymentInstruction`
+  nor `MaterialsDeadline` — so it was fenced out of the estimate work rather than
+  decided under time pressure. It is Phase B's first question.
+- **The 2026 materials deadlines** — four firm settings that block the engagement and
+  organizer letters, not the estimate. Each needs a lead time chosen against the filing
+  date, which is its own conversation (2026-08-25).
+- **Bookkeeping pricing** — parked with a reason rather than left blank: *"this just
+  needs its own workstream and we will get there when we get there - for now we have
+  cleanup in tax prep."* The `assumed.cleanup` hourly line holds the honest tax-prep
+  case meanwhile (2026-08-25, thread T-12).
 - **Interview and pricing for non-return services** — bookkeeping, advisory, planning,
   entity setup, notice resolution. Each needs its own base-and-adder model; the first
   interview build covers **tax return preparation only**. Roadmap, not a permanent no
@@ -272,6 +296,26 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
   decision to keep intake entirely in the app.
 
 ## Decisions log
+
+- **2026-08-25 — Build one thing correctly, then use it as the blueprint.** The
+  operator's own framing while scoping the fee-estimate work: *"we can do one thing
+  at a time correctly and use that as our kind of blueprint for the next step."*
+  Applied immediately — the estimate v1 covers Form 1040 only, with entity returns,
+  the invoice bridge, the payment processor and the materials deadlines all fenced
+  out rather than carried along. It is a working principle, not a one-off scoping
+  call: prefer a narrow path proven end to end over a wide one proven nowhere.
+- **2026-08-25 — Gates are complexity checks answered from facts, and past the
+  assumptions the fixed prices stop applying.** Written as the header comment of
+  `client-documents/registry/fee-schedule.yaml` so nobody changes a price without
+  reading it. Three claims: a gate never asks a client to rate their own complexity;
+  hourly is what happens *instead of* a fixed price, not a surcharge on one; and
+  every price assumes the client supplies what we asked for. The corollary, from the
+  same week: where **our process** costs more than the return needs, that is a cost
+  to fix, not a cost to bill (`docs/workflow-friction-log.md`).
+- **2026-08-25 — The pricing write-up is retired; the sheet carries the reasoning.**
+  Deferred twice, which was the signal. Every line on the price sheet now carries its
+  own justification and `docs/pricing-and-deadlines-basis.md` holds the derivation, so
+  a third prose copy only went stale faster than the other two.
 
 - **2026-08-14 — `EngagementRef` format wins over the lead number.** The templates
   specify `YYYY-NNNN` (`2027-0114`) and require it byte-identical across letter,
