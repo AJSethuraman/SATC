@@ -303,7 +303,9 @@ cover a client who wants their books kept, which is the workstream.
 > account - nothing huge though. let's just try to make it simple and come up
 > with a per form amount and gate with complexity
 
-**Status** Answered — round four.
+**Status** Settled 25 Aug 2026 — $50 a form, gated by the assumption behind
+each. Foreign accounts at $50 each, with a foreign *company* (Form 5471 or 8865)
+carved out as hourly. The entity gates stay individually priced.
 
 Two things at once, and the second is the larger.
 
@@ -316,6 +318,13 @@ which is why that was the one gate left unmarked.
 acting as the gate: hold the assumption, pay the flat price; break it, the meter
 runs. That is claim 2 of T-04 applied to a whole category rather than to one
 line, and it turns the sheet from a price list into a rule plus exceptions.
+
+**The price is the firm's, not mine.** $50, against my recommendation of $75.
+Twenty minutes at the standard rate rather than half an hour — and it has one
+downstream consequence worth recording, because it was argued the other way: at
+$75 the extension line would simply have BECOME the per-form price. At $50 it
+stays a named exception, because computing a payment from an incomplete file is
+not a twenty-minute job.
 
 **The boundary worth being deliberate about.** The rule fits individual forms,
 which genuinely have one document behind them. It does not fit the entity gates:
@@ -344,3 +353,6 @@ mispricing hurts most.
 | — | The local return price | $35, kept | 25 Aug 2026 |
 | — | The gating rule | Written into the fee schedule header | 25 Aug 2026 |
 | — | The pricing write-up | Retired; the sheet carries the reasoning | 25 Aug 2026 |
+| — | The per-form price | $50, gated by each form's assumption | 25 Aug 2026 |
+| — | Foreign accounts | $50 each; a foreign company stays hourly | 25 Aug 2026 |
+| — | How far the rule goes | Individual forms only; entity gates stay named | 25 Aug 2026 |
