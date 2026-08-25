@@ -32,13 +32,13 @@ Four are a date. Two are a sentence. Two block nothing today.
 | 2 | `materials_deadlines.2026.s_corp_1120s` | Business return letter | One date |
 | 3 | `materials_deadlines.2026.partnership_1065` | Business return letter | One date |
 | 4 | `materials_deadlines.2026.c_corp_1120` | Business return letter | One date |
-| 5 | `delivery.ack_window` | Onboarding letter | A duration that drops into a sentence — "three business days" |
-| 6 | `delivery.payment_instruction` | Every invoice | One sentence naming how a client pays. **Names the processor**, so it changes when that does |
-| 7 | `billing.contact_email` | Every invoice | Does `billing@satcllp.com` exist, or use the main address? |
-| 8 | `legal_name` | **Every template.** See below — this entry understated it | The exact name on the Ohio LLP filing. **Three variants are in use and only one is on the filing** |
+| ~~5~~ | ~~`delivery.ack_window`~~ | Onboarding letter | **Settled 25 Aug 2026: "three business days"** — with a caveat that belongs on the confirmation screen, not in the string: it is three business days *unless the client books their own time on Calendly*, in which case the next step is theirs |
+| 6 | `delivery.payment_instruction` | Every invoice | Still open, and now known to be harder than a sentence: **the firm takes Square; Invoicer implements Stripe** — `stripe_utils.py`, 68 references in `app.py`, four templates and a webhook. One of the two has to move first |
+| ~~7~~ | ~~`billing.contact_email`~~ | Every invoice | **Settled 25 Aug 2026: `arjun_sethuraman@satcllp.com`.** No separate billing box. The website footer still prints `billing@satcllp.com` in one place and is now wrong |
+| ~~8~~ | ~~`legal_name`~~ | **Every template** | **Settled 25 Aug 2026: `Sethuraman Accounting, Tax, and Consulting LLP`** — the Oxford-comma form, which is already what all ten footers print. See below |
 | 9 | `hard_no[1]` | Nothing — it gates declining work | The rest of the "we don't take this" list |
 
-### `legal_name` is worse than this list said
+### `legal_name` — settled, and it landed on the form already in use
 
 It was recorded above as blocking "nothing yet — footers hardcode it". The
 hardcoding is precisely *why* it blocks, and `firm-settings.yaml` says so
@@ -58,9 +58,21 @@ Grepping the templates finds the three variants:
 | `Sethuraman Accounting Tax and Consulting` | 1 |
 | `Sethuraman Accounting Tax & Consulting LLP` | 1 |
 
-Two of those three are wrong on any reading, since they cannot all match one
-Ohio filing. Answering this is one line; leaving it means the document set
-cannot go out.
+A **fourth** spelling turned up later, outside the repo: the firm's own fee
+workbook heads its client-facing quote sheet *"Sethuraman Accounting Tax and
+Consulting LLP"* — no commas at all.
+
+**Settled 25 August 2026 as `Sethuraman Accounting, Tax, and Consulting LLP`.**
+
+The lucky part: that is the form every template footer already prints, so no
+template changes. The other two spellings in this repo survive only inside notes
+*about* this problem — this file and the two engagement-letter warnings — never
+in a footer. Nothing shipping was wrong.
+
+What is still wrong is outside the repo: the workbook's quote sheet, which goes
+to clients. And the structural point stands unchanged — the name is typed into
+ten footers rather than merged, so the next time it is mistyped, nothing will
+catch it either.
 
 ## 2 · One contradiction that needs a ruling
 

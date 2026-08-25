@@ -59,10 +59,26 @@ def test_a_season_with_no_deadlines_is_refused():
 
 
 def test_open_decisions_are_reported_with_their_question():
+    """Every [CONFIRM] still in the settings comes back with the question that
+    would settle it.
+
+    This deliberately pins no particular key. It used to assert `legal_name`
+    was open, which made answering it look like a regression — a test that
+    fails when the project succeeds is worse than no test. What must hold is
+    that whatever is still open is reported, and reported answerably."""
     decisions = firm.open_decisions()
-    paths = {p for p, _ in decisions}
-    assert "legal_name" in paths
     assert all(q for _, q in decisions), "a decision with no question is useless"
+
+    # Comment lines are excluded: the file's own header explains the
+    # "[CONFIRM: ...]" convention and would otherwise count as a decision.
+    placeholders = sum(
+        1 for line in firm.SETTINGS.read_text(encoding="utf-8").splitlines()
+        if "[CONFIRM:" in line and not line.lstrip().startswith("#")
+    )
+    assert len(decisions) == placeholders, (
+        "a placeholder in the file that open_decisions() does not report is a "
+        "blank nobody will be asked about"
+    )
 
 
 # ── record assembly ───────────────────────────────────────────────────────
