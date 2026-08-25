@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import cli  # noqa: E402
+import merge  # noqa: E402
 import settings as firm  # noqa: E402
 
 SAMPLES = ROOT / "samples"
@@ -234,3 +235,57 @@ def test_the_opening_package_reaches_pdf(tmp_path):
     for p in pdfs:
         assert p.stat().st_size > 4000, f"{p.name} is too small to be a document"
         assert p.read_bytes().startswith(b"%PDF"), f"{p.name} is not a PDF"
+
+
+# ── an estimate with nothing on it ────────────────────────────────────────
+
+def test_a_fee_estimate_with_no_line_items_is_refused(tmp_path):
+    """The whole-document version of the merge-level guard.
+
+    Rendered before this landed: a services table with no rows, and "Total
+    estimate $785" underneath it. Every field resolved, no [CONFIRM] survived,
+    and the render reported success -- because an `[[EACH]]` block over an
+    empty list leaves nothing behind to object to. A bill has to say what it
+    is billing for.
+    """
+    record = cli.build_record(_load("tax-opening-package.json"))
+    record["LineItems"] = []
+    with pytest.raises(merge.MergeError, match="LineItems is required"):
+        cli._render_one("fee-estimate", record, tmp_path, draft=False, want_pdf=False)
+
+
+def test_a_fee_estimate_with_no_assumptions_is_refused(tmp_path):
+    """`pricing.price()`'s docstring records this exact collapse happening
+    once already -- the assumptions block rendering to nothing "without the
+    render so much as warning about it". The assumptions are not decoration:
+    they are the half of the price that says what it stops covering.
+    """
+    record = cli.build_record(_load("tax-opening-package.json"))
+    record["Assumptions"] = []
+    with pytest.raises(merge.MergeError, match="Assumptions is required"):
+        cli._render_one("fee-estimate", record, tmp_path, draft=False, want_pdf=False)
+
+
+def test_a_draft_still_renders_without_line_items(tmp_path):
+    """Draft mode exists to exercise the pipeline before the answers exist,
+    and already tolerates unresolved fields. An empty list is the same kind of
+    incompleteness, so it must not become the one thing a draft cannot survive.
+    """
+    record = cli.build_record(_load("tax-opening-package.json"))
+    record["LineItems"] = []
+    _, written = cli._render_one("fee-estimate", record, tmp_path,
+                                 draft=True, want_pdf=False)
+    assert written[0].exists()
+
+
+def test_the_registry_is_what_decides_which_lists_are_required():
+    """Not a hard-coded tuple in the front door. A document that later needs
+    a list guarded gets one line of YAML, and this test proves the wiring
+    rather than the particular answer.
+    """
+    required = cli._required_lists()
+    assert "LineItems" in required.get("fee-estimate", ())
+    assert "Assumptions" in required.get("fee-estimate", ())
+    assert "LineItems" in required.get("invoice", ())
+    # An extension notice with nothing outstanding is a real document.
+    assert "OutstandingItems" not in required.get("extension-notice", ())

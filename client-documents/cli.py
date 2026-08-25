@@ -29,6 +29,7 @@ import json
 import re
 import sys
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -556,10 +557,31 @@ def cmd_engagements(args) -> int:
     return 0
 
 
+# Which `[[EACH]]` lists may not be empty, read from the registry rather than
+# decided here. An EACH block over an empty list renders to the same nothing
+# as one over a missing list, so a fee estimate with no line items produced a
+# blank services table with a total underneath it and nothing objected. Which
+# lists may legitimately be empty is a judgement about the document -- an
+# extension notice with nothing outstanding is real; a bill with no lines is
+# not -- so it is declared in registry/fields.yaml, not in this front door.
+@lru_cache(maxsize=1)
+def _required_lists() -> dict:
+    spec = yaml.safe_load(
+        (ROOT / "registry" / "fields.yaml").read_text(encoding="utf-8")) or {}
+    out: dict[str, tuple] = {}
+    for entry in spec.get("lists") or []:
+        if not entry.get("required"):
+            continue
+        for tpl in entry.get("templates") or []:
+            out[tpl] = out.get(tpl, ()) + (entry["list"],)
+    return out
+
+
 def _render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool):
     filename, _ = DOCUMENTS[doc]
     template = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
-    result = merge.render(template, record, strict=not draft)
+    result = merge.render(template, record, strict=not draft,
+                          required_lists=_required_lists().get(doc, ()))
 
     html = _stamp_draft(result.html) if draft else result.html
     stem = output_name(doc, record, draft)

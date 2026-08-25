@@ -360,6 +360,7 @@ lists:
   - list: Assumptions
     templates: [fee-estimate]
     item_fields: [Text]
+    required: true
     notes: >
       Built from the schedule's `assumed:` block by pricing.assumptions(),
       never typed. One sentence per assumed item, on every estimate -- the
@@ -367,9 +368,11 @@ lists:
   - list: LineItems
     templates: [fee-estimate]
     item_fields: [Amount, Detail, Service]
+    required: true
   - list: LineItems
     templates: [invoice]
     item_fields: [Amount, Detail, Service]
+    required: true
   - list: RequestList
     templates: [onboarding-letter]
     item_fields: [Detail, Document]

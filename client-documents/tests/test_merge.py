@@ -230,3 +230,66 @@ def test_inverse_flags_render_exactly_one_branch(filename, sample, a, b):
         result = render_file(TEMPLATE_DIR / filename, record, strict=False)
         assert on in result.blocks_kept, f"{on} true but its block was dropped"
         assert off in result.blocks_dropped, f"{off} false but its block was kept"
+
+
+# ── a money document with no money in it ──────────────────────────────────
+#
+# `[[EACH LineItems]]` over a missing or empty list renders to nothing, and
+# nothing is indistinguishable from a list that was never there. A fee
+# estimate came out of this with a blank services table and "Total estimate
+# $785" underneath it, and merge did not complain. `pricing.price()`'s own
+# docstring records the same failure happening to the assumptions block once
+# before -- "collapsed to nothing without the render so much as warning about
+# it" -- so this is the second time, not the first.
+#
+# Which lists may be empty is a judgement, so it lives in the registry rather
+# than here: `lists:` entries carry `required: true` where empty is broken by
+# definition. An extension notice with no outstanding items is fine. A bill
+# with no lines is not.
+
+# Fields are HTML-escaped in the real templates -- `&lt;&lt;Field&gt;&gt;` --
+# because they are authored as visible text in a browser. merge matches that
+# form, so a test template written with raw angle brackets silently resolves
+# nothing.
+REQUIRED_LIST_TPL = (
+    "<table>[[EACH LineItems]]<tr><td>&lt;&lt;Item.Service&gt;&gt;</td>"
+    "<td>&lt;&lt;Item.Amount&gt;&gt;</td></tr>[[END EACH]]</table>"
+    "<p>Total &lt;&lt;EstimateTotal&gt;&gt;</p>"
+)
+
+
+def test_a_required_list_that_is_empty_is_refused():
+    with pytest.raises(MergeError, match="LineItems"):
+        render(REQUIRED_LIST_TPL,
+                     {"LineItems": [], "EstimateTotal": "$785"},
+                     required_lists=("LineItems",))
+
+
+def test_a_required_list_that_is_missing_is_refused():
+    with pytest.raises(MergeError, match="LineItems"):
+        render(REQUIRED_LIST_TPL, {"EstimateTotal": "$785"},
+                     required_lists=("LineItems",))
+
+
+def test_a_required_list_with_items_renders():
+    out = render(REQUIRED_LIST_TPL,
+                       {"LineItems": [{"Service": "Essentials", "Amount": "$200"}],
+                        "EstimateTotal": "$200"},
+                       required_lists=("LineItems",))
+    assert "Essentials" in out.html and "$200" in out.html
+
+
+def test_an_unrequired_empty_list_still_renders():
+    """An extension notice with nothing outstanding is a real document."""
+    out = render(REQUIRED_LIST_TPL,
+                       {"LineItems": [], "EstimateTotal": "$0.00"})
+    assert "$0.00" in out.html
+
+
+def test_a_required_list_is_not_enforced_in_draft():
+    """Draft mode exists to exercise the pipeline before the answers exist.
+    It already tolerates unresolved fields; an empty list is the same kind of
+    incompleteness and must not become the one thing that stops a draft."""
+    out = render(REQUIRED_LIST_TPL, {"LineItems": []},
+                       strict=False, required_lists=("LineItems",))
+    assert out.html is not None
