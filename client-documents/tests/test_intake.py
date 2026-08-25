@@ -227,6 +227,27 @@ def test_an_unreadable_count_does_not_raise_a_flag_or_an_error(answers, tmp_path
     assert intake.finish(a, store=tmp_path, fee_schedule=priced).flags == []
 
 
+def test_an_unanswered_brokerage_keying_count_is_flagged(answers, tmp_path, priced):
+    """A blank is the normal case here and must not be read as "none".
+
+    Nobody knows whether a 1099-B can be summarised until it arrives, so the
+    estimate goes out with the keying line unpriced. That is fine; going
+    quiet about it is not, because a line added after the estimate went out
+    is a conversation.
+    """
+    a = dict(answers) | {"federal_schedules": ["D"], "count_brokerages": 2}
+    a.pop("count_brokerages_keyed", None)
+    out = intake.finish(a, store=tmp_path, fee_schedule=priced)
+    assert any("summarised" in f for f in out.flags)
+
+
+def test_a_typed_zero_is_an_answer_and_raises_nothing(answers, tmp_path, priced):
+    a = dict(answers) | {"federal_schedules": ["D"], "count_brokerages": 2,
+                         "count_brokerages_keyed": 0}
+    out = intake.finish(a, store=tmp_path, fee_schedule=priced)
+    assert not any("summarised" in f for f in out.flags)
+
+
 def test_the_web_front_door_shows_the_same_flags(answers, tmp_path, priced):
     """One engine, two front doors -- including for the things that do not
     block. A note the CLI prints and the web page swallows is a note that

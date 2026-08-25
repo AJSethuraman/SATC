@@ -259,6 +259,22 @@ def review_flags(answers: dict) -> list[str]:
             f"rental owes nothing to an Ohio city, and some jurisdictions do "
             f"not tax rents at all."
         )
+
+    # The brokerage keying line, and the one flag here that is about our own
+    # process rather than the client's year. `count_brokerages_keyed` is
+    # usually unanswerable when the estimate is written -- nobody knows
+    # whether a statement can be summarised until it arrives -- so a blank is
+    # the normal case and must not be read as "none". Zero, typed by a human
+    # who checked, is an answer and raises nothing.
+    if (_as_count(answers.get("count_brokerages")) > 0
+            and answers.get("count_brokerages_keyed") in (None, "")):
+        flags.append(
+            "A 1099-B is coming and nobody has said yet whether it can be "
+            "summarised. Nothing is billed for keying until that is answered, "
+            "so check it when the file is reviewed -- each statement that has "
+            "to be entered by hand is a line on the invoice, and a line added "
+            "after the estimate went out is a conversation."
+        )
     return flags
 
 

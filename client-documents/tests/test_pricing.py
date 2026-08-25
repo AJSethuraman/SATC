@@ -831,3 +831,143 @@ def test_an_unanswered_starter_question_falls_to_essentials():
 
 def test_starter_is_no_longer_an_open_decision():
     assert not [p for p, _ in pricing.open_amounts() if p.endswith("starter.gate")]
+
+
+# ── the per-form rule ─────────────────────────────────────────────────────
+
+def test_a_named_form_costs_the_one_per_form_price():
+    """One amount, a handful of named situations. Signed 25 Aug 2026 at $50,
+    against a recommendation of $75."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "extra_forms": ["home_sale"]}, s)
+    assert [i["Service"] for i in items] == ["Essentials", "Sale of a home"]
+    assert items[1]["Amount"] == "$50.00"
+
+
+def test_forms_print_in_the_schedules_order_not_the_clients():
+    """Two clients with the same forms get the same estimate, which matters
+    the first time two of them compare notes."""
+    s = pricing.load()
+    order = ["hsa", "home_sale", "digital_assets"]
+    a = [i["Service"] for i in pricing.line_items(
+        {"federal_form": "1040", "extra_forms": order}, s)]
+    b = [i["Service"] for i in pricing.line_items(
+        {"federal_form": "1040", "extra_forms": list(reversed(order))}, s)]
+    assert a == b
+    assert a == ["Essentials", "Sale of a home", "Digital assets",
+                 "Health savings account"]
+
+
+def test_every_ticked_form_carries_its_own_assumption():
+    """The per-form rule IS its assumption -- hold it and pay the flat price,
+    break it and the meter runs -- so a $50 line without its sentence is half
+    a price."""
+    s = pricing.load()
+    said = pricing.assumptions(
+        {"federal_form": "1040", "extra_forms": ["home_sale"]}, s)
+    assert any(t.startswith("Sale of a home \u2014") for t in said)
+    assert any("basis has to be reconstructed" in t for t in said)
+
+
+def test_an_assumption_is_not_printed_for_a_form_nobody_is_filing():
+    """Noise is how a client learns to skip the assumptions block."""
+    s = pricing.load()
+    said = pricing.assumptions({"federal_form": "1040"}, s)
+    assert not any(t.startswith("Sale of a home") for t in said)
+
+
+def test_foreign_accounts_are_counted_rather_than_charged_once():
+    """The firm already bills these per account: "i have been doing this stuff
+    with a client for awhile and just charge per account"."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+         "count_foreign_accounts": 3}, s)
+    assert [i["Service"] for i in items] == ["Essentials",
+                                             "Foreign account reporting"]
+    assert items[1]["Amount"] == "$150.00"
+
+
+def test_ticking_foreign_accounts_does_not_also_charge_a_flat_form():
+    """`priced_by` exists so the two lines cannot both fire and bill the
+    first account twice."""
+    s = pricing.load()
+    total = pricing.estimate_total(pricing.line_items(
+        {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+         "count_foreign_accounts": 1}, s), s)
+    assert total == "$250.00"      # 200 + one account at 50, not 50 + 50
+
+
+def test_a_form_the_interview_offers_and_the_schedule_ignores_is_an_error():
+    """A situation the client ticks and the estimate skips is billed at
+    nothing, silently."""
+    s = pricing.load()
+    with pytest.raises(pricing.PricingError) as exc:
+        pricing.line_items(
+            {"federal_form": "1040", "extra_forms": ["a_thing_we_never_priced"]}, s)
+    assert "billed" in str(exc.value)
+
+
+def test_every_option_the_interview_offers_has_a_price():
+    """The guard that keeps the two registries in step.
+
+    The interview and the fee schedule are separate files edited by separate
+    hands. Adding an option to one and forgetting the other is the easiest
+    mistake available here, and it fails silently in the direction that costs
+    money.
+    """
+    import interview as iv
+    s = pricing.load()
+    forms = (s.get("per_form") or {}).get("forms") or {}
+    offered = [q for _, q in iv.all_questions(iv.load_schema())
+               if q["id"] == (s["per_form"]["select_from"])]
+    assert offered, "the schedule selects from a question the interview does not ask"
+    for opt in offered[0]["options"]:
+        assert opt["value"] in forms, (
+            f"the interview offers {opt['value']!r} and nothing prices it"
+        )
+
+
+# ── brokerage, off the hourly list ────────────────────────────────────────
+
+def test_the_first_brokerage_statement_is_inside_the_package():
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["D"],
+         "count_brokerages": 1}, s)
+    assert [i["Service"] for i in items] == ["Standard"]
+
+
+def test_a_second_brokerage_statement_is_counted():
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["D"],
+         "count_brokerages": 2}, s)
+    assert pricing.estimate_total(items, s) == "$370.00"      # 325 + 45
+    assert "after the first" in [i for i in items
+                                 if i["Service"] == "Brokerage statement"][0]["Detail"]
+
+
+def test_a_statement_that_must_be_keyed_is_its_own_line():
+    """Signed 25 Aug 2026 at $95, keying on what cannot be summarised."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["D"],
+         "count_brokerages": 1, "count_brokerages_keyed": 1}, s)
+    assert pricing.estimate_total(items, s) == "$420.00"      # 325 + 95
+
+
+def test_brokerage_no_longer_states_an_assumption_it_now_prices():
+    """The stale half of the same ruling.
+
+    `assumed.brokerage` said brokerage sat inside the base fee at any volume
+    and billed the overrun hourly. All of that is now wrong, and an assumption
+    plus a price for the same overrun is worse than either alone: the client
+    reads "included" and then gets an invoice line, and nobody can say
+    afterwards which one was operative.
+    """
+    s = pricing.load()
+    assert "brokerage" not in (s.get("assumed") or {})
+    said = pricing.assumptions({"federal_form": "1040"}, s)
+    assert not any("1099-B" in t for t in said)

@@ -306,6 +306,44 @@ per_unit:
     # tagged as exposed to automation -- see docs/pricing-open-threads.md T-01.
     amount: 15
 
+  brokerage:
+    count_from: count_brokerages
+    label: "Brokerage statement"
+    detail: "Per 1099-B"
+    # Signed 25 Aug 2026, and the line that MOVED: brokerage used to sit
+    # inside the base fee at any volume, stated as an assumption with an
+    # hourly consequence. The firm took it off the hourly list and put it on
+    # the counted one, which is the better trade in both directions -- the
+    # client sees a price instead of a warning, and the firm bills a second
+    # statement without having to have a conversation about it.
+    amount: 45
+
+  brokerage_keyed:
+    count_from: count_brokerages_keyed
+    label: "Brokerage entered by hand"
+    detail: "Per statement that cannot be summarised"
+    # Signed 25 Aug 2026. What flips it, settled the same day: the parts of a
+    # 1099-B that cannot be summarised. Where the broker reported basis to the
+    # IRS and nothing needs adjusting, the totals go in and the statement is
+    # attached; where they did not, the trades are keyed one at a time.
+    #
+    # TAGGED AS EXPOSED TO AUTOMATION -- this is T-01 and the first entry in
+    # docs/workflow-friction-log.md, and it is the clearest case of the rule
+    # in that log: where OUR process costs more than the return needs, that is
+    # a cost to fix, not a cost to bill. Price today's effort; expect this
+    # line to shrink.
+    amount: 95
+
+  foreign_account:
+    count_from: count_foreign_accounts
+    label: "Foreign account reporting"
+    detail: "Per account"
+    # Signed 25 Aug 2026 at the per-form price, because that is already how
+    # the firm bills it: "i have been doing this stuff with a client for
+    # awhile and just charge per account". A foreign COMPANY is not this line
+    # -- see `assumed.foreign_company`.
+    amount: 50
+
   owner_k1:
     count_from: count_owners
     label: "Schedule K-1 issued"
@@ -360,6 +398,82 @@ per_unit:
         # The first full one is inside Property & Business.
         amount: 200
 
+# ── one price per named form ──────────────────────────────────────────────
+#
+# The firm, 25 August 2026:
+#
+#   "i have been doing this stuff with a client for awhile and just charge per
+#    account - nothing huge though. let's just try to make it simple and come
+#    up with a per form amount and gate with complexity"
+#
+# Five bespoke gates at five bespoke prices were proposed and replaced by this.
+# One amount, a handful of named situations, and the ASSUMPTION BEHIND EACH
+# FORM acting as its gate: hold the assumption and pay the flat price; break
+# it and the meter runs. That is claim 2 of the header rule applied to a whole
+# category rather than to one line, and it turns this part of the sheet from a
+# price list into a rule plus exceptions.
+#
+# $50 is the firm's number, against a recommendation of $75 -- twenty minutes
+# at the standard rate rather than half an hour. One consequence is worth
+# recording because it was argued the other way: at $75 the extension line
+# would simply have BECOME the per-form price. At $50 it stays a named
+# exception, because computing a payment from an incomplete file is not a
+# twenty-minute job.
+#
+# HOW FAR THE RULE GOES, and this boundary was deliberate. It fits individual
+# forms, which genuinely have one document behind them. It does NOT fit the
+# entity gates: Schedules L, M-1 and M-2 are three schedules and a book-to-tax
+# reconciliation, not a form, and pricing those per form would misprice the
+# exact engagements where mispricing hurts most.
+per_form:
+  amount: 50
+  # The multi-select whose ticked values name the forms. Every option there is
+  # something that HAPPENED -- a client knows whether they sold a house.
+  select_from: extra_forms
+  forms:
+    home_sale:
+      label: "Sale of a home"
+      detail: "Form 8949 and Schedule D, and the exclusion"
+      assumes: "this was your main home and the closing statements are to hand"
+      trigger: "it was a rental for part of the time you owned it, or the basis has to be reconstructed"
+
+    debt_cancelled:
+      label: "Cancelled debt"
+      detail: "Form 1099-C"
+      assumes: "the cancelled amount is taxable as reported"
+      trigger: "insolvency, bankruptcy or a qualified exclusion has to be worked out and substantiated"
+
+    digital_assets:
+      label: "Digital assets"
+      detail: "Form 8949 reporting"
+      assumes: "your exchange produces a statement with cost basis on it"
+      trigger: "basis has to be reconstructed across wallets or exchanges"
+
+    marketplace:
+      label: "Marketplace health insurance"
+      detail: "Form 1095-A and the premium tax credit"
+      assumes: "one Form 1095-A covering the household for the year"
+      trigger: "the policy is shared between tax households, or coverage changed mid-year"
+
+    hsa:
+      label: "Health savings account"
+      detail: "Form 8889"
+      assumes: "contributions and distributions are on a 5498-SA and a 1099-SA"
+      trigger: "an excess contribution has to be worked out, or eligibility changed during the year"
+
+    early_withdrawal:
+      label: "Early retirement withdrawal"
+      detail: "Form 5329"
+      assumes: "the 1099-R coding is right and any exception is a plain one"
+      trigger: "the coding is wrong, or the exception has to be substantiated"
+
+    # Ticked to reveal the count question, and priced BY that count rather
+    # than here: the firm charges per account, so one flat line would undercharge
+    # the client with four and overcharge nobody's idea of fair. Naming the
+    # per-unit line keeps the two from both firing.
+    foreign_accounts:
+      priced_by: foreign_account
+
 # ── assumed, not counted ──────────────────────────────────────────────────
 #
 # Some work cannot be priced when the quote is written, because the thing that
@@ -379,16 +493,33 @@ per_unit:
 # The assumption is not a disclaimer buried in a letter. It prints on the
 # estimate, in the client's own copy, before any of the work happens.
 assumed:
-  brokerage:
-    label: "Brokerage activity"
-    # Written to drop into a sentence: "... assumes <assumes>, and ..."
-    assumes: "a single consolidated 1099-B that imports cleanly"
-    # Inside the base fee: ordinary brokerage is part of preparing the return,
-    # not an extra. The workbook priced it flat at any volume, which is the
-    # same judgement reached another way.
-    inside_base: true
-    # A clause, not a noun phrase: it follows the word "If".
-    trigger: "there is more than one broker, or a 1099-B will not import"
+  # `brokerage` was here, and it was the second thing on this list until the
+  # firm moved it on 25 August 2026. It assumed "a single consolidated 1099-B
+  # that imports cleanly", declared itself inside the base fee at any volume,
+  # and billed the overrun hourly. All three are now wrong: a second statement
+  # is $45, a statement that has to be keyed is $95, and both are lines on the
+  # sheet rather than a warning followed by a meter.
+  #
+  # An assumption and a price for the same overrun is worse than either alone.
+  # The client reads "included" and then gets an invoice line, and nobody can
+  # say afterwards which one was operative. So it came off rather than being
+  # reworded.
+  #
+  # WHAT CAME OFF WITH IT, and it is a real loss: the estimate no longer warns
+  # a client that keying costs $95 in the common case where nobody knows yet
+  # whether their statement can be summarised. See T-14 in
+  # docs/pricing-open-threads.md -- stating a priced boundary up front needs a
+  # mechanism this file does not have, and inventing one is the firm's call.
+  foreign_company:
+    label: "Foreign entities"
+    # Signed 25 Aug 2026, alongside the per-account price: foreign ACCOUNTS
+    # are counted at $50; a foreign COMPANY is a different job. Form 5471 or
+    # 8865 is a return inside a return -- its own balance sheet, its own
+    # income statement, its own translation -- and pricing it per form would
+    # misprice the exact engagement where mispricing hurts most.
+    assumes: "your foreign holdings are accounts rather than companies"
+    inside_base: false
+    trigger: "you hold an interest in a foreign corporation or partnership"
     beyond: hourly
 
   cleanup:

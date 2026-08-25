@@ -408,6 +408,40 @@ def _count(value, key: str) -> int:
         return 0
 
 
+def _forms_on(answers: dict, schedule: dict) -> list[tuple[str, dict]]:
+    """The per-form situations this client ticked, in the SCHEDULE's order.
+
+    Schedule order, not tick order, so two clients with the same forms get the
+    same estimate -- which matters the first time two of them compare notes.
+
+    A ticked value the schedule does not name is an error rather than a silent
+    skip: it means the interview offers a situation nobody priced, and the
+    client would be told $0 for something that costs.
+    """
+    block = schedule.get("per_form") or {}
+    forms = block.get("forms") or {}
+    if not forms:
+        return []
+    key = block.get("select_from")
+    if not key:
+        raise PricingError(
+            "per_form names forms but no `select_from`, so nothing can ever "
+            "select one and the whole block is dead weight."
+        )
+    picked = answers.get(key) or []
+    if isinstance(picked, str):
+        picked = [p.strip() for p in picked.split(",") if p.strip()]
+    unknown = [p for p in picked if p not in forms]
+    if unknown:
+        raise PricingError(
+            f"the interview offers {sorted(unknown)} under {key!r} and the fee "
+            f"schedule prices none of them. Either price them or stop asking: "
+            f"a situation the client ticks and the estimate ignores is billed "
+            f"at nothing."
+        )
+    return [(value, spec) for value, spec in forms.items() if value in picked]
+
+
 def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
     """The estimate's `LineItems`, in the order they read on the page.
 
@@ -521,6 +555,29 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             detail = f"{detail} — {count} × {each}" if detail else f"{count} × {each}"
         items.append(_line(unit["label"], detail, total, code))
 
+    # One price per named form. Ticked from a multi-select, priced flat, and
+    # written in the schedule's own order rather than the order the client
+    # happened to tick them -- two clients with the same forms get the same
+    # estimate, which matters the first time two of them compare.
+    for value, spec in _forms_on(answers, s):
+        if spec.get("priced_by"):
+            # Priced by a counted line instead, which has already run. A form
+            # that fired here as well would bill the first one twice.
+            continue
+        amount = (s.get("per_form") or {}).get("amount")
+        if amount is None:
+            raise PricingError(
+                "per_form names forms but no amount, so a ticked form has no "
+                "price. One amount is the whole point of the block."
+            )
+        label = spec.get("label")
+        if not label:
+            raise PricingError(
+                f"per_form.forms.{value} has no label, so the line cannot be "
+                f"written. A $50 line reading '{value}' is not an estimate."
+            )
+        items.append(_line(label, spec.get("detail", ""), amount, code))
+
     # Nothing here for `assumed:` items. They carry no price, so they produce
     # no line: an estimate lists what is being charged for, and a line reading
     # "Records cleanup -- included" or "-- hourly" is a term of business
@@ -539,38 +596,57 @@ def assumptions(answers: dict, schedule: dict | None = None) -> list[str]:
     is that it is stated before the work rather than after.
     """
     s = pricing_schedule(schedule)
-    basis = s.get("basis") or {}
-    rate = basis.get("rate")
-    out = []
-    for _, spec in (s.get("assumed") or {}).items():
-        label = spec.get("label", "").strip()
-        assumes = spec.get("assumes", "").strip()
-        trigger = spec.get("trigger", "").strip()
-        if not (label and assumes and trigger):
-            raise PricingError(
-                f"the assumed item {label or '(unnamed)'} is missing its "
-                f"label, assumption or trigger. Without all three there is no "
-                f"honest sentence to print, and a boundary nobody stated is "
-                f"not a boundary."
-            )
-        where = ("and includes it on that basis" if spec.get("inside_base")
-                 else "and does not include work beyond it")
-        if spec.get("beyond") != "hourly":
-            raise PricingError(
-                f"{label} says work beyond the assumption is "
-                f"{spec.get('beyond')!r}. Only 'hourly' is supported; the firm "
-                f"ruled out re-quoting deliberately."
-            )
-        rate_txt = f" at ${rate:,.0f} an hour" if isinstance(rate, (int, float)) else ""
-        # The label leads rather than acting as the subject, or every sentence
-        # says its own noun twice: "Brokerage activity assumes your brokerage
-        # activity arrives as...".
-        out.append(
-            f"{label} \u2014 this estimate assumes {assumes}, {where}. "
-            f"If {trigger}, the additional time is billed{rate_txt} as it is "
-            f"worked, and we will tell you as soon as we see it."
-        )
+    rate = (s.get("basis") or {}).get("rate")
+    out = [_assumption(spec, rate, check_beyond=True)
+           for _, spec in (s.get("assumed") or {}).items()]
+
+    # And one per form the client actually ticked. The per-form rule IS its
+    # assumption -- hold it and pay the flat price, break it and the meter
+    # runs -- so a $50 line without its sentence is half a price. Only the
+    # ticked ones: an assumption about a form nobody is filing is noise, and
+    # noise is how a client learns to skip this block.
+    for _, spec in _forms_on(answers, s):
+        if spec.get("assumes"):
+            out.append(_assumption(spec, rate))
     return out
+
+
+def _assumption(spec: dict, rate, *, check_beyond: bool = False) -> str:
+    """One boundary, in words a client reads before the work rather than after.
+
+    The label leads rather than acting as the subject, or every sentence says
+    its own noun twice: "Brokerage activity assumes your brokerage activity
+    arrives as...".
+
+    `check_beyond` only applies to the `assumed:` block. A per-form assumption
+    has no `beyond:` to check because the answer is not a choice there: the
+    per-form rule IS "hold the assumption, pay the flat price; break it, the
+    meter runs", so the consequence is the rule rather than a per-item setting.
+    """
+    label = (spec.get("label") or "").strip()
+    assumes = (spec.get("assumes") or "").strip()
+    trigger = (spec.get("trigger") or "").strip()
+    if not (label and assumes and trigger):
+        raise PricingError(
+            f"the assumed item {label or '(unnamed)'} is missing its "
+            f"label, assumption or trigger. Without all three there is no "
+            f"honest sentence to print, and a boundary nobody stated is "
+            f"not a boundary."
+        )
+    where = ("and includes it on that basis" if spec.get("inside_base")
+             else "and does not include work beyond it")
+    if check_beyond and spec.get("beyond") != "hourly":
+        raise PricingError(
+            f"{label} says work beyond the assumption is "
+            f"{spec.get('beyond')!r}. Only 'hourly' is supported; the firm "
+            f"ruled out re-quoting deliberately."
+        )
+    rate_txt = f" at ${rate:,.0f} an hour" if isinstance(rate, (int, float)) else ""
+    return (
+        f"{label} \u2014 this estimate assumes {assumes}, {where}. "
+        f"If {trigger}, the additional time is billed{rate_txt} as it is "
+        f"worked, and we will tell you as soon as we see it."
+    )
 
 
 def pricing_schedule(schedule: dict | None) -> dict:

@@ -69,12 +69,23 @@ ITEMS: list[tuple[str, str]] = [
      "a gig-worker Schedule C -- standard mileage, no assets or inventory"),
     ("per_unit.schedule_c.tiers.standard.amount",
      "a Schedule C with actual expenses, a home office, depreciation or inventory"),
+    ("per_unit.brokerage.amount",
+     "each brokerage statement past the one the package includes"),
+    ("per_unit.brokerage_keyed.amount",
+     "each brokerage statement that has to be keyed rather than summarised"),
+    ("per_unit.foreign_account.amount", "each foreign account reported"),
+    ("per_form.amount",
+     "any one of the named per-form situations -- one price, whichever it is"),
 ]
 
-# Brokerage and cleanup used to be here, in bands. They are not priced any
-# more and cannot be: see `assumed:` in the schedule. Both are billed hourly
-# beyond a stated assumption, at the rate `basis` already carries, so there is
-# nothing for a human to set and nothing for derivation to reach.
+# Cleanup used to be here, in bands. It is not priced any more and cannot be:
+# see `assumed:` in the schedule. It is billed hourly beyond a stated
+# assumption, at the rate `basis` already carries, so there is nothing for a
+# human to set and nothing for derivation to reach.
+#
+# Brokerage was there too and has come BACK, on 25 August 2026, as two counted
+# lines. That is the direction of travel worth noticing: an assumption with an
+# hourly consequence is what a firm writes when it has not decided the price.
 
 # Structures rather than amounts: set by hand, never derived from hours. A
 # gate says WHICH package a client is in; no number of hours can answer that,
