@@ -108,7 +108,7 @@ def test_an_unpriced_schedule_refuses_to_total(answers):
 def test_the_refusal_names_what_is_unpriced(answers):
     """A total that just said "cannot compute" would send you hunting."""
     total = pricing.price(answers)["EstimateTotal"]
-    assert "Federal Form 1040" in total and "State return" in total
+    assert "Federal Form 1040" in total and "Rental property" in total
 
 
 def test_one_unpriced_line_poisons_the_whole_total(priced):
@@ -178,12 +178,25 @@ def test_base_covers_one_included_stops_double_charging(priced):
     assert state["_raw"] == 185 * 2, "only the states beyond the first are charged"
 
 
-def test_an_undecided_base_covers_is_carried_not_guessed():
-    """The structure itself is a [CONFIRM]. The base line cannot honestly
-    describe what it covers, so it carries the question."""
-    out = pricing.price({"federal_form": "1040"})
-    base = out["LineItems"][0]
+def test_an_undecided_base_covers_is_carried_not_guessed(priced):
+    """The structure itself can be a [CONFIRM]. When it is, the base line
+    cannot honestly describe what it covers, so it carries the question.
+
+    The firm answered this on 25 August -- the default package is a 1040, the
+    first state and the first locality -- so the real schedule no longer
+    exercises the path. The behaviour still has to hold for the next schedule
+    that leaves it open, which is what this builds."""
+    schedule = json.loads(json.dumps(priced))
+    schedule["base_covers"] = "[CONFIRM: federal_only or one_included?]"
+    base = pricing.line_items({"federal_form": "1040"}, schedule)[0]
     assert "[CONFIRM:" in base["Detail"]
+
+
+def test_the_firms_base_says_what_the_package_includes():
+    """`one_included` is the firm's answer, and the client should read it on
+    the line rather than infer it from an absence."""
+    base = pricing.line_items({"federal_form": "1040"})[0]
+    assert base["Detail"] == "Includes the first state and locality"
 
 
 def test_an_unknown_federal_form_raises(priced):
@@ -270,11 +283,10 @@ def test_the_tier_changes_the_price_and_the_words(priced):
     def one(kind):
         return next(i for i in pricing.line_items(
             {"federal_form": "1040", "count_businesses": 1,
-             "schedule_c_kind": kind}, priced) if i["_raw"] in (60, 225, 400))
+             "schedule_c_kind": kind}, priced) if i["_raw"] in (60, 225))
     assert one("simple")["_raw"] == 60
     assert one("standard")["_raw"] == 225
-    assert one("books")["_raw"] == 400
-    assert len({one(k)["Service"] for k in ("simple", "standard", "books")}) == 3
+    assert one("simple")["Service"] != one("standard")["Service"]
 
 
 def test_an_unanswered_tier_is_carried_not_defaulted(priced):
@@ -336,3 +348,16 @@ def test_an_untiered_item_is_untouched(priced):
         {"federal_form": "1040", "count_k1s": 1}, priced)
         if i["Service"] == "Schedule K-1 received")
     assert k1["_raw"] == 75
+
+
+def test_there_is_no_tier_that_only_repeats_its_neighbour():
+    """A third Schedule C tier -- inventory, employees, its own books -- was
+    drafted and removed. Every engagement already assumes records arrive
+    reconciled; hold that and a bookkeeping-heavy Schedule C is the same work
+    on a longer trial balance. What makes it expensive is the assumption
+    failing, which is priced hourly somewhere else entirely.
+
+    A tier carrying its neighbour's price is a question the client must answer
+    that changes nothing, so this refuses to let one back in by accident."""
+    tiers = pricing.load()["per_unit"]["schedule_c"]["tiers"]
+    assert set(tiers) == {"simple", "standard"}

@@ -70,12 +70,16 @@ basis:
 # Written down because it is invisible in a total: two firms can quote the same
 # $785 from completely different structures, and only one of them can explain
 # the number to a client who asks.
-base_covers: "[CONFIRM: does the base fee cover the first state and locality, or federal only? Answer 'federal_only' or 'one_included'.]"
+# Answered by the firm, 25 August 2026: "the default package is $200 - which is
+# a 1040, state return and local for free". That is `one_included` exactly. The
+# consequence is easy to miss: `per_unit.state_return` and `per_unit.local_return`
+# below now price the SECOND one, not the first.
+base_covers: "one_included"
 
 # ── base fee, by federal return ───────────────────────────────────────────
 # Prints as its own line item: "Federal Form 1040".
 base:
-  "1040":  "[CONFIRM: base fee for a Form 1040]"
+  "1040":  "[CONFIRM: base fee for a Form 1040. The firm charges 200 for the package today (1040 + first state + first locality) and is reconsidering it — see the benchmarks in docs/pricing-and-deadlines-basis.md. The workbook says 170, but that was federal only.]"
   "1120S": "[CONFIRM: base fee for a Form 1120-S]"
   "1065":  "[CONFIRM: base fee for a Form 1065]"
   "1120":  "[CONFIRM: base fee for a Form 1120]"
@@ -120,14 +124,27 @@ per_unit:
   # keys would. Counting still comes from `count_from`.
   #
   # Schedule C is the case that forced this. One price for "a Schedule C" is
-  # wrong at both ends: a driver on standard mileage who tracked their trips is
-  # a data-entry job on top of a return we are already preparing, and pricing it
-  # like a business with inventory and payroll quotes them out of the firm. The
-  # tiers are not complexity bands — each one names FACTS a client can answer
-  # correctly at the consultation call. "Do you use standard mileage or actual
-  # expenses" has a right answer they know. "How complex is your business" does
-  # not, which is why the brokerage and cleanup bands were deleted rather than
-  # retiered.
+  # wrong at the bottom end: a driver on standard mileage who tracked their
+  # trips is a data-entry job on top of a return we are already preparing, and
+  # pricing that like a business quotes them out of the firm.
+  #
+  # It is NOT wrong at the top end, and that is why there are two tiers rather
+  # than three. A third — inventory, employees, its own books — was drafted and
+  # removed, because every engagement already ASSUMES records arrive complete
+  # and reconciled (see `assumed.cleanup` below). Hold that assumption and a
+  # bookkeeping-heavy Schedule C is the same work on a longer trial balance:
+  # the numbers come off a balance sheet either way. What actually makes one of
+  # those engagements expensive is the assumption FAILING, and that is already
+  # priced — hourly, at the point it is discovered, outside this line.
+  #
+  # A tier that carries the same price as its neighbour is a question the
+  # client has to answer that changes nothing. Two tiers, or the mechanism is
+  # decoration.
+  #
+  # The tiers are not complexity bands — each names FACTS a client can answer
+  # correctly at the consultation call. "Standard mileage or actual expenses"
+  # has an answer they know. "How complex is your business" does not, which is
+  # why the brokerage and cleanup bands were deleted rather than retiered.
   schedule_c:
     count_from: count_businesses
     tier_from: schedule_c_kind
@@ -138,12 +155,8 @@ per_unit:
         amount: "[CONFIRM: fee for a gig-worker Schedule C. May be 0: if the work is a 1099-NEC, the standard mileage rate and a trip log, it is arguably inside the base fee. Setting 0 says that on purpose; leaving it open stops the estimate.]"
       standard:
         label: "Sole proprietorship"
-        detail: "Schedule C — actual expenses, a home office, or assets being depreciated"
+        detail: "Schedule C — actual expenses, a home office, depreciation, inventory or employees"
         amount: "[CONFIRM: fee per Schedule C business. Workbook row 6 says 200.]"
-      books:
-        label: "Sole proprietorship with books"
-        detail: "Schedule C — inventory, employees, or its own set of books"
-        amount: "[CONFIRM: fee for a Schedule C with books. Not in the workbook, which prices every Schedule C the same.]"
 
 # ── assumed, not counted ──────────────────────────────────────────────────
 #

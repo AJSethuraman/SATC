@@ -58,9 +58,7 @@ ITEMS: list[tuple[str, str]] = [
     ("per_unit.schedule_c.tiers.simple.amount",
      "a gig-worker Schedule C -- standard mileage, no assets or inventory"),
     ("per_unit.schedule_c.tiers.standard.amount",
-     "a Schedule C with actual expenses, a home office or depreciation"),
-    ("per_unit.schedule_c.tiers.books.amount",
-     "a Schedule C with inventory, employees or its own books"),
+     "a Schedule C with actual expenses, a home office, depreciation or inventory"),
 ]
 
 # Brokerage and cleanup used to be here, in bands. They are not priced any

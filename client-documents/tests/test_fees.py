@@ -78,9 +78,11 @@ def test_an_item_left_blank_stays_unpriced(blank):
 
 
 def test_a_partial_sitting_still_refuses_to_total(blank):
+    """Two states, not one: the base covers the first, so a one-state client
+    would total cleanly off the base fee alone and prove nothing."""
     out = fees.derive(175, {"base.1040": 2.5}, schedule=blank)
     assert "[CONFIRM:" in pricing.price(
-        {"federal_form": "1040", "count_states": 1}, out)["EstimateTotal"]
+        {"federal_form": "1040", "count_states": 2}, out)["EstimateTotal"]
 
 
 def test_hours_with_no_rate_refuse_rather_than_default(blank):
@@ -105,9 +107,13 @@ def test_an_hours_key_that_prices_nothing_is_refused(blank):
 
 
 def test_base_covers_is_not_guessed(blank):
-    """It changes every number under it, so it is answered or left open."""
+    """It changes every number under it, so deriving prices never invents it.
+
+    The firm has since answered it (`one_included`), so what this pins is that
+    `derive` leaves it exactly as it found it and refuses a value it does not
+    recognise."""
     out = fees.derive(175, {"base.1040": 2.5}, schedule=blank)
-    assert pricing.is_open(out["base_covers"])
+    assert out["base_covers"] == blank["base_covers"]
     with pytest.raises(fees.FeeBasisError):
         fees.derive(175, {}, base_covers="whatever", schedule=blank)
 

@@ -60,10 +60,6 @@ per_unit:
         label: "Sole proprietorship"
         detail: "Schedule C — actual expenses, a home office, or assets being depreciated"
         amount: 225
-      books:
-        label: "Sole proprietorship with books"
-        detail: "Schedule C — inventory, employees, or its own set of books"
-        amount: 400
 
 assumed:
   brokerage:
