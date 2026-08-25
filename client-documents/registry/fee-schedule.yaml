@@ -147,6 +147,24 @@ base_covers: "one_included"
 #   any_of: [ {...}, {...} ]  at least one sub-gate holds
 # Everything in a gate must hold. A gate naming a question the interview does
 # not ask is a hard error, not a silently-never-selected package.
+#
+# WHAT A PACKAGE COVERS IS DATA, AND IT PRINTS. `covers:` is the list the
+# client reads on their own estimate, so every line is written for a client
+# rather than for us. `includes:` names the rung below and is FOLLOWED, never
+# printed: "Everything in Standard" is a true sentence on a public price page,
+# where the reader can see Standard, and a meaningless one on an estimate,
+# where the client sees only the package they bought.
+#
+# `includes:` carries the allowances down with it, so a package cannot say it
+# includes everything in the one below and quietly allow less. The either/or
+# does NOT inherit -- it is the thing that makes a package that package.
+#
+# The three allowance shapes:
+#   allows:        flat, always applies
+#   allows_when:   flat, behind a gate -- for an allowance that depends on an
+#                  ANSWER rather than a count (a gig Schedule C, not a full one)
+#   allows_one_of: the either/or; the branch worth most to the CLIENT wins,
+#                  scored on what is left after the flat allowances above
 base:
   "1040":
     tier_from: derived
@@ -156,9 +174,10 @@ base:
         detail: "W-2 income only, standard deduction"
         amount: 100
         covers:
-          - "Federal 1040, first state, first locality"
+          - "Your federal 1040, your first state return and your first local return"
           - "One or two W-2s"
-          - "A 1098-T education credit, claimed for yourself"
+          - "A 1098-T education credit claimed for yourself"
+          - "The standard deduction"
         gate:
           schedules_none: true
           answer_is:
@@ -171,13 +190,9 @@ base:
         # Signed 25 Aug 2026. The workbook's own Schedule C price.
         # The first full one is inside Property & Business.
         amount: 500
+        includes: standard
         covers:
-          - "Everything in Standard"
-          - "Up to three rentals, OR one full Schedule C"
-          - "K-1s are not here -- they meter from Standard"
-        allows:
-          count_brokerages: 1
-          count_k1s: 2
+          - "Up to three rental properties, or one full Schedule C business"
         # EITHER/OR, as data rather than as a special case in Python. Each
         # branch is priced and the one that saves the client most is the one
         # applied -- a client must never lose money to an ambiguity in our own
@@ -199,21 +214,27 @@ base:
         # Signed 25 Aug 2026. The workbook's own Schedule C price.
         # The first full one is inside Property & Business.
         amount: 325
+        includes: essentials
         covers:
-          - "Everything in Essentials"
           - "Itemized deductions"
           - "One brokerage statement"
-          - "Up to two K-1s"
-          - "A gig Schedule C on standard mileage"
+          - "Up to two K-1s you receive"
+          - "One gig Schedule C on standard mileage"
         # What the package swallows before anything is counted.
         allows:
           count_brokerages: 1
           count_k1s: 2
-          # The gig Schedule C this package says it covers. A Standard client's
-          # Schedule C is always the gig tier -- the gate below sends a full one
-          # to Property & Business -- so one business absorbed here can only
-          # ever be the gig one.
-          count_businesses: 1
+        # The gig Schedule C this package says it covers -- and ONLY the gig
+        # one. Standard's own gate already sends a full Schedule C up to
+        # Property & Business, so inside Standard the `when` never changes the
+        # answer. It is written anyway because Property & Business INHERITS
+        # these allowances through `includes:`, and up there the distinction
+        # is the whole ballgame: a full Schedule C must cost the either/or
+        # below, not ride in free on the back of "everything in Standard".
+        allows_when:
+          - when:
+              answer_is: {schedule_c_kind: simple}
+            count_businesses: 1
         gate:
           schedules_any: [A, B, D, E2, SE, C]
           # A full Schedule C is what Property & Business is for; a gig one
@@ -227,9 +248,9 @@ base:
         detail: "No schedules"
         amount: 200
         covers:
-          - "Federal 1040, first state, first locality"
+          - "Your federal 1040, your first state return and your first local return"
           - "Wages, interest and dividends"
-          - "Standard deduction"
+          - "The standard deduction"
         gate:
           schedules_none: true
 

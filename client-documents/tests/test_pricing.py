@@ -226,13 +226,55 @@ def test_the_firms_base_says_what_the_package_includes():
 
     This used to assert the words "Includes the first state and locality",
     which was the flat base fee describing itself. The base is a ladder now,
-    so the line names the package and the gate that selected it -- the same
-    promise, carrying more information, and the thing that makes a wrong
-    package visible on the page before it reaches anyone.
+    so the line names the package, the gate that selected it, AND everything
+    the package covers -- the same promise, carrying more information, and the
+    thing that makes a wrong package visible on the page before it reaches
+    anyone.
+
+    The covers list is the firm's answer of 25 August 2026, and the reason is
+    the shape of the document: an estimate that names a package and a price
+    and nothing else asks the client to take the number on faith. Every line
+    is written to be read by a client, because this is where they are read.
     """
     base = pricing.line_items({"federal_form": "1040"})[0]
     assert base["Service"] == "Essentials"
-    assert base["Detail"] == "No schedules"
+    assert base["Detail"] == (
+        "No schedules. Includes: Your federal 1040, your first state return "
+        "and your first local return; Wages, interest and dividends; "
+        "The standard deduction.")
+
+
+def test_a_package_covers_everything_the_rung_below_it_covers():
+    """`includes:` is followed, not printed.
+
+    "Everything in Standard" is a true sentence on a public price page, where
+    the reader can see Standard. On an estimate the client sees one package,
+    so the phrase says nothing -- and a client who cannot tell what they
+    bought is the problem the covers list exists to fix.
+    """
+    s = pricing.load()
+    tiers = s["base"]["1040"]["tiers"]
+    lines = pricing.covers("property", tiers, "base.1040")
+
+    # Broadest rung first, so it reads as a ladder rather than a list.
+    assert lines[0].startswith("Your federal 1040")
+    assert "Itemized deductions" in lines              # from Standard
+    assert "Up to three rental properties, or one full Schedule C business" in lines
+    assert not any("Everything in" in line for line in lines)
+
+
+def test_a_package_that_includes_itself_is_an_error_not_a_hang():
+    s = pricing.load()
+    tiers = {"a": {"includes": "b"}, "b": {"includes": "a"}}
+    with pytest.raises(pricing.PricingError) as exc:
+        pricing.covers("a", tiers, "base.1040")
+    assert "loop" in str(exc.value)
+
+
+def test_a_package_that_includes_a_package_that_is_not_there_is_an_error():
+    with pytest.raises(pricing.PricingError) as exc:
+        pricing.covers("a", {"a": {"includes": "nope"}}, "base.1040")
+    assert "not a package" in str(exc.value)
 
 
 def test_an_unknown_federal_form_raises(priced):
@@ -642,28 +684,108 @@ def test_a_second_gig_business_is_charged():
     assert pricing.estimate_total(items, s) == "$390.00"      # 325 + one at 65
 
 
-def test_a_gig_c_inside_property_and_business_is_currently_charged():
-    """PINS AN OPEN QUESTION rather than asserting an answer.
+def test_a_gig_c_inside_property_and_business_is_included():
+    """DECIDED by the firm, 25 August 2026: the gig C rides in.
 
     Property & Business covers "everything in Standard" -- which includes a
     gig Schedule C -- PLUS either three rentals or one full Schedule C. Those
     two clauses collide for a client with a gig C and rentals, and the signed
-    sheet does not say which wins.
+    sheet did not say which won; this test used to pin $565, the landlord with
+    a side gig paying $65 for a Schedule C that Standard would have included.
 
-    Give the package a flat one-business allowance and a full-Schedule-C
-    client gets their C free AND three rentals free, which is the "not both"
-    the sheet rules out. Leave it off, as here, and a landlord with a side gig
-    pays $65 for a Schedule C that Standard would have included.
-
-    $565 is what it does today. Whether that is right is the firm's call, so
-    this test records the behaviour and the reason rather than blessing it.
+    The ruling is that the package includes the gig one and the either/or is
+    scoped to rentals versus a FULL Schedule C. The mechanism has to hold both
+    halves at once: a flat one-business allowance would hand a full-Schedule-C
+    client their C free AND three rentals free, which is the "not both" the
+    sheet rules out, so the allowance is gated on `schedule_c_kind: simple`.
     """
     s = pricing.load()
     items = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": ["C", "E1"],
          "schedule_c_kind": "simple", "count_businesses": 1,
          "count_rentals": 3}, s)
-    assert pricing.estimate_total(items, s) == "$565.00"
+    assert pricing.estimate_total(items, s) == "$500.00"
+
+
+def test_a_full_schedule_c_does_not_also_ride_in_free():
+    """The other half of the same ruling, and the half that costs money.
+
+    A full Schedule C is what the either/or is FOR. If it were also covered
+    flat, this client would get the C free and still have three rentals to
+    spend the either/or on.
+    """
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["C", "E1"],
+         "schedule_c_kind": "standard", "count_businesses": 1,
+         "count_rentals": 3}, s)
+    # The full C is worth 200 to the client and three rentals 135, so the
+    # branch that saves them most is the C -- and the rentals are charged.
+    assert pricing.estimate_total(items, s) == "$635.00"      # 500 + 3 x 45
+
+
+def test_a_gig_c_does_not_spend_the_either_or_it_no_longer_needs():
+    """The bug the ruling exposed, and the reason the comparator changed.
+
+    Branches are compared in money. Scored against the RAW counts, the
+    full-Schedule-C branch is worth $65 to a landlord with a side gig -- more
+    than one rental at $45 -- so it wins, and the client pays for a rental
+    while collecting an allowance for a Schedule C they already had free.
+    Scoring what is LEFT after the flat allowances is what makes the two
+    halves of the ruling compose.
+    """
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["C", "E1"],
+         "schedule_c_kind": "simple", "count_businesses": 1,
+         "count_rentals": 1}, s)
+    assert [i["Service"] for i in items] == ["Property & Business"]
+    assert pricing.estimate_total(items, s) == "$500.00"
+
+
+def test_the_package_says_which_allowance_the_client_got():
+    s = pricing.load()
+    base = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["E1"],
+         "count_rentals": 2}, s)[0]
+    assert "with up to three rentals" in base["Detail"]
+
+
+def test_a_package_does_not_claim_an_allowance_the_client_cannot_use():
+    """A client with none of the things on offer is told about neither.
+
+    Applying a branch nobody can spend is harmless arithmetic and a
+    misleading sentence: it prints "with up to three rentals" to somebody who
+    owns no rentals.
+    """
+    s = pricing.load()
+    base = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["F"]}, s)[0]
+    assert base["Service"] == "Property & Business"
+    assert "with up to" not in base["Detail"]
+
+
+def test_a_counted_line_says_the_first_one_was_free():
+    """Otherwise the covers list above it reads as a lie.
+
+    The package promises a first state return; the estimate then carries a
+    "State return" line. Without the word "after", a client reasonably
+    concludes they were charged for the one they were told was included.
+    """
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "count_states": 2, "count_localities": 3}, s)
+    by_service = {i["Service"]: i["Detail"] for i in items}
+    assert "after the first" in by_service["State return"]
+    assert "after the first" in by_service["Local return"]
+
+
+def test_a_counted_line_says_how_many_the_package_swallowed():
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["B"], "count_k1s": 3}, s)
+    k1 = [i for i in items if i["Service"] == "Schedule K-1 received"][0]
+    assert "after the 2 included" in k1["Detail"]
 
 
 # ── Starter, once the interview can see it ────────────────────────────────

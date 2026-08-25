@@ -180,34 +180,97 @@ def _unit_price(schedule: dict, count_from: str, answers: dict | None = None):
     return None
 
 
-def _allowance(tier: dict, answers: dict, schedule: dict | None = None) -> dict:
+def _allowance(key: str, tiers: dict, answers: dict,
+               schedule: dict | None = None, where: str = "") -> dict:
     """How many of each counted thing this package already covers.
 
-    `allows` is flat and always applies. `allows_one_of` is the either/or --
-    three rentals OR one full Schedule C, not both -- and the branch worth
-    most to the CLIENT is the one applied, because a client must never lose
-    money to an ambiguity in our own schedule.
+    Three shapes, in the order they are applied.
 
-    Branches are compared in money, which is the right comparator and the one
-    that fails quietly: a branch whose price is not set yet scores zero,
-    which is indistinguishable from a branch worth nothing, so the choice
-    silently falls to file order. That is not a hypothetical -- with both
-    prices open, a client with one full Schedule C and no rentals had the
-    RENTALS branch applied and their Schedule C billed on top of a package
-    that said it covered it. So when a branch the client actually uses has no
-    price, no choice is made and the allowance carries the question instead.
-    A branch the client has no units in cannot change the answer and is not
-    grounds to refuse.
+    `allows` is flat and always applies.
+
+    `allows_when` is flat but conditional -- a gate, then the counts it
+    releases. Property & Business needs it: the package includes a GIG
+    Schedule C (it inherits one from Standard) but not a full one, and
+    "which kind" is an answer, not a count. Written as a plain flat allowance
+    instead, a full-Schedule-C client would get their C free AND the rentals,
+    which is exactly the "not both" the sheet rules out.
+
+    `allows_one_of` is the either/or -- three rentals OR one full Schedule C
+    -- and the branch worth most to the CLIENT is the one applied, because a
+    client must never lose money to an ambiguity in our own schedule.
+
+    Branches are compared in money, and the comparison is on what is LEFT
+    after the flat allowances above. Scoring the raw counts double-counts
+    anything already included and hands the client the wrong branch: a
+    landlord with a side gig has their gig C covered flat, so the
+    full-Schedule-C branch is worth nothing more to them -- but scored raw it
+    is worth $65, beats a $45 rental, and they pay for a rental the package
+    was meant to include.
+
+    Money is the right comparator and the one that fails quietly: a branch
+    whose price is not set yet scores zero, which is indistinguishable from a
+    branch worth nothing, so the choice silently falls to file order. That is
+    not a hypothetical -- with both prices open, a client with one full
+    Schedule C and no rentals had the RENTALS branch applied and their
+    Schedule C billed on top of a package that said it covered it. So when a
+    branch the client actually uses has no price, no choice is made and the
+    allowance carries the question instead. A branch the client has no units
+    left in cannot change the answer and is not grounds to refuse.
     """
-    out = dict(tier.get("allows") or {})
+    tier = tiers[key]
+
+    # Flat allowances inherit down the `includes:` chain, broadest first, so
+    # "Everything in Standard" is one fact rather than two -- a sentence in
+    # `covers:` and a copy of Standard's numbers that has to be kept in step
+    # with it by hand. The either/or does NOT inherit: it is the thing that
+    # makes a package that package, and a lower rung's choice is not on offer
+    # at a higher one.
+    flat: list[dict] = []
+    conditional: list[tuple[str, dict]] = []
+    for name in reversed(_chain(key, tiers, where)):
+        rung = tiers[name]
+        flat.append(rung.get("allows") or {})
+        conditional.extend((name, spec) for spec in (rung.get("allows_when") or []))
+
+    out: dict = {}
+    for allows in flat:
+        for k, allowed in allows.items():
+            out[k] = max(out.get(k, 0), allowed)
+
+    for i, (owner, spec) in enumerate(conditional):
+        if not isinstance(spec, dict):
+            raise PricingError(
+                f"{where}.allows_when[{i}] ({owner}) is not a mapping, so there is no "
+                f"way to read what it releases or when."
+            )
+        gate = spec.get("when")
+        if gate is None:
+            raise PricingError(
+                f"{where}.allows_when[{i}] ({owner}) has no `when`, so it is a flat "
+                f"allowance wearing a conditional one's clothes. Move it to "
+                f"`allows` or give it a gate."
+            )
+        if is_open(gate) or not _gate_holds(gate, answers,
+                                            f"{where}.allows_when[{i}]"):
+            continue
+        for key, allowed in spec.items():
+            if key == "when":
+                continue
+            out[key] = max(out.get(key, 0), allowed)
+
     branches = tier.get("allows_one_of") or []
     if not branches:
         return out
 
     s = schedule or {}
+
+    def residual(key: str) -> int:
+        """What the client still has after the flat allowances above."""
+        return max(0, _count(answers.get(key), key) - int(out.get(key, 0) or 0))
+
     targets = {k for b in branches for k in b if k != "label"}
     blocked = [k for k in sorted(targets)
-               if _count(answers.get(k), k) > 0 and _unit_price(s, k, answers) is None]
+               if residual(k) > 0 and _unit_price(s, k, answers) is None]
     if blocked:
         out["_open"] = (
             "[CONFIRM: this package covers one of several things and the "
@@ -219,15 +282,59 @@ def _allowance(tier: dict, answers: dict, schedule: dict | None = None) -> dict:
 
     def saving(branch: dict) -> float:
         return sum(
-            min(_count(answers.get(k), k), n) * (_unit_price(s, k, answers) or 0)
+            min(residual(k), n) * (_unit_price(s, k, answers) or 0)
             for k, n in branch.items() if k != "label")
 
     best = max(branches, key=saving)
-    for key, allowed in best.items():
-        if key == "label":
+    if saving(best) <= 0:
+        # Every branch is worth nothing to this client -- they have none of
+        # the things on offer, or already had them. Applying one anyway is
+        # harmless arithmetic and a misleading sentence: the estimate would
+        # print "with up to three rentals" to somebody who owns none.
+        return out
+    for target, allowed in best.items():
+        if target == "label":
             continue
-        out[key] = max(out.get(key, 0), allowed)
+        out[target] = max(out.get(target, 0), allowed)
     out["_branch"] = best.get("label", "")
+    return out
+
+
+def _chain(key: str, tiers: dict, where: str) -> list[str]:
+    """This package, then the one it includes, then that one's, ... .
+
+    `includes:` names the rung below and is followed rather than printed. It
+    has to be data: "Everything in Standard" is a true sentence on a public
+    price page, where a reader can see Standard, and a meaningless one on an
+    estimate, where the client sees only the package they bought. One chain
+    serves both, and serves the allowances too -- so a package cannot say it
+    includes everything in the one below and quietly allow less.
+    """
+    chain: list[str] = []
+    at = key
+    while at:
+        if at in chain:
+            raise PricingError(
+                f"{where}: the packages {' -> '.join(chain + [at])} include "
+                f"each other in a loop, so what one covers cannot be worked out."
+            )
+        if at not in tiers:
+            raise PricingError(
+                f"{where}.{chain[-1] if chain else key} includes {at!r}, "
+                f"which is not a package on this ladder."
+            )
+        chain.append(at)
+        at = (tiers[at] or {}).get("includes")
+    return chain
+
+
+def covers(key: str, tiers: dict, where: str) -> list[str]:
+    """Every line a package covers, broadest rung first."""
+    out: list[str] = []
+    for name in reversed(_chain(key, tiers, where)):
+        for line in (tiers.get(name) or {}).get("covers") or []:
+            if line not in out:
+                out.append(line)
     return out
 
 
@@ -309,7 +416,7 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
     """
     s = schedule if schedule is not None else load()
     code = s.get("currency", "USD")
-    covers = s.get("base_covers")
+    base_covers = s.get("base_covers")
     items: list[dict] = []
 
     form = answers.get("federal_form")
@@ -330,7 +437,8 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         )
 
     allowance: dict = {}
-    if isinstance(base, dict) and base.get("tiers"):
+    tiers = base.get("tiers") if isinstance(base, dict) else None
+    if tiers:
         key, tier = derive_tier(base, answers, f"base.{form}")
         if tier is None:
             # Every gate was either undecided or unmet. Quoting the cheapest
@@ -350,31 +458,40 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         label = tier["label"]
         detail = _gate_sentence(key, tier)
         base = tier["amount"]
-        allowance = _allowance(tier, answers, s)
+        allowance = _allowance(key, tiers, answers, s, f"base.{form}.{key}")
         if allowance.get("_open"):
             # The package price itself is knowable; which of its options the
             # client got is not. Carry the question on the line so it reaches
             # the total and the estimate refuses rather than guessing.
             base = allowance["_open"]
         elif allowance.get("_branch"):
-            detail = f"{detail} — includes {allowance['_branch']}"
+            detail = f"{detail} — with {allowance['_branch']}"
+        # What the package covers, printed. Without this the estimate names a
+        # package and a price and says nothing about what is inside it, which
+        # is how a client reads a $500 line as "everything" and how a $200
+        # line reads as too much. The list is the sentence the price needs.
+        included = covers(key, tiers, f"base.{form}")
+        if included:
+            joined = "; ".join(included)
+            detail = f"{detail}. Includes: {joined}." if detail else f"Includes: {joined}."
     else:
         label = {"1040": "Federal Form 1040", "1120S": "Federal Form 1120-S",
                  "1065": "Federal Form 1065", "1120": "Federal Form 1120"}.get(form, form)
         detail = ""
-        if covers == "one_included":
+        if base_covers == "one_included":
             detail = "Includes the first state and locality"
-        elif is_open(covers):
+        elif is_open(base_covers):
             # The structure itself is undecided, so the line cannot honestly
             # describe what it covers. Carry the question, not a guess.
-            detail = covers
+            detail = base_covers
     items.append(_line(label, detail, base, code))
 
     # Per-unit lines. When the base includes the first state and locality, the
     # first of each is already paid for and only the rest are charged.
     for _, unit in (s.get("per_unit") or {}).items():
-        count = _count(answers.get(unit["count_from"]), unit["count_from"])
-        if covers == "one_included" and unit["count_from"] in (
+        raw = _count(answers.get(unit["count_from"]), unit["count_from"])
+        count = raw
+        if base_covers == "one_included" and unit["count_from"] in (
                 "count_states", "count_localities"):
             count = max(0, count - 1)
         # What the package already swallowed. Composes with the first state
@@ -388,6 +505,17 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         amount = unit["amount"]
         total = amount if is_open(amount) else amount * count
         detail = unit.get("detail", "")
+        # Say that the first ones were free. A client who is told their
+        # package includes a state return and then sees a "State return"
+        # line on the same page reasonably concludes they were charged for
+        # it; the line has to carry the word "after" or the covers list
+        # above it looks like a lie.
+        free = raw - count
+        if free == 1:
+            detail = f"{detail}, after the first" if detail else "After the first"
+        elif free > 1:
+            detail = (f"{detail}, after the {free} included" if detail
+                      else f"After the {free} included")
         if count > 1:
             each = amount if is_open(amount) else m.money(amount, code)
             detail = f"{detail} — {count} × {each}" if detail else f"{count} × {each}"
