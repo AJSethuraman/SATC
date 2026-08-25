@@ -1,0 +1,92 @@
+# Workflow friction log
+
+Things that make filling out a return slower than it needs to be, and what
+would fix them. Started 25 August 2026 at Arjun's request, from a note on the
+brokerage pricing question:
+
+> it is not that we can't enter the high level data and attach, it's that the
+> process is currently me keying in everything because it seemed easier than
+> attaching because that requires manually scanning in sometimes or uploading
+> to drake. this is the kind of thing that should be added to a log of ideas we
+> can have to make things easier on filling stuff out
+
+**This log is not a backlog.** Nothing here is committed work. It is the list
+of frictions worth remembering, so that when there is time to build something,
+the choice is made from evidence rather than from whatever was annoying that
+week.
+
+One rule, because it is the whole point of writing them down: **a friction is
+ours, not the client's.** Where our process costs more than the return needs,
+that is a cost to fix, not a cost to bill. See the brokerage entry below for
+the case that produced the rule.
+
+---
+
+## Open
+
+### 1099-B: keying every lot instead of summarising and attaching
+
+**The friction.** Every transaction gets keyed by hand. Attaching the statement
+instead would mean scanning it or uploading it to Drake, which has felt like
+more work than typing.
+
+**Why it matters.** Where a 1099-B reports covered lots with basis and no
+adjustments, the totals can be entered by category with the statement attached,
+rather than every transaction listed. On a long statement that is the difference
+between typing four lines and four hundred. Only the parts that genuinely
+cannot be summarised — noncovered lots, adjustments, wash sales, options,
+crypto — need to go in individually.
+
+**What would fix it.** Time the two paths once, on a real statement, and find
+out whether the scan-and-attach really is slower. If it is, the fix is upstream
+of Drake: a way to get a broker PDF attached without a scanner in the loop.
+
+**Status.** Open. Priced around as of 25 Aug: brokerage is counted, not hourly,
+and the higher line keys on what cannot be summarised — deliberately not on how
+long our current process takes.
+
+> [CONFIRM: the summary-totals treatment above is the general shape of the
+> Form 8949 rule, but confirm it against the current form instructions before
+> it changes how a return is actually filed. irs.gov is not reachable from the
+> machine these notes were written on.]
+
+### No recorded minutes per line
+
+**The friction.** Every fee argument this month — is $200 too much for a
+Schedule C, is $100 a loss on a student return, does automation save us
+anything — has run into the same wall: nobody knows how long any of it takes.
+
+**Why it matters.** It is not only a pricing problem. Without minutes per line,
+"the new tool saved us time" is unprovable, and so is "this client is
+unprofitable". Five figures would settle most of the open questions: the
+package, the prep hours, the admin hours, whether an assumption failed, and
+what that cost.
+
+**What would fix it.** Recording those five against each engagement, starting
+with the next one. Not a system — a habit and a column.
+
+**Status.** Open, and blocking more than it looks like.
+
+### Document reading is where automation lands first
+
+**The friction.** The lines that price document reading — a K-1, a rental
+statement, a brokerage summary, a local return — are the ones a reader could
+plausibly do first, and they are priced today at what they cost a person today.
+
+**Why it matters.** From Arjun, on holding the K-1 line at $15 rather than
+raising it: *"we should really be incorporating levels of automation with this
+sort of work when it comes to reading docs for requirements."* If those prices
+are set at manual effort and never revisited, the saving quietly becomes margin
+by default rather than by decision.
+
+**What would fix it.** Tag the automation-exposed lines on the price sheet, so
+that when a reader lands it is obvious which prices are in scope — and the
+decision about who gets the saving is made on purpose.
+
+**Status.** Open. Raised as a question in the second pricing round.
+
+---
+
+## Closed
+
+*Nothing yet.*

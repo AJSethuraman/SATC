@@ -361,3 +361,35 @@ def test_there_is_no_tier_that_only_repeats_its_neighbour():
     that changes nothing, so this refuses to let one back in by accident."""
     tiers = pricing.load()["per_unit"]["schedule_c"]["tiers"]
     assert set(tiers) == {"simple", "standard"}
+
+
+def test_every_tier_has_a_question_option_and_every_option_has_a_tier():
+    """The interview asks which tier; the fee schedule prices it. Nothing keeps
+    those two lists in step, and they fell out of step the moment Schedule C
+    went from three tiers to two: the question kept a third answer -- inventory,
+    employees, or its own set of books -- that no longer named a price.
+
+    That failure is quiet in the worst way. `_resolve_tier` raises on an unknown
+    tier, so a client who picks the orphaned answer does not get a wrong number;
+    they get an estimate that will not build, at the point the firm is trying to
+    send it. This test is the thing that should have caught it.
+    """
+    import interview as iv
+
+    schedule = pricing.load()
+    questions = {q["id"]: q for _, q in iv.all_questions(iv.load_schema())}
+
+    tiered = {name: unit for name, unit in schedule["per_unit"].items()
+              if unit.get("tiers")}
+    assert tiered, "no tiered items -- this test has stopped testing anything"
+
+    for name, unit in tiered.items():
+        key = unit["tier_from"]
+        assert key in questions, f"{name}.tier_from names {key!r}, which the interview never asks"
+        offered = {o["value"] for o in questions[key]["options"]}
+        priced = set(unit["tiers"])
+        assert offered == priced, (
+            f"{name}: the interview offers {sorted(offered)} but the schedule "
+            f"prices {sorted(priced)}. An answer with no tier stops the estimate; "
+            f"a tier with no answer is unreachable."
+        )

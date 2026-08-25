@@ -371,9 +371,7 @@ sections:
           - { value: "simple",
               label: "1099 or gig work — standard mileage, no assets, inventory or payroll" }
           - { value: "standard",
-              label: "Actual vehicle expenses, a home office, or assets being depreciated" }
-          - { value: "books",
-              label: "Inventory, employees, or its own set of books" }
+              label: "Actual vehicle expenses, a home office, depreciation, inventory or employees" }
         showIf: "'C' in federal_schedules"
         supplies: []
         feeds: LineItems
