@@ -36,7 +36,7 @@ forever, so `T-04` means the same thing in six months.
 > automation with this sort of work when it comes to reading docs for
 > requirements
 
-**Status** Answered — round two, question 4.
+**Status** Settled 25 Aug 2026 — tag the exposed lines, price today's effort.
 
 The K-1 half is **settled at $15**, against my recommendation of $25, and the
 reasoning was better than mine: $25 does read as punitive for a page of numbers
@@ -62,7 +62,7 @@ an hour" is uncheckable without minutes per line.
 > taking this to mean $800 is a package deal when it's under the small test,
 > but otherwise we start adding service fees?
 
-**Status** Answered — round two, question 2.
+**Status** Settled 25 Aug 2026 — base plus named lines on the estimate.
 
 The reading is right. $800 is the package while the entity is under the IRS's
 own small-entity test; above it, named lines are added. What is still open is
@@ -78,7 +78,8 @@ sheet is the thing that costs.
 
 > let's do 350 - are there gates we can set for definite complexity jumps?
 
-**Status** Answered — round two, the six-gate card.
+**Status** Settled 25 Aug 2026 — all six gates added. The individual-side
+equivalent is still open.
 
 Six proposed, each keyed on a fact a client can answer at the consultation call
 rather than a complexity level they would have to rate: payroll on the books
@@ -127,7 +128,7 @@ reads the rule before changing it. Not started; nobody has asked for it.
 
 > maybe gig drivers expense certain things like snacks and water for their cars?
 
-**Status** Answered — round two, question 1.
+**Status** Settled 25 Aug 2026 — supplies do not move the tier. Produced T-10.
 
 Recommendation is that supplies do **not** move the tier. Standard mileage
 covers the vehicle — fuel, repairs, insurance, and the depreciation built into
@@ -151,7 +152,8 @@ reachable from the machine these notes are written on.
 > that should be added to a log of ideas we can have to make things easier on
 > filling stuff out
 
-**Status** Moved → `docs/workflow-friction-log.md`, first entry.
+**Status** Moved → `docs/workflow-friction-log.md`, first entry. The price half
+settled 25 Aug 2026: the $95 keys on what cannot be summarised.
 
 It also produced the rule at the top of that log, which is worth repeating
 because it decides pricing questions on its own: **where our process costs more
@@ -208,6 +210,63 @@ preparers actually charge before it is treated as fixed.
 
 ---
 
+---
+
+## T-10 · Free literature that helps people arrive prepared
+
+**Raised** 25 Aug 2026, agreeing that supplies do not move the gig tier.
+
+> Let's do this and make it a priority to produce literature we can give for
+> free/on the website to drive traffic to help people be prepared for their
+> accountants
+
+**Status** Open — new, and the first thread that is not about a price.
+
+It arrived on the gig-supplies answer for a reason. The recommendation there
+included writing down once, for clients, that passenger snacks and water are
+supplies and the driver's own lunch is not — and the observation that a client
+told once stops asking every year. Arjun's note generalises that: if telling a
+client something once saves the question every year, the telling is worth
+producing deliberately, and putting it on the website turns it into traffic
+rather than an email.
+
+**What it plausibly is.** Short, specific, per-situation sheets — the gig
+driver, the first rental, the new S corp, the student — each saying what to
+bring and what counts. Not a blog. The test is whether a real client can act on
+it before their appointment.
+
+**Why it is more than marketing.** Every one of these sheets is the same
+content as a document-request list, and the pipeline in `client-documents/`
+already builds those from the interview registry. A public sheet and a client's
+personalised request list could come off one source, which is the difference
+between writing them once and maintaining two copies that drift.
+
+**Not started.** Needs scoping before anything is written — which situations,
+how many, and whether they generate from the registry or are hand-written.
+
+---
+
+## T-11 · Capturing the processes themselves, not just the frictions
+
+**Raised** 25 Aug 2026, on the automation question.
+
+> the most important thing is to track the need for processes and workflows as
+> these will be very important to get right
+
+**Status** Open — new.
+
+Distinct from the friction log, and the distinction matters. The friction log
+records where the current way of working *hurts*. This is about writing down
+what the way of working *is* — the steps of a return, from the consultation
+call through to delivery — because that is the thing automation will be pointed
+at, and an undocumented process cannot be automated, only re-invented.
+
+It is also the missing half of T-07. Minutes per line say how long something
+takes; a written process says what the something is. Neither is much use alone.
+
+**Not started, and deliberately not scoped here** — this is large enough that
+guessing at its shape would waste the effort.
+
 ## Settled
 
 | # | Thread | Decision | Date |
@@ -220,3 +279,8 @@ preparers actually charge before it is treated as fixed.
 | — | Additional Schedule C | $65 gig / $200 full, on the existing fact test | 25 Aug 2026 |
 | — | Brokerage | Counted at $45 + $95, off the hourly list | 25 Aug 2026 |
 | — | The orphaned Schedule C tier | Folded into `standard`; regression test added | 25 Aug 2026 |
+| — | Gig supplies and the Schedule C tier | Supplies do not move it | 25 Aug 2026 |
+| — | How the entity gate prints | Base plus named lines | 25 Aug 2026 |
+| — | What flips the $95 brokerage line | What cannot be summarised | 25 Aug 2026 |
+| — | Lines exposed to automation | Price today's effort, tag them | 25 Aug 2026 |
+| — | Six entity complexity gates | All six added as proposed | 25 Aug 2026 |
