@@ -55,6 +55,11 @@ class Outcome:
     status: str
     reason: str = ""
     blockers: list[str] = field(default_factory=list)
+    # Things a human should look at, which are not things that stop anything.
+    # Computed on every outcome including the refused ones: a flag that only
+    # appears when everything else went well is a flag nobody sees on the day
+    # it matters.
+    flags: list[str] = field(default_factory=list)
     ref: str | None = None
     path: Path | None = None
     record: dict | None = None
@@ -98,10 +103,11 @@ def finish(answers: dict, *, store: Path | None = None, ref: str | None = None,
     engagement behind.
     """
     blockers = iv.hard_no(answers)
+    flags = iv.review_flags(answers)
     if blockers:
         if not override_hard_no:
             return Outcome(
-                status="refused", blockers=blockers,
+                status="refused", blockers=blockers, flags=flags,
                 reason="This is work the firm does not take. firm-settings.yaml "
                        "lists it under `hard_no` and the interview schema marks "
                        "the options themselves. Override only if the list is "
@@ -117,6 +123,7 @@ def finish(answers: dict, *, store: Path | None = None, ref: str | None = None,
     if decision != "yes":
         return Outcome(
             status="declined", blockers=blockers, overridden=overridden,
+            flags=flags,
             reason=f"The decision was {decision!r}, not 'yes'. Nothing was "
                    f"created -- that is what the decision question is for.")
 
@@ -130,10 +137,11 @@ def finish(answers: dict, *, store: Path | None = None, ref: str | None = None,
         record.update(pricing.price(answers, schedule))
     except pricing.PricingError as exc:
         return Outcome(status="error", blockers=blockers, overridden=overridden,
+                       flags=flags,
                        reason=f"fee schedule: {exc}")
 
     store = store or engagements.STORE
     ref, path = engagements.create(record, ref=ref, store=store)
     engagements.save_answers(answers, ref, store)
     return Outcome(status="created", ref=ref, path=path, record=record,
-                   blockers=blockers, overridden=overridden)
+                   blockers=blockers, overridden=overridden, flags=flags)

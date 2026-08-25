@@ -219,7 +219,8 @@ def create_app(store: Path | None = None) -> Flask:
         if wants_json():
             return jsonify(status=outcome.status, reason=outcome.reason,
                            blockers=outcome.blockers, ref=outcome.ref,
-                           overridden=outcome.overridden), \
+                           overridden=outcome.overridden,
+                           flags=outcome.flags), \
                 (201 if outcome.created else 200)
         return page("Outcome", outcome_body(sid, outcome))
 
@@ -281,6 +282,13 @@ text-transform:uppercase;color:var(--ink-2)}
 .hardno{border:1px solid var(--oxblood);border-left-width:3px;padding:14px 16px;
 margin:0 0 20px}
 .hardno h2{color:var(--oxblood);font-size:15px;margin:0 0 8px}
+/* A review note is not a refusal. It gets the navy rule, not the oxblood
+   one, because dressing "have a look at this" like "we do not take this
+   work" teaches whoever reads the page to dismiss both. */
+.note{border:1px solid var(--navy);border-left-width:3px;padding:14px 16px;
+margin:0 0 20px}
+.note h2{color:var(--navy);font-size:15px;margin:0 0 8px}
+.note li{font-size:14px;color:var(--ink-2)}
 .muted{color:var(--ink-2);font-size:14px}
 code{font-family:"IBM Plex Mono",monospace;font-size:13px}
 """
@@ -391,6 +399,21 @@ def review_body(sid, session, blockers) -> str:
     return "".join(out)
 
 
+def _flag_block(outcome) -> str:
+    """Preparer-facing, on whichever page the outcome lands on.
+
+    Not styled as a blocker: nothing here stops anything, and dressing a
+    review note as a refusal teaches whoever reads it to dismiss both.
+    """
+    if not outcome.flags:
+        return ""
+    out = ["<div class=note><h2>Worth a look before this is quoted</h2><ul>"]
+    for f in outcome.flags:
+        out.append(f"<li>{esc(f)}</li>")
+    out.append("</ul></div>")
+    return "".join(out)
+
+
 def outcome_body(sid, outcome) -> str:
     if outcome.created:
         return (f"<h1>Engagement {esc(outcome.ref)} created</h1>"
@@ -399,6 +422,7 @@ def outcome_body(sid, outcome) -> str:
                 f"says.</p>"
                 + ("<p class=muted>A HARD NO was overridden.</p>"
                    if outcome.overridden else "")
+                + _flag_block(outcome)
                 + f"<p><a href='/engagement/{esc(outcome.ref)}'>Open it</a> "
                   f"&middot; <a href='/'>Back</a></p>")
     heading = {"refused": "Not taken on", "declined": "No engagement created",
@@ -409,6 +433,7 @@ def outcome_body(sid, outcome) -> str:
         for b in outcome.blockers:
             out.append(f"<li>{esc(b)}</li>")
         out.append("</ul></div>")
+    out.append(_flag_block(outcome))
     out.append(f"<p class=help>{esc(outcome.reason)}</p>")
     out.append(f"<p class=muted>Nothing was written.</p>"
                f"<p><a href='/interview/{esc(sid)}'>Back to the interview</a> "

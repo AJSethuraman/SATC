@@ -167,13 +167,86 @@ def test_the_cli_decides_nothing_of_its_own(answers, tmp_path, priced):
         assert core.status == expected
 
 
+# ── review flags: not blockers, not derivations ───────────────────────────
+
+def test_more_rentals_than_local_returns_is_flagged(answers, tmp_path, priced):
+    """The firm's ruling of 25 August 2026: warn, do not derive.
+
+    Rental income is often taxed by the municipality the property sits in, so
+    four rentals and one local return is worth a preparer's eye. It is not
+    worth a derivation: townships levy no income tax, an out-of-state rental
+    owes nothing to an Ohio city, and deriving the count would quietly bill
+    for returns nobody has to file.
+    """
+    a = dict(answers) | {"count_rentals": 4, "count_localities": 1}
+    out = intake.finish(a, store=tmp_path, fee_schedule=priced)
+    assert out.created, "a review flag must not stop an engagement"
+    assert len(out.flags) == 1
+    assert "4 rental properties but 1 local return" in out.flags[0]
+
+
+def test_a_flag_changes_no_price(answers, tmp_path, priced):
+    """The whole point of warning instead of deriving."""
+    a = dict(answers) | {"count_rentals": 4, "count_localities": 1}
+    b = dict(a)
+    flagged = intake.finish(a, store=tmp_path / "a", fee_schedule=priced)
+    assert flagged.flags
+    assert flagged.record["EstimateTotal"] == intake.finish(
+        b, store=tmp_path / "b", fee_schedule=priced).record["EstimateTotal"]
+
+
+def test_a_flag_never_reaches_a_client_document(answers, tmp_path, priced):
+    """Preparer-facing means preparer-facing.
+
+    The flag says the firm may have missed a filing. On a client's own
+    estimate that reads as either an accusation or an admission, and it is
+    neither -- it is a note to look.
+    """
+    a = dict(answers) | {"count_rentals": 4, "count_localities": 1}
+    out = intake.finish(a, store=tmp_path, fee_schedule=priced)
+    blob = json.dumps(out.record)
+    assert "local return" not in blob
+    assert not any(k.lower().startswith("flag") for k in out.record)
+
+
+def test_a_flag_is_raised_even_when_the_work_is_refused(answers, tmp_path, priced):
+    """A flag that only appears when everything else went well is a flag
+    nobody sees on the day it matters."""
+    a = dict(answers) | {"count_rentals": 4, "count_localities": 1,
+                         "red_flags": ["assurance_needed"]}
+    out = intake.finish(a, store=tmp_path, fee_schedule=priced)
+    assert out.status == "refused"
+    assert out.flags
+
+
+def test_an_unreadable_count_does_not_raise_a_flag_or_an_error(answers, tmp_path, priced):
+    """`pricing._count` refuses a bool because billing one is a wrong invoice.
+    Here a bad answer should not stop a review note being considered, so it
+    falls out of the comparison instead of stopping the interview."""
+    a = dict(answers) | {"count_rentals": True, "count_localities": None}
+    assert intake.finish(a, store=tmp_path, fee_schedule=priced).flags == []
+
+
+def test_the_web_front_door_shows_the_same_flags(answers, tmp_path, priced):
+    """One engine, two front doors -- including for the things that do not
+    block. A note the CLI prints and the web page swallows is a note that
+    depends on which door somebody walked through."""
+    a = dict(answers) | {"count_rentals": 4, "count_localities": 1}
+    out = intake.finish(a, store=tmp_path, fee_schedule=priced)
+
+    import web
+    body = web.outcome_body("sid", out)
+    assert "Worth a look before this is quoted" in body
+    assert "4 rental properties but 1 local return" in body
+
+
 def test_every_gate_lives_in_the_core_not_the_cli():
     """Read the CLI's own source. A gate written here again is the failure
     mode this whole module exists to prevent."""
     src = (ROOT / "cli.py").read_text(encoding="utf-8")
     finish = src[src.index("def _finish("):src.index("def cmd_engagements(")]
     for smell in ("hard_no()", "'yes'", "engagements.create(",
-                  "pricing.price(", "iv.compose("):
+                  "pricing.price(", "iv.compose(", "review_flags("):
         assert smell not in finish, (
             f"cli._finish contains {smell!r} -- that decision belongs in "
             f"intake.finish, or the web UI will not enforce it"

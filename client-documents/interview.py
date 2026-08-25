@@ -220,6 +220,64 @@ def hard_no(answers: dict, schema: dict | None = None) -> list[str]:
     return hit
 
 
+def review_flags(answers: dict) -> list[str]:
+    """Things a human should look at. NEVER things the software decides.
+
+    A flag is not a blocker and it is not a derivation. It is the third thing:
+    an answer that is probably fine and is worth a preparer's eye before the
+    return is priced or prepared.
+
+    The distinction is the firm's, made on 25 August 2026 about the municipal
+    case, and it is the right one. A client with four rentals and one locality
+    may genuinely owe one local return -- Ohio townships have no income tax,
+    an out-of-state rental has nothing to do with an Ohio municipality, and
+    plenty of jurisdictions do not tax rental income at all. Deriving the
+    count from the rentals would quietly bill for returns nobody has to file.
+    Saying nothing lets a client who simply did not think about it under-file.
+    So: ask a human, and let the answer stay the client's.
+
+    These are preparer-facing. They never reach a client document, and they
+    never change a price.
+
+    Written in Python rather than as a registry rule on purpose. It is one
+    comparison; a gate language invented to hold one rule is a language nobody
+    decided on. When there is a third flag with a different shape, that is the
+    moment to look again.
+    """
+    flags: list[str] = []
+
+    rentals = _as_count(answers.get("count_rentals"))
+    localities = _as_count(answers.get("count_localities"))
+    if rentals > localities:
+        noun = "property" if rentals == 1 else "properties"
+        flags.append(
+            f"{rentals} rental {noun} but {localities} local return"
+            f"{'' if localities == 1 else 's'}. Rental income is often taxed "
+            f"by the municipality it sits in. Check whether a local return is "
+            f"owed for each one before the estimate goes out -- do not assume "
+            f"either way: townships levy no income tax, an out-of-state "
+            f"rental owes nothing to an Ohio city, and some jurisdictions do "
+            f"not tax rents at all."
+        )
+    return flags
+
+
+def _as_count(value) -> int:
+    """A count for comparison only, never for money.
+
+    `pricing._count` refuses a bool or a fraction because billing one of those
+    is a wrong invoice. Here a bad answer should not stop a review flag being
+    raised, so anything unreadable counts as nothing and the flag falls out of
+    the comparison on its own.
+    """
+    if isinstance(value, bool) or value in (None, ""):
+        return 0
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
 # ── answers -> merge fields ────────────────────────────────────────────────
 
 _FORM_LABEL = {"1040": "Form 1040", "1120S": "Form 1120-S",

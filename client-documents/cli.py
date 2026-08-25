@@ -28,6 +28,7 @@ import html
 import json
 import re
 import sys
+import textwrap
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -508,6 +509,17 @@ def cmd_interview(args) -> int:
     return _finish(session, args)
 
 
+def _wrap_flag(text: str) -> str:
+    """A review note, indented and wrapped so it reads as one note.
+
+    Left unwrapped these run to whatever the terminal is wide, and two of them
+    become a wall nobody reads -- which is the failure mode of every advisory
+    message ever written.
+    """
+    return textwrap.fill(text, width=76, initial_indent="    ",
+                         subsequent_indent="      ")
+
+
 def _finish(session, args) -> int:
     """Print what the core decided. The gates are NOT here.
 
@@ -530,6 +542,11 @@ def _finish(session, args) -> int:
             print(f"    {b}")
         if outcome.overridden:
             print("  overridden on the command line")
+
+    if outcome.flags:
+        print("\nWorth a look before this is quoted:")
+        for f in outcome.flags:
+            print(_wrap_flag(f))
 
     if outcome.status == "refused":
         print(f"\nNo engagement created. {outcome.reason}")
