@@ -78,11 +78,14 @@ def test_an_item_left_blank_stays_unpriced(blank):
 
 
 def test_a_partial_sitting_still_refuses_to_total(blank):
-    """Two states, not one: the base covers the first, so a one-state client
-    would total cleanly off the base fee alone and prove nothing."""
+    """Two localities, not one: the base covers the first of each, and the
+    local return is the line still carrying a [CONFIRM. Naming a specific
+    unpriced item is the point -- the moment one gets priced this test has to
+    move to another, which is the reminder that it is about the refusal and
+    not about that item."""
     out = fees.derive(175, {"base.1040": 2.5}, schedule=blank)
     assert "[CONFIRM:" in pricing.price(
-        {"federal_form": "1040", "count_states": 2}, out)["EstimateTotal"]
+        {"federal_form": "1040", "count_localities": 2}, out)["EstimateTotal"]
 
 
 def test_hours_with_no_rate_refuse_rather_than_default(blank):
@@ -156,9 +159,15 @@ def test_the_write_changes_only_what_was_priced(blank):
 
 
 def test_what_was_written_parses_back_to_what_was_derived(blank):
+    """Only the still-open items: an amount the firm has already set is a plain
+    number, and `_sub_once` refuses to rewrite one whose text occurs elsewhere
+    in the file. That refusal is deliberate (see the ambiguity test below), so
+    the round trip is over what derivation is actually for -- filling blanks."""
     src = fees.SCHEDULE.read_text(encoding="utf-8")
-    out = fees.derive(175, dict.fromkeys((p for p, _ in fees.ITEMS), 2),
-                      base_covers="one_included", schedule=blank)
+    still_open = {p for p, _ in pricing.open_amounts(blank)}
+    hours = {p: 2 for p, _ in fees.ITEMS if p in still_open}
+    assert hours, "nothing is open; this test has outlived the schedule"
+    out = fees.derive(175, hours, base_covers="one_included", schedule=blank)
     assert yaml.safe_load(fees.apply_to_text(src, blank, out)) == out
 
 
@@ -250,9 +259,11 @@ def test_a_half_priced_schedule_yields_half_a_budget():
     """Absent, not zero. A schedule that is partly priced is partly budgeted,
     which is the truth about it."""
     schedule = copy.deepcopy(pricing.load())
+    before = set(fees.expected_hours(schedule))
     fees._plant(schedule, "base.1040", 170)
     budgets = fees.expected_hours(schedule)
-    assert set(budgets) == {"base.1040"}
+    assert set(budgets) == before | {"base.1040"}, \
+        "planting one price budgets exactly one more line"
     assert budgets["base.1040"].hours == 1.25
 
 

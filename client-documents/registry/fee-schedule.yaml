@@ -93,13 +93,18 @@ per_unit:
     count_from: count_states
     label: "State return"
     detail: "Per state"
-    amount: "[CONFIRM: fee per state return]"
+    # Set by the firm, 25 August 2026: "state should be $50 a return at least
+    # i think". Recorded as 50 because that is the figure given; "at least"
+    # means it is a floor the firm may raise, not a settled ceiling. It was 30
+    # in the TY2023 workbook, which is below what TurboTax charges a client to
+    # self-file one ($49-64).
+    amount: 50
 
   local_return:
     count_from: count_localities
     label: "Local return"
     detail: "Municipal, RITA, CCA or school district"
-    amount: "[CONFIRM: fee per local return]"
+    amount: "[CONFIRM: fee per local return. PROPOSED 35, and it is an inference, not a source: no published survey breaks out an Ohio municipal return and neither RITA nor CCA publishes preparer fees. Reasoned as lighter than a state return but not trivial -- residency, workplace credit and withholding by city are real work -- so roughly two thirds of the 50 above.]"
 
   rental:
     count_from: count_rentals
