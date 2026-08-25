@@ -1,5 +1,43 @@
 # SATC — fee schedule
 #
+# ── THE RULE THIS FILE FOLLOWS ─────────────────────────────────────────────
+#
+# Stated by the firm on 25 August 2026, and written here because it is the
+# thing that decides every price below. Read it before changing any of them.
+#
+#   "if it is too complex, and beyond typical assumptions, we have to charge
+#    hourly which is simply outside of the bounds of these prices. however, if
+#    they give us what we need, we assume gates are complexity checks - if no
+#    additional forms or whatever, then it's fairly simple."
+#
+# Three claims, and the whole schedule follows from them.
+#
+# 1. A GATE IS A COMPLEXITY CHECK, ANSWERED FROM FACTS. Every tier and every
+#    gate keys on something the client knows about their own year -- standard
+#    mileage or actual expenses, receipts under $250,000, did you sell a home.
+#    Never on a level of complexity they would have to rate about themselves. A
+#    client whose books need reconstruction does not know they are in that
+#    state; being in it is what makes it invisible from the inside.
+#
+# 2. PAST THE ASSUMPTIONS, THESE PRICES STOP APPLYING. Hourly is not a
+#    surcharge on a fixed price and it is not a re-quote. It is what happens
+#    instead, when the engagement turns out not to be the one that was priced.
+#    See `assumed:` below: each item states what the fee ASSUMES, what triggers
+#    the change, and that the consequence is `beyond: hourly`. A re-quote stops
+#    the job and opens a negotiation the firm did not want; the meter simply
+#    runs instead.
+#
+# 3. EVERY PRICE ASSUMES THE CLIENT GIVES US WHAT WE NEED. Records arrive
+#    complete and reconciled. That is not a disclaimer buried in a letter -- it
+#    prints on the estimate, in the client's own copy, before any of the work
+#    happens.
+#
+# The corollary, from the same week and worth keeping in view: where OUR PROCESS
+# costs more than the return needs, that is a cost to fix, not a cost to bill.
+# See `docs/workflow-friction-log.md`.
+#
+# ───────────────────────────────────────────────────────────────────────────
+#
 # What the interview's counts are worth. The interview has always COUNTED
 # billable items and never priced them, which is why `LineItems` and
 # `EstimateTotal` were unfilled and the fee estimate could not render.

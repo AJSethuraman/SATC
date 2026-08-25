@@ -103,7 +103,8 @@ that deserve the same treatment. Nobody has looked.
 > complexity checks - if no additional forms or whatever, then it's fairly
 > simple.
 
-**Status** Open.
+**Status** Settled 25 Aug 2026 — written into `registry/fee-schedule.yaml`
+as the header comment the file did not have.
 
 This is the clearest statement anyone has written of what the whole schedule is
 doing, and it is currently implicit in the code rather than stated anywhere a
@@ -185,7 +186,7 @@ problem and a workflow one.
 
 **Raised** during the package ladder draft, never resolved.
 
-**Status** Open.
+**Status** Settled 25 Aug 2026 — three stay inside, then $45 each.
 
 Property & Business covers up to three rentals *or* one full Schedule C, and
 prices rentals beyond that at $45 each. The unresolved question is whether
@@ -200,7 +201,8 @@ chosen.
 
 **Raised** during the price sheet build.
 
-**Status** Open, and flagged on the sheet itself.
+**Status** Settled 25 Aug 2026 — $35 kept, and off the worry list. If the
+firm ever quotes a standalone local, what it charged beats any survey.
 
 $35 is the weakest number on the sheet. No survey breaks out an Ohio municipal
 return and neither RITA nor CCA publishes preparer fees, so it is reasoned:
@@ -220,7 +222,9 @@ preparers actually charge before it is treated as fixed.
 > free/on the website to drive traffic to help people be prepared for their
 > accountants
 
-**Status** Open — new, and the first thread that is not about a price.
+**Status** Answered 25 Aug 2026 — hand-write two, then generate the rest from
+the registry once the format is proven. First two: the gig driver and the
+first-time landlord. Drafts pending.
 
 It arrived on the gig-supplies answer for a reason. The recommendation there
 included writing down once, for clients, that passenger snacks and water are
@@ -267,6 +271,58 @@ takes; a written process says what the something is. Neither is much use alone.
 **Not started, and deliberately not scoped here** — this is large enough that
 guessing at its shape would waste the effort.
 
+---
+
+## T-12 · Bookkeeping is parked, on purpose
+
+**Raised** 25 Aug 2026, as the answer that was a note instead of an answer.
+
+> this just needs its own workstream and we will get there when we get there -
+> for now we have cleanup in tax prep
+
+**Status** Parked — deliberately, with a reason, which is different from blank.
+
+Bookkeeping is the only service in the repo with a signed engagement letter and
+no fee anywhere. Four shapes were put up — monthly tiers, hourly, a hybrid, or
+leave it. None was chosen, and the note explains why: it is a workstream, not a
+line on a tax price sheet, and until it is sold deliberately the records-cleanup
+hourly line inside tax prep does the job.
+
+**What holds it in the meantime.** `assumed.cleanup` — every engagement assumes
+records arrive complete and reconciled, and work past that assumption is billed
+hourly at the standard rate. That covers the tax-prep case honestly. It does not
+cover a client who wants their books kept, which is the workstream.
+
+---
+
+## T-13 · One per-form price, gated by complexity
+
+**Raised** 25 Aug 2026, on the individual-return gates.
+
+> i have been doing this stuff with a client for awhile and just charge per
+> account - nothing huge though. let's just try to make it simple and come up
+> with a per form amount and gate with complexity
+
+**Status** Answered — round four.
+
+Two things at once, and the second is the larger.
+
+**The correction.** Five individual gates were proposed at five bespoke prices.
+That is over-engineered for what those situations are, and on foreign accounts
+it ignored that the firm already does the work and already charges per account —
+which is why that was the one gate left unmarked.
+
+**The idea.** One flat per-form amount, with the assumption behind each form
+acting as the gate: hold the assumption, pay the flat price; break it, the meter
+runs. That is claim 2 of T-04 applied to a whole category rather than to one
+line, and it turns the sheet from a price list into a rule plus exceptions.
+
+**The boundary worth being deliberate about.** The rule fits individual forms,
+which genuinely have one document behind them. It does not fit the entity gates:
+Schedules L, M-1 and M-2 are three schedules and a book-to-tax reconciliation,
+not a form. Pricing those per form would misprice the exact engagements where
+mispricing hurts most.
+
 ## Settled
 
 | # | Thread | Decision | Date |
@@ -284,3 +340,7 @@ guessing at its shape would waste the effort.
 | — | What flips the $95 brokerage line | What cannot be summarised | 25 Aug 2026 |
 | — | Lines exposed to automation | Price today's effort, tag them | 25 Aug 2026 |
 | — | Six entity complexity gates | All six added as proposed | 25 Aug 2026 |
+| — | The rentals allowance | Three inside, then $45 | 25 Aug 2026 |
+| — | The local return price | $35, kept | 25 Aug 2026 |
+| — | The gating rule | Written into the fee schedule header | 25 Aug 2026 |
+| — | The pricing write-up | Retired; the sheet carries the reasoning | 25 Aug 2026 |
