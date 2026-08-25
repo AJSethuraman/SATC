@@ -393,3 +393,52 @@ def test_every_tier_has_a_question_option_and_every_option_has_a_tier():
             f"prices {sorted(priced)}. An answer with no tier stops the estimate; "
             f"a tier with no answer is unreachable."
         )
+
+
+# ── counting is not a place to be generous ────────────────────────────────
+#
+# Three probes against the real engine found the same shape of bug three
+# times: an answer that is not a count being treated as one. None of them
+# raised; each produced a confident, wrong number. That is the worst failure
+# available here, because a total nobody questions is a total that gets sent.
+
+def test_a_record_with_no_federal_form_is_refused_not_priced(priced):
+    """The one that would have shipped a bill for nothing.
+
+    `line_items` guarded the base fee with `if form:` and then went on to
+    price the per-unit lines regardless, so a record that had lost its
+    `federal_form` produced an estimate for the ADD-ONS ALONE -- three K-1s,
+    a confident total, and no return anywhere in it. An unknown form already
+    raised; a missing one has to raise for the same reason.
+    """
+    with pytest.raises(pricing.PricingError, match="federal form"):
+        pricing.line_items({"count_k1s": 3}, priced)
+
+
+def test_a_boolean_is_not_a_count(priced):
+    """`int(True)` is 1, so a yes/no answer wired to a count question would
+    quietly bill for exactly one of whatever it was counting. Nothing in the
+    interview does that today; the packages about to be built key on facts,
+    which makes it a question of when rather than whether.
+    """
+    with pytest.raises(pricing.PricingError, match="not a count"):
+        pricing.line_items({"federal_form": "1040", "count_k1s": True}, priced)
+
+
+def test_a_fractional_count_is_refused_rather_than_truncated(priced):
+    """2.7 K-1s was silently 2. Nobody has 2.7 K-1s, so the answer is wrong
+    rather than imprecise, and rounding it hides that.
+    """
+    with pytest.raises(pricing.PricingError, match="not a count"):
+        pricing.line_items({"federal_form": "1040", "count_k1s": 2.7}, priced)
+
+
+def test_text_where_a_count_belongs_is_still_nothing(priced):
+    """The forgiving case, kept deliberately: an empty or unanswered count is
+    absence, not an error. Only a value that LOOKS like a count and is not one
+    is refused.
+    """
+    for blank in (None, "", "   "):
+        items = pricing.line_items(
+            {"federal_form": "1040", "count_k1s": blank}, priced)
+        assert [i["Service"] for i in items] == ["Federal Form 1040"]

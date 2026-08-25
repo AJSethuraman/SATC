@@ -101,6 +101,41 @@ def _resolve_tier(unit: dict, answers: dict) -> dict:
     return {**unit, **tier}
 
 
+def _count(value, key: str) -> int:
+    """An answer read as a number of things, or nothing at all.
+
+    Absence is fine -- an unanswered count is zero, and a question the
+    interview never reached because of a `showIf` is absent by design. What is
+    not fine is a value that LOOKS countable and is not:
+
+    * `True` is `int()`-able to 1, so a yes/no wired to a count question would
+      bill for exactly one of whatever it counted, silently.
+    * `2.7` truncated to 2. Nobody has 2.7 K-1s, so the answer is wrong rather
+      than imprecise, and rounding it hides that it was ever wrong.
+
+    Both were real behaviours of this function. Neither raised.
+    """
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return 0
+    if isinstance(value, bool):
+        raise PricingError(
+            f"{key} answered {value!r}, which is not a count. A yes/no cannot "
+            f"say how many, and treating it as one would bill for exactly one."
+        )
+    if isinstance(value, float) and value != int(value):
+        raise PricingError(
+            f"{key} answered {value!r}, which is not a count. Rounding it "
+            f"would hide that the answer was wrong rather than imprecise."
+        )
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        # Free text where a number belongs is treated as absence, not as an
+        # error: the interview coerces its own types, and a stray string here
+        # means the count was never really asked.
+        return 0
+
+
 def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
     """The estimate's `LineItems`, in the order they read on the page.
 
@@ -113,32 +148,36 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
     items: list[dict] = []
 
     form = answers.get("federal_form")
-    if form:
-        base = (s.get("base") or {}).get(form)
-        if base is None:
-            raise PricingError(
-                f"the fee schedule has no base fee for federal form {form!r}. "
-                f"Add it rather than letting the estimate quote without one."
-            )
-        label = {"1040": "Federal Form 1040", "1120S": "Federal Form 1120-S",
-                 "1065": "Federal Form 1065", "1120": "Federal Form 1120"}.get(form, form)
-        detail = ""
-        if covers == "one_included":
-            detail = "Includes the first state and locality"
-        elif is_open(covers):
-            # The structure itself is undecided, so the line cannot honestly
-            # describe what it covers. Carry the question, not a guess.
-            detail = covers
-        items.append(_line(label, detail, base, code))
+    if not form:
+        # Not a soft skip. Guarding the base with `if form:` and pricing the
+        # per-unit lines anyway produced an estimate for the ADD-ONS ALONE --
+        # a confident total with no return in it. An unknown form already
+        # refuses; a missing one is the same failure with less to go on.
+        raise PricingError(
+            "the record names no federal form, so there is no base fee to "
+            "quote. An estimate for the add-ons alone is not an estimate."
+        )
+    base = (s.get("base") or {}).get(form)
+    if base is None:
+        raise PricingError(
+            f"the fee schedule has no base fee for federal form {form!r}. "
+            f"Add it rather than letting the estimate quote without one."
+        )
+    label = {"1040": "Federal Form 1040", "1120S": "Federal Form 1120-S",
+             "1065": "Federal Form 1065", "1120": "Federal Form 1120"}.get(form, form)
+    detail = ""
+    if covers == "one_included":
+        detail = "Includes the first state and locality"
+    elif is_open(covers):
+        # The structure itself is undecided, so the line cannot honestly
+        # describe what it covers. Carry the question, not a guess.
+        detail = covers
+    items.append(_line(label, detail, base, code))
 
     # Per-unit lines. When the base includes the first state and locality, the
     # first of each is already paid for and only the rest are charged.
     for _, unit in (s.get("per_unit") or {}).items():
-        count = answers.get(unit["count_from"]) or 0
-        try:
-            count = int(count)
-        except (TypeError, ValueError):
-            count = 0
+        count = _count(answers.get(unit["count_from"]), unit["count_from"])
         if covers == "one_included" and unit["count_from"] in (
                 "count_states", "count_localities"):
             count = max(0, count - 1)
