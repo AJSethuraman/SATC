@@ -46,7 +46,17 @@ class FeeBasisError(RuntimeError):
 # where the amount is incremental, because the arithmetic is only honest if the
 # hours mean what the schedule's structure says they mean.
 ITEMS: list[tuple[str, str]] = [
-    ("base.1040",  "a plain Form 1040 — start to filed, no states, no schedules"),
+    # The individual base is a ladder now, so there is no single "a 1040" to
+    # price. Each package is its own figure, and the hours behind them differ
+    # by more than the price does -- which is the point of having four.
+    ("base.1040.tiers.starter.amount",
+     "a Starter return — W-2 income only, standard deduction"),
+    ("base.1040.tiers.essentials.amount",
+     "an Essentials return — no schedules"),
+    ("base.1040.tiers.standard.amount",
+     "a Standard return — schedules, but nothing that scales"),
+    ("base.1040.tiers.property.amount",
+     "a Property & Business return — rentals, or a full Schedule C"),
     ("base.1120S", "a plain Form 1120-S"),
     ("base.1065",  "a plain Form 1065"),
     ("base.1120",  "a plain Form 1120"),
@@ -66,9 +76,18 @@ ITEMS: list[tuple[str, str]] = [
 # beyond a stated assumption, at the rate `basis` already carries, so there is
 # nothing for a human to set and nothing for derivation to reach.
 
-# `base_covers` is a structure rather than an amount, so it is set by hand and
-# never derived from hours.
+# Structures rather than amounts: set by hand, never derived from hours. A
+# gate says WHICH package a client is in; no number of hours can answer that,
+# and `base_covers` says what the base already includes. Anything else that is
+# open and not listed in ITEMS is a genuine gap and the tests say so.
 NOT_DERIVED = {"base_covers"}
+NOT_DERIVED_SUFFIXES = (".gate",)
+
+
+def is_derivable(path: str) -> bool:
+    """Is this open value one that hours could ever answer?"""
+    return (path not in NOT_DERIVED
+            and not path.endswith(NOT_DERIVED_SUFFIXES))
 
 
 def _dig(node: dict, path: str):

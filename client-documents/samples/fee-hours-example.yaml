@@ -9,7 +9,12 @@
 rate: 175
 base_covers: federal_only
 
-base.1040: 2.5
+# One figure per package. The hours behind them differ by more than the
+# prices do, which is the point of having four.
+base.1040.tiers.starter.amount: 1.0
+base.1040.tiers.essentials.amount: 2.5
+base.1040.tiers.standard.amount: 3.5
+base.1040.tiers.property.amount: 5.0
 base.1120S: 4.75
 base.1065: 4.75
 base.1120: 5.25

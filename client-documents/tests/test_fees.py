@@ -44,13 +44,17 @@ def hours():
 # ── the multiplication ────────────────────────────────────────────────────
 
 def test_a_fee_is_hours_times_the_rate(blank):
-    out = fees.derive(175, {"base.1040": 2.5}, schedule=blank)
-    assert out["base"]["1040"] == 437.5
+    out = fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
+    assert out["base"]["1040"]["tiers"]["essentials"]["amount"] == 437.5
 
 
 def test_a_full_sitting_prices_everything(hours, blank):
+    """Every amount hours can reach. A gate is not an amount -- no number of
+    hours says which package a client is in -- so it stays open by design and
+    `doctor` keeps reporting it."""
     out = fees.derive(175, hours, base_covers="federal_only", schedule=blank)
-    assert fees.still_open(out) == []
+    left = [p for p, _ in fees.still_open(out) if fees.is_derivable(p)]
+    assert left == []
 
 
 def test_the_result_actually_prices_an_interview(hours, blank):
@@ -71,10 +75,10 @@ def test_an_item_left_blank_stays_unpriced(blank):
     """The whole failure mode. A preparer who knows what a 1040 takes and
     genuinely does not know what a K-1 issued to an owner takes must be able
     to say so."""
-    out = fees.derive(175, {"base.1040": 2.5}, schedule=blank)
+    out = fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
     still = dict(fees.still_open(out))
     assert "per_unit.owner_k1.amount" in still
-    assert "base.1040" not in still
+    assert "base.1040.tiers.essentials.amount" not in still
 
 
 def test_a_partial_sitting_still_refuses_to_total(blank):
@@ -83,24 +87,24 @@ def test_a_partial_sitting_still_refuses_to_total(blank):
     unpriced item is the point -- the moment one gets priced this test has to
     move to another, which is the reminder that it is about the refusal and
     not about that item."""
-    out = fees.derive(175, {"base.1040": 2.5}, schedule=blank)
+    out = fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
     assert "[CONFIRM:" in pricing.price(
         {"federal_form": "1040", "count_localities": 2}, out)["EstimateTotal"]
 
 
 def test_hours_with_no_rate_refuse_rather_than_default(blank):
     with pytest.raises(fees.FeeBasisError):
-        fees.derive(None, {"base.1040": 2.5}, schedule=blank)
+        fees.derive(None, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
 
 
 def test_a_rate_of_zero_is_refused(blank):
     with pytest.raises(fees.FeeBasisError):
-        fees.derive(0, {"base.1040": 2.5}, schedule=blank)
+        fees.derive(0, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
 
 
 def test_negative_hours_are_refused(blank):
     with pytest.raises(fees.FeeBasisError):
-        fees.derive(175, {"base.1040": -1}, schedule=blank)
+        fees.derive(175, {"base.1040.tiers.essentials.amount": -1}, schedule=blank)
 
 
 def test_an_hours_key_that_prices_nothing_is_refused(blank):
@@ -115,7 +119,7 @@ def test_base_covers_is_not_guessed(blank):
     The firm has since answered it (`one_included`), so what this pins is that
     `derive` leaves it exactly as it found it and refuses a value it does not
     recognise."""
-    out = fees.derive(175, {"base.1040": 2.5}, schedule=blank)
+    out = fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)
     assert out["base_covers"] == blank["base_covers"]
     with pytest.raises(fees.FeeBasisError):
         fees.derive(175, {}, base_covers="whatever", schedule=blank)
@@ -124,17 +128,17 @@ def test_base_covers_is_not_guessed(blank):
 # ── rounding is a policy, not a default ───────────────────────────────────
 
 def test_rounding_is_off_unless_asked_for(blank):
-    assert fees.derive(175, {"base.1040": 2.5}, schedule=blank)["base"]["1040"] == 437.5
+    assert fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, schedule=blank)["base"]["1040"]["tiers"]["essentials"]["amount"] == 437.5
 
 
 def test_rounding_goes_up_to_the_firms_increment(blank):
-    out = fees.derive(175, {"base.1040": 2.5}, increment=25, schedule=blank)
-    assert out["base"]["1040"] == 450
+    out = fees.derive(175, {"base.1040.tiers.essentials.amount": 2.5}, increment=25, schedule=blank)
+    assert out["base"]["1040"]["tiers"]["essentials"]["amount"] == 450
 
 
 def test_an_amount_already_on_the_increment_does_not_jump(blank):
-    out = fees.derive(100, {"base.1040": 4.5}, increment=25, schedule=blank)
-    assert out["base"]["1040"] == 450
+    out = fees.derive(100, {"base.1040.tiers.essentials.amount": 4.5}, increment=25, schedule=blank)
+    assert out["base"]["1040"]["tiers"]["essentials"]["amount"] == 450
 
 
 # ── writing back ──────────────────────────────────────────────────────────
@@ -144,7 +148,7 @@ def test_the_write_keeps_every_comment(blank):
     fillable by hand. A YAML dump would produce a valid file that had lost
     all of them."""
     src = fees.SCHEDULE.read_text(encoding="utf-8")
-    out = fees.derive(175, {"base.1040": 2.5}, schedule=blank)
+    out = fees.derive(175, {"per_unit.local_return.amount": 2.5}, schedule=blank)
     written = fees.apply_to_text(src, blank, out)
     assert written.count("#") == src.count("#")
     assert "TO PRICE THE FIRM" in written
@@ -152,10 +156,10 @@ def test_the_write_keeps_every_comment(blank):
 
 def test_the_write_changes_only_what_was_priced(blank):
     src = fees.SCHEDULE.read_text(encoding="utf-8")
-    out = fees.derive(175, {"base.1040": 2.5}, schedule=blank)
+    out = fees.derive(175, {"per_unit.local_return.amount": 2.5}, schedule=blank)
     written = fees.apply_to_text(src, blank, out)
     diff = [(a, b) for a, b in zip(src.splitlines(), written.splitlines()) if a != b]
-    assert len(diff) == 1 and "1040" in diff[0][1]
+    assert len(diff) == 1 and "amount:" in diff[0][1]
 
 
 def test_what_was_written_parses_back_to_what_was_derived(blank):
@@ -172,11 +176,17 @@ def test_what_was_written_parses_back_to_what_was_derived(blank):
 
 
 def test_a_whole_number_writes_without_a_trailing_point_zero(blank):
-    """`450.0` in a fee schedule reads like a rounding error."""
+    """`450.0` in a fee schedule reads like a rounding error.
+
+    Written against a still-open amount rather than a package price: once the
+    firm has set a figure it is a plain number, and `_sub_once` refuses to
+    rewrite a plain number whose text occurs elsewhere in the file. That
+    refusal is the safety rule working, not a bug to route around.
+    """
     src = fees.SCHEDULE.read_text(encoding="utf-8")
-    out = fees.derive(180, {"base.1040": 2.5}, schedule=blank)
+    out = fees.derive(180, {"per_unit.local_return.amount": 2.5}, schedule=blank)
     written = fees.apply_to_text(src, blank, out)
-    assert '"1040":  450\n' in written
+    assert "amount: 450\n" in written and "amount: 450.0" not in written
 
 
 def test_an_ambiguous_rewrite_refuses_rather_than_editing_the_wrong_line(blank):
@@ -186,7 +196,7 @@ def test_an_ambiguous_rewrite_refuses_rather_than_editing_the_wrong_line(blank):
     before = {"base": {"1040": 450, "1065": 450}}
     after = {"base": {"1040": 500, "1065": 450}}
     with pytest.raises(fees.FeeBasisError):
-        fees._sub_once(src, "450", "500", "base.1040")
+        fees._sub_once(src, "450", "500", "base.1040.tiers.essentials.amount")
 
 
 # ── the prompts ───────────────────────────────────────────────────────────
@@ -196,7 +206,7 @@ def test_every_priceable_amount_has_a_prompt(blank):
     never be derived and nothing would say so."""
     derivable = {p for p, _ in fees.ITEMS}
     for path, _ in pricing.open_amounts(blank):
-        if path in fees.NOT_DERIVED:
+        if not fees.is_derivable(path):
             continue
         assert path in derivable, f"{path} has no prompt in fees.ITEMS"
 
@@ -260,11 +270,11 @@ def test_a_half_priced_schedule_yields_half_a_budget():
     which is the truth about it."""
     schedule = copy.deepcopy(pricing.load())
     before = set(fees.expected_hours(schedule))
-    fees._plant(schedule, "base.1040", 170)
+    fees._plant(schedule, "base.1040.tiers.essentials.amount", 170)
     budgets = fees.expected_hours(schedule)
-    assert set(budgets) == before | {"base.1040"}, \
+    assert set(budgets) == before | {"base.1040.tiers.essentials.amount"}, \
         "planting one price budgets exactly one more line"
-    assert budgets["base.1040"].hours == 1.25
+    assert budgets["base.1040.tiers.essentials.amount"].hours == 1.25
 
 
 def test_every_priceable_item_can_carry_a_budget():
@@ -281,6 +291,6 @@ def test_a_price_and_its_budget_agree_at_the_rate():
     """The round trip that does hold: hours -> price -> hours, when the hours
     were already a multiple of the booking unit."""
     rate, _, _ = fees.basis_of(pricing.load())
-    priced = fees.derive(rate, {"base.1040": 2.5}, schedule=copy.deepcopy(pricing.load()))
-    assert fees._dig(priced, "base.1040") == 2.5 * rate
-    assert fees.expected_hours(priced)["base.1040"].hours == 2.5
+    priced = fees.derive(rate, {"base.1040.tiers.essentials.amount": 2.5}, schedule=copy.deepcopy(pricing.load()))
+    assert fees._dig(priced, "base.1040.tiers.essentials.amount") == 2.5 * rate
+    assert fees.expected_hours(priced)["base.1040.tiers.essentials.amount"].hours == 2.5
