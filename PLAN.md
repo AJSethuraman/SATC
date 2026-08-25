@@ -312,6 +312,38 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
   every price assumes the client supplies what we asked for. The corollary, from the
   same week: where **our process** costs more than the return needs, that is a cost
   to fix, not a cost to bill (`docs/workflow-friction-log.md`).
+- **2026-08-25 — Pricing goes on a public page, for transparency.** The firm, against
+  a recommendation to show the number only at the end of the intake: *"i plan to
+  operate transparently and find it personally frustrating it is hard to know what
+  you will pay upfront on most tax sites."* The recommendation was about risk; the
+  decision is about positioning, which is the firm's call. Three consequences are now
+  requirements rather than good practice — nothing goes on the page that is not in
+  `fee-schedule.yaml`, the three unset entity bases say "quoted after a conversation"
+  rather than leaving a gap a visitor fills in, and the page must be checkable
+  against the schedule in under a minute. Instructions for the website agent are in
+  `docs/pricing-for-website.md`; the intake estimate is the second half of the same
+  idea, not a replacement for it.
+- **2026-08-25 — What a package covers prints on the estimate, and `includes:` is
+  followed rather than printed.** An estimate that names a package and a price and
+  nothing else asks the client to take the number on faith. "Everything in Standard"
+  is true on a price page where the reader can see Standard and meaningless on an
+  estimate where they see one package, so the ladder is data and the chain is
+  expanded. It carries the allowances down with it, so a package cannot claim to
+  include everything in the rung below and quietly allow less. Counted lines say
+  "after the first" for the same reason.
+- **2026-08-25 — Warn, do not derive.** Rentals outnumbering local returns is worth a
+  preparer's eye and is not a fact the software may infer: townships levy no income
+  tax, an out-of-state rental owes an Ohio city nothing, and deriving the count would
+  quietly bill for returns nobody has to file. That needed a third channel — until
+  now the interview could say HARD NO or nothing. `Outcome.flags` is preparer-facing,
+  changes no price, reaches no client document, and appears on every outcome
+  including the refused ones.
+- **2026-08-25 — Brokerage comes off the hourly list; an assumption and a price for
+  the same overrun is worse than either alone.** $45 a statement past the first, $95
+  for one that has to be keyed, and `assumed.brokerage` deleted rather than reworded.
+  The direction of travel is worth noticing: an assumption with an hourly consequence
+  is what a firm writes when it has not decided the price. What the deletion cost the
+  client — the estimate no longer warns that keying costs $95 — is open as T-14.
 - **2026-08-25 — The pricing write-up is retired; the sheet carries the reasoning.**
   Deferred twice, which was the signal. Every line on the price sheet now carries its
   own justification and `docs/pricing-and-deadlines-basis.md` holds the derivation, so
