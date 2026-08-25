@@ -28,6 +28,36 @@
 
 currency: USD
 
+# ── the time basis ────────────────────────────────────────────────────────
+#
+# Every amount in this file is also a TIME BUDGET. A price and a target rate
+# imply how long the work can take before it stops earning that rate, and that
+# number is more useful day to day than the price is: it is the thing you can
+# check yourself against while the work is in front of you.
+#
+# `cd client-documents && python cli.py hours` prints the budget for every
+# priced line, and flags any price that buys less than the firm's own minimum
+# billing increment.
+#
+# Set 25 August 2026 from the principal's own words. The rate is the one value
+# here he called soft — "we average about $150 an hour, at least for now" — so
+# every budget below is calibrated to an estimate, not to a fact. Change the
+# rate and every budget moves with it; that is the point of storing it once.
+basis:
+  rate: 150
+
+  # Time rounds. Invoices do not.
+  #
+  # `round_time_to` is the unit time is recorded in, so a budget is expressed
+  # in units that can actually be booked — 1.25 h, never 1.13 h.
+  #
+  # `minimum_increment` is the floor: no piece of work is billed at less than
+  # this. A price that buys less than the floor is priced below what the firm
+  # says its smallest possible piece of work costs, which is worth knowing
+  # about even when the line is a small add-on inside a bundled quote.
+  round_time_to: 0.25
+  minimum_increment: 0.25
+
 # ── how the base fee relates to the counts ────────────────────────────────
 #
 # The one structural decision, and it changes every number below it.

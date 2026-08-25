@@ -12,6 +12,7 @@ which is a pricing policy — must stay off until asked for.
 
 from __future__ import annotations
 
+import copy
 import sys
 from pathlib import Path
 
@@ -195,3 +196,73 @@ def test_the_example_hours_are_labelled_fictional():
     one copy-paste from becoming the firm's prices."""
     head = EXAMPLE_HOURS.read_text(encoding="utf-8")[:200].upper()
     assert "EXAMPLE ONLY" in head and "FICTIONAL" in head
+
+
+# ── what a price buys, in hours ───────────────────────────────────────────
+#
+# The inverse of derivation, and the half that gets used daily: `price` is run
+# once when the firm sets its fees; `hours` is run whenever someone wants to
+# know how long a job has before it stops earning its rate.
+
+def test_the_rate_comes_from_the_schedule_not_the_caller():
+    """A budget that depended on what the caller typed would not be an
+    expectation. It would be an opinion held once."""
+    rate, step, floor = fees.basis_of(pricing.load())
+    assert rate > 0 and step > 0
+    assert floor > 0, "with no floor, nothing can ever be flagged as under it"
+
+
+def test_a_schedule_with_no_rate_yields_no_budgets_and_says_so():
+    with pytest.raises(fees.FeeBasisError, match="basis.rate"):
+        fees.basis_of({"base": {"1040": 170}})
+
+
+def test_hours_are_rounded_to_the_unit_time_is_booked_in():
+    """1.133 h cannot be entered on a timesheet; 1.25 can."""
+    b = fees.hours_for(170, 150, step=0.25)
+    assert b.raw == pytest.approx(170 / 150)
+    assert b.hours == 0.25 * round((170 / 150) / 0.25) == 1.25
+
+
+def test_rounding_is_to_nearest_not_up():
+    """Rounding a budget up hands back time the price never paid for.
+    $800 / $150 is 5.33 h, which is nearer 5.25 than 5.50."""
+    assert fees.hours_for(800, 150).hours == 5.25
+
+
+def test_the_floor_is_reported_and_never_applied():
+    """A $30 line does not become a $37.50 line because the firm has a
+    fifteen-minute minimum. It becomes a line worth asking about."""
+    b = fees.hours_for(30, 150, floor=0.25)
+    assert b.under_floor is True
+    assert b.raw == pytest.approx(0.2), "the honest number survives the flag"
+    assert fees.hours_for(60, 150, floor=0.25).under_floor is False
+
+
+def test_a_half_priced_schedule_yields_half_a_budget():
+    """Absent, not zero. A schedule that is partly priced is partly budgeted,
+    which is the truth about it."""
+    schedule = copy.deepcopy(pricing.load())
+    fees._plant(schedule, "base.1040", 170)
+    budgets = fees.expected_hours(schedule)
+    assert set(budgets) == {"base.1040"}
+    assert budgets["base.1040"].hours == 1.25
+
+
+def test_every_priceable_item_can_carry_a_budget():
+    """Whatever `price` can set, `hours` can read back. If ITEMS grows and the
+    budget side is not taught about it, the new line would silently have no
+    expectation attached."""
+    schedule = copy.deepcopy(pricing.load())
+    for path, _ in fees.ITEMS:
+        fees._plant(schedule, path, 300)
+    assert set(fees.expected_hours(schedule)) == {p for p, _ in fees.ITEMS}
+
+
+def test_a_price_and_its_budget_agree_at_the_rate():
+    """The round trip that does hold: hours -> price -> hours, when the hours
+    were already a multiple of the booking unit."""
+    rate, _, _ = fees.basis_of(pricing.load())
+    priced = fees.derive(rate, {"base.1040": 2.5}, schedule=copy.deepcopy(pricing.load()))
+    assert fees._dig(priced, "base.1040") == 2.5 * rate
+    assert fees.expected_hours(priced)["base.1040"].hours == 2.5

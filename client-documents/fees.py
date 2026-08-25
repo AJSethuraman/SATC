@@ -24,6 +24,7 @@ invented in a config file is a policy nobody decided.
 from __future__ import annotations
 
 import copy
+import typing
 from pathlib import Path
 
 import yaml
@@ -149,6 +150,88 @@ def derive(rate, hours: dict[str, float], *, increment: float = 0,
             raise FeeBasisError(f"hours for {path} are negative.")
         _plant(out, path, round(round_to(h * rate, increment), 2))
 
+    return out
+
+
+# ── the other direction: what a price buys ────────────────────────────────
+#
+# `derive` turns hours into prices, for a firm that knows its own work and not
+# its own prices. This turns prices back into hours, which is the question that
+# actually comes up once the prices exist: *how long have I got*.
+#
+# The two are not a round trip and are not meant to be. `derive` takes an
+# estimate of effort and produces a price; this takes a price — whatever its
+# provenance, and the firm's real ones came off a workbook, not off a stopwatch
+# — and produces the budget that price implies at the target rate.
+
+
+class Budget(typing.NamedTuple):
+    """What one priced line buys, in hours."""
+
+    raw: float          # amount / rate, unrounded — the honest number
+    hours: float        # raw, rounded to the unit time is booked in
+    under_floor: bool   # raw is less than the firm's minimum billing increment
+
+    def __str__(self) -> str:
+        return f"{self.hours:.2f} h" + (" (under floor)" if self.under_floor else "")
+
+
+def basis_of(schedule: dict) -> tuple[float, float, float]:
+    """`(rate, round_time_to, minimum_increment)` from the schedule's own basis.
+
+    Read from the file rather than passed in: a budget that depended on what
+    the caller happened to type would not be an expectation, it would be an
+    opinion held once. Every caller gets the same rate the firm set.
+    """
+    basis = schedule.get("basis") or {}
+    rate = basis.get("rate")
+    if not isinstance(rate, (int, float)) or rate <= 0:
+        raise FeeBasisError(
+            "the fee schedule has no usable `basis.rate`, so no price in it "
+            "implies an hour budget. Set it in registry/fee-schedule.yaml."
+        )
+    step = basis.get("round_time_to") or 0.25
+    floor = basis.get("minimum_increment") or 0.0
+    return float(rate), float(step), float(floor)
+
+
+def hours_for(amount, rate: float, *, step: float = 0.25,
+              floor: float = 0.25) -> Budget:
+    """The hours `amount` buys at `rate`.
+
+    Rounded to the NEAREST step, not up: the budget is what the price supports,
+    and rounding it up would quietly hand back time the price never paid for.
+    The floor is reported, never applied — a $5 line does not become a $37.50
+    line because the firm has a fifteen-minute minimum; it becomes a line worth
+    asking about.
+    """
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        raise FeeBasisError(f"{amount!r} is not an amount, so it buys no hours.")
+    if amount < 0:
+        raise FeeBasisError(f"the amount is {amount}; a negative price buys nothing.")
+    raw = amount / rate
+    hours = round(raw / step) * step if step else raw
+    return Budget(raw=raw, hours=round(hours, 4), under_floor=raw < floor)
+
+
+def expected_hours(schedule: dict | None = None) -> dict[str, Budget]:
+    """Every priced line in the schedule -> the budget it implies.
+
+    Lines still carrying a `[CONFIRM:` are absent rather than zero. A schedule
+    that is half-priced yields half a budget, which is the truth about it.
+    """
+    schedule = pricing.load() if schedule is None else schedule
+    rate, step, floor = basis_of(schedule)
+    out: dict[str, Budget] = {}
+    for path, _ in ITEMS:
+        try:
+            amount = _dig(schedule, path)
+        except FeeBasisError:
+            continue
+        if isinstance(amount, (int, float)):
+            out[path] = hours_for(amount, rate, step=step, floor=floor)
     return out
 
 

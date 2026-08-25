@@ -682,6 +682,59 @@ def _ask_hours(label: str) -> float | None:
         return h
 
 
+def cmd_hours(args) -> int:
+    """What each price buys, in hours, at the rate the schedule itself carries.
+
+    The inverse of `price`, and the one people actually use: `price` is run
+    once when the firm sets its fees, and this is run whenever someone wants to
+    know how long they have got before a job stops earning its rate.
+    """
+    schedule = pricing.load()
+    try:
+        rate, step, floor = fees.basis_of(schedule)
+    except fees.FeeBasisError as exc:
+        print(f"  {exc}")
+        return 1
+
+    budgets = fees.expected_hours(schedule)
+    labels = dict(fees.ITEMS)
+
+    print(f"\nWhat each price buys, at ${rate:,.0f}/h")
+    print(f"  time booked to the nearest {step:g} h, minimum {floor:g} h\n")
+
+    if not budgets:
+        print("  Nothing is priced yet, so nothing has a budget.")
+        print("  Every amount in registry/fee-schedule.yaml is still [CONFIRM:].")
+        print("  `python cli.py price` sets them; the budgets follow on their own.\n")
+        return 0
+
+    width = max(len(labels[p]) for p in budgets)
+    under = []
+    for path, _ in fees.ITEMS:
+        b = budgets.get(path)
+        if b is None:
+            continue
+        amount = fees._dig(schedule, path)
+        flag = "  <-- under the minimum increment" if b.under_floor else ""
+        print(f"  ${amount:>7,.0f}   {b.hours:>5.2f} h   {labels[path]:<{width}}{flag}")
+        if b.under_floor:
+            under.append(path)
+
+    missing = len(fees.ITEMS) - len(budgets)
+    print()
+    if missing:
+        print(f"  {missing} item(s) still unpriced, so still without a budget.")
+    if under:
+        print(f"  {len(under)} price(s) buy less than {floor:g} h — less than the")
+        print(f"  smallest amount of time the firm bills. That is worth a look:")
+        print(f"  either the work really is that quick, or the line is subsidised")
+        print(f"  by whatever it is attached to.")
+    if not missing and not under:
+        print("  Every line is priced and every line clears the floor.")
+    print()
+    return 0
+
+
 def cmd_price(args) -> int:
     """Price the firm from what its work takes, rather than from thin air."""
     if args.list:
@@ -828,6 +881,9 @@ def main(argv=None) -> int:
     pr.add_argument("--write", metavar="PATH", help="write the result; prints to stdout otherwise")
     pr.add_argument("--list", action="store_true", help="the priceable items and what each means")
     pr.set_defaults(fn=cmd_price)
+
+    hr = sub.add_parser("hours", help="what each price buys, in hours, at your rate")
+    hr.set_defaults(fn=cmd_hours)
 
     d = sub.add_parser("demo", help="the whole chain end to end, in one command")
     d.add_argument("--out", default="out/demo")
