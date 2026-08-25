@@ -879,14 +879,73 @@ def test_an_assumption_is_not_printed_for_a_form_nobody_is_filing():
 
 def test_foreign_accounts_are_counted_rather_than_charged_once():
     """The firm already bills these per account: "i have been doing this stuff
-    with a client for awhile and just charge per account"."""
+    with a client for awhile and just charge per account".
+
+    Priced against a schedule whose cap IS set, because the real one's is not
+    yet and the thing under test here is the counting, not the cap.
+    """
     s = pricing.load()
+    s["per_unit"]["foreign_account"]["cap_units"] = 6
     items = pricing.line_items(
         {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
          "count_foreign_accounts": 3}, s)
     assert [i["Service"] for i in items] == ["Essentials",
                                              "Foreign account reporting"]
     assert items[1]["Amount"] == "$150.00"
+
+
+# ── the cap ───────────────────────────────────────────────────────────────
+
+def test_a_capped_line_stops_climbing():
+    """Asked for by the firm, 25 Aug 2026. Every other line on the sheet has
+    an allowance or a package around it; this one had neither."""
+    s = pricing.load()
+    s["per_unit"]["foreign_account"]["cap_units"] = 4
+    items = pricing.line_items(
+        {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+         "count_foreign_accounts": 12}, s)
+    line = [i for i in items if i["Service"] == "Foreign account reporting"][0]
+    assert line["Amount"] == "$200.00"          # 4 x 50, not 12 x 50
+    assert "capped at 4" in line["Detail"]
+    assert "4 ×" in line["Detail"], "the multiplier shows what was charged"
+
+
+def test_a_cap_that_is_a_decision_but_not_yet_a_number_refuses():
+    """Not the same as uncapped, and must not price as though it were.
+
+    The firm has ruled that this line stops somewhere. Quoting the uncapped
+    total in the meantime is the answer they rejected, delivered silently.
+    """
+    s = pricing.load()
+    assert pricing.is_open(s["per_unit"]["foreign_account"]["cap_units"]), (
+        "this test is about the real schedule's open cap; set it and delete this"
+    )
+    items = pricing.line_items(
+        {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+         "count_foreign_accounts": 5}, s)
+    total = pricing.estimate_total(items, s)
+    assert total.startswith("[CONFIRM:")
+    assert "stops climbing" in total, "the total carries the actual question"
+
+
+def test_one_unit_prices_normally_under_an_open_cap():
+    """One account cannot be over any cap worth setting, so the open value
+    cannot change that client's price and is not worth refusing over."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+         "count_foreign_accounts": 1}, s)
+    assert pricing.estimate_total(items, s) == "$250.00"
+
+
+def test_a_line_under_its_cap_says_nothing_about_one():
+    s = pricing.load()
+    s["per_unit"]["foreign_account"]["cap_units"] = 6
+    line = [i for i in pricing.line_items(
+        {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+         "count_foreign_accounts": 2}, s)
+        if i["Service"] == "Foreign account reporting"][0]
+    assert "capped" not in line["Detail"]
 
 
 def test_ticking_foreign_accounts_does_not_also_charge_a_flat_form():
@@ -958,16 +1017,79 @@ def test_a_statement_that_must_be_keyed_is_its_own_line():
     assert pricing.estimate_total(items, s) == "$420.00"      # 325 + 95
 
 
-def test_brokerage_no_longer_states_an_assumption_it_now_prices():
-    """The stale half of the same ruling.
-
-    `assumed.brokerage` said brokerage sat inside the base fee at any volume
-    and billed the overrun hourly. All of that is now wrong, and an assumption
-    plus a price for the same overrun is worse than either alone: the client
-    reads "included" and then gets an invoice line, and nobody can say
-    afterwards which one was operative.
-    """
+def test_the_old_brokerage_assumption_is_gone_not_reworded():
+    """`assumed.brokerage` said brokerage sat inside the base fee at any
+    volume and billed the overrun hourly. All three claims are now wrong."""
     s = pricing.load()
     assert "brokerage" not in (s.get("assumed") or {})
     said = pricing.assumptions({"federal_form": "1040"}, s)
-    assert not any("1099-B" in t for t in said)
+    assert not any("imports cleanly" in t for t in said)
+    assert not any("more than one broker" in t for t in said)
+
+
+# ── beyond: priced ────────────────────────────────────────────────────────
+
+def test_a_priced_boundary_names_the_number_not_the_rate():
+    """The firm, 25 Aug 2026, asked for exactly this:
+
+        "this should be more like - we will tell you it's going to be $95 more
+         and we agree now that we know?"
+
+    A third consequence, and the best of the three. Hourly gives a client a
+    rate and leaves them unable to work out the total; a re-quote stops the
+    job; this gives them the number before the work and agrees it at the
+    moment it is found.
+    """
+    s = pricing.load()
+    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
+            if t.startswith("Brokerage keying")]
+    assert len(said) == 1
+    t = said[0]
+    assert "$95.00" in t
+    assert "an hour" not in t
+    assert "agree it with you then" in t
+
+
+def test_a_priced_boundary_reads_its_number_off_the_line_that_charges_it():
+    """Two places holding the same number is how an estimate ends up
+    promising $95 while the invoice bills $110."""
+    s = pricing.load()
+    s["per_unit"]["brokerage_keyed"]["amount"] = 110
+    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
+            if t.startswith("Brokerage keying")][0]
+    assert "$110.00" in said
+
+
+def test_a_priced_boundary_that_names_no_line_refuses():
+    s = pricing.load()
+    del s["assumed"]["brokerage_keying"]["beyond_price_from"]
+    with pytest.raises(pricing.PricingError) as exc:
+        pricing.assumptions({"federal_form": "1040"}, s)
+    assert "invent a number" in str(exc.value)
+
+
+def test_a_priced_boundary_pointing_at_nothing_refuses():
+    s = pricing.load()
+    s["assumed"]["brokerage_keying"]["beyond_price_from"] = "not_a_line"
+    with pytest.raises(pricing.PricingError) as exc:
+        pricing.assumptions({"federal_form": "1040"}, s)
+    assert "the invoice cannot keep" in str(exc.value)
+
+
+def test_a_priced_boundary_whose_line_has_no_amount_refuses():
+    """Promising a client a number requires having one."""
+    s = pricing.load()
+    s["per_unit"]["brokerage_keyed"]["amount"] = "[CONFIRM: what keying costs]"
+    with pytest.raises(pricing.PricingError) as exc:
+        pricing.assumptions({"federal_form": "1040"}, s)
+    assert "before promising a client a number" in str(exc.value)
+
+
+def test_requote_is_still_refused():
+    """The vocabulary got wider by exactly one word, and not that one. A
+    re-quote stops the job and opens a negotiation the firm did not want."""
+    s = pricing.load()
+    s["assumed"]["cleanup"]["beyond"] = "requote"
+    with pytest.raises(pricing.PricingError) as exc:
+        pricing.assumptions({"federal_form": "1040"}, s)
+    assert "ruled out re-quoting" in str(exc.value)

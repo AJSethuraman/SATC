@@ -92,7 +92,11 @@ ITEMS: list[tuple[str, str]] = [
 # and `base_covers` says what the base already includes. Anything else that is
 # open and not listed in ITEMS is a genuine gap and the tests say so.
 NOT_DERIVED = {"base_covers"}
-NOT_DERIVED_SUFFIXES = (".gate",)
+# `.cap_units` is a COUNT, not an amount: how many of a thing the firm is
+# willing to charge for before the line stops climbing. No number of hours can
+# answer that -- it is a judgement about what a client should be asked to pay,
+# which is the same reason a gate is not derivable either.
+NOT_DERIVED_SUFFIXES = (".gate", ".cap_units")
 
 
 def is_derivable(path: str) -> bool:

@@ -322,6 +322,11 @@ per_unit:
     count_from: count_brokerages_keyed
     label: "Brokerage entered by hand"
     detail: "Per statement that cannot be summarised"
+    # How this line is named INSIDE a sentence, when an assumption points at
+    # it to say what its own overrun costs. The assumption's `trigger` has
+    # already named the situation -- "if a statement has to be entered by
+    # hand" -- so this refers back to it rather than saying it again.
+    per_each: "that statement"
     # Signed 25 Aug 2026. What flips it, settled the same day: the parts of a
     # 1099-B that cannot be summarised. Where the broker reported basis to the
     # IRS and nothing needs adjusting, the totals go in and the statement is
@@ -338,6 +343,19 @@ per_unit:
     count_from: count_foreign_accounts
     label: "Foreign account reporting"
     detail: "Per account"
+    # THE ONE LINE ON THIS SHEET THAT RUNS TO INFINITY, until this is set.
+    #
+    # The firm asked for a cap on 25 August 2026 and did not name the number,
+    # so the number is the question and the mechanism is not. One FBAR can
+    # list a dozen accounts; at $50 each that is $600 for a form, which is not
+    # what "nothing huge though" described. Past the cap the line stops
+    # climbing -- the client is not charged for account thirteen.
+    #
+    # Until it is a number: a client with ONE account prices normally (one
+    # account cannot be over any cap worth setting), and a client with more
+    # carries this question to their line, so the estimate refuses rather than
+    # quoting the uncapped total the firm has already rejected.
+    cap_units: "[CONFIRM: how many foreign accounts before the line stops climbing]"
     # Signed 25 Aug 2026 at the per-form price, because that is already how
     # the firm bills it: "i have been doing this stuff with a client for
     # awhile and just charge per account". A foreign COMPANY is not this line
@@ -505,11 +523,33 @@ assumed:
   # say afterwards which one was operative. So it came off rather than being
   # reworded.
   #
-  # WHAT CAME OFF WITH IT, and it is a real loss: the estimate no longer warns
-  # a client that keying costs $95 in the common case where nobody knows yet
-  # whether their statement can be summarised. See T-14 in
-  # docs/pricing-open-threads.md -- stating a priced boundary up front needs a
-  # mechanism this file does not have, and inventing one is the firm's call.
+  # WHAT CAME OFF WITH IT was the warning: in the common case nobody knows yet
+  # whether a statement can be summarised, so the estimate went out silent and
+  # the $95 met the client on the invoice. That was T-14, and the firm settled
+  # it the same evening by describing the thing it wanted:
+  #
+  #   "this should be more like - we will tell you it's going to be $95 more
+  #    and we agree now that we know?"
+  #
+  # So the assumption comes back below with a PRICE rather than a rate. It is
+  # not the old one reworded: the old one claimed brokerage was inside the base
+  # fee at any volume and billed the overrun hourly, and all of that was wrong.
+  brokerage_keying:
+    label: "Brokerage keying"
+    assumes: "each 1099-B can be summarised rather than keyed line by line"
+    # Not inside the base: the first statement is inside the PACKAGE, which is
+    # a different claim and one the covers list already makes.
+    inside_base: false
+    trigger: "a statement has to be entered by hand"
+    # The third consequence, and the one the firm asked for. Not hourly, which
+    # tells a client a rate and leaves them unable to work out the total; not a
+    # re-quote, which stops the job. A named price, said up front and agreed at
+    # the moment it is found.
+    beyond: priced
+    # Read from the line that charges it. Typing 95 here as well is how an
+    # estimate ends up promising $95 while the invoice bills $110.
+    beyond_price_from: brokerage_keyed
+
   foreign_company:
     label: "Foreign entities"
     # Signed 25 Aug 2026, alongside the per-account price: foreign ACCOUNTS

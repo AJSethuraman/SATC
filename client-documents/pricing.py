@@ -61,6 +61,37 @@ def _line(service: str, detail: str, amount, code: str) -> dict:
             "Amount": m.money(amount, code), "_raw": amount}
 
 
+def _capped(unit: dict, count: int) -> tuple[int, object]:
+    """How many units are actually charged, and whether a cap did the work.
+
+    Returns `(billed, capped)`. `capped` is False when no cap applied, True
+    when one did, and a `[CONFIRM:` string when the schedule says a line IS
+    capped without saying where -- which is not the same as uncapped, and must
+    not quietly price as though it were.
+
+    The firm asked for this on 25 August 2026 against `foreign_account`, and
+    the reason is worth keeping: the price was set from their own practice
+    with one client -- "i have been doing this stuff with a client for awhile
+    and just charge per account - NOTHING HUGE THOUGH" -- and then written by
+    me as a line that runs to infinity. One FBAR can list a dozen accounts.
+    The keying is real work and it does scale, but not linearly: the second
+    account at the same bank is a row, not a filing.
+
+    Every other line on this sheet has either an allowance or a package around
+    it. A cap is what those are, for a line that has neither.
+    """
+    cap = unit.get("cap_units")
+    if cap is None:
+        return count, False
+    if is_open(cap):
+        # One unit cannot be over any cap worth setting, so the open value
+        # cannot change that client's price and is not worth refusing over.
+        return count, (cap if count > 1 else False)
+    if count > cap:
+        return int(cap), True
+    return count, False
+
+
 def _resolve_tier(unit: dict, answers: dict) -> dict:
     """A tiered item, reduced to the flat one its answer selects.
 
@@ -537,8 +568,18 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
 
         unit = _resolve_tier(unit, answers)
         amount = unit["amount"]
-        total = amount if is_open(amount) else amount * count
+        billed, capped = _capped(unit, count)
+        total = amount if is_open(amount) else amount * billed
+        if is_open(capped):
+            # The cap exists as a decision and not yet as a number, and this
+            # client has enough units for the difference to show. Carry the
+            # question to the line rather than quoting them the uncapped
+            # total, which is the answer the firm has already rejected.
+            total = capped
         detail = unit.get("detail", "")
+        if capped is True:
+            detail = (f"{detail}, capped at {unit['cap_units']}" if detail
+                      else f"Capped at {unit['cap_units']}")
         # Say that the first ones were free. A client who is told their
         # package includes a state return and then sees a "State return"
         # line on the same page reasonably concludes they were charged for
@@ -550,9 +591,9 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         elif free > 1:
             detail = (f"{detail}, after the {free} included" if detail
                       else f"After the {free} included")
-        if count > 1:
+        if billed > 1:
             each = amount if is_open(amount) else m.money(amount, code)
-            detail = f"{detail} — {count} × {each}" if detail else f"{count} × {each}"
+            detail = f"{detail} — {billed} × {each}" if detail else f"{billed} × {each}"
         items.append(_line(unit["label"], detail, total, code))
 
     # One price per named form. Ticked from a multi-select, priced flat, and
@@ -597,7 +638,7 @@ def assumptions(answers: dict, schedule: dict | None = None) -> list[str]:
     """
     s = pricing_schedule(schedule)
     rate = (s.get("basis") or {}).get("rate")
-    out = [_assumption(spec, rate, check_beyond=True)
+    out = [_assumption(spec, rate, schedule=s, check_beyond=True)
            for _, spec in (s.get("assumed") or {}).items()]
 
     # And one per form the client actually ticked. The per-form rule IS its
@@ -607,11 +648,12 @@ def assumptions(answers: dict, schedule: dict | None = None) -> list[str]:
     # noise is how a client learns to skip this block.
     for _, spec in _forms_on(answers, s):
         if spec.get("assumes"):
-            out.append(_assumption(spec, rate))
+            out.append(_assumption(spec, rate, schedule=s))
     return out
 
 
-def _assumption(spec: dict, rate, *, check_beyond: bool = False) -> str:
+def _assumption(spec: dict, rate, *, schedule: dict | None = None,
+                check_beyond: bool = False) -> str:
     """One boundary, in words a client reads before the work rather than after.
 
     The label leads rather than acting as the subject, or every sentence says
@@ -635,18 +677,82 @@ def _assumption(spec: dict, rate, *, check_beyond: bool = False) -> str:
         )
     where = ("and includes it on that basis" if spec.get("inside_base")
              else "and does not include work beyond it")
-    if check_beyond and spec.get("beyond") != "hourly":
+
+    beyond = spec.get("beyond", "hourly")
+    if check_beyond and beyond not in _BEYOND:
         raise PricingError(
-            f"{label} says work beyond the assumption is "
-            f"{spec.get('beyond')!r}. Only 'hourly' is supported; the firm "
-            f"ruled out re-quoting deliberately."
+            f"{label} says work beyond the assumption is {beyond!r}. "
+            f"Supported: {sorted(_BEYOND)}. The firm ruled out re-quoting "
+            f"deliberately, and a consequence nobody recognises would print "
+            f"as an hourly one."
         )
-    rate_txt = f" at ${rate:,.0f} an hour" if isinstance(rate, (int, float)) else ""
-    return (
-        f"{label} \u2014 this estimate assumes {assumes}, {where}. "
-        f"If {trigger}, the additional time is billed{rate_txt} as it is "
-        f"worked, and we will tell you as soon as we see it."
-    )
+
+    if beyond == "priced":
+        consequence = _priced_consequence(label, spec, schedule or {})
+    else:
+        rate_txt = f" at ${rate:,.0f} an hour" if isinstance(rate, (int, float)) else ""
+        consequence = (f"the additional time is billed{rate_txt} as it is "
+                       f"worked, and we will tell you as soon as we see it")
+
+    return (f"{label} \u2014 this estimate assumes {assumes}, {where}. "
+            f"If {trigger}, {consequence}.")
+
+
+# What can happen past an assumption. Deliberately short, and every entry is a
+# decision the firm made rather than a shape the code allows.
+#
+#   hourly  the fixed price stops applying and the meter runs
+#   priced  the overrun has a NAMED PRICE, already on this sheet, told to the
+#           client up front and confirmed with them at the moment we find it
+#
+# `requote` is absent on purpose: it stops the job and opens a negotiation the
+# firm did not want. A test refuses it, and refusing it is the point.
+_BEYOND = {"hourly", "priced"}
+
+
+def _priced_consequence(label: str, spec: dict, schedule: dict) -> str:
+    """The sentence for a boundary whose consequence is a price, not a rate.
+
+    The firm, 25 August 2026, when asked whether this was worth having:
+
+        "this should be more like - we will tell you it's going to be $95 more
+         and we agree now that we know?"
+
+    That is a third thing, and the best of the three. Hourly tells a client a
+    rate and leaves them unable to work out the total. A re-quote stops the
+    job. This tells them the NUMBER before the work, and confirms it with them
+    at the moment it is found -- so nothing lands on the invoice unannounced
+    and nothing has to be renegotiated.
+
+    The price is read from the per-unit line that charges it rather than typed
+    here, because two places holding the same number is how an estimate ends
+    up promising $95 while the invoice bills $110.
+    """
+    key = spec.get("beyond_price_from")
+    if not key:
+        raise PricingError(
+            f"{label} says the consequence is a price but does not say which "
+            f"line prices it. Name it in `beyond_price_from`, or the sentence "
+            f"has to invent a number."
+        )
+    unit = (schedule.get("per_unit") or {}).get(key)
+    if not isinstance(unit, dict):
+        raise PricingError(
+            f"{label} points `beyond_price_from` at {key!r}, which is not a "
+            f"per-unit line. A boundary that names a price nothing charges is "
+            f"a promise the invoice cannot keep."
+        )
+    amount = unit.get("amount")
+    if amount is None or is_open(amount):
+        raise PricingError(
+            f"{label} prices its overrun from per_unit.{key}, which has no "
+            f"amount set. Set it before promising a client a number."
+        )
+    money = m.money(amount, schedule.get("currency", "USD"))
+    each = unit.get("per_each") or "that one"
+    return (f"{each} is {money} \u2014 we will tell you as soon as we see it "
+            f"and agree it with you then, rather than adding it to your bill "
+            f"unannounced")
 
 
 def pricing_schedule(schedule: dict | None) -> dict:
@@ -665,9 +771,14 @@ def estimate_total(items: list[dict], schedule: dict | None = None) -> str:
 
     unpriced = [i for i in items if is_open(i["_raw"])]
     if unpriced:
-        names = ", ".join(i["Service"] for i in unpriced)
-        return (f"[CONFIRM: {len(unpriced)} line(s) have no price in "
-                f"fee-schedule.yaml — {names}]")
+        # Name the line AND carry its own reason. "No price" was true when
+        # every open value was a missing amount; a line can now be open
+        # because its CAP is unset, which is a different question with a
+        # different answer, and a total that flattens the two sends whoever
+        # reads it to the wrong part of the file.
+        why = "; ".join(f"{i['Service']} — {i['_raw']}" for i in unpriced)
+        return (f"[CONFIRM: {len(unpriced)} line(s) cannot be priced from "
+                f"fee-schedule.yaml. {why}]")
     return m.money(sum(i["_raw"] for i in items), code)
 
 
