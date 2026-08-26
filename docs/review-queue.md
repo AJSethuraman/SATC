@@ -1,4 +1,13 @@
-# What still needs the firm — 26 August 2026
+# SAT-C — review queue
+
+**The decisions room is where these are answered:**
+https://claude.ai/code/artifact/774c0626-da6e-4d6b-83d3-4b4b3003cc36
+
+Six decisions, each with where it stands, what I would do, and named options.
+Pick one on each and save; I read the page back. The firm, 26 August 2026:
+*"as always - decisions and all we need to discuss should be given in
+interview mode."* This file is the long form behind that page, not a
+substitute for it.
 
 **The sign-off room, round four** — every note from round three applied, every
 document re-rendered from it, and the organizer question answered:
