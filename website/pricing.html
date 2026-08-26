@@ -227,26 +227,26 @@ footer {
        nothing about them is hardcoded here. -->
   <ul class="tiers" id="tiers"></ul>
   <p class="included" id="included"></p>
-  <p>Prices assume your records arrive complete. Anything past that is priced below, and it&#39;s on your estimate before you agree to it.</p>
+  <p>Prices assume your records arrive complete. Anything else is priced below, and it shows on your estimate before you agree to it.</p>
 
   <h2>What costs extra</h2>
-  <p>Only past what your package already covers.</p>
+  <p>Only what your package doesn&#39;t already cover.</p>
   <div class="rows" id="extras"></div>
 
   <h2>The $50 situations</h2>
-  <p>One price, whichever it is.</p>
+  <p>One price for any of them.</p>
   <ul class="sits" id="sits"></ul>
 
   <h2>Businesses</h2>
-  <p>Partnerships, S corporations and C corporations are quoted after a conversation. An entity return moves too much on the number of owners, whether there&#39;s a balance sheet, and whether the books arrive reconciled for a number here to mean anything.</p>
+  <p>Partnerships, S corporations and C corporations are quoted after a conversation. Too much depends on how many owners there are, whether you file a balance sheet, and what shape the books are in.</p>
 
   <h2>What&#39;s hourly</h2>
   <p id="hourly"></p>
   <ul class="sits" id="hourlyApplies"></ul>
-  <p style="margin-top:14px">Past the assumptions, the fixed price stops applying — hourly happens instead of it, not on top of it. Your estimate says what it assumes before any work starts.</p>
+  <p style="margin-top:14px">Hourly replaces the fixed price rather than being added to it. Your estimate says what it assumes before any work starts.</p>
 
   <h2>Estimates</h2>
-  <p>These are prices, not a quote. You get an estimate in writing that lists your own lines and totals them, and the engagement letter is what governs the work. If something turns up that wasn&#39;t apparent, we tell you before we do it.</p>
+  <p>These are prices, not a quote. You get an estimate in writing with your own lines on it, and the engagement letter governs the work. If something turns up we didn&#39;t expect, you hear about it before we do it.</p>
 
   <h2>Where to start</h2>
   <p>Tell us about your situation and we&#39;ll come back with an estimate.</p>
@@ -288,7 +288,7 @@ footer {
   el('sits').innerHTML = P.situations.map(function (s) { return '<li>' + s + '</li>'; }).join('');
 
   el('hourly').innerHTML = '<strong>' + money(P.hourly.rate) + ' an hour</strong>, billed to ' +
-    P.hourly.billedIn + '. Three things are hourly because nobody can size them before seeing the work:';
+    P.hourly.billedIn + '. Three things are hourly, because we can&#39;t price them until we see them:';
   el('hourlyApplies').innerHTML = P.hourlyApplies.map(function (s) { return '<li>' + s + '</li>'; }).join('');
 
   var y = el('year');

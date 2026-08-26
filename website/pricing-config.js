@@ -38,7 +38,7 @@ window.SATC_PRICING = {
 
   /* Load-bearing: without it every per-item price below reads as double
      charging. Printed wherever a package price is. */
-  includedInEvery: 'Every package covers your federal return, your first state return and your first local return.',
+  includedInEvery: 'Every package covers your federal return, plus your first state and first local return.',
 
   /* Cheapest to dearest — also the order the engine considers them in, and the
      order they must display in. */
@@ -47,19 +47,19 @@ window.SATC_PRICING = {
       id: 'starter',
       name: 'Simple Filer',
       price: 100,
-      who: 'Wages only, and nothing else arrived.',
+      who: 'Just a W&#8209;2.',
       covers: [
         'One or two W&#8209;2s',
         'The standard deduction',
-        'A 1098&#8209;T education credit you claim for yourself',
-        'Children — a dependent on its own doesn&#39;t move you up'
+        'Dependents',
+        'A 1098&#8209;T education credit for yourself'
       ]
     },
     {
       id: 'essentials',
       name: 'Essentials',
       price: 200,
-      who: 'A straightforward return, no schedules.',
+      who: 'No schedules.',
       covers: [
         'Wages, interest and dividends',
         'The standard deduction'
@@ -72,20 +72,21 @@ window.SATC_PRICING = {
       who: 'You have schedules.',
       covers: [
         'Everything in Essentials',
-        'Itemised deductions',
+        'Itemized deductions',
         'One brokerage statement',
         'Up to two K&#8209;1s',
-        'A gig Schedule C on standard mileage'
+        'A gig Schedule C, standard mileage'
       ]
     },
     {
       id: 'business',
       name: 'Business',
       price: 500,
-      who: 'You run something.',
+      who: 'You run a business.',
       covers: [
         'Everything in Standard',
-        'One full Schedule C — actual expenses, a home office, depreciation, inventory or employees'
+        'One full Schedule C',
+        'Actual expenses, a home office, depreciation, inventory or payroll'
       ]
     }
   ],
@@ -101,16 +102,16 @@ window.SATC_PRICING = {
   extras: [
     { label: 'Each state return after the first',                      amount: 50 },
     { label: 'Each local return after the first',                      amount: 35 },
-    { label: 'Rental schedule, covering up to three properties',       amount: 145 },
-    { label: 'Each rental property past those three',                  amount: 45 },
-    { label: 'Each K&#8209;1 past the two Standard covers',            amount: 15 },
+    { label: 'Rental schedule, up to three properties'    ,       amount: 145 },
+    { label: 'Each rental property after three'      ,                  amount: 45 },
+    { label: 'Each K&#8209;1 after the first two'    ,            amount: 15 },
     { label: 'Each brokerage statement after the first',               amount: 45 },
-    { label: 'Each brokerage statement we have to key in by hand',     amount: 95 },
+    { label: 'Each brokerage statement keyed in by hand',     amount: 95 },
     { label: 'Each additional gig Schedule C',                         amount: 65 },
     { label: 'Each additional full Schedule C',                        amount: 200 },
-    { label: 'Each foreign account, capped at four',                   amount: 50 },
-    { label: 'Earned income credit, with the due diligence it needs',  amount: 65 },
-    { label: 'Any one of the situations below',                        amount: 50 }
+    { label: 'Each foreign account, up to four'    ,                   amount: 50 },
+    { label: 'Earned income credit, including due diligence',  amount: 65 },
+    { label: 'Any of the situations below'    ,                        amount: 50 }
   ],
 
   /* All six are things that HAPPENED, so you can tell in a second whether one
@@ -129,7 +130,7 @@ window.SATC_PRICING = {
 
   /* Hourly happens INSTEAD of the fixed price, not on top of it. */
   hourlyApplies: [
-    'Records that need reconciling before a return can be prepared',
+    'Records that need reconciling first',
     'Answering a notice',
     'Anything involving a foreign company'
   ]

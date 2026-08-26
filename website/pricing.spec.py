@@ -87,17 +87,17 @@ check(prices == sorted(prices), "prices ascend down the page")
 EXTRA_SOURCES = {
     "Each state return after the first": units["state_return"]["amount"],
     "Each local return after the first": units["local_return"]["amount"],
-    "Rental schedule, covering up to three properties": units["rental"]["form_fee"],
-    "Each rental property past those three": units["rental"]["amount"],
-    "Each K&#8209;1 past the two Standard covers": units["k1"]["amount"],
+    "Rental schedule, up to three properties": units["rental"]["form_fee"],
+    "Each rental property after three": units["rental"]["amount"],
+    "Each K&#8209;1 after the first two": units["k1"]["amount"],
     "Each brokerage statement after the first": units["brokerage"]["amount"],
-    "Each brokerage statement we have to key in by hand": units["brokerage_keyed"]["amount"],
+    "Each brokerage statement keyed in by hand": units["brokerage_keyed"]["amount"],
     "Each additional gig Schedule C": units["schedule_c"]["tiers"]["simple"]["amount"],
     "Each additional full Schedule C": units["schedule_c"]["tiers"]["standard"]["amount"],
-    "Each foreign account, capped at four": units["foreign_account"]["amount"],
-    "Earned income credit, with the due diligence it needs":
+    "Each foreign account, up to four": units["foreign_account"]["amount"],
+    "Earned income credit, including due diligence":
         sched["per_form"]["forms"]["earned_income_credit"]["amount"],
-    "Any one of the situations below": sched["per_form"]["amount"],
+    "Any of the situations below": sched["per_form"]["amount"],
 }
 
 published = {x["label"]: x["amount"] for x in cfg["extras"]}
