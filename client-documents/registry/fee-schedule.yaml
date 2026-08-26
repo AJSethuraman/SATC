@@ -412,14 +412,26 @@ amendment:
   tier_from: amendment_reason
   publish: "yes"
   tiers:
-    # $0, and it PRINTS. A client told in writing that fixing our error costs
-    # nothing has been told something; a line that quietly fails to appear has
-    # not. This is a positioning decision, made deliberately and cheaply.
+    # NOT ADVERTISED, on the firm's instruction of 26 August 2026:
+    #
+    #     we do not need to specify we correct our own mistakes for free - we
+    #     are only talking about how we charge for amendments. we would not
+    #     re-file for free if someone did not give us all the info until later
+    #
+    # So the firm still does it and stops announcing it. The line reads as an
+    # amendment with no charge rather than as a promise about how the firm
+    # behaves -- a claim of that kind belongs in what the firm does, not in
+    # what its price sheet says about itself.
     our_error:
-      label: "Correction of our error"
-      detail: "Our mistake, corrected at no charge"
+      label: "Amendment"
+      detail: "No charge"
       amount: 0
       reprices: false
+      publish: "no"
+      publish_reason: >-
+        The firm corrects its own errors without charging and does not
+        advertise that. Published, it reads as a marketing claim and invites
+        an argument about whose error a given one was.
     # A late K-1, a corrected 1099, a fact that changed. Not our error and not
     # a return we have to meet for the first time.
     new_information:
@@ -798,8 +810,8 @@ phrases:
   # A SOFT cap. The per-account charge stops at {n}; the work past it is time.
   # Both halves have to be said: "capped at four" alone reads as a promise the
   # firm is not making, and the client finds out otherwise on the invoice.
-  capped_soft:      "{detail}, capped at {n} — beyond that the additional time is billed at {rate} an hour as it is worked, and we will tell you as soon as we see it"
-  capped_soft_only: "Capped at {n} — beyond that the additional time is billed at {rate} an hour as it is worked, and we will tell you as soon as we see it"
+  capped_soft:      "{detail}, capped at {n} — beyond that the time is billed at {rate} an hour"
+  capped_soft_only: "Capped at {n} — beyond that the time is billed at {rate} an hour"
 
   # More than one of something.
   #   {n} how many are charged   {each} the price of one
@@ -816,10 +828,15 @@ phrases:
 
   # What happens past an assumption. One per `beyond:` value.
   #   {rate} " at $150 an hour", or empty when no rate is set
-  beyond_hourly: "the additional time is billed{rate} as it is worked, and we will tell you as soon as we see it"
+  beyond_hourly: "the additional time is billed{rate} as it is worked"
   #   {each}   how the priced line names one of itself (`per_each`)
   #   {amount} its price, formatted
-  beyond_priced: "{each} is {amount} — we will tell you as soon as we see it and agree it with you then, rather than adding it to your bill unannounced"
+  # The ONE place this promise is made. It earns its space here because the
+  # client is being told a number before the work happens and asked to agree
+  # it. Repeating the same reassurance on every other line, as this file did
+  # until 26 August 2026, turns it into wallpaper -- and means changing it
+  # once means changing it everywhere.
+  beyond_priced: "{each} is {amount}, which we will agree with you before we do it rather than adding it to your bill unannounced"
 
 # ── one price per named form ──────────────────────────────────────────────
 #

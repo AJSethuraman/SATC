@@ -31,7 +31,6 @@ Same records, same values. Generate all three documents in one call.
 | `<<EngagementRef>>` | Yes | 2027-0114 | The join key. |
 | `<<PeriodLabel>>` | Yes | 2026 tax year | Self-describing; same field the estimate uses. Appears twice. |
 | `<<ClientFullName>>` | Yes | Mr. and Mrs. Daniel Reyes | |
-| `<<ClientLetterName>>` | Yes | Dan | Salutation only. |
 | `<<ClientAddress1>>` | Yes | 418 Rockwell Street | |
 | `<<ClientCity>>` | Yes | Solon | |
 | `<<ClientState>>` | Yes | OH | |
@@ -78,7 +77,6 @@ Do not leave it to chance. The numbers exist so a client can point at a clause o
   "EngagementRef": "2027-0114",
   "PeriodLabel": "2026 tax year",
   "ClientFullName": "Mr. and Mrs. Daniel Reyes",
-  "ClientLetterName": "Dan",
   "ClientAddress1": "418 Rockwell Street",
   "ClientCity": "Solon",
   "ClientState": "OH",

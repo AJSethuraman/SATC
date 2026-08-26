@@ -66,10 +66,10 @@ def test_materials_deadline_matches_across_documents(record):
 
 def test_missing_field_raises_rather_than_shipping(record):
     holed = dict(record)
-    del holed["ClientLetterName"]
+    del holed["ClientFullName"]
     with pytest.raises(MergeError) as e:
         render_file(TEMPLATE_DIR / OPENING_PACKAGE["tax letter"], holed)
-    assert "ClientLetterName" in str(e.value)
+    assert "ClientFullName" in str(e.value)
 
 
 def test_confirm_placeholder_cannot_reach_a_client(record):
@@ -105,12 +105,22 @@ def test_each_repeats_once_per_item(record):
     html = render_file(TEMPLATE_DIR / OPENING_PACKAGE["fee estimate"], record).html
     for item in record["LineItems"]:
         assert item["Service"] in html
-    assert html.count("$450") >= 1
+        assert item["Amount"] in html
+    assert len(record["LineItems"]) >= 1
 
 
 def test_empty_detail_renders_empty_not_none(record):
-    """The field docs are explicit: an empty Item.Detail is '', never 'None'."""
-    html = render_file(TEMPLATE_DIR / OPENING_PACKAGE["fee estimate"], record).html
+    """The field docs are explicit: an empty Item.Detail is '', never 'None'.
+
+    Built here rather than leaned on the sample: the sample's estimate is
+    generated from the engine now, and every line the engine writes happens to
+    carry a detail. A test that depends on that would pass for the wrong
+    reason the day a detail is added.
+    """
+    holed = dict(record)
+    holed["LineItems"] = list(record["LineItems"]) + [
+        {"Service": "Solon municipal return", "Detail": "", "Amount": "$35.00"}]
+    html = render_file(TEMPLATE_DIR / OPENING_PACKAGE["fee estimate"], holed).html
     assert "Solon municipal return" in html
     assert ">None<" not in html
 
@@ -125,7 +135,7 @@ def test_values_are_escaped(record):
 
 
 def test_a_value_cannot_inject_markup(record):
-    hostile = dict(record, ClientLetterName='<script>alert(1)</script>')
+    hostile = dict(record, ClientFullName='<script>alert(1)</script>')
     html = render_file(TEMPLATE_DIR / OPENING_PACKAGE["tax letter"], hostile).html
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;" in html

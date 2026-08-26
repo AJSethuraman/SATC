@@ -31,7 +31,6 @@ Same records, same values, same engagement. `EngagementRef` is what ties this le
 | `<<EngagementRef>>` | Yes | 2027-0114 | The join key. |
 | `<<PeriodLabel>>` | Yes | 2026 tax year | Self-describing; the same field every other document uses. Appears twice — subject line and footer. |
 | `<<ClientFullName>>` | Yes | Mr. and Mrs. Daniel Reyes | |
-| `<<ClientLetterName>>` | Yes | Dan | Salutation only. |
 | `<<ClientAddress1>>` | Yes | 418 Rockwell Street | |
 | `<<ClientCity>>` | Yes | Solon | |
 | `<<ClientState>>` | Yes | OH | |
@@ -88,7 +87,6 @@ Both flag states are exercised: this one is e-filed with estimates, so `PaperFil
   "EngagementRef": "2027-0114",
   "PeriodLabel": "2026 tax year",
   "ClientFullName": "Mr. and Mrs. Daniel Reyes",
-  "ClientLetterName": "Dan",
   "ClientAddress1": "418 Rockwell Street",
   "ClientCity": "Solon",
   "ClientState": "OH",

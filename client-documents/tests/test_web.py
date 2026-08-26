@@ -150,11 +150,11 @@ def test_the_claim_is_offered_and_says_whether_it_can_be_taken(client):
     # Walk to the first question the website actually made a claim about.
     for _ in range(12):
         state = client.get(f"/interview/{sid}", headers=JSON).get_json()
-        if state["question"]["id"] == "client_letter_name":
+        if state["question"]["id"] == "client_email":
             break
         answer_next(client, sid, _plausible(state["question"]))
-    assert state["question"]["id"] == "client_letter_name"
-    assert state["claim"] == "Dan" and state["claim_acceptable"] is True
+    assert state["question"]["id"] == "client_email"
+    assert state["claim"] == "dreyes@example.com" and state["claim_acceptable"] is True
 
 
 def test_accepting_the_claim_records_it(client):
@@ -163,11 +163,11 @@ def test_accepting_the_claim_records_it(client):
                       headers=JSON).get_json()["draft"]
     for _ in range(12):
         state = client.get(f"/interview/{sid}", headers=JSON).get_json()
-        if state["question"]["id"] == "client_letter_name":
+        if state["question"]["id"] == "client_email":
             break
         answer_next(client, sid, _plausible(state["question"]))
     client.post(f"/interview/{sid}", json={"accept": True}, headers=JSON)
-    assert web.load_draft(client.store, sid)["answers"]["client_letter_name"] == "Dan"
+    assert web.load_draft(client.store, sid)["answers"]["client_email"] == "dreyes@example.com"
 
 
 def test_an_unacceptable_claim_is_marked_as_such(client):

@@ -85,9 +85,9 @@ def test_open_decisions_are_reported_with_their_question():
 # ── record assembly ───────────────────────────────────────────────────────
 
 def test_firm_settings_fill_in_behind_the_record():
-    record = cli.build_record({"_season": "2026", "ClientLetterName": "Dan"})
+    record = cli.build_record({"_season": "2026", "ClientFullName": "Mr. and Mrs. Daniel Reyes"})
     assert record["PreparerName"], "firm settings did not reach the record"
-    assert record["ClientLetterName"] == "Dan"
+    assert record["ClientFullName"] == "Mr. and Mrs. Daniel Reyes"
 
 
 def test_the_record_wins_over_a_firm_default():
@@ -98,7 +98,7 @@ def test_the_record_wins_over_a_firm_default():
 
 def test_a_record_without_a_season_is_refused():
     with pytest.raises(SystemExit):
-        cli.build_record({"ClientLetterName": "Dan"})
+        cli.build_record({"ClientFullName": "Mr. and Mrs. Daniel Reyes"})
 
 
 def test_metadata_cannot_reach_a_document():
@@ -129,7 +129,7 @@ def test_a_complete_record_renders_the_whole_opening_package(tmp_path):
 def test_real_mode_writes_nothing_when_a_document_would_be_holed(tmp_path):
     """The point of the whole thing. A refusal that still left a file on disk
     would be worse than no refusal — somebody would send the file."""
-    thin = {"_season": "2026", "ClientLetterName": "Dan"}
+    thin = {"_season": "2026", "ClientFullName": "Mr. and Mrs. Daniel Reyes"}
     path = tmp_path / "thin.json"
     path.write_text(json.dumps(thin), encoding="utf-8")
 
@@ -140,7 +140,7 @@ def test_real_mode_writes_nothing_when_a_document_would_be_holed(tmp_path):
 
 
 def test_draft_mode_renders_the_same_record_and_stamps_it(tmp_path):
-    thin = {"_season": "2026", "ClientLetterName": "Dan"}
+    thin = {"_season": "2026", "ClientFullName": "Mr. and Mrs. Daniel Reyes"}
     path = tmp_path / "thin.json"
     path.write_text(json.dumps(thin), encoding="utf-8")
 
@@ -182,14 +182,16 @@ def test_a_website_lead_becomes_a_record_skeleton(tmp_path):
     record = json.loads(out.read_text(encoding="utf-8"))
 
     # what the website genuinely knows is carried across
-    assert record["ClientLetterName"] == "Dan"
+    assert record["ClientEmail"] == "dreyes@example.com"
     assert record["ClientCity"] == "Solon" and record["ClientState"] == "OH"
     assert record["EngagementRef"] == "2027-0114"
 
     # and what it does not know is marked, not guessed
     assert "[CONFIRM:" in record["ClientFullName"], (
-        "the interview schema is explicit that a website answer is a claim, not "
-        "a fact; a legal name must never be inferred from a first name"
+        "the interview schema is explicit that a website answer is a claim, "
+        "not a fact; a legal name must never be inferred from a first name. "
+        "Since 26 August the salutation uses this same field, so a guess here "
+        "would reach the top of every letter as well as the address block."
     )
 
 

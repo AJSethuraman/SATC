@@ -7,7 +7,7 @@ Two syntaxes, deliberately different so a regex can tell them apart:
 - `<<Field>>` — substitutes a value
 - `[[IF Name]] … [[END IF]]` — keeps or drops a block
 
-**Fail the render on any unresolved `<<` or `[[`.** A merge that leaves `<<ClientLetterName>>` in a letter sent to a client is the one bug that actually costs you a client.
+**Fail the render on any unresolved `<<` or `[[`.** A merge that leaves `<<ClientFullName>>` in a letter sent to a client is the one bug that actually costs you a client.
 
 ---
 
@@ -26,7 +26,6 @@ Grouping matters more than the alphabetical list: it tells you which system of r
 | Field | Required | Example | Notes |
 |---|---|---|---|
 | `<<ClientFullName>>` | Yes | Mr. and Mrs. Daniel Reyes | Addressee block |
-| `<<ClientLetterName>>` | Yes | Dan | Salutation only — keep separate from the legal name |
 | `<<ClientAddress1>>` | Yes | 418 Rockwell Street | |
 | `<<ClientCity>>` | Yes | Solon | |
 | `<<ClientState>>` | Yes | OH | |
@@ -72,7 +71,6 @@ Not variables — hardcoded in the template, and correct to keep that way: firm 
   "EngagementRef": "2027-0114",
   "TaxYear": "2026",
   "ClientFullName": "Mr. and Mrs. Daniel Reyes",
-  "ClientLetterName": "Dan",
   "ClientAddress1": "418 Rockwell Street",
   "ClientCity": "Solon",
   "ClientState": "OH",

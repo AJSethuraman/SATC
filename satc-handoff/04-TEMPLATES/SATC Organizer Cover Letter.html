@@ -43,12 +43,12 @@
 <div class="subject">Your <span class="f">&lt;&lt;TaxYear&gt;&gt;</span> tax organizer</div>
 
 <div class="body">
-  <p>Dear <span class="f">&lt;&lt;ClientLetterName&gt;&gt;</span>,</p>
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
 
   <p>Your organizer for the <span class="f">&lt;&lt;TaxYear&gt;&gt;</span> tax year is enclosed. It is prefilled with what we carried forward from last year, so much of it is confirming rather than gathering.</p>
 
   <div class="callout">
-    <p><strong>Please return the completed organizer and your documents by <span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span>.</strong> Material arriving after that date will likely require an extension, which gives more time to file but not more time to pay.</p>
+    <p><strong>Please return the completed organizer and your documents by <span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span>.</strong> Material arriving after that date may require an extension, which gives more time to file but not more time to pay.</p>
   </div>
 
   <div class="sec">
@@ -75,7 +75,7 @@
 
   <div class="sec">
     <h2><span class="n">03</span>How to send it</h2>
-    <p>Upload through <strong>Encyro</strong>, which is the fastest route and the one we recommend. We will use another method at your direction, though it may not be secure and we would not advise it.</p>
+    <p>Upload through <strong>Encyro</strong>, which is the fastest route and the one we recommend. We will use another method at your direction; that is your choice, and we take no responsibility for it.</p>
     <span class="cond">[[IF FeeChange]]</span>
     <p>One note on fees: <span class="f">&lt;&lt;FeeChangeNote&gt;&gt;</span> Your engagement letter and estimate for this year will follow separately.</p>
     <span class="cond end">[[END IF]]</span>
@@ -107,7 +107,7 @@
     <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — <b>the ref for the year being organised</b>, which the letter and estimate will reuse when they follow</td></tr>
     <tr><td>&lt;&lt;TaxYear&gt;&gt;</td><td class="req">Required</td><td>2026 — appears three times</td></tr>
     <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Mr. and Mrs. Daniel Reyes</td></tr>
-    <tr><td>&lt;&lt;ClientLetterName&gt;&gt;</td><td class="req">Required</td><td>Dan</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Dan</td></tr>
     <tr><td>&lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Four fields, same record as every other template</td></tr>
     <tr><td>&lt;&lt;MaterialsDeadline&gt;&gt;</td><td class="req">Required</td><td>March 15, 2027 — <b>the same date the engagement letter will carry.</b> Two different dates across the two documents is the mistake this template is most likely to make.</td></tr>
     <tr><td>[[EACH Requested]]</td><td class="req">List</td><td>One or more. Two sub-fields each. Drive it from last year's return, not a generic checklist — a list naming what the client actually had gets returned faster.</td></tr>

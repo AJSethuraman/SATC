@@ -16,7 +16,7 @@ than left to whoever calls this:
 1. **Values are escaped.** A client named "Ross & Sons" would otherwise break
    the page.
 2. **An unresolved token is a hard failure.** A letter reaching a client with
-   ``<<ClientLetterName>>`` still in it is, in the templates' words, the one bug
+   ``<<ClientFullName>>`` still in it is, in the templates' words, the one bug
    that actually costs you a client. Never render past it.
 3. **A surviving ``[CONFIRM:`` is a hard failure too.** Firm settings carry
    placeholders for decisions not yet made; they must not reach a client

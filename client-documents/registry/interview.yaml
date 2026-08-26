@@ -133,14 +133,6 @@ sections:
         required: true
         supplies: [ClientFullName]
 
-      - id: client_letter_name
-        question: "What should we call them in the salutation?"
-        help: "'Dan'. Never the legal name — getting this wrong reads badly."
-        type: text
-        required: true
-        prefill: contact.name
-        supplies: [ClientLetterName]
-
       - id: client_address1
         question: "Street address"
         type: text

@@ -29,7 +29,6 @@ Clauses in the engagement letter are referenced **by name**, never by number.
 | `<<EngagementRef>>` | Yes | 2027-0114 | The engagement being ended. **One letter per ref** — a client with a personal and an entity engagement gets two letters, or one whose `ScopeEnded` says so precisely. |
 | `<<PeriodLabel>>` | Yes | 2026 tax year | Appears twice — subject line and footer. |
 | `<<ClientFullName>>` | Yes | Mr. and Mrs. Daniel Reyes | |
-| `<<ClientLetterName>>` | Yes | Dan | Salutation only. |
 | `<<ClientAddress1>>` | Yes | 418 Rockwell Street | **The address of record.** Send it there, by a method that produces a receipt, whatever else you also do with it. |
 | `<<ClientCity>>` | Yes | Solon | |
 | `<<ClientState>>` | Yes | OH | |
@@ -99,7 +98,6 @@ Firm-initiated with a balance outstanding — the harder of the two combinations
   "EngagementRef": "2027-0114",
   "PeriodLabel": "2026 tax year",
   "ClientFullName": "Mr. and Mrs. Daniel Reyes",
-  "ClientLetterName": "Dan",
   "ClientAddress1": "418 Rockwell Street",
   "ClientCity": "Solon",
   "ClientState": "OH",

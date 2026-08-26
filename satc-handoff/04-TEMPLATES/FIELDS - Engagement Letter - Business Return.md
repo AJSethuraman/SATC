@@ -33,7 +33,6 @@ Same names, same records, same values where the client is the same. This is the 
 | `<<EngagementRef>>` | Yes | 2027-0117 | The join key. **The entity gets its own**, separate from any owner's. |
 | `<<PeriodLabel>>` | Yes | 2026 tax year | The self-describing period field. **Not `TaxYear`** — §4 of the authoring contract says that name must never come back. Appears twice. |
 | `<<ClientFullName>>` | Yes | Larchmere Holdings LLC | **The entity's exact registered name**, not a trading name. Appears three times: recipient block, opening sentence, signature label. |
-| `<<ClientLetterName>>` | Yes | Dan | A human is reading this, not the entity. Salutation only. |
 | `<<ClientAddress1>>` | Yes | 1240 Larchmere Boulevard | The entity's address, which is not always an owner's. |
 | `<<ClientCity>>` | Yes | Cleveland | |
 | `<<ClientState>>` | Yes | OH | |
@@ -91,7 +90,6 @@ An S corporation whose owners' personal returns the firm also prepares. The othe
   "EngagementRef": "2027-0117",
   "PeriodLabel": "2026 tax year",
   "ClientFullName": "Larchmere Holdings LLC",
-  "ClientLetterName": "Dan",
   "ClientAddress1": "1240 Larchmere Boulevard",
   "ClientCity": "Cleveland",
   "ClientState": "OH",

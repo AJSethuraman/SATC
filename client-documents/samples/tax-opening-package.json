@@ -1,97 +1,84 @@
 {
- "_comment": [
-  "Fictional. No real client data belongs in this repo — CLAUDE.md is explicit that",
-  "only masked or invented values go in artifacts. Names and address follow the style",
-  "the FIELDS docs already use.",
-  "",
-  "One record, three documents: the engagement letter, the fee estimate and the",
-  "onboarding letter share LetterDate, EngagementRef, the address block and the",
-  "preparer, so generating them together is what stops them disagreeing.",
-  "",
-  "Deliberately absent: SSN, ITIN, EIN, date of birth, bank details. The interview",
-  "record never holds them, and test_registry enforces it."
- ],
- "_season": "2026",
- "_return_type": "individual",
- "LetterDate": "February 3, 2027",
- "EngagementRef": "2027-0114",
- "PeriodLabel": "2026 tax year",
- "TaxYear": "2026",
- "ClientFullName": "Mr. and Mrs. Daniel Reyes",
- "ClientLetterName": "Dan",
- "ClientAddress1": "418 Rockwell Street",
- "ClientCity": "Solon",
- "ClientState": "OH",
- "ClientZip": "44139",
- "ClientEmail": "dreyes@example.com",
- "TaxpayerName": "Daniel Reyes",
- "SpouseName": "Maria Reyes",
- "JointReturn": true,
- "FederalReturns": "Form 1040 with Schedules A, C, and SE",
- "StateReturns": "Ohio IT 1040 — resident",
- "LocalReturns": "Solon municipal",
- "AdditionalForms": "Two K-1s as reported",
- "MaterialsDeadline": "March 15, 2027",
- "PriorFirm": true,
- "PriorFirmName": "Halloran & Reeve CPAs",
- "AckWindow": "three business days",
- "FirstDeliverableTarget": "April 1, 2027",
- "ReturnInstruction": "Sign through Encyro and it comes straight back to us.",
- "PreparerName": "Arjun Sethuraman, CPA",
- "PreparerTitle": "Managing Partner",
- "PreparerEmail": "arjun_sethuraman@satcllp.com",
- "PreparerPhone": "307-941-0508",
- "LineItems": [
-  {
-   "Service": "Federal Form 1040",
-   "Detail": "With Schedules A, C, and SE",
-   "Amount": "$450"
-  },
-  {
-   "Service": "Ohio IT 1040",
-   "Detail": "Resident return",
-   "Amount": "$185"
-  },
-  {
-   "Service": "Solon municipal return",
-   "Detail": "",
-   "Amount": "$95"
-  },
-  {
-   "Service": "Quarterly estimates for the following year",
-   "Detail": "Calculated in the same pass",
-   "Amount": "$55"
-  }
- ],
- "Assumptions": [
-  {
-   "Text": "Brokerage activity — this estimate assumes a single consolidated 1099-B that imports cleanly, and includes it on that basis. If there is more than one broker, or a 1099-B will not import, the additional time is billed at $150 an hour as it is worked, and we will tell you as soon as we see it."
-  },
-  {
-   "Text": "Records cleanup — this estimate assumes your records arrive complete and reconciled, and does not include work beyond it. If the records need reconciling before the return can be prepared, the additional time is billed at $150 an hour as it is worked, and we will tell you as soon as we see it."
-  }
- ],
- "EstimateTotal": "$785",
- "RequestList": [
-  {
-   "Document": "All W-2 forms",
-   "Detail": "For both of you, including part-year employment"
-  },
-  {
-   "Document": "1099 forms",
-   "Detail": "Interest, dividends, brokerage, and any contract work"
-  },
-  {
-   "Document": "Schedule K-1s",
-   "Detail": "Both partnerships, when they arrive"
-  },
-  {
-   "Document": "Prior-year return",
-   "Detail": "2025, as filed"
-  },
-  {
-   "Document": "Rental records",
-   "Detail": "Income and expenses by property"
-  }
- ]
+  "_comment": "A finished record. The estimate fields are GENERATED from samples/interview-answers.json through pricing.py -- they were hand-written until 26 August 2026 and had drifted to prices that no longer exist ($450 for a 1040, $185 for a state). test_pricing.py pins them to the engine. Fictional client.",
+  "_season": "2026",
+  "_return_type": "individual",
+  "LetterDate": "February 3, 2027",
+  "EngagementRef": "2027-0114",
+  "PeriodLabel": "2026 tax year",
+  "TaxYear": "2026",
+  "ClientFullName": "Mr. and Mrs. Daniel Reyes",
+  "ClientAddress1": "418 Rockwell Street",
+  "ClientCity": "Solon",
+  "ClientState": "OH",
+  "ClientZip": "44139",
+  "ClientEmail": "dreyes@example.com",
+  "TaxpayerName": "Daniel Reyes",
+  "SpouseName": "Maria Reyes",
+  "JointReturn": true,
+  "FederalReturns": "Form 1040 with Schedules A, C, and SE",
+  "StateReturns": "Ohio IT 1040 — resident",
+  "LocalReturns": "Solon municipal",
+  "AdditionalForms": "Two K-1s as reported",
+  "MaterialsDeadline": "March 15, 2027",
+  "PriorFirm": true,
+  "PriorFirmName": "Halloran & Reeve CPAs",
+  "AckWindow": "three business days",
+  "FirstDeliverableTarget": "April 1, 2027",
+  "ReturnInstruction": "Sign through Encyro and it comes straight back to us.",
+  "PreparerName": "Arjun Sethuraman, CPA",
+  "PreparerTitle": "Managing Partner",
+  "PreparerEmail": "arjun_sethuraman@satcllp.com",
+  "PreparerPhone": "307-941-0508",
+  "LineItems": [
+    {
+      "Service": "Self-Employed",
+      "Detail": "You work for yourself. Includes: Your federal 1040, your first state return and your first local return; Wages, interest and dividends; The standard deduction; Itemized deductions; One brokerage statement; Up to two K-1s you receive; One gig Schedule C on standard mileage; One full Schedule C business.",
+      "Amount": "$500.00"
+    },
+    {
+      "Service": "Rental schedule",
+      "Detail": "Schedule E, covering up to 3",
+      "Amount": "$145.00"
+    }
+  ],
+  "Assumptions": [
+    {
+      "Text": "Brokerage keying — this estimate assumes each 1099-B can be summarised rather than keyed line by line, and does not include work beyond it. If a statement has to be entered by hand, that statement is $95.00, which we will agree with you before we do it rather than adding it to your bill unannounced."
+    },
+    {
+      "Text": "Foreign entities — this estimate assumes your foreign holdings are accounts rather than companies, and does not include work beyond it. If you hold an interest in a foreign corporation or partnership, the additional time is billed at $150 an hour as it is worked."
+    },
+    {
+      "Text": "Notices and correspondence — this estimate assumes no authority writes to you about a return we prepared, and does not include work beyond it. If a notice arrives and you ask us to deal with it, the additional time is billed at $150 an hour as it is worked."
+    },
+    {
+      "Text": "Officer compensation — this estimate assumes setting officer compensation is not part of this engagement, and does not include work beyond it. If you ask us to determine or review it, and we agree in writing, the additional time is billed at $150 an hour as it is worked."
+    },
+    {
+      "Text": "Records cleanup — this estimate assumes your records arrive complete and reconciled, and does not include work beyond it. If the records need reconciling before the return can be prepared, the additional time is billed at $150 an hour as it is worked."
+    }
+  ],
+  "EstimateTotal": "$645.00",
+  "RequestList": [
+    {
+      "Document": "All W-2 forms",
+      "Detail": "For both of you, including part-year employment"
+    },
+    {
+      "Document": "1099 forms",
+      "Detail": "Interest, dividends, brokerage, and any contract work"
+    },
+    {
+      "Document": "Schedule K-1s",
+      "Detail": "Both partnerships, when they arrive"
+    },
+    {
+      "Document": "Prior-year return",
+      "Detail": "2025, as filed"
+    },
+    {
+      "Document": "Rental records",
+      "Detail": "Income and expenses by property"
+    }
+  ]
 }

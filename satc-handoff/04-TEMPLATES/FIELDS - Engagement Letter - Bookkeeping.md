@@ -26,7 +26,6 @@ Pairs with `SATC Fee Estimate.html`, which section 05 points at instead of resta
 | `<<LetterDate>>` | Yes | July 8, 2027 | |
 | `<<EngagementRef>>` | Yes | 2027-0208 | The join key across letter, estimate, and invoice |
 | `<<ClientFullName>>` | Yes | Clifton Millworks LLC | The entity's legal name. Appears twice. |
-| `<<ClientLetterName>>` | Yes | Ms. Whitfield | Salutation only |
 | `<<ClientAddress1>>` | Yes | 2140 Vine Street | |
 | `<<ClientCity>>` | Yes | Cincinnati | |
 | `<<ClientState>>` | Yes | OH | |
@@ -62,7 +61,6 @@ Not variables: firm name, address, phone, website, the Ohio LLP footer, the Ency
   "LetterDate": "July 8, 2027",
   "EngagementRef": "2027-0208",
   "ClientFullName": "Clifton Millworks LLC",
-  "ClientLetterName": "Ms. Whitfield",
   "ClientAddress1": "2140 Vine Street",
   "ClientCity": "Cincinnati",
   "ClientState": "OH",

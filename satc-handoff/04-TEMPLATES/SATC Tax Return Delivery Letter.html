@@ -43,7 +43,7 @@
 <div class="subject">Your returns are ready — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
 
 <div class="body">
-  <p>Dear <span class="f">&lt;&lt;ClientLetterName&gt;&gt;</span>,</p>
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
 
   <p>Your returns are finished. This letter tells you what we prepared, what you need to do, and by when. <strong>Read section 02 first</strong> — nothing is filed until you act on it.</p>
 
@@ -152,7 +152,7 @@
     <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>April 2, 2027 — the delivery date, and the date the signature clock starts from</td></tr>
     <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the join key back to the engagement letter, the estimate and the invoice</td></tr>
     <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td>2026 tax year — same field as everywhere else. Appears twice: subject and footer.</td></tr>
-    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientLetterName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields, the same block every letter carries, from the same record</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields, the same block every letter carries, from the same record</td></tr>
     <tr><td>&lt;&lt;SignatureDeadline&gt;&gt;</td><td class="req">Required</td><td>April 10, 2027 — <b>a real date, never "as soon as possible".</b> A deadline with no date is not one.</td></tr>
     <tr><td>[[EACH ReturnsDelivered]]</td><td class="req">List</td><td>One or more. Two sub-fields. Every return in the package, in the order they are stacked.</td></tr>
     <tr><td>&lt;&lt;Item.Return&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>Federal Form 1040 · Refund of $1,240, direct deposit to the account ending 4417. Detail is an empty string when there is nothing to add, never "None".</td></tr>

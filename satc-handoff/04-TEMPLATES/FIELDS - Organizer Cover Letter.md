@@ -27,7 +27,6 @@ Sent in January with the tax organizer, ahead of the engagement letter and estim
 | `<<EngagementRef>>` | Yes | 2027-0114 | **The ref for the year being organised** — the letter and estimate reuse it when they follow |
 | `<<TaxYear>>` | Yes | 2026 | Appears three times |
 | `<<ClientFullName>>` | Yes | Mr. and Mrs. Daniel Reyes | |
-| `<<ClientLetterName>>` | Yes | Dan | Salutation only |
 | `<<ClientAddress1>>` | Yes | 418 Rockwell Street | |
 | `<<ClientCity>>` | Yes | Solon | |
 | `<<ClientState>>` | Yes | OH | |
@@ -59,7 +58,6 @@ Not variables: firm name, address, phone, website, the Ohio LLP footer, the Ency
   "EngagementRef": "2027-0114",
   "TaxYear": "2026",
   "ClientFullName": "Mr. and Mrs. Daniel Reyes",
-  "ClientLetterName": "Dan",
   "ClientAddress1": "418 Rockwell Street",
   "ClientCity": "Solon",
   "ClientState": "OH",

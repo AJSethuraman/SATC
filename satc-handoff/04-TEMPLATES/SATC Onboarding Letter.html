@@ -43,7 +43,7 @@
 <div class="subject">What we need from you to begin — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
 
 <div class="body">
-  <p>Dear <span class="f">&lt;&lt;ClientLetterName&gt;&gt;</span>,</p>
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
 
   <p>Welcome to SAT-C LLP. Below is everything we need to start your work, how to send it, and what happens once we have it. <strong>Nothing begins until the signed engagement letter is back with us</strong>, so start there.</p>
 
@@ -135,7 +135,7 @@
     <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>February 3, 2027 — the package's date. Same value across all three documents.</td></tr>
     <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the join key, byte-identical to the letter's and the estimate's</td></tr>
     <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td><b>Self-describing.</b> "2026 tax year" or "Monthly, from July 2027" — the same field the fee estimate uses, so the package reads as one thing. Appears twice.</td></tr>
-    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientLetterName&gt;&gt;</td><td class="req">Required</td><td>Mr. and Mrs. Daniel Reyes / Dan — legal name for the block, familiar name for the salutation</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Mr. and Mrs. Daniel Reyes — the addressee block AND the salutation, so both read the same</td></tr>
     <tr><td>&lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Same four fields as the letter, from the same record</td></tr>
     <tr><td>&lt;&lt;ClientEmail&gt;&gt;</td><td class="req">Required</td><td>dreyes@example.com — <b>printed on purpose.</b> It tells the client which inbox the Encyro invitation went to, which is the first thing they ask.</td></tr>
     <tr><td>&lt;&lt;MaterialsDeadline&gt;&gt;</td><td class="req">Required</td><td>March 15, 2027 — a real date, never "early March". Set in one place; the tax letter's section 04 carries the same value.</td></tr>

@@ -43,7 +43,7 @@
 <div class="subject">Ending our engagement — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
 
 <div class="body">
-  <p>Dear <span class="f">&lt;&lt;ClientLetterName&gt;&gt;</span>,</p>
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
 
   <p>This letter confirms that our engagement ends on <span class="f">&lt;&lt;EffectiveDate&gt;&gt;</span>. It sets out what we completed, what we did not, what you now have, and what you need to arrange. <strong>Section 03 is the part with a deadline in it.</strong></p>
 
@@ -153,7 +153,7 @@
     <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>June 4, 2027 — the date the letter is sent, which may be earlier than the effective date</td></tr>
     <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the engagement being ended. <b>One letter per ref</b>: a client with a personal and an entity engagement gets two letters, or one that says so in ScopeEnded.</td></tr>
     <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td>2026 tax year — appears twice: subject and footer</td></tr>
-    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientLetterName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields. <b>Send it to the address of record by a method that produces a receipt</b>, whatever else you also do with it.</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields. <b>Send it to the address of record by a method that produces a receipt</b>, whatever else you also do with it.</td></tr>
     <tr><td>&lt;&lt;EffectiveDate&gt;&gt;</td><td class="req">Required</td><td>June 30, 2027 — <b>appears four times.</b> The date everything hinges on. Drive all four from one value.</td></tr>
     <tr><td>&lt;&lt;ScopeEnded&gt;&gt;</td><td class="req">Required</td><td>the preparation of your 2026 individual income tax returns — <b>a phrase, not a code</b>, that names precisely what ends. If another engagement continues, this field is where the letter says so.</td></tr>
     <tr><td>&lt;&lt;RecordsAvailableUntil&gt;&gt;</td><td class="req">Required</td><td>August 31, 2027 — a real date, in the dateline and in section 04</td></tr>

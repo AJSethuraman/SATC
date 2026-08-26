@@ -1,7 +1,6 @@
 {
   "_comment": "A completed consultation, keyed by question id. Replays with `cli.py interview --answers`. Fictional, and the same client as tax-opening-package.json so the two can be compared.",
   "client_full_name": "Mr. and Mrs. Daniel Reyes",
-  "client_letter_name": "Dan",
   "client_address1": "418 Rockwell Street",
   "client_city": "Solon",
   "client_state": "OH",

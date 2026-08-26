@@ -645,8 +645,11 @@ def cmd_from_lead(args) -> int:
         "LetterDate": date.today().strftime("%B %-d, %Y"),
         "EngagementRef": args.ref or todo,
         "PeriodLabel": f"{args.season} tax year",
+        # The lead gives us a name to greet somebody by; the letters want the
+        # full legal name, because the salutation and the addressee block are
+        # the same string now. A lead's "Dan" is not that, so this stays a
+        # question for the interview.
         "ClientFullName": todo,
-        "ClientLetterName": contact.get("name") or todo,
         "ClientEmail": contact.get("email") or todo,
         "ClientAddress1": todo,
         "ClientCity": city or todo,

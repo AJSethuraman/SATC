@@ -139,9 +139,9 @@ def test_a_required_question_will_not_take_a_blank():
 def test_prefill_offers_the_website_claim_without_answering():
     lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))
     session = iv.Interview(lead=lead)
-    q = session.question("client_letter_name")
-    assert iv.prefill_for(q, lead) == "Dan"
-    assert "client_letter_name" not in session.answers, (
+    q = session.question("client_email")
+    assert iv.prefill_for(q, lead) == "dreyes@example.com"
+    assert "client_email" not in session.answers, (
         "prefill must offer a claim, never answer for you -- the schema is "
         "explicit that every prefilled question is still asked"
     )

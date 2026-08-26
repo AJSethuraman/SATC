@@ -64,11 +64,6 @@ fields:
     templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
     notes: >-
       Addressee block. For a business engagement this is the entity's legal name.
-  - field: ClientLetterName
-    source: interview
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, onboarding-letter, organizer-letter, tax-letter]
-    notes: >-
-      Salutation only. Never the legal name. Maps to the website intake's 'Preferred name'.
   - field: ClientState
     source: interview
     templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]

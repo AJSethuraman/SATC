@@ -1170,7 +1170,7 @@ def test_a_priced_boundary_names_the_number_not_the_rate():
     t = said[0]
     assert "$95.00" in t
     assert "an hour" not in t
-    assert "agree it with you then" in t
+    assert "agree with you before we do it" in t
 
 
 def test_a_priced_boundary_reads_its_number_off_the_line_that_charges_it():
@@ -1543,14 +1543,19 @@ def test_a_cap_beyond_nobody_recognises_refuses():
 #     yes for someone else's return we add $50
 
 def test_our_own_mistake_is_free():
-    """And it prints, rather than being silently absent. A client who is told
-    in writing that correcting our error costs nothing has been told
-    something; a line that quietly does not appear has not."""
+    """It prints as an amendment at no charge — not as a claim about the firm.
+
+    The firm still corrects its own errors without charging; on 26 August 2026
+    they said to stop announcing it: "we do not need to specify we correct our
+    own mistakes for free — we are only talking about how we charge for
+    amendments." Published, it reads as marketing and invites an argument
+    about whose error a given one was. `publish: "no"` keeps it off the page.
+    """
     s = pricing.load()
     items = pricing.line_items(
         {"federal_form": "1040", "return_basis": "amended",
          "amendment_reason": "our_error"}, s)
-    assert [i["Service"] for i in items] == ["Correction of our error"]
+    assert [i["Service"] for i in items] == ["Amendment"]
     assert items[0]["Amount"] == "$0.00"
     assert pricing.estimate_total(items, s) == "$0.00"
 
@@ -1901,3 +1906,32 @@ def test_no_other_package_sits_below_the_minimum():
     below = [k for k, t in s["base"]["1040"]["tiers"].items()
              if k != allowed and t["amount"] < floor]
     assert not below, f"packages under the firm's ${floor} minimum: {below}"
+
+
+def test_the_sample_estimate_matches_what_the_engine_prices():
+    """The demo record's estimate was hand-written and had drifted badly.
+
+    Found 26 August 2026 by the firm, reading a rendered fee estimate: "this
+    doesn't appear to have our package data and i want to see that wording
+    with this." It did not. It quoted $450 for a 1040, $185 for a state
+    return and $95 for a local one — none of which is a price this firm
+    charges, and none of which had been true since the package ladder was
+    built. It also carried assumption sentences frozen as literal strings, so
+    they still said things the schedule had stopped saying.
+
+    A sample that contradicts the engine is worse than no sample: it is the
+    thing anyone looks at first to see what a client receives.
+    """
+    answers = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    record = json.loads((SAMPLES / "tax-opening-package.json").read_text(encoding="utf-8"))
+    s = pricing.load()
+
+    items = pricing.line_items(answers, s)
+    assert record["LineItems"] == [
+        {"Service": i["Service"], "Detail": i["Detail"], "Amount": i["Amount"]}
+        for i in items
+    ], "the sample estimate has drifted from what the engine prices"
+    assert record["EstimateTotal"] == pricing.estimate_total(items, s)
+    assert record["Assumptions"] == [{"Text": t} for t in pricing.assumptions(answers, s)]
+    assert any("Self-Employed" == i["Service"] for i in record["LineItems"]), \
+        "the sample must show a package line — that is the wording being reviewed"
