@@ -79,6 +79,9 @@ try:
 except json.JSONDecodeError as e:
     sys.exit(f"pricing-config.js no longer parses as data: {e}")
 
+# The page groups the extras; most checks only care that a line exists at all.
+cfg["extras"] = [r for g in cfg["extraGroups"] for r in g["rows"]]
+
 
 # ── 3 · nothing withheld has reached the page ─────────────────────────────
 #
@@ -114,10 +117,11 @@ check(all(e.get("notes") for e in cfg["entities"]),
       "no entity price is published without the notes that say what 'from' means")
 check(not (from_amounts & {p["price"] for p in cfg["packages"]}),
       "no package price collides with a from-price, which would blur the two")
-check(page_src.count("<i>from</i>") == 0 or "e.amount" in page_src,
-      "the 'from' marker renders per entity rather than being typed once")
-check("<i>from</i>" in page_src,
+check("'<i>from</i>' + money(e.amount)" in page_src,
       "entity amounts carry a visible 'from' — dropping it makes a floor a promise")
+check("tier ent" in page_src or "' ent'" in page_src,
+      "entity cards carry a modifier class, so they are never styled identically "
+      "to the flat packages")
 
 # The packages must NOT be from-prices, and the schedule agrees.
 tiers = sched["base"]["1040"]["tiers"]
@@ -151,10 +155,33 @@ if ext:
           "the page says filing an extension is free — a bare 'Extension, $75' "
           "says the opposite of the decision")
 
-check(any(a["amount"] == 0 for a in cfg["amendment"]),
-      "correcting our own error is published as free — the strongest line on the page")
-check(any(a.get("reprices") for a in cfg["amendment"]),
+# The firm's call, 26 Aug 2026: "literally do not specify stuff like we fix our
+# own errors for free. we don't need to say that." It stays in the schedule and
+# on a client's estimate; it does not go on a price page.
+amend_rows = [r for g in cfg["extraGroups"] for r in g["rows"] if "amend" in r["label"].lower()]
+check(amend_rows, "the amendment prices are published")
+check(all(r["amount"] > 0 for r in amend_rows),
+      "the no-charge correction of our own error is NOT published")
+check("our error" not in page_src.lower() and "our error" not in config_src.lower()
+      and "no charge" not in page_src.lower(),
+      "the page makes no claim about correcting our own mistakes")
+check(any(r.get("reprices") for r in amend_rows),
       "the amendment that also charges the return's own fee says so")
+
+# Individuals and entities are priced on different principles, so they get a
+# panel each rather than one list that blurs a flat price with a floor.
+for tab, panel in (("tabInd", "panelInd"), ("tabBiz", "panelBiz")):
+    check(f'id="{tab}"' in page_src and f'id="{panel}"' in page_src,
+          f"the {tab}/{panel} pair exists")
+check('role="tablist"' in page_src and page_src.count('role="tab"') == 2,
+      "the switch is a real tablist, not two styled divs")
+check('aria-controls="panelInd"' in page_src and 'aria-controls="panelBiz"' in page_src,
+      "each tab names the panel it controls")
+check("hidden = j !== i" in page_src,
+      "panels start visible and JS hides one — with JS off every price still shows")
+check(bool(cfg.get("entityNoteLabel")),
+      "the entity cards label their list — it is what costs EXTRA, the opposite "
+      "of a package card's bullets sitting beside it")
 
 for word in ("federal", "first state", "first local"):
     check(word in cfg["includedInEvery"].lower(),
@@ -172,9 +199,14 @@ check(len(cfg["hourlyApplies"]) == len(sched["assumed"]),
 
 # ── 6 · the firm's positions on the page itself ───────────────────────────
 
-# "just let the prices speak" — 26 Aug 2026.
-check("</div>" not in page_src.split('class="tiers"')[0].split("<h1")[-1],
-      "no explanatory box sits between the headline and the prices")
+# "just let the prices speak" — 26 Aug 2026. Checked precisely rather than by
+# counting tags: the switch between Individuals and Businesses is a control and
+# belongs there, so the test is that no PROSE block sits above the prices except
+# the one-line lede.
+above = page_src.split('class="tiers"')[0].split("<h1")[-1]
+check('class="summary"' not in page_src, "the explanatory box is gone")
+check(above.count("<p") <= 1,
+      f"only the lede sits between the headline and the prices ({above.count('<p')} paragraphs found)")
 
 # "i'm not personally a huge fan of shifting the blame to others."
 COMPARATIVE = ("other firms", "other tax", "most tax sites", "most firms",
@@ -196,7 +228,7 @@ for pkg in cfg["packages"]:
           f"{pkg['name']!r} is not hardcoded in the markup — names must stay data")
 
 for mount in ("tiers", "included", "current", "extras", "sits", "sitsHead",
-              "amendment", "entities", "hourly", "hourlyApplies"):
+              "entities", "entityLead", "hourly", "hourlyApplies"):
     check(f'id="{mount}"' in page_src, f"the page has a mount point for {mount}")
 
 

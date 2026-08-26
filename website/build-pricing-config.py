@@ -65,15 +65,28 @@ SITE_COPY = {
     },
 }
 
-# Extras, in the order they read best on the page. Every one must be in the
-# schedule's publish list; the reverse is checked too, so a newly-published line
-# cannot go unnoticed.
-EXTRA_ORDER = [
-    "per_unit.state_return", "per_unit.local_return", "per_unit.rental",
-    "per_unit.k1", "per_unit.owner_k1",
-    "per_unit.brokerage", "per_unit.brokerage_keyed",
-    "per_unit.foreign_account", "per_unit.extension_estimate",
+# Extras, grouped so like things are read together rather than as one flat list
+# of eleven. Order within a group is the order it reads best. Every path must be
+# in the schedule's publish list, and the reverse is checked too, so a
+# newly-published line cannot go unnoticed.
+EXTRA_GROUPS = [
+    ("More to file", [
+        "per_unit.state_return", "per_unit.local_return",
+        "per_unit.extension_estimate",
+    ]),
+    ("What is on the return", [
+        "per_unit.rental", "per_unit.k1", "per_unit.owner_k1",
+        "per_unit.brokerage", "per_unit.brokerage_keyed",
+        "schedule_c.simple", "schedule_c.standard",
+        "per_unit.foreign_account",
+    ]),
 ]
+
+# The amendment tiers that go on the page, in order. `our_error` is deliberately
+# absent: correcting our own mistake costs nothing, and saying so on a price
+# page is a claim about ourselves that nobody asked for. It stays a thing we do,
+# not a thing we advertise.
+AMENDMENT_PUBLISH = ["new_information", "other_preparer"]
 
 # British spellings in the schedule's own wording. The firm is a US LLP filing
 # US returns. Fixed here rather than in the schedule, which is not this page's
@@ -120,28 +133,40 @@ def build() -> str:
             "who": copy["who"], "covers": [clean(c) for c in copy["covers"]],
         })
 
-    # ---- extras ---------------------------------------------------------
-    extras = []
-    for path in EXTRA_ORDER:
+    # ---- extras, grouped ------------------------------------------------
+    def one(path):
+        if path.startswith("schedule_c."):
+            t = sched["per_unit"]["schedule_c"]["tiers"][path.split(".", 1)[1]]
+            return {"label": clean(t["label"]), "detail": clean(t["detail"]),
+                    "amount": t["amount"]}
         line = by_path[path]
         label, detail, amount = line["label"], line.get("detail", ""), line["amount"]
-
         if path == "per_unit.rental":
             # The form fee covers three; the per-unit amount is each one after.
             detail = f"Covers {line['form_covers']}, then ${line['amount']} each"
             amount = line["form_fee"]
         if path == "per_unit.foreign_account" and line.get("cap_beyond") == "hourly":
-            # A78 of the site brief: the cap is SOFT. Saying only "capped at
-            # four" is a promise the firm is not making.
+            # The cap is SOFT. "Capped at four" alone is a promise the firm is
+            # not making.
             detail = (f"Capped at {line['cap_units']} — past that the time is "
                       f"billed at ${rate} an hour")
-        extras.append({"label": clean(label), "detail": clean(detail), "amount": amount})
+        return {"label": clean(label), "detail": clean(detail), "amount": amount}
 
-    # Schedule C is two tiers under one line.
-    for tid in ("simple", "standard"):
-        t = sched["per_unit"]["schedule_c"]["tiers"][tid]
-        extras.append({"label": clean(t["label"]), "detail": clean(t["detail"]),
-                       "amount": t["amount"]})
+    groups = [{"title": title, "rows": [one(p) for p in paths]}
+              for title, paths in EXTRA_GROUPS]
+
+    # Amendments read as "more to file", so they sit in that group rather than
+    # in a section of their own. `reprices` means the return's own fee as well,
+    # which is a different price and stays a separate row.
+    amend_rows = []
+    for tid in AMENDMENT_PUBLISH:
+        t = sched["amendment"]["tiers"][tid]
+        amend_rows.append({
+            "label": clean(t["label"]), "detail": clean(t["detail"]),
+            "amount": t["amount"], "reprices": bool(t.get("reprices")),
+        })
+    groups[0]["rows"].extend(amend_rows)
+    extras = [r for g in groups for r in g["rows"]]
 
     # ---- the six situations, one price ----------------------------------
     per_form = sched["per_form"]
@@ -149,25 +174,16 @@ def build() -> str:
                   if "amount" not in f and not f.get("when") and f.get("label")]
     situation_price = per_form["amount"]
 
-    # ---- amendments -----------------------------------------------------
-    # Three prices, because what decides it is whose work it is. `reprices`
-    # means the return's own fee is charged on top.
-    amendment = []
-    for tid, t in sched["amendment"]["tiers"].items():
-        amendment.append({
-            "label": clean(t["label"]), "detail": clean(t["detail"]),
-            "amount": t["amount"], "reprices": bool(t.get("reprices")),
-        })
-
     # ---- entity returns, from prices with their notes -------------------
-    entity_labels = {"base.1065": "Partnership — Form 1065",
-                     "base.1120S": "S corporation — Form 1120-S",
-                     "base.1120": "C corporation — Form 1120"}
+    entity_labels = {"base.1065": ("Partnership", "Form 1065"),
+                     "base.1120S": ("S corporation", "Form 1120-S"),
+                     "base.1120": ("C corporation", "Form 1120")}
     entities = []
     for path in ("base.1065", "base.1120S", "base.1120"):
         line = froms[path]
+        name, form = entity_labels[path]
         entities.append({
-            "label": clean(entity_labels[path]), "amount": line["amount"],
+            "name": name, "who": form, "amount": line["amount"],
             "notes": [clean(n) for n in line["starting_note"]],
         })
 
@@ -175,13 +191,13 @@ def build() -> str:
     applies = [clean(a["trigger"][0].upper() + a["trigger"][1:])
                for a in sched["assumed"].values()]
 
-    return render(packages, extras, situations, situation_price, amendment,
+    return render(packages, groups, situations, situation_price,
                   entities, rate, sched)
 
 
-def render(packages, extras, situations, situation_price, amendment,
+def render(packages, groups, situations, situation_price,
            entities, rate, sched) -> str:
-    w = max(len(x["label"]) for x in extras)
+    w = max(len(r["label"]) for g in groups for r in g["rows"])
     lines = [f"""/* SATC — pricing shown on the website.
    ===========================================================================
    GENERATED. Do not edit by hand.
@@ -193,13 +209,14 @@ def render(packages, extras, situations, situation_price, amendment,
    pricing.spec.py regenerates this file and fails if the committed copy
    differs, so a price cannot be retyped, stale or invented.
 
-   The short page copy — the line under each price and the card bullets — is
-   the firm's wording and lives in SITE_COPY in the generator. It carries no
-   figures.
+   The short page copy — the line under each price, the card bullets and the
+   group headings — is the firm's wording and lives in the generator. It
+   carries no figures.
 
-   WITHHELD, and the schedule says why: the farm schedule (taken, never
-   advertised — a published price is a solicitation) and the records-sorting
-   fee (a floor a preparer sets on sight, not a price).
+   NOT PUBLISHED, and each for a reason: the farm schedule (taken, never
+   advertised — a published price is a solicitation), the records-sorting fee
+   (a floor a preparer sets on sight, not a price), and the no-charge
+   correction of our own error (a claim about ourselves nobody asked for).
    =========================================================================== */
 
 window.SATC_PRICING = {{
@@ -220,46 +237,24 @@ window.SATC_PRICING = {{
         lines.append(f"      name: {js(p['name'])},")
         lines.append(f"      price: {p['price']},")
         lines.append(f"      who: {js(p['who'])},")
-        lines.append(f"      covers: [")
+        lines.append("      covers: [")
         for j, c in enumerate(p["covers"]):
             lines.append(f"        {js(c)}{',' if j < len(p['covers']) - 1 else ''}")
         lines.append("      ]")
         lines.append("    }" + ("," if i < len(packages) - 1 else ""))
     lines.append("  ],")
     lines.append("")
-    lines.append("  /* Charged only past what the package already covers. */")
-    lines.append("  extras: [")
-    for i, x in enumerate(extras):
-        pad = " " * (w - len(x["label"]))
-        comma = "," if i < len(extras) - 1 else ""
-        lines.append(f"    {{ label: {js(x['label'])},{pad} detail: {js(x['detail'])}, amount: {x['amount']} }}{comma}")
-    lines.append("  ],")
-    lines.append("")
-    lines.append("  /* One price for any of them. All six are things that HAPPENED, so a reader")
-    lines.append("     can tell in a second whether one applies. The assumption behind each is on")
-    lines.append("     the client's own estimate, attached to a real engagement — not here. */")
-    lines.append(f"  situationPrice: {situation_price},")
-    lines.append("  situations: [")
-    for i, s in enumerate(situations):
-        lines.append(f"    {js(s)}{',' if i < len(situations) - 1 else ''}")
-    lines.append("  ],")
-    lines.append("")
-    lines.append("  /* What decides an amendment's price is whose work it is, so there is no")
-    lines.append("     single number to print. `reprices` means the return's own fee too. */")
-    lines.append("  amendment: [")
-    for i, a in enumerate(amendment):
-        comma = "," if i < len(amendment) - 1 else ""
-        lines.append(f"    {{ label: {js(a['label'])}, detail: {js(a['detail'])}, amount: {a['amount']}, reprices: {js(a['reprices'])} }}{comma}")
-    lines.append("  ],")
-    lines.append("")
-    lines.append("  /* FROM prices, never bare numbers. The 1040 packages are gated on what is")
-    lines.append("     on the return, so the price a visitor reads is the price they get. An")
-    lines.append("     entity base is a floor — a bare $950 gets read as a total. Each number")
-    lines.append("     carries the notes that sit beside it in the schedule. */")
+    lines.append("  /* Entity returns, shown beside the packages because that is where somebody")
+    lines.append("     looks for them. Same card, deliberately not the same price: `from` is")
+    lines.append("     set beside the amount, and `notes` is what costs EXTRA rather than what")
+    lines.append("     is included — the opposite of a package's bullets, so the card labels it. */")
+    lines.append(f"  entityNoteLabel: {js('On top of that:')},")
+    lines.append(f"  entityLead: {js('Starting prices. What sits on top is listed on each one, and your estimate prices it before you agree to anything.')},")
     lines.append("  entities: [")
     for i, e in enumerate(entities):
         lines.append("    {")
-        lines.append(f"      label: {js(e['label'])},")
+        lines.append(f"      name: {js(e['name'])},")
+        lines.append(f"      who: {js(e['who'])},")
         lines.append(f"      amount: {e['amount']},")
         lines.append("      notes: [")
         for j, n in enumerate(e["notes"]):
@@ -268,9 +263,33 @@ window.SATC_PRICING = {{
         lines.append("    }" + ("," if i < len(entities) - 1 else ""))
     lines.append("  ],")
     lines.append("")
+    lines.append("  /* Grouped so like things read together. `reprices` means the return's own")
+    lines.append("     fee as well, which is a different price and so a different row. */")
+    lines.append("  extraGroups: [")
+    for gi, g in enumerate(groups):
+        lines.append("    {")
+        lines.append(f"      title: {js(g['title'])},")
+        lines.append("      rows: [")
+        for ri, r in enumerate(g["rows"]):
+            pad = " " * (w - len(r["label"]))
+            rep = ", reprices: true" if r.get("reprices") else ""
+            comma = "," if ri < len(g["rows"]) - 1 else ""
+            lines.append(f"        {{ label: {js(r['label'])},{pad} detail: {js(r['detail'])}, amount: {r['amount']}{rep} }}{comma}")
+        lines.append("      ]")
+        lines.append("    }" + ("," if gi < len(groups) - 1 else ""))
+    lines.append("  ],")
+    lines.append("")
+    lines.append("  /* One price for any of them. All six are things that HAPPENED, so a reader")
+    lines.append("     can tell in a second whether one applies. The assumption behind each is on")
+    lines.append("     the client's own estimate, attached to a real engagement — not here. */")
+    lines.append(f"  situationPrice: {situation_price},")
+    lines.append("  situations: [")
+    for i, s_ in enumerate(situations):
+        lines.append(f"    {js(s_)}{',' if i < len(situations) - 1 else ''}")
+    lines.append("  ],")
+    lines.append("")
     lines.append("  /* Hourly happens INSTEAD of the fixed price, not on top of it. */")
-    lines.append(f"  hourly: {{ rate: {rate}, billedIn: {js('the quarter hour')}, "
-                 f"minimum: {js(str(sched['basis']['minimum_increment']))} }},")
+    lines.append(f"  hourly: {{ rate: {rate}, billedIn: {js('the quarter hour')} }},")
     lines.append("  hourlyApplies: [")
     applies = [f"{a['label']} — {a['trigger']}" for a in sched["assumed"].values()]
     for i, a in enumerate(applies):

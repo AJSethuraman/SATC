@@ -9,13 +9,14 @@
    pricing.spec.py regenerates this file and fails if the committed copy
    differs, so a price cannot be retyped, stale or invented.
 
-   The short page copy — the line under each price and the card bullets — is
-   the firm's wording and lives in SITE_COPY in the generator. It carries no
-   figures.
+   The short page copy — the line under each price, the card bullets and the
+   group headings — is the firm's wording and lives in the generator. It
+   carries no figures.
 
-   WITHHELD, and the schedule says why: the farm schedule (taken, never
-   advertised — a published price is a solicitation) and the records-sorting
-   fee (a floor a preparer sets on sight, not a price).
+   NOT PUBLISHED, and each for a reason: the farm schedule (taken, never
+   advertised — a published price is a solicitation), the records-sorting fee
+   (a floor a preparer sets on sight, not a price), and the no-charge
+   correction of our own error (a claim about ourselves nobody asked for).
    =========================================================================== */
 
 window.SATC_PRICING = {
@@ -78,19 +79,73 @@ window.SATC_PRICING = {
     }
   ],
 
-  /* Charged only past what the package already covers. */
-  extras: [
-    { label: 'State return',                      detail: 'Per state', amount: 50 },
-    { label: 'Local return',                      detail: 'Municipal, RITA, CCA or school district', amount: 35 },
-    { label: 'Rental schedule',                   detail: 'Covers 3, then $45 each', amount: 145 },
-    { label: 'Schedule K&#8209;1 received',       detail: 'Per K&#8209;1 entered', amount: 15 },
-    { label: 'Schedule K&#8209;1 issued',         detail: 'Per owner — shareholder or partner', amount: 40 },
-    { label: 'Brokerage statement',               detail: 'Per 1099-B', amount: 45 },
-    { label: 'Brokerage entered by hand',         detail: 'Per statement that cannot be summarized', amount: 95 },
-    { label: 'Foreign account reporting',         detail: 'Capped at 4 — past that the time is billed at $150 an hour', amount: 50 },
-    { label: 'Extension with a payment estimate', detail: 'Computing what to pay by the original due date, from an incomplete file', amount: 75 },
-    { label: 'Gig or contract work',              detail: 'Schedule C — standard mileage, no assets, inventory or payroll', amount: 65 },
-    { label: 'Sole proprietorship',               detail: 'Schedule C — actual expenses, a home office, depreciation, inventory or employees', amount: 200 }
+  /* Entity returns, shown beside the packages because that is where somebody
+     looks for them. Same card, deliberately not the same price: `from` is
+     set beside the amount, and `notes` is what costs EXTRA rather than what
+     is included — the opposite of a package's bullets, so the card labels it. */
+  entityNoteLabel: 'On top of that:',
+  entityLead: 'Starting prices. What sits on top is listed on each one, and your estimate prices it before you agree to anything.',
+  entities: [
+    {
+      name: 'Partnership',
+      who: 'Form 1065',
+      amount: 800,
+      notes: [
+        'A balance sheet, where one is required',
+        'Inventory, where the business carries any',
+        'Each partner\'s K&#8209;1 after the first two',
+        'Returns in more than one state'
+      ]
+    },
+    {
+      name: 'S corporation',
+      who: 'Form 1120-S',
+      amount: 950,
+      notes: [
+        'A balance sheet, where one is required',
+        'Inventory, where the business carries any',
+        'Each shareholder\'s K&#8209;1 after the first two',
+        'Returns in more than one state'
+      ]
+    },
+    {
+      name: 'C corporation',
+      who: 'Form 1120',
+      amount: 950,
+      notes: [
+        'A balance sheet, where one is required',
+        'Inventory, where the business carries any',
+        'Returns in more than one state'
+      ]
+    }
+  ],
+
+  /* Grouped so like things read together. `reprices` means the return's own
+     fee as well, which is a different price and so a different row. */
+  extraGroups: [
+    {
+      title: 'More to file',
+      rows: [
+        { label: 'State return',                      detail: 'Per state', amount: 50 },
+        { label: 'Local return',                      detail: 'Municipal, RITA, CCA or school district', amount: 35 },
+        { label: 'Extension with a payment estimate', detail: 'Computing what to pay by the original due date, from an incomplete file', amount: 75 },
+        { label: 'Amendment',                         detail: 'Amending the return we filed, from information that arrived later', amount: 50 },
+        { label: 'Amendment',                         detail: 'Amending a return prepared elsewhere, priced with the return itself', amount: 50, reprices: true }
+      ]
+    },
+    {
+      title: 'What is on the return',
+      rows: [
+        { label: 'Rental schedule',                   detail: 'Covers 3, then $45 each', amount: 145 },
+        { label: 'Schedule K&#8209;1 received',       detail: 'Per K&#8209;1 entered', amount: 15 },
+        { label: 'Schedule K&#8209;1 issued',         detail: 'Per owner — shareholder or partner', amount: 40 },
+        { label: 'Brokerage statement',               detail: 'Per 1099-B', amount: 45 },
+        { label: 'Brokerage entered by hand',         detail: 'Per statement that cannot be summarized', amount: 95 },
+        { label: 'Gig or contract work',              detail: 'Schedule C — standard mileage, no assets, inventory or payroll', amount: 65 },
+        { label: 'Sole proprietorship',               detail: 'Schedule C — actual expenses, a home office, depreciation, inventory or employees', amount: 200 },
+        { label: 'Foreign account reporting',         detail: 'Capped at 4 — past that the time is billed at $150 an hour', amount: 50 }
+      ]
+    }
   ],
 
   /* One price for any of them. All six are things that HAPPENED, so a reader
@@ -106,52 +161,8 @@ window.SATC_PRICING = {
     'Early retirement withdrawal'
   ],
 
-  /* What decides an amendment's price is whose work it is, so there is no
-     single number to print. `reprices` means the return's own fee too. */
-  amendment: [
-    { label: 'Correction of our error', detail: 'Our mistake, corrected at no charge', amount: 0, reprices: false },
-    { label: 'Amendment', detail: 'Amending the return we filed, from information that arrived later', amount: 50, reprices: false },
-    { label: 'Amendment', detail: 'Amending a return prepared elsewhere, priced with the return itself', amount: 50, reprices: true }
-  ],
-
-  /* FROM prices, never bare numbers. The 1040 packages are gated on what is
-     on the return, so the price a visitor reads is the price they get. An
-     entity base is a floor — a bare $950 gets read as a total. Each number
-     carries the notes that sit beside it in the schedule. */
-  entities: [
-    {
-      label: 'Partnership — Form 1065',
-      amount: 800,
-      notes: [
-        'A balance sheet, where one is required',
-        'Inventory, where the business carries any',
-        'Each partner\'s K&#8209;1 after the first two',
-        'Returns in more than one state'
-      ]
-    },
-    {
-      label: 'S corporation — Form 1120-S',
-      amount: 950,
-      notes: [
-        'A balance sheet, where one is required',
-        'Inventory, where the business carries any',
-        'Each shareholder\'s K&#8209;1 after the first two',
-        'Returns in more than one state'
-      ]
-    },
-    {
-      label: 'C corporation — Form 1120',
-      amount: 950,
-      notes: [
-        'A balance sheet, where one is required',
-        'Inventory, where the business carries any',
-        'Returns in more than one state'
-      ]
-    }
-  ],
-
   /* Hourly happens INSTEAD of the fixed price, not on top of it. */
-  hourly: { rate: 150, billedIn: 'the quarter hour', minimum: '0.25' },
+  hourly: { rate: 150, billedIn: 'the quarter hour' },
   hourlyApplies: [
     'Brokerage keying — a statement has to be entered by hand',
     'Foreign entities — you hold an interest in a foreign corporation or partnership',

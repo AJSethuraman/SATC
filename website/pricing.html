@@ -168,6 +168,46 @@ strong { color: var(--navy); font-weight: 600; }
   font-weight: 500; white-space: nowrap;
 }
 
+/* ---- the Individuals / Businesses switch ---- */
+.switch {
+  display: inline-flex; margin: 0 0 18px;
+  border: 1px solid var(--hairline-2); background: var(--paper);
+}
+.sw {
+  font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--charcoal-2);
+  background: none; border: 0; padding: 10px 20px; cursor: pointer;
+  border-right: 1px solid var(--hairline-2);
+}
+.sw:last-child { border-right: 0; }
+.sw[aria-selected="true"] { background: var(--navy); color: #fff; }
+.sw:focus-visible { outline: 2px solid var(--oxblood); outline-offset: -2px; }
+/* Without JS both panels show, which is the honest failure: all the prices,
+   just not switchable. */
+[role="tabpanel"][hidden] { display: none; }
+
+/* An entity card is the same card, with two differences that are the point:
+   the amount carries `from`, and its list is what costs EXTRA rather than what
+   is included. Gold rule instead of navy, so the two are never mistaken at a
+   glance. */
+.tier.ent { border-top-color: var(--gold); }
+.tier .amt i {
+  font-style: normal; font-family: var(--mono); font-size: 13px;
+  color: var(--mute); font-weight: 400; margin-right: 5px; letter-spacing: 0;
+}
+.tier .ontop {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--mute); margin: 0 0 8px;
+}
+.tier.ent li::before { background: var(--hairline-2); }
+
+/* ---- grouped extras ---- */
+.grp { margin: 0 0 22px; }
+.grp > h3 {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--mute); font-weight: 400;
+  margin: 0 0 2px;
+}
+
 /* ---- entity returns: from prices, never styled like the flat packages ---- */
 .ents { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 12px; }
 .ent {
@@ -242,31 +282,38 @@ footer {
 
   <p class="eyebrow">Pricing</p>
   <h1>What a return costs.</h1>
-  <p class="lede">We publish what we charge. Here are the numbers for individual returns.</p>
+  <p class="lede">We publish what we charge. Here are the numbers.</p>
 
-  <!-- Rendered from pricing-config.js. The names are still being reworked, so
-       nothing about them is hardcoded here. -->
-  <ul class="tiers" id="tiers"></ul>
-  <p class="included" id="included"></p>
+  <!-- Individual and entity returns are priced on different principles - one is
+       a flat price gated on what is on the return, the other a floor - so they
+       get a panel each rather than one list that blurs them. Both panels render
+       from pricing-config.js; no name or figure is hardcoded here. -->
+  <div class="switch" role="tablist" aria-label="Who the pricing is for">
+    <button class="sw" id="tabInd" role="tab" aria-selected="true" aria-controls="panelInd">Individuals</button>
+    <button class="sw" id="tabBiz" role="tab" aria-selected="false" aria-controls="panelBiz">Businesses</button>
+  </div>
+
+  <section id="panelInd" role="tabpanel" aria-labelledby="tabInd">
+    <ul class="tiers" id="tiers"></ul>
+    <p class="included" id="included"></p>
+  </section>
+
+  <section id="panelBiz" role="tabpanel" aria-labelledby="tabBiz">
+    <ul class="tiers" id="entities"></ul>
+    <p class="included" id="entityLead"></p>
+  </section>
+
   <p>Prices assume your records arrive complete. Anything else is priced below, and it shows on your estimate before you agree to it.</p>
   <p class="note" id="current"></p>
 
   <h2>What costs extra</h2>
-  <p>Only what your package doesn&#39;t already cover.</p>
-  <div class="rows" id="extras"></div>
+  <p>Only what the price above doesn&#39;t already cover.</p>
+  <div id="extras"></div>
   <p class="note">Filing an extension is free. The fee is for working out what you need to pay with it.</p>
 
   <h2 id="sitsHead">Situations</h2>
   <p>One price for any of them.</p>
   <ul class="sits" id="sits"></ul>
-
-  <h2>Amendments</h2>
-  <p>What decides the price is whose work it is.</p>
-  <div class="rows" id="amendment"></div>
-
-  <h2>Businesses</h2>
-  <p>Entity returns start here. Unlike the packages above, these are floors rather than flat prices &mdash; what sits on top is listed with each one, and your estimate prices it before you agree to anything.</p>
-  <ul class="ents" id="entities"></ul>
 
   <h2>What&#39;s hourly</h2>
   <p id="hourly"></p>
@@ -297,56 +344,74 @@ footer {
   function money(n) { return '$' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
   function el(id) { return document.getElementById(id); }
 
-  // Package names come from config, never from markup — see pricing-config.js.
-  el('tiers').innerHTML = P.packages.map(function (p) {
-    return '<li class="tier">' +
-      '<p class="name">' + p.name + '</p>' +
-      '<p class="amt">' + money(p.price) + '</p>' +
-      '<p class="who">' + p.who + '</p>' +
-      '<ul>' + p.covers.map(function (c) { return '<li>' + c + '</li>'; }).join('') + '</ul>' +
+  function card(cls, name, amount, who, list, ontop) {
+    return '<li class="tier' + cls + '">' +
+      '<p class="name">' + name + '</p>' +
+      '<p class="amt">' + amount + '</p>' +
+      '<p class="who">' + who + '</p>' +
+      (ontop ? '<p class="ontop">' + ontop + '</p>' : '') +
+      '<ul>' + list.map(function (c) { return '<li>' + c + '</li>'; }).join('') + '</ul>' +
     '</li>';
-  }).join('');
-
-  el('included').textContent = P.includedInEvery;
-  el('current').innerHTML = P.currentPrices;
-
-  function row(label, detail, amount) {
-    return '<div class="row"><span class="txt">' + label +
-      (detail ? '<span class="det">' + detail + '</span>' : '') + '</span>' +
-      '<b>' + amount + '</b></div>';
   }
 
-  el('extras').innerHTML = P.extras.map(function (x) {
-    return row(x.label, x.detail, money(x.amount));
+  // Package names come from config, never from markup — see pricing-config.js.
+  el('tiers').innerHTML = P.packages.map(function (p) {
+    return card('', p.name, money(p.price), p.who, p.covers, '');
+  }).join('');
+  el('included').textContent = P.includedInEvery;
+
+  // Same card, two deliberate differences: the amount carries "from" because an
+  // entity base is a floor, and the list is what costs EXTRA rather than what
+  // is included — so it is labelled instead of being left to look like the
+  // package bullets it sits beside.
+  el('entities').innerHTML = P.entities.map(function (e) {
+    return card(' ent', e.name, '<i>from</i>' + money(e.amount), e.who,
+                e.notes, P.entityNoteLabel);
+  }).join('');
+  el('entityLead').textContent = P.entityLead;
+
+  el('current').innerHTML = P.currentPrices;
+
+  el('extras').innerHTML = P.extraGroups.map(function (g) {
+    return '<div class="grp"><h3>' + g.title + '</h3><div class="rows">' +
+      g.rows.map(function (x) {
+        var amt = money(x.amount) + (x.reprices ? ' + the return' : '');
+        return '<div class="row"><span class="txt">' + x.label +
+          (x.detail ? '<span class="det">' + x.detail + '</span>' : '') +
+          '</span><b>' + amt + '</b></div>';
+      }).join('') + '</div></div>';
   }).join('');
 
   el('sitsHead').textContent = 'The ' + money(P.situationPrice) + ' situations';
   el('sits').innerHTML = P.situations.map(function (s) { return '<li>' + s + '</li>'; }).join('');
 
-  // Free is a price, and it is the strongest thing on this page. `reprices`
-  // means the return's own fee is charged as well, so the amount alone would
-  // read as the whole cost.
-  el('amendment').innerHTML = P.amendment.map(function (a) {
-    var amt = a.amount === 0 ? '<b class="free">No charge</b>'
-            : '<b>' + money(a.amount) + (a.reprices ? ' + the return' : '') + '</b>';
-    return '<div class="row"><span class="txt">' + a.label +
-      '<span class="det">' + a.detail + '</span></span>' + amt + '</div>';
-  }).join('');
-
-  // "from" is load-bearing: an entity base is a floor, and a bare number gets
-  // read as a total. The notes travel with the amount, out of the schedule.
-  el('entities').innerHTML = P.entities.map(function (e) {
-    return '<li class="ent">' +
-      '<div class="ehead"><p class="who">' + e.label + '</p>' +
-      '<span class="amt"><i>from</i> ' + money(e.amount) + '</span></div>' +
-      '<p class="lead-in">Priced on top of that:</p>' +
-      '<ul>' + e.notes.map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul>' +
-    '</li>';
-  }).join('');
-
   el('hourly').innerHTML = '<strong>' + money(P.hourly.rate) + ' an hour</strong>, billed to ' +
     P.hourly.billedIn + '. These are hourly because we can&#39;t price them until we see them:';
   el('hourlyApplies').innerHTML = P.hourlyApplies.map(function (s) { return '<li>' + s + '</li>'; }).join('');
+
+  // The switch. Both panels are visible until this runs, so with JS off the
+  // page still shows every price — it just cannot flip between them.
+  var tabs = [[el('tabInd'), el('panelInd')], [el('tabBiz'), el('panelBiz')]];
+  function show(i, focus) {
+    tabs.forEach(function (pair, j) {
+      pair[0].setAttribute('aria-selected', j === i ? 'true' : 'false');
+      pair[0].tabIndex = j === i ? 0 : -1;
+      pair[1].hidden = j !== i;
+    });
+    if (focus) tabs[i][0].focus();
+    try { history.replaceState(null, '', i ? '#businesses' : '#individuals'); } catch (e) {}
+  }
+  tabs.forEach(function (pair, i) {
+    pair[0].addEventListener('click', function () { show(i, false); });
+    // Left/right arrows are what a tablist is expected to answer to.
+    pair[0].addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') {
+        ev.preventDefault();
+        show(i === 0 ? 1 : 0, true);
+      }
+    });
+  });
+  show(/^#business/i.test(location.hash) ? 1 : 0, false);
 
   var y = el('year');
   if (y) y.textContent = new Date().getFullYear();
