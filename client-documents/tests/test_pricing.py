@@ -1935,3 +1935,31 @@ def test_the_sample_estimate_matches_what_the_engine_prices():
     assert record["Assumptions"] == [{"Text": t} for t in pricing.assumptions(answers, s)]
     assert any("Self-Employed" == i["Service"] for i in record["LineItems"]), \
         "the sample must show a package line — that is the wording being reviewed"
+
+
+def test_an_assumption_that_cannot_apply_is_not_printed():
+    """Officer compensation was printing on individual estimates.
+
+    Found 26 August 2026 by reading a rendered fee estimate for a 1040 — the
+    same read that caught the stale sample. Every `assumed:` entry printed on
+    every estimate, deliberately: an assumption a client hears about only
+    after it fails is a surprise, not an assumption.
+
+    That principle is about UNLIKELY, not about IMPOSSIBLE. A person filing a
+    1040 has no officers, so the sentence is not a boundary being stated — it
+    is noise, and noise is how a client learns to skip the block. It is also
+    exactly the bloat the firm objected to the same day.
+
+    So `when:` gates an assumption on the return, and only where the thing
+    genuinely cannot arise. Everything ungated still prints always.
+    """
+    s = pricing.load()
+    individual = pricing.assumptions({"federal_form": "1040",
+                                      "return_basis": "original"}, s)
+    assert not any(a.startswith("Officer compensation") for a in individual)
+    assert any(a.startswith("Records cleanup") for a in individual), \
+        "an ungated assumption still prints on every estimate"
+
+    entity = pricing.assumptions({"federal_form": "1120S"}, s)
+    assert any(a.startswith("Officer compensation") for a in entity)
+    assert any(a.startswith("Records cleanup") for a in entity)

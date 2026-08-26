@@ -1011,8 +1011,15 @@ def assumptions(answers: dict, schedule: dict | None = None) -> list[str]:
     """
     s = pricing_schedule(schedule)
     rate = (s.get("basis") or {}).get("rate")
+    # `when:` is for an assumption that CANNOT arise on this return, not for
+    # one that is merely unlikely. A person filing a 1040 has no officers, so
+    # the officer-compensation boundary is not being stated to them -- it is
+    # noise on their estimate, and noise is how a client learns to skip the
+    # block. Everything without a `when:` still prints on every estimate,
+    # which is the rule this exception is carved out of.
     out = [_assumption(spec, rate, schedule=s, check_beyond=True)
-           for _, spec in (s.get("assumed") or {}).items()]
+           for _, spec in (s.get("assumed") or {}).items()
+           if not spec.get("when") or gate_holds(spec["when"], answers)]
 
     # And one per form the client actually ticked. The per-form rule IS its
     # assumption -- hold it and pay the flat price, break it and the meter

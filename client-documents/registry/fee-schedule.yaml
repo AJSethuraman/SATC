@@ -1051,6 +1051,19 @@ assumed:
   # and no line exists to put it on.
   officer_compensation:
     label: "Officer compensation"
+    # ENTITY RETURNS ONLY. A person filing a 1040 has no officers, and this
+    # sentence was printing on their estimate until 26 August 2026 -- caught
+    # by reading a rendered one rather than by any test. An assumption that
+    # cannot arise is not a boundary being stated; it is filler.
+    #
+    # Written as `any_of` rather than a new "one of these values" operator:
+    # the gate vocabulary is deliberately short, and three clauses spell it
+    # out without adding a word everyone then has to learn.
+    when:
+      any_of:
+        - answer_is: { federal_form: "1065" }
+        - answer_is: { federal_form: "1120S" }
+        - answer_is: { federal_form: "1120" }
     assumes: "setting officer compensation is not part of this engagement"
     inside_base: false
     trigger: "you ask us to determine or review it, and we agree in writing"
