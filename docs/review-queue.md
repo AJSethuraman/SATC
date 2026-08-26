@@ -71,22 +71,81 @@ applies. Two halves of one tool disagreeing about the same document is worse
 than either answer alone: whichever you happen to run is the one you believe.
 They now ask the same question, and a test holds every document to that.
 
-**What the firm has to decide before an organizer can be built**, because none
-of it is an agent's to assert:
+### A recommendation, asked for on 26 August
 
-1. **Is it a form, or a checklist?** A traditional organizer is a booklet of
-   prior-year figures with blanks beside them. The cover letter promises
-   "prefilled with what we carried forward" — which needs last year's return
-   in the software, and Drake is the system of record for that.
-2. **What is the return path?** The cover letter says the secure upload link.
-   A booklet that comes back as a scan is not data; a web form is.
-3. **How much of it is already the interview?** `return_features`,
-   `extra_forms` and the request list ask most of what an organizer asks. The
-   honest question is whether the organizer for a RETURNING client is anything
-   more than last year's answers, shown back for confirmation.
+The firm: *"you help me decide with suggestions based on industry norms and
+ease of use."* So here is a recommendation rather than three questions. It is
+a proposal, not a decision — but it is what I would build.
 
-The third is the one worth answering first, and it is close to the firm's own
-words — *"as simple as we can make it for both of our sakes"*.
+**Recommendation: do not build an organizer. Build a returning-client
+confirmation, and let Drake keep the figures.**
+
+**1 · Form or checklist? Neither, and only one half is new.**
+
+The traditional organizer — the booklet of prior-year figures with blanks
+beside them — is the part to skip. Every major package generates one, Drake
+included, and firms report most come back untouched: clients skim it, tick
+nothing, and send a shoebox anyway. Building a second prefilled booklet in
+SATC would also mean copying last year's numbers out of Drake, which is the
+one thing `CLAUDE.md` says not to do. **Drake holds the figures. If a client
+genuinely needs a prefilled organizer, Drake already prints it.**
+
+What a returning client actually needs from us is two things, and we have
+most of both already:
+
+- **Last year's answers, shown back for confirmation.** Not questions — a
+  list of what we recorded, with "still true?" beside each one.
+- **The document request list**, which `requests.for_answers()` already
+  builds from those answers.
+
+**2 · Return path: a web form, on the front door that already exists.**
+
+`web.py` is already a browser interview, drafts already persist after every
+answer, and the raw answers for every past engagement are already on disk at
+`engagements/<ref>/interview.json`. A confirmation is that same machinery with
+the answers pre-loaded. **This is what keeping the raw answers separately was
+for**, and it is why that decision is worth more than it looked at the time.
+
+A PDF that comes back as a scan is not data — somebody re-keys it. That is
+the same cost the firm just refused to bill for on brokerage statements:
+*"we will figure out how to make it efficient."* The same logic applies here,
+and more cheaply, because the form already exists.
+
+**3 · How much is already the interview? Most of it — with one real gap.**
+
+Of the 49 questions, the fee-driving counts, `return_features`, the states and
+localities and the prior-year block are all things a returning client would
+simply be confirming. **What the interview does not ask is change.** It asks
+filing status and dependents as *facts* — `joint_return`, `has_dependents` —
+never as *what is different since last year*. No question anywhere asks about
+a marriage, a divorce, a birth, a death, a house bought or sold, a move to
+another state, a retirement, or an inheritance.
+
+That is the genuinely new content, and it is short — one section of yes/no
+questions, each of which, when ticked, opens the questions we already have.
+**It is also the section that earns the whole exercise**, because those are
+exactly the events that change a return and that a client will not think to
+mention.
+
+**What this costs and what it buys**
+
+| | |
+|---|---|
+| **New content to write** | One life-changes section. Everything else is reuse. |
+| **New software** | A seed-from-last-year path into the existing web interview. |
+| **What the client does** | Reads a list, ticks what changed, uploads documents. No booklet, no figures to copy. |
+| **What we get** | Structured data, not a scan — so the fee, the schedules and the request list all derive as they already do. |
+
+**One consequence, and it needs the firm's word.** The organizer cover letter
+currently promises *"Your organizer for the 2026 tax year is enclosed. It is
+prefilled with what we carried forward from last year."* If the recommendation
+above is taken, that sentence describes something that will never exist and
+has to be rewritten. If the firm would rather keep a prefilled booklet, then
+the answer is to send **Drake's** organizer and have this letter carry it —
+which is a smaller job than building ours, and is the honest alternative.
+
+`[CONFIRM: build the returning-client confirmation, or send Drake's organizer
+under this cover letter?]`
 
 ## To decide — a question only the firm can answer
 
