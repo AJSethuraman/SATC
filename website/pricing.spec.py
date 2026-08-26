@@ -166,8 +166,11 @@ for word in ("federal", "first state", "first local"):
 check(all(p.get("covers") for p in cfg["packages"]),
       "no package is published as a bare number — every one says what it covers")
 
-check(cfg["minimum"]["amount"] == 200 and cfg["minimum"]["exceptionId"] == "starter",
-      "the $200 minimum is published with its one exception attached")
+# The firm cut the explanatory box on 26 Aug 2026 — "just let the prices speak".
+# Checked as an absence so a future edit that reintroduces a preamble has to be
+# a deliberate one rather than a drift back.
+check("</div>" not in page_src.split('class="tiers"')[0].split("<h1")[-1],
+      "no explanatory box sits between the headline and the prices")
 
 check(cfg["hourly"]["rate"] == sched["basis"]["rate"],
       f"hourly rate matches the schedule (${sched['basis']['rate']})")
@@ -181,7 +184,7 @@ check("[CONFIRM:" not in config_src and "[CONFIRM:" not in page_src,
 # ── 5 · the page renders what the config holds ────────────────────────────
 
 for element in ("tiers", "included", "extras", "sits", "hourly", "hourlyApplies",
-                "sumSelect", "sumCarte", "sumMin"):
+                ):
     check(f'id="{element}"' in page_src, f"the page has a mount point for {element}")
 
 check("pricing-config.js" in page_src, "the page loads the config it renders from")

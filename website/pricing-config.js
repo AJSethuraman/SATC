@@ -90,17 +90,12 @@ window.SATC_PRICING = {
     }
   ],
 
-  /* Who picks the rung, and which way the number can move. A visitor's first
-     question about a four-rung ladder is which one they land on and who
-     decides; the second is whether the package is a floor. It isn't — a client
-     who doesn't need everything in a package can price out below it. */
-  selection: 'We put you in the cheapest package that covers your return.',
-  alaCarte: 'Don&#39;t need everything in it? We price it line by line and you pay whichever is lower.',
-
-  /* The firm's minimum, and its one exception. Framed this way on purpose:
-     a page that presents $100 as the starting price makes every visitor ask
-     why they aren't getting it. */
-  minimum: { amount: 200, exceptionId: 'starter' },
+  /* NO EXPLANATORY PREAMBLE. There was a "how it works" box here — who picks
+     the package, that à la carte can come in under one, the $200 minimum and
+     its exception. The firm cut all of it on 26 August 2026: "just let the
+     prices speak". Four prices with what each covers say it without the
+     paragraph, and the paragraph was the thing that made the page read like a
+     pitch. Do not reintroduce one. */
 
   /* Charged only past what your package already covers. */
   extras: [

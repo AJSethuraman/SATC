@@ -223,13 +223,6 @@ footer {
   <h1>What a return costs.</h1>
   <p class="lede">Most tax sites make you book a call to find out. Here are the numbers.</p>
 
-  <div class="summary">
-    <b>How it works</b>
-    <p id="sumSelect"></p>
-    <p id="sumCarte"></p>
-    <p id="sumMin"></p>
-  </div>
-
   <!-- Rendered from pricing-config.js. The names are still being reworked, so
        nothing about them is hardcoded here. -->
   <ul class="tiers" id="tiers"></ul>
@@ -287,15 +280,6 @@ footer {
   }).join('');
 
   el('included').textContent = P.includedInEvery;
-  el('sumSelect').innerHTML = '<b>' + P.selection + '</b>';
-  el('sumCarte').innerHTML = P.alaCarte;
-
-  // The minimum is stated with its exception attached. Presenting the cheapest
-  // package as the starting price makes every visitor ask why they aren't in it.
-  var exception = P.packages.filter(function (p) { return p.id === P.minimum.exceptionId; })[0];
-  el('sumMin').innerHTML = 'Our minimum is ' + money(P.minimum.amount) +
-    (exception ? ', unless your return is simpler than that — that&#39;s ' + exception.name +
-      ', at ' + money(exception.price) + '.' : '.');
 
   el('extras').innerHTML = P.extras.map(function (x) {
     return '<div class="row"><span>' + x.label + '</span><b>' + money(x.amount) + '</b></div>';
