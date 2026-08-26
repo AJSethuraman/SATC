@@ -24,6 +24,54 @@ the case that produced the rule.
 
 ## Open
 
+### Nobody knows how long anything takes, and nobody is going to type it in
+
+**The friction.** Every price in the fee schedule is also a time budget --
+`cd client-documents && python cli.py hours` prints them -- and every one of
+those budgets is calibrated to the principal's own estimate of his average
+rather than to a measurement. Five numbers per engagement would settle most of
+what has been argued about this month: the package, the prep hours, the
+**admin** hours, whether an assumption failed, and what that cost.
+
+Admin hours is the one that matters most and the one no survey anywhere
+reports. It is the number that decides whether Starter at $100 is profitable
+work or a donation.
+
+**Asked and answered, 26 August 2026.** The firm chose to log all five for a
+full season, over a sample of twenty, and added the condition that makes it
+real:
+
+> this is good - should be formalized and automated. add it to the log
+
+**Why it is in this log rather than in the backlog.** Because the friction is
+not the measuring -- it is the typing. A time log that depends on a person
+remembering to fill it in during March is a time log with a hole in exactly
+the weeks that matter most. Any design that starts with "and then you enter
+your hours" has already failed.
+
+**What automation could actually reach, today.** The engagement record already
+knows the package, the counts, the date it was created and every answer the
+interview collected. What it does not know is when work started, when it
+stopped, and whether an assumption broke. Three cheap sources exist before
+anyone is asked to type anything:
+
+* **The engagement store's own timestamps.** Created, documents rendered,
+  invoice raised. That is elapsed calendar time, not hours, but it bounds them.
+* **The review flags.** `Outcome.flags` already records the things a preparer
+  was asked to look at. "Did an assumption fail" is a flag away from being
+  captured rather than remembered.
+* **A single start/stop, not a form.** One command that stamps a file, and one
+  that closes it, is a different proposition from a timesheet.
+
+**What it needs from a human anyway, and there is no way around it.** Whether
+the assumption that failed was the client's or ours. That is a judgement, it
+is one word, and it is the difference between a price that is wrong and a
+process that is broken.
+
+**Not started.** This is the entry, not the build.
+
+---
+
 ### 1099-B: keying every lot instead of summarising and attaching
 
 **The friction.** Every transaction gets keyed by hand. Attaching the statement
