@@ -147,6 +147,49 @@ which is a smaller job than building ours, and is the honest alternative.
 `[CONFIRM: build the returning-client confirmation, or send Drake's organizer
 under this cover letter?]`
 
+## A C corporation cannot be sent its engagement letter at all
+
+Found 26 August 2026, twice independently — once by reading the letter, once
+by a scenario driving a 1120 end to end.
+
+**The state, verified by running it.** An 1120 engagement is created fine. Then
+every document in its opening package refuses:
+
+```
+Blocked, and due now (4):
+  business-letter   unresolved fields: <<ScheduleK1Target>>
+```
+
+**Why.** The business engagement letter's section 02 is entirely about
+Schedules K-1 — what they are, when we deliver them, and telling your owners
+that date. It merges `<<ScheduleK1Target>>` unconditionally. But a **C
+corporation issues no K-1s**, so the interview never asks for that date: the
+question is gated to a 1120-S and a 1065, correctly and deliberately. The
+interview has always known this. The letter never did.
+
+**What is already fixed.** The new "Schedules K-1: N, one for each owner" scope
+line is gated on `EntityIssuesK1s`, so it does not print for a C corporation.
+That is half the job and it is the easy half.
+
+**What is not, and why I stopped.** Section 02's paragraphs are still
+unconditional. Three ways out, and the choice is the firm's:
+
+1. **Give the section C-corporation wording.** What a C corp's letter should
+   say in place of the K-1 paragraph — dividends, distributions, something
+   else, or nothing — is a statement about how the firm works. Writing it
+   would be inventing the firm's own words.
+2. **Drop the section for a C corporation.** Cheap, but it leaves a numbered
+   gap in a signed document, which the letter's own notes call out as exactly
+   the thing that invites the wrong question later.
+3. **A separate C-corporation letter.** Honest, and the most work.
+
+**The good news, and it is worth saying.** The software is not pretending. Both
+`doctor` and `render` refuse, they refuse for the same reason, and `doctor`
+names the missing field. That is the failure mode we want — this is the same
+pair of tools that a week ago said "Ready now" while `render` refused.
+
+`[CONFIRM: which of the three, for a C corporation's section 02?]`
+
 ## The predecessor's records — who actually sends the authorization?
 
 Asked 26 August on the onboarding letter: *"can we just get their written
