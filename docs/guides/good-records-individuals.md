@@ -63,14 +63,17 @@ This is where a short return turns into a long one.
 
 ## 03 · Where you lived and where you worked
 
-Ohio adds returns the federal one does not — the state, usually a city, and
-sometimes a school district.
+Ohio adds returns the federal one does not — the state, and often a city or a
+school district. Which ones, and how they work, differs by where you live and
+who collects for them. What helps is the same everywhere:
 
-- A city return can be required even when nothing is left to pay.
 - Send the W-2 whole. The local boxes at the foot of it are what a city return
-  runs on.
-- If you moved, we need the dates, not only the new address. Same if you
-  changed where you work.
+  runs on, and a cropped copy loses them.
+- Name every place you lived and every place you worked during the year, not
+  just the current one.
+- Give the dates you moved or changed jobs, not only the addresses.
+- Say if you worked somewhere different from where you live, or in more than
+  one place. That combination is what decides which returns there are.
 
 ---
 
@@ -81,9 +84,6 @@ sometimes a school district.
 - Every page, right way up, readable at full size.
 - Whole documents. A cropped statement gets asked for again.
 - Nothing with a Social Security number in it goes in an email.
-
-<!-- [CONFIRM: does this page name the upload route by name? The organizer
-     cover letter tells clients to use Encyro. The website has never named it. -->
 
 ---
 
@@ -100,6 +100,10 @@ sometimes a school district.
 Not sure whether something counts? Include it.
 
 **[Tell us about your situation →](/#intake)**
+
+---
+
+This is general information, not advice about a particular return.
 
 <!-- [CONFIRM: does a page like this carry a line saying it is general and not
      advice on a particular return? If so, the firm's own wording is needed —

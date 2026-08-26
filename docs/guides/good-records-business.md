@@ -103,3 +103,7 @@ Behind on the books? That is a different job from the return, and it comes
 first.
 
 **[Tell us about your situation →](/#intake)**
+
+---
+
+This is general information, not advice about a particular business.

@@ -162,3 +162,117 @@ that block publication:
 The other four are decisions, not risks: the IRA form's deadline, how far the
 Ohio city claim reaches, whether to name the upload route, and where the pages
 live.
+
+---
+
+# The third guide — entity choice
+
+> "we should definitely let people know about s corp pay - i think an important
+> topic is actually people thinking of being an s corp and not understanding
+> what that means. heck even a page on what and why an LLC to some extent some
+> people need"
+> — the firm
+
+| File | Page title | Who reads it |
+|---|---|---|
+| `entity-choice.md` | What people mean by "S corp" | Someone told by a friend, a podcast or a bookkeeper that they should be an S corp |
+
+`SOURCES-entity-choice.md` carries its claims separately from `SOURCES.md`,
+because that file is titled for the records guides and the two sets share no
+subject. `tenets.spec.py` now runs over three drafts, and its cross-page check
+runs over every pair rather than the original one.
+
+## Where it sits
+
+The records guides answer *what does a return need from me*. This one answers a
+question asked earlier than that, and by someone who is not a client yet. It is
+the only one of the three whose reader is deciding something rather than
+gathering something.
+
+It is also the one closest to the price page. `pricing.html` prices
+partnerships, S corporations and C corporations on the Businesses tab and
+assumes the visitor knows which they are. Some of them do not, and the ones who
+do not are the ones about to buy the wrong thing.
+
+## The confusion it exists to fix
+
+Three separate ideas, routinely collapsed into one:
+
+1. An LLC is a state filing. It settles ownership and liability.
+2. How a business is taxed is a different question with its own defaults.
+3. "S corp" is an election. An LLC can make it and stay an LLC.
+
+So "should I be an LLC or an S corp?" does not parse, and saying why is the
+most useful paragraph on the page. That sentence is the reason this is one page
+and not two. The firm floated a separate page on what and why an LLC; splitting
+them would put the two ideas on two pages and lose the only thing worth saying,
+which is that they are not the same idea.
+
+## Why it is not four pages
+
+Same argument as the records split, running the other way. There the two
+subjects were genuinely different and had to separate. Here the two subjects
+*look* different to a reader and are the same subject, so they have to stay
+together. One page each remains the ceiling.
+
+## The section it was written for
+
+**05 · Reasonable compensation.** Everything before it is setup and everything
+after it is consequence. People elect for the self-employment tax saving and
+meet the wage requirement afterwards, and `assumed.officer_compensation` in
+`fee-schedule.yaml` puts setting or reviewing that figure outside the flat
+engagement. The guide explains what the number is and why it is not optional,
+and names none.
+
+That closes a gap the second guide left open. `good-records-business.md` says
+nothing about what an owner pays themselves and flags the silence, on the
+grounds that an S corp owner searching the phrase is exactly who would find the
+page. This page is where that reader lands instead.
+
+## The honest half
+
+A page that lists only reasons to elect is marketing, so section 07 is the
+cases where the answer is no: profit too small for a reasonable wage to leave
+anything, one owner who wants one return, a business raising outside money that
+cannot have an ineligible shareholder or a second class of stock, a company
+holding rentals that had no self-employment tax to save, and losses funded by
+company borrowing that gives a shareholder nothing to deduct against. Section
+08 says the election is hard to undo.
+
+## What was deliberately left out
+
+- **Every figure that resets each year** — the self-employment rate, the Social
+  Security wage cap, the late-filing penalty per owner, the Ohio filing fee.
+  The page describes each mechanism instead, so nothing on it goes stale on
+  1 January.
+- **Any number an owner should pay themselves**, and any method for reaching
+  one.
+- **Prices, including ours.** Same rule as the other two.
+- **C corporations.** On the Businesses tab, off this page. It exists to
+  separate two things a reader has already tangled.
+- **Late-election relief.** A reader who has missed the deadline needs a
+  person, and naming relief makes the deadline read as soft.
+- **State pass-through entity elections.** A page's worth of material on their
+  own; half of it would be worse than none.
+- **The S corporation health insurance rule.** It is in the business guide.
+- **A named upload route.** Per the firm: no reason to name it on the site.
+
+## What is new against the other two
+
+**It carries a not-advice line.** Open item 4 in `SOURCES.md` left that
+question for the firm and the firm has since answered it — a short, plain,
+generic one, kept out of contract-desk register. The sentence written is *"This
+is general information, not advice about a particular business."* Two things
+follow. The wording is not the firm's, so it is flagged. And if it stays, the
+other two guides should carry the same sentence word for word, because two
+things doing the same job have to look identical.
+
+## What needs a human before this goes up
+
+Seven `[CONFIRM:` markers, listed in full at the foot of
+`SOURCES-entity-choice.md`, three of them in the draft itself. The one that
+blocks publication is the same one that blocks the other two, and it is worse
+here: **no primary page was opened.** `irs.gov`, `tax.ohio.gov`, `ecfr.gov`,
+`law.cornell.edu` and `ohiosos.gov` are all blocked from this container. The
+records guides describe what a document is and when it arrives. This one
+describes an election that takes five years to unwind.

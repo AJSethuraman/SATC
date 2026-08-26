@@ -31,7 +31,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 COPY_SPEC = HERE.parent.parent / "website" / "copy.spec.py"
-DRAFTS = ["good-records-individuals.md", "good-records-business.md"]
+DRAFTS = ["good-records-individuals.md", "good-records-business.md",
+          "entity-choice.md"]
 
 _fail = 0
 
@@ -129,16 +130,37 @@ for name in DRAFTS:
     hits = [w for w in BRITISH if w in low]
     check(not hits, f"American spelling throughout {hits or ''}")
 
-# Tenet 5 across the pair. Two guides that repeat each other are one guide
-# split in half, which is the failure the two-page decision has to survive.
-print("--- both pages together")
-texts = [visible_text((HERE / n).read_text(encoding="utf-8")) for n in DRAFTS]
-grams = []
-for t in texts:
-    words = re.findall(r"[a-z']+", t.lower())
-    grams.append({" ".join(words[i:i + 7]) for i in range(len(words) - 6)})
-shared = grams[0] & grams[1]
-check(not shared, f"the two guides share no run of prose {list(shared)[:3] or ''}")
+# Tenet 5 across the set. Two guides that repeat each other are one guide split
+# in half, which is the failure the separate-pages decision has to survive. It
+# was written for a pair and now runs over every pair, because the third guide
+# overlaps BOTH of the others in subject — an S corporation owner appears in the
+# business guide's section 06 and its K-1 in the individual guide's section 01.
+print("--- the pages against each other")
+
+# One sentence is SUPPOSED to be on every page, word for word: the line saying
+# this is general information rather than advice. The firm settled its register
+# on 26 August -- "make the wording fairly generic" -- and three pages carrying
+# three different versions of the same disclaimer reads worse than one carrying
+# it three times. So it is furniture, like a wordmark in a header and again in
+# a footer, and it comes out before the pages are compared.
+#
+# Exempted by matching the sentence, not by skipping a trailing block: a real
+# repetition that happened to sit at the foot of a page would still be caught.
+FURNITURE = re.compile(
+    r"this is general information,? not advice about a particular [a-z]+\.?",
+    re.I)
+
+grams = {}
+for name in DRAFTS:
+    text = visible_text((HERE / name).read_text(encoding="utf-8"))
+    text = FURNITURE.sub(" ", text)
+    words = re.findall(r"[a-z']+", text.lower())
+    grams[name] = {" ".join(words[i:i + 7]) for i in range(len(words) - 6)}
+for i, a in enumerate(DRAFTS):
+    for b in DRAFTS[i + 1:]:
+        shared = grams[a] & grams[b]
+        check(not shared,
+              f"{a} and {b} share no run of prose {list(shared)[:3] or ''}")
 
 # The claim the price page will link to. If the phrase the link hangs on is not
 # answered on the page, the link is decoration.
