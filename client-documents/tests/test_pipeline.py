@@ -97,6 +97,24 @@ def test_no_sample_can_drift_from_the_firm_settings():
                 )
 
 
+def test_no_sample_states_a_firm_value_the_firm_does_not_set():
+    """Three samples said `arjun@satcllp.com` while settings said
+    `arjun_sethuraman@satcllp.com`. The drift test only covered the Firm block
+    when it was written, so the preparer's own address went unchecked -- on
+    the three documents that print it as the way to reach us.
+    """
+    settings = firm.firm_fields("2026")
+    for path in SAMPLES.glob("*.json"):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        for field in ("PreparerName", "PreparerTitle", "PreparerEmail",
+                      "BillingContactName", "BillingContactEmail",
+                      "ReturnInstruction", "PaymentInstruction"):
+            if field in record:
+                assert record[field] == settings[field], (
+                    f"{path.name}: {field} has drifted from firm-settings.yaml"
+                )
+
+
 def test_no_sample_states_a_deadline_the_firm_does_not_set():
     """A sample carrying its own date is a second copy of the deadline rule.
 
@@ -186,12 +204,25 @@ def test_metadata_cannot_reach_a_document():
 
 # ── the two modes ─────────────────────────────────────────────────────────
 
+def test_a_client_with_no_predecessor_gets_no_records_release():
+    """The attachment goes out BY DEFAULT, which is not the same as always.
+    A client with nobody to ask has nothing to sign."""
+    record = cli.build_record(_load("tax-opening-package.json"))
+    assert "records-release" in cli.opening_package(record)
+    assert "records-release" not in cli.opening_package(dict(record, PriorFirm=False))
+
+
 def test_a_complete_record_renders_the_whole_opening_package(tmp_path):
     rc = cli.main(["render", str(SAMPLES / "tax-opening-package.json"),
                    "--out", str(tmp_path), "--no-pdf"])
     assert rc == 0
     written = sorted(p.name for p in tmp_path.glob("*.html"))
-    assert len(written) == len(cli.OPENING_PACKAGE), written
+    # NOT `OPENING_PACKAGE`: the demo record has a previous accountant, so
+    # the package carries the records release as well. `opening_package()` is
+    # what decides, and holding the test to the fixed list would have made
+    # sending that attachment by default look like a bug.
+    record = cli.build_record(_load("tax-opening-package.json"))
+    assert len(written) == len(cli.opening_package(record)), written
     for f in tmp_path.glob("*.html"):
         text = f.read_text(encoding="utf-8")
         assert "&lt;&lt;" not in text, f"{f.name}: an unfilled field survived"
@@ -306,7 +337,8 @@ def test_the_opening_package_reaches_pdf(tmp_path):
                    "--out", str(tmp_path)])
     assert rc == 0
     pdfs = sorted(tmp_path.glob("*.pdf"))
-    assert len(pdfs) == len(cli.OPENING_PACKAGE), [p.name for p in pdfs]
+    record = cli.build_record(_load("tax-opening-package.json"))
+    assert len(pdfs) == len(cli.opening_package(record)), [p.name for p in pdfs]
     for p in pdfs:
         assert p.stat().st_size > 4000, f"{p.name} is too small to be a document"
         assert p.read_bytes().startswith(b"%PDF"), f"{p.name} is not a PDF"

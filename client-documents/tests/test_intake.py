@@ -230,25 +230,18 @@ def test_an_unreadable_count_does_not_raise_a_flag_or_an_error(answers, tmp_path
     assert intake.finish(a, store=tmp_path, fee_schedule=priced).flags == []
 
 
-def test_an_unanswered_brokerage_keying_count_is_flagged(answers, tmp_path, priced):
-    """A blank is the normal case here and must not be read as "none".
+def test_a_brokerage_raises_no_keying_question(answers, tmp_path, priced):
+    """It used to flag "nobody has said yet whether it can be summarised",
+    because a second price of $95 a statement hung on the answer.
 
-    Nobody knows whether a 1099-B can be summarised until it arrives, so the
-    estimate goes out with the keying line unpriced. That is fine; going
-    quiet about it is not, because a line added after the estimate went out
-    is a conversation.
+    Both are gone as of 26 August 2026. Every brokerage statement is $45, and
+    one disordered enough to key is billed as time -- so there is nothing to
+    guess at the consultation and nothing to come back to at file review.
     """
     a = dict(answers) | {"federal_schedules": ["D"], "count_brokerages": 2}
     a.pop("count_brokerages_keyed", None)
     out = intake.finish(a, store=tmp_path, fee_schedule=priced)
-    assert any("summarised" in f for f in out.flags)
-
-
-def test_a_typed_zero_is_an_answer_and_raises_nothing(answers, tmp_path, priced):
-    a = dict(answers) | {"federal_schedules": ["D"], "count_brokerages": 2,
-                         "count_brokerages_keyed": 0}
-    out = intake.finish(a, store=tmp_path, fee_schedule=priced)
-    assert not any("summarised" in f for f in out.flags)
+    assert not any("summarised" in f or "summarized" in f for f in out.flags)
 
 
 def test_the_web_front_door_shows_the_same_flags(answers, tmp_path, priced):

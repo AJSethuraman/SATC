@@ -215,6 +215,34 @@ same legal duties either way — Phase 0 below stands regardless.
 
 ## To-do
 
+### Raised in the sign-off room, 26 August 2026 — build work, not wording
+
+These came out of the firm reading the rendered documents. The wording notes
+were applied the same day; these three are the ones that need something built.
+
+- [ ] **A licence expiry check.** The firm: *"let's make a note to incorporate
+      a license expiry check we can email clients about as well."* We ask for
+      photo ID at onboarding and an ID has a date on it, so the software could
+      watch it and write to the client before it lapses. Nothing captures the
+      date today — the request list asks for the ID, not for what is on it.
+      Needs deciding: whether the expiry is a field on the record at all, given
+      an ID is identity data and `CLAUDE.md` keeps that out of this store.
+- [ ] **A business attachment for Schedule C clients.** The firm, on the
+      onboarding letter's one-line request for business income and expenses:
+      *"there is likely more to this - maybe we should just have a separate
+      attachment for business stuff depending on your situation."* Right, and
+      it is a document rather than a longer line — what a Schedule C needs
+      depends on payroll, inventory, a vehicle, a home office. The line is left
+      as it stands until that attachment exists.
+- [ ] **Preliminary and final numbers on the delivery letter.** The firm: *"we
+      can have a process that inputs the preliminary numbers (these) into the
+      workbook which then fills the template (or whatever we are using as a
+      database) and then we can record final numbers as well."* The delivery
+      letter's `ReturnsDelivered` list is hand-built today. It should come from
+      the same place the return's figures do, and the final numbers should be
+      recorded when they are known.
+
+
 ### Security fixes (Phase 0 — in progress)
 - [x] **C1 vault encryption** — AES-256-GCM on all vault PII (`persistence/crypto.py`); key sealed by
       DPAPI on Windows / 0600 key file elsewhere; transparent migration of legacy plaintext + VACUUM;

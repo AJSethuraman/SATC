@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SATC — records release authorization (template)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="satc-doc.css"/>
+</head>
+<body>
+
+<doc-page size="letter" margin="0.7in">
+
+<div class="letter">
+
+<div class="mast">
+  <div class="lock">
+    <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
+  </div>
+  <div class="contact">
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
+  </div>
+</div>
+<div class="rule"></div>
+
+<div class="meta-line">
+  <span><span class="f">&lt;&lt;LetterDate&gt;&gt;</span></span>
+  <span class="mono">ENGAGEMENT REF <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+<div class="recipient">
+  <b>To: <span class="f">&lt;&lt;PriorFirmName&gt;&gt;</span></b><br/>
+  From: <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span><br/>
+  <span class="f">&lt;&lt;ClientAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;ClientCity&gt;&gt;</span>, <span class="f">&lt;&lt;ClientState&gt;&gt;</span> <span class="f">&lt;&lt;ClientZip&gt;&gt;</span>
+</div>
+
+<div class="subject">Authorization to release my records — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
+
+<div class="body">
+  <p>I have engaged <span class="f">&lt;&lt;FirmName&gt;&gt;</span> to prepare my returns. <strong>Please release copies of my records to them.</strong> This letter is my authorization to do so.</p>
+
+  <div class="sec">
+    <h2><span class="n">01</span>What to send</h2>
+    <ul>
+      <li>My <b>filed returns</b> for the last three years, federal, state and local, complete with every schedule.</li>
+      <li><b>Depreciation schedules</b> for anything still being depreciated, showing cost, date placed in service, method and accumulated depreciation.</li>
+      <li>Any <b>carryforwards</b>: losses, credits, contributions, basis.</li>
+      <li><b>Basis records</b> for any partnership or S corporation interest.</li>
+      <li>Anything else you hold that the next preparer would need.</li>
+    </ul>
+    <p>Electronic copies are fine and are preferred.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="n">02</span>Where to send it</h2>
+    <p>To <span class="f">&lt;&lt;PreparerName&gt;&gt;</span> at <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span>, or by post to the address at the top of this page.</p>
+    <p>If anything is outstanding between us, tell me directly &mdash; <strong>this authorization is not a dispute</strong> and is not a request to write anything off.</p>
+  </div>
+
+  <div class="exec">
+    <p class="lead">Signed by the taxpayer named above.</p>
+    <div class="sigrow">
+      <div>
+        <div class="sig"></div>
+        <div class="siglab"><b><span class="f">&lt;&lt;TaxpayerName&gt;&gt;</span></b></div>
+      </div>
+      <div>
+        <div class="sig short"></div>
+        <div class="siglab">Date</div>
+      </div>
+    </div>
+    <span class="cond">[[IF JointReturn]]</span>
+    <div class="sigrow">
+      <div>
+        <div class="sig"></div>
+        <div class="siglab"><b><span class="f">&lt;&lt;SpouseName&gt;&gt;</span></b></div>
+      </div>
+      <div>
+        <div class="sig short"></div>
+        <div class="siglab">Date</div>
+      </div>
+    </div>
+    <span class="cond end">[[END IF]]</span>
+  </div>
+</div>
+
+</div>
+
+<div slot="footer" class="foot">
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
+  <span class="id">RECORDS RELEASE<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
+</div>
+
+</doc-page>
+
+<div class="ref">
+  <h3>Merge fields</h3>
+  <p>Goes out <b>with the engagement letter</b>, by default, to any client who had a previous accountant. The firm, 26 August 2026: <i>"let's just make an attachment that we send for them to sign by default along with the engagement letter."</i> It replaces the onboarding letter's paragraph about contacting the predecessor, which asked the client to authorize something in writing without giving them the writing.</p>
+  <p><span class="warn">The client signs this, not the firm.</span> It is written in the client's voice, addressed to their former preparer, and the firm's name appears only as the place records go.</p>
+  <table>
+    <tr><th>Field</th><th>Required</th><th>Example / notes</th></tr>
+    <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>February 3, 2027 — the package's date, same as the letter it travels with</td></tr>
+    <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114</td></tr>
+    <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td>2026 tax year</td></tr>
+    <tr><td>&lt;&lt;PriorFirmName&gt;&gt;</td><td class="req">Required</td><td>Halloran &amp; Reeve CPAs. <b>No address:</b> the client sends this to a firm they already deal with, and a wrong address on a signed authorization is worse than none.</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Identifies whose records these are, to a firm that may hold several families</td></tr>
+    <tr><td>&lt;&lt;TaxpayerName&gt;&gt;</td><td class="req">Required</td><td>Daniel Reyes — under the signature line, not the joint addressee form</td></tr>
+    <tr><td>&lt;&lt;SpouseName&gt;&gt;</td><td class="opt">If JointReturn</td><td>Maria Reyes</td></tr>
+    <tr><td>[[IF JointReturn]]</td><td class="req">Flag</td><td>Boolean. A second signature line, because a joint return's records belong to both.</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>Where the records go</td></tr>
+    <tr><td>&lt;&lt;FirmName&gt;&gt; &lt;&lt;FirmLegalName&gt;&gt; &lt;&lt;FirmAddress1&gt;&gt; &lt;&lt;FirmCity&gt;&gt; &lt;&lt;FirmState&gt;&gt; &lt;&lt;FirmZip&gt;&gt; &lt;&lt;FirmWebsite&gt;&gt; &lt;&lt;FirmJurisdiction&gt;&gt;</td><td class="req">Required</td><td>The firm block, from settings like every other document</td></tr>
+  </table>
+  <p><b>17 fields + 1 flag.</b></p>
+
+  <h3>Deliberately not here</h3>
+  <ol>
+    <li><b>No fee, no scope, no deadline.</b> This is one instruction from a client to their former preparer. Everything else is in the letter it travels with.</li>
+    <li><b>No claim about anyone's obligations.</b> It asks; it does not tell the predecessor what any rule requires of them. What a former preparer must release, and on what terms, is between the client and that firm.</li>
+    <li><b>No "we will contact them on your behalf".</b> The firm does not need to: the client signs this and sends it, which is faster and needs no second authorization.</li>
+  </ol>
+</div>
+
+<script src="doc-page.js"></script>
+</body>
+</html>

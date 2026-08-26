@@ -563,28 +563,6 @@ per_unit:
     amount: 45
     publish: "yes"
 
-  brokerage_keyed:
-    count_from: count_brokerages_keyed
-    label: "Brokerage entered by hand"
-    detail: "Per statement that cannot be summarized"
-    # How this line is named INSIDE a sentence, when an assumption points at
-    # it to say what its own overrun costs. The assumption's `trigger` has
-    # already named the situation -- "if a statement has to be entered by
-    # hand" -- so this refers back to it rather than saying it again.
-    per_each: "that statement"
-    # Signed 25 Aug 2026. What flips it, settled the same day: the parts of a
-    # 1099-B that cannot be summarised. Where the broker reported basis to the
-    # IRS and nothing needs adjusting, the totals go in and the statement is
-    # attached; where they did not, the trades are keyed one at a time.
-    #
-    # TAGGED AS EXPOSED TO AUTOMATION -- this is T-01 and the first entry in
-    # docs/workflow-friction-log.md, and it is the clearest case of the rule
-    # in that log: where OUR process costs more than the return needs, that is
-    # a cost to fix, not a cost to bill. Price today's effort; expect this
-    # line to shrink.
-    amount: 95
-    publish: "yes"
-
   foreign_account:
     count_from: count_foreign_accounts
     label: "Foreign account reporting"
@@ -1010,21 +988,23 @@ assumed:
   # So the assumption comes back below with a PRICE rather than a rate. It is
   # not the old one reworded: the old one claimed brokerage was inside the base
   # fee at any volume and billed the overrun hourly, and all of that was wrong.
+  # DELETED 26 August 2026: the $95 "brokerage entered by hand" line, and the
+  # `count_brokerages_keyed` question that fed it. The firm: "this is way too
+  # much crap. we are actually deleting the $95 thing - all are $45 we will
+  # figure out how to make it efficient. however it is possible that brokerage
+  # statements are so messy they require keying which could significantly
+  # increase time and therefor result in an hourly charge."
+  #
+  # Every brokerage statement is $45. What survives is the honest residue: a
+  # statement disordered enough to key is not a $95 job of known size, it is
+  # time. Asking at the consultation how many WOULD turn out messy was always
+  # the weakest question on the sheet -- nobody knows before opening them.
   brokerage_keying:
-    label: "Brokerage keying"
-    assumes: "each 1099-B can be summarized rather than keyed line by line"
-    # Not inside the base: the first statement is inside the PACKAGE, which is
-    # a different claim and one the covers list already makes.
+    label: "Brokerage"
+    assumes: "your 1099-Bs can be summarized rather than keyed line by line"
     inside_base: false
-    trigger: "a statement has to be entered by hand"
-    # The third consequence, and the one the firm asked for. Not hourly, which
-    # tells a client a rate and leaves them unable to work out the total; not a
-    # re-quote, which stops the job. A named price, said up front and agreed at
-    # the moment it is found.
-    beyond: priced
-    # Read from the line that charges it. Typing 95 here as well is how an
-    # estimate ends up promising $95 while the invoice bills $110.
-    beyond_price_from: brokerage_keyed
+    trigger: "a statement is disordered enough that it has to be keyed"
+    beyond: hourly
 
   foreign_company:
     label: "Foreign entities"
@@ -1050,13 +1030,14 @@ assumed:
   #
   # NEVER an intake question, for the same reason as cleanup: a notice arrives
   # after the return is filed. It is raised when it happens.
-  notice_response:
-    label: "Notices and correspondence"
-    assumes: "no authority writes to you about a return we prepared"
-    inside_base: false
-    trigger: "a notice arrives and you ask us to deal with it"
-    beyond: hourly
-    raised_at: file_review
+  # DELETED 26 August 2026. The firm: "notices and corresponds belong in a
+  # different letter engagement or would be discussed anyway, get rid of it.
+  # can't bite if not a secret."
+  #
+  # The engagement letter already says representing you in an examination,
+  # notice response or appeal is a separately quoted engagement. Repeating it
+  # on the estimate as an ASSUMPTION said the same thing twice and implied the
+  # meter was already running, which is not the arrangement.
 
   # Settled 25 August 2026 and, until now, recorded only as a scope-exclusion
   # flag on the business engagement letter in `fields.yaml`. A DOCUMENT said

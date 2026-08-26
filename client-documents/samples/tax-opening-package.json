@@ -51,13 +51,10 @@
   ],
   "Assumptions": [
     {
-      "Text": "Brokerage keying — each 1099-B can be summarized rather than keyed line by line. If a statement has to be entered by hand, that statement is $95.00, which we will agree with you before we do it rather than adding it to your bill unannounced."
+      "Text": "Brokerage — your 1099-Bs can be summarized rather than keyed line by line. If a statement is disordered enough that it has to be keyed, the additional time is billed at $150 an hour as it is worked."
     },
     {
       "Text": "Foreign entities — your foreign holdings are accounts rather than companies. If you hold an interest in a foreign corporation or partnership, the additional time is billed at $150 an hour as it is worked."
-    },
-    {
-      "Text": "Notices and correspondence — no authority writes to you about a return we prepared. If a notice arrives and you ask us to deal with it, the additional time is billed at $150 an hour as it is worked."
     },
     {
       "Text": "Records cleanup — your records arrive complete and reconciled. If the records need reconciling before the return can be prepared, the additional time is billed at $150 an hour as it is worked."
@@ -74,8 +71,8 @@
       "Detail": "One for each employer, for you and anyone filing with you"
     },
     {
-      "Document": "Photo ID and Social Security cards",
-      "Detail": "For everyone on the return, if we have not seen them before"
+      "Document": "Photo ID, and the Social Security number for everyone on the return",
+      "Detail": "The ID only if we have not seen it before. We need the numbers, not the cards"
     },
     {
       "Document": "Last year's tax return",
@@ -91,7 +88,7 @@
     },
     {
       "Document": "Each K-1 you received",
-      "Detail": "The whole K-1 including its statements, not just the first page"
+      "Detail": "Including its statements"
     },
     {
       "Document": "Your business income and expenses",

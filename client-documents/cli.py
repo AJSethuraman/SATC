@@ -67,11 +67,27 @@ DOCUMENTS = {
     "delivery-letter":      ("SATC Tax Return Delivery Letter.html",          "Return Delivery"),
     "extension-notice":     ("SATC Extension Notice.html",                    "Extension Notice"),
     "disengagement-letter": ("SATC Disengagement Letter.html",                "Disengagement"),
+    "records-release":      ("SATC Records Release Authorization.html",     "Records Release"),
 }
 
 # The three that go out together. Named because generating them in one call is
 # the reason they cannot disagree about the date, the ref or the address.
 OPENING_PACKAGE = ["tax-letter", "fee-estimate", "onboarding-letter"]
+
+# And, for a client who had a previous accountant, the records release they
+# sign and send. The firm, 26 August 2026: "let's just make an attachment that
+# we send for them to sign by default along with the engagement letter."
+#
+# BY DEFAULT is the whole point, so it is not a decision anybody makes per
+# engagement: `opening_package()` adds it whenever the record says there is a
+# predecessor. A client with none never sees it.
+CONDITIONAL_OPENING = {"records-release": "PriorFirm"}
+
+
+def opening_package(record: dict) -> list[str]:
+    """The documents this engagement's opening package actually contains."""
+    return OPENING_PACKAGE + [doc for doc, flag in CONDITIONAL_OPENING.items()
+                              if record.get(flag)]
 
 # When in an engagement's life a document becomes due. Readiness is only
 # meaningful against a stage: a disengagement letter that cannot render at
@@ -84,6 +100,9 @@ STAGE = {
     "extension-notice": "in flight",
     "delivery-letter": "delivery", "invoice": "delivery",
     "disengagement-letter": "ending",
+    # Travels WITH the engagement letter, to any client who had a
+    # previous accountant. Opening-stage for that reason.
+    "records-release": "opening",
 }
 
 # Which opening document an engagement actually uses, by return type. The rest
@@ -903,7 +922,7 @@ def cmd_render(args) -> int:
         raise SystemExit("give a record file or --engagement REF")
     record = build_record(raw)
 
-    docs = args.docs or OPENING_PACKAGE
+    docs = args.docs or opening_package(record)
     unknown = [d for d in docs if d not in DOCUMENTS]
     if unknown:
         raise SystemExit(f"unknown document(s): {', '.join(unknown)}\n"
@@ -966,7 +985,7 @@ def cmd_demo(args) -> int:
                                      ref="2027-0114"))
 
     record = str(ROOT / "samples" / "tax-opening-package.json")
-    common = dict(record=record, docs=OPENING_PACKAGE, out=str(outdir),
+    common = dict(record=record, docs=opening_package(record), out=str(outdir),
                   no_pdf=args.no_pdf, engagement=None, store=None)
 
     print("\n2. a finished record (the interview's answers) -> documents")

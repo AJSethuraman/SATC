@@ -48,13 +48,13 @@ fields:
   - field: ClientAddress1
     label: "Client — street"
     source: interview
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     notes: >-
       Not collected by the website intake — the interview must ask.
   - field: ClientCity
     label: "Client — city"
     source: interview
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     notes: >-
       Website intake collects city+state together; the interview splits them.
   - field: ClientEmail
@@ -66,19 +66,19 @@ fields:
   - field: ClientFullName
     label: "Client — full legal name"
     source: interview
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     notes: >-
       Addressee block. For a business engagement this is the entity's legal name.
   - field: ClientState
     label: "Client — state"
     source: interview
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     notes: >-
       Website intake collects city+state together; the interview splits them.
   - field: ClientZip
     label: "Client — ZIP"
     source: interview
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     notes: >-
       Not collected by the website intake — the interview must ask.
   - field: CreditAmount
@@ -109,7 +109,7 @@ fields:
   - field: EngagementRef
     label: "Engagement reference"
     source: engagement
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     notes: >-
       Join key. YYYY-NNNN, byte-identical across letter, estimate, onboarding and every invoice. A lead's number becomes its EngagementRef on conversion.
   - field: EntityType
@@ -154,43 +154,43 @@ fields:
   - field: FirmAddress1
     label: "Firm — street"
     source: firm
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     # Masthead and footer; the invoice's remit-to block as well.
   - field: FirmCity
     label: "Firm — city"
     source: firm
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     # With FirmState and FirmZip. Masthead and footer.
   - field: FirmJurisdiction
     label: "Firm — state of registration"
     source: firm
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     # The state of registration, named in the footer's partnership sentence.
   - field: FirmLegalName
     label: "Firm — registered name"
     source: firm
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     # The registered name. Footer only — the partnership sentence.
   - field: FirmName
     label: "Firm — short name"
     source: firm
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     # The short form a client reads. Masthead, sign-off, and the invoice's
     # remit-to block.
   - field: FirmState
     label: "Firm — state"
     source: firm
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     # With FirmCity and FirmZip. Masthead and footer.
   - field: FirmWebsite
     label: "Firm — website"
     source: firm
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     # Masthead. No protocol, no www.
   - field: FirmZip
     label: "Firm — ZIP"
     source: firm
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
     # With FirmCity and FirmState. Masthead and footer.
   - field: FirstDeliverableTarget
     label: "First deliverable promised by"
@@ -217,7 +217,7 @@ fields:
   - field: LetterDate
     label: "Date on the letter"
     source: computed
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, onboarding-letter, organizer-letter, records-release, tax-letter]
     notes: >-
       Generated at send time. On the estimate this is the LETTER's date, not today's.
   - field: LocalReturns
@@ -256,17 +256,17 @@ fields:
   - field: PeriodLabel
     label: "Period this covers"
     source: computed
-    templates: [business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter]
+    templates: [business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, records-release]
     notes: >-
       DERIVED PER DOCUMENT, never stored. Estimate/onboarding: the engagement period ('2026 tax year'). Invoice: the period BILLED ('March 2027'). One shared value would print the wrong thing on one of them.
   - field: PreparerEmail
     label: "Preparer — email"
     source: firm
-    templates: [delivery-letter, disengagement-letter, extension-notice, onboarding-letter]
+    templates: [delivery-letter, disengagement-letter, extension-notice, onboarding-letter, records-release]
   - field: PreparerName
     label: "Preparer — name"
     source: firm
-    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, records-release, tax-letter]
   - field: PreparerTitle
     label: "Preparer — title"
     source: firm
@@ -274,7 +274,7 @@ fields:
   - field: PriorFirmName
     label: "Previous accountant"
     source: interview
-    templates: [onboarding-letter]
+    templates: [onboarding-letter, records-release]
   - field: RecordsAvailableUntil
     label: "Records available until"
     source: disengagement
@@ -317,7 +317,7 @@ fields:
   - field: SpouseName
     label: "Spouse"
     source: interview
-    templates: [tax-letter]
+    templates: [records-release, tax-letter]
   - field: StateReturns
     label: "State returns"
     source: interview
@@ -339,7 +339,7 @@ fields:
   - field: TaxpayerName
     label: "Taxpayer"
     source: interview
-    templates: [tax-letter]
+    templates: [records-release, tax-letter]
   - field: VarianceNote
     label: "Why the bill differs from the estimate"
     source: invoice
@@ -407,7 +407,7 @@ flags:
   - flag: JointReturn
     label: "Married filing jointly"
     source: interview
-    templates: [tax-letter]
+    templates: [records-release, tax-letter]
   - flag: NoPaymentRequired
     label: "Nothing to pay with the extension"
     source: extension

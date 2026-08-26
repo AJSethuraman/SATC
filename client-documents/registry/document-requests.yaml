@@ -38,8 +38,15 @@ requests:
   - document: "Every W-2 for the year"
     detail: "One for each employer, for you and anyone filing with you"
 
-  - document: "Photo ID and Social Security cards"
-    detail: "For everyone on the return, if we have not seen them before"
+  # The firm, 26 August 2026: "we do not need SS cards, we do require the
+  # numbers." Asking for the card is asking a client to photograph the one
+  # document they were told never to carry, for information they can type.
+  #
+  # NOTE, RAISED THE SAME DAY AND NOT BUILT: "let's make a note to incorporate
+  # a license expiry check we can email clients about as well." An ID with a
+  # date on it is a thing the software could watch. See PLAN.md.
+  - document: "Photo ID, and the Social Security number for everyone on the return"
+    detail: "The ID only if we have not seen it before. We need the numbers, not the cards"
 
   - document: "Last year's tax return"
     detail: "The complete copy, including every schedule"
@@ -62,10 +69,16 @@ requests:
       schedules_any: [E1]
 
   - document: "Each K-1 you received"
-    detail: "The whole K-1 including its statements, not just the first page"
+    detail: "Including its statements"
     when:
       schedules_any: [E2]
 
+  # OPEN, 26 August 2026. The firm: "there is likely more to this - maybe we
+  # should just have a separate attachment for business stuff depending on
+  # your situation." Right, and it is a document rather than a longer line:
+  # what a Schedule C needs depends on whether there is payroll, inventory, a
+  # vehicle, a home office. Left as it stands until that attachment exists,
+  # because lengthening this line is the wrong shape for the answer.
   - document: "Your business income and expenses"
     detail: "Totals by category. If you claim actual vehicle expenses rather than mileage, the vehicle costs as well"
     when:

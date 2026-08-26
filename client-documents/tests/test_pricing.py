@@ -1139,13 +1139,35 @@ def test_a_second_brokerage_statement_is_counted():
                                  if i["Service"] == "Brokerage statement"][0]["Detail"]
 
 
-def test_a_statement_that_must_be_keyed_is_its_own_line():
-    """Signed 25 Aug 2026 at $95, keying on what cannot be summarised."""
+def test_every_brokerage_statement_is_the_same_price():
+    """There used to be two brokerage prices: $45 a statement, and $95 for one
+    that had to be keyed rather than summarised.
+
+    The firm deleted the second on 26 August 2026 -- "this is way too much
+    crap. we are actually deleting the $95 thing - all are $45 we will figure
+    out how to make it efficient" -- and the question that fed it went with
+    it. Nobody knows at the consultation how many statements will turn out
+    messy; it was the weakest question on the sheet.
+    """
     s = pricing.load()
-    items = pricing.line_items(
+    assert "brokerage_keyed" not in s["per_unit"], "the second price came back"
+    assert s["per_unit"]["brokerage"]["amount"] == 45
+
+    lines = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": ["D"],
-         "count_brokerages": 1, "count_brokerages_keyed": 1}, s)
-    assert pricing.estimate_total(items, s) == "$420.00"      # 325 + 95
+         "count_brokerages": 3}, s)
+    brokerage = [l for l in lines if "Brokerage" in l["Service"]]
+    assert len(brokerage) == 1, [l["Service"] for l in brokerage]
+
+
+def test_a_messy_statement_is_time_not_a_second_price():
+    """What survives the deletion, and the honest residue of it: a statement
+    disordered enough to key is not a $95 job of known size."""
+    said = [t for t in pricing.assumptions({"federal_form": "1040"})
+            if t.startswith("Brokerage")]
+    assert len(said) == 1
+    assert "an hour" in said[0]
+    assert "$95" not in said[0]
 
 
 def test_the_old_brokerage_assumption_is_gone_not_reworded():
@@ -1159,49 +1181,77 @@ def test_the_old_brokerage_assumption_is_gone_not_reworded():
 
 
 # ── beyond: priced ────────────────────────────────────────────────────────
+#
+# NOTHING IN THE REAL SCHEDULE USES THIS TODAY. Brokerage keying did, at $95 a
+# statement, and the firm deleted that line on 26 August 2026 -- every
+# brokerage statement is $45 and a disordered one is billed as time.
+#
+# The mechanism stays and is tested against a fixture rather than against
+# whichever real line happens to use it. It is the best of the three
+# consequences and the firm asked for it in as many words on 25 August:
+#
+#     "this should be more like - we will tell you it's going to be $95 more
+#      and we agree now that we know?"
+#
+# Hourly gives a client a rate and leaves them unable to work out the total; a
+# re-quote stops the job; this gives them the number before the work.
+
+
+def _priced_schedule(**over):
+    """A schedule whose one assumption carries a named price."""
+    s = pricing.load()
+    s["per_unit"]["a_named_line"] = {
+        "count_from": "count_widgets", "label": "A named line",
+        "detail": "Per widget", "per_each": "that widget",
+        "amount": 95, "publish": "yes",
+    }
+    s["assumed"] = {"a_boundary": {
+        "label": "A boundary", "assumes": "the usual thing is true",
+        "inside_base": False, "trigger": "the usual thing is not true",
+        "beyond": "priced", "beyond_price_from": "a_named_line",
+    }}
+    for path, value in over.items():
+        node, key = s, path
+        if "." in path:
+            head, key = path.rsplit(".", 1)
+            for part in head.split("."):
+                node = node[part]
+        if value is None:
+            del node[key]
+        else:
+            node[key] = value
+    return s
+
+
+def _boundary(s):
+    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
+            if t.startswith("A boundary")]
+    assert len(said) == 1, said
+    return said[0]
+
 
 def test_a_priced_boundary_names_the_number_not_the_rate():
-    """The firm, 25 Aug 2026, asked for exactly this:
-
-        "this should be more like - we will tell you it's going to be $95 more
-         and we agree now that we know?"
-
-    A third consequence, and the best of the three. Hourly gives a client a
-    rate and leaves them unable to work out the total; a re-quote stops the
-    job; this gives them the number before the work and agrees it at the
-    moment it is found.
-    """
-    s = pricing.load()
-    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
-            if t.startswith("Brokerage keying")]
-    assert len(said) == 1
-    t = said[0]
-    assert "$95.00" in t
-    assert "an hour" not in t
-    assert "agree with you before we do it" in t
+    said = _boundary(_priced_schedule())
+    assert "$95.00" in said
+    assert "an hour" not in said
+    assert "agree with you before we do it" in said
 
 
 def test_a_priced_boundary_reads_its_number_off_the_line_that_charges_it():
     """Two places holding the same number is how an estimate ends up
     promising $95 while the invoice bills $110."""
-    s = pricing.load()
-    s["per_unit"]["brokerage_keyed"]["amount"] = 110
-    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
-            if t.startswith("Brokerage keying")][0]
-    assert "$110.00" in said
+    assert "$110.00" in _boundary(_priced_schedule(**{"per_unit.a_named_line.amount": 110}))
 
 
 def test_a_priced_boundary_that_names_no_line_refuses():
-    s = pricing.load()
-    del s["assumed"]["brokerage_keying"]["beyond_price_from"]
+    s = _priced_schedule(**{"assumed.a_boundary.beyond_price_from": None})
     with pytest.raises(pricing.PricingError) as exc:
         pricing.assumptions({"federal_form": "1040"}, s)
     assert "invent a number" in str(exc.value)
 
 
 def test_a_priced_boundary_pointing_at_nothing_refuses():
-    s = pricing.load()
-    s["assumed"]["brokerage_keying"]["beyond_price_from"] = "not_a_line"
+    s = _priced_schedule(**{"assumed.a_boundary.beyond_price_from": "not_a_line"})
     with pytest.raises(pricing.PricingError) as exc:
         pricing.assumptions({"federal_form": "1040"}, s)
     assert "the invoice cannot keep" in str(exc.value)
@@ -1215,12 +1265,10 @@ def test_a_priced_boundary_whose_line_has_no_amount_carries_the_question():
     its `[CONFIRM:` and the merge engine refuses on it. Raising instead would
     kill the whole estimate over one line and hide everything else missing.
     """
-    s = pricing.load()
-    s["per_unit"]["brokerage_keyed"]["amount"] = "[CONFIRM: what keying costs]"
-    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
-            if t.startswith("Brokerage keying")][0]
+    said = _boundary(_priced_schedule(
+        **{"per_unit.a_named_line.amount": "[CONFIRM: what it costs]"}))
     assert "[CONFIRM:" in said
-    assert "brokerage_keyed" in said
+    assert "a_named_line" in said
 
 
 def test_requote_is_still_refused():
@@ -1878,18 +1926,20 @@ def test_publication_lists_what_may_go_up():
 
 # ── things the firm settled that the schedule did not know ────────────────
 
-def test_responding_to_a_notice_is_on_the_schedule():
-    """`docs/pricing-for-website.md` §3 names three hourly things: records
-    that need reconciling, **responding to a notice**, and anything to do with
-    a foreign company. The schedule carried two of the three.
+def test_notices_are_not_an_assumption_on_the_estimate():
+    """Deleted 26 August 2026. The firm: "notices and corresponds belong in a
+    different letter engagement or would be discussed anyway, get rid of it.
+    can't bite if not a secret."
 
-    Found 26 August 2026 by auditing the prose against the YAML after the
-    website agent reported the schedule was missing things. It was: a client
-    who gets an IRS letter is real, ordinary work, and nothing priced it.
+    The engagement letter already says representing you in an examination,
+    notice response or appeal is a separately quoted engagement. Saying it
+    again on the estimate as an ASSUMPTION implied the meter was already
+    running, which is not the arrangement.
     """
     s = pricing.load()
-    assert "notice_response" in s["assumed"]
-    assert s["assumed"]["notice_response"]["beyond"] == "hourly"
+    assert "notice_response" not in (s.get("assumed") or {})
+    said = pricing.assumptions({"federal_form": "1040"}, s)
+    assert not any("notice" in t.lower() for t in said)
 
 
 def test_officer_compensation_is_on_the_schedule():

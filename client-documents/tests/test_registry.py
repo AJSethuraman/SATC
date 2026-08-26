@@ -36,6 +36,7 @@ TEMPLATES = {
     "delivery-letter": "SATC Tax Return Delivery Letter.html",
     "extension-notice": "SATC Extension Notice.html",
     "disengagement-letter": "SATC Disengagement Letter.html",
+    "records-release": "SATC Records Release Authorization.html",
 }
 
 
@@ -118,6 +119,7 @@ FIELDS_DOCS = {
     "delivery-letter": "FIELDS - Tax Return Delivery Letter.md",
     "extension-notice": "FIELDS - Extension Notice.md",
     "disengagement-letter": "FIELDS - Disengagement Letter.md",
+    "records-release": "FIELDS - Records Release Authorization.md",
 }
 
 
