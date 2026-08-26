@@ -25,6 +25,15 @@ A thread leaves the list one of four ways, and the status says which:
 Threads are numbered in the order they were raised and keep their number
 forever, so `T-04` means the same thing in six months.
 
+**Where they get asked.** Open threads are put to the firm in the interview
+rounds. The live one is **round eleven**, published 26 August 2026:
+<https://claude.ai/code/artifact/1423b12b-0f09-453a-8c46-37b16545441c> — it
+carries T-07, T-16, T-17, the foreign-account cap, the "Business" package name,
+the rest of `hard_no`, and round ten's unanswered EIC question. Round ten
+(<https://claude.ai/code/artifact/3d80533a-3a67-4525-b04b-17717d56f1c4>) is
+superseded: three of its four questions were about an overnight session that has
+since happened.
+
 ---
 
 ## T-01 · Pricing against automation that hasn't arrived
