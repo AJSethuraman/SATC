@@ -720,8 +720,37 @@ amended ENTITY returns — and the answer reaches further than the question did:
 > amendment and reviewing the old return. the $50 premium at that point turns
 > into more of an adder - right? does this make sense?
 
-**Status** Open. A question put to me and answered below; the decision is the
-firm's. Nothing is blocked — the individual amendment prices correctly today.
+**Status** Settled 26 Aug 2026 — **an amendment is +$50 on whatever the return
+is.** The firm:
+
+> let's just make an amendment cost an extra $50 and go from there. i want the
+> business, and the value is $50 for amending as opposed to doing the primary
+> file.
+
+Built as a top-level `amendment:` adder gated on `return_basis`, replacing the
+flat $250 base that bypassed the ladder. It applies to **every form**, which is
+what finally gives an amended entity return a price:
+
+| The return | Original | Amended |
+|---|---:|---:|
+| Simple Filer | $100 | **$150** |
+| Essentials | $200 | **$250** |
+| Standard | $325 | **$375** |
+| Self-Employed | $500 | **$550** |
+| Form 1065 | $800 | **$850** |
+| Form 1120-S / 1120 | $950 | **$1,000** |
+
+Essentials + $50 still lands on $250, which is where that number came from.
+
+**The firm overrode my recommendation and said why**, which is worth keeping:
+I argued for capping the adder at the original fee, because $550 to amend a
+$500 return invites an argument. The firm wants the work and priced it
+deliberately cheap — the $50 is what amending is worth *over* preparing the
+return, and the reconciliation to the return as filed is real work on top of
+preparing it. Positioning, not arithmetic, and positioning is theirs.
+
+**B1 in `docs/site-open-questions.md` is closed by this too** — the amended
+entity return now has a price and may be published.
 
 **Yes, the arithmetic makes sense, and it is where the $250 came from.**
 Essentials is $200. The amended return is $250. So $250 *is* Essentials plus a

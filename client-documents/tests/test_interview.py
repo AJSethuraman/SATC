@@ -452,8 +452,8 @@ def test_the_interview_asks_whether_a_1040_is_an_amendment():
     $200 package for a job the firm prices at $250, silently, on the one
     question nobody would think to check.
 
-    Scoped to the 1040 deliberately: an amended entity return is different
-    work at a different price and the firm has not set one. See T-16.
+    Every form since 26 August 2026 (T-20): the amendment became a $50 adder
+    on top of whatever the return is, so an amended 1120-S prices itself.
     """
     schema = yaml.safe_load(
         (ROOT / "registry" / "interview.yaml").read_text(encoding="utf-8"))
@@ -462,7 +462,7 @@ def test_the_interview_asks_whether_a_1040_is_an_amendment():
     assert basis, "nothing asks whether this is an original return or an amendment"
     q = basis[0]
     assert q.get("required") is True, "an unanswered basis prices as an original"
-    assert "1040" in (q.get("showIf") or ""), \
-        "only the individual amendment is priced; the entity one is not"
+    assert not q.get("showIf"), \
+        "every form can be amended now, so the question is not 1040-only"
     values = {o["value"] for o in q["options"]}
     assert {"original", "amended"} <= values

@@ -1534,60 +1534,88 @@ def test_a_cap_beyond_nobody_recognises_refuses():
              "count_foreign_accounts": 12}, s)
 
 
-# ── amended returns (T-16) ────────────────────────────────────────────────
+# ── amended returns (T-16, reshaped by T-20) ──────────────────────────────
 
-def test_an_amended_return_is_its_own_engagement_not_a_package():
-    """Round eleven, 26 Aug 2026: "Its own engagement, at $250".
+def test_an_amendment_is_the_package_plus_fifty():
+    """Round twelve follow-up, 26 Aug 2026, the firm:
 
-    Not an add-on to a package. An amendment is the whole job — the package
-    ladder describes an original return being prepared from scratch, and none
-    of its rungs describes redoing one.
+        let's just make an amendment cost an extra $50 and go from there. i
+        want the business, and the value is $50 for amending as opposed to
+        doing the primary file.
+
+    This replaced a flat $250 that bypassed the ladder. The flat price could
+    not see complexity: amending a $500 Self-Employed return cost the same as
+    amending a $200 Essentials one. An adder scales, and $250 still falls out
+    for the simple case because Essentials is $200 — which is where the $250
+    came from in the first place.
     """
     s = pricing.load()
     items = pricing.line_items(
         {"federal_form": "1040", "return_basis": "amended",
-         "other_income_documents": "no"}, s)
-    assert items[0]["Service"] == "Amended return"
-    assert items[0]["Amount"] == "$250.00"
-    assert not any(i["Service"] in ("Simple Filer", "Essentials", "Standard",
-                                    "Business") for i in items), \
-        "an amendment must not also be sold a package"
+         "other_income_documents": "yes"}, s)
+    assert items[0]["Service"] == "Essentials"
+    assert items[0]["Amount"] == "$200.00"
+    amend = [i for i in items if i["Service"] == "Amendment"]
+    assert amend and amend[0]["Amount"] == "$50.00"
+    assert pricing.estimate_total(items, s) == "$250.00", \
+        "an amended Essentials return still lands on the old flat price"
 
 
-def test_an_amended_return_still_pays_for_what_is_on_it():
-    """The amendment is the base, not a flat fee for everything. Redoing a
-    return with three rentals on it is still three rentals of work."""
+def test_the_amendment_scales_with_the_package():
+    """The whole point of the reshape."""
+    s = pricing.load()
+    def total(answers):
+        return pricing.estimate_total(pricing.line_items(answers, s), s)
+    cheapest = {"federal_form": "1040", "return_basis": "amended",
+                "other_income_documents": "no"}
+    middle   = {"federal_form": "1040", "return_basis": "amended",
+                "other_income_documents": "yes"}
+    dearest  = {"federal_form": "1040", "return_basis": "amended",
+                "federal_schedules": ["C"], "schedule_c_kind": "standard"}
+    assert total(cheapest) == "$150.00", "Simple Filer + 50"
+    assert total(middle)   == "$250.00", "Essentials + 50"
+    assert total(dearest)  == "$550.00", "Self-Employed + 50"
+
+
+def test_an_amended_entity_return_is_priced_now():
+    """It had no price at all while the amendment was a 1040-only flat fee.
+    The adder answers it without anybody setting a second number."""
+    s = pricing.load()
+    for form, expected in (("1065", "$850.00"), ("1120S", "$1,000.00"),
+                           ("1120", "$1,000.00")):
+        items = pricing.line_items(
+            {"federal_form": form, "return_basis": "amended"}, s)
+        assert pricing.estimate_total(items, s) == expected, form
+
+
+def test_an_amendment_still_pays_for_what_is_on_the_return():
     s = pricing.load()
     items = pricing.line_items(
         {"federal_form": "1040", "return_basis": "amended",
          "count_rentals": 1, "schedules": ["E1"]}, s)
-    assert items[0]["Amount"] == "$250.00"
     assert any(i["Service"] == "Rental schedule" for i in items)
+    assert any(i["Service"] == "Amendment" for i in items)
 
 
-def test_an_original_return_still_gets_the_package_ladder():
+def test_an_original_return_gets_no_amendment_line():
     s = pricing.load()
     items = pricing.line_items(
         {"federal_form": "1040", "return_basis": "original",
          "other_income_documents": "no"}, s)
-    assert items[0]["Service"] in ("Simple Filer", "Essentials")
-    assert items[0]["Service"] != "Amended return"
+    assert not any(i["Service"] == "Amendment" for i in items)
 
 
 def test_an_absent_return_basis_prices_as_an_original_return():
     """`line_items` defaults to `original`, and that default is deliberate.
 
-    Refusing instead would break every engagement recorded before this
-    question existed, for a question whose answer is "original" in almost
-    every case. The guarantee that a REAL engagement has answered it lives
-    where engagements are made — the interview requires it — which is the
-    same rule as every other gate: it belongs in `intake.finish`, not here.
-    See `test_interview.py` for the half that does the work.
+    Refusing would break every engagement recorded before the question
+    existed. The guarantee that a REAL engagement has answered it lives where
+    engagements are made — the interview requires it.
     """
     s = pricing.load()
     items = pricing.line_items({"federal_form": "1040",
                                 "other_income_documents": "no"}, s)
-    assert items[0]["Service"] != "Amended return"
+    assert not any(i["Service"] == "Amendment" for i in items)
 
 
 # ── extensions (T-17) ─────────────────────────────────────────────────────
@@ -1735,7 +1763,7 @@ def _priced_lines(s):
     out = {}
     for key, tier in s["base"]["1040"]["tiers"].items():
         out[f"base.1040.tiers.{key}"] = tier
-    out["base.1040.amended"] = s["base"]["1040"]["amended"]
+    out["amendment"] = s["amendment"]
     for form in ("1065", "1120S", "1120"):
         out[f"base.{form}"] = s["base"][form]
     for key, unit in s["per_unit"].items():

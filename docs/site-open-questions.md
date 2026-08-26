@@ -89,9 +89,10 @@ from-prices, so the two cannot be shown the same way by accident.
 Both were in the prose brief with no home in the schedule until 26 August, so
 the checker correctly kept them off. They are real now:
 
-- **Amended return — $250.** Individual only. An amended *entity* return has
-  no price, and the firm is still deciding the shape (see B1). A page implying
-  otherwise quotes something that does not exist.
+- **Amended return — the package price plus $50**, every form. Not a flat
+  number, so the page cannot print one: an amended Essentials return is $250
+  and an amended 1120-S is $1,000. "Amendments are priced at $50 on top of the
+  return's own fee" is the honest one-liner.
 - **Extension with a payment estimate — $75.** **Filing an extension is
   free** — only computing the payment is billed. A tile reading
   "Extension — $75" says the opposite of the decision.
@@ -112,18 +113,12 @@ four items above came from.
 Nothing here has been decided. The page should not imply an answer to any of
 it.
 
-## B1. The amended ENTITY return has no price, and the firm is mid-thought
+## B1. ~~The amended entity return~~ — CLOSED 26 August 2026
 
-The individual amendment is $250 and settled. The entity one is not. Asked in
-round twelve, the firm did not pick an option and wrote instead:
-
-> this should assume that it is an "Essentials" package plus the work for
-> amendment and reviewing the old return. the $50 premium at that point turns
-> into more of an adder - right? does this make sense?
-
-That is a live question about the *shape* of every amended return, not just
-the entity one — it would replace the flat $250 with base-plus-adder. Until it
-resolves, **no amended entity price exists** and the page must not imply one.
+Settled: an amendment is **+$50 on whatever the return is**, every form. So an
+amended 1120-S is $1,000 and an amended Essentials return is $250. It is
+publishable (`amendment.publish: "yes"`), and the individual/entity split that
+made this a gap is gone.
 
 ## B2. Two things stay priced and unadvertised, on reasoning nobody has signed
 

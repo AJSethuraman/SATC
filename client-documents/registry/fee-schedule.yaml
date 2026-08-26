@@ -188,26 +188,6 @@ base_covers: "one_included"
 base:
   "1040":
     tier_from: derived
-    # AN AMENDMENT BYPASSES THE LADDER. It sits beside `tiers`, not among
-    # them, because it is not a rung: the four packages describe an original
-    # return prepared from scratch, and none of them describes redoing one
-    # that has already been filed.
-    #
-    # Set 26 August 2026 on the firm's answer to round eleven -- "its own
-    # engagement, at $250" -- which is the figure that had been sitting in
-    # docs/pricing-for-website.md and nowhere in this file. Until then the
-    # estimate could not quote an amended return and the invoice could not
-    # bill one. That was T-16.
-    #
-    # It is a BASE, so everything on the return is still counted on top: an
-    # amendment to a return with three rentals is still three rentals of work.
-    # The $250 buys the amendment, not an exemption from what is on it.
-    amended:
-      label: "Amended return"
-      detail: "Form 1040-X, prepared from the return as filed"
-      amount: 250
-      when: { answer_is: { return_basis: amended } }
-      publish: "yes"
     tiers:
       starter:
         # RENAMED 26 August 2026. "Starter" means WHERE YOU BEGIN, which
@@ -404,6 +384,34 @@ base:
 # Multiplied by the count the interview collected. The `label` and `detail`
 # become `Item.Service` and `Item.Detail` on the estimate, so they are written
 # as a client reads them, not as the tax code names them.
+# ── an amendment ──────────────────────────────────────────────────────────
+#
+# RESHAPED 26 August 2026 (T-20), on the firm's instruction:
+#
+#     let's just make an amendment cost an extra $50 and go from there. i want
+#     the business, and the value is $50 for amending as opposed to doing the
+#     primary file.
+#
+# It was a flat $250 that bypassed the package ladder, and the flat price
+# could not see complexity: amending a $500 Self-Employed return cost the same
+# as amending a $200 Essentials one. This adds $50 on top of whatever the
+# return actually is, so it scales -- and $250 still falls out for the simple
+# case, because Essentials is $200. That is where the $250 came from.
+#
+# IT APPLIES TO EVERY FORM, which is what answers the amended-entity question
+# nobody had a number for: an amended 1120-S is $950 + $50.
+#
+# The firm's reasoning, recorded because it is a positioning decision and not
+# an arithmetic one: they WANT amendment work, and $50 is what amending is
+# worth over preparing the return in the first place. It is deliberately
+# cheap.
+amendment:
+  label: "Amendment"
+  detail: "Preparing the amended return and reconciling it to the return as filed"
+  amount: 50
+  when: { answer_is: { return_basis: amended } }
+  publish: "yes"
+
 per_unit:
   state_return:
     count_from: count_states

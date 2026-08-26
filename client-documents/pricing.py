@@ -783,21 +783,7 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
     # question -- see `test_interview.py`. Refusing here instead would break
     # every engagement recorded before the question existed, and this file is
     # not where a gate on a real engagement belongs.
-    amendment = base.get("amended") if isinstance(base, dict) else None
-    if amendment is not None and gate_holds(amendment.get("when") or {},
-                                            answers):
-        for field in ("label", "amount"):
-            if field not in amendment:
-                raise PricingError(
-                    f"base.{form}.amended is missing {field!r}, so the "
-                    f"amendment line cannot be written."
-                )
-        label = amendment["label"]
-        detail = amendment.get("detail", "")
-        base = amendment["amount"]
-        tiers = None            # the ladder does not run; there is no package
-    else:
-        tiers = base.get("tiers") if isinstance(base, dict) else None
+    tiers = base.get("tiers") if isinstance(base, dict) else None
     if tiers:
         key, tier = derive_tier(base, answers, f"base.{form}", schedule=s)
         if tier is None:
@@ -836,8 +822,7 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             joined = "; ".join(included)
             detail = (say(s, "includes", detail=detail, list=joined) if detail
                       else say(s, "includes_only", list=joined))
-    elif amendment is None or not gate_holds(amendment.get("when") or {},
-                                             answers):
+    else:
         label = {"1040": "Federal Form 1040", "1120S": "Federal Form 1120-S",
                  "1065": "Federal Form 1065", "1120": "Federal Form 1120"}.get(form, form)
         detail = ""
@@ -861,6 +846,23 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             )
         base = base["amount"]
     items.append(_line(label, detail, base, code))
+
+    # AN AMENDMENT IS AN ADDER, not a package of its own. $50 on top of
+    # whatever the return actually is, on the firm's instruction of 26 August
+    # 2026, so it scales with complexity where the flat $250 it replaced could
+    # not. It sits directly under the base because that is what it is priced
+    # against, and it applies to every form -- which is what gives an amended
+    # entity return a price at all.
+    amendment = s.get("amendment")
+    if amendment and gate_holds(amendment.get("when") or {}, answers):
+        for field in ("label", "amount"):
+            if field not in amendment:
+                raise PricingError(
+                    f"`amendment` is missing {field!r}, so the amendment line "
+                    f"cannot be written."
+                )
+        items.append(_line(amendment["label"], amendment.get("detail", ""),
+                           amendment["amount"], code))
 
     # Per-unit lines. When the base includes the first state and locality, the
     # first of each is already paid for and only the rest are charged.
@@ -1196,9 +1198,8 @@ def _publishable_lines(schedule: dict):
     tiers = (base.get("1040") or {}).get("tiers") or {}
     for key, tier in tiers.items():
         yield f"base.1040.tiers.{key}", tier
-    amended = (base.get("1040") or {}).get("amended")
-    if amended:
-        yield "base.1040.amended", amended
+    if s.get("amendment"):
+        yield "amendment", s["amendment"]
     for form in ("1065", "1120S", "1120"):
         if form in base:
             yield f"base.{form}", base[form]
