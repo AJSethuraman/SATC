@@ -168,6 +168,26 @@ strong { color: var(--navy); font-weight: 600; }
   font-weight: 500; white-space: nowrap;
 }
 
+/* ---- entity returns: from prices, never styled like the flat packages ---- */
+.ents { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 12px; }
+.ent {
+  background: var(--paper); border: 1px solid var(--hairline);
+  border-left: 2px solid var(--gold); padding: 16px 18px;
+}
+.ent .ehead { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; }
+.ent .who { font-size: 15px; color: var(--navy); font-weight: 600; margin: 0; }
+.ent .amt { font-family: var(--mono); font-size: 15px; color: var(--navy); font-weight: 500; white-space: nowrap; }
+.ent .amt i { font-style: normal; color: var(--mute); font-size: 12.5px; margin-right: 3px; }
+.ent ul { list-style: none; padding: 0; margin: 10px 0 0; }
+.ent li { position: relative; padding-left: 15px; margin: 4px 0; font-size: 13.5px; color: var(--charcoal-2); }
+.ent li::before { content: ""; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; background: var(--hairline-2); }
+.ent .lead-in { font-size: 12.5px; color: var(--mute); margin: 10px 0 0; }
+
+/* a row's second line, for the qualification a price would otherwise lose */
+.row .txt { display: flex; flex-direction: column; gap: 2px; }
+.row .det { font-size: 12.5px; color: var(--mute); line-height: 1.45; }
+.row b.free { color: var(--gold-deep); }
+
 /* ---- the six situations ---- */
 .sits {
   list-style: none; padding: 0; margin: 12px 0 0;
@@ -234,13 +254,19 @@ footer {
   <h2>What costs extra</h2>
   <p>Only what your package doesn&#39;t already cover.</p>
   <div class="rows" id="extras"></div>
+  <p class="note">Filing an extension is free. The fee is for working out what you need to pay with it.</p>
 
-  <h2>The $50 situations</h2>
+  <h2 id="sitsHead">Situations</h2>
   <p>One price for any of them.</p>
   <ul class="sits" id="sits"></ul>
 
+  <h2>Amendments</h2>
+  <p>What decides the price is whose work it is.</p>
+  <div class="rows" id="amendment"></div>
+
   <h2>Businesses</h2>
-  <p>Partnerships, S corporations and C corporations are quoted after a conversation. Too much depends on how many owners there are, whether you file a balance sheet, and what shape the books are in.</p>
+  <p>Entity returns start here. Unlike the packages above, these are floors rather than flat prices &mdash; what sits on top is listed with each one, and your estimate prices it before you agree to anything.</p>
+  <ul class="ents" id="entities"></ul>
 
   <h2>What&#39;s hourly</h2>
   <p id="hourly"></p>
@@ -284,14 +310,42 @@ footer {
   el('included').textContent = P.includedInEvery;
   el('current').innerHTML = P.currentPrices;
 
+  function row(label, detail, amount) {
+    return '<div class="row"><span class="txt">' + label +
+      (detail ? '<span class="det">' + detail + '</span>' : '') + '</span>' +
+      '<b>' + amount + '</b></div>';
+  }
+
   el('extras').innerHTML = P.extras.map(function (x) {
-    return '<div class="row"><span>' + x.label + '</span><b>' + money(x.amount) + '</b></div>';
+    return row(x.label, x.detail, money(x.amount));
   }).join('');
 
+  el('sitsHead').textContent = 'The ' + money(P.situationPrice) + ' situations';
   el('sits').innerHTML = P.situations.map(function (s) { return '<li>' + s + '</li>'; }).join('');
 
+  // Free is a price, and it is the strongest thing on this page. `reprices`
+  // means the return's own fee is charged as well, so the amount alone would
+  // read as the whole cost.
+  el('amendment').innerHTML = P.amendment.map(function (a) {
+    var amt = a.amount === 0 ? '<b class="free">No charge</b>'
+            : '<b>' + money(a.amount) + (a.reprices ? ' + the return' : '') + '</b>';
+    return '<div class="row"><span class="txt">' + a.label +
+      '<span class="det">' + a.detail + '</span></span>' + amt + '</div>';
+  }).join('');
+
+  // "from" is load-bearing: an entity base is a floor, and a bare number gets
+  // read as a total. The notes travel with the amount, out of the schedule.
+  el('entities').innerHTML = P.entities.map(function (e) {
+    return '<li class="ent">' +
+      '<div class="ehead"><p class="who">' + e.label + '</p>' +
+      '<span class="amt"><i>from</i> ' + money(e.amount) + '</span></div>' +
+      '<p class="lead-in">Priced on top of that:</p>' +
+      '<ul>' + e.notes.map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul>' +
+    '</li>';
+  }).join('');
+
   el('hourly').innerHTML = '<strong>' + money(P.hourly.rate) + ' an hour</strong>, billed to ' +
-    P.hourly.billedIn + '. Three things are hourly, because we can&#39;t price them until we see them:';
+    P.hourly.billedIn + '. These are hourly because we can&#39;t price them until we see them:';
   el('hourlyApplies').innerHTML = P.hourlyApplies.map(function (s) { return '<li>' + s + '</li>'; }).join('');
 
   var y = el('year');

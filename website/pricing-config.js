@@ -1,47 +1,34 @@
 /* SATC — pricing shown on the website.
    ===========================================================================
-   EVERY NUMBER HERE IS COPIED FROM client-documents/registry/fee-schedule.yaml.
-   That file is the source of truth; this one is a publication of part of it.
+   GENERATED. Do not edit by hand.
 
-   Do not edit a price here on its own. Change the schedule, then run:
+       cd website && python3 build-pricing-config.py
 
-       cd website && python3 pricing.spec.py
+   Every figure, label and note below is written from
+   client-documents/registry/fee-schedule.yaml, which is the source of truth.
+   pricing.spec.py regenerates this file and fails if the committed copy
+   differs, so a price cannot be retyped, stale or invented.
 
-   which fails if any figure below has drifted from the schedule, if anything
-   the schedule withholds has appeared here, or if a price has been published
-   without what it covers. That is the "does the site still match?" check, and
-   it answers in about a second.
+   The short page copy — the line under each price and the card bullets — is
+   the firm's wording and lives in SITE_COPY in the generator. It carries no
+   figures.
 
-   WHY THIS IS A SEPARATE FILE from site-config.js: pricing is the one part of
-   the site with an external source of truth and an automated check against it.
-   Keeping it apart means the check has one file to read, and site-config.js
-   stays what it is — hand-edited contact details.
-
-   WHY THE NAMES ARE DATA: all four package names are still being reworked.
-   Rendering them from here makes the next rename a one-line change instead of
-   a hunt through markup, headings and anchors.
-
-   WHAT IS DELIBERATELY ABSENT, and must stay absent:
-     · the farm schedule — priced, taken, never advertised. A published price
-       is a solicitation and the firm does not solicit farm returns.
-     · the records-sorting fee — set by the preparer once they see what
-       arrived, so a number here would be a floor presented as a price.
-     · every entity return figure — the page says "quoted after a
-       conversation" instead, so a visitor reading four confident individual
-       prices gets a sentence rather than a gap they fill in themselves.
-     · the amended return and the extension-with-estimate. These appear in
-       docs/pricing-for-website.md but NOT in fee-schedule.yaml, and the rule
-       is that the schedule wins. They go up when they are in the schedule.
+   WITHHELD, and the schedule says why: the farm schedule (taken, never
+   advertised — a published price is a solicitation) and the records-sorting
+   fee (a floor a preparer sets on sight, not a price).
    =========================================================================== */
 
 window.SATC_PRICING = {
 
   /* Load-bearing: without it every per-item price below reads as double
-     charging. Printed wherever a package price is. */
+     charging. */
   includedInEvery: 'Every package covers your federal return, plus your first state and first local return.',
 
-  /* Cheapest to dearest — also the order the engine considers them in, and the
-     order they must display in. */
+  /* The firm's words, 26 August 2026. */
+  currentPrices: 'These represent our pricing for the upcoming tax year and are subject to change.',
+
+  /* Cheapest to dearest, which is also the order the engine considers them in.
+     Names render from here: one of the four has already been renamed once. */
   packages: [
     {
       id: 'starter',
@@ -80,9 +67,9 @@ window.SATC_PRICING = {
     },
     {
       id: 'business',
-      name: 'Business',
+      name: 'Self-Employed',
       price: 500,
-      who: 'You run a business.',
+      who: 'You work for yourself.',
       covers: [
         'Everything in Standard',
         'One full Schedule C',
@@ -91,53 +78,85 @@ window.SATC_PRICING = {
     }
   ],
 
-  /* NO EXPLANATORY PREAMBLE. There was a "how it works" box here — who picks
-     the package, that à la carte can come in under one, the $200 minimum and
-     its exception. The firm cut all of it on 26 August 2026: "just let the
-     prices speak". Four prices with what each covers say it without the
-     paragraph, and the paragraph was the thing that made the page read like a
-     pitch. Do not reintroduce one. */
-
-  /* Stated because a published price is read as a commitment, and this one is
-     a current price rather than a permanent one. The firm's words, 26 August
-     2026: "we can state that this is what we're currently charging and it's
-     subject to change". Says it about us and about nobody else. */
-  currentPrices: 'These represent our pricing for the upcoming tax year and are subject to change.',
-
-  /* Charged only past what your package already covers. */
+  /* Charged only past what the package already covers. */
   extras: [
-    { label: 'Each state return after the first',              amount: 50 },
-    { label: 'Each local return after the first',              amount: 35 },
-    { label: 'Rental schedule, up to three properties',        amount: 145 },
-    { label: 'Each rental property after three',               amount: 45 },
-    { label: 'Each K&#8209;1 after the first two',             amount: 15 },
-    { label: 'Each brokerage statement after the first',       amount: 45 },
-    { label: 'Each brokerage statement keyed in by hand',      amount: 95 },
-    { label: 'Each additional gig Schedule C',                 amount: 65 },
-    { label: 'Each additional full Schedule C',                amount: 200 },
-    { label: 'Each foreign account, up to four',               amount: 50 },
-    { label: 'Earned income credit, including due diligence',  amount: 65 },
-    { label: 'Any of the situations below',                    amount: 50 }
+    { label: 'State return',                      detail: 'Per state', amount: 50 },
+    { label: 'Local return',                      detail: 'Municipal, RITA, CCA or school district', amount: 35 },
+    { label: 'Rental schedule',                   detail: 'Covers 3, then $45 each', amount: 145 },
+    { label: 'Schedule K&#8209;1 received',       detail: 'Per K&#8209;1 entered', amount: 15 },
+    { label: 'Schedule K&#8209;1 issued',         detail: 'Per owner — shareholder or partner', amount: 40 },
+    { label: 'Brokerage statement',               detail: 'Per 1099-B', amount: 45 },
+    { label: 'Brokerage entered by hand',         detail: 'Per statement that cannot be summarized', amount: 95 },
+    { label: 'Foreign account reporting',         detail: 'Capped at 4 — past that the time is billed at $150 an hour', amount: 50 },
+    { label: 'Extension with a payment estimate', detail: 'Computing what to pay by the original due date, from an incomplete file', amount: 75 },
+    { label: 'Gig or contract work',              detail: 'Schedule C — standard mileage, no assets, inventory or payroll', amount: 65 },
+    { label: 'Sole proprietorship',               detail: 'Schedule C — actual expenses, a home office, depreciation, inventory or employees', amount: 200 }
   ],
 
-  /* All six are things that HAPPENED, so you can tell in a second whether one
-     applies to you. The assumption behind each is on your own estimate, not
-     here — attached to a real engagement, where it means something. */
+  /* One price for any of them. All six are things that HAPPENED, so a reader
+     can tell in a second whether one applies. The assumption behind each is on
+     the client's own estimate, attached to a real engagement — not here. */
+  situationPrice: 50,
   situations: [
-    'You sold a home',
-    'You had a debt canceled or forgiven',
-    'You sold, exchanged or spent digital assets',
-    'You had health insurance through the marketplace',
-    'You paid into or out of an HSA',
-    'You took money out of a retirement account before 59&#189;'
+    'Sale of a home',
+    'Canceled debt',
+    'Digital assets',
+    'Marketplace health insurance',
+    'Health savings account',
+    'Early retirement withdrawal'
   ],
 
-  hourly: { rate: 150, billedIn: 'the quarter hour' },
+  /* What decides an amendment's price is whose work it is, so there is no
+     single number to print. `reprices` means the return's own fee too. */
+  amendment: [
+    { label: 'Correction of our error', detail: 'Our mistake, corrected at no charge', amount: 0, reprices: false },
+    { label: 'Amendment', detail: 'Amending the return we filed, from information that arrived later', amount: 50, reprices: false },
+    { label: 'Amendment', detail: 'Amending a return prepared elsewhere, priced with the return itself', amount: 50, reprices: true }
+  ],
+
+  /* FROM prices, never bare numbers. The 1040 packages are gated on what is
+     on the return, so the price a visitor reads is the price they get. An
+     entity base is a floor — a bare $950 gets read as a total. Each number
+     carries the notes that sit beside it in the schedule. */
+  entities: [
+    {
+      label: 'Partnership — Form 1065',
+      amount: 800,
+      notes: [
+        'A balance sheet, where one is required',
+        'Inventory, where the business carries any',
+        'Each partner\'s K&#8209;1 after the first two',
+        'Returns in more than one state'
+      ]
+    },
+    {
+      label: 'S corporation — Form 1120-S',
+      amount: 950,
+      notes: [
+        'A balance sheet, where one is required',
+        'Inventory, where the business carries any',
+        'Each shareholder\'s K&#8209;1 after the first two',
+        'Returns in more than one state'
+      ]
+    },
+    {
+      label: 'C corporation — Form 1120',
+      amount: 950,
+      notes: [
+        'A balance sheet, where one is required',
+        'Inventory, where the business carries any',
+        'Returns in more than one state'
+      ]
+    }
+  ],
 
   /* Hourly happens INSTEAD of the fixed price, not on top of it. */
+  hourly: { rate: 150, billedIn: 'the quarter hour', minimum: '0.25' },
   hourlyApplies: [
-    'Records that need reconciling first',
-    'Answering a notice',
-    'Anything involving a foreign company'
+    'Brokerage keying — a statement has to be entered by hand',
+    'Foreign entities — you hold an interest in a foreign corporation or partnership',
+    'Notices and correspondence — a notice arrives and you ask us to deal with it',
+    'Officer compensation — you ask us to determine or review it, and we agree in writing',
+    'Records cleanup — the records need reconciling before the return can be prepared'
   ]
 };
