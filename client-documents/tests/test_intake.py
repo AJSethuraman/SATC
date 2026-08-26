@@ -53,8 +53,11 @@ def test_a_hard_no_creates_nothing(answers, tmp_path, priced):
 def test_a_hard_no_reports_which_one(answers, tmp_path, priced):
     answers["red_flags"] = ["assurance_needed", "missing_records"]
     out = intake.finish(answers, store=tmp_path, fee_schedule=priced)
-    assert out.blockers == ["Needs assurance work — HARD NO"], (
-        "only the HARD NO options are blockers; 'missing records' is a note"
+    assert out.blockers == ["Needs assurance work"], (
+        "only the HARD NO options are blockers; 'missing records' is a note. "
+        "The label lost its '— HARD NO' suffix on 26 August 2026: both front "
+        "doors draw the badge from `hard_no: true`, so the suffix printed it "
+        "twice on the screen."
     )
 
 

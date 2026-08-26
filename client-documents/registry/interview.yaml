@@ -767,8 +767,11 @@ sections:
         question: "Anything that gives you pause?"
         type: multi
         options:
-          - { value: "assurance_needed",  label: "Needs assurance work — HARD NO", hard_no: true }
-          - { value: "aggressive",        label: "Wants a position we would not sign — HARD NO", hard_no: true }
+          # The label does NOT repeat "HARD NO". Both front doors render the
+          # badge from `hard_no: true`, so the suffix printed it twice --
+          # "Needs assurance work — HARD NO **HARD NO**" on the screen.
+          - { value: "assurance_needed",  label: "Needs assurance work", hard_no: true }
+          - { value: "aggressive",        label: "Wants a position we would not sign", hard_no: true }
           - { value: "prior_dispute",     label: "Dispute with the previous preparer" }
           - { value: "missing_records",   label: "Records are missing or unreliable" }
           - { value: "notice_open",       label: "Open IRS or state notice" }

@@ -347,6 +347,22 @@ def test_years_do_not_collide(tmp_path):
 
 # ── interview -> engagement -> render, the whole chain ────────────────────
 
+def test_a_hard_no_label_does_not_repeat_the_badge():
+    """Both front doors draw a HARD NO badge from `hard_no: true`.
+
+    Two option labels also ended with "— HARD NO", so the screen read
+    "Needs assurance work — HARD NO **HARD NO**". Found 26 August 2026 by
+    screenshotting the real page rather than reading the YAML.
+    """
+    import interview as iv
+    for _, q in iv.all_questions(iv.load_schema()):
+        for o in q.get("options") or []:
+            if o.get("hard_no"):
+                assert "HARD NO" not in o["label"].upper(), (
+                    f"{q['id']}/{o['value']}: the label repeats the badge"
+                )
+
+
 def _run_interview(tmp_path, answers_file="interview-answers.json", extra=()):
     return cli.main(["interview", "--answers", str(SAMPLES / answers_file),
                      "--lead", str(SAMPLES / "website-lead.json"),

@@ -28,6 +28,7 @@ from pathlib import Path
 
 from flask import (Flask, abort, jsonify, redirect, request, url_for)
 
+import editor
 import engagements
 import intake
 import interview as iv
@@ -133,6 +134,67 @@ def create_app(store: Path | None = None) -> Flask:
         if wants_json():
             return jsonify(draft=sid, next=url_for("show", sid=sid)), 201
         return redirect(url_for("show", sid=sid))
+
+    # ── the wording ───────────────────────────────────────────────────────
+    #
+    # "i want it to be very straightforward and simple. like i can just click
+    # a template, open a section, edit it" -- the firm, 26 August 2026. Every
+    # rule about what an edit may do lives in `editor`, not here, for the same
+    # reason no decision lives here: a browser must not be able to save
+    # something a script could not.
+
+    @app.get("/templates")
+    def templates():
+        rows = []
+        for name in sorted(editor.TEMPLATE_DIR.glob("SATC*.html")):
+            secs = editor.sections(name.read_text(encoding="utf-8"))
+            blocks = [b for s in secs for b in s.blocks]
+            rows.append({"file": name.name,
+                         "title": name.stem.replace("SATC ", ""),
+                         "sections": len(secs),
+                         "editable": sum(1 for b in blocks if b.editable),
+                         "blocks": len(blocks)})
+        if wants_json():
+            return jsonify(templates=rows)
+        return page("Wording", templates_body(rows))
+
+    @app.get("/templates/<path:name>")
+    def template(name):
+        path = editor.TEMPLATE_DIR / name
+        if path.parent != editor.TEMPLATE_DIR or not path.exists():
+            abort(404)
+        secs = editor.sections(path.read_text(encoding="utf-8"))
+        if wants_json():
+            return jsonify(template=name, sections=[
+                {"id": s.id, "number": s.number, "title": s.title,
+                 "blocks": [{"id": b.id, "text": b.text, "editable": b.editable,
+                             "reason": b.reason, "fields": list(b.fields)}
+                            for b in s.blocks]} for s in secs])
+        return page(name, template_body(name, secs,
+                                        request.args.get("saved"),
+                                        request.args.get("error"),
+                                        request.args.get("open")))
+
+    @app.post("/templates/<path:name>")
+    def edit(name):
+        payload = request.get_json(silent=True)
+        if payload is not None:
+            edits = payload.get("edits") or {}
+            section = payload.get("section", "")
+        else:
+            edits = {k[2:]: v for k, v in request.form.items() if k.startswith("t:")}
+            section = request.form.get("section", "")
+        try:
+            changed = editor.save(name, edits)
+        except editor.EditError as exc:
+            if wants_json():
+                return jsonify(error=str(exc)), 400
+            return redirect(url_for("template", name=name, error=str(exc),
+                                    open=section))
+        if wants_json():
+            return jsonify(changed=changed)
+        return redirect(url_for("template", name=name, open=section,
+                                saved=",".join(changed) if changed else "none"))
 
     # ── the current question ──────────────────────────────────────────────
 
@@ -291,6 +353,22 @@ margin:0 0 20px}
 .note li{font-size:14px;color:var(--ink-2)}
 .muted{color:var(--ink-2);font-size:14px}
 code{font-family:"IBM Plex Mono",monospace;font-size:13px}
+details.blk{border-bottom:1px solid var(--hairline-2)}
+details.blk summary{cursor:pointer;list-style:none;padding:13px 2px;
+display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+font:12px/1.3 "IBM Plex Mono",monospace;letter-spacing:.1em;
+text-transform:uppercase;color:var(--ink-2)}
+details.blk summary::-webkit-details-marker{display:none}
+details.blk summary:hover{color:var(--navy)}
+details.blk summary b{color:var(--oxblood);font-weight:500}
+details.blk[open] summary{color:var(--navy)}
+details.blk .count{color:var(--mute);letter-spacing:.06em;flex:none}
+details.blk .st{flex:1}
+details.blk form{padding:4px 0 20px}
+details.blk textarea{font-size:14px;line-height:1.55;margin-bottom:4px}
+.fieldrow{margin:0 0 14px;color:var(--mute)}
+.locked{border-left:2px solid var(--hairline);padding:2px 0 2px 12px;
+margin:0 0 16px;font-size:14px;color:var(--ink-2)}
 """
 
 
@@ -326,7 +404,71 @@ def index_body(rows, drafts) -> str:
             out.append(f"<li><a href='/interview/{esc(d)}'>resume {esc(d)}</a></li>")
         out.append("</ul>")
     out.append("<form method=post action='/interview' class=row>"
-               "<button>Start an interview</button></form>")
+               "<button>Start an interview</button>"
+               "<a href='/templates' style='margin-left:4px'>"
+               "<button type=button class=ghost>Edit the wording</button></a>"
+               "</form>")
+    return "".join(out)
+
+
+
+def templates_body(rows) -> str:
+    out = ["<h1>Wording</h1>",
+           "<p class=help>Open a template, open a section, change a sentence. "
+           "Everything else about the document &mdash; the layout, which blocks "
+           "appear, what the fields are &mdash; stays where it is.</p>",
+           "<table><tr><th>Template</th><th>Sections</th><th>Editable</th></tr>"]
+    for r in rows:
+        out.append(f"<tr><td><a href='/templates/{esc(r['file'])}'>"
+                   f"{esc(r['title'])}</a></td>"
+                   f"<td>{r['sections']}</td>"
+                   f"<td>{r['editable']} of {r['blocks']}</td></tr>")
+    out.append("</table>")
+    return "".join(out)
+
+
+def template_body(name, secs, saved="", error="", open_id="") -> str:
+    out = [f"<h1>{esc(name.replace('SATC ', '').replace('.html', ''))}</h1>",
+           "<p class=help>Click a section to open it. "
+           "<code>**bold**</code> makes a phrase bold; "
+           "<code>&lt;&lt;FieldName&gt;&gt;</code> is a merge field and has to "
+           "stay where it is &mdash; adding or dropping one is the registry's "
+           "business, not a wording change.</p>"]
+    if error:
+        out.append(f"<p class=err>{esc(error)}</p>"
+                   "<p class=muted>Nothing was saved. A section saves whole or "
+                   "not at all, so the rest of it is as you left it.</p>")
+    elif saved == "none":
+        out.append("<p class=claim>Nothing to save &mdash; the wording was "
+                   "already what is on the page.</p>")
+    elif saved:
+        n = len(saved.split(","))
+        out.append(f"<p class=claim>Saved {n} change{'s' if n != 1 else ''}. "
+                   f"<a href='/templates'>Back to the templates</a>, or render "
+                   f"an engagement to see it on a document.</p>")
+
+    for s in secs:
+        head = (f"<span class=st><b>{esc(s.number)}</b>&nbsp;&nbsp;{esc(s.title)}</span>"
+                if s.number else f"<span class=st>{esc(s.title)}</span>")
+        n = sum(1 for b in s.blocks if b.editable)
+        is_open = " open" if s.id == open_id else ""
+        out.append(f"<details class=blk id='{esc(s.id)}'{is_open}>"
+                   f"<summary>{head}<span class=count>{n} "
+                   f"sentence{'s' if n != 1 else ''}</span></summary>"
+                   f"<form method=post action='/templates/{esc(name)}'>"
+                   f"<input type=hidden name=section value='{esc(s.id)}'>")
+        for b in s.blocks:
+            if not b.editable:
+                out.append(f"<div class=locked><p>{esc(b.text[:200])}</p>"
+                           f"<p class=muted>Read-only &mdash; {esc(b.reason)}</p></div>")
+                continue
+            rows = max(2, min(10, len(b.text) // 78 + 1))
+            fields = " ".join(f"<code>&lt;&lt;{esc(f)}&gt;&gt;</code>" for f in b.fields)
+            out.append(f"<textarea name='t:{esc(b.id)}' rows={rows}>{esc(b.text)}</textarea>")
+            if fields:
+                out.append(f"<p class=fieldrow>{fields}</p>")
+        out.append("<div class=row><button>Save this section</button></div>"
+                   "</form></details>")
     return "".join(out)
 
 

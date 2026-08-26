@@ -241,6 +241,42 @@ curl -X POST localhost:5051/interview/<draft>/finish -H 'Accept: application/jso
 A `refused` from that last call is the same refusal the browser shows and the
 same exit code the CLI returns.
 
+## Changing the wording
+
+*"i want it to be very straightforward and simple. like i can just click a
+template, open a section, edit it"* — the firm, 26 August 2026.
+
+`make web`, then **/templates**. Pick a template, click a section, change a
+sentence, save. `**bold**` makes a phrase bold and `<<FieldName>>` is a merge
+field; that is the whole markup.
+
+`editor.py` owns the rules, so the browser cannot save something a script
+could not:
+
+| It refuses | Because |
+|---|---|
+| dropping a `<<Field>>` | the document still renders and a real value silently stops printing |
+| inventing a `<<Field>>` | the registry does not know it, so the render fails at a client's document |
+| typing `[[IF ...]]` or `[CONFIRM:` | that decides whether whole blocks appear — structure, not wording |
+| emptying a block | a gap in the document, where deleting it in the file is what was meant |
+| a block it cannot rebuild exactly | shown read-only rather than mangled |
+
+A section saves **whole or not at all**: one refused sentence saves none of
+them, so nobody has to work out which half landed.
+
+The safety property is the round trip — `to_html(to_text(x))` returns `x` byte
+for byte — and `test_editor.py` checks it against every block in all ten
+templates. It earned its keep on the first run: it caught that opening a
+section and saving it unchanged rewrote three sentences of the delivery
+letter, which is how the stylesheet bug behind that surfaced (`<b>` and
+`<strong>` were rendering at different weights in the same paragraph).
+
+```
+curl localhost:5051/templates -H 'Accept: application/json'
+curl -X POST localhost:5051/templates/<file> -H 'Accept: application/json' \
+     -d '{"edits": {"s02.1": "The new sentence."}}'
+```
+
 **Drafts persist.** The browser writes the sitting to `_drafts/` after every
 answer, so closing the laptop mid-call does not lose the consultation — which
 the terminal interview cannot survive.

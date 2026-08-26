@@ -5,7 +5,7 @@
 #   make demo     the whole chain, lead -> PDFs, in one command
 #   make price    set the firm's fees from hours x your rate
 #   make hours    what each price buys, in hours, at that rate
-#   make web      the browser front door (same core as the CLI)
+#   make web      the browser front door: interview, and the wording editor
 #   make test     everything
 .PHONY: help install doctor check demo price hours web test clean
 help:
@@ -15,6 +15,7 @@ help:
 	@echo "make demo      lead -> record -> the opening package as PDFs"
 	@echo "make price     set the firm's fees from hours x your rate"
 	@echo "make web       the browser front door, on http://127.0.0.1:5051"
+	@echo "               -- run an interview, or edit the wording at /templates"
 	@echo "make test      the whole suite"
 
 install:
