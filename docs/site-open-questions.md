@@ -1,187 +1,168 @@
-# Things the site must figure out — notes, not decisions
+# The site: what to change, and what is still open
 
-**Whose file this is.** The website is not mine to decide. The firm said so on
-26 August 2026:
+**Read this first.** As of 26 August 2026 this file has two halves, because
+the firm's instruction changed during the day.
 
-> stop making website decisions. Let me handle that with the other agent. You
-> can note things we must figure out for the site
+It started as notes only — *"stop making website decisions. Let me handle that
+with the other agent. You can note things we must figure out for the site."*
+Then, once round twelve was answered:
 
-So this is a list of things I found while working on the **fee schedule** that
-someone building the site will hit. Every entry says what is true in
-`client-documents/registry/fee-schedule.yaml` and what that leaves open. None
-of them says what the page should do.
+> answers saved - we can instruct updates to the website before it is live
 
-**The one rule worth repeating**, because it is the site's own and it is
-right: the schedule is the source of truth, and anything unverifiable against
-it does not go up. `website/pricing.spec.py` enforces that. Everything below is
-a place where the schedule and the published prose currently disagree, or
-where the schedule is about to move under the page.
+So **Part A below is instructions**: firm decisions, already in the fee
+schedule, that the page must reflect before it goes live. They are not
+suggestions and they are not mine — each one names the decision behind it.
+
+**Part B is still notes**: things nobody has decided, where the page should
+not get ahead of the firm.
+
+Neither half is me editing the site. `website/` is the other agent's, and
+`website/site-config.js` is nobody's without sign-off.
 
 ---
 
-## 1. The two prose-only prices are now real — RESOLVED 26 August 2026
+# Part A — changes to make before the page goes live
 
-`docs/pricing-for-website.md` §2 listed an **amended return at $250** and an
-**extension with a payment estimate at $75**, and neither existed anywhere in
-`fee-schedule.yaml`. The checker caught that and kept both off the page, which
-was the correct outcome and is how it was found.
+Every item here is a firm decision recorded in
+`client-documents/registry/fee-schedule.yaml`. If the page and the schedule
+disagree, the schedule is right — that is §4 of the pricing brief and the
+site's own checker enforces it.
 
-**Both are now in the schedule**, at those prices, on the firm's answer to
-round eleven. So both are publishable where they were not before, and the
-checker will verify them rather than block them.
+## A1. The $500 package is now "Self-Employed", not "Business"
 
-Two details that matter if either goes up:
+Settled 26 August, round twelve. It renders from `pricing-config.js`, so this
+is the one-line change that the config indirection was built for.
 
-- The amended return is **individual only**. An amended entity return has no
-  price; a page implying otherwise would quote something the firm has not set.
-- The extension's **filing is free** — only computing the payment is billed.
-  A tile reading "Extension — $75" says the opposite of the decision.
+The reason matters for the copy around it: **it is a 1040 package.** The old
+name invited a partnership or S-corp owner to buy a personal return. Anything
+on the page that reinforces that reading should go with the name.
 
-## 2. The foreign-account cap is SOFT, and the page says it is hard
+## A2. The foreign-account cap is SOFT and the page says it is hard
 
-**Changed 26 August 2026 and this one is live.** The firm confirmed four and
-then qualified it:
+The page says **"capped at four"**. That was correct when it shipped and it is
+now half the sentence. The schedule carries `cap_beyond: hourly`: the
+per-account charge stops at four, the time past it does not.
 
-> 4 is a soft cap. Then we add dollars for time
+The estimate now says both. The page says one. A visitor reads a promise the
+firm is not making — the direction that costs trust rather than money.
 
-The schedule now carries `cap_beyond: hourly` alongside `cap_units: 4`. The
-per-account charge still stops at four; the time past it does not. Every
-estimate now says so on the line.
+**The checker will not catch this.** It compares published numbers against the
+schedule and the number is still four; it is the qualification that changed.
 
-**The price page says "capped at four" and nothing else** — correct when it
-went up, and now half the sentence. A visitor reads a promise the firm is not
-making, which is the failure direction that costs trust rather than money.
+The schedule's own sentence, for reference rather than to copy verbatim —
+page wording is the firm's:
 
-The checker will not catch this: it compares published numbers against the
-schedule, and the number is still four. It is the qualification that changed.
+> capped at 4 — beyond that the additional time is billed at $150 an hour as
+> it is worked, and we will tell you as soon as we see it
 
-**Not fixed here.** What the page should say is wording a client reads, and
-the site is not mine. Flagged the same day it changed.
+## A3. Entity prices go up as **from** prices, with their notes
 
-## 2b. The cap of four itself (the original note, still true)
+Reversed 26 August, round twelve: *"definitely a from price - prevents people
+from wasting my time squeezing value but it should also be fairly clear that
+these are starting points and maybe some very light notes indicating what
+'starting' means."*
 
-`per_unit.foreign_account` carries `cap_units: 4` — past four accounts the line
-stops climbing. It was set on 26 August 2026 and the schedule records the
-reasoning. The prose brief never mentioned it; the page published it.
+So the three entity returns may now be published, **as from prices only**:
 
-Publishing it is the client-favourable reading and it matches the schedule, so
-nothing is wrong. But the cap is **four days old and was chosen against a firm
-instruction that did not name a number** ("a cap — nothing huge though"). A cap
-is much harder to lower once it is on a public price page than while it is only
-in a YAML file.
-
-**Confirmed 26 August 2026.** Four is the firm's number. See §2 above for what
-changed alongside it.
-
-## 3. Package names are still moving, and one is disputed
-
-All four package names are unsettled, and **"Business" specifically** is on the
-open list. It is a **1040** package — $500, covering "one full Schedule C
-business" on top of everything in Standard — and the name invites a
-partnership or S-corp owner to think it is theirs. The entity returns are
-`base.1065`, `base.1120S` and `base.1120`, and none of them is called
-Business.
-
-Rendering names from `pricing-config.js` rather than hardcoding them into
-headings and anchors was the right call and it is what makes a rename cheap.
-Worth keeping that property until the names are signed off.
-
-**What is not yet settled:** whether a renamed package needs a redirect from
-its old anchor, if any of these names have been shared with a real prospect.
-Nobody has checked whether they have.
-
-## 4. Three things are priced and deliberately not advertised
-
-The schedule prices them; the page withholds them, each for a stated reason:
-
-| Withheld | Why, per the schedule |
+| Return | From |
 |---|---|
-| The farm schedule ($200) | Settled 26 Aug 2026 — the firm **takes** farm work and does not **advertise** it |
-| Records sorting ($175) | A floor a preparer sets, not a price — and it is a charge for the client's own untidiness |
-| Every entity return figure | The page says "quoted after a conversation" instead |
+| Form 1065 — partnership | $800 |
+| Form 1120-S — S corporation | $950 |
+| Form 1120 — C corporation | $950 |
 
-These read as sound judgements to me and the checker enforces them. Recorded
-because **the reasons are agents' reasons, not the firm's** — as far as I can
-tell only the farm one carries a firm decision. If the firm disagrees with any
-of the other two, the page and the checker both change together.
+**Each number must carry its `starting_note` list**, which is in the schedule
+beside the amount precisely so the two cannot drift apart. Read them from
+`base.<form>.starting_note` rather than retyping them. Today they are: a
+balance sheet where one is required; inventory where the business carries any;
+each owner's K-1 after the first two (1065 and 1120-S only); returns in more
+than one state.
 
-## 5. The estimate/quote distinction is load-bearing and is a wording question
+**The distinction that makes this safe.** The four 1040 packages are *gated* on
+what is on the return, so the price a visitor reads is the price they get — a
+flat price, honestly. An entity base is not gated that way. A bare $950 on a
+tile is read as a total, and it is a floor. The schedule marks this explicitly:
+`publish: from` on the entity bases, and a test asserts the packages are **not**
+from-prices, so the two cannot be shown the same way by accident.
+
+## A4. Two newly-priced items are now publishable
+
+Both were in the prose brief with no home in the schedule until 26 August, so
+the checker correctly kept them off. They are real now:
+
+- **Amended return — $250.** Individual only. An amended *entity* return has
+  no price, and the firm is still deciding the shape (see B1). A page implying
+  otherwise quotes something that does not exist.
+- **Extension with a payment estimate — $75.** **Filing an extension is
+  free** — only computing the payment is billed. A tile reading
+  "Extension — $75" says the opposite of the decision.
+
+Whether either belongs on the page is still a site call. The constraint is
+that if they go up, they go up with those qualifications.
+
+## A5. Re-run the checker after schedule changes, not only after page changes
+
+`cd website && python3 pricing.spec.py`. Worth adding to somebody's checklist:
+the drift will usually start on the pricing side, which is where three of the
+four items above came from.
+
+---
+
+# Part B — still open, do not get ahead of these
+
+Nothing here has been decided. The page should not imply an answer to any of
+it.
+
+## B1. The amended ENTITY return has no price, and the firm is mid-thought
+
+The individual amendment is $250 and settled. The entity one is not. Asked in
+round twelve, the firm did not pick an option and wrote instead:
+
+> this should assume that it is an "Essentials" package plus the work for
+> amendment and reviewing the old return. the $50 premium at that point turns
+> into more of an adder - right? does this make sense?
+
+That is a live question about the *shape* of every amended return, not just
+the entity one — it would replace the flat $250 with base-plus-adder. Until it
+resolves, **no amended entity price exists** and the page must not imply one.
+
+## B2. Two things stay priced and unadvertised, on reasoning nobody has signed
+
+| Withheld | The stated reason |
+|---|---|
+| The farm schedule ($200) | The firm **takes** farm work and does not **advertise** it — settled 26 Aug, a real firm decision |
+| Records sorting ($175) | A floor a preparer sets, not a price, and it is a charge for the client's own untidiness |
+
+The farm one carries a firm decision. **The records-sorting one is an agent's
+reasoning**, and it reads as sound to me, which is not the same as being the
+firm's. Worth settling explicitly rather than inheriting — the entity
+withholding rule was in exactly this position until round twelve reversed it.
+
+## B3. How much the page claims about the estimate-to-invoice guarantee
 
 An estimate that turns into a bigger invoice now refuses to go out without a
-variance note — that is real, tested, and it is the strongest thing the firm
-can say about its prices. How much of that guarantee the page should claim is a
-wording decision, and wording that reaches a client is the firm's.
+variance note. That is real, tested and enforced in `invoicing.py` — a bill
+over the estimate is refused rather than sent.
 
-**What I can confirm for whoever writes it:** the mechanism exists, it is
-enforced in `invoicing.py`, and a bill over the estimate is refused rather than
-sent. What that sentence should say, I have not written.
+It is the strongest thing the firm can say about its prices. **How much of it
+the page should claim is wording a client reads**, so it is the firm's
+sentence, not mine and not the site's. I can confirm the mechanism; I have not
+written the claim.
 
-## 6. Prices will keep moving while the open threads are open
+## B4. Prices can still move while these threads are open
 
-`docs/pricing-open-threads.md`, after round eleven, has these live entries
-that can still change a published number:
+In `docs/pricing-open-threads.md`:
 
 - **T-11** — capturing the processes themselves.
-- **T-18** — the time capture, newly scoped. Nothing published depends on it
-  today, but it is the thread that would eventually justify or move a price by
-  effort rather than by market survey.
-- **T-19** — the $500 package's name.
+- **T-18** — the time capture, scoped and not started. Nothing published
+  depends on it, but it is the thread that would eventually justify or move a
+  price by effort rather than by market survey.
 
-T-07 (nobody knows how long anything takes) was **answered** on 26 August and
-became T-18. T-16 and T-17 are **closed** — see section 1.
+Everything else on that list is closed as of 26 August. The schedule now has
+**no unpriced item and no unanswered decision** — `doctor` reports clean, and
+a test holds it that way.
 
-T-15 (Property & Business against rentals) and T-14 (a priced boundary the
-estimate could not state) were both **found to be already settled** on 26
-August while writing this file — their status lines were stale. Mentioned
-because it cuts the other way too: a thread reading "Open" here may already
-have been built.
+## B5. Nobody has checked whether a package name has already reached a prospect
 
-**The maintenance question the site already answered well** — *"does the page
-still match the schedule?"* — is `cd website && python3 pricing.spec.py`. The
-thing worth adding to somebody's checklist: run it after any change to
-`fee-schedule.yaml`, not only after a change to the site. The drift will
-usually start on my side.
-
-
-## 7. The firm wants entity prices on the page, and they are currently withheld
-
-Answering round eleven, on the package-name question:
-
-> The site also needs to have tiles for actual business return prices like
-> 1120S
-
-The schedule prices all three — `1065` at $800, `1120S` and `1120` at $950 —
-and the page deliberately withholds them in favour of "quoted after a
-conversation" (§4 above). So this is not a gap to fill; it is a **reversal of a
-decision currently in force**, and the checker enforces the current one.
-
-**Two things have to happen in order**, and neither is a site call:
-
-1. The firm decides the entity prices are published prices rather than
-   starting points for a conversation. That is the decision §4 records as an
-   agent's reasoning rather than the firm's — worth settling explicitly now
-   that it is being reversed.
-2. The withholding rule and its check come out together, or the page fails its
-   own checker.
-
-Worth flagging plainly: **a published entity price behaves differently from a
-published individual price.** The four packages are gated on what is on the
-return, so the price a visitor reads is the price they get. An entity return is
-not gated that way — $950 is a base, and the balance-sheet and reconciliation
-work sits on top of it. A tile saying $950 will be read as the total.
-
-## 8. The package name may change, and the amended-return price is new
-
-Two smaller things from the same day:
-
-- **T-19** proposes renaming the $500 "Business" package (it is a 1040 package;
-  a partnership owner could read it as theirs). Names still render from config,
-  so a rename is one line — while that holds.
-- **The amended return is now priced** at $250 and lives in the schedule, so it
-  is publishable where it was not before. Whether it belongs on the page is a
-  site call. Note it is scoped to the individual return: an amended entity
-  return has no price, and a page that implies otherwise would be quoting
-  something the firm has not set.
-- **The extension is now priced** at $75, with the filing itself free. Same
-  status: publishable, and the free/priced split is the part that would need
-  saying carefully if it goes up.
+Raised when "Business" was renamed and still unanswered. If one of the four
+names has gone out to a real person, a rename stops being free and becomes a
+migration. Cheap to find out, and only the firm can.

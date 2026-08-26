@@ -666,8 +666,9 @@ asked for options:
 > Maybe we rename but I need ideas to do. The site also needs to have tiles for
 > actual business return prices like 1120S. What makes more sense than business?
 
-**Status** Open — needs a name from the firm. Cheap now, a content migration
-later.
+**Status** Settled 26 Aug 2026 — **Self-Employed.** "self-employed seems
+reasonable". The label changed; the tier key stays `business`, because it is
+internal and renaming it would be churn no reader benefits from.
 
 **The problem, stated precisely.** "Business" is a **1040** package: $500,
 covering one full Schedule C on top of everything in Standard. The entity
@@ -706,3 +707,63 @@ prospect.** If one has, this stops being free.
 decision currently in force (they are withheld in favour of "quoted after a
 conversation"), so it is a firm decision with a site consequence rather than a
 site decision.
+
+
+---
+
+## T-20 · Is an amended return a flat price, or a base plus an adder?
+
+**Raised** 26 Aug 2026, by the firm, answering round twelve's question about
+amended ENTITY returns — and the answer reaches further than the question did:
+
+> this should assume that it is an "Essentials" package plus the work for
+> amendment and reviewing the old return. the $50 premium at that point turns
+> into more of an adder - right? does this make sense?
+
+**Status** Open. A question put to me and answered below; the decision is the
+firm's. Nothing is blocked — the individual amendment prices correctly today.
+
+**Yes, the arithmetic makes sense, and it is where the $250 came from.**
+Essentials is $200. The amended return is $250. So $250 *is* Essentials plus a
+$50 amendment adder, exactly as described. Nobody designed it that way; it
+falls out.
+
+**And the structural instinct is better than what is built.** Today the
+amendment is a flat $250 that bypasses the package ladder. That means amending
+a Self-Employed return — a full Schedule C, originally $500 — also costs $250.
+Amending a complex return is plainly more work than amending a simple one, and
+a flat price cannot see the difference. Base-plus-adder can.
+
+**But the anchor overshoots at the top, and this is the part worth deciding
+with your eyes open.** If the base is the package the return actually is:
+
+| The return | Original | Amended, base + $50 |
+|---|---|---:|
+| Essentials | $200 | **$250** |
+| Standard | $325 | **$375** |
+| Self-Employed | $500 | **$550** |
+| Form 1120-S | $950 | **$1,000** |
+
+The bottom row is the problem in miniature: **$550 to amend a return that cost
+$500 to prepare.** An amendment is a review, a change and a refiling — real
+work, and not more work than preparing the thing from nothing. A shape that
+charges more to amend than to originate will be argued with, and the client
+will be right.
+
+**Three ways out, and I have not picked for you.**
+
+1. **A share of the base plus the adder** — say half the package price plus
+   $50. Scales with complexity, never exceeds the original.
+2. **Base plus adder, capped at the original fee.** Keeps the arithmetic you
+   described and puts a ceiling on it.
+3. **Flat by tier**: one amendment price for the two simple packages, another
+   for the two complex ones, a quote for entities. Cruder, and nobody argues
+   with it.
+
+**And the $50 is doing a lot of work at the top.** Reviewing a filed 1120-S,
+reconciling what changed and reissuing every K-1 is not a $50 job. Whatever
+shape wins, the adder probably is not one number across a 1040 and an 1120.
+
+**Recommendation:** option 2. It preserves the reasoning you arrived at
+independently — which is a good sign the reasoning is right — and fixes the
+one case where it produces a number you would not want to defend.
