@@ -210,9 +210,13 @@ check("hidden = j !== i" in page_src,
 check(len(cfg["extraGroups"]) == 3,
       "the menu still has three panels — the layout places them explicitly "
       f"(found {len(cfg['extraGroups'])})")
-check(bool(cfg.get("entityNoteLabel")),
-      "the entity cards label their list — it is what costs EXTRA, the opposite "
-      "of a package card's bullets sitting beside it")
+# The entity cards carry no list now — a C corporation had nothing to put in
+# one — so the band beneath them is the only place that says what gets added on
+# top of a floor. It has to keep saying it.
+lead = cfg["entityLead"].lower()
+check(all(w in lead for w in ("owner", "balance sheet", "books")),
+      "the businesses band still names what moves the number above the floor "
+      f"— {cfg['entityLead']!r}")
 
 for word in ("federal", "first state", "first local"):
     check(word in cfg["includedInEvery"].lower(),

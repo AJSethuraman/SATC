@@ -80,32 +80,32 @@ window.SATC_PRICING = {
   ],
 
   /* Entity returns, shown beside the packages because that is where somebody
-     looks for them. Same card, deliberately not the same price: `from` is
-     set beside the amount, and `notes` is what costs EXTRA rather than what
-     is included — the opposite of a package's bullets, so the card labels it. */
-  entityNoteLabel: 'On top of that:',
-  entityLead: 'What moves the number: how many owners there are, whether you file a balance sheet, and what shape the books are in.',
+     looks for them. Same card, deliberately not the same price: `from` is set
+     above the amount because a floor should announce itself before the figure.
+
+     The cards carry NO list. What gets added on top is the same for all three
+     but one — a C corporation issues no owner K-1s — so two cards repeated a
+     list and the third had nothing to say. `entityLead` says it once, in prose,
+     for all of them. `notes` stays here as the record of what those items are. */
+  entityLead: 'What moves the number: more than two owners, whether you file a balance sheet, and what shape the books are in.',
   entities: [
     {
       name: 'Partnership',
       who: 'Form 1065',
       amount: 800,
-      notes: ['A balance sheet, where one is required', 'Inventory, where the business carries any', 'Each partner\'s K&#8209;1 after the first two', 'Returns in more than one state'],
-      unique: ['Each partner\'s K&#8209;1 after the first two']
+      notes: ['A balance sheet, where one is required', 'Inventory, where the business carries any', 'Each partner\'s K&#8209;1 after the first two', 'Returns in more than one state']
     },
     {
       name: 'S corporation',
       who: 'Form 1120-S',
       amount: 950,
-      notes: ['A balance sheet, where one is required', 'Inventory, where the business carries any', 'Each shareholder\'s K&#8209;1 after the first two', 'Returns in more than one state'],
-      unique: ['Each shareholder\'s K&#8209;1 after the first two']
+      notes: ['A balance sheet, where one is required', 'Inventory, where the business carries any', 'Each shareholder\'s K&#8209;1 after the first two', 'Returns in more than one state']
     },
     {
       name: 'C corporation',
       who: 'Form 1120',
       amount: 950,
-      notes: ['A balance sheet, where one is required', 'Inventory, where the business carries any', 'Returns in more than one state'],
-      unique: []
+      notes: ['A balance sheet, where one is required', 'Inventory, where the business carries any', 'Returns in more than one state']
     }
   ],
 
@@ -153,7 +153,8 @@ window.SATC_PRICING = {
     'Early retirement withdrawal'
   ],
 
-  /* Hourly happens INSTEAD of the fixed price, not on top of it. */
+  /* Hourly is added to a fixed price or replaces it, depending on what
+     turns up. Settled 26 August 2026; the page says exactly that. */
   hourly: { rate: 150, billedIn: 'the quarter hour' },
   hourlyApplies: [
     'Keyed brokerage statements',

@@ -85,8 +85,8 @@ strong{color:var(--navy);font-weight:600}
    so a short list reads as a short list, not as a card that failed to fill. */
 .tiers{display:grid;column-gap:14px;row-gap:0;margin:0;padding:0;list-style:none;grid-template-columns:repeat(4,1fr);grid-template-rows:auto auto auto 1fr}
 #tiers>.tier{grid-row:span 4}
-#entities{grid-template-columns:repeat(3,1fr);grid-template-rows:auto auto auto auto 1fr}
-#entities>.tier{grid-row:span 5}
+#entities{grid-template-columns:repeat(3,1fr);grid-template-rows:auto auto 1fr}
+#entities>.tier{grid-row:span 3}
 .tier{background:var(--paper);border:1px solid var(--hairline);border-top:2px solid var(--navy);padding:18px 18px 20px;display:grid;grid-template-rows:subgrid}
 /* align-self only means "which row band" while the card is a subgrid. In the
    flex fallbacks it becomes cross-axis and shunts the amount to the right. */
@@ -161,7 +161,7 @@ strong{color:var(--navy);font-weight:600}
    column 2. The tall panel takes the right column outright; the two short ones
    stack in the left. Deterministic because the group order is fixed in the
    generator, and the spec checks there are still three. */
-#extras{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+#extras{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 #extras>.grp:nth-child(1){grid-column:1;grid-row:1}
 #extras>.grp:nth-child(2){grid-column:2;grid-row:1/span 2}
 #extras>.grp:nth-child(3){grid-column:1;grid-row:2}
@@ -184,14 +184,13 @@ strong{color:var(--navy);font-weight:600}
 .sits{list-style:none;padding:0;margin:0}
 /* Three columns, not auto-fit: six items divide evenly by three at every width
    that fits three, so the grid never ends in a half-empty row. */
-#sits{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--hairline);border:1px solid var(--hairline)}
-#sits li{background:var(--paper);position:relative;padding:16px 16px 16px 30px;font-size:14.5px;color:var(--navy)}
-#sits li::before{content:"";position:absolute;left:16px;top:23px;width:6px;height:6px;background:var(--gold)}
+/* The same ruled list as the hourly triggers beside it: two lists doing the
+   same job should not look like two different devices. */
+#sits li,#hourlyApplies li{position:relative;padding:11px 0 11px 15px;font-size:14.5px;border-top:1px solid var(--hairline)}
+#sits li:first-child,#hourlyApplies li:first-child{border-top:1px solid var(--hairline-2)}
+#sits li::before,#hourlyApplies li::before{content:"";position:absolute;left:0;top:18px;width:6px;height:6px;background:var(--gold)}
 /* hourly is a ruled list on the cream, not a card — the contrast with the
    grid beside it is what keeps two lists from reading as one long one */
-#hourlyApplies li{position:relative;padding:11px 0 11px 15px;font-size:14.5px;border-top:1px solid var(--hairline)}
-#hourlyApplies li:first-child{border-top:1px solid var(--hairline-2)}
-#hourlyApplies li::before{content:"";position:absolute;left:0;top:18px;width:6px;height:6px;background:var(--gold)}
 #hourly{margin-bottom:14px}
 
 /* ---- closing: the promise, then the button ---- */
@@ -216,9 +215,6 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
   .assume{grid-template-columns:1fr}
   .assume .note{text-align:left;max-width:none}
 }
-@media (max-width:760px){
-  #sits{grid-template-columns:repeat(2,1fr)}
-}
 @media (max-width:700px){
   /* Phone: one card per row, and subgrid alignment stops earning its keep —
      each card is its own column of rows, so it simply flows. */
@@ -233,7 +229,6 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
   /* the price stays on the same line as what it buys, right where the eye
      lands after the label — stacking it made every row twice as tall */
   .row{gap:14px}
-  #sits{grid-template-columns:1fr}
   .sec{margin-bottom:38px}
   .btn{width:100%;justify-content:center}
 }
@@ -370,11 +365,10 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
   // is included — so it is labelled instead of being left to look like the
   // package bullets it sits beside.
   el('entities').innerHTML = P.entities.map(function (e) {
-    // Only what DIFFERS between the three. The shared items — a balance
-    // sheet, inventory, multi-state — are what the band above already says,
-    // and repeating them on every card made three cards look like one.
-    return card(' ent', e.name, '<i>from</i>' + money(e.amount), e.who,
-                e.unique, e.unique.length ? P.entityNoteLabel : '');
+    // No list. What gets added is the same for all three but one, so the band
+    // below says it once instead of two cards repeating it and the third
+    // having nothing to say.
+    return card(' ent', e.name, '<i>from</i>' + money(e.amount), e.who, [], '');
   }).join('');
   el('entityLead').textContent = P.entityLead;
 

@@ -156,8 +156,8 @@ AMENDMENT_PUBLISH = ["new_information", "other_preparer"]
 # to edit.
 RESPELL = {"summarised": "summarized", "Cancelled": "Canceled", "cancelled": "canceled"}
 
-ENTITY_LEAD = ("What moves the number: how many owners there are, whether you "
-               "file a balance sheet, and what shape the books are in.")
+ENTITY_LEAD = ("What moves the number: more than two owners, whether you file "
+               "a balance sheet, and what shape the books are in.")
 
 NBH = "&#8209;"  # non-breaking hyphen, so "K-1" never wraps
 
@@ -235,8 +235,6 @@ def build() -> str:
                      "base.1120S": ("S corporation", "Form 1120-S"),
                      "base.1120": ("C corporation", "Form 1120")}
     paths = ("base.1065", "base.1120S", "base.1120")
-    all_notes = [froms[p]["starting_note"] for p in paths]
-    shared = [n for n in all_notes[0] if all(n in other for other in all_notes[1:])]
     entities = []
     for path in paths:
         line = froms[path]
@@ -248,7 +246,6 @@ def build() -> str:
             # items are what the band above already says in prose, and three
             # cards repeating them read as one card printed three times.
             "notes": [clean(n) for n in line["starting_note"]],
-            "unique": [clean(n) for n in line["starting_note"] if n not in shared],
         })
 
     # ---- hourly ---------------------------------------------------------
@@ -309,10 +306,13 @@ window.SATC_PRICING = {{
     lines.append("  ],")
     lines.append("")
     lines.append("  /* Entity returns, shown beside the packages because that is where somebody")
-    lines.append("     looks for them. Same card, deliberately not the same price: `from` is")
-    lines.append("     set beside the amount, and `notes` is what costs EXTRA rather than what")
-    lines.append("     is included — the opposite of a package's bullets, so the card labels it. */")
-    lines.append(f"  entityNoteLabel: {js('On top of that:')},")
+    lines.append("     looks for them. Same card, deliberately not the same price: `from` is set")
+    lines.append("     above the amount because a floor should announce itself before the figure.")
+    lines.append("")
+    lines.append("     The cards carry NO list. What gets added on top is the same for all three")
+    lines.append("     but one — a C corporation issues no owner K-1s — so two cards repeated a")
+    lines.append("     list and the third had nothing to say. `entityLead` says it once, in prose,")
+    lines.append("     for all of them. `notes` stays here as the record of what those items are. */")
     lines.append(f"  entityLead: {js(ENTITY_LEAD)},")
     lines.append("  entities: [")
     for i, e in enumerate(entities):
@@ -320,8 +320,7 @@ window.SATC_PRICING = {{
         lines.append(f"      name: {js(e['name'])},")
         lines.append(f"      who: {js(e['who'])},")
         lines.append(f"      amount: {e['amount']},")
-        lines.append(f"      notes: {js(e['notes'])},")
-        lines.append(f"      unique: {js(e['unique'])}")
+        lines.append(f"      notes: {js(e['notes'])}")
         lines.append("    }" + ("," if i < len(entities) - 1 else ""))
     lines.append("  ],")
     lines.append("")
@@ -350,7 +349,8 @@ window.SATC_PRICING = {{
         lines.append(f"    {js(s_)}{',' if i < len(situations) - 1 else ''}")
     lines.append("  ],")
     lines.append("")
-    lines.append("  /* Hourly happens INSTEAD of the fixed price, not on top of it. */")
+    lines.append("  /* Hourly is added to a fixed price or replaces it, depending on what")
+    lines.append("     turns up. Settled 26 August 2026; the page says exactly that. */")
     lines.append(f"  hourly: {{ rate: {rate}, billedIn: {js('the quarter hour')} }},")
     lines.append("  hourlyApplies: [")
     applies = [HOURLY_COPY[k] for k in sched["assumed"]]
