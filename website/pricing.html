@@ -215,6 +215,11 @@ strong{color:var(--navy);font-weight:600}
 .close{display:grid;grid-template-columns:1.25fr 1fr;gap:clamp(28px,4vw,56px);background:var(--paper);border:1px solid var(--hairline);border-top:2px solid var(--navy);padding:clamp(26px,3.6vw,42px)}
 .close h2{padding:0;border:0}
 .close p{margin:12px 0 0}
+/* The button had a heading over it that only announced a button. With that
+   gone the column is one control, so it centers on both axes against the
+   sentence beside it instead of hanging from a missing title. */
+.close .go{display:flex;align-items:center;justify-content:center}
+.close .btn{margin-top:0}
 .btn{display:inline-flex;align-items:center;gap:10px;margin-top:20px;background:var(--oxblood);color:#fff;font-size:15px;font-weight:600;letter-spacing:-.005em;padding:14px 26px;border-radius:2px;transition:background .18s}
 .btn::after{content:"→";font-size:14px}
 .btn:hover{background:var(--oxblood-lt);color:#fff;text-decoration:none}
@@ -322,7 +327,6 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
       <h2 id="sitsHead">Situations</h2>
       <p class="sub" id="sitsSub">One price each, however many apply.</p>
       <ul class="sits" id="sits"></ul>
-      <p class="note" style="margin:16px 0 0">Flat, whichever of these applies. The rare one that isn&#39;t, you&#39;ll hear about in advance.</p>
     </section>
 
     <section class="sec">
@@ -338,8 +342,7 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
       <h2>Before we start</h2>
       <p>We&#39;ll walk through what you need together and tell you what it costs.</p>
     </div>
-    <div>
-      <h2>Where you start</h2>
+    <div class="go">
       <a class="btn" href="./#intake">Get started</a>
     </div>
   </section>
