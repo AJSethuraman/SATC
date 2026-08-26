@@ -105,7 +105,12 @@ EXTRA_COPY = {
     # one. Saying that plainly costs the firm the odd $75 and it said so.
     "per_unit.extension_estimate": ("An extension when you owe",
                                     "Free when you don't"),
-    "per_unit.rental":            ("Rental property", "Schedule E &middot; up to three, then $45 each"),
+    # Both figures are placeholders, not text. "up to three, then $45 each" was
+    # typed here, so moving the allowance or the marginal price in the schedule
+    # left the page saying the old one — and the regenerate-and-diff check could
+    # not see it, because the generator was writing exactly what it was told.
+    "per_unit.rental":            ("Rental property",
+                                   "Schedule E &middot; up to {covers}, then ${each} each"),
     # A K-1 you receive is reported on Schedule E, but it is priced per K-1 —
     # so the row names the schedule and the detail says how it is counted.
     "per_unit.k1":                ("K&#8209;1 you received", "Schedule E &middot; each K&#8209;1"),
@@ -161,6 +166,16 @@ RESPELL = {"summarised": "summarized", "Cancelled": "Canceled", "cancelled": "ca
 ENTITY_LEAD = ("What moves the number: more than two owners, whether you file "
                "a balance sheet, and what shape the books are in.")
 
+# Small numbers are words in this copy, everywhere the firm wrote it that way.
+# Past ten a digit reads better than the word, so the map simply stops.
+_NUMBER_WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five",
+                 6: "six", 7: "seven", 8: "eight", 9: "nine", 10: "ten"}
+
+
+def numword(n):
+    return _NUMBER_WORDS.get(int(n), str(int(n)))
+
+
 NBH = "&#8209;"  # non-breaking hyphen, so "K-1" never wraps
 
 
@@ -215,10 +230,16 @@ def build() -> str:
             label, detail = EXTRA_COPY[path]
             return {"label": clean(label), "detail": clean(detail), "amount": t["amount"]}
         line = by_path[path]
-        label, detail, amount = line["label"], line.get("detail", ""), line["amount"]
-        if path == "per_unit.rental":
-            amount = line["form_fee"]     # the form fee; the overlay says what it covers
+        amount = line["amount"]
         label, detail = EXTRA_COPY[path]
+        if path == "per_unit.rental":
+            # Schedule E is priced as a form covering a few properties, then per
+            # property past them. Three numbers, all three from the schedule:
+            # the headline is the form fee, and the detail interpolates how many
+            # it covers and what the marginal one costs.
+            amount = line["form_fee"]
+            detail = detail.format(covers=numword(line["form_covers"]),
+                                   each=line["amount"])
         return {"label": clean(label), "detail": clean(detail), "amount": amount}
 
     groups = [{"title": title, "rows": [one(p) for p in paths]}

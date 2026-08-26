@@ -6,6 +6,24 @@
 <meta name="description" content="What SAT-C LLP charges to prepare an individual tax return, and what each price covers.">
 <meta name="robots" content="index,follow">
 <meta name="theme-color" content="#132437">
+
+<!-- The price page is the one a visitor forwards: the firm publishes numbers
+     precisely so somebody can send the link instead of relaying it. Without
+     these it arrives in a message or a post as a naked URL with no title card,
+     and search has only the one nav link on the home page to find it by. -->
+<link rel="canonical" href="https://satcllp.com/pricing.html" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="SAT-C LLP" />
+<meta property="og:title" content="What a return costs — SAT-C LLP" />
+<meta property="og:description" content="What SAT-C LLP charges to prepare a return, published up front. Four packages for individuals, three entity returns, and what each one covers." />
+<meta property="og:url" content="https://satcllp.com/pricing.html" />
+<meta property="og:image" content="https://satcllp.com/og-image.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="What a return costs — SAT-C LLP" />
+<meta name="twitter:description" content="What SAT-C LLP charges to prepare a return, published up front." />
+<meta name="twitter:image" content="https://satcllp.com/og-image.png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20fill='%23132437'/%3E%3Cpath%20d='M6%206%20H20%20V13%20H13%20V20%20H6%20Z'%20fill='none'%20stroke='%23fff'%20stroke-width='3'/%3E%3Crect%20x='21'%20y='21'%20width='6'%20height='6'%20fill='%23C0A265'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -71,8 +89,9 @@ strong{color:var(--navy);font-weight:600}
 .sw[aria-selected="true"]{background:var(--paper);color:var(--navy);border-bottom-color:var(--paper);border-top-color:var(--navy)}
 #tabBiz[aria-selected="true"]{border-top-color:var(--gold)}
 .sw:focus-visible{outline:2px solid var(--oxblood);outline-offset:-3px}
-/* Without JS both panels show, which is the honest failure: all the prices,
-   just not switchable. */
+/* With JS off there are no prices to show — every mount is empty in the
+   source and the render script is what fills them. The <noscript> in the head
+   band says so and gives a way through. */
 [role="tabpanel"][hidden]{display:none}
 [role="tabpanel"]{padding-top:clamp(30px,4vw,44px)}
 
@@ -285,6 +304,16 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
      a flat price gated on what is on the return, the other a floor - so they
      get a panel each rather than one list that blurs them. Both panels render
      from pricing-config.js; no name or figure is hardcoded here. -->
+<noscript>
+  <div class="wrap" style="padding-bottom:24px">
+    <p style="margin:0;padding:16px 20px;background:var(--paper);border-left:3px solid var(--oxblood);border-top:1px solid var(--hairline);border-right:1px solid var(--hairline);border-bottom:1px solid var(--hairline)">
+      The prices on this page need JavaScript to load. Turn it on, or
+      <a href="./#intake">send us your situation</a> and you&#39;ll get the
+      numbers that apply to it.
+    </p>
+  </div>
+</noscript>
+
 <div class="switchrow">
   <div class="switch" role="tablist" aria-label="Who the pricing is for">
     <button class="sw" id="tabInd" role="tab" aria-selected="true" aria-controls="panelInd" tabindex="0">Individuals</button>
@@ -413,8 +442,9 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
     P.hourly.billedIn + '.';
   el('hourlyApplies').innerHTML = P.hourlyApplies.map(function (s) { return '<li>' + s + '</li>'; }).join('');
 
-  // The switch. Both panels are visible until this runs, so with JS off the
-  // page still shows every price — it just cannot flip between them.
+  // The switch. Panels are only meaningful once the cards above exist, and
+  // those are written by this script — see the <noscript> in the head band for
+  // what a visitor without JS gets instead.
   var tabs = [[el('tabInd'), el('panelInd')], [el('tabBiz'), el('panelBiz')]];
   function show(i, focus) {
     tabs.forEach(function (pair, j) {

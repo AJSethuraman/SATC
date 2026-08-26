@@ -77,3 +77,27 @@ jobs:
       - name: Check the page against the schedule
         working-directory: website
         run: python3 pricing.spec.py
+
+  # The mechanical half of website/TENETS.md, over every published page rather
+  # than the price page alone. It is here rather than in `pricing` because it
+  # has nothing to do with the schedule: it reads markup and needs no yaml, no
+  # browser and no server.
+  #
+  # It exists because four of the six copy rules in CLAUDE.md stayed judgment
+  # and were broken every time afterwards, by drafters who had read them. The
+  # two that became code were never broken again. That is the whole argument.
+  copy:
+    name: every page reads the way the firm asked for
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check the copy against the tenets
+        working-directory: website
+        run: python3 copy.spec.py
