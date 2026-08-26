@@ -181,7 +181,7 @@ check("[CONFIRM:" not in config_src and "[CONFIRM:" not in page_src,
 # ── 5 · the page renders what the config holds ────────────────────────────
 
 for element in ("tiers", "included", "extras", "sits", "hourly", "hourlyApplies",
-                "sumSelect", "sumMin"):
+                "sumSelect", "sumCarte", "sumMin"):
     check(f'id="{element}"' in page_src, f"the page has a mount point for {element}")
 
 check("pricing-config.js" in page_src, "the page loads the config it renders from")

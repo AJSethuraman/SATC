@@ -226,6 +226,7 @@ footer {
   <div class="summary">
     <b>How it works</b>
     <p id="sumSelect"></p>
+    <p id="sumCarte"></p>
     <p id="sumMin"></p>
   </div>
 
@@ -287,6 +288,7 @@ footer {
 
   el('included').textContent = P.includedInEvery;
   el('sumSelect').innerHTML = '<b>' + P.selection + '</b>';
+  el('sumCarte').innerHTML = P.alaCarte;
 
   // The minimum is stated with its exception attached. Presenting the cheapest
   // package as the starting price makes every visitor ask why they aren't in it.

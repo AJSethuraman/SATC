@@ -90,10 +90,12 @@ window.SATC_PRICING = {
     }
   ],
 
-  /* You get the cheapest package that covers your return. Stated because a
-     visitor's first question about a four-rung ladder is which rung they land
-     on and who decides. */
-  selection: 'You get the cheapest package that covers your return.',
+  /* Who picks the rung, and which way the number can move. A visitor's first
+     question about a four-rung ladder is which one they land on and who
+     decides; the second is whether the package is a floor. It isn't — a client
+     who doesn't need everything in a package can price out below it. */
+  selection: 'We put you in the cheapest package that covers your return.',
+  alaCarte: 'Don&#39;t need everything in it? We price it line by line and you pay whichever is lower.',
 
   /* The firm's minimum, and its one exception. Framed this way on purpose:
      a page that presents $100 as the starting price makes every visitor ask
