@@ -47,6 +47,13 @@ that lists every line reads as a menu; a page that lists four packages and
 says extras are itemised on the estimate reads as a firm. That is a judgement
 for whoever writes the copy, and either is honest.
 
+**One line NOT to publish, even though it is on the sheet:** the records
+sorting fee. It is a real charge and it is set by the preparer when they see
+what arrived, so a website number would be a floor presented as a price — and
+it is a charge for the client's own untidiness, which reads very differently
+on a public page than it does in a conversation. Say nothing; the estimate
+says it when it applies.
+
 **What must NOT be trimmed to make the page shorter:** what each package
 covers. A price with no scope is the thing the firm set out to fix — "it is
 hard to know what you will pay upfront on most tax sites" — and four bare
@@ -62,17 +69,21 @@ among the packages a client qualifies for, it quotes the lowest total.
 
 | Package | Price | Who it is |
 |---|---|---|
-| **Starter** | **$100** | Wages only. No other income document arrived, nobody is claimed as a dependent, standard deduction. A tuition form for a credit you claim for yourself is fine here. |
+| **Simple Filer** | **$100** | Wages only, standard deduction, and no other income document arrived. A tuition form for a credit you claim for yourself is fine here, and so are children. |
 | **Essentials** | **$200** | A straightforward return with no schedules. |
 | **Standard** | **$325** | You have schedules — itemising, investments, rentals, a farm, a gig business on the standard mileage rate. |
 | **Business** | **$500** | You run a business on actual expenses, a home office, depreciation, inventory or payroll. |
 
 That is also the display order: **cheapest to dearest**.
 
-> **The package names are not final.** The firm is reworking all four to sound
-> more like the firm. Do not build copy, headings or URLs that assume these
-> exact words. "Business" in particular is a placeholder — it replaced
-> "Property & Business" on 26 August when rentals stopped being a package.
+> **Three of the four names are now settled**, on the firm's own rule that the
+> simplest answer is usually right. Only the cheapest rung was renamed —
+> *Starter* became **Simple Filer**, because "Starter" reads as the bottom of a
+> ladder and invites every new client to ask why they are not in it, where the
+> firm wants it to read as an exception below the minimum. **"Business" is
+> still provisional**; it replaced "Property & Business" when rentals stopped
+> being a package. Build the names as data rather than markup anyway — one
+> more rename is cheap that way and expensive otherwise.
 
 **Every package includes the federal return, the first state return and the
 first local return.** This sentence is load-bearing and must appear wherever a
@@ -80,8 +91,9 @@ price does — without it, the per-extra prices below look like double charging.
 
 ### What each covers
 
-**Starter** — Federal 1040, first state, first local. One or two W-2s. A
-1098-T education credit claimed for yourself.
+**Simple Filer** — Federal 1040, first state, first local. One or two W-2s. A
+1098-T education credit claimed for yourself. Children are fine here: a
+dependent by itself does not move a return out of this package.
 
 **Essentials** — Federal 1040, first state, first local. Wages, interest and
 dividends. The standard deduction.
@@ -118,6 +130,7 @@ Only past what the package already covers.
 | Each brokerage statement that has to be entered by hand | $95 |
 | Each foreign account | $50 |
 | Any one of the named per-form situations (see below) | $50 |
+| Sorting paperwork that arrives unsorted | from $175 |
 | Earned income credit, with the required due diligence | $65 |
 | Amended return | $250 |
 | Extension with a payment estimate | $75 |
@@ -198,8 +211,12 @@ assumptions in advance, in the client's own copy, before any work happens.
 - **Do not invent legal, regulatory or assurance wording.** If a sentence would
   make a promise about compliance, accuracy or outcomes, leave a
   `[CONFIRM: ...]` and ask.
-- **Minimum engagement is $100** — the Starter package is the floor. There is
-  no separate minimum fee.
+- **The firm's stated minimum is $200**, and Simple Filer at $100 is the
+  exception to it, not the entry point. That is the firm's own framing and it
+  is worth writing copy to: *our minimum is $200, unless your return is
+  simpler than that.* A page that presents $100 as the starting price makes
+  every visitor ask why they are not getting it. There is no separate minimum
+  fee on top of either.
 
 ---
 
@@ -249,7 +266,13 @@ What remains genuinely unsettled:
   correct to publish; it is worth knowing about if you are writing copy that
   promises no surprises.
 
-**What changed on 26 August, in case this file is read against older copy.**
+**What changed late on 26 August, after the first correction.** *Starter*
+became *Simple Filer*. A dependent no longer moves a client out of the cheapest
+package — the market charges nothing for a dependent, and the work it creates
+is the earned income credit due diligence, which is its own $65 line. A records
+sorting charge exists at a $175 minimum and is deliberately not for the page.
+
+**What changed earlier on 26 August, in case this file is read against older copy.**
 Rentals and farms left the package ladder and became priced forms. Property &
 Business became Business. The earned income credit dropped from $150 to $65 to
 match the market. The three entity bases were set and split. If any draft copy

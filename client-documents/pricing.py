@@ -131,6 +131,43 @@ def _line(service: str, detail: str, amount, code: str) -> dict:
             "Amount": m.money(amount, code), "_raw": amount}
 
 
+def _preparer_amount(unit: dict, answers: dict):
+    """The amount for a line the PREPARER prices, floored at its minimum.
+
+    Most lines on this sheet cost what the sheet says. One does not: records
+    sorting is a floor rather than a fixed price, on the firm's instruction of
+    26 August 2026 -- "175 is the minimum so if the preparer thinks it'll take
+    more than that much worth of hours they should adjust the estimate".
+
+    That is a real distinction and it needed a real mechanism. A shoebox is
+    visible at the door but not identical from one client to the next, so the
+    person who sees it sets the number. The floor is what stops the number
+    drifting down: below it, the line is not worth the conversation it costs.
+
+    A figure below the minimum is RAISED to it rather than refused, because
+    the alternative is an estimate that will not render over a typo somebody
+    can fix in five seconds -- and because the minimum is the firm's decision,
+    which means it is the answer whenever the entered number disagrees.
+    """
+    amount = unit.get("amount")
+    key = unit.get("amount_from")
+    if not key:
+        return amount
+    entered = answers.get(key)
+    if entered in (None, "", False):
+        return amount
+    if isinstance(entered, bool) or not isinstance(entered, (int, float)):
+        raise PricingError(
+            f"{key} was answered {entered!r}, which is not an amount. This "
+            f"line is priced by the preparer at the consultation; a value "
+            f"that is not a number cannot be billed."
+        )
+    floor = unit.get("minimum")
+    if isinstance(floor, (int, float)) and entered < floor:
+        return floor
+    return entered
+
+
 def _capped(unit: dict, count: int) -> tuple[int, object]:
     """How many units are actually charged, and whether a cap did the work.
 
@@ -735,7 +772,7 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             continue
 
         unit = _resolve_tier(unit, answers)
-        amount = unit["amount"]
+        amount = _preparer_amount(unit, answers)
         billed, capped = _capped(unit, count)
 
         # A FORM FEE, where the work is a form rather than a pile of items.
@@ -1071,12 +1108,18 @@ def _ladder_shapes(form: str):
             scheds = list(combo)
             kinds = ["simple", "standard"] if "C" in scheds else [None]
             for kind in kinds:
-                for rentals, k1s, biz, deps in itertools.product(
+                for rentals, k1s, biz, other in itertools.product(
                         [0, 1, 4], [0, 3], [0, 2], ["no", "yes"]):
-                    # `has_dependents` is varied deliberately. Hold it at "no"
-                    # and every no-schedules client qualifies for Starter, so
-                    # Essentials reports as never chosen -- a sweep that cries
-                    # wolf about the schedule when the fault is its own.
+                    # `other_income_documents` is varied deliberately, and it
+                    # is the ONLY thing separating Simple Filer from
+                    # Essentials now that the dependents test has gone. Hold
+                    # it at "no" and every no-schedules client qualifies for
+                    # the cheaper rung, so Essentials reports as never chosen
+                    # -- a sweep crying wolf about the schedule when the fault
+                    # is its own. That has now happened twice, with two
+                    # different answers, which is the argument for varying
+                    # every answer a gate reads rather than the ones that look
+                    # interesting.
                     # Count only what is actually ON the return. A client
                     # with two businesses and no Schedule C is not a client,
                     # it is a contradiction -- and it prices as unknowable,
@@ -1087,8 +1130,7 @@ def _ladder_shapes(form: str):
                          "count_rentals": rentals if "E1" in scheds else 0,
                          "count_k1s": k1s if "E2" in scheds else 0,
                          "count_businesses": biz if "C" in scheds else 0,
-                         "other_income_documents": "no",
-                         "has_dependents": deps}
+                         "other_income_documents": other}
                     if kind:
                         a["schedule_c_kind"] = kind
                     yield a

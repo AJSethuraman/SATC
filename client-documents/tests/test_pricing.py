@@ -882,22 +882,42 @@ def test_a_counted_line_says_how_many_the_package_swallowed():
 
 # ── Starter, once the interview can see it ────────────────────────────────
 
-def test_starter_selects_for_a_w2_only_client_with_no_dependents():
+def test_the_simple_filer_rung_selects_for_a_w2_only_client():
     s = pricing.load()
     line = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": [],
-         "other_income_documents": "no", "has_dependents": "no"}, s)[0]
-    assert line["Service"] == "Starter"
+         "other_income_documents": "no"}, s)[0]
+    assert line["Service"] == "Simple Filer", (
+        "renamed 26 Aug 2026 — 'Starter' read as the bottom of a ladder when "
+        "the firm wants it to read as an exception below the minimum"
+    )
     assert line["Amount"] == "$100.00"
 
 
-def test_a_dependent_takes_a_client_out_of_starter():
+def test_a_dependent_no_longer_takes_a_client_out_of_the_cheapest_rung():
+    """Changed 26 August 2026, after the firm asked how the market charges for
+    dependents and the answer turned out to be that it doesn't.
+
+    A dependent by itself is a name, a taxpayer ID and a checkbox. What costs
+    time is the due diligence on the credit it unlocks, and that is priced
+    separately at $65. A W-2 parent claiming the child tax credit is a Simple
+    Filer.
+    """
     s = pricing.load()
     line = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": [],
          "other_income_documents": "no", "has_dependents": "yes"}, s)[0]
-    assert line["Service"] == "Essentials"
+    assert line["Service"] == "Simple Filer"
 
+
+def test_another_income_document_is_what_still_takes_them_out():
+    """The test that DOES predict work, and the only thing now separating the
+    two cheapest rungs."""
+    s = pricing.load()
+    line = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": [],
+         "other_income_documents": "yes"}, s)[0]
+    assert line["Service"] == "Essentials"
 
 def test_any_other_income_document_takes_a_client_out_of_starter():
     s = pricing.load()

@@ -69,6 +69,8 @@ ITEMS: list[tuple[str, str]] = [
     ("per_unit.rental.amount",       "each rental property past the form fee"),
     ("per_unit.farm.form_fee",       "the Schedule F itself"),
     ("per_unit.farm.amount",         "each farm operation past the first"),
+    ("per_unit.records_sorting.amount",
+     "sorting a shoebox before it can be worked -- the MINIMUM, not the price"),
     ("per_unit.k1.amount",           "each K-1 received and entered"),
     ("per_unit.owner_k1.amount",     "each K-1 issued to an owner of an entity"),
     ("per_unit.schedule_c.tiers.simple.amount",

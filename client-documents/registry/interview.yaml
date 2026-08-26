@@ -493,6 +493,45 @@ sections:
         supplies: []
         feeds: LineItems
 
+      # ── records sorting ───────────────────────────────────────────────
+      # Both preparer-facing. A client whose paperwork is a shoebox does not
+      # describe it as one, and asking them to would be a rude question with
+      # an unreliable answer. This is a judgement made looking at what turned
+      # up, which is why the firm's own instruction was "preparer's call is
+      # fine".
+      - id: count_sorting
+        question: "Does what they sent need sorting before it can be worked?"
+        help: >
+          UNSORTED BUT COMPLETE — a shoebox. Everything is there, in no order.
+          Answer 1 for yes, leave blank for no.
+
+          This is NOT the same as records that do not tie or are missing
+          something. That is discovered at file review, not at the
+          consultation, and it is billed hourly against the estimate's own
+          assumption. See `assumed.cleanup` in registry/fee-schedule.yaml.
+        type: number
+        internal: true
+        internal_reason: >-
+          A judgement about the client's paperwork. It prices a line; the
+          reasoning behind it never prints.
+        supplies: []
+        feeds: LineItems
+
+      - id: sorting_amount
+        question: "How much for the sorting? ($175 minimum)"
+        help: >
+          Leave blank to charge the $175 minimum. Enter a larger figure if
+          what arrived will take longer than that buys — a bit over an hour at
+          the standard rate.
+
+          A number below the minimum is raised to it rather than refused.
+        type: number
+        showIf: "count_sorting != ''"
+        internal: true
+        internal_reason: "Sets a price. The figure prints; the fact that a human chose it does not."
+        supplies: []
+        feeds: LineItems
+
       - id: count_brokerages
         question: "How many brokerage accounts will you send us a 1099-B for?"
         help: >
@@ -510,6 +549,7 @@ sections:
         showIf: "'D' in federal_schedules"
         supplies: []
         feeds: LineItems
+
 
       - id: count_brokerages_keyed
         question: "How many of those have to be keyed in by hand?"

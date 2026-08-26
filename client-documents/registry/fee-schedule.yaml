@@ -170,7 +170,18 @@ base:
     tier_from: derived
     tiers:
       starter:
-        label: "Starter"
+        # RENAMED 26 August 2026. "Starter" means WHERE YOU BEGIN, which
+        # invites every new client to ask why they are not in it. The firm
+        # wants this rung to read as an exception BELOW the minimum, not the
+        # bottom of a ladder -- "my normal minimum is $200 unless you are a
+        # simpler filer" -- and "Simple Filer" says exactly that: this is you
+        # or it is not.
+        #
+        # The other three names were left alone on the firm's own rule of
+        # thumb: the simplest answer is usually right, and renaming names that
+        # are already plain and already true costs a content migration on the
+        # website for nothing.
+        label: "Simple Filer"
         detail: "W-2 income only, standard deduction"
         amount: 100
         covers:
@@ -178,11 +189,25 @@ base:
           - "One or two W-2s"
           - "A 1098-T education credit claimed for yourself"
           - "The standard deduction"
+        # `has_dependents` WAS HERE and came off on 26 August 2026, after the
+        # firm asked how the market charges for dependents and the answer
+        # turned out to be: it doesn't. The NSA survey prices sixty-odd forms
+        # and schedules and has no per-dependent line, no Form 2441, no Form
+        # 8863. The one dependent-adjacent figure in it is Schedule EIC at $65
+        # -- already a line on this sheet.
+        #
+        # Which follows from the law rather than the survey: since the personal
+        # exemption went away, a dependent by itself is a name, a taxpayer ID
+        # and a checkbox. What costs time is the DUE DILIGENCE on the credit it
+        # unlocks, and that is priced separately.
+        #
+        # So this gate asks the question that predicts work -- did another
+        # income document arrive -- and no longer asks the one that does not.
+        # A W-2 parent claiming the child tax credit is a Simple Filer.
         gate:
           schedules_none: true
           answer_is:
             other_income_documents: "no"
-            has_dependents: "no"
 
       business:
         # RENAMED 26 August 2026, because "Property" stopped being true the
@@ -439,6 +464,36 @@ per_unit:
     # awhile and just charge per account". A foreign COMPANY is not this line
     # -- see `assumed.foreign_company`.
     amount: 50
+
+  records_sorting:
+    # Split out of `cleanup` on 26 August 2026, because one word was covering
+    # two jobs. The firm: "i think that it makes sense sometimes... others not
+    # so much. what does disorganized really mean in this case?"
+    #
+    # It means two things, and the NSA survey conflates them under one $166
+    # average -- "disorganized/INCOMPLETE files".
+    #
+    #   UNSORTED BUT COMPLETE. A shoebox. Everything is there, in no order.
+    #   Dull, real, and -- the part that decides the shape -- you can SEE THE
+    #   SIZE OF IT AT THE DOOR. That is this line.
+    #
+    #   INCOMPLETE OR UNRECONCILED. The books do not tie, or something is
+    #   missing and nobody knows what. You cannot see the bottom from the
+    #   door. That is `assumed.cleanup` below, and it stays hourly, because a
+    #   flat fee for it is a guess you will be wrong about in both directions.
+    #
+    # A FLOOR, NOT A FIXED PRICE. The firm, same day: "we'll set our price to
+    # 175 - and we will say 175 is the minimum so if the preparer thinks it'll
+    # take more than that much worth of hours they should adjust the estimate".
+    # $175 is a bit over an hour at the standard rate. `amount_from` lets the
+    # preparer enter a larger figure at the consultation; `minimum` stops it
+    # ever going below the floor, deliberately or by a typo.
+    label: "Records sorting"
+    detail: "Sorting and organising what arrived"
+    count_from: count_sorting
+    amount: 175
+    minimum: 175
+    amount_from: sorting_amount
 
   owner_k1:
     count_from: count_owners
