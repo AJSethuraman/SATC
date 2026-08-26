@@ -1726,3 +1726,134 @@ def test_the_individual_packages_are_not_from_prices():
     s = pricing.load()
     for key, tier in s["base"]["1040"]["tiers"].items():
         assert tier.get("publish") != "from", key
+
+
+# ── what may be published (26 Aug 2026) ───────────────────────────────────
+
+def _priced_lines(s):
+    """Every line that puts a number on a client's estimate, by path."""
+    out = {}
+    for key, tier in s["base"]["1040"]["tiers"].items():
+        out[f"base.1040.tiers.{key}"] = tier
+    out["base.1040.amended"] = s["base"]["1040"]["amended"]
+    for form in ("1065", "1120S", "1120"):
+        out[f"base.{form}"] = s["base"][form]
+    for key, unit in s["per_unit"].items():
+        out[f"per_unit.{key}"] = unit
+    out["per_form"] = s["per_form"]
+    return out
+
+
+def test_every_priced_line_says_whether_it_may_be_published():
+    """The firm chose a public price page, so "may this number go on it?" is a
+    property of the price and not of whoever writes the copy.
+
+    It lived in prose until 26 August 2026 — `docs/pricing-for-website.md`
+    said which lines to withhold, and the schedule said nothing, so the site's
+    own checker could not enforce the rule from the source of truth. Prose and
+    schedule drift; that is what this file exists to stop.
+    """
+    s = pricing.load()
+    missing = [p for p, line in _priced_lines(s).items()
+               if not isinstance(line, dict) or "publish" not in line]
+    assert not missing, (
+        f"priced lines that do not say whether they may be published: {missing}"
+    )
+
+
+def test_a_withheld_line_says_why_it_is_withheld():
+    """"No" is a decision. Without the reason beside it, the next person to
+    read the file cannot tell a policy from an oversight — which is exactly
+    how the entity prices sat withheld on an agent's reasoning for two days.
+    """
+    s = pricing.load()
+    silent = [p for p, line in _priced_lines(s).items()
+              if line.get("publish") == "no"
+              and not str(line.get("publish_reason") or "").strip()]
+    assert not silent, f"withheld with no reason given: {silent}"
+
+
+def test_publish_only_takes_values_the_code_knows():
+    s = pricing.load()
+    allowed = {"yes", "no", "from"}
+    odd = {p: line.get("publish") for p, line in _priced_lines(s).items()
+           if line.get("publish") not in allowed}
+    assert not odd, f"unrecognised publish values: {odd}"
+
+
+def test_the_farm_and_the_sorting_fee_are_withheld():
+    """Both are firm decisions and both were prose-only. The farm because a
+    published price is a solicitation and the firm does not solicit farm
+    returns; the sorting fee because it is a floor a preparer sets, and a
+    charge for the client's own untidiness reads very differently on a public
+    page than it does in a conversation."""
+    s = pricing.load()
+    assert s["per_unit"]["farm"]["publish"] == "no"
+    assert s["per_unit"]["records_sorting"]["publish"] == "no"
+
+
+def test_publication_lists_what_may_go_up():
+    """One call, so the site does not have to walk the schedule itself and
+    cannot walk it differently."""
+    s = pricing.load()
+    pub = pricing.publication(s)
+    names = {p for p, _ in pub["publish"]}
+    assert "per_unit.farm" not in names
+    assert "per_unit.records_sorting" not in names
+    assert "base.1040.tiers.essentials" in names
+    froms = {p for p, _ in pub["from"]}
+    assert froms == {"base.1065", "base.1120S", "base.1120"}
+    assert {p for p, _ in pub["withhold"]} >= {"per_unit.farm",
+                                               "per_unit.records_sorting"}
+
+
+# ── things the firm settled that the schedule did not know ────────────────
+
+def test_responding_to_a_notice_is_on_the_schedule():
+    """`docs/pricing-for-website.md` §3 names three hourly things: records
+    that need reconciling, **responding to a notice**, and anything to do with
+    a foreign company. The schedule carried two of the three.
+
+    Found 26 August 2026 by auditing the prose against the YAML after the
+    website agent reported the schedule was missing things. It was: a client
+    who gets an IRS letter is real, ordinary work, and nothing priced it.
+    """
+    s = pricing.load()
+    assert "notice_response" in s["assumed"]
+    assert s["assumed"]["notice_response"]["beyond"] == "hourly"
+
+
+def test_officer_compensation_is_on_the_schedule():
+    """Settled 25 August 2026: excluded from an entity engagement unless added
+    in writing, and billed hourly when it is. It lived only in `fields.yaml`
+    as a scope-exclusion flag on the business engagement letter — a document
+    said it, and the thing that prices work did not."""
+    s = pricing.load()
+    assert "officer_compensation" in s["assumed"]
+    assert s["assumed"]["officer_compensation"]["beyond"] == "hourly"
+
+
+def test_the_firm_minimum_is_recorded_with_its_exception():
+    """"my normal minimum is $200 unless you are a simpler filer" — the firm,
+    25 August 2026.
+
+    That was in a comment beside the Simple Filer tier and in the website
+    prose, and the schedule's own tail said in terms "no minimum ... a policy
+    invented in a config file is a policy nobody decided". The policy WAS
+    decided; nothing recorded it. Both halves matter: the number, and the one
+    rung that is allowed below it.
+    """
+    s = pricing.load()
+    assert s["basis"]["minimum"] == 200
+    assert s["basis"]["minimum_exception"] == "starter"
+    assert s["base"]["1040"]["tiers"]["starter"]["amount"] < s["basis"]["minimum"]
+
+
+def test_no_other_package_sits_below_the_minimum():
+    """The exception is one named rung, not a hole in the floor."""
+    s = pricing.load()
+    floor = s["basis"]["minimum"]
+    allowed = s["basis"]["minimum_exception"]
+    below = [k for k, t in s["base"]["1040"]["tiers"].items()
+             if k != allowed and t["amount"] < floor]
+    assert not below, f"packages under the firm's ${floor} minimum: {below}"

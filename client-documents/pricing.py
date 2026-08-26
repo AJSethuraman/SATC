@@ -1172,6 +1172,79 @@ def price(answers: dict, schedule: dict | None = None) -> dict:
 
 # ── is the ladder sensible? ───────────────────────────────────────────────
 
+# What may reach a public page, and what may not.
+#
+# The firm chose a public price page on 25 August 2026, which turned "may this
+# number be shown?" from a copywriting judgement into a property of the price.
+# It lived in prose until 26 August -- `docs/pricing-for-website.md` named the
+# lines to withhold and this file said nothing -- so the site's own checker
+# could not enforce the rule against the source of truth. Prose and schedule
+# drift; that is the whole reason this file exists.
+#
+#   yes   the number and what it covers may both be shown
+#   from  a floor, never a flat price. The entity returns: a base with the
+#         balance sheet, the reconciliation and the owner K-1s priced on top,
+#         so a bare figure would be read as a total
+#   no    priced, taken, not advertised -- and `publish_reason` says why
+_PUBLISH = {"yes", "from", "no"}
+
+
+def _publishable_lines(schedule: dict):
+    """Every line that puts a number on an estimate, as (path, line)."""
+    s = schedule
+    base = s.get("base") or {}
+    tiers = (base.get("1040") or {}).get("tiers") or {}
+    for key, tier in tiers.items():
+        yield f"base.1040.tiers.{key}", tier
+    amended = (base.get("1040") or {}).get("amended")
+    if amended:
+        yield "base.1040.amended", amended
+    for form in ("1065", "1120S", "1120"):
+        if form in base:
+            yield f"base.{form}", base[form]
+    for key, unit in (s.get("per_unit") or {}).items():
+        yield f"per_unit.{key}", unit
+    if s.get("per_form"):
+        yield "per_form", s["per_form"]
+
+
+def publication(schedule: dict | None = None) -> dict:
+    """What the schedule permits a public page to show.
+
+    Three lists, so the caller cannot accidentally treat a floor as a flat
+    price or publish something the firm decided to keep off the page. Each
+    entry is `(path, line)`.
+
+    A line with no `publish` raises rather than defaulting either way:
+    defaulting to "yes" publishes a price nobody cleared, and defaulting to
+    "no" silently drops one the firm meant to show. Neither failure announces
+    itself on a web page.
+    """
+    s = schedule if schedule is not None else load()
+    out = {"publish": [], "from": [], "withhold": []}
+    for path, line in _publishable_lines(s):
+        value = line.get("publish") if isinstance(line, dict) else None
+        if value not in _PUBLISH:
+            raise PricingError(
+                f"{path} does not say whether it may be published "
+                f"({value!r}). Every priced line must: add `publish:` with "
+                f"one of {sorted(_PUBLISH)}."
+            )
+        if value == "no":
+            if not str(line.get("publish_reason") or "").strip():
+                raise PricingError(
+                    f"{path} is withheld from the page with no reason given. "
+                    f"Add `publish_reason:` -- without it the next reader "
+                    f"cannot tell a policy from an oversight."
+                )
+            out["withhold"].append((path, line))
+        elif value == "from":
+            out["from"].append((path, line))
+        else:
+            out["publish"].append((path, line))
+    return out
+
+
 def ladder_report(schedule: dict | None = None, form: str = "1040") -> list[dict]:
     """One row per package: is it ever chosen, and is it ever the cheapest?
 

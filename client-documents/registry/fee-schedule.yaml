@@ -96,6 +96,26 @@ basis:
   round_time_to: 0.25
   minimum_increment: 0.25
 
+  # THE FIRM'S MINIMUM ENGAGEMENT FEE, and the one rung allowed below it.
+  #
+  #     my normal minimum is $200 unless you are a simpler filer
+  #     -- the firm, 25 August 2026
+  #
+  # This was decided in August and recorded nowhere but a comment beside the
+  # Simple Filer tier and a paragraph in the website brief. The tail of this
+  # file said, in terms, "no minimum ... a policy invented in a config file is
+  # a policy nobody decided". The policy WAS decided; nothing carried it.
+  #
+  # Both halves matter. Simple Filer at $100 is an EXCEPTION below the floor,
+  # not the entry point -- which is why the rung was renamed from "Starter".
+  # A page that presents $100 as the starting price makes every visitor ask
+  # why they are not getting it. The firm's own framing is the one to use:
+  # our minimum is $200, unless your return is simpler than that.
+  #
+  # A test holds the floor: no OTHER package may sit under it.
+  minimum: 200
+  minimum_exception: starter
+
 # ── how the base fee relates to the counts ────────────────────────────────
 #
 # The one structural decision, and it changes every number below it.
@@ -187,6 +207,7 @@ base:
       detail: "Form 1040-X, prepared from the return as filed"
       amount: 250
       when: { answer_is: { return_basis: amended } }
+      publish: "yes"
     tiers:
       starter:
         # RENAMED 26 August 2026. "Starter" means WHERE YOU BEGIN, which
@@ -227,6 +248,7 @@ base:
           schedules_none: true
           answer_is:
             other_income_documents: "no"
+        publish: "yes"
 
       business:
         # RENAMED 26 August 2026, because "Property" stopped being true the
@@ -271,6 +293,7 @@ base:
         # a $200 Schedule C at $525.
         gate:
           answer_is: {schedule_c_kind: standard}
+        publish: "yes"
 
       standard:
         label: "Standard"
@@ -309,6 +332,7 @@ base:
           any_of:
             - schedules_none_of: [C]
             - answer_is: {schedule_c_kind: simple}
+        publish: "yes"
 
       essentials:
         label: "Essentials"
@@ -320,6 +344,7 @@ base:
           - "The standard deduction"
         gate:
           schedules_none: true
+        publish: "yes"
 
   # Set 26 August 2026. Anchored on the NSA 2020-2021 survey -- $733
   # partnership, $903 S corporation, $913 corporation -- with roughly 8% added
@@ -390,6 +415,7 @@ per_unit:
     # in the TY2023 workbook, which is below what TurboTax charges a client to
     # self-file one ($49-64).
     amount: 50
+    publish: "yes"
 
   local_return:
     count_from: count_localities
@@ -403,6 +429,7 @@ per_unit:
     # real research is ringing round other firms, which costs more than the
     # answer is worth on a line that will rarely decide a quote.
     amount: 35
+    publish: "yes"
 
   rental:
     count_from: count_rentals
@@ -438,6 +465,7 @@ per_unit:
     # wrong price for the FIRST rental -- that is what the form fee is now for
     # -- and it is the right one for the marginal property past the form.
     amount: 45
+    publish: "yes"
 
   farm:
     count_from: count_farms
@@ -464,6 +492,11 @@ per_unit:
     amount: 200
     form_when:
       schedules_any: [F]
+    publish: "no"
+    publish_reason: >-
+      Settled 26 Aug 2026: the firm TAKES farm work and does not ADVERTISE
+      it. A published price is a solicitation, and the firm does not
+      solicit farm returns.
 
   k1:
     count_from: count_k1s
@@ -474,6 +507,7 @@ per_unit:
     # page of numbers somebody else already computed. One of the four lines
     # tagged as exposed to automation -- see docs/pricing-open-threads.md T-01.
     amount: 15
+    publish: "yes"
 
   brokerage:
     count_from: count_brokerages
@@ -486,6 +520,7 @@ per_unit:
     # client sees a price instead of a warning, and the firm bills a second
     # statement without having to have a conversation about it.
     amount: 45
+    publish: "yes"
 
   brokerage_keyed:
     count_from: count_brokerages_keyed
@@ -507,6 +542,7 @@ per_unit:
     # a cost to fix, not a cost to bill. Price today's effort; expect this
     # line to shrink.
     amount: 95
+    publish: "yes"
 
   foreign_account:
     count_from: count_foreign_accounts
@@ -544,6 +580,7 @@ per_unit:
     # awhile and just charge per account". A foreign COMPANY is not this line
     # -- see `assumed.foreign_company`.
     amount: 50
+    publish: "yes"
 
   # T-17, closed 26 August 2026 on the firm's answer to round eleven:
   # "$75, as its own named line -- filing-only extensions free".
@@ -578,6 +615,7 @@ per_unit:
     label: "Extension with a payment estimate"
     detail: "Computing what to pay by the original due date, from an incomplete file"
     amount: 75
+    publish: "yes"
 
   records_sorting:
     # Split out of `cleanup` on 26 August 2026, because one word was covering
@@ -608,6 +646,12 @@ per_unit:
     amount: 175
     minimum: 175
     amount_from: sorting_amount
+    publish: "no"
+    publish_reason: >-
+      A floor a preparer sets when they see what arrived, not a price --
+      and a charge for the client's own untidiness reads very differently
+      on a public page than it does in a conversation. The estimate says
+      it when it applies.
 
   owner_k1:
     count_from: count_owners
@@ -617,6 +661,7 @@ per_unit:
     # a six-owner S corp and a one-owner S corp cost the same. Allocation, a
     # page and delivery per owner. Entity work, so it does not fire on a 1040.
     amount: 40
+    publish: "yes"
 
   # A tiered item. `tier_from` names an interview answer; the tier it selects
   # supplies the label, the detail and the amount, exactly as a flat item's own
@@ -662,6 +707,7 @@ per_unit:
         # Signed 25 Aug 2026. The workbook's own Schedule C price.
         # The first full one is inside Property & Business.
         amount: 200
+    publish: "yes"
 
 # ── the words the estimate assembles ──────────────────────────────────────
 #
@@ -775,6 +821,11 @@ phrases:
 # exact engagements where mispricing hurts most.
 per_form:
   amount: 50
+  # Publishable as "$50 each" plus the list of situations. The ASSUMPTION
+  # behind each form is not for the page -- it belongs on a client's own
+  # estimate, attached to a real engagement, where it can be read next to
+  # what they actually told us.
+  publish: "yes"
   # The multi-select whose ticked values name the forms. Every option there is
   # something that HAPPENED -- a client knows whether they sold a house.
   select_from: extra_forms
@@ -927,6 +978,38 @@ assumed:
     trigger: "you hold an interest in a foreign corporation or partnership"
     beyond: hourly
 
+  # ADDED 26 August 2026, auditing the website brief against this file after
+  # the site agent reported the schedule was missing things it should have.
+  # It was. §3 of `docs/pricing-for-website.md` names THREE hourly things --
+  # records that need reconciling, responding to a notice, and anything to do
+  # with a foreign company -- and this file carried two of them.
+  #
+  # A client who gets a letter from a taxing authority is ordinary, expected
+  # work. Nothing priced it, so it would have been done and not billed, or
+  # billed by hand off the sheet.
+  #
+  # NEVER an intake question, for the same reason as cleanup: a notice arrives
+  # after the return is filed. It is raised when it happens.
+  notice_response:
+    label: "Notices and correspondence"
+    assumes: "no authority writes to you about a return we prepared"
+    inside_base: false
+    trigger: "a notice arrives and you ask us to deal with it"
+    beyond: hourly
+    raised_at: file_review
+
+  # Settled 25 August 2026 and, until now, recorded only as a scope-exclusion
+  # flag on the business engagement letter in `fields.yaml`. A DOCUMENT said
+  # it and the thing that prices work did not, which is how an exclusion turns
+  # into unbilled work: the letter excludes it, the client asks for it anyway,
+  # and no line exists to put it on.
+  officer_compensation:
+    label: "Officer compensation"
+    assumes: "setting officer compensation is not part of this engagement"
+    inside_base: false
+    trigger: "you ask us to determine or review it, and we agree in writing"
+    beyond: hourly
+
   cleanup:
     label: "Records cleanup"
     assumes: "your records arrive complete and reconciled"
@@ -955,8 +1038,11 @@ assumed:
 #    rates -- "a rate card on an invoice invites the client to scrutinise your
 #    time", per the invoice's own field doc. If hourly work exists it is quoted
 #    separately, not derived here.
-# 2. No minimum, no rush loading, no discount. Each is a policy, and a policy
-#    invented in a config file is a policy nobody decided.
+# 2. No rush loading and no discount. Each is a policy, and a policy invented
+#    in a config file is a policy nobody decided. THE MINIMUM IS NO LONGER ON
+#    this list: the firm set $200 in August with Simple Filer as its one
+#    exception, and it is recorded under `basis:` as of 26 August 2026. This
+#    line said "no minimum" for a day after the minimum existed.
 # 3. No rounding rule. Amounts are what they are; if the firm rounds a total to
 #    the nearest 25, that is a decision and it belongs here once made.
 # 4. No bookkeeping pricing. Recurring work is a different engagement with a
