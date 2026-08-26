@@ -27,6 +27,8 @@ import argparse
 import html
 import json
 import re
+import shutil
+import tempfile
 import sys
 import textwrap
 from datetime import date
@@ -38,6 +40,7 @@ import yaml
 import money as m
 import engagements
 import invoicing
+import packaging
 import fees
 import intake
 import interview as iv
@@ -300,6 +303,129 @@ def _engagement_readiness(ref: str, store: Path) -> int:
     print("\n  A [CONFIRM] is a firm decision -- `doctor` with no argument "
           "lists them all.\n  An unresolved field is missing from this record.")
     return 1 if opening_blocked else 0
+
+
+def _previous_pack(outdir: Path) -> str | None:
+    """The engagement ref of a pack this command wrote here before, or None.
+
+    None means either an empty/absent directory or one we do not recognise --
+    the caller tells those apart, because they need different answers.
+    """
+    book = outdir / "MANIFEST.json"
+    if not book.is_file():
+        return None
+    try:
+        return json.loads(book.read_text(encoding="utf-8")).get(
+            "EngagementRef") or "an earlier engagement"
+    except (OSError, ValueError):
+        return "an earlier engagement"
+
+
+def cmd_package(args) -> int:
+    """Every document a client signs, in one atomic write.
+
+    ATOMIC is the point and it is why this does not just loop `_render_one`
+    into the output directory. An engagement letter without its fee estimate
+    asks somebody to sign for work at a price they have not been shown; a pack
+    with a hole in it is worse than no pack at all. So everything is rendered
+    to a temporary directory first, and the output directory is only touched
+    once every document has succeeded.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    try:
+        raw = engagements.load(args.engagement, store)
+    except engagements.EngagementError as exc:
+        print(exc)
+        return 1
+    record = build_record(raw)
+
+    try:
+        docs = packaging.documents_for(record, with_invoice=args.with_invoice)
+    except packaging.PackageError as exc:
+        print(f"\n{exc}\n")
+        return 1
+
+    want_pdf = not args.no_pdf
+    if want_pdf:
+        try:
+            pdf_engine()
+        except NoPdfEngine as exc:
+            print(f"note: {exc}\n      writing HTML only\n", file=sys.stderr)
+            want_pdf = False
+
+    outdir = Path(args.out)
+    # WHOSE DIRECTORY IS THIS? Found by testing the refusal path: a run that
+    # refuses leaves whatever was already in `--out` untouched, so a complete
+    # pack from a DIFFERENT engagement sits there looking current, and the
+    # person who reads "No pack written" and then opens the folder finds one.
+    # That is the failure this command exists to prevent, arriving by the
+    # back door.
+    #
+    # So the pack owns its directory. A folder we wrote before (it has our
+    # MANIFEST) is replaced wholesale. A folder with anything else in it is
+    # somebody's, and we do not touch it.
+    stale = _previous_pack(outdir)
+    if stale is None and outdir.exists() and any(outdir.iterdir()):
+        print(f"\n{outdir} already has files in it and no MANIFEST.json, so it "
+              f"is not a pack this\ncommand wrote. Refusing to mix a signing "
+              f"pack into somebody else's folder —\ngive --out a new directory.\n")
+        return 1
+
+    staging = Path(tempfile.mkdtemp(prefix="satc-pack-"))
+    written: dict[str, list[Path]] = {}
+    refused: list[tuple[str, str]] = []
+    try:
+        for doc in docs:
+            try:
+                _, files = _render_one(doc, record, staging, False, want_pdf)
+                written[doc] = files
+            except merge.MergeError as exc:
+                refused.append((doc, str(exc)))
+
+        if refused:
+            print(f"\nNo pack written. {len(refused)} of {len(docs)} document(s) "
+                  f"refused, and a pack with a hole in it is worse than none —\n"
+                  f"the client signs what arrived and the rest turns up later "
+                  f"saying something different.\n")
+            for doc, why in refused:
+                print(f"  {DOCUMENTS[doc][1]}")
+                for line in textwrap.wrap(why, 74):
+                    print(f"      {line}")
+                print()
+            if stale:
+                print(f"  WARNING: {outdir} still holds the pack written for "
+                      f"{stale}.\n           It is not this engagement's and it "
+                      f"has not been updated. Do not send it.\n")
+            return 1
+
+        # Replace, do not merge. An entity pack written over an individual
+        # one would leave two engagement letters in the folder, and whoever
+        # sends it picks the wrong one.
+        if stale is not None and outdir.exists():
+            for old_file in outdir.iterdir():
+                if old_file.is_file():
+                    old_file.unlink()
+        outdir.mkdir(parents=True, exist_ok=True)
+        moved: dict[str, list[Path]] = {}
+        for doc, files in written.items():
+            moved[doc] = [Path(shutil.copy2(f, outdir / f.name)) for f in files]
+
+        book = packaging.manifest(record, docs, moved)
+        (outdir / "MANIFEST.json").write_text(
+            json.dumps(book, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8")
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+    print(f"\nSigning pack for {record.get('EngagementRef') or args.engagement}"
+          f" — {record.get('ClientFullName', '')}")
+    print(f"    {outdir}\n")
+    for doc in docs:
+        print(f"  {DOCUMENTS[doc][1]}")
+        print(f"      {packaging.PURPOSE.get(doc, '')}")
+    print(f"\n  Estimate  {record.get('EstimateTotal', '(none)')}")
+    print(f"  Manifest  {outdir / 'MANIFEST.json'}")
+    return 0
 
 
 def cmd_invoice(args) -> int:
@@ -995,6 +1121,16 @@ def main(argv=None) -> int:
         prog="satc-docs", description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    pk = sub.add_parser("package",
+                        help="every document a client signs, in one atomic write")
+    pk.add_argument("--engagement", required=True)
+    pk.add_argument("--store")
+    pk.add_argument("--out", default="pack")
+    pk.add_argument("--with-invoice", action="store_true",
+                    help="include the invoice, which is not part of what is signed")
+    pk.add_argument("--no-pdf", action="store_true")
+    pk.set_defaults(fn=cmd_package)
 
     iv = sub.add_parser("invoice", help="a priced engagement -> an invoice")
     iv.add_argument("--engagement", required=True)
