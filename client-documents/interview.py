@@ -129,15 +129,7 @@ def prefill_for(question: dict, lead: dict | None) -> object:
     # through -- "w2" is a real thing to tell us and not a schedule.
     mapping = question.get("prefill_map")
     if mapping:
-        if isinstance(node, list):
-            out = []
-            for v in node:
-                got = mapping.get(v)
-                for one in (got if isinstance(got, list) else [got]):
-                    if one is not None and one not in out:
-                        out.append(one)
-            return out or None
-        return mapping.get(node)
+        return _collapse(question, _mapped(question, mapping, node))
 
     # No map, because the question shares the website's vocabulary on purpose
     # -- `return_features` does. Anything the question does not OFFER is still
@@ -154,6 +146,58 @@ def prefill_for(question: dict, lead: dict | None) -> object:
         kept = [v for v in node if v in options]
         return kept or None
     return node
+
+
+def _mapped(question: dict, mapping: dict, node):
+    """The lead's vocabulary translated through the question's own map.
+
+    THREE OUTCOMES PER VALUE, not two:
+
+      absent from the map   the lead said something this question does not
+                            care about -- "W-2 employment" is not a schedule.
+                            Dropped, quietly, and the rest still stands.
+      mapped to a value     translated.
+      mapped to NULL        the lead said something this question DOES care
+                            about and that does not resolve to one answer.
+                            The whole prefill is dropped.
+
+    The third case was missing and it guessed. `services: [individual_tax,
+    business_tax]` offered "1040", because business_tax mapped to nothing and
+    disappeared -- so a prospect who asked for both an individual and a
+    business return was quietly offered the individual one. Which entity form
+    a business needs depends on how it is set up; there is no answer to give,
+    and no answer is the right one to give.
+    """
+    values = node if isinstance(node, list) else [node]
+    out = []
+    for v in values:
+        if v not in mapping:
+            continue
+        got = mapping[v]
+        if got is None:
+            return None
+        for one in (got if isinstance(got, list) else [got]):
+            if one not in out:
+                out.append(one)
+    if not out:
+        return None
+    return out if isinstance(node, list) else out[0]
+
+
+def _collapse(question: dict, value):
+    """A one-of question cannot be answered with a list.
+
+    A lead's `services` is a multi-select and `federal_form` is not, so the
+    mapping can produce ["1040"] for a single-choice question -- one keystroke
+    from putting a list where a string belongs. One value collapses; TWO is a
+    real ambiguity and is dropped rather than resolved: a prospect who ticked
+    individual tax AND business tax is telling us something, and picking one
+    for them is exactly the guess this whole mechanism is built to avoid.
+    """
+    if question.get("type") == "single" and isinstance(value, list):
+        distinct = list(dict.fromkeys(value))
+        return distinct[0] if len(distinct) == 1 else None
+    return value
 
 
 def prefill_is_answerable(question: dict, value) -> bool:

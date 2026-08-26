@@ -236,3 +236,74 @@ def test_every_route_answers_both_a_human_and_a_script(client, answers):
         assert as_html.status_code == as_json.status_code == 200
         assert as_html.data.startswith(b"<!doctype html")
         assert as_json.is_json
+
+
+# ── the two doors a sitting starts from ───────────────────────────────────
+
+import leads  # noqa: E402
+
+
+def _workbook(tmp_path):
+    """A one-row workbook, written the way the firm's export writes one."""
+    openpyxl = pytest.importorskip("openpyxl")
+    from tests.test_leads import HEADER, ROW
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(HEADER)
+    ws.append(ROW)
+    path = tmp_path / "leads.xlsx"
+    wb.save(path)
+    return path
+
+
+def test_the_leads_page_shows_what_a_prospect_said(tmp_path):
+    import web
+    app = web.create_app(store=tmp_path / "store",
+                         leads_workbook=_workbook(tmp_path))
+    body = app.test_client().get("/leads").get_data(as_text=True)
+    assert "Marcus Ellwood" in body
+    # In the words the client saw, not the codes the form posts.
+    assert "Rental property" in body and "individual_tax" not in body
+
+
+def test_a_sitting_can_start_from_a_workbook_row(tmp_path):
+    import web
+    app = web.create_app(store=tmp_path / "store",
+                         leads_workbook=_workbook(tmp_path))
+    c = app.test_client()
+    r = c.post("/interview", data={"lead_index": "0"})
+    assert r.status_code == 302
+    page = c.get(r.headers["Location"]).get_data(as_text=True)
+    assert "Accept the claim" in page, (
+        "the sitting started blank; the lead's answer did not reach it"
+    )
+
+
+def test_a_sitting_can_start_from_a_phone_call(tmp_path):
+    """"they may just give us contact info" — that is a whole lead."""
+    import web
+    app = web.create_app(store=tmp_path / "store")
+    r = app.test_client().post("/interview",
+                               data={"by_hand": "1", "name": "Priya Raman"})
+    assert r.status_code == 302 and "/interview/" in r.headers["Location"]
+
+
+def test_a_manual_lead_with_nothing_in_it_is_refused(tmp_path):
+    """It used to fall through and start a blank sitting, which looks like it
+    worked."""
+    import web
+    app = web.create_app(store=tmp_path / "store")
+    r = app.test_client().post("/interview",
+                               data={"by_hand": "1", "name": "", "email": ""})
+    assert "/leads" in r.headers["Location"]
+    assert "nobody+to+come+back+to" in r.headers["Location"]
+
+
+def test_a_missing_workbook_is_not_an_error(tmp_path):
+    """The firm may not have exported one yet, and the manual door still
+    works."""
+    import web
+    app = web.create_app(store=tmp_path / "store",
+                         leads_workbook=tmp_path / "nope.xlsx")
+    body = app.test_client().get("/leads").get_data(as_text=True)
+    assert "Take one by phone" in body

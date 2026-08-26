@@ -192,6 +192,24 @@ def test_the_website_answer_reaches_the_interview_at_all():
         "a value was invented rather than carried"
 
 
+def test_the_sample_lead_only_says_things_the_website_can_say():
+    """It said "rental". The site sends "rentals".
+
+    So the fixture demonstrated the exact bug it was meant to exercise: a
+    value the interview could never hear. A sample that cannot happen proves
+    nothing about the leads that do.
+    """
+    import re
+    site = (Path(__file__).resolve().parents[2] / "website" / "intake-config.js"
+            ).read_text(encoding="utf-8")
+    i = site.index("id: 'individual_complexity'")
+    sends = set(re.findall(r"value: '([^']+)'", site[i:site.index("/* ── 4", i)]))
+
+    lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))
+    stray = [v for v in lead["individual_complexity"] if v not in sends]
+    assert not stray, f"the sample lead says things the intake form cannot: {stray}"
+
+
 def test_a_lead_value_that_means_no_schedule_is_dropped():
     """A plain W-2 is a real thing to tell us and implies no schedule."""
     lead = json.loads((SAMPLES / "website-lead.json").read_text(encoding="utf-8"))

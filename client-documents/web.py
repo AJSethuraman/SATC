@@ -34,11 +34,13 @@ import cli
 import editor
 import engagements
 import intake
+import leads
 import schedules as sched
 import interview as iv
 import settings as firm
 
 DRAFTS = "_drafts"
+ROOT = Path(__file__).resolve().parent
 
 
 def wants_json() -> bool:
@@ -107,9 +109,10 @@ def coerce(q: dict, raw) -> object:
     return raw or None
 
 
-def create_app(store: Path | None = None) -> Flask:
+def create_app(store: Path | None = None, leads_workbook: Path | None = None) -> Flask:
     app = Flask(__name__)
     app.config["STORE"] = Path(store) if store else engagements.STORE
+    app.config["LEADS"] = Path(leads_workbook) if leads_workbook else None
 
     def st() -> Path:
         return app.config["STORE"]
@@ -127,11 +130,50 @@ def create_app(store: Path | None = None) -> Flask:
 
     # ── start ─────────────────────────────────────────────────────────────
 
+    @app.get("/leads")
+    def lead_list():
+        """Who has come in, and a way to start a sitting from any of them."""
+        path = Path(app.config.get("LEADS") or (ROOT / "leads.xlsx"))
+        rows, problem = [], ""
+        if path.exists():
+            try:
+                rows = leads.from_workbook(path)
+            except leads.LeadError as exc:
+                problem = str(exc)
+        if wants_json():
+            return jsonify(leads=rows, workbook=str(path), error=problem)
+        return page("Leads", leads_body(rows, path,
+                                        problem or request.args.get("error", "")))
+
     @app.post("/interview")
     def start():
         lead = None
         if request.is_json:
             lead = (request.get_json(silent=True) or {}).get("lead")
+        elif request.form.get("lead_index") not in (None, ""):
+            # A row from the workbook. Read again rather than held in a
+            # session: the file on disk is the record, and a sitting started
+            # from a stale copy would carry answers the firm has since fixed.
+            path = Path(app.config.get("LEADS") or (ROOT / "leads.xlsx"))
+            try:
+                found = leads.from_workbook(path)
+                lead = found[int(request.form["lead_index"])]
+            except (leads.LeadError, IndexError, ValueError):
+                lead = None
+        elif request.form.get("by_hand"):
+            # THE MANUAL DOOR. "it is possible that a lead has to be input
+            # manually though, they may just give us contact info."
+            try:
+                lead = leads.by_hand(**{k: request.form.get(k, "")
+                                        for k in ("name", "email", "phone",
+                                                  "location", "notes")})
+            except leads.LeadError as exc:
+                # An empty manual form used to fall through and start a blank
+                # sitting, which looks like it worked. A lead with nothing in
+                # it is nobody.
+                if wants_json():
+                    return jsonify(error=str(exc)), 400
+                return redirect(url_for("lead_list", error=str(exc)))
         sid = uuid.uuid4().hex[:12]
         save_draft(st(), sid, {"lead": lead, "answers": {},
                                "started": date.today().isoformat()})
@@ -433,11 +475,54 @@ def index_body(rows, drafts) -> str:
         out.append("</ul>")
     out.append("<form method=post action='/interview' class=row>"
                "<button>Start an interview</button>"
+               "<a href='/leads' style='margin-left:4px'>"
+               "<button type=button class=ghost>Leads</button></a>"
                "<a href='/templates' style='margin-left:4px'>"
                "<button type=button class=ghost>Edit the wording</button></a>"
                "</form>")
     return "".join(out)
 
+
+
+def leads_body(rows, path, problem="") -> str:
+    out = ["<h1>Leads</h1>",
+           "<p class=help>Everything a prospect told us, before the sitting "
+           "starts &mdash; so nobody discovers halfway down that there is a "
+           "rental. Start an interview from one, or take a lead by phone.</p>"]
+    if problem:
+        out.append(f"<p class=err>{esc(problem)}</p>")
+    if not rows:
+        out.append(f"<p class=muted>No workbook at <code>{esc(str(path))}</code>. "
+                   f"Drop the export there, or take one by phone below.</p>")
+    for i, lead in enumerate(rows):
+        c = lead.get("contact") or {}
+        who = c.get("name") or c.get("email") or "(no name)"
+        num = lead.get("_lead_number") or ""
+        out.append(f"<details class=blk><summary><span class=st>{esc(who)}</span>"
+                   f"<span class=count>{esc(num)}</span></summary>"
+                   f"<table class=plain>")
+        for label, value in leads.summary(lead):
+            out.append(f"<tr><th>{esc(label)}</th><td>{esc(value)}</td></tr>")
+        out.append("</table>"
+                   f"<form method=post action='/interview' class=row>"
+                   f"<input type=hidden name=lead_index value='{i}'>"
+                   f"<button>Start an interview from this</button></form>"
+                   "</details>")
+
+    out.append(
+        "<details class='blk add'><summary><span class=st>Take one by phone"
+        "</span><span class=count>manual</span></summary>"
+        "<form method=post action='/interview'>"
+        "<input type=hidden name=by_hand value=1>"
+        "<input type=text name=name placeholder='Name they gave'>"
+        "<input type=text name=email placeholder='Email'>"
+        "<input type=text name=phone placeholder='Phone'>"
+        "<input type=text name=location placeholder='Where they are — Solon, OH'>"
+        "<textarea name=notes rows=2 placeholder='What they said'></textarea>"
+        "<div class=row><button>Start an interview</button>"
+        "<span class=muted>A name, an email or a phone number is enough. "
+        "The interview asks the rest.</span></div></form></details>")
+    return "".join(out)
 
 
 def templates_body(rows) -> str:
@@ -665,7 +750,7 @@ def _field_labels() -> dict:
     """Merge field -> what it is, in plain English. From the registry, so the
     label sits beside the field it names rather than in a table over here."""
     import yaml
-    path = Path(__file__).resolve().parent / "registry" / "fields.yaml"
+    path = ROOT / "registry" / "fields.yaml"
     reg = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     out = {}
     # Flags and lists reach a record the same way fields do, and read the same

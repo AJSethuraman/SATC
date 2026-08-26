@@ -40,7 +40,24 @@ sections:
   - id: scope
     title: What we are preparing
     questions:
+      # ROUTED FROM THE LEAD. `services` says what they asked for and
+      # `business_structure` says how the business is set up; between them the
+      # website usually already knows which return this is. Still asked -- the
+      # schema's rule is that a website answer is a claim -- but offered, so
+      # the sitting starts from what the prospect said rather than from blank.
       - id: federal_form
+        prefill: services
+        prefill_map:
+          individual_tax: "1040"
+          tax_resolution: "1040"
+          tax_planning: "1040"
+          # Present and NULL on purpose, which is not the same as absent.
+          # Which entity return a business needs depends on how it is set up,
+          # so this service resolves to no single answer -- and a lead asking
+          # for both an individual and a business return must not be offered
+          # the individual one as though that were the whole job.
+          business_tax: ~
+          bookkeeping: ~
         question: "Which federal return?"
         help: >-
           Decides the rest of the interview. 1040 asks about a person and
@@ -211,7 +228,17 @@ sections:
   - id: entity
     title: The entity
     questions:
+      # From how they said the business is set up. `sole_prop` is deliberately
+      # NOT mapped: a sole proprietorship is not an entity that files its own
+      # return, and offering one here would put a legal structure on an
+      # engagement letter for something that has none.
       - id: entity_structure
+        prefill: business_structure
+        prefill_map:
+          llc: llc
+          s_corp: corporation
+          c_corp: corporation
+          partnership: general_partnership
         question: "How is the entity legally organized?"
         help: >-
           The LEGAL structure, which is not the tax treatment -- an LLC can be
@@ -516,7 +543,15 @@ sections:
         supplies: []
         feeds: LineItems
 
+      # The site asks about the business in `business_complexity`, and
+      # "Employees" is decisive: a contractor with staff is not on standard
+      # mileage with no payroll. Offered from the lead, still asked.
       - id: schedule_c_kind
+        prefill: business_complexity
+        prefill_map:
+          employees: standard
+          inventory: standard
+          multi_location: standard
         question: "For the most involved of those businesses, which is true?"
         help: >
           Selects the Schedule C tier, and therefore the price. Every option
