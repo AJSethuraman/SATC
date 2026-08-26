@@ -6,9 +6,17 @@ name: Tests
 # One job per project, because the repo is one-folder-per-project and each has
 # its own stack and its own way of installing. fail-fast is off so a break in
 # one project still reports the others.
+# EVERY BRANCH HERE IS A PR BRANCH, so `push: branches: ["**"]` beside
+# `pull_request:` ran the whole matrix TWICE on every commit -- six jobs where
+# three were wanted, on a repo with more than seventy branches. That is what
+# exhausted the Actions allowance and put a `startup_failure` on PR #154, which
+# looked from the notification email like a broken test and was not.
+#
+# `push` is now main only, so a merge is still verified on the branch it lands
+# on, and a PR is verified once.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 jobs:
