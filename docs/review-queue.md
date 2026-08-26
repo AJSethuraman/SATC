@@ -107,11 +107,15 @@ words — *"as simple as we can make it for both of our sakes"*.
 6. **T-11 — capturing the processes themselves.** Open since raised.
 7. **T-10 — the free client literature.** Answered with a recommendation,
    waiting on a call.
-8. **Does "A letter from the IRS or the state you would like us to handle"
-   stay on the price page's hourly list?** Deleting the notice assumption from
-   the estimate also took it off satcllp.com, because the schedule's `assumed:`
-   block feeds both. Written up as **B7** in `docs/site-open-questions.md`,
-   with the patch that gets CI green either way.
+~~8. Does "A letter from the IRS or the state you would like us to handle" stay
+   on the price page's hourly list?~~ **Answered 26 Aug: let it drop.** A notice
+   response is a separately quoted engagement, not hourly work. No schedule
+   change needed; the patch is **B7** in `docs/site-open-questions.md`, for the
+   site agent whenever the page is next touched.
 
-Nothing here blocks anything else. Item 1 is the only one with a clock on it —
-though B7's patch has a check failing until the site agent applies it.
+Nothing here blocks anything else. Item 1 is the only one with a clock on it.
+
+`published prices match the fee schedule` stays **red on #155 by decision** —
+the firm: *"the website half is unnecessary — when we are said and done i will
+have you give me the fee schedule and we will ensure it's right."* The three
+pytest jobs are green. Do not push to `website/` to clear it.

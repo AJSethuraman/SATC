@@ -215,6 +215,17 @@ same legal duties either way — Phase 0 below stands regardless.
 
 ## To-do
 
+### Owed to the firm when the documents are done
+
+- [ ] **Walk the whole fee schedule with the firm, line by line.** Asked for on
+      26 August 2026: *"when we are said and done i will have you give me the
+      fee schedule and we will ensure it's right."* Not a diff and not a
+      summary — the schedule itself, in a form the firm can read straight
+      through and correct. Every price, every assumption, every publish
+      decision, and what each one prints on a client's estimate. This is the
+      point at which the money is signed off as a whole rather than a round at
+      a time, so it comes after the documents settle, not before.
+
 ### Raised in the sign-off room, 26 August 2026 — build work, not wording
 
 These came out of the firm reading the rendered documents. The wording notes

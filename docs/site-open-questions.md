@@ -197,12 +197,22 @@ The interview does not force it closed from its side: the test asserts that
 every value the *site* sends is one the interview understands, and treats the
 reverse as a note.
 
-## B7. The price page's hourly list has a stale line — CI is red on it now
+## B7. The price page's hourly list has a stale line
 
-**This one is not a question, it is a fix, and it is blocking a check.** The
-`published prices match the fee schedule` job fails on PR #155 because this
-branch changed `client-documents/registry/fee-schedule.yaml` and the page's
-generator still names something the schedule no longer has.
+**ANSWERED 26 August 2026, and it is not a question any more — it is a patch
+waiting to be applied.** The `published prices match the fee schedule` job
+fails on PR #155 because that branch changed
+`client-documents/registry/fee-schedule.yaml` and the page's generator still
+names something the schedule no longer has.
+
+**The firm's answer: let the line drop.** "A letter from the IRS or the state
+you would like us to handle" comes off the public hourly list, and no schedule
+change is needed to put it anywhere else. The patch below is the whole of it.
+
+**The firm also said the website half is not urgent** — *"the website half is
+unnecessary — when we are said and done i will have you give me the fee
+schedule and we will ensure it's right."* So the check stays red on #155 by
+decision, not by oversight. Apply this whenever the page is next touched.
 
 I have not applied the fix. `website/` is the site agent's, and the change
 removes a line a client reads on satcllp.com — so it is theirs to make. The
@@ -252,26 +262,20 @@ drops out of `hourlyApplies`. **No published price changes.** The keyed
 brokerage line was never on the menu, so deleting its copy is dead-code
 removal; only the `notice_response` deletion is required for green.
 
-### The decision that comes with it
-
-The mechanical part is settled. This is not:
+### The decision behind it, and what it leaves standing
 
 **`assumed:` is doing two jobs.** On the estimate it means *"an assumption we
 are printing for this client."* On the price page it is the whole of *"what we
-bill by the hour."* The firm removed notices from the first and, without being
-asked, lost them from the second — so **"A letter from the IRS or the state you
-would like us to handle" disappears from the public hourly list.**
+bill by the hour."* Removing notices from the first took them off the second
+without anyone asking for that — which is how this surfaced.
 
-That may well be right: a notice response is a separately quoted engagement
-now, which is not the same as hourly work. But it is a live question a prospect
-has, and the page will stop answering it.
+**Asked, and answered: let it drop.** A notice response is a separately quoted
+engagement now, which is not the same thing as hourly work, so the page should
+not list it as hourly. No home outside `assumed:` is needed and none is being
+built.
 
-If the firm wants notices named on the price page, they need a home that is not
-`assumed:` — the schedule would need a list of hourly triggers that is not the
-estimate's assumption block. **That is a schedule change, so it is mine to
-make** — say the word and I will add it. What I will not do is put the line
-back into `assumed:` to keep the page unchanged: that would print an assumption
-on every client's estimate to satisfy a website.
-
-`[CONFIRM: does "A letter from the IRS or the state you would like us to
-handle" stay on the price page's hourly list?]`
+**What stays standing is the coupling itself.** The next line deleted from
+`assumed:` will silently change the price page in exactly the same way, and the
+only thing that catches it is this CI job going red. That is a decent safety
+net and a poor design — worth splitting the two meanings the next time either
+file is opened for another reason, rather than as work of its own.
