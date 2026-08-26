@@ -73,11 +73,31 @@ def firm_fields(season: str, return_type: str = "individual",
     }
 
 
+# Settings that govern POLICY rather than paperwork. A `[CONFIRM:` in one of
+# these is a real open question, but it does not stop a document rendering,
+# because nothing on a template merges from it.
+#
+# `hard_no` is the case that revealed the distinction, on 26 August 2026:
+# `doctor` reported it under "blocks every REAL render" while real packs were
+# rendering perfectly well. A readiness tool that overstates what is broken
+# teaches whoever reads it to stop believing the parts that are true.
+#
+# Add a path here only when you have checked that no template merges from it.
+POLICY_ONLY = ("hard_no",)
+
+
+def blocks_render(path: str) -> bool:
+    """Would an unanswered decision at this path stop a document rendering?"""
+    return not any(path == p or path.startswith(p + ".") or
+                   path.startswith(p + "[") for p in POLICY_ONLY)
+
+
 def open_decisions(settings: dict | None = None) -> list[tuple[str, str]]:
     """Every `[CONFIRM: ...]` still in the settings, as (path, question).
 
-    What `doctor` reports and what gates a real render. Walks the whole tree so
-    a placeholder added in a new section is found without this list changing.
+    What `doctor` reports. Walks the whole tree so a placeholder added in a new
+    section is found without this list changing. Whether a given one actually
+    gates a render is `blocks_render`, not this -- see POLICY_ONLY above.
     """
     s = settings if settings is not None else load()
     found: list[tuple[str, str]] = []

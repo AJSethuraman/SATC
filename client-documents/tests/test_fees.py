@@ -330,3 +330,28 @@ def test_a_price_and_its_budget_agree_at_the_rate():
     priced = fees.derive(rate, {"base.1040.tiers.essentials.amount": 2.5}, schedule=copy.deepcopy(pricing.load()))
     assert fees._dig(priced, "base.1040.tiers.essentials.amount") == 2.5 * rate
     assert fees.expected_hours(priced)["base.1040.tiers.essentials.amount"].hours == 2.5
+
+
+def test_a_price_can_still_be_rewritten_after_its_base_grows_metadata():
+    """The entity bases became blocks on 26 August 2026 — an `amount` plus the
+    "from price" notes that have to travel with it.
+
+    That broke the fee writer, which had been reading `base.1120S` as the
+    money itself. It failed loudly rather than writing to the wrong line,
+    which is the behaviour it was built for, but a price the firm cannot
+    rewrite is a price they cannot change without editing YAML by hand — and
+    the whole point of this module is that they do not have to.
+
+    A caller asking for a price should not have to know whether that price
+    lives bare or inside a block.
+    """
+    schedule = pricing.load()
+    assert isinstance(schedule["base"]["1120S"], dict), \
+        "this test is about the block shape; the shape has changed again"
+
+    assert fees._dig(schedule, "base.1120S") == 950, "should reach the money"
+
+    fees._plant(schedule, "base.1120S", 975)
+    assert schedule["base"]["1120S"]["amount"] == 975, "should write the money"
+    assert schedule["base"]["1120S"]["publish"] == "from", \
+        "and must not flatten the block on the way past"

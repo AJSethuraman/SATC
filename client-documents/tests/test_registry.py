@@ -280,3 +280,159 @@ def test_no_registry_has_a_duplicate_key():
         seen.clear()
         _yaml.load(path.read_text(encoding="utf-8"), _Loader)
         assert not seen, f"{path.name} declares {sorted(set(seen))} twice"
+
+
+def test_a_policy_decision_does_not_claim_to_block_a_render():
+    """`doctor` reported `hard_no` under "blocks every REAL render" while real
+    packs were rendering perfectly well.
+
+    Found 26 August 2026. A readiness tool that overstates what is broken
+    teaches whoever reads it to stop believing the parts that are true — and
+    this one is the first thing anybody runs.
+    """
+    import settings as firm
+
+    assert not firm.blocks_render("hard_no")
+    assert not firm.blocks_render("hard_no[1]")
+    assert firm.blocks_render("delivery.payment_instruction")
+    assert firm.blocks_render("materials_deadlines.2026.individual_1040")
+
+
+def test_nothing_in_POLICY_ONLY_is_merged_by_a_template():
+    """The one thing that would make the split a lie.
+
+    A setting listed as policy-only that some template actually merges from
+    would render blank or carry a [CONFIRM: to a client, and `doctor` would
+    say nothing was wrong.
+    """
+    import settings as firm
+
+    fields = yaml.safe_load(
+        (ROOT / "registry" / "fields.yaml").read_text(encoding="utf-8"))
+    named = {f["field"].lower() for f in fields["fields"]}
+    for path in firm.POLICY_ONLY:
+        leaf = path.split(".")[-1].replace("_", "")
+        assert leaf not in named, (
+            f"{path} is treated as policy-only but a template merges a field "
+            f"by that name — doctor would call it harmless when it is not"
+        )
+
+
+def test_the_template_directory_holds_only_templates():
+    """A rendered onboarding letter — real-looking name, street address and all
+    — sat in `04-TEMPLATES` for a day, committed by the signing-package work.
+
+    Found 26 August 2026. Nothing caught it because `TEMPLATES` above is an
+    explicit dict: every test asks the directory for files it already knows the
+    names of, so an extra file is invisible to all of them. A rendered document
+    in the template library is one careless copy away from being edited as the
+    template, and it is filled with a client's details.
+
+    A template is identifiable without a whitelist: it still carries the
+    markers the merge engine substitutes. A render has none left, by
+    definition — that is what rendering means, and `render_file` refuses to
+    finish while a token survives.
+    """
+    known = set(TEMPLATES.values()) | {"_SKELETON.html"}
+    strays = []
+    for path in sorted(TEMPLATE_DIR.glob("*.html")):
+        if path.name in known:
+            continue
+        found = tokens_in(path.read_text(encoding="utf-8"))
+        if not (found["fields"] or found["flags"] or found["lists"]):
+            strays.append(path.name)
+    assert not strays, (
+        f"rendered output in the template library: {strays}. "
+        "Renders belong in an output directory, not beside the templates."
+    )
+
+
+def _fields_specs():
+    """Every list a FIELDS spec declares, as {list name: cardinality phrase}."""
+    out = {}
+    for path in sorted(TEMPLATE_DIR.glob("FIELDS - *.md")):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            m = re.match(r"\|\s*`\[\[EACH (\w+)\]\]`\s*\|([^|]*)\|([^|]*)\|", line)
+            if m and m.group(1) != "List":
+                out[m.group(1)] = m.group(3).strip().lower()
+    return out
+
+
+def test_every_list_the_spec_calls_one_or_more_is_required_or_says_why():
+    """All twelve FIELDS specs say "one or more". Only eight lists were marked
+    `required: true`, and nothing recorded whether the other four were decided
+    or forgotten.
+
+    Found 26 August 2026. `WorkStatus` was one of the four, on the
+    disengagement letter — the document with the most legal exposure in the
+    set. Emptied, section 02 "What we completed, and what we did not" renders
+    as a heading with no rows, and the sentence under it survives intact:
+    "Anything not marked complete above is not filed, not lodged, and not being
+    worked on by us. Treat every incomplete item as yours." It points at
+    nothing. That is the empty-`RequestList` bug again, on the letter where it
+    costs most.
+
+    A list may still be legitimately empty — an extension notice with nothing
+    outstanding is a real document. This test does not forbid that. It forbids
+    the *silence*: disagree with the spec and write down why, in
+    `may_be_empty`, so the next reader can tell a decision from an oversight.
+    """
+    spec = yaml.safe_load(
+        (ROOT / "registry" / "fields.yaml").read_text(encoding="utf-8"))
+    declared = _fields_specs()
+    assert declared, "no FIELDS specs parsed — the table shape must have changed"
+
+    unexplained = []
+    for entry in spec.get("lists") or []:
+        name = entry["list"]
+        if "one or more" not in declared.get(name, ""):
+            continue
+        if entry.get("required"):
+            continue
+        if str(entry.get("may_be_empty") or "").strip():
+            continue
+        unexplained.append(name)
+
+    assert not unexplained, (
+        f"{unexplained}: the FIELDS spec says one or more, the registry does "
+        "not require it, and nothing says why. Mark it `required: true`, or "
+        "give `may_be_empty:` a reason."
+    )
+
+
+def test_the_disengagement_letter_refuses_an_empty_work_status():
+    """The specific instance of the above, pinned so it cannot come back."""
+    import merge
+
+    template = (TEMPLATE_DIR / TEMPLATES["disengagement-letter"]).read_text(encoding="utf-8")
+    spec = yaml.safe_load(
+        (ROOT / "registry" / "fields.yaml").read_text(encoding="utf-8"))
+    required = tuple(e["list"] for e in spec["lists"]
+                     if e.get("required") and "disengagement-letter" in e["templates"])
+    assert "WorkStatus" in required
+
+    payload = json.loads(
+        (TEMPLATE_DIR / "FIELDS - Disengagement Letter.md")
+        .read_text(encoding="utf-8").split("```json")[1].split("```")[0])
+    payload["WorkStatus"] = []
+    with pytest.raises(merge.MergeError, match="WorkStatus"):
+        merge.render(template, payload, strict=True, required_lists=required)
+
+
+def test_no_decision_is_still_open_anywhere():
+    """26 August 2026: the last `[CONFIRM:` in the firm settings closed, so
+    `doctor` reads clean for the first time.
+
+    Pinned deliberately. A readiness tool with one permanent warning on it
+    teaches whoever runs it to ignore warnings, and `doctor` is the first
+    thing anybody runs. If a new decision opens, this test says so at the
+    moment it opens rather than after somebody stops reading the output.
+
+    To open one on purpose: add the `[CONFIRM:` and change this test in the
+    same commit, so the choice is visible in the diff.
+    """
+    import pricing
+    import settings as firm
+
+    assert firm.open_decisions() == [], "an unanswered decision is back in the settings"
+    assert pricing.open_amounts() == [], "an unpriced item is back in the schedule"

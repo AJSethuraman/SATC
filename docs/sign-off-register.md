@@ -50,6 +50,24 @@ documents, so they need the same reading.
 | The assumption sentences on every estimate | same file → `assumed` | unread |
 | The connective English — "Includes:", "after the first", "this estimate assumes…" | same file → `phrases` | unread |
 
+### New on 26 August 2026, and none of it read yet
+
+Everything below is a sentence a client will see, written by me from a
+decision the firm made. The decisions are the firm's; **these words are not.**
+
+| What | Where | The words |
+|---|---|---|
+| The **Self-Employed** package name and its one-liner | `base.1040.tiers.business` | "Self-Employed" / "You work for yourself" |
+| The **amended return** line | `base.1040.amended` | "Amended return" / "Form 1040-X, prepared from the return as filed" |
+| The **extension** line | `per_unit.extension_estimate` | "Extension with a payment estimate" / "Computing what to pay by the original due date, from an incomplete file" |
+| The **soft-cap** sentence, which prints on any estimate with five or more foreign accounts | `phrases.capped_soft` | "…capped at 4 — beyond that the additional time is billed at $150 an hour as it is worked, and we will tell you as soon as we see it" |
+| The **entity starting notes** — four lines, shown wherever an entity price is | `base.1065/1120S/1120.starting_note` | "A balance sheet, where one is required" · "Inventory, where the business carries any" · "Each partner's / shareholder's K-1 after the first two" · "Returns in more than one state" |
+
+The starting notes are the ones to read hardest: they are the only thing
+standing between a published "$950" and a client who thinks that is the total.
+They are also the first wording of mine that will appear on the public site
+rather than on a document one client reads.
+
 ---
 
 ## Where the words live, if you want to change one

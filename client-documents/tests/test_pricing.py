@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -552,7 +553,7 @@ def test_a_gig_schedule_c_stays_in_standard():
 
 def test_a_full_schedule_c_is_property_and_business():
     line = _pkg({"federal_schedules": ["C", "SE"], "schedule_c_kind": "standard"})
-    assert line["Service"] == "Business"
+    assert line["Service"] == "Self-Employed"
     assert line["Amount"] == "$500.00"
 
 
@@ -703,7 +704,7 @@ def test_a_full_schedule_c_is_absorbed_not_billed_on_top():
         {"federal_form": "1040", "federal_schedules": ["C"],
          "schedule_c_kind": "standard", "count_businesses": 1,
          "count_rentals": 0}, s)
-    assert [i["Service"] for i in items] == ["Business"], \
+    assert [i["Service"] for i in items] == ["Self-Employed"], \
         "the covered Schedule C must not appear as a charged line"
     assert pricing.estimate_total(items, s) == "$500.00"
 
@@ -713,7 +714,7 @@ def test_rentals_are_absorbed_when_that_is_the_better_branch():
     items = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": ["E1"],
          "count_rentals": 3, "count_businesses": 0}, s)
-    assert [i["Service"] for i in items] == ["Business"]
+    assert [i["Service"] for i in items] == ["Self-Employed"]
 
 
 def test_the_branch_that_saves_the_client_most_wins():
@@ -809,7 +810,7 @@ def test_a_full_schedule_c_is_what_the_business_package_is_for():
          "schedule_c_kind": "standard", "count_businesses": 1,
          "count_rentals": 3}
     items = pricing.line_items(a, s)
-    assert items[0]["Service"] == "Business"
+    assert items[0]["Service"] == "Self-Employed"
     assert "Sole proprietorship" not in [i["Service"] for i in items], \
         "the one full C the package covers must not also be billed"
     # 500 for the package, 145 for the Schedule E beside it.
@@ -833,7 +834,7 @@ def test_a_gig_c_does_not_spend_an_either_or_it_no_longer_needs():
         {"federal_form": "1040", "federal_schedules": ["C", "E1"],
          "schedule_c_kind": "simple", "count_businesses": 1,
          "count_rentals": 1}, s)
-    assert [i["Service"] for i in items] == ["Business"]
+    assert [i["Service"] for i in items] == ["Self-Employed"]
 
 def test_the_package_says_which_allowance_the_client_got():
     s = _priced_both_branches()
@@ -853,7 +854,7 @@ def test_a_package_does_not_claim_an_allowance_the_client_cannot_use():
     s = _priced_both_branches()
     base = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": ["F"]}, s)[0]
-    assert base["Service"] == "Business"
+    assert base["Service"] == "Self-Employed"
     assert "with up to" not in base["Detail"]
 
 
@@ -1482,3 +1483,421 @@ def test_the_value_check_reads_allowances_not_prose():
     s["base"]["1040"]["tiers"]["standard"]["allows"]["count_k1s"] = 6
     row = {r["key"]: r for r in pricing.ladder_value(s)}["standard"]
     assert row["absorbs"] == 45 + 6 * 15 + 65
+
+
+def test_a_soft_cap_says_that_time_is_billed_past_it():
+    """The firm, answering round eleven on 26 Aug 2026:
+
+        4 is a soft cap. Then we add dollars for time
+
+    A bare `cap_units` is a HARD cap: past four, the client is charged nothing
+    further, ever. That is not what was meant and it is the expensive
+    direction to be wrong in — a dozen accounts would have been four accounts'
+    money for a dozen accounts' work.
+
+    So the cap keeps the PER-ACCOUNT charge from running away, and the time
+    past it is billed. The sentence on the estimate has to say both, because
+    "capped at four" on its own is now a promise the firm is not making.
+    """
+    s = pricing.load()
+    line = [i for i in pricing.line_items(
+        {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+         "count_foreign_accounts": 12}, s)
+        if i["Service"] == "Foreign account reporting"][0]
+
+    assert line["Amount"] == "$200.00", "the per-account charge still stops at four"
+    assert "capped at 4" in line["Detail"]
+    assert "150" in line["Detail"], "the rate past the cap has to be on the line"
+
+
+def test_a_hard_cap_still_reads_as_a_hard_cap():
+    """The soft wording must come from the schedule saying so, not from every
+    cap suddenly claiming time is billed past it."""
+    s = pricing.load()
+    s["per_unit"]["foreign_account"].pop("cap_beyond", None)
+    line = [i for i in pricing.line_items(
+        {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+         "count_foreign_accounts": 12}, s)
+        if i["Service"] == "Foreign account reporting"][0]
+    assert "capped at 4" in line["Detail"]
+    assert "150" not in line["Detail"]
+
+
+def test_a_cap_beyond_nobody_recognises_refuses():
+    """Same rule as `beyond:` on an assumption. A consequence the code does
+    not know would print as though it were not there at all."""
+    s = pricing.load()
+    s["per_unit"]["foreign_account"]["cap_beyond"] = "requote"
+    with pytest.raises(pricing.PricingError, match="requote"):
+        pricing.line_items(
+            {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+             "count_foreign_accounts": 12}, s)
+
+
+# ── amended returns (T-16 → T-20 → T-21) ──────────────────────────────────
+#
+# Three cases, and what separates them is WHOSE WORK IT IS, not what the
+# return looks like. The firm, 26 August 2026:
+#
+#     if we legit made a mistake i wouldn't even charge to fix it for $50. but
+#     yes for someone else's return we add $50
+
+def test_our_own_mistake_is_free():
+    """And it prints, rather than being silently absent. A client who is told
+    in writing that correcting our error costs nothing has been told
+    something; a line that quietly does not appear has not."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "amended",
+         "amendment_reason": "our_error"}, s)
+    assert [i["Service"] for i in items] == ["Correction of our error"]
+    assert items[0]["Amount"] == "$0.00"
+    assert pricing.estimate_total(items, s) == "$0.00"
+
+
+def test_amending_our_own_return_for_new_information_is_fifty():
+    """Not the package again. We already have the return — a late K-1 arriving
+    does not make us re-learn a return we filed ourselves."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "amended",
+         "amendment_reason": "new_information",
+         "federal_schedules": ["C"], "schedule_c_kind": "standard"}, s)
+    assert [i["Service"] for i in items] == ["Amendment"]
+    assert pricing.estimate_total(items, s) == "$50.00"
+
+
+def test_amending_someone_elses_return_prices_the_whole_return_plus_fifty():
+    """The firm's own words. A return that came from elsewhere has to be
+    understood before it can be changed, so it is priced like a return."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "amended",
+         "amendment_reason": "other_preparer",
+         "other_income_documents": "yes"}, s)
+    assert [i["Service"] for i in items] == ["Essentials", "Amendment"]
+    assert pricing.estimate_total(items, s) == "$250.00"
+
+
+def test_an_entity_amendment_follows_the_same_three_cases():
+    """There is no separate entity amendment price. What actually differs is
+    reissuing a K-1 to every owner, and that is already its own line."""
+    s = pricing.load()
+    ours = pricing.line_items(
+        {"federal_form": "1065", "return_basis": "amended",
+         "amendment_reason": "new_information", "count_owners": 5}, s)
+    assert pricing.estimate_total(ours, s) == "$50.00"
+    theirs = pricing.line_items(
+        {"federal_form": "1065", "return_basis": "amended",
+         "amendment_reason": "other_preparer", "count_owners": 5}, s)
+    assert pricing.estimate_total(theirs, s) == "$1,050.00"
+
+
+def test_an_amendment_with_no_reason_carries_the_question_not_a_price():
+    """$0 and $1,050 are both live answers here, so guessing between them is
+    the most expensive guess on the sheet in either direction — undercharging
+    a stranger's return, or billing a client for our own mistake.
+
+    It behaves like every other unanswered tier: the question is carried onto
+    the line, so the ESTIMATE refuses to render rather than `line_items`
+    raising. That is the convention the rest of the schedule uses, and the
+    guarantee lands in the same place either way — nothing reaches a client.
+    """
+    s = pricing.load()
+    items = pricing.line_items({"federal_form": "1040",
+                                "return_basis": "amended",
+                                "other_income_documents": "yes"}, s)
+    assert len(items) == 1
+    assert pricing.is_open(items[0]["_raw"]), \
+        "an unanswered amendment reason must not price as anything"
+    assert "amendment_reason" in items[0]["_raw"]
+    assert pricing.is_open(pricing.estimate_total(items, s)), \
+        "and it has to reach the total, or the estimate renders a number"
+
+
+def test_an_original_return_gets_no_amendment_line():
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no"}, s)
+    assert not any("mendment" in i["Service"] or "error" in i["Service"]
+                   for i in items)
+
+
+def test_an_absent_return_basis_prices_as_an_original_return():
+    """Deliberate: refusing would break every engagement recorded before the
+    question existed. The interview requires it, which is where the guarantee
+    belongs."""
+    s = pricing.load()
+    items = pricing.line_items({"federal_form": "1040",
+                                "other_income_documents": "no"}, s)
+    assert not any("mendment" in i["Service"] for i in items)
+
+
+# ── extensions (T-17) ─────────────────────────────────────────────────────
+
+def test_filing_an_extension_with_nothing_to_compute_is_free():
+    """Round eleven: "$75, as its own named line — filing-only extensions
+    free". The priced thing is the payment estimate, not the filing."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no"}, s)
+    assert not any(i["Service"].startswith("Extension") for i in items)
+
+
+def test_an_extension_with_a_payment_estimate_is_seventy_five():
+    s = pricing.load()
+    line = [i for i in pricing.line_items(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no", "count_extension_estimates": 1}, s)
+        if i["Service"].startswith("Extension")]
+    assert line and line[0]["Amount"] == "$75.00"
+
+
+def test_a_second_extension_estimate_is_charged_too():
+    """A state that will not honour the federal extension is a second
+    computation, not the same one filed twice."""
+    s = pricing.load()
+    line = [i for i in pricing.line_items(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no", "count_extension_estimates": 2}, s)
+        if i["Service"].startswith("Extension")][0]
+    assert line["Amount"] == "$150.00"
+
+
+def test_the_extension_notice_still_carries_no_fee():
+    """The letter hands the money to the invoice on purpose — "an extension
+    notice that also asks for money reads as a bill and gets filed as one".
+
+    The bug was that the invoice had nowhere to put it. This checks the fix
+    did not "solve" that by putting a price back on the letter.
+    """
+    template = (ROOT.parent / "satc-handoff" / "04-TEMPLATES" /
+                "SATC Extension Notice.html").read_text(encoding="utf-8")
+    assert "$75" not in template
+    assert "Extension with a payment estimate" not in template
+
+
+# ── the earned income credit (round eleven, q1) ───────────────────────────
+
+def test_the_client_is_not_asked_whether_they_claim_the_eic():
+    """Round eleven: "We don't, at the estimate — discover it at file review,
+    like brokerage keying."
+
+    It sat in `extra_forms`, the multi-select the CLIENT ticks, beside "sold a
+    home" and "paid into an HSA". Eligibility turns on earned income under a
+    threshold that moves with filing status and number of children,
+    investment income under a separate limit, valid SSNs, residency for the
+    whole year, and either a qualifying child or being 25 to 64 without one.
+    Every one of those is a number off the return. Drake computes it; a
+    consultation cannot, and asking invites a wrong answer that prices a
+    return.
+    """
+    schema = yaml.safe_load(
+        (ROOT / "registry" / "interview.yaml").read_text(encoding="utf-8"))
+    extra = [q for sec in schema["sections"] for q in sec["questions"]
+             if q["id"] == "extra_forms"][0]
+    values = {o["value"] for o in extra["options"]}
+    assert "earned_income_credit" not in values, \
+        "a client cannot answer this and must not be asked to"
+
+
+def test_the_eic_is_priced_from_the_preparer_answer():
+    s = pricing.load()
+    line = [i for i in pricing.line_items(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no", "eic_claimed": "yes"}, s)
+        if i["Service"] == "Earned income credit"]
+    assert line and line[0]["Amount"] == "$65.00"
+
+
+def test_no_eic_answer_means_no_eic_line():
+    """Blank when the estimate goes out is the normal case, not an error."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no"}, s)
+    assert not any(i["Service"] == "Earned income credit" for i in items)
+
+
+def test_the_eic_keeps_its_printed_assumption():
+    """The reason it stayed in `per_form` rather than becoming a counted line:
+    the boundary it prints is worth keeping, and a counted line has none."""
+    s = pricing.load()
+    said = pricing.assumptions(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no", "eic_claimed": "yes"}, s)
+    assert any("more than half the year" in a for a in said)
+
+
+# ── entity bases as published "from" prices (round twelve, q2) ────────────
+
+def test_entity_bases_still_price_the_same_after_becoming_from_prices():
+    """The structure changed; not one number did."""
+    s = pricing.load()
+    for form, expected in (("1065", "$800.00"), ("1120S", "$950.00"),
+                           ("1120", "$950.00")):
+        items = pricing.line_items({"federal_form": form}, s)
+        assert items[0]["Amount"] == expected, form
+
+
+def test_every_entity_base_says_it_is_a_from_price_and_why():
+    """Round twelve: "definitely a from price ... but it should also be fairly
+    clear that these are starting points and maybe some very light notes
+    indicating what 'starting' means".
+
+    A bare $950 on a page is read as a total. An entity return is a base with
+    the balance sheet, the reconciliation and the owner K-1s on top of it, so
+    the number needs the sentence that says so travelling with it — in the
+    schedule, where the page reads it from, rather than typed onto the page
+    where it can drift.
+    """
+    s = pricing.load()
+    for form in ("1065", "1120S", "1120"):
+        base = s["base"][form]
+        assert isinstance(base, dict), f"{form} is still a bare number"
+        assert base.get("publish") == "from", f"{form} is not marked a from price"
+        notes = base.get("starting_note") or []
+        assert notes, f"{form} says 'from' and does not say from what"
+        assert all(isinstance(n, str) and n.strip() for n in notes), form
+
+
+def test_the_individual_packages_are_not_from_prices():
+    """The four packages are gated on what is on the return, so the price a
+    visitor reads is the price they get. Marking them 'from' would give away
+    the one thing the ladder buys."""
+    s = pricing.load()
+    for key, tier in s["base"]["1040"]["tiers"].items():
+        assert tier.get("publish") != "from", key
+
+
+# ── what may be published (26 Aug 2026) ───────────────────────────────────
+
+def _priced_lines(s):
+    """Every line that puts a number on a client's estimate, by path."""
+    out = {}
+    for key, tier in s["base"]["1040"]["tiers"].items():
+        out[f"base.1040.tiers.{key}"] = tier
+    out["amendment"] = s["amendment"]
+    for form in ("1065", "1120S", "1120"):
+        out[f"base.{form}"] = s["base"][form]
+    for key, unit in s["per_unit"].items():
+        out[f"per_unit.{key}"] = unit
+    out["per_form"] = s["per_form"]
+    return out
+
+
+def test_every_priced_line_says_whether_it_may_be_published():
+    """The firm chose a public price page, so "may this number go on it?" is a
+    property of the price and not of whoever writes the copy.
+
+    It lived in prose until 26 August 2026 — `docs/pricing-for-website.md`
+    said which lines to withhold, and the schedule said nothing, so the site's
+    own checker could not enforce the rule from the source of truth. Prose and
+    schedule drift; that is what this file exists to stop.
+    """
+    s = pricing.load()
+    missing = [p for p, line in _priced_lines(s).items()
+               if not isinstance(line, dict) or "publish" not in line]
+    assert not missing, (
+        f"priced lines that do not say whether they may be published: {missing}"
+    )
+
+
+def test_a_withheld_line_says_why_it_is_withheld():
+    """"No" is a decision. Without the reason beside it, the next person to
+    read the file cannot tell a policy from an oversight — which is exactly
+    how the entity prices sat withheld on an agent's reasoning for two days.
+    """
+    s = pricing.load()
+    silent = [p for p, line in _priced_lines(s).items()
+              if line.get("publish") == "no"
+              and not str(line.get("publish_reason") or "").strip()]
+    assert not silent, f"withheld with no reason given: {silent}"
+
+
+def test_publish_only_takes_values_the_code_knows():
+    s = pricing.load()
+    allowed = {"yes", "no", "from"}
+    odd = {p: line.get("publish") for p, line in _priced_lines(s).items()
+           if line.get("publish") not in allowed}
+    assert not odd, f"unrecognised publish values: {odd}"
+
+
+def test_the_farm_and_the_sorting_fee_are_withheld():
+    """Both are firm decisions and both were prose-only. The farm because a
+    published price is a solicitation and the firm does not solicit farm
+    returns; the sorting fee because it is a floor a preparer sets, and a
+    charge for the client's own untidiness reads very differently on a public
+    page than it does in a conversation."""
+    s = pricing.load()
+    assert s["per_unit"]["farm"]["publish"] == "no"
+    assert s["per_unit"]["records_sorting"]["publish"] == "no"
+
+
+def test_publication_lists_what_may_go_up():
+    """One call, so the site does not have to walk the schedule itself and
+    cannot walk it differently."""
+    s = pricing.load()
+    pub = pricing.publication(s)
+    names = {p for p, _ in pub["publish"]}
+    assert "per_unit.farm" not in names
+    assert "per_unit.records_sorting" not in names
+    assert "base.1040.tiers.essentials" in names
+    froms = {p for p, _ in pub["from"]}
+    assert froms == {"base.1065", "base.1120S", "base.1120"}
+    assert {p for p, _ in pub["withhold"]} >= {"per_unit.farm",
+                                               "per_unit.records_sorting"}
+
+
+# ── things the firm settled that the schedule did not know ────────────────
+
+def test_responding_to_a_notice_is_on_the_schedule():
+    """`docs/pricing-for-website.md` §3 names three hourly things: records
+    that need reconciling, **responding to a notice**, and anything to do with
+    a foreign company. The schedule carried two of the three.
+
+    Found 26 August 2026 by auditing the prose against the YAML after the
+    website agent reported the schedule was missing things. It was: a client
+    who gets an IRS letter is real, ordinary work, and nothing priced it.
+    """
+    s = pricing.load()
+    assert "notice_response" in s["assumed"]
+    assert s["assumed"]["notice_response"]["beyond"] == "hourly"
+
+
+def test_officer_compensation_is_on_the_schedule():
+    """Settled 25 August 2026: excluded from an entity engagement unless added
+    in writing, and billed hourly when it is. It lived only in `fields.yaml`
+    as a scope-exclusion flag on the business engagement letter — a document
+    said it, and the thing that prices work did not."""
+    s = pricing.load()
+    assert "officer_compensation" in s["assumed"]
+    assert s["assumed"]["officer_compensation"]["beyond"] == "hourly"
+
+
+def test_the_firm_minimum_is_recorded_with_its_exception():
+    """"my normal minimum is $200 unless you are a simpler filer" — the firm,
+    25 August 2026.
+
+    That was in a comment beside the Simple Filer tier and in the website
+    prose, and the schedule's own tail said in terms "no minimum ... a policy
+    invented in a config file is a policy nobody decided". The policy WAS
+    decided; nothing recorded it. Both halves matter: the number, and the one
+    rung that is allowed below it.
+    """
+    s = pricing.load()
+    assert s["basis"]["minimum"] == 200
+    assert s["basis"]["minimum_exception"] == "starter"
+    assert s["base"]["1040"]["tiers"]["starter"]["amount"] < s["basis"]["minimum"]
+
+
+def test_no_other_package_sits_below_the_minimum():
+    """The exception is one named rung, not a hole in the floor."""
+    s = pricing.load()
+    floor = s["basis"]["minimum"]
+    allowed = s["basis"]["minimum_exception"]
+    below = [k for k, t in s["base"]["1040"]["tiers"].items()
+             if k != allowed and t["amount"] < floor]
+    assert not below, f"packages under the firm's ${floor} minimum: {below}"
