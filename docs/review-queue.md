@@ -107,5 +107,11 @@ words — *"as simple as we can make it for both of our sakes"*.
 6. **T-11 — capturing the processes themselves.** Open since raised.
 7. **T-10 — the free client literature.** Answered with a recommendation,
    waiting on a call.
+8. **Does "A letter from the IRS or the state you would like us to handle"
+   stay on the price page's hourly list?** Deleting the notice assumption from
+   the estimate also took it off satcllp.com, because the schedule's `assumed:`
+   block feeds both. Written up as **B7** in `docs/site-open-questions.md`,
+   with the patch that gets CI green either way.
 
-Nothing here blocks anything else. Item 1 is the only one with a clock on it.
+Nothing here blocks anything else. Item 1 is the only one with a clock on it —
+though B7's patch has a check failing until the site agent applies it.

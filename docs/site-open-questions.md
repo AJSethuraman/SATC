@@ -196,3 +196,82 @@ defensible — what is not defensible is nobody knowing the gap is there.
 The interview does not force it closed from its side: the test asserts that
 every value the *site* sends is one the interview understands, and treats the
 reverse as a note.
+
+## B7. The price page's hourly list has a stale line — CI is red on it now
+
+**This one is not a question, it is a fix, and it is blocking a check.** The
+`published prices match the fee schedule` job fails on PR #155 because this
+branch changed `client-documents/registry/fee-schedule.yaml` and the page's
+generator still names something the schedule no longer has.
+
+I have not applied the fix. `website/` is the site agent's, and the change
+removes a line a client reads on satcllp.com — so it is theirs to make. The
+patch below is verified: applied to the merge of `#155` and `main` it takes
+`website/pricing.spec.py` from **58/61** to **61/61**.
+
+### What broke
+
+Two things left the fee schedule on 26 August, both on the firm's instruction:
+
+- `assumed.notice_response` — *"notices and correspondence belong in a
+  different letter engagement or would be discussed anyway, get rid of it."*
+- `per_unit.brokerage_keyed` (the $95 keyed-brokerage line) — *"we are
+  actually deleting the $95 thing — all are $45."*
+
+`build-pricing-config.py` still carries client wording for both. The spec's
+`set(HOURLY_COPY) == set(sched["assumed"])` is an equality, so an orphan fails
+it. (Its failure message only prints what is *missing from* the copy, so it
+reads `Missing []` — the orphan is on the other side. Worth widening that
+message; a check that fails with an empty list is a check nobody can act on.)
+
+### The patch
+
+In `website/build-pricing-config.py`, delete three things:
+
+```diff
+ EXTRA_COPY = {
+     ...
+-    "per_unit.brokerage_keyed":   ("Keyed brokerage statement", "Form 1099&#8209;B"),
+
+ HOURLY_COPY = {
+     ...
+-    "notice_response":   "A letter from the IRS or the state you would like us to handle",
+
+ NOT_ON_THE_MENU = {
+     ...
+-    # One brokerage price on the menu. When a statement has to be keyed the
+-    # time is billed, and the hourly list says so — two prices for the same
+-    # document read as a penalty.
+-    "per_unit.brokerage_keyed":
+-        "one brokerage price on the menu; keying is in the hourly list",
+```
+
+Then `cd website && python3 build-pricing-config.py`. The regenerated
+`pricing-config.js` differs by exactly one line — the notice-response entry
+drops out of `hourlyApplies`. **No published price changes.** The keyed
+brokerage line was never on the menu, so deleting its copy is dead-code
+removal; only the `notice_response` deletion is required for green.
+
+### The decision that comes with it
+
+The mechanical part is settled. This is not:
+
+**`assumed:` is doing two jobs.** On the estimate it means *"an assumption we
+are printing for this client."* On the price page it is the whole of *"what we
+bill by the hour."* The firm removed notices from the first and, without being
+asked, lost them from the second — so **"A letter from the IRS or the state you
+would like us to handle" disappears from the public hourly list.**
+
+That may well be right: a notice response is a separately quoted engagement
+now, which is not the same as hourly work. But it is a live question a prospect
+has, and the page will stop answering it.
+
+If the firm wants notices named on the price page, they need a home that is not
+`assumed:` — the schedule would need a list of hourly triggers that is not the
+estimate's assumption block. **That is a schedule change, so it is mine to
+make** — say the word and I will add it. What I will not do is put the line
+back into `assumed:` to keep the page unchanged: that would print an assumption
+on every client's estimate to satisfy a website.
+
+`[CONFIRM: does "A letter from the IRS or the state you would like us to
+handle" stay on the price page's hourly list?]`
