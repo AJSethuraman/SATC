@@ -82,6 +82,37 @@ sections:
         supplies: []
         feeds: LineItems
 
+      # WHOSE WORK IT IS, which is what decides the price -- not what the
+      # return looks like. The firm, 26 August 2026:
+      #
+      #     if we legit made a mistake i wouldn't even charge to fix it for
+      #     $50. but yes for someone else's return we add $50
+      #
+      # Only the last case re-charges the return. The other two are the
+      # amendment line and nothing else, because SATC already holds the
+      # return and billing for it twice is billing twice for one job.
+      #
+      # No default. $0 and the full return are both live answers, so an
+      # unanswered reason carries the question to the line and the estimate
+      # refuses rather than picking one.
+      - id: amendment_reason
+        question: "Whose return is being amended, and why?"
+        help: >
+          Correcting our own error is free. Amending a return we filed,
+          because something arrived later, is $50. Amending a return prepared
+          somewhere else is $50 on top of the return's own fee, because we
+          have to understand the whole return before we can change one line
+          of it.
+        type: single
+        required: true
+        options:
+          - { value: "our_error",       label: "We got it wrong — our error, no charge" }
+          - { value: "new_information", label: "We filed it; new or corrected information arrived" }
+          - { value: "other_preparer",  label: "It was prepared somewhere else" }
+        showIf: "return_basis == 'amended'"
+        supplies: []
+        feeds: LineItems
+
       - id: tax_year
         question: "Which tax year?"
         type: text

@@ -798,3 +798,51 @@ shape wins, the adder probably is not one number across a 1040 and an 1120.
 **Recommendation:** option 2. It preserves the reasoning you arrived at
 independently — which is a good sign the reasoning is right — and fixes the
 one case where it produces a number you would not want to defend.
+
+
+---
+
+## T-21 · An amendment is priced by whose work it is
+
+**Raised** 26 Aug 2026, by the firm, reading the flat +$50 back:
+
+> if we legit made a mistake i wouldn't even charge to fix it for $50. but yes
+> for someone else's return we add $50
+
+**Status** Settled 26 Aug 2026 — three cases, keyed on fault and origin rather
+than on what the return looks like.
+
+| The situation | What it costs |
+|---|---|
+| **We got it wrong** | **Nothing.** And the line prints at $0.00 rather than vanishing |
+| **We filed it; something arrived later** | **$50**, and no package charge |
+| **It was prepared somewhere else** | **$50 on top of the return's own fee** |
+
+**What this fixed.** The flat adder charged *package + $50* in every case,
+which is right for a stranger's return and hard to defend for one SATC filed
+last month — it quoted $850 to amend a 1065 we had prepared ourselves. Two
+different jobs were wearing one name: understanding a return before changing
+it, and changing one we already hold.
+
+`reprices` is the switch, and it is false for both of our own cases: the
+estimate is the amendment line and nothing else. No package, no schedules, no
+states. We hold all of it, and charging again charges twice for one job.
+
+**The $0 line prints.** A client told in writing that fixing our error costs
+nothing has been told something; a line that quietly fails to appear has not.
+
+**No reason answered means no price.** $0 and $1,050 are both live answers, so
+an unanswered reason carries the question to the line and the estimate refuses
+— the same convention every other unanswered tier uses.
+
+**On entity amendments, asked in the same breath.** There is no separate entity
+price and there should not be. What actually makes an entity amendment bigger
+is reissuing a K-1 to every owner, and `owner_k1` already prices that per owner
+— so the cost scales on the number of owners, which is the thing that varies,
+rather than on the word "entity". Verified: a 1065 with five partners amended
+from elsewhere prices at $1,050, of which $200 is the five K-1s.
+
+**One thing NOT settled and not assumed.** Whether amending a partnership
+return is procedurally the same kind of filing as amending a 1040. If it is
+not, that is a scope question before it is a pricing one. Nobody has checked,
+and it is not an agent's to assert.

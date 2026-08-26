@@ -1534,67 +1534,85 @@ def test_a_cap_beyond_nobody_recognises_refuses():
              "count_foreign_accounts": 12}, s)
 
 
-# ── amended returns (T-16, reshaped by T-20) ──────────────────────────────
+# ── amended returns (T-16 → T-20 → T-21) ──────────────────────────────────
+#
+# Three cases, and what separates them is WHOSE WORK IT IS, not what the
+# return looks like. The firm, 26 August 2026:
+#
+#     if we legit made a mistake i wouldn't even charge to fix it for $50. but
+#     yes for someone else's return we add $50
 
-def test_an_amendment_is_the_package_plus_fifty():
-    """Round twelve follow-up, 26 Aug 2026, the firm:
+def test_our_own_mistake_is_free():
+    """And it prints, rather than being silently absent. A client who is told
+    in writing that correcting our error costs nothing has been told
+    something; a line that quietly does not appear has not."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "amended",
+         "amendment_reason": "our_error"}, s)
+    assert [i["Service"] for i in items] == ["Correction of our error"]
+    assert items[0]["Amount"] == "$0.00"
+    assert pricing.estimate_total(items, s) == "$0.00"
 
-        let's just make an amendment cost an extra $50 and go from there. i
-        want the business, and the value is $50 for amending as opposed to
-        doing the primary file.
 
-    This replaced a flat $250 that bypassed the ladder. The flat price could
-    not see complexity: amending a $500 Self-Employed return cost the same as
-    amending a $200 Essentials one. An adder scales, and $250 still falls out
-    for the simple case because Essentials is $200 — which is where the $250
-    came from in the first place.
+def test_amending_our_own_return_for_new_information_is_fifty():
+    """Not the package again. We already have the return — a late K-1 arriving
+    does not make us re-learn a return we filed ourselves."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "amended",
+         "amendment_reason": "new_information",
+         "federal_schedules": ["C"], "schedule_c_kind": "standard"}, s)
+    assert [i["Service"] for i in items] == ["Amendment"]
+    assert pricing.estimate_total(items, s) == "$50.00"
+
+
+def test_amending_someone_elses_return_prices_the_whole_return_plus_fifty():
+    """The firm's own words. A return that came from elsewhere has to be
+    understood before it can be changed, so it is priced like a return."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "amended",
+         "amendment_reason": "other_preparer",
+         "other_income_documents": "yes"}, s)
+    assert [i["Service"] for i in items] == ["Essentials", "Amendment"]
+    assert pricing.estimate_total(items, s) == "$250.00"
+
+
+def test_an_entity_amendment_follows_the_same_three_cases():
+    """There is no separate entity amendment price. What actually differs is
+    reissuing a K-1 to every owner, and that is already its own line."""
+    s = pricing.load()
+    ours = pricing.line_items(
+        {"federal_form": "1065", "return_basis": "amended",
+         "amendment_reason": "new_information", "count_owners": 5}, s)
+    assert pricing.estimate_total(ours, s) == "$50.00"
+    theirs = pricing.line_items(
+        {"federal_form": "1065", "return_basis": "amended",
+         "amendment_reason": "other_preparer", "count_owners": 5}, s)
+    assert pricing.estimate_total(theirs, s) == "$1,050.00"
+
+
+def test_an_amendment_with_no_reason_carries_the_question_not_a_price():
+    """$0 and $1,050 are both live answers here, so guessing between them is
+    the most expensive guess on the sheet in either direction — undercharging
+    a stranger's return, or billing a client for our own mistake.
+
+    It behaves like every other unanswered tier: the question is carried onto
+    the line, so the ESTIMATE refuses to render rather than `line_items`
+    raising. That is the convention the rest of the schedule uses, and the
+    guarantee lands in the same place either way — nothing reaches a client.
     """
     s = pricing.load()
-    items = pricing.line_items(
-        {"federal_form": "1040", "return_basis": "amended",
-         "other_income_documents": "yes"}, s)
-    assert items[0]["Service"] == "Essentials"
-    assert items[0]["Amount"] == "$200.00"
-    amend = [i for i in items if i["Service"] == "Amendment"]
-    assert amend and amend[0]["Amount"] == "$50.00"
-    assert pricing.estimate_total(items, s) == "$250.00", \
-        "an amended Essentials return still lands on the old flat price"
-
-
-def test_the_amendment_scales_with_the_package():
-    """The whole point of the reshape."""
-    s = pricing.load()
-    def total(answers):
-        return pricing.estimate_total(pricing.line_items(answers, s), s)
-    cheapest = {"federal_form": "1040", "return_basis": "amended",
-                "other_income_documents": "no"}
-    middle   = {"federal_form": "1040", "return_basis": "amended",
-                "other_income_documents": "yes"}
-    dearest  = {"federal_form": "1040", "return_basis": "amended",
-                "federal_schedules": ["C"], "schedule_c_kind": "standard"}
-    assert total(cheapest) == "$150.00", "Simple Filer + 50"
-    assert total(middle)   == "$250.00", "Essentials + 50"
-    assert total(dearest)  == "$550.00", "Self-Employed + 50"
-
-
-def test_an_amended_entity_return_is_priced_now():
-    """It had no price at all while the amendment was a 1040-only flat fee.
-    The adder answers it without anybody setting a second number."""
-    s = pricing.load()
-    for form, expected in (("1065", "$850.00"), ("1120S", "$1,000.00"),
-                           ("1120", "$1,000.00")):
-        items = pricing.line_items(
-            {"federal_form": form, "return_basis": "amended"}, s)
-        assert pricing.estimate_total(items, s) == expected, form
-
-
-def test_an_amendment_still_pays_for_what_is_on_the_return():
-    s = pricing.load()
-    items = pricing.line_items(
-        {"federal_form": "1040", "return_basis": "amended",
-         "count_rentals": 1, "schedules": ["E1"]}, s)
-    assert any(i["Service"] == "Rental schedule" for i in items)
-    assert any(i["Service"] == "Amendment" for i in items)
+    items = pricing.line_items({"federal_form": "1040",
+                                "return_basis": "amended",
+                                "other_income_documents": "yes"}, s)
+    assert len(items) == 1
+    assert pricing.is_open(items[0]["_raw"]), \
+        "an unanswered amendment reason must not price as anything"
+    assert "amendment_reason" in items[0]["_raw"]
+    assert pricing.is_open(pricing.estimate_total(items, s)), \
+        "and it has to reach the total, or the estimate renders a number"
 
 
 def test_an_original_return_gets_no_amendment_line():
@@ -1602,20 +1620,18 @@ def test_an_original_return_gets_no_amendment_line():
     items = pricing.line_items(
         {"federal_form": "1040", "return_basis": "original",
          "other_income_documents": "no"}, s)
-    assert not any(i["Service"] == "Amendment" for i in items)
+    assert not any("mendment" in i["Service"] or "error" in i["Service"]
+                   for i in items)
 
 
 def test_an_absent_return_basis_prices_as_an_original_return():
-    """`line_items` defaults to `original`, and that default is deliberate.
-
-    Refusing would break every engagement recorded before the question
-    existed. The guarantee that a REAL engagement has answered it lives where
-    engagements are made — the interview requires it.
-    """
+    """Deliberate: refusing would break every engagement recorded before the
+    question existed. The interview requires it, which is where the guarantee
+    belongs."""
     s = pricing.load()
     items = pricing.line_items({"federal_form": "1040",
                                 "other_income_documents": "no"}, s)
-    assert not any(i["Service"] == "Amendment" for i in items)
+    assert not any("mendment" in i["Service"] for i in items)
 
 
 # ── extensions (T-17) ─────────────────────────────────────────────────────

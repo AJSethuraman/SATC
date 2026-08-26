@@ -772,17 +772,36 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             f"Add it rather than letting the estimate quote without one."
         )
 
-    allowance: dict = {}
-    # AN AMENDMENT BYPASSES THE LADDER, checked before the tiers so it cannot
-    # lose a cheapest-eligible comparison to a package it is not competing
-    # with. `amended` sits beside `tiers` in the schedule rather than among
-    # them for the same reason: it is not a rung.
+    # THE AMENDMENT IS RESOLVED FIRST, because one of its cases replaces the
+    # whole estimate rather than adding to it. Amending a return we filed
+    # ourselves does not re-charge the package: we already hold the return,
+    # and billing for it again bills twice for one piece of work.
     #
     # An absent `return_basis` prices as an original return. That default is
     # deliberate and it is only safe because the interview REQUIRES the
     # question -- see `test_interview.py`. Refusing here instead would break
     # every engagement recorded before the question existed, and this file is
-    # not where a gate on a real engagement belongs.
+    # not where a gate on a real engagement belongs. An amendment with no
+    # REASON does refuse, because $0 and $1,050 are both live answers.
+    amendment = s.get("amendment")
+    amend_line = None
+    if amendment and gate_holds(amendment.get("when") or {}, answers):
+        chosen = _resolve_tier(amendment, answers)
+        for field in ("label", "amount"):
+            if field not in chosen:
+                raise PricingError(
+                    f"the amendment is missing {field!r}, so its line cannot "
+                    f"be written."
+                )
+        amend_line = _line(chosen["label"], chosen.get("detail", ""),
+                           chosen["amount"], code)
+        if not chosen.get("reprices"):
+            # The whole estimate, and that is the honest answer to "what does
+            # this engagement cost". Every other line would be a second charge
+            # for work already paid for.
+            return [amend_line]
+
+    allowance: dict = {}
     tiers = base.get("tiers") if isinstance(base, dict) else None
     if tiers:
         key, tier = derive_tier(base, answers, f"base.{form}", schedule=s)
@@ -846,23 +865,8 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             )
         base = base["amount"]
     items.append(_line(label, detail, base, code))
-
-    # AN AMENDMENT IS AN ADDER, not a package of its own. $50 on top of
-    # whatever the return actually is, on the firm's instruction of 26 August
-    # 2026, so it scales with complexity where the flat $250 it replaced could
-    # not. It sits directly under the base because that is what it is priced
-    # against, and it applies to every form -- which is what gives an amended
-    # entity return a price at all.
-    amendment = s.get("amendment")
-    if amendment and gate_holds(amendment.get("when") or {}, answers):
-        for field in ("label", "amount"):
-            if field not in amendment:
-                raise PricingError(
-                    f"`amendment` is missing {field!r}, so the amendment line "
-                    f"cannot be written."
-                )
-        items.append(_line(amendment["label"], amendment.get("detail", ""),
-                           amendment["amount"], code))
+    if amend_line is not None:
+        items.append(amend_line)
 
     # Per-unit lines. When the base includes the first state and locality, the
     # first of each is already paid for and only the rest are charged.

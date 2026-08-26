@@ -386,31 +386,52 @@ base:
 # as a client reads them, not as the tax code names them.
 # ── an amendment ──────────────────────────────────────────────────────────
 #
-# RESHAPED 26 August 2026 (T-20), on the firm's instruction:
+# THREE CASES, and what separates them is WHOSE WORK IT IS -- not what the
+# return looks like. The firm, 26 August 2026:
 #
-#     let's just make an amendment cost an extra $50 and go from there. i want
-#     the business, and the value is $50 for amending as opposed to doing the
-#     primary file.
+#     if we legit made a mistake i wouldn't even charge to fix it for $50. but
+#     yes for someone else's return we add $50
 #
-# It was a flat $250 that bypassed the package ladder, and the flat price
-# could not see complexity: amending a $500 Self-Employed return cost the same
-# as amending a $200 Essentials one. This adds $50 on top of whatever the
-# return actually is, so it scales -- and $250 still falls out for the simple
-# case, because Essentials is $200. That is where the $250 came from.
+# The $50 is the amendment itself. The package on top of it is charged only
+# when SATC has to LEARN the return before it can change one -- which is true
+# of a stranger's return and false of one we filed last month. Pricing those
+# the same was the flaw in the flat adder this replaces: it quoted $850 to
+# amend a 1065 we had prepared ourselves.
 #
-# IT APPLIES TO EVERY FORM, which is what answers the amended-entity question
-# nobody had a number for: an amended 1120-S is $950 + $50.
+# `reprices` is the switch. False means the estimate is the amendment line and
+# nothing else: no package, no schedules, no states. We already hold all of
+# it, and charging for it again is charging twice for one piece of work.
 #
-# The firm's reasoning, recorded because it is a positioning decision and not
-# an arithmetic one: they WANT amendment work, and $50 is what amending is
-# worth over preparing the return in the first place. It is deliberately
-# cheap.
+# NO SEPARATE ENTITY PRICE, deliberately. What actually makes an entity
+# amendment bigger is reissuing a K-1 to every owner, and `owner_k1` already
+# prices that per owner -- so it scales where it should, on the number of
+# owners rather than on the word "entity".
 amendment:
   label: "Amendment"
-  detail: "Preparing the amended return and reconciling it to the return as filed"
-  amount: 50
   when: { answer_is: { return_basis: amended } }
+  tier_from: amendment_reason
   publish: "yes"
+  tiers:
+    # $0, and it PRINTS. A client told in writing that fixing our error costs
+    # nothing has been told something; a line that quietly fails to appear has
+    # not. This is a positioning decision, made deliberately and cheaply.
+    our_error:
+      label: "Correction of our error"
+      detail: "Our mistake, corrected at no charge"
+      amount: 0
+      reprices: false
+    # A late K-1, a corrected 1099, a fact that changed. Not our error and not
+    # a return we have to meet for the first time.
+    new_information:
+      label: "Amendment"
+      detail: "Amending the return we filed, from information that arrived later"
+      amount: 50
+      reprices: false
+    other_preparer:
+      label: "Amendment"
+      detail: "Amending a return prepared elsewhere, priced with the return itself"
+      amount: 50
+      reprices: true
 
 per_unit:
   state_return:
