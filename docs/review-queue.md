@@ -1,25 +1,26 @@
 # What still needs the firm — 26 August 2026
 
-**The sign-off room, round three** — nine documents rendered fresh, each card
-saying what changed since round two, and the last card answering "show me how
-you can tell it all goes together":
-<https://claude.ai/code/artifact/7878d079-30bd-44df-9b81-d5b43bfbbd05>
+**The sign-off room, round four** — every note from round three applied, every
+document re-rendered from it, and the organizer question answered:
+<https://claude.ai/code/artifact/8dd9d78e-7eff-4098-b03b-8b70a69a21e5>
 
-Two documents are in it that were not in round two: the **organizer cover
-letter** and the **invoice**. The bookkeeping engagement letter is still not —
-it has no interview behind it, which is a deferral rather than an omission.
+**One document is new**: the records release authorization, built to the note
+*"let's just make an attachment that we send for them to sign by default along
+with the engagement letter."* It goes out automatically to any client who had a
+predecessor.
 
-Round two (<https://claude.ai/code/artifact/b298916e-8fc3-45b5-b69f-b61bdca0ff7b>)
+**One card has no document.** There is no organizer — see below.
+
+Round three (<https://claude.ai/code/artifact/7878d079-30bd-44df-9b81-d5b43bfbbd05>),
+round two (<https://claude.ai/code/artifact/b298916e-8fc3-45b5-b69f-b61bdca0ff7b>)
 and round one (<https://claude.ai/code/artifact/42b96c6d-0f0f-4ec3-b31e-bdb0c145ec7d>)
-hold the feedback that produced it and are superseded.
+are superseded. The firm's notes from each are recorded in
+`docs/sign-off-register.md`, because a page gets superseded and the reasoning
+should not.
 
 The documents are embedded as the **real rendered output**, each in its own
 shadow root so the firm's print stylesheet and the page cannot reach each
-other. Start there rather than with the zip.
-
-**The software, screen by screen** — one real sitting driven end to end through
-the running application, including the wording editor:
-<https://claude.ai/code/artifact/faa59d3f-29c2-42bc-8ce2-ed24d075c176>
+other.
 
 **The queue itself** (this list, as a page):
 <https://claude.ai/code/artifact/4536ea0b-7016-4c90-bf78-9c7183d5d3c3>
