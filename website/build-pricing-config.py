@@ -111,7 +111,6 @@ EXTRA_COPY = {
     "per_unit.k1":                ("K&#8209;1 you received", "Schedule E &middot; each K&#8209;1"),
     "per_unit.owner_k1":          ("K&#8209;1 you issue an owner", "Schedule K&#8209;1 &middot; each owner"),
     "per_unit.brokerage":         ("Brokerage statement", "Form 1099&#8209;B &middot; each one after the first"),
-    "per_unit.brokerage_keyed":   ("Keyed brokerage statement", "Form 1099&#8209;B"),
     "schedule_c.simple":          ("Gig or contract work",
                                    "Schedule C &middot; rideshare, delivery, freelance and the like"),
     "schedule_c.standard":        ("A business you run yourself",
@@ -140,11 +139,6 @@ NOT_ON_THE_MENU = {
     # say each owner's K-1 after the first two is priced on top.
     "per_unit.owner_k1":
         "a business line; the entity cards already price it",
-    # One brokerage price on the menu. When a statement has to be keyed the
-    # time is billed, and the hourly list says so — two prices for the same
-    # document read as a penalty.
-    "per_unit.brokerage_keyed":
-        "one brokerage price on the menu; keying is in the hourly list",
 }
 
 # The amendment tiers that go on the page, in order. `our_error` is deliberately

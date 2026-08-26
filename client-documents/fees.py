@@ -79,8 +79,6 @@ ITEMS: list[tuple[str, str]] = [
      "a Schedule C with actual expenses, a home office, depreciation or inventory"),
     ("per_unit.brokerage.amount",
      "each brokerage statement past the one the package includes"),
-    ("per_unit.brokerage_keyed.amount",
-     "each brokerage statement that has to be keyed rather than summarised"),
     ("per_unit.foreign_account.amount", "each foreign account reported"),
     ("per_form.amount",
      "any one of the named per-form situations -- one price, whichever it is"),
