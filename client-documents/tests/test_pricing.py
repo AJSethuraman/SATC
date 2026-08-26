@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -1587,3 +1588,100 @@ def test_an_absent_return_basis_prices_as_an_original_return():
     items = pricing.line_items({"federal_form": "1040",
                                 "other_income_documents": "no"}, s)
     assert items[0]["Service"] != "Amended return"
+
+
+# ── extensions (T-17) ─────────────────────────────────────────────────────
+
+def test_filing_an_extension_with_nothing_to_compute_is_free():
+    """Round eleven: "$75, as its own named line — filing-only extensions
+    free". The priced thing is the payment estimate, not the filing."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no"}, s)
+    assert not any(i["Service"].startswith("Extension") for i in items)
+
+
+def test_an_extension_with_a_payment_estimate_is_seventy_five():
+    s = pricing.load()
+    line = [i for i in pricing.line_items(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no", "count_extension_estimates": 1}, s)
+        if i["Service"].startswith("Extension")]
+    assert line and line[0]["Amount"] == "$75.00"
+
+
+def test_a_second_extension_estimate_is_charged_too():
+    """A state that will not honour the federal extension is a second
+    computation, not the same one filed twice."""
+    s = pricing.load()
+    line = [i for i in pricing.line_items(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no", "count_extension_estimates": 2}, s)
+        if i["Service"].startswith("Extension")][0]
+    assert line["Amount"] == "$150.00"
+
+
+def test_the_extension_notice_still_carries_no_fee():
+    """The letter hands the money to the invoice on purpose — "an extension
+    notice that also asks for money reads as a bill and gets filed as one".
+
+    The bug was that the invoice had nowhere to put it. This checks the fix
+    did not "solve" that by putting a price back on the letter.
+    """
+    template = (ROOT.parent / "satc-handoff" / "04-TEMPLATES" /
+                "SATC Extension Notice.html").read_text(encoding="utf-8")
+    assert "$75" not in template
+    assert "Extension with a payment estimate" not in template
+
+
+# ── the earned income credit (round eleven, q1) ───────────────────────────
+
+def test_the_client_is_not_asked_whether_they_claim_the_eic():
+    """Round eleven: "We don't, at the estimate — discover it at file review,
+    like brokerage keying."
+
+    It sat in `extra_forms`, the multi-select the CLIENT ticks, beside "sold a
+    home" and "paid into an HSA". Eligibility turns on earned income under a
+    threshold that moves with filing status and number of children,
+    investment income under a separate limit, valid SSNs, residency for the
+    whole year, and either a qualifying child or being 25 to 64 without one.
+    Every one of those is a number off the return. Drake computes it; a
+    consultation cannot, and asking invites a wrong answer that prices a
+    return.
+    """
+    schema = yaml.safe_load(
+        (ROOT / "registry" / "interview.yaml").read_text(encoding="utf-8"))
+    extra = [q for sec in schema["sections"] for q in sec["questions"]
+             if q["id"] == "extra_forms"][0]
+    values = {o["value"] for o in extra["options"]}
+    assert "earned_income_credit" not in values, \
+        "a client cannot answer this and must not be asked to"
+
+
+def test_the_eic_is_priced_from_the_preparer_answer():
+    s = pricing.load()
+    line = [i for i in pricing.line_items(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no", "eic_claimed": "yes"}, s)
+        if i["Service"] == "Earned income credit"]
+    assert line and line[0]["Amount"] == "$65.00"
+
+
+def test_no_eic_answer_means_no_eic_line():
+    """Blank when the estimate goes out is the normal case, not an error."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no"}, s)
+    assert not any(i["Service"] == "Earned income credit" for i in items)
+
+
+def test_the_eic_keeps_its_printed_assumption():
+    """The reason it stayed in `per_form` rather than becoming a counted line:
+    the boundary it prints is worth keeping, and a counted line has none."""
+    s = pricing.load()
+    said = pricing.assumptions(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no", "eic_claimed": "yes"}, s)
+    assert any("more than half the year" in a for a in said)

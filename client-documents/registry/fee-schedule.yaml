@@ -495,6 +495,40 @@ per_unit:
     # -- see `assumed.foreign_company`.
     amount: 50
 
+  # T-17, closed 26 August 2026 on the firm's answer to round eleven:
+  # "$75, as its own named line -- filing-only extensions free".
+  #
+  # THE BUG THIS CLOSES. The Extension Notice is one of the ten templates and
+  # it deliberately carries no fee -- its spec says "the invoice owns it. An
+  # extension notice that also asks for money reads as a bill and gets filed
+  # as one, and this is the letter that most needs reading." Good decision.
+  # The invoice it handed the money to had no line for an extension. Each
+  # document was right on its own and the pair dropped the charge on the
+  # floor.
+  #
+  # $75 AND NOT $50, and the argument was already in this file. The `per_form`
+  # header records that at $75 the extension "would simply have BECOME the
+  # per-form price" -- it stayed a named exception at $50 precisely because
+  # "computing a payment from an incomplete file is not a twenty-minute job".
+  # That reasoning was written about the extension specifically; the firm has
+  # now priced it accordingly.
+  #
+  # THE FILING IS FREE. Only the computation is billed. A client who wants
+  # more time and owes nothing costs a form and a signature.
+  #
+  # COUNTED, because a state that will not honour the federal extension is a
+  # second computation rather than the same one filed twice.
+  #
+  # Preparer-facing and normally blank when the estimate goes out -- an
+  # extension happens in season, months after the estimate. Same shape as
+  # brokerage keying: discovered, flagged at review, landing on the invoice
+  # where the variance note refuses to let a bigger bill go out unexplained.
+  extension_estimate:
+    count_from: count_extension_estimates
+    label: "Extension with a payment estimate"
+    detail: "Computing what to pay by the original due date, from an incomplete file"
+    amount: 75
+
   records_sorting:
     # Split out of `cleanup` on 26 August 2026, because one word was covering
     # two jobs. The firm: "i think that it makes sense sometimes... others not
@@ -750,6 +784,19 @@ per_form:
       label: "Earned income credit"
       detail: "Form 8867 due diligence"
       amount: 65
+      # FIRED BY THE PREPARER, not by the client's tick. Round eleven, 26
+      # August 2026: "We don't, at the estimate -- discover it at file review,
+      # like brokerage keying."
+      #
+      # It was an option in `extra_forms` until then, beside "sold a home" and
+      # "paid into an HSA", and it does not belong there. A client knows
+      # whether they sold a house. Nobody knows whether they qualify for this
+      # until the return is computed: earned income under a threshold that
+      # moves with filing status and number of children, investment income
+      # under a separate limit, valid Social Security numbers, residency for
+      # the whole year, and either a qualifying child or being 25 to 64
+      # without one. Asking invited a wrong answer that priced a return.
+      when: { answer_is: { eic_claimed: "yes" } }
       assumes: "the children claimed lived with you for more than half the year and you can show it"
       trigger: "residency or relationship has to be substantiated from records"
 

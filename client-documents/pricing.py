@@ -708,7 +708,40 @@ def _forms_on(answers: dict, schedule: dict) -> list[tuple[str, dict]]:
             f"a situation the client ticks and the estimate ignores is billed "
             f"at nothing."
         )
-    return [(value, spec) for value, spec in forms.items() if value in picked]
+    # A form normally fires because the CLIENT ticked it. One fires because
+    # the PREPARER answered a question instead, and the distinction is the
+    # whole point of `when:`.
+    #
+    # The earned income credit is the case. It sat in the client's
+    # multi-select beside "sold a home" until 26 August 2026, and a client
+    # cannot answer it: eligibility turns on earned income under a moving
+    # threshold, investment income under another, valid SSNs, residency for
+    # the whole year, and a qualifying child or an age band. Every one is a
+    # number off the return. Drake computes it; a consultation cannot.
+    #
+    # It stayed in `per_form` rather than becoming a counted line because what
+    # `per_form` gives it is the printed assumption -- "the children claimed
+    # lived with you for more than half the year and you can show it" -- and a
+    # counted line has nowhere to say that.
+    #
+    # A form may not have BOTH a tick and a gate: two ways to fire one line is
+    # two ways to bill it twice.
+    out = []
+    for value, spec in forms.items():
+        when = spec.get("when")
+        if when:
+            if value in picked:
+                raise PricingError(
+                    f"per_form.{value} is both offered under {key!r} and "
+                    f"gated by `when:`. One line, one way to fire it -- "
+                    f"otherwise a client who ticks it is billed alongside a "
+                    f"preparer who answers the gate."
+                )
+            if gate_holds(when, answers):
+                out.append((value, spec))
+        elif value in picked:
+            out.append((value, spec))
+    return out
 
 
 def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:

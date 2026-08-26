@@ -417,3 +417,22 @@ def test_the_disengagement_letter_refuses_an_empty_work_status():
     payload["WorkStatus"] = []
     with pytest.raises(merge.MergeError, match="WorkStatus"):
         merge.render(template, payload, strict=True, required_lists=required)
+
+
+def test_no_decision_is_still_open_anywhere():
+    """26 August 2026: the last `[CONFIRM:` in the firm settings closed, so
+    `doctor` reads clean for the first time.
+
+    Pinned deliberately. A readiness tool with one permanent warning on it
+    teaches whoever runs it to ignore warnings, and `doctor` is the first
+    thing anybody runs. If a new decision opens, this test says so at the
+    moment it opens rather than after somebody stops reading the output.
+
+    To open one on purpose: add the `[CONFIRM:` and change this test in the
+    same commit, so the choice is visible in the diff.
+    """
+    import pricing
+    import settings as firm
+
+    assert firm.open_decisions() == [], "an unanswered decision is back in the settings"
+    assert pricing.open_amounts() == [], "an unpriced item is back in the schedule"

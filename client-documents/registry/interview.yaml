@@ -496,14 +496,43 @@ sections:
           - { value: "hsa",             label: "Paid into or out of an HSA" }
           - { value: "early_withdrawal", label: "Took money out of a retirement account before 59½" }
           - { value: "foreign_accounts", label: "Held a foreign bank or investment account" }
-          # Preparer-facing in practice: a client does not know whether they
-          # qualify. It sits here rather than in its own question because it
-          # is priced the same way as the rest -- a named situation with a
-          # named price -- and splitting it out would mean two mechanisms for
-          # one idea.
-          - { value: "earned_income_credit", label: "Claiming the earned income credit" }
+          # The earned income credit WAS an option here, and it was the one
+          # that broke the rule the rest of them keep. Every option above
+          # names something that HAPPENED and the client knows whether it did.
+          # Nobody knows whether they qualify for the EIC until the return is
+          # computed. Moved 26 August 2026 to `eic_claimed` below, on the
+          # firm's answer to round eleven; still priced at $50 + the $15
+          # override under `per_form`, still carrying its assumption.
         supplies: []
         feeds: LineItems
+
+      # The other half of that move. Preparer-facing, normally blank when the
+      # estimate goes out, raised at file review -- the same shape as
+      # count_brokerages_keyed and count_extension_estimates.
+      - id: eic_claimed
+        question: "Is the earned income credit being claimed?"
+        help: >
+          Leave blank until the return is computed. Eligibility turns on
+          earned income, investment income, valid taxpayer identifiers,
+          residency and either a qualifying child or an age band -- all of
+          them facts off the finished return.
+
+          (Worded without naming the identifier on purpose: the PII guard in
+          the tests refuses any question that reads as though it might carry
+          one, and it is right to. Nothing here collects a number.)
+
+          Answering yes adds the Form 8867 due-diligence line at $65.
+        type: single
+        options:
+          - { value: "yes", label: "Yes — Form 8867 due diligence applies" }
+          - { value: "no",  label: "No" }
+        supplies: []
+        internal: true
+        internal_reason: >-
+          Prices the earned income credit line. The client never sees this
+          question; they see the line and its price on the estimate.
+        feeds: LineItems
+        showIf: "federal_form == '1040'"
 
       - id: count_foreign_accounts
         question: "How many foreign accounts?"
@@ -605,6 +634,32 @@ sections:
           Prices the brokerage keying line. Prints nowhere on a client
           document -- the client sees the line and its price, not our reason
           for it.
+        feeds: LineItems
+
+      # T-17, added 26 August 2026. The FILING is free; computing what to pay
+      # is the work. Preparer-facing and normally blank when the estimate goes
+      # out, because an extension happens in season -- months after the
+      # estimate is written. Same shape as count_brokerages_keyed above.
+      #
+      # Counted rather than a yes/no: a state that will not honour the federal
+      # extension is a second computation, not the same one filed twice.
+      - id: count_extension_estimates
+        question: "How many extensions needed a payment estimate?"
+        help: >
+          Leave blank unless an extension has actually been filed WITH a
+          computed payment. Filing for more time costs nothing; working out
+          what is owed from an incomplete file is the priced part, at $75
+          each.
+
+          Federal and any state that will not honour the federal extension
+          count separately, because each is its own computation.
+        type: integer
+        supplies: []
+        internal: true
+        internal_reason: >-
+          Prices the extension line. The extension NOTICE deliberately carries
+          no fee -- it hands the money to the invoice, and this is what the
+          invoice bills from.
         feeds: LineItems
 
       # cleanup_band was here, and it was the worst question in the interview:
