@@ -142,8 +142,19 @@ def _substitute_one(text: str, name: str, value) -> str:
     return text
 
 
-def render(template_html: str, record: dict, *, strict: bool = True) -> MergeResult:
-    """Fill a template. Raises MergeError rather than returning a holed document."""
+def render(template_html: str, record: dict, *, strict: bool = True,
+           required_lists: "tuple[str, ...] | list[str]" = ()) -> MergeResult:
+    """Fill a template. Raises MergeError rather than returning a holed document.
+
+    `required_lists` names the `[[EACH X]]` lists that may not be empty. An
+    EACH block over a missing list renders to exactly the same nothing as one
+    over an empty list, and nothing is indistinguishable from a list that was
+    never supplied -- so a fee estimate rendered a blank services table with a
+    total underneath it and this function raised nothing at all. Which lists
+    may legitimately be empty is a judgement about the document, so it is
+    declared in `registry/fields.yaml` (`required: true`) and passed in here,
+    not decided in this module.
+    """
     text = _REF_BLOCK.sub("", template_html)     # screen-only docs never ship
 
     kept: set = set()
@@ -162,6 +173,15 @@ def render(template_html: str, record: dict, *, strict: bool = True) -> MergeRes
 
     if strict:
         problems = []
+        # Checked before the token scan: an empty list leaves no token behind,
+        # so it would otherwise pass every check below it.
+        for name in required_lists:
+            rows = record.get(name)
+            if not isinstance(rows, list) or not rows:
+                problems.append(
+                    f"{name} is required and is "
+                    + ("missing" if name not in record else "empty")
+                    + " -- this document cannot be honest without it")
         leftover = {m for m in _UNRESOLVED_FIELD.findall(text)}
         if leftover:
             problems.append("unresolved fields: " + ", ".join(sorted(leftover)))
@@ -182,7 +202,13 @@ def render_file(template_path: str | Path, record: dict, **kw) -> MergeResult:
 
 
 def tokens_in(template_html: str) -> dict:
-    """Every token a template needs. Used by the reconciliation tests."""
+    """Every token a template needs. Used by the reconciliation tests.
+
+    ``item_fields`` is the union across the whole template. ``list_items`` is
+    the same information split per list, which is the useful form once a
+    template carries more than one: the delivery letter's ``ReturnsDelivered``
+    and ``ActionList`` have different sub-fields, and a union cannot say so.
+    """
     body = _REF_BLOCK.sub("", template_html)
     fields = set(_FIELD_BARE.findall(body))
     return {
@@ -190,4 +216,19 @@ def tokens_in(template_html: str) -> dict:
         "item_fields": {f.split(".", 1)[1] for f in fields if f.startswith("Item.")},
         "flags": set(re.findall(r"\[\[IF ([A-Za-z0-9_]+)\]\]", body)),
         "lists": set(re.findall(r"\[\[EACH ([A-Za-z0-9_]+)\]\]", body)),
+        "list_items": _list_items(body),
     }
+
+
+def _list_items(body: str) -> dict:
+    """{list name: sorted sub-field names} for each EACH block in `body`."""
+    out = {}
+    for m in re.finditer(r"\[\[EACH ([A-Za-z0-9_]+)\]\]", body):
+        end = body.find("[[END EACH]]", m.end())
+        span = body[m.end():end if end != -1 else len(body)]
+        out[m.group(1)] = sorted(
+            f.split(".", 1)[1]
+            for f in set(_FIELD_BARE.findall(span))
+            if f.startswith("Item.")
+        )
+    return out

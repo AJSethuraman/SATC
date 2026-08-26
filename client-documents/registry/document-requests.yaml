@@ -1,0 +1,102 @@
+# SATC — what we ask a client to send us
+#
+# This is the `RequestList` on the onboarding letter: the list under "Below is
+# everything we need to start your work".
+#
+# IT WAS EMPTY UNTIL 26 AUGUST 2026, and nothing complained. Every onboarding
+# letter ever rendered promised a list and delivered none, because the merge
+# engine's `[[EACH]]` over an empty list leaves no token behind for the strict
+# check to catch. It is the same failure that once produced an invoice with a
+# blank services table under a confident total. `registry/fields.yaml` now
+# declares this list required, so an onboarding letter with nothing in it
+# refuses instead of going out.
+#
+# HOW AN ENTRY IS CHOSEN. `when:` uses the same gate vocabulary that decides a
+# client's package — `schedules_any`, `schedules_none_of`, `answer_is`,
+# `any_of` — evaluated by the same code, so the two can never drift. An entry
+# with no `when:` is asked of everybody.
+#
+#   schedules_any: [E1]        at least one of these is on the return
+#   schedules_none_of: [C]     none of these is
+#   answer_is: {q: value}      an exact interview answer
+#   any_of: [ {...}, {...} ]   at least one sub-gate holds
+#
+# THE WORDING IS THE FIRM'S. Every `document` and `detail` below prints on a
+# client's letter, so it lives here rather than in Python — edit the sentence,
+# the letter changes. Keep them concrete: name the piece of paper, not the tax
+# concept. A client can find "the closing statement from the sale"; they
+# cannot find "your basis documentation".
+#
+# WHAT DOES NOT BELONG HERE: anything that tells a client what a document
+# MEANS, or what to do about it. This is a list of things to put in an
+# envelope. Advice belongs in a conversation with a person.
+
+requests:
+  - document: "The signed engagement letter"
+    detail: "Nothing begins until this is back with us"
+
+  - document: "Every W-2 for the year"
+    detail: "One for each employer, for you and anyone filing with you"
+
+  - document: "Photo ID and Social Security cards"
+    detail: "For everyone on the return, if we have not seen them before"
+
+  - document: "Last year's tax return"
+    detail: "The complete copy, including every schedule"
+    when:
+      answer_is: {prior_return_available: "yes"}
+
+  - document: "Any other income documents that arrived"
+    detail: "1099s of any kind, K-1s, 1098s, SSA-1099, and anything else that came in an envelope marked important tax document"
+    when:
+      answer_is: {other_income_documents: "yes"}
+
+  - document: "Your brokerage statements"
+    detail: "The full consolidated 1099-B for each account, not the summary page"
+    when:
+      schedules_any: [D]
+
+  - document: "Rental income and expenses for each property"
+    detail: "Rents received, and what you spent on each one. If a property was bought, sold or first rented this year, the closing statement too"
+    when:
+      schedules_any: [E1]
+
+  - document: "Each K-1 you received"
+    detail: "The whole K-1 including its statements, not just the first page"
+    when:
+      schedules_any: [E2]
+
+  - document: "Your business income and expenses"
+    detail: "Totals by category. If you claim actual vehicle expenses rather than mileage, the vehicle costs as well"
+    when:
+      schedules_any: [C]
+
+  - document: "Your mileage log"
+    detail: "Total business miles for the year, and the total the vehicle was driven"
+    when:
+      answer_is: {schedule_c_kind: "simple"}
+
+  - document: "Farm income and expenses"
+    detail: "Totals by category, and any Form 1099-PATR"
+    when:
+      schedules_any: [F]
+
+  - document: "Your itemised deduction records"
+    detail: "Mortgage interest, property tax, state and local tax paid, medical costs and charitable receipts"
+    when:
+      schedules_any: [A]
+
+  - document: "The closing statement from the sale of your home"
+    detail: "Both the purchase and the sale, if you have them"
+    when:
+      answer_includes: {extra_forms: "home_sale"}
+
+  - document: "Form 1095-A"
+    detail: "The marketplace statement — the return cannot be filed without it"
+    when:
+      answer_includes: {extra_forms: "marketplace"}
+
+  - document: "Your foreign account statements"
+    detail: "For each account: the bank, the account number, and the highest balance at any point in the year"
+    when:
+      answer_includes: {extra_forms: "foreign_accounts"}

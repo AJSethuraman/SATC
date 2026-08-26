@@ -1,0 +1,49 @@
+{
+  "LetterDate": "April 14, 2027",
+  "EngagementRef": "2027-0114",
+  "PeriodLabel": "2026 tax year",
+  "ClientFullName": "Mr. and Mrs. Daniel Reyes",
+  "ClientLetterName": "Dan",
+  "ClientAddress1": "418 Rockwell Street",
+  "ClientCity": "Solon",
+  "ClientState": "OH",
+  "ClientZip": "44139",
+  "ExtendedDeadline": "October 15, 2027",
+  "PaymentDeadline": "April 15, 2027",
+  "MaterialsDeadline": "August 15, 2027",
+  "EstimatedPaymentAmount": "$2,150.00",
+  "PreparerName": "Arjun Sethuraman, CPA",
+  "PreparerTitle": "Managing Partner",
+  "PreparerEmail": "arjun@satcllp.com",
+  "PreparerPhone": "307-941-0508",
+  "PaymentEnclosed": true,
+  "NoPaymentRequired": false,
+  "ExtendedReturns": [
+    {
+      "Return": "Federal Form 4868",
+      "Detail": "Extends the Form 1040 to October 15, 2027"
+    },
+    {
+      "Return": "Ohio IT 40P extension",
+      "Detail": "Ohio honours the federal extension; the payment voucher is filed separately"
+    },
+    {
+      "Return": "City of Solon extension request",
+      "Detail": "Filed directly with the municipality — Ohio municipalities do not all follow the state"
+    }
+  ],
+  "OutstandingItems": [
+    {
+      "Document": "K-1 from Larchmere Holdings LLC",
+      "Detail": "Expected from the partnership by September 1"
+    },
+    {
+      "Document": "Brokerage consolidated 1099",
+      "Detail": "The corrected one — the original showed a wash-sale adjustment still pending"
+    },
+    {
+      "Document": "Digital asset activity for the year",
+      "Detail": "Every exchange, wallet and transfer, including transfers that were not sales"
+    }
+  ]
+}

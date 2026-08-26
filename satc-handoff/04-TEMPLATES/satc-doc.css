@@ -155,6 +155,11 @@ h1,h2,h3,p{margin:0}
 .execnote{font-size:8.5pt;color:var(--ink-2);margin-top:10pt}
 .accept{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--navy);margin-top:20pt;padding-bottom:5pt;border-bottom:0.8pt solid var(--navy)}
 .signoff{margin-top:16pt;break-inside:avoid}
+/* A ledger document's sign-off follows a .notes block rather than the .sp
+   signature gap, and sits 20pt clear of it. Promoted here from the invoice and
+   the fee estimate, which had each declared it separately -- two documents
+   needing the same rule is the definition of one that belongs in this file. */
+.doc .signoff{margin-top:20pt}
 .signoff .sp{height:26pt}
 .signoff .nm{font-weight:600;color:var(--navy)}
 .signoff .ti{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-2);margin-top:3pt}

@@ -1,2 +1,21 @@
+# Core: the merge engine, the registry and the tests need only these.
 pytest
 PyYAML
+
+# The browser front door. The CLI does not need it; `web.py` does, and so do
+# the tests that prove the two front doors enforce the same gates.
+flask
+
+# PDF. Optional -- `satc-docs render --no-pdf` writes HTML and needs neither.
+#
+# Chromium is the PRIMARY engine and the one to install. The templates are
+# flexbox and were designed and proofed in a browser; WeasyPrint's flex support
+# is partial, so it renders the SAT-C wordmark as overlapping letters and
+# collides clause numerals with their headings. The document is correct either
+# way -- it just does not look like the brand.
+#
+#     pip install playwright && playwright install chromium
+playwright
+
+# Fallback, if a browser is genuinely unavailable. Usable, not brand-accurate.
+# weasyprint
