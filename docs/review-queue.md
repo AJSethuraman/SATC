@@ -17,6 +17,10 @@ The documents are embedded as the **real rendered output**, each in its own
 shadow root so the firm's print stylesheet and the page cannot reach each
 other. Start there rather than with the zip.
 
+**The software, screen by screen** — one real sitting driven end to end through
+the running application, including the wording editor:
+<https://claude.ai/code/artifact/faa59d3f-29c2-42bc-8ce2-ed24d075c176>
+
 **The queue itself** (this list, as a page):
 <https://claude.ai/code/artifact/4536ea0b-7016-4c90-bf78-9c7183d5d3c3>
 
