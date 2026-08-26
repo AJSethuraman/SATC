@@ -1,9 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Every page the site serves. It listed only "/" until 26 August 2026, which
+     meant the price page — the one the firm publishes so a visitor can send the
+     link rather than ask — was reachable by search only through the single nav
+     link on the home page. `lastmod` is a real date per page, not the date this
+     file was touched; a sitemap that claims everything changed today is a
+     sitemap a crawler stops believing. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://satcllp.com/</loc>
-    <lastmod>2026-08-14</lastmod>
+    <lastmod>2026-08-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://satcllp.com/pricing.html</loc>
+    <lastmod>2026-08-26</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://satcllp.com/privacy.html</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
   </url>
 </urlset>
