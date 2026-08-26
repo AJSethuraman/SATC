@@ -39,7 +39,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import cli  # noqa: E402
-import consistency  # noqa: E402
 import engagements  # noqa: E402
 import intake  # noqa: E402
 import interview as iv  # noqa: E402
@@ -166,7 +165,10 @@ def assert_no_holes(name: str, html: str) -> None:
 ])
 def test_every_federal_form_reaches_a_folder_the_client_can_be_sent(
         form, letter, tmp_path):
-    """One client, one command, four returns -- and the RIGHT letter each time.
+    """One command, three returns -- and the RIGHT letter each time.
+
+    (The fourth, a C corporation, has its own test below: it cannot render its
+    engagement letter at all, for a reason that is the firm's to settle.)
 
     FOUND HERE, 26 August 2026. `cli.opening_package()` was the literal list
     `["tax-letter", "fee-estimate", "onboarding-letter"]` while

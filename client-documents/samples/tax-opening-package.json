@@ -99,5 +99,6 @@
     }
   ],
   "SCorpElection": false,
-  "ReturnScope": true
+  "ReturnScope": true,
+  "EntityIssuesK1s": false
 }
