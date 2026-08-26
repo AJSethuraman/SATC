@@ -359,10 +359,12 @@ per_unit:
     # nothing priced it. Under the old ladder the Business package was the
     # only rung a farm could land on, so the price was hidden inside it.
     #
-    # The firm is undecided about whether to take farm work at all -- "not
-    # sure i want to deal with farm" -- and this does not settle that. It
-    # stops the software giving the work away while the question is open,
-    # which is the one outcome neither answer wants.
+    # SETTLED 26 August 2026: the firm TAKES farm work and does not ADVERTISE
+    # it. Priced here so nobody gets a Schedule F for nothing; absent from the
+    # website on purpose, because a published price is a solicitation and the
+    # firm does not want to solicit this work. Both halves are deliberate --
+    # see docs/pricing-for-website.md, which instructs the site not to mention
+    # farms even though the price exists.
     form_fee: 200
     form_covers: 1
     amount: 200

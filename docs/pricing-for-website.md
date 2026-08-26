@@ -140,9 +140,20 @@ site**; they belong on the client's own estimate, where they are attached to
 a real engagement. On the site, "$50 each" plus the list above is the whole
 story.
 
-**Business returns** are priced now — **$800** for a partnership (1065),
-**$950** for an S corporation (1120-S), **$950** for a corporation (1120).
-They were the last blanks on the sheet and they were set on 26 August 2026.
+**Business returns — publish these as STARTING prices**, which is the firm's
+own instruction and is the honest framing:
+
+| Entity return | Starting at |
+|---|---:|
+| Partnership (Form 1065) | **from $800** |
+| S corporation (Form 1120-S) | **from $950** |
+| C corporation (Form 1120) | **from $950** |
+
+"From" is doing real work in that table and must not be dropped. An entity
+return varies more than an individual one — a balance sheet, the number of
+owners, whether the books arrive reconciled — so a bare number would be a
+promise the estimate then has to break. Every one of those variables is priced
+separately and appears on the client's own estimate before they commit.
 
 One caveat that must survive into any copy: an entity return that has to file
 a **balance sheet** is more work than one that does not, and that is charged
@@ -222,10 +233,12 @@ What remains genuinely unsettled:
   headings, anchors, URLs and image alt text, and renaming them later is a
   content migration rather than a find-and-replace. **Build the page so the
   names are data, not markup.**
-- **Whether the firm takes farm work at all.** The Schedule F is priced at
-  $200 so the software does not give the work away while the question is open,
-  but the firm has said it is unsure it wants to do it. **Do not advertise
-  farm returns** until that is settled — a published price is a solicitation.
+- **Farm work is taken but NOT advertised.** Settled 26 August 2026. The
+  Schedule F is priced at $200 and prepared when a client has one; the website
+  says nothing about it. That is deliberate rather than an omission — a
+  published price is a solicitation, and the firm does not want to solicit farm
+  returns. **Do not add it to the page**, and if a draft mentions farms, take
+  it out.
 - **The hourly rate is soft.** $150 is the firm's own estimate of its average,
   described as "at least for now". The NSA survey puts the market at $149.52
   for Schedule E work, so it is safe to publish. It is not safe to build copy

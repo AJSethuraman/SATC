@@ -65,6 +65,41 @@ between the survey's $733 partnership and $903 S corporation. The survey says
 the firm's instinct was in the right range and that a single price for all three
 is not what the market does — it separates them by roughly $170.
 
+## Additional fees — the ones that are not forms
+
+From pages 24 and 26 of the same study. These matter because SATC has an
+equivalent for two of them and priced them differently.
+
+| What | Share of firms who charge | Average |
+|---|---:|---:|
+| Preparing 1099s | 85% | $67.72 |
+| Preparing W-2s | 76% | $69.75 |
+| **Disorganized or incomplete files** | **78%** | **$165.82** |
+| Filing an extension | 42% | $55.94 |
+| Expediting a return | 32% | $136.32 |
+| Information arriving after a stated deadline | 26% | $116.97, at **16 days** before filing |
+
+**Three things follow.**
+
+**Disorganized files are a flat fee at most firms, and hourly at SATC.** 78%
+charge, averaging $166. SATC's `assumed.cleanup` bills the overrun hourly at
+$150 instead, which is the same money at 66 minutes and more than it past that.
+Neither is wrong — a flat fee is easier to state up front and a meter is fairer
+to the client whose file is only slightly untidy — but it is worth knowing SATC
+is the minority shape here.
+
+**The materials deadline is more conservative than the market.** SATC set three
+weeks (21 days) on 26 August 2026; the firms that charge for late information
+set it at 16 days on average. There is room to be stricter later without being
+unusual.
+
+**Dependents are not a line item anywhere.** Searched for, and absent: no
+per-dependent charge, no Form 2441 fee, no Form 8863 fee. The only
+dependent-adjacent figure in the entire study is Schedule EIC at **$65** — the
+number SATC has just adopted. See below.
+
+---
+
 ## Hourly rates
 
 | Work | NSA 2020 average hourly |
@@ -85,6 +120,35 @@ number soft — "we average about $150 an hour, at least for now" — and it tur
 out to be squarely where the market was in 2020. The gap worth noting is at the
 top: entity work bills at $177–$182, roughly 20% above the individual rate, and
 SATC has one rate for everything.
+
+---
+
+## How the market charges for dependents — it doesn't
+
+The firm asked, 26 August 2026: *"how do people normally charge for dependents?
+is it not form based?"*
+
+**It is form based, and more than that: nobody charges for a dependent at all.**
+The survey prices sixty-odd forms and schedules and there is no per-dependent
+line, no Form 2441 (child and dependent care), no Form 8863 (education
+credits). The single dependent-adjacent figure in the study is **Schedule EIC
+at $65**.
+
+That makes sense on the tax law rather than on the survey. Since the personal
+exemption was eliminated for 2018 and later years, a dependent by itself adds a
+name, a taxpayer identification number and a checkbox. What adds *work* is the
+credit the dependent unlocks and the **due diligence** the preparer owes on it
+— which is Form 8867, and which is exactly the thing already priced at $65.
+
+**The consequence for SATC's own ladder is direct, and it is a decision rather
+than a correction.** Starter's gate currently excludes any client with a
+dependent. On this evidence that is the wrong test: a W-2 parent claiming the
+child tax credit is a Starter return with a checkbox, and the case that costs
+real time — earned income credit due diligence — is already its own priced
+line. Dropping `has_dependents` from Starter's gate would let that client stay
+at $100.
+
+It moves money, so it is the firm's call and not a fix to be applied quietly.
 
 ---
 

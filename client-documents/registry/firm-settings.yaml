@@ -66,12 +66,31 @@ delivery:
 # Field: MaterialsDeadline. One fixed date per return type per season, set each
 # January. Read by the tax letter, the organizer and the onboarding letter — all
 # three print it, and a mismatch between them is the organizer's most likely bug.
+# SET 26 August 2026: THREE WEEKS BEFORE EACH FILING DEADLINE.
+#
+# The rule, not four unrelated dates — so next season is arithmetic rather than
+# another decision. The firm chose three weeks over a month on the reasoning
+# that a deadline routinely blown past teaches clients to ignore it, and three
+# weeks is the shortest window that still leaves room to prepare, review and
+# sign without an extension.
+#
+# It is also more conservative than the market. The NSA 2020-2021 survey found
+# that of the 26% of firms who charge for information arriving late, the
+# average deadline is 16 DAYS before filing. Three weeks is 21.
+# See docs/market-fee-benchmarks.md.
+#
+# THESE ARE THE 2026 TAX YEAR, FILED IN 2027. Individual and calendar-year C
+# corporation returns are due 15 April 2027; partnerships and S corporations
+# are due 15 March 2027. Neither falls on a weekend or a holiday in 2027, so
+# no date below is shifted. CHECK THIS AGAINST THE IRS CALENDAR each season
+# before rolling it forward — a weekend shift moves the filing deadline and
+# therefore moves the materials deadline with it.
 materials_deadlines:
   "2026":
-    individual_1040: "[CONFIRM: 1040 materials deadline for the 2026 season]"
-    s_corp_1120s:    "[CONFIRM: 1120-S materials deadline for the 2026 season]"
-    partnership_1065: "[CONFIRM: 1065 materials deadline for the 2026 season]"
-    c_corp_1120:     "[CONFIRM: 1120 materials deadline for the 2026 season]"
+    individual_1040: "March 25, 2027"
+    s_corp_1120s:    "February 22, 2027"
+    partnership_1065: "February 22, 2027"
+    c_corp_1120:     "March 25, 2027"
 
 # SETTLED 25 Aug 2026. Four variants were in circulation — three in this repo and
 # a fourth on the firm's own fee workbook. This is the one.

@@ -176,19 +176,32 @@ def test_later_documents_render_complete(label, pair):
     assert "[CONFIRM:" not in result.html, f"{label}: an undecided placeholder survived"
 
 
-def test_business_letter_refuses_to_render_while_a_confirm_is_open():
-    """The business return letter carries one open [CONFIRM], in section 03.
+def test_business_letter_renders_now_that_the_confirm_is_answered():
+    """It used to carry one open [CONFIRM], on officer compensation under an S
+    election, and this test asserted the letter could not reach a client while
+    it was there. Its own docstring said it would go green the moment a human
+    resolved it. The firm did, on 26 August 2026 — "exclude unless specified as
+    part of the engagement" — so it is inverted rather than deleted.
 
-    It is on officer compensation under an S election -- a substantive tax
-    position, and not an agent's wording to write. The point of this test is
-    that the marker cannot be forgotten: the letter cannot reach a client while
-    it is there, and this test goes green the moment a human resolves it.
+    A `[CONFIRM:` coming BACK to this template is now the failure.
     """
-    with pytest.raises(MergeError) as exc:
-        render_file(TEMPLATE_DIR / "SATC Engagement Letter - Business Return.html",
-                    _sample("business-engagement.json"))
-    assert "[CONFIRM:" in str(exc.value)
-    assert "officer compensation" in str(exc.value)
+    result = render_file(TEMPLATE_DIR / "SATC Engagement Letter - Business Return.html",
+                         _sample("business-engagement.json"))
+    assert "[CONFIRM:" not in result.html
+
+
+def test_the_business_letter_still_excludes_officer_compensation_by_default():
+    """The half of the ruling that protects the firm.
+
+    "Exclude unless specified" only works if the exclusion is unconditional in
+    the text and the inclusion has to be written in. A letter that merely
+    offered the service without excluding it would leave a client free to say
+    afterwards that they assumed it was covered.
+    """
+    result = render_file(TEMPLATE_DIR / "SATC Engagement Letter - Business Return.html",
+                         _sample("business-engagement.json"), strict=False)
+    assert "not within this engagement" in result.html
+    assert "in writing before we start" in result.html
 
 
 def test_business_letter_is_otherwise_complete():
@@ -201,7 +214,10 @@ def test_business_letter_is_otherwise_complete():
                          _sample("business-engagement.json"), strict=False)
     assert "&lt;&lt;" not in result.html, "an unfilled field survived"
     assert "[[" not in result.html, "an unresolved block survived"
-    assert result.html.count("[CONFIRM:") == 1, "exactly one open decision, and no more"
+    assert result.html.count("[CONFIRM:") == 0, (
+        "the last open decision on this template was answered on 26 Aug 2026; "
+        "a [CONFIRM: here again is one somebody re-opened"
+    )
 
 
 INVERSE_PAIRS = [
