@@ -267,8 +267,14 @@ img, svg { max-width: 100%; }
 
 .hero-grid {
   display: grid; grid-template-columns: 1.4fr 1fr; gap: clamp(40px, 6vw, 76px);
-  align-items: center; position: relative; z-index: 1;
+  align-items: start; position: relative; z-index: 1;
 }
+/* The card holds four lines since its three step rows went (they were said
+   again, in full, further down the page). Centred in a column as tall as the
+   headline beside it, that left it floating with air above and below — the
+   thing tenet 2 is about. Aligned to the top it hangs off the same line the
+   eyebrow starts on, and the air collects under it where it reads as margin. */
+.hero-card { margin-top: 6px; }
 .hero h1 {
   font-family: var(--sans); font-weight: 600;
   font-size: clamp(38px, 6.4vw, 66px); line-height: 1.02;
@@ -626,11 +632,11 @@ footer { background: var(--navy-deep); color: rgba(255,255,255,0.66); padding: c
   "@context": "https://schema.org",
   "@type": "AccountingService",
   "name": "Sethuraman Accounting, Tax & Consulting",
-  "alternateName": "SATC",
+  "alternateName": ["SAT-C LLP", "SATC LLP", "SATC"],
   "url": "https://satcllp.com/",
   "image": "https://satcllp.com/og-image.png",
   "email": "arjun_sethuraman@satcllp.com",
-  "description": "Accounting, tax, and consulting for individuals and small businesses, with the back-office processes handled behind the scenes.",
+  "description": "Accounting, tax and consulting for individuals and small businesses in Ohio, from a first job to a fourth entity. Prices published.",
   "areaServed": "US",
   "founder": [{ "@type": "Person", "name": "Arjun Sethuraman" }, { "@type": "Person", "name": "Brandi Sethuraman" }],
   "knowsAbout": ["Accounting", "Bookkeeping", "Tax preparation", "Tax planning", "Business consulting"]

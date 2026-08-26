@@ -89,10 +89,10 @@ from-prices, so the two cannot be shown the same way by accident.
 Both were in the prose brief with no home in the schedule until 26 August, so
 the checker correctly kept them off. They are real now:
 
-- **Amended return — the package price plus $50**, every form. Not a flat
-  number, so the page cannot print one: an amended Essentials return is $250
-  and an amended 1120-S is $1,000. "Amendments are priced at $50 on top of the
-  return's own fee" is the honest one-liner.
+- **Amended return — $50.** This said "the package price plus $50, every
+  form" until the evening of 26 August; see B1, where the firm corrected it.
+  The split is on who filed the original, not on which form it is: $50 flat
+  where we filed it, $50 plus the return's own price where somebody else did.
 - **Extension with a payment estimate — $75.** **Filing an extension is
   free** — only computing the payment is billed. A tile reading
   "Extension — $75" says the opposite of the decision.
@@ -113,12 +113,28 @@ four items above came from.
 Nothing here has been decided. The page should not imply an answer to any of
 it.
 
-## B1. ~~The amended entity return~~ — CLOSED 26 August 2026
+## B1. ~~The amended return~~ — CLOSED, then CORRECTED 26 August 2026
 
-Settled: an amendment is **+$50 on whatever the return is**, every form. So an
-amended 1120-S is $1,000 and an amended Essentials return is $250. It is
-publishable (`amendment.publish: "yes"`), and the individual/entity split that
-made this a gap is gone.
+This said an amendment is "+$50 on whatever the return is, every form", which
+is not what the engine does and not what the firm meant. Raised again when the
+price page published the engine's number and the two disagreed. The firm, the
+same evening, on being shown that the published price is $50 flat:
+
+> it is correct as-is - $50 if it was not something we did wrong but we did the
+> original work. otherwise we charge a $50 premium and our normal pricing
+
+So the split is on **who filed the original**, not on which form it is:
+
+| | |
+|---|---|
+| We filed it, and the amendment is not our error | **$50**, flat |
+| We filed it and got it wrong | **nothing** — not published, and not a claim the page makes about us |
+| Someone else filed it | **$50 plus what the return itself costs** |
+
+The engine, the schedule and the published page all already did this. The
+error was in this file, and the lesson is the one the pricing build kept
+learning: the schedule is the source of truth, and a prose note that
+paraphrases it will drift from it.
 
 ## B2. Two things stay priced and unadvertised, on reasoning nobody has signed
 
