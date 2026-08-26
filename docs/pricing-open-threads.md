@@ -26,13 +26,19 @@ Threads are numbered in the order they were raised and keep their number
 forever, so `T-04` means the same thing in six months.
 
 **Where they get asked.** Open threads are put to the firm in the interview
-rounds. The live one is **round eleven**, published 26 August 2026:
-<https://claude.ai/code/artifact/1423b12b-0f09-453a-8c46-37b16545441c> — it
-carries T-07, T-16, T-17, the foreign-account cap, the "Business" package name,
-the rest of `hard_no`, and round ten's unanswered EIC question. Round ten
+rounds. The live one is **round twelve**, published 26 August 2026:
+<https://claude.ai/code/artifact/99d397cc-9361-4787-86dd-911b370c4807> — the
+$500 package's name (T-19), whether the entity prices are published prices, and
+what an amended entity return costs.
+
+**Round eleven** is answered and built:
+<https://claude.ai/code/artifact/1423b12b-0f09-453a-8c46-37b16545441c>. Five of
+its seven closed T-16, T-17, the foreign cap, the EIC question carried from
+round ten, and the last `[CONFIRM:` in the firm settings. The two it left as
+notes rather than picks became T-19 and question 2 of round twelve; T-07's
+answer became T-18. Round ten
 (<https://claude.ai/code/artifact/3d80533a-3a67-4525-b04b-17717d56f1c4>) is
-superseded: three of its four questions were about an overnight session that has
-since happened.
+superseded.
 
 ---
 
