@@ -93,6 +93,9 @@ AMENDMENT_PUBLISH = ["new_information", "other_preparer"]
 # to edit.
 RESPELL = {"summarised": "summarized", "Cancelled": "Canceled", "cancelled": "canceled"}
 
+ENTITY_LEAD = ("Starting prices. Each one lists what gets added on top, "
+               "and you'll see your own number before you agree to anything.")
+
 NBH = "&#8209;"  # non-breaking hyphen, so "K-1" never wraps
 
 
@@ -249,7 +252,7 @@ window.SATC_PRICING = {{
     lines.append("     set beside the amount, and `notes` is what costs EXTRA rather than what")
     lines.append("     is included — the opposite of a package's bullets, so the card labels it. */")
     lines.append(f"  entityNoteLabel: {js('On top of that:')},")
-    lines.append(f"  entityLead: {js('Starting prices. What sits on top is listed on each one, and your estimate prices it before you agree to anything.')},")
+    lines.append(f"  entityLead: {js(ENTITY_LEAD)},")
     lines.append("  entities: [")
     for i, e in enumerate(entities):
         lines.append("    {")

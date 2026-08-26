@@ -47,6 +47,46 @@ work on them to `BACKLOG.md`, not `PLAN.md`.
 - **New projects go in their own top-level folder** with their own README,
   dependencies, and tests — mirroring the existing ones.
 
+## Client-facing copy is a different register from everything else
+
+**Anything a client reads must sound simpler than how we talk about it.** The
+fee schedule's comments, the briefs, the PRDs, the specs and the commit messages
+are written to argue a case, and that is correct for them. A website page, an
+engagement letter or an estimate is not that.
+
+The failure this exists to stop, from the price page (26 Aug 2026):
+
+> These are prices, not a quote. You get an estimate in writing with your own
+> lines on it, and the engagement letter governs the work.
+
+The firm's read: *"i would never expect a client to understand what an
+engagement letter is inherently. 'governs the work' come on."*
+
+It was not a style slip. The pricing brief told the builder *"An estimate is not
+a quote. The engagement letter governs; the estimate accompanies it"* — and that
+sentence was transcribed onto the page. **A requirement written for whoever
+builds the thing is not copy.** The requirement says what the page must be true
+about; the copy has to say it in words the reader already brought with them.
+
+The rules, in order of how often they catch something:
+
+1. **Never transcribe a spec.** If a sentence exists to satisfy a requirement,
+   write what the requirement protects, then delete the requirement's wording.
+2. **No term a first-time reader would have to look up** — and no term of art
+   from our own process. Say the thing: "nothing begins until you've seen it and
+   said yes", not "the engagement letter governs the work".
+3. **No contract-desk verbs**: governs, constitutes, accompanies, pursuant, in
+   accordance with, at our discretion, deemed, shall be, herein.
+4. **Cut any sentence whose only job is to protect us.** If it protects us *and*
+   tells the reader something useful, keep the useful half.
+5. **Length is the tell.** A client-facing sentence past ~25 words was written to
+   be complete rather than to be read.
+6. **Read it as if saying it across a desk.** If you would not say it out loud to
+   a person, do not publish it.
+
+`website/pricing.spec.py` enforces 3 and 5 mechanically over the published copy,
+and it is the pattern to copy for any other client-facing surface.
+
 ## Hard constraints (do not cross without explicit sign-off)
 
 - **Client PII is load-bearing.** Names/SSNs/EINs live in an **encrypted identity

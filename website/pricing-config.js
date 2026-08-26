@@ -84,7 +84,7 @@ window.SATC_PRICING = {
      set beside the amount, and `notes` is what costs EXTRA rather than what
      is included — the opposite of a package's bullets, so the card labels it. */
   entityNoteLabel: 'On top of that:',
-  entityLead: 'Starting prices. What sits on top is listed on each one, and your estimate prices it before you agree to anything.',
+  entityLead: 'Starting prices. Each one lists what gets added on top, and you\'ll see your own number before you agree to anything.',
   entities: [
     {
       name: 'Partnership',

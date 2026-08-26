@@ -42,6 +42,18 @@ def check(ok: bool, label: str) -> None:
     checks.append((bool(ok), label))
 
 
+def _strings(node):
+    """Every string anywhere in the config — the copy, wherever it is nested."""
+    if isinstance(node, str):
+        yield node
+    elif isinstance(node, dict):
+        for v in node.values():
+            yield from _strings(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _strings(v)
+
+
 try:
     import pricing
 except ImportError as e:
@@ -213,6 +225,73 @@ COMPARATIVE = ("other firms", "other tax", "most tax sites", "most firms",
                "competitor", "elsewhere you", "cheaper than", "big box")
 found = [w for w in COMPARATIVE if w in page_src.lower() or w in config_src.lower()]
 check(not found, f"the page makes no claim about anyone else's pricing — found {found}")
+
+# Strings rendered through textContent must not carry HTML entities — they
+# print literally. Caught exactly that: "you&#39;ll see your own number".
+for key in ("includedInEvery", "entityLead"):
+    check("&#" not in cfg[key],
+          f"{key} has no HTML entities — it renders as text, so they would print raw")
+
+
+# ── the language a client would actually use ──────────────────────────────
+#
+# Added after this shipped and was rightly rejected:
+#
+#   "These are prices, not a quote. You get an estimate in writing with your own
+#    lines on it, and the engagement letter governs the work."
+#
+# The firm's read: "i would never expect a client to understand what an
+# engagement letter is inherently. 'governs the work' come on."
+#
+# The failure was mechanical, not stylistic. The pricing brief says "An estimate
+# is not a quote. The engagement letter governs; the estimate accompanies it" —
+# and that sentence was written for whoever BUILDS the page, not for a visitor.
+# Transcribing a requirement is not writing copy. The requirement says what the
+# page must be true about; the copy has to say it in words the reader brought
+# with them.
+#
+# So: the words below are banned from anything a visitor reads. If the concept
+# is genuinely needed, say the thing itself — "nothing begins until you've seen
+# it and said yes" rather than "the engagement letter governs the work".
+CONTRACT_WORDS = [
+    "governs", "governed by", "engagement letter", "constitutes",
+    "in accordance with", "pursuant", "herein", "thereof", "aforementioned",
+    "accompanies", "at our discretion", "in the event that", "utilize",
+    "commence", "deemed", "whereupon", "notwithstanding", "shall be",
+]
+
+# Only what a visitor reads: no CSS, no scripts, no source comments — a comment
+# explaining why not to say "governs" must not itself trip the check.
+visible = re.sub(r"<!--.*?-->", " ", page_src, flags=re.S)
+visible = re.sub(r"<(script|style)\b.*?</\1>", " ", visible, flags=re.S | re.I)
+# Close block elements into sentence boundaries first. Without this a card's
+# bullets concatenate into one 30-word pseudo-sentence and the length check
+# below fires on markup rather than on prose.
+visible = re.sub(r"</(li|p|h[1-6]|div|section|td|th)>", ". ", visible, flags=re.I)
+visible = re.sub(r"<[^>]+>", " ", visible)
+visible += " " + ". ".join(str(v) for v in _strings(cfg))
+visible = visible.lower()
+
+found = [w for w in CONTRACT_WORDS if re.search(rf"\b{re.escape(w)}\b", visible)]
+check(not found,
+      "no contract-desk language in anything a client reads — found "
+      f"{found}. Say the thing itself instead.")
+
+# The register rule, stated by the firm: "public facing and internal are two
+# different things ... things should sound way more simple to our clients than
+# it does to us."
+#
+# The schedule's comments, this file, the briefs and the commit messages are all
+# written to argue a case, and that is right for them. Client copy is not that,
+# and the tell is length: a sentence that needs 30 words is usually one that
+# was written to be complete rather than to be read. 28 is generous, and it is
+# a floor on effort rather than a style — it only catches the ones that got away.
+sentences = [x.strip() for x in re.split(r"(?<=[.!?])\s+", re.sub(r"\s+", " ", visible)) if x.strip()]
+long_ones = [x for x in sentences if len(x.split()) > 28]
+check(not long_ones,
+      "no client-facing sentence runs past 28 words — "
+      f"{[x[:70] + '...' for x in long_ones]}")
+
 
 # A US LLP filing US returns.
 BRITISH = ("cancelled", "itemised", "recognise", "licence", "colour", "organis",
