@@ -7,7 +7,13 @@ Asked for by the firm, 25 August 2026:
 Nothing here is blocked on code. Every item below renders today; what it is
 waiting for is a human reading it and saying it is a document SATC would send.
 
-**Status values.** `unread` — nobody at the firm has read the rendered output.
+**All ten were rendered and sent to the firm on 26 August 2026.** Six render
+for real; four are stamped DRAFT because a firm decision still blocks them, and
+the blocker is named against each below. Status now means: has the firm read it
+and said what it thinks.
+
+**Status values.** `sent` — rendered and delivered, waiting on a reading.
+`unread` — nobody at the firm has read the rendered output.
 `changes` — read, and something needs to change; the note says what. `signed` —
 read and approved, with the date.
 
@@ -20,16 +26,16 @@ Rendered from `satc-handoff/04-TEMPLATES/*.html`. To see one with real content:
 
 | Document | Status | Note |
 |---|---|---|
-| Fee Estimate | unread | The one that changed most. Package line now carries its covers list — the firm has seen a rendered PDF and called it "too wordy but fine where it's at" |
-| Invoice | unread | |
-| Tax engagement letter | unread | Section 06 fee clause was rewritten 25 Aug and **reverted** at the firm's instruction. Do not rewrite it again |
-| Business engagement letter | unread | |
-| Bookkeeping engagement letter | unread | |
-| Onboarding letter | unread | Blocked from a real render by the materials deadlines, which are a firm setting |
-| Organizer letter | unread | |
-| Delivery letter | unread | |
-| Extension notice | unread | |
-| Disengagement letter | unread | The one with the most legal exposure. Nothing in it was invented — it is the firm's own wording or a `[CONFIRM:` |
+| Fee Estimate | **sent 26 Aug** | The one that changed most. Package line now carries its covers list — the firm has seen a rendered PDF and called it "too wordy but fine where it's at" |
+| Invoice | **sent 26 Aug** | DRAFT. Blocked on the materials deadline and on having real line items — the estimate-to-invoice bridge is what fills those |
+| Tax engagement letter | **sent 26 Aug** | Section 06 fee clause was rewritten 25 Aug and **reverted** at the firm's instruction. Do not rewrite it again |
+| Business engagement letter | **sent 26 Aug** | DRAFT. Blocked on one `[CONFIRM:` — how much the letter says about officer compensation. A substantive tax position, not an agent's to write |
+| Bookkeeping engagement letter | **sent 26 Aug** | DRAFT |
+| Onboarding letter | **sent 26 Aug** | Renders for real now |
+| Organizer letter | **sent 26 Aug** | DRAFT. Blocked on the 2026 materials deadline |
+| Delivery letter | **sent 26 Aug** | |
+| Extension notice | **sent 26 Aug** | |
+| Disengagement letter | **sent 26 Aug** | The one with the most legal exposure. Nothing in it was invented — it is the firm's own wording or a `[CONFIRM:` |
 
 ## The wording the software assembles
 
