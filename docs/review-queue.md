@@ -1,8 +1,11 @@
 # What still needs the firm — 26 August 2026
 
-**The sign-off room** — everything to read, on the page, with a place to
-comment and mark each one:
-<https://claude.ai/code/artifact/42b96c6d-0f0f-4ec3-b31e-bdb0c145ec7d>
+**The sign-off room, round two** — the firm's notes on two documents applied
+to all of them, everything re-rendered, each card saying what changed:
+<https://claude.ai/code/artifact/b298916e-8fc3-45b5-b69f-b61bdca0ff7b>
+
+Round one (<https://claude.ai/code/artifact/42b96c6d-0f0f-4ec3-b31e-bdb0c145ec7d>)
+holds the feedback that produced it and is superseded.
 
 The seven client documents are embedded there as the **real rendered output**,
 each in its own shadow root so the firm's print stylesheet and the page cannot
