@@ -35,7 +35,6 @@ per_unit.schedule_c.tiers.standard.amount: 1.25
 
 # Added 26 Aug 2026 alongside the lines they price. Still fictional.
 per_unit.brokerage.amount: 0.3
-per_unit.brokerage_keyed.amount: 0.6
 per_unit.foreign_account.amount: 0.3
 per_form.amount: 0.3
 per_form.forms.earned_income_credit.amount: 0.4

@@ -1131,13 +1131,21 @@ def test_a_second_brokerage_statement_is_counted():
                                  if i["Service"] == "Brokerage statement"][0]["Detail"]
 
 
-def test_a_statement_that_must_be_keyed_is_its_own_line():
-    """Signed 25 Aug 2026 at $95, keying on what cannot be summarised."""
+def test_a_keyed_statement_is_not_a_second_brokerage_price():
+    """Retired 26 Aug 2026. The firm: "we are doing away with the $95 thing...
+    the thought will be $45 like it says or if it's a pain in the ass $150 an
+    hour instead".
+
+    So a statement that has to be keyed is the ordinary brokerage statement,
+    and the keying is time. There is no second price for the same document.
+    """
     s = pricing.load()
+    assert "brokerage_keyed" not in s["per_unit"]
+    assert s["assumed"]["brokerage_keying"]["beyond"] == "hourly"
     items = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": ["D"],
          "count_brokerages": 1, "count_brokerages_keyed": 1}, s)
-    assert pricing.estimate_total(items, s) == "$420.00"      # 325 + 95
+    assert pricing.estimate_total(items, s) == "$325.00"
 
 
 def test_the_old_brokerage_assumption_is_gone_not_reworded():
@@ -1152,6 +1160,42 @@ def test_the_old_brokerage_assumption_is_gone_not_reworded():
 
 # ── beyond: priced ────────────────────────────────────────────────────────
 
+def _priced_boundary_schedule():
+    """A `beyond: priced` assumption, built rather than borrowed.
+
+    Brokerage keying was the only line using this mechanism, and the firm
+    retired its $95 price on 26 August 2026. The mechanism stayed: a named
+    price beats a rate a client cannot total, which is why the firm asked for
+    it, and that reasoning outlives the one line that happened to use it.
+
+    So these tests build their own subject. Borrowing whichever live line uses
+    the mechanism today is what made them fail when that line was retired --
+    they were testing the schedule when they meant to test the engine.
+    """
+    s = pricing.load()
+    s["per_unit"]["boundary_fixture_line"] = {
+        "label": "Boundary fixture",
+        "detail": "Exists for the priced-boundary tests",
+        "per_each": "that item",
+        "amount": 95,
+        "publish": "no",
+    }
+    s["assumed"]["boundary_fixture"] = {
+        "label": "Boundary fixture",
+        "assumes": "the fixture's assumption holds",
+        "inside_base": False,
+        "trigger": "the fixture's assumption stops holding",
+        "beyond": "priced",
+        "beyond_price_from": "boundary_fixture_line",
+    }
+    return s
+
+
+def _boundary_sentence(s):
+    return [t for t in pricing.assumptions({"federal_form": "1040"}, s)
+            if t.startswith("Boundary fixture")]
+
+
 def test_a_priced_boundary_names_the_number_not_the_rate():
     """The firm, 25 Aug 2026, asked for exactly this:
 
@@ -1163,9 +1207,8 @@ def test_a_priced_boundary_names_the_number_not_the_rate():
     job; this gives them the number before the work and agrees it at the
     moment it is found.
     """
-    s = pricing.load()
-    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
-            if t.startswith("Brokerage keying")]
+    s = _priced_boundary_schedule()
+    said = _boundary_sentence(s)
     assert len(said) == 1
     t = said[0]
     assert "$95.00" in t
@@ -1176,24 +1219,23 @@ def test_a_priced_boundary_names_the_number_not_the_rate():
 def test_a_priced_boundary_reads_its_number_off_the_line_that_charges_it():
     """Two places holding the same number is how an estimate ends up
     promising $95 while the invoice bills $110."""
-    s = pricing.load()
-    s["per_unit"]["brokerage_keyed"]["amount"] = 110
-    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
-            if t.startswith("Brokerage keying")][0]
+    s = _priced_boundary_schedule()
+    s["per_unit"]["boundary_fixture_line"]["amount"] = 110
+    said = _boundary_sentence(s)[0]
     assert "$110.00" in said
 
 
 def test_a_priced_boundary_that_names_no_line_refuses():
-    s = pricing.load()
-    del s["assumed"]["brokerage_keying"]["beyond_price_from"]
+    s = _priced_boundary_schedule()
+    del s["assumed"]["boundary_fixture"]["beyond_price_from"]
     with pytest.raises(pricing.PricingError) as exc:
         pricing.assumptions({"federal_form": "1040"}, s)
     assert "invent a number" in str(exc.value)
 
 
 def test_a_priced_boundary_pointing_at_nothing_refuses():
-    s = pricing.load()
-    s["assumed"]["brokerage_keying"]["beyond_price_from"] = "not_a_line"
+    s = _priced_boundary_schedule()
+    s["assumed"]["boundary_fixture"]["beyond_price_from"] = "not_a_line"
     with pytest.raises(pricing.PricingError) as exc:
         pricing.assumptions({"federal_form": "1040"}, s)
     assert "the invoice cannot keep" in str(exc.value)
@@ -1207,12 +1249,11 @@ def test_a_priced_boundary_whose_line_has_no_amount_carries_the_question():
     its `[CONFIRM:` and the merge engine refuses on it. Raising instead would
     kill the whole estimate over one line and hide everything else missing.
     """
-    s = pricing.load()
-    s["per_unit"]["brokerage_keyed"]["amount"] = "[CONFIRM: what keying costs]"
-    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
-            if t.startswith("Brokerage keying")][0]
+    s = _priced_boundary_schedule()
+    s["per_unit"]["boundary_fixture_line"]["amount"] = "[CONFIRM: what it costs]"
+    said = _boundary_sentence(s)[0]
     assert "[CONFIRM:" in said
-    assert "brokerage_keyed" in said
+    assert "boundary_fixture_line" in said
 
 
 def test_requote_is_still_refused():

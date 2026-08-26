@@ -558,27 +558,6 @@ per_unit:
     amount: 45
     publish: "yes"
 
-  brokerage_keyed:
-    count_from: count_brokerages_keyed
-    label: "Brokerage entered by hand"
-    detail: "Per statement that cannot be summarised"
-    # How this line is named INSIDE a sentence, when an assumption points at
-    # it to say what its own overrun costs. The assumption's `trigger` has
-    # already named the situation -- "if a statement has to be entered by
-    # hand" -- so this refers back to it rather than saying it again.
-    per_each: "that statement"
-    # Signed 25 Aug 2026. What flips it, settled the same day: the parts of a
-    # 1099-B that cannot be summarised. Where the broker reported basis to the
-    # IRS and nothing needs adjusting, the totals go in and the statement is
-    # attached; where they did not, the trades are keyed one at a time.
-    #
-    # TAGGED AS EXPOSED TO AUTOMATION -- this is T-01 and the first entry in
-    # docs/workflow-friction-log.md, and it is the clearest case of the rule
-    # in that log: where OUR process costs more than the return needs, that is
-    # a cost to fix, not a cost to bill. Price today's effort; expect this
-    # line to shrink.
-    amount: 95
-    publish: "yes"
 
   foreign_account:
     count_from: count_foreign_accounts
@@ -993,14 +972,17 @@ assumed:
     # a different claim and one the covers list already makes.
     inside_base: false
     trigger: "a statement has to be entered by hand"
-    # The third consequence, and the one the firm asked for. Not hourly, which
-    # tells a client a rate and leaves them unable to work out the total; not a
-    # re-quote, which stops the job. A named price, said up front and agreed at
-    # the moment it is found.
-    beyond: priced
-    # Read from the line that charges it. Typing 95 here as well is how an
-    # estimate ends up promising $95 while the invoice bills $110.
-    beyond_price_from: brokerage_keyed
+    # WAS `priced`, at $95, from 25 August until 26 August 2026. The firm
+    # retired that price: "we are doing away with the $95 thing... the thought
+    # will be $45 like it says or if it's a pain in the ass $150 an hour
+    # instead". So a keyed statement is the ordinary brokerage line, and the
+    # keying itself is time.
+    #
+    # The `priced` mechanism is NOT gone with it -- pricing.py still implements
+    # it and its tests still cover it against a fixture, because the reasoning
+    # that produced it (a named price beats a rate a client cannot total) is
+    # sound and the next boundary may want it.
+    beyond: hourly
 
   foreign_company:
     label: "Foreign entities"
