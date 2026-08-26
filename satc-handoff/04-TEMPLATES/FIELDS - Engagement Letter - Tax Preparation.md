@@ -52,10 +52,9 @@ An optional `Address2` line is not in the template. Add it only if your data act
 
 | Field | Required | Example | Notes |
 |---|---|---|---|
-| `<<ReturnInstruction>>` | Yes | Sign through Encyro and it comes straight back to us. | Replaces the old "return it in the envelope provided", which is wrong for an emailed letter |
 | `<<PreparerName>>` + `<<PreparerTitle>>` | Yes | Arjun Sethuraman, CPA · Managing Partner | Two fields |
 
-**Total: 26 fields + 1 conditional flag.**
+**Total: 25 fields + 1 conditional flag.**
 
 Not variables — hardcoded in the template, and correct to keep that way: the Encyro delivery method, and all nine clause bodies.
 
@@ -102,7 +101,6 @@ changes its name gets a new mark drawn, not a string substituted.
   "LocalReturns": "Solon municipal",
   "AdditionalForms": "Two K-1s as reported",
   "MaterialsDeadline": "March 15, 2027",
-  "ReturnInstruction": "Sign through Encyro and it comes straight back to us.",
   "FirmName": "SAT-C LLP",
   "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
   "FirmAddress1": "6544 Copley Avenue",

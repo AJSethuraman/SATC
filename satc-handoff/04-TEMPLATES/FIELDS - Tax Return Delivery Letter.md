@@ -36,7 +36,6 @@ Same records, same values, same engagement. `EngagementRef` is what ties this le
 | `<<ClientState>>` | Yes | OH | |
 | `<<ClientZip>>` | Yes | 44139 | |
 | `<<PreparerName>>` + `<<PreparerTitle>>` | Yes | Arjun Sethuraman, CPA · Managing Partner | Two fields. Name appears twice — the dateline and the sign-off. |
-| `<<ReturnInstruction>>` | Yes | Sign through Encyro and it comes straight back to us. | **Firm setting, not per client.** Same field the engagement letter uses, so the two cannot describe different return routes. |
 
 ### Specific to this letter (3 fields + 2 lists + 3 flags)
 
@@ -54,7 +53,7 @@ Same records, same values, same engagement. `EngagementRef` is what ties this le
 | `[[IF PaperFiled]]` | Flag | Boolean | **The exact inverse of `EFiled`.** Puts filing on the client, which is the most important sentence in the letter when it applies. |
 | `[[IF EstimatedPayments]]` | Flag | Boolean | Drops the next-year estimates section when there are no vouchers in the package. |
 
-**Total: 21 fields + 2 repeating lists of 2 + 3 flags.**
+**Total: 20 fields + 2 repeating lists of 2 + 3 flags.**
 
 Not variables: the review-before-you-sign paragraph, the never-send-a-payment-to-us warning, the certified-mail advice, the retention paragraph, and the whole of the "Where this engagement ends" section.
 
@@ -111,7 +110,6 @@ Both flag states are exercised: this one is e-filed with estimates, so `PaperFil
   "ClientState": "OH",
   "ClientZip": "44139",
   "SignatureDeadline": "April 10, 2027",
-  "ReturnInstruction": "Sign through Encyro and it comes straight back to us.",
   "FirmName": "SAT-C LLP",
   "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
   "FirmAddress1": "6544 Copley Avenue",

@@ -83,7 +83,7 @@
   <span class="cond">[[IF EFiled]]</span>
   <div class="sec">
     <h2><span class="n">03</span>Signing the e-file authorization</h2>
-    <p>We cannot transmit anything until the signed authorization is back with us. <span class="f">&lt;&lt;ReturnInstruction&gt;&gt;</span> On a joint return, <strong>both spouses sign</strong>, and one signature is not enough to file.</p>
+    <p>We cannot transmit anything until the signed authorization is back with us. On a joint return, <strong>both spouses sign</strong>, and one signature is not enough to file.</p>
     <div class="callout">
       <p><strong>Signing the authorization is not the same as paying.</strong> If a return shows a balance due, the payment is a separate step and it has its own deadline — see section 02. Signing on time and paying late still carries interest and penalties.</p>
     </div>
@@ -157,7 +157,6 @@
     <tr><td>&lt;&lt;Item.Return&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>Federal Form 1040 · Refund of $1,240, direct deposit to the account ending 4417. Detail is an empty string when there is nothing to add, never "None".</td></tr>
     <tr><td>[[EACH ActionList]]</td><td class="req">List</td><td>One or more. Two sub-fields. The checklist a client works down. <b>Every amount in it is a pre-formatted string from the money formatter</b> — this template does no arithmetic.</td></tr>
     <tr><td>&lt;&lt;Item.Action&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>Pay the Ohio balance due · $412.00 to Ohio Treasurer of State by April 15, 2027</td></tr>
-    <tr><td>&lt;&lt;ReturnInstruction&gt;&gt;</td><td class="req">Required</td><td>Sign through Encyro and it comes straight back to us. — <b>firm setting, not per client.</b> Same field the engagement letter uses.</td></tr>
     <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>Four fields. Name appears twice (dateline and sign-off), phone twice (the anti-fraud line and the questions section).</td></tr>
     <tr><td>[[IF EFiled]]</td><td class="req">Flag</td><td>Boolean. The e-file branch: signing the authorisation, and the confirmation we owe you.</td></tr>
     <tr><td>[[IF PaperFiled]]</td><td class="req">Flag</td><td>Boolean, and <b>the exact inverse of EFiled</b> — see the note below. The paper branch puts filing on the client, which is the single most important sentence in the letter when it applies.</td></tr>

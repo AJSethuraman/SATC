@@ -42,7 +42,6 @@ Same names, same records, same values where the client is the same. This is the 
 | `<<LocalReturns>>` | Yes | City of Cleveland net profit return | |
 | `<<AdditionalForms>>` | Yes | None | **Emit the literal "None" when empty**, never a blank. With foreign reporting in scope, blank and "None" are different statements. |
 | `<<MaterialsDeadline>>` | Yes | February 15, 2027 | **The entity value, which is earlier than the individual one.** Appears twice — sections 02 and 05. |
-| `<<ReturnInstruction>>` | Yes | Sign through Encyro and it comes straight back to us. | Firm setting. |
 | `<<PreparerName>>` + `<<PreparerTitle>>` | Yes | Arjun Sethuraman, CPA · Managing Partner | Two fields. |
 
 ### Specific to this letter (5 fields + 3 flags)
@@ -56,7 +55,7 @@ Same names, same records, same values where the client is the same. This is the 
 | `[[IF OwnerReturnsElsewhere]]` | Flag | Boolean | **The exact inverse.** |
 | `[[IF SCorpElection]]` | Flag | Boolean | Adds the officer-compensation scope exclusion in section 03, which is meaningless for a partnership. |
 
-**Total: 28 fields + 3 flags. No repeating lists.**
+**Total: 27 fields + 3 flags. No repeating lists.**
 
 Sixteen of the twenty-one are the same fields, from the same records, as the individual tax letter.
 
@@ -120,7 +119,6 @@ An S corporation whose owners' personal returns the firm also prepares. The othe
   "AdditionalForms": "None",
   "MaterialsDeadline": "February 15, 2027",
   "ScheduleK1Target": "March 10, 2027",
-  "ReturnInstruction": "Sign through Encyro and it comes straight back to us.",
   "SignerName": "Daniel Reyes",
   "SignerTitle": "Managing Member",
   "FirmName": "SAT-C LLP",

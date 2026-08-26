@@ -73,8 +73,26 @@ def test_missing_field_raises_rather_than_shipping(record):
 
 
 def test_confirm_placeholder_cannot_reach_a_client(record):
+    """An undecided firm setting stops the render rather than printing.
+
+    HOLED IN A FIELD THE TEMPLATE ACTUALLY MERGES, and the assertion below
+    checks that. Until 26 August 2026 this test poked `ReturnInstruction`;
+    when that field was retired the template stopped merging it, the
+    placeholder never reached the output, and the test went on passing while
+    checking nothing. The guard reads the RENDERED TEXT, not the record, so a
+    value nothing prints can never fail it.
+
+    Naming the field in an assertion is what makes the next retirement break
+    this test loudly instead of quietly hollowing it out.
+    """
+    field = "PreparerName"
+    template = (TEMPLATE_DIR / OPENING_PACKAGE["tax letter"]).read_text(encoding="utf-8")
+    assert f"&lt;&lt;{field}&gt;&gt;" in template, (
+        f"this test holes {field}, which the tax letter no longer merges — "
+        f"point it at a field the template does merge, or it proves nothing"
+    )
     undecided = dict(record)
-    undecided["ReturnInstruction"] = "[CONFIRM: how do they return it?]"
+    undecided[field] = "[CONFIRM: who is signing this one?]"
     with pytest.raises(MergeError) as e:
         render_file(TEMPLATE_DIR / OPENING_PACKAGE["tax letter"], undecided)
     assert "CONFIRM" in str(e.value)

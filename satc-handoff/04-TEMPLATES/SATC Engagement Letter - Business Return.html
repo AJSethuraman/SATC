@@ -141,7 +141,7 @@
 
   <div class="exec">
     <div class="accept">Acceptance</div>
-    <p class="lead" style="margin-top:12pt">If this letter states the entity's understanding, sign and return a copy. <span class="f">&lt;&lt;ReturnInstruction&gt;&gt;</span> The person signing must be authorized to bind the entity.</p>
+    <p class="lead" style="margin-top:12pt">If this letter states the entity's understanding, sign below. The person signing must be authorized to bind the entity.</p>
 
     <div class="sigrow">
       <div>
@@ -181,7 +181,6 @@
     <tr><td>&lt;&lt;FederalReturns&gt;&gt; &lt;&lt;StateReturns&gt;&gt; &lt;&lt;LocalReturns&gt;&gt; &lt;&lt;AdditionalForms&gt;&gt;</td><td class="req">Required</td><td>Four fields, the same four the individual letter uses, from the same interview answers. Name every state — this is the scope boundary. <b>Emit the literal "None" when empty</b>, never a blank.</td></tr>
     <tr><td>&lt;&lt;MaterialsDeadline&gt;&gt;</td><td class="req">Required</td><td>February 15, 2027 — <b>the entity value, which is earlier than the individual one.</b> Appears twice: sections 02 and 05.</td></tr>
     <tr><td>&lt;&lt;ScheduleK1Target&gt;&gt;</td><td class="req">Required</td><td>March 10, 2027 — when the K-1s are delivered. <b>A real date</b>: every owner's preparer schedules around it.</td></tr>
-    <tr><td>&lt;&lt;ReturnInstruction&gt;&gt;</td><td class="req">Required</td><td>Sign through Encyro and it comes straight back to us. — firm setting, shared with the other letters</td></tr>
     <tr><td>&lt;&lt;SignerName&gt;&gt; &lt;&lt;SignerTitle&gt;&gt;</td><td class="req">Required</td><td>Daniel Reyes · Managing Member. Two fields, <b>the same pair the bookkeeping letter uses</b> — an entity signs through a person, and that person must be able to bind it.</td></tr>
     <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner</td></tr>
     <tr><td>[[IF OwnerReturnsPrepared]]</td><td class="req">Flag</td><td>Boolean. The firm also prepares the owners' personal returns.</td></tr>

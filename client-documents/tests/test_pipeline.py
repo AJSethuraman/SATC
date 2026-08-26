@@ -108,7 +108,7 @@ def test_no_sample_states_a_firm_value_the_firm_does_not_set():
         record = json.loads(path.read_text(encoding="utf-8"))
         for field in ("PreparerName", "PreparerTitle", "PreparerEmail",
                       "BillingContactName", "BillingContactEmail",
-                      "ReturnInstruction", "PaymentInstruction"):
+                      "PaymentInstruction"):
             if field in record:
                 assert record[field] == settings[field], (
                     f"{path.name}: {field} has drifted from firm-settings.yaml"

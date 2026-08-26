@@ -281,10 +281,6 @@ fields:
     templates: [disengagement-letter]
     notes: >-
       A real date. Records come back whether or not the account is settled.
-  - field: ReturnInstruction
-    label: "How to return a signed document"
-    source: firm
-    templates: [business-letter, delivery-letter, tax-letter]
   - field: ScheduleK1Target
     label: "K-1s go out by"
     source: engagement

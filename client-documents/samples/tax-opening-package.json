@@ -23,7 +23,6 @@
   "PriorFirm": true,
   "PriorFirmName": "Halloran & Reeve CPAs",
   "FirstDeliverableTarget": "April 1, 2027",
-  "ReturnInstruction": "Sign through Encyro and it comes straight back to us.",
   "FirmName": "SAT-C LLP",
   "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
   "FirmAddress1": "6544 Copley Avenue",
@@ -39,7 +38,7 @@
     {
       "Service": "Self-Employed",
       "Detail": "You work for yourself",
-      "Includes": "Includes: Your federal 1040, your first state return and your first local return; Wages, interest and dividends; The standard deduction; Itemized deductions; One brokerage statement; Up to two K-1s you receive; One gig Schedule C on standard mileage; One full Schedule C business.",
+      "Includes": "Includes: Your federal 1040, your first state return and your first local return; Wages, interest and dividends; Itemized deductions; One brokerage statement; Up to two K-1s you receive; One gig Schedule C on standard mileage; One full Schedule C business.",
       "Amount": "$500.00"
     },
     {

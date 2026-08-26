@@ -526,10 +526,29 @@ def _chain(key: str, tiers: dict, where: str) -> list[str]:
 
 
 def covers(key: str, tiers: dict, where: str) -> list[str]:
-    """Every line a package covers, broadest rung first."""
+    """Every line a package covers, broadest rung first.
+
+    A rung's `supersedes:` drops lines an earlier rung stated, in place,
+    BEFORE its own are added. Not everything a package covers is cumulative:
+    the standard deduction and itemizing are one choice, and a Standard
+    estimate that inherited Essentials' line listed both. Whatever a rung
+    supersedes has to be something a lower rung actually says -- `validate`
+    refuses the alternative, which is config that reads as a decision and
+    does nothing.
+    """
     out: list[str] = []
     for name in reversed(_chain(key, tiers, where)):
-        for line in (tiers.get(name) or {}).get("covers") or []:
+        rung = tiers.get(name) or {}
+        for gone in rung.get("supersedes") or []:
+            if gone not in out:
+                raise PricingError(
+                    f"{where}.{name} supersedes {gone!r}, which no package "
+                    f"below it covers. A line that replaces nothing is a "
+                    f"decision that does nothing -- either the wording drifted "
+                    f"on the rung below, or this belongs in `covers:`."
+                )
+            out.remove(gone)
+        for line in rung.get("covers") or []:
             if line not in out:
                 out.append(line)
     return out

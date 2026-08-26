@@ -66,9 +66,17 @@ billing:
   contact_phone: "307-941-0508"
 
 delivery:
-  # Field: ReturnInstruction. Replaces the old "return it in the envelope
-  # provided", which is wrong for an emailed letter.
-  return_instruction: "Sign through Encyro and it comes straight back to us."
+  # RETIRED 26 August 2026 — the field ReturnInstruction, which read "Sign
+  # through Encyro and it comes straight back to us." It described a return
+  # ROUTE, and once the firm decided the signature happens in place there is
+  # no route left to describe. The firm, cutting it from the engagement
+  # letter: "If this letter states your understanding, sign below." And, on
+  # the onboarding letter's copy of the same idea: "they dont send it to us -
+  # it would be sent automatically via encyro and i dont care to say that
+  # again".
+  #
+  # It printed in three letters. Deleted rather than left set, so nothing can
+  # merge a sentence the firm has stopped saying.
 
   # Field: PaymentInstruction. One sentence, from settings, not per client, so
   # it changes in one place when the processor changes.

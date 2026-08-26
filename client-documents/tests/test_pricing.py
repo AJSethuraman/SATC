@@ -2084,3 +2084,51 @@ def test_an_assumption_that_cannot_apply_is_not_printed():
     entity = pricing.assumptions({"federal_form": "1120S"}, s)
     assert any(a.startswith("Officer compensation") for a in entity)
     assert any(a.startswith("Records cleanup") for a in entity)
+
+
+def test_no_package_tells_a_client_it_covers_two_deduction_methods():
+    """A return takes the standard deduction or itemizes. Never both.
+
+    Found by the firm on 26 August 2026, reading a Standard estimate: it
+    listed "The standard deduction" and "Itemized deductions" one after the
+    other, because `covers:` inherits down the ladder and Essentials says the
+    first. Both printed, so the estimate stated a thing that cannot be true —
+    and buried the one line that explains why the package costs more.
+
+    The firm's rule: "standard is implied - itemized is not. so on essentials
+    and starter, we can keep standard. for the higher ones just say itemized."
+    Written as a property rather than as four expected lists, so a fifth
+    package cannot be added with the bug back in it.
+    """
+    s = pricing.load()
+    tiers = s["base"]["1040"]["tiers"]
+    for key in tiers:
+        lines = [ln.lower() for ln in pricing.covers(key, tiers, "base.1040")]
+        standard = [ln for ln in lines if "standard deduction" in ln]
+        itemized = [ln for ln in lines if "itemi" in ln]
+        assert not (standard and itemized), (
+            f"the {key!r} package tells a client it covers both the standard "
+            f"deduction and itemizing: {standard + itemized}"
+        )
+        assert standard or itemized, (
+            f"the {key!r} package says nothing about which deduction it "
+            f"covers, which is the one thing that separates the rungs"
+        )
+
+
+def test_superseding_a_line_no_lower_package_says_is_refused():
+    """`supersedes:` that replaces nothing is config that reads as a decision.
+
+    The failure it guards is drift, not typos: someone rewords Essentials'
+    covers line, Standard's `supersedes:` quietly stops matching, and both
+    deduction methods are back on the estimate with the config still sitting
+    there looking like it handles the case.
+    """
+    s = pricing.load()
+    tiers = {k: dict(v) for k, v in s["base"]["1040"]["tiers"].items()}
+    tiers["essentials"] = dict(tiers["essentials"])
+    tiers["essentials"]["covers"] = ["Wages, interest and dividends"]
+    with pytest.raises(pricing.PricingError) as caught:
+        pricing.covers("standard", tiers, "base.1040")
+    assert "supersedes" in str(caught.value)
+    assert "The standard deduction" in str(caught.value)

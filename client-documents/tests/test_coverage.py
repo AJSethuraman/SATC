@@ -41,7 +41,7 @@ FIRM = {"FirmName", "FirmLegalName", "FirmAddress1", "FirmCity",
         "FirmState", "FirmZip", "FirmWebsite", "FirmJurisdiction",
         "PreparerName", "PreparerTitle", "PreparerEmail",
         "BillingContactName", "BillingContactEmail",
-        "ReturnInstruction", "PaymentInstruction", "MaterialsDeadline"}
+        "PaymentInstruction", "MaterialsDeadline"}
 DELIVERY = {"AmountDue", "InvoiceDate", "InvoiceNumber", "Subtotal",
             "SignatureDeadline", "EstimateDate", "EstimateTotal", "VarianceNote",
             "CreditAmount", "CreditDetail", "CreditLabel", "EstimateReference"}
