@@ -806,10 +806,16 @@ assumed:
     # promises happens within three business days of the documents arriving.
     raised_at: file_review
 
-# `beyond` accepts only `hourly`. A `requote` value would need a workflow to
-# stop the work, produce a second estimate and wait for a signature, and the
-# firm has ruled that out on purpose. Keeping the key means the ruling is
-# visible rather than implied by the absence of an alternative.
+# `beyond` accepts `hourly` and `priced`. It does NOT accept `requote`: that
+# would need a workflow to stop the work, produce a second estimate and wait
+# for a signature, and the firm has ruled that out on purpose. Keeping the key
+# means the ruling is visible rather than implied by the absence of an
+# alternative.
+#
+# This comment read "accepts only `hourly`" until 26 August 2026 -- three
+# blocks after `brokerage_keying` started using `priced`, which the firm asked
+# for. A comment that contradicts the config above it is worse than no comment:
+# whoever reads it stops trusting the rest of the file.
 
 # ── what this schedule deliberately does not do ───────────────────────────
 #

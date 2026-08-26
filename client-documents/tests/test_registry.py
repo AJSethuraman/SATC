@@ -316,3 +316,32 @@ def test_nothing_in_POLICY_ONLY_is_merged_by_a_template():
             f"{path} is treated as policy-only but a template merges a field "
             f"by that name — doctor would call it harmless when it is not"
         )
+
+
+def test_the_template_directory_holds_only_templates():
+    """A rendered onboarding letter — real-looking name, street address and all
+    — sat in `04-TEMPLATES` for a day, committed by the signing-package work.
+
+    Found 26 August 2026. Nothing caught it because `TEMPLATES` above is an
+    explicit dict: every test asks the directory for files it already knows the
+    names of, so an extra file is invisible to all of them. A rendered document
+    in the template library is one careless copy away from being edited as the
+    template, and it is filled with a client's details.
+
+    A template is identifiable without a whitelist: it still carries the
+    markers the merge engine substitutes. A render has none left, by
+    definition — that is what rendering means, and `render_file` refuses to
+    finish while a token survives.
+    """
+    known = set(TEMPLATES.values()) | {"_SKELETON.html"}
+    strays = []
+    for path in sorted(TEMPLATE_DIR.glob("*.html")):
+        if path.name in known:
+            continue
+        found = tokens_in(path.read_text(encoding="utf-8"))
+        if not (found["fields"] or found["flags"] or found["lists"]):
+            strays.append(path.name)
+    assert not strays, (
+        f"rendered output in the template library: {strays}. "
+        "Renders belong in an output directory, not beside the templates."
+    )

@@ -344,7 +344,13 @@ mispricing hurts most.
 
 **Raised** 25 Aug 2026, building the brokerage lines.
 
-**Status** Open. Needs a decision from the firm; nothing is blocked meanwhile.
+**Status** Settled 26 Aug 2026 — the vocabulary was widened and the firm asked
+for it. `assumed.brokerage_keying` now carries `beyond: priced` with
+`beyond_price_from: brokerage_keyed`, so the estimate reads the number off the
+line that charges it rather than repeating it. `phrases.beyond_priced` is the
+sentence. **This status line said "Open" until 26 August 2026, a day after the
+work shipped** — worth noting, because a register nobody closes out is a
+register people stop reading.
 
 Brokerage moved off the hourly list and onto the counted one — $45 a
 statement, $95 for one that has to be keyed. `assumed.brokerage` came off in
@@ -388,9 +394,19 @@ clothes. Recommendation: do it. But the firm decides.
 > something should be able to pretty simply determine its cheaper tier or
 > combination of pricing to get them to the cheapest thing they need to do
 
-**Status** Open. A price decision, not a bug. Nothing is blocked; the estimate
-is correct and internally consistent, it is just dearer than it needs to be for
-one client shape.
+**Status** Settled 26 Aug 2026 — dissolved rather than decided, by making
+rentals a **form**. Verified 26 Aug: `per_unit.rental` is priced
+`form_fee: 145` covering three, then $45 each, and **no tier carries a rental
+allowance any more** — `standard` allows brokerages and K-1s, `business`
+allows one standard-mileage Schedule C, and neither mentions rentals. So the
+$175 step no longer buys a landlord anything they could fail to spend: it buys
+one full Schedule C, which is what the name is about. The arithmetic below is
+kept because it is why the shape changed, but it no longer describes the
+sheet.
+
+**This status line said "Open" until 26 August 2026**, as T-14's did. Two of
+four live threads were already settled and still reading as open — see the note
+on T-14.
 
 **The arithmetic.** Property & Business is $500 against Standard's $325 — a
 $175 step — and what it buys a landlord is a three-rental allowance worth
@@ -467,3 +483,77 @@ ladder somewhere else fails immediately.
 | — | Rentals outnumbering local returns | Flagged for a human; never derived | 25 Aug 2026 |
 | — | The gig Schedule C in Property & Business | Included; the either/or is rentals vs a FULL Schedule C | 25 Aug 2026 |
 | — | Where pricing goes | A public price page, for transparency | 25 Aug 2026 |
+
+---
+
+## T-16 · Amended returns are priced in prose and nowhere in the schedule
+
+**Raised** 26 Aug 2026, checking what the price page could publish.
+
+**Status** Open. Needs a price from the firm, or a decision not to offer it.
+
+`docs/pricing-for-website.md` §2 lists **Amended return — $250**. It is not in
+`registry/fee-schedule.yaml`: not a `base`, not a `per_unit` line, not one of
+the eight `per_form` situations. Grep the schedule for "amend" and there is no
+hit at all.
+
+The schedule is the source of truth — that is §4's own rule, and the site's
+checker enforces it, so the $250 correctly did not reach the price page. But
+the consequence runs further than the website: **the estimate cannot quote an
+amended return and the invoice cannot bill one.** There is no line to put it
+on. Today the work would be typed in by hand, which is the exact thing the
+counted schedule exists to stop.
+
+Two ways it is a real number and one way it is not:
+
+- It is the firm's price and the YAML simply missed it → add it and the whole
+  pipeline picks it up.
+- It is a stale figure from the prose brief that nobody has re-decided → the
+  fix is to strike it from §2, not to publish it.
+- **SATC does not take amended returns as standalone work** → say so, and the
+  prose line is the thing that is wrong.
+
+**Recommendation:** it is a `base`, not a per-unit line — an amended return is
+a whole engagement with its own scope, not an add-on to another return. But the
+price is the firm's and I have not assumed one.
+
+---
+
+## T-17 · The firm can send an extension notice and cannot bill for it
+
+**Raised** 26 Aug 2026, same check as T-16, and the sharper of the two.
+
+**Status** Open. Needs a decision; one client-facing document is affected.
+
+`docs/pricing-for-website.md` §2 lists **Extension with a payment estimate —
+$75**. Like the amended return, it is absent from `fee-schedule.yaml`.
+
+What makes this one worse is that the rest of the machinery is already built
+around it:
+
+- **The Extension Notice is one of the ten templates** and it renders for real
+  today — it is not blocked on anything.
+- That template **deliberately carries no fee**. Its FIELDS spec says so in as
+  many words: *"No fee. The invoice owns it. An extension notice that also asks
+  for money reads as a bill and gets filed as one — and this is the letter that
+  most needs reading."* That is a good decision.
+- The invoice it hands the money to **has no line for an extension**.
+
+So the fee was handed from the notice to the invoice, and the invoice never
+received it. Each document is individually right and the pair drops the charge
+on the floor. It is the same shape as the six bugs found on 26 August: nothing
+errors, nothing is flagged, and the work is simply never billed.
+
+There is also a live argument in the schedule about the number. The `per_form`
+header comment records that **$50 is the firm's number against a
+recommendation of $75**, and that at $75 the extension line *would simply have
+become* the per-form price — it stays a named exception at $50 precisely
+because *"computing a payment from an incomplete file is not a twenty-minute
+job."* That reasoning was written about the extension specifically. The $75 in
+the prose is the number that argument produced and then nobody carried across.
+
+**Recommendation:** price it, and as its own named line rather than inside
+`per_form` — the schedule's own comment already explains why it does not fit
+there. Whether it is $75, or $50 to match the per-form price, or something else
+is the firm's call. Filing an extension without a payment estimate may well be
+free; the priced thing is the estimate.
