@@ -236,6 +236,14 @@ def test_every_question_earns_its_place(registry, interview):
             continue
         if q.get("feeds"):          # feeds a computed list, e.g. LineItems
             continue
+        if q.get("derives"):
+            # Supplies no merge field itself; another question's value is
+            # worked out from it. `return_features` is the case -- it asks
+            # about the client's year and `federal_schedules` follows.
+            ids = {o["id"] for _, o in _interview_questions(interview)}
+            missing = set(q["derives"]) - ids
+            assert not missing, f"{q['id']} derives questions that do not exist: {sorted(missing)}"
+            continue
         if q.get("internal"):
             assert q.get("internal_reason"), f"{q['id']} is internal with no reason given"
             continue
@@ -283,6 +291,31 @@ def test_no_sample_contains_a_real_looking_tin():
     for path in (ROOT / "samples").glob("*.json"):
         text = path.read_text(encoding="utf-8")
         assert not TIN_VALUE.search(text), f"{path.name} contains something shaped like a TIN"
+
+
+# ── plain English ─────────────────────────────────────────────────────────
+
+def test_every_field_has_a_plain_english_label(registry):
+    """The engagement record used to read `FEDERALRETURNS | Form 1040 with
+    Schedules A, C, E, and SE` -- the software's name for the thing rather
+    than the thing. The firm, 26 August 2026: "it should have plain english
+    descriptions next to field names."
+
+    The label lives beside the field it names, so adding a field and not
+    saying what it is fails here rather than showing a stranger a
+    PascalCase token.
+
+    THIS IS THE ONLY RULE. Two attempts at a stricter one were abandoned: a
+    label may not be the field name respaced (failed on `AmountDue` ->
+    "Amount due"), then a label may not be the field name verbatim (failed on
+    `Subtotal`). Some field names are already plain English, and no rule
+    distinguishes that from laziness. A test that fails when the project
+    succeeds teaches whoever hits it to edit the test.
+    """
+    bare = []
+    for kind, key in (("fields", "field"), ("flags", "flag"), ("lists", "list")):
+        bare += [e[key] for e in registry[kind] if not (e.get("label") or "").strip()]
+    assert not bare, f"no plain-English label: {bare}"
 
 
 # ── spelling ──────────────────────────────────────────────────────────────

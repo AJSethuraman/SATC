@@ -30,6 +30,8 @@ from pathlib import Path
 
 import yaml
 
+import schedules as sched
+
 ROOT = Path(__file__).resolve().parent
 SCHEMA = ROOT / "registry" / "interview.yaml"
 
@@ -136,6 +138,21 @@ def prefill_for(question: dict, lead: dict | None) -> object:
                         out.append(one)
             return out or None
         return mapping.get(node)
+
+    # No map, because the question shares the website's vocabulary on purpose
+    # -- `return_features` does. Anything the question does not OFFER is still
+    # dropped: the intake form collects "w2" and "retirement" alongside
+    # "rentals", and those are real things to tell us that imply no schedule.
+    #
+    # Filtering here rather than leaving it to `prefill_is_answerable` matters:
+    # that helper rejects the WHOLE list when one value is unknown, so a lead
+    # saying "W-2 employment, Rental property" would have offered a claim
+    # nobody could accept with a keystroke -- which is how the old mapping's
+    # five dead keys stayed invisible for as long as they did.
+    options = [o["value"] for o in question.get("options") or []]
+    if options and isinstance(node, list):
+        kept = [v for v in node if v in options]
+        return kept or None
     return node
 
 
@@ -165,9 +182,15 @@ class Interview:
     answers: dict = dc_field(default_factory=dict)
 
     def pending(self):
-        """Every question still to ask, in order, given current answers."""
+        """Every question still to ask, in order, given current answers.
+
+        A `derived: true` question is never asked. It holds a value the
+        software works out -- `federal_schedules` from `return_features` --
+        and putting it in front of a person would be asking them to confirm
+        arithmetic they did not do.
+        """
         for section, q in all_questions(self.schema):
-            if q["id"] in self.answers:
+            if q["id"] in self.answers or q.get("derived"):
                 continue
             if visible(q, self.answers):
                 yield section, q
@@ -180,6 +203,12 @@ class Interview:
         if q.get("required") and value in (None, "", []):
             raise InterviewError(f"{qid} is required")
         self.answers[qid] = value
+        # DERIVE BEFORE PRUNING. `federal_schedules` is worked out from the
+        # facts, and half the fee questions below are gated on it -- change
+        # `return_features` and `count_rentals` has to appear or disappear on
+        # the same keystroke. Deriving after the prune would leave the session
+        # one answer behind itself.
+        sched.apply(self.answers, self.schema)
         # An answer can hide a question that was already answered -- change
         # joint_return to "no" and the spouse name must go, or it reaches a
         # document that no longer has a place for it.
@@ -195,7 +224,8 @@ class Interview:
 
     def missing_required(self) -> list[str]:
         return [q["id"] for _, q in all_questions(self.schema)
-                if q.get("required") and visible(q, self.answers)
+                if q.get("required") and not q.get("derived")
+                and visible(q, self.answers)
                 and self.answers.get(q["id"]) in (None, "", [])]
 
     def hard_no(self) -> list[str]:

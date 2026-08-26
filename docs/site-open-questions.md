@@ -161,3 +161,38 @@ a test holds it that way.
 Raised when "Business" was renamed and still unanswered. If one of the four
 names has gone out to a real person, a rename stops being free and becomes a
 migration. Cheap to find out, and only the firm can.
+
+## B6. Two facts the interview asks about that the intake form cannot express
+
+Found 26 August 2026 while rebuilding the interview to ask about a client's
+year rather than about schedules.
+
+**The good news first: the two now share a vocabulary.** `individual_complexity`
+on the intake form and `return_features` in the interview ask the same question
+in the same words with the same option values, so a website answer prefills
+directly. Until today it did not: the interview translated through a map whose
+keys had drifted — it expected `rental`, `self_employed`, `sole_prop`,
+`brokerage` and `itemize`, and the site has never sent any of the five. **A
+prospect who ticked "Rental property" prefilled nothing.** Only `k1` and
+`investments` ever matched. A test now holds the two lists together.
+
+**The gap that is left** is two options the interview offers and the site does
+not ask about:
+
+| Interview option | What it means | On the site? |
+|---|---|---|
+| `farm` — "Farming" | Schedule F, and Schedule SE with it | No |
+| `itemizing` — "Mortgage interest, large medical costs or significant charitable giving" | Schedule A | No |
+
+Both change the price. A farm is a priced form; itemising is what separates the
+**Essentials** package from **Standard**. A prospect with either gets a quote
+built without knowing about them, and the preparer finds out on the call.
+
+**This is the site's call, not mine.** Adding two options to
+`individual_complexity` would close it; so would deciding that these are
+genuinely call-only facts and the estimate is expected to move. Either is
+defensible — what is not defensible is nobody knowing the gap is there.
+
+The interview does not force it closed from its side: the test asserts that
+every value the *site* sends is one the interview understands, and treats the
+reverse as a note.

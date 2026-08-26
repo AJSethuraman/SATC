@@ -12,6 +12,12 @@
   "tax_year": "2026",
   "federal_form": "1040",
   "return_basis": "original",
+  "return_features": [
+    "self_employment",
+    "rentals",
+    "k1",
+    "itemizing"
+  ],
   "federal_schedules": [
     "A",
     "C",

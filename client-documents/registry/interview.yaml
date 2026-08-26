@@ -304,22 +304,68 @@ sections:
   - id: composition
     title: What we will prepare
     questions:
-      - id: federal_schedules
-        question: "Which schedules?"
-        help: "Tick every one. This assembles the FederalReturns sentence."
+      # ASK THE FACT, DERIVE THE SCHEDULE. The firm, 26 August 2026: "the
+      # interview needs to ask questions that then mean we definitely need a
+      # schedule - not straight ask 'what schedule is required'."
+      #
+      # This replaced a checklist of schedule names -- "Schedule A — itemized
+      # deductions, Schedule B — interest and dividends" -- which asked the
+      # client for the preparer's conclusion. Every option below is a fact
+      # about the client's own year, and `implies:` says what it means. See
+      # schedules.py; the derivation is shown before an engagement is created,
+      # and a preparer who disagrees can set it directly.
+      #
+      # THE VALUES ARE THE WEBSITE'S, deliberately. `individual_complexity` on
+      # the intake form asks this same question in these same words, and the
+      # old mapping had drifted: it expected `rental`, `self_employed`,
+      # `sole_prop`, `brokerage` and `itemize`, none of which the site has ever
+      # sent. Five of its seven keys could never fire, so a prospect who ticked
+      # "Rental property" prefilled nothing. Sharing the vocabulary is what
+      # stops that happening again -- test_interview.py holds the two together.
+      - id: return_features
+        question: "Which of these apply to them?"
+        help: >-
+          Facts about their year, not schedules. What each one means for the
+          return is worked out from the answers and shown before anything is
+          created.
         type: multi
         prefill: individual_complexity
-        # The intake form and this schema do not share a vocabulary. Anything
-        # not listed here (a plain W-2, say) is not a schedule and is dropped
-        # rather than carried through as a claim.
-        prefill_map:
-          rental:        E1
-          k1:            E2
-          self_employed: [C, SE]
-          sole_prop:     [C, SE]
-          brokerage:     D
-          investments:   D
-          itemize:       A
+        options:
+          - { value: "self_employment", implies: [C, SE],
+              label: "Self-employment, freelance or 1099 work" }
+          - { value: "business_owner",  implies: [C, SE],
+              label: "A business they own that files on their personal return" }
+          - { value: "rentals",         implies: E1,
+              label: "Property they rent out" }
+          - { value: "k1",              implies: E2,
+              label: "A K-1 arrived — from a partnership, S corporation, estate or trust" }
+          - { value: "investments",     implies: D,
+              label: "Investments sold through a broker" }
+          - { value: "farm",            implies: [F, SE],
+              label: "Farming" }
+          # NOT a determination. Whether itemising beats the standard deduction
+          # is arithmetic on a year nobody has finished entering, so this asks
+          # what they HAVE and the derivation says so in as many words.
+          - { value: "itemizing",       implies: A,
+              label: "Mortgage interest, large medical costs or significant charitable giving" }
+        showIf: "federal_form == '1040'"
+        supplies: []
+        # It supplies no merge field of its own. It DERIVES one, through
+        # `federal_schedules` below, which is a third thing the registry had no
+        # word for -- neither a field this question fills nor a question with
+        # no consumer.
+        derives: [federal_schedules]
+
+      # Derived from `return_features` by schedules.apply, on every answer, so
+      # every `showIf` and every fee gate below reads it exactly as before.
+      # Never asked: it has no `question` a person is shown.
+      - id: federal_schedules
+        question: "Which schedules does that come to?"
+        help: >-
+          Worked out from the answer above. A preparer who disagrees sets it
+          here; otherwise it follows the facts.
+        type: multi
+        derived: true
         options:
           - { value: "A",  label: "Schedule A — itemized deductions" }
           - { value: "B",  label: "Schedule B — interest and dividends" }

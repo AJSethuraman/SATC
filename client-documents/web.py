@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
 
 from flask import (Flask, abort, jsonify, redirect, request, url_for)
@@ -31,6 +32,7 @@ from flask import (Flask, abort, jsonify, redirect, request, url_for)
 import editor
 import engagements
 import intake
+import schedules as sched
 import interview as iv
 import settings as firm
 
@@ -353,6 +355,10 @@ margin:0 0 20px}
 .note li{font-size:14px;color:var(--ink-2)}
 .muted{color:var(--ink-2);font-size:14px}
 code{font-family:"IBM Plex Mono",monospace;font-size:13px}
+th .fname{display:block;font:10px/1.4 "IBM Plex Mono",monospace;
+letter-spacing:.06em;color:var(--mute);text-transform:none;margin-top:2px}
+table.plain th{text-transform:none;font-family:inherit;font-size:14px;
+letter-spacing:0;color:var(--ink);font-weight:500;width:52%}
 details.blk{border-bottom:1px solid var(--hairline-2)}
 details.blk summary{cursor:pointer;list-style:none;padding:13px 2px;
 display:flex;justify-content:space-between;align-items:baseline;gap:14px;
@@ -527,10 +533,30 @@ def review_body(sid, session, blockers) -> str:
             out.append(f"<li>{esc(b)}</li>")
         out.append("</ul><p class=muted>This is work the firm does not take. "
                    "Creating anyway needs a deliberate override.</p></div>")
-    out.append("<table>")
+    # The QUESTION, not its id. This table used to read `federal_form | 1040`,
+    # which is the software's name for the thing rather than the thing. The
+    # question text is already plain English and already written, so nothing
+    # new has to be maintained alongside it.
+    # WHAT THE ANSWERS COME TO, before what the answers were. The sitting no
+    # longer asks which schedules a return needs -- it asks about the client's
+    # year and works them out -- so the derivation is the thing a preparer has
+    # to look at, and it is shown with the fact behind each line rather than
+    # as a list to take on trust.
+    derived = sched.derive(session.answers, session.schema)
+    if derived.schedules:
+        out.append('<div class="note"><h2>What that comes to</h2><table class=plain>')
+        for s, why in derived.because:
+            out.append(f"<tr><th>{esc(sched.LABELS.get(s, s))}</th>"
+                       f"<td>{esc(why)}</td></tr>")
+        out.append("</table><p class=muted>Worked out from the answers below. "
+                   "Change an answer and this changes with it.</p></div>")
+
+    asked = {q["id"]: q["question"] for _, q in iv.all_questions(session.schema)}
+    out.append("<table class=plain>")
     for k, v in session.answers.items():
         shown = ", ".join(str(x) for x in v) if isinstance(v, list) else v
-        out.append(f"<tr><th>{esc(k)}</th><td>{esc(shown)}</td></tr>")
+        out.append(f"<tr><th>{esc(asked.get(k, k))}</th>"
+                   f"<td>{esc(shown)}</td></tr>")
     out.append("</table>")
     out.append(f"<form method=post action='/interview/{esc(sid)}/finish' class=row>"
                "<button>Create the engagement</button>")
@@ -583,14 +609,37 @@ def outcome_body(sid, outcome) -> str:
     return "".join(out)
 
 
+@lru_cache(maxsize=1)
+def _field_labels() -> dict:
+    """Merge field -> what it is, in plain English. From the registry, so the
+    label sits beside the field it names rather than in a table over here."""
+    import yaml
+    path = Path(__file__).resolve().parent / "registry" / "fields.yaml"
+    reg = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    out = {}
+    # Flags and lists reach a record the same way fields do, and read the same
+    # way on the page. `SCorpElection` and `ReturnScope` were sitting under the
+    # labelled fields with nothing but their own token.
+    for kind, key in (("fields", "field"), ("flags", "flag"), ("lists", "list")):
+        for e in reg.get(kind, []):
+            out[e[key]] = e.get("label") or e[key]
+    return out
+
+
 def engagement_body(ref, record, open_now) -> str:
     out = [f"<h1>{esc(record.get('ClientFullName', ref))}</h1>",
            f"<p class=sec>{esc(ref)} &middot; {esc(record.get('PeriodLabel',''))}</p>",
-           "<table>"]
+           "<table class=plain>"]
+    labels = _field_labels()
     for k, v in record.items():
         if k.startswith("_") or isinstance(v, (list, dict)):
             continue
-        out.append(f"<tr><th>{esc(k)}</th><td>{esc(v)}</td></tr>")
+        # The label leads and the merge-field name follows it, small. A person
+        # reading the record wants to know what the value IS; a person wiring
+        # a template wants the token. Both are on the page, in that order.
+        out.append(f"<tr><th>{esc(labels.get(k, k))}"
+                   f"<span class=fname>{esc(k)}</span></th>"
+                   f"<td>{esc(v)}</td></tr>")
     out.append("</table>")
     if record.get("LineItems"):
         out.append("<h1 style='margin-top:30px'>Fee estimate</h1><table>"
