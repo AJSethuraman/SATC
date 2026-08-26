@@ -26,6 +26,34 @@ a website that contradicts the estimate is worse than a website with no prices.
 
 ---
 
+## 0.5 · If you publish only one thing
+
+The firm's own steer: the page **does not need to list every line**. It needs
+the packages.
+
+**The minimum honest page** is four things, and it is genuinely enough:
+
+1. **The four packages, cheapest to dearest, with what each covers.** §1.
+2. **The sentence that makes the prices readable:** every package includes the
+   federal return, the first state return and the first local return. Without
+   it the extras below look like double charging.
+3. **One line saying extras exist**, without necessarily itemising them —
+   "additional states, rentals, K-1s and business schedules are priced
+   separately, and your estimate lists them before you commit."
+4. **The estimate/quote distinction.** §4. An estimate is not a quote.
+
+Everything in §2 is available to publish and none of it is *required*. A page
+that lists every line reads as a menu; a page that lists four packages and
+says extras are itemised on the estimate reads as a firm. That is a judgement
+for whoever writes the copy, and either is honest.
+
+**What must NOT be trimmed to make the page shorter:** what each package
+covers. A price with no scope is the thing the firm set out to fix — "it is
+hard to know what you will pay upfront on most tax sites" — and four bare
+numbers reproduce exactly that problem.
+
+---
+
 ## 1 · The four individual packages
 
 One package per client, and the client gets **the cheapest one that covers

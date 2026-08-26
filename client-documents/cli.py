@@ -345,7 +345,35 @@ def cmd_ladder(args) -> int:
                   f"allowances are too small.")
     if not dead:
         print("  Every package is reachable and is the best deal for somebody.")
-    return 1 if dead else 0
+
+    # ── is each step worth what it costs? ─────────────────────────────────
+    print(f"\nWhat each rung adds, against its own price step.\n")
+    odd = []
+    for r in pricing.ladder_value(form=args.form):
+        if r["step"] is None:
+            print(f"  {r['label']:<22} {m.money(r['amount'], 'USD'):>8}   "
+                  f"stands alone — no rung below it to compare against")
+            continue
+        parts = ", ".join(f"{n}x {k.replace('count_', '')} @ {m.money(p, 'USD')}"
+                          for k, n, p in r["items"]) or "nothing priced"
+        print(f"  {r['label']:<22} {m.money(r['amount'], 'USD'):>8}   "
+              f"step {m.money(r['step'], 'USD')} for {parts}")
+        if r["delta"] > 0:
+            print(f"  {'':<22} {'':>8}   -> a {m.money(r['delta'], 'USD')} "
+                  f"discount on buying the parts")
+        elif r["delta"] < 0:
+            odd.append(r)
+            print(f"  {'':<22} {'':>8}   -> COSTS {m.money(-r['delta'], 'USD')} "
+                  f"MORE than buying the parts")
+        else:
+            print(f"  {'':<22} {'':>8}   -> exactly break-even")
+    if odd:
+        print()
+        for r in odd:
+            print(f"  {r['label']}: a client who does the arithmetic is better "
+                  f"off\n      without this package. Either the step is too "
+                  f"steep or it does not\n      absorb enough to justify it.")
+    return 1 if (dead or odd) else 0
 
 
 def cmd_doctor(args) -> int:

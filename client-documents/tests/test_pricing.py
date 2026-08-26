@@ -1424,3 +1424,41 @@ def test_the_report_notices_a_package_priced_out_of_existence():
     assert rows["business"]["chosen"] == 0
     assert "essentials" in rows["business"]["beaten_by"] or \
            "starter" in rows["business"]["beaten_by"]
+
+
+def test_every_package_is_a_discount_on_its_parts():
+    """A package dearer than buying the same things one at a time is a package
+    nobody who does the arithmetic will want.
+
+    That is exactly the shape T-15 found on the old rental allowance: $175 of
+    price step buying $135 of rentals. It never crossed, and the client who
+    noticed was the client who lost money by taking it.
+    """
+    for r in pricing.ladder_value():
+        if r["step"] is None:
+            continue
+        assert r["delta"] >= 0, (
+            f"{r['label']} costs ${-r['delta']} more than buying its parts: "
+            f"a ${r['step']} step absorbing ${r['absorbs']} of line items")
+
+
+def test_a_package_is_not_a_giveaway_either():
+    """The other end of the same question. A rung that absorbs far more than
+    it charges is not a package, it is a discount nobody decided on."""
+    for r in pricing.ladder_value():
+        if r["step"] is None or not r["step"]:
+            continue
+        assert r["delta"] <= r["step"], (
+            f"{r['label']} absorbs ${r['absorbs']} for a ${r['step']} step — "
+            f"more than double what it charges. Deliberate, or a mistake?")
+
+
+def test_the_value_check_reads_allowances_not_prose():
+    """`covers:` is prose and can drift; `allows` is the arithmetic.
+
+    Widening an allowance must move the number, or the check is decorative.
+    """
+    s = pricing.load()
+    s["base"]["1040"]["tiers"]["standard"]["allows"]["count_k1s"] = 6
+    row = {r["key"]: r for r in pricing.ladder_value(s)}["standard"]
+    assert row["absorbs"] == 45 + 6 * 15 + 65

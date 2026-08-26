@@ -1092,3 +1092,57 @@ def _ladder_shapes(form: str):
                     if kind:
                         a["schedule_c_kind"] = kind
                     yield a
+
+
+def ladder_value(schedule: dict | None = None, form: str = "1040") -> list[dict]:
+    """Does each rung's PRICE STEP match what that rung actually absorbs?
+
+    The other half of "are our tiers sensical with our pricing altogether".
+    `ladder_report` asks whether a package is ever chosen; this asks whether
+    its price is defensible against the firm's own per-item prices.
+
+    A package should be a small discount on its parts. Much more than that and
+    it is giving work away; less than that -- a package dearer than buying the
+    same things one at a time -- and no client who does the arithmetic will
+    ever want it, which is the shape T-15 found on the old rental allowance.
+
+    Read off `allows` and `allows_when`, which is the data that already says
+    what a rung swallows, rather than off the `covers:` prose. Prose can drift
+    from the arithmetic; allowances are the arithmetic.
+
+    Only the rung's OWN allowances count against its OWN step. Inherited ones
+    were paid for by the step below, and counting them twice makes every upper
+    rung look like a bargain.
+    """
+    s = pricing_schedule(schedule)
+    tiers = ((s.get("base") or {}).get(form) or {}).get("tiers") or {}
+    out = []
+    for key, tier in tiers.items():
+        below = tier.get("includes")
+        if not below or below not in tiers:
+            out.append({"key": key, "label": tier.get("label", key),
+                        "amount": tier.get("amount"), "step": None,
+                        "absorbs": None, "items": [], "delta": None})
+            continue
+        step = tier.get("amount", 0) - tiers[below].get("amount", 0)
+        items, absorbs = [], 0
+        for count_key, n in (tier.get("allows") or {}).items():
+            price = _unit_price(s, count_key, {})
+            if price is not None:
+                items.append((count_key, n, price)); absorbs += n * price
+        for spec in tier.get("allows_when") or []:
+            answers = {}
+            gate = spec.get("when") or {}
+            for q, v in (gate.get("answer_is") or {}).items():
+                answers[q] = v
+            for count_key, n in spec.items():
+                if count_key == "when":
+                    continue
+                price = _unit_price(s, count_key, answers)
+                if price is not None:
+                    items.append((count_key, n, price)); absorbs += n * price
+        out.append({"key": key, "label": tier.get("label", key),
+                    "amount": tier.get("amount"), "step": step,
+                    "absorbs": absorbs, "items": items,
+                    "delta": absorbs - step})
+    return out
