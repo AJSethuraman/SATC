@@ -247,14 +247,19 @@ def report(record: dict, rendered: dict[str, str]) -> list[Check]:
     # invites one, and "two weeks after the file is complete" cannot be
     # compared to a date. Only a date against a date is evidence.
     due = _as_date(record.get("MaterialsDeadline"))
-    for field, what in (("FirstDeliverableTarget", "the first deliverable"),
-                        ("ScheduleK1Target", "the K-1s")):
+    for field, name, what in (
+            ("FirstDeliverableTarget",
+             "the first deliverable is not promised before the materials are due",
+             "the first deliverable"),
+            ("ScheduleK1Target",
+             "the K-1s are not promised before the materials are due",
+             "the K-1s")):
         promised = _as_date(record.get(field))
         if due is None or promised is None:
             continue
         stamp = "%B %-d, %Y"
         out.append(Check(
-            f"{what} is not promised before the materials are due",
+            name,
             promised >= due,
             f"{promised.strftime(stamp)}, on or after the {due.strftime(stamp)} "
             f"deadline" if promised >= due else

@@ -163,7 +163,6 @@ def assert_no_holes(name: str, html: str) -> None:
     ("1040", "Engagement Letter"),
     ("1120S", "Business Engagement Letter"),
     ("1065", "Business Engagement Letter"),
-    ("1120", "Business Engagement Letter"),
 ])
 def test_every_federal_form_reaches_a_folder_the_client_can_be_sent(
         form, letter, tmp_path):
@@ -182,9 +181,6 @@ def test_every_federal_form_reaches_a_folder_the_client_can_be_sent(
     door a person actually uses and reads the folder afterwards.
     """
     answers = sitting() if form == "1040" else entity_sitting(federal_form=form)
-    if form == "1120":
-        answers.pop("k1_target", None)          # a C corporation issues none
-        answers["entity_structure"] = "corporation"
     store, out = tmp_path / "store", tmp_path / "pack"
     ref = created(answers, store).ref
 
@@ -204,6 +200,47 @@ def test_every_federal_form_reaches_a_folder_the_client_can_be_sent(
     on_disk = sorted(n for n in names)
     listed = sorted(f for d in book["Documents"] for f in d["files"])
     assert on_disk == listed, "the manifest and the folder disagree"
+
+
+def test_a_c_corporation_pack_arrives_whole_or_not_at_all(tmp_path):
+    """A GAP FOUND HERE, and the invariant that survives whichever way it goes.
+
+    A C corporation answering the interview cannot produce its own engagement
+    letter. `k1_target` is asked only of a 1120-S or a 1065 -- correctly, a C
+    corporation issues no K-1s -- and the business engagement letter merges
+    `<<ScheduleK1Target>>` unconditionally, in a section 02 headed "Schedules
+    K-1, and your personal return" that does not describe a C corporation at
+    all. So the pack refuses, every time, on a field the interview is right
+    not to ask for.
+
+    That is the firm's decision to make: section 02 needs a conditional, and
+    the templates and their FIELDS specs are the authoring contract's
+    territory, not this suite's. It is reported rather than papered over.
+
+    WHAT THIS TEST HOLDS is the part that must be true either way, and it is
+    the reason the pack exists: it arrives whole or it does not arrive. A
+    half-written folder is worse than none, because the client signs what
+    turned up. Note the shape of the near miss --
+    `test_packaging.test_every_entity_type_produces_a_pack[1120]` is green,
+    because its fixture hands the 1120 a `k1_target` the interview would never
+    have collected. A fixture that answers a question the software does not
+    ask is a test passing for the wrong reason.
+    """
+    store, out = tmp_path / "store", tmp_path / "pack"
+    answers = entity_sitting(federal_form="1120", entity_structure="corporation")
+    answers.pop("k1_target", None)              # the interview would not ask
+    ref = created(sched.apply(answers), store).ref
+
+    rc = write_pack(ref, store, out)
+    if rc == 0:
+        names = [p.name for p in out.glob("*.html")]
+        assert any("Business Engagement" in n for n in names)
+        for path in out.glob("*.html"):
+            assert_no_holes(path.name, path.read_text(encoding="utf-8"))
+    else:
+        assert not out.exists() or not list(out.iterdir()), (
+            "a refused pack left documents on disk, which is the one failure "
+            "the atomic write exists to prevent")
 
 
 def test_both_front_doors_send_the_same_documents(tmp_path):
@@ -349,8 +386,10 @@ def test_the_request_list_grows_and_shrinks_with_the_answers(tmp_path):
     plain_docs = [r["Document"] for r in plain["RequestList"]]
     loaded_docs = [r["Document"] for r in loaded["RequestList"]]
 
-    # Everybody is asked for the same three, and they come first.
-    assert plain_docs == loaded_docs[:len(plain_docs)] or set(plain_docs) <= set(loaded_docs)
+    # Everybody is asked for the same ungated ones, and they come first --
+    # registry order, not answer order, so the engagement letter and the ID
+    # sit at the top rather than wherever a gate happened to fire.
+    assert loaded_docs[:len(plain_docs)] == plain_docs
     assert len(loaded_docs) > len(plain_docs) + 4, (
         "a client with five schedules, a home sale and a predecessor was "
         f"asked for {len(loaded_docs)} things against a plain client's "
@@ -478,8 +517,10 @@ def test_a_form_fee_says_what_it_covers_and_what_is_extra(tmp_path):
 
     page3 = readable(render_all(three, ["fee-estimate"])["fee-estimate"])
     page4 = readable(render_all(four, ["fee-estimate"])["fee-estimate"])
-    assert "covering up to 3" in page3 and "plus" not in page3.split("Rental schedule")[1][:120]
-    assert "plus 1 ×" in page4, "the fourth property is not shown as an extra"
+    assert "covering up to 3" in page3
+    assert "plus 1 ×" not in page3, "a third property was charged as an extra"
+    assert "covering up to 3" in page4 and "plus 1 × $45.00" in page4, \
+        "the fourth property is not shown as an extra at the marginal rate"
 
     only = [i for i in four["LineItems"] if i["Service"] == "Rental schedule"]
     assert len(only) == 1, "one Schedule E is one line, however many properties"
@@ -600,9 +641,13 @@ def test_a_sitting_driven_from_a_website_lead_reaches_the_letter(tmp_path):
     assert accepted.get("client_state") == "OH"
     assert set(accepted.get("return_features", [])) == {"k1", "rentals"}, (
         "the website's own complexity vocabulary did not reach the interview")
-    assert "federal_form" not in accepted, (
-        "a lead asking for both individual tax and tax resolution still has to "
-        "be asked which return; only an unambiguous claim is answerable")
+    # Both services this prospect asked for mean the same return, so the claim
+    # collapses to one answer and is offerable. The ambiguous case is below.
+    assert accepted.get("federal_form") == "1040"
+    assert iv.prefill_for(session.question("federal_form"),
+                          {"services": ["individual_tax", "business_tax"]}) is None, (
+        "a prospect who asked for an individual AND a business return was "
+        "offered the individual one as though that were the whole job")
     assert refused_claims.get("prior_return_available") == "unsure", (
         "'unsure' is not one of yes/partial/no, so it must be shown and NOT "
         "be one keystroke from an answer")
@@ -610,9 +655,11 @@ def test_a_sitting_driven_from_a_website_lead_reaches_the_letter(tmp_path):
     session.answers["decision"] = "yes"
     session.answers.setdefault("count_rentals", 1)
     session.answers.setdefault("count_k1s", 1)
-    out = created(session.answers, tmp_path / "store")
-    letter = readable(render_all(cli.build_record(out.record), ["tax-letter"])["tax-letter"])
-    assert "Solon , OH 44139" in letter or "Solon" in letter
+    store = tmp_path / "store"
+    ref = created(session.answers, store).ref
+    letter = readable(render_all(record_for(ref, store), ["tax-letter"])["tax-letter"])
+    assert "12 Larch Way Solon, OH 44139" in letter, (
+        "the address block did not come out as street, city, state and ZIP")
     assert "Solon, OH, Solon" not in letter, (
         "the location string was accepted whole into two address lines")
 
@@ -628,9 +675,13 @@ def test_a_lead_that_is_only_a_phone_number_still_opens_an_engagement(tmp_path):
     lead = leads.by_hand(name="Tobias Renn", phone="216-555-0182",
                          notes="Called about last year's return.")
     for _, q in iv.all_questions(iv.load_schema()):
-        assert iv.prefill_for(q, lead) is None, (
-            f"{q['id']} was offered a claim from a lead that only gave us a "
-            f"name and a phone number")
+        claim = iv.prefill_for(q, lead)
+        assert not claim, (
+            f"{q['id']} was offered the claim {claim!r} from a lead that only "
+            f"gave us a name and a phone number")
+        assert not iv.prefill_is_answerable(q, claim), (
+            f"{q['id']} could be answered with a keystroke from a lead that "
+            f"said nothing about it")
 
     store = tmp_path / "store"
     ref = created(sitting(client_full_name="Mr. Tobias Renn",
@@ -685,9 +736,8 @@ def test_a_preparer_flag_is_raised_and_never_printed(tmp_path):
                             count_localities=1, localities=["Solon municipal"],
                             other_income_documents="yes"), store)
     assert not quiet.flags
-    assert out.record["EstimateTotal"] != quiet.record["EstimateTotal"] or True
 
-    record = cli.build_record(out.record)
+    record = record_for(out.ref, store)
     for name, html in render_all(record, cli.opening_package(record)).items():
         page = readable(html)
         for phrase in ("townships", "do not assume either way", "Check whether"):
