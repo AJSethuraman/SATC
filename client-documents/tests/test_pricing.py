@@ -553,7 +553,7 @@ def test_a_gig_schedule_c_stays_in_standard():
 
 def test_a_full_schedule_c_is_property_and_business():
     line = _pkg({"federal_schedules": ["C", "SE"], "schedule_c_kind": "standard"})
-    assert line["Service"] == "Business"
+    assert line["Service"] == "Self-Employed"
     assert line["Amount"] == "$500.00"
 
 
@@ -704,7 +704,7 @@ def test_a_full_schedule_c_is_absorbed_not_billed_on_top():
         {"federal_form": "1040", "federal_schedules": ["C"],
          "schedule_c_kind": "standard", "count_businesses": 1,
          "count_rentals": 0}, s)
-    assert [i["Service"] for i in items] == ["Business"], \
+    assert [i["Service"] for i in items] == ["Self-Employed"], \
         "the covered Schedule C must not appear as a charged line"
     assert pricing.estimate_total(items, s) == "$500.00"
 
@@ -714,7 +714,7 @@ def test_rentals_are_absorbed_when_that_is_the_better_branch():
     items = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": ["E1"],
          "count_rentals": 3, "count_businesses": 0}, s)
-    assert [i["Service"] for i in items] == ["Business"]
+    assert [i["Service"] for i in items] == ["Self-Employed"]
 
 
 def test_the_branch_that_saves_the_client_most_wins():
@@ -810,7 +810,7 @@ def test_a_full_schedule_c_is_what_the_business_package_is_for():
          "schedule_c_kind": "standard", "count_businesses": 1,
          "count_rentals": 3}
     items = pricing.line_items(a, s)
-    assert items[0]["Service"] == "Business"
+    assert items[0]["Service"] == "Self-Employed"
     assert "Sole proprietorship" not in [i["Service"] for i in items], \
         "the one full C the package covers must not also be billed"
     # 500 for the package, 145 for the Schedule E beside it.
@@ -834,7 +834,7 @@ def test_a_gig_c_does_not_spend_an_either_or_it_no_longer_needs():
         {"federal_form": "1040", "federal_schedules": ["C", "E1"],
          "schedule_c_kind": "simple", "count_businesses": 1,
          "count_rentals": 1}, s)
-    assert [i["Service"] for i in items] == ["Business"]
+    assert [i["Service"] for i in items] == ["Self-Employed"]
 
 def test_the_package_says_which_allowance_the_client_got():
     s = _priced_both_branches()
@@ -854,7 +854,7 @@ def test_a_package_does_not_claim_an_allowance_the_client_cannot_use():
     s = _priced_both_branches()
     base = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": ["F"]}, s)[0]
-    assert base["Service"] == "Business"
+    assert base["Service"] == "Self-Employed"
     assert "with up to" not in base["Detail"]
 
 
@@ -1685,3 +1685,44 @@ def test_the_eic_keeps_its_printed_assumption():
         {"federal_form": "1040", "return_basis": "original",
          "other_income_documents": "no", "eic_claimed": "yes"}, s)
     assert any("more than half the year" in a for a in said)
+
+
+# ── entity bases as published "from" prices (round twelve, q2) ────────────
+
+def test_entity_bases_still_price_the_same_after_becoming_from_prices():
+    """The structure changed; not one number did."""
+    s = pricing.load()
+    for form, expected in (("1065", "$800.00"), ("1120S", "$950.00"),
+                           ("1120", "$950.00")):
+        items = pricing.line_items({"federal_form": form}, s)
+        assert items[0]["Amount"] == expected, form
+
+
+def test_every_entity_base_says_it_is_a_from_price_and_why():
+    """Round twelve: "definitely a from price ... but it should also be fairly
+    clear that these are starting points and maybe some very light notes
+    indicating what 'starting' means".
+
+    A bare $950 on a page is read as a total. An entity return is a base with
+    the balance sheet, the reconciliation and the owner K-1s on top of it, so
+    the number needs the sentence that says so travelling with it — in the
+    schedule, where the page reads it from, rather than typed onto the page
+    where it can drift.
+    """
+    s = pricing.load()
+    for form in ("1065", "1120S", "1120"):
+        base = s["base"][form]
+        assert isinstance(base, dict), f"{form} is still a bare number"
+        assert base.get("publish") == "from", f"{form} is not marked a from price"
+        notes = base.get("starting_note") or []
+        assert notes, f"{form} says 'from' and does not say from what"
+        assert all(isinstance(n, str) and n.strip() for n in notes), form
+
+
+def test_the_individual_packages_are_not_from_prices():
+    """The four packages are gated on what is on the return, so the price a
+    visitor reads is the price they get. Marking them 'from' would give away
+    the one thing the ladder buys."""
+    s = pricing.load()
+    for key, tier in s["base"]["1040"]["tiers"].items():
+        assert tier.get("publish") != "from", key

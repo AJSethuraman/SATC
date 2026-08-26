@@ -847,6 +847,19 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             # The structure itself is undecided, so the line cannot honestly
             # describe what it covers. Carry the question, not a guess.
             detail = base_covers
+    if isinstance(base, dict):
+        # A base carrying metadata rather than being a bare number. The entity
+        # returns are the case: they publish as "from" prices and carry the
+        # notes saying from what, and both have to travel with the amount so
+        # the two cannot drift apart. `amount` is the money; the rest is for
+        # whoever shows the number.
+        if "amount" not in base:
+            raise PricingError(
+                f"base.{form} is a block with no `amount`, so there is no "
+                f"figure to quote. A base may carry metadata; it may not "
+                f"carry only metadata."
+            )
+        base = base["amount"]
     items.append(_line(label, detail, base, code))
 
     # Per-unit lines. When the base includes the first state and locality, the

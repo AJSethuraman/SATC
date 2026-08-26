@@ -234,12 +234,26 @@ base:
         # that does not handle property is a name that misleads whoever reads
         # it in a year.
         #
-        # THE NAME IS PROVISIONAL. The firm wants to work on all four: "maybe
-        # we brainstorm ideas for the package names - i think they are good
-        # but maybe they can be more like the firm's". This is the honest
-        # placeholder, not the answer.
-        label: "Business"
-        detail: "You run something"
+        # SETTLED 26 August 2026, round twelve: "self-employed seems
+        # reasonable". T-19 closed.
+        #
+        # "Business" was the problem the rename set out to fix and then did
+        # not: this is a 1040 package, and the entity returns are 1065, 1120S
+        # and 1120. A partnership or S-corp owner reading four package names
+        # picks the one with their word in it and buys a personal return --
+        # a mistake the client makes and the firm has to unwind.
+        #
+        # "Self-Employed" describes who it is for rather than what it is, and
+        # nobody with an S corporation reads it as theirs. "Freelancer" was
+        # the warmer option and was left off the list on purpose: it is wrong
+        # for a contractor with employees, who is exactly the full-Schedule-C
+        # client this tier is priced for.
+        #
+        # THE KEY STAYS `business`. It is internal -- gates, allowances and
+        # tests reference it, no client ever sees it -- and renaming it would
+        # be churn for no reader's benefit. The label is the name.
+        label: "Self-Employed"
+        detail: "You work for yourself"
         amount: 500
         includes: standard
         covers:
@@ -321,9 +335,45 @@ base:
   # not answered by these numbers and is not meant to be. It is answered by
   # charging for the balance sheet when one is required, so the company
   # without one does not subsidise the company with one.
-  "1065":  800
-  "1120S": 950
-  "1120":  950
+  # PUBLISHED AS "FROM" PRICES, on the firm's answer to round twelve:
+  #
+  #     definitely a from price - prevents people from wasting my time
+  #     squeezing value but it should also be fairly clear that these are
+  #     starting points and maybe some very light notes indicating what
+  #     "starting" means
+  #
+  # This is the difference between an entity price and a package price, and it
+  # is worth stating plainly because it decides how the number may be shown.
+  # The four 1040 packages are GATED on what is on the return, so the price a
+  # visitor reads is the price they get. An entity base is not gated that way:
+  # it is a floor with the balance sheet, the reconciliation and the owner
+  # K-1s on top. A bare $950 on a page is read as a total.
+  #
+  # `starting_note` travels WITH the number so the two cannot drift apart. The
+  # wording is client-facing and is in the sign-off register.
+  "1065":
+    amount: 800
+    publish: from
+    starting_note:
+      - "A balance sheet, where one is required"
+      - "Inventory, where the business carries any"
+      - "Each partner's K-1 after the first two"
+      - "Returns in more than one state"
+  "1120S":
+    amount: 950
+    publish: from
+    starting_note:
+      - "A balance sheet, where one is required"
+      - "Inventory, where the business carries any"
+      - "Each shareholder's K-1 after the first two"
+      - "Returns in more than one state"
+  "1120":
+    amount: 950
+    publish: from
+    starting_note:
+      - "A balance sheet, where one is required"
+      - "Inventory, where the business carries any"
+      - "Returns in more than one state"
 
 # ── per unit ──────────────────────────────────────────────────────────────
 # Multiplied by the count the interview collected. The `label` and `detail`
