@@ -22,6 +22,7 @@ the terminal interview could not survive.
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from datetime import date
 from functools import lru_cache
@@ -29,6 +30,7 @@ from pathlib import Path
 
 from flask import (Flask, abort, jsonify, redirect, request, url_for)
 
+import cli
 import editor
 import engagements
 import intake
@@ -176,6 +178,26 @@ def create_app(store: Path | None = None) -> Flask:
                                         request.args.get("saved"),
                                         request.args.get("error"),
                                         request.args.get("open")))
+
+    @app.post("/templates/<path:name>/sections")
+    def sections(name):
+        """Add or take out a whole section. Wording is the route above."""
+        form = request.get_json(silent=True) or request.form
+        registry = {f: n for n, (f, _) in cli.DOCUMENTS.items()}.get(name)
+        if registry is None:
+            abort(404)
+        try:
+            said = editor.save_section(
+                name, registry,
+                remove=form.get("remove", ""), title=form.get("title", ""),
+                text=form.get("text", ""), after=form.get("after", ""))
+        except editor.EditError as exc:
+            if wants_json():
+                return jsonify(error=str(exc)), 400
+            return redirect(url_for("template", name=name, error=str(exc)))
+        if wants_json():
+            return jsonify(done=said)
+        return redirect(url_for("template", name=name, saved=said))
 
     @app.post("/templates/<path:name>")
     def edit(name):
@@ -448,8 +470,10 @@ def template_body(name, secs, saved="", error="", open_id="") -> str:
         out.append("<p class=claim>Nothing to save &mdash; the wording was "
                    "already what is on the page.</p>")
     elif saved:
-        n = len(saved.split(","))
-        out.append(f"<p class=claim>Saved {n} change{'s' if n != 1 else ''}. "
+        said = (f"Saved {len(saved.split(','))} change"
+                f"{'s' if len(saved.split(',')) != 1 else ''}."
+                if re.fullmatch(r"[\w.,]+", saved) else saved)
+        out.append(f"<p class=claim>{esc(said)} "
                    f"<a href='/templates'>Back to the templates</a>, or render "
                    f"an engagement to see it on a document.</p>")
 
@@ -473,8 +497,35 @@ def template_body(name, secs, saved="", error="", open_id="") -> str:
             out.append(f"<textarea name='t:{esc(b.id)}' rows={rows}>{esc(b.text)}</textarea>")
             if fields:
                 out.append(f"<p class=fieldrow>{fields}</p>")
-        out.append("<div class=row><button>Save this section</button></div>"
-                   "</form></details>")
+        out.append("<div class=row><button>Save this section</button>")
+        if s.number:
+            out.append(f"<span class=muted style='flex:1'></span>")
+        out.append("</div></form>")
+        if s.number:
+            out.append(
+                f"<form method=post action='/templates/{esc(name)}/sections' "
+                f"class=cut><input type=hidden name=remove value='{esc(s.number)}'>"
+                f"<button class=ghost>Take this section out</button>"
+                f"<span class=muted>The rest renumber. A client should never "
+                f"see 03 followed by 05.</span></form>")
+        out.append("</details>")
+
+    numbered = [s for s in secs if s.number]
+    if numbered:
+        opts = "".join(f"<option value='{esc(s.number)}'>after {esc(s.number)} "
+                       f"&middot; {esc(s.title)}</option>" for s in numbered)
+        out.append(
+            f"<details class='blk add'><summary><span class=st>"
+            f"Add a section</span><span class=count>new</span></summary>"
+            f"<form method=post action='/templates/{esc(name)}/sections'>"
+            f"<input type=text name=title placeholder='Heading — what a client "
+            f"points at' required>"
+            f"<textarea name=text rows=3 placeholder='What it says. "
+            f"**bold** works; a merge field does not — that is the registry&#39;s "
+            f"business.' required></textarea>"
+            f"<div class=row><select name=after>{opts}"
+            f"<option value=''>at the end</option></select>"
+            f"<button>Add it</button></div></form></details>")
     return "".join(out)
 
 

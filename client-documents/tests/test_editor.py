@@ -290,3 +290,218 @@ def test_no_editable_block_mixes_the_two_bold_tags():
                     f"{path.name} {b.id} mixes <b> and <strong>; normalise it "
                     f"to one or the editor cannot save it unchanged"
                 )
+
+
+# ── whole sections ────────────────────────────────────────────────────────
+#
+# "for editing stuff it has to be easy to add and take out sections as well"
+# -- the firm, 26 August 2026. Easy is the ask; the tests are about what easy
+# must not cost.
+
+@pytest.fixture
+def workshop(tmp_path):
+    """A copy of the real templates, so a test can rewrite one."""
+    import shutil
+    d = tmp_path / "templates"
+    shutil.copytree(editor.TEMPLATE_DIR, d)
+    return d
+
+
+ONBOARDING = "SATC Onboarding Letter.html"
+
+
+def _numbers(html):
+    return [s["number"] for s in editor.outline(html)]
+
+
+@pytest.mark.parametrize("path", TEMPLATES, ids=lambda p: p.stem)
+def test_the_outline_finds_every_numbered_section(path):
+    html = path.read_text(encoding="utf-8")
+    secs = editor.outline(html)
+    if not secs:
+        pytest.skip("no numbered sections")
+
+    # NOT 01..n. Two sections may share a number when they are exclusive
+    # branches of one clause -- the delivery letter's 03 is "Signing the
+    # e-file authorization" or "Filing the paper returns", never both. What
+    # must hold is that the numbers start at 01 and never skip.
+    seen = []
+    for s in secs:
+        if not seen or s["number"] != seen[-1]:
+            seen.append(s["number"])
+    assert seen == [f"{i:02d}" for i in range(1, len(seen) + 1)], (
+        f"{path.name}: the numbers skip or repeat out of order: {seen}"
+    )
+    for s in secs:
+        assert s["title"] and s["title"] != "(no heading)"
+
+
+@pytest.mark.parametrize("path", TEMPLATES, ids=lambda p: p.stem)
+def test_a_section_span_stops_at_its_own_closing_div(path):
+    """A `.sec` holds `.callout` divs. Taking the first `</div>` after the
+    heading would cut a section in half and leave the rest orphaned."""
+    html = path.read_text(encoding="utf-8")
+    body = editor.body_of(html)
+    for s in editor.outline(html):
+        block = body[s["start"]:s["end"]]
+        assert block.count("<div") == block.count("</div>"), (
+            f"{path.name} section {s['number']}: unbalanced divs in the span"
+        )
+
+
+@pytest.mark.parametrize("path", TEMPLATES, ids=lambda p: p.stem)
+def test_renumbering_a_template_nobody_touched_changes_nothing(path):
+    html = path.read_text(encoding="utf-8")
+    assert editor.renumber(html) == html, f"{path.name} is not numbered in order"
+
+
+# ── removing ──────────────────────────────────────────────────────────────
+
+def test_removing_a_section_renumbers_the_rest():
+    """Every FIELDS doc says it: a client should never see 03 followed by 05.
+    The numbers exist so somebody can point at a clause on the phone."""
+    html = (editor.TEMPLATE_DIR / ONBOARDING).read_text(encoding="utf-8")
+    before = editor.outline(html)
+    after, _ = editor.remove_section(html, "03")
+    assert _numbers(after) == [f"{i:02d}" for i in range(1, len(before))]
+    assert "Your previous accountant" not in editor.body_of(after)
+
+
+def test_two_branches_of_one_clause_keep_sharing_their_number():
+    """The delivery letter numbers both `[[IF EFiled]]` and `[[IF PaperFiled]]`
+    03, because exactly one prints and they are one clause in two versions.
+
+    A first version of `renumber` counted sections straight through. It would
+    have made the paper branch 04 and pushed the real 04 to 05 -- a document
+    broken by the tool that was tidying it. Caught by running the renumber
+    over every template and asserting nothing moved.
+    """
+    name = "SATC Tax Return Delivery Letter.html"
+    html = (editor.TEMPLATE_DIR / name).read_text(encoding="utf-8")
+    shared = [s["number"] for s in editor.outline(html)]
+    assert shared.count("03") == 2, "the branch pair this pins is gone"
+    assert editor.renumber(html) == html
+
+
+def test_removing_a_conditional_section_takes_its_markers_with_it():
+    """Section 03 of the onboarding letter is wrapped in `[[IF PriorFirm]]`.
+    Leaving the markers behind would wrap whatever followed it instead."""
+    html = (editor.TEMPLATE_DIR / ONBOARDING).read_text(encoding="utf-8")
+    after, taken = editor.remove_section(html, "03")
+    assert "[[IF PriorFirm]]" not in editor.body_of(after)
+    assert "PriorFirm" in taken, "the flag was not reported as removed"
+
+
+def test_removing_a_section_reports_the_fields_it_took():
+    html = (editor.TEMPLATE_DIR / ONBOARDING).read_text(encoding="utf-8")
+    _, taken = editor.remove_section(html, "03")
+    assert "PriorFirmName" in taken
+
+
+def test_the_registry_stops_claiming_a_template_that_no_longer_uses_a_field(tmp_path):
+    """The quiet half of removing a section. The document is fine; the
+    registry now says a field is used somewhere it is not, and the next person
+    to read it is misled."""
+    reg = tmp_path / "fields.yaml"
+    reg.write_text(
+        "fields:\n"
+        "  - field: SomeField\n"
+        '    label: "Some field"\n'
+        "    templates: [tax-letter, onboarding-letter]\n"
+        "flags: []\nlists: []\n", encoding="utf-8")
+    effect = editor.registry_effect("onboarding-letter", ["SomeField"], reg)
+    assert effect == {"update": ["SomeField"], "orphan": []}
+    editor.drop_from_registry("onboarding-letter", ["SomeField"], reg)
+    assert "templates: [tax-letter]" in reg.read_text(encoding="utf-8")
+
+
+def test_a_removal_that_would_orphan_a_field_is_refused(workshop, tmp_path):
+    """Section 02 of the onboarding letter holds the only `<<ClientEmail>>` in
+    it. Removing it is a decision about whether the field is retired, and that
+    is not a change to this document."""
+    with pytest.raises(editor.EditError, match="used by no template at all"):
+        editor.save_section(ONBOARDING, "onboarding-letter", remove="02",
+                            template_dir=workshop)
+    assert "ClientEmail" in (workshop / ONBOARDING).read_text(encoding="utf-8"), \
+        "a refused removal still edited the file"
+
+
+def test_removing_an_unknown_section_is_refused(workshop):
+    with pytest.raises(editor.EditError, match="no section"):
+        editor.save_section(ONBOARDING, "onboarding-letter", remove="99",
+                            template_dir=workshop)
+
+
+# ── adding ────────────────────────────────────────────────────────────────
+
+def test_a_new_section_lands_where_it_was_asked_for(workshop):
+    editor.save_section(ONBOARDING, "onboarding-letter",
+                        title="How we keep in touch",
+                        text="We email once when it is ready.", after="02",
+                        template_dir=workshop)
+    secs = editor.outline((workshop / ONBOARDING).read_text(encoding="utf-8"))
+    assert [s["title"] for s in secs][2] == "How we keep in touch"
+    assert [s["number"] for s in secs] == [f"{i:02d}" for i in range(1, len(secs) + 1)]
+
+
+def test_a_new_section_is_editable_like_any_other(workshop):
+    """It is not a special block. Whatever was typed must come back through
+    the same round trip as prose that was there all along."""
+    editor.save_section(ONBOARDING, "onboarding-letter", title="A heading",
+                        text="Something **important** to say.",
+                        template_dir=workshop)
+    html = (workshop / ONBOARDING).read_text(encoding="utf-8")
+    block = next(b for s in editor.sections(html) for b in s.blocks
+                 if "important" in b.text)
+    assert block.editable and block.text == "Something **important** to say."
+
+
+def test_a_new_section_cannot_carry_a_merge_field(workshop):
+    """It would be registered against no template, and the render would refuse
+    at the client's document rather than in this form."""
+    with pytest.raises(editor.EditError, match="merge field"):
+        editor.save_section(ONBOARDING, "onboarding-letter", title="Fees",
+                            text="Your fee is <<EstimateTotal>>.",
+                            template_dir=workshop)
+
+
+def test_a_new_section_cannot_carry_a_conditional(workshop):
+    with pytest.raises(editor.EditError, match="structure|conditional"):
+        editor.save_section(ONBOARDING, "onboarding-letter", title="Maybe",
+                            text="[[IF JointReturn]] Both of you sign.",
+                            template_dir=workshop)
+
+
+def test_a_section_needs_a_heading_and_something_to_say(workshop):
+    with pytest.raises(editor.EditError, match="heading"):
+        editor.save_section(ONBOARDING, "onboarding-letter", title="",
+                            text="words", template_dir=workshop)
+    with pytest.raises(editor.EditError, match="gap"):
+        editor.save_section(ONBOARDING, "onboarding-letter", title="A heading",
+                            text="  ", template_dir=workshop)
+
+
+def test_html_typed_into_a_new_section_is_escaped(workshop):
+    editor.save_section(ONBOARDING, "onboarding-letter", title="Notes",
+                        text="Use <script>alert(1)</script> carefully.",
+                        template_dir=workshop)
+    html = (workshop / ONBOARDING).read_text(encoding="utf-8")
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_an_added_section_still_renders(workshop):
+    """The point of the whole thing: the document still merges afterwards."""
+    import cli
+    import json
+    editor.save_section("SATC Engagement Letter - Tax Preparation.html",
+                        "tax-letter", title="How we keep in touch",
+                        text="We email once when it is ready.",
+                        template_dir=workshop)
+    record = cli.build_record(json.loads(
+        (ROOT / "samples" / "tax-opening-package.json").read_text(encoding="utf-8")))
+    html = merge.render(
+        (workshop / "SATC Engagement Letter - Tax Preparation.html").read_text(encoding="utf-8"),
+        record).html
+    assert "We email once when it is ready." in html
+    assert "&lt;&lt;" not in html and "[CONFIRM:" not in html
