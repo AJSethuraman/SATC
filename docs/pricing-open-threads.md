@@ -846,3 +846,23 @@ from elsewhere prices at $1,050, of which $200 is the five K-1s.
 return is procedurally the same kind of filing as amending a 1040. If it is
 not, that is a scope question before it is a pricing one. Nobody has checked,
 and it is not an agent's to assert.
+
+---
+
+## T-22 — the bookkeeping estimate has no scope block
+
+Opened 26 August 2026, alongside the firm's ask that the estimate and the
+engagement letter be comparable.
+
+The fee estimate now repeats the engagement letter's four scope lines —
+`FederalReturns`, `StateReturns`, `LocalReturns`, `AdditionalForms` — from the
+same fields on the same record, and `ReturnScope` gates the block.
+
+**A bookkeeping engagement's scope is a different shape.** Its letter carries
+`ScopeItems`, a list, not four lines. So the flag is off there and the block
+drops rather than printing four blanks, which is the right behaviour today
+because there is no bookkeeping interview and no bookkeeping estimate.
+
+**What it needs when that changes:** a second branch on the estimate that
+repeats `ScopeItems` the way the block repeats the four lines. Not a decision
+for the firm — a build note, recorded so it is not rediscovered.

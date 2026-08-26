@@ -1,15 +1,21 @@
 # What still needs the firm — 26 August 2026
 
-**The sign-off room, round two** — the firm's notes on two documents applied
-to all of them, everything re-rendered, each card saying what changed:
-<https://claude.ai/code/artifact/b298916e-8fc3-45b5-b69f-b61bdca0ff7b>
+**The sign-off room, round three** — nine documents rendered fresh, each card
+saying what changed since round two, and the last card answering "show me how
+you can tell it all goes together":
+<https://claude.ai/code/artifact/7878d079-30bd-44df-9b81-d5b43bfbbd05>
 
-Round one (<https://claude.ai/code/artifact/42b96c6d-0f0f-4ec3-b31e-bdb0c145ec7d>)
-holds the feedback that produced it and is superseded.
+Two documents are in it that were not in round two: the **organizer cover
+letter** and the **invoice**. The bookkeeping engagement letter is still not —
+it has no interview behind it, which is a deferral rather than an omission.
 
-The seven client documents are embedded there as the **real rendered output**,
-each in its own shadow root so the firm's print stylesheet and the page cannot
-reach each other. Start there rather than with the zip.
+Round two (<https://claude.ai/code/artifact/b298916e-8fc3-45b5-b69f-b61bdca0ff7b>)
+and round one (<https://claude.ai/code/artifact/42b96c6d-0f0f-4ec3-b31e-bdb0c145ec7d>)
+hold the feedback that produced it and are superseded.
+
+The documents are embedded as the **real rendered output**, each in its own
+shadow root so the firm's print stylesheet and the page cannot reach each
+other. Start there rather than with the zip.
 
 **The queue itself** (this list, as a page):
 <https://claude.ai/code/artifact/4536ea0b-7016-4c90-bf78-9c7183d5d3c3>
@@ -19,6 +25,12 @@ Everything settled is on PR #153 and test-backed; this is only the remainder.
 
 **The schedule itself is complete.** No unpriced item, no unanswered decision —
 `python cli.py doctor` reads clean, and a test holds it that way.
+
+**And the package agrees with itself.** `make check` renders the documents and
+compares six joins across them — one reference, one date, one scope stated by
+both the letter and the estimate, nothing billed outside that scope, a total
+that is the sum of its lines, one materials deadline. All six pass. Each has a
+test that breaks its join on purpose.
 
 ## To read — no decision, just eyes
 

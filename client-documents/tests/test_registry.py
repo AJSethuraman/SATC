@@ -307,6 +307,19 @@ def test_client_facing_text_is_american_english(name, body_fields):
     assert not hits, f"{TEMPLATES[name]} uses British spelling a client reads: {hits}"
 
 
+def test_no_sample_carries_british_spelling():
+    """The samples hold values that reach a document unchanged. The delivery
+    letter's checklist said "Sign the federal and Ohio e-file authorisations"
+    -- template text, registry wording and record values all print the same
+    way, so all three have to be swept."""
+    bad = {}
+    for path in (ROOT / "samples").glob("*.json"):
+        hits = sorted(set(_BRITISH.findall(path.read_text(encoding="utf-8"))))
+        if hits:
+            bad[path.name] = hits
+    assert not bad, f"British spelling in a sample record: {bad}"
+
+
 def test_registry_wording_a_client_reads_is_american_english():
     """The registries hold the firm's own words -- request lines, fee-line
     details, assumption sentences -- and those reach a client as directly as
