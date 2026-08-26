@@ -82,6 +82,49 @@ EXTRA_GROUPS = [
     ]),
 ]
 
+# ── the client's words for each line ──────────────────────────────────────
+#
+# The schedule's own `label` and `detail` are written for the preparer, and
+# piping them onto a public page put things like "Per statement that cannot be
+# summarized" and "priced with the return itself" in front of a visitor. That
+# is the same failure as "the engagement letter governs the work" — internal
+# register leaking public — and it is systemic rather than a sentence or two,
+# so it is fixed structurally: the numbers still come from the schedule, and
+# the words a client reads are the firm's.
+#
+# Every published row must have an entry here. pricing.spec.py fails if one is
+# missing, so a newly-published line cannot ship the preparer's wording.
+EXTRA_COPY = {
+    "per_unit.state_return":      ("Another state return", ""),
+    "per_unit.local_return":      ("Another local return", "City, RITA, CCA or school district"),
+    "per_unit.extension_estimate": ("Working out what to pay with an extension",
+                                    "Filing the extension itself is free"),
+    "per_unit.rental":            ("Rental property", "Up to three, then $45 each"),
+    "per_unit.k1":                ("A K&#8209;1 you received", "Each one"),
+    "per_unit.owner_k1":          ("A K&#8209;1 you send an owner", "Each owner"),
+    "per_unit.brokerage":         ("A brokerage statement", "Each one after the first"),
+    "per_unit.brokerage_keyed":   ("A brokerage statement we have to type in",
+                                   "When the totals cannot be pulled in electronically"),
+    "schedule_c.simple":          ("Gig or contract work", "Standard mileage, nothing owned by the business"),
+    "schedule_c.standard":        ("A business you run yourself",
+                                   "Actual expenses, a home office, equipment, inventory or payroll"),
+    "per_unit.foreign_account":   ("A foreign account",
+                                   "Each one, up to four. Past four we bill the time instead."),
+    "amendment.new_information":  ("Amending a return we filed", "Something arrived after it went in"),
+    "amendment.other_preparer":   ("Amending a return someone else filed",
+                                   "Plus what the return itself costs"),
+}
+
+# Same again for the hourly triggers, whose schedule wording is a note to the
+# preparer about when the fixed price stops applying.
+HOURLY_COPY = {
+    "brokerage_keying":  "A brokerage statement that has to be typed in by hand",
+    "foreign_company":   "An interest in a company based abroad",
+    "cleanup":           "Records that need reconciling before the return can start",
+    "notice_response":   "A letter from the IRS or the state you would like us to handle",
+    "officer_compensation": "Working out what an owner of a business should be paid",
+}
+
 # The amendment tiers that go on the page, in order. `our_error` is deliberately
 # absent: correcting our own mistake costs nothing, and saying so on a price
 # page is a claim about ourselves that nobody asked for. It stays a thing we do,
@@ -140,19 +183,13 @@ def build() -> str:
     def one(path):
         if path.startswith("schedule_c."):
             t = sched["per_unit"]["schedule_c"]["tiers"][path.split(".", 1)[1]]
-            return {"label": clean(t["label"]), "detail": clean(t["detail"]),
-                    "amount": t["amount"]}
+            label, detail = EXTRA_COPY[path]
+            return {"label": clean(label), "detail": clean(detail), "amount": t["amount"]}
         line = by_path[path]
         label, detail, amount = line["label"], line.get("detail", ""), line["amount"]
         if path == "per_unit.rental":
-            # The form fee covers three; the per-unit amount is each one after.
-            detail = f"Covers {line['form_covers']}, then ${line['amount']} each"
-            amount = line["form_fee"]
-        if path == "per_unit.foreign_account" and line.get("cap_beyond") == "hourly":
-            # The cap is SOFT. "Capped at four" alone is a promise the firm is
-            # not making.
-            detail = (f"Capped at {line['cap_units']} — past that the time is "
-                      f"billed at ${rate} an hour")
+            amount = line["form_fee"]     # the form fee; the overlay says what it covers
+        label, detail = EXTRA_COPY[path]
         return {"label": clean(label), "detail": clean(detail), "amount": amount}
 
     groups = [{"title": title, "rows": [one(p) for p in paths]}
@@ -164,8 +201,9 @@ def build() -> str:
     amend_rows = []
     for tid in AMENDMENT_PUBLISH:
         t = sched["amendment"]["tiers"][tid]
+        label, detail = EXTRA_COPY[f"amendment.{tid}"]
         amend_rows.append({
-            "label": clean(t["label"]), "detail": clean(t["detail"]),
+            "label": clean(label), "detail": clean(detail),
             "amount": t["amount"], "reprices": bool(t.get("reprices")),
         })
     groups[0]["rows"].extend(amend_rows)
@@ -294,7 +332,7 @@ window.SATC_PRICING = {{
     lines.append("  /* Hourly happens INSTEAD of the fixed price, not on top of it. */")
     lines.append(f"  hourly: {{ rate: {rate}, billedIn: {js('the quarter hour')} }},")
     lines.append("  hourlyApplies: [")
-    applies = [f"{a['label']} — {a['trigger']}" for a in sched["assumed"].values()]
+    applies = [HOURLY_COPY[k] for k in sched["assumed"]]
     for i, a in enumerate(applies):
         lines.append(f"    {js(clean(a))}{',' if i < len(applies) - 1 else ''}")
     lines.append("  ]")

@@ -146,26 +146,29 @@ check(all(t.get("publish") == "yes" for t in tiers.values()),
 # These are the failures regeneration cannot catch, because the NUMBER is right
 # and only the sentence beside it is missing.
 
+# These test the MEANING, not a phrase. The wording is the firm's and changes;
+# what may not change is that the qualification is still there.
+WORD = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}
+
 foreign = sched["per_unit"]["foreign_account"]
 if foreign.get("cap_beyond") == "hourly":
     line = next((x for x in cfg["extras"] if "foreign" in x["label"].lower()), None)
     check(line is not None, "the foreign-account line is on the page")
-    detail = (line or {}).get("detail", "").lower()
-    check(str(foreign["cap_units"]) in detail,
-          "the foreign-account cap says where it stops")
-    check("hour" in detail,
-          "the foreign-account cap says the time past it is billed — the cap is "
-          "SOFT, and 'capped at four' alone is a promise the firm is not making")
+    said = ((line or {}).get("label", "") + " " + (line or {}).get("detail", "")).lower()
+    cap = foreign["cap_units"]
+    check(str(cap) in said or WORD.get(cap, "\0") in said,
+          "the foreign-account line says where the cap stops")
+    check(("bill" in said and "time" in said) or "hour" in said,
+          "the foreign-account line says the time past the cap is billed — the "
+          "cap is SOFT, and naming it without that is a promise the firm is not making")
 
-ext = next((x for x in cfg["extras"] if "extension" in x["label"].lower()), None)
+ext = next((x for x in cfg["extras"] if "extension" in (x["label"] + x["detail"]).lower()), None)
+check(ext is not None, "the extension line is on the page")
 if ext:
-    check("computing" in ext["detail"].lower(),
-          "the extension line says it is for computing the payment")
-    # The schedule states it in a comment, not as data, so the page carries it
-    # as copy: "THE FILING IS FREE. Only the computation is billed."
-    check(re.search(r"[Ff]iling an extension is free", page_src) is not None,
-          "the page says filing an extension is free — a bare 'Extension, $75' "
-          "says the opposite of the decision")
+    said = (ext["label"] + " " + ext["detail"]).lower()
+    check("free" in said,
+          "the extension line says filing one is free — the fee is only for "
+          "working out the payment, and a bare 'Extension, $75' says the opposite")
 
 # The firm's call, 26 Aug 2026: "literally do not specify stuff like we fix our
 # own errors for free. we don't need to say that." It stays in the schedule and
@@ -207,6 +210,28 @@ hourly = sched["basis"]["rate"]
 check(cfg["hourly"]["rate"] == hourly, f"hourly rate matches the schedule (${hourly})")
 check(len(cfg["hourlyApplies"]) == len(sched["assumed"]),
       "every hourly trigger in the schedule is on the page")
+
+
+# Every published line is worded for a client, not for the preparer. The
+# generator holds that overlay; this is what stops a newly-published line from
+# arriving with the schedule's internal label on it.
+# No __pycache__ beside the website files: this is a check, not a build step.
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(HERE))
+import importlib.util as _il
+_spec = _il.spec_from_file_location("gen", GENERATOR)
+_gen = _il.module_from_spec(_spec); _spec.loader.exec_module(_gen)
+
+published_paths = {p for p, _ in pub["publish"]
+                   if p.startswith("per_unit.") and p != "per_unit.schedule_c"}
+covered = {p for p in _gen.EXTRA_COPY if p.startswith("per_unit.")}
+withheld = {p for p, _ in pub["withhold"]}
+check(not (published_paths - covered - withheld),
+      "every published extra has client wording in EXTRA_COPY — missing "
+      f"{sorted(published_paths - covered - withheld)}")
+check(set(_gen.HOURLY_COPY) == set(sched["assumed"]),
+      "every hourly trigger has client wording — the schedule's own text is a "
+      f"note to the preparer. Missing {sorted(set(sched['assumed']) - set(_gen.HOURLY_COPY))}")
 
 
 # ── 6 · the firm's positions on the page itself ───────────────────────────

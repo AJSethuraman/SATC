@@ -126,24 +126,24 @@ window.SATC_PRICING = {
     {
       title: 'More to file',
       rows: [
-        { label: 'State return',                      detail: 'Per state', amount: 50 },
-        { label: 'Local return',                      detail: 'Municipal, RITA, CCA or school district', amount: 35 },
-        { label: 'Extension with a payment estimate', detail: 'Computing what to pay by the original due date, from an incomplete file', amount: 75 },
-        { label: 'Amendment',                         detail: 'Amending the return we filed, from information that arrived later', amount: 50 },
-        { label: 'Amendment',                         detail: 'Amending a return prepared elsewhere, priced with the return itself', amount: 50, reprices: true }
+        { label: 'Another state return',                      detail: '', amount: 50 },
+        { label: 'Another local return',                      detail: 'City, RITA, CCA or school district', amount: 35 },
+        { label: 'Working out what to pay with an extension', detail: 'Filing the extension itself is free', amount: 75 },
+        { label: 'Amending a return we filed',                detail: 'Something arrived after it went in', amount: 50 },
+        { label: 'Amending a return someone else filed',      detail: 'Plus what the return itself costs', amount: 50, reprices: true }
       ]
     },
     {
       title: 'What is on the return',
       rows: [
-        { label: 'Rental schedule',                   detail: 'Covers 3, then $45 each', amount: 145 },
-        { label: 'Schedule K&#8209;1 received',       detail: 'Per K&#8209;1 entered', amount: 15 },
-        { label: 'Schedule K&#8209;1 issued',         detail: 'Per owner — shareholder or partner', amount: 40 },
-        { label: 'Brokerage statement',               detail: 'Per 1099-B', amount: 45 },
-        { label: 'Brokerage entered by hand',         detail: 'Per statement that cannot be summarized', amount: 95 },
-        { label: 'Gig or contract work',              detail: 'Schedule C — standard mileage, no assets, inventory or payroll', amount: 65 },
-        { label: 'Sole proprietorship',               detail: 'Schedule C — actual expenses, a home office, depreciation, inventory or employees', amount: 200 },
-        { label: 'Foreign account reporting',         detail: 'Capped at 4 — past that the time is billed at $150 an hour', amount: 50 }
+        { label: 'Rental property',                           detail: 'Up to three, then $45 each', amount: 145 },
+        { label: 'A K&#8209;1 you received',                  detail: 'Each one', amount: 15 },
+        { label: 'A K&#8209;1 you send an owner',             detail: 'Each owner', amount: 40 },
+        { label: 'A brokerage statement',                     detail: 'Each one after the first', amount: 45 },
+        { label: 'A brokerage statement we have to type in',  detail: 'When the totals cannot be pulled in electronically', amount: 95 },
+        { label: 'Gig or contract work',                      detail: 'Standard mileage, nothing owned by the business', amount: 65 },
+        { label: 'A business you run yourself',               detail: 'Actual expenses, a home office, equipment, inventory or payroll', amount: 200 },
+        { label: 'A foreign account',                         detail: 'Each one, up to four. Past four we bill the time instead.', amount: 50 }
       ]
     }
   ],
@@ -164,10 +164,10 @@ window.SATC_PRICING = {
   /* Hourly happens INSTEAD of the fixed price, not on top of it. */
   hourly: { rate: 150, billedIn: 'the quarter hour' },
   hourlyApplies: [
-    'Brokerage keying — a statement has to be entered by hand',
-    'Foreign entities — you hold an interest in a foreign corporation or partnership',
-    'Notices and correspondence — a notice arrives and you ask us to deal with it',
-    'Officer compensation — you ask us to determine or review it, and we agree in writing',
-    'Records cleanup — the records need reconciling before the return can be prepared'
+    'A brokerage statement that has to be typed in by hand',
+    'An interest in a company based abroad',
+    'A letter from the IRS or the state you would like us to handle',
+    'Working out what an owner of a business should be paid',
+    'Records that need reconciling before the return can start'
   ]
 };
