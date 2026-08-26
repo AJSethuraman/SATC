@@ -618,6 +618,19 @@ per_unit:
     # awhile and just charge per account". A foreign COMPANY is not this line
     # -- see `assumed.foreign_company`.
     amount: 50
+    # THE BLANK-COUNT TRAP, one line down. Exactly the reason `rental` above
+    # carries a `form_when`: a client who ticks "Held a foreign bank or
+    # investment account" and leaves the number for later has foreign
+    # reporting on the return and a count of zero, so the line never fired
+    # and the work was done for nothing. The onboarding letter had already
+    # asked them for "the bank, the account number, and the highest balance
+    # at any point in the year" -- so the package asked for the records and
+    # the estimate charged nobody. Found 26 Aug 2026 by running the ticked-
+    # but-uncounted case end to end. A blank count now reads as one account,
+    # which is the smallest number a ticked box can honestly mean; the
+    # preparer raises it when they know.
+    form_when:
+      answer_includes: {extra_forms: foreign_accounts}
     publish: "yes"
 
   # T-17, closed 26 August 2026 on the firm's answer to round eleven:

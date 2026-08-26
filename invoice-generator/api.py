@@ -133,6 +133,19 @@ def _validate(invoice):
         errors.append("bill_to is required.")
     if not invoice.items:
         errors.append("at least one line item is required.")
+    # Mirrors _validate_invoice in app.py — the JSON API must not be a way to
+    # create the negative-total invoices the web form rejects.
+    #
+    # Caught by tests/test_scenarios.py::
+    #   test_api_rejects_a_discount_over_one_hundred_percent
+    if invoice.discount_is_percent and (invoice.discount_value or 0) > 100:
+        errors.append("a percentage discount cannot exceed 100.")
+    if (invoice.discount_value or 0) < 0:
+        errors.append("discount cannot be negative.")
+    if (invoice.tax_value or 0) < 0:
+        errors.append("tax cannot be negative.")
+    if not errors and invoice.total < 0:
+        errors.append("invoice total cannot be negative.")
     return errors
 
 

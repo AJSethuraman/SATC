@@ -235,6 +235,23 @@ def create_app(config_class=Config):
     # Secure session cookies in production (served over HTTPS).
     if app.config.get("ENV") == "production":
         app.config["SESSION_COOKIE_SECURE"] = True
+        # Refuse to serve production traffic on the development fallback
+        # secret. SECRET_KEY signs session cookies AND the /i/<token> public
+        # invoice links, so a known key means anyone can mint a session for
+        # any account and read any invoice by guessing its integer id. Render's
+        # blueprint sets FLASK_SECRET_KEY via generateValue, so this can only
+        # fire on a hand-rolled deploy that forgot it — where failing loudly at
+        # boot is far better than quietly serving forgeable sessions.
+        #
+        # Caught by tests/test_scenarios.py::
+        #   test_production_refuses_to_boot_on_the_development_secret_key
+        if app.config.get("SECRET_KEY") in (None, "", "dev-only-change-me"):
+            raise RuntimeError(
+                "FLASK_SECRET_KEY must be set to a strong random value when "
+                "APP_ENV=production — refusing to start on the development "
+                "default, which would make session cookies and public invoice "
+                "links forgeable."
+            )
 
     # Error monitoring (optional).
     if app.config.get("SENTRY_DSN"):
@@ -406,6 +423,27 @@ def _validate_invoice(invoice):
         errors.append("'Bill To' client information is required.")
     if not invoice.items:
         errors.append("At least one line item is required.")
+    # A percentage discount above 100 drives the taxable base negative, which
+    # then produces a negative tax and a negative total — an "invoice" that
+    # says the business owes the client. Nothing downstream expects that: the
+    # PDF renders it, the CSV exports it, and the History KPIs subtract it from
+    # the outstanding figure, quietly understating what is owed across the
+    # whole book. Negative line items stay allowed (they are how credits and
+    # adjustments are entered); only a negative bottom line is rejected.
+    #
+    # Caught by tests/test_scenarios.py::
+    #   test_discount_over_one_hundred_percent_is_rejected
+    if invoice.discount_is_percent and (invoice.discount_value or 0) > 100:
+        errors.append("A percentage discount cannot exceed 100%.")
+    if (invoice.discount_value or 0) < 0:
+        errors.append("Discount cannot be negative.")
+    if (invoice.tax_value or 0) < 0:
+        errors.append("Tax cannot be negative.")
+    if not errors and invoice.total < 0:
+        errors.append(
+            "Invoice total cannot be negative — check the line items, "
+            "discount, and shipping."
+        )
     return errors
 
 
@@ -416,18 +454,66 @@ def generate_pdf(app, invoice, pay_url=None):
     """
     from pdf import render_invoice_pdf
 
-    fname = f"invoice_{invoice.invoice_number}_{invoice.id}.pdf".replace(
-        "/", "-"
-    )
+    # invoice_number is free text, so it reaches this filename. Replacing "/"
+    # alone left the Windows separator through: a number of "..\..\evil" wrote
+    # the PDF outside INVOICES_DIR on the Windows run.ps1 path, and the same
+    # string is handed back as the download_name. Keep only characters that are
+    # safe on every platform.
+    #
+    # Caught by tests/test_scenarios.py::
+    #   test_pdf_filename_cannot_escape_the_invoices_directory
+    import re as _re
+
+    safe_number = _re.sub(r"[^A-Za-z0-9._-]", "-", invoice.invoice_number or "")
+    safe_number = safe_number.strip(".-") or "invoice"
+    fname = f"invoice_{safe_number}_{invoice.id}.pdf"
     out_path = app.config["INVOICES_DIR"] / fname
     render_invoice_pdf(invoice, out_path, pay_url=pay_url)
     return out_path
 
 
+def _csv_safe(value):
+    """Neutralise spreadsheet formula injection in an exported CSV field.
+
+    Excel / LibreOffice / Sheets execute a cell whose text begins with =, +,
+    -, @, or a leading tab/CR. ``bill_to`` and ``invoice_number`` are free
+    text — and via the JSON API they can be written by a third-party system,
+    not just by the account owner — so a field like ``=cmd|'/c calc'!A1``
+    reaches the accountant's spreadsheet as a live formula. Prefixing with an
+    apostrophe makes the cell inert while still displaying the original text.
+
+    Caught by tests/test_scenarios.py::
+      test_csv_export_neutralises_spreadsheet_formula_injection
+    """
+    text = "" if value is None else str(value)
+    if text[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + text
+    return text
+
+
 def next_invoice_number(user_id):
-    """Suggest the next per-user invoice number (e.g. INV-0007)."""
+    """Suggest the next per-user invoice number (e.g. INV-0007).
+
+    Derived from the highest number already issued, not from how many rows
+    survive: counting reuses a number as soon as any invoice is deleted, so
+    the account ends up with two different invoices both called INV-0003 —
+    which breaks reconciliation against Drake and against the client's own
+    accounts payable records.
+
+    Caught by tests/test_scenarios.py::
+      test_suggested_invoice_number_does_not_repeat_after_a_deletion
+    """
+    import re as _re
+
+    highest = 0
+    for (number,) in db.session.query(Invoice.invoice_number).filter_by(
+        user_id=user_id
+    ):
+        match = _re.search(r"(\d+)\s*$", number or "")
+        if match:
+            highest = max(highest, int(match.group(1)))
     count = Invoice.query.filter_by(user_id=user_id).count()
-    return f"INV-{count + 1:04d}"
+    return f"INV-{max(highest, count) + 1:04d}"
 
 
 # --- Signed tokens for email verification / password reset ----------------
@@ -566,7 +652,21 @@ def register_routes(app):
                 ), 403
             login_user(user, remember=bool(request.form.get("remember")))
             nxt = request.args.get("next")
-            if not nxt or not nxt.startswith("/"):
+            # "starts with /" alone is not enough: "//evil.example.com/x" is a
+            # protocol-relative URL, so the browser leaves the site entirely.
+            # "/\evil.example.com" is treated the same way by some browsers.
+            # A phishing link to /login?next=//evil.example.com lands the user
+            # on an attacker's page immediately after a successful sign-in,
+            # which is exactly when they are primed to trust it.
+            #
+            # Caught by tests/test_scenarios.py::
+            #   test_login_next_parameter_cannot_redirect_off_site
+            if (
+                not nxt
+                or not nxt.startswith("/")
+                or nxt.startswith("//")
+                or nxt.startswith("/\\")
+            ):
                 nxt = url_for("history")
             return redirect(nxt)
         return render_template("login.html", email="")
@@ -964,6 +1064,24 @@ def register_routes(app):
                 suggested_number=invoice.invoice_number,
                 today=date.today().isoformat(),
             ), 400
+        # An edit can raise the total above what has already been paid (add a
+        # line item to a settled invoice, remove a discount, bump a rate). The
+        # stored status is not derived, so without this the invoice keeps
+        # showing "Paid" while money is owed — and the History KPIs skip it,
+        # because outstanding only sums invoices whose status != "Paid". Reopen
+        # it so the balance is visible and chaseable. The reverse case (an edit
+        # that lowers the total to at or below what was paid) settles it.
+        #
+        # Caught by tests/test_scenarios.py::
+        #   test_editing_a_paid_invoice_upward_reopens_it
+        if invoice.balance_due > 0 and invoice.status == "Paid":
+            invoice.status = "Sent"
+        elif (
+            invoice.status != "Paid"
+            and (invoice.amount_paid or 0) > 0
+            and invoice.balance_due <= 0
+        ):
+            invoice.status = "Paid"
         db.session.commit()
         flash("Invoice updated.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -1138,6 +1256,12 @@ def register_routes(app):
 
     @app.route("/i/<token>/pay", methods=["POST"])
     @csrf.exempt
+    # Unauthenticated and CSRF-exempt by necessity (the client paying has no
+    # account), and every hit creates a real Stripe Checkout Session on the
+    # owner's connected account. Without a cap, anyone holding a public link
+    # can drive unbounded Stripe API calls against that account and bury the
+    # owner's Stripe dashboard in abandoned sessions.
+    @limiter.limit("20 per hour")
     def public_pay(token):
         invoice = _invoice_from_token(token)
         owner = invoice.owner
@@ -1253,10 +1377,10 @@ def register_routes(app):
             ]
         )
         for inv in invoices:
-            bill_to_oneline = " ".join((inv.bill_to or "").split())
+            bill_to_oneline = _csv_safe(" ".join((inv.bill_to or "").split()))
             writer.writerow(
                 [
-                    inv.invoice_number,
+                    _csv_safe(inv.invoice_number),
                     inv.invoice_date.isoformat() if inv.invoice_date else "",
                     bill_to_oneline,
                     inv.currency,
@@ -1307,9 +1431,38 @@ def register_routes(app):
             event_type, event.get("id"), event.get("account"),
         )
 
-        if event_type == "checkout.session.completed":
+        if event_type in (
+            "checkout.session.completed",
+            "checkout.session.async_payment_succeeded",
+        ):
             session = event["data"]["object"]
             session_id = session.get("id")
+
+            # Only credit money that has actually settled.
+            #
+            # checkout.session.completed also fires for delayed-notification
+            # payment methods (ACH direct debit, SEPA, Bacs, Boleto, OXXO,
+            # Konbini) at the moment the customer finishes the Checkout page —
+            # before the funds clear, with payment_status "unpaid". Crediting
+            # that event marks the invoice Paid for a payment that may still
+            # fail days later, and the balance is never chased. Stripe sends
+            # checkout.session.async_payment_succeeded when such a payment
+            # really settles, which is why it is handled alongside this event.
+            #
+            # Caught by tests/test_scenarios.py::
+            #   test_delayed_payment_method_is_not_credited_until_it_settles
+            payment_status = (session.get("payment_status") or "").lower()
+            if payment_status and payment_status not in (
+                "paid",
+                "no_payment_required",
+            ):
+                logger.info(
+                    "stripe webhook: session %s not settled yet "
+                    "(payment_status=%s) — not credited", session_id,
+                    payment_status,
+                )
+                return ("", 200)
+
             # For Connect direct charges the event carries the connected
             # account it belongs to; legacy platform charges have none.
             event_account = event.get("account")

@@ -85,6 +85,46 @@ def _issued(store: Path) -> list[dict]:
     return out
 
 
+def issued_for(store: Path, ref: str) -> list[dict]:
+    """Every invoice raised against one engagement, oldest number first."""
+    folder = store / ref / "invoices"
+    if not folder.is_dir():
+        return []
+    out = []
+    for path in sorted(folder.glob("*.json")):
+        try:
+            out.append(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            continue
+    return out
+
+
+def find(store: Path, ref: str, number: str | None = None) -> dict | None:
+    """One engagement's invoice fields: the named one, or the latest raised.
+
+    Exists because the money and the client live in two files on purpose --
+    `record.json` holds the engagement, `invoices/NNNN.json` holds one bill --
+    and rendering the invoice needs both. `cli.py invoice` prints
+    "Next: python cli.py render --engagement REF --docs invoice" and that
+    command refused, every time, on `<<AmountDue>>, <<InvoiceDate>>,
+    <<InvoiceNumber>>, <<Subtotal>>`: the render was reading the engagement
+    record alone and no invoice had ever reached it. A tool that hands you
+    the next command has to hand you one that works.
+    """
+    raised = issued_for(store, ref)
+    if not raised:
+        return None
+    if number is None:
+        return raised[-1]
+    for one in raised:
+        if one.get("InvoiceNumber") == number:
+            return one
+    raise InvoiceError(
+        f"engagement {ref} has no invoice {number}. Raised so far: "
+        f"{', '.join(i.get('InvoiceNumber', '?') for i in raised) or 'none'}."
+    )
+
+
 def build(record: dict, *, number: str, billed: str, today: date | None = None,
           credits: list[dict] | None = None, variance_note: str = "",
           currency: str = "USD") -> dict:

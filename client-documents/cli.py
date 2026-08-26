@@ -70,24 +70,25 @@ DOCUMENTS = {
     "records-release":      ("SATC Records Release Authorization.html",     "Records Release"),
 }
 
-# The three that go out together. Named because generating them in one call is
-# the reason they cannot disagree about the date, the ref or the address.
-OPENING_PACKAGE = ["tax-letter", "fee-estimate", "onboarding-letter"]
-
-# And, for a client who had a previous accountant, the records release they
-# sign and send. The firm, 26 August 2026: "let's just make an attachment that
-# we send for them to sign by default along with the engagement letter."
-#
-# BY DEFAULT is the whole point, so it is not a decision anybody makes per
-# engagement: `opening_package()` adds it whenever the record says there is a
-# predecessor. A client with none never sees it.
-CONDITIONAL_OPENING = {"records-release": "PriorFirm"}
-
-
 def opening_package(record: dict) -> list[str]:
-    """The documents this engagement's opening package actually contains."""
-    return OPENING_PACKAGE + [doc for doc, flag in CONDITIONAL_OPENING.items()
-                              if record.get(flag)]
+    """The documents this engagement's opening package actually contains.
+
+    ONE LIST, AND IT LIVES IN `packaging`. This used to be its own hard-coded
+    `["tax-letter", "fee-estimate", "onboarding-letter"]` plus the conditional
+    records release, sitting beside `packaging.PACKS`, which keys the letter on
+    `_return_type`. The two disagreed in both directions and each was right
+    about the half the other got wrong:
+
+    * `render --engagement` on an S corporation reached for the INDIVIDUAL
+      engagement letter, which then refused on `TaxpayerName` -- so the
+      business letter its own pack would have sent was never rendered at all.
+    * `package` never carried the records release, so a client with a
+      predecessor got a pack whose onboarding letter says "We have included a
+      short authorization for you to sign" and did not include one.
+
+    Both found on 26 August 2026 by running an entity engagement end to end.
+    """
+    return packaging.documents_for(record)
 
 # When in an engagement's life a document becomes due. Readiness is only
 # meaningful against a stage: a disengagement letter that cannot render at
@@ -282,10 +283,19 @@ def _engagement_readiness(ref: str, store: Path) -> int:
     print(f"Engagement {ref} - {record.get('ClientFullName', '(no name)')}\n")
 
     letter = OPENING_BY_RETURN.get(record.get("_return_type", "individual"))
+    # A DOCUMENT THIS CLIENT WILL NEVER BE SENT CANNOT BE BLOCKING THEM.
+    # The records release goes only to a client who had a previous accountant
+    # -- `opening_package` has always known that and this report did not, so
+    # every engagement with no predecessor was told, in red, that a document
+    # it is never going to send is "Blocked, and due now", and `doctor`
+    # exited 1 on a perfectly healthy engagement. A readiness tool that
+    # overstates what is broken teaches whoever reads it to stop believing
+    # the parts that are true -- the same argument that put `hard_no` in
+    # settings.POLICY_ONLY.
     relevant = [d for d in DOCUMENTS
                 if STAGE[d] != "opening" or d == letter
-                or d in ("fee-estimate", "onboarding-letter", "organizer-letter",
-                         "records-release")]
+                or d in ("fee-estimate", "onboarding-letter", "organizer-letter")
+                or (d == "records-release" and record.get("PriorFirm"))]
 
     ready, blocked = [], {}
     for doc in relevant:
@@ -922,6 +932,24 @@ def cmd_render(args) -> int:
     if args.engagement:
         store = Path(args.store) if args.store else engagements.STORE
         raw = engagements.load(args.engagement, store)
+        # THE BILL LIVES BESIDE THE ENGAGEMENT, NOT INSIDE IT. One engagement
+        # has many invoices, so `invoice` writes each to its own file rather
+        # than overwriting the record -- and this front door read only the
+        # record, so the command `invoice` tells you to run next refused on
+        # every invoice field there is. The invoice's own fields win where
+        # they overlap: `PeriodLabel` is the engagement's period on the
+        # estimate and the period BILLED here, which is the one value the two
+        # documents must NOT share.
+        if "invoice" in (args.docs or ()):
+            bill = invoicing.find(store, args.engagement,
+                                  getattr(args, "invoice", None))
+            if bill is None:
+                print(f"engagement {args.engagement} has no invoice yet. Raise "
+                      f"one first:\n  python cli.py invoice --engagement "
+                      f"{args.engagement} --billed 'March 2027'\n")
+                return 1
+            raw = {**raw, **bill}
+            print(f"  invoice {bill.get('InvoiceNumber', '')}\n")
     elif args.record:
         raw = json.loads(Path(args.record).read_text(encoding="utf-8"))
     else:
@@ -990,8 +1018,15 @@ def cmd_demo(args) -> int:
                                      season="2026", return_type="individual",
                                      ref="2027-0114"))
 
+    # The RECORD decides the package, so the record has to be loaded rather
+    # than named. Passing the path here read `opening_package("/…/x.json")`,
+    # which asked a string for `.get` and killed the command outright --
+    # `demo` is the one command a newcomer runs first and it had not been run
+    # since the conditional records release landed. Caught 26 Aug 2026 by a
+    # scenario that simply ran every CLI verb.
     record = str(ROOT / "samples" / "tax-opening-package.json")
-    common = dict(record=record, docs=opening_package(record), out=str(outdir),
+    loaded = json.loads(Path(record).read_text(encoding="utf-8"))
+    common = dict(record=record, docs=opening_package(loaded), out=str(outdir),
                   no_pdf=args.no_pdf, engagement=None, store=None)
 
     print("\n2. a finished record (the interview's answers) -> documents")
@@ -1213,7 +1248,8 @@ def cmd_check(args) -> int:
     you can tell it all goes together (so i can see consistency)."
     """
     record = build_record(json.loads(Path(args.record).read_text(encoding="utf-8")))
-    rendered = consistency.render_package(record, DOCUMENTS, TEMPLATE_DIR)
+    rendered = consistency.render_package(record, DOCUMENTS, TEMPLATE_DIR,
+                                          _required_lists())
     if not rendered:
         print("No document in the set renders from this record, so there is "
               "nothing to compare. `doctor` says what is missing.")
@@ -1303,8 +1339,13 @@ def main(argv=None) -> int:
     r.add_argument("record", nargs="?", help="a record JSON; or use --engagement")
     r.add_argument("--engagement", metavar="REF", help="render a stored engagement")
     r.add_argument("--store", help="engagements directory")
+    r.add_argument("--invoice", metavar="NUMBER",
+                   help="which invoice to render (default: the latest raised)")
     r.add_argument("--docs", nargs="+", metavar="DOC",
-                   help=f"default: the opening package ({', '.join(OPENING_PACKAGE)})")
+                   help="default: this engagement's own opening package — the "
+                        "engagement letter for its return type, the estimate, "
+                        "the onboarding letter, and the records release where "
+                        "there is a predecessor")
     r.add_argument("--out", default="out")
     r.add_argument("--draft", action="store_true",
                    help="render past open decisions, stamped DRAFT")

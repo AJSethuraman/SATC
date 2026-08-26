@@ -37,6 +37,19 @@ PACKS: dict[str, list[str]] = {
     "c_corp":      ["business-letter", "fee-estimate", "onboarding-letter"],
 }
 
+# Documents that travel with every pack, for the clients they apply to. The
+# flag is a field on the record, so nobody decides this per engagement.
+#
+# THE RECORDS RELEASE BELONGS HERE AND WAS NOT. The firm, 26 August 2026:
+# "let's just make an attachment that we send for them to sign by default
+# along with the engagement letter." `cli.opening_package` honoured that and
+# this module did not, so the two front doors sent different packs -- and the
+# onboarding letter INSIDE the pack says, to any client with a predecessor,
+# "We have included a short authorization for you to sign." It was not
+# included. A pack that promises an enclosure it does not carry is the same
+# failure as a pack with a hole in it, arriving by the back door.
+CONDITIONAL: dict[str, str] = {"records-release": "PriorFirm"}
+
 # Why each document is in the pack, for the manifest. A folder of PDFs with
 # no note is a folder somebody has to reverse-engineer in a year.
 PURPOSE = {
@@ -44,6 +57,7 @@ PURPOSE = {
     "business-letter":    "The engagement letter for an entity return. This is the one that is signed.",
     "fee-estimate":       "What the work costs, and what the price assumes. Accompanies the letter; not signed separately.",
     "onboarding-letter":  "What happens next, and what we need from you.",
+    "records-release":    "The authorization your previous accountant needs before they release your records. Signed by you and sent to them.",
     "invoice":            "The bill. Not part of what is signed — included because it was asked for.",
 }
 
@@ -75,6 +89,7 @@ def documents_for(record: dict, *, with_invoice: bool = False) -> list[str]:
             f"the individual pack, which would send the wrong letter."
         )
     docs = list(PACKS[kind])
+    docs += [doc for doc, flag in CONDITIONAL.items() if record.get(flag)]
     if with_invoice:
         docs.append("invoice")
     return docs
