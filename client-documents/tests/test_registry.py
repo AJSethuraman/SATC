@@ -280,3 +280,39 @@ def test_no_registry_has_a_duplicate_key():
         seen.clear()
         _yaml.load(path.read_text(encoding="utf-8"), _Loader)
         assert not seen, f"{path.name} declares {sorted(set(seen))} twice"
+
+
+def test_a_policy_decision_does_not_claim_to_block_a_render():
+    """`doctor` reported `hard_no` under "blocks every REAL render" while real
+    packs were rendering perfectly well.
+
+    Found 26 August 2026. A readiness tool that overstates what is broken
+    teaches whoever reads it to stop believing the parts that are true — and
+    this one is the first thing anybody runs.
+    """
+    import settings as firm
+
+    assert not firm.blocks_render("hard_no")
+    assert not firm.blocks_render("hard_no[1]")
+    assert firm.blocks_render("delivery.payment_instruction")
+    assert firm.blocks_render("materials_deadlines.2026.individual_1040")
+
+
+def test_nothing_in_POLICY_ONLY_is_merged_by_a_template():
+    """The one thing that would make the split a lie.
+
+    A setting listed as policy-only that some template actually merges from
+    would render blank or carry a [CONFIRM: to a client, and `doctor` would
+    say nothing was wrong.
+    """
+    import settings as firm
+
+    fields = yaml.safe_load(
+        (ROOT / "registry" / "fields.yaml").read_text(encoding="utf-8"))
+    named = {f["field"].lower() for f in fields["fields"]}
+    for path in firm.POLICY_ONLY:
+        leaf = path.split(".")[-1].replace("_", "")
+        assert leaf not in named, (
+            f"{path} is treated as policy-only but a template merges a field "
+            f"by that name — doctor would call it harmless when it is not"
+        )

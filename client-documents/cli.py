@@ -583,18 +583,37 @@ def cmd_doctor(args) -> int:
         for path, q in unpriced:
             print(f"    {path}\n        {q}\n")
 
+    # Split by what an unanswered decision actually costs. `hard_no` was
+    # being reported as blocking every real render while real packs rendered
+    # perfectly well; a readiness tool that overstates what is broken teaches
+    # whoever reads it to stop believing the parts that are true.
+    blocking = [(p, q) for p, q in decisions if firm.blocks_render(p)]
+    policy = [(p, q) for p, q in decisions if not firm.blocks_render(p)]
+
     if not decisions and not unpriced:
         print("\n  No open decisions. Real renders will produce documents.")
         return 0
-    if not decisions:
-        return 1
 
-    print(f"\n  {len(decisions)} open decision(s) block every REAL render.")
-    print("  Each is a question only a human can answer. Edit "
-          "registry/firm-settings.yaml.\n")
-    for path, q in decisions:
-        print(f"    {path}\n        {q}\n")
-    print("  Until then, use --draft to exercise the pipeline end to end.")
+    if blocking:
+        print(f"\n  {len(blocking)} open decision(s) block every REAL render.")
+        print("  Each is a question only a human can answer. Edit "
+              "registry/firm-settings.yaml.\n")
+        for path, q in blocking:
+            print(f"    {path}\n        {q}\n")
+
+    if policy:
+        print(f"\n  {len(policy)} open decision(s) about how the firm WORKS. "
+              f"Documents render\n  without these — they govern what work is "
+              f"taken, not what a letter says.\n")
+        for path, q in policy:
+            print(f"    {path}\n        {q}\n")
+
+    if not blocking and not unpriced:
+        print("  Nothing blocks a real render.")
+        return 0
+    if blocking:
+        print("  Until then, use --draft to exercise the pipeline end to end.")
+    return 1
     return 1
 
 
