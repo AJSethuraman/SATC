@@ -399,6 +399,12 @@ lists:
   - list: ActionList
     templates: [delivery-letter]
     item_fields: [Action, Detail]
+    may_be_empty: >-
+      A return delivered with nothing left for the client to do is a real
+      and welcome outcome. The list is what remains, not what was done, so
+      an empty one is a true statement rather than a hole. Unlike
+      ReturnsDelivered beside it, which cannot be empty -- a delivery letter
+      delivering nothing is not a document.
     notes: >-
       Built from the returns, never typed. Every amount is a
       pre-formatted string -- a human must not type a tax figure here.
@@ -419,6 +425,11 @@ lists:
   - list: OutstandingItems
     templates: [extension-notice]
     item_fields: [Detail, Document]
+    may_be_empty: >-
+      An extension is often filed for time rather than for missing papers,
+      so nothing outstanding is a real extension notice. This was already
+      the reasoning in cli.py's comment on required lists; it is written
+      here now because that is where the decision belongs.
     notes: >-
       What is still missing: the onboarding letter's RequestList
       minus what arrived. Done by hand it drifts, and a client chased for
@@ -426,13 +437,27 @@ lists:
   - list: OpenDeadlines
     templates: [disengagement-letter]
     item_fields: [Detail, Obligation]
+    may_be_empty: >-
+      The letter says in terms that this is what the firm knows about and
+      not everything the client owes, so an empty list understates nothing
+      the letter has not already disclaimed. Note the contrast with
+      WorkStatus above, on the same letter: that one carries a sentence
+      that reads "above" and needs something there.
     notes: >-
       What the firm knows about, which the letter says in terms
       is not everything the client owes.
   - list: WorkStatus
     templates: [disengagement-letter]
     item_fields: [Status, Work]
+    required: true
     notes: >-
       EVERY engaged item, complete or not, generated from the
       engagement scope. The callout beneath it says nothing else is being worked
       on; that sentence is only safe if this list is generated.
+      Made required 26 Aug 2026, after rendering the letter with it empty:
+      section 02 came out as a heading with no rows, and the sentence under it
+      survived word for word -- "anything not marked complete ABOVE is not
+      filed, not lodged, and not being worked on by us. Treat every incomplete
+      item as yours." Pointing at nothing. Same failure as the onboarding
+      letter's RequestList, on the document with the most legal exposure in
+      the set.

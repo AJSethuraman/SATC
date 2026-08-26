@@ -345,3 +345,75 @@ def test_the_template_directory_holds_only_templates():
         f"rendered output in the template library: {strays}. "
         "Renders belong in an output directory, not beside the templates."
     )
+
+
+def _fields_specs():
+    """Every list a FIELDS spec declares, as {list name: cardinality phrase}."""
+    out = {}
+    for path in sorted(TEMPLATE_DIR.glob("FIELDS - *.md")):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            m = re.match(r"\|\s*`\[\[EACH (\w+)\]\]`\s*\|([^|]*)\|([^|]*)\|", line)
+            if m and m.group(1) != "List":
+                out[m.group(1)] = m.group(3).strip().lower()
+    return out
+
+
+def test_every_list_the_spec_calls_one_or_more_is_required_or_says_why():
+    """All twelve FIELDS specs say "one or more". Only eight lists were marked
+    `required: true`, and nothing recorded whether the other four were decided
+    or forgotten.
+
+    Found 26 August 2026. `WorkStatus` was one of the four, on the
+    disengagement letter — the document with the most legal exposure in the
+    set. Emptied, section 02 "What we completed, and what we did not" renders
+    as a heading with no rows, and the sentence under it survives intact:
+    "Anything not marked complete above is not filed, not lodged, and not being
+    worked on by us. Treat every incomplete item as yours." It points at
+    nothing. That is the empty-`RequestList` bug again, on the letter where it
+    costs most.
+
+    A list may still be legitimately empty — an extension notice with nothing
+    outstanding is a real document. This test does not forbid that. It forbids
+    the *silence*: disagree with the spec and write down why, in
+    `may_be_empty`, so the next reader can tell a decision from an oversight.
+    """
+    spec = yaml.safe_load(
+        (ROOT / "registry" / "fields.yaml").read_text(encoding="utf-8"))
+    declared = _fields_specs()
+    assert declared, "no FIELDS specs parsed — the table shape must have changed"
+
+    unexplained = []
+    for entry in spec.get("lists") or []:
+        name = entry["list"]
+        if "one or more" not in declared.get(name, ""):
+            continue
+        if entry.get("required"):
+            continue
+        if str(entry.get("may_be_empty") or "").strip():
+            continue
+        unexplained.append(name)
+
+    assert not unexplained, (
+        f"{unexplained}: the FIELDS spec says one or more, the registry does "
+        "not require it, and nothing says why. Mark it `required: true`, or "
+        "give `may_be_empty:` a reason."
+    )
+
+
+def test_the_disengagement_letter_refuses_an_empty_work_status():
+    """The specific instance of the above, pinned so it cannot come back."""
+    import merge
+
+    template = (TEMPLATE_DIR / TEMPLATES["disengagement-letter"]).read_text(encoding="utf-8")
+    spec = yaml.safe_load(
+        (ROOT / "registry" / "fields.yaml").read_text(encoding="utf-8"))
+    required = tuple(e["list"] for e in spec["lists"]
+                     if e.get("required") and "disengagement-letter" in e["templates"])
+    assert "WorkStatus" in required
+
+    payload = json.loads(
+        (TEMPLATE_DIR / "FIELDS - Disengagement Letter.md")
+        .read_text(encoding="utf-8").split("```json")[1].split("```")[0])
+    payload["WorkStatus"] = []
+    with pytest.raises(merge.MergeError, match="WorkStatus"):
+        merge.render(template, payload, strict=True, required_lists=required)
