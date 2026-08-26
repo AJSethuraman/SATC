@@ -62,16 +62,16 @@
   "EstimateTotal": "$645.00",
   "RequestList": [
     {
-      "Document": "The signed engagement letter",
-      "Detail": "Nothing begins until this is back with us"
-    },
-    {
       "Document": "Every W-2 for the year",
       "Detail": "One for each employer, for you and anyone filing with you"
     },
     {
-      "Document": "Photo ID, and the Social Security number for everyone on the return",
-      "Detail": "The ID only if we have not seen it before. We need the numbers, not the cards"
+      "Document": "Photo ID",
+      "Detail": "Only if we have not seen it before"
+    },
+    {
+      "Document": "The Social Security number for everyone on the return",
+      "Detail": "The numbers themselves. We do not need the cards"
     },
     {
       "Document": "Last year's tax return",
@@ -86,6 +86,10 @@
       "Detail": "Rents received, and what you spent on each one. If a property was bought, sold or first rented this year, the closing statement too"
     },
     {
+      "Document": "Last year's depreciation schedule for each property",
+      "Detail": "So the basis and the lives carry forward unchanged. If you do not have it: what you paid, when it was first rented, and what you have spent on improvements since"
+    },
+    {
       "Document": "Each K-1 you received",
       "Detail": "Including its statements"
     },
@@ -96,6 +100,10 @@
     {
       "Document": "Your itemized deduction records",
       "Detail": "Mortgage interest, property tax, state and local tax paid, medical costs and charitable receipts"
+    },
+    {
+      "Document": "Receipts for any large purchases",
+      "Detail": "A vehicle, a boat, or a major home renovation. The sales tax on a big purchase can be worth more than the tax withheld from your pay"
     }
   ],
   "SCorpElection": false,

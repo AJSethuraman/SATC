@@ -147,6 +147,50 @@ which is a smaller job than building ours, and is the honest alternative.
 `[CONFIRM: build the returning-client confirmation, or send Drake's organizer
 under this cover letter?]`
 
+## The predecessor's records — who actually sends the authorization?
+
+Asked 26 August on the onboarding letter: *"can we just get their written
+consent to get the records from them? or do they have to contact? my intention
+was to collect their consent upfront."*
+
+**Today the client does the sending.** Section 03 says *"We have included a
+short authorization for you to sign. Send it to <PriorFirmName> and they will
+release your prior records to us."* So we hand them a form and a task, and the
+step happens outside our sight — we cannot tell a client who forgot from a
+predecessor who is stalling.
+
+**Recommendation: collect it upfront and send it ourselves.** The
+authorization is already in the opening package and already conditional on
+there being a predecessor, so the client signs it in the same sitting as the
+engagement letter, through the same route, and it comes back to us with
+everything else. We then send it on.
+
+Three reasons, in order of weight:
+
+1. **It is one fewer thing that can silently not happen.** A signed
+   authorization sitting in our file is a fact we can act on. A form we asked
+   a client to post is a hope.
+2. **It matches how the rest of the package already works.** Everything else
+   is signed through Encyro and comes back to us. This one item asked the
+   client to break that pattern and use a different channel to a different
+   recipient.
+3. **A predecessor answers a firm faster than a forwarded email.** A request
+   from us, with the client's signed authorization attached, is a complete
+   request. A client forwarding a PDF is not.
+
+**What would change:** section 03's sentence stops being *"send it to them"*
+and becomes *"sign it and we will send it"*. Nothing about the
+authorization itself changes — it is still the client's consent, addressed to
+the predecessor, and the predecessor still decides when to release.
+
+**What does not change, and should not:** *"We will not wait on them to
+start."* That sentence is the reason the whole section is safe to have, and it
+survives either way.
+
+`[CONFIRM: switch section 03 to "sign it and we will send it", or leave the
+client to send it?]` I have not changed the letter — who transmits a records
+request is a practice decision, not a wording one.
+
 ## To decide — a question only the firm can answer
 
 1. **Merge PR #153.** Nothing from the last two days is on `main`: fifteen

@@ -46,11 +46,20 @@ def test_the_record_carries_a_request_list_at_all():
 
 def test_everybody_is_asked_for_the_basics():
     """Ungated entries apply to every client. If these ever stop appearing,
-    the registry has lost its unconditional rows and every letter is thin."""
+    the registry has lost its unconditional rows and every letter is thin.
+
+    "The signed engagement letter" WAS the first thing asserted here, until
+    the firm removed it on 26 August 2026: "they dont send it to us - it would
+    be sent automatically via encyro". A list headed "What to send us" cannot
+    carry something the client never sends. The rule this test guards is
+    unchanged; only the example moved, and it is now checked against three
+    rows rather than one so a single removal cannot hollow it out again.
+    """
     for extra in ({}, {"federal_schedules": ["A", "C", "D", "E1", "E2", "F"]}):
         docs = _docs({"federal_form": "1040", **extra})
-        assert "The signed engagement letter" in docs
         assert "Every W-2 for the year" in docs
+        assert "Photo ID" in docs
+        assert "The Social Security number for everyone on the return" in docs
 
 
 def test_a_client_with_nothing_still_gets_a_list():
@@ -98,10 +107,15 @@ def test_answer_includes_handles_a_comma_string_too():
 # ── order and refusals ────────────────────────────────────────────────────
 
 def test_the_order_is_the_registry_s_not_the_answers(answers):
-    """Two clients with the same return get the same letter, and the
-    engagement letter sits at the top where it belongs."""
+    """Two clients with the same return get the same letter, in one order.
+
+    The order is the REGISTRY's, so a client who happens to have answered in a
+    different sequence does not get a differently-ordered letter. What sits
+    first changed on 26 August 2026 when the engagement-letter row was
+    removed; that it is stable is the property under test, not which row wins.
+    """
     docs = _docs(answers)
-    assert docs[0] == "The signed engagement letter"
+    assert docs[0] == "Every W-2 for the year"
     reordered = dict(answers)
     reordered["federal_schedules"] = list(reversed(answers["federal_schedules"]))
     assert _docs(reordered) == docs

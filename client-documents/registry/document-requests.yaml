@@ -32,8 +32,17 @@
 # envelope. Advice belongs in a conversation with a person.
 
 requests:
-  - document: "The signed engagement letter"
-    detail: "Nothing begins until this is back with us"
+  # REMOVED 26 August 2026, the whole line and not just its detail. The firm,
+  # on "Nothing begins until this is back with us": "just delete this they
+  # dont send it to us - it would be sent automatically via encyro and i dont
+  # care to say that again."
+  #
+  # The detail was what he quoted, but his reason kills the item: a list
+  # headed "What to send us" cannot carry something the client never sends.
+  # The letter's opening still says "Sign the engagement letter first", which
+  # is an instruction rather than a request, and stays.
+  #
+  # If he meant only the detail, put the line back with none.
 
   - document: "Every W-2 for the year"
     detail: "One for each employer, for you and anyone filing with you"
@@ -45,8 +54,14 @@ requests:
   # NOTE, RAISED THE SAME DAY AND NOT BUILT: "let's make a note to incorporate
   # a license expiry check we can email clients about as well." An ID with a
   # date on it is a thing the software could watch. See PLAN.md.
-  - document: "Photo ID, and the Social Security number for everyone on the return"
-    detail: "The ID only if we have not seen it before. We need the numbers, not the cards"
+  # SPLIT 26 August 2026: "this is confusing --> put Photo ID and SSNs on
+  # their own lines to reduce confusion". One line carried two different asks
+  # with two different conditions, and the detail had to qualify both at once.
+  - document: "Photo ID"
+    detail: "Only if we have not seen it before"
+
+  - document: "The Social Security number for everyone on the return"
+    detail: "The numbers themselves. We do not need the cards"
 
   - document: "Last year's tax return"
     detail: "The complete copy, including every schedule"
@@ -65,6 +80,18 @@ requests:
 
   - document: "Rental income and expenses for each property"
     detail: "Rents received, and what you spent on each one. If a property was bought, sold or first rented this year, the closing statement too"
+    when:
+      schedules_any: [E1]
+
+  # ADDED 26 August 2026. The firm, reading the request list: "for rentals we
+  # need a depreciation schedule right? won't we basically always need the
+  # closing statement or some way of establishing the basis so we can
+  # depreciate it and renovations". Yes to both, and neither was asked for.
+  # Depreciation continues across years on the same basis and the same lives,
+  # so a rental we did not prepare last year cannot be carried forward without
+  # last year's schedule -- or, failing that, the numbers to rebuild it from.
+  - document: "Last year's depreciation schedule for each property"
+    detail: "So the basis and the lives carry forward unchanged. If you do not have it: what you paid, when it was first rented, and what you have spent on improvements since"
     when:
       schedules_any: [E1]
 
@@ -96,6 +123,20 @@ requests:
 
   - document: "Your itemized deduction records"
     detail: "Mortgage interest, property tax, state and local tax paid, medical costs and charitable receipts"
+    when:
+      schedules_any: [A]
+
+  # ADDED 26 August 2026. The firm: "large purchases can impact SALT - is this
+  # in the interview if not here?" It was in neither. Nothing in the interview
+  # or this list asked about a big purchase, so a client who bought a car or
+  # ran a large renovation had no prompt to mention it and the preparer found
+  # out on the call, if at all.
+  #
+  # Asked here rather than in the interview on purpose: it is a RECEIPT the
+  # client either has or does not, which is what this list is for, and it only
+  # matters where they itemize -- so it rides the same gate as the line above.
+  - document: "Receipts for any large purchases"
+    detail: "A vehicle, a boat, or a major home renovation. The sales tax on a big purchase can be worth more than the tax withheld from your pay"
     when:
       schedules_any: [A]
 
