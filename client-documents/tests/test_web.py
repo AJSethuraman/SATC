@@ -307,3 +307,45 @@ def test_a_missing_workbook_is_not_an_error(tmp_path):
                          leads_workbook=tmp_path / "nope.xlsx")
     body = app.test_client().get("/leads").get_data(as_text=True)
     assert "Take one by phone" in body
+
+
+# ── the price editor ──────────────────────────────────────────────────────
+
+def test_the_price_list_shows_every_price_and_says_which_are_public(client):
+    """The list is the schedule's, and it says which figures a stranger reads.
+
+    Published-vs-withheld is the difference between changing a number and
+    changing satcllp.com, and it belongs before the click rather than after.
+    """
+    body = client.get("/prices").get_data(as_text=True)
+    assert "The hourly rate" in body
+    assert "Published" in body and "Withheld" in body
+    assert "base.1040.tiers.standard" in body
+
+
+def test_a_preview_shows_what_moves_and_writes_nothing(client, tmp_path, monkeypatch):
+    """The reason a form beats editing YAML: the file cannot show you what a
+    number moves. And a preview that writes is not a preview."""
+    import registry_editor
+    before = registry_editor.SCHEDULE.read_text(encoding="utf-8")
+    r = client.post("/prices/base.1040.tiers.business",
+                    data={"amount": "560", "preview": "1"},
+                    headers={"Accept": "application/json"})
+    assert r.status_code == 200
+    report = r.get_json()
+    assert report["saved"] is False
+    assert report["from"] == 500 and report["to"] == 560
+    assert report["sample_total_before"] != report["sample_total_after"]
+    assert registry_editor.SCHEDULE.read_text(encoding="utf-8") == before
+
+
+def test_a_price_that_is_not_a_number_is_refused_by_the_form(client):
+    """A browser must not be able to save something a script could not."""
+    r = client.post("/prices/basis.rate", data={"amount": "banana"},
+                    headers={"Accept": "application/json"})
+    assert r.status_code == 400
+    assert "whole number" in r.get_json()["error"]
+
+
+def test_a_price_that_does_not_exist_is_a_404_not_a_guess(client):
+    assert client.get("/prices/per_unit.moon_landing").status_code == 404

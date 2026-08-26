@@ -32,6 +32,7 @@ from flask import (Flask, abort, jsonify, redirect, request, url_for)
 
 import cli
 import editor
+import registry_editor
 import engagements
 import intake
 import leads
@@ -188,6 +189,57 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
     # rule about what an edit may do lives in `editor`, not here, for the same
     # reason no decision lives here: a browser must not be able to save
     # something a script could not.
+
+    # ── the prices ────────────────────────────────────────────────────────
+    #
+    # The firm, 26 August 2026: "i want this to be GUI-based like i think you
+    # made the changing of templates." Same shape as the section editor above,
+    # and the same division of labour: every rule about what an edit may do
+    # lives in `registry_editor`, not here, so a browser cannot save something
+    # a script could not.
+    #
+    # A price change is shown BEFORE it is written -- what it was, what it
+    # becomes, whether it reaches satcllp.com, and what it does to the demo
+    # engagement's quote. That preview is the reason this beats editing YAML:
+    # the file cannot show you what a number moves.
+
+    @app.get("/prices")
+    def prices():
+        return page("Prices", prices_body(registry_editor.prices()))
+
+    @app.get("/prices/<path:path>")
+    def price(path):
+        try:
+            wanted = next(p for p in registry_editor.prices() if p.path == path)
+        except StopIteration:
+            abort(404, f"no price at {path}")
+        return page(wanted.label, price_body(wanted))
+
+    @app.post("/prices/<path:path>")
+    def set_price(path):
+        raw = (request.form.get("amount") or "").strip()
+        preview = request.form.get("preview")
+        try:
+            amount = int(raw)
+        except ValueError:
+            return _price_error(path, f"{raw!r} is not a whole number of dollars")
+        try:
+            report = (registry_editor.effect(path, amount) if preview
+                      else registry_editor.save(path, amount))
+        except registry_editor.RegistryError as exc:
+            return _price_error(path, str(exc))
+        if wants_json():
+            return jsonify({**report, "saved": not preview})
+        wanted = next(p for p in registry_editor.prices() if p.path == path)
+        return page(wanted.label, price_body(wanted, report=report, saved=not preview))
+
+    def _price_error(path, message):
+        wanted = next((p for p in registry_editor.prices() if p.path == path), None)
+        if wanted is None:
+            abort(404, f"no price at {path}")
+        if wants_json():
+            return jsonify(error=message, path=path), 400
+        return page(wanted.label, price_body(wanted, error=message)), 400
 
     @app.get("/templates")
     def templates():
@@ -454,6 +506,65 @@ def page(title: str, body: str) -> str:
             f" · SAT-C</title><style>{CSS}</style></head>"
             f"<body><header><a href='/'>SAT-C</a></header><main>{body}</main>"
             f"</body></html>")
+
+
+def prices_body(prices) -> str:
+    """Every price the engine charges, grouped as the schedule groups them.
+
+    `published` is shown because it is the difference between changing a
+    number and changing something a stranger can read on satcllp.com, and
+    that difference should be visible before the click, not after.
+    """
+    out = ["<h1>Prices</h1>",
+           "<p class=muted>Every figure the engine charges, read from "
+           "<code>fee-schedule.yaml</code>. Changing one here changes the "
+           "estimate, the letters and the website together.</p>"]
+    where = None
+    for pr in prices:
+        if pr.where != where:
+            where = pr.where
+            out.append(f"<h2>{esc(where)}</h2><table>"
+                       "<tr><th>What</th><th>Now</th><th>On the site?</th></tr>")
+        out.append(
+            f"<tr><td><a href='/prices/{esc(pr.path)}'>{esc(pr.label)}</a>"
+            f"<br><code class=muted>{esc(pr.path)}</code></td>"
+            f"<td><b>${pr.amount}</b></td>"
+            f"<td>{'Published' if pr.published else '<span class=muted>Withheld</span>'}</td></tr>")
+        if pr is prices[-1] or prices[prices.index(pr) + 1].where != where:
+            out.append("</table>")
+    return "".join(out)
+
+
+def price_body(price, *, report=None, saved=False, error="") -> str:
+    """One price, with what changing it would do said out loud."""
+    out = [f"<h1>{esc(price.label)}</h1>",
+           f"<p class=muted><code>{esc(price.path)}</code> &middot; "
+           f"fee-schedule.yaml line {price.line}</p>"]
+    if price.published:
+        out.append("<p class=claim><b>This figure is on satcllp.com.</b> "
+                   "Changing it changes what a stranger reads.</p>")
+    if error:
+        # `.claim.bad` is this app's existing shape for a refusal -- an
+        # invented class name renders as an unstyled paragraph, which is how a
+        # refusal ends up looking like a note.
+        out.append(f"<p class='claim bad'>{esc(error)}</p>")
+    if report:
+        out.append("<p class=claim>"
+                   + ("<b>Saved.</b> " if saved else "<b>Not saved yet.</b> ")
+                   + f"${report['from']} &rarr; <b>${report['to']}</b>")
+        if "sample_total_before" in report:
+            out.append(f"<br>The demo engagement&rsquo;s quote: "
+                       f"{esc(report['sample_total_before'])} &rarr; "
+                       f"<b>{esc(report['sample_total_after'])}</b>")
+        out.append("</p>")
+    out.append(
+        f"<form method=post action='/prices/{esc(price.path)}'>"
+        f"<label>Amount in dollars<br>"
+        f"<input name=amount value='{price.amount}' inputmode=numeric autofocus></label>"
+        f"<p><button name=preview value=1 class=ghost>Show me what changes</button> "
+        f"<button>Save</button></p></form>"
+        f"<p><a href='/prices'>All prices</a></p>")
+    return "".join(out)
 
 
 def index_body(rows, drafts) -> str:
