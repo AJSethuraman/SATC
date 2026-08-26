@@ -29,6 +29,7 @@ from pathlib import Path
 import engagements
 import interview as iv
 import pricing
+import requests
 
 # Which federal form implies which kind of engagement. Drives which opening
 # package a record gets, so a wrong answer here is a wrong letter.
@@ -87,6 +88,11 @@ def compose_record(answers: dict, *, today: date | None = None) -> dict:
     record["_season"] = str(answers.get("tax_year") or "")
     record["_return_type"] = RETURN_TYPE.get(answers.get("federal_form"), "individual")
     record["_billable_counts"] = iv.billable_counts(answers)
+    # What to ask the client for. Built here rather than at render time for
+    # the same reason the price is: it is derived from the answers, and the
+    # answers are what we keep. A letter regenerated in a year should ask for
+    # what we asked for then, not what today's registry would ask for.
+    record["RequestList"] = requests.for_answers(answers)
     return record
 
 

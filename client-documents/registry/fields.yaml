@@ -357,6 +357,10 @@ lists:
   - list: ScopeItems
     templates: [bookkeeping-letter]
     item_fields: [Detail, Service]
+    required: true
+    notes: >
+      Required. A bookkeeping engagement letter with no scope is not an
+      engagement -- it is a signature block attached to nothing.
   - list: Assumptions
     templates: [fee-estimate]
     item_fields: [Text]
@@ -376,9 +380,22 @@ lists:
   - list: RequestList
     templates: [onboarding-letter]
     item_fields: [Detail, Document]
+    required: true
+    notes: >
+      A letter whose whole purpose is "what we need from you" cannot
+      render with nothing in this list. Found empty-and-silent on 26 Aug
+      2026: the letter still said "Below is everything we need to start
+      your work" and then stopped. Same failure as the blank invoice --
+      an [[EACH]] over an empty list leaves no token behind, so the
+      strict check has nothing to catch.
   - list: Requested
     templates: [organizer-letter]
     item_fields: [Category, Detail]
+    required: true
+    notes: >
+      Required for the same reason as the onboarding letter's RequestList:
+      an organizer cover letter with no requested categories is a covering
+      note for nothing.
   - list: ActionList
     templates: [delivery-letter]
     item_fields: [Action, Detail]
@@ -388,11 +405,13 @@ lists:
   - list: ReturnsDelivered
     templates: [delivery-letter]
     item_fields: [Detail, Return]
+    required: true
     notes: >-
       Every return in the package, in the order they are stacked.
   - list: ExtendedReturns
     templates: [extension-notice]
     item_fields: [Detail, Return]
+    required: true
     notes: >-
       EXACTLY what was filed. Some authorities extend on the
       federal extension and some do not; assuming tells a client a return is

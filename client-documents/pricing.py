@@ -242,7 +242,7 @@ def _resolve_tier(unit: dict, answers: dict) -> dict:
 # ── deriving the package ──────────────────────────────────────────────────
 
 _GATE_OPS = ("schedules_none", "schedules_any", "schedules_none_of",
-             "answer_is", "any_of")
+             "answer_is", "answer_includes", "any_of")
 
 
 def _schedules(answers: dict) -> set:
@@ -288,11 +288,35 @@ def _gate_holds(gate, answers: dict, where: str) -> bool:
             for q, expected in val.items():
                 if answers.get(q) != expected:
                     return False
+        elif op == "answer_includes":
+            # MEMBERSHIP, for an answer that is a list. `answer_is` compares
+            # equality, so pointing it at a multi-select silently never
+            # matches -- which is worse than an error, because the gate looks
+            # right and simply never fires. Added 26 Aug 2026 when the document
+            # request list needed to key on `extra_forms`.
+            for q, wanted in val.items():
+                got = answers.get(q) or []
+                if isinstance(got, str):
+                    got = [g.strip() for g in got.split(",") if g.strip()]
+                if wanted not in got:
+                    return False
         elif op == "any_of":
             if not any(_gate_holds(sub, answers, f"{where}.any_of")
                        for sub in val):
                 return False
     return True
+
+
+def gate_holds(gate, answers: dict, where: str = "gate") -> bool:
+    """Public name for the gate evaluator.
+
+    The same "what is ON the return, never how many" test that decides a
+    package also decides which documents to ask a client for, so it is shared
+    rather than written twice. Two implementations of that rule would drift,
+    and the one that drifted would either ask for documents nobody has or
+    fail to ask for the ones we need.
+    """
+    return _gate_holds(gate, answers, where)
 
 
 def _unit_price(schedule: dict, count_from: str, answers: dict | None = None):
