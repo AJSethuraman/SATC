@@ -1,0 +1,143 @@
+# Sources for the records guides
+
+Every factual claim in `good-records-individuals.md` and
+`good-records-business.md`, with where it came from. Claims of practice — how
+to send a file, what to write on a receipt — are listed too, marked as
+practice, so that nobody later mistakes one for a rule.
+
+> **Read this before publishing.** `irs.gov`, `ecfr.gov`, `law.cornell.edu`,
+> `tax.ohio.gov` and `ritaohio.com` are all blocked by this container's network
+> egress, so no primary page could be fetched and read directly. Every citation
+> below is the canonical URL for the rule, located through search, with the
+> wording taken from search-returned extracts of that page. That is good enough
+> to draft against and **not** good enough to publish a licensed firm's name
+> over. Someone with an open browser should read each linked page against the
+> claim beside it before this goes live.
+
+---
+
+## `good-records-individuals.md`
+
+### 01 · The forms that come to you
+
+| Claim in the draft | Source |
+|---|---|
+| W-2s are due to the employee by January 31 | [Form W-2 and other wage statements deadline coming up for employers](https://www.irs.gov/newsroom/form-w-2-and-other-wage-statements-deadline-coming-up-for-employers) |
+| Brokerage statements are due February 15, later than a W-2 — and this applies to a consolidated reporting statement | [General Instructions for Certain Information Returns](https://www.irs.gov/instructions/i1099gi) — the February 15 recipient date covers Forms 1099-B, 1099-DA, 1099-S and 1099-MISC boxes 8 and 10, "including statements furnished as part of a consolidated reporting statement" |
+| Form 1095-A is due to the enrollee by January 31 | [Health Insurance Marketplace statements](https://www.irs.gov/affordable-care-act/individuals-and-families/health-insurance-marketplace-statements) |
+| Advance payments made to the insurer get settled on the return | [Instructions for Form 8962](https://www.irs.gov/instructions/i8962); [Reconciling your advance payments of the Premium Tax Credit](https://www.irs.gov/individuals/reconciling-your-advance-payments-of-the-premium-tax-credit). Form 8962 must be filed where any amount appears in Part III column C of the 1095-A |
+| A partnership or S corporation owes each owner a K-1 by March 15 for a calendar year | [Instructions for Form 1065](https://www.irs.gov/instructions/i1065); [Instructions for Form 1120-S](https://www.irs.gov/instructions/i1120s) — the 15th day of the 3rd month after year end |
+| Many file for more time and send K-1s in September | Same two pages: Form 7004 gives an automatic six-month extension, which lands on September 15 for a calendar year |
+| The HSA contribution form arrives in May | [Instructions for Forms 1099-SA and 5498-SA](https://www.irs.gov/instructions/i1099sa) — Form 5498-SA is filed on or before May 31 |
+| The IRA contribution form arrives in May | **Not verified — see the open list below.** The draft groups HSA and IRA together in one bullet; only the HSA half is sourced |
+
+### 02 · The things no form will tell us
+
+| Claim in the draft | Source |
+|---|---|
+| Brokers began tracking cost for stock from 2011, mutual funds and reinvested dividends from 2012, bonds and options from 2014 | [Instructions for Form 1099-B](https://www.irs.gov/instructions/i1099b) — a noncovered security includes stock bought before 2011, most mutual fund stock bought before 2012, DRIP stock before 2012, and debt, options and securities futures before 2014 |
+| Older holdings arrive with the cost box empty | Same page — brokers were not required to track basis on those, and report them as noncovered |
+| Crypto statements for 2025 sales show proceeds and not cost | [Understanding your Form 1099-DA](https://www.irs.gov/businesses/understanding-your-form-1099-da) — brokers report gross proceeds for transactions on or after 1 January 2025; most 2025 statements carry no basis, and the taxpayer must calculate it |
+| Exchanges start reporting the purchase price for 2026 sales | [Instructions for Form 1099-DA](https://www.irs.gov/instructions/i1099da) — basis reporting is required for certain transactions effected on or after 1 January 2026 |
+| A home's basis is what it cost plus improvements, and repairs do not count | [Publication 523, Selling Your Home](https://www.irs.gov/publications/p523) — adjusted basis is cost plus capital improvements, "not including costs of maintenance and repairs" |
+| Mileage needs a written record kept as you drive | [Publication 463](https://www.irs.gov/publications/p463) — adequate records, a written record, with the date of each trip recorded "at or near the time of the trips"; [Topic no. 305, Recordkeeping](https://www.irs.gov/taxtopics/tc305) |
+| Income with no form behind it still belongs on the return and needs a trail | [Topic no. 305, Recordkeeping](https://www.irs.gov/taxtopics/tc305); [Publication 583](https://www.irs.gov/publications/p583) — books must show gross income, supported by documents |
+| A gift of $250 or more needs a letter from the charity, held before filing | [Publication 526](https://www.irs.gov/publications/p526); [Charitable contributions: written acknowledgments](https://www.irs.gov/charities-non-profits/charitable-organizations/charitable-contributions-written-acknowledgments) — no deduction for a single contribution of $250 or more without a contemporaneous written acknowledgment, obtained no later than the date the return is filed |
+| A canceled check alone does not carry a $250 gift | Same. A bank record satisfies the *cash* recordkeeping rule; it does not satisfy the separate $250 acknowledgment rule, which must state whether goods or services were given in return |
+| Foreign accounts over $10,000 in aggregate mean a separate report with its own deadline | [Report of Foreign Bank and Financial Accounts (FBAR)](https://www.irs.gov/businesses/small-businesses-self-employed/report-of-foreign-bank-and-financial-accounts-fbar) — aggregate value over $10,000 at any time in the year; FinCEN Form 114, filed with FinCEN and not with the IRS, due April 15 with an automatic extension to October 15 |
+
+### 03 · Where you lived and where you worked
+
+| Claim in the draft | Source |
+|---|---|
+| Ohio adds a state return, usually a city return, and sometimes a school district one | [Ohio Department of Taxation — Income: School District Tax](https://tax.ohio.gov/help-center/faqs/income-school-district) |
+| A city return can be required even when nothing is left to pay | [RITA Form 37 instructions](https://www.ritaohio.com/media/131738/37Instructions.pdf) — a resident of a RITA municipality aged 18 or over must file "even if no tax is due". **Verified for RITA municipalities only** — see the open list |
+| The local boxes on a W-2 are what a city return runs on | [RITA Form 37](https://www.ritaohio.com/Media/703125/2025%20FORM%2037.pdf) — wages and tax withheld are listed per municipality from the W-2 |
+| Moving means we need the dates | [RITA individual FAQ — "I moved during the year"](https://www.ritaohio.com/Individuals/Faqs?category=I&subcategory=Filing&questionID=6) — the effective date of the move goes on the form; [Ohio SD 100](https://tax.ohio.gov/help-center/faqs/income-school-district) — residency dates per district |
+
+### 04 · How to send it
+
+**All practice, no external source.** A downloaded PDF over a photograph, whole
+documents, every page, and nothing with a Social Security number in an email.
+The last of these matches what `website/index.html` already tells a visitor
+about the intake form.
+
+### 05 · How long to keep it
+
+| Claim in the draft | Source |
+|---|---|
+| Three years after you file covers most of it | [How long should I keep records?](https://www.irs.gov/businesses/small-businesses-self-employed/how-long-should-i-keep-records); [Topic no. 305](https://www.irs.gov/taxtopics/tc305) |
+| Six years where income was left off and the amount was more than a quarter of what was reported | Same page — the six-year period applies where income omitted is more than 25% of the gross income shown on the return |
+| Property records run for as long as you own it and three years past the sale | Same page — "keep records relating to property until the period of limitations expires for the year in which you dispose of the property" |
+
+---
+
+## `good-records-business.md`
+
+| Claim in the draft | Source |
+|---|---|
+| The IRS's first instruction to a new business is a separate checking account, with every business receipt put through it | [Publication 583, Starting a Business and Keeping Records](https://www.irs.gov/publications/p583) — open a business checking account, keep it separate from the personal one, and deposit all daily business receipts in it |
+| A number in the books with no statement behind it has to be chased down | Practice, resting on [Publication 583](https://www.irs.gov/publications/p583) — books must be supported by documents showing amount and business purpose |
+| The year-end set: financial statements, account and loan statements, payroll summary, fixed asset additions, inventory count, owner draws and loans | Practice. The individual items are what the return needs; [Publication 583](https://www.irs.gov/publications/p583) is the general recordkeeping authority behind them |
+| Mileage: written, kept as you drive, with date, distance and reason | [Publication 463](https://www.irs.gov/publications/p463) |
+| Standard mileage has to be picked in the first year the car is used for the business | [Topic no. 510, Business use of car](https://www.irs.gov/taxtopics/tc510); [Publication 463](https://www.irs.gov/publications/p463) — "to use the standard mileage rate for a car you own, you must choose to use it in the first year the car is available for use in your business" |
+| A leased car stays on that method for the whole lease, renewals included | Same — the standard mileage rate must be used "for the entire lease period (including renewals)" |
+| Home office: square footage of the room and the house, plus utility, insurance and repair bills | Practice — these are the inputs the return needs. The deduction rules themselves are Publication 587 and are deliberately not described |
+| A receipt does not carry who was there or why | [Publication 463](https://www.irs.gov/publications/p463) — documentary evidence must be supported by a record of the business purpose and the business relationship |
+| $600 or more to a non-employee usually means a 1099-NEC, due to them and to the IRS by January 31 | [Instructions for Forms 1099-MISC and 1099-NEC](https://www.irs.gov/instructions/i1099mec) — section 6071(c) sets January 31 for both filing and furnishing |
+| Ask for a W-9 before the first payment | Practice |
+| Schedule C asks on the form whether you made payments that required a 1099 | [Instructions for Schedule C (Form 1040)](https://www.irs.gov/instructions/i1040sc) — line I |
+| A partnership or corporate return is due March 15 for a calendar year, with owner K-1s due on that date | [Instructions for Form 1065](https://www.irs.gov/instructions/i1065); [Instructions for Form 1120-S](https://www.irs.gov/instructions/i1120s) |
+| Past a certain size the return carries a balance sheet | [Instructions for Form 1120-S](https://www.irs.gov/instructions/i1120s) — Schedule B question 11 excepts Schedules L and M-1 where total receipts **and** year-end total assets are each under $250,000. [Instructions for Form 1065](https://www.irs.gov/instructions/i1065) — Schedule B question 4 excepts Schedules L, M-1 and M-2 where total receipts are under $250,000, year-end total assets under $1,000,000, K-1s are furnished on time, and no Schedule M-3 is required. **The thresholds are deliberately not in the guide** — they are a term of art, and the fee schedule's `starting_note` already tells a client "a balance sheet, where one is required" |
+| A more-than-2% S corporation shareholder's health insurance belongs in W-2 wages | [S corporation compensation and medical insurance issues](https://www.irs.gov/businesses/small-businesses-self-employed/s-corporation-compensation-and-medical-insurance-issues); [Notice 2008-1](https://www.irs.gov/pub/irs-drop/n-08-01.pdf) — the premiums must be reported as wages on the shareholder-employee's W-2 in the same year for the deduction to be available |
+| Fixing it after the W-2 has gone out means reissuing forms | Follows from the above. Practice |
+| Some tax letters run on a 30-day clock from the date at the top | [Topic no. 652, Notice of underreported income — CP2000](https://www.irs.gov/taxtopics/tc652) — respond within 30 days of the date of the notice, 60 if abroad. **The guide says "some of them", not "all"**, because the window differs by notice |
+| Payroll records, four years from when the tax was due or paid | [Employment tax recordkeeping](https://www.irs.gov/businesses/small-businesses-self-employed/employment-tax-recordkeeping) — keep for at least four years after the date the tax becomes due or is paid, whichever is later |
+
+---
+
+## Open — things a person has to answer
+
+Each of these is either unverifiable from here or a decision that is not a
+drafter's to make.
+
+1. **`[CONFIRM: Form 5498 for IRA contributions — is its filing deadline
+   May 31, like Form 5498-SA?]`** The HSA half of that bullet is sourced. The
+   IRA half is not, and the search would not confirm it. Either verify it or
+   split the bullet so only the HSA claim carries a date.
+
+2. **`[CONFIRM: does "a city return can be required even when nothing is left
+   to pay" hold outside the RITA municipalities?]`** It is verified for RITA,
+   which covers roughly half of the Ohio municipalities that levy an income
+   tax. CCA and the self-administering cities — Columbus, Cincinnati, Toledo —
+   were not checked, and the counts that appear in search results for those
+   come from secondary sites rather than from CCA itself. The sentence is
+   written to be true of the firm's own catchment; confirm that is the right
+   scope for a public page.
+
+3. **`[CONFIRM: does the guide name the upload route?]`** The organizer cover
+   letter tells clients to use Encyro. The website has never named it. Section
+   04 of the individual guide is written without it and reads fine either way.
+
+4. **`[CONFIRM: does a page like this carry a line saying it is general and not
+   advice on a particular return? If so, in whose words?]`** Both drafts are
+   silent. `docs/pricing-for-website.md` §4 forbids inventing legal or
+   assurance wording, so nothing was invented. This is the firm's call and the
+   sentence has to be theirs.
+
+5. **`[CONFIRM: silence on what an S corporation owner pays themselves.]`**
+   `fee-schedule.yaml` puts setting or reviewing officer compensation outside
+   the engagement, so the business guide says nothing about it. An S corp owner
+   searching that phrase is exactly the reader this page would attract, so the
+   silence is worth an explicit yes rather than an assumed one.
+
+6. **`[CONFIRM: the link targets.]`** Both drafts end with `/#intake`, which is
+   the anchor `website/index.html` actually carries today. The business guide
+   also points at the individual guide's retention section. Neither guide has a
+   URL of its own yet; whoever builds the pages sets both.
+
+7. **Not claimed, on purpose.** The drafts do not say that a return missing
+   Form 8962 is rejected, although that is the common outcome where advance
+   payments were made. It could not be verified from a primary page here, so
+   the sentence says what the return does rather than what happens if it is
+   filed without it.
