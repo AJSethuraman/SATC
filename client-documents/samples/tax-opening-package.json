@@ -51,7 +51,7 @@
   ],
   "Assumptions": [
     {
-      "Text": "Brokerage keying — this estimate assumes each 1099-B can be summarised rather than keyed line by line, and does not include work beyond it. If a statement has to be entered by hand, that statement is $95.00, which we will agree with you before we do it rather than adding it to your bill unannounced."
+      "Text": "Brokerage keying — this estimate assumes each 1099-B can be summarized rather than keyed line by line, and does not include work beyond it. If a statement has to be entered by hand, that statement is $95.00, which we will agree with you before we do it rather than adding it to your bill unannounced."
     },
     {
       "Text": "Foreign entities — this estimate assumes your foreign holdings are accounts rather than companies, and does not include work beyond it. If you hold an interest in a foreign corporation or partnership, the additional time is billed at $150 an hour as it is worked."
@@ -66,24 +66,40 @@
   "EstimateTotal": "$645.00",
   "RequestList": [
     {
-      "Document": "All W-2 forms",
-      "Detail": "For both of you, including part-year employment"
+      "Document": "The signed engagement letter",
+      "Detail": "Nothing begins until this is back with us"
     },
     {
-      "Document": "1099 forms",
-      "Detail": "Interest, dividends, brokerage, and any contract work"
+      "Document": "Every W-2 for the year",
+      "Detail": "One for each employer, for you and anyone filing with you"
     },
     {
-      "Document": "Schedule K-1s",
-      "Detail": "Both partnerships, when they arrive"
+      "Document": "Photo ID and Social Security cards",
+      "Detail": "For everyone on the return, if we have not seen them before"
     },
     {
-      "Document": "Prior-year return",
-      "Detail": "2025, as filed"
+      "Document": "Last year's tax return",
+      "Detail": "The complete copy, including every schedule"
     },
     {
-      "Document": "Rental records",
-      "Detail": "Income and expenses by property"
+      "Document": "Any other income documents that arrived",
+      "Detail": "1099s of any kind, K-1s, 1098s, SSA-1099, and anything else that came in an envelope marked important tax document"
+    },
+    {
+      "Document": "Rental income and expenses for each property",
+      "Detail": "Rents received, and what you spent on each one. If a property was bought, sold or first rented this year, the closing statement too"
+    },
+    {
+      "Document": "Each K-1 you received",
+      "Detail": "The whole K-1 including its statements, not just the first page"
+    },
+    {
+      "Document": "Your business income and expenses",
+      "Detail": "Totals by category. If you claim actual vehicle expenses rather than mileage, the vehicle costs as well"
+    },
+    {
+      "Document": "Your itemized deduction records",
+      "Detail": "Mortgage interest, property tax, state and local tax paid, medical costs and charitable receipts"
     }
   ],
   "SCorpElection": false,

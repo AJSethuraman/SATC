@@ -1154,8 +1154,7 @@ def cmd_sample(args) -> int:
     Only the generated half is rewritten. The client, the dates and the
     reference are the sample's own and are left exactly as they are.
     """
-    import interview as iv
-    import pricing
+    import requests as document_requests
 
     answers = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
     path = SAMPLES / "tax-opening-package.json"
@@ -1164,6 +1163,11 @@ def cmd_sample(args) -> int:
     before = json.dumps(record, ensure_ascii=False, sort_keys=True)
     record.update(iv.compose(answers))
     record.update(pricing.price(answers))
+    # The onboarding letter's checklist, on the same footing as the estimate.
+    # It was hand-written too, and it asked for five things where the answers
+    # call for nine -- no signed engagement letter, no ID, and nothing about
+    # the Schedule C business the estimate was pricing a package around.
+    record["RequestList"] = document_requests.for_answers(answers)
     after = json.dumps(record, ensure_ascii=False, sort_keys=True)
 
     if before == after:

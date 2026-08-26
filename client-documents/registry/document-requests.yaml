@@ -81,7 +81,7 @@ requests:
     when:
       schedules_any: [F]
 
-  - document: "Your itemised deduction records"
+  - document: "Your itemized deduction records"
     detail: "Mortgage interest, property tax, state and local tax paid, medical costs and charitable receipts"
     when:
       schedules_any: [A]

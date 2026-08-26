@@ -285,6 +285,44 @@ def test_no_sample_contains_a_real_looking_tin():
         assert not TIN_VALUE.search(text), f"{path.name} contains something shaped like a TIN"
 
 
+# ── spelling ──────────────────────────────────────────────────────────────
+
+# The client-facing half of the templates drifted into British spelling: an
+# Ohio partnership's return delivery letter said "e-file authorisation" three
+# times. That one is not only style -- the IRS form is an e-file
+# AUTHORIZATION, so the British spelling names something that does not exist.
+_BRITISH = re.compile(
+    r"\b\w*(?:itemis|authoris|organis|recognis|summaris|minimis|analys"
+    r"|behaviour|favour|licence|cheque)\w*\b", re.I)
+
+
+@pytest.mark.parametrize("name", sorted(TEMPLATES))
+def test_client_facing_text_is_american_english(name, body_fields):
+    """Only the body. The `<div class="ref">` crib is for whoever wires the
+    software, is stripped before a client sees the page, and is not worth the
+    churn of rewriting."""
+    body = (TEMPLATE_DIR / TEMPLATES[name]).read_text(
+        encoding="utf-8").split('<div class="ref">')[0]
+    hits = sorted(set(_BRITISH.findall(body)))
+    assert not hits, f"{TEMPLATES[name]} uses British spelling a client reads: {hits}"
+
+
+def test_registry_wording_a_client_reads_is_american_english():
+    """The registries hold the firm's own words -- request lines, fee-line
+    details, assumption sentences -- and those reach a client as directly as
+    anything typed into a template. Comments are exempt; nobody reads those
+    but us."""
+    bad = {}
+    for path in (ROOT / "registry").glob("*.yaml"):
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue
+            hits = sorted(set(_BRITISH.findall(line)))
+            if hits:
+                bad[f"{path.name}:{i}"] = hits
+    assert not bad, f"British spelling in wording a client reads: {bad}"
+
+
 # ── naming ────────────────────────────────────────────────────────────────
 
 def test_field_names_are_pascal_case(registry):

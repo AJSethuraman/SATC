@@ -212,7 +212,7 @@ sections:
     title: The entity
     questions:
       - id: entity_structure
-        question: "How is the entity legally organised?"
+        question: "How is the entity legally organized?"
         help: >-
           The LEGAL structure, which is not the tax treatment -- an LLC can be
           taxed as an S corporation, and the letter has to say both. The tax
@@ -229,7 +229,7 @@ sections:
         supplies: [EntityType]
 
       - id: entity_state
-        question: "Which state is it organised in?"
+        question: "Which state is it organized in?"
         help: "Spelled as it reads in the letter -- 'Ohio', not 'OH'."
         type: text
         required: true
@@ -640,7 +640,7 @@ sections:
           interview raises it for a look when the file is reviewed.
 
           What flips it, decided 25 August 2026: the parts of a 1099-B that
-          CANNOT be summarised. Where the broker reported cost basis to the
+          CANNOT be summarized. Where the broker reported cost basis to the
           IRS and nothing needs adjusting, the totals go in and the statement
           is attached. Where they did not -- older lots, transfers in, wash
           sales, anything the broker could not price -- the trades are keyed

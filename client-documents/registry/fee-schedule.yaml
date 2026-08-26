@@ -566,7 +566,7 @@ per_unit:
   brokerage_keyed:
     count_from: count_brokerages_keyed
     label: "Brokerage entered by hand"
-    detail: "Per statement that cannot be summarised"
+    detail: "Per statement that cannot be summarized"
     # How this line is named INSIDE a sentence, when an assumption points at
     # it to say what its own overrun costs. The assumption's `trigger` has
     # already named the situation -- "if a statement has to be entered by
@@ -682,7 +682,7 @@ per_unit:
     # preparer enter a larger figure at the consultation; `minimum` stops it
     # ever going below the floor, deliberately or by a typo.
     label: "Records sorting"
-    detail: "Sorting and organising what arrived"
+    detail: "Sorting and organizing what arrived"
     count_from: count_sorting
     amount: 175
     minimum: 175
@@ -1000,7 +1000,7 @@ assumed:
   # fee at any volume and billed the overrun hourly, and all of that was wrong.
   brokerage_keying:
     label: "Brokerage keying"
-    assumes: "each 1099-B can be summarised rather than keyed line by line"
+    assumes: "each 1099-B can be summarized rather than keyed line by line"
     # Not inside the base: the first statement is inside the PACKAGE, which is
     # a different claim and one the covers list already makes.
     inside_base: false

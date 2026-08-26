@@ -1974,6 +1974,28 @@ def test_the_sample_estimate_matches_what_the_engine_prices():
         "the sample must show a package line — that is the wording being reviewed"
 
 
+def test_the_sample_request_list_is_what_the_engine_builds():
+    """The onboarding letter's checklist, on the same footing as the estimate.
+
+    The firm, 26 August 2026: the onboarding items "need to be driven by
+    actual requirements". The code does that -- `requests.for_answers` gates
+    every line on the same answers the fee schedule prices from. The SAMPLE
+    did not. It listed five items where the answers call for nine, and the
+    three it omitted are the ones that cost something: the signed engagement
+    letter, photo ID, and any record at all of the Schedule C business the
+    estimate was pricing a whole package around.
+
+    A demo package whose letter bills for a business its own checklist never
+    asks about is the same failure as the scope that had lost Schedule E.
+    """
+    import requests as document_requests
+
+    answers = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    record = json.loads((SAMPLES / "tax-opening-package.json").read_text(encoding="utf-8"))
+    assert record["RequestList"] == document_requests.for_answers(answers), \
+        "the sample checklist has drifted from what the answers require"
+
+
 def test_an_assumption_that_cannot_apply_is_not_printed():
     """Officer compensation was printing on individual estimates.
 

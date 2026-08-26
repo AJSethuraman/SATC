@@ -65,7 +65,7 @@ def test_a_client_with_nothing_still_gets_a_list():
     ("E2", "Each K-1 you received"),
     ("C", "Your business income and expenses"),
     ("F", "Farm income and expenses"),
-    ("A", "Your itemised deduction records"),
+    ("A", "Your itemized deduction records"),
 ])
 def test_each_schedule_asks_for_its_own_records(schedule, wanted):
     assert wanted in _docs({"federal_form": "1040", "federal_schedules": [schedule]})
