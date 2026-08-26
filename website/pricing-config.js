@@ -73,8 +73,8 @@ window.SATC_PRICING = {
       who: 'You work for yourself.',
       covers: [
         'Everything in Standard',
-        'One full Schedule C',
-        'Actual expenses, a home office, depreciation, inventory or payroll'
+        'One Schedule C &mdash; actual expenses, a home office, depreciation, inventory or payroll',
+        'Not an S corporation or partnership return &mdash; those are under Businesses'
       ]
     }
   ],
@@ -84,7 +84,7 @@ window.SATC_PRICING = {
      set beside the amount, and `notes` is what costs EXTRA rather than what
      is included — the opposite of a package's bullets, so the card labels it. */
   entityNoteLabel: 'On top of that:',
-  entityLead: 'Starting prices. Each one lists what gets added on top, and you\'ll see your own number before you agree to anything.',
+  entityLead: 'What moves the number: how many owners there are, whether you file a balance sheet, and what shape the books are in.',
   entities: [
     {
       name: 'Partnership',
@@ -126,24 +126,29 @@ window.SATC_PRICING = {
     {
       title: 'More to file',
       rows: [
-        { label: 'Another state return',                      detail: '', amount: 50 },
-        { label: 'Another local return',                      detail: 'City, RITA, CCA or school district', amount: 35 },
-        { label: 'Working out what to pay with an extension', detail: 'Filing the extension itself is free', amount: 75 },
-        { label: 'Amending a return we filed',                detail: 'Something arrived after it went in', amount: 50 },
-        { label: 'Amending a return someone else filed',      detail: 'Plus what the return itself costs', amount: 50, reprices: true }
+        { label: 'Additional state return',                   detail: 'Each state past the first', amount: 50 },
+        { label: 'Additional local return',                   detail: 'City, RITA, CCA or school district', amount: 35 },
+        { label: 'Working out what to pay with an extension', detail: 'Filing the extension itself is free', amount: 75 }
       ]
     },
     {
-      title: 'What is on the return',
+      title: 'On the return',
       rows: [
-        { label: 'Rental property',                           detail: 'Up to three, then $45 each', amount: 145 },
-        { label: 'A K&#8209;1 you received',                  detail: 'Each one', amount: 15 },
-        { label: 'A K&#8209;1 you send an owner',             detail: 'Each owner', amount: 40 },
-        { label: 'A brokerage statement',                     detail: 'Each one after the first', amount: 45 },
-        { label: 'A brokerage statement we have to type in',  detail: 'When the totals cannot be pulled in electronically', amount: 95 },
-        { label: 'Gig or contract work',                      detail: 'Standard mileage, nothing owned by the business', amount: 65 },
-        { label: 'A business you run yourself',               detail: 'Actual expenses, a home office, equipment, inventory or payroll', amount: 200 },
-        { label: 'A foreign account',                         detail: 'Each one, up to four. Past four we bill the time instead.', amount: 50 }
+        { label: 'Rental property',                           detail: 'Schedule E &middot; up to three, then $45 each', amount: 145 },
+        { label: 'A K&#8209;1 you received',                  detail: 'Schedule K&#8209;1 &middot; each one', amount: 15 },
+        { label: 'A K&#8209;1 you send an owner',             detail: 'Schedule K&#8209;1 &middot; each owner', amount: 40 },
+        { label: 'Brokerage statement',                       detail: 'Form 1099&#8209;B &middot; each one after the first', amount: 45 },
+        { label: 'Keyed brokerage statement',                 detail: 'Form 1099&#8209;B &middot; when the totals cannot be pulled in electronically', amount: 95 },
+        { label: 'Gig or contract work',                      detail: 'Schedule C &middot; standard mileage', amount: 65 },
+        { label: 'A business you run yourself',               detail: 'Schedule C &middot; actual expenses, a home office, inventory or payroll', amount: 200 },
+        { label: 'A foreign account',                         detail: 'FBAR &middot; each one, up to four. Past four we bill the time.', amount: 50 }
+      ]
+    },
+    {
+      title: 'Amendments',
+      rows: [
+        { label: 'A return we filed',                         detail: 'Something arrived after it went in', amount: 50 },
+        { label: 'A return someone else filed',               detail: 'Plus what the return itself costs', amount: 50, reprices: true }
       ]
     }
   ],
@@ -164,10 +169,10 @@ window.SATC_PRICING = {
   /* Hourly happens INSTEAD of the fixed price, not on top of it. */
   hourly: { rate: 150, billedIn: 'the quarter hour' },
   hourlyApplies: [
-    'A brokerage statement that has to be typed in by hand',
+    'Keyed brokerage statements',
     'An interest in a company based abroad',
     'A letter from the IRS or the state you would like us to handle',
-    'Working out what an owner of a business should be paid',
-    'Records that need reconciling before the return can start'
+    'Setting what an S corporation owner pays themselves',
+    'Books that need cleaning up first &mdash; the messier they are, the longer it takes'
   ]
 };

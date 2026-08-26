@@ -60,8 +60,9 @@ SITE_COPY = {
     # "you work for yourself", not "you run a business".
     "business": {
         "who": "You work for yourself.",
-        "covers": ["Everything in Standard", "One full Schedule C",
-                   "Actual expenses, a home office, depreciation, inventory or payroll"],
+        "covers": ["Everything in Standard",
+                   "One Schedule C &mdash; actual expenses, a home office, depreciation, inventory or payroll",
+                   "Not an S corporation or partnership return &mdash; those are under Businesses"],
     },
 }
 
@@ -74,12 +75,15 @@ EXTRA_GROUPS = [
         "per_unit.state_return", "per_unit.local_return",
         "per_unit.extension_estimate",
     ]),
-    ("What is on the return", [
+    ("On the return", [
         "per_unit.rental", "per_unit.k1", "per_unit.owner_k1",
         "per_unit.brokerage", "per_unit.brokerage_keyed",
         "schedule_c.simple", "schedule_c.standard",
         "per_unit.foreign_account",
     ]),
+    # Its own panel rather than two rows tacked onto "More to file" — it fills
+    # the column the short first group leaves open.
+    ("Amendments", ["amendment.new_information", "amendment.other_preparer"]),
 ]
 
 # ── the client's words for each line ──────────────────────────────────────
@@ -95,34 +99,33 @@ EXTRA_GROUPS = [
 # Every published row must have an entry here. pricing.spec.py fails if one is
 # missing, so a newly-published line cannot ship the preparer's wording.
 EXTRA_COPY = {
-    "per_unit.state_return":      ("Another state return", ""),
-    "per_unit.local_return":      ("Another local return", "City, RITA, CCA or school district"),
+    "per_unit.state_return":      ("Additional state return", "Each state past the first"),
+    "per_unit.local_return":      ("Additional local return", "City, RITA, CCA or school district"),
     "per_unit.extension_estimate": ("Working out what to pay with an extension",
                                     "Filing the extension itself is free"),
-    "per_unit.rental":            ("Rental property", "Up to three, then $45 each"),
-    "per_unit.k1":                ("A K&#8209;1 you received", "Each one"),
-    "per_unit.owner_k1":          ("A K&#8209;1 you send an owner", "Each owner"),
-    "per_unit.brokerage":         ("A brokerage statement", "Each one after the first"),
-    "per_unit.brokerage_keyed":   ("A brokerage statement we have to type in",
-                                   "When the totals cannot be pulled in electronically"),
-    "schedule_c.simple":          ("Gig or contract work", "Standard mileage, nothing owned by the business"),
+    "per_unit.rental":            ("Rental property", "Schedule E &middot; up to three, then $45 each"),
+    "per_unit.k1":                ("A K&#8209;1 you received", "Schedule K&#8209;1 &middot; each one"),
+    "per_unit.owner_k1":          ("A K&#8209;1 you send an owner", "Schedule K&#8209;1 &middot; each owner"),
+    "per_unit.brokerage":         ("Brokerage statement", "Form 1099&#8209;B &middot; each one after the first"),
+    "per_unit.brokerage_keyed":   ("Keyed brokerage statement",
+                                   "Form 1099&#8209;B &middot; when the totals cannot be pulled in electronically"),
+    "schedule_c.simple":          ("Gig or contract work", "Schedule C &middot; standard mileage"),
     "schedule_c.standard":        ("A business you run yourself",
-                                   "Actual expenses, a home office, equipment, inventory or payroll"),
+                                   "Schedule C &middot; actual expenses, a home office, inventory or payroll"),
     "per_unit.foreign_account":   ("A foreign account",
-                                   "Each one, up to four. Past four we bill the time instead."),
-    "amendment.new_information":  ("Amending a return we filed", "Something arrived after it went in"),
-    "amendment.other_preparer":   ("Amending a return someone else filed",
-                                   "Plus what the return itself costs"),
+                                   "FBAR &middot; each one, up to four. Past four we bill the time."),
+    "amendment.new_information":  ("A return we filed", "Something arrived after it went in"),
+    "amendment.other_preparer":   ("A return someone else filed", "Plus what the return itself costs"),
 }
 
 # Same again for the hourly triggers, whose schedule wording is a note to the
 # preparer about when the fixed price stops applying.
 HOURLY_COPY = {
-    "brokerage_keying":  "A brokerage statement that has to be typed in by hand",
+    "brokerage_keying":  "Keyed brokerage statements",
     "foreign_company":   "An interest in a company based abroad",
-    "cleanup":           "Records that need reconciling before the return can start",
+    "cleanup":           "Books that need cleaning up first &mdash; the messier they are, the longer it takes",
     "notice_response":   "A letter from the IRS or the state you would like us to handle",
-    "officer_compensation": "Working out what an owner of a business should be paid",
+    "officer_compensation": "Setting what an S corporation owner pays themselves",
 }
 
 # The amendment tiers that go on the page, in order. `our_error` is deliberately
@@ -136,8 +139,8 @@ AMENDMENT_PUBLISH = ["new_information", "other_preparer"]
 # to edit.
 RESPELL = {"summarised": "summarized", "Cancelled": "Canceled", "cancelled": "canceled"}
 
-ENTITY_LEAD = ("Starting prices. Each one lists what gets added on top, "
-               "and you'll see your own number before you agree to anything.")
+ENTITY_LEAD = ("What moves the number: how many owners there are, whether you "
+               "file a balance sheet, and what shape the books are in.")
 
 NBH = "&#8209;"  # non-breaking hyphen, so "K-1" never wraps
 
@@ -181,6 +184,13 @@ def build() -> str:
 
     # ---- extras, grouped ------------------------------------------------
     def one(path):
+        if path.startswith("amendment."):
+            t = sched["amendment"]["tiers"][path.split(".", 1)[1]]
+            label, detail = EXTRA_COPY[path]
+            row = {"label": clean(label), "detail": clean(detail), "amount": t["amount"]}
+            if t.get("reprices"):
+                row["reprices"] = True
+            return row
         if path.startswith("schedule_c."):
             t = sched["per_unit"]["schedule_c"]["tiers"][path.split(".", 1)[1]]
             label, detail = EXTRA_COPY[path]
@@ -195,18 +205,6 @@ def build() -> str:
     groups = [{"title": title, "rows": [one(p) for p in paths]}
               for title, paths in EXTRA_GROUPS]
 
-    # Amendments read as "more to file", so they sit in that group rather than
-    # in a section of their own. `reprices` means the return's own fee as well,
-    # which is a different price and stays a separate row.
-    amend_rows = []
-    for tid in AMENDMENT_PUBLISH:
-        t = sched["amendment"]["tiers"][tid]
-        label, detail = EXTRA_COPY[f"amendment.{tid}"]
-        amend_rows.append({
-            "label": clean(label), "detail": clean(detail),
-            "amount": t["amount"], "reprices": bool(t.get("reprices")),
-        })
-    groups[0]["rows"].extend(amend_rows)
     extras = [r for g in groups for r in g["rows"]]
 
     # ---- the six situations, one price ----------------------------------

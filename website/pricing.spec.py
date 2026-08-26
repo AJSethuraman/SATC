@@ -170,13 +170,26 @@ if ext:
           "the extension line says filing one is free — the fee is only for "
           "working out the payment, and a bare 'Extension, $75' says the opposite")
 
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(HERE))
+import importlib.util as _il
+_spec = _il.spec_from_file_location("gen", GENERATOR)
+_gen = _il.module_from_spec(_spec); _spec.loader.exec_module(_gen)
+_AMEND_PUBLISHED = _gen.AMENDMENT_PUBLISH
+
 # The firm's call, 26 Aug 2026: "literally do not specify stuff like we fix our
 # own errors for free. we don't need to say that." It stays in the schedule and
 # on a client's estimate; it does not go on a price page.
-amend_rows = [r for g in cfg["extraGroups"] for r in g["rows"] if "amend" in r["label"].lower()]
-check(amend_rows, "the amendment prices are published")
-check(all(r["amount"] > 0 for r in amend_rows),
+# Keyed off the schedule, not off the word "amend" appearing in a label — the
+# label is the firm's copy and it changes.
+amend_tiers = sched["amendment"]["tiers"]
+_published_amend = {amend_tiers[t]["amount"] for t in _AMEND_PUBLISHED}
+free_tier = next((t for t in amend_tiers.values() if t["amount"] == 0), None)
+published_amounts = {r["amount"] for r in cfg["extras"]}
+check(_published_amend <= published_amounts, "the amendment prices are published")
+check(free_tier is not None and free_tier["amount"] not in published_amounts,
       "the no-charge correction of our own error is NOT published")
+amend_rows = [r for r in cfg["extras"] if r["amount"] in _published_amend]
 check("our error" not in page_src.lower() and "our error" not in config_src.lower()
       and "no charge" not in page_src.lower(),
       "the page makes no claim about correcting our own mistakes")
@@ -215,13 +228,6 @@ check(len(cfg["hourlyApplies"]) == len(sched["assumed"]),
 # Every published line is worded for a client, not for the preparer. The
 # generator holds that overlay; this is what stops a newly-published line from
 # arriving with the schedule's internal label on it.
-# No __pycache__ beside the website files: this is a check, not a build step.
-sys.dont_write_bytecode = True
-sys.path.insert(0, str(HERE))
-import importlib.util as _il
-_spec = _il.spec_from_file_location("gen", GENERATOR)
-_gen = _il.module_from_spec(_spec); _spec.loader.exec_module(_gen)
-
 published_paths = {p for p, _ in pub["publish"]
                    if p.startswith("per_unit.") and p != "per_unit.schedule_c"}
 covered = {p for p in _gen.EXTRA_COPY if p.startswith("per_unit.")}

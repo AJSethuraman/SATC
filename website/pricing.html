@@ -180,7 +180,7 @@ strong{color:var(--navy);font-weight:600}
 #hourly{margin-bottom:14px}
 
 /* ---- closing: the promise, then the button ---- */
-.close{display:grid;grid-template-columns:1.25fr 1fr;gap:clamp(28px,4vw,56px);background:var(--paper);border:1px solid var(--hairline);border-top:2px solid var(--navy);padding:clamp(26px,3.6vw,42px)}
+.close{display:grid;grid-template-columns:1fr 1.25fr;gap:clamp(28px,4vw,56px);background:var(--paper);border:1px solid var(--hairline);border-top:2px solid var(--navy);padding:clamp(26px,3.6vw,42px)}
 .close h2{padding:0;border:0}
 .close p{margin:12px 0 0}
 .btn{display:inline-flex;align-items:center;gap:10px;margin-top:20px;background:var(--oxblood);color:#fff;font-size:15px;font-weight:600;letter-spacing:-.005em;padding:14px 26px;border-radius:2px;transition:background .18s}
@@ -276,7 +276,7 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
     </div>
 
     <div class="assume">
-      <p>These prices assume your records arrive complete. Anything else is priced below, and you'll see it on your own price before you agree to it.</p>
+      <p>These prices assume your records arrive complete. Additional schedules are priced a la carte below.</p>
       <p class="note" id="current"></p>
     </div>
 
@@ -286,20 +286,18 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
 <div class="wrap body">
 
   <section class="sec">
-    <h2>What costs extra</h2>
-    <p class="sub">Only what the price above doesn't already cover.</p>
+    <h2>Service menu</h2>
     <div id="extras"></div>
   </section>
 
   <div class="pair">
     <section class="sec">
       <h2 id="sitsHead">Situations</h2>
-      <p class="sub">One price for any of them.</p>
       <ul class="sits" id="sits"></ul>
     </section>
 
     <section class="sec">
-      <h2>What's hourly</h2>
+      <h2>Hourly situations</h2>
       <p class="sub" id="hourly"></p>
       <ul class="sits" id="hourlyApplies"></ul>
       <p class="note" style="margin:16px 0 0">Hourly happens instead of the fixed price, not on top of it. We tell you what we're assuming before we start.</p>
@@ -308,13 +306,13 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
 
   <section class="sec close">
     <div>
-      <h2>Before we start</h2>
-      <p>You get your own price in writing, with your return's lines on it. Nothing begins until you've seen it and said yes. If something turns up we didn't expect, we tell you before we do the work — not on the bill.</p>
+      <h2>Where you start</h2>
+      <p>Tell us about your situation and we&#39;ll come back with an estimate.</p>
+      <a class="btn" href="./#intake">Get started</a>
     </div>
     <div>
-      <h2>Where to start</h2>
-      <p>Tell us about your situation and we'll come back with an estimate.</p>
-      <a class="btn" href="./#intake">Get started</a>
+      <h2>Before we start</h2>
+      <p>We&#39;ll walk through what you need and hand you a quote. If it turns out to be more work than it looked, you hear that then &mdash; not on the invoice.</p>
     </div>
   </section>
 
@@ -379,7 +377,7 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
   el('sits').innerHTML = P.situations.map(function (s) { return '<li>' + s + '</li>'; }).join('');
 
   el('hourly').innerHTML = '<strong>' + money(P.hourly.rate) + ' an hour</strong>, billed to ' +
-    P.hourly.billedIn + '. These are hourly because we can&#39;t price them until we see them:';
+    P.hourly.billedIn + '.';
   el('hourlyApplies').innerHTML = P.hourlyApplies.map(function (s) { return '<li>' + s + '</li>'; }).join('');
 
   // The switch. Both panels are visible until this runs, so with JS off the
