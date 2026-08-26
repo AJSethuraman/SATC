@@ -102,22 +102,22 @@ window.SATC_PRICING = {
      a current price rather than a permanent one. The firm's words, 26 August
      2026: "we can state that this is what we're currently charging and it's
      subject to change". Says it about us and about nobody else. */
-  currentPrices: 'This is what we&#39;re charging now. It can change.',
+  currentPrices: 'These represent our pricing for the upcoming tax year and are subject to change.',
 
   /* Charged only past what your package already covers. */
   extras: [
-    { label: 'Each state return after the first',                      amount: 50 },
-    { label: 'Each local return after the first',                      amount: 35 },
-    { label: 'Rental schedule, up to three properties'    ,       amount: 145 },
-    { label: 'Each rental property after three'      ,                  amount: 45 },
-    { label: 'Each K&#8209;1 after the first two'    ,            amount: 15 },
-    { label: 'Each brokerage statement after the first',               amount: 45 },
-    { label: 'Each brokerage statement keyed in by hand',     amount: 95 },
-    { label: 'Each additional gig Schedule C',                         amount: 65 },
-    { label: 'Each additional full Schedule C',                        amount: 200 },
-    { label: 'Each foreign account, up to four'    ,                   amount: 50 },
+    { label: 'Each state return after the first',              amount: 50 },
+    { label: 'Each local return after the first',              amount: 35 },
+    { label: 'Rental schedule, up to three properties',        amount: 145 },
+    { label: 'Each rental property after three',               amount: 45 },
+    { label: 'Each K&#8209;1 after the first two',             amount: 15 },
+    { label: 'Each brokerage statement after the first',       amount: 45 },
+    { label: 'Each brokerage statement keyed in by hand',      amount: 95 },
+    { label: 'Each additional gig Schedule C',                 amount: 65 },
+    { label: 'Each additional full Schedule C',                amount: 200 },
+    { label: 'Each foreign account, up to four',               amount: 50 },
     { label: 'Earned income credit, including due diligence',  amount: 65 },
-    { label: 'Any of the situations below'    ,                        amount: 50 }
+    { label: 'Any of the situations below',                    amount: 50 }
   ],
 
   /* All six are things that HAPPENED, so you can tell in a second whether one

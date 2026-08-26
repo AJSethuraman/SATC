@@ -191,8 +191,8 @@ check(not found_brit, f"no British spellings in the published copy — found {fo
 
 # A published price reads as a commitment. This one is current, not permanent,
 # and the page has to say so.
-check(bool(cfg.get("currentPrices")) and "can change" in cfg["currentPrices"].lower(),
-      "the page says the prices are current and can change")
+check(bool(cfg.get("currentPrices")) and "subject to change" in cfg["currentPrices"].lower(),
+      "the page says the prices are for the upcoming tax year and subject to change")
 check('id="current"' in page_src, "the page has a mount point for that line")
 
 check(cfg["hourly"]["rate"] == sched["basis"]["rate"],
