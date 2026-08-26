@@ -62,13 +62,10 @@ def firm_fields(season: str, return_type: str = "individual",
         "PreparerName": prep.get("name"),
         "PreparerTitle": prep.get("title"),
         "PreparerEmail": prep.get("email"),
-        "PreparerPhone": prep.get("phone"),
         "BillingContactName": bill.get("contact_name"),
         "BillingContactEmail": bill.get("contact_email"),
-        "BillingContactPhone": bill.get("contact_phone"),
         "ReturnInstruction": deliv.get("return_instruction"),
         "PaymentInstruction": deliv.get("payment_instruction"),
-        "AckWindow": deliv.get("ack_window"),
         "MaterialsDeadline": deadlines.get(RETURN_TYPES[return_type]),
     }
 

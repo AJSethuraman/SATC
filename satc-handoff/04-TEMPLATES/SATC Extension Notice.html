@@ -104,7 +104,7 @@
 
   <div class="sec">
     <h2><span class="n">05</span>Questions</h2>
-    <p>Ask before you guess, particularly about the payment. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span> or <span class="f">&lt;&lt;PreparerPhone&gt;&gt;</span>.</p>
+    <p>Ask before you guess, particularly about the payment. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span>.</p>
   </div>
 
   <div class="signoff">
@@ -141,7 +141,7 @@
     <tr><td>&lt;&lt;Item.Return&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>Federal Form 4868 · Extends the Form 1040 to October 15, 2027. Detail is an empty string when there is nothing to add, never "None".</td></tr>
     <tr><td>[[EACH OutstandingItems]]</td><td class="req">List</td><td>One or more. Two sub-fields — <b>the same shape as the onboarding letter's RequestList</b>, so the same formatter serves both.</td></tr>
     <tr><td>&lt;&lt;Item.Document&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>K-1 from Larchmere Holdings LLC · Expected from the partnership by September 1</td></tr>
-    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt; &lt;&lt;PreparerPhone&gt;&gt;</td><td class="req">Required</td><td>Four fields</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>Four fields</td></tr>
     <tr><td>[[IF PaymentEnclosed]]</td><td class="req">Flag</td><td>Boolean. An extension payment was estimated and is due.</td></tr>
     <tr><td>[[IF NoPaymentRequired]]</td><td class="req">Flag</td><td>Boolean, and <b>the exact inverse of PaymentEnclosed</b>. Section 02 must never be silent — a client with no paragraph there concludes there is nothing to pay, and that has to be a statement the firm made rather than a gap it left.</td></tr>
   </table>

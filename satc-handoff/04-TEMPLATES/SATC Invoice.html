@@ -93,7 +93,7 @@
   </div>
   <div>
     <div class="h">Questions on this invoice</div>
-    <p><span class="f">&lt;&lt;BillingContactName&gt;&gt;</span><br/><span class="f">&lt;&lt;BillingContactEmail&gt;&gt;</span><br/><span class="f">&lt;&lt;BillingContactPhone&gt;&gt;</span></p>
+    <p><span class="f">&lt;&lt;BillingContactName&gt;&gt;</span><br/><span class="f">&lt;&lt;BillingContactEmail&gt;&gt;</span></p>
   </div>
 </div>
 
@@ -137,7 +137,7 @@
     <tr><td>&lt;&lt;CreditLabel&gt;&gt; &lt;&lt;CreditDetail&gt;&gt; &lt;&lt;CreditAmount&gt;&gt;</td><td class="opt">If CreditsApplied</td><td>Retainer applied · Received February 3, 2027 · −$150. <b>Format the minus sign as a real minus (−), not a hyphen</b>, and never as parentheses on a client-facing document.</td></tr>
     <tr><td>[[IF CreditsApplied]]</td><td class="req">Flag</td><td>Boolean. Drops the credit row when there is nothing to apply, so a clean invoice has no empty line.</td></tr>
     <tr><td>&lt;&lt;PaymentInstruction&gt;&gt;</td><td class="req">Required</td><td>Pay by card or bank transfer through the link in the delivery email, or by cheque to the address at right. — <b>one sentence, from settings, not per client.</b> Change it in one place when the firm's processor changes.</td></tr>
-    <tr><td>&lt;&lt;BillingContactName&gt;&gt; &lt;&lt;BillingContactEmail&gt;&gt; &lt;&lt;BillingContactPhone&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman · billing@satcllp.com · 307-941-0508. Separate from the preparer on purpose — a billing question should not have to find the preparer.</td></tr>
+    <tr><td>&lt;&lt;BillingContactName&gt;&gt; &lt;&lt;BillingContactEmail&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman · arjun_sethuraman@satcllp.com. Separate from the preparer on purpose — a billing question should not have to find the preparer. <b>No phone:</b> no number goes on a client document until the firm has a business line.</td></tr>
     <tr><td>&lt;&lt;EstimateTotal&gt;&gt; &lt;&lt;EstimateDate&gt;&gt; &lt;&lt;VarianceNote&gt;&gt;</td><td class="opt">If EstimateReference</td><td>$785 · February 3, 2027 · "The difference is the additional state return added at your request on March 8." <b>If the invoice exceeds the estimate, the note is not optional</b> — an unexplained overage is the most common billing dispute there is.</td></tr>
     <tr><td>[[IF EstimateReference]]</td><td class="req">Flag</td><td>Boolean. Off for recurring bookkeeping invoices, where restating the estimate every month is noise.</td></tr>
     <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner</td></tr>

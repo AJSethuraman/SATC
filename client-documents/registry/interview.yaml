@@ -165,7 +165,7 @@ sections:
 
       - id: client_email
         question: "Email"
-        help: "Printed on the onboarding letter so they know which inbox the Encyro invitation went to."
+        help: "Printed on the onboarding letter. The secure upload link goes to this address, and so does the Encyro invitation to sign."
         type: text
         required: true
         prefill: contact.email

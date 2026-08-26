@@ -46,7 +46,7 @@ Sent in January with the tax organizer, ahead of the engagement letter and estim
 
 **Total: 13 fields + 1 repeating list of 2 + 1 conditional flag.**
 
-Not variables: firm name, address, phone, website, the Ohio LLP footer, the Encyro upload instruction, and the five items in section 02.
+Not variables: firm name, address, phone, website, the Ohio LLP footer, the secure upload instruction, and the five items in section 02.
 
 ---
 

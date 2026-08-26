@@ -78,7 +78,7 @@
       </li>
     </ul>
     <span class="cond end">[[END EACH]]</span>
-    <p>Every amount and date above comes from the returns themselves. <strong>Pay each authority directly</strong> — never send a tax payment to us, and never to anyone who telephones claiming to be us. If you are unsure whether a request is genuine, call <span class="f">&lt;&lt;PreparerPhone&gt;&gt;</span> and ask.</p>
+    <p>Every amount and date above comes from the returns themselves. <strong>Pay each authority directly</strong> — never send a tax payment to us, and never to anyone who telephones claiming to be us. If you are unsure whether a request is genuine, email <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span> and ask.</p>
   </div>
 
   <span class="cond">[[IF EFiled]]</span>
@@ -124,7 +124,7 @@
 
   <div class="sec">
     <h2><span class="n">07</span>Questions</h2>
-    <p>Ask before you guess. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span> or <span class="f">&lt;&lt;PreparerPhone&gt;&gt;</span>.</p>
+    <p>Ask before you guess. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span>.</p>
   </div>
 
   <div class="signoff">
@@ -159,7 +159,7 @@
     <tr><td>[[EACH ActionList]]</td><td class="req">List</td><td>One or more. Two sub-fields. The checklist a client works down. <b>Every amount in it is a pre-formatted string from the money formatter</b> — this template does no arithmetic.</td></tr>
     <tr><td>&lt;&lt;Item.Action&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>Pay the Ohio balance due · $412.00 to Ohio Treasurer of State by April 15, 2027</td></tr>
     <tr><td>&lt;&lt;ReturnInstruction&gt;&gt;</td><td class="req">Required</td><td>Sign through Encyro and it comes straight back to us. — <b>firm setting, not per client.</b> Same field the engagement letter uses.</td></tr>
-    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt; &lt;&lt;PreparerPhone&gt;&gt;</td><td class="req">Required</td><td>Four fields. Name appears twice (dateline and sign-off), phone twice (the anti-fraud line and the questions section).</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>Four fields. Name appears twice (dateline and sign-off), phone twice (the anti-fraud line and the questions section).</td></tr>
     <tr><td>[[IF EFiled]]</td><td class="req">Flag</td><td>Boolean. The e-file branch: signing the authorisation, and the confirmation we owe you.</td></tr>
     <tr><td>[[IF PaperFiled]]</td><td class="req">Flag</td><td>Boolean, and <b>the exact inverse of EFiled</b> — see the note below. The paper branch puts filing on the client, which is the single most important sentence in the letter when it applies.</td></tr>
     <tr><td>[[IF EstimatedPayments]]</td><td class="req">Flag</td><td>Boolean. Drops the next-year estimates section when there are no vouchers in the package.</td></tr>

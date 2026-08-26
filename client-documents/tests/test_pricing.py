@@ -1908,6 +1908,36 @@ def test_no_other_package_sits_below_the_minimum():
     assert not below, f"packages under the firm's ${floor} minimum: {below}"
 
 
+def test_the_sample_record_is_generated_from_the_answers_not_typed():
+    """The engagement letter and the fee estimate must describe the same job.
+
+    Found 26 August 2026 by the firm, reading the two side by side: "i cannot
+    tie this back to the engagement letter - the letter outlines specific
+    things." They could not, and the documents genuinely disagreed. The
+    letter's scope said "Form 1040 with Schedules A, C, and SE" while the
+    estimate billed a $145 Rental schedule — Schedule E was on the estimate
+    and nowhere in the scope that engagement letter defines.
+
+    The composition code was right all along; the SAMPLE was hand-written and
+    had lost the E. Every field `interview.compose` supplies is now generated
+    from `interview-answers.json`, so all three documents in the opening
+    package read off one set of answers and cannot contradict each other.
+    """
+    import interview as iv
+
+    answers = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    record = json.loads((SAMPLES / "tax-opening-package.json").read_text(encoding="utf-8"))
+
+    drift = {k: (record[k], v) for k, v in iv.compose(answers).items()
+             if k in record and record[k] != v}
+    assert not drift, (
+        "hand-edited fields that the interview composes: "
+        + "; ".join(f"{k}: record {r!r} vs engine {e!r}" for k, (r, e) in drift.items())
+    )
+    assert "E" in record["FederalReturns"], \
+        "the rental on the estimate must appear in the letter's scope"
+
+
 def test_the_sample_estimate_matches_what_the_engine_prices():
     """The demo record's estimate was hand-written and had drifted badly.
 

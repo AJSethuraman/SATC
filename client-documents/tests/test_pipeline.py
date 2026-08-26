@@ -92,8 +92,8 @@ def test_firm_settings_fill_in_behind_the_record():
 
 def test_the_record_wins_over_a_firm_default():
     """A per-engagement override is legitimate; ignoring it silently is not."""
-    record = cli.build_record({"_season": "2026", "AckWindow": "two business days"})
-    assert record["AckWindow"] == "two business days"
+    record = cli.build_record({"_season": "2026", "PreparerTitle": "Managing Partner"})
+    assert record["PreparerTitle"] == "Managing Partner"
 
 
 def test_a_record_without_a_season_is_refused():

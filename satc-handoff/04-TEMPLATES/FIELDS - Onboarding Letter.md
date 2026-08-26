@@ -41,12 +41,11 @@ Same records, same values. Generate all three documents in one call.
 
 | Field | Required | Example | Notes |
 |---|---|---|---|
-| `<<ClientEmail>>` | Yes | dreyes@example.com | **Printed on purpose** — it tells the client which inbox the Encyro invitation went to, the first thing they ask. |
+| `<<ClientEmail>>` | Yes | dreyes@example.com | **Printed on purpose** — the upload link and the Encyro signing invitation both go here, and it is the first thing a client asks. |
 | `<<MaterialsDeadline>>` | Yes | March 15, 2027 | A real date, never "early March". The tax letter's timing clause carries the same value — set it once. |
 | `[[EACH RequestList]]` | List | one or more | Two sub-fields. The point of the letter — **build it from the engagement type, not by hand.** |
 | `<<Item.Document>>` | Yes | All W-2 forms | As a client would name it, not as the tax code does |
 | `<<Item.Detail>>` | Yes | For both of you, including part-year employment | Empty string when there is nothing to add — never "None" |
-| `<<AckWindow>>` | Yes | three business days | A duration, phrased to drop into the sentence |
 | `<<FirstDeliverableTarget>>` | Yes | April 1, 2027 | The promise the client remembers. Date or phrase. |
 | `<<PreparerEmail>>` + `<<PreparerPhone>>` | Yes | arjun@satcllp.com · 307-941-0508 | Two fields. Phone appears twice — the anti-fraud line and the questions section. |
 | `<<PriorFirmName>>` | If flag | Halloran & Reeve CPAs | |
@@ -54,7 +53,7 @@ Same records, same values. Generate all three documents in one call.
 
 **Total: 18 fields + 1 repeating list of 2 + 1 flag.**
 
-Not variables: firm name, address, phone, website, the Ohio LLP footer, the Encyro instructions, the read-only access explanation, the never-asks-for-a-password paragraph, and the what-happens-next list.
+Not variables: firm name, address, phone, website, the Ohio LLP footer, the upload and Encyro instructions, and the what-happens-next paragraph.
 
 ---
 
@@ -83,7 +82,6 @@ Do not leave it to chance. The numbers exist so a client can point at a clause o
   "ClientZip": "44139",
   "ClientEmail": "dreyes@example.com",
   "MaterialsDeadline": "March 15, 2027",
-  "AckWindow": "three business days",
   "FirstDeliverableTarget": "April 1, 2027",
   "PreparerName": "Arjun Sethuraman, CPA",
   "PreparerTitle": "Managing Partner",

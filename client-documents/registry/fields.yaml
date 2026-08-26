@@ -16,9 +16,6 @@ fields:
   - field: AccountingSystem
     source: bookkeeping
     templates: [bookkeeping-letter]
-  - field: AckWindow
-    source: firm
-    templates: [onboarding-letter]
   - field: AdditionalForms
     source: interview
     templates: [business-letter, tax-letter]
@@ -33,9 +30,6 @@ fields:
     source: firm
     templates: [invoice]
   - field: BillingContactName
-    source: firm
-    templates: [invoice]
-  - field: BillingContactPhone
     source: firm
     templates: [invoice]
   - field: Cadence
@@ -58,7 +52,7 @@ fields:
     source: interview
     templates: [onboarding-letter]
     notes: >-
-      Printed on purpose: tells the client which inbox the Encyro invitation went to.
+      Printed on purpose: the upload link and the Encyro signing invitation both go here.
   - field: ClientFullName
     source: interview
     templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
@@ -192,9 +186,6 @@ fields:
   - field: PreparerName
     source: firm
     templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
-  - field: PreparerPhone
-    source: firm
-    templates: [delivery-letter, disengagement-letter, extension-notice, onboarding-letter]
   - field: PreparerTitle
     source: firm
     templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
