@@ -101,8 +101,10 @@ EXTRA_GROUPS = [
 EXTRA_COPY = {
     "per_unit.state_return":      ("Additional state return", "Each state past the first"),
     "per_unit.local_return":      ("Additional local return", "City, RITA, CCA or school district"),
-    "per_unit.extension_estimate": ("Working out what to pay with an extension",
-                                    "Filing the extension itself is free"),
+    # The fee is for working out the payment, so it only lands where there IS
+    # one. Saying that plainly costs the firm the odd $75 and it said so.
+    "per_unit.extension_estimate": ("An extension when you owe",
+                                    "Free when you don't"),
     "per_unit.rental":            ("Rental property", "Schedule E &middot; up to three, then $45 each"),
     # A K-1 you receive is reported on Schedule E, but it is priced per K-1 —
     # so the row names the schedule and the detail says how it is counted.

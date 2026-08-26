@@ -115,27 +115,27 @@ window.SATC_PRICING = {
     {
       title: 'More to file',
       rows: [
-        { label: 'Additional state return',                   detail: 'Each state past the first', amount: 50 },
-        { label: 'Additional local return',                   detail: 'City, RITA, CCA or school district', amount: 35 },
-        { label: 'Working out what to pay with an extension', detail: 'Filing the extension itself is free', amount: 75 }
+        { label: 'Additional state return',     detail: 'Each state past the first', amount: 50 },
+        { label: 'Additional local return',     detail: 'City, RITA, CCA or school district', amount: 35 },
+        { label: 'An extension when you owe',   detail: 'Free when you don\'t', amount: 75 }
       ]
     },
     {
       title: 'On the return',
       rows: [
-        { label: 'Rental property',                           detail: 'Schedule E &middot; up to three, then $45 each', amount: 145 },
-        { label: 'K&#8209;1 you received',                    detail: 'Schedule E &middot; each K&#8209;1', amount: 15 },
-        { label: 'Brokerage statement',                       detail: 'Form 1099&#8209;B &middot; each one after the first', amount: 45 },
-        { label: 'Gig or contract work',                      detail: 'Schedule C &middot; rideshare, delivery, freelance and the like', amount: 65 },
-        { label: 'A business you run yourself',               detail: 'Schedule C &middot; actual expenses, a home office, inventory or payroll', amount: 200 },
-        { label: 'A foreign account',                         detail: 'FBAR &middot; each one, up to four. Past four we bill the time.', amount: 50 }
+        { label: 'Rental property',             detail: 'Schedule E &middot; up to three, then $45 each', amount: 145 },
+        { label: 'K&#8209;1 you received',      detail: 'Schedule E &middot; each K&#8209;1', amount: 15 },
+        { label: 'Brokerage statement',         detail: 'Form 1099&#8209;B &middot; each one after the first', amount: 45 },
+        { label: 'Gig or contract work',        detail: 'Schedule C &middot; rideshare, delivery, freelance and the like', amount: 65 },
+        { label: 'A business you run yourself', detail: 'Schedule C &middot; actual expenses, a home office, inventory or payroll', amount: 200 },
+        { label: 'A foreign account',           detail: 'FBAR &middot; each one, up to four. Past four we bill the time.', amount: 50 }
       ]
     },
     {
       title: 'Amendments',
       rows: [
-        { label: 'A return we filed',                         detail: 'Something arrived after it went in', amount: 50 },
-        { label: 'A return someone else filed',               detail: 'Plus what the return itself costs', amount: 50, reprices: true }
+        { label: 'A return we filed',           detail: 'Something arrived after it went in', amount: 50 },
+        { label: 'A return someone else filed', detail: 'Plus what the return itself costs', amount: 50, reprices: true }
       ]
     }
   ],

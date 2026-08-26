@@ -40,14 +40,16 @@ a:hover{color:var(--oxblood-lt);text-decoration:underline}
 .wrap{max-width:var(--w);margin:0 auto;padding:0 var(--pad)}
 .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute);margin:0}
 h1{font-weight:600;font-size:clamp(32px,5.4vw,52px);color:var(--navy);letter-spacing:-.042em;line-height:1.04;margin:14px 0 12px;text-wrap:balance}
-.lede{font-size:clamp(17px,2vw,19px);color:var(--charcoal-2);margin:0;max-width:48ch}
+/* .lede is gone from this page: the headline says it and a second line under it
+   was a preamble in everything but name. Kept as a rule for nothing would be
+   dead CSS, so it went with the sentence. */
 h2{font-weight:600;font-size:clamp(21px,2.4vw,26px);color:var(--navy);letter-spacing:-.03em;line-height:1.14;margin:0 0 8px}
 p,li{font-size:15.5px;color:var(--charcoal-2)}
 p{margin:0 0 14px;max-width:68ch}
 strong{color:var(--navy);font-weight:600}
 .note{font-size:13.5px;color:var(--mute)}
 
-/* head band: headline, lede, nothing else. No preamble above the prices. */
+/* head band: headline, nothing else. No preamble above the prices. */
 .head{padding:clamp(44px,6vw,80px) 0 clamp(34px,4.5vw,52px)}
 
 /* ============================ THE PRICE BAND ============================
@@ -85,7 +87,13 @@ strong{color:var(--navy);font-weight:600}
    so a short list reads as a short list, not as a card that failed to fill. */
 .tiers{display:grid;column-gap:14px;row-gap:0;margin:0;padding:0;list-style:none;grid-template-columns:repeat(4,1fr);grid-template-rows:auto auto auto 1fr}
 #tiers>.tier{grid-row:span 4}
-#entities{grid-template-columns:repeat(3,1fr);grid-template-rows:auto auto 1fr}
+/* The last row is `auto`, not `1fr` as it is for the packages: with the add-on
+   lists gone these cards hold three short lines, and a stretched row turned the
+   rest of the panel into empty space INSIDE a bordered box, which reads as a
+   card that failed to load. `align-content:start` puts that space below the
+   cards instead, where it is just margin. The panel keeps its height either
+   way, so the navy band still does not move when you flip tabs. */
+#entities{grid-template-columns:repeat(3,1fr);grid-template-rows:auto auto auto;align-content:start}
 #entities>.tier{grid-row:span 3}
 .tier{background:var(--paper);border:1px solid var(--hairline);border-top:2px solid var(--navy);padding:18px 18px 20px;display:grid;grid-template-rows:subgrid}
 /* align-self only means "which row band" while the card is a subgrid. In the
@@ -114,7 +122,10 @@ strong{color:var(--navy);font-weight:600}
 .tier.ent{border-top-color:var(--gold)}
 .tier.ent .amt{font-size:clamp(34px,4vw,46px)}
 .tier.ent .who{font-size:16.5px;font-weight:600}
-.tier .amt i{display:block;font-style:normal;font-family:var(--mono);font-size:10px;font-weight:400;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-deep);margin:0 0 6px}
+/* Only the entity cards carry an <i>. It reads "from", and at 10px it was a
+   caption rather than part of the price — which is the wrong emphasis when the
+   whole point is that the number underneath is a floor. */
+.tier .amt i{display:block;font-style:normal;font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-deep);margin:0 0 7px}
 .tier .ontop{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:14px 0 0;padding-top:12px;border-top:1px solid var(--hairline-2);align-self:start}
 .tier.ent ul{border-top:0;margin-top:2px}
 .tier.ent li::before{background:none;border:1px solid var(--gold);top:15px;width:5px;height:5px}
@@ -126,15 +137,20 @@ strong{color:var(--navy);font-weight:600}
 .ents>.ent{background:var(--paper);border:1px solid var(--hairline);border-left:2px solid var(--gold);padding:16px 18px}
 
 /* ---- the two panels share one box ----
-   Both panels occupy the same grid cell, so the box is as tall as the taller
-   of the two and the navy band sits on its bottom edge in BOTH — switching
-   tabs changes the cards and nothing else moves. The hidden panel is made
-   invisible rather than display:none so it keeps holding the height; `hidden`
-   still takes it out of the accessibility tree and the tab order. */
+   Both panels occupy the same grid cell. Each is only as tall as its own cards:
+   the hidden one is display:none, so switching tabs moves the navy band up or
+   down with the content.
+
+   It used to hold the taller panel's height so the band never moved. That was
+   worth it when the entity cards carried add-on lists and the two panels were
+   close in height. With those lists gone the businesses panel is three short
+   cards, and holding the individuals panel's height left 200px of nothing
+   between them and the band. A band that moves when you press a tab is what a
+   tab does; a permanent hole is not. */
 .panels{display:grid;grid-template-rows:1fr auto}
 .panels>[role="tabpanel"]{grid-column:1;grid-row:1/span 2;display:grid;grid-template-rows:subgrid}
 @supports not (grid-template-rows:subgrid){.panels>[role="tabpanel"]{grid-row:1;grid-template-rows:1fr auto}}
-.panels>[role="tabpanel"][hidden]{display:grid;visibility:hidden;pointer-events:none}
+.panels>[role="tabpanel"][hidden]{display:none}
 
 /* ---- the sentence that makes every price below readable ---- */
 .included{margin:22px 0 0;padding:18px 24px;min-height:76px;display:flex;align-items:center;background:var(--navy);border-left:3px solid var(--gold);color:#fff;font-size:clamp(15px,1.7vw,17px);font-weight:500;line-height:1.5;max-width:none;letter-spacing:-.01em}
@@ -191,7 +207,9 @@ strong{color:var(--navy);font-weight:600}
 #sits li::before,#hourlyApplies li::before{content:"";position:absolute;left:0;top:18px;width:6px;height:6px;background:var(--gold)}
 /* hourly is a ruled list on the cream, not a card — the contrast with the
    grid beside it is what keeps two lists from reading as one long one */
-#hourly{margin-bottom:14px}
+/* Both subs, not just the hourly one: the two lists sit side by side and start
+   on the same line only if the line above them is the same height and gap. */
+#hourly,#sitsSub{margin-bottom:14px}
 
 /* ---- closing: the promise, then the button ---- */
 .close{display:grid;grid-template-columns:1.25fr 1fr;gap:clamp(28px,4vw,56px);background:var(--paper);border:1px solid var(--hairline);border-top:2px solid var(--navy);padding:clamp(26px,3.6vw,42px)}
@@ -255,7 +273,6 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
   <div class="wrap">
     <p class="eyebrow">Pricing</p>
     <h1>What a return costs.</h1>
-    <p class="lede">We publish what we charge.</p>
   </div>
 </header>
 
@@ -303,7 +320,9 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
   <div class="pair">
     <section class="sec">
       <h2 id="sitsHead">Situations</h2>
+      <p class="sub" id="sitsSub">One price each, however many apply.</p>
       <ul class="sits" id="sits"></ul>
+      <p class="note" style="margin:16px 0 0">Flat, whichever of these applies. The rare one that isn&#39;t, you&#39;ll hear about in advance.</p>
     </section>
 
     <section class="sec">
@@ -317,7 +336,7 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
   <section class="sec close">
     <div>
       <h2>Before we start</h2>
-      <p>We&#39;ll walk through what you need and hand you a quote. If it turns out to be more work than it looked, you hear that then &mdash; not on the invoice.</p>
+      <p>We&#39;ll walk through what you need together and tell you what it costs.</p>
     </div>
     <div>
       <h2>Where you start</h2>
@@ -384,7 +403,7 @@ footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40p
       }).join('') + '</div></div>';
   }).join('');
 
-  el('sitsHead').textContent = 'The ' + money(P.situationPrice) + ' situations';
+  el('sitsHead').textContent = money(P.situationPrice) + ' situations';
   el('sits').innerHTML = P.situations.map(function (s) { return '<li>' + s + '</li>'; }).join('');
 
   el('hourly').innerHTML = '<strong>' + money(P.hourly.rate) + ' an hour</strong>, billed to ' +
