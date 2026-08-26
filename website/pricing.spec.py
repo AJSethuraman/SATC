@@ -207,6 +207,9 @@ check('aria-controls="panelInd"' in page_src and 'aria-controls="panelBiz"' in p
       "each tab names the panel it controls")
 check("hidden = j !== i" in page_src,
       "panels start visible and JS hides one — with JS off every price still shows")
+check(len(cfg["extraGroups"]) == 3,
+      "the menu still has three panels — the layout places them explicitly "
+      f"(found {len(cfg['extraGroups'])})")
 check(bool(cfg.get("entityNoteLabel")),
       "the entity cards label their list — it is what costs EXTRA, the opposite "
       "of a package card's bullets sitting beside it")

@@ -26,7 +26,7 @@ window.SATC_PRICING = {
   includedInEvery: 'Every package covers your federal return, plus your first state and first local return.',
 
   /* The firm's words, 26 August 2026. */
-  currentPrices: 'These represent our pricing for the upcoming tax year and are subject to change.',
+  currentPrices: 'Pricing is subject to change.',
 
   /* Cheapest to dearest, which is also the order the engine considers them in.
      Names render from here: one of the four has already been renamed once. */
@@ -74,7 +74,7 @@ window.SATC_PRICING = {
       covers: [
         'Everything in Standard',
         'One Schedule C &mdash; actual expenses, a home office, depreciation, inventory or payroll',
-        'Not an S corporation or partnership return &mdash; those are under Businesses'
+        'Own an entity? See the Businesses tab.'
       ]
     }
   ],
@@ -90,33 +90,22 @@ window.SATC_PRICING = {
       name: 'Partnership',
       who: 'Form 1065',
       amount: 800,
-      notes: [
-        'A balance sheet, where one is required',
-        'Inventory, where the business carries any',
-        'Each partner\'s K&#8209;1 after the first two',
-        'Returns in more than one state'
-      ]
+      notes: ['A balance sheet, where one is required', 'Inventory, where the business carries any', 'Each partner\'s K&#8209;1 after the first two', 'Returns in more than one state'],
+      unique: ['Each partner\'s K&#8209;1 after the first two']
     },
     {
       name: 'S corporation',
       who: 'Form 1120-S',
       amount: 950,
-      notes: [
-        'A balance sheet, where one is required',
-        'Inventory, where the business carries any',
-        'Each shareholder\'s K&#8209;1 after the first two',
-        'Returns in more than one state'
-      ]
+      notes: ['A balance sheet, where one is required', 'Inventory, where the business carries any', 'Each shareholder\'s K&#8209;1 after the first two', 'Returns in more than one state'],
+      unique: ['Each shareholder\'s K&#8209;1 after the first two']
     },
     {
       name: 'C corporation',
       who: 'Form 1120',
       amount: 950,
-      notes: [
-        'A balance sheet, where one is required',
-        'Inventory, where the business carries any',
-        'Returns in more than one state'
-      ]
+      notes: ['A balance sheet, where one is required', 'Inventory, where the business carries any', 'Returns in more than one state'],
+      unique: []
     }
   ],
 
@@ -135,11 +124,9 @@ window.SATC_PRICING = {
       title: 'On the return',
       rows: [
         { label: 'Rental property',                           detail: 'Schedule E &middot; up to three, then $45 each', amount: 145 },
-        { label: 'A K&#8209;1 you received',                  detail: 'Schedule K&#8209;1 &middot; each one', amount: 15 },
-        { label: 'A K&#8209;1 you send an owner',             detail: 'Schedule K&#8209;1 &middot; each owner', amount: 40 },
+        { label: 'K&#8209;1 you received',                    detail: 'Schedule E &middot; each K&#8209;1', amount: 15 },
         { label: 'Brokerage statement',                       detail: 'Form 1099&#8209;B &middot; each one after the first', amount: 45 },
-        { label: 'Keyed brokerage statement',                 detail: 'Form 1099&#8209;B &middot; when the totals cannot be pulled in electronically', amount: 95 },
-        { label: 'Gig or contract work',                      detail: 'Schedule C &middot; standard mileage', amount: 65 },
+        { label: 'Gig or contract work',                      detail: 'Schedule C &middot; rideshare, delivery, freelance and the like', amount: 65 },
         { label: 'A business you run yourself',               detail: 'Schedule C &middot; actual expenses, a home office, inventory or payroll', amount: 200 },
         { label: 'A foreign account',                         detail: 'FBAR &middot; each one, up to four. Past four we bill the time.', amount: 50 }
       ]
@@ -173,6 +160,6 @@ window.SATC_PRICING = {
     'An interest in a company based abroad',
     'A letter from the IRS or the state you would like us to handle',
     'Setting what an S corporation owner pays themselves',
-    'Books that need cleaning up first &mdash; the messier they are, the longer it takes'
+    'Books that need cleaning up or reconciling'
   ]
 };

@@ -62,7 +62,7 @@ SITE_COPY = {
         "who": "You work for yourself.",
         "covers": ["Everything in Standard",
                    "One Schedule C &mdash; actual expenses, a home office, depreciation, inventory or payroll",
-                   "Not an S corporation or partnership return &mdash; those are under Businesses"],
+                   "Own an entity? See the Businesses tab."],
     },
 }
 
@@ -76,8 +76,8 @@ EXTRA_GROUPS = [
         "per_unit.extension_estimate",
     ]),
     ("On the return", [
-        "per_unit.rental", "per_unit.k1", "per_unit.owner_k1",
-        "per_unit.brokerage", "per_unit.brokerage_keyed",
+        "per_unit.rental", "per_unit.k1",
+        "per_unit.brokerage",
         "schedule_c.simple", "schedule_c.standard",
         "per_unit.foreign_account",
     ]),
@@ -104,12 +104,14 @@ EXTRA_COPY = {
     "per_unit.extension_estimate": ("Working out what to pay with an extension",
                                     "Filing the extension itself is free"),
     "per_unit.rental":            ("Rental property", "Schedule E &middot; up to three, then $45 each"),
-    "per_unit.k1":                ("A K&#8209;1 you received", "Schedule K&#8209;1 &middot; each one"),
-    "per_unit.owner_k1":          ("A K&#8209;1 you send an owner", "Schedule K&#8209;1 &middot; each owner"),
+    # A K-1 you receive is reported on Schedule E, but it is priced per K-1 —
+    # so the row names the schedule and the detail says how it is counted.
+    "per_unit.k1":                ("K&#8209;1 you received", "Schedule E &middot; each K&#8209;1"),
+    "per_unit.owner_k1":          ("K&#8209;1 you issue an owner", "Schedule K&#8209;1 &middot; each owner"),
     "per_unit.brokerage":         ("Brokerage statement", "Form 1099&#8209;B &middot; each one after the first"),
-    "per_unit.brokerage_keyed":   ("Keyed brokerage statement",
-                                   "Form 1099&#8209;B &middot; when the totals cannot be pulled in electronically"),
-    "schedule_c.simple":          ("Gig or contract work", "Schedule C &middot; standard mileage"),
+    "per_unit.brokerage_keyed":   ("Keyed brokerage statement", "Form 1099&#8209;B"),
+    "schedule_c.simple":          ("Gig or contract work",
+                                   "Schedule C &middot; rideshare, delivery, freelance and the like"),
     "schedule_c.standard":        ("A business you run yourself",
                                    "Schedule C &middot; actual expenses, a home office, inventory or payroll"),
     "per_unit.foreign_account":   ("A foreign account",
@@ -123,9 +125,24 @@ EXTRA_COPY = {
 HOURLY_COPY = {
     "brokerage_keying":  "Keyed brokerage statements",
     "foreign_company":   "An interest in a company based abroad",
-    "cleanup":           "Books that need cleaning up first &mdash; the messier they are, the longer it takes",
+    "cleanup":           "Books that need cleaning up or reconciling",
     "notice_response":   "A letter from the IRS or the state you would like us to handle",
     "officer_compensation": "Setting what an S corporation owner pays themselves",
+}
+
+# Priced and charged, but NOT listed on the menu. Neither is withheld — both
+# appear elsewhere on the page — so they are recorded here rather than dropped
+# silently, and the completeness check accepts them by name.
+NOT_ON_THE_MENU = {
+    # The K-1 an entity ISSUES is a business line, and the entity cards already
+    # say each owner's K-1 after the first two is priced on top.
+    "per_unit.owner_k1":
+        "a business line; the entity cards already price it",
+    # One brokerage price on the menu. When a statement has to be keyed the
+    # time is billed, and the hourly list says so — two prices for the same
+    # document read as a penalty.
+    "per_unit.brokerage_keyed":
+        "one brokerage price on the menu; keying is in the hourly list",
 }
 
 # The amendment tiers that go on the page, in order. `our_error` is deliberately
@@ -217,13 +234,21 @@ def build() -> str:
     entity_labels = {"base.1065": ("Partnership", "Form 1065"),
                      "base.1120S": ("S corporation", "Form 1120-S"),
                      "base.1120": ("C corporation", "Form 1120")}
+    paths = ("base.1065", "base.1120S", "base.1120")
+    all_notes = [froms[p]["starting_note"] for p in paths]
+    shared = [n for n in all_notes[0] if all(n in other for other in all_notes[1:])]
     entities = []
-    for path in ("base.1065", "base.1120S", "base.1120"):
+    for path in paths:
         line = froms[path]
         name, form = entity_labels[path]
         entities.append({
             "name": name, "who": form, "amount": line["amount"],
+            # `notes` stays the whole truth, for the checker and for anyone
+            # reading the config. `unique` is what the card shows: the shared
+            # items are what the band above already says in prose, and three
+            # cards repeating them read as one card printed three times.
             "notes": [clean(n) for n in line["starting_note"]],
+            "unique": [clean(n) for n in line["starting_note"] if n not in shared],
         })
 
     # ---- hourly ---------------------------------------------------------
@@ -265,7 +290,7 @@ window.SATC_PRICING = {{
   includedInEvery: 'Every package covers your federal return, plus your first state and first local return.',
 
   /* The firm's words, 26 August 2026. */
-  currentPrices: 'These represent our pricing for the upcoming tax year and are subject to change.',
+  currentPrices: 'Pricing is subject to change.',
 
   /* Cheapest to dearest, which is also the order the engine considers them in.
      Names render from here: one of the four has already been renamed once. */
@@ -295,10 +320,8 @@ window.SATC_PRICING = {{
         lines.append(f"      name: {js(e['name'])},")
         lines.append(f"      who: {js(e['who'])},")
         lines.append(f"      amount: {e['amount']},")
-        lines.append("      notes: [")
-        for j, n in enumerate(e["notes"]):
-            lines.append(f"        {js(n)}{',' if j < len(e['notes']) - 1 else ''}")
-        lines.append("      ]")
+        lines.append(f"      notes: {js(e['notes'])},")
+        lines.append(f"      unique: {js(e['unique'])}")
         lines.append("    }" + ("," if i < len(entities) - 1 else ""))
     lines.append("  ],")
     lines.append("")
