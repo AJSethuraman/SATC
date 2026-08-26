@@ -37,6 +37,7 @@ import yaml
 
 import money as m
 import engagements
+import invoicing
 import fees
 import intake
 import interview as iv
@@ -299,6 +300,59 @@ def _engagement_readiness(ref: str, store: Path) -> int:
     print("\n  A [CONFIRM] is a firm decision -- `doctor` with no argument "
           "lists them all.\n  An unresolved field is missing from this record.")
     return 1 if opening_blocked else 0
+
+
+def cmd_invoice(args) -> int:
+    """A priced engagement -> an invoice, and optionally the rendered document.
+
+    The bridge the firm asked for. Everything the invoice says about money is
+    read off the estimate that was already agreed, so the two cannot disagree.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    try:
+        record = engagements.load(args.engagement, store)
+    except engagements.EngagementError as exc:
+        print(exc)
+        return 1
+
+    number = args.number or invoicing.next_number(store)
+    credits = []
+    if args.credit:
+        for entry in args.credit:
+            label, _, amount = entry.rpartition("=")
+            try:
+                credits.append({"label": label or "Credit", "detail": "",
+                                "amount": float(amount)})
+            except ValueError:
+                print(f"--credit wants LABEL=AMOUNT, got {entry!r}")
+                return 1
+
+    try:
+        fields = invoicing.build(record, number=number, billed=args.billed,
+                                 credits=credits,
+                                 variance_note=args.variance_note or "")
+    except invoicing.InvoiceError as exc:
+        print(f"\n{exc}\n")
+        return 1
+
+    path = store / args.engagement / "invoices"
+    path.mkdir(parents=True, exist_ok=True)
+    out = path / f"{number}.json"
+    out.write_text(json.dumps(fields, indent=2, ensure_ascii=False) + "\n",
+                   encoding="utf-8")
+    print(f"\nInvoice {number} for engagement {args.engagement}")
+    print(f"    {out}")
+    print(f"\n    Subtotal    {fields['Subtotal']}")
+    if fields.get("CreditAmount"):
+        print(f"    Credits     {fields['CreditAmount']}")
+    print(f"    Amount due  {fields['AmountDue']}")
+    if fields.get("EstimateTotal"):
+        print(f"    Estimated   {fields['EstimateTotal']}"
+              + ("   (this bill differs — the note says why)"
+                 if fields.get("VarianceNote") else ""))
+    print(f"\nNext:  python cli.py render --engagement {args.engagement} "
+          f"--docs invoice --out out")
+    return 0
 
 
 def cmd_ladder(args) -> int:
@@ -941,6 +995,18 @@ def main(argv=None) -> int:
         prog="satc-docs", description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
+
+    iv = sub.add_parser("invoice", help="a priced engagement -> an invoice")
+    iv.add_argument("--engagement", required=True)
+    iv.add_argument("--store")
+    iv.add_argument("--number", help="default: the next unused one")
+    iv.add_argument("--billed", required=True,
+                    help="the period this invoice BILLS, e.g. '2026 tax year'")
+    iv.add_argument("--credit", action="append", metavar="LABEL=AMOUNT",
+                    help="a credit, entered as what it is worth")
+    iv.add_argument("--variance-note",
+                    help="required when the bill exceeds the estimate")
+    iv.set_defaults(fn=cmd_invoice)
 
     la = sub.add_parser("ladder", help="are the packages sensible against the prices?")
     la.add_argument("--form", default="1040")
