@@ -50,12 +50,14 @@ Same names, same records, same values where the client is the same. This is the 
 |---|---|---|---|
 | `<<EntityType>>` | Yes | an Ohio limited liability company taxed as an S corporation | **A phrase, not a code**, written to drop into the opening sentence after a comma. It is the letter's statement of what it believes the entity is, put where the client can correct it. |
 | `<<ScheduleK1Target>>` | Yes | March 10, 2027 | When the K-1s are delivered. **A real date** — every owner's preparer schedules around it. |
+| `<<OwnerCount>>` | Yes | 3 | From `count_owners`, now **required** for a 1120-S or 1065. Section 01 is the scope statement, and how many K-1s the engagement produces is part of that scope. Same number the estimate prices owner K-1s from, so the two cannot disagree. **Gated on `EntityIssuesK1s`** — a C corporation issues none. |
 | `<<SignerName>>` + `<<SignerTitle>>` | Yes | Daniel Reyes · Managing Member | Two fields, **the same pair the bookkeeping letter uses**. An entity signs through a person, and that person must be able to bind it. |
 | `[[IF OwnerReturnsPrepared]]` | Flag | Boolean | The firm also prepares the owners' personal returns. |
 | `[[IF OwnerReturnsElsewhere]]` | Flag | Boolean | **The exact inverse.** |
+| `[[IF EntityIssuesK1s]]` | Yes | Flag | Boolean, derived from the federal form — true for a 1120-S or a 1065, false for a 1120. **A C corporation issues no K-1s.** Gates the K-1 scope line in section 01. |
 | `[[IF SCorpElection]]` | Flag | Boolean | Adds the officer-compensation scope exclusion in section 03, which is meaningless for a partnership. |
 
-**Total: 27 fields + 3 flags. No repeating lists.**
+**Total: 28 fields + 4 flags. No repeating lists.**
 
 Sixteen of the twenty-one are the same fields, from the same records, as the individual tax letter.
 
@@ -119,6 +121,7 @@ An S corporation whose owners' personal returns the firm also prepares. The othe
   "AdditionalForms": "None",
   "MaterialsDeadline": "February 15, 2027",
   "ScheduleK1Target": "March 10, 2027",
+  "OwnerCount": 3,
   "SignerName": "Daniel Reyes",
   "SignerTitle": "Managing Member",
   "FirmName": "SAT-C LLP",

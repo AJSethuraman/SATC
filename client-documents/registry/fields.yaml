@@ -302,6 +302,14 @@ fields:
     templates: [delivery-letter]
     notes: >-
       A real date, never 'as soon as possible'. Measured from LetterDate.
+  - field: OwnerCount
+    label: "How many owners receive a K-1"
+    source: interview
+    templates: [business-letter]
+    notes: >-
+      From `count_owners`. Section 01 is the scope statement, and how many
+      K-1s the engagement produces is part of that scope -- the same number
+      the estimate prices the owner K-1s from, so the two cannot disagree.
   - field: SignerName
     label: "Who signs for the entity"
     source: interview
@@ -452,6 +460,14 @@ flags:
       `interview.compose` from the federal form; never asked. A bookkeeping
       engagement is the case it is off for -- its scope is ScopeItems, a
       list, and it has no interview yet.
+  - flag: EntityIssuesK1s
+    label: "The entity issues Schedules K-1"
+    source: engagement
+    templates: [business-letter]
+    notes: >-
+      Derived from the federal form -- true for a 1120-S or a 1065, false for
+      a 1120. A C corporation issues no K-1s, which `count_owners` has always
+      known (it is asked of the other two only) and the letter did not.
   - flag: SCorpElection
     label: "Taxed as an S corporation"
     source: engagement

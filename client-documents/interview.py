@@ -361,6 +361,13 @@ _FORM_LABEL = {"1040": "Form 1040", "1120S": "Form 1120-S",
 _SCHEDULE_LABEL = {"A": "A", "B": "B", "C": "C", "D": "D",
                    "E1": "E", "E2": "E", "F": "F", "SE": "SE"}
 
+# Every schedule the scope sentence is capable of naming. Public because
+# `consistency` compares what a document BILLS against what the scope SAYS,
+# and a name the scope sentence can never produce -- "Schedule K-1",
+# "Schedule L" -- is not a federal schedule that could be inside or outside
+# it. Derived from the map above so the two cannot drift.
+SCOPE_SCHEDULES = frozenset(_SCHEDULE_LABEL.values())
+
 
 def _oxford(items: list[str]) -> str:
     items = [i for i in items if i]
@@ -478,7 +485,7 @@ def compose(answers: dict) -> dict:
             if field in {"FederalReturns", "StateReturns", "LocalReturns",
                          "AdditionalForms", "JointReturn", "PriorFirm",
                          "EntityType", "OwnerReturnsPrepared",
-                         "OwnerReturnsElsewhere"}:
+                         "OwnerReturnsElsewhere", "EntityIssuesK1s"}:
                 continue
             out[field] = value
 
@@ -512,6 +519,17 @@ def compose(answers: dict) -> dict:
     # asking would invite an answer that contradicts the form.
     if answers.get("federal_form"):
         out["SCorpElection"] = answers["federal_form"] == "1120S"
+        # A C CORPORATION ISSUES NO K-1s. `count_owners` already knows it --
+        # the question is asked of 1120-S and 1065 only -- but the letter did
+        # not, so the K-1 scope line has to be gated on the same fact rather
+        # than on a count that is simply absent for a 1120.
+        #
+        # This is only half a fix. See docs/review-queue.md: the whole of the
+        # letter's section 02 is about K-1s and is UNGATED, so a C corporation
+        # is currently sent a target date for K-1s it will never receive. What
+        # that section should say instead is the firm's to write, not an
+        # agent's to invent.
+        out["EntityIssuesK1s"] = answers["federal_form"] in ("1120S", "1065")
 
     # Does this engagement prepare RETURNS? True for every engagement the
     # interview covers, and the estimate's scope block turns on it: it repeats

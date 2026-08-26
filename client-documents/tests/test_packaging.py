@@ -24,6 +24,10 @@ import packaging  # noqa: E402
 SAMPLES = ROOT / "samples"
 ENTITY = {"entity_structure": "llc", "entity_state": "Ohio",
           "signer_name": "Priya Raman", "signer_title": "Managing Member",
+          # Required of a 1120-S or a 1065 since 26 August 2026, because the
+          # letter now states how many K-1s the engagement is scoped for.
+          # Ignored for a 1120 -- a C corporation issues none.
+          "count_owners": 3,
           "k1_target": "each member's personal return"}
 
 
@@ -95,12 +99,22 @@ def test_an_unknown_engagement_kind_refuses_rather_than_falling_back():
 # ── atomicity ─────────────────────────────────────────────────────────────
 
 def test_a_whole_pack_is_written(answers, tmp_path):
+    """Counted against `documents_for`, not against the literal 3.
+
+    It WAS 3, and that was the bug: the demo client has a previous
+    accountant, so their pack carries the records release as well, and this
+    number said otherwise for as long as `packaging` did not know about the
+    conditional attachment. Holding the test to a fixed count is what would
+    make sending the attachment by default look like a regression.
+    """
     store, out = tmp_path / "store", tmp_path / "pack"
     ref = _engagement(answers, store)
+    record = json.loads((store / ref / "record.json").read_text())
     assert _run(ref, store, out) == 0
     names = sorted(p.name for p in out.iterdir())
     assert "MANIFEST.json" in names
-    assert sum(n.endswith(".html") for n in names) == 3
+    assert sum(n.endswith(".html") for n in names) == \
+        len(packaging.documents_for(record))
 
 
 @pytest.mark.parametrize("form", ["1120S", "1065", "1120"])
@@ -195,8 +209,11 @@ def test_the_manifest_says_what_is_in_the_folder(answers, tmp_path):
     book = json.loads((out / "MANIFEST.json").read_text())
     assert book["EngagementRef"] == ref
     assert book["EstimateTotal"].startswith("$")
+    # The demo client had a previous accountant, so the authorization they
+    # sign travels with the letter. It is listed here because the manifest is
+    # what somebody reads in a year to know what was sent.
     assert [d["key"] for d in book["Documents"]] == \
-        ["tax-letter", "fee-estimate", "onboarding-letter"]
+        ["tax-letter", "fee-estimate", "onboarding-letter", "records-release"]
     for entry in book["Documents"]:
         assert entry["purpose"], f"{entry['key']} has no stated purpose"
         assert entry["files"], f"{entry['key']} lists no files"
@@ -206,11 +223,11 @@ def test_every_document_in_every_pack_has_a_stated_purpose():
     """A key added to PACKS without a PURPOSE would print a blank line in the
     manifest, which is how a folder becomes unexplainable."""
     for kind, docs in packaging.PACKS.items():
-        for doc in docs + ["invoice"]:
+        for doc in docs + ["invoice"] + list(packaging.CONDITIONAL):
             assert packaging.PURPOSE.get(doc), f"{doc} ({kind}) has no purpose"
 
 
 def test_every_document_named_in_a_pack_is_a_real_template():
     for kind, docs in packaging.PACKS.items():
-        for doc in docs:
+        for doc in docs + list(packaging.CONDITIONAL):
             assert doc in cli.DOCUMENTS, f"{kind} names {doc!r}, which does not exist"
