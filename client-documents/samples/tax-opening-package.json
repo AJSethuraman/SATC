@@ -51,16 +51,16 @@
   ],
   "Assumptions": [
     {
-      "Text": "Brokerage keying — this estimate assumes each 1099-B can be summarized rather than keyed line by line, and does not include work beyond it. If a statement has to be entered by hand, that statement is $95.00, which we will agree with you before we do it rather than adding it to your bill unannounced."
+      "Text": "Brokerage keying — each 1099-B can be summarized rather than keyed line by line. If a statement has to be entered by hand, that statement is $95.00, which we will agree with you before we do it rather than adding it to your bill unannounced."
     },
     {
-      "Text": "Foreign entities — this estimate assumes your foreign holdings are accounts rather than companies, and does not include work beyond it. If you hold an interest in a foreign corporation or partnership, the additional time is billed at $150 an hour as it is worked."
+      "Text": "Foreign entities — your foreign holdings are accounts rather than companies. If you hold an interest in a foreign corporation or partnership, the additional time is billed at $150 an hour as it is worked."
     },
     {
-      "Text": "Notices and correspondence — this estimate assumes no authority writes to you about a return we prepared, and does not include work beyond it. If a notice arrives and you ask us to deal with it, the additional time is billed at $150 an hour as it is worked."
+      "Text": "Notices and correspondence — no authority writes to you about a return we prepared. If a notice arrives and you ask us to deal with it, the additional time is billed at $150 an hour as it is worked."
     },
     {
-      "Text": "Records cleanup — this estimate assumes your records arrive complete and reconciled, and does not include work beyond it. If the records need reconciling before the return can be prepared, the additional time is billed at $150 an hour as it is worked."
+      "Text": "Records cleanup — your records arrive complete and reconciled. If the records need reconciling before the return can be prepared, the additional time is billed at $150 an hour as it is worked."
     }
   ],
   "EstimateTotal": "$645.00",

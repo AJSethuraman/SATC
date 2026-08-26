@@ -824,9 +824,21 @@ phrases:
   #   {label} {assumes} {trigger}  from the `assumed:` item
   #   {where}       one of the two lines below it
   #   {consequence} one of the two below that
-  assumption: "{label} — this estimate assumes {assumes}, {where}. If {trigger}, {consequence}."
-  inside_base:  "and includes it on that basis"
-  outside_base: "and does not include work beyond it"
+  # NOT "this estimate assumes ...". The block is headed "What this estimate
+  # assumes", so every bullet saying it again is the heading read aloud five
+  # times over. The firm, 26 Aug 2026: "stop repeating things for the sake of
+  # repeating."
+  #
+  # Nor "and does not include work beyond it". Every `assumed:` entry is
+  # outside the base, so that clause printed on every bullet saying nothing,
+  # immediately before a sentence that says exactly what happens beyond it.
+  # The two cases are two sentences now rather than one sentence with a slot
+  # that is the same on every line.
+  assumption:        "{label} — {assumes}. If {trigger}, {consequence}."
+  # Used when `inside_base: true`. Nothing carries it today; it exists because
+  # an assumption whose work IS in the price is a different statement, and the
+  # difference has to survive somewhere other than a dangling clause.
+  assumption_inside: "{label} — {assumes}, and the price above covers it. If {trigger}, {consequence}."
 
   # What happens past an assumption. One per `beyond:` value.
   #   {rate} " at $150 an hour", or empty when no rate is set

@@ -1290,7 +1290,19 @@ def test_a_schedule_without_phrases_uses_the_firms_one_copy():
     sample = pricing.load(ROOT / "samples" / "fee-schedule-example.yaml")
     assert "phrases" not in sample
     said = pricing.assumptions({"federal_form": "1040"}, sample)
-    assert said and all("this estimate assumes" in t for t in said)
+    assert said, "a schedule with no phrases of its own produced no sentences"
+
+    # The SHAPE, not a phrase. This used to assert the words "this estimate
+    # assumes", which the firm had deleted from the wording on 26 August 2026
+    # -- "the section is titled 'what this estimate assumes' so why say 'this
+    # estimate assumes' in each bullet". A test that pins the current wording
+    # fails when the firm rewords something, which teaches whoever hits it to
+    # edit the test rather than think. What must hold is that the fallback
+    # produced the registry's assembled sentence and not a raw fragment.
+    for line in said:
+        assert " — " in line, f"not the assembled sentence: {line!r}"
+        assert line.endswith("."), f"not a finished sentence: {line!r}"
+        assert "{" not in line, f"an unfilled slot reached a client: {line!r}"
 
 
 # ── the mechanism gives the cheapest answer ───────────────────────────────

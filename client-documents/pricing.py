@@ -71,8 +71,8 @@ _SLOTS = {
     "form_covers": {"detail", "n"},
     "form_over": {"detail", "n", "each"},
     "multiplier": {"detail", "n", "each"}, "multiplier_only": {"n", "each"},
-    "assumption": {"label", "assumes", "where", "trigger", "consequence"},
-    "inside_base": set(), "outside_base": set(),
+    "assumption": {"label", "assumes", "trigger", "consequence"},
+    "assumption_inside": {"label", "assumes", "trigger", "consequence"},
     "beyond_hourly": {"rate"},
     "beyond_priced": {"each", "amount"},
 }
@@ -1063,7 +1063,6 @@ def _assumption(spec: dict, rate, *, schedule: dict | None = None,
             f"not a boundary."
         )
     s = schedule or {}
-    where = say(s, "inside_base" if spec.get("inside_base") else "outside_base")
 
     beyond = spec.get("beyond", "hourly")
     if check_beyond and beyond not in _BEYOND:
@@ -1080,7 +1079,8 @@ def _assumption(spec: dict, rate, *, schedule: dict | None = None,
         rate_txt = f" at ${rate:,.0f} an hour" if isinstance(rate, (int, float)) else ""
         consequence = say(s, "beyond_hourly", rate=rate_txt)
 
-    return say(s, "assumption", label=label, assumes=assumes, where=where,
+    key = "assumption_inside" if spec.get("inside_base") else "assumption"
+    return say(s, key, label=label, assumes=assumes,
                trigger=trigger, consequence=consequence)
 
 
