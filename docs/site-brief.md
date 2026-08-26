@@ -3,6 +3,10 @@
 **For the agent working in `website/`. Written 26 August 2026, after the fee
 schedule was finalised.**
 
+**As a page, with every figure generated from the schedule rather than typed:**
+<https://claude.ai/code/artifact/5bab6551-c4f9-4e3a-b0b7-0c1cc8501c89> — hand
+that link over; this file is the committed copy.
+
 This replaces the pricing sections of `docs/pricing-for-website.md`, which
 predate several decisions and now disagree with the schedule in places. Where
 this file and that one differ, **this one is right** — and where this file and
