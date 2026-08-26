@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -438,3 +439,30 @@ def test_a_missing_required_answer_stops_the_replay(tmp_path):
 
     with pytest.raises(SystemExit):
         cli.main(["interview", "--answers", str(path), "--store", str(tmp_path)])
+
+
+def test_the_interview_asks_whether_a_1040_is_an_amendment():
+    """The half of the amended-return decision that `pricing.line_items` does
+    NOT do, on purpose.
+
+    `line_items` defaults an absent `return_basis` to `original`, because
+    refusing would break every engagement recorded before the question
+    existed. That default is only safe because a real engagement cannot get
+    past the interview without answering — a defaulted answer would quote the
+    $200 package for a job the firm prices at $250, silently, on the one
+    question nobody would think to check.
+
+    Every form since 26 August 2026 (T-20): the amendment became a $50 adder
+    on top of whatever the return is, so an amended 1120-S prices itself.
+    """
+    schema = yaml.safe_load(
+        (ROOT / "registry" / "interview.yaml").read_text(encoding="utf-8"))
+    questions = [q for sec in schema["sections"] for q in sec["questions"]]
+    basis = [q for q in questions if q["id"] == "return_basis"]
+    assert basis, "nothing asks whether this is an original return or an amendment"
+    q = basis[0]
+    assert q.get("required") is True, "an unanswered basis prices as an original"
+    assert not q.get("showIf"), \
+        "every form can be amended now, so the question is not 1040-only"
+    values = {o["value"] for o in q["options"]}
+    assert {"original", "amended"} <= values

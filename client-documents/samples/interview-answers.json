@@ -12,6 +12,7 @@
   "spouse_name": "Maria Reyes",
   "tax_year": "2026",
   "federal_form": "1040",
+  "return_basis": "original",
   "federal_schedules": [
     "A",
     "C",
@@ -20,7 +21,7 @@
     "SE"
   ],
   "states": [
-    "Ohio \u2014 resident"
+    "Ohio — resident"
   ],
   "localities": [
     "Solon municipal"

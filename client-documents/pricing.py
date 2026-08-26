@@ -67,6 +67,7 @@ _SLOTS = {
     "after_first": {"detail"},             "after_first_only": set(),
     "after_n": {"detail", "n"},            "after_n_only": {"n"},
     "capped": {"detail", "n"},             "capped_only": {"n"},
+    "capped_soft": {"detail", "n", "rate"}, "capped_soft_only": {"n", "rate"},
     "form_covers": {"detail", "n"},
     "form_over": {"detail", "n", "each"},
     "multiplier": {"detail", "n", "each"}, "multiplier_only": {"n", "each"},
@@ -197,6 +198,31 @@ def _capped(unit: dict, count: int) -> tuple[int, object]:
     if count > cap:
         return int(cap), True
     return count, False
+
+
+# What may happen past a cap. `None` is a HARD cap -- the charge simply stops,
+# which is the older and stricter reading and stays the default. Anything here
+# is a decision the firm made, not a shape the code happens to allow; the list
+# is deliberately as short as `_BEYOND`.
+_CAP_BEYOND = {"hourly"}
+
+
+def _cap_beyond(unit: dict) -> str | None:
+    """How a cap behaves past its limit, refusing a value nobody recognises.
+
+    An unrecognised consequence would otherwise print as though the cap were
+    hard -- the client told the line stops, and then billed for time. That is
+    the one failure mode this key exists to prevent.
+    """
+    value = unit.get("cap_beyond")
+    if value is None or value in _CAP_BEYOND:
+        return value
+    raise PricingError(
+        f"{unit.get('label') or 'a capped line'} says work past its cap is "
+        f"{value!r}. Supported: {sorted(_CAP_BEYOND)}, or omit the key for a "
+        f"hard cap. A consequence nobody recognises prints as a hard cap, "
+        f"which tells the client the line stops when it does not."
+    )
 
 
 def _resolve_tier(unit: dict, answers: dict) -> dict:
@@ -682,7 +708,40 @@ def _forms_on(answers: dict, schedule: dict) -> list[tuple[str, dict]]:
             f"a situation the client ticks and the estimate ignores is billed "
             f"at nothing."
         )
-    return [(value, spec) for value, spec in forms.items() if value in picked]
+    # A form normally fires because the CLIENT ticked it. One fires because
+    # the PREPARER answered a question instead, and the distinction is the
+    # whole point of `when:`.
+    #
+    # The earned income credit is the case. It sat in the client's
+    # multi-select beside "sold a home" until 26 August 2026, and a client
+    # cannot answer it: eligibility turns on earned income under a moving
+    # threshold, investment income under another, valid SSNs, residency for
+    # the whole year, and a qualifying child or an age band. Every one is a
+    # number off the return. Drake computes it; a consultation cannot.
+    #
+    # It stayed in `per_form` rather than becoming a counted line because what
+    # `per_form` gives it is the printed assumption -- "the children claimed
+    # lived with you for more than half the year and you can show it" -- and a
+    # counted line has nowhere to say that.
+    #
+    # A form may not have BOTH a tick and a gate: two ways to fire one line is
+    # two ways to bill it twice.
+    out = []
+    for value, spec in forms.items():
+        when = spec.get("when")
+        if when:
+            if value in picked:
+                raise PricingError(
+                    f"per_form.{value} is both offered under {key!r} and "
+                    f"gated by `when:`. One line, one way to fire it -- "
+                    f"otherwise a client who ticks it is billed alongside a "
+                    f"preparer who answers the gate."
+                )
+            if gate_holds(when, answers):
+                out.append((value, spec))
+        elif value in picked:
+            out.append((value, spec))
+    return out
 
 
 def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
@@ -712,6 +771,35 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             f"the fee schedule has no base fee for federal form {form!r}. "
             f"Add it rather than letting the estimate quote without one."
         )
+
+    # THE AMENDMENT IS RESOLVED FIRST, because one of its cases replaces the
+    # whole estimate rather than adding to it. Amending a return we filed
+    # ourselves does not re-charge the package: we already hold the return,
+    # and billing for it again bills twice for one piece of work.
+    #
+    # An absent `return_basis` prices as an original return. That default is
+    # deliberate and it is only safe because the interview REQUIRES the
+    # question -- see `test_interview.py`. Refusing here instead would break
+    # every engagement recorded before the question existed, and this file is
+    # not where a gate on a real engagement belongs. An amendment with no
+    # REASON does refuse, because $0 and $1,050 are both live answers.
+    amendment = s.get("amendment")
+    amend_line = None
+    if amendment and gate_holds(amendment.get("when") or {}, answers):
+        chosen = _resolve_tier(amendment, answers)
+        for field in ("label", "amount"):
+            if field not in chosen:
+                raise PricingError(
+                    f"the amendment is missing {field!r}, so its line cannot "
+                    f"be written."
+                )
+        amend_line = _line(chosen["label"], chosen.get("detail", ""),
+                           chosen["amount"], code)
+        if not chosen.get("reprices"):
+            # The whole estimate, and that is the honest answer to "what does
+            # this engagement cost". Every other line would be a second charge
+            # for work already paid for.
+            return [amend_line]
 
     allowance: dict = {}
     tiers = base.get("tiers") if isinstance(base, dict) else None
@@ -763,7 +851,22 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             # The structure itself is undecided, so the line cannot honestly
             # describe what it covers. Carry the question, not a guess.
             detail = base_covers
+    if isinstance(base, dict):
+        # A base carrying metadata rather than being a bare number. The entity
+        # returns are the case: they publish as "from" prices and carry the
+        # notes saying from what, and both have to travel with the amount so
+        # the two cannot drift apart. `amount` is the money; the rest is for
+        # whoever shows the number.
+        if "amount" not in base:
+            raise PricingError(
+                f"base.{form} is a block with no `amount`, so there is no "
+                f"figure to quote. A base may carry metadata; it may not "
+                f"carry only metadata."
+            )
+        base = base["amount"]
     items.append(_line(label, detail, base, code))
+    if amend_line is not None:
+        items.append(amend_line)
 
     # Per-unit lines. When the base includes the first state and locality, the
     # first of each is already paid for and only the rest are charged.
@@ -830,8 +933,20 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             items.append(_line(unit["label"], detail, total, code))
             continue
         if capped is True:
-            detail = (say(s, "capped", detail=detail, n=unit["cap_units"])
-                      if detail else say(s, "capped_only", n=unit["cap_units"]))
+            # A SOFT cap stops the per-unit charge and bills the time past it;
+            # a bare cap stops the charge full stop. The firm's own words, 26
+            # August 2026: "4 is a soft cap. Then we add dollars for time."
+            # Saying only "capped at 4" for a soft cap is a promise the firm
+            # is not making, so the rate goes on the line beside the cap.
+            soft = _cap_beyond(unit)
+            n = unit["cap_units"]
+            if soft == "hourly":
+                rate = f"${(s.get('basis') or {}).get('rate', 0):,.0f}"
+                detail = (say(s, "capped_soft", detail=detail, n=n, rate=rate)
+                          if detail else say(s, "capped_soft_only", n=n, rate=rate))
+            else:
+                detail = (say(s, "capped", detail=detail, n=n)
+                          if detail else say(s, "capped_only", n=n))
         # Say that the first ones were free. A client who is told their
         # package includes a state return and then sees a "State return"
         # line on the same page reasonably concludes they were charged for
@@ -1062,6 +1177,78 @@ def price(answers: dict, schedule: dict | None = None) -> dict:
 
 
 # ── is the ladder sensible? ───────────────────────────────────────────────
+
+# What may reach a public page, and what may not.
+#
+# The firm chose a public price page on 25 August 2026, which turned "may this
+# number be shown?" from a copywriting judgement into a property of the price.
+# It lived in prose until 26 August -- `docs/pricing-for-website.md` named the
+# lines to withhold and this file said nothing -- so the site's own checker
+# could not enforce the rule against the source of truth. Prose and schedule
+# drift; that is the whole reason this file exists.
+#
+#   yes   the number and what it covers may both be shown
+#   from  a floor, never a flat price. The entity returns: a base with the
+#         balance sheet, the reconciliation and the owner K-1s priced on top,
+#         so a bare figure would be read as a total
+#   no    priced, taken, not advertised -- and `publish_reason` says why
+_PUBLISH = {"yes", "from", "no"}
+
+
+def _publishable_lines(schedule: dict):
+    """Every line that puts a number on an estimate, as (path, line)."""
+    s = schedule
+    base = s.get("base") or {}
+    tiers = (base.get("1040") or {}).get("tiers") or {}
+    for key, tier in tiers.items():
+        yield f"base.1040.tiers.{key}", tier
+    if s.get("amendment"):
+        yield "amendment", s["amendment"]
+    for form in ("1065", "1120S", "1120"):
+        if form in base:
+            yield f"base.{form}", base[form]
+    for key, unit in (s.get("per_unit") or {}).items():
+        yield f"per_unit.{key}", unit
+    if s.get("per_form"):
+        yield "per_form", s["per_form"]
+
+
+def publication(schedule: dict | None = None) -> dict:
+    """What the schedule permits a public page to show.
+
+    Three lists, so the caller cannot accidentally treat a floor as a flat
+    price or publish something the firm decided to keep off the page. Each
+    entry is `(path, line)`.
+
+    A line with no `publish` raises rather than defaulting either way:
+    defaulting to "yes" publishes a price nobody cleared, and defaulting to
+    "no" silently drops one the firm meant to show. Neither failure announces
+    itself on a web page.
+    """
+    s = schedule if schedule is not None else load()
+    out = {"publish": [], "from": [], "withhold": []}
+    for path, line in _publishable_lines(s):
+        value = line.get("publish") if isinstance(line, dict) else None
+        if value not in _PUBLISH:
+            raise PricingError(
+                f"{path} does not say whether it may be published "
+                f"({value!r}). Every priced line must: add `publish:` with "
+                f"one of {sorted(_PUBLISH)}."
+            )
+        if value == "no":
+            if not str(line.get("publish_reason") or "").strip():
+                raise PricingError(
+                    f"{path} is withheld from the page with no reason given. "
+                    f"Add `publish_reason:` -- without it the next reader "
+                    f"cannot tell a policy from an oversight."
+                )
+            out["withhold"].append((path, line))
+        elif value == "from":
+            out["from"].append((path, line))
+        else:
+            out["publish"].append((path, line))
+    return out
+
 
 def ladder_report(schedule: dict | None = None, form: str = "1040") -> list[dict]:
     """One row per package: is it ever chosen, and is it ever the cheapest?

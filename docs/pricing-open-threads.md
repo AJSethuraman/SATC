@@ -25,6 +25,21 @@ A thread leaves the list one of four ways, and the status says which:
 Threads are numbered in the order they were raised and keep their number
 forever, so `T-04` means the same thing in six months.
 
+**Where they get asked.** Open threads are put to the firm in the interview
+rounds. The live one is **round twelve**, published 26 August 2026:
+<https://claude.ai/code/artifact/99d397cc-9361-4787-86dd-911b370c4807> — the
+$500 package's name (T-19), whether the entity prices are published prices, and
+what an amended entity return costs.
+
+**Round eleven** is answered and built:
+<https://claude.ai/code/artifact/1423b12b-0f09-453a-8c46-37b16545441c>. Five of
+its seven closed T-16, T-17, the foreign cap, the EIC question carried from
+round ten, and the last `[CONFIRM:` in the firm settings. The two it left as
+notes rather than picks became T-19 and question 2 of round twelve; T-07's
+answer became T-18. Round ten
+(<https://claude.ai/code/artifact/3d80533a-3a67-4525-b04b-17717d56f1c4>) is
+superseded.
+
 ---
 
 ## T-01 · Pricing against automation that hasn't arrived
@@ -172,7 +187,27 @@ question 3, recommending "the parts that cannot be summarised."
 
 **Raised** repeatedly, across every pricing conversation this month.
 
-**Status** Open, and blocking more than it looks like.
+**Status** Answered 26 Aug 2026 — **both**, and it is a build rather than a
+decision now. The firm, on round eleven:
+
+> This and we need to track manual time in a good way
+
+So: the software stamps each line as it is worked, AND there is a good way to
+record the time that happens away from the software. My recommendation was the
+passive half alone, for one reason — it is the only version that still exists
+in April, because a log that depends on remembering stops exactly when the data
+gets interesting. The firm is right that passive capture alone would miss the
+phone call, the drive, and the hour spent on a return with the file closed,
+which is where a lot of the real time goes.
+
+**Not built, on purpose.** This is its own piece of work and it was not going
+to be assumed into the session that answered it. What it needs before anybody
+starts: where a stamp is written, whether a minute belongs to an engagement or
+a line, what the manual entry costs a person in seconds (this is the whole
+question — a form that takes thirty seconds will not be filled in), and whether
+any of it reaches a client document. Scoped as **T-18**.
+
+The rest of this thread, below, is why it matters and stays accurate.
 
 Five figures would settle most of what is still argued about: the package, the
 prep hours, the admin hours, whether an assumption failed, and what that cost.
@@ -344,7 +379,13 @@ mispricing hurts most.
 
 **Raised** 25 Aug 2026, building the brokerage lines.
 
-**Status** Open. Needs a decision from the firm; nothing is blocked meanwhile.
+**Status** Settled 26 Aug 2026 — the vocabulary was widened and the firm asked
+for it. `assumed.brokerage_keying` now carries `beyond: priced` with
+`beyond_price_from: brokerage_keyed`, so the estimate reads the number off the
+line that charges it rather than repeating it. `phrases.beyond_priced` is the
+sentence. **This status line said "Open" until 26 August 2026, a day after the
+work shipped** — worth noting, because a register nobody closes out is a
+register people stop reading.
 
 Brokerage moved off the hourly list and onto the counted one — $45 a
 statement, $95 for one that has to be keyed. `assumed.brokerage` came off in
@@ -388,9 +429,19 @@ clothes. Recommendation: do it. But the firm decides.
 > something should be able to pretty simply determine its cheaper tier or
 > combination of pricing to get them to the cheapest thing they need to do
 
-**Status** Open. A price decision, not a bug. Nothing is blocked; the estimate
-is correct and internally consistent, it is just dearer than it needs to be for
-one client shape.
+**Status** Settled 26 Aug 2026 — dissolved rather than decided, by making
+rentals a **form**. Verified 26 Aug: `per_unit.rental` is priced
+`form_fee: 145` covering three, then $45 each, and **no tier carries a rental
+allowance any more** — `standard` allows brokerages and K-1s, `business`
+allows one standard-mileage Schedule C, and neither mentions rentals. So the
+$175 step no longer buys a landlord anything they could fail to spend: it buys
+one full Schedule C, which is what the name is about. The arithmetic below is
+kept because it is why the shape changed, but it no longer describes the
+sheet.
+
+**This status line said "Open" until 26 August 2026**, as T-14's did. Two of
+four live threads were already settled and still reading as open — see the note
+on T-14.
 
 **The arithmetic.** Property & Business is $500 against Standard's $325 — a
 $175 step — and what it buys a landlord is a three-rental allowance worth
@@ -467,3 +518,331 @@ ladder somewhere else fails immediately.
 | — | Rentals outnumbering local returns | Flagged for a human; never derived | 25 Aug 2026 |
 | — | The gig Schedule C in Property & Business | Included; the either/or is rentals vs a FULL Schedule C | 25 Aug 2026 |
 | — | Where pricing goes | A public price page, for transparency | 25 Aug 2026 |
+
+---
+
+## T-16 · Amended returns are priced in prose and nowhere in the schedule
+
+**Raised** 26 Aug 2026, checking what the price page could publish.
+
+**Status** Settled 26 Aug 2026, then **reshaped by T-20 the same day** — an
+amendment is now **+$50 on whatever the return is**, not a flat $250. Read T-20
+for the current shape; what follows is why the price existed at all. The firm's
+answer to round eleven took the figure that had been sitting in the prose and
+put it in the schedule, where the estimate can quote it and the invoice can
+bill it.
+
+Built as `base.1040.amended`, beside `tiers` rather than among them: the four
+packages describe an original return prepared from scratch and no rung of them
+describes redoing one. Checked before tier selection so it cannot lose a
+cheapest-eligible comparison to a package it is not competing with. It is a
+base, so everything on the return is still counted on top.
+
+**One thing is deliberately still open:** the amended ENTITY return. Different
+work, no price set, and the interview does not ask about it rather than
+inviting an answer nothing can price.
+
+`docs/pricing-for-website.md` §2 lists **Amended return — $250**. It is not in
+`registry/fee-schedule.yaml`: not a `base`, not a `per_unit` line, not one of
+the eight `per_form` situations. Grep the schedule for "amend" and there is no
+hit at all.
+
+The schedule is the source of truth — that is §4's own rule, and the site's
+checker enforces it, so the $250 correctly did not reach the price page. But
+the consequence runs further than the website: **the estimate cannot quote an
+amended return and the invoice cannot bill one.** There is no line to put it
+on. Today the work would be typed in by hand, which is the exact thing the
+counted schedule exists to stop.
+
+Two ways it is a real number and one way it is not:
+
+- It is the firm's price and the YAML simply missed it → add it and the whole
+  pipeline picks it up.
+- It is a stale figure from the prose brief that nobody has re-decided → the
+  fix is to strike it from §2, not to publish it.
+- **SATC does not take amended returns as standalone work** → say so, and the
+  prose line is the thing that is wrong.
+
+**Recommendation:** it is a `base`, not a per-unit line — an amended return is
+a whole engagement with its own scope, not an add-on to another return. But the
+price is the firm's and I have not assumed one.
+
+---
+
+## T-17 · The firm can send an extension notice and cannot bill for it
+
+**Raised** 26 Aug 2026, same check as T-16, and the sharper of the two.
+
+**Status** Settled 26 Aug 2026 — **$75, its own named line, and filing an
+extension is free.** Only computing the payment is billed.
+
+Not in `per_form`, which is what this thread argued for and what the schedule's
+own comment already said. Counted rather than a yes/no, because a state that
+will not honour the federal extension is a second computation and not the same
+one filed twice. Preparer-facing and normally blank when the estimate goes out,
+since an extension happens in season.
+
+The Extension Notice still carries no fee, and a test now checks that — the
+temptation when closing this was to fix the gap at the letter, which would have
+broken the letter to fix the invoice.
+
+`docs/pricing-for-website.md` §2 lists **Extension with a payment estimate —
+$75**. Like the amended return, it is absent from `fee-schedule.yaml`.
+
+What makes this one worse is that the rest of the machinery is already built
+around it:
+
+- **The Extension Notice is one of the ten templates** and it renders for real
+  today — it is not blocked on anything.
+- That template **deliberately carries no fee**. Its FIELDS spec says so in as
+  many words: *"No fee. The invoice owns it. An extension notice that also asks
+  for money reads as a bill and gets filed as one — and this is the letter that
+  most needs reading."* That is a good decision.
+- The invoice it hands the money to **has no line for an extension**.
+
+So the fee was handed from the notice to the invoice, and the invoice never
+received it. Each document is individually right and the pair drops the charge
+on the floor. It is the same shape as the six bugs found on 26 August: nothing
+errors, nothing is flagged, and the work is simply never billed.
+
+There is also a live argument in the schedule about the number. The `per_form`
+header comment records that **$50 is the firm's number against a
+recommendation of $75**, and that at $75 the extension line *would simply have
+become* the per-form price — it stays a named exception at $50 precisely
+because *"computing a payment from an incomplete file is not a twenty-minute
+job."* That reasoning was written about the extension specifically. The $75 in
+the prose is the number that argument produced and then nobody carried across.
+
+**Recommendation:** price it, and as its own named line rather than inside
+`per_form` — the schedule's own comment already explains why it does not fit
+there. Whether it is $75, or $50 to match the per-form price, or something else
+is the firm's call. Filing an extension without a payment estimate may well be
+free; the priced thing is the estimate.
+
+
+---
+
+## T-18 · The time capture, scoped
+
+**Raised** 26 Aug 2026, out of T-07's answer. **Status** Open — a build nobody
+has started, deliberately not begun in the session that scoped it.
+
+Two halves, and the second is the one that usually fails:
+
+1. **Passive.** The software stamps each line as it is worked. No discipline
+   required, which is why it survives a busy season.
+2. **Manual.** The time that happens away from the software — a call, a drive,
+   an hour with the file closed. The firm asked for this explicitly and it is
+   the half that carries most of the answer to "what does this actually cost".
+
+**What has to be decided before any of it is written**
+
+- **Where a stamp lives.** An engagement, or a line on the estimate? Per line
+  is what would settle the pricing arguments; per engagement is what somebody
+  will actually keep.
+- **What manual entry costs the person doing it.** This is the whole question.
+  A form that takes thirty seconds does not get filled in, and a log with gaps
+  is worse than no log because it reads as complete.
+- **Whether any of it reaches a client.** Today nothing does — every fee is a
+  price, not an hourly total, apart from the explicit hourly lines. If captured
+  time starts appearing on an invoice that is a different product and a
+  different conversation.
+- **What question it is meant to answer first.** "Which lines are underwater"
+  is answerable with far less data than "what did this client cost". Building
+  for the second and getting the first is the usual outcome.
+
+**Why it blocks other things.** Every argument about whether a price is right
+ends here. T-01's automation half could not be settled without it, the sorting
+fee is a floor rather than a price because of it, and every fee on the sheet is
+currently defended by somebody else's market survey rather than by the firm's
+own minutes.
+
+
+---
+
+## T-19 · What the $500 package should be called
+
+**Raised** 26 Aug 2026, answering round eleven. The firm did not pick, and
+asked for options:
+
+> Maybe we rename but I need ideas to do. The site also needs to have tiles for
+> actual business return prices like 1120S. What makes more sense than business?
+
+**Status** Settled 26 Aug 2026 — **Self-Employed.** "self-employed seems
+reasonable". The label changed; the tier key stays `business`, because it is
+internal and renaming it would be churn no reader benefits from.
+
+**The problem, stated precisely.** "Business" is a **1040** package: $500,
+covering one full Schedule C on top of everything in Standard. The entity
+returns are `base.1065` ($800), `base.1120S` ($950) and `base.1120` ($950), and
+none of them is called Business. So a partnership or S-corp owner reading four
+package names picks the one with their word in it and buys a personal return.
+That is a mistake the client makes and the firm has to unwind.
+
+**What the package actually is.** Not "a business" — a person who works for
+themselves and files it on their own return. That is what the name has to say.
+
+| Candidate | Why | Against |
+|---|---|---|
+| **Self-Employed** | Says exactly who it is for, and nobody with an S-corp thinks it means them. The plainest available answer | Slightly clinical; it is the IRS's word rather than a person's |
+| **Sole Proprietor** | Precise, and precision is the whole problem here | A term some clients will not recognise as describing them |
+| **Schedule C** | Unambiguous to anyone who has filed one | Names a form rather than a person; the other three names do not |
+| **Freelancer** | Warmest, and true for a large share of who buys it | Wrong for a contractor with employees, who is exactly the full-Schedule-C client this tier is priced for |
+
+**My reading, though the name is the firm's.** *Self-Employed* — it is the
+only one that is both plain and correct for the whole range the tier covers,
+and it reads as a description of the client rather than a label for a product.
+*Freelancer* is the tempting one and it is the one that misdescribes the
+expensive half of the tier.
+
+**Why now rather than later.** The price page renders package names from
+config rather than hardcoding them into headings and anchors, deliberately,
+because all four names were unsettled. While that holds, a rename is one line.
+Once a name is in a heading, an anchor, and a link somebody has sent a
+prospect, it is a content migration.
+
+**Nobody has checked whether any of the four names has already gone to a real
+prospect.** If one has, this stops being free.
+
+**The second half of the note is a website question**, not this one — see
+`docs/site-open-questions.md`. Publishing entity prices would reverse a
+decision currently in force (they are withheld in favour of "quoted after a
+conversation"), so it is a firm decision with a site consequence rather than a
+site decision.
+
+
+---
+
+## T-20 · Is an amended return a flat price, or a base plus an adder?
+
+**Raised** 26 Aug 2026, by the firm, answering round twelve's question about
+amended ENTITY returns — and the answer reaches further than the question did:
+
+> this should assume that it is an "Essentials" package plus the work for
+> amendment and reviewing the old return. the $50 premium at that point turns
+> into more of an adder - right? does this make sense?
+
+**Status** Settled 26 Aug 2026 — **an amendment is +$50 on whatever the return
+is.** The firm:
+
+> let's just make an amendment cost an extra $50 and go from there. i want the
+> business, and the value is $50 for amending as opposed to doing the primary
+> file.
+
+Built as a top-level `amendment:` adder gated on `return_basis`, replacing the
+flat $250 base that bypassed the ladder. It applies to **every form**, which is
+what finally gives an amended entity return a price:
+
+| The return | Original | Amended |
+|---|---:|---:|
+| Simple Filer | $100 | **$150** |
+| Essentials | $200 | **$250** |
+| Standard | $325 | **$375** |
+| Self-Employed | $500 | **$550** |
+| Form 1065 | $800 | **$850** |
+| Form 1120-S / 1120 | $950 | **$1,000** |
+
+Essentials + $50 still lands on $250, which is where that number came from.
+
+**The firm overrode my recommendation and said why**, which is worth keeping:
+I argued for capping the adder at the original fee, because $550 to amend a
+$500 return invites an argument. The firm wants the work and priced it
+deliberately cheap — the $50 is what amending is worth *over* preparing the
+return, and the reconciliation to the return as filed is real work on top of
+preparing it. Positioning, not arithmetic, and positioning is theirs.
+
+**B1 in `docs/site-open-questions.md` is closed by this too** — the amended
+entity return now has a price and may be published.
+
+**Yes, the arithmetic makes sense, and it is where the $250 came from.**
+Essentials is $200. The amended return is $250. So $250 *is* Essentials plus a
+$50 amendment adder, exactly as described. Nobody designed it that way; it
+falls out.
+
+**And the structural instinct is better than what is built.** Today the
+amendment is a flat $250 that bypasses the package ladder. That means amending
+a Self-Employed return — a full Schedule C, originally $500 — also costs $250.
+Amending a complex return is plainly more work than amending a simple one, and
+a flat price cannot see the difference. Base-plus-adder can.
+
+**But the anchor overshoots at the top, and this is the part worth deciding
+with your eyes open.** If the base is the package the return actually is:
+
+| The return | Original | Amended, base + $50 |
+|---|---|---:|
+| Essentials | $200 | **$250** |
+| Standard | $325 | **$375** |
+| Self-Employed | $500 | **$550** |
+| Form 1120-S | $950 | **$1,000** |
+
+The bottom row is the problem in miniature: **$550 to amend a return that cost
+$500 to prepare.** An amendment is a review, a change and a refiling — real
+work, and not more work than preparing the thing from nothing. A shape that
+charges more to amend than to originate will be argued with, and the client
+will be right.
+
+**Three ways out, and I have not picked for you.**
+
+1. **A share of the base plus the adder** — say half the package price plus
+   $50. Scales with complexity, never exceeds the original.
+2. **Base plus adder, capped at the original fee.** Keeps the arithmetic you
+   described and puts a ceiling on it.
+3. **Flat by tier**: one amendment price for the two simple packages, another
+   for the two complex ones, a quote for entities. Cruder, and nobody argues
+   with it.
+
+**And the $50 is doing a lot of work at the top.** Reviewing a filed 1120-S,
+reconciling what changed and reissuing every K-1 is not a $50 job. Whatever
+shape wins, the adder probably is not one number across a 1040 and an 1120.
+
+**Recommendation:** option 2. It preserves the reasoning you arrived at
+independently — which is a good sign the reasoning is right — and fixes the
+one case where it produces a number you would not want to defend.
+
+
+---
+
+## T-21 · An amendment is priced by whose work it is
+
+**Raised** 26 Aug 2026, by the firm, reading the flat +$50 back:
+
+> if we legit made a mistake i wouldn't even charge to fix it for $50. but yes
+> for someone else's return we add $50
+
+**Status** Settled 26 Aug 2026 — three cases, keyed on fault and origin rather
+than on what the return looks like.
+
+| The situation | What it costs |
+|---|---|
+| **We got it wrong** | **Nothing.** And the line prints at $0.00 rather than vanishing |
+| **We filed it; something arrived later** | **$50**, and no package charge |
+| **It was prepared somewhere else** | **$50 on top of the return's own fee** |
+
+**What this fixed.** The flat adder charged *package + $50* in every case,
+which is right for a stranger's return and hard to defend for one SATC filed
+last month — it quoted $850 to amend a 1065 we had prepared ourselves. Two
+different jobs were wearing one name: understanding a return before changing
+it, and changing one we already hold.
+
+`reprices` is the switch, and it is false for both of our own cases: the
+estimate is the amendment line and nothing else. No package, no schedules, no
+states. We hold all of it, and charging again charges twice for one job.
+
+**The $0 line prints.** A client told in writing that fixing our error costs
+nothing has been told something; a line that quietly fails to appear has not.
+
+**No reason answered means no price.** $0 and $1,050 are both live answers, so
+an unanswered reason carries the question to the line and the estimate refuses
+— the same convention every other unanswered tier uses.
+
+**On entity amendments, asked in the same breath.** There is no separate entity
+price and there should not be. What actually makes an entity amendment bigger
+is reissuing a K-1 to every owner, and `owner_k1` already prices that per owner
+— so the cost scales on the number of owners, which is the thing that varies,
+rather than on the word "entity". Verified: a 1065 with five partners amended
+from elsewhere prices at $1,050, of which $200 is the five K-1s.
+
+**One thing NOT settled and not assumed.** Whether amending a partnership
+return is procedurally the same kind of filing as amending a 1040. If it is
+not, that is a scope question before it is a pricing one. Nobody has checked,
+and it is not an agent's to assert.

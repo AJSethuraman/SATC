@@ -124,6 +124,13 @@ def _dig(node: dict, path: str):
                 f"ITEMS list have drifted apart; one of them is wrong."
             )
         cur = cur[part]
+    # A PRICE MAY LIVE INSIDE A BLOCK. The entity bases grew one on 26 August
+    # 2026 -- an `amount` plus the "from price" notes that have to travel with
+    # it -- and this module had been reading `base.1120S` as the money itself.
+    # A caller asking for a price should not have to know which shape it is
+    # stored in; the alternative is every caller learning the storage.
+    if isinstance(cur, dict) and "amount" in cur:
+        return cur["amount"]
     return cur
 
 
@@ -132,6 +139,13 @@ def _plant(node: dict, path: str, value) -> None:
     cur = node
     for part in parts[:-1]:
         cur = cur[part]
+    # The other half of the above: write the money, and leave the rest of the
+    # block alone. Replacing the block with a bare number here would silently
+    # delete the notes a published price is shown with.
+    existing = cur.get(parts[-1])
+    if isinstance(existing, dict) and "amount" in existing:
+        existing["amount"] = value
+        return
     cur[parts[-1]] = value
 
 
@@ -380,6 +394,26 @@ def _literal(value) -> str:
     return str(value)
 
 
+def _storage_path(node: dict, path: str) -> str:
+    """Where a value actually SITS, which is not always where it is asked for.
+
+    `_dig` follows a block down to its `amount` so callers can ask for a price
+    without knowing its shape. The text rewriter cannot be that relaxed: it
+    anchors on the key and its parent block to avoid editing the wrong line,
+    so it needs `base.1120S.amount` where the reader says `base.1120S`.
+
+    Without this the rewriter falls through to matching the bare number, finds
+    950 three times in a two-thirds-comment file, and correctly refuses --
+    leaving a price the firm cannot change except by editing YAML by hand.
+    """
+    cur = node
+    for part in path.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return path
+        cur = cur[part]
+    return f"{path}.amount" if isinstance(cur, dict) and "amount" in cur else path
+
+
 def apply_to_text(text: str, before: dict, after: dict) -> str:
     """Re-write only the values that changed, leaving comments and layout be."""
     for path in ["base_covers"] + [p for p, _ in ITEMS]:
@@ -387,5 +421,6 @@ def apply_to_text(text: str, before: dict, after: dict) -> str:
         if old == new:
             continue
         text = _sub_once(text, str(old),
-                         new if path == "base_covers" else _literal(new), path)
+                         new if path == "base_covers" else _literal(new),
+                         _storage_path(before, path))
     return text
