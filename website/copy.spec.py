@@ -38,7 +38,11 @@ from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-PAGES = ["index.html", "pricing.html", "privacy.html"]
+PAGES = ["index.html", "pricing.html", "privacy.html",
+         # Generated from docs/guides/ by build-guides.py. They are checked here
+         # as published pages, on top of the draft check in docs/guides -- the
+         # tenets apply to what a visitor reads, whatever produced it.
+         "guides/records.html", "guides/business-records.html", "guides/s-corp.html"]
 
 _fail = 0
 _pass = 0

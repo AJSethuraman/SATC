@@ -98,6 +98,14 @@ jobs:
         with:
           python-version: "3.11"
 
+      # The guide pages are generated from docs/guides/. Regenerate-and-diff, the
+      # same trick that keeps prices off the page unless the schedule wrote them:
+      # a sentence edited in the draft and not rebuilt fails here rather than
+      # leaving the site quietly a version behind.
+      - name: Check the guide pages against their drafts
+        working-directory: website
+        run: python3 build-guides.py --check
+
       - name: Check the copy against the tenets
         working-directory: website
         run: python3 copy.spec.py
