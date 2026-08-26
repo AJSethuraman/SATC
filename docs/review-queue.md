@@ -1,6 +1,15 @@
 # What still needs the firm — 26 August 2026
 
-**The live page:** <https://claude.ai/code/artifact/4536ea0b-7016-4c90-bf78-9c7183d5d3c3>
+**The sign-off room** — everything to read, on the page, with a place to
+comment and mark each one:
+<https://claude.ai/code/artifact/42b96c6d-0f0f-4ec3-b31e-bdb0c145ec7d>
+
+The seven client documents are embedded there as the **real rendered output**,
+each in its own shadow root so the firm's print stylesheet and the page cannot
+reach each other. Start there rather than with the zip.
+
+**The queue itself** (this list, as a page):
+<https://claude.ai/code/artifact/4536ea0b-7016-4c90-bf78-9c7183d5d3c3>
 
 This file is the committed copy, so the list survives the session that made it.
 Everything settled is on PR #153 and test-backed; this is only the remainder.
