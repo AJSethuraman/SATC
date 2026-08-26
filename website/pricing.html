@@ -150,6 +150,7 @@ strong { color: var(--navy); font-weight: 600; }
 }
 
 /* The sentence that makes the prices readable. Sits directly under the row. */
+.note { font-size: 13.5px; color: var(--mute); margin: 0 0 14px; }
 .included {
   margin: 0 0 8px; padding: 13px 16px; background: var(--navy);
   color: #fff; font-size: 14.5px; font-weight: 500; max-width: none;
@@ -228,6 +229,7 @@ footer {
   <ul class="tiers" id="tiers"></ul>
   <p class="included" id="included"></p>
   <p>Prices assume your records arrive complete. Anything else is priced below, and it shows on your estimate before you agree to it.</p>
+  <p class="note" id="current"></p>
 
   <h2>What costs extra</h2>
   <p>Only what your package doesn&#39;t already cover.</p>
@@ -280,6 +282,7 @@ footer {
   }).join('');
 
   el('included').textContent = P.includedInEvery;
+  el('current').innerHTML = P.currentPrices;
 
   el('extras').innerHTML = P.extras.map(function (x) {
     return '<div class="row"><span>' + x.label + '</span><b>' + money(x.amount) + '</b></div>';

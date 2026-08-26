@@ -189,6 +189,12 @@ visible = (page_src + config_src).lower()
 found_brit = [w for w in BRITISH if w in visible]
 check(not found_brit, f"no British spellings in the published copy — found {found_brit}")
 
+# A published price reads as a commitment. This one is current, not permanent,
+# and the page has to say so.
+check(bool(cfg.get("currentPrices")) and "can change" in cfg["currentPrices"].lower(),
+      "the page says the prices are current and can change")
+check('id="current"' in page_src, "the page has a mount point for that line")
+
 check(cfg["hourly"]["rate"] == sched["basis"]["rate"],
       f"hourly rate matches the schedule (${sched['basis']['rate']})")
 check(sched["basis"]["round_time_to"] == 0.25,

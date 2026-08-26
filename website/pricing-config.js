@@ -98,6 +98,12 @@ window.SATC_PRICING = {
      paragraph, and the paragraph was the thing that made the page read like a
      pitch. Do not reintroduce one. */
 
+  /* Stated because a published price is read as a commitment, and this one is
+     a current price rather than a permanent one. The firm's words, 26 August
+     2026: "we can state that this is what we're currently charging and it's
+     subject to change". Says it about us and about nobody else. */
+  currentPrices: 'This is what we&#39;re charging now. It can change.',
+
   /* Charged only past what your package already covers. */
   extras: [
     { label: 'Each state return after the first',                      amount: 50 },
