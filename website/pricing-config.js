@@ -46,7 +46,7 @@ window.SATC_PRICING = {
       id: 'essentials',
       name: 'Essentials',
       price: 200,
-      who: 'No schedules.',
+      who: 'The everyday return.',
       covers: [
         'Wages, interest and dividends',
         'The standard deduction'
@@ -56,7 +56,7 @@ window.SATC_PRICING = {
       id: 'standard',
       name: 'Standard',
       price: 325,
-      who: 'You have schedules.',
+      who: 'More than you\'d file yourself.',
       covers: [
         'Everything in Essentials',
         'Itemized deductions',

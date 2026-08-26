@@ -41,12 +41,16 @@ SITE_COPY = {
         "covers": ["One or two W&#8209;2s", "The standard deduction", "Dependents",
                    "A 1098&#8209;T education credit for yourself"],
     },
+    # Essentials leads: it is the ordinary return, and the ladder should read
+    # that way rather than as three upgrades from a $100 floor. Standard is
+    # then the point where a return stops being one somebody would file on
+    # their own — said as scope, not as a warning.
     "essentials": {
-        "who": "No schedules.",
+        "who": "The everyday return.",
         "covers": ["Wages, interest and dividends", "The standard deduction"],
     },
     "standard": {
-        "who": "You have schedules.",
+        "who": "More than you\'d file yourself.",
         "covers": ["Everything in Essentials", "Itemized deductions",
                    "One brokerage statement", "Up to two K&#8209;1s",
                    "A gig Schedule C, standard mileage"],
