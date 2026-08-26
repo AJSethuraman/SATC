@@ -395,6 +395,16 @@ sections:
         supplies: []
         feeds: LineItems
 
+      - id: count_farms
+        question: "How many farms?"
+        help: >
+          Priced as a form, the same as the Schedule E above it: one Schedule F
+          covers one farm operation. Two separate operations are two forms.
+        type: number
+        showIf: "'F' in federal_schedules"
+        supplies: []
+        feeds: LineItems
+
       - id: count_k1s
         question: "How many K-1s received?"
         type: number
@@ -458,6 +468,12 @@ sections:
           - { value: "hsa",             label: "Paid into or out of an HSA" }
           - { value: "early_withdrawal", label: "Took money out of a retirement account before 59½" }
           - { value: "foreign_accounts", label: "Held a foreign bank or investment account" }
+          # Preparer-facing in practice: a client does not know whether they
+          # qualify. It sits here rather than in its own question because it
+          # is priced the same way as the rest -- a named situation with a
+          # named price -- and splitting it out would mean two mechanisms for
+          # one idea.
+          - { value: "earned_income_credit", label: "Claiming the earned income credit" }
         supplies: []
         feeds: LineItems
 

@@ -23,6 +23,8 @@ invented in a config file is a policy nobody decided.
 
 from __future__ import annotations
 
+import re
+
 import copy
 import typing
 from pathlib import Path
@@ -55,14 +57,18 @@ ITEMS: list[tuple[str, str]] = [
      "an Essentials return — no schedules"),
     ("base.1040.tiers.standard.amount",
      "a Standard return — schedules, but nothing that scales"),
-    ("base.1040.tiers.property.amount",
-     "a Property & Business return — rentals, or a full Schedule C"),
+    ("base.1040.tiers.business.amount",
+     "a Business return — a full Schedule C, or a farm"),
     ("base.1120S", "a plain Form 1120-S"),
     ("base.1065",  "a plain Form 1065"),
     ("base.1120",  "a plain Form 1120"),
     ("per_unit.state_return.amount", "each state return, on top of the federal"),
     ("per_unit.local_return.amount", "each local return (municipal, RITA, CCA, school district)"),
-    ("per_unit.rental.amount",       "each rental property on Schedule E"),
+    ("per_unit.rental.form_fee",
+     "the Schedule E itself, covering the properties the form fee includes"),
+    ("per_unit.rental.amount",       "each rental property past the form fee"),
+    ("per_unit.farm.form_fee",       "the Schedule F itself"),
+    ("per_unit.farm.amount",         "each farm operation past the first"),
     ("per_unit.k1.amount",           "each K-1 received and entered"),
     ("per_unit.owner_k1.amount",     "each K-1 issued to an owner of an entity"),
     ("per_unit.schedule_c.tiers.simple.amount",
@@ -76,6 +82,8 @@ ITEMS: list[tuple[str, str]] = [
     ("per_unit.foreign_account.amount", "each foreign account reported"),
     ("per_form.amount",
      "any one of the named per-form situations -- one price, whichever it is"),
+    ("per_form.forms.earned_income_credit.amount",
+     "the earned income credit and its Form 8867 due diligence"),
 ]
 
 # Cleanup used to be here, in bands. It is not priced any more and cannot be:
@@ -292,7 +300,61 @@ def dump(schedule: dict) -> str:
 
 
 def _sub_once(text: str, needle: str, value: str, path: str) -> str:
-    """Swap one value, refusing anything ambiguous."""
+    """Swap one value, refusing anything ambiguous.
+
+    Three passes, narrowest first, because a fee schedule is two-thirds prose
+    and the same number honestly appears in several places.
+
+    1. INSIDE THE PARENT BLOCK. `amount: 200` is Essentials, a full Schedule C
+       and a Schedule F all at once; `essentials:` followed by the next
+       `amount:` is exactly one line.
+    2. ANCHORED ON THE KEY. Catches everything whose parent is not unique.
+    3. THE BARE VALUE, which is what this used to do alone. It is too blunt to
+       survive a commented file -- the local return's `35` also appears inside
+       a `$135` in a comment three sections away, and the guard correctly
+       refused to touch either.
+
+    Every pass tolerates the file's own layout: keys may be quoted, because
+    YAML needs it for `"1120S"`, and values may be aligned with extra spaces.
+
+    A guard that gets less careful under pressure is not a guard, so the
+    refusal at the end is unchanged.
+    """
+    parts = path.split(".")
+    key = parts[-1]
+    keys = [key, f'"{key}"', f"'{key}'"]
+    values = [needle, f'"{needle}"', f"'{needle}'"]
+
+    def pattern(k, v):
+        # `key:` then whatever spacing the file uses, then the value, ending
+        # at whitespace or end of line so `35` cannot match inside `350`.
+        return re.compile(rf"({re.escape(k)}\s*:[ \t]*){re.escape(v)}(?=\s|$)")
+
+    if len(parts) > 1:
+        for anchor in (f"{parts[-2]}:", f'"{parts[-2]}":', f"'{parts[-2]}':"):
+            if text.count(anchor) != 1:
+                continue
+            at = text.index(anchor)
+            for k in keys:
+                for v in values:
+                    m = pattern(k, v).search(text, at)
+                    if m:
+                        return text[:m.start()] + m.group(1) + value + text[m.end():]
+
+    for k in keys:
+        for v in values:
+            found = list(pattern(k, v).finditer(text))
+            if len(found) == 1:
+                m = found[0]
+                return text[:m.start()] + m.group(1) + value + text[m.end():]
+            if len(found) > 1:
+                raise FeeBasisError(
+                    f"{path}: `{k}: {needle}` appears {len(found)} times in "
+                    f"the file and its parent block is not unique either, so "
+                    f"replacing it in place could edit the wrong line. Write "
+                    f"to a new path and merge it by hand."
+                )
+
     for quoted in (f'"{needle}"', f"'{needle}'", needle):
         n = text.count(quoted)
         if n == 1:
@@ -308,7 +370,6 @@ def _sub_once(text: str, needle: str, value: str, path: str) -> str:
         f"The file has been edited into a shape this cannot rewrite safely; "
         f"write to a new path instead."
     )
-
 
 def _literal(value) -> str:
     """A number as YAML. Trailing `.0` dropped -- `450`, not `450.0`."""

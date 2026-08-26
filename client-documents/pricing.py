@@ -67,6 +67,8 @@ _SLOTS = {
     "after_first": {"detail"},             "after_first_only": set(),
     "after_n": {"detail", "n"},            "after_n_only": {"n"},
     "capped": {"detail", "n"},             "capped_only": {"n"},
+    "form_covers": {"detail", "n"},
+    "form_over": {"detail", "n", "each"},
     "multiplier": {"detail", "n", "each"}, "multiplier_only": {"n", "each"},
     "assumption": {"label", "assumes", "where", "trigger", "consequence"},
     "inside_base": set(), "outside_base": set(),
@@ -706,6 +708,21 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
     # first of each is already paid for and only the rest are charged.
     for _, unit in (s.get("per_unit") or {}).items():
         raw = _count(answers.get(unit["count_from"]), unit["count_from"])
+        # A FORM ON THE RETURN IS A FORM, whatever the count says.
+        #
+        # This is the blank-count trap the package gates were designed around,
+        # one level down. A client ticks "Schedule E page 1 — rentals" and
+        # leaves the number blank; the count reads zero, the line never fires,
+        # and the Schedule E is prepared for nothing. It did not bite while
+        # rentals drove a package -- the gate saw the ticked box -- and it bit
+        # the moment they became a counted line.
+        #
+        # So a form-priced line asks what is ON the return, exactly as a gate
+        # does, and treats a blank count as one rather than as none.
+        form_when = unit.get("form_when")
+        if form_when and not is_open(form_when) and raw < 1:
+            if _gate_holds(form_when, answers, f"per_unit.{unit['count_from']}"):
+                raw = 1
         count = raw
         if base_covers == "one_included" and unit["count_from"] in (
                 "count_states", "count_localities"):
@@ -720,7 +737,21 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         unit = _resolve_tier(unit, answers)
         amount = unit["amount"]
         billed, capped = _capped(unit, count)
-        total = amount if is_open(amount) else amount * billed
+
+        # A FORM FEE, where the work is a form rather than a pile of items.
+        # Schedule E is the case: one form, a depreciation schedule behind it,
+        # and the second property on it is rows rather than another job. The
+        # market prices it that way and so does the firm.
+        form_fee = unit.get("form_fee")
+        if form_fee is not None:
+            covered = int(unit.get("form_covers", 0) or 0)
+            over = max(0, billed - covered)
+            if is_open(form_fee) or (over and is_open(amount)):
+                total = form_fee if is_open(form_fee) else amount
+            else:
+                total = form_fee + amount * over
+        else:
+            total = amount if is_open(amount) else amount * billed
         if is_open(capped):
             # The cap exists as a decision and not yet as a number, and this
             # client has enough units for the difference to show. Carry the
@@ -728,6 +759,15 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             # total, which is the answer the firm has already rejected.
             total = capped
         detail = unit.get("detail", "")
+        if form_fee is not None:
+            covered = int(unit.get("form_covers", 0) or 0)
+            over = max(0, billed - covered)
+            detail = say(s, "form_covers", detail=detail, n=covered)
+            if over:
+                each = amount if is_open(amount) else m.money(amount, code)
+                detail = say(s, "form_over", detail=detail, n=over, each=each)
+            items.append(_line(unit["label"], detail, total, code))
+            continue
         if capped is True:
             detail = (say(s, "capped", detail=detail, n=unit["cap_units"])
                       if detail else say(s, "capped_only", n=unit["cap_units"]))
@@ -758,7 +798,11 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             # Priced by a counted line instead, which has already run. A form
             # that fired here as well would bill the first one twice.
             continue
-        amount = (s.get("per_form") or {}).get("amount")
+        # One price, unless a form says otherwise. The block price is the
+        # rule; an override is the named exception, and it is what lets a
+        # situation with its own market price live here rather than needing a
+        # block of its own.
+        amount = spec.get("amount", (s.get("per_form") or {}).get("amount"))
         if amount is None:
             raise PricingError(
                 "per_form names forms but no amount, so a ticked form has no "
@@ -896,10 +940,14 @@ def _priced_consequence(label: str, spec: dict, schedule: dict) -> str:
         )
     amount = unit.get("amount")
     if amount is None or is_open(amount):
-        raise PricingError(
-            f"{label} prices its overrun from per_unit.{key}, which has no "
-            f"amount set. Set it before promising a client a number."
-        )
+        # An UNSET PRICE is a gap, not a broken schedule, and the file's own
+        # rule for a gap is to carry the question rather than to stop. The
+        # sentence keeps its `[CONFIRM:`, the merge engine refuses on it, and
+        # the estimate cannot reach a client promising a number nobody set.
+        # Raising here instead would kill the whole estimate over one line and
+        # hide every other thing that was missing.
+        return f"[CONFIRM: what per_unit.{key} costs, to finish the sentence " \
+               f"that tells a client what {label.lower()} will cost them]"
     return say(schedule, "beyond_priced",
                each=unit.get("per_each") or "that one",
                amount=m.money(amount, schedule.get("currency", "USD")))

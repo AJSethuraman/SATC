@@ -247,3 +247,36 @@ def test_every_template_list_is_registered_for_that_template(parsed, registry):
     registered = {(e["list"], t) for e in registry["lists"] for t in e["templates"]}
     missing = {(l, n) for n, tok in parsed.items() for l in tok["lists"]} - registered
     assert not missing, f"lists used by a template but not registered against it: {sorted(missing)}"
+
+
+def test_no_registry_has_a_duplicate_key():
+    """YAML takes the LAST of two identical keys, silently.
+
+    Found on 26 August 2026 in the rental block: a restructure left the old
+    `amount: 45` in place under the new one, so the file said 45 twice, the
+    fee writer changed the first and the loader read the second. Nothing
+    failed. The price simply would not have moved.
+
+    Cheap to check and impossible to spot by reading a two-thirds-comment
+    file, which is exactly the kind of thing a test should hold.
+    """
+    import collections
+    import yaml as _yaml
+
+    seen = []
+
+    class _Loader(_yaml.SafeLoader):
+        pass
+
+    def _mapping(loader, node):
+        keys = [loader.construct_object(k) for k, _ in node.value]
+        seen.extend(k for k, n in collections.Counter(keys).items() if n > 1)
+        return loader.construct_mapping(node)
+
+    _Loader.add_constructor(
+        _yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _mapping)
+
+    for path in sorted((ROOT / "registry").glob("*.yaml")):
+        seen.clear()
+        _yaml.load(path.read_text(encoding="utf-8"), _Loader)
+        assert not seen, f"{path.name} declares {sorted(set(seen))} twice"

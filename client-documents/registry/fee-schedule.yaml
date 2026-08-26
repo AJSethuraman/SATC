@@ -184,29 +184,35 @@ base:
             other_income_documents: "no"
             has_dependents: "no"
 
-      property:
-        label: "Property & Business"
-        detail: "You own things that scale"
-        # Signed 25 Aug 2026. The workbook's own Schedule C price.
-        # The first full one is inside Property & Business.
+      business:
+        # RENAMED 26 August 2026, because "Property" stopped being true the
+        # moment rentals became a form. A package called Property & Business
+        # that does not handle property is a name that misleads whoever reads
+        # it in a year.
+        #
+        # THE NAME IS PROVISIONAL. The firm wants to work on all four: "maybe
+        # we brainstorm ideas for the package names - i think they are good
+        # but maybe they can be more like the firm's". This is the honest
+        # placeholder, not the answer.
+        label: "Business"
+        detail: "You run something"
         amount: 500
         includes: standard
         covers:
-          - "Up to three rental properties, or one full Schedule C business"
-        # EITHER/OR, as data rather than as a special case in Python. Each
-        # branch is priced and the one that saves the client most is the one
-        # applied -- a client must never lose money to an ambiguity in our own
-        # schedule -- and the winning branch's label prints on the estimate so
-        # they can see which allowance they got.
-        allows_one_of:
-          - label: "up to three rentals"
-            count_rentals: 3
-          - label: "one full Schedule C"
+          - "One full Schedule C business"
+        # The either/or is gone with the rentals. What is left is one
+        # conditional allowance, and it is written as one rather than as a
+        # degenerate choice between a single option and nothing.
+        allows_when:
+          - when:
+              answer_is: {schedule_c_kind: standard}
             count_businesses: 1
+        # E1 and F have both moved to Standard's gate, and both are priced as
+        # forms beside it. What is left here is the one thing a package still
+        # earns its step for: a full Schedule C at $500 against Standard plus
+        # a $200 Schedule C at $525.
         gate:
-          any_of:
-            - schedules_any: [E1, F]
-            - answer_is: {schedule_c_kind: standard}
+          answer_is: {schedule_c_kind: standard}
 
       standard:
         label: "Standard"
@@ -236,9 +242,12 @@ base:
               answer_is: {schedule_c_kind: simple}
             count_businesses: 1
         gate:
-          schedules_any: [A, B, D, E2, SE, C]
-          # A full Schedule C is what Property & Business is for; a gig one
-          # rides inside Standard. Anything that scales is excluded below.
+          # E1 joined this list on 26 August 2026, when rentals became a form.
+          # A landlord is a Standard client who also files a Schedule E, and
+          # the Schedule E is priced next to it rather than bundled above it.
+          schedules_any: [A, B, D, E1, E2, SE, C, F]
+          # A full Schedule C is what the Business package is for; a gig one
+          # rides inside Standard.
           any_of:
             - schedules_none_of: [C]
             - answer_is: {schedule_c_kind: simple}
@@ -254,9 +263,23 @@ base:
         gate:
           schedules_none: true
 
-  "1120S": "[CONFIRM: base fee for a Form 1120-S]"
-  "1065":  "[CONFIRM: base fee for a Form 1065]"
-  "1120":  "[CONFIRM: base fee for a Form 1120]"
+  # Set 26 August 2026. Anchored on the NSA 2020-2021 survey -- $733
+  # partnership, $903 S corporation, $913 corporation -- with roughly 8% added
+  # for the years since, which is a judgement rather than a source. See
+  # docs/market-fee-benchmarks.md.
+  #
+  # SPLIT RATHER THAN FLAT, which was the decision. The workbook priced all
+  # three at $800; the market treats a partnership as meaningfully cheaper
+  # than a corporation and the firm followed the market.
+  #
+  # The balance-sheet worry -- "maybe having to file a balance sheet will
+  # cause more work than a company with essentially no balance sheet" -- is
+  # not answered by these numbers and is not meant to be. It is answered by
+  # charging for the balance sheet when one is required, so the company
+  # without one does not subsidise the company with one.
+  "1065":  800
+  "1120S": 950
+  "1120":  950
 
 # ── per unit ──────────────────────────────────────────────────────────────
 # Multiplied by the count the interview collected. The `label` and `detail`
@@ -289,12 +312,62 @@ per_unit:
 
   rental:
     count_from: count_rentals
-    label: "Rental property"
-    detail: "Schedule E, per property"
-    # Signed 25 Aug 2026. The workbook charges 130 per group of
-    # three, which is 43 each, so 45 keeps the firm's own rate and removes the
-    # cliff at rental number four. Charged only past the package's allowance.
+    label: "Rental schedule"
+    detail: "Schedule E"
+    # PRICED AS A FORM, on the firm's instruction of 25 August 2026 and on the
+    # market's own shape. The National Society of Accountants 2020-2021 survey
+    # (docs/market-fee-benchmarks.md) prices Schedule E at $145 as a FORM --
+    # not per property -- alongside Schedule C at $192 and Schedule F at $200.
+    #
+    # The firm reached the same shape independently: "is this resolved by
+    # having a minimum charge for rentals that include up to 3 on the initial
+    # charge? what is normal?" That is the market almost exactly.
+    #
+    # It is also the better model of the work. A rental is a form with a
+    # depreciation schedule behind it; the second property on the same form is
+    # rows, not another job. Pricing it purely per property is what made the
+    # old three-rental package allowance worth $135 against a $175 price step
+    # -- it never paid for itself, which is what T-15 found.
+    form_fee: 145
+    # How many properties the form fee covers. The firm's number, kept.
+    form_covers: 3
+    # The form fee fires on the SCHEDULE, not on the count. A client who ticks
+    # the rentals schedule and leaves the number blank has a Schedule E and a
+    # count of zero; without this the form is prepared and never charged for.
+    form_when:
+      schedules_any: [E1]
+    # Each property past those. Unchanged: the workbook's own per-property
+    # rate, which is right for the marginal one even though it was wrong for
+    # the first.
+    # Signed 25 Aug 2026 and unchanged: the workbook charges 130 per group of
+    # three, which is 43 each, so 45 keeps the firm's own rate. It was the
+    # wrong price for the FIRST rental -- that is what the form fee is now for
+    # -- and it is the right one for the marginal property past the form.
     amount: 45
+
+  farm:
+    count_from: count_farms
+    label: "Farm schedule"
+    detail: "Schedule F"
+    # Priced as a form, like the Schedule E beside it, and for the same
+    # reason. $200 is the NSA 2020-2021 average for Schedule F -- see
+    # docs/market-fee-benchmarks.md.
+    #
+    # WHY IT EXISTS AT ALL. When rentals left the package ladder, Schedule E
+    # joined Standard's gate, and a farm client with any other schedule became
+    # Standard-eligible too -- at which point the farm work was FREE, because
+    # nothing priced it. Under the old ladder the Business package was the
+    # only rung a farm could land on, so the price was hidden inside it.
+    #
+    # The firm is undecided about whether to take farm work at all -- "not
+    # sure i want to deal with farm" -- and this does not settle that. It
+    # stops the software giving the work away while the question is open,
+    # which is the one outcome neither answer wants.
+    form_fee: 200
+    form_covers: 1
+    amount: 200
+    form_when:
+      schedules_any: [F]
 
   k1:
     count_from: count_k1s
@@ -355,7 +428,10 @@ per_unit:
     # account cannot be over any cap worth setting), and a client with more
     # carries this question to their line, so the estimate refuses rather than
     # quoting the uncapped total the firm has already rejected.
-    cap_units: "[CONFIRM: how many foreign accounts before the line stops climbing]"
+    # Set 26 August 2026 at four. Past that the accounts are rows on a form we
+    # were already filing, and $200 is close to what the market charges for a
+    # whole schedule.
+    cap_units: 4
     # Signed 25 Aug 2026 at the per-form price, because that is already how
     # the firm bills it: "i have been doing this stuff with a client for
     # awhile and just charge per account". A foreign COMPANY is not this line
@@ -462,6 +538,13 @@ phrases:
   after_n:          "{detail}, after the {n} included"
   after_n_only:     "After the {n} included"
 
+  # A line priced as a form: one fee, some number of items inside it, then
+  # per item beyond.
+  #   {n} how many the form fee covers / how many are past it
+  #   {each} the price of one past it
+  form_covers: "{detail}, covering up to {n}"
+  form_over:   "{detail} — plus {n} × {each}"
+
   # A counted line that stopped climbing.
   #   {n} the cap
   capped:      "{detail}, capped at {n}"
@@ -555,6 +638,28 @@ per_form:
       detail: "Form 5329"
       assumes: "the 1099-R coding is right and any exception is a plain one"
       trigger: "the coding is wrong, or the exception has to be substantiated"
+
+    # THE NAMED EXCEPTION to the one-price rule, and the first line on this
+    # sheet the firm set by moving TOWARD the market rather than away from it.
+    #
+    # It was $150 in the workbook against a market average of $65 (NSA
+    # 2020-2021 -- see docs/market-fee-benchmarks.md), which was the largest
+    # single divergence on the whole sheet. The recommendation was to keep
+    # $150 and write down why: Form 8867 due diligence is real work and the
+    # penalty for getting it wrong is $600-plus per failure, landing on the
+    # preparer rather than the client.
+    #
+    # The firm overruled that on 26 August 2026, and the reason was better
+    # than the recommendation: "i don't like the idea of EIC being punitive
+    # when it is for low income". Pricing a credit by the risk it carries the
+    # preparer charges the least able client the most, which is a defensible
+    # accounting position and an indefensible one to hold at a kitchen table.
+    earned_income_credit:
+      label: "Earned income credit"
+      detail: "Form 8867 due diligence"
+      amount: 65
+      assumes: "the children claimed lived with you for more than half the year and you can show it"
+      trigger: "residency or relationship has to be substantiated from records"
 
     # Ticked to reveal the count question, and priced BY that count rather
     # than here: the firm charges per account, so one flat line would undercharge

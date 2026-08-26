@@ -13,6 +13,7 @@ which is a pricing policy — must stay off until asked for.
 from __future__ import annotations
 
 import copy
+import json
 import sys
 from pathlib import Path
 
@@ -30,8 +31,22 @@ EXAMPLE_HOURS = ROOT / "samples" / "fee-hours-example.yaml"
 
 @pytest.fixture(scope="module")
 def blank():
-    """The firm's real schedule: every amount still open."""
-    return pricing.load()
+    """The firm's real schedule with every amount opened back up.
+
+    It used to be `pricing.load()` unchanged, because every amount in the real
+    file was a `[CONFIRM:`. The firm finished pricing itself on 26 August 2026
+    and the fixture became a lie -- these tests are about DERIVATION, which is
+    the machinery for getting from hours to prices, and it has to keep working
+    on a schedule that has not been priced yet whether or not this one has.
+    """
+    s = json.loads(json.dumps(pricing.load()))
+    for path, question in fees.ITEMS:
+        node = s
+        parts = path.split(".")
+        for key in parts[:-1]:
+            node = node[key]
+        node[parts[-1]] = f"[CONFIRM: {question}]"
+    return s
 
 
 @pytest.fixture(scope="module")
@@ -147,40 +162,56 @@ def test_an_amount_already_on_the_increment_does_not_jump(blank):
 
 
 # ── writing back ──────────────────────────────────────────────────────────
+#
+# These take the REAL schedule rather than the blank one, because the write is
+# a text substitution against the real file and the two have to agree about
+# what is currently in it. Writing over a number the file actually contains is
+# also the case that matters now that the firm has priced itself: the first
+# write was into blanks, and every write after this one is a price change.
 
-def test_the_write_keeps_every_comment(blank):
+
+@pytest.fixture
+def real():
+    return pricing.load()
+
+
+def test_the_write_keeps_every_comment(real):
     """The file is two thirds comment and the comments are what make it
     fillable by hand. A YAML dump would produce a valid file that had lost
     all of them."""
     src = fees.SCHEDULE.read_text(encoding="utf-8")
-    out = fees.derive(175, {"per_unit.local_return.amount": 2.5}, schedule=blank)
-    written = fees.apply_to_text(src, blank, out)
+    out = fees.derive(175, {"per_unit.local_return.amount": 2.5}, schedule=real)
+    written = fees.apply_to_text(src, real, out)
     assert written.count("#") == src.count("#")
     assert "TO PRICE THE FIRM" in written
 
 
-def test_the_write_changes_only_what_was_priced(blank):
+def test_the_write_changes_only_what_was_priced(real):
     src = fees.SCHEDULE.read_text(encoding="utf-8")
-    out = fees.derive(175, {"per_unit.local_return.amount": 2.5}, schedule=blank)
-    written = fees.apply_to_text(src, blank, out)
+    out = fees.derive(175, {"per_unit.local_return.amount": 2.5}, schedule=real)
+    written = fees.apply_to_text(src, real, out)
     diff = [(a, b) for a, b in zip(src.splitlines(), written.splitlines()) if a != b]
     assert len(diff) == 1 and "amount:" in diff[0][1]
 
 
-def test_what_was_written_parses_back_to_what_was_derived(blank):
-    """Only the still-open items: an amount the firm has already set is a plain
-    number, and `_sub_once` refuses to rewrite one whose text occurs elsewhere
-    in the file. That refusal is deliberate (see the ambiguity test below), so
-    the round trip is over what derivation is actually for -- filling blanks."""
+def test_what_was_written_parses_back_to_what_was_derived(real):
+    """Every priced line, round-tripped through the text and back.
+
+    This used to cover only the items still open, on the reasoning that
+    derivation is for filling blanks and that `_sub_once` refused to rewrite a
+    plain number whose text occurred elsewhere in the file. Both halves have
+    moved: the firm priced itself on 26 August 2026, so the open set emptied
+    and the test asserted nothing about anything; and `_sub_once` now anchors
+    on the key, so rewriting a set number is safe. What derivation is for now
+    is CHANGING a price, which is what this covers.
+    """
     src = fees.SCHEDULE.read_text(encoding="utf-8")
-    still_open = {p for p, _ in pricing.open_amounts(blank)}
-    hours = {p: 2 for p, _ in fees.ITEMS if p in still_open}
-    assert hours, "nothing is open; this test has outlived the schedule"
-    out = fees.derive(175, hours, base_covers="one_included", schedule=blank)
-    assert yaml.safe_load(fees.apply_to_text(src, blank, out)) == out
+    hours = {p: 2 for p, _ in fees.ITEMS}
+    out = fees.derive(175, hours, base_covers="one_included", schedule=real)
+    assert yaml.safe_load(fees.apply_to_text(src, real, out)) == out
 
 
-def test_a_whole_number_writes_without_a_trailing_point_zero(blank):
+def test_a_whole_number_writes_without_a_trailing_point_zero(real):
     """`450.0` in a fee schedule reads like a rounding error.
 
     Written against a still-open amount rather than a package price: once the
@@ -189,8 +220,8 @@ def test_a_whole_number_writes_without_a_trailing_point_zero(blank):
     refusal is the safety rule working, not a bug to route around.
     """
     src = fees.SCHEDULE.read_text(encoding="utf-8")
-    out = fees.derive(180, {"per_unit.local_return.amount": 2.5}, schedule=blank)
-    written = fees.apply_to_text(src, blank, out)
+    out = fees.derive(180, {"per_unit.local_return.amount": 2.5}, schedule=real)
+    written = fees.apply_to_text(src, real, out)
     assert "amount: 450\n" in written and "amount: 450.0" not in written
 
 

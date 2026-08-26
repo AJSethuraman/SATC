@@ -87,19 +87,22 @@ def test_the_reference_table_renders_exactly():
 
 # ── the real schedule is unpriced, on purpose ─────────────────────────────
 
-def test_the_firms_schedule_is_still_unpriced():
-    """Guards the §9 rule: fee figures are a human's to set.
+def test_the_firms_schedule_is_fully_priced():
+    """The other side of the §9 rule, reached on 26 August 2026.
 
-    When Arjun prices the firm this test starts failing, and the right fix is
-    to delete it — not to put the placeholders back.
+    This test used to assert the schedule was still UNPRICED, and said in its
+    own docstring that the right fix when the firm priced itself was to delete
+    it rather than put the placeholders back. The firm has now set every
+    amount, so it is replaced by its opposite: a blank that comes back is a
+    price somebody dropped, not a decision somebody made.
     """
-    assert pricing.open_amounts(), (
-        "registry/fee-schedule.yaml now has prices. If they are the firm's "
-        "real ones, delete this test."
+    assert pricing.open_amounts() == [], (
+        "something in registry/fee-schedule.yaml is unpriced again. Every "
+        "amount was set by the firm; a [CONFIRM: reappearing is a regression."
     )
 
 
-def _with_one_unpriced(path=("per_unit", "rental", "amount")):
+def _with_one_unpriced(path=("per_unit", "rental", "form_fee")):
     """The real schedule with one amount blanked.
 
     This used to just be `pricing.load()`, because every amount in the real
@@ -254,12 +257,12 @@ def test_a_package_covers_everything_the_rung_below_it_covers():
     """
     s = pricing.load()
     tiers = s["base"]["1040"]["tiers"]
-    lines = pricing.covers("property", tiers, "base.1040")
+    lines = pricing.covers("business", tiers, "base.1040")
 
     # Broadest rung first, so it reads as a ladder rather than a list.
     assert lines[0].startswith("Your federal 1040")
     assert "Itemized deductions" in lines              # from Standard
-    assert "Up to three rental properties, or one full Schedule C business" in lines
+    assert "One full Schedule C business" in lines
     assert not any("Everything in" in line for line in lines)
 
 
@@ -526,7 +529,7 @@ def test_text_where_a_count_belongs_is_still_nothing(priced):
 #
 # "The highest package whose gate is met." The tiers are read top to bottom
 # and the last matching one wins, so a client with a gig Schedule C and a
-# rental is Property & Business without anyone deciding it at the call.
+# rental is the Business package without anyone deciding it at the call.
 
 def _pkg(answers, schedule=None):
     """The package line, which is always the first line on the estimate."""
@@ -549,12 +552,19 @@ def test_a_gig_schedule_c_stays_in_standard():
 
 def test_a_full_schedule_c_is_property_and_business():
     line = _pkg({"federal_schedules": ["C", "SE"], "schedule_c_kind": "standard"})
-    assert line["Service"] == "Property & Business"
+    assert line["Service"] == "Business"
     assert line["Amount"] == "$500.00"
 
 
-def test_a_rental_is_property_and_business():
-    assert _pkg({"federal_schedules": ["E1"]})["Service"] == "Property & Business"
+def test_a_rental_is_a_standard_client_with_a_schedule_e():
+    """Changed 26 August 2026, when rentals became a form.
+
+    A landlord used to be sent to the package above; now they are a Standard
+    client and their Schedule E is priced beside it. This is the change that
+    fixed the sentence nobody could defend — the landlord who itemised paying
+    less than the landlord who did not.
+    """
+    assert _pkg({"federal_schedules": ["E1"]})["Service"] == "Standard"
 
 
 def test_the_cheapest_eligible_package_wins():
@@ -568,16 +578,16 @@ def test_the_cheapest_eligible_package_wins():
     cheapest. It is now the engine's job: among the packages whose gates hold,
     the client gets the one with the lowest TOTAL.
 
-    A gig Schedule C with a rental holds both Standard's gate and Property &
-    Business's. Property & Business is $500; Standard is $325 and meters the
-    rental at $45. The client pays $370 and is quoted Standard.
+    A gig Schedule C with a rental holds Standard's gate. The Business package
+    takes only a FULL Schedule C now, so a gig one plus a rental is a Standard
+    client with a Schedule E beside it: $325 + $145 = $470.
     """
     a = {"federal_form": "1040", "federal_schedules": ["C", "E1"],
          "schedule_c_kind": "simple", "count_rentals": 1}
     s = pricing.load()
     items = pricing.line_items(a, s)
     assert items[0]["Service"] == "Standard"
-    assert pricing.estimate_total(items, s) == "$370.00"
+    assert pricing.estimate_total(items, s) == "$470.00"
 
 
 def test_a_package_the_client_is_not_eligible_for_is_never_chosen_however_cheap():
@@ -596,12 +606,13 @@ def test_the_file_order_still_breaks_a_tie():
     tie goes to the one that describes them better -- which is what the file's
     most-specific-first order encodes."""
     s = pricing.load()
-    # Make Property & Business cost a landlord exactly what Standard does.
-    s["base"]["1040"]["tiers"]["property"]["amount"] = 370
-    a = {"federal_form": "1040", "federal_schedules": ["A", "E1"],
-         "count_rentals": 1, "count_states": 0, "count_localities": 0}
+    # Let the Business package take this client, at exactly Standard's total.
+    s["base"]["1040"]["tiers"]["business"]["gate"] = {"schedules_any": ["C"]}
+    s["base"]["1040"]["tiers"]["business"]["amount"] = 325
+    a = {"federal_form": "1040", "federal_schedules": ["C"],
+         "schedule_c_kind": "simple", "count_states": 0, "count_localities": 0}
     key, _ = pricing.derive_tier(s["base"]["1040"], a, "base.1040", schedule=s)
-    assert key == "property", "property is written first, so it wins the tie"
+    assert key == "business", "business is written first, so it wins the tie"
 
 
 def test_a_ticked_schedule_with_no_count_still_lands_in_the_right_package():
@@ -614,7 +625,22 @@ def test_a_ticked_schedule_with_no_count_still_lands_in_the_right_package():
     ticked box cannot.
     """
     line = _pkg({"federal_schedules": ["E1"]})            # no count at all
-    assert line["Service"] == "Property & Business"
+    assert line["Service"] == "Standard"
+
+
+def test_a_ticked_schedule_with_no_count_is_still_charged_for():
+    """The same trap, one level down, and it bit when rentals became a line.
+
+    Under the package ladder a ticked Schedule E sent the client to a dearer
+    rung, so the work was paid for even when the count was blank. As a counted
+    line it simply did not fire: the Schedule E was prepared for nothing. A
+    form-priced line now asks what is ON the return, exactly as a gate does.
+    """
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["E1"]}, s)   # no count
+    assert "Rental schedule" in [i["Service"] for i in items]
+    assert pricing.estimate_total(items, s) == "$470.00"
 
 
 def test_the_package_line_says_which_gate_selected_it():
@@ -632,13 +658,41 @@ def test_the_package_line_says_which_gate_selected_it():
 
 
 def _priced_both_branches(priced=None):
-    """The REAL schedule -- the one with the ladder -- with the two either/or
-    prices filled in. `priced` is the flat-base example and cannot exercise a
-    package at all; keeping both means the untiered path stays covered too."""
+    """A SYNTHETIC schedule with an either/or allowance on it.
+
+    No package on the live sheet has one any more. `allows_one_of` was built
+    for Property & Business — three rentals OR one full Schedule C — and on
+    26 August 2026 rentals became a form, which left one option and no choice.
+
+    The mechanism is kept because "either/or, resolved in the client's favour"
+    is a normal thing for a fee schedule to want and the careful part of it
+    (compare in money, on what is LEFT after the flat allowances, refuse
+    rather than guess when a branch the client uses has no price) is the part
+    that took two bugs to get right. These tests are what keep it honest.
+
+    Built here rather than loaded, so that nothing about it can be mistaken
+    for a claim about what the firm charges today.
+    """
     s = json.loads(json.dumps(pricing.load()))
-    s["per_unit"]["rental"]["amount"] = 45
+    tier = s["base"]["1040"]["tiers"]["business"]
+    tier.pop("allows_when", None)
+    tier["allows_one_of"] = [
+        {"label": "up to three rentals", "count_rentals": 3},
+        {"label": "one full Schedule C", "count_businesses": 1},
+    ]
+    tier["gate"] = {"any_of": [{"schedules_any": ["E1", "F"]},
+                               {"answer_is": {"schedule_c_kind": "standard"}}]}
+    # Rentals go back to being counted per property, which is what an either/or
+    # over rentals needs in order to mean anything.
+    s["per_unit"]["rental"] = {"count_from": "count_rentals",
+                               "label": "Rental property",
+                               "detail": "Schedule E, per property",
+                               "amount": 45}
     s["per_unit"]["schedule_c"]["tiers"]["standard"]["amount"] = 200
     s["per_unit"]["schedule_c"]["tiers"]["simple"]["amount"] = 65
+    # Standard must not be the cheaper answer here, or the engine picks it and
+    # the either/or never runs. The mechanism is what is under test.
+    s["base"]["1040"]["tiers"]["standard"]["gate"] = {"schedules_any": ["Z"]}
     return s
 
 
@@ -649,7 +703,7 @@ def test_a_full_schedule_c_is_absorbed_not_billed_on_top():
         {"federal_form": "1040", "federal_schedules": ["C"],
          "schedule_c_kind": "standard", "count_businesses": 1,
          "count_rentals": 0}, s)
-    assert [i["Service"] for i in items] == ["Property & Business"], \
+    assert [i["Service"] for i in items] == ["Business"], \
         "the covered Schedule C must not appear as a charged line"
     assert pricing.estimate_total(items, s) == "$500.00"
 
@@ -659,7 +713,7 @@ def test_rentals_are_absorbed_when_that_is_the_better_branch():
     items = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": ["E1"],
          "count_rentals": 3, "count_businesses": 0}, s)
-    assert [i["Service"] for i in items] == ["Property & Business"]
+    assert [i["Service"] for i in items] == ["Business"]
 
 
 def test_the_branch_that_saves_the_client_most_wins():
@@ -723,80 +777,66 @@ def test_a_second_gig_business_is_charged():
     assert pricing.estimate_total(items, s) == "$390.00"      # 325 + one at 65
 
 
-def test_a_gig_c_inside_property_and_business_is_included():
-    """DECIDED by the firm, 25 August 2026: the gig C rides in.
+def test_a_gig_c_inside_the_business_package_is_included():
+    """The firm's ruling of 25 August 2026, and what became of it.
 
-    Property & Business covers "everything in Standard" -- which includes a
-    gig Schedule C -- PLUS either three rentals or one full Schedule C. Those
-    two clauses collide for a client with a gig C and rentals, and the signed
-    sheet did not say which won; this test used to pin $565, the landlord with
-    a side gig paying $65 for a Schedule C that Standard would have included.
+    The Business package covers "everything in Standard", which includes a gig
+    Schedule C, and it used to ALSO carry an either/or over rentals. Those
+    collided, and the ruling was that the gig one rides in while the either/or
+    is scoped to a FULL Schedule C.
 
-    The ruling is that the package includes the gig one and the either/or is
-    scoped to rentals versus a FULL Schedule C. The mechanism has to hold both
-    halves at once: a flat one-business allowance would hand a full-Schedule-C
-    client their C free AND three rentals free, which is the "not both" the
-    sheet rules out, so the allowance is gated on `schedule_c_kind: simple`.
+    Rentals left the ladder the next day, so the collision is gone — but the
+    ruling still governs the half that remains: a gig Schedule C is never a
+    charged line on a package that says it covers one.
     """
     s = pricing.load()
     a = {"federal_form": "1040", "federal_schedules": ["C", "E1"],
          "schedule_c_kind": "simple", "count_businesses": 1,
          "count_rentals": 3}
+    items = pricing.line_items(a, s)
+    assert "Sole proprietorship" not in [i["Service"] for i in items]
+    # Standard, plus the Schedule E as its own form. The rentals are no longer
+    # something a package absorbs, so they are priced rather than bundled.
+    assert [i["Service"] for i in items] == ["Standard", "Rental schedule"]
+    assert pricing.estimate_total(items, s) == "$470.00"
 
-    # The ruling still holds where it applies: priced ON Property & Business,
-    # this client's gig C is free and their three rentals are free, so they
-    # pay the package price and nothing more.
-    forced = _forced(s, "property")
-    assert pricing.estimate_total(pricing.line_items(a, forced), forced) == "$500.00"
-
-    # But the client is not quoted it, because Standard is cheaper for them --
-    # $325 plus three metered rentals. That is T-15 showing through the new
-    # selection rule rather than hiding behind the old one: Property & Business
-    # is $175 more than Standard and its rental allowance is worth $135.
-    assert pricing.estimate_total(pricing.line_items(a, s), s) == "$460.00"
-
-
-def test_a_full_schedule_c_does_not_also_ride_in_free():
-    """The other half of the same ruling, and the half that costs money.
-
-    A full Schedule C is what the either/or is FOR. If it were also covered
-    flat, this client would get the C free and still have three rentals to
-    spend the either/or on.
-    """
+def test_a_full_schedule_c_is_what_the_business_package_is_for():
+    """The half of the ruling that costs money, and the only reason the
+    package still earns its step: $500 against Standard's $325 plus a $200
+    full Schedule C."""
     s = pricing.load()
-    items = pricing.line_items(
-        {"federal_form": "1040", "federal_schedules": ["C", "E1"],
+    a = {"federal_form": "1040", "federal_schedules": ["C", "E1"],
          "schedule_c_kind": "standard", "count_businesses": 1,
-         "count_rentals": 3}, s)
-    # The full C is worth 200 to the client and three rentals 135, so the
-    # branch that saves them most is the C -- and the rentals are charged.
-    assert pricing.estimate_total(items, s) == "$635.00"      # 500 + 3 x 45
+         "count_rentals": 3}
+    items = pricing.line_items(a, s)
+    assert items[0]["Service"] == "Business"
+    assert "Sole proprietorship" not in [i["Service"] for i in items], \
+        "the one full C the package covers must not also be billed"
+    # 500 for the package, 145 for the Schedule E beside it.
+    assert pricing.estimate_total(items, s) == "$645.00"
 
-
-def test_a_gig_c_does_not_spend_the_either_or_it_no_longer_needs():
+def test_a_gig_c_does_not_spend_an_either_or_it_no_longer_needs():
     """The bug the ruling exposed, and the reason the comparator changed.
 
     Branches are compared in money. Scored against the RAW counts, the
-    full-Schedule-C branch is worth $65 to a landlord with a side gig -- more
-    than one rental at $45 -- so it wins, and the client pays for a rental
-    while collecting an allowance for a Schedule C they already had free.
-    Scoring what is LEFT after the flat allowances is what makes the two
-    halves of the ruling compose.
-    """
-    s = pricing.load()
-    a = {"federal_form": "1040", "federal_schedules": ["C", "E1"],
-         "schedule_c_kind": "simple", "count_businesses": 1,
-         "count_rentals": 1}
-    items = pricing.line_items(a, s)
-    # Standard is cheaper for this client now, so that is what they are
-    # quoted -- but the thing under test is that their gig Schedule C is
-    # included either way and never appears as a charged line.
-    assert "Sole proprietorship" not in [i["Service"] for i in items]
-    assert pricing.estimate_total(items, s) == "$370.00"
+    full-Schedule-C branch was worth $65 to a landlord with a side gig — more
+    than one rental at $45 — so it won, and the client paid for a rental while
+    collecting an allowance for a Schedule C they already had free. Scoring
+    what is LEFT after the flat allowances is what makes the two halves of the
+    ruling compose.
 
+    Run against the synthetic either/or schedule, since no live package has
+    one — the logic is what is under test, not the sheet.
+    """
+    s = _priced_both_branches()
+    items = pricing.line_items(
+        {"federal_form": "1040", "federal_schedules": ["C", "E1"],
+         "schedule_c_kind": "simple", "count_businesses": 1,
+         "count_rentals": 1}, s)
+    assert [i["Service"] for i in items] == ["Business"]
 
 def test_the_package_says_which_allowance_the_client_got():
-    s = pricing.load()
+    s = _priced_both_branches()
     base = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": ["E1"],
          "count_rentals": 2}, s)[0]
@@ -810,10 +850,10 @@ def test_a_package_does_not_claim_an_allowance_the_client_cannot_use():
     misleading sentence: it prints "with up to three rentals" to somebody who
     owns no rentals.
     """
-    s = pricing.load()
+    s = _priced_both_branches()
     base = pricing.line_items(
         {"federal_form": "1040", "federal_schedules": ["F"]}, s)[0]
-    assert base["Service"] == "Property & Business"
+    assert base["Service"] == "Business"
     assert "with up to" not in base["Detail"]
 
 
@@ -969,15 +1009,25 @@ def test_a_cap_that_is_a_decision_but_not_yet_a_number_refuses():
     total in the meantime is the answer they rejected, delivered silently.
     """
     s = pricing.load()
-    assert pricing.is_open(s["per_unit"]["foreign_account"]["cap_units"]), (
-        "this test is about the real schedule's open cap; set it and delete this"
-    )
+    s["per_unit"]["foreign_account"]["cap_units"] = (
+        "[CONFIRM: how many before this stops climbing]")
     items = pricing.line_items(
         {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
          "count_foreign_accounts": 5}, s)
     total = pricing.estimate_total(items, s)
     assert total.startswith("[CONFIRM:")
     assert "stops climbing" in total, "the total carries the actual question"
+
+
+def test_the_real_cap_is_set_and_applies():
+    """Set by the firm at four, 26 August 2026."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+         "count_foreign_accounts": 12}, s)
+    line = [i for i in items if i["Service"] == "Foreign account reporting"][0]
+    assert line["Amount"] == "$200.00"          # 4 x 50, not 12 x 50
+    assert "capped at 4" in line["Detail"]
 
 
 def test_one_unit_prices_normally_under_an_open_cap():
@@ -1128,13 +1178,20 @@ def test_a_priced_boundary_pointing_at_nothing_refuses():
     assert "the invoice cannot keep" in str(exc.value)
 
 
-def test_a_priced_boundary_whose_line_has_no_amount_refuses():
-    """Promising a client a number requires having one."""
+def test_a_priced_boundary_whose_line_has_no_amount_carries_the_question():
+    """Promising a client a number requires having one — but an unset price is
+    a gap, not a broken schedule.
+
+    The file's rule for a gap is to carry the question, so the sentence keeps
+    its `[CONFIRM:` and the merge engine refuses on it. Raising instead would
+    kill the whole estimate over one line and hide everything else missing.
+    """
     s = pricing.load()
     s["per_unit"]["brokerage_keyed"]["amount"] = "[CONFIRM: what keying costs]"
-    with pytest.raises(pricing.PricingError) as exc:
-        pricing.assumptions({"federal_form": "1040"}, s)
-    assert "before promising a client a number" in str(exc.value)
+    said = [t for t in pricing.assumptions({"federal_form": "1040"}, s)
+            if t.startswith("Brokerage keying")][0]
+    assert "[CONFIRM:" in said
+    assert "brokerage_keyed" in said
 
 
 def test_requote_is_still_refused():
@@ -1359,11 +1416,11 @@ def test_the_report_notices_a_package_priced_out_of_existence():
     """
     s = pricing.load()
     tiers = s["base"]["1040"]["tiers"]
-    # Give Property & Business exactly Essentials' clients, then price it above.
-    tiers["property"]["gate"] = dict(tiers["essentials"]["gate"])
-    tiers["property"]["amount"] = 5000
+    # Give the Business package exactly Essentials' clients, then price it above.
+    tiers["business"]["gate"] = dict(tiers["essentials"]["gate"])
+    tiers["business"]["amount"] = 5000
     rows = {r["key"]: r for r in pricing.ladder_report(s)}
-    assert rows["property"]["eligible"] > 0
-    assert rows["property"]["chosen"] == 0
-    assert "essentials" in rows["property"]["beaten_by"] or \
-           "starter" in rows["property"]["beaten_by"]
+    assert rows["business"]["eligible"] > 0
+    assert rows["business"]["chosen"] == 0
+    assert "essentials" in rows["business"]["beaten_by"] or \
+           "starter" in rows["business"]["beaten_by"]

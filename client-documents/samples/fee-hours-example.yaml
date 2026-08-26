@@ -14,16 +14,28 @@ base_covers: federal_only
 base.1040.tiers.starter.amount: 1.0
 base.1040.tiers.essentials.amount: 2.5
 base.1040.tiers.standard.amount: 3.5
-base.1040.tiers.property.amount: 5.0
+base.1040.tiers.business.amount: 5.0
 base.1120S: 4.75
 base.1065: 4.75
 base.1120: 5.25
 
 per_unit.state_return.amount: 1
 per_unit.local_return.amount: 0.5
-per_unit.rental.amount: 0.75
+# Rentals are priced as a FORM now, so the form fee is the Schedule E itself
+# and `amount` is only the marginal property past the ones it covers.
+per_unit.rental.form_fee: 1.0
+per_unit.rental.amount: 0.3
+per_unit.farm.form_fee: 1.25
+per_unit.farm.amount: 1.25
 per_unit.k1.amount: 0.4
 per_unit.owner_k1.amount: 0.5
 per_unit.schedule_c.tiers.simple.amount: 0.4
 per_unit.schedule_c.tiers.standard.amount: 1.25
 
+
+# Added 26 Aug 2026 alongside the lines they price. Still fictional.
+per_unit.brokerage.amount: 0.3
+per_unit.brokerage_keyed.amount: 0.6
+per_unit.foreign_account.amount: 0.3
+per_form.amount: 0.3
+per_form.forms.earned_income_credit.amount: 0.4
