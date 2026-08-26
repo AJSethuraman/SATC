@@ -525,7 +525,9 @@ ladder somewhere else fails immediately.
 
 **Raised** 26 Aug 2026, checking what the price page could publish.
 
-**Status** Settled 26 Aug 2026 — **$250, its own engagement.** The firm's
+**Status** Settled 26 Aug 2026, then **reshaped by T-20 the same day** — an
+amendment is now **+$50 on whatever the return is**, not a flat $250. Read T-20
+for the current shape; what follows is why the price existed at all. The firm's
 answer to round eleven took the figure that had been sitting in the prose and
 put it in the schedule, where the estimate can quote it and the invoice can
 bill it.
