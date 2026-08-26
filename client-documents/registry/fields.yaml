@@ -18,7 +18,7 @@ fields:
     templates: [bookkeeping-letter]
   - field: AdditionalForms
     source: interview
-    templates: [business-letter, tax-letter]
+    templates: [business-letter, fee-estimate, tax-letter]
     notes: >-
       Emit the literal 'None' when empty. With foreign reporting in scope, blank and 'None' are different statements.
   - field: AmountDue
@@ -121,7 +121,7 @@ fields:
       value. Must never equal PaymentDeadline -- if it does, something is wrong.
   - field: FederalReturns
     source: interview
-    templates: [business-letter, tax-letter]
+    templates: [business-letter, fee-estimate, tax-letter]
   - field: FeeChangeNote
     source: engagement
     templates: [organizer-letter]
@@ -183,7 +183,7 @@ fields:
       Generated at send time. On the estimate this is the LETTER's date, not today's.
   - field: LocalReturns
     source: interview
-    templates: [business-letter, tax-letter]
+    templates: [business-letter, fee-estimate, tax-letter]
     notes: >-
       Name every locality. Emit the literal 'None' when empty — never blank.
   - field: MaterialsDeadline
@@ -262,7 +262,7 @@ fields:
     templates: [tax-letter]
   - field: StateReturns
     source: interview
-    templates: [business-letter, tax-letter]
+    templates: [business-letter, fee-estimate, tax-letter]
     notes: >-
       Name every state. This is the scope boundary.
   - field: Subtotal
@@ -365,6 +365,16 @@ flags:
   - flag: PriorFirm
     source: interview
     templates: [onboarding-letter]
+  - flag: ReturnScope
+    source: engagement
+    templates: [fee-estimate]
+    notes: >-
+      Does this engagement prepare returns? Turns on the estimate's scope
+      block, which repeats the engagement letter's four scope lines word for
+      word so the two documents can be read side by side. Derived in
+      `interview.compose` from the federal form; never asked. A bookkeeping
+      engagement is the case it is off for -- its scope is ScopeItems, a
+      list, and it has no interview yet.
   - flag: SCorpElection
     source: engagement
     templates: [business-letter]
@@ -390,8 +400,14 @@ lists:
       boundary is stated before the work rather than after it fails.
   - list: LineItems
     templates: [fee-estimate]
-    item_fields: [Amount, Detail, Service]
+    item_fields: [Amount, Detail, Includes, Service]
     required: true
+    notes: >
+      `Includes` is the estimate's only, and is what a package covers. The
+      invoice's LineItems carry the same three other keys and no Includes: an
+      invoice bills work that is done, and restating what the package was
+      supposed to contain is not what a client checks a bill against. Empty
+      string on any row with nothing to list, never the word "None".
   - list: LineItems
     templates: [invoice]
     item_fields: [Amount, Detail, Service]

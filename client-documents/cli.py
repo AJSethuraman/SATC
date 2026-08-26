@@ -50,6 +50,7 @@ import settings as firm
 
 ROOT = Path(__file__).resolve().parent
 TEMPLATE_DIR = ROOT.parent / "satc-handoff" / "04-TEMPLATES"
+SAMPLES = ROOT / "samples"
 
 # Registry name -> (template file, human name for the output file). The keys
 # match registry/fields.yaml and tests/test_registry.py, so a template renamed
@@ -1138,6 +1139,41 @@ def cmd_price(args) -> int:
     return 0
 
 
+def cmd_sample(args) -> int:
+    """Rebuild `samples/tax-opening-package.json` from the demo answers.
+
+    The demo record is what anyone looks at first to see what a client
+    receives, and until 26 August 2026 it was typed by hand. It had drifted
+    into quoting $450 for a 1040 and into a scope that had lost the Schedule E
+    its own estimate billed for -- two documents in one package contradicting
+    each other. `test_pricing.py` pins it to the engine now, so a schedule
+    change fails the suite; this is the command that answers the failure
+    instead of somebody editing JSON to match.
+
+    Only the generated half is rewritten. The client, the dates and the
+    reference are the sample's own and are left exactly as they are.
+    """
+    import interview as iv
+    import pricing
+
+    answers = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    path = SAMPLES / "tax-opening-package.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+
+    before = json.dumps(record, ensure_ascii=False, sort_keys=True)
+    record.update(iv.compose(answers))
+    record.update(pricing.price(answers))
+    after = json.dumps(record, ensure_ascii=False, sort_keys=True)
+
+    if before == after:
+        print("samples/tax-opening-package.json is already what the engine produces")
+        return 0
+    path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8")
+    print("rewrote samples/tax-opening-package.json from interview-answers.json")
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
         prog="satc-docs", description=__doc__,
@@ -1232,6 +1268,10 @@ def main(argv=None) -> int:
     d.add_argument("--out", default="out/demo")
     d.add_argument("--no-pdf", action="store_true")
     d.set_defaults(fn=cmd_demo)
+
+    sa = sub.add_parser("sample",
+                        help="rebuild the demo record from the demo answers")
+    sa.set_defaults(fn=cmd_sample)
 
     args = p.parse_args(argv)
     return args.fn(args)

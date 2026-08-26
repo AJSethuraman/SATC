@@ -454,6 +454,16 @@ def compose(answers: dict) -> dict:
     if answers.get("federal_form"):
         out["SCorpElection"] = answers["federal_form"] == "1120S"
 
+    # Does this engagement prepare RETURNS? True for every engagement the
+    # interview covers, and the estimate's scope block turns on it: it repeats
+    # the engagement letter's four scope lines, and those four fields only
+    # exist where a return is being filed. A bookkeeping engagement has a
+    # scope too -- ScopeItems, a list -- but no interview yet, so the block
+    # stays off there rather than rendering four blanks. See
+    # docs/pricing-open-threads.md.
+    if answers.get("federal_form"):
+        out["ReturnScope"] = True
+
     if "joint_return" in answers:
         out["JointReturn"] = answers["joint_return"] == "yes"
     if "prior_firm" in answers:

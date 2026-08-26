@@ -242,8 +242,12 @@ def test_the_firms_base_says_what_the_package_includes():
     """
     base = pricing.line_items({"federal_form": "1040"})[0]
     assert base["Service"] == "Essentials"
-    assert base["Detail"] == (
-        "No schedules. Includes: Your federal 1040, your first state return "
+    assert base["Detail"] == "No schedules"
+    # Its own field, not appended to the detail. Nine clauses run together
+    # with the gate sentence made a paragraph inside a table cell, and a
+    # covers list nobody reads to the end does not do the job it is here for.
+    assert base["Includes"] == (
+        "Includes: Your federal 1040, your first state return "
         "and your first local return; Wages, interest and dividends; "
         "The standard deduction.")
 
@@ -321,10 +325,14 @@ def test_requoting_is_refused_because_the_firm_ruled_it_out(priced):
 
 
 def test_line_items_carry_exactly_the_fields_the_template_wants(answers, priced):
-    """The registry says LineItems has Amount, Detail, Service. A stray key is
-    a field the estimate will not print and nobody will miss."""
+    """The registry says LineItems has Amount, Detail, Includes, Service. A
+    stray key is a field the estimate will not print and nobody will miss.
+
+    `Includes` rides on every row, empty where there is nothing to list, so
+    the shape does not change between a package line and a per-form one.
+    """
     for item in pricing.price(answers, priced)["LineItems"]:
-        assert set(item) == {"Service", "Detail", "Amount"}
+        assert set(item) == {"Service", "Detail", "Includes", "Amount"}
 
 
 def test_the_price_always_carries_its_assumptions(answers, priced):
@@ -1958,8 +1966,7 @@ def test_the_sample_estimate_matches_what_the_engine_prices():
 
     items = pricing.line_items(answers, s)
     assert record["LineItems"] == [
-        {"Service": i["Service"], "Detail": i["Detail"], "Amount": i["Amount"]}
-        for i in items
+        {k: v for k, v in i.items() if not k.startswith("_")} for i in items
     ], "the sample estimate has drifted from what the engine prices"
     assert record["EstimateTotal"] == pricing.estimate_total(items, s)
     assert record["Assumptions"] == [{"Text": t} for t in pricing.assumptions(answers, s)]

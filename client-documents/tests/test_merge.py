@@ -119,10 +119,65 @@ def test_empty_detail_renders_empty_not_none(record):
     """
     holed = dict(record)
     holed["LineItems"] = list(record["LineItems"]) + [
-        {"Service": "Solon municipal return", "Detail": "", "Amount": "$35.00"}]
+        {"Service": "Solon municipal return", "Detail": "",
+         "Includes": "", "Amount": "$35.00"}]
     html = render_file(TEMPLATE_DIR / OPENING_PACKAGE["fee estimate"], holed).html
     assert "Solon municipal return" in html
     assert ">None<" not in html
+
+
+def test_a_line_item_missing_a_sub_field_refuses(record):
+    """Empty is a value; absent is a hole, and the two must not look alike.
+
+    `Includes` was added to the estimate's rows on 26 August 2026 and every
+    row carries it, empty where a line has nothing to list. A row assembled
+    without the key at all is a caller that has not been updated, and it has
+    to fail here rather than print `<<Item.Includes>>` on a fee estimate.
+    """
+    holed = dict(record)
+    holed["LineItems"] = [{"Service": "A return", "Detail": "", "Amount": "$35.00"}]
+    with pytest.raises(MergeError, match="Item.Includes"):
+        render_file(TEMPLATE_DIR / OPENING_PACKAGE["fee estimate"], holed)
+
+
+def test_the_estimate_and_the_letter_state_the_same_scope(record):
+    """The firm, 26 August 2026, holding both sheets: "either it needs to list
+    what we are doing in one place, or needs to be comparable in both."
+
+    They were not comparable. The letter named schedules -- "Form 1040 with
+    Schedules A, C, E, and SE" -- and the estimate named a package and a
+    price, "Self-Employed $500", with the rest of it buried in a semicolon
+    run-on inside a table cell. Everything was covered; nothing lined up.
+
+    The estimate now repeats the letter's four scope lines from the same four
+    fields. This asserts they are the same four VALUES on one record, which is
+    what makes the two sheets comparable rather than merely consistent.
+    """
+    letter = render_file(TEMPLATE_DIR / OPENING_PACKAGE["tax letter"], record).html
+    estimate = render_file(TEMPLATE_DIR / OPENING_PACKAGE["fee estimate"], record).html
+
+    for field in ("FederalReturns", "StateReturns", "LocalReturns", "AdditionalForms"):
+        value = record[field]
+        assert value in letter, f"{field} is not on the engagement letter"
+        assert value in estimate, f"{field} is not on the fee estimate"
+
+
+def test_the_estimate_prices_every_schedule_its_scope_names(record):
+    """The failure this pair is guarding against, stated directly.
+
+    The bug that started it: the letter's scope said "Schedules A, C, and SE"
+    while the estimate billed a $145 Rental schedule. Schedule E was on the
+    bill and outside the scope the client had signed. Both documents render
+    from one record now, so the two halves of that contradiction are here
+    together and can be compared.
+    """
+    scope = record["FederalReturns"]
+    if "E" in scope.replace("Schedules", ""):
+        priced = " ".join(i["Service"] + " " + i["Includes"] for i in record["LineItems"])
+        assert "Schedule E" in priced or "Rental" in priced, (
+            "the letter's scope names Schedule E and nothing on the estimate "
+            "prices it"
+        )
 
 
 # ── escaping ──────────────────────────────────────────────────────────────

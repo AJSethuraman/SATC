@@ -777,8 +777,10 @@ phrases:
   # The package line: what the package covers.
   #   {detail} the package's own one-line description
   #   {list}   its covers list, joined
-  includes:      "{detail}. Includes: {list}."
-  includes_only: "Includes: {list}."
+  # Its own field on the estimate (`Item.Includes`), not appended to the
+  # line's detail sentence -- nine clauses inside a table cell is a paragraph
+  # nobody finishes.
+  includes:      "Includes: {list}."
 
   # Which side of an either/or allowance the client got.
   #   {detail} the package line's detail so far

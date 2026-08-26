@@ -38,12 +38,14 @@
   "LineItems": [
     {
       "Service": "Self-Employed",
-      "Detail": "You work for yourself. Includes: Your federal 1040, your first state return and your first local return; Wages, interest and dividends; The standard deduction; Itemized deductions; One brokerage statement; Up to two K-1s you receive; One gig Schedule C on standard mileage; One full Schedule C business.",
+      "Detail": "You work for yourself",
+      "Includes": "Includes: Your federal 1040, your first state return and your first local return; Wages, interest and dividends; The standard deduction; Itemized deductions; One brokerage statement; Up to two K-1s you receive; One gig Schedule C on standard mileage; One full Schedule C business.",
       "Amount": "$500.00"
     },
     {
       "Service": "Rental schedule",
       "Detail": "Schedule E, covering up to 3",
+      "Includes": "",
       "Amount": "$145.00"
     }
   ],
@@ -83,5 +85,7 @@
       "Document": "Rental records",
       "Detail": "Income and expenses by property"
     }
-  ]
+  ],
+  "SCorpElection": false,
+  "ReturnScope": true
 }

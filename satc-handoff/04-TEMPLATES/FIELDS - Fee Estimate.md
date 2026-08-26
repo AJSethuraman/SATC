@@ -35,18 +35,41 @@ Same records, same values. Generate the pair in one call.
 | `<<ClientZip>>` | Yes | 44139 | |
 | `<<PreparerName>>` + `<<PreparerTitle>>` | Yes | Arjun Sethuraman, CPA · Managing Partner | Two fields |
 
-### Specific to the estimate (2 fields + a list)
+### The engagement's scope, repeated from the letter (4 fields + a flag)
+
+The same four lines as the engagement letter's **What we will prepare**
+section, from the same four fields on the same record. The firm's ask of
+26 August 2026: *"either it needs to list what we are doing in one place, or
+needs to be comparable in both."* This is the second. A client holding two
+sheets can put them beside each other, and the two cannot disagree because
+neither is typed.
+
+| Field | Required | Example | Notes |
+|---|---|---|---|
+| `[[IF ReturnScope]]` | Flag | Boolean | Derived in `interview.compose` from the federal form; never asked. Drops the whole block. |
+| `<<FederalReturns>>` | If flag | Form 1040 with Schedules A, C, E, and SE | Byte-identical to the letter's |
+| `<<StateReturns>>` | If flag | Ohio — resident | |
+| `<<LocalReturns>>` | If flag | Solon municipal | "None" when there are none, never blank |
+| `<<AdditionalForms>>` | If flag | Two K-1s as reported | "None" when there are none, never blank |
+
+**A bookkeeping estimate has no scope block.** Its engagement letter carries
+`ScopeItems`, a list, and there is no bookkeeping interview yet — so the flag
+is off and the block drops, rather than printing four blanks. Give it its own
+branch when that interview is built.
+
+### Specific to the estimate (2 fields + a list of 4)
 
 | Field | Required | Example | Notes |
 |---|---|---|---|
 | `[[EACH LineItems]]` | List | one or more | Three sub-fields per item |
 | `<<Item.Service>>` | Yes | Federal Form 1040 | The line as a client reads it |
 | `<<Item.Detail>>` | Yes | With Schedules A, C, and SE | Emit an empty string when there is nothing to add — never the word "None" |
+| `<<Item.Includes>>` | Yes | Includes: Your federal 1040, your first state return and your first local return; … | What a package covers, on its own line. **The estimate's only** — an invoice bills work that is done and does not restate it. Empty string on a row with nothing to list; a row that omits the key altogether fails the render. |
 | `<<Item.Amount>>` | Yes | $450 | Pre-formatted by the software, including the `$` |
 | `<<PeriodLabel>>` | Yes | 2026 tax year | **Self-describing** — the label on the document is only "Period". Use "2026 tax year" for a tax engagement, "Monthly, from July 2027" for bookkeeping. Appears twice. Derive it from whichever engagement this accompanies; neither letter carries this field. |
 | `<<EstimateTotal>>` | Yes | $785 | **Computed, not typed.** Sum the line items in code so the arithmetic cannot be wrong on a client-facing document. |
 
-**Total: 19 fields + 1 repeating list of 3.**
+**Total: 23 fields + 1 repeating list of 3.**
 
 Not variables: the four assumption notes, and the pointers to the letter's scope and fees clauses.
 

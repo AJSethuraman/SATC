@@ -51,11 +51,24 @@
 
 <p class="intro">The figures below cover the work described in the <strong>scope section of our engagement letter</strong> dated <span class="f">&lt;&lt;LetterDate&gt;&gt;</span>. The figures reflect our best assessment of the work involved, and may change if complexities arise that are not apparent today.</p>
 
+<span class="cond">[[IF ReturnScope]]</span>
+<div class="scope">
+  <div class="h">What we are doing</div>
+  <ul>
+    <li><b>Federal:</b> <span class="f">&lt;&lt;FederalReturns&gt;&gt;</span></li>
+    <li><b>State:</b> <span class="f">&lt;&lt;StateReturns&gt;&gt;</span></li>
+    <li><b>Local:</b> <span class="f">&lt;&lt;LocalReturns&gt;&gt;</span></li>
+    <li><b>Also included:</b> <span class="f">&lt;&lt;AdditionalForms&gt;&gt;</span></li>
+  </ul>
+  <p>The same list as the <b>What we will prepare</b> section of your engagement letter.</p>
+</div>
+<span class="cond end">[[END IF]]</span>
+
 <table class="led">
   <tr><th>Service</th><th class="r">Estimate</th></tr>
   <tr class="mark"><td colspan="2"><span class="cond inline">[[EACH LineItems]]</span></td></tr>
   <tr>
-    <td class="desc"><b><span class="f">&lt;&lt;Item.Service&gt;&gt;</span></b><span><span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></span></td>
+    <td class="desc"><b><span class="f">&lt;&lt;Item.Service&gt;&gt;</span></b><span><span class="f">&lt;&lt;Item.Detail&gt;&gt;</span></span><span class="inc"><span class="f">&lt;&lt;Item.Includes&gt;&gt;</span></span></td>
     <td class="r num"><span class="f">&lt;&lt;Item.Amount&gt;&gt;</span></td>
   </tr>
   <tr class="mark"><td colspan="2"><span class="cond inline">[[END EACH]]</span></td></tr>

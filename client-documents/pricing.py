@@ -61,7 +61,7 @@ def open_amounts(schedule: dict | None = None) -> list[tuple[str, str]]:
 # fill. The schedule holds the words; this holds the contract, because a slot
 # is the one part of a phrase a human editing the wording must not invent.
 _SLOTS = {
-    "includes": {"detail", "list"},        "includes_only": {"list"},
+    "includes": {"list"},
     "with_allowance": {"detail", "branch"},
     "base_covers_one": set(),
     "after_first": {"detail"},             "after_first_only": set(),
@@ -127,8 +127,17 @@ def _registry_phrases() -> dict:
         return {}
 
 
-def _line(service: str, detail: str, amount, code: str) -> dict:
-    return {"Service": service, "Detail": detail,
+def _line(service: str, detail: str, amount, code: str, includes: str = "") -> dict:
+    """One row of the estimate.
+
+    `Includes` is separate from `Detail` on purpose. A package's covers list
+    runs to nine clauses, and folded into `Detail` it produced a paragraph
+    inside a table cell that nobody reads to the end -- which defeats the
+    point of printing it. Two fields let the estimate set the list on its own
+    line. Every row carries the key, empty where there is nothing to list, so
+    the shape does not change from row to row.
+    """
+    return {"Service": service, "Detail": detail, "Includes": includes,
             "Amount": m.money(amount, code), "_raw": amount}
 
 
@@ -837,14 +846,12 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         # is how a client reads a $500 line as "everything" and how a $200
         # line reads as too much. The list is the sentence the price needs.
         included = covers(key, tiers, f"base.{form}")
-        if included:
-            joined = "; ".join(included)
-            detail = (say(s, "includes", detail=detail, list=joined) if detail
-                      else say(s, "includes_only", list=joined))
+        includes = say(s, "includes", list="; ".join(included)) if included else ""
     else:
         label = {"1040": "Federal Form 1040", "1120S": "Federal Form 1120-S",
                  "1065": "Federal Form 1065", "1120": "Federal Form 1120"}.get(form, form)
         detail = ""
+        includes = ""
         if base_covers == "one_included":
             detail = say(s, "base_covers_one")
         elif is_open(base_covers):
@@ -864,7 +871,7 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
                 f"carry only metadata."
             )
         base = base["amount"]
-    items.append(_line(label, detail, base, code))
+    items.append(_line(label, detail, base, code, includes))
     if amend_line is not None:
         items.append(amend_line)
 

@@ -89,6 +89,11 @@ h1,h2,h3,p{margin:0}
 .led td.r{text-align:right}
 .led .desc b{color:var(--navy);font-weight:600;display:block}
 .led .desc>span{font-size:8.5pt;color:var(--ink-2);display:block;margin-top:1pt}
+/* What a package covers. Set apart from the line's own detail because it is
+   a list of up to nine clauses, and run together with the detail it reads as
+   a paragraph in a table cell. Empty on every row that has nothing to list. */
+.led .desc>span.inc{font-size:8pt;line-height:1.45;color:var(--mute);margin-top:2.5pt;padding-left:7pt;border-left:1.5pt solid var(--hairline-2)}
+.led .desc>span.inc:empty{display:none}
 .led .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:9.5pt;color:var(--navy);white-space:nowrap}
 .led tr.sub td{border-bottom:0.5pt solid var(--hairline);font-weight:500;color:var(--ink-2)}
 .led tr.credit .num{color:var(--oxblood)}
@@ -189,3 +194,15 @@ h1,h2,h3,p{margin:0}
 a{color:var(--oxblood)}
 a:hover{color:var(--navy)}
 @media print{.ref{display:none}}
+
+/* The estimate's scope block. Deliberately the same four lines as the
+   engagement letter's "What we will prepare", from the same four fields, so a
+   client holding both sheets can line them up. The firm's ask, 26 Aug 2026:
+   "either it needs to list what we are doing in one place, or needs to be
+   comparable in both". */
+.scope{margin-top:14pt;padding:11pt 13pt;background:#FAFAF8;border:0.5pt solid var(--hairline-2);border-left:2pt solid var(--navy)}
+.scope .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:7pt}
+.scope ul{margin:0;padding-left:14pt}
+.scope li{font-size:9.5pt;line-height:1.5;margin-bottom:2pt}
+.scope li b{color:var(--navy);font-weight:600}
+.scope>p{font-size:8pt;color:var(--mute);margin:8pt 0 0}
