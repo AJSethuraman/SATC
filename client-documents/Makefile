@@ -1,15 +1,17 @@
 # SAT-C document pipeline. Run from client-documents/.
 #
 #   make doctor   what is blocking a real render
+#   make check    does the demo package agree with itself?
 #   make demo     the whole chain, lead -> PDFs, in one command
 #   make price    set the firm's fees from hours x your rate
 #   make hours    what each price buys, in hours, at that rate
 #   make web      the browser front door (same core as the CLI)
 #   make test     everything
-.PHONY: help install doctor demo price hours web test clean
+.PHONY: help install doctor check demo price hours web test clean
 help:
 	@echo "make install   deps, including the Chromium PDF engine"
 	@echo "make doctor    what is blocking a real render"
+	@echo "make check     does the demo package agree with itself?"
 	@echo "make demo      lead -> record -> the opening package as PDFs"
 	@echo "make price     set the firm's fees from hours x your rate"
 	@echo "make web       the browser front door, on http://127.0.0.1:5051"
@@ -21,6 +23,11 @@ install:
 
 doctor:
 	python cli.py doctor
+
+# The other question. `doctor` says what is missing; this renders the
+# package and asks whether the documents tell one story.
+check:
+	python cli.py check samples/tax-opening-package.json
 
 web:
 	python web.py

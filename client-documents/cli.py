@@ -44,6 +44,7 @@ import packaging
 import fees
 import intake
 import interview as iv
+import consistency
 import merge
 import pricing
 import settings as firm
@@ -1174,6 +1175,39 @@ def cmd_sample(args) -> int:
     return 0
 
 
+def cmd_check(args) -> int:
+    """Does this package agree with itself?
+
+    Not the same question as `doctor`, which asks what is missing. This asks
+    the harder one: everything resolved, everything rendered -- do the
+    documents tell one story. The firm's ask of 26 August 2026, "show me how
+    you can tell it all goes together (so i can see consistency)."
+    """
+    record = build_record(json.loads(Path(args.record).read_text(encoding="utf-8")))
+    rendered = consistency.render_package(record, DOCUMENTS, TEMPLATE_DIR)
+    if not rendered:
+        print("No document in the set renders from this record, so there is "
+              "nothing to compare. `doctor` says what is missing.")
+        return 1
+
+    checks = consistency.report(record, rendered)
+    ref = record.get("EngagementRef") or "(no reference)"
+    print(f"SAT-C package agreement - {ref}\n")
+    print(f"  {len(rendered)} document(s) rendered: {', '.join(sorted(rendered))}\n")
+
+    for c in checks:
+        print(f"  {'ok  ' if c.ok else 'FAIL'}  {c.name}")
+        print(f"          {c.detail}")
+    failed = [c for c in checks if not c.ok]
+    print()
+    if failed:
+        print(f"  {len(failed)} of {len(checks)} disagree. A client reading two "
+              f"of these documents\n  side by side would find the difference.")
+        return 1
+    print(f"  All {len(checks)} agree.")
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
         prog="satc-docs", description=__doc__,
@@ -1268,6 +1302,11 @@ def main(argv=None) -> int:
     d.add_argument("--out", default="out/demo")
     d.add_argument("--no-pdf", action="store_true")
     d.set_defaults(fn=cmd_demo)
+
+    ck = sub.add_parser("check",
+                        help="does a rendered package agree with itself?")
+    ck.add_argument("record")
+    ck.set_defaults(fn=cmd_check)
 
     sa = sub.add_parser("sample",
                         help="rebuild the demo record from the demo answers")

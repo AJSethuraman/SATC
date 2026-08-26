@@ -87,14 +87,38 @@ def test_no_sample_can_drift_from_the_firm_settings():
     That is a second copy of an address whose whole point is having one copy,
     so it is pinned rather than trusted.
     """
-    settings = firm.firm_fields("2026")
     for path in SAMPLES.glob("*.json"):
         record = json.loads(path.read_text(encoding="utf-8"))
+        settings = firm.firm_fields(record.get("_season", "2026"))
         for field in FIRM_BLOCK:
             if field in record:
                 assert record[field] == settings[field], (
                     f"{path.name}: {field} has drifted from firm-settings.yaml"
                 )
+
+
+def test_no_sample_states_a_deadline_the_firm_does_not_set():
+    """A sample carrying its own date is a second copy of the deadline rule.
+
+    Both opening samples had one, and both were wrong: the rule is three weeks
+    before the filing deadline, and they said March 15 and February 15 against
+    the firm's March 25 and February 22. A per-engagement override IS
+    legitimate -- `build_record` lets the record win on purpose -- which is
+    exactly why a sample must not quietly demonstrate one.
+
+    Skipped where a sample has no `_return_type`: the extension notice's
+    deadline is the extended one, which is not on this table at all.
+    """
+    for path in SAMPLES.glob("*.json"):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        if "MaterialsDeadline" not in record or "_return_type" not in record:
+            continue
+        expected = firm.firm_fields(record.get("_season", "2026"),
+                                    record["_return_type"])["MaterialsDeadline"]
+        assert record["MaterialsDeadline"] == expected, (
+            f"{path.name} states {record['MaterialsDeadline']!r}; the firm's "
+            f"deadline for a {record['_return_type']} return is {expected!r}"
+        )
 
 
 def test_an_unknown_return_type_is_refused():
