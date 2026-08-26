@@ -168,6 +168,25 @@ base_covers: "one_included"
 base:
   "1040":
     tier_from: derived
+    # AN AMENDMENT BYPASSES THE LADDER. It sits beside `tiers`, not among
+    # them, because it is not a rung: the four packages describe an original
+    # return prepared from scratch, and none of them describes redoing one
+    # that has already been filed.
+    #
+    # Set 26 August 2026 on the firm's answer to round eleven -- "its own
+    # engagement, at $250" -- which is the figure that had been sitting in
+    # docs/pricing-for-website.md and nowhere in this file. Until then the
+    # estimate could not quote an amended return and the invoice could not
+    # bill one. That was T-16.
+    #
+    # It is a BASE, so everything on the return is still counted on top: an
+    # amendment to a return with three rentals is still three rentals of work.
+    # The $250 buys the amendment, not an exemption from what is on it.
+    amended:
+      label: "Amended return"
+      detail: "Form 1040-X, prepared from the return as filed"
+      amount: 250
+      when: { answer_is: { return_basis: amended } }
     tiers:
       starter:
         # RENAMED 26 August 2026. "Starter" means WHERE YOU BEGIN, which
@@ -459,6 +478,17 @@ per_unit:
     # were already filing, and $200 is close to what the market charges for a
     # whole schedule.
     cap_units: 4
+    # SOFT, on the firm's answer to round eleven, 26 August 2026:
+    #
+    #     4 is a soft cap. Then we add dollars for time
+    #
+    # A bare `cap_units` is a HARD cap: past four the client is charged nothing
+    # further, ever. That was the reading shipped on 26 August and it is the
+    # expensive direction to be wrong in -- twelve accounts would have been
+    # four accounts' money for twelve accounts' work. The per-account price
+    # still stops at four, because the thirteenth account is a row rather than
+    # a filing; what does not stop is the time.
+    cap_beyond: hourly
     # Signed 25 Aug 2026 at the per-form price, because that is already how
     # the firm bills it: "i have been doing this stuff with a client for
     # awhile and just charge per account". A foreign COMPANY is not this line
@@ -606,6 +636,11 @@ phrases:
   #   {n} the cap
   capped:      "{detail}, capped at {n}"
   capped_only: "Capped at {n}"
+  # A SOFT cap. The per-account charge stops at {n}; the work past it is time.
+  # Both halves have to be said: "capped at four" alone reads as a promise the
+  # firm is not making, and the client finds out otherwise on the invoice.
+  capped_soft:      "{detail}, capped at {n} — beyond that the additional time is billed at {rate} an hour as it is worked, and we will tell you as soon as we see it"
+  capped_soft_only: "Capped at {n} — beyond that the additional time is billed at {rate} an hour as it is worked, and we will tell you as soon as we see it"
 
   # More than one of something.
   #   {n} how many are charged   {each} the price of one

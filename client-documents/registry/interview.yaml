@@ -54,6 +54,34 @@ sections:
           - { value: "1120",  label: "Form 1120 — C corporation" }
         supplies: [FederalReturns]
 
+      # Round eleven, 26 August 2026: an amended return is "its own
+      # engagement, at $250" -- not a package, and not an add-on to one. The
+      # package ladder describes an original return prepared from scratch and
+      # no rung of it describes redoing one.
+      #
+      # REQUIRED, and that matters more than it looks. `pricing.line_items`
+      # defaults an absent answer to `original`, because refusing would break
+      # every engagement recorded before this question existed. The default is
+      # only safe because this question cannot be skipped -- otherwise a
+      # forgotten tick quotes the $200 package for a $250 job, silently.
+      #
+      # 1040 ONLY. An amended entity return is different work at a price the
+      # firm has not set; asking about it here would invite an answer nothing
+      # can price. See T-16 in docs/pricing-open-threads.md.
+      - id: return_basis
+        question: "Original return, or an amendment?"
+        help: >-
+          An amendment is priced as its own engagement rather than as one of
+          the packages. Anything on the return is still counted as usual.
+        type: single
+        required: true
+        options:
+          - { value: "original", label: "Original return" }
+          - { value: "amended",  label: "Amendment to a return already filed" }
+        showIf: "federal_form == '1040'"
+        supplies: []
+        feeds: LineItems
+
       - id: tax_year
         question: "Which tax year?"
         type: text

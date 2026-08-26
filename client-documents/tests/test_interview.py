@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -438,3 +439,30 @@ def test_a_missing_required_answer_stops_the_replay(tmp_path):
 
     with pytest.raises(SystemExit):
         cli.main(["interview", "--answers", str(path), "--store", str(tmp_path)])
+
+
+def test_the_interview_asks_whether_a_1040_is_an_amendment():
+    """The half of the amended-return decision that `pricing.line_items` does
+    NOT do, on purpose.
+
+    `line_items` defaults an absent `return_basis` to `original`, because
+    refusing would break every engagement recorded before the question
+    existed. That default is only safe because a real engagement cannot get
+    past the interview without answering — a defaulted answer would quote the
+    $200 package for a job the firm prices at $250, silently, on the one
+    question nobody would think to check.
+
+    Scoped to the 1040 deliberately: an amended entity return is different
+    work at a different price and the firm has not set one. See T-16.
+    """
+    schema = yaml.safe_load(
+        (ROOT / "registry" / "interview.yaml").read_text(encoding="utf-8"))
+    questions = [q for sec in schema["sections"] for q in sec["questions"]]
+    basis = [q for q in questions if q["id"] == "return_basis"]
+    assert basis, "nothing asks whether this is an original return or an amendment"
+    q = basis[0]
+    assert q.get("required") is True, "an unanswered basis prices as an original"
+    assert "1040" in (q.get("showIf") or ""), \
+        "only the individual amendment is priced; the entity one is not"
+    values = {o["value"] for o in q["options"]}
+    assert {"original", "amended"} <= values

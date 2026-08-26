@@ -1482,3 +1482,108 @@ def test_the_value_check_reads_allowances_not_prose():
     s["base"]["1040"]["tiers"]["standard"]["allows"]["count_k1s"] = 6
     row = {r["key"]: r for r in pricing.ladder_value(s)}["standard"]
     assert row["absorbs"] == 45 + 6 * 15 + 65
+
+
+def test_a_soft_cap_says_that_time_is_billed_past_it():
+    """The firm, answering round eleven on 26 Aug 2026:
+
+        4 is a soft cap. Then we add dollars for time
+
+    A bare `cap_units` is a HARD cap: past four, the client is charged nothing
+    further, ever. That is not what was meant and it is the expensive
+    direction to be wrong in — a dozen accounts would have been four accounts'
+    money for a dozen accounts' work.
+
+    So the cap keeps the PER-ACCOUNT charge from running away, and the time
+    past it is billed. The sentence on the estimate has to say both, because
+    "capped at four" on its own is now a promise the firm is not making.
+    """
+    s = pricing.load()
+    line = [i for i in pricing.line_items(
+        {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+         "count_foreign_accounts": 12}, s)
+        if i["Service"] == "Foreign account reporting"][0]
+
+    assert line["Amount"] == "$200.00", "the per-account charge still stops at four"
+    assert "capped at 4" in line["Detail"]
+    assert "150" in line["Detail"], "the rate past the cap has to be on the line"
+
+
+def test_a_hard_cap_still_reads_as_a_hard_cap():
+    """The soft wording must come from the schedule saying so, not from every
+    cap suddenly claiming time is billed past it."""
+    s = pricing.load()
+    s["per_unit"]["foreign_account"].pop("cap_beyond", None)
+    line = [i for i in pricing.line_items(
+        {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+         "count_foreign_accounts": 12}, s)
+        if i["Service"] == "Foreign account reporting"][0]
+    assert "capped at 4" in line["Detail"]
+    assert "150" not in line["Detail"]
+
+
+def test_a_cap_beyond_nobody_recognises_refuses():
+    """Same rule as `beyond:` on an assumption. A consequence the code does
+    not know would print as though it were not there at all."""
+    s = pricing.load()
+    s["per_unit"]["foreign_account"]["cap_beyond"] = "requote"
+    with pytest.raises(pricing.PricingError, match="requote"):
+        pricing.line_items(
+            {"federal_form": "1040", "extra_forms": ["foreign_accounts"],
+             "count_foreign_accounts": 12}, s)
+
+
+# ── amended returns (T-16) ────────────────────────────────────────────────
+
+def test_an_amended_return_is_its_own_engagement_not_a_package():
+    """Round eleven, 26 Aug 2026: "Its own engagement, at $250".
+
+    Not an add-on to a package. An amendment is the whole job — the package
+    ladder describes an original return being prepared from scratch, and none
+    of its rungs describes redoing one.
+    """
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "amended",
+         "other_income_documents": "no"}, s)
+    assert items[0]["Service"] == "Amended return"
+    assert items[0]["Amount"] == "$250.00"
+    assert not any(i["Service"] in ("Simple Filer", "Essentials", "Standard",
+                                    "Business") for i in items), \
+        "an amendment must not also be sold a package"
+
+
+def test_an_amended_return_still_pays_for_what_is_on_it():
+    """The amendment is the base, not a flat fee for everything. Redoing a
+    return with three rentals on it is still three rentals of work."""
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "amended",
+         "count_rentals": 1, "schedules": ["E1"]}, s)
+    assert items[0]["Amount"] == "$250.00"
+    assert any(i["Service"] == "Rental schedule" for i in items)
+
+
+def test_an_original_return_still_gets_the_package_ladder():
+    s = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": "1040", "return_basis": "original",
+         "other_income_documents": "no"}, s)
+    assert items[0]["Service"] in ("Simple Filer", "Essentials")
+    assert items[0]["Service"] != "Amended return"
+
+
+def test_an_absent_return_basis_prices_as_an_original_return():
+    """`line_items` defaults to `original`, and that default is deliberate.
+
+    Refusing instead would break every engagement recorded before this
+    question existed, for a question whose answer is "original" in almost
+    every case. The guarantee that a REAL engagement has answered it lives
+    where engagements are made — the interview requires it — which is the
+    same rule as every other gate: it belongs in `intake.finish`, not here.
+    See `test_interview.py` for the half that does the work.
+    """
+    s = pricing.load()
+    items = pricing.line_items({"federal_form": "1040",
+                                "other_income_documents": "no"}, s)
+    assert items[0]["Service"] != "Amended return"

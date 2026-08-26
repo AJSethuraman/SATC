@@ -67,6 +67,7 @@ _SLOTS = {
     "after_first": {"detail"},             "after_first_only": set(),
     "after_n": {"detail", "n"},            "after_n_only": {"n"},
     "capped": {"detail", "n"},             "capped_only": {"n"},
+    "capped_soft": {"detail", "n", "rate"}, "capped_soft_only": {"n", "rate"},
     "form_covers": {"detail", "n"},
     "form_over": {"detail", "n", "each"},
     "multiplier": {"detail", "n", "each"}, "multiplier_only": {"n", "each"},
@@ -197,6 +198,31 @@ def _capped(unit: dict, count: int) -> tuple[int, object]:
     if count > cap:
         return int(cap), True
     return count, False
+
+
+# What may happen past a cap. `None` is a HARD cap -- the charge simply stops,
+# which is the older and stricter reading and stays the default. Anything here
+# is a decision the firm made, not a shape the code happens to allow; the list
+# is deliberately as short as `_BEYOND`.
+_CAP_BEYOND = {"hourly"}
+
+
+def _cap_beyond(unit: dict) -> str | None:
+    """How a cap behaves past its limit, refusing a value nobody recognises.
+
+    An unrecognised consequence would otherwise print as though the cap were
+    hard -- the client told the line stops, and then billed for time. That is
+    the one failure mode this key exists to prevent.
+    """
+    value = unit.get("cap_beyond")
+    if value is None or value in _CAP_BEYOND:
+        return value
+    raise PricingError(
+        f"{unit.get('label') or 'a capped line'} says work past its cap is "
+        f"{value!r}. Supported: {sorted(_CAP_BEYOND)}, or omit the key for a "
+        f"hard cap. A consequence nobody recognises prints as a hard cap, "
+        f"which tells the client the line stops when it does not."
+    )
 
 
 def _resolve_tier(unit: dict, answers: dict) -> dict:
@@ -714,7 +740,31 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         )
 
     allowance: dict = {}
-    tiers = base.get("tiers") if isinstance(base, dict) else None
+    # AN AMENDMENT BYPASSES THE LADDER, checked before the tiers so it cannot
+    # lose a cheapest-eligible comparison to a package it is not competing
+    # with. `amended` sits beside `tiers` in the schedule rather than among
+    # them for the same reason: it is not a rung.
+    #
+    # An absent `return_basis` prices as an original return. That default is
+    # deliberate and it is only safe because the interview REQUIRES the
+    # question -- see `test_interview.py`. Refusing here instead would break
+    # every engagement recorded before the question existed, and this file is
+    # not where a gate on a real engagement belongs.
+    amendment = base.get("amended") if isinstance(base, dict) else None
+    if amendment is not None and gate_holds(amendment.get("when") or {},
+                                            answers):
+        for field in ("label", "amount"):
+            if field not in amendment:
+                raise PricingError(
+                    f"base.{form}.amended is missing {field!r}, so the "
+                    f"amendment line cannot be written."
+                )
+        label = amendment["label"]
+        detail = amendment.get("detail", "")
+        base = amendment["amount"]
+        tiers = None            # the ladder does not run; there is no package
+    else:
+        tiers = base.get("tiers") if isinstance(base, dict) else None
     if tiers:
         key, tier = derive_tier(base, answers, f"base.{form}", schedule=s)
         if tier is None:
@@ -753,7 +803,8 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             joined = "; ".join(included)
             detail = (say(s, "includes", detail=detail, list=joined) if detail
                       else say(s, "includes_only", list=joined))
-    else:
+    elif amendment is None or not gate_holds(amendment.get("when") or {},
+                                             answers):
         label = {"1040": "Federal Form 1040", "1120S": "Federal Form 1120-S",
                  "1065": "Federal Form 1065", "1120": "Federal Form 1120"}.get(form, form)
         detail = ""
@@ -830,8 +881,20 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
             items.append(_line(unit["label"], detail, total, code))
             continue
         if capped is True:
-            detail = (say(s, "capped", detail=detail, n=unit["cap_units"])
-                      if detail else say(s, "capped_only", n=unit["cap_units"]))
+            # A SOFT cap stops the per-unit charge and bills the time past it;
+            # a bare cap stops the charge full stop. The firm's own words, 26
+            # August 2026: "4 is a soft cap. Then we add dollars for time."
+            # Saying only "capped at 4" for a soft cap is a promise the firm
+            # is not making, so the rate goes on the line beside the cap.
+            soft = _cap_beyond(unit)
+            n = unit["cap_units"]
+            if soft == "hourly":
+                rate = f"${(s.get('basis') or {}).get('rate', 0):,.0f}"
+                detail = (say(s, "capped_soft", detail=detail, n=n, rate=rate)
+                          if detail else say(s, "capped_soft_only", n=n, rate=rate))
+            else:
+                detail = (say(s, "capped", detail=detail, n=n)
+                          if detail else say(s, "capped_only", n=n))
         # Say that the first ones were free. A client who is told their
         # package includes a state return and then sees a "State return"
         # line on the same page reasonably concludes they were charged for
