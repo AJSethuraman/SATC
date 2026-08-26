@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pricing — SATC</title>
+<meta name="description" content="What SAT-C LLP charges to prepare an individual tax return, and what each price covers.">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#132437">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20fill='%23132437'/%3E%3Cpath%20d='M6%206%20H20%20V13%20H13%20V20%20H6%20Z'%20fill='none'%20stroke='%23fff'%20stroke-width='3'/%3E%3Crect%20x='21'%20y='21'%20width='6'%20height='6'%20fill='%23C0A265'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+/* Tokens lifted from index.html so the pages stay in step. If the palette moves
+   there, move it here — there is no build step to share it. */
+:root{--navy:#132437;--navy-deep:#0D1926;--navy-soft:#22374F;--charcoal:#242C36;--charcoal-2:#4A5360;--mute:#82817C;--oxblood:#6A2833;--oxblood-lt:#83323F;--gold:#C0A265;--gold-deep:#756228;--cream:#F7F7F5;--paper:#FFFFFF;--hairline:#E6E5E0;--hairline-2:#D8D7D1;--sans:"IBM Plex Sans",-apple-system,"Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;--pad:clamp(20px,5vw,56px);--w:1120px}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:var(--sans);color:var(--charcoal);background:var(--cream);line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:var(--oxblood);text-decoration:none}
+a:hover{color:var(--oxblood-lt);text-decoration:underline}
+:focus-visible{outline:2px solid var(--oxblood);outline-offset:3px}
+
+/* ---- header: same lockup as the rest of the site ---- */
+.top{background:var(--navy);padding:18px var(--pad);display:flex;align-items:center;justify-content:space-between;gap:20px}
+.top-back{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.66);white-space:nowrap;flex:0 0 auto}
+.top-back:hover{color:#fff;text-decoration:none}
+.top-back:focus-visible{outline-color:var(--gold)}
+.lockup{display:inline-flex;align-items:center;gap:13px;color:#fff}
+.lockup .seal{width:30px;height:30px;flex:0 0 auto}
+.lockup .seal .s-o{fill:none;stroke:currentColor;stroke-width:2.6}
+.lockup .seal .s-i{fill:var(--gold)}
+.lockup .text{display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.lockup .wm{display:flex;align-items:flex-end;font-size:20px;font-weight:700;letter-spacing:-.04em;line-height:.74;white-space:nowrap}
+.lockup .wm .hy{width:.3em;height:.3em;flex:0 0 auto;background:var(--gold);margin:0 .18em .2em}
+.lockup .wm i{font-style:normal;font-weight:500;letter-spacing:0;margin-left:.22em}
+.lockup .tag{font-family:var(--mono);font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.55);font-weight:400}
+
+.wrap{max-width:var(--w);margin:0 auto;padding:0 var(--pad)}
+.eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute);margin:0}
+h1{font-weight:600;font-size:clamp(32px,5.4vw,52px);color:var(--navy);letter-spacing:-.042em;line-height:1.04;margin:14px 0 12px;text-wrap:balance}
+/* .lede is gone from this page: the headline says it and a second line under it
+   was a preamble in everything but name. Kept as a rule for nothing would be
+   dead CSS, so it went with the sentence. */
+h2{font-weight:600;font-size:clamp(21px,2.4vw,26px);color:var(--navy);letter-spacing:-.03em;line-height:1.14;margin:0 0 8px}
+p,li{font-size:15.5px;color:var(--charcoal-2)}
+p{margin:0 0 14px;max-width:68ch}
+strong{color:var(--navy);font-weight:600}
+.note{font-size:13.5px;color:var(--mute)}
+
+/* head band: headline, nothing else. No preamble above the prices. */
+.head{padding:clamp(44px,6vw,80px) 0 clamp(34px,4.5vw,52px)}
+
+/* ============================ THE PRICE BAND ============================
+   A white full-bleed band is the page's spine: the numbers sit on paper, and
+   everything that qualifies them sits on cream below it. */
+.priceband{background:var(--paper);border-top:1px solid var(--hairline-2);border-bottom:1px solid var(--hairline-2)}
+.priceband .wrap{padding-bottom:clamp(28px,4vw,40px)}
+
+/* ---- the switch ----
+   Not a floating segmented control: the tabs sit on the band's top edge and
+   the selected one joins the panel it opens, so switching reads as changing
+   what the band contains. The selected rule takes the panel's key color —
+   navy for the packages, gold for the entity floors. */
+.switchrow{max-width:var(--w);margin:0 auto;padding:0 var(--pad);position:relative;z-index:1}
+.switch{display:flex;margin:0;transform:translateY(1px)}
+.sw{font-family:var(--sans);font-size:14.5px;font-weight:600;letter-spacing:-.005em;color:var(--charcoal-2);background:var(--cream);border:1px solid var(--hairline-2);border-top-width:2px;border-top-color:var(--hairline-2);padding:11px 24px 12px;cursor:pointer;line-height:1.2}
+.sw+.sw{border-left:0}
+.sw:hover{color:var(--navy)}
+.sw[aria-selected="true"]{background:var(--paper);color:var(--navy);border-bottom-color:var(--paper);border-top-color:var(--navy)}
+#tabBiz[aria-selected="true"]{border-top-color:var(--gold)}
+.sw:focus-visible{outline:2px solid var(--oxblood);outline-offset:-3px}
+/* Without JS both panels show, which is the honest failure: all the prices,
+   just not switchable. */
+[role="tabpanel"][hidden]{display:none}
+[role="tabpanel"]{padding-top:clamp(30px,4vw,44px)}
+
+/* ---- the cards ----
+   Explicit breakpoints rather than auto-fit. auto-fit picks whatever number
+   fits, which at some widths is three — leaving the fourth alone on a second
+   row. Four, then two, then one: every row is always full.
+   SUBGRID is what fixes the ragged row: the name, the amount, the who-line and
+   the top of the list share rows across all four cards, so a card with two
+   bullets and a card with five still line up everywhere it shows. The list
+   itself is a ruled column (same device as the service lists on the home page)
+   so a short list reads as a short list, not as a card that failed to fill. */
+.tiers{display:grid;column-gap:14px;row-gap:0;margin:0;padding:0;list-style:none;grid-template-columns:repeat(4,1fr);grid-template-rows:auto auto auto 1fr}
+#tiers>.tier{grid-row:span 4}
+/* The last row is `auto`, not `1fr` as it is for the packages: with the add-on
+   lists gone these cards hold three short lines, and a stretched row turned the
+   rest of the panel into empty space INSIDE a bordered box, which reads as a
+   card that failed to load. `align-content:start` puts that space below the
+   cards instead, where it is just margin. The panel keeps its height either
+   way, so the navy band still does not move when you flip tabs. */
+#entities{grid-template-columns:repeat(3,1fr);grid-template-rows:auto auto auto;align-content:start}
+#entities>.tier{grid-row:span 3}
+.tier{background:var(--paper);border:1px solid var(--hairline);border-top:2px solid var(--navy);padding:18px 18px 20px;display:grid;grid-template-rows:subgrid}
+/* align-self only means "which row band" while the card is a subgrid. In the
+   flex fallbacks it becomes cross-axis and shunts the amount to the right. */
+@supports not (grid-template-rows:subgrid){.tier{display:flex;flex-direction:column}}
+.tier .name{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin:0 0 14px;align-self:start}
+.tier .amt{font-size:clamp(30px,3.4vw,38px);font-weight:600;color:var(--navy);letter-spacing:-.045em;line-height:.95;margin:0 0 12px;font-variant-numeric:tabular-nums;align-self:end}
+.tier .who{font-size:14.5px;color:var(--navy);font-weight:500;line-height:1.4;margin:0 0 2px;align-self:start}
+.tier ul{list-style:none;padding:0;margin:14px 0 0;border-top:1px solid var(--hairline-2);align-self:start;width:100%}
+.tier li{position:relative;padding:9px 0 9px 15px;margin:0;font-size:13.5px;line-height:1.5;border-bottom:1px solid var(--hairline)}
+.tier li:last-child{border-bottom:0;padding-bottom:0}
+.tier li::before{content:"";position:absolute;left:0;top:16px;width:6px;height:6px;background:var(--gold)}
+
+/* Must sit AFTER the align-self declarations above — @supports adds no
+   specificity, so an earlier reset would lose the tie to them. */
+@supports not (grid-template-rows:subgrid){.tier>.name,.tier>.amt,.tier>.who,.tier>.ontop,.tier>ul{align-self:auto}}
+
+/* ---- an entity card is the same card doing a different job ----
+   Same white ground, same type, same rhythm as a package card — the family
+   has to be one family, or the panel looks like a different page. Three
+   structural differences carry the distinction instead of a color wash:
+   a gold rule instead of navy, `from` set as a label ABOVE the number (a
+   floor announces itself before you read the figure), and hollow bullet
+   marks against the packages' filled ones — filled means included, hollow
+   means added. The "On top of that:" heading names the reversal in words. */
+.tier.ent{border-top-color:var(--gold)}
+.tier.ent .amt{font-size:clamp(34px,4vw,46px)}
+.tier.ent .who{font-size:16.5px;font-weight:600}
+/* Only the entity cards carry an <i>. It reads "from", and at 10px it was a
+   caption rather than part of the price — which is the wrong emphasis when the
+   whole point is that the number underneath is a floor. */
+.tier .amt i{display:block;font-style:normal;font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-deep);margin:0 0 7px}
+.tier .ontop{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin:14px 0 0;padding-top:12px;border-top:1px solid var(--hairline-2);align-self:start}
+.tier.ent ul{border-top:0;margin-top:2px}
+.tier.ent li::before{background:none;border:1px solid var(--gold);top:15px;width:5px;height:5px}
+.tier.ent li{border-bottom-color:var(--hairline)}
+/* legacy .ents / .ent shape, kept in case the renderer falls back to it.
+   Scoped to its own parent: unscoped, `.ent` also matched `class="tier ent"`
+   and repainted the real cards with a 1px rule and a gold left border. */
+.ents{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:12px}
+.ents>.ent{background:var(--paper);border:1px solid var(--hairline);border-left:2px solid var(--gold);padding:16px 18px}
+
+/* ---- the two panels share one box ----
+   Both panels occupy the same grid cell. Each is only as tall as its own cards:
+   the hidden one is display:none, so switching tabs moves the navy band up or
+   down with the content.
+
+   It used to hold the taller panel's height so the band never moved. That was
+   worth it when the entity cards carried add-on lists and the two panels were
+   close in height. With those lists gone the businesses panel is three short
+   cards, and holding the individuals panel's height left 200px of nothing
+   between them and the band. A band that moves when you press a tab is what a
+   tab does; a permanent hole is not. */
+.panels{display:grid;grid-template-rows:1fr auto}
+.panels>[role="tabpanel"]{grid-column:1;grid-row:1/span 2;display:grid;grid-template-rows:subgrid}
+@supports not (grid-template-rows:subgrid){.panels>[role="tabpanel"]{grid-row:1;grid-template-rows:1fr auto}}
+.panels>[role="tabpanel"][hidden]{display:none}
+
+/* ---- the sentence that makes every price below readable ---- */
+.included{margin:22px 0 0;padding:18px 24px;min-height:76px;display:flex;align-items:center;background:var(--navy);border-left:3px solid var(--gold);color:#fff;font-size:clamp(15px,1.7vw,17px);font-weight:500;line-height:1.5;max-width:none;letter-spacing:-.01em}
+
+.assume{display:grid;grid-template-columns:1fr auto;gap:8px 40px;align-items:baseline;margin-top:26px;padding-top:20px;border-top:1px solid var(--hairline)}
+.assume p{margin:0}
+.assume .note{text-align:right;max-width:34ch}
+
+/* ============================ SECTIONS BELOW ============================ */
+/* padding-top, not the shorthand: .wrap's horizontal padding is set earlier
+   and a shorthand here would zero it, running the whole lower page off-edge. */
+.body{padding-top:clamp(44px,6vw,76px)}
+.sec{margin:0 0 clamp(40px,5.5vw,68px)}
+.sec>h2{padding-top:16px;border-top:2px solid var(--gold);display:block}
+.sec>.sub{font-size:15.5px;color:var(--charcoal-2);margin:0 0 20px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,4.5vw,60px)}
+
+/* ---- extras: two ruled panels rather than one long list ----
+   Same rows, but grouped into cards that sit side by side, each with its own
+   header. A visitor scans the header, not forty rows. */
+/* Explicit placement, because neither a plain grid nor CSS columns packs these
+   three: a grid put the tall panel in row 1 and stranded the third below a
+   column of white space, and `columns` balanced by height and stranded it in
+   column 2. The tall panel takes the right column outright; the two short ones
+   stack in the left. Deterministic because the group order is fixed in the
+   generator, and the spec checks there are still three. */
+#extras{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+#extras>.grp:nth-child(1){grid-column:1;grid-row:1}
+#extras>.grp:nth-child(2){grid-column:2;grid-row:1/span 2}
+#extras>.grp:nth-child(3){grid-column:1;grid-row:2}
+@media (max-width:760px){
+  #extras{grid-template-columns:1fr}
+  #extras>.grp:nth-child(1),#extras>.grp:nth-child(2),#extras>.grp:nth-child(3){grid-column:1;grid-row:auto}
+}
+.grp{margin:0;background:var(--paper);border:1px solid var(--hairline)}
+.grp>h3{font-family:var(--mono);font-size:9.5px;letter-spacing:.17em;text-transform:uppercase;color:var(--gold-deep);font-weight:400;margin:0;padding:13px 18px;border-bottom:1px solid var(--hairline-2)}
+.rows{border-top:0;margin:0;padding:2px 18px 6px}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:18px;padding:11px 0;border-bottom:1px solid var(--hairline)}
+.row:last-child{border-bottom:0}
+.row .txt{display:flex;flex-direction:column;gap:2px}
+.row span{font-size:14.5px;color:var(--navy)}
+.row .det{font-size:12.5px;color:var(--mute);line-height:1.45}
+.row b{font-family:var(--mono);font-size:14px;color:var(--navy);font-weight:500;white-space:nowrap;font-variant-numeric:tabular-nums}
+.row b.free{color:var(--gold-deep)}
+
+/* ---- the situations: a cell grid, so six equal things look equal ---- */
+.sits{list-style:none;padding:0;margin:0}
+/* Three columns, not auto-fit: six items divide evenly by three at every width
+   that fits three, so the grid never ends in a half-empty row. */
+/* The same ruled list as the hourly triggers beside it: two lists doing the
+   same job should not look like two different devices. */
+#sits li,#hourlyApplies li{position:relative;padding:11px 0 11px 15px;font-size:14.5px;border-top:1px solid var(--hairline)}
+#sits li:first-child,#hourlyApplies li:first-child{border-top:1px solid var(--hairline-2)}
+#sits li::before,#hourlyApplies li::before{content:"";position:absolute;left:0;top:18px;width:6px;height:6px;background:var(--gold)}
+/* hourly is a ruled list on the cream, not a card — the contrast with the
+   grid beside it is what keeps two lists from reading as one long one */
+/* Both subs, not just the hourly one: the two lists sit side by side and start
+   on the same line only if the line above them is the same height and gap. */
+#hourly,#sitsSub{margin-bottom:14px}
+
+/* ---- closing: the promise, then the button ---- */
+.close{display:grid;grid-template-columns:1.25fr 1fr;gap:clamp(28px,4vw,56px);background:var(--paper);border:1px solid var(--hairline);border-top:2px solid var(--navy);padding:clamp(26px,3.6vw,42px)}
+.close h2{padding:0;border:0}
+.close p{margin:12px 0 0}
+/* The button had a heading over it that only announced a button. With that
+   gone the column is one control, so it centers on both axes against the
+   sentence beside it instead of hanging from a missing title. */
+.close .go{display:flex;align-items:center;justify-content:center}
+.close .btn{margin-top:0}
+.btn{display:inline-flex;align-items:center;gap:10px;margin-top:20px;background:var(--oxblood);color:#fff;font-size:15px;font-weight:600;letter-spacing:-.005em;padding:14px 26px;border-radius:2px;transition:background .18s}
+.btn::after{content:"→";font-size:14px}
+.btn:hover{background:var(--oxblood-lt);color:#fff;text-decoration:none}
+
+.back{display:block;width:fit-content;margin-top:clamp(36px,5vw,56px);font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--navy);border-bottom:1px solid var(--hairline-2);padding-bottom:3px}
+.back:hover{color:var(--oxblood);border-bottom-color:var(--oxblood);text-decoration:none}
+footer{border-top:1px solid var(--hairline-2);margin-top:30px;padding:20px 0 40px;font-size:12.5px;color:var(--mute)}
+
+/* ============================ RESPONSIVE ============================ */
+@media (max-width:1000px){
+  /* Two full rows of two rather than three-and-an-orphan. The entity row keeps
+     all three across — three cards split two ways always leaves one alone. */
+  #tiers{grid-template-columns:repeat(2,1fr);grid-template-rows:auto auto auto 1fr auto auto auto 1fr;row-gap:14px}
+  .pair{grid-template-columns:1fr}
+  .close{grid-template-columns:1fr}
+  .assume{grid-template-columns:1fr}
+  .assume .note{text-align:left;max-width:none}
+}
+@media (max-width:700px){
+  /* Phone: one card per row, and subgrid alignment stops earning its keep —
+     each card is its own column of rows, so it simply flows. */
+  .tiers,#entities{display:flex;flex-direction:column;gap:12px}
+  .tier{display:flex;flex-direction:column}
+  .tier>.name,.tier>.amt,.tier>.who,.tier>.ontop,.tier>ul{align-self:auto}
+  .tier .amt{margin-bottom:10px}
+  .top{flex-wrap:wrap;gap:12px}
+  .switch{display:grid;grid-template-columns:1fr 1fr}
+  .sw{padding:12px 10px;text-align:center}
+  .included{padding:16px 18px;min-height:0}
+  /* the price stays on the same line as what it buys, right where the eye
+     lands after the label — stacking it made every row twice as tall */
+  .row{gap:14px}
+  .sec{margin-bottom:38px}
+  .btn{width:100%;justify-content:center}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <a class="lockup" href="./" aria-label="SAT-C LLP — home">
+    <svg class="seal" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path class="s-o" d="M3 3 H19 V11 H11 V19 H3 Z"></path>
+      <rect class="s-i" x="22" y="22" width="8" height="8"></rect>
+    </svg>
+    <div class="text">
+      <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span>
+      <span class="tag">Sethuraman Accounting, Tax &amp; Consulting</span>
+    </div>
+  </a>
+  <a class="top-back" href="./">← Back to the site</a>
+</div>
+
+<header class="head">
+  <div class="wrap">
+    <p class="eyebrow">Pricing</p>
+    <h1>What a return costs.</h1>
+  </div>
+</header>
+
+<!-- Individual and entity returns are priced on different principles - one is
+     a flat price gated on what is on the return, the other a floor - so they
+     get a panel each rather than one list that blurs them. Both panels render
+     from pricing-config.js; no name or figure is hardcoded here. -->
+<div class="switchrow">
+  <div class="switch" role="tablist" aria-label="Who the pricing is for">
+    <button class="sw" id="tabInd" role="tab" aria-selected="true" aria-controls="panelInd" tabindex="0">Individuals</button>
+    <button class="sw" id="tabBiz" role="tab" aria-selected="false" aria-controls="panelBiz" tabindex="-1">Businesses</button>
+  </div>
+</div>
+
+<div class="priceband">
+  <div class="wrap">
+
+    <div class="panels">
+    <section id="panelInd" role="tabpanel" aria-labelledby="tabInd">
+      <ul class="tiers" id="tiers"></ul>
+      <p class="included" id="included"></p>
+    </section>
+
+    <section id="panelBiz" role="tabpanel" aria-labelledby="tabBiz" hidden="">
+      <ul class="tiers" id="entities"></ul>
+      <p class="included" id="entityLead"></p>
+    </section>
+    </div>
+
+    <div class="assume">
+      <p>These prices assume your records arrive complete. Additional schedules are priced a la carte below.</p>
+      <p class="note" id="current"></p>
+    </div>
+
+  </div>
+</div>
+
+<div class="wrap body">
+
+  <section class="sec">
+    <h2>Service menu</h2>
+    <div id="extras"></div>
+  </section>
+
+  <div class="pair">
+    <section class="sec">
+      <h2 id="sitsHead">Situations</h2>
+      <p class="sub" id="sitsSub">One price each, however many apply.</p>
+      <ul class="sits" id="sits"></ul>
+    </section>
+
+    <section class="sec">
+      <h2>Hourly situations</h2>
+      <p class="sub" id="hourly"></p>
+      <ul class="sits" id="hourlyApplies"></ul>
+      <p class="note" style="margin:16px 0 0">Depending on what turns up, hourly work is either added to a fixed price or replaces it. You hear which before we start.</p>
+    </section>
+  </div>
+
+  <section class="sec close">
+    <div>
+      <h2>Before we start</h2>
+      <p>We&#39;ll walk through what you need together and tell you what it costs.</p>
+    </div>
+    <div class="go">
+      <a class="btn" href="./#intake">Get started</a>
+    </div>
+  </section>
+
+  <a class="back" href="./">← Back to the site</a>
+
+  <footer>
+    © <span id="year">2026</span> Sethuraman Accounting, Tax &amp; Consulting
+  </footer>
+
+</div>
+
+
+
+<script src="pricing-config.js"></script>
+<script>
+(function () {
+  var P = window.SATC_PRICING;
+  if (!P) return;
+
+  function money(n) { return '$' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function el(id) { return document.getElementById(id); }
+
+  function card(cls, name, amount, who, list, ontop) {
+    return '<li class="tier' + cls + '">' +
+      '<p class="name">' + name + '</p>' +
+      '<p class="amt">' + amount + '</p>' +
+      '<p class="who">' + who + '</p>' +
+      (ontop ? '<p class="ontop">' + ontop + '</p>' : '') +
+      '<ul>' + list.map(function (c) { return '<li>' + c + '</li>'; }).join('') + '</ul>' +
+    '</li>';
+  }
+
+  // Package names come from config, never from markup — see pricing-config.js.
+  el('tiers').innerHTML = P.packages.map(function (p) {
+    return card('', p.name, money(p.price), p.who, p.covers, '');
+  }).join('');
+  el('included').textContent = P.includedInEvery;
+
+  // Same card, two deliberate differences: the amount carries "from" because an
+  // entity base is a floor, and the list is what costs EXTRA rather than what
+  // is included — so it is labelled instead of being left to look like the
+  // package bullets it sits beside.
+  el('entities').innerHTML = P.entities.map(function (e) {
+    // No list. What gets added is the same for all three but one, so the band
+    // below says it once instead of two cards repeating it and the third
+    // having nothing to say.
+    return card(' ent', e.name, '<i>from</i>' + money(e.amount), e.who, [], '');
+  }).join('');
+  el('entityLead').textContent = P.entityLead;
+
+  el('current').innerHTML = P.currentPrices;
+
+  el('extras').innerHTML = P.extraGroups.map(function (g) {
+    return '<div class="grp"><h3>' + g.title + '</h3><div class="rows">' +
+      g.rows.map(function (x) {
+        var amt = money(x.amount) + (x.reprices ? ' + the return' : '');
+        return '<div class="row"><span class="txt">' + x.label +
+          (x.detail ? '<span class="det">' + x.detail + '</span>' : '') +
+          '</span><b>' + amt + '</b></div>';
+      }).join('') + '</div></div>';
+  }).join('');
+
+  el('sitsHead').textContent = money(P.situationPrice) + ' situations';
+  el('sits').innerHTML = P.situations.map(function (s) { return '<li>' + s + '</li>'; }).join('');
+
+  el('hourly').innerHTML = '<strong>' + money(P.hourly.rate) + ' an hour</strong>, billed to ' +
+    P.hourly.billedIn + '.';
+  el('hourlyApplies').innerHTML = P.hourlyApplies.map(function (s) { return '<li>' + s + '</li>'; }).join('');
+
+  // The switch. Both panels are visible until this runs, so with JS off the
+  // page still shows every price — it just cannot flip between them.
+  var tabs = [[el('tabInd'), el('panelInd')], [el('tabBiz'), el('panelBiz')]];
+  function show(i, focus) {
+    tabs.forEach(function (pair, j) {
+      pair[0].setAttribute('aria-selected', j === i ? 'true' : 'false');
+      pair[0].tabIndex = j === i ? 0 : -1;
+      pair[1].hidden = j !== i;
+    });
+    if (focus) tabs[i][0].focus();
+    try { history.replaceState(null, '', i ? '#businesses' : '#individuals'); } catch (e) {}
+  }
+  tabs.forEach(function (pair, i) {
+    pair[0].addEventListener('click', function () { show(i, false); });
+    // Left/right arrows are what a tablist is expected to answer to.
+    pair[0].addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') {
+        ev.preventDefault();
+        show(i === 0 ? 1 : 0, true);
+      }
+    });
+  });
+  show(/^#business/i.test(location.hash) ? 1 : 0, false);
+
+  var y = el('year');
+  if (y) y.textContent = new Date().getFullYear();
+})();
+</script>
+
+</body>
+</html>
+

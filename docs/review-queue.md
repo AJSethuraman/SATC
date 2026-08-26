@@ -174,7 +174,9 @@ under this cover letter?]`
 
 Nothing here blocks anything else. Item 1 is the only one with a clock on it.
 
-`published prices match the fee schedule` stays **red on #155 by decision** —
-the firm: *"the website half is unnecessary — when we are said and done i will
-have you give me the fee schedule and we will ensure it's right."* The three
-pytest jobs are green. Do not push to `website/` to clear it.
+`published prices match the fee schedule` is **green again as of 26 August.**
+It was left red by decision — *"the website half is unnecessary"* — until it
+re-fired on every push and the firm asked for it gone. Three dead references
+deleted from `website/build-pricing-config.py`, config regenerated, 58/61 →
+61/61. The page lost one line and no price moved. **The fee-schedule walkthrough
+the firm asked for still stands** and is in `PLAN.md`.

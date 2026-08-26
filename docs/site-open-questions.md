@@ -197,70 +197,30 @@ The interview does not force it closed from its side: the test asserts that
 every value the *site* sends is one the interview understands, and treats the
 reverse as a note.
 
-## B7. The price page's hourly list has a stale line
+## B7. ~~The price page's hourly list has a stale line~~ — DONE
 
-**ANSWERED 26 August 2026, and it is not a question any more — it is a patch
-waiting to be applied.** The `published prices match the fee schedule` job
-fails on PR #155 because that branch changed
-`client-documents/registry/fee-schedule.yaml` and the page's generator still
-names something the schedule no longer has.
+**Closed 26 August 2026. The patch is applied and the check is green (61/61).**
 
-**The firm's answer: let the line drop.** "A letter from the IRS or the state
-you would like us to handle" comes off the public hourly list, and no schedule
-change is needed to put it anywhere else. The patch below is the whole of it.
+Two lines left `client-documents/registry/fee-schedule.yaml` on the firm's
+instruction — `assumed.notice_response` (*"notices and correspondence belong in
+a different letter engagement"*) and `per_unit.brokerage_keyed`, the $95
+keyed-brokerage line (*"we are actually deleting the $95 thing — all are
+$45"*). `website/build-pricing-config.py` still carried client wording for
+both, and the spec's `set(HOURLY_COPY) == set(sched["assumed"])` is an
+equality, so an orphan failed it.
 
-**The firm also said the website half is not urgent** — *"the website half is
-unnecessary — when we are said and done i will have you give me the fee
-schedule and we will ensure it's right."* So the check stays red on #155 by
-decision, not by oversight. Apply this whenever the page is next touched.
+Three dead references deleted and `pricing-config.js` regenerated. **The page
+changed by exactly one line** — "A letter from the IRS or the state you would
+like us to handle" left the hourly list, which is the firm's own answer ("let
+it drop"). No published price moved; the keyed-brokerage line was never on the
+menu, so removing its copy was dead-code removal.
 
-I have not applied the fix. `website/` is the site agent's, and the change
-removes a line a client reads on satcllp.com — so it is theirs to make. The
-patch below is verified: applied to the merge of `#155` and `main` it takes
-`website/pricing.spec.py` from **58/61** to **61/61**.
-
-### What broke
-
-Two things left the fee schedule on 26 August, both on the firm's instruction:
-
-- `assumed.notice_response` — *"notices and correspondence belong in a
-  different letter engagement or would be discussed anyway, get rid of it."*
-- `per_unit.brokerage_keyed` (the $95 keyed-brokerage line) — *"we are
-  actually deleting the $95 thing — all are $45."*
-
-`build-pricing-config.py` still carries client wording for both. The spec's
-`set(HOURLY_COPY) == set(sched["assumed"])` is an equality, so an orphan fails
-it. (Its failure message only prints what is *missing from* the copy, so it
-reads `Missing []` — the orphan is on the other side. Worth widening that
-message; a check that fails with an empty list is a check nobody can act on.)
-
-### The patch
-
-In `website/build-pricing-config.py`, delete three things:
-
-```diff
- EXTRA_COPY = {
-     ...
--    "per_unit.brokerage_keyed":   ("Keyed brokerage statement", "Form 1099&#8209;B"),
-
- HOURLY_COPY = {
-     ...
--    "notice_response":   "A letter from the IRS or the state you would like us to handle",
-
- NOT_ON_THE_MENU = {
-     ...
--    # One brokerage price on the menu. When a statement has to be keyed the
--    # time is billed, and the hourly list says so — two prices for the same
--    # document read as a penalty.
--    "per_unit.brokerage_keyed":
--        "one brokerage price on the menu; keying is in the hourly list",
-```
-
-Then `cd website && python3 build-pricing-config.py`. The regenerated
-`pricing-config.js` differs by exactly one line — the notice-response entry
-drops out of `hourlyApplies`. **No published price changes.** The keyed
-brokerage line was never on the menu, so deleting its copy is dead-code
-removal; only the `notice_response` deletion is required for green.
+**The site agent should know this was touched.** It is the one edit made in
+`website/` from this branch, it was mechanical rather than a wording decision,
+and it was made only because the check re-fired on every push. The generator's
+failure message is still worth widening: it prints only what is missing FROM
+the copy, so an orphan on the other side reads as `Missing []` — a failure
+nobody can act on.
 
 ### The decision behind it, and what it leaves standing
 
