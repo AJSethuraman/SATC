@@ -48,6 +48,45 @@ test that breaks its join on purpose.
    since 25 August because the firm asked to walk them. Each assumption is
    what decides whether a client pays $50 or an hourly rate.
 
+## The organizer — asked 26 August, answered here
+
+The firm, on that card: *"i want to see this when i see the organizer - what
+is this and how do they fill it out? it should be as simple as we can make it
+for both of our sakes."*
+
+**There is no organizer.** There is a cover letter for one. It says *"Your
+organizer for the 2026 tax year is enclosed. It is prefilled with what we
+carried forward from last year"* — a promise about a document that does not
+exist in this repo, and the reason the card could not answer the question.
+
+The letter is not broken. Its `Requested` list is registered as required, so a
+render with nothing in it **refuses** rather than printing "What to send" over
+a gap. What it cannot do is describe a document nobody has built.
+
+**Chasing that found a real bug and it is fixed.** `doctor --engagement`
+reported the organizer letter **"Ready now"** while `render` refused it —
+doctor's readiness check left out the required-lists guard that render
+applies. Two halves of one tool disagreeing about the same document is worse
+than either answer alone: whichever you happen to run is the one you believe.
+They now ask the same question, and a test holds every document to that.
+
+**What the firm has to decide before an organizer can be built**, because none
+of it is an agent's to assert:
+
+1. **Is it a form, or a checklist?** A traditional organizer is a booklet of
+   prior-year figures with blanks beside them. The cover letter promises
+   "prefilled with what we carried forward" — which needs last year's return
+   in the software, and Drake is the system of record for that.
+2. **What is the return path?** The cover letter says the secure upload link.
+   A booklet that comes back as a scan is not data; a web form is.
+3. **How much of it is already the interview?** `return_features`,
+   `extra_forms` and the request list ask most of what an organizer asks. The
+   honest question is whether the organizer for a RETURNING client is anything
+   more than last year's answers, shown back for confirmation.
+
+The third is the one worth answering first, and it is close to the firm's own
+words — *"as simple as we can make it for both of our sakes"*.
+
 ## To decide — a question only the firm can answer
 
 1. **Merge PR #153.** Nothing from the last two days is on `main`: fifteen

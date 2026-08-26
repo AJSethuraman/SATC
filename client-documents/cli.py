@@ -284,13 +284,19 @@ def _engagement_readiness(ref: str, store: Path) -> int:
     letter = OPENING_BY_RETURN.get(record.get("_return_type", "individual"))
     relevant = [d for d in DOCUMENTS
                 if STAGE[d] != "opening" or d == letter
-                or d in ("fee-estimate", "onboarding-letter", "organizer-letter")]
+                or d in ("fee-estimate", "onboarding-letter", "organizer-letter",
+                         "records-release")]
 
     ready, blocked = [], {}
     for doc in relevant:
         template = (TEMPLATE_DIR / DOCUMENTS[doc][0]).read_text(encoding="utf-8")
         try:
-            merge.render(template, record)
+            # THE SAME CALL `render` MAKES, required lists and all. It used to
+            # omit them, so `doctor` reported the organizer letter "Ready now"
+            # while `render` refused it -- two halves of one tool disagreeing
+            # about the same document, which is worse than either answer.
+            merge.render(template, record,
+                         required_lists=_required_lists().get(doc, ()))
             ready.append(doc)
         except merge.MergeError as exc:
             blocked[doc] = html.unescape(str(exc))

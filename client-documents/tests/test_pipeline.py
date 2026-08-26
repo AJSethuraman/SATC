@@ -396,3 +396,48 @@ def test_the_registry_is_what_decides_which_lists_are_required():
     assert "LineItems" in required.get("invoice", ())
     # An extension notice with nothing outstanding is a real document.
     assert "OutstandingItems" not in required.get("extension-notice", ())
+
+
+# ── doctor and render must agree ──────────────────────────────────────────
+
+def test_doctor_and_render_agree_about_every_document(tmp_path):
+    """They did not. `doctor --engagement` reported the organizer cover letter
+    "Ready now" while `render` refused it, because doctor's readiness check
+    left out the required-lists guard that render applies.
+
+    Two halves of one tool disagreeing about the same document is worse than
+    either answer on its own: whichever a person happens to run is the one
+    they believe.
+    """
+    import engagements
+    import merge as m
+
+    record = cli.build_record(_load("tax-opening-package.json"))
+    for doc, (filename, _) in cli.DOCUMENTS.items():
+        template = (cli.TEMPLATE_DIR / filename).read_text(encoding="utf-8")
+
+        def renders(**kw):
+            try:
+                m.render(template, record, **kw)
+                return True
+            except m.MergeError:
+                return False
+
+        doctor_says = renders(required_lists=cli._required_lists().get(doc, ()))
+        try:
+            cli._render_one(doc, record, tmp_path, draft=False, want_pdf=False)
+            render_says = True
+        except m.MergeError:
+            render_says = False
+        assert doctor_says == render_says, (
+            f"{doc}: doctor says {'ready' if doctor_says else 'blocked'} and "
+            f"render says {'ready' if render_says else 'blocked'}"
+        )
+
+
+def test_the_organizer_cover_letter_refuses_without_its_list():
+    """It promises an enclosed organizer and a "what to send" list. With no
+    `Requested`, section 01 is a heading with nothing under it."""
+    record = cli.build_record(_load("tax-opening-package.json"))
+    assert "Requested" not in record
+    assert "Requested" in cli._required_lists()["organizer-letter"]
