@@ -172,6 +172,23 @@ check(all(p.get("covers") for p in cfg["packages"]),
 check("</div>" not in page_src.split('class="tiers"')[0].split("<h1")[-1],
       "no explanatory box sits between the headline and the prices")
 
+# The firm's position, stated 26 Aug 2026: take credit for being transparent
+# rather than pointing at anyone else. "i'm not personally a huge fan of
+# shifting the blame to others ... we don't need to say anything about other
+# tax places."
+COMPARATIVE = ("other firms", "other tax", "most tax sites", "most firms", "unlike",
+               "competitor", "elsewhere you", "cheaper than", "big box")
+found_cmp = [w for w in COMPARATIVE if w in page_src.lower() or w in config_src.lower()]
+check(not found_cmp, f"the page makes no claim about anyone else's pricing — found {found_cmp}")
+
+# American spelling. The firm is a US LLP filing US returns; "Itemised" was
+# wrong on a page whose subject is Schedule A, Itemized Deductions.
+BRITISH = ("cancelled", "itemised", "recognise", "licence", "colour", "organis",
+           "analyse", "centre", "grey", "whilst", "amongst", "practise", "defence")
+visible = (page_src + config_src).lower()
+found_brit = [w for w in BRITISH if w in visible]
+check(not found_brit, f"no British spellings in the published copy — found {found_brit}")
+
 check(cfg["hourly"]["rate"] == sched["basis"]["rate"],
       f"hourly rate matches the schedule (${sched['basis']['rate']})")
 check(sched["basis"]["round_time_to"] == 0.25,

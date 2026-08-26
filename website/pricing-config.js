@@ -119,7 +119,7 @@ window.SATC_PRICING = {
      here — attached to a real engagement, where it means something. */
   situations: [
     'You sold a home',
-    'You had a debt cancelled or forgiven',
+    'You had a debt canceled or forgiven',
     'You sold, exchanged or spent digital assets',
     'You had health insurance through the marketplace',
     'You paid into or out of an HSA',
