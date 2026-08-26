@@ -28,19 +28,23 @@ a website that contradicts the estimate is worse than a website with no prices.
 
 ## 1 · The four individual packages
 
-One package per client. The client is in the **first** package whose test they
-meet, reading down this list — the tests are written most specific first.
+One package per client, and the client gets **the cheapest one that covers
+their return**. That is the engine's own rule, not a promise made in copy —
+among the packages a client qualifies for, it quotes the lowest total.
 
 | Package | Price | Who it is |
 |---|---|---|
 | **Starter** | **$100** | Wages only. No other income document arrived, nobody is claimed as a dependent, standard deduction. A tuition form for a credit you claim for yourself is fine here. |
-| **Property & Business** | **$500** | You have rentals, a farm, or a business running on actual expenses. |
-| **Standard** | **$325** | You have schedules, but nothing that scales — itemising, investments, a gig business on the standard mileage rate. |
 | **Essentials** | **$200** | A straightforward return with no schedules. |
+| **Standard** | **$325** | You have schedules — itemising, investments, rentals, a farm, a gig business on the standard mileage rate. |
+| **Business** | **$500** | You run a business on actual expenses, a home office, depreciation, inventory or payroll. |
 
-Read as a ladder for a reader, that is Starter $100 → Essentials $200 →
-Standard $325 → Property & Business $500. The order above is the *matching*
-order, not the display order; **display them cheapest to dearest**.
+That is also the display order: **cheapest to dearest**.
+
+> **The package names are not final.** The firm is reworking all four to sound
+> more like the firm. Do not build copy, headings or URLs that assume these
+> exact words. "Business" in particular is a placeholder — it replaced
+> "Property & Business" on 26 August when rentals stopped being a package.
 
 **Every package includes the federal return, the first state return and the
 first local return.** This sentence is load-bearing and must appear wherever a
@@ -57,15 +61,14 @@ dividends. The standard deduction.
 **Standard** — everything in Essentials, plus itemised deductions, one
 brokerage statement, up to two K-1s, and a gig Schedule C on standard mileage.
 
-**Property & Business** — everything in Standard, plus **either** up to three
-rental properties **or** one full Schedule C. Not both. K-1s are not part of
-this allowance; they meter from Standard upward.
+**Business** — everything in Standard, plus one full Schedule C: a business
+on actual expenses, a home office, depreciation, inventory or employees.
 
-The gig Schedule C inside Standard **does** carry up through Property &
-Business — that was the collision this file used to warn about, and the firm
-resolved it on 25 August 2026 in the client's favour. So a landlord with a
-side gig on standard mileage pays $500 and nothing more; the either/or above
-is between rentals and a **full** Schedule C. Safe to write copy on now.
+**Rentals and farms are no longer a package.** This is the change that matters
+most for the site, made 26 August 2026. A Schedule E is priced as a form the
+way the rest of the market prices it — so a landlord is a **Standard** client
+with a Schedule E beside it, not a client pushed up a rung. A landlord pays
+the same whether or not they itemise, which was not true before.
 
 ---
 
@@ -77,7 +80,9 @@ Only past what the package already covers.
 |---|---|
 | Each state return after the first | $50 |
 | Each local return after the first | $35 |
-| Each rental beyond the package's three | $45 |
+| Rental schedule — the Schedule E, covering up to three properties | $145 |
+| Each rental property past those three | $45 |
+| Farm schedule — the Schedule F | $200 |
 | Each K-1 beyond the package's two | $15 |
 | Each additional gig Schedule C | $65 |
 | Each additional full Schedule C | $200 |
@@ -85,7 +90,7 @@ Only past what the package already covers.
 | Each brokerage statement that has to be entered by hand | $95 |
 | Each foreign account | $50 |
 | Any one of the named per-form situations (see below) | $50 |
-| Earned income credit, with the required due diligence | $150 |
+| Earned income credit, with the required due diligence | $65 |
 | Amended return | $250 |
 | Extension with a payment estimate | $75 |
 
@@ -107,7 +112,16 @@ site**; they belong on the client's own estimate, where they are attached to
 a real engagement. On the site, "$50 each" plus the list above is the whole
 story.
 
-**Business returns** (1120-S, 1065, 1120) are **not priced on the website
+**Business returns** are priced now — **$800** for a partnership (1065),
+**$950** for an S corporation (1120-S), **$950** for a corporation (1120).
+They were the last blanks on the sheet and they were set on 26 August 2026.
+
+One caveat that must survive into any copy: an entity return that has to file
+a **balance sheet** is more work than one that does not, and that is charged
+separately rather than being absorbed into the base. Do not write copy that
+implies the base is the whole price for an entity.
+
+The paragraph this replaces said business returns were **not priced
 yet** — the firm has not set those figures. Say "quoted after a
 conversation", never a number.
 
@@ -168,28 +182,37 @@ All of this exists in the repo and none of it is public-facing:
 
 ## 6 · What is not final
 
-Publish knowing this. The **four package prices and every per-extra price
-above are signed, built and stable** — including the brokerage lines, the $50
-per-form price and the gig Schedule C inside Property & Business, all three of
-which this file used to list here as unbuilt. They are built now, they are in
-`fee-schedule.yaml`, and the estimate a client receives uses them.
+Publish knowing this. **Every price in this file is now set, built and in
+`fee-schedule.yaml`** — the schedule carries no unpriced items at all, for the
+first time. The entity bases were the last three and they were set on
+26 August 2026.
 
 What remains genuinely unsettled:
 
-- **The three entity base fees** (1120-S, 1065, 1120). Nobody has set them.
-  They are the only prices in the schedule still carrying a `[CONFIRM:`, and
-  they are the reason §2 says "quoted after a conversation" rather than a
-  number. Do not fill this gap with a range, a "from" price, or a hint.
+- **The package names.** All four are being reworked to sound more like the
+  firm. This is the single biggest risk to website work: names end up in
+  headings, anchors, URLs and image alt text, and renaming them later is a
+  content migration rather than a find-and-replace. **Build the page so the
+  names are data, not markup.**
+- **Whether the firm takes farm work at all.** The Schedule F is priced at
+  $200 so the software does not give the work away while the question is open,
+  but the firm has said it is unsure it wants to do it. **Do not advertise
+  farm returns** until that is settled — a published price is a solicitation.
 - **The hourly rate is soft.** $150 is the firm's own estimate of its average,
-  described as "at least for now". It is safe to publish as the hourly rate.
-  It is not safe to build copy that treats it as a fixed, permanent figure.
-- **One thing the estimate no longer says.** Brokerage used to carry a written
-  assumption on every estimate; it is now two priced lines instead, and the
-  warning came off with it. A client whose 1099-B turns out to need keying
-  sees $95 for the first time on the invoice. That is a gap in the client's
-  *document*, not in the website's prices — the $95 is real and correct to
-  publish — but it is worth knowing about if you are writing copy that
-  promises no surprises. Tracked as T-14.
+  described as "at least for now". The NSA survey puts the market at $149.52
+  for Schedule E work, so it is safe to publish. It is not safe to build copy
+  that treats it as a fixed, permanent figure.
+- **The estimate says less than it used to about brokerage.** A client whose
+  1099-B needs keying by hand now meets the $95 as a priced boundary in the
+  estimate's assumptions rather than as an hourly warning. The $95 is real and
+  correct to publish; it is worth knowing about if you are writing copy that
+  promises no surprises.
+
+**What changed on 26 August, in case this file is read against older copy.**
+Rentals and farms left the package ladder and became priced forms. Property &
+Business became Business. The earned income credit dropped from $150 to $65 to
+match the market. The three entity bases were set and split. If any draft copy
+says a landlord is a $500 client, it predates all of this and is wrong.
 
 ---
 
