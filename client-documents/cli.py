@@ -132,12 +132,26 @@ def _pdf_chromium(html: str, out: Path, base: Path, draft: bool = False) -> None
     from playwright.sync_api import sync_playwright
     import os, tempfile
     exe = os.environ.get("SATC_CHROMIUM") or "/opt/pw-browsers/chromium"
-    # A temp file rather than set_content, so relative links (satc-doc.css,
-    # doc-page.js) resolve exactly as they do when the template is opened.
-    with tempfile.NamedTemporaryFile("w", suffix=".html", dir=base,
-                                     encoding="utf-8", delete=False) as fh:
-        fh.write(html)
-        tmp = Path(fh.name)
+    # A file on disk rather than set_content, so relative links resolve exactly
+    # as they do when the template is opened.
+    #
+    # IN A SCRATCH DIRECTORY, NOT IN `base`. Until 26 August 2026 this wrote
+    # straight into 04-TEMPLATES, which meant a RENDERED CLIENT DOCUMENT --
+    # real name, real address -- sat in the tracked template library for the
+    # length of every render. That is the exact condition
+    # `test_the_template_directory_holds_only_templates` exists to catch, and
+    # it caught it: the test flaked whenever it ran beside a PDF render. A
+    # guard tripping over the thing it guards against is the guard working.
+    #
+    # The two assets every template links are copied in beside it, so the
+    # render is byte-identical to the old one.
+    scratch = Path(tempfile.mkdtemp(prefix="satc-render-"))
+    for asset in ("satc-doc.css", "doc-page.js"):
+        src = base / asset
+        if src.exists():
+            (scratch / asset).write_bytes(src.read_bytes())
+    tmp = scratch / "render.html"
+    tmp.write_text(html, encoding="utf-8")
     try:
         with sync_playwright() as p:
             launch = {"executable_path": exe} if Path(exe).exists() else {}
@@ -155,7 +169,8 @@ def _pdf_chromium(html: str, out: Path, base: Path, draft: bool = False) -> None
                      margin={"top": "0", "bottom": "0", "left": "0", "right": "0"})
             browser.close()
     finally:
-        tmp.unlink(missing_ok=True)
+        import shutil
+        shutil.rmtree(scratch, ignore_errors=True)
 
 
 def _pdf_weasyprint(html: str, out: Path, base: Path, draft: bool = False) -> None:
