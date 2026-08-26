@@ -44,9 +44,28 @@ Sent in January with the tax organizer, ahead of the engagement letter and estim
 | `[[IF FeeChange]]` | Flag | true / false | Drops the fee paragraph entirely when false |
 | `<<FeeChangeNote>>` | If flagged | Our fees for individual returns are increasing modestly this year. | One or two sentences. **Say it in January or not at all.** |
 
-**Total: 13 fields + 1 repeating list of 2 + 1 conditional flag.**
+**Total: 20 fields + 1 repeating list of 2 + 1 conditional flag.**
 
-Not variables: firm name, address, phone, website, the Ohio LLP footer, the secure upload instruction, and the five items in section 02.
+Not variables: the secure upload instruction, and the five items in section 02.
+
+### The firm itself (8 fields)
+
+Masthead, footer, and the sign-off's "on behalf of" line. Set in
+`client-documents/registry/firm-settings.yaml` under `firm:`, and merged like
+any other field — until 26 August 2026 they were typed into all ten templates,
+byte for byte, which is what made a change of address a ten-file edit.
+
+| Field | Required | Example | Notes |
+|---|---|---|---|
+| `<<FirmName>>` | Yes | SAT-C LLP | The short form a client reads. Masthead and sign-off. |
+| `<<FirmLegalName>>` | Yes | Sethuraman Accounting, Tax, and Consulting LLP | The registered name. Footer only. |
+| `<<FirmAddress1>>` | Yes | 6544 Copley Avenue | Masthead and footer |
+| `<<FirmCity>>` + `<<FirmState>>` + `<<FirmZip>>` | Yes | Solon · OH · 44139 | Three fields. Masthead and footer. |
+| `<<FirmWebsite>>` | Yes | satcllp.com | No protocol, no `www.` |
+| `<<FirmJurisdiction>>` | Yes | Ohio | The state of registration, named in the footer's partnership sentence |
+
+The logo lockup is **not** a field. The wordmark is artwork: a firm that
+changes its name gets a new mark drawn, not a string substituted.
 
 ---
 
@@ -63,6 +82,14 @@ Not variables: firm name, address, phone, website, the Ohio LLP footer, the secu
   "ClientState": "OH",
   "ClientZip": "44139",
   "MaterialsDeadline": "March 15, 2027",
+  "FirmName": "SAT-C LLP",
+  "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
+  "FirmAddress1": "6544 Copley Avenue",
+  "FirmCity": "Solon",
+  "FirmState": "OH",
+  "FirmZip": "44139",
+  "FirmWebsite": "satcllp.com",
+  "FirmJurisdiction": "Ohio",
   "PreparerName": "Arjun Sethuraman, CPA",
   "PreparerTitle": "Managing Partner",
   "Requested": [

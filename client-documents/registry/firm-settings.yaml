@@ -8,6 +8,38 @@
 # in the output, so a placeholder can never reach a client. Everything else can
 # be built and tested around them.
 
+# THE FIRM ITSELF. Every template's masthead, footer and sign-off merges from
+# here, so the address, the website and the name of the firm are set once.
+#
+# Until 26 August 2026 all of it was typed into ten template files, byte for
+# byte. The firm's instruction: "making the assumption that things like the
+# email and phone number are generated from a template - this could change in
+# the future, we could hire, etc. software needs to be made to be robust and
+# scalable." It is now true.
+#
+# What is NOT here: the logo lockup. The wordmark is artwork, not a merge
+# field — a firm that changes its name gets a new mark drawn, not a string
+# substituted.
+firm:
+  # Fields: FirmName, FirmLegalName, FirmAddress1, FirmCity, FirmState,
+  # FirmZip, FirmWebsite, FirmJurisdiction.
+  #
+  # `name` is the short form a client reads — masthead, sign-off, remit-to.
+  # `legal_name` is the registered one, and appears only in the footer. Four
+  # variants of it were in circulation as of 25 Aug 2026 (three in this repo,
+  # one on the firm's own fee workbook); this is the one, and now that the
+  # footers merge it rather than repeating it, it is enforced rather than
+  # merely documented.
+  name: "SAT-C LLP"
+  legal_name: "Sethuraman Accounting, Tax, and Consulting LLP"
+  address1: "6544 Copley Avenue"
+  city: "Solon"
+  state: "OH"
+  zip: "44139"
+  website: "satcllp.com"
+  # The state of registration, named in the footer's partnership sentence.
+  jurisdiction: "Ohio"
+
 preparer:
   # Fields: PreparerName, PreparerTitle, PreparerEmail.
   name: "Arjun Sethuraman, CPA"
@@ -96,14 +128,6 @@ materials_deadlines:
     s_corp_1120s:    "February 22, 2027"
     partnership_1065: "February 22, 2027"
     c_corp_1120:     "March 25, 2027"
-
-# SETTLED 25 Aug 2026. Four variants were in circulation — three in this repo and
-# a fourth on the firm's own fee workbook. This is the one.
-#
-# Still HARDCODED in every template footer rather than merged, so this value
-# documents the target rather than enforcing it. Two footers and the workbook
-# disagree with it and need correcting; nothing in the build catches them.
-legal_name: "Sethuraman Accounting, Tax, and Consulting LLP"
 
 # CLOSED 26 August 2026, on the firm's answer to round eleven. Their words,
 # kept because they are the reasoning and not just the answer:

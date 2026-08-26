@@ -20,11 +20,10 @@
     <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
   </div>
   <div class="contact">
-    <b>SAT-C LLP</b><br/>
-    6544 Copley Avenue<br/>
-    Solon, OH 44139<br/>
-    307-941-0508<br/>
-    satcllp.com
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
   </div>
 </div>
 <div class="rule"></div>
@@ -45,7 +44,7 @@
 <div class="body">
   <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
 
-  <p>Thank you for choosing SAT-C LLP. This letter tells you what to send us, where to send it, and what happens next. <strong>Sign the engagement letter first</strong> — it is waiting for you in Encyro.</p>
+  <p>Thank you for choosing <span class="f">&lt;&lt;FirmName&gt;&gt;</span>. This letter tells you what to send us, where to send it, and what happens next. <strong>Sign the engagement letter first</strong> — it is waiting for you in Encyro.</p>
 
   <div class="dateline">
     <div>
@@ -102,14 +101,14 @@
     <p>Sincerely,</p>
     <div class="sp"></div>
     <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
-    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of SAT-C LLP</div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
   </div>
 </div>
 
 </div>
 
 <div slot="footer" class="foot">
-  <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139.</p>
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
   <span class="id">ONBOARDING<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
 </div>
 
@@ -133,7 +132,7 @@
     <tr><td>&lt;&lt;AckWindow&gt;&gt;</td><td class="req">Required</td><td>three business days — a duration, phrased to drop into the sentence</td></tr>
     <tr><td>&lt;&lt;FirstDeliverableTarget&gt;&gt;</td><td class="req">Required</td><td>April 1, 2027 — a date or a phrase, whichever you can honour. It is the promise the client remembers.</td></tr>
     <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner. Name appears twice — the dateline and the sign-off.</td></tr>
-    <tr><td>&lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>arjun_sethuraman@satcllp.com. Phone appears twice — section 03's anti-fraud line and section 06.</td></tr>
+    <tr><td>&lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>arjun_sethuraman@satcllp.com — the only way the letter offers to reach us. No phone until the firm has a business line.</td></tr>
     <tr><td>&lt;&lt;PriorFirmName&gt;&gt;</td><td class="opt">If PriorFirm</td><td>Halloran &amp; Reeve CPAs</td></tr>
     <tr><td>[[IF PriorFirm]]</td><td class="req">Flag</td><td>Boolean. Drops section 04 entirely for a client with no previous accountant. <b>Renumber the remaining sections in code</b> — 05 and 06 must not follow 03.</td></tr>
   </table>

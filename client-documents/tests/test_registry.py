@@ -103,6 +103,92 @@ def test_no_orphan_registry_fields(parsed, registry):
     assert not orphans, f"registry lists fields no template uses: {sorted(orphans)}"
 
 
+# ── the FIELDS docs agree with the templates ──────────────────────────────
+
+# Registry name -> the companion FIELDS doc. §7 of the authoring contract makes
+# the pair the unit of work: a template without its spec is not done.
+FIELDS_DOCS = {
+    "tax-letter": "FIELDS - Engagement Letter - Tax Preparation.md",
+    "business-letter": "FIELDS - Engagement Letter - Business Return.md",
+    "bookkeeping-letter": "FIELDS - Engagement Letter - Bookkeeping.md",
+    "fee-estimate": "FIELDS - Fee Estimate.md",
+    "invoice": "FIELDS - Invoice.md",
+    "onboarding-letter": "FIELDS - Onboarding Letter.md",
+    "organizer-letter": "FIELDS - Organizer Cover Letter.md",
+    "delivery-letter": "FIELDS - Tax Return Delivery Letter.md",
+    "extension-notice": "FIELDS - Extension Notice.md",
+    "disengagement-letter": "FIELDS - Disengagement Letter.md",
+}
+
+
+@pytest.fixture(scope="module")
+def body_fields():
+    """The fields a template actually merges, ignoring its on-screen crib.
+
+    `parsed` reads the whole file, and the `<div class="ref">` block at the
+    bottom quotes every token in a table. That block is stripped before a
+    client ever sees the document (`merge._REF_BLOCK`), so it is the wrong
+    thing to hold the specification to.
+    """
+    out = {}
+    for name, filename in TEMPLATES.items():
+        html = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
+        out[name] = tokens_in(html.split('<div class="ref">')[0])["fields"]
+    return out
+
+
+@pytest.mark.parametrize("name", sorted(FIELDS_DOCS))
+def test_the_fields_doc_names_every_field_its_template_merges(name, body_fields):
+    """The spec is what a person reads before wiring anything to a template.
+
+    It went stale the moment the firm block moved out of the templates and
+    into settings: ten specs still said the address was "not a variable" while
+    eight new fields merged it. Nothing caught that, because nothing had ever
+    compared the two.
+    """
+    doc = (TEMPLATE_DIR / FIELDS_DOCS[name]).read_text(encoding="utf-8")
+    named = set(re.findall(r"<<([A-Za-z][\w.]*)>>", doc))
+    named |= set(re.findall(r'"([A-Z]\w+)":', doc))      # the example payload
+    missing = sorted(body_fields[name] - named)
+    assert not missing, (
+        f"{FIELDS_DOCS[name]} does not mention fields the template merges: {missing}"
+    )
+
+
+@pytest.mark.parametrize("name", sorted(FIELDS_DOCS))
+def test_the_fields_doc_field_count_is_true(name, body_fields):
+    """A stated total is a claim, and every one of the ten was wrong.
+
+    They drifted by one to three as fields were added and retired over the
+    build. The number is small enough to look authoritative and nobody
+    recounts it, which is exactly the kind of thing to pin.
+    """
+    doc = (TEMPLATE_DIR / FIELDS_DOCS[name]).read_text(encoding="utf-8")
+    stated = re.search(r"\*\*Total: (\d+) fields", doc)
+    assert stated, f"{FIELDS_DOCS[name]} states no total"
+    assert int(stated.group(1)) == len(body_fields[name]), (
+        f"{FIELDS_DOCS[name]} claims {stated.group(1)} fields; the template "
+        f"merges {len(body_fields[name])}"
+    )
+
+
+@pytest.mark.parametrize("name", sorted(FIELDS_DOCS))
+def test_a_fields_doc_does_not_call_a_merged_value_hardcoded(name):
+    """Every spec carried a "Not variables:" line listing what is typed into
+    the template. All ten listed the firm's name, address and website, which
+    are now merge fields. The line is useful; a false one is worse than none.
+    """
+    doc = (TEMPLATE_DIR / FIELDS_DOCS[name]).read_text(encoding="utf-8")
+    line = next((l for l in doc.splitlines() if l.startswith("Not variables")), None)
+    assert line, f"{FIELDS_DOCS[name]} has no 'Not variables' line"
+    for claim in ("firm name", "firm legal name", "office address", "remit-to address",
+                  "website", "Ohio LLP footer"):
+        assert claim not in line, (
+            f"{FIELDS_DOCS[name]} still calls the {claim} hardcoded; it merges "
+            f"from firm-settings.yaml"
+        )
+
+
 # ── the interview and the registry agree, in both directions ──────────────
 
 def _interview_questions(interview):

@@ -46,9 +46,28 @@ Same records, same values. Generate the pair in one call.
 | `<<PeriodLabel>>` | Yes | 2026 tax year | **Self-describing** — the label on the document is only "Period". Use "2026 tax year" for a tax engagement, "Monthly, from July 2027" for bookkeeping. Appears twice. Derive it from whichever engagement this accompanies; neither letter carries this field. |
 | `<<EstimateTotal>>` | Yes | $785 | **Computed, not typed.** Sum the line items in code so the arithmetic cannot be wrong on a client-facing document. |
 
-**Total: 11 fields + 1 repeating list of 3.**
+**Total: 19 fields + 1 repeating list of 3.**
 
-Not variables: firm name, address, phone, website, the Ohio LLP footer, the four assumption notes, and the pointers to the letter's scope and fees clauses.
+Not variables: the four assumption notes, and the pointers to the letter's scope and fees clauses.
+
+### The firm itself (8 fields)
+
+Masthead, footer, and the sign-off's "on behalf of" line. Set in
+`client-documents/registry/firm-settings.yaml` under `firm:`, and merged like
+any other field — until 26 August 2026 they were typed into all ten templates,
+byte for byte, which is what made a change of address a ten-file edit.
+
+| Field | Required | Example | Notes |
+|---|---|---|---|
+| `<<FirmName>>` | Yes | SAT-C LLP | The short form a client reads. Masthead and sign-off. |
+| `<<FirmLegalName>>` | Yes | Sethuraman Accounting, Tax, and Consulting LLP | The registered name. Footer only. |
+| `<<FirmAddress1>>` | Yes | 6544 Copley Avenue | Masthead and footer |
+| `<<FirmCity>>` + `<<FirmState>>` + `<<FirmZip>>` | Yes | Solon · OH · 44139 | Three fields. Masthead and footer. |
+| `<<FirmWebsite>>` | Yes | satcllp.com | No protocol, no `www.` |
+| `<<FirmJurisdiction>>` | Yes | Ohio | The state of registration, named in the footer's partnership sentence |
+
+The logo lockup is **not** a field. The wordmark is artwork: a firm that
+changes its name gets a new mark drawn, not a string substituted.
 
 ---
 
@@ -64,6 +83,14 @@ Not variables: firm name, address, phone, website, the Ohio LLP footer, the four
   "ClientCity": "Solon",
   "ClientState": "OH",
   "ClientZip": "44139",
+  "FirmName": "SAT-C LLP",
+  "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
+  "FirmAddress1": "6544 Copley Avenue",
+  "FirmCity": "Solon",
+  "FirmState": "OH",
+  "FirmZip": "44139",
+  "FirmWebsite": "satcllp.com",
+  "FirmJurisdiction": "Ohio",
   "PreparerName": "Arjun Sethuraman, CPA",
   "PreparerTitle": "Managing Partner",
   "LineItems": [

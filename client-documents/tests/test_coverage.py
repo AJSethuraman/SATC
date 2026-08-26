@@ -37,7 +37,9 @@ SAMPLES = ROOT / "samples"
 
 # Fields a LATER stage owns. Not exemptions from the interview -- statements
 # about which stage supplies them, each of which has to be true.
-FIRM = {"PreparerName", "PreparerTitle", "PreparerEmail",
+FIRM = {"FirmName", "FirmLegalName", "FirmAddress1", "FirmCity",
+        "FirmState", "FirmZip", "FirmWebsite", "FirmJurisdiction",
+        "PreparerName", "PreparerTitle", "PreparerEmail",
         "BillingContactName", "BillingContactEmail",
         "ReturnInstruction", "PaymentInstruction", "MaterialsDeadline"}
 DELIVERY = {"AmountDue", "InvoiceDate", "InvoiceNumber", "Subtotal",

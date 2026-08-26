@@ -47,6 +47,7 @@ def firm_fields(season: str, return_type: str = "individual",
             f"expected one of {', '.join(sorted(RETURN_TYPES))}"
         )
 
+    firm = s.get("firm") or {}
     prep = s.get("preparer") or {}
     bill = s.get("billing") or {}
     deliv = s.get("delivery") or {}
@@ -59,6 +60,16 @@ def firm_fields(season: str, return_type: str = "individual",
         )
 
     return {
+        # The firm itself — masthead, footer and sign-off on all ten templates.
+        # Typed into each file until 26 Aug 2026; merged from settings since.
+        "FirmName": firm.get("name"),
+        "FirmLegalName": firm.get("legal_name"),
+        "FirmAddress1": firm.get("address1"),
+        "FirmCity": firm.get("city"),
+        "FirmState": firm.get("state"),
+        "FirmZip": firm.get("zip"),
+        "FirmWebsite": firm.get("website"),
+        "FirmJurisdiction": firm.get("jurisdiction"),
         "PreparerName": prep.get("name"),
         "PreparerTitle": prep.get("title"),
         "PreparerEmail": prep.get("email"),

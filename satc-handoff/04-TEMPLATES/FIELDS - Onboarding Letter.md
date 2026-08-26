@@ -47,13 +47,13 @@ Same records, same values. Generate all three documents in one call.
 | `<<Item.Document>>` | Yes | All W-2 forms | As a client would name it, not as the tax code does |
 | `<<Item.Detail>>` | Yes | For both of you, including part-year employment | Empty string when there is nothing to add — never "None" |
 | `<<FirstDeliverableTarget>>` | Yes | April 1, 2027 | The promise the client remembers. Date or phrase. |
-| `<<PreparerEmail>>` + `<<PreparerPhone>>` | Yes | arjun@satcllp.com · 307-941-0508 | Two fields. Phone appears twice — the anti-fraud line and the questions section. |
+| `<<PreparerEmail>>` | Yes | arjun@satcllp.com | The only way the letter offers to reach us. No phone goes on a client document until the firm has a business line. |
 | `<<PriorFirmName>>` | If flag | Halloran & Reeve CPAs | |
 | `[[IF PriorFirm]]` | Flag | Boolean | Drops the previous-accountant section for a client with no predecessor. |
 
-**Total: 18 fields + 1 repeating list of 2 + 1 flag.**
+**Total: 23 fields + 1 repeating list of 2 + 1 flag.**
 
-Not variables: firm name, address, phone, website, the Ohio LLP footer, the upload and Encyro instructions, and the what-happens-next paragraph.
+Not variables: the upload and Encyro instructions, and the what-happens-next paragraph.
 
 ---
 
@@ -65,6 +65,25 @@ This is the first template where a conditional removes a **numbered** section. T
 2. Make the numbers static and accept the gap.
 
 Do not leave it to chance. The numbers exist so a client can point at a clause on the phone.
+
+### The firm itself (8 fields)
+
+Masthead, footer, and the sign-off's "on behalf of" line. Set in
+`client-documents/registry/firm-settings.yaml` under `firm:`, and merged like
+any other field — until 26 August 2026 they were typed into all ten templates,
+byte for byte, which is what made a change of address a ten-file edit.
+
+| Field | Required | Example | Notes |
+|---|---|---|---|
+| `<<FirmName>>` | Yes | SAT-C LLP | The short form a client reads. Masthead and sign-off. |
+| `<<FirmLegalName>>` | Yes | Sethuraman Accounting, Tax, and Consulting LLP | The registered name. Footer only. |
+| `<<FirmAddress1>>` | Yes | 6544 Copley Avenue | Masthead and footer |
+| `<<FirmCity>>` + `<<FirmState>>` + `<<FirmZip>>` | Yes | Solon · OH · 44139 | Three fields. Masthead and footer. |
+| `<<FirmWebsite>>` | Yes | satcllp.com | No protocol, no `www.` |
+| `<<FirmJurisdiction>>` | Yes | Ohio | The state of registration, named in the footer's partnership sentence |
+
+The logo lockup is **not** a field. The wordmark is artwork: a firm that
+changes its name gets a new mark drawn, not a string substituted.
 
 ---
 
@@ -83,10 +102,17 @@ Do not leave it to chance. The numbers exist so a client can point at a clause o
   "ClientEmail": "dreyes@example.com",
   "MaterialsDeadline": "March 15, 2027",
   "FirstDeliverableTarget": "April 1, 2027",
+  "FirmName": "SAT-C LLP",
+  "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
+  "FirmAddress1": "6544 Copley Avenue",
+  "FirmCity": "Solon",
+  "FirmState": "OH",
+  "FirmZip": "44139",
+  "FirmWebsite": "satcllp.com",
+  "FirmJurisdiction": "Ohio",
   "PreparerName": "Arjun Sethuraman, CPA",
   "PreparerTitle": "Managing Partner",
   "PreparerEmail": "arjun@satcllp.com",
-  "PreparerPhone": "307-941-0508",
   "PriorFirm": true,
   "PriorFirmName": "Halloran & Reeve CPAs",
   "RequestList": [

@@ -56,11 +56,11 @@ Same names, same records, same values where the client is the same. This is the 
 | `[[IF OwnerReturnsElsewhere]]` | Flag | Boolean | **The exact inverse.** |
 | `[[IF SCorpElection]]` | Flag | Boolean | Adds the officer-compensation scope exclusion in section 03, which is meaningless for a partnership. |
 
-**Total: 21 fields + 3 flags. No repeating lists.**
+**Total: 28 fields + 3 flags. No repeating lists.**
 
 Sixteen of the twenty-one are the same fields, from the same records, as the individual tax letter.
 
-Not variables: firm name, address, phone, website, the Ohio LLP footer, the whole of the "what this engagement is not" language, the responsibilities list, the extension callout, the unclear-law clause, the records and confidentiality clauses, and the execution note.
+Not variables: the whole of the "what this engagement is not" language, the responsibilities list, the extension callout, the unclear-law clause, the records and confidentiality clauses, and the execution note.
 
 ### On `ScheduleK1Target` and the name
 
@@ -77,6 +77,25 @@ That is deliberate and it is not a coincidence: **this letter is signed.** A sig
 ### Section 02 must never be silent
 
 `OwnerReturnsPrepared` and `OwnerReturnsElsewhere` are inverses and exactly one must render. The single question this letter exists to answer is *who turns the K-1 into a personal return, and by when*. An entity letter that leaves it unstated produces the April phone call about a K-1 nobody was expecting — from an owner who is not your client, about a deadline you did not set.
+
+### The firm itself (8 fields)
+
+Masthead, footer, and the sign-off's "on behalf of" line. Set in
+`client-documents/registry/firm-settings.yaml` under `firm:`, and merged like
+any other field — until 26 August 2026 they were typed into all ten templates,
+byte for byte, which is what made a change of address a ten-file edit.
+
+| Field | Required | Example | Notes |
+|---|---|---|---|
+| `<<FirmName>>` | Yes | SAT-C LLP | The short form a client reads. Masthead and sign-off. |
+| `<<FirmLegalName>>` | Yes | Sethuraman Accounting, Tax, and Consulting LLP | The registered name. Footer only. |
+| `<<FirmAddress1>>` | Yes | 6544 Copley Avenue | Masthead and footer |
+| `<<FirmCity>>` + `<<FirmState>>` + `<<FirmZip>>` | Yes | Solon · OH · 44139 | Three fields. Masthead and footer. |
+| `<<FirmWebsite>>` | Yes | satcllp.com | No protocol, no `www.` |
+| `<<FirmJurisdiction>>` | Yes | Ohio | The state of registration, named in the footer's partnership sentence |
+
+The logo lockup is **not** a field. The wordmark is artwork: a firm that
+changes its name gets a new mark drawn, not a string substituted.
 
 ---
 
@@ -104,6 +123,14 @@ An S corporation whose owners' personal returns the firm also prepares. The othe
   "ReturnInstruction": "Sign through Encyro and it comes straight back to us.",
   "SignerName": "Daniel Reyes",
   "SignerTitle": "Managing Member",
+  "FirmName": "SAT-C LLP",
+  "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
+  "FirmAddress1": "6544 Copley Avenue",
+  "FirmCity": "Solon",
+  "FirmState": "OH",
+  "FirmZip": "44139",
+  "FirmWebsite": "satcllp.com",
+  "FirmJurisdiction": "Ohio",
   "PreparerName": "Arjun Sethuraman, CPA",
   "PreparerTitle": "Managing Partner",
   "OwnerReturnsPrepared": true,

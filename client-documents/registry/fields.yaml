@@ -125,6 +125,39 @@ fields:
   - field: FeeChangeNote
     source: engagement
     templates: [organizer-letter]
+  - field: FirmAddress1
+    source: firm
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    # Masthead and footer; the invoice's remit-to block as well.
+  - field: FirmCity
+    source: firm
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    # With FirmState and FirmZip. Masthead and footer.
+  - field: FirmJurisdiction
+    source: firm
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    # The state of registration, named in the footer's partnership sentence.
+  - field: FirmLegalName
+    source: firm
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    # The registered name. Footer only — the partnership sentence.
+  - field: FirmName
+    source: firm
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    # The short form a client reads. Masthead, sign-off, and the invoice's
+    # remit-to block.
+  - field: FirmState
+    source: firm
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    # With FirmCity and FirmZip. Masthead and footer.
+  - field: FirmWebsite
+    source: firm
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    # Masthead. No protocol, no www.
+  - field: FirmZip
+    source: firm
+    templates: [bookkeeping-letter, business-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, invoice, onboarding-letter, organizer-letter, tax-letter]
+    # With FirmCity and FirmState. Masthead and footer.
   - field: FirstDeliverableTarget
     source: interview
     templates: [onboarding-letter]

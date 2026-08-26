@@ -48,6 +48,55 @@ def test_every_return_type_resolves_a_deadline(return_type):
     assert fields["MaterialsDeadline"], f"no deadline for {return_type}"
 
 
+FIRM_BLOCK = ("FirmName", "FirmLegalName", "FirmAddress1", "FirmCity",
+              "FirmState", "FirmZip", "FirmWebsite", "FirmJurisdiction")
+
+
+def test_the_firm_block_reaches_every_document_from_settings_alone():
+    """Change the firm's address in one file and all ten documents follow.
+
+    Until 26 August 2026 the masthead, the footer and the sign-off were typed
+    into each template, byte-identical across eleven files. The firm asked for
+    exactly this: "things like the email and phone number are generated from a
+    template - this could change in the future, we could hire, etc. software
+    needs to be made to be robust and scalable." So the test moves the firm
+    rather than checking a spelling.
+    """
+    from tests.test_registry import TEMPLATES
+
+    moved = firm.load()
+    moved["firm"] = dict(moved["firm"],
+                         name="SATC Group LLP",
+                         address1="1 Public Square",
+                         city="Cleveland", zip="44113",
+                         website="satcgroup.example")
+    record = firm.firm_fields("2026", settings=moved)
+
+    for name, filename in TEMPLATES.items():
+        template = (cli.TEMPLATE_DIR / filename).read_text(encoding="utf-8")
+        html = merge.render(template, record, strict=False).html
+        assert "SATC Group LLP" in html, f"{name}: the firm name did not follow"
+        assert "1 Public Square" in html, f"{name}: the address did not follow"
+        assert "6544 Copley" not in html, f"{name}: the old address is still typed in"
+        assert "SAT-C LLP" not in html, f"{name}: the old name is still typed in"
+
+
+def test_no_sample_can_drift_from_the_firm_settings():
+    """The samples carry the firm block because `test_merge` renders them raw.
+
+    That is a second copy of an address whose whole point is having one copy,
+    so it is pinned rather than trusted.
+    """
+    settings = firm.firm_fields("2026")
+    for path in SAMPLES.glob("*.json"):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        for field in FIRM_BLOCK:
+            if field in record:
+                assert record[field] == settings[field], (
+                    f"{path.name}: {field} has drifted from firm-settings.yaml"
+                )
+
+
 def test_an_unknown_return_type_is_refused():
     with pytest.raises(KeyError):
         firm.firm_fields("2026", "sole_trader")

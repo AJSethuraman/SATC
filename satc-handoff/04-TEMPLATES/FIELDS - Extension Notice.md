@@ -43,7 +43,7 @@ Clauses in the engagement letter are referenced **by name**, never by number.
 | `<<ExtendedDeadline>>` | Yes | October 15, 2027 | **Appears three times** — opening paragraph, dateline, section 04. Drive all three from one value. |
 | `<<PaymentDeadline>>` | Yes | April 15, 2027 | The **original** due date, which the extension did not move. Appears twice. If this ever equals `ExtendedDeadline`, something is wrong. |
 | `<<EstimatedPaymentAmount>>` | If flag | $2,150.00 | A pre-formatted string from the one money formatter. **This template does no arithmetic.** |
-| `<<PreparerEmail>>` + `<<PreparerPhone>>` | Yes | arjun@satcllp.com · 307-941-0508 | Two fields. |
+| `<<PreparerEmail>>` | Yes | arjun@satcllp.com | The only way the letter offers to reach us. No phone goes on a client document until the firm has a business line. |
 | `[[EACH ExtendedReturns]]` | List | one or more | Two sub-fields. **Exactly what was filed**, never what is assumed to follow from it. |
 | `<<Item.Return>>` | Yes | Federal Form 4868 | The extension form, named as it is filed |
 | `<<Item.Detail>>` | Yes | Extends the Form 1040 to October 15, 2027 | Empty string when there is nothing to add — never "None" |
@@ -53,9 +53,9 @@ Clauses in the engagement letter are referenced **by name**, never by number.
 | `[[IF PaymentEnclosed]]` | Flag | Boolean | An extension payment was estimated and is due. |
 | `[[IF NoPaymentRequired]]` | Flag | Boolean | **The exact inverse of `PaymentEnclosed`.** |
 
-**Total: 17 fields + 2 repeating lists of 2 + 2 flags.**
+**Total: 23 fields + 2 repeating lists of 2 + 2 flags.**
 
-Not variables: firm name, address, phone, website, the Ohio LLP footer, the more-time-to-file-not-to-pay callout, the estimate-is-not-the-final-liability paragraph, and the missing-document line.
+Not variables: the more-time-to-file-not-to-pay callout, the estimate-is-not-the-final-liability paragraph, and the missing-document line.
 
 ---
 
@@ -66,6 +66,25 @@ Not variables: firm name, address, phone, website, the Ohio LLP footer, the more
 ### Section 02 must never be silent
 
 `PaymentEnclosed` and `NoPaymentRequired` are inverses, and one of them must render. A client who reads the "interest runs from the original due date" callout and then finds no instruction underneath it concludes there is nothing to pay. That conclusion has to be a statement the firm made, not a gap it left.
+
+### The firm itself (8 fields)
+
+Masthead, footer, and the sign-off's "on behalf of" line. Set in
+`client-documents/registry/firm-settings.yaml` under `firm:`, and merged like
+any other field — until 26 August 2026 they were typed into all ten templates,
+byte for byte, which is what made a change of address a ten-file edit.
+
+| Field | Required | Example | Notes |
+|---|---|---|---|
+| `<<FirmName>>` | Yes | SAT-C LLP | The short form a client reads. Masthead and sign-off. |
+| `<<FirmLegalName>>` | Yes | Sethuraman Accounting, Tax, and Consulting LLP | The registered name. Footer only. |
+| `<<FirmAddress1>>` | Yes | 6544 Copley Avenue | Masthead and footer |
+| `<<FirmCity>>` + `<<FirmState>>` + `<<FirmZip>>` | Yes | Solon · OH · 44139 | Three fields. Masthead and footer. |
+| `<<FirmWebsite>>` | Yes | satcllp.com | No protocol, no `www.` |
+| `<<FirmJurisdiction>>` | Yes | Ohio | The state of registration, named in the footer's partnership sentence |
+
+The logo lockup is **not** a field. The wordmark is artwork: a firm that
+changes its name gets a new mark drawn, not a string substituted.
 
 ---
 
@@ -87,10 +106,17 @@ Not variables: firm name, address, phone, website, the Ohio LLP footer, the more
   "PaymentDeadline": "April 15, 2027",
   "MaterialsDeadline": "August 15, 2027",
   "EstimatedPaymentAmount": "$2,150.00",
+  "FirmName": "SAT-C LLP",
+  "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
+  "FirmAddress1": "6544 Copley Avenue",
+  "FirmCity": "Solon",
+  "FirmState": "OH",
+  "FirmZip": "44139",
+  "FirmWebsite": "satcllp.com",
+  "FirmJurisdiction": "Ohio",
   "PreparerName": "Arjun Sethuraman, CPA",
   "PreparerTitle": "Managing Partner",
   "PreparerEmail": "arjun@satcllp.com",
-  "PreparerPhone": "307-941-0508",
   "PaymentEnclosed": true,
   "NoPaymentRequired": false,
   "ExtendedReturns": [
