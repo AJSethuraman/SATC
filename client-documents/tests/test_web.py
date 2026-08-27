@@ -584,3 +584,166 @@ def test_the_review_reads_in_the_words_on_the_screen(client, answers):
     empty = sum(1 for v in given.values() if v in (None, "", []))
     assert empty, "the sample should leave something blank"
     assert page.count("left blank") == empty
+
+
+# ── packaging: the last mile, without a terminal ──────────────────────────
+#
+# "every process is doable by a human and replicable by automation, under the
+# same controls." Packaging was the half of that sentence that was not true: a
+# preparer could interview, price and edit the wording in a browser, and then
+# had to type a command to get the pack the client actually signs -- which is
+# the one step with a BLOCKING gate on it.
+
+import engagements  # noqa: E402
+import presend  # noqa: E402
+
+
+def _an_engagement(client, answers):
+    """A real created engagement, through the browser, as a preparer would."""
+    sid = drive(client, answers)
+    got = client.post(f"/interview/{sid}/finish", headers=JSON).get_json()
+    assert got["status"] == "created", got
+    return got["ref"]
+
+
+def _gate_that_blocks(monkeypatch, detail="a sentence the firm deleted is back"):
+    """The gate, failing, without pretending to know how to fail it.
+
+    What is under test here is the DOOR -- whether a browser can get past a
+    blocked gate -- not the checks, which `test_presend` owns. `sending` and
+    `web` both reach the gate through the same module object, so one patch
+    covers both doors and neither can quietly use a different one.
+    """
+    def fake(pack, record, **kw):
+        res = presend.Result()
+        res.checked.append("no sentence the firm has deleted has come back")
+        res.findings.append(presend.Finding(
+            check="no sentence the firm has deleted has come back",
+            document="SATC Engagement Letter.html", detail=detail))
+        return res
+    monkeypatch.setattr(presend, "gate", fake)
+
+
+def test_the_browser_can_build_the_pack_the_terminal_builds(client, answers):
+    ref = _an_engagement(client, answers)
+    got = client.post(f"/engagement/{ref}/package", json={}, headers=JSON)
+    assert got.status_code == 200
+    body = got.get_json()
+    assert body["status"] == "written", body
+
+    import cli
+    import packaging
+    record = cli.build_record(engagements.load(ref, client.store))
+    assert body["documents"] == packaging.documents_for(record), (
+        "the browser decided for itself which documents go in the pack"
+    )
+    pack = client.store / ref / "pack"
+    assert (pack / "MANIFEST.json").is_file()
+    assert body["written"], "a pack with no files in it reported success"
+
+
+def test_the_browser_cannot_skip_the_gate(client, answers, monkeypatch):
+    """The one claim the whole arrangement rests on, at the one step that
+    blocks."""
+    ref = _an_engagement(client, answers)
+    _gate_that_blocks(monkeypatch)
+
+    got = client.post(f"/engagement/{ref}/package", json={}, headers=JSON)
+    assert got.status_code == 409
+    body = got.get_json()
+    assert body["status"] == "refused-gate"
+    assert body["blocking"], "it refused without saying what failed"
+    assert not (client.store / ref / "pack").exists(), (
+        "a blocked gate still wrote a pack"
+    )
+
+
+def test_an_override_through_the_browser_is_recorded(client, answers,
+                                                     monkeypatch):
+    """The firm chose blocking-with-a-logged-override. A gate a browser cannot
+    override is a gate a preparer works around by opening a terminal, which is
+    the one place nobody is watching -- so the browser has it, and it costs the
+    same sentence the terminal charges."""
+    ref = _an_engagement(client, answers)
+    _gate_that_blocks(monkeypatch)
+
+    nothing = client.post(f"/engagement/{ref}/package",
+                          json={"force": True, "reason": "   "}, headers=JSON)
+    assert nothing.get_json()["status"] == "no-reason"
+    assert not (client.store / ref / "pack").exists()
+
+    said = "client is at the desk; the deleted line is in a quoted excerpt"
+    got = client.post(f"/engagement/{ref}/package",
+                      json={"force": True, "reason": said}, headers=JSON)
+    assert got.get_json()["status"] == "written"
+    assert (client.store / ref / "pack" / "MANIFEST.json").is_file()
+
+    logged = engagements.overrides(ref, client.store)
+    assert [e for e in logged if e["reason"] == said], logged
+    assert logged[-1]["failed"], "the override recorded no failed check"
+
+
+def test_the_browser_will_not_write_into_somebody_elses_folder(client, answers):
+    ref = _an_engagement(client, answers)
+    theirs = client.store / ref / "pack"
+    theirs.mkdir(parents=True)
+    (theirs / "their-notes.txt").write_text("mine", encoding="utf-8")
+
+    got = client.post(f"/engagement/{ref}/package", json={}, headers=JSON)
+    assert got.get_json()["status"] == "not-ours"
+    assert (theirs / "their-notes.txt").read_text(encoding="utf-8") == "mine"
+
+
+def test_the_failed_checks_come_before_the_green_ones_on_the_page(
+        client, answers, monkeypatch):
+    """The terminal prints the check list and then the refusal under it. On a
+    page that ordering puts the thing you have to act on below a wall of
+    green."""
+    ref = _an_engagement(client, answers)
+    _gate_that_blocks(monkeypatch)
+    page = client.post(f"/engagement/{ref}/package",
+                       data={}).get_data(as_text=True)
+    assert page.index("check(s) failed") < page.index("Before sending")
+    assert "name=reason" in page, "no way to override, and no way to ask why"
+
+
+def test_web_decides_nothing_about_packaging(client):
+    """Same rule the interview lives under: `sending.build` may be called from
+    here; the decisions inside it may not be copied out."""
+    import inspect
+    import web
+    src = inspect.getsource(web)
+    for smell in ("presend.gate(", "PACK_ASSETS", "record_override(",
+                  "MANIFEST.json\").write_text", "tempfile.mkdtemp"):
+        assert smell not in src, (
+            f"web.py contains {smell!r} -- that decision belongs in sending, "
+            f"where the terminal reaches it too"
+        )
+
+
+def test_the_check_table_and_the_failures_above_it_cannot_disagree():
+    """Found by rendering the blocked page and looking at it: two checks were
+    named as failures at the top and both read `ok` in the table underneath.
+
+    Which checks failed is `Result.blocking` -- one list, authoritative however
+    a finding got there. Deciding it a second time from each check's own bucket
+    is two functions that must agree about the same fact, which is the pattern
+    that produced the disagreement.
+    """
+    import web
+    res = presend.Result()
+    res.add("no sentence the firm has deleted has come back",
+            presend.Counted([], 76, "sentence-in-document pair"))
+    res.add("every promised enclosure is in the pack",
+            presend.Counted([], 3, "declared enclosure claim"))
+    # A finding that reached the result without going through its own check.
+    res.findings.append(presend.Finding(
+        check="no sentence the firm has deleted has come back",
+        document="SAT-C Engagement Letter.html", detail="it is back on page 2"))
+
+    table = web._checks_block(res)
+    rows = table.split("<tr>")
+    deleted = next(r for r in rows if "has deleted has come back" in r)
+    enclosure = next(r for r in rows if "promised enclosure" in r)
+    assert ">FAIL<" in deleted, deleted
+    assert ">ok<" in enclosure, enclosure

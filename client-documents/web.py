@@ -36,6 +36,9 @@ import registry_editor
 import engagements
 import intake
 import leads
+import packaging
+import presend
+import sending
 import schedules as sched
 import interview as iv
 import settings as firm
@@ -517,6 +520,95 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
             return jsonify(ref=ref, record=record, open_decisions=open_now)
         return page(ref, engagement_body(ref, record, open_now))
 
+    # ── packaging: the same gate, without a terminal ──────────────────────
+    #
+    # "every process is doable by a human and replicable by automation, under
+    # the same controls." Packaging was the half of that sentence that was not
+    # true: a preparer could interview, price and edit the wording in a
+    # browser, and then had to type a command to get the pack the client
+    # actually signs -- which is the one step with a BLOCKING gate on it.
+    #
+    # Nothing about that gate is re-decided here. `sending.build` is the same
+    # function `cli.cmd_package` calls, with the same arguments, and this route
+    # reports what it returned.
+
+    def _pack_ready(ref):
+        """(record, documents, note) or a rendered refusal."""
+        raw = engagements.load(ref, st())
+        record = cli.build_record(raw)
+        return record
+
+    @app.get("/engagement/<ref>/package")
+    def package(ref):
+        try:
+            record = _pack_ready(ref)
+        except (FileNotFoundError, ValueError, engagements.EngagementError):
+            abort(404, f"no engagement {ref}")
+        invoice = request.args.get("invoice") == "1"
+        try:
+            docs = packaging.documents_for(record, with_invoice=invoice)
+        except packaging.PackageError as exc:
+            if wants_json():
+                return jsonify(ref=ref, error=str(exc)), 400
+            return page("Package", package_body(ref, record, [], problem=str(exc)))
+        if wants_json():
+            return jsonify(ref=ref, documents=docs, with_invoice=invoice)
+        return page("Package", package_body(ref, record, docs,
+                                            with_invoice=invoice))
+
+    @app.post("/engagement/<ref>/package")
+    def build_package(ref):
+        try:
+            record = _pack_ready(ref)
+        except (FileNotFoundError, ValueError, engagements.EngagementError):
+            abort(404, f"no engagement {ref}")
+
+        body = request.get_json(silent=True) if request.is_json else None
+        form = body if body is not None else request.form
+        invoice = bool(form.get("invoice"))
+        reason = (form.get("reason") or "").strip()
+        force = bool(form.get("force"))
+
+        try:
+            docs = packaging.documents_for(record, with_invoice=invoice)
+            packaging.check_attachments(None)
+        except packaging.PackageError as exc:
+            if wants_json():
+                return jsonify(ref=ref, status="error", detail=str(exc)), 400
+            return page("Package", package_body(ref, record, [],
+                                                problem=str(exc))), 400
+
+        # The same downgrade the terminal makes, for the same reason: a machine
+        # with no PDF engine should still get the documents, not an error.
+        want_pdf = True
+        pdf_note = ""
+        try:
+            cli.pdf_engine()
+        except cli.NoPdfEngine as exc:
+            want_pdf, pdf_note = False, str(exc)
+
+        pack = sending.build(
+            record, st() / ref / "pack", render=cli.render_one,
+            ref=record.get("EngagementRef") or ref, store=st(),
+            template_dir=cli.TEMPLATE_DIR, documents=docs, want_pdf=want_pdf,
+            readings=bool(form.get("notes")), force=force, reason=reason)
+
+        if wants_json():
+            return jsonify(
+                ref=ref, status=pack.status,
+                documents=pack.documents,
+                written=sorted(f.name for fs in pack.written.values()
+                               for f in fs),
+                refused=[{"document": d, "detail": w} for d, w in pack.refused],
+                blocking=[{"check": f.check, "document": f.document,
+                           "detail": f.detail}
+                          for f in (pack.check.blocking if pack.check else [])],
+                override=pack.override, detail=pack.detail,
+                pdf=want_pdf), (200 if pack.ok else 409)
+
+        return page("Package", packed_body(ref, record, pack, invoice,
+                                           pdf_note))
+
     return app
 
 
@@ -574,6 +666,23 @@ text-underline-offset:3px}
 button.link:hover{color:var(--navy)}
 td.fix{width:1%;white-space:nowrap;text-align:right}
 .quitrow{margin-top:14px}
+/* The gate's own report, verbatim. It is a fixed-width table of check names
+   and denominators, and reflowing it as prose would lose the alignment that
+   makes a SKIP or a NONE findable at a glance. */
+/* The gate's report as a table, not a transcript: a mark you can find, the
+   check's own words, and the count it examined to say it. */
+table.checks th{font:inherit;font-size:14px;text-transform:none;
+letter-spacing:0;color:var(--ink);font-weight:400;width:auto}
+table.checks td.mk{width:1%;font:10.5px/1.6 "IBM Plex Mono",monospace;
+letter-spacing:.1em;white-space:nowrap;vertical-align:top;padding-top:9px}
+table.checks td.mk.ok{color:var(--mute)}
+table.checks td.mk.fail{color:var(--oxblood);font-weight:600}
+table.checks td.mk.none,table.checks td.mk.skip{color:var(--navy)}
+table.checks td.den{width:1%;white-space:nowrap;text-align:right;
+font-size:13px;color:var(--ink-2)}
+@media (max-width:560px){table.checks td.den{white-space:normal}}
+.hardno li{margin-bottom:9px;font-size:14px;color:var(--ink-2)}
+.hardno li b{color:var(--oxblood);font-weight:600}
 table{border-collapse:collapse;width:100%;font-size:14px}
 td,th{text-align:left;padding:7px 10px;border-bottom:1px solid var(--hairline-2)}
 th{font:11px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;
@@ -1103,8 +1212,14 @@ def outcome_body(sid, outcome) -> str:
                 + ("<p class=muted>A HARD NO was overridden.</p>"
                    if outcome.overridden else "")
                 + _flag_block(outcome)
-                + f"<p><a href='/engagement/{esc(outcome.ref)}'>Open it</a> "
-                  f"&middot; <a href='/'>Back</a></p>")
+                + f"<form method=get action='/engagement/{esc(outcome.ref)}"
+                  f"/package' class=row>"
+                  f"<button>Build the signing pack</button>"
+                  f"<a href='/engagement/{esc(outcome.ref)}'>"
+                  f"<button type=button class=ghost>Open the engagement"
+                  f"</button></a>"
+                  f"<a href='/'><button type=button class=ghost>Home</button>"
+                  f"</a></form>")
     heading = {"refused": "Not taken on", "declined": "No engagement created",
                "error": "Could not price it"}.get(outcome.status, "Stopped")
     out = [f"<h1>{esc(heading)}</h1>"]
@@ -1153,6 +1268,13 @@ def engagement_body(ref, record, open_now) -> str:
                    f"<span class=fname>{esc(k)}</span></th>"
                    f"<td>{esc(v)}</td></tr>")
     out.append("</table>")
+    # THE NEXT THING, ON THE PAGE THAT KNOWS IT. A door nothing links to is a
+    # door nobody finds -- packaging was reachable only by typing a command,
+    # and this is the screen a preparer is on when the pack is what is next.
+    out.append(f"<form method=get action='/engagement/{esc(ref)}/package' "
+               f"class=row><button>Build the signing pack</button>"
+               f"<span class=muted>Every document this client signs, checked "
+               f"before any of it goes out.</span></form>")
     if record.get("LineItems"):
         out.append("<h1 style='margin-top:30px'>Fee estimate</h1><table>"
                    "<tr><th>Service</th><th>Amount</th></tr>")
@@ -1161,6 +1283,195 @@ def engagement_body(ref, record, open_now) -> str:
                        f"<td><code>{esc(i['Amount'])}</code></td></tr>")
         out.append(f"<tr><th>Total</th><td><code>"
                    f"{esc(record.get('EstimateTotal'))}</code></td></tr></table>")
+    return "".join(out)
+
+
+def package_body(ref, record, docs, *, with_invoice=False, problem="") -> str:
+    """What is about to be built, before anything is."""
+    out = [f"<h1>The signing pack</h1>",
+           f"<p class=sec>{esc(ref)} &middot; "
+           f"{esc(record.get('ClientFullName',''))}</p>"]
+    if problem:
+        out.append(f"<p class=err>{esc(problem)}</p>")
+        return "".join(out)
+    out.append("<p class=help>Everything this client signs, built in one go. "
+               "Nothing is written until every document has rendered and every "
+               "check has passed &mdash; so if something is wrong, you get "
+               "nothing rather than half a pack. One of those checks opens "
+               "every document in a browser to prove it is readable, so this "
+               "takes about a minute.</p>")
+    out.append("<div class=note><h2>What goes in it</h2><table class=plain>")
+    for doc in docs:
+        out.append(f"<tr><th>{esc(cli.DOCUMENTS[doc][1])}</th>"
+                   f"<td>{esc(packaging.PURPOSE.get(doc, ''))}</td></tr>")
+    out.append("</table></div>")
+    out.append(f"<form method=post action='/engagement/{esc(ref)}/package'>"
+               f"<label><input type=checkbox name=invoice value=1"
+               + (" checked" if with_invoice else "") +
+               "> Put the invoice in too</label>"
+               "<label><input type=checkbox name=notes value=1> "
+               "Also read the prose and tell me what it notices "
+               "(nothing here can stop a pack)</label>"
+               "<div class=row><button>Build the pack</button>"
+               "<span class=muted>Then you get to look at every check before "
+               "anything goes to anyone.</span></div></form>"
+               # A MINUTE OF NOTHING READS AS A BROKEN BUTTON, and the second
+               # click posts the form again. The page carries no other script;
+               # this one only changes a label, and without it the form still
+               # submits exactly as before.
+               "<script>document.currentScript.previousElementSibling"
+               ".addEventListener('submit',function(e){var b="
+               "e.target.querySelector('button');b.textContent="
+               "'Building \u2014 about a minute';});<\/script>")
+    return "".join(out)
+
+
+def packed_body(ref, record, pack, with_invoice, pdf_note="") -> str:
+    """What the gate said, and what to do about it.
+
+    THE FAILURES COME FIRST AND THEY NAME THEMSELVES. The terminal prints a
+    check list and then the refusal underneath it; on a page that ordering
+    puts the thing you have to act on below a wall of green.
+    """
+    out = ["<h1>The signing pack</h1>",
+           f"<p class=sec>{esc(ref)} &middot; "
+           f"{esc(record.get('ClientFullName',''))}</p>"]
+
+    if pack.status == "not-ours":
+        out.append(f"<div class=hardno><h2>That folder is somebody's</h2>"
+                   f"<p>{esc(str(pack.outdir))} already has files in it that "
+                   f"this did not write, so nothing was touched.</p></div>")
+        return "".join(out)
+
+    if pack.status == "refused-merge":
+        out.append(f"<div class=hardno><h2>No pack written &mdash; "
+                   f"{len(pack.refused)} of {len(pack.documents)} document(s) "
+                   f"would not build</h2>"
+                   f"<p>A pack with a hole in it is worse than none: the "
+                   f"client signs what arrived, and the rest turns up later "
+                   f"saying something different.</p><ul>")
+        for doc, why in pack.refused:
+            out.append(f"<li><b>{esc(cli.DOCUMENTS[doc][1])}</b> &mdash; "
+                       f"{esc(why)}</li>")
+        out.append("</ul>")
+        if pack.stale:
+            out.append(f"<p><b>The folder still holds the pack written for "
+                       f"{esc(pack.stale)}.</b> It is not this one and it has "
+                       f"not been updated. Do not send it.</p>")
+        out.append("</div>")
+        return "".join(out)
+
+    check = pack.check
+    if pack.status in ("refused-gate", "no-reason", "not-logged"):
+        out.append(f"<div class=hardno><h2>{len(check.blocking)} check(s) "
+                   f"failed, so nothing was written</h2>"
+                   f"<p>A pack that does not survive being opened is not a "
+                   f"pack &mdash; it is a folder the client cannot read.</p>"
+                   f"<ul>")
+        for f in check.blocking:
+            where = f" &mdash; {esc(f.document)}" if f.document else ""
+            out.append(f"<li><b>{esc(f.check)}</b>{where}<br>"
+                       f"{esc(f.detail)}</li>")
+        out.append("</ul></div>")
+        if pack.status == "no-reason":
+            out.append("<p class=err>Sending it anyway needs a reason written "
+                       "down. An override nobody wrote a reason for is just a "
+                       "quieter way to send a pack that did not pass.</p>")
+        if pack.status == "not-logged":
+            out.append(f"<p class=err>The override could not be recorded "
+                       f"({esc(pack.detail)}), so the pack was not written. "
+                       f"The record is the only thing that makes an override "
+                       f"different from having no check at all.</p>")
+        # THE OVERRIDE IS ON THE PAGE, AND IT COSTS A SENTENCE. The firm chose
+        # blocking-with-a-logged-override; a gate a browser cannot override is
+        # a gate a preparer works around by opening a terminal, which is the
+        # one place nobody is watching.
+        out.append(f"<form method=post action='/engagement/{esc(ref)}/package'>"
+                   f"<input type=hidden name=force value=1>"
+                   + (f"<input type=hidden name=invoice value=1>"
+                      if with_invoice else "") +
+                   "<div class=f><label class=fl for=why>Why is this going "
+                   "out as it is?</label>"
+                   "<textarea id=why name=reason rows=2></textarea></div>"
+                   "<div class=row><button class=ghost>Send it anyway, and "
+                   "record that</button><span class=muted>Goes in this "
+                   "engagement's record, with the checks it failed.</span>"
+                   "</div></form>")
+        out.append(_checks_block(check))
+        return "".join(out)
+
+    out.append(f"<p class=help>Built and checked. "
+               f"{len(pack.written)} document(s) in "
+               f"<code>{esc(str(pack.outdir))}</code>.</p>")
+    if pdf_note:
+        out.append(f"<p class=muted>No PDF engine here ({esc(pdf_note)}), so "
+                   f"this is the HTML only.</p>")
+    if pack.override:
+        out.append(f"<div class=note><h2>Sent past a failed check</h2>"
+                   f"<p>Recorded in this engagement's record: "
+                   f"<code>{esc(pack.override)}</code></p></div>")
+    out.append("<table class=plain>")
+    for doc in pack.documents:
+        files = ", ".join(f.name for f in pack.written.get(doc, []))
+        out.append(f"<tr><th>{esc(cli.DOCUMENTS[doc][1])}</th>"
+                   f"<td>{esc(files)}</td></tr>")
+    out.append("</table>")
+    out.append(_checks_block(check))
+    if pack.readings:
+        out.append(f"<h1 style='margin-top:30px'>What the prose reads like</h1>"
+                   f"<p class=help>Judgement calls, not rules. None of these "
+                   f"can stop a pack.</p><ul>")
+        for f in pack.readings:
+            where = f" &mdash; {esc(f.document)}" if f.document else ""
+            out.append(f"<li><b>{esc(f.check)}</b>{where}<br>"
+                       f"{esc(f.detail)}</li>")
+        out.append("</ul>")
+    return "".join(out)
+
+
+def _checks_block(check) -> str:
+    """Every check, and what it examined.
+
+    A green line from a check that looked at nothing is worse than a red one,
+    so the denominator comes with it -- it is what caught two blocking checks
+    that had never examined anything on a real send.
+
+    Read off `Result` rather than reusing the terminal's `format_result`: the
+    facts are the same facts, but 90 columns of fixed-width text in a 660px
+    page is a transcript you scroll sideways, and the mark you need to find is
+    the one that fell off the right edge.
+    """
+    # WHICH CHECKS FAILED IS READ OFF `blocking`, NOT OFF EACH CHECK'S OWN
+    # BUCKET. A finding that reached the result any other way would otherwise
+    # be named at the top of the page as a failure and marked `ok` in the table
+    # underneath it -- caught by rendering this page and looking at it.
+    failed = {f.check for f in check.blocking}
+    out = [f"<h1 style='margin-top:30px'>Before sending</h1>",
+           f"<p class=help>{len(check.checked)} check(s), and what each one "
+           f"actually looked at.</p>",
+           "<table class='plain checks'>"]
+    for what, got in check.counts:
+        broke = what in failed or any(f.blocking for f in got.findings)
+        if broke:
+            mark, why = "FAIL", f"{got.counted()} examined"
+        elif not got.examined:
+            mark, why = "NONE", "nothing to examine"
+        else:
+            mark, why = "ok", f"{got.counted()} examined"
+        out.append(f"<tr><td class='mk {mark.lower()}'>{mark}</td>"
+                   f"<th>{esc(what)}</th><td class=den>{esc(why)}</td></tr>")
+    for what in check.skipped:
+        out.append(f"<tr><td class='mk skip'>SKIP</td><th>{esc(what)}</th>"
+                   f"<td class=den>not checked</td></tr>")
+    out.append("</table>")
+    nothing = check.examined_nothing
+    if nothing:
+        out.append(f"<p class=muted>{len(nothing)} check(s) had nothing to "
+                   f"look at, and are marked NONE rather than ok. Nothing is "
+                   f"wrong with them. Nothing is known about them either.</p>")
+    if check.skipped:
+        out.append(f"<p class=muted>{len(check.skipped)} check(s) did not run "
+                   f"at all.</p>")
     return "".join(out)
 
 
