@@ -179,8 +179,12 @@ immediately before it.
 > that does not exist, and we will keep asking.* this entire sentence reads like someone who
 > can't form the subject of a sentence first. just tell them to let us know, in a shorter way"
 
-**After** (`353a2d8`): "If something on this list does not apply to you, just tell us." The
-sentence he named is **still live at `SATC Extension Notice.html:95`**.
+**After** (`353a2d8`): "If something on this list does not apply to you, just tell us."
+
+> **CORRECTED 27 Aug 2026.** This said the flagged sentence was *"still live at
+> `SATC Extension Notice.html:95`"*. It is not, and was not when the claim was written:
+> that line already carried the corrected form. Measured against all twelve templates
+> while building the linter.
 
 Three more, deleted in the diffs and never replaced:
 
@@ -271,7 +275,11 @@ your engagement letter puts their contents on you…"*
 He deleted the softened retry too — *"just delete Please review the returns before you sign.
 They are your returns, and a figure that looks wrong to you is worth telling us about…"* — and
 replaced it with an instruction: *"in section 02 make the first line **Review your
-returns**"*. Still live at `SATC Tax Return Delivery Letter.html:67`.
+returns**"*.
+
+> **CORRECTED 27 Aug 2026.** This said the sentence was *"still live at
+> `SATC Tax Return Delivery Letter.html:67`"*. That line is an `[[END EACH]]` marker;
+> section 02 opens with his own "Review your returns". The claim was already stale.
 
 **Not a ban on assigning responsibility.** "You chose to file on paper, so filing these
 returns is your responsibility, not ours" has survived every round untouched. The objection is
@@ -344,7 +352,14 @@ The rejected sentence had been transcribed off an internal brief. A requirement 
 whoever builds the thing says what the document must be *true about*; the copy has to say it
 in words the reader already has. Banned from anything a prospect reads on the site, and the
 right instinct everywhere: *governs, constitutes, accompanies, pursuant, at our discretion,
-deemed, shall be, herein*. An engagement letter must name itself; "governs" is still not
+deemed, shall be, herein*.
+
+> **[CONFIRM: `accompanies` — your call.]** It is on this list and it is **live in five
+> templates**, in copy you have approved four times: *"the estimate accompanying this
+> letter"*, *"Accompanies our engagement letter"*. The linter ships **without** it, because
+> a check that fires on approved copy on its first run gets muted and takes the other six
+> words with it. Either the word comes off this list or those five sentences change — four
+> rounds of review say the former, but it is your list. An engagement letter must name itself; "governs" is still not
 needed.
 
 ---
@@ -464,7 +479,18 @@ contradiction was only visible on the page.
 
 Every pattern he has flagged appeared in three or four templates. When a note lands: grep the
 phrase across all ten templates *and* the registry, fix all of them, then re-render. Unswept
-instances as of writing: T1, T8, T9, T14.
+instances as of writing: **none**.
+
+> **CORRECTED 27 Aug 2026.** This read "T1, T8, T9, T14". Three of the four were already
+> swept when it was written — the claims were never re-measured. The fourth, **T9**, was
+> real: `SATC Engagement Letter - Bookkeeping.html:124` still carried
+> *"Sign through Encyro and it comes straight back to us."* a full day after that sentence
+> was replaced in every other letter, and this file said so in writing the whole time.
+>
+> **A note in a document saying a thing is still wrong is not a control.** All nineteen
+> deleted sentences now live in `client-documents/registry/retired.yaml`, and the pre-send
+> gate refuses any document that carries one. That is what closed T9, and it is what stops
+> the next one needing a note.
 
 ## T28 · Wording is data. He must be able to change a word in one place, and no test may pin his prose.
 
