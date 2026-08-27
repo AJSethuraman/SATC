@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import datetime as _dt
 import json
 import re
 import shutil
@@ -41,6 +42,7 @@ import money as m
 import engagements
 import invoicing
 import packaging
+import presend
 import fees
 import intake
 import interview as iv
@@ -429,10 +431,12 @@ def cmd_package(args) -> int:
     written: dict[str, list[Path]] = {}
     refused: list[tuple[str, str]] = []
     try:
+        rendered: dict[str, str] = {}
         for doc in docs:
             try:
-                _, files = _render_one(doc, record, staging, False, want_pdf)
+                result, files = _render_one(doc, record, staging, False, want_pdf)
                 written[doc] = files
+                rendered[doc] = result.html
             except merge.MergeError as exc:
                 refused.append((doc, str(exc)))
 
@@ -452,6 +456,71 @@ def cmd_package(args) -> int:
                       f"has not been updated. Do not send it.\n")
             return 1
 
+        # THE HTML IS NOT SELF-CONTAINED. Every template links `satc-doc.css`
+        # and `doc-page.js` by relative path, so a pack folder holding only
+        # HTML opens as UNSTYLED PLAIN TEXT -- the whole document, no masthead,
+        # no rules, no layout. With --no-pdf that is the entire deliverable.
+        #
+        # Found by the firm, opening one: "these html files are plain text?"
+        # Nothing caught it because every test reads the HTML as a STRING and
+        # asserts on its tokens, which is exactly right for a merge and blind
+        # to whether the thing renders.
+        #
+        # The two assets are copied beside the documents rather than inlined:
+        # inlining bloats every file with the same 12 KB and diverges from how
+        # the templates are authored. They go into STAGING, before the gate --
+        # a gate that inspects a pack the assets have not reached yet would
+        # fail every time for the wrong reason.
+        for asset in presend.PACK_ASSETS:
+            src = TEMPLATE_DIR / asset
+            if src.exists():
+                shutil.copy2(src, staging / asset)
+
+        # THE GATE. The firm's choice, 27 August 2026: blocking, with a logged
+        # override. Nothing has been written to `outdir` yet, so a refusal here
+        # costs nothing and leaves no half-pack behind.
+        check = presend.gate(staging, record, rendered=rendered,
+                             skip_render=getattr(args, "skip_render", False))
+        print(f"\nBefore sending — {len(check.checked)} check(s):")
+        print(presend.format_result(check))
+
+        force = getattr(args, "force", False)
+        if check.blocking and not force:
+            print(f"\nNo pack written. {len(check.blocking)} check(s) failed, "
+                  f"and a pack that does not\nsurvive being opened is not a "
+                  f"pack — it is a folder the client cannot read.\n"
+                  f"\n  Fix it, or send anyway with --force and a reason:\n"
+                  f"      --force --reason \"why this is going out as it is\"\n")
+            return 1
+
+        if check.blocking and force:
+            reason = (getattr(args, "reason", "") or "").strip()
+            if not reason:
+                print("\n--force needs --reason. An override with no recorded "
+                      "reason is just a\nquieter way to send a pack that did "
+                      "not pass.\n")
+                return 1
+            ref = record.get("EngagementRef") or args.engagement
+            entry = {
+                "at": _dt.datetime.now(_dt.timezone.utc)
+                      .replace(microsecond=0).isoformat(),
+                "command": "package",
+                "reason": reason,
+                "failed": [{"check": f.check, "document": f.document,
+                            "detail": f.detail} for f in check.blocking],
+            }
+            try:
+                logged = engagements.record_override(ref, entry, store)
+                print(f"\n  Override recorded — {logged}")
+            except Exception as exc:                        # noqa: BLE001
+                # Refuse rather than send unlogged. The override IS the record;
+                # forcing past a gate with no trace is the thing this design
+                # exists to prevent.
+                print(f"\nCould not record the override ({exc}), so the pack "
+                      f"was not written.\nThe log is the only thing that makes "
+                      f"--force different from no gate at all.\n")
+                return 1
+
         # Replace, do not merge. An entity pack written over an individual
         # one would leave two engagement letters in the folder, and whoever
         # sends it picks the wrong one.
@@ -463,6 +532,10 @@ def cmd_package(args) -> int:
         moved: dict[str, list[Path]] = {}
         for doc, files in written.items():
             moved[doc] = [Path(shutil.copy2(f, outdir / f.name)) for f in files]
+        for asset in presend.PACK_ASSETS:
+            staged = staging / asset
+            if staged.exists():
+                shutil.copy2(staged, outdir / asset)
 
         # THE HTML IS NOT SELF-CONTAINED, and until 27 August 2026 the pack
         # did not carry what it needs. Every template links `satc-doc.css` and
@@ -480,10 +553,6 @@ def cmd_package(args) -> int:
         # the templates are authored. A single HTML file mailed on its own
         # still needs its siblings -- which is what the PDF is for, and why it
         # is the default.
-        for asset in ("satc-doc.css", "doc-page.js"):
-            src = TEMPLATE_DIR / asset
-            if src.exists():
-                shutil.copy2(src, outdir / asset)
 
         book = packaging.manifest(record, docs, moved)
         (outdir / "MANIFEST.json").write_text(
@@ -1003,6 +1072,24 @@ def cmd_render(args) -> int:
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
 
+    # THE OTHER FRONT DOOR HAD THE SAME HOLE. `package` was taught to carry
+    # `satc-doc.css` and `doc-page.js` on 27 August 2026, after the firm opened
+    # a pack and found plain text. `render` was not -- and `render` is the
+    # command this CLI itself tells you to run next after raising an invoice:
+    #
+    #     Next:  python cli.py render --engagement 2026-0001 --docs invoice
+    #
+    # So every invoice, every delivery letter, every one-off document produced
+    # through this door opened as browser-default Times with the masthead
+    # collapsed into one line. Found by opening 303 rendered documents rather
+    # than by any test, because the harness only ever looked inside pack
+    # folders. Fixing one door and not the other is how a bug survives being
+    # fixed.
+    for asset in presend.PACK_ASSETS:
+        src = TEMPLATE_DIR / asset
+        if src.exists():
+            shutil.copy2(src, outdir / asset)
+
     want_pdf = not args.no_pdf
     if want_pdf:
         try:
@@ -1327,6 +1414,15 @@ def main(argv=None) -> int:
     pk.add_argument("--no-pdf", action="store_true")
     pk.set_defaults(fn=cmd_package)
 
+    pk.add_argument("--force", action="store_true",
+                    help="write the pack even though a pre-send check failed "
+                         "(needs --reason; the override is logged)")
+    pk.add_argument("--reason", default="",
+                    help="why this pack is going out despite a failed check")
+    pk.add_argument("--skip-render", action="store_true",
+                    help="do not open the documents in a browser. Faster, and "
+                         "it stops the gate proving the one thing it exists to "
+                         "prove")
     iv = sub.add_parser("invoice", help="a priced engagement -> an invoice")
     iv.add_argument("--engagement", required=True)
     iv.add_argument("--store")

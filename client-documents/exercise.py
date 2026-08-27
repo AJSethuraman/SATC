@@ -49,6 +49,7 @@ import intake                    # noqa: E402
 import invoicing                 # noqa: E402
 import merge                     # noqa: E402
 import packaging                 # noqa: E402
+import presend                   # noqa: E402
 import schedules as sched        # noqa: E402
 import settings as firm          # noqa: E402
 
@@ -372,55 +373,19 @@ def run_one(s: Scenario, store: Path, out: Path) -> Result:
 
 
 def renders(paths: list[Path]) -> list[dict]:
-    """Open each document in a browser and check it actually renders.
+    """Open each document in a browser and check it actually rendered.
 
-    "PRODUCED" MUST NOT MEAN "WROTE BYTES". Until 27 August 2026 this harness
-    counted a document as produced when the file existed, and reported 190 of
-    them with no surprises -- while every one of them opened as UNSTYLED PLAIN
-    TEXT, because the pack carried no `satc-doc.css` and no `doc-page.js`. The
-    firm found it by opening one. I had read the same files as strings,
-    extracted the words, and called it proof.
+    THE IMPLEMENTATION LIVES IN `presend`, NOT HERE. It used to live in both,
+    and the two copies had already drifted: this one still waited on
+    `networkidle`, which behind a proxy meant waiting on the Google Fonts CDN
+    for about thirteen seconds per document -- for a font FILE that neither
+    check needs, since both read the computed family from the pack's own
+    stylesheet. Two copies of a gate is two gates, and only one of them gets
+    fixed.
 
-    Two things are checked, and they are the two that fail together when the
-    assets are missing: the `doc-page` custom element upgraded (it defines the
-    page, and without its script there is no shadow root), and the type is the
-    firm's rather than the browser's default serif.
-
-    Returns the documents that did NOT render. Empty is the good answer.
+    The shape is kept because the harness prints these as `{file, why}`.
     """
-    if not paths:
-        return []
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        return [{"file": "(playwright not installed)", "why": "cannot check rendering"}]
-
-    exe = os.environ.get("SATC_CHROMIUM") or "/opt/pw-browsers/chromium"
-    bad = []
-    with sync_playwright() as pw:
-        launch = {"executable_path": exe} if Path(exe).exists() else {}
-        browser = pw.chromium.launch(**launch)
-        page = browser.new_page()
-        for f in paths:
-            try:
-                page.goto(f.resolve().as_uri(), wait_until="networkidle")
-                page.wait_for_timeout(350)
-                v = page.evaluate("""() => {
-                    const dp = document.querySelector('doc-page');
-                    const el = document.querySelector('.mast .wm') || document.body;
-                    return {upgraded: !!(dp && dp.shadowRoot),
-                            font: getComputedStyle(el).fontFamily};
-                }""")
-            except Exception as exc:                      # noqa: BLE001
-                bad.append({"file": f.name, "why": f"{type(exc).__name__}: {exc}"})
-                continue
-            if not v["upgraded"] or "Plex" not in v["font"]:
-                bad.append({"file": f.name,
-                            "why": f"opens as plain text — the page component "
-                                   f"{'did not upgrade' if not v['upgraded'] else 'upgraded'}, "
-                                   f"type is {v['font'][:34]}"})
-        browser.close()
-    return bad
+    return [{"file": f.document, "why": f.detail} for f in presend.renders(paths)]
 
 
 def main(argv=None) -> int:
