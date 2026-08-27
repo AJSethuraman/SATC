@@ -46,6 +46,7 @@ import presend
 import fees
 import intake
 import interview as iv
+import closeout
 import consistency
 import merge
 import pricing
@@ -1048,6 +1049,145 @@ def cmd_returning(args) -> int:
     return cmd_interview(args)
 
 
+def cmd_close(args) -> int:
+    """Record what was actually filed, and say where it differs from what we
+    were told.
+
+    The end of the cycle, and the half of the control a person does. Nothing
+    is read out of Drake: the preparer answers a short set of questions from
+    the filed return, in-house, which is what the firm asked for.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    try:
+        record = engagements.load(args.engagement, store)
+    except engagements.EngagementError as exc:
+        print(exc)
+        return 1
+
+    answers_path = engagements._dir(store, args.engagement) / "interview.json"
+    if not answers_path.exists():
+        print(f"\n{args.engagement} has no saved interview, so there is nothing "
+              f"to reconcile against.\n")
+        return 1
+    answers = json.loads(answers_path.read_text(encoding="utf-8"))
+    return_type = record.get("_return_type", "individual")
+    asked = closeout.questions_for(return_type)
+
+    if args.filed:
+        filed = json.loads(Path(args.filed).read_text(encoding="utf-8"))
+    else:
+        print(f"\nClosing {args.engagement} — "
+              f"{record.get('ClientFullName', '')}")
+        print(f"  {len(asked)} question(s) about what was actually filed. "
+              f"Blank leaves one unanswered,\n  and an unanswered question is "
+              f"reported as unanswered, never as agreement.\n")
+        filed = {}
+        for q in asked:
+            print(f"\n  {q['id']}")
+            print(f"  {q['question']}")
+            if q.get("options"):
+                print(f"      one of: {', '.join(q['options'])}")
+            try:
+                value = input("  > ").strip()
+            except (KeyboardInterrupt, EOFError):
+                print("\n\nabandoned; nothing was written")
+                return 1
+            if value:
+                filed[q["id"]] = value
+
+    closeout.save(args.engagement, filed, store)
+    divergences = closeout.compare(answers, filed, return_type)
+    unanswered = closeout.missing(filed, return_type)
+
+    print(f"\n{args.engagement} closed — {len(filed)} of {len(asked)} answered")
+    if unanswered:
+        print(f"\n  {len(unanswered)} question(s) unanswered, so not checked:")
+        for qid in unanswered:
+            print(f"      {qid}")
+    if not divergences:
+        print("\n  Nothing on the return disagrees with what we were told.\n")
+        return 0
+
+    print(f"\n  {len(divergences)} divergence(s) — the return and the "
+          f"interview disagree:\n")
+    for d in divergences:
+        print(d.line())
+        for line in textwrap.wrap(d.why, 68):
+            print(f"      {line}")
+        print()
+    print("  A divergence is not an error. Either the return changed after the\n"
+          "  interview, or the interview was wrong, or the wrong thing was\n"
+          "  filed — and only you can tell which. When the return is right:\n"
+          f"      python cli.py reconcile --engagement {args.engagement} --apply\n")
+    return 0
+
+
+def cmd_reconcile(args) -> int:
+    """THE END-OF-CYCLE CONTROL. Every engagement, closed or not.
+
+    The firm: "our interview and such is system of record until proven wrong.
+    we should update the data to match what we file if required. this should
+    be a control we build at the end of the cycle."
+
+    An engagement with no close-out is reported as NOT CLOSED rather than
+    skipped. A control that only examines the work somebody remembered to
+    close is a control over the diligent, which is not where the problem is.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    reviewed = closeout.sweep(store)
+    if args.engagement:
+        reviewed = [r for r in reviewed if r.ref == args.engagement]
+        if not reviewed:
+            print(f"no engagement {args.engagement} in {store}")
+            return 1
+
+    if not reviewed:
+        print(f"\nNothing in {store} to reconcile.\n")
+        return 0
+
+    open_ones = [r for r in reviewed if not r.closed]
+    diverged = [r for r in reviewed if r.divergences]
+
+    print(f"\nEnd-of-cycle reconciliation — {len(reviewed)} engagement(s)\n")
+    for r in reviewed:
+        if not r.closed:
+            print(f"  NOT CLOSED  {r.ref}  {r.client}")
+            continue
+        if not r.divergences:
+            note = "agrees"
+            if r.unanswered:
+                note += f", {len(r.unanswered)} question(s) unanswered"
+            print(f"  ok          {r.ref}  {r.client} — {note}")
+            continue
+        print(f"  DIVERGES    {r.ref}  {r.client}")
+        for d in r.divergences:
+            print(f"      {d.against}: we were told {d.asked!r}, "
+                  f"filed as {d.filed!r}")
+
+    if args.apply:
+        moved_total = 0
+        for r in diverged:
+            moved = closeout.apply_to_answers(r.ref, r.divergences, store)
+            moved_total += len(moved)
+            for m in moved:
+                print(f"\n  moved  {r.ref}  {m['answer']}: "
+                      f"{m['was']!r} -> {m['now']!r}")
+        print(f"\n  {moved_total} answer(s) moved to match what was filed, "
+              f"and every move is\n  recorded in the engagement's own "
+              f"reconciled.json. Next year's interview\n  is seeded from "
+              f"these answers, which is why it matters that they are right.\n")
+        return 0
+
+    print(f"\n  {len(reviewed) - len(open_ones)} closed · "
+          f"{len(open_ones)} still open · {len(diverged)} diverging")
+    if diverged:
+        print("\n  Nothing has been changed. When the returns are right and the\n"
+              "  record should follow:  python cli.py reconcile --apply\n")
+    else:
+        print()
+    return 0
+
+
 def cmd_engagements(args) -> int:
     rows = engagements.listing(Path(args.store) if args.store else engagements.STORE)
     if not rows:
@@ -1567,6 +1707,24 @@ def main(argv=None) -> int:
     rt.add_argument("--ref")
     rt.add_argument("--override-hard-no", action="store_true")
     rt.set_defaults(fn=cmd_returning)
+
+    cl = sub.add_parser("close",
+                        help="record what was actually filed, at the end of "
+                             "the engagement")
+    cl.add_argument("--engagement", required=True)
+    cl.add_argument("--store")
+    cl.add_argument("--filed", help="answers file, instead of asking")
+    cl.set_defaults(fn=cmd_close)
+
+    rc = sub.add_parser("reconcile",
+                        help="the end-of-cycle control: what we said against "
+                             "what we filed")
+    rc.add_argument("--engagement", help="just this one")
+    rc.add_argument("--store")
+    rc.add_argument("--apply", action="store_true",
+                    help="move the record to match what was filed, and log "
+                         "every move")
+    rc.set_defaults(fn=cmd_reconcile)
 
     e = sub.add_parser("engagements", help="list what exists")
     e.add_argument("--store")
