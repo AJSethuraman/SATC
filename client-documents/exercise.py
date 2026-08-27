@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sys
 import traceback
@@ -370,6 +371,58 @@ def run_one(s: Scenario, store: Path, out: Path) -> Result:
     return r
 
 
+def renders(paths: list[Path]) -> list[dict]:
+    """Open each document in a browser and check it actually renders.
+
+    "PRODUCED" MUST NOT MEAN "WROTE BYTES". Until 27 August 2026 this harness
+    counted a document as produced when the file existed, and reported 190 of
+    them with no surprises -- while every one of them opened as UNSTYLED PLAIN
+    TEXT, because the pack carried no `satc-doc.css` and no `doc-page.js`. The
+    firm found it by opening one. I had read the same files as strings,
+    extracted the words, and called it proof.
+
+    Two things are checked, and they are the two that fail together when the
+    assets are missing: the `doc-page` custom element upgraded (it defines the
+    page, and without its script there is no shadow root), and the type is the
+    firm's rather than the browser's default serif.
+
+    Returns the documents that did NOT render. Empty is the good answer.
+    """
+    if not paths:
+        return []
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        return [{"file": "(playwright not installed)", "why": "cannot check rendering"}]
+
+    exe = os.environ.get("SATC_CHROMIUM") or "/opt/pw-browsers/chromium"
+    bad = []
+    with sync_playwright() as pw:
+        launch = {"executable_path": exe} if Path(exe).exists() else {}
+        browser = pw.chromium.launch(**launch)
+        page = browser.new_page()
+        for f in paths:
+            try:
+                page.goto(f.resolve().as_uri(), wait_until="networkidle")
+                page.wait_for_timeout(350)
+                v = page.evaluate("""() => {
+                    const dp = document.querySelector('doc-page');
+                    const el = document.querySelector('.mast .wm') || document.body;
+                    return {upgraded: !!(dp && dp.shadowRoot),
+                            font: getComputedStyle(el).fontFamily};
+                }""")
+            except Exception as exc:                      # noqa: BLE001
+                bad.append({"file": f.name, "why": f"{type(exc).__name__}: {exc}"})
+                continue
+            if not v["upgraded"] or "Plex" not in v["font"]:
+                bad.append({"file": f.name,
+                            "why": f"opens as plain text — the page component "
+                                   f"{'did not upgrade' if not v['upgraded'] else 'upgraded'}, "
+                                   f"type is {v['font'][:34]}"})
+        browser.close()
+    return bad
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     # DEFAULTS INSIDE client-documents, where `out/` is already gitignored.
@@ -400,6 +453,16 @@ def main(argv=None) -> int:
                        status="crashed")
             r.surprises.append(traceback.format_exc().strip().splitlines()[-1])
             results.append(r)
+
+    # ── did any of it actually render? ──────────────────────────────────
+    print("\nopening every document in a browser…")
+    for r in results:
+        pack = out / r.key
+        if not pack.exists():
+            continue
+        broken = renders(sorted(pack.glob("*.html")))
+        for b in broken:
+            r.surprises.append(f"{b['file']}: {b['why']}")
 
     (out / "report.json").write_text(
         json.dumps([r.__dict__ for r in results], indent=2), encoding="utf-8")

@@ -249,3 +249,31 @@ def test_every_document_named_in_a_pack_is_a_real_template():
     for kind, docs in packaging.PACKS.items():
         for doc in docs + list(packaging.CONDITIONAL):
             assert doc in cli.DOCUMENTS, f"{kind} names {doc!r}, which does not exist"
+
+
+def test_a_pack_carries_what_its_documents_need_to_render(answers, tmp_path):
+    """A pack of HTML with no stylesheet beside it opens as plain text.
+
+    Found 27 August 2026 by the firm, opening one: "these html files are
+    plain text?" Every template links `satc-doc.css` and `doc-page.js` by
+    relative path. The pack copied the documents and not the two files they
+    need, so the folder rendered as an unbroken wall of text -- no masthead,
+    no rules, no layout. With `--no-pdf` that is the whole deliverable.
+
+    NOTHING CAUGHT IT because every other test reads the HTML as a STRING and
+    asserts on its tokens. That is the right way to test a merge and it is
+    blind to whether the result renders at all. This test asks the other
+    question: is the folder complete?
+    """
+    store, out = tmp_path / "store", tmp_path / "pack"
+    ref = _engagement(answers, store)
+    assert _run(ref, store, out) == 0
+    names = {p.name for p in out.iterdir()}
+    for asset in ("satc-doc.css", "doc-page.js"):
+        assert asset in names, (
+            f"the pack has no {asset}, so every document in it opens unstyled"
+        )
+    # and the documents really do ask for them by relative path
+    doc = next(p for p in out.glob("*.html"))
+    html = doc.read_text(encoding="utf-8")
+    assert 'href="satc-doc.css"' in html and 'src="doc-page.js"' in html

@@ -464,6 +464,27 @@ def cmd_package(args) -> int:
         for doc, files in written.items():
             moved[doc] = [Path(shutil.copy2(f, outdir / f.name)) for f in files]
 
+        # THE HTML IS NOT SELF-CONTAINED, and until 27 August 2026 the pack
+        # did not carry what it needs. Every template links `satc-doc.css` and
+        # `doc-page.js` by relative path, so a pack folder holding only HTML
+        # opens as UNSTYLED PLAIN TEXT -- the whole document, no masthead, no
+        # rules, no layout. With --no-pdf that is the entire deliverable.
+        #
+        # Found by the firm, opening one: "these html files are plain text?"
+        # Nothing caught it because every test reads the HTML as a STRING and
+        # asserts on its tokens, which is exactly right for a merge and blind
+        # to whether the thing renders.
+        #
+        # The two assets are copied beside the documents rather than inlined:
+        # inlining bloats every file with the same 12 KB and diverges from how
+        # the templates are authored. A single HTML file mailed on its own
+        # still needs its siblings -- which is what the PDF is for, and why it
+        # is the default.
+        for asset in ("satc-doc.css", "doc-page.js"):
+            src = TEMPLATE_DIR / asset
+            if src.exists():
+                shutil.copy2(src, outdir / asset)
+
         book = packaging.manifest(record, docs, moved)
         (outdir / "MANIFEST.json").write_text(
             json.dumps(book, indent=2, ensure_ascii=False) + "\n",
