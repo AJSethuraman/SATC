@@ -1,6 +1,9 @@
 # SAT-C — review queue
 
-**The decisions room is where these are answered:**
+**Document sign-off — all twelve, rendered:**
+https://claude.ai/code/artifact/4a6dc648-e458-4e8a-a2c5-f51f4b7134c5
+
+**The decisions room — six answered 26 August:**
 https://claude.ai/code/artifact/774c0626-da6e-4d6b-83d3-4b4b3003cc36
 
 Six decisions, each with where it stands, what I would do, and named options.
@@ -155,6 +158,51 @@ which is a smaller job than building ours, and is the honest alternative.
 
 `[CONFIRM: build the returning-client confirmation, or send Drake's organizer
 under this cover letter?]`
+
+## Who is the system of record — settled 26 August, and it is not what CLAUDE.md says
+
+Answering the organizer card, the firm wrote something larger than the
+organizer:
+
+> *"we are not copying out of drake - drake is only system of record for info.
+> but our interview and such is system of record until proven wrong. we should
+> update the data to match what we file if required. this should be a control
+> we build at the end of the cycle. i want everything inhouse as much as
+> possible for this kind of stuff."*
+
+**This corrects a framing I had been repeating, including in my organizer
+recommendation.** I had it as: Drake owns the figures, so SATC must not hold
+them. That is not the arrangement. The arrangement is:
+
+| | Owns | Meaning |
+|---|---|---|
+| **SATC's interview** | **client information** | What we asked, what they said, why we took the engagement. Authoritative **until proven wrong**. |
+| **Drake** | **what was filed** | The return as transmitted, and the computations behind it. |
+
+Two consequences, and the second is a thing to build:
+
+1. **Nothing is copied out of Drake.** Not into the organizer, not into a
+   confirmation, not into a workbook. The direction of travel is inward only:
+   we hold our own answers.
+2. **A reconciliation control at the end of the cycle.** When a return is
+   filed, our data is checked against what was actually filed and updated
+   where it differs. That is what makes "authoritative until proven wrong"
+   into something other than a hope — filing is the moment of proof, and
+   today nothing looks.
+
+`CLAUDE.md` currently says only *"Drake stays the system of record"* under
+hard constraints, with no split. Read alone it forbids exactly what the firm
+just asked for. **It needs the split written into it**, and that is an edit to
+a governing document, so it is flagged here rather than made.
+
+`[CONFIRM: amend CLAUDE.md's hard constraint to the split above?]`
+
+**What it changes about the organizer.** Nothing about the recommendation —
+the returning-client confirmation was already built on our own stored answers
+rather than on Drake's figures, which is why it was the cheap option. It does
+change the reason: not "because Drake owns the figures", but "because our
+answers are ours and we should not be asking a client to re-tell us what we
+already recorded."
 
 ## A C corporation cannot be sent its engagement letter at all
 

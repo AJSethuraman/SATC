@@ -215,6 +215,17 @@ same legal duties either way — Phase 0 below stands regardless.
 
 ## To-do
 
+### The end-of-cycle reconciliation control
+
+- [ ] **Check our data against what was actually filed, and update it.** The
+      firm, 26 August 2026: *"our interview and such is system of record until
+      proven wrong. we should update the data to match what we file if
+      required. this should be a control we build at the end of the cycle."*
+      Filing is the moment our answers are proven right or wrong, and today
+      nothing looks. Until this exists, "authoritative until proven wrong" has
+      no mechanism behind the second half. Depends on nothing else; blocked
+      only on where the filed figures are read from.
+
 ### Owed to the firm when the documents are done
 
 - [ ] **Walk the whole fee schedule with the firm, line by line.** Asked for on
