@@ -1,0 +1,176 @@
+# SATC — the events after the opening pack
+#
+# THE PROBLEM THIS SOLVES. Four documents could not be produced by any command
+# a preparer can run: the delivery letter, the organizer cover, the extension
+# notice and the disengagement letter. Every one of them needs facts that do
+# not exist when the engagement is created -- a signature deadline, an extended
+# deadline, what was actually delivered, the date an engagement ended -- and
+# nothing collected them. `doctor` reported the organizer letter blocked on
+# every engagement in the store, correctly, and there was no way to unblock it.
+#
+# So the opening pack was a third of the process and the other two thirds had
+# no front door. Found by opening 303 rendered documents.
+#
+# Each event below names the document it produces, the questions a preparer
+# answers at the moment the event happens, and the lists that document needs.
+# The same shape as `closeout.yaml`, and for the same reason: what is asked is
+# data, so adding a question is an edit here rather than a change to Python.
+#
+#   supplies:   the merge field this answer fills
+#   kind:       text | date | money | single
+#   rows:       a repeating list; `columns` are the Item.* names the template
+#               uses, and `required` means the document refuses when empty
+#   pair:       two flags derived from ONE answer, so they cannot disagree
+#
+# WHAT MAY NOT GO HERE: anything that decides what the firm's position is.
+# These questions collect facts a preparer knows on the day. The sentences
+# around them are already written, in the templates.
+
+events:
+
+  delivery:
+    document: delivery-letter
+    what: "The returns are finished and going to the client."
+    questions:
+      - id: signature_deadline
+        question: "By when should they sign and return the e-file authorization?"
+        kind: date
+        supplies: SignatureDeadline
+      - id: filing
+        question: "How were the returns filed?"
+        kind: single
+        options: ["efiled", "paper"]
+        pair: { efiled: EFiled, paper: PaperFiled }
+        why: >-
+          Two flags from one answer. Independent booleans can both be false,
+          and the section they control would come out empty under a heading
+          that promises it says something.
+      - id: estimated_payments
+        question: "Are estimated payment vouchers going with the copies?"
+        kind: single
+        options: ["yes", "no"]
+        flag: EstimatedPayments
+    rows:
+      - list: ReturnsDelivered
+        required: true
+        prompt: "Each return being delivered"
+        columns: [Return, Detail]
+      - list: ActionList
+        required: false
+        prompt: "Anything the client has to do"
+        columns: [Action, Detail]
+
+  organizer:
+    document: organizer-letter
+    what: "Asking a returning client for this year's papers."
+    questions:
+      - id: tax_year
+        question: "Which tax year?"
+        kind: text
+        supplies: TaxYear
+      - id: materials_deadline
+        question: "By when do we need their material?"
+        kind: date
+        supplies: MaterialsDeadline
+      - id: fee_change
+        question: "Is the fee changing this year?"
+        kind: single
+        options: ["yes", "no"]
+        flag: FeeChange
+      - id: fee_change_note
+        question: "What does the letter say about the fee?"
+        kind: text
+        supplies: FeeChangeNote
+        why: >-
+          The firm's own sentence about their own price. Asked rather than
+          composed, because a fee change is a thing a person explains.
+    rows:
+      - list: Requested
+        required: true
+        prompt: "What we are asking them to send"
+        columns: [Category, Detail]
+
+  extension:
+    document: extension-notice
+    what: "An extension has been filed."
+    questions:
+      - id: extended_deadline
+        question: "What is the extended filing deadline?"
+        kind: date
+        supplies: ExtendedDeadline
+      - id: payment_deadline
+        question: "By when must any payment be made?"
+        kind: date
+        supplies: PaymentDeadline
+      - id: materials_deadline
+        question: "By when do we need the rest of their material?"
+        kind: date
+        supplies: MaterialsDeadline
+      - id: payment
+        question: "Is a payment due with the extension?"
+        kind: single
+        options: ["yes", "no"]
+        pair: { "yes": PaymentEnclosed, "no": NoPaymentRequired }
+        why: >-
+          The template's own notes: "section 02 must never be silent about
+          money." Both flags false left a warning with no instruction, which
+          those notes call the worst possible version of this letter.
+      - id: estimated_payment_amount
+        question: "How much should they pay?"
+        kind: money
+        supplies: EstimatedPaymentAmount
+        when: { payment: "yes" }
+    rows:
+      - list: ExtendedReturns
+        required: true
+        prompt: "Each return the extension covers"
+        columns: [Return, Detail]
+      - list: OutstandingItems
+        required: false
+        prompt: "What is still outstanding"
+        columns: [Document, Detail]
+
+  disengagement:
+    document: disengagement-letter
+    what: "The engagement is ending."
+    questions:
+      - id: effective_date
+        question: "What date does it take effect?"
+        kind: date
+        supplies: EffectiveDate
+      - id: records_available_until
+        question: "Until when are their records available for collection?"
+        kind: date
+        supplies: RecordsAvailableUntil
+      - id: scope_ended
+        question: "What exactly is ending?"
+        kind: text
+        supplies: ScopeEnded
+        why: >-
+          A PHRASE, not a code. "the preparation of your 2026 individual income
+          tax returns". If another engagement continues, this is where the
+          letter says so.
+      - id: ended_by
+        question: "Who ended it?"
+        kind: single
+        options: ["client", "firm"]
+        pair: { client: ClientInitiated, firm: FirmInitiated }
+      - id: balance
+        question: "Is there a balance outstanding?"
+        kind: single
+        options: ["yes", "no"]
+        pair: { "yes": BalanceOutstanding, "no": AccountSettled }
+      - id: outstanding_balance
+        question: "How much?"
+        kind: money
+        supplies: OutstandingBalance
+        when: { balance: "yes" }
+    rows:
+      - list: WorkStatus
+        required: true
+        prompt: "Where each piece of work stands"
+        columns: [Work, Status]
+      - list: OpenDeadlines
+        required: false
+        prompt: "Deadlines that are now theirs"
+        columns: [Obligation, Detail]

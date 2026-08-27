@@ -41,6 +41,7 @@ import yaml
 import money as m
 import engagements
 import invoicing
+import lifecycle
 import packaging
 import presend
 import procedures
@@ -1221,6 +1222,97 @@ def cmd_procedures(args) -> int:
     return 0
 
 
+def _ask_rows(spec: dict) -> list[dict]:
+    """One repeating list, at a terminal. Blank line ends it."""
+    cols = spec["columns"]
+    print(f"\n  {spec['prompt']} — {', '.join(cols)}")
+    print(f"      one per line, {' | '.join(c.lower() for c in cols)}; "
+          f"blank to finish")
+    rows = []
+    while True:
+        try:
+            line = input("  > ").strip()
+        except (KeyboardInterrupt, EOFError):
+            raise
+        if not line:
+            break
+        parts = [p.strip() for p in line.split("|")]
+        parts += [""] * (len(cols) - len(parts))
+        rows.append(dict(zip(cols, parts[:len(cols)])))
+    return rows
+
+
+def cmd_event(args) -> int:
+    """A lifecycle event, and the document it produces.
+
+    Four documents could not be produced by any command a preparer can run --
+    the delivery letter, the organizer cover, the extension notice and the
+    disengagement letter. Each needs facts that do not exist when the
+    engagement is created, and nothing collected them, so the opening pack was
+    a third of the process and the other two thirds had no front door.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    try:
+        ev = lifecycle.event(args.kind)
+    except lifecycle.LifecycleError as exc:
+        print(f"\n{exc}\n")
+        return 1
+    try:
+        raw = engagements.load(args.engagement, store)
+    except engagements.EngagementError as exc:
+        print(exc)
+        return 1
+
+    saved = lifecycle.load_saved(args.engagement, args.kind, store) or {}
+    if args.answers:
+        payload = json.loads(Path(args.answers).read_text(encoding="utf-8"))
+        answers = payload.get("answers", payload)
+        rows = payload.get("rows", {})
+    elif saved and not args.again:
+        answers, rows = saved.get("answers", {}), saved.get("rows", {})
+        print(f"\nUsing the answers already recorded for {args.kind}. "
+              f"`--again` asks them afresh.")
+    else:
+        print(f"\n{args.kind} — {ev.what}")
+        print(f"  {args.engagement}  {raw.get('ClientFullName', '')}\n")
+        answers, rows = {}, {}
+        try:
+            for q in ev.questions:
+                if not lifecycle.asks(q, answers):
+                    continue
+                print(f"\n  {q['question']}")
+                if q.get("options"):
+                    print(f"      one of: {', '.join(q['options'])}")
+                if q.get("why"):
+                    for line in textwrap.wrap(" ".join(q["why"].split()), 66):
+                        print(f"      {line}")
+                answers[q["id"]] = input("  > ").strip()
+            for spec in ev.rows:
+                rows[spec["list"]] = _ask_rows(spec)
+        except (KeyboardInterrupt, EOFError):
+            print("\n\nabandoned; nothing was written")
+            return 1
+
+    merged = lifecycle.fields(args.kind, answers, rows)
+    short = lifecycle.missing(args.kind, merged)
+    if short:
+        print(f"\nNot enough to write the {ev.document} yet — still needs: "
+              f"{', '.join(short)}.\nNothing was saved. A document that cannot "
+              f"be honest is not written.\n")
+        return 1
+
+    lifecycle.save(args.engagement, args.kind,
+                   {"answers": answers, "rows": rows}, store)
+
+    record = build_record({**raw, **merged})
+    outdir = Path(args.out) if args.out else Path("out") / args.engagement
+    rc = cmd_render(argparse.Namespace(
+        record=None, engagement=None, store=None, docs=[ev.document],
+        out=str(outdir), no_pdf=args.no_pdf, draft=False,
+        _record_override=record))
+    return rc
+
+
 def cmd_engagements(args) -> int:
     rows = engagements.listing(Path(args.store) if args.store else engagements.STORE)
     if not rows:
@@ -1316,11 +1408,18 @@ def cmd_render(args) -> int:
                 return 1
             raw = {**raw, **bill}
             print(f"  invoice {bill.get('InvoiceNumber', '')}\n")
+    elif getattr(args, "_record_override", None) is not None:
+        # A caller that has already composed the record -- `event` merges the
+        # engagement with the facts a preparer just supplied. Passing a path
+        # would mean writing a temporary file whose only reader is the next
+        # line of the same function.
+        raw = None
     elif args.record:
         raw = json.loads(Path(args.record).read_text(encoding="utf-8"))
     else:
         raise SystemExit("give a record file or --engagement REF")
-    record = build_record(raw)
+    record = (args._record_override if raw is None
+              else build_record(raw))
 
     docs = args.docs or opening_package(record)
     unknown = [d for d in docs if d not in DOCUMENTS]
@@ -1765,6 +1864,21 @@ def main(argv=None) -> int:
     pc.add_argument("--check", action="store_true",
                     help="fail if the committed copy has drifted")
     pc.set_defaults(fn=cmd_procedures)
+
+    evp = sub.add_parser("event",
+                         help="a lifecycle event after the opening pack, and "
+                              "the document it produces")
+    evp.add_argument("--kind", required=True,
+                     choices=sorted(lifecycle.load()),
+                     help="which event")
+    evp.add_argument("--engagement", required=True)
+    evp.add_argument("--store")
+    evp.add_argument("--out")
+    evp.add_argument("--answers", help="answers file, instead of asking")
+    evp.add_argument("--again", action="store_true",
+                     help="ask again rather than reusing what was recorded")
+    evp.add_argument("--no-pdf", action="store_true")
+    evp.set_defaults(fn=cmd_event)
 
     e = sub.add_parser("engagements", help="list what exists")
     e.add_argument("--store")
