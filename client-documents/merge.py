@@ -62,6 +62,11 @@ class MergeResult:
     fields_used: set = dc_field(default_factory=set)
     blocks_kept: set = dc_field(default_factory=set)
     blocks_dropped: set = dc_field(default_factory=set)
+    # old -> new section numbers, empty when the document numbered correctly
+    # on its own. Carried out so a caller can SAY that a document was
+    # renumbered: a silent renumber and no renumber look identical from here,
+    # and one of them means a condition dropped a section.
+    renumbered: dict = dc_field(default_factory=dict)
 
 
 def _sentinel(name: str) -> str:
@@ -142,6 +147,66 @@ def _substitute_one(text: str, name: str, value) -> str:
     return text
 
 
+# ── section numbering ─────────────────────────────────────────────────────
+#
+# A dropped `[[IF]]` section leaves a HOLE IN THE NUMBERING and nothing put it
+# right. Every onboarding letter for a client with no previous accountant went
+# out reading 01, 02, 04, 05 -- 26 of the 27 packs the harness produces -- and
+# the delivery letter jumped 03 to 05 in all 27. The template's own FIELDS spec
+# asked for this in so many words ("Renumber the remaining sections in code --
+# 05 and 06 must not follow 03") and it was never built.
+#
+# It belongs HERE, after `_render_if`, and nowhere else. `editor.renumber()`
+# renumbers the TEMPLATE, where there is no gap: the gap only exists once a
+# condition has been resolved, so a renumbering that reads the template is
+# renumbering the one version of the document that was already correct.
+_SECTION_N = re.compile(r'(<h2[^>]*><span class="n">)(\d+)(</span>)')
+_SECTION_REF = re.compile(r'\b(sections?)(\s+)(\d{1,2})\b', re.I)
+
+
+def _renumber_sections(text: str) -> tuple[str, dict[str, str]]:
+    """Make the numbers on the page read 01..N with no gaps.
+
+    Returns the text and the old->new map, which is empty when nothing moved.
+    Prose that cites a section by number is remapped with it: renumbering the
+    headings alone would leave "section 04 tells you what to do" pointing at
+    whatever now occupies 04, which is worse than the gap it fixed.
+    """
+    found = _SECTION_N.findall(text)
+    if not found:
+        return text, {}
+    old = [n for _, n, _ in found]
+    new = [f"{i:02d}" for i in range(1, len(old) + 1)]
+    if old == new:
+        return text, {}
+
+    mapping = dict(zip(old, new))
+
+    seq = iter(new)
+    text = _SECTION_N.sub(lambda m: f"{m.group(1)}{next(seq)}{m.group(3)}", text)
+
+    def _ref(m):
+        n = m.group(3)
+        moved = mapping.get(n) or mapping.get(n.zfill(2))
+        return f"{m.group(1)}{m.group(2)}{moved}" if moved else m.group(0)
+
+    return _SECTION_REF.sub(_ref, text), mapping
+
+
+def _dangling_section_refs(text: str) -> set[str]:
+    """Numbers the prose cites that the document does not have.
+
+    A client reading "section 03 explains what to do" and finding no section 03
+    is the same failure as an unresolved token: the document says something
+    that is not true of itself.
+    """
+    have = {n for _, n, _ in _SECTION_N.findall(text)}
+    if not have:
+        return set()
+    cited = {m.group(3).zfill(2) for m in _SECTION_REF.finditer(text)}
+    return cited - have
+
+
 def render(template_html: str, record: dict, *, strict: bool = True,
            required_lists: "tuple[str, ...] | list[str]" = ()) -> MergeResult:
     """Fill a template. Raises MergeError rather than returning a holed document.
@@ -161,6 +226,7 @@ def render(template_html: str, record: dict, *, strict: bool = True,
     dropped: set = set()
     text = _render_each(text, record)
     text = _render_if(text, record, kept, dropped)
+    text, renumbered = _renumber_sections(text)
 
     used = set()
     for name in sorted(set(_FIELD_IN_SPAN.findall(text)) | set(_FIELD_BARE.findall(text))):
@@ -191,10 +257,17 @@ def render(template_html: str, record: dict, *, strict: bool = True,
         confirms = {m for m in _CONFIRM.findall(text)}
         if confirms:
             problems.append("undecided placeholders: " + ", ".join(sorted(confirms)))
+        dangling = _dangling_section_refs(text)
+        if dangling:
+            problems.append(
+                "points the reader at section(s) "
+                + ", ".join(sorted(dangling))
+                + ", which this document does not have")
         if problems:
             raise MergeError("; ".join(problems))
 
-    return MergeResult(html=text, fields_used=used, blocks_kept=kept, blocks_dropped=dropped)
+    return MergeResult(html=text, fields_used=used, blocks_kept=kept,
+                       blocks_dropped=dropped, renumbered=renumbered)
 
 
 def render_file(template_path: str | Path, record: dict, **kw) -> MergeResult:

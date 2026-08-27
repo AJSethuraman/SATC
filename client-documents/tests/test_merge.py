@@ -7,6 +7,7 @@ either comes out complete, or it does not come out at all.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -14,6 +15,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+import merge  # noqa: E402
 from merge import MergeError, render, render_file  # noqa: E402
 
 TEMPLATE_DIR = ROOT.parent / "satc-handoff" / "04-TEMPLATES"
@@ -392,3 +394,56 @@ def test_a_required_list_is_not_enforced_in_draft():
     out = render(REQUIRED_LIST_TPL, {"LineItems": []},
                        strict=False, required_lists=("LineItems",))
     assert out.html is not None
+
+
+# ── section numbering, after the conditionals resolve ─────────────────────
+
+def test_a_dropped_section_renumbers_the_ones_below_it():
+    """THE LIVE DEFECT. `[[IF PriorFirm]]` drops section 03 of the onboarding
+    letter and nothing renumbered, so 26 of 27 packs went out reading
+    01, 02, 04, 05. The template's own FIELDS spec asked for this in writing
+    -- "Renumber the remaining sections in code" -- and it was never built."""
+    out, moved = merge._renumber_sections(
+        '<h2><span class="n">01</span>A</h2>'
+        '<h2><span class="n">02</span>B</h2>'
+        '<h2><span class="n">04</span>C</h2>'
+        '<h2><span class="n">05</span>D</h2>')
+    assert re.findall(r'class="n">(\d+)<', out) == ["01", "02", "03", "04"]
+    assert moved == {"01": "01", "02": "02", "04": "03", "05": "04"}
+
+
+def test_prose_that_cites_a_section_moves_with_it():
+    """Renumbering the headings alone would leave "section 04 tells you what
+    to do" pointing at whatever now occupies 04 — worse than the gap."""
+    out, _ = merge._renumber_sections(
+        '<h2><span class="n">01</span>A</h2><p>Section 04 explains it.</p>'
+        '<h2><span class="n">02</span>B</h2>'
+        '<h2><span class="n">04</span>C</h2>')
+    assert "Section 03 explains it." in out
+
+
+def test_a_document_that_already_numbers_correctly_is_untouched():
+    src = ('<h2><span class="n">01</span>A</h2>'
+           '<h2><span class="n">02</span>B</h2><p>see section 02</p>')
+    out, moved = merge._renumber_sections(src)
+    assert out == src and moved == {}
+
+
+def test_a_reference_to_a_section_that_is_not_there_is_refused():
+    """A client reading "section 09 explains what to do" and finding no
+    section 09 is the same failure as an unresolved token: the document says
+    something that is not true of itself."""
+    with pytest.raises(merge.MergeError) as exc:
+        merge.render('<h2><span class="n">01</span>A</h2>'
+                     '<p>Section 09 explains it.</p>', {})
+    assert "section(s) 09" in str(exc.value)
+
+
+def test_the_result_says_whether_anything_moved():
+    """A silent renumber and no renumber look identical from outside, and one
+    of them means a condition dropped a section."""
+    quiet = merge.render('<h2><span class="n">01</span>A</h2>', {})
+    assert quiet.renumbered == {}
+    moved = merge.render('<h2><span class="n">01</span>A</h2>'
+                         '<h2><span class="n">03</span>B</h2>', {})
+    assert moved.renumbered == {"01": "01", "03": "02"}
