@@ -78,11 +78,66 @@ def save_draft(store: Path, sid: str, data: dict) -> None:
     p.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
+def draft_card(store: Path, sid: str) -> dict:
+    """An unfinished sitting, described the way a person would describe it.
+
+    The home page listed these as `resume 56509a234d60`. That is the session
+    id, which tells a preparer nothing at all -- not whose it is, not when it
+    started, not whether it is nearly done. Everything needed is already in
+    the draft file; nothing new is stored to say it.
+    """
+    who, started, answered = "", "", 0
+    try:
+        d = json.loads(draft_path(store, sid).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        # A draft that will not parse is still a draft: it is named, and it
+        # is not silently dropped off the page.
+        return {"id": sid, "who": "", "started": "", "answered": 0}
+    answers = d.get("answers") or {}
+    answered = len(answers)
+    lead = (d.get("lead") or {}).get("contact") or {}
+    who = answers.get("client_full_name") or lead.get("name") or lead.get("email") or ""
+    started = str(d.get("started") or "")
+    return {"id": sid, "who": who, "started": started, "answered": answered}
+
+
 def session_for(draft: dict) -> iv.Interview:
     return iv.Interview(lead=draft.get("lead"), answers=dict(draft["answers"]))
 
 
 # ── the value a form field carries -> the value the schema expects ────────
+
+def revising(session: iv.Interview, draft: dict):
+    """The question a preparer stepped back to, if it still stands.
+
+    A sitting is normally wherever `next_question` says it is. Stepping back
+    puts a cursor on the draft instead -- and a cursor goes stale in one
+    keystroke: change `joint_return` to "no" and the spouse's name is pruned
+    out from under it. So it is checked against the live schema every time
+    rather than trusted, and a stale one quietly hands the sitting back to
+    `next_question`.
+    """
+    qid = draft.get("at")
+    if not qid:
+        return None
+    for section, q in iv.all_questions(session.schema):
+        if q["id"] != qid:
+            continue
+        if q.get("derived") or qid not in session.answers:
+            return None
+        return (section, q) if iv.visible(q, session.answers) else None
+    return None
+
+
+def step_back_to(session: iv.Interview, draft: dict) -> str:
+    """One step behind wherever the sitting is now, or "" at the start."""
+    order = session.asked()
+    at = draft.get("at")
+    if at in order:
+        i = order.index(at)
+        return order[i - 1] if i else ""
+    return order[-1] if order else ""
+
 
 def coerce(q: dict, raw) -> object:
     """A browser sends strings. The schema wants ints, lists and option values.
@@ -126,8 +181,11 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
         drafts = sorted(p.stem for p in (st() / DRAFTS).glob("*.json")) \
             if (st() / DRAFTS).exists() else []
         if wants_json():
+            # The JSON stays a list of ids. It is what scripts and the tests
+            # already read, and a half-finished sitting is identified by its
+            # id however it is described on screen.
             return jsonify(engagements=rows, drafts=drafts)
-        return page("SAT-C", index_body(rows, drafts))
+        return page("SAT-C", index_body(rows, [draft_card(st(), d) for d in drafts]))
 
     # ── start ─────────────────────────────────────────────────────────────
 
@@ -320,7 +378,8 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
     def show(sid):
         draft = load_draft(st(), sid)
         session = session_for(draft)
-        nxt = session.next_question()
+        back = revising(session, draft)
+        nxt = back or session.next_question()
 
         if nxt is None:
             blockers = iv.hard_no(session.answers)
@@ -336,9 +395,13 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
         if wants_json():
             return jsonify(draft=sid, complete=False, section=section["title"],
                            question=q, claim=claim, claim_acceptable=acceptable,
-                           answered=len(session.answers))
-        return page(q["question"], question_body(sid, section, q, claim,
-                                                 acceptable, session))
+                           answered=len(session.answers),
+                           revising=bool(back))
+        return page(q["question"],
+                    question_body(sid, section, q, claim, acceptable, session,
+                                  current=session.answers.get(q["id"])
+                                  if back else None,
+                                  back=step_back_to(session, draft)))
 
     # ── answering ─────────────────────────────────────────────────────────
 
@@ -346,7 +409,8 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
     def answer(sid):
         draft = load_draft(st(), sid)
         session = session_for(draft)
-        nxt = session.next_question()
+        back = revising(session, draft)
+        nxt = back or session.next_question()
         if nxt is None:
             abort(409, "the interview has no more questions")
         _, q = nxt
@@ -373,12 +437,48 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
                                       iv.prefill_for(q, draft.get("lead")),
                                       iv.prefill_is_answerable(
                                           q, iv.prefill_for(q, draft.get("lead"))),
-                                      session, error=str(exc))), 400
+                                      session, error=str(exc),
+                                      current=session.answers.get(q["id"])
+                                      if back else None,
+                                      back=step_back_to(session, draft))), 400
 
         draft["answers"] = session.answers
+        # The correction is made; the sitting goes back to where it was.
+        draft.pop("at", None)
         save_draft(st(), sid, draft)
         if wants_json():
             return jsonify(draft=sid, saved=q["id"], next=url_for("show", sid=sid))
+        return redirect(url_for("show", sid=sid))
+
+    # ── going back ────────────────────────────────────────────────────────
+
+    @app.post("/interview/<sid>/back")
+    def back(sid):
+        """A client corrects themselves, and there was no route for it.
+
+        Nothing is deleted here. The cursor moves, the old answer is shown
+        as it stands, and re-answering runs the same `Interview.answer` the
+        forward path runs -- so a changed answer prunes whatever it hides,
+        exactly as it would have if it had been given that way first time.
+        """
+        draft = load_draft(st(), sid)
+        session = session_for(draft)
+        body = request.get_json(silent=True) if request.is_json else None
+        want = (body or {}).get("to") or request.form.get("to") or ""
+        # A preparer who steps back and decides nothing was wrong needs a way
+        # out that is not "press Back until something happens".
+        if (body or {}).get("resume") or request.form.get("resume"):
+            want, qid = "", ""
+        else:
+            qid = want if want in session.asked() else step_back_to(session,
+                                                                   draft)
+        if qid:
+            draft["at"] = qid
+        else:
+            draft.pop("at", None)
+        save_draft(st(), sid, draft)
+        if wants_json():
+            return jsonify(draft=sid, at=qid, next=url_for("show", sid=sid))
         return redirect(url_for("show", sid=sid))
 
     # ── finishing: straight through to the core ───────────────────────────
@@ -453,8 +553,27 @@ padding:9px 12px;margin:0 0 14px;font-size:14px}
 .claim.bad{border-left-color:var(--oxblood)}
 .err{color:var(--oxblood);margin:0 0 14px;font-size:14px}
 .row{display:flex;gap:9px;align-items:center;margin-top:20px}
-.bar{height:2px;background:var(--hairline-2);margin:0 0 26px}
-.bar i{display:block;height:2px;background:var(--navy)}
+/* A button never wraps its own label — a flex row will squeeze one
+   into two lines the moment a sentence sits beside it. */
+.row button{flex:none;white-space:nowrap}
+.bar{height:3px;background:var(--hairline-2);margin:0 0 14px;border-radius:2px}
+.bar i{display:block;height:3px;background:var(--navy);border-radius:2px;
+transition:width .18s ease}
+.crumb{display:flex;justify-content:space-between;align-items:baseline;
+gap:14px;margin:0 0 18px}
+.crumb .sec{margin:0}
+.crumb .count{font:11px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;
+color:var(--mute);flex:none}
+.crumb form{margin:0;flex:none}
+.crumb .sec{flex:1}
+/* A control that changes nothing on its own reads as text, not as a slab of
+   navy competing with the answer the question is actually asking for. */
+button.link{background:none;border:0;padding:0;color:var(--ink-2);font:inherit;
+font-size:12.5px;cursor:pointer;text-decoration:underline;
+text-underline-offset:3px}
+button.link:hover{color:var(--navy)}
+td.fix{width:1%;white-space:nowrap;text-align:right}
+.quitrow{margin-top:14px}
 table{border-collapse:collapse;width:100%;font-size:14px}
 td,th{text-align:left;padding:7px 10px;border-bottom:1px solid var(--hairline-2)}
 th{font:11px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;
@@ -475,6 +594,20 @@ th .fname{display:block;font:10px/1.4 "IBM Plex Mono",monospace;
 letter-spacing:.06em;color:var(--mute);text-transform:none;margin-top:2px}
 table.plain th{text-transform:none;font-family:inherit;font-size:14px;
 letter-spacing:0;color:var(--ink);font-weight:500;width:52%}
+.lead{display:flex;gap:16px;align-items:center;justify-content:space-between;
+padding:15px 0 13px}
+.lead .who{min-width:0}
+.lead .who b{display:block;font-size:16px;color:var(--navy);font-weight:600}
+.lead .gist{display:block;font-size:13.5px;color:var(--ink-2);margin-top:2px}
+.lead .count{display:block;font:10.5px/1.6 "IBM Plex Mono",monospace;
+letter-spacing:.08em;color:var(--mute)}
+.lead form{flex:none;margin:0}
+@media (max-width:520px){.lead{display:block}.lead form{margin-top:11px}}
+/* The "what they told us" panel is secondary to the row above it, and says
+   so: a smaller, quieter summary that plainly opens. */
+details.blk.quiet summary{padding:7px 2px 13px;font-size:11px}
+details.blk.quiet summary .count::before{content:"+ "}
+details.blk.quiet[open] summary .count::before{content:"\2212 "}
 details.blk{border-bottom:1px solid var(--hairline-2)}
 details.blk summary{cursor:pointer;list-style:none;padding:13px 2px;
 display:flex;justify-content:space-between;align-items:baseline;gap:14px;
@@ -487,6 +620,24 @@ details.blk[open] summary{color:var(--navy)}
 details.blk .count{color:var(--mute);letter-spacing:.06em;flex:none}
 details.blk .st{flex:1}
 details.blk form{padding:4px 0 20px}
+/* The manual door is a row, not a section header: it carries a real title,
+   a line saying when you would want it, and something that looks pressable. */
+details.blk.door summary{padding:15px 2px 13px;font:inherit;letter-spacing:0;
+text-transform:none;color:var(--ink);align-items:center}
+details.blk.door summary .st b{display:block;font-size:16px;color:var(--navy);
+font-weight:600}
+details.blk.door summary .st span{display:block;font-size:13.5px;
+color:var(--ink-2);margin-top:2px}
+.asbtn{flex:none;padding:9px 18px;border:1px solid var(--navy);border-radius:2px;
+background:#fff;color:var(--navy);font-size:15px;line-height:1.55}
+details.blk.door[open] summary .asbtn{background:var(--hairline-2)}
+@media (max-width:520px){details.blk.door summary{display:block}
+.asbtn{display:inline-block;margin-top:11px}}
+/* A caption a field keeps. Placeholders read as labels until you type. */
+.f{margin:0 0 12px}
+label.fl{display:block;padding:0;margin:0 0 4px;border:0;background:none;
+cursor:default;font:11px/1.4 "IBM Plex Mono",monospace;letter-spacing:.08em;
+text-transform:uppercase;color:var(--mute)}
 details.blk textarea{font-size:14px;line-height:1.55;margin-bottom:4px}
 .fieldrow{margin:0 0 14px;color:var(--mute)}
 .locked{border-left:2px solid var(--hairline);padding:2px 0 2px 12px;
@@ -580,16 +731,24 @@ def index_body(rows, drafts) -> str:
     else:
         out.append("<p class=muted>None yet.</p>")
     if drafts:
-        out.append("<h1 style='margin-top:32px'>Unfinished</h1><ul class=muted>")
+        out.append("<h1 style='margin-top:32px'>Unfinished sittings</h1>")
         for d in drafts:
-            out.append(f"<li><a href='/interview/{esc(d)}'>resume {esc(d)}</a></li>")
-        out.append("</ul>")
+            who = d["who"] or "Nobody named yet"
+            bits = [f"{d['answered']} answered"]
+            if d["started"]:
+                bits.append(f"started {esc(d['started'])}")
+            out.append(
+                f"<div class=lead><div class=who><b>{esc(who)}</b>"
+                f"<span class=gist>{' &middot; '.join(bits)}</span></div>"
+                f"<a href='/interview/{esc(d['id'])}'>"
+                f"<button type=button class=ghost>Pick it back up</button></a>"
+                f"</div>")
     out.append("<form method=post action='/interview' class=row>"
                "<button>Start an interview</button>"
                "<a href='/leads' style='margin-left:4px'>"
                "<button type=button class=ghost>Leads</button></a>"
                "<a href='/templates' style='margin-left:4px'>"
-               "<button type=button class=ghost>Edit the wording</button></a>"
+               "<button type=button class=ghost>Letter wording</button></a>"
                "</form>")
     return "".join(out)
 
@@ -609,27 +768,59 @@ def leads_body(rows, path, problem="") -> str:
         c = lead.get("contact") or {}
         who = c.get("name") or c.get("email") or "(no name)"
         num = lead.get("_lead_number") or ""
-        out.append(f"<details class=blk><summary><span class=st>{esc(who)}</span>"
-                   f"<span class=count>{esc(num)}</span></summary>"
-                   f"<table class=plain>")
+        # WHAT THEY WANT, ON THE ROW. A name alone gives a preparer nothing to
+        # choose between when four people are waiting.
+        gist = next((v for label, v in leads.summary(lead)
+                     if label.lower().startswith(("service", "what"))), "")
+        where = c.get("location") or ""
+        sub = " &middot; ".join(esc(x) for x in (gist, where) if x)
+
+        # THE ACTION IS ON THE ROW, NOT INSIDE IT. These were collapsed
+        # disclosures with no chevron and no hint: the names read as static
+        # text, the "start" button lived inside, and the only way to discover
+        # it was to click something that did not look clickable. A browser
+        # automation could not find it either.
+        out.append(
+            f"<div class=lead>"
+            f"<div class=who><b>{esc(who)}</b>"
+            + (f"<span class=gist>{sub}</span>" if sub else "")
+            + (f"<span class=count>{esc(num)}</span>" if num else "")
+            + f"</div>"
+            f"<form method=post action='/interview'>"
+            f"<input type=hidden name=lead_index value='{i}'>"
+            f"<button>Start the interview</button></form>"
+            f"</div>"
+            f"<details class='blk quiet'><summary>"
+            f"<span class=st>What {esc(who)} told us</span>"
+            f"<span class=count>show</span></summary><table class=plain>")
         for label, value in leads.summary(lead):
             out.append(f"<tr><th>{esc(label)}</th><td>{esc(value)}</td></tr>")
-        out.append("</table>"
-                   f"<form method=post action='/interview' class=row>"
-                   f"<input type=hidden name=lead_index value='{i}'>"
-                   f"<button>Start an interview from this</button></form>"
-                   "</details>")
+        out.append("</table></details>")
 
+    # THE MANUAL DOOR, IN THE SAME VOICE AS THE ROWS ABOVE IT. It used to be
+    # a mono-caps "TAKE ONE BY PHONE / MANUAL" bar sitting under names set in
+    # 16px — the one row a preparer needs when the phone is actually ringing,
+    # and the only one on the page that looked like plumbing. Same row shape,
+    # same size, and the fields carry captions instead of placeholders, which
+    # disappear the moment you start typing.
     out.append(
-        "<details class='blk add'><summary><span class=st>Take one by phone"
-        "</span><span class=count>manual</span></summary>"
+        "<details class='blk door'><summary><span class=st>"
+        "<b>Nobody on this list — they called</b>"
+        "<span>Type in what they gave you on the phone and start from "
+        "there.</span></span>"
+        "<span class=asbtn>Take it by phone</span></summary>"
         "<form method=post action='/interview'>"
         "<input type=hidden name=by_hand value=1>"
-        "<input type=text name=name placeholder='Name they gave'>"
-        "<input type=text name=email placeholder='Email'>"
-        "<input type=text name=phone placeholder='Phone'>"
-        "<input type=text name=location placeholder='Where they are — Solon, OH'>"
-        "<textarea name=notes rows=2 placeholder='What they said'></textarea>"
+        "<div class=f><label class=fl for=ph-name>Name they gave</label>"
+        "<input type=text id=ph-name name=name></div>"
+        "<div class=f><label class=fl for=ph-email>Email</label>"
+        "<input type=text id=ph-email name=email></div>"
+        "<div class=f><label class=fl for=ph-phone>Phone</label>"
+        "<input type=text id=ph-phone name=phone></div>"
+        "<div class=f><label class=fl for=ph-loc>Where they are</label>"
+        "<input type=text id=ph-loc name=location placeholder='Solon, OH'></div>"
+        "<div class=f><label class=fl for=ph-notes>What they said</label>"
+        "<textarea id=ph-notes name=notes rows=2></textarea></div>"
         "<div class=row><button>Start an interview</button>"
         "<span class=muted>A name, an email or a phone number is enough. "
         "The interview asks the rest.</span></div></form></details>")
@@ -725,12 +916,31 @@ def template_body(name, secs, saved="", error="", open_id="") -> str:
     return "".join(out)
 
 
-def question_body(sid, section, q, claim, acceptable, session, error="") -> str:
+def question_body(sid, section, q, claim, acceptable, session, error="",
+                  current=None, back="") -> str:
     total = len(list(iv.all_questions(session.schema)))
     done = len(session.answers)
+    # SAY THE NUMBER. A 2px rule tells a preparer sitting with a client
+    # roughly nothing; "6 of 24" tells them whether to offer more coffee.
+    # `total` is the whole schema, so it can only shrink as branches are
+    # ruled out -- which is why it reads "of about", not "of".
+    # WHERE THE SITTING IS. When a preparer stepped back, the count is the
+    # position of the question being fixed, not the end of the pile -- and it
+    # says so, because "38 of about 52" on a screen you reached by pressing
+    # Back reads as if the sitting lost its place.
+    order = session.asked()
+    place = order.index(q["id"]) + 1 if q["id"] in order else done + 1
     out = [f"<div class=bar><i style='width:{int(100*done/max(total,1))}%'></i></div>",
-           f"<p class=sec>{esc(section['title'])}</p>",
-           f"<h1>{esc(q['question'])}</h1>"]
+           "<div class=crumb>"]
+    if back:
+        out.append(f"<form method=post action='/interview/{esc(sid)}/back'>"
+                   f"<button class=link>&larr; Back</button></form>")
+    out.append(f"<span class=sec>{esc(section['title'])}</span>"
+               f"<span class=count>"
+               + (f"changing {place} of {len(order)}" if current is not None
+                  else f"{place} of about {total}")
+               + "</span></div>")
+    out.append(f"<h1>{esc(q['question'])}</h1>")
     if q.get("help"):
         out.append(f"<p class=help>{esc(q['help'])}</p>")
     if error:
@@ -747,28 +957,60 @@ def question_body(sid, section, q, claim, acceptable, session, error="") -> str:
 
     out.append(f"<form method=post action='/interview/{esc(sid)}'>")
     t = q["type"]
+    # AN ANSWER YOU CAME BACK TO IS SHOWN AS IT STANDS. Stepping back to a
+    # blank form asks a preparer to remember what they typed, in front of the
+    # client who said it -- and a mistyped digit is invisible until it is on
+    # the page beside the corrected one.
+    held = [] if current is None else (
+        [str(x) for x in current] if isinstance(current, list) else [str(current)])
+    shown_value = "" if current is None else (
+        ", ".join(held) if isinstance(current, list) else str(current))
     if t in ("single", "multi"):
         kind = "radio" if t == "single" else "checkbox"
         for o in q.get("options", []):
             mark = " &nbsp;<b style='color:var(--oxblood)'>HARD NO</b>" \
                 if o.get("hard_no") else ""
+            on = " checked" if str(o["value"]) in held else ""
             out.append(f"<label><input type={kind} name=answer "
-                       f"value='{esc(o['value'])}'> {esc(o['label'])}{mark}</label>")
+                       f"value='{esc(o['value'])}'{on}> "
+                       f"{esc(o['label'])}{mark}</label>")
     elif t == "textarea":
-        out.append("<textarea name=answer rows=4></textarea>")
+        out.append(f"<textarea name=answer rows=4>{esc(shown_value)}</textarea>")
     elif t == "number":
-        out.append("<input type=number name=answer min=0>")
+        out.append(f"<input type=number name=answer min=0 "
+                   f"value='{esc(shown_value)}'>")
     else:
         hint = " (comma-separated)" if t == "list" else ""
         out.append(f"<input type=text name=answer autofocus "
+                   f"value='{esc(shown_value)}' "
                    f"placeholder='{esc(hint.strip())}'>")
 
-    out.append("<div class=row><button>Next</button>")
+    out.append("<div class=row><button>"
+               + ("Save the change" if current is not None else "Next")
+               + "</button>")
     if claim not in (None, "", []) and acceptable:
-        out.append("<button class=ghost name=accept value=1>Accept the claim</button>")
+        # THE BUTTON SAYS THE ANSWER IT WILL GIVE. "Accept the claim" is our
+        # word for it, not a preparer's -- the firm's own example of a control
+        # somebody would look at and ask why they would ever use it. Showing
+        # the value turns it into the obvious thing to press when the website
+        # got it right.
+        shown = ", ".join(claim) if isinstance(claim, list) else str(claim)
+        if len(shown) > 28:
+            shown = shown[:27].rstrip() + "\u2026"
+        out.append(f"<button class=ghost name=accept value=1>"
+                   f"Use &ldquo;{esc(shown)}&rdquo;</button>")
     if not q.get("required"):
         out.append("<span class=muted>&nbsp;or leave blank to skip</span>")
     out.append("</div></form>")
+    # ITS OWN FORM, AFTER THE ANSWER'S. Forms do not nest, and a stray
+    # `accept=1` posted at the back route would step a sitting somewhere
+    # nobody asked for.
+    if current is not None:
+        out.append(f"<form method=post action='/interview/{esc(sid)}/back' "
+                   f"class=quitrow>"
+                   f"<input type=hidden name=resume value=1>"
+                   f"<button class=link>Never mind &mdash; nothing to "
+                   f"change</button></form>")
     return "".join(out)
 
 
@@ -799,11 +1041,20 @@ def review_body(sid, session, blockers) -> str:
                    "Change an answer and this changes with it.</p></div>")
 
     asked = {q["id"]: q["question"] for _, q in iv.all_questions(session.schema)}
+    # EVERY ROW IS A WAY BACK TO IT. The review was the one page that showed a
+    # preparer a wrong answer and gave them nothing to do about it but start
+    # the sitting again.
+    editable = set(session.asked())
     out.append("<table class=plain>")
     for k, v in session.answers.items():
         shown = ", ".join(str(x) for x in v) if isinstance(v, list) else v
+        fix = ""
+        if k in editable:
+            fix = (f"<form method=post action='/interview/{esc(sid)}/back'>"
+                   f"<input type=hidden name=to value='{esc(k)}'>"
+                   f"<button class=link>Change</button></form>")
         out.append(f"<tr><th>{esc(asked.get(k, k))}</th>"
-                   f"<td>{esc(shown)}</td></tr>")
+                   f"<td>{esc(shown)}</td><td class=fix>{fix}</td></tr>")
     out.append("</table>")
     out.append(f"<form method=post action='/interview/{esc(sid)}/finish' class=row>"
                "<button>Create the engagement</button>")

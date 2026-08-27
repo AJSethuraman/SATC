@@ -334,6 +334,22 @@ class Interview:
             if other["id"] in self.answers and not visible(other, self.answers):
                 del self.answers[other["id"]]
 
+    def asked(self) -> list[str]:
+        """The questions a person actually answered, in the order they did.
+
+        Not `answers.keys()`: `sched.apply` writes derived values into the same
+        dict, and a derived value was never put to anybody -- offering to step
+        back to one would be offering to edit arithmetic. Dict order is answer
+        order, and re-answering a question keeps its original place, so this
+        stays the sitting's own history rather than the schema's running order.
+        """
+        real, derived = set(), set()
+        for _, q in all_questions(self.schema):
+            real.add(q["id"])
+            if q.get("derived"):
+                derived.add(q["id"])
+        return [k for k in self.answers if k in real and k not in derived]
+
     def question(self, qid: str) -> dict:
         for _, q in all_questions(self.schema):
             if q["id"] == qid:

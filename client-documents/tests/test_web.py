@@ -274,8 +274,19 @@ def test_a_sitting_can_start_from_a_workbook_row(tmp_path):
     r = c.post("/interview", data={"lead_index": "0"})
     assert r.status_code == 302
     page = c.get(r.headers["Location"]).get_data(as_text=True)
-    assert "Accept the claim" in page, (
+    # THE BUTTON NAMES THE ANSWER IT WILL GIVE. It used to read "Accept the
+    # claim", which is our word for it rather than a preparer's, and which
+    # this test could satisfy without the lead's actual answer ever reaching
+    # the page. Asserting on the VALUE proves the prefill arrived, which is
+    # what the test was always for.
+    assert "1040" in page, (
         "the sitting started blank; the lead's answer did not reach it"
+    )
+    assert "Use &ldquo;1040&rdquo;" in page, (
+        "the prefill is on the page but there is no one-press way to take it"
+    )
+    assert "Accept the claim" not in page, (
+        "our vocabulary is back on a screen a preparer reads"
     )
 
 
@@ -306,7 +317,9 @@ def test_a_missing_workbook_is_not_an_error(tmp_path):
     app = web.create_app(store=tmp_path / "store",
                          leads_workbook=tmp_path / "nope.xlsx")
     body = app.test_client().get("/leads").get_data(as_text=True)
-    assert "Take one by phone" in body
+    # The fact, not the wording: the by-hand form is on the page and posts.
+    assert "name=by_hand" in body
+    assert "by phone" in body
 
 
 # ── the price editor ──────────────────────────────────────────────────────
@@ -349,3 +362,206 @@ def test_a_price_that_is_not_a_number_is_refused_by_the_form(client):
 
 def test_a_price_that_does_not_exist_is_a_404_not_a_guess(client):
     assert client.get("/prices/per_unit.moon_landing").status_code == 404
+
+
+# ── going back ────────────────────────────────────────────────────────────
+#
+# The one thing a preparer sitting with a client will need in the first hour
+# and the browser had no route for: the client corrects themselves. Nothing
+# below deletes an answer to make room -- the cursor moves, the old answer is
+# shown as it stands, and re-answering runs the same `Interview.answer` the
+# forward path runs.
+
+def test_back_returns_to_the_previous_question_with_the_answer_shown(client):
+    """What was typed comes back with it. A blank form asks a preparer to
+    remember what they said, in front of the person who said it."""
+    sid = client.post("/interview", headers=JSON).get_json()["draft"]
+    first = client.get(f"/interview/{sid}", headers=JSON).get_json()["question"]
+    client.post(f"/interview/{sid}", json={"answer": _plausible(first)},
+                headers=JSON)
+    second = client.get(f"/interview/{sid}", headers=JSON).get_json()["question"]
+    assert second["id"] != first["id"]
+
+    client.post(f"/interview/{sid}/back", headers=JSON)
+    state = client.get(f"/interview/{sid}", headers=JSON).get_json()
+    assert state["question"]["id"] == first["id"]
+    assert state["revising"] is True
+
+    page = client.get(f"/interview/{sid}", headers=HTML).get_data(as_text=True)
+    assert str(_plausible(first)) in page
+    assert "Save the change" in page
+
+
+def test_back_on_the_first_question_is_a_no_op_not_a_crash(client):
+    """There is nowhere behind question one, and the control is not offered."""
+    sid = client.post("/interview", headers=JSON).get_json()["draft"]
+    page = client.get(f"/interview/{sid}", headers=HTML).get_data(as_text=True)
+    assert "&larr; Back" not in page
+
+    r = client.post(f"/interview/{sid}/back", headers=JSON)
+    assert r.status_code == 200
+    assert client.get(f"/interview/{sid}", headers=JSON).get_json()["revising"] \
+        is False
+
+
+def test_changing_an_answer_keeps_everything_asked_after_it(client, answers):
+    """Correcting one thing must not throw away the rest of the sitting."""
+    sid = drive(client, answers)
+    before = client.get(f"/interview/{sid}", headers=JSON).get_json()["answers"]
+
+    client.post(f"/interview/{sid}/back", json={"to": "client_city"},
+                headers=JSON)
+    client.post(f"/interview/{sid}", json={"answer": "Twinsburg"}, headers=JSON)
+
+    state = client.get(f"/interview/{sid}", headers=JSON).get_json()
+    assert state["complete"] is True, "the sitting should resume where it was"
+    assert state["answers"]["client_city"] == "Twinsburg"
+    assert set(state["answers"]) == set(before)
+
+
+def test_changing_an_answer_prunes_what_it_hides(client, answers):
+    """The same pruning the forward path does. `spouse_name` has no place on a
+    return that is no longer joint, and leaving it would carry a name into a
+    document with nowhere to put it."""
+    sid = drive(client, answers)
+    assert client.get(f"/interview/{sid}", headers=JSON) \
+        .get_json()["answers"]["spouse_name"] == "Maria Reyes"
+
+    client.post(f"/interview/{sid}/back", json={"to": "joint_return"},
+                headers=JSON)
+    client.post(f"/interview/{sid}", json={"answer": "no"}, headers=JSON)
+
+    now = client.get(f"/interview/{sid}", headers=JSON).get_json()["answers"]
+    assert now["joint_return"] == "no"
+    assert "spouse_name" not in now
+
+
+def test_a_stale_cursor_hands_the_sitting_back_rather_than_failing(client,
+                                                                   answers):
+    """A cursor can go stale in one keystroke. Pointing at a question that has
+    since been pruned must not strand the sitting on a 500."""
+    sid = drive(client, answers)
+    client.post(f"/interview/{sid}/back", json={"to": "spouse_name"},
+                headers=JSON)
+    # Reach into the draft and pull `spouse_name` out from under the cursor,
+    # exactly as answering `joint_return: no` would.
+    path = web.draft_path(client.store, sid)
+    draft = json.loads(path.read_text(encoding="utf-8"))
+    assert draft["at"] == "spouse_name"
+    draft["answers"] = {k: v for k, v in draft["answers"].items()
+                        if k != "spouse_name"}
+    draft["answers"]["joint_return"] = "no"
+    path.write_text(json.dumps(draft), encoding="utf-8")
+
+    state = client.get(f"/interview/{sid}", headers=JSON)
+    assert state.status_code == 200
+    got = state.get_json()
+    assert got.get("question", {}).get("id") != "spouse_name", (
+        "a cursor on a pruned question must not hold the sitting there"
+    )
+    assert "spouse_name" not in got["answers"]
+
+
+def test_the_review_offers_a_way_back_to_every_answer(client, answers):
+    """The review was the one page that showed a preparer a wrong answer and
+    gave them nothing to do about it."""
+    sid = drive(client, answers)
+    page = client.get(f"/interview/{sid}", headers=HTML).get_data(as_text=True)
+    given = client.get(f"/interview/{sid}", headers=JSON).get_json()["answers"]
+    # Everything a person said, and nothing the software worked out for them:
+    # `federal_schedules` is derived, and offering to edit it would be
+    # offering to edit arithmetic.
+    derived = {q["id"] for _, q in iv.all_questions(iv.load_schema())
+               if q.get("derived")}
+    assert derived & set(given), "the sample should exercise a derived answer"
+    assert page.count("Change</button>") == len(set(given) - derived), (
+        "every answer a person gave should be reachable from the review"
+    )
+    assert f"/interview/{sid}/back" in page
+
+
+def test_back_will_not_jump_to_a_question_nobody_answered(client, answers):
+    """`to` comes off a form in a browser. It gets checked against the
+    sitting's own history, not trusted."""
+    sid = drive(client, answers)
+    r = client.post(f"/interview/{sid}/back", json={"to": "not_a_question"},
+                    headers=JSON)
+    assert r.get_json()["at"] in set(answers)
+
+
+def test_never_mind_puts_the_sitting_back_where_it_was(client):
+    """Stepping back and finding nothing wrong is the common case, and the way
+    out of it must not be pressing Back until something happens."""
+    sid = client.post("/interview", headers=JSON).get_json()["draft"]
+    first = client.get(f"/interview/{sid}", headers=JSON).get_json()["question"]
+    client.post(f"/interview/{sid}", json={"answer": _plausible(first)},
+                headers=JSON)
+    second = client.get(f"/interview/{sid}", headers=JSON).get_json()["question"]
+
+    client.post(f"/interview/{sid}/back", headers=JSON)
+    page = client.get(f"/interview/{sid}", headers=HTML).get_data(as_text=True)
+    assert "Never mind" in page
+
+    client.post(f"/interview/{sid}/back", json={"resume": True}, headers=JSON)
+    state = client.get(f"/interview/{sid}", headers=JSON).get_json()
+    assert state["question"]["id"] == second["id"]
+    assert state["revising"] is False
+    kept = json.loads(web.draft_path(client.store, sid)
+                      .read_text(encoding="utf-8"))["answers"]
+    assert kept[first["id"]] == _plausible(first), (
+        "backing out of a correction must not change the answer"
+    )
+
+
+def _controls_by_form(html_text):
+    """{form action: [control names]} -- which form each control actually
+    posts to, rather than which one it looks like it sits under."""
+    from html.parser import HTMLParser
+
+    class P(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.here = None
+            self.forms = {}
+
+        def handle_starttag(self, tag, attrs):
+            a = dict(attrs)
+            if tag == "form":
+                self.here = a.get("action", "")
+                self.forms.setdefault(self.here, [])
+            elif tag in ("input", "button", "textarea", "select") \
+                    and self.here is not None:
+                self.forms[self.here].append(a.get("name") or f"<{tag}>")
+
+        def handle_endtag(self, tag):
+            if tag == "form":
+                self.here = None
+
+    p = P()
+    p.feed(html_text)
+    return p.forms
+
+
+def test_the_way_out_of_a_correction_carries_nothing_with_it(tmp_path):
+    """Forms do not nest. `Never mind` sits under the answer's own buttons, and
+    the first cut of it swallowed them -- the one-press `Use "1040"` ended up
+    inside the back form, where `accept=1` would have stepped the sitting
+    somewhere nobody asked for. Driven from a lead so the claim is on the page:
+    without one there is no accept button to swallow, and the test would pass
+    over the bug it exists for."""
+    import web
+    app = web.create_app(store=tmp_path / "store",
+                         leads_workbook=_workbook(tmp_path))
+    c = app.test_client()
+    sid = c.post("/interview", data={"lead_index": "0"}) \
+        .headers["Location"].rsplit("/", 1)[-1]
+    c.post(f"/interview/{sid}", data={"accept": "1"})
+    c.post(f"/interview/{sid}/back")
+
+    page = c.get(f"/interview/{sid}").get_data(as_text=True)
+    assert "Use &ldquo;1040&rdquo;" in page, "the claim is not on the page"
+    forms = _controls_by_form(page)
+    back = forms[f"/interview/{sid}/back"]
+    assert set(back) == {"resume", "<button>"}, back
+    assert "answer" in forms[f"/interview/{sid}"]
+    assert "accept" in forms[f"/interview/{sid}"]
