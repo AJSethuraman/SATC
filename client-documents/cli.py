@@ -1259,6 +1259,23 @@ def cmd_procedures(args) -> int:
         return 1
     path = procedures.write(procedures.OUT)
     print(f"wrote {_shown(path)} from the software itself")
+
+    if getattr(args, "html", None):
+        # THE MARKDOWN IS WRITTEN FIRST, ALWAYS. The reading copy is a
+        # rendering of the committed source, so the two cannot describe
+        # different software: there is one generation and one document behind
+        # both of them.
+        import procedures_html
+        doc = procedures_html.render(path)
+        lost = procedures_html.dropped(path.read_text(encoding="utf-8"), doc)
+        if lost:
+            print(f"\nThe reading copy was NOT written: it would have dropped "
+                  f"{lost}.\nA rendering that loses a step is worse than no "
+                  f"rendering.\n")
+            return 1
+        out = Path(args.html)
+        out.write_text(doc, encoding="utf-8")
+        print(f"wrote {_shown(out)} — one file, nothing beside it")
     return 0
 
 
@@ -1906,6 +1923,9 @@ def main(argv=None) -> int:
                              "that performs them")
     pc.add_argument("--check", action="store_true",
                     help="fail if the committed copy has drifted")
+    pc.add_argument("--html", metavar="FILE",
+                    help="also write a reading copy in the firm's house "
+                         "style: one self-contained file, nothing beside it")
     pc.set_defaults(fn=cmd_procedures)
 
     evp = sub.add_parser("event",

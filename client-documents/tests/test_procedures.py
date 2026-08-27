@@ -174,3 +174,53 @@ def test_generating_is_idempotent(tmp_path, monkeypatch):
     once = out.read_text(encoding="utf-8")
     procedures.write(out)
     assert out.read_text(encoding="utf-8") == once
+
+
+# ── the reading copy ──────────────────────────────────────────────────────
+
+def test_the_reading_copy_loses_nothing():
+    """The markdown is the source of truth; the rendering may not quietly
+    shed a step of it."""
+    import procedures_html
+    md = procedures.OUT.read_text(encoding="utf-8")
+    doc = procedures_html.render(procedures.OUT)
+    assert procedures_html.dropped(md, doc) == {}
+
+
+def test_the_reading_copy_needs_nothing_beside_it():
+    """A file that only renders while its siblings happen to sit next to it
+    is the bug this exists to avoid. `render` refuses rather than writing one,
+    so this asserts the refusal is reachable as well as the happy path."""
+    import procedures_html
+    doc = procedures_html.render(procedures.OUT)
+    assert procedures_html.external_references(doc) == []
+    broken = doc.replace("</head>", "<link rel=stylesheet href=\"next-door.css\">"
+                                    "</head>")
+    assert procedures_html.external_references(broken) == ["next-door.css"]
+
+
+def test_a_wrapped_list_item_stays_one_item(tmp_path):
+    """THE DEFECT THIS TEST EXISTS FOR. The generator wraps at about seventy
+    columns, so half its bullets continue on an indented line. Reading only
+    the first line split them: "the hard-no list in" became a bullet and
+    "firm-settings.yaml, refused before anything is composed" a loose
+    paragraph under it. Every word survived, in the wrong shape."""
+    import procedures_html
+    src = tmp_path / "p.md"
+    src.write_text("# T\n\n## 1 · S\n\n- **work we do not take** — the list in\n"
+                   "  `firm-settings.yaml`, refused before anything is made;\n"
+                   "- a decision that is not yes — nothing is created;\n",
+                   encoding="utf-8")
+    _title, body = procedures_html.blocks(src.read_text(encoding="utf-8"))
+    html = "".join(body)
+    assert html.count("<li>") == 2
+    assert "firm-settings.yaml" in html.split("</li>")[0]
+    assert "<p>" not in html          # nothing fell out of the list
+
+
+def test_the_documents_own_angle_brackets_survive():
+    """`<REF>` appears eleven times. Marking up before escaping turns it into
+    a tag and it vanishes from the page."""
+    import procedures_html
+    _t, body = procedures_html.blocks("# T\n\nRun it with <REF> in place.\n")
+    assert "&lt;REF&gt;" in "".join(body)
