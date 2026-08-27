@@ -1618,3 +1618,84 @@ def test_the_model_declares_sqlite_autoincrement():
     assert args.get("sqlite_autoincrement") is True, (
         "SQLite will reuse a deleted invoice's id, and every public link "
         "already in a client's hands will follow it")
+
+
+# ── a row nobody typed in is not a line item ──────────────────────────────
+
+def test_an_untouched_form_row_does_not_become_a_blank_line(app, client):
+    """The form defaults every row's quantity to 1, and the skip test used to
+    require the quantity to be 0 as well — so an untouched row became a line
+    with an empty description and $0.00, and printed as a blank row on the
+    client's PDF. What makes a row real is a description or a rate; the
+    quantity alone is the form's own default talking."""
+    client.post("/invoices", data={
+        "invoice_number": "BLANK-1", "bill_to": "A Client",
+        "invoice_date": date.today().isoformat(), "payment_terms": "Net 30",
+        "tax": "0", "discount": "0", "shipping": "0",
+        "item_description": ["Real work", "", ""],
+        "item_quantity": ["1", "1", "1"],          # the form's own default
+        "item_rate": ["100.00", "", ""],
+    }, follow_redirects=False)
+
+    inv = only_invoice(app)
+    assert inv.item_count == 1, f"{inv.item_count} line items from one filled row"
+    assert inv.total == 100
+
+
+def test_a_row_with_a_rate_and_no_description_is_kept(app, client):
+    """The rule removes rows nobody touched, not rows somebody filled in
+    badly. A rate is somebody typing."""
+    client.post("/invoices", data={
+        "invoice_number": "RATE-1", "bill_to": "A Client",
+        "invoice_date": date.today().isoformat(), "payment_terms": "Net 30",
+        "tax": "0", "discount": "0", "shipping": "0",
+        "item_description": ["", ""],
+        "item_quantity": ["1", "1"],
+        "item_rate": ["250.00", ""],
+    }, follow_redirects=False)
+
+    inv = only_invoice(app)
+    assert inv.item_count == 1
+    assert inv.total == 250
+
+
+# ── a missing library is not a corrupt image ──────────────────────────────
+
+def test_pillow_is_declared_not_merely_present():
+    """`app.py` imports PIL to validate raster logos and it was in neither
+    requirements file — present only transitively via the PDF engines. Drop
+    one of those and every raster logo upload is rejected as though the file
+    were corrupt, because the ImportError was swallowed by the same handler."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    declared = (root / "requirements.txt").read_text(encoding="utf-8").lower()
+    assert "pillow" in declared, (
+        "Pillow is used directly by app.py and declared nowhere")
+
+
+def test_a_broken_install_raises_rather_than_blaming_the_file(monkeypatch):
+    """The two failures are told apart now: an unreadable image is skipped, a
+    missing library is a broken install and says so."""
+    import builtins
+    import io as _io
+    import app as appmod
+
+    real_import = builtins.__import__
+
+    def no_pil(name, *a, **kw):
+        if name == "PIL" or name.startswith("PIL."):
+            raise ImportError("no PIL here")
+        return real_import(name, *a, **kw)
+
+    monkeypatch.setattr(builtins, "__import__", no_pil)
+
+    class Fake:
+        mimetype = "image/png"
+        filename = "logo.png"
+
+        def read(self):
+            return b"\x89PNG\r\n\x1a\n" + b"0" * 64
+
+    with pytest.raises(RuntimeError, match="not a bad image"):
+        appmod._read_logo(Fake())

@@ -400,24 +400,37 @@ form and I would rather the owner decided whether back-dating a due date is
 ever legitimate for them (it can be, on a re-issued invoice) than have me
 forbid it.
 
-### 10. A blank row with a quantity becomes an empty line item — LOW
+### 10. ~~A blank row with a quantity becomes an empty line item~~ — **FIXED 27 Aug 2026**
 
 The invoice form's rows default to quantity 1, and the "skip the empty row"
 test is `not desc and qty == 0 and rate == 0`. So a row with nothing typed in
 it but the default quantity still becomes a line item with an empty
 description and $0.00, which then prints as a blank row on the client's PDF.
 
-**Why left alone.** The right repair is in `invoice_form.html`'s JavaScript
-(don't submit untouched rows) as much as in the server, and it wants the form
-in view. Cosmetic, but it is on a document a client reads.
+**Fixed on the server, where it decides.** The skip test was
+`not desc and qty == 0 and rate == 0`, and the form defaults every row's
+quantity to 1 — so the quantity clause could never be satisfied by an
+untouched row. It is `not desc and rate == 0` now, in both the web form and
+the JSON API: what makes a row real is a description or a rate, and the
+quantity alone is the form's own default talking. The JavaScript repair is
+still worth doing, and is now a tidiness rather than a defect on a document a
+client reads.
 
-### 11. Pillow is used but not declared — LOW
+### 11. ~~Pillow is used but not declared~~ — **FIXED 27 Aug 2026**
 
 `invoicer-review` finding 16, unchanged. `app.py` imports `PIL` to validate
 raster logos and it appears in neither requirements file — it is present only
 transitively via the PDF engines. Drop one of those and **every raster logo
 upload is silently rejected**, because the `ImportError` is caught by the same
 handler that catches a corrupt image.
+
+**Fixed, and the two failures told apart.** `Pillow>=10.4` is declared in
+`requirements.txt` — a floor rather than an exact pin, deliberately against
+that file's convention, because the point of the line is that the dependency is
+DECLARED and pinning it to a version nobody here has run would trade one
+untested assumption for another. And `_read_logo` no longer catches the
+`ImportError` alongside a corrupt file: a missing library raises and says it is
+a broken install, rather than telling the owner their logo is bad.
 
 ### 12. The plain-text email body carries no amount — LOW, and it is wording
 

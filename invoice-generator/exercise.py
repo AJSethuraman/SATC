@@ -1235,14 +1235,17 @@ def chapter_money(w: World):
          f"to the cent",
          compared=exact_agreements)
 
-    # A blank row with the form's default quantity of 1 still creates a line.
+    # FIXED 27 August 2026, and this tripwire fired the moment it was. A row
+    # nobody typed in is not a line item: the skip test used to require the
+    # quantity to be 0 as well, and the form defaults every row's quantity to
+    # 1, so an untouched row printed as a blank line on the client's PDF.
     raise_invoice(w.a, "MON-blank-row", CLIENT_JOINERY,
                   [("Real work", 1, "500.00"), ("", 1, "0")])
     blank = read(w.app, "MON-blank-row")
     if blank:
-        R.tripwire(
-            "a blank row with a quantity still becomes a line item",
-            len(blank.line_amounts) == 2 and "" in blank.line_descriptions,
+        R.check(
+            "an untouched form row does not print as a blank line",
+            len(blank.line_amounts) == 1 and "" not in blank.line_descriptions,
             f"{len(blank.line_amounts)} lines: {blank.line_descriptions}",
         )
 
@@ -2433,13 +2436,15 @@ def chapter_posture(w: World):
     ).lower()
     uses_pillow = "from PIL import" in (ROOT / "app.py").read_text(
         encoding="utf-8")
-    R.tripwire(
-        "Pillow is used for logo validation but never declared",
-        uses_pillow and "pillow" not in declared,
-        "it is present only transitively via the PDF engines; drop one of "
-        "those and every raster logo upload is rejected silently, because "
-        "the ImportError is caught by the same handler that catches a "
-        "corrupt image",
+    # FIXED 27 August 2026. Pillow is declared, and app.py now tells a broken
+    # install apart from a bad image: a missing library raises rather than
+    # being swallowed by the handler that catches a corrupt file and reported
+    # to the owner as "your logo is broken".
+    R.check(
+        "every library app.py imports directly is declared",
+        not uses_pillow or "pillow" in declared,
+        "Pillow is imported by app.py and declared in neither requirements "
+        "file — present only transitively via the PDF engines",
     )
 
 

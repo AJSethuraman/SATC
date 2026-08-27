@@ -328,9 +328,25 @@ def _read_logo(file_storage):
         or "image/png"
     )
     if mime != "image/svg+xml":
+        # A MISSING LIBRARY IS NOT A CORRUPT IMAGE, and it used to be reported
+        # as one: `PIL` was imported here and declared in neither requirements
+        # file -- present only transitively via the PDF engines. Drop one of
+        # those and every raster logo upload is rejected, silently, with the
+        # ImportError swallowed by the same handler that catches a real
+        # corrupt file. The owner would be told their logo was broken.
+        #
+        # Pillow is declared now, and the two failures are told apart: a
+        # genuinely unreadable image is skipped as before, and an absent
+        # library raises rather than pretending to be a verdict about the
+        # file.
         try:
             from PIL import Image
-
+        except ImportError as exc:  # pragma: no cover - a broken install
+            raise RuntimeError(
+                "Pillow is not installed, so raster logos cannot be checked. "
+                "This is a broken install, not a bad image — see "
+                "requirements.txt.") from exc
+        try:
             Image.open(io.BytesIO(data)).verify()
         except Exception:
             return None, None  # corrupt / unreadable image -> skip
@@ -451,7 +467,13 @@ def _populate_invoice_from_form(invoice, form, files=None):
                 f"Line {index}: rate must be a number — "
                 f"'{str(rate).strip()[:40]}' is not one."
             )
-        if not desc and qty_f == 0 and rate_f == 0:
+        # A ROW NOBODY TYPED IN IS NOT A LINE ITEM. The form defaults every
+        # row's quantity to 1, and this used to require the quantity to be 0
+        # as well -- so an untouched row became a line with an empty
+        # description and $0.00, and printed as a blank row on the client's
+        # PDF. What makes a row real is a description or a rate; the quantity
+        # alone is the form's own default talking.
+        if not desc and rate_f == 0:
             continue
         invoice.items.append(
             LineItem(

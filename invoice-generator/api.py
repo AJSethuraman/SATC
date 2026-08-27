@@ -130,7 +130,9 @@ def _populate_invoice_from_json(invoice, data):
             errors.append(f"items[{position}].quantity must be a finite number.")
         if not rate_ok:
             errors.append(f"items[{position}].rate must be a finite number.")
-        if not desc and qty == 0 and rate == 0:
+        # Same rule as the web form: a row with no description and no rate is
+        # not a line item, whatever quantity came with it.
+        if not desc and rate == 0:
             continue
         invoice.items.append(
             LineItem(
