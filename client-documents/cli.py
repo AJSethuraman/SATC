@@ -43,6 +43,7 @@ import engagements
 import invoicing
 import packaging
 import presend
+import procedures
 import fees
 import intake
 import interview as iv
@@ -1188,6 +1189,38 @@ def cmd_reconcile(args) -> int:
     return 0
 
 
+def cmd_procedures(args) -> int:
+    """Write the operating procedures, or check the committed copy is current.
+
+    Generated from the software that performs them, so a procedure cannot
+    describe a command that does not exist or a document a return type does
+    not get. `--check` runs in the suite: a procedure that has quietly stopped
+    being true is the same failure as a document that promises an enclosure it
+    does not carry.
+    """
+    def _shown(path: Path) -> str:
+        # A path outside the repo is printed whole rather than crashing.
+        # `relative_to` raises on anything it cannot shorten, and a command
+        # that dies while reporting where a file is has lost the plot.
+        try:
+            return str(path.relative_to(ROOT.parent))
+        except ValueError:
+            return str(path)
+
+    if args.check:
+        if procedures.is_current(procedures.OUT):
+            print(f"{_shown(procedures.OUT)} is what the software generates "
+                  f"today.")
+            return 0
+        print(f"\n{_shown(procedures.OUT)} is out of date — the software has "
+              f"changed\nand the procedures have not. Regenerate:\n\n"
+              f"    python cli.py procedures\n")
+        return 1
+    path = procedures.write(procedures.OUT)
+    print(f"wrote {_shown(path)} from the software itself")
+    return 0
+
+
 def cmd_engagements(args) -> int:
     rows = engagements.listing(Path(args.store) if args.store else engagements.STORE)
     if not rows:
@@ -1725,6 +1758,13 @@ def main(argv=None) -> int:
                     help="move the record to match what was filed, and log "
                          "every move")
     rc.set_defaults(fn=cmd_reconcile)
+
+    pc = sub.add_parser("procedures",
+                        help="write the operating procedures from the software "
+                             "that performs them")
+    pc.add_argument("--check", action="store_true",
+                    help="fail if the committed copy has drifted")
+    pc.set_defaults(fn=cmd_procedures)
 
     e = sub.add_parser("engagements", help="list what exists")
     e.add_argument("--store")

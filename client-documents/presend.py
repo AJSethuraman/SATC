@@ -719,7 +719,11 @@ def gate(pack: Path, record: dict, *, rendered: dict[str, str] | None = None,
     if skip_render:
         res.skipped.append(f"opening {len(docs)} document(s) in a browser")
     else:
-        res.checked.append(f"all {len(docs)} document(s) open and render")
+        # Phrased so it reads as a rule, with the count in brackets: the
+        # generated procedures list these checks verbatim, and "all 0
+        # document(s) open and render" is what a probe on an empty directory
+        # would have put in front of a preparer.
+        res.checked.append(f"every document opens and renders ({len(docs)})")
         res.findings += renders(docs)
 
     if rendered is None:
