@@ -105,8 +105,36 @@ def documents_for(record: dict, *, with_invoice: bool = False) -> list[str]:
     return docs
 
 
-def manifest(record: dict, docs: list[str], written: dict[str, list]) -> dict:
+# Things that go in the envelope that this software does not render. A
+# document may promise one -- "the enclosed voucher", "your organizer is
+# enclosed" -- and the pointer test cannot resolve that promise against a file
+# we wrote, because there is no such file. Whoever assembles the pack declares
+# what they actually put in.
+#
+# Empty is the honest default and it is not a pass: a document that promises an
+# attachment nobody declared FAILS the pre-send gate, which is the correct
+# state. The extension notice's payment voucher is the sharpest case -- a
+# client literally cannot pay without it.
+ATTACHMENTS = {
+    "organizer":          "The organizer itself, printed from Drake.",
+    "payment-voucher":    "The extension payment voucher.",
+    "estimate-vouchers":  "Next year's estimated payment vouchers.",
+    "client-records":     "The client's own original records, going back.",
+    "work-copies":        "Copies of everything we prepared.",
+    "return-copies":      "The signed return copies.",
+}
+
+
+def manifest(record: dict, docs: list[str], written: dict[str, list],
+             attachments: "list[str] | None" = None) -> dict:
     """What is in the pack, so the folder explains itself."""
+    declared = list(attachments or [])
+    unknown = [a for a in declared if a not in ATTACHMENTS]
+    if unknown:
+        raise PackageError(
+            f"unknown attachment(s): {', '.join(unknown)}. Known: "
+            f"{', '.join(sorted(ATTACHMENTS))}. An attachment nobody can name "
+            f"is one nobody can check went in the envelope.")
     return {
         "EngagementRef": record.get("EngagementRef", ""),
         "Client": record.get("ClientFullName", ""),
@@ -118,6 +146,9 @@ def manifest(record: dict, docs: list[str], written: dict[str, list]) -> dict:
             {"key": d, "purpose": PURPOSE.get(d, ""),
              "files": [p.name for p in written.get(d, [])]}
             for d in docs
+        ],
+        "Attachments": [
+            {"id": a, "what": ATTACHMENTS[a]} for a in declared
         ],
         "Note": (
             "Every document in this pack was rendered in one pass from one "

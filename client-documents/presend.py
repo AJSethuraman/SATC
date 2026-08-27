@@ -521,7 +521,151 @@ def engagement_section_names() -> set[str]:
     return out
 
 
-# ── 8 · do the documents agree with each other ────────────────────────────
+# ── 8 · the pointer test ──────────────────────────────────────────────────
+#
+# `packaging.py` carries the incident in its own comment: `package` never
+# carried the records release, so a client with a predecessor got a pack whose
+# onboarding letter says "We have included a short authorization for you to
+# sign" and did not include one. A pack that promises an enclosure it does not
+# carry is the same failure as a pack with a hole in it, arriving by the back
+# door.
+#
+# THE CHECK THE FIRM ASKED FOR BY NAME, and it has two halves. Either alone is
+# a proxy:
+#
+#   Half A  no sentence CLAIMS an enclosure without declaring what it is.
+#           Without this the check only ever finds what somebody remembered to
+#           annotate, which is the proxy trap in SOFTWARE-TENETS §0.
+#   Half B  every declaration RESOLVES against what the pack actually holds.
+
+_ENCL_SPAN = re.compile(r'<span[^>]*\bdata-encl\s*=\s*"([^"]*)"[^>]*>(.*?)</span>',
+                        re.S | re.I)
+_CUE = re.compile(
+    r"\b(enclosed|enclosure|attached|accompanies|accompanying"
+    r"|(?:is|are) included with|included with (?:this|your)"
+    r"|we have included|returned with this letter"
+    r"|(?:sent|comes) with this letter)\b", re.I)
+
+# An engagement letter is a ROLE, not a document: a client signs exactly one of
+# these four and the fee estimate does not know which. Without the alias the
+# estimate's "Accompanies our engagement letter" fails in every pack there is.
+_ROLES = {"engagement-letter": {"tax-letter", "business-letter",
+                                "ccorp-letter", "bookkeeping-letter"}}
+
+
+_SPAN_OPEN = re.compile(r"<span\b[^>]*>", re.I)
+_SPAN_ANY = re.compile(r"<span\b[^>]*>|</span\s*>", re.I)
+_ENCL_OPEN = re.compile(r'<span\b[^>]*\bdata-encl\s*=\s*"([^"]*)"[^>]*>', re.I)
+
+
+def _declared_spans(html: str) -> list[tuple[str, int, int]]:
+    """(value, start, end) for every `data-encl` span, matched by DEPTH.
+
+    A regex cannot do this. `<span data-encl="…">Your organizer for the
+    <span class="f">&lt;&lt;TaxYear&gt;&gt;</span> tax year is enclosed.</span>`
+    stops a non-greedy `(.*?)</span>` at the INNER close, leaving "tax year is
+    enclosed" outside the declared region -- so the sweep reported the
+    organizer letter's own annotated sentence as unclassified. Found by the
+    migration test, which is what that test is for.
+    """
+    out = []
+    for m in _ENCL_OPEN.finditer(html):
+        depth, pos = 1, m.end()
+        while depth and pos < len(html):
+            nxt = _SPAN_ANY.search(html, pos)
+            if not nxt:
+                break
+            depth += 1 if nxt.group(0).lower().startswith("<span") else -1
+            pos = nxt.end()
+        out.append((m.group(1), m.start(), pos))
+    return out
+
+
+def _strip_declared(html: str) -> str:
+    """The document with every declared enclosure claim removed.
+
+    What is left is prose that claims an enclosure and says nothing about
+    what.
+    """
+    for _value, start, end in reversed(_declared_spans(html)):
+        html = html[:start] + " " + html[end:]
+    return html
+
+
+def pointer_test(pack: Path) -> list[Finding]:
+    """A promised enclosure is in the pack, and every promise says what it is."""
+    import json
+    book = pack / "MANIFEST.json"
+    if not book.exists():
+        return [Finding("pointer", "(pack)",
+                        "no MANIFEST.json, so there is nothing to resolve an "
+                        "enclosure claim against. Not a pass.", blocking=False)]
+    try:
+        data = json.loads(book.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [Finding("pointer", "MANIFEST.json",
+                        f"will not parse ({exc}), so no enclosure claim could "
+                        f"be resolved. Not a pass.", blocking=False)]
+
+    have_docs = {d.get("key", "") for d in (data.get("Documents") or [])}
+    have_attached = {f"attachment:{a.get('id', '')}"
+                     for a in (data.get("Attachments") or [])}
+
+    out: list[Finding] = []
+    for doc in sorted(pack.glob("*.html")):
+        html_text = merge._REF_BLOCK.sub(" ", doc.read_text(encoding="utf-8",
+                                                            errors="replace"))
+
+        # Half A — nothing claims an enclosure anonymously.
+        for m in _CUE.finditer(_TAGS.sub(" ", _strip_declared(html_text))):
+            said = " ".join(_TAGS.sub(" ", _strip_declared(html_text))
+                            [max(0, m.start() - 90):m.start() + 90].split())
+            out.append(Finding(
+                "pointer", doc.name,
+                f"claims an enclosure and does not declare what: \"…{said}…\". "
+                f"Wrap it in <span data-encl=\"…\"> naming the document or "
+                f"attachment it promises, or data-encl=\"client\" if the client "
+                f"encloses it, or data-encl=\"none\" if it says the opposite."))
+
+        # Half B — every declaration resolves.
+        for value, _start, _end in _declared_spans(html_text):
+            value = value.strip()
+            # DIRECTION IS DECLARED, NEVER INFERRED. "Your original records are
+            # returned with this letter" (ours) and "Return the completed
+            # organizer with the documents you gathered" (theirs) are
+            # grammatically identical. A regex right on today's thirteen
+            # sentences is wrong on the fourteenth.
+            if value in ("client", "none"):
+                continue
+            if value in _ROLES:
+                if have_docs & _ROLES[value]:
+                    continue
+                out.append(Finding(
+                    "pointer", doc.name,
+                    f"promises the {value.replace('-', ' ')}, and this pack "
+                    f"holds none of {sorted(_ROLES[value])}."))
+                continue
+            if value.startswith("attachment:"):
+                if value in have_attached:
+                    continue
+                out.append(Finding(
+                    "pointer", doc.name,
+                    f"promises {value.split(':', 1)[1]!r}, which this software "
+                    f"does not render and nobody declared going in the "
+                    f"envelope. Declare it: package --attach "
+                    f"{value.split(':', 1)[1]}."))
+                continue
+            if value in have_docs:
+                continue
+            out.append(Finding(
+                "pointer", doc.name,
+                f"promises the {value!r} document and the pack does not carry "
+                f"one. This is the records-release bug: a client reads "
+                f"\"included\" and finds nothing."))
+    return out
+
+
+# ── 9 · do the documents agree with each other ────────────────────────────
 
 def agrees(record: dict, rendered: dict[str, str]) -> list[Finding]:
     """The pack tells one story.
@@ -567,6 +711,9 @@ def gate(pack: Path, record: dict, *, rendered: dict[str, str] | None = None,
 
     res.checked.append("every cited clause name is a real section")
     res.findings += cited_clauses(pack)
+
+    res.checked.append("every promised enclosure is in the pack")
+    res.findings += pointer_test(pack)
 
     docs = sorted(pack.glob("*.html"))
     if skip_render:

@@ -551,3 +551,142 @@ def test_the_union_of_all_four_letters_is_used(tmp_path):
     names = presend.engagement_section_names()
     assert "ending this engagement" in names or any(
         "ending" in n for n in names), sorted(names)[:12]
+
+
+# ── the pointer test ──────────────────────────────────────────────────────
+
+def _pack(tmp_path, html, docs=("tax-letter",), attachments=()):
+    import json
+    (tmp_path / "letter.html").write_text(html, encoding="utf-8")
+    (tmp_path / "MANIFEST.json").write_text(json.dumps({
+        "Documents": [{"key": d, "files": ["letter.html"]} for d in docs],
+        "Attachments": [{"id": a} for a in attachments],
+    }), encoding="utf-8")
+    return tmp_path
+
+
+def test_a_promised_document_that_is_not_in_the_pack_is_caught(tmp_path):
+    """THE ORIGINAL BUG. `package` never carried the records release, so a
+    client with a predecessor got a pack whose onboarding letter says "We have
+    included a short authorization for you to sign" and did not include one."""
+    pack = _pack(tmp_path,
+        '<p><span data-encl="records-release">We have included a short '
+        'authorization for you to sign.</span></p>',
+        docs=("onboarding-letter",))
+    found = presend.pointer_test(pack)
+    assert len(found) == 1
+    assert "records-release" in found[0].detail
+    assert found[0].blocking
+
+
+def test_a_promise_the_pack_keeps_passes(tmp_path):
+    pack = _pack(tmp_path,
+        '<p><span data-encl="records-release">We have included a short '
+        'authorization for you to sign.</span></p>',
+        docs=("onboarding-letter", "records-release"))
+    assert presend.pointer_test(pack) == []
+
+
+def test_an_undeclared_enclosure_claim_is_caught(tmp_path):
+    """HALF A, and it is what stops this check degrading into "only finds what
+    somebody remembered to annotate" — the proxy trap the software tenets are
+    about."""
+    pack = _pack(tmp_path,
+        "<p>A second authorization is enclosed for your spouse.</p>")
+    found = presend.pointer_test(pack)
+    assert len(found) == 1
+    assert "does not declare what" in found[0].detail
+
+
+def test_the_engagement_letter_is_a_role_not_a_document(tmp_path):
+    """A client signs exactly one of four letters and the fee estimate does
+    not know which. Without the alias, "Accompanies our engagement letter"
+    fails in every pack there is."""
+    for letter in ("tax-letter", "business-letter", "ccorp-letter",
+                   "bookkeeping-letter"):
+        pack = _pack(tmp_path,
+            '<p><span data-encl="engagement-letter">Accompanies our '
+            'engagement letter</span></p>',
+            docs=("fee-estimate", letter))
+        assert presend.pointer_test(pack) == [], letter
+
+
+def test_a_role_with_no_letter_in_the_pack_is_caught(tmp_path):
+    pack = _pack(tmp_path,
+        '<p><span data-encl="engagement-letter">Accompanies our engagement '
+        'letter</span></p>', docs=("fee-estimate",))
+    assert len(presend.pointer_test(pack)) == 1
+
+
+def test_an_attachment_nobody_declared_is_caught(tmp_path):
+    """Five of the thirteen enclosure claims name things this software does
+    not render. The extension notice's payment voucher is the sharpest: a
+    client literally cannot pay without it."""
+    pack = _pack(tmp_path,
+        '<p><span data-encl="attachment:payment-voucher">using the '
+        'instructions in the enclosed voucher</span></p>',
+        docs=("extension-notice",))
+    found = presend.pointer_test(pack)
+    assert len(found) == 1
+    assert "package --attach payment-voucher" in found[0].detail
+
+
+def test_a_declared_attachment_resolves(tmp_path):
+    pack = _pack(tmp_path,
+        '<p><span data-encl="attachment:payment-voucher">using the '
+        'instructions in the enclosed voucher</span></p>',
+        docs=("extension-notice",), attachments=("payment-voucher",))
+    assert presend.pointer_test(pack) == []
+
+
+def test_direction_is_declared_and_never_inferred(tmp_path):
+    """"Your original records are returned with this letter" (ours) and
+    "Return the completed organizer with the documents you gathered" (theirs)
+    are grammatically identical. A regex right on today's thirteen sentences
+    is wrong on the fourteenth, so `client` passes unconditionally — its only
+    job is to satisfy Half A."""
+    pack = _pack(tmp_path,
+        '<p><span data-encl="client">Send the organizer back with the '
+        'documents you have gathered, enclosed in the same envelope.</span></p>')
+    assert presend.pointer_test(pack) == []
+
+
+def test_a_sentence_that_says_the_opposite_passes(tmp_path):
+    pack = _pack(tmp_path,
+        '<p><span data-encl="none">Your engagement letter and estimate for '
+        'this year will follow separately.</span></p>')
+    assert presend.pointer_test(pack) == []
+
+
+def test_a_pack_with_no_manifest_says_so_rather_than_passing_pointers(tmp_path):
+    (tmp_path / "d.html").write_text("<p>Enclosed is a thing.</p>", encoding="utf-8")
+    found = presend.pointer_test(tmp_path)
+    assert len(found) == 1
+    assert "Not a pass" in found[0].detail
+    assert not found[0].blocking
+
+
+def test_every_enclosure_claim_in_every_template_is_declared(tmp_path):
+    """The migration, asserted rather than assumed. Thirteen sentences across
+    the twelve templates claim an enclosure; every one of them declares what."""
+    import shutil
+    import json
+    for f in cli.TEMPLATE_DIR.glob("*.html"):
+        shutil.copy2(f, tmp_path / f.name)
+    (tmp_path / "MANIFEST.json").write_text(json.dumps({
+        "Documents": [], "Attachments": []}), encoding="utf-8")
+
+    unclassified = [f for f in presend.pointer_test(tmp_path)
+                    if "does not declare what" in f.detail]
+    assert unclassified == [], [f.detail[:120] for f in unclassified]
+
+
+def test_the_cue_sweep_is_not_vacuous():
+    """Counting what a check examined, because one tonight examined nothing
+    and reported everything clean."""
+    seen = 0
+    for f in cli.TEMPLATE_DIR.glob("*.html"):
+        seen += len(presend._declared_spans(f.read_text(encoding="utf-8")))
+    assert seen >= 12, (
+        f"only {seen} data-encl declarations found across the templates; "
+        f"thirteen were annotated. A pattern that finds none is broken.")

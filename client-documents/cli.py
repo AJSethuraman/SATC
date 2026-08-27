@@ -554,7 +554,8 @@ def cmd_package(args) -> int:
         # still needs its siblings -- which is what the PDF is for, and why it
         # is the default.
 
-        book = packaging.manifest(record, docs, moved)
+        book = packaging.manifest(record, docs, moved,
+                                  getattr(args, "attach", None))
         (outdir / "MANIFEST.json").write_text(
             json.dumps(book, indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8")
@@ -1438,6 +1439,11 @@ def main(argv=None) -> int:
     pk.add_argument("--no-pdf", action="store_true")
     pk.set_defaults(fn=cmd_package)
 
+    pk.add_argument("--attach", action="append", metavar="ID",
+                    help="declare something going in the envelope that this "
+                         "software does not render (organizer, payment-voucher, "
+                         "estimate-vouchers, client-records, work-copies, "
+                         "return-copies). Repeatable.")
     pk.add_argument("--force", action="store_true",
                     help="write the pack even though a pre-send check failed "
                          "(needs --reason; the override is logged)")
