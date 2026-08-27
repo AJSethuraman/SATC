@@ -1164,6 +1164,59 @@ def _ask_rows(spec: dict) -> list[dict]:
     return rows
 
 
+def cmd_walkthrough(args) -> int:
+    """The guided walkthrough, from screens photographed out of the software.
+
+    Two halves, deliberately: `capture.py` drives the real application in a
+    real browser and writes down what is on each screen; this turns that plus
+    the sentences in `registry/walkthrough.yaml` into one file. Neither half
+    can quietly go stale, because a control with nothing written about it and a
+    sentence about a control that has gone both stop the document being
+    written at all.
+    """
+    import walkthrough as wt
+    import walkthrough_html
+
+    if args.check:
+        if not wt.INVENTORY_FILE.exists():
+            print(f"\nthere is no committed inventory of screens at "
+                  f"{wt.INVENTORY_FILE.name}. Run:\n\n    python capture.py\n")
+            return 1
+        screens = wt.from_json(
+            wt.INVENTORY_FILE.read_text(encoding="utf-8"))
+        gaps = wt.missing(screens, wt.load_registry())
+        if not gaps:
+            print(f"{len(screens)} screen(s), "
+                  f"{sum(len(s.controls) for s in screens)} control(s), all "
+                  f"accounted for.")
+            return 0
+        print(f"\n{len(gaps)} thing(s) the walkthrough would be wrong about:")
+        for g in gaps:
+            print(f"    {g}")
+        print(f"\nFix `registry/walkthrough.yaml`, or re-photograph the "
+              f"software with `python capture.py`.\n")
+        return 1
+
+    shots = Path(walkthrough_html.SHOTS) / "shots"
+    live = shots.parent / "screens.json"
+    if not live.exists():
+        print(f"\nnothing has been photographed yet. Run:\n\n"
+              f"    python capture.py\n")
+        return 1
+    screens = wt.from_json(live.read_text(encoding="utf-8"))
+    try:
+        doc = walkthrough_html.render(screens, wt.load_registry(), shots)
+    except RuntimeError as exc:
+        print(f"\n{exc}\n")
+        return 1
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(doc, encoding="utf-8")
+    print(f"wrote {out} — {len(screens)} screen(s), one file, nothing beside "
+          f"it")
+    return 0
+
+
 def cmd_event(args) -> int:
     """A lifecycle event, and the document it produces.
 
@@ -1797,6 +1850,18 @@ def main(argv=None) -> int:
                     help="also write a reading copy in the firm's house "
                          "style: one self-contained file, nothing beside it")
     pc.set_defaults(fn=cmd_procedures)
+
+    wk = sub.add_parser("walkthrough",
+                        help="write the guided walkthrough of the browser "
+                             "from screens photographed by `capture.py`")
+    wk.add_argument("--out", metavar="FILE",
+                    default=str(ROOT / "out" / "walkthrough" /
+                                "walkthrough.html"),
+                    help="where to write it (one self-contained file)")
+    wk.add_argument("--check", action="store_true",
+                    help="fail if the committed inventory of screens has "
+                         "drifted from what the registry answers for")
+    wk.set_defaults(fn=cmd_walkthrough)
 
     evp = sub.add_parser("event",
                          help="a lifecycle event after the opening pack, and "

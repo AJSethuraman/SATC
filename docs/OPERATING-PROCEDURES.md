@@ -220,5 +220,5 @@ as **waiting on the firm**.
 
 Every other command this document names:
 
-`package`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `event`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
+`package`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
 

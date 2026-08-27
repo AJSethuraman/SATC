@@ -1014,14 +1014,17 @@ def template_body(name, secs, saved="", error="", open_id="") -> str:
             f"<details class='blk add'><summary><span class=st>"
             f"Add a section</span><span class=count>new</span></summary>"
             f"<form method=post action='/templates/{esc(name)}/sections'>"
-            f"<input type=text name=title placeholder='Heading — what a client "
-            f"points at' required>"
-            f"<textarea name=text rows=3 placeholder='What it says. "
+            f"<div class=f><label class=fl for=new-title>Heading &mdash; what "
+            f"a client points at</label>"
+            f"<input type=text id=new-title name=title required></div>"
+            f"<div class=f><label class=fl for=new-text>What it says</label>"
+            f"<textarea id=new-text name=text rows=3 placeholder='"
             f"**bold** works; a merge field does not — that is the registry&#39;s "
-            f"business.' required></textarea>"
-            f"<div class=row><select name=after>{opts}"
-            f"<option value=''>at the end</option></select>"
-            f"<button>Add it</button></div></form></details>")
+            f"business.' required></textarea></div>"
+            f"<div class=f><label class=fl for=new-after>Where it goes</label>"
+            f"<select id=new-after name=after>{opts}"
+            f"<option value=''>at the end</option></select></div>"
+            f"<div class=row><button>Add it</button></div></form></details>")
     return "".join(out)
 
 
