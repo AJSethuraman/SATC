@@ -235,7 +235,7 @@ Stated plainly rather than padded (**S27**). Each of these was probed and held:
 Each of these is reproduced by a `KNOWN` tripwire in `exercise.py`. None was
 fixed, and each says why.
 
-### 1. A public invoice link outlives the invoice and points at the next one — HIGH, self-hosted only — NEW
+### 1. ~~A public invoice link outlives the invoice and points at the next one~~ — **FIXED 27 Aug 2026**
 
 `/i/<token>` signs the invoice's **integer primary key**. SQLite hands the
 next insert the highest free rowid, so deleting an invoice releases its id and
@@ -256,14 +256,22 @@ the Render deployment in `render.yaml` is **not** affected. `docker-compose.yml`
 `run.ps1` path and the bare `flask run` default. Every one of those is
 affected.
 
-**Why left alone.** Every honest fix changes the token payload, which
-invalidates links already in clients' hands — a decision for the owner, not a
-drive-by change. **Proposed approach:** add a `public_id` column
-(`uuid4().hex`, unique, set on insert, backfilled once), sign that instead of
-the row id, and accept the legacy id-signed form for one release only if the
-owner decides broken links are worse than this. Independently, this is another
-argument for making CI run against Postgres (`invoicer-review` deploy notes):
-the two engines differ in a way that changes who can read what.
+**How it was fixed, without invalidating a single link.** The reasoning above
+was that every honest fix changes the token payload — and it is right about
+tokens. It does not have to be a token. `Invoice.__table_args__` now carries
+`sqlite_autoincrement`, so SQLite keeps a monotonic counter in
+`sqlite_sequence` and never hands a deleted invoice's id to the next one. Every
+link already in a client's hands keeps working and keeps pointing where it was
+minted to point; a deleted invoice's link 404s, as it did before, and goes on
+404ing forever instead of coming back to life as somebody else's invoice.
+
+**One thing an existing instance must know.** A SQLite file created before this
+does not gain the flag — the table would have to be rebuilt. New installs are
+safe. An instance that has already been deleting invoices should not be trusted
+with a public link until its `invoices` table is rebuilt.
+
+The harness's tripwire on this fired the moment the behaviour changed, which is
+what a tripwire is for. It is now two standing assertions
 
 ### 2. No payments ledger: three ways real money is destroyed — HIGH
 

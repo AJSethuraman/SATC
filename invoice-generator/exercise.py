@@ -1617,18 +1617,20 @@ def chapter_isolation(w: World):
     recycled = read(w.app, "RECYCLE-B")
     stale = w.anon.get(f"/i/{stale_link}")
     leaked_body = stale.get_data(as_text=True)
-    R.tripwire(
-        "a stale public link resolves to whoever inherits the invoice id",
-        recycled is not None and recycled.id == doomed.id
-        and stale.status_code == 200 and "RECYCLE-B" in leaked_body,
-        f"account A's deleted invoice {doomed.id} released its id; account "
-        f"B's next invoice took it, and the link A already sent its client "
-        f"now serves B's invoice ({recycled.number if recycled else '?'}, "
-        f"{format_money(recycled.total, recycled.currency) if recycled else '?'}"
-        ") to anyone holding it. SQLite reuses row ids; Postgres does not, so "
-        "Render is not exposed and every self-hosted docker-compose instance "
-        "is",
-    )
+    # FIXED 27 August 2026. This was a tripwire on known-broken behaviour, and
+    # it fired the moment the behaviour changed, which is what a tripwire is
+    # for. `Invoice.__table_args__` now carries `sqlite_autoincrement`, so
+    # SQLite keeps a monotonic counter and never hands a deleted invoice's id
+    # to the next one. Chosen over a random public token because a token
+    # change invalidates every link already in a client's hands.
+    R.check("account B's next invoice does not inherit A's deleted id",
+            recycled is not None and recycled.id != doomed.id,
+            f"invoice id {doomed.id} was recycled — every link A already sent "
+            f"its clients now resolves to B's invoice")
+    R.check("A's stale link still 404s rather than serving somebody else",
+            stale.status_code == 404 and "RECYCLE-B" not in leaked_body,
+            f"the deleted link returned {stale.status_code} and "
+            f"{'leaked B' if 'RECYCLE-B' in leaked_body else 'did not leak'}")
 
     # -- the account itself -------------------------------------------------
     with w.app.app_context():

@@ -1556,3 +1556,65 @@ def test_both_front_doors_refuse_the_same_unparseable_value(app, client, owner):
     assert api.status_code == 422
     with app.app_context():
         assert Invoice.query.count() == 0
+
+
+# ── a public link must not outlive its invoice ────────────────────────────
+
+def test_a_deleted_invoice_id_is_never_reused(client, app):
+    """A PUBLIC LINK POINTING AT SOMEBODY ELSE'S INVOICE.
+
+    `/i/<token>` signs the invoice's integer primary key. Without
+    AUTOINCREMENT, SQLite hands the next insert the highest free rowid, so
+    deleting an invoice releases its id and the next invoice raised on the
+    instance inherits it — and every link already in a client's inbox resolves
+    to a different invoice.
+
+    Reproduced across accounts by the harness: owner A raises a confidential
+    invoice, sends the link, deletes it; owner B, a different workspace, raises
+    the next one and inherits the id; A's client opens A's link and reads B's
+    invoice.
+
+    Postgres allocates from a sequence and never reuses, so Render was never
+    affected. `docker compose up`, `run.ps1` and a bare `flask run` all default
+    to SQLite and were.
+    """
+    from models import db, Invoice, User
+
+    with app.app_context():
+        owner = User(email="recycle@example.com", password_hash="x")
+        db.session.add(owner)
+        db.session.commit()
+
+        ids = []
+        for n in range(3):
+            inv = Invoice(user_id=owner.id, invoice_number=f"R-{n}",
+                          from_info="", bill_to="")
+            db.session.add(inv)
+            db.session.commit()
+            ids.append(inv.id)
+
+        db.session.delete(db.session.get(Invoice, ids[-1]))
+        db.session.commit()
+
+        nxt = Invoice(user_id=owner.id, invoice_number="R-next",
+                      from_info="", bill_to="")
+        db.session.add(nxt)
+        db.session.commit()
+
+        assert nxt.id not in ids, (
+            f"invoice id {nxt.id} was recycled from a deleted invoice — a "
+            f"public link already sent to a client now resolves to this one")
+
+
+def test_the_model_declares_sqlite_autoincrement():
+    """Asserted directly as well, because the behaviour above depends on a
+    table created WITH the flag: an existing database file does not gain it,
+    and a fixture that happens to be fresh would pass either way."""
+    from models import Invoice
+
+    args = getattr(Invoice, "__table_args__", {})
+    if isinstance(args, tuple):
+        args = next((a for a in args if isinstance(a, dict)), {})
+    assert args.get("sqlite_autoincrement") is True, (
+        "SQLite will reuse a deleted invoice's id, and every public link "
+        "already in a client's hands will follow it")
