@@ -45,6 +45,7 @@ import lifecycle
 import packaging
 import notes
 import presend
+import sending
 import procedures
 import fees
 import intake
@@ -366,30 +367,17 @@ def _engagement_readiness(ref: str, store: Path) -> int:
 
 
 def _previous_pack(outdir: Path) -> str | None:
-    """The engagement ref of a pack this command wrote here before, or None.
-
-    None means either an empty/absent directory or one we do not recognise --
-    the caller tells those apart, because they need different answers.
-    """
-    book = outdir / "MANIFEST.json"
-    if not book.is_file():
-        return None
-    try:
-        return json.loads(book.read_text(encoding="utf-8")).get(
-            "EngagementRef") or "an earlier engagement"
-    except (OSError, ValueError):
-        return "an earlier engagement"
+    """Moved to `sending`, where the code that acts on it lives."""
+    return sending.previous_pack(outdir)
 
 
 def cmd_package(args) -> int:
-    """Every document a client signs, in one atomic write.
+    """The terminal's door onto `sending.build` -- reporting, not deciding.
 
-    ATOMIC is the point and it is why this does not just loop `_render_one`
-    into the output directory. An engagement letter without its fee estimate
-    asks somebody to sign for work at a price they have not been shown; a pack
-    with a hole in it is worse than no pack at all. So everything is rendered
-    to a temporary directory first, and the output directory is only touched
-    once every document has succeeded.
+    Every rule this command used to enforce lives in `sending` now, so the
+    browser enforces the same ones by calling the same function. What is left
+    here is what a terminal is for: reading the arguments, and saying in words
+    what was decided.
     """
     store = Path(args.store) if args.store else engagements.STORE
     try:
@@ -419,191 +407,68 @@ def cmd_package(args) -> int:
             want_pdf = False
 
     outdir = Path(args.out)
-    # WHOSE DIRECTORY IS THIS? Found by testing the refusal path: a run that
-    # refuses leaves whatever was already in `--out` untouched, so a complete
-    # pack from a DIFFERENT engagement sits there looking current, and the
-    # person who reads "No pack written" and then opens the folder finds one.
-    # That is the failure this command exists to prevent, arriving by the
-    # back door.
-    #
-    # So the pack owns its directory. A folder we wrote before (it has our
-    # MANIFEST) is replaced wholesale. A folder with anything else in it is
-    # somebody's, and we do not touch it.
-    stale = _previous_pack(outdir)
-    if stale is None and outdir.exists() and any(outdir.iterdir()):
+    pack = sending.build(
+        record, outdir, render=render_one,
+        ref=record.get("EngagementRef") or args.engagement, store=store,
+        template_dir=TEMPLATE_DIR, documents=docs, want_pdf=want_pdf,
+        attach=getattr(args, "attach", None),
+        skip_render=getattr(args, "skip_render", False),
+        readings=bool(getattr(args, "notes", False)),
+        force=bool(getattr(args, "force", False)),
+        reason=getattr(args, "reason", "") or "")
+
+    if pack.status == "not-ours":
         print(f"\n{outdir} already has files in it and no MANIFEST.json, so it "
               f"is not a pack this\ncommand wrote. Refusing to mix a signing "
               f"pack into somebody else's folder —\ngive --out a new directory.\n")
         return 1
 
-    staging = Path(tempfile.mkdtemp(prefix="satc-pack-"))
-    written: dict[str, list[Path]] = {}
-    refused: list[tuple[str, str]] = []
-    try:
-        rendered: dict[str, str] = {}
-        for doc in docs:
-            try:
-                result, files = _render_one(doc, record, staging, False, want_pdf)
-                written[doc] = files
-                rendered[doc] = result.html
-            except merge.MergeError as exc:
-                refused.append((doc, str(exc)))
+    if pack.status == "refused-merge":
+        print(f"\nNo pack written. {len(pack.refused)} of {len(docs)} "
+              f"document(s) refused, and a pack with a hole in it is worse "
+              f"than none —\nthe client signs what arrived and the rest turns "
+              f"up later saying something different.\n")
+        for doc, why in pack.refused:
+            print(f"  {DOCUMENTS[doc][1]}")
+            for line in textwrap.wrap(why, 74):
+                print(f"      {line}")
+            print()
+        if pack.stale:
+            print(f"  WARNING: {outdir} still holds the pack written for "
+                  f"{pack.stale}.\n           It is not this engagement's and "
+                  f"it has not been updated. Do not send it.\n")
+        return 1
 
-        if refused:
-            print(f"\nNo pack written. {len(refused)} of {len(docs)} document(s) "
-                  f"refused, and a pack with a hole in it is worse than none —\n"
-                  f"the client signs what arrived and the rest turns up later "
-                  f"saying something different.\n")
-            for doc, why in refused:
-                print(f"  {DOCUMENTS[doc][1]}")
-                for line in textwrap.wrap(why, 74):
-                    print(f"      {line}")
-                print()
-            if stale:
-                print(f"  WARNING: {outdir} still holds the pack written for "
-                      f"{stale}.\n           It is not this engagement's and it "
-                      f"has not been updated. Do not send it.\n")
-            return 1
+    check = pack.check
+    print(f"\nBefore sending — {len(check.checked)} check(s):")
+    print(presend.format_result(check))
+    if getattr(args, "notes", False):
+        print(f"\nReadings — {len(pack.readings)} advisory check(s), none of "
+              f"which can stop a pack:")
+        print(notes.format_notes(pack.readings))
 
-        # THE HTML IS NOT SELF-CONTAINED. Every template links `satc-doc.css`
-        # and `doc-page.js` by relative path, so a pack folder holding only
-        # HTML opens as UNSTYLED PLAIN TEXT -- the whole document, no masthead,
-        # no rules, no layout. With --no-pdf that is the entire deliverable.
-        #
-        # Found by the firm, opening one: "these html files are plain text?"
-        # Nothing caught it because every test reads the HTML as a STRING and
-        # asserts on its tokens, which is exactly right for a merge and blind
-        # to whether the thing renders.
-        #
-        # The two assets are copied beside the documents rather than inlined:
-        # inlining bloats every file with the same 12 KB and diverges from how
-        # the templates are authored. They go into STAGING, before the gate --
-        # a gate that inspects a pack the assets have not reached yet would
-        # fail every time for the wrong reason.
-        for asset in presend.PACK_ASSETS:
-            src = TEMPLATE_DIR / asset
-            if src.exists():
-                shutil.copy2(src, staging / asset)
+    if pack.status == "refused-gate":
+        print(f"\nNo pack written. {len(check.blocking)} check(s) failed, "
+              f"and a pack that does not\nsurvive being opened is not a "
+              f"pack — it is a folder the client cannot read.\n"
+              f"\n  Fix it, or send anyway with --force and a reason:\n"
+              f"      --force --reason \"why this is going out as it is\"\n")
+        return 1
 
-        # THE MANIFEST GOES IN BEFORE THE GATE, NOT AFTER, and until this line
-        # existed two of the eight blocking checks had never examined anything
-        # on a real send.
-        #
-        # A rendered document is named for the client, so nothing about the
-        # file on disk says which template it came from. The manifest is the
-        # only thing that knows -- so `compliance_floor` (the assurance
-        # negation, the "an extension is not more time to pay" warning) and
-        # `pointer_test` (the enclosure check the firm asked for by name) both
-        # need it and both refuse without it. It used to be written at the very
-        # end, from the output directory, which meant every real `package` run
-        # gated a folder that had no manifest in it: both checks returned "no
-        # MANIFEST.json ... Not a pass", nothing blocked, and the summary line
-        # said `ok`. They passed in the tests, on fixtures that wrote their own
-        # manifest, and examined ZERO on every pack ever sent.
-        #
-        # Found by making every check report its denominator (SOFTWARE-TENETS
-        # S2) -- which is the whole argument for the denominator.
-        book = packaging.manifest(record, docs, written,
-                                  getattr(args, "attach", None))
-        manifest_json = json.dumps(book, indent=2, ensure_ascii=False) + "\n"
-        (staging / "MANIFEST.json").write_text(manifest_json, encoding="utf-8")
+    if pack.status == "no-reason":
+        print("\n--force needs --reason. An override with no recorded "
+              "reason is just a\nquieter way to send a pack that did "
+              "not pass.\n")
+        return 1
 
-        # THE GATE. The firm's choice, 27 August 2026: blocking, with a logged
-        # override. Nothing has been written to `outdir` yet, so a refusal here
-        # costs nothing and leaves no half-pack behind.
-        check = presend.gate(staging, record, rendered=rendered,
-                             skip_render=getattr(args, "skip_render", False))
-        print(f"\nBefore sending — {len(check.checked)} check(s):")
-        print(presend.format_result(check))
+    if pack.status == "not-logged":
+        print(f"\nCould not record the override ({pack.detail}), so the pack "
+              f"was not written.\nThe log is the only thing that makes "
+              f"--force different from no gate at all.\n")
+        return 1
 
-        # THE ADVISORY HALF, AND IT IS OPT-IN. The firm's rule: exact tenets
-        # block, judgement ones advise. An advisory printed beside a blocking
-        # failure every single time is an advisory people learn to scroll past,
-        # and they take the eight real gates with them (SOFTWARE-TENETS S4).
-        # `--notes` is for the round where somebody is reading the prose.
-        if getattr(args, "notes", False):
-            read = notes.review(staging)
-            print(f"\nReadings — {len(read)} advisory check(s), none of which "
-                  f"can stop a pack:")
-            print(notes.format_notes(read))
-
-        force = getattr(args, "force", False)
-        if check.blocking and not force:
-            print(f"\nNo pack written. {len(check.blocking)} check(s) failed, "
-                  f"and a pack that does not\nsurvive being opened is not a "
-                  f"pack — it is a folder the client cannot read.\n"
-                  f"\n  Fix it, or send anyway with --force and a reason:\n"
-                  f"      --force --reason \"why this is going out as it is\"\n")
-            return 1
-
-        if check.blocking and force:
-            reason = (getattr(args, "reason", "") or "").strip()
-            if not reason:
-                print("\n--force needs --reason. An override with no recorded "
-                      "reason is just a\nquieter way to send a pack that did "
-                      "not pass.\n")
-                return 1
-            ref = record.get("EngagementRef") or args.engagement
-            entry = {
-                "at": _dt.datetime.now(_dt.timezone.utc)
-                      .replace(microsecond=0).isoformat(),
-                "command": "package",
-                "reason": reason,
-                "failed": [{"check": f.check, "document": f.document,
-                            "detail": f.detail} for f in check.blocking],
-            }
-            try:
-                logged = engagements.record_override(ref, entry, store)
-                print(f"\n  Override recorded — {logged}")
-            except Exception as exc:                        # noqa: BLE001
-                # Refuse rather than send unlogged. The override IS the record;
-                # forcing past a gate with no trace is the thing this design
-                # exists to prevent.
-                print(f"\nCould not record the override ({exc}), so the pack "
-                      f"was not written.\nThe log is the only thing that makes "
-                      f"--force different from no gate at all.\n")
-                return 1
-
-        # Replace, do not merge. An entity pack written over an individual
-        # one would leave two engagement letters in the folder, and whoever
-        # sends it picks the wrong one.
-        if stale is not None and outdir.exists():
-            for old_file in outdir.iterdir():
-                if old_file.is_file():
-                    old_file.unlink()
-        outdir.mkdir(parents=True, exist_ok=True)
-        moved: dict[str, list[Path]] = {}
-        for doc, files in written.items():
-            moved[doc] = [Path(shutil.copy2(f, outdir / f.name)) for f in files]
-        for asset in presend.PACK_ASSETS:
-            staged = staging / asset
-            if staged.exists():
-                shutil.copy2(staged, outdir / asset)
-
-        # THE HTML IS NOT SELF-CONTAINED, and until 27 August 2026 the pack
-        # did not carry what it needs. Every template links `satc-doc.css` and
-        # `doc-page.js` by relative path, so a pack folder holding only HTML
-        # opens as UNSTYLED PLAIN TEXT -- the whole document, no masthead, no
-        # rules, no layout. With --no-pdf that is the entire deliverable.
-        #
-        # Found by the firm, opening one: "these html files are plain text?"
-        # Nothing caught it because every test reads the HTML as a STRING and
-        # asserts on its tokens, which is exactly right for a merge and blind
-        # to whether the thing renders.
-        #
-        # The two assets are copied beside the documents rather than inlined:
-        # inlining bloats every file with the same 12 KB and diverges from how
-        # the templates are authored. A single HTML file mailed on its own
-        # still needs its siblings -- which is what the PDF is for, and why it
-        # is the default.
-
-        # The SAME manifest the gate read, byte for byte. Rebuilding it here
-        # from `moved` would be a second construction of a thing that must
-        # agree with the first (S3) -- and the one the client gets would be the
-        # one nothing checked.
-        (outdir / "MANIFEST.json").write_text(manifest_json, encoding="utf-8")
-    finally:
-        shutil.rmtree(staging, ignore_errors=True)
+    if pack.override:
+        print(f"\n  Override recorded — {pack.override}")
 
     print(f"\nSigning pack for {record.get('EngagementRef') or args.engagement}"
           f" — {record.get('ClientFullName', '')}")
@@ -1423,7 +1288,7 @@ def _inverse_flags() -> tuple:
     return tuple(pairs)
 
 
-def _render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool):
+def render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool):
     filename, _ = DOCUMENTS[doc]
     template = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
     result = merge.render(template, record, strict=not draft,
@@ -1441,6 +1306,11 @@ def _render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: boo
         render_pdf(html, pdf_path, TEMPLATE_DIR, draft)
         written.append(pdf_path)
     return result, written
+
+
+# `_render_one` was private while the terminal was its only caller. It has two
+# now, and the tests written against the old name still hold.
+_render_one = render_one
 
 
 def cmd_render(args) -> int:
@@ -1522,7 +1392,7 @@ def cmd_render(args) -> int:
     failures = 0
     for doc in docs:
         try:
-            result, written = _render_one(doc, record, outdir, args.draft, want_pdf)
+            result, written = render_one(doc, record, outdir, args.draft, want_pdf)
         except merge.MergeError as exc:
             failures += 1
             print(f"  {doc:22s} REFUSED\n      {exc}\n", file=sys.stderr)
