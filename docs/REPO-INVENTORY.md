@@ -34,14 +34,17 @@ drift failure they are themselves about.
 The firm's distinction, and the reason this section exists: **a test asserts a
 property on a fixture; a control runs on real work, on its way to a real
 client.** There were 749 tests and one control that could actually stop
-something. Every bug found in the two days before this was the same shape —
+something. There are 966 now, and the controls below. Every bug found in the two days before this was the same shape —
 software reporting success without having done the work, because the verifier
 looked at a proxy rather than the thing.
 
 | Control | Command | What it stops |
 |---|---|---|
 | **Pre-send gate** | runs inside `package` | A pack leaving the building that does not render, references a file it does not carry, misnumbers its sections, has an empty bullet, carries a deleted sentence, uses banned wording, has lost a compliance negation, cites a section that does not exist, or promises an enclosure it does not contain. **Blocking, with `--force --reason` logged to the engagement.** |
-| **Tenet linter** | seven checks, same gate | Prose defects, from `registry/retired.yaml` and `registry/required.yaml`. Exact checks block; judgement calls are not mechanised at all |
+| **Tenet linter, exact half** | eight checks, same gate | Prose defects, from `registry/retired.yaml` and `registry/required.yaml`. Every check reports how many things it examined; one with nothing to look at prints `NONE`, never `ok` |
+| **Tenet linter, advisory half** | `package --notes`, `notes.py` | Ten judgement checks (A1–A10) that **never block and never change the exit code**. Each carries the condition on which it may be promoted. Thirteen further tenets were measured and dropped — see `docs/tenet-mechanization.md` |
+| **Lifecycle events** | `cli.py event --kind <k>` | Four documents no preparer could produce — delivery, organizer cover, extension notice, disengagement. Questions in `registry/lifecycle.yaml`; inverse flag pairs derived from one answer so neither can be silently false |
+| **Returning client** | `cli.py returning --engagement <last year>` | Last year's answers reused without being confirmed. Nine carry and are all still asked; thirteen deliberately do not, and the command prints why for each |
 | **Deploy gate** | `.github/workflows/deploy-invoicer.yml` | A red suite reaching a live payment system. Needs `RENDER_DEPLOY_HOOK_URL` and Render auto-deploy off |
 | **End-of-cycle reconciliation** | `cli.py close`, `cli.py reconcile [--apply]` | The January interview and the April return quietly disagreeing. Nothing is read out of Drake; an engagement nobody closed reports as NOT CLOSED rather than being skipped |
 | **Demonstration harness** | `cd client-documents && python exercise.py` | "Produced" meaning "wrote bytes". 29 scenarios, 190 documents, every one opened |
