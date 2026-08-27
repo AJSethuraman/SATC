@@ -19,13 +19,20 @@
 #    client whose books need reconstruction does not know they are in that
 #    state; being in it is what makes it invisible from the inside.
 #
-# 2. PAST THE ASSUMPTIONS, THESE PRICES STOP APPLYING. Hourly is not a
-#    surcharge on a fixed price and it is not a re-quote. It is what happens
-#    instead, when the engagement turns out not to be the one that was priced.
-#    See `assumed:` below: each item states what the fee ASSUMES, what triggers
-#    the change, and that the consequence is `beyond: hourly`. A re-quote stops
-#    the job and opens a negotiation the firm did not want; the meter simply
-#    runs instead.
+# 2. PAST THE ASSUMPTIONS, THE FIXED PRICE STOPS GOVERNING. Hourly is not a
+#    re-quote: a re-quote stops the job and opens a negotiation the firm did
+#    not want, so the meter simply runs instead. See `assumed:` below: each
+#    item states what the fee ASSUMES, what triggers the change, and that the
+#    consequence is `beyond: hourly`.
+#
+#    CORRECTED 26 August 2026. This paragraph used to say hourly happens
+#    INSTEAD of the fixed price and is never added to it. That was never what
+#    the software did, and it is not what a client is told: every one of the
+#    `assumed:` items below carries `inside_base: false`, and the client-facing
+#    phrase is `beyond_hourly` -- "the ADDITIONAL time is billed as it is
+#    worked". The firm settled it the same day: hourly can happen either in
+#    lieu of the fixed work or in addition to it, depending on what turns up.
+#    The website says exactly that; this file no longer says otherwise.
 #
 # 3. EVERY PRICE ASSUMES THE CLIENT GIVES US WHAT WE NEED. Records arrive
 #    complete and reconciled. That is not a disclaimer buried in a letter -- it

@@ -55,3 +55,33 @@ jobs:
 
       - name: Run tests
         run: pytest -q
+
+  # The website publishes prices. A number on satcllp.com is a commitment, and
+  # the estimate a client gets later has to agree with it — so the page is
+  # checked against client-documents/registry/fee-schedule.yaml on every push,
+  # rather than whenever someone remembers to run it.
+  #
+  # Its own job, not a matrix entry: website/ has no pytest suite, and this
+  # needs neither a browser nor a server (unlike intake.spec.py, which needs
+  # both and stays a local check).
+  pricing:
+    name: published prices match the fee schedule
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: python -m pip install --upgrade pip pyyaml
+
+      # The checker regenerates pricing-config.js from the schedule and fails if
+      # the committed copy differs, so this also catches a schedule change that
+      # nobody propagated to the page.
+      - name: Check the page against the schedule
+        working-directory: website
+        run: python3 pricing.spec.py
