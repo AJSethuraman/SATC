@@ -480,6 +480,20 @@ def _oxford(items: list[str]) -> str:
 
 def _federal_returns(answers: dict) -> str:
     form = _FORM_LABEL.get(answers.get("federal_form"), answers.get("federal_form") or "")
+    # AN AMENDMENT SAYS SO ON THE SIGNED LETTER. Three amendment engagements go
+    # through the harness and every one of them produced an engagement letter
+    # byte-identical to a first-time preparation: "What we will prepare —
+    # Federal: Form 1040", when the work is amending a 1040 somebody has
+    # already filed. The word "amend" appeared nowhere in the letter, though
+    # `return_basis` and `amendment_reason` were both recorded and priced, and
+    # the fee estimate beside it said "Amending a return prepared elsewhere".
+    # Found by opening the pack.
+    #
+    # This names the RETURN, not the firm's policy. "Amended Form 1040" is what
+    # the thing is; what the firm has to say ABOUT amendments is the firm's
+    # sentence to write, and it is still unwritten -- see the open questions.
+    if answers.get("return_basis") == "amended" and form:
+        form = f"Amended {form}"
     picked = answers.get("federal_schedules") or []
     # E1 and E2 are both Schedule E; naming it twice reads as a mistake.
     seen, labels = set(), []

@@ -454,3 +454,33 @@ def test_an_open_decision_is_only_caught_where_it_would_print(tmp_path):
     for field in sorted(set(supplied) & merged):
         with pytest.raises(merge.MergeError, match="undecided placeholders"):
             merge.render(template, dict(record, **{field: "[CONFIRM: undecided]"}))
+
+
+# ── an amendment says so on the document that is signed ───────────────────
+
+def test_an_amendment_engagement_letter_says_it_is_an_amendment(tmp_path):
+    """THREE AMENDMENT ENGAGEMENTS produced engagement letters byte-identical
+    to a first-time preparation. "What we will prepare — Federal: Form 1040",
+    when the work is amending a 1040 somebody has already filed. The word
+    "amend" appeared nowhere in the letter, though `return_basis` and
+    `amendment_reason` were both recorded and priced, and the fee estimate
+    beside it said "Amending a return prepared elsewhere". Found by opening
+    the pack, not by any test."""
+    store = tmp_path / "store"
+    record = record_for(created(sitting(
+        return_basis="amended", amendment_reason="other_preparer"), store).ref,
+        store)
+    rendered = render_all(record, ["tax-letter"])
+    said = readable(rendered["tax-letter"])
+
+    assert "Amended Form 1040" in said, said[:400]
+
+
+def test_an_original_return_is_not_called_an_amendment(tmp_path):
+    """The gate removes the wrong statement, not the right one."""
+    store = tmp_path / "store"
+    record = record_for(created(sitting(return_basis="original"), store).ref, store)
+    said = readable(render_all(record, ["tax-letter"])["tax-letter"])
+
+    assert "Form 1040" in said
+    assert "Amended" not in said
