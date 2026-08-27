@@ -1160,6 +1160,58 @@ Non-negotiable, from `SOFTWARE-TENETS` S2 and S4.
 
 ---
 
+## 10a · What shipped, and what the first run measured
+
+**All ten advisories shipped, 27 August 2026**, in `client-documents/notes.py`,
+behind `package --notes`. `notes.note()` is the only constructor in the module
+and it hard-codes `blocking=False`, so "nothing here can stop a pack" is a
+property a test asserts rather than a claim in a docstring.
+
+Measured over the 27 rendered packs in `out/exercise`:
+
+| # | Fires | Examined | Against §6's estimate |
+|---|---|---|---|
+| A1 | 0 | 2,500 sentences | 0 — as specified |
+| A2 | 0 | 2,500 sentences | 0 — as specified |
+| A3 | 59 (6 distinct sentences) | 2,500 sentences | consistent; the 51-word officer-compensation sentence is the worst, as predicted |
+| A4 | 0 | 919 paragraphs, 6 compliance paragraphs excluded per pack | 0 after exclusion — as specified |
+| A5 | 0 | 2,500 sentences | 0 — as specified |
+| A6 | 0 | 2,500 sentences | 0 — as specified |
+| A7 | 0 | 837 published phrases | 0 — as specified |
+| A8 | 0 | 540 request labels | 0 — as specified |
+| A9 | 0 | 34 list items under a long-enough heading | 0 — as specified |
+| A10 | 0 | **0 cited clauses** | correct and empty; see below |
+
+**Three things the build found that the specification did not.**
+
+1. **`cited_clauses` — the blocking L3 — was passing having examined nothing.**
+   All seven live citations are in the delivery letter, the disengagement
+   letter, the extension notice and the invoice. None of those is in an opening
+   pack, so on all 27 packs the gate printed `ok every cited clause name is a
+   real section` while resolving zero citations. §8's "all denominator" row
+   predicted this failure mode for an *empty* pack; it was live on every real
+   one. **Every check in `presend.gate` now reports its denominator**, and a
+   check with nothing to look at prints `NONE`, never `ok`.
+
+2. **A3 read the masthead as a sentence.** Flattening a document and splitting
+   on full stops made the firm name, address, document title, client name and
+   first heading into one 74-word "sentence" — none of it ends in a full stop.
+   Measured that way A3 fired **162 times**; §6 counted 21 by hand. Fixed by
+   reading paragraphs and bullets as blocks, headings excluded.
+
+3. **A4's exclusion needed a floor rule that did not exist.** §6 names the
+   billing-and-suspension paragraph as T23-protected, but `required.yaml` had
+   no entry for it, so A4 fired 27 times and the only fix it offered was to
+   delete protected text. Added as `unpaid-invoice-and-late-filing` — keyword
+   groups, not pinned prose — which also gives the blocking floor a rule it was
+   missing. All four engagement letters carry it; a mutation test proves the
+   rule fires when it is removed.
+
+**Promotion status: none.** Every advisory is on cycle one. `A1` remains the
+best candidate, for the reason §6 gives.
+
+---
+
 ## 11 · Corrections owed to `DOCUMENT-TENETS.md`
 
 Found while measuring. None are lint hits; all are stale text in the tenets

@@ -79,8 +79,24 @@ Twice, independently:
 > "the helper that repriced a client on another rung built a one-rung ladder, so `includes:` could
 > not resolve … **It reported zero problems because it compared nothing.**" — `c4369c6`
 
+> "The pre-send gate ran on nine checks and printed `ok` on all nine. Two of them — the compliance
+> floor and the pointer test — can only run against a manifest, and `package` wrote the manifest
+> AFTER the gate. So on every real send, both refused with 'no MANIFEST.json … Not a pass', neither
+> blocked, and the summary said `ok`. They were green in every test, on fixtures that wrote their
+> own manifest, and had examined **zero** on every pack ever sent." — 27 August 2026
+
 **Operational form:** every check prints how many things it compared, and the caller asserts a
 floor. `test_scenarios_agreement` does exactly this: `assert len(checks) >= 5`.
+
+**The corollary the third case adds: a check that reads an input must run after that input exists,
+and the denominator is the only thing that will tell you it did not.** No assertion of the form
+"the gate passed" can distinguish a check that ran clean from a check that never ran — that is the
+same sentence in both worlds. The number is the difference. `presend.Counted` carries it, and a
+check with nothing to look at prints `NONE`, never `ok`.
+
+**And the count must come from the check, not from beside it.** `presend` builds its census and
+then walks it, so what it reports is what it put its eyes on. A `len()` computed separately from
+the loop is S3 waiting to happen: the two agree until somebody adds a `continue`.
 
 ## S3 · Two halves of one tool must make the same call — and the way to guarantee it is for one to BE the other.
 

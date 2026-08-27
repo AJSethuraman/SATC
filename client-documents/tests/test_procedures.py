@@ -91,12 +91,41 @@ def test_the_gate_list_is_not_empty():
 
 
 def test_a_runtime_count_does_not_reach_the_procedure():
-    """The gate says "every document opens and renders (3)" at runtime. The
-    procedure probes an empty directory, so an unstripped count would put
-    "(0)" in front of a preparer."""
+    """The procedure probes an EMPTY directory, so any count it picked up
+    would be zero and would print "0 documents examined" in front of a
+    preparer. The counts belong in the gate's report at runtime, where they
+    are true; the procedure lists the checks by name only."""
     text = procedures.render()
     assert "every document opens and renders" in text
     assert "(0)" not in text
+    # No count from the probe run may reach the page. The prose deliberately
+    # mentions `NONE` -- that is the report's own vocabulary being explained,
+    # not a verdict about an empty probe directory.
+    import re
+    assert not re.search(r"\b0 \w+s? (examined|to examine)\b", text)
+    assert "  NONE " not in text
+
+
+def test_the_advisories_are_listed_and_named_as_advisory():
+    """Separately from the blocking checks, and said out loud to be advisory.
+
+    A procedure that ran the two lists together would teach a preparer that a
+    note is a failure, and the next thing to happen is that the blocking eight
+    get ignored too.
+    """
+    import notes
+    text = procedures.render()
+    listed = procedures.advisory_checks()
+    assert len(listed) == len(notes.ADVISORIES) == 10
+    for line in listed:
+        assert line in text, line
+    assert "never block and never change the exit code" in text
+
+
+def test_no_advisory_is_listed_among_the_gate_checks():
+    blocking = set(procedures.gate_checks())
+    for line in procedures.advisory_checks():
+        assert line not in blocking
 
 
 def test_the_close_out_questions_come_from_the_registry():

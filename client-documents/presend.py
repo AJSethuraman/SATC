@@ -75,10 +75,63 @@ class Finding:
 
 
 @dataclass
+class Counted:
+    """What a check found, AND what it looked at to find it.
+
+    SOFTWARE-TENETS S2: a green result from a check that examined nothing is
+    worse than a red one. This is not hypothetical here. `cited_clauses` ran
+    on all 29 packs and printed "ok every cited clause name is a real section"
+    every time -- while examining ZERO citations, because all seven live in the
+    delivery, disengagement, extension and invoice documents and none of those
+    is in the opening pack. The check was right, useless, and indistinguishable
+    from a check that was working.
+
+    The count is not computed separately from the check; each check builds its
+    census and then walks it, so the number reported is the number of things
+    the check actually put its eyes on. Two functions that must agree about a
+    denominator will one day disagree (S3).
+    """
+
+    findings: list[Finding] = field(default_factory=list)
+    examined: int = 0
+    unit: str = "item"
+    units: str = ""            # plural, where "unit + s" would read wrong
+
+    def counted(self) -> str:
+        n = self.examined
+        if n == 1:
+            return f"1 {self.unit}"
+        return f"{n} {self.units or self.unit + 's'}"
+
+    def line(self, what: str) -> str:
+        if not self.examined:
+            return (f"  NONE   {what} — {self.counted()} to examine, so this "
+                    f"is not known to be right")
+        mark = "FAIL " if any(f.blocking for f in self.findings) else "ok   "
+        return f"  {mark}  {what} — {self.counted()} examined"
+
+
+@dataclass
 class Result:
     findings: list[Finding] = field(default_factory=list)
     checked: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
+    counts: list[tuple[str, Counted]] = field(default_factory=list)
+
+    def add(self, what: str, got: Counted) -> None:
+        self.checked.append(what)
+        self.counts.append((what, got))
+        self.findings += got.findings
+
+    @property
+    def examined_nothing(self) -> list[str]:
+        """Checks that ran and had nothing to look at.
+
+        Not a failure -- a fee estimate on its own carries no cited clause and
+        never will. But it is not a pass either, and the report must not let
+        the two look alike.
+        """
+        return [what for what, got in self.counts if not got.examined]
 
     @property
     def blocking(self) -> list[Finding]:
@@ -196,7 +249,7 @@ def referenced_files(html: str) -> list[str]:
     return [r for r in _REF.findall(html) if not _EXTERNAL.match(r.strip())]
 
 
-def assets_present(pack: Path) -> list[Finding]:
+def assets_present_counted(pack: Path) -> Counted:
     """Every file a document points at is in the pack.
 
     This is the check that would have caught the plain-text pack on the day it
@@ -205,16 +258,22 @@ def assets_present(pack: Path) -> list[Finding]:
     separate because it says WHICH file is missing, which a screenshot cannot.
     """
     out: list[Finding] = []
+    seen = 0
     for doc in sorted(pack.glob("*.html")):
         html = doc.read_text(encoding="utf-8", errors="replace")
         for ref in referenced_files(html):
+            seen += 1
             target = (pack / ref.split("?", 1)[0].split("#", 1)[0]).resolve()
             if not target.exists():
                 out.append(Finding(
                     "assets", doc.name,
                     f"references {ref!r}, which is not in the pack. The "
                     f"document will open without it and say nothing."))
-    return out
+    return Counted(out, seen, "referenced file")
+
+
+def assets_present(pack: Path) -> list[Finding]:
+    return assets_present_counted(pack).findings
 
 
 # ── 3 · do the numbers on the page read 01..N ─────────────────────────────
@@ -222,7 +281,7 @@ def assets_present(pack: Path) -> list[Finding]:
 _SECTION_N = re.compile(r'<h2[^>]*><span class="n">(\d+)</span>')
 
 
-def numbering(pack: Path) -> list[Finding]:
+def numbering_counted(pack: Path) -> Counted:
     """Section numbers on the rendered page are contiguous from 01.
 
     `merge` renumbers after conditionals resolve, so this should never fire.
@@ -240,10 +299,12 @@ def numbering(pack: Path) -> list[Finding]:
     templates, none on the output.
     """
     out: list[Finding] = []
+    seen = 0
     for doc in sorted(pack.glob("*.html")):
         nums = _SECTION_N.findall(doc.read_text(encoding="utf-8", errors="replace"))
         if not nums:
             continue                       # an unnumbered document is fine
+        seen += 1
         want = [f"{i:02d}" for i in range(1, len(nums) + 1)]
         if nums != want:
             out.append(Finding(
@@ -251,7 +312,11 @@ def numbering(pack: Path) -> list[Finding]:
                 f"the section numbers on the page read {' '.join(nums)}, not "
                 f"{' '.join(want)}. A client reads a gap as a page they were "
                 f"not sent."))
-    return out
+    return Counted(out, seen, "numbered document")
+
+
+def numbering(pack: Path) -> list[Finding]:
+    return numbering_counted(pack).findings
 
 
 # ── 4 · sentences the firm has deleted ────────────────────────────────────
@@ -313,7 +378,7 @@ def _load_retired() -> list[dict]:
     return out
 
 
-def retired_phrases(pack: Path) -> list[Finding]:
+def retired_phrases_counted(pack: Path) -> Counted:
     """No document carries a sentence the firm has deleted.
 
     A note in a tenets file saying a phrase is "not yet swept" is not a
@@ -324,12 +389,14 @@ def retired_phrases(pack: Path) -> list[Finding]:
     try:
         retired = _load_retired()
     except ValueError as exc:
-        return [Finding("retired", "(registry)", str(exc))]
+        return Counted([Finding("retired", "(registry)", str(exc))], 0,
+                       "retired sentence")
+    docs = sorted(pack.glob("*.html"))
     if not retired:
-        return []
+        return Counted([], 0, "retired sentence")
 
     out: list[Finding] = []
-    for doc in sorted(pack.glob("*.html")):
+    for doc in docs:
         said = _normalize(_readable(doc.read_text(encoding="utf-8", errors="replace")))
         for entry in retired:
             if entry["_norm"] in said:
@@ -339,7 +406,14 @@ def retired_phrases(pack: Path) -> list[Finding]:
                     f"{entry.get('retired', 'an earlier round')} "
                     f"({entry.get('tenet', '')}): \"{entry['phrase']}\" — "
                     f"{entry.get('why', '')}"))
-    return out
+    # The denominator is sentences LOOKED FOR, not documents: "3 documents
+    # examined" hides a registry that has quietly become empty, and an empty
+    # registry is the one state where this check passes everything.
+    return Counted(out, len(retired) * len(docs), "sentence-in-document pair")
+
+
+def retired_phrases(pack: Path) -> list[Finding]:
+    return retired_phrases_counted(pack).findings
 
 
 # ── 5 · plain language ────────────────────────────────────────────────────
@@ -360,7 +434,7 @@ BRITISH = ("authorisation", "organise", "organised", "organising",
            "programme", "enrol")
 
 
-def plain_language(pack: Path) -> list[Finding]:
+def plain_language_counted(pack: Path) -> Counted:
     """No hard-banned legalese, and no British spelling.
 
     READS THE RENDERED PAGE, and that is load-bearing: three British spellings
@@ -369,8 +443,19 @@ def plain_language(pack: Path) -> list[Finding]:
     wrong all three times.
     """
     out: list[Finding] = []
+    seen = 0
     for doc in sorted(pack.glob("*.html")):
         said = _normalize(_readable(doc.read_text(encoding="utf-8", errors="replace")))
+        if not said:
+            # A document whose readable text is empty is not a clean document.
+            # It is a document that rendered to nothing, and the word sweep
+            # would call it clean all day.
+            out.append(Finding(
+                "plain", doc.name,
+                "has no readable text at all once the reference block is "
+                "stripped. Nothing was swept, so nothing is known."))
+            continue
+        seen += len(LEGALESE) + len(BRITISH)
         for word in LEGALESE:
             if re.search(rf"\b{re.escape(_normalize(word))}\b", said):
                 out.append(Finding(
@@ -383,7 +468,11 @@ def plain_language(pack: Path) -> list[Finding]:
                     "plain", doc.name,
                     f"spells {word!r} the British way in a document for an "
                     f"American client."))
-    return out
+    return Counted(out, seen, "word-in-document pair")
+
+
+def plain_language(pack: Path) -> list[Finding]:
+    return plain_language_counted(pack).findings
 
 
 # ── 6 · the compliance floor ──────────────────────────────────────────────
@@ -414,7 +503,8 @@ def document_keys(pack: Path) -> dict[str, str]:
     return out
 
 
-def compliance_floor(pack: Path, keys: dict[str, str] | None = None) -> list[Finding]:
+def compliance_floor_counted(pack: Path,
+                             keys: dict[str, str] | None = None) -> Counted:
     """Sentences that may be reworded but must not be deleted.
 
     Checks PRESENCE, never absence, so no false positive is constructible: a
@@ -425,20 +515,23 @@ def compliance_floor(pack: Path, keys: dict[str, str] | None = None) -> list[Fin
     """
     import yaml
     if not _REQUIRED.exists():
-        return []
+        return Counted([], 0, "floor sentence")
     spec = yaml.safe_load(_REQUIRED.read_text(encoding="utf-8")) or {}
     rules = spec.get("required") or []
     if not rules:
-        return []
+        return Counted([], 0, "floor sentence")
 
     keys = document_keys(pack) if keys is None else keys
     if not keys:
-        return [Finding("compliance", "(pack)",
-                        "no MANIFEST.json, so nothing says which template each "
-                        "document came from and the per-document rules were "
-                        "not checked. Not a pass.", blocking=False)]
+        return Counted(
+            [Finding("compliance", "(pack)",
+                     "no MANIFEST.json, so nothing says which template each "
+                     "document came from and the per-document rules were "
+                     "not checked. Not a pass.", blocking=False)],
+            0, "floor sentence")
 
     out: list[Finding] = []
+    seen = 0
     for doc in sorted(pack.glob("*.html")):
         key = keys.get(doc.name)
         if not key:
@@ -448,13 +541,21 @@ def compliance_floor(pack: Path, keys: dict[str, str] | None = None) -> list[Fin
             if key not in (rule.get("applies_to") or []):
                 continue
             for group in rule.get("must_contain_all") or []:
+                seen += 1
                 if not any(_normalize(w) in said for w in group):
                     out.append(Finding(
                         "compliance", doc.name,
                         f"the compliance floor {rule['id']!r} is not on the "
                         f"page — none of {list(group)} appears. "
                         f"{(rule.get('why') or '').strip()}"))
-    return out
+    # A pack of documents no floor rule applies to -- an invoice on its own --
+    # examines nothing, and must not read as "the floor is intact".
+    return Counted(out, seen, "floor requirement")
+
+
+def compliance_floor(pack: Path,
+                     keys: dict[str, str] | None = None) -> list[Finding]:
+    return compliance_floor_counted(pack, keys).findings
 
 
 # ── 7 · a cited clause name exists ────────────────────────────────────────
@@ -476,33 +577,60 @@ def _clause_name(text: str) -> str:
     return " ".join(text.lower().split()).rstrip(",.")
 
 
-def cited_clauses(pack: Path, section_names: set[str] | None = None) -> list[Finding]:
-    """Every "the X section of your engagement letter" names a real section.
+def citations_in(pack: Path) -> list[tuple[str, str]]:
+    """Every "the X section of your engagement letter" in the pack.
+
+    The census AND the loop. `cited_clauses` walks this list and the gate
+    counts it, so the denominator it reports cannot drift away from the thing
+    the check looked at.
+    """
+    out: list[tuple[str, str]] = []
+    for doc in sorted(pack.glob("*.html")):
+        html_text = doc.read_text(encoding="utf-8", errors="replace")
+        out += [(doc.name, raw)
+                for raw in _CITE.findall(merge._REF_BLOCK.sub(" ", html_text))]
+    return out
+
+
+def cited_clauses_counted(pack: Path,
+                          section_names: set[str] | None = None) -> Counted:
+    """Every cited clause names a real section.
 
     Pure regression value: this is the only thing that would notice a section
     being renamed in an engagement letter and silently orphaning the pointers
     to it in four other documents. Nothing else in the pipeline reads one
     document's prose against another document's headings.
+
+    IT USUALLY EXAMINES NOTHING, and that is why it reports its denominator.
+    All seven live citations are in the delivery letter, the disengagement
+    letter, the extension notice and the invoice -- none of which is in the
+    opening pack. Run over an opening pack this check is correct and empty,
+    and for a while it printed "ok" for both.
     """
     if section_names is None:
         section_names = engagement_section_names()
+    found = citations_in(pack)
     if not section_names:
-        return [Finding("cited", "(templates)",
-                        "the engagement letters could not be read, so no "
-                        "citation was resolved. Not a pass.", blocking=False)]
+        return Counted(
+            [Finding("cited", "(templates)",
+                     "the engagement letters could not be read, so no "
+                     "citation was resolved. Not a pass.", blocking=False)],
+            0, "cited clause")
 
     out: list[Finding] = []
-    for doc in sorted(pack.glob("*.html")):
-        html_text = doc.read_text(encoding="utf-8", errors="replace")
-        for raw in _CITE.findall(merge._REF_BLOCK.sub(" ", html_text)):
-            if _clause_name(raw) not in section_names:
-                out.append(Finding(
-                    "cited", doc.name,
-                    f"points the reader at \"the {raw.strip()} section of your "
-                    f"engagement letter\", and no engagement letter has a "
-                    f"section by that name. Either the section was renamed or "
-                    f"this pointer was."))
-    return out
+    for name, raw in found:
+        if _clause_name(raw) not in section_names:
+            out.append(Finding(
+                "cited", name,
+                f"points the reader at \"the {raw.strip()} section of your "
+                f"engagement letter\", and no engagement letter has a "
+                f"section by that name. Either the section was renamed or "
+                f"this pointer was."))
+    return Counted(out, len(found), "cited clause")
+
+
+def cited_clauses(pack: Path, section_names: set[str] | None = None) -> list[Finding]:
+    return cited_clauses_counted(pack, section_names).findings
 
 
 def engagement_section_names() -> set[str]:
@@ -592,26 +720,31 @@ def _strip_declared(html: str) -> str:
     return html
 
 
-def pointer_test(pack: Path) -> list[Finding]:
+def pointer_test_counted(pack: Path) -> Counted:
     """A promised enclosure is in the pack, and every promise says what it is."""
     import json
     book = pack / "MANIFEST.json"
     if not book.exists():
-        return [Finding("pointer", "(pack)",
-                        "no MANIFEST.json, so there is nothing to resolve an "
-                        "enclosure claim against. Not a pass.", blocking=False)]
+        return Counted(
+            [Finding("pointer", "(pack)",
+                     "no MANIFEST.json, so there is nothing to resolve an "
+                     "enclosure claim against. Not a pass.", blocking=False)],
+            0, "enclosure claim")
     try:
         data = json.loads(book.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        return [Finding("pointer", "MANIFEST.json",
-                        f"will not parse ({exc}), so no enclosure claim could "
-                        f"be resolved. Not a pass.", blocking=False)]
+        return Counted(
+            [Finding("pointer", "MANIFEST.json",
+                     f"will not parse ({exc}), so no enclosure claim could "
+                     f"be resolved. Not a pass.", blocking=False)],
+            0, "enclosure claim")
 
     have_docs = {d.get("key", "") for d in (data.get("Documents") or [])}
     have_attached = {f"attachment:{a.get('id', '')}"
                      for a in (data.get("Attachments") or [])}
 
     out: list[Finding] = []
+    seen = 0
     for doc in sorted(pack.glob("*.html")):
         html_text = merge._REF_BLOCK.sub(" ", doc.read_text(encoding="utf-8",
                                                             errors="replace"))
@@ -629,6 +762,7 @@ def pointer_test(pack: Path) -> list[Finding]:
 
         # Half B — every declaration resolves.
         for value, _start, _end in _declared_spans(html_text):
+            seen += 1
             value = value.strip()
             # DIRECTION IS DECLARED, NEVER INFERRED. "Your original records are
             # returned with this letter" (ours) and "Return the completed
@@ -662,16 +796,22 @@ def pointer_test(pack: Path) -> list[Finding]:
                 f"promises the {value!r} document and the pack does not carry "
                 f"one. This is the records-release bug: a client reads "
                 f"\"included\" and finds nothing."))
-    return out
+    return Counted(out, seen, "declared enclosure claim")
+
+
+def pointer_test(pack: Path) -> list[Finding]:
+    return pointer_test_counted(pack).findings
 
 
 # ── 9 · nothing on the page is empty ──────────────────────────────────────
 
 _EMPTY_LI = re.compile(r"<li\b[^>]*>\s*</li>", re.I)
+_ANY_LI = re.compile(r"<li\b", re.I)
+_ANY_ROW = re.compile(r"<tr\b", re.I)
 _EMPTY_CELL_ROW = re.compile(r"<tr\b[^>]*>(?:\s*<t[dh]\b[^>]*>\s*</t[dh]>)+\s*</tr>", re.I)
 
 
-def nothing_empty(pack: Path) -> list[Finding]:
+def nothing_empty_counted(pack: Path) -> Counted:
     """No bullet with nothing beside it, and no row with nothing in it.
 
     A conditional written INSIDE a list item instead of around it drops its
@@ -685,9 +825,14 @@ def nothing_empty(pack: Path) -> list[Finding]:
     inserts on its own, so it failed to fire when it should have.
     """
     out: list[Finding] = []
+    seen = 0
     for doc in sorted(pack.glob("*.html")):
         html_text = merge._REF_BLOCK.sub(" ", doc.read_text(encoding="utf-8",
                                                             errors="replace"))
+        # The denominator is elements that COULD be empty. A pack of documents
+        # with no lists and no tables examines nothing here, and saying "ok"
+        # over it would be a claim about a page this check never saw.
+        seen += len(_ANY_LI.findall(html_text)) + len(_ANY_ROW.findall(html_text))
         for count, what in ((len(_EMPTY_LI.findall(html_text)), "list item"),
                             (len(_EMPTY_CELL_ROW.findall(html_text)), "table row")):
             if count:
@@ -697,23 +842,34 @@ def nothing_empty(pack: Path) -> list[Finding]:
                     f"page. Usually a conditional written inside the element "
                     f"instead of around it: the contents drop and the bullet "
                     f"stays."))
-    return out
+    return Counted(out, seen, "bullet or row", "bullets and rows")
+
+
+def nothing_empty(pack: Path) -> list[Finding]:
+    return nothing_empty_counted(pack).findings
 
 
 # ── 10 · do the documents agree with each other ───────────────────────────
 
-def agrees(record: dict, rendered: dict[str, str]) -> list[Finding]:
+def agrees_counted(record: dict, rendered: dict[str, str]) -> Counted:
     """The pack tells one story.
 
     `consistency.report` already asks this well; this only turns its answer
     into findings so one gate speaks with one voice.
     """
     if not rendered:
-        return [Finding("agrees", "(pack)",
-                        "no document in the set renders from this record, so "
-                        "nothing was compared. `doctor` says what is missing.")]
-    return [Finding("agrees", "(pack)", f"{c.name} — {c.detail}")
-            for c in consistency.report(record, rendered) if not c.ok]
+        return Counted(
+            [Finding("agrees", "(pack)",
+                     "no document in the set renders from this record, so "
+                     "nothing was compared. `doctor` says what is missing.")],
+            0, "agreement")
+    checks = consistency.report(record, rendered)
+    return Counted([Finding("agrees", "(pack)", f"{c.name} — {c.detail}")
+                    for c in checks if not c.ok], len(checks), "agreement")
+
+
+def agrees(record: dict, rendered: dict[str, str]) -> list[Finding]:
+    return agrees_counted(record, rendered).findings
 
 
 # ── the gate ──────────────────────────────────────────────────────────────
@@ -729,46 +885,29 @@ def gate(pack: Path, record: dict, *, rendered: dict[str, str] | None = None,
     """
     res = Result()
 
-    res.checked.append("every referenced file is in the pack")
-    res.findings += assets_present(pack)
-
-    res.checked.append("section numbers on the page read 01..N")
-    res.findings += numbering(pack)
-
-    res.checked.append("no sentence the firm has deleted has come back")
-    res.findings += retired_phrases(pack)
-
-    res.checked.append("no banned legalese and no British spelling")
-    res.findings += plain_language(pack)
-
-    res.checked.append("the compliance floor is on the page")
-    res.findings += compliance_floor(pack)
-
-    res.checked.append("every cited clause name is a real section")
-    res.findings += cited_clauses(pack)
-
-    res.checked.append("every promised enclosure is in the pack")
-    res.findings += pointer_test(pack)
-
-    res.checked.append("no empty bullet and no empty row")
-    res.findings += nothing_empty(pack)
+    res.add("every referenced file is in the pack", assets_present_counted(pack))
+    res.add("section numbers on the page read 01..N", numbering_counted(pack))
+    res.add("no sentence the firm has deleted has come back",
+            retired_phrases_counted(pack))
+    res.add("no banned legalese and no British spelling",
+            plain_language_counted(pack))
+    res.add("the compliance floor is on the page", compliance_floor_counted(pack))
+    res.add("every cited clause name is a real section", cited_clauses_counted(pack))
+    res.add("every promised enclosure is in the pack", pointer_test_counted(pack))
+    res.add("no empty bullet and no empty row", nothing_empty_counted(pack))
 
     docs = sorted(pack.glob("*.html"))
     if skip_render:
         res.skipped.append(f"opening {len(docs)} document(s) in a browser")
     else:
-        # Phrased so it reads as a rule, with the count in brackets: the
-        # generated procedures list these checks verbatim, and "all 0
-        # document(s) open and render" is what a probe on an empty directory
-        # would have put in front of a preparer.
-        res.checked.append(f"every document opens and renders ({len(docs)})")
-        res.findings += renders(docs)
+        res.add("every document opens and renders",
+                Counted(renders(docs), len(docs), "document"))
 
     if rendered is None:
         res.skipped.append("the documents agree with each other")
     else:
-        res.checked.append("the documents agree with each other")
-        res.findings += agrees(record, rendered)
+        res.add("the documents agree with each other",
+                agrees_counted(record, rendered))
 
     return res
 
@@ -778,11 +917,18 @@ def format_result(res: Result) -> str:
     a clean report that does not name its checks is indistinguishable from a
     check that never ran."""
     out: list[str] = []
-    for line in res.checked:
-        out.append(f"  ok     {line}")
+    for what, got in res.counts:
+        out.append(got.line(what))
     for line in res.skipped:
         out.append(f"  SKIP   {line} — not checked, so not known to be right")
     if res.findings:
         out.append("")
         out += [f.line() for f in res.findings]
+    empty = res.examined_nothing
+    if empty:
+        out.append("")
+        out.append(f"  {len(empty)} check(s) above had nothing to examine and "
+                   f"are marked NONE, not ok.")
+        out.append("  Nothing is wrong with them. Nothing is known about them "
+                   "either.")
     return "\n".join(out)

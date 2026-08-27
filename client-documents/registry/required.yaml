@@ -65,3 +65,16 @@ required:
     must_contain_all:
       - ["final liability", "not the final"]
       - [estimate, estimated]
+
+  - id: unpaid-invoice-and-late-filing
+    why: >-
+      The firm's right to stop work when an invoice goes unpaid, and the
+      disclaimer of responsibility for a late filing that follows from it. All
+      four engagement letters carry it in the fees section. Losing it while
+      trimming that section would leave the firm having suspended an
+      engagement it never said it could suspend.
+    applies_to: [tax-letter, business-letter, ccorp-letter, bookkeeping-letter]
+    must_contain_all:
+      - [suspend, withdraw]
+      - [unpaid, "goes unpaid", "not provided"]
+      - ["not responsible", "no responsibility"]

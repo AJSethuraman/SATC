@@ -75,16 +75,29 @@ def gate_checks() -> list[str]:
         # back is the list of checks rather than a list of findings.
         result = presend.gate(Path(tmp), {}, rendered=None, skip_render=False)
 
-    # The gate puts the count in brackets -- "every document opens and renders
-    # (3)" -- which is right at runtime and noise in a procedure, where the
-    # probe directory is empty and it would read "(0)". Only the bracket is
-    # stripped; the wording itself is the gate's, so a check renamed in
-    # `presend` is renamed here without anyone remembering to.
-    listed = [re.sub(r"\s*\(\d+\)$", "", c) for c in result.checked]
+    # The names are the gate's own, verbatim, so a check renamed in `presend`
+    # is renamed here without anybody remembering to. (The gate used to append
+    # a count to one of them -- "every document opens and renders (3)" -- and
+    # this function stripped the bracket; the count now lives in the gate's
+    # REPORT rather than in the check's name, so there is nothing to strip.)
+    #
     # A skipped check is named as skipped rather than dropped: a procedure that
     # lists only what ran reads like a procedure where everything ran.
-    return listed + [f"{s} — only when the caller supplies the rendered text"
-                     for s in result.skipped]
+    return list(result.checked) + [
+        f"{s} — only when the caller supplies the rendered text"
+        for s in result.skipped]
+
+
+def advisory_checks() -> list[str]:
+    """What `--notes` reads, from the advisory register itself.
+
+    Listed separately and said to be advisory, because the difference is the
+    whole design: these ten never stop a pack. A procedure that ran them
+    together with the blocking eight would teach a preparer that a note is a
+    failure, and the next thing that happens is that the eight get ignored too.
+    """
+    import notes as _notes
+    return [f"{a.key} ({a.tenet}) — {a.what}" for a in _notes.ADVISORIES]
 
 
 def render() -> str:
@@ -188,6 +201,24 @@ def render() -> str:
     add("appended to the engagement's own `overrides.json` — append-only, because")
     add("a log you can edit is not evidence. If the log cannot be written, the")
     add("pack is not written either.")
+    add("")
+    add("**Every check above reports how many things it examined.** A check with")
+    add("nothing to look at prints `NONE`, never `ok`: on an opening pack there")
+    add("is no cited clause to resolve, and for a while that printed as a pass.")
+    add("")
+    add("### The readings — `package --notes`")
+    add("")
+    add("Ten more checks that **never block and never change the exit code**.")
+    add("They are the tenets a machine can only guess at, and each is promoted")
+    add("to blocking only after a full cycle with no false positive.")
+    add("")
+    for check in advisory_checks():
+        add(f"- {check}")
+    add("")
+    add("Run them on the round where somebody is reading the prose, not on every")
+    add("send. An advisory printed beside a real failure every time is an")
+    add("advisory people learn to scroll past — and they take the blocking")
+    add("checks with them.")
     add("")
     add("Where a document promises something this software does not render —")
     add("an organizer, a payment voucher — declare it:")

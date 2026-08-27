@@ -859,6 +859,66 @@ is not reconciled into `satc_system`'s tax crosswalks**, so TY2025 still
 carries the pre-OBBBA SALT cap and bonus depreciation. Flagged in-file, never
 acted on. Ohio 2025 brackets are 2024 copied forward and say so.
 
+## Addendum — the gate that was passing on nothing (27 August 2026)
+
+The firm's five rulings of 27 August put the tenet linter into two halves:
+**exact tenets block, judgement ones advise.** The blocking eight shipped
+first. This entry is the advisory ten — and what building them turned up.
+
+**The advisory half is `client-documents/notes.py`, behind `package --notes`.**
+Ten checks, A1–A10, each carrying the condition on which it may be promoted to
+blocking, and none of which can change an exit code: `note()` is the only
+constructor in the module and it hard-codes `blocking=False`, so "nothing here
+can stop a pack" is a property a test asserts rather than a promise in a
+docstring. Thirteen other tenets were measured and dropped — a machine is the
+wrong instrument for them, and `docs/tenet-mechanization.md` §7 shows the hit
+counts that say so.
+
+Measured over the 27 rendered packs: **nine of the ten fire on nothing**, which
+is what the specification predicted. A3 finds six distinct over-long sentences,
+the worst of them the 51-word officer-compensation sentence written on 26
+August — the one real hit the analysis said to expect.
+
+**Three things the build found that no test would have.**
+
+1. **Two of the eight blocking checks had never examined anything on a real
+   send.** The compliance floor — the assurance negation, the "an extension is
+   not more time to pay" warning — and the pointer test both need the pack's
+   manifest, because a rendered document is named for the client and nothing
+   about the file says which template it came from. `package` wrote
+   `MANIFEST.json` at the very end, after the gate. So on every real pack both
+   checks refused with *"no MANIFEST.json … Not a pass"*, neither blocked, and
+   the summary line said `ok`. They passed in the tests, on fixtures that wrote
+   their own manifest. The manifest is now written into staging **before** the
+   gate, and the same bytes go to the client.
+
+   No assertion of the form "the gate passed" could have caught this: it reads
+   the same in both worlds. What caught it was making every check report **how
+   many things it examined** — and a check with nothing to look at now prints
+   `NONE`, never `ok`. That is `SOFTWARE-TENETS` S2, and it has now cost this
+   project three separate bugs.
+
+2. **The long-sentence check read the letterhead as a sentence.** Flattening a
+   document and splitting on full stops turned the firm name, address, document
+   title, client name and first heading into one 74-word "sentence" — none of
+   it ends in a full stop. Measured that way it fired 162 times where the right
+   answer was about 20. Documents are now read paragraph by paragraph.
+
+   Its abbreviation guard was measured too rather than guessed: the obvious
+   company suffixes were in it, and a sweep of the corpus found that the only
+   one that ever appears before a capital letter is `LLP.`, twenty times, every
+   one of them the real end of *"Thank you for choosing SAT-C LLP."*
+
+3. **A floor rule was missing.** The billing-and-suspension paragraph — the
+   firm's right to stop work on an unpaid invoice, and the disclaimer for a
+   late filing that follows — is in all four engagement letters and was in no
+   registry. It is now `unpaid-invoice-and-late-filing` in `required.yaml`, as
+   keyword groups rather than pinned prose, with a mutation test that proves it
+   fires when the sentence is removed.
+
+Nothing a client reads changed. `exercise.py`: 29 scenarios, 190 documents, 0
+refusals, 0 surprises.
+
 ## What a human should do next
 
 1. **Call the Accountancy Board of Ohio.** Unchanged from the brief, and still

@@ -96,6 +96,32 @@ appended to the engagement's own `overrides.json` — append-only, because
 a log you can edit is not evidence. If the log cannot be written, the
 pack is not written either.
 
+**Every check above reports how many things it examined.** A check with
+nothing to look at prints `NONE`, never `ok`: on an opening pack there
+is no cited clause to resolve, and for a while that printed as a pass.
+
+### The readings — `package --notes`
+
+Ten more checks that **never block and never change the exit code**.
+They are the tenets a machine can only guess at, and each is promoted
+to blocking only after a full cycle with no false positive.
+
+- A1 (T11) — certainty stated where only possibility is known
+- A2 (T23b) — assurance vocabulary in a sentence with no negation
+- A3 (T20c) — client-facing sentence past 28 words
+- A4 (T19) — paragraph of more than three sentences
+- A5 (T8) — narrating our own tone, reasoning or inability
+- A6 (T15) — disapproving of the client's choice
+- A7 (T16) — advertising our own virtue
+- A8 (T18) — a list label carrying two clauses
+- A9 (T2) — a list item repeating the heading above it
+- A10 (T21) — a clause cited from a letter this client will not receive
+
+Run them on the round where somebody is reading the prose, not on every
+send. An advisory printed beside a real failure every time is an
+advisory people learn to scroll past — and they take the blocking
+checks with them.
+
 Where a document promises something this software does not render —
 an organizer, a payment voucher — declare it:
 

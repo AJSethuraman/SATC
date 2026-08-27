@@ -151,6 +151,49 @@ def test_a_good_pack_passes_and_carries_its_own_assets(packed, tmp_path):
     assert presend.assets_present(out) == []
 
 
+def test_the_gate_reads_the_manifest_on_a_real_send(packed, tmp_path, capsys):
+    """THE DEFECT THIS TEST EXISTS FOR, and it was live on every pack ever sent.
+
+    Two of the eight blocking checks -- the compliance floor and the pointer
+    test -- can only run against a manifest, because a rendered document is
+    named for the client and nothing about the file says which template it came
+    from. `package` used to write MANIFEST.json at the very END, from the
+    output directory, so the gate always ran on a staging folder that had none:
+    both checks returned "no MANIFEST.json ... Not a pass", neither blocked,
+    and the summary line said `ok`. They were green in every test, on fixtures
+    that wrote their own manifest, and examined ZERO on every real send.
+
+    Nothing would have found this without the denominator (SOFTWARE-TENETS S2).
+    Asserting "the gate passed" would have passed before the fix and after it.
+    """
+    out = tmp_path / "manifest-first"
+    assert _package(packed["ref"], packed["store"], out) == 0
+    printed = capsys.readouterr().out
+
+    assert "no MANIFEST.json" not in printed, (
+        "the gate could not see the manifest, so two blocking checks examined "
+        "nothing and said ok")
+    for what in ("the compliance floor is on the page",
+                 "every promised enclosure is in the pack"):
+        line = next(l for l in printed.splitlines() if what in l)
+        assert "NONE" not in line, f"{what!r} examined nothing: {line.strip()}"
+        assert "0 " not in line, f"{what!r} examined nothing: {line.strip()}"
+
+
+def test_the_manifest_the_client_gets_is_the_one_the_gate_read(packed, tmp_path):
+    """One construction, not two. A manifest rebuilt after the gate is a
+    manifest nothing checked (SOFTWARE-TENETS S3)."""
+    import json
+    out = tmp_path / "same-manifest"
+    assert _package(packed["ref"], packed["store"], out) == 0
+    book = json.loads((out / "MANIFEST.json").read_text(encoding="utf-8"))
+    named = {n for d in book["Documents"] for n in d["files"]}
+    assert named, "the manifest names no files at all"
+    for name in named:
+        assert (out / name).exists(), (
+            f"the manifest names {name!r} and the pack does not carry it")
+
+
 def test_a_pack_missing_an_asset_is_refused_and_nothing_is_written(
         packed, tmp_path, monkeypatch):
     """THE ORIGINAL BUG, reproduced: the templates are there, the assets are
@@ -422,6 +465,9 @@ def test_a_letter_that_keeps_its_negations_passes(tmp_path):
         "<p>We will not audit or otherwise verify it.</p>"
         "<p>We will not send you anything unprotected, and anything you send "
         "another way is sent at your own risk.</p>"
+        "<p>We may suspend or withdraw from the engagement if an invoice "
+        "goes unpaid, and we are not responsible for a late filing that "
+        "results.</p>"
         "<p>An extension gives you more time to file, not more time to pay. "
         "Interest and penalties run from the original due date.</p>")
     assert presend.compliance_floor(pack, FLOOR_KEYS) == []
@@ -437,6 +483,9 @@ def test_a_reworded_negation_still_passes(tmp_path):
         "<p>The information is yours; we do not audit it and we do not verify "
         "it.</p>"
         "<p>Sending documents unprotected is at your own risk.</p>"
+        "<p>We may suspend work or withdraw from the engagement where an "
+        "invoice goes unpaid, and take no responsibility for a late filing "
+        "that follows.</p>"
         "<p>Filing late is one thing and paying late another: an extension is "
         "never more time to pay, and interest runs regardless.</p>")
     assert presend.compliance_floor(pack, FLOOR_KEYS) == []
@@ -449,6 +498,9 @@ def test_losing_the_word_assurance_is_losing_the_negation(tmp_path):
         "<p>We prepare tax returns and nothing else.</p>"
         "<p>We will not audit or otherwise verify it.</p>"
         "<p>Anything sent unprotected is at your own risk.</p>"
+        "<p>We may suspend or withdraw from the engagement if an invoice "
+        "goes unpaid, and we are not responsible for a late filing that "
+        "results.</p>"
         "<p>An extension is not more time to pay; interest runs.</p>")
     found = presend.compliance_floor(pack, FLOOR_KEYS)
     # Both groups of that rule fail, and reporting both is right: the sentence
@@ -463,11 +515,49 @@ def test_losing_the_payment_warning_is_caught(tmp_path):
         "<p>We do not perform audits, reviews, or any assurance engagement.</p>"
         "<p>We will not audit or otherwise verify it.</p>"
         "<p>Anything sent unprotected is at your own risk.</p>"
+        "<p>We may suspend or withdraw from the engagement if an invoice "
+        "goes unpaid, and we are not responsible for a late filing that "
+        "results.</p>"
         "<p>An extension gives you more time to file.</p>")
     found = presend.compliance_floor(pack, FLOOR_KEYS)
     assert found and all(
         "extension-is-not-more-time-to-pay" in f.detail for f in found)
     assert any("more time to pay" in f.detail for f in found)
+
+
+def test_losing_the_right_to_stop_work_is_caught(tmp_path):
+    """The mutation that proves the newest floor rule works.
+
+    All four engagement letters carry "We may suspend or withdraw from the
+    engagement if an invoice goes unpaid ... We are not responsible for a late
+    filing that results" in their fees section. It is four sentences long, so
+    it is exactly the paragraph a length pass would reach for -- and losing it
+    would leave the firm having suspended an engagement it never said it could
+    suspend.
+    """
+    pack = _letter(tmp_path,
+        "<p>We do not perform audits, reviews, or any assurance engagement.</p>"
+        "<p>We will not audit or otherwise verify it.</p>"
+        "<p>Anything sent unprotected is at your own risk.</p>"
+        "<p>Invoices are due on presentation.</p>"
+        "<p>An extension is not more time to pay; interest runs.</p>")
+    found = presend.compliance_floor(pack, FLOOR_KEYS)
+    assert found and all(
+        "unpaid-invoice-and-late-filing" in f.detail for f in found)
+    assert all(f.blocking for f in found)
+
+
+def test_the_floor_rule_does_not_pin_the_wording(tmp_path):
+    """Reworded freely, keeping the concepts, and it passes. Every floor rule
+    here checks for words, never for a sentence (T28)."""
+    pack = _letter(tmp_path,
+        "<p>We do not perform audits, reviews, or any assurance engagement.</p>"
+        "<p>We will not audit or otherwise verify it.</p>"
+        "<p>Anything sent unprotected is at your own risk.</p>"
+        "<p>Where an invoice goes unpaid we may withdraw, and we take no "
+        "responsibility for what a resulting delay costs.</p>"
+        "<p>An extension is not more time to pay; interest runs.</p>")
+    assert presend.compliance_floor(pack, FLOOR_KEYS) == []
 
 
 def test_a_rule_that_does_not_apply_to_this_document_is_not_imposed(tmp_path):
@@ -476,7 +566,10 @@ def test_a_rule_that_does_not_apply_to_this_document_is_not_imposed(tmp_path):
     pack = _letter(tmp_path,
         "<p>We do not perform audits, reviews, or any assurance engagement.</p>"
         "<p>We will not audit or otherwise verify it.</p>"
-        "<p>Anything sent unprotected is at your own risk.</p>")
+        "<p>Anything sent unprotected is at your own risk.</p>"
+        "<p>We may suspend or withdraw from the engagement if an invoice "
+        "goes unpaid, and we are not responsible for a late filing that "
+        "results.</p>")
     assert presend.compliance_floor(pack, {"letter.html": "bookkeeping-letter"}) == []
 
 

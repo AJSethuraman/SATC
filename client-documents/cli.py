@@ -43,6 +43,7 @@ import engagements
 import invoicing
 import lifecycle
 import packaging
+import notes
 import presend
 import procedures
 import fees
@@ -479,6 +480,29 @@ def cmd_package(args) -> int:
             if src.exists():
                 shutil.copy2(src, staging / asset)
 
+        # THE MANIFEST GOES IN BEFORE THE GATE, NOT AFTER, and until this line
+        # existed two of the eight blocking checks had never examined anything
+        # on a real send.
+        #
+        # A rendered document is named for the client, so nothing about the
+        # file on disk says which template it came from. The manifest is the
+        # only thing that knows -- so `compliance_floor` (the assurance
+        # negation, the "an extension is not more time to pay" warning) and
+        # `pointer_test` (the enclosure check the firm asked for by name) both
+        # need it and both refuse without it. It used to be written at the very
+        # end, from the output directory, which meant every real `package` run
+        # gated a folder that had no manifest in it: both checks returned "no
+        # MANIFEST.json ... Not a pass", nothing blocked, and the summary line
+        # said `ok`. They passed in the tests, on fixtures that wrote their own
+        # manifest, and examined ZERO on every pack ever sent.
+        #
+        # Found by making every check report its denominator (SOFTWARE-TENETS
+        # S2) -- which is the whole argument for the denominator.
+        book = packaging.manifest(record, docs, written,
+                                  getattr(args, "attach", None))
+        manifest_json = json.dumps(book, indent=2, ensure_ascii=False) + "\n"
+        (staging / "MANIFEST.json").write_text(manifest_json, encoding="utf-8")
+
         # THE GATE. The firm's choice, 27 August 2026: blocking, with a logged
         # override. Nothing has been written to `outdir` yet, so a refusal here
         # costs nothing and leaves no half-pack behind.
@@ -486,6 +510,17 @@ def cmd_package(args) -> int:
                              skip_render=getattr(args, "skip_render", False))
         print(f"\nBefore sending — {len(check.checked)} check(s):")
         print(presend.format_result(check))
+
+        # THE ADVISORY HALF, AND IT IS OPT-IN. The firm's rule: exact tenets
+        # block, judgement ones advise. An advisory printed beside a blocking
+        # failure every single time is an advisory people learn to scroll past,
+        # and they take the eight real gates with them (SOFTWARE-TENETS S4).
+        # `--notes` is for the round where somebody is reading the prose.
+        if getattr(args, "notes", False):
+            read = notes.review(staging)
+            print(f"\nReadings — {len(read)} advisory check(s), none of which "
+                  f"can stop a pack:")
+            print(notes.format_notes(read))
 
         force = getattr(args, "force", False)
         if check.blocking and not force:
@@ -557,11 +592,11 @@ def cmd_package(args) -> int:
         # still needs its siblings -- which is what the PDF is for, and why it
         # is the default.
 
-        book = packaging.manifest(record, docs, moved,
-                                  getattr(args, "attach", None))
-        (outdir / "MANIFEST.json").write_text(
-            json.dumps(book, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8")
+        # The SAME manifest the gate read, byte for byte. Rebuilding it here
+        # from `moved` would be a second construction of a thing that must
+        # agree with the first (S3) -- and the one the client gets would be the
+        # one nothing checked.
+        (outdir / "MANIFEST.json").write_text(manifest_json, encoding="utf-8")
     finally:
         shutil.rmtree(staging, ignore_errors=True)
 
@@ -1786,6 +1821,9 @@ def main(argv=None) -> int:
                     help="do not open the documents in a browser. Faster, and "
                          "it stops the gate proving the one thing it exists to "
                          "prove")
+    pk.add_argument("--notes", action="store_true",
+                    help="also print the ten advisory tenet checks. They never "
+                         "block and never change the exit code")
     iv = sub.add_parser("invoice", help="a priced engagement -> an invoice")
     iv.add_argument("--engagement", required=True)
     iv.add_argument("--store")
