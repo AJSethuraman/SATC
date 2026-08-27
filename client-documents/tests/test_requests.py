@@ -142,3 +142,62 @@ def test_every_gate_in_the_registry_is_one_the_engine_knows():
         gate = entry.get("when")
         if gate is not None:
             pricing.gate_holds(gate, {}, f"document-requests[{i}]")
+
+
+# ── an entity is not an individual ────────────────────────────────────────
+
+def test_a_business_is_not_asked_for_photo_id_and_everyones_ssn():
+    """FOUND BY OPENING AN ENTITY'S ONBOARDING LETTER. Every request in the
+    registry was written for a 1040 and none carried a gate, so a PARTNERSHIP
+    was asked for exactly three things: every W-2 for the year, photo ID, and
+    the Social Security number for everyone on the return. Nothing about the
+    business, and not one line asking for a set of books."""
+    entity = {"federal_form": "1065", "entity_structure": "llc",
+              "entity_state": "Ohio", "owner_returns": "yes",
+              "count_owners": 3, "prior_return_available": "no",
+              "other_income_documents": "no", "decision": "yes"}
+    asked = " ".join((r.get("Document") or "") for r in requests.for_answers(entity))
+
+    assert "W-2" not in asked
+    assert "Photo ID" not in asked
+    assert "Social Security number" not in asked
+
+
+def test_an_individual_is_still_asked_for_all_three():
+    """The gate must remove the wrong ask, not the right one."""
+    individual = {"federal_form": "1040", "prior_return_available": "no",
+                  "other_income_documents": "no", "decision": "yes"}
+    asked = " ".join((r.get("Document") or "") for r in requests.for_answers(individual))
+
+    assert "W-2" in asked
+    assert "Photo ID" in asked
+    assert "Social Security number" in asked
+
+
+@pytest.mark.parametrize("form", ["1065", "1120S", "1120"])
+def test_every_entity_is_asked_for_its_books(form):
+    """The wording is the firm's own, transcribed from section 04 of the
+    business engagement letter -- the section clients already sign. The letter
+    says what you owe us; this file says what to put in the envelope."""
+    entity = {"federal_form": form, "entity_structure": "llc",
+              "entity_state": "Ohio", "owner_returns": "yes",
+              "count_owners": 3, "prior_return_available": "no",
+              "other_income_documents": "no", "decision": "yes"}
+    asked = requests.for_answers(entity)
+
+    assert asked, "an entity with no request list produces an onboarding letter that refuses"
+    assert any("books" in (r.get("Document") or "").lower() for r in asked)
+    assert not any("[CONFIRM:" in (r.get("Document") or "") for r in asked)
+
+
+def test_a_c_corporation_is_not_told_a_k1_goes_to_anyone():
+    """It issues none. The owner-list line is split from the shareholder-list
+    line for exactly this sentence and nothing else."""
+    c_corp = {"federal_form": "1120", "entity_structure": "corporation",
+              "entity_state": "Ohio", "owner_returns": "no",
+              "prior_return_available": "no",
+              "other_income_documents": "no", "decision": "yes"}
+    said = " ".join((r.get("Document") or "") + " " + (r.get("Detail") or "")
+                    for r in requests.for_answers(c_corp))
+    assert "K-1" not in said
+    assert "shareholders" in said.lower()

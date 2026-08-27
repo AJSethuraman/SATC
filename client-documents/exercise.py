@@ -226,6 +226,10 @@ class Result:
     produced: list = field(default_factory=list)
     refused: list = field(default_factory=list)
     surprises: list = field(default_factory=list)
+    # NOT a surprise: the software behaved correctly and a
+    # HUMAN owes a sentence. A harness that goes red on a
+    # [CONFIRM: ] trains people to ignore it.
+    blocked: list = field(default_factory=list)
 
 
 # ── the rest of the client's life ────────────────────────────────────────
@@ -286,6 +290,25 @@ LIFECYCLE = {
 }
 
 
+def _unwritten(record: dict) -> list[str]:
+    """The [CONFIRM: ] placeholders in this record, as short labels.
+
+    Everything in the request registry prints on a client's letter, so what
+    the firm asks a business to send is the firm's sentence to write, not
+    mine. The placeholders are what the letter is waiting on.
+    """
+    import re
+    out = []
+    # ensure_ascii=False, or an em dash in the firm's own placeholder
+    # comes back to them as \u2014 in the thing telling them what to write.
+    for text in re.findall(r"\[CONFIRM:([^\]]*)\]",
+                           json.dumps(record, ensure_ascii=False)):
+        label = " ".join(text.split())[:74]
+        if label and label not in out:
+            out.append(label)
+    return out
+
+
 def run_one(s: Scenario, store: Path, out: Path) -> Result:
     r = Result(key=s.key, what=s.what, note=s.note, expect=s.expect)
     answers = sched.apply(dict(s.answers))
@@ -328,7 +351,20 @@ def run_one(s: Scenario, store: Path, out: Path) -> Result:
                                f"{len(wanted)}: {wanted}")
     else:
         r.refused.append("the opening pack")
-        r.surprises.append("the opening pack refused — a client cannot be onboarded")
+        # A [CONFIRM: ] is not a bug. It is the registry saying, out loud, that
+        # a sentence a client will read has not been written yet -- and the
+        # merge engine refusing rather than sending the placeholder. Counting
+        # that as a surprise makes the harness permanently red on a state the
+        # software is handling exactly right, and a permanently red harness is
+        # one nobody reads.
+        waiting = _unwritten(record)
+        if waiting:
+            r.blocked.append(
+                "the opening pack cannot be produced until the firm writes: "
+                + "; ".join(waiting))
+        else:
+            r.surprises.append(
+                "the opening pack refused — a client cannot be onboarded")
 
     # ── DO THE DOCUMENTS AGREE WITH EACH OTHER? ─────────────────────────
     #
@@ -443,12 +479,16 @@ def main(argv=None) -> int:
     made = sum(len(r.produced) for r in results)
     refused = sum(len(r.refused) for r in results)
     surprises = [r for r in results if r.surprises or r.disagreements]
+    blocked = [r for r in results if r.blocked and not r.surprises]
     print(f"\n{len(results)} scenarios · {made} documents produced · "
-          f"{refused} refusals · {len(surprises)} with something unexpected\n")
+          f"{refused} refusals · {len(surprises)} with something unexpected"
+          + (f" · {len(blocked)} waiting on the firm" if blocked else "") + "\n")
     for r in results:
         mark = "!!" if (r.surprises or r.disagreements) else "  "
         cmp = f"{len(r.compared)} cross-checked" if r.compared else ""
         print(f"{mark} {r.key:20} {r.status:10} {r.total:>10}  {cmp:16} {r.what}")
+        for x in r.blocked:
+            print(f"      WAITING ON THE FIRM: {x}")
         for x in r.surprises:
             print(f"      -> {x}")
         for x in r.disagreements:

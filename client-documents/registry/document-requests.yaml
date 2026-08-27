@@ -46,6 +46,8 @@ requests:
 
   - document: "Every W-2 for the year"
     detail: "One for each employer, for you and anyone filing with you"
+    when:
+      answer_is: {federal_form: "1040"}
 
   # The firm, 26 August 2026: "we do not need SS cards, we do require the
   # numbers." Asking for the card is asking a client to photograph the one
@@ -59,9 +61,67 @@ requests:
   # with two different conditions, and the detail had to qualify both at once.
   - document: "Photo ID"
     detail: "Only if we have not seen it before"
+    when:
+      answer_is: {federal_form: "1040"}
 
   - document: "The Social Security number for everyone on the return"
     detail: "The numbers themselves. We do not need the cards"
+    when:
+      answer_is: {federal_form: "1040"}
+
+  # ── ENTITIES ──────────────────────────────────────────────────────────
+  #
+  # FOUND 27 AUGUST 2026 by opening an entity's onboarding letter. Every
+  # request in this file was written for a 1040 and none of them carried a
+  # gate, so a PARTNERSHIP was asked for exactly three things and no others:
+  #
+  #     Every W-2 for the year
+  #     Photo ID
+  #     The Social Security number for everyone on the return
+  #
+  # A business client was asked for its owners' Social Security numbers and
+  # photo identification, and for nothing whatever about the business. Not one
+  # line asked for a set of books.
+  #
+  # THE WORDING BELOW IS THE FIRM'S OWN, NOT MINE. It is transcribed from
+  # section 04 of the business engagement letter -- "What you are responsible
+  # for" -- which clients already sign:
+  #
+  #     "Providing complete, accurate, and timely books for the period,
+  #      closed and reconciled, including bank and card accounts, loans, and
+  #      any activity outside the accounting system."
+  #
+  #     "Providing a current and correct list of owners -- names, addresses,
+  #      ownership percentages, and every change during the period, with its
+  #      date. A K-1 goes to whoever this list says it goes to."
+  #
+  # Turned from an obligation the letter states into an item on the list of
+  # things to put in an envelope, which is what this file is. The letter says
+  # WHAT you owe us; this says WHAT TO SEND. [CONFIRM: the firm may want these
+  # two shortened, split, or joined by a third -- section 04 also names
+  # distributions, contributions and owner loans, which are a conversation
+  # rather than a piece of paper, so they are not asked for here.]
+  - document: "Your books for the period, closed and reconciled"
+    detail: "Including bank and card accounts, loans, and any activity outside the accounting system"
+    when:
+      any_of:
+        - answer_is: {federal_form: "1065"}
+        - answer_is: {federal_form: "1120S"}
+        - answer_is: {federal_form: "1120"}
+
+  # Split from the line below only by the K-1 sentence, which is untrue of a
+  # C corporation -- it issues none.
+  - document: "A current list of owners"
+    detail: "Names, addresses, ownership percentages, and every change during the period with its date. A K-1 goes to whoever this list says it goes to"
+    when:
+      any_of:
+        - answer_is: {federal_form: "1065"}
+        - answer_is: {federal_form: "1120S"}
+
+  - document: "A current list of shareholders"
+    detail: "Names, addresses, ownership percentages, and every change during the period with its date"
+    when:
+      answer_is: {federal_form: "1120"}
 
   - document: "Last year's tax return"
     detail: "The complete copy, including every schedule"
