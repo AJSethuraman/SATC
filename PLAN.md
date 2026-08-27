@@ -3,7 +3,7 @@
 > Living log of where the project stands, what's in flight, and what's decided.
 > Keep the date current when editing. Newest decisions at the top of the log.
 >
-> **Last updated: 2026-08-14**
+> **Last updated: 2026-08-27**
 
 ## What SATC is (positioning — read the norms through this lens)
 
@@ -19,7 +19,26 @@ same legal duties either way — Phase 0 below stands regardless.
 
 ## Where things stand
 
-- **Branch:** `claude/happy-heisenberg-5rt6y1` (draft PR #21 → `main`). Suite: **242 passing**.
+> **2026-08-27.** This section and "In flight" below had gone thirteen days
+> stale, and the review findings further down had gone nearly two months
+> stale — several of them describe defects that were fixed weeks ago. The
+> stale parts are now marked in place rather than deleted, because what a
+> finding said and when it stopped being true are both worth keeping.
+>
+> **`docs/REPO-INVENTORY.md` is the current map of the whole repo** and is
+> the file to read first. This one is the decision log.
+
+- **Test suites, 27 August:** `client-documents` **966** · `satc_system`
+  **259** · `invoice-generator` **63**. The 242 below was `satc_system` on
+  14 August.
+- **In flight now:** PR #155 on
+  `claude/satc-handoff-batches-2-4-n2qrl9-b7-fee-estimate` — the controls
+  layer around the document pipeline: a blocking pre-send gate, the tenet
+  linter in both halves, the lifecycle documents, the close-out
+  reconciliation, and generated operating procedures. Draft; nothing near
+  `main`.
+- **The `satc_system` branch below:** `claude/happy-heisenberg-5rt6y1`
+  (draft PR #21 → `main`). Suite: **242 passing** as of 14 August; 259 today.
 - **The app:** local Flask GUI (`satc-app`, default port 5050) over a shared SQLite store
   (`~/.satc/data`). Identity vault (names/SSN/EIN) is split from the de-identified working
   mart. Drake remains the system of record.
@@ -34,7 +53,9 @@ same legal duties either way — Phase 0 below stands regardless.
 
 ## In flight
 
-- **Full review + industry-norms research (5 parallel agents, launched 2026-07-03):**
+- **Full review + industry-norms research (5 parallel agents, launched 2026-07-03)
+  — DELIVERED. The findings are below; several are since fixed, and each is
+  marked.**
   1. Security audit of the repo (vault-at-rest, Flask CSRF/auth, MCP surface)
   2. Handoff/usability audit ("stranger gets this today — where do they get stuck?")
   3. Compliance norms research (FTC Safeguards Rule/WISP, IRS Pub 4557/5708, §7216 & AI)
@@ -45,19 +66,29 @@ same legal duties either way — Phase 0 below stands regardless.
 ## Review findings
 
 ### Security audit (done 2026-07-03) — verified against code
-- **CRITICAL C1 — vault is plaintext.** `persistence/store.py` stores full legal
+
+> **Re-verified against the code on 2026-08-27: C1, H2, H3, M4 and M6 are
+> FIXED.** `persistence/crypto.py` encrypts the vault's PII with AES-256-GCM;
+> `app/server.py` rejects a non-loopback `Host` header and a state-changing
+> request a browser marks as cross-origin; the data directory and its files
+> are created 0700/0600, and the organizer PDF folder with them. The entries
+> below are left as written, with their status noted, because the finding and
+> the date it stopped being true are both worth keeping. **M5, M7, L8 and L9
+> were not re-checked and are not claimed either way.**
+
+- **CRITICAL C1 — vault is plaintext. FIXED (AES-256-GCM, `crypto.py`).** `persistence/store.py` stores full legal
   names + SSN/EIN in an **unencrypted** SQLite file (`satc_vault.db`); a real SSN was
   pulled straight out with `strings`. No encryption, no restrictive file ACLs. This is
   the top fix and the crux of the compliance gap.
-- **HIGH H2 — DNS-rebinding.** Flask sets no Host-header/trusted-host check; a malicious
+- **HIGH H2 — DNS-rebinding. FIXED (`server.py` Host allow-list).** Flask sets no Host-header/trusted-host check; a malicious
   page the preparer visits could rebind to `127.0.0.1:5050` and read `/clients`, `/export`,
   `/source` (raw W-2/1099 PDFs). Fix: `before_request` Host allow-list (+ optional token).
-- **HIGH H3 — no CSRF.** No tokens on any POST route; a drive-by page can blind-POST
+- **HIGH H3 — no CSRF. FIXED (cross-origin state-changing requests refused).** No tokens on any POST route; a drive-by page can blind-POST
   `/clients/<id>/discard`, `/sample/clear`, `/staging/post`, etc. Fix: Flask-WTF CSRF +
   `SameSite=Strict`.
-- **MEDIUM:** M4 data dir/files at default perms (want 0700/0600 + NTFS ACLs) · M5 local
-  API unauthenticated (low data impact) · M6 organizer PDFs write cleartext names to the
-  unprotected data dir · M7 hardcoded default `secret_key`.
+- **MEDIUM:** ~~M4 data dir/files at default perms~~ **FIXED (0700/0600)** · M5 local
+  API unauthenticated (low data impact) · ~~M6 organizer PDFs write cleartext names to the
+  unprotected data dir~~ **FIXED (folder restricted to 0700)** · M7 hardcoded default `secret_key`.
 - **LOW:** L8 `run_intake` takes an arbitrary folder (writes-only) · L9 shared SQLite
   connection across threads (corruption risk).
 - **Verified GOOD (don't churn):** MCP safe-by-default gating holds; MCP reads are truly
@@ -100,8 +131,10 @@ same legal duties either way — Phase 0 below stands regardless.
   else still applies.**
 - **NON-waived, still required for a solo preparer:** **encryption at rest AND in transit** (§314.4(c)(3)),
   **MFA** (c)(5), **access controls** (c)(1), a Qualified Individual, the WISP itself, service-provider
-  oversight, training, secure disposal. → **The plaintext-SSN vault (C1) is a real, non-waivable
-  violation.** BitLocker alone = defensible checkbox but leaves SSNs readable on a running machine;
+  oversight, training, secure disposal. → **The plaintext-SSN vault (C1) was a real, non-waivable
+  violation. It is encrypted as of the C1 fix** — AES-256-GCM at the field
+  level, which is the "app-level vault encryption" this paragraph names as
+  the defensible answer. BitLocker alone = defensible checkbox but leaves SSNs readable on a running machine;
   **app-level vault encryption (SQLCipher/AES-256, key via Windows DPAPI/keystore) is the defensible
   fix** and also earns the breach-rule "encrypted" carve-out.
 - **Breach rule (eff. May 13 2024):** notify FTC ≤30 days if *unencrypted* customer info of ≥500
@@ -346,6 +379,37 @@ See **"Recommended roadmap"** above (Phase 0 safety → Phase 1 giveable → Pha
   decision to keep intake entirely in the app.
 
 ## Decisions log
+
+- **2026-08-27 — The pre-send gate blocks, with a logged override.** The firm's
+  choice over advisory-only and over blocking-with-no-escape: *a gate with no
+  override will one day stop a return going out at eleven at night and there
+  will be nothing to do about it; a gate that can be waved through silently is
+  not a gate.* `--force` needs `--reason`, and both go to the engagement's own
+  append-only log. If the log cannot be written, the pack is not written.
+- **2026-08-27 — Exact tenets block; judgement ones advise.** A tenet a machine
+  can check exactly becomes a hard failure. One it can only guess at prints as a
+  note, and is promoted only after a full cycle with no false positive. Eight
+  block today; ten advise behind `package --notes`; thirteen were measured and
+  dropped because a machine is the wrong instrument for them.
+- **2026-08-27 — Reconciliation is a short close-out interview, not a Drake
+  read.** What we said in January, checked against what was filed in April, from
+  the preparer's own answers. **No question asks for a figure** — a test enforces
+  it — because a figure would make this a second set of books, and Drake stays
+  the system of record.
+- **2026-08-27 — Operating procedures are generated from the harness.** Not
+  written beside the software. Every step is read out of the code that performs
+  it, so the document cannot name a command that does not exist or claim a check
+  the gate does not run. `procedures --check` fails in the suite when the
+  committed copy drifts.
+- **2026-08-27 — Order of work: money risk, then gates, then features, then
+  procedures.** The firm's ranking. Procedures went last deliberately —
+  documenting an ungated pipeline documents a pipeline that can still ship
+  unreadable documents.
+- **2026-08-27 — Every check reports its denominator.** Forced by finding two
+  blocking gates that had passed on every real send while examining nothing. A
+  check with nothing to look at prints `NONE`, never `ok`, and the count comes
+  from the check's own census rather than from beside it. See
+  `docs/SOFTWARE-TENETS.md` S2.
 
 - **2026-08-25 — Build one thing correctly, then use it as the blueprint.** The
   operator's own framing while scoping the fee-estimate work: *"we can do one thing
