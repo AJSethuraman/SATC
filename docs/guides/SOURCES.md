@@ -7,12 +7,17 @@ practice, so that nobody later mistakes one for a rule.
 
 > **Read this before publishing.** `irs.gov`, `ecfr.gov`, `law.cornell.edu`,
 > `tax.ohio.gov` and `ritaohio.com` are all blocked by this container's network
-> egress, so no primary page could be fetched and read directly. Every citation
-> below is the canonical URL for the rule, located through search, with the
-> wording taken from search-returned extracts of that page. That is good enough
-> to draft against and **not** good enough to publish a licensed firm's name
-> over. Someone with an open browser should read each linked page against the
-> claim beside it before this goes live.
+> egress, so most citations below are canonical URLs located through search,
+> with wording taken from search-returned extracts. That is good enough to
+> draft against and **not** good enough to publish a licensed firm's name over.
+>
+> **One source has now been read in full.** The firm supplied the *General
+> Instructions for Certain Information Returns (2025)* as a PDF on 27 August
+> 2026, and every claim resting on it is marked **READ** below with what the
+> document actually says. Three things came out of that pass, recorded in full
+> under "What reading one source changed" at the foot of this file: a date rule
+> the guides were missing, an open question closed, and a citation that claimed
+> more than its page carries.
 
 ---
 
@@ -23,13 +28,13 @@ practice, so that nobody later mistakes one for a rule.
 | Claim in the draft | Source |
 |---|---|
 | W-2s are due to the employee by January 31 | [Form W-2 and other wage statements deadline coming up for employers](https://www.irs.gov/newsroom/form-w-2-and-other-wage-statements-deadline-coming-up-for-employers) |
-| Brokerage statements are due February 15, later than a W-2 — and this applies to a consolidated reporting statement | [General Instructions for Certain Information Returns](https://www.irs.gov/instructions/i1099gi) — the February 15 recipient date covers Forms 1099-B, 1099-DA, 1099-S and 1099-MISC boxes 8 and 10, "including statements furnished as part of a consolidated reporting statement" |
+| Brokerage statements are due February 15, later than a W-2 | **READ** — [General Instructions for Certain Information Returns (2025)](https://www.irs.gov/instructions/i1099gi). The Guide to Information Returns gives a recipient date of **February 15** for Form 1099-B, and the same for 1099-DA and 1099-S. **Corrected:** this row previously also claimed the page covers 1099-MISC boxes 8 and 10 and says "including statements furnished as part of a consolidated reporting statement". Neither appears in the document. 1099-MISC is listed at **January 31** to the recipient. The date was right; the detail beside it was not on the page cited. The `**` beside 1099-B's February 15 is a different footnote: March 15 for reporting by trustees and middlemen of WHFITs |
 | Form 1095-A is due to the enrollee by January 31 | [Health Insurance Marketplace statements](https://www.irs.gov/affordable-care-act/individuals-and-families/health-insurance-marketplace-statements) |
 | Advance payments made to the insurer get settled on the return | [Instructions for Form 8962](https://www.irs.gov/instructions/i8962); [Reconciling your advance payments of the Premium Tax Credit](https://www.irs.gov/individuals/reconciling-your-advance-payments-of-the-premium-tax-credit). Form 8962 must be filed where any amount appears in Part III column C of the 1095-A |
 | A partnership or S corporation owes each owner a K-1 by March 15 for a calendar year | [Instructions for Form 1065](https://www.irs.gov/instructions/i1065); [Instructions for Form 1120-S](https://www.irs.gov/instructions/i1120s) — the 15th day of the 3rd month after year end |
 | Many file for more time and send K-1s in September | Same two pages: Form 7004 gives an automatic six-month extension, which lands on September 15 for a calendar year |
-| The HSA contribution form arrives in May | [Instructions for Forms 1099-SA and 5498-SA](https://www.irs.gov/instructions/i1099sa) — Form 5498-SA is filed on or before May 31 |
-| The IRA contribution form arrives in May | **Not verified — see the open list below.** The draft groups HSA and IRA together in one bullet; only the HSA half is sourced |
+| The HSA contribution form arrives in May | **READ** — [General Instructions (2025)](https://www.irs.gov/instructions/i1099gi). Form **5498-SA**: to the IRS May 31, **to the participant May 31** |
+| The IRA contribution form arrives in May | **READ — open question closed.** Same document. Form **5498**: to the IRS May 31; to the participant, "For FMV/RMD/SIMPLE IRA contributions, January 31; For all other contributions, **May 31**". The bullet is about contribution forms, so May is right. The nuance the guide does not carry, and does not need to: the account's year-end value reaches you in January, ahead of the contribution figure |
 
 ### 02 · The things no form will tell us
 
@@ -141,3 +146,61 @@ drafter's to make.
    payments were made. It could not be verified from a primary page here, so
    the sentence says what the return does rather than what happens if it is
    filed without it.
+
+---
+
+## What reading one source changed
+
+The firm supplied the *General Instructions for Certain Information Returns
+(2025)* on 27 August 2026 — the first primary page anyone actually opened. It
+covers eight of the claims above. Three findings, worth recording because they
+say what this whole verification pass is for.
+
+### 1. The dates in the guide move, and the guide did not say so
+
+The document's own rule, verbatim:
+
+> If any filing due date in these instructions falls on a Saturday, Sunday, or
+> a legal holiday, you will be considered to have timely filed if you file by
+> the next day that is not a Saturday, Sunday, or a legal holiday. Legal
+> holidays for this purpose are legal holidays in the District of Columbia or a
+> statewide legal holiday where the return is required to be filed.
+
+Against a calendar, **four of the six dates in section 01 move** in each of the
+next two filing seasons:
+
+| Stated | Filing in 2026 | Filing in 2027 |
+|---|---|---|
+| January 31 | Sat → **Feb 2** | Sun → **Feb 1** |
+| February 15 | Sun, then Washington's Birthday → **Feb 17** | Washington's Birthday → **Feb 16** |
+| March 15 | Sun → **Mar 16** | Mon — holds |
+| May 31 | Sun → **Jun 1** | Memorial Day → **Jun 1** |
+
+February 15 is the one that will keep moving: Washington's Birthday is the
+third Monday in February, so the date collides with a weekend or that holiday
+in roughly three years out of seven.
+
+The guides now carry the rule rather than a shifted date — "These dates move.
+When one falls on a weekend or a federal holiday it becomes the next working
+day." A rule needs no maintenance; a hardcoded 17 February would be wrong the
+following year, on a page the firm updates occasionally rather than annually.
+
+The document also notes that a leap year does **not** extend a deadline, and
+that February 28 stays February 28 rather than becoming February 29.
+
+### 2. An open question closed
+
+Whether Form 5498 for an IRA shares the HSA form's May 31 date. It does, for
+contributions. Marked above.
+
+### 3. A citation claimed more than its page carries
+
+The brokerage row cited this page for the February 15 date **and** for covering
+1099-MISC boxes 8 and 10 "including statements furnished as part of a
+consolidated reporting statement". The date is on the page. The rest is not —
+1099-MISC is listed at January 31, and the consolidated-statement phrase does
+not appear at all. It came from a search extract that was not this page.
+
+That is the failure mode this file exists to catch, and it took reading one
+document to find one instance of it. It is a reason to work through the rest
+rather than to trust the pattern.

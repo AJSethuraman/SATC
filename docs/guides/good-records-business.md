@@ -68,7 +68,8 @@ A credit card used only for the business does the same job.
 ## 06 · If it is a partnership or a corporation
 
 - The return is due March 15 for a calendar year, and the owners' K-1s are due
-  on that date too.
+  on that date too. If March 15 is a weekend or a holiday it moves to the next
+  working day.
 - So the company's books decide when its owners can file, not just when the
   company can.
 - Past a certain size the return carries a balance sheet, which means year-end

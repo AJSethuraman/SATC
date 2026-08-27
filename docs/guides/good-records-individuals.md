@@ -9,6 +9,9 @@ something.
 
 Send each one whole — every page, including the ones that look blank.
 
+These dates move. When one falls on a weekend or a federal holiday it
+becomes the next working day.
+
 - **W-2s.** One from every job, including any you left during the year. These
   are due to you by January 31.
 - **1099s** for interest, dividends, contract work, retirement withdrawals and
