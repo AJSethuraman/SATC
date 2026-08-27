@@ -6,6 +6,14 @@ already exist.** Written for an agent working unattended. Follow it literally.
 `../01-WEBSITE/SATC-STYLE-SPEC.md` governs the **website**. This file governs **documents** —
 anything that renders on paper or as a PDF a client receives.
 
+> **Read `DOCUMENT-TENETS.md` beside this file, and read it first.** It is
+> later than this document and more specific: 28 tenets mined from the firm's
+> own line-by-line notes, plus a cutting test to run over a finished draft.
+> **Its "What this file replaces" section names the parts of §5 below that are
+> superseded** — including "give the reason with the rule", which is the licence
+> under which most of the rejected wording was written. Nothing in it touches
+> §5's compliance rules or §9, which stay supreme.
+
 ---
 
 ## 0 · The one-paragraph version

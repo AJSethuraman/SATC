@@ -11,6 +11,24 @@ disagreed, the disagreement is noted rather than averaged.
 
 ---
 
+## 0 · The two tenet files, and why they are named here
+
+Added 27 August 2026, because both were written and neither was reachable from
+anywhere. A document nobody can find is a document nobody reads, which is the
+drift failure they are themselves about.
+
+- **`docs/SOFTWARE-TENETS.md`** — 27 tenets for the code, each cited to a real
+  bug in this repository. Read before writing software here, and before
+  claiming something works. Its §0 is the shape of nearly every bug this
+  project has produced: **something reported success without having done the
+  work**, because the verifier looked at a proxy rather than the thing.
+- **`satc-handoff/00-START-HERE/DOCUMENT-TENETS.md`** — 28 tenets for anything
+  a client reads, mined from the firm's own line-by-line notes and the diffs
+  those notes produced. Read before writing or editing a client document. Its
+  Part 6 is what stops a concision pass from over-cutting.
+
+---
+
 ## 1 · The shape of it
 
 **16 top-level folders, 76 remote branches, 34 open PRs.** Roughly half the
