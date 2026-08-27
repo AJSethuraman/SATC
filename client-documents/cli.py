@@ -401,6 +401,11 @@ def cmd_package(args) -> int:
 
     try:
         docs = packaging.documents_for(record, with_invoice=args.with_invoice)
+        # Asked here, before anything renders. The same question `manifest`
+        # asks -- the same function, so the two cannot come to differ -- but a
+        # typo in --attach is worth catching in a second rather than after
+        # three merges and three browser renders.
+        packaging.check_attachments(getattr(args, "attach", None))
     except packaging.PackageError as exc:
         print(f"\n{exc}\n")
         return 1

@@ -112,6 +112,24 @@ def test_an_unknown_engagement_kind_refuses_rather_than_falling_back():
     assert "wrong letter" in str(exc.value)
 
 
+def test_an_unknown_attachment_refuses_before_anything_renders(tmp_path):
+    """A typo in --attach used to surface from inside `manifest`, after three
+    merges and three browser renders, as a traceback. It is one message and
+    exit 1 now, asked in the same breath as "what documents does this get"."""
+    with pytest.raises(packaging.PackageError) as exc:
+        packaging.check_attachments(["organizer", "nonsense"])
+    assert "nonsense" in str(exc.value)
+    assert "organizer" in str(exc.value)       # names what IS known
+
+
+def test_the_early_check_and_the_manifest_ask_the_same_question():
+    """One function, not two that must agree (SOFTWARE-TENETS S3)."""
+    good = ["organizer", "payment-voucher"]
+    assert packaging.check_attachments(good) == good
+    book = packaging.manifest({}, [], {}, good)
+    assert [a["id"] for a in book["Attachments"]] == good
+
+
 # ── atomicity ─────────────────────────────────────────────────────────────
 
 def test_a_whole_pack_is_written(answers, tmp_path):

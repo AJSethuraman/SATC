@@ -125,9 +125,14 @@ ATTACHMENTS = {
 }
 
 
-def manifest(record: dict, docs: list[str], written: dict[str, list],
-             attachments: "list[str] | None" = None) -> dict:
-    """What is in the pack, so the folder explains itself."""
+def check_attachments(attachments: "list[str] | None") -> list[str]:
+    """The declared attachments, or a refusal naming the ones nobody knows.
+
+    Its own function so `cli` can ask the question BEFORE it renders anything.
+    An unknown `--attach` used to surface from inside `manifest`, which now runs
+    after three merges and three browser renders -- a typo cost a minute and
+    arrived as a traceback.
+    """
     declared = list(attachments or [])
     unknown = [a for a in declared if a not in ATTACHMENTS]
     if unknown:
@@ -135,6 +140,13 @@ def manifest(record: dict, docs: list[str], written: dict[str, list],
             f"unknown attachment(s): {', '.join(unknown)}. Known: "
             f"{', '.join(sorted(ATTACHMENTS))}. An attachment nobody can name "
             f"is one nobody can check went in the envelope.")
+    return declared
+
+
+def manifest(record: dict, docs: list[str], written: dict[str, list],
+             attachments: "list[str] | None" = None) -> dict:
+    """What is in the pack, so the folder explains itself."""
+    declared = check_attachments(attachments)
     return {
         "EngagementRef": record.get("EngagementRef", ""),
         "Client": record.get("ClientFullName", ""),
