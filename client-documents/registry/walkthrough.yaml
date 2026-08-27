@@ -121,7 +121,9 @@ review:
     pressed; up to here you can abandon the sitting and nothing has happened.
 
 created:
-  "button:Build the signing pack": null
+  "button:Build the signing pack": >-
+    Everything this client signs, built in one go. Safe to press: nothing is
+    sent to anybody, and you get to look at every check before anything leaves.
   "button:Open the engagement": null
   "button:Home": null
 
@@ -132,9 +134,7 @@ refused:
   "link:Home": null
 
 engagement:
-  "button:Build the signing pack": >-
-    Everything this client signs, built in one go. Safe to press: nothing is
-    sent to anybody, and you get to look at every check before anything leaves.
+  "button:Build the signing pack": null
 
 package-before:
   "button:Build the pack": null
