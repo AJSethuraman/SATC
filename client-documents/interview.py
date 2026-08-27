@@ -219,11 +219,85 @@ def prefill_is_answerable(question: dict, value) -> bool:
 
 # ── the flow ───────────────────────────────────────────────────────────────
 
+# ── the returning client ───────────────────────────────────────────────────
+#
+# The firm chose this over building an organizer, and their reasoning is the
+# whole design: "we are not copying out of drake - drake is only system of
+# record for info. but our interview and such is system of record until proven
+# wrong." A returning client does not need last year's FIGURES typed back at
+# them. They need last year's ANSWERS shown back for confirmation, plus the
+# handful of events that move a return.
+#
+# CARRIED IS NOT ASSUMED. Every carried answer is still asked, offered as last
+# year's claim exactly the way a website lead's answer is offered -- this
+# schema has said from the beginning that "the website answer is a claim, not
+# a fact", and last year's answer is a weaker claim than that one, because a
+# year has passed.
+
+# Answers that describe something stable about the client rather than about
+# one year's return. Anything not on this list is simply asked fresh, which is
+# the safe default: a question asked twice costs a minute, and an answer
+# carried wrongly costs a wrong return.
+CARRIES: tuple[str, ...] = (
+    # who they are
+    "client_full_name", "client_address1", "client_city", "client_state",
+    "client_zip", "client_email",
+    # what they file
+    "federal_form",
+    # the entity, which does not change shape year to year
+    "entity_structure", "entity_state", "signer_name", "signer_title",
+    "count_owners", "owner_returns",
+    # where they file. A move changes this -- which is precisely what the
+    # change questions ask about, and why this is offered rather than assumed.
+    "states", "localities",
+)
+
+# Named rather than merely absent, because "why was I asked this again?" is a
+# fair question and the answer should be written down.
+DOES_NOT_CARRY: dict[str, str] = {
+    "tax_year":              "it is a new year",
+    "return_basis":          "whether this year is an original or an amendment is this year's fact",
+    "amendment_reason":      "belongs to the amendment it explains, and this year may not be one",
+    "joint_return":          "a marriage or a divorce is exactly what the change questions ask about",
+    "taxpayer_name":         "follows the filing status, which is asked again",
+    "spouse_name":           "follows the filing status, which is asked again",
+    "k1_target":             "a date, and last year's date is wrong by definition",
+    "first_deliverable_target": "a date, and last year's date is wrong by definition",
+    "prior_firm":            "we are the prior firm now",
+    "prior_firm_name":       "there is no predecessor to name once we are it",
+    "prior_return_available": "we hold it",
+    "unfiled_years":         "a year that was unfiled may not be any more",
+    "decision":              "taking the work is decided again every year",
+    "red_flags":             "a flag is about a year, not about a person",
+    "returning_client":      "set by the command, not carried",
+    "life_changes":          "the question is what changed SINCE last year",
+    "life_changes_detail":   "the specifics belong to the change being asked about",
+}
+
+
+def carry_forward(prior: dict) -> tuple[dict, list[str]]:
+    """(what carries into a new year, what was deliberately dropped).
+
+    Everything about the return itself -- what is on it, how many of each,
+    which extra forms -- is left out without being listed: a count is a fact
+    about one year and carrying it would be inventing this year's return out
+    of last year's.
+    """
+    carried = {k: prior[k] for k in CARRIES
+               if k in prior and prior[k] not in (None, "", [])}
+    dropped = sorted(k for k in prior if k in DOES_NOT_CARRY)
+    return carried, dropped
+
+
 @dataclass
 class Interview:
     schema: dict = dc_field(default_factory=load_schema)
     lead: dict | None = None
     answers: dict = dc_field(default_factory=dict)
+    # Last year's answers, offered as claims. Never merged into `answers`:
+    # a carried answer that answered itself would be an assumption wearing a
+    # confirmation's clothes.
+    carried: dict = dc_field(default_factory=dict)
 
     def pending(self):
         """Every question still to ask, in order, given current answers.

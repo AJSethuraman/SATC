@@ -880,7 +880,8 @@ def _ask(section: dict, q: dict, default) -> object:
 
 def cmd_interview(args) -> int:
     lead = json.loads(Path(args.lead).read_text(encoding="utf-8")) if args.lead else None
-    session = iv.Interview(lead=lead)
+    carried = dict(getattr(args, "carried", None) or {})
+    session = iv.Interview(lead=lead, carried=carried)
 
     # A saved answers file replays an interview without a human at the
     # keyboard: how the tests drive it, and how you resume one you abandoned.
@@ -893,6 +894,9 @@ def cmd_interview(args) -> int:
             if nxt is None:
                 break
             _, q = nxt
+            if q["id"] not in canned and q["id"] in carried:
+                session.answer(q["id"], carried[q["id"]])
+                continue
             if q["id"] not in canned:
                 if q.get("required"):
                     raise SystemExit(
@@ -921,7 +925,11 @@ def cmd_interview(args) -> int:
             break
         section, q = nxt
         try:
-            value = _ask(section, q, iv.prefill_for(q, lead))
+            # LAST YEAR'S ANSWER IS A CLAIM, and a weaker one than the
+            # website's, because a year has passed. It is offered as the
+            # default and never taken as given -- the question is still asked.
+            value = _ask(section, q,
+                         carried.get(q["id"], iv.prefill_for(q, lead)))
             session.answer(q["id"], value)
         except iv.InterviewError as exc:
             print(f"      {exc} -- asking again")
@@ -985,6 +993,59 @@ def _finish(session, args) -> int:
         print(f"\nNext:  python cli.py render --engagement {outcome.ref} --out out")
 
     return outcome.exit_code
+
+
+def cmd_returning(args) -> int:
+    """This year's interview, seeded from last year's answers.
+
+    The firm chose this over building an organizer, and gave the reason:
+    "we are not copying out of drake - drake is only system of record for
+    info. but our interview and such is system of record until proven wrong."
+    A returning client does not need last year's FIGURES typed back at them.
+    They need last year's ANSWERS shown back for confirmation, plus the events
+    that move a return.
+
+    NOTHING IS ASSUMED. Every carried answer is still asked, offered as last
+    year's claim, exactly the way a website lead's answer is offered. A carried
+    answer that answered itself would be an assumption wearing a
+    confirmation's clothes.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    prior_path = engagements._dir(store, args.engagement) / "interview.json"
+    if not prior_path.exists():
+        print(f"\n{args.engagement} has no saved interview, so there is nothing "
+              f"to carry forward.\nRun `interview` instead — a client we cannot "
+              f"show last year's answers to is\na new client as far as this "
+              f"command is concerned.\n")
+        return 1
+
+    prior = json.loads(prior_path.read_text(encoding="utf-8"))
+    carried, dropped = iv.carry_forward(prior)
+
+    name = prior.get("client_full_name", args.engagement)
+    print(f"\nReturning client — {name}")
+    print(f"  last year: {args.engagement}\n")
+    print(f"  {len(carried)} answer(s) carried forward, each shown for you to "
+          f"confirm:")
+    for key in sorted(carried):
+        shown = carried[key]
+        if isinstance(shown, list):
+            shown = ", ".join(str(x) for x in shown)
+        print(f"      {key:22} {str(shown)[:52]}")
+    if dropped:
+        print(f"\n  {len(dropped)} answer(s) deliberately NOT carried:")
+        for key in dropped:
+            print(f"      {key:22} {iv.DOES_NOT_CARRY.get(key, '')}")
+    print("\n  Everything else is asked fresh. A count is a fact about one "
+          "year, and\n  carrying it would be inventing this year's return out "
+          "of last year's.\n")
+
+    args.lead = None
+    args.carried = carried
+    # The change questions exist for exactly this flow, and this is the one
+    # place that knows the answer to their gate.
+    args.carried = {**carried, "returning_client": "yes"}
+    return cmd_interview(args)
 
 
 def cmd_engagements(args) -> int:
@@ -1494,6 +1555,18 @@ def main(argv=None) -> int:
     i.add_argument("--ref", help="engagement ref; allocated sequentially if omitted")
     i.add_argument("--store", help="engagements directory")
     i.set_defaults(fn=cmd_interview)
+
+    rt = sub.add_parser("returning",
+                        help="this year's interview, seeded from last year's "
+                             "answers")
+    rt.add_argument("--engagement", required=True,
+                    help="last year's engagement reference")
+    rt.add_argument("--store")
+    rt.add_argument("--answers", help="replay from a saved answers file")
+    rt.add_argument("--out")
+    rt.add_argument("--ref")
+    rt.add_argument("--override-hard-no", action="store_true")
+    rt.set_defaults(fn=cmd_returning)
 
     e = sub.add_parser("engagements", help="list what exists")
     e.add_argument("--store")

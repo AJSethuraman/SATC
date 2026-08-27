@@ -75,6 +75,9 @@ def sitting(**over) -> dict:
         "count_states": 1, "count_localities": 0,
         "first_deliverable_target": "April 1, 2027",
         "prior_firm": "no", "prior_return_available": "no",
+        # Required since the change questions landed. A first-year client is
+        # not asked what changed, because nothing did.
+        "returning_client": "no",
         "decision": "yes",
     }
     answers.update(over)
@@ -93,6 +96,8 @@ def entity_sitting(**over) -> dict:
         "signer_name": "Priya Marlow", "signer_title": "member",
         "k1_target": "March 15, 2027", "count_owners": 2,
         "owner_returns": "no",
+        # Required since the change questions landed.
+        "returning_client": "no",
         "states": ["Ohio — resident"], "localities": ["None"],
         "additional_forms": ["None"],
         "count_states": 1, "count_localities": 0,

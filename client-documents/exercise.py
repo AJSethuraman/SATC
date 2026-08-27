@@ -59,6 +59,9 @@ import settings as firm          # noqa: E402
 # INVENTED, every one. `CLAUDE.md` is explicit that the leads workbook is real
 # prospect data and never leaves the machine; nothing here is read from it.
 INDIVIDUAL = {
+    # Required since the change questions landed: a first-year client is
+    # not asked what changed, because nothing did.
+    "returning_client": "no",
     "return_basis": "original", "tax_year": "2026",
     "client_full_name": "Marcus Ellwood", "client_address1": "31 Larchmere Road",
     "client_city": "Solon", "client_state": "OH", "client_zip": "44139",
@@ -73,6 +76,9 @@ INDIVIDUAL = {
 }
 
 ENTITY = {
+    # Required since the change questions landed: a first-year client is
+    # not asked what changed, because nothing did.
+    "returning_client": "no",
     "return_basis": "original", "tax_year": "2026",
     "client_full_name": "Northbank Tooling LLC", "client_address1": "12 Forge Way",
     "client_city": "Solon", "client_state": "OH", "client_zip": "44139",

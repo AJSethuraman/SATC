@@ -841,6 +841,77 @@ sections:
           A pricing input and a risk flag. Prints on no client document — the
           letter speaks about deadlines generically in section 04.
 
+  # ── 7b · What changed since last year ───────────────────────────────────
+  #
+  # ONLY ASKED OF A RETURNING CLIENT, and only because nothing anywhere asked
+  # about change at all. The firm chose this over building an organizer: a
+  # returning client does not need last year's figures typed back at them,
+  # they need last year's ANSWERS shown back for confirmation plus the handful
+  # of events that move a return.
+  #
+  # The eight events are the firm's own list. They are recorded and flagged,
+  # not acted on: what a marriage or an inheritance means for a return is a
+  # conversation with a person, and this file has never been where advice
+  # lives.
+  - id: changes
+    title: What changed
+    questions:
+      - id: returning_client
+        question: "Is this a returning client?"
+        help: >-
+          Set for you by `cli.py returning`. Answering yes here by hand is
+          fine; it only decides whether the change questions are asked.
+        type: single
+        required: true
+        options:
+          - { value: "yes", label: "Yes — we prepared their return before" }
+          - { value: "no",  label: "No — this is the first year" }
+        supplies: []
+        internal: true
+        internal_reason: >-
+          Decides whether the change questions below are asked. Prints on no
+          client document; a returning client's letter is the same letter.
+
+      - id: life_changes
+        question: "Anything change this year?"
+        help: >-
+          The events that move a return. Tick every one that happened; the
+          detail box below is where the specifics go.
+        type: multi
+        showIf: "returning_client == 'yes'"
+        options:
+          - { value: "married",     label: "Married" }
+          - { value: "divorced",    label: "Divorced or separated" }
+          - { value: "birth",       label: "A child born or adopted" }
+          - { value: "death",       label: "A death in the household" }
+          - { value: "home_bought", label: "Bought a home" }
+          - { value: "home_sold",   label: "Sold a home" }
+          - { value: "moved",       label: "Moved to another state" }
+          - { value: "retired",     label: "Retired, or started drawing a pension" }
+          - { value: "inheritance", label: "Received an inheritance" }
+          - { value: "none",        label: "Nothing on this list" }
+        supplies: []
+        flags_as: life_changes
+        internal: true
+        internal_reason: >-
+          Recorded against the engagement and shown to the preparer. It prints
+          on no client document: what any of these means for a return is a
+          conversation with a person, and turning a tick box into tax advice is
+          exactly what this file does not do.
+
+      - id: life_changes_detail
+        question: "The specifics"
+        help: >-
+          Dates and names where they matter — a marriage date, which state and
+          when, who died and when. Free text; nobody but us reads it.
+        type: text
+        showIf: "returning_client == 'yes'"
+        supplies: []
+        internal: true
+        internal_reason: >-
+          The preparer's own note. A tick box says a thing happened; only this
+          says enough to act on it.
+
   # ── 8 · Red flags ───────────────────────────────────────────────────────
   # Recorded against the record. The hard-no subset lives in firm-settings.yaml
   # because it governs declining work, not producing a document.
