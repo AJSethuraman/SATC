@@ -665,7 +665,42 @@ def pointer_test(pack: Path) -> list[Finding]:
     return out
 
 
-# ── 9 · do the documents agree with each other ────────────────────────────
+# ── 9 · nothing on the page is empty ──────────────────────────────────────
+
+_EMPTY_LI = re.compile(r"<li\b[^>]*>\s*</li>", re.I)
+_EMPTY_CELL_ROW = re.compile(r"<tr\b[^>]*>(?:\s*<t[dh]\b[^>]*>\s*</t[dh]>)+\s*</tr>", re.I)
+
+
+def nothing_empty(pack: Path) -> list[Finding]:
+    """No bullet with nothing beside it, and no row with nothing in it.
+
+    A conditional written INSIDE a list item instead of around it drops its
+    contents and leaves the item: the invoice carried
+    `<li>[[IF EstimateReference]]...[[END IF]]</li>`, so every invoice with no
+    estimate reference printed a bullet pointing at nothing. The engine is not
+    at fault -- it dropped exactly what it was told to.
+
+    Reads the RENDERED SOURCE, not the browser's DOM. A previous version of
+    this check looked at the live tree and counted `<tbody>` rows the browser
+    inserts on its own, so it failed to fire when it should have.
+    """
+    out: list[Finding] = []
+    for doc in sorted(pack.glob("*.html")):
+        html_text = merge._REF_BLOCK.sub(" ", doc.read_text(encoding="utf-8",
+                                                            errors="replace"))
+        for count, what in ((len(_EMPTY_LI.findall(html_text)), "list item"),
+                            (len(_EMPTY_CELL_ROW.findall(html_text)), "table row")):
+            if count:
+                out.append(Finding(
+                    "empty", doc.name,
+                    f"{count} empty {what}{'s' if count > 1 else ''} on the "
+                    f"page. Usually a conditional written inside the element "
+                    f"instead of around it: the contents drop and the bullet "
+                    f"stays."))
+    return out
+
+
+# ── 10 · do the documents agree with each other ───────────────────────────
 
 def agrees(record: dict, rendered: dict[str, str]) -> list[Finding]:
     """The pack tells one story.
@@ -714,6 +749,9 @@ def gate(pack: Path, record: dict, *, rendered: dict[str, str] | None = None,
 
     res.checked.append("every promised enclosure is in the pack")
     res.findings += pointer_test(pack)
+
+    res.checked.append("no empty bullet and no empty row")
+    res.findings += nothing_empty(pack)
 
     docs = sorted(pack.glob("*.html"))
     if skip_render:

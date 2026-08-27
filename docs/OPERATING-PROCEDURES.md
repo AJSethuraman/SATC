@@ -78,6 +78,7 @@ behind.
 - the compliance floor is on the page
 - every cited clause name is a real section
 - every promised enclosure is in the pack
+- no empty bullet and no empty row
 - every document opens and renders
 - the documents agree with each other — only when the caller supplies the rendered text
 

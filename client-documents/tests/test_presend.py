@@ -690,3 +690,51 @@ def test_the_cue_sweep_is_not_vacuous():
     assert seen >= 12, (
         f"only {seen} data-encl declarations found across the templates; "
         f"thirteen were annotated. A pattern that finds none is broken.")
+
+
+# ── nothing on the page is empty ──────────────────────────────────────────
+
+def test_a_bullet_with_nothing_beside_it_is_caught(tmp_path):
+    """THE LIVE DEFECT. The invoice carried
+    `<li>[[IF EstimateReference]]…[[END IF]]</li>` — the conditional written
+    INSIDE the list item instead of around it — so every invoice with no
+    estimate reference printed a bullet pointing at nothing. The engine
+    dropped exactly what it was told to."""
+    (tmp_path / "invoice.html").write_text(
+        "<ul><li>A real note.</li><li></li></ul>", encoding="utf-8")
+    found = presend.nothing_empty(tmp_path)
+    assert len(found) == 1
+    assert "list item" in found[0].detail
+    assert found[0].blocking
+
+
+def test_a_row_with_nothing_in_it_is_caught(tmp_path):
+    (tmp_path / "estimate.html").write_text(
+        "<table><tr><td>Real</td></tr><tr><td></td><td></td></tr></table>",
+        encoding="utf-8")
+    assert len(presend.nothing_empty(tmp_path)) == 1
+
+
+def test_a_full_page_has_nothing_to_say(tmp_path):
+    (tmp_path / "d.html").write_text(
+        "<ul><li>One</li><li>Two</li></ul>"
+        "<table><tr><td>a</td><td>b</td></tr></table>", encoding="utf-8")
+    assert presend.nothing_empty(tmp_path) == []
+
+
+def test_the_reference_block_is_not_read_for_empties(tmp_path):
+    """The FIELDS table is screen-only and merge strips it."""
+    (tmp_path / "d.html").write_text(
+        "<ul><li>Real</li></ul>"
+        '<div class="ref"><ul><li></li></ul></div></body>', encoding="utf-8")
+    assert presend.nothing_empty(tmp_path) == []
+
+
+def test_every_template_renders_without_an_empty_element(tmp_path):
+    """The measurement across the twelve templates, with the conditionals
+    still in place — an empty element in SOURCE is empty in every branch."""
+    import shutil
+    for f in cli.TEMPLATE_DIR.glob("*.html"):
+        shutil.copy2(f, tmp_path / f.name)
+    found = presend.nothing_empty(tmp_path)
+    assert found == [], [f.document + ": " + f.detail for f in found]

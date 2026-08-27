@@ -101,7 +101,12 @@ def individual(**over):
 def entity(form, **over):
     base = {**ENTITY, "federal_form": form, **over}
     if form in ("1120S", "1065"):
-        base.setdefault("k1_target", "each owner's personal return")
+        # A DATE, because the FIELDS spec says a date. This invented fact was
+        # the phrase "each owner's personal return", and it reached a rendered
+        # letter as "Our target for delivering them is each owner's personal
+        # return" -- a sentence that answers a different question than the one
+        # it was asked. Found by opening the letter.
+        base.setdefault("k1_target", "March 15, 2027")
         base.setdefault("count_owners", 3)
         base.setdefault("owner_returns", "no")
     return base
