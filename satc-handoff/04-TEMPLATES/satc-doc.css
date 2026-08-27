@@ -164,7 +164,17 @@ h1,h2,h3,p{margin:0}
 .siglab b{color:var(--navy);font-weight:500}
 .execnote{font-size:8.5pt;color:var(--ink-2);margin-top:10pt}
 .accept{font-family:var(--mono);font-size:7.5pt;letter-spacing:0.16em;text-transform:uppercase;color:var(--navy);margin-top:20pt;padding-bottom:5pt;border-bottom:0.8pt solid var(--navy)}
-.signoff{margin-top:16pt;break-inside:avoid}
+/* A SIGNATURE MUST NOT BE THE ONLY THING ON A PAGE. `break-inside` stopped the
+   block from SPLITTING and nothing stopped it being PUSHED: a multistate fee
+   estimate printed a second page carrying 258 characters -- the partner's
+   name, the title, and the registration line. A client turning to a blank
+   page for a signature reads it as a document that was cut off.
+   `break-before:avoid` keeps it with the content above it; when there is no
+   room, the section above comes with it, which is the right answer. Measured
+   before and after by printing to PDF and counting characters on the last
+   page. */
+.signoff{margin-top:16pt;break-inside:avoid;break-before:avoid;
+         page-break-before:avoid}
 /* A ledger document's sign-off follows a .notes block rather than the .sp
    signature gap, and sits 20pt clear of it. Promoted here from the invoice and
    the fee estimate, which had each declared it separately -- two documents

@@ -738,3 +738,72 @@ def test_every_template_renders_without_an_empty_element(tmp_path):
         shutil.copy2(f, tmp_path / f.name)
     found = presend.nothing_empty(tmp_path)
     assert found == [], [f.document + ": " + f.detail for f in found]
+
+
+# ── printed pages ─────────────────────────────────────────────────────────
+
+HAS_PDF = False
+try:  # pragma: no cover - environment probe
+    from pypdf import PdfReader  # noqa: F401
+    HAS_PDF = HAS_BROWSER
+except ImportError:  # pragma: no cover
+    HAS_PDF = False
+
+needs_pdf = pytest.mark.skipif(
+    not HAS_PDF, reason="no Chromium/pypdf here — page layout cannot be "
+                        "exercised, and is NOT being asserted")
+
+
+@needs_pdf
+def test_a_signature_is_never_the_only_thing_on_a_page(packed, tmp_path):
+    """A multistate fee estimate printed a second page carrying 258
+    characters: the partner's name, the title, and the registration line. A
+    client turning to a near-blank page for a signature reads it as a document
+    that was cut off.
+
+    `.signoff` already had `break-inside: avoid`, which stopped it SPLITTING
+    and did nothing about it being PUSHED. It has `break-before: avoid` now, so
+    the section above comes with it when there is no room.
+
+    Measured by PRINTING and reading the last page, because the defect does not
+    exist until the document is paginated — nothing about the HTML is wrong.
+    """
+    from pypdf import PdfReader
+    from playwright.sync_api import sync_playwright
+
+    out = tmp_path / "pack"
+    assert _package(packed["ref"], packed["store"], out) == 0
+    docs = sorted(out.glob("*.html"))
+    assert docs, "nothing was produced, so nothing was measured"
+
+    thin = []
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(executable_path=presend.CHROMIUM)
+        page = browser.new_page()
+        page.route("**://fonts.g*.com/**", lambda r: r.abort())
+        try:
+            for doc in docs:
+                page.goto(doc.resolve().as_uri(), wait_until="domcontentloaded")
+                page.wait_for_timeout(300)
+                pdf = tmp_path / (doc.stem + ".pdf")
+                page.pdf(path=str(pdf), format="Letter", print_background=True)
+                reader = PdfReader(str(pdf))
+                last = " ".join(reader.pages[-1].extract_text().split())
+                if len(reader.pages) > 1 and len(last) < 260:
+                    thin.append(f"{doc.name}: last of {len(reader.pages)} "
+                                f"pages carries {len(last)} characters")
+        finally:
+            browser.close()
+
+    assert thin == [], thin
+
+
+def test_the_stylesheet_keeps_the_signature_with_its_content():
+    """The CSS half of the same claim, asserted directly so it survives an
+    environment with no browser — a rule deleted in a hurry would otherwise
+    only be caught where Chromium happens to be installed."""
+    css = (cli.TEMPLATE_DIR / "satc-doc.css").read_text(encoding="utf-8")
+    block = css.split(".signoff{", 1)[1].split("}", 1)[0]
+    assert "break-inside:avoid" in block.replace(" ", "")
+    assert "break-before:avoid" in block.replace(" ", ""), (
+        "the signature can be pushed onto a page of its own again")
