@@ -64,8 +64,8 @@ INDIVIDUAL = {
     "joint_return": "no", "taxpayer_name": "Marcus Ellwood",
     "states": ["Ohio"], "localities": ["Solon"],
     "other_income_documents": "no", "has_dependents": "no",
-    "additional_forms": "no", "count_states": 1, "count_localities": 1,
-    "first_deliverable_target": "March 20, 2027",
+    "additional_forms": [], "count_states": 1, "count_localities": 1,
+    "first_deliverable_target": "April 8, 2027",
     "prior_firm": "no", "prior_return_available": "no",
     "red_flags": [], "decision": "yes", "notes": "",
 }
@@ -79,8 +79,8 @@ ENTITY = {
     "signer_name": "R. Halloway", "signer_title": "Managing Member",
     "states": ["Ohio"], "localities": ["Solon"],
     "other_income_documents": "no", "has_dependents": "no",
-    "additional_forms": "no", "count_states": 1, "count_localities": 1,
-    "first_deliverable_target": "March 20, 2027",
+    "additional_forms": [], "count_states": 1, "count_localities": 1,
+    "first_deliverable_target": "April 8, 2027",
     "prior_firm": "no", "prior_return_available": "no",
     "red_flags": [], "decision": "yes", "notes": "",
 }
@@ -219,6 +219,8 @@ class Result:
     lines: list = field(default_factory=list)
     assumptions: list = field(default_factory=list)
     requests: list = field(default_factory=list)
+    compared: list = field(default_factory=list)
+    disagreements: list = field(default_factory=list)
     produced: list = field(default_factory=list)
     refused: list = field(default_factory=list)
     surprises: list = field(default_factory=list)
@@ -319,6 +321,31 @@ def run_one(s: Scenario, store: Path, out: Path) -> Result:
         r.refused.append("the opening pack")
         r.surprises.append("the opening pack refused — a client cannot be onboarded")
 
+    # ── DO THE DOCUMENTS AGREE WITH EACH OTHER? ─────────────────────────
+    #
+    # Producing them is half of it. `consistency.py` joins the pack six ways
+    # -- one ref, one date, one scope, one deadline, a total that is the sum
+    # of its lines, and nothing billed outside the scope -- and the first run
+    # of this harness never asked. It caught a scenario of my own promising a
+    # first deliverable five days BEFORE the date the same package told the
+    # client to send their papers in.
+    try:
+        import consistency
+        # `cli.build_record` FIRST. Without it the firm's own fields are
+        # absent, most documents refuse to render, and `report` compares the
+        # one or two that survived -- so the harness said "0 disagreements"
+        # while checking almost nothing. A green report that is green because
+        # it looked at nothing is worse than a red one.
+        full = cli.build_record(record)
+        rendered = consistency.render_package(
+            full, cli.DOCUMENTS, cli.TEMPLATE_DIR, cli._required_lists())
+        r.compared = sorted(rendered)
+        for row in consistency.report(full, rendered):
+            if not row.ok:
+                r.disagreements.append(f"{row.name}: {row.detail}")
+    except Exception as exc:                              # noqa: BLE001
+        r.surprises.append(f"consistency raised {type(exc).__name__}: {exc}")
+
     # ── the rest of the life, each on its own ────────────────────────────
     for doc, why in LIFECYCLE.items():
         if doc == "invoice":
@@ -379,14 +406,17 @@ def main(argv=None) -> int:
 
     made = sum(len(r.produced) for r in results)
     refused = sum(len(r.refused) for r in results)
-    surprises = [r for r in results if r.surprises]
+    surprises = [r for r in results if r.surprises or r.disagreements]
     print(f"\n{len(results)} scenarios · {made} documents produced · "
           f"{refused} refusals · {len(surprises)} with something unexpected\n")
     for r in results:
-        mark = "!!" if r.surprises else "  "
-        print(f"{mark} {r.key:20} {r.status:10} {r.total:>10}  {r.what}")
+        mark = "!!" if (r.surprises or r.disagreements) else "  "
+        cmp = f"{len(r.compared)} cross-checked" if r.compared else ""
+        print(f"{mark} {r.key:20} {r.status:10} {r.total:>10}  {cmp:16} {r.what}")
         for x in r.surprises:
             print(f"      -> {x}")
+        for x in r.disagreements:
+            print(f"      DISAGREE: {x}")
         for x in r.refused:
             print(f"      refused: {x}")
     print(f"\nDocuments and report: {out}")
