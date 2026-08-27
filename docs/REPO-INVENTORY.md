@@ -29,6 +29,28 @@ drift failure they are themselves about.
 
 ---
 
+## 0b · The controls layer, built 27 August 2026
+
+The firm's distinction, and the reason this section exists: **a test asserts a
+property on a fixture; a control runs on real work, on its way to a real
+client.** There were 749 tests and one control that could actually stop
+something. Every bug found in the two days before this was the same shape —
+software reporting success without having done the work, because the verifier
+looked at a proxy rather than the thing.
+
+| Control | Command | What it stops |
+|---|---|---|
+| **Pre-send gate** | runs inside `package` | A pack leaving the building that does not render, references a file it does not carry, misnumbers its sections, has an empty bullet, carries a deleted sentence, uses banned wording, has lost a compliance negation, cites a section that does not exist, or promises an enclosure it does not contain. **Blocking, with `--force --reason` logged to the engagement.** |
+| **Tenet linter** | seven checks, same gate | Prose defects, from `registry/retired.yaml` and `registry/required.yaml`. Exact checks block; judgement calls are not mechanised at all |
+| **Deploy gate** | `.github/workflows/deploy-invoicer.yml` | A red suite reaching a live payment system. Needs `RENDER_DEPLOY_HOOK_URL` and Render auto-deploy off |
+| **End-of-cycle reconciliation** | `cli.py close`, `cli.py reconcile [--apply]` | The January interview and the April return quietly disagreeing. Nothing is read out of Drake; an engagement nobody closed reports as NOT CLOSED rather than being skipped |
+| **Demonstration harness** | `cd client-documents && python exercise.py` | "Produced" meaning "wrote bytes". 29 scenarios, 190 documents, every one opened |
+| **Generated procedures** | `cli.py procedures [--check]` | A written procedure drifting from the software. Every step is read out of the code that runs it; `--check` fails in the suite |
+
+`docs/OPERATING-PROCEDURES.md` is generated. Do not edit it.
+
+---
+
 ## 1 · The shape of it
 
 **16 top-level folders, 76 remote branches, 34 open PRs.** Roughly half the
@@ -55,8 +77,8 @@ Verified by running it, not by reading it.
 | Component | State | Evidence |
 |---|---|---|
 | **`satc_system`** | **Works.** 12,664 LOC, 87% coverage | `259 passed`, 0 skipped. Built a 16-sheet workbook; LibreOffice evaluated **202 formulas, 0 errors**. Withholding math hand-checked against brackets. 56 Flask routes, all 200 except three deliberate guards |
-| **`invoice-generator`** | **Works, deployable.** Multi-tenant SaaS | Auth, email verification, Stripe Connect, JSON API with per-user keys, rate limiting, CSRF, Render config. **One test file**, covering arithmetic only — nothing tests auth, tenancy isolation, the webhook, or the API |
-| **`client-documents`** | **Works.** Interview → engagement → priced documents | 197 tests. Browser and CLI front doors over one core |
+| **`invoice-generator`** | **Works, deployable — with one thing to fix before real money.** Multi-tenant SaaS | 57 tests, and `exercise.py` runs 281 checks through real HTTP, **opening all 53 PDFs it produces** and comparing their totals against the database. Deploys are gated on CI (`.github/workflows/deploy-invoicer.yml`) — inert until `RENDER_DEPLOY_HOOK_URL` exists. **`amount_paid` is one mutable float with no ledger**: one click of "mark as unpaid" destroys a Stripe-confirmed payment and replaying the webhook will not restore it. Eleven more, ranked, in `docs/invoicer-scenarios.md` |
+| **`client-documents`** | **Works, end to end, and can prove it.** Interview → engagement → priced documents → the whole later life of a client | **914 tests**, and `exercise.py` runs 29 real scenarios producing 190 documents, **opening every one in a browser**. Every document a client receives passes a blocking pre-send gate. The delivery letter, organizer cover, extension notice and disengagement letter gained a front door on 27 Aug (`cli.py event`); before that they could not be produced at all |
 | **`cowork-plugin`** | **Works**, if the desktop app is running | Three stateless withholding tools. Cannot write anything |
 | **`website`** | **Live** on satcllp.com via Cloudflare Pages | 11-step branching intake; leads land in `SATC leads.xlsx` |
 
@@ -94,7 +116,12 @@ rather than substituting** when a value is unpublished.
 | **Fee figures** | The estimate. Sixteen `[CONFIRM:` amounts plus one structural decision |
 | **Nine firm settings** | Every real render — four dates, two sentences |
 | **The financial-statement legend** | Three documents |
-| **Template approval** | All ten are complete; none is approved |
+| **`RENDER_DEPLOY_HOOK_URL`** | The Invoicer deploy gate, built 27 Aug and **inert** until the secret exists and Render's own auto-deploy is turned off |
+| **Invoicer's `Payment` table** | Nothing today. A schema change to a live payment system, and the only remaining Invoicer bug that is about money rather than a cent or a symbol |
+| **The amendment paragraph** | Nothing today — the letter names the return correctly ("Amended Form 1040") since 27 Aug. What the firm *says* about an amendment engagement is unwritten |
+| **The entity request list** | Nothing today. Two lines were transcribed from section 04 of the business letter on 27 Aug and carry a `[CONFIRM:` for shortening or splitting |
+| **`accompanies` on T20's list** | The plain-language check. It is banned in `DOCUMENT-TENETS.md` and live, unobjected-to, in five templates; the linter ships without it and the tenet carries a `[CONFIRM:` |
+| **Template approval** | All **twelve** are complete; none is approved |
 
 **On prices, the answer is definitive: the firm has never written one down.**
 The whole tree was searched. The `450 / 185 / 95` set traces to a single
@@ -156,7 +183,7 @@ Look before deleting.
 |---|---|
 | `website/README.md` | Old rejected palette; says GitHub Pages only and *"Later: connect satcllp.com"* — Cloudflare Pages is live |
 | `website/GOING-LIVE.md` | Concludes "Path A is the job"; Path B was taken |
-| `satc-handoff/START-HERE.md` | Says six templates; there are ten |
+| `satc-handoff/START-HERE.md` | Says six templates; there are **twelve** — a C-corporation letter was added 26 Aug, and the count has been wrong twice now |
 | `satc-handoff/00-START-HERE/OVERNIGHT-BRIEF.md` | Contradicted by its own inline correction |
 | `satc_system/README.md`, `docs/METHODOLOGY.md` | Describe the vault as external SharePoint; it is a local encrypted SQLite vault |
 | `PLAN.md` §"Where things stand" / §"In flight" | Old branch, old PR, "242 passing" vs "259 passing" in the same file. Also claims the plugin bundle path is broken — **it is not**, verified on this branch and `main` |
