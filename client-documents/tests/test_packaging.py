@@ -59,9 +59,19 @@ def test_an_individual_signs_the_tax_letter():
 
 
 @pytest.mark.parametrize("kind", ["s_corp", "partnership", "c_corp"])
-def test_an_entity_signs_the_business_letter(kind):
+def test_an_entity_signs_an_entity_letter(kind):
+    """Never the individual one — which is what happened before 26 August
+    2026, when `opening_package` was a hard-coded list that ignored the return
+    type entirely and the pack then refused on `TaxpayerName`.
+
+    WHICH entity letter differs. A C corporation gets its own since the same
+    day: the business letter's section 02 is entirely about Schedules K-1,
+    which a C corporation does not issue, and merging that section's date is
+    what made an 1120 pack refuse to render at all.
+    """
+    expected = {"c_corp": "ccorp-letter"}.get(kind, "business-letter")
     docs = packaging.documents_for({"_return_type": kind})
-    assert docs[0] == "business-letter"
+    assert docs[0] == expected
     assert "tax-letter" not in docs
 
 
@@ -123,7 +133,15 @@ def test_every_entity_type_produces_a_pack(answers, tmp_path, form):
     store, out = tmp_path / "store", tmp_path / "pack"
     ref = _engagement(answers, store, form)
     assert _run(ref, store, out) == 0
-    assert any("Business Engagement" in p.name for p in out.iterdir())
+    # An ENTITY letter, whichever one this entity gets. Naming the file by
+    # hand here is what would make a C corporation's own letter look like a
+    # regression the day it was added.
+    wanted = packaging.documents_for({"_return_type": {"1120S": "s_corp",
+                                                       "1065": "partnership",
+                                                       "1120": "c_corp"}[form]})[0]
+    stem = cli.DOCUMENTS[wanted][1]
+    assert any(stem in p.name for p in out.iterdir()), \
+        f"a {form} pack should carry {stem!r}"
 
 
 def test_one_refusal_writes_nothing_at_all(answers, tmp_path):

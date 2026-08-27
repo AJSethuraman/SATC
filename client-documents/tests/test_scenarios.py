@@ -236,7 +236,11 @@ def test_a_c_corporation_pack_arrives_whole_or_not_at_all(tmp_path):
     rc = write_pack(ref, store, out)
     if rc == 0:
         names = [p.name for p in out.glob("*.html")]
-        assert any("Business Engagement" in n for n in names)
+        # ITS OWN letter since 26 August 2026, on the firm's instruction
+        # ("let's go separate"). The business letter's section 02 is entirely
+        # about Schedules K-1, which a C corporation does not issue, and
+        # merging that section's date is what made this pack refuse.
+        assert any("C Corporation Engagement" in n for n in names)
         for path in out.glob("*.html"):
             assert_no_holes(path.name, path.read_text(encoding="utf-8"))
     else:

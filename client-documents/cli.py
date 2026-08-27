@@ -67,6 +67,7 @@ DOCUMENTS = {
     "delivery-letter":      ("SATC Tax Return Delivery Letter.html",          "Return Delivery"),
     "extension-notice":     ("SATC Extension Notice.html",                    "Extension Notice"),
     "disengagement-letter": ("SATC Disengagement Letter.html",                "Disengagement"),
+    "ccorp-letter":         ("SATC Engagement Letter - C Corporation.html",  "C Corporation Engagement Letter"),
     "records-release":      ("SATC Records Release Authorization.html",     "Records Release"),
 }
 
@@ -96,6 +97,7 @@ def opening_package(record: dict) -> list[str]:
 # same way buries the one that matters.
 STAGE = {
     "tax-letter": "opening", "business-letter": "opening",
+    "ccorp-letter": "opening",
     "bookkeeping-letter": "opening", "fee-estimate": "opening",
     "onboarding-letter": "opening", "organizer-letter": "opening",
     "extension-notice": "in flight",
@@ -110,7 +112,7 @@ STAGE = {
 # belong to a different engagement and are not this one's business.
 OPENING_BY_RETURN = {
     "individual": "tax-letter", "s_corp": "business-letter",
-    "partnership": "business-letter", "c_corp": "business-letter",
+    "partnership": "business-letter", "c_corp": "ccorp-letter",
 }
 
 

@@ -34,7 +34,16 @@ PACKS: dict[str, list[str]] = {
     "individual":  ["tax-letter", "fee-estimate", "onboarding-letter"],
     "s_corp":      ["business-letter", "fee-estimate", "onboarding-letter"],
     "partnership": ["business-letter", "fee-estimate", "onboarding-letter"],
-    "c_corp":      ["business-letter", "fee-estimate", "onboarding-letter"],
+    # SEPARATED 26 August 2026. Until then a C corporation was sent the
+    # business letter, whose section 02 is entirely about Schedules K-1 and
+    # merges <<ScheduleK1Target>> unconditionally -- a date the interview
+    # correctly never asks a C corporation for, because it issues no K-1s. So
+    # the pack did not merely say something wrong: it REFUSED, and no 1120
+    # client could be sent an engagement letter at all.
+    #
+    # The firm: "let's go separate - there may be other things we want
+    # specific to them anyway."
+    "c_corp":      ["ccorp-letter", "fee-estimate", "onboarding-letter"],
 }
 
 # Documents that travel with every pack, for the clients they apply to. The
@@ -54,7 +63,8 @@ CONDITIONAL: dict[str, str] = {"records-release": "PriorFirm"}
 # no note is a folder somebody has to reverse-engineer in a year.
 PURPOSE = {
     "tax-letter":         "The engagement letter. This is the one that is signed.",
-    "business-letter":    "The engagement letter for an entity return. This is the one that is signed.",
+    "ccorp-letter":       "The engagement letter for a C corporation. This is the one that is signed.",
+    "business-letter":    "The engagement letter for a partnership or an S corporation. This is the one that is signed.",
     "fee-estimate":       "What the work costs, and what the price assumes. Accompanies the letter; not signed separately.",
     "onboarding-letter":  "What happens next, and what we need from you.",
     "records-release":    "The authorization your previous accountant needs before they release your records. Signed by you and sent to them.",

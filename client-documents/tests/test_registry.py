@@ -28,6 +28,9 @@ TEMPLATE_DIR = ROOT.parent / "satc-handoff" / "04-TEMPLATES"
 TEMPLATES = {
     "tax-letter": "SATC Engagement Letter - Tax Preparation.html",
     "business-letter": "SATC Engagement Letter - Business Return.html",
+    # Its own letter since 26 August 2026. See packaging.PACKS for why a C
+    # corporation could not be sent the business one at all.
+    "ccorp-letter": "SATC Engagement Letter - C Corporation.html",
     "bookkeeping-letter": "SATC Engagement Letter - Bookkeeping.html",
     "fee-estimate": "SATC Fee Estimate.html",
     "invoice": "SATC Invoice.html",
