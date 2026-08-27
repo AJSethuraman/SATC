@@ -457,7 +457,71 @@ def compliance_floor(pack: Path, keys: dict[str, str] | None = None) -> list[Fin
     return out
 
 
-# ── 7 · do the documents agree with each other ────────────────────────────
+# ── 7 · a cited clause name exists ────────────────────────────────────────
+
+_CITE = re.compile(
+    r"(?:<b>|<strong>)([^<]{4,60})</(?:b|strong)>\s*section of your engagement letter",
+    re.I)
+_H2_TEXT = re.compile(r'<h2[^>]*>(?:<span class="n">\d+</span>)?([^<]+)</h2>', re.I)
+
+# The four documents a client might sign. A clause is cited from whichever one
+# they got, and the citing document does not know which -- so it resolves
+# against the UNION. Anything narrower fires on a letter this client will
+# never receive.
+ENGAGEMENT_LETTERS = ("tax-letter", "business-letter", "ccorp-letter",
+                      "bookkeeping-letter")
+
+
+def _clause_name(text: str) -> str:
+    return " ".join(text.lower().split()).rstrip(",.")
+
+
+def cited_clauses(pack: Path, section_names: set[str] | None = None) -> list[Finding]:
+    """Every "the X section of your engagement letter" names a real section.
+
+    Pure regression value: this is the only thing that would notice a section
+    being renamed in an engagement letter and silently orphaning the pointers
+    to it in four other documents. Nothing else in the pipeline reads one
+    document's prose against another document's headings.
+    """
+    if section_names is None:
+        section_names = engagement_section_names()
+    if not section_names:
+        return [Finding("cited", "(templates)",
+                        "the engagement letters could not be read, so no "
+                        "citation was resolved. Not a pass.", blocking=False)]
+
+    out: list[Finding] = []
+    for doc in sorted(pack.glob("*.html")):
+        html_text = doc.read_text(encoding="utf-8", errors="replace")
+        for raw in _CITE.findall(merge._REF_BLOCK.sub(" ", html_text)):
+            if _clause_name(raw) not in section_names:
+                out.append(Finding(
+                    "cited", doc.name,
+                    f"points the reader at \"the {raw.strip()} section of your "
+                    f"engagement letter\", and no engagement letter has a "
+                    f"section by that name. Either the section was renamed or "
+                    f"this pointer was."))
+    return out
+
+
+def engagement_section_names() -> set[str]:
+    """Every section heading across all four engagement letters."""
+    import cli                       # local: cli imports this module
+    out: set[str] = set()
+    for key in ENGAGEMENT_LETTERS:
+        entry = cli.DOCUMENTS.get(key)
+        if not entry:
+            continue
+        path = cli.TEMPLATE_DIR / entry[0]
+        if not path.exists():
+            continue
+        for head in _H2_TEXT.findall(path.read_text(encoding="utf-8")):
+            out.add(_clause_name(head))
+    return out
+
+
+# ── 8 · do the documents agree with each other ────────────────────────────
 
 def agrees(record: dict, rendered: dict[str, str]) -> list[Finding]:
     """The pack tells one story.
@@ -500,6 +564,9 @@ def gate(pack: Path, record: dict, *, rendered: dict[str, str] | None = None,
 
     res.checked.append("the compliance floor is on the page")
     res.findings += compliance_floor(pack)
+
+    res.checked.append("every cited clause name is a real section")
+    res.findings += cited_clauses(pack)
 
     docs = sorted(pack.glob("*.html"))
     if skip_render:

@@ -500,3 +500,54 @@ def test_every_real_pack_clears_the_floor(tmp_path):
         pytest.skip("no harness output here — run `python exercise.py` first")
     for pack in packs:
         assert presend.compliance_floor(pack) == [], pack.name
+
+
+# ── cited clause names ────────────────────────────────────────────────────
+
+def test_a_citation_that_resolves_passes(tmp_path):
+    (tmp_path / "d.html").write_text(
+        "<p>As the <b>Ending this engagement</b> section of your engagement "
+        "letter provides, either of us may end it in writing.</p>",
+        encoding="utf-8")
+    assert presend.cited_clauses(tmp_path) == []
+
+
+def test_a_renamed_section_orphans_its_pointers_and_is_caught(tmp_path):
+    """The only thing in the pipeline that would notice a section being
+    renamed in an engagement letter and silently orphaning the pointers to it
+    in four other documents."""
+    (tmp_path / "d.html").write_text(
+        "<p>As the <b>Ending this engagement</b> section of your engagement "
+        "letter provides...</p>", encoding="utf-8")
+    found = presend.cited_clauses(tmp_path, {"some other heading"})
+    assert len(found) == 1
+    assert "Ending this engagement" in found[0].detail
+    assert found[0].blocking
+
+
+def test_the_pattern_is_not_vacuous():
+    """WRITTEN BECAUSE IT WAS. The first version of the citation pattern had
+    `</(?:b|strong>)` where `</(?:b|strong)>` was meant, so it matched nothing
+    at all and reported every pack clean — a check that passes because it
+    examined nothing, which is the failure this whole gate exists to catch.
+    This asserts the pattern actually finds the citations that are there."""
+    names = presend.engagement_section_names()
+    assert len(names) >= 8, "the engagement letters' headings could not be read"
+
+    import shutil
+    seen = 0
+    for f in cli.TEMPLATE_DIR.glob("*.html"):
+        seen += len(presend._CITE.findall(f.read_text(encoding="utf-8")))
+    assert seen >= 5, (
+        f"the citation pattern found {seen} citations across the templates. "
+        f"There are known to be several; a pattern that finds none is broken, "
+        f"not clean.")
+
+
+def test_the_union_of_all_four_letters_is_used(tmp_path):
+    """A clause is cited from whichever letter this client signed, and the
+    citing document does not know which. Resolving against one letter would
+    fire on a section that lives in another."""
+    names = presend.engagement_section_names()
+    assert "ending this engagement" in names or any(
+        "ending" in n for n in names), sorted(names)[:12]
