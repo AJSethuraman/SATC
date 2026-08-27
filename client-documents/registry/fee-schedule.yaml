@@ -1040,6 +1040,15 @@ assumed:
   # the weakest question on the sheet -- nobody knows before opening them.
   brokerage_keying:
     label: "Brokerage"
+    # NEEDS A BROKERAGE STATEMENT TO BE ABOUT. Same shape as
+    # `officer_compensation` below, found the same way -- by reading a
+    # rendered estimate rather than by any test. A client with only a W-2 has
+    # no 1099-B, so "your 1099-Bs can be summarized rather than keyed line by
+    # line" is a boundary around work that cannot arise. That is not a
+    # boundary being stated; it is filler, and filler is how a client learns
+    # to skip the block.
+    when:
+      schedules_any: [D]
     assumes: "your 1099-Bs can be summarized rather than keyed line by line"
     inside_base: false
     trigger: "a statement is disordered enough that it has to be keyed"
@@ -1052,6 +1061,14 @@ assumed:
     # 8865 is a return inside a return -- its own balance sheet, its own
     # income statement, its own translation -- and pricing it per form would
     # misprice the exact engagement where mispricing hurts most.
+    # NEEDS FOREIGN HOLDINGS TO BE ABOUT. The sentence tells a client which
+    # KIND their holdings were assumed to be; said to someone who declared
+    # none, it asks them to wonder what foreign holdings we think they have.
+    # Gated on the interview's own answer rather than on the priced count, so
+    # it still prints for someone who declared accounts and was charged for
+    # none.
+    when:
+      answer_includes: { extra_forms: "foreign_accounts" }
     assumes: "your foreign holdings are accounts rather than companies"
     inside_base: false
     trigger: "you hold an interest in a foreign corporation or partnership"

@@ -50,12 +50,6 @@
   ],
   "Assumptions": [
     {
-      "Text": "Brokerage — your 1099-Bs can be summarized rather than keyed line by line. If a statement is disordered enough that it has to be keyed, the additional time is billed at $150 an hour as it is worked."
-    },
-    {
-      "Text": "Foreign entities — your foreign holdings are accounts rather than companies. If you hold an interest in a foreign corporation or partnership, the additional time is billed at $150 an hour as it is worked."
-    },
-    {
       "Text": "Records cleanup — your records arrive complete and reconciled. If the records need reconciling before the return can be prepared, the additional time is billed at $150 an hour as it is worked."
     }
   ],

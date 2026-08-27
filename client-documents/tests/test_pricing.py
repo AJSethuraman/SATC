@@ -1163,7 +1163,12 @@ def test_every_brokerage_statement_is_the_same_price():
 def test_a_messy_statement_is_time_not_a_second_price():
     """What survives the deletion, and the honest residue of it: a statement
     disordered enough to key is not a $95 job of known size."""
-    said = [t for t in pricing.assumptions({"federal_form": "1040"})
+    # WITH A BROKERAGE. The assumption is gated on Schedule D since 27 August
+    # 2026: a client with only a W-2 has no 1099-B, and a boundary around work
+    # that cannot arise is filler. What is under test here is the SHAPE of the
+    # sentence, not who hears it.
+    said = [t for t in pricing.assumptions(
+                {"federal_form": "1040", "federal_schedules": ["D"]})
             if t.startswith("Brokerage")]
     assert len(said) == 1
     assert "an hour" in said[0]
@@ -2132,3 +2137,48 @@ def test_superseding_a_line_no_lower_package_says_is_refused():
         pricing.covers("standard", tiers, "base.1040")
     assert "supersedes" in str(caught.value)
     assert "The standard deduction" in str(caught.value)
+
+
+# ── an assumption that cannot arise is filler ─────────────────────────────
+
+def _assumptions(answers):
+    import schedules as sched_mod
+    full = sched_mod.apply(dict(answers))
+    priced = pricing.price(full, pricing.load())
+    return " ".join(a.get("Text", "") for a in (priced.get("Assumptions") or []))
+
+
+W2_ONLY = {"federal_form": "1040", "decision": "yes", "return_features": [],
+           "extra_forms": [], "prior_return_available": "no",
+           "other_income_documents": "no"}
+
+
+def test_a_w2_only_client_is_not_told_about_their_foreign_holdings():
+    """Same shape as the officer-compensation bug the firm caught by reading a
+    rendered estimate: an assumption about work that cannot arise is not a
+    boundary being stated, it is filler, and filler is how a client learns to
+    skip the block. "Your foreign holdings are accounts rather than companies"
+    said to someone who declared none asks them to wonder what foreign
+    holdings we think they have."""
+    said = _assumptions(W2_ONLY)
+    assert "foreign holdings" not in said
+    assert "1099-B" not in said
+
+
+def test_someone_with_foreign_accounts_is_still_told():
+    """The gate removes the impossible case, not the boundary."""
+    said = _assumptions(W2_ONLY | {"extra_forms": ["foreign_accounts"],
+                                   "count_foreign_accounts": 2})
+    assert "foreign holdings" in said
+
+
+def test_someone_with_a_brokerage_is_still_told():
+    said = _assumptions(W2_ONLY | {"return_features": ["investments"]})
+    assert "1099-B" in said
+
+
+def test_records_cleanup_is_still_said_to_everybody():
+    """Deliberately ungated. Any client can arrive with records that need
+    reconciling; being in that state is exactly what makes it invisible from
+    the inside, which is why it is stated up front."""
+    assert "reconciled" in _assumptions(W2_ONLY)
