@@ -242,9 +242,18 @@ withheld = {p for p, _ in pub["withhold"]}
 check(not (published_paths - covered - withheld),
       "every published extra has client wording in EXTRA_COPY — missing "
       f"{sorted(published_paths - covered - withheld)}")
-check(set(_gen.HOURLY_COPY) == set(sched["assumed"]),
-      "every hourly trigger has client wording — the schedule's own text is a "
-      f"note to the preparer. Missing {sorted(set(sched['assumed']) - set(_gen.HOURLY_COPY))}")
+# Equality, not containment, and BOTH directions are reported. A surplus is as
+# wrong as a shortfall: copy for a trigger the schedule has deleted is wording
+# for a service the firm has stopped offering, and it will sit on the page
+# advertising it. Reporting only the missing side printed "Missing []" on a
+# failing check, which says a check failed and refuses to say why.
+_hourly_missing = sorted(set(sched["assumed"]) - set(_gen.HOURLY_COPY))
+_hourly_stale = sorted(set(_gen.HOURLY_COPY) - set(sched["assumed"]))
+check(not _hourly_missing and not _hourly_stale,
+      "every hourly trigger has client wording, and no more — the schedule's "
+      "own text is a note to the preparer. "
+      f"Missing copy: {_hourly_missing}. Copy for triggers the schedule no "
+      f"longer has: {_hourly_stale}")
 
 
 # ── 6 · the firm's positions on the page itself ───────────────────────────
