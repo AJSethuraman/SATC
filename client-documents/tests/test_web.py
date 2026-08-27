@@ -565,3 +565,22 @@ def test_the_way_out_of_a_correction_carries_nothing_with_it(tmp_path):
     assert set(back) == {"resume", "<button>"}, back
     assert "answer" in forms[f"/interview/{sid}"]
     assert "accept" in forms[f"/interview/{sid}"]
+
+
+def test_the_review_reads_in_the_words_on_the_screen(client, answers):
+    """The last page anybody checks before a client is billed was printing the
+    software's key for an option -- `missing_records` -- rather than the label
+    a preparer ticked, and showing an answered-with-nothing question as an
+    empty cell, which reads as nobody having answered it."""
+    sid = drive(client, dict(answers) | {"red_flags": ["missing_records"]})
+    page = client.get(f"/interview/{sid}", headers=HTML).get_data(as_text=True)
+
+    want = next(o["label"] for _, q in iv.all_questions(iv.load_schema())
+                if q["id"] == "red_flags"
+                for o in q["options"] if o["value"] == "missing_records")
+    assert want in page and "missing_records" not in page
+
+    given = client.get(f"/interview/{sid}", headers=JSON).get_json()["answers"]
+    empty = sum(1 for v in given.values() if v in (None, "", []))
+    assert empty, "the sample should leave something blank"
+    assert page.count("left blank") == empty

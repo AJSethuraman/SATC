@@ -1041,20 +1041,34 @@ def review_body(sid, session, blockers) -> str:
                    "Change an answer and this changes with it.</p></div>")
 
     asked = {q["id"]: q["question"] for _, q in iv.all_questions(session.schema)}
+    # THE LABEL A PREPARER TICKED, NOT THE KEY UNDERNEATH IT. This table read
+    # `missing_records` and `self_employment, rentals, k1` -- the software's
+    # names for the options, on the last screen anybody checks before a client
+    # is billed. The labels are already written in the schema.
+    labels = {q["id"]: {str(o["value"]): o["label"] for o in q.get("options", [])}
+              for _, q in iv.all_questions(session.schema)}
     # EVERY ROW IS A WAY BACK TO IT. The review was the one page that showed a
     # preparer a wrong answer and gave them nothing to do about it but start
     # the sitting again.
     editable = set(session.asked())
     out.append("<table class=plain>")
     for k, v in session.answers.items():
-        shown = ", ".join(str(x) for x in v) if isinstance(v, list) else v
+        seen = labels.get(k, {})
+        if isinstance(v, list):
+            shown = ", ".join(seen.get(str(x), str(x)) for x in v)
+        else:
+            shown = seen.get(str(v), "" if v is None else str(v))
+        # A blank cell reads as "nobody answered this". These were answered --
+        # with nothing, which is a different fact and has to say so.
+        blank = not str(shown).strip()
         fix = ""
         if k in editable:
             fix = (f"<form method=post action='/interview/{esc(sid)}/back'>"
                    f"<input type=hidden name=to value='{esc(k)}'>"
                    f"<button class=link>Change</button></form>")
+        cell = "<span class=muted>left blank</span>" if blank else esc(shown)
         out.append(f"<tr><th>{esc(asked.get(k, k))}</th>"
-                   f"<td>{esc(shown)}</td><td class=fix>{fix}</td></tr>")
+                   f"<td>{cell}</td><td class=fix>{fix}</td></tr>")
     out.append("</table>")
     out.append(f"<form method=post action='/interview/{esc(sid)}/finish' class=row>"
                "<button>Create the engagement</button>")
