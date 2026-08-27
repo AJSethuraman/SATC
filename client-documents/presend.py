@@ -386,7 +386,78 @@ def plain_language(pack: Path) -> list[Finding]:
     return out
 
 
-# ── 6 · do the documents agree with each other ────────────────────────────
+# ── 6 · the compliance floor ──────────────────────────────────────────────
+
+_REQUIRED = Path(__file__).resolve().parent / "registry" / "required.yaml"
+
+
+def document_keys(pack: Path) -> dict[str, str]:
+    """{filename -> document key}, from the pack's own manifest.
+
+    A rendered document is named for the client, so nothing about the file on
+    disk says which template it came from. The manifest is the only place that
+    knows, which is why a pack without one cannot be checked against rules
+    that are per-document -- and says so rather than passing.
+    """
+    import json
+    book = pack / "MANIFEST.json"
+    if not book.exists():
+        return {}
+    try:
+        data = json.loads(book.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    out = {}
+    for entry in data.get("Documents") or []:
+        for name in entry.get("files") or []:
+            out[name] = entry.get("key", "")
+    return out
+
+
+def compliance_floor(pack: Path, keys: dict[str, str] | None = None) -> list[Finding]:
+    """Sentences that may be reworded but must not be deleted.
+
+    Checks PRESENCE, never absence, so no false positive is constructible: a
+    reworded negation that keeps its words passes, and one that has lost the
+    word "assurance" has lost the negation. That is deliberate -- no check here
+    may pin the firm's prose, because they reword these most rounds and are
+    right to.
+    """
+    import yaml
+    if not _REQUIRED.exists():
+        return []
+    spec = yaml.safe_load(_REQUIRED.read_text(encoding="utf-8")) or {}
+    rules = spec.get("required") or []
+    if not rules:
+        return []
+
+    keys = document_keys(pack) if keys is None else keys
+    if not keys:
+        return [Finding("compliance", "(pack)",
+                        "no MANIFEST.json, so nothing says which template each "
+                        "document came from and the per-document rules were "
+                        "not checked. Not a pass.", blocking=False)]
+
+    out: list[Finding] = []
+    for doc in sorted(pack.glob("*.html")):
+        key = keys.get(doc.name)
+        if not key:
+            continue
+        said = _normalize(_readable(doc.read_text(encoding="utf-8", errors="replace")))
+        for rule in rules:
+            if key not in (rule.get("applies_to") or []):
+                continue
+            for group in rule.get("must_contain_all") or []:
+                if not any(_normalize(w) in said for w in group):
+                    out.append(Finding(
+                        "compliance", doc.name,
+                        f"the compliance floor {rule['id']!r} is not on the "
+                        f"page — none of {list(group)} appears. "
+                        f"{(rule.get('why') or '').strip()}"))
+    return out
+
+
+# ── 7 · do the documents agree with each other ────────────────────────────
 
 def agrees(record: dict, rendered: dict[str, str]) -> list[Finding]:
     """The pack tells one story.
@@ -426,6 +497,9 @@ def gate(pack: Path, record: dict, *, rendered: dict[str, str] | None = None,
 
     res.checked.append("no banned legalese and no British spelling")
     res.findings += plain_language(pack)
+
+    res.checked.append("the compliance floor is on the page")
+    res.findings += compliance_floor(pack)
 
     docs = sorted(pack.glob("*.html"))
     if skip_render:

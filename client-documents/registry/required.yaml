@@ -1,0 +1,67 @@
+# SATC — the compliance floor
+#
+# Sentences that may be REWORDED but must not be DELETED. Each entry names the
+# documents it applies to and one or more concept groups; a document passes
+# when every group has at least one of its words present.
+#
+# WHY GROUPS OF WORDS AND NOT SENTENCES. No check in this repo may pin the
+# firm's prose -- they must be free to reword a negation at any time, and they
+# do, most rounds. What they must not be free to do is lose it in the rewrite.
+# Groups allow the first and forbid the second.
+#
+# THE CHECK ASSERTS PRESENCE, NEVER ABSENCE, so no false positive is
+# constructible: a reworded negation that keeps its words passes, and one that
+# has lost the word "assurance" has lost the negation.
+#
+# Adding an entry here is a compliance decision, not a formatting one. Every
+# group below is a statement the firm has already made in a signed document.
+
+required:
+  - id: no-assurance-engagement
+    why: >-
+      The firm does not perform assurance work and says so. Losing this
+      sentence turns a tax preparation letter into one a reader could take as
+      covering an audit or a review.
+    applies_to: [tax-letter, business-letter, ccorp-letter, bookkeeping-letter]
+    must_contain_all:
+      - [assurance]
+      - ["do not perform", "we do not", "no opinion", "issue no opinion"]
+
+  - id: no-audit-verification
+    why: >-
+      We prepare returns from what the client gives us and do not verify it.
+      This is the sentence that says whose information it is.
+    applies_to: [tax-letter, business-letter, ccorp-letter, bookkeeping-letter]
+    must_contain_all:
+      - [audit, audits]
+      - [verify, verification]
+      - ["will not", "do not", "not designed"]
+
+  - id: unprotected-at-your-own-risk
+    why: >-
+      Where the firm's responsibility for a document ends. It appears wherever
+      a client is told how to send us things.
+    applies_to: [tax-letter, business-letter, ccorp-letter, bookkeeping-letter,
+                 onboarding-letter, organizer-letter]
+    must_contain_all:
+      - ["at your own risk"]
+      - [unprotected, "another way", transmitting]
+
+  - id: extension-is-not-more-time-to-pay
+    why: >-
+      The single most expensive misunderstanding in the practice. A client who
+      believes an extension defers payment finds interest running from the
+      original due date.
+    applies_to: [tax-letter, business-letter, ccorp-letter, extension-notice]
+    must_contain_all:
+      - ["more time to pay"]
+      - [interest, penalties]
+
+  - id: estimate-is-not-final-liability
+    why: >-
+      The extension payment figure is made from an incomplete file. Saying so
+      is what stops a client treating it as the bill.
+    applies_to: [extension-notice]
+    must_contain_all:
+      - ["final liability", "not the final"]
+      - [estimate, estimated]

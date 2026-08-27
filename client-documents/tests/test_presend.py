@@ -403,3 +403,100 @@ def test_every_template_is_clean_of_banned_words(tmp_path):
     for f in cli.TEMPLATE_DIR.glob("*.html"):
         shutil.copy2(f, tmp_path / f.name)
     assert presend.plain_language(tmp_path) == []
+
+
+# ── the compliance floor ──────────────────────────────────────────────────
+
+FLOOR_KEYS = {"letter.html": "tax-letter"}
+
+
+def _letter(tmp_path, body):
+    (tmp_path / "letter.html").write_text(body, encoding="utf-8")
+    return tmp_path
+
+
+def test_a_letter_that_keeps_its_negations_passes(tmp_path):
+    pack = _letter(tmp_path,
+        "<p>We do not perform audits, reviews, or any assurance engagement, "
+        "and we issue no opinion on your financial statements.</p>"
+        "<p>We will not audit or otherwise verify it.</p>"
+        "<p>We will not send you anything unprotected, and anything you send "
+        "another way is sent at your own risk.</p>"
+        "<p>An extension gives you more time to file, not more time to pay. "
+        "Interest and penalties run from the original due date.</p>")
+    assert presend.compliance_floor(pack, FLOOR_KEYS) == []
+
+
+def test_a_reworded_negation_still_passes(tmp_path):
+    """NO CHECK HERE MAY PIN THE FIRM'S PROSE. They reword these most rounds
+    and are right to. What they must not be free to do is lose the negation in
+    the rewrite."""
+    pack = _letter(tmp_path,
+        "<p>This is not an assurance engagement and we do not issue an "
+        "opinion.</p>"
+        "<p>The information is yours; we do not audit it and we do not verify "
+        "it.</p>"
+        "<p>Sending documents unprotected is at your own risk.</p>"
+        "<p>Filing late is one thing and paying late another: an extension is "
+        "never more time to pay, and interest runs regardless.</p>")
+    assert presend.compliance_floor(pack, FLOOR_KEYS) == []
+
+
+def test_losing_the_word_assurance_is_losing_the_negation(tmp_path):
+    """The mutation that proves this check works: reword until the concept is
+    gone, and it fires."""
+    pack = _letter(tmp_path,
+        "<p>We prepare tax returns and nothing else.</p>"
+        "<p>We will not audit or otherwise verify it.</p>"
+        "<p>Anything sent unprotected is at your own risk.</p>"
+        "<p>An extension is not more time to pay; interest runs.</p>")
+    found = presend.compliance_floor(pack, FLOOR_KEYS)
+    # Both groups of that rule fail, and reporting both is right: the sentence
+    # naming assurance and the sentence disclaiming an opinion went together.
+    assert found and all("no-assurance-engagement" in f.detail for f in found)
+    assert all(f.blocking for f in found)
+
+
+def test_losing_the_payment_warning_is_caught(tmp_path):
+    """The single most expensive misunderstanding in the practice."""
+    pack = _letter(tmp_path,
+        "<p>We do not perform audits, reviews, or any assurance engagement.</p>"
+        "<p>We will not audit or otherwise verify it.</p>"
+        "<p>Anything sent unprotected is at your own risk.</p>"
+        "<p>An extension gives you more time to file.</p>")
+    found = presend.compliance_floor(pack, FLOOR_KEYS)
+    assert found and all(
+        "extension-is-not-more-time-to-pay" in f.detail for f in found)
+    assert any("more time to pay" in f.detail for f in found)
+
+
+def test_a_rule_that_does_not_apply_to_this_document_is_not_imposed(tmp_path):
+    """The bookkeeping letter carries no extension language, correctly — it is
+    not a tax return engagement. Requiring it there would block every send."""
+    pack = _letter(tmp_path,
+        "<p>We do not perform audits, reviews, or any assurance engagement.</p>"
+        "<p>We will not audit or otherwise verify it.</p>"
+        "<p>Anything sent unprotected is at your own risk.</p>")
+    assert presend.compliance_floor(pack, {"letter.html": "bookkeeping-letter"}) == []
+
+
+def test_a_pack_with_no_manifest_says_so_rather_than_passing(tmp_path):
+    """A rendered document is named for the client, so nothing about the file
+    says which template it came from. Without the manifest these rules cannot
+    run — and a check that cannot run must not report clean."""
+    (tmp_path / "letter.html").write_text("<p>Nothing.</p>", encoding="utf-8")
+    found = presend.compliance_floor(tmp_path)
+    assert len(found) == 1
+    assert "Not a pass" in found[0].detail
+    assert not found[0].blocking, "an absent manifest is a gap, not a violation"
+
+
+def test_every_real_pack_clears_the_floor(tmp_path):
+    """The measurement. Twenty-seven packs from the harness, zero findings."""
+    packs = sorted(p for p in (ROOT / "out" / "exercise").iterdir()
+                   if p.is_dir() and (p / "MANIFEST.json").exists()) \
+        if (ROOT / "out" / "exercise").exists() else []
+    if not packs:
+        pytest.skip("no harness output here — run `python exercise.py` first")
+    for pack in packs:
+        assert presend.compliance_floor(pack) == [], pack.name
