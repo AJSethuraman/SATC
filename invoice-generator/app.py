@@ -10,6 +10,7 @@ webhook testing instructions.
 import csv
 import io
 import logging
+import math
 import mimetypes
 import os
 import sys
@@ -43,7 +44,12 @@ from markupsafe import Markup, escape
 import email_utils
 import stripe_utils
 from config import Config
-from helpers import currency_symbol, format_money, parse_date, parse_float
+from helpers import (
+    currency_symbol,
+    format_money,
+    parse_date,
+    parse_money,
+)
 from models import Invoice, LineItem, User, db
 
 csrf = CSRFProtect()
@@ -354,7 +360,24 @@ def _populate_invoice_from_form(invoice, form, files=None):
 
     The sender block is taken from the user's business profile (snapshot),
     and the currency from their default — neither is collected per invoice.
+
+    Returns a list of validation errors raised by the *parsing* itself (a
+    money box that was filled in but does not hold a number, or line-item
+    arrays that do not line up). They are handed to ``_validate_invoice``
+    rather than raised, so the owner gets them alongside the other messages
+    on the re-rendered form.
     """
+    errors = []
+
+    def money(field_name, label):
+        value, ok = parse_money(form.get(field_name))
+        if not ok:
+            errors.append(
+                f"{label} must be a number — "
+                f"'{(form.get(field_name) or '').strip()[:40]}' is not one."
+            )
+        return value
+
     invoice.invoice_number = (form.get("invoice_number") or "").strip()
     invoice.from_info = current_user.from_info
     invoice.bill_to = (form.get("bill_to") or "").strip()
@@ -369,11 +392,11 @@ def _populate_invoice_from_form(invoice, form, files=None):
     invoice.currency = (current_user.default_currency or "USD").strip().upper()
 
     # Tax and discount are entered as percentages in the UI.
-    invoice.tax_value = parse_float(form.get("tax"))
+    invoice.tax_value = money("tax", "Tax")
     invoice.tax_is_percent = True
-    invoice.discount_value = parse_float(form.get("discount"))
+    invoice.discount_value = money("discount", "Discount")
     invoice.discount_is_percent = True
-    invoice.shipping = parse_float(form.get("shipping"))
+    invoice.shipping = money("shipping", "Shipping")
 
     invoice.notes = (form.get("notes") or "").strip()
     invoice.terms = (form.get("terms") or "").strip()
@@ -393,12 +416,41 @@ def _populate_invoice_from_form(invoice, form, files=None):
     quantities = form.getlist("item_quantity")
     rates = form.getlist("item_rate")
 
+    # zip() truncates to the shortest array, so three descriptions, three
+    # rates and two quantities silently produced a TWO-line invoice — the
+    # third line, and its money, simply gone, with no error shown anywhere.
+    # That is one disabled input or one browser quirk away from an invoice
+    # being created, sent and paid at the wrong amount. Refuse instead:
+    # inventing a blank quantity for the missing cell would be worse.
+    #
+    # Caught by tests/test_scenarios.py::
+    #   test_mismatched_line_item_arrays_are_refused_not_silently_truncated
+    if not (len(descriptions) == len(quantities) == len(rates)):
+        errors.append(
+            "The line items did not arrive intact "
+            f"({len(descriptions)} descriptions, {len(quantities)} "
+            f"quantities, {len(rates)} rates). Nothing was saved — reload "
+            "the form and re-enter the lines."
+        )
+
     invoice.items.clear()
     position = 0
-    for desc, qty, rate in zip(descriptions, quantities, rates):
+    for index, (desc, qty, rate) in enumerate(
+        zip(descriptions, quantities, rates), start=1
+    ):
         desc = (desc or "").strip()
-        qty_f = parse_float(qty)
-        rate_f = parse_float(rate)
+        qty_f, qty_ok = parse_money(qty)
+        rate_f, rate_ok = parse_money(rate)
+        if not qty_ok:
+            errors.append(
+                f"Line {index}: quantity must be a number — "
+                f"'{str(qty).strip()[:40]}' is not one."
+            )
+        if not rate_ok:
+            errors.append(
+                f"Line {index}: rate must be a number — "
+                f"'{str(rate).strip()[:40]}' is not one."
+            )
         if not desc and qty_f == 0 and rate_f == 0:
             continue
         invoice.items.append(
@@ -410,11 +462,18 @@ def _populate_invoice_from_form(invoice, form, files=None):
             )
         )
         position += 1
+    return errors
 
 
-def _validate_invoice(invoice):
-    """Return a list of human-readable validation errors."""
-    errors = []
+def _validate_invoice(invoice, parse_errors=None):
+    """Return a list of human-readable validation errors.
+
+    ``parse_errors`` carries anything ``_populate_invoice_from_form`` could
+    not make sense of. They come first because every later check reads totals
+    computed from the values that *did* parse, so they would otherwise be
+    reported against numbers nobody typed.
+    """
+    errors = list(parse_errors or [])
     if not invoice.invoice_number:
         errors.append("Invoice number is required.")
     if not invoice.from_info:
@@ -439,6 +498,19 @@ def _validate_invoice(invoice):
         errors.append("Discount cannot be negative.")
     if (invoice.tax_value or 0) < 0:
         errors.append("Tax cannot be negative.")
+    # A finite rate can still overflow on multiply: 1e308 x 10 is inf, and
+    # inf * 0% tax is nan. `nan < 0` is False, so the negative-total guard
+    # below waves it through, the row is stored, and every KPI on the History
+    # page that sums balances then reads "$nan" — for the whole account, not
+    # just this invoice. Check the number is real before comparing it.
+    #
+    # Caught by tests/test_scenarios.py::
+    #   test_an_overflowing_rate_cannot_produce_a_nan_invoice
+    if not errors and not math.isfinite(invoice.total):
+        errors.append(
+            "Invoice total is not a real amount — one of the quantities or "
+            "rates is too large to bill."
+        )
     if not errors and invoice.total < 0:
         errors.append(
             "Invoice total cannot be negative — check the line items, "
@@ -994,8 +1066,10 @@ def register_routes(app):
         if not _require_profile():
             return redirect(url_for("account"))
         invoice = Invoice(user_id=current_user.id)
-        _populate_invoice_from_form(invoice, request.form, request.files)
-        errors = _validate_invoice(invoice)
+        parse_errors = _populate_invoice_from_form(
+            invoice, request.form, request.files
+        )
+        errors = _validate_invoice(invoice, parse_errors)
         if errors:
             for e in errors:
                 flash(e, "error")
@@ -1053,8 +1127,10 @@ def register_routes(app):
     @login_required
     def update_invoice(invoice_id):
         invoice = owned_or_404(invoice_id)
-        _populate_invoice_from_form(invoice, request.form, request.files)
-        errors = _validate_invoice(invoice)
+        parse_errors = _populate_invoice_from_form(
+            invoice, request.form, request.files
+        )
+        errors = _validate_invoice(invoice, parse_errors)
         if errors:
             for e in errors:
                 flash(e, "error")

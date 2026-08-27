@@ -1299,3 +1299,260 @@ def test_emailing_without_a_recipient_is_refused(app, client, sent_mail):
     assert "Recipient email is required" in response.get_data(as_text=True)
     assert sent_mail == []
     assert reload_invoice(app, invoice_id).status == "Draft"
+
+
+# --------------------------------------------------------------------------
+# Numbers that are not numbers
+#
+# Added by exercise.py (the scenario harness) — each of these was reproduced
+# against a running instance first. The shared failure: a money field that
+# could not be parsed, or that parsed into something that is not a real
+# amount, was accepted and billed rather than refused. See
+# docs/invoicer-scenarios.md.
+# --------------------------------------------------------------------------
+def test_unparseable_money_is_refused_not_silently_billed_as_zero(app, client):
+    """A rate of "$500.00" must be refused, not quietly turned into $0.00.
+
+    ``parse_float`` caught the ValueError from ``float("$500.00")`` and
+    returned its default, so pasting a rate with the currency symbol on it —
+    which is exactly how an amount arrives from a quote, an email, or another
+    system — created a line item worth nothing. The invoice was saved, shown,
+    exported and could be emailed to the client for $0.00 with no warning at
+    any point. A blank box still means "leave it at the default"; a box with
+    something unreadable in it now stops the save.
+    """
+    response = client.post(
+        "/invoices",
+        data={
+            "invoice_number": "INV-PARSE",
+            "bill_to": "Pellham Marine Supply\n2 Quay Street",
+            "invoice_date": date.today().isoformat(),
+            "payment_terms": "Net 30",
+            "tax": "0", "discount": "0", "shipping": "0",
+            "item_description": ["Hull survey"],
+            "item_quantity": ["1"],
+            "item_rate": ["$500.00"],
+        },
+    )
+    assert response.status_code == 400
+    assert "must be a number" in response.get_data(as_text=True)
+    with app.app_context():
+        assert Invoice.query.count() == 0, "nothing may be stored on a refusal"
+
+
+def test_an_overflowing_rate_cannot_produce_a_nan_invoice(app, client):
+    """A rate that overflows to infinity must be refused before it is stored.
+
+    ``1e308 x 10`` is ``inf``; ``inf * 0% tax`` is ``nan``; and ``nan < 0`` is
+    False, so the negative-total guard let it through. The invoice was stored
+    with a NaN total and the History page then rendered "$nan" for
+    outstanding, overdue AND paid — every KPI in the account, not just this
+    invoice's row. The owner's dashboard stopped reporting any figure at all.
+    """
+    response = client.post(
+        "/invoices",
+        data={
+            "invoice_number": "INV-OVERFLOW",
+            "bill_to": "Pellham Marine Supply\n2 Quay Street",
+            "invoice_date": date.today().isoformat(),
+            "payment_terms": "Net 30",
+            "tax": "0", "discount": "0", "shipping": "0",
+            "item_description": ["Dredging"],
+            "item_quantity": ["10"],
+            "item_rate": ["1e308"],
+        },
+    )
+    assert response.status_code == 400
+    assert "not a real amount" in response.get_data(as_text=True)
+    with app.app_context():
+        assert Invoice.query.count() == 0
+
+    # And the dashboard still reports numbers.
+    make_invoice(client, number="INV-OK", rate="1000.00")
+    history = client.get("/history").get_data(as_text=True)
+    assert "nan" not in history.lower()
+
+
+def test_a_literal_exponent_overflow_is_refused_too(app, client):
+    """"1e400" is a *valid* float literal that evaluates to infinity.
+
+    Distinct from the test above: nothing has to be multiplied for this one to
+    go wrong, so it slipped past any guard placed on the arithmetic rather
+    than on the input. It is a plausible paste or a fat-fingered exponent.
+    """
+    response = client.post(
+        "/invoices",
+        data={
+            "invoice_number": "INV-1E400",
+            "bill_to": "Pellham Marine Supply",
+            "invoice_date": date.today().isoformat(),
+            "tax": "0", "discount": "0", "shipping": "0",
+            "item_description": ["Dredging"],
+            "item_quantity": ["1"],
+            "item_rate": ["1e400"],
+        },
+    )
+    assert response.status_code == 400
+    with app.app_context():
+        assert Invoice.query.count() == 0
+
+
+def test_mismatched_line_item_arrays_are_refused_not_silently_truncated(
+    app, client
+):
+    """Three descriptions and two quantities must not become a two-line bill.
+
+    ``zip`` truncates to the shortest of the three parallel form arrays, so a
+    disabled input, a JS change, or a row the browser dropped removed a whole
+    line item and its money with no error anywhere. The invoice was created,
+    could be sent, and could be paid — at the wrong amount. Refusing is the
+    only safe answer: inventing a blank quantity for the missing cell would
+    bill the line at zero, which is the same failure wearing a hat.
+    """
+    response = client.post(
+        "/invoices",
+        data={
+            "invoice_number": "INV-ZIP",
+            "bill_to": "Ironbridge Joinery\n14 Forge Row",
+            "invoice_date": date.today().isoformat(),
+            "tax": "0", "discount": "0", "shipping": "0",
+            "item_description": ["Design", "Build", "Install"],
+            "item_quantity": ["1", "1"],
+            "item_rate": ["100.00", "100.00", "100.00"],
+        },
+    )
+    assert response.status_code == 400
+    assert "did not arrive intact" in response.get_data(as_text=True)
+    with app.app_context():
+        assert Invoice.query.count() == 0
+
+
+def test_a_refused_edit_leaves_the_stored_invoice_untouched(app, client):
+    """A refusal must write nothing — including on the edit path.
+
+    The edit path clears ``invoice.items`` on the live ORM instance *before*
+    validation runs, so a refusal happens with the invoice already emptied in
+    the session. If any of that reached the database, refusing a bad edit
+    would destroy the good invoice it was protecting.
+    """
+    make_invoice(client, number="INV-EDIT", rate="1000.00", tax="10")
+    before = only_invoice(app)
+    assert before.total == 1100.0
+
+    response = client.post(
+        f"/invoice/{before.id}",
+        data={
+            "invoice_number": "INV-EDIT",
+            "bill_to": "Ironbridge Joinery",
+            "invoice_date": date.today().isoformat(),
+            "tax": "10", "discount": "0", "shipping": "0",
+            "item_description": ["Design", "Build"],
+            "item_quantity": ["1"],
+            "item_rate": ["1000.00", "500.00"],
+        },
+    )
+    assert response.status_code == 400
+
+    after = reload_invoice(app, before.id)
+    assert after is not None, "a refused edit must not delete the invoice"
+    assert after.item_count == before.item_count
+    assert after.total == before.total
+
+
+def test_api_rejects_a_negative_amount_paid(app, owner):
+    """amount_paid: -500 must be refused, not treated as money owed.
+
+    A negative payment makes ``balance_due`` larger than the total, so a $100
+    invoice reads as $600 outstanding and the account's outstanding KPI gains
+    $500 that no client will ever pay. Overpayment stays legal — that happens
+    for real — so only the negative side is refused.
+    """
+    with app.app_context():
+        api_key = db.session.get(User, owner).api_key
+
+    response = app.test_client().post(
+        "/api/invoices",
+        headers={"X-API-Key": api_key},
+        json={
+            "invoice_number": "API-NEGPAID",
+            "from_info": "Halloway & Vance",
+            "bill_to": "Sable Court Chambers",
+            "items": [{"description": "Advice", "quantity": 1, "rate": 100}],
+            "amount_paid": -500,
+        },
+    )
+    assert response.status_code == 422
+    assert "amount_paid cannot be negative" in json.dumps(response.get_json())
+    with app.app_context():
+        assert Invoice.query.count() == 0
+
+
+def test_api_rejects_a_nan_rate(app, owner):
+    """Python's JSON decoder accepts the bare literal NaN. The API must not.
+
+    ``{"rate": NaN}`` reached the model, and SQLite stored the NaN as NULL —
+    so the line silently came back worth 0.00 after the commit. Whatever the
+    engine does with it, the request should never have been accepted.
+    """
+    with app.app_context():
+        api_key = db.session.get(User, owner).api_key
+
+    response = app.test_client().post(
+        "/api/invoices",
+        headers={"X-API-Key": api_key},
+        data=json.dumps(
+            {
+                "invoice_number": "API-NAN",
+                "from_info": "Halloway & Vance",
+                "bill_to": "Sable Court Chambers",
+                "items": [
+                    {"description": "Advice", "quantity": 1,
+                     "rate": float("nan")}
+                ],
+            }
+        ),
+        content_type="application/json",
+    )
+    assert response.status_code == 422
+    assert "finite number" in json.dumps(response.get_json())
+    with app.app_context():
+        assert Invoice.query.count() == 0
+
+
+def test_both_front_doors_refuse_the_same_unparseable_value(app, client, owner):
+    """The web form and the JSON API must agree about what is not a number.
+
+    They had separate coercion helpers with separate holes, which is how the
+    API came to accept things the form rejected. Both now call
+    ``helpers.parse_money``; this holds them to the same answer so the two
+    cannot drift apart again.
+    """
+    with app.app_context():
+        api_key = db.session.get(User, owner).api_key
+
+    web = client.post(
+        "/invoices",
+        data={
+            "invoice_number": "INV-BOTH",
+            "bill_to": "Sable Court Chambers",
+            "invoice_date": date.today().isoformat(),
+            "tax": "0", "discount": "0", "shipping": "0",
+            "item_description": ["Advice"],
+            "item_quantity": ["1"],
+            "item_rate": ["£420"],
+        },
+    )
+    api = app.test_client().post(
+        "/api/invoices",
+        headers={"X-API-Key": api_key},
+        json={
+            "invoice_number": "API-BOTH",
+            "from_info": "Halloway & Vance",
+            "bill_to": "Sable Court Chambers",
+            "items": [{"description": "Advice", "quantity": 1, "rate": "£420"}],
+        },
+    )
+    assert web.status_code == 400
+    assert api.status_code == 422
+    with app.app_context():
+        assert Invoice.query.count() == 0
