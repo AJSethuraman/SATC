@@ -28,6 +28,12 @@ ENTITY = {"entity_structure": "llc", "entity_state": "Ohio",
           # letter now states how many K-1s the engagement is scoped for.
           # Ignored for a 1120 -- a C corporation issues none.
           "count_owners": 3,
+          # Required of every entity by the schema, and the fixture did not
+          # answer it. Nothing noticed until the flag pair it derives became
+          # enforced: the business letter's section on the owners' returns
+          # rendered EMPTY, because both halves of the inverse were absent and
+          # each [[IF]] dropped in silence.
+          "owner_returns": "yes",
           "k1_target": "each member's personal return"}
 
 

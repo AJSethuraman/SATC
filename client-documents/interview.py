@@ -267,14 +267,38 @@ class Interview:
         raise InterviewError(f"no question {qid!r} in the schema")
 
     def missing_required(self) -> list[str]:
-        return [q["id"] for _, q in all_questions(self.schema)
-                if q.get("required") and not q.get("derived")
-                and visible(q, self.answers)
-                and self.answers.get(q["id"]) in (None, "", [])]
+        return missing_required(self.answers, self.schema)
 
     def hard_no(self) -> list[str]:
         """Options the schema marks HARD NO that were actually ticked."""
         return hard_no(self.answers, self.schema)
+
+
+def missing_required(answers: dict, schema: dict | None = None) -> list[str]:
+    """Required questions this interview should have answered and did not.
+
+    A free function over ANSWERS, for the same reason `hard_no` is one: a live
+    sitting, a saved interview.json and a posted web body all have to hit the
+    same gate. `intake.finish` is the back door, and it was not hitting it --
+    a set of answers with `owner_returns` simply absent produced an entity
+    engagement whose business letter carried an empty section where the
+    paragraph about the owners' returns belongs. The schema has said
+    `required: true` on that question the whole time.
+
+    Derivation runs first, on a copy: half the schedule questions are gated on
+    facts worked out from other answers, so checking the raw set reports
+    questions that would never have been asked.
+    """
+    schema = schema if schema is not None else load_schema()
+    seen = dict(answers)
+    try:
+        sched.apply(seen, schema)
+    except Exception:                                        # noqa: BLE001
+        pass          # a schedule that will not derive is reported elsewhere
+    return [q["id"] for _, q in all_questions(schema)
+            if q.get("required") and not q.get("derived")
+            and visible(q, seen)
+            and seen.get(q["id"]) in (None, "", [])]
 
 
 def hard_no(answers: dict, schema: dict | None = None) -> list[str]:

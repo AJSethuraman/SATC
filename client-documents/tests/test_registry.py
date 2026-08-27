@@ -611,3 +611,34 @@ def test_no_decision_is_still_open_anywhere():
 
     assert firm.open_decisions() == [], "an unanswered decision is back in the settings"
     assert pricing.open_amounts() == [], "an unpriced item is back in the schedule"
+
+
+# ── inverse flags are declared, not merely described ──────────────────────
+
+def test_every_inverse_relationship_is_machine_readable():
+    """It used to live only in the prose note beside each flag -- "Inverse of
+    PaymentEnclosed" -- which nothing read. A document stated the rule and the
+    thing that enforces it did not, so a record could leave both halves false
+    and the section they control came out empty under a heading promising it
+    said something."""
+    spec = yaml.safe_load((ROOT / "registry" / "fields.yaml").read_text(
+        encoding="utf-8"))
+    described = {f["flag"] for f in spec["flags"]
+                 if "inverse of" in (f.get("notes") or "").lower()}
+    declared = {f["flag"] for f in spec["flags"] if f.get("inverse_of")}
+    assert described <= declared, (
+        f"these flags describe an inverse in prose but do not declare one: "
+        f"{sorted(described - declared)}")
+
+
+def test_every_declared_inverse_is_symmetric_and_real():
+    spec = yaml.safe_load((ROOT / "registry" / "fields.yaml").read_text(
+        encoding="utf-8"))
+    by_name = {f["flag"]: f for f in spec["flags"]}
+    for flag, entry in by_name.items():
+        other = entry.get("inverse_of")
+        if not other:
+            continue
+        assert other in by_name, f"{flag} names {other}, which is not a flag"
+        assert by_name[other].get("inverse_of") == flag, (
+            f"{flag} says its inverse is {other}, but {other} does not agree")

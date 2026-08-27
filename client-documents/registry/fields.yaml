@@ -353,12 +353,14 @@ fields:
 
 flags:
   - flag: AccountSettled
+    inverse_of: BalanceOutstanding
     label: "Nothing is owed"
     source: disengagement
     templates: [disengagement-letter]
     notes: >-
       Inverse of BalanceOutstanding.
   - flag: BalanceOutstanding
+    inverse_of: AccountSettled
     label: "There is a balance owing"
     source: disengagement
     templates: [disengagement-letter]
@@ -370,6 +372,7 @@ flags:
     source: bookkeeping
     templates: [bookkeeping-letter]
   - flag: ClientInitiated
+    inverse_of: FirmInitiated
     label: "The client ended it"
     source: disengagement
     templates: [disengagement-letter]
@@ -381,6 +384,7 @@ flags:
     source: invoice
     templates: [invoice]
   - flag: EFiled
+    inverse_of: PaperFiled
     label: "Filed electronically"
     source: delivery
     templates: [delivery-letter]
@@ -403,6 +407,7 @@ flags:
     source: engagement
     templates: [organizer-letter]
   - flag: FirmInitiated
+    inverse_of: ClientInitiated
     label: "We ended it"
     source: disengagement
     templates: [disengagement-letter]
@@ -413,18 +418,21 @@ flags:
     source: interview
     templates: [records-release, tax-letter]
   - flag: NoPaymentRequired
+    inverse_of: PaymentEnclosed
     label: "Nothing to pay with the extension"
     source: extension
     templates: [extension-notice]
     notes: >-
       Inverse of PaymentEnclosed.
   - flag: OwnerReturnsElsewhere
+    inverse_of: OwnerReturnsPrepared
     label: "Someone else does the owners' returns"
     source: engagement
     templates: [business-letter]
     notes: >-
       Inverse of OwnerReturnsPrepared.
   - flag: OwnerReturnsPrepared
+    inverse_of: OwnerReturnsElsewhere
     label: "We do the owners' returns too"
     source: engagement
     templates: [business-letter]
@@ -433,12 +441,14 @@ flags:
       ONE stored value. Who turns the K-1 into a personal return is the
       question the business letter exists to answer.
   - flag: PaperFiled
+    inverse_of: EFiled
     label: "Filed on paper"
     source: delivery
     templates: [delivery-letter]
     notes: >-
       Inverse of EFiled. Puts filing on the client.
   - flag: PaymentEnclosed
+    inverse_of: NoPaymentRequired
     label: "A payment goes with the extension"
     source: extension
     templates: [extension-notice]

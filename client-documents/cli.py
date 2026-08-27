@@ -1016,11 +1016,35 @@ def _required_lists() -> dict:
     return out
 
 
+def _inverse_flags() -> tuple:
+    """Flag pairs that are two faces of one decision, from the registry.
+
+    The relationship used to live only in the prose note beside each flag
+    ("Inverse of PaymentEnclosed"), which nothing read -- so a record could
+    leave both of a pair false and the section they control came out empty
+    under a heading that promised it said something.
+    """
+    spec = yaml.safe_load(
+        (ROOT / "registry" / "fields.yaml").read_text(encoding="utf-8")) or {}
+    seen, pairs = set(), []
+    for entry in spec.get("flags") or []:
+        other = entry.get("inverse_of")
+        if not other:
+            continue
+        key = frozenset((entry["flag"], other))
+        if key in seen:
+            continue                    # declared on both halves, one pair
+        seen.add(key)
+        pairs.append((entry["flag"], other))
+    return tuple(pairs)
+
+
 def _render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool):
     filename, _ = DOCUMENTS[doc]
     template = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
     result = merge.render(template, record, strict=not draft,
-                          required_lists=_required_lists().get(doc, ()))
+                          required_lists=_required_lists().get(doc, ()),
+                          inverse_flags=_inverse_flags())
 
     html = _stamp_draft(result.html) if draft else result.html
     stem = output_name(doc, record, draft)
@@ -1374,7 +1398,7 @@ def cmd_check(args) -> int:
     """
     record = build_record(json.loads(Path(args.record).read_text(encoding="utf-8")))
     rendered = consistency.render_package(record, DOCUMENTS, TEMPLATE_DIR,
-                                          _required_lists())
+                                          _required_lists(), _inverse_flags())
     if not rendered:
         print("No document in the set renders from this record, so there is "
               "nothing to compare. `doctor` says what is missing.")

@@ -447,3 +447,81 @@ def test_the_result_says_whether_anything_moved():
     moved = merge.render('<h2><span class="n">01</span>A</h2>'
                          '<h2><span class="n">03</span>B</h2>', {})
     assert moved.renumbered == {"01": "01", "03": "02"}
+
+
+# ── a sentence can only be given a phrase ─────────────────────────────────
+
+def test_a_list_handed_to_a_sentence_is_refused():
+    """A disengagement letter went out reading: "It covers [{'Item': '2026
+    federal and Ohio returns', 'Status': 'Complete'}]". `str(value)` will
+    render a Python repr straight into a client's letter and nothing
+    downstream can tell that apart from a phrase somebody meant to write."""
+    with pytest.raises(MergeError) as exc:
+        render('<p>It covers &lt;&lt;Work&gt;&gt;.</p>',
+               {"Work": [{"Item": "2026 returns", "Status": "Complete"}]})
+    assert "Work is a list" in str(exc.value)
+    assert "Python" in str(exc.value)
+
+
+def test_a_dict_handed_to_a_sentence_is_refused():
+    with pytest.raises(MergeError):
+        render('<p>&lt;&lt;Where&gt;&gt;</p>', {"Where": {"city": "Dublin"}})
+
+
+@pytest.mark.parametrize("value", ["a phrase", 42, 3.5, True, None])
+def test_every_ordinary_value_still_renders(value):
+    """The gate must not become a reason to fear the record."""
+    render('<p>&lt;&lt;A&gt;&gt;</p>', {"A": value})
+
+
+def test_a_row_that_is_not_a_set_of_fields_is_refused():
+    """`[[EACH]]` has refused a non-list since it was written; this is the
+    same gate one level down. A list of strings cannot fill a table whose
+    columns have names — it used to raise AttributeError from inside the
+    engine, which tells a preparer nothing."""
+    with pytest.raises(MergeError) as exc:
+        render('[[EACH Rows]]<td>&lt;&lt;Item.A&gt;&gt;</td>[[END EACH]]',
+               {"Rows": ["just a string"]})
+    assert "row 1 of Rows" in str(exc.value)
+
+
+# ── two faces of one decision ─────────────────────────────────────────────
+
+EXT = ('<p>Your payment deadline does not move, and section 02 tells you what '
+       'to do about that.</p>'
+       '<h2><span class="n">02</span>Money</h2>'
+       '[[IF PaymentEnclosed]]<p>Pay $450 by 15 April.</p>[[END IF]]'
+       '[[IF NoPaymentRequired]]<p>There is nothing to pay.</p>[[END IF]]')
+PAIR = (("PaymentEnclosed", "NoPaymentRequired"),)
+
+
+def test_neither_half_of_an_inverse_pair_is_refused():
+    """THE WORST POSSIBLE VERSION OF THIS LETTER, in the template's own words.
+    Two independent booleans can both be false, and when they were, the
+    extension notice printed a warning that the payment deadline has not
+    moved, an intro saying section 02 tells you what to do about it, and then
+    nothing at all in section 02."""
+    with pytest.raises(MergeError) as exc:
+        render(EXT, {}, inverse_flags=PAIR)
+    assert "neither is set" in str(exc.value)
+    assert "come out empty" in str(exc.value)
+
+
+def test_both_halves_of_an_inverse_pair_is_refused():
+    with pytest.raises(MergeError) as exc:
+        render(EXT, {"PaymentEnclosed": True, "NoPaymentRequired": True},
+               inverse_flags=PAIR)
+    assert "both are set" in str(exc.value)
+
+
+def test_exactly_one_renders():
+    out = render(EXT, {"PaymentEnclosed": True, "NoPaymentRequired": False},
+                 inverse_flags=PAIR)
+    assert "Pay $450" in out.html
+    assert "nothing to pay" not in out.html
+
+
+def test_a_pair_this_document_does_not_use_is_not_its_problem():
+    """The delivery letter's EFiled/PaperFiled pair has nothing to do with an
+    engagement letter, and requiring it there would block every send."""
+    render("<p>Nothing conditional here.</p>", {}, inverse_flags=PAIR)

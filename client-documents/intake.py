@@ -133,6 +133,28 @@ def finish(answers: dict, *, store: Path | None = None, ref: str | None = None,
             reason=f"The decision was {decision!r}, not 'yes'. Nothing was "
                    f"created -- that is what the decision question is for.")
 
+    # THE BACK DOOR HAS TO HIT THE SAME GATE AS THE FRONT ONES. The web and
+    # CLI interviews will not let you past a required question; this function
+    # would take any dict at all, and the missing answer showed up much later
+    # as a document with a hole in it. An entity engagement created without
+    # `owner_returns` produced a business letter whose section on the owners'
+    # returns was simply empty -- the schema has said `required: true` on that
+    # question the whole time, and nothing on this path read it.
+    #
+    # Checked HERE rather than at the top so a refusal and a decline still work
+    # on a partial interview: only CREATING an engagement needs a complete one.
+    unanswered = iv.missing_required(answers)
+    if unanswered:
+        return Outcome(
+            status="error", blockers=blockers, overridden=overridden,
+            flags=flags,
+            reason="the interview is not finished -- "
+                   + ", ".join(unanswered)
+                   + (" is" if len(unanswered) == 1 else " are")
+                   + " required and unanswered. Creating the engagement anyway "
+                     "puts the hole in a document instead, where a client "
+                     "finds it.")
+
     record = compose_record(answers, today=today)
 
     # Priced before the store is touched. Any amount the firm has not set

@@ -318,17 +318,25 @@ def test_a_target_that_is_a_phrase_is_skipped_rather_than_failed(tmp_path):
 def test_an_unpriceable_package_is_reported_rather_than_crashed(tmp_path):
     """`cli.py check` died with a traceback on the records that most need it.
 
-    An engagement whose estimate carries a `[CONFIRM:` -- an amendment with no
-    reason is the ordinary way to get one -- has a total that is a sentence
-    rather than an amount. The total check stripped everything but digits and
-    dots, got "..", and `float("..")` raised. So the tool that exists to tell
-    you what is wrong with a package fell over on a package that was wrong,
-    and its own docstring already promised the other behaviour: "an amount
-    that will not parse".
+    An engagement whose estimate carries a `[CONFIRM:` has a total that is a
+    sentence rather than an amount. The total check stripped everything but
+    digits and dots, got "..", and `float("..")` raised. So the tool that
+    exists to tell you what is wrong with a package fell over on a package
+    that was wrong, and its own docstring already promised the other
+    behaviour: "an amount that will not parse".
+
+    THE ROUTE HERE CHANGED and the subject did not. This used to reach the
+    state through an amendment with no reason, which `intake.finish` now
+    refuses -- the schema marks `amendment_reason` required and the back door
+    finally reads that. An unpriced line in the fee schedule still produces
+    exactly this total, so the placeholder is set on the record directly: what
+    is under test is `report`, not the several ways a price can go unset.
     """
     store = tmp_path / "store"
     record = record_for(created(sitting(
-        return_basis="amended", other_income_documents="yes"), store).ref, store)
+        return_basis="amended", amendment_reason="new_information",
+        other_income_documents="yes"), store).ref, store)
+    record["EstimateTotal"] = "[CONFIRM: the firm has not priced this]"
     assert record["EstimateTotal"].startswith("[CONFIRM:")
 
     checks = report_for(record)

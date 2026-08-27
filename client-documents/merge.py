@@ -28,6 +28,7 @@ caller's problem.
 
 from __future__ import annotations
 
+import decimal
 import html
 import re
 from dataclasses import dataclass, field as dc_field
@@ -104,7 +105,12 @@ def _render_each(text: str, record: dict) -> str:
             raise MergeError(f"{name} must be a list, got {type(items).__name__}")
 
         rendered = []
-        for item in items:
+        for n, item in enumerate(items, 1):
+            if not isinstance(item, dict):
+                raise MergeError(
+                    f"row {n} of {name} is a {type(item).__name__}, not a set "
+                    f"of fields — a list of strings cannot fill a table whose "
+                    f"columns have names")
             piece = chunk
             for key, value in item.items():
                 piece = _substitute_one(piece, f"Item.{key}", value)
@@ -136,6 +142,11 @@ def _render_if(text: str, record: dict, kept: set, dropped: set) -> str:
             dropped.add(name)
             replacement = ""
         text = text[:start] + replacement + text[end + len(_sentinel("ENDIF")):]
+
+
+# What a sentence can be given. Anything else is a category error: the record
+# handed a TABLE to a slot that holds a phrase.
+SCALARS = (str, int, float, bool, decimal.Decimal)
 
 
 def _substitute_one(text: str, name: str, value) -> str:
@@ -208,8 +219,19 @@ def _dangling_section_refs(text: str) -> set[str]:
 
 
 def render(template_html: str, record: dict, *, strict: bool = True,
-           required_lists: "tuple[str, ...] | list[str]" = ()) -> MergeResult:
+           required_lists: "tuple[str, ...] | list[str]" = (),
+           inverse_flags: "tuple[tuple[str, str], ...]" = ()) -> MergeResult:
     """Fill a template. Raises MergeError rather than returning a holed document.
+
+    `inverse_flags` names pairs of flags that are two faces of ONE decision --
+    "a payment goes with the extension" and "there is nothing to pay". Exactly
+    one must be true. Two independent booleans can both be false, and when
+    they were, the extension notice printed a heading that warns the payment
+    deadline has not moved, an intro that says "section 02 tells you what to
+    do about that", and then NOTHING in section 02. The template's own notes
+    call that "the worst possible version of this letter" and asked for the
+    two to be derived from one stored value; the relationship was recorded in
+    prose that nothing read.
 
     `required_lists` names the `[[EACH X]]` lists that may not be empty. An
     EACH block over a missing list renders to exactly the same nothing as one
@@ -234,7 +256,21 @@ def render(template_html: str, record: dict, *, strict: bool = True,
             continue                              # belongs to an EACH block
         if name not in record:
             continue                              # reported below, not silently blanked
-        text = _substitute_one(text, name, record[name])
+        value = record[name]
+        # A LIST HANDED TO A SENTENCE USED TO PRINT AS PYTHON. A disengagement
+        # letter went out reading: It covers [{'Item': '2026 federal and Ohio
+        # returns', 'Status': 'Complete'}]. `str(value)` will happily render a
+        # repr into a client's letter and nothing downstream can tell that
+        # apart from a phrase somebody meant to write.
+        #
+        # `[[EACH]]` has refused a non-list since it was written. This is the
+        # same gate facing the other way, and it was the missing half.
+        if value is not None and not isinstance(value, SCALARS):
+            raise MergeError(
+                f"{name} is a {type(value).__name__} and this document uses it "
+                f"as a phrase, not a table. Rendering it would print Python "
+                f"into a client's letter.")
+        text = _substitute_one(text, name, value)
         used.add(name)
 
     if strict:
@@ -257,6 +293,19 @@ def render(template_html: str, record: dict, *, strict: bool = True,
         confirms = {m for m in _CONFIRM.findall(text)}
         if confirms:
             problems.append("undecided placeholders: " + ", ".join(sorted(confirms)))
+        for a, b in inverse_flags:
+            # Only where the template actually uses them: a pair that does not
+            # appear in this document is not this document's problem.
+            if f"IF {a}" not in template_html and f"IF {b}" not in template_html:
+                continue
+            on = [n for n in (a, b) if record.get(n)]
+            if len(on) != 1:
+                problems.append(
+                    f"{a} and {b} are two faces of one decision and "
+                    + ("both are set" if len(on) == 2 else "neither is set")
+                    + " -- the section they control would "
+                    + ("contradict itself" if len(on) == 2 else "come out empty")
+                    + ", and the document promises the reader it says something")
         dangling = _dangling_section_refs(text)
         if dangling:
             problems.append(

@@ -271,7 +271,8 @@ def report(record: dict, rendered: dict[str, str]) -> list[Check]:
 
 
 def render_package(record: dict, documents: dict, template_dir,
-                   required_lists: dict | None = None) -> dict[str, str]:
+                   required_lists: dict | None = None,
+                   inverse_flags: tuple = ()) -> dict[str, str]:
     """{document name -> HTML}, for whichever documents the record can fill.
 
     `required_lists` is {document -> the lists that may not be empty}, exactly

@@ -187,7 +187,7 @@ def scenarios() -> list[Scenario]:
                         signer_title="President", owner_returns="no")))
     add(Scenario("ent-1120", "C corporation",
                  entity("1120", entity_structure="corporation",
-                        signer_title="President"),
+                        signer_title="President", owner_returns="no"),
                  note="its own letter since 26 Aug; refused entirely before that"))
     add(Scenario("ent-1065-many", "Partnership with seven owners",
                  entity("1065", count_owners=7, owner_returns="yes")))
@@ -255,7 +255,7 @@ LATER_FACTS = {
         "ExtendedDeadline": "October 15, 2027",
         "PaymentDeadline": "April 15, 2027",
         "EstimatedPaymentAmount": "$450.00",
-        "PaymentEstimated": True, "NoPaymentEstimated": False,
+        "PaymentEnclosed": True, "NoPaymentRequired": False,
         "ExtendedReturns": [{"Return": "Federal Form 1040", "Detail": "Extended"}],
         "OutstandingItems": [{"Document": "Your brokerage statements",
                               "Detail": "All accounts, all four quarters"}],
@@ -263,7 +263,14 @@ LATER_FACTS = {
     "disengagement-letter": {
         "EffectiveDate": "June 30, 2027",
         "RecordsAvailableUntil": "September 30, 2027",
-        "ScopeEnded": [{"Item": "2026 federal and Ohio returns", "Status": "Complete"}],
+        # A PHRASE, NOT A TABLE. The FIELDS spec says so in as many words --
+        # "a phrase, not a code, that names precisely what ends" -- and this
+        # invented fact handed it a list of rows. `str()` rendered the Python
+        # repr straight into the letter: "It covers [{'Item': '2026 federal
+        # and Ohio returns', 'Status': 'Complete'}]". Found by opening the
+        # letter; merge refuses it outright now.
+        "ScopeEnded": "the preparation of your 2026 federal and Ohio "
+                      "individual income tax returns",
         "OutstandingBalance": "$0.00",
         "ClientInitiated": True, "FirmInitiated": False,
         "AccountSettled": True, "BalanceOutstanding": False,
@@ -340,7 +347,8 @@ def run_one(s: Scenario, store: Path, out: Path) -> Result:
         # it looked at nothing is worse than a red one.
         full = cli.build_record(record)
         rendered = consistency.render_package(
-            full, cli.DOCUMENTS, cli.TEMPLATE_DIR, cli._required_lists())
+            full, cli.DOCUMENTS, cli.TEMPLATE_DIR, cli._required_lists(),
+            cli._inverse_flags())
         r.compared = sorted(rendered)
         for row in consistency.report(full, rendered):
             if not row.ok:
