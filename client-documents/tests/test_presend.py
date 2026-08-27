@@ -288,3 +288,118 @@ def test_contiguous_numbering_passes(tmp_path):
         '<h2><span class="n">01</span>A</h2>'
         '<h2><span class="n">02</span>B</h2>', encoding="utf-8")
     assert presend.numbering(tmp_path) == []
+
+
+# ── sentences the firm deleted ────────────────────────────────────────────
+
+def test_a_deleted_sentence_coming_back_is_caught(tmp_path):
+    """A note in a tenets file saying a phrase is "not yet swept" is not a
+    control. This is: it caught the bookkeeping engagement letter still
+    carrying "Sign through Encyro and it comes straight back to us." a day
+    after that sentence was replaced in every other letter."""
+    (tmp_path / "letter.html").write_text(
+        "<p>If this letter states your understanding, sign and return a copy. "
+        "Sign through Encyro and it comes straight back to us.</p>",
+        encoding="utf-8")
+    found = presend.retired_phrases(tmp_path)
+    assert len(found) == 1
+    assert "Encyro" in found[0].detail
+    assert found[0].blocking
+
+
+def test_punctuation_is_not_a_disguise(tmp_path):
+    """Changing a comma is exactly the edit that would let a deleted sentence
+    back in wearing a hat."""
+    (tmp_path / "letter.html").write_text(
+        "<p>Sign through Encyro; and it comes — straight back to us!</p>",
+        encoding="utf-8")
+    assert len(presend.retired_phrases(tmp_path)) == 1
+
+
+def test_a_heading_is_not_a_retired_bullet(tmp_path):
+    """"this estimate assumes" is retired as a bullet opener and LIVE as the
+    heading. Excluding headings is what makes this check exact rather than
+    nearly exact."""
+    (tmp_path / "estimate.html").write_text(
+        '<h2>Only the work listed in the scope section of the engagement '
+        'letter is included.</h2><p>Ordinary copy.</p>', encoding="utf-8")
+    assert presend.retired_phrases(tmp_path) == []
+
+
+def test_the_registry_refuses_a_phrase_too_short_to_be_a_sentence(tmp_path, monkeypatch):
+    """A fragment collides with innocent copy sooner or later — measured: one
+    of the two hits this check produced on its first run was exactly that."""
+    reg = tmp_path / "retired.yaml"
+    reg.write_text('phrases:\n  - phrase: "sign below"\n', encoding="utf-8")
+    monkeypatch.setattr(presend, "_RETIRED", reg)
+
+    (tmp_path / "doc.html").write_text("<p>Anything.</p>", encoding="utf-8")
+    found = presend.retired_phrases(tmp_path)
+    assert len(found) == 1
+    assert "shorter than five words" in found[0].detail
+
+
+def test_every_template_and_every_real_pack_is_clean_of_retired_sentences(tmp_path):
+    """The measurement, not an assumption. Twelve templates, zero hits."""
+    import shutil
+    for f in cli.TEMPLATE_DIR.glob("*.html"):
+        shutil.copy2(f, tmp_path / f.name)
+    assert presend.retired_phrases(tmp_path) == []
+
+
+# ── plain language ────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("word,kind", [
+    ("pursuant", "legalese"), ("herein", "legalese"),
+    ("at our discretion", "legalese"),
+    ("authorisation", "British"), ("cheque", "British"),
+])
+def test_banned_words_are_caught(tmp_path, word, kind):
+    (tmp_path / "doc.html").write_text(
+        f"<p>The work is done {word} to the schedule.</p>", encoding="utf-8")
+    assert len(presend.plain_language(tmp_path)) == 1, f"{kind}: {word}"
+
+
+def test_accompanies_is_deliberately_allowed(tmp_path):
+    """It is in DOCUMENT-TENETS' written list and it is live in five templates
+    in copy the firm has approved four times. Shipping the list with it in
+    would make this check cry wolf on its first run, and a linter that cries
+    wolf gets muted."""
+    (tmp_path / "doc.html").write_text(
+        "<p>This accompanies our engagement letter.</p>", encoding="utf-8")
+    assert presend.plain_language(tmp_path) == []
+
+
+def test_the_screen_only_reference_block_is_not_read(tmp_path):
+    """THE DIFFERENCE BETWEEN RIGHT AND WRONG FIVE TIMES OUT OF FIVE. Every
+    template carries a FIELDS reference table that `merge` strips before
+    anything reaches a client. Read the source without stripping it and the
+    spelling sweep reports five British spellings, every one of them invisible
+    to every client."""
+    # The trailing </body> matters: `merge._REF_BLOCK` is anchored to a ref
+    # block that sits at the end of the document, before the script or the
+    # closing body tag, which is where every template puts it. This check
+    # delegates to that same pattern rather than writing a second one, so the
+    # two cannot disagree about what a client sees.
+    (tmp_path / "doc.html").write_text(
+        '<p>Ordinary copy.</p>'
+        '<div class="ref"><p>Sample: an authorisation from the licence '
+        'centre.</p></div></body>', encoding="utf-8")
+    assert presend.plain_language(tmp_path) == []
+
+
+def test_a_reference_block_that_merge_would_ship_is_still_read(tmp_path):
+    """The other direction, and the reason this delegates rather than
+    re-implements: a ref block somewhere merge does NOT strip is a block a
+    client sees, so the check has to see it too."""
+    (tmp_path / "doc.html").write_text(
+        '<div class="ref"><p>An authorisation.</p></div>'
+        '<p>And then the letter continues.</p>', encoding="utf-8")
+    assert len(presend.plain_language(tmp_path)) == 1
+
+
+def test_every_template_is_clean_of_banned_words(tmp_path):
+    import shutil
+    for f in cli.TEMPLATE_DIR.glob("*.html"):
+        shutil.copy2(f, tmp_path / f.name)
+    assert presend.plain_language(tmp_path) == []

@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import consistency
+import merge
 
 # Files a pack is expected to carry beside the documents. Kept here rather than
 # in cli so the gate can say "this is missing" without importing the command.
@@ -253,7 +254,139 @@ def numbering(pack: Path) -> list[Finding]:
     return out
 
 
-# ── 4 · do the documents agree with each other ────────────────────────────
+# ── 4 · sentences the firm has deleted ────────────────────────────────────
+
+_RETIRED = Path(__file__).resolve().parent / "registry" / "retired.yaml"
+_HEADING = re.compile(r"<h[1-6][^>]*>.*?</h[1-6]>", re.S | re.I)
+_TAGS = re.compile(r"<[^>]+>")
+_PUNCT = re.compile(r"[^\w\s]")
+
+
+def _normalize(text: str) -> str:
+    """Lowercase, punctuation gone, whitespace collapsed.
+
+    So a phrase still matches after somebody changes a comma or a dash, which
+    is exactly the edit that would otherwise let a deleted sentence back in
+    wearing a hat.
+    """
+    return " ".join(_PUNCT.sub(" ", text.lower()).split())
+
+
+def _readable(html: str) -> str:
+    """What a client actually reads, with the headings taken out.
+
+    HEADINGS ARE EXEMPT ON PURPOSE, and it is not a fudge. "this estimate
+    assumes" is retired as a bullet opener -- the firm: "the section is titled
+    'what this estimate assumes' so why say 'this estimate assumes' in each
+    bullet" -- and live as the heading itself. Excluding headings is the one
+    rule that makes the check exact rather than nearly exact.
+    """
+    # THE `.ref` BLOCK GOES FIRST, and this is the difference between a check
+    # that is right and one that is wrong five times out of five. Every
+    # template carries a screen-only FIELDS reference table; `merge` strips it
+    # before anything reaches a client. Run over template SOURCE without
+    # stripping it, the spelling sweep reports `recognise`, `cheque`,
+    # `behaviour`, `organised` and `authorisation` -- all five inside the ref
+    # block, all five invisible to every client, all five false. Over the same
+    # twelve documents rendered: zero.
+    return _TAGS.sub(" ", _HEADING.sub(" ", merge._REF_BLOCK.sub(" ", html)))
+
+
+def _load_retired() -> list[dict]:
+    import yaml
+    if not _RETIRED.exists():
+        return []
+    spec = yaml.safe_load(_RETIRED.read_text(encoding="utf-8")) or {}
+    out = []
+    for entry in spec.get("phrases") or []:
+        phrase = (entry.get("phrase") or "").strip()
+        # THE FIVE-WORD FLOOR IS A CORRECTNESS RULE, not tidiness. A shorter
+        # phrase is not a sentence, and a fragment collides with innocent copy
+        # sooner or later -- measured: one of the two hits this check produced
+        # on its first run was exactly that.
+        if len(phrase.split()) < 5:
+            raise ValueError(
+                f"retired.yaml: {phrase!r} is shorter than five words. Store "
+                f"the whole sentence the firm deleted, never a prefix — a "
+                f"fragment will match copy nobody objected to.")
+        out.append({**entry, "phrase": phrase, "_norm": _normalize(phrase)})
+    return out
+
+
+def retired_phrases(pack: Path) -> list[Finding]:
+    """No document carries a sentence the firm has deleted.
+
+    A note in a tenets file saying a phrase is "not yet swept" is not a
+    control. This is. It caught the bookkeeping letter still carrying
+    "Sign through Encyro and it comes straight back to us." a day after that
+    sentence was replaced everywhere else.
+    """
+    try:
+        retired = _load_retired()
+    except ValueError as exc:
+        return [Finding("retired", "(registry)", str(exc))]
+    if not retired:
+        return []
+
+    out: list[Finding] = []
+    for doc in sorted(pack.glob("*.html")):
+        said = _normalize(_readable(doc.read_text(encoding="utf-8", errors="replace")))
+        for entry in retired:
+            if entry["_norm"] in said:
+                out.append(Finding(
+                    "retired", doc.name,
+                    f"carries a sentence the firm deleted on "
+                    f"{entry.get('retired', 'an earlier round')} "
+                    f"({entry.get('tenet', '')}): \"{entry['phrase']}\" — "
+                    f"{entry.get('why', '')}"))
+    return out
+
+
+# ── 5 · plain language ────────────────────────────────────────────────────
+
+# Words the firm has ruled out of anything a client reads. `accompanies` and
+# `accompanying` are DELIBERATELY ABSENT: DOCUMENT-TENETS lists them, and they
+# are live in five templates in copy the firm has now approved four times.
+# Shipping the list with them in would make this check cry wolf on its first
+# run, and a linter that cries wolf gets muted.
+LEGALESE = ("governs", "constitutes", "pursuant", "at our discretion",
+            "deemed", "shall be", "herein")
+
+# The firm writes American English. A British spelling in a client document is
+# a sentence somebody imported from somewhere else.
+BRITISH = ("authorisation", "organise", "organised", "organising",
+           "organisation", "recognise", "recognised", "realise", "realised",
+           "licence", "behaviour", "centre", "cheque", "whilst", "amongst",
+           "programme", "enrol")
+
+
+def plain_language(pack: Path) -> list[Finding]:
+    """No hard-banned legalese, and no British spelling.
+
+    READS THE RENDERED PAGE, and that is load-bearing: three British spellings
+    live in template `.ref` blocks, which `merge` strips before a client sees
+    anything. A check that read the source would fire on all three and be
+    wrong all three times.
+    """
+    out: list[Finding] = []
+    for doc in sorted(pack.glob("*.html")):
+        said = _normalize(_readable(doc.read_text(encoding="utf-8", errors="replace")))
+        for word in LEGALESE:
+            if re.search(rf"\b{re.escape(_normalize(word))}\b", said):
+                out.append(Finding(
+                    "plain", doc.name,
+                    f"uses {word!r}, which the firm has ruled out of anything "
+                    f"a client reads. Say the thing itself instead."))
+        for word in BRITISH:
+            if re.search(rf"\b{word}\b", said):
+                out.append(Finding(
+                    "plain", doc.name,
+                    f"spells {word!r} the British way in a document for an "
+                    f"American client."))
+    return out
+
+
+# ── 6 · do the documents agree with each other ────────────────────────────
 
 def agrees(record: dict, rendered: dict[str, str]) -> list[Finding]:
     """The pack tells one story.
@@ -287,6 +420,12 @@ def gate(pack: Path, record: dict, *, rendered: dict[str, str] | None = None,
 
     res.checked.append("section numbers on the page read 01..N")
     res.findings += numbering(pack)
+
+    res.checked.append("no sentence the firm has deleted has come back")
+    res.findings += retired_phrases(pack)
+
+    res.checked.append("no banned legalese and no British spelling")
+    res.findings += plain_language(pack)
 
     docs = sorted(pack.glob("*.html"))
     if skip_render:
