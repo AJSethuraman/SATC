@@ -150,7 +150,27 @@ was blocked**, so no pricing page was read directly. Confirm before buying.
 | **Verifyle** | Claims 8878/8879 compliance; mechanism unverified | No | $108/yr; free to CPA-society members | — |
 | PandaDoc / Nitro | No | Yes | — | Yes |
 
-### 🚩 Encyro — and our own letters name it
+### Encyro — disputed, and the firm is closer to it than this research was
+
+> **The firm, 28 August 2026: "No encyro is cheaper and has kba."**
+>
+> That is a direct contradiction of the flag below, from somebody who has the
+> product in front of them. The flag is kept because it is what was found, not
+> because it is believed to outrank that — and the evidence behind it is weak:
+> **encyro.com was blocked from this session**, so it rests on a search-index
+> summary of the *title* of a help article, not on the article.
+>
+> **One question settles it, and it should be asked in writing before any
+> 8879 goes through:** *does Encyro's 8879 e-signature use knowledge-based
+> authentication generated from credit-file or public-record data meeting NIST
+> SP 800-63 IAL2, or does it use an SMS access code?* An answer naming the KBA
+> data provider closes this permanently. Keep the reply.
+>
+> If the answer is real KBA, **Encyro wins on price outright** and the rest of
+> the vendor table below is moot: it is already paid for, already named in the
+> client-facing copy, and covers both documents.
+
+### 🚩 What was found, and why it raised a doubt
 
 **Every engagement letter tells the client: "We send documents for signature
 through Encyro."** So this matters more than a vendor comparison normally
@@ -163,14 +183,19 @@ marketing as easier than *"traditional KBA (credit report based)"*. That is an
 admission that it is not credit-bureau KBA. **An SMS code is a possession
 factor; Pub 1345 asks for a knowledge factor drawn from non-public records.**
 
-**Encyro's compliance claim for 8879 does not match what its documentation says
-it does.** It looks fine for engagement letters. Do not rely on it for 8879
-without written confirmation from Encyro naming its KBA data provider.
+On that evidence the claim and the documentation did not match. **On the
+firm's evidence they do.** The written confirmation above is what decides it;
+until then this is an open question, not a finding.
 
 Adobe is the second flag, more honestly disclosed: real KBA, enterprise plans
 only. Dead for a one-person firm.
 
 ## 6 · What this points at
+
+> **Superseded by the firm, 28 August 2026: "Drake can print our 8879."**
+> That removes the reason to buy Drake E-Sign. If Drake produces the PDF and
+> Encyro carries the signature, there is one vendor, one subscription, and the
+> 8879 never touches this codebase — which it never could anyway.
 
 **Form 8879 → Drake E-Sign.** Drake already makes the 8879 and is the system of
 record for what gets filed; routing it to a third party adds an integration for
