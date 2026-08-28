@@ -840,7 +840,26 @@ price and there should not be. What actually makes an entity amendment bigger
 is reissuing a K-1 to every owner, and `owner_k1` already prices that per owner
 — so the cost scales on the number of owners, which is the thing that varies,
 rather than on the word "entity". Verified: a 1065 with five partners amended
-from elsewhere prices at $1,050, of which $200 is the five K-1s.
+from elsewhere prices at **$970**, of which $120 is the three K-1s past the two
+the base covers.
+
+> **Superseded figure, kept because the reasoning above rests on it.** This
+> paragraph originally recorded $1,050, "of which $200 is the five K-1s". That
+> was read back off the engine at a time when the engine billed every K-1 from
+> the first — while `starting_note`, on the website, said "each partner's K-1
+> after the first two". The firm settled it on 28 August 2026: *"Base should
+> carry a 2 k1 allowance."* The engine now matches the published note and the
+> figure moved by $80.
+>
+> **And it leaves a question this thread did not have before.** The argument
+> here is that an entity amendment costs more because every owner's K-1 is
+> reissued. Under the allowance, the two-owner amendment now bills **nothing**
+> for reissuing two K-1s — $800 + $50, with the reissue work free. The
+> allowance was decided about the base, which is a from-price for an original
+> return; whether it should also apply on top of an amendment is a different
+> question and nobody has answered it. Leaving it as it falls out rather than
+> inventing a rule: `[CONFIRM: does the 2 K-1 allowance apply to an amendment,
+> where the K-1s are being reissued rather than issued?]`
 
 **One thing NOT settled and not assumed.** Whether amending a partnership
 return is procedurally the same kind of filing as amending a 1040. If it is

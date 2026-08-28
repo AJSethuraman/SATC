@@ -883,6 +883,15 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         # notes saying from what, and both have to travel with the amount so
         # the two cannot drift apart. `amount` is the money; the rest is for
         # whoever shows the number.
+        #
+        # AND WHAT THE FROM-PRICE ALREADY COVERS. A package tier declares that
+        # with `allows:` and this read it only there, so an entity base could
+        # not say it -- while its own `starting_note`, on the website, said
+        # "each partner's K-1 after the first two". The sentence promised an
+        # allowance the engine had no way to hold, and every multi-owner
+        # entity was quoted $80 over the published rule. Same key, same
+        # subtraction below; a flat allowance is not a package feature.
+        allowance = {**(base.get("allows") or {}), **allowance}
         if "amount" not in base:
             raise PricingError(
                 f"base.{form} is a block with no `amount`, so there is no "

@@ -16,6 +16,7 @@ source is how they are kept honest.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -1659,7 +1660,20 @@ def test_amending_someone_elses_return_prices_the_whole_return_plus_fifty():
 
 def test_an_entity_amendment_follows_the_same_three_cases():
     """There is no separate entity amendment price. What actually differs is
-    reissuing a K-1 to every owner, and that is already its own line."""
+    reissuing a K-1 to every owner, and that is already its own line.
+
+    The five-partner figure was $1,050 until 28 August 2026, when the base
+    took on the two-K-1 allowance its published note had always promised. It
+    is $970 now: three billable K-1s rather than five.
+
+    THIS LEAVES AN OPEN QUESTION, recorded in `docs/pricing-open-threads.md`
+    rather than decided here. The allowance was settled about the base, which
+    is a from-price for an ORIGINAL return -- so a two-partner amendment now
+    bills nothing at all for reissuing two K-1s. Whether the allowance should
+    reach across an amendment is the firm's to say; this test pins what the
+    engine does today so the answer, when it comes, has to move a number
+    somebody can see.
+    """
     s = pricing.load()
     ours = pricing.line_items(
         {"federal_form": "1065", "return_basis": "amended",
@@ -1668,7 +1682,18 @@ def test_an_entity_amendment_follows_the_same_three_cases():
     theirs = pricing.line_items(
         {"federal_form": "1065", "return_basis": "amended",
          "amendment_reason": "other_preparer", "count_owners": 5}, s)
-    assert pricing.estimate_total(theirs, s) == "$1,050.00"
+    assert pricing.estimate_total(theirs, s) == "$970.00"
+
+    # The open question, pinned so it cannot be closed by accident.
+    two = pricing.line_items(
+        {"federal_form": "1065", "return_basis": "amended",
+         "amendment_reason": "other_preparer", "count_owners": 2}, s)
+    assert pricing.estimate_total(two, s) == "$850.00"
+    assert not [i for i in two if "K-1" in i["Service"]], (
+        "the two-partner amendment bills for the reissue after all -- which "
+        "would be the answer to the open thread, and it should be answered "
+        "there rather than arrived at here"
+    )
 
 
 def test_an_amendment_with_no_reason_carries_the_question_not_a_price():
@@ -2182,3 +2207,88 @@ def test_records_cleanup_is_still_said_to_everybody():
     reconciling; being in that state is exactly what makes it invisible from
     the inside, which is why it is stated up front."""
     assert "reconciled" in _assumptions(W2_ONLY)
+
+
+# ── the published note and the engine, held together ──────────────────────
+
+def test_the_entity_from_price_covers_the_k1s_its_note_promises():
+    """A CLAIM IN ONE PLACE, BEHAVIOUR IN ANOTHER, AND NOTHING COMPARING THEM.
+
+    `starting_note` said "each partner's K-1 after the first two" and was
+    published verbatim on the website; the engine billed every K-1 from the
+    first. A two-owner partnership was quoted $880 against a page promising
+    $800, and 1001 tests passed while it did, because no test knew the
+    sentence existed.
+
+    So the sentence is now read, parsed, and compared to the allowance. Change
+    "the first two" to "the first three" and this fails until the number moves
+    with it.
+    """
+    schedule = pricing.load()
+    checked = 0
+    for form, base in schedule["base"].items():
+        if not isinstance(base, dict) or "starting_note" not in base:
+            continue
+        promises = [n for n in base["starting_note"]
+                    if re.search(r"K-1 after the first", n)]
+        allows = int((base.get("allows") or {}).get("count_owners", 0))
+        if not promises:
+            assert not allows, (
+                f"base.{form} holds back {allows} K-1(s) and its note never "
+                f"tells a client so"
+            )
+            continue
+        assert len(promises) == 1, f"base.{form} promises it twice"
+        words = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
+        said = re.search(r"after the first (\w+)", promises[0]).group(1)
+        want = words.get(said, None)
+        assert want is not None, f"base.{form}: cannot read {said!r} as a number"
+        assert allows == want, (
+            f"base.{form} tells a client the first {said} K-1s are in the "
+            f"price and holds back {allows}"
+        )
+        checked += 1
+    assert checked, "no entity base carries a K-1 promise; the check ran on nothing"
+
+
+@pytest.mark.parametrize("form,base", [("1065", 800), ("1120S", 950)])
+@pytest.mark.parametrize("owners", [0, 1, 2, 3, 5])
+def test_an_entity_is_priced_the_way_the_website_says_it_is(form, base, owners):
+    """The arithmetic the note describes, at every count that matters."""
+    schedule = pricing.load()
+    items = pricing.line_items(
+        {"federal_form": form, "count_owners": owners, "count_states": 1},
+        schedule)
+    want = base + max(0, owners - 2) * 40
+    assert pricing.estimate_total(items, schedule) == m.money(want, "USD")
+
+
+def test_a_c_corporation_is_never_asked_how_many_k_1s_it_issues():
+    """It issues none, and its own published note does not mention them.
+
+    THE GUARD IS THE SCHEMA, NOT THE ENGINE, and it is worth being exact about
+    which. `pricing.line_items` has no mechanism for suppressing a per-unit
+    line by form -- `form_when` only PROMOTES a blank count to one, it never
+    holds a line back -- so handed `{federal_form: 1120, count_owners: 4}` it
+    bills $160 of K-1s a C corporation does not issue.
+
+    Nothing can hand it that: `count_owners` is gated to 1120S and 1065, so the
+    answer cannot exist on a C corporation record. This test holds the gate
+    that does the work. The remaining exposure is a hand-edited record, or a
+    carry-forward from a year the entity was an S corp and then revoked the
+    election -- recorded rather than built for, because building a suppressing
+    gate for an unreachable case is speculative and the reachable protection
+    already exists.
+    """
+    import interview as iv
+
+    schedule = pricing.load()
+    assert not any("K-1" in n for n in schedule["base"]["1120"]["starting_note"])
+
+    question = next(q for _, q in iv.all_questions(iv.load_schema())
+                    if q["id"] == "count_owners")
+    assert not iv.visible(question, {"federal_form": "1120"}), (
+        "a C corporation is being asked how many owners receive a K-1"
+    )
+    for form in ("1065", "1120S"):
+        assert iv.visible(question, {"federal_form": form}), form

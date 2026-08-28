@@ -385,6 +385,14 @@ base:
   "1065":
     amount: 800
     publish: from
+    # THE FIRST TWO ARE INSIDE THE PRICE. `starting_note` below says so
+    # and it is on the website; the engine billed every K-1 from the
+    # first, so a two-owner return was quoted $80 over the published
+    # rule. The firm, 28 August 2026: "Base should carry a 2 k1
+    # allowance." The number lives here beside the sentence that
+    # promises it, and a test compares the two so they cannot drift.
+    allows:
+      count_owners: 2
     starting_note:
       - "A balance sheet, where one is required"
       - "Inventory, where the business carries any"
@@ -393,6 +401,14 @@ base:
   "1120S":
     amount: 950
     publish: from
+    # THE FIRST TWO ARE INSIDE THE PRICE. `starting_note` below says so
+    # and it is on the website; the engine billed every K-1 from the
+    # first, so a two-owner return was quoted $80 over the published
+    # rule. The firm, 28 August 2026: "Base should carry a 2 k1
+    # allowance." The number lives here beside the sentence that
+    # promises it, and a test compares the two so they cannot drift.
+    allows:
+      count_owners: 2
     starting_note:
       - "A balance sheet, where one is required"
       - "Inventory, where the business carries any"
