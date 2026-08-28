@@ -474,6 +474,25 @@ finding rather than a disappointment … **So I did not manufacture edits to sho
 (`be20b41`). Every finding in that review was reproduced against a running instance first — a
 finding you have not reproduced is a guess, and a guess in a report is **S1** in a hat.
 
+## S28 · Do not call something delivered because its tests pass. Walk the whole path a person walks, front to back, and open what comes out the end.
+
+> "A tenet to our software and procedural creation should be doing this process
+> front to back or I can't trust it'll work without debugging it myself." — the firm, 28 August 2026
+
+**Four of the ten documents could not be produced by any command a preparer can run** — the delivery
+letter, the organizer cover, the extension notice and the disengagement letter. Each needs a fact
+that does not exist when the engagement is created, and nothing collected it. Nothing was failing:
+the templates were there, the merge engine was green, and `doctor` *"reported the organizer letter
+blocked on every engagement in the store, correctly, and there was no way to unblock it"* — so
+**the opening pack was a third of the process and the other two thirds had no front door**
+(`registry/lifecycle.yaml`, `cli.cmd_event`). Found by opening 303 rendered documents, which is the
+firm's own way of finding it and the expensive one.
+
+**What a deliverable is, then:** the core, plus the command a person types **and** the browser route
+where one exists (**S3**), plus its step in the generated `docs/OPERATING-PROCEDURES.md`, plus the
+artifact opened in what the client opens (**S1**). A module only a test can reach is not built yet;
+it is a debugging session the firm has not had yet.
+
 ---
 
 # The pre-flight check

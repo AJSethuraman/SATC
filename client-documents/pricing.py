@@ -354,6 +354,54 @@ def gate_holds(gate, answers: dict, where: str = "gate") -> bool:
     return _gate_holds(gate, answers, where)
 
 
+# The sentinel a tier_from uses when the tier is worked out rather than asked.
+_NOT_AN_ANSWER = {"derived"}
+
+
+def answers_that_move_money(schedule: dict | None = None) -> list[str]:
+    """Every interview answer this schedule reads, in alphabetical order.
+
+    THE RE-QUOTE NEEDS THIS AND NOTHING ELSE DID. An engagement is priced once,
+    at creation, from a whole interview; re-pricing one starts from a much
+    smaller question -- *which answers, if they changed, would change the
+    money?* Guessing that list would put it in two places, and the one in this
+    file would be the one that went stale.
+
+    So it is READ OUT OF THE SCHEDULE: `count_from`, `tier_from` and
+    `select_from` name answers directly, `answer_is` and `answer_includes`
+    name them as gate keys, and every `schedules_*` operator reads the one
+    answer `_schedules` reads. `federal_form` is added because the base fee
+    turns on it whether or not any gate mentions it.
+
+    This is deliberately WIDER than `interview.billable_counts`, which reports
+    what is tagged `feeds:`. `federal_schedules` feeds nothing and carries no
+    count -- and it selects the 1040 package, which is the largest single
+    number on most estimates.
+    """
+    s = schedule if schedule is not None else load()
+    found = {"federal_form"}
+
+    def walk(node):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in ("count_from", "tier_from", "select_from"):
+                    if isinstance(value, str):
+                        found.add(value)
+                elif key in ("answer_is", "answer_includes"):
+                    if isinstance(value, dict):
+                        found.update(str(q) for q in value)
+                elif key in ("schedules_any", "schedules_none",
+                             "schedules_none_of"):
+                    found.add("federal_schedules")
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(s)
+    return sorted(found - _NOT_AN_ANSWER)
+
+
 def _unit_price(schedule: dict, count_from: str, answers: dict | None = None):
     """What one of a counted thing costs to THIS client, or None.
 

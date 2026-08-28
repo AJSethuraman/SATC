@@ -154,3 +154,99 @@ def test_the_check_command_fails_loudly_when_a_join_breaks(tmp_path, capsys):
     rc = cli.main(["check", str(path)])
     assert rc == 1
     assert "FAIL" in capsys.readouterr().out
+
+
+# ── the scope line against the K-1s somebody counted ──────────────────────
+#
+# The estimate bills the counted number and prints the typed line beside it.
+# Nothing compared them until now, so the demo record is the only place they
+# have ever been seen to agree.
+
+def _with_k1s(record, counted=None, line=None):
+    """The demo record, with the two answers that state the K-1 count set."""
+    out = dict(record)
+    if line is None:
+        out.pop("AdditionalForms", None)
+    else:
+        out["AdditionalForms"] = line
+    if counted is None:
+        out.pop("_billable_counts", None)
+    else:
+        out["_billable_counts"] = {"LineItems": {"count_states": 1,
+                                                 "count_k1s": counted}}
+    return out
+
+
+K1_CHECK = "the scope line and the counted K-1s say one number"
+
+
+def test_a_scope_line_that_undercounts_the_billed_k1s_is_caught(record):
+    """The bug, reproduced: four K-1s billed, "Two K-1s as reported" printed
+    above them on the sheet the client is asked to say yes to."""
+    check = _fails(_with_k1s(record, 4, "Two K-1s as reported"), K1_CHECK)
+    assert not check.ok
+    assert "Two" in check.detail and "4" in check.detail
+
+
+def test_a_scope_line_that_matches_the_billed_k1s_passes(record):
+    check = _fails(_with_k1s(record, 2, "Two K-1s as reported"), K1_CHECK)
+    assert check.ok and "2" in check.detail
+
+
+def test_a_digit_in_the_scope_line_is_read_as_a_count(record):
+    """Preparers write it both ways, and a check that only reads words would
+    pass silently on half of them."""
+    agreed = _fails(_with_k1s(record, 4, "4 K-1s as reported"), K1_CHECK)
+    assert agreed.ok and "4" in agreed.detail
+    assert "nothing to compare" not in agreed.detail
+    check = _fails(_with_k1s(record, 3, "4 K-1s as reported"), K1_CHECK)
+    assert not check.ok and "4" in check.detail and "3" in check.detail
+
+
+@pytest.mark.parametrize("line,counted", [
+    ("Two K-1s as reported", 2),
+    ("2 K-1s as reported", 2),
+    ("Two Schedule K-1s as reported", 2),
+    ("Two K1s as reported", 2),
+    ("A Schedule K-1 from the family partnership", 1),
+    ("Two other partnership Schedule K-1s as reported", 2),
+])
+def test_the_ways_a_preparer_writes_the_count_all_read(record, line, counted):
+    """`ok` alone would not prove this: a line the check cannot read also
+    passes, as the one that states no number does. What proves the count was
+    read is the check saying which number it compared."""
+    check = _fails(_with_k1s(record, counted, line), K1_CHECK)
+    assert check.ok, check.detail
+    assert "nothing to compare" not in check.detail
+    assert str(counted) in check.detail
+
+
+def test_a_scope_line_naming_k1s_with_no_number_has_nothing_to_compare(record):
+    """"K-1s as reported" is a true sentence that claims no count. Failing on
+    it would teach whoever runs this to stop reading the six checks beside
+    it."""
+    check = _fails(_with_k1s(record, 4, "K-1s as reported"), K1_CHECK)
+    assert check.ok and "nothing to compare" in check.detail
+
+
+def test_a_scope_line_that_never_mentions_k1s_is_not_compared(record):
+    """Nothing on the page claims a K-1 count, so there is no join to make."""
+    assert K1_CHECK not in _report(_with_k1s(record, 4, "None"))
+
+
+def test_no_counted_k1s_means_the_check_does_not_run(record):
+    """A record written before the counts were kept is not evidence of a
+    disagreement."""
+    assert K1_CHECK not in _report(_with_k1s(record, None, "Two K-1s as reported"))
+
+
+def test_no_scope_line_means_the_check_does_not_run(record):
+    assert K1_CHECK not in _report(_with_k1s(record, 4, None))
+
+
+def test_the_k1_count_check_names_no_client(record):
+    """Details are read out of a terminal and pasted into notes; the client's
+    name has no business in one."""
+    check = _fails(_with_k1s(record, 4, "Two K-1s as reported"), K1_CHECK)
+    for private in ("Reyes", "Daniel", "Maria", record["ClientEmail"]):
+        assert private not in check.detail

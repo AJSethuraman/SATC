@@ -261,6 +261,37 @@ async def run(app: App, shots: Path) -> list[wt.Screen]:
                              no_wait_after=True)
         screens.append(await look(page, "package-written", shots))
 
+        # ── the work changed, so the price does ───────────────────────────
+        #
+        # Driven exactly as a preparer would: open the one question whose
+        # answer moved, type the new number, look at what it does to the
+        # estimate, and give the reason that records it. Not staged -- the
+        # figures on these three screenshots are the fee schedule's, computed
+        # in the running app while the shot was taken.
+        # TWO ANSWERS, BECAUSE THEY STATE ONE FACT. The count is what the
+        # K-1 line is billed from; the additional-forms line is the same fact
+        # in the preparer's own words, printed two inches above it. Moving one
+        # without the other is refused, so the walkthrough shows the way that
+        # works rather than the way that stops.
+        await go(f"/engagement/{ref}/requote")
+        await page.click("details.blk:has(input[name=count_k1s]) summary")
+        await page.fill("input[name=count_k1s]", "6")
+        await page.click("details.blk:has(input[name=additional_forms]) summary")
+        await page.fill("input[name=additional_forms]", "Six K-1s as reported")
+        screens.append(await look(page, "requote-form", shots))
+
+        async with page.expect_navigation(timeout=300000, wait_until="load"):
+            await page.click("button:has-text('See what changes')",
+                             no_wait_after=True)
+        screens.append(await look(page, "requote-changes", shots))
+
+        await page.fill("textarea[name=reason]",
+                        "the estate issued four more K-1s in June")
+        async with page.expect_navigation(timeout=300000, wait_until="load"):
+            await page.click("button:has-text('Record the new quote')",
+                             no_wait_after=True)
+        screens.append(await look(page, "requote-done", shots))
+
         # ── the two screens the rest of the app hangs off ─────────────────
         await go("/")
         screens.append(await look(page, "home", shots))

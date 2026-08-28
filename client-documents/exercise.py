@@ -50,6 +50,7 @@ import invoicing                 # noqa: E402
 import merge                     # noqa: E402
 import packaging                 # noqa: E402
 import presend                   # noqa: E402
+import requote               # noqa: E402
 import schedules as sched        # noqa: E402
 import settings as firm          # noqa: E402
 
@@ -241,6 +242,10 @@ class Result:
     # HUMAN owes a sentence. A harness that goes red on a
     # [CONFIRM: ] trains people to ignore it.
     blocked: list = field(default_factory=list)
+    # What re-quoting this engagement did, as one line. Empty where there was
+    # nothing counted to change, which is a real answer for a scenario whose
+    # price rests entirely on which package it lands in.
+    requoted: str = ""
 
 
 # ── the rest of the client's life ────────────────────────────────────────
@@ -403,6 +408,22 @@ def run_one(s: Scenario, store: Path, out: Path) -> Result:
     except Exception as exc:                              # noqa: BLE001
         r.surprises.append(f"consistency raised {type(exc).__name__}: {exc}")
 
+    # ── THE WORK CHANGED, SO THE PRICE DOES ──────────────────────────────
+    #
+    # Run here, on a live engagement, between the opening pack and the bill --
+    # which is exactly where a re-quote happens in March. Nothing about it is
+    # special-cased per scenario: the answer to change is chosen the way the
+    # software chooses what to offer, from the fee schedule's own list of what
+    # moves money, narrowed to what this client was asked.
+    #
+    # And the estimate is RE-RENDERED and read. `pytest` proves the record
+    # holds the new figure; only opening the document proves a client would
+    # see it.
+    try:
+        r.requoted = _requote(r.ref, store, out / s.key)
+    except Exception as exc:                              # noqa: BLE001
+        r.surprises.append(f"requote raised {type(exc).__name__}: {exc}")
+
     # ── the rest of the life, each on its own ────────────────────────────
     for doc, why in LIFECYCLE.items():
         if doc == "invoice":
@@ -425,6 +446,94 @@ def run_one(s: Scenario, store: Path, out: Path) -> Result:
         except Exception as exc:                          # noqa: BLE001
             r.surprises.append(f"{doc} raised {type(exc).__name__}: {exc}")
     return r
+
+
+def _requote(ref: str, store: Path, pack: Path) -> str:
+    """Quote one live engagement again, and read the estimate that comes out.
+
+    THE ANSWER TO CHANGE IS DERIVED, not written down per scenario. The first
+    counted question this client was actually asked, bumped by two -- which is
+    a client ringing to say there is more of something than they said in
+    January, and is the case the re-quote exists for. A list of scenario-
+    specific answers here would go stale the first time a question was renamed,
+    and would go stale silently: the re-quote would simply stop being
+    exercised.
+    """
+    answers = requote._answers(ref, store)
+    counted = [q["id"] for q in requote.questions(answers)
+               if q["type"] == "number"]
+    if not counted:
+        return "nothing counted to change — this price rests on the package"
+
+    qid = counted[0]
+    was = answers.get(qid)
+    now = (was if isinstance(was, int) else 0) + 2
+    changes = {qid: now}
+
+    # A COUNT THAT HAS A LIST BESIDE IT MOVES WITH ITS LIST. `count_states`
+    # decides what the estimate bills; `states` becomes the scope line on the
+    # estimate AND on the engagement letter, and a re-quote that moved one
+    # without the other is refused -- correctly. Found by reading a revised
+    # estimate out of this harness: it billed three state returns under a
+    # scope line that still read "State: Ohio".
+    for count_id, list_id, _ in requote.COUNTED_AND_NAMED:
+        if count_id != qid:
+            continue
+        named = list(answers.get(list_id) or [])
+        while len(named) < now:
+            named.append(f"another {list_id[:-1]}")
+        changes[list_id] = named[:now]
+
+    quote = requote.plan(ref, changes, store=store)
+    if quote.blockers:
+        return "REFUSED: " + "; ".join(quote.blockers)[:150]
+    if not quote.changes_anything:
+        # Not a failure. An allowance can absorb two more of something, and
+        # the honest report of that is that nothing moved.
+        return f"{qid} {was} → {now}: nothing on the estimate moves"
+
+    requote.apply(quote, f"the client reported {now} rather than {was}",
+                  store=store)
+
+    # AND OPEN WHAT COMES OUT. The record holding a new figure is not the
+    # claim being made -- the claim is that a client's sheet says it.
+    record = cli.build_record(engagements.load(ref, store))
+    html = merge.render_file(cli.TEMPLATE_DIR / cli.DOCUMENTS["fee-estimate"][0],
+                             record).html
+    pack.mkdir(parents=True, exist_ok=True)
+    (pack / "REQUOTED fee-estimate.html").write_text(html, encoding="utf-8")
+
+    # WHAT TO CHECK, AND TWO THINGS THAT ARE NOT IT. Both of these went red
+    # across the whole run before anybody read the output:
+    #
+    #   "the estimate still shows $100.00" -- because $100.00 is also a LINE
+    #   on that estimate. Searching the page for the old total finds the old
+    #   total wherever it also happens to be a price.
+    #
+    #   "the estimate was not re-dated" -- because this harness re-quotes on
+    #   the day it creates the engagement, so the letter's date and the
+    #   estimate's are the same date, correctly. Comparing them to each other
+    #   asks whether they DIFFER, which is not the claim; the claim is that
+    #   the estimate carries the date the re-quote happened.
+    from datetime import date as _date
+
+    amounts = {str(i.get("Amount", "")) for i in (record.get("LineItems") or [])}
+    trouble = []
+    if quote.after_total not in html:
+        trouble.append(f"the estimate does not show {quote.after_total}")
+    if (quote.before_total != quote.after_total
+            and quote.before_total not in amounts
+            and quote.before_total in html):
+        trouble.append(f"the estimate still shows {quote.before_total}")
+    if record["EstimateDate"] != _date.today().strftime("%B %-d, %Y"):
+        trouble.append(f"the estimate is dated {record['EstimateDate']}, not "
+                       f"the day it was quoted")
+    if record["LetterDate"] not in html:
+        trouble.append("the engagement letter's date has gone from the sheet")
+
+    said = (f"{qid} {was} → {now}: {quote.before_total} → "
+            f"{quote.after_total} ({quote.difference})")
+    return said + ("  !! " + "; ".join(trouble) if trouble else "")
 
 
 def renders(paths: list[Path]) -> list[dict]:
@@ -489,6 +598,11 @@ def main(argv=None) -> int:
 
     made = sum(len(r.produced) for r in results)
     refused = sum(len(r.refused) for r in results)
+    # A re-quote whose estimate did not say what the record says is a
+    # surprise, and it is reported as one rather than being left in a column.
+    for r in results:
+        if "!!" in (r.requoted or ""):
+            r.surprises.append("re-quote: " + r.requoted.split("!!", 1)[1].strip())
     surprises = [r for r in results if r.surprises or r.disagreements]
     blocked = [r for r in results if r.blocked and not r.surprises]
     print(f"\n{len(results)} scenarios · {made} documents produced · "
@@ -498,6 +612,9 @@ def main(argv=None) -> int:
         mark = "!!" if (r.surprises or r.disagreements) else "  "
         cmp = f"{len(r.compared)} cross-checked" if r.compared else ""
         print(f"{mark} {r.key:20} {r.status:10} {r.total:>10}  {cmp:16} {r.what}")
+        if r.requoted:
+            mark = "      -> " if "!!" in r.requoted else "      requote: "
+            print(f"{mark}{r.requoted}")
         for x in r.blocked:
             print(f"      WAITING ON THE FIRM: {x}")
         for x in r.surprises:

@@ -178,7 +178,11 @@ def build(record: dict, *, number: str, billed: str, today: date | None = None,
         "Subtotal": m.money(subtotal, currency),
         "AmountDue": m.money(due, currency),
         "EstimateTotal": estimate,
-        "EstimateDate": record.get("LetterDate", ""),
+        # THE ESTIMATE'S DATE, NOT THE LETTER'S. They are the same until the
+        # engagement is quoted again, and after that the invoice must cite the
+        # estimate it is actually billing against -- otherwise a bill built on
+        # March's figures points a client at February's sheet.
+        "EstimateDate": record.get("EstimateDate") or record.get("LetterDate", ""),
         "VarianceNote": variance_note.strip(),
     }
     if credits:
@@ -206,16 +210,15 @@ def _sum(items: list[dict], currency: str) -> float:
 
 
 def _parse(amount) -> float | None:
-    if isinstance(amount, (int, float)):
-        return float(amount)
-    if not isinstance(amount, str):
-        return None
-    cleaned = amount.replace(",", "").strip()
-    cleaned = re.sub(r"^[^\d\-−.]+", "", cleaned).replace(MINUS, "-")
-    try:
-        return float(cleaned)
-    except ValueError:
-        return None
+    """One parser, in `money`, beside the formatter it has to agree with.
+
+    It lived here, and `requote` became its second caller. Two parsers for
+    one money format is what `money.py` warns about in its own docstring:
+    one would learn about a new shape and the other would not, and the one
+    that did not would be deciding whether a client was billed over their
+    estimate.
+    """
+    return m.parse(amount)
 
 
 def _check_variance(out: dict, subtotal: float, estimate: str, currency: str):

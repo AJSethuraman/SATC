@@ -135,6 +135,11 @@ refused:
 
 engagement:
   "button:Build the signing pack": null
+  "button:Update the quote": >-
+    For when the work has changed since you priced it — a second rental, a K-1
+    that turned up, a side business that turned out to be a real one. You are
+    shown every line that moves before anything is recorded, and you can back
+    out.
 
 package-before:
   "button:Build the pack": null
@@ -161,6 +166,44 @@ package-blocked:
 
 # Nothing to press. It is the report, and the pack is already on disk.
 package-written: {}
+
+requote-form:
+  "button:See what changes": >-
+    Prices it again and shows you the result. Nothing is written by pressing
+    this — you get the before and after, and a box for the reason, and only
+    then does anything happen.
+  "disclosure[summary|blk]": >-
+    One answer, with what is on file beside it. Open the ones that have
+    changed and leave the rest alone. Opening one changes nothing on its own.
+  "number:the answer to one question": >-
+    The new number. You never type a price here — you say how many there are
+    now, and the fee schedule works out what that costs, the same way it did
+    in January.
+  "text:the answer to one question": >-
+    The same answer, where it is words rather than a count — the states, or
+    the line that says what else is filed alongside. Several go in separated
+    by commas. Change this one whenever you change a count it describes: if
+    you now bill six K-1s, the line a client reads has to say six too, and you
+    are stopped if it does not.
+
+requote-changes:
+  "button:Record the new quote": >-
+    Writes the new price, keeps the answers you changed, and puts the reason in
+    this engagement's file with today's date.
+  "link:or go back and change something else": null
+  "textarea:WHY DID THE PRICE MOVE?": >-
+    Required, and it is the whole point of the screen. In February somebody
+    will ask why this client was charged more than the letter says, and this
+    sentence is the answer. "Bought a second rental in April" works.
+    "Updated" does not.
+
+requote-done:
+  "button:Build the pack again": >-
+    Rebuilds everything the client signs, with the new figure on it. Press it
+    when the scope changed — the page above tells you whether it did. If only
+    the price moved, the engagement letter still reads correctly and the
+    estimate can go on its own.
+  "button:Open the engagement": null
 
 prices:
   "link[a|main||/prices/<x>]": >-

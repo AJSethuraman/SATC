@@ -85,6 +85,11 @@ def compose_record(answers: dict, *, today: date | None = None) -> dict:
     """
     record = iv.compose(answers)
     record["LetterDate"] = (today or date.today()).strftime("%B %-d, %Y")
+    # THE SAME DATE TODAY, AND NOT THE SAME FIELD. The estimate and the letter
+    # go out together and are dated together -- but an engagement can be quoted
+    # again, and a re-quote moves the estimate's date while the letter keeps
+    # the date the client signed under. One field could not do both.
+    record["EstimateDate"] = record["LetterDate"]
     record["_season"] = str(answers.get("tax_year") or "")
     record["_return_type"] = RETURN_TYPE.get(answers.get("federal_form"), "individual")
     record["_billable_counts"] = iv.billable_counts(answers)

@@ -65,6 +65,9 @@ SCREENS = [
     ("package-before", "What is about to be built"),
     ("package-blocked", "A check failed"),
     ("package-written", "The pack, and every check that passed"),
+    ("requote-form", "The work changed, so the price does"),
+    ("requote-changes", "Every line the new quote moves"),
+    ("requote-done", "The new quote, recorded"),
     ("prices", "What the firm charges"),
     ("wording", "Changing a sentence in a letter"),
     ("wording-section", "One section, open"),
@@ -218,9 +221,19 @@ INVENTORY = r"""() => {
     const wrap = el.closest('label');
     if (wrap) return clean(wrap.innerText);
     if (clean(el.placeholder)) return clean(el.placeholder);
+    // A CAPTION THE PAGE DECLARES, because a box inside a disclosure has no
+    // caption of its own and there is now more than one kind. This used to
+    // return 'the text of one section' for any of them, which was true while
+    // the wording editor was the only screen built this way -- and then the
+    // re-quote put an answer box inside a disclosure and it was captioned as
+    // a section of a letter. The summary's own text cannot be used: it is the
+    // section heading, or the question, and either makes a registry key that
+    // is different next week.
     const box = el.closest('details');
-    if (box && box.querySelector('summary')) {
-      return 'the text of one section';
+    if (box) {
+      const said = box.getAttribute('data-caption');
+      if (said) return clean(said);
+      if (box.querySelector('summary')) return 'the text of one section';
     }
     const h = document.querySelector('h1');
     return h ? 'the answer to “' + clean(h.innerText) + '”' : '';

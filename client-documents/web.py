@@ -41,7 +41,9 @@ import presend
 import sending
 import schedules as sched
 import interview as iv
+import requote
 import settings as firm
+import tins
 
 DRAFTS = "_drafts"
 ROOT = Path(__file__).resolve().parent
@@ -143,29 +145,12 @@ def step_back_to(session: iv.Interview, draft: dict) -> str:
 
 
 def coerce(q: dict, raw) -> object:
-    """A browser sends strings. The schema wants ints, lists and option values.
+    """One converter, in `interview`, beside the schema it converts to.
 
-    Deliberately mirrors the CLI's parsing rather than inventing its own: both
-    accept the option's `value`, and neither invents one that is not offered --
-    an unknown option is passed through so `Interview.answer` rejects it, which
-    is the same gate the terminal hits.
+    It lived here until the re-quote became the second front door onto
+    changing an answer. See `interview.coerce`.
     """
-    t = q["type"]
-    if t in ("multi", "list"):
-        values = raw if isinstance(raw, list) else \
-            [p.strip() for p in (raw or "").split(",") if p.strip()]
-        return values
-    if t == "number":
-        raw = (raw or "").strip() if isinstance(raw, str) else raw
-        if raw in (None, ""):
-            return None
-        try:
-            return int(raw)
-        except (TypeError, ValueError):
-            return raw
-    if isinstance(raw, str):
-        raw = raw.strip()
-    return raw or None
+    return iv.coerce(q, raw)
 
 
 def create_app(store: Path | None = None, leads_workbook: Path | None = None) -> Flask:
@@ -518,7 +503,8 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
         open_now = firm.open_decisions() if hasattr(firm, "open_decisions") else []
         if wants_json():
             return jsonify(ref=ref, record=record, open_decisions=open_now)
-        return page(ref, engagement_body(ref, record, open_now))
+        return page(ref, engagement_body(ref, record, open_now,
+                                         requote.revisions(ref, st())))
 
     # ── packaging: the same gate, without a terminal ──────────────────────
     #
@@ -608,6 +594,141 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
 
         return page("Package", packed_body(ref, record, pack, invoice,
                                            pdf_note))
+
+    # ── the work changed, so the price does ──────────────────────────────
+    #
+    # THE ANSWERS MOVE AND THE ENGINE PRICES THEM. Nowhere on these two screens
+    # can a preparer type a figure, and that is not a styling choice: `pricing`
+    # exists so that no human arithmetic reaches a client, and a box for an
+    # amount would be a second way onto the money with none of the schedule's
+    # rules behind it.
+    #
+    # NOTHING IS WRITTEN UNTIL THE SECOND SCREEN. The first shows what would
+    # happen; the second takes a reason and records it. The plan is computed
+    # again from the answers on the way in rather than carried across as a
+    # decided thing -- a price that arrived on a form is a price a form could
+    # have changed.
+
+    def _changes_from(form, answers):
+        """What the form is asking to change, in the schema's own types.
+
+        Only the questions this client is actually asked, and only the ones
+        whose value MOVED. Posting back every field unchanged would otherwise
+        record a revision naming fourteen answers, none of which are news.
+
+        WHICH QUESTIONS WERE ON THE PAGE IS ITS OWN FIELD, and it has to be.
+        Reading "was this question present?" off the answer field cannot see an
+        emptied multi-select: unticking every box sends nothing at all, which
+        is indistinguishable from the question not being there -- so clearing
+        one silently did nothing, on a screen that had just shown the boxes
+        being unticked. `_asked` is posted once per question and says what the
+        preparer was actually looking at.
+        """
+        asked = {q["id"]: q for q in requote.questions(answers)}
+        on_page = (form.getlist("_asked") if hasattr(form, "getlist")
+                   else (form.get("_asked") or []))
+        out = {}
+        for qid in on_page:
+            q = asked.get(qid)
+            if q is None:
+                continue
+            if hasattr(form, "getlist"):
+                raw = form.getlist(f"{qid}[]") or form.getlist(qid)
+            else:
+                raw = form.get(qid)
+            if isinstance(raw, list) and q["type"] not in ("multi", "list"):
+                raw = raw[0] if raw else ""
+            value = iv.coerce(q, raw)
+            # A REORDERED SET OF TICKED BOXES IS NOT A CHANGE, and the old
+            # order is kept rather than the new one: the schedules print on
+            # the engagement letter in the order they are stored, so writing
+            # the browser's reading order back would move a scope line on a
+            # signed letter to say the same thing differently.
+            if not iv.same_answer(q, answers.get(qid), value):
+                out[qid] = value
+        return out
+
+    @app.get("/engagement/<ref>/requote")
+    def requote_form(ref):
+        try:
+            record = engagements.load(ref, st())
+            answers = requote._answers(ref, st())
+        except (engagements.EngagementError, requote.RequoteError) as exc:
+            abort(404, str(exc))
+        if wants_json():
+            return jsonify(ref=ref,
+                           questions=[q["id"] for q in requote.questions(answers)],
+                           answers={q["id"]: answers.get(q["id"])
+                                    for q in requote.questions(answers)})
+        return page("Update the quote",
+                    requote_body(ref, record, requote.questions(answers),
+                                 answers))
+
+    @app.post("/engagement/<ref>/requote")
+    def requote_preview(ref):
+        try:
+            record = engagements.load(ref, st())
+            answers = requote._answers(ref, st())
+        except (engagements.EngagementError, requote.RequoteError) as exc:
+            abort(404, str(exc))
+
+        body = request.get_json(silent=True) if request.is_json else None
+        form = body if body is not None else request.form
+        if body is not None:
+            changes = {k: v for k, v in (body.get("changes") or {}).items()}
+        else:
+            changes = _changes_from(form, answers)
+
+        if not changes:
+            return page("Update the quote",
+                        requote_body(ref, record, requote.questions(answers),
+                                     answers,
+                                     problem="Nothing on this page is "
+                                             "different from what is already "
+                                             "on file, so there is nothing to "
+                                             "re-quote.")), 400
+        try:
+            quote = requote.plan(ref, changes, store=st())
+        except requote.RequoteError as exc:
+            return page("Update the quote",
+                        requote_body(ref, record, requote.questions(answers),
+                                     answers, problem=str(exc))), 400
+
+        # RECORD IT, OR JUST LOOK? The browser posts here to LOOK. A caller
+        # that means it sends a reason, and then this is the same two-step the
+        # screens are: plan, then write.
+        reason = (form.get("reason") or "").strip()
+        if reason:
+            try:
+                requote.apply(quote, reason, store=st())
+            except (requote.RequoteError, tins.TinRefused) as exc:
+                if wants_json():
+                    return jsonify(ref=ref, status="refused",
+                                   detail=str(exc)), 400
+                return page("Update the quote",
+                            requoted_body(ref, record, quote, changes,
+                                          problem=str(exc))), 400
+            if wants_json():
+                return jsonify(ref=ref, status="recorded",
+                               was=quote.before_total, now=quote.after_total,
+                               difference=quote.difference)
+            return page("Update the quote",
+                        requoted_body(ref, record, quote, changes, done=True))
+
+        if wants_json():
+            return jsonify(
+                ref=ref, status="planned" if quote.ok else "blocked",
+                was=quote.before_total, now=quote.after_total,
+                difference=quote.difference,
+                blockers=quote.blockers, notes=quote.notes,
+                changed=[{"question": c.question, "from": _plain(c.before),
+                          "to": _plain(c.after)} for c in quote.changed],
+                moved=[{"service": mv.service, "was": mv.before,
+                        "now": mv.after} for mv in quote.moved],
+                scope=[{"field": c.question, "from": _plain(c.before),
+                        "to": _plain(c.after)} for c in quote.scope_moved])
+        return page("Update the quote",
+                    requoted_body(ref, record, quote, changes))
 
     return app
 
@@ -1256,7 +1377,7 @@ def _field_labels() -> dict:
     return out
 
 
-def engagement_body(ref, record, open_now) -> str:
+def engagement_body(ref, record, open_now, revisions=()) -> str:
     out = [f"<h1>{esc(record.get('ClientFullName', ref))}</h1>",
            f"<p class=sec>{esc(ref)} &middot; {esc(record.get('PeriodLabel',''))}</p>",
            "<table class=plain>"]
@@ -1278,6 +1399,15 @@ def engagement_body(ref, record, open_now) -> str:
                f"class=row><button>Build the signing pack</button>"
                f"<span class=muted>Every document this client signs, checked "
                f"before any of it goes out.</span></form>")
+    # THE OTHER THING THAT HAPPENS TO A LIVE ENGAGEMENT, on the same screen.
+    # A door nothing links to is a door nobody finds: packaging was reachable
+    # only by typing a command until this page linked it, and re-quoting was
+    # not reachable at all.
+    out.append(f"<form method=get action='/engagement/{esc(ref)}/requote' "
+               f"class=row><button class=ghost>Update the quote</button>"
+               f"<span class=muted>The work changed &mdash; a second rental, "
+               f"another K-1. See every line that moves before anything is "
+               f"recorded.</span></form>")
     if record.get("LineItems"):
         out.append("<h1 style='margin-top:30px'>Fee estimate</h1><table>"
                    "<tr><th>Service</th><th>Amount</th></tr>")
@@ -1286,6 +1416,189 @@ def engagement_body(ref, record, open_now) -> str:
                        f"<td><code>{esc(i['Amount'])}</code></td></tr>")
         out.append(f"<tr><th>Total</th><td><code>"
                    f"{esc(record.get('EstimateTotal'))}</code></td></tr></table>")
+    if revisions:
+        # THE LOG, ON THE PAGE. `revisions.json` is append-only and nobody
+        # would have found it. A price that moved and can only be explained by
+        # opening a file in the store is a price nobody can defend on the
+        # phone.
+        out.append("<h1 style='margin-top:30px'>This quote has moved</h1>"
+                   "<table><tr><th>When</th><th>Why</th><th>Was</th>"
+                   "<th>Now</th></tr>")
+        for entry in revisions:
+            out.append(f"<tr><td>{esc(entry.get('when',''))}</td>"
+                       f"<td>{esc(entry.get('reason',''))}</td>"
+                       f"<td><code>{esc(entry.get('was',''))}</code></td>"
+                       f"<td><code>{esc(entry.get('now',''))}</code></td></tr>")
+        out.append("</table>")
+    return "".join(out)
+
+
+def _plain(value) -> str:
+    """A value as a person reads it. One function, so the page and the JSON
+    say the same thing about the same answer."""
+    if value in (None, "", []):
+        return "(nothing)"
+    if isinstance(value, (list, tuple)):
+        return ", ".join(str(x) for x in value)
+    return str(value)
+
+
+def _answer_control(q, held) -> str:
+    """One question, showing what is on file, ready to be changed.
+
+    The interview's own control for that type, and the answer already given is
+    ALREADY SELECTED -- this screen is a correction, not a fresh sitting, and a
+    blank form would ask a preparer to retype thirteen answers to change one.
+    """
+    t = q["type"]
+    qid = esc(q["id"])
+    marks = [] if held in (None, "", []) else (
+        [str(x) for x in held] if isinstance(held, list) else [str(held)])
+    shown = ", ".join(marks)
+    out = []
+    if t in ("single", "multi"):
+        kind = "radio" if t == "single" else "checkbox"
+        name = f"{qid}[]" if t == "multi" else qid
+        for o in q.get("options", []):
+            on = " checked" if str(o["value"]) in marks else ""
+            out.append(f"<label><input type={kind} name='{name}' "
+                       f"value='{esc(o['value'])}'{on}> {esc(o['label'])}</label>")
+        if t == "single" and not q.get("required"):
+            out.append(f"<label><input type=radio name='{qid}' value=''"
+                       + ("" if marks else " checked")
+                       + "> <span class=muted>not answered</span></label>")
+    elif t == "number":
+        out.append(f"<input type=number name='{qid}' min=0 "
+                   f"value='{esc(shown)}'>")
+    elif t == "textarea":
+        out.append(f"<textarea name='{qid}' rows=3>{esc(shown)}</textarea>")
+    else:
+        out.append(f"<input type=text name='{qid}' value='{esc(shown)}'>")
+    return "".join(out)
+
+
+def requote_body(ref, record, questions, answers, problem="") -> str:
+    """What can change, showing what it says today. Nothing is written here."""
+    out = [f"<h1>Update the quote</h1>",
+           f"<p class=sec>{esc(ref)} &middot; "
+           f"{esc(record.get('ClientFullName',''))}</p>"]
+    if problem:
+        out.append(f"<p class=err>{esc(problem)}</p>")
+    out.append("<p class=help>The work changed, so the price does. Change what "
+               "is different and you will see every line that moves before "
+               "anything is recorded. Nobody types a figure &mdash; the same "
+               "schedule that priced this engagement prices it again.</p>")
+    out.append(f"<p class=help><b>{esc(record.get('EstimateTotal',''))}</b> "
+               f"is the figure on file, from "
+               f"{esc(record.get('EstimateDate') or record.get('LetterDate',''))}"
+               f".</p>")
+    out.append(f"<form method=post action='/engagement/{esc(ref)}/requote'>")
+    for q in questions:
+        out.append(f"<input type=hidden name=_asked value='{esc(q['id'])}'>")
+        out.append("<details class=blk "
+                   "data-caption='the answer to one question'><summary>"
+                   f"<b>{esc(q['question'])}</b>"
+                   f"<span class=fname>{esc(_plain(answers.get(q['id'])))}"
+                   f"</span></summary>")
+        if q.get("help"):
+            out.append(f"<p class=help>{esc(q['help'])}</p>")
+        out.append(_answer_control(q, answers.get(q["id"])))
+        out.append("</details>")
+    out.append("<div class=row><button>See what changes</button>"
+               "<span class=muted>Nothing is written yet.</span></div></form>")
+    return "".join(out)
+
+
+def requoted_body(ref, record, quote, changes, *, done=False,
+                  problem="") -> str:
+    """The plan, and the one box that writes it."""
+    out = [f"<h1>{'The new quote is recorded' if done else 'What this changes'}"
+           f"</h1>",
+           f"<p class=sec>{esc(ref)} &middot; "
+           f"{esc(record.get('ClientFullName',''))}</p>"]
+    if problem:
+        out.append(f"<p class=err>{esc(problem)}</p>")
+    if quote.blockers:
+        for line in quote.blockers:
+            out.append(f"<p class=err>{esc(line)}</p>")
+        out.append(f"<p><a href='/engagement/{esc(ref)}/requote'>"
+                   f"Back to the answers</a></p>")
+        return "".join(out)
+
+    # THE QUESTION, NOT ITS NAME IN THE SOFTWARE. This read `COUNT_K1S` and
+    # `ADDITIONAL_FORMS` down the left-hand side until somebody looked at the
+    # screenshot. A preparer confirming a change with a client on the phone
+    # reads out what was asked, and `pricing.spec.py` enforces the same rule
+    # over the price page: nothing built out of our own vocabulary.
+    out.append("<h2 class=sec>What changed in the interview</h2><table>")
+    for change in quote.changed:
+        out.append(f"<tr><th>{esc(requote._question_text(change.question))}"
+                   f"<span class=fname>{esc(change.question)}</span></th>"
+                   f"<td>{esc(_plain(change.before))} &rarr; "
+                   f"<b>{esc(_plain(change.after))}</b></td></tr>")
+    out.append("</table>")
+
+    out.append("<h2 class=sec>The estimate</h2><table>"
+               "<tr><th>Line</th><th>Was</th><th>Now</th></tr>")
+    for mv in quote.moved:
+        out.append(f"<tr><td>{esc(mv.service)}</td>"
+                   f"<td><code>{esc(mv.before or '—')}</code></td>"
+                   f"<td><code>{esc(mv.after or '— (gone)')}</code></td></tr>")
+    if not quote.moved:
+        out.append("<tr><td colspan=3 class=muted>no line moves</td></tr>")
+    out.append(f"<tr><th>Total</th><td><code>{esc(quote.before_total)}</code>"
+               f"</td><td><code>{esc(quote.after_total)}</code></td></tr>"
+               f"</table>")
+    out.append(f"<p class=help><b>{esc(quote.difference)}.</b></p>")
+
+    if quote.scope_moved:
+        # SAID SEPARATELY. The price is the headline; the scope is the thing
+        # that gets missed, and it is on a letter the client has signed.
+        out.append("<h2 class=sec>The engagement letter says something else "
+                   "now</h2><table>")
+        labels = _field_labels()
+        for change in quote.scope_moved:
+            out.append(f"<tr><th>"
+                       f"{esc(labels.get(change.question, change.question))}"
+                       f"<span class=fname>{esc(change.question)}</span></th>"
+                       f"<td>{esc(_plain(change.before))} &rarr; "
+                       f"<b>{esc(_plain(change.after))}</b></td></tr>")
+        out.append("</table>")
+    for note in quote.notes:
+        out.append(f"<p class=help>{esc(note)}</p>")
+
+    if done:
+        out.append(f"<div class=row>"
+                   f"<form method=get action='/engagement/{esc(ref)}/package'>"
+                   f"<button>Build the pack again</button></form>"
+                   f"<form method=get action='/engagement/{esc(ref)}'>"
+                   f"<button class=ghost>Open the engagement</button></form>"
+                   f"</div>")
+        return "".join(out)
+
+    out.append(f"<form method=post action='/engagement/{esc(ref)}/requote'>")
+    for qid, value in changes.items():
+        out.append(f"<input type=hidden name=_asked value='{esc(qid)}'>")
+        for one in (value if isinstance(value, list) else [value]):
+            name = f"{esc(qid)}[]" if isinstance(value, list) else esc(qid)
+            out.append(f"<input type=hidden name='{name}' "
+                       f"value='{esc('' if one is None else one)}'>")
+    if any(isinstance(v, list) and not v for v in changes.values()):
+        # An emptied multi-select carries no value field at all, so the hidden
+        # block above draws nothing for it. `_asked` above is what survives,
+        # and `iv.coerce` reads the absence back as the empty list.
+        pass
+    out.append("<div class=f><label class=fl for=why>Why did the price "
+               "move?</label>"
+               "<p class=help>One sentence, for whoever reads this engagement "
+               "next year. A reason names the thing: &ldquo;bought a second "
+               "rental in April&rdquo;. &ldquo;Updated&rdquo; is not a "
+               "reason.</p>"
+               "<textarea id=why name=reason rows=2 required></textarea>"
+               "</div>"
+               "<div class=row><button>Record the new quote</button>"
+               f"<a class=muted href='/engagement/{esc(ref)}/requote'>"
+               f"or go back and change something else</a></div></form>")
     return "".join(out)
 
 

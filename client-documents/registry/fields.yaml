@@ -122,8 +122,15 @@ fields:
       and the return cannot disagree about what the entity is.
   - field: EstimateDate
     label: "Date of the estimate"
-    source: invoice
-    templates: [invoice]
+    source: computed
+    templates: [fee-estimate, invoice]
+    notes: >-
+      The estimate's OWN date, and the reason it is not LetterDate: an
+      engagement can be quoted again. A re-quote leaves the signed letter's
+      date alone and moves this one, so a client holding two estimates can
+      tell which is the live one, and the invoice cites the estimate it is
+      actually billing against. Set to LetterDate when the engagement is
+      created, so an engagement nobody re-quotes reads exactly as before.
   - field: EstimateTotal
     label: "Estimate total"
     source: computed
@@ -219,7 +226,9 @@ fields:
     source: computed
     templates: [bookkeeping-letter, business-letter, ccorp-letter, delivery-letter, disengagement-letter, extension-notice, fee-estimate, onboarding-letter, organizer-letter, records-release, tax-letter]
     notes: >-
-      Generated at send time. On the estimate this is the LETTER's date, not today's.
+      Generated at send time. The estimate carries it only in the sentence that
+      names the engagement letter -- the estimate's own date is EstimateDate,
+      because a re-quote moves one and must not move the other.
   - field: LocalReturns
     label: "Local returns"
     source: interview

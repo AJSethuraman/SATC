@@ -364,6 +364,60 @@ class Interview:
         return hard_no(self.answers, self.schema)
 
 
+def coerce(q: dict, raw) -> object:
+    """A typed-in answer -> the value the schema expects.
+
+    A browser sends strings; so does `--set count_rentals=2`. Both need the
+    same conversion, and it lived in `web.py` where only the browser could
+    reach it. The re-quote is the second front door onto changing an answer,
+    and a second converter is how "2" becomes the integer 2 in one door and
+    the string "2" in the other -- which prices differently and looks
+    identical in a log.
+
+    An unknown option value is passed through untouched, so `Interview.answer`
+    rejects it. Inventing one that is not offered would be the converter
+    deciding what the client said.
+    """
+    t = q["type"]
+    if t in ("multi", "list"):
+        values = raw if isinstance(raw, list) else \
+            [p.strip() for p in (raw or "").split(",") if p.strip()]
+        return values
+    if t == "number":
+        raw = (raw or "").strip() if isinstance(raw, str) else raw
+        if raw in (None, ""):
+            return None
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return raw
+    if isinstance(raw, str):
+        raw = raw.strip()
+    return raw or None
+
+
+def same_answer(question: dict, before, after) -> bool:
+    """Are these two the same answer to this question?
+
+    ORDER IS MEANINGFUL IN ONE OF THE TWO LIST TYPES AND NOT THE OTHER.
+    A `multi` is a set of ticked boxes: the schedules on a return are the same
+    schedules whichever order the boxes were read in, and a browser reads them
+    in the order they are drawn, which is not the order they were stored in.
+    A `list` is typed prose -- the states, the additional forms -- and it
+    prints in the order it was given, so reordering it is a real change.
+
+    Found by looking at a re-quote's before-and-after, which reported
+    "C, SE, E1, E2, A -> A, C, E1, E2, SE" as something the client had
+    changed, and reported the engagement letter's scope line as moving with
+    it. Nothing had changed but the reading order.
+    """
+    if question.get("type") == "multi":
+        one = before if isinstance(before, list) else []
+        two = after if isinstance(after, list) else []
+        return sorted(str(x) for x in one) == sorted(str(x) for x in two)
+    return before == after
+
+
 def missing_required(answers: dict, schema: dict | None = None) -> list[str]:
     """Required questions this interview should have answered and did not.
 
@@ -594,6 +648,40 @@ def _treatment_is_redundant(answers: dict) -> bool:
             or (structure in {"lp", "llp", "gp"} and form == "1065"))
 
 
+# Merge fields this module BUILDS rather than reads straight off an answer.
+#
+# Two callers need the same list and it existed as a set literal inside
+# `compose`, where only `compose` could see it. The other caller is `requote`:
+# re-pricing an engagement recomposes the record from the amended answers, and
+# a field the new answers no longer supply has to be REMOVED from the record
+# rather than left standing. A client who drops their second state and keeps
+# `StateReturns: "Ohio and Michigan"` on the engagement letter is the same
+# stale-claim failure as any other -- the scope says one thing, the price says
+# another, and nothing compares them.
+COMPOSED = frozenset({
+    "FederalReturns", "StateReturns", "LocalReturns", "AdditionalForms",
+    "JointReturn", "PriorFirm", "EntityType", "OwnerReturnsPrepared",
+    "OwnerReturnsElsewhere", "EntityIssuesK1s",
+    # Built below and supplied by no question today. Listed anyway: the point
+    # of the list is what compose CAN emit, and a question that starts
+    # supplying one of these should not silently win over the derivation.
+    "SCorpElection", "ReturnScope", "PeriodLabel",
+})
+
+
+def composable_fields() -> frozenset[str]:
+    """Every merge field the interview's answers can put on a record.
+
+    What `compose` builds, plus everything any question declares it
+    `supplies:`. Read from the schema rather than listed here, so a new
+    question is covered the day it is added.
+    """
+    out = set(COMPOSED)
+    for _, q in all_questions(load_schema()):
+        out.update(q.get("supplies") or [])
+    return frozenset(out)
+
+
 def compose(answers: dict) -> dict:
     """Interview answers -> the merge fields they supply.
 
@@ -610,10 +698,7 @@ def compose(answers: dict) -> dict:
             continue
         for field in q["supplies"]:
             # Composed fields are built below; a raw answer must not clobber one.
-            if field in {"FederalReturns", "StateReturns", "LocalReturns",
-                         "AdditionalForms", "JointReturn", "PriorFirm",
-                         "EntityType", "OwnerReturnsPrepared",
-                         "OwnerReturnsElsewhere", "EntityIssuesK1s"}:
+            if field in COMPOSED:
                 continue
             out[field] = value
 

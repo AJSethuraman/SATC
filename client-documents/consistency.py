@@ -81,6 +81,58 @@ def _as_date(value):
         return None
 
 
+# "K-1", "K1", "K -1", "Schedule K-1", and the plural of any of them. The
+# preparer types this line by hand, so the spacing and the hyphen are whatever
+# they were on the day.
+_K1 = r"k\s*-?\s*1s?\b"
+_NUMBER_WORDS = {
+    "a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
+    "twelve": 12,
+}
+# A number has to sit next to the K-1s to be a count OF them: at most two
+# words in between, and never across an "and" or an "or", so "two brokerage
+# statements and K-1s as reported" is not read as two K-1s.
+_K1_COUNT = re.compile(
+    rf"\b({'|'.join(_NUMBER_WORDS)}|\d{{1,3}})\b"
+    rf"(?:\s+(?!and\b|or\b)[A-Za-z]+){{0,2}}\s+(?:schedules?\s+)?{_K1}",
+    re.I)
+_K1_NAMED = re.compile(rf"\b{_K1}", re.I)
+
+
+def k1_claim(text: str):
+    """How many K-1s a scope line says there are: (as written, as a number).
+
+    None where the line states no number -- "K-1s as reported" is a true
+    sentence that claims no count, and there is nothing to compare it to.
+    People write the number both ways, so "Two K-1s" and "4 K-1s" both read.
+    """
+    match = _K1_COUNT.search(text or "")
+    if not match:
+        return None
+    written = match.group(1)
+    value = _NUMBER_WORDS.get(written.lower())
+    return written, int(written) if value is None else value
+
+
+def _counted_k1s(record: dict):
+    """The K-1s the preparer counted, off the record's own billing counts.
+
+    Read, never recomputed: re-running the interview here would compare the
+    answer to itself and agree every time.
+    """
+    counts = record.get("_billable_counts")
+    if not isinstance(counts, dict):
+        return None
+    for group in [counts, *(v for v in counts.values() if isinstance(v, dict))]:
+        if "count_k1s" in group:
+            try:
+                return int(group["count_k1s"])
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
 def report(record: dict, rendered: dict[str, str]) -> list[Check]:
     """`rendered` is {document name -> its HTML}, as `cli.render` produces.
 
@@ -180,6 +232,36 @@ def report(record: dict, rendered: dict[str, str]) -> list[Check]:
             if not outside else
             f"the estimate names Schedule {', '.join(outside)}, which the "
             f"letter's scope does not"))
+
+    # ── the scope line and the counted K-1s say one number ────────────────
+    #
+    # ANOTHER JOIN NOTHING MADE, and this one lands on a single sheet of
+    # paper. The preparer counts the K-1s -- that count is what the
+    # "Schedule K-1 received" line is billed from -- and separately types
+    # the additional forms line in their own words. Both print on the fee
+    # estimate. Seen live on an engagement where four K-1s were billed
+    # while the scope line two inches above read "Two K-1s as reported":
+    # the client is charged for four and told there are two, on the page
+    # they are being asked to say yes to, and nothing here objected.
+    #
+    # A line that names K-1s and gives no number is not a failure. There is
+    # nothing to compare, and a check that goes red where no answer exists
+    # is one people stop reading, which costs the checks beside it too.
+    claimed = k1_claim(record.get("AdditionalForms"))
+    counted = _counted_k1s(record)
+    line = (record.get("AdditionalForms") or "").strip()
+    if counted is not None and _K1_NAMED.search(line):
+        written = claimed[0] if claimed else ""
+        plural = "" if counted == 1 else "s"
+        out.append(Check(
+            "the scope line and the counted K-1s say one number",
+            claimed is None or claimed[1] == counted,
+            f"the scope line names K-1s and states no number, so there was "
+            f"nothing to compare against the {counted} billed"
+            if claimed is None else
+            f"the scope line and the bill both say {counted} K-1{plural}"
+            if claimed[1] == counted else
+            f"the scope line says {written} K-1s and {counted} are billed"))
 
     # ── the total is the sum of the lines ─────────────────────────────────
     items = record.get("LineItems") or []

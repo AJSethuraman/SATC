@@ -26,6 +26,7 @@ make demo                          # lead -> record -> the opening package as PD
 python cli.py interview --lead lead.json      # the consultation call
 python cli.py doctor --engagement 2026-0001   # what THIS client still needs
 python cli.py render --engagement 2026-0001 --out out
+python cli.py requote --engagement 2026-0001   # the work changed
 ```
 
 `cli.py` is the entry point:
@@ -34,6 +35,7 @@ python cli.py render --engagement 2026-0001 --out out
 |---|---|
 | `interview` | runs the consultation from `registry/interview.yaml` — **and creates the engagement** |
 | `engagements` | what exists |
+| `requote` | the work changed: prices the engagement again from the answers, shows every line that moves, and writes nothing without a reason |
 | `doctor` | open decisions blocking every render; `--engagement REF` for one client, document by document |
 | `from-lead` | a website intake payload → a record skeleton |
 | `render` | a record, or `--engagement REF` → client-ready HTML and PDF |

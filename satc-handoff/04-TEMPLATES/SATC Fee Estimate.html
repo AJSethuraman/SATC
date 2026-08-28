@@ -34,7 +34,7 @@
     <div class="kind"><span data-encl="engagement-letter">Accompanies our engagement letter</span></div>
   </div>
   <table class="smeta">
-    <tr><td class="k">Date</td><td class="v"><span class="f">&lt;&lt;LetterDate&gt;&gt;</span></td></tr>
+    <tr><td class="k">Date</td><td class="v"><span class="f">&lt;&lt;EstimateDate&gt;&gt;</span></td></tr>
     <tr><td class="k">Engagement ref</td><td class="v"><span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></td></tr>
     <tr><td class="k">Period</td><td class="v"><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></td></tr>
   </table>
@@ -105,7 +105,8 @@
   <p>Serves either engagement letter — tax preparation or bookkeeping. Clauses are referenced <b>by name</b>, never by number, so renumbering either letter cannot break the pointer. Same conventions as the letters: <code>&lt;&lt;Field&gt;&gt;</code> substitutes a value, <code>[[EACH List]]</code> … <code>[[END EACH]]</code> repeats the rows between them once per item. Inside an EACH block, fields are dotted — <code>&lt;&lt;Item.Service&gt;&gt;</code>. <span class="warn">Fail the render on any unresolved <code>&lt;&lt;</code> or <code>[[</code>.</span></p>
   <table>
     <tr><th>Field</th><th>Required</th><th>Example / notes</th></tr>
-    <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>February 3, 2027 — <b>the engagement letter's date, not today's</b>. The estimate is dated to the letter it accompanies, and appears twice.</td></tr>
+    <tr><td>&lt;&lt;EstimateDate&gt;&gt;</td><td class="req">Required</td><td>February 3, 2027 — <b>this estimate's own date</b>, at the head of the sheet. Set to the letter's date when the engagement is created, and moved when the engagement is quoted again. Two estimates in a drawer showing different totals under the same date is a question nobody can answer next February.</td></tr>
+    <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>February 3, 2027 — <b>the engagement letter's date</b>, in the one sentence that names it. Never moves: the client has signed that letter. Byte-identical to the letter's own.</td></tr>
     <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the join key. Must be byte-identical to the letter's, or the pair comes apart in a file drawer.</td></tr>
     <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Mr. and Mrs. Daniel Reyes</td></tr>
     <tr><td>&lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Same four fields as the letter, from the same record</td></tr>
@@ -119,7 +120,7 @@
     <tr><td>&lt;&lt;EstimateTotal&gt;&gt;</td><td class="req">Required</td><td>$785 — <b>computed, not typed.</b> Sum the line items in code so the arithmetic can't be wrong on a client-facing document.</td></tr>
     <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner</td></tr>
   </table>
-  <p><b>11 fields + 1 repeating list of 3.</b> Nine come from the same records that drive either engagement letter, so generate the pair together from one call and they can never disagree. The other two — <code>&lt;&lt;PeriodLabel&gt;&gt;</code> and <code>&lt;&lt;EstimateTotal&gt;&gt;</code> — are the estimate's own.</p>
+  <p><b>12 fields + 1 repeating list of 3.</b> Nine come from the same records that drive either engagement letter, so generate the pair together from one call and they can never disagree. The other three — <code>&lt;&lt;EstimateDate&gt;&gt;</code>, <code>&lt;&lt;PeriodLabel&gt;&gt;</code> and <code>&lt;&lt;EstimateTotal&gt;&gt;</code> — are the estimate's own, and the first of them is why: an engagement can be quoted again, and the sheet has to say when.</p>
 
   <h3>Deliberately not here</h3>
   <ol>

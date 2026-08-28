@@ -54,7 +54,9 @@ import closeout
 import consistency
 import merge
 import pricing
+import requote
 import settings as firm
+import tins
 
 ROOT = Path(__file__).resolve().parent
 TEMPLATE_DIR = ROOT.parent / "satc-handoff" / "04-TEMPLATES"
@@ -272,6 +274,14 @@ def build_record(record: dict) -> dict:
     fields = firm.firm_fields(season, record.get("_return_type", "individual"))
     out = {k: v for k, v in fields.items() if v is not None}
     out.update(record)
+    # AN ENGAGEMENT PRICED BEFORE THE ESTIMATE HAD ITS OWN DATE. `EstimateDate`
+    # arrived with the re-quote -- until then the estimate was dated to the
+    # letter, and every record already on disk carries only `LetterDate`.
+    # Backfilled here rather than migrating the store: the value is the same on
+    # an engagement nobody has re-quoted, and a render that refused on a
+    # record written last week would be this change breaking real work.
+    if not out.get("EstimateDate") and out.get("LetterDate"):
+        out["EstimateDate"] = out["LetterDate"]
     # `_`-prefixed keys are metadata, not merge fields: the season and return
     # type that chose the deadline, and the website's unsharpened claims. They
     # ride along because the filename needs the season, and merge.render only
@@ -1288,6 +1298,145 @@ def cmd_event(args) -> int:
     return rc
 
 
+def _requote_questions(ref: str, store: Path) -> int:
+    """What can be changed, and what it says today. The no-argument case.
+
+    `store` is passed rather than reached for. It defaulted to the real
+    engagement store while every other line of this command honoured
+    `--store`, so the listing reported "no saved interview" for an engagement
+    that was sitting right there in the store the caller named. Found by
+    running the command, which is the only way that class of bug is found.
+    """
+    try:
+        answers = requote._answers(ref, store)
+    except requote.RequoteError as exc:
+        print(f"\n{exc}\n")
+        return 1
+    print(f"\nThese are the answers that move money on {ref}.")
+    print("Change one with --set, and give --reason to write it:\n")
+    print(f"    python cli.py requote --engagement {ref} \\")
+    print(f"        --set count_rentals=2 --reason 'bought a second rental "
+          f"in April'\n")
+    print("  Changing one can reveal another — how many rentals is only asked\n"
+          "  once Schedule E is on the return.\n")
+    for q in requote.questions(answers):
+        held = answers.get(q["id"])
+        shown = ", ".join(str(x) for x in held) if isinstance(held, list) \
+            else ("" if held in (None, "") else str(held))
+        print(f"  {q['id']:26} {shown[:30]:32} {q['question'][:52]}")
+    print()
+    return 0
+
+
+def _print_quote(quote, ref: str) -> None:   # noqa: ARG001
+    """The plan, as a preparer reads it out loud. Nothing has been written."""
+    for line in quote.blockers:
+        print("\n  " + textwrap.fill(line, 72, subsequent_indent="  "))
+    if quote.blockers:
+        print()
+        return
+    print("\n  What changed in the interview")
+    for change in quote.changed:
+        print(f"      {requote._question_text(change.question)}")
+        print(f"          {change.line()}")
+    if not quote.changed:
+        print("      nothing — these are the answers already on file")
+
+    print("\n  The estimate")
+    if quote.moved:
+        for mv in quote.moved:
+            was = mv.before if mv.before is not None else "—"
+            now = mv.after if mv.after is not None else "— (gone)"
+            print(f"      {mv.service[:38]:40} {was:>12}  →  {now}")
+    else:
+        print("      no line moves")
+    print(f"      {'TOTAL':40} {quote.before_total:>12}  →  "
+          f"{quote.after_total}")
+    print(f"\n  {quote.difference}.")
+
+    if quote.scope_moved:
+        # SAID SEPARATELY, AND SAID SECOND. The price is the headline and the
+        # scope is the thing that gets missed -- it is on a letter the client
+        # has already signed.
+        print("\n  The scope on the engagement letter moves too")
+        for change in quote.scope_moved:
+            print(f"      {change.line()}")
+    for note in quote.notes:
+        print("\n  " + textwrap.fill(note, 72, subsequent_indent="  "))
+    print()
+
+
+def cmd_requote(args) -> int:
+    """Quote a live engagement again, because the work changed.
+
+    NOBODY TYPES A FIGURE. The answers move and the same engine that priced
+    the engagement the first time prices it again -- see `requote.py` for why
+    that is not a stylistic preference.
+
+    WITHOUT `--reason`, THIS WRITES NOTHING. The plan prints and the command
+    stops. A re-quote that could happen by accident is a price that moved and
+    cannot be explained, and the reason is what makes it explicable a year
+    later.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    if not args.set:
+        return _requote_questions(args.engagement, store)
+
+    changes = {}
+    schema = iv.load_schema()
+    asked = {q["id"]: q for _, q in iv.all_questions(schema)}
+    for pair in args.set:
+        if "=" not in pair:
+            print(f"\n--set wants question=value, got {pair!r}.\n")
+            return 1
+        qid, raw = pair.split("=", 1)
+        qid = qid.strip()
+        q = asked.get(qid)
+        if q is None:
+            print(f"\nThe interview asks no question called {qid!r}. Run this "
+                  f"without --set to see the ones that move money.\n")
+            return 1
+        # The same conversion the browser does, from the same function: "2"
+        # has to become the integer 2 in both doors or they price differently.
+        changes[qid] = iv.coerce(q, raw)
+
+    try:
+        quote = requote.plan(args.engagement, changes, store=store)
+    except (engagements.EngagementError, requote.RequoteError) as exc:
+        print(f"\n{exc}\n")
+        return 1
+
+    print(f"\n{args.engagement} — "
+          f"{engagements.load(args.engagement, store).get('ClientFullName','')}")
+    _print_quote(quote, args.engagement)
+    if not quote.ok:
+        return 1
+
+    if not args.reason:
+        print("  Nothing has been written. Add --reason to record it, in one\n"
+              "  sentence, for whoever reads this engagement next year.\n")
+        return 0
+
+    try:
+        path = requote.apply(quote, args.reason, store=store)
+    except (requote.RequoteError, tins.TinRefused) as exc:
+        print(f"  {exc}\n")
+        return 1
+
+    print(f"  Recorded. {path}")
+    print(f"\n  Next: python cli.py package --engagement {args.engagement} "
+          f"--out packs/{args.engagement}")
+    if quote.scope_moved:
+        print("        — the scope moved, so the whole pack is out of date. "
+              "It is rebuilt from\n          the new answers and goes through "
+              "the same pre-send gate as the first one.\n")
+    else:
+        print("        — the estimate is rebuilt from the new figure. The "
+              "engagement letter still\n          reads correctly, so the "
+              "estimate can go on its own if you prefer.\n")
+    return 0
+
+
 def cmd_engagements(args) -> int:
     rows = engagements.listing(Path(args.store) if args.store else engagements.STORE)
     if not rows:
@@ -1877,6 +2026,18 @@ def main(argv=None) -> int:
                      help="ask again rather than reusing what was recorded")
     evp.add_argument("--no-pdf", action="store_true")
     evp.set_defaults(fn=cmd_event)
+
+    rq = sub.add_parser("requote",
+                        help="the work changed: price the engagement again")
+    rq.add_argument("--engagement", required=True)
+    rq.add_argument("--set", action="append", metavar="QUESTION=VALUE",
+                    help="an interview answer that changed; repeatable. "
+                         "Omit to list the answers that move money.")
+    rq.add_argument("--reason",
+                    help="why the price moved, in one sentence. WITHOUT THIS "
+                         "NOTHING IS WRITTEN -- the plan prints and stops.")
+    rq.add_argument("--store")
+    rq.set_defaults(fn=cmd_requote)
 
     e = sub.add_parser("engagements", help="list what exists")
     e.add_argument("--store")

@@ -137,7 +137,59 @@ python cli.py package --engagement <REF> --out packs/<REF> \
     # (only the ones actually going in the envelope)
 ```
 
-## 4 · Billing
+## 4 · When the work changes, and the price with it
+
+```
+python cli.py requote --engagement <REF>
+python cli.py requote --engagement <REF> \
+    --set count_rentals=2 --reason '<why, in one sentence>'
+```
+
+A client rings in March: they bought a rental, a K-1 arrived, the
+side business turned out to be a real one. **Nobody types a figure.**
+The answers move and the same schedule that priced the engagement in
+January prices it again — an amount typed onto an invoice by hand is
+a second source for the same money, and the one the client keeps is
+the one that says the larger number.
+
+Run with no `--set`, it lists the answers that move money — read out
+of the fee schedule itself, and narrowed to the ones this client was
+actually asked. In the browser it is **Update the quote** on the
+engagement's own page.
+
+**Nothing is written without `--reason`.** The plan prints — every
+line that moves, the new total, the difference — and the command
+stops. A re-quote that could happen by accident is a price that moved
+and cannot be explained a year later.
+
+Three things it refuses outright:
+
+- **answers that now flag work the firm does not take** — the
+  engagement is already live, so what is needed is the disengagement
+  letter, not a new price;
+- **a re-quote that changes nothing** — a revision log full of no-ops
+  is a log nobody reads, and a second estimate identical to the first
+  confuses a client for no reason;
+- **an incomplete interview** — it reprices the whole engagement, not
+  one line, so it needs what the first price needed.
+
+What it writes: the amended answers, the repriced record, and one
+entry in `revisions.json` beside the engagement — append-only, never
+pruned, showing what was asked, what moved, and why. The same shape
+as a waved-through gate failure, for the same reason.
+
+**Two dates, and only one of them moves.** The estimate gets today's;
+the engagement letter keeps the date the client signed under. Two
+sheets in a drawer showing different totals under the same date is a
+question nobody can answer next February.
+
+> **Judgement, not procedure:** whether the pack goes out again. If
+> the scope lines moved, the signed letter no longer describes the
+> work and the re-quote says so — rebuild it. If only the figure
+> moved, the letter still reads correctly and the estimate can go on
+> its own.
+
+## 5 · Billing
 
 ```
 python cli.py invoice --engagement <REF> --billed '<period>'
@@ -149,7 +201,7 @@ rather than over the record. The invoice and the estimate must agree
 about the reference and the figure and **must not** share `PeriodLabel`
 — that is the one value naming two different spans of time.
 
-## 5 · Closing an engagement, at the end of the cycle
+## 6 · Closing an engagement, at the end of the cycle
 
 ```
 python cli.py close --engagement <REF>
@@ -168,7 +220,7 @@ Drake. The questions asked depend on the return:
 
 An unanswered question is reported as unanswered, never as agreement.
 
-## 6 · The end-of-cycle control
+## 7 · The end-of-cycle control
 
 ```
 python cli.py reconcile
@@ -188,7 +240,7 @@ diligent, which is not where the problem is.
 > move to an append-only log. Next year's interview is seeded from those
 > answers, which is why it matters that they are right.
 
-## 7 · The following year
+## 8 · The following year
 
 ```
 python cli.py returning --engagement <LAST YEAR'S REF>
@@ -204,7 +256,7 @@ inheritance. Those are recorded and flagged for you. What any of them
 *means* for the return is a conversation with the client, and nothing
 here turns a tick box into advice.
 
-## 8 · Demonstrating that all of it works
+## 9 · Demonstrating that all of it works
 
 ```
 cd client-documents && python exercise.py
@@ -221,5 +273,5 @@ as **waiting on the firm**.
 
 Every other command this document names:
 
-`package`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
+`package`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
 

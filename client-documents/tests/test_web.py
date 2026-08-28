@@ -747,3 +747,130 @@ def test_the_check_table_and_the_failures_above_it_cannot_disagree():
     enclosure = next(r for r in rows if "promised enclosure" in r)
     assert ">FAIL<" in deleted, deleted
     assert ">ok<" in enclosure, enclosure
+
+
+# ── quoting a live engagement again ───────────────────────────────────────
+#
+# The screens are the second front door onto the money, and the first one has
+# gates. These hold the ones that are not obvious from looking at the page.
+
+import engagements  # noqa: E402
+import requote  # noqa: E402
+
+# BOTH ANSWERS THAT STATE ONE FACT. The count is what the K-1 line is billed
+# from; the additional forms line is the same fact in the preparer's own words,
+# two inches above it on the estimate. Moving one without the other is refused,
+# so a form post that moves one is exercising the refusal.
+K1S_6 = {"_asked": ["count_k1s", "additional_forms"],
+         "count_k1s": "6", "additional_forms": "6 K-1s as reported"}
+
+
+@pytest.fixture
+def priced(client, answers):
+    """One live engagement, created through the browser like any other."""
+    sid = drive(client, answers)
+    ref = client.post(f"/interview/{sid}/finish", headers=JSON).get_json()["ref"]
+    return ref
+
+
+def test_the_engagement_page_offers_the_door(client, priced):
+    """A door nothing links to is a door nobody finds. Packaging was reachable
+    only by typing a command until this page linked it; re-quoting was not
+    reachable at all."""
+    body = client.get(f"/engagement/{priced}").data.decode()
+    assert f"/engagement/{priced}/requote" in body
+    assert "Update the quote" in body
+
+
+def test_the_form_shows_what_is_on_file_and_writes_nothing(client, priced):
+    before = engagements.load(priced, client.store)
+    page = client.get(f"/engagement/{priced}/requote").data.decode()
+    assert "count_k1s" in page
+    assert "count_owners" not in page, (
+        "an individual filer is offered a question the schedule ignores here"
+    )
+    assert engagements.load(priced, client.store) == before
+
+
+def test_a_preview_shows_every_line_that_moves_and_records_nothing(client,
+                                                                   priced):
+    before = engagements.load(priced, client.store)
+    page = client.post(f"/engagement/{priced}/requote",
+                       data=K1S_6).data.decode()
+    assert "What this changes" in page
+    assert before["EstimateTotal"] in page
+    assert "Record the new quote" in page
+    assert engagements.load(priced, client.store) == before
+    assert not requote.revisions(priced, client.store)
+
+
+def test_the_reason_is_what_writes_it(client, priced):
+    """Two posts, one route. Without a reason it is a look; with one it is a
+    record -- and there is no third state where something is half written."""
+    posted = {**K1S_6,
+              "reason": "the estate issued four more K-1s in June"}
+    page = client.post(f"/engagement/{priced}/requote", data=posted).data.decode()
+    assert "The new quote is recorded" in page
+    log = requote.revisions(priced, client.store)
+    assert len(log) == 1
+    assert log[0]["reason"] == posted["reason"]
+    assert engagements.load(priced, client.store)["EstimateTotal"] == log[0]["now"]
+
+
+def test_the_page_that_records_it_offers_the_pack_again(client, priced):
+    """The scope or the figure has moved, so the documents the client holds
+    are out of date. The next step is on the page that knows it."""
+    page = client.post(f"/engagement/{priced}/requote",
+                       data={**K1S_6, "reason": "four more K-1s in June"}).data.decode()
+    assert f"/engagement/{priced}/package" in page
+
+
+def test_the_price_history_is_on_the_engagement_page(client, priced):
+    """`revisions.json` is append-only and nobody would have found it. A price
+    that moved and can only be explained by opening a file in the store is a
+    price nobody can defend on the phone."""
+    client.post(f"/engagement/{priced}/requote",
+                data={**K1S_6, "reason": "four more K-1s in June"})
+    body = client.get(f"/engagement/{priced}").data.decode()
+    assert "This quote has moved" in body
+    assert "four more K-1s in June" in body
+
+
+def test_emptying_a_multi_select_is_a_change_the_form_can_express(client,
+                                                                  priced):
+    """FOUND BY DRIVING IT. Unticking every box sends no field at all, which
+    is indistinguishable from the question not being on the page -- so
+    clearing the schedules silently did nothing, on a screen that had just
+    shown the boxes being unticked. `_asked` is posted once per question and
+    says what the preparer was looking at."""
+    page = client.post(f"/engagement/{priced}/requote",
+                       data={"_asked": "federal_schedules"}).data.decode()
+    assert "federal_schedules" in page
+    assert "(nothing)" in page
+    assert "engagement letter says something else" in page.lower(), (
+        "dropping every schedule changes the scope and the page did not say so"
+    )
+
+
+def test_posting_nothing_different_is_refused_rather_than_logged(client,
+                                                                 priced):
+    on_file = requote._answers(priced, client.store)["count_k1s"]
+    res = client.post(f"/engagement/{priced}/requote",
+                      data={"_asked": "count_k1s", "count_k1s": str(on_file)})
+    assert res.status_code == 400
+    assert b"nothing to re-quote" in res.data
+    assert not requote.revisions(priced, client.store)
+
+
+def test_both_doors_reach_the_same_verdict(client, priced):
+    """One of each route, like everything else here -- and the JSON has to
+    carry the blockers, not just the happy total."""
+    got = client.post(f"/engagement/{priced}/requote", headers=JSON,
+                      json={"changes": {
+                          "count_k1s": 6,
+                          "additional_forms": ["6 K-1s as reported"]}}
+                      ).get_json()
+    assert got["status"] == "planned"
+    assert got["difference"].endswith("more")
+    assert any(m["service"] == "Schedule K-1 received" for m in got["moved"])
+    assert not requote.revisions(priced, client.store)

@@ -26,7 +26,7 @@ Same records, same values. Generate the pair in one call.
 
 | Field | Required | Example | Notes |
 |---|---|---|---|
-| `<<LetterDate>>` | Yes | February 3, 2027 | **The letter's date, not today's.** Appears twice. |
+| `<<LetterDate>>` | Yes | February 3, 2027 | **The engagement letter's date**, in the one sentence that names it. Never moves — the client has signed that letter. |
 | `<<EngagementRef>>` | Yes | 2027-0114 | The join key. Byte-identical to the letter's, or the pair comes apart in a file drawer. |
 | `<<ClientFullName>>` | Yes | Mr. and Mrs. Daniel Reyes | |
 | `<<ClientAddress1>>` | Yes | 418 Rockwell Street | |
@@ -57,10 +57,11 @@ neither is typed.
 is off and the block drops, rather than printing four blanks. Give it its own
 branch when that interview is built.
 
-### Specific to the estimate (2 fields + a list of 4)
+### Specific to the estimate (3 fields + a list of 4)
 
 | Field | Required | Example | Notes |
 |---|---|---|---|
+| `<<EstimateDate>>` | Yes | March 10, 2027 | **This estimate's own date**, at the head of the sheet. Set to `LetterDate` when the engagement is created, and moved by a re-quote. See below. |
 | `[[EACH LineItems]]` | List | one or more | Three sub-fields per item |
 | `<<Item.Service>>` | Yes | Federal Form 1040 | The line as a client reads it |
 | `<<Item.Detail>>` | Yes | With Schedules A, C, and SE | Emit an empty string when there is nothing to add — never the word "None" |
@@ -69,7 +70,7 @@ branch when that interview is built.
 | `<<PeriodLabel>>` | Yes | 2026 tax year | **Self-describing** — the label on the document is only "Period". Use "2026 tax year" for a tax engagement, "Monthly, from July 2027" for bookkeeping. Appears twice. Derive it from whichever engagement this accompanies; neither letter carries this field. |
 | `<<EstimateTotal>>` | Yes | $785 | **Computed, not typed.** Sum the line items in code so the arithmetic cannot be wrong on a client-facing document. |
 
-**Total: 23 fields + 1 repeating list of 3.**
+**Total: 24 fields + 1 repeating list of 3.**
 
 Not variables: the four assumption notes, and the pointers to the letter's scope and fees clauses.
 
@@ -99,6 +100,7 @@ changes its name gets a new mark drawn, not a string substituted.
 ```json
 {
   "LetterDate": "February 3, 2027",
+  "EstimateDate": "February 3, 2027",
   "EngagementRef": "2027-0114",
   "PeriodLabel": "2026 tax year",
   "ClientFullName": "Mr. and Mrs. Daniel Reyes",
@@ -125,6 +127,38 @@ changes its name gets a new mark drawn, not a string substituted.
   "EstimateTotal": "$785"
 }
 ```
+
+---
+
+## An engagement can be quoted again
+
+`<<EstimateDate>>` exists because of this, and it is the one field on the sheet
+that is not shared with the letter.
+
+The work changes mid-season — a second rental in April, a K-1 that arrives, a
+Schedule C that turns out to be a real business. `client-documents/requote.py`
+changes the ANSWERS and prices them again through the same engine that priced
+them the first time; nobody types a figure. What comes out is a second estimate,
+and it needs its own date to be told from the first: two sheets in a drawer with
+different totals under the same date is a question nobody can answer next
+February.
+
+**The engagement letter's date does not move**, because the client has signed
+it. So the two dates on this sheet mean two different things, and only one of
+them changes:
+
+| | Moves on a re-quote? | |
+|---|---|---|
+| `<<EstimateDate>>` | **Yes** | The date at the head — when this quote was given |
+| `<<LetterDate>>` | No | The date in the intro sentence — the letter it accompanies |
+
+The invoice cites `<<EstimateDate>>` too, so a bill raised after a re-quote
+names the estimate it is actually billing against.
+
+**When the scope moves, the letter is out of date as well.** Adding a state
+changes `<<StateReturns>>` on both this sheet and the letter, which is the whole
+point of them being the same four fields — so the re-quote says so, and the pack
+is rebuilt rather than the estimate sent on its own.
 
 ---
 

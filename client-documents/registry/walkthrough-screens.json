@@ -430,6 +430,13 @@
         "count": 1
       },
       {
+        "kind": "button",
+        "shape": "button|submit|ghost|/engagement/<ref>/requote",
+        "label": "Update the quote",
+        "examples": [],
+        "count": 1
+      },
+      {
         "kind": "link",
         "shape": "a|header||/",
         "label": "SAT-C",
@@ -477,9 +484,135 @@
   {
     "key": "package-written",
     "heading": "The signing pack",
-    "help": "Built and checked. 4 document(s) in /tmp/satc-walk-30wtwofn/store/2026-0001/pack.",
+    "help": "Built and checked. 4 document(s) in /tmp/satc-walk-ifzzje_f/store/2026-0001/pack.",
     "shot": "package-written.png",
     "controls": [
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "requote-form",
+    "heading": "Update the quote",
+    "help": "The work changed, so the price does. Change what is different and you will see every line that moves before anything is recorded. Nobody types a figure — the same schedule that priced this engagement prices it again.",
+    "shot": "requote-form.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/engagement/<ref>/requote{_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked}",
+        "label": "See what changes",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "text",
+        "shape": "input|text|additional_forms|/engagement/<ref>/requote{_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked}",
+        "label": "the answer to one question",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "number",
+        "shape": "input|number|count_k1s|/engagement/<ref>/requote{_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked}",
+        "label": "the answer to one question",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|blk",
+        "label": "",
+        "examples": [
+          "ANYTHING ELSE FILED ALONGSIDE? TWO K-1S AS REPORTED",
+          "APART FROM W-2S, DID ANY OTHER INCOME DOCUMENT ARRIVE? YES",
+          "DID ANY OF THESE HAPPEN LAST YEAR? (NOTHING)",
+          "DOES WHAT THEY SENT NEED SORTING BEFORE IT CAN BE WORKED? (NOTHING)",
+          "FOR THE MOST INVOLVED OF THOSE BUSINESSES, WHICH IS TRUE? STANDARD",
+          "HOW MANY EXTENSIONS NEEDED A PAYMENT ESTIMATE? (NOTHING)",
+          "HOW MANY K-1S RECEIVED? 2",
+          "HOW MANY LOCAL RETURNS? 1",
+          "HOW MANY RENTAL PROPERTIES? 1",
+          "HOW MANY SCHEDULE C BUSINESSES? 1",
+          "HOW MANY STATE RETURNS? 1",
+          "IS THE EARNED INCOME CREDIT BEING CLAIMED? (NOTHING)",
+          "ORIGINAL RETURN, OR AN AMENDMENT? ORIGINAL",
+          "WHICH FEDERAL RETURN? 1040",
+          "WHICH LOCALITIES? SOLON MUNICIPAL",
+          "WHICH SCHEDULES DOES THAT COME TO? C, SE, E1, E2, A",
+          "WHICH STATES, AND ON WHAT BASIS? OHIO — RESIDENT"
+        ],
+        "count": 17
+      }
+    ]
+  },
+  {
+    "key": "requote-changes",
+    "heading": "What this changes",
+    "help": "$60.00 more.",
+    "shot": "requote-changes.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/engagement/<ref>/requote{_asked,_asked,additional_forms[],count_k1s}",
+        "label": "Record the new quote",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|main|muted|/engagement/<ref>/<x>",
+        "label": "or go back and change something else",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "textarea",
+        "shape": "textarea|textarea|reason|/engagement/<ref>/requote{_asked,_asked,additional_forms[],count_k1s}",
+        "label": "WHY DID THE PRICE MOVE?",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "requote-done",
+    "heading": "The new quote is recorded",
+    "help": "$60.00 more.",
+    "shot": "requote-done.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/engagement/<ref>/package",
+        "label": "Build the pack again",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|submit|ghost|/engagement/<ref>",
+        "label": "Open the engagement",
+        "examples": [],
+        "count": 1
+      },
       {
         "kind": "link",
         "shape": "a|header||/",
@@ -760,7 +893,7 @@
   {
     "key": "package-blocked",
     "heading": "The signing pack",
-    "help": "10 check(s), and what each one actually looked at.",
+    "help": "11 check(s), and what each one actually looked at.",
     "shot": "package-blocked.png",
     "controls": [
       {
