@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import invoicing  # noqa: E402
+import pricing  # noqa: E402
 
 
 def _record(**over):
@@ -161,3 +162,47 @@ def test_an_unreadable_invoice_file_does_not_free_up_its_number(tmp_path):
     (d / "good.json").write_text(json.dumps({"InvoiceNumber": "2027-0003"}))
     (d / "broken.json").write_text("{ not json")
     assert invoicing.next_number(tmp_path, year=2027) == "2027-0004"
+
+
+def test_an_invoice_equal_to_its_estimate_needs_no_variance_note():
+    """Money is compared in cents, not in floats.
+
+    A sorting amount a preparer types with cents in it -- 175.08 -- sums to
+    275.08000000000004, while the estimate string re-parses to exactly 275.08.
+    The invoice that billed EXACTLY its estimate was refused, with a message
+    reading "bills $275.08 against an estimate of $275.08".
+
+    The refusal was loud rather than silent, which is why nothing caught it --
+    but the preparer's way out of it was to write a variance note explaining a
+    difference that does not exist, and that puts a false sentence on a
+    client's bill. `consistency.py` has rounded to integer cents since it was
+    written; this was the one place on the money path that did not.
+    """
+    schedule = pricing.load()
+    record = pricing.price(
+        {"federal_form": "1040", "federal_schedules": [],
+         "other_income_documents": "no", "count_sorting": 1,
+         "sorting_amount": 175.08, "count_states": 1},
+        schedule)
+    assert record["EstimateTotal"] == "$275.08"
+    bill = invoicing.build(record, number="2026-0001", billed="2026 tax year")
+    assert bill["Subtotal"] == "$275.08"
+
+
+def test_a_real_overage_still_refuses_without_a_reason():
+    """The cents comparison must not have blunted the check it fixed."""
+    schedule = pricing.load()
+    record = pricing.price(
+        {"federal_form": "1040", "federal_schedules": [],
+         "other_income_documents": "no", "count_sorting": 1,
+         "sorting_amount": 175.08, "count_states": 1},
+        schedule)
+    quoted_low = dict(record, EstimateTotal="$100.00")
+    with pytest.raises(invoicing.InvoiceError, match="says nothing about"):
+        invoicing.build(quoted_low, number="2026-0002", billed="2026 tax year")
+
+    # A single cent over is still over.
+    one_cent_under = dict(record, EstimateTotal="$275.07")
+    with pytest.raises(invoicing.InvoiceError, match="says nothing about"):
+        invoicing.build(one_cent_under, number="2026-0003",
+                        billed="2026 tax year")

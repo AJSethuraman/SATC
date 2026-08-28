@@ -232,7 +232,17 @@ def _check_variance(out: dict, subtotal: float, estimate: str, currency: str):
         # existed, or one carrying a [CONFIRM. Nothing to check against, and
         # inventing a comparison would be worse than not making one.
         return
-    if subtotal > quoted and not out["VarianceNote"]:
+    # COMPARE IN CENTS, NOT IN FLOATS. A sorting amount a preparer types with
+    # cents in it -- 175.08 -- sums to 275.08000000000004 while the estimate
+    # string re-parses to exactly 275.08, so an invoice that bills EXACTLY its
+    # estimate was refused, with a message saying it billed "$275.08 against an
+    # estimate of $275.08". The escape hatch made it worse than a wrong number:
+    # the preparer's way out was to write a variance note explaining a
+    # difference that does not exist, which puts a false sentence on a client's
+    # bill. `consistency.py` has rounded to integer cents for exactly this
+    # reason since it was written; this is the one place on the money path that
+    # did not.
+    if round(subtotal * 100) > round(quoted * 100) and not out["VarianceNote"]:
         raise InvoiceError(
             f"this invoice bills {m.money(subtotal, currency)} against an "
             f"estimate of {m.money(quoted, currency)} and says nothing about "

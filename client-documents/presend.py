@@ -43,6 +43,7 @@ from pathlib import Path
 
 import consistency
 import merge
+import tins
 
 # Files a pack is expected to carry beside the documents. Kept here rather than
 # in cli so the gate can say "this is missing" without importing the command.
@@ -874,6 +875,43 @@ def agrees(record: dict, rendered: dict[str, str]) -> list[Finding]:
 
 # ── the gate ──────────────────────────────────────────────────────────────
 
+# ── 9 · no identification number on a page a client reads ─────────────────
+
+def no_tin_counted(pack: Path) -> Counted:
+    """The last mile of the PII boundary, and it was open.
+
+    `CLAUDE.md`: *"Validation tests fail the build if legal names / full TINs
+    leak into outputs."* That was true of `samples/*.json` and of nothing else.
+    A number pasted into the client's name, into a state, into "anything else
+    filed alongside" would have rendered onto the engagement letter and passed
+    every check in this file.
+
+    Reads the RENDERED page, not the source, for the same reason
+    `plain_language` does: what matters is what the client receives.
+
+    The finding never repeats the value. A refusal that quotes the number it
+    objected to has just written it into a terminal, a log and a screenshot.
+    """
+    out: list[Finding] = []
+    docs = sorted(pack.glob("*.html"))
+    seen = 0
+    for doc in docs:
+        said = _readable(doc.read_text(encoding="utf-8", errors="replace"))
+        seen += len(tins.SHAPES)
+        for found in tins.find(said):
+            out.append(Finding(
+                "tin", doc.name,
+                f"carries something shaped like {found.kind}. Identification "
+                f"numbers belong in Drake and in the encrypted vault, never on "
+                f"a document -- the last four digits are enough for anything "
+                f"in the pack. (The value is deliberately not repeated here.)"))
+    return Counted(out, seen, "shape-in-document pair")
+
+
+def no_tin(pack: Path) -> list[Finding]:
+    return no_tin_counted(pack).findings
+
+
 def gate(pack: Path, record: dict, *, rendered: dict[str, str] | None = None,
          skip_render: bool = False) -> Result:
     """Everything above, on one pack, in one answer.
@@ -895,6 +933,7 @@ def gate(pack: Path, record: dict, *, rendered: dict[str, str] | None = None,
     res.add("every cited clause name is a real section", cited_clauses_counted(pack))
     res.add("every promised enclosure is in the pack", pointer_test_counted(pack))
     res.add("no empty bullet and no empty row", nothing_empty_counted(pack))
+    res.add("no identification number on any page", no_tin_counted(pack))
 
     docs = sorted(pack.glob("*.html"))
     if skip_render:

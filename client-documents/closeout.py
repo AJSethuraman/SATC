@@ -41,6 +41,7 @@ from pathlib import Path
 import yaml
 
 import engagements
+import tins
 
 ROOT = Path(__file__).resolve().parent
 REGISTRY = ROOT / "registry" / "closeout.yaml"
@@ -164,7 +165,16 @@ def missing(filed: dict, return_type: str,
 # ── the store ─────────────────────────────────────────────────────────────
 
 def save(ref: str, filed: dict, store: Path = engagements.STORE) -> Path:
-    """What was filed, beside the record and the interview."""
+    """What was filed, beside the record and the interview.
+
+    THE MOMENT OF MAXIMUM EXPOSURE. This is filled in with the filed return
+    open on the other screen, and `closeout_note` invites free text -- so it is
+    the one place in the cycle where a preparer is reading a document that
+    carries every SSN on the return while typing into one that must carry none.
+    The header of `registry/closeout.yaml` says "Nothing is read out of Drake";
+    that was a comment, and this is the gate.
+    """
+    tins.refuse(filed, "the close-out record")
     path = engagements._dir(store, ref) / "closeout.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(filed, indent=2, ensure_ascii=False) + "\n",

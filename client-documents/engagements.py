@@ -22,6 +22,8 @@ import re
 from datetime import date
 from pathlib import Path
 
+import tins
+
 ROOT = Path(__file__).resolve().parent
 STORE = ROOT / "engagements"
 
@@ -91,6 +93,11 @@ def save_answers(answers: dict, ref: str, store: Path = STORE) -> Path:
     internal answers -- the red flags, the decision, the notes, the billable
     counts. Those are why the engagement was taken on, and they belong with it.
     """
+    # REFUSED BEFORE IT REACHES DISK. The notes field, "what changed since
+    # last year" and the website's "anything else we should know?" are free
+    # text, and no schema can constrain free text. This file lives in OneDrive
+    # and is read back every season.
+    tins.refuse(answers, "the interview answers")
     path = _dir(store, ref) / "interview.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(answers, indent=2, ensure_ascii=False) + "\n",

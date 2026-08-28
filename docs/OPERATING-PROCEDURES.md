@@ -79,6 +79,7 @@ behind.
 - every cited clause name is a real section
 - every promised enclosure is in the pack
 - no empty bullet and no empty row
+- no identification number on any page
 - every document opens and renders
 - the documents agree with each other — only when the caller supplies the rendered text
 
