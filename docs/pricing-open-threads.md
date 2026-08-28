@@ -851,15 +851,21 @@ the base covers.
 > carry a 2 k1 allowance."* The engine now matches the published note and the
 > figure moved by $80.
 >
-> **And it leaves a question this thread did not have before.** The argument
-> here is that an entity amendment costs more because every owner's K-1 is
-> reissued. Under the allowance, the two-owner amendment now bills **nothing**
-> for reissuing two K-1s — $800 + $50, with the reissue work free. The
-> allowance was decided about the base, which is a from-price for an original
-> return; whether it should also apply on top of an amendment is a different
-> question and nobody has answered it. Leaving it as it falls out rather than
-> inventing a rule: `[CONFIRM: does the 2 K-1 allowance apply to an amendment,
-> where the K-1s are being reissued rather than issued?]`
+> **And the question it raised is answered.** The argument here is that an
+> entity amendment costs more because every owner's K-1 is reissued — so under
+> the allowance, a two-owner amendment bills **nothing** for reissuing two
+> K-1s: $800 + $50, with the reissue work free. That was raised as an open
+> question the same day, because the allowance had been decided about the
+> base, which is a from-price for an original return, and an amendment is not
+> one. **The firm, 28 August 2026: "This can flow through."**
+>
+> So it flows. The two-partner amendment is $850, the five-partner is $970,
+> and the K-1 line starts at the third owner whether the return is original or
+> amended. No code changed to close this — the allowance already flowed and
+> the question was whether to stop it. Pinned at both counts in
+> `test_an_entity_amendment_follows_the_same_three_cases`, so a later change
+> that quietly reintroduces a charge for the first two has to move a number
+> somebody can see.
 
 **One thing NOT settled and not assumed.** Whether amending a partnership
 return is procedurally the same kind of filing as amending a 1040. If it is

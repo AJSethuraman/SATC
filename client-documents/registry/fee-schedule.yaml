@@ -378,7 +378,12 @@ base:
   # The four 1040 packages are GATED on what is on the return, so the price a
   # visitor reads is the price they get. An entity base is not gated that way:
   # it is a floor with the balance sheet, the reconciliation and the owner
-  # K-1s on top. A bare $950 on a page is read as a total.
+  # K-1s PAST THE FIRST TWO on top. A bare $950 on a page is read as a total.
+  #
+  # (That sentence said "and the owner K-1s on top" until 28 August 2026, when
+  # the base took on the two-K-1 allowance its own note beneath had always
+  # promised. It was the last place in this file still describing the old
+  # behaviour.)
   #
   # `starting_note` travels WITH the number so the two cannot drift apart. The
   # wording is client-facing and is in the sign-off register.

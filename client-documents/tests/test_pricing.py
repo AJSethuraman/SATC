@@ -1666,13 +1666,16 @@ def test_an_entity_amendment_follows_the_same_three_cases():
     took on the two-K-1 allowance its published note had always promised. It
     is $970 now: three billable K-1s rather than five.
 
-    THIS LEAVES AN OPEN QUESTION, recorded in `docs/pricing-open-threads.md`
-    rather than decided here. The allowance was settled about the base, which
-    is a from-price for an ORIGINAL return -- so a two-partner amendment now
-    bills nothing at all for reissuing two K-1s. Whether the allowance should
-    reach across an amendment is the firm's to say; this test pins what the
-    engine does today so the answer, when it comes, has to move a number
-    somebody can see.
+    THE ALLOWANCE REACHES ACROSS AN AMENDMENT, and that was asked rather than
+    assumed. The allowance was settled about the base, which is a from-price
+    for an ORIGINAL return, so a two-partner amendment billing nothing for
+    reissuing two K-1s did not obviously follow. The firm, 28 August 2026:
+    *"This can flow through."*
+
+    Nothing changed in the engine to make it so -- the allowance already
+    flowed, and the question was whether to stop it. Both counts are pinned
+    below so a later change that quietly reintroduces a charge for the first
+    two has to move a number somebody can see.
     """
     s = pricing.load()
     ours = pricing.line_items(
@@ -1684,15 +1687,15 @@ def test_an_entity_amendment_follows_the_same_three_cases():
          "amendment_reason": "other_preparer", "count_owners": 5}, s)
     assert pricing.estimate_total(theirs, s) == "$970.00"
 
-    # The open question, pinned so it cannot be closed by accident.
+    # The settled case, pinned so it cannot be reopened by accident.
     two = pricing.line_items(
         {"federal_form": "1065", "return_basis": "amended",
          "amendment_reason": "other_preparer", "count_owners": 2}, s)
     assert pricing.estimate_total(two, s) == "$850.00"
     assert not [i for i in two if "K-1" in i["Service"]], (
-        "the two-partner amendment bills for the reissue after all -- which "
-        "would be the answer to the open thread, and it should be answered "
-        "there rather than arrived at here"
+        "the two-partner amendment bills for the reissue -- the firm said the "
+        "allowance flows through, so this is a decision being undone rather "
+        "than a bug"
     )
 
 
