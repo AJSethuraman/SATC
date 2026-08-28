@@ -137,7 +137,55 @@ python cli.py package --engagement <REF> --out packs/<REF> \
     # (only the ones actually going in the envelope)
 ```
 
-## 4 · When the work changes, and the price with it
+## 4 · Getting it signed
+
+```
+python cli.py sign --engagement <REF>
+python cli.py sign --engagement <REF> \
+    --record tax-letter/TaxpayerName \
+    --on '<the day THEY signed>' --how in-person
+```
+
+**Nobody types a list of who must sign.** The templates carry the
+signature blocks and the register reads them, so a block that moves or
+gains a signer is followed on its own — and the spouse's line is
+expected only on a joint return, because that is how the letter is
+drawn and what the delivery letter tells the client.
+
+**How it reached you is the record, not a tick.** *In person*,
+*came back signed* and *signed through a service* are three different
+kinds of knowing, and which one it was is the first thing anybody
+asks. A signature taken through a service is refused without the
+reference its audit trail is under.
+
+**The date is the day they signed, not the day you heard.** A letter
+that arrives on Monday was signed on Friday, and the date on the page
+is the one that counts. Both are kept.
+
+Three things this deliberately does **not** know, and says so rather
+than assuming:
+
+- **Form 8879.** It comes out of Drake and none of the twelve
+  templates is one. The delivery letter's promise — *nothing is
+  transmitted until the signed authorization is back* — is about that
+  form, and this software has never seen one.
+- **Whether the invoice is settled.** The engagement letter says we
+  will not e-file before it is; `invoice` writes the bill and stops.
+- **The records release.** It is addressed to the previous accountant
+  and gates nothing here. Waiting on it would stop an engagement over
+  a document somebody else acts on.
+
+> **Judgement, not procedure:** whether to start work on a signature
+> you have been told about but not yet seen. The register records what
+> was **observed**; it will not infer one, and it is worth nothing the
+> first time somebody records a signature they are assuming.
+
+See `docs/research-e-signature.md` for what the IRS requires of a
+remote 8879 signature, what it does not require of an engagement
+letter, and what the vendors cost — **including the caveat that none
+of those rules has been read from the source document yet.**
+
+## 5 · When the work changes, and the price with it
 
 ```
 python cli.py requote --engagement <REF>
@@ -189,7 +237,7 @@ question nobody can answer next February.
 > moved, the letter still reads correctly and the estimate can go on
 > its own.
 
-## 5 · Billing
+## 6 · Billing
 
 ```
 python cli.py invoice --engagement <REF> --billed '<period>'
@@ -201,7 +249,7 @@ rather than over the record. The invoice and the estimate must agree
 about the reference and the figure and **must not** share `PeriodLabel`
 — that is the one value naming two different spans of time.
 
-## 6 · Closing an engagement, at the end of the cycle
+## 7 · Closing an engagement, at the end of the cycle
 
 ```
 python cli.py close --engagement <REF>
@@ -220,7 +268,7 @@ Drake. The questions asked depend on the return:
 
 An unanswered question is reported as unanswered, never as agreement.
 
-## 7 · The end-of-cycle control
+## 8 · The end-of-cycle control
 
 ```
 python cli.py reconcile
@@ -240,7 +288,7 @@ diligent, which is not where the problem is.
 > move to an append-only log. Next year's interview is seeded from those
 > answers, which is why it matters that they are right.
 
-## 8 · The following year
+## 9 · The following year
 
 ```
 python cli.py returning --engagement <LAST YEAR'S REF>
@@ -256,7 +304,7 @@ inheritance. Those are recorded and flagged for you. What any of them
 *means* for the return is a conversation with the client, and nothing
 here turns a tick box into advice.
 
-## 9 · Demonstrating that all of it works
+## 10 · Demonstrating that all of it works
 
 ```
 cd client-documents && python exercise.py
@@ -273,5 +321,5 @@ as **waiting on the firm**.
 
 Every other command this document names:
 
-`package`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
+`package`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `sign`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
 

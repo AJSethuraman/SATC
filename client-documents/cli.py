@@ -55,6 +55,7 @@ import consistency
 import merge
 import pricing
 import requote
+import signing
 import settings as firm
 import tins
 
@@ -1437,6 +1438,82 @@ def cmd_requote(args) -> int:
     return 0
 
 
+def _signing_state(ref: str, store: Path):
+    """(record, documents, standing) for one engagement, or None with a note."""
+    record = engagements.load(ref, store)
+    docs = packaging.documents_for(record)
+    deadline = ""
+    saved = lifecycle.load_saved(ref, "delivery", store) or {}
+    for qid, value in (saved.get("answers") or {}).items():
+        if qid == "signature_deadline":
+            deadline = value
+    return record, docs, signing.standing(
+        ref, record, docs, TEMPLATE_DIR, store=store, deadline=deadline)
+
+
+def cmd_sign(args) -> int:
+    """Who has signed what, and record one that has come back.
+
+    NOBODY TYPES A LIST OF WHO MUST SIGN. The templates carry the signature
+    blocks and this reads them, so a block that moves or gains a signer is
+    followed automatically -- and the spouse's line is expected only on a
+    joint return, because that is how the letter is drawn and what the
+    delivery letter tells the client.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    try:
+        record, docs, where = _signing_state(args.engagement, store)
+    except engagements.EngagementError as exc:
+        print(f"\n{exc}\n")
+        return 1
+
+    name = record.get("ClientFullName", "")
+    if not args.record:
+        print(f"\n{args.engagement} — {name}")
+        print(f"\n  {where.examined} signature(s) this pack asks for:\n")
+        got = {(s.document, s.field): s for s in where.have}
+        for line in where.expected:
+            have = got.get((line.document, line.field))
+            mark = "signed" if have else "OUTSTANDING"
+            when = f"  {have.when}" if have else ""
+            print(f"      {mark:12} {line.document:20} {line.who:28}{when}")
+        if where.deadline:
+            print(f"\n  Due by {where.deadline}"
+                  + ("  — PASSED" if where.overdue else ""))
+        gate = signing.may_file(args.engagement, record, docs, TEMPLATE_DIR,
+                                store=store, deadline=where.deadline)
+        for blocker in gate.blockers:
+            print("\n  " + textwrap.fill(blocker, 72, subsequent_indent="  "))
+        for said in gate.unknown:
+            print("\n  NOT KNOWN HERE: "
+                  + textwrap.fill(said, 72, subsequent_indent="  "))
+        print(f"\n  Record one:  python cli.py sign --engagement "
+              f"{args.engagement} \\\n"
+              f"                   --record tax-letter/TaxpayerName "
+              f"--on 'February 9, 2027' --how in-person\n")
+        return 0
+
+    if "/" not in args.record:
+        print("\n--record wants document/Field, as the list above prints it.\n")
+        return 1
+    doc, fieldname = args.record.split("/", 1)
+    line = next((ln for ln in where.expected
+                 if ln.document == doc and ln.field == fieldname), None)
+    if line is None:
+        print(f"\nThis pack has no signature line {args.record!r}. Run without "
+              f"--record to see the ones it does.\n")
+        return 1
+    try:
+        path = signing.record_signature(
+            args.engagement, line, when=args.on or "", how=args.how or "",
+            reference=args.reference or "", store=store)
+    except signing.SigningError as exc:
+        print(f"\n{exc}\n")
+        return 1
+    print(f"\n  Recorded. {path}\n")
+    return 0
+
+
 def cmd_engagements(args) -> int:
     rows = engagements.listing(Path(args.store) if args.store else engagements.STORE)
     if not rows:
@@ -2038,6 +2115,19 @@ def main(argv=None) -> int:
                          "NOTHING IS WRITTEN -- the plan prints and stops.")
     rq.add_argument("--store")
     rq.set_defaults(fn=cmd_requote)
+
+    sg = sub.add_parser("sign",
+                        help="who has signed what, and record one that is back")
+    sg.add_argument("--engagement", required=True)
+    sg.add_argument("--record", metavar="DOCUMENT/FIELD",
+                    help="the signature line that came back. Omit to list.")
+    sg.add_argument("--on", help="the day they signed, not the day you heard")
+    sg.add_argument("--how", choices=sorted(signing.MEANS),
+                    help="how it reached you; the means is the evidence")
+    sg.add_argument("--reference",
+                    help="the envelope or request id, for a signing service")
+    sg.add_argument("--store")
+    sg.set_defaults(fn=cmd_sign)
 
     e = sub.add_parser("engagements", help="list what exists")
     e.add_argument("--store")

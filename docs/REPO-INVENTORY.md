@@ -81,7 +81,7 @@ Verified by running it, not by reading it.
 |---|---|---|
 | **`satc_system`** | **Works.** 12,664 LOC, 87% coverage | `259 passed`, 0 skipped. Built a 16-sheet workbook; LibreOffice evaluated **202 formulas, 0 errors**. Withholding math hand-checked against brackets. 56 Flask routes, all 200 except three deliberate guards |
 | **`invoice-generator`** | **Works, deployable — with one thing to fix before real money.** Multi-tenant SaaS | 57 tests, and `exercise.py` runs 281 checks through real HTTP, **opening all 53 PDFs it produces** and comparing their totals against the database. Deploys are gated on CI (`.github/workflows/deploy-invoicer.yml`) — inert until `RENDER_DEPLOY_HOOK_URL` exists. **`amount_paid` is one mutable float with no ledger**: one click of "mark as unpaid" destroys a Stripe-confirmed payment and replaying the webhook will not restore it. Eleven more, ranked, in `docs/invoicer-scenarios.md` |
-| **`client-documents`** | **Works, end to end, and can prove it.** Interview → engagement → priced documents → the whole later life of a client | **914 tests**, and `exercise.py` runs 29 real scenarios producing 190 documents, **opening every one in a browser**. Every document a client receives passes a blocking pre-send gate. The delivery letter, organizer cover, extension notice and disengagement letter gained a front door on 27 Aug (`cli.py event`); before that they could not be produced at all |
+| **`client-documents`** | **Works, end to end, and can prove it.** Interview → engagement → priced documents → the whole later life of a client | **1,077 tests** (re-counted 28 Aug; the 914 here was the figure on 22 Aug), and `exercise.py` runs 29 real scenarios producing 190 documents, **opening every one in a browser**, then re-quotes all 27 live engagements and re-renders the estimate. Every document a client receives passes a blocking pre-send gate. The delivery letter, organizer cover, extension notice and disengagement letter gained a front door on 27 Aug (`cli.py event`); before that they could not be produced at all |
 | **`cowork-plugin`** | **Works**, if the desktop app is running | Three stateless withholding tools. Cannot write anything |
 | **`website`** | **Live** on satcllp.com via Cloudflare Pages | 11-step branching intake; leads land in `SATC leads.xlsx` |
 
@@ -113,12 +113,22 @@ rather than substituting** when a value is unpublished.
 
 ## 4 · Blocked on a human
 
+**Re-measured 28 August 2026.** Most of what this table used to list is closed.
+`cd client-documents && make doctor` now reports *"No open decisions. Real
+renders will produce documents."* — the legal name, the four materials
+deadlines, the acknowledgement window, the billing address, the hard-no list and
+every fee figure are settled and wired in. `fee-schedule.yaml` carries a real
+hourly `rate: 150` and real amounts. **Four live `[CONFIRM:` placeholders remain
+in the whole tree**, listed below; everything else that greps as one is prose
+*about* the convention or a historical log entry.
+
 | | What it blocks |
 |---|---|
-| **`legal_name`** | **Every template.** Three variants appear across the ten templates and only one can be on the Ohio filing. It is *hardcoded in footers, not merged*, so the engine's `[CONFIRM:` guard cannot catch a wrong one — it ships silently. `firm-settings.yaml`: *"Until this is settled, no template should ship to a client."* |
-| **Fee figures** | The estimate. Sixteen `[CONFIRM:` amounts plus one structural decision |
-| **Nine firm settings** | Every real render — four dates, two sentences |
-| **The financial-statement legend** | Three documents |
+| **RITA: one locality or several?** | The local-return count, and so the fee on any Cleveland-area client. `registry/interview.yaml:445` |
+| **The document-request wording** | Nothing — it has a working default. `registry/document-requests.yaml:100` |
+| **Square or Stripe** | **Every invoice.** The settled payment sentence names a Square link; the invoice has 41 merge fields and none is a URL, and there is no Square code in the repository. The firm's leaning, 28 Aug: *"square is fine for now I think maybe price dependent."* A leaning, not a decision — nothing should be built against either until it is one |
+| **Getting a signature** | **Delivery.** Nothing sends a pack, records that it arrived, or records that it was signed — while the delivery letter treats the signature as a precondition for filing. No vendor chosen; Encyro is named in the wording and in no code |
+| **A second copy of the data** | Nothing today, and everything tomorrow. Engagements are plain files on one disk and `satc_system`'s vault is two local SQLite files. No sync, no backup, anywhere in the code |
 | **`RENDER_DEPLOY_HOOK_URL`** | The Invoicer deploy gate, built 27 Aug and **inert** until the secret exists and Render's own auto-deploy is turned off |
 | **Invoicer's `Payment` table** | Nothing today. A schema change to a live payment system, and the only remaining Invoicer bug that is about money rather than a cent or a symbol |
 | **The amendment paragraph** | Nothing today — the letter names the return correctly ("Amended Form 1040") since 27 Aug. What the firm *says* about an amendment engagement is unwritten |
@@ -126,7 +136,14 @@ rather than substituting** when a value is unpublished.
 | **`accompanies` on T20's list** | The plain-language check. It is banned in `DOCUMENT-TENETS.md` and live, unobjected-to, in five templates; the linter ships without it and the tenet carries a `[CONFIRM:` |
 | **Template approval** | All **twelve** are complete; none is approved |
 
-**On prices, the answer is definitive: the firm has never written one down.**
+**On prices, this was true on 22 August and is not any more.** `fee-schedule.yaml`
+now carries the firm's own figures — an hourly rate, package amounts, per-unit
+prices and allowances — derived with `cli.py hours` from hours × rate rather
+than typed, and the same numbers are published on the price page with a build
+check that fails if the two ever diverge. The paragraph below is kept because it
+is the history of how the figures were arrived at.
+
+**As of 22 August 2026, the firm had never written a price down.**
 The whole tree was searched. The `450 / 185 / 95` set traces to a single
 illustrative JSON payload used to demo a template, and every reappearance is
 labelled fictional. `invoice-generator` — the one component that moves money —

@@ -18,13 +18,23 @@ Two kinds of item, and they are answered in different places:
 
 ---
 
-## 1 · Firm settings — 9 open
+## 1 · Firm settings — all closed
 
-These block **every real render**. The merge engine treats a surviving
-`[CONFIRM:` exactly like an unfilled field and refuses to produce the document,
-so a placeholder can never reach a client. `--draft` renders past them, stamped.
+**Re-measured 28 August 2026: `cd client-documents && make doctor` reports
+"No open decisions. Real renders will produce documents."** Every row below is
+settled and wired in — the four deadlines carry real dates, `legal_name`,
+`ack_window`, `billing.contact_email` and the hard-no list are answered, and
+`payment_instruction` now carries a sentence.
 
-Four are a date. Two are a sentence. Two block nothing today.
+The table is kept because it is the record of what was decided and when, not
+because anything is outstanding. **The one thing that is still open is not a
+setting** — it is the processor question in row 6, which a sentence cannot fix.
+See below.
+
+These blocked **every real render** while they were open. The merge engine
+treats a surviving `[CONFIRM:` exactly like an unfilled field and refuses to
+produce the document, so a placeholder can never reach a client. `--draft`
+renders past them, stamped.
 
 | # | Setting | Blocks | Shape of the answer |
 |---|---|---|---|
@@ -33,10 +43,33 @@ Four are a date. Two are a sentence. Two block nothing today.
 | 3 | `materials_deadlines.2026.partnership_1065` | Business return letter | One date |
 | 4 | `materials_deadlines.2026.c_corp_1120` | Business return letter | One date |
 | ~~5~~ | ~~`delivery.ack_window`~~ | Onboarding letter | **Settled 25 Aug 2026: "three business days"** — with a caveat that belongs on the confirmation screen, not in the string: it is three business days *unless the client books their own time on Calendly*, in which case the next step is theirs |
-| 6 | `delivery.payment_instruction` | Every invoice | Still open, and now known to be harder than a sentence: **the firm takes Square; Invoicer implements Stripe** — `stripe_utils.py`, 68 references in `app.py`, four templates and a webhook. One of the two has to move first |
+| ~~6~~ | ~~`delivery.payment_instruction`~~ | Every invoice | **Sentence settled**; the processor is not. See "Square or Stripe" below — the sentence now names a Square link the invoice cannot produce |
 | ~~7~~ | ~~`billing.contact_email`~~ | Every invoice | **Settled 25 Aug 2026: `arjun_sethuraman@satcllp.com`.** No separate billing box. The website footer still prints `billing@satcllp.com` in one place and is now wrong |
 | ~~8~~ | ~~`legal_name`~~ | **Every template** | **Settled 25 Aug 2026: `Sethuraman Accounting, Tax, and Consulting LLP`** — the Oxford-comma form, which is already what all ten footers print. See below |
-| 9 | `hard_no[1]` | Nothing — it gates declining work | The rest of the "we don't take this" list |
+| ~~9~~ | ~~`hard_no[1]`~~ | Nothing — it gates declining work | **Settled 26 Aug 2026**, in the firm's own words: hard nos exist to say the firm cannot provide assurance, being uncredentialed to give an opinion — not to make a list of refusals |
+
+### Square or Stripe — the one that is still open
+
+Row 6 is settled as a *sentence* and unsettled as a *system*, and the gap is
+visible to a client. `firm-settings.yaml` now says:
+
+> Payment is by card or bank transfer through the secure Square link on your
+> invoice. If you would rather pay another way, tell us and we will arrange it.
+
+**The invoice carries no link.** It has 41 merge fields and not one of them is a
+URL, and there is no Square code anywhere in the repository — `invoice-generator`
+is Stripe from end to end. So the sentence promises a client something the
+software cannot put on the page.
+
+**The firm's leaning, 28 August 2026: "square is fine for now I think maybe
+price dependent."** That reads as: stay on Square unless the pricing argues
+otherwise. It is recorded as a leaning rather than a decision because the cost
+comparison has not been done — and because "Square stays" is the expensive
+answer for the software, not the cheap one: Invoicer's Stripe checkout, webhook
+and four templates would be the side that moves.
+
+Nothing should be built against either processor until this is a decision.
+
 
 ### `legal_name` — settled, and it landed on the form already in use
 
