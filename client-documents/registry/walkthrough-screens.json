@@ -431,6 +431,13 @@
       },
       {
         "kind": "button",
+        "shape": "button|submit|ghost|/engagement/<ref>/signatures",
+        "label": "Signatures",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
         "shape": "button|submit|ghost|/engagement/<ref>/requote",
         "label": "Update the quote",
         "examples": [],
@@ -484,7 +491,7 @@
   {
     "key": "package-written",
     "heading": "The signing pack",
-    "help": "Built and checked. 4 document(s) in /tmp/satc-walk-ifzzje_f/store/2026-0001/pack.",
+    "help": "Built and checked. 4 document(s) in /tmp/satc-walk-mhrw0fbu/store/2026-0001/pack.",
     "shot": "package-written.png",
     "controls": [
       {
@@ -623,6 +630,90 @@
     ]
   },
   {
+    "key": "signatures-one",
+    "heading": "Signatures",
+    "help": "Sent 2026-08-28, 0 day(s) ago.",
+    "shot": "signatures-one.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/engagement/<ref>/signatures{line}",
+        "label": "Record it",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "text",
+        "shape": "input|text|on|/engagement/<ref>/signatures{line}",
+        "label": "THE DAY THEY SIGNED",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "radio",
+        "shape": "input|radio|how|/engagement/<ref>/signatures{line}",
+        "label": "",
+        "examples": [
+          "came back signed, by email or on paper",
+          "signed in front of you",
+          "signed through a signing service, with its own audit trail"
+        ],
+        "count": 3
+      },
+      {
+        "kind": "text",
+        "shape": "input|text|reference|/engagement/<ref>/signatures{line}",
+        "label": "REFERENCE, FOR A SIGNING SERVICE",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|blk",
+        "label": "",
+        "examples": [
+          "FORM 8879 SPOUSE",
+          "RECORDS-RELEASE SPOUSE",
+          "RECORDS-RELEASE TAXPAYER",
+          "TAX-LETTER SPOUSE",
+          "TAX-LETTER TAXPAYER"
+        ],
+        "count": 5
+      }
+    ]
+  },
+  {
+    "key": "signatures-waiting",
+    "heading": "Waiting on a signature",
+    "help": "1 engagement(s), longest wait first. A row marked overdue is past the date that client was given in writing.",
+    "shot": "signatures-waiting.png",
+    "controls": [
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|main||/engagement/<ref>/<x>",
+        "label": "",
+        "examples": [
+          "2026-0001"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
     "key": "home",
     "heading": "Engagements",
     "help": "",
@@ -646,6 +737,13 @@
         "kind": "button",
         "shape": "button|button|ghost|/leads",
         "label": "Leads",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|button|ghost|/signatures",
+        "label": "Waiting to sign",
         "examples": [],
         "count": 1
       },

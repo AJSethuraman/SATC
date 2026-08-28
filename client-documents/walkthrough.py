@@ -68,6 +68,8 @@ SCREENS = [
     ("requote-form", "The work changed, so the price does"),
     ("requote-changes", "Every line the new quote moves"),
     ("requote-done", "The new quote, recorded"),
+    ("signatures-waiting", "Who to chase this morning"),
+    ("signatures-one", "One client, and what is still out"),
     ("prices", "What the firm charges"),
     ("wording", "Changing a sentence in a letter"),
     ("wording-section", "One section, open"),

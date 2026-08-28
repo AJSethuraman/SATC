@@ -292,6 +292,31 @@ async def run(app: App, shots: Path) -> list[wt.Screen]:
                              no_wait_after=True)
         screens.append(await look(page, "requote-done", shots))
 
+        # ── who has signed, and who has not ───────────────────────────────
+        #
+        # The pack is recorded as gone out first, because that is the order it
+        # happens in and because "outstanding" means nothing until something
+        # has been sent. Then one signature is recorded, so the screen is
+        # photographed with both halves on it -- what is back and what is not.
+        await go(f"/engagement/{ref}/signatures")
+        async with page.expect_navigation(timeout=300000, wait_until="load"):
+            await page.click("button:has-text('It has gone out')",
+                             no_wait_after=True)
+        await page.click("details.blk:has(input[name=reference]) summary")
+        await page.fill("details.blk[open] input[name=on]", "February 9, 2027")
+        await page.check("details.blk[open] input[value=e-signed]")
+        await page.fill("details.blk[open] input[name=reference]", "env_9f2c11")
+        async with page.expect_navigation(timeout=300000, wait_until="load"):
+            await page.click("details.blk[open] button:has-text('Record it')",
+                             no_wait_after=True)
+        # Photographed with one still open: the form is what a preparer uses,
+        # and a screen of shut disclosures cannot be written about.
+        await page.click("details.blk:has(input[name=reference]) summary")
+        screens.append(await look(page, "signatures-one", shots))
+
+        await go("/signatures")
+        screens.append(await look(page, "signatures-waiting", shots))
+
         # ── the two screens the rest of the app hangs off ─────────────────
         await go("/")
         screens.append(await look(page, "home", shots))

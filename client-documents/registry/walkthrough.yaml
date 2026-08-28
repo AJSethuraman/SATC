@@ -36,6 +36,10 @@ home:
     stopped on, with everything already answered still answered. Use it when a
     client had to leave, or when you started one and got pulled away.
   "button:Leads": null
+  "button:Waiting to sign": >-
+    Every client still owing a signature, longest wait first, with anyone past
+    the date they were given at the top. This is the morning list — the one
+    screen worth opening before you do anything else in February.
   "button:Letter wording": >-
     The wording of the letters themselves. You almost never want this in front
     of a client — it changes what every future client reads, not this one's.
@@ -135,6 +139,10 @@ refused:
 
 engagement:
   "button:Build the signing pack": null
+  "button:Signatures": >-
+    Who still has to sign, and where you write down one that has come back.
+    Also the one place that says what has to be true before the return can go
+    — including the two things this software cannot see for you.
   "button:Update the quote": >-
     For when the work has changed since you priced it — a second rental, a K-1
     that turned up, a side business that turned out to be a real one. You are
@@ -245,3 +253,31 @@ wording-add:
     should never see 03 followed by 05.
   "disclosure[summary|blk]": null
   "disclosure:ADD A SECTION NEW": null
+
+signatures-waiting:
+  "link[a|main||/engagement/<ref>/<x>]": >-
+    Opens that client's signatures, where you record one that has come back.
+
+signatures-one:
+  "disclosure[summary|blk]": >-
+    One signature that is still out. Open it to write down that it came back.
+    A line you cannot see here is one already signed — those are listed lower
+    down with the date.
+  "text:THE DAY THEY SIGNED": >-
+    The date on the page, not the day you found out. A letter that arrives on
+    Monday was signed on Friday, and the Friday is the one that counts. Both
+    are kept.
+  "radio[input|radio|how|/engagement/<ref>/signatures{line}]": >-
+    How it reached you, and it is the whole point of the record. "In front of
+    me" and "the portal said it completed" are different things to be sure of,
+    and which one it was is the first thing anybody asks. Choosing the signing
+    service asks for its reference, and will not save without one.
+  "text:REFERENCE, FOR A SIGNING SERVICE": >-
+    Whatever the service calls that request — an envelope or request id. It is
+    what somebody follows a year from now to find the audit trail, so a record
+    without it is worth much less. Leave it empty for a signature you took in
+    the room.
+  "button:Record it": >-
+    Writes it down. Nothing is undone by this — the file is added to, never
+    rewritten, so a mistake is corrected by recording the right one, not by
+    editing the last.

@@ -44,7 +44,7 @@ import json
 import re
 from dataclasses import dataclass, field
 from functools import lru_cache
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import engagements
@@ -165,6 +165,16 @@ def _labels() -> dict:
             for e in reg.get("fields", [])}
 
 
+@lru_cache(maxsize=1)
+def _authorization_names() -> frozenset:
+    """Every form name the registry declares, so a blocker can tell an
+    authorization from a letter without matching on the word "Form"."""
+    return frozenset(
+        spec.get("form", "")
+        for spec in (_registry().get("authorizations") or {}).values()
+        if spec.get("form"))
+
+
 def _label(field: str) -> str:
     return _labels().get(field, "")
 
@@ -222,8 +232,24 @@ class Standing:
     expected: list[Line] = field(default_factory=list)
     have: list[Signature] = field(default_factory=list)
     missing: list[Line] = field(default_factory=list)
+    client: str = ""
     deadline: str = ""
+    sent: str = ""
     overdue: bool = False
+
+    def waiting_days(self, today: date | None = None) -> int | None:
+        """How long this has been out, or None if it was never sent."""
+        from datetime import datetime
+
+        if not self.sent:
+            return None
+        for shape in ("%Y-%m-%d", "%B %d, %Y", "%b %d, %Y"):
+            try:
+                went = datetime.strptime(self.sent, shape).date()
+            except ValueError:
+                continue
+            return max((today or date.today()) - went, timedelta(0)).days
+        return None
 
     @property
     def complete(self) -> bool:
@@ -240,6 +266,45 @@ class Standing:
         return len(self.expected)
 
 
+@lru_cache(maxsize=1)
+def _registry() -> dict:
+    import yaml
+
+    path = Path(__file__).resolve().parent / "registry" / "signing.yaml"
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+
+def SENT_BY() -> dict:
+    """How a pack can reach a client, from the registry."""
+    return _registry().get("sent_by") or {}
+
+
+def authorization(record: dict) -> list[Line]:
+    """The e-file authorization this engagement needs, which we do not print.
+
+    THE CENSUS THAT READS OUR TEMPLATES CANNOT SEE THIS ONE, and it is the
+    signature the delivery letter's promise is actually about. Drake produces
+    the form; the engagement still needs it signed before anything is
+    transmitted, so the register carries it as a line of its own.
+
+    `document` is the form's name rather than a template key, because there is
+    no template -- and the name comes from `registry/signing.yaml`, because the
+    IRS renames these: 8879-C and 8879-S became one 8879-CORP in December 2022.
+    """
+    kind = record.get("_return_type") or "individual"
+    spec = (_registry().get("authorizations") or {}).get(kind)
+    if not spec:
+        return []
+    form = spec.get("form") or "the e-file authorization"
+    out = [Line(document=form, field="TaxpayerName", role="Taxpayer")]
+    if spec.get("joint"):
+        out.append(Line(document=form, field="SpouseName", role="Spouse",
+                        only_if="JointReturn"))
+    elif kind != "individual":
+        out = [Line(document=form, field="SignerName")]
+    return out
+
+
 def expected(record: dict, documents: list[str], template_dir: Path) -> list[Line]:
     """Every signature this client's pack actually asks for.
 
@@ -250,7 +315,7 @@ def expected(record: dict, documents: list[str], template_dir: Path) -> list[Lin
     """
     import cli
 
-    out: list[Line] = []
+    out: list[Line] = [ln for ln in authorization(record) if ln.wanted(record)]
     for doc in documents:
         spec = cli.DOCUMENTS.get(doc)
         if not spec:
@@ -305,6 +370,39 @@ def record_signature(ref: str, line: Line, *, when: str, how: str,
     return _append(ref, entry, store)
 
 
+def mark_sent(ref: str, how: str, *, when: str = "", note: str = "",
+              store: Path | None = None, today: date | None = None) -> Path:
+    """Write down that the pack went to the client.
+
+    YOU CANNOT CHASE WHAT YOU DO NOT KNOW WENT OUT. `sending.build` writes a
+    pack to a folder and stops -- it has no concept of a recipient or a date,
+    and said so. Without this, "outstanding" means "not signed", which on the
+    morning a pack was built is not a chase, it is noise. With it the useful
+    line exists: sent eleven days ago, nothing back.
+    """
+    if how not in SENT_BY():
+        raise SigningError(
+            f"{how!r} is not a way a pack reaches a client. It is one of: "
+            + "; ".join(f"{k} ({v})" for k, v in SENT_BY().items())
+            + ". Add one to `registry/signing.yaml` rather than here."
+        )
+    return _append(ref, {
+        "kind": "sent",
+        "how": how,
+        "when": str(when).strip() or (today or date.today()).isoformat(),
+        "note": note.strip(),
+        "recorded": (today or date.today()).isoformat(),
+    }, store)
+
+
+def sent_on(ref: str, store: Path | None = None) -> str:
+    """When the pack last went out, or empty. The latest wins: a pack rebuilt
+    and resent starts the clock again, which is what a chase is counting."""
+    dates = [row.get("when", "") for row in _log(ref, store)
+             if isinstance(row, dict) and row.get("kind") == "sent"]
+    return dates[-1] if dates else ""
+
+
 def signatures(ref: str, store: Path | None = None) -> list[Signature]:
     """Every signature recorded on this engagement, oldest first."""
     out = []
@@ -334,7 +432,7 @@ def standing(ref: str, record: dict, documents: list[str], template_dir: Path,
     out = Standing(
         ref=ref, expected=want, have=signatures(ref, store),
         missing=[ln for ln in want if (ln.document, ln.field) not in got],
-        deadline=deadline or "",
+        deadline=deadline or "", sent=sent_on(ref, store),
     )
     out.overdue = bool(out.missing and _past(deadline, today))
     return out
@@ -405,7 +503,12 @@ def may_file(ref: str, record: dict, documents: list[str], template_dir: Path,
             "nothing to have signed. That is a question about the pack, not "
             "about the client.")
     for line in where.missing:
-        if line.document in GATES_THE_WORK:
+        if line.document in _authorization_names():
+            out.blockers.append(
+                f"{line.who} has not signed {line.document}. The delivery "
+                f"letter tells this client we cannot transmit until it is "
+                f"back, and on a joint return one signature is not enough.")
+        elif line.document in GATES_THE_WORK:
             out.blockers.append(
                 f"{line.who} has not signed the {line.document}. The "
                 f"onboarding letter tells this client to sign it first, and "
@@ -419,16 +522,11 @@ def may_file(ref: str, record: dict, documents: list[str], template_dir: Path,
         out.blockers.append(
             f"the date the client was given to sign by — {where.deadline} — "
             f"has passed.")
-    # THE FORM THAT ACTUALLY GATES TRANSMITTING IS NOT IN THIS SOFTWARE.
-    # The delivery letter's promise -- "we cannot transmit anything until the
-    # signed authorization is back with us" -- is about Form 8879, which Drake
-    # produces and this repository has never held: none of the twelve
-    # templates is one. Reporting it as satisfied because we cannot see it is
-    # the exact failure this whole module exists to stop.
-    out.unknown.append(
-        "whether the e-file authorization is signed. That is Form 8879, it "
-        "comes out of Drake, and nothing here has ever seen one. On a joint "
-        "return both spouses sign it and one signature is not enough.")
+    # THE FORM THAT GATES TRANSMITTING IS NOT PRINTED HERE, AND IS TRACKED
+    # HERE ANYWAY. Drake produces it and no template in this repository will
+    # ever be one, so `registry/signing.yaml` declares it as a signature the
+    # ENGAGEMENT needs rather than one our paper carries. That is the whole
+    # reason it can be blocked on rather than shrugged at.
     out.unknown.append(
         "whether the invoice has been settled. The engagement letter says we "
         "will not e-file before it is, and nothing here records a payment — "
@@ -471,3 +569,44 @@ def _append(ref: str, entry: dict, store: Path | None) -> Path:
     path.write_text(json.dumps(log, indent=2, ensure_ascii=False) + "\n",
                     encoding="utf-8")
     return path
+
+
+# ── the morning list ──────────────────────────────────────────────────────
+
+def waiting(store: Path | None = None, *, template_dir: Path | None = None,
+            today: date | None = None) -> list[Standing]:
+    """Every engagement with a signature still out, longest wait first.
+
+    THE HALF THAT PAYS. Sending a pack is three minutes of clicking; knowing
+    which eleven clients have not signed, and which of them are past the date
+    they were given, is the part nothing supported at all. A register nobody
+    can sweep is a filing cabinet.
+
+    An engagement whose record cannot be read is skipped rather than counted
+    as clear -- the same rule `reconcile` follows, and for the same reason: a
+    control that only examines the work somebody remembered to file properly
+    is a control over the diligent.
+    """
+    import cli
+    import lifecycle
+    import packaging
+
+    store = store or engagements.STORE
+    template_dir = template_dir or cli.TEMPLATE_DIR
+    out: list[Standing] = []
+    for row in engagements.listing(store):
+        ref = row["ref"]
+        try:
+            record = engagements.load(ref, store)
+            docs = packaging.documents_for(record)
+        except Exception:                                  # noqa: BLE001
+            continue
+        saved = lifecycle.load_saved(ref, "delivery", store) or {}
+        deadline = (saved.get("answers") or {}).get("signature_deadline", "")
+        where = standing(ref, record, docs, template_dir, store=store,
+                         deadline=deadline, today=today)
+        where.client = record.get("ClientFullName", "")
+        if where.missing:
+            out.append(where)
+    out.sort(key=lambda w: (not w.overdue, -(w.waiting_days(today) or -1)))
+    return out

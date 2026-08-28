@@ -36,12 +36,14 @@ import registry_editor
 import engagements
 import intake
 import leads
+import lifecycle
 import packaging
 import presend
 import sending
 import schedules as sched
 import interview as iv
 import requote
+import signing
 import settings as firm
 import tins
 
@@ -730,6 +732,92 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
         return page("Update the quote",
                     requoted_body(ref, record, quote, changes))
 
+    # ── signatures ────────────────────────────────────────────────────────
+    #
+    # THE HALF THAT PAYS. Sending a pack is three minutes of clicking in
+    # whatever portal the letters name; knowing which clients have not signed,
+    # and which are past the date they were given, is what nothing supported.
+    # So the sweep is a screen of its own and the home page links it.
+
+    @app.get("/signatures")
+    def signatures_waiting():
+        rows = signing.waiting(st(), template_dir=cli.TEMPLATE_DIR)
+        if wants_json():
+            return jsonify(waiting=[
+                {"ref": w.ref, "client": w.client, "sent": w.sent,
+                 "days": w.waiting_days(), "overdue": w.overdue,
+                 "outstanding": [str(l) for l in w.missing],
+                 "examined": w.examined} for w in rows])
+        return page("Signatures", waiting_body(rows))
+
+    def _sig_state(ref):
+        record = engagements.load(ref, st())
+        docs = packaging.documents_for(record)
+        saved = lifecycle.load_saved(ref, "delivery", st()) or {}
+        deadline = (saved.get("answers") or {}).get("signature_deadline", "")
+        return record, docs, signing.standing(
+            ref, record, docs, cli.TEMPLATE_DIR, store=st(), deadline=deadline)
+
+    @app.get("/engagement/<ref>/signatures")
+    def signatures_for(ref):
+        try:
+            record, docs, where = _sig_state(ref)
+        except (engagements.EngagementError, FileNotFoundError):
+            abort(404, f"no engagement {ref}")
+        gate = signing.may_file(ref, record, docs, cli.TEMPLATE_DIR,
+                               store=st(), deadline=where.deadline)
+        if wants_json():
+            return jsonify(
+                ref=ref, sent=where.sent, days=where.waiting_days(),
+                overdue=where.overdue, examined=where.examined,
+                outstanding=[str(l) for l in where.missing],
+                signed=[s.line() for s in where.have],
+                blockers=gate.blockers, unknown=gate.unknown)
+        return page("Signatures", signatures_body(ref, record, where, gate))
+
+    @app.post("/engagement/<ref>/signatures")
+    def record_signature_for(ref):
+        try:
+            record, docs, where = _sig_state(ref)
+        except (engagements.EngagementError, FileNotFoundError):
+            abort(404, f"no engagement {ref}")
+        body = request.get_json(silent=True) if request.is_json else None
+        form = body if body is not None else request.form
+
+        problem = ""
+        try:
+            if form.get("sent"):
+                signing.mark_sent(ref, form.get("sent"),
+                                  when=(form.get("on") or "").strip(),
+                                  store=st())
+            else:
+                want = form.get("line") or ""
+                line = next((ln for ln in where.expected
+                             if ln.key() == want), None)
+                if line is None:
+                    problem = ("that signature line is not one this engagement "
+                               "is waiting for.")
+                else:
+                    signing.record_signature(
+                        ref, line, when=(form.get("on") or "").strip(),
+                        how=form.get("how") or "",
+                        reference=(form.get("reference") or "").strip(),
+                        store=st())
+        except signing.SigningError as exc:
+            problem = str(exc)
+
+        if problem and wants_json():
+            return jsonify(ref=ref, status="refused", detail=problem), 400
+        record, docs, where = _sig_state(ref)
+        gate = signing.may_file(ref, record, docs, cli.TEMPLATE_DIR,
+                               store=st(), deadline=where.deadline)
+        if wants_json():
+            return jsonify(ref=ref, status="recorded",
+                           outstanding=[str(l) for l in where.missing])
+        return page("Signatures",
+                    signatures_body(ref, record, where, gate,
+                                    problem=problem)), (400 if problem else 200)
+
     return app
 
 
@@ -977,6 +1065,8 @@ def index_body(rows, drafts) -> str:
                "<button>Start an interview</button>"
                "<a href='/leads' style='margin-left:4px'>"
                "<button type=button class=ghost>Leads</button></a>"
+               "<a href='/signatures' style='margin-left:4px'>"
+               "<button type=button class=ghost>Waiting to sign</button></a>"
                "<a href='/templates' style='margin-left:4px'>"
                "<button type=button class=ghost>Letter wording</button></a>"
                "</form>")
@@ -1403,6 +1493,10 @@ def engagement_body(ref, record, open_now, revisions=()) -> str:
     # A door nothing links to is a door nobody finds: packaging was reachable
     # only by typing a command until this page linked it, and re-quoting was
     # not reachable at all.
+    out.append(f"<form method=get action='/engagement/{esc(ref)}/signatures' "
+               f"class=row><button class=ghost>Signatures</button>"
+               f"<span class=muted>Who still has to sign, and recording one "
+               f"that has come back.</span></form>")
     out.append(f"<form method=get action='/engagement/{esc(ref)}/requote' "
                f"class=row><button class=ghost>Update the quote</button>"
                f"<span class=muted>The work changed &mdash; a second rental, "
@@ -1599,6 +1693,110 @@ def requoted_body(ref, record, quote, changes, *, done=False,
                "<div class=row><button>Record the new quote</button>"
                f"<a class=muted href='/engagement/{esc(ref)}/requote'>"
                f"or go back and change something else</a></div></form>")
+    return "".join(out)
+
+
+def waiting_body(rows) -> str:
+    """Who to chase, longest wait first. The morning screen."""
+    out = ["<h1>Waiting on a signature</h1>"]
+    if not rows:
+        out.append("<p class=help>Nothing outstanding. Every engagement has "
+                   "everything it is waiting for.</p>")
+        return "".join(out)
+    out.append(f"<p class=help>{len(rows)} engagement(s), longest wait first. "
+               f"A row marked <b>overdue</b> is past the date that client was "
+               f"given in writing.</p>")
+    out.append("<table><tr><th>Engagement</th><th>Waiting</th>"
+               "<th>Outstanding</th></tr>")
+    for w in rows:
+        days = w.waiting_days()
+        waited = f"{days} day(s)" if days is not None else "not sent"
+        flag = " <b style='color:var(--oxblood)'>overdue</b>" if w.overdue else ""
+        out.append(
+            # THE LINK IS THE REF, THE NAME IS BESIDE IT -- the same pattern
+            # the home page uses, and for a reason that is not cosmetic: the
+            # walkthrough keys its notes on a control's label, and a label that
+            # is a client's name is a different key on every capture. A ref is
+            # recognised as an identifier and folded.
+            f"<tr><td><a href='/engagement/{esc(w.ref)}/signatures'>"
+            f"{esc(w.ref)}</a> <b>{esc(w.client)}</b></td>"
+            f"<td>{esc(waited)}{flag}</td>"
+            f"<td>{len(w.missing)} of {w.examined}<span class=fname>"
+            + esc("; ".join(str(l) for l in w.missing[:3]))
+            + ("…" if len(w.missing) > 3 else "") + "</span></td></tr>")
+    out.append("</table>")
+    return "".join(out)
+
+
+def signatures_body(ref, record, where, gate, problem="") -> str:
+    """One engagement: what is out, what is in, and the box that records one."""
+    out = [f"<h1>Signatures</h1>",
+           f"<p class=sec>{esc(ref)} &middot; "
+           f"{esc(record.get('ClientFullName',''))}</p>"]
+    if problem:
+        out.append(f"<p class=err>{esc(problem)}</p>")
+
+    days = where.waiting_days()
+    if where.sent:
+        out.append(f"<p class=help>Sent {esc(where.sent)}"
+                   + (f", {days} day(s) ago" if days is not None else "")
+                   + (f". Due {esc(where.deadline)}" if where.deadline else "")
+                   + (" &mdash; <b>past that date</b>." if where.overdue else ".")
+                   + "</p>")
+    else:
+        out.append("<p class=help>Not recorded as gone out. Until it is, "
+                   "&ldquo;outstanding&rdquo; only means nobody has signed "
+                   "yet &mdash; which on the morning you built the pack is not "
+                   "a chase.</p>")
+        out.append(f"<form method=post action='/engagement/{esc(ref)}/signatures'"
+                   f" class=row>")
+        out.append("<select name=sent>")
+        for key, what in signing.SENT_BY().items():
+            out.append(f"<option value='{esc(key)}'>{esc(what)}</option>")
+        out.append("</select><button>It has gone out</button></form>")
+
+    out.append("<h2 class=sec>Still to come back</h2>")
+    if not where.missing:
+        out.append("<p class=help>Everything this engagement is waiting for "
+                   "has been signed.</p>")
+    for line in where.missing:
+        out.append(f"<details class=blk data-caption='one signature'>"
+                   f"<summary><b>{esc(line.document)}</b>"
+                   f"<span class=fname>{esc(line.who)}</span></summary>"
+                   f"<form method=post "
+                   f"action='/engagement/{esc(ref)}/signatures'>"
+                   f"<input type=hidden name=line value='{esc(line.key())}'>"
+                   f"<div class=f><label class=fl for='d{esc(line.key())}'>"
+                   f"The day THEY signed</label>"
+                   f"<input id='d{esc(line.key())}' type=text name=on "
+                   f"placeholder='February 9, 2027'></div>"
+                   f"<div class=f><label class=fl>How it reached you</label>")
+        for key, what in signing.MEANS.items():
+            out.append(f"<label><input type=radio name=how "
+                       f"value='{esc(key)}'> {esc(what)}</label>")
+        out.append(f"</div><div class=f><label class=fl "
+                   f"for='r{esc(line.key())}'>Reference, for a signing "
+                   f"service</label>"
+                   f"<input id='r{esc(line.key())}' type=text "
+                   f"name=reference placeholder='the envelope id'></div>"
+                   f"<div class=row><button>Record it</button></div>"
+                   f"</form></details>")
+
+    if where.have:
+        out.append("<h2 class=sec>Signed</h2><table>")
+        for got in where.have:
+            out.append(f"<tr><td>{esc(got.document)}</td>"
+                       f"<td>{esc(got.when)}</td>"
+                       f"<td>{esc(signing.MEANS.get(got.how, got.how))}</td>"
+                       f"</tr>")
+        out.append("</table>")
+
+    if gate.blockers or gate.unknown:
+        out.append("<h2 class=sec>Before this return is transmitted</h2>")
+        for line in gate.blockers:
+            out.append(f"<p class=err>{esc(line)}</p>")
+        for line in gate.unknown:
+            out.append(f"<p class=help><b>Not known here.</b> {esc(line)}</p>")
     return "".join(out)
 
 

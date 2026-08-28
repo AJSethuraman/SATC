@@ -1,0 +1,66 @@
+# SATC — the signatures an engagement needs, beyond the ones on our own paper
+#
+# MOST SIGNATURE LINES ARE READ OFF THE DOCUMENTS. `signing.lines_in` finds the
+# blocks in the templates themselves, so a block that moves or gains a signer is
+# followed without anybody editing anything. That covers the engagement letters
+# and the records release.
+#
+# IT CANNOT COVER THE ONE THAT MATTERS MOST. The e-file authorization is
+# produced by Drake, not by us, and no template here will ever be one — so the
+# census that reads our templates cannot see it. It is nonetheless the signature
+# the delivery letter's promise is about:
+#
+#     "We cannot transmit anything until the signed authorization is back with
+#      us. On a joint return, both spouses sign, and one signature is not
+#      enough to file."
+#
+# So it is declared here instead: a signature the ENGAGEMENT needs, whoever
+# printed the form.
+#
+# WHY A REGISTRY AND NOT A CONSTANT IN PYTHON. The IRS renames these. Forms
+# 8879-C and 8879-S were replaced by a single 8879-CORP first issued December
+# 2022, and 8879-PE carries a December 2025 revision. A form name typed into
+# code goes stale in a filing season and nobody notices until a document names
+# a form that no longer exists. Here, it is one line to change.
+#
+# `joint` marks a form both spouses sign. The delivery letter says one
+# signature is not enough, so the register asks for two.
+#
+# NOTHING HERE ASSERTS A COMPLIANCE RULE. What identity checking the IRS
+# requires before one of these may be signed electronically is in
+# `docs/research-e-signature.md`, and that document opens by saying its sources
+# could not be read from the primary text. This file names forms, nothing more.
+
+authorizations:
+  individual:
+    form: "Form 8879"
+    what: "the e-file authorization for the individual return"
+    joint: true
+
+  s_corp:
+    form: "Form 8879-CORP"
+    what: "the e-file authorization for the S corporation return"
+    joint: false
+
+  c_corp:
+    form: "Form 8879-CORP"
+    what: "the e-file authorization for the C corporation return"
+    joint: false
+
+  partnership:
+    form: "Form 8879-PE"
+    what: "the e-file authorization for the partnership return"
+    joint: false
+
+# How a pack reaches a client. Recorded so the chase has a start date -- "sent
+# eleven days ago, nothing back" is the useful line, and it cannot be said
+# without this.
+#
+# The firm's own letters name Encyro to the client: "We send documents for
+# signature through Encyro." It is first here because it is what the client was
+# promised.
+sent_by:
+  encyro: "through Encyro, which is what the letters tell the client"
+  email: "by ordinary email"
+  post: "on paper, in the post"
+  in-person: "handed over in the room"

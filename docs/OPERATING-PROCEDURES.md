@@ -140,11 +140,22 @@ python cli.py package --engagement <REF> --out packs/<REF> \
 ## 4 · Getting it signed
 
 ```
+python cli.py sign                             # everyone still waiting
 python cli.py sign --engagement <REF>
+python cli.py sign --engagement <REF> --sent encyro
 python cli.py sign --engagement <REF> \
     --record tax-letter/TaxpayerName \
     --on '<the day THEY signed>' --how in-person
 ```
+
+**Run with no engagement, it is the morning list** — every client
+still waiting, longest first, with the overdue at the top. That is
+the half worth automating: sending a pack is three minutes of
+clicking, and knowing who has not signed is what nothing supported.
+
+**Record that it went out.** Until you do, "outstanding" only means
+nobody has signed yet — which on the morning you built the pack is
+not a chase. `--sent` starts the clock, and re-sending restarts it.
 
 **Nobody types a list of who must sign.** The templates carry the
 signature blocks and the register reads them, so a block that moves or
@@ -162,18 +173,23 @@ reference its audit trail is under.
 that arrives on Monday was signed on Friday, and the date on the page
 is the one that counts. Both are kept.
 
-Three things this deliberately does **not** know, and says so rather
+**The e-file authorization is tracked, though we never print it.**
+Drake produces Form 8879 — or 8879-CORP, or 8879-PE — and no template
+here will ever be one, so the census that reads our own documents
+cannot see it. `registry/signing.yaml` declares it instead, as a
+signature the **engagement** needs rather than one our paper carries.
+That is why it can be blocked on rather than shrugged at, and why the
+form names live in a registry: the IRS renames them, and 8879-C and
+8879-S became a single 8879-CORP in December 2022.
+
+Two things this deliberately does **not** know, and says so rather
 than assuming:
 
-- **Form 8879.** It comes out of Drake and none of the twelve
-  templates is one. The delivery letter's promise — *nothing is
-  transmitted until the signed authorization is back* — is about that
-  form, and this software has never seen one.
+- **The records release.** Addressed to the previous accountant. It
+  gates nothing here, and waiting on it would stop an engagement over
+  a document somebody else acts on.
 - **Whether the invoice is settled.** The engagement letter says we
   will not e-file before it is; `invoice` writes the bill and stops.
-- **The records release.** It is addressed to the previous accountant
-  and gates nothing here. Waiting on it would stop an engagement over
-  a document somebody else acts on.
 
 > **Judgement, not procedure:** whether to start work on a signature
 > you have been told about but not yet seen. The register records what

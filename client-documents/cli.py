@@ -1451,6 +1451,38 @@ def _signing_state(ref: str, store: Path):
         ref, record, docs, TEMPLATE_DIR, store=store, deadline=deadline)
 
 
+def _signing_sweep(store: Path) -> int:
+    """Who to chase this morning, across every engagement.
+
+    THE HALF THAT PAYS. Sending a pack is three minutes of clicking; knowing
+    which clients have not signed, and which are past the date they were
+    given, is what nothing supported at all.
+    """
+    rows = signing.waiting(store, template_dir=TEMPLATE_DIR)
+    if not rows:
+        seen = len(engagements.listing(store))
+        print(f"\nNothing outstanding — {seen} engagement(s) looked at.\n"
+              if seen else "\nNo engagements yet.\n")
+        return 0
+    print(f"\n{len(rows)} engagement(s) waiting on a signature, "
+          f"longest first:\n")
+    for w in rows:
+        days = w.waiting_days()
+        out = f"{days}d" if days is not None else "not sent"
+        mark = "!!" if w.overdue else "  "
+        print(f"  {mark} {w.ref}  {w.client[:26]:28} {out:>9}  "
+              f"{len(w.missing)} of {w.examined} outstanding"
+              + (f"  — due {w.deadline}" if w.deadline else ""))
+        for line in w.missing:
+            print(f"        {line.document:22} {line.who}")
+    # The legend only where there is something to explain. A key under a list
+    # with no marks in it is noise, and noise is what gets skimmed past.
+    if any(w.overdue for w in rows):
+        print("\n  !! past the date the client was given.")
+    print()
+    return 0
+
+
 def cmd_sign(args) -> int:
     """Who has signed what, and record one that has come back.
 
@@ -1461,6 +1493,8 @@ def cmd_sign(args) -> int:
     delivery letter tells the client.
     """
     store = Path(args.store) if args.store else engagements.STORE
+    if not args.engagement:
+        return _signing_sweep(store)
     try:
         record, docs, where = _signing_state(args.engagement, store)
     except engagements.EngagementError as exc:
@@ -1468,8 +1502,14 @@ def cmd_sign(args) -> int:
         return 1
 
     name = record.get("ClientFullName", "")
-    if not args.record:
+    if not args.record and not args.sent:
         print(f"\n{args.engagement} — {name}")
+        if where.sent:
+            days = where.waiting_days()
+            print(f"  sent {where.sent}"
+                  + (f", {days} day(s) ago" if days is not None else ""))
+        else:
+            print("  not recorded as sent — `--sent encyro` starts the clock")
         print(f"\n  {where.examined} signature(s) this pack asks for:\n")
         got = {(s.document, s.field): s for s in where.have}
         for line in where.expected:
@@ -1491,6 +1531,16 @@ def cmd_sign(args) -> int:
               f"{args.engagement} \\\n"
               f"                   --record tax-letter/TaxpayerName "
               f"--on 'February 9, 2027' --how in-person\n")
+        return 0
+
+    if args.sent:
+        try:
+            path = signing.mark_sent(args.engagement, args.sent,
+                                     when=args.on or "", store=store)
+        except signing.SigningError as exc:
+            print(f"\n{exc}\n")
+            return 1
+        print(f"\n  Recorded as sent. {path}\n")
         return 0
 
     if "/" not in args.record:
@@ -2118,7 +2168,10 @@ def main(argv=None) -> int:
 
     sg = sub.add_parser("sign",
                         help="who has signed what, and record one that is back")
-    sg.add_argument("--engagement", required=True)
+    sg.add_argument("--engagement",
+                    help="one engagement. Omit for everything still waiting.")
+    sg.add_argument("--sent", metavar="HOW",
+                    help="record that the pack went out, and start the clock")
     sg.add_argument("--record", metavar="DOCUMENT/FIELD",
                     help="the signature line that came back. Omit to list.")
     sg.add_argument("--on", help="the day they signed, not the day you heard")
