@@ -157,6 +157,32 @@ clicking, and knowing who has not signed is what nothing supported.
 nobody has signed yet — which on the morning you built the pack is
 not a chase. `--sent` starts the clock, and re-sending restarts it.
 
+### Getting it to them
+
+```
+python cli.py package --engagement <REF> --out packs/<REF> --ready
+```
+
+`--ready` writes the covering email beside the pack as an ordinary
+`.eml`. Double-click it and it opens in the mail client already
+addressed, already attached, already written; you read it and press
+send. **Nothing is sent by the software** — the send is the one
+irreversible step in the whole pipeline, and it stays attached to a
+person.
+
+The wording is the firm's and lives in `registry/signing.yaml`. Until
+somebody has accepted or rewritten the draft there, this refuses and
+says so — the pack still builds. An agent writing to a client over the
+firm's name, in prose nobody read, is the one failure worth refusing
+a convenience over.
+
+Turning on `secure_keyword` in that registry puts Encyro's
+`[Secure]` keyword in the subject, which their Outlook add-in reads
+on send. That is the only automation hook Encyro appears to offer —
+there is no API, no SMTP relay and no connector. It is off until
+somebody has sent one to themselves and checked the client does not
+read the keyword. See `docs/research-e-signature.md`.
+
 **Nobody types a list of who must sign.** The templates carry the
 signature blocks and the register reads them, so a block that moves or
 gains a signer is followed on its own — and the spouse's line is

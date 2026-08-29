@@ -44,6 +44,7 @@ import invoicing
 import lifecycle
 import packaging
 import notes
+import outgoing
 import presend
 import sending
 import procedures
@@ -489,6 +490,33 @@ def cmd_package(args) -> int:
         print(f"      {packaging.PURPOSE.get(doc, '')}")
     print(f"\n  Estimate  {record.get('EstimateTotal', '(none)')}")
     print(f"  Manifest  {outdir / 'MANIFEST.json'}")
+
+    # ONE PRESS FROM SENT. The pack is four files in a folder and a covering
+    # note somebody types from memory; this writes it as an ordinary `.eml`
+    # that opens in the mail client already addressed, attached and written.
+    # Nothing is sent -- the human reads it and presses send, which keeps the
+    # one irreversible step in the pipeline attached to a person.
+    if getattr(args, "ready", False):
+        try:
+            message = outgoing.compose(record, outdir,
+                                       registry=signing._registry())
+            path = outgoing.write(message, outdir,
+                                  sender=firm.firm_fields(
+                                      str(record.get("_season", "")))
+                                  .get("BillingContactEmail", ""))
+        except outgoing.OutgoingError as exc:
+            # PRINTED LINE BY LINE, NOT REFLOWED. The refusal quotes the
+            # draft covering note back, and running a proposed letter through
+            # a paragraph filler turns it into a wall the reader skips.
+            print("\n  Not ready to send.")
+            for line in str(exc).splitlines():
+                print("  " + line if line.strip() else "")
+            print()
+            return 0
+        print(f"\n  Ready to send  {path}")
+        print(f"      {message.summary()}")
+        print(f"      Open it, read it, press send. Nothing has gone "
+              f"anywhere.\n")
     return 0
 
 
@@ -2026,6 +2054,9 @@ def main(argv=None) -> int:
     pk.add_argument("--with-invoice", action="store_true",
                     help="include the invoice, which is not part of what is signed")
     pk.add_argument("--no-pdf", action="store_true")
+    pk.add_argument("--ready", action="store_true",
+                    help="also write the covering email as a .eml, addressed "
+                         "and attached, for you to read and send")
     pk.set_defaults(fn=cmd_package)
 
     pk.add_argument("--attach", action="append", metavar="ID",

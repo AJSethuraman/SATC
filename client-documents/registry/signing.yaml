@@ -64,3 +64,72 @@ sent_by:
   email: "by ordinary email"
   post: "on paper, in the post"
   in-person: "handed over in the room"
+
+# ── the covering note the documents travel with ───────────────────────────
+#
+# THIS IS COPY, AND COPY IS THE FIRM'S. `CLAUDE.md`: "Change anything a test can
+# prove; change nothing a client reads or pays." So a draft is proposed here
+# inside a `[CONFIRM: ]` and the software REFUSES to compose anything until the
+# firm has accepted or rewritten it. A placeholder that shipped would be an
+# agent writing to a client in the firm's name.
+#
+# The draft below is not invented from nothing. It is assembled from sentences
+# the firm has already published:
+#
+#   the onboarding letter -- "Anything for signature comes to you by email,
+#   encrypted through Encyro, at the same address."
+#   the onboarding letter -- "Sign the engagement letter first -- it outlines
+#   everything you should expect for the tax year."
+#   every engagement letter -- "We send documents for signature through Encyro."
+#
+# TO ACCEPT IT: delete the `[CONFIRM: ` and its closing `]`, leaving the words.
+# To change it, replace the words. `<<ClientFullName>>`, `<<PeriodLabel>>` and
+# `<<EngagementRef>>` are filled per client; anything else is typed as it reads.
+
+covering_note:
+  subject: "[CONFIRM: Your <<PeriodLabel>> engagement letter — <<EngagementRef>>]"
+  # A LITERAL BLOCK (`|-`), NOT A FOLDED ONE. YAML's `>-` turns every line
+  # break into a space, which collapsed this into one paragraph -- a covering
+  # note to a client with no paragraphs in it. Found by reading the composed
+  # message rather than the registry.
+  body: |-
+    [CONFIRM:
+    Dear <<ClientFullName>>,
+
+    Your engagement letter is attached, with the fee estimate and a note on
+    what happens next. Nothing begins until you have read it and signed.
+
+    If anything in it does not match what we discussed, tell me before you
+    sign and I will put it right.
+
+    Arjun
+    ]
+
+# THE ONE AUTOMATION HOOK ENCYRO APPEARS TO OFFER, and it is not an API.
+#
+# Encyro's Outlook add-in watches messages as they are sent and routes any
+# whose subject contains a keyword -- their release notes: *"Keyword based
+# secure send: Simply type '[Secure]' (with or without the quotes) in the email
+# subject line to automatically send the email securely."* That is the add-in
+# intercepting a send on your own machine, not a gateway anything can post to,
+# which is why there is no API here and never was one to find.
+#
+# It matters anyway. The `.eml` this software writes opens in Outlook already
+# addressed, attached and written; with the keyword in the subject, pressing
+# send routes it through Encyro. One press, no credential stored anywhere, no
+# website driven.
+#
+# OFF BY DEFAULT, AND DELIBERATELY. Two things are unverified: whether the
+# add-in STRIPS the keyword before the client sees the subject, and whether the
+# convention still holds in the current version. Encyro states elsewhere that a
+# subject line is not encrypted -- so if it is not stripped, the client reads
+# "[Secure]" on their mail. Send one to yourself, look at what arrives, and
+# turn this on if it is clean.
+#
+# A SECURE MESSAGE IS NOT A SIGNATURE REQUEST. Nothing suggests a keyword can
+# place signature fields on a page; an e-sign request is built in the web
+# interface, where a saved template can hold the field placements and only the
+# file changes. So this carries the documents securely and the signature is
+# still asked for the other way. See `docs/research-e-signature.md`.
+
+secure_keyword: ""

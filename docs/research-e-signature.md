@@ -190,6 +190,77 @@ until then this is an open question, not a finding.
 Adobe is the second flag, more honestly disclosed: real KBA, enterprise plans
 only. Dead for a one-person firm.
 
+## 5b · How a program could originate an Encyro send
+
+Asked directly: *is there any way to automate sending for signature through
+Encyro?* Investigated 28 Aug 2026. **Every `*.encyro.com` host is blocked from
+this environment**, so all of the below is recovered from search-engine
+snippets of Encyro's own help articles; each names the article so it can be
+checked in one click from an unblocked machine.
+
+| Surface | Verdict |
+|---|---|
+| Public REST API | **No.** `api.encyro.com` is real and appears in Encyro's own allowlist guidance (`help/article/244`), but it is the web app's and the Outlook add-in's own backend — the add-in stores *"a login token (not your password)"* against it (`article/133`). No developer portal, no key, no docs. Review aggregators state flatly that Encyro provides no API |
+| Send-by-email / SMTP relay | **No.** Encyro explicitly refuses to issue an inbound secure address — *"You cannot place an encrypted email address … on your business card"* (`article/86`). Inbound is a web upload page. No SMTP host appears anywhere |
+| **Outlook add-in keyword** | **Yes, and it is the one hook.** *"Keyword based secure send: Simply type '[Secure]' … in the email subject line to automatically send the email securely"* (`article/212`). It is the add-in intercepting a send **on your own machine** |
+| Gmail add-on | **No.** *"The Encyro Addon can never start by itself — you must always click to start it"* (`article/207`) |
+| Zapier / Power Automate / Make | **No connector** in any of the three directories |
+| Watched folder / SFTP / bulk CSV | **No.** Cloud storage is manual desktop sync (`article/78`) |
+
+**What an e-sign request actually needs** (`article/180`): the file, **signature
+fields placed on the page**, signer email addresses, an optional signing order,
+and a subject/document title. **Dynamic File E-Sign Templates** save the field
+placements so only the file changes between clients — the feature that makes
+repeat sending fast, and a web-interface feature.
+
+**KBA is per-request and priced per-request** — SMS access codes *"starting
+from 16¢ per request, with the first 25 free"* (`blog/easy-e-sign-for-8879-kba`).
+That is the same evidence that raised the doubt in §5; the written question
+there is what settles it.
+
+### So: what can and cannot be automated
+
+**Sending the documents securely: yes.** The `.eml` this software writes opens
+in Outlook already addressed, attached and written; with `[Secure]` in the
+subject the add-in routes it through Encyro on send. One press, no stored
+credential, no website driven. `registry/signing.yaml` carries the keyword as a
+setting, **off by default** until somebody has sent one to themselves and
+checked whether the add-in strips it — Encyro says elsewhere that a subject line
+is not encrypted, so an unstripped keyword is something the client reads.
+
+Fully hands-off is possible on Windows: `pywin32` can drive Outlook to build
+and send that message. It was **not built** — this environment is Linux and
+cannot run it, and shipping Windows-only code nobody has executed is the
+failure S28 was written about.
+
+**Asking for the signature: no.** Nothing suggests a keyword or an email can
+place signature fields on a page. That is the web interface, made quick by a
+saved template. Driving it with a browser script is possible and argued against
+here: MFA is a control the Safeguards Rule requires and an RPA login degrades
+it, a UI change breaks the script silently on a client-facing send, and portal
+terms commonly forbid it.
+
+**A hook worth using.** The request's subject/document title is unencrypted and
+**you set it** — so putting the engagement ref in it means the ref echoes back
+through the completion email, which is what makes the return leg parseable. The
+composed subject already carries it.
+
+### The one email to Encyro
+
+> We are a one-person CPA firm and want our own software to originate Encyro
+> e-sign requests without anyone using the web interface. Three questions:
+> (1) Is there a documented HTTP API on api.encyro.com — even partner-only or
+> under NDA — that can upload a PDF and create an e-sign request against a
+> saved template, and how do we apply for a key? (2) Does the `[Secure]`
+> subject keyword work anywhere other than the installed Outlook add-in — is
+> there an SMTP relay we can authenticate to, or an address we can email or
+> BCC, to originate a secure message or an e-sign request? (3) What is the
+> exact subject line and body format of the notification email you send when a
+> signer completes a request, and does it include a stable request ID we can
+> parse?
+
+Add the KBA question from §5 and one email closes every open item here.
+
 ## 6 · What this points at
 
 > **Superseded by the firm, 28 August 2026: "Drake can print our 8879."**
