@@ -36,6 +36,10 @@ home:
     stopped on, with everything already answered still answered. Use it when a
     client had to leave, or when you started one and got pulled away.
   "button:Leads": null
+  "button:Payments": >-
+    Every bill you have raised and whether the money has arrived. It shows what
+    was written down the last time the terminal asked the processor — this
+    screen never asks, so it cannot sit there waiting on them.
   "button:Waiting to sign": >-
     Every client still owing a signature, longest wait first, with anyone past
     the date they were given at the top. This is the morning list — the one
@@ -281,3 +285,10 @@ signatures-one:
     Writes it down. Nothing is undone by this — the file is added to, never
     rewritten, so a mistake is corrected by recording the right one, not by
     editing the last.
+
+payments:
+  "link[a|main||/engagement/<x>]": >-
+    Opens the engagement the bill belongs to. A bill with a payment link shows
+    it in the Status column instead of "no link". The one photographed here was
+    raised without one: the machine that takes these pictures cannot reach the
+    payment processor.

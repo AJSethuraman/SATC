@@ -54,10 +54,11 @@ Clauses in the engagement letter are referenced **by name** — the fees clause 
 | `<<BillingContactName>>` + `<<BillingContactEmail>>` | Yes | Arjun Sethuraman · billing@satcllp.com · 307-941-0508 | Three fields. Separate from the preparer on purpose — a billing question shouldn't have to find the preparer. |
 | `<<EstimateTotal>>` | If flag | $785 | Pulled from the estimate record, not retyped |
 | `<<EstimateDate>>` | If flag | February 3, 2027 | |
+| `<<PaymentUrl>>` | Optional | https://square.link/u/xxxxxxxx | The link the client pays at. **Issued per invoice and never for an estimate** — a quote is what the work will cost and is not yet owed, and this engine can re-quote, so the figure moves. Created by `payments.py` from `registry/payments.yaml`; the whole block drops when there is none, so an invoice raised before this existed still renders. |
 | `<<VarianceNote>>` | If flag | The difference is the additional state return added at your request on March 8. | **If the invoice exceeds the estimate this is not optional.** An unexplained overage is the most common billing dispute there is. |
 | `[[IF EstimateReference]]` | Flag | Boolean | Off for recurring bookkeeping invoices, where restating the estimate monthly is noise |
 
-**Total: 30 fields + 1 repeating list of 3 + 2 flags.**
+**Total: 31 fields + 1 repeating list of 3 + 2 flags.**
 
 Not variables: the due-on-presentation terms, the interest language, and the three notes.
 

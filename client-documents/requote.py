@@ -511,6 +511,21 @@ def _notes(ref: str, store: Path, quote: Quote) -> list[str]:
             f"changed after it was sent is not a bill. The new figure applies "
             f"to what is billed next."
         )
+        # A LINK OUTLIVES THE FIGURE IT WAS MADE FOR. Re-pricing does not
+        # reach into a bill already sent, and it must not -- but the client is
+        # holding a live link for the old amount, and nothing about a
+        # re-quote tells them otherwise.
+        live = [b for b in raised
+                if b.get("PaymentUrl") and not b.get("SettledOn")]
+        if live:
+            out.append(
+                f"{len(live)} of those still has a payment link out and unpaid "
+                + ", ".join(b.get("InvoiceNumber", "?") for b in live)
+                + f" — for the OLD figure. Re-pricing does not change a bill "
+                  f"already sent, so that link will still collect what it was "
+                  f"made for. Decide whether to let it stand or raise a new "
+                  f"bill and tell the client which to pay."
+            )
     if quote.scope_moved:
         # WHAT IS TRUE, NOT WHAT TO TYPE. This ended with `python cli.py
         # package --engagement <ref>` and the browser printed it under a

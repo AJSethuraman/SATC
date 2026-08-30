@@ -258,6 +258,17 @@ fields:
     notes: >-
       The ORIGINAL due date, which the extension did not move. The whole point
       of the notice is that this and ExtendedDeadline are different dates.
+  - field: PaymentUrl
+    label: "Where the client pays"
+    source: computed
+    templates: [invoice]
+    notes: >-
+      The payment link, issued per invoice by `payments.py`. ON THE INVOICE
+      ALONE, and the firm said why: "Quotes get no link. Only the invoice.
+      Obviously." An estimate is what the work will cost and is not yet owed --
+      and this engine re-quotes, so a link on a quote would collect a figure
+      that had since moved. Optional: the block drops where there is no link,
+      so an invoice raised before this existed still renders.
   - field: PaymentInstruction
     label: "How to pay"
     source: firm
@@ -361,6 +372,17 @@ fields:
       Not optional when the invoice exceeds the estimate.
 
 flags:
+  - flag: PaymentLink
+    label: "This bill carries a payment link"
+    source: computed
+    templates: [invoice]
+    notes: >-
+      Set by `payments.py` beside `PaymentUrl`, and separate from it on
+      purpose: a condition is a flag and a value is a field, and using the URL
+      as its own condition means one name registered as two things. Drops the
+      whole link block, so an invoice raised before any of this existed still
+      renders.
+
   - flag: AccountSettled
     inverse_of: BalanceOutstanding
     label: "Nothing is owed"

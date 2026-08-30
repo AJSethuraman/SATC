@@ -317,6 +317,17 @@ async def run(app: App, shots: Path) -> list[wt.Screen]:
         await go("/signatures")
         screens.append(await look(page, "signatures-waiting", shots))
 
+        # A BILL IS RAISED FIRST, because a payments screen with no invoice on
+        # it shows nothing and teaches nothing. Raised through the real
+        # command, with no link -- this environment cannot reach Square, and a
+        # walkthrough that quietly needed a network would be a walkthrough
+        # nobody else could regenerate.
+        import cli as _cli
+        _cli.main(["invoice", "--engagement", ref, "--store", str(app.store),
+                   "--billed", "2026 tax year", "--no-link"])
+        await go("/payments")
+        screens.append(await look(page, "payments", shots))
+
         # ── the two screens the rest of the app hangs off ─────────────────
         await go("/")
         screens.append(await look(page, "home", shots))

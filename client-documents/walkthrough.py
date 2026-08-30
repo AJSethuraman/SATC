@@ -70,6 +70,7 @@ SCREENS = [
     ("requote-done", "The new quote, recorded"),
     ("signatures-waiting", "Who to chase this morning"),
     ("signatures-one", "One client, and what is still out"),
+    ("payments", "Which bills have been paid"),
     ("prices", "What the firm charges"),
     ("wording", "Changing a sentence in a letter"),
     ("wording-section", "One section, open"),

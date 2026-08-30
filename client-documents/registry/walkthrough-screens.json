@@ -491,7 +491,7 @@
   {
     "key": "package-written",
     "heading": "The signing pack",
-    "help": "Built and checked. 4 document(s) in /tmp/satc-walk-mhrw0fbu/store/2026-0001/pack.",
+    "help": "Built and checked. 4 document(s) in /tmp/satc-walk-xnkb1b6s/store/2026-0001/pack.",
     "shot": "package-written.png",
     "controls": [
       {
@@ -632,7 +632,7 @@
   {
     "key": "signatures-one",
     "heading": "Signatures",
-    "help": "Sent 2026-08-28, 0 day(s) ago.",
+    "help": "Sent 2026-08-30, 0 day(s) ago.",
     "shot": "signatures-one.png",
     "controls": [
       {
@@ -714,6 +714,30 @@
     ]
   },
   {
+    "key": "payments",
+    "heading": "Payments",
+    "help": "1 of 1 bill(s) outstanding. This is what was written down the last time cli.py payments asked the processor — this screen does not ask, so it never hangs waiting on them.",
+    "shot": "payments.png",
+    "controls": [
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|main||/engagement/<x>",
+        "label": "",
+        "examples": [
+          "2026-0001"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
     "key": "home",
     "heading": "Engagements",
     "help": "",
@@ -744,6 +768,13 @@
         "kind": "button",
         "shape": "button|button|ghost|/signatures",
         "label": "Waiting to sign",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|button|ghost|/payments",
+        "label": "Payments",
         "examples": [],
         "count": 1
       },

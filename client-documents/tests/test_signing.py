@@ -248,18 +248,44 @@ def test_signing_everything_we_print_is_not_enough(live):
     assert all("Form 8879" in b for b in gate.blockers)
 
 
-def test_the_invoice_half_of_the_promise_is_still_unknowable(live):
-    """`invoicing` writes the bill and stops. A gate that quietly reads "we
-    cannot tell" as "fine" launders an unanswered question into a green
-    light."""
+def test_a_bill_nobody_has_raised_is_not_an_unpaid_bill(live):
+    """Nothing is owed until it is billed. Blocking on an invoice that does not
+    exist would stop every engagement that bills after filing."""
     ref, store, record, docs = live
     for line in here(ref, store, record, docs).expected:
         signing.record_signature(ref, line, when="February 9, 2027",
                                  how="in-person", store=store)
     gate = signing.may_file(ref, record, docs, cli.TEMPLATE_DIR, store=store)
     assert not gate.blockers, gate.blockers
-    assert not gate.clear, "everything visible is signed, and that is not all"
-    assert any("invoice has been settled" in u for u in gate.unknown)
+
+
+def test_an_unsettled_bill_blocks_the_filing_the_letter_promised(live):
+    """THIS USED TO BE UNANSWERABLE AND SAID SO. `invoicing` wrote the bill and
+    stopped, so `may_file` could only report the question. A bill now carries a
+    payment link and `cli.py payments` writes back what the processor says, so
+    there is something to read — and every engagement letter says we will not
+    e-file before the invoice is settled."""
+    import json
+
+    ref, store, record, docs = live
+    for line in here(ref, store, record, docs).expected:
+        signing.record_signature(ref, line, when="February 9, 2027",
+                                 how="in-person", store=store)
+    bills = store / ref / "invoices"
+    bills.mkdir(parents=True, exist_ok=True)
+    (bills / "2027-0001.json").write_text(
+        json.dumps({"InvoiceNumber": "2027-0001", "AmountDue": "$645.00"}),
+        encoding="utf-8")
+
+    gate = signing.may_file(ref, record, docs, cli.TEMPLATE_DIR, store=store)
+    assert gate.blockers, "an unsettled bill is a promise not yet kept"
+    assert "2027-0001" in " ".join(gate.blockers)
+
+    (bills / "2027-0001.json").write_text(
+        json.dumps({"InvoiceNumber": "2027-0001", "AmountDue": "$645.00",
+                    "SettledOn": "2027-03-04"}), encoding="utf-8")
+    assert not signing.may_file(ref, record, docs, cli.TEMPLATE_DIR,
+                                store=store).blockers
 
 
 def test_an_empty_census_is_not_a_completion(live):

@@ -37,7 +37,9 @@ import engagements
 import intake
 import leads
 import lifecycle
+import invoicing
 import packaging
+import payments
 import presend
 import sending
 import schedules as sched
@@ -818,6 +820,33 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
                     signatures_body(ref, record, where, gate,
                                     problem=problem)), (400 if problem else 200)
 
+    # ── the money out ─────────────────────────────────────────────────────
+    #
+    # READ-ONLY, DELIBERATELY. Asking the processor whether a bill was paid is
+    # a network call and belongs to `cli.py payments`, which a person runs when
+    # they want the answer. This screen shows what was written down last time
+    # it ran -- so a browser with no internet still tells you where you stand,
+    # and nothing here can hang waiting on Square.
+
+    @app.get("/payments")
+    def money_out():
+        rows = []
+        for folder in sorted(st().glob("*/invoices")):
+            ref = folder.parent.name
+            for bill in invoicing.issued_for(st(), ref):
+                rows.append({
+                    "ref": ref,
+                    "invoice": bill.get("InvoiceNumber", ""),
+                    "amount": bill.get("AmountDue", ""),
+                    "date": bill.get("InvoiceDate", ""),
+                    "settled": bill.get("SettledOn", ""),
+                    "url": bill.get("PaymentUrl", ""),
+                })
+        rows.sort(key=lambda r: (bool(r["settled"]), r["invoice"]))
+        if wants_json():
+            return jsonify(bills=rows)
+        return page("Payments", payments_body(rows))
+
     return app
 
 
@@ -908,7 +937,11 @@ margin:0 0 20px}
 .note li{font-size:14px;color:var(--ink-2)}
 .muted{color:var(--ink-2);font-size:14px}
 code{font-family:"IBM Plex Mono",monospace;font-size:13px}
-th .fname{display:block;font:10px/1.4 "IBM Plex Mono",monospace;
+/* IN A CELL AS WELL AS A HEADER. It was styled under `th` alone, so the same
+   span inside a `td` rendered inline and unstyled -- the payments screen read
+   "2026-00012026-0001", the invoice number and the engagement ref run
+   together. Found by looking at the screenshot. */
+th .fname,td .fname{display:block;font:10px/1.4 "IBM Plex Mono",monospace;
 letter-spacing:.06em;color:var(--mute);text-transform:none;margin-top:2px}
 table.plain th{text-transform:none;font-family:inherit;font-size:14px;
 letter-spacing:0;color:var(--ink);font-weight:500;width:52%}
@@ -1067,6 +1100,8 @@ def index_body(rows, drafts) -> str:
                "<button type=button class=ghost>Leads</button></a>"
                "<a href='/signatures' style='margin-left:4px'>"
                "<button type=button class=ghost>Waiting to sign</button></a>"
+               "<a href='/payments' style='margin-left:4px'>"
+               "<button type=button class=ghost>Payments</button></a>"
                "<a href='/templates' style='margin-left:4px'>"
                "<button type=button class=ghost>Letter wording</button></a>"
                "</form>")
@@ -1797,6 +1832,35 @@ def signatures_body(ref, record, where, gate, problem="") -> str:
             out.append(f"<p class=err>{esc(line)}</p>")
         for line in gate.unknown:
             out.append(f"<p class=help><b>Not known here.</b> {esc(line)}</p>")
+    return "".join(out)
+
+
+def payments_body(rows) -> str:
+    """Every bill, and whether the money has arrived."""
+    out = ["<h1>Payments</h1>"]
+    if not rows:
+        out.append("<p class=help>No invoice has been raised yet.</p>")
+        return "".join(out)
+    owing = [r for r in rows if not r["settled"]]
+    out.append(f"<p class=help>{len(owing)} of {len(rows)} bill(s) "
+               f"outstanding. This is what was written down the last time "
+               f"<code>cli.py payments</code> asked the processor &mdash; this "
+               f"screen does not ask, so it never hangs waiting on them.</p>")
+    out.append("<table><tr><th>Invoice</th><th>Amount</th><th>Raised</th>"
+               "<th>Status</th></tr>")
+    for r in rows:
+        if r["settled"]:
+            state = f"<b style='color:#2F6B4F'>paid {esc(r['settled'])}</b>"
+        elif r["url"]:
+            state = ("<a href='" + esc(r["url"]) + "'>link out</a>")
+        else:
+            state = "<span class=muted>no link</span>"
+        out.append(f"<tr><td><a href='/engagement/{esc(r['ref'])}'>"
+                   f"{esc(r['invoice'])}</a>"
+                   f"<span class=fname>{esc(r['ref'])}</span></td>"
+                   f"<td><code>{esc(r['amount'])}</code></td>"
+                   f"<td>{esc(r['date'])}</td><td>{state}</td></tr>")
+    out.append("</table>")
     return "".join(out)
 
 

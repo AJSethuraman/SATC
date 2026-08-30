@@ -527,11 +527,40 @@ def may_file(ref: str, record: dict, documents: list[str], template_dir: Path,
     # ever be one, so `registry/signing.yaml` declares it as a signature the
     # ENGAGEMENT needs rather than one our paper carries. That is the whole
     # reason it can be blocked on rather than shrugged at.
-    out.unknown.append(
-        "whether the invoice has been settled. The engagement letter says we "
-        "will not e-file before it is, and nothing here records a payment — "
-        "`invoicing` writes the bill and stops. Check it yourself.")
+    out.blockers += _unsettled(ref, store)
     return out
+
+
+def _unsettled(ref: str, store: Path | None) -> list[str]:
+    """The other half of the promise: "we will not e-file a return before the
+    invoice for it is settled".
+
+    IT USED TO BE UNANSWERABLE and said so. `invoicing` wrote the bill and
+    stopped, so this reported the question rather than the answer. Now a bill
+    carries a payment link and `cli.py payments` writes back what the processor
+    says, so there is something to read.
+
+    A BILL NOBODY HAS RAISED IS NOT AN UNPAID BILL. Nothing is owed until it is
+    billed, and blocking on an invoice that does not exist would stop every
+    engagement that bills after filing -- which is most of them.
+    """
+    import invoicing
+    import payments
+
+    raised = invoicing.issued_for(store or engagements.STORE, ref)
+    if not raised:
+        return []
+    owing = [b for b in raised if not b.get("SettledOn")]
+    if not owing:
+        return []
+    return [
+        f"{len(owing)} of {len(raised)} invoice(s) on this engagement are not "
+        f"recorded as settled — "
+        + ", ".join(b.get("InvoiceNumber", "?") for b in owing)
+        + ". Every engagement letter says we will not e-file before the "
+          "invoice is settled. `python cli.py payments` asks the processor; a "
+          "bill paid another way is recorded by hand."
+    ]
 
 
 # ── the file ──────────────────────────────────────────────────────────────
