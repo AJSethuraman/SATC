@@ -1,7 +1,6 @@
 {
   "_comment": "A completed consultation, keyed by question id. Replays with `cli.py interview --answers`. Fictional, and the same client as tax-opening-package.json so the two can be compared.",
   "client_full_name": "Mr. and Mrs. Daniel Reyes",
-  "client_letter_name": "Dan",
   "client_address1": "418 Rockwell Street",
   "client_city": "Solon",
   "client_state": "OH",
@@ -13,6 +12,12 @@
   "tax_year": "2026",
   "federal_form": "1040",
   "return_basis": "original",
+  "return_features": [
+    "self_employment",
+    "rentals",
+    "k1",
+    "itemizing"
+  ],
   "federal_schedules": [
     "A",
     "C",
@@ -46,5 +51,6 @@
   "decision": "yes",
   "notes": "Sold a rental in March; K-1 from a partnership joined last year.",
   "other_income_documents": "yes",
-  "has_dependents": "no"
+  "has_dependents": "no",
+  "returning_client": "no"
 }

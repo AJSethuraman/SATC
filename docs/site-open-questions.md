@@ -161,3 +161,81 @@ a test holds it that way.
 Raised when "Business" was renamed and still unanswered. If one of the four
 names has gone out to a real person, a rename stops being free and becomes a
 migration. Cheap to find out, and only the firm can.
+
+## B6. Two facts the interview asks about that the intake form cannot express
+
+Found 26 August 2026 while rebuilding the interview to ask about a client's
+year rather than about schedules.
+
+**The good news first: the two now share a vocabulary.** `individual_complexity`
+on the intake form and `return_features` in the interview ask the same question
+in the same words with the same option values, so a website answer prefills
+directly. Until today it did not: the interview translated through a map whose
+keys had drifted — it expected `rental`, `self_employed`, `sole_prop`,
+`brokerage` and `itemize`, and the site has never sent any of the five. **A
+prospect who ticked "Rental property" prefilled nothing.** Only `k1` and
+`investments` ever matched. A test now holds the two lists together.
+
+**The gap that is left** is two options the interview offers and the site does
+not ask about:
+
+| Interview option | What it means | On the site? |
+|---|---|---|
+| `farm` — "Farming" | Schedule F, and Schedule SE with it | No |
+| `itemizing` — "Mortgage interest, large medical costs or significant charitable giving" | Schedule A | No |
+
+Both change the price. A farm is a priced form; itemising is what separates the
+**Essentials** package from **Standard**. A prospect with either gets a quote
+built without knowing about them, and the preparer finds out on the call.
+
+**This is the site's call, not mine.** Adding two options to
+`individual_complexity` would close it; so would deciding that these are
+genuinely call-only facts and the estimate is expected to move. Either is
+defensible — what is not defensible is nobody knowing the gap is there.
+
+The interview does not force it closed from its side: the test asserts that
+every value the *site* sends is one the interview understands, and treats the
+reverse as a note.
+
+## B7. ~~The price page's hourly list has a stale line~~ — DONE
+
+**Closed 26 August 2026. The patch is applied and the check is green (61/61).**
+
+Two lines left `client-documents/registry/fee-schedule.yaml` on the firm's
+instruction — `assumed.notice_response` (*"notices and correspondence belong in
+a different letter engagement"*) and `per_unit.brokerage_keyed`, the $95
+keyed-brokerage line (*"we are actually deleting the $95 thing — all are
+$45"*). `website/build-pricing-config.py` still carried client wording for
+both, and the spec's `set(HOURLY_COPY) == set(sched["assumed"])` is an
+equality, so an orphan failed it.
+
+Three dead references deleted and `pricing-config.js` regenerated. **The page
+changed by exactly one line** — "A letter from the IRS or the state you would
+like us to handle" left the hourly list, which is the firm's own answer ("let
+it drop"). No published price moved; the keyed-brokerage line was never on the
+menu, so removing its copy was dead-code removal.
+
+**The site agent should know this was touched.** It is the one edit made in
+`website/` from this branch, it was mechanical rather than a wording decision,
+and it was made only because the check re-fired on every push. The generator's
+failure message is still worth widening: it prints only what is missing FROM
+the copy, so an orphan on the other side reads as `Missing []` — a failure
+nobody can act on.
+
+### The decision behind it, and what it leaves standing
+
+**`assumed:` is doing two jobs.** On the estimate it means *"an assumption we
+are printing for this client."* On the price page it is the whole of *"what we
+bill by the hour."* Removing notices from the first took them off the second
+without anyone asking for that — which is how this surfaced.
+
+**Asked, and answered: let it drop.** A notice response is a separately quoted
+engagement now, which is not the same thing as hourly work, so the page should
+not list it as hourly. No home outside `assumed:` is needed and none is being
+built.
+
+**What stays standing is the coupling itself.** The next line deleted from
+`assumed:` will silently change the price page in exactly the same way, and the
+only thing that catches it is this CI job going red. That is a decent safety
+net and a poor design — worth splitting the two meanings the next time either
+file is opened for another reason, rather than as work of its own.

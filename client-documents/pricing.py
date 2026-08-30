@@ -61,7 +61,7 @@ def open_amounts(schedule: dict | None = None) -> list[tuple[str, str]]:
 # fill. The schedule holds the words; this holds the contract, because a slot
 # is the one part of a phrase a human editing the wording must not invent.
 _SLOTS = {
-    "includes": {"detail", "list"},        "includes_only": {"list"},
+    "includes": {"list"},
     "with_allowance": {"detail", "branch"},
     "base_covers_one": set(),
     "after_first": {"detail"},             "after_first_only": set(),
@@ -71,8 +71,8 @@ _SLOTS = {
     "form_covers": {"detail", "n"},
     "form_over": {"detail", "n", "each"},
     "multiplier": {"detail", "n", "each"}, "multiplier_only": {"n", "each"},
-    "assumption": {"label", "assumes", "where", "trigger", "consequence"},
-    "inside_base": set(), "outside_base": set(),
+    "assumption": {"label", "assumes", "trigger", "consequence"},
+    "assumption_inside": {"label", "assumes", "trigger", "consequence"},
     "beyond_hourly": {"rate"},
     "beyond_priced": {"each", "amount"},
 }
@@ -127,8 +127,17 @@ def _registry_phrases() -> dict:
         return {}
 
 
-def _line(service: str, detail: str, amount, code: str) -> dict:
-    return {"Service": service, "Detail": detail,
+def _line(service: str, detail: str, amount, code: str, includes: str = "") -> dict:
+    """One row of the estimate.
+
+    `Includes` is separate from `Detail` on purpose. A package's covers list
+    runs to nine clauses, and folded into `Detail` it produced a paragraph
+    inside a table cell that nobody reads to the end -- which defeats the
+    point of printing it. Two fields let the estimate set the list on its own
+    line. Every row carries the key, empty where there is nothing to list, so
+    the shape does not change from row to row.
+    """
+    return {"Service": service, "Detail": detail, "Includes": includes,
             "Amount": m.money(amount, code), "_raw": amount}
 
 
@@ -345,6 +354,54 @@ def gate_holds(gate, answers: dict, where: str = "gate") -> bool:
     return _gate_holds(gate, answers, where)
 
 
+# The sentinel a tier_from uses when the tier is worked out rather than asked.
+_NOT_AN_ANSWER = {"derived"}
+
+
+def answers_that_move_money(schedule: dict | None = None) -> list[str]:
+    """Every interview answer this schedule reads, in alphabetical order.
+
+    THE RE-QUOTE NEEDS THIS AND NOTHING ELSE DID. An engagement is priced once,
+    at creation, from a whole interview; re-pricing one starts from a much
+    smaller question -- *which answers, if they changed, would change the
+    money?* Guessing that list would put it in two places, and the one in this
+    file would be the one that went stale.
+
+    So it is READ OUT OF THE SCHEDULE: `count_from`, `tier_from` and
+    `select_from` name answers directly, `answer_is` and `answer_includes`
+    name them as gate keys, and every `schedules_*` operator reads the one
+    answer `_schedules` reads. `federal_form` is added because the base fee
+    turns on it whether or not any gate mentions it.
+
+    This is deliberately WIDER than `interview.billable_counts`, which reports
+    what is tagged `feeds:`. `federal_schedules` feeds nothing and carries no
+    count -- and it selects the 1040 package, which is the largest single
+    number on most estimates.
+    """
+    s = schedule if schedule is not None else load()
+    found = {"federal_form"}
+
+    def walk(node):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in ("count_from", "tier_from", "select_from"):
+                    if isinstance(value, str):
+                        found.add(value)
+                elif key in ("answer_is", "answer_includes"):
+                    if isinstance(value, dict):
+                        found.update(str(q) for q in value)
+                elif key in ("schedules_any", "schedules_none",
+                             "schedules_none_of"):
+                    found.add("federal_schedules")
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(s)
+    return sorted(found - _NOT_AN_ANSWER)
+
+
 def _unit_price(schedule: dict, count_from: str, answers: dict | None = None):
     """What one of a counted thing costs to THIS client, or None.
 
@@ -517,10 +574,29 @@ def _chain(key: str, tiers: dict, where: str) -> list[str]:
 
 
 def covers(key: str, tiers: dict, where: str) -> list[str]:
-    """Every line a package covers, broadest rung first."""
+    """Every line a package covers, broadest rung first.
+
+    A rung's `supersedes:` drops lines an earlier rung stated, in place,
+    BEFORE its own are added. Not everything a package covers is cumulative:
+    the standard deduction and itemizing are one choice, and a Standard
+    estimate that inherited Essentials' line listed both. Whatever a rung
+    supersedes has to be something a lower rung actually says -- `validate`
+    refuses the alternative, which is config that reads as a decision and
+    does nothing.
+    """
     out: list[str] = []
     for name in reversed(_chain(key, tiers, where)):
-        for line in (tiers.get(name) or {}).get("covers") or []:
+        rung = tiers.get(name) or {}
+        for gone in rung.get("supersedes") or []:
+            if gone not in out:
+                raise PricingError(
+                    f"{where}.{name} supersedes {gone!r}, which no package "
+                    f"below it covers. A line that replaces nothing is a "
+                    f"decision that does nothing -- either the wording drifted "
+                    f"on the rung below, or this belongs in `covers:`."
+                )
+            out.remove(gone)
+        for line in rung.get("covers") or []:
             if line not in out:
                 out.append(line)
     return out
@@ -837,14 +913,12 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         # is how a client reads a $500 line as "everything" and how a $200
         # line reads as too much. The list is the sentence the price needs.
         included = covers(key, tiers, f"base.{form}")
-        if included:
-            joined = "; ".join(included)
-            detail = (say(s, "includes", detail=detail, list=joined) if detail
-                      else say(s, "includes_only", list=joined))
+        includes = say(s, "includes", list="; ".join(included)) if included else ""
     else:
         label = {"1040": "Federal Form 1040", "1120S": "Federal Form 1120-S",
                  "1065": "Federal Form 1065", "1120": "Federal Form 1120"}.get(form, form)
         detail = ""
+        includes = ""
         if base_covers == "one_included":
             detail = say(s, "base_covers_one")
         elif is_open(base_covers):
@@ -857,6 +931,15 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
         # notes saying from what, and both have to travel with the amount so
         # the two cannot drift apart. `amount` is the money; the rest is for
         # whoever shows the number.
+        #
+        # AND WHAT THE FROM-PRICE ALREADY COVERS. A package tier declares that
+        # with `allows:` and this read it only there, so an entity base could
+        # not say it -- while its own `starting_note`, on the website, said
+        # "each partner's K-1 after the first two". The sentence promised an
+        # allowance the engine had no way to hold, and every multi-owner
+        # entity was quoted $80 over the published rule. Same key, same
+        # subtraction below; a flat allowance is not a package feature.
+        allowance = {**(base.get("allows") or {}), **allowance}
         if "amount" not in base:
             raise PricingError(
                 f"base.{form} is a block with no `amount`, so there is no "
@@ -864,7 +947,7 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
                 f"carry only metadata."
             )
         base = base["amount"]
-    items.append(_line(label, detail, base, code))
+    items.append(_line(label, detail, base, code, includes))
     if amend_line is not None:
         items.append(amend_line)
 
@@ -1011,8 +1094,15 @@ def assumptions(answers: dict, schedule: dict | None = None) -> list[str]:
     """
     s = pricing_schedule(schedule)
     rate = (s.get("basis") or {}).get("rate")
+    # `when:` is for an assumption that CANNOT arise on this return, not for
+    # one that is merely unlikely. A person filing a 1040 has no officers, so
+    # the officer-compensation boundary is not being stated to them -- it is
+    # noise on their estimate, and noise is how a client learns to skip the
+    # block. Everything without a `when:` still prints on every estimate,
+    # which is the rule this exception is carved out of.
     out = [_assumption(spec, rate, schedule=s, check_beyond=True)
-           for _, spec in (s.get("assumed") or {}).items()]
+           for _, spec in (s.get("assumed") or {}).items()
+           if not spec.get("when") or gate_holds(spec["when"], answers)]
 
     # And one per form the client actually ticked. The per-form rule IS its
     # assumption -- hold it and pay the flat price, break it and the meter
@@ -1049,7 +1139,6 @@ def _assumption(spec: dict, rate, *, schedule: dict | None = None,
             f"not a boundary."
         )
     s = schedule or {}
-    where = say(s, "inside_base" if spec.get("inside_base") else "outside_base")
 
     beyond = spec.get("beyond", "hourly")
     if check_beyond and beyond not in _BEYOND:
@@ -1066,7 +1155,8 @@ def _assumption(spec: dict, rate, *, schedule: dict | None = None,
         rate_txt = f" at ${rate:,.0f} an hour" if isinstance(rate, (int, float)) else ""
         consequence = say(s, "beyond_hourly", rate=rate_txt)
 
-    return say(s, "assumption", label=label, assumes=assumes, where=where,
+    key = "assumption_inside" if spec.get("inside_base") else "assumption"
+    return say(s, key, label=label, assumes=assumes,
                trigger=trigger, consequence=consequence)
 
 

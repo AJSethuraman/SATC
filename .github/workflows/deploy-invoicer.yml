@@ -1,0 +1,151 @@
+name: Deploy Invoicer
+
+# THE GATE BETWEEN A GREEN SUITE AND A LIVE PAYMENT SYSTEM.
+#
+# Invoicer runs on Render and takes real client card payments through Stripe.
+# Render's own auto-deploy watches main and fires on the push, in parallel with
+# CI and without waiting for it -- so before this workflow existed, a merge that
+# broke the suite reached production before anyone knew it was broken.
+#
+# `autoDeploy: false` in render.yaml turns Render's trigger off. This workflow
+# is the replacement: it runs only after the Tests workflow has CONCLUDED
+# SUCCESSFULLY on main, and only then asks Render to deploy.
+#
+# WHAT THIS DELIBERATELY DOES NOT DO: it does not gate on the invoice-generator
+# job alone. `workflow_run.conclusion` is workflow-level, and gating on the
+# whole monorepo suite is the conservative reading -- we ship the repo, so if
+# the repo is red we do not ship. The cost is that a failure in client-documents
+# or satc_system will hold an Invoicer deploy. When that happens and the fix is
+# urgent, use the manual override below rather than loosening this.
+
+on:
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
+    branches: [main]
+
+  # The logged override. Deploying past a red or absent suite is sometimes the
+  # right call at 11pm; doing it silently never is. This path demands you type
+  # the word and say why, and both end up in the run's record.
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY to confirm an ungated deploy'
+        required: true
+        default: ''
+      reason:
+        description: 'Why are you deploying without a green suite?'
+        required: true
+        default: ''
+
+# Never let two deploys race; the newer one wins.
+concurrency:
+  group: deploy-invoicer
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+
+    # Automatic path: only on a successful Tests run. Manual path: always, but
+    # the confirmation step below still has to pass.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: Check the override was meant
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          CONFIRM: ${{ github.event.inputs.confirm }}
+          REASON: ${{ github.event.inputs.reason }}
+        run: |
+          if [ "$CONFIRM" != "DEPLOY" ]; then
+            echo "::error::Override not confirmed. Type DEPLOY exactly."
+            exit 1
+          fi
+          if [ -z "${REASON// /}" ]; then
+            echo "::error::An override needs a reason. That is the whole point of it."
+            exit 1
+          fi
+          {
+            echo "## Ungated deploy"
+            echo ""
+            echo "Deployed by **@${{ github.actor }}** without waiting for a green suite."
+            echo ""
+            echo "**Reason given:** $REASON"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Say what triggered this
+        run: |
+          {
+            echo "### Deploy Invoicer"
+            echo ""
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "- Trigger: **manual override** by @${{ github.actor }}"
+            else
+              echo "- Trigger: Tests concluded \`${{ github.event.workflow_run.conclusion }}\` on \`main\`"
+              echo "- Commit: \`${{ github.event.workflow_run.head_sha }}\`"
+              echo "- Test run: ${{ github.event.workflow_run.html_url }}"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # A deploy step that quietly does nothing and reports success is the exact
+      # bug this repo's software tenets are about. If the hook is missing, this
+      # fails loudly and says how to fix it.
+      - name: Ask Render to deploy
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_URL is not set, so nothing was deployed."
+            echo ""
+            echo "This is not a test failure. The deploy gate is built but not wired up yet."
+            echo "To wire it up:"
+            echo "  1. Render dashboard -> the 'invoicer' service -> Settings -> Deploy Hook."
+            echo "  2. Copy that URL."
+            echo "  3. GitHub -> this repo -> Settings -> Secrets and variables -> Actions"
+            echo "     -> New repository secret -> name it RENDER_DEPLOY_HOOK_URL."
+            echo "  4. Also turn Auto-Deploy OFF for the service in Render, or re-sync"
+            echo "     the Blueprint so render.yaml's autoDeploy: false takes effect."
+            echo "     Without step 4 Render still deploys on its own and this gate is"
+            echo "     decoration."
+            exit 1
+          fi
+
+          # -f so a 4xx/5xx is a failure rather than a body we ignore.
+          code=$(curl -sS -f -X POST -o response.txt -w '%{http_code}' "$HOOK") || {
+            echo "::error::Render refused the deploy hook (HTTP ${code:-none})."
+            cat response.txt || true
+            exit 1
+          }
+          echo "Render accepted the deploy request (HTTP $code)."
+          cat response.txt || true
+
+      - name: Wait for the service to answer
+        env:
+          BASE: ${{ vars.INVOICER_BASE_URL }}
+        run: |
+          if [ -z "$BASE" ]; then
+            echo "::warning::INVOICER_BASE_URL is not set, so the deploy was requested"
+            echo "but nobody checked whether the app came back up. Set it as a repository"
+            echo "variable (Settings -> Secrets and variables -> Actions -> Variables) to"
+            echo "the service's public URL and this step will verify the health endpoint."
+            exit 0
+          fi
+
+          # Render builds then swaps. Poll the health endpoint rather than
+          # declaring victory on the 200 from the hook -- the hook only means
+          # "request accepted", which is not the same as "the app is serving".
+          for i in $(seq 1 60); do
+            if curl -sS -f --max-time 10 "${BASE%/}/api/health" > health.txt 2>/dev/null; then
+              echo "Healthy after ~$((i * 15))s:"
+              cat health.txt
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::${BASE%/}/api/health did not come back healthy within 15 minutes."
+          echo "The deploy may still be building, or it may have failed. Check Render."
+          exit 1

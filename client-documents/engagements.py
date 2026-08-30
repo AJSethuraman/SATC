@@ -22,6 +22,8 @@ import re
 from datetime import date
 from pathlib import Path
 
+import tins
+
 ROOT = Path(__file__).resolve().parent
 STORE = ROOT / "engagements"
 
@@ -91,11 +93,59 @@ def save_answers(answers: dict, ref: str, store: Path = STORE) -> Path:
     internal answers -- the red flags, the decision, the notes, the billable
     counts. Those are why the engagement was taken on, and they belong with it.
     """
+    # REFUSED BEFORE IT REACHES DISK. The notes field, "what changed since
+    # last year" and the website's "anything else we should know?" are free
+    # text, and no schema can constrain free text. This file lives in OneDrive
+    # and is read back every season.
+    tins.refuse(answers, "the interview answers")
     path = _dir(store, ref) / "interview.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(answers, indent=2, ensure_ascii=False) + "\n",
                     encoding="utf-8")
     return path
+
+
+def record_override(ref: str, entry: dict, store: Path = STORE) -> Path:
+    """Append one waved-through gate failure to the engagement's own file.
+
+    APPEND ONLY, and deliberately so. The firm chose a pre-send gate that
+    blocks but never traps you -- ``--force`` writes the pack anyway. What
+    makes that a gate rather than a suggestion is that the override is not
+    silent: what failed, and the reason given, land here beside the record and
+    can be read back at year end. An override nobody can see is just a second,
+    quieter way to send a pack that did not pass.
+
+    Never rewritten and never pruned. A log you can edit is not evidence.
+    """
+    path = _dir(store, ref) / "overrides.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    log = []
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(existing, list):
+                log = existing
+        except json.JSONDecodeError:
+            # A corrupt log is still evidence that something happened. Keep it
+            # beside the new one rather than overwriting it away.
+            log = [{"unreadable": path.with_suffix(".corrupt").name}]
+            path.replace(path.with_suffix(".corrupt"))
+    log.append(entry)
+    path.write_text(json.dumps(log, indent=2, ensure_ascii=False) + "\n",
+                    encoding="utf-8")
+    return path
+
+
+def overrides(ref: str, store: Path = STORE) -> list[dict]:
+    """Every gate failure ever waved through on this engagement."""
+    path = _dir(store, ref) / "overrides.json"
+    if not path.exists():
+        return []
+    try:
+        got = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    return got if isinstance(got, list) else []
 
 
 def listing(store: Path = STORE) -> list[dict]:

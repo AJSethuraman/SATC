@@ -8,11 +8,48 @@
 # in the output, so a placeholder can never reach a client. Everything else can
 # be built and tested around them.
 
+# THE FIRM ITSELF. Every template's masthead, footer and sign-off merges from
+# here, so the address, the website and the name of the firm are set once.
+#
+# Until 26 August 2026 all of it was typed into ten template files, byte for
+# byte. The firm's instruction: "making the assumption that things like the
+# email and phone number are generated from a template - this could change in
+# the future, we could hire, etc. software needs to be made to be robust and
+# scalable." It is now true.
+#
+# What is NOT here: the logo lockup. The wordmark is artwork, not a merge
+# field — a firm that changes its name gets a new mark drawn, not a string
+# substituted.
+firm:
+  # Fields: FirmName, FirmLegalName, FirmAddress1, FirmCity, FirmState,
+  # FirmZip, FirmWebsite, FirmJurisdiction.
+  #
+  # `name` is the short form a client reads — masthead, sign-off, remit-to.
+  # `legal_name` is the registered one, and appears only in the footer. Four
+  # variants of it were in circulation as of 25 Aug 2026 (three in this repo,
+  # one on the firm's own fee workbook); this is the one, and now that the
+  # footers merge it rather than repeating it, it is enforced rather than
+  # merely documented.
+  name: "SAT-C LLP"
+  legal_name: "Sethuraman Accounting, Tax, and Consulting LLP"
+  address1: "6544 Copley Avenue"
+  city: "Solon"
+  state: "OH"
+  zip: "44139"
+  website: "satcllp.com"
+  # The state of registration, named in the footer's partnership sentence.
+  jurisdiction: "Ohio"
+
 preparer:
-  # Fields: PreparerName, PreparerTitle, PreparerEmail, PreparerPhone
+  # Fields: PreparerName, PreparerTitle, PreparerEmail.
   name: "Arjun Sethuraman, CPA"
   title: "Managing Partner"
   email: "arjun_sethuraman@satcllp.com"
+  # Held, not printed. Decided 26 Aug 2026: no phone number goes on a client
+  # document until the firm has a business line. To reinstate one, put the
+  # number here, map it back in settings.py's firm_fields(), add the field to
+  # registry/fields.yaml with the templates that use it, and put the token in
+  # those templates. Nothing else reads this value.
   phone: "307-941-0508"
 
 billing:
@@ -25,12 +62,21 @@ billing:
   # templates already buys. The website footer still shows billing@satcllp.com in
   # one place; that line is now wrong and should follow this value.
   contact_email: "arjun_sethuraman@satcllp.com"
+  # Held, not printed — same decision as preparer.phone above.
   contact_phone: "307-941-0508"
 
 delivery:
-  # Field: ReturnInstruction. Replaces the old "return it in the envelope
-  # provided", which is wrong for an emailed letter.
-  return_instruction: "Sign through Encyro and it comes straight back to us."
+  # RETIRED 26 August 2026 — the field ReturnInstruction, which read "Sign
+  # through Encyro and it comes straight back to us." It described a return
+  # ROUTE, and once the firm decided the signature happens in place there is
+  # no route left to describe. The firm, cutting it from the engagement
+  # letter: "If this letter states your understanding, sign below." And, on
+  # the onboarding letter's copy of the same idea: "they dont send it to us -
+  # it would be sent automatically via encyro and i dont care to say that
+  # again".
+  #
+  # It printed in three letters. Deleted rather than left set, so nothing can
+  # merge a sentence the firm has stopped saying.
 
   # Field: PaymentInstruction. One sentence, from settings, not per client, so
   # it changes in one place when the processor changes.
@@ -55,13 +101,12 @@ delivery:
     Payment is by card or bank transfer through the secure Square link on your
     invoice. If you would rather pay another way, tell us and we will arrange it.
 
-  # Field: AckWindow. A duration phrased to drop into a sentence.
-  # Settled 25 Aug 2026. The full answer carried a caveat worth keeping: three
-  # business days is the firm's obligation "unless they schedule their own
-  # meeting on calendly, in which case it is more on them". That is a policy
-  # about who owns the next step, not a duration, so it does not belong in this
-  # string — but it does belong in whatever the confirmation screen says.
-  ack_window: "three business days"
+  # RETIRED 26 August 2026. The onboarding letter used to promise a written
+  # confirmation that the file was complete within this window. The firm cut
+  # that section: "section 05 is too much and too specific. let them know it
+  # means we can start working and will do our best to reach out in a
+  # non-obtrusive way if we're missing anything". Nothing merges it now, so
+  # the value is gone rather than left to look load-bearing.
 
 # Field: MaterialsDeadline. One fixed date per return type per season, set each
 # January. Read by the tax letter, the organizer and the onboarding letter — all
@@ -91,14 +136,6 @@ materials_deadlines:
     s_corp_1120s:    "February 22, 2027"
     partnership_1065: "February 22, 2027"
     c_corp_1120:     "March 25, 2027"
-
-# SETTLED 25 Aug 2026. Four variants were in circulation — three in this repo and
-# a fourth on the firm's own fee workbook. This is the one.
-#
-# Still HARDCODED in every template footer rather than merged, so this value
-# documents the target rather than enforcing it. Two footers and the workbook
-# disagree with it and need correcting; nothing in the build catches them.
-legal_name: "Sethuraman Accounting, Tax, and Consulting LLP"
 
 # CLOSED 26 August 2026, on the firm's answer to round eleven. Their words,
 # kept because they are the reasoning and not just the answer:

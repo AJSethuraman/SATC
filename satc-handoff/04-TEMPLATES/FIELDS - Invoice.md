@@ -51,15 +51,15 @@ Clauses in the engagement letter are referenced **by name** — the fees clause 
 | `<<CreditAmount>>` | If flag | −$150 | **A real minus sign (−), not a hyphen.** Never parentheses on a client-facing document. |
 | `[[IF CreditsApplied]]` | Flag | Boolean | Drops the credit row so a clean invoice has no empty line |
 | `<<PaymentInstruction>>` | Yes | Pay by card or bank transfer through the link in the delivery email, or by cheque to the address at right. | **One sentence, from firm settings, not per client.** Changes in one place when the processor changes. |
-| `<<BillingContactName>>` + `<<BillingContactEmail>>` + `<<BillingContactPhone>>` | Yes | Arjun Sethuraman · billing@satcllp.com · 307-941-0508 | Three fields. Separate from the preparer on purpose — a billing question shouldn't have to find the preparer. |
+| `<<BillingContactName>>` + `<<BillingContactEmail>>` | Yes | Arjun Sethuraman · billing@satcllp.com · 307-941-0508 | Three fields. Separate from the preparer on purpose — a billing question shouldn't have to find the preparer. |
 | `<<EstimateTotal>>` | If flag | $785 | Pulled from the estimate record, not retyped |
 | `<<EstimateDate>>` | If flag | February 3, 2027 | |
 | `<<VarianceNote>>` | If flag | The difference is the additional state return added at your request on March 8. | **If the invoice exceeds the estimate this is not optional.** An unexplained overage is the most common billing dispute there is. |
 | `[[IF EstimateReference]]` | Flag | Boolean | Off for recurring bookkeeping invoices, where restating the estimate monthly is noise |
 
-**Total: 23 fields + 1 repeating list of 3 + 2 flags.**
+**Total: 30 fields + 1 repeating list of 3 + 2 flags.**
 
-Not variables: firm name, remit-to address, the Ohio LLP footer, the due-on-presentation terms, the interest language, and the three notes.
+Not variables: the due-on-presentation terms, the interest language, and the three notes.
 
 ---
 
@@ -68,6 +68,25 @@ Not variables: firm name, remit-to address, the Ohio LLP footer, the due-on-pres
 Never let a human type `Subtotal` or `AmountDue`. Sum the line items, apply the credit, format currency in **one place** and pass strings through.
 
 A client who finds an arithmetic error on an accountant's invoice has learned something about the firm that no amount of good work undoes.
+
+### The firm itself (8 fields)
+
+Masthead, footer, and the sign-off's "on behalf of" line. Set in
+`client-documents/registry/firm-settings.yaml` under `firm:`, and merged like
+any other field — until 26 August 2026 they were typed into all ten templates,
+byte for byte, which is what made a change of address a ten-file edit.
+
+| Field | Required | Example | Notes |
+|---|---|---|---|
+| `<<FirmName>>` | Yes | SAT-C LLP | The short form a client reads. Masthead and sign-off. |
+| `<<FirmLegalName>>` | Yes | Sethuraman Accounting, Tax, and Consulting LLP | The registered name. Footer only. |
+| `<<FirmAddress1>>` | Yes | 6544 Copley Avenue | Masthead and footer |
+| `<<FirmCity>>` + `<<FirmState>>` + `<<FirmZip>>` | Yes | Solon · OH · 44139 | Three fields. Masthead and footer. |
+| `<<FirmWebsite>>` | Yes | satcllp.com | No protocol, no `www.` |
+| `<<FirmJurisdiction>>` | Yes | Ohio | The state of registration, named in the footer's partnership sentence |
+
+The logo lockup is **not** a field. The wordmark is artwork: a firm that
+changes its name gets a new mark drawn, not a string substituted.
 
 ---
 
@@ -99,11 +118,18 @@ A client who finds an arithmetic error on an accountant's invoice has learned so
   "PaymentInstruction": "Pay by card or bank transfer through the link in the delivery email, or by cheque to the address at right.",
   "BillingContactName": "Arjun Sethuraman",
   "BillingContactEmail": "billing@satcllp.com",
-  "BillingContactPhone": "307-941-0508",
   "EstimateReference": true,
   "EstimateTotal": "$785",
   "EstimateDate": "February 3, 2027",
   "VarianceNote": "No change from the estimate.",
+  "FirmName": "SAT-C LLP",
+  "FirmLegalName": "Sethuraman Accounting, Tax, and Consulting LLP",
+  "FirmAddress1": "6544 Copley Avenue",
+  "FirmCity": "Solon",
+  "FirmState": "OH",
+  "FirmZip": "44139",
+  "FirmWebsite": "satcllp.com",
+  "FirmJurisdiction": "Ohio",
   "PreparerName": "Arjun Sethuraman, CPA",
   "PreparerTitle": "Managing Partner"
 }

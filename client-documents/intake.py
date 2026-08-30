@@ -85,6 +85,11 @@ def compose_record(answers: dict, *, today: date | None = None) -> dict:
     """
     record = iv.compose(answers)
     record["LetterDate"] = (today or date.today()).strftime("%B %-d, %Y")
+    # THE SAME DATE TODAY, AND NOT THE SAME FIELD. The estimate and the letter
+    # go out together and are dated together -- but an engagement can be quoted
+    # again, and a re-quote moves the estimate's date while the letter keeps
+    # the date the client signed under. One field could not do both.
+    record["EstimateDate"] = record["LetterDate"]
     record["_season"] = str(answers.get("tax_year") or "")
     record["_return_type"] = RETURN_TYPE.get(answers.get("federal_form"), "individual")
     record["_billable_counts"] = iv.billable_counts(answers)
@@ -132,6 +137,28 @@ def finish(answers: dict, *, store: Path | None = None, ref: str | None = None,
             flags=flags,
             reason=f"The decision was {decision!r}, not 'yes'. Nothing was "
                    f"created -- that is what the decision question is for.")
+
+    # THE BACK DOOR HAS TO HIT THE SAME GATE AS THE FRONT ONES. The web and
+    # CLI interviews will not let you past a required question; this function
+    # would take any dict at all, and the missing answer showed up much later
+    # as a document with a hole in it. An entity engagement created without
+    # `owner_returns` produced a business letter whose section on the owners'
+    # returns was simply empty -- the schema has said `required: true` on that
+    # question the whole time, and nothing on this path read it.
+    #
+    # Checked HERE rather than at the top so a refusal and a decline still work
+    # on a partial interview: only CREATING an engagement needs a complete one.
+    unanswered = iv.missing_required(answers)
+    if unanswered:
+        return Outcome(
+            status="error", blockers=blockers, overridden=overridden,
+            flags=flags,
+            reason="the interview is not finished -- "
+                   + ", ".join(unanswered)
+                   + (" is" if len(unanswered) == 1 else " are")
+                   + " required and unanswered. Creating the engagement anyway "
+                     "puts the hole in a document instead, where a client "
+                     "finds it.")
 
     record = compose_record(answers, today=today)
 

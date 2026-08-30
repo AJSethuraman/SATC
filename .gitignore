@@ -1,0 +1,6 @@
+
+
+# Rendered client documents, wherever they land. `client-documents/.gitignore`
+# already covers its own; this covers the repository root, which
+# `exercise.py` wrote to on its first run before the default was changed.
+out/

@@ -1,0 +1,1020 @@
+[
+  {
+    "key": "leads",
+    "heading": "Leads",
+    "help": "Everything a prospect told us, before the sitting starts — so nobody discovers halfway down that there is a rental. Start an interview from one, or take a lead by phone.",
+    "shot": "leads.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/interview{lead_index}",
+        "label": "Start the interview",
+        "examples": [],
+        "count": 3
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|blk.quiet",
+        "label": "",
+        "examples": [
+          "WHAT HALLOWAY FABRICATION LLC TOLD US SHOW",
+          "WHAT MARCUS ELLWOOD TOLD US SHOW",
+          "WHAT PRIYA RAMAN TOLD US SHOW"
+        ],
+        "count": 3
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|blk.door",
+        "label": "Nobody on this list — they called Type in what they gave you on the phone and start from there. Take it by phone",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "lead-detail",
+    "heading": "Leads",
+    "help": "Everything a prospect told us, before the sitting starts — so nobody discovers halfway down that there is a rental. Start an interview from one, or take a lead by phone.",
+    "shot": "lead-detail.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/interview{lead_index}",
+        "label": "Start the interview",
+        "examples": [],
+        "count": 3
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|blk.quiet",
+        "label": "",
+        "examples": [
+          "WHAT HALLOWAY FABRICATION LLC TOLD US SHOW",
+          "WHAT MARCUS ELLWOOD TOLD US SHOW",
+          "WHAT PRIYA RAMAN TOLD US SHOW"
+        ],
+        "count": 3
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|blk.door",
+        "label": "Nobody on this list — they called Type in what they gave you on the phone and start from there. Take it by phone",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "by-phone",
+    "heading": "Leads",
+    "help": "Everything a prospect told us, before the sitting starts — so nobody discovers halfway down that there is a rental. Start an interview from one, or take a lead by phone.",
+    "shot": "by-phone.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/interview{lead_index}",
+        "label": "Start the interview",
+        "examples": [],
+        "count": 3
+      },
+      {
+        "kind": "button",
+        "shape": "button|submit|/interview{by_hand}",
+        "label": "Start an interview",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "text",
+        "shape": "input|text|name|/interview{by_hand}",
+        "label": "NAME THEY GAVE",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "text",
+        "shape": "input|text|email|/interview{by_hand}",
+        "label": "EMAIL",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "text",
+        "shape": "input|text|phone|/interview{by_hand}",
+        "label": "PHONE",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "text",
+        "shape": "input|text|location|/interview{by_hand}",
+        "label": "WHERE THEY ARE",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "textarea",
+        "shape": "textarea|textarea|notes|/interview{by_hand}",
+        "label": "WHAT THEY SAID",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|blk.quiet",
+        "label": "",
+        "examples": [
+          "WHAT HALLOWAY FABRICATION LLC TOLD US SHOW",
+          "WHAT MARCUS ELLWOOD TOLD US SHOW",
+          "WHAT PRIYA RAMAN TOLD US SHOW"
+        ],
+        "count": 3
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|blk.door",
+        "label": "Nobody on this list — they called Type in what they gave you on the phone and start from there. Take it by phone",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "question-claim",
+    "heading": "Which federal return?",
+    "help": "Decides the rest of the interview. 1040 asks about a person and their household; the others ask about an entity and who signs for it.",
+    "shot": "question-claim.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/interview/<id>",
+        "label": "Next",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "radio",
+        "shape": "input|radio|answer|/interview/<id>",
+        "label": "",
+        "examples": [
+          "Form 1040 — individual",
+          "Form 1065 — partnership",
+          "Form 1120 — C corporation",
+          "Form 1120-S — S corporation"
+        ],
+        "count": 4
+      }
+    ]
+  },
+  {
+    "key": "question",
+    "heading": "Which tax year?",
+    "help": "",
+    "shot": "question.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|link|/interview/<id>/back",
+        "label": "← Back",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|submit|/interview/<id>",
+        "label": "Next",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "text",
+        "shape": "input|text|answer|/interview/<id>",
+        "label": "the answer to “Which tax year?”",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "question-hardno",
+    "heading": "Anything that gives you pause?",
+    "help": "",
+    "shot": "question-hardno.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|link|/interview/<id>/back",
+        "label": "← Back",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|submit|/interview/<id>",
+        "label": "Next",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "checkbox",
+        "shape": "input|checkbox|answer|/interview/<id>",
+        "label": "",
+        "examples": [
+          "Deadline is tight for the work involved",
+          "Digital asset activity",
+          "Dispute with the previous preparer",
+          "Foreign accounts, assets, trusts or gifts",
+          "Needs assurance work HARD NO",
+          "Open IRS or state notice",
+          "Records are missing or unreliable",
+          "Wants a position we would not sign HARD NO"
+        ],
+        "count": 8
+      }
+    ]
+  },
+  {
+    "key": "question-back",
+    "heading": "Is this a returning client?",
+    "help": "Set for you by `cli.py returning`. Answering yes here by hand is fine; it only decides whether the change questions are asked.",
+    "shot": "question-back.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|link|/interview/<id>/back",
+        "label": "← Back",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|submit|/interview/<id>",
+        "label": "Save the change",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|submit|link|/interview/<id>/back{resume}",
+        "label": "Never mind — nothing to change",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "radio",
+        "shape": "input|radio|answer|/interview/<id>",
+        "label": "",
+        "examples": [
+          "No — this is the first year",
+          "Yes — we prepared their return before"
+        ],
+        "count": 2
+      }
+    ]
+  },
+  {
+    "key": "review",
+    "heading": "Review",
+    "help": "",
+    "shot": "review.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|link|/interview/<id>/back{to}",
+        "label": "Change",
+        "examples": [],
+        "count": 38
+      },
+      {
+        "kind": "button",
+        "shape": "button|submit|/interview/<id>/finish",
+        "label": "Create the engagement",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "created",
+    "heading": "Engagement 2026-0001 created",
+    "help": "",
+    "shot": "created.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/engagement/<ref>/package",
+        "label": "Build the signing pack",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|button|ghost|/engagement/<ref>",
+        "label": "Open the engagement",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|button|ghost|/",
+        "label": "Home",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "refused",
+    "heading": "Not taken on",
+    "help": "This is work the firm does not take. firm-settings.yaml lists it under `hard_no` and the interview schema marks the options themselves. Override only if the list is wrong, not because this one feels like an exception.",
+    "shot": "refused.png",
+    "controls": [
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|main||/interview/<x>",
+        "label": "Back to the interview",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|main||/",
+        "label": "Home",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "engagement",
+    "heading": "Mr. and Mrs. Daniel Reyes",
+    "help": "",
+    "shot": "engagement.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/engagement/<ref>/package",
+        "label": "Build the signing pack",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|submit|ghost|/engagement/<ref>/signatures",
+        "label": "Signatures",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|submit|ghost|/engagement/<ref>/requote",
+        "label": "Update the quote",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "package-before",
+    "heading": "The signing pack",
+    "help": "Everything this client signs, built in one go. Nothing is written until every document has rendered and every check has passed — so if something is wrong, you get nothing rather than half a pack. One of those checks opens every document in a browser to prove it is readable, so this takes about a minute.",
+    "shot": "package-before.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/engagement/<ref>/package",
+        "label": "Build the pack",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "checkbox",
+        "shape": "input|checkbox|invoice|/engagement/<ref>/package",
+        "label": "Put the invoice in too",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "checkbox",
+        "shape": "input|checkbox|notes|/engagement/<ref>/package",
+        "label": "Also read the prose and tell me what it notices (nothing here can stop a pack)",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "package-written",
+    "heading": "The signing pack",
+    "help": "Built and checked. 4 document(s) in /tmp/satc-walk-mhrw0fbu/store/2026-0001/pack.",
+    "shot": "package-written.png",
+    "controls": [
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "requote-form",
+    "heading": "Update the quote",
+    "help": "The work changed, so the price does. Change what is different and you will see every line that moves before anything is recorded. Nobody types a figure — the same schedule that priced this engagement prices it again.",
+    "shot": "requote-form.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/engagement/<ref>/requote{_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked}",
+        "label": "See what changes",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "text",
+        "shape": "input|text|additional_forms|/engagement/<ref>/requote{_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked}",
+        "label": "the answer to one question",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "number",
+        "shape": "input|number|count_k1s|/engagement/<ref>/requote{_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked,_asked}",
+        "label": "the answer to one question",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|blk",
+        "label": "",
+        "examples": [
+          "ANYTHING ELSE FILED ALONGSIDE? TWO K-1S AS REPORTED",
+          "APART FROM W-2S, DID ANY OTHER INCOME DOCUMENT ARRIVE? YES",
+          "DID ANY OF THESE HAPPEN LAST YEAR? (NOTHING)",
+          "DOES WHAT THEY SENT NEED SORTING BEFORE IT CAN BE WORKED? (NOTHING)",
+          "FOR THE MOST INVOLVED OF THOSE BUSINESSES, WHICH IS TRUE? STANDARD",
+          "HOW MANY EXTENSIONS NEEDED A PAYMENT ESTIMATE? (NOTHING)",
+          "HOW MANY K-1S RECEIVED? 2",
+          "HOW MANY LOCAL RETURNS? 1",
+          "HOW MANY RENTAL PROPERTIES? 1",
+          "HOW MANY SCHEDULE C BUSINESSES? 1",
+          "HOW MANY STATE RETURNS? 1",
+          "IS THE EARNED INCOME CREDIT BEING CLAIMED? (NOTHING)",
+          "ORIGINAL RETURN, OR AN AMENDMENT? ORIGINAL",
+          "WHICH FEDERAL RETURN? 1040",
+          "WHICH LOCALITIES? SOLON MUNICIPAL",
+          "WHICH SCHEDULES DOES THAT COME TO? C, SE, E1, E2, A",
+          "WHICH STATES, AND ON WHAT BASIS? OHIO — RESIDENT"
+        ],
+        "count": 17
+      }
+    ]
+  },
+  {
+    "key": "requote-changes",
+    "heading": "What this changes",
+    "help": "$60.00 more.",
+    "shot": "requote-changes.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/engagement/<ref>/requote{_asked,_asked,additional_forms[],count_k1s}",
+        "label": "Record the new quote",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|main|muted|/engagement/<ref>/<x>",
+        "label": "or go back and change something else",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "textarea",
+        "shape": "textarea|textarea|reason|/engagement/<ref>/requote{_asked,_asked,additional_forms[],count_k1s}",
+        "label": "WHY DID THE PRICE MOVE?",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "requote-done",
+    "heading": "The new quote is recorded",
+    "help": "$60.00 more.",
+    "shot": "requote-done.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/engagement/<ref>/package",
+        "label": "Build the pack again",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|submit|ghost|/engagement/<ref>",
+        "label": "Open the engagement",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "signatures-one",
+    "heading": "Signatures",
+    "help": "Sent 2026-08-28, 0 day(s) ago.",
+    "shot": "signatures-one.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/engagement/<ref>/signatures{line}",
+        "label": "Record it",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "text",
+        "shape": "input|text|on|/engagement/<ref>/signatures{line}",
+        "label": "THE DAY THEY SIGNED",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "radio",
+        "shape": "input|radio|how|/engagement/<ref>/signatures{line}",
+        "label": "",
+        "examples": [
+          "came back signed, by email or on paper",
+          "signed in front of you",
+          "signed through a signing service, with its own audit trail"
+        ],
+        "count": 3
+      },
+      {
+        "kind": "text",
+        "shape": "input|text|reference|/engagement/<ref>/signatures{line}",
+        "label": "REFERENCE, FOR A SIGNING SERVICE",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|blk",
+        "label": "",
+        "examples": [
+          "FORM 8879 SPOUSE",
+          "RECORDS-RELEASE SPOUSE",
+          "RECORDS-RELEASE TAXPAYER",
+          "TAX-LETTER SPOUSE",
+          "TAX-LETTER TAXPAYER"
+        ],
+        "count": 5
+      }
+    ]
+  },
+  {
+    "key": "signatures-waiting",
+    "heading": "Waiting on a signature",
+    "help": "1 engagement(s), longest wait first. A row marked overdue is past the date that client was given in writing.",
+    "shot": "signatures-waiting.png",
+    "controls": [
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|main||/engagement/<ref>/<x>",
+        "label": "",
+        "examples": [
+          "2026-0001"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "home",
+    "heading": "Engagements",
+    "help": "",
+    "shot": "home.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|button|ghost|/interview/<id>",
+        "label": "Pick it back up",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|submit|/interview",
+        "label": "Start an interview",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|button|ghost|/leads",
+        "label": "Leads",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|button|ghost|/signatures",
+        "label": "Waiting to sign",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|button|ghost|/templates",
+        "label": "Letter wording",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|main||/engagement/<x>",
+        "label": "",
+        "examples": [
+          "2026-0001"
+        ],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "prices",
+    "heading": "Prices",
+    "help": "",
+    "shot": "prices.png",
+    "controls": [
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|main||/prices/<x>",
+        "label": "",
+        "examples": [
+          "1065",
+          "1120",
+          "1120S",
+          "Amendment",
+          "Brokerage statement",
+          "Essentials",
+          "Extension with a payment estimate",
+          "Farm schedule",
+          "Foreign account reporting",
+          "Gig or contract work",
+          "Local return",
+          "One price for any named form",
+          "Records sorting",
+          "Rental schedule",
+          "Schedule K-1 issued",
+          "Schedule K-1 received",
+          "Self-Employed",
+          "Simple Filer",
+          "Sole proprietorship",
+          "Standard",
+          "State return",
+          "The hourly rate"
+        ],
+        "count": 24
+      }
+    ]
+  },
+  {
+    "key": "wording",
+    "heading": "Wording",
+    "help": "Open a template, open a section, change a sentence. Everything else about the document — the layout, which blocks appear, what the fields are — stays where it is.",
+    "shot": "wording.png",
+    "controls": [
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|main||/templates/<x>",
+        "label": "",
+        "examples": [
+          "Disengagement Letter",
+          "Engagement Letter - Bookkeeping",
+          "Engagement Letter - Business Return",
+          "Engagement Letter - C Corporation",
+          "Engagement Letter - Tax Preparation",
+          "Extension Notice",
+          "Fee Estimate",
+          "Invoice",
+          "Onboarding Letter",
+          "Organizer Cover Letter",
+          "Records Release Authorization",
+          "Tax Return Delivery Letter"
+        ],
+        "count": 12
+      }
+    ]
+  },
+  {
+    "key": "wording-section",
+    "heading": "Engagement Letter - Tax Preparation",
+    "help": "Click a section to open it. **bold** makes a phrase bold; <<FieldName>> is a merge field and has to stay where it is — adding or dropping one is the registry's business, not a wording change.",
+    "shot": "wording-section.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/templates/<file>{section}",
+        "label": "Save this section",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "textarea",
+        "shape": "textarea|textarea|t|/templates/<file>{section}",
+        "label": "the text of one section",
+        "examples": [],
+        "count": 2
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|blk",
+        "label": "",
+        "examples": [
+          "01 WHAT WE WILL PREPARE 5 SENTENCES",
+          "02 WHAT THIS ENGAGEMENT IS NOT 3 SENTENCES",
+          "03 WHAT YOU ARE RESPONSIBLE FOR 4 SENTENCES",
+          "04 YOUR DEADLINE, AND EXTENSIONS 3 SENTENCES",
+          "05 UNCLEAR LAW, AND PENALTIES 1 SENTENCE",
+          "06 FEES AND BILLING 2 SENTENCES",
+          "07 YOUR RECORDS, OUR FILES, AND DELIVERY 2 SENTENCES",
+          "08 CONFIDENTIALITY 1 SENTENCE",
+          "09 ENDING THIS ENGAGEMENT 6 SENTENCES",
+          "TOP OF THE DOCUMENT 2 SENTENCES"
+        ],
+        "count": 10
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|add.blk",
+        "label": "ADD A SECTION NEW",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "wording-add",
+    "heading": "Engagement Letter - Tax Preparation",
+    "help": "Click a section to open it. **bold** makes a phrase bold; <<FieldName>> is a merge field and has to stay where it is — adding or dropping one is the registry's business, not a wording change.",
+    "shot": "wording-add.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|/templates/<file>{section}",
+        "label": "Save this section",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "button",
+        "shape": "button|submit|/templates/<file>/sections",
+        "label": "Add it",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "textarea",
+        "shape": "textarea|textarea|t|/templates/<file>{section}",
+        "label": "the text of one section",
+        "examples": [],
+        "count": 2
+      },
+      {
+        "kind": "text",
+        "shape": "input|text|title|/templates/<file>/sections",
+        "label": "HEADING — WHAT A CLIENT POINTS AT",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "textarea",
+        "shape": "textarea|textarea|text|/templates/<file>/sections",
+        "label": "WHAT IT SAYS",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "select",
+        "shape": "select|select-one|after|/templates/<file>/sections",
+        "label": "WHERE IT GOES",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|blk",
+        "label": "",
+        "examples": [
+          "01 WHAT WE WILL PREPARE 5 SENTENCES",
+          "02 WHAT THIS ENGAGEMENT IS NOT 3 SENTENCES",
+          "03 WHAT YOU ARE RESPONSIBLE FOR 4 SENTENCES",
+          "04 YOUR DEADLINE, AND EXTENSIONS 3 SENTENCES",
+          "05 UNCLEAR LAW, AND PENALTIES 1 SENTENCE",
+          "06 FEES AND BILLING 2 SENTENCES",
+          "07 YOUR RECORDS, OUR FILES, AND DELIVERY 2 SENTENCES",
+          "08 CONFIDENTIALITY 1 SENTENCE",
+          "09 ENDING THIS ENGAGEMENT 6 SENTENCES",
+          "TOP OF THE DOCUMENT 2 SENTENCES"
+        ],
+        "count": 10
+      },
+      {
+        "kind": "disclosure",
+        "shape": "summary|add.blk",
+        "label": "ADD A SECTION NEW",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  },
+  {
+    "key": "package-blocked",
+    "heading": "The signing pack",
+    "help": "11 check(s), and what each one actually looked at.",
+    "shot": "package-blocked.png",
+    "controls": [
+      {
+        "kind": "button",
+        "shape": "button|submit|ghost|/engagement/<ref>/package{force}",
+        "label": "Send it anyway, and record that",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "link",
+        "shape": "a|header||/",
+        "label": "SAT-C",
+        "examples": [],
+        "count": 1
+      },
+      {
+        "kind": "textarea",
+        "shape": "textarea|textarea|reason|/engagement/<ref>/package{force}",
+        "label": "WHY IS THIS GOING OUT AS IT IS?",
+        "examples": [],
+        "count": 1
+      }
+    ]
+  }
+]

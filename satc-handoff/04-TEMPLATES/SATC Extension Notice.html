@@ -20,11 +20,10 @@
     <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
   </div>
   <div class="contact">
-    <b>SAT-C LLP</b><br/>
-    6544 Copley Avenue<br/>
-    Solon, OH 44139<br/>
-    307-941-0508<br/>
-    satcllp.com
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
   </div>
 </div>
 <div class="rule"></div>
@@ -43,7 +42,7 @@
 <div class="subject">We have filed an extension — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
 
 <div class="body">
-  <p>Dear <span class="f">&lt;&lt;ClientLetterName&gt;&gt;</span>,</p>
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
 
   <p>We have filed an extension for the returns listed below. Your filing deadline moves to <span class="f">&lt;&lt;ExtendedDeadline&gt;&gt;</span>. <strong>Your payment deadline does not move</strong>, and section 02 tells you what to do about that.</p>
 
@@ -74,7 +73,7 @@
       <p><strong>Interest and penalties run from the original due date on anything unpaid.</strong> Filing the extension protects you from the late-filing charge. It does nothing about the late-payment charge, and the two are separate.</p>
     </div>
     <span class="cond">[[IF PaymentEnclosed]]</span>
-    <p>Based on the information we had when we filed, we estimated what you should pay with the extension. <strong>Pay <span class="f">&lt;&lt;EstimatedPaymentAmount&gt;&gt;</span> by <span class="f">&lt;&lt;PaymentDeadline&gt;&gt;</span></strong>, using the instructions in the enclosed voucher or the link we sent with it.</p>
+    <p>Based on the information we had when we filed, we estimated what you should pay with the extension. <strong>Pay <span class="f">&lt;&lt;EstimatedPaymentAmount&gt;&gt;</span> by <span class="f">&lt;&lt;PaymentDeadline&gt;&gt;</span></strong>, <span data-encl="attachment:payment-voucher">using the instructions in the enclosed voucher or the link we sent with it.</span></p>
     <p>That figure is an estimate made from an incomplete file. It is not the final liability, and paying it does not settle the return. If it turns out to be short, the shortfall carries interest from the original due date; if it turns out to be long, the excess comes back with the return.</p>
     <span class="cond end">[[END IF]]</span>
     <span class="cond">[[IF NoPaymentRequired]]</span>
@@ -92,33 +91,33 @@
       </li>
     </ul>
     <span class="cond end">[[END EACH]]</span>
-    <p>Send everything above by <strong><span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span></strong>. That date is not the extended deadline and it is deliberately earlier than it — the return still has to be prepared, reviewed by you, and signed before it can be filed.</p>
-    <p>If an item does not apply to you, <strong>tell us that rather than leaving it out</strong>. We cannot tell a missing document from one that does not exist, and we will keep asking.</p>
+    <p>Send everything above by <strong><span class="f">&lt;&lt;MaterialsDeadline&gt;&gt;</span></strong> — earlier than the extended deadline, because the return still has to be prepared, reviewed by you, and signed before it can be filed.</p>
+    <p>If something on this list does not apply to you, just tell us.</p>
   </div>
 
   <div class="sec">
     <h2><span class="n">04</span>What happens if the extended deadline passes</h2>
     <p>The extension cannot be extended again. A return filed after <span class="f">&lt;&lt;ExtendedDeadline&gt;&gt;</span> is late, and the late-filing charge applies from the original due date as though no extension had been filed.</p>
-    <p>As the <b>Fees and billing</b> section of your engagement letter sets out, <strong>we may suspend or withdraw if requested information is not provided</strong>, and we are not responsible for a late filing that results. We would much rather send you a return than that letter.</p>
+    <p>As the <strong>Fees and billing</strong> section of your engagement letter sets out, <strong>we may suspend or withdraw if requested information is not provided</strong>, and we are not responsible for a late filing that results. We would much rather send you a return than that letter.</p>
   </div>
 
   <div class="sec">
     <h2><span class="n">05</span>Questions</h2>
-    <p>Ask before you guess, particularly about the payment. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span> or <span class="f">&lt;&lt;PreparerPhone&gt;&gt;</span>.</p>
+    <p>Ask before you guess, particularly about the payment. <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span>.</p>
   </div>
 
   <div class="signoff">
     <p>Sincerely,</p>
     <div class="sp"></div>
     <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
-    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of SAT-C LLP</div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
   </div>
 </div>
 
 </div>
 
 <div slot="footer" class="foot">
-  <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139.</p>
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
   <span class="id">EXTENSION NOTICE<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
 </div>
 
@@ -132,7 +131,7 @@
     <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>April 14, 2027 — the day the extension was filed. <b>Send it the same day.</b></td></tr>
     <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the join key</td></tr>
     <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td>2026 tax year — appears twice: subject and footer</td></tr>
-    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientLetterName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields, the same block every letter carries</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Six fields, the same block every letter carries</td></tr>
     <tr><td>&lt;&lt;ExtendedDeadline&gt;&gt;</td><td class="req">Required</td><td>October 15, 2027 — <b>appears three times.</b> Opening paragraph, dateline, section 04. Drive all three from one value.</td></tr>
     <tr><td>&lt;&lt;PaymentDeadline&gt;&gt;</td><td class="req">Required</td><td>April 15, 2027 — the <b>original</b> due date, which the extension did not move. Appears twice. <span class="warn">If this ever equals ExtendedDeadline, something is wrong.</span></td></tr>
     <tr><td>&lt;&lt;MaterialsDeadline&gt;&gt;</td><td class="req">Required</td><td>August 15, 2027 — <b>the extension-season value, not the original season's.</b> Same field name as the onboarding letter and the organizer, different value for this stage.</td></tr>
@@ -141,7 +140,7 @@
     <tr><td>&lt;&lt;Item.Return&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>Federal Form 4868 · Extends the Form 1040 to October 15, 2027. Detail is an empty string when there is nothing to add, never "None".</td></tr>
     <tr><td>[[EACH OutstandingItems]]</td><td class="req">List</td><td>One or more. Two sub-fields — <b>the same shape as the onboarding letter's RequestList</b>, so the same formatter serves both.</td></tr>
     <tr><td>&lt;&lt;Item.Document&gt;&gt; &lt;&lt;Item.Detail&gt;&gt;</td><td class="req">Required</td><td>K-1 from Larchmere Holdings LLC · Expected from the partnership by September 1</td></tr>
-    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt; &lt;&lt;PreparerPhone&gt;&gt;</td><td class="req">Required</td><td>Four fields</td></tr>
+    <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt; &lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>Four fields</td></tr>
     <tr><td>[[IF PaymentEnclosed]]</td><td class="req">Flag</td><td>Boolean. An extension payment was estimated and is due.</td></tr>
     <tr><td>[[IF NoPaymentRequired]]</td><td class="req">Flag</td><td>Boolean, and <b>the exact inverse of PaymentEnclosed</b>. Section 02 must never be silent — a client with no paragraph there concludes there is nothing to pay, and that has to be a statement the firm made rather than a gap it left.</td></tr>
   </table>

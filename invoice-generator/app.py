@@ -10,6 +10,7 @@ webhook testing instructions.
 import csv
 import io
 import logging
+import math
 import mimetypes
 import os
 import sys
@@ -43,7 +44,12 @@ from markupsafe import Markup, escape
 import email_utils
 import stripe_utils
 from config import Config
-from helpers import currency_symbol, format_money, parse_date, parse_float
+from helpers import (
+    currency_symbol,
+    format_money,
+    parse_date,
+    parse_money,
+)
 from models import Invoice, LineItem, User, db
 
 csrf = CSRFProtect()
@@ -235,6 +241,23 @@ def create_app(config_class=Config):
     # Secure session cookies in production (served over HTTPS).
     if app.config.get("ENV") == "production":
         app.config["SESSION_COOKIE_SECURE"] = True
+        # Refuse to serve production traffic on the development fallback
+        # secret. SECRET_KEY signs session cookies AND the /i/<token> public
+        # invoice links, so a known key means anyone can mint a session for
+        # any account and read any invoice by guessing its integer id. Render's
+        # blueprint sets FLASK_SECRET_KEY via generateValue, so this can only
+        # fire on a hand-rolled deploy that forgot it — where failing loudly at
+        # boot is far better than quietly serving forgeable sessions.
+        #
+        # Caught by tests/test_scenarios.py::
+        #   test_production_refuses_to_boot_on_the_development_secret_key
+        if app.config.get("SECRET_KEY") in (None, "", "dev-only-change-me"):
+            raise RuntimeError(
+                "FLASK_SECRET_KEY must be set to a strong random value when "
+                "APP_ENV=production — refusing to start on the development "
+                "default, which would make session cookies and public invoice "
+                "links forgeable."
+            )
 
     # Error monitoring (optional).
     if app.config.get("SENTRY_DSN"):
@@ -305,9 +328,25 @@ def _read_logo(file_storage):
         or "image/png"
     )
     if mime != "image/svg+xml":
+        # A MISSING LIBRARY IS NOT A CORRUPT IMAGE, and it used to be reported
+        # as one: `PIL` was imported here and declared in neither requirements
+        # file -- present only transitively via the PDF engines. Drop one of
+        # those and every raster logo upload is rejected, silently, with the
+        # ImportError swallowed by the same handler that catches a real
+        # corrupt file. The owner would be told their logo was broken.
+        #
+        # Pillow is declared now, and the two failures are told apart: a
+        # genuinely unreadable image is skipped as before, and an absent
+        # library raises rather than pretending to be a verdict about the
+        # file.
         try:
             from PIL import Image
-
+        except ImportError as exc:  # pragma: no cover - a broken install
+            raise RuntimeError(
+                "Pillow is not installed, so raster logos cannot be checked. "
+                "This is a broken install, not a bad image — see "
+                "requirements.txt.") from exc
+        try:
             Image.open(io.BytesIO(data)).verify()
         except Exception:
             return None, None  # corrupt / unreadable image -> skip
@@ -337,7 +376,24 @@ def _populate_invoice_from_form(invoice, form, files=None):
 
     The sender block is taken from the user's business profile (snapshot),
     and the currency from their default — neither is collected per invoice.
+
+    Returns a list of validation errors raised by the *parsing* itself (a
+    money box that was filled in but does not hold a number, or line-item
+    arrays that do not line up). They are handed to ``_validate_invoice``
+    rather than raised, so the owner gets them alongside the other messages
+    on the re-rendered form.
     """
+    errors = []
+
+    def money(field_name, label):
+        value, ok = parse_money(form.get(field_name))
+        if not ok:
+            errors.append(
+                f"{label} must be a number — "
+                f"'{(form.get(field_name) or '').strip()[:40]}' is not one."
+            )
+        return value
+
     invoice.invoice_number = (form.get("invoice_number") or "").strip()
     invoice.from_info = current_user.from_info
     invoice.bill_to = (form.get("bill_to") or "").strip()
@@ -352,11 +408,11 @@ def _populate_invoice_from_form(invoice, form, files=None):
     invoice.currency = (current_user.default_currency or "USD").strip().upper()
 
     # Tax and discount are entered as percentages in the UI.
-    invoice.tax_value = parse_float(form.get("tax"))
+    invoice.tax_value = money("tax", "Tax")
     invoice.tax_is_percent = True
-    invoice.discount_value = parse_float(form.get("discount"))
+    invoice.discount_value = money("discount", "Discount")
     invoice.discount_is_percent = True
-    invoice.shipping = parse_float(form.get("shipping"))
+    invoice.shipping = money("shipping", "Shipping")
 
     invoice.notes = (form.get("notes") or "").strip()
     invoice.terms = (form.get("terms") or "").strip()
@@ -376,13 +432,48 @@ def _populate_invoice_from_form(invoice, form, files=None):
     quantities = form.getlist("item_quantity")
     rates = form.getlist("item_rate")
 
+    # zip() truncates to the shortest array, so three descriptions, three
+    # rates and two quantities silently produced a TWO-line invoice — the
+    # third line, and its money, simply gone, with no error shown anywhere.
+    # That is one disabled input or one browser quirk away from an invoice
+    # being created, sent and paid at the wrong amount. Refuse instead:
+    # inventing a blank quantity for the missing cell would be worse.
+    #
+    # Caught by tests/test_scenarios.py::
+    #   test_mismatched_line_item_arrays_are_refused_not_silently_truncated
+    if not (len(descriptions) == len(quantities) == len(rates)):
+        errors.append(
+            "The line items did not arrive intact "
+            f"({len(descriptions)} descriptions, {len(quantities)} "
+            f"quantities, {len(rates)} rates). Nothing was saved — reload "
+            "the form and re-enter the lines."
+        )
+
     invoice.items.clear()
     position = 0
-    for desc, qty, rate in zip(descriptions, quantities, rates):
+    for index, (desc, qty, rate) in enumerate(
+        zip(descriptions, quantities, rates), start=1
+    ):
         desc = (desc or "").strip()
-        qty_f = parse_float(qty)
-        rate_f = parse_float(rate)
-        if not desc and qty_f == 0 and rate_f == 0:
+        qty_f, qty_ok = parse_money(qty)
+        rate_f, rate_ok = parse_money(rate)
+        if not qty_ok:
+            errors.append(
+                f"Line {index}: quantity must be a number — "
+                f"'{str(qty).strip()[:40]}' is not one."
+            )
+        if not rate_ok:
+            errors.append(
+                f"Line {index}: rate must be a number — "
+                f"'{str(rate).strip()[:40]}' is not one."
+            )
+        # A ROW NOBODY TYPED IN IS NOT A LINE ITEM. The form defaults every
+        # row's quantity to 1, and this used to require the quantity to be 0
+        # as well -- so an untouched row became a line with an empty
+        # description and $0.00, and printed as a blank row on the client's
+        # PDF. What makes a row real is a description or a rate; the quantity
+        # alone is the form's own default talking.
+        if not desc and rate_f == 0:
             continue
         invoice.items.append(
             LineItem(
@@ -393,11 +484,18 @@ def _populate_invoice_from_form(invoice, form, files=None):
             )
         )
         position += 1
+    return errors
 
 
-def _validate_invoice(invoice):
-    """Return a list of human-readable validation errors."""
-    errors = []
+def _validate_invoice(invoice, parse_errors=None):
+    """Return a list of human-readable validation errors.
+
+    ``parse_errors`` carries anything ``_populate_invoice_from_form`` could
+    not make sense of. They come first because every later check reads totals
+    computed from the values that *did* parse, so they would otherwise be
+    reported against numbers nobody typed.
+    """
+    errors = list(parse_errors or [])
     if not invoice.invoice_number:
         errors.append("Invoice number is required.")
     if not invoice.from_info:
@@ -406,6 +504,40 @@ def _validate_invoice(invoice):
         errors.append("'Bill To' client information is required.")
     if not invoice.items:
         errors.append("At least one line item is required.")
+    # A percentage discount above 100 drives the taxable base negative, which
+    # then produces a negative tax and a negative total — an "invoice" that
+    # says the business owes the client. Nothing downstream expects that: the
+    # PDF renders it, the CSV exports it, and the History KPIs subtract it from
+    # the outstanding figure, quietly understating what is owed across the
+    # whole book. Negative line items stay allowed (they are how credits and
+    # adjustments are entered); only a negative bottom line is rejected.
+    #
+    # Caught by tests/test_scenarios.py::
+    #   test_discount_over_one_hundred_percent_is_rejected
+    if invoice.discount_is_percent and (invoice.discount_value or 0) > 100:
+        errors.append("A percentage discount cannot exceed 100%.")
+    if (invoice.discount_value or 0) < 0:
+        errors.append("Discount cannot be negative.")
+    if (invoice.tax_value or 0) < 0:
+        errors.append("Tax cannot be negative.")
+    # A finite rate can still overflow on multiply: 1e308 x 10 is inf, and
+    # inf * 0% tax is nan. `nan < 0` is False, so the negative-total guard
+    # below waves it through, the row is stored, and every KPI on the History
+    # page that sums balances then reads "$nan" — for the whole account, not
+    # just this invoice. Check the number is real before comparing it.
+    #
+    # Caught by tests/test_scenarios.py::
+    #   test_an_overflowing_rate_cannot_produce_a_nan_invoice
+    if not errors and not math.isfinite(invoice.total):
+        errors.append(
+            "Invoice total is not a real amount — one of the quantities or "
+            "rates is too large to bill."
+        )
+    if not errors and invoice.total < 0:
+        errors.append(
+            "Invoice total cannot be negative — check the line items, "
+            "discount, and shipping."
+        )
     return errors
 
 
@@ -416,18 +548,66 @@ def generate_pdf(app, invoice, pay_url=None):
     """
     from pdf import render_invoice_pdf
 
-    fname = f"invoice_{invoice.invoice_number}_{invoice.id}.pdf".replace(
-        "/", "-"
-    )
+    # invoice_number is free text, so it reaches this filename. Replacing "/"
+    # alone left the Windows separator through: a number of "..\..\evil" wrote
+    # the PDF outside INVOICES_DIR on the Windows run.ps1 path, and the same
+    # string is handed back as the download_name. Keep only characters that are
+    # safe on every platform.
+    #
+    # Caught by tests/test_scenarios.py::
+    #   test_pdf_filename_cannot_escape_the_invoices_directory
+    import re as _re
+
+    safe_number = _re.sub(r"[^A-Za-z0-9._-]", "-", invoice.invoice_number or "")
+    safe_number = safe_number.strip(".-") or "invoice"
+    fname = f"invoice_{safe_number}_{invoice.id}.pdf"
     out_path = app.config["INVOICES_DIR"] / fname
     render_invoice_pdf(invoice, out_path, pay_url=pay_url)
     return out_path
 
 
+def _csv_safe(value):
+    """Neutralise spreadsheet formula injection in an exported CSV field.
+
+    Excel / LibreOffice / Sheets execute a cell whose text begins with =, +,
+    -, @, or a leading tab/CR. ``bill_to`` and ``invoice_number`` are free
+    text — and via the JSON API they can be written by a third-party system,
+    not just by the account owner — so a field like ``=cmd|'/c calc'!A1``
+    reaches the accountant's spreadsheet as a live formula. Prefixing with an
+    apostrophe makes the cell inert while still displaying the original text.
+
+    Caught by tests/test_scenarios.py::
+      test_csv_export_neutralises_spreadsheet_formula_injection
+    """
+    text = "" if value is None else str(value)
+    if text[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + text
+    return text
+
+
 def next_invoice_number(user_id):
-    """Suggest the next per-user invoice number (e.g. INV-0007)."""
+    """Suggest the next per-user invoice number (e.g. INV-0007).
+
+    Derived from the highest number already issued, not from how many rows
+    survive: counting reuses a number as soon as any invoice is deleted, so
+    the account ends up with two different invoices both called INV-0003 —
+    which breaks reconciliation against Drake and against the client's own
+    accounts payable records.
+
+    Caught by tests/test_scenarios.py::
+      test_suggested_invoice_number_does_not_repeat_after_a_deletion
+    """
+    import re as _re
+
+    highest = 0
+    for (number,) in db.session.query(Invoice.invoice_number).filter_by(
+        user_id=user_id
+    ):
+        match = _re.search(r"(\d+)\s*$", number or "")
+        if match:
+            highest = max(highest, int(match.group(1)))
     count = Invoice.query.filter_by(user_id=user_id).count()
-    return f"INV-{count + 1:04d}"
+    return f"INV-{max(highest, count) + 1:04d}"
 
 
 # --- Signed tokens for email verification / password reset ----------------
@@ -566,7 +746,21 @@ def register_routes(app):
                 ), 403
             login_user(user, remember=bool(request.form.get("remember")))
             nxt = request.args.get("next")
-            if not nxt or not nxt.startswith("/"):
+            # "starts with /" alone is not enough: "//evil.example.com/x" is a
+            # protocol-relative URL, so the browser leaves the site entirely.
+            # "/\evil.example.com" is treated the same way by some browsers.
+            # A phishing link to /login?next=//evil.example.com lands the user
+            # on an attacker's page immediately after a successful sign-in,
+            # which is exactly when they are primed to trust it.
+            #
+            # Caught by tests/test_scenarios.py::
+            #   test_login_next_parameter_cannot_redirect_off_site
+            if (
+                not nxt
+                or not nxt.startswith("/")
+                or nxt.startswith("//")
+                or nxt.startswith("/\\")
+            ):
                 nxt = url_for("history")
             return redirect(nxt)
         return render_template("login.html", email="")
@@ -894,8 +1088,10 @@ def register_routes(app):
         if not _require_profile():
             return redirect(url_for("account"))
         invoice = Invoice(user_id=current_user.id)
-        _populate_invoice_from_form(invoice, request.form, request.files)
-        errors = _validate_invoice(invoice)
+        parse_errors = _populate_invoice_from_form(
+            invoice, request.form, request.files
+        )
+        errors = _validate_invoice(invoice, parse_errors)
         if errors:
             for e in errors:
                 flash(e, "error")
@@ -953,8 +1149,10 @@ def register_routes(app):
     @login_required
     def update_invoice(invoice_id):
         invoice = owned_or_404(invoice_id)
-        _populate_invoice_from_form(invoice, request.form, request.files)
-        errors = _validate_invoice(invoice)
+        parse_errors = _populate_invoice_from_form(
+            invoice, request.form, request.files
+        )
+        errors = _validate_invoice(invoice, parse_errors)
         if errors:
             for e in errors:
                 flash(e, "error")
@@ -964,6 +1162,24 @@ def register_routes(app):
                 suggested_number=invoice.invoice_number,
                 today=date.today().isoformat(),
             ), 400
+        # An edit can raise the total above what has already been paid (add a
+        # line item to a settled invoice, remove a discount, bump a rate). The
+        # stored status is not derived, so without this the invoice keeps
+        # showing "Paid" while money is owed — and the History KPIs skip it,
+        # because outstanding only sums invoices whose status != "Paid". Reopen
+        # it so the balance is visible and chaseable. The reverse case (an edit
+        # that lowers the total to at or below what was paid) settles it.
+        #
+        # Caught by tests/test_scenarios.py::
+        #   test_editing_a_paid_invoice_upward_reopens_it
+        if invoice.balance_due > 0 and invoice.status == "Paid":
+            invoice.status = "Sent"
+        elif (
+            invoice.status != "Paid"
+            and (invoice.amount_paid or 0) > 0
+            and invoice.balance_due <= 0
+        ):
+            invoice.status = "Paid"
         db.session.commit()
         flash("Invoice updated.", "success")
         return redirect(url_for("view_invoice", invoice_id=invoice.id))
@@ -1138,6 +1354,12 @@ def register_routes(app):
 
     @app.route("/i/<token>/pay", methods=["POST"])
     @csrf.exempt
+    # Unauthenticated and CSRF-exempt by necessity (the client paying has no
+    # account), and every hit creates a real Stripe Checkout Session on the
+    # owner's connected account. Without a cap, anyone holding a public link
+    # can drive unbounded Stripe API calls against that account and bury the
+    # owner's Stripe dashboard in abandoned sessions.
+    @limiter.limit("20 per hour")
     def public_pay(token):
         invoice = _invoice_from_token(token)
         owner = invoice.owner
@@ -1253,10 +1475,10 @@ def register_routes(app):
             ]
         )
         for inv in invoices:
-            bill_to_oneline = " ".join((inv.bill_to or "").split())
+            bill_to_oneline = _csv_safe(" ".join((inv.bill_to or "").split()))
             writer.writerow(
                 [
-                    inv.invoice_number,
+                    _csv_safe(inv.invoice_number),
                     inv.invoice_date.isoformat() if inv.invoice_date else "",
                     bill_to_oneline,
                     inv.currency,
@@ -1307,9 +1529,38 @@ def register_routes(app):
             event_type, event.get("id"), event.get("account"),
         )
 
-        if event_type == "checkout.session.completed":
+        if event_type in (
+            "checkout.session.completed",
+            "checkout.session.async_payment_succeeded",
+        ):
             session = event["data"]["object"]
             session_id = session.get("id")
+
+            # Only credit money that has actually settled.
+            #
+            # checkout.session.completed also fires for delayed-notification
+            # payment methods (ACH direct debit, SEPA, Bacs, Boleto, OXXO,
+            # Konbini) at the moment the customer finishes the Checkout page —
+            # before the funds clear, with payment_status "unpaid". Crediting
+            # that event marks the invoice Paid for a payment that may still
+            # fail days later, and the balance is never chased. Stripe sends
+            # checkout.session.async_payment_succeeded when such a payment
+            # really settles, which is why it is handled alongside this event.
+            #
+            # Caught by tests/test_scenarios.py::
+            #   test_delayed_payment_method_is_not_credited_until_it_settles
+            payment_status = (session.get("payment_status") or "").lower()
+            if payment_status and payment_status not in (
+                "paid",
+                "no_payment_required",
+            ):
+                logger.info(
+                    "stripe webhook: session %s not settled yet "
+                    "(payment_status=%s) — not credited", session_id,
+                    payment_status,
+                )
+                return ("", 200)
+
             # For Connect direct charges the event carries the connected
             # account it belongs to; legacy platform charges have none.
             event_account = event.get("account")

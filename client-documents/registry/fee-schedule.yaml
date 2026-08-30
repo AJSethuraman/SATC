@@ -186,6 +186,21 @@ base_covers: "one_included"
 # includes everything in the one below and quietly allow less. The either/or
 # does NOT inherit -- it is the thing that makes a package that package.
 #
+# `supersedes:` REPLACES an inherited line rather than adding to it. Some
+# things a package covers are not cumulative -- they are one choice out of
+# several, and inheriting the lower rung's choice alongside your own states
+# both. Found 26 August 2026 by the firm, reading a Standard estimate that
+# listed "The standard deduction" AND "Itemized deductions": a client cannot
+# have both, and the second is the whole reason the package costs more.
+#
+# The firm's rule, and why the fix is not simply to delete the shared line:
+# "standard is implied - itemized is not. so on essentials and starter, we can
+# keep standard. for the higher ones just say itemized (and we would default to
+# standard if it were higher, which you dont need to specify)." The lower rungs
+# still say it because for them it is the whole answer. A test refuses a
+# `supersedes:` string that no lower rung actually says, so this cannot rot
+# into config that silently does nothing.
+#
 # The three allowance shapes:
 #   allows:        flat, always applies
 #   allows_when:   flat, behind a gate -- for an allowance that depends on an
@@ -289,6 +304,10 @@ base:
         # The first full one is inside Property & Business.
         amount: 325
         includes: essentials
+        # Not cumulative with Essentials' line: a return takes one or the
+        # other, and this is the rung where itemizing starts being covered.
+        supersedes:
+          - "The standard deduction"
         covers:
           - "Itemized deductions"
           - "One brokerage statement"
@@ -359,13 +378,26 @@ base:
   # The four 1040 packages are GATED on what is on the return, so the price a
   # visitor reads is the price they get. An entity base is not gated that way:
   # it is a floor with the balance sheet, the reconciliation and the owner
-  # K-1s on top. A bare $950 on a page is read as a total.
+  # K-1s PAST THE FIRST TWO on top. A bare $950 on a page is read as a total.
+  #
+  # (That sentence said "and the owner K-1s on top" until 28 August 2026, when
+  # the base took on the two-K-1 allowance its own note beneath had always
+  # promised. It was the last place in this file still describing the old
+  # behaviour.)
   #
   # `starting_note` travels WITH the number so the two cannot drift apart. The
   # wording is client-facing and is in the sign-off register.
   "1065":
     amount: 800
     publish: from
+    # THE FIRST TWO ARE INSIDE THE PRICE. `starting_note` below says so
+    # and it is on the website; the engine billed every K-1 from the
+    # first, so a two-owner return was quoted $80 over the published
+    # rule. The firm, 28 August 2026: "Base should carry a 2 k1
+    # allowance." The number lives here beside the sentence that
+    # promises it, and a test compares the two so they cannot drift.
+    allows:
+      count_owners: 2
     starting_note:
       - "A balance sheet, where one is required"
       - "Inventory, where the business carries any"
@@ -374,6 +406,14 @@ base:
   "1120S":
     amount: 950
     publish: from
+    # THE FIRST TWO ARE INSIDE THE PRICE. `starting_note` below says so
+    # and it is on the website; the engine billed every K-1 from the
+    # first, so a two-owner return was quoted $80 over the published
+    # rule. The firm, 28 August 2026: "Base should carry a 2 k1
+    # allowance." The number lives here beside the sentence that
+    # promises it, and a test compares the two so they cannot drift.
+    allows:
+      count_owners: 2
     starting_note:
       - "A balance sheet, where one is required"
       - "Inventory, where the business carries any"
@@ -419,14 +459,26 @@ amendment:
   tier_from: amendment_reason
   publish: "yes"
   tiers:
-    # $0, and it PRINTS. A client told in writing that fixing our error costs
-    # nothing has been told something; a line that quietly fails to appear has
-    # not. This is a positioning decision, made deliberately and cheaply.
+    # NOT ADVERTISED, on the firm's instruction of 26 August 2026:
+    #
+    #     we do not need to specify we correct our own mistakes for free - we
+    #     are only talking about how we charge for amendments. we would not
+    #     re-file for free if someone did not give us all the info until later
+    #
+    # So the firm still does it and stops announcing it. The line reads as an
+    # amendment with no charge rather than as a promise about how the firm
+    # behaves -- a claim of that kind belongs in what the firm does, not in
+    # what its price sheet says about itself.
     our_error:
-      label: "Correction of our error"
-      detail: "Our mistake, corrected at no charge"
+      label: "Amendment"
+      detail: "No charge"
       amount: 0
       reprices: false
+      publish: "no"
+      publish_reason: >-
+        The firm corrects its own errors without charging and does not
+        advertise that. Published, it reads as a marketing claim and invites
+        an argument about whose error a given one was.
     # A late K-1, a corrected 1099, a fact that changed. Not our error and not
     # a return we have to meet for the first time.
     new_information:
@@ -558,28 +610,6 @@ per_unit:
     amount: 45
     publish: "yes"
 
-  brokerage_keyed:
-    count_from: count_brokerages_keyed
-    label: "Brokerage entered by hand"
-    detail: "Per statement that cannot be summarised"
-    # How this line is named INSIDE a sentence, when an assumption points at
-    # it to say what its own overrun costs. The assumption's `trigger` has
-    # already named the situation -- "if a statement has to be entered by
-    # hand" -- so this refers back to it rather than saying it again.
-    per_each: "that statement"
-    # Signed 25 Aug 2026. What flips it, settled the same day: the parts of a
-    # 1099-B that cannot be summarised. Where the broker reported basis to the
-    # IRS and nothing needs adjusting, the totals go in and the statement is
-    # attached; where they did not, the trades are keyed one at a time.
-    #
-    # TAGGED AS EXPOSED TO AUTOMATION -- this is T-01 and the first entry in
-    # docs/workflow-friction-log.md, and it is the clearest case of the rule
-    # in that log: where OUR process costs more than the return needs, that is
-    # a cost to fix, not a cost to bill. Price today's effort; expect this
-    # line to shrink.
-    amount: 95
-    publish: "yes"
-
   foreign_account:
     count_from: count_foreign_accounts
     label: "Foreign account reporting"
@@ -616,6 +646,19 @@ per_unit:
     # awhile and just charge per account". A foreign COMPANY is not this line
     # -- see `assumed.foreign_company`.
     amount: 50
+    # THE BLANK-COUNT TRAP, one line down. Exactly the reason `rental` above
+    # carries a `form_when`: a client who ticks "Held a foreign bank or
+    # investment account" and leaves the number for later has foreign
+    # reporting on the return and a count of zero, so the line never fired
+    # and the work was done for nothing. The onboarding letter had already
+    # asked them for "the bank, the account number, and the highest balance
+    # at any point in the year" -- so the package asked for the records and
+    # the estimate charged nobody. Found 26 Aug 2026 by running the ticked-
+    # but-uncounted case end to end. A blank count now reads as one account,
+    # which is the smallest number a ticked box can honestly mean; the
+    # preparer raises it when they know.
+    form_when:
+      answer_includes: {extra_forms: foreign_accounts}
     publish: "yes"
 
   # T-17, closed 26 August 2026 on the firm's answer to round eleven:
@@ -677,7 +720,7 @@ per_unit:
     # preparer enter a larger figure at the consultation; `minimum` stops it
     # ever going below the floor, deliberately or by a typo.
     label: "Records sorting"
-    detail: "Sorting and organising what arrived"
+    detail: "Sorting and organizing what arrived"
     count_from: count_sorting
     amount: 175
     minimum: 175
@@ -772,8 +815,10 @@ phrases:
   # The package line: what the package covers.
   #   {detail} the package's own one-line description
   #   {list}   its covers list, joined
-  includes:      "{detail}. Includes: {list}."
-  includes_only: "Includes: {list}."
+  # Its own field on the estimate (`Item.Includes`), not appended to the
+  # line's detail sentence -- nine clauses inside a table cell is a paragraph
+  # nobody finishes.
+  includes:      "Includes: {list}."
 
   # Which side of an either/or allowance the client got.
   #   {detail} the package line's detail so far
@@ -805,8 +850,8 @@ phrases:
   # A SOFT cap. The per-account charge stops at {n}; the work past it is time.
   # Both halves have to be said: "capped at four" alone reads as a promise the
   # firm is not making, and the client finds out otherwise on the invoice.
-  capped_soft:      "{detail}, capped at {n} — beyond that the additional time is billed at {rate} an hour as it is worked, and we will tell you as soon as we see it"
-  capped_soft_only: "Capped at {n} — beyond that the additional time is billed at {rate} an hour as it is worked, and we will tell you as soon as we see it"
+  capped_soft:      "{detail}, capped at {n} — beyond that the time is billed at {rate} an hour"
+  capped_soft_only: "Capped at {n} — beyond that the time is billed at {rate} an hour"
 
   # More than one of something.
   #   {n} how many are charged   {each} the price of one
@@ -817,16 +862,33 @@ phrases:
   #   {label} {assumes} {trigger}  from the `assumed:` item
   #   {where}       one of the two lines below it
   #   {consequence} one of the two below that
-  assumption: "{label} — this estimate assumes {assumes}, {where}. If {trigger}, {consequence}."
-  inside_base:  "and includes it on that basis"
-  outside_base: "and does not include work beyond it"
+  # NOT "this estimate assumes ...". The block is headed "What this estimate
+  # assumes", so every bullet saying it again is the heading read aloud five
+  # times over. The firm, 26 Aug 2026: "stop repeating things for the sake of
+  # repeating."
+  #
+  # Nor "and does not include work beyond it". Every `assumed:` entry is
+  # outside the base, so that clause printed on every bullet saying nothing,
+  # immediately before a sentence that says exactly what happens beyond it.
+  # The two cases are two sentences now rather than one sentence with a slot
+  # that is the same on every line.
+  assumption:        "{label} — {assumes}. If {trigger}, {consequence}."
+  # Used when `inside_base: true`. Nothing carries it today; it exists because
+  # an assumption whose work IS in the price is a different statement, and the
+  # difference has to survive somewhere other than a dangling clause.
+  assumption_inside: "{label} — {assumes}, and the price above covers it. If {trigger}, {consequence}."
 
   # What happens past an assumption. One per `beyond:` value.
   #   {rate} " at $150 an hour", or empty when no rate is set
-  beyond_hourly: "the additional time is billed{rate} as it is worked, and we will tell you as soon as we see it"
+  beyond_hourly: "the additional time is billed{rate} as it is worked"
   #   {each}   how the priced line names one of itself (`per_each`)
   #   {amount} its price, formatted
-  beyond_priced: "{each} is {amount} — we will tell you as soon as we see it and agree it with you then, rather than adding it to your bill unannounced"
+  # The ONE place this promise is made. It earns its space here because the
+  # client is being told a number before the work happens and asked to agree
+  # it. Repeating the same reassurance on every other line, as this file did
+  # until 26 August 2026, turns it into wallpaper -- and means changing it
+  # once means changing it everywhere.
+  beyond_priced: "{each} is {amount}, which we will agree with you before we do it rather than adding it to your bill unannounced"
 
 # ── one price per named form ──────────────────────────────────────────────
 #
@@ -986,21 +1048,32 @@ assumed:
   # So the assumption comes back below with a PRICE rather than a rate. It is
   # not the old one reworded: the old one claimed brokerage was inside the base
   # fee at any volume and billed the overrun hourly, and all of that was wrong.
+  # DELETED 26 August 2026: the $95 "brokerage entered by hand" line, and the
+  # `count_brokerages_keyed` question that fed it. The firm: "this is way too
+  # much crap. we are actually deleting the $95 thing - all are $45 we will
+  # figure out how to make it efficient. however it is possible that brokerage
+  # statements are so messy they require keying which could significantly
+  # increase time and therefor result in an hourly charge."
+  #
+  # Every brokerage statement is $45. What survives is the honest residue: a
+  # statement disordered enough to key is not a $95 job of known size, it is
+  # time. Asking at the consultation how many WOULD turn out messy was always
+  # the weakest question on the sheet -- nobody knows before opening them.
   brokerage_keying:
-    label: "Brokerage keying"
-    assumes: "each 1099-B can be summarised rather than keyed line by line"
-    # Not inside the base: the first statement is inside the PACKAGE, which is
-    # a different claim and one the covers list already makes.
+    label: "Brokerage"
+    # NEEDS A BROKERAGE STATEMENT TO BE ABOUT. Same shape as
+    # `officer_compensation` below, found the same way -- by reading a
+    # rendered estimate rather than by any test. A client with only a W-2 has
+    # no 1099-B, so "your 1099-Bs can be summarized rather than keyed line by
+    # line" is a boundary around work that cannot arise. That is not a
+    # boundary being stated; it is filler, and filler is how a client learns
+    # to skip the block.
+    when:
+      schedules_any: [D]
+    assumes: "your 1099-Bs can be summarized rather than keyed line by line"
     inside_base: false
-    trigger: "a statement has to be entered by hand"
-    # The third consequence, and the one the firm asked for. Not hourly, which
-    # tells a client a rate and leaves them unable to work out the total; not a
-    # re-quote, which stops the job. A named price, said up front and agreed at
-    # the moment it is found.
-    beyond: priced
-    # Read from the line that charges it. Typing 95 here as well is how an
-    # estimate ends up promising $95 while the invoice bills $110.
-    beyond_price_from: brokerage_keyed
+    trigger: "a statement is disordered enough that it has to be keyed"
+    beyond: hourly
 
   foreign_company:
     label: "Foreign entities"
@@ -1009,6 +1082,14 @@ assumed:
     # 8865 is a return inside a return -- its own balance sheet, its own
     # income statement, its own translation -- and pricing it per form would
     # misprice the exact engagement where mispricing hurts most.
+    # NEEDS FOREIGN HOLDINGS TO BE ABOUT. The sentence tells a client which
+    # KIND their holdings were assumed to be; said to someone who declared
+    # none, it asks them to wonder what foreign holdings we think they have.
+    # Gated on the interview's own answer rather than on the priced count, so
+    # it still prints for someone who declared accounts and was charged for
+    # none.
+    when:
+      answer_includes: { extra_forms: "foreign_accounts" }
     assumes: "your foreign holdings are accounts rather than companies"
     inside_base: false
     trigger: "you hold an interest in a foreign corporation or partnership"
@@ -1026,13 +1107,14 @@ assumed:
   #
   # NEVER an intake question, for the same reason as cleanup: a notice arrives
   # after the return is filed. It is raised when it happens.
-  notice_response:
-    label: "Notices and correspondence"
-    assumes: "no authority writes to you about a return we prepared"
-    inside_base: false
-    trigger: "a notice arrives and you ask us to deal with it"
-    beyond: hourly
-    raised_at: file_review
+  # DELETED 26 August 2026. The firm: "notices and corresponds belong in a
+  # different letter engagement or would be discussed anyway, get rid of it.
+  # can't bite if not a secret."
+  #
+  # The engagement letter already says representing you in an examination,
+  # notice response or appeal is a separately quoted engagement. Repeating it
+  # on the estimate as an ASSUMPTION said the same thing twice and implied the
+  # meter was already running, which is not the arrangement.
 
   # Settled 25 August 2026 and, until now, recorded only as a scope-exclusion
   # flag on the business engagement letter in `fields.yaml`. A DOCUMENT said
@@ -1041,6 +1123,19 @@ assumed:
   # and no line exists to put it on.
   officer_compensation:
     label: "Officer compensation"
+    # ENTITY RETURNS ONLY. A person filing a 1040 has no officers, and this
+    # sentence was printing on their estimate until 26 August 2026 -- caught
+    # by reading a rendered one rather than by any test. An assumption that
+    # cannot arise is not a boundary being stated; it is filler.
+    #
+    # Written as `any_of` rather than a new "one of these values" operator:
+    # the gate vocabulary is deliberately short, and three clauses spell it
+    # out without adding a word everyone then has to learn.
+    when:
+      any_of:
+        - answer_is: { federal_form: "1065" }
+        - answer_is: { federal_form: "1120S" }
+        - answer_is: { federal_form: "1120" }
     assumes: "setting officer compensation is not part of this engagement"
     inside_base: false
     trigger: "you ask us to determine or review it, and we agree in writing"

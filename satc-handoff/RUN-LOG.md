@@ -859,6 +859,172 @@ is not reconciled into `satc_system`'s tax crosswalks**, so TY2025 still
 carries the pre-OBBBA SALT cap and bonus depreciation. Flagged in-file, never
 acted on. Ohio 2025 brackets are 2024 copied forward and say so.
 
+## Addendum — the gate that was passing on nothing (27 August 2026)
+
+The firm's five rulings of 27 August put the tenet linter into two halves:
+**exact tenets block, judgement ones advise.** The blocking eight shipped
+first. This entry is the advisory ten — and what building them turned up.
+
+**The advisory half is `client-documents/notes.py`, behind `package --notes`.**
+Ten checks, A1–A10, each carrying the condition on which it may be promoted to
+blocking, and none of which can change an exit code: `note()` is the only
+constructor in the module and it hard-codes `blocking=False`, so "nothing here
+can stop a pack" is a property a test asserts rather than a promise in a
+docstring. Thirteen other tenets were measured and dropped — a machine is the
+wrong instrument for them, and `docs/tenet-mechanization.md` §7 shows the hit
+counts that say so.
+
+Measured over the 27 rendered packs: **nine of the ten fire on nothing**, which
+is what the specification predicted. A3 finds six distinct over-long sentences,
+the worst of them the 51-word officer-compensation sentence written on 26
+August — the one real hit the analysis said to expect.
+
+**Three things the build found that no test would have.**
+
+1. **Two of the eight blocking checks had never examined anything on a real
+   send.** The compliance floor — the assurance negation, the "an extension is
+   not more time to pay" warning — and the pointer test both need the pack's
+   manifest, because a rendered document is named for the client and nothing
+   about the file says which template it came from. `package` wrote
+   `MANIFEST.json` at the very end, after the gate. So on every real pack both
+   checks refused with *"no MANIFEST.json … Not a pass"*, neither blocked, and
+   the summary line said `ok`. They passed in the tests, on fixtures that wrote
+   their own manifest. The manifest is now written into staging **before** the
+   gate, and the same bytes go to the client.
+
+   No assertion of the form "the gate passed" could have caught this: it reads
+   the same in both worlds. What caught it was making every check report **how
+   many things it examined** — and a check with nothing to look at now prints
+   `NONE`, never `ok`. That is `SOFTWARE-TENETS` S2, and it has now cost this
+   project three separate bugs.
+
+2. **The long-sentence check read the letterhead as a sentence.** Flattening a
+   document and splitting on full stops turned the firm name, address, document
+   title, client name and first heading into one 74-word "sentence" — none of
+   it ends in a full stop. Measured that way it fired 162 times where the right
+   answer was about 20. Documents are now read paragraph by paragraph.
+
+   Its abbreviation guard was measured too rather than guessed: the obvious
+   company suffixes were in it, and a sweep of the corpus found that the only
+   one that ever appears before a capital letter is `LLP.`, twenty times, every
+   one of them the real end of *"Thank you for choosing SAT-C LLP."*
+
+3. **A floor rule was missing.** The billing-and-suspension paragraph — the
+   firm's right to stop work on an unpaid invoice, and the disclaimer for a
+   late filing that follows — is in all four engagement letters and was in no
+   registry. It is now `unpaid-invoice-and-late-filing` in `required.yaml`, as
+   keyword groups rather than pinned prose, with a mutation test that proves it
+   fires when the sentence is removed.
+
+Nothing a client reads changed. `exercise.py`: 29 scenarios, 190 documents, 0
+refusals, 0 surprises.
+
+## Addendum — the signature, and quoting a client twice (28–29 August 2026)
+
+Eight commits, `fb1d6aa` to `93fd710`. The thread through all of them is the
+firm's own name for this project's commonest defect: **a claim in one place,
+behaviour in another, and nothing comparing them.** Four instances were closed
+and one is still open because it is the firm's to decide.
+
+**An engagement could be priced exactly once.** It happened inside
+`intake.finish`, at the moment the engagement was created, and none of the
+twenty-one commands could add a chargeable line to work that already existed. A
+client who rang in March to say they had bought a rental had to be
+re-interviewed as a second engagement, or have a figure typed onto an invoice by
+hand. `client-documents/requote.py` changes the **answers** and prices them
+again through the same engine that priced them the first time — there is no box
+for an amount, because a box for an amount is a second way onto the money with
+none of the fee schedule's rules behind it. The questions it offers are read out
+of the schedule rather than listed in Python, `revisions.json` is append-only,
+nothing is written without a stated reason, and `EstimateDate` is now separate
+from `LetterDate` so a re-quoted estimate carries the day it was quoted while
+the signed letter keeps its own date.
+
+**Six places called the engagement letter signed and nothing recorded a
+signature.** `packaging.PURPOSE` calls it "the one that is signed", `requote`
+freezes `LetterDate` because "the client has signed that letter", and both front
+doors say so to a preparer's face. Two documents make a client a promise that
+turns on it — the delivery letter's *"We cannot transmit anything until the
+signed authorization is back with us"* and every engagement letter's *"We will
+not e-file a return before the invoice for it is settled"* — and neither could
+be honoured. `signing.py` is the register. Who must sign is **censused off the
+templates' own `sigrow`/`siglab` blocks**, so a block that moves or gains a
+signer is followed without anybody editing code; the spouse's line is
+conditional in the template and conditional here, from the same fact. `how` a
+signature reached us is kept verbatim rather than as a tick, because "he signed
+it in front of me" and "the portal said it completed" are different kinds of
+knowing.
+
+**The one signature that matters most is the one we never print.** Drake
+produces the e-file authorization and no template here will ever be one, so the
+census that reads our own paper cannot see it — and it is the form the delivery
+letter's promise is actually about. `registry/signing.yaml` declares it as a
+signature the *engagement* needs, whoever printed the form. The form names live
+in a registry because the IRS renames them: 8879-C and 8879-S became one
+**8879-CORP**, and **8879-PE** carries a December 2025 revision. `may_file`
+reports the 8879 and the unpaid invoice as **unknown rather than passed** —
+reporting them satisfied because we cannot see them is the exact failure the
+module exists to stop.
+
+**Sending, and the half that pays.** `sending.build` wrote a pack to a folder
+and stopped: no recipient, no date. `--sent` records that it went, by which
+route, and starts the clock, so "outstanding" stops meaning "nobody has signed
+yet", which on the morning you built the pack is not a chase. `cli.py sign` with
+no engagement sweeps every engagement, overdue first then longest waiting, and
+one whose record cannot be read is skipped rather than counted clear — a control
+that only examines the work somebody filed properly is a control over the
+diligent. `outgoing.py` then composes the covering email and writes an ordinary
+`.eml`: it opens already addressed, already attached, already written, and a
+human presses send. **Nothing here sends.** A test asserts the module names
+neither `smtplib`, `requests`, `urllib` nor `socket`, because the send is the
+only irreversible step in the pipeline. The covering wording sits behind a
+`[CONFIRM: ]` in `registry/signing.yaml` and the module **refuses to compose**
+until the firm has accepted or rewritten it; the draft is assembled from
+sentences the firm has already published in the onboarding letter, not invented.
+
+**The price the website already promised.** `base.1065.starting_note` has always
+read *"Each partner's K-1 after the first two"* and is published verbatim on the
+live site, while the engine billed every K-1 from the first — so a two-partner
+return was quoted $880 against a page promising $800, on every entity
+engagement with two or more owners, for as long as both have existed. 1,001
+tests passed while it did, because no test knew the sentence existed. A test now
+parses the sentence and compares it to the number. The firm settled both halves:
+*"Base should carry a 2 k1 allowance"*, and then *"This can flow through"* for an
+amendment, which was raised as a `[CONFIRM:` the same day precisely because it
+did not obviously follow.
+
+**Fanning, which is the habit this run is also about.** The firm: *"you should
+fan documents when changing one to ensure consistency across."* Changing the
+allowance meant checking `registry/fee-schedule.yaml`, `website/pricing-config.js`,
+`docs/sign-off-register.md`, `docs/pricing-open-threads.md` and the tests. The
+one thing still describing the old behaviour — the last sentence of the fee
+schedule's own header — was found by fanning, not by a test. It is now **S29**
+in `docs/SOFTWARE-TENETS.md`.
+
+**Two mistakes, recorded rather than quietly fixed.** Encyro's 8879 KBA was
+flagged as non-compliant on the strength of a search-index summary of a help
+article's *title*, the page itself being blocked from this environment; the
+firm, who has the product in front of them, corrected it — *"No encyro is
+cheaper and has kba"* — and the flag is kept as what was found, explicitly not
+as what is believed. And `api.encyro.com` appearing in Encyro's own allowlist
+guidance was cited as proof there is **no** customer API, when a vendor telling
+customers to allowlist a host is evidence a host exists. The conclusion survived
+a proper look; the reasoning was backwards.
+
+**What none of this rests on.** The regulatory substance in
+`docs/research-e-signature.md` was **never read from a primary source.** The
+egress proxy denies `irs.gov`, `govinfo.gov`, `uscode.house.gov`,
+`codes.ohio.gov`, `ecfr.gov` and `ftc.gov` — 403 on CONNECT — and every vendor
+domain with them. Whether Pub 1345's knowledge-based-authentication regime
+reaches 8879-CORP and 8879-PE is governed by Pub 4163 and is **genuinely
+unresolved**; the software names the forms and asserts nothing about identity
+proofing, and it must stay that way until somebody opens the PDF.
+
+1,123 passed, 2 skipped. 21 commands, 24 walkthrough screens, both front doors,
+and section 4 of the generated operating procedures rewritten twice. The full
+narrative, including what is still blocking real use, is
+`docs/handoff-2026-08-29.md`.
+
 ## What a human should do next
 
 1. **Call the Accountancy Board of Ohio.** Unchanged from the brief, and still

@@ -11,3 +11,11 @@ venv/
 out/
 *.pdf
 engagements/
+
+# THE LEADS WORKBOOK IS CLIENT DATA. Every row is a real person's name,
+# email and phone number, and CLAUDE.md is explicit that none of it belongs
+# in the repository. `web.py` reads it from here at runtime; the tests build
+# their own one-row workbook with a made-up prospect in it.
+leads.xlsx
+*.xlsx
+

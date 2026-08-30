@@ -16,7 +16,7 @@ than left to whoever calls this:
 1. **Values are escaped.** A client named "Ross & Sons" would otherwise break
    the page.
 2. **An unresolved token is a hard failure.** A letter reaching a client with
-   ``<<ClientLetterName>>`` still in it is, in the templates' words, the one bug
+   ``<<ClientFullName>>`` still in it is, in the templates' words, the one bug
    that actually costs you a client. Never render past it.
 3. **A surviving ``[CONFIRM:`` is a hard failure too.** Firm settings carry
    placeholders for decisions not yet made; they must not reach a client
@@ -28,6 +28,7 @@ caller's problem.
 
 from __future__ import annotations
 
+import decimal
 import html
 import re
 from dataclasses import dataclass, field as dc_field
@@ -62,6 +63,11 @@ class MergeResult:
     fields_used: set = dc_field(default_factory=set)
     blocks_kept: set = dc_field(default_factory=set)
     blocks_dropped: set = dc_field(default_factory=set)
+    # old -> new section numbers, empty when the document numbered correctly
+    # on its own. Carried out so a caller can SAY that a document was
+    # renumbered: a silent renumber and no renumber look identical from here,
+    # and one of them means a condition dropped a section.
+    renumbered: dict = dc_field(default_factory=dict)
 
 
 def _sentinel(name: str) -> str:
@@ -99,7 +105,12 @@ def _render_each(text: str, record: dict) -> str:
             raise MergeError(f"{name} must be a list, got {type(items).__name__}")
 
         rendered = []
-        for item in items:
+        for n, item in enumerate(items, 1):
+            if not isinstance(item, dict):
+                raise MergeError(
+                    f"row {n} of {name} is a {type(item).__name__}, not a set "
+                    f"of fields — a list of strings cannot fill a table whose "
+                    f"columns have names")
             piece = chunk
             for key, value in item.items():
                 piece = _substitute_one(piece, f"Item.{key}", value)
@@ -133,6 +144,11 @@ def _render_if(text: str, record: dict, kept: set, dropped: set) -> str:
         text = text[:start] + replacement + text[end + len(_sentinel("ENDIF")):]
 
 
+# What a sentence can be given. Anything else is a category error: the record
+# handed a TABLE to a slot that holds a phrase.
+SCALARS = (str, int, float, bool, decimal.Decimal)
+
+
 def _substitute_one(text: str, name: str, value) -> str:
     """Replace one field. The .f span goes with it — that chrome is proof-only."""
     safe = html.escape("" if value is None else str(value))
@@ -142,9 +158,80 @@ def _substitute_one(text: str, name: str, value) -> str:
     return text
 
 
+# ── section numbering ─────────────────────────────────────────────────────
+#
+# A dropped `[[IF]]` section leaves a HOLE IN THE NUMBERING and nothing put it
+# right. Every onboarding letter for a client with no previous accountant went
+# out reading 01, 02, 04, 05 -- 26 of the 27 packs the harness produces -- and
+# the delivery letter jumped 03 to 05 in all 27. The template's own FIELDS spec
+# asked for this in so many words ("Renumber the remaining sections in code --
+# 05 and 06 must not follow 03") and it was never built.
+#
+# It belongs HERE, after `_render_if`, and nowhere else. `editor.renumber()`
+# renumbers the TEMPLATE, where there is no gap: the gap only exists once a
+# condition has been resolved, so a renumbering that reads the template is
+# renumbering the one version of the document that was already correct.
+_SECTION_N = re.compile(r'(<h2[^>]*><span class="n">)(\d+)(</span>)')
+_SECTION_REF = re.compile(r'\b(sections?)(\s+)(\d{1,2})\b', re.I)
+
+
+def _renumber_sections(text: str) -> tuple[str, dict[str, str]]:
+    """Make the numbers on the page read 01..N with no gaps.
+
+    Returns the text and the old->new map, which is empty when nothing moved.
+    Prose that cites a section by number is remapped with it: renumbering the
+    headings alone would leave "section 04 tells you what to do" pointing at
+    whatever now occupies 04, which is worse than the gap it fixed.
+    """
+    found = _SECTION_N.findall(text)
+    if not found:
+        return text, {}
+    old = [n for _, n, _ in found]
+    new = [f"{i:02d}" for i in range(1, len(old) + 1)]
+    if old == new:
+        return text, {}
+
+    mapping = dict(zip(old, new))
+
+    seq = iter(new)
+    text = _SECTION_N.sub(lambda m: f"{m.group(1)}{next(seq)}{m.group(3)}", text)
+
+    def _ref(m):
+        n = m.group(3)
+        moved = mapping.get(n) or mapping.get(n.zfill(2))
+        return f"{m.group(1)}{m.group(2)}{moved}" if moved else m.group(0)
+
+    return _SECTION_REF.sub(_ref, text), mapping
+
+
+def _dangling_section_refs(text: str) -> set[str]:
+    """Numbers the prose cites that the document does not have.
+
+    A client reading "section 03 explains what to do" and finding no section 03
+    is the same failure as an unresolved token: the document says something
+    that is not true of itself.
+    """
+    have = {n for _, n, _ in _SECTION_N.findall(text)}
+    if not have:
+        return set()
+    cited = {m.group(3).zfill(2) for m in _SECTION_REF.finditer(text)}
+    return cited - have
+
+
 def render(template_html: str, record: dict, *, strict: bool = True,
-           required_lists: "tuple[str, ...] | list[str]" = ()) -> MergeResult:
+           required_lists: "tuple[str, ...] | list[str]" = (),
+           inverse_flags: "tuple[tuple[str, str], ...]" = ()) -> MergeResult:
     """Fill a template. Raises MergeError rather than returning a holed document.
+
+    `inverse_flags` names pairs of flags that are two faces of ONE decision --
+    "a payment goes with the extension" and "there is nothing to pay". Exactly
+    one must be true. Two independent booleans can both be false, and when
+    they were, the extension notice printed a heading that warns the payment
+    deadline has not moved, an intro that says "section 02 tells you what to
+    do about that", and then NOTHING in section 02. The template's own notes
+    call that "the worst possible version of this letter" and asked for the
+    two to be derived from one stored value; the relationship was recorded in
+    prose that nothing read.
 
     `required_lists` names the `[[EACH X]]` lists that may not be empty. An
     EACH block over a missing list renders to exactly the same nothing as one
@@ -161,6 +248,7 @@ def render(template_html: str, record: dict, *, strict: bool = True,
     dropped: set = set()
     text = _render_each(text, record)
     text = _render_if(text, record, kept, dropped)
+    text, renumbered = _renumber_sections(text)
 
     used = set()
     for name in sorted(set(_FIELD_IN_SPAN.findall(text)) | set(_FIELD_BARE.findall(text))):
@@ -168,7 +256,21 @@ def render(template_html: str, record: dict, *, strict: bool = True,
             continue                              # belongs to an EACH block
         if name not in record:
             continue                              # reported below, not silently blanked
-        text = _substitute_one(text, name, record[name])
+        value = record[name]
+        # A LIST HANDED TO A SENTENCE USED TO PRINT AS PYTHON. A disengagement
+        # letter went out reading: It covers [{'Item': '2026 federal and Ohio
+        # returns', 'Status': 'Complete'}]. `str(value)` will happily render a
+        # repr into a client's letter and nothing downstream can tell that
+        # apart from a phrase somebody meant to write.
+        #
+        # `[[EACH]]` has refused a non-list since it was written. This is the
+        # same gate facing the other way, and it was the missing half.
+        if value is not None and not isinstance(value, SCALARS):
+            raise MergeError(
+                f"{name} is a {type(value).__name__} and this document uses it "
+                f"as a phrase, not a table. Rendering it would print Python "
+                f"into a client's letter.")
+        text = _substitute_one(text, name, value)
         used.add(name)
 
     if strict:
@@ -191,10 +293,30 @@ def render(template_html: str, record: dict, *, strict: bool = True,
         confirms = {m for m in _CONFIRM.findall(text)}
         if confirms:
             problems.append("undecided placeholders: " + ", ".join(sorted(confirms)))
+        for a, b in inverse_flags:
+            # Only where the template actually uses them: a pair that does not
+            # appear in this document is not this document's problem.
+            if f"IF {a}" not in template_html and f"IF {b}" not in template_html:
+                continue
+            on = [n for n in (a, b) if record.get(n)]
+            if len(on) != 1:
+                problems.append(
+                    f"{a} and {b} are two faces of one decision and "
+                    + ("both are set" if len(on) == 2 else "neither is set")
+                    + " -- the section they control would "
+                    + ("contradict itself" if len(on) == 2 else "come out empty")
+                    + ", and the document promises the reader it says something")
+        dangling = _dangling_section_refs(text)
+        if dangling:
+            problems.append(
+                "points the reader at section(s) "
+                + ", ".join(sorted(dangling))
+                + ", which this document does not have")
         if problems:
             raise MergeError("; ".join(problems))
 
-    return MergeResult(html=text, fields_used=used, blocks_kept=kept, blocks_dropped=dropped)
+    return MergeResult(html=text, fields_used=used, blocks_kept=kept,
+                       blocks_dropped=dropped, renumbered=renumbered)
 
 
 def render_file(template_path: str | Path, record: dict, **kw) -> MergeResult:

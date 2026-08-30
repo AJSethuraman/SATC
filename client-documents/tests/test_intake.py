@@ -53,8 +53,11 @@ def test_a_hard_no_creates_nothing(answers, tmp_path, priced):
 def test_a_hard_no_reports_which_one(answers, tmp_path, priced):
     answers["red_flags"] = ["assurance_needed", "missing_records"]
     out = intake.finish(answers, store=tmp_path, fee_schedule=priced)
-    assert out.blockers == ["Needs assurance work — HARD NO"], (
-        "only the HARD NO options are blockers; 'missing records' is a note"
+    assert out.blockers == ["Needs assurance work"], (
+        "only the HARD NO options are blockers; 'missing records' is a note. "
+        "The label lost its '— HARD NO' suffix on 26 August 2026: both front "
+        "doors draw the badge from `hard_no: true`, so the suffix printed it "
+        "twice on the screen."
     )
 
 
@@ -227,25 +230,18 @@ def test_an_unreadable_count_does_not_raise_a_flag_or_an_error(answers, tmp_path
     assert intake.finish(a, store=tmp_path, fee_schedule=priced).flags == []
 
 
-def test_an_unanswered_brokerage_keying_count_is_flagged(answers, tmp_path, priced):
-    """A blank is the normal case here and must not be read as "none".
+def test_a_brokerage_raises_no_keying_question(answers, tmp_path, priced):
+    """It used to flag "nobody has said yet whether it can be summarised",
+    because a second price of $95 a statement hung on the answer.
 
-    Nobody knows whether a 1099-B can be summarised until it arrives, so the
-    estimate goes out with the keying line unpriced. That is fine; going
-    quiet about it is not, because a line added after the estimate went out
-    is a conversation.
+    Both are gone as of 26 August 2026. Every brokerage statement is $45, and
+    one disordered enough to key is billed as time -- so there is nothing to
+    guess at the consultation and nothing to come back to at file review.
     """
     a = dict(answers) | {"federal_schedules": ["D"], "count_brokerages": 2}
     a.pop("count_brokerages_keyed", None)
     out = intake.finish(a, store=tmp_path, fee_schedule=priced)
-    assert any("summarised" in f for f in out.flags)
-
-
-def test_a_typed_zero_is_an_answer_and_raises_nothing(answers, tmp_path, priced):
-    a = dict(answers) | {"federal_schedules": ["D"], "count_brokerages": 2,
-                         "count_brokerages_keyed": 0}
-    out = intake.finish(a, store=tmp_path, fee_schedule=priced)
-    assert not any("summarised" in f for f in out.flags)
+    assert not any("summarised" in f or "summarized" in f for f in out.flags)
 
 
 def test_the_web_front_door_shows_the_same_flags(answers, tmp_path, priced):
@@ -272,3 +268,46 @@ def test_every_gate_lives_in_the_core_not_the_cli():
             f"cli._finish contains {smell!r} -- that decision belongs in "
             f"intake.finish, or the web UI will not enforce it"
         )
+
+
+# ── the back door hits the same gate as the front ones ────────────────────
+
+def test_an_unfinished_interview_does_not_create_an_engagement(answers, tmp_path):
+    """The web and CLI interviews will not let you past a required question.
+    `intake.finish` took any dict at all, so the missing answer surfaced much
+    later as a document with a hole in it: an entity engagement created with
+    no `owner_returns` produced a business letter whose section on the owners'
+    returns was EMPTY, both halves of the inverse flag pair being absent and
+    each [[IF]] dropping in silence."""
+    answers = dict(answers) | {
+        "federal_form": "1065", "entity_structure": "llc",
+        "entity_state": "Ohio", "signer_name": "Priya Raman",
+        "signer_title": "Managing Member", "count_owners": 3,
+        "k1_target": "each member's personal return",
+    }
+    answers.pop("owner_returns", None)
+
+    out = intake.finish(answers, store=tmp_path / "store")
+    assert out.status == "error"
+    assert "owner_returns" in out.reason
+    assert not (tmp_path / "store").exists() or not any(
+        (tmp_path / "store").iterdir()), "a refused intake left an engagement behind"
+
+
+def test_the_same_answers_with_the_question_answered_go_through(answers, tmp_path):
+    """The gate must not become a reason to fear the interview."""
+    answers = dict(answers) | {
+        "federal_form": "1065", "entity_structure": "llc",
+        "entity_state": "Ohio", "signer_name": "Priya Raman",
+        "signer_title": "Managing Member", "count_owners": 3,
+        "owner_returns": "yes",
+        "k1_target": "each member's personal return",
+    }
+    assert intake.finish(answers, store=tmp_path / "store").created
+
+
+def test_a_decline_still_works_on_a_partial_interview(tmp_path):
+    """Only CREATING an engagement needs a finished interview. Someone who
+    says no half way through is not an error."""
+    out = intake.finish({"decision": "no"}, store=tmp_path / "store")
+    assert out.status == "declined"

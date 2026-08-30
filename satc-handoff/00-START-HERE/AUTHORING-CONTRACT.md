@@ -6,6 +6,14 @@ already exist.** Written for an agent working unattended. Follow it literally.
 `../01-WEBSITE/SATC-STYLE-SPEC.md` governs the **website**. This file governs **documents** —
 anything that renders on paper or as a PDF a client receives.
 
+> **Read `DOCUMENT-TENETS.md` beside this file, and read it first.** It is
+> later than this document and more specific: 28 tenets mined from the firm's
+> own line-by-line notes, plus a cutting test to run over a finished draft.
+> **Its "What this file replaces" section names the parts of §5 below that are
+> superseded** — including "give the reason with the rule", which is the licence
+> under which most of the rejected wording was written. Nothing in it touches
+> §5's compliance rules or §9, which stay supreme.
+
 ---
 
 ## 0 · The one-paragraph version
@@ -143,8 +151,19 @@ Established names, do not fork them:
 
 `EngagementRef` `LetterDate` `PeriodLabel` `ClientFullName` `ClientLetterName`
 `ClientAddress1` `ClientCity` `ClientState` `ClientZip` `ClientEmail`
-`PreparerName` `PreparerTitle` `PreparerEmail` `PreparerPhone`
+`FirmName` `FirmLegalName` `FirmAddress1` `FirmCity` `FirmState` `FirmZip`
+`FirmWebsite` `FirmJurisdiction`
+`PreparerName` `PreparerTitle` `PreparerEmail`
 `MaterialsDeadline` `Item.Service` `Item.Detail` `Item.Amount`
+
+The eight `Firm…` fields are the masthead, the footer and the sign-off's "on
+behalf of" line. **Every template merges all eight**; none of it is typed in.
+They come from `firm-settings.yaml` under `firm:` — one edit moves the firm.
+
+There is no `PreparerPhone`, and there is no phone number anywhere on a
+client-facing document. Retired 26 August 2026: no number goes on one until
+the firm has a business line. The value is still in `firm-settings.yaml`,
+held rather than printed, with the steps to reinstate it.
 
 `EngagementRef` is the join key across every document. `PeriodLabel` is
 **self-describing** — "2026 tax year", "Monthly, from July 2027" — so one field

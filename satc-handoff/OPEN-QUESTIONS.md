@@ -18,13 +18,23 @@ Two kinds of item, and they are answered in different places:
 
 ---
 
-## 1 · Firm settings — 9 open
+## 1 · Firm settings — all closed
 
-These block **every real render**. The merge engine treats a surviving
-`[CONFIRM:` exactly like an unfilled field and refuses to produce the document,
-so a placeholder can never reach a client. `--draft` renders past them, stamped.
+**Re-measured 28 August 2026: `cd client-documents && make doctor` reports
+"No open decisions. Real renders will produce documents."** Every row below is
+settled and wired in — the four deadlines carry real dates, `legal_name`,
+`ack_window`, `billing.contact_email` and the hard-no list are answered, and
+`payment_instruction` now carries a sentence.
 
-Four are a date. Two are a sentence. Two block nothing today.
+The table is kept because it is the record of what was decided and when, not
+because anything is outstanding. **The one thing that is still open is not a
+setting** — it is the processor question in row 6, which a sentence cannot fix.
+See below.
+
+These blocked **every real render** while they were open. The merge engine
+treats a surviving `[CONFIRM:` exactly like an unfilled field and refuses to
+produce the document, so a placeholder can never reach a client. `--draft`
+renders past them, stamped.
 
 | # | Setting | Blocks | Shape of the answer |
 |---|---|---|---|
@@ -33,10 +43,33 @@ Four are a date. Two are a sentence. Two block nothing today.
 | 3 | `materials_deadlines.2026.partnership_1065` | Business return letter | One date |
 | 4 | `materials_deadlines.2026.c_corp_1120` | Business return letter | One date |
 | ~~5~~ | ~~`delivery.ack_window`~~ | Onboarding letter | **Settled 25 Aug 2026: "three business days"** — with a caveat that belongs on the confirmation screen, not in the string: it is three business days *unless the client books their own time on Calendly*, in which case the next step is theirs |
-| 6 | `delivery.payment_instruction` | Every invoice | Still open, and now known to be harder than a sentence: **the firm takes Square; Invoicer implements Stripe** — `stripe_utils.py`, 68 references in `app.py`, four templates and a webhook. One of the two has to move first |
+| ~~6~~ | ~~`delivery.payment_instruction`~~ | Every invoice | **Sentence settled**; the processor is not. See "Square or Stripe" below — the sentence now names a Square link the invoice cannot produce |
 | ~~7~~ | ~~`billing.contact_email`~~ | Every invoice | **Settled 25 Aug 2026: `arjun_sethuraman@satcllp.com`.** No separate billing box. The website footer still prints `billing@satcllp.com` in one place and is now wrong |
 | ~~8~~ | ~~`legal_name`~~ | **Every template** | **Settled 25 Aug 2026: `Sethuraman Accounting, Tax, and Consulting LLP`** — the Oxford-comma form, which is already what all ten footers print. See below |
-| 9 | `hard_no[1]` | Nothing — it gates declining work | The rest of the "we don't take this" list |
+| ~~9~~ | ~~`hard_no[1]`~~ | Nothing — it gates declining work | **Settled 26 Aug 2026**, in the firm's own words: hard nos exist to say the firm cannot provide assurance, being uncredentialed to give an opinion — not to make a list of refusals |
+
+### Square or Stripe — the one that is still open
+
+Row 6 is settled as a *sentence* and unsettled as a *system*, and the gap is
+visible to a client. `firm-settings.yaml` now says:
+
+> Payment is by card or bank transfer through the secure Square link on your
+> invoice. If you would rather pay another way, tell us and we will arrange it.
+
+**The invoice carries no link.** It has 41 merge fields and not one of them is a
+URL, and there is no Square code anywhere in the repository — `invoice-generator`
+is Stripe from end to end. So the sentence promises a client something the
+software cannot put on the page.
+
+**The firm's leaning, 28 August 2026: "square is fine for now I think maybe
+price dependent."** That reads as: stay on Square unless the pricing argues
+otherwise. It is recorded as a leaning rather than a decision because the cost
+comparison has not been done — and because "Square stays" is the expensive
+answer for the software, not the cheap one: Invoicer's Stripe checkout, webhook
+and four templates would be the side that moves.
+
+Nothing should be built against either processor until this is a decision.
+
 
 ### `legal_name` — settled, and it landed on the form already in use
 
@@ -83,6 +116,16 @@ three in the organizer, plus both field docs and the registry. Either
 two templates, two field docs, the registry and the tests in one commit.
 
 ## 3 · The fee schedule — structure built, numbers open
+
+> **Closed 26 August 2026, and this section is now history rather than a
+> question.** `fee-schedule.yaml` carries the firm's own figures — an hourly
+> rate, package amounts, per-unit prices and allowances — derived with `cli.py
+> hours` from hours × rate rather than typed, and `cli.py doctor` reports *"No
+> open decisions."* Two `[CONFIRM:` strings survive in the file and both are
+> inside the comment below, describing the state it was in. Two amounts have
+> moved since: the entity base now carries a **two-K-1 allowance**, which flows
+> through an amendment. Everything from here down is kept because it is the
+> record of how the numbers were arrived at.
 
 `client-documents/registry/fee-schedule.yaml` exists and is wired: the
 interview's counts become the estimate's line items and total. **Every amount in
@@ -142,6 +185,67 @@ Found while building; nowhere to put the answer until someone decides.
   never render. It is now asked on the call, as a judgement made against the
   materials deadline and the workload. If it should instead be a firm rule
   ("three weeks after the file is complete"), say so and it moves to settings.
+
+## 5 · Getting a signature — the shape is decided, four details are not
+
+**Decided 28 August 2026: Option A.** Encyro carries the signature and a human
+sends by hand through it; the software does the tracking and the chasing. Not an
+API vendor — Encyro has no customer API, and scripting its web interface would
+degrade an MFA control the FTC Safeguards Rule requires, break silently on a
+client-facing send, and is commonly forbidden by portal terms. Two corrections
+from the firm are wired in and both stand: *"No encyro is cheaper and has kba"*
+and *"Drake can print our 8879."* The second removes the reason to buy Drake
+E-Sign — Drake produces the PDF, Encyro carries the signature, one vendor and
+one subscription.
+
+Everything below is what is still open, ordered by what it blocks.
+
+| | What it blocks |
+|---|---|
+| **The covering-note wording** | **Every automated send.** `registry/signing.yaml` carries the subject and body behind a `[CONFIRM: ]` and `outgoing.py` **refuses to compose** until it is accepted or rewritten. To accept: delete the `[CONFIRM: ` and its closing `]`, leaving the words. The pack still builds either way. The draft is assembled from sentences already published in the onboarding letter, not invented |
+| **The one email to Encyro** | The rest of `docs/research-e-signature.md`, entirely. Four questions, drafted there in §5 and §5b — see below |
+| **Does Pub 1345's KBA regime reach the entity forms?** | Nothing today, and any sentence anybody writes about 8879-CORP or 8879-PE. **Genuinely unresolved** |
+| **Does the `[Secure]` keyword survive to the client?** | Nothing today. `secure_keyword` in `registry/signing.yaml` ships **empty** until somebody sends one to themselves and looks |
+
+### The one email — four questions, one reply
+
+Written out in full in `docs/research-e-signature.md` §5 and §5b. In short:
+
+1. **Does the 8879 e-signature use knowledge-based authentication generated
+   from credit-file or public-record data meeting NIST SP 800-63 IAL2, or an SMS
+   access code?** An answer naming the KBA data provider closes it permanently.
+   **Keep the reply** — it is the evidence, and there is currently none on file.
+2. Is there a documented HTTP API on `api.encyro.com` — even partner-only or
+   under NDA — and how does a one-person firm apply for a key?
+3. Does the `[Secure]` subject keyword work anywhere but the installed Outlook
+   add-in — an SMTP relay, an address to email or BCC?
+4. What is the exact subject and body format of the notification email sent when
+   a signer completes a request, and does it carry a stable request ID we can
+   parse?
+
+### The caveat that outranks everything in the research document
+
+**None of the regulatory wording was read from a primary source.** This
+environment's egress proxy denies `irs.gov`, `govinfo.gov`, `uscode.house.gov`,
+`codes.ohio.gov`, `ecfr.gov` and `ftc.gov` — 403 on CONNECT, confirmed against
+the proxy's own status endpoint — and every vendor domain with them. The URLs
+cited are the real primary sources; the substance came from search indexes **of**
+those documents. **Somebody must open `p1345.pdf`** before a line of it is built
+against or a word of it reaches a client. Each claim in the document is marked
+✓ *cited, unread* or ✗ *could not verify at all*.
+
+That is also why question 3 above stays open rather than being settled by
+reading: Pub 4163 governs business MeF returns and could not be checked, so
+`registry/signing.yaml` names the entity forms and asserts nothing about
+identity proofing. **The software must not assert it either way.**
+
+## 6 · A second copy of the data
+
+Carried over from `docs/REPO-INVENTORY.md` §4 because it belongs on the list a
+human works down, not only in a snapshot. Engagements are plain files on one
+disk and `satc_system`'s vault is two local SQLite files. There is no sync and
+no backup anywhere in the code. It blocks nothing today and everything the day
+it matters, and no agent can decide where the second copy lives.
 
 ---
 

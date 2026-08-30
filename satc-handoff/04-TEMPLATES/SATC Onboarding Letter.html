@@ -20,11 +20,10 @@
     <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
   </div>
   <div class="contact">
-    <b>SAT-C LLP</b><br/>
-    6544 Copley Avenue<br/>
-    Solon, OH 44139<br/>
-    307-941-0508<br/>
-    satcllp.com
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
   </div>
 </div>
 <div class="rule"></div>
@@ -43,9 +42,9 @@
 <div class="subject">What we need from you to begin — <span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span></div>
 
 <div class="body">
-  <p>Dear <span class="f">&lt;&lt;ClientLetterName&gt;&gt;</span>,</p>
+  <p>Dear <span class="f">&lt;&lt;ClientFullName&gt;&gt;</span>,</p>
 
-  <p>Welcome to SAT-C LLP. Below is everything we need to start your work, how to send it, and what happens once we have it. <strong>Nothing begins until the signed engagement letter is back with us</strong>, so start there.</p>
+  <p>Thank you for choosing <span class="f">&lt;&lt;FirmName&gt;&gt;</span>. This letter tells you what to send us, where to send it, and what happens next. <strong>Sign the engagement letter first</strong> — it outlines everything you should expect for the tax year.</p>
 
   <div class="dateline">
     <div>
@@ -59,7 +58,7 @@
   </div>
 
   <div class="sec">
-    <h2><span class="n">01</span>What we need from you</h2>
+    <h2><span class="n">01</span>What to send us</h2>
     <span class="cond">[[EACH RequestList]]</span>
     <ul class="req-list">
       <li>
@@ -68,60 +67,47 @@
       </li>
     </ul>
     <span class="cond end">[[END EACH]]</span>
-    <p>If an item does not apply to you, tell us that rather than leaving it out — <strong>we cannot tell a missing document from one that does not exist</strong>, and we will keep asking.</p>
+    <p>If something on this list does not apply to you, just tell us.</p>
   </div>
 
   <div class="sec">
-    <h2><span class="n">02</span>How to send it</h2>
-    <p>We use <strong>Encyro</strong> for everything containing your personal or financial information. You will receive an invitation at <span class="f">&lt;&lt;ClientEmail&gt;&gt;</span>; the link works without an account and the upload is encrypted in both directions.</p>
+    <h2><span class="n">02</span>Where to send it</h2>
+    <p>We will email a secure upload link to <span class="f">&lt;&lt;ClientEmail&gt;&gt;</span>. Use it to send us everything in section 01. Scans and clear photographs are both fine, and we prefer one document per file.</p>
+    <p><strong>Anything for signature comes to you by email, encrypted through Encyro</strong>, at the same address.</p>
     <div class="callout">
-      <p><strong>Please do not email documents as ordinary attachments.</strong> Email is not secure, and a return has your Social Security number, your income, and your bank details in one file.</p>
+      <p><strong>Emailing or otherwise transmitting unprotected documents is done at your own risk.</strong></p>
     </div>
-    <p>Scans or clear photographs are both fine. One document per file, named plainly, is easier for both of us than a single large bundle.</p>
-  </div>
-
-  <div class="sec">
-    <h2><span class="n">03</span>Access we may ask for</h2>
-    <p>Where the work requires it, we will ask for <strong>read-only</strong> access to an accounting system or a bank feed. Read-only means we can see the activity and cannot move money, initiate a payment, or change your records outside the system's audit trail.</p>
-    <p><strong>We will never ask you for a password.</strong> Access is granted through the platform's own invitation, in your name, and you can revoke it at any time. If anyone contacts you claiming to be from this firm and asks for a password or a wire transfer, it is not us — call <span class="f">&lt;&lt;PreparerPhone&gt;&gt;</span> and ask.</p>
   </div>
 
   <span class="cond">[[IF PriorFirm]]</span>
   <div class="sec">
-    <h2><span class="n">04</span>Your previous accountant</h2>
-    <p>We will contact <span class="f">&lt;&lt;PriorFirmName&gt;&gt;</span> for the prior-period records and returns we need. That request requires <strong>your written authorisation</strong>, which is included in the package for signature. We do not need you to explain the change, and we will not discuss it with them.</p>
-    <p>Send us your <strong>most recent filed return and the prior year's closing balances</strong> even if you expect them from the other firm. Having them from you means the work is not waiting on someone else's response time.</p>
+    <h2><span class="n">03</span>Your previous accountant</h2>
+    <p><span data-encl="records-release">We have included a short authorization for you to sign.</span> Sign it and we will send it to <span class="f">&lt;&lt;PriorFirmName&gt;&gt;</span>, who will release your prior records to us. <strong>We will not wait on them to start</strong>, so send us what you already have either way.</p>
   </div>
   <span class="cond end">[[END IF]]</span>
 
   <div class="sec">
-    <h2><span class="n">05</span>What happens once we have everything</h2>
-    <ul>
-      <li>We review what arrived and <b>confirm in writing that the file is complete</b>, usually within <span class="f">&lt;&lt;AckWindow&gt;&gt;</span>.</li>
-      <li>If something is missing or unclear, you get <b>one consolidated list</b> of questions rather than a trickle of emails.</li>
-      <li>Work begins when the file is complete. Our target for the first deliverable is <b><span class="f">&lt;&lt;FirstDeliverableTarget&gt;&gt;</span></b>.</li>
-      <li>Everything for your signature comes through Encyro, and finished documents are delivered <b>password-protected</b>.</li>
-    </ul>
-    <p>A file that arrives complete and reconciled moves faster and, because our estimate assumes it, usually costs what we quoted. <strong>Incomplete records are the single largest cause of both delay and a revised estimate.</strong></p>
+    <h2><span class="n">04</span>What happens next</h2>
+    <p>Once your documents are in, we can start. We will come back to you if something is missing. Our target for your first deliverable is <strong><span class="f">&lt;&lt;FirstDeliverableTarget&gt;&gt;</span></strong>.</p>
   </div>
 
   <div class="sec">
-    <h2><span class="n">06</span>Questions</h2>
-    <p>Ask before you guess — a five-minute question now is cheaper than a correction later. Reach us at <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span> or <span class="f">&lt;&lt;PreparerPhone&gt;&gt;</span>.</p>
+    <h2><span class="n">05</span>Questions</h2>
+    <p>Ask us early rather than guessing. Reach us at <span class="f">&lt;&lt;PreparerEmail&gt;&gt;</span>.</p>
   </div>
 
   <div class="signoff">
     <p>Sincerely,</p>
     <div class="sp"></div>
     <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
-    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of SAT-C LLP</div>
+    <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
   </div>
 </div>
 
 </div>
 
 <div slot="footer" class="foot">
-  <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139.</p>
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
   <span class="id">ONBOARDING<br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
 </div>
 
@@ -135,9 +121,9 @@
     <tr><td>&lt;&lt;LetterDate&gt;&gt;</td><td class="req">Required</td><td>February 3, 2027 — the package's date. Same value across all three documents.</td></tr>
     <tr><td>&lt;&lt;EngagementRef&gt;&gt;</td><td class="req">Required</td><td>2027-0114 — the join key, byte-identical to the letter's and the estimate's</td></tr>
     <tr><td>&lt;&lt;PeriodLabel&gt;&gt;</td><td class="req">Required</td><td><b>Self-describing.</b> "2026 tax year" or "Monthly, from July 2027" — the same field the fee estimate uses, so the package reads as one thing. Appears twice.</td></tr>
-    <tr><td>&lt;&lt;ClientFullName&gt;&gt; &lt;&lt;ClientLetterName&gt;&gt;</td><td class="req">Required</td><td>Mr. and Mrs. Daniel Reyes / Dan — legal name for the block, familiar name for the salutation</td></tr>
+    <tr><td>&lt;&lt;ClientFullName&gt;&gt;</td><td class="req">Required</td><td>Mr. and Mrs. Daniel Reyes — the addressee block AND the salutation, so both read the same</td></tr>
     <tr><td>&lt;&lt;ClientAddress1&gt;&gt; &lt;&lt;ClientCity&gt;&gt; &lt;&lt;ClientState&gt;&gt; &lt;&lt;ClientZip&gt;&gt;</td><td class="req">Required</td><td>Same four fields as the letter, from the same record</td></tr>
-    <tr><td>&lt;&lt;ClientEmail&gt;&gt;</td><td class="req">Required</td><td>dreyes@example.com — <b>printed on purpose.</b> It tells the client which inbox the Encyro invitation went to, which is the first thing they ask.</td></tr>
+    <tr><td>&lt;&lt;ClientEmail&gt;&gt;</td><td class="req">Required</td><td>dreyes@example.com — <b>printed on purpose.</b> Both the upload link and the Encyro signing invitation go to this address, and it is the first thing a client asks.</td></tr>
     <tr><td>&lt;&lt;MaterialsDeadline&gt;&gt;</td><td class="req">Required</td><td>March 15, 2027 — a real date, never "early March". Set in one place; the tax letter's section 04 carries the same value.</td></tr>
     <tr><td>[[EACH RequestList]]</td><td class="req">List</td><td>One or more. Two sub-fields per item. This is the whole point of the letter — <b>build it from the engagement type, not by hand</b>.</td></tr>
     <tr><td>&lt;&lt;Item.Document&gt;&gt;</td><td class="req">Required</td><td>All W-2 forms — as a client would name it, not as the tax code does</td></tr>
@@ -145,7 +131,7 @@
     <tr><td>&lt;&lt;AckWindow&gt;&gt;</td><td class="req">Required</td><td>three business days — a duration, phrased to drop into the sentence</td></tr>
     <tr><td>&lt;&lt;FirstDeliverableTarget&gt;&gt;</td><td class="req">Required</td><td>April 1, 2027 — a date or a phrase, whichever you can honour. It is the promise the client remembers.</td></tr>
     <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner. Name appears twice — the dateline and the sign-off.</td></tr>
-    <tr><td>&lt;&lt;PreparerEmail&gt;&gt; &lt;&lt;PreparerPhone&gt;&gt;</td><td class="req">Required</td><td>arjun@satcllp.com · 307-941-0508. Phone appears twice — section 03's anti-fraud line and section 06.</td></tr>
+    <tr><td>&lt;&lt;PreparerEmail&gt;&gt;</td><td class="req">Required</td><td>arjun_sethuraman@satcllp.com — the only way the letter offers to reach us. No phone until the firm has a business line.</td></tr>
     <tr><td>&lt;&lt;PriorFirmName&gt;&gt;</td><td class="opt">If PriorFirm</td><td>Halloran &amp; Reeve CPAs</td></tr>
     <tr><td>[[IF PriorFirm]]</td><td class="req">Flag</td><td>Boolean. Drops section 04 entirely for a client with no previous accountant. <b>Renumber the remaining sections in code</b> — 05 and 06 must not follow 03.</td></tr>
   </table>

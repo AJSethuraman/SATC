@@ -1,0 +1,144 @@
+# SATC — the close-out interview, and what it reconciles against
+#
+# THE FIRM'S OWN WORDS, and the clearest description of a control anyone has
+# given this project:
+#
+#   "we are not copying out of drake - drake is only system of record for info.
+#    but our interview and such is system of record until proven wrong. we
+#    should update the data to match what we file if required. this should be a
+#    control we build at the end of the cycle. i want everything inhouse as
+#    much as possible for this kind of stuff."
+#
+# So: at the end of an engagement, a preparer answers a short set of questions
+# about what was ACTUALLY filed. Nothing is read out of Drake. Each answer is
+# compared against what the interview recorded months earlier, and every
+# divergence is reported.
+#
+# A DIVERGENCE IS NOT AN ERROR. It is one of three things, and only a person
+# can tell which:
+#   - the return changed after the interview, and the record should follow;
+#   - the interview was wrong, and the record should follow;
+#   - somebody filed the wrong thing.
+# The control's job is to make sure none of the three passes unnoticed. It
+# proposes; `reconcile --apply` is what actually moves the record, and it says
+# what it moved.
+#
+# WHAT MAY BE ASKED HERE. Only facts a preparer knows from the filed return
+# itself, and only where the interview holds something comparable. No judgement
+# calls, no tax opinions, and nothing that needs a figure -- a figure would make
+# this a second set of books, which is the one thing the firm said not to build.
+#
+#   against:   the interview answer this is compared with
+#   record:    the merge field to update when the firm says the return wins
+#   applies_to: return types this is asked of; omit for all
+#   kind:      single | multi | number | text
+
+questions:
+  - id: filed_form
+    question: "Which federal return was filed?"
+    kind: single
+    against: federal_form
+    options: ["1040", "1065", "1120S", "1120"]
+    why: >-
+      An entity that changed shape mid-year, or a return taken on as one thing
+      and filed as another. The engagement letter names the return; if the
+      wrong one went out, the letter was wrong too.
+
+  - id: filed_basis
+    question: "Was this the original return, or an amendment?"
+    kind: single
+    against: return_basis
+    options: ["original", "amended"]
+    why: >-
+      An engagement taken as an original that became an amendment is a
+      different price and a different letter.
+
+  - id: filed_joint
+    question: "Was it filed jointly?"
+    kind: single
+    against: joint_return
+    applies_to: [individual]
+    options: ["yes", "no"]
+    why: >-
+      A marriage or a separation between the interview and the filing. The one
+      fact on an individual return most likely to have moved.
+
+  - id: filed_dependents
+    question: "Were dependents claimed?"
+    kind: single
+    against: has_dependents
+    applies_to: [individual]
+    options: ["yes", "no"]
+    why: "A birth, an adoption, or a child who aged out."
+
+  - id: filed_state_count
+    question: "How many state returns were filed?"
+    kind: number
+    against: count_states
+    # The interview may hold the count OR the list it was derived from,
+    # depending which questions were asked. Declared here rather than guessed,
+    # so the fallback is a rule and not a coincidence.
+    or_list: states
+    why: >-
+      A move, or a state nobody knew about until the K-1 arrived. Also the
+      commonest way a fee estimate turns out short.
+
+  - id: filed_locality_count
+    question: "How many local returns were filed?"
+    kind: number
+    against: count_localities
+    or_list: localities
+    why: >-
+      Same shape as the states, and more easily missed: a locality is rarely
+      what anyone volunteers at the interview.
+
+  - id: filed_k1s_issued
+    question: "How many Schedules K-1 were issued?"
+    kind: number
+    against: count_owners
+    applies_to: [s_corp, partnership]
+    why: >-
+      The business letter states how many owners the engagement is scoped for
+      and promises each of them a K-1. If the number moved, the letter
+      promised the wrong thing.
+
+  - id: filed_k1s_received
+    question: "How many Schedules K-1 were on the return?"
+    kind: number
+    against: count_k1s
+    applies_to: [individual]
+    why: "A priced count, and one that routinely arrives late."
+
+  - id: filed_rentals
+    question: "How many rental properties were on the return?"
+    kind: number
+    against: count_rentals
+    applies_to: [individual]
+    why: "A priced count. A property bought or sold moves it."
+
+  - id: filed_businesses
+    question: "How many Schedule C businesses were on the return?"
+    kind: number
+    against: count_businesses
+    applies_to: [individual]
+    why: >-
+      A priced count. A side business started or wound up during the year
+      changes both the fee and which schedules the letter said we would
+      prepare.
+
+  - id: filed_extended
+    question: "Was the return extended?"
+    kind: single
+    options: ["yes", "no"]
+    why: >-
+      Nothing in the interview holds this, deliberately -- at the interview
+      nobody knows. It is recorded rather than compared, because next year's
+      conversation starts differently for a client who has been extended twice.
+
+  - id: closeout_note
+    question: "Anything else about this return worth carrying forward?"
+    kind: text
+    why: >-
+      The preparer's own note, read at next year's interview. A control that
+      collects only what it can compare loses the thing somebody actually
+      remembers.

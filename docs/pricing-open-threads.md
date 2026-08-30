@@ -840,9 +840,54 @@ price and there should not be. What actually makes an entity amendment bigger
 is reissuing a K-1 to every owner, and `owner_k1` already prices that per owner
 — so the cost scales on the number of owners, which is the thing that varies,
 rather than on the word "entity". Verified: a 1065 with five partners amended
-from elsewhere prices at $1,050, of which $200 is the five K-1s.
+from elsewhere prices at **$970**, of which $120 is the three K-1s past the two
+the base covers.
+
+> **Superseded figure, kept because the reasoning above rests on it.** This
+> paragraph originally recorded $1,050, "of which $200 is the five K-1s". That
+> was read back off the engine at a time when the engine billed every K-1 from
+> the first — while `starting_note`, on the website, said "each partner's K-1
+> after the first two". The firm settled it on 28 August 2026: *"Base should
+> carry a 2 k1 allowance."* The engine now matches the published note and the
+> figure moved by $80.
+>
+> **And the question it raised is answered.** The argument here is that an
+> entity amendment costs more because every owner's K-1 is reissued — so under
+> the allowance, a two-owner amendment bills **nothing** for reissuing two
+> K-1s: $800 + $50, with the reissue work free. That was raised as an open
+> question the same day, because the allowance had been decided about the
+> base, which is a from-price for an original return, and an amendment is not
+> one. **The firm, 28 August 2026: "This can flow through."**
+>
+> So it flows. The two-partner amendment is $850, the five-partner is $970,
+> and the K-1 line starts at the third owner whether the return is original or
+> amended. No code changed to close this — the allowance already flowed and
+> the question was whether to stop it. Pinned at both counts in
+> `test_an_entity_amendment_follows_the_same_three_cases`, so a later change
+> that quietly reintroduces a charge for the first two has to move a number
+> somebody can see.
 
 **One thing NOT settled and not assumed.** Whether amending a partnership
 return is procedurally the same kind of filing as amending a 1040. If it is
 not, that is a scope question before it is a pricing one. Nobody has checked,
 and it is not an agent's to assert.
+
+---
+
+## T-22 — the bookkeeping estimate has no scope block
+
+Opened 26 August 2026, alongside the firm's ask that the estimate and the
+engagement letter be comparable.
+
+The fee estimate now repeats the engagement letter's four scope lines —
+`FederalReturns`, `StateReturns`, `LocalReturns`, `AdditionalForms` — from the
+same fields on the same record, and `ReturnScope` gates the block.
+
+**A bookkeeping engagement's scope is a different shape.** Its letter carries
+`ScopeItems`, a list, not four lines. So the flag is off there and the block
+drops rather than printing four blanks, which is the right behaviour today
+because there is no bookkeeping interview and no bookkeeping estimate.
+
+**What it needs when that changes:** a second branch on the estimate that
+repeats `ScopeItems` the way the block repeats the four lines. Not a decision
+for the firm — a build note, recorded so it is not rediscovered.

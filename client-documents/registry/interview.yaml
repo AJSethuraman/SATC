@@ -40,7 +40,24 @@ sections:
   - id: scope
     title: What we are preparing
     questions:
+      # ROUTED FROM THE LEAD. `services` says what they asked for and
+      # `business_structure` says how the business is set up; between them the
+      # website usually already knows which return this is. Still asked -- the
+      # schema's rule is that a website answer is a claim -- but offered, so
+      # the sitting starts from what the prospect said rather than from blank.
       - id: federal_form
+        prefill: services
+        prefill_map:
+          individual_tax: "1040"
+          tax_resolution: "1040"
+          tax_planning: "1040"
+          # Present and NULL on purpose, which is not the same as absent.
+          # Which entity return a business needs depends on how it is set up,
+          # so this service resolves to no single answer -- and a lead asking
+          # for both an individual and a business return must not be offered
+          # the individual one as though that were the whole job.
+          business_tax: ~
+          bookkeeping: ~
         question: "Which federal return?"
         help: >-
           Decides the rest of the interview. 1040 asks about a person and
@@ -133,14 +150,6 @@ sections:
         required: true
         supplies: [ClientFullName]
 
-      - id: client_letter_name
-        question: "What should we call them in the salutation?"
-        help: "'Dan'. Never the legal name — getting this wrong reads badly."
-        type: text
-        required: true
-        prefill: contact.name
-        supplies: [ClientLetterName]
-
       - id: client_address1
         question: "Street address"
         type: text
@@ -173,7 +182,7 @@ sections:
 
       - id: client_email
         question: "Email"
-        help: "Printed on the onboarding letter so they know which inbox the Encyro invitation went to."
+        help: "Printed on the onboarding letter. The secure upload link goes to this address, and so does the Encyro invitation to sign."
         type: text
         required: true
         prefill: contact.email
@@ -219,8 +228,18 @@ sections:
   - id: entity
     title: The entity
     questions:
+      # From how they said the business is set up. `sole_prop` is deliberately
+      # NOT mapped: a sole proprietorship is not an entity that files its own
+      # return, and offering one here would put a legal structure on an
+      # engagement letter for something that has none.
       - id: entity_structure
-        question: "How is the entity legally organised?"
+        prefill: business_structure
+        prefill_map:
+          llc: llc
+          s_corp: corporation
+          c_corp: corporation
+          partnership: general_partnership
+        question: "How is the entity legally organized?"
         help: >-
           The LEGAL structure, which is not the tax treatment -- an LLC can be
           taxed as an S corporation, and the letter has to say both. The tax
@@ -237,7 +256,7 @@ sections:
         supplies: [EntityType]
 
       - id: entity_state
-        question: "Which state is it organised in?"
+        question: "Which state is it organized in?"
         help: "Spelled as it reads in the letter -- 'Ohio', not 'OH'."
         type: text
         required: true
@@ -291,8 +310,20 @@ sections:
           Shareholders for an S corporation, partners for a partnership. Drives
           the fee and the K-1 delivery list.
         type: number
+        # REQUIRED as of 26 August 2026. It always should have been: the fee
+        # prices the owner K-1s from this number, and the engagement letter
+        # now states how many K-1s the engagement is scoped for. An entity
+        # engagement that does not know how many owners there are is not
+        # scoped, and until today it rendered a letter anyway.
+        required: true
         showIf: "federal_form == '1120S' or federal_form == '1065'"
-        supplies: []
+        # ADDED 26 August 2026. The firm, reading the business engagement
+        # letter: "shouldn't this report how many owners or something? or
+        # would the estimate? not sure". Both -- the estimate prices the
+        # owner K-1s, and the letter is the scope document, so the letter
+        # says how many it is scoped for. The number was already collected
+        # here and simply had nowhere to go.
+        supplies: [OwnerCount]
         feeds: LineItems
 
       - id: owner_returns
@@ -312,22 +343,68 @@ sections:
   - id: composition
     title: What we will prepare
     questions:
-      - id: federal_schedules
-        question: "Which schedules?"
-        help: "Tick every one. This assembles the FederalReturns sentence."
+      # ASK THE FACT, DERIVE THE SCHEDULE. The firm, 26 August 2026: "the
+      # interview needs to ask questions that then mean we definitely need a
+      # schedule - not straight ask 'what schedule is required'."
+      #
+      # This replaced a checklist of schedule names -- "Schedule A — itemized
+      # deductions, Schedule B — interest and dividends" -- which asked the
+      # client for the preparer's conclusion. Every option below is a fact
+      # about the client's own year, and `implies:` says what it means. See
+      # schedules.py; the derivation is shown before an engagement is created,
+      # and a preparer who disagrees can set it directly.
+      #
+      # THE VALUES ARE THE WEBSITE'S, deliberately. `individual_complexity` on
+      # the intake form asks this same question in these same words, and the
+      # old mapping had drifted: it expected `rental`, `self_employed`,
+      # `sole_prop`, `brokerage` and `itemize`, none of which the site has ever
+      # sent. Five of its seven keys could never fire, so a prospect who ticked
+      # "Rental property" prefilled nothing. Sharing the vocabulary is what
+      # stops that happening again -- test_interview.py holds the two together.
+      - id: return_features
+        question: "Which of these apply to them?"
+        help: >-
+          Facts about their year, not schedules. What each one means for the
+          return is worked out from the answers and shown before anything is
+          created.
         type: multi
         prefill: individual_complexity
-        # The intake form and this schema do not share a vocabulary. Anything
-        # not listed here (a plain W-2, say) is not a schedule and is dropped
-        # rather than carried through as a claim.
-        prefill_map:
-          rental:        E1
-          k1:            E2
-          self_employed: [C, SE]
-          sole_prop:     [C, SE]
-          brokerage:     D
-          investments:   D
-          itemize:       A
+        options:
+          - { value: "self_employment", implies: [C, SE],
+              label: "Self-employment, freelance or 1099 work" }
+          - { value: "business_owner",  implies: [C, SE],
+              label: "A business they own that files on their personal return" }
+          - { value: "rentals",         implies: E1,
+              label: "Property they rent out" }
+          - { value: "k1",              implies: E2,
+              label: "A K-1 arrived — from a partnership, S corporation, estate or trust" }
+          - { value: "investments",     implies: D,
+              label: "Investments sold through a broker" }
+          - { value: "farm",            implies: [F, SE],
+              label: "Farming" }
+          # NOT a determination. Whether itemising beats the standard deduction
+          # is arithmetic on a year nobody has finished entering, so this asks
+          # what they HAVE and the derivation says so in as many words.
+          - { value: "itemizing",       implies: A,
+              label: "Mortgage interest, large medical costs or significant charitable giving" }
+        showIf: "federal_form == '1040'"
+        supplies: []
+        # It supplies no merge field of its own. It DERIVES one, through
+        # `federal_schedules` below, which is a third thing the registry had no
+        # word for -- neither a field this question fills nor a question with
+        # no consumer.
+        derives: [federal_schedules]
+
+      # Derived from `return_features` by schedules.apply, on every answer, so
+      # every `showIf` and every fee gate below reads it exactly as before.
+      # Never asked: it has no `question` a person is shown.
+      - id: federal_schedules
+        question: "Which schedules does that come to?"
+        help: >-
+          Worked out from the answer above. A preparer who disagrees sets it
+          here; otherwise it follows the facts.
+        type: multi
+        derived: true
         options:
           - { value: "A",  label: "Schedule A — itemized deductions" }
           - { value: "B",  label: "Schedule B — interest and dividends" }
@@ -478,7 +555,15 @@ sections:
         supplies: []
         feeds: LineItems
 
+      # The site asks about the business in `business_complexity`, and
+      # "Employees" is decisive: a contractor with staff is not on standard
+      # mileage with no payroll. Offered from the lead, still asked.
       - id: schedule_c_kind
+        prefill: business_complexity
+        prefill_map:
+          employees: standard
+          inventory: standard
+          multi_location: standard
         question: "For the most involved of those businesses, which is true?"
         help: >
           Selects the Schedule C tier, and therefore the price. Every option
@@ -489,6 +574,18 @@ sections:
           businesses fall in different tiers, answer for the higher one and
           price the second by hand.
         type: single
+        # REQUIRED, for the same reason `return_basis` is, and found the same
+        # way -- by running the unanswered case. Every 1040 package gate reads
+        # this once a Schedule C is on the return: Standard takes a gig one,
+        # Self-Employed takes a full one, and Simple Filer and Essentials take
+        # neither. Leave it blank and NO gate holds, so the client falls off
+        # the ladder entirely and pricing refuses with "no package gate
+        # matched this client ... either a gate is wrong or this is a client
+        # the ladder does not describe" -- which sends whoever reads it into
+        # fee-schedule.yaml when the whole cause is one unanswered question.
+        # Unlike `return_basis` there is no safe default to fall back on:
+        # $325 and $500 are both live answers.
+        required: true
         options:
           - { value: "simple",
               label: "1099 or gig work — standard mileage, no assets, inventory or payroll" }
@@ -639,33 +736,12 @@ sections:
         feeds: LineItems
 
 
-      - id: count_brokerages_keyed
-        question: "How many of those have to be keyed in by hand?"
-        help: >
-          The other half of the brokerage price, at $95 each, and the half
-          that is usually still unknown when the estimate is written. Leave it
-          blank if you do not know yet -- nothing is billed for it, and the
-          interview raises it for a look when the file is reviewed.
-
-          What flips it, decided 25 August 2026: the parts of a 1099-B that
-          CANNOT be summarised. Where the broker reported cost basis to the
-          IRS and nothing needs adjusting, the totals go in and the statement
-          is attached. Where they did not -- older lots, transfers in, wash
-          sales, anything the broker could not price -- the trades are keyed
-          one at a time, and that is a different afternoon.
-
-          Preparer-facing on purpose. A client cannot answer this and should
-          not be asked to: it is a fact about our process and their broker's
-          reporting, not about their year.
-        type: integer
-        showIf: "'D' in federal_schedules"
-        supplies: []
-        internal: true
-        internal_reason: >-
-          Prices the brokerage keying line. Prints nowhere on a client
-          document -- the client sees the line and its price, not our reason
-          for it.
-        feeds: LineItems
+      # RETIRED 26 August 2026 with the $95 line it fed. The firm deleted
+      # the second brokerage price -- every statement is $45 -- so nobody
+      # has to guess at the consultation how many will turn out messy,
+      # which was the weakest question on this sheet. What is left is an
+      # hourly assumption in the fee schedule, raised only if a statement
+      # really is disordered enough to key.
 
       # T-17, added 26 August 2026. The FILING is free; computing what to pay
       # is the work. Preparer-facing and normally blank when the estimate goes
@@ -765,6 +841,77 @@ sections:
           A pricing input and a risk flag. Prints on no client document — the
           letter speaks about deadlines generically in section 04.
 
+  # ── 7b · What changed since last year ───────────────────────────────────
+  #
+  # ONLY ASKED OF A RETURNING CLIENT, and only because nothing anywhere asked
+  # about change at all. The firm chose this over building an organizer: a
+  # returning client does not need last year's figures typed back at them,
+  # they need last year's ANSWERS shown back for confirmation plus the handful
+  # of events that move a return.
+  #
+  # The eight events are the firm's own list. They are recorded and flagged,
+  # not acted on: what a marriage or an inheritance means for a return is a
+  # conversation with a person, and this file has never been where advice
+  # lives.
+  - id: changes
+    title: What changed
+    questions:
+      - id: returning_client
+        question: "Is this a returning client?"
+        help: >-
+          Set for you by `cli.py returning`. Answering yes here by hand is
+          fine; it only decides whether the change questions are asked.
+        type: single
+        required: true
+        options:
+          - { value: "yes", label: "Yes — we prepared their return before" }
+          - { value: "no",  label: "No — this is the first year" }
+        supplies: []
+        internal: true
+        internal_reason: >-
+          Decides whether the change questions below are asked. Prints on no
+          client document; a returning client's letter is the same letter.
+
+      - id: life_changes
+        question: "Anything change this year?"
+        help: >-
+          The events that move a return. Tick every one that happened; the
+          detail box below is where the specifics go.
+        type: multi
+        showIf: "returning_client == 'yes'"
+        options:
+          - { value: "married",     label: "Married" }
+          - { value: "divorced",    label: "Divorced or separated" }
+          - { value: "birth",       label: "A child born or adopted" }
+          - { value: "death",       label: "A death in the household" }
+          - { value: "home_bought", label: "Bought a home" }
+          - { value: "home_sold",   label: "Sold a home" }
+          - { value: "moved",       label: "Moved to another state" }
+          - { value: "retired",     label: "Retired, or started drawing a pension" }
+          - { value: "inheritance", label: "Received an inheritance" }
+          - { value: "none",        label: "Nothing on this list" }
+        supplies: []
+        flags_as: life_changes
+        internal: true
+        internal_reason: >-
+          Recorded against the engagement and shown to the preparer. It prints
+          on no client document: what any of these means for a return is a
+          conversation with a person, and turning a tick box into tax advice is
+          exactly what this file does not do.
+
+      - id: life_changes_detail
+        question: "The specifics"
+        help: >-
+          Dates and names where they matter — a marriage date, which state and
+          when, who died and when. Free text; nobody but us reads it.
+        type: text
+        showIf: "returning_client == 'yes'"
+        supplies: []
+        internal: true
+        internal_reason: >-
+          The preparer's own note. A tick box says a thing happened; only this
+          says enough to act on it.
+
   # ── 8 · Red flags ───────────────────────────────────────────────────────
   # Recorded against the record. The hard-no subset lives in firm-settings.yaml
   # because it governs declining work, not producing a document.
@@ -775,8 +922,11 @@ sections:
         question: "Anything that gives you pause?"
         type: multi
         options:
-          - { value: "assurance_needed",  label: "Needs assurance work — HARD NO", hard_no: true }
-          - { value: "aggressive",        label: "Wants a position we would not sign — HARD NO", hard_no: true }
+          # The label does NOT repeat "HARD NO". Both front doors render the
+          # badge from `hard_no: true`, so the suffix printed it twice --
+          # "Needs assurance work — HARD NO **HARD NO**" on the screen.
+          - { value: "assurance_needed",  label: "Needs assurance work", hard_no: true }
+          - { value: "aggressive",        label: "Wants a position we would not sign", hard_no: true }
           - { value: "prior_dispute",     label: "Dispute with the previous preparer" }
           - { value: "missing_records",   label: "Records are missing or unreliable" }
           - { value: "notice_open",       label: "Open IRS or state notice" }

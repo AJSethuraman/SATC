@@ -16,13 +16,14 @@ Typical use::
             "create_payment_link": true
           }'
 """
+import math
 from datetime import date
 from functools import wraps
 
 from flask import Blueprint, current_app, g, jsonify, request, send_file
 
 import stripe_utils
-from helpers import parse_date
+from helpers import parse_date, parse_money
 from models import Invoice, LineItem, User, db
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -56,14 +57,7 @@ def _owned_or_404(invoice_id):
 # --------------------------------------------------------------------------
 # Helpers
 # --------------------------------------------------------------------------
-def _to_float(value, default=0.0):
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def _adjustment(data, key):
+def _adjustment(data, key, errors):
     """Parse a tax/discount block.
 
     Accepts either ``{"value": 8.25, "percent": true}`` or a bare number
@@ -73,14 +67,27 @@ def _adjustment(data, key):
     if block is None:
         return 0.0, (key == "tax")  # tax defaults to percent, discount flat
     if isinstance(block, dict):
-        value = _to_float(block.get("value"), 0.0)
+        value, ok = parse_money(block.get("value"), 0.0)
+        if not ok:
+            errors.append(f"{key}.value must be a finite number.")
         is_percent = bool(block.get("percent", key == "tax"))
         return value, is_percent
-    return _to_float(block, 0.0), False
+    value, ok = parse_money(block, 0.0)
+    if not ok:
+        errors.append(f"{key} must be a finite number.")
+    return value, False
 
 
 def _populate_invoice_from_json(invoice, data):
-    """Fill an Invoice from a decoded JSON body."""
+    """Fill an Invoice from a decoded JSON body.
+
+    Returns the parse errors, exactly as the web form's populate does — the
+    two front doors share ``helpers.parse_money`` so that a value one of them
+    refuses is not quietly accepted by the other. JSON makes this easy to hit:
+    ``{"rate": NaN}`` and ``{"rate": 1e400}`` are both accepted by Python's
+    JSON decoder and both used to reach the database.
+    """
+    errors = []
     invoice.invoice_number = str(
         data.get("invoice_number") or invoice.invoice_number or ""
     ).strip()
@@ -94,15 +101,19 @@ def _populate_invoice_from_json(invoice, data):
     invoice.po_number = str(data.get("po_number", "")).strip()
     invoice.currency = str(data.get("currency", "USD")).strip().upper() or "USD"
 
-    tax_value, tax_pct = _adjustment(data, "tax")
+    tax_value, tax_pct = _adjustment(data, "tax", errors)
     invoice.tax_value = tax_value
     invoice.tax_is_percent = tax_pct
-    disc_value, disc_pct = _adjustment(data, "discount")
+    disc_value, disc_pct = _adjustment(data, "discount", errors)
     invoice.discount_value = disc_value
     invoice.discount_is_percent = disc_pct
 
-    invoice.shipping = _to_float(data.get("shipping"), 0.0)
-    invoice.amount_paid = _to_float(data.get("amount_paid"), 0.0)
+    invoice.shipping, ok = parse_money(data.get("shipping"), 0.0)
+    if not ok:
+        errors.append("shipping must be a finite number.")
+    invoice.amount_paid, ok = parse_money(data.get("amount_paid"), 0.0)
+    if not ok:
+        errors.append("amount_paid must be a finite number.")
 
     invoice.notes = str(data.get("notes", "")).strip()
     invoice.terms = str(data.get("terms", "")).strip()
@@ -110,21 +121,29 @@ def _populate_invoice_from_json(invoice, data):
     invoice.items.clear()
     for position, raw in enumerate(data.get("items") or []):
         if not isinstance(raw, dict):
+            errors.append(f"items[{position}] must be an object.")
             continue
         desc = str(raw.get("description", "")).strip()
-        qty = _to_float(raw.get("quantity"), 0.0)
-        rate = _to_float(raw.get("rate"), 0.0)
-        if not desc and qty == 0 and rate == 0:
+        qty, qty_ok = parse_money(raw.get("quantity"), 0.0)
+        rate, rate_ok = parse_money(raw.get("rate"), 0.0)
+        if not qty_ok:
+            errors.append(f"items[{position}].quantity must be a finite number.")
+        if not rate_ok:
+            errors.append(f"items[{position}].rate must be a finite number.")
+        # Same rule as the web form: a row with no description and no rate is
+        # not a line item, whatever quantity came with it.
+        if not desc and rate == 0:
             continue
         invoice.items.append(
             LineItem(
                 position=position, description=desc, quantity=qty, rate=rate
             )
         )
+    return errors
 
 
-def _validate(invoice):
-    errors = []
+def _validate(invoice, parse_errors=None):
+    errors = list(parse_errors or [])
     if not invoice.invoice_number:
         errors.append("invoice_number is required (or omit to auto-number).")
     if not invoice.from_info:
@@ -133,6 +152,35 @@ def _validate(invoice):
         errors.append("bill_to is required.")
     if not invoice.items:
         errors.append("at least one line item is required.")
+    # Mirrors _validate_invoice in app.py — the JSON API must not be a way to
+    # create the negative-total invoices the web form rejects.
+    #
+    # Caught by tests/test_scenarios.py::
+    #   test_api_rejects_a_discount_over_one_hundred_percent
+    if invoice.discount_is_percent and (invoice.discount_value or 0) > 100:
+        errors.append("a percentage discount cannot exceed 100.")
+    if (invoice.discount_value or 0) < 0:
+        errors.append("discount cannot be negative.")
+    if (invoice.tax_value or 0) < 0:
+        errors.append("tax cannot be negative.")
+    # A negative amount_paid is not a refund — it makes balance_due LARGER
+    # than the total, so a $100 invoice posted with amount_paid: -500 reads
+    # as $600 owed and adds $500 of money nobody is ever going to pay to the
+    # account's outstanding KPI. Overpayment (amount_paid > total) stays
+    # legal; it is a real thing that happens.
+    #
+    # Caught by tests/test_scenarios.py::
+    #   test_api_rejects_a_negative_amount_paid
+    if (invoice.amount_paid or 0) < 0:
+        errors.append("amount_paid cannot be negative.")
+    # Mirrors _validate_invoice in app.py: a finite rate can still overflow
+    # on multiply, and a NaN total slips past every < 0 comparison.
+    if not errors and not math.isfinite(invoice.total):
+        errors.append(
+            "invoice total is not a finite number — check quantities/rates."
+        )
+    if not errors and invoice.total < 0:
+        errors.append("invoice total cannot be negative.")
     return errors
 
 
@@ -238,9 +286,9 @@ def create_invoice():
     invoice = Invoice(user_id=g.api_user.id)
     if not data.get("invoice_number"):
         invoice.invoice_number = next_invoice_number(g.api_user.id)
-    _populate_invoice_from_json(invoice, data)
+    parse_errors = _populate_invoice_from_json(invoice, data)
 
-    errors = _validate(invoice)
+    errors = _validate(invoice, parse_errors)
     if errors:
         return jsonify(error="Validation failed.", details=errors), 422
 

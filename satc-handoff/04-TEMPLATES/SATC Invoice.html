@@ -20,11 +20,10 @@
     <span class="wm">SAT<span class="hy"></span>C<i>LLP</i></span><span class="tg">Sethuraman Accounting, Tax &amp; Consulting</span>
   </div>
   <div class="contact">
-    <b>SAT-C LLP</b><br/>
-    6544 Copley Avenue<br/>
-    Solon, OH 44139<br/>
-    307-941-0508<br/>
-    satcllp.com
+    <b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/>
+    <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/>
+    <span class="f">&lt;&lt;FirmWebsite&gt;&gt;</span>
   </div>
 </div>
 <div class="rule"></div>
@@ -89,32 +88,32 @@
   </div>
   <div>
     <div class="h">Remit to</div>
-    <p><b>SAT-C LLP</b><br/>6544 Copley Avenue<br/>Solon, OH 44139<br/><span class="f">&lt;&lt;InvoiceNumber&gt;&gt;</span> on the memo line</p>
+    <p><b><span class="f">&lt;&lt;FirmName&gt;&gt;</span></b><br/><span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span><br/><span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span><br/><span class="f">&lt;&lt;InvoiceNumber&gt;&gt;</span> on the memo line</p>
   </div>
   <div>
     <div class="h">Questions on this invoice</div>
-    <p><span class="f">&lt;&lt;BillingContactName&gt;&gt;</span><br/><span class="f">&lt;&lt;BillingContactEmail&gt;&gt;</span><br/><span class="f">&lt;&lt;BillingContactPhone&gt;&gt;</span></p>
+    <p><span class="f">&lt;&lt;BillingContactName&gt;&gt;</span><br/><span class="f">&lt;&lt;BillingContactEmail&gt;&gt;</span></p>
   </div>
 </div>
 
 <div class="notes">
   <div class="h">Notes</div>
   <ul>
-    <li>This invoice covers work performed under the <b>scope</b> section of the engagement letter referenced above. Anything outside it was quoted separately before it began.</li>
-    <li><span class="cond inline">[[IF EstimateReference]]</span>Estimated at <b><span class="f">&lt;&lt;EstimateTotal&gt;&gt;</span></b> on <span class="f">&lt;&lt;EstimateDate&gt;&gt;</span>. <span class="f">&lt;&lt;VarianceNote&gt;&gt;</span><span class="cond inline">[[END IF]]</span></li>
+    <li>Anything outside the scope of the engagement letter was quoted separately before it began.</li>
+    <span class="cond">[[IF EstimateReference]]</span><li>Estimated at <b><span class="f">&lt;&lt;EstimateTotal&gt;&gt;</span></b> on <span class="f">&lt;&lt;EstimateDate&gt;&gt;</span>. <span class="f">&lt;&lt;VarianceNote&gt;&gt;</span></li><span class="cond end">[[END IF]]</span>
     <li>Returns are not e-filed, and deliverables are not released, before the invoice for them is settled, unless we have agreed otherwise in writing.</li>
   </ul>
 </div>
 
 <div class="signoff">
   <div class="nm"><span class="f">&lt;&lt;PreparerName&gt;&gt;</span></div>
-  <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of SAT-C LLP</div>
+  <div class="ti"><span class="f">&lt;&lt;PreparerTitle&gt;&gt;</span> · on behalf of <span class="f">&lt;&lt;FirmName&gt;&gt;</span></div>
 </div>
 
 </div>
 
 <div slot="footer" class="foot">
-  <p>Sethuraman Accounting, Tax, and Consulting LLP is a limited liability partnership registered in <b>Ohio</b>. Principal office: 6544 Copley Avenue, Solon, OH 44139.</p>
+  <p><span class="f">&lt;&lt;FirmLegalName&gt;&gt;</span> is a limited liability partnership registered in <b><span class="f">&lt;&lt;FirmJurisdiction&gt;&gt;</span></b>. Principal office: <span class="f">&lt;&lt;FirmAddress1&gt;&gt;</span>, <span class="f">&lt;&lt;FirmCity&gt;&gt;</span>, <span class="f">&lt;&lt;FirmState&gt;&gt;</span> <span class="f">&lt;&lt;FirmZip&gt;&gt;</span>.</p>
   <span class="id">INVOICE <span class="f">&lt;&lt;InvoiceNumber&gt;&gt;</span><br/><span class="f">&lt;&lt;PeriodLabel&gt;&gt;</span> · <span class="f">&lt;&lt;EngagementRef&gt;&gt;</span></span>
 </div>
 
@@ -137,7 +136,7 @@
     <tr><td>&lt;&lt;CreditLabel&gt;&gt; &lt;&lt;CreditDetail&gt;&gt; &lt;&lt;CreditAmount&gt;&gt;</td><td class="opt">If CreditsApplied</td><td>Retainer applied · Received February 3, 2027 · −$150. <b>Format the minus sign as a real minus (−), not a hyphen</b>, and never as parentheses on a client-facing document.</td></tr>
     <tr><td>[[IF CreditsApplied]]</td><td class="req">Flag</td><td>Boolean. Drops the credit row when there is nothing to apply, so a clean invoice has no empty line.</td></tr>
     <tr><td>&lt;&lt;PaymentInstruction&gt;&gt;</td><td class="req">Required</td><td>Pay by card or bank transfer through the link in the delivery email, or by cheque to the address at right. — <b>one sentence, from settings, not per client.</b> Change it in one place when the firm's processor changes.</td></tr>
-    <tr><td>&lt;&lt;BillingContactName&gt;&gt; &lt;&lt;BillingContactEmail&gt;&gt; &lt;&lt;BillingContactPhone&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman · billing@satcllp.com · 307-941-0508. Separate from the preparer on purpose — a billing question should not have to find the preparer.</td></tr>
+    <tr><td>&lt;&lt;BillingContactName&gt;&gt; &lt;&lt;BillingContactEmail&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman · arjun_sethuraman@satcllp.com. Separate from the preparer on purpose — a billing question should not have to find the preparer. <b>No phone:</b> no number goes on a client document until the firm has a business line.</td></tr>
     <tr><td>&lt;&lt;EstimateTotal&gt;&gt; &lt;&lt;EstimateDate&gt;&gt; &lt;&lt;VarianceNote&gt;&gt;</td><td class="opt">If EstimateReference</td><td>$785 · February 3, 2027 · "The difference is the additional state return added at your request on March 8." <b>If the invoice exceeds the estimate, the note is not optional</b> — an unexplained overage is the most common billing dispute there is.</td></tr>
     <tr><td>[[IF EstimateReference]]</td><td class="req">Flag</td><td>Boolean. Off for recurring bookkeeping invoices, where restating the estimate every month is noise.</td></tr>
     <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner</td></tr>
