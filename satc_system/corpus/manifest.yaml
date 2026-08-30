@@ -127,6 +127,14 @@ cases:
       and the packet reports COMPLETE. A partial answer is worse than no answer,
       because no answer leaves the request open.
     found: "adversarial run, 30 Aug 2026"
+    status: >-
+      PARTLY FIXED 30 Aug 2026. The classifier now answers "Several forms:
+      1099-INT, 1099-DIV" and matching refuses that label outright, so the
+      request stays OPEN and the task does not close -- the money bug is shut.
+      It still does not name the 1099-B, because 1099-B is not one of the fifteen
+      configured types (see the known_gap cases below). So this case remains RED
+      on `expect_many` on purpose: the safety property is fixed, the completeness
+      is not, and a green here would say otherwise.
     pages:
       - ["2026 CONSOLIDATED FORMS 1099", "Charles Schwab & Co., Inc.",
          "Summary of Form 1099-DIV     Total ordinary dividends  1,204.00",

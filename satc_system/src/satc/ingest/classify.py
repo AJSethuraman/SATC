@@ -86,9 +86,38 @@ class Classification:
     confidence: str          # HIGH / MEDIUM / LOW / UNCERTAIN
     method: str              # "form fields" / "text" / "filename" / "vision" / "unclassified"
     evidence: str = ""
+    # EVERY form this one document contains, primary first. Empty for the
+    # ordinary case of one document, one form -- the composite label is not a
+    # substitute, because a caller that has to parse a label to learn what it
+    # found will eventually parse it wrong.
+    forms: tuple[str, ...] = ()
+
+    @property
+    def multi(self) -> bool:
+        """True when this document is SEVERAL forms, not one.
+
+        Distinct from a low confidence, and the distinction is the whole point.
+        MEDIUM means *we are unsure which single form this is*. ``multi`` means
+        *we are sure it is more than one* -- a consolidated brokerage 1099
+        carrying DIV, INT and B summaries on one page, which is what every
+        Schwab/Fidelity/Vanguard client sends. Answering that with the single
+        highest-scoring label is not a near-miss, it is a wrong answer that
+        closes a request: matching accepts "1099-INT" against a core-income
+        bundle, reconcile marks it Received, and the 1099-B nobody has yet is
+        never asked for again.
+        """
+        return len(self.forms) > 1
 
     @property
     def extractable(self) -> bool:
+        # A multi-form page is already excluded here and needs no test of its
+        # own: `classify_text` gives every "Several forms:" verdict `key=None`,
+        # because there IS no single extraction map for a page of three forms --
+        # reading it with one form's map would key another form's figures onto
+        # the wrong lines, which is worse than not reading it, because the
+        # result looks like data. A `not self.multi` clause was written here
+        # first and removed: it could never fire, and a check that cannot fire
+        # reads to the next person as if it were load-bearing.
         return self.key is not None
 
     @property
@@ -102,6 +131,13 @@ UNCLASSIFIED = Classification(
     confidence="UNCERTAIN", method="unclassified",
     evidence="no form fields, text, filename hint, or vision match",
 )
+
+
+# How much of the winner's score a second form must reach before the document is
+# read as several forms rather than one. Chosen from measurement, not taste --
+# see the note at its use. Genuine multi-form documents cluster near 0.9; a
+# passing mention of another form clusters near 0.3.
+MULTI_SHARE = 0.6
 
 
 class DocumentClassifier:
@@ -264,9 +300,45 @@ class DocumentClassifier:
         # A runner-up that resolves to the *same* extraction key (e.g. the generic
         # "Schedule K-1" vs the specific 1120-S entry) agrees with the winner — it is
         # not a competing interpretation, so it never makes the result ambiguous.
-        runner = next((s for s, dt in qualified[1:] if dt.key != best.key), 0)
-        ambiguous = runner >= (best.threshold or self.text_threshold) or \
-            (runner > 0 and best_score - runner <= self.close_delta)
+        # Every OTHER type that cleared its own threshold on its own evidence.
+        # Types that resolve to the same extraction key (the generic "Schedule
+        # K-1" beside the specific 1120-S entry) agree with the winner rather
+        # than competing, so they never count as a second form.
+        others = [(s, dt) for s, dt in qualified[1:] if dt.key != best.key]
+        # A second form must clear its own threshold AND score a real SHARE of
+        # the winner's. Clearing the floor alone is not enough: measured on the
+        # real keyword weights, 30 Aug 2026 --
+        #
+        #   consolidated 1099 (DIV + INT + B)   1099-INT 16 vs 1099-DIV 15   0.94
+        #   terse "1099-INT ... 1099-DIV"       1099-DIV 18 vs 1099-INT 16   0.89
+        #   a W-2 that MENTIONS 1099-R          W-2      27 vs 1099-R   9    0.33
+        #
+        # -- so the floor-only rule called that last one "Several forms: W-2,
+        # 1099-R", which is a plain W-2 and one of the commonest documents there
+        # is. A form the document is ABOUT scores comparably to the winner; a
+        # form it merely refers to does not. MULTI_SHARE sits between the two
+        # clusters with margin on both sides.
+        strong = [dt.label for s, dt in others
+                  if s >= (dt.threshold or self.text_threshold)
+                  and s >= best_score * MULTI_SHARE]
+
+        if strong:
+            # SEVERAL FORMS, NOT AN UNSURE ONE. Each of these cleared the bar
+            # this classifier sets for "this document is a <form>" -- so the
+            # honest reading is that the page carries all of them. See
+            # Classification.multi for why answering with just the best one is
+            # a money bug rather than an imprecision.
+            names = [best.label, *strong]
+            return Classification(
+                label="Several forms: " + ", ".join(names),
+                key=None, code="MULTI", confidence="HIGH", method=method,
+                evidence=f"{len(names)} forms each cleared their threshold "
+                         f"(best {best_score})",
+                forms=tuple(names),
+            )
+
+        runner = others[0][0] if others else 0
+        ambiguous = runner > 0 and best_score - runner <= self.close_delta
         conf = "MEDIUM" if ambiguous else "HIGH"
         ev = f"text score {best_score}" + (f" (runner-up {runner})" if runner else "")
         return Classification(best.label, best.key, best.code, conf, method, ev)
