@@ -151,6 +151,11 @@ cases:
       confidence, method, evidence. A seven-year-old form can close this year's
       request.
     found: "adversarial run, 30 Aug 2026"
+    status: >-
+      FIXED 30 Aug 2026. Classification carries tax_year, read off the printed
+      page, and reconcile_received filters on it ASYMMETRICALLY: a year it could
+      not read blocks nothing, a year it read which differs closes nothing. This
+      document now reads 2019 and cannot close a 2026 request.
     pages:
       - ["Form W-2  Wage and Tax Statement", "2019",
          "Employer: A Job She Left",

@@ -91,6 +91,9 @@ class Classification:
     # substitute, because a caller that has to parse a label to learn what it
     # found will eventually parse it wrong.
     forms: tuple[str, ...] = ()
+    # The tax year printed on the document, or None for "could not read one".
+    # None NEVER means the current year -- see document_year and wrong_year.
+    tax_year: int | None = None
 
     @property
     def multi(self) -> bool:
@@ -123,6 +126,63 @@ class Classification:
     @property
     def classified(self) -> bool:
         return self.method != "unclassified"
+
+
+# A tax year printed on a form. Standalone only: an EIN (34-2026112), an account
+# number or a ZIP+4 can all carry four digits that read like a year, so a run
+# glued to more digits or to a dash is not one.
+_YEAR = re.compile(r"(?<![\d-])(19[9]\d|20[0-4]\d)(?![\d-])")
+
+# The window a tax document can plausibly belong to. Wide on purpose -- prior-year
+# returns, amended filings and carryforward schedules are ordinary work -- but
+# not so wide that a founding date in a letterhead ("Established 1887") counts.
+YEAR_FLOOR = 1990
+YEAR_CEILING = 2049
+
+
+def document_year(text: str) -> int | None:
+    """The tax year this document is for, or None when it cannot be read.
+
+    NONE MEANS UNKNOWN AND UNKNOWN MEANS UNKNOWN. It never means "probably this
+    year". Nothing downstream may treat a None as a match or as a mismatch --
+    see :func:`wrong_year` for the asymmetry that depends on it.
+
+    Real forms print their year more than once: in the header, in the footer
+    rule, sometimes in a box. A stray reference to a different year ("corrected
+    from your 2025 filing") appears once. So the most repeated year wins, and a
+    genuine tie is unknown rather than whichever happened to be scanned first --
+    picking one there would be a coin toss wearing a fact's clothes.
+
+    Measured 30 Aug 2026: without this, a 2019 W-2 from a job the client left
+    classified HIGH and filed as "W-2 (2).pdf" beside the current one, and could
+    close this year's W-2 request.
+    """
+    if not text:
+        return None
+    counts: dict[int, int] = {}
+    for m in _YEAR.finditer(text):
+        year = int(m.group(1))
+        if YEAR_FLOOR <= year <= YEAR_CEILING:
+            counts[year] = counts.get(year, 0) + 1
+    if not counts:
+        return None
+    ranked = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
+    if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
+        return None            # a tie is not evidence
+    return ranked[0][0]
+
+
+def wrong_year(document: int | None, engagement: int | None) -> bool:
+    """True only when BOTH years are known and they differ.
+
+    The asymmetry is the whole design. A year we could not read blocks nothing:
+    most documents read fine, and a pipeline that refused everything it was
+    unsure of would hand the whole packet back to the preparer, which is the job
+    it exists to remove. A year we DID read, which differs, is the one case
+    where we know enough to be sure something is wrong -- and there it refuses.
+    """
+    return (document is not None and engagement is not None
+            and document != engagement)
 
 
 # A neutral verdict for files nothing matched.
@@ -268,8 +328,14 @@ class DocumentClassifier:
             if score > best_score:
                 best, best_score = dt, score
         if best is not None and best_score >= 2:
+            # A fillable form is identified by its field NAMES, which carry no
+            # year -- so read the year off the printed page as every other rung
+            # does. Cheap (the text layer is already there on a fillable PDF)
+            # and it keeps the year available on the free, exact path rather
+            # than only on the text one.
             return Classification(best.label, best.key, best.code, "HIGH", "form fields",
-                                  f"matched {best_score} fillable form fields")
+                                  f"matched {best_score} fillable form fields",
+                                  tax_year=document_year(self._page_text(path)))
         return None
 
     def _by_text(self, path: Path) -> Classification | None:
@@ -287,6 +353,8 @@ class DocumentClassifier:
         if not text or not text.strip():
             return None
         norm = _normalize_text(text)
+        year = document_year(text)      # RAW text: _normalize_text folds the
+                                        # punctuation the standalone-run rule needs
         scored: list[tuple[int, int, DocType]] = []
         for dt in self.doc_types:
             score = sum(w for phrase, w in dt.keywords if phrase and phrase in norm)
@@ -334,14 +402,15 @@ class DocumentClassifier:
                 key=None, code="MULTI", confidence="HIGH", method=method,
                 evidence=f"{len(names)} forms each cleared their threshold "
                          f"(best {best_score})",
-                forms=tuple(names),
+                forms=tuple(names), tax_year=year,
             )
 
         runner = others[0][0] if others else 0
         ambiguous = runner > 0 and best_score - runner <= self.close_delta
         conf = "MEDIUM" if ambiguous else "HIGH"
         ev = f"text score {best_score}" + (f" (runner-up {runner})" if runner else "")
-        return Classification(best.label, best.key, best.code, conf, method, ev)
+        return Classification(best.label, best.key, best.code, conf, method, ev,
+                              tax_year=year)
 
     def _by_filename(self, name: str) -> Classification | None:
         low = name.lower()

@@ -295,7 +295,8 @@ class AppState:
                     # matching.is_multi. It is filed and flagged; which requests
                     # it actually satisfies is the preparer's call.
                     if c.classified and not c.multi:   # close the loop: does this satisfy an open request?
-                        matched = reconcile_received(self.store, client_id=client_id, doc_type=c.label)
+                        matched = reconcile_received(self.store, client_id=client_id,
+                                                     doc_type=c.label, doc_year=c.tax_year)
                         if matched is not None:
                             reconciled += 1
                             notes.append(f"{doc_id} → ✓ satisfies your request “{matched.doc_type}” "
