@@ -35,6 +35,8 @@ the work.** Twenty-odd separate incidents reduce to it:
 | A fee estimate rendered clean under "Total estimate $785" (`183afc2`) | The services table had no rows |
 | The build was green (`239a4bd`) | The PII guards `CLAUDE.md` promises ran in no CI job |
 | An invoice read `Paid` forever (`invoicer-review` #1) | The ACH debit had bounced four days earlier |
+| 1,001 tests passed (`4eedbf8`) | Every two-partner return was quoted $80 over the price the live site published |
+| Six places called the engagement letter "signed" (`bb9ecb6`) | Nothing in the codebase had ever recorded that anybody signed anything |
 
 **The thesis holds. The mechanism is the half worth acting on.** In every case the verifier looked
 at a **proxy** rather than the thing: a token instead of a page, a fixture instead of a client, a
@@ -492,6 +494,42 @@ firm's own way of finding it and the expensive one.
 where one exists (**S3**), plus its step in the generated `docs/OPERATING-PROCEDURES.md`, plus the
 artifact opened in what the client opens (**S1**). A module only a test can reach is not built yet;
 it is a debugging session the firm has not had yet.
+
+## S29 · Fan. When you change one statement of a rule, go and read every sibling that states the same rule.
+
+> "you should fan documents when changing one to ensure consistency across." — the firm, 28 August
+> 2026, naming a habit rather than a bug
+
+**S6** says two lists that must agree will not, and to derive one from the other. Fanning is what you
+do for the ones you cannot derive — a sentence in a registry header, a note on a published price
+page, a docstring, a signed-off wording register. There is no mechanism that makes those agree;
+there is only the discipline of listing the siblings before you change the first one.
+
+**What it caught, on the change it was invoked for.** The two-K-1 allowance (`4eedbf8`, `86e703b`)
+had to move `registry/fee-schedule.yaml`, and the sweep went on to `website/pricing-config.js` —
+which publishes the note and needed **no** change, and knowing that is the point —
+`docs/sign-off-register.md`, `docs/pricing-open-threads.md`, whose whole argument rested on a figure
+read off the engine at a time the engine was wrong, and `tests/test_pricing.py`. The one thing still
+describing the old behaviour was the **last sentence of the fee schedule's own header**, three
+hundred lines from the number it contradicted. *"Found by fanning rather than by a test, which is
+the point."*
+
+**It also caught the earlier records-release/onboarding divergence** — two documents stating one
+rule about the same act, edited apart.
+
+**The shape underneath it, which the firm named plainly: a claim in one place, behaviour in another,
+and nothing comparing them.** Four instances in one session: `count_k1s` against the
+additional-forms scope line, seen live billing four K-1s under a line reading "Two K-1s as
+reported"; `count_states` and `count_localities` against the lists that name them; six places
+asserting a signed engagement letter with nothing recording one (`signing.py`); and an invoice
+promising a Square link the invoice cannot produce, still open. Where a comparison can exist,
+build it — that is **S6**. Where it cannot, fan.
+
+**And blame the join, not the person who opens the gap.** The first cut of the re-quote's K-1 check
+blocked on the contradiction however it got there, which trapped a preparer: an engagement that
+already disagreed with itself refused every re-quote, *including the one that would have fixed it*.
+It now blocks where this change **opens** the gap and says the gap out loud where it was already
+there, with the remedy on the same screen.
 
 ---
 

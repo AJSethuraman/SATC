@@ -117,6 +117,16 @@ two templates, two field docs, the registry and the tests in one commit.
 
 ## 3 · The fee schedule — structure built, numbers open
 
+> **Closed 26 August 2026, and this section is now history rather than a
+> question.** `fee-schedule.yaml` carries the firm's own figures — an hourly
+> rate, package amounts, per-unit prices and allowances — derived with `cli.py
+> hours` from hours × rate rather than typed, and `cli.py doctor` reports *"No
+> open decisions."* Two `[CONFIRM:` strings survive in the file and both are
+> inside the comment below, describing the state it was in. Two amounts have
+> moved since: the entity base now carries a **two-K-1 allowance**, which flows
+> through an amendment. Everything from here down is kept because it is the
+> record of how the numbers were arrived at.
+
 `client-documents/registry/fee-schedule.yaml` exists and is wired: the
 interview's counts become the estimate's line items and total. **Every amount in
 it is a `[CONFIRM:`** — §9 says fee figures are yours to set.
@@ -175,6 +185,67 @@ Found while building; nowhere to put the answer until someone decides.
   never render. It is now asked on the call, as a judgement made against the
   materials deadline and the workload. If it should instead be a firm rule
   ("three weeks after the file is complete"), say so and it moves to settings.
+
+## 5 · Getting a signature — the shape is decided, four details are not
+
+**Decided 28 August 2026: Option A.** Encyro carries the signature and a human
+sends by hand through it; the software does the tracking and the chasing. Not an
+API vendor — Encyro has no customer API, and scripting its web interface would
+degrade an MFA control the FTC Safeguards Rule requires, break silently on a
+client-facing send, and is commonly forbidden by portal terms. Two corrections
+from the firm are wired in and both stand: *"No encyro is cheaper and has kba"*
+and *"Drake can print our 8879."* The second removes the reason to buy Drake
+E-Sign — Drake produces the PDF, Encyro carries the signature, one vendor and
+one subscription.
+
+Everything below is what is still open, ordered by what it blocks.
+
+| | What it blocks |
+|---|---|
+| **The covering-note wording** | **Every automated send.** `registry/signing.yaml` carries the subject and body behind a `[CONFIRM: ]` and `outgoing.py` **refuses to compose** until it is accepted or rewritten. To accept: delete the `[CONFIRM: ` and its closing `]`, leaving the words. The pack still builds either way. The draft is assembled from sentences already published in the onboarding letter, not invented |
+| **The one email to Encyro** | The rest of `docs/research-e-signature.md`, entirely. Four questions, drafted there in §5 and §5b — see below |
+| **Does Pub 1345's KBA regime reach the entity forms?** | Nothing today, and any sentence anybody writes about 8879-CORP or 8879-PE. **Genuinely unresolved** |
+| **Does the `[Secure]` keyword survive to the client?** | Nothing today. `secure_keyword` in `registry/signing.yaml` ships **empty** until somebody sends one to themselves and looks |
+
+### The one email — four questions, one reply
+
+Written out in full in `docs/research-e-signature.md` §5 and §5b. In short:
+
+1. **Does the 8879 e-signature use knowledge-based authentication generated
+   from credit-file or public-record data meeting NIST SP 800-63 IAL2, or an SMS
+   access code?** An answer naming the KBA data provider closes it permanently.
+   **Keep the reply** — it is the evidence, and there is currently none on file.
+2. Is there a documented HTTP API on `api.encyro.com` — even partner-only or
+   under NDA — and how does a one-person firm apply for a key?
+3. Does the `[Secure]` subject keyword work anywhere but the installed Outlook
+   add-in — an SMTP relay, an address to email or BCC?
+4. What is the exact subject and body format of the notification email sent when
+   a signer completes a request, and does it carry a stable request ID we can
+   parse?
+
+### The caveat that outranks everything in the research document
+
+**None of the regulatory wording was read from a primary source.** This
+environment's egress proxy denies `irs.gov`, `govinfo.gov`, `uscode.house.gov`,
+`codes.ohio.gov`, `ecfr.gov` and `ftc.gov` — 403 on CONNECT, confirmed against
+the proxy's own status endpoint — and every vendor domain with them. The URLs
+cited are the real primary sources; the substance came from search indexes **of**
+those documents. **Somebody must open `p1345.pdf`** before a line of it is built
+against or a word of it reaches a client. Each claim in the document is marked
+✓ *cited, unread* or ✗ *could not verify at all*.
+
+That is also why question 3 above stays open rather than being settled by
+reading: Pub 4163 governs business MeF returns and could not be checked, so
+`registry/signing.yaml` names the entity forms and asserts nothing about
+identity proofing. **The software must not assert it either way.**
+
+## 6 · A second copy of the data
+
+Carried over from `docs/REPO-INVENTORY.md` §4 because it belongs on the list a
+human works down, not only in a snapshot. Engagements are plain files on one
+disk and `satc_system`'s vault is two local SQLite files. There is no sync and
+no backup anywhere in the code. It blocks nothing today and everything the day
+it matters, and no agent can decide where the second copy lives.
 
 ---
 
