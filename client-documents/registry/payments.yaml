@@ -54,8 +54,20 @@ currency: USD
 # TO ACCEPT: delete the `[CONFIRM: ` and its closing `]`, leaving the words.
 # The software refuses to create a link or render the sentence until then.
 
-link_name: "[CONFIRM: <<FirmName>> — invoice <<InvoiceNumber>>]"
+# SET 30 August 2026. The firm: *"I think SATC might make sense. You can argue
+# but on statements it'll be very long."* Agreed on SATC -- the full legal name
+# is 44 characters and most statement lines truncate well before that.
+#
+# THE ONE ARGUMENT, made and left visible: the invoice number stays. A statement
+# line reading only "SATC" tells a client they paid us and nothing about which
+# bill, and the first thing anyone does with a card statement they do not
+# recognise is ring the merchant. "SATC 2026-0001" is fourteen characters and
+# answers the question. Say the word and it drops to "SATC".
+link_name: "SATC <<InvoiceNumber>>"
 
+# SETTLED 30 August 2026, in the firm's own words. Not a draft any more, so no
+# `[CONFIRM:`. The earlier draft ("If you would rather pay another way, tell us
+# and we will arrange it") was rewritten by the firm to this.
 payment_instruction: >-
-  [CONFIRM: Pay online by card at the link on this invoice. If you would rather
-  pay another way, tell us and we will arrange it.]
+  Pay by card at the following link. Contact us if you need an alternative
+  method.

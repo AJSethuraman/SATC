@@ -442,7 +442,14 @@ sections:
           Emit 'None' when there are none — never blank.
         type: list
         supplies: [LocalReturns]
-        notes: "[CONFIRM: does one RITA filing count as one locality or several?]"
+        # SETTLED 30 August 2026: ONE RITA filing is ONE locality, however many
+        # municipalities it covers. The firm accepted the reasoning -- the
+        # billable thing is the filing, which is one piece of work prepared once
+        # and sent once, not the number of towns named inside it. Count what you
+        # do, not what the form mentions.
+        notes: >-
+          One RITA filing counts as ONE locality however many municipalities it
+          covers -- the billable unit is the filing, not the towns named in it.
 
       # ── what separates Starter from Essentials ────────────────────────
       # Nothing here used to be asked, and the two packages were therefore
