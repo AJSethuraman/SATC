@@ -131,10 +131,9 @@ cases:
       PARTLY FIXED 30 Aug 2026. The classifier now answers "Several forms:
       1099-INT, 1099-DIV" and matching refuses that label outright, so the
       request stays OPEN and the task does not close -- the money bug is shut.
-      It still does not name the 1099-B, because 1099-B is not one of the fifteen
-      configured types (see the known_gap cases below). So this case remains RED
-      on `expect_many` on purpose: the safety property is fixed, the completeness
-      is not, and a green here would say otherwise.
+      COMPLETED the same day: 1099-B was added as a type, so the verdict now
+      reads "Several forms: 1099-B, 1099-INT, 1099-DIV" and names the proceeds
+      that drive a Schedule D. Both halves closed -- safety and completeness.
     pages:
       - ["2026 CONSOLIDATED FORMS 1099", "Charles Schwab & Co., Inc.",
          "Summary of Form 1099-DIV     Total ordinary dividends  1,204.00",
@@ -193,7 +192,7 @@ cases:
   # see. Each is one entry in classification.yaml.
   - id: 1098-mortgage-interest
     expect: "1098"
-    known_gap: true
+    closed: "30 Aug 2026 -- added to classification.yaml with key: null"
     pages:
       - ["Form 1098", "Mortgage Interest Statement",
          "RECIPIENT'S/LENDER'S name: Third Federal",
@@ -201,7 +200,7 @@ cases:
 
   - id: 1099-g-state-refund
     expect: "1099-G"
-    known_gap: true
+    closed: "30 Aug 2026 -- added to classification.yaml with key: null"
     pages:
       - ["Form 1099-G", "Certain Government Payments",
          "Ohio Department of Taxation",
@@ -209,7 +208,7 @@ cases:
 
   - id: ssa-1099
     expect: "SSA-1099"
-    known_gap: true
+    closed: "30 Aug 2026 -- added to classification.yaml with key: null"
     pages:
       - ["SSA-1099  SOCIAL SECURITY BENEFIT STATEMENT", "2026",
          "Box 5. Net Benefits for 2026   18,240.00"]
