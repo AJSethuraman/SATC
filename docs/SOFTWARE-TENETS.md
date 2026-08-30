@@ -633,3 +633,70 @@ So these hold by construction rather than by discipline:
    (**S22.4**, `CLAUDE.md`).
 10. **A `docs/` note of what is deliberately not checked**, so the next person inherits the blind
     spot as a known one (**S27**).
+
+
+---
+
+## S30 · Prevent, do not detect. A check for something that cannot happen is worse than no check.
+
+> "An optimal control entirely mitigates risk. Sure that isn't always possible, but consistently
+> confused on some of the stuff we build in when you are like it's intended to stop this. Like it
+> isn't even sensical to add invoice links to estimates." — the firm, 30 August 2026
+
+**Cited against my own work, twice over, which is the point.**
+`test_only_the_invoice_may_carry_a_payment_link` was written and described as
+though it stopped something. Then the first draft of this tenet said it stopped
+nothing, and named two structural reasons why a payment link could not reach an
+estimate. **One of those reasons was false.** `cmd_render` takes `--docs` as a
+list and merges the bill into the shared record whenever the invoice is *among*
+them — `raw = {**raw, **bill}`, `cli.py:1752` — so `render --docs invoice
+fee-estimate` renders the estimate from a record that is carrying `PaymentUrl`.
+The barrier I claimed does not hold, and the third one I leaned on (that `merge`
+refuses an unresolved field) only applies when the field is absent, which is
+precisely what the first barrier was supposed to guarantee.
+
+So the honest position is narrower than the one I published: **one deliberate
+edit to the estimate template, plus a combined render, and a link appears on a
+quote.** That is constitutional, not structural. It still gets no test — see the
+row below — but the reason has to be written down accurately, and a tenet that
+argues for verifying mechanisms cannot cite one it did not verify.
+
+**Three things get called controls here and only one of them is one:**
+
+| | | What it deserves |
+|---|---|---|
+| **Structural** | It cannot happen, for a reason a reader can see | Nothing. Write the reason where they will be standing |
+| **Runtime** | It genuinely can happen — free text, a missing signature, a document that renders wrong | A control that refuses. This is the only one that earns a check |
+| **Constitutional** | Impossible today, one edit away | **Also nothing.** Write the decision down; do not test it |
+
+**The third row was hedged in the first draft of this tenet and the firm cut the
+hedge**, 30 August 2026: *"option three is fine in the sense that we need to
+actively make a different decision to do that unless someone is randomly editing
+code."* Which is the whole argument. Breaking a constitutional rule takes a
+person deciding to break it — reading the code, editing it, meaning it. A test
+does not stop that; it just makes them delete a test on the way. **The only
+threat model a constitutional check defends against is somebody editing at
+random, and that is not a threat model.** So the rule collapses to two rows: if
+it can happen with real inputs, control it; otherwise write down why it cannot,
+and stop.
+
+**The cost of getting this wrong is not the wasted test.** It is that a reader can no longer tell
+which checks are load-bearing. Describe a pin in the language of danger and you have inflated the
+risk surface of the whole suite; do it enough and people skim, which is how the checks that *do*
+matter stop being read. §0 of this document is a list of green checks that were examining nothing —
+a check for the impossible is that same failure, chosen on purpose.
+
+**The question to ask when you catch yourself writing one:**
+
+* *Is it impossible for a reason the reader can see?* → delete the check and put the reason where
+  they will be looking.
+* *No?* → make it structurally impossible, **then** delete the check.
+
+**Worked example, corrected.** "Quotes get no link" is the firm's judgement and
+one template edit from being broken. The test was still deleted, because a test
+does not stop a person who is editing the template on purpose — it only makes
+them delete a test on the way past. What replaced it is the reason, in the
+**"Deliberately not here"** list of `FIELDS - Fee Estimate.md`: the page
+somebody is reading at the exact moment they are wondering whether to add one.
+That list is the control, and it is a better one than the test was, because it
+arrives before the edit rather than after it.

@@ -168,6 +168,19 @@ is rebuilt rather than the estimate sent on its own.
 2. **No signature line.** The engagement letter is the signed instrument. Two signature blocks in one envelope means one gets left blank.
 3. **No restated scope.** The estimate points at the letter's scope section rather than repeating it, so there is exactly one description of the work.
 4. **No hourly rates.** The line items are the answer.
+5. **No payment link.** The firm, 30 August 2026: *"Quotes get no link. Only the
+   invoice. Obviously."* An estimate is what the work will cost and is not yet
+   owed — and this engine re-quotes, so a link on one would collect a figure
+   that had since moved. `<<PaymentUrl>>` belongs to the invoice alone.
+
+   **What stops it is this paragraph, and only this paragraph.** Do not assume
+   the software will catch you: `cmd_render` merges the bill into the shared
+   record whenever the invoice is among `--docs` (`cli.py:1752`), so rendering
+   the estimate alongside an invoice gives it a record already carrying
+   `PaymentUrl`. Add the token here and it will render, quietly, on the next
+   combined run. There is no test guarding this and there should not be — a
+   test does not stop somebody editing this template on purpose, it only makes
+   them delete a test on the way. See `docs/SOFTWARE-TENETS.md` S30.
 
 ## Figures
 

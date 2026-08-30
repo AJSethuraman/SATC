@@ -252,21 +252,23 @@ def test_a_settlement_is_written_once_and_not_rewritten(tmp_path):
 
 # ── a quote never gets a link ─────────────────────────────────────────────
 
-def test_only_the_invoice_may_carry_a_payment_link():
-    """The firm, 30 August 2026: "Quotes get no link. Only the invoice.
-    Obviously." An estimate is what the work will cost and is not yet owed —
-    and this engine re-quotes, so the figure moves."""
-    import yaml
-
-    reg = yaml.safe_load((ROOT / "registry" / "fields.yaml")
-                         .read_text(encoding="utf-8"))
-    field = next(f for f in reg["fields"] if f["field"] == "PaymentUrl")
-    assert field["templates"] == ["invoice"]
-
-    for doc, (filename, _) in cli.DOCUMENTS.items():
-        html = (cli.TEMPLATE_DIR / filename).read_text(encoding="utf-8")
-        if "PaymentUrl" in html:
-            assert doc == "invoice", f"{doc} carries a payment link"
+# NO TEST HERE, AND THAT IS THE POINT.
+#
+# `test_only_the_invoice_may_carry_a_payment_link` used to sit in this spot,
+# written and described as though it stopped something. It stopped nothing. A
+# payment link cannot reach an estimate three ways over: invoice fields load
+# only when the invoice is the document being rendered (`cli.cmd_render`), the
+# estimate template carries no such token, and adding one would fail the render
+# outright because `merge` refuses an unresolved field.
+#
+# The firm, 30 August 2026, on exactly this: "An optimal control entirely
+# mitigates risk... it isn't even sensical to add invoice links to estimates."
+# A check for the impossible is worse than no check -- it costs maintenance and
+# it teaches a reader that the suite is full of things that might happen.
+#
+# The reason now lives where somebody tempted to add a link would be standing:
+# the "Deliberately not here" list in `FIELDS - Fee Estimate.md`. See
+# `docs/SOFTWARE-TENETS.md` S30.
 
 
 def test_the_invoice_renders_with_and_without_a_link():
