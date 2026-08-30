@@ -65,7 +65,12 @@ class SortPlan:
 
     @property
     def classified(self) -> int:
-        return sum(1 for it in self.items if it.method != "unclassified")
+        # _NOT_A_VERDICT, not a bare != "unclassified". A file we never read is
+        # not a file we identified, and this tally said otherwise for a commit
+        # -- the same stale predicate that was fixed on Classification.classified
+        # and missed here. Sibling statements of one rule (S29).
+        from satc.ingest.classify import _NOT_A_VERDICT
+        return sum(1 for it in self.items if it.method not in _NOT_A_VERDICT)
 
 
 def _entity_for(path: Path, c: Classification) -> str:

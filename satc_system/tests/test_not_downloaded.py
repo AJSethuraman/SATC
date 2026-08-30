@@ -112,3 +112,16 @@ def test_a_refused_file_is_not_filed_among_the_unrecognised(tmp_path):
     assert where["placeholder.pdf"] == "Not downloaded", where
     assert where["placeholder.pdf"] != where.get("junk.pdf"), \
         "a file we never read is in the same folder as one we read and did not know"
+
+
+def test_the_sort_tally_does_not_count_a_file_it_never_read(tmp_path):
+    """SortPlan.classified stated the same rule as Classification.classified and
+    was missed when that one was fixed -- it counted a placeholder as identified."""
+    from satc.ingest.sort import sort_folder
+
+    src = tmp_path / "in"
+    src.mkdir()
+    (src / "placeholder.pdf").write_bytes(b"")
+    _real_pdf(src / "real.pdf")
+    plan = sort_folder(src, dest=tmp_path / "out")
+    assert plan.classified == 1, "the placeholder was counted as identified"
