@@ -156,12 +156,38 @@ def test_the_name_the_client_sees_is_the_firms_and_is_filled_in(square,
     assert rec.calls[0][3]["quick_pay"]["name"] == "SAT-C LLP — invoice 2027-0001"
 
 
-def test_it_will_not_name_a_payment_page_in_wording_nobody_approved(square):
-    """It shows on Square's page and on the client's card statement."""
+def test_it_will_not_make_a_link_while_anything_is_unwritten(square):
+    """The shipped registry still waits on the firm, so no link is made.
+
+    Renamed and widened 30 Aug 2026. It used to assert the refusal came from the
+    payment-page WORDING, and that reason was load-bearing by accident: while
+    the copy carried a `[CONFIRM:` nothing reached the placeholder location_id
+    behind it. The firm approved the wording and this test stopped firing --
+    which is how the gap was found. link_for now refuses on every unwritten
+    field, so approving one cannot open the door for another.
+    """
     rec, api = square
     with pytest.raises(payments.PaymentError, match="waiting on the firm"):
         payments.link_for(BILL, using=api, reg=payments.settings())
     assert not rec.calls, "it called Square before checking"
+
+
+def test_the_refusal_names_what_is_actually_missing(square):
+    """A refusal that does not say which field is a puzzle, not a message."""
+    _, api = square
+    with pytest.raises(payments.PaymentError, match="square.location_id"):
+        payments.link_for(BILL, using=api, reg=payments.settings())
+
+
+def test_unapproved_wording_alone_still_refuses(square):
+    """The original guarantee, kept: copy nobody approved never reaches Square."""
+    rec, api = square
+    reg = dict(payments.settings())
+    reg["square"] = dict(reg["square"], location_id="L8XYZ0PQ4R2AB")
+    reg["link_name"] = "[CONFIRM: something nobody has agreed]"
+    with pytest.raises(payments.PaymentError, match="link_name"):
+        payments.link_for(BILL, using=api, reg=reg)
+    assert not rec.calls
 
 
 def test_an_invoice_with_no_number_is_refused(square, approved):

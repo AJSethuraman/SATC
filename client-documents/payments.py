@@ -323,13 +323,24 @@ def link_for(invoice_fields: dict, *, using: Square,
              reg: dict | None = None, today: date | None = None) -> Link:
     """A link for one invoice, named the way the firm names it."""
     reg = reg if reg is not None else settings()
-    name = str(reg.get("link_name", ""))
-    if CONFIRM.search(name):
+    # EVERY unwritten field, not just the wording. This checked `link_name`
+    # alone, and that was load-bearing by accident: while the copy carried a
+    # `[CONFIRM:` nothing could get past it, so the placeholder `location_id`
+    # was never reached. The firm approved the wording on 30 Aug 2026 and the
+    # guard fell open -- link_for would have called Square carrying
+    # "[CONFIRM: the location id from Square's developer console]" as a
+    # location. Found because a test that named the OLD reason stopped firing.
+    #
+    # `unwritten()` walks the whole registry, so a field added later is covered
+    # without anyone remembering to come back here.
+    waiting = unwritten(reg)
+    if waiting:
         raise PaymentError(
-            "the name a client sees on the payment page has not been written "
-            "yet — `registry/payments.yaml` carries a draft, waiting on the "
-            "firm. It shows on Square's page and on their card statement."
+            "no payment link can be made yet — waiting on the firm for "
+            + ", ".join(f"`{w}`" for w in waiting)
+            + " in `registry/payments.yaml`."
         )
+    name = str(reg.get("link_name", ""))
     number = str(invoice_fields.get("InvoiceNumber", "")).strip()
     if not number:
         raise PaymentError(

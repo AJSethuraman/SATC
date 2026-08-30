@@ -75,13 +75,43 @@ def test_the_shipped_registry_is_the_one_that_refuses():
             signing._registry()["covering_note"][part])
 
 
-def test_the_draft_is_assembled_from_sentences_the_firm_has_published():
-    """Not invented. The onboarding letter already says "Sign the engagement
-    letter first" and "Nothing begins until…" is the register it is in."""
+def test_the_draft_is_in_the_register_the_firm_actually_writes_in():
+    """Rewritten 30 Aug 2026, and the rewrite is the point.
+
+    This used to pin one exact sentence -- "Nothing begins until you have read
+    it and signed" -- which made it a test of a string rather than of a rule,
+    and the string was in the draft the firm then rejected outright:
+
+        "This sounds awful. I can't explain why but it just does. I feel the
+         tenets failed here. 'I will put it right'. That pathetic earnestness."
+
+    Pinning wording cannot catch that, because the wording was the problem. What
+    IS testable is the register: the firm's own letters are flat and second
+    person -- "This letter tells you what to send us, where to send it, and what
+    happens next", "We will not wait on them to start". They never perform
+    feeling at the reader. So this asserts the three things that go wrong
+    instead of one thing that went right once.
+    """
     body = signing._registry()["covering_note"]["body"]
-    assert "Nothing begins until you have read it and signed" in body
-    for word in ("pursuant", "governs", "herein", "constitutes", "shall be"):
-        assert word not in body.lower()
+
+    # 1. No contract-desk verbs (DOCUMENT-TENETS, and CLAUDE.md rule 3).
+    for word in ("pursuant", "governs", "herein", "constitutes", "shall be",
+                 "accompanies", "at our discretion", "deemed"):
+        assert word not in body.lower(), f"contract-desk wording: {word!r}"
+
+    # 2. No pleading. The firm's actual objection, made testable so it cannot
+    #    come back in a different sentence.
+    for phrase in ("put it right", "happy to", "rest assured", "do not hesitate",
+                   "don't hesitate", "apologi", "i hope", "we hope", "of course"):
+        assert phrase not in body.lower(), f"earnestness: {phrase!r}"
+
+    # 3. Length is the tell (CLAUDE.md rule 5). A client-facing sentence past
+    #    ~25 words was written to be complete rather than to be read.
+    prose = body.replace("[CONFIRM:", " ").replace("]", " ")
+    for line in prose.split("\n"):
+        for sentence in line.split(". "):
+            words = [w for w in sentence.split() if w.strip()]
+            assert len(words) <= 25, f"{len(words)} words: {sentence.strip()!r}"
 
 
 def test_a_token_it_cannot_fill_stops_the_message(packed, approved):
@@ -143,7 +173,10 @@ def test_the_eml_is_an_ordinary_email_that_round_trips(packed, approved):
                                     policy=email.policy.default)
     assert back["To"] == record["ClientEmail"]
     assert back["From"] == "arjun@example.com"
-    assert ref in back["Subject"]
+    # The engagement is identified by a HEADER, not by the subject. The subject
+    # is the firm's copy -- asserting the ref appeared in it made this test pin
+    # their wording, and it duly broke the moment they rewrote the draft.
+    assert back["X-SATC-Engagement"] == ref
     assert record["PeriodLabel"] in back["Subject"]
     assert [a.get_filename() for a in back.iter_attachments()] == \
         [p.name for p in message.attachments]
