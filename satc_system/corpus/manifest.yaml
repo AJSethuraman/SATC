@@ -170,6 +170,13 @@ cases:
       arrived, was processed, and vanished into a folder nobody reads. The right
       answer is to refuse and say the file is not downloaded.
     found: "predicted in the collection design, then confirmed 30 Aug 2026"
+    status: >-
+      FIXED 30 Aug 2026. Refused before any reader runs, with its own verdict
+      ("Not downloaded") and its own folder -- saying so and then filing it into
+      Unclassified anyway would have put the refusal back where nobody sees it,
+      which the sorter did until a run of it showed so. The Windows
+      nonzero-size-placeholder case (FILE_ATTRIBUTE_OFFLINE) is NOT covered and
+      is not claimed to be; there is no Windows machine here to prove it against.
     empty_file: true
 
   - id: blank-scan

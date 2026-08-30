@@ -76,6 +76,11 @@ class DocType:
         return self.key is not None
 
 
+# Methods that are not an identification at all. Kept as a set rather than a
+# chain of != so that adding a third non-verdict cannot silently pass for one.
+_NOT_A_VERDICT = frozenset({"unclassified", "not downloaded"})
+
+
 @dataclass(slots=True)
 class Classification:
     """The classifier's verdict for one file."""
@@ -125,7 +130,16 @@ class Classification:
 
     @property
     def classified(self) -> bool:
-        return self.method != "unclassified"
+        """True when we identified what this document IS.
+
+        Both non-verdicts are excluded, and they are different non-verdicts:
+        "unclassified" is *we read it and did not recognise it*, "not downloaded"
+        is *we never saw it*. A comment here once claimed the second was already
+        excluded because its method differed from the first -- it was not, and
+        the test caught it: a placeholder counted as classified and would have
+        been handed to reconcile.
+        """
+        return self.method not in _NOT_A_VERDICT
 
 
 # A tax year printed on a form. Standalone only: an EIN (34-2026112), an account
@@ -198,6 +212,49 @@ UNCLASSIFIED = Classification(
 # see the note at its use. Genuine multi-form documents cluster near 0.9; a
 # passing mention of another form clusters near 0.3.
 MULTI_SHARE = 0.6
+
+
+# A file whose bytes are not on this disk. DISTINCT FROM UNCLASSIFIED ON PURPOSE.
+#
+# OneDrive's Files On-Demand leaves PLACEHOLDERS: entries that appear in the
+# folder listing, report a size in Explorer, and have no bytes locally. Measured
+# 30 Aug 2026, and predicted in the collection design before that: a zero-byte
+# PDF came back "Unclassified", silently, and was filed. A document that arrived,
+# was processed, and vanished into a folder nobody reads.
+#
+# "We looked and could not identify it" and "we never saw it" are different facts
+# with different remedies -- the first wants a new keyword, the second wants you
+# to right-click and choose Always keep on this device. In a folder listing they
+# are the same grey word unless we make them different here.
+#
+# `method` is not "unclassified", so `classified` is False and nothing downstream
+# counts this as a document that arrived. That is the property reconcile keys on.
+NOT_DOWNLOADED = Classification(
+    label="Not downloaded", key=None, code="DOC",
+    confidence="UNCERTAIN", method="not downloaded",
+    evidence="the file has no bytes on this disk -- it is a placeholder, not a "
+             "document. Download it (right-click, Always keep on this device) "
+             "and run this again.",
+)
+
+
+def _has_bytes(path: Path) -> bool:
+    """True when this file's contents are actually on this disk.
+
+    Zero bytes ONLY. A small real PDF is a real PDF, and a size threshold here
+    would start refusing documents on a guess about how big a form ought to be.
+
+    ON WINDOWS a placeholder can also be a nonzero-size file with
+    FILE_ATTRIBUTE_OFFLINE or FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS set, which
+    this does not yet check -- st_file_attributes exists only on Windows and
+    there is no Windows machine in the build environment to prove it against.
+    NOT CLAIMED AS COVERED (S28). What is proven is the zero-byte case, which is
+    the one that was actually measured.
+    """
+    try:
+        return path.stat().st_size > 0
+    except OSError:
+        return False        # gone mid-sync is the same situation as never pulled
 
 
 class DocumentClassifier:
@@ -281,6 +338,11 @@ class DocumentClassifier:
     # -- classify ---------------------------------------------------------
     def classify_path(self, source: str | Path) -> Classification:
         path = Path(source)
+        # BEFORE ANY RUNG. Every reader below would "succeed" on a placeholder by
+        # finding nothing in it, and the verdict would be indistinguishable from
+        # a document we read and did not recognise.
+        if not _has_bytes(path):
+            return NOT_DOWNLOADED
         is_pdf = path.suffix.lower() == ".pdf"
 
         if is_pdf:

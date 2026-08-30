@@ -109,7 +109,14 @@ def sort_folder(src: str | Path, dest: str | Path | None = None, *, apply: bool 
 
     def add(path: Path, c: Classification, name: str, *, entity: str = "",
             method: str | None = None, pages: tuple[int, int] | None = None) -> None:
-        bucket = _safe(c.label) if c.classified else _safe("Unclassified")
+        # A file we never read does NOT belong in Unclassified. Both are
+        # non-verdicts, but they are different ones with different remedies --
+        # Unclassified wants a new keyword, Not downloaded wants you to pull the
+        # file down -- and dropping them in one folder makes the second
+        # invisible, which is the bug the refusal was added to stop. `c.label`
+        # already names it; the mistake was choosing the folder from
+        # `classified` alone.
+        bucket = _safe(c.label)
         relpath = f"{bucket}/{name}"
         if relpath in used:                       # de-dupe collisions within the plan
             stem, dot, ext = name.rpartition(".")
