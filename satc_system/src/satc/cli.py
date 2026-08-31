@@ -43,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
     p_collect.add_argument("--library", default=None,
                            help="where filed documents go (default: $SATC_LIBRARY)")
 
+    sub.add_parser("corpus", help="score the classifier against the real IRS blanks")
+
     p_seed = sub.add_parser("seed", help="initialize the SQLite store from fixtures")
     p_seed.add_argument("--dir", default=None)
 
@@ -128,6 +130,18 @@ def main(argv: list[str] | None = None) -> int:
         if not report.applied:
             print("  Preview only. Re-run with --apply to file them.")
         return 0
+
+    if args.cmd == "corpus":
+        from satc.ingest.corpus import report, score
+
+        s = score()
+        print("SATC classifier — scored against the real IRS blanks\n")
+        print(report(s))
+        # Non-zero when the classifier is confidently WRONG about a real form.
+        # Unclassified is not a failure here: it leaves the request open and asks
+        # a human. A wrong answer files the document under another form and
+        # closes that form's request, which is the failure that costs money.
+        return 1 if s.wrong else 0
 
     if args.cmd == "seed":
         from satc.persistence import SATCStore

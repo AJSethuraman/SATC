@@ -66,6 +66,7 @@ def approved():
     """The registry as it reads once the firm has filled it in."""
     reg = json.loads(json.dumps(payments.settings()))
     reg["square"]["location_id"] = "LOC1"
+    reg["square"]["sandbox_location_id"] = "LOC1-SANDBOX"
     reg["link_name"] = "<<FirmName>> — invoice <<InvoiceNumber>>"
     reg["payment_instruction"] = "Pay online by card at the link on this invoice."
     return reg
@@ -325,3 +326,76 @@ def test_the_invoice_renders_with_and_without_a_link():
                                   created="2027-03-02").as_record()}).html
     assert "https://square.link/u/aB3xY9" in with_link
     assert 'href="https://square.link/u/aB3xY9"' in with_link
+
+
+# ── the sandbox is a different account, not a different host ──────────────
+#
+# WHAT THIS PAIR EXISTS TO STOP. The host switched on `--sandbox` and the
+# location id did not, so one field served two Square accounts. Testing meant
+# editing `location_id` to the sandbox value; billing meant editing it back.
+# The failure is not the test run -- it is the run AFTER the one somebody
+# forgot to change back, where a real client is sent a link against a test
+# location and the money has nowhere to land.
+
+def _reg_with(**square):
+    reg = json.loads(json.dumps(payments.settings()))
+    reg["square"].update(square)
+    return reg
+
+
+def test_sandbox_uses_the_sandbox_location(monkeypatch):
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "sandbox-token")
+    api = payments.processor(sandbox=True, reg=_reg_with(
+        location_id="LPROD", sandbox_location_id="LSANDBOX"))
+    assert api.location_id == "LSANDBOX"
+    assert api.host == "connect.squareupsandbox.com"
+    assert api.sandbox is True
+
+
+def test_production_uses_the_production_location(monkeypatch):
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "live-token")
+    api = payments.processor(sandbox=False, reg=_reg_with(
+        location_id="LPROD", sandbox_location_id="LSANDBOX"))
+    assert api.location_id == "LPROD"
+    assert api.host == "connect.squareup.com"
+    assert api.sandbox is False
+
+
+def test_a_sandbox_run_is_not_blocked_by_the_unfilled_production_id(monkeypatch):
+    """The firm can test before they have a live location, and vice versa.
+
+    Only the id for the run being made is waiting on anybody.
+    """
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "sandbox-token")
+    reg = _reg_with(sandbox_location_id="LSANDBOX")   # production still [CONFIRM:]
+    api = payments.processor(sandbox=True, reg=reg)
+    assert api.location_id == "LSANDBOX"
+
+    rec = Recorder()
+    api._send = rec
+    reg["link_name"] = "SATC <<InvoiceNumber>>"
+    reg["payment_instruction"] = "Pay by card at the following link."
+    payments.link_for(BILL, using=api, reg=reg)
+    assert rec.calls[0][3]["quick_pay"]["location_id"] == "LSANDBOX"
+
+
+def test_a_production_run_is_still_blocked_by_the_unfilled_production_id(monkeypatch):
+    """The other half. Filling in the SANDBOX id must not open the live door."""
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "live-token")
+    reg = _reg_with(sandbox_location_id="LSANDBOX")   # production still [CONFIRM:]
+    with pytest.raises(payments.PaymentError, match="square.location_id"):
+        payments.processor(sandbox=False, reg=reg)
+
+
+def test_a_production_link_never_carries_the_sandbox_location(monkeypatch):
+    """The bug stated as an assertion, at the only place it would show."""
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "live-token")
+    reg = _reg_with(location_id="LPROD", sandbox_location_id="LSANDBOX")
+    reg["link_name"] = "SATC <<InvoiceNumber>>"
+    reg["payment_instruction"] = "Pay by card at the following link."
+    api = payments.processor(sandbox=False, reg=reg)
+    rec = Recorder()
+    api._send = rec
+    payments.link_for(BILL, using=api, reg=reg)
+    assert rec.calls[0][3]["quick_pay"]["location_id"] == "LPROD"
+    assert "LSANDBOX" not in json.dumps(rec.calls)

@@ -18,13 +18,26 @@
 #
 # Only two things can prove the second, and neither of them lives in this file:
 #
-#   1. REAL BLANK FORMS, SYNTHETICALLY FILLED. The IRS publishes fillable PDFs of
-#      W-2, the 1099 series, 1098 and 1095-A. They are public, carry no PII, and
-#      are committable. Filling a real blank gives the REAL AcroForm field names,
-#      the REAL layout and the REAL text-layer reading order — the three things
-#      that actually decide the answer. Categorically better than anything
-#      generated here. (`corpus/blanks/` — not yet populated; irs.gov is blocked
-#      from the build environment, so the blanks have to be fetched once by hand.)
+#   1. REAL BLANK FORMS. The IRS publishes fillable PDFs of W-2, the 1099 series,
+#      1098 and 1095-A. They are public, carry no PII, and are fetched by
+#      `corpus/blanks/fetch.ps1`; irs.gov is blocked from the build environment,
+#      so the firm fetches them once by hand. `satc corpus` scores them, and
+#      `tests/test_corpus_score.py` holds the number.
+#
+#      THIS PARAGRAPH USED TO SAY that a real blank gives "the REAL AcroForm
+#      field names ... the three things that actually decide the answer", and
+#      that is MEASURED FALSE. On 31 August 2026 the form-field rung scored ZERO
+#      on all fourteen real blanks: the real names are positional and XFA-derived
+#      (`topmostSubform[0].CopyA[0].Col_Right[0].f1_09[0]` — 819 of them on the
+#      W-2) and match none of the markers, which are derived from our extraction
+#      maps (`w2box1wages`). That rung is green in the unit tests only because
+#      `src/satc/fixtures/sample_docs.py` writes the extraction map's own field
+#      names into the fixture — the fixture is built from the thing it validates.
+#
+#      What the real blanks DO give, and what caught four confidently wrong
+#      answers and a blank form read as $200,000 of wages, is the REAL LAYOUT and
+#      the REAL PAGE STRUCTURE: a notice page 1, instruction pages between the
+#      copies, and the form title in 6pt at the foot. See `src/satc/ingest/pages.py`.
 #
 #   2. A HELD-OUT RUN ON REAL CLIENT DOCUMENTS, ON THE FIRM'S OWN MACHINE. Prints
 #      the score; writes back only the SHAPE of each failure — "3-up W-2, title in

@@ -38,15 +38,55 @@ def test_fillable_1099int_classified_by_form_fields(tmp_path):
     assert c.extractable
 
 
+# A real engagement letter, in the firm's own words -- the same sentences that
+# appear in all four templates under `satc-handoff/04-TEMPLATES/`.
+#
+# THE FIXTURE USED TO BE THE TITLE AND NOTHING ELSE: "SATC Engagement Letter --
+# Maplewood 2024". It passed, and it was measuring nothing. Those five words are
+# also exactly what a REFERENCE to an engagement letter looks like in some other
+# document, and the classifier could not tell the two apart -- so a delivery
+# letter mentioning the engagement letter classified as one. Worse, the real
+# letters mention `Form 1040` and `Schedule K-1` in passing, and the classifier
+# reported "Several forms: Engagement letter, Schedule K-1" for our own document.
+# Neither could be seen from a one-line fixture. This is the firm's own point:
+# "the synthetic tests weren't doing it."
+ENGAGEMENT_LETTER = (
+    "SATC Engagement Letter — Maplewood 2024. This letter outlines what each of "
+    "us is responsible for, and what this engagement is and is not. Work outside "
+    "the scope described in this letter is billed separately. We keep copies of "
+    "your records and our work papers for seven years. We will not disclose your "
+    "information to anyone without your written consent, except where the law "
+    "requires it. Your 2024 Form 1040 will be prepared from what you give us."
+)
+
+
 def test_flat_document_classified_by_text_layer(tmp_path):
-    # No form fields, but the printed title names it. Read for free, no OCR.
+    # No form fields, but the printed words say what it is. Read for free, no OCR.
     path = tmp_path / "random_name.pdf"
-    write_plain_pdf(path, "SATC Engagement Letter — Maplewood 2024")
+    write_plain_pdf(path, ENGAGEMENT_LETTER)
     c = load_classifier(has_key=False).classify_path(path)
 
     assert c.label == "Engagement letter"
     assert c.method == "text"
     assert not c.extractable          # filed, not extracted
+
+
+def test_a_letter_that_mentions_a_form_is_not_that_form(tmp_path):
+    """The engagement letter says "Form 1040" once, in passing. Reporting that
+    as a 1040 -- or as "Several forms: Engagement letter, Prior-year 1040" --
+    files our own document against a client's open return request."""
+    path = tmp_path / "letter.pdf"
+    write_plain_pdf(path, ENGAGEMENT_LETTER)
+    c = load_classifier(has_key=False).classify_path(path)
+    assert not c.multi, c.label
+    assert c.label == "Engagement letter"
+
+
+def test_a_mere_reference_to_an_engagement_letter_is_not_one():
+    """The old fixture, kept as the counter-example it always was."""
+    clf = load_classifier(has_key=False)
+    clf.ocr_text_provider = clf.ocr_page_text_provider = None
+    assert clf.classify_text("SATC Engagement Letter — Maplewood 2024") is None
 
 
 def test_filename_is_only_a_fallback(tmp_path):

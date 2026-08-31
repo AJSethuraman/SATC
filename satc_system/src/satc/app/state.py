@@ -82,7 +82,19 @@ def text_layer_chars(fpath) -> int:
         with pymupdf.open(str(path)) as doc:
             if doc.page_count == 0:
                 return 0
-            return len(doc[0].get_text().strip())
+            # EVERY PAGE, not page one. This asked `doc[0]` alone, and page 1 of
+            # a real IRS document is routinely a notice -- so a SCANNED W-2
+            # whose eleven form pages carry no text at all still answered 1754
+            # characters, because the notice ahead of them had a text layer.
+            # The ladder then took the text rung, matched nothing, and blamed
+            # OUR ANCHORS for a document that is a pure image; and because that
+            # blame sets `unread`, both model rungs were skipped -- on the one
+            # document class they exist for.
+            #
+            # Summing is the right shape as well as the safe one: the question
+            # is "is there text in this document to read", and the ladder that
+            # reads it now reads the form's pages, not page one.
+            return sum(len(page.get_text().strip()) for page in doc)
     except Exception:       # noqa: BLE001 -- an unreadable file has no text layer
         return 0
 

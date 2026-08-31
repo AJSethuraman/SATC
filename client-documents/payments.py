@@ -126,6 +126,16 @@ def unwritten(reg: dict | None = None) -> list[str]:
     return sorted(out)
 
 
+def _location_key(sandbox: bool) -> str:
+    """Which location id a run uses. Stated once; both callers ask here."""
+    return "sandbox_location_id" if sandbox else "location_id"
+
+
+def _unused_location(sandbox: bool) -> str:
+    """The other one -- not waiting on the firm, just not this run's."""
+    return _location_key(not sandbox)
+
+
 def _fill(text: str, record: dict) -> str:
     missing = [n for n in _TOKEN.findall(text or "")
                if not str(record.get(n, "")).strip()]
@@ -176,11 +186,17 @@ class Square:
     name = "square"
 
     def __init__(self, *, token: str, location_id: str, host: str,
-                 version: str, transport: Callable | None = None):
+                 version: str, transport: Callable | None = None,
+                 sandbox: bool = False):
         self.token = token
         self.location_id = location_id
         self.host = host
         self.version = version
+        # WHICH ACCOUNT THIS IS, carried rather than re-derived. `link_for`
+        # has to know which of the two location ids it is allowed to still be
+        # waiting on, and comparing `host` against the registry to find out
+        # would be a second statement of a rule already stated here.
+        self.sandbox = sandbox
         self._send = transport or _http
 
     def _call(self, method: str, path: str, body: dict | None = None) -> dict:
@@ -298,7 +314,8 @@ def processor(*, sandbox: bool = False, transport: Callable | None = None,
             f"not written."
         )
     conf = reg.get("square") or {}
-    waiting = [p for p in unwritten(reg) if p.startswith("square.")]
+    waiting = [p for p in unwritten(reg) if p.startswith("square.")
+               and p != f"square.{_unused_location(sandbox)}"]
     if waiting:
         raise PaymentError(
             "the payments registry is not filled in yet — "
@@ -312,7 +329,8 @@ def processor(*, sandbox: bool = False, transport: Callable | None = None,
             f"purpose and is never stored here — a token in the repository is "
             f"a token in every clone, backup and screenshot."
         )
-    return Square(token=token, location_id=conf.get("location_id", ""),
+    return Square(token=token, sandbox=sandbox,
+                  location_id=conf.get(_location_key(sandbox), ""),
                   host=conf.get("sandbox_host" if sandbox else "api_host", ""),
                   version=conf.get("api_version", ""), transport=transport)
 
@@ -332,8 +350,11 @@ def link_for(invoice_fields: dict, *, using: Square,
     # location. Found because a test that named the OLD reason stopped firing.
     #
     # `unwritten()` walks the whole registry, so a field added later is covered
-    # without anyone remembering to come back here.
-    waiting = unwritten(reg)
+    # without anyone remembering to come back here. ONE EXCEPTION, and it is
+    # narrow: there are two location ids and a run uses one of them, so the
+    # other is not waiting on the firm -- it is waiting on a different run.
+    waiting = [w for w in unwritten(reg)
+               if w != f"square.{_unused_location(using.sandbox)}"]
     if waiting:
         raise PaymentError(
             "no payment link can be made yet — waiting on the firm for "

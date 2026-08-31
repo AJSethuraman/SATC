@@ -116,11 +116,31 @@ class TextAnchorReader:
         return "", False
 
     def _page_text(self, path: Path) -> str:
+        """The form's own pages -- never the IRS's instructions ABOUT the form.
+
+        THIS READ EVERY PAGE, and on a BLANK eleven-page W-2 that produced
+        ``Box 1 - Wages = 200000`` and ``Box 5 - Medicare wages = 200000``,
+        both HIGH confidence, both auto-confirmed into the workpaper. The
+        source was page 7 -- *"the 0.9% Additional Medicare Tax on any of those
+        Medicare wages and tips above $200,000"* -- an instruction page, where
+        the anchor ``medicare wages and tips`` sits 30 characters from a dollar
+        figure that is a threshold in a sentence, not a value in a box.
+
+        On the actual form pages the boxes are empty, so nothing matches and a
+        blank form reads as blank. That is the whole fix: the reader was not
+        losing a blank box to a number, it was reading a page that is not the
+        form. See :mod:`satc.ingest.pages`.
+        """
         try:
             from pypdf import PdfReader
 
+            from satc.ingest.pages import is_guidance
+
             reader = PdfReader(str(path))
-            pages = reader.pages if self.page is None else [reader.pages[self.page - 1]]
-            return "\n".join((p.extract_text() or "") for p in pages)
+            if self.page is not None:
+                return reader.pages[self.page - 1].extract_text() or ""
+            texts = [(pg.extract_text() or "") for pg in reader.pages]
+            form = [t for t in texts if not is_guidance(t)]
+            return "\n".join(form or texts)
         except Exception:  # noqa: BLE001 - no text layer / unreadable => empty
             return ""

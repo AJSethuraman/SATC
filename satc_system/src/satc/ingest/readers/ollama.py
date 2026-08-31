@@ -26,7 +26,7 @@ class OllamaVisionReader:
     """Reads a document image into labeled fields using a local Ollama vision model."""
 
     def __init__(self, config: dict[str, Any], *, host: str | None = None,
-                 model: str | None = None, page: int = 1,
+                 model: str | None = None, page: int | None = None,
                  transport: Callable[[dict], dict] | None = None) -> None:
         from satc.settings import ollama_host, ollama_model
 
@@ -39,7 +39,12 @@ class OllamaVisionReader:
 
     def _image_b64(self, source: str) -> str:
         p = Path(source)
-        data = _rasterize_pdf(p, self.page)[0] if p.suffix.lower() == ".pdf" else p.read_bytes()
+        if p.suffix.lower() != ".pdf":
+            return base64.standard_b64encode(p.read_bytes()).decode("utf-8")
+        from satc.ingest.pages import first_form_page
+
+        page = self.page if self.page is not None else first_form_page(p)
+        data = _rasterize_pdf(p, page)[0]
         return base64.standard_b64encode(data).decode("utf-8")
 
     def _prompt(self) -> str:

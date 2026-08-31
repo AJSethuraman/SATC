@@ -37,7 +37,7 @@ FORMS=(
   f1040     # 1040       U.S. Individual Income Tax Return
   f1040sc   # Schedule C Profit or Loss From Business
   f1065sk1  # K-1 (1065) Partner's Share
-  f1120ssk1 # K-1 (1120-S) Shareholder's Share
+  f1120ssk # K-1 (1120-S) Shareholder's Share
 )
 
 ok=0; missing=()

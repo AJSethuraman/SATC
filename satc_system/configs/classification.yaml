@@ -152,6 +152,21 @@ doc_types:
     keywords:
       - ["engagement letter", 10]
       - ["terms of engagement", 8]
+      # THE TITLE ALONE IS NOT ENOUGH, and this type is where that was proved.
+      # A real letter matched exactly ONE keyword for its own type -- and, in
+      # passing, `form 1040` or `schedule k-1` once each, which scored 8 against
+      # its 10 and reported "Several forms: Engagement letter, Schedule K-1".
+      # Our own document, misfiled by our own classifier.
+      #
+      # These four are the firm's own sentences, taken verbatim from all four
+      # engagement letter templates and present in none of the other eight
+      # documents (measured 31 Aug 2026). Low weights on purpose: none of them
+      # can win alone, they exist to be the SECOND signal a real letter has and
+      # a passing mention of one never does.
+      - ["this letter outlines what", 4]
+      - ["the scope described in", 3]
+      - ["work papers for seven years", 4]
+      - ["without your written consent", 3]
 
   - key: null
     label: "Form 8879 (e-file authorization)"

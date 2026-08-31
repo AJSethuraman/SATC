@@ -29,6 +29,15 @@ square:
   # Console.
   location_id: "[CONFIRM: the location id from Square's developer console]"
 
+  # TWO LOCATIONS, BECAUSE SQUARE GIVES YOU TWO. The sandbox is a separate
+  # account with its own locations, so the production location id names nothing
+  # there and the sandbox one names nothing in production. One field for both
+  # would mean editing this line to test and editing it back to bill -- and the
+  # day someone forgets, a real client gets a link against a test location.
+  # `--sandbox` picks this one, the same flag that picks `sandbox_host`; only
+  # the id for the run you are doing has to be filled in.
+  sandbox_location_id: "[CONFIRM: the sandbox location id, from the Sandbox tab of the same console]"
+
   # THE TOKEN IS NOT IN THIS FILE AND MUST NEVER BE. This names the environment
   # variable to read it from. A token in the repository is a token in every
   # clone, every backup and every screenshot -- and this repository is read back

@@ -333,6 +333,11 @@ repository is a token in every clone, backup and screenshot. The
 carry `[CONFIRM: ]` until the firm fills them in; until then no link
 is created and the reason says so.
 
+There are **two** location ids, because Square gives you two accounts:
+`location_id` for real money and `sandbox_location_id` for `--sandbox`.
+A run needs only the one it is using, so you can test before you have
+a live location — and a live invoice can never carry the test one.
+
 ## 7 · Closing an engagement, at the end of the cycle
 
 ```

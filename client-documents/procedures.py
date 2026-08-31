@@ -436,6 +436,11 @@ def render() -> str:
     add("carry `[CONFIRM: ]` until the firm fills them in; until then no link")
     add("is created and the reason says so.")
     add("")
+    add("There are **two** location ids, because Square gives you two accounts:")
+    add("`location_id` for real money and `sandbox_location_id` for `--sandbox`.")
+    add("A run needs only the one it is using, so you can test before you have")
+    add("a live location — and a live invoice can never carry the test one.")
+    add("")
 
     # ── 5 · closing ───────────────────────────────────────────────────────
     add("## 7 · Closing an engagement, at the end of the cycle")
