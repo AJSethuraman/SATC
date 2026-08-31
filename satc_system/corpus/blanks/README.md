@@ -4,9 +4,18 @@ Two ways to fill this folder. Either is fine; you only need one.
 
 ## The easy way — PowerShell
 
+**From the root of the SATC repo** (the folder with `client-documents`,
+`satc_system` and `website` in it):
+
 ```
-powershell -ExecutionPolicy Bypass -File .\fetch.ps1
+powershell -ExecutionPolicy Bypass -File .\satc_system\corpus\blanks\fetch.ps1
 ```
+
+The path matters and the working directory does not: the script downloads into
+its own folder wherever you run it from. An earlier version of this line read
+`.\fetch.ps1`, which only worked if you were already standing in this directory —
+and produced *"The argument '.\fetch.ps1' to the -File parameter does not exist"*
+if you were anywhere else. That was a bad instruction, not a broken script.
 
 Fifteen forms, one command. It names anything it could not fetch instead of
 failing quietly, so a form the IRS has moved is something you can see.
