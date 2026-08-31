@@ -167,7 +167,28 @@ held rather than printed, with the steps to reinstate it.
 
 `EngagementRef` is the join key across every document. `PeriodLabel` is
 **self-describing** — "2026 tax year", "Monthly, from July 2027" — so one field
-serves tax and bookkeeping alike. Never add `TaxYear` back.
+serves tax and bookkeeping alike, and it is what most of the set prints.
+
+**`TaxYear` also exists, and that is fine.** This line used to read *"Never add
+`TaxYear` back"*, which was wrong in a way worth recording, because the rule was
+stated here while the code did the opposite and nothing compared them.
+
+Four templates name it: the tax engagement letter and the organizer cover letter
+print it, and the business and C-corp letters only mention it in a comment saying
+not to use it. The reason the ban does not bite is that **both fields come from
+one answer**: `registry/interview.yaml` asks "Which tax year?" once, that supplies
+`TaxYear`, and `interview.py` derives `PeriodLabel` from the same value. They
+cannot drift apart, because there is only one of them.
+
+So the rule is not "never use `TaxYear`". It is:
+
+> **One answer, two renderings.** `TaxYear` is the bare year for a sentence that
+> reads better with one ("your 2026 income tax returns"). `PeriodLabel` is the
+> self-describing form for a sentence that has to serve bookkeeping too ("Monthly,
+> from July 2027"). Never let a template take a year from anywhere else.
+
+The firm, 30 August 2026, on being asked whether to strip it: *"tax year is fine
+— what is the problem with it?"* There was no problem. Corrected here.
 
 ### Conditionals that drop a numbered section
 

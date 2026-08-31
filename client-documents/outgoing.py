@@ -178,6 +178,21 @@ def as_eml(message: Message, *, sender: str = "", today=None) -> bytes:
         mail["From"] = sender
     mail["Subject"] = message.subject
     mail["Date"] = formatdate(localtime=True) if today is None else today
+    if message.ref:
+        # WHICH ENGAGEMENT THIS IS, put here rather than borrowed from the
+        # subject line. The subject is the firm's copy and carries a `[CONFIRM:`
+        # until they accept it; software that needs the ref must not depend on
+        # what they choose to write there, and a test that asserted the ref
+        # appeared in the subject was pinning their wording through the back
+        # door.
+        #
+        # HONEST LIMIT: a custom header does not survive the client's REPLY --
+        # only "Re: <subject>" comes back. So this makes the outgoing message
+        # findable in the firm's own mailbox and machine-readable; it does not
+        # thread a reply to an engagement. If the firm wants that, the ref has
+        # to be in the subject and they have to be willing for a client to see
+        # it. That is their call, and it is written up rather than assumed.
+        mail["X-SATC-Engagement"] = message.ref
     mail.set_content(message.body)
     for path in message.attachments:
         data = Path(path).read_bytes()

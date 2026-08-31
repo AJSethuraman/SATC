@@ -951,11 +951,15 @@ def test_an_unanswered_starter_question_falls_to_essentials():
     assert line["Service"] == "Essentials"
 
 
-def test_starter_is_no_longer_an_open_decision():
-    assert not [p for p, _ in pricing.open_amounts() if p.endswith("starter.gate")]
+# TWO TESTS DELETED FROM HERE, under S30.
+#
+#   test_starter_is_no_longer_an_open_decision — subsumed by
+#     `test_registry.py::test_no_decision_is_still_open_anywhere`, which sweeps
+#     every registry rather than naming one settled decision.
+#   test_requote_is_still_refused — the same control as
+#     `test_requoting_is_refused_because_the_firm_ruled_it_out` above, asserted
+#     twice. Two tests over one rule is one rule and one place to forget.
 
-
-# ── the per-form rule ─────────────────────────────────────────────────────
 
 def test_a_named_form_costs_the_one_per_form_price():
     """One amount, a handful of named situations. Signed 25 Aug 2026 at $50,
@@ -1276,18 +1280,6 @@ def test_a_priced_boundary_whose_line_has_no_amount_carries_the_question():
     assert "[CONFIRM:" in said
     assert "a_named_line" in said
 
-
-def test_requote_is_still_refused():
-    """The vocabulary got wider by exactly one word, and not that one. A
-    re-quote stops the job and opens a negotiation the firm did not want."""
-    s = pricing.load()
-    s["assumed"]["cleanup"]["beyond"] = "requote"
-    with pytest.raises(pricing.PricingError) as exc:
-        pricing.assumptions({"federal_form": "1040"}, s)
-    assert "ruled out re-quoting" in str(exc.value)
-
-
-# ── the wording is data ───────────────────────────────────────────────────
 
 def test_every_phrase_the_estimate_can_say_is_in_the_registry():
     """The firm, 25 Aug 2026: "templates should be easily customizable to the

@@ -291,6 +291,48 @@ rather than over the record. The invoice and the estimate must agree
 about the reference and the figure and **must not** share `PeriodLabel`
 — that is the one value naming two different spans of time.
 
+### The link, and finding out that it was paid
+
+```
+python cli.py invoice --engagement <REF> --billed '<period>' --sandbox
+python cli.py payments
+```
+
+**Raising the bill creates the payment link**, and the link goes on
+the invoice as `<<PaymentUrl>>`. Nothing else gets one — the firm's
+rule: *"Quotes get no link. Only the invoice."* An estimate is what
+the work will cost and is not yet owed, and this engine re-quotes, so
+a link on a quote would collect a figure that had since moved. A test
+holds that line.
+
+**The link is made before the bill is written**, so a processor that
+refuses leaves no invoice claiming a link it never got. If it refuses,
+the bill is still raised and the reason is printed — `--no-link` skips
+it deliberately.
+
+**`payments` asks; it is not told.** A webhook would need a public
+server this firm does not have, so this polls when somebody wants the
+answer, from a laptop, with nothing listening on the internet. **Only
+a settlement is ever written down** — an unpaid order is left alone,
+because a cached "no" goes stale the moment somebody pays.
+
+Once a bill is settled, `sign` stops reporting the invoice half of the
+promise as unknowable: every engagement letter says we will not e-file
+before the invoice is settled, and that becomes something the software
+can actually check.
+
+> **Judgement, not procedure:** a bill paid another way. Somebody who
+> sends a cheque or a bank transfer will never show as settled here,
+> and marking it by hand is a decision about money that belongs to a
+> person, not to a poll.
+
+The token lives in an environment variable named by
+`registry/payments.yaml`, never in the repository — a token in the
+repository is a token in every clone, backup and screenshot. The
+`location_id` and the wording a client sees are in that registry and
+carry `[CONFIRM: ]` until the firm fills them in; until then no link
+is created and the reason says so.
+
 ## 7 · Closing an engagement, at the end of the cycle
 
 ```
@@ -363,5 +405,5 @@ as **waiting on the firm**.
 
 Every other command this document names:
 
-`package`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `sign`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
+`package`, `payments`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `sign`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
 

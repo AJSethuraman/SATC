@@ -117,6 +117,8 @@ h1,h2,h3,p{margin:0}
 /* ---------- three-up detail strip (payment, remit, contact) ---------- */
 .pay{display:flex;gap:0.34in;margin-top:18pt;padding-top:10pt;border-top:0.5pt solid var(--hairline)}
 .pay>div{flex:1}
+.paylink{margin-top:5pt;font-family:var(--mono);font-size:8pt;line-height:1.45;word-break:break-all}
+.paylink a{color:var(--navy);text-decoration:underline;text-underline-offset:2pt}
 .pay .h{font-family:var(--mono);font-size:7pt;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:6pt}
 .pay p{font-size:9pt;line-height:1.5;color:var(--ink-2)}
 .pay b{color:var(--navy);font-weight:600}

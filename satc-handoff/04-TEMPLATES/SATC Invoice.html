@@ -85,6 +85,9 @@
   <div>
     <div class="h">How to pay</div>
     <p><span class="f">&lt;&lt;PaymentInstruction&gt;&gt;</span></p>
+    <span class="cond">[[IF PaymentLink]]</span>
+    <p class="paylink"><a href="&lt;&lt;PaymentUrl&gt;&gt;"><span class="f">&lt;&lt;PaymentUrl&gt;&gt;</span></a></p>
+    <span class="cond end">[[END IF]]</span>
   </div>
   <div>
     <div class="h">Remit to</div>
@@ -137,6 +140,7 @@
     <tr><td>[[IF CreditsApplied]]</td><td class="req">Flag</td><td>Boolean. Drops the credit row when there is nothing to apply, so a clean invoice has no empty line.</td></tr>
     <tr><td>&lt;&lt;PaymentInstruction&gt;&gt;</td><td class="req">Required</td><td>Pay by card or bank transfer through the link in the delivery email, or by cheque to the address at right. — <b>one sentence, from settings, not per client.</b> Change it in one place when the firm's processor changes.</td></tr>
     <tr><td>&lt;&lt;BillingContactName&gt;&gt; &lt;&lt;BillingContactEmail&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman · arjun_sethuraman@satcllp.com. Separate from the preparer on purpose — a billing question should not have to find the preparer. <b>No phone:</b> no number goes on a client document until the firm has a business line.</td></tr>
+    <tr><td>&lt;&lt;PaymentUrl&gt;&gt;</td><td class="opt">Optional</td><td>The link the client pays at, from <code>registry/payments.yaml</code> via <code>payments.py</code> &mdash; <b>issued per invoice and never for an estimate</b>. A quote is what work will cost and is not yet owed; a link on one invites payment of a figure that can still move, and a re-quote does move it. The whole block drops when there is no link, so an invoice raised before this existed still renders.</td></tr>
     <tr><td>&lt;&lt;EstimateTotal&gt;&gt; &lt;&lt;EstimateDate&gt;&gt; &lt;&lt;VarianceNote&gt;&gt;</td><td class="opt">If EstimateReference</td><td>$785 · February 3, 2027 · "The difference is the additional state return added at your request on March 8." <b>If the invoice exceeds the estimate, the note is not optional</b> — an unexplained overage is the most common billing dispute there is.</td></tr>
     <tr><td>[[IF EstimateReference]]</td><td class="req">Flag</td><td>Boolean. Off for recurring bookkeeping invoices, where restating the estimate every month is noise.</td></tr>
     <tr><td>&lt;&lt;PreparerName&gt;&gt; &lt;&lt;PreparerTitle&gt;&gt;</td><td class="req">Required</td><td>Arjun Sethuraman, CPA · Managing Partner</td></tr>

@@ -43,6 +43,7 @@ import engagements
 import invoicing
 import lifecycle
 import packaging
+import payments
 import notes
 import outgoing
 import presend
@@ -553,6 +554,24 @@ def cmd_invoice(args) -> int:
         print(f"\n{exc}\n")
         return 1
 
+    # THE LINK IS MADE BEFORE THE BILL IS WRITTEN, so a processor that refuses
+    # leaves no invoice claiming a link it never got. The bill is the thing the
+    # client reads; a half-made one is worse than none.
+    note = ""
+    if not args.no_link:
+        try:
+            link = payments.link_for(
+                fields, using=payments.processor(sandbox=args.sandbox))
+            fields.update(link.as_record())
+            note = f"    Pay online  {link.url}"
+        except payments.PaymentError as exc:
+            # NOT FATAL, AND SAID OUT LOUD. An invoice with no link is the
+            # invoice this firm sent all year; one that silently lost its link
+            # is a client told to click something that is not there.
+            note = ("    No link on this bill — "
+                    + textwrap.fill(str(exc), 66,
+                                    subsequent_indent="                ").strip())
+
     path = store / args.engagement / "invoices"
     path.mkdir(parents=True, exist_ok=True)
     out = path / f"{number}.json"
@@ -568,8 +587,49 @@ def cmd_invoice(args) -> int:
         print(f"    Estimated   {fields['EstimateTotal']}"
               + ("   (this bill differs — the note says why)"
                  if fields.get("VarianceNote") else ""))
+    if note:
+        print(f"\n{note}")
     print(f"\nNext:  python cli.py render --engagement {args.engagement} "
           f"--docs invoice --out out")
+    return 0
+
+
+def cmd_payments(args) -> int:
+    """Ask the processor which bills have been paid, and write down the answer.
+
+    POLLED, NOT PUSHED. A webhook would need a public server this firm does not
+    have; this asks the question when somebody wants the answer, from a laptop,
+    with nothing listening on the internet.
+
+    ONLY A SETTLEMENT IS EVER RECORDED. An unpaid order is left alone rather
+    than written down as unpaid -- a cached "no" goes stale the moment somebody
+    pays, and a bill marked unpaid that has since been settled is the error that
+    ends up in front of a client.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    waiting = payments.outstanding(store)
+    if not waiting:
+        print("\nNo bill is waiting on a payment.\n")
+        return 0
+    try:
+        square = payments.processor(sandbox=args.sandbox)
+        answers = square.settled([w["order_id"] for w in waiting])
+    except payments.PaymentError as exc:
+        print(f"\n{exc}\n")
+        return 1
+
+    moved = 0
+    print(f"\n{len(waiting)} bill(s) with a link out:\n")
+    for row in waiting:
+        got = answers.get(row["order_id"])
+        if got and payments.record_settlement(row["path"], got):
+            moved += 1
+        state = "PAID" if (got and got.paid) else "waiting"
+        when = f"  {got.when}" if got and got.paid and got.when else ""
+        print(f"  {state:8} {row['ref']}  invoice {row['invoice']:10} "
+              f"{row['amount']:>10}{when}")
+    print(f"\n{moved} newly settled.\n" if moved
+          else "\nNothing new has settled.\n")
     return 0
 
 
@@ -2076,6 +2136,13 @@ def main(argv=None) -> int:
     pk.add_argument("--notes", action="store_true",
                     help="also print the ten advisory tenet checks. They never "
                          "block and never change the exit code")
+    pay = sub.add_parser("payments",
+                         help="which bills have been paid, and which have not")
+    pay.add_argument("--store")
+    pay.add_argument("--sandbox", action="store_true",
+                     help="ask Square's test account, where no money is real")
+    pay.set_defaults(fn=cmd_payments)
+
     iv = sub.add_parser("invoice", help="a priced engagement -> an invoice")
     iv.add_argument("--engagement", required=True)
     iv.add_argument("--store")
@@ -2084,6 +2151,10 @@ def main(argv=None) -> int:
                     help="the period this invoice BILLS, e.g. '2026 tax year'")
     iv.add_argument("--credit", action="append", metavar="LABEL=AMOUNT",
                     help="a credit, entered as what it is worth")
+    iv.add_argument("--no-link", action="store_true",
+                    help="do not create a payment link for this bill")
+    iv.add_argument("--sandbox", action="store_true",
+                    help="use Square's test account; no money is real")
     iv.add_argument("--variance-note",
                     help="required when the bill exceeds the estimate")
     iv.set_defaults(fn=cmd_invoice)

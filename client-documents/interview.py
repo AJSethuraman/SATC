@@ -760,9 +760,16 @@ def compose(answers: dict) -> dict:
         out["PriorFirm"] = answers["prior_firm"] == "yes"
 
     if answers.get("tax_year"):
-        # PeriodLabel is self-describing and is what the document set uses.
-        # TaxYear survives only because two templates still ask for it; the
-        # authoring contract says it should not exist. See the run log.
+        # ONE ANSWER, TWO RENDERINGS -- and this is the point, not a leftover.
+        # "Which tax year?" is asked once. It supplies `TaxYear` (the bare year,
+        # for "your 2026 income tax returns") and `PeriodLabel` is derived from
+        # it here (self-describing, so one field also serves "Monthly, from July
+        # 2027"). They cannot drift apart because there is only one of them.
+        #
+        # This comment used to say the authoring contract forbade `TaxYear`. It
+        # did, and the contract was wrong -- a rule stated in one place while the
+        # code deliberately did the opposite. Corrected in AUTHORING-CONTRACT.md
+        # on 30 Aug 2026 rather than defended here.
         out["PeriodLabel"] = f"{answers['tax_year']} tax year"
 
     return out

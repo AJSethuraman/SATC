@@ -87,11 +87,22 @@ def test_w2_structural_fallback_without_title():
     assert c.label == "W-2" and c.extractable
 
 
-def test_close_runner_up_is_downgraded_to_medium():
-    # A consolidated statement that reads as both 1099-INT and 1099-DIV: don't guess.
+def test_a_statement_that_is_two_forms_is_reported_as_two_forms():
+    """Rewritten 30 Aug 2026. Its own comment always asked for the right thing.
+
+    This used to assert MEDIUM confidence on a single label and was written
+    "don't guess" -- but MEDIUM on one label IS a guess, and downstream it was a
+    costly one: matching accepted that label against a core-income bundle and
+    reconcile closed the request, so the other form was never asked for again.
+    The classifier now distinguishes "unsure which one form this is" from "sure
+    it is more than one". Left here rather than deleted because this text is the
+    canonical two-form case and the sibling of every rule in test_multiform.py.
+    """
     text = "1099-INT Interest Income   1099-DIV Dividends and Distributions"
     c = _clf().classify_text(text)
-    assert c.confidence == "MEDIUM"
+    assert c.multi, c
+    assert set(c.forms) == {"1099-INT", "1099-DIV"}, c.forms
+    assert c.key is None
 
 
 def test_ocr_hyphen_repair_in_form_names():

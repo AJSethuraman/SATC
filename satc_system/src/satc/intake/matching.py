@@ -51,6 +51,19 @@ _FAMILY_PATTERNS: dict[str, list[str]] = {
 _COMPILED = {fam: [re.compile(p, re.IGNORECASE) for p in pats] for fam, pats in _FAMILY_PATTERNS.items()}
 
 
+# The classifier's label for a page carrying several forms. A document that is
+# several forms satisfies no single request on its own: a consolidated brokerage
+# 1099 answers "1099-INT" to a core-income bundle and the 1099-B nobody has yet
+# is never asked for again. Measured 30 Aug 2026 -- $41,200 of proceeds, and the
+# packet reported complete.
+MULTI_PREFIX = "Several forms:"
+
+
+def is_multi(received_label: str) -> bool:
+    """True when this label names several forms rather than one."""
+    return str(received_label).strip().startswith(MULTI_PREFIX)
+
+
 def families(text: str) -> set[str]:
     """Reduce a label or request description to the form families it references."""
     blob = text or ""
@@ -67,6 +80,14 @@ def matches(received_label: str, *request_texts: str) -> bool:
     Family intersection first (handles bundles + form variants); falls back to a
     conservative exact normalized equality on the primary request text.
     """
+    # REFUSED AT THE SEAM, not left to the caller. The label names several
+    # forms, so it answers no single request: a page of DIV + INT + B is not
+    # "the 1099-INT you asked for". Guarding here rather than only at the one
+    # call site means a second caller cannot quietly reintroduce the bug -- and
+    # the composite label DOES intersect these families, so without this it
+    # would still match.
+    if is_multi(received_label):
+        return False
     received_families = families(received_label)
     requested_families: set[str] = set()
     for text in request_texts:

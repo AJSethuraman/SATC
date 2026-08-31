@@ -84,26 +84,23 @@ def test_the_gate_checks_come_from_the_gate():
         assert check in text, check
 
 
-def test_the_gate_list_is_not_empty():
-    """Counting what a check examined, because more than one tonight examined
-    nothing and reported clean."""
-    assert len(procedures.gate_checks()) >= 6
-
-
-def test_a_runtime_count_does_not_reach_the_procedure():
-    """The procedure probes an EMPTY directory, so any count it picked up
-    would be zero and would print "0 documents examined" in front of a
-    preparer. The counts belong in the gate's report at runtime, where they
-    are true; the procedure lists the checks by name only."""
-    text = procedures.render()
-    assert "every document opens and renders" in text
-    assert "(0)" not in text
-    # No count from the probe run may reach the page. The prose deliberately
-    # mentions `NONE` -- that is the report's own vocabulary being explained,
-    # not a verdict about an empty probe directory.
-    import re
-    assert not re.search(r"\b0 \w+s? (examined|to examine)\b", text)
-    assert "  NONE " not in text
+# THREE TESTS WERE DELETED FROM HERE, under S30: a check for something that
+# cannot happen is worse than no check.
+#
+#   test_the_gate_list_is_not_empty            — `render()` calls `_require`
+#     and raises on an empty parse, and `test_the_gate_checks_come_from_the_gate`
+#     already compares the list to the gate's own.
+#   test_a_runtime_count_does_not_reach_the_procedure — a count cannot reach the
+#     page: `presend.Result.add` keeps the check's literal name in `checked` and
+#     the count in a separate `Counted` (`presend.py:118`), and `gate_checks`
+#     returns `result.checked` verbatim. The reason is already written at
+#     `procedures.py:78`, which is where a reader meets it.
+#   test_no_advisory_is_listed_among_the_gate_checks — the two lists are built in
+#     different modules in different shapes; `advisory_checks` synthesises
+#     `f"{key} ({tenet}) — {what}"`, which no `presend.gate` literal can equal.
+#
+# None of them protected anything. All three cost maintenance and taught a
+# reader that the suite is full of things that might happen.
 
 
 def test_the_advisories_are_listed_and_named_as_advisory():
@@ -120,12 +117,6 @@ def test_the_advisories_are_listed_and_named_as_advisory():
     for line in listed:
         assert line in text, line
     assert "never block and never change the exit code" in text
-
-
-def test_no_advisory_is_listed_among_the_gate_checks():
-    blocking = set(procedures.gate_checks())
-    for line in procedures.advisory_checks():
-        assert line not in blocking
 
 
 def test_the_close_out_questions_come_from_the_registry():
