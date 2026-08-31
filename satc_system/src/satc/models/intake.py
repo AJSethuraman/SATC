@@ -148,6 +148,13 @@ class IntakeEngagement:
     engagement_id: str
     client_id: str
     workflow_key: str
+    # The ref the CLIENT sees -- "2026-0001" -- from client-documents, which is
+    # what every letter, estimate and invoice carries and what a drop folder is
+    # named for. This is the join that lets a collected document close the
+    # request it satisfies; without it reconcile_received has nothing to look up.
+    # Empty on every engagement created before 31 Aug 2026, and empty is never a
+    # match (see Store.client_for_ref).
+    engagement_ref: str = ""
     engagement_type: str = ""
     tax_year: int | None = None
     period_end: str = ""

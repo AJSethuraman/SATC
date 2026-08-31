@@ -215,3 +215,100 @@ def test_the_preview_counts_what_the_run_will_actually_file(tmp_path):
     assert preview.collected == applied.collected == 2
     assert ([a.label for a in preview.drops[0].arrivals]
             == [a.label for a in applied.drops[0].arrivals])
+
+
+# -- closing the loop: a collected document marks its request Received --------
+
+def test_a_collected_document_closes_the_request_it_satisfies(tmp_path):
+    """The half that was open until 31 Aug 2026.
+
+    Filing always worked. Marking Received did not, because the drop folder
+    carries the client-facing ref and the request table keys on a client id, and
+    nothing joined them. `engagement_ref` on the engagement is that join.
+    """
+    from satc.models.intake import IntakeEngagement
+    from satc.models.mart import DocumentRecord
+    from satc.persistence.store import SATCStore
+
+    root = tmp_path / "up"
+    _form(root / "2026-0001 — Maplewood" / "IMG_4471.pdf", W2)
+
+    store = SATCStore(tmp_path / "db")
+    store.save_intake_engagement(IntakeEngagement(
+        engagement_id="E1", client_id="C1", workflow_key="1040",
+        engagement_ref="2026-0001"))
+    mart = store.load_mart()
+    mart.documents.append(DocumentRecord(
+        document_id="D1", client_id="C1", tax_year=2026, doc_type="W-2",
+        status="Requested", note="Upload your W-2s"))
+    store.save_mart(mart)
+
+    rep = collect(SyncedFolder(root), library=tmp_path / "lib", apply=True,
+                  store=store)
+    one = rep.drops[0]
+    assert one.client_id == "C1"
+    assert [a.satisfied for a in one.arrivals] == ["W-2"]
+    assert [d.status for d in store.load_mart().documents] == ["Received"]
+
+
+def test_an_unknown_ref_files_the_document_and_says_it_could_not_place_it(tmp_path):
+    """Never a guess. A ref the store does not hold must not reconcile against
+    whichever client was saved first — that would mark another client's request
+    Received on a stranger's document."""
+    from satc.persistence.store import SATCStore
+
+    root = tmp_path / "up"
+    _form(root / "2026-9999 — Nobody" / "w2.pdf", W2)
+    store = SATCStore(tmp_path / "db")
+
+    rep = collect(SyncedFolder(root), library=tmp_path / "lib", apply=True,
+                  store=store)
+    one = rep.drops[0]
+    assert one.client_id == ""
+    assert one.arrivals, "the document is still filed"
+    assert all(a.satisfied == "" for a in one.arrivals)
+    assert "2026-9999" in one.unresolved
+
+
+def test_collecting_without_a_store_still_files(tmp_path, drop_root):
+    """The store is optional: filing is useful on its own and must not require
+    the intake database to exist."""
+    rep = collect(SyncedFolder(drop_root), library=tmp_path / "lib", apply=True)
+    assert rep.collected == 3
+    assert all(a.satisfied == "" for d in rep.drops for a in d.arrivals)
+
+
+def test_an_unplaceable_document_cannot_close_a_request_with_a_blank_client(tmp_path):
+    """The guard mutation testing said was unproven, made real.
+
+    Removing `and dr.client_id` from the reconcile call broke no test, because
+    reconcile_received finds no candidates for client_id="" — as long as no
+    DocumentRecord carries a blank client_id. Nothing forbids one: the field is a
+    plain string and an import, a fixture or a half-written row can leave it
+    empty.
+
+    So the exposure is: a drop folder whose ref does not resolve produces
+    client_id="", and without the guard that would be handed to reconcile, where
+    it would match any request with an equally blank client and mark a stranger's
+    document Received. Unlikely, cheap to prevent, and impossible to notice
+    afterwards — which is the combination that earns a check.
+    """
+    from satc.models.mart import DocumentRecord
+    from satc.persistence.store import SATCStore
+
+    root = tmp_path / "up"
+    _form(root / "2026-9999 — Nobody" / "w2.pdf", W2)      # ref not in the store
+
+    store = SATCStore(tmp_path / "db")
+    mart = store.load_mart()
+    mart.documents.append(DocumentRecord(
+        document_id="D-ORPHAN", client_id="", tax_year=2026, doc_type="W-2",
+        status="Requested", note="a row with no client on it"))
+    store.save_mart(mart)
+
+    rep = collect(SyncedFolder(root), library=tmp_path / "lib", apply=True,
+                  store=store)
+    assert rep.drops[0].client_id == ""
+    assert all(a.satisfied == "" for a in rep.drops[0].arrivals)
+    assert [d.status for d in store.load_mart().documents] == ["Requested"], \
+        "a document we could not place closed a request with a blank client"

@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS relationships (
 CREATE TABLE IF NOT EXISTS intake_engagements (
   engagement_id TEXT PRIMARY KEY, client_id TEXT, workflow_key TEXT, engagement_type TEXT,
   tax_year INTEGER, period_end TEXT, due_date TEXT, intake_answers TEXT, risk_flags TEXT,
-  created_at TEXT, updated_at TEXT);
+  created_at TEXT, updated_at TEXT, engagement_ref TEXT);
 CREATE TABLE IF NOT EXISTS intake_tasks (
   task_id TEXT PRIMARY KEY, engagement_id TEXT, template_id TEXT, title TEXT, category TEXT,
   audience TEXT, client_request_text TEXT, accepted_alternatives TEXT, why_needed TEXT,
@@ -181,6 +181,13 @@ class SATCStore:
         cols = {r["name"] for r in self.mart.execute("PRAGMA table_info(public_clients)")}
         if "filing_status" not in cols:
             self.mart.execute("ALTER TABLE public_clients ADD COLUMN filing_status TEXT")
+            self.mart.commit()
+
+        cols = {r["name"] for r in
+                self.mart.execute("PRAGMA table_info(intake_engagements)")}
+        if "engagement_ref" not in cols:
+            self.mart.execute(
+                "ALTER TABLE intake_engagements ADD COLUMN engagement_ref TEXT")
             self.mart.commit()
 
     def _encrypt_vault_at_rest(self) -> None:
@@ -381,11 +388,18 @@ class SATCStore:
 
     def save_intake_engagement(self, eng: IntakeEngagement) -> None:
         """Persist an engagement and (replace) its task list."""
-        self.mart.execute("INSERT OR REPLACE INTO intake_engagements VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                          (eng.engagement_id, eng.client_id, eng.workflow_key, eng.engagement_type,
-                           eng.tax_year, eng.period_end, _dt(eng.due_date),
-                           json.dumps(eng.intake_answers), json.dumps(eng.risk_flags),
-                           eng.created_at, eng.updated_at))
+        # Columns named explicitly rather than positionally: a bare VALUES list
+        # breaks silently the next time a column is added, and this table has
+        # now had one added.
+        self.mart.execute(
+            "INSERT OR REPLACE INTO intake_engagements "
+            "(engagement_id, client_id, workflow_key, engagement_type, tax_year, "
+            " period_end, due_date, intake_answers, risk_flags, created_at, "
+            " updated_at, engagement_ref) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (eng.engagement_id, eng.client_id, eng.workflow_key, eng.engagement_type,
+             eng.tax_year, eng.period_end, _dt(eng.due_date),
+             json.dumps(eng.intake_answers), json.dumps(eng.risk_flags),
+             eng.created_at, eng.updated_at, eng.engagement_ref))
         self.mart.execute("DELETE FROM intake_tasks WHERE engagement_id=?", (eng.engagement_id,))
         for t in eng.tasks:
             self._insert_task(t)
@@ -417,6 +431,27 @@ class SATCStore:
         return {r["workflow_key"]
                 for r in self.mart.execute("SELECT workflow_key FROM workflow_overrides")}
 
+    def client_for_ref(self, ref: str) -> str | None:
+        """Which client an engagement ref belongs to, or None.
+
+        NONE IS NEVER A GUESS. A ref we do not hold returns None so the caller
+        files the document and says it could not place it, rather than
+        reconciling against whoever it liked best.
+
+        A BLANK REF NEVER MATCHES. Most engagements carry "" until somebody fills
+        them in, so a lookup on "" would otherwise return the first of them --
+        and an unplaced drop folder would silently mark another client's request
+        Received. That is the failure this whole join exists to prevent, so it
+        is refused first.
+        """
+        ref = (ref or "").strip()
+        if not ref:
+            return None
+        row = self.mart.execute(
+            "SELECT client_id FROM intake_engagements WHERE engagement_ref=?",
+            (ref,)).fetchone()
+        return row["client_id"] if row else None
+
     def load_intake_engagements(self) -> list[IntakeEngagement]:
         tasks_by_eng: dict[str, list[IntakeTask]] = {}
         for r in self.mart.execute("SELECT * FROM intake_tasks ORDER BY suggested_date, task_id"):
@@ -434,6 +469,7 @@ class SATCStore:
             engagement_type=r["engagement_type"], tax_year=r["tax_year"], period_end=r["period_end"] or "",
             due_date=_pdt(r["due_date"]), intake_answers=json.loads(r["intake_answers"] or "{}"),
             risk_flags=json.loads(r["risk_flags"] or "[]"), created_at=r["created_at"] or "",
+            engagement_ref=(r["engagement_ref"] or "") if "engagement_ref" in r.keys() else "",
             updated_at=r["updated_at"] or "", tasks=tasks_by_eng.get(r["engagement_id"], []))
             for r in self.mart.execute("SELECT * FROM intake_engagements ORDER BY created_at")]
 
