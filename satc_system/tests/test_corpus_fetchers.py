@@ -75,3 +75,40 @@ def test_the_powershell_script_says_it_was_never_run():
     the two was proven."""
     text = (BLANKS / "fetch.ps1").read_text().lower()
     assert "never been executed" in text or "not run by its author" in text
+
+
+def test_the_one_liner_in_the_readme_is_the_one_in_the_file():
+    """A third statement of the same job, so a third comparison.
+
+    The one-liner is the instruction the firm will actually use, and it exists
+    twice: as `oneliner.txt` (the source) and pasted into README.md (what gets
+    read). Two earlier versions of this instruction were wrong -- `bash
+    fetch.sh` for someone who does not use Git Bash, then a bare `.\\fetch.ps1`
+    that only worked from one directory -- so the instruction is now the part of
+    this folder most worth holding still.
+    """
+    one = (BLANKS / "oneliner.txt").read_text().strip()
+    readme = (BLANKS / "README.md").read_text()
+    assert one in readme, "the README's one-liner has drifted from oneliner.txt"
+
+
+def test_the_one_liner_fetches_the_same_forms_as_the_scripts():
+    one = (BLANKS / "oneliner.txt").read_text()
+    for form in _sh_forms():
+        assert f"'{form}'" in one, f"{form} is in the scripts but not the one-liner"
+
+
+def test_the_one_liner_never_leaves_the_forms_nowhere():
+    """The promise that makes it safe to paste blind: if the repo is not found it
+    still saves them somewhere and says where."""
+    one = (BLANKS / "oneliner.txt").read_text()
+    assert "Downloads\\satc-irs-blanks" in one
+    assert "not found" in one
+
+
+def test_the_one_liner_has_no_semicolon_before_else():
+    """`}; else` is a syntax error in PowerShell, and the first attempt at
+    collapsing the script into one line introduced exactly that. There is no
+    PowerShell in this environment to catch it by running, so it is caught here.
+    """
+    assert "; else" not in (BLANKS / "oneliner.txt").read_text()
