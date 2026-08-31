@@ -1,0 +1,71 @@
+# SATC — Error Ledger
+
+**Every mistake the agent made on this software, what caught it, and what it cost.**
+Started 30 August 2026 at the firm's instruction. A running ledger, not a one-off:
+new entries go at the bottom of the current session's table, and a new session
+starts a new table.
+
+## Why this exists, and why it is not the tenets file
+
+`docs/SOFTWARE-TENETS.md` records what the *software* got wrong, each tenet cited
+to a real bug. This records what the *agent* got wrong — which is a different
+question with a different answer, and the answer is the reason to keep the file:
+
+> **Reading the code caught nothing.**
+
+Not one error in the first tally was found by inspection. They were found by
+running the thing, by the firm reading the output, by a test written to fail
+first, or by a default chosen to be safe. An agent that reports "I reviewed this
+and it looks correct" has reported nothing, and this file is the evidence.
+
+---
+
+## Session of 30–31 August 2026 — payments, the scanner, and the collector
+
+| # | The error | What caught it |
+|---|---|---|
+| 1 | Claimed "0 files under `website/`" repeatedly. It was false — a `.pyc` I had committed there. **Not a coding error: I repeated an unverified claim because it suited my argument.** | Verifying before merging |
+| 2 | Said `TaxYear` appeared in two spec files. It was in four templates; HTML escapes hid it from grep | The firm |
+| 3 | Then said removing it needed sign-off. There was no problem at all — one question supplies both fields. The *contract* was wrong | The firm |
+| 4 | Covering note rejected twice — *"pathetic earnestness"* | The firm |
+| 5 | The multi-form rule turned a plain W-2 into "Several forms: W-2, 1099-R" | Running it |
+| 6 | The collector's splitter wrote duplicates into the library | Running it |
+| 7 | The collector's preview said one document and filed two | Running it |
+| 8 | A comment claiming `classified` excluded not-downloaded. It didn't | My own test |
+| 9 | Asserted on "text layer" — a substring present in *both* messages, so the test could not fail | Writing it red first |
+| 10 | An `and dr.client_id` guard that no test proved | Mutation testing |
+| 11 | Missed `PaystubReader` when marking readers deterministic | The safe default |
+
+**Tally: 3 running it · 3 the firm · 3 tests and mutation · 1 a safe default · 0 reading the code.**
+
+Four more from the same session, on instructions rather than code — worth keeping
+because they cost the firm's time rather than mine:
+
+| # | The error | What caught it |
+|---|---|---|
+| 12 | Told the firm to run `bash fetch.sh`. They do not use Git Bash | The firm |
+| 13 | `.\fetch.ps1` as a bare relative path — *"The argument '.\fetch.ps1' to the -File parameter does not exist"* | The firm |
+| 14 | Collapsed the script to one line and produced `}; else`, which is not valid PowerShell | The firm |
+| 15 | Guessed `f1120ssk1.pdf`. The real filename is `f1120ssk.pdf` | The fetch failing |
+| 16 | Wrote "348 passed" into a commit message *before* the run that proved it. The run was from the wrong directory and reported "no tests ran" | Re-reading my own claim |
+
+---
+
+## Session of 31 August 2026 — the page rule
+
+| # | The error | What caught it |
+|---|---|---|
+| 17 | **Proposed a fix that could not reach production.** Scoring several pages in `_page_text` would have moved the corpus score from 5/13 to 12/13 while changing nothing in intake, sort or collect — `plan_split` runs first and never calls `_page_text`. The benchmark would have gone green over an unchanged bug | An adversarial review agent |
+| 18 | The same proposed fix would have broken the multi-form verdict for a consolidated 1099 with one form per page — reintroducing the partial answer that closes a client request. I had flagged this as the risk and still had it wrong | The same agent, measuring it |
+| 19 | Assumed the AcroForm rung was sound and worth reordering. It scores **zero** on all fourteen real blanks; it is green only because the fixture writes the extraction map's own field names into itself. `corpus/manifest.yaml` asserted the opposite in writing | The same agent, measuring it |
+| 20 | Believed `$200,000` came from a prefilled `22222` field, as the firm first suggested, until measured. It is a threshold in a sentence on the instructions page | Measuring it |
+| 21 | Spliced a block into `classify.py` between two anchors and deleted `classify_text`, which lived between them | The next run, immediately |
+| 22 | The first assertion for "a blank form yields nothing" was too broad — it failed on a free-text field whose junk value contained digits. The assertion did not match the harm | Writing it and watching it fail |
+| 23 | Made the OCR rung read up to twelve pages. Rasterising at 300 dpi costs seconds a page; it turned a sub-second check into minutes and the test suite from minutes into hours | Running it |
+
+**Tally: 3 an agent measuring it · 3 running it or the next run · 1 writing the test first · 0 reading the code.**
+
+Entry 17 is the one to keep in view. It is the project's own recurring bug shape —
+*a claim in one place, behaviour in another, and nothing comparing them* — with the
+agent as the claim. The fix was going to be checked against a benchmark that ran a
+code path production does not use, and every number would have been true.
