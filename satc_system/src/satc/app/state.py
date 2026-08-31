@@ -346,6 +346,13 @@ class AppState:
         we could read but failed to parse must not look like a document there was
         nothing to read.
 
+        DETERMINISTIC FIRST, in both senses the firm meant. The rungs run in
+        order of how reproducible they are, and the two MODEL rungs are skipped
+        entirely when the document was readable and our own parser is what failed
+        -- see the note beside them. Separately, nothing a model produces can
+        auto-confirm, whatever it says about itself: see
+        ``ReadResult.confidence_map``.
+
         Returns ``(ReadResult|None, problem)``. ``problem`` is NOT only an error:
         it also carries a diagnostic on an otherwise successful read, so a note
         can say the answer came from OCR *because our anchors missed*, rather
@@ -379,12 +386,22 @@ class AppState:
                 result = TesseractOcrReader(cfg).read(str(fpath))
                 if result.labeled_fields:
                     return result, unread
-            if ollama_enabled():                                  # 4) local vision (Ollama)
-                result = OllamaVisionReader(cfg).read(str(fpath))
-                if result.labeled_fields:
-                    return result, unread
-            if allow_cloud:                                       # 5) cloud vision (opt-in only)
-                return VisionDocumentReader(cfg).read(str(fpath)), unread
+            # THE MODEL RUNGS ARE GATED ON `unread`, and this is the second half
+            # of "deterministic first". When the document HAD text and our
+            # anchors missed it, the failure is ours and it is fixable -- one
+            # label in an extraction map. Asking a vision model to judge it
+            # instead buries that gap under an answer nobody can reproduce, and
+            # the gap stays for every client sending the same form.
+            #
+            # Tesseract above is still allowed there: it is deterministic and may
+            # lay the page out differently to the text layer. A model is not.
+            if not unread:
+                if ollama_enabled():                              # 4) local vision (Ollama)
+                    result = OllamaVisionReader(cfg).read(str(fpath))
+                    if result.labeled_fields:
+                        return result, unread
+                if allow_cloud:                                   # 5) cloud vision (opt-in only)
+                    return VisionDocumentReader(cfg).read(str(fpath)), unread
             if unread:
                 return None, unread + "Add the label to this form's extraction map."
             return None, "scan with no text layer — enable local OCR (Tesseract) or key it in manually."

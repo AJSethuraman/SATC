@@ -88,8 +88,17 @@ def test_vision_reader_flags_uncertain_and_masks_tin(tmp_path):
     gate = StagingGate().add(staged)
     gate.auto_confirm_high()
     confirmed = {f.field_path for f in gate.confirmed()}
-    # A clean, confident field auto-confirms…
-    assert "w2.box1_wages" in confirmed
-    # …but a field the model flagged uncertain does NOT, even though it parses.
-    assert "w2.box3_ss_wages" not in confirmed
+    # CHANGED 31 Aug 2026. This used to assert that "a clean, confident field
+    # auto-confirms" -- w2.box1_wages went straight into the workpaper because
+    # the model had not named it in `uncertain_fields`.
+    #
+    # The firm asked for deterministic first, and the half of that which lives
+    # here is: a model's self-assessment is not evidence, it is the same faculty
+    # that produced the answer asked whether it is happy with it. NOTHING a
+    # vision model reads auto-confirms now, flagged or not.
+    assert confirmed == set(), \
+        "a vision model's reading reached the workpaper without a human"
+    # The per-field flag still does its own job -- it is a hint to the preparer
+    # about WHICH fields to look at hardest, not a licence for the others.
     assert any(f.field_path == "w2.box3_ss_wages" for f in gate.needs_review())
+    assert any(f.field_path == "w2.box1_wages" for f in gate.needs_review())

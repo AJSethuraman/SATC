@@ -32,6 +32,11 @@ class TesseractOcrReader:
 
     def read(self, source: str) -> ReadResult:
         result = TextAnchorReader(self.config).read_text(self._ocr(str(source)))
+        # Tesseract is deterministic -- no model, same page gives the same text
+        # twice -- but noisy, so every field is still flagged for review. The two
+        # are different statements and both are wanted: `deterministic` says it
+        # can be reproduced, `uncertain_labels` says it should be checked.
+        result.deterministic = True
         result.uncertain_labels = set(result.labeled_fields)   # OCR is noisy: review all
         result.backend = "TesseractOcrReader"
         return result

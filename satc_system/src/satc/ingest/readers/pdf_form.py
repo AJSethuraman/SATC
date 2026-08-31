@@ -43,7 +43,8 @@ class PdfFormReader:
             if label is None or value is None or str(value).strip() == "":
                 continue
             labeled[label] = str(value).strip()
-        return ReadResult(labeled_fields=labeled, backend="PdfFormReader")
+        return ReadResult(labeled_fields=labeled, backend="PdfFormReader",
+                          deterministic=True)   # AcroForm values, read not inferred
 
     def read(self, source: str) -> ReadResult:
         from pypdf import PdfReader  # imported lazily

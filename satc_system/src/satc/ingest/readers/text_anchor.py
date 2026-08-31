@@ -89,6 +89,7 @@ class TextAnchorReader:
             if not confident:
                 uncertain.add(label)
         return ReadResult(labeled_fields=labeled, uncertain_labels=uncertain,
+                          deterministic=True,   # label anchors + regex, no model
                           backend="TextAnchorReader")
 
     def _extract(self, spec: dict[str, Any], text: str, low: str) -> tuple[str, bool]:

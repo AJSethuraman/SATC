@@ -30,9 +30,34 @@ class ReadResult:
     labeled_fields: dict[str, str] = field(default_factory=dict)
     uncertain_labels: set[str] = field(default_factory=set)
     backend: str = ""
+    # Was this read produced WITHOUT a model? Form fields, a text-layer regex and
+    # Tesseract are deterministic: the same document gives the same answer twice.
+    # A vision model is not, however sure it sounds.
+    #
+    # DEFAULT FALSE ON PURPOSE. A reader written next year that never thinks
+    # about this is treated as a model -- forgetting is safe rather than
+    # dangerous, which is the only way round a default like this can go.
+    deterministic: bool = False
 
     def confidence_map(self) -> dict[str, Confidence]:
-        """Per-label base confidence: LOW for anything the reader flagged uncertain."""
+        """Per-label base confidence, and the gate auto-confirms only HIGH.
+
+        A NON-DETERMINISTIC READ IS NEVER HIGH, whatever it says about itself.
+
+        The firm, 31 Aug 2026: *"I really want it deterministic first."* This is
+        the half of that which lives below the ladder. `VisionDocumentReader`
+        asked the model to name its own uncertain fields and trusted the rest --
+        so a field the model did not flag arrived HIGH and `auto_confirm_high`
+        wrote a model's reading of a wage box into the workpaper with nobody
+        looking at it.
+
+        A model's self-assessment is not evidence. It is the same faculty that
+        produced the answer, asked whether it is happy with it. Determinism is a
+        property of the READER; it is not a judgement the output gets to make
+        about itself.
+        """
+        if not self.deterministic:
+            return {label: "LOW" for label in self.labeled_fields}
         return {label: ("LOW" if label in self.uncertain_labels else "HIGH")
                 for label in self.labeled_fields}
 
