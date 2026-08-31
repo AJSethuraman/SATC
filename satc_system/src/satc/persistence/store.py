@@ -111,7 +111,8 @@ CREATE TABLE IF NOT EXISTS engagements (
   PRIMARY KEY (client_id, tax_year));
 CREATE TABLE IF NOT EXISTS documents (
   document_id TEXT PRIMARY KEY, client_id TEXT, tax_year INTEGER, doc_type TEXT,
-  status TEXT, as_of TEXT, sharepoint_link TEXT, actor TEXT, note TEXT);
+  status TEXT, as_of TEXT, sharepoint_link TEXT, actor TEXT, note TEXT,
+  received_parts TEXT);
 CREATE TABLE IF NOT EXISTS relationships (
   rel_id TEXT PRIMARY KEY, from_client_id TEXT, to_client_id TEXT,
   relationship_type TEXT, ownership_pct TEXT, is_primary INTEGER, note TEXT);
@@ -188,6 +189,15 @@ class SATCStore:
         if "engagement_ref" not in cols:
             self.mart.execute(
                 "ALTER TABLE intake_engagements ADD COLUMN engagement_ref TEXT")
+            self.mart.commit()
+        # WHICH PARTS OF A BUNDLE HAVE ARRIVED. Added 31 Aug 2026: a request
+        # naming several forms used to close on the first one to turn up. Same
+        # idempotent shape as above, so an existing mart gains the column and
+        # every row reads "" -- nothing already Received is disturbed.
+        doc_cols = {r["name"] for r in
+                    self.mart.execute("PRAGMA table_info(documents)")}
+        if "received_parts" not in doc_cols:
+            self.mart.execute("ALTER TABLE documents ADD COLUMN received_parts TEXT")
             self.mart.commit()
 
     def _encrypt_vault_at_rest(self) -> None:
@@ -321,9 +331,10 @@ class SATCStore:
                       (e.client_id, e.tax_year, e.engagement_letter_status, _d(e.fee_amount),
                        int(e.invoiced), int(e.paid), e.preparer_id, e.note))
         for d in mart.documents:
-            m.execute("INSERT OR REPLACE INTO documents VALUES (?,?,?,?,?,?,?,?,?)",
+            m.execute("INSERT OR REPLACE INTO documents VALUES (?,?,?,?,?,?,?,?,?,?)",
                       (d.document_id, d.client_id, d.tax_year, str(d.doc_type), d.status,
-                       _dt(d.as_of), d.sharepoint_link, d.actor, d.note))
+                       _dt(d.as_of), d.sharepoint_link, d.actor, d.note,
+                       d.received_parts))
         m.commit()
 
     def delete_intake_line_items(self, return_key: str) -> None:
@@ -340,6 +351,12 @@ class SATCStore:
 
     def set_document_status(self, document_id: str, status: str) -> None:
         self.mart.execute("UPDATE documents SET status=? WHERE document_id=?", (status, document_id))
+        self.mart.commit()
+
+    def set_document_parts(self, document_id: str, parts: str) -> None:
+        """Record which forms of a bundle request have arrived so far."""
+        self.mart.execute("UPDATE documents SET received_parts=? WHERE document_id=?",
+                          (parts, document_id))
         self.mart.commit()
 
     def set_filing_status(self, client_id: str, filing_status: str) -> None:
@@ -527,7 +544,8 @@ class SATCStore:
         mart.documents = [DocumentRecord(
             document_id=r["document_id"], client_id=r["client_id"], tax_year=r["tax_year"],
             doc_type=r["doc_type"], status=r["status"], as_of=_pdt(r["as_of"]),
-            sharepoint_link=r["sharepoint_link"] or "", actor=r["actor"] or "", note=r["note"] or "")
+            sharepoint_link=r["sharepoint_link"] or "", actor=r["actor"] or "",
+            note=r["note"] or "", received_parts=r["received_parts"] or "")
             for r in m.execute("SELECT * FROM documents ORDER BY document_id")]
         return mart
 

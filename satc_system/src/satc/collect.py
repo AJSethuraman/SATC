@@ -123,7 +123,12 @@ class Arrival:
     method: str
     tax_year: int | None
     filed_to: str = ""            # relative to the library root, "" on preview
-    satisfied: str = ""           # the request this closed, "" if none
+    satisfied: str = ""           # the request this matched, "" if none
+    # WHEN `satisfied` IS SET AND THIS IS NOT EMPTY, the request was only PART
+    # satisfied: it names several forms and these have not arrived. Reporting
+    # the match without this is how a collection reads complete while a form
+    # the client was asked for is still missing.
+    awaiting: str = ""
     note: str = ""
 
 
@@ -249,13 +254,20 @@ def collect(source: Source, *, library: str | Path, apply: bool = False,
                 # reconcile_received.
                 if apply and store is not None and dr.client_id and \
                         arrival.method not in ("unclassified", "not downloaded"):
-                    from satc.intake.service import reconcile_received
+                    from satc.intake import matching
+                    from satc.intake.service import (outstanding_parts,
+                                                     reconcile_received)
 
                     matched = reconcile_received(
                         store, client_id=dr.client_id, doc_type=arrival.label,
                         doc_year=arrival.tax_year)
                     if matched is not None:
                         arrival.satisfied = str(matched.doc_type)
+                        # See reconcile_received: a request naming several forms
+                        # is only part-satisfied until all of them arrive, and
+                        # the report has to say which are outstanding or the
+                        # collection reads complete when it is not.
+                        arrival.awaiting = matching.names(outstanding_parts(matched))
                 dr.arrivals.append(arrival)
 
         if apply and fresh:

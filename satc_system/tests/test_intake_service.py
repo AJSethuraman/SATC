@@ -128,11 +128,20 @@ def test_reconcile_received_marks_doc_and_completes_task(tmp_path):
                       due_date="2026-04-15", tax_year=2025,
                       answers={"newSatcClient": "yes"})
 
-    # Pick a real outstanding request and reconcile against its doc_type.
+    # Pick a real outstanding request that names ONE form, and reconcile against
+    # its doc_type. It used to take `requested[0]`, which is the core-income
+    # BUNDLE -- five forms, closed by whichever one arrived first. The point of
+    # this test is the Requested -> Received loop and the linked task, so it now
+    # exercises that on a request where closing on one document is correct;
+    # `test_intake_matching.py` holds the bundle behaviour.
+    from satc.intake import matching
+
     requested = [d for d in store.load_mart().documents
                  if d.client_id == cid and d.status == "Requested"]
     assert requested
-    target_type = requested[0].doc_type
+    single = [d for d in requested if not matching.is_bundle(str(d.doc_type), d.note)]
+    assert single, "no single-form request to test the loop with"
+    target_type = single[0].doc_type
 
     result = reconcile_received(store, client_id=cid, doc_type=target_type)
     assert result is not None

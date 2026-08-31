@@ -260,7 +260,8 @@ class AppState:
         import os
         import tempfile
 
-        from satc.intake import reconcile_received
+        from satc.intake import matching, reconcile_received
+        from satc.intake.service import outstanding_parts
 
         # L8: if an intake root is configured, refuse folders outside it so an
         # agent-supplied path can't reach arbitrary directories. No-op when unset.
@@ -311,8 +312,21 @@ class AppState:
                                                      doc_type=c.label, doc_year=c.tax_year)
                         if matched is not None:
                             reconciled += 1
-                            notes.append(f"{doc_id} → ✓ satisfies your request “{matched.doc_type}” "
-                                         f"— marked Received.")
+                            # A BUNDLE THAT IS NOT YET COMPLETE SAYS SO. Saying
+                            # "marked Received" for a request still waiting on
+                            # two forms is the packet reading complete while a
+                            # named form is missing -- exactly the failure this
+                            # was fixed for, moved into the note.
+                            waiting = outstanding_parts(matched)
+                            if waiting:
+                                notes.append(
+                                    f"{doc_id} → ✓ part of your request "
+                                    f"“{matched.doc_type}” — still waiting on "
+                                    f"{matching.names(waiting)}.")
+                            else:
+                                notes.append(
+                                    f"{doc_id} → ✓ satisfies your request "
+                                    f"“{matched.doc_type}” — marked Received.")
                     if not c.extractable:
                         what = c.label if c.classified else "unrecognized document"
                         notes.append(f"{doc_id} → {what} ({how}): filed, not extracted.")

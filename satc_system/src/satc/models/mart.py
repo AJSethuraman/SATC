@@ -184,6 +184,14 @@ class DocumentRecord:
     sharepoint_link: str = ""
     actor: str = ""             # who (preparer/system); de-identified handle
     note: str = ""
+    # For a request naming SEVERAL forms: which of them have turned up, as a
+    # space-separated list of `satc.intake.matching` families. Empty on every
+    # single-form request, which is nearly all of them.
+    received_parts: str = ""
+
+    @property
+    def parts(self) -> set[str]:
+        return set(self.received_parts.split())
 
 
 @dataclass(slots=True)

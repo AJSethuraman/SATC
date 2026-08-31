@@ -41,12 +41,43 @@ def _engagement(store):
     return cid
 
 
-def test_w2_closes_the_core_income_request(tmp_path):
+def test_a_w2_belongs_to_the_core_income_request_but_does_not_close_it(tmp_path):
+    """THIS TEST USED TO ASSERT THE BUG, and it is worth saying why plainly.
+
+    It read `test_w2_closes_the_core_income_request` and asserted
+    `matched.status == "Received"`. The shipped request reads *"Upload Forms
+    W-2, 1099-INT, 1099-DIV, 1099-B, 1099-G, and any other income forms
+    received"* -- so one arriving W-2 closed FIVE forms' worth of request, and
+    the client was never asked for the other four again. The test passed
+    throughout.
+    """
+    from satc.intake.service import outstanding_parts
+
     store = SATCStore(tmp_path)
     cid = _engagement(store)
     matched = reconcile_received(store, client_id=cid, doc_type="W-2")
-    assert matched is not None and matched.status == "Received"
+    assert matched is not None, "the W-2 must still find the request it belongs to"
     assert "income" in matched.doc_type.lower()
+    assert matched.status == "Requested"
+    assert outstanding_parts(matched) == {"1099INT", "1099DIV", "1099B", "1099G"}
+
+
+def test_the_core_income_request_closes_when_the_last_form_arrives(tmp_path):
+    """The other half: it must still be closable by documents alone."""
+    from satc.intake.service import outstanding_parts
+
+    store = SATCStore(tmp_path)
+    cid = _engagement(store)
+    for label in ("W-2", "1099-INT", "1099-DIV", "1099-G"):
+        reconcile_received(store, client_id=cid, doc_type=label)
+    # The 1099-B closes the more specific brokerage request first, so it takes a
+    # second one to reach the bundle -- which is the specificity rule working.
+    reconcile_received(store, client_id=cid, doc_type="1099-B")
+    matched = reconcile_received(store, client_id=cid, doc_type="1099-B")
+
+    assert matched is not None and "income" in matched.doc_type.lower()
+    assert outstanding_parts(matched) == set()
+    assert matched.status == "Received"
 
 
 def test_no_false_close_and_specific_wins(tmp_path):

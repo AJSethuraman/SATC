@@ -188,6 +188,41 @@ def reconcile_received(store, *, client_id: str, doc_type: str,
     if not candidates:
         return None
     match = min(candidates, key=lambda d: matching.specificity(str(d.doc_type), d.note))
+
+    # A BUNDLE STAYS OPEN UNTIL EVERY FORM IT NAMES HAS ARRIVED. Found in a live
+    # run, 31 Aug 2026: the request read "Upload Forms 1099-INT, 1099-DIV and
+    # brokerage statements", the 1099-DIV arrived, the request went Received --
+    # and the 1099-INT that came next found no open request to satisfy. The
+    # packet reads complete while a named form is still missing, which is the
+    # consolidated-1099 bug the firm already paid for, arriving from the other
+    # direction.
+    #
+    # The firm: fix it. A bundle now records which of its forms have turned up
+    # and closes only when none are outstanding; `outstanding_parts` says which
+    # are still missing so a caller can put it in the note.
+    #
+    # WHAT THIS COSTS, and why it is still right. The shipped core-income
+    # request reads "Upload Forms W-2, 1099-INT, 1099-DIV, 1099-B, 1099-G, and
+    # any other income forms received" -- five forms, and a single W-2 used to
+    # close all five. But most clients have no 1099-G, so that request will now
+    # never close ITSELF, and a request that stays open forever is its own kind
+    # of false report.
+    #
+    # Nothing here can know whether a client HAS a 1099-G; only the preparer
+    # can. So the software stops guessing "complete" and says what is still
+    # missing, and the preparer marks it Received from the Documents view when
+    # they know that is everything. The pipeline feeds a human. Between the two
+    # failures -- a request closed while a named form is missing, and a request
+    # left open a person can close in one click -- only the first loses a
+    # document.
+    texts = (str(match.doc_type), match.note)
+    if matching.is_bundle(*texts):
+        arrived = match.parts | matching.families(doc_type)
+        match.received_parts = " ".join(sorted(arrived))
+        store.set_document_parts(match.document_id, match.received_parts)
+        if matching.outstanding(texts, arrived):
+            return match          # filed against the request; the request stays open
+
     store.set_document_status(match.document_id, "Received")
     match.status = "Received"
     for eng in store.load_intake_engagements():
@@ -196,6 +231,14 @@ def reconcile_received(store, *, client_id: str, doc_type: str,
                 task.completed = True
                 store.save_task(task)
     return match
+
+
+def outstanding_parts(record) -> set[str]:
+    """Which forms a bundle request is still waiting on. Empty for a plain one."""
+    texts = (str(record.doc_type), record.note)
+    if not matching.is_bundle(*texts):
+        return set()
+    return matching.outstanding(texts, record.parts)
 
 
 # ---------------------------------------------------------------------------
