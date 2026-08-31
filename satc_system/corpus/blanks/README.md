@@ -2,14 +2,35 @@
 
 Two ways to fill this folder. Either is fine; you only need one.
 
-## The easy way
+## The easy way — PowerShell
+
+```
+powershell -ExecutionPolicy Bypass -File .\fetch.ps1
+```
+
+Fifteen forms, one command. It names anything it could not fetch instead of
+failing quietly, so a form the IRS has moved is something you can see.
+
+The `-ExecutionPolicy Bypass` is there because an unsigned `.ps1` will not run on
+a default Windows install, and that refusal reads like the script being broken
+rather than Windows doing its job. Nothing here needs admin.
+
+**I could not run this one.** There is no PowerShell in the environment it was
+written in, so unlike the bash twin below it has never been executed. The
+gotchas it does handle are the ones that bite on Windows PowerShell 5.1: the
+progress bar that makes downloads ten times slower, TLS 1.0 being the default
+where irs.gov wants 1.2, and `Invoke-WebRequest` throwing on a 404 rather than
+returning it. If it still misbehaves, that is why — tell me and it gets fixed
+rather than defended.
+
+## Or bash, if you ever want it
 
 ```
 bash satc_system/corpus/blanks/fetch.sh
 ```
 
-Fifteen forms, one command. It names anything it could not fetch instead of
-failing quietly, so a form the IRS has moved is something you can see.
+Same forms, same behaviour. A test holds the two lists together, so they cannot
+drift apart as forms are added.
 
 ## Or click fifteen links
 
