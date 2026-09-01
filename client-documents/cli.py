@@ -1652,6 +1652,57 @@ def cmd_sign(args) -> int:
     return 0
 
 
+def cmd_season(args) -> int:
+    """What is due across the whole book, soonest first.
+
+    THE SCREEN THAT DID NOT EXIST. Everything else here acts on one engagement;
+    nothing looked across all of them and said what season it is. That is what a
+    person otherwise holds in their head through February.
+    """
+    import deadlines
+
+    store = Path(args.store) if args.store else engagements.STORE
+    refs = [r["ref"] for r in engagements.listing(store)]
+    if not refs:
+        print("no engagements yet -- `python cli.py interview` creates one")
+        return 0
+
+    records = []
+    unreadable = []
+    for ref in refs:
+        try:
+            records.append((ref, engagements.load(ref, store)))
+        except Exception:      # noqa: BLE001 - a bad record is reported, not skipped
+            unreadable.append(ref)
+
+    today = date.fromisoformat(args.today) if args.today else date.today()
+    due, unplaced = deadlines.board(records, today=today, within_days=args.within)
+
+    # THE DENOMINATOR, FIRST. A board that says "nothing due" is only good news
+    # if it looked at something -- see S2. This line is why.
+    print(f"{len(refs)} engagement(s) read, {today.isoformat()}"
+          + (f", looking {args.within} days ahead" if args.within else "") + "\n")
+
+    if not due:
+        print("  nothing due in that window.")
+    for row in due:
+        when = "OVERDUE" if row.overdue else f"{row.days:>4}d"
+        mark = "!!" if row.overdue else ("  " if row.statutory else "· ")
+        print(f"{mark} {row.when}  {when:>7}  {row.ref}  "
+              f"{row.client[:28]:30s} {row.what}")
+
+    if unplaced:
+        # NAMED, NOT DROPPED. An engagement whose form or year we cannot read
+        # has an UNKNOWN deadline, and leaving it off the board says the season
+        # is quieter than it is.
+        print(f"\n  {len(unplaced)} could not be placed on a date "
+              f"(no federal form or no tax year): " + ", ".join(unplaced))
+    if unreadable:
+        print(f"  {len(unreadable)} record(s) could not be read: "
+              + ", ".join(unreadable))
+    return 0
+
+
 def cmd_engagements(args) -> int:
     rows = engagements.listing(Path(args.store) if args.store else engagements.STORE)
     if not rows:
@@ -2283,6 +2334,15 @@ def main(argv=None) -> int:
                     help="the envelope or request id, for a signing service")
     sg.add_argument("--store")
     sg.set_defaults(fn=cmd_sign)
+
+    sn = sub.add_parser("season",
+                        help="what is due across every engagement, soonest first")
+    sn.add_argument("--within", type=int, metavar="DAYS",
+                    help="only what falls in the next DAYS. Omit for everything.")
+    sn.add_argument("--today", metavar="YYYY-MM-DD",
+                    help="pretend it is this day, for looking ahead")
+    sn.add_argument("--store")
+    sn.set_defaults(fn=cmd_season)
 
     e = sub.add_parser("engagements", help="list what exists")
     e.add_argument("--store")

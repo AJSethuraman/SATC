@@ -16,6 +16,27 @@
 A procedure written by hand beside software is wrong within a month,
 and nobody finds out until somebody follows it.
 
+## The screen to open first
+
+```
+python cli.py season [--within 21]
+```
+
+What is due across every engagement, soonest first, overdue at the
+top. Everything else in this document acts on ONE engagement; this is
+the only thing that looks at the whole book.
+
+The dates are not typed in anywhere. They are derived from the statute
+— IRC 6072 for the month, IRC 7503 for the shift off a weekend or a
+legal holiday, and DC Emancipation Day, which is why the 2017 and 2022
+individual deadlines were both 18 April. The date a client's papers
+are due is the filing date minus `MATERIALS_LEAD_DAYS`, currently 21.
+
+> **It says what it could not place.** An engagement whose federal
+> form or tax year cannot be read has an UNKNOWN deadline, and it is
+> named at the bottom rather than left off — a board that quietly
+> drops what it could not read says the season is quieter than it is.
+
 ## 1 · Taking on a new client
 
 ```
@@ -410,5 +431,5 @@ as **waiting on the firm**.
 
 Every other command this document names:
 
-`package`, `payments`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `sign`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
+`package`, `payments`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `sign`, `season`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
 

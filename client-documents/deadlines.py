@@ -187,3 +187,98 @@ def season(tax_year: int) -> list[Milestone]:
         out.append(Milestone(filing_date(rt, tax_year, extended=True),
                              "extended return due", rt, "extended"))
     return sorted(out, key=lambda m: (m.when, m.return_type, m.kind))
+
+
+# ── the board: the season across the whole book ───────────────────────────
+#
+# EVERYTHING THIS SOFTWARE DOES WELL HAPPENS TO ONE ENGAGEMENT AT A TIME.
+# Nothing looked across the book and said what season it is. That is the thing
+# a person otherwise holds in their head through February, and the thing that
+# makes extensions a decision rather than a scramble.
+
+@dataclass(frozen=True)
+class Due:
+    """One engagement against one date."""
+
+    ref: str
+    client: str
+    return_type: str
+    when: date
+    what: str
+    kind: str
+    days: int | None          # None when we cannot tell — never a zero
+
+    @property
+    def overdue(self) -> bool:
+        return self.days is not None and self.days < 0
+
+    @property
+    def statutory(self) -> bool:
+        return self.kind in ("filing", "extended")
+
+
+# How an engagement's federal form answers map onto a filing date. The
+# interview asks `federal_form`; the settings key is spelled differently, and
+# the two have to meet somewhere.
+_FORM_TO_TYPE = {
+    "1040": "individual_1040",
+    "1065": "partnership_1065",
+    "1120S": "s_corp_1120s",
+    "1120": "c_corp_1120",
+}
+
+
+def return_type_for(record: dict) -> str | None:
+    """Which filing date an engagement's record falls under, or None.
+
+    NONE RATHER THAN A GUESS. An engagement whose form we cannot read has an
+    unknown deadline, and putting it under 15 April because most returns are
+    is how a 1065 misses 15 March.
+    """
+    form = str(record.get("FederalForm") or record.get("federal_form") or "").strip()
+    form = form.replace("Form ", "").replace("form ", "").strip()
+    return _FORM_TO_TYPE.get(form.upper())
+
+
+def board(records: list[tuple[str, dict]], *, today: date | None = None,
+          within_days: int | None = None) -> tuple[list[Due], list[str]]:
+    """``(what is due, refs we could not place)``, soonest first.
+
+    THE SECOND RETURN VALUE IS THE POINT AS MUCH AS THE FIRST. A board that
+    silently drops the engagements it could not read is a board that says the
+    season is quieter than it is -- which is this project's oldest bug wearing
+    a new hat. Every ref that could not be placed comes back so the caller can
+    print it, per S2: a check reports its denominator.
+    """
+    now = today or date.today()
+    due: list[Due] = []
+    unplaced: list[str] = []
+
+    for ref, record in records:
+        return_type = return_type_for(record)
+        tax_year = record.get("TaxYear") or record.get("tax_year")
+        try:
+            tax_year = int(str(tax_year).strip())
+        except (TypeError, ValueError):
+            tax_year = None
+        if return_type is None or tax_year is None:
+            unplaced.append(ref)
+            continue
+
+        client = str(record.get("ClientFullName") or record.get("EntityName")
+                     or "(no name)")
+        for milestone in (
+            Milestone(materials_deadline(return_type, tax_year), "papers due in",
+                      return_type, "materials"),
+            Milestone(filing_date(return_type, tax_year), "return due",
+                      return_type, "filing"),
+        ):
+            days = (milestone.when - now).days
+            if within_days is not None and days > within_days:
+                continue
+            due.append(Due(ref=ref, client=client, return_type=return_type,
+                           when=milestone.when, what=milestone.what,
+                           kind=milestone.kind, days=days))
+
+    due.sort(key=lambda d: (d.when, d.ref, d.kind))
+    return due, unplaced

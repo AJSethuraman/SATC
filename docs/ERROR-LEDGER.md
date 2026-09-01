@@ -69,3 +69,30 @@ Entry 17 is the one to keep in view. It is the project's own recurring bug shape
 *a claim in one place, behaviour in another, and nothing comparing them* — with the
 agent as the claim. The fix was going to be checked against a benchmark that ran a
 code path production does not use, and every number would have been true.
+
+
+## Session of 1 September 2026 — the calendar, and a new way to get it wrong
+
+| # | The error | What caught it |
+|---|---|---|
+| 24 | **Ran `git add -A` while two agents were writing to the same working tree.** Both of their finished changes were swept into a commit whose message describes only my own work — the classifier's new document type and the whole document-chase feature are inside a commit called "The tax calendar, derived from the statute instead of remembered", and it is pushed | Both agents, independently, in their reports |
+| 25 | Named a new module `calendar.py`. It shadows the standard library's, which `datetime.strptime` reaches for, so every date the package parsed broke the moment the file existed — and this repo already carries `requests.py` shadowing the HTTP library | The first test run |
+| 26 | Wrote `assert got.weekday() == 0 or True`, which asserts nothing at all, in a test whose name claimed to cover weekend handling. Then picked a date that lands on a Monday, so the case it named could not arise | Mutation testing |
+| 27 | A test named "an engagement with no form is named rather than dropped" that passed for the wrong reason — its fixture had no tax year either, so a form silently defaulting to `individual_1040` went straight past it | Mutation testing |
+
+**Tally: 2 mutation testing · 2 an agent or a run · 0 reading the code.**
+
+Entry 24 is the new one, and it is a *coordination* failure rather than a coding
+one. Nothing was lost — both agents had finished, and the swept-in work is green
+— but the repository's history now says something untrue about who did what and
+why. The rule it produces: **while an agent is writing to this tree, commit
+named paths, never `-A`.** The agents caught it; I did not notice, because
+`git add -A` reports nothing about what it picked up.
+
+The rationale for the classifier work exists only in that agent's report, which
+is not in the repository. What it found is worth keeping here: the word
+*disengagement* appears **nowhere** in a rendered disengagement letter — the
+subject line is "Ending our engagement" — so the obvious keyword would have read
+as the load-bearing signal and never once fired. And `"disengagement"` contains
+`"engagement"`, so the filename rung was returning `Engagement letter` for
+`SATC Disengagement Letter.pdf`.

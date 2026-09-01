@@ -214,3 +214,104 @@ def test_a_date_is_written_the_way_the_firm_writes_it():
 
     assert st._spoken(date(2027, 3, 5)) == "March 5, 2027"
     assert st._spoken(date(2027, 3, 25)) == "March 25, 2027"
+
+
+# ── the board ────────────────────────────────────────────────────────────────
+#
+# EVERYTHING ELSE IN THIS SOFTWARE ACTS ON ONE ENGAGEMENT. Nothing looked across
+# all of them and said what season it is — the thing a person otherwise holds in
+# their head through February.
+
+def _rec(name, form=None, year=2026):
+    out = {"ClientFullName": name, "TaxYear": year}
+    if form:
+        out["FederalForm"] = form
+    return out
+
+
+def test_the_board_puts_each_engagement_under_its_own_filing_date():
+    """A 1065 is due 15 March and a 1040 is due 15 April. Sorting the book by
+    one date because most returns use it is how the entity work gets missed."""
+    due, _ = taxcal.board(
+        [("2026-0001", _rec("Riverbend Partners", "1065")),
+         ("2026-0002", _rec("Marcus Ellwood", "1040"))],
+        today=date(2027, 2, 18))
+    filings = {d.ref: d.when for d in due if d.kind == "filing"}
+    assert filings == {"2026-0001": date(2027, 3, 15),
+                       "2026-0002": date(2027, 4, 15)}
+
+
+def test_an_engagement_with_no_form_is_named_rather_than_dropped():
+    """THE POINT OF THE SECOND RETURN VALUE. A board that silently omits what it
+    could not read says the season is quieter than it is — this project's oldest
+    bug wearing a new hat. An unreadable engagement has an UNKNOWN deadline."""
+    due, unplaced = taxcal.board(
+        [("2026-0001", _rec("Marcus Ellwood", "1040")),
+         ("2026-0009", {"ClientFullName": "Half-Finished Sitting"})],
+        today=date(2027, 2, 18))
+    assert unplaced == ["2026-0009"]
+    assert all(d.ref == "2026-0001" for d in due)
+
+
+def test_a_form_the_calendar_does_not_know_is_not_assumed_to_be_a_1040():
+    """FOUND BY MUTATION TESTING, and the test above did not catch it. That one
+    uses a record with no year either, so it lands in `unplaced` for the wrong
+    reason and a form defaulting to `individual_1040` slipped straight past it.
+
+    A 990 or a 706 under 15 April is a wrong deadline stated confidently, which
+    is worse than an unknown one stated plainly.
+    """
+    due, unplaced = taxcal.board(
+        [("2026-0007", _rec("A Foundation", "990"))], today=date(2027, 2, 18))
+    assert unplaced == ["2026-0007"]
+    assert due == []
+    assert taxcal.return_type_for({"FederalForm": "990"}) is None
+
+
+def test_an_unreadable_year_is_not_guessed_either():
+    """A form with no tax year cannot be placed. Assuming the current one is a
+    guess about a deadline, which is the one kind of guess this must not make."""
+    _, unplaced = taxcal.board(
+        [("2026-0004", {"ClientFullName": "No Year", "FederalForm": "1040"})],
+        today=date(2027, 2, 18))
+    assert unplaced == ["2026-0004"]
+
+
+def test_a_form_spelled_the_interview_way_is_read_too():
+    """The interview answers `federal_form`; the record carries `FederalForm`.
+    A board that reads only one of them shows half the book."""
+    due, unplaced = taxcal.board(
+        [("2026-0002", {"ClientFullName": "M E", "federal_form": "1040",
+                        "tax_year": 2026})],
+        today=date(2027, 2, 18))
+    assert not unplaced and due
+
+
+def test_a_date_already_past_is_overdue_not_hidden():
+    """Sorting it off the bottom of the list is the same as not saying it."""
+    due, _ = taxcal.board([("2026-0001", _rec("Riverbend Partners", "1065"))],
+                          today=date(2027, 3, 20))
+    past = [d for d in due if d.overdue]
+    assert len(past) == 2, "both the papers date and the filing date are behind us"
+    assert all(d.days < 0 for d in past)
+
+
+def test_a_window_hides_the_far_future_and_not_the_past():
+    """`--within 40` is "what do I need to think about", and something already
+    overdue is exactly that. Filtering it out with the far future would be the
+    wrong half."""
+    due, _ = taxcal.board([("2026-0001", _rec("Riverbend Partners", "1065")),
+                           ("2026-0002", _rec("Marcus Ellwood", "1040"))],
+                          today=date(2027, 3, 20), within_days=10)
+    assert any(d.overdue for d in due), "the overdue rows were filtered away"
+    assert not any(d.when == date(2027, 4, 15) for d in due)
+
+
+def test_a_statutory_date_is_distinguishable_from_a_firm_one():
+    """Missing a filing date is a legal problem; missing a papers date is a firm
+    problem. A board that shows them identically teaches the reader to treat
+    both as soft, and it is the statutory one that cannot be soft."""
+    due, _ = taxcal.board([("2026-0002", _rec("Marcus Ellwood", "1040"))],
+                          today=date(2027, 2, 18))
+    kinds = {d.kind: d.statutory for d in due}
+    assert kinds == {"materials": False, "filing": True}
