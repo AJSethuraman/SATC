@@ -525,3 +525,106 @@ def test_the_note_says_which_pages_were_not_read(tmp_path):
     said = _skipped_note(reader.skipped_pages)
     assert "1, 3" in said and "not read" in said
     assert _skipped_note([]) == "", "it must say nothing when it skipped nothing"
+
+
+# -- where the figure came from ----------------------------------------------
+
+def test_a_value_is_cited_to_the_page_it_was_read_from(tmp_path):
+    """`SourceRef.page` has always existed, documented as "1-based page within a
+    source PDF", and nothing ever filled it — so every citation in a workpaper
+    read `Doc <id>` with no page.
+
+    THE COST, MEASURED: $200,000 of wages lifted off page 7 of a blank W-2 — an
+    instructions page — was cited to the preparer identically to a figure read
+    off the form. The page is the one fact that would have told those two apart
+    at the review step instead of in a measurement three weeks later.
+    """
+    from satc.config import load_extraction_map
+    from satc.ingest.extractors.mapping import MapExtractor
+
+    filled = ("22222 a Employee identification "
+              "1 Wages, tips, other compensation 61,240.55 "
+              "2 Federal income tax withheld 7,118.20 "
+              "Form W-2 Wage and Tax Statement 2026")
+    path = _page(tmp_path, "IMG_4471.pdf", NOTICE, filled)
+
+    cfg = load_extraction_map("w2")
+    got = TextAnchorReader(cfg).read(str(path))
+    staged = MapExtractor(cfg).extract(
+        document_id="IMG_4471.pdf", client_id="C1", tax_year=2026,
+        labeled_fields=got.labeled_fields, confidences=got.confidence_map(),
+        pages=got.pages)
+
+    assert staged.fields, "nothing was staged — this check examined nothing"
+    for field in staged.fields:
+        assert field.provenance.source_ref.page == 2, (
+            f"{field.label} cited to page {field.provenance.source_ref.page}, "
+            f"and the form is on page 2")
+
+
+def test_a_reader_that_cannot_say_which_page_says_nothing_rather_than_one():
+    """Empty rather than wrong. A reader with no page keeps its labels out of
+    `pages`, and the citation stays as bare as it always was — which is honest.
+    Defaulting to page 1 would put a confident number on a guess."""
+    from satc.ingest.readers.base import ReadResult
+
+    got = ReadResult(labeled_fields={"Box 1": "100"}, backend="whatever")
+    assert got.pages == {}
+
+
+def test_the_page_survives_the_extractor_per_field_not_per_document(tmp_path):
+    """`MapExtractor.extract` took ONE page for the whole document, and no
+    caller ever passed it. A consolidated statement has its 1099-INT on one page
+    and its 1099-DIV on another; one number for the document is wrong for at
+    least one of them."""
+    from satc.config import load_extraction_map
+    from satc.ingest.extractors.mapping import MapExtractor
+
+    cfg = load_extraction_map("w2")
+    staged = MapExtractor(cfg).extract(
+        document_id="d", client_id="C1", tax_year=2026,
+        labeled_fields={"Box 1 - Wages, tips, other comp": "100.00",
+                        "Box 2 - Federal income tax withheld": "20.00"},
+        pages={"Box 1 - Wages, tips, other comp": 3})
+
+    by_label = {f.label: f.provenance.source_ref.page for f in staged.fields}
+    assert set(by_label.values()) == {3, None}, (
+        f"one page was applied to every field: {by_label}")
+
+
+def test_intake_carries_the_page_all_the_way_into_the_workpaper(tmp_path, monkeypatch):
+    """THE WIRING, END TO END. Mutation testing removed the one argument that
+    passes pages out of the reader and into the record, and every other test
+    here still passed — they call the reader and the extractor directly, which
+    proves the parts and not the path.
+
+    This is the same gap the time log had. It is the shape of the whole week:
+    the pieces agree with each other and nothing runs the thing a person runs.
+    """
+    pytest.importorskip("flask")
+    pytest.importorskip("reportlab")
+    from satc.app.state import AppState
+
+    monkeypatch.setenv("SATC_DATA_DIR", str(tmp_path / "data"))
+    filled = ("22222 a Employee identification "
+              "1 Wages, tips, other compensation 61,240.55 "
+              "2 Federal income tax withheld 7,118.20 "
+              "Form W-2 Wage and Tax Statement 2026")
+    folder = tmp_path / "drop"
+    folder.mkdir()
+    doc = _page(folder, "IMG_4471.pdf", NOTICE, filled)
+    assert doc.exists()
+
+    state = AppState()
+    state.run_intake(str(folder), client_id="SATC-001000", tax_year=2026)
+
+    staged = [f for f in state.gate.pending()
+              if f.provenance.source_ref.document_id == "IMG_4471.pdf"] \
+        if hasattr(state.gate, "pending") else []
+    if not staged:                       # the gate's shape differs by build
+        staged = [f for d in getattr(state.gate, "documents", []) for f in d.fields
+                  if f.provenance.source_ref.document_id == "IMG_4471.pdf"]
+
+    assert staged, "intake staged nothing from the document — examined nothing"
+    pages = {f.provenance.source_ref.page for f in staged}
+    assert pages == {2}, f"cited to {pages}, and the form is on page 2"

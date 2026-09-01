@@ -30,6 +30,19 @@ class ReadResult:
     labeled_fields: dict[str, str] = field(default_factory=dict)
     uncertain_labels: set[str] = field(default_factory=set)
     backend: str = ""
+    # WHICH PAGE EACH VALUE CAME OFF, by label. `SourceRef.page` has always been
+    # there, documented as "1-based page within a source PDF", and nothing ever
+    # filled it -- so every citation in a workpaper read `Doc <id>` with no page.
+    #
+    # THE COST, MEASURED 31 AUGUST 2026: $200,000 of wages lifted off page 7 of a
+    # blank W-2 -- an instructions page -- was cited to the preparer identically
+    # to a figure read off the form. The page is the one fact that would have
+    # made those two look different at the review step instead of in a
+    # measurement three weeks later.
+    #
+    # Empty rather than wrong: a reader that cannot say which page keeps its
+    # labels out of here, and the citation stays as bare as it always was.
+    pages: dict[str, int] = field(default_factory=dict)
     # Was this read produced WITHOUT a model? Form fields, a text-layer regex and
     # Tesseract are deterministic: the same document gives the same answer twice.
     # A vision model is not, however sure it sounds.

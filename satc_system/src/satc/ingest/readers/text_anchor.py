@@ -76,7 +76,42 @@ class TextAnchorReader:
         self.skipped_pages: list[int] = []
 
     def read(self, source: str) -> ReadResult:
-        return self.read_text(self._page_text(Path(source)))
+        """Anchor page by page, so every value knows where it came from.
+
+        IT USED TO ANCHOR OVER THE JOIN of every page at once, which is how the
+        page number could never be filled in -- by the time a value was found
+        there was no page left to attribute it to. Reading each page separately
+        costs nothing (the same text is scanned either way) and turns
+        `Doc fw2.pdf` into `Doc fw2.pdf p.2`.
+
+        FIRST PAGE TO YIELD A LABEL WINS. A W-2 carries six copies of the same
+        form and each would answer for Box 1; taking the first is the same value
+        the join produced, now with a page against it.
+        """
+        from satc.ingest.pages import split_pages
+
+        path = Path(source)
+        if self.page is not None:
+            got = self.read_text(self._page_text(path))
+            got.pages = {label: self.page for label in got.labeled_fields}
+            return got
+
+        kept, dropped = split_pages(path)
+        self.skipped_pages = list(dropped)
+        if not kept:
+            return self.read_text("")
+
+        merged = ReadResult(backend="TextAnchorReader", deterministic=True)
+        for number, text in kept:
+            page_result = self.read_text(text)
+            for label, value in page_result.labeled_fields.items():
+                if label in merged.labeled_fields:
+                    continue
+                merged.labeled_fields[label] = value
+                merged.pages[label] = number
+                if label in page_result.uncertain_labels:
+                    merged.uncertain_labels.add(label)
+        return merged
 
     def read_text(self, text: str) -> ReadResult:
         """Core extraction over already-read text (unit-testable, no PDF)."""

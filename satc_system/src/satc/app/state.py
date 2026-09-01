@@ -348,7 +348,13 @@ class AppState:
                         continue
                     staged = MapExtractor(cfg).extract(
                         document_id=doc_id, client_id=client_id, tax_year=tax_year,
-                        labeled_fields=result.labeled_fields, confidences=result.confidence_map())
+                        labeled_fields=result.labeled_fields,
+                        confidences=result.confidence_map(),
+                        # WHERE EACH FIGURE CAME FROM. The workpaper cited every
+                        # value as `Doc <id>` with no page, so $200,000 lifted
+                        # off an instructions page looked exactly like a figure
+                        # read off the form. See ReadResult.pages.
+                        pages=result.pages)
                     staged.source_path = str(path)        # retain the file for compare-to-source
                     if parts:
                         staged.source_note = doc_id        # which part of the combined PDF
