@@ -312,3 +312,70 @@ def test_an_unplaceable_document_cannot_close_a_request_with_a_blank_client(tmp_
     assert all(a.satisfied == "" for a in rep.drops[0].arrivals)
     assert [d.status for d in store.load_mart().documents] == ["Requested"], \
         "a document we could not place closed a request with a blank client"
+
+
+# -- how long a client's upload lives -----------------------------------------
+#
+# SEVEN YEARS, and it is a transcription rather than a choice: the firm's
+# engagement letters already promise "we keep copies of your records and our
+# work papers for seven years". NOTHING DELETES. The firm said never delete on
+# ingest; removing a client's documents unattended is not something this
+# software does, so the period is reported and a person acts on it.
+
+def _aged_drop(tmp_path, ages_in_days):
+    import os
+    import time
+
+    from satc.collect import Drop
+
+    folder = tmp_path / "2026-0001 — Maplewood"
+    folder.mkdir(parents=True)
+    files = []
+    for i, days in enumerate(ages_in_days):
+        f = folder / f"doc{i}.pdf"
+        f.write_bytes(b"%PDF-1.4\n")
+        os.utime(f, (time.time() - days * 86400,) * 2)
+        files.append(f)
+    return Drop(path=folder, ref="2026-0001", label="Maplewood", files=tuple(files))
+
+
+def test_a_file_older_than_the_retention_period_is_reported():
+    from satc.collect import RETENTION_YEARS
+    assert RETENTION_YEARS == 7, "the period the engagement letter already promises"
+
+
+def test_only_the_files_past_the_period_are_named(tmp_path):
+    from satc.collect import _past_retention
+
+    drop = _aged_drop(tmp_path, [30, 8 * 365, 3 * 365, 9 * 365])
+    assert _past_retention(drop) == ["doc1.pdf", "doc3.pdf"]
+
+
+def test_a_file_exactly_at_the_period_is_not_yet_past_it(tmp_path):
+    """ON the boundary, not near it. Written a day inside first, which pinned
+    nothing: `<` and `<=` both passed it. An off-by-one here reports a client's
+    documents expired a day early, which is the direction that loses things."""
+    from satc.collect import RETENTION_DAYS, _past_retention
+
+    assert _past_retention(_aged_drop(tmp_path / "on", [RETENTION_DAYS])) == []
+    assert _past_retention(_aged_drop(tmp_path / "past", [RETENTION_DAYS + 1])) \
+        == ["doc0.pdf"]
+
+
+def test_reporting_them_does_not_remove_them(tmp_path):
+    """The assertion that matters. Everything else here is arithmetic."""
+    from satc.collect import _past_retention
+
+    drop = _aged_drop(tmp_path, [9 * 365, 9 * 365])
+    _past_retention(drop)
+    assert all(f.exists() for f in drop.files)
+
+
+def test_a_file_that_cannot_be_read_is_not_judged(tmp_path):
+    """A OneDrive placeholder with no local bytes has no honest date, and
+    guessing one would report a document expired that nobody has seen."""
+    from satc.collect import Drop, _past_retention
+
+    missing = tmp_path / "gone.pdf"
+    drop = Drop(path=tmp_path, ref="2026-0001", label="X", files=(missing,))
+    assert _past_retention(drop) == []

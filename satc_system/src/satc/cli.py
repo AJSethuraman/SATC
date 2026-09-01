@@ -94,6 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "collect":
         import os
 
+        from satc import collect as collect_mod
         from satc.collect import SyncedFolder, collect
         from satc.ingest.client_library import library_root
 
@@ -131,6 +132,14 @@ def main(argv: list[str] | None = None) -> int:
                 # filed as Unclassified and never seen again.
                 print(f"      {name:<24} NOT DOWNLOADED — right-click it in "
                       f"Explorer and choose Always keep on this device")
+            if dr.aged:
+                # REPORTED, NEVER REMOVED. See collect.RETENTION_YEARS -- the
+                # period is the one the engagement letter already promises, and
+                # deleting a client's documents is a person's act, not a run's.
+                shown = ", ".join(dr.aged[:3])
+                more = f" (+{len(dr.aged) - 3} more)" if len(dr.aged) > 3 else ""
+                print(f"      · {len(dr.aged)} file(s) past {collect_mod.RETENTION_YEARS} "
+                      f"years: {shown}{more}")
             if dr.unresolved:
                 print(f"      ! {dr.unresolved}")
         print(f"\n  {report.collected} document(s)"

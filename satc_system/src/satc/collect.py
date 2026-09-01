@@ -42,6 +42,7 @@ import re
 import shutil
 import tempfile
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Protocol
 
@@ -58,6 +59,19 @@ REF = re.compile(r"\b(\d{4}-\d{4})\b")
 # never in the client's upload folder: writing into a folder the client can see
 # is both a surprise to them and a file we would then have to keep correct.
 LEDGER = ".satc-collected.json"
+
+# HOW LONG A CLIENT'S UPLOAD LIVES IN THE DROP FOLDER. Seven years, and this is
+# a transcription rather than a choice: the firm's engagement letters already
+# promise, in their own words, that "we keep copies of your records and our work
+# papers for seven years". The software matching what the client was told beats
+# the software picking its own number.
+#
+# NOTHING HERE DELETES ANYTHING. `collect` reports which drop folders hold files
+# past this and stops. Removing a client's documents unattended is not a thing
+# this software will do -- SharePoint's own expiry does that, set by a person
+# who can see what they are about to remove. The firm, on ingest: never delete.
+RETENTION_YEARS = 7
+RETENTION_DAYS = RETENTION_YEARS * 365
 
 
 @dataclass(frozen=True)
@@ -139,6 +153,9 @@ class DropReport:
     arrivals: list[Arrival] = field(default_factory=list)
     not_downloaded: list[str] = field(default_factory=list)
     unresolved: str = ""          # why this folder could not be placed
+    # Files in the client's own upload folder older than RETENTION_YEARS.
+    # Reported so somebody can clear them; never touched here.
+    aged: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -154,6 +171,24 @@ class Report:
     @property
     def refused(self) -> int:
         return sum(len(d.not_downloaded) for d in self.drops)
+
+
+def _past_retention(drop: Drop, *, today: date | None = None) -> list[str]:
+    """Files in the client's own folder older than the firm's retention period.
+
+    NAMES ONLY, and never the contents. Reported so a person can clear them;
+    see RETENTION_YEARS for why nothing here deletes.
+    """
+    cutoff = (today or date.today()) - timedelta(days=RETENTION_DAYS)
+    out = []
+    for path in drop.files:
+        try:
+            when = date.fromtimestamp(path.stat().st_mtime)
+        except OSError:
+            continue          # a file we cannot stat is not a file we may judge
+        if when < cutoff:
+            out.append(path.name)
+    return out
 
 
 def _digest(path: Path) -> str:
@@ -218,6 +253,7 @@ def collect(source: Source, *, library: str | Path, apply: bool = False,
 
     for drop in source.drops():
         dr = DropReport(drop=drop)
+        dr.aged = _past_retention(drop)
         report.drops.append(dr)
         if store is not None and drop.ref:
             dr.client_id = store.client_for_ref(drop.ref) or ""

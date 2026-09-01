@@ -188,8 +188,14 @@ regenerates every January without anyone having to remember four dates.
   **fourth** spelling, distinct from the three already in the repo. Four
   variants across the firm's own documents; only one is on the Ohio filing.
 - **Record retention: seven years.** The engagement letter states records and
-  work papers are kept for up to seven years and then destroyed. The repo's
-  templates say nothing about retention.
+  work papers are kept for up to seven years and then destroyed. *(The last
+  sentence here used to read "The repo's templates say nothing about
+  retention." Measured 31 Aug 2026: all four engagement letter templates carry
+  "we keep copies of your records and our work papers for seven years", and it
+  is one of the phrases the classifier now uses to recognise them.
+  `satc.collect.RETENTION_YEARS` is set from it rather than chosen separately —
+  the software matching what the client was told beats the software picking its
+  own number.)*
 - **Payment terms: net thirty, interest thereafter.** "Invoices are due and
   payable upon presentation of the Final Invoice. All accounts not paid within
   thirty (30) days are subject to interest charges to the extent permitted by
