@@ -359,3 +359,57 @@ def test_the_filename_rung_is_the_only_one_that_answers_LOW():
         "Form W-2 Wage and Tax Statement. 1 Wages, tips, other compensation. "
         "5 Medicare wages and tips.")
     assert verdict is not None and verdict.confidence != "LOW"
+
+
+# -- the same $200,000, arriving by OCR ---------------------------------------
+
+def test_the_ocr_reader_skips_guidance_pages_too(tmp_path, monkeypatch):
+    """THE TEXT PATH WAS FIXED AND THIS ONE WAS NOT. `TesseractOcrReader` OCR'd
+    every page and anchored over the concatenation, so a SCANNED eleven-page
+    W-2 still put `medicare wages and tips ... above $200,000` in front of the
+    anchor -- the same figure, through a different rung.
+
+    Less dangerous than the text path, because every OCR field is flagged for
+    review and none auto-confirm. Still not a working document reader: a
+    preparer shown $200,000 of wages on a blank form has to disbelieve it.
+
+    A scan has no text layer to test, so pages are OCR'd first and judged on
+    what comes out. That costs nothing extra -- the rung already read them all.
+    """
+    from satc.config import load_extraction_map
+    from satc.ingest.readers import ocr as ocr_mod
+    from satc.ingest.readers.ocr import TesseractOcrReader
+
+    path = _page(tmp_path, "scan.pdf", NOTICE, BLANK_W2_PAGE, INSTRUCTIONS)
+    pages = {1: NOTICE, 2: BLANK_W2_PAGE, 3: INSTRUCTIONS}
+    asked: list[int] = []
+
+    def fake_ocr(pdf, number):
+        asked.append(number)
+        return pages[number]
+
+    monkeypatch.setattr(ocr_mod, "ocr_pdf_page_text", fake_ocr, raising=False)
+    monkeypatch.setattr("satc.ingest.ocr.ocr_pdf_page_text", fake_ocr)
+
+    result = TesseractOcrReader(load_extraction_map("w2")).read(str(path))
+
+    assert asked == [1, 2, 3], "every page is still read; only the verdict changes"
+    amounts = {label: value for label, value in result.labeled_fields.items()
+               if value.replace(",", "").replace(".", "").isdigit()}
+    assert amounts == {}, f"a BLANK scan produced figures: {amounts}"
+
+
+def test_an_ocr_read_still_flags_everything_for_review(tmp_path, monkeypatch):
+    """The guarantee that made the bug survivable, kept. OCR is noisy, so no
+    value it produces may auto-confirm however clean it looks."""
+    from satc.config import load_extraction_map
+    from satc.ingest.readers.ocr import TesseractOcrReader
+
+    filled = BLANK_W2_PAGE.replace("1 Wages, tips, other compensation",
+                                   "1 Wages, tips, other compensation 61,000.00")
+    reader = TesseractOcrReader(load_extraction_map("w2"),
+                                text_provider=lambda _: filled)
+    result = reader.read("anything.pdf")
+
+    assert result.labeled_fields, "the check examined nothing"
+    assert set(result.confidence_map().values()) == {"LOW"}
