@@ -67,12 +67,26 @@ def test_who_must_sign_is_read_off_the_templates():
     assert seen["business-letter"] == [("SignerName", "")]
 
 
-def test_a_date_line_is_not_a_second_person():
-    """Every block pairs a signature line with a Date line."""
-    html = (cli.TEMPLATE_DIR / cli.DOCUMENTS["tax-letter"][0]).read_text(
-        encoding="utf-8")
-    assert html.count('class="siglab">Date') == 2
-    assert len(signing.lines_in(html, "tax-letter")) == 2
+def test_every_block_pairs_a_signature_line_with_a_date_line():
+    """WHAT THE DOCSTRING ALREADY CLAIMED. It read "Every block pairs a
+    signature line with a Date line" and then examined ONE template, the tax
+    letter. Five documents carry signature blocks -- the sibling test above
+    proves that set -- so the sentence covered five and the check covered one.
+
+    The claim happened to be true of all five when this was widened (measured,
+    31 Aug 2026). That is the point: it was true by luck, and a Date line
+    dropped from the records release would have left a document with somewhere
+    to sign and nowhere to date. That document is the one that lets a client's
+    records leave the firm.
+    """
+    for doc, (filename, _) in cli.DOCUMENTS.items():
+        html = (cli.TEMPLATE_DIR / filename).read_text(encoding="utf-8")
+        lines = signing.lines_in(html, doc)
+        if not lines:
+            continue
+        dates = html.count('class="siglab">Date')
+        assert dates == len(lines), (
+            f"{doc}: {len(lines)} signature line(s) and {dates} Date line(s)")
 
 
 def test_the_spouse_signs_only_on_a_joint_return(live):

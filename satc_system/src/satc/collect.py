@@ -144,6 +144,10 @@ class Arrival:
     # the client was asked for is still missing.
     awaiting: str = ""
     note: str = ""
+    # Whether this verdict was good enough to CLOSE a request rather than just
+    # to file the document. Carried from the classification so the rule is
+    # stated once -- see Classification.may_close_a_request.
+    may_close: bool = False
 
 
 @dataclass
@@ -284,12 +288,14 @@ def collect(source: Source, *, library: str | Path, apply: bool = False,
                 continue
             fresh.add(digest)
             for arrival in _file_one(path, c, dest_root, lib, classifier, apply):
-                # CLOSE THE LOOP, and only when we are sure whose it is. A
-                # multi-form page satisfies no single request and matching
-                # refuses it at the seam; the year filter is applied inside
+                # CLOSE THE LOOP, and only when we are sure whose it is AND
+                # sure enough what it is. This checked only that the document
+                # had been classified at all, so a LOW verdict off the FILE'S
+                # NAME closed a client's request -- see
+                # Classification.may_close_a_request, which is the one place
+                # that rule is written. The year filter is applied inside
                 # reconcile_received.
-                if apply and store is not None and dr.client_id and \
-                        arrival.method not in ("unclassified", "not downloaded"):
+                if apply and store is not None and dr.client_id and arrival.may_close:
                     from satc.intake import matching
                     from satc.intake.service import (outstanding_parts,
                                                      reconcile_received)
@@ -353,6 +359,7 @@ def _file_one(path: Path, c: Classification, dest_root: Path, lib: Path,
             out.append(Arrival(
                 name=path.name, label=part_c.label, confidence=part_c.confidence,
                 method=part_c.method, tax_year=part_c.tax_year, filed_to=filed,
+                may_close=part_c.may_close_a_request,
                 note="from a combined upload" if len(parts) > 1 else "",
             ))
         return out

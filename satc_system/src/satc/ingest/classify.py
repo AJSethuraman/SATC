@@ -157,6 +157,32 @@ class Classification:
         return self.key is not None
 
     @property
+    def may_close_a_request(self) -> bool:
+        """Good enough to CLOSE a client's open request -- not merely to file it.
+
+        THE TWO ARE DIFFERENT JOBS and the pipeline used to run both off
+        `classified`. Filing a document in the wrong folder is a minute of
+        somebody's time; closing a request says the client has sent a form
+        they have not, and nobody asks for it again.
+
+        Measured 31 Aug 2026: a Schedule C named `2025 Schedule C 1040.pdf`
+        comes back `Prior-year 1040`, LOW, from the FILENAME rung -- and both
+        `state.run_intake` and `collect` handed that to `reconcile_received`,
+        which closed the client's open prior-year request. The content rung
+        had correctly declined to name it at all.
+
+        Three ways a verdict is not good enough, and each is a real case:
+          * it is not a verdict (unclassified, or never downloaded);
+          * it names SEVERAL forms, so it satisfies no single request --
+            see :attr:`multi`, which exists for a consolidated 1099;
+          * it came from the FILE'S NAME, or is LOW for any other reason. A
+            name is a hint for filing. A client's upload is called IMG_4471.pdf
+            and the one that is helpfully named is the one that misleads.
+        """
+        return (self.classified and not self.multi
+                and self.confidence != "LOW" and self.method != "filename")
+
+    @property
     def classified(self) -> bool:
         """True when we identified what this document IS.
 

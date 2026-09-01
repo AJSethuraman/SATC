@@ -48,3 +48,46 @@ def test_intake_reconciles_requested_documents(tmp_path, monkeypatch):
     assert all(d.status == "Requested" for d in income)
     assert outstanding_parts(income[0]), "it should still name what has not arrived"
     assert any("still waiting on" in n for n in summary["notes"])
+
+
+def test_a_filename_only_verdict_does_not_close_a_request_through_intake(
+        tmp_path, monkeypatch):
+    """THE OTHER FRONT DOOR. `collect` has the same test; this is the one that
+    runs when the firm points intake at a folder.
+
+    The gate here read `if c.classified and not c.multi` -- any rung naming the
+    document at all. The FILENAME rung names things it has not read, so a
+    Schedule C called `2025 Schedule C 1040.pdf` came back `Prior-year 1040` at
+    LOW and closed the client's open prior-year request. See
+    `satc.ingest.classify.Classification.may_close_a_request`.
+    """
+    monkeypatch.setenv("SATC_DATA_DIR", str(tmp_path / "data"))
+    state = AppState()
+    state.create_engagement(client_id="SATC-001000",
+                            workflow_key="personal_1040_core",
+                            due_date="2026-04-15", tax_year=2024,
+                            answers={"newSatcClient": "yes"})
+
+    prior = [d for d in state.documents()
+             if d.client_id == "SATC-001000"
+             and "prior" in str(d.doc_type).lower()]
+    assert prior, "the prior-year request should exist"
+
+    # A folder holding ONE document whose text names no form at all, so the
+    # filename is the only thing left to go on.
+    folder = tmp_path / "drop"
+    folder.mkdir()
+    pymupdf = pytest.importorskip("pymupdf")
+    doc = pymupdf.open()
+    doc.new_page().insert_textbox(
+        pymupdf.Rect(36, 36, 560, 740),
+        "Profit or Loss From Business. Gross receipts or sales.", fontsize=10)
+    doc.save(str(folder / "2025 Schedule C 1040.pdf"))
+    doc.close()
+
+    state.run_intake(str(folder), client_id="SATC-001000", tax_year=2024)
+
+    still = [d for d in state.documents()
+             if d.document_id == prior[0].document_id]
+    assert still[0].status == "Requested", (
+        "a LOW filename guess closed the prior-year request")

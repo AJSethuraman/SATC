@@ -379,3 +379,47 @@ def test_a_file_that_cannot_be_read_is_not_judged(tmp_path):
     missing = tmp_path / "gone.pdf"
     drop = Drop(path=tmp_path, ref="2026-0001", label="X", files=(missing,))
     assert _past_retention(drop) == []
+
+
+# -- filing and closing are different jobs ------------------------------------
+
+def test_a_filename_only_verdict_files_the_document_but_closes_nothing(tmp_path):
+    """THE SAME MONEY BUG THROUGH A DIFFERENT DOOR, found by an adversarial
+    review of the page fix. The gate here asked only whether ANY rung had named
+    the document, and the FILENAME rung names things it has not read: a
+    Schedule C called `2025 Schedule C 1040.pdf` comes back `Prior-year 1040`
+    at LOW and closed the client's open prior-year request.
+
+    The document is still collected and still filed -- a helpful name is a fine
+    hint for WHERE to put something. It is not evidence of WHAT it is.
+    """
+    from satc.models.intake import IntakeEngagement
+    from satc.models.mart import DocumentRecord
+    from satc.persistence.store import SATCStore
+
+    root = tmp_path / "up"
+    # Prose that names no form: the content rung must decline, so the filename
+    # is the only thing left to go on.
+    _form(root / "2026-0001 — Maplewood" / "2025 Schedule C 1040.pdf",
+          "Profit or Loss From Business. Gross receipts or sales.")
+
+    store = SATCStore(tmp_path / "db")
+    store.save_intake_engagement(IntakeEngagement(
+        engagement_id="E1", client_id="C1", workflow_key="1040",
+        engagement_ref="2026-0001"))
+    mart = store.load_mart()
+    mart.documents.append(DocumentRecord(
+        document_id="D1", client_id="C1", tax_year=2026,
+        doc_type="Prior-year return", status="Requested",
+        note="Upload prior-year federal and state tax returns"))
+    store.save_mart(mart)
+
+    rep = collect(SyncedFolder(root), library=tmp_path / "lib", apply=True,
+                  store=store)
+    one = rep.drops[0]
+
+    assert one.arrivals, "the document must still be collected"
+    assert one.arrivals[0].method == "filename"
+    assert one.arrivals[0].filed_to, "and still filed somewhere"
+    assert one.arrivals[0].satisfied == "", "a filename guess closed a request"
+    assert [d.status for d in store.load_mart().documents] == ["Requested"]

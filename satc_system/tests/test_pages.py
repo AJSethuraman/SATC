@@ -262,3 +262,100 @@ def test_the_model_readers_ask_for_that_page(tmp_path, monkeypatch):
     vision_mod.VisionDocumentReader({"fields": []})._image_bytes(str(path))
     ollama_mod.OllamaVisionReader({"fields": []})._image_b64(str(path))
     assert asked == [2, 2], asked
+
+
+# -- filing a document and closing a request are different jobs ---------------
+
+def test_a_low_confidence_filename_guess_does_not_close_a_request(tmp_path):
+    """FOUND BY AN ADVERSARIAL REVIEW OF THE PAGE FIX, and it is the same money
+    bug through a different door.
+
+    Both `state.run_intake` and `collect` gated on `classified` -- "did any rung
+    name this?" -- before handing the document to `reconcile_received`. The
+    FILENAME rung names things it has not read. A Schedule C called
+    `2025 Schedule C 1040.pdf` comes back `Prior-year 1040` at LOW, and that
+    closed the client's open prior-year request while the content rung had
+    correctly declined to name the document at all.
+
+    Filing it in the wrong folder costs a minute. Closing the request says the
+    client sent a form they did not, and nobody asks again.
+    """
+    import shutil
+
+    source = _page(tmp_path, "src.pdf", "Profit or Loss From Business.")
+    named = tmp_path / "2025 Schedule C 1040.pdf"
+    shutil.copy(source, named)
+
+    clf = load_classifier()
+    clf.ocr_text_provider = clf.ocr_page_text_provider = None
+    got = clf.classify_path(named)
+
+    assert got.method == "filename" and got.confidence == "LOW", got
+    assert got.classified, "it is still filed under that name"
+    assert not got.may_close_a_request, "a filename guess closed a request"
+
+
+def test_a_read_verdict_still_closes_a_request(tmp_path):
+    """The other half. Making the rule strict enough to stop the filename rung
+    and strict enough to stop everything would be worse than the bug."""
+    body = ("Form W-2 Wage and Tax Statement 2026. 1 Wages, tips, other "
+            "compensation. 5 Medicare wages and tips. Social security wages.")
+    clf = load_classifier()
+    clf.ocr_text_provider = clf.ocr_page_text_provider = None
+    got = clf.classify_path(_page(tmp_path, "IMG_4471.pdf", body))
+
+    assert got.method == "text" and got.may_close_a_request, got
+
+
+def test_several_forms_still_close_nothing(tmp_path):
+    """The rule it was written beside, kept: a consolidated statement satisfies
+    no single request."""
+    div = ("Form 1099-DIV Dividends and Distributions. Box 1a Total ordinary "
+           "dividends. Box 2a Total capital gain distributions.")
+    interest = ("Form 1099-INT Interest Income. Box 1 Interest income. "
+                "Box 4 Federal income tax withheld.")
+    clf = load_classifier()
+    clf.ocr_text_provider = clf.ocr_page_text_provider = None
+    got = clf.classify_path(_page(tmp_path, "consolidated.pdf", div, interest))
+
+    assert got.multi and not got.may_close_a_request
+
+
+def test_a_document_that_was_never_downloaded_closes_nothing():
+    """A OneDrive placeholder is not a document that arrived."""
+    from satc.ingest.classify import NOT_DOWNLOADED
+
+    assert not NOT_DOWNLOADED.may_close_a_request
+
+
+def test_the_filename_rung_is_the_only_one_that_answers_LOW():
+    """WHY `may_close_a_request` TESTS TWO THINGS THAT LOOK LIKE ONE.
+
+    It excludes a LOW verdict AND a filename verdict, and today those are the
+    same set: the filename rung is the only rung that returns LOW. Mutation
+    testing found it -- removing either condition changed nothing, because the
+    other still caught the case.
+
+    Both are kept, because they guard different futures: a new rung that
+    answers LOW, and a filename rung that one day answers better than LOW. This
+    test pins the fact that makes them redundant TODAY, so if it stops being
+    true somebody re-reads that property instead of discovering it in a
+    client's closed request.
+    """
+    clf = load_classifier()
+    lows = {dt.label for dt in clf.doc_types}
+    assert lows, "no configured types at all — the check examined nothing"
+
+    for label in sorted(lows):
+        for hint in next(dt.filename_hints for dt in clf.doc_types
+                         if dt.label == label):
+            got = clf._by_filename(f"{hint}.pdf")
+            if got is not None:
+                assert got.confidence == "LOW", (
+                    f"the filename rung answered {got.confidence} for {hint!r}")
+
+    # And the rungs that are not the filename never answer LOW.
+    verdict = clf.classify_text(
+        "Form W-2 Wage and Tax Statement. 1 Wages, tips, other compensation. "
+        "5 Medicare wages and tips.")
+    assert verdict is not None and verdict.confidence != "LOW"
