@@ -76,7 +76,13 @@ def test_a_model_read_never_auto_confirms(tmp_path):
     from satc.ingest import read_and_stage
     from satc.ingest.staging_gate import StagingGate
     from satc.ingest.readers.vision import VisionDocumentReader
-    from tests.test_readers import _FakeClient, _png, load_extraction_map
+    # NOT `from tests.test_readers import ...`. There is no `tests/__init__.py`,
+    # so `tests` only resolves as a namespace package when the working directory
+    # happens to be on sys.path -- true under `python -m pytest`, false under
+    # the bare `pytest` that CI runs. It passed locally and failed in CI for
+    # three commits. pytest puts the test file's own directory on sys.path, so
+    # the sibling module is importable by its plain name anywhere.
+    from test_readers import _FakeClient, _png, load_extraction_map
 
     cfg = load_extraction_map("w2")
     reader = VisionDocumentReader(cfg, client=_FakeClient({

@@ -28,9 +28,23 @@ def test_intake_reconciles_requested_documents(tmp_path, monkeypatch):
     folder = create_sample_folder(tmp_path / "Clients" / "2024")
     summary = state.run_intake(str(folder), client_id="SATC-001000", tax_year=2024)
 
-    # The arriving W-2 satisfied the core-income request -> at least one closed.
+    # The arriving documents found the requests they belong to.
     assert summary["reconciled"] >= 1
-    received = [d for d in state.documents()
-                if d.client_id == "SATC-001000" and d.status == "Received"]
-    assert any("income" in d.doc_type.lower() for d in received)
-    assert any("satisfies your request" in n for n in summary["notes"])
+
+    # AND THE CORE-INCOME REQUEST STAYS OPEN, because it names five forms and
+    # two of them arrived. This assertion used to read
+    #
+    #     assert any("income" in d.doc_type.lower() for d in received)
+    #
+    # over documents whose status was "Received" -- so it asserted that a W-2
+    # and a 1099-INT closed a request reading "Upload Forms W-2, 1099-INT,
+    # 1099-DIV, 1099-B, 1099-G", and the client was never asked for the other
+    # three. See satc.intake.service.reconcile_received.
+    from satc.intake.service import outstanding_parts
+
+    income = [d for d in state.documents()
+              if d.client_id == "SATC-001000" and "income" in str(d.doc_type).lower()]
+    assert income, "the core-income request should exist"
+    assert all(d.status == "Requested" for d in income)
+    assert outstanding_parts(income[0]), "it should still name what has not arrived"
+    assert any("still waiting on" in n for n in summary["notes"])
