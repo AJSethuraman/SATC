@@ -71,6 +71,9 @@ class TextAnchorReader:
         self.field_specs = config.get("fields", [])
         self.page = page
         self.window = window
+        # Which pages the page rule dropped on the last read, so a caller can
+        # say so. Empty on every single-page document, which is most of them.
+        self.skipped_pages: list[int] = []
 
     def read(self, source: str) -> ReadResult:
         return self.read_text(self._page_text(Path(source)))
@@ -134,13 +137,19 @@ class TextAnchorReader:
         try:
             from pypdf import PdfReader
 
-            from satc.ingest.pages import is_guidance
+            from satc.ingest.pages import split_pages
 
-            reader = PdfReader(str(path))
             if self.page is not None:
+                reader = PdfReader(str(path))
                 return reader.pages[self.page - 1].extract_text() or ""
-            texts = [(pg.extract_text() or "") for pg in reader.pages]
-            form = [t for t in texts if not is_guidance(t)]
-            return "\n".join(form or texts)
+            kept, dropped = split_pages(path)
+            # RECORDED, NOT SILENT. The firm asked the right question of this
+            # rule: a client's own W-2 has no instruction pages, so what stops
+            # the software dropping a page that had something on it? Two things
+            # -- a page carrying form fields is never dropped, and when a page
+            # IS dropped the reader says which, so it shows up in the note
+            # beside the values rather than being discovered later.
+            self.skipped_pages = list(dropped)
+            return "\n".join(t for _, t in kept)
         except Exception:  # noqa: BLE001 - no text layer / unreadable => empty
             return ""

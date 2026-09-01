@@ -413,3 +413,115 @@ def test_an_ocr_read_still_flags_everything_for_review(tmp_path, monkeypatch):
 
     assert result.labeled_fields, "the check examined nothing"
     assert set(result.confidence_map().values()) == {"LOW"}
+
+
+# -- the firm's question: a client's W-2 has no instruction pages -------------
+#
+# "OCR -- why ignore pages. Like the instructions won't be there when a client
+#  gives us a w2. How do we account for that we can't skip pages"
+#
+# Three answers, one per test. The rule does not fire on what clients send; a
+# page carrying form fields is never dropped whatever it says; and when a page
+# IS dropped the software says which, so the rule is not taken on trust.
+
+def test_a_clients_own_w2_has_nothing_to_skip(tmp_path):
+    """What a client actually sends: one page, filled, from a payroll portal.
+    No notice, no instructions, nothing to drop -- and every box still read."""
+    from satc.config import load_extraction_map
+
+    filled = (
+        "22222 a Employee's social security number "
+        "b Employer identification number (EIN) 34-1234567 "
+        "c Employer's name, address, and ZIP code MAPLEWOOD DENTAL LLC "
+        "1 Wages, tips, other compensation 61,240.55 "
+        "2 Federal income tax withheld 7,118.20 "
+        "3 Social security wages 61,240.55 "
+        "5 Medicare wages and tips 61,240.55 "
+        "Form W-2 Wage and Tax Statement 2026 Department of the Treasury")
+    path = _page(tmp_path, "IMG_4471.pdf", filled)
+
+    kept, dropped = __import__("satc.ingest.pages", fromlist=["x"]).split_pages(path)
+    assert [n for n, _ in kept] == [1] and dropped == [], "it skipped a client's only page"
+
+    reader = TextAnchorReader(load_extraction_map("w2"))
+    got = reader.read(str(path))
+    assert got.labeled_fields["Box 1 - Wages, tips, other comp"] == "61240.55"
+    assert got.labeled_fields["Box 2 - Federal income tax withheld"] == "7118.20"
+    assert reader.skipped_pages == []
+
+
+def test_a_page_carrying_form_fields_is_never_dropped(tmp_path):
+    """THE INSURANCE. The text rule alone could drop a real page laid out
+    differently from the IRS's own blanks. A page with fillable fields on it is
+    the form, whatever its opening line says.
+
+    On the real blanks the two signals agree exactly -- the pages that open
+    with guidance carry zero of fw2.pdf's 568 widgets -- so this costs nothing
+    there and is pure insurance on a document nobody has seen yet.
+    """
+    pymupdf = pytest.importorskip("pymupdf")
+    from satc.ingest.pages import split_pages
+
+    doc = pymupdf.open()
+    # Page 1: opens exactly like a guidance page, and carries a real field.
+    odd = doc.new_page()
+    odd.insert_textbox(pymupdf.Rect(36, 36, 560, 200),
+                       "Instructions for Employee. Box 1. Wages, tips, other "
+                       "compensation for this employer.", fontsize=9)
+    widget = pymupdf.Widget()
+    widget.field_name = "f1_09"
+    widget.field_type = pymupdf.PDF_WIDGET_TYPE_TEXT
+    widget.rect = pymupdf.Rect(36, 240, 260, 262)
+    odd.add_widget(widget)
+    # Page 2: an ordinary form page, so the all-guidance fallback cannot mask
+    # the question. Without page 2 this document is entirely "guidance" and
+    # keeps every page for a different reason — which is how the first version
+    # of this test passed with the guard removed.
+    doc.new_page().insert_textbox(pymupdf.Rect(36, 36, 560, 740),
+                                  BLANK_W2_PAGE, fontsize=9)
+    path = tmp_path / "odd.pdf"
+    doc.save(str(path))
+    doc.close()
+
+    kept, dropped = split_pages(path)
+    assert dropped == [], "a page carrying form fields was dropped"
+    assert [n for n, _ in kept] == [1, 2]
+
+
+def test_a_link_on_a_notice_page_is_not_a_form_field(tmp_path):
+    """WHAT THE FIRST VERSION GOT WRONG. Counting any annotation kept page 1 of
+    every real IRS blank — those notice pages carry link annotations and zero
+    form fields — and put 1099-NEC straight back. Only a /Widget is a field."""
+    pymupdf = pytest.importorskip("pymupdf")
+    from satc.ingest.pages import split_pages
+
+    doc = pymupdf.open()
+    notice = doc.new_page()
+    notice.insert_textbox(pymupdf.Rect(36, 36, 560, 400), NOTICE, fontsize=9)
+    notice.insert_link({"kind": pymupdf.LINK_URI, "uri": "https://www.irs.gov/",
+                        "from": pymupdf.Rect(36, 420, 200, 440)})
+    doc.new_page().insert_textbox(pymupdf.Rect(36, 36, 560, 740),
+                                  BLANK_W2_PAGE, fontsize=9)
+    path = tmp_path / "notice.pdf"
+    doc.save(str(path))
+    doc.close()
+
+    kept, dropped = split_pages(path)
+    assert dropped == [1], "a link annotation was mistaken for a form field"
+    assert [n for n, _ in kept] == [2]
+
+
+def test_the_note_says_which_pages_were_not_read(tmp_path):
+    """A silent drop is the bug class this whole night was about. If the rule
+    leaves a page out, the preparer is told which one."""
+    from satc.app.state import _skipped_note
+    from satc.config import load_extraction_map
+
+    path = _page(tmp_path, "packet.pdf", NOTICE, BLANK_W2_PAGE, INSTRUCTIONS)
+    reader = TextAnchorReader(load_extraction_map("w2"))
+    reader.read(str(path))
+
+    assert reader.skipped_pages == [1, 3]
+    said = _skipped_note(reader.skipped_pages)
+    assert "1, 3" in said and "not read" in said
+    assert _skipped_note([]) == "", "it must say nothing when it skipped nothing"

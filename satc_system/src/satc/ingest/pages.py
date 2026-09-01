@@ -89,21 +89,74 @@ def page_texts(source: str | Path) -> list[str]:
         return []
 
 
-def form_pages(source: str | Path) -> list[tuple[int, str]]:
-    """The pages that are the document itself, as ``(page number, text)``.
+def _pages_with_fields(source: str | Path) -> set[int]:
+    """Which pages carry fillable form widgets. Empty for a flat or scanned PDF.
+
+    A SECOND OPINION THAT OUTRANKS THE TEXT. The firm's question, and it is the
+    right one: *a client's W-2 will not have the instruction pages, so why is
+    the software dropping pages at all -- what stops it dropping a page that
+    had something on it?*
+
+    This is what stops it. A page carrying form fields is the form, whatever
+    its opening line says, and is never dropped. On the real blanks the two
+    signals agree exactly -- the pages that open with guidance carry zero of
+    `fw2.pdf`'s 568 widgets -- so this costs nothing there and is pure
+    insurance on a document laid out differently.
+
+    It is only available on fillable PDFs. On a flat scan there are no widgets
+    and the text rule stands alone, which is why `form_pages` reports what it
+    dropped rather than dropping it silently.
+    """
+    try:
+        from pypdf import PdfReader
+
+        reader = PdfReader(str(source))
+    except Exception:      # noqa: BLE001 - not a readable PDF
+        return set()
+    out: set[int] = set()
+    for number, page in enumerate(reader.pages, 1):
+        try:
+            # /Widget SPECIFICALLY, not any annotation. Page 1 of `fw2.pdf`
+            # carries link annotations and zero form fields; counting those
+            # kept the notice page and put 1099-NEC straight back.
+            annots = page.get("/Annots") or []
+            for ref in annots:
+                obj = ref.get_object()
+                if obj.get("/Subtype") == "/Widget":
+                    out.add(number)
+                    break
+        except Exception:  # noqa: BLE001 - a page we cannot ask is not one we may drop
+            out.add(number)
+    return out
+
+
+def split_pages(source: str | Path) -> tuple[list[tuple[int, str]], list[int]]:
+    """``(the form's pages, the page numbers dropped)``.
 
     Page numbers are 1-based and are the ORIGINAL numbers, so a caller that
     goes back to the file -- to rasterise for OCR, say -- asks for the page the
     form is actually on.
 
-    A document that is ENTIRELY guidance keeps all its pages. That is on
-    purpose: the alternative is returning nothing and reporting "no text",
-    which would turn a readable document into an apparent scan and send it
-    down the OCR ladder for no reason.
+    A document that is ENTIRELY guidance keeps all its pages and drops none.
+    That is on purpose: the alternative is returning nothing and reporting "no
+    text", which would turn a readable document into an apparent scan and send
+    it down the OCR ladder for no reason.
     """
     pages = [(i, t) for i, t in enumerate(page_texts(source), 1)]
-    form = [(i, t) for i, t in pages if not is_guidance(t)]
-    return form or pages
+    if not pages:
+        return [], []
+    keep_anyway = _pages_with_fields(source)
+    form = [(i, t) for i, t in pages
+            if i in keep_anyway or not is_guidance(t)]
+    if not form:
+        return pages, []
+    dropped = [i for i, _ in pages if i not in {n for n, _ in form}]
+    return form, dropped
+
+
+def form_pages(source: str | Path) -> list[tuple[int, str]]:
+    """The pages that are the document itself, as ``(page number, text)``."""
+    return split_pages(source)[0]
 
 
 def form_text(source: str | Path, *, limit: int = CLASSIFY_PAGE_LIMIT) -> str:

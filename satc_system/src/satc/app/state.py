@@ -51,6 +51,16 @@ _READER_LABELS = {
 TEXT_LAYER_MIN = 40
 
 
+def _skipped_note(pages: list[int]) -> str:
+    """What to say when the page rule left pages out. Empty when it did not."""
+    if not pages:
+        return ""
+    which = ", ".join(str(p) for p in pages)
+    return (f"read from the form's own pages; page{'s' if len(pages) > 1 else ''} "
+            f"{which} looked like the instructions and {'were' if len(pages) > 1 else 'was'} "
+            f"not read. ")
+
+
 def text_layer_chars(fpath) -> int:
     """How much real text this PDF carries -- asked of the FILE, not of a reader.
 
@@ -394,9 +404,15 @@ class AppState:
                     return result, ""
                 chars = text_layer_chars(fpath)
                 if chars >= TEXT_LAYER_MIN:
-                    result = TextAnchorReader(cfg).read(str(fpath))   # 2) text layer (local)
+                    anchors = TextAnchorReader(cfg)
+                    result = anchors.read(str(fpath))                 # 2) text layer (local)
                     if result.labeled_fields:
-                        return result, ""
+                        # A DROPPED PAGE IS NEVER SILENT. The page rule reads the
+                        # form's own pages and skips the IRS's instructions about
+                        # it; on the documents clients actually send there is
+                        # usually nothing to skip. When there is, the note says
+                        # which pages, so nobody has to take the rule on trust.
+                        return result, _skipped_note(anchors.skipped_pages)
                     # THE DOCUMENT WAS READABLE AND WE FAILED ON IT. Falling
                     # straight to OCR here is what hid this from the firm for a
                     # season: OCR rasterises text that was already there, reads
