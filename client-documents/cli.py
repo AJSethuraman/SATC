@@ -59,6 +59,7 @@ import pricing
 import requote
 import signing
 import settings as firm
+import timelog
 import tins
 
 ROOT = Path(__file__).resolve().parent
@@ -1652,6 +1653,91 @@ def cmd_sign(args) -> int:
     return 0
 
 
+def cmd_spent(args) -> int:
+    """What an engagement has actually taken, beside what its price budgeted.
+
+    THE LOOP THAT WAS NEVER CLOSED. The fee schedule is priced in hours; the
+    software budgets in hours and rounds to the quarter-hour a timesheet takes.
+    Nothing ever recorded one, so no engagement has been compared against its
+    own budget and every price in the schedule is still the estimate it was
+    written with.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    ref = args.engagement
+
+    try:
+        record = engagements.load(ref, store)
+    except Exception as exc:      # noqa: BLE001 - say which engagement, not a trace
+        print(f"  {exc}")
+        return 1
+
+    if args.add is not None:
+        try:
+            timelog.add(store, ref, args.add, args.what or "")
+        except (ValueError, FileNotFoundError) as exc:
+            print(f"  {exc}")
+            return 1
+        print(f"  recorded {args.add}h against {ref}: {args.what}")
+
+    schedule = pricing.load()
+    try:
+        _, _, floor = fees.basis_of(schedule)
+    except fees.FeeBasisError:
+        floor = 0.25
+    got = timelog.spent(store, ref, floor=floor)
+
+    print(f"\n  {ref}  {record.get('ClientFullName') or '(no name)'}\n")
+
+    # S2: A REPORT WITH NOTHING IN IT SAYS SO. "0.0 hours" beside a budget reads
+    # as a job that took no time, which is a claim; "nothing recorded" is the
+    # truth, and they are different sentences.
+    if got.examined_nothing:
+        print("  nothing recorded yet. Time is written here automatically as")
+        print("  commands run against this engagement, so this fills in by")
+        print("  itself — and `--add` is for the work in Drake, which this")
+        print("  software cannot see.")
+        return 0
+
+    print(f"  measured   {got.measured:>6.2f} h   "
+          f"across {len(got.sittings)} sitting(s), from {got.touches} touch(es)")
+    for sitting in got.sittings:
+        print(f"      {sitting.started:%d %b %H:%M}-{sitting.ended:%H:%M}  "
+              f"{sitting.hours(floor=floor):>5.2f} h   "
+              + ", ".join(sitting.what[:4]))
+    print(f"  stated     {got.stated:>6.2f} h   "
+          f"across {len(got.stated_entries)} entr(y/ies)")
+    for said in got.stated_entries:
+        print(f"      {said.when:%d %b %H:%M}  {said.hours:>5.2f} h   {said.what}")
+
+    # THE TWO ARE NEVER ADDED. A single total would look authoritative and would
+    # not be: measured is a FLOOR -- it sees the software and not Drake, where
+    # most of the return is prepared -- and stated is somebody's recollection.
+    # Summing a floor and a recollection produces a number nobody can defend.
+    print("\n  These are not added together. `measured` is what the software")
+    print("  saw and is a floor — it cannot see Drake. `stated` is what a")
+    print("  person said. A single total would look more certain than either.")
+
+    budget = record.get("BudgetHours") or record.get("EstimatedHours")
+    if budget:
+        try:
+            budget = float(budget)
+            print(f"\n  budgeted   {budget:>6.2f} h   from the price on this "
+                  f"engagement")
+            print(f"  measured is {got.measured / budget:.0%} of it; "
+                  f"measured plus stated is "
+                  f"{(got.measured + got.stated) / budget:.0%}")
+        except (TypeError, ValueError, ZeroDivisionError):
+            pass
+    else:
+        # NOT SILENCE. The comparison is the entire point of the command, and
+        # its absence is a fact about the engagement worth saying out loud.
+        print("\n  no budget on this engagement to compare against — the record")
+        print("  carries no BudgetHours. `python cli.py hours` shows what the")
+        print("  schedule's prices imply, which is the same arithmetic one")
+        print("  level up.")
+    return 0
+
+
 def cmd_season(args) -> int:
     """What is due across the whole book, soonest first.
 
@@ -2335,6 +2421,15 @@ def main(argv=None) -> int:
     sg.add_argument("--store")
     sg.set_defaults(fn=cmd_sign)
 
+    sp = sub.add_parser("spent",
+                        help="what an engagement has taken, beside its budget")
+    sp.add_argument("--engagement", required=True)
+    sp.add_argument("--add", type=float, metavar="HOURS",
+                    help="record work the software could not see, e.g. Drake")
+    sp.add_argument("--what", help="what that time was — required with --add")
+    sp.add_argument("--store")
+    sp.set_defaults(fn=cmd_spent)
+
     sn = sub.add_parser("season",
                         help="what is due across every engagement, soonest first")
     sn.add_argument("--within", type=int, metavar="DAYS",
@@ -2396,6 +2491,21 @@ def main(argv=None) -> int:
     sa.set_defaults(fn=cmd_sample)
 
     args = p.parse_args(argv)
+
+    # TIME RECORDS ITSELF, IN ONE PLACE. The firm: "automate everything possible
+    # about recording time because I am bad at doing so." Anything with a start
+    # button is a chore, and a chore that does not get done is a feature that
+    # reports nothing. So every command naming an engagement leaves a timestamp
+    # here and nowhere else -- put it inside the commands and the next command
+    # added forgets, which is the same failure by a slower route.
+    #
+    # BEFORE the command runs, not after: a command that refuses still took the
+    # time it took, and a pack blocked by the pre-send gate is often where the
+    # work actually went.
+    ref = getattr(args, "engagement", None)
+    if ref:
+        timelog.record(Path(args.store) if getattr(args, "store", None)
+                       else engagements.STORE, ref, args.cmd)
     return args.fn(args)
 
 

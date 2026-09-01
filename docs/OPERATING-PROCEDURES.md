@@ -431,5 +431,5 @@ as **waiting on the firm**.
 
 Every other command this document names:
 
-`package`, `payments`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `sign`, `season`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
+`package`, `payments`, `invoice`, `ladder`, `doctor`, `from-lead`, `interview`, `returning`, `close`, `reconcile`, `procedures`, `walkthrough`, `event`, `requote`, `sign`, `spent`, `season`, `engagements`, `render`, `price`, `hours`, `demo`, `check`, `sample`
 

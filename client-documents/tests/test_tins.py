@@ -92,9 +92,9 @@ def test_no_refusal_ever_prints_the_number_it_objected_to():
     assert "last four" in said, "it must say what to do instead"
 
 
-# ── the four seams ────────────────────────────────────────────────────────
+# ── the five seams ────────────────────────────────────────────────────────
 #
-# THERE WERE THREE, AND THE FOURTH WAS THE ONE THAT LEAKED. This heading read
+# THERE WERE THREE, THEN FOUR, AND EACH NEW ONE WAS FOUND THE SAME WAY. This heading read
 # "the three seams" and the three below are every place `tins` is called from
 # the code. The browser's unfinished sitting was not one of them.
 
@@ -219,3 +219,16 @@ def test_the_guard_is_on_the_write_not_on_the_route(tmp_path):
     with pytest.raises(tins.TinRefused):
         web.save_draft(tmp_path, "abc123", {"answers": {"notes": SSN}})
     assert not list(tmp_path.rglob("*.json")), "it wrote before refusing"
+
+
+def test_a_time_entry_is_refused_before_it_reaches_disk(tmp_path):
+    """THE FIFTH. `cli.py spent --add 2 --what "..."` is free text a person
+    types, and the log sits in the engagement folder — OneDrive, and every
+    backup of it. Found by writing this test first and watching it not raise."""
+    import timelog
+
+    (tmp_path / "2026-0001").mkdir(parents=True)
+    with pytest.raises(tins.TinRefused) as caught:
+        timelog.add(tmp_path, "2026-0001", 2.0, f"called about SSN {SSN}")
+    assert SSN not in str(caught.value)
+    assert not (tmp_path / "2026-0001" / timelog.LOG).exists(), "it wrote first"
