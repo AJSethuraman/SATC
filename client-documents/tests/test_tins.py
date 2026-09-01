@@ -92,7 +92,11 @@ def test_no_refusal_ever_prints_the_number_it_objected_to():
     assert "last four" in said, "it must say what to do instead"
 
 
-# ── the three seams ───────────────────────────────────────────────────────
+# ── the four seams ────────────────────────────────────────────────────────
+#
+# THERE WERE THREE, AND THE FOURTH WAS THE ONE THAT LEAKED. This heading read
+# "the three seams" and the three below are every place `tins` is called from
+# the code. The browser's unfinished sitting was not one of them.
 
 def test_the_interview_answers_are_refused_before_they_reach_disk(tmp_path):
     """`engagements/<ref>/interview.json` lives in OneDrive and is read back
@@ -160,3 +164,58 @@ def test_the_gate_runs_this_check_on_a_real_send(tmp_path):
     assert examined["no identification number on any page"], (
         "the check ran and looked at nothing"
     )
+
+
+def test_an_unfinished_sitting_is_refused_before_it_reaches_disk(tmp_path):
+    """THE SEAM THAT WAS MISSING, found 1 Sep 2026 by driving the browser.
+
+    `engagements.save_answers` refuses a TIN in the answers, and that was the
+    only place the interview was checked -- but a sitting is written to
+    `_drafts/<id>.json` after EVERY question, long before anyone finishes.
+    Driving the real HTTP API and answering each free-text question with
+    `123-45-6789`: thirteen accepted, and the number sat in the draft in
+    cleartext. `notes` is a free textarea, which is exactly where a preparer
+    types "prior return showed 123-45-6789".
+
+    The store is the folder the firm syncs, so a number written there is in
+    OneDrive, in every backup of it, and on every machine that folder reaches.
+
+    The same shape as everything else found this week: the guard in one place,
+    the write in another, and nothing comparing them.
+    """
+    import web
+
+    app = web.create_app(store=tmp_path)
+    app.config.update(TESTING=True)
+    headers = {"Accept": "application/json"}
+
+    with app.test_client() as client:
+        sid = client.post("/interview", headers=headers).get_json()["draft"]
+        first = client.get(f"/interview/{sid}", headers=headers).get_json()
+        assert not first["complete"], "no question to answer — nothing examined"
+
+        got = client.post(f"/interview/{sid}",
+                          json={"answer": f"prior return showed {SSN}"},
+                          headers=headers)
+
+    assert got.status_code == 400, "the browser accepted a full SSN"
+    said = got.get_json()["error"]
+    assert SSN not in said, "the refusal repeated the number"
+    assert "last four" in said
+
+    on_disk = [p for p in tmp_path.rglob("*")
+               if p.is_file() and SSN in p.read_text(encoding="utf-8",
+                                                     errors="ignore")]
+    assert on_disk == [], f"the number reached disk in {on_disk}"
+
+
+def test_the_guard_is_on_the_write_not_on_the_route(tmp_path):
+    """WHY IT IS IN `save_draft`. `back` already writes a draft too, and a third
+    caller will follow. A check in one route is a check the next route does not
+    have -- which is how the draft came to be the only unguarded write in the
+    first place."""
+    import web
+
+    with pytest.raises(tins.TinRefused):
+        web.save_draft(tmp_path, "abc123", {"answers": {"notes": SSN}})
+    assert not list(tmp_path.rglob("*.json")), "it wrote before refusing"

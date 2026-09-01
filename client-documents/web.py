@@ -82,6 +82,24 @@ def load_draft(store: Path, sid: str) -> dict:
 
 
 def save_draft(store: Path, sid: str, data: dict) -> None:
+    """Write an unfinished sitting -- refusing a TIN before it reaches disk.
+
+    THE GUARD WAS AT THE FINISH LINE AND THE WRITE HAPPENS EVERY STEP.
+    `engagements.save_answers` refuses a full SSN or EIN in the answers, and
+    that is the only place it was checked -- but a sitting is written to
+    `_drafts/<id>.json` after EVERY question, long before anyone finishes.
+    Measured 1 Sep 2026 by driving the browser: thirteen free-text answers each
+    carrying `123-45-6789` were accepted, and the number was on disk in
+    cleartext in the draft. `notes` is a free textarea, which is exactly where
+    a preparer types "prior return showed 123-45-6789".
+
+    The store is the folder the firm syncs. A number written there is in
+    OneDrive, in every backup of it, and in every machine that folder reaches.
+
+    The check belongs HERE rather than in the route, so a second caller cannot
+    be added without it -- `back` already exists and a third will follow.
+    """
+    tins.refuse(data, "this sitting")
     p = draft_path(store, sid)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -421,7 +439,14 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
 
         try:
             session.answer(q["id"], coerce(q, raw))
-        except iv.InterviewError as exc:
+            draft["answers"] = session.answers
+            # The correction is made; the sitting goes back to where it was.
+            draft.pop("at", None)
+            # INSIDE the try: `save_draft` refuses a TIN, and a refusal there
+            # must reach the preparer as the same kind of "fix this answer"
+            # message an interview error does -- not a 500, and not a write.
+            save_draft(st(), sid, draft)
+        except (iv.InterviewError, tins.TinRefused) as exc:
             if wants_json():
                 return jsonify(error=str(exc), question=q["id"]), 400
             return page(q["question"],
@@ -434,10 +459,6 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
                                       if back else None,
                                       back=step_back_to(session, draft))), 400
 
-        draft["answers"] = session.answers
-        # The correction is made; the sitting goes back to where it was.
-        draft.pop("at", None)
-        save_draft(st(), sid, draft)
         if wants_json():
             return jsonify(draft=sid, saved=q["id"], next=url_for("show", sid=sid))
         return redirect(url_for("show", sid=sid))
