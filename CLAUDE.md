@@ -137,7 +137,7 @@ ship a placeholder. `exercise.py` reports those as **waiting on the firm**, not
 as failures.
 
 And never claim something works without opening the artifact. `docs/SOFTWARE-TENETS.md`
-is 29 tenets on that theme, each cited to a real bug in this repository; the
+is 31 tenets on that theme, each cited to a real bug in this repository; the
 first one exists because a proof artifact once declared 190 documents fine when
 every one of them was unreadable.
 

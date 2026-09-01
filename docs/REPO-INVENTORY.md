@@ -17,7 +17,7 @@ Added 27 August 2026, because both were written and neither was reachable from
 anywhere. A document nobody can find is a document nobody reads, which is the
 drift failure they are themselves about.
 
-- **`docs/SOFTWARE-TENETS.md`** — 29 tenets for the code, each cited to a real
+- **`docs/SOFTWARE-TENETS.md`** — 31 tenets for the code, each cited to a real
   bug in this repository. Read before writing software here, and before
   claiming something works. Its §0 is the shape of nearly every bug this
   project has produced: **something reported success without having done the

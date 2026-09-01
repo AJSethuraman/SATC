@@ -700,3 +700,57 @@ them delete a test on the way past. What replaced it is the reason, in the
 somebody is reading at the exact moment they are wondering whether to add one.
 That list is the control, and it is a better one than the test was, because it
 arrives before the edit rather than after it.
+
+---
+
+## S31 · A claim and the behaviour it describes are two things. Build the third: something that compares them.
+
+> "there is likely things that haven't even been considered let alone built" — the firm, 1 September 2026
+
+**Every bug found in the week of 31 August was this one**, and so was the fix I
+nearly shipped for the first of them. §0 of this document says the shape is
+*something reported success without having done the work*. This is where that
+comes from: a **claim** written in one place, the **behaviour** in another, and
+nothing in between that would notice they had come apart.
+
+| The claim | The behaviour | What was missing |
+|---|---|---|
+| `_page_text` — "the document's text" | Read page 1, and page 1 of an IRS blank is a notice | Anything scoring the page it actually returned. Four forms confidently wrong |
+| `text_layer_chars` — "does this file carry text" | Asked page one of eleven | A scanned W-2 declared readable; both model rungs skipped |
+| A W-2 extraction map's box labels | Anchored across eleven pages including the instructions | **$200,000 of wages off a blank form, auto-confirmed** |
+| `Requested` — "the client owes us this" | Closed by the first form of five to arrive | A bundle that knew what it was still waiting for. Three green tests defended it |
+| `classified` — "we know what this is" | True for a LOW guess off the filename | A Schedule C named `…1040.pdf` closed a prior-year request |
+| `save_answers` refuses a TIN | The draft is written after **every question**, before that | **A client's SSN on disk in cleartext** |
+| `--what`, free text on a time entry | Written straight to a file in OneDrive | The same guard, on the fifth seam |
+| "Every block pairs a signature line with a Date line" | Examined one template of five | A sweep. True by luck |
+| `materials_deadlines`, four dates typed by hand | *"CHECK THIS AGAINST THE IRS CALENDAR each season"* — an instruction to a person | The statute. Right for 2026, wrong the first year a deadline shifts |
+| The corpus score — "the classifier is right" | Ran `classify_path`; production runs `plan_split` first | **My own fix.** 5-of-13 to 12-of-13 with intake unchanged |
+
+**The last row is the one to read twice.** The fix was measured, the number was
+true, and the number described a code path production does not use. It was
+caught by an adversarial reviewer, not by me, and not by any test — because
+every test agreed with it.
+
+**Why this is not "write more tests".** Six of those ten had passing tests over
+the claim. The bundle bug had *three*. A test asserts the claim to itself; what
+was missing is a thing that asks the behaviour and compares. Sometimes that is a
+test, when it runs the real path with a real artifact. Often it is not:
+
+* the **corpus** of fourteen real IRS forms — because generated fixtures agreed with the code that made them;
+* `procedures --check` — the written procedure regenerated from the software and diffed;
+* `settings.py` refusing a typed deadline that disagrees with the statute — two answers, so something has to compare them;
+* mutation testing — the only thing that asks whether a test would notice.
+
+**The question, before shipping anything that states a fact:**
+
+* *Where else is this fact written?* If nowhere, write down why the reader should believe it here.
+* *If it is written twice, what compares them?* Build that, or delete one of the two.
+* *Would my check notice if the behaviour changed?* Break it on purpose and see. That is the only version of this question with an answer.
+
+**And the corollary the firm's own question produces.** A list of things that
+are wrong is a list of things somebody looked for. It is a claim about coverage,
+with nothing comparing it to what a practice actually needs — which is why the
+useful denominators came from documents the firm had already written and signed:
+the engagement letters' promises, the fee schedule's priced services, the four
+deadlines in the settings file. Ask what the work requires before asking what the
+code gets wrong.
