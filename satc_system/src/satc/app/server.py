@@ -178,8 +178,15 @@ def create_app() -> Flask:
 
     @app.route("/documents")
     def documents():
+        # THE SAME SWEEP THE CLI PRINTS, not a second one written in Jinja. S3:
+        # two halves of one tool disagreeing means whichever you ran is the one
+        # you believed, and the old panel here listed outstanding requests in
+        # register order with no wait on them at all.
+        from satc.intake.chasing import waiting as chasing_waiting
+
         return render_template("documents.html", title="Documents",
-                               documents=STATE.documents(), flow=DOC_FLOW)
+                               documents=STATE.documents(), flow=DOC_FLOW,
+                               chase=chasing_waiting(STATE.store))
 
     @app.route("/documents/<document_id>/<status>", methods=["POST"])
     def documents_status(document_id: str, status: str):

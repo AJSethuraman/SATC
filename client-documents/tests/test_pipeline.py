@@ -144,10 +144,30 @@ def test_an_unknown_return_type_is_refused():
         firm.firm_fields("2026", "sole_trader")
 
 
-def test_a_season_with_no_deadlines_is_refused():
-    """Better to stop than to print a blank date on three documents."""
-    with pytest.raises(KeyError):
-        firm.firm_fields("1999")
+def test_a_season_nobody_typed_still_produces_a_real_date():
+    """THE GUARANTEE HELD, THE MECHANISM CHANGED. This used to read "a season
+    with no deadlines is refused", because a season missing from
+    `firm-settings.yaml` left `MaterialsDeadline` blank and three documents
+    printed the hole. Refusing was the only defence available.
+
+    `deadlines.py` derives the date from IRC 6072 and 7503 now, so a season
+    nobody typed is answered rather than refused — and the annual chore of
+    rolling four dates forward by hand is gone with it. What must still hold is
+    the thing the old test was protecting: **the field is never blank.**
+    """
+    got = firm.firm_fields("1999")["MaterialsDeadline"]
+    assert got and got.strip(), "the blank date the old refusal existed to stop"
+    assert "2000" in got, f"a 1999 tax year is filed in 2000: {got}"
+
+
+def test_a_season_that_cannot_be_derived_is_still_refused():
+    """The other half. When neither the file nor the statute can answer, nothing
+    is printed — which is the original guarantee, kept for the case that still
+    needs it."""
+    import settings as st
+
+    with pytest.raises(KeyError, match="not derivable"):
+        st._materials_deadline("not-a-year", "individual_1040", {})
 
 
 def test_open_decisions_are_reported_with_their_question():

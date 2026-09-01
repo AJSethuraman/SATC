@@ -4,6 +4,7 @@
     satc doctor              check what's ready on this machine (OCR, Ollama, ...)
     satc build [out.xlsx]    build the demo workpaper workbook (and recalc note)
     satc sort FOLDER         classify + re-label a folder of client documents
+    satc chase [--dir DIR]   who owes us a document, longest wait first
     satc seed [--dir DIR]    initialize the SQLite store from synthetic fixtures
     satc export [out.xlsx]   export the data mart to Excel
     satc reset [--dir DIR]   delete the local databases (start fresh)
@@ -44,6 +45,10 @@ def main(argv: list[str] | None = None) -> int:
                            help="where filed documents go (default: $SATC_LIBRARY)")
 
     sub.add_parser("corpus", help="score the classifier against the real IRS blanks")
+
+    p_chase = sub.add_parser(
+        "chase", help="who owes us a document, longest wait first")
+    p_chase.add_argument("--dir", default=None)
 
     p_seed = sub.add_parser("seed", help="initialize the SQLite store from fixtures")
     p_seed.add_argument("--dir", default=None)
@@ -159,6 +164,65 @@ def main(argv: list[str] | None = None) -> int:
         # a human. A wrong answer files the document under another form and
         # closes that form's request, which is the failure that costs money.
         return 1 if s.wrong else 0
+
+    if args.cmd == "chase":
+        import textwrap
+
+        from satc.intake.chasing import waiting
+        from satc.persistence import SATCStore
+
+        sweep = waiting(SATCStore(args.dir))
+        print()
+        # NOTHING OUTSTANDING AND NOTHING EXAMINED ARE DIFFERENT REPORTS, and
+        # only one of them is good news. S2: a check that looked at nothing must
+        # say so rather than print the sentence a clear register prints.
+        if sweep.examined_nothing:
+            print("  Nothing looked at: this store holds no document requests and no\n"
+                  "  engagements, so there is nothing here to chase yet. `satc seed`\n"
+                  "  loads the demo data; `satc app` is where a real one starts.\n")
+            return 0
+        if not sweep.rows:
+            print(f"  Nothing outstanding — {sweep.documents} register row(s) read "
+                  f"across {sweep.clients} client(s),\n"
+                  f"  {sweep.engagements} engagement(s).")
+        else:
+            print(f"  {len(sweep.rows)} request(s) outstanding, longest wait first:\n")
+            for w in sweep.rows:
+                days = w.waiting_days()
+                wait = f"{days}d" if days is not None else "?"
+                year = f"  ({w.tax_year})" if w.tax_year else ""
+                print(f"  {wait:>6}  {w.client_id}  {w.client[:26]:28}"
+                      f"{w.doc_type}{year}")
+                if days is None:
+                    # Said out loud, every time. A blank in this column would
+                    # read as "just asked", which is the one thing it is not.
+                    print("          no date on this request — how long it has "
+                          "waited is not known")
+                for line in textwrap.wrap(w.asked_for, 64):
+                    print(f"          {line}")
+                # A REQUEST NAMING SEVERAL FORMS IS NOT CLOSED BY ONE OF THEM,
+                # so the chase has to name the ones still out. "Still
+                # outstanding" gets skimmed past; "still waiting on the 1099-B"
+                # is what gets a document into the office.
+                bundle = ""
+                if w.part_way:
+                    bundle = (f"↳ {w.part_way}: {w.here} — still waiting on "
+                              f"{w.still_missing}")
+                elif w.still_missing:
+                    bundle = (f"↳ names {w.named} forms, none here yet: "
+                              f"{w.still_missing}")
+                if bundle:
+                    print(textwrap.fill(bundle, 74, initial_indent=" " * 10,
+                                        subsequent_indent=" " * 12))
+            print(f"\n  {len(sweep.rows)} outstanding of {sweep.documents} "
+                  f"register row(s) read, across {sweep.clients} client(s),\n"
+                  f"  {sweep.engagements} engagement(s).")
+        if sweep.opened_today:
+            print(f"  {sweep.opened_today} more asked for today — held back, "
+                  f"because chasing on the morning\n  you asked is noise, not a "
+                  f"chase.")
+        print()
+        return 0
 
     if args.cmd == "seed":
         from satc.persistence import SATCStore

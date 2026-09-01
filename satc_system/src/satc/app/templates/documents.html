@@ -32,12 +32,32 @@
 </div>
 
 <div class="panel">
-  <h2>Still outstanding — the missing-docs tracker</h2>
+  <h2>Who owes us a document &mdash; longest wait first</h2>
   <div class="body">
-    {% if not state.outstanding() %}<p class="note tie">Nothing outstanding. 🎉</p>{% endif %}
-    {% for d in state.outstanding() %}
-    <p class="note"><span class="flag">●</span> <strong>{{ state.name(d.client_id) }}</strong> — {{ d.doc_type }}: {{ d.note }}</p>
-    {% endfor %}
+    {% if chase.examined_nothing %}
+      <p class="note">Nothing looked at: there are no document requests and no engagements in this store yet.</p>
+    {% elif not chase.rows %}
+      <p class="note tie">Nothing outstanding &mdash; {{ chase.documents }} register row(s) read across {{ chase.clients }} client(s), {{ chase.engagements }} engagement(s).</p>
+    {% else %}
+    <table>
+      <tr><th>Waiting</th><th>Client</th><th>Asked for</th></tr>
+      {% for w in chase.rows %}
+      {% set days = w.waiting_days() %}
+      <tr>
+        <td>{% if days is none %}<span class="flag">?</span> not known{% else %}{{ days }} day(s){% endif %}</td>
+        <td>{{ w.client }}<div class="muted">{{ w.client_id }}</div></td>
+        <td>{{ w.doc_type }}
+          <div class="muted">{{ w.asked_for }}</div>
+          {% if days is none %}<div class="muted">no date on this request &mdash; how long it has waited is not known</div>{% endif %}
+          {% if w.part_way %}<div class="muted">{{ w.part_way }}: {{ w.here }} &mdash; still waiting on {{ w.still_missing }}</div>
+          {% elif w.still_missing %}<div class="muted">names {{ w.named }} forms, none here yet: {{ w.still_missing }}</div>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p class="muted">{{ chase.rows|length }} outstanding of {{ chase.documents }} register row(s) read, across {{ chase.clients }} client(s), {{ chase.engagements }} engagement(s).
+    {% if chase.opened_today %}{{ chase.opened_today }} more asked for today &mdash; held back, because chasing on the morning you asked is noise, not a chase.{% endif %}</p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

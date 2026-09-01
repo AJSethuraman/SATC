@@ -145,6 +145,62 @@ doc_types:
       - ["schedule k-1", 8]
 
   # Real documents that are filed but not data-extracted (key: null).
+
+  # ── ADDED 1 Sep 2026 ─────────────────────────────────────────────────────
+  # OUR OWN DISENGAGEMENT LETTER CAME BACK "Prior-year 1040", HIGH, and that
+  # verdict is good enough to CLOSE a request (Classification.may_close_a_request).
+  # A client who returns the whole packet puts this document into intake; the
+  # client's open prior-year request closes, and nobody asks for the return again.
+  #
+  # Measured 1 Sep 2026 on a letter rendered from the template's OWN documented
+  # example values -- no spec chrome, just the letter a client receives:
+  #     Prior-year 1040   17  =  "individual income tax return" 9 + "form 1040" 8
+  # Both come from section 02, which LISTS THE WORK THAT WAS DONE. `ScopeEnded`
+  # is specified as "the preparation of your 2026 individual income tax returns"
+  # and `Item.Work` as "2026 Federal Form 1040". A disengagement letter for a
+  # 1040 client NAMES THE 1040 -- that is the document doing its job, not a flaw
+  # to be normalised away.
+  #
+  # THE OBVIOUS KEYWORD DOES NOT EXIST. `disengagement` appears nowhere in the
+  # rendered letter -- the subject line is "Ending our engagement", and the word
+  # survives only in the template's on-screen title, which `@media print` hides
+  # and no client ever sees. A `["disengagement letter", 10]` entry would have
+  # read as the load-bearing signal and never once fired. So this type is built
+  # entirely from the firm's own sentences, and the two carrying most of the
+  # weight are the two that ARE the letter's identity: its subject line and its
+  # opening sentence. All eight were checked against the other eleven templates
+  # in `satc-handoff/04-TEMPLATES/` (body text and the on-screen spec table both)
+  # and against every blank in `corpus/blanks/`: zero collisions. A ninth
+  # candidate, "what we are not saying", was dropped -- it appears in the
+  # bookkeeping engagement letter's spec table.
+  #
+  # THE WEIGHTS ARE SIZED TO A MEASUREMENT, not to taste. 17 of Prior-year 1040
+  # is not merely something to beat: a runner-up scoring MULTI_SHARE (0.6) of the
+  # winner is reported as a second form, so at any total below 29 our own letter
+  # comes back "Several forms: Disengagement letter, Prior-year 1040". Safe --
+  # a MULTI verdict closes no request -- but it is still the wrong answer about
+  # our own document. These eight total 40, which leaves 17 at 0.43 of the winner
+  # and holds the margin if OCR loses two of the eight.
+  #
+  # ORDERED BEFORE "Engagement letter" ON PURPOSE, and the filename hint is why:
+  # "disengagement" CONTAINS "engagement", `_by_filename` returns the first type
+  # whose hint matches, and so `SATC Disengagement Letter.pdf` came back
+  # "Engagement letter [filename/LOW]". Specific before generic, as the header
+  # of this file says.
+  - key: null
+    label: "Disengagement letter"
+    code: "Disengagement"
+    filename_hints: ["disengagement"]
+    keywords:
+      - ["ending our engagement", 8]                          # the subject line
+      - ["this letter confirms that our engagement ends", 8]  # the opening sentence
+      - ["deadlines you now own", 5]
+      - ["either of us may end it in writing", 4]
+      - ["anything not marked complete above", 4]
+      - ["your original records are returned with this letter", 4]
+      - ["a new preparer needs time to read a file", 4]
+      - ["it is not a new engagement", 3]
+
   - key: null
     label: "Engagement letter"
     code: "Engagement"
