@@ -547,6 +547,23 @@ def cmd_invoice(args) -> int:
                 print(f"--credit wants LABEL=AMOUNT, got {entry!r}")
                 return 1
 
+    # MONEY THIS CLIENT HAS ALREADY OVERPAID. Refunding it costs the firm the
+    # processing fee -- Square keeps that on refunds -- so it belongs on the
+    # next bill. Which is this one, and nobody should have to remember.
+    over = payments.unapplied_overpayments(store, args.engagement)
+    taken = [o for o in over
+             if any(o["invoice"] in c["label"] for c in credits)]
+    for o in [o for o in over if o not in taken]:
+        print(f"\n  {args.engagement} overpaid invoice {o['invoice']} by "
+              f"${o['cents'] / 100:,.2f}, and it has not been given back.\n"
+              f"  Put it on this bill instead of refunding it — Square keeps "
+              f"the processing\n  fee on a refund, so sending it back costs "
+              f"the fee on money nobody asked for:\n\n"
+              f"    --credit 'Overpayment on invoice {o['invoice']}"
+              f"={o['cents'] / 100:.2f}'\n\n"
+              f"  Naming the invoice in the label is what stops this saying it "
+              f"again.\n")
+
     try:
         fields = invoicing.build(record, number=number, billed=args.billed,
                                  credits=credits,
@@ -554,6 +571,12 @@ def cmd_invoice(args) -> int:
     except invoicing.InvoiceError as exc:
         print(f"\n{exc}\n")
         return 1
+
+    # AFTER the bill is built, never before: a credit that was refused is not
+    # a credit that was given, and marking it applied would lose the money.
+    for o in taken:
+        payments.apply_overpayment(store, args.engagement,
+                                   invoice=o["invoice"], applied_to=number)
 
     # THE LINK IS MADE BEFORE THE BILL IS WRITTEN, so a processor that refuses
     # leaves no invoice claiming a link it never got. The bill is the thing the

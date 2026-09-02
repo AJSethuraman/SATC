@@ -512,8 +512,13 @@ def record_settlement(path: Path, got: Settlement) -> Posting:
                    problem=("" if not over else
                             f"${arrived / 100:,.2f} arrived against a bill for "
                             f"${due / 100:,.2f} — ${over / 100:,.2f} more than "
-                            f"was owed. The bill is settled; the client is owed "
-                            f"${over / 100:,.2f} back."))
+                            f"was owed. The bill is settled. Put the "
+                            f"${over / 100:,.2f} on the next bill as a credit "
+                            f"rather than refunding it: Square keeps the "
+                            f"processing fee on a refund, so sending it back "
+                            f"costs the firm the fee on money it never asked "
+                            f"for. The next `invoice` on this engagement will "
+                            f"remind you."))
 
 
 # ── proving it works, against the real processor ──────────────────────────
@@ -582,17 +587,46 @@ def live_check(*, sandbox: bool = True, amount_cents: int = 100,
     env = conf.get("token_env") or "SATC_SQUARE_TOKEN"
 
     written = str(conf.get(which, ""))
-    if not written or CONFIRM.search(written):
-        steps.append(Step("the location id is written down", False,
-                          f"`square.{which}` in registry/payments.yaml is still "
-                          f"waiting on the firm. Nothing else can be checked "
-                          f"until it is filled in."))
-        return steps, None, None
-    steps.append(Step("the location id is written down", True, written))
+    missing_location = not written or bool(CONFIRM.search(written))
 
     # THE TOKEN IS NEVER PRINTED, only whether one is there. An error message
     # ends up in a terminal, a log and whatever screenshot goes into a ticket.
-    if not os.environ.get(env, "").strip():
+    has_token = bool(os.environ.get(env, "").strip())
+
+    if missing_location and not has_token:
+        steps.append(Step("the location id is written down", False,
+                          f"`square.{which}` in registry/payments.yaml is still "
+                          f"waiting on the firm, and ${env} is empty, so this "
+                          f"cannot look the id up for you either."))
+        return steps, None, None
+
+    if missing_location:
+        # THE CHICKEN AND THE EGG. Refusing to run until the location id is
+        # written meant sending somebody into a web console to hunt for it --
+        # and the firm came back with their APPLICATION id instead, which is a
+        # different identifier entirely. The token can list the locations. So
+        # ask, and print them, rather than asking a person to go and look.
+        try:
+            api = processor(sandbox=sandbox, reg={**reg, "square": {
+                **conf, which: "unknown"}}, transport=transport)
+            found = api.locations()
+        except PaymentError as exc:
+            steps.append(Step("the location id is written down", False,
+                              f"`square.{which}` is not filled in, and asking "
+                              f"Square for it failed: {exc}"))
+            return steps, None, None
+        steps.append(Step("the location id is written down", False,
+                          f"`square.{which}` in registry/payments.yaml is "
+                          f"still waiting on the firm. This token can see "
+                          + (", ".join(f"{l.get('name', '(unnamed)')} = "
+                                       f"{l.get('id')}" for l in found)
+                             if found else "no locations at all")
+                          + ". Put the id in the registry and run this again."))
+        return steps, None, None
+
+    steps.append(Step("the location id is written down", True, written))
+
+    if not has_token:
         steps.append(Step("a token is in the environment", False,
                           f"${env} is empty. Set it in the shell that runs "
                           f"this; it is deliberately never stored in the repo."))
@@ -665,6 +699,62 @@ def live_check(*, sandbox: bool = True, amount_cents: int = 100,
                       "nothing has been paid against this link yet. Open it, "
                       "pay it, and run this again."))
     return steps, link, got
+
+
+def unapplied_overpayments(store: Path, ref: str) -> list[dict]:
+    """Money this engagement has paid over its bills and not yet been given back.
+
+    THE FIRM, 2 September 2026, on being told an overpayment settles the bill:
+    *"i am not eating a fee for them doing it... right?"*
+
+    Right, and the way not to is to CREDIT it rather than refund it. Square
+    stopped returning the processing fee on refunds to US sellers on 11 April
+    2023 (squareup.com/us/en/press/policy-and-pricing-updates), so refunding
+    $100 costs the firm the fee on $100 and recovers none of it. Carrying it
+    onto the next bill costs nothing at all.
+
+    Which only works if somebody REMEMBERS, so nothing here relies on that:
+    the overage sits on the bill until an invoice takes it, and every new bill
+    on the engagement says it is there.
+    """
+    import invoicing
+
+    out = []
+    for bill in invoicing.issued_for(Path(store), ref):
+        pay = bill.get("_payment") or {}
+        over = pay.get("over_by") or 0
+        if over and not pay.get("over_applied"):
+            out.append({"invoice": bill.get("InvoiceNumber", ""),
+                        "cents": over})
+    return out
+
+
+def apply_overpayment(store: Path, ref: str, *, invoice: str,
+                      applied_to: str) -> bool:
+    """Write down that a bill's overage has been credited onto another bill.
+
+    NAMED, NOT GUESSED. A credit that happens to equal the overage is not
+    evidence that it IS the overage, so this is only called when the operator
+    has put the overpaid invoice's number in the credit's own label -- which is
+    also what makes the two bills readable side by side a year later.
+    """
+    for folder in sorted(Path(store).glob("*/invoices")):
+        if folder.parent.name != ref:
+            continue
+        for path in sorted(folder.glob("*.json")):
+            bill = json.loads(path.read_text(encoding="utf-8"))
+            if bill.get("InvoiceNumber") != invoice:
+                continue
+            pay = dict(bill.get("_payment") or {})
+            if not pay.get("over_by") or pay.get("over_applied"):
+                return False
+            pay["over_applied"] = applied_to
+            bill["_payment"] = pay
+            path.write_text(
+                json.dumps(bill, indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8")
+            return True
+    return False
 
 
 def settled_for(store: Path, ref: str) -> list[dict]:

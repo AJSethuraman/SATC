@@ -230,7 +230,17 @@ def test_the_token_is_read_from_the_environment_and_never_stored(monkeypatch,
     assert payments.processor(reg=approved).token == "sq0-secret"
 
     registry = (ROOT / "registry" / "payments.yaml").read_text(encoding="utf-8")
-    assert "sq0" not in registry and "token:" not in registry
+    # THE NET STAYS BROAD. Square's credentials are `EAAA…` (access token),
+    # `sq0atp-` (personal access token) and `sq0csp-` (application secret), but
+    # banning only those three would let a future prefix through, so anything
+    # beginning `sq0` is refused. The two APPLICATION id prefixes are the one
+    # exception, written out here rather than loosened away: an application id
+    # is public — it ships inside web payment pages — and the registry names
+    # both shapes on purpose, because the firm sent one in place of a location
+    # id and the comment that stops the next person doing the same has to be
+    # able to say what it looks like.
+    public = registry.replace("sq0idp-", "").replace("sq0idb-", "")
+    assert "sq0" not in public and "token:" not in registry
 
 
 def test_the_token_never_reaches_what_is_written_down(square, approved):
@@ -595,3 +605,102 @@ def test_the_check_bills_itself_not_a_client(monkeypatch, approved):
     note = next(b["payment_note"] for _, url, b in console.calls
                 if url.endswith("/payment-links"))
     assert note.startswith(payments.CHECK_PREFIX)
+
+
+# ── an overpayment is credited, not refunded ──────────────────────────────
+#
+# The firm, 2 September 2026, on being told an overpayment settles the bill:
+# *"i am not eating a fee for them doing it... right?"* Right -- and the way
+# not to is to put it on the next bill. Square stopped returning the processing
+# fee on refunds to US sellers on 11 April 2023, so a refund costs the fee on
+# money the firm never asked for and recovers none of it.
+
+
+def _engagement(tmp_path, ref="SMITH-2026", bills=()):
+    folder = tmp_path / ref / "invoices"
+    folder.mkdir(parents=True)
+    for bill in bills:
+        (folder / f"{bill['InvoiceNumber']}.json").write_text(
+            json.dumps(bill), encoding="utf-8")
+    return tmp_path
+
+
+def test_an_overpayment_says_credit_it_not_refund_it(tmp_path):
+    bill = _bill(tmp_path, due="$645.00")
+    posted = payments.record_settlement(
+        bill, payments.Settlement("ORD1", "COMPLETED", 74500, "2027-03-04"))
+    # Not "does it avoid the word refund" -- it has to say the word to say
+    # why not to. What matters is that it names the cheaper move and the
+    # reason, and that the bill still settled.
+    assert posted.settled
+    assert "credit" in posted.problem and "processing fee" in posted.problem
+    assert "$100.00" in posted.problem
+
+
+def test_an_overpayment_is_outstanding_until_a_bill_takes_it(tmp_path):
+    store = _engagement(tmp_path, bills=[
+        {"InvoiceNumber": "2027-0001", "AmountDue": "$645.00",
+         "SettledOn": "2027-03-04",
+         "_payment": {"order_id": "ORD1", "over_by": 10000}}])
+    out = payments.unapplied_overpayments(store, "SMITH-2026")
+    assert out == [{"invoice": "2027-0001", "cents": 10000}]
+
+    assert payments.apply_overpayment(store, "SMITH-2026",
+                                      invoice="2027-0001",
+                                      applied_to="2027-0009")
+    assert payments.unapplied_overpayments(store, "SMITH-2026") == []
+
+
+def test_an_overpayment_is_never_given_back_twice(tmp_path):
+    store = _engagement(tmp_path, bills=[
+        {"InvoiceNumber": "2027-0001", "AmountDue": "$645.00",
+         "SettledOn": "2027-03-04",
+         "_payment": {"order_id": "ORD1", "over_by": 10000,
+                      "over_applied": "2027-0009"}}])
+    assert payments.unapplied_overpayments(store, "SMITH-2026") == []
+    assert not payments.apply_overpayment(store, "SMITH-2026",
+                                          invoice="2027-0001",
+                                          applied_to="2027-0010")
+
+
+def test_a_bill_that_was_paid_exactly_owes_nothing_back(tmp_path):
+    store = _engagement(tmp_path, bills=[
+        {"InvoiceNumber": "2027-0001", "AmountDue": "$645.00",
+         "SettledOn": "2027-03-04",
+         "_payment": {"order_id": "ORD1", "settled_amount": 64500}}])
+    assert payments.unapplied_overpayments(store, "SMITH-2026") == []
+
+
+def test_the_check_can_look_up_a_location_id_it_has_not_been_given(monkeypatch,
+                                                                   approved):
+    """The chicken and the egg: refusing to run until the id is written sent
+    somebody into a web console to hunt for it, and what came back was the
+    APPLICATION id, which is a different identifier entirely. The token can
+    list the locations, so ask."""
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    reg = json.loads(json.dumps(approved))
+    reg["square"]["sandbox_location_id"] = "[CONFIRM: the sandbox location id]"
+    steps, link, _ = payments.live_check(
+        sandbox=True, reg=reg,
+        transport=Console(locations=[{"id": "LREAL123", "name": "SAT-C LLP"}]))
+    assert not steps[-1].ok
+    assert "LREAL123" in steps[-1].detail and "SAT-C LLP" in steps[-1].detail
+    assert link is None
+
+
+def test_it_does_not_pretend_to_look_up_an_id_with_no_token(approved,
+                                                            monkeypatch):
+    """With no token there is nothing to ask WITH, so it must not try -- and
+    must say the token is missing rather than reporting a failed lookup, which
+    sends somebody debugging their Square account instead of their shell."""
+    monkeypatch.delenv("SATC_SQUARE_TOKEN", raising=False)
+    reg = json.loads(json.dumps(approved))
+    reg["square"]["sandbox_location_id"] = "[CONFIRM: the sandbox location id]"
+
+    def never(*args, **kwargs):
+        raise AssertionError("it called Square with no token")
+
+    steps, _, _ = payments.live_check(sandbox=True, reg=reg, transport=never)
+    assert len(steps) == 1 and not steps[0].ok
+    assert "is empty" in steps[0].detail
+    assert "failed" not in steps[0].detail

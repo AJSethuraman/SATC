@@ -364,8 +364,15 @@ cover what is owed does not settle it: `SettledOn` stays unwritten,
 the screen says `SHORT` rather than `waiting`, and the return stays
 blocked from filing. The case this exists for is a link that outlived
 its figure — re-quote an engagement from $645 to $745 and the old
-link still cheerfully collects $645. An OVERpayment does settle the
-bill, and says how much is owed back.
+link still cheerfully collects $645.
+
+**An overpayment is credited, not refunded.** It settles the bill —
+holding a return over the firm's own refund would be absurd — and
+the next bill on that engagement says the money is sitting there and
+prints the `--credit` line to put it on. Refunding it costs the firm
+the processing fee: Square stopped returning that on refunds to US
+sellers on 11 April 2023. Naming the overpaid invoice in the credit's
+label is what records it as given back.
 
 Once a bill is settled, `sign` stops reporting the invoice half of the
 promise as unknowable: every engagement letter says we will not e-file
@@ -376,6 +383,12 @@ can actually check.
 > sends a cheque or a bank transfer will never show as settled here,
 > and marking it by hand is a decision about money that belongs to a
 > person, not to a poll.
+
+A location id looks like `LM2T2W21MZ5CY`. It is **not** the
+application id, which the developer console shows beside it and which
+names the integration rather than the business the money belongs to.
+`--check` asks Square for the location list and prints the ids by
+name, so the right one can be copied rather than hunted for.
 
 The token lives in an environment variable named by
 `registry/payments.yaml`, never in the repository — a token in the
