@@ -65,9 +65,15 @@ class PaymentError(RuntimeError):
     for a person to read, which breaks the moment the wording improves.
     """
 
-    def __init__(self, message: str, code: int | None = None):
+    def __init__(self, message: str, code: int | None = None,
+                 fact: str = ""):
         super().__init__(message)
         self.code = code
+        # THE SAME REFUSAL, WITHOUT THE GUESSING. `live_check` finds out which
+        # cause it is and must print its finding INSTEAD of the possibilities,
+        # not after them -- a paragraph of hypotheses above the answer argues
+        # against the answer.
+        self.fact = fact or message
 
 
 @dataclass(frozen=True)
@@ -306,47 +312,59 @@ class Square:
 
 
 def _refusal(code: int, detail: str, url: str) -> str:
-    """What to say when the processor refuses. Pure, so it can be tested.
+    """What to say when the processor refuses, to a caller that cannot ask more.
 
-    A BARE STATUS CODE IS NOT AN ANSWER. `401` sent somebody to look at their
-    Square account, when the fault was almost certainly one field away: there
-    are TWO accounts, each with its own token, and a sandbox token is refused
-    by the live host exactly as a production token is refused by the sandbox.
-    The console shows both, one click apart, beside two other values that are
-    not tokens at all. Naming the likely cause here is the difference between
-    a message that ends the problem and one that starts an investigation.
-
-    Square's own sentence already ends in a full stop, so the template does
-    not add a second one.
+    THE FACT AND THE GUESSING ARE SEPARATE, because one caller can do better
+    than guess. `link_for` and everything else that talks to the processor get
+    both halves: the refusal, then the possible causes. `live_check` takes the
+    fact alone and prints what it FOUND OUT in place of the possibilities --
+    a paragraph of hypotheses above an answer argues against the answer, and
+    for a while this printed both, ninety-three words to say forty-five.
     """
-    # THE CONSOLE'S OWN WORDS, not ours. Square labels the two tabs "Sandbox"
-    # and "Production"; telling somebody to look for a "live" tab sends them
-    # hunting for a thing that is not on the screen in front of them.
-    where = "Sandbox" if "squareupsandbox" in url else "Production"
+    return _fact(code, detail) + _guesses(code, url)
+
+
+def _fact(code: int, detail: str) -> str:
+    """What happened, with nothing added.
+
+    Square's own sentence already ends in a full stop, so this does not add a
+    second one -- a real run printed `authorized..` before it did that.
+    """
     said = (detail or "").strip()
     out = f"the payment processor refused: {code}"
     if said:
         out += f" — {said.rstrip('.')}"
-    out += ". Nothing has been put on the invoice."
-    if code in (401, 403):
-        other = "Production" if where == "Sandbox" else "Sandbox"
-        # WHAT ONE REFUSAL CAN AND CANNOT TELL YOU. This said a token from the
-        # other tab was "the commonest cause", and then a real run refused the
-        # SAME token on BOTH hosts -- so the message confidently named the one
-        # place the problem was not, on each of the two runs, contradicting
-        # itself between them. A single 401 distinguishes none of these causes.
-        # The causes are listed; the choosing is done by `live_check`, which
-        # can actually ask. Tenet 1, in the code that quotes tenet 1.
-        out += (
-            f" Square did not accept the token. This run used the {where} "
-            f"account. It may be the {other} token — there are two accounts, "
-            f"each with its own — or it may not be an access token at all: the "
-            f"application id and the application secret sit on the same "
-            f"console page, and a token can be revoked. One refusal cannot "
-            f"tell these apart. `payments --check` asks both accounts and says "
-            f"which it is."
-        )
-    return out
+    return out + ". Nothing has been put on the invoice."
+
+
+def _guesses(code: int, url: str) -> str:
+    """The possible causes of a refusal, for a caller that cannot find out which.
+
+    WHAT ONE REFUSAL CAN AND CANNOT TELL YOU. This once named a token from the
+    other tab as "the commonest cause", and then a real run refused the SAME
+    token on BOTH hosts -- so on each of the two runs the message confidently
+    named the one place the problem was not, contradicting itself between them.
+    A single 401 distinguishes none of these, so this lists them and chooses
+    none. Tenet 1, in the code that quotes tenet 1.
+
+    Only an authorization refusal gets this. A rate limit or a server fault has
+    nothing to do with the token, and sending somebody to re-copy one would
+    send them the wrong way.
+    """
+    if code not in (401, 403):
+        return ""
+    # THE CONSOLE'S OWN WORDS, not ours. Square labels the two tabs "Sandbox"
+    # and "Production"; telling somebody to look for a "live" tab sends them
+    # hunting for a thing that is not on the screen in front of them.
+    where = "Sandbox" if "squareupsandbox" in url else "Production"
+    other = "Production" if where == "Sandbox" else "Sandbox"
+    return (
+        f" Square did not accept the token. This run used the {where} account, "
+        f"so it may be the {other} one, or not an access token at all — the "
+        f"application id and the application secret sit on the same console "
+        f"page, and a token can be revoked. `payments --check` asks both "
+        f"accounts and says which."
+    )
 
 
 def _http(method: str, url: str, headers: dict, body: dict | None) -> dict:
@@ -370,8 +388,8 @@ def _http(method: str, url: str, headers: dict, body: dict | None) -> dict:
                                (problem.get("errors") or []))
         except Exception:                                  # noqa: BLE001
             pass
-        raise PaymentError(_refusal(exc.code, detail, url),
-                           code=exc.code) from None
+        raise PaymentError(_refusal(exc.code, detail, url), code=exc.code,
+                           fact=_fact(exc.code, detail)) from None
     except urllib.error.URLError as exc:
         raise PaymentError(
             f"the payment processor could not be reached ({exc.reason}). The "
@@ -645,17 +663,18 @@ def _asks_the_other_account(reg: dict, sandbox: bool, transport) -> str:
         elsewhere.locations()
     except PaymentError as exc:
         if getattr(exc, "code", None) in (401, 403):
+            # "Square did not accept the token" is what the line above this
+            # already says. The finding is the second account, not the first.
             return (f" The {name} account refuses it too, so it is not a token "
-                    f"for either of them. It is most likely the application id "
-                    f"or the application secret rather than the ACCESS TOKEN — "
-                    f"all three sit on the same console page — or a token that "
-                    f"has been revoked.")
+                    f"for either account. Most likely it is the application id "
+                    f"or the application secret rather than the ACCESS TOKEN; "
+                    f"all three sit on the same console page. A revoked token "
+                    f"does this too.")
         # Could not ask. Saying nothing is right: a guess dressed as a finding
         # is what this whole function exists to stop.
         return ""
-    return (f" The {name} account DOES accept this token, so it is a {name} "
-            f"token and this run used {ran}. Use the {ran} access token, or "
-            f"run the check against {name}.")
+    return (f" This is a {name} token and you ran {ran}. Use the {ran} access "
+            f"token, or run the check against {name}.")
 
 
 def live_check(*, sandbox: bool = True, amount_cents: int = 100,
@@ -704,9 +723,10 @@ def live_check(*, sandbox: bool = True, amount_cents: int = 100,
         except PaymentError as exc:
             more = (_asks_the_other_account(reg, sandbox, transport)
                     if getattr(exc, "code", None) in (401, 403) else "")
+            said = f"{exc.fact}{more}" if more else str(exc)
             steps.append(Step("the location id is written down", False,
                               f"`square.{which}` is not filled in, and asking "
-                              f"Square for it failed: {exc}{more}"))
+                              f"Square for it failed: {said}"))
             return steps, None, None
         steps.append(Step("the location id is written down", False,
                           f"`square.{which}` in registry/payments.yaml is "
@@ -739,7 +759,8 @@ def live_check(*, sandbox: bool = True, amount_cents: int = 100,
     except PaymentError as exc:
         more = (_asks_the_other_account(reg, sandbox, transport)
                 if getattr(exc, "code", None) in (401, 403) else "")
-        steps.append(Step("Square answers this token", False, f"{exc}{more}"))
+        steps.append(Step("Square answers this token", False,
+                          f"{exc.fact}{more}" if more else str(exc)))
         return steps, None, None
     steps.append(Step("Square answers this token", True,
                       f"{len(found)} location(s) on the account"))

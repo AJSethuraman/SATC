@@ -745,6 +745,16 @@ def test_a_401_lists_the_causes_and_claims_none_of_them():
         401, "", "https://connect.squareup.com/x")
 
 
+def test_the_guessing_is_separable_from_what_happened():
+    """`live_check` prints its FINDING in place of the possibilities. It can
+    only do that if the two are separable -- and for a while they were not, so
+    it printed a paragraph of hypotheses above the answer that resolved them."""
+    fact = payments._fact(401, "Nope.")
+    assert "may be" not in fact and "application id" not in fact
+    assert payments._refusal(401, "Nope.", "https://connect.squareup.com/x") \
+        == fact + payments._guesses(401, "https://connect.squareup.com/x")
+
+
 # ── the claim, earned ─────────────────────────────────────────────────────
 
 
@@ -760,8 +770,15 @@ class Refuses:
         self.asked.append(url)
         if self.accepts and self.accepts in url:
             return {"locations": [{"id": "LOK", "name": "SAT-C LLP"}]}
-        raise payments.PaymentError("the payment processor refused: 401.",
-                                    code=401)
+        # REFUSED THE WAY `_http` REFUSES, not a hand-made stand-in. This
+        # raised a bare string, so `exc` and `exc.fact` were the same text and
+        # four mutants that put the guessing back into the report lived through
+        # the whole file: the fixture had no guessing in it to put back. A test
+        # that builds its own shape proves the code agrees with itself.
+        said = "This request could not be authorized."
+        raise payments.PaymentError(payments._refusal(401, said, url),
+                                    code=401,
+                                    fact=payments._fact(401, said))
 
 
 def test_a_token_both_accounts_refuse_is_named_as_neither(monkeypatch, approved):
@@ -773,9 +790,33 @@ def test_a_token_both_accounts_refuse_is_named_as_neither(monkeypatch, approved)
     said = steps[-1].detail
     assert "not a token for either" in said
     assert "application id" in said and "revoked" in said
+    assert "may be the Production one" not in said
+    assert said.count("same console page") == 1, "it said it twice"
+    assert len(said.split()) <= 80, f"{len(said.split())} words: {said}"
     assert any("squareupsandbox" in u for u in api.asked)
     assert any("squareupsandbox" not in u for u in api.asked), \
         "it never asked the other account"
+
+
+def test_a_refused_token_is_diagnosed_even_before_the_location_is_written(
+        monkeypatch, approved):
+    """THE PATH THE FIRM ACTUALLY RAN. `--check --production` with the live
+    location still a `[CONFIRM:` goes down the look-it-up branch, and that
+    branch reports a refusal too. It was reporting the possibilities and the
+    finding, one after the other -- the shape this whole change removes -- and
+    every probe test used a registry that had its location filled in, so
+    nothing looked here.
+    """
+    monkeypatch.setenv("SATC_SQUARE_TOKEN", "t")
+    reg = json.loads(json.dumps(approved))
+    reg["square"]["sandbox_location_id"] = "[CONFIRM: the sandbox location id]"
+    steps, link, _ = payments.live_check(sandbox=True, reg=reg,
+                                         transport=Refuses())
+    said = steps[-1].detail
+    assert "not a token for either" in said
+    assert "may be the Production one" not in said
+    assert "asks both accounts and says which" not in said
+    assert link is None
 
 
 def test_a_token_the_other_account_accepts_is_named_definitely(monkeypatch,
@@ -785,9 +826,12 @@ def test_a_token_the_other_account_accepts_is_named_definitely(monkeypatch,
         sandbox=True, reg=approved,
         transport=Refuses(accepts="connect.squareup.com"))
     said = steps[-1].detail
-    assert "Production account DOES accept" in said
-    assert "this run used Sandbox" in said
+    assert "This is a Production token and you ran Sandbox" in said
     assert "not a token for either" not in said
+    # THE FINDING REPLACES THE GUESSING, it does not follow it.
+    assert "may be the Production one" not in said
+    assert "asks both accounts and says which" not in said, \
+        "it told the reader to run the command they are reading the output of"
 
 
 def test_a_working_run_never_asks_the_other_account(monkeypatch, approved):
@@ -849,12 +893,19 @@ def test_only_an_authorization_refusal_gets_the_token_advice():
     for code in (400, 429, 500, 503):
         said = payments._refusal(code, "Something else.",
                                  "https://connect.squareup.com/x")
-        assert "ACCESS TOKEN" not in said, code
+        # ON THE WORDS THAT ARE ACTUALLY THERE. This asserted on "ACCESS
+        # TOKEN", which the guessing stopped containing when it was reworded,
+        # so the check quietly stopped checking anything.
+        assert "application id" not in said, code
+        assert "may be the" not in said, code
+        assert said == payments._fact(code, "Something else."), code
         assert "Nothing has been put on the invoice." in said
 
 
 def test_a_refusal_never_carries_the_request_or_the_token():
     """The request carries the Authorization header, and an exception string
     ends up in a terminal, a log, and whatever screenshot goes into a ticket."""
-    said = payments._refusal(401, "nope", "https://connect.squareup.com/x")
-    assert "Bearer" not in said and "Authorization" not in said
+    for said in (payments._refusal(401, "nope", "https://connect.squareup.com/x"),
+                 payments._fact(401, "nope"),
+                 payments._guesses(401, "https://connect.squareup.com/x")):
+        assert "Bearer" not in said and "Authorization" not in said
