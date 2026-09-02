@@ -36,7 +36,10 @@ square:
   # day someone forgets, a real client gets a link against a test location.
   # `--sandbox` picks this one, the same flag that picks `sandbox_host`; only
   # the id for the run you are doing has to be filled in.
-  sandbox_location_id: "[CONFIRM: the sandbox location id, from the Sandbox tab of the same console]"
+  # SET 2 September 2026, read off the Sandbox tab of the firm's own
+  # console: "Default Test Account (Main)", the one mock location Square
+  # gives each application. No real money can reach it.
+  sandbox_location_id: "LM2T2W21MZ5CY"
 
   # THE TOKEN IS NOT IN THIS FILE AND MUST NEVER BE. This names the environment
   # variable to read it from. A token in the repository is a token in every
