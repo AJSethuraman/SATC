@@ -193,3 +193,23 @@ should not have to rediscover why.
   silence.
 - **What the S corporation health insurance rule does to a W-2.** It is in the
   business guide, and repeating it here would break the cross-page check.
+
+---
+
+## Automated pass, 27 August 2026
+
+`docs/guides/verify_sources.py` fetched every page cited here and searched it
+for the claim's own load-bearing strings. Two notes specific to this file.
+
+**The Ohio Secretary of State PDFs do not fetch.** `610.pdf` returns 403 to a
+script, and the instructions URL returns the site's HTML shell rather than the
+document. So **"an Ohio LLC is formed on Form 610" is still unverified** — not
+contradicted, just unchecked. A person with a browser can settle it in a
+minute, or the form number can come out of the guide, which would cost the
+reader little.
+
+**`uscode.house.gov` redirects and returns nothing to the script.** The rows
+citing it for the S-election rules are unverified for the same reason. The
+same rules are on `irs.gov/instructions/i2553`, which does fetch — repointing
+those citations would be better than leaving them on a host that will not
+answer.

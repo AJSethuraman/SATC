@@ -18,9 +18,10 @@ becomes the next working day.
   state refunds.
 - **Brokerage statements.** These have a later deadline than a W-2: February 15.
   Starting a return before yours arrives means starting it twice.
-- **1095-A**, if your health coverage came through the marketplace. Due to you
-  by January 31. If part of the premium was paid straight to the insurer, the
-  return settles that up against what you actually earned.
+- **1095-A**, if your health coverage came through the marketplace. It comes
+  from the marketplace rather than from the IRS, early in the year. If part of
+  the premium was paid straight to the insurer, the return settles that up
+  against what you actually earned.
 - **K-1s.** A partnership or S corporation owes you one by March 15 for a
   calendar year. Many of them file for more time and send K-1s in September.
 - **HSA and IRA contribution forms** arrive in May, after the April deadline
