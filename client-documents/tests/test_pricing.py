@@ -2375,7 +2375,7 @@ def test_the_command_a_person_runs_puts_hourly_work_on_the_engagement(tmp_path, 
     engagements.save_answers(a, ref, tmp_path)
 
     assert cli.main(["hourly", "--engagement", ref, "--store", str(tmp_path),
-                     "--on", "cleanup", "--hours", "1.5"]) == 0
+                     "--for", "cleanup", "--hours", "1.5"]) == 0
     out = capsys.readouterr().out
     assert "$225.00" in out, out
 
@@ -2409,3 +2409,100 @@ def test_hourly_takes_hours_and_never_an_amount(tmp_path):
         assert forbidden not in help_text, (
             f"{forbidden} lets a preparer type money onto an engagement; the "
             f"price follows the answers, and requote refuses this on purpose")
+
+
+def test_an_hour_billed_is_an_hour_recorded(tmp_path, capsys):
+    """The firm's reason for automatic time capture, in their words: "i am bad
+    at doing so." An hour they have just told the software about, in order to
+    bill it, must not be missing from the time picture — `spent` reported
+    0.00 stated on an engagement carrying a 1.5 hour cleanup line.
+
+    STATED, not measured: a person asserted it, and `spent` keeps the two apart
+    because measured is a floor the software saw and stated is a claim."""
+    import cli, engagements, timelog
+    a = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    ref, _ = engagements.create({"EngagementRef": "2026-0001"}, ref="2026-0001",
+                                store=tmp_path)
+    engagements.save_answers(a, ref, tmp_path)
+
+    assert cli.main(["hourly", "--engagement", ref, "--store", str(tmp_path),
+                     "--for", "cleanup", "--hours", "1.5",
+                     "--note", "Reconciled the brokerage statements"]) == 0
+    capsys.readouterr()
+
+    spent = timelog.spent(tmp_path, ref)
+    assert spent.stated == 1.5, "the hour was billed and not recorded"
+    assert spent.measured != spent.stated, "the two must not be conflated"
+    assert any("Reconciled" in t.what for t in spent.stated_entries)
+
+
+def test_an_identification_number_in_the_note_stops_the_whole_command(tmp_path, capsys):
+    """THE FIFTH SEAM, reached from a new direction. The note travels on the
+    interview answers, so `tins.refuse` fires at the answers write — BEFORE the
+    billing line exists — and the whole command is refused.
+
+    That is the right end of the trade, and I had assumed the other one: my
+    first version of this test asserted the billing survived a rejected note.
+    A note can be retyped. A TIN written into a file that lives in OneDrive and
+    is read back every season cannot be unwritten."""
+    import cli, engagements
+    a = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    ref, _ = engagements.create({"EngagementRef": "2026-0001"}, ref="2026-0001",
+                                store=tmp_path)
+    engagements.save_answers(a, ref, tmp_path)
+
+    rc = cli.main(["hourly", "--engagement", ref, "--store", str(tmp_path),
+                   "--for", "cleanup", "--hours", "1",
+                   "--note", "called about SSN 123-45-6789"])
+    out = capsys.readouterr().out
+    assert rc == 1, out
+    assert "Nothing was written" in out
+    assert "shaped like an SSN" in out, "the refusal did not say why"
+
+    saved = json.loads((engagements._dir(tmp_path, ref) / "interview.json")
+                       .read_text(encoding="utf-8"))
+    assert "hourly_work" not in saved
+    assert "123-45-6789" not in json.dumps(saved), "the number reached the file"
+
+
+
+def test_nothing_is_written_when_the_day_cannot_be_read(tmp_path, capsys):
+    """EVERYTHING IS CHECKED BEFORE ANYTHING IS WRITTEN. The date parse used to
+    sit after the line was priced and saved, so a refused `--on` returned 1
+    having already put a billing line on the engagement — the shape the atomic
+    pack exists to prevent, reintroduced in a new command.
+
+    Caught by running it: the refusal printed, and the next run said "2 hourly
+    lines" where there should have been one."""
+    import cli, engagements
+    a = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    ref, _ = engagements.create({"EngagementRef": "2026-0001"}, ref="2026-0001",
+                                store=tmp_path)
+    engagements.save_answers(a, ref, tmp_path)
+
+    rc = cli.main(["hourly", "--engagement", ref, "--store", str(tmp_path),
+                   "--for", "cleanup", "--hours", "1", "--on", "03/04/2027"])
+    assert rc == 1
+    assert "could be read two ways" in capsys.readouterr().out
+
+    saved = json.loads((engagements._dir(tmp_path, ref) / "interview.json")
+                       .read_text(encoding="utf-8"))
+    assert "hourly_work" not in saved, (
+        "a refused command left a billing line on the engagement")
+
+
+def test_the_day_it_was_worked_is_what_is_recorded(tmp_path, capsys):
+    """The same rule `sign --on` follows: the day they signed, not the day you
+    heard. A preparer billing today for last week's cleanup puts it on last
+    week, or the time picture drifts from the work."""
+    import cli, engagements, timelog
+    a = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    ref, _ = engagements.create({"EngagementRef": "2026-0001"}, ref="2026-0001",
+                                store=tmp_path)
+    engagements.save_answers(a, ref, tmp_path)
+
+    assert cli.main(["hourly", "--engagement", ref, "--store", str(tmp_path),
+                     "--for", "cleanup", "--hours", "2", "--on", "2027-02-09",
+                     "--note", "Reconciled the brokerage statements"]) == 0
+    entries = timelog.spent(tmp_path, ref).stated_entries
+    assert [e.when.date().isoformat() for e in entries] == ["2027-02-09"]

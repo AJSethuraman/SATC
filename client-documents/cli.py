@@ -2294,7 +2294,7 @@ def cmd_hourly(args) -> int:
     ref = args.engagement
     situations = pricing.hourly_situations()
 
-    if not args.on:
+    if not args.situation:
         print("\n  The firm's hourly situations, in the words the price page "
               "already uses:\n")
         for key, label in situations.items():
@@ -2302,7 +2302,7 @@ def cmd_hourly(args) -> int:
         rate = (pricing.load().get("basis") or {}).get("rate")
         print(f"\n  Billed at {m.money(rate)} an hour, to the quarter hour.")
         print(f"\n  Add one:  python cli.py hourly --engagement {ref} "
-              f"--on cleanup --hours 1.5")
+              f"--for cleanup --hours 1.5")
         return 0
 
     path = engagements._dir(store, ref) / "interview.json"
@@ -2321,20 +2321,45 @@ def cmd_hourly(args) -> int:
         print(f"\n  The software measured {spent.measured:g} h on {ref}. It "
               f"cannot see Drake,\n  so that is a floor, not the answer.\n")
         print(f"  Bill that:  python cli.py hourly --engagement {ref} "
-              f"--on {args.on} --hours {spent.measured:g}")
+              f"--for {args.situation} --hours {spent.measured:g}")
         return 2
 
+    # EVERYTHING IS CHECKED BEFORE ANYTHING IS WRITTEN. The date parse used to
+    # sit after the line was priced and saved, so a refused `--on` returned 1
+    # having already put a billing line on the engagement -- the shape the
+    # atomic pack exists to prevent, reintroduced in a new command. Caught by
+    # running it: the refusal printed, and the next run said "2 hourly lines".
+    worked = None
+    if getattr(args, "on", None):
+        try:
+            worked = _dt.datetime.fromisoformat(args.on)
+        except ValueError:
+            print(f"\n  --on wants a date as 2027-02-09. {args.on!r} could be "
+                  f"read two ways\n  and this will not pick one. Nothing was "
+                  f"written.")
+            return 1
+
     try:
-        line = pricing.hourly_line(args.on, hours)
+        line = pricing.hourly_line(args.situation, hours)
     except pricing.PricingError as exc:
         print(f"\n  {exc}")
         return 1
 
     work = list(answers.get("hourly_work") or [])
-    work.append({"kind": args.on, "hours": float(hours),
+    work.append({"kind": args.situation, "hours": float(hours),
                  "note": args.note or ""})
     answers["hourly_work"] = work
-    engagements.save_answers(answers, ref, store)
+    # THE FIFTH SEAM CATCHES THE NOTE, and it catches it HERE -- before the
+    # line is written -- because the note travels on the interview answers.
+    # So an identification number in "what the time was" refuses the whole
+    # command and leaves no billing line behind, which is the right end of the
+    # trade: the note can be retyped, and a TIN in a file that lives in
+    # OneDrive and is read back every season cannot be unwritten.
+    try:
+        engagements.save_answers(answers, ref, store)
+    except tins.TinRefused as exc:
+        print(f"\n  {exc}\n\n  Nothing was written.")
+        return 1
 
     # AND THE RECORD, WHICH IS WHAT GETS BILLED. Saving the answers alone put
     # the hour on the estimate and nowhere else: the invoice reads `LineItems`
@@ -2350,6 +2375,25 @@ def cmd_hourly(args) -> int:
     if record is not None:
         record.update(priced)
         engagements.save(record, ref, store)
+
+    # AN HOUR BILLED IS AN HOUR WORKED. The firm on why time capture is
+    # automatic at all: "i am bad at doing so." So an hour they have just told
+    # the software about, in order to bill it, is not left out of the time
+    # picture -- `spent` reported 0.00 stated on an engagement carrying a 1.5
+    # hour cleanup line, which is the software knowing something and not
+    # saying it. Recorded as STATED, not measured: a person asserted it, and
+    # `spent` keeps the two apart on purpose.
+    #
+    # Failure here does not lose the billing. The line is already written and
+    # priced; the time entry is the lesser record, and refusing the whole
+    # command over it would be the tail wagging the dog.
+    try:
+        timelog.add(store, ref, float(hours),
+                    args.note or f"{line['Service']} (billed hourly)",
+                    when=worked)
+    except Exception as exc:
+        print(f"\n  (the hourly line is recorded; the time entry was not: "
+              f"{exc})")
 
     print(f"\n  {line['Service']}")
     print(f"      {line['Detail']}   {line['Amount']}")
@@ -2657,12 +2701,19 @@ def build_parser() -> argparse.ArgumentParser:
     hy = sub.add_parser("hourly",
                         help="hourly work on an engagement, so it can be billed")
     hy.add_argument("--engagement", required=True)
-    hy.add_argument("--on", metavar="SITUATION",
+    # `--for`, NOT `--on`. This flag first read `--on cleanup`, and `--on`
+    # means a DATE on `sign` -- "the day they signed, not the day you heard".
+    # One flag with two meanings across two commands is worse than either
+    # spelling, and it collided outright the moment this command needed a date
+    # of its own.
+    hy.add_argument("--for", dest="situation", metavar="SITUATION",
                     help="which of the firm's hourly situations. Omit to list them.")
     hy.add_argument("--hours", type=float,
                     help="how long it took. Omit to see what the software "
                          "measured, which is a floor and not the answer.")
     hy.add_argument("--note", help="what the time was, in one line")
+    hy.add_argument("--on", metavar="YYYY-MM-DD",
+                    help="the day it was worked, if that is not today")
     hy.add_argument("--store")
     hy.set_defaults(fn=cmd_hourly)
 

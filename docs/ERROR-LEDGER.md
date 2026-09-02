@@ -172,3 +172,36 @@ What was built in response, rather than nine corrections:
 * The stale docstring in `signing.may_file` was corrected, because a wrong
   comment beside working code is a claim that gets transcribed — this one was,
   word for word, into the firm's operating procedures.
+
+### Three more from the same night, all mine
+
+| # | The error | What caught it |
+|---|---|---|
+| 40 | `cli.py hourly` recorded a billable hour and did not record it as TIME. `spent` reported `stated 0.00 h` on an engagement carrying a 1.5 hour cleanup line — the software knowing something and not saying it, on the one thing the firm said they are bad at doing by hand | Reading `spent` during the walkthrough |
+| 41 | The new command spelled the situation `--on cleanup`, and `--on` means a DATE on `sign` — "the day they signed, not the day you heard". One flag, two meanings, two commands. It collided outright the moment `hourly` needed a date of its own, which is the only reason anybody found out | argparse, refusing to build the parser |
+| 42 | With that date added, the parse sat AFTER the line was priced and saved — so a refused `--on` returned 1 having already put a billing line on the engagement. The exact shape the atomic pack exists to prevent, reintroduced in a new command a few hours after writing about it | Running it: the refusal printed, then the next run said "2 hourly lines" |
+
+Entry 42 is the one worth keeping. `packaging` refuses to write a pack unless
+every document in it renders, and the reasoning is on the function in capitals.
+I wrote a new command that takes a piece of a client's money, put its validation
+after its write, and did not notice — in the same session, in the same file. A
+tenet you can quote is not a tenet you have applied.
+
+**Everything is checked before anything is written** is now pinned by
+`test_nothing_is_written_when_the_day_cannot_be_read`, which fails if the parse
+moves back.
+
+**Entry 43, and it is the good kind.** The test written for entry 40 asserted
+that a billing line SURVIVES a time entry the TIN guard rejects — the note can
+be retyped, the money should not be lost. The suite disagreed: the note travels
+on the interview answers, so `tins.refuse` fires at the ANSWERS write, before
+the line exists, and the whole command is refused. That is the safer end of the
+trade and the assumption was wrong, not the code. A note can be retyped; a TIN
+written into a file that lives in OneDrive and is read back every season cannot
+be unwritten. The only real defect was that the refusal escaped as a traceback
+rather than as a sentence; it is caught and printed now.
+
+**Also verified this session, closing the audit's largest gap:** `exercise.py`
+ran end to end — **29 scenarios, 190 documents, 0 refusals, 0 with something
+unexpected**, every document opened in a browser. The refusal scenario still
+refuses after the hard-no question moved to number four.
