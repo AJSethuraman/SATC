@@ -141,6 +141,87 @@ def _line(service: str, detail: str, amount, code: str, includes: str = "") -> d
             "Amount": m.money(amount, code), "_raw": amount}
 
 
+def hourly_situations(schedule: dict | None = None) -> dict[str, str]:
+    """The named hourly situations, keyed, with the firm's published wording."""
+    s = schedule if schedule is not None else load()
+    return {k: v["label"]
+            for k, v in ((s.get("hourly") or {}).get("situations") or {}).items()}
+
+
+def hourly_line(kind: str, hours, schedule: dict | None = None) -> dict:
+    """One estimate row for hourly work: rounded hours x the firm's rate.
+
+    THE LINE THAT DID NOT EXIST. `$150 an hour, billed to the quarter hour` is
+    published on the firm's price page under five named situations, and
+    `assumed.cleanup` tells clients in writing that reconciling their records
+    is billed hourly against the estimate. There was no hourly construct in the
+    schedule and no way for an hour to reach an invoice, which takes its lines
+    from the priced record and nothing else. So the firm could not bill work it
+    had already sold and already promised to bill.
+
+    NO ENGAGEMENT MINIMUM IS APPLIED, on the firm's instruction of 2 September
+    2026: the $200 is advisory now, and whether a job is worth taking is their
+    judgement rather than this file's. `basis.minimum_increment` still rounds --
+    that is how time is measured, not what work is worth.
+
+    RAISES rather than guessing on an unknown situation. The five are the ones
+    a client has already read on the price page; a sixth invented at the
+    keyboard would describe the same work in different words on the estimate,
+    which is the failure `base_covers` and the phrase registry both exist to
+    stop.
+    """
+    s = schedule if schedule is not None else load()
+    basis = s.get("basis") or {}
+    situations = hourly_situations(s)
+    if kind not in situations:
+        raise PricingError(
+            f"{kind!r} is not one of the firm's hourly situations. They are: "
+            + ", ".join(sorted(situations))
+            + ". Add it to the fee schedule beside the wording the price page "
+              "already uses, rather than naming it here.")
+
+    try:
+        raw = float(hours)
+    except (TypeError, ValueError):
+        raise PricingError(
+            f"{hours!r} is not a number of hours. An hourly line with no hours "
+            f"on it is a promise to bill something, later, for an amount "
+            f"nobody wrote down.") from None
+    if raw <= 0:
+        raise PricingError(
+            "an hourly line needs hours above zero. Nothing worked is nothing "
+            "billed, and a zero line on an estimate reads as a service the "
+            "client is getting free.")
+
+    step = float(basis.get("minimum_increment") or 0.25)
+    billed = _round_up(raw, step)
+    rate = basis.get("rate")
+    if rate is None:
+        raise PricingError("the fee schedule carries no hourly rate to bill at.")
+
+    code = s.get("currency", "USD")
+    return _line(situations[kind],
+                 f"{_spoken_hours(billed)} at {m.money(rate, code)} an hour",
+                 billed * float(rate), code)
+
+
+def _spoken_hours(hours: float) -> str:
+    """"1 hour", "2.5 hours" — not "1.0 hours". This prints on a client's
+    estimate, and a trailing .0 is the tell that a number came out of a
+    machine rather than off somebody's timesheet."""
+    text = f"{hours:g}"
+    return f"{text} hour" if hours == 1 else f"{text} hours"
+
+
+def _round_up(value: float, step: float) -> float:
+    """Up to the next increment. The firm bills to the quarter hour, and
+    rounding a 0.3 down to 0.25 gives away three minutes on every line."""
+    if step <= 0:
+        return value
+    import math
+    return round(math.ceil(round(value / step, 9)) * step, 4)
+
+
 def _preparer_amount(unit: dict, answers: dict):
     """The amount for a line the PREPARER prices, floored at its minimum.
 
@@ -1080,6 +1161,21 @@ def line_items(answers: dict, schedule: dict | None = None) -> list[dict]:
     # "Records cleanup -- included" or "-- hourly" is a term of business
     # wearing a line item's clothes. Terms belong in `assumptions()` below,
     # which puts them in the estimate's own assumptions block in words.
+
+    # HOURLY WORK, LAST, because it is what turned up rather than what was
+    # quoted. `hourly_work` is a list of {kind, hours} on the answers, and it
+    # sits in the ANSWERS rather than being appended to a finished price for
+    # one reason: everything downstream -- the estimate, `requote`, the
+    # invoice's variance check -- is driven by the answers, so hourly work
+    # priced here is hourly work those all understand without a second path.
+    # A preparer types HOURS, never an amount; `requote` refuses typed figures
+    # on purpose and this must not become the way around that.
+    for entry in answers.get("hourly_work") or []:
+        if not isinstance(entry, dict):
+            raise PricingError(
+                f"hourly_work holds {entry!r}, which is not a piece of work. "
+                f"Each entry names a situation and the hours it took.")
+        items.append(hourly_line(entry.get("kind"), entry.get("hours"), s))
 
     return items
 

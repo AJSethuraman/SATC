@@ -1619,7 +1619,17 @@ def cmd_sign(args) -> int:
             have = got.get((line.document, line.field))
             mark = "signed" if have else "OUTSTANDING"
             when = f"  {have.when}" if have else ""
-            print(f"      {mark:12} {line.document:20} {line.who:28}{when}")
+            # THE NAME `--record` WANTS, PRINTED WHERE IT IS READ. This
+            # column used to show only `line.who` -- "Taxpayer", "Spouse" --
+            # while `--record` matches `line.field` ("TaxpayerName",
+            # "SpouseName"), and the refusal for a wrong one said "run without
+            # --record to see the ones it does", which printed the names it
+            # rejects. Recording a spouse's signature, required on every joint
+            # return, was a closed loop.
+            print(f"      {mark:12} {line.document:20} {line.who:22}"
+                  f"{when}")
+            print(f"      {'':12} {'':20} --record "
+                  f"{line.document}/{line.field}")
         if where.deadline:
             print(f"\n  Due by {where.deadline}"
                   + ("  — PASSED" if where.overdue else ""))
@@ -1650,11 +1660,21 @@ def cmd_sign(args) -> int:
         print("\n--record wants document/Field, as the list above prints it.\n")
         return 1
     doc, fieldname = args.record.split("/", 1)
+    # EITHER NAME. The field id is what this matched, and the listing showed
+    # the human label; somebody typing what they were shown was refused. Both
+    # are accepted now, and a wrong one is answered with the names that work
+    # rather than a pointer back to the listing that rejected it.
     line = next((ln for ln in where.expected
-                 if ln.document == doc and ln.field == fieldname), None)
+                 if ln.document == doc
+                 and fieldname.casefold() in (ln.field.casefold(),
+                                              ln.who.casefold())), None)
     if line is None:
-        print(f"\nThis pack has no signature line {args.record!r}. Run without "
-              f"--record to see the ones it does.\n")
+        print(f"\nThis pack has no signature line {args.record!r}. It asks "
+              f"for:\n")
+        for ln in where.expected:
+            print(f"      --record {ln.document}/{ln.field}"
+                  f"      ({ln.who})")
+        print()
         return 1
     try:
         path = signing.record_signature(
@@ -2250,6 +2270,99 @@ def cmd_forms(args) -> int:
     return 0
 
 
+def cmd_hourly(args) -> int:
+    """Put hourly work on an engagement, so it can be billed.
+
+    THE GAP THIS CLOSES. $150 an hour is on the firm's price page under five
+    named situations; `assumed.cleanup` promises clients in writing that
+    reconciling their records is billed hourly against the estimate; the time
+    log measures the hours. And nothing turned an hour into a line, because the
+    fee schedule had no hourly construct and the invoice takes its lines from
+    the priced record and nothing else. Work the firm already sold, and had
+    already told clients it would bill, could not be billed.
+
+    HOURS, NEVER AN AMOUNT. The preparer says how long it took; the schedule
+    says what an hour costs. `requote` refuses a typed figure on purpose and
+    this must not become the way around it -- so there is no `--amount`.
+
+    THE MEASURED TIME IS OFFERED AS A CLAIM, not taken as the answer. The time
+    log knows what the software watched, and it cannot see Drake, so it is a
+    floor and a starting point -- the same standing a website lead's answer
+    has, and it is confirmed the same way.
+    """
+    store = Path(args.store) if args.store else engagements.STORE
+    ref = args.engagement
+    situations = pricing.hourly_situations()
+
+    if not args.on:
+        print("\n  The firm's hourly situations, in the words the price page "
+              "already uses:\n")
+        for key, label in situations.items():
+            print(f"      {key:18} {label}")
+        rate = (pricing.load().get("basis") or {}).get("rate")
+        print(f"\n  Billed at {m.money(rate)} an hour, to the quarter hour.")
+        print(f"\n  Add one:  python cli.py hourly --engagement {ref} "
+              f"--on cleanup --hours 1.5")
+        return 0
+
+    path = engagements._dir(store, ref) / "interview.json"
+    if not path.exists():
+        print(f"\n  no engagement {ref} in {store}")
+        return 1
+    answers = json.loads(path.read_text(encoding="utf-8"))
+
+    hours = args.hours
+    if hours is None:
+        spent = timelog.spent(store, ref)
+        if spent.examined_nothing:
+            print("\n  No hours given, and the time log has nothing recorded "
+                  "for this\n  engagement to offer instead. Pass --hours.")
+            return 2
+        print(f"\n  The software measured {spent.measured:g} h on {ref}. It "
+              f"cannot see Drake,\n  so that is a floor, not the answer.\n")
+        print(f"  Bill that:  python cli.py hourly --engagement {ref} "
+              f"--on {args.on} --hours {spent.measured:g}")
+        return 2
+
+    try:
+        line = pricing.hourly_line(args.on, hours)
+    except pricing.PricingError as exc:
+        print(f"\n  {exc}")
+        return 1
+
+    work = list(answers.get("hourly_work") or [])
+    work.append({"kind": args.on, "hours": float(hours),
+                 "note": args.note or ""})
+    answers["hourly_work"] = work
+    engagements.save_answers(answers, ref, store)
+
+    # AND THE RECORD, WHICH IS WHAT GETS BILLED. Saving the answers alone put
+    # the hour on the estimate and nowhere else: the invoice reads `LineItems`
+    # and `EstimateTotal` off the RECORD, so it went on billing the old total
+    # and printing "Estimated $325.00" beside it while the estimate said $550.
+    # Caught by walking one client through, not by any test -- the pricing was
+    # right, the command was right, and nothing carried one to the other (S28).
+    priced = pricing.price(answers)
+    try:
+        record = engagements.load(ref, store)
+    except Exception:
+        record = None
+    if record is not None:
+        record.update(priced)
+        engagements.save(record, ref, store)
+
+    print(f"\n  {line['Service']}")
+    print(f"      {line['Detail']}   {line['Amount']}")
+    if args.note:
+        print(f"      {args.note}")
+    print(f"\n  {len(work)} hourly line(s) on {ref}. "
+          f"Estimate now {priced['EstimateTotal']}.")
+    print("\n  The invoice will refuse to exceed this without a written "
+          "reason,\n  which is what makes an estimate worth putting a number "
+          "on.")
+    return 0
+
+
 def cmd_check(args) -> int:
     """Does this package agree with itself?
 
@@ -2284,7 +2397,20 @@ def cmd_check(args) -> int:
     return 0
 
 
-def main(argv=None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """The whole CLI, as a parser.
+
+    SPLIT OUT OF `main` so something other than a person can ask it what is
+    real. `procedures.py` prints command lines into the operating procedures
+    and, until this existed, nothing checked them: the first command in the
+    first procedure had been `from-lead --lead lead.json` since it was
+    written, and `lead` is a positional -- argparse refuses the flag. The
+    document promised it could not name a command that does not exist, and
+    that promise covered only the NAME.
+
+    Handing out the real parser rather than a description of it is the same
+    rule as everywhere else here: one thing, asked, not two things agreeing.
+    """
     p = argparse.ArgumentParser(
         prog="satc-docs", description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -2528,6 +2654,18 @@ def main(argv=None) -> int:
     d.add_argument("--no-pdf", action="store_true")
     d.set_defaults(fn=cmd_demo)
 
+    hy = sub.add_parser("hourly",
+                        help="hourly work on an engagement, so it can be billed")
+    hy.add_argument("--engagement", required=True)
+    hy.add_argument("--on", metavar="SITUATION",
+                    help="which of the firm's hourly situations. Omit to list them.")
+    hy.add_argument("--hours", type=float,
+                    help="how long it took. Omit to see what the software "
+                         "measured, which is a floor and not the answer.")
+    hy.add_argument("--note", help="what the time was, in one line")
+    hy.add_argument("--store")
+    hy.set_defaults(fn=cmd_hourly)
+
     fm = sub.add_parser("forms",
                         help="do our forms eliminate work, or only claim to?")
     fm.set_defaults(fn=cmd_forms)
@@ -2541,7 +2679,11 @@ def main(argv=None) -> int:
                         help="rebuild the demo record from the demo answers")
     sa.set_defaults(fn=cmd_sample)
 
-    args = p.parse_args(argv)
+    return p
+
+
+def main(argv=None) -> int:
+    args = build_parser().parse_args(argv)
 
     # TIME RECORDS ITSELF, IN ONE PLACE. The firm: "automate everything possible
     # about recording time because I am bad at doing so." Anything with a start

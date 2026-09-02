@@ -457,3 +457,60 @@ def test_an_unreadable_engagement_is_skipped_not_counted_clear(live):
     refs = [w.ref for w in signing.waiting(store,
                                            template_dir=cli.TEMPLATE_DIR)]
     assert refs == [ref]
+
+
+def test_the_name_record_wants_is_printed_where_a_person_reads_it(tmp_path, capsys):
+    """A CLOSED LOOP, found by walking the CLI. `--record` matched the merge
+    field (`SpouseName`); the listing printed the human label ("Spouse"); and
+    the refusal for a wrong one said "run without --record to see the ones it
+    does" — pointing back at the listing that shows the names it rejects.
+
+    Recording a spouse's signature is required on every joint return, and there
+    was no way to discover how."""
+    import cli, engagements, json as _json
+    answers = _json.loads((Path(__file__).resolve().parent.parent / "samples"
+                           / "interview-answers.json").read_text(encoding="utf-8"))
+    import intake
+    out = intake.finish(answers, store=tmp_path)
+    assert out.ref, out.reason
+
+    cli.main(["sign", "--engagement", out.ref, "--store", str(tmp_path)])
+    listing = capsys.readouterr().out
+    # NOT just "--record appears somewhere": the command already prints a
+    # "Record one:" hint at the bottom naming the taxpayer's line, and an
+    # assertion that matched it would pass while every OTHER line stayed
+    # undiscoverable — which is the bug. This looks for the name beside each
+    # signature the pack asks for.
+    lines = [ln.strip() for ln in listing.splitlines()]
+    named = [ln for ln in lines if ln.startswith("--record ")]
+    expected = [ln for ln in lines
+                if ln.startswith(("OUTSTANDING", "signed"))]
+    assert expected, "the pack asked for no signatures, so this proves nothing"
+    assert len(named) >= len(expected), (
+        f"{len(expected)} signature line(s) listed and {len(named)} of them "
+        f"say what to type:\n{listing}")
+
+    # A wrong name answers with the ones that work, not a pointer back here.
+    cli.main(["sign", "--engagement", out.ref, "--store", str(tmp_path),
+              "--record", "tax-letter/Nonsense"])
+    refusal = capsys.readouterr().out
+    assert "It asks for" in refusal and "--record tax-letter/" in refusal
+    assert "Run without" not in refusal
+
+
+def test_a_signature_can_be_recorded_by_either_name(tmp_path, capsys):
+    """The field id and the label the listing shows both work. Somebody typing
+    what they were shown must not be refused."""
+    import cli, intake, json as _json
+    answers = _json.loads((Path(__file__).resolve().parent.parent / "samples"
+                           / "interview-answers.json").read_text(encoding="utf-8"))
+    out = intake.finish(answers, store=tmp_path)
+    cli.main(["sign", "--engagement", out.ref, "--store", str(tmp_path),
+              "--sent", "encyro"])
+    capsys.readouterr()
+
+    rc = cli.main(["sign", "--engagement", out.ref, "--store", str(tmp_path),
+                   "--record", "tax-letter/Taxpayer", "--on", "March 2, 2027",
+                   "--how", "in-person"])
+    assert rc == 0, capsys.readouterr().out
+    assert "Recorded" in capsys.readouterr().out

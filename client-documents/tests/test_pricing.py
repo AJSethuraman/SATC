@@ -16,6 +16,7 @@ source is how they are kept honest.
 from __future__ import annotations
 
 import json
+import pathlib
 import re
 import sys
 from pathlib import Path
@@ -2287,3 +2288,124 @@ def test_a_c_corporation_is_never_asked_how_many_k_1s_it_issues():
     )
     for form in ("1065", "1120S"):
         assert iv.visible(question, {"federal_form": form}), form
+
+
+# ── hourly work, and the only way it reaches a bill ───────────────────────
+
+def test_the_firm_can_bill_an_hour():
+    """THE GAP THIS CLOSES. $150 an hour is published on the price page under
+    five named situations, `assumed.cleanup` promises clients in writing that
+    reconciling their records is billed hourly against the estimate, and the
+    time log measures the hours — and there was no hourly construct in the fee
+    schedule and no way for an hour to become a line. Work the firm already
+    sold, and had already told clients it would bill, could not be billed."""
+    line = pricing.hourly_line("cleanup", 1.5)
+    assert line["Amount"] == "$225.00"
+    assert "1.5 hours at $150.00 an hour" == line["Detail"]
+    assert line["Service"] == "Books that need cleaning up or reconciling"
+
+
+def test_the_hourly_situations_are_the_firm_s_published_wording():
+    """A client has already read these sentences on the price page. An estimate
+    describing the same work in different words is the failure `base_covers`
+    and the phrase registry both exist to stop — so the schedule carries the
+    published wording, and a sixth situation invented at the keyboard is
+    refused rather than quietly priced."""
+    situations = pricing.hourly_situations()
+    assert situations["notice"] == \
+        "A letter from the IRS or the state you would like us to handle"
+    assert len(situations) == 5
+    with pytest.raises(pricing.PricingError) as exc:
+        pricing.hourly_line("advice", 1)
+    assert "not one of the firm's hourly situations" in str(exc.value)
+
+
+def test_hours_round_up_to_the_quarter_and_carry_no_engagement_minimum():
+    """Two rules, and they are different rules.
+
+    The quarter hour is published — "billed to the quarter hour" — and rounding
+    a 0.3 down would give away three minutes on every line.
+
+    The $200 engagement minimum does NOT apply. The firm, 2 September 2026:
+    "$200 minimum is no longer a hard and fast rule, it was my prior starting
+    point. i will decline engagements i dont think are worth it on my own
+    basis." So a twenty-minute notice is a twenty-minute notice."""
+    assert pricing.hourly_line("notice", 0.33)["Amount"] == "$75.00"
+    assert pricing.hourly_line("notice", 0.25)["Amount"] == "$37.50"
+    assert pricing.hourly_line("notice", 1.0)["Detail"].startswith("1 hour at"), \
+        "'1.0 hours' is the tell that a number came out of a machine"
+
+    schedule = pricing.load()
+    assert schedule["basis"]["minimum_is_advisory"] is True, (
+        "the $200 is a reference the firm reasons from, not a floor the "
+        "software enforces")
+
+
+def test_an_hourly_line_with_no_hours_on_it_is_refused():
+    """A promise to bill something, later, for an amount nobody wrote down."""
+    for bad in (0, -1, None, "", "soon"):
+        with pytest.raises(pricing.PricingError):
+            pricing.hourly_line("cleanup", bad)
+
+
+def test_hourly_work_prices_through_the_ordinary_path(answers):
+    """It lives in the ANSWERS, not appended to a finished price — so the
+    estimate, `requote` and the invoice's variance check all understand it
+    without a second path through the code."""
+    a = dict(answers)
+    before = pricing.price(a)["EstimateTotal"]
+    a["hourly_work"] = [{"kind": "cleanup", "hours": 2}]
+    after = pricing.price(a)
+    assert after["EstimateTotal"] != before
+    assert after["LineItems"][-1]["Service"] == \
+        "Books that need cleaning up or reconciling"
+    assert after["LineItems"][-1]["Amount"] == "$300.00"
+    # Hourly work is what turned up, not what was quoted: it reads last.
+    assert "hour" not in after["LineItems"][0]["Detail"]
+
+
+def test_the_command_a_person_runs_puts_hourly_work_on_the_engagement(tmp_path, capsys):
+    """S32: the test enters where a person enters. Everything above calls
+    `pricing` directly; this drives `cli.main`, so wiring that is not there
+    fails here rather than passing quietly."""
+    import cli, engagements
+    a = json.loads((SAMPLES / "interview-answers.json").read_text(encoding="utf-8"))
+    ref, _ = engagements.create({"EngagementRef": "2026-0001"}, ref="2026-0001",
+                                store=tmp_path)
+    engagements.save_answers(a, ref, tmp_path)
+
+    assert cli.main(["hourly", "--engagement", ref, "--store", str(tmp_path),
+                     "--on", "cleanup", "--hours", "1.5"]) == 0
+    out = capsys.readouterr().out
+    assert "$225.00" in out, out
+
+    saved = json.loads((engagements._dir(tmp_path, ref) / "interview.json")
+                       .read_text(encoding="utf-8"))
+    assert saved["hourly_work"] == [{"kind": "cleanup", "hours": 1.5, "note": ""}]
+    # And it prices through the ordinary path from what was saved.
+    assert "$225.00" in str(pricing.price(saved)["LineItems"])
+
+    # THE RECORD IS WHAT GETS BILLED. Saving the answers alone put the hour on
+    # the estimate and nowhere else — the invoice reads LineItems and
+    # EstimateTotal off the record, so it went on billing the old total while
+    # the estimate said something larger. Found by walking a client through.
+    record = engagements.load(ref, tmp_path)
+    assert "$225.00" in str(record["LineItems"]), (
+        "the hour reached the answers and not the record, so nothing bills it")
+    assert record["EstimateTotal"] == pricing.price(saved)["EstimateTotal"]
+
+
+def test_hourly_takes_hours_and_never_an_amount(tmp_path):
+    """`requote` refuses a typed figure on purpose — the price follows the
+    answers. This must not become the way around that, so there is no way to
+    say what an hour is worth on this engagement."""
+    import cli, subprocess, sys
+    help_text = subprocess.run(
+        [sys.executable, "cli.py", "hourly", "--help"],
+        cwd=str(pathlib.Path(cli.__file__).parent),
+        capture_output=True, text=True).stdout
+    assert "--hours" in help_text, help_text
+    for forbidden in ("--amount", "--price", "--fee", "--rate"):
+        assert forbidden not in help_text, (
+            f"{forbidden} lets a preparer type money onto an engagement; the "
+            f"price follows the answers, and requote refuses this on purpose")

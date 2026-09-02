@@ -127,3 +127,48 @@ comparison, which was right, nor in the move, which was right. It was that the
 **evidence** of the move disagreed with the **report** that justified it, and
 either read alone looks correct. Mutation testing did not find it and could not
 have: no single line was wrong.
+
+
+## Session of 2 September 2026, later — the generator was the thing that drifted
+
+The operating procedures are generated from the software and cannot be edited
+by hand. `procedures --check` fails when the committed copy differs from what
+the generator emits, and it runs in the suite. All of that works exactly as
+advertised — and the document was still wrong in seven places, because every
+one of them was **typed into the generator**.
+
+| # | The error | What caught it |
+|---|---|---|
+| 31 | `python cli.py from-lead --lead lead.json` — the first command in the first procedure, wrong since the day it was written. `lead` is a POSITIONAL; argparse refuses the flag. A new preparer's first act fails, on the front page, under a preamble promising the document "cannot name a command that does not exist" | An agent, reading the document against the software |
+| 32 | "Nine carry" — `interview.CARRIES` holds fifteen, five of them entity-only. Nine is what carried for one individual sample. A preparer rolling a partnership forward and counting nine confirmations would conclude six answers had been lost | The same agent |
+| 33 | Section 4 listed "whether the invoice is settled" among the things `sign` **cannot** know. `signing._unsettled` blocks on it, and has since payments were wired. The sentence was transcribed from that function's own stale docstring, which still claimed nothing recorded whether a bill was paid | The same agent |
+| 34 | "The invoice and the estimate **must not** share `PeriodLabel`" — stated as enforced, enforced nowhere, and wrong besides: a bill covering the whole engagement legitimately shares it | The same agent |
+| 35 | `templates_by_procedure` — the function whose own comment reads DERIVED, NEVER TYPED — carried a hardcoded `("delivery-letter",)`, so section 4 claimed an appendix for a document `sign` does not produce, and the delivery letter appeared twice in the index | The same agent |
+| 36 | The HTML appendix embedded eight of nine templates. The ninth, the conditional Records Release, stopped matching when its bullet gained a `<code>` tag — and the guard was `if not embedded`, which fires only at zero. The one template the appendix rule most needed to prove, missing, silently | The same agent |
+| 37 | `sign --record` matched the merge field (`SpouseName`); the listing printed the label ("Spouse"); the refusal for a wrong one said "run without `--record` to see the ones it does" — pointing back at the listing that shows the names it rejects. Recording a spouse's signature, required on every joint return, was a closed loop with no way out | The same agent, walking the CLI |
+| 38 | The four lifecycle events produce four of the eleven client documents and had **no section at all**. The index named four procedures that existed nowhere. Section 5 told the reader a live engagement turning into work the firm does not take needs the disengagement letter, and never said how to make one | The same agent |
+| 39 | `CLAUDE.md` said the suite was 1,123 passed. It was 1,225 — stale by 102 tests | The same agent |
+
+**Tally: 9 an agent reading against the software · 0 tests · 0 mutation testing.**
+
+Not one of these was findable by the checks in place, and the reason is one
+sentence: **`procedures --check` proves the document matches the generator.
+Nothing proved the generator matched the software.** The check was real, ran in
+CI, and was orthogonal to every defect it was built to prevent.
+
+What was built in response, rather than nine corrections:
+
+* `cli.build_parser()` — the CLI hands out its parser instead of a description
+  of one, and `procedures.unrunnable()` parses **every** command line the
+  document prints with it. 22 lines checked, and it caught entry 31 on its
+  first run and entry 38's `--kind <KIND>` on its second.
+* `procedures.commands()` now asks the parser rather than scraping
+  `inspect.getsource(cli.main)` — which had silently returned nothing the
+  moment the parser moved, and which made every procedures test fail whenever
+  `cli.py` was edited while the suite ran.
+* `_carry_count()` counts `interview.CARRIES` instead of remembering it.
+* The embed guard counts what the document ASKED for and compares, instead of
+  testing for zero.
+* The stale docstring in `signing.may_file` was corrected, because a wrong
+  comment beside working code is a claim that gets transcribed — this one was,
+  word for word, into the firm's operating procedures.
