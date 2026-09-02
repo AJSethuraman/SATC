@@ -45,11 +45,22 @@ def client(tmp_path):
 
 
 def _plausible(q):
-    """Any answer this question will accept -- the tests below care about
-    reaching a later question, not about what the earlier ones said."""
+    """Any answer this question will accept AND that does not end the sitting.
+
+    These tests care about reaching a later question, not about what the
+    earlier ones said. So a HARD NO option is never picked: the refusal
+    question moved to the front of the interview on 2 September 2026 and now
+    falls inside the walk, its first option is "Needs assurance work", and
+    ticking that correctly ends the sitting -- leaving these tests reading a
+    `question` key that is not there. Skipping the blockers keeps the helper
+    doing the one job it says it does."""
+    options = [o for o in (q.get("options") or []) if not o.get("hard_no")]
+    if options:
+        return [options[0]["value"]] if q["type"] == "multi" \
+            else options[0]["value"]
     if q.get("options"):
-        return [q["options"][0]["value"]] if q["type"] == "multi" \
-            else q["options"][0]["value"]
+        # Every option is a blocker: answering nothing is the only way past.
+        return [] if q["type"] == "multi" else ""
     return 1 if q["type"] == "number" else "x"
 
 
@@ -106,7 +117,26 @@ def test_a_hard_no_creates_nothing_through_the_web(client, answers):
 
 
 def test_the_web_can_override_a_hard_no_only_deliberately(client, answers):
-    sid = drive(client, dict(answers) | {"red_flags": ["assurance_needed"]})
+    """A HARD NO now ends the sitting where it is ticked, so the review screen
+    the override is pressed from is showing four answers out of thirty. The
+    override means "the list is wrong" — so the questions RESUME, and only then
+    can the engagement be created. Creating from the four would refuse anyway,
+    and tell the preparer the wrong reason."""
+    a = dict(answers) | {"red_flags": ["assurance_needed"]}
+    sid = drive(client, a)
+    resumed = client.post(f"/interview/{sid}/finish", json={"override": True},
+                          headers=JSON).get_json()
+    assert resumed.get("resumed") is True, (
+        "overriding an unfinished sitting must resume it, not create from it")
+
+    # The rest of the interview, now that the block has been waved through.
+    while True:
+        state = client.get(f"/interview/{sid}", headers=JSON).get_json()
+        if state["complete"]:
+            break
+        client.post(f"/interview/{sid}",
+                    json={"answer": a.get(state["question"]["id"])}, headers=JSON)
+
     body = client.post(f"/interview/{sid}/finish", json={"override": True},
                        headers=JSON).get_json()
     assert body["status"] == "created" and body["overridden"] is True

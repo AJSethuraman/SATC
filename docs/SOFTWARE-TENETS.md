@@ -799,3 +799,61 @@ it is the only version of the question with an answer.
 it; **S31**, build the thing that compares — a front-door test is often that
 thing; **S2**, a check reports its denominator — the season board's honest
 "1 could not be placed" is what made the first defect visible at all.)*
+
+---
+
+## S33 · A form must eliminate work, not just claim it can. Prove the claim with a run.
+
+The firm, 2 September 2026:
+
+> *"a tenet of any checklist or interview-like form we make (maybe you can think
+> of other ideas) in our software, no matter if for clients or internal use,
+> should be it directionally eliminates work where possible. for instance, if
+> something is not applicable why would you want to answer questions around it"*
+
+The tenet was already true in intention. The interview's questions carry
+`showIf`; the close-out's carry `applies_to`; both were written to skip what
+does not apply. And then this shipped:
+
+```yaml
+- id: sorting_amount
+  question: "How much for the sorting? ($175 minimum)"
+  showIf: "count_sorting != ''"
+```
+
+It reads correctly. It never once said no. A blank number is coerced to `None`
+— a number field cannot hold `""` — and `None != ''` is True, so the fee
+question was put to every client on every return type, including a one-W-2
+client who has sent nothing in. The condition existed, was read by every person
+who touched the file, and eliminated nothing.
+
+**A condition is a claim. Build the thing that runs it** (S31). `elimination.py`
+takes every condition in every form and asks one question of each: is there any
+answer a person can actually give that makes this false? `cli.py forms` is where
+a person reads the answer, and it prints its denominator (S2) — *27 conditional
+of 52 questions examined* — because "no dead conditions" means nothing beside an
+unknown number of them.
+
+**The trap inside the check, which caught me first.** The first version offered
+`""` as a candidate answer for every question, found that `count_sorting = ""`
+hides the fee question, and declared the condition healthy — while the live bug
+was running. `""` is not a value a number field can hold. A checker that invents
+values the system cannot produce proves the code agrees with *the checker*
+(S32). Every candidate now goes through `coerce`, exactly as both front doors
+do, and `test_the_elimination_sweep_would_notice_the_bug_it_exists_for` drives
+the sweep against a schema carrying that shape on purpose.
+
+**What this does not do**, and the boundary matters: it never judges whether a
+form asks too much. Nothing in software knows what a practice needs. It answers
+the one question a machine can answer — *does this condition ever fire* — and
+leaves the rest to the person who decided the question was worth asking.
+
+**The wider reading.** The tenet says *directionally*, and the direction is the
+point. The same session moved the interview's only refusal gate from question 30
+to question 4, because a client the firm does not take was answering 29 questions
+first — and made a HARD NO end the sitting where it is ticked instead of two
+questions later. Neither was a dead condition. Both were work the form could
+have eliminated and did not.
+
+*(Related: **S31**, build the thing that compares; **S32**, start where a person
+starts; **S2**, a check reports its denominator.)*

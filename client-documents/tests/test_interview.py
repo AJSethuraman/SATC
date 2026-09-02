@@ -550,3 +550,195 @@ def test_the_interview_asks_whether_a_1040_is_an_amendment():
         "every form can be amended now, so the question is not 1040-only"
     values = {o["value"] for o in q["options"]}
     assert {"original", "amended"} <= values
+
+
+def test_a_blank_number_answer_is_blank_to_the_showIf_grammar():
+    """`showIf: "count_sorting != ''"` reads as "only ask this if they answered
+    the one above", and it never once said no. `coerce` turns a blank number
+    into None — a number field cannot hold "" — and `None != ''` is True. So
+    "How much for the sorting? ($175 minimum)" was put to the preparer in every
+    sitting on every return type, including a one-W-2 client who has sent
+    nothing. Measured in all four paths on 2 September 2026.
+
+    Pinned on the grammar rather than on that one question, because the next
+    `!= ''` written into the registry would have had the same bug."""
+    q = {"id": "x", "showIf": "count_sorting != ''"}
+    for blank in ({}, {"count_sorting": None}, {"count_sorting": ""}):
+        assert not iv.visible(q, blank), (
+            f"a blank answer read as answered: {blank}")
+    assert iv.visible(q, {"count_sorting": 1})
+    assert iv.visible(q, {"count_sorting": 0}), (
+        "a typed 0 is not blank — somebody entered it")
+
+    inverse = {"id": "y", "showIf": "count_sorting == ''"}
+    assert iv.visible(inverse, {}), "the == side must agree with the != side"
+    assert not iv.visible(inverse, {"count_sorting": 1})
+
+
+def test_the_sorting_fee_question_is_not_asked_of_every_client():
+    """The live path, not the grammar: drive the interview the way both front
+    doors drive it — coerce, then answer — and the sorting-fee question must
+    not appear for a client who was not said to need sorting."""
+    import json
+    answers = {"federal_form": "1040", "tax_year": "2026",
+               "client_full_name": "Marcus Ellwood", "filing_status": "single",
+               "joint_return": "no", "return_basis": "original"}
+    session = iv.Interview()
+    asked = []
+    for _ in range(200):
+        nxt = session.next_question()
+        if nxt is None:
+            break
+        _, q = nxt
+        asked.append(q["id"])
+        raw = answers.get(q["id"], [] if q.get("type") == "multi" else "")
+        try:
+            session.answer(q["id"], session.coerce(q, raw))
+        except Exception:
+            session.answers[q["id"]] = iv.coerce(q, raw)
+    assert "count_sorting" in asked, "the question this one hangs off was not asked"
+    assert "sorting_amount" not in asked, (
+        "the sorting FEE was put to a preparer who said nothing needs sorting")
+
+
+def test_a_translated_prefill_says_what_the_client_actually_asked_about():
+    """Both front doors show a prefill as "the website said <value>", and for a
+    mapped question that sentence was not true. `services: [tax_planning]` is
+    translated to "1040" by `prefill_map`, so a preparer was told the website
+    said "1040" — which the client never said.
+
+    The firm on what a lead is for: "we use the lead as a starting point, so we
+    would always ask whether we are doing a 1040. we would confirm what they put
+    there. they didn't necessarily know what they needed." Confirming what they
+    put there requires being shown what they put there."""
+    schema = iv.load_schema()
+    q = next(q for _, q in iv.all_questions(schema) if q["id"] == "federal_form")
+
+    planning = {"services": ["tax_planning"]}
+    assert iv.prefill_for(q, planning) == "1040", "the map itself changed"
+    assert iv.prefill_source(q, planning) == "tax planning", (
+        "the preparer is told the client said 1040 and not what they did say")
+
+    # Nothing to add when the map did not change the words, and nothing to add
+    # for a question with no map at all — the note is for translation only.
+    assert iv.prefill_source(q, {"services": ["business_tax"]}) == "", (
+        "a dropped prefill has no claim to explain")
+    plain = next(q for _, q in iv.all_questions(schema)
+                 if q.get("prefill") and not q.get("prefill_map"))
+    assert iv.prefill_source(plain, {"services": ["individual_tax"]}) == ""
+    assert iv.prefill_source(q, None) == ""
+
+
+def _drive(answers, tick=None):
+    """A whole sitting, the way both front doors run one: coerce, then answer."""
+    session = iv.Interview()
+    asked = []
+    for _ in range(300):
+        nxt = session.next_question()
+        if nxt is None:
+            break
+        _, q = nxt
+        asked.append(q["id"])
+        raw = (tick if tick is not None and q["id"] == "red_flags"
+               else answers.get(q["id"], [] if q.get("type") == "multi" else ""))
+        try:
+            session.answer(q["id"], session.coerce(q, raw))
+        except Exception:
+            session.answers[q["id"]] = iv.coerce(q, raw)
+    return asked, session
+
+
+_A_1040 = {"federal_form": "1040", "tax_year": "2026", "return_basis": "original",
+           "client_full_name": "Marcus Ellwood", "joint_return": "no",
+           "filing_status": "single"}
+
+
+def test_a_hard_no_ends_the_sitting_where_it_is_ticked():
+    """It used to paint a red HARD NO badge and ask the next question anyway —
+    the block was acted on only once the questions ran out. Measured before the
+    change: two more questions after the tick.
+
+    The firm does not take assurance work. Continuing to interview somebody about
+    their dependents after they have said they need it is not politeness, it is
+    the software knowing something the person running the call has to act on and
+    saying nothing."""
+    asked, session = _drive(_A_1040, tick=["assurance_needed"])
+    assert session.hard_no() == ["Needs assurance work"]
+    assert asked[-1] == "red_flags", (
+        f"the sitting carried on past the refusal: {asked[asked.index('red_flags') + 1:]}")
+
+
+def test_the_question_that_can_end_it_is_asked_near_the_start():
+    """It was question 30 of 32, so a client the firm does not take answered 29
+    first. The firm, asked directly, chose to move it. This pins the intent
+    rather than the exact index: a later question can be added above it only
+    deliberately."""
+    asked, _ = _drive(_A_1040)
+    assert "red_flags" in asked
+    position = asked.index("red_flags") + 1
+    assert position <= 6, (
+        f"the only refusal gate is question {position}; it was moved to the "
+        f"front on purpose and something has pushed it back down")
+
+
+def test_a_clean_sitting_still_reaches_the_end():
+    """The early exit must fire on a HARD NO and on nothing else — an interview
+    that ends early for everybody is worse than one that ends late."""
+    asked, session = _drive(_A_1040, tick=[])
+    assert session.hard_no() == []
+    assert "decision" in asked, "a clean sitting stopped before the decision"
+    assert len(asked) > 20
+
+
+# ── does a form eliminate work, or only claim to? ──────────────────────────
+
+def test_no_condition_in_any_form_is_one_that_can_never_say_no():
+    """The firm's tenet, 2 September 2026: "a tenet of any checklist or
+    interview-like form we make ... should be it directionally eliminates work
+    where possible. for instance, if something is not applicable why would you
+    want to answer questions around it."
+
+    A `showIf` is a CLAIM that a question can be skipped. This is the thing that
+    compares the claim to what happens — `sorting_amount` carried one, read
+    correctly, and never once said no."""
+    import elimination
+    sweeps = elimination.sweep_all()
+    dead = [d for s in sweeps.values() for d in s.dead]
+    assert not dead, "\n".join(d.line() for d in dead)
+
+    # S2: the denominator is half the report. A sweep that examined nothing
+    # would pass the assertion above and mean nothing.
+    for name, s in sweeps.items():
+        assert not s.examined_nothing, f"{name} examined no questions"
+        assert s.conditional > 0, f"{name} eliminates nothing at all"
+
+
+def test_the_elimination_sweep_would_notice_the_bug_it_exists_for():
+    """Check the checker. The first version of this sweep offered "" as a
+    candidate answer for every question, found that `count_sorting = ""` hides
+    `sorting_amount`, and called the condition alive — while the live bug was
+    that a blank number coerces to None and the question was asked of everybody.
+
+    A checker that invents values the system cannot produce proves the code
+    agrees with the checker (S32). This drives the sweep against a schema
+    carrying exactly that shape of condition."""
+    import elimination
+    # A number field can never hold the string this condition compares against,
+    # so nothing a person can answer makes it False. It reads like a filter and
+    # is not one — the exact shape `sorting_amount` had.
+    schema = {"sections": [{"id": "s", "title": "S", "questions": [
+        {"id": "count_x", "question": "How many?", "type": "number"},
+        {"id": "amount_x", "question": "How much?", "type": "number",
+         "showIf": "count_x != 'shoebox'"},
+        {"id": "real_x", "question": "Which one?", "type": "single",
+         "options": [{"value": "a"}, {"value": "b"}],
+         "showIf": "count_x == '1'"},
+    ]}]}
+    sweep = elimination.interview_sweep(schema)
+    assert [d.question for d in sweep.dead] == ["amount_x"], (
+        f"expected only amount_x to be dead, got {[d.question for d in sweep.dead]}")
+    assert sweep.examined == 3 and sweep.conditional == 2, (
+        "the denominator is half the report and it is wrong")
+
+    # And it must not fire on the live schema, whose conditions all work.
+    assert elimination.interview_sweep().dead == []

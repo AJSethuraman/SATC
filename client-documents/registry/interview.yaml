@@ -136,6 +136,44 @@ sections:
         required: true
         supplies: [TaxYear]
 
+  # ── 2 · Anything that stops us ─────────────────────────────────────────
+  # MOVED HERE FROM SECTION 8, on the firm's instruction, 2 September 2026.
+  # Measured before the move: a plain 1040 sitting is 32 questions and this was
+  # number 30, so a client the firm does not take answered 29 questions first --
+  # name, address, filing status, every count -- before the question that ends
+  # it. It is now question five, straight after the year.
+  #
+  # The counter-argument is the firm's own, in firm-settings.yaml: "I don't
+  # wanna make a big deal out of hard nos." Their answer, asked directly: take
+  # the recommendation. The question is still one line with eight boxes and
+  # still skippable; what changed is only when it is put.
+  #
+  # The hard-no subset lives in firm-settings.yaml because it governs declining
+  # work, not producing a document.
+  - id: flags
+    title: Flags
+    questions:
+      - id: red_flags
+        question: "Anything that gives you pause?"
+        type: multi
+        options:
+          # The label does NOT repeat "HARD NO". Both front doors render the
+          # badge from `hard_no: true`, so the suffix printed it twice --
+          # "Needs assurance work — HARD NO **HARD NO**" on the screen.
+          - { value: "assurance_needed",  label: "Needs assurance work", hard_no: true }
+          - { value: "aggressive",        label: "Wants a position we would not sign", hard_no: true }
+          - { value: "prior_dispute",     label: "Dispute with the previous preparer" }
+          - { value: "missing_records",   label: "Records are missing or unreliable" }
+          - { value: "notice_open",       label: "Open IRS or state notice" }
+          - { value: "foreign_exposure",  label: "Foreign accounts, assets, trusts or gifts" }
+          - { value: "digital_assets",    label: "Digital asset activity" }
+          - { value: "deadline_tight",    label: "Deadline is tight for the work involved" }
+        supplies: []
+        internal: true
+        internal_reason: >-
+          Recorded for the decision and for pricing. Does not print on any client
+          document — the letter names risk areas generically in section 03.
+
   # ── 2 · Who they are ────────────────────────────────────────────────────
   - id: identity
     title: Who they are
@@ -918,33 +956,6 @@ sections:
         internal_reason: >-
           The preparer's own note. A tick box says a thing happened; only this
           says enough to act on it.
-
-  # ── 8 · Red flags ───────────────────────────────────────────────────────
-  # Recorded against the record. The hard-no subset lives in firm-settings.yaml
-  # because it governs declining work, not producing a document.
-  - id: flags
-    title: Flags
-    questions:
-      - id: red_flags
-        question: "Anything that gives you pause?"
-        type: multi
-        options:
-          # The label does NOT repeat "HARD NO". Both front doors render the
-          # badge from `hard_no: true`, so the suffix printed it twice --
-          # "Needs assurance work — HARD NO **HARD NO**" on the screen.
-          - { value: "assurance_needed",  label: "Needs assurance work", hard_no: true }
-          - { value: "aggressive",        label: "Wants a position we would not sign", hard_no: true }
-          - { value: "prior_dispute",     label: "Dispute with the previous preparer" }
-          - { value: "missing_records",   label: "Records are missing or unreliable" }
-          - { value: "notice_open",       label: "Open IRS or state notice" }
-          - { value: "foreign_exposure",  label: "Foreign accounts, assets, trusts or gifts" }
-          - { value: "digital_assets",    label: "Digital asset activity" }
-          - { value: "deadline_tight",    label: "Deadline is tight for the work involved" }
-        supplies: []
-        internal: true
-        internal_reason: >-
-          Recorded for the decision and for pricing. Does not print on any client
-          document — the letter names risk areas generically in section 03.
 
   # ── 9 · Internal ────────────────────────────────────────────────────────
   - id: internal

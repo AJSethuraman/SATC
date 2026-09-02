@@ -129,7 +129,13 @@ def draft_card(store: Path, sid: str) -> dict:
 
 
 def session_for(draft: dict) -> iv.Interview:
-    return iv.Interview(lead=draft.get("lead"), answers=dict(draft["answers"]))
+    return iv.Interview(lead=draft.get("lead"), answers=dict(draft["answers"]),
+                        # "The hard-no list is wrong, carry on." Set on the
+                        # draft by the override button, because a sitting now
+                        # ENDS where a HARD NO is ticked -- so without this the
+                        # override would create an engagement from the four
+                        # questions asked before it. See the finish handler.
+                        override_hard_no=bool(draft.get("override_hard_no")))
 
 
 # ── the value a form field carries -> the value the schema expects ────────
@@ -402,16 +408,22 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
         section, q = nxt
         claim = iv.prefill_for(q, draft.get("lead"))
         acceptable = iv.prefill_is_answerable(q, claim)
+        # What they actually ticked, when a map turned it into something else.
+        # See interview.prefill_source: "The website said 1040" was shown to a
+        # preparer whose client had asked about tax planning.
+        said = iv.prefill_source(q, draft.get("lead"))
         if wants_json():
             return jsonify(draft=sid, complete=False, section=section["title"],
                            question=q, claim=claim, claim_acceptable=acceptable,
+                           claim_source=said,
                            answered=len(session.answers),
                            revising=bool(back))
         return page(q["question"],
                     question_body(sid, section, q, claim, acceptable, session,
                                   current=session.answers.get(q["id"])
                                   if back else None,
-                                  back=step_back_to(session, draft)))
+                                  back=step_back_to(session, draft),
+                                  said=said))
 
     # ── answering ─────────────────────────────────────────────────────────
 
@@ -501,6 +513,21 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
         draft = load_draft(st(), sid)
         override = bool(request.form.get("override")
                         or (request.get_json(silent=True) or {}).get("override"))
+
+        # AN OVERRIDE ON AN UNFINISHED SITTING RESUMES IT, it does not finish
+        # it. A HARD NO now ends the sitting where it is ticked, so the review
+        # screen an override is pressed from may be showing four answers out of
+        # thirty. Creating from those would refuse anyway ("the interview is not
+        # finished"), and the preparer would be told the wrong thing about why.
+        # Overriding means the list is wrong, so the questions resume.
+        if override and not draft.get("override_hard_no"):
+            draft["override_hard_no"] = True
+            save_draft(st(), sid, draft)
+            if session_for(draft).next_question() is not None:
+                if wants_json():
+                    return jsonify(draft=sid, resumed=True,
+                                   next=url_for("show", sid=sid)), 200
+                return redirect(url_for("show", sid=sid))
 
         # The ONLY decision-making call in this module, and it is a delegation.
         outcome = intake.finish(draft["answers"], store=st(),
@@ -1295,7 +1322,7 @@ def template_body(name, secs, saved="", error="", open_id="") -> str:
     return "".join(out)
 
 
-def question_body(sid, section, q, claim, acceptable, session, error="",
+def question_body(sid, section, q, claim, acceptable, session, error="", said="",
                   current=None, back="") -> str:
     total = len(list(iv.all_questions(session.schema)))
     done = len(session.answers)
@@ -1327,8 +1354,9 @@ def question_body(sid, section, q, claim, acceptable, session, error="",
 
     if claim not in (None, "", []):
         if acceptable:
-            out.append(f"<p class=claim>The website said <b>{esc(claim)}</b>. "
-                       f"Accept it, or answer differently.</p>")
+            whence = (f" when they asked about {esc(said)}" if said else "")
+            out.append(f"<p class=claim>The website said <b>{esc(claim)}</b>"
+                       f"{whence}. Accept it, or answer differently.</p>")
         else:
             out.append(f"<p class='claim bad'>The website said "
                        f"<b>{esc(claim)}</b> &mdash; not a valid answer here, "

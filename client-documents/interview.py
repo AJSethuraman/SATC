@@ -59,11 +59,30 @@ _EQ = re.compile(r"^\s*(\w+)\s*(==|!=)\s*'([^']*)'\s*$")
 _IN = re.compile(r"^\s*'([^']*)'\s+in\s+(\w+)\s*$")
 
 
+# WHAT "BLANK" IS, once, for the whole grammar. `showIf: "count_sorting != ''"`
+# reads as "only ask this if they answered the one above", and it never once
+# said no: `coerce` turns a blank number into None (a number field cannot hold
+# ""), and `None != ''` is True. So `sorting_amount` -- "How much for the
+# sorting? ($175 minimum)" -- was put to the preparer in EVERY sitting, on
+# every return type, including the one-W-2 client who has sent nothing yet.
+# Measured 2 September 2026: asked in all four paths.
+#
+# Fixed here rather than in that one condition, because the next `!= ''` in
+# the registry would have had the same bug and nothing would have compared the
+# two (S29, S31). An unanswered question and an empty string are the same
+# thing to a person reading the condition, so they are made the same thing
+# here. A typed 0 is NOT blank -- somebody entered it, and what it means is
+# the registry's business, not the grammar's.
+_BLANK = (None, "", [], {})
+
+
 def _clause(text: str, answers: dict) -> bool:
     m = _EQ.match(text)
     if m:
         qid, op, literal = m.groups()
         value = answers.get(qid)
+        if literal == "" and value in _BLANK:
+            value = ""
         return (value == literal) if op == "==" else (value != literal)
 
     m = _IN.match(text)
@@ -146,6 +165,44 @@ def prefill_for(question: dict, lead: dict | None) -> object:
         kept = [v for v in node if v in options]
         return kept or None
     return node
+
+
+def prefill_source(question: dict, lead: dict | None) -> str:
+    """What the lead ACTUALLY said, when a map translated it into something else.
+
+    Both front doors show a prefilled answer as "the website said <value>", and
+    for a mapped question that sentence is not true. `services: [tax_planning]`
+    is translated to "1040" by `prefill_map`, and the preparer was then told the
+    website said "1040" -- which the client never said. They said they wanted
+    tax planning.
+
+    The firm's own description of what a lead is for: *"we use the lead as a
+    starting point, so we would always ask whether we are doing a 1040. we would
+    confirm what they put there. they didn't necessarily know what they needed."*
+    Confirming what they put there requires being shown what they put there. A
+    translated value wearing the client's name is the one thing that makes that
+    impossible.
+
+    Returns "" when there is nothing to add -- no map, or the map did not change
+    the words. Never invents a label: the lead's own value with its underscores
+    opened out, because the website's wording belongs to the firm and is not
+    this module's to restate.
+    """
+    if not lead or not question.get("prefill") or not question.get("prefill_map"):
+        return ""
+    node = lead
+    for part in question["prefill"].split("."):
+        if not isinstance(node, dict) or part not in node:
+            return ""
+        node = node[part]
+    said = node if isinstance(node, list) else [node]
+    said = [str(v) for v in said if v not in (None, "")]
+    if not said:
+        return ""
+    shown = _collapse(question, _mapped(question, question["prefill_map"], node))
+    if shown is None or [str(shown)] == said:
+        return ""
+    return ", ".join(v.replace("_", " ") for v in said)
 
 
 def _mapped(question: dict, mapping: dict, node):
@@ -298,6 +355,13 @@ class Interview:
     # a carried answer that answered itself would be an assumption wearing a
     # confirmation's clothes.
     carried: dict = dc_field(default_factory=dict)
+    # "This one is not a refusal, carry on." Set by `--override-hard-no`, which
+    # already existed for the case where the hard-no LIST is wrong rather than
+    # the client. Without it here, ending the sitting on a block would end it
+    # for the override too, and nothing could ever be created -- caught by
+    # test_a_hard_no_can_be_overridden_deliberately, which is what that test is
+    # for.
+    override_hard_no: bool = False
 
     def pending(self):
         """Every question still to ask, in order, given current answers.
@@ -314,6 +378,27 @@ class Interview:
                 yield section, q
 
     def next_question(self):
+        """The next question to put, or None when the sitting is over.
+
+        A HARD NO ENDS IT HERE, in the one place both front doors ask. Before
+        this, ticking "Needs assurance work" painted a red HARD NO badge on the
+        screen and then asked the next question, and the next: the block was
+        only acted on when the questions ran out. Measured 2 September 2026 --
+        two more questions after the tick, and 29 asked before it.
+
+        Returning None rather than raising is deliberate. Both doors already
+        have a "the questions ran out" branch that computes the blockers and
+        shows the refusal (`web.py` on `nxt is None`, `cli._finish` into
+        `intake.finish`, which tests the blockers before anything else). So the
+        refusal arrives through the path that already existed, and neither door
+        needed a second copy of the rule -- S3: two halves of one tool make the
+        same call because one of them IS the other.
+
+        `pending()` is left alone: it is what the progress counter reads, and a
+        sitting that ends early has not shrunk the schema.
+        """
+        if self.hard_no() and not self.override_hard_no:
+            return None
         return next(iter(self.pending()), None)
 
     def answer(self, qid: str, value) -> None:

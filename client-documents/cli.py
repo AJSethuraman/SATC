@@ -818,7 +818,7 @@ def cmd_from_lead(args) -> int:
     return 0
 
 
-def _ask(section: dict, q: dict, default) -> object:
+def _ask(section: dict, q: dict, default, said: str = "") -> object:
     """One question at a terminal. The only part of the interview that is I/O."""
     print(f"\n  {section['title']}  ·  {q['id']}")
     print(f"  {q['question']}")
@@ -847,7 +847,16 @@ def _ask(section: dict, q: dict, default) -> object:
         # IS confirming it -- retyping it character for character is not a
         # stronger confirmation, it is just friction, and friction is what makes
         # someone stop reading the value before they accept it.
-        hint = (f"website said: {default!r} -- enter to accept, '-' to clear"
+        #
+        # WHAT THEY SAID, WHEN A MAP CHANGED IT. `services: [tax_planning]`
+        # translates to "1040", and this line then told the preparer the
+        # website said "1040" -- which the client never said. The firm on what
+        # a lead is for: "we would confirm what they put there. they didn't
+        # necessarily know what they needed." Confirming what they put there
+        # needs it shown. See interview.prefill_source.
+        hint = (f"website said: {default!r}"
+                + (f" (they asked about {said})" if said else "")
+                + " -- enter to accept, '-' to clear"
                 + (f"; {hint}" if hint else ""))
     req = "required" if q.get("required") else "optional"
     raw = input(f"      [{req}{'; ' + hint if hint else ''}] > ").strip()
@@ -889,7 +898,11 @@ def _ask(section: dict, q: dict, default) -> object:
 def cmd_interview(args) -> int:
     lead = json.loads(Path(args.lead).read_text(encoding="utf-8")) if args.lead else None
     carried = dict(getattr(args, "carried", None) or {})
-    session = iv.Interview(lead=lead, carried=carried)
+    session = iv.Interview(
+        lead=lead, carried=carried,
+        # The operator has already said this block is wrong, so the sitting is
+        # not ended by it. `intake.finish` still records the override.
+        override_hard_no=getattr(args, "override_hard_no", False))
 
     # A saved answers file replays an interview without a human at the
     # keyboard: how the tests drive it, and how you resume one you abandoned.
@@ -937,7 +950,8 @@ def cmd_interview(args) -> int:
             # website's, because a year has passed. It is offered as the
             # default and never taken as given -- the question is still asked.
             value = _ask(section, q,
-                         carried.get(q["id"], iv.prefill_for(q, lead)))
+                         carried.get(q["id"], iv.prefill_for(q, lead)),
+                         iv.prefill_source(q, lead))
             session.answer(q["id"], value)
         except iv.InterviewError as exc:
             print(f"      {exc} -- asking again")
@@ -2203,6 +2217,39 @@ def cmd_sample(args) -> int:
     return 0
 
 
+def cmd_forms(args) -> int:
+    """Do our forms eliminate work, or only claim to?
+
+    The firm's tenet, 2 September 2026: "a tenet of any checklist or
+    interview-like form we make ... no matter if for clients or internal use,
+    should be it directionally eliminates work where possible. for instance, if
+    something is not applicable why would you want to answer questions around
+    it."
+
+    A condition on a question is a CLAIM that the question can be skipped. This
+    runs each one to see whether any answer a person can actually give makes it
+    false. See elimination.py -- and note the sweep reports what it examined,
+    because "no dead conditions" is only good news beside a denominator.
+    """
+    import elimination
+
+    sweeps = elimination.sweep_all()
+    print("\nDo our forms eliminate work?\n")
+    for line in elimination.report(sweeps):
+        print(line)
+
+    dead = [d for s in sweeps.values() for d in s.dead]
+    print()
+    if dead:
+        print(f"  {len(dead)} condition(s) above read like a filter and are not "
+              f"one:\n  the question is put to everybody. Either the condition "
+              f"is wrong, or the\n  question belongs to everybody and should "
+              f"not pretend otherwise.")
+        return 1
+    print("  Every condition can say no to somebody.")
+    return 0
+
+
 def cmd_check(args) -> int:
     """Does this package agree with itself?
 
@@ -2480,6 +2527,10 @@ def main(argv=None) -> int:
     d.add_argument("--out", default="out/demo")
     d.add_argument("--no-pdf", action="store_true")
     d.set_defaults(fn=cmd_demo)
+
+    fm = sub.add_parser("forms",
+                        help="do our forms eliminate work, or only claim to?")
+    fm.set_defaults(fn=cmd_forms)
 
     ck = sub.add_parser("check",
                         help="does a rendered package agree with itself?")
