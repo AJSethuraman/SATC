@@ -241,8 +241,16 @@ _DRAFT_CSS = """
 _BANNER = ('<div slot="header" class="satc-draft-banner">Draft &middot; not for '
            'client use &middot; open decisions marked in oxblood</div>')
 
+# WHAT A PREVIEW SAYS ABOUT ITSELF. A preview is served into a browser, and a
+# browser can print it, save it, and attach it to an email. Nothing here can
+# stop that, so the only honest defence is that the sheet which comes out of
+# the printer says what it is -- on every page, for the same reason the draft
+# stamp does.
+_PREVIEW_BANNER = ('<div slot="header" class="satc-draft-banner">Preview '
+                   '&middot; not the copy that goes to the client</div>')
 
-def _stamp_draft(html: str) -> str:
+
+def _stamp_draft(html: str, banner: str = _BANNER) -> str:
     """Make a draft impossible to mistake for the real document.
 
     The banner goes in doc-page's `slot="header"`, which the component prints
@@ -253,10 +261,34 @@ def _stamp_draft(html: str) -> str:
     """
     html = html.replace("</head>", _DRAFT_CSS + "</head>", 1)
     # after the opening <doc-page ...> tag, so the component owns it
-    html = re.sub(r"(<doc-page\b[^>]*>)", r"\1\n" + _BANNER, html, count=1)
+    html = re.sub(r"(<doc-page\b[^>]*>)", r"\1\n" + banner, html, count=1)
     # highlight every decision nobody has made yet
     return re.sub(r"(\[CONFIRM:[^\]]*\])",
                   r'<span class="satc-open-decision">\1</span>', html)
+
+
+def stamp_preview(html: str, labels: dict | None = None) -> str:
+    """The same stamp, saying the other thing, with the blanks named.
+
+    Public because `previewing` is a second caller and the stamp is the whole
+    reason looking at a document is safe to allow past the gate.
+
+    AND THE BLANKS READ AS BLANKS. A preview of an unfinished document leaves
+    the token where the answer will go, and the token is spelled the way the
+    template spells it -- `<<PaymentDeadline>>`, in the middle of a letter, at
+    a preparer who is looking at a document and not at software. Marked the
+    same way an undecided sentence is marked, and named the way the rest of
+    the software names it.
+    """
+    html = _stamp_draft(html, _PREVIEW_BANNER)
+
+    def blank(m):
+        name = m.group(1)
+        said = (labels or {}).get(name) or name
+        return (f'<span class="satc-open-decision">{said} '
+                f'&mdash; not answered yet</span>')
+
+    return re.sub(r"&lt;&lt;([A-Za-z0-9_]+)&gt;&gt;", blank, html)
 
 
 # ── record assembly ────────────────────────────────────────────────────────
@@ -1983,12 +2015,38 @@ def _inverse_flags() -> tuple:
     return tuple(pairs)
 
 
-def render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool):
+def merge_one(doc: str, record: dict, draft: bool = False):
+    """Fill one document's template. NOTHING IS WRITTEN.
+
+    Split out of `render_one` so that LOOKING at a document does not have to
+    produce a file to look at. `previewing.look` needs the merged text and the
+    refusal, and had no way to ask for either without also writing the thing to
+    disk -- which is the exact difference between reading a letter and sending
+    one.
+
+    `draft` is the same switch it has always been: render past what is not
+    decided yet, rather than refusing.
+    """
     filename, _ = DOCUMENTS[doc]
     template = (TEMPLATE_DIR / filename).read_text(encoding="utf-8")
-    result = merge.render(template, record, strict=not draft,
-                          required_lists=_required_lists().get(doc, ()),
-                          inverse_flags=_inverse_flags())
+    return merge.render(template, record, strict=not draft,
+                        required_lists=_required_lists().get(doc, ()),
+                        inverse_flags=_inverse_flags())
+
+
+def tokens_for(doc: str) -> dict:
+    """Every blank one document has. Reads the template, decides nothing.
+
+    A preview has to say what is still missing in the words a preparer knows,
+    and the merge's own refusal is written for whoever is filling a template.
+    This is the census that gets turned into those words.
+    """
+    filename, _ = DOCUMENTS[doc]
+    return merge.tokens_in((TEMPLATE_DIR / filename).read_text(encoding="utf-8"))
+
+
+def render_one(doc: str, record: dict, outdir: Path, draft: bool, want_pdf: bool):
+    result = merge_one(doc, record, draft)
 
     html = _stamp_draft(result.html) if draft else result.html
     stem = output_name(doc, record, draft)
@@ -2020,16 +2078,17 @@ def cmd_render(args) -> int:
         # they overlap: `PeriodLabel` is the engagement's period on the
         # estimate and the period BILLED here, which is the one value the two
         # documents must NOT share.
-        if "invoice" in (args.docs or ()):
-            bill = invoicing.find(store, args.engagement,
-                                  getattr(args, "invoice", None))
-            if bill is None:
-                print(f"engagement {args.engagement} has no invoice yet. Raise "
-                      f"one first:\n  python cli.py invoice --engagement "
-                      f"{args.engagement} --billed 'March 2027'\n")
-                return 1
-            raw = {**raw, **bill}
-            print(f"  invoice {bill.get('InvoiceNumber', '')}\n")
+        try:
+            folded = invoicing.fold_in(raw, args.docs or (), store,
+                                       args.engagement,
+                                       getattr(args, "invoice", None))
+        except invoicing.InvoiceError as exc:
+            print(f"{exc}\n  Raise one first:\n  python cli.py invoice "
+                  f"--engagement {args.engagement} --billed 'March 2027'\n")
+            return 1
+        if folded is not raw:
+            print(f"  invoice {folded.get('InvoiceNumber', '')}\n")
+        raw = folded
     elif getattr(args, "_record_override", None) is not None:
         # A caller that has already composed the record -- `event` merges the
         # engagement with the facts a preparer just supplied. Passing a path

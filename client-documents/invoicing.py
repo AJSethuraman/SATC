@@ -125,6 +125,34 @@ def find(store: Path, ref: str, number: str | None = None) -> dict | None:
     )
 
 
+def fold_in(record: dict, docs, store: Path, ref: str,
+            number: str | None = None) -> dict:
+    """The record these documents need, not just the one the engagement holds.
+
+    THE BILL LIVES BESIDE THE ENGAGEMENT, NOT INSIDE IT -- one engagement has
+    many invoices, so each is its own file. Anything rendering the invoice
+    needs both, and until this existed each front door remembered that on its
+    own. The terminal remembered. The browser did not: ticking "put the
+    invoice in too" on the packaging screen refused the WHOLE pack, every
+    time, on `<<AmountDue>>, <<InvoiceDate>>, <<InvoiceNumber>>, <<Subtotal>>`
+    -- and because a pack is atomic, the preparer got no letter, no estimate
+    and no onboarding letter either. Found by ticking the box.
+
+    One function, so a third door cannot forget it in a third way.
+    """
+    if "invoice" not in tuple(docs):
+        return record
+    bill = find(store, ref, number)
+    if bill is None:
+        raise InvoiceError(
+            f"engagement {ref} has no bill raised yet, so there is nothing to "
+            f"put on an invoice.")
+    # The invoice's own fields win where they overlap: `PeriodLabel` is the
+    # engagement's period on the estimate and the period BILLED here, which is
+    # the one value the two documents must NOT share.
+    return {**record, **bill}
+
+
 def build(record: dict, *, number: str, billed: str, today: date | None = None,
           credits: list[dict] | None = None, variance_note: str = "",
           currency: str = "USD") -> dict:

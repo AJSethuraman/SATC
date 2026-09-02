@@ -1,12 +1,12 @@
 """The suite split, checked.
 
-`make fast` leaves out the eight tests that open a document. That is a useful
+`make fast` leaves out the nine tests that open a document. That is a useful
 thing and a dangerous one: a green line from a run that opened no document
 looks exactly like a green line from one that opened all of them, and only one
 of them means what the reader takes it to mean.
 
 So two things have to hold, and neither is obvious enough to leave unchecked:
-the eight are still marked, and a run that skips them says so.
+the nine are still marked, and a run that skips them says so.
 """
 
 from __future__ import annotations
@@ -17,8 +17,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# The eight, by name. Listed rather than counted, because "eight tests carry
-# the mark" would still pass if somebody marked eight of the fast ones and
+# The nine, by name. Listed rather than counted, because "nine tests carry
+# the mark" would still pass if somebody marked nine of the fast ones and
 # unmarked these.
 RENDERS = {
     "tests/test_pipeline.py::test_the_opening_package_reaches_pdf",
@@ -29,6 +29,7 @@ RENDERS = {
     "tests/test_web.py::test_the_browser_cannot_skip_the_gate",
     "tests/test_web.py::test_an_override_through_the_browser_is_recorded",
     "tests/test_web.py::test_the_failed_checks_come_before_the_green_ones_on_the_page",
+    "tests/test_adhoc.py::test_a_document_sent_on_its_own_comes_out_as_a_pdf_a_client_can_open",
 }
 
 
@@ -39,7 +40,7 @@ def _collect(*args: str) -> set[str]:
     return {line.strip() for line in out.splitlines() if "::" in line}
 
 
-def test_the_eight_that_open_a_document_are_the_ones_marked():
+def test_the_ones_that_open_a_document_are_the_ones_marked():
     assert _collect("-m", "renders") == RENDERS
 
 
@@ -59,7 +60,7 @@ def test_a_fast_run_refuses_to_look_like_a_full_one():
     """The whole safety of the split. Run one fast test with the render tests
     deselected, and the summary must say what was left out."""
     # Over a file that HAS render tests in it, so the deselection is real.
-    # `test_presend.py` carries three of the eight.
+    # `test_presend.py` carries three of the nine.
     out = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-m", "not renders",
          "tests/test_presend.py"],

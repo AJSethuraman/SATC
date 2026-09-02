@@ -41,6 +41,7 @@ import invoicing
 import packaging
 import payments
 import presend
+import previewing
 import sending
 import schedules as sched
 import interview as iv
@@ -610,7 +611,13 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
         try:
             docs = packaging.documents_for(record, with_invoice=invoice)
             packaging.check_attachments(None)
-        except packaging.PackageError as exc:
+            # THE BILL LIVES IN ITS OWN FILE. Ticking "put the invoice in too"
+            # used to refuse the WHOLE pack -- no letter, no estimate, no
+            # onboarding letter -- because this door never went and got it.
+            # The terminal did. One function now, so a third door cannot
+            # forget it a third way.
+            record = invoicing.fold_in(record, docs, st(), ref)
+        except (packaging.PackageError, invoicing.InvoiceError) as exc:
             if wants_json():
                 return jsonify(ref=ref, status="error", detail=str(exc)), 400
             return page("Package", package_body(ref, record, [],
@@ -783,6 +790,176 @@ def create_app(store: Path | None = None, leads_workbook: Path | None = None) ->
                     requoted_body(ref, record, quote, changes))
 
     # ── signatures ────────────────────────────────────────────────────────
+    # ── the shelf: pieces of this, one at a time ─────────────────────────
+    #
+    # The firm, 2 September 2026: "we have a lot of, what i would consider to
+    # be, smaller functions. i would want to be able to re-print stuff, so
+    # obviously i dont want to have to do an interview every time i make an
+    # engagement letter. the GUI needs to have a way to use pieces of this
+    # stuff ad hoc."
+    #
+    # And, on being told every one of those pieces would have to pass the
+    # blocking gate first: "what we need to be able to also like print it or
+    # something to screen - or a preview. something like it doesn't make sense
+    # to forcibly have one output".
+    #
+    # TWO ACTS, TWO ANSWERS, and the split lives in `previewing` and `sending`
+    # rather than here. Looking at a document is nobody's copy but yours, so it
+    # is never blocked and always stamped. Sending one is the artefact a client
+    # gets, so it goes through the same `sending.build` the pack goes through,
+    # with the same gate, the same written reason and the same log.
+
+    def _shelf_record(ref, doc=None):
+        """This engagement, plus whatever the named document needs beside it."""
+        record = cli.build_record(engagements.load(ref, st()))
+        if doc is None:
+            return record
+        return invoicing.fold_in(record, [doc], st(), ref,
+                                 request.args.get("invoice") or None)
+
+    def _look(ref, doc):
+        record = _shelf_record(ref, doc)
+        return record, previewing.look(
+            record, doc, merge_one=cli.merge_one, stamp=cli.stamp_preview,
+            template_dir=cli.TEMPLATE_DIR,
+            filename=cli.output_name(doc, record, False),
+            tokens=cli.tokens_for(doc), labels=_field_labels())
+
+    @app.get("/engagement/<ref>/documents")
+    def shelf(ref):
+        try:
+            record = _shelf_record(ref)
+        except (FileNotFoundError, ValueError, engagements.EngagementError):
+            abort(404, f"no engagement {ref}")
+        rows = []
+        for doc in previewing.shelf(record):
+            try:
+                one = _shelf_record(ref, doc)
+            except invoicing.InvoiceError:
+                # No bill raised yet. The document is still on the shelf and
+                # still worth looking at; it just has nothing to say yet.
+                one = record
+            look = previewing.look(
+                one, doc, merge_one=cli.merge_one, stamp=cli.stamp_preview,
+                template_dir=cli.TEMPLATE_DIR,
+                filename=cli.output_name(doc, one, False),
+                tokens=cli.tokens_for(doc), labels=_field_labels())
+            rows.append((doc, look))
+        if wants_json():
+            return jsonify(ref=ref, documents=[
+                {"document": d, "label": cli.DOCUMENTS[d][1], "ready": lk.ready,
+                 "alone": lk.alone, "wanting": lk.wanting,
+                 "blocking": len(lk.blocking)} for d, lk in rows])
+        return page("Documents", shelf_body(ref, record, rows))
+
+    @app.get("/engagement/<ref>/documents/<doc>")
+    def one_document(ref, doc):
+        if doc not in cli.DOCUMENTS:
+            abort(404, "no such document")
+        try:
+            record, look = _look(ref, doc)
+        except (FileNotFoundError, ValueError, engagements.EngagementError):
+            abort(404, f"no engagement {ref}")
+        except invoicing.InvoiceError as exc:
+            if wants_json():
+                return jsonify(ref=ref, document=doc, error=str(exc)), 409
+            return page(cli.DOCUMENTS[doc][1],
+                        document_body(ref, doc, None, None, problem=str(exc)))
+        if wants_json():
+            return jsonify(
+                ref=ref, document=doc, ready=look.ready, alone=look.alone,
+                why_not_alone=look.why_not_alone, wanting=look.wanting,
+                blocking=[{"check": f.check, "document": f.document,
+                           "detail": f.detail} for f in look.blocking])
+        return page(cli.DOCUMENTS[doc][1],
+                    document_body(ref, doc, record, look))
+
+    # THE TRAILING SLASH IS LOAD-BEARING. Every template links `satc-doc.css`
+    # and `doc-page.js` by relative path, so the address the document is served
+    # at decides where the browser looks for them -- and at `.../page` it looks
+    # one level too high and finds nothing. A document served without its
+    # stylesheet is the "these html files are plain text?" bug, arriving by a
+    # new door.
+    @app.get("/engagement/<ref>/documents/<doc>/page/")
+    def one_document_page(ref, doc):
+        """The document itself, so a browser can open it, read it and print it.
+
+        Served as the page rather than described on one: the whole point of
+        looking at something is looking at it.
+        """
+        if doc not in cli.DOCUMENTS:
+            abort(404, "no such document")
+        try:
+            _, look = _look(ref, doc)
+        except (FileNotFoundError, ValueError, engagements.EngagementError):
+            abort(404, f"no engagement {ref}")
+        except invoicing.InvoiceError as exc:
+            abort(409, str(exc))
+        return look.html, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+    @app.get("/engagement/<ref>/documents/<doc>/page/<asset>")
+    def one_document_asset(ref, doc, asset):
+        """The two files every document links. Which two is not decided here."""
+        found = previewing.asset(cli.TEMPLATE_DIR, asset)
+        if found is None:
+            abort(404, "no such file")
+        kind = ("text/css" if found.suffix == ".css"
+                else "application/javascript")
+        return found.read_text(encoding="utf-8"), 200, \
+            {"Content-Type": f"{kind}; charset=utf-8"}
+
+    @app.post("/engagement/<ref>/documents/<doc>")
+    def send_one_document(ref, doc):
+        """SENDING, which is the other act entirely. Same gate as the pack."""
+        if doc not in cli.DOCUMENTS:
+            abort(404, "no such document")
+        try:
+            record = _shelf_record(ref, doc)
+        except (FileNotFoundError, ValueError, engagements.EngagementError):
+            abort(404, f"no engagement {ref}")
+        except invoicing.InvoiceError as exc:
+            if wants_json():
+                return jsonify(ref=ref, document=doc, status="error",
+                               detail=str(exc)), 409
+            return page(cli.DOCUMENTS[doc][1],
+                        document_body(ref, doc, None, None,
+                                      problem=str(exc))), 409
+
+        allowed, why = previewing.alone_ok(record, doc)
+        if not allowed:
+            if wants_json():
+                return jsonify(ref=ref, document=doc, status="with-the-pack",
+                               detail=why), 409
+            return page(cli.DOCUMENTS[doc][1],
+                        sent_body(ref, doc, record, None, refused=why)), 409
+
+        body = request.get_json(silent=True) if request.is_json else None
+        form = body if body is not None else request.form
+        want_pdf = True
+        try:
+            cli.pdf_engine()
+        except cli.NoPdfEngine:
+            want_pdf = False
+
+        pack = sending.build(
+            record, st() / ref / "documents" / doc, render=cli.render_one,
+            ref=record.get("EngagementRef") or ref, store=st(),
+            template_dir=cli.TEMPLATE_DIR, documents=[doc], want_pdf=want_pdf,
+            force=bool(form.get("force")),
+            reason=(form.get("reason") or "").strip())
+
+        if wants_json():
+            return jsonify(
+                ref=ref, document=doc, status=pack.status,
+                written=sorted(f.name for fs in pack.written.values()
+                               for f in fs),
+                blocking=[{"check": f.check, "document": f.document,
+                           "detail": f.detail}
+                          for f in (pack.check.blocking if pack.check else [])],
+                override=pack.override,
+                detail=pack.detail), (200 if pack.ok else 409)
+        return page(cli.DOCUMENTS[doc][1], sent_body(ref, doc, record, pack))
+
     #
     # THE HALF THAT PAYS. Sending a pack is three minutes of clicking in
     # whatever portal the letters name; knowing which clients have not signed,
@@ -978,6 +1155,10 @@ table{border-collapse:collapse;width:100%;font-size:14px}
 td,th{text-align:left;padding:7px 10px;border-bottom:1px solid var(--hairline-2)}
 th{font:11px/1 "IBM Plex Mono",monospace;letter-spacing:.1em;
 text-transform:uppercase;color:var(--ink-2)}
+iframe.doc{width:min(96vw,980px);height:820px;border:1px solid #d9d4cc;
+  background:#fff;margin:8px 0 22px;display:block;
+  margin-left:calc(50% - min(48vw,490px))}
+td.act{white-space:nowrap}
 .hardno{border:1px solid var(--oxblood);border-left-width:3px;padding:14px 16px;
 margin:0 0 20px}
 .hardno h2{color:var(--oxblood);font-size:15px;margin:0 0 8px}
@@ -1601,6 +1782,11 @@ def engagement_body(ref, record, open_now, revisions=()) -> str:
                f"class=row><button class=ghost>Signatures</button>"
                f"<span class=muted>Who still has to sign, and recording one "
                f"that has come back.</span></form>")
+    out.append(f"<form method=get action='/engagement/{esc(ref)}/documents' "
+               f"class=row><button class=ghost>Documents</button>"
+               f"<span class=muted>Every document this file can produce, one "
+               f"at a time &mdash; to read, to print, or to send. No "
+               f"interview.</span></form>")
     out.append(f"<form method=get action='/engagement/{esc(ref)}/requote' "
                f"class=row><button class=ghost>Update the quote</button>"
                f"<span class=muted>The work changed &mdash; a second rental, "
@@ -2082,6 +2268,189 @@ def packed_body(ref, record, pack, with_invoice, pdf_note="") -> str:
             out.append(f"<li><b>{esc(f.check)}</b>{where}<br>"
                        f"{esc(f.detail)}</li>")
         out.append("</ul>")
+    return "".join(out)
+
+
+def shelf_body(ref, record, rows) -> str:
+    """Every document this client's file can produce, and what each still needs.
+
+    THE FIRM'S WORDS FOR IT: "the GUI needs to have a way to use pieces of this
+    stuff ad hoc." This is the shelf. Nothing on it asks for an interview --
+    everything here is built from answers that are already on file.
+    """
+    out = [f"<h1>Documents</h1>",
+           f"<p class=sec>{esc(ref)} &middot; "
+           f"{esc(record.get('ClientFullName',''))}</p>",
+           "<p class=help>Everything this client's file can produce, without "
+           "sitting down for another interview. Look at any of them. The ones "
+           "that go out on their own can be sent from here; the rest travel "
+           "with the signing pack.</p>",
+           "<table><tr><th>Document</th><th>Where it stands</th>"
+           "<th></th></tr>"]
+    for doc, look in rows:
+        if look.ready:
+            state = "Ready"
+            if not look.alone:
+                state += " &mdash; goes out with the pack"
+        elif look.wanting:
+            state = "Still needs " + esc("; ".join(look.wanting).lower())
+        else:
+            state = "Not ready yet"
+        out.append(f"<tr><td>{esc(cli.DOCUMENTS[doc][1])}</td>"
+                   f"<td>{state}</td>"
+                   f"<td class=act><a href='/engagement/{esc(ref)}"
+                   f"/documents/{esc(doc)}'>Look at it</a></td></tr>")
+    out.append("</table>")
+    out.append(f"<form method=get action='/engagement/{esc(ref)}/package' "
+               f"class=row><button class=ghost>Build the signing pack</button>"
+               f"<span class=muted>Everything this client signs, in one go "
+               f"&mdash; the way to get a fresh copy of the engagement "
+               f"letter.</span></form>")
+    return "".join(out)
+
+
+def document_body(ref, doc, record, look, problem="") -> str:
+    """One document, on screen, with everything known about it beside it.
+
+    THE ORDER IS THE ORDER SOMEBODY READS IN. What is wrong comes first,
+    because acting on it is the reason to be here; then the document itself,
+    because that is what was asked for; then the checks, which are the detail
+    behind the first part.
+    """
+    label = cli.DOCUMENTS[doc][1]
+    out = [f"<h1>{esc(label)}</h1>",
+           f"<p class=sec>{esc(ref)}</p>"]
+    if problem:
+        out.append(f"<div class=hardno><h2>Nothing to show yet</h2>"
+                   f"<p>{esc(problem)}</p></div>")
+        return "".join(out)
+
+    out.append(f"<p class=sec>{esc(record.get('ClientFullName',''))}</p>")
+
+    if not look.ready:
+        out.append("<div class=hardno><h2>This one is not finished</h2>"
+                   "<p>You can read it below, and every blank is marked. It "
+                   "cannot go to the client until these are answered:</p><ul>")
+        for line in look.wanting:
+            out.append(f"<li>{esc(line)}</li>")
+        out.append("</ul><p>There is no way to answer them here yet.</p>"
+                   "</div>")
+
+    if not look.alone:
+        out.append(f"<div class=note><h2>This one goes out with the "
+                   f"others</h2><p>{esc(look.why_not_alone)}</p></div>")
+
+    out.append("<p class=help>This is a copy to read, not the copy that goes "
+               "out &mdash; it says so on every page, so a sheet of it left on "
+               "a desk cannot be mistaken for the real one. Open it on its own "
+               "to print it.</p>")
+    out.append(f"<p><a href='/engagement/{esc(ref)}/documents/{esc(doc)}"
+               f"/page/' target=_blank>Open it on its own</a></p>")
+    out.append(f"<iframe class=doc title='{esc(label)}' "
+               f"src='/engagement/{esc(ref)}/documents/{esc(doc)}/page/'>"
+               f"</iframe>")
+
+    # WHAT FAILED IS NAMED WHEREVER IT FAILED. This block used to sit inside
+    # the "can this be sent" branch, so a document that was not finished
+    # showed FAIL in the table underneath and nothing at all above it --
+    # which is the exact disagreement the packaging screen already has a test
+    # against, arriving one screen over.
+    if look.blocking:
+        out.append(f"<div class=hardno><h2>{len(look.blocking)} check(s) "
+                   f"would stop this going out</h2><ul>")
+        for f in look.blocking:
+            out.append(f"<li><b>{esc(f.check)}</b><br>{esc(f.detail)}</li>")
+        out.append("</ul></div>")
+
+    if look.alone and not look.ready:
+        out.append("<p class=muted>There is nothing to send yet. The blanks "
+                   "listed at the top have to be answered first.</p>")
+    if look.alone and look.ready:
+        out.append(f"<form method=post action='/engagement/{esc(ref)}"
+                   f"/documents/{esc(doc)}'>"
+                   f"<div class=row><button>Send this one</button>"
+                   f"<span class=muted>Checked first, the same way the pack "
+                   f"is. Nothing is written unless it passes.</span></div>"
+                   f"</form>")
+
+    if look.check is not None:
+        out.append(_checks_block(look.check))
+        out.append("<p class=muted>Checked as though this were the only thing "
+                   "in the envelope, which is why one of them can complain "
+                   "about a letter that normally travels with others.</p>")
+    return "".join(out)
+
+
+def sent_body(ref, doc, record, pack, refused="") -> str:
+    """What happened when somebody sent one document on its own."""
+    label = cli.DOCUMENTS[doc][1]
+    out = [f"<h1>{esc(label)}</h1>",
+           f"<p class=sec>{esc(ref)} &middot; "
+           f"{esc(record.get('ClientFullName','') if record else '')}</p>"]
+    if refused:
+        out.append(f"<div class=hardno><h2>Nothing was sent</h2>"
+                   f"<p>{esc(refused)}</p></div>")
+        return "".join(out)
+
+    if pack.status == "not-ours":
+        out.append(f"<div class=hardno><h2>That folder is somebody's</h2>"
+                   f"<p>{esc(str(pack.outdir))} already has files in it that "
+                   f"this did not write, so nothing was touched.</p></div>")
+        return "".join(out)
+
+    if pack.status == "refused-merge":
+        out.append("<div class=hardno><h2>Nothing was written</h2>"
+                   "<p>This document will not build as it stands.</p><ul>")
+        for _, why in pack.refused:
+            out.append(f"<li>{esc(why)}</li>")
+        out.append("</ul></div>")
+        return "".join(out)
+
+    check = pack.check
+    if pack.status in ("refused-gate", "no-reason", "not-logged"):
+        out.append(f"<div class=hardno><h2>{len(check.blocking)} check(s) "
+                   f"failed, so nothing was written</h2><ul>")
+        for f in check.blocking:
+            where = f" &mdash; {esc(f.document)}" if f.document else ""
+            out.append(f"<li><b>{esc(f.check)}</b>{where}<br>"
+                       f"{esc(f.detail)}</li>")
+        out.append("</ul></div>")
+        if pack.status == "no-reason":
+            out.append("<p class=err>Sending it anyway needs a reason written "
+                       "down. An override nobody wrote a reason for is just a "
+                       "quieter way to send something that did not pass.</p>")
+        if pack.status == "not-logged":
+            out.append(f"<p class=err>The override could not be recorded "
+                       f"({esc(pack.detail)}), so nothing was sent. The record "
+                       f"is the only thing that makes an override different "
+                       f"from having no check at all.</p>")
+        out.append(f"<form method=post action='/engagement/{esc(ref)}"
+                   f"/documents/{esc(doc)}'>"
+                   f"<input type=hidden name=force value=1>"
+                   "<div class=f><label class=fl for=why>Why is this going "
+                   "out as it is?</label>"
+                   "<textarea id=why name=reason rows=2></textarea></div>"
+                   "<div class=row><button class=ghost>Send it anyway, and "
+                   "record that</button><span class=muted>Goes in this "
+                   "engagement's record, with the checks it failed.</span>"
+                   "</div></form>")
+        out.append(_checks_block(check))
+        return "".join(out)
+
+    out.append(f"<p class=help>Built and checked. It is in "
+               f"<code>{esc(str(pack.outdir))}</code>.</p>")
+    if pack.override:
+        out.append(f"<div class=note><h2>Sent past a failed check</h2>"
+                   f"<p>Recorded in this engagement's record: "
+                   f"<code>{esc(pack.override)}</code></p></div>")
+    out.append("<table class=plain>")
+    for files in pack.written.values():
+        for f in files:
+            out.append(f"<tr><th>{esc(f.name)}</th><td></td></tr>")
+    out.append("</table>")
+    out.append(_checks_block(check))
+    out.append(f"<p><a href='/engagement/{esc(ref)}/documents'>"
+               f"Back to the documents</a></p>")
     return "".join(out)
 
 
