@@ -51,8 +51,16 @@ CONFIRM = re.compile(r"\[CONFIRM:\s*(.*?)\s*\]", re.S)
 _TOKEN = re.compile(r"<<(\w+)>>")
 
 # States a Square order reaches. `COMPLETED` is the only one that means money
-# arrived; `OPEN` is a link nobody has paid yet, and reading it as anything else
-# would mark a bill settled because somebody looked at the page.
+# arrived, and reading any other as paid would mark a bill settled because
+# somebody looked at the page.
+#
+# AN UNPAID QUICK-PAY LINK READS `DRAFT`, not `OPEN`. Observed against the live
+# sandbox on 2 September 2026 -- the first run of this code that ever reached
+# Square returned `order CAcLRdwVCq... reads DRAFT`. This comment said `OPEN`,
+# which was written from the API documentation rather than from a reply, and
+# named a state this flow does not produce. The behaviour was right either way
+# because only `COMPLETED` is ever treated as paid, and that is the point of
+# allowing exactly one state rather than excluding the ones we expect.
 PAID = "COMPLETED"
 
 
